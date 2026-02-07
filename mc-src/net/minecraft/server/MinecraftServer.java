@@ -77,6 +77,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import net.minecraft.oracle.OracleRecorder;
+import net.minecraft.oracle.OracleStateExporter;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
@@ -384,7 +385,12 @@ public abstract class MinecraftServer implements ICommandSender, Runnable, IPlay
      */
     public void stopServer()
     {
-        // Oracle: stop recording before saving
+        // Oracle: export final state and stop recording before saving
+        if (OracleRecorder.get().isRecording() && this.worldServers != null && this.worldServers.length > 0)
+        {
+            String snapshotDir = this.worldServers[0].getSaveHandler().getWorldDirectory().getAbsolutePath();
+            OracleStateExporter.exportAllDimensions(this, snapshotDir, this.tickCounter);
+        }
         OracleRecorder.get().stopRecording();
 
         if (!this.worldIsBeingDeleted && Loader.instance().hasReachedState(LoaderState.SERVER_STARTED) && !serverStopped) // make sure the save is valid and we don't save twice
@@ -614,6 +620,16 @@ public abstract class MinecraftServer implements ICommandSender, Runnable, IPlay
             long seed = this.worldServers[0].getSeed();
             String path = new File(this.worldServers[0].getSaveHandler().getWorldDirectory(), "oracle_recording.nrec").getAbsolutePath();
             OracleRecorder.get().startRecording(path, seed, this.tickCounter);
+            // Export initial state snapshot
+            String snapshotDir = this.worldServers[0].getSaveHandler().getWorldDirectory().getAbsolutePath();
+            OracleStateExporter.exportAllDimensions(this, snapshotDir, this.tickCounter);
+        }
+
+        // Oracle: periodic state export every 6000 ticks (5 min) during recording
+        if (OracleRecorder.get().isRecording() && this.tickCounter % 6000 == 0)
+        {
+            String snapshotDir = this.worldServers[0].getSaveHandler().getWorldDirectory().getAbsolutePath();
+            OracleStateExporter.exportAllDimensions(this, snapshotDir, this.tickCounter);
         }
 
         if (this.startProfiling)
