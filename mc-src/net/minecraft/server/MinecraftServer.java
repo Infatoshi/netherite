@@ -76,6 +76,7 @@ import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import net.minecraft.oracle.OracleRecorder;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
@@ -383,6 +384,9 @@ public abstract class MinecraftServer implements ICommandSender, Runnable, IPlay
      */
     public void stopServer()
     {
+        // Oracle: stop recording before saving
+        OracleRecorder.get().stopRecording();
+
         if (!this.worldIsBeingDeleted && Loader.instance().hasReachedState(LoaderState.SERVER_STARTED) && !serverStopped) // make sure the save is valid and we don't save twice
         {
             logger.info("Stopping server");
@@ -602,6 +606,15 @@ public abstract class MinecraftServer implements ICommandSender, Runnable, IPlay
         long i = System.nanoTime();
         FMLCommonHandler.instance().onPreServerTick();
         ++this.tickCounter;
+
+        // Oracle: auto-start recording when first player joins
+        if (!OracleRecorder.get().isRecording() && this.serverConfigManager != null
+            && this.getCurrentPlayerCount() > 0 && this.worldServers != null && this.worldServers.length > 0)
+        {
+            long seed = this.worldServers[0].getSeed();
+            String path = new File(this.worldServers[0].getSaveHandler().getWorldDirectory(), "oracle_recording.nrec").getAbsolutePath();
+            OracleRecorder.get().startRecording(path, seed, this.tickCounter);
+        }
 
         if (this.startProfiling)
         {

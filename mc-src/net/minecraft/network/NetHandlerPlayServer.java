@@ -86,6 +86,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import net.minecraft.oracle.OracleAction;
+import net.minecraft.oracle.OracleRecorder;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.MinecraftForge;
 import cpw.mods.fml.common.eventhandler.Event;
@@ -200,6 +202,12 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processInput(C0CPacketInput p_147358_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.PLAYER_INPUT,
+                OracleAction.playerInput(p_147358_1_.func_149620_c(), p_147358_1_.func_149616_d(),
+                    p_147358_1_.func_149618_e(), p_147358_1_.func_149617_f()));
+        }
         this.playerEntity.setEntityActionState(p_147358_1_.func_149620_c(), p_147358_1_.func_149616_d(), p_147358_1_.func_149618_e(), p_147358_1_.func_149617_f());
     }
 
@@ -208,6 +216,36 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processPlayer(C03PacketPlayer p_147347_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            int tick = this.serverController.getTickCounter();
+            boolean hasPos = p_147347_1_.func_149466_j();
+            boolean hasRot = p_147347_1_.func_149463_k();
+            if (hasPos && hasRot)
+            {
+                OracleRecorder.get().recordAction(tick, OracleAction.PLAYER_POS_LOOK,
+                    OracleAction.playerPosLook(p_147347_1_.func_149464_c(), p_147347_1_.func_149467_d(),
+                        p_147347_1_.func_149472_e(), p_147347_1_.func_149471_f(),
+                        p_147347_1_.func_149462_g(), p_147347_1_.func_149470_h(), p_147347_1_.func_149465_i()));
+            }
+            else if (hasPos)
+            {
+                OracleRecorder.get().recordAction(tick, OracleAction.PLAYER_POSITION,
+                    OracleAction.playerPosition(p_147347_1_.func_149464_c(), p_147347_1_.func_149467_d(),
+                        p_147347_1_.func_149472_e(), p_147347_1_.func_149471_f(), p_147347_1_.func_149465_i()));
+            }
+            else if (hasRot)
+            {
+                OracleRecorder.get().recordAction(tick, OracleAction.PLAYER_LOOK,
+                    OracleAction.playerLook(p_147347_1_.func_149462_g(), p_147347_1_.func_149470_h(),
+                        p_147347_1_.func_149465_i()));
+            }
+            else
+            {
+                OracleRecorder.get().recordAction(tick, OracleAction.PLAYER_GROUND,
+                    OracleAction.playerGround(p_147347_1_.func_149465_i()));
+            }
+        }
         WorldServer worldserver = this.serverController.worldServerForDimension(this.playerEntity.dimension);
         this.field_147366_g = true;
 
@@ -457,6 +495,12 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processPlayerDigging(C07PacketPlayerDigging p_147345_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.BLOCK_DIG,
+                OracleAction.blockDig(p_147345_1_.func_149506_g(), p_147345_1_.func_149505_c(),
+                    p_147345_1_.func_149503_d(), p_147345_1_.func_149502_e(), p_147345_1_.func_149501_f()));
+        }
         WorldServer worldserver = this.serverController.worldServerForDimension(this.playerEntity.dimension);
         this.playerEntity.func_143004_u();
 
@@ -553,6 +597,14 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processPlayerBlockPlacement(C08PacketPlayerBlockPlacement p_147346_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            int itemId = p_147346_1_.func_149574_g() != null ? net.minecraft.item.Item.getIdFromItem(p_147346_1_.func_149574_g().getItem()) : -1;
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.BLOCK_PLACE,
+                OracleAction.blockPlace(p_147346_1_.func_149576_c(), p_147346_1_.func_149571_d(),
+                    p_147346_1_.func_149570_e(), p_147346_1_.func_149568_f(), itemId,
+                    p_147346_1_.func_149573_h(), p_147346_1_.func_149569_i(), p_147346_1_.func_149575_j()));
+        }
         WorldServer worldserver = this.serverController.worldServerForDimension(this.playerEntity.dimension);
         ItemStack itemstack = this.playerEntity.inventory.getCurrentItem();
         boolean flag = false;
@@ -722,6 +774,11 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processHeldItemChange(C09PacketHeldItemChange p_147355_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.HELD_ITEM,
+                OracleAction.heldItem(p_147355_1_.func_149614_c()));
+        }
         if (p_147355_1_.func_149614_c() >= 0 && p_147355_1_.func_149614_c() < InventoryPlayer.getHotbarSize())
         {
             this.playerEntity.inventory.currentItem = p_147355_1_.func_149614_c();
@@ -738,6 +795,11 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processChatMessage(C01PacketChatMessage p_147354_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.CHAT,
+                OracleAction.chat(p_147354_1_.func_149439_c()));
+        }
         if (this.playerEntity.func_147096_v() == EntityPlayer.EnumChatVisibility.HIDDEN)
         {
             ChatComponentTranslation chatcomponenttranslation = new ChatComponentTranslation("chat.cannotSend", new Object[0]);
@@ -793,6 +855,11 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processAnimation(C0APacketAnimation p_147350_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.ANIMATION,
+                OracleAction.animation());
+        }
         this.playerEntity.func_143004_u();
 
         if (p_147350_1_.func_149421_d() == 1)
@@ -807,6 +874,11 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processEntityAction(C0BPacketEntityAction p_147357_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.ENTITY_ACTION,
+                OracleAction.entityAction(p_147357_1_.func_149513_d(), p_147357_1_.func_149512_e()));
+        }
         this.playerEntity.func_143004_u();
 
         if (p_147357_1_.func_149513_d() == 1)
@@ -845,6 +917,15 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processUseEntity(C02PacketUseEntity p_147340_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            WorldServer ws = this.serverController.worldServerForDimension(this.playerEntity.dimension);
+            Entity target = p_147340_1_.func_149564_a(ws);
+            int targetId = target != null ? target.getEntityId() : -1;
+            int action = p_147340_1_.func_149565_c() == C02PacketUseEntity.Action.ATTACK ? 1 : 0;
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.USE_ENTITY,
+                OracleAction.useEntity(targetId, action));
+        }
         WorldServer worldserver = this.serverController.worldServerForDimension(this.playerEntity.dimension);
         Entity entity = p_147340_1_.func_149564_a(worldserver);
         this.playerEntity.func_143004_u();
@@ -886,6 +967,11 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processClientStatus(C16PacketClientStatus p_147342_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.CLIENT_STATUS,
+                OracleAction.clientStatus(p_147342_1_.func_149435_c().ordinal()));
+        }
         this.playerEntity.func_143004_u();
         C16PacketClientStatus.EnumState enumstate = p_147342_1_.func_149435_c();
 
@@ -934,6 +1020,11 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processCloseWindow(C0DPacketCloseWindow p_147356_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.CLOSE_WINDOW,
+                OracleAction.closeWindow(0));
+        }
         this.playerEntity.closeContainer();
     }
 
@@ -944,6 +1035,12 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processClickWindow(C0EPacketClickWindow p_147351_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.CLICK_WINDOW,
+                OracleAction.clickWindow(p_147351_1_.func_149548_c(), p_147351_1_.func_149544_d(),
+                    p_147351_1_.func_149543_e(), p_147351_1_.func_149547_f(), p_147351_1_.func_149542_h()));
+        }
         this.playerEntity.func_143004_u();
 
         if (this.playerEntity.openContainer.windowId == p_147351_1_.func_149548_c() && this.playerEntity.openContainer.isPlayerNotUsingContainer(this.playerEntity))
@@ -1127,6 +1224,11 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
      */
     public void processPlayerAbilities(C13PacketPlayerAbilities p_147348_1_)
     {
+        if (OracleRecorder.get().isRecording())
+        {
+            OracleRecorder.get().recordAction(this.serverController.getTickCounter(), OracleAction.PLAYER_ABILITIES,
+                OracleAction.playerAbilities(p_147348_1_.func_149488_d()));
+        }
         this.playerEntity.capabilities.isFlying = p_147348_1_.func_149488_d() && this.playerEntity.capabilities.allowFlying;
     }
 
