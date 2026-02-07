@@ -19,7 +19,7 @@ import net.minecraft.tileentity.TileEntityChest;
 import net.minecraft.tileentity.TileEntityEndPortal;
 import net.minecraft.tileentity.TileEntityEnderChest;
 import net.minecraft.tileentity.TileEntityMobSpawner;
-import net.minecraft.tileentity.TileEntityPiston;
+// stripped: import net.minecraft.tileentity.TileEntityPiston;
 import net.minecraft.tileentity.TileEntitySign;
 // stripped: import net.minecraft.tileentity.TileEntitySkull;
 import net.minecraft.util.ReportedException;
@@ -52,7 +52,7 @@ public class TileEntityRendererDispatcher
     {
         this.mapSpecialRenderers.put(TileEntitySign.class, new TileEntitySignRenderer());
         this.mapSpecialRenderers.put(TileEntityMobSpawner.class, new TileEntityMobSpawnerRenderer());
-        this.mapSpecialRenderers.put(TileEntityPiston.class, new TileEntityRendererPiston());
+        // stripped: piston renderer
         this.mapSpecialRenderers.put(TileEntityChest.class, new TileEntityChestRenderer());
         this.mapSpecialRenderers.put(TileEntityEnderChest.class, new TileEntityEnderChestRenderer());
         // stripped: enchantment table renderer

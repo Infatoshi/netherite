@@ -31,7 +31,7 @@ import net.minecraft.entity.boss.EntityDragonPart;
 import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.item.EntityMinecart;
-import net.minecraft.entity.item.EntityMinecartHopper;
+// stripped: import net.minecraft.entity.item.EntityMinecartHopper;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.monster.IMob;
 import net.minecraft.entity.passive.EntityHorse;
@@ -63,9 +63,9 @@ import net.minecraft.stats.StatList;
 import net.minecraft.tileentity.TileEntity;
 // stripped: import net.minecraft.tileentity.TileEntityBeacon;
 // stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
-import net.minecraft.tileentity.TileEntityDispenser;
+// stripped: import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityFurnace;
-import net.minecraft.tileentity.TileEntityHopper;
+// stripped: import net.minecraft.tileentity.TileEntityHopper;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChunkCoordinates;
@@ -1066,9 +1066,9 @@ public abstract class EntityPlayer extends EntityLivingBase implements ICommandS
      */
     public void displayGUIChest(IInventory p_71007_1_) {}
 
-    public void func_146093_a(TileEntityHopper p_146093_1_) {}
+    public void func_146093_a(TileEntity p_146093_1_) {} // stripped: hopper GUI
 
-    public void displayGUIHopperMinecart(EntityMinecartHopper p_96125_1_) {}
+    public void displayGUIHopperMinecart(Entity p_96125_1_) {} // stripped: hopper minecart GUI
 
     public void displayGUIHorse(EntityHorse p_110298_1_, IInventory p_110298_2_) {}
 
@@ -1241,7 +1241,7 @@ public abstract class EntityPlayer extends EntityLivingBase implements ICommandS
 
     public void func_146101_a(TileEntityFurnace p_146101_1_) {}
 
-    public void func_146102_a(TileEntityDispenser p_146102_1_) {}
+    public void func_146102_a(TileEntity p_146102_1_) {} // stripped: dispenser GUI
 
     public void func_146100_a(TileEntity p_146100_1_) {}
 

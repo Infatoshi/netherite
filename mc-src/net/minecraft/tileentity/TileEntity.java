@@ -310,16 +310,16 @@ public class TileEntity
         addMapping(TileEntityFurnace.class, "Furnace");
         addMapping(TileEntityChest.class, "Chest");
         addMapping(TileEntityEnderChest.class, "EnderChest");
-        addMapping(TileEntityDispenser.class, "Trap");
-        addMapping(TileEntityDropper.class, "Dropper");
+        // stripped: TileEntityDispenser ("Trap")
+        // stripped: TileEntityDropper ("Dropper")
         addMapping(TileEntitySign.class, "Sign");
         addMapping(TileEntityMobSpawner.class, "MobSpawner");
-        addMapping(TileEntityPiston.class, "Piston");
+        // stripped: TileEntityPiston ("Piston")
         // stripped: TileEntityEnchantmentTable ("EnchantTable")
         addMapping(TileEntityEndPortal.class, "Airportal");
         // stripped: TileEntityBeacon ("Beacon")
-        addMapping(TileEntityHopper.class, "Hopper");
-        addMapping(TileEntityComparator.class, "Comparator");
+        // stripped: TileEntityHopper ("Hopper")
+        // stripped: TileEntityComparator ("Comparator")
     }
 
     // -- BEGIN FORGE PATCHES --

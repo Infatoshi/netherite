@@ -21,7 +21,7 @@ import net.minecraft.entity.item.EntityItemFrame;
 import net.minecraft.entity.item.EntityMinecartChest;
 import net.minecraft.entity.item.EntityMinecartEmpty;
 import net.minecraft.entity.item.EntityMinecartFurnace;
-import net.minecraft.entity.item.EntityMinecartHopper;
+// stripped: import net.minecraft.entity.item.EntityMinecartHopper;
 import net.minecraft.entity.item.EntityMinecartTNT;
 import net.minecraft.entity.item.EntityPainting;
 import net.minecraft.entity.item.EntityTNTPrimed;
@@ -300,7 +300,7 @@ public class EntityList
         addMapping(EntityMinecartChest.class, "MinecartChest", 43);
         addMapping(EntityMinecartFurnace.class, "MinecartFurnace", 44);
         addMapping(EntityMinecartTNT.class, "MinecartTNT", 45);
-        addMapping(EntityMinecartHopper.class, "MinecartHopper", 46);
+        // stripped: addMapping(EntityMinecartHopper.class, "MinecartHopper", 46);
         addMapping(EntityMinecartMobSpawner.class, "MinecartSpawner", 47);
         addMapping(EntityMinecartCommandBlock.class, "MinecartCommandBlock", 40);
         addMapping(EntityLiving.class, "Mob", 48);

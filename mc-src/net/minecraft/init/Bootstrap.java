@@ -30,7 +30,7 @@ import net.minecraft.item.ItemMonsterPlacer;
 import net.minecraft.item.ItemPotion;
 import net.minecraft.item.ItemStack;
 import net.minecraft.stats.StatList;
-import net.minecraft.tileentity.TileEntityDispenser;
+// stripped: import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.world.World;
 
@@ -312,9 +312,9 @@ public class Bootstrap
                     p_82487_2_.func_150996_a(item);
                     p_82487_2_.stackSize = 1;
                 }
-                else if (((TileEntityDispenser)p_82487_1_.getBlockTileEntity()).func_146019_a(new ItemStack(item)) < 0)
+                else
                 {
-                    this.field_150840_b.dispense(p_82487_1_, new ItemStack(item));
+                    this.field_150840_b.dispense(p_82487_1_, new ItemStack(item)); // stripped: was TileEntityDispenser.func_146019_a check
                 }
 
                 return p_82487_2_;

@@ -13,7 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockHopper;
+// stripped: import net.minecraft.block.BlockHopper;
 import net.minecraft.block.BlockLiquid;
 import net.minecraft.block.BlockSlab;
 import net.minecraft.block.BlockSnow;

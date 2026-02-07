@@ -15,19 +15,19 @@ import net.minecraft.block.BlockEndPortalFrame;
 import net.minecraft.block.BlockEnderChest;
 import net.minecraft.block.BlockFenceGate;
 import net.minecraft.block.BlockFurnace;
-import net.minecraft.block.BlockHopper;
+// stripped: import net.minecraft.block.BlockHopper;
 import net.minecraft.block.BlockHugeMushroom;
 import net.minecraft.block.BlockLadder;
 import net.minecraft.block.BlockLever;
 import net.minecraft.block.BlockLog;
-import net.minecraft.block.BlockPistonBase;
-import net.minecraft.block.BlockPistonExtension;
+// stripped: import net.minecraft.block.BlockPistonBase;
+// stripped: import net.minecraft.block.BlockPistonExtension;
 import net.minecraft.block.BlockPumpkin;
 import net.minecraft.block.BlockRail;
 import net.minecraft.block.BlockRailDetector;
 import net.minecraft.block.BlockRailPowered;
-import net.minecraft.block.BlockRedstoneComparator;
-import net.minecraft.block.BlockRedstoneRepeater;
+// stripped: import net.minecraft.block.BlockRedstoneComparator;
+// stripped: import net.minecraft.block.BlockRedstoneRepeater;
 // stripped: import net.minecraft.block.BlockSkull;
 import net.minecraft.block.BlockStairs;
 import net.minecraft.block.BlockTorch;
@@ -101,8 +101,8 @@ public class RotationHelper {
                 block instanceof BlockDoor || 
                 block instanceof BlockRail ||
                 block instanceof BlockButton || 
-                block instanceof BlockRedstoneRepeater || 
-                block instanceof BlockRedstoneComparator || 
+                // stripped: BlockRedstoneRepeater, BlockRedstoneComparator instanceof checks
+
                 block instanceof BlockTrapDoor || 
                 block instanceof BlockHugeMushroom || 
                 block instanceof BlockVine) ? UP_DOWN_AXES : VALID_DIRECTIONS;
@@ -149,10 +149,7 @@ public class RotationHelper {
             {
                 return rotateBlock(worldObj, x, y, z, axis, 0x7, BlockType.BUTTON);
             }
-            if (block instanceof BlockRedstoneRepeater || block instanceof BlockRedstoneComparator)
-            {
-                return rotateBlock(worldObj, x, y, z, axis, 0x3, BlockType.REDSTONE_REPEATER);
-            }
+            // stripped: BlockRedstoneRepeater/BlockRedstoneComparator rotation
             if (block instanceof BlockTrapDoor)
             {
                 return rotateBlock(worldObj, x, y, z, axis, 0x3, BlockType.TRAPDOOR);
@@ -172,7 +169,7 @@ public class RotationHelper {
         {
             return rotateBlock(worldObj, x, y, z, axis, 0xC, BlockType.LOG);
         }
-        if (block instanceof BlockDispenser || block instanceof BlockPistonBase || block instanceof BlockPistonExtension || block instanceof BlockHopper)
+        if (block instanceof BlockDispenser) // stripped: BlockPistonBase, BlockPistonExtension, BlockHopper
         {
             return rotateBlock(worldObj, x, y, z, axis, 0x7, BlockType.DISPENSER);
         }

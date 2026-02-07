@@ -6,7 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.gui.GuiCommandBlock;
 // stripped: import net.minecraft.client.gui.GuiEnchantment;
-import net.minecraft.client.gui.GuiHopper;
+// stripped: import net.minecraft.client.gui.GuiHopper;
 import net.minecraft.client.gui.GuiMerchant;
 // stripped: import net.minecraft.client.gui.GuiRepair;
 import net.minecraft.client.gui.GuiScreen;
@@ -15,7 +15,7 @@ import net.minecraft.client.gui.GuiScreenBook;
 // stripped: import net.minecraft.client.gui.inventory.GuiBrewingStand;
 import net.minecraft.client.gui.inventory.GuiChest;
 import net.minecraft.client.gui.inventory.GuiCrafting;
-import net.minecraft.client.gui.inventory.GuiDispenser;
+// stripped: import net.minecraft.client.gui.inventory.GuiDispenser;
 import net.minecraft.client.gui.inventory.GuiEditSign;
 import net.minecraft.client.gui.inventory.GuiFurnace;
 import net.minecraft.client.gui.inventory.GuiScreenHorseInventory;
@@ -26,7 +26,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.IMerchant;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
-import net.minecraft.entity.item.EntityMinecartHopper;
+// stripped: import net.minecraft.entity.item.EntityMinecartHopper;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.IInventory;
@@ -37,9 +37,9 @@ import net.minecraft.tileentity.TileEntity;
 // stripped: import net.minecraft.tileentity.TileEntityBeacon;
 // stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
 // stripped: import net.minecraft.tileentity.TileEntityCommandBlock;
-import net.minecraft.tileentity.TileEntityDispenser;
+// stripped: import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityFurnace;
-import net.minecraft.tileentity.TileEntityHopper;
+// stripped: import net.minecraft.tileentity.TileEntityHopper;
 import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.util.ChunkCoordinates;
 import net.minecraft.util.DamageSource;
@@ -395,15 +395,9 @@ public class EntityPlayerSP extends AbstractClientPlayer
         this.mc.displayGuiScreen(new GuiChest(this.inventory, p_71007_1_));
     }
 
-    public void func_146093_a(TileEntityHopper p_146093_1_)
-    {
-        this.mc.displayGuiScreen(new GuiHopper(this.inventory, p_146093_1_));
-    }
+    public void func_146093_a(TileEntity p_146093_1_) {} // stripped: hopper GUI
 
-    public void displayGUIHopperMinecart(EntityMinecartHopper p_96125_1_)
-    {
-        this.mc.displayGuiScreen(new GuiHopper(this.inventory, p_96125_1_));
-    }
+    public void displayGUIHopperMinecart(Entity p_96125_1_) {} // stripped: hopper minecart GUI
 
     public void displayGUIHorse(EntityHorse p_110298_1_, IInventory p_110298_2_)
     {
@@ -431,10 +425,7 @@ public class EntityPlayerSP extends AbstractClientPlayer
 
     public void func_146104_a(TileEntity p_146104_1_) {} // stripped: beacon GUI
 
-    public void func_146102_a(TileEntityDispenser p_146102_1_)
-    {
-        this.mc.displayGuiScreen(new GuiDispenser(this.inventory, p_146102_1_));
-    }
+    public void func_146102_a(TileEntity p_146102_1_) {} // stripped: dispenser GUI
 
     public void displayGUIMerchant(IMerchant p_71030_1_, String p_71030_2_)
     {

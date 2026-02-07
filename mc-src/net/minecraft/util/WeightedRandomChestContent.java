@@ -4,7 +4,7 @@ import java.util.Random;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntityDispenser;
+// stripped: import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraftforge.common.ChestGenHooks;
 
 public class WeightedRandomChestContent extends WeightedRandom.Item
@@ -50,7 +50,7 @@ public class WeightedRandomChestContent extends WeightedRandom.Item
         }
     }
 
-    public static void generateDispenserContents(Random p_150706_0_, WeightedRandomChestContent[] p_150706_1_, TileEntityDispenser p_150706_2_, int p_150706_3_)
+    public static void generateDispenserContents(Random p_150706_0_, WeightedRandomChestContent[] p_150706_1_, IInventory p_150706_2_, int p_150706_3_)
     {
         for (int j = 0; j < p_150706_3_; ++j)
         {

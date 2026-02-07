@@ -174,10 +174,10 @@ import net.minecraft.stats.StatBase;
 import net.minecraft.tileentity.TileEntity;
 // stripped: import net.minecraft.tileentity.TileEntityBeacon;
 // stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
-import net.minecraft.tileentity.TileEntityDispenser;
-import net.minecraft.tileentity.TileEntityDropper;
+// stripped: import net.minecraft.tileentity.TileEntityDispenser;
+// stripped: import net.minecraft.tileentity.TileEntityDropper;
 import net.minecraft.tileentity.TileEntityFurnace;
-import net.minecraft.tileentity.TileEntityHopper;
+// stripped: import net.minecraft.tileentity.TileEntityHopper;
 import net.minecraft.tileentity.TileEntityMobSpawner;
 import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.util.ChatComponentText;
@@ -1043,16 +1043,7 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
                 entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
                 break;
             case 3:
-                TileEntityDispenser tileentitydispenser = new TileEntityDispenser();
-
-                if (p_147265_1_.func_148900_g())
-                {
-                    tileentitydispenser.func_146018_a(p_147265_1_.func_148902_e());
-                }
-
-                entityclientplayermp.func_146102_a(tileentitydispenser);
-                entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
-                break;
+                break; // stripped: dispenser GUI
             case 4:
                 entityclientplayermp.displayGUIEnchantment(MathHelper.floor_double(entityclientplayermp.posX), MathHelper.floor_double(entityclientplayermp.posY), MathHelper.floor_double(entityclientplayermp.posZ), p_147265_1_.func_148900_g() ? p_147265_1_.func_148902_e() : null);
                 entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
@@ -1070,27 +1061,9 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
                 entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
                 break;
             case 9:
-                TileEntityHopper tileentityhopper = new TileEntityHopper();
-
-                if (p_147265_1_.func_148900_g())
-                {
-                    tileentityhopper.func_145886_a(p_147265_1_.func_148902_e());
-                }
-
-                entityclientplayermp.func_146093_a(tileentityhopper);
-                entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
-                break;
+                break; // stripped: hopper GUI
             case 10:
-                TileEntityDropper tileentitydropper = new TileEntityDropper();
-
-                if (p_147265_1_.func_148900_g())
-                {
-                    tileentitydropper.func_146018_a(p_147265_1_.func_148902_e());
-                }
-
-                entityclientplayermp.func_146102_a(tileentitydropper);
-                entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
-                break;
+                break; // stripped: dropper GUI
             case 11:
                 Entity entity = this.clientWorldController.getEntityByID(p_147265_1_.func_148897_h());
 

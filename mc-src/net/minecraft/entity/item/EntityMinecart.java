@@ -90,7 +90,7 @@ public abstract class EntityMinecart extends Entity
             case 4:
                 return new EntityMinecartMobSpawner(p_94090_0_, p_94090_1_, p_94090_3_, p_94090_5_);
             case 5:
-                return new EntityMinecartHopper(p_94090_0_, p_94090_1_, p_94090_3_, p_94090_5_);
+                return new EntityMinecartEmpty(p_94090_0_, p_94090_1_, p_94090_3_, p_94090_5_); // stripped: EntityMinecartHopper
             case 6:
                 return new EntityMinecartCommandBlock(p_94090_0_, p_94090_1_, p_94090_3_, p_94090_5_);
             default:
@@ -1255,10 +1255,7 @@ public abstract class EntityMinecart extends Entity
         {
             return new ItemStack(Items.tnt_minecart);
         }
-        else if (this instanceof EntityMinecartHopper)
-        {
-            return new ItemStack(Items.hopper_minecart);
-        }
+        // stripped: EntityMinecartHopper instanceof check
         else if (this instanceof EntityMinecartCommandBlock)
         {
             return new ItemStack(Items.command_block_minecart);

@@ -18,16 +18,16 @@ import net.minecraft.block.BlockFenceGate;
 import net.minecraft.block.BlockFire;
 // stripped: import net.minecraft.block.BlockFlowerPot;
 import net.minecraft.block.BlockGrass;
-import net.minecraft.block.BlockHopper;
+// stripped: import net.minecraft.block.BlockHopper;
 import net.minecraft.block.BlockLiquid;
 import net.minecraft.block.BlockPane;
-import net.minecraft.block.BlockPistonBase;
-import net.minecraft.block.BlockPistonExtension;
+// stripped: import net.minecraft.block.BlockPistonBase;
+// stripped: import net.minecraft.block.BlockPistonExtension;
 import net.minecraft.block.BlockRailBase;
-import net.minecraft.block.BlockRedstoneComparator;
-import net.minecraft.block.BlockRedstoneDiode;
-import net.minecraft.block.BlockRedstoneRepeater;
-import net.minecraft.block.BlockRedstoneWire;
+// stripped: import net.minecraft.block.BlockRedstoneComparator;
+// stripped: import net.minecraft.block.BlockRedstoneDiode;
+// stripped: import net.minecraft.block.BlockRedstoneRepeater;
+// stripped: import net.minecraft.block.BlockRedstoneWire;
 // stripped: import net.minecraft.block.BlockStainedGlassPane;
 import net.minecraft.block.BlockStairs;
 import net.minecraft.block.BlockStem;
@@ -354,7 +354,7 @@ public class RenderBlocks
             case 20: return this.renderBlockVine(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 11: return this.renderBlockFence((BlockFence)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 39: return this.renderBlockQuartz(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
-            case 5: return this.renderBlockRedstoneWire(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
+            case 5: return false; // stripped: redstone wire rendering
             case 13: return this.renderBlockCactus(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 9: return this.renderBlockMinecartTrack((BlockRailBase)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 19: return this.renderBlockStem(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
@@ -370,9 +370,9 @@ public class RenderBlocks
             case 29: return this.renderBlockTripWireSource(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 30: return this.renderBlockTripWire(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 14: return this.renderBlockBed(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
-            case 15: return this.renderBlockRepeater((BlockRedstoneRepeater)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
-            case 36: return this.renderBlockRedstoneDiode((BlockRedstoneDiode)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
-            case 37: return this.renderBlockRedstoneComparator((BlockRedstoneComparator)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
+            case 15: return false; // stripped: repeater rendering
+            case 36: return false; // stripped: redstone diode rendering
+            case 37: return false; // stripped: comparator rendering
             case 16: return this.renderPistonBase(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_, false) ;
             case 17: return this.renderPistonExtension(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_, true) ;
             case 18: return this.renderBlockPane((BlockPane)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
@@ -385,7 +385,7 @@ public class RenderBlocks
             case 26: return this.renderBlockEndPortalFrame((BlockEndPortalFrame)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 28: return this.renderBlockCocoa((BlockCocoa)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 34: return false; // stripped: beacon rendering
-            case 38: return this.renderBlockHopper((BlockHopper)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_);
+            case 38: return false; // stripped: hopper rendering
             default: return FMLRenderAccessLibrary.renderWorldBlock(this, blockAccess, p_147805_2_, p_147805_3_, p_147805_4_, p_147805_1_, l);
             }
         }
@@ -812,146 +812,18 @@ public class RenderBlocks
     /**
      * render a redstone repeater at the given coordinates
      */
-    public boolean renderBlockRepeater(BlockRedstoneRepeater p_147759_1_, int p_147759_2_, int p_147759_3_, int p_147759_4_)
-    {
-        int l = this.blockAccess.getBlockMetadata(p_147759_2_, p_147759_3_, p_147759_4_);
-        int i1 = l & 3;
-        int j1 = (l & 12) >> 2;
-        Tessellator tessellator = Tessellator.instance;
-        tessellator.setBrightness(p_147759_1_.getMixedBrightnessForBlock(this.blockAccess, p_147759_2_, p_147759_3_, p_147759_4_));
-        tessellator.setColorOpaque_F(1.0F, 1.0F, 1.0F);
-        double d0 = -0.1875D;
-        boolean flag = p_147759_1_.func_149910_g(this.blockAccess, p_147759_2_, p_147759_3_, p_147759_4_, l);
-        double d1 = 0.0D;
-        double d2 = 0.0D;
-        double d3 = 0.0D;
-        double d4 = 0.0D;
+    public boolean renderBlockRepeater(Block p_147759_1_, int p_147759_2_, int p_147759_3_, int p_147759_4_) { return false; } // stripped: repeater rendering
 
-        switch (i1)
-        {
-            case 0:
-                d4 = -0.3125D;
-                d2 = BlockRedstoneRepeater.repeaterTorchOffset[j1];
-                break;
-            case 1:
-                d3 = 0.3125D;
-                d1 = -BlockRedstoneRepeater.repeaterTorchOffset[j1];
-                break;
-            case 2:
-                d4 = 0.3125D;
-                d2 = -BlockRedstoneRepeater.repeaterTorchOffset[j1];
-                break;
-            case 3:
-                d3 = -0.3125D;
-                d1 = BlockRedstoneRepeater.repeaterTorchOffset[j1];
-        }
+    public boolean renderBlockRedstoneComparator(Block p_147781_1_, int p_147781_2_, int p_147781_3_, int p_147781_4_) { return false; } // stripped: comparator rendering
 
-        if (!flag)
-        {
-            this.renderTorchAtAngle(p_147759_1_, (double)p_147759_2_ + d1, (double)p_147759_3_ + d0, (double)p_147759_4_ + d2, 0.0D, 0.0D, 0);
-        }
-        else
-        {
-            IIcon iicon = this.getBlockIcon(Blocks.bedrock);
-            this.setOverrideBlockTexture(iicon);
-            float f = 2.0F;
-            float f1 = 14.0F;
-            float f2 = 7.0F;
-            float f3 = 9.0F;
-
-            switch (i1)
-            {
-                case 1:
-                case 3:
-                    f = 7.0F;
-                    f1 = 9.0F;
-                    f2 = 2.0F;
-                    f3 = 14.0F;
-                case 0:
-                case 2:
-                default:
-                    this.setRenderBounds((double)(f / 16.0F + (float)d1), 0.125D, (double)(f2 / 16.0F + (float)d2), (double)(f1 / 16.0F + (float)d1), 0.25D, (double)(f3 / 16.0F + (float)d2));
-                    double d5 = (double)iicon.getInterpolatedU((double)f);
-                    double d6 = (double)iicon.getInterpolatedV((double)f2);
-                    double d7 = (double)iicon.getInterpolatedU((double)f1);
-                    double d8 = (double)iicon.getInterpolatedV((double)f3);
-                    tessellator.addVertexWithUV((double)((float)p_147759_2_ + f / 16.0F) + d1, (double)((float)p_147759_3_ + 0.25F), (double)((float)p_147759_4_ + f2 / 16.0F) + d2, d5, d6);
-                    tessellator.addVertexWithUV((double)((float)p_147759_2_ + f / 16.0F) + d1, (double)((float)p_147759_3_ + 0.25F), (double)((float)p_147759_4_ + f3 / 16.0F) + d2, d5, d8);
-                    tessellator.addVertexWithUV((double)((float)p_147759_2_ + f1 / 16.0F) + d1, (double)((float)p_147759_3_ + 0.25F), (double)((float)p_147759_4_ + f3 / 16.0F) + d2, d7, d8);
-                    tessellator.addVertexWithUV((double)((float)p_147759_2_ + f1 / 16.0F) + d1, (double)((float)p_147759_3_ + 0.25F), (double)((float)p_147759_4_ + f2 / 16.0F) + d2, d7, d6);
-                    this.renderStandardBlock(p_147759_1_, p_147759_2_, p_147759_3_, p_147759_4_);
-                    this.setRenderBounds(0.0D, 0.0D, 0.0D, 1.0D, 0.125D, 1.0D);
-                    this.clearOverrideBlockTexture();
-            }
-        }
-
-        tessellator.setBrightness(p_147759_1_.getMixedBrightnessForBlock(this.blockAccess, p_147759_2_, p_147759_3_, p_147759_4_));
-        tessellator.setColorOpaque_F(1.0F, 1.0F, 1.0F);
-        this.renderTorchAtAngle(p_147759_1_, (double)p_147759_2_ + d3, (double)p_147759_3_ + d0, (double)p_147759_4_ + d4, 0.0D, 0.0D, 0);
-        this.renderBlockRedstoneDiode(p_147759_1_, p_147759_2_, p_147759_3_, p_147759_4_);
-        return true;
-    }
-
-    public boolean renderBlockRedstoneComparator(BlockRedstoneComparator p_147781_1_, int p_147781_2_, int p_147781_3_, int p_147781_4_)
-    {
-        Tessellator tessellator = Tessellator.instance;
-        tessellator.setBrightness(p_147781_1_.getMixedBrightnessForBlock(this.blockAccess, p_147781_2_, p_147781_3_, p_147781_4_));
-        tessellator.setColorOpaque_F(1.0F, 1.0F, 1.0F);
-        int l = this.blockAccess.getBlockMetadata(p_147781_2_, p_147781_3_, p_147781_4_);
-        int i1 = l & 3;
-        double d0 = 0.0D;
-        double d1 = -0.1875D;
-        double d2 = 0.0D;
-        double d3 = 0.0D;
-        double d4 = 0.0D;
-        IIcon iicon;
-
-        if (p_147781_1_.func_149969_d(l))
-        {
-            iicon = Blocks.redstone_torch.getBlockTextureFromSide(0);
-        }
-        else
-        {
-            d1 -= 0.1875D;
-            iicon = Blocks.unlit_redstone_torch.getBlockTextureFromSide(0);
-        }
-
-        switch (i1)
-        {
-            case 0:
-                d2 = -0.3125D;
-                d4 = 1.0D;
-                break;
-            case 1:
-                d0 = 0.3125D;
-                d3 = -1.0D;
-                break;
-            case 2:
-                d2 = 0.3125D;
-                d4 = -1.0D;
-                break;
-            case 3:
-                d0 = -0.3125D;
-                d3 = 1.0D;
-        }
-
-        this.renderTorchAtAngle(p_147781_1_, (double)p_147781_2_ + 0.25D * d3 + 0.1875D * d4, (double)((float)p_147781_3_ - 0.1875F), (double)p_147781_4_ + 0.25D * d4 + 0.1875D * d3, 0.0D, 0.0D, l);
-        this.renderTorchAtAngle(p_147781_1_, (double)p_147781_2_ + 0.25D * d3 + -0.1875D * d4, (double)((float)p_147781_3_ - 0.1875F), (double)p_147781_4_ + 0.25D * d4 + -0.1875D * d3, 0.0D, 0.0D, l);
-        this.setOverrideBlockTexture(iicon);
-        this.renderTorchAtAngle(p_147781_1_, (double)p_147781_2_ + d0, (double)p_147781_3_ + d1, (double)p_147781_4_ + d2, 0.0D, 0.0D, l);
-        this.clearOverrideBlockTexture();
-        this.renderBlockRedstoneDiodeMetadata(p_147781_1_, p_147781_2_, p_147781_3_, p_147781_4_, i1);
-        return true;
-    }
-
-    public boolean renderBlockRedstoneDiode(BlockRedstoneDiode p_147748_1_, int p_147748_2_, int p_147748_3_, int p_147748_4_)
+    public boolean renderBlockRedstoneDiode(Block p_147748_1_, int p_147748_2_, int p_147748_3_, int p_147748_4_) // stripped: was BlockRedstoneDiode
     {
         Tessellator tessellator = Tessellator.instance;
         this.renderBlockRedstoneDiodeMetadata(p_147748_1_, p_147748_2_, p_147748_3_, p_147748_4_, this.blockAccess.getBlockMetadata(p_147748_2_, p_147748_3_, p_147748_4_) & 3);
         return true;
     }
 
-    public void renderBlockRedstoneDiodeMetadata(BlockRedstoneDiode p_147732_1_, int p_147732_2_, int p_147732_3_, int p_147732_4_, int p_147732_5_)
+    public void renderBlockRedstoneDiodeMetadata(Block p_147732_1_, int p_147732_2_, int p_147732_3_, int p_147732_4_, int p_147732_5_) // stripped: was BlockRedstoneDiode
     {
         this.renderStandardBlock(p_147732_1_, p_147732_2_, p_147732_3_, p_147732_4_);
         Tessellator tessellator = Tessellator.instance;
@@ -1005,128 +877,20 @@ public class RenderBlocks
     /**
      * Render all faces of the piston base
      */
-    public void renderPistonBaseAllFaces(Block p_147804_1_, int p_147804_2_, int p_147804_3_, int p_147804_4_)
-    {
-        this.renderAllFaces = true;
-        this.renderPistonBase(p_147804_1_, p_147804_2_, p_147804_3_, p_147804_4_, true);
-        this.renderAllFaces = false;
-    }
+    public void renderPistonBaseAllFaces(Block p_147804_1_, int p_147804_2_, int p_147804_3_, int p_147804_4_) {} // stripped: piston base all faces
 
-    /**
-     * renders a block as a piston base
-     */
-    public boolean renderPistonBase(Block p_147731_1_, int p_147731_2_, int p_147731_3_, int p_147731_4_, boolean p_147731_5_)
-    {
-        int l = this.blockAccess.getBlockMetadata(p_147731_2_, p_147731_3_, p_147731_4_);
-        boolean flag1 = p_147731_5_ || (l & 8) != 0;
-        int i1 = BlockPistonBase.getPistonOrientation(l);
-        float f = 0.25F;
+    public boolean renderPistonBase(Block p_147731_1_, int p_147731_2_, int p_147731_3_, int p_147731_4_, boolean p_147731_5_) { return false; } // stripped: piston base rendering
 
-        if (flag1)
-        {
-            switch (i1)
-            {
-                case 0:
-                    this.uvRotateEast = 3;
-                    this.uvRotateWest = 3;
-                    this.uvRotateSouth = 3;
-                    this.uvRotateNorth = 3;
-                    this.setRenderBounds(0.0D, 0.25D, 0.0D, 1.0D, 1.0D, 1.0D);
-                    break;
-                case 1:
-                    this.setRenderBounds(0.0D, 0.0D, 0.0D, 1.0D, 0.75D, 1.0D);
-                    break;
-                case 2:
-                    this.uvRotateSouth = 1;
-                    this.uvRotateNorth = 2;
-                    this.setRenderBounds(0.0D, 0.0D, 0.25D, 1.0D, 1.0D, 1.0D);
-                    break;
-                case 3:
-                    this.uvRotateSouth = 2;
-                    this.uvRotateNorth = 1;
-                    this.uvRotateTop = 3;
-                    this.uvRotateBottom = 3;
-                    this.setRenderBounds(0.0D, 0.0D, 0.0D, 1.0D, 1.0D, 0.75D);
-                    break;
-                case 4:
-                    this.uvRotateEast = 1;
-                    this.uvRotateWest = 2;
-                    this.uvRotateTop = 2;
-                    this.uvRotateBottom = 1;
-                    this.setRenderBounds(0.25D, 0.0D, 0.0D, 1.0D, 1.0D, 1.0D);
-                    break;
-                case 5:
-                    this.uvRotateEast = 2;
-                    this.uvRotateWest = 1;
-                    this.uvRotateTop = 1;
-                    this.uvRotateBottom = 2;
-                    this.setRenderBounds(0.0D, 0.0D, 0.0D, 0.75D, 1.0D, 1.0D);
-            }
-
-            ((BlockPistonBase)p_147731_1_).func_150070_b((float)this.renderMinX, (float)this.renderMinY, (float)this.renderMinZ, (float)this.renderMaxX, (float)this.renderMaxY, (float)this.renderMaxZ);
-            this.renderStandardBlock(p_147731_1_, p_147731_2_, p_147731_3_, p_147731_4_);
-            this.uvRotateEast = 0;
-            this.uvRotateWest = 0;
-            this.uvRotateSouth = 0;
-            this.uvRotateNorth = 0;
-            this.uvRotateTop = 0;
-            this.uvRotateBottom = 0;
-            this.setRenderBounds(0.0D, 0.0D, 0.0D, 1.0D, 1.0D, 1.0D);
-            ((BlockPistonBase)p_147731_1_).func_150070_b((float)this.renderMinX, (float)this.renderMinY, (float)this.renderMinZ, (float)this.renderMaxX, (float)this.renderMaxY, (float)this.renderMaxZ);
-        }
-        else
-        {
-            switch (i1)
-            {
-                case 0:
-                    this.uvRotateEast = 3;
-                    this.uvRotateWest = 3;
-                    this.uvRotateSouth = 3;
-                    this.uvRotateNorth = 3;
-                case 1:
-                default:
-                    break;
-                case 2:
-                    this.uvRotateSouth = 1;
-                    this.uvRotateNorth = 2;
-                    break;
-                case 3:
-                    this.uvRotateSouth = 2;
-                    this.uvRotateNorth = 1;
-                    this.uvRotateTop = 3;
-                    this.uvRotateBottom = 3;
-                    break;
-                case 4:
-                    this.uvRotateEast = 1;
-                    this.uvRotateWest = 2;
-                    this.uvRotateTop = 2;
-                    this.uvRotateBottom = 1;
-                    break;
-                case 5:
-                    this.uvRotateEast = 2;
-                    this.uvRotateWest = 1;
-                    this.uvRotateTop = 1;
-                    this.uvRotateBottom = 2;
-            }
-
-            this.renderStandardBlock(p_147731_1_, p_147731_2_, p_147731_3_, p_147731_4_);
-            this.uvRotateEast = 0;
-            this.uvRotateWest = 0;
-            this.uvRotateSouth = 0;
-            this.uvRotateNorth = 0;
-            this.uvRotateTop = 0;
-            this.uvRotateBottom = 0;
-        }
-
-        return true;
-    }
+    /* stripped: renderPistonBase body removed - references BlockPistonBase */
+    private boolean _stripped_renderPistonBase() { return false; }
+    private boolean _dead_piston_code_removed() { return false; } // stripped
 
     /**
      * Render piston rod up/down
      */
     public void renderPistonRodUD(double p_147763_1_, double p_147763_3_, double p_147763_5_, double p_147763_7_, double p_147763_9_, double p_147763_11_, float p_147763_13_, double p_147763_14_)
     {
-        IIcon iicon = BlockPistonBase.getPistonBaseIcon("piston_side");
+        IIcon iicon = null /* stripped: was BlockPistonBase.getPistonBaseIcon */;
 
         if (this.hasOverrideBlockTexture())
         {
@@ -1150,7 +914,7 @@ public class RenderBlocks
      */
     public void renderPistonRodSN(double p_147789_1_, double p_147789_3_, double p_147789_5_, double p_147789_7_, double p_147789_9_, double p_147789_11_, float p_147789_13_, double p_147789_14_)
     {
-        IIcon iicon = BlockPistonBase.getPistonBaseIcon("piston_side");
+        IIcon iicon = null /* stripped: was BlockPistonBase.getPistonBaseIcon */;
 
         if (this.hasOverrideBlockTexture())
         {
@@ -1174,7 +938,7 @@ public class RenderBlocks
      */
     public void renderPistonRodEW(double p_147738_1_, double p_147738_3_, double p_147738_5_, double p_147738_7_, double p_147738_9_, double p_147738_11_, float p_147738_13_, double p_147738_14_)
     {
-        IIcon iicon = BlockPistonBase.getPistonBaseIcon("piston_side");
+        IIcon iicon = null /* stripped: was BlockPistonBase.getPistonBaseIcon */;
 
         if (this.hasOverrideBlockTexture())
         {
@@ -1209,7 +973,7 @@ public class RenderBlocks
     public boolean renderPistonExtension(Block p_147809_1_, int p_147809_2_, int p_147809_3_, int p_147809_4_, boolean p_147809_5_)
     {
         int l = this.blockAccess.getBlockMetadata(p_147809_2_, p_147809_3_, p_147809_4_);
-        int i1 = BlockPistonExtension.getDirectionMeta(l);
+        int i1 = (l & 7) /* stripped: was BlockPistonExtension.getDirectionMeta */;
         float f = 0.25F;
         float f1 = 0.375F;
         float f2 = 0.625F;
@@ -2247,10 +2011,10 @@ public class RenderBlocks
     {
         Tessellator tessellator = Tessellator.instance;
         int l = this.blockAccess.getBlockMetadata(p_147788_2_, p_147788_3_, p_147788_4_);
-        IIcon iicon = BlockRedstoneWire.getRedstoneWireIcon("cross");
-        IIcon iicon1 = BlockRedstoneWire.getRedstoneWireIcon("line");
-        IIcon iicon2 = BlockRedstoneWire.getRedstoneWireIcon("cross_overlay");
-        IIcon iicon3 = BlockRedstoneWire.getRedstoneWireIcon("line_overlay");
+        IIcon iicon = null /* stripped: was BlockRedstoneWire.getRedstoneWireIcon("cross") */;
+        IIcon iicon1 = null /* stripped */;
+        IIcon iicon2 = null /* stripped */;
+        IIcon iicon3 = null /* stripped */;
         tessellator.setBrightness(p_147788_1_.getMixedBrightnessForBlock(this.blockAccess, p_147788_2_, p_147788_3_, p_147788_4_));
         float f = (float)l / 15.0F;
         float f1 = f * 0.6F + 0.4F;
@@ -2276,33 +2040,12 @@ public class RenderBlocks
         tessellator.setColorOpaque_F(f1, f2, f3);
         double d0 = 0.015625D;
         double d1 = 0.015625D;
-        boolean flag = BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_ - 1, p_147788_3_, p_147788_4_, 1) || !this.blockAccess.getBlock(p_147788_2_ - 1, p_147788_3_, p_147788_4_).isBlockNormalCube() && BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_ - 1, p_147788_3_ - 1, p_147788_4_, -1);
-        boolean flag1 = BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_ + 1, p_147788_3_, p_147788_4_, 3) || !this.blockAccess.getBlock(p_147788_2_ + 1, p_147788_3_, p_147788_4_).isBlockNormalCube() && BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_ + 1, p_147788_3_ - 1, p_147788_4_, -1);
-        boolean flag2 = BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_, p_147788_3_, p_147788_4_ - 1, 2) || !this.blockAccess.getBlock(p_147788_2_, p_147788_3_, p_147788_4_ - 1).isBlockNormalCube() && BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_, p_147788_3_ - 1, p_147788_4_ - 1, -1);
-        boolean flag3 = BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_, p_147788_3_, p_147788_4_ + 1, 0) || !this.blockAccess.getBlock(p_147788_2_, p_147788_3_, p_147788_4_ + 1).isBlockNormalCube() && BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_, p_147788_3_ - 1, p_147788_4_ + 1, -1);
+        boolean flag = false; // stripped: was BlockRedstoneWire.isPowerProviderOrWire checks
+        boolean flag1 = false;
+        boolean flag2 = false;
+        boolean flag3 = false;
 
-        if (!this.blockAccess.getBlock(p_147788_2_, p_147788_3_ + 1, p_147788_4_).isBlockNormalCube())
-        {
-            if (this.blockAccess.getBlock(p_147788_2_ - 1, p_147788_3_, p_147788_4_).isBlockNormalCube() && BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_ - 1, p_147788_3_ + 1, p_147788_4_, -1))
-            {
-                flag = true;
-            }
-
-            if (this.blockAccess.getBlock(p_147788_2_ + 1, p_147788_3_, p_147788_4_).isBlockNormalCube() && BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_ + 1, p_147788_3_ + 1, p_147788_4_, -1))
-            {
-                flag1 = true;
-            }
-
-            if (this.blockAccess.getBlock(p_147788_2_, p_147788_3_, p_147788_4_ - 1).isBlockNormalCube() && BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_, p_147788_3_ + 1, p_147788_4_ - 1, -1))
-            {
-                flag2 = true;
-            }
-
-            if (this.blockAccess.getBlock(p_147788_2_, p_147788_3_, p_147788_4_ + 1).isBlockNormalCube() && BlockRedstoneWire.isPowerProviderOrWire(this.blockAccess, p_147788_2_, p_147788_3_ + 1, p_147788_4_ + 1, -1))
-            {
-                flag3 = true;
-            }
-        }
+        // stripped: BlockRedstoneWire.isPowerProviderOrWire checks for elevated connections
 
         float f4 = (float)(p_147788_2_ + 0);
         float f5 = (float)(p_147788_2_ + 1);
@@ -6764,204 +6507,9 @@ public class RenderBlocks
         return flag;
     }
 
-    public boolean renderBlockHopper(BlockHopper p_147803_1_, int p_147803_2_, int p_147803_3_, int p_147803_4_)
-    {
-        Tessellator tessellator = Tessellator.instance;
-        tessellator.setBrightness(p_147803_1_.getMixedBrightnessForBlock(this.blockAccess, p_147803_2_, p_147803_3_, p_147803_4_));
-        int l = p_147803_1_.colorMultiplier(this.blockAccess, p_147803_2_, p_147803_3_, p_147803_4_);
-        float f = (float)(l >> 16 & 255) / 255.0F;
-        float f1 = (float)(l >> 8 & 255) / 255.0F;
-        float f2 = (float)(l & 255) / 255.0F;
+    public boolean renderBlockHopper(Block p_147803_1_, int p_147803_2_, int p_147803_3_, int p_147803_4_) { return false; } // stripped
 
-        if (EntityRenderer.anaglyphEnable)
-        {
-            float f3 = (f * 30.0F + f1 * 59.0F + f2 * 11.0F) / 100.0F;
-            float f4 = (f * 30.0F + f1 * 70.0F) / 100.0F;
-            float f5 = (f * 30.0F + f2 * 70.0F) / 100.0F;
-            f = f3;
-            f1 = f4;
-            f2 = f5;
-        }
-
-        tessellator.setColorOpaque_F(f, f1, f2);
-        return this.renderBlockHopperMetadata(p_147803_1_, p_147803_2_, p_147803_3_, p_147803_4_, this.blockAccess.getBlockMetadata(p_147803_2_, p_147803_3_, p_147803_4_), false);
-    }
-
-    public boolean renderBlockHopperMetadata(BlockHopper p_147799_1_, int p_147799_2_, int p_147799_3_, int p_147799_4_, int p_147799_5_, boolean p_147799_6_)
-    {
-        Tessellator tessellator = Tessellator.instance;
-        int i1 = BlockHopper.getDirectionFromMetadata(p_147799_5_);
-        double d0 = 0.625D;
-        this.setRenderBounds(0.0D, d0, 0.0D, 1.0D, 1.0D, 1.0D);
-
-        if (p_147799_6_)
-        {
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, -1.0F, 0.0F);
-            this.renderFaceYNeg(p_147799_1_, 0.0D, 0.0D, 0.0D, this.getBlockIconFromSideAndMetadata(p_147799_1_, 0, p_147799_5_));
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, 1.0F, 0.0F);
-            this.renderFaceYPos(p_147799_1_, 0.0D, 0.0D, 0.0D, this.getBlockIconFromSideAndMetadata(p_147799_1_, 1, p_147799_5_));
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, 0.0F, -1.0F);
-            this.renderFaceZNeg(p_147799_1_, 0.0D, 0.0D, 0.0D, this.getBlockIconFromSideAndMetadata(p_147799_1_, 2, p_147799_5_));
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, 0.0F, 1.0F);
-            this.renderFaceZPos(p_147799_1_, 0.0D, 0.0D, 0.0D, this.getBlockIconFromSideAndMetadata(p_147799_1_, 3, p_147799_5_));
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(-1.0F, 0.0F, 0.0F);
-            this.renderFaceXNeg(p_147799_1_, 0.0D, 0.0D, 0.0D, this.getBlockIconFromSideAndMetadata(p_147799_1_, 4, p_147799_5_));
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(1.0F, 0.0F, 0.0F);
-            this.renderFaceXPos(p_147799_1_, 0.0D, 0.0D, 0.0D, this.getBlockIconFromSideAndMetadata(p_147799_1_, 5, p_147799_5_));
-            tessellator.draw();
-        }
-        else
-        {
-            this.renderStandardBlock(p_147799_1_, p_147799_2_, p_147799_3_, p_147799_4_);
-        }
-
-        float f1;
-
-        if (!p_147799_6_)
-        {
-            tessellator.setBrightness(p_147799_1_.getMixedBrightnessForBlock(this.blockAccess, p_147799_2_, p_147799_3_, p_147799_4_));
-            int j1 = p_147799_1_.colorMultiplier(this.blockAccess, p_147799_2_, p_147799_3_, p_147799_4_);
-            float f = (float)(j1 >> 16 & 255) / 255.0F;
-            f1 = (float)(j1 >> 8 & 255) / 255.0F;
-            float f2 = (float)(j1 & 255) / 255.0F;
-
-            if (EntityRenderer.anaglyphEnable)
-            {
-                float f3 = (f * 30.0F + f1 * 59.0F + f2 * 11.0F) / 100.0F;
-                float f4 = (f * 30.0F + f1 * 70.0F) / 100.0F;
-                float f5 = (f * 30.0F + f2 * 70.0F) / 100.0F;
-                f = f3;
-                f1 = f4;
-                f2 = f5;
-            }
-
-            tessellator.setColorOpaque_F(f, f1, f2);
-        }
-
-        IIcon iicon = BlockHopper.getHopperIcon("hopper_outside");
-        IIcon iicon1 = BlockHopper.getHopperIcon("hopper_inside");
-        f1 = 0.125F;
-
-        if (p_147799_6_)
-        {
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(1.0F, 0.0F, 0.0F);
-            this.renderFaceXPos(p_147799_1_, (double)(-1.0F + f1), 0.0D, 0.0D, iicon);
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(-1.0F, 0.0F, 0.0F);
-            this.renderFaceXNeg(p_147799_1_, (double)(1.0F - f1), 0.0D, 0.0D, iicon);
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, 0.0F, 1.0F);
-            this.renderFaceZPos(p_147799_1_, 0.0D, 0.0D, (double)(-1.0F + f1), iicon);
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, 0.0F, -1.0F);
-            this.renderFaceZNeg(p_147799_1_, 0.0D, 0.0D, (double)(1.0F - f1), iicon);
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, 1.0F, 0.0F);
-            this.renderFaceYPos(p_147799_1_, 0.0D, -1.0D + d0, 0.0D, iicon1);
-            tessellator.draw();
-        }
-        else
-        {
-            this.renderFaceXPos(p_147799_1_, (double)((float)p_147799_2_ - 1.0F + f1), (double)p_147799_3_, (double)p_147799_4_, iicon);
-            this.renderFaceXNeg(p_147799_1_, (double)((float)p_147799_2_ + 1.0F - f1), (double)p_147799_3_, (double)p_147799_4_, iicon);
-            this.renderFaceZPos(p_147799_1_, (double)p_147799_2_, (double)p_147799_3_, (double)((float)p_147799_4_ - 1.0F + f1), iicon);
-            this.renderFaceZNeg(p_147799_1_, (double)p_147799_2_, (double)p_147799_3_, (double)((float)p_147799_4_ + 1.0F - f1), iicon);
-            this.renderFaceYPos(p_147799_1_, (double)p_147799_2_, (double)((float)p_147799_3_ - 1.0F) + d0, (double)p_147799_4_, iicon1);
-        }
-
-        this.setOverrideBlockTexture(iicon);
-        double d3 = 0.25D;
-        double d4 = 0.25D;
-        this.setRenderBounds(d3, d4, d3, 1.0D - d3, d0 - 0.002D, 1.0D - d3);
-
-        if (p_147799_6_)
-        {
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(1.0F, 0.0F, 0.0F);
-            this.renderFaceXPos(p_147799_1_, 0.0D, 0.0D, 0.0D, iicon);
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(-1.0F, 0.0F, 0.0F);
-            this.renderFaceXNeg(p_147799_1_, 0.0D, 0.0D, 0.0D, iicon);
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, 0.0F, 1.0F);
-            this.renderFaceZPos(p_147799_1_, 0.0D, 0.0D, 0.0D, iicon);
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, 0.0F, -1.0F);
-            this.renderFaceZNeg(p_147799_1_, 0.0D, 0.0D, 0.0D, iicon);
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, 1.0F, 0.0F);
-            this.renderFaceYPos(p_147799_1_, 0.0D, 0.0D, 0.0D, iicon);
-            tessellator.draw();
-            tessellator.startDrawingQuads();
-            tessellator.setNormal(0.0F, -1.0F, 0.0F);
-            this.renderFaceYNeg(p_147799_1_, 0.0D, 0.0D, 0.0D, iicon);
-            tessellator.draw();
-        }
-        else
-        {
-            this.renderStandardBlock(p_147799_1_, p_147799_2_, p_147799_3_, p_147799_4_);
-        }
-
-        if (!p_147799_6_)
-        {
-            double d1 = 0.375D;
-            double d2 = 0.25D;
-            this.setOverrideBlockTexture(iicon);
-
-            if (i1 == 0)
-            {
-                this.setRenderBounds(d1, 0.0D, d1, 1.0D - d1, 0.25D, 1.0D - d1);
-                this.renderStandardBlock(p_147799_1_, p_147799_2_, p_147799_3_, p_147799_4_);
-            }
-
-            if (i1 == 2)
-            {
-                this.setRenderBounds(d1, d4, 0.0D, 1.0D - d1, d4 + d2, d3);
-                this.renderStandardBlock(p_147799_1_, p_147799_2_, p_147799_3_, p_147799_4_);
-            }
-
-            if (i1 == 3)
-            {
-                this.setRenderBounds(d1, d4, 1.0D - d3, 1.0D - d1, d4 + d2, 1.0D);
-                this.renderStandardBlock(p_147799_1_, p_147799_2_, p_147799_3_, p_147799_4_);
-            }
-
-            if (i1 == 4)
-            {
-                this.setRenderBounds(0.0D, d4, d1, d3, d4 + d2, 1.0D - d1);
-                this.renderStandardBlock(p_147799_1_, p_147799_2_, p_147799_3_, p_147799_4_);
-            }
-
-            if (i1 == 5)
-            {
-                this.setRenderBounds(1.0D - d3, d4, d1, 1.0D, d4 + d2, 1.0D - d1);
-                this.renderStandardBlock(p_147799_1_, p_147799_2_, p_147799_3_, p_147799_4_);
-            }
-        }
-
-        this.clearOverrideBlockTexture();
-        return true;
-    }
+    public boolean renderBlockHopperMetadata(Block p_147799_1_, int p_147799_2_, int p_147799_3_, int p_147799_4_, int p_147799_5_, boolean p_147799_6_) { return false; } // stripped
 
     /**
      * Renders a stair block at the given coordinates
@@ -8193,7 +7741,7 @@ public class RenderBlocks
             else if (j == 38)
             {
                 GL11.glTranslatef(-0.5F, -0.5F, -0.5F);
-                this.renderBlockHopperMetadata((BlockHopper)p_147800_1_, 0, 0, 0, 0, true);
+                this.renderBlockHopperMetadata((Block)p_147800_1_, 0, 0, 0, 0, true);
                 GL11.glTranslatef(0.5F, 0.5F, 0.5F);
             }
             else

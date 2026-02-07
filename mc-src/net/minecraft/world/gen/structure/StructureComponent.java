@@ -10,7 +10,8 @@ import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemDoor;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntityChest;
-import net.minecraft.tileentity.TileEntityDispenser;
+// stripped: import net.minecraft.tileentity.TileEntityDispenser;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.util.Direction;
 import net.minecraft.util.Facing;
 import net.minecraft.util.WeightedRandomChestContent;
@@ -815,7 +816,7 @@ public abstract class StructureComponent
         if (p_74869_2_.isVecInside(j1, k1, l1) && p_74869_1_.getBlock(j1, k1, l1) != Blocks.dispenser)
         {
             p_74869_1_.setBlock(j1, k1, l1, Blocks.dispenser, this.getMetadataWithOffset(Blocks.dispenser, p_74869_7_), 2);
-            TileEntityDispenser tileentitydispenser = (TileEntityDispenser)p_74869_1_.getTileEntity(j1, k1, l1);
+            IInventory tileentitydispenser = (IInventory)p_74869_1_.getTileEntity(j1, k1, l1);
 
             if (tileentitydispenser != null)
             {

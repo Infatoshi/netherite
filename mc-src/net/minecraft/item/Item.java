@@ -177,7 +177,7 @@ public class Item
         itemRegistry.addObject(328, "minecart", (new ItemMinecart(0)).setUnlocalizedName("minecart").setTextureName("minecart_normal"));
         itemRegistry.addObject(329, "saddle", (new ItemSaddle()).setUnlocalizedName("saddle").setTextureName("saddle"));
         itemRegistry.addObject(330, "iron_door", (new ItemDoor(Material.iron)).setUnlocalizedName("doorIron").setTextureName("door_iron"));
-        itemRegistry.addObject(331, "redstone", (new ItemRedstone()).setUnlocalizedName("redstone").setPotionEffect(PotionHelper.redstoneEffect).setTextureName("redstone_dust"));
+        itemRegistry.addObject(331, "redstone", (new Item()).setUnlocalizedName("redstone").setPotionEffect(PotionHelper.redstoneEffect).setCreativeTab(CreativeTabs.tabRedstone).setTextureName("redstone_dust"));
         itemRegistry.addObject(332, "snowball", (new ItemSnowball()).setUnlocalizedName("snowball").setTextureName("snowball"));
         itemRegistry.addObject(333, "boat", (new ItemBoat()).setUnlocalizedName("boat").setTextureName("boat"));
         itemRegistry.addObject(334, "leather", (new Item()).setUnlocalizedName("leather").setCreativeTab(CreativeTabs.tabMaterials).setTextureName("leather"));
@@ -392,11 +392,11 @@ public class Item
             }
             else if (block == Blocks.piston)
             {
-                object = new ItemPiston(Blocks.piston);
+                object = new ItemBlock(Blocks.piston); // stripped: was ItemPiston
             }
             else if (block == Blocks.sticky_piston)
             {
-                object = new ItemPiston(Blocks.sticky_piston);
+                object = new ItemBlock(Blocks.sticky_piston); // stripped: was ItemPiston
             }
             else if (block == Blocks.cobblestone_wall)
             {

@@ -17,17 +17,17 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IMerchant;
-import net.minecraft.entity.item.EntityMinecartHopper;
+// stripped: import net.minecraft.entity.item.EntityMinecartHopper;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.inventory.Container;
 // stripped: import net.minecraft.inventory.ContainerBeacon;
 // stripped: import net.minecraft.inventory.ContainerBrewingStand;
 import net.minecraft.inventory.ContainerChest;
-import net.minecraft.inventory.ContainerDispenser;
+// stripped: import net.minecraft.inventory.ContainerDispenser;
 // stripped: import net.minecraft.inventory.ContainerEnchantment;
 import net.minecraft.inventory.ContainerFurnace;
-import net.minecraft.inventory.ContainerHopper;
+// stripped: import net.minecraft.inventory.ContainerHopper;
 import net.minecraft.inventory.ContainerHorseInventory;
 import net.minecraft.inventory.ContainerMerchant;
 // stripped: import net.minecraft.inventory.ContainerRepair;
@@ -78,10 +78,10 @@ import net.minecraft.stats.StatisticsFile;
 import net.minecraft.tileentity.TileEntity;
 // stripped: import net.minecraft.tileentity.TileEntityBeacon;
 // stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
-import net.minecraft.tileentity.TileEntityDispenser;
-import net.minecraft.tileentity.TileEntityDropper;
+// stripped: import net.minecraft.tileentity.TileEntityDispenser;
+// stripped: import net.minecraft.tileentity.TileEntityDropper;
 import net.minecraft.tileentity.TileEntityFurnace;
-import net.minecraft.tileentity.TileEntityHopper;
+// stripped: import net.minecraft.tileentity.TileEntityHopper;
 import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.util.ChunkCoordinates;
 import net.minecraft.util.DamageSource;
@@ -709,23 +709,9 @@ public class EntityPlayerMP extends EntityPlayer implements ICrafting
         this.openContainer.addCraftingToCrafters(this);
     }
 
-    public void func_146093_a(TileEntityHopper p_146093_1_)
-    {
-        this.getNextWindowId();
-        this.playerNetServerHandler.sendPacket(new S2DPacketOpenWindow(this.currentWindowId, 9, p_146093_1_.getInventoryName(), p_146093_1_.getSizeInventory(), p_146093_1_.hasCustomInventoryName()));
-        this.openContainer = new ContainerHopper(this.inventory, p_146093_1_);
-        this.openContainer.windowId = this.currentWindowId;
-        this.openContainer.addCraftingToCrafters(this);
-    }
+    public void func_146093_a(TileEntity p_146093_1_) {} // stripped: hopper GUI
 
-    public void displayGUIHopperMinecart(EntityMinecartHopper p_96125_1_)
-    {
-        this.getNextWindowId();
-        this.playerNetServerHandler.sendPacket(new S2DPacketOpenWindow(this.currentWindowId, 9, p_96125_1_.getInventoryName(), p_96125_1_.getSizeInventory(), p_96125_1_.hasCustomInventoryName()));
-        this.openContainer = new ContainerHopper(this.inventory, p_96125_1_);
-        this.openContainer.windowId = this.currentWindowId;
-        this.openContainer.addCraftingToCrafters(this);
-    }
+    public void displayGUIHopperMinecart(Entity p_96125_1_) {} // stripped: hopper minecart GUI
 
     public void func_146101_a(TileEntityFurnace p_146101_1_)
     {
@@ -736,14 +722,7 @@ public class EntityPlayerMP extends EntityPlayer implements ICrafting
         this.openContainer.addCraftingToCrafters(this);
     }
 
-    public void func_146102_a(TileEntityDispenser p_146102_1_)
-    {
-        this.getNextWindowId();
-        this.playerNetServerHandler.sendPacket(new S2DPacketOpenWindow(this.currentWindowId, p_146102_1_ instanceof TileEntityDropper ? 10 : 3, p_146102_1_.getInventoryName(), p_146102_1_.getSizeInventory(), p_146102_1_.hasCustomInventoryName()));
-        this.openContainer = new ContainerDispenser(this.inventory, p_146102_1_);
-        this.openContainer.windowId = this.currentWindowId;
-        this.openContainer.addCraftingToCrafters(this);
-    }
+    public void func_146102_a(TileEntity p_146102_1_) {} // stripped: dispenser GUI
 
     public void func_146098_a(TileEntity p_146098_1_) {} // stripped: brewing stand GUI
 
