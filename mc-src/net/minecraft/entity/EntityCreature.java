@@ -5,7 +5,7 @@ import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.ai.EntityAIMoveTowardsRestriction;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
-import net.minecraft.entity.passive.EntityTameable;
+// stripped: import net.minecraft.entity.passive.EntityTameable;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.pathfinding.PathEntity;
 import net.minecraft.util.ChunkCoordinates;
@@ -344,7 +344,8 @@ public abstract class EntityCreature extends EntityLiving
             this.setHomeArea((int)entity.posX, (int)entity.posY, (int)entity.posZ, 5);
             float f = this.getDistanceToEntity(entity);
 
-            if (this instanceof EntityTameable && ((EntityTameable)this).isSitting())
+            // stripped: EntityTameable sitting check block removed
+            if (false)
             {
                 if (f > 10.0F)
                 {

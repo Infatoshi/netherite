@@ -7,7 +7,7 @@ import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.gui.GuiCommandBlock;
 // stripped: import net.minecraft.client.gui.GuiEnchantment;
 // stripped: import net.minecraft.client.gui.GuiHopper;
-import net.minecraft.client.gui.GuiMerchant;
+// stripped: import net.minecraft.client.gui.GuiMerchant;
 // stripped: import net.minecraft.client.gui.GuiRepair;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiScreenBook;
@@ -18,16 +18,16 @@ import net.minecraft.client.gui.inventory.GuiCrafting;
 // stripped: import net.minecraft.client.gui.inventory.GuiDispenser;
 import net.minecraft.client.gui.inventory.GuiEditSign;
 import net.minecraft.client.gui.inventory.GuiFurnace;
-import net.minecraft.client.gui.inventory.GuiScreenHorseInventory;
+// stripped: import net.minecraft.client.gui.inventory.GuiScreenHorseInventory;
 import net.minecraft.client.particle.EntityCrit2FX;
 import net.minecraft.client.particle.EntityPickupFX;
 import net.minecraft.command.server.CommandBlockLogic;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.IMerchant;
+// stripped: import net.minecraft.entity.IMerchant;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 // stripped: import net.minecraft.entity.item.EntityMinecartHopper;
-import net.minecraft.entity.passive.EntityHorse;
+// stripped: import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
@@ -399,10 +399,7 @@ public class EntityPlayerSP extends AbstractClientPlayer
 
     public void displayGUIHopperMinecart(Entity p_96125_1_) {} // stripped: hopper minecart GUI
 
-    public void displayGUIHorse(EntityHorse p_110298_1_, IInventory p_110298_2_)
-    {
-        this.mc.displayGuiScreen(new GuiScreenHorseInventory(this.inventory, p_110298_2_, p_110298_1_));
-    }
+    public void displayGUIHorse(Entity p_110298_1_, IInventory p_110298_2_) {} // stripped: horse GUI
 
     /**
      * Displays the crafting GUI for a workbench.
@@ -427,10 +424,7 @@ public class EntityPlayerSP extends AbstractClientPlayer
 
     public void func_146102_a(TileEntity p_146102_1_) {} // stripped: dispenser GUI
 
-    public void displayGUIMerchant(IMerchant p_71030_1_, String p_71030_2_)
-    {
-        this.mc.displayGuiScreen(new GuiMerchant(this.inventory, p_71030_1_, this.worldObj, p_71030_2_));
-    }
+    public void displayGUIMerchant(Object p_71030_1_, String p_71030_2_) {} // stripped: merchant GUI
 
     /**
      * Called when the player performs a critical hit on the Entity. Args: entity that was hit critically
@@ -657,7 +651,7 @@ public class EntityPlayerSP extends AbstractClientPlayer
 
     public boolean isRidingHorse()
     {
-        return this.ridingEntity != null && this.ridingEntity instanceof EntityHorse;
+        return false; // stripped: EntityHorse riding check
     }
 
     public float getHorseJumpPower()

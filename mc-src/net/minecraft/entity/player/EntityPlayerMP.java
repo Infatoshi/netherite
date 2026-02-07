@@ -16,9 +16,9 @@ import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IMerchant;
+// stripped: import net.minecraft.entity.IMerchant;
 // stripped: import net.minecraft.entity.item.EntityMinecartHopper;
-import net.minecraft.entity.passive.EntityHorse;
+// stripped: import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.inventory.Container;
 // stripped: import net.minecraft.inventory.ContainerBeacon;
@@ -28,13 +28,13 @@ import net.minecraft.inventory.ContainerChest;
 // stripped: import net.minecraft.inventory.ContainerEnchantment;
 import net.minecraft.inventory.ContainerFurnace;
 // stripped: import net.minecraft.inventory.ContainerHopper;
-import net.minecraft.inventory.ContainerHorseInventory;
-import net.minecraft.inventory.ContainerMerchant;
+// stripped: import net.minecraft.inventory.ContainerHorseInventory;
+// stripped: import net.minecraft.inventory.ContainerMerchant;
 // stripped: import net.minecraft.inventory.ContainerRepair;
 import net.minecraft.inventory.ContainerWorkbench;
 import net.minecraft.inventory.ICrafting;
 import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.InventoryMerchant;
+// stripped: import net.minecraft.inventory.InventoryMerchant;
 import net.minecraft.inventory.SlotCrafting;
 import net.minecraft.item.EnumAction;
 import net.minecraft.item.ItemMapBase;
@@ -90,7 +90,7 @@ import net.minecraft.util.IChatComponent;
 import net.minecraft.util.JsonSerializableSet;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.ReportedException;
-import net.minecraft.village.MerchantRecipeList;
+// stripped: import net.minecraft.village.MerchantRecipeList;
 import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.WorldServer;
 import net.minecraft.world.WorldSettings;
@@ -728,50 +728,9 @@ public class EntityPlayerMP extends EntityPlayer implements ICrafting
 
     public void func_146104_a(TileEntity p_146104_1_) {} // stripped: beacon GUI
 
-    public void displayGUIMerchant(IMerchant p_71030_1_, String p_71030_2_)
-    {
-        this.getNextWindowId();
-        this.openContainer = new ContainerMerchant(this.inventory, p_71030_1_, this.worldObj);
-        this.openContainer.windowId = this.currentWindowId;
-        this.openContainer.addCraftingToCrafters(this);
-        InventoryMerchant inventorymerchant = ((ContainerMerchant)this.openContainer).getMerchantInventory();
-        this.playerNetServerHandler.sendPacket(new S2DPacketOpenWindow(this.currentWindowId, 6, p_71030_2_ == null ? "" : p_71030_2_, inventorymerchant.getSizeInventory(), p_71030_2_ != null));
-        MerchantRecipeList merchantrecipelist = p_71030_1_.getRecipes(this);
+    public void displayGUIMerchant(Object p_71030_1_, String p_71030_2_) {} // stripped: merchant GUI
 
-        if (merchantrecipelist != null)
-        {
-            PacketBuffer packetbuffer = new PacketBuffer(Unpooled.buffer());
-
-            try
-            {
-                packetbuffer.writeInt(this.currentWindowId);
-                merchantrecipelist.func_151391_a(packetbuffer);
-                this.playerNetServerHandler.sendPacket(new S3FPacketCustomPayload("MC|TrList", packetbuffer));
-            }
-            catch (IOException ioexception)
-            {
-                logger.error("Couldn\'t send trade list", ioexception);
-            }
-            finally
-            {
-                packetbuffer.release();
-            }
-        }
-    }
-
-    public void displayGUIHorse(EntityHorse p_110298_1_, IInventory p_110298_2_)
-    {
-        if (this.openContainer != this.inventoryContainer)
-        {
-            this.closeScreen();
-        }
-
-        this.getNextWindowId();
-        this.playerNetServerHandler.sendPacket(new S2DPacketOpenWindow(this.currentWindowId, 11, p_110298_2_.getInventoryName(), p_110298_2_.getSizeInventory(), p_110298_2_.hasCustomInventoryName(), p_110298_1_.getEntityId()));
-        this.openContainer = new ContainerHorseInventory(this.inventory, p_110298_2_, p_110298_1_);
-        this.openContainer.windowId = this.currentWindowId;
-        this.openContainer.addCraftingToCrafters(this);
-    }
+    public void displayGUIHorse(Entity p_110298_1_, IInventory p_110298_2_) {} // stripped: horse GUI
 
     /**
      * Sends the contents of an inventory slot to the client-side Container. This doesn't have to match the actual

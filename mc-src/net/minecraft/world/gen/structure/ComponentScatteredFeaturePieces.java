@@ -3,7 +3,7 @@ package net.minecraft.world.gen.structure;
 import java.util.Random;
 import net.minecraft.block.BlockLever;
 import net.minecraft.entity.IEntityLivingData;
-import net.minecraft.entity.monster.EntityWitch;
+// stripped: import net.minecraft.entity.monster.EntityWitch;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.nbt.NBTTagCompound;
@@ -710,10 +710,7 @@ public class ComponentScatteredFeaturePieces
                         if (p_74875_3_.isVecInside(i1, j1, k1))
                         {
                             this.hasWitch = true;
-                            EntityWitch entitywitch = new EntityWitch(p_74875_1_);
-                            entitywitch.setLocationAndAngles((double)i1 + 0.5D, (double)j1, (double)k1 + 0.5D, 0.0F, 0.0F);
-                            entitywitch.onSpawnWithEgg((IEntityLivingData)null);
-                            p_74875_1_.spawnEntityInWorld(entitywitch);
+                            // stripped: witch spawning disabled
                         }
                     }
 

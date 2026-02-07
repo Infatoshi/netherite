@@ -27,7 +27,7 @@ import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.GuiDisconnected;
 import net.minecraft.client.gui.GuiDownloadTerrain;
 import net.minecraft.client.gui.GuiMainMenu;
-import net.minecraft.client.gui.GuiMerchant;
+                    // stripped: // stripped: import net.minecraft.client.gui.GuiMerchant;
 import net.minecraft.client.gui.GuiMultiplayer;
 import net.minecraft.client.gui.GuiPlayerInfo;
 import net.minecraft.client.gui.GuiScreen;
@@ -53,8 +53,8 @@ import net.minecraft.entity.EntityLeashKnot;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.IMerchant;
-import net.minecraft.entity.NpcMerchant;
+// stripped: import net.minecraft.entity.IMerchant;
+// stripped: import net.minecraft.entity.NpcMerchant;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
 import net.minecraft.entity.ai.attributes.BaseAttributeMap;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
@@ -73,7 +73,7 @@ import net.minecraft.entity.item.EntityMinecart;
 import net.minecraft.entity.item.EntityPainting;
 import net.minecraft.entity.item.EntityTNTPrimed;
 import net.minecraft.entity.item.EntityXPOrb;
-import net.minecraft.entity.passive.EntityHorse;
+// stripped: import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.entity.projectile.EntityArrow;
@@ -185,7 +185,7 @@ import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.ChunkCoordinates;
 import net.minecraft.util.IChatComponent;
 import net.minecraft.util.MathHelper;
-import net.minecraft.village.MerchantRecipeList;
+                    // stripped: // stripped: import net.minecraft.village.MerchantRecipeList;
 import net.minecraft.world.Explosion;
 import net.minecraft.world.WorldProviderSurface;
 import net.minecraft.world.WorldSettings;
@@ -1051,7 +1051,7 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
             case 5:
                 break; // stripped: brewing stand GUI
             case 6:
-                entityclientplayermp.displayGUIMerchant(new NpcMerchant(entityclientplayermp), p_147265_1_.func_148900_g() ? p_147265_1_.func_148902_e() : null);
+                // stripped: merchant GUI opening
                 entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
                 break;
             case 7:
@@ -1067,11 +1067,8 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
             case 11:
                 Entity entity = this.clientWorldController.getEntityByID(p_147265_1_.func_148897_h());
 
-                if (entity != null && entity instanceof EntityHorse)
-                {
-                    entityclientplayermp.displayGUIHorse((EntityHorse)entity, new AnimalChest(p_147265_1_.func_148902_e(), p_147265_1_.func_148900_g(), p_147265_1_.func_148898_f()));
-                    entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
-                }
+                // stripped: EntityHorse GUI opening
+                break;
         }
     }
 
@@ -1531,7 +1528,7 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
 
     /**
      * Handles packets that have room for a channel specification. Vanilla implemented channels are "MC|TrList" to
-     * acquire a MerchantRecipeList trades for a villager merchant, "MC|Brand" which sets the server brand? on the
+                    // stripped: * acquire a MerchantRecipeList trades for a villager merchant, "MC|Brand" which sets the server brand? on the
      * player instance and finally "MC|RPack" which the server uses to communicate the identifier of the default server
      * resourcepack for the client to load.
      */
@@ -1539,28 +1536,7 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
     {
         if ("MC|TrList".equals(p_147240_1_.func_149169_c()))
         {
-            ByteBuf bytebuf = Unpooled.wrappedBuffer(p_147240_1_.func_149168_d());
-
-            try
-            {
-                int i = bytebuf.readInt();
-                GuiScreen guiscreen = this.gameController.currentScreen;
-
-                if (guiscreen != null && guiscreen instanceof GuiMerchant && i == this.gameController.thePlayer.openContainer.windowId)
-                {
-                    IMerchant imerchant = ((GuiMerchant)guiscreen).func_147035_g();
-                    MerchantRecipeList merchantrecipelist = MerchantRecipeList.func_151390_b(new PacketBuffer(bytebuf));
-                    imerchant.setRecipes(merchantrecipelist);
-                }
-            }
-            catch (IOException ioexception)
-            {
-                logger.error("Couldn\'t load trade info", ioexception);
-            }
-            finally
-            {
-                bytebuf.release();
-            }
+            // stripped: merchant trade list handling
         }
         else if ("MC|Brand".equals(p_147240_1_.func_149169_c()))
         {

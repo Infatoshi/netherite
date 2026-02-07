@@ -20,7 +20,7 @@ import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.item.EntityXPOrb;
 import net.minecraft.entity.monster.EntityZombie;
 import net.minecraft.entity.passive.EntityPig;
-import net.minecraft.entity.passive.EntityWolf;
+// stripped: import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.projectile.EntityArrow;
@@ -886,16 +886,7 @@ public abstract class EntityLivingBase extends Entity
                         this.recentlyHit = 100;
                         this.attackingPlayer = (EntityPlayer)entity;
                     }
-                    else if (entity instanceof net.minecraft.entity.passive.EntityTameable)
-                    {
-                        net.minecraft.entity.passive.EntityTameable entitywolf = (net.minecraft.entity.passive.EntityTameable)entity;
-
-                        if (entitywolf.isTamed())
-                        {
-                            this.recentlyHit = 100;
-                            this.attackingPlayer = null;
-                        }
-                    }
+                    // stripped: EntityTameable tamed pet attribution check
                 }
 
                 if (flag)

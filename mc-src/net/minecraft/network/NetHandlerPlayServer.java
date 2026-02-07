@@ -21,7 +21,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityMinecartCommandBlock;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.item.EntityXPOrb;
-import net.minecraft.entity.passive.EntityHorse;
+// stripped: import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -29,7 +29,7 @@ import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.Container;
 // stripped: import net.minecraft.inventory.ContainerBeacon;
-import net.minecraft.inventory.ContainerMerchant;
+// stripped: import net.minecraft.inventory.ContainerMerchant;
 // stripped: import net.minecraft.inventory.ContainerRepair;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemEditableBook;
@@ -832,14 +832,10 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
         }
         else if (p_147357_1_.func_149513_d() == 6)
         {
-            if (this.playerEntity.ridingEntity != null && this.playerEntity.ridingEntity instanceof EntityHorse)
-            {
-                ((EntityHorse)this.playerEntity.ridingEntity).setJumpPower(p_147357_1_.func_149512_e());
-            }
+            // stripped: EntityHorse jump power
         }
-        else if (p_147357_1_.func_149513_d() == 7 && this.playerEntity.ridingEntity != null && this.playerEntity.ridingEntity instanceof EntityHorse)
+        else if (false) // stripped: EntityHorse open GUI
         {
-            ((EntityHorse)this.playerEntity.ridingEntity).openGUI(this.playerEntity);
         }
     }
 
@@ -1269,10 +1265,7 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
                     i = datainputstream.readInt();
                     Container container = this.playerEntity.openContainer;
 
-                    if (container instanceof ContainerMerchant)
-                    {
-                        ((ContainerMerchant)container).setCurrentRecipeIndex(i);
-                    }
+                    // stripped: ContainerMerchant recipe index
                 }
                 catch (Exception exception2)
                 {

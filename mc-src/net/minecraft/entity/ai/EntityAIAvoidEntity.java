@@ -4,7 +4,7 @@ import java.util.List;
 import net.minecraft.command.IEntitySelector;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.passive.EntityTameable;
+// stripped: import net.minecraft.entity.passive.EntityTameable;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.pathfinding.PathEntity;
 import net.minecraft.pathfinding.PathNavigate;
@@ -55,10 +55,7 @@ public class EntityAIAvoidEntity extends EntityAIBase
     {
         if (this.targetEntityClass == EntityPlayer.class)
         {
-            if (this.theEntity instanceof EntityTameable && ((EntityTameable)this.theEntity).isTamed())
-            {
-                return false;
-            }
+            // stripped: EntityTameable tamed check - always allow avoid
 
             this.closestLivingEntity = this.theEntity.worldObj.getClosestPlayerToEntity(this.theEntity, (double)this.distanceFromEntity);
 

@@ -20,7 +20,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.EnumCreatureType;
 import net.minecraft.entity.boss.EntityDragon;
-import net.minecraft.entity.boss.EntityWither;
+// stripped: import net.minecraft.entity.boss.EntityWither;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.item.EntityXPOrb;
 import net.minecraft.entity.player.EntityPlayer;
@@ -2327,11 +2327,8 @@ public class Block
      */
     public boolean canEntityDestroy(IBlockAccess world, int x, int y, int z, Entity entity)
     {
-        if (entity instanceof EntityWither)
-        {
-            return this != Blocks.bedrock && this != Blocks.end_portal && this != Blocks.end_portal_frame && this != Blocks.command_block;
-        }
-        else if (entity instanceof EntityDragon)
+        // stripped: EntityWither block destruction check
+        if (entity instanceof EntityDragon)
         {
             return this != Blocks.obsidian && this != Blocks.end_stone && this != Blocks.bedrock;
         }

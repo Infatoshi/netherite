@@ -24,7 +24,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.IEntityMultiPart;
-import net.minecraft.entity.IMerchant;
+// stripped: import net.minecraft.entity.IMerchant;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.boss.EntityDragonPart;
@@ -34,7 +34,7 @@ import net.minecraft.entity.item.EntityMinecart;
 // stripped: import net.minecraft.entity.item.EntityMinecartHopper;
 import net.minecraft.entity.monster.EntityMob;
 import net.minecraft.entity.monster.IMob;
-import net.minecraft.entity.passive.EntityHorse;
+// stripped: import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.entity.passive.EntityPig;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.entity.projectile.EntityFishHook;
@@ -1070,7 +1070,7 @@ public abstract class EntityPlayer extends EntityLivingBase implements ICommandS
 
     public void displayGUIHopperMinecart(Entity p_96125_1_) {} // stripped: hopper minecart GUI
 
-    public void displayGUIHorse(EntityHorse p_110298_1_, IInventory p_110298_2_) {}
+    public void displayGUIHorse(Entity p_110298_1_, IInventory p_110298_2_) {} // stripped: was EntityHorse
 
     public void displayGUIEnchantment(int p_71002_1_, int p_71002_2_, int p_71002_3_, String p_71002_4_) {}
 
@@ -1251,7 +1251,7 @@ public abstract class EntityPlayer extends EntityLivingBase implements ICommandS
 
     public void func_146104_a(TileEntity p_146104_1_) {}
 
-    public void displayGUIMerchant(IMerchant p_71030_1_, String p_71030_2_) {}
+    public void displayGUIMerchant(Object p_71030_1_, String p_71030_2_) {} // stripped: was IMerchant
 
     /**
      * Displays the GUI for interacting with a book.
@@ -1971,10 +1971,7 @@ public abstract class EntityPlayer extends EntityLivingBase implements ICommandS
                 {
                     this.addStat(StatList.distanceByPigStat, i);
                 }
-                else if (this.ridingEntity instanceof EntityHorse)
-                {
-                    this.addStat(StatList.field_151185_q, i);
-                }
+                // stripped: EntityHorse distance stat
             }
         }
     }

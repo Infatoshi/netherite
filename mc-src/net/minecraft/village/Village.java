@@ -5,8 +5,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.TreeMap;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.monster.EntityIronGolem;
-import net.minecraft.entity.passive.EntityVillager;
+// stripped: import net.minecraft.entity.monster.EntityIronGolem;
+// stripped: import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.nbt.NBTTagCompound;
@@ -78,13 +78,7 @@ public class Village
         {
             Vec3 vec3 = this.tryGetIronGolemSpawningLocation(MathHelper.floor_float((float)this.center.posX), MathHelper.floor_float((float)this.center.posY), MathHelper.floor_float((float)this.center.posZ), 2, 4, 2);
 
-            if (vec3 != null)
-            {
-                EntityIronGolem entityirongolem = new EntityIronGolem(this.worldObj);
-                entityirongolem.setPosition(vec3.xCoord, vec3.yCoord, vec3.zCoord);
-                this.worldObj.spawnEntityInWorld(entityirongolem);
-                ++this.numIronGolems;
-            }
+            // stripped: iron golem spawning disabled
         }
     }
 
@@ -139,14 +133,14 @@ public class Village
 
     private void updateNumIronGolems()
     {
-        List list = this.worldObj.getEntitiesWithinAABB(EntityIronGolem.class, AxisAlignedBB.getBoundingBox((double)(this.center.posX - this.villageRadius), (double)(this.center.posY - 4), (double)(this.center.posZ - this.villageRadius), (double)(this.center.posX + this.villageRadius), (double)(this.center.posY + 4), (double)(this.center.posZ + this.villageRadius)));
-        this.numIronGolems = list.size();
+        // stripped: iron golem counting disabled
+        this.numIronGolems = 0;
     }
 
     private void updateNumVillagers()
     {
-        List list = this.worldObj.getEntitiesWithinAABB(EntityVillager.class, AxisAlignedBB.getBoundingBox((double)(this.center.posX - this.villageRadius), (double)(this.center.posY - 4), (double)(this.center.posZ - this.villageRadius), (double)(this.center.posX + this.villageRadius), (double)(this.center.posY + 4), (double)(this.center.posZ + this.villageRadius)));
-        this.numVillagers = list.size();
+        // stripped: villager counting disabled
+        this.numVillagers = 0;
 
         if (this.numVillagers == 0)
         {

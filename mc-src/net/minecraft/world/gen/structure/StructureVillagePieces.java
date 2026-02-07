@@ -5,10 +5,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import cpw.mods.fml.common.eventhandler.Event.Result;
-import cpw.mods.fml.common.registry.VillagerRegistry;
+// stripped: import cpw.mods.fml.common.registry.VillagerRegistry;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
-import net.minecraft.entity.passive.EntityVillager;
+// stripped: import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
@@ -56,7 +56,7 @@ public class StructureVillagePieces
         arraylist.add(new StructureVillagePieces.PieceWeight(StructureVillagePieces.Field2.class, 3, MathHelper.getRandomIntegerInRange(p_75084_0_, 2 + p_75084_1_, 4 + p_75084_1_ * 2)));
         arraylist.add(new StructureVillagePieces.PieceWeight(StructureVillagePieces.House2.class, 15, MathHelper.getRandomIntegerInRange(p_75084_0_, 0, 1 + p_75084_1_)));
         arraylist.add(new StructureVillagePieces.PieceWeight(StructureVillagePieces.House3.class, 8, MathHelper.getRandomIntegerInRange(p_75084_0_, 0 + p_75084_1_, 3 + p_75084_1_ * 2)));
-        VillagerRegistry.addExtraVillageComponents(arraylist, p_75084_0_, p_75084_1_);
+        // stripped: VillagerRegistry.addExtraVillageComponents(arraylist, p_75084_0_, p_75084_1_);
 
         Iterator iterator = arraylist.iterator();
 
@@ -133,7 +133,7 @@ public class StructureVillagePieces
         }
         else
         {
-            object = VillagerRegistry.getVillageComponent(p_75083_1_, p_75083_0_ , p_75083_2_, p_75083_3_, p_75083_4_, p_75083_5_, p_75083_6_, p_75083_7_, p_75083_8_);
+            object = null; // stripped: VillagerRegistry.getVillageComponent
         }
 
         return (StructureVillagePieces.Village)object;
@@ -1702,9 +1702,7 @@ public class StructureVillagePieces
                         }
 
                         ++this.villagersSpawned;
-                        EntityVillager entityvillager = new EntityVillager(p_74893_1_, this.getVillagerType(i1));
-                        entityvillager.setLocationAndAngles((double)j1 + 0.5D, (double)k1, (double)l1 + 0.5D, 0.0F, 0.0F);
-                        p_74893_1_.spawnEntityInWorld(entityvillager);
+                        // stripped: villager spawning disabled
                     }
                 }
             }

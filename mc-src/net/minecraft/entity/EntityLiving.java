@@ -16,7 +16,7 @@ import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.monster.EntityCreeper;
 import net.minecraft.entity.monster.EntityGhast;
 import net.minecraft.entity.monster.IMob;
-import net.minecraft.entity.passive.EntityTameable;
+// stripped: import net.minecraft.entity.passive.EntityTameable;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
@@ -1140,14 +1140,7 @@ public abstract class EntityLiving extends EntityLivingBase
 
             if (itemstack != null && itemstack.getItem() == Items.lead && this.allowLeashing())
             {
-                if (!(this instanceof EntityTameable) || !((EntityTameable)this).isTamed())
-                {
-                    this.setLeashedToEntity(p_130002_1_, true);
-                    --itemstack.stackSize;
-                    return true;
-                }
-
-                if (((EntityTameable)this).func_152114_e(p_130002_1_))
+                // stripped: EntityTameable tamed/owner leash checks
                 {
                     this.setLeashedToEntity(p_130002_1_, true);
                     --itemstack.stackSize;

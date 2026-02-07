@@ -10,7 +10,7 @@ import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.passive.EntityOcelot;
+// stripped: import net.minecraft.entity.passive.EntityOcelot;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.IInventory;
@@ -526,22 +526,8 @@ public class BlockChest extends BlockContainer
 
     private static boolean func_149953_o(World p_149953_0_, int p_149953_1_, int p_149953_2_, int p_149953_3_)
     {
-        Iterator iterator = p_149953_0_.getEntitiesWithinAABB(EntityOcelot.class, AxisAlignedBB.getBoundingBox((double)p_149953_1_, (double)(p_149953_2_ + 1), (double)p_149953_3_, (double)(p_149953_1_ + 1), (double)(p_149953_2_ + 2), (double)(p_149953_3_ + 1))).iterator();
-        EntityOcelot entityocelot;
-
-        do
-        {
-            if (!iterator.hasNext())
-            {
-                return false;
-            }
-
-            Entity entity = (Entity)iterator.next();
-            entityocelot = (EntityOcelot)entity;
-        }
-        while (!entityocelot.isSitting());
-
-        return true;
+        // stripped: EntityOcelot sitting cat check - always allow chest open
+        return false;
     }
 
     /**

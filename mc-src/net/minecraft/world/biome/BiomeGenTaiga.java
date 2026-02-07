@@ -2,7 +2,7 @@ package net.minecraft.world.biome;
 
 import java.util.Random;
 import net.minecraft.block.Block;
-import net.minecraft.entity.passive.EntityWolf;
+// stripped: import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.feature.WorldGenAbstractTree;
@@ -27,7 +27,7 @@ public class BiomeGenTaiga extends BiomeGenBase
     {
         super(p_i45385_1_);
         this.field_150644_aH = p_i45385_2_;
-        this.spawnableCreatureList.add(new BiomeGenBase.SpawnListEntry(EntityWolf.class, 8, 4, 4));
+        // stripped: this.spawnableCreatureList.add(new BiomeGenBase.SpawnListEntry(EntityWolf.class, 8, 4, 4));
         this.theBiomeDecorator.treesPerChunk = 10;
 
         if (p_i45385_2_ != 1 && p_i45385_2_ != 2)

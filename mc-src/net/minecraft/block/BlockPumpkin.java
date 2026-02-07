@@ -6,8 +6,8 @@ import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.entity.monster.EntityIronGolem;
-import net.minecraft.entity.monster.EntitySnowman;
+// stripped: import net.minecraft.entity.monster.EntityIronGolem;
+// stripped: import net.minecraft.entity.monster.EntitySnowman;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.IIcon;
@@ -54,9 +54,7 @@ public class BlockPumpkin extends BlockDirectional
                 p_149726_1_.setBlock(p_149726_2_, p_149726_3_, p_149726_4_, getBlockById(0), 0, 2);
                 p_149726_1_.setBlock(p_149726_2_, p_149726_3_ - 1, p_149726_4_, getBlockById(0), 0, 2);
                 p_149726_1_.setBlock(p_149726_2_, p_149726_3_ - 2, p_149726_4_, getBlockById(0), 0, 2);
-                EntitySnowman entitysnowman = new EntitySnowman(p_149726_1_);
-                entitysnowman.setLocationAndAngles((double)p_149726_2_ + 0.5D, (double)p_149726_3_ - 1.95D, (double)p_149726_4_ + 0.5D, 0.0F, 0.0F);
-                p_149726_1_.spawnEntityInWorld(entitysnowman);
+                // stripped: snow golem creation and spawning
                 p_149726_1_.notifyBlockChange(p_149726_2_, p_149726_3_, p_149726_4_, getBlockById(0));
                 p_149726_1_.notifyBlockChange(p_149726_2_, p_149726_3_ - 1, p_149726_4_, getBlockById(0));
                 p_149726_1_.notifyBlockChange(p_149726_2_, p_149726_3_ - 2, p_149726_4_, getBlockById(0));
@@ -89,10 +87,7 @@ public class BlockPumpkin extends BlockDirectional
                     p_149726_1_.setBlock(p_149726_2_, p_149726_3_ - 1, p_149726_4_ + 1, getBlockById(0), 0, 2);
                 }
 
-                EntityIronGolem entityirongolem = new EntityIronGolem(p_149726_1_);
-                entityirongolem.setPlayerCreated(true);
-                entityirongolem.setLocationAndAngles((double)p_149726_2_ + 0.5D, (double)p_149726_3_ - 1.95D, (double)p_149726_4_ + 0.5D, 0.0F, 0.0F);
-                p_149726_1_.spawnEntityInWorld(entityirongolem);
+                // stripped: iron golem creation and spawning
 
                 for (int l = 0; l < 120; ++l)
                 {

@@ -8,7 +8,7 @@ import java.util.concurrent.Callable;
 import net.minecraft.crash.CrashReport;
 import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.entity.boss.EntityDragon;
-import net.minecraft.entity.boss.EntityWither;
+// stripped: import net.minecraft.entity.boss.EntityWither;
 import net.minecraft.entity.item.EntityBoat;
 import net.minecraft.entity.item.EntityEnderCrystal;
 import net.minecraft.entity.item.EntityEnderEye;
@@ -144,7 +144,7 @@ public class EntityTracker
         {
             this.addEntityToTracker(p_72786_1_, 64, 3, true);
         }
-        else if (p_72786_1_ instanceof EntityWither)
+        else if (false) // stripped: EntityWither instanceof
         {
             this.addEntityToTracker(p_72786_1_, 80, 3, false);
         }

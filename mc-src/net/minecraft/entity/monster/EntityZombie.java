@@ -28,7 +28,7 @@ import net.minecraft.entity.ai.attributes.IAttribute;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.ai.attributes.RangedAttribute;
 import net.minecraft.entity.passive.EntityChicken;
-import net.minecraft.entity.passive.EntityVillager;
+// stripped: import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
@@ -65,7 +65,7 @@ public class EntityZombie extends EntityMob
         this.getNavigator().setBreakDoors(true);
         this.tasks.addTask(0, new EntityAISwimming(this));
         this.tasks.addTask(2, new EntityAIAttackOnCollide(this, EntityPlayer.class, 1.0D, false));
-        this.tasks.addTask(4, new EntityAIAttackOnCollide(this, EntityVillager.class, 1.0D, true));
+        // stripped: zombie attack villager AI task
         this.tasks.addTask(5, new EntityAIMoveTowardsRestriction(this, 1.0D));
         this.tasks.addTask(6, new EntityAIMoveThroughVillage(this, 1.0D, false));
         this.tasks.addTask(7, new EntityAIWander(this, 1.0D));
@@ -73,7 +73,7 @@ public class EntityZombie extends EntityMob
         this.tasks.addTask(8, new EntityAILookIdle(this));
         this.targetTasks.addTask(1, new EntityAIHurtByTarget(this, true));
         this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityPlayer.class, 0, true));
-        this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityVillager.class, 0, false));
+        // stripped: this.targetTasks.addTask(2, new EntityAINearestAttackableTarget(this, EntityVillager.class, 0, false));
         this.setSize(0.6F, 1.8F);
     }
 
@@ -484,7 +484,7 @@ public class EntityZombie extends EntityMob
     {
         super.onKillEntity(p_70074_1_);
 
-        if ((this.worldObj.difficultySetting == EnumDifficulty.NORMAL || this.worldObj.difficultySetting == EnumDifficulty.HARD) && p_70074_1_ instanceof EntityVillager)
+        if (false) // stripped: EntityVillager zombie conversion
         {
             if (this.worldObj.difficultySetting != EnumDifficulty.HARD && this.rand.nextBoolean())
             {
@@ -666,19 +666,8 @@ public class EntityZombie extends EntityMob
      */
     protected void convertToVillager()
     {
-        EntityVillager entityvillager = new EntityVillager(this.worldObj);
-        entityvillager.copyLocationAndAnglesFrom(this);
-        entityvillager.onSpawnWithEgg((IEntityLivingData)null);
-        entityvillager.setLookingForHome();
-
-        if (this.isChild())
-        {
-            entityvillager.setGrowingAge(-24000);
-        }
-
+        // stripped: villager conversion disabled - just remove zombie
         this.worldObj.removeEntity(this);
-        this.worldObj.spawnEntityInWorld(entityvillager);
-        entityvillager.addPotionEffect(new PotionEffect(Potion.confusion.id, 200, 0));
         this.worldObj.playAuxSFXAtEntity((EntityPlayer)null, 1017, (int)this.posX, (int)this.posY, (int)this.posZ, 0);
     }
 

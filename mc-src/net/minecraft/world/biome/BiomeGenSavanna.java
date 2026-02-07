@@ -2,7 +2,7 @@ package net.minecraft.world.biome;
 
 import java.util.Random;
 import net.minecraft.block.Block;
-import net.minecraft.entity.passive.EntityHorse;
+// stripped: import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.init.Blocks;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.feature.WorldGenAbstractTree;
@@ -16,7 +16,7 @@ public class BiomeGenSavanna extends BiomeGenBase
     public BiomeGenSavanna(int p_i45383_1_)
     {
         super(p_i45383_1_);
-        this.spawnableCreatureList.add(new BiomeGenBase.SpawnListEntry(EntityHorse.class, 1, 2, 6));
+        // stripped: this.spawnableCreatureList.add(new BiomeGenBase.SpawnListEntry(EntityHorse.class, 1, 2, 6));
         this.theBiomeDecorator.treesPerChunk = 1;
         this.theBiomeDecorator.flowersPerChunk = 4;
         this.theBiomeDecorator.grassPerChunk = 20;
