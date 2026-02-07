@@ -18,7 +18,7 @@ import net.minecraft.event.ClickEvent;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.Container;
-import net.minecraft.inventory.ContainerRepair;
+// stripped: import net.minecraft.inventory.ContainerRepair;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemArmor;
@@ -46,7 +46,7 @@ import net.minecraft.util.MovingObjectPosition.MovingObjectType;
 import net.minecraft.util.WeightedRandom;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldSettings.GameType;
-import net.minecraftforge.event.AnvilUpdateEvent;
+// stripped: import net.minecraftforge.event.AnvilUpdateEvent;
 import net.minecraftforge.event.ForgeEventFactory;
 import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
@@ -59,7 +59,7 @@ import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.player.PlayerOpenContainerEvent;
-import net.minecraftforge.event.entity.player.AnvilRepairEvent;
+// stripped: import net.minecraftforge.event.entity.player.AnvilRepairEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.event.world.NoteBlockEvent;
 import static net.minecraft.init.Blocks.*;
@@ -582,24 +582,5 @@ public class ForgeHooks
         return flag;
     }
 
-    public static boolean onAnvilChange(ContainerRepair container, ItemStack left, ItemStack right, IInventory outputSlot, String name, int baseCost)
-    {
-        AnvilUpdateEvent e = new AnvilUpdateEvent(left, right, name, baseCost);
-        if (MinecraftForge.EVENT_BUS.post(e)) return false;
-        if (e.output == null) return true;
-
-        outputSlot.setInventorySlotContents(0, e.output);
-        container.maximumCost = e.cost;
-        container.stackSizeToBeUsedInRepair = e.materialCost;
-        return false;
-    }
-
-    public static float onAnvilRepair(EntityPlayer player, ItemStack output, ItemStack left, ItemStack right)
-    {
-        AnvilRepairEvent e = new AnvilRepairEvent(player, left, right, output);
-        MinecraftForge.EVENT_BUS.post(e);
-        return e.breakChance;
-    }
-
-    // stripped: onNoteChange (note block removed)
+    // stripped: onAnvilChange, onAnvilRepair, onNoteChange
 }

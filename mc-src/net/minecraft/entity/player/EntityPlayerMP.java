@@ -21,16 +21,16 @@ import net.minecraft.entity.item.EntityMinecartHopper;
 import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.inventory.Container;
-import net.minecraft.inventory.ContainerBeacon;
+// stripped: import net.minecraft.inventory.ContainerBeacon;
 // stripped: import net.minecraft.inventory.ContainerBrewingStand;
 import net.minecraft.inventory.ContainerChest;
 import net.minecraft.inventory.ContainerDispenser;
-import net.minecraft.inventory.ContainerEnchantment;
+// stripped: import net.minecraft.inventory.ContainerEnchantment;
 import net.minecraft.inventory.ContainerFurnace;
 import net.minecraft.inventory.ContainerHopper;
 import net.minecraft.inventory.ContainerHorseInventory;
 import net.minecraft.inventory.ContainerMerchant;
-import net.minecraft.inventory.ContainerRepair;
+// stripped: import net.minecraft.inventory.ContainerRepair;
 import net.minecraft.inventory.ContainerWorkbench;
 import net.minecraft.inventory.ICrafting;
 import net.minecraft.inventory.IInventory;
@@ -76,7 +76,7 @@ import net.minecraft.stats.StatBase;
 import net.minecraft.stats.StatList;
 import net.minecraft.stats.StatisticsFile;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityBeacon;
+// stripped: import net.minecraft.tileentity.TileEntityBeacon;
 // stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
 import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityDropper;
@@ -688,26 +688,9 @@ public class EntityPlayerMP extends EntityPlayer implements ICrafting
         this.openContainer.addCraftingToCrafters(this);
     }
 
-    public void displayGUIEnchantment(int p_71002_1_, int p_71002_2_, int p_71002_3_, String p_71002_4_)
-    {
-        this.getNextWindowId();
-        this.playerNetServerHandler.sendPacket(new S2DPacketOpenWindow(this.currentWindowId, 4, p_71002_4_ == null ? "" : p_71002_4_, 9, p_71002_4_ != null));
-        this.openContainer = new ContainerEnchantment(this.inventory, this.worldObj, p_71002_1_, p_71002_2_, p_71002_3_);
-        this.openContainer.windowId = this.currentWindowId;
-        this.openContainer.addCraftingToCrafters(this);
-    }
+    public void displayGUIEnchantment(int p_71002_1_, int p_71002_2_, int p_71002_3_, String p_71002_4_) {} // stripped
 
-    /**
-     * Displays the GUI for interacting with an anvil.
-     */
-    public void displayGUIAnvil(int p_82244_1_, int p_82244_2_, int p_82244_3_)
-    {
-        this.getNextWindowId();
-        this.playerNetServerHandler.sendPacket(new S2DPacketOpenWindow(this.currentWindowId, 8, "Repairing", 9, true));
-        this.openContainer = new ContainerRepair(this.inventory, this.worldObj, p_82244_1_, p_82244_2_, p_82244_3_, this);
-        this.openContainer.windowId = this.currentWindowId;
-        this.openContainer.addCraftingToCrafters(this);
-    }
+    public void displayGUIAnvil(int p_82244_1_, int p_82244_2_, int p_82244_3_) {} // stripped
 
     /**
      * Displays the GUI for interacting with a chest inventory. Args: chestInventory
@@ -764,14 +747,7 @@ public class EntityPlayerMP extends EntityPlayer implements ICrafting
 
     public void func_146098_a(TileEntity p_146098_1_) {} // stripped: brewing stand GUI
 
-    public void func_146104_a(TileEntityBeacon p_146104_1_)
-    {
-        this.getNextWindowId();
-        this.playerNetServerHandler.sendPacket(new S2DPacketOpenWindow(this.currentWindowId, 7, p_146104_1_.getInventoryName(), p_146104_1_.getSizeInventory(), p_146104_1_.hasCustomInventoryName()));
-        this.openContainer = new ContainerBeacon(this.inventory, p_146104_1_);
-        this.openContainer.windowId = this.currentWindowId;
-        this.openContainer.addCraftingToCrafters(this);
-    }
+    public void func_146104_a(TileEntity p_146104_1_) {} // stripped: beacon GUI
 
     public void displayGUIMerchant(IMerchant p_71030_1_, String p_71030_2_)
     {

@@ -404,7 +404,7 @@ public class Item
             }
             else if (block == Blocks.anvil)
             {
-                object = (new ItemAnvilBlock(Blocks.anvil)).setUnlocalizedName("anvil");
+                object = (new ItemBlock(Blocks.anvil)).setUnlocalizedName("anvil");
             }
             else if (block == Blocks.double_plant)
             {

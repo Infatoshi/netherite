@@ -3,7 +3,7 @@ package net.minecraft.client.renderer.entity;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockAnvil;
+// stripped: import net.minecraft.block.BlockAnvil;
 import net.minecraft.block.BlockDragonEgg;
 import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.Tessellator;
@@ -48,17 +48,8 @@ public class RenderFallingBlock extends Render
             GL11.glDisable(GL11.GL_LIGHTING);
             Tessellator tessellator;
 
-            if (block instanceof BlockAnvil)
-            {
-                this.field_147920_a.blockAccess = world;
-                tessellator = Tessellator.instance;
-                tessellator.startDrawingQuads();
-                tessellator.setTranslation((double)((float)(-i) - 0.5F), (double)((float)(-j) - 0.5F), (double)((float)(-k) - 0.5F));
-                this.field_147920_a.renderBlockAnvilMetadata((BlockAnvil)block, i, j, k, p_76986_1_.field_145814_a);
-                tessellator.setTranslation(0.0D, 0.0D, 0.0D);
-                tessellator.draw();
-            }
-            else if (block instanceof BlockDragonEgg)
+            // stripped: anvil falling block rendering
+            if (block instanceof BlockDragonEgg)
             {
                 this.field_147920_a.blockAccess = world;
                 tessellator = Tessellator.instance;

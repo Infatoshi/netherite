@@ -5,13 +5,13 @@ import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.gui.GuiCommandBlock;
-import net.minecraft.client.gui.GuiEnchantment;
+// stripped: import net.minecraft.client.gui.GuiEnchantment;
 import net.minecraft.client.gui.GuiHopper;
 import net.minecraft.client.gui.GuiMerchant;
-import net.minecraft.client.gui.GuiRepair;
+// stripped: import net.minecraft.client.gui.GuiRepair;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiScreenBook;
-import net.minecraft.client.gui.inventory.GuiBeacon;
+// stripped: import net.minecraft.client.gui.inventory.GuiBeacon;
 // stripped: import net.minecraft.client.gui.inventory.GuiBrewingStand;
 import net.minecraft.client.gui.inventory.GuiChest;
 import net.minecraft.client.gui.inventory.GuiCrafting;
@@ -34,7 +34,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.potion.Potion;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityBeacon;
+// stripped: import net.minecraft.tileentity.TileEntityBeacon;
 // stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
 // stripped: import net.minecraft.tileentity.TileEntityCommandBlock;
 import net.minecraft.tileentity.TileEntityDispenser;
@@ -418,18 +418,9 @@ public class EntityPlayerSP extends AbstractClientPlayer
         this.mc.displayGuiScreen(new GuiCrafting(this.inventory, this.worldObj, p_71058_1_, p_71058_2_, p_71058_3_));
     }
 
-    public void displayGUIEnchantment(int p_71002_1_, int p_71002_2_, int p_71002_3_, String p_71002_4_)
-    {
-        this.mc.displayGuiScreen(new GuiEnchantment(this.inventory, this.worldObj, p_71002_1_, p_71002_2_, p_71002_3_, p_71002_4_));
-    }
+    public void displayGUIEnchantment(int p_71002_1_, int p_71002_2_, int p_71002_3_, String p_71002_4_) {} // stripped
 
-    /**
-     * Displays the GUI for interacting with an anvil.
-     */
-    public void displayGUIAnvil(int p_82244_1_, int p_82244_2_, int p_82244_3_)
-    {
-        this.mc.displayGuiScreen(new GuiRepair(this.inventory, this.worldObj, p_82244_1_, p_82244_2_, p_82244_3_));
-    }
+    public void displayGUIAnvil(int p_82244_1_, int p_82244_2_, int p_82244_3_) {} // stripped
 
     public void func_146101_a(TileEntityFurnace p_146101_1_)
     {
@@ -438,10 +429,7 @@ public class EntityPlayerSP extends AbstractClientPlayer
 
     public void func_146098_a(TileEntity p_146098_1_) {}
 
-    public void func_146104_a(TileEntityBeacon p_146104_1_)
-    {
-        this.mc.displayGuiScreen(new GuiBeacon(this.inventory, p_146104_1_));
-    }
+    public void func_146104_a(TileEntity p_146104_1_) {} // stripped: beacon GUI
 
     public void func_146102_a(TileEntityDispenser p_146102_1_)
     {

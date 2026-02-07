@@ -7,15 +7,15 @@ import java.util.Iterator;
 import java.util.Map;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.OpenGlHelper;
-import net.minecraft.client.renderer.entity.RenderEnchantmentTable;
+// stripped: import net.minecraft.client.renderer.entity.RenderEnchantmentTable;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.crash.CrashReport;
 import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityBeacon;
+// stripped: import net.minecraft.tileentity.TileEntityBeacon;
 import net.minecraft.tileentity.TileEntityChest;
-import net.minecraft.tileentity.TileEntityEnchantmentTable;
+// stripped: import net.minecraft.tileentity.TileEntityEnchantmentTable;
 import net.minecraft.tileentity.TileEntityEndPortal;
 import net.minecraft.tileentity.TileEntityEnderChest;
 import net.minecraft.tileentity.TileEntityMobSpawner;
@@ -55,9 +55,9 @@ public class TileEntityRendererDispatcher
         this.mapSpecialRenderers.put(TileEntityPiston.class, new TileEntityRendererPiston());
         this.mapSpecialRenderers.put(TileEntityChest.class, new TileEntityChestRenderer());
         this.mapSpecialRenderers.put(TileEntityEnderChest.class, new TileEntityEnderChestRenderer());
-        this.mapSpecialRenderers.put(TileEntityEnchantmentTable.class, new RenderEnchantmentTable());
+        // stripped: enchantment table renderer
         this.mapSpecialRenderers.put(TileEntityEndPortal.class, new RenderEndPortal());
-        this.mapSpecialRenderers.put(TileEntityBeacon.class, new TileEntityBeaconRenderer());
+        // stripped: beacon renderer
         // stripped: skull renderer
         Iterator iterator = this.mapSpecialRenderers.values().iterator();
 

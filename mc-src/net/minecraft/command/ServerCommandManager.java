@@ -52,7 +52,7 @@ public class ServerCommandManager extends CommandHandler implements IAdminComman
         this.registerCommand(new CommandTeleport());
         this.registerCommand(new CommandGive());
         this.registerCommand(new CommandEffect());
-        this.registerCommand(new CommandEnchant());
+        // stripped: this.registerCommand(new CommandEnchant());
         this.registerCommand(new CommandEmote());
         this.registerCommand(new CommandShowSeed());
         this.registerCommand(new CommandHelp());

@@ -3,8 +3,8 @@ package net.minecraft.client.renderer;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockAnvil;
-import net.minecraft.block.BlockBeacon;
+// stripped: import net.minecraft.block.BlockAnvil;
+// stripped: import net.minecraft.block.BlockBeacon;
 import net.minecraft.block.BlockBed;
 // stripped: import net.minecraft.block.BlockBrewingStand;
 // stripped: import net.minecraft.block.BlockCauldron;
@@ -380,11 +380,11 @@ public class RenderBlocks
             case 21: return this.renderBlockFenceGate((BlockFenceGate)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 24: return this.renderBlockCauldron(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 33: return false; // stripped: flower pot rendering
-            case 35: return this.renderBlockAnvil((BlockAnvil)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
+            case 35: return false; // stripped: anvil rendering
             case 25: return false; // stripped: brewing stand rendering
             case 26: return this.renderBlockEndPortalFrame((BlockEndPortalFrame)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 28: return this.renderBlockCocoa((BlockCocoa)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
-            case 34: return this.renderBlockBeacon((BlockBeacon)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
+            case 34: return false; // stripped: beacon rendering
             case 38: return this.renderBlockHopper((BlockHopper)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_);
             default: return FMLRenderAccessLibrary.renderWorldBlock(this, blockAccess, p_147805_2_, p_147805_3_, p_147805_4_, p_147805_1_, l);
             }
@@ -671,44 +671,9 @@ public class RenderBlocks
         return true;
     }
 
-    /**
-     * Renders anvil
-     */
-    public boolean renderBlockAnvil(BlockAnvil p_147725_1_, int p_147725_2_, int p_147725_3_, int p_147725_4_)
-    {
-        return this.renderBlockAnvilMetadata(p_147725_1_, p_147725_2_, p_147725_3_, p_147725_4_, this.blockAccess.getBlockMetadata(p_147725_2_, p_147725_3_, p_147725_4_));
-    }
+    // stripped: renderBlockAnvil, renderBlockAnvilMetadata methods
 
-    /**
-     * Renders anvil block with metadata
-     */
-    public boolean renderBlockAnvilMetadata(BlockAnvil p_147780_1_, int p_147780_2_, int p_147780_3_, int p_147780_4_, int p_147780_5_)
-    {
-        Tessellator tessellator = Tessellator.instance;
-        tessellator.setBrightness(p_147780_1_.getMixedBrightnessForBlock(this.blockAccess, p_147780_2_, p_147780_3_, p_147780_4_));
-        int i1 = p_147780_1_.colorMultiplier(this.blockAccess, p_147780_2_, p_147780_3_, p_147780_4_);
-        float f = (float)(i1 >> 16 & 255) / 255.0F;
-        float f1 = (float)(i1 >> 8 & 255) / 255.0F;
-        float f2 = (float)(i1 & 255) / 255.0F;
-
-        if (EntityRenderer.anaglyphEnable)
-        {
-            float f3 = (f * 30.0F + f1 * 59.0F + f2 * 11.0F) / 100.0F;
-            float f4 = (f * 30.0F + f1 * 70.0F) / 100.0F;
-            float f5 = (f * 30.0F + f2 * 70.0F) / 100.0F;
-            f = f3;
-            f1 = f4;
-            f2 = f5;
-        }
-
-        tessellator.setColorOpaque_F(f, f1, f2);
-        return this.renderBlockAnvilOrient(p_147780_1_, p_147780_2_, p_147780_3_, p_147780_4_, p_147780_5_, false);
-    }
-
-    /**
-     * Renders anvil block with orientation
-     */
-    public boolean renderBlockAnvilOrient(BlockAnvil p_147728_1_, int p_147728_2_, int p_147728_3_, int p_147728_4_, int p_147728_5_, boolean p_147728_6_)
+    public boolean renderBlockAnvilOrient(Block p_147728_1_, int p_147728_2_, int p_147728_3_, int p_147728_4_, int p_147728_5_, boolean p_147728_6_)
     {
         int i1 = p_147728_6_ ? 0 : p_147728_5_ & 3;
         boolean flag1 = false;
@@ -758,7 +723,7 @@ public class RenderBlocks
     /**
      * Renders anvil block with rotation
      */
-    public float renderBlockAnvilRotate(BlockAnvil p_147737_1_, int p_147737_2_, int p_147737_3_, int p_147737_4_, int p_147737_5_, float p_147737_6_, float p_147737_7_, float p_147737_8_, float p_147737_9_, boolean p_147737_10_, boolean p_147737_11_, int p_147737_12_)
+    public float renderBlockAnvilRotate(Block p_147737_1_, int p_147737_2_, int p_147737_3_, int p_147737_4_, int p_147737_5_, float p_147737_6_, float p_147737_7_, float p_147737_8_, float p_147737_9_, boolean p_147737_10_, boolean p_147737_11_, int p_147737_12_)
     {
         if (p_147737_10_)
         {
@@ -769,7 +734,6 @@ public class RenderBlocks
 
         p_147737_7_ /= 2.0F;
         p_147737_9_ /= 2.0F;
-        p_147737_1_.anvilRenderSide = p_147737_5_;
         this.setRenderBounds((double)(0.5F - p_147737_7_), (double)p_147737_6_, (double)(0.5F - p_147737_9_), (double)(0.5F + p_147737_7_), (double)(p_147737_6_ + p_147737_8_), (double)(0.5F + p_147737_9_));
 
         if (p_147737_11_)
@@ -6303,23 +6267,7 @@ public class RenderBlocks
         return true;
     }
 
-    public boolean renderBlockBeacon(BlockBeacon p_147797_1_, int p_147797_2_, int p_147797_3_, int p_147797_4_)
-    {
-        float f = 0.1875F;
-        this.setOverrideBlockTexture(this.getBlockIcon(Blocks.glass));
-        this.setRenderBounds(0.0D, 0.0D, 0.0D, 1.0D, 1.0D, 1.0D);
-        this.renderStandardBlock(p_147797_1_, p_147797_2_, p_147797_3_, p_147797_4_);
-        this.renderAllFaces = true;
-        this.setOverrideBlockTexture(this.getBlockIcon(Blocks.obsidian));
-        this.setRenderBounds(0.125D, 0.0062500000931322575D, 0.125D, 0.875D, (double)f, 0.875D);
-        this.renderStandardBlock(p_147797_1_, p_147797_2_, p_147797_3_, p_147797_4_);
-        this.setOverrideBlockTexture(this.getBlockIcon(Blocks.beacon));
-        this.setRenderBounds(0.1875D, (double)f, 0.1875D, 0.8125D, 0.875D, 0.8125D);
-        this.renderStandardBlock(p_147797_1_, p_147797_2_, p_147797_3_, p_147797_4_);
-        this.renderAllFaces = false;
-        this.clearOverrideBlockTexture();
-        return true;
-    }
+    // stripped: renderBlockBeacon method
 
     public boolean renderBlockCactus(Block p_147755_1_, int p_147755_2_, int p_147755_3_, int p_147755_4_)
     {
@@ -8188,7 +8136,7 @@ public class RenderBlocks
             else if (j == 35)
             {
                 GL11.glTranslatef(-0.5F, -0.5F, -0.5F);
-                this.renderBlockAnvilOrient((BlockAnvil)p_147800_1_, 0, 0, 0, p_147800_2_ << 2, true);
+                this.renderBlockAnvilOrient(p_147800_1_, 0, 0, 0, p_147800_2_ << 2, true);
                 GL11.glTranslatef(0.5F, 0.5F, 0.5F);
             }
             else if (j == 34)

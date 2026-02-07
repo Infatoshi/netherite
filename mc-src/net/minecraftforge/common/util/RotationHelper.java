@@ -4,7 +4,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockAnvil;
+// stripped: import net.minecraft.block.BlockAnvil;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.BlockButton;
 import net.minecraft.block.BlockChest;
@@ -105,8 +105,7 @@ public class RotationHelper {
                 block instanceof BlockRedstoneComparator || 
                 block instanceof BlockTrapDoor || 
                 block instanceof BlockHugeMushroom || 
-                block instanceof BlockVine || 
-                block instanceof BlockAnvil) ? UP_DOWN_AXES : VALID_DIRECTIONS;
+                block instanceof BlockVine) ? UP_DOWN_AXES : VALID_DIRECTIONS;
     }
 
     public static boolean rotateVanillaBlock(Block block, World worldObj, int x, int y, int z, ForgeDirection axis)
@@ -166,11 +165,7 @@ public class RotationHelper {
             {
                 return rotateBlock(worldObj, x, y, z, axis, 0xF, BlockType.VINE);
             }
-            // stripped: skull rotation
-            if (block instanceof BlockAnvil)
-            {
-                return rotateBlock(worldObj, x, y, z, axis, 0x1, BlockType.ANVIL);
-            }
+            // stripped: skull rotation, anvil rotation
         }
 
         if (block instanceof BlockLog)

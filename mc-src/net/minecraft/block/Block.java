@@ -361,7 +361,7 @@ public class Block
         blockRegistry.addObject(113, "nether_brick_fence", (new BlockFence("nether_brick", Material.rock)).setHardness(2.0F).setResistance(10.0F).setStepSound(soundTypePiston).setBlockName("netherFence"));
         blockRegistry.addObject(114, "nether_brick_stairs", (new BlockStairs(block8, 0)).setBlockName("stairsNetherBrick"));
         blockRegistry.addObject(115, "nether_wart", (new BlockNetherWart()).setBlockName("netherStalk").setBlockTextureName("nether_wart"));
-        blockRegistry.addObject(116, "enchanting_table", (new BlockEnchantmentTable()).setHardness(5.0F).setResistance(2000.0F).setBlockName("enchantmentTable").setBlockTextureName("enchanting_table"));
+        blockRegistry.addObject(116, "enchanting_table", (new Block(Material.rock)).setHardness(5.0F).setResistance(2000.0F).setBlockName("enchantmentTable").setBlockTextureName("enchanting_table"));
         blockRegistry.addObject(117, "brewing_stand", (new Block(Material.iron)).setHardness(0.5F).setLightLevel(0.125F).setBlockName("brewingStand").setBlockTextureName("brewing_stand"));
         blockRegistry.addObject(118, "cauldron", (new Block(Material.iron)).setHardness(2.0F).setBlockName("cauldron").setBlockTextureName("cauldron"));
         blockRegistry.addObject(119, "end_portal", (new BlockEndPortal(Material.portal)).setHardness(-1.0F).setResistance(6000000.0F));
@@ -383,14 +383,14 @@ public class Block
         blockRegistry.addObject(135, "birch_stairs", (new BlockStairs(block1, 2)).setBlockName("stairsWoodBirch"));
         blockRegistry.addObject(136, "jungle_stairs", (new BlockStairs(block1, 3)).setBlockName("stairsWoodJungle"));
         blockRegistry.addObject(137, "command_block", (new Block(Material.iron)).setBlockUnbreakable().setResistance(6000000.0F).setBlockName("commandBlock").setBlockTextureName("command_block"));
-        blockRegistry.addObject(138, "beacon", (new BlockBeacon()).setBlockName("beacon").setLightLevel(1.0F).setBlockTextureName("beacon"));
+        blockRegistry.addObject(138, "beacon", (new Block(Material.glass)).setBlockName("beacon").setLightLevel(1.0F).setBlockTextureName("beacon"));
         blockRegistry.addObject(139, "cobblestone_wall", (new BlockWall(block)).setBlockName("cobbleWall"));
         blockRegistry.addObject(140, "flower_pot", (new Block(Material.circuits)).setHardness(0.0F).setStepSound(soundTypeStone).setBlockName("flowerPot").setBlockTextureName("flower_pot"));
         blockRegistry.addObject(141, "carrots", (new BlockCarrot()).setBlockName("carrots").setBlockTextureName("carrots"));
         blockRegistry.addObject(142, "potatoes", (new BlockPotato()).setBlockName("potatoes").setBlockTextureName("potatoes"));
         blockRegistry.addObject(143, "wooden_button", (new BlockButtonWood()).setHardness(0.5F).setStepSound(soundTypeWood).setBlockName("button"));
         blockRegistry.addObject(144, "skull", (new Block(Material.circuits)).setHardness(1.0F).setStepSound(soundTypePiston).setBlockName("skull").setBlockTextureName("skull"));
-        blockRegistry.addObject(145, "anvil", (new BlockAnvil()).setHardness(5.0F).setStepSound(soundTypeAnvil).setResistance(2000.0F).setBlockName("anvil"));
+        blockRegistry.addObject(145, "anvil", (new Block(Material.anvil)).setHardness(5.0F).setStepSound(soundTypeAnvil).setResistance(2000.0F).setBlockName("anvil"));
         blockRegistry.addObject(146, "trapped_chest", (new BlockChest(1)).setHardness(2.5F).setStepSound(soundTypeWood).setBlockName("chestTrap"));
         blockRegistry.addObject(147, "light_weighted_pressure_plate", (new BlockPressurePlateWeighted("gold_block", Material.iron, 15)).setHardness(0.5F).setStepSound(soundTypeWood).setBlockName("weightedPlate_light"));
         blockRegistry.addObject(148, "heavy_weighted_pressure_plate", (new BlockPressurePlateWeighted("iron_block", Material.iron, 150)).setHardness(0.5F).setStepSound(soundTypeWood).setBlockName("weightedPlate_heavy"));

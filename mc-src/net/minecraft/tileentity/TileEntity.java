@@ -315,9 +315,9 @@ public class TileEntity
         addMapping(TileEntitySign.class, "Sign");
         addMapping(TileEntityMobSpawner.class, "MobSpawner");
         addMapping(TileEntityPiston.class, "Piston");
-        addMapping(TileEntityEnchantmentTable.class, "EnchantTable");
+        // stripped: TileEntityEnchantmentTable ("EnchantTable")
         addMapping(TileEntityEndPortal.class, "Airportal");
-        addMapping(TileEntityBeacon.class, "Beacon");
+        // stripped: TileEntityBeacon ("Beacon")
         addMapping(TileEntityHopper.class, "Hopper");
         addMapping(TileEntityComparator.class, "Comparator");
     }

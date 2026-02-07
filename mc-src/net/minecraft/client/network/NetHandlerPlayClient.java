@@ -172,7 +172,7 @@ import net.minecraft.stats.Achievement;
 import net.minecraft.stats.AchievementList;
 import net.minecraft.stats.StatBase;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityBeacon;
+// stripped: import net.minecraft.tileentity.TileEntityBeacon;
 // stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
 import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityDropper;
@@ -1064,16 +1064,7 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
                 entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
                 break;
             case 7:
-                TileEntityBeacon tileentitybeacon = new TileEntityBeacon();
-                entityclientplayermp.func_146104_a(tileentitybeacon);
-
-                if (p_147265_1_.func_148900_g())
-                {
-                    tileentitybeacon.func_145999_a(p_147265_1_.func_148902_e());
-                }
-
-                entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
-                break;
+                break; // stripped: beacon GUI
             case 8:
                 entityclientplayermp.displayGUIAnvil(MathHelper.floor_double(entityclientplayermp.posX), MathHelper.floor_double(entityclientplayermp.posY), MathHelper.floor_double(entityclientplayermp.posZ));
                 entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
@@ -1261,10 +1252,7 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
                 {
                     tileentity.readFromNBT(p_147273_1_.func_148857_g());
                 }
-                else if (p_147273_1_.func_148853_f() == 3 && tileentity instanceof TileEntityBeacon)
-                {
-                    tileentity.readFromNBT(p_147273_1_.func_148857_g());
-                }
+                // stripped: TileEntityBeacon case
                 else
                 {
                     tileentity.onDataPacket(netManager, p_147273_1_);

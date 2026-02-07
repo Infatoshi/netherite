@@ -1,7 +1,7 @@
 package net.minecraft.init;
 
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockBeacon;
+// stripped: import net.minecraft.block.BlockBeacon;
 import net.minecraft.block.BlockBush;
 // stripped: import net.minecraft.block.BlockCauldron;
 import net.minecraft.block.BlockChest;
@@ -167,7 +167,7 @@ public class Blocks
     public static final Block birch_stairs = (Block)Block.blockRegistry.getObject("birch_stairs");
     public static final Block jungle_stairs = (Block)Block.blockRegistry.getObject("jungle_stairs");
     public static final Block command_block = (Block)Block.blockRegistry.getObject("command_block");
-    public static final BlockBeacon beacon = (BlockBeacon)Block.blockRegistry.getObject("beacon");
+    public static final Block beacon = (Block)Block.blockRegistry.getObject("beacon");
     public static final Block cobblestone_wall = (Block)Block.blockRegistry.getObject("cobblestone_wall");
     public static final Block flower_pot = (Block)Block.blockRegistry.getObject("flower_pot");
     public static final Block carrots = (Block)Block.blockRegistry.getObject("carrots");

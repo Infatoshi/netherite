@@ -28,9 +28,9 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.Container;
-import net.minecraft.inventory.ContainerBeacon;
+// stripped: import net.minecraft.inventory.ContainerBeacon;
 import net.minecraft.inventory.ContainerMerchant;
-import net.minecraft.inventory.ContainerRepair;
+// stripped: import net.minecraft.inventory.ContainerRepair;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemEditableBook;
 import net.minecraft.item.ItemStack;
@@ -70,7 +70,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.management.UserListBansEntry;
 import net.minecraft.stats.AchievementList;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityBeacon;
+// stripped: import net.minecraft.tileentity.TileEntityBeacon;
 // removed: import net.minecraft.tileentity.TileEntityCommandBlock;
 import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.util.AxisAlignedBB;
@@ -1333,51 +1333,7 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
                     this.playerEntity.addChatMessage(new ChatComponentTranslation("advMode.notAllowed", new Object[0]));
                 }
             }
-            else if ("MC|Beacon".equals(p_147349_1_.func_149559_c()))
-            {
-                if (this.playerEntity.openContainer instanceof ContainerBeacon)
-                {
-                    try
-                    {
-                        datainputstream = new DataInputStream(new ByteArrayInputStream(p_147349_1_.func_149558_e()));
-                        i = datainputstream.readInt();
-                        int j = datainputstream.readInt();
-                        ContainerBeacon containerbeacon = (ContainerBeacon)this.playerEntity.openContainer;
-                        Slot slot = containerbeacon.getSlot(0);
-
-                        if (slot.getHasStack())
-                        {
-                            slot.decrStackSize(1);
-                            TileEntityBeacon tileentitybeacon = containerbeacon.func_148327_e();
-                            tileentitybeacon.setPrimaryEffect(i);
-                            tileentitybeacon.setSecondaryEffect(j);
-                            tileentitybeacon.markDirty();
-                        }
-                    }
-                    catch (Exception exception)
-                    {
-                        logger.error("Couldn\'t set beacon", exception);
-                    }
-                }
-            }
-            else if ("MC|ItemName".equals(p_147349_1_.func_149559_c()) && this.playerEntity.openContainer instanceof ContainerRepair)
-            {
-                ContainerRepair containerrepair = (ContainerRepair)this.playerEntity.openContainer;
-
-                if (p_147349_1_.func_149558_e() != null && p_147349_1_.func_149558_e().length >= 1)
-                {
-                    String s = ChatAllowedCharacters.filerAllowedCharacters(new String(p_147349_1_.func_149558_e(), Charsets.UTF_8));
-
-                    if (s.length() <= 30)
-                    {
-                        containerrepair.updateItemName(s);
-                    }
-                }
-                else
-                {
-                    containerrepair.updateItemName("");
-                }
-            }
+            // stripped: MC|Beacon and MC|ItemName (anvil rename) packet handlers
         }
     }
 

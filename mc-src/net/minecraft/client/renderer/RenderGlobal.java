@@ -27,7 +27,7 @@ import net.minecraft.client.particle.EntityCloudFX;
 import net.minecraft.client.particle.EntityCritFX;
 import net.minecraft.client.particle.EntityDiggingFX;
 import net.minecraft.client.particle.EntityDropParticleFX;
-import net.minecraft.client.particle.EntityEnchantmentTableParticleFX;
+// stripped: import net.minecraft.client.particle.EntityEnchantmentTableParticleFX;
 import net.minecraft.client.particle.EntityExplodeFX;
 import net.minecraft.client.particle.EntityFX;
 import net.minecraft.client.particle.EntityFireworkSparkFX;
@@ -2103,10 +2103,7 @@ public class RenderGlobal implements IWorldAccess
                     {
                         entityfx = new EntityPortalFX(this.theWorld, p_72726_2_, p_72726_4_, p_72726_6_, p_72726_8_, p_72726_10_, p_72726_12_);
                     }
-                    else if (p_72726_1_.equals("enchantmenttable"))
-                    {
-                        entityfx = new EntityEnchantmentTableParticleFX(this.theWorld, p_72726_2_, p_72726_4_, p_72726_6_, p_72726_8_, p_72726_10_, p_72726_12_);
-                    }
+                    // stripped: enchantmenttable particle
                     else if (p_72726_1_.equals("explode"))
                     {
                         entityfx = new EntityExplodeFX(this.theWorld, p_72726_2_, p_72726_4_, p_72726_6_, p_72726_8_, p_72726_10_, p_72726_12_);
