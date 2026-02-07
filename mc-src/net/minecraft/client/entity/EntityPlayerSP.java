@@ -12,7 +12,7 @@ import net.minecraft.client.gui.GuiRepair;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiScreenBook;
 import net.minecraft.client.gui.inventory.GuiBeacon;
-import net.minecraft.client.gui.inventory.GuiBrewingStand;
+// stripped: import net.minecraft.client.gui.inventory.GuiBrewingStand;
 import net.minecraft.client.gui.inventory.GuiChest;
 import net.minecraft.client.gui.inventory.GuiCrafting;
 import net.minecraft.client.gui.inventory.GuiDispenser;
@@ -35,7 +35,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.potion.Potion;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityBeacon;
-import net.minecraft.tileentity.TileEntityBrewingStand;
+// stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
 // stripped: import net.minecraft.tileentity.TileEntityCommandBlock;
 import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityFurnace;
@@ -436,10 +436,7 @@ public class EntityPlayerSP extends AbstractClientPlayer
         this.mc.displayGuiScreen(new GuiFurnace(this.inventory, p_146101_1_));
     }
 
-    public void func_146098_a(TileEntityBrewingStand p_146098_1_)
-    {
-        this.mc.displayGuiScreen(new GuiBrewingStand(this.inventory, p_146098_1_));
-    }
+    public void func_146098_a(TileEntity p_146098_1_) {}
 
     public void func_146104_a(TileEntityBeacon p_146104_1_)
     {

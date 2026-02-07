@@ -99,17 +99,11 @@ public class Bootstrap
         {
             private final BehaviorDefaultDispenseItem field_150843_b = new BehaviorDefaultDispenseItem();
             private static final String __OBFID = "CL_00001407";
-            /**
-             * Dispenses the specified ItemStack from a dispenser.
-             */
             public ItemStack dispense(IBlockSource p_82482_1_, final ItemStack p_82482_2_)
             {
                 return ItemPotion.isSplash(p_82482_2_.getItemDamage()) ? (new BehaviorProjectileDispense()
                 {
                     private static final String __OBFID = "CL_00001408";
-                    /**
-                     * Return the projectile entity spawned by this dispense behavior.
-                     */
                     protected IProjectile getProjectileEntity(World p_82499_1_, IPosition p_82499_2_)
                     {
                         return new EntityPotion(p_82499_1_, p_82499_2_.getX(), p_82499_2_.getY(), p_82499_2_.getZ(), p_82482_2_.copy());

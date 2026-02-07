@@ -3,7 +3,7 @@ package net.minecraft.init;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockBeacon;
 import net.minecraft.block.BlockBush;
-import net.minecraft.block.BlockCauldron;
+// stripped: import net.minecraft.block.BlockCauldron;
 import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockDeadBush;
 import net.minecraft.block.BlockDoublePlant;
@@ -147,7 +147,7 @@ public class Blocks
     public static final Block nether_wart = (Block)Block.blockRegistry.getObject("nether_wart");
     public static final Block enchanting_table = (Block)Block.blockRegistry.getObject("enchanting_table");
     public static final Block brewing_stand = (Block)Block.blockRegistry.getObject("brewing_stand");
-    public static final BlockCauldron cauldron = (BlockCauldron)Block.blockRegistry.getObject("cauldron");
+    public static final Block cauldron = (Block)Block.blockRegistry.getObject("cauldron");
     public static final Block end_portal = (Block)Block.blockRegistry.getObject("end_portal");
     public static final Block end_portal_frame = (Block)Block.blockRegistry.getObject("end_portal_frame");
     public static final Block end_stone = (Block)Block.blockRegistry.getObject("end_stone");

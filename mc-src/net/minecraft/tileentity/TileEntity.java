@@ -315,7 +315,6 @@ public class TileEntity
         addMapping(TileEntitySign.class, "Sign");
         addMapping(TileEntityMobSpawner.class, "MobSpawner");
         addMapping(TileEntityPiston.class, "Piston");
-        addMapping(TileEntityBrewingStand.class, "Cauldron");
         addMapping(TileEntityEnchantmentTable.class, "EnchantTable");
         addMapping(TileEntityEndPortal.class, "Airportal");
         addMapping(TileEntityBeacon.class, "Beacon");

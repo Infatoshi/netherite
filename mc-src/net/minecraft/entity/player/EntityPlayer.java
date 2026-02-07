@@ -62,7 +62,7 @@ import net.minecraft.stats.StatBase;
 import net.minecraft.stats.StatList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityBeacon;
-import net.minecraft.tileentity.TileEntityBrewingStand;
+// stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
 import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityFurnace;
 import net.minecraft.tileentity.TileEntityHopper;
@@ -1247,7 +1247,7 @@ public abstract class EntityPlayer extends EntityLivingBase implements ICommandS
 
     public void func_146095_a(CommandBlockLogic p_146095_1_) {}
 
-    public void func_146098_a(TileEntityBrewingStand p_146098_1_) {}
+    public void func_146098_a(TileEntity p_146098_1_) {}
 
     public void func_146104_a(TileEntityBeacon p_146104_1_) {}
 

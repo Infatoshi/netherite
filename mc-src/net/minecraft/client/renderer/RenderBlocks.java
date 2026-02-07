@@ -6,8 +6,8 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockAnvil;
 import net.minecraft.block.BlockBeacon;
 import net.minecraft.block.BlockBed;
-import net.minecraft.block.BlockBrewingStand;
-import net.minecraft.block.BlockCauldron;
+// stripped: import net.minecraft.block.BlockBrewingStand;
+// stripped: import net.minecraft.block.BlockCauldron;
 import net.minecraft.block.BlockCocoa;
 import net.minecraft.block.BlockDirectional;
 import net.minecraft.block.BlockDoublePlant;
@@ -378,10 +378,10 @@ public class RenderBlocks
             case 18: return this.renderBlockPane((BlockPane)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 41: return this.renderBlockStainedGlassPane(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 21: return this.renderBlockFenceGate((BlockFenceGate)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
-            case 24: return this.renderBlockCauldron((BlockCauldron)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
+            case 24: return this.renderBlockCauldron(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 33: return false; // stripped: flower pot rendering
             case 35: return this.renderBlockAnvil((BlockAnvil)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
-            case 25: return this.renderBlockBrewingStand((BlockBrewingStand)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
+            case 25: return false; // stripped: brewing stand rendering
             case 26: return this.renderBlockEndPortalFrame((BlockEndPortalFrame)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 28: return this.renderBlockCocoa((BlockCocoa)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 34: return this.renderBlockBeacon((BlockBeacon)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
@@ -576,125 +576,18 @@ public class RenderBlocks
         return true;
     }
 
-    /**
-     * Render BlockBrewingStand
-     */
-    public boolean renderBlockBrewingStand(BlockBrewingStand p_147741_1_, int p_147741_2_, int p_147741_3_, int p_147741_4_)
-    {
-        this.setRenderBounds(0.4375D, 0.0D, 0.4375D, 0.5625D, 0.875D, 0.5625D);
-        this.renderStandardBlock(p_147741_1_, p_147741_2_, p_147741_3_, p_147741_4_);
-        this.setOverrideBlockTexture(p_147741_1_.getIconBrewingStandBase());
-        this.renderAllFaces = true;
-        this.setRenderBounds(0.5625D, 0.0D, 0.3125D, 0.9375D, 0.125D, 0.6875D);
-        this.renderStandardBlock(p_147741_1_, p_147741_2_, p_147741_3_, p_147741_4_);
-        this.setRenderBounds(0.125D, 0.0D, 0.0625D, 0.5D, 0.125D, 0.4375D);
-        this.renderStandardBlock(p_147741_1_, p_147741_2_, p_147741_3_, p_147741_4_);
-        this.setRenderBounds(0.125D, 0.0D, 0.5625D, 0.5D, 0.125D, 0.9375D);
-        this.renderStandardBlock(p_147741_1_, p_147741_2_, p_147741_3_, p_147741_4_);
-        this.renderAllFaces = false;
-        this.clearOverrideBlockTexture();
-        Tessellator tessellator = Tessellator.instance;
-        tessellator.setBrightness(p_147741_1_.getMixedBrightnessForBlock(this.blockAccess, p_147741_2_, p_147741_3_, p_147741_4_));
-        int l = p_147741_1_.colorMultiplier(this.blockAccess, p_147741_2_, p_147741_3_, p_147741_4_);
-        float f = (float)(l >> 16 & 255) / 255.0F;
-        float f1 = (float)(l >> 8 & 255) / 255.0F;
-        float f2 = (float)(l & 255) / 255.0F;
-
-        if (EntityRenderer.anaglyphEnable)
-        {
-            float f3 = (f * 30.0F + f1 * 59.0F + f2 * 11.0F) / 100.0F;
-            float f4 = (f * 30.0F + f1 * 70.0F) / 100.0F;
-            float f5 = (f * 30.0F + f2 * 70.0F) / 100.0F;
-            f = f3;
-            f1 = f4;
-            f2 = f5;
-        }
-
-        tessellator.setColorOpaque_F(f, f1, f2);
-        IIcon iicon = this.getBlockIconFromSideAndMetadata(p_147741_1_, 0, 0);
-
-        if (this.hasOverrideBlockTexture())
-        {
-            iicon = this.overrideBlockTexture;
-        }
-
-        double d8 = (double)iicon.getMinV();
-        double d0 = (double)iicon.getMaxV();
-        int i1 = this.blockAccess.getBlockMetadata(p_147741_2_, p_147741_3_, p_147741_4_);
-
-        for (int j1 = 0; j1 < 3; ++j1)
-        {
-            double d1 = (double)j1 * Math.PI * 2.0D / 3.0D + (Math.PI / 2D);
-            double d2 = (double)iicon.getInterpolatedU(8.0D);
-            double d3 = (double)iicon.getMaxU();
-
-            if ((i1 & 1 << j1) != 0)
-            {
-                d3 = (double)iicon.getMinU();
-            }
-
-            double d4 = (double)p_147741_2_ + 0.5D;
-            double d5 = (double)p_147741_2_ + 0.5D + Math.sin(d1) * 8.0D / 16.0D;
-            double d6 = (double)p_147741_4_ + 0.5D;
-            double d7 = (double)p_147741_4_ + 0.5D + Math.cos(d1) * 8.0D / 16.0D;
-            tessellator.addVertexWithUV(d4, (double)(p_147741_3_ + 1), d6, d2, d8);
-            tessellator.addVertexWithUV(d4, (double)(p_147741_3_ + 0), d6, d2, d0);
-            tessellator.addVertexWithUV(d5, (double)(p_147741_3_ + 0), d7, d3, d0);
-            tessellator.addVertexWithUV(d5, (double)(p_147741_3_ + 1), d7, d3, d8);
-            tessellator.addVertexWithUV(d5, (double)(p_147741_3_ + 1), d7, d3, d8);
-            tessellator.addVertexWithUV(d5, (double)(p_147741_3_ + 0), d7, d3, d0);
-            tessellator.addVertexWithUV(d4, (double)(p_147741_3_ + 0), d6, d2, d0);
-            tessellator.addVertexWithUV(d4, (double)(p_147741_3_ + 1), d6, d2, d8);
-        }
-
-        p_147741_1_.setBlockBoundsForItemRender();
-        return true;
-    }
+    // stripped: renderBlockBrewingStand method
 
     /**
      * Render block cauldron
      */
-    public boolean renderBlockCauldron(BlockCauldron p_147785_1_, int p_147785_2_, int p_147785_3_, int p_147785_4_)
+    public boolean renderBlockCauldron(Block p_147785_1_, int p_147785_2_, int p_147785_3_, int p_147785_4_)
     {
         this.renderStandardBlock(p_147785_1_, p_147785_2_, p_147785_3_, p_147785_4_);
-        Tessellator tessellator = Tessellator.instance;
-        tessellator.setBrightness(p_147785_1_.getMixedBrightnessForBlock(this.blockAccess, p_147785_2_, p_147785_3_, p_147785_4_));
-        int l = p_147785_1_.colorMultiplier(this.blockAccess, p_147785_2_, p_147785_3_, p_147785_4_);
-        float f = (float)(l >> 16 & 255) / 255.0F;
-        float f1 = (float)(l >> 8 & 255) / 255.0F;
-        float f2 = (float)(l & 255) / 255.0F;
-        float f4;
-
-        if (EntityRenderer.anaglyphEnable)
-        {
-            float f3 = (f * 30.0F + f1 * 59.0F + f2 * 11.0F) / 100.0F;
-            f4 = (f * 30.0F + f1 * 70.0F) / 100.0F;
-            float f5 = (f * 30.0F + f2 * 70.0F) / 100.0F;
-            f = f3;
-            f1 = f4;
-            f2 = f5;
-        }
-
-        tessellator.setColorOpaque_F(f, f1, f2);
-        IIcon iicon1 = p_147785_1_.getBlockTextureFromSide(2);
-        f4 = 0.125F;
-        this.renderFaceXPos(p_147785_1_, (double)((float)p_147785_2_ - 1.0F + f4), (double)p_147785_3_, (double)p_147785_4_, iicon1);
-        this.renderFaceXNeg(p_147785_1_, (double)((float)p_147785_2_ + 1.0F - f4), (double)p_147785_3_, (double)p_147785_4_, iicon1);
-        this.renderFaceZPos(p_147785_1_, (double)p_147785_2_, (double)p_147785_3_, (double)((float)p_147785_4_ - 1.0F + f4), iicon1);
-        this.renderFaceZNeg(p_147785_1_, (double)p_147785_2_, (double)p_147785_3_, (double)((float)p_147785_4_ + 1.0F - f4), iicon1);
-        IIcon iicon2 = BlockCauldron.getCauldronIcon("inner");
-        this.renderFaceYPos(p_147785_1_, (double)p_147785_2_, (double)((float)p_147785_3_ - 1.0F + 0.25F), (double)p_147785_4_, iicon2);
-        this.renderFaceYNeg(p_147785_1_, (double)p_147785_2_, (double)((float)p_147785_3_ + 1.0F - 0.75F), (double)p_147785_4_, iicon2);
-        int i1 = this.blockAccess.getBlockMetadata(p_147785_2_, p_147785_3_, p_147785_4_);
-
-        if (i1 > 0)
-        {
-            IIcon iicon = BlockLiquid.getLiquidIcon("water_still");
-            this.renderFaceYPos(p_147785_1_, (double)p_147785_2_, (double)((float)p_147785_3_ - 1.0F + BlockCauldron.getRenderLiquidLevel(i1)), (double)p_147785_4_, iicon);
-        }
-
         return true;
     }
+
+    // stripped: original cauldron rendering with BlockCauldron-specific calls
 
     /**
      * Renders flower pot

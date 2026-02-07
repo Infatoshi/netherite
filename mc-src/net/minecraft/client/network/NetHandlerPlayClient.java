@@ -173,7 +173,7 @@ import net.minecraft.stats.AchievementList;
 import net.minecraft.stats.StatBase;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityBeacon;
-import net.minecraft.tileentity.TileEntityBrewingStand;
+// stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
 import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityDropper;
 import net.minecraft.tileentity.TileEntityFurnace;
@@ -1058,16 +1058,7 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
                 entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
                 break;
             case 5:
-                TileEntityBrewingStand tileentitybrewingstand = new TileEntityBrewingStand();
-
-                if (p_147265_1_.func_148900_g())
-                {
-                    tileentitybrewingstand.func_145937_a(p_147265_1_.func_148902_e());
-                }
-
-                entityclientplayermp.func_146098_a(tileentitybrewingstand);
-                entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();
-                break;
+                break; // stripped: brewing stand GUI
             case 6:
                 entityclientplayermp.displayGUIMerchant(new NpcMerchant(entityclientplayermp), p_147265_1_.func_148900_g() ? p_147265_1_.func_148902_e() : null);
                 entityclientplayermp.openContainer.windowId = p_147265_1_.func_148901_c();

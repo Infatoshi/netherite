@@ -22,7 +22,7 @@ import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.entity.projectile.EntityArrow;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.ContainerBeacon;
-import net.minecraft.inventory.ContainerBrewingStand;
+// stripped: import net.minecraft.inventory.ContainerBrewingStand;
 import net.minecraft.inventory.ContainerChest;
 import net.minecraft.inventory.ContainerDispenser;
 import net.minecraft.inventory.ContainerEnchantment;
@@ -77,7 +77,7 @@ import net.minecraft.stats.StatList;
 import net.minecraft.stats.StatisticsFile;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityBeacon;
-import net.minecraft.tileentity.TileEntityBrewingStand;
+// stripped: import net.minecraft.tileentity.TileEntityBrewingStand;
 import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityDropper;
 import net.minecraft.tileentity.TileEntityFurnace;
@@ -762,14 +762,7 @@ public class EntityPlayerMP extends EntityPlayer implements ICrafting
         this.openContainer.addCraftingToCrafters(this);
     }
 
-    public void func_146098_a(TileEntityBrewingStand p_146098_1_)
-    {
-        this.getNextWindowId();
-        this.playerNetServerHandler.sendPacket(new S2DPacketOpenWindow(this.currentWindowId, 5, p_146098_1_.getInventoryName(), p_146098_1_.getSizeInventory(), p_146098_1_.hasCustomInventoryName()));
-        this.openContainer = new ContainerBrewingStand(this.inventory, p_146098_1_);
-        this.openContainer.windowId = this.currentWindowId;
-        this.openContainer.addCraftingToCrafters(this);
-    }
+    public void func_146098_a(TileEntity p_146098_1_) {} // stripped: brewing stand GUI
 
     public void func_146104_a(TileEntityBeacon p_146104_1_)
     {
