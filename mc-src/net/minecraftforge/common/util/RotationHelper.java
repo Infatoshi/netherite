@@ -28,7 +28,7 @@ import net.minecraft.block.BlockRailDetector;
 import net.minecraft.block.BlockRailPowered;
 import net.minecraft.block.BlockRedstoneComparator;
 import net.minecraft.block.BlockRedstoneRepeater;
-import net.minecraft.block.BlockSkull;
+// stripped: import net.minecraft.block.BlockSkull;
 import net.minecraft.block.BlockStairs;
 import net.minecraft.block.BlockTorch;
 import net.minecraft.block.BlockTrapDoor;
@@ -106,7 +106,6 @@ public class RotationHelper {
                 block instanceof BlockTrapDoor || 
                 block instanceof BlockHugeMushroom || 
                 block instanceof BlockVine || 
-                block instanceof BlockSkull || 
                 block instanceof BlockAnvil) ? UP_DOWN_AXES : VALID_DIRECTIONS;
     }
 
@@ -167,10 +166,7 @@ public class RotationHelper {
             {
                 return rotateBlock(worldObj, x, y, z, axis, 0xF, BlockType.VINE);
             }
-            if (block instanceof BlockSkull)
-            {
-                return rotateBlock(worldObj, x, y, z, axis, 0x7, BlockType.SKULL);
-            }
+            // stripped: skull rotation
             if (block instanceof BlockAnvil)
             {
                 return rotateBlock(worldObj, x, y, z, axis, 0x1, BlockType.ANVIL);

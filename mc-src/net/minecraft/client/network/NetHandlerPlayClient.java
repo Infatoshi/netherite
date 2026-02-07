@@ -174,15 +174,12 @@ import net.minecraft.stats.StatBase;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityBeacon;
 import net.minecraft.tileentity.TileEntityBrewingStand;
-import net.minecraft.tileentity.TileEntityCommandBlock;
 import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityDropper;
-import net.minecraft.tileentity.TileEntityFlowerPot;
 import net.minecraft.tileentity.TileEntityFurnace;
 import net.minecraft.tileentity.TileEntityHopper;
 import net.minecraft.tileentity.TileEntityMobSpawner;
 import net.minecraft.tileentity.TileEntitySign;
-import net.minecraft.tileentity.TileEntitySkull;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.ChunkCoordinates;
@@ -1273,19 +1270,7 @@ public class NetHandlerPlayClient implements INetHandlerPlayClient
                 {
                     tileentity.readFromNBT(p_147273_1_.func_148857_g());
                 }
-                else if (p_147273_1_.func_148853_f() == 2 && tileentity instanceof TileEntityCommandBlock)
-                {
-                    tileentity.readFromNBT(p_147273_1_.func_148857_g());
-                }
                 else if (p_147273_1_.func_148853_f() == 3 && tileentity instanceof TileEntityBeacon)
-                {
-                    tileentity.readFromNBT(p_147273_1_.func_148857_g());
-                }
-                else if (p_147273_1_.func_148853_f() == 4 && tileentity instanceof TileEntitySkull)
-                {
-                    tileentity.readFromNBT(p_147273_1_.func_148857_g());
-                }
-                else if (p_147273_1_.func_148853_f() == 5 && tileentity instanceof TileEntityFlowerPot)
                 {
                     tileentity.readFromNBT(p_147273_1_.func_148857_g());
                 }

@@ -34,7 +34,7 @@ import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.S23PacketBlockChange;
 import net.minecraft.stats.StatList;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityNote;
+// stripped: import net.minecraft.tileentity.TileEntityNote;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
@@ -601,15 +601,5 @@ public class ForgeHooks
         return e.breakChance;
     }
 
-    public static boolean onNoteChange(TileEntityNote te, byte old)
-    {
-        NoteBlockEvent.Change e = new NoteBlockEvent.Change(te.getWorldObj(), te.xCoord, te.yCoord, te.zCoord, te.getBlockMetadata(), old, te.note);
-        if (MinecraftForge.EVENT_BUS.post(e))
-        {
-            te.note = old;
-            return false;
-        }
-        te.note = (byte)e.getVanillaNoteId();
-        return true;
-    }
+    // stripped: onNoteChange (note block removed)
 }

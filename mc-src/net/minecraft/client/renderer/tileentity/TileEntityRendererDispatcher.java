@@ -21,7 +21,7 @@ import net.minecraft.tileentity.TileEntityEnderChest;
 import net.minecraft.tileentity.TileEntityMobSpawner;
 import net.minecraft.tileentity.TileEntityPiston;
 import net.minecraft.tileentity.TileEntitySign;
-import net.minecraft.tileentity.TileEntitySkull;
+// stripped: import net.minecraft.tileentity.TileEntitySkull;
 import net.minecraft.util.ReportedException;
 import net.minecraft.world.World;
 import org.lwjgl.opengl.GL11;
@@ -58,7 +58,7 @@ public class TileEntityRendererDispatcher
         this.mapSpecialRenderers.put(TileEntityEnchantmentTable.class, new RenderEnchantmentTable());
         this.mapSpecialRenderers.put(TileEntityEndPortal.class, new RenderEndPortal());
         this.mapSpecialRenderers.put(TileEntityBeacon.class, new TileEntityBeaconRenderer());
-        this.mapSpecialRenderers.put(TileEntitySkull.class, new TileEntitySkullRenderer());
+        // stripped: skull renderer
         Iterator iterator = this.mapSpecialRenderers.values().iterator();
 
         while (iterator.hasNext())

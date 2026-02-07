@@ -1,0 +1,81 @@
+// Standalone build for stripped MC 1.7.10 source
+// Compiles mc-src/ directly with library dependencies
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+sourceSets {
+    main {
+        java {
+            srcDir 'mc-src'
+        }
+        resources {
+            srcDir 'mc-src'
+            exclude '**/*.java'
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.minecraftforge.net/' }
+    maven { url 'https://libraries.minecraft.net/' }
+}
+
+dependencies {
+    // MC runtime dependencies
+    compile 'net.minecraft:launchwrapper:1.12'
+    compile 'org.ow2.asm:asm-debug-all:5.0.3'
+    compile 'org.lwjgl.lwjgl:lwjgl:2.9.1'
+    compile 'org.lwjgl.lwjgl:lwjgl_util:2.9.1'
+    compile 'io.netty:netty-all:4.0.10.Final'
+    compile 'com.google.guava:guava:17.0'
+    compile 'com.google.code.gson:gson:2.2.4'
+    compile 'commons-io:commons-io:2.4'
+    compile 'commons-codec:commons-codec:1.9'
+    compile 'commons-lang:commons-lang:2.6'
+    compile 'org.apache.commons:commons-compress:1.8.1'
+    compile 'org.apache.httpcomponents:httpclient:4.3.3'
+    compile 'org.apache.logging.log4j:log4j-api:2.0-beta9'
+    compile 'org.apache.logging.log4j:log4j-core:2.0-beta9'
+    compile 'com.mojang:authlib:1.5.16'
+    compile 'com.mojang:realms:1.3.5'
+    compile 'java3d:vecmath:1.3.1'
+    compile 'net.sf.jopt-simple:jopt-simple:4.5'
+    compile 'com.ibm.icu:icu4j-core-mojang:51.2'
+    compile 'tv.twitch:twitch:5.16'
+
+    // Scala (needed for FML)
+    compile 'org.scala-lang:scala-library:2.11.1'
+    compile 'org.scala-lang:scala-compiler:2.11.1'
+    compile 'com.typesafe.akka:akka-actor_2.11:2.3.3'
+    compile 'org.scala-lang:scala-actors-migration_2.11:1.1.0'
+    compile 'org.scala-lang.plugins:scala-continuations-library_2.11:1.0.2'
+
+    // Sound
+    compile 'com.paulscode:soundsystem:20120107'
+    compile 'com.paulscode:codecjorbis:20101023'
+    compile 'com.paulscode:codecwav:20101023'
+    compile 'com.paulscode:libraryjavasound:20101123'
+    compile 'com.paulscode:librarylwjglopenal:20100824'
+
+    // Trove (high-performance collections used by MC networking)
+    compile 'net.sf.trove4j:trove4j:3.0.3'
+
+    // LZMA
+    compile 'lzma:lzma:0.0.1'
+    compile 'com.google.code.findbugs:jsr305:1.3.9'
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:none'
+    options.warnings = false
+}
+
+// Fail on errors but not warnings
+tasks.withType(JavaCompile) {
+    options.compilerArgs << '-nowarn'
+}

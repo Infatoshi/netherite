@@ -5,7 +5,6 @@ import net.minecraft.block.BlockBeacon;
 import net.minecraft.block.BlockBush;
 import net.minecraft.block.BlockCauldron;
 import net.minecraft.block.BlockChest;
-import net.minecraft.block.BlockDaylightDetector;
 import net.minecraft.block.BlockDeadBush;
 import net.minecraft.block.BlockDoublePlant;
 import net.minecraft.block.BlockFire;
@@ -24,8 +23,6 @@ import net.minecraft.block.BlockRedstoneRepeater;
 import net.minecraft.block.BlockRedstoneWire;
 import net.minecraft.block.BlockSand;
 import net.minecraft.block.BlockSlab;
-import net.minecraft.block.BlockStainedGlass;
-import net.minecraft.block.BlockStainedGlassPane;
 import net.minecraft.block.BlockTallGrass;
 import net.minecraft.block.BlockTripWireHook;
 
@@ -183,7 +180,7 @@ public class Blocks
     public static final Block heavy_weighted_pressure_plate = (Block)Block.blockRegistry.getObject("heavy_weighted_pressure_plate");
     public static final BlockRedstoneComparator unpowered_comparator = (BlockRedstoneComparator)Block.blockRegistry.getObject("unpowered_comparator");
     public static final BlockRedstoneComparator powered_comparator = (BlockRedstoneComparator)Block.blockRegistry.getObject("powered_comparator");
-    public static final BlockDaylightDetector daylight_detector = (BlockDaylightDetector)Block.blockRegistry.getObject("daylight_detector");
+    public static final Block daylight_detector = (Block)Block.blockRegistry.getObject("daylight_detector");
     public static final Block redstone_block = (Block)Block.blockRegistry.getObject("redstone_block");
     public static final Block quartz_ore = (Block)Block.blockRegistry.getObject("quartz_ore");
     public static final BlockHopper hopper = (BlockHopper)Block.blockRegistry.getObject("hopper");
@@ -200,7 +197,7 @@ public class Blocks
     public static final Block acacia_stairs = (Block)Block.blockRegistry.getObject("acacia_stairs");
     public static final Block dark_oak_stairs = (Block)Block.blockRegistry.getObject("dark_oak_stairs");
     public static final BlockDoublePlant double_plant = (BlockDoublePlant)Block.blockRegistry.getObject("double_plant");
-    public static final BlockStainedGlass stained_glass = (BlockStainedGlass)Block.blockRegistry.getObject("stained_glass");
-    public static final BlockStainedGlassPane stained_glass_pane = (BlockStainedGlassPane)Block.blockRegistry.getObject("stained_glass_pane");
+    public static final Block stained_glass = (Block)Block.blockRegistry.getObject("stained_glass");
+    public static final Block stained_glass_pane = (Block)Block.blockRegistry.getObject("stained_glass_pane");
     private static final String __OBFID = "CL_00000204";
 }

@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockJukebox;
 import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.init.Blocks;
 import net.minecraft.nbt.NBTTagCompound;
@@ -311,23 +310,17 @@ public class TileEntity
         addMapping(TileEntityFurnace.class, "Furnace");
         addMapping(TileEntityChest.class, "Chest");
         addMapping(TileEntityEnderChest.class, "EnderChest");
-        addMapping(BlockJukebox.TileEntityJukebox.class, "RecordPlayer");
         addMapping(TileEntityDispenser.class, "Trap");
         addMapping(TileEntityDropper.class, "Dropper");
         addMapping(TileEntitySign.class, "Sign");
         addMapping(TileEntityMobSpawner.class, "MobSpawner");
-        addMapping(TileEntityNote.class, "Music");
         addMapping(TileEntityPiston.class, "Piston");
         addMapping(TileEntityBrewingStand.class, "Cauldron");
         addMapping(TileEntityEnchantmentTable.class, "EnchantTable");
         addMapping(TileEntityEndPortal.class, "Airportal");
-        addMapping(TileEntityCommandBlock.class, "Control");
         addMapping(TileEntityBeacon.class, "Beacon");
-        addMapping(TileEntitySkull.class, "Skull");
-        addMapping(TileEntityDaylightDetector.class, "DLDetector");
         addMapping(TileEntityHopper.class, "Hopper");
         addMapping(TileEntityComparator.class, "Comparator");
-        addMapping(TileEntityFlowerPot.class, "FlowerPot");
     }
 
     // -- BEGIN FORGE PATCHES --

@@ -63,7 +63,7 @@ import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemDye;
-import net.minecraft.item.ItemRecord;
+// stripped: import net.minecraft.item.ItemRecord;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.ChunkCoordinates;
@@ -1945,16 +1945,7 @@ public class RenderGlobal implements IWorldAccess
 
         if (p_72702_1_ != null)
         {
-            ItemRecord itemrecord = ItemRecord.getRecord(p_72702_1_);
-
-            ResourceLocation resource = null;
-            if (itemrecord != null)
-            {
-                this.mc.ingameGUI.setRecordPlayingMessage(itemrecord.getRecordNameLocal());
-                resource = itemrecord.getRecordResource(p_72702_1_);
-            }
-
-            if (resource == null) resource = new ResourceLocation(p_72702_1_);
+            ResourceLocation resource = new ResourceLocation(p_72702_1_);
             PositionedSoundRecord positionedsoundrecord = PositionedSoundRecord.func_147675_a(resource, (float)p_72702_2_, (float)p_72702_3_, (float)p_72702_4_);
             this.mapSoundPositions.put(chunkcoordinates, positionedsoundrecord);
             this.mc.getSoundHandler().playSound(positionedsoundrecord);
@@ -2347,14 +2338,7 @@ public class RenderGlobal implements IWorldAccess
                 this.theWorld.playSound((double)((float)p_72706_3_ + 0.5F), (double)((float)p_72706_4_ + 0.5F), (double)((float)p_72706_5_ + 0.5F), "random.fizz", 0.5F, 2.6F + (random.nextFloat() - random.nextFloat()) * 0.8F, false);
                 break;
             case 1005:
-                if (Item.getItemById(p_72706_6_) instanceof ItemRecord)
-                {
-                    this.theWorld.playRecord("records." + ((ItemRecord)Item.getItemById(p_72706_6_)).recordName, p_72706_3_, p_72706_4_, p_72706_5_);
-                }
-                else
-                {
-                    this.theWorld.playRecord((String)null, p_72706_3_, p_72706_4_, p_72706_5_);
-                }
+                this.theWorld.playRecord((String)null, p_72706_3_, p_72706_4_, p_72706_5_);
 
                 break;
             case 1007:

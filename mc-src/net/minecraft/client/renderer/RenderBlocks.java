@@ -16,7 +16,7 @@ import net.minecraft.block.BlockEndPortalFrame;
 import net.minecraft.block.BlockFence;
 import net.minecraft.block.BlockFenceGate;
 import net.minecraft.block.BlockFire;
-import net.minecraft.block.BlockFlowerPot;
+// stripped: import net.minecraft.block.BlockFlowerPot;
 import net.minecraft.block.BlockGrass;
 import net.minecraft.block.BlockHopper;
 import net.minecraft.block.BlockLiquid;
@@ -28,7 +28,7 @@ import net.minecraft.block.BlockRedstoneComparator;
 import net.minecraft.block.BlockRedstoneDiode;
 import net.minecraft.block.BlockRedstoneRepeater;
 import net.minecraft.block.BlockRedstoneWire;
-import net.minecraft.block.BlockStainedGlassPane;
+// stripped: import net.minecraft.block.BlockStainedGlassPane;
 import net.minecraft.block.BlockStairs;
 import net.minecraft.block.BlockStem;
 import net.minecraft.block.BlockTripWire;
@@ -379,7 +379,7 @@ public class RenderBlocks
             case 41: return this.renderBlockStainedGlassPane(p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 21: return this.renderBlockFenceGate((BlockFenceGate)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 24: return this.renderBlockCauldron((BlockCauldron)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
-            case 33: return this.renderBlockFlowerpot((BlockFlowerPot)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
+            case 33: return false; // stripped: flower pot rendering
             case 35: return this.renderBlockAnvil((BlockAnvil)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 25: return this.renderBlockBrewingStand((BlockBrewingStand)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
             case 26: return this.renderBlockEndPortalFrame((BlockEndPortalFrame)p_147805_1_, p_147805_2_, p_147805_3_, p_147805_4_) ;
@@ -699,7 +699,7 @@ public class RenderBlocks
     /**
      * Renders flower pot
      */
-    public boolean renderBlockFlowerpot(BlockFlowerPot p_147752_1_, int p_147752_2_, int p_147752_3_, int p_147752_4_)
+    public boolean renderBlockFlowerpot(Block p_147752_1_, int p_147752_2_, int p_147752_3_, int p_147752_4_)
     {
         this.renderStandardBlock(p_147752_1_, p_147752_2_, p_147752_3_, p_147752_4_);
         Tessellator tessellator = Tessellator.instance;
@@ -2854,7 +2854,6 @@ public class RenderBlocks
         }
 
         tessellator.setColorOpaque_F(f, f1, f2);
-        boolean flag5 = p_147733_1_ instanceof BlockStainedGlassPane;
         IIcon iicon;
         IIcon iicon1;
 
@@ -2867,7 +2866,7 @@ public class RenderBlocks
         {
             int j1 = this.blockAccess.getBlockMetadata(p_147733_2_, p_147733_3_, p_147733_4_);
             iicon = this.getBlockIconFromSideAndMetadata(p_147733_1_, 0, j1);
-            iicon1 = flag5 ? ((BlockStainedGlassPane)p_147733_1_).func_150104_b(j1) : ((BlockPane)p_147733_1_).func_150097_e();
+            iicon1 = (p_147733_1_ instanceof BlockPane) ? ((BlockPane)p_147733_1_).func_150097_e() : iicon;
         }
 
         double d22 = (double)iicon.getMinU();

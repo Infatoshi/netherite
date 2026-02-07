@@ -71,7 +71,7 @@ import net.minecraft.server.management.UserListBansEntry;
 import net.minecraft.stats.AchievementList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityBeacon;
-import net.minecraft.tileentity.TileEntityCommandBlock;
+// removed: import net.minecraft.tileentity.TileEntityCommandBlock;
 import net.minecraft.tileentity.TileEntitySign;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.ChatAllowedCharacters;
@@ -1298,10 +1298,7 @@ public class NetHandlerPlayServer implements INetHandlerPlayServer
                         {
                             TileEntity tileentity = this.playerEntity.worldObj.getTileEntity(packetbuffer.readInt(), packetbuffer.readInt(), packetbuffer.readInt());
 
-                            if (tileentity instanceof TileEntityCommandBlock)
-                            {
-                                commandblocklogic = ((TileEntityCommandBlock)tileentity).func_145993_a();
-                            }
+                            // stripped: command block tile entity
                         }
                         else if (b0 == 1)
                         {

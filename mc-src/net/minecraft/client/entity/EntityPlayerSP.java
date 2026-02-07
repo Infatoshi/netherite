@@ -36,7 +36,7 @@ import net.minecraft.potion.Potion;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityBeacon;
 import net.minecraft.tileentity.TileEntityBrewingStand;
-import net.minecraft.tileentity.TileEntityCommandBlock;
+// stripped: import net.minecraft.tileentity.TileEntityCommandBlock;
 import net.minecraft.tileentity.TileEntityDispenser;
 import net.minecraft.tileentity.TileEntityFurnace;
 import net.minecraft.tileentity.TileEntityHopper;
@@ -362,10 +362,7 @@ public class EntityPlayerSP extends AbstractClientPlayer
         {
             this.mc.displayGuiScreen(new GuiEditSign((TileEntitySign)p_146100_1_));
         }
-        else if (p_146100_1_ instanceof TileEntityCommandBlock)
-        {
-            this.mc.displayGuiScreen(new GuiCommandBlock(((TileEntityCommandBlock)p_146100_1_).func_145993_a()));
-        }
+        // stripped: command block GUI
     }
 
     public void func_146095_a(CommandBlockLogic p_146095_1_)

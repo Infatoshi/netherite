@@ -1,0 +1,7 @@
+build/
+.gradle/
+forge-workspace/build/
+forge-workspace/.gradle/
+forge-workspace/run/
+forge-workspace/eclipse/
+*.class
