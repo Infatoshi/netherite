@@ -201,7 +201,15 @@ public abstract class Entity
         this.width = 0.6F;
         this.height = 1.8F;
         this.nextStepDistance = 1;
-        this.rand = new Random();
+        // Oracle: seed RNG deterministically from world seed + entity ID for replay reproducibility
+        if (p_i1582_1_ != null)
+        {
+            this.rand = new Random(p_i1582_1_.getSeed() ^ (long)this.entityId);
+        }
+        else
+        {
+            this.rand = new Random();
+        }
         this.fireResistance = 1;
         this.firstUpdate = true;
         this.entityUniqueID = UUID.randomUUID();

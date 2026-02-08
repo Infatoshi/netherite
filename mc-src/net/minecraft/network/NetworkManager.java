@@ -260,7 +260,7 @@ public class NetworkManager extends SimpleChannelInboundHandler
      */
     public void closeChannel(IChatComponent p_150718_1_)
     {
-        if (this.channel.isOpen())
+        if (this.channel != null && this.channel.isOpen())
         {
             this.channel.close();
             this.terminationReason = p_150718_1_;
@@ -371,7 +371,10 @@ public class NetworkManager extends SimpleChannelInboundHandler
      */
     public void disableAutoRead()
     {
-        this.channel.config().setAutoRead(false);
+        if (this.channel != null)
+        {
+            this.channel.config().setAutoRead(false);
+        }
     }
 
     protected void channelRead0(ChannelHandlerContext p_channelRead0_1_, Object p_channelRead0_2_)

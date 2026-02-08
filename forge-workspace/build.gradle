@@ -47,6 +47,16 @@ downloadServer {
 dependencies {
 }
 
+// Oracle test harness: forward ORACLE_TEST / ORACLE_TEST_TICKS env vars as JVM system properties
+runServer {
+    if (System.getenv('ORACLE_TEST')) {
+        jvmArgs "-Doracle.test=${System.getenv('ORACLE_TEST')}"
+    }
+    if (System.getenv('ORACLE_TEST_TICKS')) {
+        jvmArgs "-Doracle.test.ticks=${System.getenv('ORACLE_TEST_TICKS')}"
+    }
+}
+
 processResources {
     inputs.property "version", project.version
     inputs.property "mcversion", project.minecraft.version

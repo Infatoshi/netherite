@@ -77,7 +77,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import net.minecraft.oracle.OracleRecorder;
+import net.minecraft.oracle.OracleReplay;
 import net.minecraft.oracle.OracleStateExporter;
+import net.minecraft.oracle.OracleTestHarness;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
@@ -613,8 +615,14 @@ public abstract class MinecraftServer implements ICommandSender, Runnable, IPlay
         FMLCommonHandler.instance().onPreServerTick();
         ++this.tickCounter;
 
-        // Oracle: auto-start recording when first player joins
-        if (!OracleRecorder.get().isRecording() && this.serverConfigManager != null
+        // Oracle: test harness tick (creates bot, manages lifecycle)
+        if (OracleTestHarness.get().isActive())
+        {
+            OracleTestHarness.get().tick(this, this.tickCounter);
+        }
+
+        // Oracle: auto-start recording when first player joins (skip when test harness manages lifecycle)
+        if (OracleTestHarness.get().getMode().isEmpty() && !OracleRecorder.get().isRecording() && this.serverConfigManager != null
             && this.getCurrentPlayerCount() > 0 && this.worldServers != null && this.worldServers.length > 0)
         {
             long seed = this.worldServers[0].getSeed();
@@ -630,6 +638,12 @@ public abstract class MinecraftServer implements ICommandSender, Runnable, IPlay
         {
             String snapshotDir = this.worldServers[0].getSaveHandler().getWorldDirectory().getAbsolutePath();
             OracleStateExporter.exportAllDimensions(this, snapshotDir, this.tickCounter);
+        }
+
+        // Oracle: inject replay actions for current tick
+        if (OracleReplay.get().isActive())
+        {
+            OracleReplay.get().tickReplay(this.tickCounter);
         }
 
         if (this.startProfiling)

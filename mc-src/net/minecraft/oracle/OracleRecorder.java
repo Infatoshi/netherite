@@ -121,7 +121,7 @@ public class OracleRecorder
             raf.writeInt(this.actionCount);
             raf.close();
 
-            logger.info("[Oracle] Recording stopped: {} actions written to {}", this.actionCount, this.filePath);
+            logger.info("[Oracle] Recording stopped: " + this.actionCount + " actions written to " + this.filePath);
         }
         catch (IOException e)
         {

@@ -47,6 +47,14 @@ public class Explosion
         this.explosionX = p_i1948_3_;
         this.explosionY = p_i1948_5_;
         this.explosionZ = p_i1948_7_;
+        // Oracle: seed RNG deterministically from world seed + explosion coordinates for replay reproducibility
+        if (p_i1948_1_ != null)
+        {
+            long coordHash = Double.doubleToLongBits(p_i1948_3_) * 73856093L
+                           ^ Double.doubleToLongBits(p_i1948_5_) * 19349669L
+                           ^ Double.doubleToLongBits(p_i1948_7_) * 83492791L;
+            this.explosionRNG = new Random(p_i1948_1_.getSeed() ^ coordHash);
+        }
     }
 
     /**

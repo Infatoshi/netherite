@@ -172,8 +172,8 @@ public class OracleStateExporter
 
             dos.flush();
             dos.close();
-            logger.info("[Oracle] State exported: tick={}, dim={}, chunks={}, entities={}, players={}, file={}",
-                tick, world.provider.dimensionId, chunkCount, entityCount, playerCount, path);
+            logger.info("[Oracle] State exported: tick=" + tick + ", dim=" + world.provider.dimensionId +
+                ", chunks=" + chunkCount + ", entities=" + entityCount + ", players=" + playerCount + ", file=" + path);
         }
         catch (IOException e)
         {

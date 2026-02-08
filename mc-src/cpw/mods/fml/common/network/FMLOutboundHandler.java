@@ -106,7 +106,7 @@ public class FMLOutboundHandler extends ChannelOutboundHandlerAdapter {
             public List<NetworkDispatcher> selectNetworks(Object args, ChannelHandlerContext context, FMLProxyPacket packet)
             {
                 EntityPlayerMP player = (EntityPlayerMP) args;
-                NetworkDispatcher dispatcher = player == null ? null : player.playerNetServerHandler.netManager.channel().attr(NetworkDispatcher.FML_DISPATCHER).get();
+                NetworkDispatcher dispatcher = player == null || player.playerNetServerHandler.netManager.channel() == null ? null : player.playerNetServerHandler.netManager.channel().attr(NetworkDispatcher.FML_DISPATCHER).get();
                 return dispatcher == null ? ImmutableList.<NetworkDispatcher>of() : ImmutableList.of(dispatcher);
             }
         },
@@ -128,6 +128,7 @@ public class FMLOutboundHandler extends ChannelOutboundHandlerAdapter {
                 ImmutableList.Builder<NetworkDispatcher> builder = ImmutableList.<NetworkDispatcher>builder();
                 for (EntityPlayerMP player : (List<EntityPlayerMP>)FMLCommonHandler.instance().getMinecraftServerInstance().getConfigurationManager().playerEntityList)
                 {
+                    if (player.playerNetServerHandler.netManager.channel() == null) continue;
                     NetworkDispatcher dispatcher = player.playerNetServerHandler.netManager.channel().attr(NetworkDispatcher.FML_DISPATCHER).get();
                     if (dispatcher != null) builder.add(dispatcher);
                 }
@@ -159,6 +160,7 @@ public class FMLOutboundHandler extends ChannelOutboundHandlerAdapter {
                 {
                     if (dimension == player.dimension)
                     {
+                        if (player.playerNetServerHandler.netManager.channel() == null) continue;
                         NetworkDispatcher dispatcher = player.playerNetServerHandler.netManager.channel().attr(NetworkDispatcher.FML_DISPATCHER).get();
                         // Null dispatchers may exist for fake players - skip them
                         if (dispatcher != null) builder.add(dispatcher);
@@ -200,6 +202,7 @@ public class FMLOutboundHandler extends ChannelOutboundHandlerAdapter {
 
                         if (d4 * d4 + d5 * d5 + d6 * d6 < tp.range * tp.range)
                         {
+                            if (player.playerNetServerHandler.netManager.channel() == null) continue;
                             NetworkDispatcher dispatcher = player.playerNetServerHandler.netManager.channel().attr(NetworkDispatcher.FML_DISPATCHER).get();
                             if (dispatcher != null) builder.add(dispatcher);
                         }
