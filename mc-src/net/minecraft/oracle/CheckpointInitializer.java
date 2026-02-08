@@ -52,6 +52,9 @@ public class CheckpointInitializer
     private NetHandlerPlayServer handler;
     private boolean initialized;
     private boolean finished;
+    private boolean waitingForSetup; // human joined, waiting for delay before setup
+    private int joinTick; // tick when human player was detected
+    private static final int SETUP_DELAY = 60; // ticks to wait after join (3 seconds)
     private int startTick;
 
     // Checkpoint-specific state
@@ -115,13 +118,24 @@ public class CheckpointInitializer
                 createBot(server, world);
                 initCheckpoint(server, currentTick);
             }
-            else
+            else if (!this.waitingForSetup)
             {
                 // Human mode: wait for a real player to join
                 EntityPlayerMP human = findHumanPlayer(server);
                 if (human == null) return; // no player yet, keep waiting
                 this.bot = human;
-                logger.info("[Checkpoint] Human player joined: " + human.getCommandSenderName());
+                this.joinTick = currentTick;
+                this.waitingForSetup = true;
+                logger.info("[Checkpoint] Human player joined: " + human.getCommandSenderName()
+                    + " -- waiting " + SETUP_DELAY + " ticks for world to stabilize");
+                return;
+            }
+            else
+            {
+                // Waiting for delay after human join
+                if (currentTick - this.joinTick < SETUP_DELAY) return;
+                logger.info("[Checkpoint] Delay complete, applying checkpoint to "
+                    + this.bot.getCommandSenderName());
                 initCheckpoint(server, currentTick);
             }
             return;
@@ -551,15 +565,20 @@ public class CheckpointInitializer
         dragon.setHealth(1.0f);
         end.spawnEntityInWorld(dragon);
 
-        // Destroy all ender crystals
-        List entities = end.loadedEntityList;
-        for (int i = entities.size() - 1; i >= 0; i--)
+        // Destroy all ender crystals -- collect first, then kill
+        // (avoid modifying entity list during iteration)
+        java.util.ArrayList toKill = new java.util.ArrayList();
+        for (int i = 0; i < end.loadedEntityList.size(); i++)
         {
-            Entity e = (Entity) entities.get(i);
+            Entity e = (Entity) end.loadedEntityList.get(i);
             if (e.getClass().getSimpleName().equals("EntityEnderCrystal"))
             {
-                e.setDead();
+                toKill.add(e);
             }
+        }
+        for (int i = 0; i < toKill.size(); i++)
+        {
+            ((Entity) toKill.get(i)).setDead();
         }
 
         clearAndSetInventory(new ItemStack[] {
