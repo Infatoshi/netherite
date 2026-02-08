@@ -3,6 +3,9 @@ package net.minecraft.oracle;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import net.minecraft.entity.Entity;
@@ -70,8 +73,17 @@ public class OracleStateExporter
         {
             DataOutputStream dos = new DataOutputStream(new FileOutputStream(path));
 
-            List chunks = world.theChunkProviderServer.loadedChunks;
-            int chunkCount = chunks.size();
+            // Sort chunks by (x, z) for deterministic output order
+            ArrayList sortedChunks = new ArrayList(world.theChunkProviderServer.loadedChunks);
+            Collections.sort(sortedChunks, new Comparator() {
+                public int compare(Object a, Object b) {
+                    Chunk ca = (Chunk) a;
+                    Chunk cb = (Chunk) b;
+                    if (ca.xPosition != cb.xPosition) return ca.xPosition - cb.xPosition;
+                    return ca.zPosition - cb.zPosition;
+                }
+            });
+            int chunkCount = sortedChunks.size();
 
             // Count non-player entities
             int entityCount = 0;
@@ -96,7 +108,7 @@ public class OracleStateExporter
             // Write chunks
             for (int i = 0; i < chunkCount; i++)
             {
-                Chunk chunk = (Chunk) chunks.get(i);
+                Chunk chunk = (Chunk) sortedChunks.get(i);
                 dos.writeInt(chunk.xPosition);
                 dos.writeInt(chunk.zPosition);
 

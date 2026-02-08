@@ -92,7 +92,7 @@ public final class SpawnerAnimals
                 {
                     Iterator iterator = this.eligibleChunksForSpawning.keySet().iterator();
                     ArrayList<ChunkCoordIntPair> tmp = new ArrayList(eligibleChunksForSpawning.keySet());
-                    Collections.shuffle(tmp);
+                    Collections.shuffle(tmp, p_77192_1_.rand);
                     iterator = tmp.iterator();
                     label110:
 

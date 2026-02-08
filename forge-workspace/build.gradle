@@ -55,6 +55,9 @@ runServer {
     if (System.getenv('ORACLE_TEST_TICKS')) {
         jvmArgs "-Doracle.test.ticks=${System.getenv('ORACLE_TEST_TICKS')}"
     }
+    if (System.getenv('ORACLE_UNCAPPED')) {
+        jvmArgs "-Doracle.uncapped_ticks=true"
+    }
 }
 
 processResources {

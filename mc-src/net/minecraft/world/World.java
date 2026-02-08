@@ -278,6 +278,15 @@ public abstract class World implements IBlockAccess
         }
 
         this.provider.registerWorld(this);
+
+        // Oracle: seed World.rand and updateLCG deterministically from world seed + dimension
+        // This is critical for deterministic mob spawning (SpawnerAnimals uses world.rand)
+        long worldSeed = this.worldInfo.getSeed();
+        int dimId = this.provider.dimensionId;
+        this.rand.setSeed(worldSeed ^ ((long)dimId * 4999L));
+        this.updateLCG = (int)(worldSeed ^ ((long)dimId * 3499L));
+        this.ambientTickCountdown = this.rand.nextInt(12000);
+
         this.chunkProvider = this.createChunkProvider();
 
         if (this instanceof WorldServer)

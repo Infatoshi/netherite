@@ -162,6 +162,11 @@ public abstract class MinecraftServer implements ICommandSender, Runnable, IPlay
     private final PlayerProfileCache field_152366_X;
     private static final String __OBFID = "CL_00001462";
 
+    // Oracle: uncapped tick rate mode
+    private final boolean uncappedTicks = Boolean.getBoolean("oracle.uncapped_ticks");
+    private long uncappedTickStart;
+    private int uncappedTickCount;
+
     public MinecraftServer(File p_i45281_1_, Proxy p_i45281_2_)
     {
         this.field_152366_X = new PlayerProfileCache(this, field_152367_a);
@@ -463,43 +468,71 @@ public abstract class MinecraftServer implements ICommandSender, Runnable, IPlay
                 this.field_147147_p.func_151321_a(new ServerStatusResponse.MinecraftProtocolVersionIdentifier("1.7.10", 5));
                 this.func_147138_a(this.field_147147_p);
 
+                if (this.uncappedTicks)
+                {
+                    logger.info("[Oracle] Uncapped tick rate mode enabled -- no sleep between ticks");
+                    this.uncappedTickStart = System.nanoTime();
+                    this.uncappedTickCount = 0;
+                }
+
                 while (this.serverRunning)
                 {
-                    long j = getSystemTimeMillis();
-                    long k = j - i;
-
-                    if (k > 2000L && i - this.timeOfLastWarning >= 15000L)
+                    if (this.uncappedTicks)
                     {
-                        logger.warn("Can\'t keep up! Did the system time change, or is the server overloaded? Running {}ms behind, skipping {} tick(s)", new Object[] {Long.valueOf(k), Long.valueOf(k / 50L)});
-                        k = 2000L;
-                        this.timeOfLastWarning = i;
-                    }
-
-                    if (k < 0L)
-                    {
-                        logger.warn("Time ran backwards! Did the system time change?");
-                        k = 0L;
-                    }
-
-                    l += k;
-                    i = j;
-
-                    if (this.worldServers[0].areAllPlayersAsleep())
-                    {
+                        // Uncapped: tick as fast as possible, no sleep
                         this.tick();
-                        l = 0L;
+                        this.serverIsRunning = true;
+                        this.uncappedTickCount++;
+
+                        if (this.uncappedTickCount % 1000 == 0)
+                        {
+                            long elapsed = System.nanoTime() - this.uncappedTickStart;
+                            double seconds = elapsed / 1_000_000_000.0;
+                            double tps = this.uncappedTickCount / seconds;
+                            logger.info("[Oracle] Tick " + this.tickCounter + " | " + this.uncappedTickCount
+                                + " ticks in " + String.format("%.2f", seconds) + "s = "
+                                + String.format("%.1f", tps) + " TPS");
+                        }
                     }
                     else
                     {
-                        while (l > 50L)
-                        {
-                            l -= 50L;
-                            this.tick();
-                        }
-                    }
+                        // Normal 20 TPS rate-limited mode
+                        long j = getSystemTimeMillis();
+                        long k = j - i;
 
-                    Thread.sleep(Math.max(1L, 50L - l));
-                    this.serverIsRunning = true;
+                        if (k > 2000L && i - this.timeOfLastWarning >= 15000L)
+                        {
+                            logger.warn("Can\'t keep up! Did the system time change, or is the server overloaded? Running {}ms behind, skipping {} tick(s)", new Object[] {Long.valueOf(k), Long.valueOf(k / 50L)});
+                            k = 2000L;
+                            this.timeOfLastWarning = i;
+                        }
+
+                        if (k < 0L)
+                        {
+                            logger.warn("Time ran backwards! Did the system time change?");
+                            k = 0L;
+                        }
+
+                        l += k;
+                        i = j;
+
+                        if (this.worldServers[0].areAllPlayersAsleep())
+                        {
+                            this.tick();
+                            l = 0L;
+                        }
+                        else
+                        {
+                            while (l > 50L)
+                            {
+                                l -= 50L;
+                                this.tick();
+                            }
+                        }
+
+                        Thread.sleep(Math.max(1L, 50L - l));
+                        this.serverIsRunning = true;
+                    }
                 }
                 FMLCommonHandler.instance().handleServerStopping();
                 FMLCommonHandler.instance().expectServerStopped(); // has to come before finalTick to avoid race conditions
