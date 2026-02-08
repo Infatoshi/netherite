@@ -241,7 +241,10 @@ public class NetworkDispatcher extends SimpleChannelInboundHandler<Packet> imple
 
     private void kickVanilla()
     {
-        kickWithMessage("This is modded. No modded response received. Bye!");
+        // Oracle: accept vanilla clients instead of kicking them.
+        // Original: kickWithMessage("This is modded. No modded response received. Bye!");
+        FMLLog.info("Vanilla client detected - accepting connection");
+        completeServerSideConnection(ConnectionType.VANILLA);
     }
     private void kickWithMessage(String message)
     {
@@ -350,7 +353,7 @@ public class NetworkDispatcher extends SimpleChannelInboundHandler<Packet> imple
                     }
                     return null;
                 }
-            }, 10, TimeUnit.HOURS);
+            }, 2, TimeUnit.SECONDS);
         }
 
         @Override

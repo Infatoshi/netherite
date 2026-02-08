@@ -35,9 +35,9 @@ import org.apache.logging.log4j.Logger;
  *   -Doracle.checkpoint=<name>     Checkpoint to run
  *   -Doracle.autotest=true         Auto-check success conditions and exit
  *
- * Lifecycle (managed from MinecraftServer.tick()):
- *   1. On first tick: create headless bot, call setupCheckpoint()
- *   2. Each tick (if autotest): call checkSuccess(), exit on pass or timeout
+ * Two modes:
+ *   autotest=true  -> spawn headless bot, run setup immediately, check success each tick
+ *   autotest=false -> wait for human player to join, apply checkpoint to them
  */
 public class CheckpointInitializer
 {
@@ -48,7 +48,7 @@ public class CheckpointInitializer
     private final boolean autotest;
     private final int timeout;
 
-    private EntityPlayerMP bot;
+    private EntityPlayerMP bot; // target player (headless bot OR human player)
     private NetHandlerPlayServer handler;
     private boolean initialized;
     private boolean finished;
@@ -109,15 +109,21 @@ public class CheckpointInitializer
             WorldServer world = server.worldServerForDimension(0);
             if (world == null) return;
 
-            createBot(server, world);
-            this.startTick = currentTick;
-            this.initialized = true;
-
-            logger.info("[Checkpoint] Setting up: " + this.checkpoint.name
-                + " -- " + this.checkpoint.description);
-            setupCheckpoint(server);
-            logger.info("[Checkpoint] Setup complete. autotest=" + this.autotest
-                + " timeout=" + this.timeout + " ticks");
+            if (this.autotest)
+            {
+                // Bot mode: create headless bot and run setup immediately
+                createBot(server, world);
+                initCheckpoint(server, currentTick);
+            }
+            else
+            {
+                // Human mode: wait for a real player to join
+                EntityPlayerMP human = findHumanPlayer(server);
+                if (human == null) return; // no player yet, keep waiting
+                this.bot = human;
+                logger.info("[Checkpoint] Human player joined: " + human.getCommandSenderName());
+                initCheckpoint(server, currentTick);
+            }
             return;
         }
 
@@ -157,10 +163,46 @@ public class CheckpointInitializer
 
         // Headless bots don't receive client position packets, so server-side
         // physics (gravity, collision) don't run. Manually simulate for fall_damage.
-        if (this.checkpoint == TestCheckpoint.FALL_DAMAGE && !this.bot.onGround)
+        if (this.autotest && this.checkpoint == TestCheckpoint.FALL_DAMAGE && !this.bot.onGround)
         {
             simulateBotGravity(server);
         }
+    }
+
+    /**
+     * Common initialization path for both bot and human modes.
+     */
+    private void initCheckpoint(MinecraftServer server, int currentTick)
+    {
+        this.startTick = currentTick;
+        this.initialized = true;
+
+        logger.info("[Checkpoint] Setting up: " + this.checkpoint.name
+            + " -- " + this.checkpoint.description);
+        logger.info("[Checkpoint] Target player: " + this.bot.getCommandSenderName()
+            + " autotest=" + this.autotest);
+        setupCheckpoint(server);
+        logger.info("[Checkpoint] Setup complete. timeout=" + this.timeout + " ticks");
+    }
+
+    /**
+     * Find first real (non-bot) player on the server.
+     */
+    private EntityPlayerMP findHumanPlayer(MinecraftServer server)
+    {
+        if (server.getConfigurationManager() == null) return null;
+        List players = server.getConfigurationManager().playerEntityList;
+        for (int i = 0; i < players.size(); i++)
+        {
+            EntityPlayerMP p = (EntityPlayerMP) players.get(i);
+            // Skip our own headless bots
+            if (!"CheckpointBot".equals(p.getCommandSenderName())
+                && !"OracleBot".equals(p.getCommandSenderName()))
+            {
+                return p;
+            }
+        }
+        return null;
     }
 
     /**
@@ -243,9 +285,7 @@ public class CheckpointInitializer
     private void setupWaterBucket(MinecraftServer server)
     {
         WorldServer world = server.worldServerForDimension(0);
-        int bx = (int) this.bot.posX;
-        int by = 64;
-        int bz = (int) this.bot.posZ;
+        int bx = 0, by = 64, bz = 0;
 
         // Build flat stone platform
         for (int dx = -8; dx <= 8; dx++)
@@ -273,7 +313,7 @@ public class CheckpointInitializer
             new ItemStack(Items.bucket, 4),
         });
 
-        teleportBot(bx + 0.5, by, bz + 0.5);
+        teleportPlayer(bx + 0.5, by, bz + 0.5);
     }
 
     // ---------- 2. NETHER_PORTAL ----------
@@ -281,9 +321,7 @@ public class CheckpointInitializer
     private void setupNetherPortal(MinecraftServer server)
     {
         WorldServer world = server.worldServerForDimension(0);
-        int bx = (int) this.bot.posX;
-        int by = 64;
-        int bz = (int) this.bot.posZ + 5;
+        int bx = 0, by = 64, bz = 5;
 
         // Clear area
         for (int dx = -2; dx <= 5; dx++)
@@ -297,31 +335,27 @@ public class CheckpointInitializer
                 world.setBlock(bx + dx, by - 1, bz + dz, Blocks.stone, 0, 2);
 
         // Build obsidian frame (4 wide x 5 tall, facing X axis at z=bz)
-        // Bottom and top
         for (int dx = 0; dx <= 3; dx++)
         {
             world.setBlock(bx + dx, by, bz, Blocks.obsidian, 0, 2);
             world.setBlock(bx + dx, by + 4, bz, Blocks.obsidian, 0, 2);
         }
-        // Sides
         for (int dy = 1; dy <= 3; dy++)
         {
             world.setBlock(bx, by + dy, bz, Blocks.obsidian, 0, 2);
             world.setBlock(bx + 3, by + dy, bz, Blocks.obsidian, 0, 2);
         }
 
-        // Interior is air (already cleared)
         this.portalX = bx + 1;
         this.portalY = by + 1;
         this.portalZ = bz;
 
-        // Inventory
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.flint_and_steel),
             new ItemStack(Items.diamond_pickaxe),
         });
 
-        teleportBot(bx + 1.5, by, bz - 2.0);
+        teleportPlayer(bx + 1.5, by, bz - 2.0);
     }
 
     // ---------- 3. NETHER_FORTRESS ----------
@@ -335,7 +369,6 @@ public class CheckpointInitializer
             return;
         }
 
-        // Transfer bot to nether
         int nx = 0, ny = 64, nz = 0;
 
         // Build a small nether brick room
@@ -365,7 +398,6 @@ public class CheckpointInitializer
             ((TileEntityMobSpawner) te).func_145881_a().setEntityName("Blaze");
         }
 
-        // Inventory
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.diamond_sword),
             new ItemStack(Items.bow),
@@ -384,11 +416,8 @@ public class CheckpointInitializer
     private void setupEndermanHunt(MinecraftServer server)
     {
         WorldServer world = server.worldServerForDimension(0);
-        int bx = (int) this.bot.posX;
-        int by = (int) this.bot.posY;
-        int bz = (int) this.bot.posZ;
+        int bx = 0, by = 64, bz = 0;
 
-        // Set time to night
         world.setWorldTime(14000L);
 
         // Build flat platform
@@ -411,7 +440,6 @@ public class CheckpointInitializer
             world.spawnEntityInWorld(enderman);
         }
 
-        // Inventory: sword, pumpkin helmet, food
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.diamond_sword),
             new ItemStack(Items.cooked_beef, 64),
@@ -419,7 +447,7 @@ public class CheckpointInitializer
         // Pumpkin as helmet (armor slot 3 = head)
         this.bot.inventory.armorInventory[3] = new ItemStack(Item.getItemFromBlock(Blocks.pumpkin));
 
-        teleportBot(bx + 0.5, by, bz + 0.5);
+        teleportPlayer(bx + 0.5, by, bz + 0.5);
     }
 
     // ---------- 5. STRONGHOLD ----------
@@ -427,9 +455,7 @@ public class CheckpointInitializer
     private void setupStronghold(MinecraftServer server)
     {
         WorldServer world = server.worldServerForDimension(0);
-        int bx = (int) this.bot.posX;
-        int by = 30; // underground
-        int bz = (int) this.bot.posZ;
+        int bx = 0, by = 30, bz = 0;
 
         // Build portal room: clear a 9x9x7 chamber
         for (int dx = -4; dx <= 4; dx++)
@@ -444,28 +470,21 @@ public class CheckpointInitializer
                         world.setBlock(bx + dx, by + dy, bz + dz, Blocks.air, 0, 2);
                 }
 
-        // Place end portal frame ring (3x3 ring centered at bx, by, bz)
-        // The portal is a 3x3 ring of end_portal_frame blocks
-        // Metadata: direction the frame faces (toward center) + no eye (bit 2 = 0)
-        // South side (facing north = 2)
+        // End portal frame ring (3x3 ring)
         for (int dx = -1; dx <= 1; dx++)
             world.setBlock(bx + dx, by, bz - 1, Blocks.end_portal_frame, 2, 2);
-        // North side (facing south = 0)
         for (int dx = -1; dx <= 1; dx++)
             world.setBlock(bx + dx, by, bz + 1, Blocks.end_portal_frame, 0, 2);
-        // West side (facing east = 3)
         for (int dz = -1; dz <= 1; dz++)
             world.setBlock(bx + 1, by, bz + dz, Blocks.end_portal_frame, 3, 2);
-        // East side (facing west = 1)
         for (int dz = -1; dz <= 1; dz++)
             world.setBlock(bx - 1, by, bz + dz, Blocks.end_portal_frame, 1, 2);
 
-        // Inventory
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.ender_eye, 12),
         });
 
-        teleportBot(bx + 0.5, by + 1, bz - 3.5);
+        teleportPlayer(bx + 0.5, by + 1, bz - 3.5);
     }
 
     // ---------- 6. DRAGON_FULL ----------
@@ -479,19 +498,17 @@ public class CheckpointInitializer
             return;
         }
 
-        // Transfer to end - the End island generates automatically
+        // Transfer to end
         server.getConfigurationManager().transferPlayerToDimension(
             this.bot, 1, end.getDefaultTeleporter());
 
-        // Spawn on the obsidian platform (0, 64, 0 is typical end spawn)
-        // Build a small obsidian platform if not present
+        // Build obsidian platform
         for (int dx = -2; dx <= 2; dx++)
             for (int dz = -2; dz <= 2; dz++)
                 end.setBlock(dx, 48, dz, Blocks.obsidian, 0, 2);
 
         this.bot.setPositionAndUpdate(0.5, 49, 0.5);
 
-        // Full diamond gear
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.diamond_sword),
             new ItemStack(Items.bow),
@@ -521,7 +538,7 @@ public class CheckpointInitializer
         server.getConfigurationManager().transferPlayerToDimension(
             this.bot, 1, end.getDefaultTeleporter());
 
-        // Build platform near fountain (0, 64, 0)
+        // Build platform
         for (int dx = -2; dx <= 2; dx++)
             for (int dz = -2; dz <= 2; dz++)
                 end.setBlock(dx, 63, dz, Blocks.end_stone, 0, 2);
@@ -534,7 +551,7 @@ public class CheckpointInitializer
         dragon.setHealth(1.0f);
         end.spawnEntityInWorld(dragon);
 
-        // Destroy all ender crystals (find and kill them)
+        // Destroy all ender crystals
         List entities = end.loadedEntityList;
         for (int i = entities.size() - 1; i >= 0; i--)
         {
@@ -545,7 +562,6 @@ public class CheckpointInitializer
             }
         }
 
-        // Inventory
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.diamond_sword),
         });
@@ -556,31 +572,26 @@ public class CheckpointInitializer
     private void setupFallDamage(MinecraftServer server)
     {
         WorldServer world = server.worldServerForDimension(0);
-        int bx = (int) this.bot.posX;
-        int by = 64;
-        int bz = (int) this.bot.posZ;
+        int bx = 0, by = 64, bz = 0;
 
         // Ensure solid ground at landing zone
         for (int dx = -3; dx <= 3; dx++)
             for (int dz = -3; dz <= 3; dz++)
             {
                 world.setBlock(bx + dx, by - 1, bz + dz, Blocks.stone, 0, 2);
-                // Clear air above
                 for (int dy = 0; dy <= 20; dy++)
                     world.setBlock(bx + dx, by + dy, bz + dz, Blocks.air, 0, 2);
             }
 
         this.pillarX = bx;
-        this.pillarY = by + 15; // drop height (15 blocks = 12 damage, survivable)
+        this.pillarY = by + 15;
         this.pillarZ = bz;
 
-        // Inventory
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.water_bucket),
         });
 
-        // Teleport to 15 blocks above ground, in mid-air -- manual gravity in tick()
-        teleportBot(bx + 0.5, by + 15, bz + 0.5);
+        teleportPlayer(bx + 0.5, by + 15, bz + 0.5);
     }
 
     // ---------- 9. MOB_SPAWNING ----------
@@ -588,15 +599,10 @@ public class CheckpointInitializer
     private void setupMobSpawning(MinecraftServer server)
     {
         WorldServer world = server.worldServerForDimension(0);
-        int bx = (int) this.bot.posX;
-        int by = 30; // underground
-        int bz = (int) this.bot.posZ;
+        int bx = 0, by = 30, bz = 0;
 
-        // Mobs can't spawn within 24 blocks of a player.
-        // Build a long dark room: player at one end, spawn area 25-40 blocks away.
-        // Room: 16 wide (x), 50 long (z), 4 tall
-        int roomW = 8;  // half-width in X
-        int roomL = 50; // length in Z (player at z=0 end, mobs spawn at z=25+)
+        int roomW = 8;
+        int roomL = 50;
         int h = 4;
 
         for (int dx = -roomW - 1; dx <= roomW + 1; dx++)
@@ -611,17 +617,15 @@ public class CheckpointInitializer
                         world.setBlock(bx + dx, by + dy, bz + dz, Blocks.air, 0, 2);
                 }
 
-        // Track center of spawn zone (25-40 blocks from player)
         this.darkRoomX = bx;
         this.darkRoomY = by;
         this.darkRoomZ = bz + 32;
 
-        // Inventory
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.diamond_sword),
         });
 
-        teleportBot(bx + 0.5, by, bz + 0.5);
+        teleportPlayer(bx + 0.5, by, bz + 0.5);
     }
 
     // ---------- 10. CRAFTING ----------
@@ -629,15 +633,19 @@ public class CheckpointInitializer
     private void setupCrafting(MinecraftServer server)
     {
         WorldServer world = server.worldServerForDimension(0);
-        int bx = (int) this.bot.posX;
-        int by = (int) this.bot.posY;
-        int bz = (int) this.bot.posZ;
+        int bx = 0, by = 64, bz = 0;
 
-        // Place crafting table and furnace nearby
+        // Clear area and place crafting table + furnace
+        for (int dx = -3; dx <= 3; dx++)
+            for (int dz = -3; dz <= 3; dz++)
+            {
+                world.setBlock(bx + dx, by - 1, bz + dz, Blocks.stone, 0, 2);
+                world.setBlock(bx + dx, by, bz + dz, Blocks.air, 0, 2);
+                world.setBlock(bx + dx, by + 1, bz + dz, Blocks.air, 0, 2);
+            }
         world.setBlock(bx + 1, by, bz, Blocks.crafting_table, 0, 2);
         world.setBlock(bx + 2, by, bz, Blocks.furnace, 0, 2);
 
-        // Inventory: raw materials
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Item.getItemFromBlock(Blocks.log), 64),
             new ItemStack(Item.getItemFromBlock(Blocks.cobblestone), 64),
@@ -649,7 +657,7 @@ public class CheckpointInitializer
             new ItemStack(Items.stick, 64),
         });
 
-        teleportBot(bx + 0.5, by, bz + 0.5);
+        teleportPlayer(bx + 0.5, by, bz + 0.5);
     }
 
     // ========== SUCCESS CHECKS ==========
@@ -674,7 +682,6 @@ public class CheckpointInitializer
 
     private boolean checkWaterBucket(MinecraftServer server)
     {
-        // Lava converted by water: source lava -> obsidian, flowing lava -> cobblestone
         WorldServer world = server.worldServerForDimension(0);
         Block block = world.getBlock(this.lavaX, this.lavaY, this.lavaZ);
         return block == Blocks.cobblestone || block == Blocks.obsidian || block == Blocks.stone;
@@ -682,31 +689,26 @@ public class CheckpointInitializer
 
     private boolean checkNetherPortal(MinecraftServer server)
     {
-        // Player transferred to nether
         return this.bot.dimension == -1;
     }
 
     private boolean checkNetherFortress(MinecraftServer server)
     {
-        // Blaze rod in inventory
         return inventoryContains(Items.blaze_rod);
     }
 
     private boolean checkEndermanHunt(MinecraftServer server)
     {
-        // Ender pearl in inventory
         return inventoryContains(Items.ender_pearl);
     }
 
     private boolean checkStronghold(MinecraftServer server)
     {
-        // Player in the End
         return this.bot.dimension == 1;
     }
 
     private boolean checkDragonDead(MinecraftServer server)
     {
-        // No living dragon entities in the End
         WorldServer end = server.worldServerForDimension(1);
         if (end == null) return false;
         for (int i = 0; i < end.loadedEntityList.size(); i++)
@@ -717,18 +719,16 @@ public class CheckpointInitializer
                 return false;
             }
         }
-        return true; // no living dragons found
+        return true;
     }
 
     private boolean checkFallDamage(MinecraftServer server)
     {
-        // Bot on ground, took fall damage (health < 20), and survived
         return this.bot.onGround && this.bot.getHealth() < 20.0f && this.bot.getHealth() > 0.0f;
     }
 
     private boolean checkMobSpawning(MinecraftServer server)
     {
-        // Hostile mob exists within the dark room (spawn zone: 25-50 blocks from player)
         WorldServer world = server.worldServerForDimension(0);
         AxisAlignedBB box = AxisAlignedBB.getBoundingBox(
             this.darkRoomX - 8, this.darkRoomY, this.darkRoomZ - 15,
@@ -739,7 +739,6 @@ public class CheckpointInitializer
 
     private boolean checkCrafting(MinecraftServer server)
     {
-        // Diamond pickaxe or diamond sword in inventory (crafted from materials)
         return inventoryContains(Items.diamond_pickaxe)
             || inventoryContains(Items.diamond_sword);
     }
@@ -748,18 +747,16 @@ public class CheckpointInitializer
 
     private void clearAndSetInventory(ItemStack[] items)
     {
-        // Clear all inventory
         for (int i = 0; i < this.bot.inventory.mainInventory.length; i++)
             this.bot.inventory.mainInventory[i] = null;
         for (int i = 0; i < this.bot.inventory.armorInventory.length; i++)
             this.bot.inventory.armorInventory[i] = null;
 
-        // Set items in hotbar
         for (int i = 0; i < items.length && i < 9; i++)
             this.bot.inventory.mainInventory[i] = items[i];
     }
 
-    private void teleportBot(double x, double y, double z)
+    private void teleportPlayer(double x, double y, double z)
     {
         this.bot.setPositionAndUpdate(x, y, z);
     }
