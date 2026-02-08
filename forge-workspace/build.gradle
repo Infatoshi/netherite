@@ -58,6 +58,12 @@ runServer {
     if (System.getenv('ORACLE_UNCAPPED')) {
         jvmArgs "-Doracle.uncapped_ticks=true"
     }
+    if (System.getenv('ORACLE_CHECKPOINT')) {
+        jvmArgs "-Doracle.checkpoint=${System.getenv('ORACLE_CHECKPOINT')}"
+    }
+    if (System.getenv('ORACLE_AUTOTEST')) {
+        jvmArgs "-Doracle.autotest=true"
+    }
 }
 
 processResources {

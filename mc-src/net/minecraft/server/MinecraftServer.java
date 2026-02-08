@@ -76,6 +76,7 @@ import org.apache.commons.lang3.Validate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import net.minecraft.oracle.CheckpointInitializer;
 import net.minecraft.oracle.OracleRecorder;
 import net.minecraft.oracle.OracleReplay;
 import net.minecraft.oracle.OracleStateExporter;
@@ -652,6 +653,12 @@ public abstract class MinecraftServer implements ICommandSender, Runnable, IPlay
         if (OracleTestHarness.get().isActive())
         {
             OracleTestHarness.get().tick(this, this.tickCounter);
+        }
+
+        // Oracle: checkpoint test system
+        if (CheckpointInitializer.get().isActive())
+        {
+            CheckpointInitializer.get().tick(this, this.tickCounter);
         }
 
         // Oracle: auto-start recording when first player joins (skip when test harness manages lifecycle)
