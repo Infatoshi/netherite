@@ -516,12 +516,10 @@ public class CheckpointInitializer
         server.getConfigurationManager().transferPlayerToDimension(
             this.bot, 1, end.getDefaultTeleporter());
 
-        // Build obsidian platform
-        for (int dx = -2; dx <= 2; dx++)
-            for (int dz = -2; dz <= 2; dz++)
-                end.setBlock(dx, 48, dz, Blocks.obsidian, 0, 2);
+        // Build obsidian platform ABOVE the island (surface ~y62-65, platform at y=75)
+        buildEndPlatform(end, 0, 75, 0);
 
-        this.bot.setPositionAndUpdate(0.5, 49, 0.5);
+        this.bot.setPositionAndUpdate(0.5, 76, 0.5);
 
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.diamond_sword),
@@ -531,10 +529,10 @@ public class CheckpointInitializer
             new ItemStack(Items.cooked_beef, 64),
             new ItemStack(Items.bed, 5),
         });
-        this.bot.inventory.armorInventory[3] = new ItemStack(Items.diamond_helmet);
-        this.bot.inventory.armorInventory[2] = new ItemStack(Items.diamond_chestplate);
-        this.bot.inventory.armorInventory[1] = new ItemStack(Items.diamond_leggings);
-        this.bot.inventory.armorInventory[0] = new ItemStack(Items.diamond_boots);
+        this.bot.setCurrentItemOrArmor(4, new ItemStack(Items.diamond_helmet));
+        this.bot.setCurrentItemOrArmor(3, new ItemStack(Items.diamond_chestplate));
+        this.bot.setCurrentItemOrArmor(2, new ItemStack(Items.diamond_leggings));
+        this.bot.setCurrentItemOrArmor(1, new ItemStack(Items.diamond_boots));
     }
 
     // ---------- 7. DRAGON_1HP ----------
@@ -552,22 +550,36 @@ public class CheckpointInitializer
         server.getConfigurationManager().transferPlayerToDimension(
             this.bot, 1, end.getDefaultTeleporter());
 
-        // Build platform
-        for (int dx = -2; dx <= 2; dx++)
-            for (int dz = -2; dz <= 2; dz++)
-                end.setBlock(dx, 63, dz, Blocks.end_stone, 0, 2);
+        // Build obsidian spawn platform ABOVE the island (surface ~y62-65, platform at y=75)
+        buildEndPlatform(end, 0, 75, 0);
 
-        this.bot.setPositionAndUpdate(0.5, 64, 0.5);
+        // Spawn on obsidian platform -- gives a moment to orient before combat
+        this.bot.setPositionAndUpdate(0.5, 76, 0.5);
 
-        // Spawn dragon at 1hp
-        EntityDragon dragon = new EntityDragon(end);
-        dragon.setLocationAndAngles(0, 70, 0, 0, 0);
-        dragon.setHealth(1.0f);
-        end.spawnEntityInWorld(dragon);
-
-        // Destroy all ender crystals -- collect first, then kill
-        // (avoid modifying entity list during iteration)
+        // Kill any pre-existing dragons
+        int killedDragons = 0;
         java.util.ArrayList toKill = new java.util.ArrayList();
+        for (int i = 0; i < end.loadedEntityList.size(); i++)
+        {
+            Entity e = (Entity) end.loadedEntityList.get(i);
+            if (e instanceof EntityDragon)
+            {
+                toKill.add(e);
+            }
+        }
+        for (int i = 0; i < toKill.size(); i++)
+        {
+            ((Entity) toKill.get(i)).setDead();
+            killedDragons++;
+        }
+        if (killedDragons > 0)
+        {
+            logger.info("[Checkpoint] Removed " + killedDragons + " existing dragon(s)");
+        }
+
+        // Destroy all ender crystals
+        toKill.clear();
+        int killedCrystals = 0;
         for (int i = 0; i < end.loadedEntityList.size(); i++)
         {
             Entity e = (Entity) end.loadedEntityList.get(i);
@@ -579,11 +591,33 @@ public class CheckpointInitializer
         for (int i = 0; i < toKill.size(); i++)
         {
             ((Entity) toKill.get(i)).setDead();
+            killedCrystals++;
         }
+        logger.info("[Checkpoint] Destroyed " + killedCrystals + " ender crystal(s)");
 
+        // Spawn dragon at 1hp (above the platform)
+        EntityDragon dragon = new EntityDragon(end);
+        dragon.setLocationAndAngles(0, 90, 0, 0, 0);
+        dragon.setHealth(1.0f);
+        end.spawnEntityInWorld(dragon);
+        logger.info("[Checkpoint] Spawned 1hp dragon at (0, 90, 0)");
+
+        // Inventory: sword + utility items
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.diamond_sword),
+            new ItemStack(Items.bow),
+            new ItemStack(Items.arrow, 64),
+            new ItemStack(Items.cooked_beef, 64),
+            new ItemStack(Items.ender_pearl, 16),
+            new ItemStack(Item.getItemFromBlock(Blocks.cobblestone), 64),
         });
+
+        // Equip diamond armor (slot 1=boots, 2=leggings, 3=chestplate, 4=helmet)
+        this.bot.setCurrentItemOrArmor(4, new ItemStack(Items.diamond_helmet));
+        this.bot.setCurrentItemOrArmor(3, new ItemStack(Items.diamond_chestplate));
+        this.bot.setCurrentItemOrArmor(2, new ItemStack(Items.diamond_leggings));
+        this.bot.setCurrentItemOrArmor(1, new ItemStack(Items.diamond_boots));
+        logger.info("[Checkpoint] Equipped diamond armor");
     }
 
     // ---------- 8. FALL_DAMAGE ----------
@@ -773,6 +807,22 @@ public class CheckpointInitializer
 
         for (int i = 0; i < items.length && i < 9; i++)
             this.bot.inventory.mainInventory[i] = items[i];
+    }
+
+    /**
+     * Build an obsidian platform and clear 4 blocks of air above it.
+     * Used for End dimension spawns to avoid suffocation in endstone.
+     */
+    private void buildEndPlatform(WorldServer end, int cx, int py, int cz)
+    {
+        for (int dx = -2; dx <= 2; dx++)
+            for (int dz = -2; dz <= 2; dz++)
+            {
+                end.setBlock(cx + dx, py, cz + dz, Blocks.obsidian, 0, 2);
+                // Clear air above platform so player doesn't suffocate
+                for (int dy = 1; dy <= 4; dy++)
+                    end.setBlock(cx + dx, py + dy, cz + dz, Blocks.air, 0, 2);
+            }
     }
 
     private void teleportPlayer(double x, double y, double z)
