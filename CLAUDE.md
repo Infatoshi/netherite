@@ -70,3 +70,155 @@ Add recording/replay infrastructure to the stripped codebase:
 - Dungeon, mineshaft, desert temple, jungle temple (incidental)
 
 **Blocks (~80 types)**
+- Stone, dirt, grass, sand, gravel, clay, obsidian
+- All ores (coal, iron, gold, diamond, redstone, lapis, emerald)
+- Crafting table, furnace, chest, ender chest
+- Nether portal, end portal frame, end portal, end stone
+- Nether brick, nether rack, soul sand, glowstone
+- Mob spawner, ladder, fence, door, torch, TNT
+- Water, lava, ice, snow, farmland, crops
+- Bed, anvil, enchanting table (kept for structure gen)
+
+**Entities (Critical Path)**
+- Player, zombies, skeletons, creepers, spiders, endermen
+- Blazes, ghasts, zombie pigmen, silverfish
+- Ender dragon, ender crystals
+- Items, XP orbs, falling blocks, TNT primed
+- Arrows, snowballs, ender pearls, eyes of ender
+
+**Systems**
+- Crafting (all recipes for critical path items)
+- Smelting (furnace recipes)
+- Combat (melee, ranged, armor)
+- Hunger/food
+- Mob spawning (natural + spawner)
+- Portal mechanics (nether + end)
+- World generation (all biomes, structures)
+
+### DELETE (Non-Critical)
+
+- Decorative blocks, stained glass, flowers, carpets
+- Command blocks, jukeboxes, note blocks
+- Brewing system, potions, cauldron
+- Beacon system
+- Redstone system (wire, repeaters, pistons, hoppers, etc.)
+- Villagers, horses, wolves, ocelots, witch, iron/snow golems, wither
+
+## Current Status
+
+**Phase 1**: COMPLETE - ForgeGradle 1.2 dev environment with MCP-decompiled 1.7.10 source
+**Phase 2**: COMPLETE - Stripped server boots, loads all 3 dimensions
+**Phase 3**: IN PROGRESS - Oracle instrumentation
+
+### Phase 3 Components
+
+| Component | Status |
+|-----------|--------|
+| Action recording (OracleRecorder) | DONE |
+| State export (OracleStateExporter) | DONE |
+| Action replay (OracleReplay) | DONE |
+| Validation (OracleValidator) | DONE |
+| Determinism fixes (Entity.rand, Explosion.explosionRNG, etc.) | DONE |
+| Checkpoint test system (10 checkpoints) | DONE |
+| Vanilla client connection (FML handshake bypass) | DONE |
+| Human player checkpoint mode | DONE |
+| Bot automation for checkpoints | IN PROGRESS |
+
+### Checkpoint Test System
+
+10 checkpoints covering the critical path:
+
+| Checkpoint | Auto-test | Status |
+|-----------|-----------|--------|
+| water_bucket | PASS (tick 1) | Automated |
+| fall_damage | PASS (tick 22) | Automated |
+| mob_spawning | PASS (tick 2218) | Automated |
+| nether_portal | Needs human | Setup verified |
+| nether_fortress | Needs human | Setup verified |
+| enderman_hunt | Needs human | Setup verified |
+| stronghold | Needs human | Setup verified |
+| crafting | Needs human | Setup verified |
+| dragon_full | Needs human | Setup verified |
+| dragon_1hp | Needs human | **Playtested -- credits reached** |
+
+### Running Checkpoints
+
+```bash
+cd forge-workspace
+
+# Auto-test (headless bot, exits with PASS/FAIL):
+JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home \
+  ORACLE_CHECKPOINT=water_bucket ORACLE_AUTOTEST=true \
+  ./gradlew runServer --no-daemon
+
+# Human playtest (connect vanilla 1.7.10 client to localhost:25570):
+JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home \
+  ORACLE_CHECKPOINT=dragon_1hp \
+  ./gradlew runServer --no-daemon
+
+# Run all 3 auto-testable checkpoints:
+for cp in water_bucket fall_damage mob_spawning; do
+  rm -rf run/world
+  JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-8.jdk/Contents/Home \
+    ORACLE_CHECKPOINT=$cp ORACLE_AUTOTEST=true \
+    ./gradlew runServer --no-daemon
+done
+```
+
+## Build System
+
+### Manual Compilation (mc-src changes)
+
+ForgeGradle only compiles mod code, not mc-src. Manual javac required:
+
+```bash
+FORGESRC="$HOME/.gradle/caches/minecraft/net/minecraftforge/forge/1.7.10-10.13.4.1614-1.7.10/forgeSrc-1.7.10-10.13.4.1614-1.7.10.jar"
+LOG4J="$HOME/.gradle/caches/modules-2/files-2.1/org.apache.logging.log4j/log4j-api/2.0-beta9/1dd66e68cccd907880229f9e2de1314bd13ff785/log4j-api-2.0-beta9.jar"
+AUTHLIB="$HOME/.gradle/caches/modules-2/files-2.1/com.mojang/authlib/1.5.21/aefba0d5b53fbcb70860bc8046ab95d5854c07a5/authlib-1.5.21.jar"
+GUAVA="$HOME/.gradle/caches/modules-2/files-2.1/com.google.guava/guava/17.0/9c6ef172e8de35fd8d4d8783e4571f4b8af5a6a2/guava-17.0.jar"
+NETTY="$HOME/.gradle/caches/modules-2/files-2.1/io.netty/netty-all/4.0.10.Final/6e5b1c1b650e20e80c8b00cb2b3000b1e56f8a36/netty-all-4.0.10.Final.jar"
+
+mkdir -p /tmp/build
+javac -cp "$LOG4J:$FORGESRC:forge-workspace/build/classes/main:$GUAVA:$AUTHLIB:$NETTY" \
+  -d /tmp/build -sourcepath mc-src mc-src/path/to/File.java
+cd /tmp/build && jar uf "$FORGESRC" $(find . -name "*.class" | sed 's|^\./||')
+```
+
+**CRITICAL**: log4j-2.0-beta9 must be FIRST on classpath. Use string concat in logger calls, NOT `{}` format patterns.
+
+### Server Config
+
+- Port: 25570 (`forge-workspace/run/server.properties`)
+- online-mode: false (vanilla clients accepted)
+- Seed: 42
+- Max players: 2
+
+## Architecture
+
+```
+mc-src/                          # MCP-decompiled MC 1.7.10 source (modified)
+  net/minecraft/oracle/          # Oracle instrumentation package
+    OracleRecorder.java          # Binary action recording (.nrec format)
+    OracleStateExporter.java     # Chunk/entity/player state export (.nsta format)
+    OracleReplay.java            # Recording playback with headless bot
+    OracleValidator.java         # Snapshot comparison
+    OracleAction.java            # Action type IDs and payload builders
+    CheckpointInitializer.java   # Checkpoint test system (10 scenarios)
+    TestCheckpoint.java          # Checkpoint enum definitions
+  net/minecraft/server/          # Server core (MinecraftServer tick hooks)
+  net/minecraft/network/         # NetHandlerPlayServer (recording hooks)
+  cpw/mods/fml/.../NetworkDispatcher.java  # Vanilla client acceptance
+forge-workspace/                 # ForgeGradle project
+  build.gradle                   # Env var forwarding for ORACLE_* props
+  run/                           # Server runtime (world, logs, properties)
+```
+
+## Key Technical Notes
+
+- EntityPlayerMP.onUpdate() does NOT call super.onUpdate() -- server-side physics don't run for players (client-authoritative movement)
+- `setBlock` flag 2 = client notify only; flag 3 = block update + client notify. Fluid flow requires flag 3
+- `EntityPlayer.fall()` is protected -- use `attackEntityFrom(DamageSource.fall, damage)` from external code
+- `setCurrentItemOrArmor(slot, stack)`: slot 0=held, 1=boots, 2=leggings, 3=chestplate, 4=helmet
+- End island surface at (0,0) is ~y62-65. Spawn platforms must be at y=75+ to avoid suffocation
+- Mob spawn exclusion: mobs can't spawn within 24 blocks of any player
+- `transferPlayerToDimension` can crash if called during world init -- use 60-tick delay after player join

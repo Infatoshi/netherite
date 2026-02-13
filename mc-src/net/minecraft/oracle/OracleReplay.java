@@ -80,7 +80,7 @@ public class OracleReplay
             int magic = dis.readInt();
             if (magic != MAGIC)
             {
-                logger.error("[Oracle Replay] Invalid magic: 0x{}", Integer.toHexString(magic));
+                logger.error("[Oracle Replay] Invalid magic: 0x" + Integer.toHexString(magic));
                 dis.close();
                 return false;
             }
@@ -88,7 +88,7 @@ public class OracleReplay
             int version = dis.readInt();
             if (version != 1)
             {
-                logger.error("[Oracle Replay] Unsupported version: {}", version);
+                logger.error("[Oracle Replay] Unsupported version: " + version);
                 dis.close();
                 return false;
             }
@@ -463,7 +463,7 @@ public class OracleReplay
                     break;
                 }
                 default:
-                    logger.warn("[Oracle Replay] Unknown action type: 0x{}", Integer.toHexString(type));
+                    logger.warn("[Oracle Replay] Unknown action type: 0x" + Integer.toHexString(type));
             }
         }
         catch (IOException e)

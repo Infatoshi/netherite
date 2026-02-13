@@ -58,6 +58,7 @@ public class CheckpointInitializer
     private int startTick;
 
     // Checkpoint-specific state
+    private boolean dragonAttacked; // dragon_1hp/dragon_full: bot has hit the dragon
     private int lavaX, lavaY, lavaZ; // water_bucket: lava position
     private int portalX, portalY, portalZ; // nether_portal: portal interior
     private int pillarX, pillarY, pillarZ; // fall_damage: pillar top
@@ -181,6 +182,14 @@ public class CheckpointInitializer
         {
             simulateBotGravity(server);
         }
+
+        // Dragon bot: attack the dragon once, then wait for death animation
+        if (this.autotest
+            && (this.checkpoint == TestCheckpoint.DRAGON_1HP || this.checkpoint == TestCheckpoint.DRAGON_FULL)
+            && !this.dragonAttacked && elapsed >= 5)
+        {
+            botAttackDragon(server);
+        }
     }
 
     /**
@@ -254,6 +263,38 @@ public class CheckpointInitializer
             if (fell > 0) this.bot.fallDistance += fell;
             this.bot.setPositionAndUpdate(this.bot.posX, newY, this.bot.posZ);
         }
+    }
+
+    /**
+     * Bot attacks the dragon by directly calling attackEntityFromPart on the head.
+     * Dragon.attackEntityFrom() returns false (immune), so we must hit a part.
+     * DamageSource must be from EntityPlayer for damage to actually apply.
+     */
+    private void botAttackDragon(MinecraftServer server)
+    {
+        WorldServer end = server.worldServerForDimension(1);
+        if (end == null) return;
+
+        for (int i = 0; i < end.loadedEntityList.size(); i++)
+        {
+            Entity e = (Entity) end.loadedEntityList.get(i);
+            if (e instanceof EntityDragon && !e.isDead)
+            {
+                EntityDragon dragon = (EntityDragon) e;
+                float healthBefore = dragon.getHealth();
+                // Attack the head for full damage (non-head parts reduce to dmg/4+1)
+                dragon.attackEntityFromPart(
+                    dragon.dragonPartHead,
+                    DamageSource.causePlayerDamage(this.bot),
+                    10.0f);
+                this.dragonAttacked = true;
+                logger.info("[Checkpoint] Bot attacked dragon head: health "
+                    + healthBefore + " -> " + dragon.getHealth()
+                    + " (dead=" + (dragon.getHealth() <= 0) + ")");
+                return;
+            }
+        }
+        logger.warn("[Checkpoint] Bot could not find dragon to attack");
     }
 
     // ========== BOT CREATION ==========
@@ -419,6 +460,12 @@ public class CheckpointInitializer
             new ItemStack(Items.cooked_beef, 64),
         });
 
+        // Diamond armor
+        this.bot.setCurrentItemOrArmor(4, new ItemStack(Items.diamond_helmet));
+        this.bot.setCurrentItemOrArmor(3, new ItemStack(Items.diamond_chestplate));
+        this.bot.setCurrentItemOrArmor(2, new ItemStack(Items.diamond_leggings));
+        this.bot.setCurrentItemOrArmor(1, new ItemStack(Items.diamond_boots));
+
         // Transfer player to nether
         server.getConfigurationManager().transferPlayerToDimension(
             this.bot, -1, nether.getDefaultTeleporter());
@@ -430,18 +477,18 @@ public class CheckpointInitializer
     private void setupEndermanHunt(MinecraftServer server)
     {
         WorldServer world = server.worldServerForDimension(0);
-        int bx = 0, by = 64, bz = 0;
+        int bx = 0, by = 100, bz = 0;
 
         world.setWorldTime(14000L);
 
-        // Build flat platform
-        for (int dx = -10; dx <= 10; dx++)
-            for (int dz = -10; dz <= 10; dz++)
+        // Build large flat platform at y=100 (above all terrain)
+        // 30x30 so endermen have room to teleport without falling off
+        for (int dx = -15; dx <= 15; dx++)
+            for (int dz = -15; dz <= 15; dz++)
             {
                 world.setBlock(bx + dx, by - 1, bz + dz, Blocks.grass, 0, 2);
-                world.setBlock(bx + dx, by, bz + dz, Blocks.air, 0, 2);
-                world.setBlock(bx + dx, by + 1, bz + dz, Blocks.air, 0, 2);
-                world.setBlock(bx + dx, by + 2, bz + dz, Blocks.air, 0, 2);
+                for (int dy = 0; dy <= 3; dy++)
+                    world.setBlock(bx + dx, by + dy, bz + dz, Blocks.air, 0, 2);
             }
 
         // Spawn 5 endermen nearby
@@ -458,8 +505,11 @@ public class CheckpointInitializer
             new ItemStack(Items.diamond_sword),
             new ItemStack(Items.cooked_beef, 64),
         });
-        // Pumpkin as helmet (armor slot 3 = head)
-        this.bot.inventory.armorInventory[3] = new ItemStack(Item.getItemFromBlock(Blocks.pumpkin));
+        // Diamond armor + pumpkin helmet (prevents enderman aggro on look)
+        this.bot.setCurrentItemOrArmor(4, new ItemStack(Item.getItemFromBlock(Blocks.pumpkin)));
+        this.bot.setCurrentItemOrArmor(3, new ItemStack(Items.diamond_chestplate));
+        this.bot.setCurrentItemOrArmor(2, new ItemStack(Items.diamond_leggings));
+        this.bot.setCurrentItemOrArmor(1, new ItemStack(Items.diamond_boots));
 
         teleportPlayer(bx + 0.5, by, bz + 0.5);
     }
@@ -471,34 +521,39 @@ public class CheckpointInitializer
         WorldServer world = server.worldServerForDimension(0);
         int bx = 0, by = 30, bz = 0;
 
-        // Build portal room: clear a 9x9x7 chamber
-        for (int dx = -4; dx <= 4; dx++)
-            for (int dz = -4; dz <= 4; dz++)
+        // Build portal room: clear a 13x13x7 chamber
+        for (int dx = -6; dx <= 6; dx++)
+            for (int dz = -6; dz <= 6; dz++)
                 for (int dy = -1; dy <= 5; dy++)
                 {
                     if (dy == -1 || dy == 5)
                         world.setBlock(bx + dx, by + dy, bz + dz, Blocks.stonebrick, 0, 2);
-                    else if (Math.abs(dx) == 4 || Math.abs(dz) == 4)
+                    else if (Math.abs(dx) == 6 || Math.abs(dz) == 6)
                         world.setBlock(bx + dx, by + dy, bz + dz, Blocks.stonebrick, 0, 2);
                     else
                         world.setBlock(bx + dx, by + dy, bz + dz, Blocks.air, 0, 2);
                 }
 
-        // End portal frame ring (3x3 ring)
+        // End portal frame: 12 blocks forming 5x5 outer ring, 3x3 interior
+        // Metadata: 0=south, 1=west, 2=north, 3=east (facing direction = toward center)
+        // North edge (z-2): face south (meta 0)
         for (int dx = -1; dx <= 1; dx++)
-            world.setBlock(bx + dx, by, bz - 1, Blocks.end_portal_frame, 2, 2);
+            world.setBlock(bx + dx, by, bz - 2, Blocks.end_portal_frame, 0, 2);
+        // South edge (z+2): face north (meta 2)
         for (int dx = -1; dx <= 1; dx++)
-            world.setBlock(bx + dx, by, bz + 1, Blocks.end_portal_frame, 0, 2);
+            world.setBlock(bx + dx, by, bz + 2, Blocks.end_portal_frame, 2, 2);
+        // East edge (x+2): face west (meta 1)
         for (int dz = -1; dz <= 1; dz++)
-            world.setBlock(bx + 1, by, bz + dz, Blocks.end_portal_frame, 3, 2);
+            world.setBlock(bx + 2, by, bz + dz, Blocks.end_portal_frame, 1, 2);
+        // West edge (x-2): face east (meta 3)
         for (int dz = -1; dz <= 1; dz++)
-            world.setBlock(bx - 1, by, bz + dz, Blocks.end_portal_frame, 1, 2);
+            world.setBlock(bx - 2, by, bz + dz, Blocks.end_portal_frame, 3, 2);
 
         clearAndSetInventory(new ItemStack[] {
             new ItemStack(Items.ender_eye, 12),
         });
 
-        teleportPlayer(bx + 0.5, by + 1, bz - 3.5);
+        teleportPlayer(bx + 0.5, by + 1, bz - 4.5);
     }
 
     // ---------- 6. DRAGON_FULL ----------
@@ -827,6 +882,18 @@ public class CheckpointInitializer
 
     private void teleportPlayer(double x, double y, double z)
     {
+        // Clear a 3x3x2 air pocket around destination to prevent suffocation.
+        // Player bounding box is 0.6 wide -- spawning at the edge of a cleared
+        // zone clips into adjacent solid blocks.
+        WorldServer world = (WorldServer) this.bot.worldObj;
+        int bx = MathHelper.floor_double(x);
+        int by = MathHelper.floor_double(y);
+        int bz = MathHelper.floor_double(z);
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dz = -1; dz <= 1; dz++)
+                for (int dy = 0; dy <= 1; dy++)
+                    if (world.getBlock(bx + dx, by + dy, bz + dz).getMaterial().isSolid())
+                        world.setBlock(bx + dx, by + dy, bz + dz, Blocks.air, 0, 2);
         this.bot.setPositionAndUpdate(x, y, z);
     }
 
