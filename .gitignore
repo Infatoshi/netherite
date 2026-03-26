@@ -1,7 +1,10 @@
 build/
 .gradle/
-forge-workspace/build/
-forge-workspace/.gradle/
-forge-workspace/run/
-forge-workspace/eclipse/
+run/
+.fabric/
 *.class
+*.jar
+*.log
+.venv/
+__pycache__/
+*.pyc
