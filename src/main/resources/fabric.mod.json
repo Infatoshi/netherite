@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "netherite",
+  "version": "${version}",
+  "name": "Netherite",
+  "description": "Fast Minecraft RL environment via shmem + PBO async readback",
+  "authors": ["infatoshi"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.netherite.mod.NetheriteMod"]
+  },
+  "mixins": ["netherite.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}
