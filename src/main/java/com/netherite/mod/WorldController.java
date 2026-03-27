@@ -5,6 +5,7 @@ import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.option.GraphicsMode;
 import net.minecraft.client.option.ParticlesMode;
+import net.minecraft.client.toast.ToastManager;
 import net.minecraft.resource.DataConfiguration;
 import net.minecraft.server.integrated.IntegratedServerLoader;
 import net.minecraft.world.GameRules;
@@ -39,6 +40,10 @@ public class WorldController {
         if (mc.world != null) {
             if (cfg.rl && mc.currentScreen != null) {
                 mc.setScreen(null);
+            }
+            // Clear toasts (recipe unlocked, advancements, tutorials)
+            if (cfg.rl) {
+                mc.getToastManager().clear();
             }
             ticksSinceCreation++;
             return;
@@ -82,6 +87,9 @@ public class WorldController {
         opts.getAo().setValue(cfg.smoothLighting);
         opts.getBiomeBlendRadius().setValue(cfg.biomeBlend);
 
+        // Disable tutorial
+        opts.tutorialStep = net.minecraft.client.tutorial.TutorialStep.NONE;
+
         opts.write();
 
         NetheriteMod.LOGGER.info("WorldController: options applied (rd={}, fps={}, graphics={})",
@@ -109,6 +117,7 @@ public class WorldController {
                 rules.get(GameRules.DO_PATROL_SPAWNING).set(cfg.doPatrolSpawning, null);
                 rules.get(GameRules.DO_TRADER_SPAWNING).set(cfg.doTraderSpawning, null);
                 rules.get(GameRules.DO_WARDEN_SPAWNING).set(cfg.doWardenSpawning, null);
+                rules.get(GameRules.ANNOUNCE_ADVANCEMENTS).set(false, null);
 
                 LevelInfo levelInfo = new LevelInfo(
                         worldName,
