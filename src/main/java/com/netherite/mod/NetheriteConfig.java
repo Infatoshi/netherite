@@ -55,6 +55,7 @@ public class NetheriteConfig {
 
     // RL mode
     public boolean rl;
+    public boolean headless;
 
     public void load() {
         instanceId = getInt("netherite.instance_id", getInt("netherite.instance", 0));
@@ -96,6 +97,7 @@ public class NetheriteConfig {
         fov = getInt("netherite.fov", 70);
 
         rl = getBool("netherite.rl", false);
+        headless = getBool("netherite.headless", false);
     }
 
     private static int getInt(String key, int def) {

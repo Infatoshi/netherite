@@ -50,6 +50,7 @@ class NetheriteConfig:
 
     # -- RL mode --
     rl: bool = False  # set True for training (auto-dismiss menus, disable pause)
+    headless: bool = False  # set True to hide MC window (GPU rendering still works)
 
     # -- JVM --
     jvm_xmx: str = "2G"

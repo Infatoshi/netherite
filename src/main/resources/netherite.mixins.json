@@ -3,7 +3,9 @@
   "package": "com.netherite.mod.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "GameRendererMixin"
+    "GameRendererMixin",
+    "WindowMixin",
+    "ClientFocusMixin"
   ],
   "injectors": {
     "defaultRequire": 1
