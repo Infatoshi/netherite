@@ -4,7 +4,7 @@ import sys
 import time
 
 import matplotlib
-matplotlib.use("TkAgg")
+matplotlib.use("MacOSX")
 import matplotlib.pyplot as plt
 import numpy as np
 
