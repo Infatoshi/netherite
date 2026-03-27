@@ -55,3 +55,15 @@ jar {
         rename { "${it}_${project.archives_base_name}" }
     }
 }
+
+// Forward netherite.* system properties to the MC client JVM
+loom {
+    runConfigs.configureEach {
+        // Pass through all netherite.* properties from gradle command line
+        System.properties.each { k, v ->
+            if (k.startsWith("netherite.")) {
+                vmArg "-D${k}=${v}"
+            }
+        }
+    }
+}

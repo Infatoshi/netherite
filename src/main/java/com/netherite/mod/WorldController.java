@@ -22,15 +22,24 @@ public class WorldController {
     private long seed;
     private boolean worldCreated = false;
     private int ticksSinceCreation = 0;
+    private boolean rlMode = false;
 
     public void init(int instanceId, long seed) {
         this.instanceId = instanceId;
         this.seed = seed;
-        NetheriteMod.LOGGER.info("WorldController: instance={}, seed={}", instanceId, seed);
+        this.rlMode = Boolean.getBoolean("netherite.rl");
+        NetheriteMod.LOGGER.info("WorldController: instance={}, seed={}, rl={}", instanceId, seed, rlMode);
     }
 
     public void tick(MinecraftClient mc) {
+        // Prevent pause on lost focus (critical for headless/background operation)
+        mc.options.pauseOnLostFocus = false;
+
         if (mc.world != null) {
+            // In RL mode, close pause/menu screens to keep ticking
+            if (rlMode && mc.currentScreen != null) {
+                mc.setScreen(null);
+            }
             ticksSinceCreation++;
             return;
         }

@@ -113,6 +113,7 @@ class NetheriteEnv(gym.Env):
         self._obs_readers = [None, None]
         self._state_reader = None
         self._action_writer = None
+        self._last_state_tick = -1
 
     def _connect(self):
         prefix = "netherite"
@@ -160,16 +161,28 @@ class NetheriteEnv(gym.Env):
         rgb = rgba[::-1, :, :3].copy()
         return rgb
 
-    def _read_state(self) -> dict:
-        """Read player state from state buffer."""
+    def _read_state(self, wait_for_new: bool = False) -> dict:
+        """Read player state from state buffer.
+
+        If wait_for_new=True, spins until the tick number advances
+        past self._last_state_tick (synchronizes with MC tick loop).
+        """
         reader = self._state_reader
-        magic, tick, data_size, ready = reader.read_header()
-        if magic != STATE_MAGIC or ready == 0:
-            return {
-                "position": np.zeros(3, dtype=np.float64),
-                "health": np.zeros(1, dtype=np.float32),
-                "inventory": np.zeros((9, 2), dtype=np.int32),
-            }
+        deadline = time.monotonic() + self.timeout
+
+        while True:
+            magic, tick, data_size, ready = reader.read_header()
+            if magic == STATE_MAGIC and ready == 1:
+                if not wait_for_new or tick > self._last_state_tick:
+                    self._last_state_tick = tick
+                    break
+            if time.monotonic() > deadline:
+                return {
+                    "position": np.zeros(3, dtype=np.float64),
+                    "health": np.zeros(1, dtype=np.float32),
+                    "inventory": np.zeros((9, 2), dtype=np.int32),
+                }
+            time.sleep(0.001)
 
         state_bytes = reader.read_bytes(16, 56)
         x, y, z = struct.unpack_from("<ddd", state_bytes, 0)
@@ -245,7 +258,15 @@ class NetheriteEnv(gym.Env):
 
     def step(self, action):
         self._send_action(action)
-        obs = self._get_obs()
+        # Wait for MC to process the tick before reading observation
+        state = self._read_state(wait_for_new=True)
+        pov = self._wait_for_frame()
+        obs = {
+            "pov": pov,
+            "inventory": state["inventory"],
+            "health": state["health"],
+            "position": state["position"],
+        }
         reward = 0.0
         terminated = False
         truncated = False
