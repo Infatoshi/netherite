@@ -2,80 +2,128 @@ package com.netherite.mod;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.TitleScreen;
+import net.minecraft.client.option.CloudRenderMode;
+import net.minecraft.client.option.GraphicsMode;
+import net.minecraft.client.option.ParticlesMode;
 import net.minecraft.resource.DataConfiguration;
 import net.minecraft.server.integrated.IntegratedServerLoader;
-import net.minecraft.world.Difficulty;
-import net.minecraft.world.GameMode;
 import net.minecraft.world.GameRules;
 import net.minecraft.world.gen.GeneratorOptions;
 import net.minecraft.world.gen.WorldPresets;
 import net.minecraft.world.level.LevelInfo;
 
 /**
- * Auto-creates singleplayer world on title screen.
- * Handles reset via world deletion + recreation.
+ * Applies all config to MC options, auto-creates world, dismisses menus in RL mode.
  */
 public class WorldController {
     public static final WorldController INSTANCE = new WorldController();
 
-    private int instanceId;
-    private long seed;
+    private NetheriteConfig cfg;
     private boolean worldCreated = false;
+    private boolean optionsApplied = false;
     private int ticksSinceCreation = 0;
-    private boolean rlMode = false;
 
-    public void init(int instanceId, long seed) {
-        this.instanceId = instanceId;
-        this.seed = seed;
-        this.rlMode = Boolean.getBoolean("netherite.rl");
-        NetheriteMod.LOGGER.info("WorldController: instance={}, seed={}, rl={}", instanceId, seed, rlMode);
+    public void init(NetheriteConfig cfg) {
+        this.cfg = cfg;
     }
 
     public void tick(MinecraftClient mc) {
-        // Prevent pause on lost focus (critical for headless/background operation)
+        // Apply options once MC is initialized
+        if (!optionsApplied) {
+            applyOptions(mc);
+            optionsApplied = true;
+        }
+
         mc.options.pauseOnLostFocus = false;
 
         if (mc.world != null) {
-            // In RL mode, close pause/menu screens to keep ticking
-            if (rlMode && mc.currentScreen != null) {
+            if (cfg.rl && mc.currentScreen != null) {
                 mc.setScreen(null);
             }
             ticksSinceCreation++;
             return;
         }
 
-        // On title screen: auto-create world
         if (!worldCreated && mc.currentScreen instanceof TitleScreen) {
             worldCreated = true;
             createWorld(mc);
         }
     }
 
+    private void applyOptions(MinecraftClient mc) {
+        var opts = mc.options;
+
+        // Display
+        opts.getViewDistance().setValue(cfg.renderDistance);
+        opts.getSimulationDistance().setValue(cfg.simulationDistance);
+        opts.getMaxFps().setValue(cfg.maxFps);
+        opts.getEnableVsync().setValue(cfg.vsync);
+        opts.getFov().setValue(cfg.fov);
+        opts.getGuiScale().setValue(cfg.guiScale);
+        opts.getFullscreen().setValue(cfg.fullscreen);
+
+        // Graphics
+        opts.getGraphicsMode().setValue(switch (cfg.graphics) {
+            case "fancy" -> GraphicsMode.FANCY;
+            case "fabulous" -> GraphicsMode.FABULOUS;
+            default -> GraphicsMode.FAST;
+        });
+        opts.getParticles().setValue(switch (cfg.particles) {
+            case "all" -> ParticlesMode.ALL;
+            case "decreased" -> ParticlesMode.DECREASED;
+            default -> ParticlesMode.MINIMAL;
+        });
+        opts.getCloudRenderMode().setValue(switch (cfg.clouds) {
+            case "fast" -> CloudRenderMode.FAST;
+            case "fancy" -> CloudRenderMode.FANCY;
+            default -> CloudRenderMode.OFF;
+        });
+        opts.getEntityShadows().setValue(cfg.entityShadows);
+        opts.getAo().setValue(cfg.smoothLighting);
+        opts.getBiomeBlendRadius().setValue(cfg.biomeBlend);
+
+        opts.write();
+
+        NetheriteMod.LOGGER.info("WorldController: options applied (rd={}, fps={}, graphics={})",
+                cfg.renderDistance, cfg.maxFps, cfg.graphics);
+    }
+
     private void createWorld(MinecraftClient mc) {
-        String worldName = "netherite_" + instanceId;
-        NetheriteMod.LOGGER.info("WorldController: creating world '{}' with seed {}", worldName, seed);
+        String worldName = "netherite_" + cfg.instanceId;
+        NetheriteMod.LOGGER.info("WorldController: creating world '{}' seed={}", worldName, cfg.seed);
 
         mc.execute(() -> {
             try {
-                GameRules gameRules = new GameRules();
-                gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(false, null);
-                gameRules.get(GameRules.DO_WEATHER_CYCLE).set(false, null);
-                gameRules.get(GameRules.DO_MOB_SPAWNING).set(false, null);
+                GameRules rules = new GameRules();
+                rules.get(GameRules.DO_DAYLIGHT_CYCLE).set(cfg.doDaylightCycle, null);
+                rules.get(GameRules.DO_WEATHER_CYCLE).set(cfg.doWeatherCycle, null);
+                rules.get(GameRules.DO_MOB_SPAWNING).set(cfg.doMobSpawning, null);
+                rules.get(GameRules.DO_FIRE_TICK).set(cfg.doFireTick, null);
+                rules.get(GameRules.DO_MOB_GRIEFING).set(cfg.doMobGriefing, null);
+                rules.get(GameRules.DO_ENTITY_DROPS).set(cfg.doEntityDrops, null);
+                rules.get(GameRules.DO_TILE_DROPS).set(cfg.doTileDrops, null);
+                rules.get(GameRules.NATURAL_REGENERATION).set(cfg.naturalRegeneration, null);
+                rules.get(GameRules.RANDOM_TICK_SPEED).set(cfg.randomTickSpeed, null);
+                rules.get(GameRules.KEEP_INVENTORY).set(cfg.keepInventory, null);
+                rules.get(GameRules.DO_INSOMNIA).set(cfg.doInsomnia, null);
+                rules.get(GameRules.DO_PATROL_SPAWNING).set(cfg.doPatrolSpawning, null);
+                rules.get(GameRules.DO_TRADER_SPAWNING).set(cfg.doTraderSpawning, null);
+                rules.get(GameRules.DO_WARDEN_SPAWNING).set(cfg.doWardenSpawning, null);
 
                 LevelInfo levelInfo = new LevelInfo(
                         worldName,
-                        GameMode.SURVIVAL,
+                        cfg.gameMode,
                         false,
-                        Difficulty.NORMAL,
+                        cfg.difficulty,
                         false,
-                        gameRules,
+                        rules,
                         DataConfiguration.SAFE_MODE
                 );
 
-                GeneratorOptions generatorOptions = new GeneratorOptions(seed, true, false);
+                GeneratorOptions genOpts = new GeneratorOptions(cfg.seed, true, false);
 
                 IntegratedServerLoader loader = mc.createIntegratedServerLoader();
-                loader.createAndStart(worldName, levelInfo, generatorOptions,
+                loader.createAndStart(worldName, levelInfo, genOpts,
                         WorldPresets::createDemoOptions);
             } catch (Exception e) {
                 NetheriteMod.LOGGER.error("WorldController: failed to create world", e);

@@ -9,6 +9,8 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from config import NetheriteConfig
+
 
 def _shmem_path(name: str) -> str:
     if os.uname().sysname == "Darwin":
@@ -39,7 +41,6 @@ class ShmemWriter:
     """Memory-mapped writer for action buffer."""
 
     def __init__(self, path: str, size: int):
-        # Create file if it doesn't exist
         if not os.path.exists(path):
             with open(path, "wb") as f:
                 f.write(b"\x00" * size)
@@ -67,29 +68,28 @@ ACTION_SIZE = 4096
 class NetheriteEnv(gym.Env):
     """Minecraft RL environment via shared memory.
 
-    Reads pixels from FrameGrabber, game state from StateExporter,
-    and writes actions to ActionInjector.
+    All game settings controlled through NetheriteConfig.
+    Pass a config to control resolution, game rules, graphics,
+    render distance, etc.
     """
 
     metadata = {"render_modes": ["rgb_array"]}
 
     def __init__(
         self,
-        instance_id: int = 0,
-        width: int = 854,
-        height: int = 480,
+        config: NetheriteConfig | None = None,
         timeout: float = 5.0,
     ):
         super().__init__()
-        self.instance_id = instance_id
-        self.width = width
-        self.height = height
+        self.config = config or NetheriteConfig()
         self.timeout = timeout
         self.tick = 0
 
+        w, h = self.config.width, self.config.height
+
         self.observation_space = spaces.Dict(
             {
-                "pov": spaces.Box(0, 255, (height, width, 3), dtype=np.uint8),
+                "pov": spaces.Box(0, 255, (h, w, 3), dtype=np.uint8),
                 "inventory": spaces.Box(0, 64, (9, 2), dtype=np.int32),
                 "health": spaces.Box(0, 20, (1,), dtype=np.float32),
                 "position": spaces.Box(-1e6, 1e6, (3,), dtype=np.float64),
@@ -116,23 +116,23 @@ class NetheriteEnv(gym.Env):
         self._last_state_tick = -1
 
     def _connect(self):
-        prefix = "netherite"
-        iid = self.instance_id
+        iid = self.config.instance_id
         self._obs_readers[0] = ShmemReader(
-            _shmem_path(f"{prefix}_obs_{iid}_A"), OBS_SIZE
+            _shmem_path(f"netherite_obs_{iid}_A"), OBS_SIZE
         )
         self._obs_readers[1] = ShmemReader(
-            _shmem_path(f"{prefix}_obs_{iid}_B"), OBS_SIZE
+            _shmem_path(f"netherite_obs_{iid}_B"), OBS_SIZE
         )
         self._state_reader = ShmemReader(
-            _shmem_path(f"{prefix}_state_{iid}"), STATE_SIZE
+            _shmem_path(f"netherite_state_{iid}"), STATE_SIZE
         )
         self._action_writer = ShmemWriter(
-            _shmem_path(f"{prefix}_action_{iid}"), ACTION_SIZE
+            _shmem_path(f"netherite_action_{iid}"), ACTION_SIZE
         )
 
     def _wait_for_frame(self) -> np.ndarray:
         """Poll both obs buffers, return pixels from whichever has latest frame."""
+        w, h = self.config.width, self.config.height
         deadline = time.monotonic() + self.timeout
         best_frame = -1
         best_slot = 0
@@ -148,25 +148,22 @@ class NetheriteEnv(gym.Env):
             time.sleep(0.001)
 
         if best_frame < 0:
-            # Return black frame on timeout
-            return np.zeros((self.height, self.width, 3), dtype=np.uint8)
+            return np.zeros((h, w, 3), dtype=np.uint8)
 
         reader = self._obs_readers[best_slot]
         _, _, data_size, _ = reader.read_header()
         pixel_bytes = reader.read_bytes(OBS_HEADER, data_size)
-        rgba = np.frombuffer(pixel_bytes, dtype=np.uint8).reshape(
-            self.height, self.width, 4
-        )
-        # GL is bottom-up, flip Y; drop alpha
+        # Data size might not match expected if window was resized
+        expected = h * w * 4
+        if len(pixel_bytes) >= expected:
+            rgba = np.frombuffer(pixel_bytes[:expected], dtype=np.uint8).reshape(h, w, 4)
+        else:
+            return np.zeros((h, w, 3), dtype=np.uint8)
         rgb = rgba[::-1, :, :3].copy()
         return rgb
 
     def _read_state(self, wait_for_new: bool = False) -> dict:
-        """Read player state from state buffer.
-
-        If wait_for_new=True, spins until the tick number advances
-        past self._last_state_tick (synchronizes with MC tick loop).
-        """
+        """Read player state from state buffer."""
         reader = self._state_reader
         deadline = time.monotonic() + self.timeout
 
@@ -209,9 +206,8 @@ class NetheriteEnv(gym.Env):
             "<III",
             ACTION_MAGIC,
             self.tick,
-            11,  # data_size
+            11,
         )
-        # Will set ready=0 first, write action, then set ready=1
         payload += struct.pack("<I", 0)  # ready=0
 
         keys = struct.pack(
@@ -235,7 +231,6 @@ class NetheriteEnv(gym.Env):
 
         self._action_writer.write(0, payload)
         self._action_writer.write(16, keys + camera_bytes)
-        # Set ready last
         self._action_writer.write(12, struct.pack("<I", 1))
 
     def _get_obs(self) -> dict:
@@ -258,7 +253,6 @@ class NetheriteEnv(gym.Env):
 
     def step(self, action):
         self._send_action(action)
-        # Wait for MC to process the tick before reading observation
         state = self._read_state(wait_for_new=True)
         pov = self._wait_for_frame()
         obs = {

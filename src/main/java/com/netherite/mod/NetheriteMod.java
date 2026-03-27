@@ -9,19 +9,19 @@ public class NetheriteMod implements ClientModInitializer {
     public static final String MOD_ID = "netherite";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    public static int instanceId;
-    public static long worldSeed;
-
     @Override
     public void onInitializeClient() {
-        instanceId = Integer.getInteger("netherite.instance", 0);
-        worldSeed = Long.getLong("netherite.seed", 12345L);
-        LOGGER.info("Netherite init: instance={}, seed={}", instanceId, worldSeed);
+        NetheriteConfig.INSTANCE.load();
+        NetheriteConfig cfg = NetheriteConfig.INSTANCE;
 
-        FrameGrabber.INSTANCE.init(instanceId);
-        ActionInjector.INSTANCE.init(instanceId);
-        StateExporter.INSTANCE.init(instanceId);
-        WorldController.INSTANCE.init(instanceId, worldSeed);
+        LOGGER.info("Netherite init: instance={}, seed={}, rl={}, {}x{}, rd={}, graphics={}",
+                cfg.instanceId, cfg.seed, cfg.rl,
+                cfg.width, cfg.height, cfg.renderDistance, cfg.graphics);
+
+        FrameGrabber.INSTANCE.init(cfg.instanceId);
+        ActionInjector.INSTANCE.init(cfg.instanceId);
+        StateExporter.INSTANCE.init(cfg.instanceId);
+        WorldController.INSTANCE.init(cfg);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             WorldController.INSTANCE.tick(client);

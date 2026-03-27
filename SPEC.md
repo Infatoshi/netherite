@@ -2,7 +2,9 @@
 
 ## Goal
 
-Minecraft RL training environment that's 10x+ faster than MineRL. Uses MC 1.20.1 + Sodium (open source optimized renderer) + Fabric + a tiny custom mod (~750 lines Java). No custom rendering code. MC's OpenGL renderer handles everything correctly (mobs, entities, water, particles, sky, HUD). We just capture frames fast and pipe them to Python.
+Fully Python-controlled Minecraft RL environment. Every game setting configurable from Python: resolution, render distance, game rules, graphics quality, JVM count, instances per JVM. Zero manual GUI interaction -- boot straight into a world. Performance depends on these knobs (resolution, render distance, graphics level, instance count) and is explored empirically, not targeted at a fixed multiplier.
+
+Uses MC 1.20.1 + Sodium + Fabric + a tiny custom mod. No custom rendering code. MC's OpenGL renderer handles everything correctly (mobs, entities, water, particles, sky, HUD). We capture frames via PBO async readback and pipe them to Python through shared memory.
 
 ## Why Not Custom Rendering
 
