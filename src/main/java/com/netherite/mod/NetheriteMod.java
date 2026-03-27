@@ -18,6 +18,7 @@ public class NetheriteMod implements ClientModInitializer {
         worldSeed = Long.getLong("netherite.seed", 12345L);
         LOGGER.info("Netherite init: instance={}, seed={}", instanceId, worldSeed);
 
+        FrameGrabber.INSTANCE.init(instanceId);
         ActionInjector.INSTANCE.init(instanceId);
         StateExporter.INSTANCE.init(instanceId);
         WorldController.INSTANCE.init(instanceId, worldSeed);

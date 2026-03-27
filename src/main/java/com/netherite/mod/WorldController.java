@@ -2,12 +2,14 @@ package com.netherite.mod;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.TitleScreen;
-import net.minecraft.client.gui.screen.world.CreateWorldScreen;
-import net.minecraft.client.world.GeneratorOptionsHolder;
+import net.minecraft.resource.DataConfiguration;
+import net.minecraft.server.integrated.IntegratedServerLoader;
+import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.GameRules;
+import net.minecraft.world.gen.GeneratorOptions;
+import net.minecraft.world.gen.WorldPresets;
 import net.minecraft.world.level.LevelInfo;
-import net.minecraft.world.level.LevelProperties;
 
 /**
  * Auto-creates singleplayer world on title screen.
@@ -35,21 +37,40 @@ public class WorldController {
 
         // On title screen: auto-create world
         if (!worldCreated && mc.currentScreen instanceof TitleScreen) {
-            createWorld(mc);
             worldCreated = true;
+            createWorld(mc);
         }
     }
 
     private void createWorld(MinecraftClient mc) {
         String worldName = "netherite_" + instanceId;
-        NetheriteMod.LOGGER.info("WorldController: creating world '{}'", worldName);
+        NetheriteMod.LOGGER.info("WorldController: creating world '{}' with seed {}", worldName, seed);
 
-        // Use CreateWorldScreen's internal API to create a world programmatically
         mc.execute(() -> {
             try {
-                CreateWorldScreen.create(mc, mc.currentScreen);
+                GameRules gameRules = new GameRules();
+                gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(false, null);
+                gameRules.get(GameRules.DO_WEATHER_CYCLE).set(false, null);
+                gameRules.get(GameRules.DO_MOB_SPAWNING).set(false, null);
+
+                LevelInfo levelInfo = new LevelInfo(
+                        worldName,
+                        GameMode.SURVIVAL,
+                        false,
+                        Difficulty.NORMAL,
+                        false,
+                        gameRules,
+                        DataConfiguration.SAFE_MODE
+                );
+
+                GeneratorOptions generatorOptions = new GeneratorOptions(seed, true, false);
+
+                IntegratedServerLoader loader = mc.createIntegratedServerLoader();
+                loader.createAndStart(worldName, levelInfo, generatorOptions,
+                        WorldPresets::createDemoOptions);
             } catch (Exception e) {
-                NetheriteMod.LOGGER.error("Failed to open create world screen", e);
+                NetheriteMod.LOGGER.error("WorldController: failed to create world", e);
+                worldCreated = false;
             }
         });
     }
