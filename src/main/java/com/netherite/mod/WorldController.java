@@ -90,9 +90,44 @@ public class WorldController {
         // Disable tutorial
         opts.tutorialStep = net.minecraft.client.tutorial.TutorialStep.NONE;
 
-        // Mute all audio in RL/headless mode
+        // RL/headless: strip everything unnecessary
         if (cfg.rl || cfg.headless) {
+            // Audio -- mute all channels
             opts.getSoundVolumeOption(net.minecraft.sound.SoundCategory.MASTER).setValue(0.0);
+            opts.getSoundVolumeOption(net.minecraft.sound.SoundCategory.MUSIC).setValue(0.0);
+            opts.getSoundVolumeOption(net.minecraft.sound.SoundCategory.WEATHER).setValue(0.0);
+            opts.getSoundVolumeOption(net.minecraft.sound.SoundCategory.AMBIENT).setValue(0.0);
+
+            // Input -- prevent interference with agent actions
+            opts.getAutoJump().setValue(false);
+            opts.getMouseSensitivity().setValue(0.5);
+
+            // HUD/UI -- disable visual noise
+            opts.getChatOpacity().setValue(0.0);
+            opts.getTextBackgroundOpacity().setValue(0.0);
+            opts.getNarrator().setValue(net.minecraft.client.option.NarratorMode.OFF);
+            opts.getShowSubtitles().setValue(false);
+            opts.getRealmsNotifications().setValue(false);
+            opts.getNotificationDisplayTime().setValue(0.0);
+            opts.getShowAutosaveIndicator().setValue(false);
+
+            // Visual effects -- disable for consistency/performance
+            opts.getDistortionEffectScale().setValue(0.0);
+            opts.getFovEffectScale().setValue(0.0);
+            opts.getDarknessEffectScale().setValue(0.0);
+            opts.getDamageTiltStrength().setValue(0.0);
+            opts.getGlintSpeed().setValue(0.0);
+            opts.getGlintStrength().setValue(0.0);
+            opts.getHideLightningFlashes().setValue(true);
+            opts.getHighContrast().setValue(false);
+            opts.getBobView().setValue(false);
+
+            // Network/telemetry -- disable
+            opts.getAllowServerListing().setValue(false);
+            opts.getAutoSuggestions().setValue(false);
+
+            // Accessibility
+            opts.onboardAccessibility = false;
         }
 
         opts.write();
