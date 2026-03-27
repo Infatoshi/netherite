@@ -90,6 +90,11 @@ public class WorldController {
         // Disable tutorial
         opts.tutorialStep = net.minecraft.client.tutorial.TutorialStep.NONE;
 
+        // Mute all audio in RL/headless mode
+        if (cfg.rl || cfg.headless) {
+            opts.getSoundVolumeOption(net.minecraft.sound.SoundCategory.MASTER).setValue(0.0);
+        }
+
         opts.write();
 
         NetheriteMod.LOGGER.info("WorldController: options applied (rd={}, fps={}, graphics={})",
