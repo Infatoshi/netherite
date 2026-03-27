@@ -61,7 +61,7 @@ public class WorldController {
         // Display
         opts.getViewDistance().setValue(cfg.renderDistance);
         opts.getSimulationDistance().setValue(cfg.simulationDistance);
-        opts.getMaxFps().setValue(cfg.maxFps);
+        opts.getMaxFps().setValue(Math.min(cfg.maxFps, 260));
         opts.getEnableVsync().setValue(cfg.vsync);
         opts.getFov().setValue(cfg.fov);
         opts.getGuiScale().setValue(cfg.guiScale);
@@ -108,7 +108,7 @@ public class WorldController {
             opts.getNarrator().setValue(net.minecraft.client.option.NarratorMode.OFF);
             opts.getShowSubtitles().setValue(false);
             opts.getRealmsNotifications().setValue(false);
-            opts.getNotificationDisplayTime().setValue(0.0);
+            opts.getNotificationDisplayTime().setValue(0.5);
             opts.getShowAutosaveIndicator().setValue(false);
 
             // Visual effects -- disable for consistency/performance

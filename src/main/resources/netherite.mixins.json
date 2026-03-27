@@ -5,7 +5,8 @@
   "client": [
     "GameRendererMixin",
     "WindowMixin",
-    "ClientFocusMixin"
+    "ClientFocusMixin",
+    "ServerTickMixin"
   ],
   "injectors": {
     "defaultRequire": 1

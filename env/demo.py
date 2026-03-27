@@ -40,6 +40,8 @@ def main():
 
     step = 0
     t0 = time.perf_counter()
+    last_display = t0
+    display_interval = 1.0 / 20  # update display at 20fps
 
     while running:
         action = {
@@ -51,18 +53,20 @@ def main():
         obs, _, _, _, _ = env.step(action)
         step += 1
 
-        # Update display every 3 steps to keep matplotlib responsive
-        if step % 3 == 0:
+        now = time.perf_counter()
+        if now - last_display >= display_interval:
             img.set_data(obs["pov"])
-            elapsed = time.perf_counter() - t0
+            elapsed = now - t0
             pos = obs["position"]
+            tps = step / elapsed if elapsed > 0 else 0
             ax.set_title(
-                f"step {step} | {step/elapsed:.1f} sps | "
+                f"step {step} | {tps:.0f} TPS | "
                 f"pos ({pos[0]:.0f}, {pos[1]:.0f}, {pos[2]:.0f}) | "
                 f"hp {obs['health'][0]:.0f} | Q to quit"
             )
             fig.canvas.draw_idle()
             fig.canvas.flush_events()
+            last_display = now
 
         if not plt.fignum_exists(fig.number):
             break
@@ -70,7 +74,7 @@ def main():
     env.close()
     plt.close("all")
     elapsed = time.perf_counter() - t0
-    print(f"Done. {step} steps in {elapsed:.1f}s = {step/elapsed:.1f} steps/sec")
+    print(f"Done. {step} steps in {elapsed:.1f}s = {step/elapsed:.1f} TPS")
 
 
 if __name__ == "__main__":
