@@ -44,12 +44,12 @@ class NetheriteConfig:
     entity_shadows: bool = False
     smooth_lighting: bool = False
     biome_blend: int = 0  # 0 = off, 1-7
-    gui_scale: int = 1
+    gui_scale: int = 0  # 0 = auto
     fullscreen: bool = False
     fov: int = 70
 
     # -- RL mode --
-    rl: bool = True  # auto-dismiss menus, disable pause
+    rl: bool = False  # set True for training (auto-dismiss menus, disable pause)
 
     # -- JVM --
     jvm_xmx: str = "2G"

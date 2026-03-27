@@ -91,11 +91,11 @@ public class NetheriteConfig {
         entityShadows = getBool("netherite.entity_shadows", false);
         smoothLighting = getBool("netherite.smooth_lighting", false);
         biomeBlend = getInt("netherite.biome_blend", 0);
-        guiScale = getInt("netherite.gui_scale", 1);
+        guiScale = getInt("netherite.gui_scale", 0);
         fullscreen = getBool("netherite.fullscreen", false);
         fov = getInt("netherite.fov", 70);
 
-        rl = getBool("netherite.rl", true);
+        rl = getBool("netherite.rl", false);
     }
 
     private static int getInt(String key, int def) {
