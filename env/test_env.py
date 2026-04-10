@@ -1,16 +1,20 @@
 """Smoke test: connect to running MC instance, read a frame, display it."""
 
 import sys
-import time
+from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).parent))
+
+from config import NetheriteConfig
 from netherite_env import NetheriteEnv
 
 
 def main():
     instance_id = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-    env = NetheriteEnv(instance_id=instance_id, timeout=10.0)
+    cfg = NetheriteConfig(instance_id=instance_id)
+    env = NetheriteEnv(config=cfg, timeout=10.0)
 
     print(f"Connecting to instance {instance_id}...")
     obs, info = env.reset()

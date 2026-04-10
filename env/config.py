@@ -1,6 +1,6 @@
 """Netherite configuration -- every tunable knob for MC RL instances."""
 
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 
 
 @dataclass
@@ -10,13 +10,13 @@ class NetheriteConfig:
     seed: int = 12345
 
     # -- Display --
-    width: int = 854
-    height: int = 480
+    width: int = 160
+    height: int = 90
 
     # -- Game settings --
     game_mode: str = "survival"  # survival, creative, adventure, spectator
     difficulty: str = "normal"  # peaceful, easy, normal, hard
-    render_distance: int = 8  # chunks (2-32)
+    render_distance: int = 4  # chunks (2-32)
     simulation_distance: int = 5  # chunks (2-32)
 
     # -- Game rules --
@@ -36,7 +36,7 @@ class NetheriteConfig:
     do_warden_spawning: bool = False
 
     # -- Graphics (performance knobs) --
-    max_fps: int = 60
+    max_fps: int = 260
     vsync: bool = False
     graphics: str = "fast"  # fast, fancy, fabulous
     particles: str = "minimal"  # all, decreased, minimal
@@ -52,6 +52,18 @@ class NetheriteConfig:
     rl: bool = False  # set True for training (auto-dismiss menus, disable pause)
     headless: bool = False  # set True to hide MC window (GPU rendering still works)
     uncapped: bool = False  # set True to remove 20 TPS tick rate limit
+
+    # -- Observation mode --
+    obs_mode: str = "both"  # "pixels", "voxels", "both"
+    voxel_forward: int = 8  # blocks in front of player
+    voxel_back: int = 8  # blocks behind player
+    voxel_left: int = 8  # blocks to player's left
+    voxel_right: int = 8  # blocks to player's right
+    voxel_up: int = 6  # blocks above player
+    voxel_down: int = 2  # blocks below player
+    skip_render: bool = False  # skip rendering entirely (for throughput testing)
+    step_ticks: int = 1  # game ticks per Python step (1=every tick, 4=every 4th tick)
+    use_semaphore: bool = False  # use POSIX semaphore for low-latency signaling
 
     # -- JVM --
     jvm_xmx: str = "2G"

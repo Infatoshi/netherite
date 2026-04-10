@@ -57,6 +57,18 @@ public class NetheriteConfig {
     public boolean rl;
     public boolean headless;
 
+    // Observation mode: "pixels", "voxels", "both"
+    public String obsMode;
+    // Voxel grid dimensions (blocks in each direction from player)
+    public int voxelForward;
+    public int voxelBack;
+    public int voxelLeft;
+    public int voxelRight;
+    public int voxelUp;
+    public int voxelDown;
+    // Skip rendering entirely (for max throughput testing)
+    public boolean skipRender;
+
     public void load() {
         instanceId = getInt("netherite.instance_id", getInt("netherite.instance", 0));
         seed = getLong("netherite.seed", 12345L);
@@ -98,6 +110,23 @@ public class NetheriteConfig {
 
         rl = getBool("netherite.rl", false);
         headless = getBool("netherite.headless", false);
+
+        obsMode = getString("netherite.obs_mode", "both");  // "pixels", "voxels", "both"
+        voxelForward = getInt("netherite.voxel_forward", 8);
+        voxelBack = getInt("netherite.voxel_back", 8);
+        voxelLeft = getInt("netherite.voxel_left", 8);
+        voxelRight = getInt("netherite.voxel_right", 8);
+        voxelUp = getInt("netherite.voxel_up", 6);
+        voxelDown = getInt("netherite.voxel_down", 2);
+        skipRender = getBool("netherite.skip_render", false);
+    }
+
+    public boolean needsPixels() {
+        return "pixels".equalsIgnoreCase(obsMode) || "both".equalsIgnoreCase(obsMode);
+    }
+
+    public boolean needsVoxels() {
+        return "voxels".equalsIgnoreCase(obsMode) || "both".equalsIgnoreCase(obsMode);
     }
 
     private static int getInt(String key, int def) {

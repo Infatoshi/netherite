@@ -31,6 +31,12 @@ public class ActionInjector {
     public void tick(MinecraftClient mc) {
         if (shmem == null || mc.player == null) return;
 
+        if (WorldController.INSTANCE.isStartLatched()) {
+            clearKeys(mc);
+            lastTickNumber = -1;
+            return;
+        }
+
         MappedByteBuffer buf = shmem.getBuffer();
         int magic = buf.getInt(0);
         if (magic != MAGIC) return;
@@ -77,5 +83,17 @@ public class ActionInjector {
 
     private static void setKey(KeyBinding key, boolean pressed) {
         KeyBinding.setKeyPressed(key.getDefaultKey(), pressed);
+    }
+
+    private static void clearKeys(MinecraftClient mc) {
+        setKey(mc.options.forwardKey, false);
+        setKey(mc.options.backKey, false);
+        setKey(mc.options.leftKey, false);
+        setKey(mc.options.rightKey, false);
+        setKey(mc.options.jumpKey, false);
+        setKey(mc.options.sneakKey, false);
+        setKey(mc.options.sprintKey, false);
+        setKey(mc.options.attackKey, false);
+        setKey(mc.options.useKey, false);
     }
 }

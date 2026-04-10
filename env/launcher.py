@@ -24,13 +24,11 @@ class MCInstance:
         self.process: subprocess.Popen | None = None
 
     def start(self):
-        gradlew = self.project_dir / "gradlew"
         env = os.environ.copy()
         if self.config.java_home:
             env["JAVA_HOME"] = self.config.java_home
 
-        cmd = [str(gradlew), "runClient"]
-        cmd.extend(self.config.to_gradle_args())
+        cmd = self._build_launch_command()
 
         self.process = subprocess.Popen(
             cmd,
@@ -39,6 +37,16 @@ class MCInstance:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
+
+    def _build_launch_command(self) -> list[str]:
+        gradlew = self.project_dir / "gradlew"
+        cmd = [str(gradlew), "runClient"]
+        cmd.extend(self.config.to_gradle_args())
+        username = f"netherite_{self.config.instance_id}"
+        cmd.append(
+            f"--args=--width {self.config.width} --height {self.config.height} --username {username}"
+        )
+        return cmd
 
     def wait_for_ready(self, timeout: float = 120.0) -> bool:
         """Wait until shmem files appear and have valid magic numbers."""
@@ -59,7 +67,8 @@ class MCInstance:
                 os.close(fd)
                 magic, tick, _, ready = struct.unpack("<IIII", mm[:16])
                 mm.close()
-                if magic == 0x4E455453 and ready == 1 and tick > 0:
+                # ready=1 is set during init, before player spawns
+                if magic == 0x4E455453 and ready == 1:
                     return True
             except Exception:
                 pass
