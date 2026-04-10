@@ -43,7 +43,7 @@ MC 1.20.1 Client (Java 17+, Fabric)
 | Fabric API | 0.92.2+1.20.1 | fabricmc.net |
 | Fabric Loom (gradle plugin) | 1.9-SNAPSHOT | fabricmc.net |
 | Yarn Mappings | 1.20.1+build.10 | fabricmc.net |
-| Sodium | mc1.20.1-0.5.11 | Modrinth maven (CaffeineMC, LGPL-3.0) |
+| Sodium | mc1.20.1-0.5.13 | Modrinth maven (CaffeineMC, LGPL-3.0) |
 | Lithium | mc1.20.1-0.11.2 | Modrinth maven (CaffeineMC, LGPL-3.0) |
 | Java | 17+ (21 on anvil, whatever on macOS) | OpenJDK |
 | Gradle | 8.12 | gradle.org |
@@ -143,11 +143,25 @@ Movement keys held every tick (re-applied).
 - Registers ClientTickEvents.END_CLIENT_TICK -> ActionInjector.tick() + StateExporter.tick() + WorldController.tick()
 - FrameGrabber triggered separately by mixin (needs to run in render thread, not tick thread)
 
-### GameRendererMixin.java (~15 lines)
+### GameRendererMixin.java (~30 lines)
 - @Mixin(GameRenderer.class)
-- @Inject(method = "render", at = @At("TAIL"))
-- Calls FrameGrabber.INSTANCE.onFrameReady()
+- @Inject HEAD: skip-render mode (cancels render when `skipRender` is enabled)
+- @Inject TAIL: triggers FrameGrabber.INSTANCE.onFrameReady() + render profiling
 - This runs AFTER the full frame is rendered (world + entities + HUD + chat)
+
+### FramebufferMixin.java (~40 lines)
+- @Mixin(MinecraftClient.class) -- targets the call site, NOT the Framebuffer class
+- @Redirect on `framebuffer.draw(II)V` inside `MinecraftClient.render(Z)V`
+- When netherite.width/height are set, replaces MC's deferred shader blit with a direct `glBlitFramebuffer` from the FBO to the default framebuffer (screen)
+- Stretches the small render (e.g. 160x90) to fill the actual GLFW window (e.g. 854x480) with GL_NEAREST filtering (pixelated)
+- Key insight: MC's `Framebuffer.draw()` uses `RenderSystem.recordRenderCall()` (deferred lambda) which makes `@ModifyVariable` on the Framebuffer class ineffective. Direct GL blit bypasses this.
+
+### WindowMixin.java (~60 lines)
+- @Mixin(Window.class)
+- Disables Retina framebuffer scaling on macOS (`GLFW_COCOA_RETINA_FRAMEBUFFER = FALSE`)
+- Hides window in headless mode
+- Disables VSync when uncapped
+- Overrides `getFramebufferWidth()/getFramebufferHeight()` to return netherite.width/height (forces MC to render at low resolution)
 
 ## Python Gym Environment
 
@@ -216,17 +230,38 @@ Each instance gets unique:
 - `-Dnetherite.seed=M` (world seed)
 - Separate Gradle daemon or direct Java launch
 
+## Version Choice
+
+MC 1.20.1 was chosen for Sodium/Lithium mod ecosystem maturity and stable Fabric API/Yarn mappings. There is no hard technical reason against newer versions. Considerations for upgrading:
+
+- **1.20.4+**: Minimum for VulkanMod (Vulkan renderer via MoltenVK on macOS, replaces Sodium's GL pipeline). No 1.20.1 build exists.
+- **1.21.x**: Latest VulkanMod builds (0.6.1 for 1.21.11). Benchmarked at ~1000 FPS on M4 Max with Sodium in Prism Launcher.
+- **Migration cost**: New yarn mappings, Fabric API version bump, mixin signature changes, FrameGrabber GL calls may need updating if VulkanMod replaces GL context.
+- **VulkanMod vs Sodium**: Mutually exclusive. Both replace the renderer. VulkanMod uses Vulkan (lower dispatch overhead on macOS via MoltenVK), Sodium uses optimized GL (batched indirect draws). Cannot coexist.
+
 ## Performance Targets
 
-| Metric | MineRL | Netherite v2 Target |
-|---|---|---|
-| Frame readback | ~5ms (sync glReadPixels) | ~0ms (PBO async) |
-| Draw calls/frame | ~3000 (vanilla) | ~1-5 (Sodium indirect) |
-| Server TPS | 20 | 20+ (Lithium) |
-| Env step latency | ~50ms | ~16ms (60fps) |
-| Throughput (B=1) | ~20 env/sec | ~60 env/sec |
-| Throughput (B=16) | ~20 env/sec | ~200+ env/sec |
-| Rendering correctness | 100% | 100% (same GL renderer) |
+| Metric | MineRL | Netherite v2 Target | Measured (M4 Max) |
+|---|---|---|---|
+| Frame readback | ~5ms (sync glReadPixels) | ~0ms (PBO async) | ~0.4ms (PBO) |
+| Draw calls/frame | ~3000 (vanilla) | ~1-5 (Sodium indirect) | ~1-5 (Sodium) |
+| Server TPS | 20 | 20+ (Lithium) | ~480 (uncapped) |
+| Env step latency | ~50ms | ~16ms (60fps) | ~2.5ms (step), ~4.7ms (step_sync) |
+| Throughput (B=1) | ~20 env/sec | ~60 env/sec | ~400 step, ~213 step_sync |
+| Throughput (B=16) | ~20 env/sec | ~200+ env/sec | Not yet measured |
+| Rendering correctness | 100% | 100% (same GL renderer) | 100% |
+
+### Benchmark: Vanilla vs Sodium+Lithium (M4 Max, 160x90, headless, uncapped)
+
+| Config | Variant | Vanilla | Sodium+Lithium | Delta |
+|---|---|---|---|---|
+| fps=260, RD=6 | step_sync | 143 | 213 | +49% |
+| fps=260, RD=6 | step | 313 | 402 | +28% |
+| fps=260, RD=6 | tick_only | 417 | 484 | +16% |
+| fps=500, RD=6 | step_sync | 148 | 190 | +28% |
+| fps=500, RD=2 | step_sync | 180 | 214 | +19% |
+
+Reference: Prism Launcher + Sodium on MC 1.21.11 (same M4 Max): ~1000 FPS average. Gap vs our ~480 tick_only is due to per-tick mod overhead (StateExporter, ActionInjector, FrameGrabber, shmem writes).
 
 ## What Carries Over From v1
 
@@ -264,7 +299,13 @@ These optimizations from the 1.8.9 CUDA rasterizer project apply here too:
 │   ├── StateExporter.java           # game state -> shmem
 │   ├── WorldController.java         # auto world creation/reset
 │   └── mixin/
-│       └── GameRendererMixin.java   # end-of-frame hook
+│       ├── GameRendererMixin.java   # end-of-frame hook, skip-render mode
+│       ├── FramebufferMixin.java    # GL blit stretch (160x90 -> window)
+│       ├── WindowMixin.java         # retina disable, framebuffer size override
+│       ├── ClientFocusMixin.java    # keep running when unfocused
+│       ├── ServerTickMixin.java     # uncapped TPS
+│       ├── RenderTickCounterMixin.java  # uncapped FPS
+│       └── ClientTickProfilerMixin.java # per-tick profiling
 ├── src/main/resources/
 │   ├── fabric.mod.json              # mod metadata
 │   └── netherite.mixins.json        # mixin config
@@ -278,27 +319,74 @@ These optimizations from the 1.8.9 CUDA rasterizer project apply here too:
 ## Phase Plan
 
 ### Phase 1: Mod works, pixels flow
-- [ ] Gradle project builds on macOS
-- [ ] MC launches, mod loads, auto-creates world
-- [ ] FrameGrabber writes pixels to shmem
-- [ ] Python script reads pixels, displays them (verify correctness)
+- [x] Gradle project builds on macOS (Java 21 required, `JAVA_HOME` must point to OpenJDK 21)
+- [x] MC launches, mod loads, auto-creates world
+- [x] FrameGrabber writes pixels to shmem
+- [x] Python script reads pixels, displays them (verify correctness)
 
 ### Phase 2: Full gym.Env
-- [ ] ActionInjector reads actions, player moves
-- [ ] StateExporter writes game state
-- [ ] netherite_env.py step/reset works
-- [ ] Benchmark: measure env/sec single instance
+- [x] ActionInjector reads actions, player moves
+- [x] StateExporter writes game state
+- [x] netherite_env.py step/reset works
+- [x] Benchmark: measure env/sec single instance
 
-### Phase 3: Sodium + Lithium
-- [ ] Add Sodium jar, verify it loads alongside mod
-- [ ] Add Lithium jar
-- [ ] Benchmark: measure FPS improvement
+### Phase 3: Sodium + Lithium + Visual
+- [x] Add Sodium jar, verify it loads alongside mod (0.5.13, LWJGL check bypassed in build.gradle)
+- [x] Add Lithium jar (0.11.2)
+- [x] Benchmark: Sodium+Lithium gives +28-49% step_sync, +28% step throughput vs vanilla
+- [x] Pixelated agent view: 160x90 rendered at full FOV, GL-blit stretched to 854x480 window with GL_NEAREST
 
 ### Phase 4: Multi-instance + training
 - [ ] Launch N instances on anvil
 - [ ] Pipelined training loop
 - [ ] Benchmark: env/sec at B=16
 - [ ] Compare to MineRL baseline
+
+## Future: CUDA-GL Interop (Anvil Only)
+
+On anvil (RTX 3090), the current frame path has unnecessary CPU round-trips:
+
+```
+GPU renders frame → PBO readback (GPU→CPU) → shmem copy (CPU) → Python mmap (CPU) → numpy → GPU (training)
+```
+
+CUDA-GL interop eliminates the CPU entirely for observations:
+
+```
+GPU renders frame → cudaGraphicsGLRegisterImage → CUDA tensor (stays on GPU) → PyTorch policy
+```
+
+### Implementation Scope (~200 lines C + JNI bridge)
+
+1. **C/CUDA library** (`libnetherite_interop.so`):
+   - `cudaGraphicsGLRegisterBuffer()` to register MC's PBO as a CUDA resource
+   - `cudaGraphicsMapResources()` + `cudaGraphicsResourceGetMappedPointer()` per frame
+   - Exposes the mapped GPU pointer to Python via ctypes or a small pybind11 wrapper
+   - `torch.as_tensor()` wraps the CUDA pointer as a PyTorch tensor (zero-copy)
+
+2. **Java side changes**:
+   - FrameGrabber exposes the PBO GL handle (already has it: `pbos[mapPbo]`)
+   - JNI call or shmem-published PBO ID so the C library can register it
+   - Alternatively: use a shared GL-CUDA texture instead of PBO
+
+3. **Python side changes**:
+   - Replace shmem frame reader with `interop.get_frame_tensor()` returning a CUDA tensor
+   - Training loop consumes tensors directly, no numpy decode
+
+### Expected Gains
+- Eliminates ~0.4ms FrameGrabber shmem copy + ~0.3ms Python decode = ~0.7ms/step
+- At current ~2.5ms/step, this is a ~28% reduction
+- More importantly: frames never leave GPU VRAM, enabling higher resolutions without CPU bandwidth bottleneck
+
+### Prerequisites
+- Linux only (CUDA not available on macOS)
+- MC must run with a real GL context (Xvfb on anvil)
+- CUDA and GL contexts must share the same GPU
+- Not compatible with VulkanMod (would need CUDA-Vulkan interop instead, similar API but `cudaImportExternalMemory`)
+
+### Not Planned (for reference)
+- CUDA-Vulkan interop: same concept but with `VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT` + `cudaImportExternalMemory`. Only needed if VulkanMod replaces Sodium on anvil.
+- Metal compute on macOS: MPS (Metal Performance Shaders) for training. PyTorch MPS backend exists but is less mature than CUDA. Would need Metal-GL interop for frame capture which Apple doesn't support well.
 
 ## Machines
 

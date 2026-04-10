@@ -1,0 +1,25 @@
+# Short unattended run: MC window hidden (netherite.headless) + recorder --headless
+seed: 424242
+recording_path: ../recordings/smoke_headless.jsonl
+frame_sample_every: 0
+steps: 300
+timeout: 120.0
+display_scale: 6
+display_fps: 30.0
+
+netherite:
+  width: 160
+  height: 90
+  render_distance: 8
+  simulation_distance: 8
+  graphics: fast
+  particles: minimal
+  clouds: off
+  entity_shadows: false
+  smooth_lighting: false
+  biome_blend: 0
+  rl: true
+  headless: true
+  uncapped: true
+  max_fps: 32767
+  java_home: /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
