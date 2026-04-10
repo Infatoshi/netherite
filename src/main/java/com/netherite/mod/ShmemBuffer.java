@@ -11,6 +11,7 @@ import java.nio.channels.FileChannel;
  * Memory-mapped shared memory buffer. macOS: /tmp, Linux: /dev/shm.
  */
 public class ShmemBuffer {
+    private static final boolean FORCE_WRITES = Boolean.getBoolean("netherite.force_shmem");
     private final MappedByteBuffer buffer;
     private final RandomAccessFile raf;
 
@@ -30,6 +31,16 @@ public class ShmemBuffer {
 
     public MappedByteBuffer getBuffer() {
         return buffer;
+    }
+
+    public static boolean forceWritesEnabled() {
+        return FORCE_WRITES;
+    }
+
+    public static void forceIfEnabled(MappedByteBuffer buffer) {
+        if (FORCE_WRITES) {
+            buffer.force();
+        }
     }
 
     public void close() {

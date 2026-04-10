@@ -3,9 +3,6 @@
 import sys
 import time
 
-import matplotlib
-matplotlib.use("MacOSX")
-import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.insert(0, "env")
@@ -13,8 +10,29 @@ from netherite_env import NetheriteEnv
 from config import NetheriteConfig
 
 
+def build_demo_config() -> NetheriteConfig:
+    return NetheriteConfig(
+        width=160,
+        height=90,
+        render_distance=8,
+        simulation_distance=8,
+        graphics="fast",
+        particles="minimal",
+        clouds="off",
+        entity_shadows=False,
+        smooth_lighting=False,
+        biome_blend=0,
+        rl=True,
+    )
+
+
 def main():
-    cfg = NetheriteConfig(width=1708, height=960)
+    import matplotlib
+
+    matplotlib.use("MacOSX")
+    import matplotlib.pyplot as plt
+
+    cfg = build_demo_config()
     env = NetheriteEnv(config=cfg, timeout=5.0)
 
     print("Connecting to MC instance...")
@@ -22,7 +40,7 @@ def main():
     print(f"Connected. pos={obs['position']}, hp={obs['health'][0]:.0f}")
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 5.6))
-    img = ax.imshow(obs["pov"])
+    img = ax.imshow(obs["pov"], interpolation="nearest")
     ax.axis("off")
     ax.set_title("Netherite -- press Q to quit")
     plt.tight_layout()
@@ -64,8 +82,9 @@ def main():
                 f"pos ({pos[0]:.0f}, {pos[1]:.0f}, {pos[2]:.0f}) | "
                 f"hp {obs['health'][0]:.0f} | Q to quit"
             )
-            fig.canvas.draw_idle()
+            fig.canvas.draw()
             fig.canvas.flush_events()
+            plt.pause(0.001)
             last_display = now
 
         if not plt.fignum_exists(fig.number):

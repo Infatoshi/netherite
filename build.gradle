@@ -39,15 +39,16 @@ processResources {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 
     withSourcesJar()
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
-    options.release = 17
+    options.release = 21
+    options.compilerArgs += ["--enable-preview"]
 }
 
 jar {
@@ -59,6 +60,11 @@ jar {
 // Forward netherite.* system properties to the MC client JVM
 loom {
     runConfigs.configureEach {
+        // Enable preview features for FFM API
+        vmArg "--enable-preview"
+        vmArg "--enable-native-access=ALL-UNNAMED"
+        // Sodium LWJGL version check bypass (dev env uses 3.3.2-snapshot, Sodium wants 3.3.1)
+        vmArg "-Dsodium.checks.issue2561=false"
         // Pass through all netherite.* properties from gradle command line
         System.properties.each { k, v ->
             if (k.startsWith("netherite.")) {

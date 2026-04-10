@@ -4,9 +4,12 @@
   "compatibilityLevel": "JAVA_17",
   "client": [
     "GameRendererMixin",
+    "FramebufferMixin",
     "WindowMixin",
     "ClientFocusMixin",
-    "ServerTickMixin"
+    "ServerTickMixin",
+    "RenderTickCounterMixin",
+    "ClientTickProfilerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
