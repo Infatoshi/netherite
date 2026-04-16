@@ -164,6 +164,10 @@ public class WorldController {
                 createWorld(mc);
             }
         } else {
+            if (cfg.rl && !worldCreated && mc.currentScreen != null) {
+                mc.setScreen(new TitleScreen());
+                return;
+            }
             titleScreenTicks = 0;
         }
     }

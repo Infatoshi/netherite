@@ -36,6 +36,7 @@ uv run pytest tests/  # Python unit tests
 - Shmem paths: `/tmp/netherite_*` on macOS, `/dev/shm/netherite_*` on Linux
 - UV for all Python. No bare python/pip.
 - Sodium/Lithium jars go in `run/mods/` (modCompileOnly in build.gradle, runtime-loaded)
+- Multi-instance dev launches must use isolated `--gameDir` roots like `run/instances/<id>`; Fabric stores remapped jars in `<gameDir>/.fabric/processedMods`, and shared game dirs race/corrupt that cache
 - Sodium LWJGL version check bypassed in build.gradle (`-Dsodium.checks.issue2561=false`)
 - No emojis. No em dashes.
 
