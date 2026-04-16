@@ -1,153 +1,160 @@
 # Netherite v2
 
-MC 1.20.1 + Sodium + Fabric RL environment. 10x MineRL throughput target.
-Full architecture in SPEC.md. Read it first.
+Use this file as the current project handoff for coding agents. It is intentionally high signal and current. Read `SPEC.md` for the full design.
 
-## Build & Run
+## Non-negotiables
+- Use `uv` for all Python commands. No bare `python` or `pip`.
+- Java 21 is required.
+- On macOS, use `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home`.
+- On anvil, use `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`.
+- Python verification standard in this repo is `uv run ruff check . --fix` and `uv run pytest tests/`.
+- Fabric multi-instance launches must use isolated `--gameDir` roots under `run/instances/<id>`. Sharing a game dir corrupts Fabric's `.fabric/processedMods` cache.
+
+## Machines
+- `local/macbook`: MacBook Pro M4 Max, 36 GB, Metal, macOS 26.3.
+- `anvil`: Ryzen 9 9950X3D, 92 GB DDR5, RTX 3090 24 GB, Ubuntu 24.04.
+- `anvil` display for headless GL is `DISPLAY=:2`.
+- SSH to anvil with `ssh anvil`.
+
+## Build, Run, Test
 ```bash
-JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradlew build   # build mod jar
-JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradlew runClient  # launch MC with mod
+JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradlew build
+JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradlew runClient
+uv run ruff check . --fix
+uv run pytest tests/
 ```
 
-### Pixelated Agent View (160x90 stretched to window)
+## Current Truth
+- MC version is `1.20.1`, Fabric only.
+- Rendering is Minecraft + Sodium. Do not add custom renderers.
+- Sodium and Lithium are runtime-loaded from `run/mods/`.
+- Sodium's LWJGL version check is bypassed in `build.gradle` with `-Dsodium.checks.issue2561=false`.
+- Shared memory paths are `/tmp/netherite_*` on macOS and `/dev/shm/netherite_*` on Linux.
+- `bench_scaling.py` now supports `--width` and `--height`.
+- `grid_demo.py` now defaults to `320x180` capture for human-facing demos.
+
+## Render Resolution Diagnosis
+- The project does natively render fewer pixels. This is not a Matplotlib crop.
+- The current low-res path works by overriding `Window.getFramebufferWidth()` and `getFramebufferHeight()` in `src/main/java/com/netherite/mod/mixin/WindowMixin.java`.
+- `FrameGrabber` then reads that full low-res framebuffer with `glReadPixels`.
+- `FramebufferMixin` then blits that full low-res framebuffer to the real window with `glBlitFramebuffer`.
+- That means `160x90` is a true native render size today.
+- The problem is that the whole Minecraft client framebuffer is shrunk to `160x90`, not just the agent observation.
+- Vanilla HUD elements do not fit cleanly into `160x90`. Hearts and hotbar clip. This is why the human-facing demo looked cropped.
+- `320x180` is currently the minimum sane native resolution for human-facing display. The HUD fits and the full frame is preserved.
+- Proper long-term fix: decouple human display resolution from agent capture resolution. Keep UI/display at `320x180` or higher, and make agent capture a separate lower-res path.
+
+## Human Demo Artifacts
+- Native `320x180` single tile: `recordings/320_180_native.png`
+- Native `1920x1080` single tile: `recordings/1920_1080_native.png`
+- `160x90` vs `320x180` HUD comparison: `recordings/160_vs_320_comparison.png`
+- `1920x1080` vs `320x180` native comparison: `recordings/1080p_vs_180p_comparison.png`
+- `B=8` grid demo at `320x180`: `recordings/anvil_b8_batched_demo_320x180.mp4`
+
+## Recent Stability Fixes That Matter
+- `PosixSemaphore.java` had a Linux `O_CREAT` issue. The Linux flag is now correct, and `sem_post` is guarded against invalid handles.
+- `BakedModelManagerMixin.java` guards `BakedModelManager.shouldRerender` when `stateLookup == null`. This removed a startup crash path at scale.
+- The Python start latch no longer keys on `frame_hash`. It now ignores pure frame jitter and latches on stable pose/chunk/seed state instead. This was necessary for multi-instance stability.
+- Startup tracing was added in `env/startup_trace.py` and integrated into launcher/benchmark paths for bring-up debugging.
+
+## Multi-Instance State
+- `B=8` is now stable enough to benchmark on anvil.
+- The main remaining architectural issue is not startup corruption. It is the display/capture coupling described above.
+
+## Known Good Benchmark Settings
+- Render distance `4`
+- Simulation distance `5`
+- `max_fps=9999`
+- `uncapped=true`
+- `use_semaphore=true`
+
+## Latest Benchmarks
+
+### Local MacBook, single instance, render enabled
+Settings: headless, `RD=4`, `SD=5`, `max_fps=9999`, semaphore on, `300` measured steps after `75` warmup.
+
+| Resolution | `step_sync` | `step` | `state_only` | `tick_only` |
+|---|---:|---:|---:|---:|
+| `160x90` | `217.4` | `666.4` | `741.2` | `730.7` |
+| `320x180` | `192.7` | `592.6` | `753.8` | `617.6` |
+
+Interpretation:
+- `320x180` costs about `11%` on the render-coupled step paths on the MacBook.
+
+### Anvil, apples-to-apples `1` and `8` env sweep, `160x90`
+Command source is `env/bench_scaling.py` with `--envs 1,8 --strategies sync,batched,async --steps 100 --warmup 10 --width 160 --height 90 --render-distance 4 --simulation-distance 5 --max-fps 9999 --use-semaphore`.
+
+| Envs | `sync` | `batched` | `async` |
+|---|---:|---:|---:|
+| `1` | `216.0` | `359.7` | `329.8` |
+| `8` | `135.4` | `490.9` | `638.8` |
+
+Raw log: `recordings/anvil_bench_160x90_apples.log`
+
+### Anvil, apples-to-apples `1` and `8` env sweep, `320x180`
+Command source is `env/bench_scaling.py` with `--envs 1,8 --strategies sync,batched,async --steps 100 --warmup 10 --width 320 --height 180 --render-distance 4 --simulation-distance 5 --max-fps 9999 --use-semaphore`.
+
+| Envs | `sync` | `batched` | `async` |
+|---|---:|---:|---:|
+| `1` | `184.7` | `1020.5` | `312.7` |
+| `8` | `122.9` | `439.3` | `567.6` |
+
+Raw log: `recordings/anvil_bench_320x180.log`
+
+### Anvil `320x180` vs `160x90` at `B=8`
+- `sync`: `135.4 -> 122.9` which is `-9.2%`
+- `batched`: `490.9 -> 439.3` which is `-10.5%`
+- `async`: `638.8 -> 567.6` which is `-11.1%`
+
+Interpretation:
+- Treat the `B=8` penalty for `320x180` as about `10%`.
+- The `1-env batched` result at `320x180` is clearly not stable enough to use as a comparison point. Do not build conclusions on that number.
+
+## Current Best Human-Facing Resolution
+- Use `320x180` for any human-facing native display or recording.
+- Do not use `160x90` when you need a faithful full HUD view.
+
+## Current Best Agent-Facing Assumption
+- `160x90` is still fine for a pure agent observation if HUD fidelity is irrelevant.
+- The codebase does not yet properly support `display=320x180` with `agent capture=160x90` as separate knobs. That is the next important rendering change.
+
+## Commands That Matter
+
+### Local human demo
 ```bash
 JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradlew runClient \
   -Dnetherite.instance_id=0 -Dnetherite.seed=12345 -Dnetherite.rl=false \
-  -Dnetherite.width=160 -Dnetherite.height=90 \
+  -Dnetherite.width=320 -Dnetherite.height=180 \
   -Dnetherite.uncapped=true -Dnetherite.max_fps=9999 \
-  -Dnetherite.render_distance=4 -Dnetherite.graphics=fast \
-  -Dnetherite.particles=minimal -Dnetherite.clouds=off \
+  -Dnetherite.render_distance=4 -Dnetherite.simulation_distance=5 \
+  -Dnetherite.graphics=fast -Dnetherite.particles=minimal -Dnetherite.clouds=off \
   -Dnetherite.smooth_lighting=false -Dnetherite.entity_shadows=false \
   -Dnetherite.biome_blend=0 -Dnetherite.vsync=false \
   --args="--width 854 --height 480 --username player"
 ```
-MC renders at 160x90 internally (full FOV), FramebufferMixin GL-blits it stretched to 854x480 window with GL_NEAREST (blocky pixels). FrameGrabber reads 160x90 from the FBO for shmem. Window shows what the agent sees.
 
-### Run Tests
+### Anvil benchmark at `320x180`
 ```bash
-JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradlew build -x test  # skip tests for speed
-uv run pytest tests/  # Python unit tests
+ssh anvil '
+  cd ~/netherite-v2-bench &&
+  DISPLAY=:2 uv run env/bench_scaling.py \
+    --envs 1,8 \
+    --strategies sync,batched,async \
+    --steps 100 --warmup 10 \
+    --width 320 --height 180 \
+    --java-home /usr/lib/jvm/java-21-openjdk-amd64 \
+    --render-distance 4 --simulation-distance 5 --max-fps 9999 \
+    --use-semaphore --env-timeout 30.0
+'
 ```
 
-## Key Constraints
-- Java 21 required (build uses `--enable-preview` for FFM/Panama semaphores)
-- `JAVA_HOME` must point to OpenJDK 21 (e.g. `/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home` on macOS)
-- Fabric Loom 1.9-SNAPSHOT (needs Gradle 8.12)
-- Shmem paths: `/tmp/netherite_*` on macOS, `/dev/shm/netherite_*` on Linux
-- UV for all Python. No bare python/pip.
-- Sodium/Lithium jars go in `run/mods/` (modCompileOnly in build.gradle, runtime-loaded)
-- Multi-instance dev launches must use isolated `--gameDir` roots like `run/instances/<id>`; Fabric stores remapped jars in `<gameDir>/.fabric/processedMods`, and shared game dirs race/corrupt that cache
-- Sodium LWJGL version check bypassed in build.gradle (`-Dsodium.checks.issue2561=false`)
-- No emojis. No em dashes.
+## Do Not Waste Time On
+- Do not revive the old CUDA rasterizer or Forge code.
+- Do not attempt `@ModifyVariable` on `Framebuffer.draw()`. It does not hit the visible path.
+- Do not share a Fabric `gameDir` across instances.
+- Do not treat the current `160x90` human display issue as a Matplotlib crop bug. It is a framebuffer architecture issue.
 
-## Shmem Protocol
-- Obs: `netherite_obs_{id}_{A,B}` -- 8MB double-buffered, 16B header + RGBA pixels
-- State: `netherite_state_{id}` -- 64KB, player pos/health/inventory/entities
-- Action: `netherite_action_{id}` -- 4KB, movement + camera delta
-- All little-endian. Ready flag at offset 12 written LAST.
-
-## Architecture
-- GameRendererMixin hooks end-of-frame for PBO readback (render thread)
-- ActionInjector + StateExporter + WorldController run on ClientTickEvents.END_CLIENT_TICK
-- FrameGrabber uses PBO double-buffer: async glReadPixels into PBO[N%2], map PBO[(N+1)%2]
-- One frame of latency on pixels (fine for RL)
-
-## Mixin Summary
-
-| Mixin | Target | Purpose |
-|---|---|---|
-| GameRendererMixin | GameRenderer | HEAD: skip-render mode. TAIL: trigger FrameGrabber PBO readback |
-| FramebufferMixin | MinecraftClient | @Redirect `framebuffer.draw()` in `render()` -- GL blits FBO to screen stretched (160x90 -> 854x480) with GL_NEAREST |
-| WindowMixin | Window | Disable Retina scaling, hide window in headless mode, disable VSync when uncapped, override getFramebufferWidth/Height to render resolution |
-| ClientFocusMixin | MinecraftClient | Keep game running when window loses focus |
-| ServerTickMixin | MinecraftServer | Uncapped TPS (removes 50ms sleep) |
-| RenderTickCounterMixin | RenderTickCounter | Uncapped FPS |
-| ClientTickProfilerMixin | MinecraftClient | Per-tick timing profiler |
-
-### Pixelated View: How It Works
-1. WindowMixin overrides `getFramebufferWidth()/Height()` to return 160x90 when `netherite.width/height` are set
-2. MC creates its internal Framebuffer (FBO) at 160x90 and renders the full scene into it
-3. FrameGrabber reads 160x90 pixels from the FBO via PBO for shmem (correct for RL)
-4. MC calls `framebuffer.draw(160, 90)` to blit FBO to screen -- FramebufferMixin intercepts this
-5. Instead of MC's deferred shader-based blit, FramebufferMixin does a direct `glBlitFramebuffer` from FBO 1 to FBO 0 (screen) at the actual GLFW window size (854x480) with GL_NEAREST filtering
-6. Result: full-FOV pixelated Minecraft filling the window
-
-Key insight: MC's own `Framebuffer.draw()` goes through `RenderSystem.recordRenderCall()` (deferred), but direct `glBlitFramebuffer` executes immediately and is visible after `glfwSwapBuffers`.
-
-## What NOT to do
-- Don't write any custom rendering code. Sodium handles all rendering.
-- Don't use the CUDA rasterizer. It's archived in ~/1.8.9/cuda-rasterizer/.
-- Don't use Forge. This is Fabric only.
-- Don't use MC 1.8.9 or 1.7.10. This is 1.20.1.
-- Don't use /dev/shm paths on macOS (doesn't exist). Use /tmp.
-- Don't use `@ModifyVariable` on `Framebuffer.draw()` -- it targets a deferred render call lambda and has no visible effect. Use `@Redirect` on the call site in MinecraftClient instead.
-
-## Machines
-- local/macbook: MacBook Pro M4 Max, 36GB, macOS 26.3. Development + testing.
-- anvil: Ryzen 9 9950X3D, 92GB DDR5, RTX 3090, Ubuntu 24.04. Training at scale.
-  - SSH: `ssh anvil` (Tailscale, VPN can be flaky from Shenzhen)
-
-## Performance Tuning
-
-Measured throughput (M4 Max, 160x90, Sodium+Lithium, uncapped):
-- `step`: ~400 SPS, `step_sync`: ~213 SPS, `tick_only`: ~484 SPS
-- Reference: Prism Launcher + Sodium on 1.21.11 = ~1000 FPS (our mod overhead accounts for the gap)
-
-### Observation Modes
-- `obs_mode="both"` -- pixels + voxels (default)
-- `obs_mode="voxels"` -- skip frame capture (~10% faster)
-- `obs_mode="pixels"` -- skip voxel sampling
-
-### Key Parameters
-- `step_ticks` -- game ticks per Python step (1=every tick, 4=every 4th tick). Higher = more throughput, less granular control.
-- `skip_render` -- skip OpenGL rendering entirely (testing only, ~2x Java TPS but no pixels)
-- `uncapped` -- remove 20 TPS server limit (required for high throughput)
-- `use_semaphore` -- use POSIX semaphores for IPC signaling instead of polling (~7% faster)
-
-### step_ticks Benchmark (single instance, obs_mode=both)
-| step_ticks | Python SPS | Game TPS | Use Case |
-|------------|------------|----------|----------|
-| 1 | 290 | 290 | Fine-grained control |
-| 2 | 170 | 340 | Balanced |
-| 4 | 110 | 440 | High throughput |
-| 8 | 60 | 500 | Max throughput, coarse control |
-
-### Performance Bottlenecks (in order of impact)
-1. **Python-Java IPC** (~1.5ms/step polling, ~1.4ms with semaphores) -- mmap sync overhead
-2. **MC Client Tick** (~700us) -- input processing, network, player updates  
-3. **MC Server Tick** (~400us) -- game simulation, entities, blocks
-4. **MC Render** (~420us) -- OpenGL draw calls + PBO readback
-
-### Improvement Roadmap
-- [x] Uncapped server TPS
-- [x] Configurable observation modes
-- [x] Skip-render mode for testing
-- [x] step_ticks parameter for frame skipping
-- [x] POSIX semaphores (replace polling with kernel signaling) -- achieved +7% (394->422 SPS)
-- [x] Pixelated agent view (160x90 rendered, stretched to window via GL blit)
-- [ ] Batched trajectories (amortize sync across N steps) -- expected N-fold
-- [ ] Multi-instance vectorization -- expected linear scaling
-- [ ] VulkanMod integration (requires MC 1.20.4+, replaces Sodium, Vulkan via MoltenVK on macOS)
-- [ ] CUDA-GL interop on anvil (zero-copy GPU frame readback, ~0.7ms/step savings, see SPEC.md)
-
-## Prior Art (archived, don't use)
-- ~/1.8.9/cuda-rasterizer/ -- custom CUDA software rasterizer, 93% pixel match but missing mobs/entities/particles
-- ~/1.8.9/forge-workspace/ -- MC 1.8.9 Forge mod with SceneCapture, HeadlessMeshGenerator
-- ~/netherite-v2/ on anvil -- partial Fabric 1.20.1 setup (mod builds, world creation incomplete)
-
-## Current Session State (February 23, 2026)
-
-### What Works
-- Full build pipeline: `./gradlew build` succeeds (Java 21, Fabric Loom 1.9)
-- Sodium 0.5.13 + Lithium 0.11.2 load at runtime (LWJGL check bypassed)
-- Shmem IPC: pixels, state, and actions flow between Java and Python
-- `step`, `step_sync`, `tick_only` all functional
-- Pixelated agent view: 160x90 rendered, GL-blit stretched to 854x480 window
-- Python unit tests pass (`uv run pytest tests/`)
-- FPS benchmarks: Vanilla vs Sodium+Lithium measured and documented
-
-### What's Next (Phase 4)
-1. Multi-instance launch on anvil (Linux headless via Xvfb)
-2. Pipelined training loop (Python gym env driving multiple MC instances)
-3. Benchmark throughput at B=16 instances
-4. Compare to MineRL baseline
+## Best Next Steps
+- Implement proper separation between display resolution and agent capture resolution.
+- Keep `320x180` as the human display baseline.
+- Re-run `B=16` on anvil once the display/capture split is clean.
