@@ -8,7 +8,19 @@ hop.
 
 **PoC validated on anvil (RTX 3090 + CUDA 13.2).** End-to-end chain proven:
 160x90 RGBA buffer (57,600 bytes) round-tripped GL PBO -> CUDA -> IPC handle ->
-separate process -> verified bit-exact. See `poc_run.log`.
+separate process -> verified bit-exact.
+
+Run output (anvil, Xorg :2 isolated to PCI:1:0:0):
+
+```
+[parent] PBO id=1, 57600 bytes loaded
+[parent] device: NVIDIA GeForce RTX 3090 (CC 8.6, unifiedAddressing=1)
+[parent] PBO mapped: devptr=0x75dafc3f1e00, size=57600
+[parent] cudaIpcGetMemHandle ok
+[child] verified 57600 bytes, OK
+[parent] child exit=0
+[parent] PoC PASSED
+```
 
 Not yet wired into `FrameGrabber.java` or `netherite_env.py`.
 
