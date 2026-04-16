@@ -27,6 +27,8 @@ dependencies {
     // Sodium + Lithium: compile against, user drops jars in mods/
     modCompileOnly "maven.modrinth:sodium:${project.sodium_version}"
     modCompileOnly "maven.modrinth:lithium:${project.lithium_version}"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
 }
 
 processResources {
@@ -49,6 +51,11 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
     options.release = 21
     options.compilerArgs += ["--enable-preview"]
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgs "--enable-preview", "--enable-native-access=ALL-UNNAMED"
 }
 
 jar {

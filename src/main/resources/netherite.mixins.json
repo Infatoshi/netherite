@@ -5,6 +5,7 @@
   "client": [
     "GameRendererMixin",
     "FramebufferMixin",
+    "BakedModelManagerMixin",
     "WindowMixin",
     "ClientFocusMixin",
     "ServerTickMixin",

@@ -2,6 +2,7 @@ package com.netherite.mod;
 
 import java.lang.foreign.*;
 import java.lang.invoke.MethodHandle;
+import java.util.Locale;
 
 /**
  * POSIX named semaphore wrapper using Panama FFM (Java 21+).
@@ -12,7 +13,7 @@ public class PosixSemaphore {
     private static final SymbolLookup LOOKUP = SymbolLookup.loaderLookup()
             .or(Linker.nativeLinker().defaultLookup());
 
-    private static final int O_CREAT = 0x200;  // macOS value
+    private static final int O_CREAT = oCreatFlagForOs(System.getProperty("os.name"));
     private static final long SEM_FAILED = -1L;  // (sem_t*)-1 as unsigned
 
     private static MethodHandle semOpen;
@@ -86,21 +87,35 @@ public class PosixSemaphore {
             MemorySegment nameSegment = arena.allocateUtf8String(name);
             // Open or create with initial value 0 (mode 0644 octal)
             semaphore = (MemorySegment) semOpen.invoke(nameSegment, O_CREAT, 0644, 0);
-            if (semaphore.address() == SEM_FAILED) {
-                NetheriteMod.LOGGER.error("PosixSemaphore: sem_open failed for {}", name);
+            if (isInvalidHandle(semaphore)) {
+                long address = semaphore == null ? Long.MIN_VALUE : semaphore.address();
+                NetheriteMod.LOGGER.error(
+                        "PosixSemaphore: sem_open failed for {} (os={}, flag=0x{}, address={})",
+                        name,
+                        System.getProperty("os.name"),
+                        Integer.toHexString(O_CREAT),
+                        Long.toUnsignedString(address)
+                );
+                semaphore = null;
                 return false;
             }
             initialized = true;
-            NetheriteMod.LOGGER.info("PosixSemaphore: opened {}", name);
+            NetheriteMod.LOGGER.info(
+                    "PosixSemaphore: opened {} (os={}, flag=0x{})",
+                    name,
+                    System.getProperty("os.name"),
+                    Integer.toHexString(O_CREAT)
+            );
             return true;
         } catch (Throwable e) {
             NetheriteMod.LOGGER.error("PosixSemaphore: failed to open {}", name, e);
+            semaphore = null;
             return false;
         }
     }
 
     public void post() {
-        if (!initialized || semPost == null) return;
+        if (!initialized || semPost == null || isInvalidHandle(semaphore)) return;
         try {
             semPost.invoke(semaphore);
         } catch (Throwable e) {
@@ -109,10 +124,15 @@ public class PosixSemaphore {
     }
 
     public void close() {
-        if (!initialized || semClose == null) return;
+        if (!initialized || semClose == null || isInvalidHandle(semaphore)) {
+            initialized = false;
+            semaphore = null;
+            return;
+        }
         try {
             semClose.invoke(semaphore);
             initialized = false;
+            semaphore = null;
         } catch (Throwable e) {
             // Ignore
         }
@@ -126,5 +146,16 @@ public class PosixSemaphore {
         } catch (Throwable e) {
             // Ignore
         }
+    }
+
+    static int oCreatFlagForOs(String osName) {
+        if (osName != null && osName.toLowerCase(Locale.ROOT).contains("mac")) {
+            return 0x200;
+        }
+        return 0x40;
+    }
+
+    static boolean isInvalidHandle(MemorySegment handle) {
+        return handle == null || handle.address() == 0L || handle.address() == SEM_FAILED;
     }
 }
