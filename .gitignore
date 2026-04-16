@@ -2,9 +2,11 @@ build/
 .gradle/
 run/
 .fabric/
+recordings/
 *.class
 *.jar
 *.log
 .venv/
 __pycache__/
 *.pyc
+tmp_*.jsonl
