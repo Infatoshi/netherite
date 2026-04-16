@@ -12,6 +12,7 @@ import numpy as np
 from gymnasium import spaces
 
 from config import NetheriteConfig
+from startup_trace import startup_trace_enabled, trace_event
 from sync import SemaphoreSync
 
 
@@ -192,21 +193,51 @@ class NetheriteEnv(gym.Env):
         self,
         frame: np.ndarray,
         state: dict[str, object],
-    ) -> tuple[bytes, tuple[float, float, float], float, float, int, int, int, int]:
+    ) -> tuple[tuple[float, float, float], float, float, int, int, int, int]:
+        snapshot = self._latched_start_snapshot(frame, state)
+        return self._latched_start_signature_from_snapshot(snapshot)
+
+    def _latched_start_snapshot(
+        self,
+        frame: np.ndarray,
+        state: dict[str, object],
+    ) -> dict[str, object]:
         position = state.get("position", np.zeros(3, dtype=np.float64))
+        return {
+            "frame_hash": hashlib.blake2b(frame.tobytes(), digest_size=16).hexdigest(),
+            "position": tuple(round(float(v), 4) for v in position),
+            "yaw": round(float(state.get("yaw", 0.0)), 4),
+            "pitch": round(float(state.get("pitch", 0.0)), 4),
+            "world_fingerprint": int(state.get("world_fingerprint", 0)),
+            "loaded_chunks": int(state.get("loaded_chunks", 0)),
+            "chunk_mask": int(state.get("chunk_mask", 0)),
+            "actual_world_seed": int(state.get("actual_world_seed", 0)),
+        }
+
+    @staticmethod
+    def _latched_start_signature_from_snapshot(
+        snapshot: dict[str, object],
+    ) -> tuple[tuple[float, float, float], float, float, int, int, int, int]:
         return (
-            hashlib.blake2b(frame.tobytes(), digest_size=16).digest(),
-            tuple(round(float(v), 4) for v in position),
-            round(float(state.get("yaw", 0.0)), 4),
-            round(float(state.get("pitch", 0.0)), 4),
-            int(state.get("world_fingerprint", 0)),
-            int(state.get("loaded_chunks", 0)),
-            int(state.get("chunk_mask", 0)),
-            int(state.get("actual_world_seed", 0)),
+            tuple(snapshot["position"]),  # type: ignore[arg-type]
+            float(snapshot["yaw"]),
+            float(snapshot["pitch"]),
+            int(snapshot["world_fingerprint"]),
+            int(snapshot["loaded_chunks"]),
+            int(snapshot["chunk_mask"]),
+            int(snapshot["actual_world_seed"]),
         )
+
+    @staticmethod
+    def _latched_start_changed_fields(
+        previous: dict[str, object],
+        current: dict[str, object],
+    ) -> list[str]:
+        return [key for key in previous if previous[key] != current[key]]
 
     def _connect(self):
         iid = self.config.instance_id
+        trace_event("env.reset.connect.begin", instance_id=iid)
         self._obs_readers[0] = ShmemReader(
             _shmem_path(f"netherite_obs_{iid}_A"), OBS_SIZE
         )
@@ -226,6 +257,7 @@ class NetheriteEnv(gym.Env):
         if self.config.use_semaphore:
             self._semaphore = SemaphoreSync(iid)
             self._semaphore.open()
+        trace_event("env.reset.connect.done", instance_id=iid)
 
     def _wait_for_frame(self, wait_for_new: bool = False) -> np.ndarray:
         """Poll both obs buffers, return pixels from whichever has latest frame."""
@@ -599,6 +631,12 @@ class NetheriteEnv(gym.Env):
     def _request_world_reset(self, world_seed: int):
         control = self._wait_for_control_ready()
         request_id = self._next_request_id(control)
+        trace_event(
+            "control.reset.request.sent",
+            instance_id=self.config.instance_id,
+            request_id=request_id,
+            seed=world_seed,
+        )
 
         self._control_writer.write(16, struct.pack("<I", CTRL_OP_RESET_WORLD))
         self._control_writer.write(24, struct.pack("<q", int(world_seed)))
@@ -611,11 +649,28 @@ class NetheriteEnv(gym.Env):
             if control["ack_id"] == request_id:
                 if control["status"] == CTRL_STATUS_DONE:
                     self.config.seed = control["active_seed"]
+                    trace_event(
+                        "control.reset.ack_done",
+                        instance_id=self.config.instance_id,
+                        request_id=request_id,
+                        active_seed=control["active_seed"],
+                    )
                     return
                 if control["status"] == CTRL_STATUS_ERROR:
+                    trace_event(
+                        "control.reset.ack_error",
+                        instance_id=self.config.instance_id,
+                        request_id=request_id,
+                    )
                     raise RuntimeError("Netherite world reset failed")
             time.sleep(0.001)
 
+        trace_event(
+            "control.reset.timeout",
+            instance_id=self.config.instance_id,
+            request_id=request_id,
+            seed=world_seed,
+        )
         raise TimeoutError("Timed out waiting for Netherite world reset")
 
     def _request_pose(self, pose: dict[str, float]):
@@ -649,6 +704,11 @@ class NetheriteEnv(gym.Env):
             return
 
         request_id = self._next_request_id(control)
+        trace_event(
+            "start_latch.release.request.sent",
+            instance_id=self.config.instance_id,
+            request_id=request_id,
+        )
         self._control_writer.write(16, struct.pack("<I", CTRL_OP_RELEASE_START))
         self._control_writer.write(12, struct.pack("<I", CTRL_STATUS_BUSY))
         self._control_writer.write(4, struct.pack("<I", request_id))
@@ -658,11 +718,26 @@ class NetheriteEnv(gym.Env):
             control = self._read_control()
             if control["ack_id"] == request_id:
                 if control["status"] == CTRL_STATUS_DONE:
+                    trace_event(
+                        "start_latch.release.ack_done",
+                        instance_id=self.config.instance_id,
+                        request_id=request_id,
+                    )
                     return
                 if control["status"] == CTRL_STATUS_ERROR:
+                    trace_event(
+                        "start_latch.release.ack_error",
+                        instance_id=self.config.instance_id,
+                        request_id=request_id,
+                    )
                     raise RuntimeError("Netherite start latch release failed")
             time.sleep(0.001)
 
+        trace_event(
+            "start_latch.release.timeout",
+            instance_id=self.config.instance_id,
+            request_id=request_id,
+        )
         raise TimeoutError("Timed out waiting for Netherite start latch release")
 
     def release_start_latch(self):
@@ -676,8 +751,18 @@ class NetheriteEnv(gym.Env):
     ) -> dict:
         deadline = time.monotonic() + self.timeout
         next_status = time.monotonic() + 10.0
+        trace_event(
+            "start_latch.wait.begin",
+            instance_id=self.config.instance_id,
+            stable_frames=stable_frames,
+            max_frames=max_frames,
+        )
         while time.monotonic() < deadline:
             if self._read_control()["start_latched"] == 1:
+                trace_event(
+                    "start_latch.armed",
+                    instance_id=self.config.instance_id,
+                )
                 break
             now = time.monotonic()
             if now >= next_status:
@@ -689,11 +774,21 @@ class NetheriteEnv(gym.Env):
                 next_status = now + 10.0
             time.sleep(0.001)
         else:
+            trace_event("start_latch.timeout", instance_id=self.config.instance_id)
             raise TimeoutError("Timed out waiting for Netherite start latch")
 
         last_hash = None
+        last_snapshot = None
         stable_count = 0
         obs = None
+        change_counts: dict[str, int] = {}
+        change_examples: list[dict[str, tuple[object, object]]] = []
+        trace_event(
+            "start_latch.stable_frame.wait.begin",
+            instance_id=self.config.instance_id,
+            stable_frames=stable_frames,
+            max_frames=max_frames,
+        )
         for _ in range(max_frames):
             frame = self._wait_for_frame(wait_for_new=False)
             state = self._read_state(wait_for_new=False)
@@ -703,16 +798,45 @@ class NetheriteEnv(gym.Env):
                 "health": state["health"],
                 "position": state["position"],
             }
-            frame_hash = self._latched_start_signature(frame, state)
-            if frame_hash == last_hash:
+            snapshot = self._latched_start_snapshot(frame, state)
+            signature = self._latched_start_signature_from_snapshot(snapshot)
+            if last_snapshot is not None and startup_trace_enabled():
+                changed_fields = self._latched_start_changed_fields(
+                    last_snapshot, snapshot
+                )
+                if changed_fields:
+                    for field in changed_fields:
+                        change_counts[field] = change_counts.get(field, 0) + 1
+                    if len(change_examples) < 8:
+                        change_examples.append(
+                            {
+                                field: (last_snapshot[field], snapshot[field])
+                                for field in changed_fields
+                            }
+                        )
+            if signature == last_hash:
                 stable_count += 1
             else:
-                last_hash = frame_hash
+                last_hash = signature
+                last_snapshot = snapshot
                 stable_count = 1
             if stable_count >= stable_frames:
+                trace_event(
+                    "start_latch.stable_frame.ready",
+                    instance_id=self.config.instance_id,
+                    stable_count=stable_count,
+                )
                 return obs
             time.sleep(0.01)
 
+        trace_event(
+            "start_latch.stable_frame.timeout",
+            instance_id=self.config.instance_id,
+            stable_frames=stable_frames,
+            max_frames=max_frames,
+            change_counts=change_counts,
+            change_examples=change_examples,
+        )
         raise TimeoutError("Timed out waiting for a stable latched start frame")
 
     def _get_obs(
@@ -740,31 +864,73 @@ class NetheriteEnv(gym.Env):
 
     def _wait_until_state_tick(self, target_tick: int) -> dict:
         deadline = time.monotonic() + self.timeout
+        last_tick = self._last_state_tick
+        if startup_trace_enabled():
+            last_tick = self.get_state_tick()
+            trace_event(
+                "state_tick.wait.begin",
+                instance_id=self.config.instance_id,
+                start_tick=last_tick,
+                target_tick=target_tick,
+                semaphore_enabled=self._semaphore is not None,
+            )
 
         # Fast path: use semaphore if enabled
         if self._semaphore is not None:
             while time.monotonic() < deadline:
                 current_tick = self.get_state_tick()
+                last_tick = current_tick
                 if current_tick >= target_tick:
+                    trace_event(
+                        "state_tick.wait.reached",
+                        instance_id=self.config.instance_id,
+                        current_tick=current_tick,
+                        target_tick=target_tick,
+                    )
                     return self._read_state()
                 # Wait for Java to signal (blocks until sem_post)
                 remaining = deadline - time.monotonic()
                 if remaining > 0:
                     self._semaphore.wait(timeout=min(remaining, 0.1))
+            trace_event(
+                "state_tick.wait.timeout",
+                instance_id=self.config.instance_id,
+                target_tick=target_tick,
+                last_tick=last_tick,
+            )
             raise TimeoutError(f"Timed out waiting for state_tick >= {target_tick}")
 
         # Fallback: polling
         while time.monotonic() < deadline:
             current_tick = self.get_state_tick()
+            last_tick = current_tick
             if current_tick >= target_tick:
+                trace_event(
+                    "state_tick.wait.reached",
+                    instance_id=self.config.instance_id,
+                    current_tick=current_tick,
+                    target_tick=target_tick,
+                )
                 return self._read_state()
             if target_tick - current_tick > 8:
                 time.sleep(0.0002)  # 200μs when far behind
 
+        trace_event(
+            "state_tick.wait.timeout",
+            instance_id=self.config.instance_id,
+            target_tick=target_tick,
+            last_tick=last_tick,
+        )
         raise TimeoutError(f"Timed out waiting for state_tick >= {target_tick}")
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
+        trace_event(
+            "env.reset.begin",
+            instance_id=self.config.instance_id,
+            requested_seed=seed,
+            options=options,
+        )
         if self._action_writer is None:
             self._connect()
         self.tick = 0
@@ -783,12 +949,23 @@ class NetheriteEnv(gym.Env):
             )
         if reset_world:
             target_seed = self.config.seed if world_seed is None else int(world_seed)
+            trace_event(
+                "env.reset.world_reset.begin",
+                instance_id=self.config.instance_id,
+                target_seed=target_seed,
+            )
             self._request_world_reset(target_seed)
+            trace_event(
+                "env.reset.world_reset.done",
+                instance_id=self.config.instance_id,
+                target_seed=target_seed,
+            )
             obs = self._get_obs(wait_for_new_state=True, wait_for_new_frame=True)
         else:
             obs = self._get_obs()
         if os.environ.get("NETHERITE_DEBUG_RESET"):
             print("NetheriteEnv.reset: first obs ok", file=sys.stderr, flush=True)
+        trace_event("env.reset.first_obs.done", instance_id=self.config.instance_id)
         return obs, {}
 
     def _step_impl(self, action, *, wait_for_new_frame: bool, state_delta: int):

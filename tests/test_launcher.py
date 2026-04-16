@@ -49,6 +49,7 @@ def test_mcinstance_start_uses_new_process_session(monkeypatch, tmp_path: Path):
     inst.start()
 
     assert calls["kwargs"]["start_new_session"] is True
+    assert calls["kwargs"]["stderr"] == launcher.subprocess.STDOUT
     assert (tmp_path / "run" / "instances" / "0").exists()
 
 
@@ -122,14 +123,107 @@ def test_stop_terminates_process_group(monkeypatch):
     ]
 
 
+def test_stop_terminates_lingering_matching_processes(monkeypatch, tmp_path: Path):
+    calls: list[tuple[int, int]] = []
+    game_dir = tmp_path / "run" / "instances" / "4"
+
+    class FakeProcess:
+        pid = 456
+
+        def poll(self):
+            return None
+
+        def wait(self, timeout):
+            return 0
+
+        def send_signal(self, _sig):
+            raise AssertionError("send_signal should not be used when killpg works")
+
+        def kill(self):
+            raise AssertionError("kill should not be used when wait succeeds")
+
+    ps_outputs = iter(
+        [
+            "\n".join(
+                [
+                    (
+                        "111 "
+                        f"/usr/bin/java {tmp_path} "
+                        "-Dnetherite.instance_id=4 "
+                        "--gameDir "
+                        f"{game_dir} "
+                        "net.fabricmc.devlaunchinjector.Main"
+                    ),
+                    (
+                        "222 "
+                        f"/usr/bin/java {tmp_path} "
+                        "-Dnetherite.instance_id=99 "
+                        "net.fabricmc.devlaunchinjector.Main"
+                    ),
+                ]
+            ),
+            "",
+        ]
+    )
+
+    monkeypatch.setattr(launcher.os, "getpgid", lambda _pid: 999)
+    monkeypatch.setattr(launcher.os, "killpg", lambda _pgid, _sig: None)
+    monkeypatch.setattr(
+        launcher.subprocess,
+        "check_output",
+        lambda *args, **kwargs: next(ps_outputs),
+    )
+    monkeypatch.setattr(
+        launcher.os,
+        "kill",
+        lambda pid, sig: calls.append((pid, sig)),
+    )
+
+    inst = MCInstance(NetheriteConfig(instance_id=4), tmp_path, game_dir=game_dir)
+    inst.process = FakeProcess()
+
+    inst.stop()
+
+    assert calls == [(111, launcher.signal.SIGTERM)]
+
+
+def test_matching_process_ids_ignore_unrelated_projects(tmp_path: Path, monkeypatch):
+    cfg = NetheriteConfig(instance_id=2)
+    inst = MCInstance(cfg, tmp_path, game_dir=tmp_path / "run" / "instances" / "2")
+
+    monkeypatch.setattr(
+        launcher.subprocess,
+        "check_output",
+        lambda *args, **kwargs: "\n".join(
+            [
+                (
+                    "101 "
+                    f"/usr/bin/java {tmp_path} "
+                    "-Dnetherite.instance_id=2 "
+                    "net.fabricmc.devlaunchinjector.Main"
+                ),
+                (
+                    "202 /usr/bin/java /other/project "
+                    "-Dnetherite.instance_id=2 "
+                    "net.fabricmc.devlaunchinjector.Main"
+                ),
+            ]
+        ),
+    )
+
+    assert inst._matching_process_ids() == [101]
+
+
 def test_launch_with_mod_cache_prewarm_waits_for_first_instance(monkeypatch):
     events: list[tuple[str, int]] = []
+    sleeps: list[float] = []
 
     class FakeInstance:
-        def __init__(self, config, project_dir, *, game_dir=None):
+        def __init__(self, config, project_dir, *, game_dir=None, log_path=None):
             self.config = config
             self.project_dir = project_dir
             self.game_dir = game_dir
+            self.log_path = log_path
             self.process = None
 
         def start(self):
@@ -143,10 +237,15 @@ def test_launch_with_mod_cache_prewarm_waits_for_first_instance(monkeypatch):
             events.append(("stop", self.config.instance_id))
 
     monkeypatch.setattr(launcher, "MCInstance", FakeInstance)
+    monkeypatch.setattr(launcher.time, "sleep", lambda seconds: sleeps.append(seconds))
     launch = Launcher(ROOT)
     configs = [NetheriteConfig(instance_id=i) for i in range(3)]
 
-    instances = launch.launch_with_mod_cache_prewarm(configs, timeout=3.0)
+    instances = launch.launch_with_mod_cache_prewarm(
+        configs,
+        timeout=3.0,
+        stagger_seconds=0.25,
+    )
 
     assert len(instances) == 3
     assert events == [
@@ -155,6 +254,7 @@ def test_launch_with_mod_cache_prewarm_waits_for_first_instance(monkeypatch):
         ("start", 1),
         ("start", 2),
     ]
+    assert sleeps == [0.25, 0.25]
 
 
 def test_cleanup_processed_mods_removes_cached_files(tmp_path: Path):

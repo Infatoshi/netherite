@@ -509,6 +509,80 @@ def test_wait_for_start_latch_requires_state_signature_to_stabilize():
     )
 
 
+def test_wait_for_start_latch_ignores_frame_only_drift_when_state_is_stable():
+    env = NetheriteEnv(config=NetheriteConfig(width=2, height=2), timeout=0.05)
+    env._control_writer = object()
+    env._read_control = lambda: {"start_latched": 1}
+    frames = iter(
+        [
+            np.full((2, 2, 3), 1, dtype=np.uint8),
+            np.full((2, 2, 3), 2, dtype=np.uint8),
+            np.full((2, 2, 3), 3, dtype=np.uint8),
+        ]
+    )
+    env._wait_for_frame = lambda **_: next(frames)
+    env._read_state = lambda **_: {
+        "position": np.array([1.0, 2.0, 3.0], dtype=np.float64),
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "health": np.array([6.0], dtype=np.float32),
+        "max_health": np.array([20.0], dtype=np.float32),
+        "food": 20,
+        "saturation": np.array([5.0], dtype=np.float32),
+        "on_ground": 1,
+        "in_water": 0,
+        "world_fingerprint": 123,
+        "loaded_chunks": 25,
+        "chunk_mask": 0x1FFFFFF,
+        "actual_world_seed": 424242,
+        "completed_render_chunks": 128,
+        "total_render_chunks": 128,
+        "inventory": np.zeros((9, 2), dtype=np.int32),
+    }
+
+    obs = env.wait_for_start_latch(stable_frames=3, max_frames=3)
+
+    np.testing.assert_array_equal(obs["position"], np.array([1.0, 2.0, 3.0]))
+
+
+def test_latched_start_changed_fields_reports_only_modified_components():
+    env = NetheriteEnv(config=NetheriteConfig(width=2, height=2), timeout=0.05)
+    frame_a = np.full((2, 2, 3), 1, dtype=np.uint8)
+    frame_b = np.full((2, 2, 3), 2, dtype=np.uint8)
+    base_state = {
+        "position": np.array([1.0, 2.0, 3.0], dtype=np.float64),
+        "yaw": 0.0,
+        "pitch": 0.0,
+        "health": np.array([6.0], dtype=np.float32),
+        "max_health": np.array([20.0], dtype=np.float32),
+        "food": 20,
+        "saturation": np.array([5.0], dtype=np.float32),
+        "on_ground": 1,
+        "in_water": 0,
+        "world_fingerprint": 111,
+        "loaded_chunks": 25,
+        "chunk_mask": 0x1FFFFFF,
+        "actual_world_seed": 424242,
+        "inventory": np.zeros((9, 2), dtype=np.int32),
+    }
+
+    previous = env._latched_start_snapshot(frame_a, base_state)
+    current = env._latched_start_snapshot(
+        frame_b,
+        {
+            **base_state,
+            "yaw": 1.5,
+            "world_fingerprint": 222,
+        },
+    )
+
+    assert env._latched_start_changed_fields(previous, current) == [
+        "frame_hash",
+        "yaw",
+        "world_fingerprint",
+    ]
+
+
 def test_step_sync_releases_start_latch_before_sending_action():
     env = NetheriteEnv(config=NetheriteConfig(), timeout=0.05)
     release_calls: list[str] = []

@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 from config import NetheriteConfig
+from startup_trace import ensure_trace_parent, trace_event
 
 
 def _shmem_path(name: str) -> str:
@@ -25,11 +26,14 @@ class MCInstance:
         project_dir: Path,
         *,
         game_dir: Path | None = None,
+        log_path: Path | None = None,
     ):
         self.config = config
         self.project_dir = project_dir
         self.game_dir = game_dir
+        self.log_path = log_path
         self.process: subprocess.Popen | None = None
+        self._log_handle = None
 
     def start(self):
         env = os.environ.copy()
@@ -38,14 +42,39 @@ class MCInstance:
 
         self._prepare_game_dir()
         cmd = self._build_launch_command()
+        stdout_target = subprocess.DEVNULL
 
-        self.process = subprocess.Popen(
-            cmd,
-            cwd=str(self.project_dir),
-            env=env,
-            start_new_session=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+        if self.log_path is not None:
+            ensure_trace_parent(self.log_path)
+            self._log_handle = self.log_path.open("wb")
+            stdout_target = self._log_handle
+
+        trace_event(
+            "launch.instance.spawn.begin",
+            instance_id=self.config.instance_id,
+            game_dir=self.game_dir,
+            log_path=self.log_path,
+        )
+
+        try:
+            self.process = subprocess.Popen(
+                cmd,
+                cwd=str(self.project_dir),
+                env=env,
+                start_new_session=True,
+                stdout=stdout_target,
+                stderr=subprocess.STDOUT,
+            )
+        except Exception:
+            if self._log_handle is not None:
+                self._log_handle.close()
+                self._log_handle = None
+            raise
+        trace_event(
+            "launch.instance.spawned",
+            instance_id=self.config.instance_id,
+            pid=self.process.pid,
+            game_dir=self.game_dir,
         )
 
     def _prepare_game_dir(self):
@@ -88,11 +117,26 @@ class MCInstance:
         iid = self.config.instance_id
         state_path = _shmem_path(f"netherite_state_{iid}")
         deadline = time.monotonic() + timeout
+        saw_state_path = False
+
+        trace_event(
+            "launch.instance.ready_wait.begin",
+            instance_id=iid,
+            timeout=timeout,
+            state_path=state_path,
+        )
 
         while time.monotonic() < deadline:
             if not os.path.exists(state_path):
                 time.sleep(1.0)
                 continue
+            if not saw_state_path:
+                saw_state_path = True
+                trace_event(
+                    "launch.instance.state_shmem_seen",
+                    instance_id=iid,
+                    state_path=state_path,
+                )
             try:
                 fd = os.open(state_path, os.O_RDONLY)
                 mm = mmap.mmap(fd, 64 * 1024, access=mmap.ACCESS_READ)
@@ -101,11 +145,83 @@ class MCInstance:
                 mm.close()
                 # ready=1 is set during init, before player spawns
                 if magic == 0x4E455453 and ready == 1:
+                    trace_event(
+                        "launch.instance.ready_ok",
+                        instance_id=iid,
+                        tick=tick,
+                        ready=ready,
+                    )
                     return True
             except Exception:
                 pass
             time.sleep(1.0)
+        trace_event("launch.instance.ready_timeout", instance_id=iid, timeout=timeout)
         return False
+
+    def _matching_process_ids(self) -> list[int]:
+        identity_tokens = [f"-Dnetherite.instance_id={self.config.instance_id}"]
+        if self.game_dir is not None:
+            identity_tokens.append(f"--gameDir {self.game_dir}")
+
+        try:
+            output = subprocess.check_output(
+                ["ps", "-axo", "pid=,command="],
+                text=True,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return []
+
+        project_token = str(self.project_dir)
+        pids: list[int] = []
+        for raw_line in output.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            pid_text, _, command = line.partition(" ")
+            if not pid_text.isdigit():
+                continue
+            pid = int(pid_text)
+            if self.process is not None and pid == self.process.pid:
+                continue
+            if project_token not in command:
+                continue
+            if not any(token in command for token in identity_tokens):
+                continue
+            if (
+                "net.fabricmc.devlaunchinjector.Main" not in command
+                and "GradleWrapperMain runClient" not in command
+            ):
+                continue
+            pids.append(pid)
+        return pids
+
+    def _wait_for_matching_processes_exit(self, timeout: float) -> bool:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if not self._matching_process_ids():
+                return True
+            time.sleep(0.1)
+        return not self._matching_process_ids()
+
+    def _terminate_lingering_processes(self):
+        lingering = self._matching_process_ids()
+        if not lingering:
+            return
+
+        for sig, timeout in (
+            (signal.SIGTERM, 2.0),
+            (signal.SIGKILL, 1.0),
+        ):
+            for pid in lingering:
+                try:
+                    os.kill(pid, sig)
+                except OSError:
+                    continue
+            if self._wait_for_matching_processes_exit(timeout):
+                return
+            lingering = self._matching_process_ids()
+            if not lingering:
+                return
 
     def stop(self):
         if self.process and self.process.poll() is None:
@@ -123,6 +239,10 @@ class MCInstance:
                 except OSError:
                     self.process.kill()
                 self.process.wait(timeout=5)
+        self._terminate_lingering_processes()
+        if self._log_handle is not None:
+            self._log_handle.close()
+            self._log_handle = None
 
     @property
     def alive(self) -> bool:
@@ -139,6 +259,9 @@ class Launcher:
     def instance_run_dir(self, instance_id: int) -> Path:
         return self.project_dir / "run" / "instances" / str(instance_id)
 
+    def instance_log_path(self, instance_id: int) -> Path:
+        return self.project_dir / "run" / "instance_logs" / f"{instance_id}.log"
+
     def launch(self, configs: list[NetheriteConfig]) -> list[MCInstance]:
         """Launch N MC instances in parallel."""
         instances = []
@@ -147,6 +270,7 @@ class Launcher:
                 cfg,
                 self.project_dir,
                 game_dir=self.instance_run_dir(cfg.instance_id),
+                log_path=self.instance_log_path(cfg.instance_id),
             )
             inst.start()
             instances.append(inst)
@@ -158,6 +282,7 @@ class Launcher:
         configs: list[NetheriteConfig],
         *,
         timeout: float = 120.0,
+        stagger_seconds: float = 0.0,
     ) -> list[MCInstance]:
         """Launch one instance first to validate startup before fanning out.
 
@@ -169,27 +294,50 @@ class Launcher:
 
         launched: list[MCInstance] = []
         try:
+            trace_event(
+                "launch.prewarm.begin",
+                instance_id=configs[0].instance_id,
+                timeout=timeout,
+            )
             first = MCInstance(
                 configs[0],
                 self.project_dir,
                 game_dir=self.instance_run_dir(configs[0].instance_id),
+                log_path=self.instance_log_path(configs[0].instance_id),
             )
             first.start()
             launched.append(first)
             if not first.wait_for_ready(timeout=timeout):
+                trace_event(
+                    "launch.prewarm.ready_timeout",
+                    instance_id=first.config.instance_id,
+                    timeout=timeout,
+                )
                 raise RuntimeError(
                     f"Instance {first.config.instance_id} failed to start during startup validation"
                 )
+            trace_event(
+                "launch.prewarm.ready_ok",
+                instance_id=first.config.instance_id,
+            )
 
             for cfg in configs[1:]:
                 inst = MCInstance(
                     cfg,
                     self.project_dir,
                     game_dir=self.instance_run_dir(cfg.instance_id),
+                    log_path=self.instance_log_path(cfg.instance_id),
                 )
                 inst.start()
                 launched.append(inst)
+                trace_event(
+                    "launch.fanout.instance.spawned",
+                    instance_id=cfg.instance_id,
+                )
+                if stagger_seconds > 0:
+                    time.sleep(stagger_seconds)
 
+            trace_event("launch.fanout.done", count=len(launched))
             self.instances.extend(launched)
             return launched
         except Exception:
@@ -202,8 +350,23 @@ class Launcher:
         deadline = time.monotonic() + timeout
         for inst in self.instances:
             remaining = deadline - time.monotonic()
+            trace_event(
+                "launch.all_ready.wait.begin",
+                instance_id=inst.config.instance_id,
+                timeout=remaining,
+            )
             if remaining <= 0 or not inst.wait_for_ready(timeout=remaining):
+                trace_event(
+                    "launch.all_ready.wait.timeout",
+                    instance_id=inst.config.instance_id,
+                    timeout=max(remaining, 0.0),
+                )
                 return False
+            trace_event(
+                "launch.all_ready.wait.done",
+                instance_id=inst.config.instance_id,
+            )
+        trace_event("launch.all_ready.done", count=len(self.instances))
         return True
 
     def stop_all(self):

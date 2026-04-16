@@ -15,24 +15,31 @@ from grid_demo import (
     build_demo_action,
     build_grid_configs,
     build_grid_title,
+    format_results_panel,
     max_position_spread,
+    parse_benchmark_results,
     reset_demo_env,
+    score_frame_openness,
 )
 
 
 def test_build_grid_title_includes_batch_and_aggregate_sps():
     title = build_grid_title(
         batch_size=4,
+        strategy="batched",
         total_sps=302.4,
         display_fps=9.8,
+        total_steps=2048,
         tick_min=25,
         tick_max=25,
         max_position_spread=0.0,
     )
 
+    assert "strategy=batched" in title
     assert "B=4" in title
     assert "SPS=302.4" in title
-    assert "display=9.8 fps" in title
+    assert "video=9.8 fps" in title
+    assert "steps=2048" in title
     assert "action=forward+jump+attack" in title
     assert "ticks=25..25" in title
     assert "spread=0.00" in title
@@ -52,8 +59,8 @@ def test_build_grid_configs_creates_one_config_per_subplot_in_lockstep_mode():
     assert configs[-1].instance_id == 31
     assert configs[0].seed == 1000
     assert configs[-1].seed == 1000
-    assert all(cfg.width == 160 for cfg in configs)
-    assert all(cfg.height == 90 for cfg in configs)
+    assert all(cfg.width == 320 for cfg in configs)
+    assert all(cfg.height == 180 for cfg in configs)
     assert all(cfg.headless is True for cfg in configs)
     assert all(cfg.uncapped is True for cfg in configs)
     assert all(cfg.max_fps == 32767 for cfg in configs)
@@ -82,7 +89,17 @@ def test_max_position_spread_reports_zero_for_lockstep_positions():
     assert spread == 0.0
 
 
-def test_reset_demo_env_releases_start_latch_without_waiting():
+def test_score_frame_openness_prefers_open_sky_over_flat_wall():
+    sky = np.zeros((90, 160, 4), dtype=np.uint8)
+    sky[..., 2] = 220
+    sky[..., 1] = 180
+    sky[..., 0] = 120
+    wall = np.full((90, 160, 4), 40, dtype=np.uint8)
+
+    assert score_frame_openness(sky) > score_frame_openness(wall)
+
+
+def test_reset_demo_env_waits_for_latch_and_reorients_before_release():
     calls: list[str] = []
     expected = {"pov": "frame"}
 
@@ -91,10 +108,62 @@ def test_reset_demo_env_releases_start_latch_without_waiting():
             calls.append("reset")
             return expected, {}
 
+        def wait_for_start_latch(self):
+            calls.append("wait")
+            return expected
+
         def release_start_latch(self):
             calls.append("release")
 
-    obs = reset_demo_env(FakeEnv())
+        def get_player_pose(self):
+            calls.append("pose")
+            return {"x": 1.0, "y": 2.0, "z": 3.0, "yaw": 0.0, "pitch": 0.0}
 
-    assert obs is expected
-    assert calls == ["reset", "release"]
+        def align_to_pose(self, pose):
+            calls.append(f"align:{pose['yaw']}:{pose['pitch']}")
+            return {
+                "pov": np.zeros((2, 2, 4), dtype=np.uint8),
+                "position": np.array([pose["x"], pose["y"], pose["z"]]),
+            }
+
+    obs = reset_demo_env(FakeEnv(), auto_orient=False, start_pitch=-10.0)
+
+    assert "pov" in obs
+    assert calls == ["reset", "wait", "release", "pose", "align:0.0:-10.0"]
+
+
+def test_parse_benchmark_results_extracts_summary_table():
+    text = """
+============================================================
+RESULTS (steps/sec, higher is better)
+============================================================
+Envs |     sync |  batched |    async
+--------------------------------------
+   1 |    202.6 |    345.5 |    446.0 |
+   2 |    233.2 |    497.4 |    461.6 |
+============================================================
+"""
+
+    results = parse_benchmark_results(text)
+
+    assert results[(1, "sync")] == 202.6
+    assert results[(1, "batched")] == 345.5
+    assert results[(2, "async")] == 461.6
+
+
+def test_format_results_panel_highlights_selected_cell():
+    panel = format_results_panel(
+        {
+            (1, "sync"): 202.6,
+            (1, "batched"): 345.5,
+            (1, "async"): 446.0,
+            (8, "sync"): 145.3,
+            (8, "batched"): 660.8,
+            (8, "async"): 472.5,
+        },
+        highlight=(8, "batched"),
+    )
+
+    assert "Sweep SPS" in panel
+    assert "env" in panel
+    assert ">  660.8" in panel
