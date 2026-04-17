@@ -24,6 +24,9 @@ from netherite_env import (
     CTRL_OP_SET_POSE,
     CTRL_STATUS_BUSY,
     CTRL_STATUS_DONE,
+    REWARD_MAGIC,
+    REWARD_OFFSET,
+    STATE_SIZE,
     NetheriteEnv,
     ShmemWriter,
 )
@@ -615,6 +618,149 @@ def test_step_sync_releases_start_latch_before_sending_action():
     env.step_sync({"camera": [0, 0]})
 
     assert release_calls == ["released"]
+
+
+def _write_reward_block(
+    writer: ShmemWriter,
+    *,
+    magic: int = REWARD_MAGIC,
+    reward_delta: float = 0.0,
+    reward_cumulative: float = 0.0,
+    done: int = 0,
+    truncated: int = 0,
+    logs_broken: int = 0,
+    episode_id: int = 1,
+    steps_this_episode: int = 0,
+) -> None:
+    payload = struct.pack(
+        "<IffIIIII",
+        magic,
+        float(reward_delta),
+        float(reward_cumulative),
+        int(done),
+        int(truncated),
+        int(logs_broken),
+        int(episode_id),
+        int(steps_this_episode),
+    )
+    writer.write(REWARD_OFFSET, payload)
+
+
+def test_read_reward_block_returns_none_when_magic_missing(tmp_path: Path):
+    path = tmp_path / "netherite_state_0"
+    writer = ShmemWriter(str(path), STATE_SIZE)
+    try:
+        env = NetheriteEnv(config=NetheriteConfig(), timeout=0.05)
+        env._state_reader = writer  # ShmemWriter exposes read_bytes too
+        assert env._read_reward_block() is None
+
+        _write_reward_block(writer, magic=0xDEADBEEF)
+        assert env._read_reward_block() is None
+    finally:
+        writer.close()
+
+
+def test_read_reward_block_decodes_task_reward_fields(tmp_path: Path):
+    path = tmp_path / "netherite_state_0"
+    writer = ShmemWriter(str(path), STATE_SIZE)
+    try:
+        _write_reward_block(
+            writer,
+            reward_delta=1.0,
+            reward_cumulative=3.5,
+            done=1,
+            truncated=0,
+            logs_broken=3,
+            episode_id=4,
+            steps_this_episode=127,
+        )
+
+        env = NetheriteEnv(config=NetheriteConfig(), timeout=0.05)
+        env._state_reader = writer
+        block = env._read_reward_block()
+        assert block is not None
+        assert block["reward_delta"] == 1.0
+        assert block["reward_cumulative"] == 3.5
+        assert block["done"] == 1
+        assert block["truncated"] == 0
+        assert block["logs_broken"] == 3
+        assert block["episode_id"] == 4
+        assert block["steps_this_episode"] == 127
+    finally:
+        writer.close()
+
+
+def test_step_maps_reward_block_to_terminated_and_truncated(tmp_path: Path):
+    path = tmp_path / "netherite_state_0"
+    writer = ShmemWriter(str(path), STATE_SIZE)
+    try:
+        env = NetheriteEnv(config=NetheriteConfig(), timeout=0.05)
+        env._state_reader = writer
+        env._send_action = lambda _action: None
+        tick_val = {"value": 5}
+
+        def fake_get_state_tick():
+            tick_val["value"] += 1
+            return tick_val["value"]
+
+        env.get_state_tick = fake_get_state_tick
+        env._read_state = lambda **_: {
+            "position": np.zeros(3, dtype=np.float64),
+            "yaw": 0.0,
+            "pitch": 0.0,
+            "health": np.zeros(1, dtype=np.float32),
+            "inventory": np.zeros((9, 2), dtype=np.int32),
+        }
+        env._wait_for_frame = lambda **_: np.zeros(
+            (env.config.height, env.config.width, 3), dtype=np.uint8
+        )
+        env._wait_for_frame_at_tick = lambda _t: np.zeros(
+            (env.config.height, env.config.width, 3), dtype=np.uint8
+        )
+
+        # Death tick: done=1 truncated=0 => terminated
+        _write_reward_block(
+            writer,
+            reward_delta=-0.0,
+            reward_cumulative=2.0,
+            done=1,
+            truncated=0,
+            logs_broken=2,
+            episode_id=3,
+            steps_this_episode=57,
+        )
+        _, r, terminated, truncated, info = env.step({"camera": [0, 0]})
+        assert r == 0.0
+        assert terminated is True
+        assert truncated is False
+        assert info["logs_broken"] == 2
+        assert info["episode_id"] == 3
+        assert info["steps_this_episode"] == 57
+
+        # Truncation tick: done=1 truncated=1 => truncated only
+        _write_reward_block(
+            writer,
+            reward_delta=1.0,
+            reward_cumulative=5.0,
+            done=1,
+            truncated=1,
+            logs_broken=5,
+            episode_id=4,
+            steps_this_episode=1000,
+        )
+        _, r, terminated, truncated, _ = env.step({"camera": [0, 0]})
+        assert r == 1.0
+        assert terminated is False
+        assert truncated is True
+
+        # Live tick: done=0 => neither flag set
+        _write_reward_block(writer, reward_delta=0.25)
+        _, r, terminated, truncated, _ = env.step({"camera": [0, 0]})
+        assert r == 0.25
+        assert terminated is False
+        assert truncated is False
+    finally:
+        writer.close()
 
 
 def test_get_debug_state_returns_extended_state_and_control(tmp_path: Path):

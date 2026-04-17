@@ -57,6 +57,10 @@ public class NetheriteConfig {
     public boolean rl;
     public boolean headless;
 
+    // Task (reward scheme) -- "none" disables, "treechop" rewards breaking log blocks.
+    public String task;
+    public int maxEpisodeSteps;
+
     // Observation mode: "pixels", "voxels", "both"
     public String obsMode;
     // Voxel grid dimensions (blocks in each direction from player)
@@ -110,6 +114,9 @@ public class NetheriteConfig {
 
         rl = getBool("netherite.rl", false);
         headless = getBool("netherite.headless", false);
+
+        task = getString("netherite.task", "none");
+        maxEpisodeSteps = getInt("netherite.max_episode_steps", 1000);
 
         obsMode = getString("netherite.obs_mode", "both");  // "pixels", "voxels", "both"
         voxelForward = getInt("netherite.voxel_forward", 8);

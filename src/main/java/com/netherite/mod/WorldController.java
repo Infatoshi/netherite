@@ -667,4 +667,18 @@ public class WorldController {
     public boolean isStartLatched() {
         return startLatched;
     }
+
+    /**
+     * Fast in-place teleport back to the cached start pose for the current seed.
+     * Used by TaskReward for episode reset without a full world regeneration.
+     * Safe to call from the client tick thread; the underlying teleport posts to
+     * the integrated server thread when available.
+     */
+    public void teleportToStartPose(MinecraftClient mc) {
+        if (mc == null || mc.player == null || mc.world == null) {
+            return;
+        }
+        StartPose startPose = getOrCreateStartPose(mc, activeSeed);
+        teleportPlayerToStart(mc, startPose);
+    }
 }

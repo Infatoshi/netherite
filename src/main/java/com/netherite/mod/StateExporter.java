@@ -89,6 +89,14 @@ public class StateExporter {
     }
 
     /**
+     * Exposes the raw mapped buffer so auxiliary subsystems (e.g., TaskReward) can
+     * write a reward block into a reserved offset on the same shmem region.
+     */
+    public MappedByteBuffer getShmemBuffer() {
+        return shmem == null ? null : shmem.getBuffer();
+    }
+
+    /**
      * Returns the tick value that was last written to shmem.
      * Use this for frame sync - it matches the state tick in shmem.
      */

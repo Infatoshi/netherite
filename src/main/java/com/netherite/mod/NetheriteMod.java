@@ -22,11 +22,15 @@ public class NetheriteMod implements ClientModInitializer {
         ActionInjector.INSTANCE.init(cfg.instanceId);
         StateExporter.INSTANCE.init(cfg.instanceId);
         WorldController.INSTANCE.init(cfg);
+        TaskReward.INSTANCE.init(cfg);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             WorldController.INSTANCE.tick(client);
             if (client.world != null && client.player != null) {
                 ActionInjector.INSTANCE.tick(client);
+                // TaskReward runs before StateExporter so the reward block is
+                // in place when StateExporter flips ready=1 at the end of tick.
+                TaskReward.INSTANCE.tick(client);
                 StateExporter.INSTANCE.tick(client);
             }
         });

@@ -90,6 +90,13 @@ CTRL_OP_RESET_WORLD = 1
 CTRL_OP_SET_POSE = 2
 CTRL_OP_RELEASE_START = 3
 
+# Task reward protocol -- mirrors TaskReward.java. Reward block is written
+# into the state shmem at a fixed offset by the Java side; Python reads it on
+# every step.
+REWARD_OFFSET = 32768
+REWARD_SIZE = 32
+REWARD_MAGIC = 0x4E455252  # "NERR"
+
 
 class NetheriteEnv(gym.Env):
     """Minecraft RL environment via shared memory.
@@ -593,6 +600,34 @@ class NetheriteEnv(gym.Env):
 
         raise TimeoutError("Timed out waiting for Netherite pose alignment")
 
+    def _read_reward_block(self) -> dict[str, float | int] | None:
+        """Return the TaskReward shmem block, or None if the Java side is not
+        writing it (magic mismatch -- task=none)."""
+        if self._state_reader is None:
+            return None
+        data = self._state_reader.read_bytes(REWARD_OFFSET, REWARD_SIZE)
+        if len(data) < REWARD_SIZE:
+            return None
+        magic = struct.unpack_from("<I", data, 0)[0]
+        if magic != REWARD_MAGIC:
+            return None
+        reward_delta = struct.unpack_from("<f", data, 4)[0]
+        reward_cumulative = struct.unpack_from("<f", data, 8)[0]
+        done = struct.unpack_from("<I", data, 12)[0]
+        truncated = struct.unpack_from("<I", data, 16)[0]
+        logs_broken = struct.unpack_from("<I", data, 20)[0]
+        episode_id = struct.unpack_from("<I", data, 24)[0]
+        steps_this_episode = struct.unpack_from("<I", data, 28)[0]
+        return {
+            "reward_delta": float(reward_delta),
+            "reward_cumulative": float(reward_cumulative),
+            "done": int(done),
+            "truncated": int(truncated),
+            "logs_broken": int(logs_broken),
+            "episode_id": int(episode_id),
+            "steps_this_episode": int(steps_this_episode),
+        }
+
     def _read_control(self) -> dict[str, int]:
         buf = self._control_writer.read_bytes(0, 48)
         return {
@@ -1002,6 +1037,14 @@ class NetheriteEnv(gym.Env):
         reward = 0.0
         terminated = False
         truncated = False
+        reward_block = self._read_reward_block()
+        if reward_block is not None:
+            reward = reward_block["reward_delta"]
+            # A done==1 tick with truncated==0 is a real terminal (death).
+            terminated = bool(reward_block["done"]) and not bool(
+                reward_block["truncated"]
+            )
+            truncated = bool(reward_block["truncated"])
         control = self._read_control() if self._control_writer is not None else None
         info = {
             "send_state_tick": start_tick,
@@ -1013,6 +1056,11 @@ class NetheriteEnv(gym.Env):
                 state_tick=end_tick,
             ),
         }
+        if reward_block is not None:
+            info["reward_cumulative"] = reward_block["reward_cumulative"]
+            info["logs_broken"] = reward_block["logs_broken"]
+            info["episode_id"] = reward_block["episode_id"]
+            info["steps_this_episode"] = reward_block["steps_this_episode"]
         return obs, reward, terminated, truncated, info
 
     def step(self, action):

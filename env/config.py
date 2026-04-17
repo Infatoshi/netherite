@@ -65,6 +65,10 @@ class NetheriteConfig:
     step_ticks: int = 1  # game ticks per Python step (1=every tick, 4=every 4th tick)
     use_semaphore: bool = False  # use POSIX semaphore for low-latency signaling
 
+    # -- Task / reward scheme --
+    task: str = "none"  # "none" disables, "treechop" rewards log breaks
+    max_episode_steps: int = 1000  # truncate episode after this many ticks
+
     # -- JVM --
     jvm_xmx: str = "2G"
     jvm_xms: str = "1G"
