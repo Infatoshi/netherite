@@ -1,0 +1,13 @@
+{
+  "name": "facebakery_rotate",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/block/model/FaceBakery.java:163 rotatePart / :212 rotateVertex",
+  "describe": "FaceBakery vertex rotation. rotatePart() rotates a model vertex about an axis through an origin using an LWJGL Matrix4f.rotate matrix, with the 22.5/general rescale branches; rotateVertex()'s geometric part is ForgeHooksClient.transform (javax.vecmath row-major 4x4, fed as input). PURE: BlockPartRotation -> axis/angle/origin/rescale params; the ITransformation matrix is an input (its ModelRotation/TRSR construction is upstream/out of scope).",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

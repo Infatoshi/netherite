@@ -1,0 +1,175 @@
+/* test_container_live: the ONE shipped Container.slotClick path over the full
+ * inventory + grid/result/furnace slot ids (game/container_live.h), driven both
+ * directly and through the authoritative gm_runtime_tick action seam.
+ * Expectations are ported from Container.java / ContainerPlayer.java /
+ * ContainerWorkbench.java / ContainerFurnace.java (1.11.2 oracle source). */
+#include "game/runtime.h"
+#include "container_click.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static int fail;
+#define CHECK(C, M) do { if (!(C)) { fprintf(stderr, "FAIL: %s\n", M); fail = 1; } } while (0)
+
+static ICStack slot(const GmRuntime *r, int s) { return isr_get_stack(&r->player.inv, s); }
+
+static void click(GmRuntime *r, int s, int button, int type) {
+    GmAction a; memset(&a, 0, sizeof a);
+    a.inv_click = 1; a.inv_slot = s; a.inv_button = button; a.inv_type = type;
+    a.hotbar_sel = -1;
+    gm_runtime_tick(r, a);
+}
+
+static int live_item_count(const GmRuntime *r, int item) {
+    int n = 0;
+    for (int i = 0; i < GM_LIVE_MAX; ++i)
+        if (r->entities.ents[i].active && r->entities.ents[i].type == 0 &&
+            r->entities.ents[i].item == item)
+            n += r->entities.ents[i].count;
+    return n;
+}
+
+int main(void) {
+    GmConfig cfg;
+    gm_config_defaults(&cfg);
+    cfg.world = GM_WORLD_SUPERFLAT;
+    cfg.view_distance = 1;
+    GmRuntime r;
+    char err[256];
+    CHECK(gm_runtime_init(&r, &cfg, err, sizeof err), "runtime initializes");
+    if (fail) return 1;
+
+    /* ---- PICKUP across hotbar and main inventory ---- */
+    CHECK(gm_runtime_set_inventory(&r, 0, 1, 10, 0), "seed stone in hotbar 0");
+    click(&r, 0, 0, CC_CLICK_PICKUP);
+    { ICStack c = gm_player_cursor(), s0 = slot(&r, 0);
+      CHECK(c.item == 1 && c.count == 10 && isr_is_empty(&s0),
+            "PICKUP lifts the full hotbar stack onto the cursor"); }
+    click(&r, 20, 0, CC_CLICK_PICKUP);
+    { ICStack s20 = slot(&r, 20), c = gm_player_cursor();
+      CHECK(s20.item == 1 && s20.count == 10 && isr_is_empty(&c),
+            "PICKUP places the cursor into a MAIN inventory slot (20)"); }
+    click(&r, 20, 1, CC_CLICK_PICKUP);
+    { ICStack c = gm_player_cursor(), s20 = slot(&r, 20);
+      CHECK(c.count == 5 && s20.count == 5, "right PICKUP takes the rounded-up half"); }
+    click(&r, 21, 1, CC_CLICK_PICKUP);
+    { ICStack s21 = slot(&r, 21), c = gm_player_cursor();
+      CHECK(s21.count == 1 && c.count == 4, "right PICKUP places exactly one"); }
+    click(&r, 20, 0, CC_CLICK_PICKUP);
+    { ICStack s20 = slot(&r, 20), c = gm_player_cursor();
+      CHECK(s20.count == 9 && isr_is_empty(&c), "left PICKUP merges the cursor remainder"); }
+
+    /* ---- QUICK_MOVE vanilla ordering: hotbar -> first main slot, and back ---- */
+    CHECK(gm_runtime_set_inventory(&r, 3, 3, 7, 0), "seed dirt in hotbar 3");
+    click(&r, 3, 0, CC_CLICK_QUICK_MOVE);
+    { ICStack s9 = slot(&r, 9), s3 = slot(&r, 3);
+      CHECK(s9.item == 3 && s9.count == 7 && isr_is_empty(&s3),
+            "QUICK_MOVE from the hotbar fills the FIRST MAIN slot (9), not another hotbar slot"); }
+    click(&r, 9, 0, CC_CLICK_QUICK_MOVE);
+    { ICStack s0 = slot(&r, 0), s9 = slot(&r, 9);
+      CHECK(s0.item == 3 && s0.count == 7 && isr_is_empty(&s9),
+            "QUICK_MOVE from main fills the first hotbar slot"); }
+
+    /* ---- THROW spawns a REAL item entity ---- */
+    { GmAction a; memset(&a, 0, sizeof a); a.hotbar_sel = -1;
+      int before = live_item_count(&r, 3);
+      click(&r, 0, 0, CC_CLICK_THROW);
+      ICStack s0 = slot(&r, 0);
+      CHECK(s0.count == 6, "THROW drops one from the slot");
+      CHECK(live_item_count(&r, 3) == before + 1, "THROW spawned a live dirt item entity");
+      click(&r, 0, 1, CC_CLICK_THROW);
+      s0 = slot(&r, 0);
+      CHECK(isr_is_empty(&s0), "ctrl-THROW drops the whole stack");
+      (void)a; }
+
+    /* ---- player 2x2 grid: gating + a real craft ---- */
+    CHECK(!gm_container_click(&r, GMC_GRID0 + 2, 0, CC_CLICK_PICKUP),
+          "3x3-only grid cell is rejected on the player screen");
+    CHECK(gm_runtime_set_inventory(&r, 0, 17, 2, 0), "seed two logs");
+    click(&r, 0, 0, CC_CLICK_PICKUP);                 /* cursor: 2 logs */
+    click(&r, GMC_GRID0, 1, CC_CLICK_PICKUP);         /* place ONE log in cell 0 */
+    { ICStack res = gm_container_result(&r);
+      CHECK(res.item == 5 && res.count == 4, "one log in the 2x2 grid previews 4 planks"); }
+    click(&r, GMC_OUTSIDE, 0, CC_CLICK_PICKUP);       /* drop the spare log */
+    click(&r, GMC_RESULT, 0, CC_CLICK_PICKUP);
+    { ICStack c = gm_player_cursor();
+      CHECK(c.item == 5 && c.count == 4, "taking the result yields 4 planks on the cursor");
+      CHECK(cc_is_empty(&r.craft_grid[0]) || r.craft_grid[0].count == 0,
+            "taking the result consumed the grid log"); }
+    click(&r, 1, 0, CC_CLICK_PICKUP);                 /* park planks in hotbar 1 */
+
+    /* ---- QUICK_MOVE on the result crafts ALL and lands hotbar-last-first ---- */
+    CHECK(gm_runtime_set_inventory(&r, 0, 17, 3, 0), "seed three logs");
+    click(&r, 0, 0, CC_CLICK_PICKUP);
+    click(&r, GMC_GRID0, 0, CC_CLICK_PICKUP);         /* all 3 logs into cell 0 */
+    click(&r, GMC_RESULT, 0, CC_CLICK_QUICK_MOVE);
+    { ICStack s1 = slot(&r, 1);
+      CHECK(s1.item == 5 && s1.count == 16,
+            "shift-crafting 3 logs stacks 12 planks onto the parked 4 (vanilla merge-match first)");
+      CHECK(cc_is_empty(&r.craft_grid[0]), "shift-craft drained the grid"); }
+
+    /* ---- crafting table opens the full 3x3 ---- */
+    { GmPlayerView v; gm_runtime_view(&r, &v);
+      int bx = (int)v.x + 1, by = (int)v.y, bz = (int)v.z;
+      CHECK(gm_runtime_set_block(&r, bx, by + 1, bz, 58, 0), "place a crafting table");
+      CHECK(gm_runtime_use_block(&r, bx, by + 1, bz), "open the crafting table");
+      CHECK(r.container == 1, "container is the table");
+      CHECK(gm_container_click(&r, GMC_GRID0 + 2, 0, CC_CLICK_PICKUP),
+            "3x3 grid cell is usable at a table"); }
+
+    /* ---- close-return: items left in the grid come back on container close ---- */
+    click(&r, 1, 0, CC_CLICK_PICKUP);                 /* cursor: 4 planks from earlier */
+    click(&r, GMC_GRID0 + 2, 0, CC_CLICK_PICKUP);     /* leave them in the 3x3 cell */
+    { GmPlayerView v; gm_runtime_view(&r, &v);
+      gm_runtime_set_pose(&r, v.x + 20.0, v.y, v.z, 0.0f, 0.0f); /* force-close */
+      CHECK(r.container == 0, "walking away closes the container");
+      int planks = 0;
+      for (int s = 0; s < GMC_INV_SLOTS; ++s) { ICStack t = slot(&r, s); if (t.item == 5) planks += t.count; }
+      CHECK(planks == 16, "grid planks returned to the inventory on close");
+      for (int i = 0; i < 9; ++i) CHECK(cc_is_empty(&r.craft_grid[i]), "grid empty after close"); }
+
+    /* ---- furnace: shift-routing, click insert/extract, real smelt ---- */
+    { GmPlayerView v; gm_runtime_view(&r, &v);
+      int bx = (int)v.x + 1, by = (int)v.y, bz = (int)v.z;
+      CHECK(gm_runtime_set_block(&r, bx, by + 1, bz, 61, 0), "place a furnace");
+      CHECK(gm_runtime_use_block(&r, bx, by + 1, bz), "open the furnace");
+      CHECK(r.container == 2 && r.active_furnace >= 0, "furnace container active"); }
+    CHECK(gm_runtime_set_inventory(&r, 0, 15, 2, 0), "seed two iron ore");
+    CHECK(gm_runtime_set_inventory(&r, 1, 263, 4, 0), "seed four coal");
+    click(&r, 0, 0, CC_CLICK_QUICK_MOVE);
+    click(&r, 1, 0, CC_CLICK_QUICK_MOVE);
+    { const FurnaceLive *f = &r.furnaces[r.active_furnace].state;
+      CHECK(f->input.item == 15 && f->input.count == 2,
+            "QUICK_MOVE routes smeltable ore into the furnace INPUT");
+      /* the same runtime tick already ignited the burn, consuming one coal */
+      CHECK(f->fuel.item == 263 && f->fuel.count == 3,
+            "QUICK_MOVE routes coal into the furnace FUEL (one consumed igniting)"); }
+    CHECK(!gm_container_click(&r, GMC_GRID0, 0, CC_CLICK_PICKUP),
+          "craft grid is not reachable while a furnace is open");
+    for (int t = 0; t < 450 && r.container == 2; ++t) {
+        GmAction a; memset(&a, 0, sizeof a); a.hotbar_sel = -1;
+        gm_runtime_tick(&r, a);
+    }
+    CHECK(r.container == 2, "player stayed in furnace range while smelting");
+    { const FurnaceLive *f = &r.furnaces[r.active_furnace].state;
+      CHECK(f->output.item == 265 && f->output.count == 2, "both ore smelted to iron ingots"); }
+    click(&r, GMC_FURNACE0 + 2, 0, CC_CLICK_PICKUP);
+    { ICStack c = gm_player_cursor();
+      CHECK(c.item == 265 && c.count == 2, "PICKUP takes the smelted ingots onto the cursor"); }
+    click(&r, 5, 0, CC_CLICK_PICKUP);
+    { ICStack s5 = slot(&r, 5);
+      CHECK(s5.item == 265 && s5.count == 2, "ingots parked in hotbar 5"); }
+    /* fuel slot validity: iron ingots are NOT fuel */
+    click(&r, 5, 0, CC_CLICK_PICKUP);                 /* cursor: 2 ingots */
+    click(&r, GMC_FURNACE0 + 1, 0, CC_CLICK_PICKUP);
+    { ICStack c = gm_player_cursor();
+      const FurnaceLive *f = &r.furnaces[r.active_furnace].state;
+      CHECK(c.item == 265 && c.count == 2 && f->fuel.item == 263,
+            "non-fuel is rejected by the fuel slot (cursor unchanged)"); }
+    click(&r, 5, 0, CC_CLICK_PICKUP);                 /* park them back */
+
+    if (fail) { fprintf(stderr, "container_live: FAIL\n"); return 1; }
+    fprintf(stderr, "container_live: PASS\n");
+    return 0;
+}

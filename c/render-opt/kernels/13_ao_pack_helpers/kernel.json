@@ -1,0 +1,13 @@
+{
+  "name": "ao_pack_helpers",
+  "tier": 0,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/BlockModelRenderer.java:519 getAoBrightness / :539 getVertexBrightness",
+  "describe": "Pure packed-brightness helpers. getAoBrightness: zero-substitute then (sum>>2)&0x00FF00FF. getVertexBrightness: weighted float blend of the 0xRR..00GG byte lanes, truncate&255, repack. Bit-exact (int wrap + float (int)-cast sensitive).",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "translucent_sort",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/VertexBuffer.java:69 sortVertexData (+ :148 getDistanceSq)",
+  "describe": "Painter's-order translucent sort: for each quad (4 verts, BLOCK format 7 ints/vertex) compute centroid-to-camera squared distance via getDistanceSq, then stable-sort quad indices by DESCENDING distance (Floats.compare == Float.compare; Arrays.sort on Integer[] is stable TimSort -> ties keep ascending original index). Output the permutation. Bit-exact float distance + deterministic tie order.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

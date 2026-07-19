@@ -1,0 +1,15 @@
+*.o
+craster_demo
+tests/test_transform
+tests/test_present
+tests/test_scene
+tests/test_raster_parity
+*.ppm
+craster_world
+tests/test_world
+tests/test_assets
+tests/test_light
+renderkernels/test_rk
+tests/test_mesh_mc
+rl/cuenv/cuenv_verify
+rl/cuenv/*.so

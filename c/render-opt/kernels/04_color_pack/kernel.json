@@ -1,0 +1,13 @@
+{
+  "name": "color_pack",
+  "tier": 0,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/util/math/MathHelper.java:418 rgb(int,int,int) / :426 multiplyColor(int,int)",
+  "describe": "Pack r/g/b into an int and multiply two packed colors per-channel (float blend, alpha preserved). Bit-exact.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

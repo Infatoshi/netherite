@@ -1,0 +1,13 @@
+{
+  "name": "fill_quad_bounds",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/BlockModelRenderer.java:168  fillQuadBounds()",
+  "describe": "Unpacks a BakedQuad's int[28] vertexData (4 verts x 7 ints), takes min/max XYZ of the 4 vertex positions into the 12-float quadBounds array, and computes the 2 boundsFlags bits per face. PURE: IBlockState.isFullCube() reduced to a boolean input; EnumFacing reduced to a local enum with the same D-U-N-S-W-E indices.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

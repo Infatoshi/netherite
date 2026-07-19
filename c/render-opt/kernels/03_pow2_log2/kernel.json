@@ -1,0 +1,13 @@
+{
+  "name": "pow2_log2",
+  "tier": 0,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/util/math/MathHelper.java:331 smallestEncompassingPowerOfTwo / :355 log2DeBruijn (+:620 MULTIPLY_DE_BRUIJN_BIT_POSITION)",
+  "describe": "Round-up-to-power-of-two (bit-smear) and De Bruijn log2 lookup. Pure integer; bit-exact.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

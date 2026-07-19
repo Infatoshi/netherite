@@ -1,0 +1,13 @@
+{
+  "name": "vertex_pack",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/VertexBuffer.java:434 addVertexData / :262 putBrightness4 / :300 putColorMultiplier (+ :294 getColorIndex)",
+  "describe": "Pack one quad (int[28], DefaultVertexFormats.BLOCK = 7 ints/vertex) into the int buffer, overwrite the lightmap UV ints (putBrightness4 -> ints 6,13,20,27), then apply per-vertex color multiplier (putColorMultiplier vertexIndex 4,3,2,1 -> color ints 3,10,17,24, little-endian branch). Bit-exact: int writes + (int)(float*float) channel truncation.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

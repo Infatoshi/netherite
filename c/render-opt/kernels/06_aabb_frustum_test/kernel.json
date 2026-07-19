@@ -1,0 +1,13 @@
+{
+  "name": "aabb_frustum_test",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/culling/ClippingHelper.java:22  isBoxInFrustum() (+ dot() :14)",
+  "describe": "AABB-vs-frustum visibility test: for each of the 6 clipping planes, if all 8 box corners fall on the negative side (dot <= 0) the box is culled (false). Planes (6x4 floats) + AABB (6 doubles) are inputs; output is the boolean.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

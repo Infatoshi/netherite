@@ -1,0 +1,961 @@
+#include "game/runtime.h"
+#include "game/sel_box.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "crafting_recipes_full.h"
+#include "game/portal_live.h"
+#include "game/structures_live.h"
+#include "explosion.h"
+
+#define GM_RUNTIME_MAX_EDITS 8
+
+static int floordiv16(int a) {
+    return a >= 0 ? a >> 4 : -(((-a) + 15) >> 4);
+}
+
+static void set_error(char *err, int cap, const char *msg) {
+    if (err && cap > 0) snprintf(err, (size_t)cap, "%s", msg);
+}
+
+static void recenter(GmRuntime *r) {
+    double wx = r->player.ent.posX + r->ox;
+    double wz = r->player.ent.posZ + r->oz;
+    int nccx = floordiv16((int)floor(wx));
+    int nccz = floordiv16((int)floor(wz));
+    if (nccx == r->ccx && nccz == r->ccz) return;
+    double dx = (double)((nccx - r->ccx) * 16);
+    double dz = (double)((nccz - r->ccz) * 16);
+    r->ccx = nccx; r->ccz = nccz;
+    r->ox = nccx * 16; r->oz = nccz * 16;
+    r->player.ent.posX -= dx; r->player.ent.posZ -= dz;
+    r->player.ent.box.minX -= dx; r->player.ent.box.maxX -= dx;
+    r->player.ent.box.minZ -= dz; r->player.ent.box.maxZ -= dz;
+}
+
+static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float size){
+    u16 grid[EX_VOL];u8 hit[EX_VOL];int ox=(int)floor(ex)-8,oy=(int)floor(ey)-8,oz=(int)floor(ez)-8;
+    for(int x=0;x<EX_DIM;++x)for(int y=0;y<EX_DIM;++y)for(int z=0;z<EX_DIM;++z)
+        grid[ex_idx(x,y,z)]=mc_state(gm_world_block(r->world,ox+x,oy+y,oz+z),
+                                     gm_world_meta(r->world,ox+x,oy+y,oz+z));
+    ex_do_explosion_blocks(grid,ex-ox,ey-oy,ez-oz,size,hit);
+    for(int x=0;x<EX_DIM;++x)for(int y=0;y<EX_DIM;++y)for(int z=0;z<EX_DIM;++z)
+        if(hit[ex_idx(x,y,z)]){
+            gm_world_set_block(r->world,ox+x,oy+y,oz+z,0);
+            gm_fluid_mark(&r->fluids,r->world,r->dimension,ox+x,oy+y,oz+z);
+        }
+    GmPlayerView v;gm_runtime_view(r,&v);
+    float damage=ex_entity_damage(v.x,v.y+v.eye_height,v.z,ex,ey,ez,size,1.0f);
+    pv_attack(&r->vitals,damage);r->player.health=r->vitals.health;
+    if(r->dimension==1&&r->dragon.initialized){
+        EdDragon *d=&r->dragon.state.arena.dragon;
+        float dd=ex_entity_damage(d->x,d->y+2,d->z,ex,ey,ez,size,1.0f);
+        d->health-=dd;if(d->health<0)d->health=0;
+        for(int i=0;i<ED_NUM_CRYSTALS;++i)if(r->dragon.state.arena.crystals[i].alive){
+            EdCrystal *c=&r->dragon.state.arena.crystals[i];double dx=c->x-ex,dy=c->y-ey,dz=c->z-ez;
+            if(dx*dx+dy*dy+dz*dz<=size*size*4.0)r->dragon.state.arena.crystals[i].alive=0;
+        }
+    }
+}
+
+/* Vanilla BlockBush.checkAndDropBlock on neighborChanged: after a block edit,
+ * plants above the edit that lost their support break (dropping their item).
+ * Mushrooms are exempt (vanilla lets them stay on any solid block). Walking up
+ * cascades reed columns and double-plant tops. */
+static int plant_support_ok(GmRuntime *r, int id, int meta, int below) {
+    switch (id) {
+    case 6: case 31: case 37: case 38: return below == 2 || below == 3 || below == 60;
+    case 32:  return below == 3 || below == 12 || below == 159 || below == 172;
+    case 83:  return below == 83 || below == 2 || below == 3 || below == 12;
+    case 175: return meta >= 8 ? below == 175 : (below == 2 || below == 3);
+    case 111: return below == 8 || below == 9;
+    case 81:  return below == 12 || below == 81;
+    default:  return 1;
+    }
+    (void)r;
+}
+
+/* item dropped by a broken plant (0 = nothing; vanilla grass seeds are a 1/8
+ * roll we skip rather than diverge on RNG) */
+static int plant_drop_item(int id, int meta) {
+    switch (id) {
+    case 6: case 37: case 38: return id;
+    case 83:  return 338;                                  /* reeds item */
+    case 81:  return 81;
+    case 111: return 111;
+    case 175: return meta >= 8 ? 0 : 0;                    /* tops drop nothing */
+    default:  return 0;
+    }
+}
+
+static void break_unsupported_plants(GmRuntime *r, int wx, int wy, int wz) {
+    for (int y = wy + 1; y < 255; ++y) {
+        int id = gm_world_block(r->world, wx, y, wz);
+        int meta = gm_world_meta(r->world, wx, y, wz);
+        int below = gm_world_block(r->world, wx, y - 1, wz);
+        if (plant_support_ok(r, id, meta, below)) break;
+        gm_world_set_block(r->world, wx, y, wz, 0);
+        int drop = plant_drop_item(id, meta);
+        if (drop > 0)
+            gm_live_spawn_item(&r->entities, wx + 0.5, y + 0.5, wz + 0.5,
+                               drop, 1, 0, 10);
+    }
+}
+
+static int take_arrow(PsvPlayer *p) {
+    for (int i = 0; i < ISR_MAIN_SLOTS; ++i) {
+        if (isr_get_stack(&p->inv, i).item != 262) continue;
+        (void)isr_decr_stack_size(&p->inv, i, 1);
+        return 1;
+    }
+    return 0;
+}
+
+static void spawn_bow_arrow(GmRuntime *r, int draw) {
+    float f = (float)draw / 20.0f;
+    f = (f * f + f * 2.0f) / 3.0f;
+    if (f < 0.1f || !take_arrow(&r->player)) return;
+    if (f > 1.0f) f = 1.0f;
+    for (int i = 0; i < GM_RUNTIME_PROJECTILES; ++i) {
+        GmRuntimeProjectile *p = &r->projectiles[i];
+        if (p->active) continue;
+        double yr = r->player.yaw * MC_PI / 180.0;
+        double pr = r->player.pitch * MC_PI / 180.0;
+        double dx = -sin(yr) * cos(pr), dy = -sin(pr), dz = cos(yr) * cos(pr);
+        p->active = 1; p->type = 1; p->age = 0;
+        p->x = r->player.ent.posX + r->ox + dx * 0.2;
+        p->y = r->player.ent.posY + PSV_EYE_HEIGHT + dy * 0.2;
+        p->z = r->player.ent.posZ + r->oz + dz * 0.2;
+        p->vx = dx * (double)(f * 3.0f);
+        p->vy = dy * (double)(f * 3.0f);
+        p->vz = dz * (double)(f * 3.0f);
+        return;
+    }
+}
+
+static void spawn_hostile_projectiles(GmRuntime *r) {
+    const EwStore *s=r->mobs.current?&r->mobs.b:&r->mobs.a;
+    GmPlayerView v;gm_runtime_view(r,&v);
+    for(int j=1;j<EW_MAX_ENTITIES;++j){
+        if(!s->alive[j]||s->attack_time[j]!=40||
+           (s->type[j]!=EW_TYPE_SKELETON&&s->type[j]!=GM_MOB_BLAZE))continue;
+        for(int i=0;i<GM_RUNTIME_PROJECTILES;++i){
+            GmRuntimeProjectile *p=&r->projectiles[i];if(p->active)continue;
+            double sx=s->x[j],sy=s->y[j]+1.5,sz=s->z[j];
+            double dx=v.x-sx,dy=(v.y+v.eye_height)-sy,dz=v.z-sz;
+            double len=sqrt(dx*dx+dy*dy+dz*dz);if(len<0.001)break;
+            double speed=s->type[j]==GM_MOB_BLAZE?0.6:1.6;
+            p->active=1;p->type=s->type[j]==GM_MOB_BLAZE?3:2;p->age=0;
+            p->x=sx;p->y=sy;p->z=sz;p->vx=dx/len*speed;p->vy=dy/len*speed;p->vz=dz/len*speed;
+            break;
+        }
+    }
+}
+
+static int throw_eye_of_ender(GmRuntime *r) {
+    if(r->dimension!=0)return 0;
+    ICStack held=isr_get_stack(&r->player.inv,r->player.inv.current_item);
+    if(held.item!=381||held.count<=0)return 0;
+    int sx,sz;if(!gm_stronghold_locate(r->seed,0,&sx,&sz))return 0;
+    GmPlayerView v;gm_runtime_view(r,&v);
+    double dx=(sx+0.5)-v.x,dz=(sz+0.5)-v.z,len=sqrt(dx*dx+dz*dz);
+    if(len<0.001)return 0;
+    for(int i=0;i<GM_RUNTIME_PROJECTILES;++i){GmRuntimeProjectile *p=&r->projectiles[i];
+        if(p->active)continue;
+        p->active=1;p->type=4;p->age=0;p->x=v.x;p->y=v.y+v.eye_height;p->z=v.z;
+        p->vx=dx/len*0.5;p->vy=0.25;p->vz=dz/len*0.5;
+        (void)isr_decr_stack_size(&r->player.inv,r->player.inv.current_item,1);return 1;
+    }
+    return 0;
+}
+
+static void tick_projectiles(GmRuntime *r) {
+    for (int i = 0; i < GM_RUNTIME_PROJECTILES; ++i) {
+        GmRuntimeProjectile *p = &r->projectiles[i];
+        if (!p->active) continue;
+        if(p->type==4){
+            p->x+=p->vx;p->y+=p->vy;p->z+=p->vz;++p->age;
+            p->vx*=0.95;p->vz*=0.95;p->vy=(p->age<20)?p->vy*0.9:-0.03;
+            if(p->age>=80){
+                if((mc_hash64((u64)r->seed^(u64)r->tick^(u64)i)&4ULL)!=0)
+                    gm_live_spawn_item(&r->entities,p->x,p->y,p->z,381,1,0,10);
+                p->active=0;
+            }
+            continue;
+        }
+        double speed = sqrt(p->vx*p->vx + p->vy*p->vy + p->vz*p->vz);
+        int steps = (int)ceil(speed / 0.25);
+        if (steps < 1) steps = 1;
+        float damage = (float)(speed * 2.0);
+        for (int s = 0; s < steps && p->active; ++s) {
+            p->x += p->vx / steps; p->y += p->vy / steps; p->z += p->vz / steps;
+            int block=gm_world_block(r->world,(int)floor(p->x),(int)floor(p->y),(int)floor(p->z));
+            if(p->type==1){
+                if(block||gm_dragon_damage_near(&r->dragon,p->x,p->y,p->z,0.75,damage)||
+                   gm_mobs_damage_near(&r->mobs,p->x,p->y,p->z,0.75,damage,&r->entities))p->active=0;
+            }else{
+                GmPlayerView v;gm_runtime_view(r,&v);
+                double dx=p->x-v.x,dy=p->y-(v.y+0.9),dz=p->z-v.z;
+                if(dx*dx+dy*dy+dz*dz<=0.75*0.75){
+                    pv_attack(&r->vitals,p->type==3?5.0f:4.0f);r->player.health=r->vitals.health;p->active=0;
+                }else if(block){
+                    if(p->type==3)runtime_explode(r,p->x,p->y,p->z,1.0f);
+                    p->active=0;
+                }
+            }
+        }
+        ++p->age;
+        if (!p->active || p->age > 1200) { p->active = 0; continue; }
+        if(p->type!=3)p->vy -= 0.05;
+        p->vx *= 0.99; p->vy *= 0.99; p->vz *= 0.99;
+    }
+}
+
+int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
+    if (!r || !cfg) { set_error(err, err_cap, "invalid runtime arguments"); return 0; }
+    memset(r, 0, sizeof *r);
+    r->world = gm_world_create_type(cfg->seed, (int)cfg->world);
+    if (!r->world) { set_error(err, err_cap, "gm_world_create failed"); return 0; }
+    r->window = (Chunk *)calloc(PSV_NCHUNKS, sizeof(Chunk));
+    if (!r->window) {
+        gm_world_destroy(r->world); r->world = NULL;
+        set_error(err, err_cap, "physics window allocation failed"); return 0;
+    }
+    mc_sin_table_init(&r->sin_table);
+    r->worlds[1]=r->world;r->dimension=0;r->seed=cfg->seed;
+    r->ccx = r->ccz = 0; r->ox = r->oz = 0;
+    gm_world_ensure(r->world, 0, 0, 2);
+    int surface = gm_world_surface_y(r->world, 8, 8);
+    psv_player_init(&r->player);
+    isr_init(&r->player.inv);
+    r->player.inv.current_item = 0;
+    gm_player_cursor_set(ic_empty());
+    r->player.ent.posX = 8.5;
+    r->player.ent.posY = (double)surface + 1.0;
+    r->player.ent.posZ = 8.5;
+    r->player.ent.box = psv_player_box(8.5, r->player.ent.posY, 8.5);
+    r->player.ent.onGround = 0;
+    r->player.yaw = 180.0f; r->player.pitch = 0.0f;
+    pv_init(&r->vitals);
+    gm_world_clock_init(&r->clock, cfg->seed);
+    memset(&r->entities, 0, sizeof r->entities);
+    gm_mobs_init(&r->mobs, cfg->seed);
+    gm_fluid_init(&r->fluids);
+    r->weather_enabled = cfg->weather;
+    r->clock.freeze_daylight = !cfg->daylight;
+    r->mobs_enabled = cfg->mobs;
+    r->active_furnace = -1;
+    for (int i = 0; i < 9; ++i) r->craft_grid[i] = ic_empty();
+    return 1;
+}
+
+void gm_runtime_destroy(GmRuntime *r) {
+    if (!r) return;
+    free(r->window);
+    for(int i=0;i<3;++i)if(r->worlds[i])gm_world_destroy(r->worlds[i]);
+    memset(r, 0, sizeof *r);
+}
+
+void gm_runtime_tick(GmRuntime *r, GmAction action) {
+    if (!r || !r->world || r->dead || r->won) return;
+    recenter(r);
+    ICStack held_now=isr_get_stack(&r->player.inv,r->player.inv.current_item);
+    if(held_now.item==261&&action.use){r->bow_drawing=1;++r->bow_ticks;}
+    else if(r->bow_drawing){spawn_bow_arrow(r,r->bow_ticks);r->bow_drawing=0;r->bow_ticks=0;}
+    if(action.do_place&&held_now.item==381&&throw_eye_of_ender(r)){
+        action.do_place=0;action.use=0;
+    }
+    if (r->container) {
+        GmPlayerView cv; gm_runtime_view(r,&cv);
+        double dx=(r->container_wx+0.5)-cv.x;
+        double dy=(r->container_wy+0.5)-(cv.y+cv.eye_height);
+        double dz=(r->container_wz+0.5)-cv.z;
+        int id=gm_world_block(r->world,r->container_wx,r->container_wy,r->container_wz);
+        int valid=r->container==1?id==58:(id==61||id==62);
+        if (!valid || dx*dx+dy*dy+dz*dz>36.0) {
+            gm_container_close(r);
+            r->container=0;r->active_furnace=-1;
+        }
+    }
+    if (action.inv_click) {
+        (void)gm_container_click(r, action.inv_slot, action.inv_button, action.inv_type);
+        action.inv_click = 0;
+    }
+    /* refill the physics window only when its contents can have changed:
+     * recenter, dimension/world switch, or any block mutation since the last
+     * fill. The unconditional refill dominated tape replay (94% of a
+     * physics-only run in find_chunk/light_state). */
+    {
+        long long g = gm_world_block_gen(r->world);
+        if (r->win_world != r->world || r->win_ccx != r->ccx ||
+            r->win_ccz != r->ccz || r->win_gen != g) {
+            gm_world_fill_window(r->world, r->ccx, r->ccz, (struct Chunk *)r->window);
+            r->win_world = r->world; r->win_ccx = r->ccx; r->win_ccz = r->ccz;
+            r->win_gen = g;
+        }
+    }
+    if(action.do_place){
+        int hx,hy,hz,ax,ay,az;
+        if(gm_raycast_sel_reach((const struct Chunk *)r->window,(const struct McSinTable *)&r->sin_table,(const struct PsvPlayer *)&r->player,PSV_REACH,&hx,&hy,&hz,&ax,&ay,&az)>=0){
+            int wx=hx+r->ox,wz=hz+r->oz,id=gm_world_block(r->world,wx,hy,wz);
+            if((id==58||id==61||id==62||id==120||id==26)&&gm_runtime_use_block(r,wx,hy,wz)){
+                action.do_place=0;action.use=0;
+            }
+        }
+    }
+    if(action.attack&&r->dimension==1&&gm_dragon_player_attack(&r->dragon,
+            (const struct PsvPlayer *)&r->player,r->ox,r->oz))action.attack=0;
+    if (action.attack && gm_mobs_player_attack(&r->mobs,
+            (const struct PsvPlayer *)&r->player,r->ox,r->oz,&r->entities))
+        action.attack=0;
+    GmBlockEdit edits[GM_RUNTIME_MAX_EDITS];
+    int n = 0;
+    gm_player_tick((struct Chunk *)r->window,
+                   (const struct McSinTable *)&r->sin_table,
+                   (struct PsvPlayer *)&r->player,
+                   (struct PvStats *)&r->vitals, action,
+                   r->ox, 0, r->oz, edits, &n, GM_RUNTIME_MAX_EDITS);
+    /* Ghost pushers (tape replay): EntityLivingBase.collideWithNearbyEntities
+     * runs right after travel, queries the UNGROWN player bb (strict
+     * intersects), and each hit applies Entity.applyEntityCollision - a
+     * post-friction 0.05-scaled X/Z velocity nudge away from the pusher;
+     * position changes only on the NEXT tick. Verbatim vanilla math. Found at
+     * tape 20260712T055346Z t1471: oracle motion gained exactly
+     * (-0.014510, -0.040214) from sheep 4504 at (56.4834, 124.2278) while
+     * positions still matched (mobs=off replays had no pusher at all). */
+    {
+        const McAABB *pb = (const McAABB *)&r->player.ent.box;
+        for (int i = 0; i < r->nghosts; ++i) {
+            double gx = r->ghosts[i].x - (double)r->ox;
+            double gy = r->ghosts[i].y;
+            double gz = r->ghosts[i].z - (double)r->oz;
+            double hw = r->ghosts[i].w * 0.5;
+            if (!(pb->minX < gx + hw && pb->maxX > gx - hw &&
+                  pb->minY < gy + r->ghosts[i].h && pb->maxY > gy &&
+                  pb->minZ < gz + hw && pb->maxZ > gz - hw))
+                continue;
+            double d0 = r->player.ent.posX - gx;
+            double d1 = r->player.ent.posZ - gz;
+            double d2 = fabs(d0) > fabs(d1) ? fabs(d0) : fabs(d1);
+            if (d2 >= 0.009999999776482582) {
+                d2 = (double)(float)sqrt(d2);  /* MathHelper.sqrt is float */
+                d0 /= d2; d1 /= d2;
+                double d3 = 1.0 / d2;
+                if (d3 > 1.0) d3 = 1.0;
+                d0 *= d3; d1 *= d3;
+                d0 *= 0.05000000074505806; d1 *= 0.05000000074505806;
+                r->player.ent.motionX += d0;
+                r->player.ent.motionZ += d1;
+            }
+        }
+        r->nghosts = 0;
+    }
+    for (int i = 0; i < n; ++i) {
+        gm_world_set_block_meta(r->world, edits[i].wx, edits[i].wy, edits[i].wz,
+                                edits[i].id, edits[i].meta);
+        gm_fluid_mark(&r->fluids, r->world, r->dimension,
+                      edits[i].wx, edits[i].wy, edits[i].wz);
+        break_unsupported_plants(r, edits[i].wx, edits[i].wy, edits[i].wz);
+        if(edits[i].id==8&&r->dimension==-1){
+            gm_world_set_block(r->world,edits[i].wx,edits[i].wy,edits[i].wz,0);
+        }else if(edits[i].id==8||edits[i].id==10){
+            static const int dx[6]={1,-1,0,0,0,0},dy[6]={0,0,1,-1,0,0},dz[6]={0,0,0,0,1,-1};
+            for(int q=0;q<6;++q){int x=edits[i].wx+dx[q],y=edits[i].wy+dy[q],z=edits[i].wz+dz[q];
+                int id=gm_world_block(r->world,x,y,z);
+                if(edits[i].id==8&&(id==10||id==11))
+                    gm_world_set_block(r->world,x,y,z,gm_world_meta(r->world,x,y,z)==0?49:4);
+                else if(edits[i].id==10&&(id==8||id==9))
+                    gm_world_set_block(r->world,edits[i].wx,edits[i].wy,edits[i].wz,49);
+            }
+        }
+        if(edits[i].id==51)gm_portal_ignite(r->world,edits[i].wx,edits[i].wy,edits[i].wz);
+        if (edits[i].drop_id > 0)
+            gm_live_spawn_item(&r->entities, edits[i].wx + 0.5, edits[i].wy + 0.5,
+                               edits[i].wz + 0.5, edits[i].drop_id,
+                               edits[i].drop_count, edits[i].drop_meta, 10);
+    }
+    if (r->weather_enabled) gm_world_tick(&r->clock);
+    else gm_world_tick_clear(&r->clock);
+    gm_fluid_tick(&r->fluids, r->world, r->dimension, r->tick);
+    if (r->mobs_enabled) {
+        gm_mobs_tick(&r->mobs,r->world,(const struct McSinTable *)&r->sin_table,
+                     (struct PsvPlayer *)&r->player,(struct PvStats *)&r->vitals,
+                     r->ox,r->oz,r->dimension,r->clock.world_time,&r->entities);
+        {double x,y,z;if(gm_mobs_take_explosion(&r->mobs,&x,&y,&z))runtime_explode(r,x,y,z,3.0f);}
+        spawn_hostile_projectiles(r);
+    }
+    if(r->dimension==1){
+        GmPlayerView dv;gm_runtime_view(r,&dv);
+        if(gm_dragon_tick(&r->dragon,r->world,(const struct McSinTable *)&r->sin_table,
+                          dv.x,dv.y,dv.z))
+            gm_mobs_spawn_xp(&r->mobs,0.5,65.5,0.5,12000);
+    }
+    tick_projectiles(r);
+    gm_live_tick_player(&r->entities, r->world,
+                        (struct PsvPlayer *)&r->player, r->ox, r->oz);
+    for (int i = 0; i < GM_RUNTIME_FURNACES; ++i) if (r->furnaces[i].active) {
+        GmRuntimeFurnace *f = &r->furnaces[i];
+        int was_lit = f->state.burn_time > 0;
+        furnace_live_tick(&f->state);
+        int lit = f->state.burn_time > 0;
+        if (lit != was_lit) {
+            int id = gm_world_block(r->world,f->wx,f->wy,f->wz);
+            if (id == 61 || id == 62)
+                gm_world_set_block_meta(r->world,f->wx,f->wy,f->wz,lit?62:61,
+                                        gm_world_meta(r->world,f->wx,f->wy,f->wz));
+        }
+    }
+    if (r->vitals.health <= 0.0f) {
+        r->dead = 1;
+        r->deaths++;
+    }
+    if(r->portal_cooldown>0)--r->portal_cooldown;
+    int feet=gm_world_block(r->world,(int)floor(r->player.ent.posX+r->ox),
+                            (int)floor(r->player.ent.posY),(int)floor(r->player.ent.posZ+r->oz));
+    int head=gm_world_block(r->world,(int)floor(r->player.ent.posX+r->ox),
+                            (int)floor(r->player.ent.posY+1.0),(int)floor(r->player.ent.posZ+r->oz));
+    /* vanilla Entity.setPortal: while a cooldown is pending, every in-pane
+     * collision REFRESHES it - standing inside the arrival portal never
+     * re-arms the transit (walked-return tape 101755Z re-transited at +88). */
+    if((feet==90||head==90)&&r->portal_cooldown>0)r->portal_cooldown=100;
+    if((feet==119||head==119)&&r->dimension==1&&r->dragon.state.death_processed){
+        r->credits=1;r->won=1;
+    }else if((feet==119||head==119)&&r->dimension==0){
+        if(!r->worlds[2])r->worlds[2]=gm_world_create_type(r->seed,3);
+        if(r->worlds[2]){
+            r->world=r->worlds[2];r->dimension=1;
+            gm_world_ensure(r->world,6,0,1);
+            for(int x=98;x<=102;++x)for(int z=-2;z<=2;++z){
+                gm_world_set_block(r->world,x,48,z,49);
+                for(int y=49;y<=51;++y)gm_world_set_block(r->world,x,y,z,0);
+            }
+            gm_runtime_set_pose(r,100.5,49.0,0.5,90.0f,0.0f);
+            gm_mobs_init(&r->mobs,r->seed^1LL);memset(&r->entities,0,sizeof r->entities);
+            gm_dragon_init(&r->dragon,r->world,r->seed);
+            r->portal_time=0;r->portal_cooldown=100;
+        }
+    }else if((feet==90||head==90)&&r->portal_cooldown==0&&(r->dimension==0||r->dimension==-1)){
+        /* The integrated server transfers at 80 contacts; the client-visible
+         * dimension changes on the following tick (seed-0 natural portal tape:
+         * first contact t158, ramp reaches 1.0 at t237, dim changes at t238). */
+        if(++r->portal_time>=82){
+            GmPlayerView v;gm_runtime_view(r,&v);
+            int nd=r->dimension==0?-1:0,wi=nd+1;
+            if(!r->worlds[wi])r->worlds[wi]=gm_world_create_type(r->seed,nd==-1?2:0);
+            if(r->worlds[wi]){
+                double scale=nd==-1?0.125:8.0,tx,ty,tz;
+                int nx=(int)floor(v.x*scale),nz=(int)floor(v.z*scale);
+                if(gm_portal_find_or_make(r->worlds[wi],nx,nz,&tx,&ty,&tz)){
+                    r->world=r->worlds[wi];r->dimension=nd;
+                    gm_runtime_set_pose(r,tx,ty,tz,v.yaw,v.pitch);
+                    gm_mobs_init(&r->mobs,r->seed^(long long)nd);
+                    memset(&r->entities,0,sizeof r->entities);
+                    r->portal_cooldown=100;r->portal_time=0;
+                }
+            }
+        }
+    }else if(feet!=90&&head!=90)r->portal_time=0;
+    r->tick++;
+}
+
+void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
+    gm_player_view((const struct PsvPlayer *)&r->player, r->ox, r->oz, out);
+    out->dead = r->dead;
+    out->deaths = r->deaths;
+    int xp=r->mobs.xp_total, level=0;
+    for (;;) {
+        int cap=level>=30?9*level-158:(level>=15?5*level-38:2*level+7);
+        if (xp<cap) {out->xp_level=level;out->xp_frac=cap?(float)xp/(float)cap:0.0f;break;}
+        xp-=cap;++level;
+    }
+}
+
+void gm_runtime_set_pose(GmRuntime *r, double x, double y, double z,
+                         float yaw, float pitch) {
+    if (!r) return;
+    r->ccx = floordiv16((int)floor(x));
+    r->ccz = floordiv16((int)floor(z));
+    r->ox = r->ccx * 16; r->oz = r->ccz * 16;
+    r->player.ent.posX = x - r->ox;
+    r->player.ent.posY = y;
+    r->player.ent.posZ = z - r->oz;
+    r->player.ent.box = psv_player_box(r->player.ent.posX, y, r->player.ent.posZ);
+    r->player.ent.motionX = r->player.ent.motionY = r->player.ent.motionZ = 0.0;
+    r->player.ent.onGround = 0;
+    r->player.fall_distance = 0.0f;
+    r->player.yaw = yaw; r->player.pitch = pitch;
+    gm_container_close(r);
+    r->container=0; r->active_furnace=-1;
+    gm_player_dig_reset();
+}
+
+void gm_runtime_set_velocity(GmRuntime *r, double x, double y, double z) {
+    if (!r) return;
+    r->player.ent.motionX=x; r->player.ent.motionY=y; r->player.ent.motionZ=z;
+}
+
+void gm_runtime_set_pose_state(GmRuntime *r, double x, double y, double z,
+                               float yaw, float pitch, double vx, double vy,
+                               double vz, int on_ground, float fall_distance) {
+    if (!r) return;
+    gm_runtime_set_pose(r,x,y,z,yaw,pitch);
+    gm_runtime_set_velocity(r,vx,vy,vz);
+    r->player.ent.onGround=on_ground?1:0;
+    r->player.fall_distance=fall_distance;
+}
+
+void gm_runtime_set_packet_velocity(GmRuntime *r, double x, double y, double z) {
+    if (!r) return;
+    gm_player_set_packet_velocity((struct PsvPlayer *)&r->player,x,y,z);
+}
+
+void gm_runtime_ent_box(GmRuntime *r, double x, double y, double z,
+                        double w, double h) {
+    if (!r || r->nghosts >= GM_RUNTIME_GHOSTS) return;
+    r->ghosts[r->nghosts].x = x;
+    r->ghosts[r->nghosts].y = y;
+    r->ghosts[r->nghosts].z = z;
+    r->ghosts[r->nghosts].w = w;
+    r->ghosts[r->nghosts].h = h;
+    r->nghosts++;
+}
+
+/* Per-entity continuity for tape ghost render pose (hurt flash + limb swing).
+ * Keyed by tape entity id. Render-only; never touches physics. */
+#define GM_ENT_ANIM_CAP 64
+typedef struct {
+    int   id;
+    float x, y, z;
+    float hp;
+    float limb_swing;
+    float limb_amount;
+    int   hurt_time;
+    int   used;
+} GmEntAnim;
+static GmEntAnim g_ent_anim[GM_ENT_ANIM_CAP];
+
+static GmEntAnim *ent_anim_get(int id) {
+    if (id < 0) return 0;
+    for (int i = 0; i < GM_ENT_ANIM_CAP; ++i)
+        if (g_ent_anim[i].used && g_ent_anim[i].id == id) return &g_ent_anim[i];
+    for (int i = 0; i < GM_ENT_ANIM_CAP; ++i)
+        if (!g_ent_anim[i].used) {
+            memset(&g_ent_anim[i], 0, sizeof g_ent_anim[i]);
+            g_ent_anim[i].id = id;
+            g_ent_anim[i].used = 1;
+            g_ent_anim[i].hp = -1.f;
+            return &g_ent_anim[i];
+        }
+    return 0;
+}
+
+/* Renderable ghost entities (tape replay, divergence #10): render-only pose
+ * records for this tick's frame capture. Never read by gm_runtime_tick.
+ * Tracks hurtTime (hp drop -> 10 tick red flash) and limbSwing from position
+ * deltas (ModelQuadruped / ModelBiped setRotationAngles). */
+void gm_runtime_ent_view(GmRuntime *r, const GmEntityView *view) {
+    if (!r || !view || r->nghost_views >= GM_RUNTIME_GHOST_VIEWS) return;
+    GmEntityView *v = &r->ghost_views[r->nghost_views++];
+    *v = *view;
+    GmEntAnim *a = ent_anim_get(view->ent_id);
+    if (a) {
+        if (!view->tape_pose) {
+            if (a->hp >= 0.f && view->health >= 0.f && view->health < a->hp - 1e-4f)
+                a->hurt_time = 10;  /* legacy tape inference */
+            else if (a->hurt_time > 0)
+                a->hurt_time--;
+            v->hurt_time = a->hurt_time;
+        }
+        /* EntityLivingBase.onLivingUpdate limbSwing integrate */
+        float dx = view->x - a->x, dz = view->z - a->z;
+        float dist = sqrtf(dx * dx + dz * dz) * 4.0f;
+        if (dist > 1.0f) dist = 1.0f;
+        if (a->hp >= 0.f) {  /* skip first sighting (no prev pos) */
+            a->limb_amount += (dist - a->limb_amount) * 0.4f;
+            a->limb_swing += a->limb_amount;
+        }
+        a->x = view->x; a->y = view->y; a->z = view->z;
+        a->hp = view->health;
+        v->limb_swing = a->limb_swing;
+        v->limb_swing_amount = a->limb_amount;
+    }
+}
+
+void gm_runtime_ent_views_clear(GmRuntime *r) {
+    if (r) r->nghost_views = 0;
+}
+
+int gm_runtime_ghost_views(const GmRuntime *r, GmEntityView *out, int max) {
+    if (!r) return 0;
+    int n = r->nghost_views < max ? r->nghost_views : max;
+    for (int i = 0; i < n; ++i) out[i] = r->ghost_views[i];
+    return n;
+}
+
+/* Open GUI screen for tape-replay frame capture (divergence #9). Render-only:
+ * never touches r->container / craft grid / furnace so physics stays clean. */
+void gm_runtime_gui_view(GmRuntime *r, int container, int mx, int my) {
+    if (!r || container < 0 || container > 2) return;
+    r->gui_view_active = 1;
+    r->gui_view_container = container;
+    r->gui_view_mx = mx;
+    r->gui_view_my = my;
+}
+
+void gm_runtime_gui_view_clear(GmRuntime *r) {
+    if (!r) return;
+    r->gui_view_active = 0;
+    memset(r->tape_gui_slot_active, 0, sizeof r->tape_gui_slot_active);
+    r->tape_gui_cursor_active = 0;
+    r->tape_furnace_active = 0;
+}
+
+int gm_runtime_gui_view_get(const GmRuntime *r, int *container, int *mx, int *my) {
+    if (!r || !r->gui_view_active) return 0;
+    if (container) *container = r->gui_view_container;
+    if (mx) *mx = r->gui_view_mx;
+    if (my) *my = r->gui_view_my;
+    return 1;
+}
+
+static int tape_stack_valid(int item, int count, int meta) {
+    return item >= 0 && item <= 4095 && count >= 0 && count <= 64 &&
+           meta >= 0 && meta <= 32767 && ((item == 0) == (count == 0));
+}
+
+int gm_runtime_tape_gui_slot(GmRuntime *r, int slot, int item, int count, int meta) {
+    if (!r || slot < 0 || slot >= GMC_SLOT_COUNT ||
+        !tape_stack_valid(item, count, meta)) return 0;
+    r->tape_gui_slots[slot] = count == 0 ? ic_empty() : ic_mk(item, count, meta);
+    r->tape_gui_slot_active[slot] = 1;
+    return 1;
+}
+
+int gm_runtime_tape_gui_cursor(GmRuntime *r, int item, int count, int meta) {
+    if (!r || !tape_stack_valid(item, count, meta)) return 0;
+    r->tape_gui_cursor = count == 0 ? ic_empty() : ic_mk(item, count, meta);
+    r->tape_gui_cursor_active = 1;
+    return 1;
+}
+
+int gm_runtime_tape_gui_slot_get(const GmRuntime *r, int slot, ICStack *out) {
+    if (!r || slot < 0 || slot >= GMC_SLOT_COUNT ||
+        !r->tape_gui_slot_active[slot]) return 0;
+    if (out) *out = r->tape_gui_slots[slot];
+    return 1;
+}
+
+int gm_runtime_tape_gui_cursor_get(const GmRuntime *r, ICStack *out) {
+    if (!r || !r->tape_gui_cursor_active) return 0;
+    if (out) *out = r->tape_gui_cursor;
+    return 1;
+}
+
+int gm_runtime_tape_furnace(GmRuntime *r, int burn, int current_burn,
+                            int cook, int total_cook) {
+    if (!r || burn < 0 || current_burn < 0 || cook < 0 || total_cook < 0)
+        return 0;
+    r->tape_furnace_active = 1;
+    r->tape_furnace_burn = burn;
+    r->tape_furnace_current_burn = current_burn;
+    r->tape_furnace_cook = cook;
+    r->tape_furnace_total_cook = total_cook;
+    return 1;
+}
+
+int gm_runtime_tape_inventory(GmRuntime *r, int slot, int item, int count, int meta) {
+    if (!r || (slot < 0 && slot != ISR_OFFHAND_SLOT) ||
+        (slot >= ISR_MAIN_SLOTS && slot != ISR_OFFHAND_SLOT) ||
+        item < 0 || item > 4095 || count < 0 || count > 64 ||
+        meta < 0 || meta > 32767 || ((item == 0) != (count == 0))) return 0;
+    if (!r->tape_inv_active) {
+        isr_init(&r->tape_inv);
+        r->tape_inv_active = 1;
+    }
+    isr_set_stack(&r->tape_inv, slot,
+                  count == 0 ? ic_empty() : ic_mk(item, count, meta));
+    return 1;
+}
+
+void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int air,
+                                 float portal, int portal_frame, int portal_phase,
+                                 int loading) {
+    if (!r) return;
+    r->tape_xp_active = 1;
+    r->tape_xp_level = xp_level;
+    r->tape_xp_frac = xp_frac;
+    r->tape_air = air;
+    r->tape_portal = portal;
+    r->tape_portal_frame = portal_frame;
+    r->tape_portal_phase = portal_phase;
+    r->tape_loading = loading;
+}
+
+void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
+    if (!r || !view) return;
+    if (r->tape_inv_active) {
+        for (int i = 0; i < 9; ++i) {
+            ICStack s = isr_get_stack(&r->tape_inv, i);
+            view->hotbar_ids[i] = s.item;
+            view->hotbar_counts[i] = s.count;
+        }
+    }
+    if (r->tape_xp_active) {
+        view->xp_level = r->tape_xp_level;
+        view->xp_frac = r->tape_xp_frac;
+        view->air = r->tape_air;
+        view->portal = r->tape_portal;
+        view->portal_frame = r->tape_portal_frame;
+        view->portal_phase = r->tape_portal_phase;
+        view->loading = r->tape_loading;
+    }
+}
+
+/* Absolute camera rotation, position/physics untouched. Human-play tape replay
+ * sets the recorded per-tick yaw/pitch directly (mouse input is not physics;
+ * accumulating dyaw deltas in float would drift off the recorded values). */
+void gm_runtime_set_look(GmRuntime *r, float yaw, float pitch) {
+    if (!r) return;
+    r->player.yaw = yaw; r->player.pitch = pitch;
+}
+
+/* Seed health/food from a recorded tape header so a replayed survival session
+ * starts from the recorded vitals instead of a fresh 20/20 player. */
+void gm_runtime_set_vitals(GmRuntime *r, float health, int food) {
+    if (!r) return;
+    r->vitals.health = health;
+    r->vitals.foodLevel = food;
+    r->player.health = health;
+    r->player.food = (float)food;
+}
+
+static GmWorld *runtime_world_for_dimension(GmRuntime *r, int dimension) {
+    if (!r || dimension < -1 || dimension > 1) return NULL;
+    int wi = dimension + 1;
+    if (!r->worlds[wi]) {
+        int world_type = dimension == -1 ? 2 : (dimension == 1 ? 3 : 0);
+        r->worlds[wi] = gm_world_create_type(r->seed, world_type);
+    }
+    return r->worlds[wi];
+}
+
+int gm_runtime_set_dimension(GmRuntime *r, int dimension) {
+    GmWorld *world = runtime_world_for_dimension(r, dimension);
+    if (!world) return 0;
+    r->world = world;
+    r->dimension = dimension;
+    r->win_world = NULL;
+    /* an authoritative transfer (tape/script) implies arrival state: the
+     * player may be standing inside the paired portal, so arm the cooldown
+     * and clear any in-pane contact accumulated before the switch. */
+    r->portal_cooldown = 100;
+    r->portal_time = 0;
+    return 1;
+}
+
+void gm_runtime_set_time(GmRuntime *r, long long world_time) {
+    if (!r) return;
+    r->clock.world_time=world_time;
+}
+
+int gm_runtime_set_block(GmRuntime *r, int x, int y, int z, int id, int meta) {
+    if (!r || !r->world || y < 0 || y > 255 || id < 0 || id > 4095 ||
+        meta < 0 || meta > 15) return 0;
+    gm_world_set_block_meta(r->world, x, y, z, id, meta);
+    gm_fluid_mark(&r->fluids, r->world, r->dimension, x, y, z);
+    break_unsupported_plants(r, x, y, z);
+    return 1;
+}
+
+int gm_runtime_load_block(GmRuntime *r, int x, int y, int z, int id, int meta) {
+    if (!r || !r->world || y < 0 || y > 255 || id < 0 || id > 4095 ||
+        meta < 0 || meta > 15) return 0;
+    gm_world_load_block_meta(r->world, x, y, z, id, meta);
+    return 1;
+}
+
+int gm_runtime_snapshot_region(GmRuntime *r, int ccx, int ccz, int radius) {
+    if (!r || !r->world || radius < 0 || radius > 32) return 0;
+    gm_world_ensure(r->world, ccx, ccz, radius);
+    return 1;
+}
+
+
+int gm_runtime_load_block_dim(GmRuntime *r, int dimension, int x, int y, int z,
+                              int id, int meta) {
+    GmWorld *world = runtime_world_for_dimension(r, dimension);
+    if (!world || y < 0 || y > 255 || id < 0 || id > 4095 || meta < 0 || meta > 15)
+        return 0;
+    gm_world_load_block_meta(world, x, y, z, id, meta);
+    return 1;
+}
+
+
+int gm_runtime_snapshot_region_dim(GmRuntime *r, int dimension,
+                                   int ccx, int ccz, int radius) {
+    GmWorld *world = runtime_world_for_dimension(r, dimension);
+    if (!world || radius < 0 || radius > 32) return 0;
+    gm_world_ensure(world, ccx, ccz, radius);
+    return 1;
+}
+
+int gm_runtime_set_inventory(GmRuntime *r, int slot, int item, int count, int meta) {
+    if (!r || (slot < 0 && slot != ISR_OFFHAND_SLOT) ||
+        (slot >= ISR_MAIN_SLOTS && slot != ISR_OFFHAND_SLOT) || item < 0 || item > 4095 ||
+        count < 0 || count > 64 || meta < 0 || meta > 32767 ||
+        ((item == 0) != (count == 0))) return 0;
+    isr_set_stack(&r->player.inv, slot,
+                  count == 0 ? ic_empty() : ic_mk(item, count, meta));
+    return 1;
+}
+
+void gm_runtime_set_weather(GmRuntime *r, int raining, int thundering,
+                            int rain_time, int thunder_time) {
+    if (!r) return;
+    r->weather_enabled = 1;
+    gm_world_clock_set_weather(&r->clock, raining, thundering,
+                               rain_time, thunder_time);
+}
+
+int gm_runtime_projectile_views(const GmRuntime *r, GmEntityView *out, int max) {
+    if (!r || !out || max <= 0) return 0;
+    int n = 0;
+    for (int i = 0; i < GM_RUNTIME_PROJECTILES && n < max; ++i) {
+        const GmRuntimeProjectile *p = &r->projectiles[i];
+        if (!p->active) continue;
+        GmEntityView v; memset(&v, 0, sizeof v);
+        v.x = (float)p->x; v.y = (float)p->y; v.z = (float)p->z;
+        v.health = 1.0f;
+        if (p->type == 1 || p->type == 2) {
+            /* bow arrows: RenderArrow model, oriented from velocity like
+             * vanilla EntityArrow (yaw atan2(vx,vz), pitch atan2(vy,horiz)) */
+            v.type = 29; /* ER_TYPE_ARROW */
+            double h = sqrt(p->vx * p->vx + p->vz * p->vz);
+            v.yaw   = (float)(atan2(p->vx, p->vz) * 180.0 / MC_PI);
+            v.pitch = (float)(atan2(p->vy, h) * 180.0 / MC_PI);
+        } else if (p->type == 3) {
+            v.type = GM_VIEW_BILLBOARD; v.item_id = 385; /* blaze fire charge */
+        } else if (p->type == 4) {
+            v.type = GM_VIEW_BILLBOARD; v.item_id = 381; /* eye of ender */
+        } else {
+            v.type = 20; /* unknown: legacy marker box */
+        }
+        out[n++] = v;
+    }
+    return n;
+}
+
+int gm_runtime_craft(GmRuntime *r, int grid_width, const int inv_slots[9]) {
+    if (!r || (grid_width != 2 && grid_width != 3)) return 0;
+    if (grid_width == 3 && r->container != 1) return 0;
+    CRStack grid[9];
+    int use[ISR_MAIN_SLOTS];
+    memset(use, 0, sizeof use);
+    for (int i = 0; i < 9; ++i) {
+        grid[i] = crf_empty();
+        int slot = inv_slots[i];
+        if (slot < 0) continue;
+        if (slot >= ISR_MAIN_SLOTS) return 0;
+        if (grid_width == 2 && (i % 3 >= 2 || i / 3 >= 2)) return 0;
+        ICStack s = isr_get_stack(&r->player.inv, slot);
+        if (isr_is_empty(&s)) return 0;
+        use[slot]++;
+        if (use[slot] > s.count) return 0;
+        grid[i] = crf_mk(s.item, 1, s.meta);
+    }
+    CRRecipe recipes[CRF_NRECIPES];
+    int nr = crf_build(recipes);
+    CRStack result = crf_findMatching(recipes, nr, grid);
+    if (crf_isEmpty(result) || result.item == (i32)0xffffffff) return 0;
+    IsrInv next = r->player.inv;
+    for (int slot = 0; slot < ISR_MAIN_SLOTS; ++slot)
+        if (use[slot]) (void)isr_decr_stack_size(&next, slot, use[slot]);
+    ICStack output = ic_mk(result.item, result.count, result.meta);
+    (void)isr_add_item_stack_to_inventory(&next, &output);
+    if (!isr_is_empty(&output)) return 0;
+    r->player.inv = next;
+    return 1;
+}
+
+int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
+    if (!r || !r->world) return 0;
+    GmPlayerView v; gm_runtime_view(r, &v);
+    double dx = (wx + 0.5) - v.x;
+    double dy = (wy + 0.5) - (v.y + v.eye_height);
+    double dz = (wz + 0.5) - v.z;
+    if (dx*dx + dy*dy + dz*dz > 36.0) return 0;
+    int id = gm_world_block(r->world, wx, wy, wz);
+    if (id == 58) {
+        gm_container_close(r); /* return any live grid/cursor before switching */
+        r->container=1; r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+        return 1;
+    }
+    if (id == 61 || id == 62) {
+        gm_container_close(r);
+        int free_slot = -1;
+        for (int i = 0; i < GM_RUNTIME_FURNACES; ++i) {
+            GmRuntimeFurnace *f = &r->furnaces[i];
+            if (f->active && f->wx==wx && f->wy==wy && f->wz==wz) {
+                r->container=2; r->active_furnace=i;
+                r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+                return 1;
+            }
+            if (!f->active && free_slot < 0) free_slot=i;
+        }
+        if (free_slot < 0) return 0;
+        GmRuntimeFurnace *f=&r->furnaces[free_slot];
+        f->active=1; f->wx=wx; f->wy=wy; f->wz=wz; furnace_live_init(&f->state);
+        r->container=2; r->active_furnace=free_slot;
+        r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+        return 1;
+    }
+    if(id==120){
+        ICStack held=isr_get_stack(&r->player.inv,r->player.inv.current_item);
+        if(held.item!=381||held.count<=0||(gm_world_meta(r->world,wx,wy,wz)&4))return 0;
+        if(!gm_end_portal_insert_eye(r->world,wx,wy,wz))return 0;
+        (void)isr_decr_stack_size(&r->player.inv,r->player.inv.current_item,1);
+        return 1;
+    }
+    if(id==26){
+        if(r->dimension==0){
+            long long day=r->clock.world_time/24000LL;
+            r->clock.world_time=(day+1)*24000LL;return 1;
+        }
+        for(int x=wx-1;x<=wx+1;++x)for(int z=wz-1;z<=wz+1;++z)
+            if(gm_world_block(r->world,x,wy,z)==26)gm_world_set_block(r->world,x,wy,z,0);
+        runtime_explode(r,wx+0.5,wy+0.5,wz+0.5,5.0f);return 1;
+    }
+    return 0;
+}
+
+int gm_runtime_furnace_insert(GmRuntime *r, int furnace_slot,
+                              int inventory_slot, int amount) {
+    if (!r || r->container!=2 || r->active_furnace<0 || amount<=0 ||
+        inventory_slot<0 || inventory_slot>=ISR_MAIN_SLOTS) return 0;
+    ICStack src=isr_get_stack(&r->player.inv,inventory_slot);
+    if (isr_is_empty(&src)) return 0;
+    if (src.count>amount) src.count=amount;
+    SRStack in=sr_mk(src.item,src.count,src.meta);
+    int moved=furnace_live_insert(&r->furnaces[r->active_furnace].state,furnace_slot,in);
+    if (moved>0) (void)isr_decr_stack_size(&r->player.inv,inventory_slot,moved);
+    return moved;
+}
+
+int gm_runtime_furnace_extract(GmRuntime *r, int furnace_slot, int amount) {
+    if (!r || r->container!=2 || r->active_furnace<0 || amount<=0) return 0;
+    FurnaceLive *f=&r->furnaces[r->active_furnace].state;
+    SRStack *src = furnace_slot==0?&f->input:furnace_slot==1?&f->fuel:
+                   furnace_slot==2?&f->output:NULL;
+    if (!src || sr_isEmpty(*src)) return 0;
+    int n=src->count<amount?src->count:amount;
+    IsrInv next=r->player.inv;
+    ICStack out=ic_mk(src->item,n,src->meta);
+    (void)isr_add_item_stack_to_inventory(&next,&out);
+    int moved=n-out.count;
+    if (moved<=0) return 0;
+    (void)furnace_live_extract(f,furnace_slot,moved);
+    r->player.inv=next;
+    return moved;
+}

@@ -1,0 +1,13 @@
+{
+  "name": "frustum_plane_extract",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/culling/ClippingHelperImpl.java:36  init() (+ normalize() :27)",
+  "describe": "Pure math core of ClippingHelperImpl.init(): modelview*projection -> clippingMatrix, then extract+normalize the 6 frustum planes. GL reads (GlStateManager.getFloat) isolated out: the projection (16f) + modelview (16f) matrices are taken as inputs. Output = 6 planes x 4 coeffs, normalized.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

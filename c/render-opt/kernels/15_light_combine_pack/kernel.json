@@ -1,0 +1,13 @@
+{
+  "name": "light_combine_pack",
+  "tier": 0,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/world/World.java:955 getCombinedLight (pure packing tail)",
+  "describe": "Pack sky + block light (block clamped up to the override lightValue) into one lightmap int: i<<20 | j<<4. The neighbour-light world reads are out of scope; this ports only the pure tail.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

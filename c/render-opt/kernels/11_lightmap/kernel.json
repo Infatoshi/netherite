@@ -1,0 +1,11 @@
+{
+  "name": "lightmap_texture",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "live-hook",
+  "source": "src/net/minecraft/client/renderer/EntityRenderer.java:883 updateLightmap",
+  "describe": "256-texel lightmap ARGB build: per i in 0..255, blend sky term bt[i/16] and torch term bt[i%16] with sun brightness f, torchFlickerX, gamma; clamp + gamma curve; pack -16777216|k<<16|l<<8|i1. Golden captured live from real Minecraft.",
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "fluid_quad_gen",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "live-hook",
+  "source": "src/net/minecraft/client/renderer/BlockFluidRenderer.java:43 renderFluid + VertexBuffer ops",
+  "describe": "Per fluid block, emit water/lava surface + side quads to a DefaultVertexFormats.BLOCK buffer. Faithful C port of renderFluid. VERIFIED bitwise PASS: enriched live capture (27-field record + 20-int sprite header) of 1710 water blocks -> 39060 ints, candidate matches golden bit-for-bit. Branch coverage from the capture: flow-UP, still-UP, UP back-face, 4 side faces (front+back), DOWN face (21 blocks), and water-overlay side branch (44 rows, water next to glass). Lava not present in the capture scene but is code-path-identical (same emission logic, lava sprite set spr[2]/spr[3]).",
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

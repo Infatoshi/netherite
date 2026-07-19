@@ -1,0 +1,13 @@
+{
+  "name": "facebakery_fill_vertex",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/block/model/FaceBakery.java:141 fillVertexData / :152 storeVertexData",
+  "describe": "Per-vertex bake: pick the vertex position from the EnumFaceDirection table + position bounds, apply rotatePart, compute the directional shade color, interpolate the sprite UV (0.999/0.001 corner mix), and pack into the vertex int[7]. PURE: modelRotation=identity (rotateVertex no-op), post-uvlock uvs fed directly, sprite reduced to its 4 UV bounds, BlockPartRotation reduced to scalars.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

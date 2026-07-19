@@ -1,0 +1,13 @@
+{
+  "name": "mipmap_gen_chain",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/texture/TextureUtil.java:57  generateMipmapData() (drives blendColors ~108)",
+  "describe": "Generates the full mipmap chain for a base texture by repeated gamma-correct 2x2 box downsampling (blendColors). hasTransparency flag is computed from the first (maxLevel+1) base pixels (verbatim quirk: loop bound is the outer array length).",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

@@ -1,0 +1,23 @@
+Project mc-1.11.2-env lives on anvil (Linux, headless GPU box). Build and run HERE on anvil; the MacBook is the
+only place a human can VIEW images/video.
+
+ANVIL IS HEADLESS - demos to the Mac, humans play over Moonlight:
+- To show the user a png/mp4 demo, scp it to the MacBook. Never rely on inline image display on anvil.
+- HUMAN play = Moonlight/Sunshine streaming :0 (AMD iGPU) or mcwindow. Taping: `c/craster/VERIFY.md`.
+- Agent/trace stack = Xvfb :1: `bash java/start_vnc_client.sh` (VNC localhost:5900; tunnel + `vnc://localhost:5901`, pw `redstone`).
+  Do NOT open a game window directly on anvil; one qrl bridge (25575) at a time.
+- Capture demo frames with ffmpeg x11grab on :1 (or :0), then scp to the Mac.
+
+DOCS (code is ground truth):
+- Entry: CLAUDE.md / AGENTS.md. Product/fidelity: c/craster/PRODUCT.md, VERIFY.md, OPEN_DIVERGENCES.md.
+- Contracts: c/mc-sim/SPEC.md, c/render-opt/SPEC.md, c/craster/SPEC.md. History: DEVLOG.md.
+
+WORK:
+- Craster product + tapes by default. render-opt lab is closed (kernel harness still runs if needed).
+- JDK8 (`/usr/lib/jvm/java-8-openjdk-amd64`). Python: UV only. Goldens from REAL MC only.
+
+GOTCHAS:
+- `pkill -9 -f '[G]radleStart'` (bracket required).
+- Launch game standalone (setsid + nohup); never chain kill+launch+poll.
+
+DON'T: push to a public remote (decompiled Mojang source = private only). No emojis, no em dashes.

@@ -1,0 +1,11 @@
+{
+  "name": "entity_limb_anim",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "live-hook",
+  "source": "src/net/minecraft/client/model/ModelQuadruped.java:82 setRotationAngles (ModelCow)",
+  "describe": "Per-limb rotation angles for ModelCow/ModelQuadruped: head pitch/yaw (*0.017453292), body X=PI/2, 4 legs X = MathHelper.cos(limbSwing*0.6662[+PI])*1.4*limbSwingAmount. 18 floats/sample (6 limbs x X,Y,Z). Golden captured live from real Minecraft.",
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

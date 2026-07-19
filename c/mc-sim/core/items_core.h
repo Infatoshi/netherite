@@ -1,0 +1,130 @@
+/* items_core: ItemStack (item,count,meta) + tool dig speed, food constants, bucket fill/empty.
+ * PORT: ItemTool.getStrVsBlock, ItemFood healAmount, ItemBucket onItemRightClick (synthetic world).
+ * Pure deterministic battery; CPU==CUDA. Subset matches crafting_recipes tool ids. */
+#ifndef MC_ITEMS_CORE_H
+#define MC_ITEMS_CORE_H
+
+#include "mc.h"
+#include "mc_world.h"
+#include "mc_blocks.h"
+
+typedef struct { i32 item; i32 count; i32 meta; } ICStack;
+
+enum {
+    IC_AIR            = 0,
+    IC_STONE          = 1,
+    IC_IRON_ORE       = 15,
+    IC_WOODEN_PICKAXE = 270,
+    IC_STONE_PICKAXE  = 274,
+    IC_APPLE          = 260,
+    IC_BREAD          = 297,
+    IC_BUCKET         = 325,
+    IC_WATER_BUCKET   = 326,
+    IC_LAVA_BUCKET    = 327,
+    IC_FLOWING_WATER  = 8,
+    IC_FLOWING_LAVA   = 10
+};
+
+#define IC_W 8
+#define IC_VOL (IC_W * IC_W * IC_W)
+
+typedef struct { u16 cells[IC_VOL]; } ICWorld;
+
+MC_HD static inline ICStack ic_empty(void) { ICStack s = {IC_AIR, 0, 0}; return s; }
+MC_HD static inline ICStack ic_mk(i32 item, i32 count, i32 meta) {
+    ICStack s = {item, count, meta}; return s;
+}
+
+MC_HD static inline int ic_idx(int x, int y, int z) { return (y * IC_W + z) * IC_W + x; }
+
+MC_HD static inline u16 ic_get(const ICWorld *w, int x, int y, int z) {
+    if (x < 0 || x >= IC_W || y < 0 || y >= IC_W || z < 0 || z >= IC_W) return mc_state(BLK_AIR, 0);
+    return w->cells[ic_idx(x, y, z)];
+}
+
+MC_HD static inline void ic_set(ICWorld *w, int x, int y, int z, u16 s) {
+    if (x < 0 || x >= IC_W || y < 0 || y >= IC_W || z < 0 || z >= IC_W) return;
+    w->cells[ic_idx(x, y, z)] = s;
+}
+
+MC_HD static inline int ic_is_pickaxe_effective(int block_id) {
+    return block_id == BLK_STONE || block_id == BLK_COBBLESTONE || block_id == BLK_IRON_ORE
+        || block_id == BLK_COAL_ORE || block_id == BLK_OBSIDIAN;
+}
+
+MC_HD static inline float ic_tool_dig_speed(i32 tool_id, int block_id) {
+    float eff = 1.0f;
+    if (tool_id == IC_WOODEN_PICKAXE) eff = 2.0f;
+    else if (tool_id == IC_STONE_PICKAXE) eff = 4.0f;
+    else return 1.0f;
+    return ic_is_pickaxe_effective(block_id) ? eff : 1.0f;
+}
+
+MC_HD static inline i32 ic_food_heal(i32 item_id) {
+    if (item_id == IC_APPLE) return 4;
+    if (item_id == IC_BREAD) return 5;
+    return 0;
+}
+
+MC_HD static inline ICStack ic_bucket_fill(ICWorld *w, ICStack bucket, int x, int y, int z) {
+    u16 s = ic_get(w, x, y, z);
+    int id = mc_state_id(s);
+    if (bucket.item != IC_BUCKET || bucket.count != 1) return bucket;
+    if (id == IC_FLOWING_WATER && mc_state_meta(s) == 0) {
+        ic_set(w, x, y, z, mc_state(BLK_AIR, 0));
+        return ic_mk(IC_WATER_BUCKET, 1, 0);
+    }
+    if (id == IC_FLOWING_LAVA && mc_state_meta(s) == 0) {
+        ic_set(w, x, y, z, mc_state(BLK_AIR, 0));
+        return ic_mk(IC_LAVA_BUCKET, 1, 0);
+    }
+    return bucket;
+}
+
+MC_HD static inline ICStack ic_bucket_place(ICWorld *w, ICStack bucket, int x, int y, int z) {
+    u16 s = ic_get(w, x, y, z);
+    if (mc_state_id(s) != BLK_AIR) return bucket;
+    if (bucket.item == IC_WATER_BUCKET && bucket.count == 1) {
+        ic_set(w, x, y, z, mc_state(BLK_FLOWING_WATER, 0));
+        return ic_mk(IC_BUCKET, 1, 0);
+    }
+    if (bucket.item == IC_LAVA_BUCKET && bucket.count == 1) {
+        ic_set(w, x, y, z, mc_state(BLK_FLOWING_LAVA, 0));
+        return ic_mk(IC_BUCKET, 1, 0);
+    }
+    return bucket;
+}
+
+#define IC_NTESTS 8
+
+MC_HD static inline void ic_run_battery(u64 *out) {
+    int k = 0;
+    /* dig speed tests: float bits */
+    {
+        float v = ic_tool_dig_speed(IC_STONE_PICKAXE, BLK_STONE);
+        union { float f; u32 u; } u; u.f = v; out[k++] = u.u;
+    }
+    {
+        float v = ic_tool_dig_speed(IC_WOODEN_PICKAXE, BLK_STONE);
+        union { float f; u32 u; } u; u.f = v; out[k++] = u.u;
+    }
+    {
+        float v = ic_tool_dig_speed(IC_AIR, BLK_STONE);
+        union { float f; u32 u; } u; u.f = v; out[k++] = u.u;
+    }
+    /* food heal */
+    out[k++] = (u64)(u32)ic_food_heal(IC_APPLE);
+    out[k++] = (u64)(u32)ic_food_heal(IC_BREAD);
+    /* bucket: fill water, place water, cell state */
+    ICWorld w;
+    for (int i = 0; i < IC_VOL; ++i) w.cells[i] = mc_state(BLK_AIR, 0);
+    ic_set(&w, 4, 4, 4, mc_state(BLK_FLOWING_WATER, 0));
+    ICStack b = ic_bucket_fill(&w, ic_mk(IC_BUCKET, 1, 0), 4, 4, 4);
+    out[k++] = (u64)(u32)b.item;
+    out[k++] = (u64)(u32)mc_state_id(ic_get(&w, 4, 4, 4));
+    b = ic_bucket_place(&w, ic_mk(IC_WATER_BUCKET, 1, 0), 3, 4, 4);
+    out[k++] = (u64)(u32)b.item;
+    out[k++] = (u64)(u32)mc_state_id(ic_get(&w, 3, 4, 4));
+}
+
+#endif /* MC_ITEMS_CORE_H */

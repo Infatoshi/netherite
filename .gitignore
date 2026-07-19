@@ -1,0 +1,91 @@
+# regenerable gradle / game caches (kept on disk for fast runs, never tracked)
+java/Minecraft/run/
+java/Minecraft/build/
+java/Minecraft/.gradle/
+java/Minecraft/.minecraft/
+java/Minecraft/.minecraftserver/
+
+# C/CUDA build artifacts (each c/ project also has its own .gitignore)
+c/*/build/
+c/**/*.o
+c/**/*.d
+c/craster/craster_demo
+c/craster/craster_game
+# craster test binaries + previews (sources test_*.c / test_*.sh ARE tracked)
+c/craster/game/test_input_map
+c/craster/game/test_world_live
+c/craster/game/test_player_ctl
+c/craster/game/test_hud
+c/craster/game/test_entity_render
+c/craster/game/test_sky
+c/craster/tests/test_mesh_models
+c/craster/game/*_preview.ppm
+c/craster/game/*_preview.png
+# craster trace harness: binary + regenerable per-run output (sources under trace/ ARE tracked)
+c/craster/trace_game
+c/craster/trace/world_dump
+c/craster/trace/out/
+# regenerable render candidates (the mc_pose_*.png goldens ARE tracked)
+c/craster/raster/verify/mc_capture/craster_pose_*.png
+c/craster/raster/verify/mc_capture/craster_frame.png
+
+# logs + run artifacts
+*.log
+frame*.png
+*.npy
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+.minerl-build/
+
+# stray gradle daemon if a build ever runs from repo root
+/Minecraft/
+c/craster/trace/alloctrack.so
+c/craster/craster_game_dbg
+c/craster/game/sky_pose_*.png
+c/craster/game/sky_pose_*.ppm
+c/craster/trace/uvfix/
+c/craster/trace/out/
+c/craster/game/test_biome_color
+c/craster/game/Golden.class
+c/craster/tests/test_light_brightness
+c/craster/tests/test_fog_radial
+c/craster/tests/test_model_oracle
+c/craster/tests/*.class
+c/craster/trace/trees_viewdistance_*.png
+c/craster/trace/biome_scan
+c/craster/game/test_play_compose
+c/craster/game/test_tick_timer
+c/craster/game/test_route_e2e
+# game test binaries have no extension; test_*.c / test_*.sh sources ARE tracked
+c/craster/game/test_*
+!c/craster/game/test_*.*
+c/craster/craster_game_cuda
+c/craster/raster/verify/mc_capture/*.bak_*
+java/Minecraft/qrl/
+c/craster/raster/verify/mc_capture/gui_candidate
+c/craster/raster/verify/tapes/
+c/craster/rl/out/*
+# canonical gate reference data (verify_cpu.py --chain / make_snapshots T0=1)
+!c/craster/rl/out/chain_actions_s10.json
+!c/craster/rl/out/coal_prefixes.json
+
+# ---- regenerated from YOUR Minecraft install (never committed) ----
+# scripts/bootstrap_oracle.sh
+java/oracle-src/
+# scripts/bootstrap_assets.sh
+c/craster/assets/atlas_gen.h
+c/craster/assets/colormap_gen.h
+c/craster/assets/gui_atlas.h
+c/craster/assets/hand_atlas.h
+c/craster/assets/hud_atlas.h
+c/craster/assets/item_atlas.h
+c/craster/assets/loading_bg.h
+c/craster/assets/mob_atlas.h
+c/craster/assets/portal_tex.h
+c/craster/assets/sky_atlas.h
+c/craster/assets/underwater_tex.h
+c/craster/assets/water_frames.h
