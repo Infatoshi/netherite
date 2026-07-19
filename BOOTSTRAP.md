@@ -50,9 +50,9 @@ files in `c/craster/rl/out/` (`chain_actions_s10.json`, the canonical
 prefixes):
 
 ```bash
-cd c/craster
-T0=1 uv run --no-project --with numpy python rl/cuenv/make_snapshots.py  # .bsnp snapshots
-make cuenv_so
+cd c/craster && make game cuenv_so
+T0=1 uv run --no-project --with numpy,torch python rl/cuenv/make_snapshots.py  # fresh-spawn t0
+uv run --no-project --with numpy,torch python rl/cuenv/make_snapshots.py       # curriculum s*_d*
 cd rl/cuenv && uv run --no-project --with numpy,torch python verify_cpu.py --chain
 ```
 
