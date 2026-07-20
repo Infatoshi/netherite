@@ -89,3 +89,8 @@ c/craster/assets/portal_tex.h
 c/craster/assets/sky_atlas.h
 c/craster/assets/underwater_tex.h
 c/craster/assets/water_frames.h
+
+
+# generated demo outputs (pack lives under c/craster/raster/verify/demo/)
+demos/*
+!demos/.gitkeep

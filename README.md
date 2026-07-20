@@ -29,7 +29,9 @@ Read AGENTS.md in this repo and follow it. Task: <what you want done>
 
 ```bash
 bash scripts/setup_and_verify.sh          # bootstrap + build + --quick sweep
-bash scripts/setup_and_verify.sh --full   # + CUDA oracles (needs NVIDIA GPU)
+bash scripts/setup_and_verify.sh --demo   # + physics/pixel tape replay + SBS MP4
+# -> demos/pixel_match_sbs.mp4  (oracle | craster side-by-side)
 ```
 
 Prism is optional. Bootstrap uses ForgeGradle; details in [`docs/BOOTSTRAP.md`](docs/BOOTSTRAP.md).
+Pixel demo uses the shipped canonical tape under `c/craster/raster/verify/demo/`.

@@ -52,7 +52,11 @@ export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 
 # clean Linux box (bootstrap + build + sweep):
 bash scripts/setup_and_verify.sh          # --quick pyramid
+bash scripts/setup_and_verify.sh --demo   # + pixel SBS MP4 -> demos/pixel_match_sbs.mp4
 bash scripts/setup_and_verify.sh --full   # + CUDA gates (needs free GPU)
+# pixel demo alone (after bootstrap/build):
+bash scripts/demo_pixel_sbs.sh
+
 
 # or stepwise:
 bash scripts/bootstrap_oracle.sh
