@@ -11,7 +11,7 @@
 set -u
 cd "$(dirname "$0")/../../.."          # -> c/craster
 
-DIFF=/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/wholeframe/diff_frame.py
+DIFF="$(cd ../render-opt/wholeframe && pwd)/diff_frame.py"
 OUT=raster/verify/mc_capture
 FB_W=854
 FB_H=480

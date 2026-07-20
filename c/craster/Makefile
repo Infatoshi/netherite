@@ -258,7 +258,7 @@ test-game: test-config test-block-registry test-launch
 # with real Mesa software GL (OSMesa golden) and with our cr_raster_cpu (candidate),
 # then tolerance-diff. GL triangle->pixel is hardware/driver-defined (subpixel fill
 # rule, interpolation, filtering) so the metric is pixel diff, not bitwise.
-DIFF ?= /home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/wholeframe/diff_frame.py
+DIFF ?= $(abspath ../render-opt/wholeframe/diff_frame.py)
 .PHONY: raster-verify
 raster-verify: cpu/raster_cpu.o core/shade.o
 	$(CC) $(CFLAGS) -Iraster/verify raster/verify/gl_golden.c -o /tmp/cr_gl_golden -lOSMesa -lGL $(LDLIBS)

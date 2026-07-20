@@ -21,8 +21,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../../.."   # -> c/craster
 
-MCSIM=/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/mc-sim/core
-DIFF=/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/wholeframe/diff_frame.py
+MCSIM="$(cd ../mc-sim/core && pwd)"
+DIFF="$(cd ../render-opt/wholeframe && pwd)/diff_frame.py"
 OUT=raster/verify/mc_capture
 GOLDEN="$OUT/mc_frame.png"
 REPORT_DIR="${HARD_SCENE_OUT:-/tmp/hard_scene_seed0}"

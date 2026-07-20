@@ -20,7 +20,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../../.."          # -> c/craster
 
-MCSIM=/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/mc-sim/core
+MCSIM="$(cd ../mc-sim/core && pwd)"
 OUT=raster/verify/mc_capture
 FLAGS=(-O2 -ffp-contract=off -Wall -Wextra -I. -Icore -I"$MCSIM")
 MARGIN="${MARGIN:-1.0}"
