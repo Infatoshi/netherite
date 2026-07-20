@@ -5,24 +5,31 @@
 # netherite
 
 From-scratch C/CUDA Minecraft **1.11.2** (bit-verified vs the real Java game) +
-batched CUDA RL. Runs on anvil.
+batched CUDA RL.
 
-No Mojang content is shipped. Bootstrap once: [`docs/BOOTSTRAP.md`](docs/BOOTSTRAP.md).
+## Platforms
+
+| | Support |
+|--|---------|
+| **Linux x86_64** | Full stack (build, CUDA train, Java oracle). Canonical: anvil. |
+| **macOS** | Viewer / SSH only (Moonlight, mcwindow). No native game or CUDA train. |
+| **Windows** | Not supported as a build host. |
+
+No Mojang content is shipped. You need a legal Minecraft ownership and JDK 8.
 
 ## Using an LLM on this repo
 
-Open **[`AGENTS.md`](AGENTS.md)** (Claude also loads [`CLAUDE.md`](CLAUDE.md), which
-points there). Or paste:
+Open **[`AGENTS.md`](AGENTS.md)** (Claude also loads [`CLAUDE.md`](CLAUDE.md)). Or paste:
 
 ```
 Read AGENTS.md in this repo and follow it. Task: <what you want done>
 ```
 
-That file has the commands, gotchas, and pointers into `docs/` / `c/*/SPEC.md`.
-You should not need to browse the rest of the tree first.
-
-## Quick check
+## Clean Linux box (one command)
 
 ```bash
-bash netherite_sweep.sh --quick
+bash scripts/setup_and_verify.sh          # bootstrap + build + --quick sweep
+bash scripts/setup_and_verify.sh --full   # + CUDA oracles (needs NVIDIA GPU)
 ```
+
+Prism is optional. Bootstrap uses ForgeGradle; details in [`docs/BOOTSTRAP.md`](docs/BOOTSTRAP.md).

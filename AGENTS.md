@@ -7,6 +7,20 @@ This file is the **only agent entry**. Do not hunt other root markdown for
 instructions. How-tos and history live under `docs/`; living contracts live
 next to the code they govern.
 
+## Platform support
+
+| OS | Role |
+|----|------|
+| **Linux x86_64** | Full stack. Build C/CUDA, run Java oracle, train cuenv, sweep. Canonical host: anvil (Ubuntu). Needs JDK 8 + NVIDIA CUDA for GPU paths. |
+| **macOS** | Control plane only. SSH, Moonlight/mcwindow viewer, image/video review. **Do not** expect native `runClient` or CUDA here (legacy GL under Rosetta is dead; no Blackwell/CUDA train path). |
+| **Windows** | Not a supported build/run host for this monorepo. Use WSL2 Linux if you must, or a remote Linux box. |
+
+Prism / MultiMC / official launcher: optional jar source for assets. Fresh
+boxes do **not** need Prism credentials; `scripts/bootstrap_oracle.sh` pulls
+MC 1.11.2 via ForgeGradle (you must own the game).
+
+One-shot clean box: `bash scripts/setup_and_verify.sh` (then `--full` with GPU).
+
 ## What this repo is
 
 From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (craster + mc-sim),
@@ -35,17 +49,19 @@ Product name: **netherite**. Trees:
 
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-# bootstrap once (see docs/BOOTSTRAP.md): scripts/bootstrap_oracle.sh + bootstrap_assets.sh
+
+# clean Linux box (bootstrap + build + sweep):
+bash scripts/setup_and_verify.sh          # --quick pyramid
+bash scripts/setup_and_verify.sh --full   # + CUDA gates (needs free GPU)
+
+# or stepwise:
+bash scripts/bootstrap_oracle.sh
+bash scripts/bootstrap_assets.sh
+make -C c/craster game
+bash netherite_sweep.sh --quick
 
 cd java/Minecraft && ./gradlew -g run/gradle build
-
-make -C c/craster game
-make -C c/craster verify-harsh
-
 uv run --no-project python c/mc-sim/oracle/runner.py <name>
-cd c/render-opt && uv run --no-project python harness/runner.py kernels/<dir>
-
-bash netherite_sweep.sh --quick
 ```
 
 Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).

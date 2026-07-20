@@ -13,6 +13,15 @@ Requirements: JDK 8, `uv`, network on first run. You must own Minecraft
 Mojang's official distribution endpoints exactly as any Forge 1.11.2 mod
 development environment does.
 
+One-shot (preferred on a clean Linux box):
+
+```bash
+bash scripts/setup_and_verify.sh          # bootstrap + build + --quick
+bash scripts/setup_and_verify.sh --full   # + CUDA gates
+```
+
+Stepwise equivalent:
+
 ```bash
 # 1. decompiled oracle (java/oracle-src): downloads MC 1.11.2 + MCP mappings
 #    via ForgeGradle setupDecompWorkspace, then copies the output tree.
