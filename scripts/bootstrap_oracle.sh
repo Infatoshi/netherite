@@ -29,7 +29,26 @@ fi
 
 if [ ! -d "$SRC/net/minecraft" ]; then
     echo "== ForgeGradle setupDecompWorkspace (downloads + decompiles MC 1.11.2) =="
-    ( cd "$MCW" && ./gradlew -g run/gradle setupDecompWorkspace --stacktrace )
+    # JitPack is flaky (ForgeGradle FG_2.2_patched-SNAPSHOT). Retry a few times
+    # with backoff before giving up. Offline gradle caches (if pre-seeded) skip
+    # the network resolve.
+    ok=0
+    for attempt in 1 2 3 4 5; do
+        echo "== setupDecompWorkspace attempt $attempt/5 =="
+        if ( cd "$MCW" && ./gradlew -g run/gradle setupDecompWorkspace --stacktrace ); then
+            ok=1
+            break
+        fi
+        echo "WARN: setupDecompWorkspace failed (often JitPack timeout). Retrying in $((attempt * 20))s..."
+        sleep $((attempt * 20))
+    done
+    [ "$ok" -eq 1 ] || {
+        echo "ERROR: setupDecompWorkspace failed after retries."
+        echo "  JitPack hosts com.github.brandonhoughton:ForgeGradle:FG_2.2_patched-SNAPSHOT."
+        echo "  If jitpack.io is down, retry later, or copy a known-good"
+        echo "  java/Minecraft/run/gradle/caches/modules-2 tree from another machine."
+        exit 1
+    }
 fi
 [ -d "$SRC/net/minecraft" ] || { echo "ERROR: decomp output missing at $SRC"; exit 1; }
 
