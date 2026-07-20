@@ -22,7 +22,7 @@
 #
 # Fresh checkout note: start_vnc_client.sh runs gradle --offline; on a brand-new
 # checkout the deps are unresolved and the launch fails. Export MC_GRADLE_ONLINE=1
-# once to force a real resolve (per the env CLAUDE.md gotcha), then rerun.
+# once to force a real resolve (per AGENTS.md / docs/RUNBOOK.md), then rerun.
 #
 # Anti-rabbit-hole: every wait has a hard timeout; on failure it prints the
 # runclient.log tail and exits non-zero rather than looping forever.

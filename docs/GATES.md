@@ -1,16 +1,11 @@
-# netherite
+# Product gates (netherite)
 
-Machine: anvil, `~/dev/minecraft/mc-1.11.2-env` (canonical checkout; game runs here only).
+**netherite** is the product name: a from-scratch C/CUDA reimplementation of
+Minecraft 1.11.2 (craster + mc-sim), bit-verified against the real Java game,
+plus a batched CUDA RL env (cuenv). Humans play the oracle; tapes record; craster
+replays; every divergence is a bug with a repro.
 
-**netherite** is the product name for this repo's endgame: a from-scratch C/CUDA
-reimplementation of Minecraft 1.11.2 (craster renderer + mc-sim simulation) that is
-bit-verified tick-by-tick and pixel-by-pixel against the real Java game, plus a batched
-CUDA RL environment (cuenv) fast enough to train an agent from spawn to torches with no
-scripted stages. The real game stays in the loop as the oracle: humans play it, tapes
-record it, craster replays it, and every divergence is a bug with a repro.
-
-netherite is the PRODUCT name only. The repo directory must never be renamed: the Java
-JNI bridge classes and `c/mc-sim/ref/*` symlinks hardcode `.../mc-1.11.2-env/...` paths.
+Agent entry: root `AGENTS.md`. How to run: `docs/RUNBOOK.md`.
 
 ## The four ship gates
 

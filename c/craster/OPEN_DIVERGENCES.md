@@ -282,7 +282,7 @@ Repro: drop the two set_inventory lines from
 raster/verify/tapes/20260712T055346Z_..._77b5b462.jsonl.worldpatch.jsonl ->
 FIRST DIVERGENCE t2291 x (craster misses the placed table wall); restore ->
 clean. Headless smoke: `gui_view` + GuiCrafting in test_script.sh dumps a
-crafting panel PPM (see GROK_REPORT).
+crafting panel PPM (see docs/archive/GROK_REPORT.md).
 
 ## 10-16: frame-fidelity sweep of the fresh canonical tape (2026-07-12, human review + 157-pair triage)
 
@@ -395,7 +395,7 @@ generated 1/16 plate). Empty hand keeps the vanilla arm path. Canonical tape
 physics still clean; held-tool frames 123/140/146/156 whole means
 31.37/47.83/36.55/38.51 -> 11.41/14.06/6.05/6.18 /ch. Residual: plate edges
 are full-border not per-texel extrusion; equip bob skipped; HUD-vs-no-HUD
-capture class. Evidence: GROK_REPORT.md + out_helditem_f146.png.
+capture class. Evidence: docs/archive/GROK_REPORT.md + out_helditem_f146.png.
 
 ## 14. MOSTLY FIXED (`ef4963d` + round-2 multiply): crack + selection default ON; particles still missing
 (a)+(b) headless/replay frames emit selection ribbons + destroy_stage_N crack
@@ -418,7 +418,7 @@ slight whole-mean drop + whiteish pixel count up (oxeye). Physics clean.
 (gui display rot 30/225/0, scale 0.625, per-face shade UP/NS/EW); flat 2D
 items keep gui_atlas sprites. (b) dropped items: GROUND scale 0.25/0.5,
 bob sin(age/10+hover)*0.1+0.1, spin age/20+hover, flat items get ItemModelGenerator
-1/16 extrusion (thin box, 36 verts). Evidence: GROK_REPORT.md + out_icons_div16/.
+1/16 extrusion (thin box, 36 verts). Evidence: docs/archive/GROK_REPORT.md + out_icons_div16/.
 
 Note (capture artifact, FIXED in recorder): older tapes' oracle frames have NO
 GUI; post-fix tapes mark "hud":1.

@@ -13,7 +13,7 @@
 # artifacts are missing (snapshots, tapes, prefixes) SKIP with a reason.
 # Exit is nonzero iff any step FAILs.
 #
-# See NETHERITE.md for the product gates this sweep certifies.
+# See docs/GATES.md for the product gates this sweep certifies.
 
 set -u
 
@@ -233,7 +233,7 @@ if [ "$MODE" = full ]; then
 			fi
 
 			# gate-3 throughput pin: >=1.0M env-ticks/s full-feature t0 at
-			# N=9216 (the NETHERITE.md measurement point; ~77GiB pool, so
+			# N=9216 (the docs/GATES.md measurement point; ~77GiB pool, so
 			# GPU0-class only - SKIP below 80GiB free rather than OOM into a
 			# neighbor session)
 			MEMFREE=$(gpu_mem_free_mib "$GPU_IDX")

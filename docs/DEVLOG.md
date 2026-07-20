@@ -1,20 +1,7 @@
 # DEVLOG (compressed)
 
-Code and goldens are ground truth. This file is a short history so agents do not
-need the old multi-hundred-line journals, WORKQUEUE, PORT_MATRIX, or per-kernel
-READMEs. Git history still has the long form.
-
-## Living docs (read these; ignore the rest)
-
-| Doc | Role |
-|-----|------|
-| `CLAUDE.md` / `AGENTS.md` | Run routes, layout, gotchas |
-| `c/craster/PRODUCT.md` | Product contract (survival route, cuts, bundles) |
-| `c/craster/VERIFY.md` | How we know craster is right (tape + gates) |
-| `c/craster/OPEN_DIVERGENCES.md` | Open bugs with repros |
-| `c/craster/SPEC.md` | Raster architecture |
-| `c/mc-sim/SPEC.md` | Sim fidelity rules + status |
-| `c/render-opt/SPEC.md` | Kernel catalog (closed lab) |
+Code and goldens are ground truth. Short history only; full agent map is root
+`AGENTS.md`. Git has the long form. Old one-shot reports: `docs/archive/`.
 
 ## What shipped (by tree)
 
@@ -118,3 +105,10 @@ Removed 2026-07-11 (unused routes): `java/build_mac.sh`, `play_mac.sh` (Mac GL d
 - CUENV_MAX_SNAPS 64->128 for iron capture slots.
 - Codex seed-harden 29/3 in tmux iron-seed-harden.
 - Morning: bash c/craster/rl/out/morning_iron_status.sh
+
+## 2026-07-20 (docs consolidation)
+
+- Single agent entry: root `AGENTS.md`. How-tos/history under `docs/`
+  (`RUNBOOK`, `BOOTSTRAP`, `GATES`, `DEVLOG`). Archaeology in `docs/archive/`.
+- Living contracts stay next to code (`c/*/SPEC.md`, craster PRODUCT/VERIFY/OPEN_DIVERGENCES).
+- Root no longer holds DEVLOG or product/report markdown.

@@ -2,7 +2,7 @@
 
 Data-oriented C/CUDA Minecraft 1.11.2 *simulation* for batched RL. One shared core
 compiles CPU (oracle) and CUDA (batch / parity). Rendering is elsewhere (render-opt /
-craster). Contract: `SPEC.md`. History: `../../DEVLOG.md`.
+craster). Contract: `SPEC.md`. History: `../../docs/DEVLOG.md`.
 
 ```bash
 make oracle

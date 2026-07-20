@@ -157,4 +157,4 @@ mc-sim/
 - CUDA: nvcc -arch=sm_120 -O3 --fmad=false ...   (anvil = RTX PRO 6000 Blackwell)
 - Oracle: `uv run --no-project python oracle/runner.py <name>` -> builds both, diffs bitwise.
 - Python: UV only.
-- History: `../../DEVLOG.md`.
+- History: `../../docs/DEVLOG.md`.

@@ -6,7 +6,7 @@ SPEC remains the renderer architecture and verification contract.
 
 Location: `c/craster` in this monorepo (with `../mc-sim`, `../render-opt`).
 Build/run on anvil (Linux, headless). Display over Xvfb :1 (VNC) or dump PPM frames.
-Product contract: `PRODUCT.md`. Verification: `VERIFY.md`. History: `../../DEVLOG.md`.
+Product contract: `PRODUCT.md`. Verification: `VERIFY.md`. History: `../../docs/DEVLOG.md`.
 
 ## Goal
 Render the Minecraft world with a TRUE software/CUDA rasterizer: the triangle -> pixel

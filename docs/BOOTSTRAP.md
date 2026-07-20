@@ -1,5 +1,7 @@
 # Bootstrap: regenerating the Mojang-derived content
 
+Agent entry: root `AGENTS.md`. After bootstrap, how to run: `docs/RUNBOOK.md`.
+
 This repository distributes NO Mojang-derived content: no decompiled game
 source, no game textures, no captured game frames. The C code, the mod
 source, the build system, and the verification harnesses are all here; the

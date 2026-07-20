@@ -11,7 +11,7 @@ capture). `tier`: 0 scalar / 1 per-element parallel / 2 structured. Implement ro
 # bitwise impossible (non-deterministic atlas UVs); sub-kernels + drop-in column pixel-diffs.
 # Drop-ins: sin, lightmap, biome, AO. Whole-frame stripcheck: 0 px native vs vanilla on pinned
 # course. Not ported by design: atlas UV stitch + GL raster. Optional: full rebuildChunk VBO.
-# History: ../../DEVLOG.md. Day-to-day game fidelity: ../craster/VERIFY.md.
+# History: ../../docs/DEVLOG.md. Day-to-day game fidelity: ../craster/VERIFY.md.
 # <<< END STATUS
 
 ## Math primitives (tier-0, cap=pure) - plumbing smoke tests, bit-exact sensitive

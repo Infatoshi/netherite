@@ -165,12 +165,12 @@ uv run --no-project python trace/diff_trace.py --java trace/out/c_phys.csv --c /
 ## Launching the Java game (anvil, headless on :1)
 
 The Java tracer needs the client running with the qrl bridge on `127.0.0.1:25575`
-(root `CLAUDE.md`, Run B/C):
+(root `AGENTS.md` / `docs/RUNBOOK.md`, Run B/C):
 
 ```bash
 cd java && setsid nohup bash start_vnc_client.sh >/tmp/mc_launch.out 2>&1 &
 # wait until a TCP connect to 127.0.0.1:25575 succeeds (~20s), then run trace_java.py.
-# on a fresh checkout you may need MC_GRADLE_ONLINE=1 (see root CLAUDE.md).
+# on a fresh checkout you may need MC_GRADLE_ONLINE=1 (see AGENTS.md / docs/RUNBOOK.md).
 ```
 
 `trace_java.py` calls `reset({"seed":0})`, which auto-loads the world and polls until
@@ -254,7 +254,7 @@ uv run --no-project --with numpy --with pillow python trace/frame_oracle.py \
     --ticks 1200 --cadence 60 --run-java
 ```
 
-On a fresh checkout the game launch needs `MC_GRADLE_ONLINE=1` once (root `CLAUDE.md`).
+On a fresh checkout the game launch needs `MC_GRADLE_ONLINE=1` once (see `AGENTS.md`).
 Software GL (llvmpipe) keeps this off the shared GPU. The MC window is 854x480 / FOV 70,
 matched by the craster render.
 

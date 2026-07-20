@@ -1,32 +1,66 @@
-# mc-1.11.2-env (AGENTS.md)
+# netherite (AGENTS.md)
 
-Home: Anvil-primary - canonical at `anvil:~/dev/minecraft/mc-1.11.2-env`. Build/run HERE.
-MacBook is control plane / Moonlight / image viewing only.
+Home: **Anvil-primary** - canonical at `anvil:~/dev/netherite`. Build and run
+here. MacBook is control plane / Moonlight / image viewing only.
 
-## Living docs
-- Entry + runs: `CLAUDE.md` (full) or this file (short)
-- Product/fidelity: `c/craster/PRODUCT.md`, `VERIFY.md`, `OPEN_DIVERGENCES.md`
-- Contracts: `c/mc-sim/SPEC.md`, `c/render-opt/SPEC.md`, `c/craster/SPEC.md`
-- Compressed history: `DEVLOG.md` (code/goldens are ground truth)
+This file is the **only agent entry**. Do not hunt other root markdown for
+instructions. How-tos and history live under `docs/`; living contracts live
+next to the code they govern.
 
-## CRITICAL: anvil is headless
-- Demos: scp png/mp4 to Mac; never assume local image display.
-- Human play: Moonlight/Sunshine `:0` or mcwindow; tapes via `c/craster/VERIFY.md`.
-- Agent/trace: Xvfb `:1` + `bash java/start_vnc_client.sh` (VNC 5900, pw `redstone`).
-- One client owns qrl port 25575 at a time.
+## What this repo is
+
+From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (craster + mc-sim),
+bit-verified against the real Java game, plus a batched CUDA RL env (cuenv).
+Product name: **netherite**. Trees:
+
+- `java/` - playable Forge+Malmo/qrl client, launch scripts, oracle-src (bootstrap)
+- `c/craster/` - product C game + software rasterizer + RL
+- `c/mc-sim/` - simulation kernels (CPU == CUDA)
+- `c/render-opt/` - verified render kernels + JNI drop-ins (lab closed)
+
+## Where to read (stop when you have enough)
+
+| Need | Open |
+|------|------|
+| First clone / no oracle-src | `docs/BOOTSTRAP.md` |
+| How to play, VNC, qrl, sweep | `docs/RUNBOOK.md` |
+| Ship criteria / gate status | `docs/GATES.md` |
+| Fidelity procedure | `c/craster/VERIFY.md` |
+| Product contract / open bugs | `c/craster/PRODUCT.md`, `OPEN_DIVERGENCES.md` |
+| Architecture for a tree | that tree's `SPEC.md` |
+| History / lessons | `docs/DEVLOG.md` |
+| Old reports | `docs/archive/` (ignore by default) |
 
 ## Commands
-- JDK8: `export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64`; `java/Minecraft/ ./gradlew -g run/gradle build`
-- Craster: `make -C c/craster game` / `make verify-harsh` / tape loop in VERIFY.md
-- mc-sim: `uv run --no-project python c/mc-sim/oracle/runner.py <name>`
-- render-opt: `cd c/render-opt && uv run --no-project python harness/runner.py kernels/<dir>`
-- Python: UV only
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+# bootstrap once (see docs/BOOTSTRAP.md): scripts/bootstrap_oracle.sh + bootstrap_assets.sh
+
+cd java/Minecraft && ./gradlew -g run/gradle build
+
+make -C c/craster game
+make -C c/craster verify-harsh
+
+uv run --no-project python c/mc-sim/oracle/runner.py <name>
+cd c/render-opt && uv run --no-project python harness/runner.py kernels/<dir>
+
+bash netherite_sweep.sh --quick
+```
+
+Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).
+
+## Critical: anvil is headless
+
+- Demos (png/mp4): scp to Mac; do not assume local image display.
+- Human play: Moonlight/Sunshine `:0` or mcwindow (`docs/RUNBOOK.md`).
+- Agent/trace: Xvfb `:1` via `bash java/start_vnc_client.sh` (VNC 5900, pw `redstone`).
+- One client owns qrl port **25575** at a time.
 
 ## Gotchas
-- Kill game: `pkill -9 -f '[G]radleStart'` (`[G]` required)
-- Launch game standalone (`setsid nohup ...`); do not chain kill+launch+poll
-- Goldens from real MC only; `-ffp-contract=off` for C bit-match
-- NEVER push public (decompiled Mojang source). Private remote only.
 
-## Style
-No emojis, no em dashes. Minimal changes. Verify before claiming done.
+- Kill game: `pkill -9 -f '[G]radleStart'` (bracket required).
+- Launch game standalone (`setsid`/`nohup`); never chain kill+launch+poll.
+- Goldens from **real MC only**; C bit-match needs `-ffp-contract=off`.
+- Private remote only when oracle-src is present (decompiled Mojang source).
+- No emojis, no em dashes. Minimal diffs. Verify before claiming done.
