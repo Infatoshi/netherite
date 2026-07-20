@@ -66,7 +66,8 @@ detect_sm() {
 SM=$(detect_sm)
 USE_CUDA=0
 GPU_IDX=0
-if [ "$FORCE_CPU" -eq 0 ] && [ -n "$SM" ]; then
+# Need both a GPU *and* nvcc. Cheap Brev images often have a driver but no toolkit.
+if [ "$FORCE_CPU" -eq 0 ] && [ -n "$SM" ] && command -v nvcc >/dev/null 2>&1; then
   USE_CUDA=1
   want="${SM#sm_}"
   if [ "${#want}" -eq 3 ]; then want_cap="${want:0:2}.${want:2}"; else want_cap="${want:0:1}.${want:1}"; fi
@@ -76,6 +77,8 @@ if [ "$FORCE_CPU" -eq 0 ] && [ -n "$SM" ]; then
     if [ "$cap" = "$want_cap" ]; then GPU_IDX=$idx; break; fi
     idx=$((idx + 1))
   done < <(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null || true)
+elif [ -n "$SM" ] && ! command -v nvcc >/dev/null 2>&1; then
+  echo "note: GPU present ($SM) but nvcc missing — using CPU raster"
 fi
 
 echo "== demo_pixel_sbs =="
