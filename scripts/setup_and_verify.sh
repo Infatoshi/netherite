@@ -99,6 +99,20 @@ fi
 echo "== build craster =="
 make -C c/craster game
 
+# RL gate artifacts: snapshots for cuenv CPU/CUDA steps (committed refs alone
+# are not enough; .bsnp files are regenerable and gitignored).
+if [ ! -d c/craster/rl/out/snaps ] || [ -z "$(find c/craster/rl/out/snaps -name '*.bsnp' 2>/dev/null | head -1)" ]; then
+  echo "== make cuenv snapshots (t0 + curriculum) =="
+  make -C c/craster cuenv_so || make -C c/craster game
+  (
+    cd c/craster
+    T0=1 uv run --no-project --with numpy,torch python rl/cuenv/make_snapshots.py
+    uv run --no-project --with numpy,torch python rl/cuenv/make_snapshots.py
+  )
+else
+  echo "== cuenv snapshots already present =="
+fi
+
 echo "== netherite_sweep --$MODE =="
 bash netherite_sweep.sh --"$MODE"
 
