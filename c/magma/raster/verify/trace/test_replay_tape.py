@@ -112,7 +112,8 @@ def test_position_packet_reloads_nearby_snapshot_chunks(tmp_path: Path):
     )
     ticks = [{"t": 7, "dim": -1,
               "ppos": [24.5, 76.0, 24.5, 270.0, 0.0, 0.0, 0.0, 0.0]}]
-    events = replay_tape.snapshot_arrival_events(patch, ticks)
+    header = {"dim": 0, "x": 0.5, "z": 0.5}
+    events = replay_tape.snapshot_arrival_events(patch, header, ticks)
     assert events[7][0] == {"tick": 7, "type": "snapshot_region", "dim": -1,
                             "cx": 1, "cz": 1, "radius": 1}
     blocks = [event for event in events[7] if event["type"] == "snapshot_block"]
