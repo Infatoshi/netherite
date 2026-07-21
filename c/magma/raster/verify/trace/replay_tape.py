@@ -682,9 +682,9 @@ def main():
                 from scipy import ndimage as _nd  # noqa: F401
                 known_divergences = pg.load_known_divergences(args.tape)
             except ImportError as e:
-                gate_on = False
-                print(f"[tape] WARNING: pixel gate disabled ({e}); "
-                      f"run with --with scipy for cluster verdicts")
+                raise SystemExit(
+                    f"[tape] pixel gate deps missing ({e}); add --with scipy "
+                    f"or pass --no-gate to skip the gate explicitly")
 
         def diff_one(i_t):
             # numpy releases the GIL, so threads give real parallelism here
@@ -799,6 +799,8 @@ def main():
         print(f"[gate] baseline -> {gj}")
         if not gate["pass"]:
             return 3
+    if first is not None:
+        return 4  # physics divergence: exact replay is the primary contract
     return 0
 
 

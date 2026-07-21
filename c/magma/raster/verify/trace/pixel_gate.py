@@ -96,6 +96,18 @@ def _region_matches(entry, ys, xs):
                for r in regions)
 
 
+def _region_mask(entry, shape):
+    """Inclusive sidecar regions as a pixel mask; no regions accepts nothing."""
+    out = np.zeros(shape, dtype=bool)
+    h, w = shape
+    for y0, x0, y1, x1 in entry.get("regions", []):
+        y0, x0 = max(0, y0), max(0, x0)
+        y1, x1 = min(h - 1, y1), min(w - 1, x1)
+        if y0 <= y1 and x0 <= x1:
+            out[y0:y1 + 1, x0:x1 + 1] = True
+    return out
+
+
 def _known_cluster_class(entries, ys, xs, protected):
     """Return known:N only for scoped, non-marker residual components."""
     if protected[ys, xs].any():
@@ -109,7 +121,7 @@ def _known_cluster_class(entries, ys, xs, protected):
 
 
 def _known_pixel_masks(entries, o16, c16, mask, protected):
-    """Extract directional global color shifts before residual labeling."""
+    """Extract tightly scoped color/texture shifts before residual labeling."""
     masks = []
     brightness_o = o16.mean(axis=2)
     brightness_c = c16.mean(axis=2)
@@ -117,10 +129,29 @@ def _known_pixel_masks(entries, o16, c16, mask, protected):
     saturation_c = c16.max(axis=2) - c16.min(axis=2)
     for entry in entries:
         predicate = entry.get("predicate", {})
-        if predicate.get("type") != "global_oracle_darker_desaturated":
-            continue
-        usable = mask & ~protected
+        ptype = predicate.get("type")
+        usable = mask & ~protected & _region_mask(entry, mask.shape)
         if not usable.any():
+            continue
+        if ptype == "texture_luminance_modulation":
+            # AO, directional face shade, and destroy-stage overlays modulate
+            # an existing texture nearly achromatically. Normalize RGB by its
+            # sum so geometry/sprite substitutions, including marker colors,
+            # cannot enter this class merely because their luminance differs.
+            osum = o16.sum(axis=2).astype(np.float64)
+            csum = c16.sum(axis=2).astype(np.float64)
+            onorm = o16 / np.maximum(osum[..., None], 1.0)
+            cnorm = c16 / np.maximum(csum[..., None], 1.0)
+            max_delta = predicate.get("max_chroma_delta", 0.08)
+            min_rgb_sum = predicate.get("min_rgb_sum", 24)
+            accepted = (usable & (osum >= min_rgb_sum)
+                        & (csum >= min_rgb_sum)
+                        & (np.abs(onorm - cnorm).max(axis=2) <= max_delta))
+            if accepted.any():
+                masks.append((accepted,
+                              f"known:{entry['open_divergence']}"))
+            continue
+        if ptype != "global_oracle_darker_desaturated":
             continue
         # The entry is valid only when the frame as a whole has the filed
         # weather signature. Pixel extraction stays directional. The small

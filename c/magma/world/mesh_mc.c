@@ -47,6 +47,11 @@ struct CrWorldMC {
 #define CR_CB_BEDROCK 5
 #define CR_CB_SAND 7
 #define CR_CB_NETHERRACK 210
+#define CR_CB_TALLGRASS 39
+#define CR_CB_FERN 40
+#define CR_CB_YELLOW_FLOWER 50
+#define CR_CB_RED_FLOWER_LAST 59
+#define CR_CB_DPLANT_LAST 66
 
 /* One cube face template, indexed by EnumFacing (0=DOWN 1=UP 2=NORTH 3=SOUTH
  * 4=WEST 5=EAST, matching BM_DOWN..BM_EAST). Holds the outward normal, the MC
@@ -1072,7 +1077,7 @@ static void emit_torch(CrChunkMeshMC *out, int *cap, const CrLight *L,
 /* Cross-plant: two 45deg-rotated planes (block/cross), 4 quads, no directional
  * shade (MC shade=false), on the CUTOUT layer. */
 static void emit_cross(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L,
-                       int wx, int wy, int wz, int sprite, CrRgba tint,
+                       int cb, int wx, int wy, int wz, int sprite, CrRgba tint,
                        float base01) {
     /* BlockPartRotation origin is model-space/16 (JSON [8,8,8] -> 0.5), matching
      * the kernel's position space (bounds already divided by 16). */
@@ -1082,12 +1087,31 @@ static void emit_cross(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L
     const float aFrom[3] = { 0.8f, 0.0f, 8.0f }, aTo[3] = { 15.2f, 16.0f, 8.0f };
     const float bFrom[3] = { 8.0f, 0.0f, 0.8f }, bTo[3] = { 8.0f, 16.0f, 15.2f };
     const int   planeFace[4] = { BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST };
+    /* Actual 1.11.2 getOffsetType bytecode: BlockTallGrass is XYZ;
+     * BlockFlower and BlockDoublePlant are XZ; dead bush, mushrooms, reeds,
+     * and cocoa inherit NONE. Block.getOffset hashes y=0, so double-plant
+     * halves share one translation. */
+    int offset_type = (cb >= CR_CB_TALLGRASS && cb <= CR_CB_FERN) ? 2
+        : (cb >= CR_CB_YELLOW_FLOWER && cb <= CR_CB_DPLANT_LAST) ? 1 : 0;
+    float offx = 0.0f, offy = 0.0f, offz = 0.0f;
+    if (offset_type) {
+        uint64_t r = mc_position_random(wx, 0, wz);
+        offx = (((float)((r >> 16) & 15u) / 15.0f) - 0.5f) * 0.5f;
+        offz = (((float)((r >> 24) & 15u) / 15.0f) - 0.5f) * 0.5f;
+        if (offset_type == 2)
+            offy = (((float)((r >> 20) & 15u) / 15.0f) - 1.0f) * 0.2f;
+    }
     for (int q = 0; q < 4; ++q) {
         const float *from = (q < 2) ? aFrom : bFrom;
         const float *to   = (q < 2) ? aTo   : bTo;
         CrVertex quad[4];
         bake_face(wx, wy, wz, from, to, planeFace[q], 1, 1, 45.0f, origin, 1,
                   sprite, base01, 1.0f, tint, quad);
+        for (int i = 0; i < 4; ++i) {
+            quad[i].pos.x += offx;
+            quad[i].pos.y += offy;
+            quad[i].pos.z += offz;
+        }
         push_face(out, cap, layer, quad);
     }
 }
@@ -1289,7 +1313,8 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
         : cell_light01(L, wx, wy, wz, &tint);
     switch (m->kind) {
         case BM_KIND_CROSS:
-            emit_cross(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);
+            emit_cross(out, cap, m->layer, L, cb, wx, wy, wz, side_spr, tint,
+                       base01);
             break;
         case BM_KIND_SLAB_BOTTOM: {
             const float from[3] = {0,0,0}, to[3] = {16,8,16};

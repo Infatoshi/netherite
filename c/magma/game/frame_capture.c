@@ -619,7 +619,11 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * RenderGlobal.drawSelectionBox / drawBlockDamageTexture). Opt out with
      * MAGMA_NO_OVERLAY=1 for goldens that predate the overlay pass. */
     if(!getenv("MAGMA_NO_OVERLAY")&&!v.dead){
-        static CrVertex ov[GM_OVERLAY_MAX_VERTS];
+        /* GPU uploads are asynchronous until frame_end. Selection and crack
+         * therefore need distinct pinned host buffers: reusing one here lets
+         * the crack emit overwrite selection vertices still in flight. */
+        static CrVertex sel_ov[GM_OVERLAY_MAX_VERTS];
+        static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
         int hx=0,hy=0,hz=0,ax,ay,az;
         int have_sel=gm_raycast_sel((const struct Chunk *)r->window,
                                     (const struct McSinTable *)&r->sin_table,
@@ -633,7 +637,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
          * DST_COLOR/SRC_COLOR multiply-2x (blend=2). Separate passes -
          * vanilla RenderGlobal draws them with different blend state. */
         if(have_sel){
-            int ns=gm_overlay_emit_sel(ov,GM_OVERLAY_MAX_VERTS,
+            int ns=gm_overlay_emit_sel(sel_ov,GM_OVERLAY_MAX_VERTS,
                                        hx+r->ox,hy,hz+r->oz,selb,
                                        cam.pos.x,cam.pos.y,cam.pos.z);
             if(ns>0){
@@ -645,7 +649,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 osh.layer = CR_LAYER_TRANSLUCENT;
                 osh.blend = 1;
                 osh.depth_lequal = 1;
-                render_layer(c,&cam,ov,ns,&osh);
+                render_layer(c,&cam,sel_ov,ns,&osh);
             }
         }
         if(have_dig && dmg>0.0f && !getenv("MAGMA_NO_CRACK")){
@@ -654,13 +658,21 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
              * matches emit_crack: 0=-z 1=+z 2=-x 3=+x 4=+y 5=-y. */
             int face = -1;
             if (have_sel && hx == dx && hy == dy && hz == dz) {
-                /* ax,ay,az is the hit normal axis (+-1 on one component). */
-                if (ax < 0) face = 2; else if (ax > 0) face = 3;
-                else if (ay < 0) face = 5; else if (ay > 0) face = 4;
-                else if (az < 0) face = 0; else if (az > 0) face = 1;
+                /* ax,ay,az is the last CELL before the hit (sel_box.h), not a
+                 * normal: the face is the cell delta. Comparing ax<0/ax>0
+                 * directly pinned every crack to the +x face (invisible from
+                 * most viewpoints - top-face digs never showed cracks). */
+                int nx = ax - hx, ny = ay - hy, nz = az - hz;
+                if (nx < 0) face = 2; else if (nx > 0) face = 3;
+                else if (ny < 0) face = 5; else if (ny > 0) face = 4;
+                else if (nz < 0) face = 0; else if (nz > 0) face = 1;
             }
-            int nc=gm_overlay_emit_crack(ov,GM_OVERLAY_MAX_VERTS,
+            int nc=gm_overlay_emit_crack(crack_ov,GM_OVERLAY_MAX_VERTS,
                                          dx+r->ox,dy,dz+r->oz,dmg,face);
+            if(getenv("MAGMA_LOG_DIG"))
+                fprintf(stderr,"CRK t%lld face=%d nc=%d at %d,%d,%d cam %.1f,%.1f,%.1f\n",
+                        r->tick,face,nc,dx+r->ox,dy,dz+r->oz,
+                        cam.pos.x,cam.pos.y,cam.pos.z);
             if(nc>0){
                 CrShadeCtx csh = {0};
                 csh.atlas = &atlas;
@@ -673,7 +685,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 csh.layer = CR_LAYER_CUTOUT;
                 csh.blend = 2;           /* DST_COLOR, SRC_COLOR → 2*src*dst */
                 csh.depth_lequal = 1;
-                render_layer(c,&cam,ov,nc,&csh);
+                render_layer(c,&cam,crack_ov,nc,&csh);
             }
         }
     }

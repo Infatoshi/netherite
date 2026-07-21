@@ -137,6 +137,32 @@ static int psv_replaceable(int id) {
            id == 51 || id == 78;
 }
 
+/* BlockTorch.canPlaceBlockAt/getStateForPlacement. The pure orientation table
+ * deliberately omits world support checks, but the live path must reject a
+ * repeated use that tries to stack a torch on another torch (the canonical
+ * tape holds use for several ticks). `face` points from the clicked support
+ * block into the placement cell. */
+static int torch_placement_meta(const Chunk *w, int x, int y, int z, int face) {
+    int support = 0;
+    switch (face) {
+    case IBP_UP:    support = psv_solid(psv_get_block(w, x, y - 1, z)); break;
+    case IBP_NORTH: support = psv_solid(psv_get_block(w, x, y, z + 1)); break;
+    case IBP_SOUTH: support = psv_solid(psv_get_block(w, x, y, z - 1)); break;
+    case IBP_WEST:  support = psv_solid(psv_get_block(w, x + 1, y, z)); break;
+    case IBP_EAST:  support = psv_solid(psv_get_block(w, x - 1, y, z)); break;
+    default: break; /* torches cannot attach to ceilings */
+    }
+    if (support) return ibp_meta_torch(face);
+
+    /* BlockTorch's horizontal fallback iterates EnumFacing value order. */
+    if (psv_solid(psv_get_block(w, x, y, z + 1))) return ibp_meta_torch(IBP_NORTH);
+    if (psv_solid(psv_get_block(w, x, y, z - 1))) return ibp_meta_torch(IBP_SOUTH);
+    if (psv_solid(psv_get_block(w, x + 1, y, z))) return ibp_meta_torch(IBP_WEST);
+    if (psv_solid(psv_get_block(w, x - 1, y, z))) return ibp_meta_torch(IBP_EAST);
+    if (psv_solid(psv_get_block(w, x, y - 1, z))) return ibp_meta_torch(IBP_UP);
+    return -1;
+}
+
 /* Entity.isInsideOfMaterial(WATER): the eye sits below the liquid surface of
  * its cell. BlockLiquid.getLiquidHeightPercent: falling (meta>=8) counts as a
  * full block; else (meta+1)/9, surface at (y+1) - percent. */
@@ -553,9 +579,13 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
                         int face = face_from_adj(hx, hy, hz, ax, ay, az);
                         int yq = yaw_to_quad(pl->yaw);
                         int sneaked = act.sneak;
-                        int pmeta = ibp_placed_meta(place_id, face, yq, sneaked, held.meta) & 15;
-                        ICStack used = isr_decr_stack_size(&pl->inv, pl->inv.current_item, 1);
-                        if (!isr_is_empty(&used)) {
+                        int pmeta = place_id == IBP_BLK_TORCH
+                            ? torch_placement_meta(window, ax, ay, az, face)
+                            : ibp_placed_meta(place_id, face, yq, sneaked, held.meta) & 15;
+                        if (pmeta < 0) place_id = 0;
+                        if (place_id) {
+                            ICStack used = isr_decr_stack_size(&pl->inv, pl->inv.current_item, 1);
+                            if (isr_is_empty(&used)) goto use_done;
                             psv_set_state(window, ax, ay, az, place_id, pmeta);
                             pl->place_events++;
                             emit_edit(edits, &ne, max_edits, ox, oy, oz, ax, ay, az,

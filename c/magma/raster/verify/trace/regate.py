@@ -26,7 +26,10 @@ def main():
     ap.add_argument("--tape", required=True)
     ap.add_argument("--npy", required=True)
     ap.add_argument("--report", default=None)
-    ap.add_argument("--frame-every", type=int, default=2)
+    ap.add_argument(
+        "--frame-every", type=int, default=None,
+        help="override frame ticks; by default use <npy stem>.ticks.npy, then 2",
+    )
     args = ap.parse_args()
 
     gold_dir = args.tape.replace(".jsonl", "") + "_frames"
@@ -41,11 +44,22 @@ def main():
                 rows.append(json.loads(line))
 
     frames = np.load(args.npy, mmap_mode="r")
+    ticks_path = os.path.splitext(args.npy)[0] + ".ticks.npy"
+    if args.frame_every is not None:
+        frame_ticks = np.arange(len(frames), dtype=np.int64) * args.frame_every
+    elif os.path.exists(ticks_path):
+        frame_ticks = np.load(ticks_path)
+        if len(frame_ticks) != len(frames):
+            sys.exit(f"frame tick count mismatch: {ticks_path}")
+    else:
+        frame_ticks = np.arange(len(frames), dtype=np.int64) * 2
+        print("[regate] no frame-tick sidecar; falling back to every 2 ticks",
+              flush=True)
     known_divergences = pg.load_known_divergences(args.tape)
     n, h, w, _ = frames.shape
     per_tick = {}
     for i in range(n):
-        t = i * args.frame_every
+        t = int(frame_ticks[i])
         gp = os.path.join(gold_dir, f"f_{t:06d}.png")
         if not os.path.exists(gp):
             continue

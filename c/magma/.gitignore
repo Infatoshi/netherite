@@ -13,3 +13,8 @@ renderkernels/test_rk
 tests/test_mesh_mc
 rl/cuenv/cuenv_verify
 rl/cuenv/*.so
+tests/test_hand_torch
+tests/test_mesh_models
+tests/test_model_oracle
+game/test_block_registry
+game/test_play_compose

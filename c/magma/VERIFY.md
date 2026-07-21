@@ -52,7 +52,7 @@ pixel- and physics-clean, that slice of the game is done.
 4. Stop + replay + report:
 
        uv run --no-project --with pyarrow python tape.py stop
-       uv run --no-project --with numpy --with pillow --with nbt python replay_tape.py TAPE.jsonl --report
+       uv run --no-project --with numpy --with scipy --with pillow --with nbt python replay_tape.py TAPE.jsonl --report
 
    `nbt` is used only when the tape has a `<name>_world/` recstart snapshot;
    old tapes without one follow the previous path unchanged.

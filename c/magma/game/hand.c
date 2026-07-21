@@ -513,8 +513,8 @@ static int held_is_block(int item_id, int item_meta, const BmBlock **out_m) {
     if (key == GM_MODEL_FALLBACK || key == 0) return 0;
     const BmBlock *m = bm_block(key);
     if (!m || m->is_air) return 0;
-    /* Cross plants are inventory-flat in vanilla; draw as generated-style. */
-    if (m->kind == BM_KIND_CROSS) return 0;
+    /* These block models have generated-item inventory parents in 1.11.2. */
+    if (m->kind == BM_KIND_CROSS || m->kind == BM_KIND_TORCH) return 0;
     if (out_m) *out_m = m;
     return 1;
 }
@@ -585,16 +585,15 @@ int gm_hand_emit_held(int item_id, int item_meta, float swing, float equip,
     int is_block = held_is_block(item_id, item_meta, &bm);
     CrMat4 M = apply_fp_camera(build_held_item_base(swing, equip), is_block);
 
-    if (is_block && bm) {
-        return emit_held_block(M, bm, out, max);
-    }
+    if (is_block && bm) return emit_held_block(M, bm, out, max);
 
     /* generated / handheld item (or cross plant via terrain sprite fallback) */
     float u0, v0, u1, v1;
     if (item_id > 0 && item_id <= 255) {
         int key = gm_state_to_model_key(gm_pack_state(item_id, item_meta));
         const BmBlock *m = (key != GM_MODEL_FALLBACK && key != 0) ? bm_block(key) : 0;
-        if (m && !m->is_air && m->kind == BM_KIND_CROSS) {
+        if (m && !m->is_air &&
+            (m->kind == BM_KIND_CROSS || m->kind == BM_KIND_TORCH)) {
             bm_sprite_uv(m->face[BM_SOUTH].sprite, &u0, &v0, &u1, &v1);
             return emit_held_generated(M, u0, v0, u1, v1, out, max);
         }
@@ -660,7 +659,9 @@ void gm_hand_draw(CrFramebuffer *fb, const GmPlayerView *pv, float bob_phase) {
             if (!use_terrain && item_id > 0 && item_id <= 255) {
                 int key = gm_state_to_model_key(gm_pack_state(item_id, 0));
                 const BmBlock *m = (key != GM_MODEL_FALLBACK && key != 0) ? bm_block(key) : 0;
-                if (m && !m->is_air && m->kind == BM_KIND_CROSS) use_terrain = 1;
+                if (m && !m->is_air &&
+                    (m->kind == BM_KIND_CROSS || m->kind == BM_KIND_TORCH))
+                    use_terrain = 1;
             }
             CrTexture tex = use_terrain ? bm_atlas() : gm_item_atlas();
             hand_raster(fb, g_verts, nv, &tex, /*cutout=*/1);

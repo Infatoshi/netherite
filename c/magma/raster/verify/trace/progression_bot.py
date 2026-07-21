@@ -856,7 +856,216 @@ def seg_e2e(env):
     return setup, drive
 
 
+def _dump_region(env, radius=2):
+    """dumpblocks around the player -> (raw, cx0, cz0, ncx). Square region."""
+    import tempfile
+    f = tempfile.NamedTemporaryFile(suffix=".raw", delete=False)
+    f.close()
+    db = env._cmd({"cmd": "dumpblocks",
+                   "action": {"radius": radius, "file": f.name}})
+    if not db.get("ok"):
+        raise SystemExit(f"dumpblocks failed: {db}")
+    raw = open(f.name, "rb").read()
+    os.unlink(f.name)
+    return raw, db["cx0"], db["cz0"], db["cx1"] - db["cx0"] + 1
+
+
+def _block_at(raw, cx0, cz0, ncx, x, y, z):
+    ci = (z // 16 - cz0) * ncx + (x // 16 - cx0)
+    off = ci * 16 * 16 * 256 * 2 + ((y * 16 + (z % 16)) * 16 + (x % 16)) * 2
+    return raw[off] | (raw[off + 1] << 8)
+
+
+def find_tree(env, px, pz, radius=2, ymin=60, ymax=90):
+    """Nearest log-column base (id 17) in a dumpblocks region around the
+    player. Returns (x, y, z) of the bottom trunk log."""
+    raw, cx0, cz0, ncx = _dump_region(env, radius)
+    x0, z0 = cx0 * 16, cz0 * 16
+    best, bd = None, None
+    for z in range(z0, z0 + ncx * 16):
+        for x in range(x0, x0 + ncx * 16):
+            for y in range(ymin, ymax):
+                if _block_at(raw, cx0, cz0, ncx, x, y, z) >> 4 == 17:
+                    if _block_at(raw, cx0, cz0, ncx, x, y - 1, z) >> 4 != 17:
+                        d = (x - px) ** 2 + (z - pz) ** 2
+                        if bd is None or d < bd:
+                            best, bd = (x, y, z), d
+                    break
+    return best
+
+
+
+
+def jump_tap(env, wait=20, **fields):
+    """One organic jump: wait for ground contact (stepping with fields), then
+    a single 1-tick jump press. The bridge forces the impulse on the rising
+    edge regardless of onGround, and a HELD jump re-fires via the vanilla
+    landing path with jumpTicks bookkeeping magma does not share (takes 4/7:
+    t148/t270 divergences) - so jumps must be 1-tick taps issued on og=1."""
+    for _ in range(wait):
+        if env.obs().get("og"):
+            break
+        env.step(dict(fields))
+        time.sleep(PACE)
+    env.step(dict(fields, jump=1))
+    time.sleep(PACE)
+
+
+def face_org(env, tyaw, tpitch=None, rate=14.0, tol=0.8, max_ticks=80):
+    """Organic look: continuous dyaw/dpitch deltas, no tp. Replay-safe for
+    exact-physics tapes (face()'s tp position packets transiently exceed TOL)."""
+    for _ in range(max_ticks):
+        o = env.obs()
+        dy = ((tyaw - o["yaw"] + 180.0) % 360.0) - 180.0
+        dp = 0.0 if tpitch is None else (tpitch - o["pitch"])
+        if abs(dy) <= tol and abs(dp) <= tol:
+            return
+        a = {}
+        if abs(dy) > tol:
+            a["dyaw"] = max(-rate, min(rate, dy))
+        if abs(dp) > tol:
+            a["dpitch"] = max(-rate, min(rate, dp))
+        env.step(a)
+        time.sleep(PACE)
+
+
+def aim_at(env, tx, ty, tz, eye=1.62, rate=14.0):
+    o = env.obs()
+    dx, dyy, dz = tx - o["x"], ty - (o["y"] + eye), tz - o["z"]
+    face_org(env, math.degrees(math.atan2(-dx, dz)),
+             math.degrees(-math.atan2(dyy, math.hypot(dx, dz))), rate=rate)
+
+
+def walk_to(env, tx, tz, tol=2.2, max_bursts=80):
+    """Closed-loop walk toward (tx, tz); only organic inputs are taped."""
+    for i in range(max_bursts):
+        o = env.obs()
+        dx, dz = tx - o["x"], tz - o["z"]
+        dist = math.hypot(dx, dz)
+        if dist <= tol:
+            run(env, 4)
+            return True
+        face_org(env, math.degrees(math.atan2(-dx, dz)), 12.0, rate=16.0,
+                 tol=2.5, max_ticks=20)
+        spr = 1 if dist > 7 else 0
+        if i % 3 == 2:
+            jump_tap(env, forward=1, sprint=spr)
+            run(env, 7, forward=1, sprint=spr)
+        else:
+            run(env, 8, forward=1, sprint=spr)
+    return False
+
+
+def break_block(env, x, y, z, max_ticks=240):
+    """Hold-to-break one block organically; poll until it is gone."""
+    aim_at(env, x + 0.5, y + 0.5, z + 0.5)
+    for _ in range(max_ticks // 10):
+        run(env, 10, attack=1)
+        if ol.runcmds(env, [f"testforblock {x} {y} {z} air"]).get("ran"):
+            run(env, 4)
+            return True
+    print(f"break_block: ({x},{y},{z}) still standing after {max_ticks}")
+    return False
+
+
+def seg_survival(env):
+    """Canonical organic survival route, bot-driven: spawn locomotion, walk to
+    a sheep, fist-chop a tree trunk and collect the drops, take craft OUTPUTS
+    via replaceitem (GUI crafting clicks are untaped by design -
+    OPEN_DIVERGENCES #9; replay patches slots from the taped inv rows), dig a
+    stair into the ground with the wooden pick, place torches. Everything the
+    tape replays (movement, look, attack, use, hotbar) stays organic."""
+    state = {}
+
+    def setup():
+        # pristine world every take: leftovers from a prior run (chopped
+        # trunk, sapling/item drops mid-despawn, placed torches) contaminate
+        # both the pixels and the recstart snapshot timing
+        print("survival: fresh world reset",
+              env.reset({"seed": 0, "mode": "survival", "type": "default",
+                         "structures": True, "fresh": True},
+                        timeout=300.0) and "ok")
+        ol.freeze_scene(env, world_time=6000, gamemode="survival")
+        ensure_dim(env, 0)
+        settle(env, *SPAWN)
+        tree = find_tree(env, int(SPAWN[0]), int(SPAWN[2]))
+        if tree is None:
+            raise SystemExit("survival: no tree in dump radius")
+        state["tree"] = tree
+        print("survival: trunk base at", tree)
+        sheep = find_ent(env, "Sheep")
+        state["sheep"] = (sheep["x"], sheep["z"]) if sheep else None
+        print("survival: sheep at", state["sheep"])
+        settle(env, *SPAWN)
+        time.sleep(11)
+
+    def drive():
+        tx, ty, tz = state["tree"]
+        # spawn locomotion: walk, sprint, jump-run, look around. Face inland
+        # (toward the tree) first: default yaw 0 walks off spawn into the
+        # ocean, and jump-at-water-edge diverged replay physics at t121.
+        run(env, 20)
+        o = env.obs()
+        face_org(env, math.degrees(math.atan2(-(tx - o["x"]), tz - o["z"])),
+                 10.0)
+        run(env, 50, forward=1)
+        run(env, 50, forward=1, sprint=1)
+        # tap-jump, never hold: a held jump re-fires via the vanilla landing
+        # path whose cooldown timing differs one tick from the bridge's forced
+        # rising-edge impulse; taps keep every jump on the bit-exact edge path
+        for _ in range(3):
+            jump_tap(env, forward=1, sprint=1)
+            run(env, 13, forward=1, sprint=1)
+        for d in (1, 1, -1, -1):
+            run(env, 6, dyaw=7.5 * d)
+        run(env, 20, back=1)
+        # visit the sheep for entity render coverage
+        if state["sheep"]:
+            walk_to(env, state["sheep"][0], state["sheep"][1], tol=3.5,
+                    max_bursts=40)
+            for d in (1, -1, -1, 1):
+                run(env, 6, dyaw=7.5 * d)
+        # fist-chop two trunk logs, then walk through the drop spot
+        walk_to(env, tx + 0.5, tz + 2.5)
+        break_block(env, tx, ty, tz)
+        break_block(env, tx, ty + 1, tz)
+        run(env, 25, forward=1)
+        run(env, 20, back=1)
+        run(env, 15)
+        # craft outputs only (GUI clicks untaped; inv rows patch the replay)
+        cmds(env, [
+            "replaceitem entity @a slot.hotbar.1 minecraft:wooden_pickaxe 1 0",
+            "replaceitem entity @a slot.hotbar.2 minecraft:torch 8 0",
+        ])
+        run(env, 20)
+        # dig a 2-deep stair into the ground with the pick
+        run(env, 5, hotbar=1)
+        o = env.obs()
+        bx = int(math.floor(o["x"])) + 1
+        bz = int(math.floor(o["z"]))
+        by = int(math.floor(o["y"])) - 1
+        break_block(env, bx, by, bz)
+        break_block(env, bx, by - 1, bz)
+        run(env, 10)
+        # torch on the far wall of the stair, then one on the ground ahead
+        run(env, 5, hotbar=2)
+        aim_at(env, bx + 1.5, by - 0.5, bz + 0.5)
+        run(env, 6, use=1)
+        run(env, 10)
+        aim_at(env, bx + 0.5, by - 2 + 0.5, bz + 0.5)
+        run(env, 6, use=1)
+        run(env, 15)
+        # closing locomotion + look-around
+        run(env, 40, back=1)
+        run(env, 40, forward=1, sprint=1)
+        for d in (1, 1, -1, -1):
+            run(env, 6, dyaw=7.5 * d)
+        run(env, 30)
+    return setup, drive
+
+
 SEGMENTS = {
+    "survival": seg_survival,
     "overworld": seg_overworld,
     "mine": seg_mine,
     "build": seg_build,

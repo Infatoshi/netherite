@@ -334,3 +334,18 @@ def test_wrong_window_sidecar_does_not_suppress_marker_box(tmp_path: Path):
 
 def test_missing_known_divergence_sidecar_defaults_to_empty(tmp_path: Path):
     assert pixel_gate.load_known_divergences(tmp_path / "plain.jsonl") == []
+
+
+def test_texture_luminance_sidecar_does_not_suppress_marker_box():
+    oracle, magma = _canonical_frame_pair(600)
+    known = [{
+        "ticks": [600, 600],
+        "open_divergence": 4,
+        "regions": [[45, 0, 383, 853]],
+        "predicate": {"type": "texture_luminance_modulation"},
+    }]
+    clusters = pixel_gate.gate_frame(
+        oracle, _add_midframe_marker(magma), 854, 480, tick=600, known=known)
+    assert pixel_gate.frame_verdict(clusters)[0] is True
+    assert any(cluster["cls"] == "UNEXPLAINED" and cluster["px"] >= 10_000
+               for cluster in clusters)

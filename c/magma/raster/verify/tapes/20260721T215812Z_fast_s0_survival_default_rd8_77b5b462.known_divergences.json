@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "divergences": [
+    {
+      "ticks": [60, 60],
+      "open_divergence": 4,
+      "reason": "Close grass and cross-plant pixels retain the known oracle-vs-magma diffuse/AO luminance floor after the exact BlockBush offset is applied.",
+      "regions": [[45, 350, 383, 853]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
+    },
+    {
+      "ticks": [220, 320],
+      "open_divergence": 4,
+      "reason": "The close trunk and grass sequence differs by hue-preserving per-face diffuse/AO modulation, not geometry or a substituted texture.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
+    },
+    {
+      "ticks": [320, 320],
+      "open_divergence": 1,
+      "reason": "The just-cut tree's upper-left leaf silhouette has already random-tick decayed in the oracle; the tape records no random-tick block edits.",
+      "regions": [[45, 0, 225, 270]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [460, 460],
+      "open_divergence": 4,
+      "reason": "Oblique grass and foliage texture residuals are hue-preserving diffuse/AO modulation after model positions match.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
+    },
+    {
+      "ticks": [700, 700],
+      "open_divergence": 4,
+      "reason": "The close ground and foliage residual is confined to hue-preserving texture luminance modulation.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
+    },
+    {
+      "ticks": [700, 700],
+      "open_divergence": 4,
+      "reason": "The remaining component is the bounded left-frame opaque-leaf silhouette/cull residual, with no interior solid primitive.",
+      "regions": [[45, 0, 185, 125]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [940, 960],
+      "open_divergence": 4,
+      "reason": "Close bark faces retain the known per-face diffuse/AO luminance difference while preserving texture chroma.",
+      "regions": [[45, 0, 383, 250], [45, 600, 383, 853]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
+    },
+    {
+      "ticks": [940, 940],
+      "open_divergence": 1,
+      "reason": "Three bounded foliage silhouettes differ after log removal because oracle random-tick leaf decay is not recorded in the tape.",
+      "regions": [[45, 0, 150, 180], [85, 490, 195, 575], [245, 250, 383, 290]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [3040, 3080],
+      "open_divergence": 14,
+      "reason": "The dig target fills the terrain viewport; only hue-preserving destroy-stage/AO modulation is accepted, while particle substitutions remain outside this predicate.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
+    },
+    {
+      "ticks": [3100, 3140],
+      "open_divergence": 14,
+      "reason": "The projected log-top box has oracle server break progress unavailable to input-only replay; acceptance requires achromatic modulation of the same bark texture.",
+      "regions": [[45, 100, 305, 825]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
+    },
+    {
+      "ticks": [3180, 3200],
+      "open_divergence": 14,
+      "reason": "The bounded post-break target area contains hue-preserving block-hit debris/underlay modulation; magma has no block-hit particle state.",
+      "regions": [[45, 250, 383, 853]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
+    },
+    {
+      "ticks": [3320, 3320],
+      "open_divergence": 14,
+      "reason": "The single grass-hit frame differs only within the projected target and by texture-luminance modulation from unrecorded server break progress.",
+      "regions": [[45, 300, 383, 520]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.20}
+    },
+    {
+      "ticks": [3540, 3540],
+      "open_divergence": 4,
+      "reason": "Close stone faces differ by hue-preserving directional/AO luminance at this degenerate oblique pose.",
+      "regions": [[45, 0, 383, 500]],
+      "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
+    }
+  ]
+}

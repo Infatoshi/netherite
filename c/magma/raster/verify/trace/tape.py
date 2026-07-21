@@ -143,7 +143,7 @@ def cmd_stop(args):
         json.dump(meta, f, indent=2)
     pack(meta["tape_jsonl"], meta_path)
     print("replay next:\n  cd", HERE, "&&",
-          "uv run --no-project --with numpy --with pillow --with nbt python replay_tape.py",
+          "uv run --no-project --with numpy --with scipy --with pillow --with nbt python replay_tape.py",
           meta["tape_jsonl"], "--report")
     return 0
 

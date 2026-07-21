@@ -338,6 +338,13 @@ int main(void) {
         golden_face(&g, xc,TY,zc, aF,aT, BM_SOUTH, 1,1,45.0f,o,1, spr);
         golden_face(&g, xc,TY,zc, bF,bT, BM_WEST,  1,1,45.0f,o,1, spr);
         golden_face(&g, xc,TY,zc, bF,bT, BM_EAST,  1,1,45.0f,o,1, spr);
+        uint64_t r = worldmc_test_position_random(xc, 0, zc);
+        float ox = (((float)((r >> 16) & 15u) / 15.0f) - 0.5f) * 0.5f;
+        float oy = (((float)((r >> 20) & 15u) / 15.0f) - 1.0f) * 0.2f;
+        float oz = (((float)((r >> 24) & 15u) / 15.0f) - 0.5f) * 0.5f;
+        for (int i=0; i<g.n; ++i) {
+            g.v[i].x += ox; g.v[i].y += oy; g.v[i].z += oz;
+        }
         /* rescaled 45deg planes poke slightly past the cell; widen the footprint
          * (tall grass is the only CUTOUT block placed, so this stays unambiguous). */
         int n = collect_box(&m, CR_LAYER_CUTOUT, xc-1.0f, xc+2.0f, zc-1.0f, zc+2.0f,

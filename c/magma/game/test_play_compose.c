@@ -130,6 +130,39 @@ static void test_place_meta(void) {
     CHECK(t0 != t1, "ibp furnace meta differs for yaw quads 0 vs 1");
 }
 
+/* Holding use after a wall-torch placement ray-hits that torch. Vanilla
+ * rejects the next placement when the adjacent cell has no solid support. */
+static void test_torch_requires_support(void) {
+    McSinTable st; mc_sin_table_init(&st);
+    Chunk win[PSV_NCHUNKS];
+    fill_flat(win, 64, BLK_STONE);
+    mc_set(&win[4], 8, 66, 10, mc_state(BLK_STONE, 0));
+
+    PsvPlayer pl; psv_player_init(&pl);
+    pl.ent.posX = 8.5; pl.ent.posY = 65.0; pl.ent.posZ = 8.5;
+    pl.ent.box = psv_player_box(pl.ent.posX, pl.ent.posY, pl.ent.posZ);
+    pl.ent.onGround = 1; pl.yaw = 0.0f; pl.pitch = 0.0f;
+    isr_set_stack(&pl.inv, 0, ic_mk(IBP_BLK_TORCH, 2, 0));
+    pl.inv.current_item = 0;
+    PvStats vit; pv_init(&vit);
+
+    GmAction act; memset(&act, 0, sizeof act); act.do_place = 1;
+    GmBlockEdit edits[8]; int ne = 0;
+    gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+                   (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
+                   0, 0, 0, edits, &ne, 8);
+    CHECK(ne == 1 && edits[0].id == IBP_BLK_TORCH,
+          "first wall torch placement succeeds");
+
+    ne = 0;
+    gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
+                   (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
+                   0, 0, 0, edits, &ne, 8);
+    ICStack left = isr_get_stack(&pl.inv, 0);
+    CHECK(ne == 0 && left.item == IBP_BLK_TORCH && left.count == 1,
+          "unsupported repeated torch placement is rejected without consumption");
+}
+
 /* Interact: wooden door at eye height; live gm_player_tick must emit open meta.
  * Door at y=66 (eye ~66.62); look slightly down so ray hits the door block. */
 static void test_interact_door(void) {
@@ -321,6 +354,7 @@ int main(void) {
     g_fail = 0;
     test_progressive_dig();
     test_place_meta();
+    test_torch_requires_support();
     test_interact_door();
     test_inventory_click();
     test_live_inv_action();
