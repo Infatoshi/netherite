@@ -13,7 +13,7 @@ auto-load has a project file; it does not duplicate the full map.
 | Play / VNC / qrl / sweep | `docs/RUNBOOK.md` |
 | Product gates | `docs/GATES.md` |
 | History | `docs/DEVLOG.md` |
-| Fidelity | `c/craster/VERIFY.md` |
+| Fidelity | `c/magma/VERIFY.md` |
 
 Anvil is headless: demos scp to Mac; human play via Moonlight or mcwindow;
 agent stack is Xvfb `:1` (`java/start_vnc_client.sh`). One qrl port 25575 owner.

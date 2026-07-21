@@ -3,8 +3,8 @@
  * One 64x36 pinhole "camera" per env: a DDA voxel raycast (Amanatides-Woo)
  * from the eye through each pixel returns the first non-air block id and its
  * quantized depth. This is the visibility-honest obs (occlusion included)
- * decided 2026-07-13 with the static-shape obs layout; the craster prototype
- * lives in craster/game/rl_mode.c, this is the mc-sim port that reads a
+ * decided 2026-07-13 with the static-shape obs layout; the magma prototype
+ * lives in magma/game/rl_mode.c, this is the mc-sim port that reads a
  * region tensor so the CUDA batch path can emit obs tensors on-device.
  *
  * Determinism (CPU==CUDA bitwise):

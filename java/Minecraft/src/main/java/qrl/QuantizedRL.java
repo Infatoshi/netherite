@@ -72,7 +72,7 @@ public class QuantizedRL {
     private int deaths = 0;
 
     // ---- chain-RL protocol v2 state (semantic camera / craft / interact) ----
-    // Mirrors c/craster/game/rl_mode.c semantics so the cuenv-trained policy
+    // Mirrors c/magma/game/rl_mode.c semantics so the blaze-trained policy
     // transfers: container is MOD state (no GUI opens - headless keybind play
     // must keep running), validity-checked every tick like gm_runtime_tick.
     private final SemanticCamera semCam = new SemanticCamera();
@@ -837,7 +837,7 @@ public class QuantizedRL {
                  .append(",\"gamemode\":\"").append(mc.playerController.getCurrentGameType().getName())
                  .append("\",\"difficulty\":\"").append(mc.world.getDifficulty().name())
                  // "default" (steve arm) or "slim" (alex) - offline UUID hash
-                 // picks one; craster's first-person arm must match (set_skin).
+                 // picks one; magma's first-person arm must match (set_skin).
                  .append("\",\"skin\":\"").append(mc.player.getSkinType())
                  .append("\",\"velocity_packets\":1,\"position_packets\":1}");
                 recWriter.println(h.toString());
@@ -3086,7 +3086,7 @@ public class QuantizedRL {
         if (dy != 0) p.rotationYaw = (Math.round(p.rotationYaw / QUANTUM) + dy) * QUANTUM;
         if (dp != 0) p.rotationPitch = clamp((Math.round(p.rotationPitch / QUANTUM) + dp) * QUANTUM, -90, 90);
         // ---- protocol v2 (chain policy) extensions ----
-        // Continuous look deltas in degrees: the cuenv-trained heads emit
+        // Continuous look deltas in degrees: the blaze-trained heads emit
         // dyaw in {-15,0,15} and dpitch in {-10,0,10}; the legacy quantized
         // yaw/pitch keys cannot express 10-deg pitch steps.
         if (a.has("dyaw")) p.rotationYaw += a.get("dyaw").getAsFloat();
@@ -3447,13 +3447,13 @@ public class QuantizedRL {
         o.addProperty("eye_height", eyeH);
         o.addProperty("eye_x", eyeX); o.addProperty("eye_y", eyeY); o.addProperty("eye_z", eyeZ);
         o.addProperty("yaw", yaw); o.addProperty("pitch", pitch);
-        // Craster convention: craster_yaw = 180 - mc_yaw, craster_pitch = -mc_pitch
+        // Magma convention: magma_yaw = 180 - mc_yaw, magma_pitch = -mc_pitch
         // Normalize yaw to (-180, 180] so -180 MC maps to 0 not 360.
         double crYaw = 180.0 - yaw;
         while (crYaw > 180.0) crYaw -= 360.0;
         while (crYaw <= -180.0) crYaw += 360.0;
-        o.addProperty("craster_yaw_deg", crYaw);
-        o.addProperty("craster_pitch_deg", -pitch);
+        o.addProperty("magma_yaw_deg", crYaw);
+        o.addProperty("magma_pitch_deg", -pitch);
 
         // FOV chain: GameSettings.fovSetting * AbstractClientPlayer.getFovModifier()
         float fovSetting = mc.gameSettings.fovSetting;
@@ -3810,7 +3810,7 @@ public class QuantizedRL {
                 recLastInv = cur;
             }
         } catch (Throwable ig) {}
-        // open GUI screen: replay renders craster's own container screens from
+        // open GUI screen: replay renders magma's own container screens from
         // this (screen.c). Only emitted while a screen is open.
         if (mc.currentScreen != null) {
             String g = mc.currentScreen.getClass().getSimpleName();
@@ -4057,7 +4057,7 @@ public class QuantizedRL {
         for (int i = 0; i < RL_INV_IDS.length; i++)
             invc.add(new com.google.gson.JsonPrimitive(rlCountItem(p.inventory, RL_INV_IDS[i])));
         o.add("inv_counts", invc);
-        // additive iron-chain counts (cuenv_fill_status cols 13..16):
+        // additive iron-chain counts (blaze_fill_status cols 13..16):
         // furnace item, iron ore, iron ingot, iron pickaxe.
         JsonArray invIron = new JsonArray();
         for (int id : new int[]{61, 15, 265, 257})

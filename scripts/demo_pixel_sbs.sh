@@ -4,7 +4,7 @@
 # Cold-box fidelity demo for netherite:
 #   1) Replay the shipped canonical tape: physics must be clean (1e-9).
 #   2) Run hard-scene + multi-scene pixel gates vs real-MC goldens (must PASS).
-#   3) Encode demos/pixel_match_sbs.mp4: oracle | craster for each gated scene,
+#   3) Encode demos/pixel_match_sbs.mp4: oracle | magma for each gated scene,
 #      plus a short physics-tape SBS strip.
 #
 # Usage:
@@ -27,14 +27,14 @@ for arg in "$@"; do
   esac
 done
 
-DEMO_DIR="$ROOT/c/craster/raster/verify/demo"
+DEMO_DIR="$ROOT/c/magma/raster/verify/demo"
 NAME=20260712T055346Z_fast_s0_survival_default_rd8_77b5b462
 TAPE="$DEMO_DIR/${NAME}.jsonl"
 FRAMES="$DEMO_DIR/${NAME}_frames"
 OUT_DIR="$ROOT/demos"
-TRACE="$ROOT/c/craster/raster/verify/trace"
-CRASTER="$ROOT/c/craster"
-MC_CAP="$CRASTER/raster/verify/mc_capture"
+TRACE="$ROOT/c/magma/raster/verify/trace"
+MAGMA="$ROOT/c/magma"
+MC_CAP="$MAGMA/raster/verify/mc_capture"
 
 [ -f "$TAPE" ] || { echo "ERROR: missing $TAPE"; exit 1; }
 [ -d "$FRAMES" ] || { echo "ERROR: missing $FRAMES"; exit 1; }
@@ -47,7 +47,7 @@ cp -f "$DEMO_DIR/mc_frame.png" "$MC_CAP/mc_frame.png"
 [ -f "$DEMO_DIR/mc_seed7.png" ] && cp -f "$DEMO_DIR/mc_seed7.png" "$MC_CAP/mc_seed7.png"
 
 # Standard tapes/ location for replay_tape / make_sbs
-TAPES_LINK="$CRASTER/raster/verify/tapes"
+TAPES_LINK="$MAGMA/raster/verify/tapes"
 mkdir -p "$TAPES_LINK"
 ln -sfn "$TAPE" "$TAPES_LINK/${NAME}.jsonl"
 ln -sfn "$FRAMES" "$TAPES_LINK/${NAME}_frames"
@@ -85,10 +85,10 @@ echo "== demo_pixel_sbs =="
 echo "cuda=$USE_CUDA sm=${SM:-none} gpu=$GPU_IDX"
 
 if [ "$SKIP_BUILD" -eq 0 ]; then
-  make -C "$CRASTER" game -j"$(nproc)"
+  make -C "$MAGMA" game -j"$(nproc)"
   if [ "$USE_CUDA" -eq 1 ]; then
-    rm -f "$CRASTER/cuda/raster_cuda_sm86.o" "$CRASTER/app/game_main_cuda.o" "$CRASTER/craster_game_cuda"
-    make -C "$CRASTER" craster_game_cuda -j"$(nproc)" \
+    rm -f "$MAGMA/cuda/raster_cuda_sm86.o" "$MAGMA/app/game_main_cuda.o" "$MAGMA/magma_game_cuda"
+    make -C "$MAGMA" magma_game_cuda -j"$(nproc)" \
       NVFLAGS_GAME="-O2 --fmad=false -arch=$SM -Icore -I."
   fi
 fi
@@ -127,10 +127,10 @@ echo "PHYSICS: clean (3121 ticks @ 1e-9)"
 
 # ---- 2) Scene pixel gates (must PASS) ----
 echo "== 2/3 hard-scene + multi-scene pixel gates =="
-make -C "$CRASTER" hard-scene-verify 2>&1 | tee "$OUT_DIR/hard_scene.log"
+make -C "$MAGMA" hard-scene-verify 2>&1 | tee "$OUT_DIR/hard_scene.log"
 grep -q 'HARD_SCENE PASS\|REGRESS  PASS' "$OUT_DIR/hard_scene.log" \
   || { echo "ERROR: hard-scene gate failed"; exit 1; }
-make -C "$CRASTER" multi-verify 2>&1 | tee "$OUT_DIR/multi_verify.log"
+make -C "$MAGMA" multi-verify 2>&1 | tee "$OUT_DIR/multi_verify.log"
 grep -q 'MULTI_VERIFY pass=2' "$OUT_DIR/multi_verify.log" \
   || grep -q 'pass=2 fail=0' "$OUT_DIR/multi_verify.log" \
   || { echo "ERROR: multi-verify gate failed"; exit 1; }
@@ -179,7 +179,7 @@ title = Image.new("RGB", (W, H), (12, 10, 9))
 d = ImageDraw.Draw(title)
 msg = (
     "netherite fidelity demo\n"
-    "LEFT = real Java MC 1.11.2 oracle   RIGHT = craster C/CUDA\n"
+    "LEFT = real Java MC 1.11.2 oracle   RIGHT = magma C/CUDA\n"
     "Physics tape: 3121 ticks CLEAN (1e-9)\n"
     "Scene gates: hard-scene + multi-verify PASS vs real-MC goldens\n"
     "(full free-cam tape pixels still have residual classes; see report)"
@@ -193,8 +193,8 @@ for _ in range(40):  # ~2s at 20fps
     frames.append(title_arr)
 
 # Gated scenes (hard-scene-verify + run_multi_verify.sh write under /tmp)
-mc0 = root / "c/craster/raster/verify/mc_capture/mc_frame.png"
-mc7 = root / "c/craster/raster/verify/mc_capture/mc_seed7.png"
+mc0 = root / "c/magma/raster/verify/mc_capture/mc_frame.png"
+mc7 = root / "c/magma/raster/verify/mc_capture/mc_seed7.png"
 pairs = []
 for label, g, c in [
     ("hard-scene seed0 (PASS)", mc0, Path("/tmp/hard_scene_seed0/cand_default.png")),
@@ -209,7 +209,7 @@ for label, gpath, cpath in pairs:
     g = load_rgb(gpath)
     c = load_rgb(cpath, wh=(g.shape[1], g.shape[0]))
     sheet = sbs(g, c)
-    bar = label_bar(sheet.shape[1], f"ORACLE | CRASTER  —  {label}")
+    bar = label_bar(sheet.shape[1], f"ORACLE | MAGMA  —  {label}")
     frame = np.concatenate([bar, sheet], axis=0)
     # pad/crop to common size later
     for _ in range(30):
@@ -217,9 +217,9 @@ for label, gpath, cpath in pairs:
 
 # Short tape strip (physics-clean motion)
 name = "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462"
-fr_path = root / f"c/craster/raster/verify/trace/out/tape_{name}/craster_frames.npy"
-tk_path = root / f"c/craster/raster/verify/trace/out/tape_{name}/craster_frames.ticks.npy"
-odir = root / f"c/craster/raster/verify/demo/{name}_frames"
+fr_path = root / f"c/magma/raster/verify/trace/out/tape_{name}/magma_frames.npy"
+tk_path = root / f"c/magma/raster/verify/trace/out/tape_{name}/magma_frames.ticks.npy"
+odir = root / f"c/magma/raster/verify/demo/{name}_frames"
 if fr_path.exists() and tk_path.exists() and odir.exists():
     fr = np.load(fr_path)
     tk = np.load(tk_path)
@@ -237,7 +237,7 @@ if fr_path.exists() and tk_path.exists() and odir.exists():
         if o.shape != c.shape:
             o = np.asarray(Image.fromarray(o).resize((c.shape[1], c.shape[0])))
         sheet = sbs(o, c)
-        bar = label_bar(sheet.shape[1], f"ORACLE | CRASTER  —  tape t={t} (physics clean; outdoor residuals expected)")
+        bar = label_bar(sheet.shape[1], f"ORACLE | MAGMA  —  tape t={t} (physics clean; outdoor residuals expected)")
         frames.append(np.concatenate([bar, sheet], axis=0))
 
 if not frames:
@@ -293,7 +293,7 @@ PY
   echo
   echo "## Artifact"
   echo
-  echo "- \`${OUT_DIR#$ROOT/}/pixel_match_sbs.mp4\` — left oracle / right craster"
+  echo "- \`${OUT_DIR#$ROOT/}/pixel_match_sbs.mp4\` — left oracle / right magma"
   echo
   echo "Note: free-cam full-tape outdoor pixels still show residual classes"
   echo "(entities/HUD/particles); the **gated** scenes + physics are the ship bar."

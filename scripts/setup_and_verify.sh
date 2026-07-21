@@ -12,7 +12,7 @@
 # Requirements (Linux x86_64, the only full-stack platform):
 #   - JDK 8 (JAVA_HOME or /usr/lib/jvm/java-8-openjdk-amd64)
 #   - uv, make, gcc/g++, git, network (first bootstrap)
-#   - NVIDIA GPU + CUDA toolkit for --full (and for cuenv CUDA steps)
+#   - NVIDIA GPU + CUDA toolkit for --full (and for blaze CUDA steps)
 #   - You own Minecraft; ForgeGradle downloads 1.11.2 from Mojang
 #
 # Prism/MultiMC is optional: only used if you already have a 1.11.2 jar and
@@ -99,21 +99,21 @@ if [ "$MODE" = bootstrap_only ]; then
   exit 0
 fi
 
-echo "== build craster =="
-make -C c/craster game
+echo "== build magma =="
+make -C c/magma game
 
-# RL gate artifacts: snapshots for cuenv CPU/CUDA steps (committed refs alone
+# RL gate artifacts: snapshots for blaze CPU/CUDA steps (committed refs alone
 # are not enough; .bsnp files are regenerable and gitignored).
-if [ ! -d c/craster/rl/out/snaps ] || [ -z "$(find c/craster/rl/out/snaps -name '*.bsnp' 2>/dev/null | head -1)" ]; then
-  echo "== make cuenv snapshots (t0 + curriculum) =="
-  make -C c/craster cuenv_so || make -C c/craster game
+if [ ! -d c/magma/rl/out/snaps ] || [ -z "$(find c/magma/rl/out/snaps -name '*.bsnp' 2>/dev/null | head -1)" ]; then
+  echo "== make blaze snapshots (t0 + curriculum) =="
+  make -C c/magma blaze_so || make -C c/magma game
   (
-    cd c/craster
-    T0=1 uv run --no-project --with numpy,torch python rl/cuenv/make_snapshots.py
-    uv run --no-project --with numpy,torch python rl/cuenv/make_snapshots.py
+    cd c/magma
+    T0=1 uv run --no-project --with numpy,torch python rl/blaze/make_snapshots.py
+    uv run --no-project --with numpy,torch python rl/blaze/make_snapshots.py
   )
 else
-  echo "== cuenv snapshots already present =="
+  echo "== blaze snapshots already present =="
 fi
 
 echo "== netherite_sweep --$MODE =="

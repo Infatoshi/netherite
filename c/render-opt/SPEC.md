@@ -6,12 +6,12 @@ harness), `todo` (not started). `cap` = capture mode (`pure` = verbatim Java gol
 capture). `tier`: 0 scalar / 1 per-element parallel / 2 structured. Implement roughly top-to-bottom
 (pure+simple first, structured meshing last).
 
-# >>> STATUS — lab closed (keep for catalog; product work is craster)
+# >>> STATUS — lab closed (keep for catalog; product work is magma)
 # 39/40 kernels VERIFIED bitwise vs real MC (C only). k26 closed-by-integration: standalone
 # bitwise impossible (non-deterministic atlas UVs); sub-kernels + drop-in column pixel-diffs.
 # Drop-ins: sin, lightmap, biome, AO. Whole-frame stripcheck: 0 px native vs vanilla on pinned
 # course. Not ported by design: atlas UV stitch + GL raster. Optional: full rebuildChunk VBO.
-# History: ../../docs/DEVLOG.md. Day-to-day game fidelity: ../craster/VERIFY.md.
+# History: ../../docs/DEVLOG.md. Day-to-day game fidelity: ../magma/VERIFY.md.
 # <<< END STATUS
 
 ## Math primitives (tier-0, cap=pure) - plumbing smoke tests, bit-exact sensitive

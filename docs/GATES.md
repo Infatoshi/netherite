@@ -1,8 +1,8 @@
 # Product gates (netherite)
 
 **netherite** is the product name: a from-scratch C/CUDA reimplementation of
-Minecraft 1.11.2 (craster + mc-sim), bit-verified against the real Java game,
-plus a batched CUDA RL env (cuenv). Humans play the oracle; tapes record; craster
+Minecraft 1.11.2 (magma + mc-sim), bit-verified against the real Java game,
+plus a batched CUDA RL env (blaze). Humans play the oracle; tapes record; magma
 replays; every divergence is a bug with a repro.
 
 Agent entry: root `AGENTS.md`. How to run: `docs/RUNBOOK.md`.
@@ -10,22 +10,22 @@ Agent entry: root `AGENTS.md`. How to run: `docs/RUNBOOK.md`.
 ## The four ship gates
 
 ### Gate 1 - game quality
-Accept: a human plays craster spawn -> End with zero divergences; canonical tapes replay
+Accept: a human plays magma spawn -> End with zero divergences; canonical tapes replay
 bit-exact (physics tol 1e-9, pixels day-bit-exact / isolated star pixels at night, no
 unexplained diff clusters).
 Status: OPEN, machinery green. The physics canonical tape
-(`c/craster/raster/verify/tapes/20260712T055346Z_..._77b5b462.jsonl`, 3,121 ticks)
+(`c/magma/raster/verify/tapes/20260712T055346Z_..._77b5b462.jsonl`, 3,121 ticks)
 replays with no physics divergence end-to-end; the 12k human tape holds the pixel
 baselines (A 0.96/ch, B 1.66/ch). Remaining bugs live in
-`c/craster/OPEN_DIVERGENCES.md`; the full spawn->End human session has not yet been
-played clean. Verification procedure: `c/craster/VERIFY.md`.
+`c/magma/OPEN_DIVERGENCES.md`; the full spawn->End human session has not yet been
+played clean. Verification procedure: `c/magma/VERIFY.md`.
 
 ### Gate 2 - RL
 Accept: spawn -> torches learned with ZERO scripted stages in the batched CUDA env
-(cuenv), the policy transfers to real craster, and a one-time JVM demo runs.
+(blaze), the policy transfers to real magma, and a one-time JVM demo runs.
 Status: OPEN, core accept MET (2026-07-15): the full spawn->torch chain is learned with
-zero scripted stages (PPO in cuenv, milestone reward + stage-gated dense shaping,
-frontier curriculum from the policy's OWN captured states via cuenv_capture). Real-env
+zero scripted stages (PPO in blaze, milestone reward + stage-gated dense shaping,
+frontier curriculum from the policy's OWN captured states via blaze_capture). Real-env
 cold-spawn transfer, sampled best-of-5: full chain on 11/13 seeds INCLUDING both
 held-out seeds (11, 33); the 2 misses (2, 16) reach cobble with a self-crafted pick and
 fail at finding coal. ~1.92B env-ticks / ~7.9 h active train. Net: rl/out/chain_net_cu.pt
@@ -33,9 +33,9 @@ fail at finding coal. ~1.92B env-ticks / ~7.9 h active train. Net: rl/out/chain_
 qrl mod (obs_camera.h geometry) + float look / craft:N / interact bridge extensions let
 the same net drive the real JVM game scriptlessly to cobble3 (log -> planks -> sticks
 -> table -> wooden pick -> 45 cobble at y=22); best-of-6 sampled, video delivered.
-Transfer is attenuated vs craster (biome/tree ids outside the trained cam vocabulary;
+Transfer is attenuated vs magma (biome/tree ids outside the trained cam vocabulary;
 JVM terrain dynamics) - documented in DEVLOG-adjacent agent report, not a fidelity bug.
-Fidelity machinery green at HEAD: cuenv CPU is byte-exact vs the real env on the gated
+Fidelity machinery green at HEAD: blaze CPU is byte-exact vs the real env on the gated
 obs fields including the full 2058-action spawn-to-torch chain tape (verify_cpu.py
 --chain), CUDA is bitwise == CPU on the full 12-action ABI incl. craft/interact
 (verify_cuda.py default/--chain/--mixed), vec env bit-exact vs the per-env loop
@@ -50,7 +50,7 @@ the recipe tonight: a 1.35-h from-scratch run's best checkpoint
 (chain_net_pin1_best.pt) ties v1 at 11/13 with roughly half of v1's 1.92B ticks.
 
 ### Gate 3 - perf pins
-Accept: >=1M env-ticks/s FULL-FEATURE at N>=8192; spawn-to-torch trains <1h; craster
+Accept: >=1M env-ticks/s FULL-FEATURE at N>=8192; spawn-to-torch trains <1h; magma
 60 fps at 1080p.
 Status: throughput pin MET (2026-07-15). Full-feature t0 (128^3 regions, full 12-action
 decode) on the idle RTX PRO 6000: 1.02-1.03M env-ticks/s at N=9216 (0.94M at N=8192;
@@ -60,12 +60,12 @@ cooperative cu_recenter (7778cd9, merged fada44c) - the old kernel had one lane 
 crossing envs and all 32 lanes stride each refill. Both bit-identical, full ladder green
 on sm_86 and sm_120 (default/chain/mixed CUDA gates + CPU 8-stream/chain zero-diff).
 Mining slice: 0.90-1.98M at N=4096-16384 (pre-H numbers; H adds 1.2-1.4x there).
-Legacy kernel kept behind load-time CUENV_LEGACY_RECENTER=1 (zero tick cost).
+Legacy kernel kept behind load-time BLAZE_LEGACY_RECENTER=1 (zero tick cost).
 Re-confirmed at HEAD 2026-07-17: 1.02M env-ticks/s at N=9216.
 2026-07-19 update: 4.06M env-ticks/s full-feature t0 at N=8192 (4x the pin).
 Three stacked wins, each gated byte-exact: interact container-list (k_tick
 32.2 -> 15.6 ms/step), float32 DDA obs camera (k_obs 7.09 -> 1.03; ids
-differ 1 px per 1.66M rays vs double), warp-per-env k_tick (CUENV_WARP_TICK,
+differ 1 px per 1.66M rays vs double), warp-per-env k_tick (BLAZE_WARP_TICK,
 default on; k_tick 15.3 -> 6.7). Trainer end-to-end 0.256 -> 0.43M t/s: the
 pin-budget 0.95B-tick run now takes 37 min (best t0 0.325, real-env transfer
 7/13 incl. held-out s11) vs the 60-min pin1 leg. A 1h/1.53B-tick leg ran
@@ -90,7 +90,7 @@ ticks (v2 leg fell 0.42->0.27 over its back half; pin1 continuation fell
 preserves the peak state; _last is the regressed tail. Cause undiagnosed
 (entropy/KL telemetry is not printed per update) - evaluate the BEST
 checkpoint, never the tail.
-fps pin NOT met (measured 2026-07-17, CRASTER_BENCH env-gated 12-stage timers,
+fps pin NOT met (measured 2026-07-17, MAGMA_BENCH env-gated 12-stage timers,
 still cam, vd=8, 600 measured frames): CPU backend 5.00 fps at 1080p; CUDA
 backend 11.74 fps on the 3090 with host-rendered sky; 24.67 fps on the RTX
 PRO 6000 after moving the windowed sky fill to the existing capture-path k_sky
@@ -108,9 +108,9 @@ A FAIL exits nonzero; SKIPs never do.
 ## Running the sweep
 
 ```bash
-bash netherite_sweep.sh --quick          # builds + unit batteries + cuenv CPU gate + vec-env (<10 min)
-bash netherite_sweep.sh --full           # + mc-sim CUDA oracle, cuenv CUDA gate, canonical tape replay (GPU1), raster parity, RL smoke (<40 min)
-bash netherite_sweep.sh --full --gpu 0   # device for cuenv/mc-sim CUDA steps (tape replay + parity stay pinned to GPU1)
+bash netherite_sweep.sh --quick          # builds + unit batteries + blaze CPU gate + vec-env (<10 min)
+bash netherite_sweep.sh --full           # + mc-sim CUDA oracle, blaze CUDA gate, canonical tape replay (GPU1), raster parity, RL smoke (<40 min)
+bash netherite_sweep.sh --full --gpu 0   # device for blaze/mc-sim CUDA steps (tape replay + parity stay pinned to GPU1)
 ```
 
 Each step wraps an existing gate (make target or script - nothing reimplemented), has
@@ -118,7 +118,7 @@ its own timeout and log (path printed at start), and reports [PASS]/[FAIL]/[SKIP
 a summary table. GPU steps preflight `nvidia-smi` and SKIP when the device is >50%
 util - the box is shared. Missing artifacts (snapshots, tapes, prefixes) SKIP with a
 reason. Deeper/slower layers of the pyramid stay where they live: the nightly all-tape
-sweep is `c/craster/raster/verify/nightly_verify.sh`, per-kernel CPU==CUDA verifies are
+sweep is `c/magma/raster/verify/nightly_verify.sh`, per-kernel CPU==CUDA verifies are
 `make -C c/mc-sim verify-<kernel>`.
 
 ## Out of scope

@@ -14,7 +14,7 @@ typedef char st_stgen_fits[(sizeof(MSGen) + sizeof(SHGen) <= CP_STGEN_BYTES) ? 1
 
 /* mapFeaturesEnabled for the world pipelines (per-TU host static, mc_probe_fn pattern):
  * the qrl verification saves and the playable qrl worlds run structures OFF, so the
- * replay pipeline (c/craster/world/populate_mc.c) clears this. Golden structure tests
+ * replay pipeline (c/magma/world/populate_mc.c) clears this. Golden structure tests
  * call st_run (fixed 1). CUDA builds compile fixed 1 (structure goldens only). */
 #ifndef __CUDA_ARCH__
 static int st_map_features_host = 1;
@@ -28,7 +28,7 @@ MC_HD MC_NOINLINE static void st_run_features(ChunkPrimer *primer, CpScratch *sc
     cp_provide_chunk(primer, sc, st, seed, cx, cz);
     if (!mapFeatures) return;   /* vanilla mapFeaturesEnabled=false: terrain only */
 
-    /* mapFeatures==-1 is the craster product subset: mandatory strongholds,
+    /* mapFeatures==-1 is the magma product subset: mandatory strongholds,
      * explicitly cut mineshafts. Positive values retain the verified full path. */
     int mineshafts = mapFeatures > 0;
 
@@ -70,7 +70,7 @@ MC_HD MC_NOINLINE static void st_run_features(ChunkPrimer *primer, CpScratch *sc
         else if (v == MS_DIRT) primer->data[i] = CB_DIRT;
         else if (v == MS_WATER) primer->data[i] = CB_WATER;
         else if (v >= 20) primer->data[i] = mapFeatures < 0 ? (u16)(0x8000u | v) : v;
-        /* The live stronghold-only path tags canonical structure ids so craster's
+        /* The live stronghold-only path tags canonical structure ids so magma's
          * overlapping PB model-key namespace cannot reinterpret them. */
     }
 }

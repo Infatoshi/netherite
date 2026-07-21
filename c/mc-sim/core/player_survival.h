@@ -203,7 +203,7 @@ MC_HD static inline int psv_ceil(double v) {
  * are plain cell intersection; matching that bug-for-bug is required (verified
  * against a real-game tape, water pond at spawn seed 0, tick 9631/9632). Lava:
  * isMaterialInBB over the box expand(-0.1,-0.4,-0.1), same loop shape. Flow
- * push is not applied (craster's live fluids settle; note for later). */
+ * push is not applied (magma's live fluids settle; note for later). */
 MC_HD static inline int psv_in_liquid(const Chunk *now, const McEntity *e, int want_water) {
     double x0, y0, z0, x1, y1, z1;
     if (want_water) {

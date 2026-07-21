@@ -16,7 +16,7 @@ typedef struct {
     u8 *tmp_sky;
     u8 *tmp_blk;
     u16 *pop_sky_height;
-    u8 *pop_sky_stale;   /* optional [W_N]: vanilla STALE populate skylight (craster replay) */
+    u8 *pop_sky_stale;   /* optional [W_N]: vanilla STALE populate skylight (magma replay) */
 } PllLight;
 
 /* WorldGenLakes with propagated sky light for dirt->grass (replaces w_light stub). */
@@ -60,8 +60,8 @@ MC_HD static inline int pll_wg_lakes(World *w, JavaRandom *r, int posX, int posY
                     if ((kk >= 4 && pb_isLiquid(state)) ||
                         (kk < 4 && !lake_isSolidW(state) && state != liquid)) {
 #ifndef __CUDA_ARCH__
-                        /* debug probe: CRASTER_LAKEDBG=1 names the shell cell that vetoes a lake */
-                        if (getenv("CRASTER_LAKEDBG"))
+                        /* debug probe: MAGMA_LAKEDBG=1 names the shell cell that vetoes a lake */
+                        if (getenv("MAGMA_LAKEDBG"))
                             fprintf(stderr, "LAKEDBG base=(%d,%d) veto world=(%d,%d,%d) kk=%d state=%d liquid=%d\n",
                                     w->baseCx, w->baseCz, w->baseCx * 16 + px + k1, py + kk,
                                     w->baseCz * 16 + pz + l2, kk, state, liquid);

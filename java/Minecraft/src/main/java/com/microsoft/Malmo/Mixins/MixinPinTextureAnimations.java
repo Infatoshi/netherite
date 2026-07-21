@@ -12,7 +12,7 @@ import qrl.QLaunch;
 /**
  * Freeze animated block-atlas sprites on the physical frame zero that
  * TextureMap uploads during resource loading. This makes fire, lava, water,
- * and portal pixel goldens deterministic and matches craster's frame-zero
+ * and portal pixel goldens deterministic and matches magma's frame-zero
  * atlas. The TextureMap update loop itself still runs and keeps its GL bind.
  */
 @Mixin(TextureAtlasSprite.class)

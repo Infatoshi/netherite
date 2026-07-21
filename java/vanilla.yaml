@@ -4,7 +4,7 @@
 # this file on every launch, so it also HEALS saves whose level.dat still
 # carries the old harness gamerules (gamerules persist per-world).
 #
-# Video stays on the same cheap profile as fast.yaml ON PURPOSE: craster
+# Video stays on the same cheap profile as fast.yaml ON PURPOSE: magma
 # mirrors this exact look (fast leaves, ao 0, no mips, minimal particles), and
 # human-play tapes are pixel-verified against it. Do not turn fancy back on
 # without re-goldening.

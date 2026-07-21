@@ -181,9 +181,9 @@ MC_HD static inline void pls_wg_bush(World *w, JavaRandom *r, int x, int y, int 
         int bz = z + wg_off(r, 8);
         int ok = w_isAir(w, bx, by, bz) && pls_mushroom_canStay(w, bx, by, bz, use_pls, sky);
 #ifndef __CUDA_ARCH__
-        /* debug probe: CRASTER_BUSHDBG=1 mirrors the java MixinBushProbe BSH line format
+        /* debug probe: MAGMA_BUSHDBG=1 mirrors the java MixinBushProbe BSH line format
          * (vanilla block id + world coords + the light value the gate saw) for diffing */
-        if (getenv("CRASTER_BUSHDBG"))
+        if (getenv("MAGMA_BUSHDBG"))
             fprintf(stderr, "BSH %d %d %d %d light=%d pos=%d down=%d placed=%d\n",
                     block == PB_BROWN_MUSHROOM ? 39 : 40,
                     w->baseCx * 16 + bx, by, w->baseCz * 16 + bz,
@@ -879,11 +879,11 @@ MC_HD MC_NOINLINE static void pls_bd_gen_full(World *w, JavaRandom *r, int biome
             int k6 = jrand_int_bound(r, 16) + 8;
             int l = jrand_int_bound(r, 16) + 8;
 #ifndef __CUDA_ARCH__
-            /* debug probe: CRASTER_TREEDBG="cx cz" prints per-attempt tree pos/height/column for that populate */
+            /* debug probe: MAGMA_TREEDBG="cx cz" prints per-attempt tree pos/height/column for that populate */
             {
                 static int dbg_cx = -99999, dbg_cz;
                 if (dbg_cx == -99999) {
-                    const char *s = getenv("CRASTER_TREEDBG");
+                    const char *s = getenv("MAGMA_TREEDBG");
                     dbg_cx = -99998;
                     if (s) sscanf(s, "%d %d", &dbg_cx, &dbg_cz);
                 }

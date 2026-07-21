@@ -11,7 +11,7 @@ next to the code they govern.
 
 | OS | Role |
 |----|------|
-| **Linux x86_64** | Full stack. Build C/CUDA, run Java oracle, train cuenv, sweep. Canonical host: anvil (Ubuntu). Needs JDK 8 + NVIDIA CUDA for GPU paths. |
+| **Linux x86_64** | Full stack. Build C/CUDA, run Java oracle, train blaze, sweep. Canonical host: anvil (Ubuntu). Needs JDK 8 + NVIDIA CUDA for GPU paths. |
 | **macOS** | Control plane only. SSH, Moonlight/mcwindow viewer, image/video review. **Do not** expect native `runClient` or CUDA here (legacy GL under Rosetta is dead; no Blackwell/CUDA train path). |
 | **Windows** | Not a supported build/run host for this monorepo. Use WSL2 Linux if you must, or a remote Linux box. |
 
@@ -23,12 +23,12 @@ One-shot clean box: `bash scripts/setup_and_verify.sh` (then `--full` with GPU).
 
 ## What this repo is
 
-From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (craster + mc-sim),
-bit-verified against the real Java game, plus a batched CUDA RL env (cuenv).
+From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (magma + mc-sim),
+bit-verified against the real Java game, plus a batched CUDA RL env (blaze).
 Product name: **netherite**. Trees:
 
 - `java/` - playable Forge+Malmo/qrl client, launch scripts, oracle-src (bootstrap)
-- `c/craster/` - product C game + software rasterizer + RL
+- `c/magma/` - product C game + software rasterizer + RL
 - `c/mc-sim/` - simulation kernels (CPU == CUDA)
 - `c/render-opt/` - verified render kernels + JNI drop-ins (lab closed)
 
@@ -39,8 +39,8 @@ Product name: **netherite**. Trees:
 | First clone / no oracle-src | `docs/BOOTSTRAP.md` |
 | How to play, VNC, qrl, sweep | `docs/RUNBOOK.md` |
 | Ship criteria / gate status | `docs/GATES.md` |
-| Fidelity procedure | `c/craster/VERIFY.md` |
-| Product contract / open bugs | `c/craster/PRODUCT.md`, `OPEN_DIVERGENCES.md` |
+| Fidelity procedure | `c/magma/VERIFY.md` |
+| Product contract / open bugs | `c/magma/PRODUCT.md`, `OPEN_DIVERGENCES.md` |
 | Architecture for a tree | that tree's `SPEC.md` |
 | History / lessons | `docs/DEVLOG.md` |
 | Old reports | `docs/archive/` (ignore by default) |
@@ -61,7 +61,7 @@ bash scripts/demo_pixel_sbs.sh
 # or stepwise:
 bash scripts/bootstrap_oracle.sh
 bash scripts/bootstrap_assets.sh
-make -C c/craster game
+make -C c/magma game
 bash netherite_sweep.sh --quick
 
 cd java/Minecraft && ./gradlew -g run/gradle build

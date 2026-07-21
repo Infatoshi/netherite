@@ -9,9 +9,9 @@ How-tos, product gates, and history. **Agents start at root `AGENTS.md`**, not h
 3. `RUNBOOK.md` - play / VNC / qrl / sweep
 4. Only when your task needs it:
    - `GATES.md` - what "shipped" means (four product gates)
-   - `c/craster/VERIFY.md` - how we prove fidelity against real MC
-   - `c/craster/PRODUCT.md` - game product contract
-   - `c/craster/OPEN_DIVERGENCES.md` - open bugs with repros
+   - `c/magma/VERIFY.md` - how we prove fidelity against real MC
+   - `c/magma/PRODUCT.md` - game product contract
+   - `c/magma/OPEN_DIVERGENCES.md` - open bugs with repros
    - `c/*/SPEC.md` - architecture for that tree
 5. `DEVLOG.md` - compressed history and hard lessons (optional)
 6. `archive/` - old reports and pre-mainline experiments. **Ignore unless archaeology.**
@@ -31,9 +31,9 @@ How-tos, product gates, and history. **Agents start at root `AGENTS.md`**, not h
 Living contracts stay next to the code they govern so a change and its rules
 travel together:
 
-- `c/craster/PRODUCT.md`, `VERIFY.md`, `OPEN_DIVERGENCES.md`, `SPEC.md`
+- `c/magma/PRODUCT.md`, `VERIFY.md`, `OPEN_DIVERGENCES.md`, `SPEC.md`
 - `c/mc-sim/SPEC.md`, `c/render-opt/SPEC.md`
 - Small per-module `README.md` files
 
 Tape/trace session reports are harness output under
-`c/craster/raster/verify/trace/report/` - not documentation.
+`c/magma/raster/verify/trace/report/` - not documentation.

@@ -4,7 +4,7 @@
 # spreads. A test that needs a sterile world passes its own gamerules through
 # the bridge reset (world.gamerules), not here.
 #
-# Video is the cheap pinned profile craster mirrors: fast leaves, ao 0,
+# Video is the cheap pinned profile magma mirrors: fast leaves, ao 0,
 # no mips, minimal particles. Goldens assume it - re-golden before changing.
 
 instance:

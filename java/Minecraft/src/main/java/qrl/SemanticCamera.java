@@ -17,9 +17,9 @@ import net.minecraft.world.World;
  *     struck face's block border, tested on the two axes tangent to the
  *     entry face
  *   - trig via MathHelper's 65536-entry sin LUT - the exact table mc_sin
- *     replicates - so ray directions match the craster/cuenv camera
+ *     replicates - so ray directions match the magma/blaze camera
  * Cells hold PLAIN BLOCK IDS (Block.getIdFromBlock), matching rl_camreg in
- * c/craster/game/rl_mode.c (ids, not packed states). Row 0 = top.
+ * c/magma/game/rl_mode.c (ids, not packed states). Row 0 = top.
  */
 final class SemanticCamera {
     static final int W = 64, H = 36, NPIX = W * H;
@@ -27,7 +27,7 @@ final class SemanticCamera {
     static final double TANY = 0.7002075382097097;      // == OC_TANY literal
     static final double TANX = TANY * (64.0 / 36.0);
     static final double EDGE_W = 0.05;
-    /** Fixed eye height (craster PSV_EYE_HEIGHT); rl_mode uses posY + 1.62
+    /** Fixed eye height (magma PSV_EYE_HEIGHT); rl_mode uses posY + 1.62
      * unconditionally, never the sneak-adjusted live eye height. */
     static final double EYE = 1.62;
 

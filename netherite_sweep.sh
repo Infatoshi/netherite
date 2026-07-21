@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # netherite_sweep.sh - one-command verification pyramid for netherite (gate 4 / ops).
 #
-#   bash netherite_sweep.sh --quick          # builds + unit batteries + cuenv CPU gate + vec-env (<10 min)
+#   bash netherite_sweep.sh --quick          # builds + unit batteries + blaze CPU gate + vec-env (<10 min)
 #   bash netherite_sweep.sh --full           # everything incl. CUDA default/chain/mixed gates,
 #                                            # t0 throughput pin check, canonical tape replay
-#   bash netherite_sweep.sh --full --gpu 0   # device index for the cuenv/mc-sim CUDA steps (default 0)
+#   bash netherite_sweep.sh --full --gpu 0   # device index for the blaze/mc-sim CUDA steps (default 0)
 #
 # Every step is independent: it runs an EXISTING gate (make target / script,
 # never reimplemented here), gets its own timeout and log, and reports
@@ -18,10 +18,10 @@
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CRASTER="$ROOT/c/craster"
+MAGMA="$ROOT/c/magma"
 MCSIM="$ROOT/c/mc-sim"
-CANON_TAPE="$CRASTER/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.jsonl"
-SNAPS_DIR="$CRASTER/rl/out/snaps"
+CANON_TAPE="$MAGMA/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.jsonl"
+SNAPS_DIR="$MAGMA/rl/out/snaps"
 
 MODE=quick
 GPU_IDX=0
@@ -128,9 +128,9 @@ note ""
 
 # ---- builds ----------------------------------------------------------------
 # stale-object trap: game/*.o must be cleaned after mc-sim header edits.
-rm -f "$CRASTER"/game/*.o
-run_step build-craster 600 "$CRASTER" make craster_game -j"$(nproc)"
-run_step build-cuenv-cpu 300 "$CRASTER" make cuenv_so cuenv_verify
+rm -f "$MAGMA"/game/*.o
+run_step build-magma 600 "$MAGMA" make magma_game -j"$(nproc)"
+run_step build-blaze-cpu 300 "$MAGMA" make blaze_so blaze_verify
 
 # ---- mc-sim: CPU oracle battery (java-derived goldens, cpu path) -----------
 run_step mcsim-oracle-smoke 300 "$MCSIM" \
@@ -144,92 +144,92 @@ if [ "$MODE" = full ]; then
 		make verify-cpu-tick PYTHON="uv run --no-project python"
 fi
 
-# ---- craster: unit goldens + standalone-game smoke --------------------------
-run_step craster-verify-harsh 600 "$CRASTER" make verify-harsh
-skip craster-test-config "known-broken at HEAD: game/test_config.sh 'usage includes harness options' (usage text exceeds the test's capture buffer)"
-run_step craster-block-registry 300 "$CRASTER" make test-block-registry
-run_step craster-test-launch 300 "$CRASTER" make test-launch
+# ---- magma: unit goldens + standalone-game smoke --------------------------
+run_step magma-verify-harsh 600 "$MAGMA" make verify-harsh
+skip magma-test-config "known-broken at HEAD: game/test_config.sh 'usage includes harness options' (usage text exceeds the test's capture buffer)"
+run_step magma-block-registry 300 "$MAGMA" make test-block-registry
+run_step magma-test-launch 300 "$MAGMA" make test-launch
 
-# ---- cuenv: batched env gates (CPU) -----------------------------------------
+# ---- blaze: batched env gates (CPU) -----------------------------------------
 FIRST_SNAP=$(find "$SNAPS_DIR" -maxdepth 1 -name '*.bsnp' 2>/dev/null | sort | head -1)
 if [ -z "$FIRST_SNAP" ]; then
-	skip cuenv-c-smoke "no .bsnp snapshots in rl/out/snaps (run make_snapshots.py)"
-	skip cuenv-cpu-gate "no .bsnp snapshots in rl/out/snaps (run make_snapshots.py)"
+	skip blaze-c-smoke "no .bsnp snapshots in rl/out/snaps (run make_snapshots.py)"
+	skip blaze-cpu-gate "no .bsnp snapshots in rl/out/snaps (run make_snapshots.py)"
 else
-	run_step cuenv-c-smoke 300 "$CRASTER" ./rl/cuenv/cuenv_verify "$FIRST_SNAP" 64 50 4
+	run_step blaze-c-smoke 300 "$MAGMA" ./rl/blaze/blaze_verify "$FIRST_SNAP" 64 50 4
 	if [ "$MODE" = full ]; then
-		run_step cuenv-cpu-gate 1500 "$CRASTER" \
-			uv run --no-project --with numpy python rl/cuenv/verify_cpu.py
+		run_step blaze-cpu-gate 1500 "$MAGMA" \
+			uv run --no-project --with numpy python rl/blaze/verify_cpu.py
 	else
-		run_step cuenv-cpu-gate 600 "$CRASTER" \
-			uv run --no-project --with numpy python rl/cuenv/verify_cpu.py --seeds 14,16 --ticks 500
+		run_step blaze-cpu-gate 600 "$MAGMA" \
+			uv run --no-project --with numpy python rl/blaze/verify_cpu.py --seeds 14,16 --ticks 500
 	fi
 fi
 
 # ---- rl: vec-env bit-exactness ----------------------------------------------
-if [ -f "$CRASTER/rl/out/coal_prefixes.json" ]; then
-	run_step rl-vec-env-test 900 "$CRASTER" \
+if [ -f "$MAGMA/rl/out/coal_prefixes.json" ]; then
+	run_step rl-vec-env-test 900 "$MAGMA" \
 		uv run --no-project --with numpy,torch python rl/test_vec_env.py
 else
 	skip rl-vec-env-test "rl/out/coal_prefixes.json missing (PREFIX=1 chain_probe.py)"
 fi
 
 # reward module bitwise parity vs the archived inline block (CPU-forced)
-run_step rl-reward-parity 300 "$CRASTER" \
+run_step rl-reward-parity 300 "$MAGMA" \
 	env CUDA_VISIBLE_DEVICES="" \
-	uv run --no-project --with numpy,torch python rl/cuenv/test_reward_chain.py
+	uv run --no-project --with numpy,torch python rl/blaze/test_reward_chain.py
 
 # ---- full-only: CUDA gates + tape replay + RL smoke -------------------------
 if [ "$MODE" = full ]; then
-	# cuenv CUDA + mc-sim CUDA run on --gpu GPU_IDX (arch derived from compute cap)
+	# blaze CUDA + mc-sim CUDA run on --gpu GPU_IDX (arch derived from compute cap)
 	BUSY=$(gpu_busy "$GPU_IDX") || BUSY=""
 	if [ -n "$BUSY" ]; then
 		skip mcsim-cuda-trunk "$BUSY"
-		skip build-cuenv-cuda "$BUSY"
-		skip cuenv-cuda-gate "$BUSY"
-		skip cuenv-cuda-chain "$BUSY"
-		skip cuenv-cuda-mixed "$BUSY"
-		skip cuenv-t0-bench-pin "$BUSY"
+		skip build-blaze-cuda "$BUSY"
+		skip blaze-cuda-gate "$BUSY"
+		skip blaze-cuda-chain "$BUSY"
+		skip blaze-cuda-mixed "$BUSY"
+		skip blaze-t0-bench-pin "$BUSY"
 	else
 		SM=$(gpu_sm "$GPU_IDX")
 		run_step mcsim-cuda-trunk 900 "$MCSIM" \
 			env CUDA_VISIBLE_DEVICES="$GPU_IDX" make verify-trunk \
 			PYTHON="uv run --no-project python" SM="$SM" MC_SM="$SM"
-		run_step build-cuenv-cuda 600 "$CRASTER" make cuenv_cuda_so CUENV_SM="$SM"
+		run_step build-blaze-cuda 600 "$MAGMA" make blaze_cuda_so BLAZE_SM="$SM"
 		if [ -z "$FIRST_SNAP" ]; then
-			skip cuenv-cuda-gate "no .bsnp snapshots in rl/out/snaps"
-			skip cuenv-cuda-chain "no .bsnp snapshots in rl/out/snaps"
-			skip cuenv-cuda-mixed "no *_t0.bsnp snapshots in rl/out/snaps"
-			skip cuenv-t0-bench-pin "no *_t0.bsnp snapshots in rl/out/snaps"
+			skip blaze-cuda-gate "no .bsnp snapshots in rl/out/snaps"
+			skip blaze-cuda-chain "no .bsnp snapshots in rl/out/snaps"
+			skip blaze-cuda-mixed "no *_t0.bsnp snapshots in rl/out/snaps"
+			skip blaze-t0-bench-pin "no *_t0.bsnp snapshots in rl/out/snaps"
 		else
-			run_step cuenv-cuda-gate 1500 "$CRASTER" \
+			run_step blaze-cuda-gate 1500 "$MAGMA" \
 				env CUDA_VISIBLE_DEVICES="$GPU_IDX" \
-				uv run --no-project --with numpy,torch python rl/cuenv/verify_cuda.py
+				uv run --no-project --with numpy,torch python rl/blaze/verify_cuda.py
 
 			# chain gate: 2058-action chain, 64 CUDA lanes byte-exact vs CPU
-			if [ ! -f "$CRASTER/rl/out/chain_actions_s10.json" ] ||
+			if [ ! -f "$MAGMA/rl/out/chain_actions_s10.json" ] ||
 				[ ! -f "$SNAPS_DIR/s10_t0.bsnp" ]; then
-				skip cuenv-cuda-chain "s10_t0.bsnp or chain_actions_s10.json missing"
+				skip blaze-cuda-chain "s10_t0.bsnp or chain_actions_s10.json missing"
 			else
-				run_step cuenv-cuda-chain 1200 "$CRASTER" \
+				run_step blaze-cuda-chain 1200 "$MAGMA" \
 					env CUDA_VISIBLE_DEVICES="$GPU_IDX" \
 					uv run --no-project --with numpy,torch python \
-					rl/cuenv/verify_cuda.py --chain
+					rl/blaze/verify_cuda.py --chain
 			fi
 
 			# mixed big-N FULL-action gate on the t0 snapshots
 			# (N=2048 region pool ~17GiB: preflight free VRAM, shared box)
 			MEMFREE=$(gpu_mem_free_mib "$GPU_IDX")
 			if [ ! -f "$SNAPS_DIR/s10_t0.bsnp" ]; then
-				skip cuenv-cuda-mixed "no *_t0.bsnp snapshots in rl/out/snaps"
+				skip blaze-cuda-mixed "no *_t0.bsnp snapshots in rl/out/snaps"
 			elif [ "$MEMFREE" -lt 18000 ]; then
-				skip cuenv-cuda-mixed \
+				skip blaze-cuda-mixed \
 					"GPU $GPU_IDX free ${MEMFREE}MiB < 18000MiB (N=2048 pool)"
 			else
-				run_step cuenv-cuda-mixed 1800 "$CRASTER" \
+				run_step blaze-cuda-mixed 1800 "$MAGMA" \
 					env CUDA_VISIBLE_DEVICES="$GPU_IDX" \
 					uv run --no-project --with numpy,torch python \
-					rl/cuenv/verify_cuda.py --mixed --n 2048
+					rl/blaze/verify_cuda.py --mixed --n 2048
 			fi
 
 			# gate-3 throughput pin: >=1.0M env-ticks/s full-feature t0 at
@@ -238,33 +238,33 @@ if [ "$MODE" = full ]; then
 			# neighbor session)
 			MEMFREE=$(gpu_mem_free_mib "$GPU_IDX")
 			if [ "$MEMFREE" -lt 80000 ]; then
-				skip cuenv-t0-bench-pin \
+				skip blaze-t0-bench-pin \
 					"GPU $GPU_IDX free ${MEMFREE}MiB < 80000MiB (N=9216 pool)"
 			else
-				BENCH_LOG="$LOGDIR/cuenv-t0-bench-pin.log"
+				BENCH_LOG="$LOGDIR/blaze-t0-bench-pin.log"
 				b0=$(date +%s)
-				(cd "$CRASTER" && env CUDA_VISIBLE_DEVICES="$GPU_IDX" \
+				(cd "$MAGMA" && env CUDA_VISIBLE_DEVICES="$GPU_IDX" \
 					timeout -k 15 900 \
 					uv run --no-project --with numpy,torch python \
-					rl/cuenv/verify_cuda.py --bench --t0 --n 9216) \
+					rl/blaze/verify_cuda.py --bench --t0 --n 9216) \
 					>"$BENCH_LOG" 2>&1
 				brc=$?
 				b1=$(date +%s)
 				MVAL=$(sed -n 's/.*N=[0-9]*: \([0-9.]*\)M env-ticks.*/\1/p' \
 					"$BENCH_LOG" | tail -1)
 				if [ "$brc" -ne 0 ]; then
-					record cuenv-t0-bench-pin FAIL \
+					record blaze-t0-bench-pin FAIL \
 						"rc=$brc: $(tail -1 "$BENCH_LOG" | cut -c1-60)" \
 						$((b1 - b0))
 				elif [ -z "$MVAL" ]; then
-					record cuenv-t0-bench-pin FAIL "no throughput line in log" \
+					record blaze-t0-bench-pin FAIL "no throughput line in log" \
 						$((b1 - b0))
 				elif awk "BEGIN{exit !($MVAL >= 1.0)}"; then
-					record cuenv-t0-bench-pin PASS \
+					record blaze-t0-bench-pin PASS \
 						"${MVAL}M env-ticks/s at N=9216 (pin >=1.0M)" \
 						$((b1 - b0))
 				else
-					record cuenv-t0-bench-pin FAIL \
+					record blaze-t0-bench-pin FAIL \
 						"${MVAL}M env-ticks/s < 1.0M pin at N=9216" $((b1 - b0))
 				fi
 			fi
@@ -272,17 +272,17 @@ if [ "$MODE" = full ]; then
 	fi
 
 	# canonical tape replay + raster parity are pinned to GPU1 by design
-	# (craster_game_cuda is built sm_86; replay_tape.py defaults to GPU1)
+	# (magma_game_cuda is built sm_86; replay_tape.py defaults to GPU1)
 	BUSY1=$(gpu_busy 1) || BUSY1=""
 	if [ -n "$BUSY1" ]; then
-		skip build-craster-cuda "$BUSY1 (GPU1 pinned)"
+		skip build-magma-cuda "$BUSY1 (GPU1 pinned)"
 		skip raster-parity "$BUSY1 (GPU1 pinned)"
 		skip tape-replay-canonical "$BUSY1 (GPU1 pinned)"
 	else
-		run_step build-craster-cuda 600 "$CRASTER" make craster_game_cuda -j"$(nproc)"
-		run_step raster-parity 600 "$CRASTER" make test-raster-parity
+		run_step build-magma-cuda 600 "$MAGMA" make magma_game_cuda -j"$(nproc)"
+		run_step raster-parity 600 "$MAGMA" make test-raster-parity
 		if [ -f "$CANON_TAPE" ]; then
-			run_step tape-replay-canonical 1200 "$CRASTER/raster/verify/trace" \
+			run_step tape-replay-canonical 1200 "$MAGMA/raster/verify/trace" \
 				uv run --no-project --with numpy,scipy,pillow,nbt python \
 				replay_tape.py "$CANON_TAPE" --report
 		else
@@ -291,8 +291,8 @@ if [ "$MODE" = full ]; then
 	fi
 
 	# RL training smoke: tiny ppo_coal run (2 episodes) just proves the loop turns
-	if [ -f "$CRASTER/rl/out/coal_prefixes.json" ]; then
-		run_step rl-ppo-smoke 900 "$CRASTER" \
+	if [ -f "$MAGMA/rl/out/coal_prefixes.json" ]; then
+		run_step rl-ppo-smoke 900 "$MAGMA" \
 			env N_EPISODES=2 EP_LEN=40 CURR_TICKS=10 \
 			uv run --no-project --with numpy,torch,matplotlib python rl/ppo_coal.py
 	else

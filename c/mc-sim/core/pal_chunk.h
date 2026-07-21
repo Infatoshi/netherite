@@ -3,7 +3,7 @@
  * POD, pointer-free (device-copyable). A chunk holds PAL_NSEC_SLOTS inline block
  * sections; a y-section with no slot is all air (section elision). Cells store u8
  * indices into a per-chunk append-only palette of packed u16 states (id<<4|meta);
- * pal[0] is always air. Sized from the CRASTER_STATE_PROF census (seed 0):
+ * pal[0] is always air. Sized from the MAGMA_STATE_PROF census (seed 0):
  * non-air sections mean 5.2 / max 6 of 16 (budget 8 covers Nether's 0-128 fill),
  * distinct states max 27/chunk (256 = 8x headroom).
  *

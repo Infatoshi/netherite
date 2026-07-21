@@ -108,7 +108,7 @@ MC_HD static inline float mc_hash_f01(u64 h)            { return (mc_hash_u32(h)
 MC_HD static inline i32   mc_hash_bound(u64 h, i32 b)   { return (i32)(((u64)mc_hash_u32(h) * (u64)b) >> 32); }
 
 /* ---- optional worldgen RNG-cursor probe (host-only flywheel instrumentation) ----
- * A host tool (c/craster/trace/world_dump with CRASTER_GENPROBE) sets mc_probe_fn; the
+ * A host tool (c/magma/trace/world_dump with MAGMA_GENPROBE) sets mc_probe_fn; the
  * worldgen headers then emit a checkpoint (tag, type, raw 48-bit LCG state) at every
  * boundary where live Forge fires a terrain-gen event (qrl/WorldGenProbe.java logs the
  * same checkpoints from the REAL game). Diffing the two logs pinpoints the first stage
@@ -122,7 +122,7 @@ static int mc_probe_cx, mc_probe_cz;
 #define MC_PROBE(tag, type, r) \
     do { if (mc_probe_fn) mc_probe_fn(mc_probe_cx, mc_probe_cz, tag, type, \
                                       (unsigned long long)(r)->seed); } while (0)
-/* Deferred chunkPos-corruption redirect (set by c/craster/world/populate_mc.c): a
+/* Deferred chunkPos-corruption redirect (set by c/magma/world/populate_mc.c): a
  * cascaded nested populate overwrote the shared BiomeDecorator.chunkPos in vanilla,
  * but the feature in flight at clobber time keeps its absolute BlockPos - only the
  * NEXT chunkPos-relative position draw sees the corruption. The cascade hook arms

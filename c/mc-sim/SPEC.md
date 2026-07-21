@@ -8,7 +8,7 @@ crafting, win condition) into data-oriented C that compiles BOTH ways - single-i
 
 This is the sim layer. It is the bigger, more important target than rendering.
 
-The authoritative shipped-simulator scope is `../craster/PRODUCT.md`: survival-only
+The authoritative shipped-simulator scope is `../magma/PRODUCT.md`: survival-only
 default-world completion through the End exit portal, vanilla-default superflat as an
 RL arena, optional villages/enchanting/brewing/weather bundles, and explicit cuts for
 redstone, audio, saves, multiplayer, achievements, and side content. Isolated kernels
@@ -82,7 +82,7 @@ heavily reducible.
 - stained glass + stained clay (16x each), carpets, banners, heads, paintings, item frames,
   jukebox/noteblock, beacon, flowers/double-plants, dyes, music discs, maps, fireworks
 
-### KEEP - speedrun/RL product path (see `../craster/PRODUCT.md`)
+### KEEP - speedrun/RL product path (see `../magma/PRODUCT.md`)
 Terrain/biomes/caves, Nether fortress, stronghold, central End, survival blocks + ores,
 water/lava, light, route-relevant passive/hostile mobs, combat, crafting/smelting, portals,
 bed explosions, dragon/death/exit portal, and a terminal `won` observation. Villages,
@@ -90,7 +90,7 @@ enchanting, brewing, and weather are coherent runtime bundles that default off.
 
 ## Batched-env state layout (decided 2026-07-13; measured, not guessed)
 
-Sizing census (CRASTER_STATE_PROF probe, `craster/game/script.c`, seed 0):
+Sizing census (MAGMA_STATE_PROF probe, `magma/game/script.c`, seed 0):
 - distinct packed states: max 27/chunk, max 31 per 3x3-chunk window (pristine overworld
   spawn; End terrain 6-7) -> a 256-entry palette has 8x headroom
 - non-air 16^3 sections: mean 5.2, max 6 of 16 (overworld; budget 8/chunk for Nether's
@@ -122,12 +122,12 @@ itself) strictly wasteful. Worldgen still writes sections dense-direct, then pal
 ## Status (2026-07)
 
 Waves 0–14 unit oracles are in-tree and marked verified under `oracle/goldens/` +
-`cpu/`/`cuda/` drivers. Product wiring and live-Java traces continue in **craster**
+`cpu/`/`cuda/` drivers. Product wiring and live-Java traces continue in **magma**
 and qrl tapes; isolated kernel PASS does not imply product support (see PRODUCT.md).
 
 Open notes (code owns detail):
 - `populate` Golden.java may lag live world_diff (stale-skylight / mushrooms); prefer
-  genprobe + `c/craster/trace/world_verify.py` for worldgen truth.
+  genprobe + `c/magma/trace/world_verify.py` for worldgen truth.
 - GPU worldgen: K1 noise GO for many-env RL; stage-split K2–K6 not built. Most `.cu`
   drivers are one-thread-per-env parity gates, not throughput engines.
 - Prefer extending live tick/entity traces over adding more synthetic wave-1 harnesses.

@@ -23,7 +23,7 @@ done > "$list"
 filtered=$(mktemp)
 grep -vE \
     -e '^java/oracle-src/' \
-    -e '^c/craster/assets/(atlas_gen|colormap_gen|gui_atlas|hand_atlas|hud_atlas|item_atlas|loading_bg|mob_atlas|portal_tex|sky_atlas|underwater_tex|water_frames)\.h$' \
+    -e '^c/magma/assets/(atlas_gen|colormap_gen|gui_atlas|hand_atlas|hud_atlas|item_atlas|loading_bg|mob_atlas|portal_tex|sky_atlas|underwater_tex|water_frames)\.h$' \
     -e '\.(png|ppm|jpg|jpeg|gif|mp4)$' \
     "$list" > "$filtered"
 
@@ -37,18 +37,18 @@ cat >> "$DST/.gitignore" <<'EOF'
 # scripts/bootstrap_oracle.sh
 java/oracle-src/
 # scripts/bootstrap_assets.sh
-c/craster/assets/atlas_gen.h
-c/craster/assets/colormap_gen.h
-c/craster/assets/gui_atlas.h
-c/craster/assets/hand_atlas.h
-c/craster/assets/hud_atlas.h
-c/craster/assets/item_atlas.h
-c/craster/assets/loading_bg.h
-c/craster/assets/mob_atlas.h
-c/craster/assets/portal_tex.h
-c/craster/assets/sky_atlas.h
-c/craster/assets/underwater_tex.h
-c/craster/assets/water_frames.h
+c/magma/assets/atlas_gen.h
+c/magma/assets/colormap_gen.h
+c/magma/assets/gui_atlas.h
+c/magma/assets/hand_atlas.h
+c/magma/assets/hud_atlas.h
+c/magma/assets/item_atlas.h
+c/magma/assets/loading_bg.h
+c/magma/assets/mob_atlas.h
+c/magma/assets/portal_tex.h
+c/magma/assets/sky_atlas.h
+c/magma/assets/underwater_tex.h
+c/magma/assets/water_frames.h
 EOF
 
 n_all=$(wc -l < "$list"); n_pub=$(wc -l < "$filtered")

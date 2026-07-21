@@ -357,11 +357,11 @@ MC_HD MC_NOINLINE static void w_pop_sky_after_set(World *w, int x, int y, int z,
 MC_HD MC_NOINLINE static void w_set(World *w, int x, int y, int z, int v) {
     POP_OOB_CHECK(x, z);
 #ifndef __CUDA_ARCH__
-    /* debug probe: CRASTER_CELLDBG="wx wy wz" traces every write to one world cell */
+    /* debug probe: MAGMA_CELLDBG="wx wy wz" traces every write to one world cell */
     {
         static int dbg_init, dbg_wx, dbg_wy, dbg_wz;
         if (!dbg_init) {
-            const char *s = getenv("CRASTER_CELLDBG");
+            const char *s = getenv("MAGMA_CELLDBG");
             dbg_init = s ? (sscanf(s, "%d %d %d", &dbg_wx, &dbg_wy, &dbg_wz) == 3 ? 1 : -1) : -1;
         }
         if (dbg_init == 1 && w->baseCx * 16 + x == dbg_wx && y == dbg_wy &&
@@ -948,8 +948,8 @@ MC_HD MC_NOINLINE static int wg_huge_space_at(World *w, int x, int y, int z, int
             for (int l = -j; l <= j; ++l)
                 if (y + i < 0 || y + i >= W_Y || !wg_isReplaceableTree(w, x + k, y + i, z + l)) {
 #ifndef __CUDA_ARCH__
-                    /* debug probe: CRASTER_HUGEDBG=1 names the first isSpaceAt veto cell */
-                    if (getenv("CRASTER_HUGEDBG"))
+                    /* debug probe: MAGMA_HUGEDBG=1 names the first isSpaceAt veto cell */
+                    if (getenv("MAGMA_HUGEDBG"))
                         fprintf(stderr, "HUGEDBG base=(%d,%d) veto local=(%d,%d,%d) world_y=%d state=%d h=%d\n",
                                 w->baseCx, w->baseCz, x + k, y + i, z + l, y + i,
                                 (y + i >= 0 && y + i < W_Y) ? w_get(w, x + k, y + i, z + l) : -1, height);
@@ -1488,8 +1488,8 @@ MC_HD MC_NOINLINE static int wg_bigtree(World *w, JavaRandom *mainr, int posX, i
         }
     }
 #ifndef __CUDA_ARCH__
-    /* debug probe: CRASTER_BTDBG=1 dumps bigtree geometry (hl, node candidates) */
-    if (getenv("CRASTER_BTDBG")) {
+    /* debug probe: MAGMA_BTDBG=1 dumps bigtree geometry (hl, node candidates) */
+    if (getenv("MAGMA_BTDBG")) {
         fprintf(stderr, "BTDBG base=(%d,%d) pos=(%d,%d,%d) hl=%d chk=%d nf=%d nodes=",
                 w->baseCx, w->baseCz, posX, posY, posZ, heightLimit, chk, nf);
         for (int n = 0; n < nf; ++n)
@@ -1523,12 +1523,12 @@ MC_HD MC_NOINLINE static int pb_canSustainBushPos(const World *w, int x, int y, 
 /* WorldGenTallGrass: scan down past air/leaves, then 128 attempts; tallGrassState passed. */
 MC_HD MC_NOINLINE static void wg_tallgrass(World *w, JavaRandom *r, int x, int y, int z, int state) {
 #ifndef __CUDA_ARCH__
-    /* debug probe: CRASTER_GRASSDBG="cx cz" prints tallgrass descent + writes for that populate */
+    /* debug probe: MAGMA_GRASSDBG="cx cz" prints tallgrass descent + writes for that populate */
     int gdbg = 0;
     {
         static int dbg_cx = -99999, dbg_cz;
         if (dbg_cx == -99999) {
-            const char *s = getenv("CRASTER_GRASSDBG");
+            const char *s = getenv("MAGMA_GRASSDBG");
             dbg_cx = -99998;
             if (s) sscanf(s, "%d %d", &dbg_cx, &dbg_cz);
         }
@@ -1726,12 +1726,12 @@ MC_HD MC_NOINLINE static int wg_cactus_canStay(const World *w, int x, int y, int
 /* WorldGenCactus: 10 attempts, with the nested height draw only for air candidates. */
 MC_HD MC_NOINLINE static void wg_cactus(World *w, JavaRandom *r, int x, int y, int z) {
 #ifndef __CUDA_ARCH__
-    /* debug probe: CRASTER_CACTDBG="cx cz" prints every candidate read for that populate */
+    /* debug probe: MAGMA_CACTDBG="cx cz" prints every candidate read for that populate */
     int cdbg = 0;
     {
         static int dbg_cx = -99999, dbg_cz;
         if (dbg_cx == -99999) {
-            const char *s = getenv("CRASTER_CACTDBG");
+            const char *s = getenv("MAGMA_CACTDBG");
             dbg_cx = -99998;
             if (s) sscanf(s, "%d %d", &dbg_cx, &dbg_cz);
         }
@@ -2019,7 +2019,7 @@ MC_HD MC_NOINLINE static int wg_liq_has_level(int x, int y, int z) {
 MC_HD MC_NOINLINE static void wg_liq_reawaken(World *w, int x, int y, int z, int flow, int *sp) {
 #ifndef __CUDA_ARCH__
     static int nowake = -1;
-    if (nowake < 0) nowake = getenv("CRASTER_NOWAKE") != NULL;
+    if (nowake < 0) nowake = getenv("MAGMA_NOWAKE") != NULL;
     if (nowake) return;
 #endif
     if (!wg_liq_has_level(x, y, z)) return;
@@ -2046,7 +2046,7 @@ MC_HD MC_NOINLINE static void wg_liq_neighbor_changed(World *w, int x, int y, in
     } else if (b == PB_GRAVEL || b == PB_SAND) {
 #ifndef __CUDA_ARCH__
         static int nofall = -1;
-        if (nofall < 0) nofall = getenv("CRASTER_NOFALL") != NULL;
+        if (nofall < 0) nofall = getenv("MAGMA_NOFALL") != NULL;
         if (!nofall) wg_fall_check(w, x, y, z, sp);
 #endif
     }
@@ -2281,9 +2281,9 @@ MC_HD MC_NOINLINE static int wg_doubleplant(World *w, JavaRandom *r, int x, int 
         int bx = x + wg_off(r, 8), by = y + wg_off(r, 4), bz = z + wg_off(r, 8);
         int ok = w_isAir(w, bx, by, bz) && wg_dplant_canPlace(w, bx, by, bz);
 #ifndef __CUDA_ARCH__
-        /* debug probe: CRASTER_DPLANTDBG=1 mirrors the java MixinDoublePlantProbe DPL line
+        /* debug probe: MAGMA_DPLANTDBG=1 mirrors the java MixinDoublePlantProbe DPL line
          * (world coords need the caller's window base added; local coords logged here). */
-        if (getenv("CRASTER_DPLANTDBG"))
+        if (getenv("MAGMA_DPLANTDBG"))
             fprintf(stderr, "DPLC base=(%d,%d) local=(%d,%d,%d) pos=%d up=%d down=%d placed=%d\n",
                     w->baseCx, w->baseCz, bx, by, bz, w_get(w, bx, by, bz),
                     w_get(w, bx, by + 1, bz), w_get(w, bx, by - 1, bz), ok);
@@ -2305,7 +2305,7 @@ MC_HD MC_NOINLINE static void wg_dungeons(World *w, JavaRandom *r, int posX, int
     int l1 = -k1 - 1, i2 = k1 + 1;
     int j2 = 0;
 #ifndef __CUDA_ARCH__
-    if (getenv("CRASTER_DUNGDBG"))
+    if (getenv("MAGMA_DUNGDBG"))
         fprintf(stderr, "DUNG base=(%d,%d) local=(%d,%d,%d) j=%d k1=%d cur=%lld\n",
                 w->baseCx, w->baseCz, posX, posY, posZ, j, k1,
                 (unsigned long long)r->seed);
@@ -2315,7 +2315,7 @@ MC_HD MC_NOINLINE static void wg_dungeons(World *w, JavaRandom *r, int posX, int
             for (int i3 = l1; i3 <= i2; ++i3) {
                 int flag = pb_isSolid(w_get(w, posX + k2, posY + l2, posZ + i3));
 #ifndef __CUDA_ARCH__
-                if ((l2 == -1 || l2 == 4) && !flag && getenv("CRASTER_DUNGDBG"))
+                if ((l2 == -1 || l2 == 4) && !flag && getenv("MAGMA_DUNGDBG"))
                     fprintf(stderr, "DUNGVETO local=(%d,%d,%d) scan=(%d,%d,%d) b=%d\n",
                             posX, posY, posZ, posX + k2, posY + l2, posZ + i3,
                             w_get(w, posX + k2, posY + l2, posZ + i3));
@@ -2421,8 +2421,8 @@ MC_HD MC_NOINLINE static int wg_lakes(World *w, JavaRandom *r, int posX, int pos
                     if ((kk >= 4 && pb_isLiquid(state)) ||
                         (kk < 4 && !lake_isSolidW(state) && state != liquid)) {
 #ifndef __CUDA_ARCH__
-                        /* debug probe: CRASTER_LAKEDBG=1 names the shell cell that vetoes a lake */
-                        if (getenv("CRASTER_LAKEDBG"))
+                        /* debug probe: MAGMA_LAKEDBG=1 names the shell cell that vetoes a lake */
+                        if (getenv("MAGMA_LAKEDBG"))
                             fprintf(stderr, "LAKEDBG base=(%d,%d) veto world=(%d,%d,%d) kk=%d state=%d liquid=%d\n",
                                     w->baseCx, w->baseCz, w->baseCx * 16 + px + k1, py + kk,
                                     w->baseCz * 16 + pz + l2, kk, state, liquid);

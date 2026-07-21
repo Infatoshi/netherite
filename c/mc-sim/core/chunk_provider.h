@@ -841,11 +841,11 @@ typedef struct {
 } CaveCtx;
 
 #ifndef __CUDA_ARCH__
-/* debug probe: CRASTER_CARVERDBG="wx wy wz" traces cave/ravine tests for one world cell */
+/* debug probe: MAGMA_CARVERDBG="wx wy wz" traces cave/ravine tests for one world cell */
 static int cp_carver_dbg_match(int wx, int wy, int wz) {
     static int inited, on, tx, ty, tz;
     if (!inited) {
-        const char *s = getenv("CRASTER_CARVERDBG");
+        const char *s = getenv("MAGMA_CARVERDBG");
         inited = 1;
         on = s && sscanf(s, "%d %d %d", &tx, &ty, &tz) == 3;
     }
@@ -854,7 +854,7 @@ static int cp_carver_dbg_match(int wx, int wy, int wz) {
 static int cp_carver_dbg_target(int *wx, int *wy, int *wz) {
     static int inited, on, tx, ty, tz;
     if (!inited) {
-        const char *s = getenv("CRASTER_CARVERDBG");
+        const char *s = getenv("MAGMA_CARVERDBG");
         inited = 1;
         on = s && sscanf(s, "%d %d %d", &tx, &ty, &tz) == 3;
     }

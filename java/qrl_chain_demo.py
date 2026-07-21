@@ -1,7 +1,7 @@
-"""JVM chain demo: the cuenv-trained spawn-to-torch policy driving the REAL
+"""JVM chain demo: the blaze-trained spawn-to-torch policy driving the REAL
 Java Minecraft 1.11.2 game over the qrl bridge, zero scripted actions.
 
-Feature pipeline mirrors c/craster/rl/eval_chain_rl.py exactly, computed from
+Feature pipeline mirrors c/magma/rl/eval_chain_rl.py exactly, computed from
 the bridge's protocol-v2 obs (semantic camera cam/depth/edge, coal list,
 inv_counts/held/container, pose). Action decode = ppo_chain_cu acts_to_rows
 mapped onto the bridge action keys (dyaw/dpitch float deltas, craft 0..5,
@@ -29,10 +29,10 @@ import torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))            # java/
 ROOT = os.path.dirname(HERE)
-RL = os.path.join(ROOT, "c", "craster", "rl")
+RL = os.path.join(ROOT, "c", "magma", "rl")
 sys.path.insert(0, HERE)
 sys.path.insert(0, RL)
-sys.path.insert(0, os.path.join(RL, "cuenv"))
+sys.path.insert(0, os.path.join(RL, "blaze"))
 
 from qrl_client import QRLEnv                                 # noqa: E402
 from ppo_chain_cu import (ChainPolicy, build_frame, build_scal,  # noqa: E402
@@ -53,7 +53,7 @@ def wrap180(a):
 
 
 def nearest_coal_scal(obs):
-    """The 6 env scalars, exactly as eval_chain_rl/cuenv compute them."""
+    """The 6 env scalars, exactly as eval_chain_rl/blaze compute them."""
     best = None
     ex, ey, ez = obs["x"], obs["y"] + EYE, obs["z"]
     for c in obs.get("coal", []):

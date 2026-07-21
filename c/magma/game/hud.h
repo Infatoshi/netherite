@@ -1,0 +1,63 @@
+/* game/hud.h - 2D survival HUD overlay composited onto a finished framebuffer.
+ * Owner: HUD agent. See game/game.h for the seam contract. */
+#ifndef MAGMA_GAME_HUD_H
+#define MAGMA_GAME_HUD_H
+
+#include "game/game.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Load the gui sprites once. Returns 0 on success, nonzero on failure. */
+int  gm_hud_init(void);
+
+/* Draw the survival HUD (hotbar + selection, hearts, hunger, XP bar+level,
+ * crosshair) onto fb. Does NOT touch fb->depth. Safe for any fb size. */
+void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv);
+
+/* GuiBossOverlay: show/hide the ender-dragon boss bar for subsequent
+ * gm_hud_draw calls; frac is health/max in [0,1]. */
+void gm_hud_set_boss(int show, float frac);
+
+/* 2D overlay primitives shared with the container screen (game/screen.c):
+ * alpha-composited fill, 3x5-digit number (returns width in px), and the
+ * deterministic per-item pip color used for slot markers. */
+void   gm_hud_fill(CrFramebuffer *fb, int dx, int dy, int w, int h, CrRgba c);
+int    gm_hud_number(CrFramebuffer *fb, int n, int dx, int dy, int scale, CrRgba c);
+CrRgba gm_hud_pip_color(int id);
+
+/* Fixed sprite indices into assets/gui_atlas.h (hud.c static-asserts these
+ * match the generated GUI_* defines, so callers need not include the data). */
+enum {
+    GM_GUI_INV_PANEL = 0,
+    GM_GUI_TABLE_PANEL,
+    GM_GUI_FURNACE_PANEL,
+    GM_GUI_FURNACE_FLAME,
+    GM_GUI_FURNACE_ARROW,
+    GM_GUI_FONT
+};
+
+/* Container-GUI art (assets/gui_atlas.h: real MC panels, font, item icons).
+ * gm_gui_blit draws sprite `idx` (GUI_* from gui_atlas.h) at (dx,dy) scaled;
+ * gm_gui_blit_sub draws only the sprite-local sub-rect (sx,sy,sw,sh).
+ * gm_gui_item_icon draws a block item as an isometric mini-cube (vanilla GUI
+ * display transform) or a flat 16x16 tile for 2D items; returns 1 if an icon
+ * exists, 0 if not (caller falls back to the pip). */
+void gm_gui_blit(CrFramebuffer *fb, int idx, int dx, int dy, int scale);
+void gm_gui_blit_sub(CrFramebuffer *fb, int idx, int sx, int sy, int sw, int sh,
+                     int dx, int dy, int scale);
+int  gm_gui_item_icon(CrFramebuffer *fb, int item_id, int dx, int dy, int scale);
+
+/* Vanilla-metric MC font (ascii.png; FontRenderer.readFontTexture widths:
+ * space=4, else rightmost non-empty glyph column + 2). gm_font_width returns
+ * the string width in unscaled gui px; gm_font_draw renders at (dx,dy) with
+ * 0xRRGGBB color, optional vanilla drop shadow (+1,+1 at (rgb&0xFCFCFC)>>2). */
+int  gm_font_width(const char *s);
+void gm_font_draw(CrFramebuffer *fb, const char *s, int dx, int dy, int scale,
+                  unsigned rgb, int shadow);
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* MAGMA_GAME_HUD_H */
