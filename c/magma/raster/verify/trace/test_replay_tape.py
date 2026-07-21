@@ -1,7 +1,31 @@
 import json
 from pathlib import Path
 
+import numpy as np
+from PIL import Image
+
+import pixel_gate
 import replay_tape
+
+
+TRACE_DIR = Path(__file__).resolve().parent
+CANONICAL_NAME = "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462"
+
+
+def _canonical_frame_pair(tick):
+    oracle_path = (TRACE_DIR.parent / "tapes" / f"{CANONICAL_NAME}_frames"
+                   / f"f_{tick:06d}.png")
+    magma_path = (TRACE_DIR / "out" / f"tape_{CANONICAL_NAME}"
+                  / "magma_frames.npy")
+    oracle = np.asarray(Image.open(oracle_path).convert("RGB"), dtype=np.int16)
+    magma_frames = np.load(magma_path, mmap_mode="r")
+    magma = np.asarray(magma_frames[tick // 20], dtype=np.int16).copy()
+    return oracle, magma
+
+
+def _add_midframe_marker(magma):
+    magma[210:310, 250:350] = 255
+    return magma
 
 
 def test_new_recorder_state_becomes_sorted_render_and_next_tick_events(tmp_path: Path):
@@ -263,3 +287,50 @@ def test_replay_comparison_stops_at_terminal_death():
     first, distances = replay_tape.first_divergence(ticks, c_rows)
     assert first is None
     assert distances == [0.0]
+
+
+def test_pixel_gate_rejects_marker_box_during_known_rain_window():
+    oracle, magma = _canonical_frame_pair(1880)
+    tape = TRACE_DIR.parent / "tapes" / f"{CANONICAL_NAME}.jsonl"
+    known = pixel_gate.load_known_divergences(tape)
+
+    baseline = pixel_gate.gate_frame(oracle, magma, 854, 480, tick=1880,
+                                     known=known)
+    assert pixel_gate.frame_verdict(baseline)[0] is False
+
+    clusters = pixel_gate.gate_frame(
+        oracle, _add_midframe_marker(magma), 854, 480, tick=1880, known=known)
+    assert pixel_gate.frame_verdict(clusters)[0] is True
+    assert any(cluster["cls"] == "UNEXPLAINED" and cluster["px"] >= 10_000
+               for cluster in clusters)
+
+
+def test_wrong_window_sidecar_does_not_suppress_marker_box(tmp_path: Path):
+    oracle, magma = _canonical_frame_pair(600)
+    tape = tmp_path / "clean.jsonl"
+    sidecar = tmp_path / "clean.known_divergences.json"
+    sidecar.write_text(json.dumps({
+        "version": 1,
+        "divergences": [{
+            "ticks": [600, 600],
+            "open_divergence": 54,
+            "reason": "intentionally wrong window for sensitivity proof",
+            "regions": [[45, 0, 383, 853]],
+            "predicate": {"type": "non_solid_scene"},
+        }],
+    }))
+    known = pixel_gate.load_known_divergences(tape)
+
+    baseline = pixel_gate.gate_frame(oracle, magma, 854, 480, tick=600,
+                                     known=known)
+    assert pixel_gate.frame_verdict(baseline)[0] is False
+
+    clusters = pixel_gate.gate_frame(
+        oracle, _add_midframe_marker(magma), 854, 480, tick=600, known=known)
+    assert pixel_gate.frame_verdict(clusters)[0] is True
+    assert any(cluster["cls"] == "UNEXPLAINED" and cluster["px"] >= 10_000
+               for cluster in clusters)
+
+
+def test_missing_known_divergence_sidecar_defaults_to_empty(tmp_path: Path):
+    assert pixel_gate.load_known_divergences(tmp_path / "plain.jsonl") == []

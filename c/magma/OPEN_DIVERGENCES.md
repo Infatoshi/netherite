@@ -884,3 +884,17 @@ water and shoreline. Not the underwater case (#51): the eye is in air.
 Class: terrain distance-fog curve/onset vs vanilla setupFog (EXP2 density and
 the farPlaneDistance ramp), possibly missing the render-distance fog start
 scaling. Repro: probe_sbs_t1800.png from a gated replay of the e2e tape.
+
+## 54. OPEN (recorder-class): legacy EntityItem rows omit render state
+
+The canonical 20260712T055346Z tape predates the expanded entity schema.
+Its seven-field `EntityItem` rows omit item id/count and age/hover state, so
+the dig/drop window t2460-2900 cannot reconstruct the oracle's dropped-item
+sprite, stack, bob, or spin. Physics remains bit-clean over all 3121 ticks;
+the mismatch is confined to recorded pixel frames in that window. New tapes
+record the expanded fields. The canonical tape's known-divergence sidecar
+scopes this legacy evidence to that tick window and the non-positional scene
+region; a new solid marker remains gate-failing.
+
+Repro: CPU replay the canonical tape with `--report --cpu`; inspect the
+`known:54` gate class and the t2460-2900 side-by-side frames.

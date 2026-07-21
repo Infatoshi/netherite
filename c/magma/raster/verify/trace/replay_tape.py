@@ -680,6 +680,7 @@ def main():
             try:
                 import pixel_gate as pg
                 from scipy import ndimage as _nd  # noqa: F401
+                known_divergences = pg.load_known_divergences(args.tape)
             except ImportError as e:
                 gate_on = False
                 print(f"[tape] WARNING: pixel gate disabled ({e}); "
@@ -695,8 +696,9 @@ def main():
             o16 = oframes[i].astype(np.int16)
             c16 = b8.astype(np.int16)
             s = ol.diff_regions_arrays(o16, c16, args.w, args.h)
-            clusters = pg.gate_frame(o16, c16, args.w, args.h) if gate_on \
-                else None
+            clusters = (pg.gate_frame(o16, c16, args.w, args.h, tick=t,
+                                      known=known_divergences)
+                        if gate_on else None)
             return t, b8, s, clusters
 
         with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as ex:

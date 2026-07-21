@@ -41,6 +41,7 @@ def main():
                 rows.append(json.loads(line))
 
     frames = np.load(args.npy, mmap_mode="r")
+    known_divergences = pg.load_known_divergences(args.tape)
     n, h, w, _ = frames.shape
     per_tick = {}
     for i in range(n):
@@ -50,7 +51,8 @@ def main():
             continue
         o16 = np.asarray(Image.open(gp).convert("RGB"), dtype=np.int16)
         c16 = np.asarray(frames[i], dtype=np.int16)
-        per_tick[t] = pg.gate_frame(o16, c16, w, h)
+        per_tick[t] = pg.gate_frame(o16, c16, w, h, tick=t,
+                                    known=known_divergences)
         if i % 500 == 0:
             print(f"[regate] {i}/{n}", flush=True)
 

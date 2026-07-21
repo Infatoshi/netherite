@@ -19,7 +19,12 @@ Classes (conservative predicates, keyed to OPEN_DIVERGENCES numbers):
 Verdict: a frame FAILS on any UNEXPLAINED cluster >= FAIL_CLUSTER px (or an
 unexplained total >= FAIL_TOTAL). The tape PASSES when no frame fails.
 Per-class totals are written to a .gate.json baseline for suite diffing.
+Tape-specific accepted recorder gaps live in an optional sibling
+``<tape>.known_divergences.json``. With no sidecar, behavior is unchanged.
 """
+import json
+from pathlib import Path
+
 import numpy as np
 
 DIFF_THRESH = 25      # max-channel abs diff for a pixel to enter the mask
@@ -32,6 +37,104 @@ FAIL_CLUSTER = 4000   # px; an UNEXPLAINED component this big fails the frame
 FAIL_TOTAL = 8000     # px; total UNEXPLAINED in one frame that fails it
 BOSSBAR_Y = 44        # top band (boss bar + name text) at 480p scale 2
 HUD_FRAC = 0.80       # bottom HUD strip starts here (hotbar top ~y=436/480)
+VIEWMODEL_X_FRAC = 0.52
+VIEWMODEL_Y_FRAC = 0.40
+
+
+def load_known_divergences(tape_path):
+    """Load an optional tape sibling sidecar; absent means no acceptances."""
+    path = Path(tape_path).with_suffix(".known_divergences.json")
+    if not path.exists():
+        return []
+    data = json.loads(path.read_text())
+    if data.get("version") != 1 or not isinstance(data.get("divergences"), list):
+        raise ValueError(f"invalid known-divergence sidecar: {path}")
+    return data["divergences"]
+
+
+def _active_known(known, tick):
+    if tick is None:
+        return []
+    return [entry for entry in known or []
+            if entry["ticks"][0] <= tick <= entry["ticks"][1]]
+
+
+def _solid_box_mask(c16, mask):
+    """Protect large, interior, flat rectangles from every acceptance.
+
+    This is the marker-box regression invariant: even inside a globally
+    accepted color shift, a new solid render primitive remains unexplained.
+    """
+    from scipy import ndimage
+
+    protected = np.zeros_like(mask)
+    colors, counts = np.unique(c16[mask].reshape(-1, 3), axis=0,
+                               return_counts=True)
+    for color in colors[counts >= FAIL_CLUSTER]:
+        same = mask & np.all(c16 == color, axis=2)
+        lab, n = ndimage.label(same, structure=np.ones((3, 3), dtype=int))
+        sizes = np.bincount(lab.ravel())
+        for i in range(1, n + 1):
+            if sizes[i] < FAIL_CLUSTER:
+                continue
+            ys, xs = np.nonzero(lab == i)
+            bbox_area = ((ys.max() - ys.min() + 1)
+                         * (xs.max() - xs.min() + 1))
+            interior = (ys.min() > BOSSBAR_Y and ys.max() < mask.shape[0] - 1
+                        and xs.min() > 0 and xs.max() < mask.shape[1] - 1)
+            if interior and sizes[i] / bbox_area >= 0.90:
+                protected[lab == i] = True
+    return protected
+
+
+def _region_matches(entry, ys, xs):
+    regions = entry.get("regions")
+    if not regions:
+        return False
+    y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
+    return any(y0 >= r[0] and x0 >= r[1] and y1 <= r[2] and x1 <= r[3]
+               for r in regions)
+
+
+def _known_cluster_class(entries, ys, xs, protected):
+    """Return known:N only for scoped, non-marker residual components."""
+    if protected[ys, xs].any():
+        return None
+    for entry in entries:
+        predicate = entry.get("predicate", {})
+        if (predicate.get("type") == "non_solid_scene"
+                and _region_matches(entry, ys, xs)):
+            return f"known:{entry['open_divergence']}"
+    return None
+
+
+def _known_pixel_masks(entries, o16, c16, mask, protected):
+    """Extract directional global color shifts before residual labeling."""
+    masks = []
+    brightness_o = o16.mean(axis=2)
+    brightness_c = c16.mean(axis=2)
+    saturation_o = o16.max(axis=2) - o16.min(axis=2)
+    saturation_c = c16.max(axis=2) - c16.min(axis=2)
+    for entry in entries:
+        predicate = entry.get("predicate", {})
+        if predicate.get("type") != "global_oracle_darker_desaturated":
+            continue
+        usable = mask & ~protected
+        if not usable.any():
+            continue
+        # The entry is valid only when the frame as a whole has the filed
+        # weather signature. Pixel extraction stays directional. The small
+        # saturation slack admits shaded terrain under the same global dim.
+        if (brightness_o[usable].mean() >= brightness_c[usable].mean()
+                or saturation_o[usable].mean() >= saturation_c[usable].mean()):
+            continue
+        slack = predicate.get("pixel_saturation_slack", 0)
+        accepted = (usable & (brightness_o < brightness_c)
+                    & (saturation_o < saturation_c + slack))
+        if accepted.any():
+            masks.append((accepted,
+                          f"known:{entry['open_divergence']}"))
+    return masks
 
 
 def _classify(o, c, ys, xs, w, h):
@@ -55,29 +158,70 @@ def _classify(o, c, ys, xs, w, h):
     return "UNEXPLAINED"
 
 
-def gate_frame(o16, c16, w, h):
-    """Diff one frame pair (int16 (h,w,3) arrays) -> list of cluster dicts.
-    Only components >= MIN_CLUSTER are returned."""
+def _labeled_clusters(mask, o16, c16, w, h, fixed_class=None,
+                      known_entries=None, protected=None):
+    """Label one isolated mask and return its non-noise components."""
     from scipy import ndimage
-    d = np.abs(o16 - c16).max(axis=2)
-    mask = d > DIFF_THRESH
-    if not mask.any():
-        return []
+
     lab, n = ndimage.label(mask, structure=np.ones((3, 3), dtype=int))
     if n == 0:
         return []
     sizes = np.bincount(lab.ravel())
-    out = []
-    ob = o16.sum(axis=2)   # brightness proxies for the classifier
+    ob = o16.sum(axis=2)
     cb = c16.sum(axis=2)
+    out = []
     for i in range(1, n + 1):
         if sizes[i] < MIN_CLUSTER:
             continue
         ys, xs = np.nonzero(lab == i)
-        cls = _classify(ob, cb, ys, xs, w, h)
+        cls = fixed_class or _classify(ob, cb, ys, xs, w, h)
+        if cls == "UNEXPLAINED" and known_entries:
+            cls = (_known_cluster_class(known_entries, ys, xs, protected)
+                   or cls)
         out.append({"px": int(sizes[i]), "cls": cls,
                     "bbox": [int(ys.min()), int(xs.min()),
                              int(ys.max()), int(xs.max())]})
+    return out
+
+
+def gate_frame(o16, c16, w, h, *, tick=None, known=None):
+    """Diff one frame pair (int16 (h,w,3) arrays) -> list of cluster dicts.
+    Only components >= MIN_CLUSTER are returned."""
+    d = np.abs(o16 - c16).max(axis=2)
+    mask = d > DIFF_THRESH
+    if not mask.any():
+        return []
+
+    # Positional acceptances are topology barriers, not post-label classes.
+    # Remove them before labeling the remaining image so an accepted HUD,
+    # bossbar, or viewmodel pixel cannot bridge otherwise separate terrain
+    # components into one large unexplained blob. Label each accepted region
+    # independently so its pixel totals remain visible in the baseline.
+    bossbar = np.zeros_like(mask)
+    bossbar[:BOSSBAR_Y + 1, :] = True
+    hud = np.zeros_like(mask)
+    hud[int(h * HUD_FRAC):, :] = True
+    viewmodel = np.zeros_like(mask)
+    viewmodel[int(h * VIEWMODEL_Y_FRAC) + 1:,
+              int(w * VIEWMODEL_X_FRAC) + 1:] = True
+    viewmodel &= ~hud
+    protected = _solid_box_mask(c16, mask)
+
+    out = []
+    for region, cls in ((bossbar, "bossbar"), (hud, "hud"),
+                        (viewmodel, "viewmodel")):
+        out.extend(_labeled_clusters(mask & region, o16, c16, w, h,
+                                     fixed_class=cls))
+    mask &= ~(bossbar | hud | viewmodel)
+    entries = _active_known(known, tick)
+    for known_mask, cls in _known_pixel_masks(entries, o16, c16, mask,
+                                               protected):
+        out.extend(_labeled_clusters(known_mask, o16, c16, w, h,
+                                     fixed_class=cls))
+        mask &= ~known_mask
+    out.extend(_labeled_clusters(mask, o16, c16, w, h,
+                                 known_entries=entries,
+                                 protected=protected))
     return out
 
 
