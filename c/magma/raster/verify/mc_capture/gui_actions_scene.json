@@ -38,5 +38,12 @@
     "swap_hotbar_0_1",
     "drop_one_hotbar0",
     "close"
-  ]
+  ],
+  "close_focusdiag": {
+    "ok": true,
+    "display_active": true,
+    "ingame_focus": true,
+    "mouse_grabbed": false,
+    "screen": null
+  }
 }
