@@ -66,8 +66,12 @@ column, +2y. See `pose.json` for the ACTUAL read-back pose.
 
 ## Container-GUI pixel gate (capture_gui.sh + run_gui_verify.sh)
 
-`capture_gui.sh` captures the three container screens (crafting table / furnace /
-player inventory) from the live game as goldens: fresh seed-0 world, EMPTY survival
+`capture_gui.sh` captures every container screen magma implements: crafting table,
+furnace, and player inventory. The audit source is `gm_screen_kind_for_gui` in
+`game/screen.c`; there are no additional magma screen kinds. Chest, dispenser /
+dropper, hopper, enchanting, brewing, anvil, villager, creative, beacon, horse, and
+shulker screens are not implemented and are intentionally not captured. The live
+goldens use a fresh seed-0 world, EMPTY survival
 inventory, frozen clear noon, a pinned stone platform with a crafting table and
 furnace, GUI scale 2 at 854x480. Each screen is grabbed twice (`mc_gui_<name>_{a,b}.png`)
 so the verifier measures the Java-vs-Java repeat noise floor (0.000 - the screens are
@@ -87,3 +91,24 @@ rendered by magma; the number is printed, not gated, per PRODUCT.md honesty rule
 Panel origin gotcha: vanilla GuiContainer centers in GUI units with INTEGER division
 - at 854x480/scale2 that is floor((427-176)/2)=125 gui -> fb x 250. Naive framebuffer
 centering lands at 251 and shows up as vertical 1px lines on every slot border.
+
+### Inventory action sequence
+
+`capture_gui_actions.sh` acquires `/tmp/qrl_25575.lock`, reuses or boots the Xvfb
+`:1` oracle, installs a deterministic loadout, and drives GUI input through
+`java/mcwindow_script.py`. The script protocol now exposes the relay's existing
+absolute `ma` cursor event as `"cursor":[x,y]`; no Java/mod protocol addition was
+needed. The fixed sequence is: pick A, place B, right-click split B, right-click
+deposit one in C, shift-click B to hotbar 0, swap hotbar 0/1 with three vanilla
+PICKUP clicks, press Q over hotbar 0, then close. It writes
+`mc_gui_action_00_initial.png` through `mc_gui_action_08_close.png` and
+`gui_actions_scene.json`.
+
+`run_gui_actions_verify.sh` applies the same logical operations through
+`gm_container_click`, renders `gm_screen_draw` after every visible step, and prints
+a per-step table. It gates the inventory panel with the same Java-repeat-noise +
+1.0 mean/channel rule as `run_gui_verify.sh`, masks only the documented live 3D
+player-preview viewport, and separately gates tight slot/cursor ROIs. Those ROIs
+exercise item sprites, count text, carried stacks, hover overlays, and both hotbar
+slots. Close is checked from the oracle `focusdiag` screen state because neither
+side has a container panel after that operation.

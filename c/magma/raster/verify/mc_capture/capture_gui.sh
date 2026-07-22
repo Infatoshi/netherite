@@ -18,8 +18,10 @@
 # Anti-rabbit-hole: every wait has a hard timeout; failures print log tails.
 set -u
 
-ENVDIR=/home/infatoshi/dev/minecraft/mc-1.11.2-env/java
-OUTDIR=/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/magma/raster/verify/mc_capture
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$SCRIPT_DIR/../../../../.." && pwd)"
+ENVDIR="$ROOT/java"
+OUTDIR="$SCRIPT_DIR"
 OPTS="$ENVDIR/Minecraft/run/options.txt"
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
@@ -41,13 +43,21 @@ fail() { echo "[capture_gui] FAIL: $*" >&2; echo "----- runclient.log tail -----
 
 mkdir -p "$OUTDIR"
 
+# One process may own the Java oracle, qrl port, and Xvfb :1 at a time.
+exec 9>/tmp/qrl_25575.lock
+log "waiting for exclusive oracle lock /tmp/qrl_25575.lock ..."
+flock 9
+log "oracle lock acquired"
+
 # --- 0. rebind key.use to R (restored on exit) ---
-grep -q '^key_key.use:' "$OPTS" || fail "options.txt has no key_key.use line"
-ORIG_USE=$(grep '^key_key.use:' "$OPTS" | head -1 | cut -d: -f2)
-restore_opts() {
+rg -q '^key_key.use:' "$OPTS" || fail "options.txt has no key_key.use line"
+ORIG_USE=$(rg '^key_key.use:' "$OPTS" | head -1 | cut -d: -f2)
+cleanup() {
     sed -i "s/^key_key.use:.*/key_key.use:${ORIG_USE}/" "$OPTS" 2>/dev/null
+    pkill -9 -f '[G]radleStart' 2>/dev/null || true
+    pkill -9 -f '[r]unClient' 2>/dev/null || true
 }
-trap restore_opts EXIT
+trap cleanup EXIT
 sed -i 's/^key_key.use:.*/key_key.use:19/' "$OPTS"
 log "key.use rebound: ${ORIG_USE} -> 19 (R); will restore on exit"
 
@@ -67,7 +77,7 @@ log "launching headless game via start_vnc_client.sh ..."
 log "waiting for qrl bridge on :25575 (up to 360s)..."
 listened=0
 for i in $(seq 1 360); do
-    if python3 -c 'import socket,sys; s=socket.socket(); s.settimeout(1)
+    if uv run --no-project python -c 'import socket,sys; s=socket.socket(); s.settimeout(1)
 try:
     s.connect(("127.0.0.1",25575)); s.close()
 except Exception:
@@ -79,7 +89,7 @@ done
 # --- 4. reset + freeze + build the fixed GUI scene ---
 log "reset(seed=$SEED) + frozen noon + platform + table/furnace ..."
 cd "$ENVDIR" || fail "cd $ENVDIR"
-python3 - "$SEED" <<PY || fail "qrl scene setup failed"
+uv run --no-project python - "$SEED" <<PY || fail "qrl scene setup failed"
 import sys, json
 import qrl_client
 e = qrl_client.QRLEnv()
@@ -121,9 +131,9 @@ e.close()
 PY
 
 # --- 5. locate the MC window ---
-GEOM=$(xwininfo -root -tree 2>/dev/null | grep -i "Minecraft 1.11.2" | head -1)
-WH=$(echo "$GEOM"  | grep -oE '[0-9]+x[0-9]+\+[0-9]+\+[0-9]+' | head -1)
-ABS=$(echo "$GEOM" | grep -oE '\+[0-9]+\+[0-9]+$' | head -1)
+GEOM=$(xwininfo -root -tree 2>/dev/null | rg -i "Minecraft 1.11.2" | head -1)
+WH=$(echo "$GEOM"  | rg -o '[0-9]+x[0-9]+\+[0-9]+\+[0-9]+' | head -1)
+ABS=$(echo "$GEOM" | rg -o '\+[0-9]+\+[0-9]+$' | head -1)
 W=$(echo "$WH" | cut -dx -f1)
 H=$(echo "$WH" | sed -E 's/^[0-9]+x([0-9]+).*/\1/')
 AX=$(echo "$ABS" | cut -d+ -f2)
@@ -148,7 +158,7 @@ grab2() {
 }
 
 retp() { # re-assert a pose through qrl (tp + settle ticks)
-    python3 - "$1" <<'PY'
+    uv run --no-project python - "$1" <<'PY'
 import sys
 import qrl_client
 e = qrl_client.QRLEnv()
@@ -181,7 +191,7 @@ grab2 inventory
 xdotool key --window "$WIN" Escape; sleep 1
 
 # --- 7. metadata ---
-python3 - "$OUTDIR/gui_scene.json" "$W" "$H" <<'PY'
+uv run --no-project python - "$OUTDIR/gui_scene.json" "$W" "$H" <<'PY'
 import sys, json
 scene = json.load(open("/tmp/qrl_gui_scene.json"))
 scene.update({"width": int(sys.argv[2]), "height": int(sys.argv[3]),
@@ -195,4 +205,4 @@ json.dump(scene, open(sys.argv[1], "w"), indent=2)
 PY
 
 log "done: $OUTDIR/mc_gui_{table,furnace,inventory}_{a,b}.png + gui_scene.json"
-log "NOTE: game left running (kill with pkill -f GradleStart if not needed)."
+log "oracle cleanup runs on exit"

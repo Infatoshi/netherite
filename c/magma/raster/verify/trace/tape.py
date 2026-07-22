@@ -93,7 +93,8 @@ def bridge_cmd(obj):
 
 
 def cmd_start(args):
-    os.makedirs(TAPES, exist_ok=True)
+    tapes = os.path.abspath(args.dir)
+    os.makedirs(tapes, exist_ok=True)
     launch, opts = resolved_config()
     if args.seed is not None:
         # The live world was bridge-reset to a different seed than the launch
@@ -101,7 +102,7 @@ def cmd_start(args):
         launch = dict(launch)
         launch["world"] = dict(launch.get("world", {}), seed=args.seed)
     name = tape_name(launch, opts)
-    tape = os.path.join(TAPES, name + ".jsonl")
+    tape = os.path.join(tapes, name + ".jsonl")
     meta = {
         "name": name,
         "created_utc": name.split("_")[0],
@@ -113,7 +114,7 @@ def cmd_start(args):
         "tape_jsonl": tape,
         "frames_dir": tape[:-len(".jsonl")] + "_frames",
     }
-    with open(os.path.join(TAPES, name + ".meta.json"), "w") as f:
+    with open(os.path.join(tapes, name + ".meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
     r = bridge_cmd({"cmd": "recstart",
                     "action": {"file": tape, "frames_every": args.frames_every}})
@@ -122,16 +123,16 @@ def cmd_start(args):
     return 0 if r.get("ok") else 1
 
 
-def _latest_unfinished():
-    for m in sorted(glob.glob(os.path.join(TAPES, "*.meta.json")), reverse=True):
+def _latest_unfinished(tapes):
+    for m in sorted(glob.glob(os.path.join(tapes, "*.meta.json")), reverse=True):
         with open(m) as f:
             if "ticks" not in json.load(f):
                 return m
-    raise SystemExit("no unfinished tape found in " + TAPES)
+    raise SystemExit("no unfinished tape found in " + tapes)
 
 
 def cmd_stop(args):
-    meta_path = _latest_unfinished()
+    meta_path = _latest_unfinished(os.path.abspath(args.dir))
     with open(meta_path) as f:
         meta = json.load(f)
     r = bridge_cmd({"cmd": "recstop", "action": {}})
@@ -214,7 +215,11 @@ def main():
                    help="actual world seed if the live world was bridge-reset"
                         " to a seed other than the launch config's")
     s.add_argument("--frames-every", type=int, default=20)
-    sub.add_parser("stop", help="stop taping + pack")
+    s.add_argument("--dir", default=TAPES,
+                   help="artifact directory (default: canonical tapes dir)")
+    s = sub.add_parser("stop", help="stop taping + pack")
+    s.add_argument("--dir", default=TAPES,
+                   help="artifact directory used by start")
     p = sub.add_parser("pack", help="(re)build parquet twin for a tape")
     p.add_argument("tape")
     args = ap.parse_args()

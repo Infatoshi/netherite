@@ -7,7 +7,7 @@ script is a sequence of timed input states, for example::
 
     {"seconds":2.0,"keys":["w"]}
     {"seconds":1.0,"keys":["w","Control_L"],"look":[30,-5]}
-    {"seconds":0.5,"buttons":[1]}
+    {"seconds":0.5,"buttons":[1],"cursor":[282,258]}
 
 Keys/buttons omitted from the next row are released at that row boundary. All
 held inputs are released on exit, including exceptions and SIGINT.
@@ -44,7 +44,7 @@ def load_script(path: str | Path) -> list[dict]:
             if not line.strip():
                 continue
             segment = json.loads(line)
-            allowed = {"seconds", "keys", "buttons", "look"}
+            allowed = {"seconds", "keys", "buttons", "look", "cursor"}
             unknown = set(segment) - allowed
             if unknown:
                 raise ValueError(f"line {line_no}: unknown fields {sorted(unknown)}")
@@ -52,17 +52,25 @@ def load_script(path: str | Path) -> list[dict]:
             keys = segment.get("keys", [])
             buttons = segment.get("buttons", [])
             look = segment.get("look")
+            cursor = segment.get("cursor")
             if seconds < 0 or not all(isinstance(key, str) for key in keys):
                 raise ValueError(f"line {line_no}: invalid seconds/keys")
             if not all(int(button) in (1, 2, 3) for button in buttons):
                 raise ValueError(f"line {line_no}: buttons must be 1, 2, or 3")
             if look is not None and (not isinstance(look, list) or len(look) != 2):
                 raise ValueError(f"line {line_no}: look must be [dx,dy]")
+            if cursor is not None and (
+                not isinstance(cursor, list)
+                or len(cursor) != 2
+                or not all(isinstance(v, (int, float)) for v in cursor)
+            ):
+                raise ValueError(f"line {line_no}: cursor must be [x,y]")
             segments.append({
                 "seconds": seconds,
                 "keys": list(dict.fromkeys(keys)),
                 "buttons": list(dict.fromkeys(int(button) for button in buttons)),
                 "look": look,
+                "cursor": cursor,
             })
     return segments
 
@@ -129,9 +137,15 @@ class MCWindowClient:
     def look(self, dx: float, dy: float) -> None:
         self._send({"t": "look", "dx": float(dx), "dy": float(dy)})
 
+    def move_cursor(self, x: float, y: float) -> None:
+        """Move the GUI cursor in game-client coordinates."""
+        self._send({"t": "ma", "x": int(x), "y": int(y)})
+
     def run(self, segments: list[dict]) -> None:
         self.wait_stream()
         for segment in segments:
+            if segment["cursor"] is not None:
+                self.move_cursor(*segment["cursor"])
             self.set_inputs(segment["keys"], segment["buttons"])
             if segment["look"] is not None:
                 self.look(*segment["look"])

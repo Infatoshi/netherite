@@ -27,7 +27,7 @@ from Xlib import X, XK, display
 from Xlib.ext import xtest
 
 FRAME_PORT = 25580
-VIEWER_PORT = 25581
+VIEWER_PORT = int(os.environ.get("MCW_PORT", "25581"))
 REPO = os.path.expanduser("~/dev/minecraft/mc-1.11.2-env")
 MAGIC = 0x51484631
 

@@ -1,0 +1,16 @@
+{
+  "poses": {
+    "wide": {"x": 203.5, "y": 100.0, "z": 216.5, "epsilon": 0.08},
+    "underwater": {"x": 194.5, "y": 100.0, "z": 202.5, "epsilon": 0.08}
+  },
+  "regions": {
+    "still_water": {"pose": "wide", "box": [60, 210, 275, 390], "abs_tol": 32.0, "temporal_tol": 5.0, "phase_shift_ticks": 2},
+    "flowing_water": {"pose": "wide", "box": [275, 135, 505, 390], "abs_tol": 32.0, "temporal_tol": 5.0, "phase_shift_ticks": 2},
+    "portal_swirl": {"pose": "wide", "box": [505, 115, 690, 385], "abs_tol": 32.0, "temporal_tol": 5.0, "phase_shift_ticks": 1},
+    "underwater_overlay": {"pose": "underwater", "box": [0, 0, 854, 480], "abs_tol": 32.0}
+  },
+  "gaps": {
+    "lava": "magma has only the frame-zero lava_still atlas tile; no runtime lava animation update exists",
+    "fire": "magma meshes fire_layer_0/1 but has no runtime fire animation update"
+  }
+}

@@ -26,14 +26,14 @@ FLAGS=(-O2 -ffp-contract=off -Wall -Wextra -I. -Icore -I"$MCSIM")
 MARGIN="${MARGIN:-1.0}"
 
 echo "== build gui_candidate =="
-make -s game/screen.o game/hud.o game/item_render.o game/container_live.o game/runtime.o game/config.o \
-    game/player_ctl.o game/world_live.o game/live_sim.o game/mob_live.o \
+make -s game/screen.o game/hud.o game/item_render.o game/container_live.o game/runtime.o game/fluid_live.o game/config.o \
+    game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o game/mob_live.o \
     game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o \
     game/caps.o world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o \
     world/mesh.o world/world.o renderkernels/rk_31_facebakery_make_quad.o \
     assets/blockmodels.o core/math.o core/shade.o
 gcc "${FLAGS[@]}" "$OUT/gui_candidate.c" \
-    game/screen.o game/hud.o game/item_render.o game/runtime.o game/config.o game/player_ctl.o \
+    game/screen.o game/hud.o game/item_render.o game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o game/sel_box.o \
     game/world_live.o game/live_sim.o game/mob_live.o game/dragon_live.o \
     game/structures_live.o game/portal_live.o game/furnace_live.o \
     game/container_live.o game/caps.o world/light.o world/mesh_mc.o \
@@ -46,6 +46,9 @@ echo "== render magma screens =="
 "$OUT/gui_candidate" --container 1 --w 854 --h 480 --ppm "$OUT/magma_gui_table.ppm"
 "$OUT/gui_candidate" --container 2 --w 854 --h 480 --ppm "$OUT/magma_gui_furnace.ppm"
 "$OUT/gui_candidate" --container 0 --w 854 --h 480 --ppm "$OUT/magma_gui_inventory.ppm"
+
+echo "implemented magma screens: inventory, crafting table, furnace (3/3 covered)"
+echo "not implemented: chest, dispenser/dropper, hopper, enchanting, brewing, anvil, villager, creative, beacon, horse, shulker"
 
 echo "== panel-region pixel diff (inset 4px; tolerance = repeat-capture noise + $MARGIN) =="
 rc=0
@@ -89,6 +92,11 @@ for name, hard in (("table", True), ("furnace", True), ("inventory", False)):
     else:
         verdict = "INFO (player-model preview not rendered; not gated)"
     print(f"{name:<10} {noise:>13.3f} {diff:>13.3f} {gate:>8.3f}  {verdict}")
+    if hard and not ok:
+        raw = np.abs(ja - c).clip(0, 255).astype(np.uint8)
+        path = f"{out}/diff_gui_{name}.png"
+        Image.fromarray(raw).save(path)
+        print(f"  diff: {path}")
 sys.exit(1 if fail else 0)
 PY
 if [ "$rc" -eq 0 ]; then echo "gui verify: PASS"; else echo "gui verify: FAIL"; fi

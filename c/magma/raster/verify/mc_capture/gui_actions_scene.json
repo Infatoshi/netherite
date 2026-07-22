@@ -1,0 +1,42 @@
+{
+  "seed": 0,
+  "loadout": {
+    "inventory.0": [
+      1,
+      0,
+      2
+    ],
+    "hotbar.1": [
+      3,
+      0,
+      5
+    ]
+  },
+  "initial_inventory": [
+    {
+      "slot": 1,
+      "id": 3,
+      "count": 5,
+      "meta": 0
+    },
+    {
+      "slot": 9,
+      "id": 1,
+      "count": 2,
+      "meta": 0
+    }
+  ],
+  "width": 854,
+  "height": 480,
+  "steps": [
+    "initial",
+    "pickup_a",
+    "place_b",
+    "split_b",
+    "deposit_one_c",
+    "shift_b_to_hotbar",
+    "swap_hotbar_0_1",
+    "drop_one_hotbar0",
+    "close"
+  ]
+}
