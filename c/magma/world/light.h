@@ -60,6 +60,9 @@ void     light_debug_set_block_meta(CrLight *, int wx, int wy, int wz, int id, i
 /* Gameplay mutation. Writes canonical state and derives a non-colliding renderer
  * model key. Unsupported visuals use an explicit fallback without changing state. */
 void     light_set_state(CrLight *, int wx, int wy, int wz, uint16_t state);
+/* Apply the saved-skylight part of vanilla's deferred Chunk.recheckGaps after
+ * a surface block is removed. The caller remeshes the affected chunk. */
+void     light_recheck_break_surfaces(CrLight *, int wx, int wy, int wz);
 /* Meta nibble at world cell (0 if unloaded). */
 int      light_meta(const CrLight *, int wx, int wy, int wz);
 int      light_sky  (const CrLight *, int wx, int wy, int wz); /* 0..15 sky light   */

@@ -253,12 +253,15 @@ void gm_world_set_block(GmWorld *w, int wx, int wy, int wz, int id) {
 void gm_world_set_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int meta) {
     if (!w) return;
     int cx = wl_floordiv16(wx), cz = wl_floordiv16(wz);
+    int old_id = gm_world_block(w, wx, wy, wz);
 
     /* edit the block store, then re-light: light_ensure re-runs sky light for the
      * (idempotent) chunk generation and the global block-light BFS over loaded
      * chunks, which is local in effect (block light radius <= 15 = one chunk). */
     light_set_state(w->light, wx, wy, wz, mc_state(id, meta));
     worldmc_ensure(w->wmc, cx, cz, 0);
+    if ((old_id == 2 || old_id == 3) && id == 0)
+        light_recheck_break_surfaces(w->light, wx, wy, wz);
 
     /* the touched chunk must re-mesh */
     wl_mark_dirty(w, cx, cz);
