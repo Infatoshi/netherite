@@ -77,6 +77,7 @@ ITEM_ICONS = [
     (273, "items/stone_shovel.png"),
     (274, "items/stone_pickaxe.png"),
     (275, "items/stone_axe.png"),
+    (276, "items/diamond_sword.png"),
     (280, "items/stick.png"),
     (287, "items/string.png"),
     (288, "items/feather.png"),

@@ -64,6 +64,9 @@ int main(void) {
 
     /* (1) init ok */
     if (init_rc != 0) { fprintf(stderr, "FAIL: gm_hud_init returned %d\n", init_rc); fail = 1; }
+    if (!gm_gui_item_icon(NULL, 276, 0, 0, 0, 1)) {
+        fprintf(stderr, "FAIL: diamond sword has no GUI atlas icon\n"); fail = 1;
+    }
 
     /* (2) crosshair center differs from gray */
     if (!region_changed(&fb, W/2 - 8, H/2 - 8, W/2 + 8, H/2 + 8)) {

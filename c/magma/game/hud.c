@@ -269,6 +269,7 @@ static int hud_item_max_damage(int item_id) {
     if (item_id == 267) return 250;                   /* iron sword */
     if (item_id >= 268 && item_id <= 271) return 59;  /* wooden tools */
     if (item_id >= 272 && item_id <= 275) return 131; /* stone tools */
+    if (item_id == 276) return 1561;                  /* diamond sword */
     return 0;
 }
 
