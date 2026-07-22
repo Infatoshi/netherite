@@ -18,7 +18,7 @@
 
 #include "world/light.h"
 
-#define KDIR "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/"
+#define KDIR "../render-opt/kernels/"
 
 static int failures = 0;
 static void check(int cond, const char *msg) {
@@ -207,6 +207,23 @@ int main(void) {
         prev = s;
     }
     check(mono, "sky light monotonically non-increasing going downward");
+
+    /* Snapshot loads often change only leaf metadata (CHECK_DECAY). The stored
+     * skylight must survive that load; seeding the cell with 15 makes a canopy
+     * one light level too bright. Opacity changes are rebuilt from neighbours,
+     * with direct-sky air returning to 15. */
+    light_set_state(L, wx, 200, wz, (uint16_t)(18 << 4));
+    light_ensure(L, 0, 0, 1);
+    check(light_sky(L, wx, 200, wz) == 14,
+          "leaf insertion attenuates direct sky to 14");
+    light_set_state(L, wx, 200, wz, (uint16_t)((18 << 4) | 8));
+    light_ensure(L, 0, 0, 1);
+    check(light_sky(L, wx, 200, wz) == 14,
+          "metadata-only leaf load preserves stored skylight");
+    light_set_state(L, wx, 200, wz, 0);
+    light_ensure(L, 0, 0, 1);
+    check(light_sky(L, wx, 200, wz) == 15,
+          "direct-sky air rebuilt to 15 after leaf removal");
 
     /* block light near lava > 0 (scan the whole 3x3 loaded region for lava) */
     int lava_found = 0, lit = 0, lava_self = 0;

@@ -708,13 +708,30 @@ void light_set_state(CrLight *L, int wx, int wy, int wz, uint16_t state) {
     LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
     if (!c) return;
     int i = CB_INDEX(wx & 15, wy, wz & 15);
+    int old_opacity = state_opacity(c->state[i]);
+    int new_opacity = state_opacity(state);
     c->state[i] = state;
     c->block[i] = (u16)gm_state_to_model_key((uint16_t)state);
     c->meta[i] = (u8)gm_state_meta((uint16_t)state);
     c->sky_dirty = 1;
     L->blocklight_dirty = 1;
     L->skylight_dirty = 1;
-    c->sky[i] = L->has_sky ? 15 : 0;
+    /* World.checkLightFor rebuilds an opacity-changing cell from getRawLight;
+     * metadata-only loads keep the already-generated stored skylight. Direct
+     * sky is 15 only when Chunk.canSeeSky is true; otherwise the flood derives
+     * the value from neighbouring cells. */
+    if (!L->has_sky) {
+        c->sky[i] = 0;
+    } else if (new_opacity != old_opacity) {
+        c->sky[i] = 0;
+        if (new_opacity == 0) {
+            int y;
+            for (y = wy + 1; y < WY; ++y)
+                if (state_opacity(c->state[CB_INDEX(wx & 15, y, wz & 15)]) != 0)
+                    break;
+            if (y == WY) c->sky[i] = 15;
+        }
+    }
 }
 
 /* A grass/dirt removal queues Chunk.recheckGaps in vanilla. Its checkLightFor
