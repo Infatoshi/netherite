@@ -1,0 +1,53 @@
+name: ender_dragon
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_sword 1
+  - /replaceitem entity @p slot.hotbar.1 minecraft:bow 1
+  - /replaceitem entity @p slot.inventory.0 minecraft:arrow 64
+# Cross into the End via the raw bridge transfer (vanilla 1.11.2 has no
+# dimension command); the fresh End init spawns the dragon fight. Long
+# settle so the obsidian platform chunks and the dragon entity exist
+# before recording starts.
+setup_qrl:
+  - cmd: dim
+    action: { id: 1 }
+    settle_ticks: 100
+duration_ticks: 1600
+frames_every: 20
+input:
+  segments:
+    # Dig out of the obsidian spawn platform is not needed at seed 0 if the
+    # platform surfaces; walk toward the central island while tracking the
+    # dragon with look sweeps, then hold attack when it dives.
+    - seconds: 3.0
+    - seconds: 6.0
+      keys: [w]
+      look: [0.0, -8.0]
+    - seconds: 8.0
+      keys: [w]
+      look: [12.0, 0.0]
+    - seconds: 8.0
+      look: [-12.0, 4.0]
+      buttons: [1]
+    - seconds: 10.0
+      keys: [a]
+      buttons: [1]
+    - seconds: 10.0
+      keys: [d]
+      look: [8.0, -4.0]
+      buttons: [1]
+    - seconds: 35.0
+      buttons: [1]
+known_divergences: []

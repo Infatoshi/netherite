@@ -62,6 +62,13 @@ def load_spec(path: Path) -> dict:
     ):
         raise ValueError("setup_commands must be a list of non-empty strings")
 
+    qrl_steps = spec.get("setup_qrl", [])
+    if not isinstance(qrl_steps, list) or not all(
+        isinstance(step, dict) and isinstance(step.get("cmd"), str)
+        for step in qrl_steps
+    ):
+        raise ValueError("setup_qrl must be a list of {cmd, action?} mappings")
+
     duration_ticks = int(spec.get("duration_ticks", 0))
     frames_every = int(spec.get("frames_every", 20))
     if duration_ticks <= 0:
@@ -85,6 +92,7 @@ def load_spec(path: Path) -> dict:
         "name": name,
         "world": world,
         "setup_commands": commands,
+        "setup_qrl": qrl_steps,
         "duration_ticks": duration_ticks,
         "frames_every": frames_every,
         "input": input_spec,
@@ -429,6 +437,27 @@ def record(spec_path: Path, result_file: Path) -> Path:
                     qrl.step({})
             print(f"[scenario] setup: {len(spec['setup_commands'])} commands ok",
                   flush=True)
+
+            # Raw bridge commands (dim/portal_touch/use_end_eye/...) run after
+            # chat-command setup so gear and rules are staged in the overworld
+            # before any cross-dimension transfer.
+            for step in spec["setup_qrl"]:
+                payload = {"cmd": step["cmd"]}
+                if "action" in step:
+                    payload["action"] = step["action"]
+                response = qrl._cmd(payload, timeout=120.0)
+                if not response.get("ok"):
+                    raise RuntimeError(
+                        f"scenario setup_qrl step failed: {payload!r} -> {response}"
+                    )
+                for _ in range(
+                    int(step.get("settle_ticks",
+                                 spec.get("setup_settle_ticks", 5)))
+                ):
+                    qrl.step({})
+            if spec["setup_qrl"]:
+                print(f"[scenario] setup_qrl: {len(spec['setup_qrl'])} steps ok",
+                      flush=True)
 
             # The qrl bridge serves one socket at a time (serve() accepts the
             # next client only after the current one closes); release ours

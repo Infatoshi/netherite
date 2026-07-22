@@ -76,6 +76,10 @@ if not o.get("ok"):
     raise SystemExit(f"fresh reset failed: {o}")
 
 cmds = [
+    # tp first: every fill below lands in chunks that only load once the
+    # player is standing there, and a single runcmds batch executes in one
+    # server tick (fill into an unloaded chunk silently fails).
+    "tp @a 203.5 100 216.5 180 12",
     "gamerule sendCommandFeedback false",
     "gamerule logAdminCommands false",
     "gamerule doDaylightCycle false",
@@ -105,11 +109,15 @@ cmds = [
     "fill 212 100 201 215 100 205 minecraft:netherrack",
     "fill 212 101 202 213 101 204 minecraft:lava",
     "setblock 215 101 203 minecraft:fire",
-    "tp @a 203.5 100 216.5 180 12",
 ]
-r = e._cmd({"cmd": "runcmds", "action": {"cmds": cmds}})
-if r.get("failed", 1) != 0:
-    raise SystemExit(f"scene commands failed: {r}")
+# One command per batch with settle ticks so tp-triggered chunk loads
+# complete before the dependent fills run.
+for cmd in cmds:
+    r = e._cmd({"cmd": "runcmds", "action": {"cmds": [cmd]}})
+    if not r.get("ok") or r.get("failed"):
+        raise SystemExit(f"scene command failed: {cmd!r} -> {r}")
+    for _ in range(5):
+        e.step({})
 for _ in range(120):
     e._cmd({"cmd": "set_pose", "action": {
         "x": 203.5, "y": 100.0, "z": 216.5, "yaw": 180.0, "pitch": 12.0,

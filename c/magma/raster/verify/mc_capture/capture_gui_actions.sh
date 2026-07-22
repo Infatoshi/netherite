@@ -83,9 +83,15 @@ cmds = [
     "replaceitem entity @p slot.inventory.0 minecraft:stone 2 0",
     "replaceitem entity @p slot.hotbar.1 minecraft:dirt 5 0",
 ]
-r = e._cmd({"cmd": "runcmds", "action": {"cmds": cmds}})
-if r.get("failed", 1):
-    raise SystemExit(f"scene commands failed: {r}")
+# One runcmds batch executes in a single server tick, and "clear @p" on an
+# already-empty inventory reports failure in 1.11; run commands one at a
+# time with settle ticks and let only clear fail.
+for cmd in cmds:
+    r = e._cmd({"cmd": "runcmds", "action": {"cmds": [cmd]}})
+    if (not r.get("ok") or r.get("failed")) and not cmd.startswith("clear "):
+        raise SystemExit(f"scene command failed: {cmd!r} -> {r}")
+    for _ in range(2):
+        e.step({})
 for _ in range(20):
     e.step({})
 o = e.obs()
