@@ -5,8 +5,8 @@
  *
  * Slot positions are the vanilla 1.11.2 GUI coordinates (ContainerPlayer /
  * ContainerWorkbench / ContainerFurnace slot x/y) on a 176x166 panel, integer-scaled
- * like the HUD, so a future Java-pixel gate can keep this layout. Rendering is the
- * HUD stand-in style (pips + counts), not textured GUI art yet. */
+ * like the HUD. Rendering uses the vanilla panel/font/slot textures plus the
+ * cursor-facing ModelPlayer preview. */
 #ifndef MAGMA_GAME_SCREEN_H
 #define MAGMA_GAME_SCREEN_H
 

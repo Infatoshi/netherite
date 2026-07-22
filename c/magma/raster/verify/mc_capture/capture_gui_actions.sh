@@ -80,6 +80,7 @@ cmds = [
     "time set 6000",
     "weather clear 1000000",
     "clear @p",
+    "achievement give achievement.openInventory @p",
     "replaceitem entity @p slot.inventory.0 minecraft:stone 2 0",
     "replaceitem entity @p slot.hotbar.1 minecraft:dirt 5 0",
 ]

@@ -10,6 +10,7 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO/c/magma"
 
 SCRIPTS=(build_atlas build_colormap build_gui_atlas build_hand_atlas
+         build_inventory_ui_atlas
          build_hud_atlas build_item_atlas build_loading_bg build_mob_atlas
          build_portal build_sky_atlas build_underwater build_water_frames)
 for s in "${SCRIPTS[@]}"; do

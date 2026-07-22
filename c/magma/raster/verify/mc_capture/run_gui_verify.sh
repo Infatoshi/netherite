@@ -14,9 +14,8 @@
 #     noise_floor + MARGIN (default 1.0 mean abs/channel).
 #   - HARD gates: table + furnace (fail -> exit 1).
 #   - INFORMATIONAL: the player inventory screen. Its panel contains the live
-#     3D player-model preview, which magma does not render (documented gap
-#     in PRODUCT.md). Its numbers are printed, not gated, so the gap is
-#     visible instead of masked.
+#     cursor-facing 3D player preview; that preview is rendered, but remains
+#     tracked separately from the pixel-exact table/furnace panel-art gate.
 set -euo pipefail
 cd "$(dirname "$0")/../../.."          # -> c/magma
 
@@ -26,20 +25,20 @@ FLAGS=(-O2 -ffp-contract=off -Wall -Wextra -I. -Icore -I"$MCSIM")
 MARGIN="${MARGIN:-1.0}"
 
 echo "== build gui_candidate =="
-make -s game/screen.o game/hud.o game/item_render.o game/container_live.o game/runtime.o game/fluid_live.o game/config.o \
+make -s game/screen.o game/player_preview.o game/hud.o game/item_render.o game/container_live.o game/runtime.o game/fluid_live.o game/config.o \
     game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o game/mob_live.o \
     game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o \
     game/caps.o world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o \
     world/mesh.o world/world.o renderkernels/rk_31_facebakery_make_quad.o \
-    assets/blockmodels.o core/math.o core/shade.o
+    assets/blockmodels.o core/math.o core/shade.o cpu/raster_cpu.o
 gcc "${FLAGS[@]}" "$OUT/gui_candidate.c" \
-    game/screen.o game/hud.o game/item_render.o game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o game/sel_box.o \
+    game/screen.o game/player_preview.o game/hud.o game/item_render.o game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o game/sel_box.o \
     game/world_live.o game/live_sim.o game/mob_live.o game/dragon_live.o \
     game/structures_live.o game/portal_live.o game/furnace_live.o \
     game/container_live.o game/caps.o world/light.o world/mesh_mc.o \
     world/populate_mc.o world/blocks.o world/mesh.o world/world.o \
     renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o \
-    core/math.o core/shade.o -lm -o "$OUT/gui_candidate"
+    core/math.o core/shade.o cpu/raster_cpu.o -lm -o "$OUT/gui_candidate"
 
 echo "== render magma screens =="
 # capture_gui.sh grabs the 854x480 window; container ids: 0 player, 1 table, 2 furnace
@@ -90,7 +89,7 @@ for name, hard in (("table", True), ("furnace", True), ("inventory", False)):
         verdict = "PASS" if ok else "FAIL"
         fail |= not ok
     else:
-        verdict = "INFO (player-model preview not rendered; not gated)"
+        verdict = "INFO (player-model preview tracked; not gated)"
     print(f"{name:<10} {noise:>13.3f} {diff:>13.3f} {gate:>8.3f}  {verdict}")
     if hard and not ok:
         raw = np.abs(ja - c).clip(0, 255).astype(np.uint8)

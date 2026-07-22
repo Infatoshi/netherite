@@ -83,6 +83,7 @@ c/magma/assets/atlas_gen.h
 c/magma/assets/colormap_gen.h
 c/magma/assets/gui_atlas.h
 c/magma/assets/hand_atlas.h
+c/magma/assets/inventory_ui_atlas.h
 c/magma/assets/hud_atlas.h
 c/magma/assets/item_atlas.h
 c/magma/assets/loading_bg.h

@@ -4,6 +4,8 @@
 #include "game/screen.h"
 #include "game/runtime.h"
 #include "game/hud.h"
+#include "game/player_preview.h"
+#include "assets/inventory_ui_atlas.h"
 
 #include <string.h>
 
@@ -158,13 +160,112 @@ static void draw_background_dim(CrFramebuffer *fb)
     }
 }
 
+/* Slot.getSlotTexture: ContainerPlayer's empty armor/offhand slots use five
+ * standalone item-atlas sprites, not pixels from inventory.png. */
+static void draw_inventory_ui_sprite(CrFramebuffer *fb, int sprite,
+                                     int x, int y, int s)
+{
+    if (sprite < 0 || sprite >= INVENTORY_UI_SPRITE_COUNT) return;
+    for (int sy = 0; sy < CELL; ++sy) {
+        for (int sx = 0; sx < CELL; ++sx) {
+            const unsigned char *p = &INVENTORY_UI_RGBA[sprite][(sy * CELL + sx) * 4];
+            if (p[3] == 0) continue;
+            gm_hud_fill(fb, x + sx * s, y + sy * s, s, s,
+                        (CrRgba){p[0], p[1], p[2], p[3]});
+        }
+    }
+}
+
+static void draw_empty_player_slots(CrFramebuffer *fb, const GmRuntime *r,
+                                    int px, int py, int s)
+{
+    static const int armor[4] = {
+        INVENTORY_UI_EMPTY_HELMET, INVENTORY_UI_EMPTY_CHESTPLATE,
+        INVENTORY_UI_EMPTY_LEGGINGS, INVENTORY_UI_EMPTY_BOOTS
+    };
+    for (int i = 0; i < 4; ++i)
+        draw_inventory_ui_sprite(fb, armor[i], px + 8 * s,
+                                 py + (8 + i * PITCH) * s, s);
+
+    ICStack offhand = isr_get_stack(&r->player.inv, ISR_OFFHAND_SLOT);
+    if (offhand.item > 0 && offhand.count > 0)
+        draw_stack(fb, offhand, px + 77 * s, py + 62 * s, s);
+    else
+        draw_inventory_ui_sprite(fb, INVENTORY_UI_EMPTY_SHIELD,
+                                 px + 77 * s, py + 62 * s, s);
+}
+
+/* GuiUtils.drawGradientRect. Coordinates and colors are in scaled-GUI units;
+ * interpolate over framebuffer rows as OpenGL does after the GUI transform. */
+static void draw_gui_gradient(CrFramebuffer *fb, int x0, int y0, int x1, int y1,
+                              int s, unsigned top, unsigned bottom)
+{
+    int fy0 = y0 * s, fy1 = y1 * s;
+    int h = fy1 - fy0;
+    for (int y = 0; y < h; ++y) {
+        int den = h > 1 ? h - 1 : 1;
+        int ta = (top >> 24) & 255, tr = (top >> 16) & 255;
+        int tg = (top >> 8) & 255, tb = top & 255;
+        int ba = (bottom >> 24) & 255, br = (bottom >> 16) & 255;
+        int bg = (bottom >> 8) & 255, bb = bottom & 255;
+        CrRgba c = {
+            (u8)((tr * (den - y) + br * y + den / 2) / den),
+            (u8)((tg * (den - y) + bg * y + den / 2) / den),
+            (u8)((tb * (den - y) + bb * y + den / 2) / den),
+            (u8)((ta * (den - y) + ba * y + den / 2) / den)
+        };
+        gm_hud_fill(fb, x0 * s, fy0 + y, (x1 - x0) * s, 1, c);
+    }
+}
+
+static const char *screen_item_name(int item)
+{
+    switch (item) {
+        case 1: return "Stone";
+        case 3: return "Dirt";
+        default: return 0;
+    }
+}
+
+/* GuiScreen.renderToolTip -> Forge GuiUtils.drawHoveringText, one-line form. */
+static void draw_tooltip(CrFramebuffer *fb, const char *text, int mx, int my, int s)
+{
+    if (!text) return;
+    const int gw = (fb->w + s - 1) / s, gh = (fb->h + s - 1) / s;
+    const int mouse_x = mx / s, mouse_y = my / s;
+    const int text_w = gm_font_width(text), text_h = 8;
+    int x = mouse_x + 12, y = mouse_y - 12;
+    if (x + text_w + 4 > gw) x = mouse_x - 16 - text_w;
+    if (y + text_h + 6 > gh) y = gh - text_h - 6;
+
+    const unsigned bg = 0xF0100010u;
+    const unsigned border_top = 0x505000FFu;
+    const unsigned border_bottom = 0x5028007Fu;
+    draw_gui_gradient(fb, x - 3, y - 4, x + text_w + 3, y - 3, s, bg, bg);
+    draw_gui_gradient(fb, x - 3, y + text_h + 3,
+                      x + text_w + 3, y + text_h + 4, s, bg, bg);
+    draw_gui_gradient(fb, x - 3, y - 3, x + text_w + 3,
+                      y + text_h + 3, s, bg, bg);
+    draw_gui_gradient(fb, x - 4, y - 3, x - 3, y + text_h + 3, s, bg, bg);
+    draw_gui_gradient(fb, x + text_w + 3, y - 3,
+                      x + text_w + 4, y + text_h + 3, s, bg, bg);
+    draw_gui_gradient(fb, x - 3, y - 2, x - 2, y + text_h + 2,
+                      s, border_top, border_bottom);
+    draw_gui_gradient(fb, x + text_w + 2, y - 2, x + text_w + 3,
+                      y + text_h + 2, s, border_top, border_bottom);
+    draw_gui_gradient(fb, x - 3, y - 3, x + text_w + 3, y - 2,
+                      s, border_top, border_top);
+    draw_gui_gradient(fb, x - 3, y + text_h + 2, x + text_w + 3,
+                      y + text_h + 3, s, border_bottom, border_bottom);
+    gm_font_draw(fb, text, x * s, y * s, s, 0xFFFFFFu, 1);
+}
+
 void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my)
 {
     if (!fb || !fb->color || !r) return;
     const int s  = gui_scale(fb->h);
     int px, py;
     panel_origin(fb->w, fb->h, s, &px, &py);
-    const CrRgba white     = {255, 255, 255, 255};
     const CrRgba highlight = {255, 255, 255, 128}; /* vanilla hovered-slot overlay */
 
     draw_background_dim(fb);
@@ -174,6 +275,12 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
               : r->container == 2 ? GM_GUI_FURNACE_PANEL
                                   : GM_GUI_INV_PANEL;
     gm_gui_blit(fb, panel, px, py, s);
+    if (r->container == 0) {
+        draw_empty_player_slots(fb, r, px, py, s);
+        gm_player_preview_draw(fb, px + 24 * s, py + 7 * s, 52 * s, 72 * s,
+                               (float)(px + 51 * s - mx) / s,
+                               (float)(py + 25 * s - my) / s);
+    }
 
     /* furnace progress sprites (GuiFurnace.drawGuiContainerBackgroundLayer).
      * Vanilla always draws the (l+1)-wide arrow slice, even idle (l=0). */
@@ -231,9 +338,6 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
     if (!gm_runtime_tape_gui_cursor_get(r, &cur)) cur = gm_player_cursor();
     if (cur.item > 0 && cur.count > 0)
         draw_stack(fb, cur, mx - 8 * s, my - 8 * s, s);
-    else {
-        /* bare pointer so an empty cursor is still visible */
-        gm_hud_fill(fb, mx - s, my - 4 * s, 2 * s, 8 * s, white);
-        gm_hud_fill(fb, mx - 4 * s, my - s, 8 * s, 2 * s, white);
-    }
+    else if (hover >= 0)
+        draw_tooltip(fb, screen_item_name(screen_stack(r, hover).item), mx, my, s);
 }

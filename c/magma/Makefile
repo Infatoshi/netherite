@@ -35,7 +35,7 @@ OBJ_RK     = renderkernels/rk_31_facebakery_make_quad.o
 OBJ_ASSETS = assets/blockmodels.o
 
 # seam: playable game (verified mc-sim player/world tick + magma render + HUD + mobs)
-OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/entity_render.o game/item_render.o \
+OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/item_render.o \
            game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/container_live.o game/runtime.o game/frame_capture.o game/script.o game/rl_mode.o game/overlay.o game/sel_box.o game/fluid_live.o game/underwater.o
 
 .PHONY: all demo world game game-cuda test test-game test-launch test-config test-block-registry clean cuda test-raster-parity test-fog-radial

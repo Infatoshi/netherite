@@ -23,7 +23,7 @@ done > "$list"
 filtered=$(mktemp)
 grep -vE \
     -e '^java/oracle-src/' \
-    -e '^c/magma/assets/(atlas_gen|colormap_gen|gui_atlas|hand_atlas|hud_atlas|item_atlas|loading_bg|mob_atlas|portal_tex|sky_atlas|underwater_tex|water_frames)\.h$' \
+    -e '^c/magma/assets/(atlas_gen|colormap_gen|gui_atlas|hand_atlas|hud_atlas|inventory_ui_atlas|item_atlas|loading_bg|mob_atlas|portal_tex|sky_atlas|underwater_tex|water_frames)\.h$' \
     -e '\.(png|ppm|jpg|jpeg|gif|mp4)$' \
     "$list" > "$filtered"
 
@@ -41,6 +41,7 @@ c/magma/assets/atlas_gen.h
 c/magma/assets/colormap_gen.h
 c/magma/assets/gui_atlas.h
 c/magma/assets/hand_atlas.h
+c/magma/assets/inventory_ui_atlas.h
 c/magma/assets/hud_atlas.h
 c/magma/assets/item_atlas.h
 c/magma/assets/loading_bg.h
