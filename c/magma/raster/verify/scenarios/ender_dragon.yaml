@@ -24,30 +24,31 @@ setup_qrl:
   - cmd: dim
     action: { id: 1 }
     settle_ticks: 100
+  # The seed-0 obsidian spawn platform is embedded inside the island; move
+  # to the surface near the fountain so the dragon fight is actually visible.
+  - cmd: runcmds
+    action: { cmds: ["tp @p 0.5 70 0.5 0 -10"] }
+    settle_ticks: 60
 duration_ticks: 1600
 frames_every: 20
 input:
   segments:
-    # Dig out of the obsidian spawn platform is not needed at seed 0 if the
-    # platform surfaces; walk toward the central island while tracking the
-    # dragon with look sweeps, then hold attack when it dives.
-    - seconds: 3.0
-    - seconds: 6.0
-      keys: [w]
-      look: [0.0, -8.0]
-    - seconds: 8.0
-      keys: [w]
-      look: [12.0, 0.0]
-    - seconds: 8.0
-      look: [-12.0, 4.0]
-      buttons: [1]
+    # Track the circling dragon with slow look sweeps from the island
+    # surface; brief strafes exercise movement on end stone.
+    - seconds: 4.0
     - seconds: 10.0
+      look: [6.0, -2.0]
+    - seconds: 10.0
+      look: [-9.0, 1.0]
+    - seconds: 8.0
       keys: [a]
-      buttons: [1]
-    - seconds: 10.0
+      look: [4.0, -3.0]
+    - seconds: 8.0
       keys: [d]
-      look: [8.0, -4.0]
+      look: [6.0, 2.0]
+    - seconds: 10.0
+      look: [-6.0, -2.0]
       buttons: [1]
-    - seconds: 35.0
-      buttons: [1]
+    - seconds: 30.0
+      look: [3.0, 0.0]
 known_divergences: []
