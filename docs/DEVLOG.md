@@ -215,3 +215,15 @@ Removed 2026-07-11 (unused routes): `java/build_mac.sh`, `play_mac.sh` (Mac GL d
   the oracle disagree on camera-inside-block near-plane rendering - open).
 - All mirrored to mono with drift vocabulary preserved (10 commits, mono
   canonical rc=0); mirror of the combat/dragon rounds pending this batch.
+- Projectile blind spot (operator eyeball catch): blaze small fireballs and
+  dragon fireballs were recorded in the tapes but invisible in magma - the
+  pixel gate soaked them into the particles class. RenderFireball.doRender
+  (fire charge billboard, scale 0.5, renderEntityOnFire overlay) and
+  RenderDragonFireball.doRender (scale 2.0 quad) implemented full-bright;
+  particles class dropped 74k px (blaze demo) / 23k px (dragon demo), both
+  demo tapes rc=0. Gate hardened: recorded entity types with no magma model
+  now fail the scenario gate as missing_model (>4 rows, allowlist only
+  EntityAreaEffectCloud per sidecar note) so invisible entities can never
+  pass silently again. Lesson: cluster classes that absorb "small moving
+  stuff" (particles) can hide whole missing renderers; the demo eyeball
+  pass is a real gate, not a formality.
