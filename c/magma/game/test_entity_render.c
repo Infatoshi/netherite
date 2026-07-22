@@ -1,8 +1,8 @@
 /* game/test_entity_render.c - standalone verification for game/entity_render.c.
  *
  * (A) PART COUNTS: each modeled type emits 36 verts per vanilla model box
- *     (zombie 216 ... blaze 468); unmodeled types keep the legacy 36-vert
- *     marker box; NONE/PLAYER emit nothing.
+ *     (zombie 216 ... blaze 468, dragon 2340); unmodeled types keep the legacy
+ *     36-vert marker box; NONE/PLAYER emit nothing.
  * (B) GEOMETRY: zombie AABB (1.0 wide across the arms, 2.0 tall, feet at y);
  *     yaw 90 swaps the model's X/Z extents; Y untouched by yaw.
  * (C) UVS: every emitted vertex UV falls inside its mob's skin rect(s) in the
@@ -54,7 +54,7 @@ static const TypeSpec SPECS[] = {
     { 28, "minecart", 6  * 36, { CR_MOB_MINECART, -1 } },
 };
 #define NSPECS ((int)(sizeof(SPECS) / sizeof(SPECS[0])))
-#define MAXV (14 * 36)
+#define MAXV (65 * 36)
 
 static void bounds(const CrVertex *v, int n, float *mn, float *mx) {
     mn[0] = mn[1] = mn[2] = 1e30f;
@@ -85,14 +85,15 @@ static void test_part_counts(void) {
     GmEntityView sk[2] = { {1, 0,0,0, 0,0}, {0, 0,0,0, 0,0} };
     int ns = gm_entities_emit(sk, 2, out, MAXV);
     CHECK(ns == 0, "PLAYER + NONE entities are skipped (0 verts)");
-    /* unmodeled types (xp orb 21, dragon 9, projectile 20) keep the legacy
-     * 36-vert marker box */
+    /* Unmodeled types keep the legacy 36-vert marker box. */
     GmEntityView mk = { 21, 0, 64, 0, 0, 5 };
     CHECK(gm_entities_emit(&mk, 1, out, MAXV) == 36,
           "xp orb (21) keeps the legacy 36-vert marker box");
+    /* Type 9 is the dedicated RenderDragon + ModelDragon transcription: five
+     * neck segments, head/jaw, body, paired wings/legs, and 12 tail segments. */
     mk.type = 9;
-    CHECK(gm_entities_emit(&mk, 1, out, MAXV) == 36,
-          "dragon (9) keeps the legacy 36-vert marker box");
+    CHECK(gm_entities_emit(&mk, 1, out, MAXV) == 65 * 36,
+          "dragon (9) emits the full 65-box ModelDragon (2340 verts)");
 }
 
 static void test_geometry(void) {

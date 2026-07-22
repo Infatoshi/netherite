@@ -35,9 +35,10 @@
  * entity_hostile_spine.h + game/mob_live.h (hardcoded below to avoid an mc-sim
  * include dependency in the render path):
  *   2 zombie, 3 skeleton, 4 creeper, 5 spider, 6 enderman, 7 blaze,
- *   10 sheep, 11 pig, 12 cow, 13 chicken -> full models.
+ *   10 sheep, 11 pig, 12 cow, 13 chicken -> table-driven full models.
+ *   8 crystal, 9 dragon -> dedicated full render paths below.
  *   0 NONE / 1 PLAYER -> skipped.
- *   anything else (8 crystal, 9 dragon, 20 projectile, 21 xp orb, ...) keeps
+ *   anything else (20 projectile, 21 xp orb, ...) keeps
  *   the legacy single 0.6x1.8x0.4 zombie-wrapped marker box (previous behavior
  *   for unmodeled types, preserved).
  */
