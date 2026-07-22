@@ -131,7 +131,7 @@ static ICStack screen_stack(const GmRuntime *r, int id)
 static void draw_stack(CrFramebuffer *fb, ICStack v, int x, int y, int s)
 {
     if (v.item <= 0 || v.count <= 0) return;
-    if (!gm_gui_item_icon(fb, v.item, x, y, s)) {
+    if (!gm_gui_item_icon(fb, v.item, v.meta, x, y, s)) {
         int pip = 8 * s;
         gm_hud_fill(fb, x + 8 * s - pip / 2, y + 8 * s - pip / 2, pip, pip,
                     gm_hud_pip_color(v.item));

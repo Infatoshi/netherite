@@ -15,8 +15,8 @@
  * GUI ICON (hotbar / container slots):
  *   block/block.json gui transform: rotation [30, 225, 0], scale 0.625
  *   setupGuiTransform: *16, y-flip, center of 16x16 slot; standard item lighting
- *   approximated here by the classic per-face shade factors (UP 1 / NS 0.8 / EW 0.6)
- *   on a software-rasterized isometric mini-cube (top + sides via full z-buffered cube).
+ *   RenderHelper's two directional lights + ambient term are resolved into
+ *   fixed per-face shades for the software-rasterized, z-buffered mini-cube.
  *
  * WINDING: the axis-aligned FACES template below is CCW-seen-from-outside
  * (world/mesh_mc.c convention); a pure rotation about Y preserves handedness.
@@ -471,8 +471,8 @@ CrTexture gm_item_atlas(void) {
  * Vanilla: RenderItem.renderItemModelIntoGUI + block/block.json gui display
  *   rotation [30, 225, 0], scale 0.625, then *16 with y-flip into the 16x16 slot.
  * Software path: orthographic project the unit cube, z-buffer rasterize all 6
- * faces with per-face shade (UP 1 / NS 0.8 / EW 0.6 / DOWN 0.5), sample terrain
- * (or a single gui-atlas tile for blocks without a model key).
+ * faces with RenderHelper's standard GUI lighting, sample terrain (or a single
+ * gui-atlas tile for blocks without a model key).
  *
  * Allocate-once 16x16 buffers; nearest-scale blit into the framebuffer.
  * ========================================================================= */
@@ -480,6 +480,27 @@ CrTexture gm_item_atlas(void) {
 #define ICON_N 16
 static CrRgba g_icon_rgba[ICON_N * ICON_N];
 static float  g_icon_z[ICON_N * ICON_N];
+
+/* Fixed-function RenderHelper.enableGUIStandardItemLighting after its
+ * Ry(-30)*Rx(165) light setup, the GUI y-flip, and block.json's
+ * Rx(30)*Ry(225) model transform. Ambient is 0.4 and each positive light dot
+ * contributes 0.6; full precision is unnecessary after u8 texel rounding. */
+static const float IR_GUI_SHADE[6] = {
+    0.400000f, 1.000000f, 0.434702f,
+    0.721625f, 0.745950f, 0.636575f
+};
+
+/* FaceBakery's default full-cube BlockFaceUV ordering, expressed in the
+ * IR_FACES corner order. DOWN/SOUTH/WEST/EAST already match IR_CUV; UP and
+ * NORTH do not. */
+static const float IR_GUI_UV[6][4][2] = {
+    { {0,1}, {1,1}, {1,0}, {0,0} }, /* DOWN  */
+    { {0,0}, {0,1}, {1,1}, {1,0} }, /* UP    */
+    { {1,1}, {1,0}, {0,0}, {0,1} }, /* NORTH */
+    { {0,1}, {1,1}, {1,0}, {0,0} }, /* SOUTH */
+    { {0,1}, {1,1}, {1,0}, {0,0} }, /* WEST  */
+    { {0,1}, {1,1}, {1,0}, {0,0} }, /* EAST  */
+};
 
 typedef struct {
     const unsigned char *px; /* R,G,B,A bytes */
@@ -649,7 +670,7 @@ int gm_item_draw_block_icon(CrFramebuffer *fb, int item_id, int item_meta,
     if (m && m->kind == BM_KIND_CUBE) {
         for (int f = 0; f < 6; ++f) {
             IrIconTex tex = ir_tex_from_sprite(m->face[f].sprite);
-            ir_icon_face(IR_FACES[f].c, IR_CUV, &tex, IR_FACES[f].shade,
+            ir_icon_face(IR_FACES[f].c, IR_GUI_UV[f], &tex, IR_GUI_SHADE[f],
                          ir_tint(m->face[f].tint));
         }
     } else {
@@ -666,7 +687,8 @@ int gm_item_draw_block_icon(CrFramebuffer *fb, int item_id, int item_meta,
         tex.stride = gs->w;
         CrRgba white = {255, 255, 255, 255};
         for (int f = 0; f < 6; ++f)
-            ir_icon_face(IR_FACES[f].c, IR_CUV, &tex, IR_FACES[f].shade, white);
+            ir_icon_face(IR_FACES[f].c, IR_GUI_UV[f], &tex,
+                         IR_GUI_SHADE[f], white);
     }
 
     /* Did we actually draw anything? */

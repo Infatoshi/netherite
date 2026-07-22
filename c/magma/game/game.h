@@ -101,6 +101,7 @@ typedef struct {
                                  * 0 from zeroed legacy callers = treat as 1.0) */
     int   bow_pull;             /* ticks the bow has been drawn; <=0 = idle
                                  * (drawn-bow viewmodel + pulling sprite) */
+    int   hotbar_meta[9];       /* item damage / block metadata          */
 } GmPlayerView;
 
 /* A mob/entity to draw this frame (from the entity store). */
