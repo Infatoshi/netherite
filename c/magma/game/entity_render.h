@@ -64,8 +64,12 @@ void      gm_dragon_pose_tick(int ent_id, float yaw, float y);
 void      gm_entity_geom_tick(long tick);
 
 /* Tape type string (EntityList simple class name, e.g. "EntitySheep") ->
- * EW_TYPE_* id with a full model, or -1 when no model exists (caller skips). */
+ * EW_TYPE_* / render-only id with a model or billboard, or -1 when no model
+ * exists (caller skips). */
 int       gm_entity_type_for_name(const char *name);
+
+/* Render-only billboard type -> packed item-atlas sprite id. */
+int       gm_entity_billboard_item(const char *name);
 
 /* Tape type string -> skin-variant sprite override (CR_MOB_*+1) for types that
  * reuse a base mob's model with a different skin (EntityPigZombie, EntityHusk,

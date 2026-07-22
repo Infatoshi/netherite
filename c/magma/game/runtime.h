@@ -94,6 +94,7 @@ typedef struct GmRuntime {
     int tape_air;
     float tape_portal;
     int tape_portal_frame, tape_portal_phase, tape_loading;
+    int tape_texture_animations_pinned;
 } GmRuntime;
 
 int  gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap);
@@ -144,7 +145,7 @@ int gm_runtime_tape_furnace(GmRuntime *r, int burn, int current_burn,
 int gm_runtime_tape_inventory(GmRuntime *r, int slot, int item, int count, int meta);
 void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int air,
                                  float portal, int portal_frame, int portal_phase,
-                                 int loading);
+                                 int loading, int texture_animations_pinned);
 void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view);
 /* Seed recorded vitals at tape-replay start. */
 void gm_runtime_set_vitals(GmRuntime *r, float health, int food);

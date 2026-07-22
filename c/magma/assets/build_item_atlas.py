@@ -26,7 +26,9 @@ DUMP_PNG = "/tmp/magma_item_atlas.png"
 TILE = 16
 
 # (vanilla item id, jar member relative to ITEMS). Sorted by id below for a
-# deterministic table order (lookup by id in item_render.c).
+# deterministic table order (lookup by id in item_render.c). Synthetic id 9003
+# is the dedicated RenderDragonFireball texture, kept here because both
+# fireball renderers share the camera-facing item-atlas pass.
 ITEM_SPRITES = [
     (259, "flint_and_steel.png"),
     (260, "apple.png"),
@@ -59,6 +61,9 @@ ITEM_SPRITES = [
     (369, "blaze_rod.png"),
     (377, "blaze_powder.png"),
     (381, "ender_eye.png"),
+    # RenderFireball gets this through the fire_charge item model. In 1.11.2
+    # the model's layer0 is textures/items/fireball.png.
+    (385, "fireball.png"),
     # held tools (progression segments: mine/build/crystal/dragon). Without a
     # sprite the first-person hand falls back to iron_ingot (mine tape 120328Z
     # rendered a giant gray ingot where the oracle held an iron axe).
@@ -81,8 +86,13 @@ ITEM_SPRITES = [
     (9000, "bow_pulling_0.png"),
     (9001, "bow_pulling_1.png"),
     (9002, "bow_pulling_2.png"),
+    (9003, "dragon_fireball.png"),
 ]
 ITEM_SPRITES.sort(key=lambda t: t[0])
+
+SPECIAL_PATHS = {
+    9003: "assets/minecraft/textures/entity/enderdragon/dragon_fireball.png",
+}
 
 
 def next_pow2(n):
@@ -99,7 +109,7 @@ def main():
     imgs = []
     with zipfile.ZipFile(JAR) as zf:
         for item_id, member in ITEM_SPRITES:
-            data = zf.read(ITEMS + member)
+            data = zf.read(SPECIAL_PATHS.get(item_id, ITEMS + member))
             img = Image.open(io.BytesIO(data)).convert("RGBA")
             if img.size != (TILE, TILE):
                 raise SystemExit("%s is %r, expected 16x16" % (member, img.size))

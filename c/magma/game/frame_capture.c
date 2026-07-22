@@ -55,11 +55,12 @@ extern void cr_raster_cuda_render_terrain(CrFramebuffer *, const int *,
 extern void cr_raster_cuda_uploads_mark(void) __attribute__((weak));
 extern void cr_raster_cuda_uploads_wait(void) __attribute__((weak));
 
-/* 2 x 3 rotating entity vert buffers: a frame emits entities, then items,
- * then flat items (3 buffers), and the pipelined path preps frame N+1 while
- * frame N's uploads may still be in flight - so N+1 uses the OTHER set of 3
+/* 2 x 4 rotating entity vert buffers: a frame emits entities, terrain items,
+ * item-atlas geometry, then the post-render fire overlay (4 buffers), and the
+ * pipelined path preps frame N+1 while frame N's uploads may still be in
+ * flight - so N+1 uses the OTHER set of 4
  * (ent_set parity). Non-pipelined paths just always use set 0. */
-#define GM_FC_ENT_BUFS 6
+#define GM_FC_ENT_BUFS 8
 
 struct GmFrameCapture {
     CrFramebuffer fb;
@@ -388,7 +389,7 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
     c->ppm_buf=malloc((size_t)cfg->width*(size_t)cfg->height*3);
     c->post_scratch=malloc((size_t)cfg->width*(size_t)cfg->height*sizeof *c->post_scratch);
     if(!c->fb.color||!c->tris||!c->entity_verts[0]||!c->entity_verts[1]||
-       !c->entity_verts[2]||!c->ppm_buf||!c->post_scratch){set_error(err,err_cap,"frame capture allocation failed");gm_frame_capture_close(c);return NULL;}
+       !c->entity_verts[2]||!c->entity_verts[3]||!c->ppm_buf||!c->post_scratch){set_error(err,err_cap,"frame capture allocation failed");gm_frame_capture_close(c);return NULL;}
     if(npy){
         c->npy_f=fopen(c->dir,"wb");
         if(!c->npy_f){
@@ -624,9 +625,13 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
         if(c->use_cuda)cr_raster_cuda_frame_begin(&c->fb);
     }
-    /* TextureAtlasSprite.updateAnimation for water/lava/fire. */
-    bm_atlas_set_animation_tick(fc_texture_tick(r->clock.total_time,
-                                                 v.portal_frame));
+    /* QRL's pin mixin cancels updateAnimation, leaving TextureMap's initially
+     * uploaded physical frame zero. Otherwise follow the recorded client tick. */
+    if (v.texture_animations_pinned)
+        bm_atlas_set_animation_physical_zero();
+    else
+        bm_atlas_set_animation_tick(fc_texture_tick(r->clock.total_time,
+                                                     v.portal_frame));
     bm_atlas_set_portal_frame(v.portal_frame);
     if(c->use_cuda&&cr_raster_cuda_atlas_dirty)cr_raster_cuda_atlas_dirty();
     CrTexture atlas=gm_world_atlas(r->world);
@@ -777,8 +782,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     if(n>0){
         /* one rotating buffer per emit: async CUDA uploads may still be in
          * flight until frame_end, so same-frame emits must not alias.
-         * eb selects this frame's 3-buffer set (pipeline parity). */
-        CrVertex **eb=&c->entity_verts[c->ent_set*3];
+         * eb selects this frame's 4-buffer set (pipeline parity). */
+        CrVertex **eb=&c->entity_verts[c->ent_set*4];
         gm_entity_geom_tick(c->frame);
         int nv=gm_entities_emit(ents,n,eb[0],c->max_entity_verts);
         CrTexture ea=gm_entity_atlas();
@@ -813,6 +818,17 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             fsh.layer=CR_LAYER_CUTOUT;
             if(uw.fluid){ fsh.enable_fog=1; fsh.fog_exp_density=uw.density; fsh.fog_color=uw.fog_rgba; }
             render_layer(c,&cam,eb[2],nv,&fsh);
+        }
+        /* Render.doRenderShadowAndFire runs after the entity renderer. Small
+         * fireballs are always fiery; dragon fireballs explicitly are not. */
+        nv=gm_small_fireball_fire_emit(ents,n,v.yaw,eb[3],
+                                      c->max_entity_verts);
+        if(nv>0){
+            CrShadeCtx fire_sh={0};
+            fire_sh.atlas=&atlas; fire_sh.fog_color=clear;
+            fire_sh.alpha_test=1; fire_sh.layer=CR_LAYER_CUTOUT;
+            if(uw.fluid){ fire_sh.enable_fog=1; fire_sh.fog_exp_density=uw.density; fire_sh.fog_color=uw.fog_rgba; }
+            render_layer(c,&cam,eb[3],nv,&fire_sh);
         }
     }
     /* Open GUI screen this tick (tape gui_view / divergence #9): force the

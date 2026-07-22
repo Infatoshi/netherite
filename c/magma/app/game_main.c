@@ -778,10 +778,20 @@ int main(int argc, char **argv) {
                 render_layer(&fb, &cam, ent_verts, nv, tris, &ish);
             }
             nv = gm_items_emit_flat(ents, nents, ent_verts, ent_max_verts);
+            nv += gm_items_emit_billboard(ents, nents, pv.yaw, pv.pitch,
+                                          ent_verts + nv,
+                                          ent_max_verts - nv);
             if (nv > 0) {
                 CrTexture iatlas = gm_item_atlas();
                 CrShadeCtx fsh = { &iatlas, fog, 0.f, 0.f, 1, 0, CR_LAYER_CUTOUT, 0, 0, 0.f };
                 render_layer(&fb, &cam, ent_verts, nv, tris, &fsh);
+            }
+            nv = gm_small_fireball_fire_emit(ents, nents, pv.yaw,
+                                             ent_verts, ent_max_verts);
+            if (nv > 0) {
+                CrShadeCtx fire_sh = { &atlas, fog, 0.f, 0.f, 1, 0,
+                                       CR_LAYER_CUTOUT, 0, 0, 0.f };
+                render_layer(&fb, &cam, ent_verts, nv, tris, &fire_sh);
             }
         }
 

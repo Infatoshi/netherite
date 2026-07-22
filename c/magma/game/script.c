@@ -617,7 +617,8 @@ int gm_script_run(const GmConfig *cfg) {
                 view.type=!strcmp(ent,"EntityItem")&&field(&pending,"item")
                     ?GM_VIEW_ITEM:gm_entity_type_for_name(ent);
                 view.skin=gm_entity_skin_for_name(ent);
-                if(view.type==GM_VIEW_BILLBOARD)
+                if(view.type==GM_VIEW_BILLBOARD||
+                   view.type==GM_VIEW_DRAGON_FIREBALL)
                     view.item_id=gm_entity_billboard_item(ent);
                 view.x=(float)x;view.y=(float)y;view.z=(float)z;view.yaw=(float)yaw;
                 view.health=(float)hp;view.ent_id=(int)eid;
@@ -649,7 +650,10 @@ int gm_script_run(const GmConfig *cfg) {
                         snprintf(warned[nwarned++],JL_VALUE,"%s",ent);
                         fprintf(stderr,"script: ent_view %s: no model, skipped\n",ent);
                     }
-                }else if(view.item_id<0||view.item_id>4095||view.item_meta<0||
+                }else if(view.item_id<0||
+                         (view.item_id>4095&&
+                          !(view.type==GM_VIEW_DRAGON_FIREBALL&&
+                            view.item_id==9003))||view.item_meta<0||
                          view.item_meta>32767||view.item_count<0||view.item_count>64||
                          view.fleece_color<0||view.fleece_color>15||
                          (view.flags&~15)||view.hurt_time<0||view.death_time<0){
@@ -831,10 +835,10 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid inv_view\n",line_no);goto bad;
                 }
             } else if (!strcmp(type,"player_view")) {
-                long long xp,air,portal_frame=-1,portal_phase=0,loading=0;double frac,portal=0.0;
+                long long xp,air,portal_frame=-1,portal_phase=0,loading=0,pinned=0;double frac,portal=0.0;
                 static const char *const keys[]={"tick","type","xp_level","xp_frac","air",
-                    "portal","portal_frame","portal_phase","loading"};
-                if(!keys_only(&pending,keys,9,err,sizeof err)||
+                    "portal","portal_frame","portal_phase","loading","texture_animations_pinned"};
+                if(!keys_only(&pending,keys,10,err,sizeof err)||
                    !as_i64(field(&pending,"xp_level"),&xp)||
                    !as_double(field(&pending,"xp_frac"),&frac)||
                    !as_i64(field(&pending,"air"),&air)||
@@ -842,15 +846,18 @@ int gm_script_run(const GmConfig *cfg) {
                    (field(&pending,"portal_frame")&&!as_i64(field(&pending,"portal_frame"),&portal_frame))||
                    (field(&pending,"portal_phase")&&!as_i64(field(&pending,"portal_phase"),&portal_phase))||
                    (field(&pending,"loading")&&!as_i64(field(&pending,"loading"),&loading))||
+                   (field(&pending,"texture_animations_pinned")&&
+                    !as_i64(field(&pending,"texture_animations_pinned"),&pinned))||
                    /* vanilla drowning runs air down to -20 (damage pulse then
                     * resets it to 0), so negative values are legitimate tape data */
                    xp<0||xp>21863||frac<0||frac>1||air<-20||air>300||
                    portal<0||portal>1||portal_frame < -1||
-                   portal_phase<0||loading<0||loading>2){
+                   portal_phase<0||loading<0||loading>2||pinned<0||pinned>1){
                     fprintf(stderr,"script:%ld: invalid player_view\n",line_no);goto bad;
                 }
                 gm_runtime_tape_player_view(&r,(int)xp,(float)frac,(int)air,
-                    (float)portal,(int)portal_frame,(int)portal_phase,(int)loading);
+                    (float)portal,(int)portal_frame,(int)portal_phase,(int)loading,
+                    (int)pinned);
             } else if (!strcmp(type,"spawn_entity")) {
                 long long entity;double x,y,z;
                 static const char *const keys[]={"tick","type","entity","x","y","z"};

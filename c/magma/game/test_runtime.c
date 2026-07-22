@@ -37,7 +37,7 @@ int main(void) {
           "authoritative runtime starts with empty inventory");
     CHECK(gm_runtime_tape_inventory(&r,0,17,2,0),"tape inventory accepts hotbar stack");
     CHECK(gm_runtime_tape_inventory(&r,40,442,1,0),"tape inventory accepts offhand stack");
-    gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1);
+    gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1,1);
     {
         GmPlayerView tv;gm_runtime_view(&r,&tv);gm_runtime_apply_tape_view(&r,&tv);
         CHECK(tv.hotbar_ids[0]==17&&tv.hotbar_counts[0]==2,
@@ -46,7 +46,8 @@ int main(void) {
               "render inventory does not mutate current-tick simulation state");
         CHECK(tv.xp_level==7&&fabsf(tv.xp_frac-0.625f)<1e-6f&&tv.air==123,
               "recorded XP and air override the rendered player view");
-        CHECK(tv.portal==0.5f&&tv.portal_frame==17&&tv.portal_phase==1234&&tv.loading==1,
+        CHECK(tv.portal==0.5f&&tv.portal_frame==17&&tv.portal_phase==1234&&tv.loading==1&&
+              tv.texture_animations_pinned==1,
               "recorded portal and loading state override the rendered player view");
     }
     {

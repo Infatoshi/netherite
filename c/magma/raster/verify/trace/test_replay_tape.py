@@ -476,6 +476,22 @@ def test_missing_known_divergence_sidecar_defaults_to_empty(tmp_path: Path):
     assert pixel_gate.load_known_divergences(tmp_path / "plain.jsonl") == []
 
 
+def test_missing_model_gate_rejects_fake_tape_and_allows_sidecar_entity():
+    unknown = [7, "EntityNoSuchProjectile", 1.0, 64.0, 2.0, 0.0, -1.0]
+    ticks = [{"t": tick, "ents": [unknown]} for tick in range(5)]
+    counts = replay_tape.skipped_renderable_counts(ticks)
+    assert counts == {"EntityNoSuchProjectile": 5}
+    gate = replay_tape.apply_missing_model_gate(None, counts)
+    assert gate["pass"] is False
+    assert gate["missing_model_failures"] == {"EntityNoSuchProjectile": 5}
+
+    cloud = [8, "EntityAreaEffectCloud", 1.0, 64.0, 2.0, 0.0, -1.0]
+    allowlisted = [{"t": tick, "ents": [cloud]} for tick in range(20)]
+    assert replay_tape.skipped_renderable_counts(allowlisted) == {}
+    quiet_gate = replay_tape.apply_missing_model_gate(None, {})
+    assert quiet_gate["pass"] is True
+
+
 def test_texture_luminance_sidecar_does_not_suppress_marker_box():
     oracle, magma = _canonical_frame_pair(600)
     known = [{

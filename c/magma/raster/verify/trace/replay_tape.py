@@ -17,6 +17,7 @@ Usage:
     ... --out DIR (default out/tape_<name>)  --report (write report/tape_<name>.md)
 """
 import argparse
+from collections import Counter
 import json
 import math
 import os
@@ -30,6 +31,62 @@ import oracle_lib as ol  # noqa: E402
 TOL = {"x": 1e-9, "y": 1e-9, "z": 1e-9,
        "vx": 1e-9, "vy": 1e-9, "vz": 1e-9,
        "og": 0, "hp": 1e-4, "food": 0, "dim": 0}
+
+# Every tape entity that reaches script.c must either be modeled here or be an
+# explicit non-rendering exception. This list intentionally mirrors
+# gm_entity_type_for_name plus script.c's EntityItem special case. False
+# positives are safer than silently soaking an invisible entity into a pixel
+# divergence class: adding a renderer requires adding its tape class here too.
+MODELED_ENTITY_TYPES = frozenset({
+    "EntityItem", "EntityZombie", "EntityHusk", "EntityZombieVillager",
+    "EntityPigZombie", "EntitySkeleton", "EntityStray",
+    "EntityWitherSkeleton", "EntityCreeper", "EntitySpider",
+    "EntityCaveSpider", "EntityEnderman", "EntityBlaze", "EntitySheep",
+    "EntityPig", "EntityCow", "EntityMooshroom", "EntityChicken",
+    "EntitySquid", "EntityWitch", "EntityBat", "EntityLlama",
+    "EntityGhast", "EntityMagmaCube", "EntityMinecartEmpty",
+    "EntityMinecartChest", "EntityMinecartFurnace", "EntityMinecartHopper",
+    "EntityMinecartTNT", "EntityDragon", "EntityArrow",
+    "EntityTippedArrow", "EntitySpectralArrow", "EntityEnderCrystal",
+    "EntityEnderPearl", "EntityEnderEye", "EntitySnowball", "EntityEgg",
+    "EntitySmallFireball", "EntityDragonFireball",
+})
+
+# RenderAreaEffectCloud itself has no geometry. Its client-side dragon-breath
+# particles are RNG-unrecoverable from tape entity rows and are scoped by the
+# scenario known-divergence sidecar. Visual classes such as EntityXPOrb are
+# deliberately NOT allowlisted: a repeated orb row must fail until rendered.
+SKIPPED_ENTITY_ALLOWLIST = frozenset({"EntityAreaEffectCloud"})
+MISSING_MODEL_ROW_THRESHOLD = 4  # five repeated rows is no longer "a handful"
+
+
+def skipped_renderable_counts(ticks):
+    """Count tape entity rows that magma would silently skip as unmodeled."""
+    counts = Counter()
+    for row in ticks:
+        for ent in row.get("ents", []):
+            if len(ent) < 2:
+                continue
+            typ = ent[1]
+            if (typ not in MODELED_ENTITY_TYPES and
+                    typ not in SKIPPED_ENTITY_ALLOWLIST):
+                counts[typ] += 1
+    return dict(sorted(counts.items()))
+
+
+def apply_missing_model_gate(gate, counts):
+    """Fold repeated skipped renderables into the scenario gate (rc=3)."""
+    failed = {typ: rows for typ, rows in counts.items()
+              if rows > MISSING_MODEL_ROW_THRESHOLD}
+    if gate is None:
+        gate = {"pass": True, "frames_checked": 0, "classes": {},
+                "failed_frames": []}
+    gate["missing_models"] = counts
+    gate["missing_model_row_threshold"] = MISSING_MODEL_ROW_THRESHOLD
+    gate["missing_model_failures"] = failed
+    if failed:
+        gate["pass"] = False
+    return gate
 
 
 def sgn(v):
@@ -123,6 +180,17 @@ def tape_strip_overlays(path):
         with open(meta) as f:
             return bool(json.load(f).get("qrl_launch", {}).get("strip", {})
                         .get("overlays", False))
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def tape_texture_animations_pinned(path):
+    """Return whether QRL froze atlas sprites on uploaded physical frame zero."""
+    meta = os.path.splitext(path)[0] + ".meta.json"
+    try:
+        with open(meta) as f:
+            return bool(json.load(f).get("qrl_launch", {}).get("determinism", {})
+                        .get("pin_texture_animations", False))
     except (OSError, ValueError, TypeError):
         return False
 
@@ -239,6 +307,8 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
     Patch values come from the oracle session's save, with in-tape-broken
     blocks restored so the replay's own digs stay faithful."""
     patch = []
+    animations_pinned = bool(tape_path and
+                             tape_texture_animations_pinned(tape_path))
     if tape_path and os.path.exists(tape_path + ".worldpatch.jsonl"):
         with open(tape_path + ".worldpatch.jsonl") as pf:
             patch = [(max(int(json.loads(ln).get("tick", 1)), 1), ln)
@@ -533,6 +603,8 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                         (pf_anchor[1] - pf_anchor[0] + t) % 32
                                         if pf_anchor else -1)),
                                     "portal_phase": int(row.get("portal_phase", 0)),
+                                    "texture_animations_pinned":
+                                        int(animations_pinned),
                                     # Physics remains frozen until the player is
                                     # loaded, but the brown loading screen is
                                     # visible only while this GUI is actually
@@ -729,6 +801,7 @@ def main():
     out = args.out or os.path.join(here, "out", f"tape_{name}")
     os.makedirs(out, exist_ok=True)
     header, ticks = load_tape(args.tape)
+    skipped_renderables = skipped_renderable_counts(ticks)
     world = magma_world(header)
     print(f"[tape] {name}: {len(ticks)} ticks, seed {header['seed']}, "
           f"start ({header['x']:.2f},{header['y']:.2f},{header['z']:.2f}) "
@@ -892,6 +965,8 @@ def main():
                                 os.path.join(out, f"sbs_t{t:06d}.png"))
         gate = (pg.summarize(gate_ticks, transit=pg.transit_ticks(ticks))
                 if gate_on and gate_ticks else None)
+        if gate_on:
+            gate = apply_missing_model_gate(gate, skipped_renderables)
         if gate:
             for cls, s_ in sorted(gate["classes"].items()):
                 print(f"[gate] class {cls:12s} frames {s_['frames']:5d} "
@@ -905,14 +980,29 @@ def main():
                 ol.rgb_to_png(np.asarray(carr[j]), cpng)
                 ol.side_by_side(dict(frame_ticks)[t], cpng,
                                 os.path.join(out, f"gatefail_sbs_t{t:06d}.png"))
+            if skipped_renderables:
+                failed_rows = sum(gate["missing_model_failures"].values())
+                print(f"[gate] class missing_model types "
+                      f"{len(skipped_renderables)} rows "
+                      f"{sum(skipped_renderables.values())} failures "
+                      f"{failed_rows} threshold "
+                      f">{MISSING_MODEL_ROW_THRESHOLD}")
+                for typ, rows in skipped_renderables.items():
+                    verdict = ("FAIL" if rows > MISSING_MODEL_ROW_THRESHOLD
+                               else "below-threshold")
+                    print(f"[gate] skipped renderable {typ}: {rows} rows "
+                          f"({verdict})")
             if gate["pass"]:
                 print(f"[gate] PASS: no unexplained clusters over "
                       f"{gate['frames_checked']} frames")
-            else:
+            elif gate["failed_frames"]:
                 ff = gate["failed_frames"]
                 print(f"[gate] FAIL: {len(ff)} frames with unexplained "
                       f"clusters; worst t={ff[0]['tick']} "
                       f"({ff[0]['unexplained_px']} px) - see gatefail_sbs_*.png")
+            else:
+                print("[gate] FAIL: repeated renderable entity rows have no "
+                      "magma model (missing_model)")
         if skipped_res:
             print(f"[tape] WARNING: skipped {skipped_res} oracle frames not at "
                   f"{args.w}x{args.h} (window resized mid-session); those ticks "
@@ -946,6 +1036,14 @@ def main():
                     f.write(f"| {cls} | {s_['frames']} | {s_['px']} | "
                             f"{s_['max_cluster']} |\n")
                 f.write("\n")
+                if gate.get("missing_models"):
+                    f.write("Skipped renderable entity rows (more than "
+                            f"{MISSING_MODEL_ROW_THRESHOLD} fails the gate):\n\n")
+                    for typ, rows in gate["missing_models"].items():
+                        verdict = ("FAIL" if rows > MISSING_MODEL_ROW_THRESHOLD
+                                   else "below threshold")
+                        f.write(f"- `{typ}`: {rows} rows ({verdict})\n")
+                    f.write("\n")
                 if not gate["pass"]:
                     f.write("Failed frames (worst first, top 20):\n\n")
                     for row in gate["failed_frames"][:20]:
@@ -961,6 +1059,16 @@ def main():
                             f"{s['whole']['pct_differing']:.2f}% | "
                             f"{s['terrain']['mean_abs']:.2f} |\n")
         print(f"[tape] report -> {rp}")
+    # Tapes without sparse frames still get the entity-model completeness gate.
+    if gate is None and not args.no_gate:
+        gate = apply_missing_model_gate(None, skipped_renderables)
+        if skipped_renderables:
+            print(f"[gate] class missing_model types "
+                  f"{len(skipped_renderables)} rows "
+                  f"{sum(skipped_renderables.values())} threshold "
+                  f">{MISSING_MODEL_ROW_THRESHOLD}")
+            for typ, rows in skipped_renderables.items():
+                print(f"[gate] skipped renderable {typ}: {rows} rows")
     if gate is not None:
         gj = os.path.join(here, "report", f"tape_{name}.gate.json")
         with open(gj, "w") as f:

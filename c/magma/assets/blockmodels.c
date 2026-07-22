@@ -554,6 +554,26 @@ void bm_atlas_set_animation_tick(long long client_tick)
     }
 }
 
+void bm_atlas_set_animation_physical_zero(void)
+{
+    const int sprites[6] = {
+        CR_SPRITE_WATER_STILL, CR_SPRITE_WATER_FLOW,
+        CR_SPRITE_LAVA_STILL, CR_SPRITE_LAVA_FLOW,
+        CR_SPRITE_FIRE_LAYER_0, CR_SPRITE_FIRE_LAYER_1,
+    };
+    const unsigned char *rgba[6] = {
+        CR_WATER_STILL_RGBA[0], CR_WATER_FLOW_RGBA[0],
+        CR_LAVA_STILL_RGBA[0], CR_LAVA_FLOW_RGBA[0],
+        CR_FIRE_LAYER_0_RGBA[0], CR_FIRE_LAYER_1_RGBA[0],
+    };
+    atlas_live_init();
+    for (int i = 0; i < 6; ++i) {
+        if (g_anim_frames[i] == 0) continue;
+        atlas_set_tile(sprites[i], rgba[i]);
+        g_anim_frames[i] = 0;
+    }
+}
+
 void bm_atlas_set_portal_frame(int frame)
 {
     if (frame < 0) return;

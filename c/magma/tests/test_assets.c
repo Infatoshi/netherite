@@ -85,6 +85,14 @@ int main(void)
     CHECK(tile_equals(atlas, CR_SPRITE_FIRE_LAYER_0,
                       CR_FIRE_LAYER_0_RGBA[16]),
           "fire_layer_0 honors custom frame sequence");
+    bm_atlas_set_animation_physical_zero();
+    atlas = bm_atlas();
+    CHECK(tile_equals(atlas, CR_SPRITE_FIRE_LAYER_0,
+                      CR_FIRE_LAYER_0_RGBA[0]),
+          "pinned fire_layer_0 restores physical frame zero");
+    CHECK(tile_equals(atlas, CR_SPRITE_FIRE_LAYER_1,
+                      CR_FIRE_LAYER_1_RGBA[0]),
+          "pinned fire_layer_1 restores physical frame zero");
     bm_atlas_set_animation_tick(1);
     atlas = bm_atlas();
     CHECK(tile_equals(atlas, CR_SPRITE_WATER_STILL,

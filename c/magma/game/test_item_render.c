@@ -11,7 +11,9 @@
  * (D) CAP: max below a model's vert count emits nothing for it and never
  *     overruns `out` (canary vertex intact); non-item entity types skipped.
  * (E) FALLBACK: an unknown item id still resolves to a valid sprite index.
- * (F) GUI ISO: dirt/cobble/crafting-table block icons draw into a 16x16 slot
+ * (F) FIREBALLS: exact RenderFireball / RenderDragonFireball scale, offset,
+ *     full-bright state, and atlas sprites.
+ * (G) GUI ISO: dirt/cobble/crafting-table block icons draw into a 16x16 slot
  *     (non-empty pixels); a stick id does not claim the block-icon path.
  *
  * Build/run: bash game/test_item_render.sh
@@ -205,7 +207,78 @@ int main(void) {
         CHECK(nf == 36, "unknown item still renders an extruded box");
     }
 
-    /* ---- (F) GUI isometric block icons ---- */
+    /* ---- (F) exact vanilla direct fireball billboards ---- */
+    {
+        GmEntityView small = mk_item(385, 0, 0);
+        small.type = GM_VIEW_BILLBOARD;
+        int n = gm_items_emit_billboard(&small, 1, 0.0f, 0.0f, out, 256);
+        CHECK(n == 6, "RenderFireball direct quad emits 6 verts");
+        float minx = 1e9f, maxx = -1e9f, miny = 1e9f, maxy = -1e9f;
+        for (int i = 0; i < n; ++i) {
+            if (out[i].pos.x < minx) minx = out[i].pos.x;
+            if (out[i].pos.x > maxx) maxx = out[i].pos.x;
+            if (out[i].pos.y < miny) miny = out[i].pos.y;
+            if (out[i].pos.y > maxy) maxy = out[i].pos.y;
+            CHECK(fabsf(out[i].pos.z - small.z) < eps,
+                  "zero-pitch RenderFireball quad lies at entity z");
+            CHECK(out[i].light == 1.0f && out[i].blk == 15.0f,
+                  "RenderFireball is full-bright");
+            CHECK(out[i].tint.r == 255 && out[i].tint.g == 255 &&
+                  out[i].tint.b == 255, "RenderFireball has white tint");
+        }
+        CHECK(fabsf((maxx - minx) - 0.5f) < eps,
+              "RenderManager small-fireball scale is 0.5");
+        CHECK(fabsf(miny - (small.y - 0.125f)) < eps &&
+              fabsf(maxy - (small.y + 0.375f)) < eps,
+              "RenderFireball uses vanilla -0.25..0.75 y quad");
+        int si = gm_item_sprite_index(385);
+        CHECK(CR_ITEM_SPRITES[si].id == 385 &&
+              !strcmp(CR_ITEM_SPRITES[si].name, "fireball"),
+              "small fireball samples fire_charge model particle icon");
+
+        GmEntityView dragon = small;
+        dragon.type = GM_VIEW_DRAGON_FIREBALL;
+        dragon.item_id = 9003;
+        n = gm_items_emit_billboard(&dragon, 1, 0.0f, 0.0f, out, 256);
+        CHECK(n == 6, "RenderDragonFireball direct quad emits 6 verts");
+        minx = miny = 1e9f; maxx = maxy = -1e9f;
+        for (int i = 0; i < n; ++i) {
+            if (out[i].pos.x < minx) minx = out[i].pos.x;
+            if (out[i].pos.x > maxx) maxx = out[i].pos.x;
+            if (out[i].pos.y < miny) miny = out[i].pos.y;
+            if (out[i].pos.y > maxy) maxy = out[i].pos.y;
+        }
+        CHECK(fabsf((maxx - minx) - 2.0f) < eps,
+              "RenderDragonFireball scale is 2.0");
+        CHECK(fabsf(miny - (dragon.y - 0.5f)) < eps &&
+              fabsf(maxy - (dragon.y + 1.5f)) < eps,
+              "RenderDragonFireball uses vanilla -0.25..0.75 y quad");
+        si = gm_item_sprite_index(9003);
+        CHECK(CR_ITEM_SPRITES[si].id == 9003 &&
+              !strcmp(CR_ITEM_SPRITES[si].name, "dragon_fireball"),
+              "dragon fireball samples dedicated entity texture");
+        CHECK(gm_items_emit_billboard(&dragon, 1, 0.0f, 0.0f, out, 5) == 0,
+              "direct fireball respects vertex cap");
+
+        n = gm_small_fireball_fire_emit(&small, 1, 0.0f, out, 256);
+        CHECK(n == 12, "fiery small fireball emits two stacked fire quads");
+        minx = miny = 1e9f; maxx = maxy = -1e9f;
+        for (int i = 0; i < n; ++i) {
+            if (out[i].pos.x < minx) minx = out[i].pos.x;
+            if (out[i].pos.x > maxx) maxx = out[i].pos.x;
+            if (out[i].pos.y < miny) miny = out[i].pos.y;
+            if (out[i].pos.y > maxy) maxy = out[i].pos.y;
+        }
+        CHECK(fabsf((maxx - minx) - 0.4375f) < eps,
+              "renderEntityOnFire scales width by 0.3125*1.4");
+        CHECK(fabsf(miny - small.y) < eps &&
+              fabsf(maxy - (small.y + 0.809375f)) < eps,
+              "renderEntityOnFire exact two-layer y extent");
+        CHECK(gm_small_fireball_fire_emit(&dragon, 1, 0.0f, out, 256) == 0,
+              "non-fiery dragon fireball has no fire overlay");
+    }
+
+    /* ---- (G) GUI isometric block icons ---- */
     {
         const int W = 32, H = 32;
         CrFramebuffer fb;

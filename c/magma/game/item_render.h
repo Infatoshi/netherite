@@ -43,12 +43,18 @@ int gm_items_emit_flat(const GmEntityView *ents, int n, CrVertex *out, int max);
  * gm_items_emit_flat. */
 int gm_held_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 
-/* Thrown projectiles (RenderSnowball: pearl/eye/snowball/egg ghosts): the
- * item sprite as a camera-facing front+back quad (12 verts each). view_yaw /
- * view_pitch = camera rotation in degrees. Same pass/atlas as
- * gm_items_emit_flat. */
+/* Camera-facing projectiles: RenderSnowball item models plus exact direct
+ * RenderFireball (item 385, scale 0.5) and RenderDragonFireball (view type 33,
+ * scale 2.0) quads. view_yaw/view_pitch = camera rotation in degrees. Same
+ * pass/atlas as gm_items_emit_flat. */
 int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
                             float view_pitch, CrVertex *out, int max);
+
+/* Render.doRenderShadowAndFire for fiery EntitySmallFireball. Two stacked
+ * camera-yaw-facing fire_layer_0/1 quads (12 verts), emitted for the TERRAIN
+ * atlas after the item-core pass. */
+int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
+                                float view_yaw, CrVertex *out, int max);
 
 /* The packed item-sprite atlas as a CrTexture (no mips; CUTOUT layer). */
 CrTexture gm_item_atlas(void);

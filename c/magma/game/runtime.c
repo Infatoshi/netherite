@@ -699,7 +699,7 @@ int gm_runtime_tape_inventory(GmRuntime *r, int slot, int item, int count, int m
 
 void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int air,
                                  float portal, int portal_frame, int portal_phase,
-                                 int loading) {
+                                 int loading, int texture_animations_pinned) {
     if (!r) return;
     r->tape_xp_active = 1;
     r->tape_xp_level = xp_level;
@@ -709,6 +709,7 @@ void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int 
     r->tape_portal_frame = portal_frame;
     r->tape_portal_phase = portal_phase;
     r->tape_loading = loading;
+    r->tape_texture_animations_pinned = texture_animations_pinned;
 }
 
 void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
@@ -729,6 +730,7 @@ void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
         view->portal_frame = r->tape_portal_frame;
         view->portal_phase = r->tape_portal_phase;
         view->loading = r->tape_loading;
+        view->texture_animations_pinned = r->tape_texture_animations_pinned;
     }
 }
 
@@ -860,7 +862,10 @@ int gm_runtime_projectile_views(const GmRuntime *r, GmEntityView *out, int max) 
             v.yaw   = (float)(atan2(p->vx, p->vz) * 180.0 / MC_PI);
             v.pitch = (float)(atan2(p->vy, h) * 180.0 / MC_PI);
         } else if (p->type == 3) {
-            v.type = GM_VIEW_BILLBOARD; v.item_id = 385; /* blaze fire charge */
+            /* EntitySmallFireball: RenderFireball scale 0.5, fire_charge
+             * particle icon. gm_items_emit_billboard selects that exact path
+             * from item id 385. */
+            v.type = GM_VIEW_BILLBOARD; v.item_id = 385;
         } else if (p->type == 4) {
             v.type = GM_VIEW_BILLBOARD; v.item_id = 381; /* eye of ender */
         } else {

@@ -427,6 +427,56 @@ int gm_held_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max) 
     return written;
 }
 
+/* RenderFireball / RenderDragonFireball: exact direct camera-facing quads from
+ * their 1.11.2 doRender methods. Both use
+ *   T(pos) S(scale) Ry(180-playerViewY) Rx(-playerViewX)
+ * and vertices (-.5,-.25,0), (.5,-.25,0), (.5,.75,0), (-.5,.75,0).
+ * EntitySmallFireball is registered by RenderManager at scale 0.5 and samples
+ * Items.FIRE_CHARGE's particle icon (textures/items/fireball.png). The dragon
+ * fireball uses scale 2.0 and textures/entity/enderdragon/dragon_fireball.png.
+ * Both EntityFireball subclasses return packed brightness 0x00f000f0, so this
+ * item-atlas pass deliberately leaves the vertices full-bright. */
+static int emit_fireball_billboard(const GmEntityView *ent, float view_yaw,
+                                   float view_pitch, CrVertex *out) {
+    const float aw = (float)CR_ITEM_ATLAS_W, ah = (float)CR_ITEM_ATLAS_H;
+    const CrItemSprite *s =
+        &CR_ITEM_SPRITES[gm_item_sprite_index(ent->item_id)];
+    float scale = ent->type == GM_VIEW_DRAGON_FIREBALL ? 2.0f : 0.5f;
+    float yr = (180.0f - view_yaw) * IR_D2R;
+    float pr = -view_pitch * IR_D2R;
+    float cy = cosf(yr), sy = sinf(yr);
+    float cp = cosf(pr), sp = sinf(pr);
+    static const float CORN[4][4] = {
+        { -0.5f, -0.25f, 0.0f, 1.0f },
+        {  0.5f, -0.25f, 1.0f, 1.0f },
+        {  0.5f,  0.75f, 1.0f, 0.0f },
+        { -0.5f,  0.75f, 0.0f, 0.0f },
+    };
+    CrVertex quad[4];
+    for (int c = 0; c < 4; ++c) {
+        float px = CORN[c][0], py = CORN[c][1], pz = 0.0f;
+        /* Rx(-playerViewX), then Ry(180-playerViewY), then S(scale). */
+        float ty = py * cp - pz * sp, tz = py * sp + pz * cp;
+        py = ty; pz = tz;
+        float tx = px * cy + pz * sy;
+        tz = -px * sy + pz * cy;
+        px = tx; pz = tz;
+        CrVertex vtx;
+        vtx.pos.x = ent->x + px * scale;
+        vtx.pos.y = ent->y + py * scale;
+        vtx.pos.z = ent->z + pz * scale;
+        vtx.uv.x = ((float)s->x0 + CORN[c][2] * 16.0f) / aw;
+        vtx.uv.y = ((float)s->y0 + CORN[c][3] * 16.0f) / ah;
+        vtx.light = 1.0f;
+        vtx.blk = 15.0f;
+        vtx.tint = (CrRgba){ 255, 255, 255, 255 };
+        vtx.ao = 1.0f;
+        quad[c] = vtx;
+    }
+    for (int k = 0; k < 6; ++k) out[k] = quad[IR_TRI[k]];
+    return 6;
+}
+
 /* RenderSnowball (thrown pearls / eyes of ender / snowballs / eggs): the item
  * sprite as a camera-facing quad. GL chain (1.11 has NO outer 0.5 scale):
  * T(pos) Ry(-playerViewY) Rx(playerViewX) Ry(180), then RenderItem GROUND:
@@ -443,7 +493,16 @@ int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
     static const float CORN[4][2] = { {0,0},{16,0},{16,16},{0,16} };
     int written = 0;
     for (int e = 0; e < n; ++e) {
-        if (ents[e].type != GM_VIEW_BILLBOARD) continue;
+        int direct_fireball =
+            (ents[e].type == GM_VIEW_BILLBOARD && ents[e].item_id == 385) ||
+            ents[e].type == GM_VIEW_DRAGON_FIREBALL;
+        if (ents[e].type != GM_VIEW_BILLBOARD && !direct_fireball) continue;
+        if (direct_fireball) {
+            if (written + 6 > max) break;
+            written += emit_fireball_billboard(&ents[e], view_yaw, view_pitch,
+                                                out + written);
+            continue;
+        }
         if (written + 12 > max) break;
         const CrItemSprite *s =
             &CR_ITEM_SPRITES[gm_item_sprite_index(ents[e].item_id)];
@@ -484,6 +543,65 @@ int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
                 quad[c] = vtx;
             }
             for (int k = 0; k < 6; ++k) out[written++] = quad[IR_TRI[k]];
+        }
+    }
+    return written;
+}
+
+/* Render.renderEntityOnFire for EntitySmallFireball. EntitySmallFireball has
+ * width=height=0.3125, so f=width*1.4=0.4375 and f3=height/f=5/7: exactly two
+ * iterations of the vanilla f3-=0.45 loop. The GL chain is
+ *   T(pos) S(f) Ry(-playerViewY) Tz(-0.3 + floor(f3)*0.02)
+ * and each iteration narrows f1 by 0.9, raises f4 by 0.45, and advances z by
+ * 0.03. Dragon fireballs override isFireballFiery=false and never enter here. */
+int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
+                                float view_yaw, CrVertex *out, int max) {
+    const float scale = 0.3125f * 1.4f;
+    const float zbase = -0.3f; /* floor((0.3125 / scale)) == 0 */
+    float yr = -view_yaw * IR_D2R;
+    float cy = cosf(yr), sy = sinf(yr);
+    static const int FIRE_SPRITE[2] = {
+        CR_SPRITE_FIRE_LAYER_0, CR_SPRITE_FIRE_LAYER_1
+    };
+    int written = 0;
+    for (int e = 0; e < n; ++e) {
+        if (ents[e].type != GM_VIEW_BILLBOARD || ents[e].item_id != 385)
+            continue;
+        if (written + 12 > max) break;
+        float half = 0.5f, yoff = 0.0f, zoff = 0.0f;
+        for (int layer = 0; layer < 2; ++layer) {
+            float u0, v0, u1, v1;
+            bm_sprite_uv(FIRE_SPRITE[layer], &u0, &v0, &u1, &v1);
+            /* i/2%2 == 0 for both iterations: vanilla swaps minU/maxU. */
+            float local[4][5] = {
+                {  half, 0.0f - yoff, zoff, u0, v1 },
+                { -half, 0.0f - yoff, zoff, u1, v1 },
+                { -half, 1.4f - yoff, zoff, u1, v0 },
+                {  half, 1.4f - yoff, zoff, u0, v0 },
+            };
+            CrVertex quad[4];
+            for (int c = 0; c < 4; ++c) {
+                float px = local[c][0];
+                float py = local[c][1];
+                float pz = local[c][2] + zbase;
+                /* Ry(-playerViewY), then S(width*1.4). */
+                float tx = px * cy + pz * sy;
+                float tz = -px * sy + pz * cy;
+                CrVertex vtx;
+                vtx.pos.x = ents[e].x + tx * scale;
+                vtx.pos.y = ents[e].y + py * scale;
+                vtx.pos.z = ents[e].z + tz * scale;
+                vtx.uv.x = local[c][3]; vtx.uv.y = local[c][4];
+                vtx.light = 1.0f; vtx.blk = 15.0f;
+                vtx.tint = (CrRgba){255, 255, 255, 255};
+                vtx.ao = 1.0f;
+                quad[c] = vtx;
+            }
+            for (int k = 0; k < 6; ++k)
+                out[written++] = quad[IR_TRI[k]];
+            half *= 0.9f;
+            yoff -= 0.45f;
+            zoff += 0.03f;
         }
     }
     return written;

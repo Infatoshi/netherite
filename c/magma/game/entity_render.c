@@ -75,6 +75,7 @@
 #define ER_TYPE_ARROW    29
 #define ER_TYPE_CRYSTAL  31   /* EntityEnderCrystal (30 = GM_VIEW_BILLBOARD) */
 #define ER_TYPE_WITHER_SKELETON 32
+#define ER_TYPE_DRAGON_FIREBALL 33
 
 #define ER_VERTS_PER_BOX 36  /* 6 faces * 2 tris * 3 verts */
 #define ER_PI 3.14159265358979323846f
@@ -409,6 +410,7 @@ static const ErModel *er_model_for_type(int type) {
         case ER_TYPE_PLAYER:   return 0;         /* skipped */
         case 22 /* GM_VIEW_ITEM */: return 0;    /* drawn by the item pass */
         case 30 /* GM_VIEW_BILLBOARD */: return 0; /* item pass (camera-facing) */
+        case ER_TYPE_DRAGON_FIREBALL: return 0; /* dedicated item-atlas billboard */
         case ER_TYPE_ZOMBIE:   return &M_ZOMBIE;
         case ER_TYPE_SKELETON: return &M_SKELETON;
         case ER_TYPE_WITHER_SKELETON: return &M_WITHER_SKELETON;
@@ -1265,6 +1267,12 @@ int gm_entity_type_for_name(const char *name) {
         { "EntityEnderEye",       30 /* GM_VIEW_BILLBOARD */ },
         { "EntitySnowball",       30 /* GM_VIEW_BILLBOARD */ },
         { "EntityEgg",            30 /* GM_VIEW_BILLBOARD */ },
+        /* RenderFireball uses the fire_charge item model's particle icon;
+         * RenderManager registers EntitySmallFireball at scale 0.5. */
+        { "EntitySmallFireball",  30 /* GM_VIEW_BILLBOARD */ },
+        /* RenderDragonFireball binds its own texture and scales the direct
+         * camera-facing quad by 2.0. */
+        { "EntityDragonFireball", ER_TYPE_DRAGON_FIREBALL },
     };
     if (!name) return -1;
     for (unsigned i = 0; i < sizeof MAP / sizeof MAP[0]; ++i)
@@ -1279,6 +1287,8 @@ int gm_entity_billboard_item(const char *name) {
     if (!strcmp(name, "EntityEnderEye"))   return 381;
     if (!strcmp(name, "EntitySnowball"))   return 332;
     if (!strcmp(name, "EntityEgg"))        return 344;
+    if (!strcmp(name, "EntitySmallFireball")) return 385;
+    if (!strcmp(name, "EntityDragonFireball")) return 9003;
     return 0;
 }
 

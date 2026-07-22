@@ -102,18 +102,20 @@ typedef struct {
     int   bow_pull;             /* ticks the bow has been drawn; <=0 = idle
                                  * (drawn-bow viewmodel + pulling sprite) */
     int   hotbar_meta[9];       /* item damage / block metadata          */
+    int   texture_animations_pinned; /* QRL physical-frame-zero atlas pin */
 } GmPlayerView;
 
 /* A mob/entity to draw this frame (from the entity store). */
 #define GM_VIEW_ITEM 22   /* dropped-item entity view type (not an EW_TYPE) */
 #define GM_VIEW_BILLBOARD 30 /* thrown pearl/eye: camera-facing item sprite */
+#define GM_VIEW_DRAGON_FIREBALL 33 /* RenderDragonFireball direct 2x quad */
 typedef struct {
     int   type;       /* EW_TYPE_* (zombie/skeleton/...) or GM_VIEW_ITEM */
     float x, y, z;    /* FEET position, world coords */
     float yaw;        /* body yaw, degrees */
     float health;     /* current, for a tiny overhead bar if desired */
     /* --- appended (zeroed by callers that predate them) --- */
-    int   item_id;    /* GM_VIEW_ITEM: item/block id of the stack */
+    int   item_id;    /* item/block id; billboard sprite id for view projectiles */
     int   item_meta;  /* GM_VIEW_ITEM: meta of the stack */
     int   age;        /* entity age in ticks (item bob/spin phase) */
     /* render-pose animation (tape ghost path; live mobs leave 0) */

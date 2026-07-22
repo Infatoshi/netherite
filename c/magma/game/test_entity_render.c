@@ -311,6 +311,8 @@ static void test_name_map(void) {
         { "EntityPig", 11 }, { "EntitySpider", 5 }, { "EntityEnderman", 6 },
         { "EntityBlaze", 7 },
         { "EntityWitherSkeleton", 32 },
+        { "EntitySmallFireball", 30 },
+        { "EntityDragonFireball", 33 },
         /* skin variants fold to the base silhouette */
         { "EntityHusk", 2 }, { "EntityZombieVillager", 2 },
         { "EntityPigZombie", 2 }, { "EntityStray", 3 },
@@ -344,6 +346,10 @@ static void test_name_map(void) {
         CHECK(gm_entity_type_for_name(NEG[i]) == -1, msg);
     }
     CHECK(gm_entity_type_for_name(NULL) == -1, "NULL -> -1");
+    CHECK(gm_entity_billboard_item("EntitySmallFireball") == 385,
+          "small fireball -> fire charge item id");
+    CHECK(gm_entity_billboard_item("EntityDragonFireball") == 9003,
+          "dragon fireball -> dedicated atlas sprite id");
 }
 
 static void test_recorded_state(void) {

@@ -103,6 +103,9 @@ CrTexture bm_atlas(void);
  * Metadata frame times and custom physical-frame sequences are generated from
  * the vanilla 1.11.2 jar.  Mutates level zero and lazily rebuilds all mips. */
 void bm_atlas_set_animation_tick(long long client_tick);
+/* Restore the physical frame zero uploaded by TextureMap during resource
+ * loading. QRL's pinned-animation mixin cancels every updateAnimation call. */
+void bm_atlas_set_animation_physical_zero(void);
 /* Select the exact TextureAtlasSprite portal frame recorded by the oracle. */
 void bm_atlas_set_portal_frame(int frame);
 
