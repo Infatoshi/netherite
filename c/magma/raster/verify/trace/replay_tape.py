@@ -303,8 +303,30 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                     "x": vx, "y": vy, "z": vz}) + "\n")
             hp = float(row.get("hp", last_hp))
             food = int(row.get("food", last_food))
-            vitals_changed = hp != last_hp or food != last_food
-            if t in velocity_ticks or t + 1 in velocity_ticks or vitals_changed:
+            food_changed = food != last_food
+            remote_damage = "pvel" in row and hp < last_hp
+            if remote_damage:
+                # EntityPlayer.attackEntityFrom runs before FoodStats.onUpdate
+                # in the recorded server tick. Seed packet-backed mob damage
+                # before magma's tick too, so foodTimer advances on the same
+                # ten-tick regeneration interval. A post-tick anchor here
+                # injects the recorded heal without resetting foodTimer and
+                # causes a duplicate 5/6 heal on the following tick.
+                f.write(json.dumps({"tick": t, "type": "set_vitals",
+                                    "health": hp, "food": food}) + "\n")
+            elif hp > last_hp and not food_changed:
+                # Client health packets can expose server regeneration one
+                # tick before magma's local FoodStats phase. Reconcile the
+                # visible heal and, only if magma has not applied it already,
+                # its hidden exhaustion + foodTimer side effects as one event.
+                recorded_sat = row.get("sat")
+                regen_exhaustion = (float(recorded_sat)
+                                    if recorded_sat is not None and recorded_sat > 0
+                                    else min((hp - last_hp) * 6.0, 6.0))
+                f.write(json.dumps({"tick": t, "type": "set_regen_post",
+                                    "health": hp, "food": food,
+                                    "exhaustion": regen_exhaustion}) + "\n")
+            elif t in velocity_ticks or t + 1 in velocity_ticks or food_changed:
                 # Remote-player damage is not simulated when tape replay runs
                 # with mobs disabled. Re-anchor post-tick vitals on the packet
                 # row and its immediately preceding row: vanilla may regenerate

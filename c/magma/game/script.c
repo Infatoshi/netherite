@@ -371,6 +371,8 @@ int gm_script_run(const GmConfig *cfg) {
         GmAction action; memset(&action,0,sizeof action); action.hotbar_sel=-1;
         int have_look = 0; double look_yaw = 0.0, look_pitch = 0.0;
         int have_vitals_post = 0; double vitals_health = 20.0; long long vitals_food = 20;
+        int have_regen_post = 0; double regen_health = 20.0, regen_exhaustion = 0.0;
+        long long regen_food = 20;
         int have_pose_post = 0, pose_on_ground = 0;
         double pose_x = 0.0, pose_y = 0.0, pose_z = 0.0;
         double pose_yaw = 0.0, pose_pitch = 0.0;
@@ -458,6 +460,17 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid set_vitals_post\n",line_no);goto bad;
                 }
                 have_vitals_post=1;
+            } else if (!strcmp(type,"set_regen_post")) {
+                static const char *const keys[]={"tick","type","health","food","exhaustion"};
+                if(!keys_only(&pending,keys,5,err,sizeof err)||
+                   !as_double(field(&pending,"health"),&regen_health)||
+                   !as_i64(field(&pending,"food"),&regen_food)||
+                   !as_double(field(&pending,"exhaustion"),&regen_exhaustion)||
+                   regen_health<0||regen_health>20||regen_food<0||regen_food>20||
+                   regen_exhaustion<0||regen_exhaustion>6){
+                    fprintf(stderr,"script:%ld: invalid set_regen_post\n",line_no);goto bad;
+                }
+                have_regen_post=1;
             } else if (!strcmp(type,"set_dimension")) {
                 long long dimension;
                 static const char *const keys[]={"tick","type","dimension"};
@@ -818,6 +831,13 @@ int gm_script_run(const GmConfig *cfg) {
         if (have_look) gm_runtime_set_look(&r,(float)look_yaw,(float)look_pitch);
         if (have_vitals_post)
             gm_runtime_set_vitals(&r,(float)vitals_health,(int)vitals_food);
+        if (have_regen_post) {
+            if (r.vitals.health + 1e-6f < (float)regen_health) {
+                pv_add_exhaustion(&r.vitals,(float)regen_exhaustion);
+                r.vitals.foodTimer=0;
+            }
+            gm_runtime_set_vitals(&r,(float)regen_health,(int)regen_food);
+        }
         /* Flywheel probe: MAGMA_DUMP="tick,x0,x1,y0,y1,z0,z1" dumps id/meta of
          * a world region to stderr at that tick - the way to see magma's LIVE
          * world state mid-replay (fluid CA etc.), which no state-out field has. */

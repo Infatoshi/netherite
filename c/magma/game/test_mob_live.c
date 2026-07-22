@@ -29,11 +29,25 @@ int main(void) {
     CHECK(v[0].y>=3.99f,"hostile collision does not fall through superflat floor");
     gm_runtime_destroy(&r);
 
+    /* EntityZombie.applyEntityAttributes ATTACK_DAMAGE=3.0;
+     * EntityPlayer.attackEntityFrom leaves it unchanged on NORMAL. After ten
+     * FoodStats.onUpdate ticks, saturation regen heals 5/6 exactly, for a net
+     * first-hit loss of 3 - 5/6 = 13/6. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5,5.0,10.5)>=0,"spawn damage-model zombie");
+    gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==17.0f,"normal zombie melee subtracts exact 3 hp");
+    for(int i=0;i<10;++i)gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==17.0f+5.0f/6.0f,
+          "first zombie hit plus saturation regen loses exact 13/6 hp");
+    gm_runtime_destroy(&r);
+
     if(!init_flat(&r))return 1;
     isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
     CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5,5.0,10.5)>=0,"spawn combat zombie");
     GmAction attack;memset(&attack,0,sizeof attack);attack.attack=1;attack.hotbar_sel=0;
     for(int i=0;i<35 && gm_mobs_alive(&r.mobs);++i)gm_runtime_tick(&r,attack);
+    float post_combat_health=r.vitals.health;
     CHECK(gm_mobs_alive(&r.mobs)==0,"held attack kills hostile under cooldown");
     n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
     int xp_visible=0;for(int i=0;i<n;++i)xp_visible|=v[i].type==GM_ENTITY_XP_ORB;
@@ -43,7 +57,8 @@ int main(void) {
     int flesh=0;
     for(int i=0;i<GM_LIVE_MAX;++i)if(r.entities.ents[i].active&&r.entities.ents[i].item==367)flesh=1;
     CHECK(flesh,"zombie death creates rotten-flesh item entity");
-    CHECK(r.vitals.health<20.0f&&r.vitals.health>0.0f,"in-reach hostile damages player without killing test");
+    CHECK(post_combat_health<20.0f&&post_combat_health>0.0f,
+          "in-reach hostile damages player without killing test");
     gm_runtime_destroy(&r);
 
     if(!init_flat(&r))return 1;

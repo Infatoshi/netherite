@@ -83,7 +83,7 @@ def test_new_recorder_state_becomes_sorted_render_and_next_tick_events(tmp_path:
                for event in tick0)
     assert any(event["type"] == "set_packet_velocity" and event["x"] == 0.01
                and event["y"] == 0.02 and event["z"] == -0.03 for event in tick0)
-    assert any(event["type"] == "set_vitals_post" and event["health"] == 17.0
+    assert any(event["type"] == "set_vitals" and event["health"] == 17.0
                for event in tick0)
     assert not any(event["type"] == "ent_box" for event in tick0)
     sheep_event = next(event for event in tick0
@@ -157,6 +157,35 @@ def test_recorded_food_change_is_reanchored_post_tick(tmp_path: Path):
     events = [json.loads(line) for line in script.read_text().splitlines()]
     assert {"tick": 0, "type": "set_vitals_post", "health": 20.0,
             "food": 19} in events
+
+
+def test_packet_backed_mob_damage_is_seeded_before_regeneration(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 4.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 20.0, "food": 20}
+    ticks = [{"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 4.0,
+              "z": 0.5, "yaw": 0.0, "pitch": 0.0, "hp": 17.0,
+              "food": 20, "pvel": [-130, 2886, -3197], "ents": []}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 0, "type": "set_vitals", "health": 17.0,
+            "food": 20} in events
+    assert not any(event["type"] == "set_vitals_post" for event in events)
+
+
+def test_recorded_natural_regeneration_reconciles_hidden_timer(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 4.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 17.0, "food": 20}
+    ticks = [{"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 4.0,
+              "z": 0.5, "yaw": 0.0, "pitch": 0.0, "hp": 17.833334,
+              "food": 20, "sat": 5.0, "ents": []}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 0, "type": "set_regen_post", "health": 17.833334,
+            "food": 20, "exhaustion": 5.0} in events
 
 
 def test_dimension_loading_and_position_packet_become_typed_pose_events(tmp_path: Path):

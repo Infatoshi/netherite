@@ -56,6 +56,12 @@ static int collect_blocks(GmWorld *w, const McAABB *q, PcfBlock *out, int cap) {
 
 static float max_health(int type) { return type == EW_TYPE_ENDERMAN ? 40.0f : 20.0f; }
 
+/* EntityZombie.applyEntityAttributes sets ATTACK_DAMAGE=3.0. NORMAL leaves
+ * difficulty-scaled mob damage unchanged in EntityPlayer.attackEntityFrom. */
+static float melee_damage(int type) {
+    return type == EW_TYPE_ENDERMAN ? 7.0f : type == EW_TYPE_ZOMBIE ? 3.0f : 4.0f;
+}
+
 /* Vanilla followRange: zombie 40 (EntityZombie attribute), everything else base 16. */
 static double follow_range(int type) { return type == EW_TYPE_ZOMBIE ? 40.0 : 16.0; }
 
@@ -418,8 +424,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
             nx->ai_state[i]=EW_AI_ATTACK;nx->yaw[i]=ehs_yaw_toward(dx,dz);
             if(nx->attack_time[i]<=0){
-                float raw=type==EW_TYPE_ENDERMAN?7.0f:4.0f;
-                v->health-=raw;if(v->health<0)v->health=0;p->health=v->health;
+                pv_attack(v,melee_damage(type));p->health=v->health;
                 nx->attack_time[i]=20;
             }
         }else if(aggro){
