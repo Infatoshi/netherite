@@ -175,6 +175,7 @@ struct CrLight {
     LCell      *sq;           /* sky-light spread BFS queue, allocated once */
     size_t      sqcap;        /* capacity (power of two) */
     int         skylight_dirty;   /* recompute sky-light spread when terrain changed */
+    int         column_relight_dirty; /* bulk snapshot replaced column topology */
     long long   gen_events;       /* chunks generated; worldgen writes (population
                                      spill into neighbours) bypass set_block, so
                                      window-refill memos must fold this in */
@@ -654,6 +655,28 @@ void light_ensure(CrLight *L, int ccx, int ccz, int radius) {
     for (int cx = ccx - radius; cx <= ccx + radius; ++cx)
         for (int cz = ccz - radius; cz <= ccz + radius; ++cz)
             gen_chunk(L, cx, cz);
+    /* Snapshot patches carry blocks but not Chunk SkyLight nibble arrays. A
+     * whole-column replacement cannot be reproduced by treating its ordered
+     * cells as independent World.checkLightFor edits: the generic spread
+     * attenuates downward through air, while Chunk.generateSkylightMap keeps
+     * every direct-sky air cell at 15. Rebuild the vertical baseline once per
+     * bulk-load batch before applying the existing horizontal flood. */
+    if (L->column_relight_dirty) {
+        L->column_relight_dirty = 0;
+        if (L->has_sky) {
+            for (int i = 0; i < L->light_slots; ++i) {
+                LChunk *c = L->slots[i];
+                if (c && c->valid) { compute_skylight(L, c); c->sky_dirty = 1; }
+            }
+            L->skylight_dirty = 1;
+        } else {
+            for (int i = 0; i < L->light_slots; ++i) {
+                LChunk *c = L->slots[i];
+                if (c && c->valid) memset(c->sky, 0, sizeof(c->sky));
+            }
+            L->skylight_dirty = 0;
+        }
+    }
     compute_skylight_spread(L);
     compute_blocklight(L);
 }
@@ -732,6 +755,11 @@ void light_set_state(CrLight *L, int wx, int wy, int wz, uint16_t state) {
             if (y == WY) c->sky[i] = 15;
         }
     }
+}
+
+void light_load_state(CrLight *L, int wx, int wy, int wz, uint16_t state) {
+    light_set_state(L, wx, wy, wz, state);
+    if (L) L->column_relight_dirty = 1;
 }
 
 /* A grass/dirt removal queues Chunk.recheckGaps in vanilla. Its checkLightFor

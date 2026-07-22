@@ -279,7 +279,7 @@ void gm_world_set_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int met
 void gm_world_load_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int meta) {
     if (!w) return;
     int cx = wl_floordiv16(wx), cz = wl_floordiv16(wz);
-    light_set_state(w->light, wx, wy, wz, mc_state(id, meta));
+    light_load_state(w->light, wx, wy, wz, mc_state(id, meta));
     wl_mark_dirty(w, cx, cz);
     int lx = wx & 15, lz = wz & 15;
     if (lx == 0)  wl_mark_dirty(w, cx - 1, cz);

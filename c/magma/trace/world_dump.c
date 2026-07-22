@@ -13,7 +13,7 @@
  *     uint16 block[16*256*16] in index lx*4096 + lz*256 + y   (CB_INDEX order)
  *     int32  biome[16*16]     in index lx*16 + lz
  * Usage: world_dump --seed S --cx0 X --cz0 Z --ncx N --ncz M --out file.bin
- *                   [--prep-list bases.txt] [--states] [--world-type 0|2|3]
+ *                   [--prep-list bases.txt] [--states] [--world-type 0|1|2|3]
  * --states changes magic to CRWS and writes canonical packed vanilla state
  * (id<<4|meta) instead of compact renderer block ids. Biomes are unchanged.
  *
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
             world_type = atoi(argv[++i]);
         else { fprintf(stderr, "bad arg %s\n", argv[i]); return 2; }
     }
-    if (world_type != 0 && world_type != 2 && world_type != 3) {
+    if (world_type < 0 || world_type > 3) {
         fprintf(stderr, "bad world type %d\n", world_type); return 2;
     }
 

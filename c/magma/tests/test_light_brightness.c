@@ -59,12 +59,24 @@ int main(void) {
     /* High-value sentinels: dark Nether ambient and dark End ambient. */
     CrRgba nether0 = cr_lightmap_rgba8(cr_lightmap_rgb(-1, 0, 0, 0.2f, 0.0f, 0.0f));
     CrRgba end0 = cr_lightmap_rgba8(cr_lightmap_rgb(1, 0, 0, 1.0f, 0.0f, 0.0f));
+    CrRgba night0 = cr_lightmap_rgba8(cr_lightmap_rgb(0, 0, 0, 0.2f, 0.0f, 0.0f));
+    CrRgba night15 = cr_lightmap_rgba8(cr_lightmap_rgb(0, 15, 0, 0.2f, 0.0f, 0.0f));
     if (nether0.r != 52 || nether0.g != 42 || nether0.b != 35) {
         printf("FAIL: Nether dark texel got %u,%u,%u\n", nether0.r, nether0.g, nether0.b);
         fails++;
     }
     if (end0.r != 61 || end0.g != 76 || end0.b != 68) {
         printf("FAIL: End dark texel got %u,%u,%u\n", end0.r, end0.g, end0.b);
+        fails++;
+    }
+    if (night0.r != 14 || night0.g != 14 || night0.b != 14) {
+        printf("FAIL: overworld midnight sky-0 texel got %u,%u,%u\n",
+               night0.r, night0.g, night0.b);
+        fails++;
+    }
+    if (night15.r != 42 || night15.g != 42 || night15.b != 71) {
+        printf("FAIL: overworld midnight sky-15 texel got %u,%u,%u\n",
+               night15.r, night15.g, night15.b);
         fails++;
     }
     printf("checked %d table + %d RGB values against %s\n", ntable, nrgb, path);

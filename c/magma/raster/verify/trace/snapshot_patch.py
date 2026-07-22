@@ -150,7 +150,9 @@ def ensure_snapshot_patch(tape_path: str, header: dict, ticks: list[dict]) -> Pa
     temp = cache.with_suffix(cache.suffix + ".tmp.bin")
     with cache.open("w") as out:
         for dimension, tx, tz in sorted(tiles):
-            world_type = {-1: 2, 0: 0, 1: 3}[dimension]
+            overworld_type = (1 if str(header.get("world", "")).endswith("_flat")
+                              else 0)
+            world_type = {-1: 2, 0: overworld_type, 1: 3}[dimension]
             subprocess.run([
                 str(binary), "--seed", str(int(header["seed"])),
                 "--cx0", str(tx * 8), "--cz0", str(tz * 8),

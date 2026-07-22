@@ -14,7 +14,6 @@ Conventions (pixel-verified, see c/magma/game/view.h):
     convention (game/script.c -> gm_runtime_set_pose), so poses pass through
     unchanged. The camera eye sits 1.62 above feet on both sides.
 """
-import json
 import os
 import socket
 import subprocess
@@ -195,7 +194,7 @@ def diff_frame_py():
 def run_magma_script(script_path, ticks, frames_dir, state_out, w=854, h=480,
                        seed=0, extra_env=None, timeout=600,
                        frame_every=1, frame_offset=0, mobs=True,
-                       backend="cpu", daylight=True):
+                       backend="cpu", daylight=True, world="default"):
     """Run the magma game headlessly on a JSONL event script.
 
     backend="cuda" uses the magma_game_cuda binary (raster stage on the GPU,
@@ -217,7 +216,7 @@ def run_magma_script(script_path, ticks, frames_dir, state_out, w=854, h=480,
         env.setdefault("CUDA_VISIBLE_DEVICES", "1")
     if extra_env:
         env.update(extra_env)
-    cmd = [game, "--headless", "--world", "default", "--seed", str(seed),
+    cmd = [game, "--headless", "--world", world, "--seed", str(seed),
            "--ticks", str(ticks), "--width", str(w), "--height", str(h),
            "--script", script_path, "--state-out", state_out]
     if backend == "cuda":

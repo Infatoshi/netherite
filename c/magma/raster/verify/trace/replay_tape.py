@@ -116,6 +116,11 @@ def load_tape(path):
     return lines[0], lines[1:]
 
 
+def magma_world(header):
+    """Map the recorder world name to magma's matching Overworld generator."""
+    return "superflat" if str(header.get("world", "")).endswith("_flat") else "default"
+
+
 def snapshot_arrival_events(snapshot_patch, header, ticks, chunk_radius=1):
     """Reload saved blocks around authoritative cross-dimension arrivals.
 
@@ -590,6 +595,7 @@ def main():
     out = args.out or os.path.join(here, "out", f"tape_{name}")
     os.makedirs(out, exist_ok=True)
     header, ticks = load_tape(args.tape)
+    world = magma_world(header)
     print(f"[tape] {name}: {len(ticks)} ticks, seed {header['seed']}, "
           f"start ({header['x']:.2f},{header['y']:.2f},{header['z']:.2f}) "
           f"wt={header['world_time']}")
@@ -629,12 +635,13 @@ def main():
             ol.run_magma_script(scr, len(ticks), frames_npy, state,
                                   w=args.w, h=args.h, seed=int(header["seed"]),
                                   frame_every=every, frame_offset=offset,
-                                  mobs=False, backend=backend, daylight=False)
+                                  mobs=False, backend=backend, daylight=False,
+                                  world=world)
         else:
             ol.run_magma_script(scr, len(ticks), None, state,
                                   w=args.w, h=args.h,
                                   seed=int(header["seed"]), mobs=False,
-                                  daylight=False)
+                                  daylight=False, world=world)
     except RuntimeError as e:
         # A dead magma player stops consuming script events and the run exits
         # rc=2 ("event lies beyond --ticks"). The state written up to the death

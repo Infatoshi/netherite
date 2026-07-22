@@ -378,3 +378,9 @@ def test_texture_luminance_sidecar_does_not_suppress_marker_box():
     assert pixel_gate.frame_verdict(clusters)[0] is True
     assert any(cluster["cls"] == "UNEXPLAINED" and cluster["px"] >= 10_000
                for cluster in clusters)
+
+
+def test_recorded_flat_world_selects_superflat_generator():
+    assert replay_tape.magma_world({"world": "qrl_0_flat"}) == "superflat"
+    assert replay_tape.magma_world({"world": "qrl_0"}) == "default"
+    assert replay_tape.magma_world({}) == "default"

@@ -208,6 +208,16 @@ int main(void) {
     }
     check(mono, "sky light monotonically non-increasing going downward");
 
+    /* A tape snapshot is a block-only saved-chunk patch. Replacing a tall
+     * default-world column with superflat air in ascending Y order must rerun
+     * Chunk.generateSkylightMap: direct-sky air remains 15 all the way down,
+     * rather than attenuating one level per cell through the generic BFS. */
+    light_load_state(L, wx, 3, wz, (uint16_t)(2 << 4));
+    for (int y = 4; y < 256; ++y) light_load_state(L, wx, y, wz, 0);
+    light_ensure(L, 0, 0, 1);
+    check(light_sky(L, wx, 4, wz) == 15,
+          "bulk flat snapshot rebuilds direct skylight to 15 at the surface");
+
     /* Snapshot loads often change only leaf metadata (CHECK_DECAY). The stored
      * skylight must survive that load; seeding the cell with 15 makes a canopy
      * one light level too bright. Opacity changes are rebuilt from neighbours,
