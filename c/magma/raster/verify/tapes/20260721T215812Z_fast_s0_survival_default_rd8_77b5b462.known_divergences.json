@@ -72,6 +72,13 @@
       "predicate": {"type": "texture_luminance_modulation", "max_chroma_delta": 0.15}
     },
     {
+      "ticks": [3160, 3160],
+      "open_divergence": 40,
+      "reason": "Oak break burst: oracle-only ParticleDigging chunks fly over the dug patch and canopy; magma renders no particles. Surfaced once foliage skylight matched (the residual previously hid inside the oracle-brighter heuristic class).",
+      "regions": [[0, 90, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
       "ticks": [3180, 3200],
       "open_divergence": 14,
       "reason": "The bounded post-break target area contains hue-preserving block-hit debris/underlay modulation; magma has no block-hit particle state.",

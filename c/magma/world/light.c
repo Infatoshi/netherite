@@ -629,7 +629,7 @@ static void compute_skylight_spread(CrLight *L) {
             LChunk *nc = chunk_of(L, nx, nz);
             if (!nc) continue;
             int ni = CB_INDEX(nx & 15, ny, nz & 15);
-            int nl = curv - sky_op(nc->block[ni]);
+            int nl = curv - sky_op(nc->state[ni]);
             if (nl > nc->sky[ni]) {
                 nc->sky[ni] = (u8)nl;
                 SPUSH(nx, ny, nz);
