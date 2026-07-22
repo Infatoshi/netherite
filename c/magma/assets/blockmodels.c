@@ -52,7 +52,10 @@ enum {
     CBX_CRAFTING_TABLE = 223,
     /* vanilla planks (all species share the oak sprite for now) */
     CBX_PLANKS = 224,
-    CBX_MAX = 225
+    /* polished BlockStone metas 2/4/6 (fixed, non-random blockstate models) */
+    CBX_GRANITE_SMOOTH = 225, CBX_DIORITE_SMOOTH = 226,
+    CBX_ANDESITE_SMOOTH = 227,
+    CBX_MAX = 228
 };
 
 /* Face order is BM_DOWN, BM_UP, BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST. */
@@ -146,6 +149,9 @@ static const BmBlock g_blocks[CBX_MAX] = {
     [PB_GRANITE]      = CUBE6(CR_SPRITE_STONE_GRANITE, BM_TINT_NONE),
     [PB_DIORITE]      = CUBE6(CR_SPRITE_STONE_DIORITE, BM_TINT_NONE),
     [PB_ANDESITE]     = CUBE6(CR_SPRITE_STONE_ANDESITE, BM_TINT_NONE),
+    [CBX_GRANITE_SMOOTH]  = CUBE6(CR_SPRITE_STONE_GRANITE_SMOOTH, BM_TINT_NONE),
+    [CBX_DIORITE_SMOOTH]  = CUBE6(CR_SPRITE_STONE_DIORITE_SMOOTH, BM_TINT_NONE),
+    [CBX_ANDESITE_SMOOTH] = CUBE6(CR_SPRITE_STONE_ANDESITE_SMOOTH, BM_TINT_NONE),
     [PB_COAL_ORE]     = CUBE6(CR_SPRITE_COAL_ORE, BM_TINT_NONE),
     [PB_IRON_ORE]     = CUBE6(CR_SPRITE_IRON_ORE, BM_TINT_NONE),
     [PB_GOLD_ORE]     = CUBE6(CR_SPRITE_GOLD_ORE, BM_TINT_NONE),
@@ -325,7 +331,8 @@ static int bm_is_modeled(int id)
     case CBX_GLOWSTONE: case CBX_SOUL_SAND: case CBX_END_FRAME: case CBX_QUARTZ_ORE:
     case CBX_BROWN_MUSHROOM: case CBX_RED_MUSHROOM: case CBX_MAGMA:
     case CBX_IRON_BARS: case CBX_TORCH: case CBX_CRAFTING_TABLE:
-    case CBX_PLANKS:
+    case CBX_PLANKS: case CBX_GRANITE_SMOOTH: case CBX_DIORITE_SMOOTH:
+    case CBX_ANDESITE_SMOOTH:
         return 1;
     default:
         if (id >= CB_STAINED_CLAY_BASE && id < CB_STAINED_CLAY_BASE + 16) return 1;

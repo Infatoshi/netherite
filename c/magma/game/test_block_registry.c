@@ -82,6 +82,9 @@ static void test_collision_barrier(void) {
     CHECK(gm_state_to_model_key(gm_pack_state(17, 0)) == 31, "oak log reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(49, 0)) == 89, "obsidian reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(58, 0)) == 223, "crafting table reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(1, 2)) == 225, "polished granite reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(1, 4)) == 226, "polished diorite reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(1, 6)) == 227, "polished andesite reverse map");
     for (int m = 0; m <= 5; ++m)
         CHECK(gm_state_to_model_key(gm_pack_state(5, m)) == 224, "planks (any species) -> CBX_PLANKS");
     CHECK(gm_state_to_model_key(gm_pack_state(31, 1)) == 39, "tallgrass meta1 -> PB_TALLGRASS");
@@ -97,6 +100,18 @@ static void test_collision_barrier(void) {
         CHECK(gm_state_id(st) == 38 && gm_state_meta(st) == 8, "oxeye key 59 -> 38:8");
         CHECK(gm_model_key_to_state(224, 3, &st) == GM_MAP_EXACT, "planks key supported");
         CHECK(gm_state_id(st) == 5 && gm_state_meta(st) == 3, "planks key 224 -> id 5, meta kept");
+        CHECK(gm_model_key_to_state(225, 0, &st) == GM_MAP_EXACT,
+              "polished granite key supported");
+        CHECK(gm_state_id(st) == 1 && gm_state_meta(st) == 2,
+              "polished granite key -> id 1 meta 2");
+        CHECK(gm_model_key_to_state(226, 0, &st) == GM_MAP_EXACT,
+              "polished diorite key supported");
+        CHECK(gm_state_id(st) == 1 && gm_state_meta(st) == 4,
+              "polished diorite key -> id 1 meta 4");
+        CHECK(gm_model_key_to_state(227, 0, &st) == GM_MAP_EXACT,
+              "polished andesite key supported");
+        CHECK(gm_state_id(st) == 1 && gm_state_meta(st) == 6,
+              "polished andesite key -> id 1 meta 6");
     }
 }
 

@@ -130,6 +130,9 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         case 222: id = 50; meta = raw_meta; break;/* torch */
         case 223: id = 58; break;                 /* crafting table */
         case 224: id = 5; meta = raw_meta & 7; break; /* planks (species in meta) */
+        case 225: id = 1; meta = 2; break;        /* polished granite */
+        case 226: id = 1; meta = 4; break;        /* polished diorite */
+        case 227: id = 1; meta = 6; break;        /* polished andesite */
         default: break;
     }
 
@@ -160,8 +163,11 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 0: return 0;
         case 1:
             if ((meta & 7) == 1) return 21;
+            if ((meta & 7) == 2) return 225;
             if ((meta & 7) == 3) return 22;
+            if ((meta & 7) == 4) return 226;
             if ((meta & 7) == 5) return 23;
+            if ((meta & 7) == 6) return 227;
             return 1;
         case 2: return 3;
         case 3: return (meta & 3) == 2 ? 19 : (meta & 3) == 1 ? 20 : 4;
