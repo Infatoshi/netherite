@@ -219,6 +219,26 @@ int main(void) {
         for (int i = 0; i < W * H; ++i) if (fb.color[i].a) dirt_px++;
         CHECK(dirt_px > 20, "dirt iso fills many pixels");
 
+        /* RenderItem rasterizes after the scaled-GUI matrix reaches the real
+         * framebuffer. A scale-2 icon must therefore not be a nearest-neighbor
+         * enlargement made of uniform 2x2 cells. */
+        memset(fb.color, 0, (size_t)W * H * sizeof(CrRgba));
+        CHECK(gm_item_draw_block_icon(&fb, 3, 0, 0, 0, 2),
+              "scale-2 dirt iso icon draws");
+        int physical_raster = 0;
+        for (int y = 0; y < H; y += 2) {
+            for (int x = 0; x < W; x += 2) {
+                CrRgba a = fb.color[y * W + x];
+                for (int yy = 0; yy < 2; ++yy)
+                    for (int xx = 0; xx < 2; ++xx) {
+                        CrRgba b = fb.color[(y + yy) * W + x + xx];
+                        physical_raster |= a.r != b.r || a.g != b.g ||
+                                           a.b != b.b || a.a != b.a;
+                    }
+            }
+        }
+        CHECK(physical_raster, "scale-2 icon rasterizes on physical pixel grid");
+
         memset(fb.color, 0, (size_t)W * H * sizeof(CrRgba));
         CHECK(gm_item_draw_block_icon(&fb, 4, 0, 0, 0, 1), "cobble iso icon draws");
         int cobble_px = 0;

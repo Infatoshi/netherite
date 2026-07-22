@@ -31,6 +31,7 @@
 #include "world/lightmap.h"
 
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define IR_CUBE_VERTS 36  /* 6 faces * 2 tris * 3 verts */
@@ -508,12 +509,15 @@ CrTexture gm_item_atlas(void) {
  * faces with RenderHelper's standard GUI lighting, sample terrain (or a single
  * gui-atlas tile for blocks without a model key).
  *
- * Allocate-once 16x16 buffers; nearest-scale blit into the framebuffer.
+ * Grow-on-demand buffers rasterize at 16 * GUI scale, matching the physical
+ * pixel grid used by OpenGL instead of scaling a completed 16x16 bake.
  * ========================================================================= */
 
-#define ICON_N 16
-static CrRgba g_icon_rgba[ICON_N * ICON_N];
-static float  g_icon_z[ICON_N * ICON_N];
+#define ICON_GUI_N 16
+static CrRgba *g_icon_rgba;
+static float  *g_icon_z;
+static int     g_icon_n;
+static int     g_icon_capacity;
 
 /* Fixed-function RenderHelper.enableGUIStandardItemLighting after its
  * Ry(-30)*Rx(165) light setup, the GUI y-flip, and block.json's
@@ -541,11 +545,24 @@ typedef struct {
     int x0, y0, w, h, stride; /* sprite rect; stride in texels */
 } IrIconTex;
 
-static void ir_icon_clear(void) {
-    for (int i = 0; i < ICON_N * ICON_N; ++i) {
+static int ir_icon_clear(int scale) {
+    int n = ICON_GUI_N * scale;
+    int pixels = n * n;
+    if (pixels > g_icon_capacity) {
+        CrRgba *rgba = realloc(g_icon_rgba, (size_t)pixels * sizeof *rgba);
+        if (!rgba) return 0;
+        g_icon_rgba = rgba;
+        float *z = realloc(g_icon_z, (size_t)pixels * sizeof *z);
+        if (!z) return 0;
+        g_icon_z = z;
+        g_icon_capacity = pixels;
+    }
+    g_icon_n = n;
+    for (int i = 0; i < pixels; ++i) {
         g_icon_rgba[i] = (CrRgba){0, 0, 0, 0};
         g_icon_z[i] = -1e30f;
     }
+    return 1;
 }
 
 /* GUI display: Ry(225) then Rx(30) (GL call order: Rx then Ry => v' = Rx*Ry*v),
@@ -561,9 +578,9 @@ static void ir_icon_xform(float x, float y, float z,
     float y2 = y1 * cx - z1 * sxr;
     float z2 = y1 * sxr + z1 * cx;
     float x2 = x1;
-    const float s = 10.0f; /* 0.625 * 16 */
-    *sx = 8.0f + s * x2;
-    *sy = 8.0f - s * y2;   /* GUI y-flip */
+    const float s = 0.625f * (float)g_icon_n;
+    *sx = 0.5f * (float)g_icon_n + s * x2;
+    *sy = 0.5f * (float)g_icon_n - s * y2; /* GUI y-flip */
     *sz = z2;
 }
 
@@ -600,9 +617,9 @@ static void ir_icon_tri(float x0, float y0, float z0, float u0, float v0,
     int miny = (int)floorf(fminf(y0, fminf(y1, y2)));
     int maxy = (int)ceilf (fmaxf(y0, fmaxf(y1, y2)));
     if (minx < 0) minx = 0;
-    if (maxx > ICON_N - 1) maxx = ICON_N - 1;
+    if (maxx > g_icon_n - 1) maxx = g_icon_n - 1;
     if (miny < 0) miny = 0;
-    if (maxy > ICON_N - 1) maxy = ICON_N - 1;
+    if (maxy > g_icon_n - 1) maxy = g_icon_n - 1;
     float area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
     if (fabsf(area) < 1e-8f) return;
     float inv = 1.0f / area;
@@ -614,7 +631,7 @@ static void ir_icon_tri(float x0, float y0, float z0, float u0, float v0,
             float w2 = ((x0 - cx) * (y1 - cy) - (x1 - cx) * (y0 - cy)) * inv;
             if (w0 < 0.f || w1 < 0.f || w2 < 0.f) continue;
             float z = w0 * z0 + w1 * z1 + w2 * z2;
-            int i = py * ICON_N + px;
+            int i = py * g_icon_n + px;
             if (z < g_icon_z[i]) continue;   /* farther from camera */
             float u = w0 * u0 + w1 * u1 + w2 * u2;
             float v = w0 * v0 + w1 * v1 + w2 * v2;
@@ -643,27 +660,22 @@ static void ir_icon_face(const int corners[4][3], const float cuv[4][2],
                 tex, shade, tint);
 }
 
-/* Alpha-composite the finished 16x16 icon into fb at (dx,dy) * scale. */
-static void ir_icon_blit(CrFramebuffer *fb, int dx, int dy, int scale) {
-    if (!fb || !fb->color || scale < 1) return;
-    for (int sy = 0; sy < ICON_N; ++sy) {
-        for (int sx = 0; sx < ICON_N; ++sx) {
-            CrRgba src = g_icon_rgba[sy * ICON_N + sx];
+/* Alpha-composite the framebuffer-resolution icon into fb at (dx,dy). */
+static void ir_icon_blit(CrFramebuffer *fb, int dx, int dy) {
+    if (!fb || !fb->color) return;
+    for (int sy = 0; sy < g_icon_n; ++sy) {
+        for (int sx = 0; sx < g_icon_n; ++sx) {
+            CrRgba src = g_icon_rgba[sy * g_icon_n + sx];
             if (src.a == 0) continue;
-            int px0 = dx + sx * scale, py0 = dy + sy * scale;
-            for (int yy = 0; yy < scale; ++yy) {
-                for (int xx = 0; xx < scale; ++xx) {
-                    int x = px0 + xx, y = py0 + yy;
-                    if (x < 0 || y < 0 || x >= fb->w || y >= fb->h) continue;
-                    CrRgba *d = &fb->color[y * fb->w + x];
-                    if (src.a == 255) { *d = src; continue; }
-                    int a = src.a, ia = 255 - a;
-                    d->r = (u8)((src.r * a + d->r * ia + 127) / 255);
-                    d->g = (u8)((src.g * a + d->g * ia + 127) / 255);
-                    d->b = (u8)((src.b * a + d->b * ia + 127) / 255);
-                    d->a = (u8)(a + (d->a * ia + 127) / 255);
-                }
-            }
+            int x = dx + sx, y = dy + sy;
+            if (x < 0 || y < 0 || x >= fb->w || y >= fb->h) continue;
+            CrRgba *d = &fb->color[y * fb->w + x];
+            if (src.a == 255) { *d = src; continue; }
+            int a = src.a, ia = 255 - a;
+            d->r = (u8)((src.r * a + d->r * ia + 127) / 255);
+            d->g = (u8)((src.g * a + d->g * ia + 127) / 255);
+            d->b = (u8)((src.b * a + d->b * ia + 127) / 255);
+            d->a = (u8)(a + (d->a * ia + 127) / 255);
         }
     }
 }
@@ -691,7 +703,7 @@ static int ir_gui_icon_sprite(int item_id) {
 
 int gm_item_draw_block_icon(CrFramebuffer *fb, int item_id, int item_meta,
                             int dx, int dy, int scale) {
-    if (item_id <= 0 || item_id > 255) return 0; /* not a block id */
+    if (item_id <= 0 || item_id > 255 || scale < 1) return 0; /* not a block id */
     const BmBlock *m = ir_block_model(item_id, item_meta);
     /* Cross / non-cube models stay flat (torch etc.). */
     if (m && m->kind != BM_KIND_CUBE && m->kind != BM_KIND_SLAB_BOTTOM &&
@@ -699,7 +711,7 @@ int gm_item_draw_block_icon(CrFramebuffer *fb, int item_id, int item_meta,
         m->kind != BM_KIND_CACTUS && m->kind != BM_KIND_SNOW_LAYER)
         return 0;
 
-    ir_icon_clear();
+    if (!ir_icon_clear(scale)) return 0;
 
     if (m && m->kind == BM_KIND_CUBE) {
         for (int f = 0; f < 6; ++f) {
@@ -727,9 +739,9 @@ int gm_item_draw_block_icon(CrFramebuffer *fb, int item_id, int item_meta,
 
     /* Did we actually draw anything? */
     int any = 0;
-    for (int i = 0; i < ICON_N * ICON_N; ++i)
+    for (int i = 0; i < g_icon_n * g_icon_n; ++i)
         if (g_icon_rgba[i].a) { any = 1; break; }
     if (!any) return 0;
-    if (fb) ir_icon_blit(fb, dx, dy, scale);
+    if (fb) ir_icon_blit(fb, dx, dy);
     return 1;
 }
