@@ -25,6 +25,14 @@ int main(void) {
     char err[256];
     CHECK(gm_runtime_init(&r, &cfg, err, sizeof err), "runtime initializes");
     if (fail) return 1;
+    {
+        GmPlayerCtlSnap ctl;memset(&ctl,0,sizeof ctl);ctl.hurt_vel_reset=1;
+        gm_player_ctl_dig_import(&ctl);
+        gm_player_clear_inferred_hurt_velocity();
+        gm_player_ctl_dig_export(&ctl);
+        CHECK(!ctl.hurt_vel_reset,
+              "recorded EntityTracker velocity clears inferred fall resend");
+    }
     CHECK(isr_hotbar_total(&r.player.inv) + isr_main_total(&r.player.inv) == 0,
           "authoritative runtime starts with empty inventory");
     CHECK(gm_runtime_tape_inventory(&r,0,17,2,0),"tape inventory accepts hotbar stack");

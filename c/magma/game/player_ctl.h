@@ -40,6 +40,9 @@ void gm_player_dig_reset(void);
 /* Apply an authoritative SPacketEntityVelocity and supersede any locally
  * inferred damage-packet reset queued for this tick. */
 void gm_player_set_packet_velocity(struct PsvPlayer *pl, double x, double y, double z);
+/* A velocity-packet tape supplies EntityTracker's authoritative resend. Drop
+ * a locally inferred pre-packet reset without changing current motion. */
+void gm_player_clear_inferred_hurt_velocity(void);
 /* Dig target (window-local coords) + damage 0..1; returns 0 when not digging. */
 int  gm_player_dig_state(int *lx, int *ly, int *lz, float *progress);
 

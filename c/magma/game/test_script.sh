@@ -144,6 +144,32 @@ rg -q '"dim":-1' /tmp/magma-tape-dimension-state.jsonl
 rg -q '"health":17' /tmp/magma-tape-dimension-state.jsonl
 rg -q '"food":19' /tmp/magma-tape-dimension-state.jsonl
 
+# FoodStats.onUpdate can run before the integrated-server health packet is
+# visible to a client-tick tape. Hold the early visible heal, then expose it
+# without applying its exhaustion/timer side effects a second time.
+: >/tmp/magma-regen-hold.jsonl
+printf '%s\n' \
+	'{"tick":0,"type":"set_vitals","health":14,"food":20}' \
+	'{"tick":0,"type":"set_food_stats_post","saturation":3,"exhaustion":0}' \
+	>>/tmp/magma-regen-hold.jsonl
+for t in $(seq 1 9); do
+	printf '{"tick":%d,"type":"hold_regen_post"}\n' "$t" \
+		>>/tmp/magma-regen-hold.jsonl
+done
+printf '%s\n' \
+	'{"tick":10,"type":"set_regen_post","health":14.5,"food":20,"exhaustion":3}' \
+	>>/tmp/magma-regen-hold.jsonl
+./magma_game --headless --ticks 20 --script /tmp/magma-regen-hold.jsonl \
+	--state-out /tmp/magma-regen-hold-state.jsonl --render off --pace unlimited
+uv run --no-project python - <<'PY'
+import json
+rows = [json.loads(line) for line in open(
+    "/tmp/magma-regen-hold-state.jsonl", encoding="utf-8")]
+assert rows[9]["health"] == 14.0, rows[9]
+assert rows[10]["health"] == 14.5, rows[10]
+assert rows[19]["health"] == 15.0, rows[19]
+PY
+
 # Loading-terrain pose truth is applied after physics, including velocity,
 # on-ground, and fall distance, so the state row matches the frozen client.
 printf '%s\n' \

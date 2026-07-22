@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "divergences": [
+    {
+      "ticks": [284, 288],
+      "open_divergence": 40,
+      "reason": "The recorded EntityAreaEffectCloud emits client-side DRAGON_BREATH particles whose per-particle RNG, age, velocity, and collision state are absent from the tape.",
+      "regions": [[45, 0, 383, 444]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [496, 512],
+      "open_divergence": 40,
+      "reason": "The recorded EntityAreaEffectCloud emits client-side DRAGON_BREATH particles whose per-particle RNG, age, velocity, and collision state are absent from the tape.",
+      "regions": [[45, 0, 383, 500], [45, 480, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [556, 556],
+      "open_divergence": 40,
+      "reason": "The recorded EntityAreaEffectCloud emits client-side DRAGON_BREATH particles whose per-particle RNG, age, velocity, and collision state are absent from the tape.",
+      "regions": [[300, 0, 383, 240]],
+      "predicate": {"type": "non_solid_scene"}
+    }
+  ]
+}

@@ -709,6 +709,10 @@ void gm_player_set_packet_velocity(struct PsvPlayer *opaque,
     s_hurt_vel_reset=0;
 }
 
+void gm_player_clear_inferred_hurt_velocity(void) {
+    s_hurt_vel_reset=0;
+}
+
 void gm_player_ctl_dig_export(GmPlayerCtlSnap *out) {
     out->dig_progress   = s_dig_progress;
     out->dig_hx         = s_dig_hx;

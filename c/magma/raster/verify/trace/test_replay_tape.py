@@ -203,6 +203,64 @@ def test_recorded_natural_regeneration_reconciles_hidden_timer(tmp_path: Path):
             "food": 20, "exhaustion": 5.0} in events
 
 
+def test_stable_saturated_health_holds_early_server_regen(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 4.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 14.0, "food": 20}
+    ticks = [{"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 4.0,
+              "z": 0.5, "yaw": 0.0, "pitch": 0.0, "hp": 14.0,
+              "food": 20, "sat": 3.0, "ents": []}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 0, "type": "hold_regen_post"} in events
+
+
+def test_stable_unsaturated_health_holds_early_server_regen(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 4.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 14.0, "food": 19}
+    ticks = [{"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 4.0,
+              "z": 0.5, "yaw": 0.0, "pitch": 0.0, "hp": 14.0,
+              "food": 19, "ents": []}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 0, "type": "hold_regen_post"} in events
+
+
+def test_recorded_landing_defers_inferred_velocity_resend(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 14.0, "food": 20, "og": 0, "velocity_packets": 1}
+    base = {"in": {"f": 0, "s": 0}, "x": 0.5, "z": 0.5,
+            "yaw": 0.0, "pitch": 0.0, "hp": 14.0, "food": 20,
+            "ents": []}
+    ticks = [
+        {**base, "t": 0, "y": 63.0, "og": 0, "fall": 4.5},
+        {**base, "t": 1, "y": 62.0, "og": 1, "fall": 0.0},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 1, "type": "clear_hurt_velocity_post"} in events
+    assert {"tick": 1, "type": "hold_fall_damage_post"} in events
+
+
+def test_movement_start_uses_same_tick_look_change(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 64.0, "z": 0.5, "yaw": -0.45,
+              "pitch": -10.15, "hp": 20.0, "food": 20}
+    ticks = [{"t": 0, "in": {"f": 0, "s": 1}, "x": 0.5, "y": 64.0,
+              "z": 0.5, "yaw": 0.15, "pitch": -10.6, "hp": 20.0,
+              "food": 20, "ents": []}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 0, "type": "set_look_pre", "yaw": 0.15,
+            "pitch": -10.6} in events
+
+
 def test_recorded_saturation_zero_switches_foodstats_branch(tmp_path: Path):
     header = {"header": 1, "seed": 0, "world_time": 6000,
               "x": 0.5, "y": 64.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,

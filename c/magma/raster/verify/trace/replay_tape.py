@@ -297,6 +297,11 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
         last_hp = float(header.get("hp", 20.0))
         last_food = int(header.get("food", 20))
         last_sat = None
+        last_og = int(header.get("og", 0))
+        last_fall = float(header.get("fall", 0.0))
+        last_yaw = float(header.get("yaw", 0.0))
+        last_pitch = float(header.get("pitch", 0.0))
+        last_move = False
         has_sat = any("sat" in tape_row for tape_row in ticks)
         pending_inv = []
         velocity_ticks = {int(row["t"]) for row in ticks if "pvel" in row}
@@ -331,7 +336,12 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
             for event in arrival_events.get(t, []):
                 f.write(json.dumps(event) + "\n")
             i = row["in"]
-            f.write(json.dumps({"tick": t, "type": "set_look",
+            move_now = bool(sgn(i["f"]) or sgn(i["s"]))
+            look_changed = (float(row["yaw"]) != last_yaw
+                            or float(row["pitch"]) != last_pitch)
+            look_type = ("set_look_pre" if move_now and not last_move
+                         and look_changed else "set_look")
+            f.write(json.dumps({"tick": t, "type": look_type,
                                 "yaw": row["yaw"], "pitch": row["pitch"]}) + "\n")
             # Authoritative SPacketEntityVelocity delivered to the local
             # player before this client tick. New tapes record raw packet
@@ -418,6 +428,27 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                 # windows, fall/hunger/regen remain independently compared.
                 f.write(json.dumps({"tick": t, "type": "set_vitals_post",
                                     "health": hp, "food": food}) + "\n")
+            if hp == last_hp and hp < 20.0 and food >= 18:
+                # FoodStats is server-side, while tape rows are client ticks.
+                # If either local regeneration branch reaches its foodTimer
+                # threshold before SPacketUpdateHealth is visible, hide only
+                # that positive health edge. The script runtime retains the
+                # already-applied exhaustion and timer reset for the later
+                # recorded health event.
+                f.write(json.dumps({"tick": t,
+                                    "type": "hold_regen_post"}) + "\n")
+            og = int(row.get("og", last_og))
+            fall = float(row.get("fall", 0.0))
+            if (header.get("velocity_packets") and og and not last_og
+                    and last_fall > 3.0):
+                # The local fall calculation can precede the integrated
+                # server's recorded EntityTracker velocity resend by several
+                # client ticks. Keep the taped current motion until the later
+                # set_packet_velocity event supplies the authoritative value.
+                f.write(json.dumps({"tick": t,
+                                    "type": "clear_hurt_velocity_post"}) + "\n")
+                f.write(json.dumps({"tick": t,
+                                    "type": "hold_fall_damage_post"}) + "\n")
             if has_sat:
                 # The recorder omits saturation once it reaches exactly zero.
                 # Preserve its post-tick transitions so FoodStats switches from
@@ -435,6 +466,9 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                         "exhaustion": 0.0}) + "\n")
                     last_sat = sat
             last_hp, last_food = hp, food
+            last_og, last_fall = og, fall
+            last_yaw, last_pitch = float(row["yaw"]), float(row["pitch"])
+            last_move = move_now
             ev = {"tick": t, "type": "action"}
             # tape f/s are MC's already-scaled movementInput values (sneak 0.3,
             # use-item 0.2 folded in); magma applies its own scaling from the

@@ -354,6 +354,10 @@ int gm_script_run(const GmConfig *cfg) {
     }
     char line[2048] = {0}; long line_no = 0; JlObject pending; int have = 0;
     long long pending_tick = -1;
+    /* Saturated FoodStats regeneration is server-side, but tape rows are
+     * client ticks. Preserve an early local heal's hidden exhaustion/timer
+     * effects while deferring its visible health until the recorded packet. */
+    float held_regen = 0.0f;
     /* MAGMA_STATE_PROF: per-tick world-edit rate. gm_world_block_gen counts
      * every block edit (set_block_meta + populate gen events), so its per-tick
      * delta = journal entries/tick for a dirty-edit journal. Baseline taken
@@ -373,6 +377,9 @@ int gm_script_run(const GmConfig *cfg) {
         int have_vitals_post = 0; double vitals_health = 20.0; long long vitals_food = 20;
         int have_regen_post = 0; double regen_health = 20.0, regen_exhaustion = 0.0;
         long long regen_food = 20;
+        int have_hold_regen_post = 0;
+        int clear_hurt_velocity_post = 0;
+        int hold_fall_damage_post = 0;
         int have_food_stats_post = 0;
         double food_stats_saturation = 5.0, food_stats_exhaustion = 0.0;
         int have_pose_post = 0, pose_on_ground = 0;
@@ -425,6 +432,15 @@ int gm_script_run(const GmConfig *cfg) {
                  * one tick early (accel fit: oracle 0.070711 = yaw 0, magma
                  * 0.086603 = yaw -15). */
                 have_look = 1; look_yaw = yaw; look_pitch = pitch;
+            } else if (!strcmp(type,"set_look_pre")) {
+                double yaw,pitch;
+                static const char *const keys[]={"tick","type","yaw","pitch"};
+                if(!keys_only(&pending,keys,4,err,sizeof err)||
+                   !as_double(field(&pending,"yaw"),&yaw)||
+                   !as_double(field(&pending,"pitch"),&pitch)){
+                    fprintf(stderr,"script:%ld: invalid set_look_pre\n",line_no);goto bad;
+                }
+                gm_runtime_set_look(&r,(float)yaw,(float)pitch);
             } else if (!strcmp(type,"set_pose_post")) {
                 long long og;
                 static const char *const keys[]={"tick","type","x","y","z","yaw","pitch",
@@ -453,6 +469,7 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid set_vitals\n",line_no); goto bad;
                 }
                 gm_runtime_set_vitals(&r,(float)health,(int)food);
+                held_regen=0.0f;
             } else if (!strcmp(type,"set_vitals_post")) {
                 static const char *const keys[]={"tick","type","health","food"};
                 if(!keys_only(&pending,keys,4,err,sizeof err)||
@@ -473,6 +490,24 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid set_regen_post\n",line_no);goto bad;
                 }
                 have_regen_post=1;
+            } else if (!strcmp(type,"hold_regen_post")) {
+                static const char *const keys[]={"tick","type"};
+                if(!keys_only(&pending,keys,2,err,sizeof err)){
+                    fprintf(stderr,"script:%ld: invalid hold_regen_post\n",line_no);goto bad;
+                }
+                have_hold_regen_post=1;
+            } else if (!strcmp(type,"clear_hurt_velocity_post")) {
+                static const char *const keys[]={"tick","type"};
+                if(!keys_only(&pending,keys,2,err,sizeof err)){
+                    fprintf(stderr,"script:%ld: invalid clear_hurt_velocity_post\n",line_no);goto bad;
+                }
+                clear_hurt_velocity_post=1;
+            } else if (!strcmp(type,"hold_fall_damage_post")) {
+                static const char *const keys[]={"tick","type"};
+                if(!keys_only(&pending,keys,2,err,sizeof err)){
+                    fprintf(stderr,"script:%ld: invalid hold_fall_damage_post\n",line_no);goto bad;
+                }
+                hold_fall_damage_post=1;
             } else if (!strcmp(type,"set_food_stats_post")) {
                 static const char *const keys[]={"tick","type","saturation","exhaustion"};
                 if(!keys_only(&pending,keys,4,err,sizeof err)||
@@ -863,7 +898,10 @@ int gm_script_run(const GmConfig *cfg) {
             } else { fprintf(stderr,"script:%ld: unknown or forbidden type: %s\n",line_no,type); goto bad; }
             have=0;
         }
+        float health_before_tick=r.vitals.health;
+        int food_before_tick=r.vitals.foodLevel;
         gm_runtime_tick(&r,action);
+        if(clear_hurt_velocity_post)gm_player_clear_inferred_hurt_velocity();
         if (prof_on) {
             long long bg = gm_world_block_gen(r.world), d = bg - prof_last;
             if (d < 0) d = 0;   /* dimension switch swapped in a fresh world */
@@ -877,12 +915,35 @@ int gm_script_run(const GmConfig *cfg) {
                 (float)pose_yaw,(float)pose_pitch,pose_vx,pose_vy,pose_vz,
                 pose_on_ground,(float)pose_fall);
         if (have_look) gm_runtime_set_look(&r,(float)look_yaw,(float)look_pitch);
-        if (have_vitals_post)
+        if(hold_fall_damage_post &&
+           r.vitals.health < health_before_tick-1e-6f)
+            gm_runtime_set_vitals(&r,health_before_tick,r.vitals.foodLevel);
+        if (have_hold_regen_post &&
+            r.vitals.health > health_before_tick + 1e-6f) {
+            held_regen += r.vitals.health-health_before_tick;
+            gm_runtime_set_vitals(&r,health_before_tick,r.vitals.foodLevel);
+        }
+        if(have_hold_regen_post&&held_regen>0.0f&&
+           r.vitals.foodLevel<food_before_tick)
+            gm_runtime_set_vitals(&r,r.vitals.health,food_before_tick);
+        if (have_vitals_post) {
+            if(r.vitals.health+1e-6f<(float)vitals_health&&held_regen>0.0f){
+                float visible=(float)vitals_health-r.vitals.health;
+                held_regen=held_regen>visible?held_regen-visible:0.0f;
+            }
             gm_runtime_set_vitals(&r,(float)vitals_health,(int)vitals_food);
+        }
         if (have_regen_post) {
             if (r.vitals.health + 1e-6f < (float)regen_health) {
-                pv_add_exhaustion(&r.vitals,(float)regen_exhaustion);
-                r.vitals.foodTimer=0;
+                float visible=(float)regen_health-r.vitals.health;
+                if (held_regen + 1e-6f >= visible) {
+                    held_regen-=visible;
+                    if(held_regen<1e-6f)held_regen=0.0f;
+                } else {
+                    held_regen=0.0f;
+                    pv_add_exhaustion(&r.vitals,(float)regen_exhaustion);
+                    r.vitals.foodTimer=0;
+                }
             }
             gm_runtime_set_vitals(&r,(float)regen_health,(int)regen_food);
         }
