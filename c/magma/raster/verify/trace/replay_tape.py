@@ -609,6 +609,9 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                     "creative": int(header.get("gamemode") ==
                                                     "creative"),
                                     "hurt": int(row.get("hurt", 0)),
+                                    "max_hurt": int(row.get("maxhurt", 10)),
+                                    "hurt_yaw": float(row.get("hurtyaw", 0.0)),
+                                    "attack_cooldown": float(row.get("cd", 1.0)),
                                     # Physics remains frozen until the player is
                                     # loaded, but the brown loading screen is
                                     # visible only while this GUI is actually
@@ -617,6 +620,12 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                     "loading": (1 if row.get("gui") ==
                                                 "GuiDownloadTerrain" else
                                                 2 if row.get("loading") else 0)}) + "\n")
+                f.write(json.dumps({"tick": t, "type": "potion_clear"}) + "\n")
+                for potion_id, amplifier, duration in row.get("pots", []):
+                    f.write(json.dumps({"tick": t, "type": "potion_view",
+                                        "id": int(potion_id),
+                                        "amplifier": int(amplifier),
+                                        "duration": int(duration)}) + "\n")
             # ghost pushers near the oracle player (push reach is ~1.5 blocks;
             # 4 gives slack for magma-vs-oracle drift within tolerance)
             for e in row.get("ents", []):

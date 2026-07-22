@@ -15,6 +15,8 @@ Sprite coords are the well-known GuiIngame constants for 1.11.2:
                 heart bg (16,0), flashing bg (25,0),
                       full (52,0), half (61,0),
                       flashing full (70,0), half (79,0)      each 9x9
+                poison full/half (88/97,0), flash (106/115,0)
+                wither full/half (124/133,0), flash (142/151,0)
                 haunch bg (16,27) full (52,27) half (61,27)  each 9x9
                 air full (16,18) partial (25,18)              each 9x9
                 xp bar empty (0,64,182x5) full (0,69,182x5)
@@ -42,6 +44,14 @@ SPRITES = [
     ("HEART_HALF",  "icons.png",    61,  0,   9,  9),
     ("HEART_FLASH_FULL", "icons.png", 70, 0,  9,  9),
     ("HEART_FLASH_HALF", "icons.png", 79, 0,  9,  9),
+    ("HEART_POISON_FULL", "icons.png", 88, 0,  9,  9),
+    ("HEART_POISON_HALF", "icons.png", 97, 0,  9,  9),
+    ("HEART_POISON_FLASH_FULL", "icons.png", 106, 0, 9, 9),
+    ("HEART_POISON_FLASH_HALF", "icons.png", 115, 0, 9, 9),
+    ("HEART_WITHER_FULL", "icons.png", 124, 0, 9, 9),
+    ("HEART_WITHER_HALF", "icons.png", 133, 0, 9, 9),
+    ("HEART_WITHER_FLASH_FULL", "icons.png", 142, 0, 9, 9),
+    ("HEART_WITHER_FLASH_HALF", "icons.png", 151, 0, 9, 9),
     ("HUNGER_BG",   "icons.png",    16, 27,   9,  9),
     ("HUNGER_FULL", "icons.png",    52, 27,   9,  9),
     ("HUNGER_HALF", "icons.png",    61, 27,   9,  9),
@@ -52,6 +62,9 @@ SPRITES = [
     # boss bar (bars.png row 0 = PINK, the ender dragon color): bg + progress
     ("BOSS_PINK_BG",   "bars.png",   0,  0, 182,  5),
     ("BOSS_PINK_FULL", "bars.png",   0,  5, 182,  5),
+    # GuiIngame.renderPotionEffects: normal background and the 8x3 icon grid.
+    ("POTION_BG", "container/inventory.png", 141, 166, 24, 24),
+    ("POTION_ICONS", "container/inventory.png", 0, 198, 144, 54),
 ]
 
 
@@ -61,7 +74,8 @@ def main():
 
     with zipfile.ZipFile(JAR) as zf:
         srcs = {}
-        for fn in ("widgets.png", "icons.png", "bars.png"):
+        for fn in ("widgets.png", "icons.png", "bars.png",
+                   "container/inventory.png"):
             srcs[fn] = Image.open(io.BytesIO(zf.read(GUI + fn))).convert("RGBA")
 
     blob = bytearray()

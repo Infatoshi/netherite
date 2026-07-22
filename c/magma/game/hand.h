@@ -36,6 +36,7 @@ void gm_hand_set_swing(float progress);
  * 1-equippedProgress transform term; the item override is the stack retained
  * while a hotbar change lowers the old item before raising the new one. */
 void gm_hand_set_equip(float equip);
+void gm_hand_set_hurt(int hurt_time, int max_hurt_time, float attacked_yaw);
 void gm_hand_set_item_override(int item_id, int item_meta, int count);
 
 /* Select the arm variant: 1 = slim/alex (3px arm, rotation point y 2.5),

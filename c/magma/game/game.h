@@ -50,6 +50,14 @@ extern "C" {
 
 /* ============================ shared POD types ============================ */
 
+#define GM_MAX_POTION_EFFECTS 8
+
+typedef struct {
+    int id;        /* vanilla Potion registry id */
+    int amplifier;
+    int duration;  /* remaining client ticks */
+} GmPotionEffectView;
+
 /* One tick of intent, produced from CrInput by game/input_map.c and consumed by
  * game/player_ctl.c. forward/strafe in [-1,1] (MC WASD); dyaw/dpitch are DELTA
  * degrees this tick from the mouse; the rest are edge/held flags. */
@@ -106,6 +114,11 @@ typedef struct {
     int   fire;                 /* Entity.isBurning(), after creative suppression */
     int   creative;             /* capabilities.disableDamage           */
     int   hurt_time;            /* EntityLivingBase.hurtTime countdown  */
+    int   max_hurt_time;        /* EntityLivingBase.maxHurtTime          */
+    float hurt_yaw;             /* EntityLivingBase.attackedAtYaw        */
+    float attack_cooldown;      /* getCooledAttackStrength(1), 0..1      */
+    int   potion_count;
+    GmPotionEffectView potions[GM_MAX_POTION_EFFECTS];
     /* GuiIngame.renderPlayerStats state, filled by gm_hud_state_step. */
     int   hud_health, hud_last_health;
     int   hud_flash, hud_state_valid;

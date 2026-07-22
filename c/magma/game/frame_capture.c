@@ -79,6 +79,9 @@ struct GmFrameCapture {
     int frame;
     float hand_bob;
     int swing_progress_int, swing_active;
+    int prev_attack;
+    float prev_attack_cooldown;
+    int attack_cooldown_initialized;
     float equip_progress;
     int equip_item, equip_meta, equip_count, equip_slot;
     /* deferred frame end (CUDA): frame N's color readback lands in pend_color
@@ -458,9 +461,21 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
  * updateEquippedItem lowers by 0.4/tick, swaps the retained stack below 0.1,
  * then raises it by 0.4/tick. */
 static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
+                               const GmPlayerView *view,
                                const GmAction *action, float *swing,
                                float *equip) {
-    if (action && (action->attack || action->do_break) &&
+    int attack = action && (action->attack || action->do_break);
+    int cooldown_reset = 0;
+    if (view) {
+        if (c->attack_cooldown_initialized &&
+            view->attack_cooldown + 1e-6f < c->prev_attack_cooldown)
+            cooldown_reset = 1;
+        c->prev_attack_cooldown = view->attack_cooldown;
+        c->attack_cooldown_initialized = 1;
+    }
+    /* `attack` is held-key state, not swingProgress. Entity/miss clicks swing
+     * on the press edge; newer tapes expose later clicks as cooldown resets. */
+    if (((attack && !c->prev_attack) || cooldown_reset) &&
         (!c->swing_active || c->swing_progress_int >= 3 ||
          c->swing_progress_int < 0)) {
         c->swing_progress_int = -1;
@@ -474,6 +489,7 @@ static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
     } else {
         c->swing_progress_int = 0;
     }
+    c->prev_attack = attack;
     *swing = (float)c->swing_progress_int / 6.0f;
 
     int sel = r->player.inv.current_item;
@@ -483,7 +499,10 @@ static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
     ICStack held = isr_get_stack(inv, sel);
     int same = ((held.item == 0 && c->equip_item == 0) ||
                 (sel == c->equip_slot && held.item == c->equip_item));
-    float target = same ? 1.0f : 0.0f;
+    float cd = view ? view->attack_cooldown : 1.0f;
+    if (cd < 0.0f) cd = 0.0f;
+    if (cd > 1.0f) cd = 1.0f;
+    float target = same ? cd * cd * cd : 0.0f;
     float delta = target - c->equip_progress;
     if (delta < -0.4f) delta = -0.4f;
     if (delta > 0.4f) delta = 0.4f;
@@ -516,6 +535,8 @@ static int finish_pending(GmFrameCapture *c) {
     if (c->pend_depth) pfb.depth = c->pend_depth;
     gm_hand_set_swing(c->pend_swing);
     gm_hand_set_equip(c->pend_equip);
+    gm_hand_set_hurt(c->pend_v.hurt_time, c->pend_v.max_hurt_time,
+                     c->pend_v.hurt_yaw);
     gm_hand_set_item_override(c->pend_item, c->pend_meta, c->pend_count);
     if (!c->pend_v.dead && !getenv("MAGMA_NO_HAND"))
         gm_hand_draw(&pfb, &c->pend_v, c->pend_bob);
@@ -549,11 +570,11 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * filenames stable across capture cadences. */
     if(action&&fabsf(action->forward)+fabsf(action->strafe)>0.01f)
         c->hand_bob+=0.30f;
-    float swing, equip;
-    advance_hand_state(c, r, action, &swing, &equip);
     GmPlayerView tick_v;
     gm_runtime_view(r,&tick_v);
     gm_runtime_apply_tape_view(r,&tick_v);
+    float swing, equip;
+    advance_hand_state(c, r, &tick_v, action, &swing, &equip);
     gm_hud_state_step(&c->hud_state,&tick_v,c->frame);
     /* fogColor1 smoother (light brightness at the player FEET): one vanilla
      * updateRenderer step per tick, rendered or not. */
@@ -872,6 +893,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     }
     gm_hand_set_swing(swing);
     gm_hand_set_equip(equip);
+    gm_hand_set_hurt(v.hurt_time, v.max_hurt_time, v.hurt_yaw);
     gm_hand_set_item_override(c->equip_item, c->equip_meta, c->equip_count);
     if(v.loading==2){
         /* GuiDownloadTerrain has closed, but the new player/chunk is not yet

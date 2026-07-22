@@ -88,6 +88,43 @@ int main(void) {
     }
     gm_hud_draw(&fb, &pv);
 
+    /* Potion-driven heart rows and renderPotionEffects use different atlas
+     * pixels from normal hearts and draw the harmful icon at top-right. */
+    CrRgba normal_hearts[162 * 18];
+    for (int y = 0; y < 18; ++y)
+        memcpy(&normal_hearts[y * 162], &fb.color[(402 + y) * W + 244],
+               162 * sizeof(CrRgba));
+    for (int i = 0; i < W * H; ++i)
+        fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
+    pv.potion_count = 1;
+    pv.potions[0] = (GmPotionEffectView){20, 0, 157};
+    gm_hud_draw(&fb, &pv);
+    int wither_changed = 0;
+    for (int y = 0; y < 18; ++y)
+        if (memcmp(&normal_hearts[y * 162], &fb.color[(402 + y) * W + 244],
+                   162 * sizeof(CrRgba)) != 0) wither_changed = 1;
+    if (!wither_changed) {
+        fprintf(stderr, "FAIL: wither hearts equal normal hearts\n"); return 1;
+    }
+    if (!region_changed(&fb, 804, 54, 852, 102)) {
+        fprintf(stderr, "FAIL: harmful potion HUD icon missing\n"); return 1;
+    }
+    CrRgba wither_hearts[162 * 18];
+    for (int y = 0; y < 18; ++y)
+        memcpy(&wither_hearts[y * 162], &fb.color[(402 + y) * W + 244],
+               162 * sizeof(CrRgba));
+    for (int i = 0; i < W * H; ++i)
+        fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
+    pv.potions[0] = (GmPotionEffectView){19, 0, 157};
+    gm_hud_draw(&fb, &pv);
+    int poison_changed = 0;
+    for (int y = 0; y < 18; ++y)
+        if (memcmp(&wither_hearts[y * 162], &fb.color[(402 + y) * W + 244],
+                   162 * sizeof(CrRgba)) != 0) poison_changed = 1;
+    if (!poison_changed) {
+        fprintf(stderr, "FAIL: poison hearts equal wither hearts\n"); return 1;
+    }
+
     /* --- asserts --- */
     int fail = 0;
 

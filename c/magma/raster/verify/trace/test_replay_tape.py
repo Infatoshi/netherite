@@ -50,6 +50,8 @@ def test_new_recorder_state_becomes_sorted_render_and_next_tick_events(tmp_path:
          "hp": 17.0, "food": 20, "dim": -1,
          "xpl": 7, "xpp": 0.625, "air": 123, "portal": 0.5,
          "portal_frame": 17, "portal_phase": 1234, "loading": 1,
+         "hurt": 8, "maxhurt": 10, "hurtyaw": 27.5, "cd": 0.4,
+         "pots": [[20, 0, 157]],
          "gui": "GuiDownloadTerrain",
          "vx": 0.01, "vy": 0.02, "vz": -0.03, "og": 0,
          "inv": inv, "ents": [sheep, item], "pvel": [80, 160, -240]},
@@ -70,7 +72,12 @@ def test_new_recorder_state_becomes_sorted_render_and_next_tick_events(tmp_path:
     assert any(event["type"] == "player_view" and event["xp_level"] == 7
                and event["air"] == 123 and event["portal"] == 0.5
                and event["portal_frame"] == 17 and event["portal_phase"] == 1234
-               and event["loading"] == 1 for event in tick0)
+               and event["loading"] == 1 and event["hurt"] == 8
+               and event["hurt_yaw"] == 27.5
+               and event["attack_cooldown"] == 0.4 for event in tick0)
+    assert any(event["type"] == "potion_clear" for event in tick0)
+    assert any(event["type"] == "potion_view" and event["id"] == 20
+               and event["duration"] == 157 for event in tick0)
     tick1 = [json.loads(line) for line in script.read_text().splitlines()
              if json.loads(line)["tick"] == 1]
     assert any(event["type"] == "set_dimension" and event["dimension"] == -1

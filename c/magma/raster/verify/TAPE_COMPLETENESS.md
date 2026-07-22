@@ -46,7 +46,14 @@ replay it, there should be no difference."
   replay compares it, and the recstart Anvil snapshot is diffed against the
   matching Overworld/Nether/End generator into dimension-tagged, side-effect-
   free tick-0 snapshot events. A live portal-transition tape remains the gate.
-- Remaining: attack swing/death interpolation, burning/sneak/child entity
-  transforms, and armor/offhand GUI slots.
-- player hurt -> hurt camera roll + red vignette; portal/potion overlays
+- DONE: player `hurtTime`/`maxHurtTime`/`attackedAtYaw` drive the first-person
+  hurt-camera transform; active potion rows drive poison/wither hearts and the
+  potion-effect HUD; attack cooldown drives `updateEquippedItem`'s cubed target.
+- Remaining: exact local-player swing progress is not recorded. `atk` is held
+  key state, so legacy tapes can only infer a swing on its press edge; newer
+  tapes also expose actual clicks through cooldown resets. Vanilla's repeated
+  block-hit `swingArm` restart after half-progress needs a recorded local
+  `swingProgressInt` to reproduce exactly. Death interpolation,
+  burning/sneak/child entity transforms, armor/offhand GUI slots, player hurt
+  red vignette, and portal transition timing also remain.
 - Natural Nether/End transition timing and portal-link placement on a live tape.

@@ -485,6 +485,10 @@ void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
     out->hurt_time = r->mobs.player_hurt_resistant > 0
         ? (r->mobs.player_hurt_resistant < 10
            ? r->mobs.player_hurt_resistant : 10) : 0;
+    out->max_hurt_time = 10;
+    out->hurt_yaw = 0.0f;
+    out->attack_cooldown = 1.0f;
+    out->potion_count = 0;
     int xp=r->mobs.xp_total, level=0;
     for (;;) {
         int cap=level>=30?9*level-158:(level>=15?5*level-38:2*level+7);
@@ -718,7 +722,9 @@ int gm_runtime_tape_inventory(GmRuntime *r, int slot, int item, int count, int m
 void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int air,
                                  float portal, int portal_frame, int portal_phase,
                                  int loading, int texture_animations_pinned,
-                                 int fire, int creative, int hurt_time) {
+                                 int fire, int creative, int hurt_time,
+                                 int max_hurt_time, float hurt_yaw,
+                                 float attack_cooldown) {
     if (!r) return;
     r->tape_xp_active = 1;
     r->tape_xp_level = xp_level;
@@ -732,6 +738,23 @@ void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int 
     r->tape_fire = fire;
     r->tape_creative = creative;
     r->tape_hurt_time = hurt_time;
+    r->tape_max_hurt_time = max_hurt_time;
+    r->tape_hurt_yaw = hurt_yaw;
+    r->tape_attack_cooldown = attack_cooldown;
+}
+
+void gm_runtime_tape_potions_clear(GmRuntime *r) {
+    if (r) r->tape_potion_count = 0;
+}
+
+int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration) {
+    if (!r || id < 1 || id > 255 || amplifier < 0 || amplifier > 255 ||
+        duration < 0 || r->tape_potion_count >= GM_MAX_POTION_EFFECTS) return 0;
+    GmPotionEffectView *p = &r->tape_potions[r->tape_potion_count++];
+    p->id = id;
+    p->amplifier = amplifier;
+    p->duration = duration;
+    return 1;
 }
 
 void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
@@ -756,6 +779,12 @@ void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
         view->fire = r->tape_fire;
         view->creative = r->tape_creative;
         view->hurt_time = r->tape_hurt_time;
+        view->max_hurt_time = r->tape_max_hurt_time;
+        view->hurt_yaw = r->tape_hurt_yaw;
+        view->attack_cooldown = r->tape_attack_cooldown;
+        view->potion_count = r->tape_potion_count;
+        memcpy(view->potions, r->tape_potions,
+               (size_t)r->tape_potion_count * sizeof view->potions[0]);
         /* Recorder rows are post-tick. GuiIngame rendered the same health
          * transition one updateCounter earlier (portal_phase proves 1:1). */
         view->hud_transition_lead = 1;

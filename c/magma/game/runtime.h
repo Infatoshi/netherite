@@ -96,7 +96,10 @@ typedef struct GmRuntime {
     float tape_portal;
     int tape_portal_frame, tape_portal_phase, tape_loading;
     int tape_texture_animations_pinned;
-    int tape_fire, tape_creative, tape_hurt_time;
+    int tape_fire, tape_creative, tape_hurt_time, tape_max_hurt_time;
+    float tape_hurt_yaw, tape_attack_cooldown;
+    int tape_potion_count;
+    GmPotionEffectView tape_potions[GM_MAX_POTION_EFFECTS];
 } GmRuntime;
 
 int  gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap);
@@ -148,7 +151,11 @@ int gm_runtime_tape_inventory(GmRuntime *r, int slot, int item, int count, int m
 void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int air,
                                  float portal, int portal_frame, int portal_phase,
                                  int loading, int texture_animations_pinned,
-                                 int fire, int creative, int hurt_time);
+                                 int fire, int creative, int hurt_time,
+                                 int max_hurt_time, float hurt_yaw,
+                                 float attack_cooldown);
+void gm_runtime_tape_potions_clear(GmRuntime *r);
+int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration);
 void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view);
 /* Seed recorded vitals at tape-replay start. */
 void gm_runtime_set_vitals(GmRuntime *r, float health, int food);

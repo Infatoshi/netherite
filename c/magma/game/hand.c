@@ -162,6 +162,8 @@ void gm_hand_set_skin(int slim) { g_slim = slim ? 1 : 0; }
 /* current attack swing progress in [0,1], pushed by gm_hand_set_swing. */
 static float g_swing = 0.0f;
 static float g_equip = 0.0f;
+static int g_hurt_time = 0, g_max_hurt_time = 10;
+static float g_hurt_yaw = 0.0f;
 static int g_item_override = 0;
 static int g_item_id = 0, g_item_meta = 0, g_item_count = 0;
 
@@ -175,6 +177,29 @@ void gm_hand_set_equip(float equip) {
     if (equip < 0.0f) equip = 0.0f;
     if (equip > 1.0f) equip = 1.0f;
     g_equip = equip;
+}
+
+void gm_hand_set_hurt(int hurt_time, int max_hurt_time, float attacked_yaw) {
+    g_hurt_time = hurt_time;
+    g_max_hurt_time = max_hurt_time;
+    g_hurt_yaw = attacked_yaw;
+}
+
+static void hand_apply_hurt(CrVertex *v, int n) {
+    /* Tape frames are captured at the tick boundary (partialTicks=1). */
+    float f = (float)g_hurt_time - 1.0f;
+    if (!v || n <= 0 || f < 0.0f || g_max_hurt_time <= 0) return;
+    f /= (float)g_max_hurt_time;
+    f = sinf(f * f * f * f * HAND_PI);
+    CrMat4 m = cr_mat4_identity();
+    m = mul(m, mat_rot_y(-g_hurt_yaw));
+    m = mul(m, mat_rot_z(-f * 14.0f));
+    m = mul(m, mat_rot_y(g_hurt_yaw));
+    for (int i = 0; i < n; ++i) {
+        CrVec4 p = {v[i].pos.x, v[i].pos.y, v[i].pos.z, 1.0f};
+        p = cr_mat4_mul_vec4(m, p);
+        v[i].pos = (CrVec3){p.x, p.y, p.z};
+    }
 }
 
 void gm_hand_set_item_override(int item_id, int item_meta, int count) {
@@ -691,6 +716,11 @@ void gm_hand_fire_overlay_draw(CrFramebuffer *fb, const CrTexture *atlas,
         CrVertex q[4];
         for (int k = 0; k < 4; ++k) {
             q[k].pos = xform_pt01(M, p[k][0], p[k][1], p[k][2]);
+            /* cr_transform's shared world camera includes orientCamera's
+             * first-person +0.05 eye-space Z nudge. renderHand loads the
+             * modelview identity, so cancel that nudge for this literal
+             * ItemRenderer.renderFireInFirstPerson quad. */
+            q[k].pos.z -= 0.05f;
             q[k].uv = (CrVec2){p[k][3], p[k][4]};
             q[k].light = q[k].ao = 1.0f;
             q[k].blk = 0.0f;
@@ -737,6 +767,7 @@ void gm_hand_draw(CrFramebuffer *fb, const GmPlayerView *pv, float bob_phase) {
         int nv = gm_hand_emit_held(item_id, item_meta, g_swing, g_equip,
                                    g_verts, HAND_MAX_VERTS);
         if (nv > 0) {
+            hand_apply_hurt(g_verts, nv);
             const BmBlock *bm = 0;
             int is_block = held_is_block(item_id, item_meta, &bm);
             int use_terrain = is_block;
@@ -799,6 +830,8 @@ void gm_hand_draw(CrFramebuffer *fb, const GmPlayerView *pv, float bob_phase) {
             g_verts[nv++] = corner[TRI[t][1]];
         }
     }
+
+    hand_apply_hurt(g_verts, nv);
 
     CrTexture skin;
     skin.w = HAND_SKIN_W; skin.h = HAND_SKIN_H;

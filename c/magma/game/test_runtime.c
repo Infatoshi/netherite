@@ -44,7 +44,11 @@ int main(void) {
     r.player_fire_ticks = 0;
     CHECK(gm_runtime_tape_inventory(&r,0,17,2,0),"tape inventory accepts hotbar stack");
     CHECK(gm_runtime_tape_inventory(&r,40,442,1,0),"tape inventory accepts offhand stack");
-    gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1,1,1,0,9);
+    gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1,1,1,0,9,
+                                10,27.5f,0.4f);
+    gm_runtime_tape_potions_clear(&r);
+    CHECK(gm_runtime_tape_potion(&r,20,0,157),
+          "tape potion accepts wither effect");
     {
         GmPlayerView tv;gm_runtime_view(&r,&tv);gm_runtime_apply_tape_view(&r,&tv);
         CHECK(tv.hotbar_ids[0]==17&&tv.hotbar_counts[0]==2,
@@ -56,8 +60,12 @@ int main(void) {
         CHECK(tv.portal==0.5f&&tv.portal_frame==17&&tv.portal_phase==1234&&tv.loading==1&&
               tv.texture_animations_pinned==1,
               "recorded portal and loading state override the rendered player view");
-        CHECK(tv.fire==1&&tv.creative==0&&tv.hurt_time==9,
+        CHECK(tv.fire==1&&tv.creative==0&&tv.hurt_time==9&&
+              tv.max_hurt_time==10&&fabsf(tv.hurt_yaw-27.5f)<1e-6f,
               "recorded fire and hurt state override the rendered player view");
+        CHECK(fabsf(tv.attack_cooldown-0.4f)<1e-6f&&tv.potion_count==1&&
+              tv.potions[0].id==20&&tv.potions[0].duration==157,
+              "recorded cooldown and potion state override the rendered player view");
     }
     {
         ICStack got;

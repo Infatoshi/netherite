@@ -82,6 +82,26 @@ static void hud_blit(CrFramebuffer *fb, int idx, int dx, int dy, int scale) {
     }
 }
 
+static void hud_blit_sub_alpha(CrFramebuffer *fb, int idx, int sx0, int sy0,
+                               int sw, int sh, int dx, int dy, int scale,
+                               float alpha) {
+    const HudSprite *s = hud_sprite(idx);
+    if (!fb || !fb->color || !s || scale < 1 || sw <= 0 || sh <= 0) return;
+    if (sx0 < 0 || sy0 < 0 || sx0 + sw > s->w || sy0 + sh > s->h) return;
+    if (alpha < 0.0f) alpha = 0.0f;
+    if (alpha > 1.0f) alpha = 1.0f;
+    for (int sy = 0; sy < sh; ++sy)
+        for (int sx = 0; sx < sw; ++sx) {
+            CrRgba t = hud_texel(idx, sx0 + sx, sy0 + sy);
+            t.a = (uint8_t)((float)t.a * alpha);
+            if (!t.a) continue;
+            for (int yy = 0; yy < scale; ++yy)
+                for (int xx = 0; xx < scale; ++xx)
+                    hud_blend_px(fb, dx + sx * scale + xx,
+                                 dy + sy * scale + yy, t);
+        }
+}
+
 /* Fill a solid scaled rect (used for hotbar item pips). */
 /* hud_blit clipped to the first `rows` sprite rows (vanilla partial blits). */
 static void hud_blit_rows(CrFramebuffer *fb, int idx, int dx, int dy, int scale,
@@ -404,6 +424,61 @@ static void hud_draw_crosshair(CrFramebuffer *fb) {
                     (sw_s / 2 - 7) * scale, (sh_s / 2 - 7) * scale, scale);
 }
 
+static int potion_active(const GmPlayerView *pv, int id) {
+    for (int i = 0; i < pv->potion_count; ++i)
+        if (pv->potions[i].id == id) return 1;
+    return 0;
+}
+
+static int potion_icon_index(int id) {
+    static const signed char icons[28] = {
+        -1, 0, 1, 2, 3, 4, -1, -1, 10, 11, 7, 14, 15, 16,
+        8, 13, 12, 9, 5, 6, 17, 23, 18, -1, 20, 19, 21, 22
+    };
+    return id >= 0 && id < (int)(sizeof icons / sizeof icons[0])
+        ? icons[id] : -1;
+}
+
+static int potion_beneficial(int id) {
+    switch (id) {
+        case 1: case 3: case 5: case 6: case 7: case 8: case 10:
+        case 11: case 12: case 13: case 14: case 16: case 21: case 22:
+        case 23: case 26: return 1;
+        default: return 0;
+    }
+}
+
+/* GuiIngame.renderPotionEffects. Tape effects are ordinary, visible effects:
+ * the recorder stores id/amplifier/duration but not Ambient/ShowParticles. */
+static void hud_draw_potion_effects(CrFramebuffer *fb,
+                                    const GmPlayerView *pv, int scale,
+                                    int sw_s) {
+    int good = 0, bad = 0;
+    for (int n = 0; n < pv->potion_count; ++n) {
+        const GmPotionEffectView *p = &pv->potions[n];
+        int icon = potion_icon_index(p->id);
+        if (icon < 0) continue;
+        int x = sw_s - 25 * (potion_beneficial(p->id) ? ++good : ++bad);
+        int y = potion_beneficial(p->id) ? 1 : 27;
+        hud_blit_sub_alpha(fb, HUD_POTION_BG, 0, 0, 24, 24,
+                           x * scale, y * scale, scale, 1.0f);
+        float alpha = 1.0f;
+        if (p->duration <= 200) {
+            int j = 10 - p->duration / 20;
+            float pulse = (float)p->duration / 50.0f * 0.5f;
+            if (pulse < 0.0f) pulse = 0.0f;
+            if (pulse > 0.5f) pulse = 0.5f;
+            float amp = (float)j / 10.0f * 0.25f;
+            if (amp < 0.0f) amp = 0.0f;
+            if (amp > 0.25f) amp = 0.25f;
+            alpha = pulse + cosf((float)p->duration * 3.14159265358979323846f / 5.0f) * amp;
+        }
+        hud_blit_sub_alpha(fb, HUD_POTION_ICONS,
+                           icon % 8 * 18, icon / 8 * 18, 18, 18,
+                           (x + 3) * scale, (y + 3) * scale, scale, alpha);
+    }
+}
+
 /* GuiBossOverlay state: the frame assembler flags a boss (ender dragon view
  * present this frame) and its health fraction before gm_hud_draw. */
 static int   g_boss_show = 0;
@@ -595,6 +670,20 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
                                                  : (int)ceilf(pv->health);
     const int old_half_hearts = pv->hud_state_valid ? pv->hud_last_health
                                                      : half_hearts;
+    int heart_full = HUD_HEART_FULL, heart_half = HUD_HEART_HALF;
+    int heart_flash_full = HUD_HEART_FLASH_FULL;
+    int heart_flash_half = HUD_HEART_FLASH_HALF;
+    if (potion_active(pv, 19)) {
+        heart_full = HUD_HEART_POISON_FULL;
+        heart_half = HUD_HEART_POISON_HALF;
+        heart_flash_full = HUD_HEART_POISON_FLASH_FULL;
+        heart_flash_half = HUD_HEART_POISON_FLASH_HALF;
+    } else if (potion_active(pv, 20)) {
+        heart_full = HUD_HEART_WITHER_FULL;
+        heart_half = HUD_HEART_WITHER_HALF;
+        heart_flash_full = HUD_HEART_WITHER_FLASH_FULL;
+        heart_flash_half = HUD_HEART_WITHER_FLASH_HALF;
+    }
     for (int i = 0; i < max_hearts; i++) {
         int hx = hb_x + (i * 8) * scale;
         int hy = stat_y;
@@ -602,12 +691,12 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
                  hx, hy, scale);
         if (pv->hud_flash) {
             int old = old_half_hearts - i * 2;
-            if (old >= 2) hud_blit(fb, HUD_HEART_FLASH_FULL, hx, hy, scale);
-            else if (old == 1) hud_blit(fb, HUD_HEART_FLASH_HALF, hx, hy, scale);
+            if (old >= 2) hud_blit(fb, heart_flash_full, hx, hy, scale);
+            else if (old == 1) hud_blit(fb, heart_flash_half, hx, hy, scale);
         }
         int hv = half_hearts - i * 2;
-        if (hv >= 2)      hud_blit(fb, HUD_HEART_FULL, hx, hy, scale);
-        else if (hv == 1) hud_blit(fb, HUD_HEART_HALF, hx, hy, scale);
+        if (hv >= 2)      hud_blit(fb, heart_full, hx, hy, scale);
+        else if (hv == 1) hud_blit(fb, heart_half, hx, hy, scale);
     }
 
     /* ---- hunger haunches (above-right of the hotbar, mirrored) ---- */
@@ -642,6 +731,9 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
      * with blendFunc(ONE_MINUS_DST_COLOR, ONE_MINUS_SRC_COLOR) + alpha test,
      * i.e. opaque texels INVERT against the scene, transparent ones discard. */
     hud_draw_crosshair(fb);
+
+    /* Vanilla draws the potion HUD after the XP bar and selected-item text. */
+    hud_draw_potion_effects(fb, pv, scale, sw_s);
 
     (void)white;
 }
