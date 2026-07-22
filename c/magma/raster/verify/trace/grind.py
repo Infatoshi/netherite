@@ -14,7 +14,7 @@ from PIL import Image
 
 here = os.path.dirname(os.path.abspath(__file__))
 tape = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-    here, "../tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.jsonl")
+    here, "../tapes/20260721T215812Z_fast_s0_survival_default_rd8_77b5b462.jsonl")
 name = os.path.basename(tape).rsplit(".jsonl", 1)[0]
 tape_dir = os.path.join(os.path.dirname(tape), name + "_frames")
 npy = os.path.join(here, "out", "tape_" + name, "magma_frames.npy")

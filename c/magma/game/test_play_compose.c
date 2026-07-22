@@ -4,6 +4,7 @@
  * asserts concrete block/inventory/time outcomes. */
 #include "game/game.h"
 #include "game/player_ctl.h"
+#include "game/sel_box.h"
 #include "game/live_sim.h"
 #include "player_survival.h"
 #include "player_vitals.h"
@@ -130,18 +131,21 @@ static void test_place_meta(void) {
     CHECK(t0 != t1, "ibp furnace meta differs for yaw quads 0 vs 1");
 }
 
-/* Holding use after a wall-torch placement ray-hits that torch. Vanilla
- * rejects the next placement when the adjacent cell has no solid support. */
-static void test_torch_requires_support(void) {
+/* A descending ray enters the placed torch's voxel through its top, then hits
+ * the recessed wall-torch AABB on its west face.  Vanilla ItemBlock uses that
+ * AABB sideHit (west), not the voxel-entry face (up), for the follow-up click. */
+static void test_torch_click_uses_aabb_face(void) {
     McSinTable st; mc_sin_table_init(&st);
     Chunk win[PSV_NCHUNKS];
-    fill_flat(win, 64, BLK_STONE);
-    mc_set(&win[4], 8, 66, 10, mc_state(BLK_STONE, 0));
+    fill_flat(win, 68, BLK_STONE);
+    mc_set(&win[4], 8, 69, 8, mc_state(BLK_STONE, 0)); /* pit edge under player */
+    mc_set(&win[4], 10, 69, 8, mc_state(BLK_STONE, 0)); /* lower pit wall */
+    mc_set(&win[4], 10, 70, 8, mc_state(BLK_STONE, 0)); /* tempting upper support */
 
     PsvPlayer pl; psv_player_init(&pl);
-    pl.ent.posX = 8.5; pl.ent.posY = 65.0; pl.ent.posZ = 8.5;
+    pl.ent.posX = 8.50601965444; pl.ent.posY = 70.0; pl.ent.posZ = 8.30000001192;
     pl.ent.box = psv_player_box(pl.ent.posX, pl.ent.posY, pl.ent.posZ);
-    pl.ent.onGround = 1; pl.yaw = 0.0f; pl.pitch = 0.0f;
+    pl.ent.onGround = 1; pl.yaw = -84.272285f; pl.pitch = 57.997467f;
     isr_set_stack(&pl.inv, 0, ic_mk(IBP_BLK_TORCH, 2, 0));
     pl.inv.current_item = 0;
     PvStats vit; pv_init(&vit);
@@ -151,8 +155,19 @@ static void test_torch_requires_support(void) {
     gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
                    (struct PsvPlayer *)&pl, (struct PvStats *)&vit, act,
                    0, 0, 0, edits, &ne, 8);
-    CHECK(ne == 1 && edits[0].id == IBP_BLK_TORCH,
-          "first wall torch placement succeeds");
+    CHECK(ne == 1 && edits[0].id == IBP_BLK_TORCH &&
+          edits[0].wx == 9 && edits[0].wy == 69 && edits[0].wz == 8,
+          "first pit-wall torch placement succeeds in the expected cell");
+
+    int hx, hy, hz, ax, ay, az;
+    int hit = gm_raycast_sel_reach((const struct Chunk *)win,
+                                   (const struct McSinTable *)&st,
+                                   (const struct PsvPlayer *)&pl, PSV_REACH,
+                                   &hx, &hy, &hz, &ax, &ay, &az);
+    CHECK(hit == 1 && hx == 9 && hy == 69 && hz == 8,
+          "follow-up selection ray stops on the placed wall torch");
+    CHECK(ax == 8 && ay == 69 && az == 8,
+          "wall-torch hit reports its recessed west AABB face, not voxel-entry top");
 
     ne = 0;
     gm_player_tick((struct Chunk *)win, (const struct McSinTable *)&st,
@@ -160,7 +175,7 @@ static void test_torch_requires_support(void) {
                    0, 0, 0, edits, &ne, 8);
     ICStack left = isr_get_stack(&pl.inv, 0);
     CHECK(ne == 0 && left.item == IBP_BLK_TORCH && left.count == 1,
-          "unsupported repeated torch placement is rejected without consumption");
+          "follow-up click places no upper-wall torch and consumes nothing");
 }
 
 /* Interact: wooden door at eye height; live gm_player_tick must emit open meta.
@@ -354,7 +369,7 @@ int main(void) {
     g_fail = 0;
     test_progressive_dig();
     test_place_meta();
-    test_torch_requires_support();
+    test_torch_click_uses_aabb_face();
     test_interact_door();
     test_inventory_click();
     test_live_inv_action();

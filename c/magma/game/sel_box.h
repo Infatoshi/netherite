@@ -30,9 +30,11 @@ void gm_sel_box_at(const struct Chunk *win, int x, int y, int z, float b[6]);
 /* Selection-box raycast: like psv_raycast but vanilla-correct - the ray hits
  * ANY targetable block (torch, plants, crops, slabs...) whose selection box
  * it enters, not just full-cube solids; air/liquids/fire pass through.
- * Same contract as psv_raycast: (hx,hy,hz) hit cell, (ax,ay,az) last cell
- * before the hit (place spot); returns 1 if that cell is clear, 0 if the ray
- * started inside the hit cell, -1 for no hit within reach.
+ * (hx,hy,hz) is the hit cell.  (ax,ay,az) is the cell adjacent to the face
+ * actually hit on that block's selection AABB (the ItemBlock place spot).
+ * For a full cube this is also the last traversed cell; for a recessed shape
+ * such as a wall torch it need not be.  Returns 1 after leaving the eye cell,
+ * 0 for a hit there, and -1 for no hit within reach.
  *
  * gm_raycast_sel uses PlayerControllerMP survival reach 4.5 (outline / look).
  * gm_raycast_sel_reach lets dig/place pass PSV_REACH (5.0) until the shared

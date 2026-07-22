@@ -98,9 +98,12 @@ long-horizon drift and regression curves.
 
 Two tapes are ground truth; nothing else is a match target:
 
-- PHYSICS canonical: `raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.jsonl`
-  - fresh seed-0 world, tape.py-recorded, 3,121 ticks, 157 frames at 854x480,
-  no mid-session resize. Replays with NO physics divergence end-to-end
+- PHYSICS canonical: `raster/verify/tapes/20260721T215812Z_fast_s0_survival_default_rd8_77b5b462.jsonl`
+  - fresh seed-0 world, bot-recorded (progression_bot.py, no human input),
+  3,617 ticks, 181 frames every 20 ticks at 854x480, no mid-session resize.
+  Replays with NO physics divergence end-to-end and a PASSING pixel gate.
+  Predecessor 20260712T055346Z (human-recorded, 3,121 ticks) is retired but
+  its sidecar stays for regression context
   (2026-07-12, ten fix classes later); any regression here is a real bug.
 - PIXEL poses: the 12k human tape `/tmp/play_tape.jsonl`, archived with frames
   + sidecar at `raster/verify/tapes/play_tape_12k_human_20260710.*`. Its two

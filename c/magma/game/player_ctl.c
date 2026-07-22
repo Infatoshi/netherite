@@ -112,7 +112,7 @@ static int ib_is_interactable(int id) {
         || id == IB_LIGHT_PLATE || id == IB_HEAVY_PLATE || id == IB_IRON_TRAPDOOR;
 }
 
-/* Hit face of the solid block from the preceding air cell (EnumFacing D-U-N-S-W-E). */
+/* Hit face from the cell adjacent to the selected AABB face (EnumFacing D-U-N-S-W-E). */
 static int face_from_adj(int hx, int hy, int hz, int ax, int ay, int az) {
     if (ax < hx) return IBP_WEST;
     if (ax > hx) return IBP_EAST;

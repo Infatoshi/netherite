@@ -20,7 +20,7 @@ set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAGMA="$ROOT/c/magma"
 MCSIM="$ROOT/c/mc-sim"
-CANON_TAPE="$MAGMA/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.jsonl"
+CANON_TAPE="$MAGMA/raster/verify/tapes/20260721T215812Z_fast_s0_survival_default_rd8_77b5b462.jsonl"
 SNAPS_DIR="$MAGMA/rl/out/snaps"
 
 MODE=quick

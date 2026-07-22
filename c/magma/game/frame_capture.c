@@ -658,10 +658,11 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
              * matches emit_crack: 0=-z 1=+z 2=-x 3=+x 4=+y 5=-y. */
             int face = -1;
             if (have_sel && hx == dx && hy == dy && hz == dz) {
-                /* ax,ay,az is the last CELL before the hit (sel_box.h), not a
-                 * normal: the face is the cell delta. Comparing ax<0/ax>0
-                 * directly pinned every crack to the +x face (invisible from
-                 * most viewpoints - top-face digs never showed cracks). */
+                /* ax,ay,az is the cell adjacent to the selected AABB face
+                 * (sel_box.h), not a normal: the face is the cell delta.
+                 * Comparing ax<0/ax>0 directly pinned every crack to the +x
+                 * face (invisible from most viewpoints - top-face digs never
+                 * showed cracks). */
                 int nx = ax - hx, ny = ay - hy, nz = az - hz;
                 if (nx < 0) face = 2; else if (nx > 0) face = 3;
                 else if (ny < 0) face = 5; else if (ny > 0) face = 4;

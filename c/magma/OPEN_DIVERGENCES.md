@@ -404,6 +404,10 @@ blend=1 SRC_ALPHA. Crack is blend=2 DST_COLOR/SRC_COLOR (2*src*dst) with white
 vertex colour and cutout alpha on destroy_stage strokes; hit-face only when
 dig target matches raycast. Dig t2860 22.24->21.60/ch. (c) block hit/break
 particles still absent (oracle 123, 129) - dominate residual dig look.
+(d) FIXED (tape 20260721T215812Z dig window): frame_capture mapped the crack
+face by comparing the raycast adjacent cell's sign (`ax<0`) instead of the
+cell delta `ax-hx`, pinning every crack to the +x face - top-face digs never
+showed cracks at all. Now face = delta of (a-h) cell coords.
 
 ## 15. FIXED: Block appearance mapping bugs: crafting table = stone, flower species wrong
 (a) placed crafting table (id 58) fell through `gm_state_to_model_key` to
@@ -898,3 +902,23 @@ region; a new solid marker remains gate-failing.
 
 Repro: CPU replay the canonical tape with `--report --cpu`; inspect the
 `known:54` gate class and the t2460-2900 side-by-side frames.
+
+## 55. FIXED (codex, tape 20260721T215812Z): torch placement - support, refire, and hit face
+
+Three bugs found via the bot-recorded canonical tape's torch windows
+(t3419-24 pit torch, t3447-52 ground torch):
+(a) held-use refire placed a SECOND torch in an unsupported cell; magma now
+validates BlockTorch support (vanilla canPlaceBlockAt order) and a rejected
+placement does not consume (`torch_placement_meta` in player_ctl.c).
+(b) the held-torch viewmodel rendered a 3D stick; 1.11.2 models/item/torch.json
+inherits item/generated (flat extruded sprite) - hand.c now routes it there
+(test: tests/test_hand_torch.c).
+(c) the refire after a successful wall-torch placement re-raycast to a STALE
+face: gm_raycast_sel_reach returned the DDA voxel-entry cell as the place
+spot, but for recessed AABBs (wall torch) the struck face differs - a
+descending ray entered from above yet hit the torch's WEST face, so magma
+read an UP click and stacked an extra torch on the supported cell above.
+Vanilla derives sideHit from AxisAlignedBB.calculateIntercept and rejects
+the occupied cell without consuming. sel_box.c ray_box_hit now returns the
+actual AABB face (mirrored in blaze_core.h cu_ray_box_hit); regression:
+test_play_compose.c descending-ray case.

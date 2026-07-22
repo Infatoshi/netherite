@@ -112,3 +112,20 @@ Removed 2026-07-11 (unused routes): `java/build_mac.sh`, `play_mac.sh` (Mac GL d
   (`RUNBOOK`, `BOOTSTRAP`, `GATES`, `DEVLOG`). Archaeology in `docs/archive/`.
 - Living contracts stay next to code (`c/*/SPEC.md`, craster PRODUCT/VERIFY/OPEN_DIVERGENCES).
 - Root no longer holds DEVLOG or product/report markdown.
+
+## 2026-07-21 (bot-recorded canonical tape + torch placement chase)
+
+- New canonical tape 20260721T215812Z: recorded end-to-end by progression_bot
+  (no human input), 3,617 ticks, physics-exact at 1e-9, pixel gate PASS.
+  CANON_TAPE swapped in netherite_sweep.sh; VERIFY.md/GATES.md updated.
+- Renderer/sim fixes it surfaced: crack decal face mapping (frame_capture),
+  torch viewmodel item/generated routing (hand.c), torch placement support
+  validation + refire hit-face from AABB calculateIntercept semantics
+  (player_ctl, sel_box ray_box_hit, blaze_core cu_ray_box_hit; OPEN_DIVERGENCES
+  #55), cross-plant vanilla random offsets (mesh_mc), CUDA overlay pinned-buffer
+  race (frame_capture).
+- KNOWN ISSUE: blaze-cuda-chain HANGS on GPU1 (sm_86) at ~tick 185 of the s10
+  chain - device-side spin, 100% util, deterministic; reproduces at HEAD with
+  pre-existing sources, so unrelated to today's changes. Same gate is byte-exact
+  green on GPU0 (sm_120), which all prior full sweeps used. Until root-caused,
+  run `netherite_sweep.sh --full` with GPU0 (default) for the blaze CUDA steps.

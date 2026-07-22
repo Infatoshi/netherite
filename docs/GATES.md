@@ -14,7 +14,7 @@ Accept: a human plays magma spawn -> End with zero divergences; canonical tapes 
 bit-exact (physics tol 1e-9, pixels day-bit-exact / isolated star pixels at night, no
 unexplained diff clusters).
 Status: OPEN, machinery green. The physics canonical tape
-(`c/magma/raster/verify/tapes/20260712T055346Z_..._77b5b462.jsonl`, 3,121 ticks)
+(`c/magma/raster/verify/tapes/20260721T215812Z_..._77b5b462.jsonl`, 3,617 ticks, bot-recorded)
 replays with no physics divergence end-to-end; the 12k human tape holds the pixel
 baselines (A 0.96/ch, B 1.66/ch). Remaining bugs live in
 `c/magma/OPEN_DIVERGENCES.md`; the full spawn->End human session has not yet been

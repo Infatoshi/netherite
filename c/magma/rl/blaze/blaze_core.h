@@ -699,15 +699,19 @@ MC_HD static inline void cu_sel_box_at(const Chunk *w, int x, int y, int z, floa
     cu_sel_box(&in, b);
 }
 
-/* verbatim ray_box_t (sel_box.c:218) */
-MC_HD static inline double cu_ray_box_t(double ex, double ey, double ez,
-                                        double dx, double dy, double dz,
-                                        double x0, double y0, double z0,
-                                        double x1, double y1, double z1) {
-    double tmin = 0.0, tmax = 1e30;
+/* verbatim ray_box_hit (sel_box.c) */
+MC_HD static inline double cu_ray_box_hit(double ex, double ey, double ez,
+                                          double dx, double dy, double dz,
+                                          double x0, double y0, double z0,
+                                          double x1, double y1, double z1,
+                                          int *nx, int *ny, int *nz) {
+    double tmin = -1e30, tmax = 1e30;
     const double o[3] = { ex, ey, ez }, d[3] = { dx, dy, dz };
     const double lo[3] = { x0, y0, z0 }, hi[3] = { x1, y1, z1 };
-    int i;
+    int enter_axis = -1, enter_sign = 0;
+    int exit_axis = -1, exit_sign = 0;
+    int i, axis, sign;
+    double t;
     for (i = 0; i < 3; ++i) {
         if (d[i] > -1e-12 && d[i] < 1e-12) {
             if (o[i] < lo[i] || o[i] > hi[i]) return -1.0;
@@ -715,20 +719,42 @@ MC_HD static inline double cu_ray_box_t(double ex, double ey, double ez,
         }
         {
             double t0 = (lo[i] - o[i]) / d[i], t1 = (hi[i] - o[i]) / d[i];
-            if (t0 > t1) { double tt = t0; t0 = t1; t1 = tt; }
-            if (t0 > tmin) tmin = t0;
-            if (t1 < tmax) tmax = t1;
+            int n0 = -1, n1 = 1;
+            if (t0 > t1) {
+                double tt = t0; t0 = t1; t1 = tt;
+                { int nt = n0; n0 = n1; n1 = nt; }
+            }
+            if (t0 > tmin) {
+                tmin = t0;
+                enter_axis = i;
+                enter_sign = n0;
+            }
+            if (t1 < tmax) {
+                tmax = t1;
+                exit_axis = i;
+                exit_sign = n1;
+            }
             if (tmin > tmax) return -1.0;
         }
     }
-    return tmin;
+    axis = enter_axis; sign = enter_sign; t = tmin;
+    if (t < 0.0) {
+        t = tmax;
+        axis = exit_axis;
+        sign = exit_sign;
+    }
+    if (t < 0.0 || axis < 0) return -1.0;
+    *nx = axis == 0 ? sign : 0;
+    *ny = axis == 1 ? sign : 0;
+    *nz = axis == 2 ? sign : 0;
+    return t;
 }
 
 MC_HD static inline int cu_ray_transparent(int id) {
     return id == 0 || (id >= 8 && id <= 11) || id == 51;
 }
 
-/* verbatim gm_raycast_sel_reach (sel_box.c:250); `ops` is the caller env's
+/* verbatim gm_raycast_sel_reach (sel_box.c); `ops` is the caller env's
  * op-trace slice (NULL = off) - the only non-verbatim addition, inert. */
 MC_HD static inline int cu_raycast_sel_reach(const Chunk *now, const McSinTable *st,
                                              const PsvPlayer *pl, double reach,
@@ -760,13 +786,15 @@ MC_HD static inline int cu_raycast_sel_reach(const Chunk *now, const McSinTable 
         if (!cu_ray_transparent(id)) {
             float b[6];
             double th;
+            int nx, ny, nz;
             cu_sel_box_at(now, bx, by, bz, b);
-            th = cu_ray_box_t(ex, ey, ez, dx, dy, dz,
-                              bx + (double)b[0], by + (double)b[1], bz + (double)b[2],
-                              bx + (double)b[3], by + (double)b[4], bz + (double)b[5]);
+            th = cu_ray_box_hit(ex, ey, ez, dx, dy, dz,
+                                bx + (double)b[0], by + (double)b[1], bz + (double)b[2],
+                                bx + (double)b[3], by + (double)b[4], bz + (double)b[5],
+                                &nx, &ny, &nz);
             if (th >= 0.0 && th <= reach) {
                 *hx = bx; *hy = by; *hz = bz;
-                *ax = lastx; *ay = lasty; *az = lastz;
+                *ax = bx + nx; *ay = by + ny; *az = bz + nz;
                 return have_air;
             }
         }

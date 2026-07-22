@@ -214,26 +214,55 @@ void gm_sel_box(const GmSelIn *in, float b[6]) {
     }
 }
 
-/* ray-AABB slab intersection; returns entry t or -1 if the ray misses */
-static double ray_box_t(double ex, double ey, double ez,
-                        double dx, double dy, double dz,
-                        double x0, double y0, double z0,
-                        double x1, double y1, double z1) {
-    double tmin = 0.0, tmax = 1e30;
+/* AxisAlignedBB.calculateIntercept: return the first box intercept and the
+ * outward normal of its face.  The normal matters for non-full selection
+ * boxes: the cell entered by the DDA is not necessarily adjacent to the face
+ * eventually struck inside that cell. */
+static double ray_box_hit(double ex, double ey, double ez,
+                          double dx, double dy, double dz,
+                          double x0, double y0, double z0,
+                          double x1, double y1, double z1,
+                          int *nx, int *ny, int *nz) {
+    double tmin = -1e30, tmax = 1e30;
     const double o[3] = { ex, ey, ez }, d[3] = { dx, dy, dz };
     const double lo[3] = { x0, y0, z0 }, hi[3] = { x1, y1, z1 };
+    int enter_axis = -1, enter_sign = 0;
+    int exit_axis = -1, exit_sign = 0;
     for (int i = 0; i < 3; ++i) {
         if (d[i] > -1e-12 && d[i] < 1e-12) {
             if (o[i] < lo[i] || o[i] > hi[i]) return -1.0;
             continue;
         }
         double t0 = (lo[i] - o[i]) / d[i], t1 = (hi[i] - o[i]) / d[i];
-        if (t0 > t1) { double tt = t0; t0 = t1; t1 = tt; }
-        if (t0 > tmin) tmin = t0;
-        if (t1 < tmax) tmax = t1;
+        int n0 = -1, n1 = 1;
+        if (t0 > t1) {
+            double tt = t0; t0 = t1; t1 = tt;
+            int nt = n0; n0 = n1; n1 = nt;
+        }
+        if (t0 > tmin) {
+            tmin = t0;
+            enter_axis = i;
+            enter_sign = n0;
+        }
+        if (t1 < tmax) {
+            tmax = t1;
+            exit_axis = i;
+            exit_sign = n1;
+        }
         if (tmin > tmax) return -1.0;
     }
-    return tmin;
+    int axis = enter_axis, sign = enter_sign;
+    double t = tmin;
+    if (t < 0.0) {
+        t = tmax;
+        axis = exit_axis;
+        sign = exit_sign;
+    }
+    if (t < 0.0 || axis < 0) return -1.0;
+    *nx = axis == 0 ? sign : 0;
+    *ny = axis == 1 ? sign : 0;
+    *nz = axis == 2 ? sign : 0;
+    return t;
 }
 
 /* blocks the selection ray passes through (vanilla collisionRayTrace null) */
@@ -275,13 +304,15 @@ int gm_raycast_sel_reach(const struct Chunk *win, const struct McSinTable *st_,
         int id = psv_get_block(now, bx, by, bz);
         if (!ray_transparent(id)) {
             float b[6];
+            int nx, ny, nz;
             gm_sel_box_at(win, bx, by, bz, b);
-            double th = ray_box_t(ex, ey, ez, dx, dy, dz,
-                                  bx + (double)b[0], by + (double)b[1], bz + (double)b[2],
-                                  bx + (double)b[3], by + (double)b[4], bz + (double)b[5]);
+            double th = ray_box_hit(ex, ey, ez, dx, dy, dz,
+                                    bx + (double)b[0], by + (double)b[1], bz + (double)b[2],
+                                    bx + (double)b[3], by + (double)b[4], bz + (double)b[5],
+                                    &nx, &ny, &nz);
             if (th >= 0.0 && th <= reach) {
                 *hx = bx; *hy = by; *hz = bz;
-                *ax = lastx; *ay = lasty; *az = lastz;
+                *ax = bx + nx; *ay = by + ny; *az = bz + nz;
                 return have_air;
             }
         }
