@@ -310,7 +310,12 @@ int main(void) {
         CHECK(isr_get_stack(&r.player.inv,0).item==326&&gm_world_block(r.world,8,5,10)==0,
               "empty bucket collects a looked-at water source");
         gm_world_set_block_meta(r.world,9,4,10,10,0);
-        gm_runtime_set_pose(&r,8.5,5.0,8.5,0,46.7f);gm_runtime_tick(&r,use);
+        /* ItemBucket.onItemRightClick uses Item.rayTrace(..., false) for a
+         * filled bucket, so liquids are ignored and the terrain hit face
+         * chooses the placement cell. Aim at the ground's top face: 46.7
+         * degrees hits the next ground block's side and vanilla refuses the
+         * resulting solid placement target in tryPlaceContainedLiquid. */
+        gm_runtime_set_pose(&r,8.5,5.0,8.5,0,50.0f);gm_runtime_tick(&r,use);
         CHECK(isr_get_stack(&r.player.inv,0).item==325,"water bucket returns empty bucket after placement");
         CHECK(gm_world_block(r.world,9,4,10)==49,"water-lava source reaction creates obsidian");
     }
