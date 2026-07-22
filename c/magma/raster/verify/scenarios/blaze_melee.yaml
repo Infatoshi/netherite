@@ -13,8 +13,8 @@ setup_commands:
   - /weather clear
   - /difficulty normal
   - /gamemode survival @p
-  - /fill -6 3 -6 6 3 14 minecraft:netherrack
   - /tp @p 0.5 4 0.5 0 0
+  - /fill -6 3 -6 6 3 14 minecraft:netherrack
   - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_sword 1
   - /summon blaze 0.5 4 8.5 {PersistenceRequired:1b}
 duration_ticks: 1200

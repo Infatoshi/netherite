@@ -13,8 +13,8 @@ setup_commands:
   - /weather clear
   - /difficulty normal
   - /gamemode survival @p
-  - /fill -8 3 -8 8 3 16 minecraft:netherrack
   - /tp @p 0.5 4 0.5 0 0
+  - /fill -8 3 -8 8 3 16 minecraft:netherrack
   - /replaceitem entity @p slot.hotbar.0 minecraft:golden_sword 1
   - /summon zombie_pigman 0.5 4 7.5 {PersistenceRequired:1b}
   - /summon zombie_pigman -2.5 4 8.5 {PersistenceRequired:1b}

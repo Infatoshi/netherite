@@ -13,8 +13,8 @@ setup_commands:
   - /weather clear
   - /difficulty normal
   - /gamemode survival @p
-  - /fill -6 3 -6 6 3 14 minecraft:nether_brick
   - /tp @p 0.5 4 0.5 0 0
+  - /fill -6 3 -6 6 3 14 minecraft:nether_brick
   - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_sword 1
   - /summon wither_skeleton 0.5 4 8.5 {PersistenceRequired:1b}
 duration_ticks: 1200
