@@ -71,7 +71,7 @@ SAVE="$ENVDIR/Minecraft/run/saves/qrl_${SEED}"
 
 # --- 2. launch fresh headless stack + game ---
 log "launching headless game via start_vnc_client.sh ..."
-( cd "$ENVDIR" && setsid nohup bash start_vnc_client.sh >"$LAUNCH_LOG" 2>&1 </dev/null & )
+( cd "$ENVDIR" && setsid nohup bash start_vnc_client.sh >"$LAUNCH_LOG" 2>&1 </dev/null 9>&- & )
 
 # --- 3. wait for the qrl bridge (real socket probe, never log grep) ---
 log "waiting for qrl bridge on :25575 (up to 360s)..."

@@ -49,7 +49,7 @@ PY
 
 if ! qrl_listening; then
     log "launching Java oracle on Xvfb :1"
-    setsid bash "$JAVA_DIR/start_vnc_client.sh" > /tmp/mc_gui_actions_launch.out 2>&1
+    setsid bash "$JAVA_DIR/start_vnc_client.sh" > /tmp/mc_gui_actions_launch.out 2>&1 9>&-
     started_oracle=1
     for _ in $(seq 1 360); do
         qrl_listening && break

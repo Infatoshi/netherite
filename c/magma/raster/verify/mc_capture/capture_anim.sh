@@ -43,7 +43,7 @@ uv run --no-project --with pyyaml python "$JAVA/mc_cli.py" \
 	--set determinism.pin_texture_animations=false \
 	--set ui.hide_gui=true --no-launch
 
-setsid bash "$JAVA/start_vnc_client.sh" >"$OUT/launch.log" 2>&1 </dev/null &
+setsid bash "$JAVA/start_vnc_client.sh" >"$OUT/launch.log" 2>&1 </dev/null 9>&- &
 STARTED=1
 echo "[anim-capture] waiting for qrl bridge"
 ready=0
