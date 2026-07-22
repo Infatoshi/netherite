@@ -149,3 +149,30 @@ Removed 2026-07-11 (unused routes): `java/build_mac.sh`, `play_mac.sh` (Mac GL d
   dig windows (t3080-3160, t3320-3400). Real debris is minor and RNG-unmatchable;
   implementing it made the class worse, so it was rejected. Follow-up agent is
   chasing the lighting root cause (world/light.c incremental relight suspect).
+
+## 2026-07-22 (brute-force triptych round: crack/stone/foliage/cave-light)
+
+- Method change per operator: rank keyframe diffs (grind.py), eyeball the
+  triptychs directly, characterize the artifact class visually, then hand the
+  numerics to a codex round. Four root causes landed this way.
+- Crack overlay (codex): block-damage overlay now renders full model faces
+  with per-face crack UVs (vertical faces were mirrored, bottom rotated 90);
+  stage = floor(progress*10)-1 per PlayerControllerMP.
+- Polished stone (codex): granite/diorite/andesite metas 2/4/6 no longer fall
+  through to plain stone; model-oracle coverage added.
+- Foliage lighting: compute_skylight_spread read the renderer block id
+  instead of the packed vanilla state for sky opacity; cube faces now use
+  vanilla useNeighborBrightness (mc_light_for_ext) and cross-plants take
+  neighbor combined light. Sidecar #40 filed: oracle-only ParticleDigging
+  burst at t3160, surfaced once foliage skylight matched.
+- Cave/canopy brightness (my measurement, codex root cause): ~64 mid-tape
+  frames sat at a flat 9.06 mean/ch with magma/oracle = 1.2286 exactly,
+  channel-uniform. Cause: light_set_state seeded EVERY state load with sky 15,
+  so metadata-only leaf loads clobbered stored skylight under the canopy
+  (Moody lightmap bytes 197/160 = 1.23125 - the measured scalar). Fix follows
+  World.checkLightFor: metadata-only loads keep stored skylight; opacity
+  changes re-derive via canSeeSky + flood. Tape median 8.69 -> 0.16 mean/ch;
+  plateau frames 9.1 -> 0.01. Gate PASS both repos; quick sweep green.
+- Worktree gotcha recorded: tracked sidecar json is NOT symlinked into
+  worktrees - editing the main-tree copy silently leaves the worktree stale
+  (cost one full replay to spot: active entries [] at the failing tick).
