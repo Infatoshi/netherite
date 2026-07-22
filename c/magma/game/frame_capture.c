@@ -77,7 +77,9 @@ struct GmFrameCapture {
     int merge_layers;       /* all 4 terrain layers in ONE gpu launch chain */
     int frame;
     float hand_bob;
-    int swing_ticks;
+    int swing_progress_int, swing_active;
+    float equip_progress;
+    int equip_item, equip_meta, equip_count, equip_slot;
     /* deferred frame end (CUDA): frame N's color readback lands in pend_color
      * while the next 19 sim ticks run; hand/hud/ppm happen at the wait, right
      * before frame N+1 renders (or at close). Depth never comes back - hand
@@ -86,7 +88,8 @@ struct GmFrameCapture {
     int pend_active;
     int pend_frame;         /* tick-numbered filename */
     GmPlayerView pend_v;
-    float pend_swing, pend_bob;
+    float pend_swing, pend_equip, pend_bob;
+    int pend_item, pend_meta, pend_count;
     int pend_uwov;          /* deferred frame draws the underwater overlay */
     int boss_latch;         /* GuiBossOverlay: dragon bar latched (world-scoped;
                              * the nearest-8 tape ents lose a far dragon) */
@@ -431,6 +434,55 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
     return c;
 }
 
+/* Advance the two ItemRenderer/EntityLivingBase values which affect the hand
+ * transform. Vanilla swingArm may restart once swingProgressInt reaches half
+ * of the six-tick animation; held block damage calls it every client tick.
+ * updateEquippedItem lowers by 0.4/tick, swaps the retained stack below 0.1,
+ * then raises it by 0.4/tick. */
+static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
+                               const GmAction *action, float *swing,
+                               float *equip) {
+    if (action && (action->attack || action->do_break) &&
+        (!c->swing_active || c->swing_progress_int >= 3 ||
+         c->swing_progress_int < 0)) {
+        c->swing_progress_int = -1;
+        c->swing_active = 1;
+    }
+    if (c->swing_active) {
+        if (++c->swing_progress_int >= 6) {
+            c->swing_progress_int = 0;
+            c->swing_active = 0;
+        }
+    } else {
+        c->swing_progress_int = 0;
+    }
+    *swing = (float)c->swing_progress_int / 6.0f;
+
+    int sel = r->player.inv.current_item;
+    if (sel < 0) sel = 0;
+    if (sel > 8) sel = 8;
+    const IsrInv *inv = r->tape_inv_active ? &r->tape_inv : &r->player.inv;
+    ICStack held = isr_get_stack(inv, sel);
+    int same = ((held.item == 0 && c->equip_item == 0) ||
+                (sel == c->equip_slot && held.item == c->equip_item));
+    float target = same ? 1.0f : 0.0f;
+    float delta = target - c->equip_progress;
+    if (delta < -0.4f) delta = -0.4f;
+    if (delta > 0.4f) delta = 0.4f;
+    c->equip_progress += delta;
+    if (c->equip_progress < 0.1f) {
+        c->equip_item = held.item;
+        c->equip_meta = held.meta;
+        c->equip_count = held.count;
+        c->equip_slot = sel;
+    } else if (same) {
+        /* Count/damage mutate the retained ItemStack object in place. */
+        c->equip_meta = held.meta;
+        c->equip_count = held.count;
+    }
+    *equip = 1.0f - c->equip_progress;
+}
+
 /* Retire the deferred frame: wait for its readback, then draw hand/hud and
  * write the PPM from the pinned pending buffer. Returns write success. */
 static int finish_pending(GmFrameCapture *c) {
@@ -445,6 +497,8 @@ static int finish_pending(GmFrameCapture *c) {
     pfb.color = c->pend_color;
     if (c->pend_depth) pfb.depth = c->pend_depth;
     gm_hand_set_swing(c->pend_swing);
+    gm_hand_set_equip(c->pend_equip);
+    gm_hand_set_item_override(c->pend_item, c->pend_meta, c->pend_count);
     if (!c->pend_v.dead && !getenv("MAGMA_NO_HAND"))
         gm_hand_draw(&pfb, &c->pend_v, c->pend_bob);
     /* ItemRenderer.renderOverlays runs with the hand, BEFORE the HUD. */
@@ -469,12 +523,10 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * sparse capture (--frame-every) writes frames pixel-identical to an
      * every-tick run. c->frame counts calls == tick, keeping tick-numbered
      * filenames stable across capture cadences. */
-    if(action){
-        if(fabsf(action->forward)+fabsf(action->strafe)>0.01f)c->hand_bob+=0.30f;
-        if((action->attack||action->do_break)&&c->swing_ticks<=0)c->swing_ticks=6;
-    }
-    float swing=c->swing_ticks>0?(float)(6-c->swing_ticks)/6.0f:0.0f;
-    if(c->swing_ticks>0)--c->swing_ticks;
+    if(action&&fabsf(action->forward)+fabsf(action->strafe)>0.01f)
+        c->hand_bob+=0.30f;
+    float swing, equip;
+    advance_hand_state(c, r, action, &swing, &equip);
     /* fogColor1 smoother (light brightness at the player FEET): one vanilla
      * updateRenderer step per tick, rendered or not. */
     {
@@ -766,7 +818,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             /* Skip arming a new deferral when a GUI must composite this tick. */
             if(!force_sync&&cr_raster_cuda_frame_end_async(&c->fb,c->pend_color)){
                 c->pend_active=1;c->pend_frame=c->frame++;
-                c->pend_v=v;c->pend_swing=swing;c->pend_bob=c->hand_bob;
+                c->pend_v=v;c->pend_swing=swing;c->pend_equip=equip;
+                c->pend_item=c->equip_item;c->pend_meta=c->equip_meta;
+                c->pend_count=c->equip_count;c->pend_bob=c->hand_bob;
                 c->pend_uwov=uw.overlay&&!v.dead;
                 c->pend_uwb=uw.brightness;c->pend_uwfov=cam.fov_deg;
                 return 1;
@@ -775,6 +829,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         cr_raster_cuda_frame_end(&c->fb);
     }
     gm_hand_set_swing(swing);
+    gm_hand_set_equip(equip);
+    gm_hand_set_item_override(c->equip_item, c->equip_meta, c->equip_count);
     if(v.loading==2){
         /* GuiDownloadTerrain has closed, but the new player/chunk is not yet
          * renderable: vanilla shows only its sky/fog framebuffer + crosshair. */

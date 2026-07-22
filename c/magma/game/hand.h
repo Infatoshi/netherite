@@ -27,6 +27,12 @@ void gm_hand_draw(CrFramebuffer *fb, const GmPlayerView *pv, float bob_phase);
  * swing terms. */
 void gm_hand_set_swing(float progress);
 
+/* ItemRenderer state supplied by the live/capture loop. equip is vanilla's
+ * 1-equippedProgress transform term; the item override is the stack retained
+ * while a hotbar change lowers the old item before raising the new one. */
+void gm_hand_set_equip(float equip);
+void gm_hand_set_item_override(int item_id, int item_meta, int count);
+
 /* Select the arm variant: 1 = slim/alex (3px arm, rotation point y 2.5),
  * 0 = default/steve (4px). Offline players get either by username-UUID hash
  * (DefaultPlayerSkin); the tape records which via the set_skin script event. */
@@ -52,8 +58,9 @@ void gm_hand_set_env(const CrRgba *lightmap, float sky, float blk,
                      float fov_scale, float yaw_deg, float pitch_deg);
 
 /* Test/emit hook: first-person held-item geometry for (item_id, meta, swing,
- * equip) into out[]. Returns vertex count (36 for block cube or generated
- * plate), or 0 when item_id is empty. Does not draw. */
+ * equip) into out[]. Returns 36 vertices for a block cube, or 12 front/back
+ * vertices plus 6 per opaque sprite edge for generated items. Returns 0 when
+ * item_id is empty or max cannot hold the complete mesh. Does not draw. */
 int gm_hand_emit_held(int item_id, int item_meta, float swing, float equip,
                       CrVertex *out, int max);
 

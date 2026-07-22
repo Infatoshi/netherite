@@ -160,11 +160,27 @@ void gm_hand_set_skin(int slim) { g_slim = slim ? 1 : 0; }
 
 /* current attack swing progress in [0,1], pushed by gm_hand_set_swing. */
 static float g_swing = 0.0f;
+static float g_equip = 0.0f;
+static int g_item_override = 0;
+static int g_item_id = 0, g_item_meta = 0, g_item_count = 0;
 
 void gm_hand_set_swing(float progress) {
     if (progress < 0.0f) progress = 0.0f;
     if (progress > 1.0f) progress = 1.0f;
     g_swing = progress;
+}
+
+void gm_hand_set_equip(float equip) {
+    if (equip < 0.0f) equip = 0.0f;
+    if (equip > 1.0f) equip = 1.0f;
+    g_equip = equip;
+}
+
+void gm_hand_set_item_override(int item_id, int item_meta, int count) {
+    g_item_override = 1;
+    g_item_id = item_id;
+    g_item_meta = item_meta;
+    g_item_count = count;
 }
 
 /* ---- viewmodel environment (gm_hand_set_env; see hand.h) ---- */
@@ -424,13 +440,53 @@ static int emit_held_block(CrMat4 M, const BmBlock *m, CrVertex *out, int max) {
     return w;
 }
 
+static int held_sprite_opaque(const CrTexture *tex,
+                              float u0, float v0, float u1, float v1,
+                              int x, int y) {
+    if (x < 0 || x >= 16 || y < 0 || y >= 16) return 0;
+    float u = u0 + ((float)x + 0.5f) * (u1 - u0) / 16.0f;
+    /* ItemLayerModel's geometry y grows upward; PNG/atlas rows grow down. */
+    float v = v0 + (15.5f - (float)y) * (v1 - v0) / 16.0f;
+    int tx = (int)(u * (float)tex->w);
+    int ty = (int)(v * (float)tex->h);
+    if (tx < 0) tx = 0;
+    if (tx >= tex->w) tx = tex->w - 1;
+    if (ty < 0) ty = 0;
+    if (ty >= tex->h) ty = tex->h - 1;
+    return tex->texels[ty * tex->w + tx].a != 0;
+}
+
+static int emit_held_rim_quad(CrMat4 M, const float p[4][3], float u, float v,
+                              CrVertex *out, int max) {
+    if (max < 6) return 0;
+    CrRgba white = {255, 255, 255, 255};
+    CrVertex q[4];
+    for (int c = 0; c < 4; ++c)
+        vtx_init(&q[c], xform_pt01(M, p[c][0], p[c][1], p[c][2]),
+                 u, v, 1.0f, white);
+    float d = hand_diffuse(quad_normal(q[0].pos, q[1].pos, q[2].pos));
+    for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
+    for (int k = 0; k < 6; ++k) out[k] = q[HAND_TRI[k]];
+    return 6;
+}
+
 /* Generated/handheld item: 16x16 sprite extruded 1/16 thick (z 7.5/16..8.5/16
- * in 0..1 model space), ItemLayerModel front/back + four edge faces.
- * Front = NORTH (z=7.5/16), back = SOUTH (z=8.5/16). 36 verts.
- * Vertex order + UVs match net.minecraftforge.client.model.ItemLayerModel. */
+ * in 0..1 model space). ItemLayerModel emits front/back plates plus a rim at
+ * every opaque/transparent texel transition, not four full-sprite border
+ * quads. Those interior rims are the dark silhouette visible in oblique swing
+ * poses. Front = NORTH (z=7.5/16), back = SOUTH (z=8.5/16). */
 static int emit_held_generated(CrMat4 M, float u0, float v0, float u1, float v1,
-                               CrVertex *out, int max) {
-    if (max < 36) return 0;
+                               const CrTexture *tex, CrVertex *out, int max) {
+    if (!tex || !tex->texels || max < 12) return 0;
+    int exposed = 0;
+    for (int y = 0; y < 16; ++y) for (int x = 0; x < 16; ++x) {
+        if (!held_sprite_opaque(tex, u0, v0, u1, v1, x, y)) continue;
+        exposed += !held_sprite_opaque(tex, u0, v0, u1, v1, x - 1, y);
+        exposed += !held_sprite_opaque(tex, u0, v0, u1, v1, x + 1, y);
+        exposed += !held_sprite_opaque(tex, u0, v0, u1, v1, x, y - 1);
+        exposed += !held_sprite_opaque(tex, u0, v0, u1, v1, x, y + 1);
+    }
+    if (max < 12 + exposed * 6) return 0;
     const float z0 = 7.5f / 16.0f, z1 = 8.5f / 16.0f;
     CrRgba white = {255, 255, 255, 255};
     int w = 0;
@@ -456,51 +512,28 @@ static int emit_held_generated(CrMat4 M, float u0, float v0, float u1, float v1,
         for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
         for (int k = 0; k < 6; ++k) out[w++] = q[HAND_TRI[k]];
     }
-    /* Edge faces: thin plate rim (full 16px border; per-texel alpha extrusion
-     * is deferred - front/back cutout already gives the correct silhouette). */
-    /* UP y=1 */
-    {
-        CrVertex q[4];
-        float xs[4] = {0,0,1,1}, zs[4] = {z0,z1,z1,z0};
-        float us[4] = {u0,u0,u1,u1}, vs[4] = {v0,v0,v0,v0};
-        for (int c = 0; c < 4; ++c)
-            vtx_init(&q[c], xform_pt01(M, xs[c], 1.0f, zs[c]), us[c], vs[c], 1.0f, white);
-        float d = hand_diffuse(quad_normal(q[0].pos, q[1].pos, q[2].pos));
-        for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
-        for (int k = 0; k < 6; ++k) out[w++] = q[HAND_TRI[k]];
-    }
-    /* DOWN y=0 */
-    {
-        CrVertex q[4];
-        float xs[4] = {0,1,1,0}, zs[4] = {z0,z0,z1,z1};
-        float us[4] = {u0,u1,u1,u0}, vs[4] = {v1,v1,v1,v1};
-        for (int c = 0; c < 4; ++c)
-            vtx_init(&q[c], xform_pt01(M, xs[c], 0.0f, zs[c]), us[c], vs[c], 1.0f, white);
-        float d = hand_diffuse(quad_normal(q[0].pos, q[1].pos, q[2].pos));
-        for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
-        for (int k = 0; k < 6; ++k) out[w++] = q[HAND_TRI[k]];
-    }
-    /* WEST x=0 */
-    {
-        CrVertex q[4];
-        float ys[4] = {0,1,1,0}, zs[4] = {z0,z0,z1,z1};
-        float us[4] = {u0,u0,u0,u0}, vs[4] = {v1,v0,v0,v1};
-        for (int c = 0; c < 4; ++c)
-            vtx_init(&q[c], xform_pt01(M, 0.0f, ys[c], zs[c]), us[c], vs[c], 1.0f, white);
-        float d = hand_diffuse(quad_normal(q[0].pos, q[1].pos, q[2].pos));
-        for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
-        for (int k = 0; k < 6; ++k) out[w++] = q[HAND_TRI[k]];
-    }
-    /* EAST x=1 */
-    {
-        CrVertex q[4];
-        float ys[4] = {0,0,1,1}, zs[4] = {z0,z1,z1,z0};
-        float us[4] = {u1,u1,u1,u1}, vs[4] = {v1,v1,v0,v0};
-        for (int c = 0; c < 4; ++c)
-            vtx_init(&q[c], xform_pt01(M, 1.0f, ys[c], zs[c]), us[c], vs[c], 1.0f, white);
-        float d = hand_diffuse(quad_normal(q[0].pos, q[1].pos, q[2].pos));
-        for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
-        for (int k = 0; k < 6; ++k) out[w++] = q[HAND_TRI[k]];
+    for (int y = 0; y < 16; ++y) for (int x = 0; x < 16; ++x) {
+        if (!held_sprite_opaque(tex, u0, v0, u1, v1, x, y)) continue;
+        float xa = (float)x / 16.0f, xb = (float)(x + 1) / 16.0f;
+        float ya = (float)y / 16.0f, yb = (float)(y + 1) / 16.0f;
+        float su = u0 + ((float)x + 0.5f) * (u1 - u0) / 16.0f;
+        float sv = v0 + (15.5f - (float)y) * (v1 - v0) / 16.0f;
+        if (!held_sprite_opaque(tex, u0, v0, u1, v1, x - 1, y)) {
+            const float p[4][3] = {{xa,ya,z0},{xa,ya,z1},{xa,yb,z1},{xa,yb,z0}};
+            w += emit_held_rim_quad(M, p, su, sv, out + w, max - w);
+        }
+        if (!held_sprite_opaque(tex, u0, v0, u1, v1, x + 1, y)) {
+            const float p[4][3] = {{xb,ya,z1},{xb,ya,z0},{xb,yb,z0},{xb,yb,z1}};
+            w += emit_held_rim_quad(M, p, su, sv, out + w, max - w);
+        }
+        if (!held_sprite_opaque(tex, u0, v0, u1, v1, x, y - 1)) {
+            const float p[4][3] = {{xa,ya,z0},{xb,ya,z0},{xb,ya,z1},{xa,ya,z1}};
+            w += emit_held_rim_quad(M, p, su, sv, out + w, max - w);
+        }
+        if (!held_sprite_opaque(tex, u0, v0, u1, v1, x, y + 1)) {
+            const float p[4][3] = {{xa,yb,z1},{xb,yb,z1},{xb,yb,z0},{xa,yb,z0}};
+            w += emit_held_rim_quad(M, p, su, sv, out + w, max - w);
+        }
     }
     return w;
 }
@@ -519,8 +552,8 @@ static int held_is_block(int item_id, int item_meta, const BmBlock **out_m) {
     return 1;
 }
 
-/* verts: arm 72; held block/item 36. Cap covers arm double-sided. */
-#define HAND_MAX_VERTS 72
+/* verts: arm 72; held block 36; generated item varies with alpha silhouette. */
+#define HAND_MAX_VERTS 6156 /* front/back + four exposed sides per 16x16 texel */
 static CrVertex   g_verts[HAND_MAX_VERTS];
 static CrScreenTri g_tris[HAND_MAX_VERTS * 2]; /* near-clip may split; ample */
 
@@ -575,10 +608,11 @@ int gm_hand_emit_held(int item_id, int item_meta, float swing, float equip,
         int sid = pull >= 0.9f ? 9002 : pull >= 0.65f ? 9001 : 9000;
         const float aw2 = (float)CR_ITEM_ATLAS_W, ah2 = (float)CR_ITEM_ATLAS_H;
         const CrItemSprite *sp = &CR_ITEM_SPRITES[gm_item_sprite_index(sid)];
+        CrTexture tex = gm_item_atlas();
         return emit_held_generated(M,
                                    (float)sp->x0 / aw2, (float)sp->y0 / ah2,
                                    (float)sp->x1 / aw2, (float)sp->y1 / ah2,
-                                   out, max);
+                                   &tex, out, max);
     }
 
     const BmBlock *bm = 0;
@@ -595,14 +629,16 @@ int gm_hand_emit_held(int item_id, int item_meta, float swing, float equip,
         if (m && !m->is_air &&
             (m->kind == BM_KIND_CROSS || m->kind == BM_KIND_TORCH)) {
             bm_sprite_uv(m->face[BM_SOUTH].sprite, &u0, &v0, &u1, &v1);
-            return emit_held_generated(M, u0, v0, u1, v1, out, max);
+            CrTexture tex = bm_atlas();
+            return emit_held_generated(M, u0, v0, u1, v1, &tex, out, max);
         }
     }
     const float aw = (float)CR_ITEM_ATLAS_W, ah = (float)CR_ITEM_ATLAS_H;
     const CrItemSprite *s = &CR_ITEM_SPRITES[gm_item_sprite_index(item_id)];
     u0 = (float)s->x0 / aw; v0 = (float)s->y0 / ah;
     u1 = (float)s->x1 / aw; v1 = (float)s->y1 / ah;
-    return emit_held_generated(M, u0, v0, u1, v1, out, max);
+    CrTexture tex = gm_item_atlas();
+    return emit_held_generated(M, u0, v0, u1, v1, &tex, out, max);
 }
 
 static void hand_raster(CrFramebuffer *fb, CrVertex *verts, int nv,
@@ -644,20 +680,20 @@ void gm_hand_draw(CrFramebuffer *fb, const GmPlayerView *pv, float bob_phase) {
     int sel = pv->hotbar_sel;
     if (sel < 0) sel = 0;
     if (sel > 8) sel = 8;
-    int item_id = pv->hotbar_ids[sel];
-    int count   = pv->hotbar_counts[sel];
+    int item_id = g_item_override ? g_item_id : pv->hotbar_ids[sel];
+    int item_meta = g_item_override ? g_item_meta : 0;
+    int count = g_item_override ? g_item_count : pv->hotbar_counts[sel];
     int empty   = (item_id <= 0 || count <= 0);
 
     if (!empty) {
-        /* equipProgress fully raised (equip term = 0); equip bob is optional. */
-        const float equip = 0.0f;
-        int nv = gm_hand_emit_held(item_id, 0, g_swing, equip, g_verts, HAND_MAX_VERTS);
+        int nv = gm_hand_emit_held(item_id, item_meta, g_swing, g_equip,
+                                   g_verts, HAND_MAX_VERTS);
         if (nv > 0) {
             const BmBlock *bm = 0;
-            int is_block = held_is_block(item_id, 0, &bm);
+            int is_block = held_is_block(item_id, item_meta, &bm);
             int use_terrain = is_block;
             if (!use_terrain && item_id > 0 && item_id <= 255) {
-                int key = gm_state_to_model_key(gm_pack_state(item_id, 0));
+                int key = gm_state_to_model_key(gm_pack_state(item_id, item_meta));
                 const BmBlock *m = (key != GM_MODEL_FALLBACK && key != 0) ? bm_block(key) : 0;
                 if (m && !m->is_air &&
                     (m->kind == BM_KIND_CROSS || m->kind == BM_KIND_TORCH))
