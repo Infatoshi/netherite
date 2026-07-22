@@ -102,13 +102,6 @@ int main(int argc, char **argv) {
     }
     if (!out) out = "/tmp/game_candidate.ppm";
 
-    /* Hard-scene leaf black-hole phase: V nearest sample bias -0.32 texel cuts
-     * terrain crop ~12.98->11.83 and edge/interior ratio ~1.49->1.40. Not enough
-     * for ratio<=1.25, but best raster-side lever found. Override via env. */
-    if (!getenv("MAGMA_TEXEL_BIAS") && !getenv("MAGMA_TEXEL_BIAS_V"))
-        setenv("MAGMA_TEXEL_BIAS_V", "-0.32", 1);
-
-
     CrCamera cam;
     memset(&cam, 0, sizeof(cam));
     cam.pos.x = eye_x; cam.pos.y = eye_y; cam.pos.z = eye_z;
