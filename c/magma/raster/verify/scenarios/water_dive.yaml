@@ -1,0 +1,34 @@
+name: water_dive
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 15 -11.5 0 25
+  - /fill -1 14 -14 1 14 -12 minecraft:stone
+  - /fill -5 1 -5 5 3 5 minecraft:water
+duration_ticks: 1000
+frames_every: 10
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 1.6
+      keys: [w]
+    - seconds: 3.0
+    - seconds: 18.0
+      keys: [w]
+      look: [0, 55]
+    - seconds: 6.0
+      keys: [space]
+      look: [0, -30]
+    - seconds: 4.0
+known_divergences: []

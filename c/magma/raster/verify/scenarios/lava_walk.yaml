@@ -1,0 +1,38 @@
+name: lava_walk
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 -1.5 0 20
+  - /fill -4 3 2 4 3 8 minecraft:lava
+  - /fill -4 1 -10 4 3 -6 minecraft:water
+duration_ticks: 700
+frames_every: 10
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 1.3
+      keys: [w]
+    - seconds: 2.0
+    - seconds: 2.5
+      keys: [s]
+      buttons: []
+    - seconds: 1.0
+      look: [180, -15]
+    - seconds: 4.0
+      keys: [w]
+    - seconds: 4.0
+    - seconds: 3.0
+      keys: [w]
+      look: [0, 0]
+known_divergences: []
