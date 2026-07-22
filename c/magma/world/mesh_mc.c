@@ -17,6 +17,7 @@
 #include "renderkernels/rk.h"   /* facebakery kernels 31-34 (bake non-cube quads) */
 
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -661,12 +662,63 @@ static void reverse_quad(CrVertex dst[4], const CrVertex src[4]) {
     dst[2] = src[2]; dst[3] = src[1];
 }
 
-/* BlockFluidRenderer geometry. UVs intentionally retain the previous atlas
- * sprite/average-height mapping; only topology, corner heights, face offsets,
- * and vanilla visibility are changed here. */
+static int fluid_rendered_depth(const CrLight *L, int wx, int wy, int wz,
+                                int fluid_id) {
+    int id = light_block(L, wx, wy, wz);
+    int meta;
+    if (!same_fluid_id(id, fluid_id)) return -1;
+    meta = light_meta(L, wx, wy, wz);
+    return meta >= 8 ? 0 : meta;
+}
+
+/* BlockLiquid.getFlow / getSlopeAngle, horizontal lanes only. */
+static float fluid_slope_angle(const CrLight *L, int wx, int wy, int wz,
+                               int fluid_id) {
+    static const int dirs[4][2] = {{0,-1},{0,1},{-1,0},{1,0}};
+    double dx = 0.0, dz = 0.0;
+    int here = fluid_rendered_depth(L, wx, wy, wz, fluid_id);
+    for (int d = 0; d < 4; ++d) {
+        int nx = wx + dirs[d][0], nz = wz + dirs[d][1];
+        int depth = fluid_rendered_depth(L, nx, wy, nz, fluid_id);
+        if (depth < 0) {
+            const BmBlock *neighbor = bm_block(light_block(L, nx, wy, nz));
+            if (!(neighbor->is_full_cube && neighbor->layer == CR_LAYER_SOLID)) {
+                depth = fluid_rendered_depth(L, nx, wy - 1, nz, fluid_id);
+                if (depth >= 0) {
+                    int k = depth - (here - 8);
+                    dx += (double)(dirs[d][0] * k);
+                    dz += (double)(dirs[d][1] * k);
+                }
+            }
+        } else {
+            int k = depth - here;
+            dx += (double)(dirs[d][0] * k);
+            dz += (double)(dirs[d][1] * k);
+        }
+    }
+    if (dx == 0.0 && dz == 0.0) return -1000.0f;
+    return (float)atan2(dz, dx) - 1.57079632679489661923f;
+}
+
+static float sprite_u(int sprite, float u) {
+    float u0, u1;
+    bm_sprite_uv(sprite, &u0, NULL, &u1, NULL);
+    return u0 + (u1 - u0) * (u / 16.0f);
+}
+
+static float sprite_v(int sprite, float v) {
+    float v0, v1;
+    bm_sprite_uv(sprite, NULL, &v0, NULL, &v1);
+    return v0 + (v1 - v0) * (v / 16.0f);
+}
+
+/* BlockFluidRenderer geometry. Stationary level-zero tops use the still sprite;
+ * sloped/falling tops and every side use the flow sprite, matching the vanilla
+ * still-vs-flow animation cadence. UV rotation for sloped tops remains a
+ * separate geometric approximation. */
 static void emit_fluid(CrChunkMeshMC *out, int *cap, int layer,
                        const CrLight *L, int wx, int wy, int wz, int fluid_id,
-                       int sprite, CrRgba tint, float base01) {
+                       const BmBlock *model, CrRgba tint, float base01) {
     float h[4] = {
         fluid_corner_height(L, wx,     wy, wz,     fluid_id),
         fluid_corner_height(L, wx,     wy, wz + 1, fluid_id),
@@ -678,19 +730,43 @@ static void emit_fluid(CrChunkMeshMC *out, int *cap, int layer,
     const float to[3] = {16.0f, avg * 16.0f, 16.0f};
     const float eps = 0.001f;
     float side_h[4] = {h[0], h[1], h[2], h[3]};
+    int still_sprite = model->face[BM_UP].sprite;
+    int flow_sprite = model->face[BM_NORTH].sprite;
+    float slope = fluid_slope_angle(L, wx, wy, wz, fluid_id);
+    int top_sprite = slope > -999.0f ? flow_sprite : still_sprite;
 
     int fl_em = (fluid_id == 11 || fluid_id == 12) ? 15 : 0;
     if (fluid_face_visible(L, wx, wy, wz, fluid_id, BM_UP)) {
         CrVertex q[4], back[4];
         lm_capture_ext(L, wx, wy, wz, fl_em);
         bake_face(wx, wy, wz, from, to, BM_UP, 0, 3, 0.0f, NULL, 0,
-                  sprite, base01, 1.0f, tint, q);
+                  top_sprite, base01, 1.0f, tint, q);
         for (int i = 0; i < 4; ++i) {
             int east = q[i].pos.x > (float)wx + 0.5f;
             int south = q[i].pos.z > (float)wz + 0.5f;
             int corner = east ? (south ? 2 : 3) : (south ? 1 : 0);
             side_h[corner] -= eps;
             q[i].pos.y = (float)wy + side_h[corner];
+            if (slope > -999.0f) {
+                float sn = sinf(slope) * 0.25f;
+                float cs = cosf(slope) * 0.25f;
+                float uu, vv;
+                if (!east && !south) {
+                    uu = 8.0f + (-cs - sn) * 16.0f;
+                    vv = 8.0f + (-cs + sn) * 16.0f;
+                } else if (!east) {
+                    uu = 8.0f + (-cs + sn) * 16.0f;
+                    vv = 8.0f + ( cs + sn) * 16.0f;
+                } else if (south) {
+                    uu = 8.0f + ( cs + sn) * 16.0f;
+                    vv = 8.0f + ( cs - sn) * 16.0f;
+                } else {
+                    uu = 8.0f + ( cs - sn) * 16.0f;
+                    vv = 8.0f + (-cs - sn) * 16.0f;
+                }
+                q[i].uv.x = sprite_u(flow_sprite, uu);
+                q[i].uv.y = sprite_v(flow_sprite, vv);
+            }
         }
         push_face(out, cap, layer, q);
         if (fluid_open_near(L, wx, wy + 1, wz, fluid_id)) {
@@ -703,7 +779,7 @@ static void emit_fluid(CrChunkMeshMC *out, int *cap, int layer,
         CrVertex q[4];
         lm_capture_ext(L, wx, wy - 1, wz, fl_em);
         bake_face(wx, wy, wz, from, to, BM_DOWN, 0, 3, 0.0f, NULL, 0,
-                  sprite, base01 * FACES[BM_DOWN].shade, 1.0f, tint, q);
+                  still_sprite, base01 * FACES[BM_DOWN].shade, 1.0f, tint, q);
         push_face(out, cap, layer, q);
     }
 
@@ -713,7 +789,7 @@ static void emit_fluid(CrChunkMeshMC *out, int *cap, int layer,
         lm_capture_ext(L, wx + FACES[face].n[0], wy + FACES[face].n[1],
                        wz + FACES[face].n[2], fl_em);
         bake_face(wx, wy, wz, from, to, face, 0, 3, 0.0f, NULL, 0,
-                  sprite, base01 * FACES[face].shade, 1.0f, tint, q);
+                  flow_sprite, base01 * FACES[face].shade, 1.0f, tint, q);
         for (int i = 0; i < 4; ++i) {
             int corner = 0;
             if (face == BM_NORTH) {
@@ -729,8 +805,17 @@ static void emit_fluid(CrChunkMeshMC *out, int *cap, int layer,
                 q[i].pos.x = (float)wx + 1.0f - eps;
                 corner = q[i].pos.z > (float)wz + 0.5f ? 2 : 3;
             }
-            q[i].pos.y = q[i].pos.y > (float)wy + 1e-5f
-                       ? (float)wy + side_h[corner] : (float)wy;
+            int top = q[i].pos.y > (float)wy + 1e-5f;
+            int east = q[i].pos.x > (float)wx + 0.5f;
+            int south = q[i].pos.z > (float)wz + 0.5f;
+            float uu = face == BM_NORTH ? (east ? 8.0f : 0.0f)
+                     : face == BM_SOUTH ? (east ? 0.0f : 8.0f)
+                     : face == BM_WEST  ? (south ? 0.0f : 8.0f)
+                     :                    (south ? 8.0f : 0.0f);
+            q[i].pos.y = top ? (float)wy + side_h[corner] : (float)wy;
+            q[i].uv.x = sprite_u(flow_sprite, uu);
+            q[i].uv.y = sprite_v(flow_sprite,
+                                 top ? (1.0f - side_h[corner]) * 8.0f : 8.0f);
         }
         push_face(out, cap, layer, q);
         reverse_quad(back, q);
@@ -1350,7 +1435,7 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
             break;
         }
         case BM_KIND_FLUID: {
-            emit_fluid(out, cap, m->layer, L, wx, wy, wz, cb, side_spr,
+            emit_fluid(out, cap, m->layer, L, wx, wy, wz, cb, m,
                        tint, base01);
             break;
         }

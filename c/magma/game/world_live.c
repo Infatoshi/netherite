@@ -538,6 +538,13 @@ void gm_world_tick_clear(GmWorldClock *c) {
     c->thundering = 0;
 }
 
+void gm_world_clock_set_total_time(GmWorldClock *c, long long total_time) {
+    if (!c || total_time < 0) return;
+    if (!g_clock.inited) gm_world_clock_init(c, 0);
+    c->total_time = total_time;
+    g_clock.ww.totalTime = total_time;
+}
+
 void gm_world_clock_set_weather(GmWorldClock *c, int raining, int thundering,
                                 int rain_time, int thunder_time) {
     if (!c) return;

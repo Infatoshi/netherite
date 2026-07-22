@@ -74,6 +74,9 @@ enum {
 /* full field order: is_air, is_full_cube, layer, kind, face[6] */
 #define CUBE6(spr, t)        { 0, 1, CR_LAYER_SOLID, BM_KIND_CUBE, FULL6(spr, t) }
 #define CROSS1(spr, t)       { 0, 0, CR_LAYER_CUTOUT, BM_KIND_CROSS, FULL6(spr, t) }
+#define FLUID6(still, flow, t) { \
+    {still,t},{still,t},{flow,t},{flow,t},{flow,t},{flow,t} \
+}
 /* Leaves = Fast graphics (options fancyGraphics:false / Java BlockLeaves
  * !leavesFancy): isOpaqueCube=true, layer=SOLID, shouldSideBeRendered culls vs
  * opaque neighbours. is_full_cube=1 gives the same cull path. Fancy cutout is
@@ -101,7 +104,8 @@ static const BmBlock g_blocks[CBX_MAX] = {
     [CB_STONE] = CUBE6(CR_SPRITE_STONE, BM_TINT_NONE),
     /* BlockLiquid is neither a full cube nor opaque; adjacent solid faces stay. */
     [CB_WATER] = { 0, 0, CR_LAYER_TRANSLUCENT, BM_KIND_FLUID,
-                   FULL6(CR_SPRITE_WATER_STILL, BM_TINT_WATER) },
+                   FLUID6(CR_SPRITE_WATER_STILL, CR_SPRITE_WATER_FLOW,
+                          BM_TINT_WATER) },
     [CB_GRASS] = { 0, 1, CR_LAYER_SOLID, BM_KIND_CUBE,
                    TBS(CR_SPRITE_GRASS_TOP, CR_SPRITE_DIRT, CR_SPRITE_GRASS_SIDE,
                        BM_TINT_GRASS, BM_TINT_NONE) },
@@ -118,11 +122,14 @@ static const BmBlock g_blocks[CBX_MAX] = {
     [CB_ICE]     = { 0, 1, CR_LAYER_TRANSLUCENT, BM_KIND_CUBE,
                      FULL6(CR_SPRITE_ICE, BM_TINT_NONE) },
     [CB_LAVA]         = { 0, 0, CR_LAYER_SOLID, BM_KIND_FLUID,
-                          FULL6(CR_SPRITE_LAVA_STILL, BM_TINT_NONE) },
+                          FLUID6(CR_SPRITE_LAVA_STILL, CR_SPRITE_LAVA_FLOW,
+                                 BM_TINT_NONE) },
     [CB_FLOWING_LAVA] = { 0, 0, CR_LAYER_SOLID, BM_KIND_FLUID,
-                          FULL6(CR_SPRITE_LAVA_STILL, BM_TINT_NONE) },
+                          FLUID6(CR_SPRITE_LAVA_STILL, CR_SPRITE_LAVA_FLOW,
+                                 BM_TINT_NONE) },
     [CB_FLOWING_WATER]= { 0, 0, CR_LAYER_TRANSLUCENT, BM_KIND_FLUID,
-                          FULL6(CR_SPRITE_WATER_STILL, BM_TINT_WATER) },
+                          FLUID6(CR_SPRITE_WATER_STILL, CR_SPRITE_WATER_FLOW,
+                                 BM_TINT_WATER) },
     /* Vanilla waterlily.json: plane at y=0.25, up+down only, fixed 0x208030. */
     [CB_WATER_LILY] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_LILY,
                         FULL6(CR_SPRITE_WATERLILY, BM_TINT_LILY) },
@@ -417,6 +424,23 @@ static int g_mip_levels;
 static int g_mipw[MIP_MAX], g_miph[MIP_MAX];
 static int g_atlas_init;
 
+#include "assets/water_frames.h"
+#include "assets/portal_tex.h"
+
+/* Runtime TextureMap mirror.  Animated sprites mutate level zero; the mip
+ * chain is rebuilt lazily by bm_atlas() before the texture is consumed. */
+static CrRgba g_atlas_live[CR_ATLAS_W * CR_ATLAS_H];
+static int g_atlas_live_ready;
+static int g_anim_frames[6] = {-1, -1, -1, -1, -1, -1};
+static int g_portal_frame = -1;
+
+static void atlas_live_init(void)
+{
+    if (g_atlas_live_ready) return;
+    memcpy(g_atlas_live, CR_ATLAS_RGBA, sizeof g_atlas_live);
+    g_atlas_live_ready = 1;
+}
+
 static void mip_down(const CrRgba *src, int sw, int sh, CrRgba *dst)
 {
     int dw = sw / 2, dh = sh / 2, x, y;
@@ -450,9 +474,11 @@ static void mip_down(const CrRgba *src, int sw, int sh, CrRgba *dst)
 
 static void atlas_init(void)
 {
-    const CrRgba *prev = (const CrRgba *)CR_ATLAS_RGBA;
+    const CrRgba *prev;
     int pw = CR_ATLAS_W, ph = CR_ATLAS_H, l = 0;
     if (g_atlas_init) return;
+    atlas_live_init();
+    prev = g_atlas_live;
     while ((pw > 1 || ph > 1) && l < MIP_MAX && g_mip_bufs[l]) {
         int nw = pw > 1 ? pw / 2 : 1;
         int nh = ph > 1 ? ph / 2 : 1;
@@ -467,37 +493,11 @@ static void atlas_init(void)
     g_atlas_init = 1;
 }
 
-#include "assets/water_frames.h"
-#include "assets/portal_tex.h"
-
-/* Live atlas copy so water_still can advance without rewriting the generated
- * const CR_ATLAS_RGBA. Initialized lazily from the const source. */
-static CrRgba g_atlas_live[CR_ATLAS_W * CR_ATLAS_H];
-static int    g_atlas_live_ready;
-static int    g_water_frame = -1;
-static int    g_portal_frame = -1;
-
-static void atlas_live_init(void)
+static void atlas_set_tile(int sprite, const unsigned char *src)
 {
-    if (g_atlas_live_ready) return;
-    memcpy(g_atlas_live, CR_ATLAS_RGBA, sizeof g_atlas_live);
-    g_atlas_live_ready = 1;
-}
-
-void bm_atlas_set_water_time(long long total_time)
-{
-    /* TextureAtlasSprite: frametime 2, frame = (tick / frametime) % nframes.
-     * Tape replay freezes world_time but advances total_time each tick; the
-     * recorder header's total_time seeds the phase at recstart. */
-    int frame = (int)((total_time / CR_WATER_STILL_FRAMETIME) % CR_WATER_STILL_FRAMES);
-    if (frame < 0) frame = 0;
-    if (frame == g_water_frame) return;
-    atlas_live_init();
-    CrAtlasSprite s = CR_ATLAS_SPRITES[CR_SPRITE_WATER_STILL];
-    int x0 = s.x0, y0 = s.y0;
-    const unsigned char *src = CR_WATER_STILL_RGBA[frame];
+    CrAtlasSprite s = CR_ATLAS_SPRITES[sprite];
     for (int row = 0; row < 16; ++row) {
-        CrRgba *dst = g_atlas_live + (y0 + row) * CR_ATLAS_W + x0;
+        CrRgba *dst = g_atlas_live + (s.y0 + row) * CR_ATLAS_W + s.x0;
         const unsigned char *p = src + row * 16 * 4;
         for (int col = 0; col < 16; ++col) {
             dst[col].r = p[col * 4 + 0];
@@ -506,7 +506,50 @@ void bm_atlas_set_water_time(long long total_time)
             dst[col].a = p[col * 4 + 3];
         }
     }
-    g_water_frame = frame;
+    g_atlas_init = 0;
+}
+
+static int animation_frame(long long client_tick, int frametime,
+                           int sequence_len, const unsigned char *sequence)
+{
+    long long logical;
+    if (client_tick < 0) client_tick = 0;
+    logical = (client_tick / frametime) % sequence_len;
+    return sequence[(int)logical];
+}
+
+void bm_atlas_set_animation_tick(long long client_tick)
+{
+    const int frames[6] = {
+        animation_frame(client_tick, CR_WATER_STILL_FRAMETIME,
+                        CR_WATER_STILL_SEQUENCE_LEN, CR_WATER_STILL_SEQUENCE),
+        animation_frame(client_tick, CR_WATER_FLOW_FRAMETIME,
+                        CR_WATER_FLOW_SEQUENCE_LEN, CR_WATER_FLOW_SEQUENCE),
+        animation_frame(client_tick, CR_LAVA_STILL_FRAMETIME,
+                        CR_LAVA_STILL_SEQUENCE_LEN, CR_LAVA_STILL_SEQUENCE),
+        animation_frame(client_tick, CR_LAVA_FLOW_FRAMETIME,
+                        CR_LAVA_FLOW_SEQUENCE_LEN, CR_LAVA_FLOW_SEQUENCE),
+        animation_frame(client_tick, CR_FIRE_LAYER_0_FRAMETIME,
+                        CR_FIRE_LAYER_0_SEQUENCE_LEN, CR_FIRE_LAYER_0_SEQUENCE),
+        animation_frame(client_tick, CR_FIRE_LAYER_1_FRAMETIME,
+                        CR_FIRE_LAYER_1_SEQUENCE_LEN, CR_FIRE_LAYER_1_SEQUENCE),
+    };
+    const int sprites[6] = {
+        CR_SPRITE_WATER_STILL, CR_SPRITE_WATER_FLOW,
+        CR_SPRITE_LAVA_STILL, CR_SPRITE_LAVA_FLOW,
+        CR_SPRITE_FIRE_LAYER_0, CR_SPRITE_FIRE_LAYER_1,
+    };
+    const unsigned char *rgba[6] = {
+        CR_WATER_STILL_RGBA[frames[0]], CR_WATER_FLOW_RGBA[frames[1]],
+        CR_LAVA_STILL_RGBA[frames[2]], CR_LAVA_FLOW_RGBA[frames[3]],
+        CR_FIRE_LAYER_0_RGBA[frames[4]], CR_FIRE_LAYER_1_RGBA[frames[5]],
+    };
+    atlas_live_init();
+    for (int i = 0; i < 6; ++i) {
+        if (frames[i] == g_anim_frames[i]) continue;
+        atlas_set_tile(sprites[i], rgba[i]);
+        g_anim_frames[i] = frames[i];
+    }
 }
 
 void bm_atlas_set_portal_frame(int frame)
@@ -528,14 +571,15 @@ void bm_atlas_set_portal_frame(int frame)
         }
     }
     g_portal_frame = frame;
+    g_atlas_init = 0;
 }
 
 CrTexture bm_atlas(void)
 {
     CrTexture t;
     int i;
-    atlas_init();
     atlas_live_init();
+    atlas_init();
     t.w = CR_ATLAS_W;
     t.h = CR_ATLAS_H;
     t.texels = g_atlas_live;

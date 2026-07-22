@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Replay the fixed animation tape twice through magma's CPU renderer, require
-# bitwise determinism, then gate fixed water/portal/underwater regions.
+# bitwise determinism, then gate animated textures and underwater transition.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -12,7 +12,13 @@ TAPE="${ANIM_TAPE:-}"
 
 if [ -z "$TAPE" ]; then
 	shopt -s nullglob
-	tapes=("$FIXTURE"/*.jsonl)
+	tapes=()
+	for candidate in "$FIXTURE"/*.jsonl; do
+		case "$candidate" in
+		*.snapshot_patch.jsonl | *.worldpatch.jsonl | *.geom.jsonl) continue ;;
+		esac
+		tapes+=("$candidate")
+	done
 	if [ "${#tapes[@]}" -gt 0 ]; then
 		TAPE="${tapes[${#tapes[@]} - 1]}"
 	fi
@@ -32,9 +38,8 @@ replay() {
 		python "$TRACE/replay_tape.py" "$TAPE" --cpu --no-gate --out "$out"
 	local rc=$?
 	set -e
-	# A forced fixed-pose capture can have a physics-only packet discrepancy.
-	# Pixel output is still authoritative; rc 4 is reported but not hidden.
-	if [ "$rc" -ne 0 ] && [ "$rc" -ne 4 ]; then
+	# The recorder-driven pose anchor must keep this fixture physics-clean.
+	if [ "$rc" -ne 0 ]; then
 		return "$rc"
 	fi
 	echo "anim replay $(basename "$out"): rc=$rc"
@@ -47,9 +52,26 @@ cmp "$OUT/run1/magma_frames.npy" "$OUT/run2/magma_frames.npy"
 cmp "$OUT/run1/magma_frames.ticks.npy" "$OUT/run2/magma_frames.ticks.npy"
 echo "magma deterministic rerun: PASS (frames and tick index bitwise identical)"
 
+read -r total_time portal_frame frame_count < <(
+	uv run --no-project python - "$TAPE" <<'PY'
+import json
+import sys
+
+rows = [json.loads(line) for line in open(sys.argv[1]) if line.strip()]
+portal = next(row for row in rows[1:] if "portal_frame" in row)
+print(rows[0]["total_time"], portal["portal_frame"], len(rows) - 1)
+PY
+)
+cc -std=c11 -O2 -I"$ROOT/c/magma" \
+	"$HERE/anim_atlas_dump.c" "$ROOT/c/magma/assets/blockmodels.c" -lm \
+	-o "$OUT/anim_atlas_dump"
+"$OUT/anim_atlas_dump" "$total_time" "$portal_frame" "$frame_count" \
+	"$OUT/atlas_frames.rgba"
+
 uv run --no-project --with numpy --with pillow python "$HERE/anim_verify.py" \
 	--tape "$TAPE" \
 	--magma "$OUT/run1/magma_frames.npy" \
 	--ticks "$OUT/run1/magma_frames.ticks.npy" \
+	--atlas "$OUT/atlas_frames.rgba" \
 	--scene "$HERE/anim_scene.json" \
 	--out "$OUT/evidence"

@@ -145,6 +145,21 @@ static float fc_sun_brightness(const McSinTable *st, long long wt) {
     return g * 0.8f + 0.2f;
 }
 
+/* TextureMap.tick is a client clock, independent of World.totalTime.  Replays
+ * record portal.frameCounter every tick; all atlas sprites start together, so
+ * choose the latest matching client tick not after the recorded total time.
+ * Live magma has no recorded portal frame and uses its own total tick directly. */
+static long long fc_texture_tick(long long total_time, int portal_frame) {
+    long long rem;
+    int delta;
+    if (portal_frame < 0) return total_time;
+    portal_frame &= 31;
+    rem = total_time % 32;
+    if (rem < 0) rem += 32;
+    delta = ((int)rem - portal_frame + 32) & 31;
+    return total_time - delta;
+}
+
 /* The frame's lightmap texture: exact updateLightmap texels for the current
  * sun brightness (torch flicker + gamma pinned 0, matching the light state). */
 static const CrRgba *build_lightmap_lut(GmFrameCapture *c, const GmRuntime *r) {
@@ -609,8 +624,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
         if(c->use_cuda)cr_raster_cuda_frame_begin(&c->fb);
     }
-    /* water_still TextureAtlasSprite phase from total_time (frametime 2). */
-    bm_atlas_set_water_time(r->clock.total_time);
+    /* TextureAtlasSprite.updateAnimation for water/lava/fire. */
+    bm_atlas_set_animation_tick(fc_texture_tick(r->clock.total_time,
+                                                 v.portal_frame));
     bm_atlas_set_portal_frame(v.portal_frame);
     if(c->use_cuda&&cr_raster_cuda_atlas_dirty)cr_raster_cuda_atlas_dirty();
     CrTexture atlas=gm_world_atlas(r->world);

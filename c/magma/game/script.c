@@ -655,6 +655,14 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid set_time\n",line_no);goto bad;
                 }
                 gm_runtime_set_time(&r,value);
+            } else if (!strcmp(type,"set_total_time")) {
+                long long value;
+                static const char *const keys[]={"tick","type","value"};
+                if(!keys_only(&pending,keys,3,err,sizeof err)||
+                   !as_i64(field(&pending,"value"),&value)||value<0){
+                    fprintf(stderr,"script:%ld: invalid set_total_time\n",line_no);goto bad;
+                }
+                gm_runtime_set_total_time(&r,value);
             } else if (!strcmp(type,"set_skin")) {
                 /* first-person arm variant: offline players get steve or alex
                  * by username-UUID hash; the tape header records which. */

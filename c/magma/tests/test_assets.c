@@ -1,9 +1,11 @@
 /* test_assets.c - self-test for the ASSETS module (atlas + block model table). */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "assets/blockmodels.h"
 #include "assets/atlas_gen.h"
+#include "assets/water_frames.h"
 
 /* CB_* ids under test (mirror blockmodels.c). */
 enum { T_STONE = 1, T_WATER = 2, T_GRASS = 3, T_ICE = 10, T_AIR = 0 };
@@ -13,6 +15,17 @@ static int g_fail = 0;
     if (cond) { printf("PASS  %s\n", msg); } \
     else { printf("FAIL  %s\n", msg); g_fail = 1; } \
 } while (0)
+
+static int tile_equals(CrTexture atlas, int sprite, const unsigned char *rgba)
+{
+    CrAtlasSprite s = CR_ATLAS_SPRITES[sprite];
+    for (int y = 0; y < 16; ++y) {
+        const CrRgba *got = atlas.texels + (s.y0 + y) * atlas.w + s.x0;
+        if (memcmp(got, rgba + y * 16 * 4, 16 * sizeof(CrRgba)) != 0)
+            return 0;
+    }
+    return 1;
+}
 
 int main(void)
 {
@@ -62,6 +75,37 @@ int main(void)
     bm_sprite_uv(grass->face[BM_UP].sprite, &u0, &v0, &u1, &v1);
     CHECK(u0 >= 0.0f && v0 >= 0.0f && u1 <= 1.0f && v1 <= 1.0f,
           "grass UP UV within [0,1]");
+
+    /* TextureAtlasSprite.updateAnimation metadata clocks. */
+    bm_atlas_set_animation_tick(0);
+    atlas = bm_atlas();
+    CHECK(tile_equals(atlas, CR_SPRITE_WATER_STILL,
+                      CR_WATER_STILL_RGBA[0]),
+          "water_still starts at physical frame 0");
+    CHECK(tile_equals(atlas, CR_SPRITE_FIRE_LAYER_0,
+                      CR_FIRE_LAYER_0_RGBA[16]),
+          "fire_layer_0 honors custom frame sequence");
+    bm_atlas_set_animation_tick(1);
+    atlas = bm_atlas();
+    CHECK(tile_equals(atlas, CR_SPRITE_WATER_STILL,
+                      CR_WATER_STILL_RGBA[0]),
+          "water_still frametime 2 holds tick 1");
+    CHECK(tile_equals(atlas, CR_SPRITE_WATER_FLOW,
+                      CR_WATER_FLOW_RGBA[1]),
+          "water_flow advances every tick");
+    bm_atlas_set_animation_tick(2);
+    atlas = bm_atlas();
+    CHECK(tile_equals(atlas, CR_SPRITE_WATER_STILL,
+                      CR_WATER_STILL_RGBA[1]),
+          "water_still advances on tick 2");
+    CHECK(tile_equals(atlas, CR_SPRITE_LAVA_STILL,
+                      CR_LAVA_STILL_RGBA[1]),
+          "lava_still frametime 2 advances");
+    bm_atlas_set_animation_tick(3);
+    atlas = bm_atlas();
+    CHECK(tile_equals(atlas, CR_SPRITE_LAVA_FLOW,
+                      CR_LAVA_FLOW_RGBA[1]),
+          "lava_flow frametime 3 advances");
 
     if (g_fail) { printf("\nRESULT: FAIL\n"); return 1; }
     printf("\nRESULT: PASS\n");

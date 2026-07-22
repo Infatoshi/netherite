@@ -48,6 +48,7 @@ SPRITE_NAMES = sorted([
     "sandstone_top",
     "snow",
     "stone",
+    "water_flow",
     "water_still",
     "waterlily",
     # trees / foliage
@@ -93,6 +94,7 @@ SPRITE_NAMES = sorted([
     "vine",
     # special / ores / structures
     "glass",
+    "lava_flow",
     "lava_still",
     "planks_oak",
     # crafting table (vanilla models/block/crafting_table.json)

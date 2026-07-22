@@ -594,6 +594,14 @@ static CrTexture *cr_cuda_sync_atlas(const CrTexture *atlas) {
                 size_t ntex = (size_t)atlas->w * (size_t)atlas->h;
                 cudaMemcpy(g_gpu.atlas[i].d_texels, atlas->texels,
                            ntex * sizeof(CrRgba), cudaMemcpyHostToDevice);
+                for (int l = 0; l < g_gpu.atlas[i].n_mip; ++l) {
+                    size_t nl = (size_t)atlas->mipw[l] *
+                                (size_t)atlas->miph[l];
+                    if (nl > 0 && atlas->mip[l])
+                        cudaMemcpy(g_gpu.atlas[i].d_mip[l], atlas->mip[l],
+                                   nl * sizeof(CrRgba),
+                                   cudaMemcpyHostToDevice);
+                }
                 g_atlas_host_dirty = 0;
             }
             return g_gpu.atlas[i].d_tex;

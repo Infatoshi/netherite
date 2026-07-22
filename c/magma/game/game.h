@@ -231,6 +231,7 @@ void      gm_world_tick(GmWorldClock *c);
 /* Advance time with the optional weather bundle disabled: permanently clear,
  * no weather RNG/timer work. */
 void      gm_world_tick_clear(GmWorldClock *c);
+void      gm_world_clock_set_total_time(GmWorldClock *c, long long total_time);
 /* Harness-only weather state injection. Keeps the private verified weather
  * kernel synchronized so the following tick continues from the injected state. */
 void      gm_world_clock_set_weather(GmWorldClock *c, int raining, int thundering,

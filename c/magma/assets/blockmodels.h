@@ -99,10 +99,10 @@ int bm_grass_side_overlay_sprite(void);
  * chain down to 1x1. Backed by static storage; safe to copy by value. */
 CrTexture bm_atlas(void);
 
-/* Advance water_still atlas tile to the frame for total_world_time (vanilla
- * TextureAtlasSprite with frametime=2). Mutates the live atlas in place; the
- * CUDA path re-uploads via cr_raster_cuda_atlas_dirty. No-op if frame unchanged. */
-void bm_atlas_set_water_time(long long total_time);
+/* Advance water/lava/fire TextureAtlasSprites from the client TextureMap tick.
+ * Metadata frame times and custom physical-frame sequences are generated from
+ * the vanilla 1.11.2 jar.  Mutates level zero and lazily rebuilds all mips. */
+void bm_atlas_set_animation_tick(long long client_tick);
 /* Select the exact TextureAtlasSprite portal frame recorded by the oracle. */
 void bm_atlas_set_portal_frame(int frame);
 

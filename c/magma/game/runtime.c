@@ -761,6 +761,11 @@ void gm_runtime_set_time(GmRuntime *r, long long world_time) {
     r->clock.world_time=world_time;
 }
 
+void gm_runtime_set_total_time(GmRuntime *r, long long total_time) {
+    if (!r) return;
+    gm_world_clock_set_total_time(&r->clock, total_time);
+}
+
 int gm_runtime_set_block(GmRuntime *r, int x, int y, int z, int id, int meta) {
     if (!r || !r->world || y < 0 || y > 255 || id < 0 || id > 4095 ||
         meta < 0 || meta > 15) return 0;

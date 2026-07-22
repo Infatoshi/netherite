@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Extract the 32 water_still animation frames into assets/water_frames.h
-(CR_WATER_STILL_RGBA, advanced by total_time / CR_WATER_STILL_FRAMETIME in
-blockmodels.c, matching TextureAtlasSprite).
+"""Extract every runtime block-animation strip into assets/water_frames.h.
+
+The historical filename is retained because bootstrap_assets.sh already invokes
+this generator.  Frame times and custom physical-frame sequences come directly
+from each PNG's .mcmeta, matching TextureAtlasSprite.updateAnimation.
 
 Run: uv run --no-project --with pillow python assets/build_water_frames.py
 """
 import io
+import json
 import os
 import zipfile
 
@@ -17,31 +20,62 @@ JAR = find_jar()
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_H = os.path.join(HERE, "water_frames.h")
 TILE = 16
-FRAMES = 32
-FRAMETIME = 2
+SPECS = (
+    "water_still", "water_flow", "lava_still", "lava_flow",
+    "fire_layer_0", "fire_layer_1",
+)
+
+
+def macro(name: str) -> str:
+    return name.upper()
 
 
 def main():
     with zipfile.ZipFile(JAR) as z:
-        im = Image.open(io.BytesIO(z.read(
-            "assets/minecraft/textures/blocks/water_still.png"))
-        ).convert("RGBA")
-    assert im.size == (TILE, TILE * FRAMES), im.size
+        animations = []
+        for name in SPECS:
+            base = f"assets/minecraft/textures/blocks/{name}.png"
+            im = Image.open(io.BytesIO(z.read(base))).convert("RGBA")
+            width, height = im.size
+            assert height % width == 0, (name, im.size)
+            count = height // width
+            meta = json.loads(z.read(base + ".mcmeta"))["animation"]
+            # None of these 1.11.2 block sprites requests interpolation.  Keep
+            # this explicit so a changed resource cannot silently use hard
+            # frame switches where TextureAtlasSprite would blend.
+            assert not meta.get("interpolate", False), (name, "interpolation")
+            frame_time = int(meta.get("frametime", 1))
+            sequence = [int(v) for v in meta.get("frames", range(count))]
+            frames = []
+            for physical in range(count):
+                tile = im.crop((0, physical * width, width,
+                                (physical + 1) * width))
+                if width != TILE:
+                    tile = tile.resize((TILE, TILE), Image.Resampling.NEAREST)
+                frames.append(tile.tobytes())
+            animations.append((name, frame_time, sequence, frames))
+
     with open(OUT_H, "w") as f:
-        f.write("/* GENERATED water_still animation frames - DO NOT EDIT. */\n")
+        f.write("/* GENERATED vanilla block animation frames - DO NOT EDIT. */\n")
         f.write("#ifndef MAGMA_WATER_FRAMES_H\n#define MAGMA_WATER_FRAMES_H\n")
-        f.write(f"#define CR_WATER_STILL_FRAMES {FRAMES}\n")
-        f.write(f"#define CR_WATER_STILL_FRAMETIME {FRAMETIME}\n")
-        f.write("static const unsigned char "
-                f"CR_WATER_STILL_RGBA[{FRAMES}][{TILE}*{TILE}*4] = {{\n")
-        for fr in range(FRAMES):
-            tile = im.crop((0, fr * TILE, TILE, (fr + 1) * TILE)).tobytes()
-            f.write("  {\n")
-            for row in range(len(tile) // 32):   # 32 bytes (8 px) per line
-                vals = tile[row * 32:(row + 1) * 32]
-                f.write("    " + ", ".join(str(b) for b in vals) + ",\n")
-            f.write("  },\n")
-        f.write("};\n#endif\n")
+        for name, frame_time, sequence, frames in animations:
+            tag = macro(name)
+            f.write(f"#define CR_{tag}_FRAMES {len(frames)}\n")
+            f.write(f"#define CR_{tag}_FRAMETIME {frame_time}\n")
+            f.write(f"#define CR_{tag}_SEQUENCE_LEN {len(sequence)}\n")
+            f.write(f"static const unsigned char CR_{tag}_SEQUENCE"
+                    f"[{len(sequence)}] = {{")
+            f.write(", ".join(str(v) for v in sequence) + "};\n")
+            f.write("static const unsigned char "
+                    f"CR_{tag}_RGBA[{len(frames)}][{TILE}*{TILE}*4] = {{\n")
+            for tile in frames:
+                f.write("  {\n")
+                for row in range(len(tile) // 32):
+                    vals = tile[row * 32:(row + 1) * 32]
+                    f.write("    " + ", ".join(str(b) for b in vals) + ",\n")
+                f.write("  },\n")
+            f.write("};\n")
+        f.write("#endif\n")
     print(f"wrote {OUT_H}")
 
 

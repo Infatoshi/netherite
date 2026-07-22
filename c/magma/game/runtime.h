@@ -145,6 +145,7 @@ void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view);
 void gm_runtime_set_vitals(GmRuntime *r, float health, int food);
 int gm_runtime_set_dimension(GmRuntime *r, int dimension);
 void gm_runtime_set_time(GmRuntime *r, long long world_time);
+void gm_runtime_set_total_time(GmRuntime *r, long long total_time);
 int gm_runtime_set_block(GmRuntime *r, int x, int y, int z, int id, int meta);
 /* Snapshot initialization: canonical cell replacement with no fluid/plant
  * mutation side effects. Must run before the first replay tick. */

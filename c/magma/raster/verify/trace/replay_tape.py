@@ -121,6 +121,33 @@ def magma_world(header):
     return "superflat" if str(header.get("world", "")).endswith("_flat") else "default"
 
 
+def externally_pose_anchored(header, ticks):
+    """Detect recorder-driven fixed-pose tapes, never ordinary play.
+
+    The animation fixture calls qrl set_pose before every step.  Its survival
+    player is therefore airborne with bit-zero velocity and no input for nearly
+    the whole tape, a state vanilla physics cannot sustain independently.  Such
+    rows are authoritative post-tick anchors, including an immediate scene-pose
+    jump that can precede the recorder's next sparse ppos packet.
+    """
+    if header.get("gamemode") != "survival" or len(ticks) < 20:
+        return False
+    pinned = 0
+    positions = set()
+    for row in ticks:
+        i = row.get("in", {})
+        zero_input = (abs(float(i.get("f", 0.0))) <= 1e-15
+                      and abs(float(i.get("s", 0.0))) <= 1e-15
+                      and not any(i.get(k, 0) for k in
+                                  ("jump", "sneak", "sprint", "atk", "use")))
+        zero_motion = all(abs(float(row.get(k, 0.0))) <= 1e-15
+                          for k in ("vx", "vy", "vz"))
+        if zero_input and zero_motion and not int(row.get("og", 0)):
+            pinned += 1
+        positions.add((float(row["x"]), float(row["y"]), float(row["z"])))
+    return pinned * 20 >= len(ticks) * 19 and len(positions) <= 8
+
+
 def snapshot_arrival_events(snapshot_patch, header, ticks, chunk_radius=1):
     """Reload saved blocks around authoritative cross-dimension arrivals.
 
@@ -220,6 +247,8 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
     with open(script_path, "w") as f:
         f.write(json.dumps({"tick": 0, "type": "set_time",
                             "value": int(header["world_time"])}) + "\n")
+        f.write(json.dumps({"tick": 0, "type": "set_total_time",
+                            "value": int(header.get("total_time", 0))}) + "\n")
         f.write(json.dumps({"tick": 0, "type": "set_dimension",
                             "dimension": int(header.get("dim", 0))}) + "\n")
         # first-person arm variant: offline UUIDs hash to steve or alex.
@@ -259,6 +288,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
         pending_inv = []
         velocity_ticks = {int(row["t"]) for row in ticks if "pvel" in row}
         loading_ticks = tape_loading_ticks(header, ticks)
+        pose_anchored = externally_pose_anchored(header, ticks)
         # Portal-pane animation phase: newer tapes record portal_frame every
         # tick; older ones only while timeInPortal>0. frameCounter advances
         # exactly 1/tick (32 frames, frametime 1), so anchor on any recorded
@@ -362,7 +392,14 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                 last_hb = i["hb"]
             if len(ev) > 2:
                 f.write(json.dumps(ev) + "\n")
-            if t in loading_ticks:
+            if pose_anchored:
+                f.write(json.dumps({"tick": t, "type": "set_pose_post",
+                                    "x": row["x"], "y": row["y"], "z": row["z"],
+                                    "yaw": row["yaw"], "pitch": row["pitch"],
+                                    "vx": row["vx"], "vy": row["vy"], "vz": row["vz"],
+                                    "on_ground": int(row["og"]),
+                                    "fall": float(row.get("fall", 0.0))}) + "\n")
+            elif t in loading_ticks:
                 f.write(json.dumps({"tick": t, "type": "set_pose_post",
                                     "x": row["x"], "y": row["y"], "z": row["z"],
                                     "yaw": row["yaw"], "pitch": row["pitch"],
