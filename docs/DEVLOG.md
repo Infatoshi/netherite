@@ -176,3 +176,42 @@ Removed 2026-07-11 (unused routes): `java/build_mac.sh`, `play_mac.sh` (Mac GL d
 - Worktree gotcha recorded: tracked sidecar json is NOT symlinked into
   worktrees - editing the main-tree copy silently leaves the worktree stale
   (cost one full replay to spot: active entries [] at the failing tick).
+
+## 2026-07-22 (scenario harness: scripted combat/GUI/anim environments, six-round codex fan-out)
+
+- New transferable scenario harness (raster/verify/scenarios/): YAML spec ->
+  oracle boot -> phased setup (one runcmds batch per command + settle ticks;
+  a single batch executes in ONE server tick, so tp-dependent fills/summons
+  fail; vanilla also reports no-op clear/fill-air as failure) -> mcwindow
+  input script -> tape -> replay gate. setup_qrl passes raw bridge steps
+  (dim {id:1} for End entry).
+- Eight tapes all rc=0 with gate PASS, each divergence root-caused by a codex
+  round and re-verified here: canonical, smoke zombie, blaze melee, blaze
+  bow, pigmen aggro, wither skeleton, enderman fight, ender dragon.
+- Smoke zombie harvest: zombie melee was 4.0 (vanilla 3.0) and replay
+  double-applied saturation regen across packet timing (13/6 vs 4/3 hp).
+- Night scene ~2x dark: bulk snapshot loads bypassed Chunk.generateSkylightMap
+  semantics (light_load_state now re-derives column skylight per batch);
+  7.51 -> 1.47/ch. Pink hotbar icon = missing diamond_sword GUI atlas entry.
+- GUI actions (8-step scripted inventory sequence, cursor-driven): paper doll
+  (drawEntityOnScreen), hover highlight/tooltip (GuiContainer/GuiUtils),
+  armor/offhand placeholder sprites, achievement-toast harness contamination
+  (pre-grant achievement.openInventory). Panels 1.2-4.2 -> 0.15-0.26/ch.
+- Texture animation: replay never seeded total_time, so every animated tile
+  ran from clock zero (portal masked it via recorded frameCounter). Lava
+  (20-frame fwd/rev) + fire (custom sequences) implemented; underwater
+  overlay burst was sparse ppos anchoring, now per-row anchors. Negative
+  control (time-shifted candidate) now genuinely separates per region.
+- Combat physics: replay dropped ent_box collision impulses whenever velocity
+  packets existed (Entity.applyEntityCollision); wither skeleton = skeleton
+  model 1.2x + stone sword (8.0 raw) + wither DoT (%40 pulses through hurt
+  resistance); hurt-resistance/lastDamage gating implemented; nether brick
+  had no block model (rendered as stone); held items ignored the night
+  lightmap. Dragon: contact damage from recorded envelopes via causeMobDamage
+  + hurt-resistance ledger reproduces death at t606 exactly; dragon-breath
+  AoE cloud is RNG-unmatchable -> scoped sidecar known:40.
+- End entry scenario note: seed-0 obsidian platform is embedded in the island
+  (tape one was 1600 ticks of inside-wall view; also surfaced that magma and
+  the oracle disagree on camera-inside-block near-plane rendering - open).
+- All mirrored to mono with drift vocabulary preserved (10 commits, mono
+  canonical rc=0); mirror of the combat/dragon rounds pending this batch.
