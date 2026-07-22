@@ -1,0 +1,54 @@
+name: ender_dragon_demo
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_sword 1
+  - /replaceitem entity @p slot.hotbar.1 minecraft:bow 1
+  - /replaceitem entity @p slot.inventory.0 minecraft:arrow 64
+# Cross into the End via the raw bridge transfer (vanilla 1.11.2 has no
+# dimension command); the fresh End init spawns the dragon fight. Long
+# settle so the obsidian platform chunks and the dragon entity exist
+# before recording starts.
+setup_qrl:
+  - cmd: dim
+    action: { id: 1 }
+    settle_ticks: 100
+  # The seed-0 obsidian spawn platform is embedded inside the island; move
+  # to the surface near the fountain so the dragon fight is actually visible.
+  - cmd: runcmds
+    action: { cmds: ["tp @p 0.5 70 0.5 0 -10"] }
+    settle_ticks: 60
+duration_ticks: 1600
+frames_every: 2
+input:
+  segments:
+    # Track the circling dragon with slow look sweeps from the island
+    # surface; brief strafes exercise movement on end stone.
+    - seconds: 4.0
+    - seconds: 10.0
+      look: [6.0, -2.0]
+    - seconds: 10.0
+      look: [-9.0, 1.0]
+    - seconds: 8.0
+      keys: [a]
+      look: [4.0, -3.0]
+    - seconds: 8.0
+      keys: [d]
+      look: [6.0, 2.0]
+    - seconds: 10.0
+      look: [-6.0, -2.0]
+      buttons: [1]
+    - seconds: 30.0
+      look: [3.0, 0.0]
+known_divergences: []
