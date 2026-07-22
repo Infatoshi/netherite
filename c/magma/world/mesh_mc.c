@@ -1307,7 +1307,8 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
      * brightness, then applies the per-face 1/.8/.6/.5 multiplier below. Feeding
      * the scalar lightmap again here darkened surface water by almost exactly 2x. */
     float base01 = m->kind == BM_KIND_FLUID ? 1.0f :
-        (m->kind == BM_KIND_IRON_BARS || m->kind == BM_KIND_TORCH)
+        (m->kind == BM_KIND_CROSS || m->kind == BM_KIND_IRON_BARS ||
+         m->kind == BM_KIND_TORCH)
         ? neighbor_model_light01(L, wx, wy, wz,
                                  m->kind == BM_KIND_TORCH ? 14 : 0, &tint)
         : cell_light01(L, wx, wy, wz, &tint);
@@ -1473,8 +1474,8 @@ static int mesh_body(CrWorldMC *w, int ccx, int ccz, CrChunkMeshMC *out, int *ca
                      * vertical world range), folded with the directional shade. */
                     int sx = nx, sy = ny, sz = nz;
                     if (ny < 0 || ny > 255) { sx = wx; sy = wy; sz = wz; }
-                    int s = light_sky(L, sx, sy, sz);
-                    int b = light_blk(L, sx, sy, sz);
+                    int s = mc_light_for_ext(L, 1, sx, sy, sz);
+                    int b = mc_light_for_ext(L, 0, sx, sy, sz);
                     if (cb == CR_CB_MAGMA) { s = 15; b = 15; }
                     float combined01 = fold_lightmap(L, s, b, &tint);
                     float vlight = combined01 * fc->shade;
