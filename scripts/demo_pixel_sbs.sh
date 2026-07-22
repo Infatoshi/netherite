@@ -28,13 +28,21 @@ for arg in "$@"; do
 done
 
 DEMO_DIR="$ROOT/c/magma/raster/verify/demo"
-NAME=20260712T055346Z_fast_s0_survival_default_rd8_77b5b462
+# DEMO_TAPE_NAME overrides the tape (e.g. the current canonical in tapes/);
+# the default is the shipped cold-box pack under raster/verify/demo/.
+NAME="${DEMO_TAPE_NAME:-20260712T055346Z_fast_s0_survival_default_rd8_77b5b462}"
 TAPE="$DEMO_DIR/${NAME}.jsonl"
 FRAMES="$DEMO_DIR/${NAME}_frames"
 OUT_DIR="$ROOT/demos"
 TRACE="$ROOT/c/magma/raster/verify/trace"
 MAGMA="$ROOT/c/magma"
 MC_CAP="$MAGMA/raster/verify/mc_capture"
+
+# Tapes not in the shipped pack resolve from the working tapes/ dir.
+if [ ! -f "$TAPE" ] && [ -f "$MAGMA/raster/verify/tapes/${NAME}.jsonl" ]; then
+  TAPE="$MAGMA/raster/verify/tapes/${NAME}.jsonl"
+  FRAMES="$MAGMA/raster/verify/tapes/${NAME}_frames"
+fi
 
 [ -f "$TAPE" ] || { echo "ERROR: missing $TAPE"; exit 1; }
 [ -d "$FRAMES" ] || { echo "ERROR: missing $FRAMES"; exit 1; }
@@ -46,11 +54,14 @@ mkdir -p "$MC_CAP"
 cp -f "$DEMO_DIR/mc_frame.png" "$MC_CAP/mc_frame.png"
 [ -f "$DEMO_DIR/mc_seed7.png" ] && cp -f "$DEMO_DIR/mc_seed7.png" "$MC_CAP/mc_seed7.png"
 
-# Standard tapes/ location for replay_tape / make_sbs
+# Standard tapes/ location for replay_tape / make_sbs (skip when the tape
+# already lives there - linking onto itself would loop).
 TAPES_LINK="$MAGMA/raster/verify/tapes"
 mkdir -p "$TAPES_LINK"
+if [ "$TAPE" != "$TAPES_LINK/${NAME}.jsonl" ]; then
 ln -sfn "$TAPE" "$TAPES_LINK/${NAME}.jsonl"
 ln -sfn "$FRAMES" "$TAPES_LINK/${NAME}_frames"
+fi
 [ -f "$DEMO_DIR/${NAME}.meta.json" ] && ln -sfn "$DEMO_DIR/${NAME}.meta.json" "$TAPES_LINK/${NAME}.meta.json"
 [ -f "$DEMO_DIR/${NAME}.jsonl.worldpatch.jsonl" ] && \
   ln -sfn "$DEMO_DIR/${NAME}.jsonl.worldpatch.jsonl" "$TAPES_LINK/${NAME}.jsonl.worldpatch.jsonl"
@@ -138,6 +149,9 @@ echo "PIXEL SCENES: multi-verify PASS (seed0+seed7 vs real MC goldens)"
 
 # ---- 3) Encode SBS MP4 ----
 echo "== 3/3 encode demos/pixel_match_sbs.mp4 =="
+export DEMO_TAPE_NAME_RESOLVED="$NAME"
+export DEMO_TAPE_FRAMES="$FRAMES"
+export DEMO_TAPE_TICKS="$(( $(wc -l < "$TAPE") - 1 ))"
 uv run --no-project --with numpy --with pillow python - <<'PY'
 """Build a side-by-side demo MP4: title + gated scenes + short tape strip."""
 import os, subprocess, textwrap
@@ -180,7 +194,7 @@ d = ImageDraw.Draw(title)
 msg = (
     "netherite fidelity demo\n"
     "LEFT = real Java MC 1.11.2 oracle   RIGHT = magma C/CUDA\n"
-    "Physics tape: 3121 ticks CLEAN (1e-9)\n"
+    f"Physics tape: {os.environ.get('DEMO_TAPE_TICKS', '?')} ticks CLEAN (1e-9)\n"
     "Scene gates: hard-scene + multi-verify PASS vs real-MC goldens\n"
     "(full free-cam tape pixels still have residual classes; see report)"
 )
@@ -216,10 +230,12 @@ for label, gpath, cpath in pairs:
         frames.append(frame)
 
 # Short tape strip (physics-clean motion)
-name = "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462"
+name = os.environ.get("DEMO_TAPE_NAME_RESOLVED",
+                      "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462")
 fr_path = root / f"c/magma/raster/verify/trace/out/tape_{name}/magma_frames.npy"
 tk_path = root / f"c/magma/raster/verify/trace/out/tape_{name}/magma_frames.ticks.npy"
-odir = root / f"c/magma/raster/verify/demo/{name}_frames"
+odir = Path(os.environ.get("DEMO_TAPE_FRAMES",
+                           str(root / f"c/magma/raster/verify/demo/{name}_frames")))
 if fr_path.exists() and tk_path.exists() and odir.exists():
     fr = np.load(fr_path)
     tk = np.load(tk_path)
