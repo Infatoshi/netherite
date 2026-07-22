@@ -146,7 +146,7 @@ fi
 
 # ---- magma: unit goldens + standalone-game smoke --------------------------
 run_step magma-verify-harsh 600 "$MAGMA" make verify-harsh
-skip magma-test-config "known-broken at HEAD: game/test_config.sh 'usage includes harness options' (usage text exceeds the test's capture buffer)"
+run_step magma-test-config 300 "$MAGMA" bash game/test_config.sh
 run_step magma-block-registry 300 "$MAGMA" make test-block-registry
 run_step magma-test-launch 300 "$MAGMA" make test-launch
 

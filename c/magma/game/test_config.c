@@ -69,7 +69,7 @@ int main(void) {
           !strcmp(c.state_out_path, "state.jsonl") &&
           !strcmp(c.frames_out_dir, "frames"), "canonical harness values retained");
 
-    char printed[1024];
+    char printed[4096];
     read_print(gm_config_print, &c, printed, sizeof printed);
     CHECK(strstr(printed, "headless=on") && strstr(printed, "ticks=42") &&
           strstr(printed, "script=events.jsonl") &&
