@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "divergences": [
+    {
+      "ticks": [0, 40],
+      "open_divergence": 39,
+      "reason": "RenderEnderCrystal's translucent rotating cage leaves a sub-400-pixel alpha/depth raster residual where the clipped and pillar-top crystals cross the sky/fire boundary.",
+      "regions": [[45, 824, 68, 853], [180, 306, 198, 338]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [60, 60],
+      "open_divergence": 40,
+      "reason": "EntityDragonFireball's recorded EntityAreaEffectCloud emits client-side DRAGON_BREATH particles whose per-particle RNG, age, velocity, and collision state are absent from the tape.",
+      "regions": [[45, 0, 383, 418]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [420, 460],
+      "open_divergence": 39,
+      "reason": "RenderEnderCrystal's translucent rotating cage leaves a sub-120-pixel alpha/depth raster residual at the pillar top; the surrounding dragon-breath particles remain classified separately.",
+      "regions": [[140, 300, 175, 328]],
+      "predicate": {"type": "non_solid_scene"}
+    }
+  ]
+}

@@ -664,7 +664,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         if(!c->boss_latch){c->boss_latch=1;c->boss_frac=1.0f;}
         if(ents[i].health>=0.0f)c->boss_frac=ents[i].health/200.0f;break;
     }
-    gm_hud_set_boss(c->boss_latch,c->boss_frac);
+    /* The fast oracle profile's MixinStripBossBar suppresses only HUD chrome;
+     * BossInfo fog remains active. Replay passes the metadata-derived flag. */
+    gm_hud_set_boss(c->boss_latch&&!getenv("MAGMA_STRIP_OVERLAYS"),c->boss_frac);
     if(c->dev_mesh){
         /* Slot rebuild counters are per-world; after a dimension switch the
          * new world's counters can collide with the cached ones and skip

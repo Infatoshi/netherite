@@ -45,6 +45,11 @@ int gm_mobs_spawn(GmMobLive *m, int type, double x, double y, double z);
 /* Returns nonzero when attack is aimed at a mob, including cooldown ticks. */
 int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player,
                           int ox, int oz, GmLiveSim *drops);
+/* Shared EntityLivingBase.attackEntityFrom hurt-resistance path. Dragon
+ * contact and tape-replay authoritative mob contacts use the same gate as
+ * live hostile melee. */
+int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals, float amount);
+void gm_mobs_player_hurt_tick(GmMobLive *m);
 void gm_mobs_tick(GmMobLive *m, GmWorld *world, const struct McSinTable *sin_table,
                   struct PsvPlayer *player, struct PvStats *vitals,
                   int ox, int oz, int dimension, long long world_time, GmLiveSim *drops);

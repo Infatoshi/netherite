@@ -713,8 +713,9 @@ static int emit_arrow(const GmEntityView *ent, CrVertex *out) {
  *     [glass 8x8x8 @uv(0,0), origin (-4,-4,-4)]
  *     S(0.875) Raxis(60) Ry(f*3)  [glass again]
  *     S(0.875) Raxis(60) Ry(f*3)  [cube 8x8x8 @uv(32,0)]
- * with f = innerRotation (tape crystal_rot), f1 = (sin(f*.2)/2+.5)^2 +
- * (sin(f*.2)/2+.5), vertices at texel*0.0625. */
+ * with f = innerRotation + partialTicks (capture partial is 1.0),
+ * f1 = (sin(f*.2)/2+.5)^2 + (sin(f*.2)/2+.5), vertices at
+ * texel*0.0625. */
 typedef struct { float m[3][3]; float t[3]; } ErAff;
 
 static void er_aff_identity(ErAff *a) {
@@ -852,7 +853,8 @@ static int er_aff_box(const ErAff *a, int sprite, int uvscale, int mirror,
 }
 
 static int emit_crystal(const GmEntityView *ent, CrVertex *out) {
-    float f = ent->crystal_rot;
+    /* RenderEnderCrystal.doRender passes innerRotation + partialTicks. */
+    float f = ent->crystal_rot + 1.0f;
     float f1 = sinf(f * 0.2f) / 2.0f + 0.5f;
     f1 = f1 * f1 + f1;
 

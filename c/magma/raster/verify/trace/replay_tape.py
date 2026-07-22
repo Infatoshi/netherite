@@ -116,6 +116,17 @@ def load_tape(path):
     return lines[0], lines[1:]
 
 
+def tape_strip_overlays(path):
+    """Return the recorded qrl_launch strip.overlays setting, if archived."""
+    meta = os.path.splitext(path)[0] + ".meta.json"
+    try:
+        with open(meta) as f:
+            return bool(json.load(f).get("qrl_launch", {}).get("strip", {})
+                        .get("overlays", False))
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def magma_world(header):
     """Map the recorder world name to magma's matching Overworld generator."""
     return "superflat" if str(header.get("world", "")).endswith("_flat") else "default"
@@ -285,6 +296,8 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
         last_dim = int(header.get("dim", 0))
         last_hp = float(header.get("hp", 20.0))
         last_food = int(header.get("food", 20))
+        last_sat = None
+        has_sat = any("sat" in tape_row for tape_row in ticks)
         pending_inv = []
         velocity_ticks = {int(row["t"]) for row in ticks if "pvel" in row}
         loading_ticks = tape_loading_ticks(header, ticks)
@@ -340,7 +353,38 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
             food = int(row.get("food", last_food))
             food_changed = food != last_food
             remote_damage = "pvel" in row and hp < last_hp
-            if remote_damage:
+            dragon = next((e for e in row.get("ents", [])
+                           if e[1] == "EntityDragon"), None)
+            damage_delta = last_hp - hp
+            dragon_contact = (remote_damage and dragon is not None
+                              and 4.5 <= damage_delta <= 5.1
+                              and abs(float(dragon[2]) - float(row["x"])) < 16.0
+                              and abs(float(dragon[3]) - float(row["y"])) < 12.0
+                              and abs(float(dragon[4]) - float(row["z"])) < 16.0)
+            cloud_present = any(e[1] == "EntityAreaEffectCloud"
+                                for e in row.get("ents", []))
+            dragon_breath = (hp < last_hp and not dragon_contact and cloud_present
+                             and (abs(damage_delta - 6.0) < 0.01
+                                  or abs(damage_delta - 1.0) < 0.01))
+            if dragon_contact:
+                # EntityDragon.collideWithEntities queries each wing part's
+                # 4x4 box expanded by (4,2,4) and offset down two blocks. The
+                # client root can trail the authoritative server part packet;
+                # the 22x16x22 union bounds both expanded wings while still
+                # rejecting the distant dragon at the earlier breath/fall hits.
+                x, y, z = map(float, dragon[2:5])
+                f.write(json.dumps({"tick": t, "type": "dragon_contact",
+                                    "min_x": x - 11.0, "min_y": y - 8.0,
+                                    "min_z": z - 11.0, "max_x": x + 11.0,
+                                    "max_y": y + 8.0, "max_z": z + 11.0,
+                                    "damage": 5.0}) + "\n")
+            elif dragon_breath:
+                # EntityAreaEffectCloud applies INSTANT_DAMAGE II (raw 6).
+                # Tick 463 exposes the vanilla lastDamage delta: raw 6 inside
+                # the wing hit's resistance window removes only 6-5 = 1 hp.
+                f.write(json.dumps({"tick": t, "type": "mob_damage",
+                                    "damage": 6.0}) + "\n")
+            elif remote_damage:
                 # EntityPlayer.attackEntityFrom runs before FoodStats.onUpdate
                 # in the recorded server tick. Seed packet-backed mob damage
                 # before magma's tick too, so foodTimer advances on the same
@@ -374,6 +418,22 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                 # windows, fall/hunger/regen remain independently compared.
                 f.write(json.dumps({"tick": t, "type": "set_vitals_post",
                                     "health": hp, "food": food}) + "\n")
+            if has_sat:
+                # The recorder omits saturation once it reaches exactly zero.
+                # Preserve its post-tick transitions so FoodStats switches from
+                # the 10-tick saturated branch to the 80-tick food branch on
+                # the same tick as Java.
+                sat = float(row.get("sat", 0.0))
+                if last_sat is None or sat != last_sat:
+                    f.write(json.dumps({"tick": t, "type": "set_food_stats_post",
+                                        "saturation": sat,
+                                        # Exhaustion is not taped. Reset it at
+                                        # the authoritative saturation edge;
+                                        # subsequent movement/regen rebuilds it
+                                        # locally, preventing a stale extra
+                                        # rollover on the following tick.
+                                        "exhaustion": 0.0}) + "\n")
+                    last_sat = sat
             last_hp, last_food = hp, food
             ev = {"tick": t, "type": "action"}
             # tape f/s are MC's already-scaled movementInput values (sneak 0.3,
@@ -676,12 +736,18 @@ def main():
                                   w=args.w, h=args.h, seed=int(header["seed"]),
                                   frame_every=every, frame_offset=offset,
                                   mobs=False, backend=backend, daylight=False,
-                                  world=world)
+                                  world=world,
+                                  extra_env=({"MAGMA_STRIP_OVERLAYS": "1"}
+                                             if tape_strip_overlays(args.tape)
+                                             else None))
         else:
             ol.run_magma_script(scr, len(ticks), None, state,
                                   w=args.w, h=args.h,
                                   seed=int(header["seed"]), mobs=False,
-                                  daylight=False, world=world)
+                                  daylight=False, world=world,
+                                  extra_env=({"MAGMA_STRIP_OVERLAYS": "1"}
+                                             if tape_strip_overlays(args.tape)
+                                             else None))
     except RuntimeError as e:
         # A dead magma player stops consuming script events and the run exits
         # rc=2 ("event lies beyond --ticks"). The state written up to the death

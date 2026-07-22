@@ -115,6 +115,11 @@ void gm_runtime_set_look(GmRuntime *r, float yaw, float pitch);
  * width w, height h) as a ghost pusher for the NEXT gm_runtime_tick. */
 void gm_runtime_ent_box(GmRuntime *r, double x, double y, double z,
                         double w, double h);
+/* Tape replay: apply EntityDragon.collideWithEntities / attackEntitiesInList
+ * damage only when the recorded part query box overlaps the live player. */
+int gm_runtime_dragon_contact(GmRuntime *r, double min_x, double min_y,
+                              double min_z, double max_x, double max_y,
+                              double max_z, float damage);
 /* Tape replay: register a recorded oracle entity for RENDERING at this tick's
  * frame capture (type = EW_TYPE_* model id). Render-only; no physics effect.
  * ent_id is the tape entity id (for hurtTime/limbSwing continuity); pass -1

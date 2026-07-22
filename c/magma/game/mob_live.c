@@ -69,7 +69,9 @@ static float melee_damage(int type) {
 /* EntityLivingBase.attackEntityFrom hurtResistantTime/lastDamage gate. Returns
  * whether the attack was accepted, as EntityWitherSkeleton.attackEntityAsMob
  * uses that result before adding PotionEffect(WITHER, 200, 0). */
-static int damage_player(GmMobLive *m, PvStats *v, float amount) {
+int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals_, float amount) {
+    PvStats *v=(PvStats *)vitals_;
+    if (!m || !v || amount <= 0.0f) return 0;
     if (m->player_hurt_resistant > 10) {
         if (amount <= m->player_last_damage) return 0;
         pv_attack(v, amount - m->player_last_damage);
@@ -80,6 +82,10 @@ static int damage_player(GmMobLive *m, PvStats *v, float amount) {
     m->player_hurt_resistant = 20;
     pv_attack(v, amount);
     return 1;
+}
+
+void gm_mobs_player_hurt_tick(GmMobLive *m) {
+    if (m && m->player_hurt_resistant > 0) --m->player_hurt_resistant;
 }
 
 /* Vanilla followRange: zombie 40 (EntityZombie attribute), everything else base 16. */
@@ -384,14 +390,13 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     PsvPlayer *p=(PsvPlayer *)player_; PvStats *v=(PvStats *)vitals_;
     const McSinTable *st=(const McSinTable *)st_;
     EwStore *now=now_store(m), *nx=next_store(m); ew_store_copy(nx,now);
-    if (m->player_hurt_resistant > 0) --m->player_hurt_resistant;
     /* PotionEffect.onUpdate checks isReady(duration, amplifier) before
      * decrementing. WITHER amp 0 is ready every 40 ticks. The duration-200
      * application immediately after melee is normally rejected by the
      * preceding hit's hurt-resistant gate, exactly as attackEntityFrom. */
     if (m->player_wither_ticks > 0) {
         if (m->player_wither_ticks % 40 == 0)
-            (void)damage_player(m, v, 1.0f);
+            (void)gm_mobs_attack_player(m, (struct PvStats *)v, 1.0f);
         --m->player_wither_ticks;
         p->health = v->health;
     }
@@ -456,7 +461,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
             nx->ai_state[i]=EW_AI_ATTACK;nx->yaw[i]=ehs_yaw_toward(dx,dz);
             if(nx->attack_time[i]<=0){
-                int hit=damage_player(m,v,melee_damage(type));p->health=v->health;
+                int hit=gm_mobs_attack_player(m,(struct PvStats *)v,
+                                              melee_damage(type));p->health=v->health;
                 if(hit&&type==EW_TYPE_WITHER_SKELETON)
                     m->player_wither_ticks=200;
                 nx->attack_time[i]=20;

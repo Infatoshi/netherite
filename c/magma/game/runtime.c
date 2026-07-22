@@ -305,6 +305,9 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
             }
         }
     }
+    /* EntityLivingBase.onUpdate ages hurtResistantTime every tick even when
+     * --mobs off suppresses natural mob AI during a tape replay. */
+    gm_mobs_player_hurt_tick(&r->mobs);
     if(action.attack&&r->dimension==1&&gm_dragon_player_attack(&r->dragon,
             (const struct PsvPlayer *)&r->player,r->ox,r->oz))action.attack=0;
     if (action.attack && gm_mobs_player_attack(&r->mobs,
@@ -520,6 +523,21 @@ void gm_runtime_ent_box(GmRuntime *r, double x, double y, double z,
     r->ghosts[r->nghosts].w = w;
     r->ghosts[r->nghosts].h = h;
     r->nghosts++;
+}
+
+int gm_runtime_dragon_contact(GmRuntime *r, double min_x, double min_y,
+                              double min_z, double max_x, double max_y,
+                              double max_z, float damage) {
+    if (!r || damage <= 0.0f || min_x >= max_x || min_y >= max_y ||
+        min_z >= max_z) return 0;
+    const McAABB *pb=(const McAABB *)&r->player.ent.box;
+    double lx0=min_x-r->ox,lx1=max_x-r->ox;
+    double lz0=min_z-r->oz,lz1=max_z-r->oz;
+    if (!(pb->minX < lx1 && pb->maxX > lx0 && pb->minY < max_y &&
+          pb->maxY > min_y && pb->minZ < lz1 && pb->maxZ > lz0)) return 0;
+    int hit=gm_mobs_attack_player(&r->mobs,(struct PvStats *)&r->vitals,damage);
+    r->player.health=r->vitals.health;
+    return hit;
 }
 
 /* Per-entity continuity for tape ghost render pose (hurt flash + limb swing).

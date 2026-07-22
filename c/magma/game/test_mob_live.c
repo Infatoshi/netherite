@@ -29,6 +29,22 @@ int main(void) {
     CHECK(v[0].y>=3.99f,"hostile collision does not fall through superflat floor");
     gm_runtime_destroy(&r);
 
+    /* EntityDragon.collideWithEntities: a recorded expanded wing-part query
+     * applies causeMobDamage(5), while a non-overlapping part does nothing.
+     * A stronger raw hit inside hurtResistantTime applies only the delta, per
+     * EntityLivingBase.attackEntityFrom. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_runtime_dragon_contact(&r,7.0,4.0,7.0,10.0,8.0,10.0,5.0f),
+          "dragon wing contact query hits player");
+    CHECK(r.vitals.health==15.0f,"dragon wing contact subtracts exact 5 hp");
+    CHECK(!gm_runtime_dragon_contact(&r,30.0,4.0,30.0,34.0,8.0,34.0,5.0f),
+          "non-overlapping dragon part does not damage player");
+    CHECK(gm_runtime_dragon_contact(&r,7.0,4.0,7.0,10.0,8.0,10.0,6.0f),
+          "stronger contact passes hurt resistance");
+    CHECK(r.vitals.health==14.0f,
+          "hurt-resistant stronger contact applies lastDamage delta");
+    gm_runtime_destroy(&r);
+
     /* EntityZombie.applyEntityAttributes ATTACK_DAMAGE=3.0;
      * EntityPlayer.attackEntityFrom leaves it unchanged on NORMAL. After ten
      * FoodStats.onUpdate ticks, saturation regen heals 5/6 exactly, for a net

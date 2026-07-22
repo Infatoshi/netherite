@@ -203,6 +203,44 @@ def test_recorded_natural_regeneration_reconciles_hidden_timer(tmp_path: Path):
             "food": 20, "exhaustion": 5.0} in events
 
 
+def test_recorded_saturation_zero_switches_foodstats_branch(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 6000,
+              "x": 0.5, "y": 64.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 14.0, "food": 20}
+    ticks = [
+        {"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 64.0,
+         "z": 0.5, "yaw": 0.0, "pitch": 0.0, "hp": 14.5,
+         "food": 20, "sat": 1.0, "ents": []},
+        {"t": 1, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 64.0,
+         "z": 0.5, "yaw": 0.0, "pitch": 0.0, "hp": 14.5,
+         "food": 20, "ents": []},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 0, "type": "set_food_stats_post", "saturation": 1.0,
+            "exhaustion": 0.0} in events
+    assert {"tick": 1, "type": "set_food_stats_post", "saturation": 0.0,
+            "exhaustion": 0.0} in events
+
+
+def test_dragon_packet_damage_uses_recorded_contact_box(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 6000,
+              "x": 0.5, "y": 64.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 10.0, "food": 20}
+    dragon = [42, "EntityDragon", 2.0, 68.0, 3.0, 90.0, 200.0]
+    ticks = [{"t": 0, "in": {"f": 0, "s": 0}, "x": 1.0, "y": 64.4,
+              "z": 1.0, "yaw": 0.0, "pitch": 0.0, "hp": 5.0,
+              "food": 20, "pvel": [100, 3200, 100], "ents": [dragon]}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    contact = next(e for e in events if e["type"] == "dragon_contact")
+    assert contact["damage"] == 5.0 and contact["min_x"] == -9.0
+    assert not any(e["type"] == "set_vitals" and e.get("health") == 5.0
+                   for e in events)
+
+
 def test_dimension_loading_and_position_packet_become_typed_pose_events(tmp_path: Path):
     header = {
         "header": 1, "seed": 0, "world_time": 6000,

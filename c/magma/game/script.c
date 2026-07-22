@@ -373,6 +373,8 @@ int gm_script_run(const GmConfig *cfg) {
         int have_vitals_post = 0; double vitals_health = 20.0; long long vitals_food = 20;
         int have_regen_post = 0; double regen_health = 20.0, regen_exhaustion = 0.0;
         long long regen_food = 20;
+        int have_food_stats_post = 0;
+        double food_stats_saturation = 5.0, food_stats_exhaustion = 0.0;
         int have_pose_post = 0, pose_on_ground = 0;
         double pose_x = 0.0, pose_y = 0.0, pose_z = 0.0;
         double pose_yaw = 0.0, pose_pitch = 0.0;
@@ -471,6 +473,16 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid set_regen_post\n",line_no);goto bad;
                 }
                 have_regen_post=1;
+            } else if (!strcmp(type,"set_food_stats_post")) {
+                static const char *const keys[]={"tick","type","saturation","exhaustion"};
+                if(!keys_only(&pending,keys,4,err,sizeof err)||
+                   !as_double(field(&pending,"saturation"),&food_stats_saturation)||
+                   !as_double(field(&pending,"exhaustion"),&food_stats_exhaustion)||
+                   food_stats_saturation<0||food_stats_saturation>20||
+                   food_stats_exhaustion<0||food_stats_exhaustion>4){
+                    fprintf(stderr,"script:%ld: invalid set_food_stats_post\n",line_no);goto bad;
+                }
+                have_food_stats_post=1;
             } else if (!strcmp(type,"set_dimension")) {
                 long long dimension;
                 static const char *const keys[]={"tick","type","dimension"};
@@ -517,6 +529,34 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid ent_box\n",line_no);goto bad;
                 }
                 gm_runtime_ent_box(&r,x,y,z,w,h);
+            } else if (!strcmp(type,"dragon_contact")) {
+                /* Recorded EntityDragon part query. Wing boxes carry 5 damage
+                 * (collideWithEntities); head/neck boxes carry 10
+                 * (attackEntitiesInList). Damage lands before FoodStats.onUpdate. */
+                double x0,y0,z0,x1,y1,z1,damage;
+                static const char *const keys[]={"tick","type","min_x","min_y","min_z",
+                    "max_x","max_y","max_z","damage"};
+                if(!keys_only(&pending,keys,9,err,sizeof err)||
+                   !as_double(field(&pending,"min_x"),&x0)||
+                   !as_double(field(&pending,"min_y"),&y0)||
+                   !as_double(field(&pending,"min_z"),&z0)||
+                   !as_double(field(&pending,"max_x"),&x1)||
+                   !as_double(field(&pending,"max_y"),&y1)||
+                   !as_double(field(&pending,"max_z"),&z1)||
+                   !as_double(field(&pending,"damage"),&damage)||damage<=0){
+                    fprintf(stderr,"script:%ld: invalid dragon_contact\n",line_no);goto bad;
+                }
+                (void)gm_runtime_dragon_contact(&r,x0,y0,z0,x1,y1,z1,(float)damage);
+            } else if (!strcmp(type,"mob_damage")) {
+                double damage;
+                static const char *const keys[]={"tick","type","damage"};
+                if(!keys_only(&pending,keys,3,err,sizeof err)||
+                   !as_double(field(&pending,"damage"),&damage)||damage<=0){
+                    fprintf(stderr,"script:%ld: invalid mob_damage\n",line_no);goto bad;
+                }
+                (void)gm_mobs_attack_player(&r.mobs,
+                    (struct PvStats *)&r.vitals,(float)damage);
+                r.player.health=r.vitals.health;
             } else if (!strcmp(type,"ent_view")) {
                 /* Tape replay renderable ghost entity (divergence #10): the
                  * recorded oracle entity is drawn by frame capture through
@@ -845,6 +885,10 @@ int gm_script_run(const GmConfig *cfg) {
                 r.vitals.foodTimer=0;
             }
             gm_runtime_set_vitals(&r,(float)regen_health,(int)regen_food);
+        }
+        if (have_food_stats_post) {
+            r.vitals.saturation=(float)food_stats_saturation;
+            r.vitals.exhaustion=(float)food_stats_exhaustion;
         }
         /* Flywheel probe: MAGMA_DUMP="tick,x0,x1,y0,y1,z0,z1" dumps id/meta of
          * a world region to stderr at that tick - the way to see magma's LIVE
