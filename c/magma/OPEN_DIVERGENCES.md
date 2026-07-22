@@ -922,3 +922,24 @@ Vanilla derives sideHit from AxisAlignedBB.calculateIntercept and rejects
 the occupied cell without consuming. sel_box.c ray_box_hit now returns the
 actual AABB face (mirrored in blaze_core.h cu_ray_box_hit); regression:
 test_play_compose.c descending-ray case.
+
+## 56. FIXED (codex, 2026-07-21): stale saved skylight on surface vegetation after grass/dirt break
+
+The dominant clusters in the canonical tape's 'particles' gate class were not
+particles: pixel_gate classifies any oracle-brighter cluster as 'particles',
+and the largest (87k px peak, dig windows t3080-3160 / t3320-3400) were broad
+terrain areas where magma rendered darker. Root cause: breaking grass/dirt
+queues Chunk.recheckGaps in vanilla, whose checkLightFor pass leaves
+zero-opacity surface vegetation (tallgrass) with saved direct sky light 15;
+magma's converged flood kept the pre-break value (e.g. 11). Fix:
+light_recheck_break_surfaces applies the saved-skylight effect to the 3x3
+neighbor columns on grass/dirt removal (world_live.c, world/light.c). Canonical
+tape: particles 572,331 -> 366,663 px, hud 392,571 -> 303,922 (the class also
+catches bottom-fifth terrain). Remaining class content: log-destroy overlays,
+true debris particles (#40), and smaller oracle-brighter residue.
+
+Same-day related fidelity wins (see DEVLOG 2026-07-21 later entry): vanilla
+equip lower/raise + swing restart + per-texel item rims (viewmodel 518,463 ->
+470,440), hotbar durability strip + GUI item lighting (hud), test_entity_render
+dragon assertion modernized, test_runtime bucket fixture corrected, blaze
+sm_86 chain-gate false hang fixed (single-thread verify camera render).
