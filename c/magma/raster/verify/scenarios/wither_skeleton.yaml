@@ -1,0 +1,36 @@
+name: wither_skeleton
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /fill -6 3 -6 6 3 14 minecraft:nether_brick
+  - /tp @p 0.5 4 0.5 0 0
+  - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_sword 1
+  - /summon wither_skeleton 0.5 4 8.5 {PersistenceRequired:1b}
+duration_ticks: 1200
+frames_every: 20
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 5.0
+      keys: [a]
+      buttons: [1]
+    - seconds: 5.0
+      keys: [d]
+      buttons: [1]
+    - seconds: 3.0
+      keys: [s]
+      buttons: [1]
+    - seconds: 15.0
+      buttons: [1]
+known_divergences: []

@@ -191,7 +191,7 @@ def assert_clean_oracle() -> set[int]:
     return process_snapshot()
 
 
-def wait_for_qrl(timeout: float = 240.0) -> QRLEnv:
+def wait_for_qrl(timeout: float = 600.0) -> QRLEnv:
     deadline = time.monotonic() + timeout
     last_error: Exception | None = None
     while time.monotonic() < deadline:

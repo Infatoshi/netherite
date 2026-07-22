@@ -1,0 +1,40 @@
+name: enderman_fight
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /fill -8 3 -8 8 3 16 minecraft:end_stone
+  - /tp @p 0.5 4 0.5 0 0
+  - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_sword 1
+  - /summon enderman 0.5 4 9.5 {PersistenceRequired:1b}
+duration_ticks: 1400
+frames_every: 20
+input:
+  segments:
+    - seconds: 4.0
+    - seconds: 1.0
+      keys: [w]
+    - seconds: 1.0
+      buttons: [1]
+    - seconds: 5.0
+      keys: [s]
+      buttons: [1]
+    - seconds: 5.0
+      keys: [a]
+      buttons: [1]
+    - seconds: 5.0
+      keys: [d]
+      buttons: [1]
+    - seconds: 12.0
+      buttons: [1]
+known_divergences: []
