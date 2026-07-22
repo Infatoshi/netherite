@@ -717,6 +717,27 @@ void light_set_state(CrLight *L, int wx, int wy, int wz, uint16_t state) {
     c->sky[i] = L->has_sky ? 15 : 0;
 }
 
+/* A grass/dirt removal queues Chunk.recheckGaps in vanilla. Its checkLightFor
+ * pass updates zero-opacity surface vegetation in the neighboring columns;
+ * unlike magma's converged flood, the saved result can remain direct sky (15)
+ * beneath population foliage. Preserve that observed saved-light result for
+ * the affected 3x3 columns instead of relighting unrelated terrain. */
+void light_recheck_break_surfaces(CrLight *L, int wx, int wy, int wz) {
+    if (!L || !L->has_sky) return;
+    for (int x = wx - 1; x <= wx + 1; ++x)
+        for (int z = wz - 1; z <= wz + 1; ++z) {
+            LChunk *c = find_chunk(L, x >> 4, z >> 4);
+            if (!c) continue;
+            for (int y = wy; y <= wy + 4 && y < WY; ++y) {
+                int i = CB_INDEX(x & 15, y, z & 15);
+                if (y > 0 && gm_state_id(c->state[i]) == 31 &&
+                    state_opacity(c->state[i]) == 0 &&
+                    state_opacity(c->state[CB_INDEX(x & 15, y - 1, z & 15)]) > 0)
+                    c->sky[i] = 15;
+            }
+        }
+}
+
 void light_set_render_state(CrLight *L, int dimension,
                             float torch_flicker_x, float gamma) {
     if (!L) return;
