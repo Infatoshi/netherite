@@ -700,6 +700,7 @@ void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
             ICStack s = isr_get_stack(&r->tape_inv, i);
             view->hotbar_ids[i] = s.item;
             view->hotbar_counts[i] = s.count;
+            view->hotbar_meta[i] = s.meta;
         }
     }
     if (r->tape_xp_active) {

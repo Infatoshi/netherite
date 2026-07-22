@@ -782,5 +782,6 @@ void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *o
         ICStack s = isr_get_stack(&pl->inv, i);
         out->hotbar_ids[i]    = s.item;
         out->hotbar_counts[i] = s.count;
+        out->hotbar_meta[i]   = s.meta;
     }
 }

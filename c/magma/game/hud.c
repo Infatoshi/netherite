@@ -244,10 +244,11 @@ void gm_gui_blit_sub(CrFramebuffer *fb, int idx, int sx, int sy, int sw, int sh,
     gui_blit_sub(fb, idx, sx, sy, sw, sh, dx, dy, scale);
 }
 
-int gm_gui_item_icon(CrFramebuffer *fb, int item_id, int dx, int dy, int scale) {
+int gm_gui_item_icon(CrFramebuffer *fb, int item_id, int item_meta,
+                     int dx, int dy, int scale) {
     /* Block items: vanilla GUI isometric mini-cube (terrain faces or single-
      * texture stand-in). Flat 2D items fall through to the gui_atlas tiles. */
-    if (gm_item_draw_block_icon(fb, item_id, 0, dx, dy, scale)) return 1;
+    if (gm_item_draw_block_icon(fb, item_id, item_meta, dx, dy, scale)) return 1;
     int lo = 0, hi = GUI_ITEM_ICON_COUNT - 1;
     while (lo <= hi) {
         int mid = (lo + hi) / 2;
@@ -258,6 +259,55 @@ int gm_gui_item_icon(CrFramebuffer *fb, int item_id, int dx, int dy, int scale) 
         if (GUI_ITEM_ICONS[mid].item < item_id) lo = mid + 1; else hi = mid - 1;
     }
     return 0;
+}
+
+/* Item.getMaxDamage for damageable items carried by the generated GUI atlas. */
+static int hud_item_max_damage(int item_id) {
+    if (item_id >= 256 && item_id <= 258) return 250; /* iron tools */
+    if (item_id == 259) return 64;                    /* flint and steel */
+    if (item_id == 261) return 384;                   /* bow */
+    if (item_id == 267) return 250;                   /* iron sword */
+    if (item_id >= 268 && item_id <= 271) return 59;  /* wooden tools */
+    if (item_id >= 272 && item_id <= 275) return 131; /* stone tools */
+    return 0;
+}
+
+/* MathHelper.hsvToRGB used by Item.getRGBDurabilityForDisplay. */
+static CrRgba hud_durability_color(int damage, int max_damage) {
+    float hue = (float)(1.0 - (double)damage / (double)max_damage) / 3.0f;
+    if (hue < 0.0f) hue = 0.0f;
+    float h6 = hue * 6.0f;
+    int sector = (int)h6;
+    float f = h6 - (float)sector;
+    float r = 0.0f, g = 0.0f, b = 0.0f;
+    switch (sector % 6) {
+        case 0: r = 1.0f; g = f; break;
+        case 1: r = 1.0f - f; g = 1.0f; break;
+        case 2: g = 1.0f; b = f; break;
+        case 3: g = 1.0f - f; b = 1.0f; break;
+        case 4: r = f; b = 1.0f; break;
+        default: r = 1.0f; b = 1.0f - f; break;
+    }
+    return (CrRgba){(u8)(r * 255.0f), (u8)(g * 255.0f),
+                    (u8)(b * 255.0f), 255};
+}
+
+/* RenderItem.renderItemOverlayIntoGUI durability strip: 13x2 black backing,
+ * one-pixel colored fill at x+2,y+13 in 16x16 item coordinates. */
+static void hud_item_durability(CrFramebuffer *fb, int item_id, int damage,
+                                int x, int y, int scale) {
+    int max_damage = hud_item_max_damage(item_id);
+    if (max_damage <= 0 || damage <= 0) return;
+    int width = (int)floorf(13.0f - (float)damage * 13.0f /
+                            (float)max_damage + 0.5f);
+    if (width < 0) width = 0;
+    if (width > 13) width = 13;
+    hud_fill(fb, x + 2 * scale, y + 13 * scale,
+             13 * scale, 2 * scale, (CrRgba){0, 0, 0, 255});
+    if (width > 0)
+        hud_fill(fb, x + 2 * scale, y + 13 * scale,
+                 width * scale, scale,
+                 hud_durability_color(damage, max_damage));
 }
 
 /* ------------------------------------------------------------------ MC font */
@@ -438,7 +488,8 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
         if (pv->hotbar_counts[i] <= 0 && pv->hotbar_ids[i] <= 0) continue;
         const int ix = hb_x + (3 + i * 20) * scale;
         const int iy = hb_y + 3 * scale;
-        if (!gm_gui_item_icon(fb, pv->hotbar_ids[i], ix, iy, scale)) {
+        if (!gm_gui_item_icon(fb, pv->hotbar_ids[i], pv->hotbar_meta[i],
+                              ix, iy, scale)) {
             const int pip = 5 * scale;
             hud_fill(fb, ix + 8 * scale - pip / 2, iy + 8 * scale - pip / 2,
                      pip, pip, hud_pip_color(pv->hotbar_ids[i]));
@@ -453,6 +504,8 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
             gm_font_draw(fb, buf, ix + (17 - gm_font_width(buf)) * scale,
                          iy + 9 * scale, scale, 0xFFFFFFu, 1);
         }
+        hud_item_durability(fb, pv->hotbar_ids[i], pv->hotbar_meta[i],
+                            ix, iy, scale);
     }
 
     /* ---- XP bar (directly under the hotbar strip position, MC draws it just

@@ -47,7 +47,8 @@ enum {
 void gm_gui_blit(CrFramebuffer *fb, int idx, int dx, int dy, int scale);
 void gm_gui_blit_sub(CrFramebuffer *fb, int idx, int sx, int sy, int sw, int sh,
                      int dx, int dy, int scale);
-int  gm_gui_item_icon(CrFramebuffer *fb, int item_id, int dx, int dy, int scale);
+int  gm_gui_item_icon(CrFramebuffer *fb, int item_id, int item_meta,
+                      int dx, int dy, int scale);
 
 /* Vanilla-metric MC font (ascii.png; FontRenderer.readFontTexture widths:
  * space=4, else rightmost non-empty glyph column + 2). gm_font_width returns
