@@ -124,8 +124,28 @@ Removed 2026-07-11 (unused routes): `java/build_mac.sh`, `play_mac.sh` (Mac GL d
   (player_ctl, sel_box ray_box_hit, blaze_core cu_ray_box_hit; OPEN_DIVERGENCES
   #55), cross-plant vanilla random offsets (mesh_mc), CUDA overlay pinned-buffer
   race (frame_capture).
-- KNOWN ISSUE: blaze-cuda-chain HANGS on GPU1 (sm_86) at ~tick 185 of the s10
-  chain - device-side spin, 100% util, deterministic; reproduces at HEAD with
-  pre-existing sources, so unrelated to today's changes. Same gate is byte-exact
-  green on GPU0 (sm_120), which all prior full sweeps used. Until root-caused,
-  run `netherite_sweep.sh --full` with GPU0 (default) for the blaze CUDA steps.
+- KNOWN ISSUE (RESOLVED same day, see below): blaze-cuda-chain appeared to hang
+  on GPU1 (sm_86) at ~tick 185 of the s10 chain.
+
+## 2026-07-21 (later: sweep fully green + fidelity round via agent fan-out)
+
+- blaze-cuda-chain "hang" root-caused (codex): NOT a spin. The verify-helper
+  k_emit rendered all 2,304 camera rays on a SINGLE CUDA thread; a camera
+  change near tick 185 raised traversal cost enough that sm_86 looked wedged.
+  Fix: k_emit_cam renders one thread per pixel, then the single-thread record
+  assembly runs on the same stream (blaze_cuda.cu). Chain gate byte-exact on
+  GPU1/sm_86 in ~120 s (was: killed at 1200 s), semantics unchanged.
+- magma-test-config re-enabled: test_config.c capture buffer 1024 -> 4096
+  (usage text had outgrown it).
+- Viewmodel fidelity (codex): vanilla ItemRenderer equip lower/raise + retained
+  stack, swing restart at half animation, ItemLayerModel per-texel rim quads.
+  Canonical tape: viewmodel 518,463 -> 470,440 px, hud 471,103 -> 397,903.
+  tests/test_hand_torch.c updated to assert the exact per-texel topology.
+- HUD fidelity (codex): hotbar durability strip (renderItemOverlayIntoGUI),
+  meta in GmPlayerView, exact GUI mini-cube lighting/UVs. hud -5,332 px more.
+- Particles finding (codex, honest negative result): the 'particles' gate class
+  is misnamed - pixel_gate classifies any oracle-brighter cluster as particles;
+  the dominant 87k cluster is a broad terrain-LIGHTING divergence during the
+  dig windows (t3080-3160, t3320-3400). Real debris is minor and RNG-unmatchable;
+  implementing it made the class worse, so it was rejected. Follow-up agent is
+  chasing the lighting root cause (world/light.c incremental relight suspect).

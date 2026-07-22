@@ -560,11 +560,22 @@ __global__ void k_final(Blaze *envs, int n, const McSinTable *st,
     if (status) blaze_fill_status(&envs[i], status + (size_t)i * CU_STATUS_K);
 }
 
-/* verify helpers: single-thread, lockstep with the CPU driver's semantics */
+/* Verify-helper camera path.  The regular batched path already assigns one
+ * thread per pixel in k_obs; do the same here instead of making k_emit's one
+ * record thread raycast the whole frame serially. */
+__global__ void k_emit_cam(Blaze *envs, int env, const McSinTable *st) {
+    int pix = blockIdx.x * blockDim.x + threadIdx.x;
+    if (pix >= CU_NPIX) return;
+    blaze_render_cam_pixel(&envs[env], st, pix);
+}
+
+/* Record assembly stays single-threaded and runs after k_emit_cam in the
+ * same stream.  want_cam=0 copies the frame that was just produced (or the
+ * persisted prior frame for the protocol's cam:0 case). */
 __global__ void k_emit(Blaze *envs, int env, const McSinTable *st,
-                       int want_cam, CuBinObs *out) {
+                       CuBinObs *out) {
     if (threadIdx.x || blockIdx.x) return;
-    blaze_emit_bolr(&envs[env], st, out, want_cam);
+    blaze_emit_bolr(&envs[env], st, out, 0);
 }
 
 typedef struct { double a[13]; } CuRawAct;
@@ -1167,8 +1178,10 @@ int blaze_emit(void *vh, int env, int want_cam, void *out) {
     CuVecCu *v = (CuVecCu *)vh;
     if (!v || env < 0 || env >= v->n || !out) return -1;
     cudaSetDevice(v->device);
-    k_emit<<<1, 1, 0, v->stream>>>(v->d_envs, env, v->d_st, want_cam,
-                                   v->d_obs);
+    if (want_cam)
+        k_emit_cam<<<(CU_NPIX + CU_TPB - 1) / CU_TPB, CU_TPB, 0, v->stream>>>(
+            v->d_envs, env, v->d_st);
+    k_emit<<<1, 1, 0, v->stream>>>(v->d_envs, env, v->d_st, v->d_obs);
     if (cu_ck(cudaStreamSynchronize(v->stream), "k_emit")) return -1;
     return cu_ck(cudaMemcpy(out, v->d_obs, sizeof(CuBinObs),
                             cudaMemcpyDeviceToHost), "obs readback");
