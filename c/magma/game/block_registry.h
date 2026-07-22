@@ -133,6 +133,7 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         case 225: id = 1; meta = 2; break;        /* polished granite */
         case 226: id = 1; meta = 4; break;        /* polished diorite */
         case 227: id = 1; meta = 6; break;        /* polished andesite */
+        case 228: id = 112; break;                /* nether brick */
         default: break;
     }
 
@@ -241,6 +242,7 @@ static inline int gm_state_to_model_key(uint16_t state) {
             return 71;
         case 110: return 15;
         case 111: return 14;
+        case 112: return 228;
         case 120: return 216;
         case 121: return 212;
         case 127: return 88;

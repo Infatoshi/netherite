@@ -348,7 +348,12 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                 # injects the recorded heal without resetting foodTimer and
                 # causes a duplicate 5/6 heal on the following tick.
                 f.write(json.dumps({"tick": t, "type": "set_vitals",
-                                    "health": hp, "food": food}) + "\n")
+                                    "health": hp,
+                                    # A same-tick FoodStats exhaustion rollover
+                                    # still has to execute locally. The packet
+                                    # health is post-damage, but the pre-tick
+                                    # food input is the preceding row's value.
+                                    "food": last_food if food_changed else food}) + "\n")
             elif hp > last_hp and not food_changed:
                 # Client health packets can expose server regeneration one
                 # tick before magma's local FoodStats phase. Reconcile the
@@ -445,8 +450,6 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
             # ghost pushers near the oracle player (push reach is ~1.5 blocks;
             # 4 gives slack for magma-vs-oracle drift within tolerance)
             for e in row.get("ents", []):
-                if header.get("velocity_packets"):
-                    break
                 typ = e[1]
                 if typ in NONPUSHABLE:
                     continue

@@ -55,7 +55,8 @@ enum {
     /* polished BlockStone metas 2/4/6 (fixed, non-random blockstate models) */
     CBX_GRANITE_SMOOTH = 225, CBX_DIORITE_SMOOTH = 226,
     CBX_ANDESITE_SMOOTH = 227,
-    CBX_MAX = 228
+    CBX_NETHER_BRICK = 228,
+    CBX_MAX = 229
 };
 
 /* Face order is BM_DOWN, BM_UP, BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST. */
@@ -269,6 +270,7 @@ static const BmBlock g_blocks[CBX_MAX] = {
 
     /* ---- nether / end / portal (vanilla dumpblocks mapped into CBX_*) ---- */
     [CBX_NETHERRACK] = CUBE6(CR_SPRITE_NETHERRACK, BM_TINT_NONE),
+    [CBX_NETHER_BRICK] = CUBE6(CR_SPRITE_NETHER_BRICK, BM_TINT_NONE),
     [CBX_PORTAL]     = { 0, 0, CR_LAYER_TRANSLUCENT, BM_KIND_PORTAL,
                          FULL6(CR_SPRITE_PORTAL, BM_TINT_NONE) },
     [CBX_END_STONE]  = CUBE6(CR_SPRITE_END_STONE, BM_TINT_NONE),
@@ -339,7 +341,7 @@ static int bm_is_modeled(int id)
     case CBX_BROWN_MUSHROOM: case CBX_RED_MUSHROOM: case CBX_MAGMA:
     case CBX_IRON_BARS: case CBX_TORCH: case CBX_CRAFTING_TABLE:
     case CBX_PLANKS: case CBX_GRANITE_SMOOTH: case CBX_DIORITE_SMOOTH:
-    case CBX_ANDESITE_SMOOTH:
+    case CBX_ANDESITE_SMOOTH: case CBX_NETHER_BRICK:
         return 1;
     default:
         if (id >= CB_STAINED_CLAY_BASE && id < CB_STAINED_CLAY_BASE + 16) return 1;

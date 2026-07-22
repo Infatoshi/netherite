@@ -74,6 +74,7 @@
 #define ER_TYPE_MINECART 28
 #define ER_TYPE_ARROW    29
 #define ER_TYPE_CRYSTAL  31   /* EntityEnderCrystal (30 = GM_VIEW_BILLBOARD) */
+#define ER_TYPE_WITHER_SKELETON 32
 
 #define ER_VERTS_PER_BOX 36  /* 6 faces * 2 tris * 3 verts */
 #define ER_PI 3.14159265358979323846f
@@ -129,6 +130,17 @@ static const ErModel M_SKELETON = { 6, {
     { CR_MOB_SKELETON, 40, 16, -1,-2,-1, 2,12,2,  5.0f, 2,0,  ARM_DOWN,0,0, 0,1 },
     { CR_MOB_SKELETON,  0, 16, -1, 0,-1, 2,12,2, -2.0f,12,0,  0,0,0, 0,0 },
     { CR_MOB_SKELETON,  0, 16, -1, 0,-1, 2,12,2,  2.0f,12,0,  0,0,0, 0,1 },
+} };
+
+/* RenderWitherSkeleton: ModelSkeleton with its own 64x32 skin and a 1.2x
+ * preRenderCallback scale. */
+static const ErModel M_WITHER_SKELETON = { .nparts = 6, .scale = 1.2f, .parts = {
+    { CR_MOB_WITHER_SKELETON,  0,  0, -4,-8,-4, 8, 8,8,  0.0f, 0,0,  0,0,0, 0,0 },
+    { CR_MOB_WITHER_SKELETON, 16, 16, -4, 0,-2, 8,12,4,  0.0f, 0,0,  0,0,0, 0,0 },
+    { CR_MOB_WITHER_SKELETON, 40, 16, -1,-2,-1, 2,12,2, -5.0f, 2,0,  ARM_DOWN,0,0, 0,0 },
+    { CR_MOB_WITHER_SKELETON, 40, 16, -1,-2,-1, 2,12,2,  5.0f, 2,0,  ARM_DOWN,0,0, 0,1 },
+    { CR_MOB_WITHER_SKELETON,  0, 16, -1, 0,-1, 2,12,2, -2.0f,12,0,  0,0,0, 0,0 },
+    { CR_MOB_WITHER_SKELETON,  0, 16, -1, 0,-1, 2,12,2,  2.0f,12,0,  0,0,0, 0,1 },
 } };
 
 /* ModelCreeper (64x32): head + body + 4 stumpy legs. */
@@ -399,6 +411,7 @@ static const ErModel *er_model_for_type(int type) {
         case 30 /* GM_VIEW_BILLBOARD */: return 0; /* item pass (camera-facing) */
         case ER_TYPE_ZOMBIE:   return &M_ZOMBIE;
         case ER_TYPE_SKELETON: return &M_SKELETON;
+        case ER_TYPE_WITHER_SKELETON: return &M_WITHER_SKELETON;
         case ER_TYPE_CREEPER:  return &M_CREEPER;
         case ER_TYPE_SPIDER:   return &M_SPIDER;
         case ER_TYPE_ENDERMAN: return &M_ENDERMAN;
@@ -1213,6 +1226,7 @@ int gm_entity_type_for_name(const char *name) {
         { "EntityPigZombie",      ER_TYPE_ZOMBIE },
         { "EntitySkeleton",       ER_TYPE_SKELETON },
         { "EntityStray",          ER_TYPE_SKELETON },
+        { "EntityWitherSkeleton", ER_TYPE_WITHER_SKELETON },
         { "EntityCreeper",        ER_TYPE_CREEPER },
         { "EntitySpider",         ER_TYPE_SPIDER },
         { "EntityCaveSpider",     ER_TYPE_SPIDER },
@@ -1289,6 +1303,7 @@ float gm_entity_eye_y(int type) {
     switch (type) {
         case ER_TYPE_ZOMBIE:   return 1.74f;          /* EntityZombie override */
         case ER_TYPE_SKELETON: return 1.99f * 0.85f;
+        case ER_TYPE_WITHER_SKELETON: return 2.1f;
         case ER_TYPE_CREEPER:  return 1.7f * 0.85f;
         case ER_TYPE_SPIDER:   return 0.65f;          /* EntitySpider override */
         case ER_TYPE_ENDERMAN: return 2.55f;          /* EntityEnderman override */
@@ -1447,18 +1462,46 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
                     float b = cosf(ls * 0.6662f + ER_PI) * 1.4f * lsa;
                     local[4].ax = a; local[5].ax = b;
                 }
-            } else if (t == ER_TYPE_ZOMBIE || t == ER_TYPE_SKELETON) {
-                /* ModelBiped legs at parts 4,5; arms keep zombie pose */
+            } else if (t == ER_TYPE_ZOMBIE || t == ER_TYPE_SKELETON ||
+                       t == ER_TYPE_WITHER_SKELETON) {
+                /* ModelBiped legs at parts 4,5; wither arms use the walk cycle. */
                 if (np > 5) {
                     float a = cosf(ls * 0.6662f) * 1.4f * lsa;
                     float b = cosf(ls * 0.6662f + ER_PI) * 1.4f * lsa;
                     local[4].ax = a; local[5].ax = b;
+                    if (t == ER_TYPE_WITHER_SKELETON) {
+                        local[2].ax = b;
+                        local[3].ax = a;
+                    }
                 }
             } else if (t == ER_TYPE_WITCH && np >= 14) {
                 /* ModelVillager legs (parts 12,13), half amplitude */
                 local[12].ax = cosf(ls * 0.6662f) * 1.4f * lsa * 0.5f;
                 local[13].ax = cosf(ls * 0.6662f + ER_PI) * 1.4f * lsa * 0.5f;
             }
+        }
+        if (t == ER_TYPE_WITHER_SKELETON && np >= 4 &&
+            ents[e].swing_progress > 0.0f) {
+            /* ModelBiped.setRotationAngles swingProgress path. The recorder
+             * does not expose AbstractSkeleton.SWINGING_ARMS; the captured
+             * melee frames have that AI flag clear and retain this base pose. */
+            float sp = ents[e].swing_progress;
+            float body = sinf(sqrtf(sp) * ER_PI * 2.0f) * 0.2f;
+            local[1].ay = body;
+            local[2].rz = sinf(body) * 5.0f;
+            local[2].rx = -cosf(body) * 5.0f;
+            local[3].rz = -sinf(body) * 5.0f;
+            local[3].rx = cosf(body) * 5.0f;
+            local[2].ay += body;
+            local[3].ay += body;
+            local[3].ax += body;
+            float q = 1.0f - sp;
+            q *= q; q *= q;
+            float f2 = sinf((1.0f - q) * ER_PI);
+            float f3 = sinf(sp * ER_PI) * -(local[0].ax - 0.7f) * 0.75f;
+            local[2].ax -= f2 * 1.2f + f3;
+            local[2].ay += body * 2.0f;
+            local[2].az -= sinf(sp * ER_PI) * 0.4f;
         }
         if (t == ER_TYPE_BAT && np >= 9) {
             /* flying flap from age: body ax = pi/4 + cos(age*0.1)*0.15;

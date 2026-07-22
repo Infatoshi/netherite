@@ -56,10 +56,30 @@ static int collect_blocks(GmWorld *w, const McAABB *q, PcfBlock *out, int cap) {
 
 static float max_health(int type) { return type == EW_TYPE_ENDERMAN ? 40.0f : 20.0f; }
 
-/* EntityZombie.applyEntityAttributes sets ATTACK_DAMAGE=3.0. NORMAL leaves
+/* EntityZombie.applyEntityAttributes sets ATTACK_DAMAGE=3.0. A wither
+ * skeleton sets base ATTACK_DAMAGE=4.0 in onInitialSpawn, and the equipped
+ * stone sword contributes ItemSword.attackDamage=4.0. NORMAL leaves
  * difficulty-scaled mob damage unchanged in EntityPlayer.attackEntityFrom. */
 static float melee_damage(int type) {
-    return type == EW_TYPE_ENDERMAN ? 7.0f : type == EW_TYPE_ZOMBIE ? 3.0f : 4.0f;
+    return type == EW_TYPE_ENDERMAN ? 7.0f
+         : type == EW_TYPE_ZOMBIE ? 3.0f
+         : type == EW_TYPE_WITHER_SKELETON ? 8.0f : 4.0f;
+}
+
+/* EntityLivingBase.attackEntityFrom hurtResistantTime/lastDamage gate. Returns
+ * whether the attack was accepted, as EntityWitherSkeleton.attackEntityAsMob
+ * uses that result before adding PotionEffect(WITHER, 200, 0). */
+static int damage_player(GmMobLive *m, PvStats *v, float amount) {
+    if (m->player_hurt_resistant > 10) {
+        if (amount <= m->player_last_damage) return 0;
+        pv_attack(v, amount - m->player_last_damage);
+        m->player_last_damage = amount;
+        return 1;
+    }
+    m->player_last_damage = amount;
+    m->player_hurt_resistant = 20;
+    pv_attack(v, amount);
+    return 1;
 }
 
 /* Vanilla followRange: zombie 40 (EntityZombie attribute), everything else base 16. */
@@ -179,6 +199,7 @@ static void mob_drop(GmMobLive *m, EwStore *s, int i, GmLiveSim *drops) {
     switch (s->type[i]) {
     case EW_TYPE_ZOMBIE: item = 367; break;
     case EW_TYPE_SKELETON: item = 352; break;
+    case EW_TYPE_WITHER_SKELETON: item = 352; break;
     case EW_TYPE_CREEPER: item = 289; break;
     case EW_TYPE_SPIDER: item = 287; break;
     case EW_TYPE_ENDERMAN:
@@ -363,6 +384,17 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     PsvPlayer *p=(PsvPlayer *)player_; PvStats *v=(PvStats *)vitals_;
     const McSinTable *st=(const McSinTable *)st_;
     EwStore *now=now_store(m), *nx=next_store(m); ew_store_copy(nx,now);
+    if (m->player_hurt_resistant > 0) --m->player_hurt_resistant;
+    /* PotionEffect.onUpdate checks isReady(duration, amplifier) before
+     * decrementing. WITHER amp 0 is ready every 40 ticks. The duration-200
+     * application immediately after melee is normally rejected by the
+     * preceding hit's hurt-resistant gate, exactly as attackEntityFrom. */
+    if (m->player_wither_ticks > 0) {
+        if (m->player_wither_ticks % 40 == 0)
+            (void)damage_player(m, v, 1.0f);
+        --m->player_wither_ticks;
+        p->health = v->health;
+    }
     if(m->player_attack_cooldown>0)--m->player_attack_cooldown;
     double px=p->ent.posX+ox, py=p->ent.posY, pz=p->ent.posZ+oz;
     natural_spawn(m,w,nx,px,py,pz,dimension,world_time);
@@ -424,7 +456,9 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
             nx->ai_state[i]=EW_AI_ATTACK;nx->yaw[i]=ehs_yaw_toward(dx,dz);
             if(nx->attack_time[i]<=0){
-                pv_attack(v,melee_damage(type));p->health=v->health;
+                int hit=damage_player(m,v,melee_damage(type));p->health=v->health;
+                if(hit&&type==EW_TYPE_WITHER_SKELETON)
+                    m->player_wither_ticks=200;
                 nx->attack_time[i]=20;
             }
         }else if(aggro){

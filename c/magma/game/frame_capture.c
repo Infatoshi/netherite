@@ -758,6 +758,13 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         if(lm){
             ents[i].lm_lit=1;
             ents[i].lm_light=(float)sky;ents[i].lm_blk=(float)bl;
+            /* The held-item pass has no shade lightmap binding. Preserve the
+             * exact current LUT texel so it can fold the same night/day color
+             * into its tint instead of assuming full daylight. */
+            CrRgba lc=lm[sky*16+bl];
+            ents[i].lm_mul_r=(float)lc.r/255.0f;
+            ents[i].lm_mul_g=(float)lc.g/255.0f;
+            ents[i].lm_mul_b=(float)lc.b/255.0f;
         }else{
             CrLightmapRgb c3=cr_lightmap_rgb(r->dimension,sky,bl,
                 cr_dimension_sun_brightness(r->dimension),0.f,0.f);

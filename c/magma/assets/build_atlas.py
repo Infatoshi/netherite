@@ -120,6 +120,7 @@ SPRITE_NAMES = sorted([
     "obsidian",
     # nether / end / portal (E2E dim fidelity)
     "netherrack",
+    "nether_brick",
     "portal",
     "end_stone",
     "glowstone",

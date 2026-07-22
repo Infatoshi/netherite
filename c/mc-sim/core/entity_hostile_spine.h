@@ -22,7 +22,8 @@ enum {
     EW_TYPE_SKELETON = 3,
     EW_TYPE_CREEPER  = 4,
     EW_TYPE_SPIDER   = 5,
-    EW_TYPE_ENDERMAN = 6
+    EW_TYPE_ENDERMAN = 6,
+    EW_TYPE_WITHER_SKELETON = 32
 };
 
 /* AI phase tags already in ew_entity_store (IDLE/CHASE/ATTACK). Skeleton "ranged hold" and
@@ -37,7 +38,8 @@ typedef struct {
 
 MC_HD static inline int ehs_is_hostile(u8 type) {
     return type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON || type == EW_TYPE_CREEPER
-        || type == EW_TYPE_SPIDER || type == EW_TYPE_ENDERMAN;
+        || type == EW_TYPE_SPIDER || type == EW_TYPE_ENDERMAN
+        || type == EW_TYPE_WITHER_SKELETON;
 }
 
 /* SharedMonsterAttributes.MOVEMENT_SPEED base from oracle applyEntityAttributes. */
@@ -45,6 +47,7 @@ MC_HD static inline float ehs_land_speed(u8 type) {
     switch (type) {
     case EW_TYPE_ZOMBIE:   return 0.23000000417232513f;
     case EW_TYPE_SKELETON: return 0.25f;                 /* AbstractSkeleton */
+    case EW_TYPE_WITHER_SKELETON: return 0.25f;
     case EW_TYPE_CREEPER:  return 0.25f;
     case EW_TYPE_SPIDER:   return 0.30000001192092896f;
     case EW_TYPE_ENDERMAN: return 0.30000001192092896f;
@@ -60,6 +63,9 @@ MC_HD static inline void ehs_size(u8 type, float *width, float *height) {
         break;
     case EW_TYPE_ENDERMAN:
         *width = 0.6f; *height = 2.9f;
+        break;
+    case EW_TYPE_WITHER_SKELETON:
+        *width = 0.7f; *height = 2.4f;
         break;
     default: /* zombie / skeleton / creeper */
         *width = 0.6f; *height = 1.95f;

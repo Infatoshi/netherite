@@ -308,15 +308,38 @@ static const IrDisplay IR_DISP_BOW = {        /* item/bow.json */
 /* Vanilla always-held loadout per view (EntityPigZombie ctor gold sword,
  * AbstractSkeleton setCombatTask bow). Returns item id or 0. */
 static int ir_held_item(const GmEntityView *v, const IrDisplay **disp,
-                        float *arm_ax) {
+                        float arm_rp[3], float arm_rot[3]) {
+    arm_rp[0] = -5.0f; arm_rp[1] = 2.0f; arm_rp[2] = 0.0f;
+    arm_rot[0] = arm_rot[1] = arm_rot[2] = 0.0f;
     if (v->tape_pose && (v->flags & 4)) return 0;       /* invisible */
     if (v->type == 2 && v->skin == CR_MOB_PIGMAN + 1) { /* ER_TYPE_ZOMBIE */
-        *disp = &IR_DISP_HANDHELD; *arm_ax = -ER_PI_F / 2.25f;  /* zombie arms */
+        *disp = &IR_DISP_HANDHELD; arm_rot[0] = -ER_PI_F / 2.25f; /* zombie arms */
         return 283;                                     /* gold sword */
     }
     if (v->type == 3) {                                 /* ER_TYPE_SKELETON */
-        *disp = &IR_DISP_BOW; *arm_ax = 0.0f;           /* arm down (idle) */
+        *disp = &IR_DISP_BOW;                            /* arm down (idle) */
         return 261;                                     /* bow */
+    }
+    if (v->type == 32) {                                /* wither skeleton */
+        *disp = &IR_DISP_HANDHELD;
+        arm_rp[0] = -4.0f; /* ModelSkeleton.postRenderArm right-side shift */
+        arm_rot[0] = cosf(v->limb_swing * 0.6662f + ER_PI_F) *
+                     v->limb_swing_amount;
+        if (v->swing_progress > 0.0f) {
+            float sp = v->swing_progress;
+            float body = sinf(sqrtf(sp) * ER_PI_F * 2.0f) * 0.2f;
+            arm_rp[0] = -cosf(body) * 5.0f + 1.0f;
+            arm_rp[2] = sinf(body) * 5.0f;
+            arm_rot[1] = body * 3.0f;
+            float q = 1.0f - sp;
+            q *= q; q *= q;
+            float f2 = sinf((1.0f - q) * ER_PI_F);
+            float head_ax = v->pitch * IR_D2R;
+            float f3 = sinf(sp * ER_PI_F) * -(head_ax - 0.7f) * 0.75f;
+            arm_rot[0] -= f2 * 1.2f + f3;
+            arm_rot[2] -= sinf(sp * ER_PI_F) * 0.4f;
+        }
+        return 272;                                     /* stone sword */
     }
     return 0;
 }
@@ -325,14 +348,16 @@ int gm_held_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max) 
     const float aw = (float)CR_ITEM_ATLAS_W, ah = (float)CR_ITEM_ATLAS_H;
     int written = 0;
     for (int e = 0; e < n; ++e) {
-        const IrDisplay *disp; float arm_ax;
-        int id = ir_held_item(&ents[e], &disp, &arm_ax);
+        const IrDisplay *disp; float arm_rp[3], arm_rot[3];
+        int id = ir_held_item(&ents[e], &disp, arm_rp, arm_rot);
         if (!id) continue;
         if (written + 12 > max) break;
 
         IrMat m; ir_mat_identity(&m);
-        ir_mat_translate(&m, -5.0f, 2.0f, 0.0f);        /* right arm rp */
-        ir_mat_rot(&m, 0, arm_ax);                      /* arm pose (X only) */
+        ir_mat_translate(&m, arm_rp[0], arm_rp[1], arm_rp[2]);
+        ir_mat_rot(&m, 2, arm_rot[2]);
+        ir_mat_rot(&m, 1, arm_rot[1]);
+        ir_mat_rot(&m, 0, arm_rot[0]);
         ir_mat_rot(&m, 0, -90.0f * IR_D2R);
         ir_mat_rot(&m, 1, 180.0f * IR_D2R);
         ir_mat_translate(&m, 1.0f, 2.0f, -10.0f);       /* (1/16,.125,-.625)*16 */
@@ -347,11 +372,19 @@ int gm_held_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max) 
          * updateLightmap color into the tint like the legacy entity path. */
         CrRgba tint = { 255, 255, 255, 255 };
         if (ents[e].lm_lit == 1) {
-            CrLightmapRgb c3 = cr_lightmap_rgb(0, (int)ents[e].lm_light,
-                                               (int)ents[e].lm_blk, 1.0f, 0, 0);
-            tint.r = (u8)(255.0f * c3.r + 0.5f);
-            tint.g = (u8)(255.0f * c3.g + 0.5f);
-            tint.b = (u8)(255.0f * c3.b + 0.5f);
+            if (ents[e].lm_mul_r > 0.0f || ents[e].lm_mul_g > 0.0f ||
+                ents[e].lm_mul_b > 0.0f) {
+                tint.r = (u8)(255.0f * ents[e].lm_mul_r + 0.5f);
+                tint.g = (u8)(255.0f * ents[e].lm_mul_g + 0.5f);
+                tint.b = (u8)(255.0f * ents[e].lm_mul_b + 0.5f);
+            } else {
+                CrLightmapRgb c3 = cr_lightmap_rgb(0, (int)ents[e].lm_light,
+                                                   (int)ents[e].lm_blk,
+                                                   1.0f, 0, 0);
+                tint.r = (u8)(255.0f * c3.r + 0.5f);
+                tint.g = (u8)(255.0f * c3.g + 0.5f);
+                tint.b = (u8)(255.0f * c3.b + 0.5f);
+            }
         } else if (ents[e].lm_lit == 2) {
             tint.r = (u8)(255.0f * ents[e].lm_mul_r + 0.5f);
             tint.g = (u8)(255.0f * ents[e].lm_mul_g + 0.5f);
@@ -371,9 +404,10 @@ int gm_held_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max) 
                 int ci = face ? 3 - c : c;
                 float p[3];
                 ir_mat_apply(&m, CORN[ci][0], CORN[ci][1], z, p);
-                float wx = -p[0] / 16.0f;
-                float wy = (24.0f - p[1]) / 16.0f;
-                float wz = p[2] / 16.0f;
+                float model_scale = ents[e].type == 32 ? 1.2f : 1.0f;
+                float wx = -p[0] / 16.0f * model_scale;
+                float wy = (24.0f - p[1]) / 16.0f * model_scale;
+                float wz = p[2] / 16.0f * model_scale;
                 CrVertex vtx;
                 vtx.pos.x = ents[e].x + wx * cs + wz * sn;
                 vtx.pos.y = ents[e].y + wy;

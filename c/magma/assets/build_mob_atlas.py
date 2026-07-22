@@ -45,6 +45,7 @@ MOB_SPRITES = sorted([
     ("pigman",      "zombie_pigman.png"),       # 64x64, zombie layout
     ("husk",        "zombie/husk.png"),         # 64x64, zombie layout
     ("stray",       "skeleton/stray.png"),      # 64x32, skeleton layout
+    ("wither_skeleton", "skeleton/wither_skeleton.png"),  # 64x32, skeleton layout
     ("cave_spider", "spider/cave_spider.png"),  # 64x32, spider layout
     ("mooshroom",   "cow/mooshroom.png"),       # 64x32, cow layout
     # own-model mobs (2026-07-13 coverage pass)

@@ -42,6 +42,26 @@ int main(void) {
           "first zombie hit plus saturation regen loses exact 13/6 hp");
     gm_runtime_destroy(&r);
 
+    /* EntityWitherSkeleton.onInitialSpawn sets base ATTACK_DAMAGE=4, and its
+     * stone sword supplies a +4 ItemSword attribute modifier. The freshly
+     * applied duration-200 wither tick is rejected by hurtResistantTime; the
+     * duration-160 tick drains one hp after the player leaves melee reach. */
+    if(!init_flat(&r))return 1;
+    r.vitals.foodLevel=0;r.vitals.saturation=0.0f;
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_WITHER_SKELETON,8.5,5.0,10.5)>=0,
+          "spawn damage-model wither skeleton");
+    gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==12.0f,"wither skeleton melee subtracts exact 4+4 hp");
+    CHECK(r.mobs.player_wither_ticks==200,"wither skeleton applies 200-tick wither");
+    gm_runtime_set_pose(&r,8.5,5.0,40.5,0.0f,10.0f);
+    for(int i=0;i<40;++i)gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==12.0f,
+          "duration-200 wither pulse is blocked by melee hurt resistance");
+    gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==11.0f&&r.mobs.player_wither_ticks==159,
+          "MobEffects.WITHER duration-160 pulse drains one hp");
+    gm_runtime_destroy(&r);
+
     if(!init_flat(&r))return 1;
     isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
     CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5,5.0,10.5)>=0,"spawn combat zombie");

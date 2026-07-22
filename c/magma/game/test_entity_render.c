@@ -52,6 +52,7 @@ static const TypeSpec SPECS[] = {
     { 26, "ghast",    10 * 36, { CR_MOB_GHAST,    -1 } },
     { 27, "magma",    9  * 36, { CR_MOB_MAGMACUBE,-1 } },
     { 28, "minecart", 6  * 36, { CR_MOB_MINECART, -1 } },
+    { 32, "wither skeleton", 6 * 36, { CR_MOB_WITHER_SKELETON, -1 } },
 };
 #define NSPECS ((int)(sizeof(SPECS) / sizeof(SPECS[0])))
 #define MAXV (65 * 36)
@@ -309,6 +310,7 @@ static void test_name_map(void) {
         { "EntitySkeleton", 3 }, { "EntityChicken", 13 }, { "EntityCow", 12 },
         { "EntityPig", 11 }, { "EntitySpider", 5 }, { "EntityEnderman", 6 },
         { "EntityBlaze", 7 },
+        { "EntityWitherSkeleton", 32 },
         /* skin variants fold to the base silhouette */
         { "EntityHusk", 2 }, { "EntityZombieVillager", 2 },
         { "EntityPigZombie", 2 }, { "EntityStray", 3 },

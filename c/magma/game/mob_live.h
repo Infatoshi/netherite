@@ -22,6 +22,9 @@ typedef struct {
     int panic_ticks[EW_MAX_ENTITIES];            /* passive flee timer after damage */
     int fire_ticks[EW_MAX_ENTITIES];             /* daylight burn */
     int despawn_ticks[EW_MAX_ENTITIES];          /* ticks spent >32 blocks from player */
+    int player_hurt_resistant;                    /* EntityLivingBase.hurtResistantTime */
+    float player_last_damage;                     /* EntityLivingBase.lastDamage */
+    int player_wither_ticks;                      /* PotionEffect(WITHER, 200, 0) */
     int explosion_pending;
     double explosion_x, explosion_y, explosion_z;
 } GmMobLive;
@@ -32,6 +35,7 @@ enum {
     GM_MOB_PIG=11,
     GM_MOB_COW=12,
     GM_MOB_CHICKEN=13,
+    GM_MOB_WITHER_SKELETON=EW_TYPE_WITHER_SKELETON,
     GM_ENTITY_XP_ORB=21
 };
 
