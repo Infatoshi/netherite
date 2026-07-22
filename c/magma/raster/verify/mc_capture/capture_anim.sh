@@ -64,15 +64,26 @@ cd "$ROOT"
 uv run --no-project python - "$OUT/scene_setup.json" <<'PY'
 import json
 import sys
+import time
 
 sys.path.insert(0, "java")
 from qrl_client import QRLEnv
 
 out = sys.argv[1]
-e = QRLEnv()
-o = e.reset({"seed": 0, "mode": "survival", "type": "default", "fresh": True},
-            timeout=300.0)
-if not o.get("ok"):
+# The bridge socket listens before the client thread is in-world; a reset
+# sent during boot gets the connection dropped. Retry until the client is up.
+o = None
+for _ in range(30):
+    try:
+        e = QRLEnv()
+        o = e.reset({"seed": 0, "mode": "survival", "type": "default",
+                     "fresh": True}, timeout=300.0)
+        if o.get("ok"):
+            break
+    except (ConnectionError, OSError):
+        pass
+    time.sleep(5)
+else:
     raise SystemExit(f"fresh reset failed: {o}")
 
 cmds = [
@@ -111,10 +122,19 @@ cmds = [
     "setblock 215 101 203 minecraft:fire",
 ]
 # One command per batch with settle ticks so tp-triggered chunk loads
-# complete before the dependent fills run.
+# complete before the dependent fills run. Vanilla fill reports failure
+# when it changes zero blocks, so the initial air-clear is a no-op at
+# sites where the terrain surface sits below the scene volume - allow it.
 for cmd in cmds:
-    r = e._cmd({"cmd": "runcmds", "action": {"cmds": [cmd]}})
-    if not r.get("ok") or r.get("failed"):
+    for attempt in range(3):
+        r = e._cmd({"cmd": "runcmds", "action": {"cmds": [cmd]}})
+        if r.get("ok") and not r.get("failed"):
+            break
+        if cmd.endswith("minecraft:air"):
+            break
+        for _ in range(20):
+            e.step({})
+    else:
         raise SystemExit(f"scene command failed: {cmd!r} -> {r}")
     for _ in range(5):
         e.step({})
