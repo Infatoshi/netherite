@@ -55,6 +55,7 @@ static int find_mine_pose(GmRuntime *r,int id,int require_flint,int *tx,int *ty,
         int z=-rad+(int)(q%w),x=-rad+(int)(q/w);
         if(y==2)gm_world_ensure(r->world,x>>4,z>>4,0);
         if(gm_world_block(r->world,x,y,z)==id&&
+           (id!=1||gm_world_meta(r->world,x,y,z)==0)&&
            (id!=17||gm_world_meta(r->world,x,y,z)==0)&&
            (!require_flint||flint_coord(x,y,z))){
             if((id==9||id==11)&&gm_world_block(r->world,x,y+1,z)==0&&

@@ -216,7 +216,13 @@ static void harvest_drop(int block_id, int block_meta, int tool_id,int wx,int wy
     *item = 0; *count = 0; *meta = 0;
     if (!pb_can_harvest(tool_id, block_id)) return;
     switch (block_id) {
-        case 1:  *item = 4;  *count = 1; break; /* stone -> cobblestone */
+        case 1:
+            /* BlockStone.getItemDropped/damageDropped: plain stone becomes
+             * cobblestone; granite/diorite/andesite retain stone metadata. */
+            *item = block_meta >= 1 && block_meta <= 6 ? 1 : 4;
+            *count = 1;
+            *meta = *item == 1 ? block_meta : 0;
+            break;
         case 2:  *item = 3;  *count = 1; break; /* grass -> dirt */
         case 3:  *item = 3;  *count = 1; *meta = block_meta & 3; break;
         case 4:  *item = 4;  *count = 1; break;
