@@ -15,7 +15,7 @@ setup_commands:
   - /gamemode survival @p
   - /tp @p 0.5 4 0.5 0 0
   - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_sword 1
-  - /summon Zombie 0.5 4 6.5 {PersistenceRequired:1b}
+  - /summon zombie 0.5 4 6.5 {PersistenceRequired:1b}
 duration_ticks: 800
 frames_every: 20
 input:

@@ -411,12 +411,30 @@ def record(spec_path: Path, result_file: Path) -> Path:
             else:
                 raise RuntimeError("player position did not stabilize after reset")
 
-            response = qrl._cmd(
-                {"cmd": "runcmds", "action": {"cmds": spec["setup_commands"]}}
-            )
-            print(f"[scenario] setup: {response}", flush=True)
-            if not response.get("ok") or response.get("failed"):
-                raise RuntimeError(f"scenario setup command failed: {response}")
+            # All commands in one runcmds batch execute in a single server
+            # tick, so a summon aimed near a just-teleported player lands in a
+            # chunk that only loads on a later tick and fails (executeCommand
+            # returns 0, as with fill into an unloaded chunk). Run each command
+            # in its own batch with settle ticks in between so tp-triggered
+            # chunk loads complete before dependent summons run.
+            for command in spec["setup_commands"]:
+                response = qrl._cmd(
+                    {"cmd": "runcmds", "action": {"cmds": [command]}}
+                )
+                if not response.get("ok") or response.get("failed"):
+                    raise RuntimeError(
+                        f"scenario setup command failed: {command!r} -> {response}"
+                    )
+                for _ in range(int(spec.get("setup_settle_ticks", 5))):
+                    qrl.step({})
+            print(f"[scenario] setup: {len(spec['setup_commands'])} commands ok",
+                  flush=True)
+
+            # The qrl bridge serves one socket at a time (serve() accepts the
+            # next client only after the current one closes); release ours
+            # before tape.py opens its own connection for recstart/recstop.
+            qrl.close()
+            qrl = None
 
             start_mcwindow(process_groups)
             stdout = run(
