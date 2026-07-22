@@ -445,7 +445,7 @@ def record(spec_path: Path, result_file: Path) -> Path:
                 payload = {"cmd": step["cmd"]}
                 if "action" in step:
                     payload["action"] = step["action"]
-                response = qrl._cmd(payload, timeout=120.0)
+                response = qrl._cmd(payload, read_deadline=300.0)
                 if not response.get("ok"):
                     raise RuntimeError(
                         f"scenario setup_qrl step failed: {payload!r} -> {response}"
