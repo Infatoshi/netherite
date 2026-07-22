@@ -705,26 +705,13 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             }
         }
         if(have_dig && dmg>0.0f && !getenv("MAGMA_NO_CRACK")){
-            /* Prefer the raycast hit face when dig target matches selection,
-             * so we don't multiply-darken the five hidden faces. face index
-             * matches emit_crack: 0=-z 1=+z 2=-x 3=+x 4=+y 5=-y. */
-            int face = -1;
-            if (have_sel && hx == dx && hy == dy && hz == dz) {
-                /* ax,ay,az is the cell adjacent to the selected AABB face
-                 * (sel_box.h), not a normal: the face is the cell delta.
-                 * Comparing ax<0/ax>0 directly pinned every crack to the +x
-                 * face (invisible from most viewpoints - top-face digs never
-                 * showed cracks). */
-                int nx = ax - hx, ny = ay - hy, nz = az - hz;
-                if (nx < 0) face = 2; else if (nx > 0) face = 3;
-                else if (ny < 0) face = 5; else if (ny > 0) face = 4;
-                else if (nz < 0) face = 0; else if (nz > 0) face = 1;
-            }
+            /* BlockRendererDispatcher.renderBlockDamage re-renders the full
+             * block model with the destroy sprite, not only the raycast face. */
             int nc=gm_overlay_emit_crack(crack_ov,GM_OVERLAY_MAX_VERTS,
-                                         dx+r->ox,dy,dz+r->oz,dmg,face);
+                                         dx+r->ox,dy,dz+r->oz,dmg,-1);
             if(getenv("MAGMA_LOG_DIG"))
                 fprintf(stderr,"CRK t%lld face=%d nc=%d at %d,%d,%d cam %.1f,%.1f,%.1f\n",
-                        r->tick,face,nc,dx+r->ox,dy,dz+r->oz,
+                        r->tick,-1,nc,dx+r->ox,dy,dz+r->oz,
                         cam.pos.x,cam.pos.y,cam.pos.z);
             if(nc>0){
                 CrShadeCtx csh = {0};

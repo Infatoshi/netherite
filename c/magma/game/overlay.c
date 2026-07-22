@@ -118,7 +118,8 @@ static int emit_select_box(CrVertex *v, int max, int bx, int by, int bz,
 static int emit_crack(CrVertex *v, int max, int bx, int by, int bz,
                       float damage, int face)
 {
-    int stage = (int)(damage * 10.0f);
+    /* PlayerControllerMP publishes (int)(curBlockDamageMP * 10) - 1. */
+    int stage = (int)(damage * 10.0f) - 1;
     if (stage < 0) stage = 0;
     if (stage > 9) stage = 9;
     float u0, v0, u1, v1;
@@ -133,17 +134,17 @@ static int emit_crack(CrVertex *v, int max, int bx, int by, int bz,
     int n = 0;
     int all = (face < 0 || face > 5);
     if (all || face == 0)
-        n = emit_quad2(v,n,max, c000,c100,c110,c010, u0,v1,u1,v0, white); /* z- */
+        n = emit_quad2(v,n,max, c000,c100,c110,c010, u1,v1,u0,v0, white); /* z- */
     if (all || face == 1)
-        n = emit_quad2(v,n,max, c101,c001,c011,c111, u0,v1,u1,v0, white); /* z+ */
+        n = emit_quad2(v,n,max, c101,c001,c011,c111, u1,v1,u0,v0, white); /* z+ */
     if (all || face == 2)
-        n = emit_quad2(v,n,max, c001,c000,c010,c011, u0,v1,u1,v0, white); /* x- */
+        n = emit_quad2(v,n,max, c001,c000,c010,c011, u1,v1,u0,v0, white); /* x- */
     if (all || face == 3)
-        n = emit_quad2(v,n,max, c100,c101,c111,c110, u0,v1,u1,v0, white); /* x+ */
+        n = emit_quad2(v,n,max, c100,c101,c111,c110, u1,v1,u0,v0, white); /* x+ */
     if (all || face == 4)
         n = emit_quad2(v,n,max, c010,c110,c111,c011, u0,v0,u1,v1, white); /* y+ */
     if (all || face == 5)
-        n = emit_quad2(v,n,max, c000,c001,c101,c100, u0,v0,u1,v1, white); /* y- */
+        n = emit_quad2(v,n,max, c001,c101,c100,c000, u0,v0,u1,v1, white); /* y- */
     return n;
 }
 

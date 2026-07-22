@@ -5,7 +5,7 @@
  *    raycast target, AABB expandXyz(0.0020000000949949026), glLineWidth 2.0,
  *    blend SRC_ALPHA/ONE_MINUS_SRC_ALPHA, depth test on / depthMask false.
  *  - RenderGlobal.drawBlockDamageTexture: destroy_stage_{0..9} crack decal on
- *    the progressive-dig target at floor(damage*10). Blend is
+ *    the progressive-dig target at floor(damage*10)-1, clamped to 0..9. Blend is
  *    DST_COLOR/SRC_COLOR (2*src*dst multiply) with white vertex colour -
  *    draw via gm_overlay_emit_crack + shade.blend=2, separate from selection.
  * Pure geometry emitters: world-space CrVertex quads for the TERRAIN atlas,

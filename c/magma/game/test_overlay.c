@@ -5,6 +5,8 @@
  * Build+run: bash game/test_overlay.sh */
 #include "game/overlay.h"
 #include "game/sel_box.h"
+#include "assets/blockmodels.h"
+#include "assets/atlas_gen.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -80,6 +82,25 @@ int main(void)
             CHECK(v[i].pos.x >= -7.1f && v[i].pos.x <= -5.9f, "crack x near block");
             CHECK(v[i].pos.y >= 11.9f && v[i].pos.y <= 13.1f, "crack y near block");
         }
+    }
+
+    /* PlayerControllerMP publishes floor(progress*10)-1: 0.2 selects stage 1. */
+    n = gm_overlay_emit_crack(v, GM_OVERLAY_MAX_VERTS,
+                              -7, 12, 40, 0.2f, 4);
+    {
+        float u0, v0, u1, v1;
+        bm_sprite_uv(CR_SPRITE_DESTROY_STAGE_1, &u0, &v0, &u1, &v1);
+        CHECK(n == 12 && v[0].uv.x >= u0 && v[0].uv.x <= u1 &&
+              v[0].uv.y >= v0 && v[0].uv.y <= v1,
+              "damage 0.2 selects vanilla destroy stage 1");
+        n = gm_overlay_emit_crack(v, GM_OVERLAY_MAX_VERTS,
+                                  -7, 12, 40, 0.2f, 0);
+        CHECK(v[0].uv.x == u1 && v[0].uv.y == v1,
+              "vertical crack face uses vanilla mirrored U projection");
+        n = gm_overlay_emit_crack(v, GM_OVERLAY_MAX_VERTS,
+                                  -7, 12, 40, 0.2f, 5);
+        CHECK(v[0].uv.x == u0 && v[0].uv.y == v0,
+              "bottom crack face uses vanilla X/-Z projection");
     }
 
     /* damage 0 emits no crack (vanilla hides stage until progress > 0) */
