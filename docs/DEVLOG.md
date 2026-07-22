@@ -227,3 +227,20 @@ Removed 2026-07-11 (unused routes): `java/build_mac.sh`, `play_mac.sh` (Mac GL d
   pass silently again. Lesson: cluster classes that absorb "small moving
   stuff" (particles) can hide whole missing renderers; the demo eyeball
   pass is a real gate, not a formality.
+- Player-state visual audit (follow-up to the fireball catch; operator asked
+  "what about player on fire from blaze"): tape fields fire/hurt/pots/cd all
+  drive visuals the entity-model gate never covered. Implemented:
+  ItemRenderer.renderFireInFirstPerson (screen fire overlay, driven from
+  recorded fire + live sim), GuiIngame.renderPlayerStats heart flash
+  (ceil(health), healthUpdateCounter white-flash phase) and poison/wither
+  heart rows, renderPotionEffects HUD icons, hurtCameraEffect from recorded
+  hurtTime/attackedAtYaw, updateEquippedItem cd^3 target + press-edge swing.
+  Fire overlay silhouette mismatch root cause was orientCamera's +0.05 Z
+  nudge leaking past renderHand identity. Attack indicator: verified
+  oracle-equal (setting !=1, footprint 0/256 px diff at canonical t3400).
+  Gate hardening round 2: per-frame class pixel budgets (hud 55k /
+  particles 40k / viewmodel 40k) reclassify oversized soaks as UNEXPLAINED;
+  proven on the actual saved pre-fix burn frame (fails as soak_from:hud).
+  Blaze demo class soak dropped 12.85M -> 4.02M px; burn frames t88/t120
+  now ~2-4k residual px. Old-tape swingProgressInt unrecoverable -
+  documented in TAPE_COMPLETENESS.md.
