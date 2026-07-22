@@ -97,6 +97,8 @@ struct GmFrameCapture {
     float boss_frac;        /* last seen health/200 */
     float pend_uwb;         /* ... with this Entity.getBrightness tint */
     float pend_uwfov;       /* ... through this hand-projection fov */
+    long long pend_texture_tick; /* animated atlas phase of deferred frame */
+    GmHudState hud_state;
     /* depth-1 pipeline (CUDA + devmesh): frame N+1's CPU prep + enqueue run
      * BEFORE waiting out frame N, so the CPU meshes while the GPU rasters.
      * pend_depth is the hand/hud depth scratch (they must not scribble the
@@ -520,9 +522,15 @@ static int finish_pending(GmFrameCapture *c) {
     /* ItemRenderer.renderOverlays runs with the hand, BEFORE the HUD. */
     if (c->pend_uwov)
         gm_uw_overlay_draw(&pfb, &c->pend_v, c->pend_uwb, c->pend_uwfov);
+    if (c->pend_v.texture_animations_pinned)
+        bm_atlas_set_animation_physical_zero();
+    else
+        bm_atlas_set_animation_tick(c->pend_texture_tick);
+    CrTexture atlas=bm_atlas();
+    if (c->pend_v.fire && !c->pend_v.creative && !c->pend_v.dead)
+        gm_hand_fire_overlay_draw(&pfb,&atlas,c->pend_uwfov/70.0f);
     if (c->pend_v.portal > 0.0f) {
         bm_atlas_set_portal_frame(c->pend_v.portal_frame);
-        CrTexture atlas=bm_atlas();
         gm_overlay_portal_screen(&pfb,&atlas,c->pend_v.portal);
     }
     gm_hud_draw(&pfb, &c->pend_v);
@@ -543,10 +551,14 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         c->hand_bob+=0.30f;
     float swing, equip;
     advance_hand_state(c, r, action, &swing, &equip);
+    GmPlayerView tick_v;
+    gm_runtime_view(r,&tick_v);
+    gm_runtime_apply_tape_view(r,&tick_v);
+    gm_hud_state_step(&c->hud_state,&tick_v,c->frame);
     /* fogColor1 smoother (light brightness at the player FEET): one vanilla
      * updateRenderer step per tick, rendered or not. */
     {
-        GmPlayerView fv;gm_runtime_view(r,&fv);
+        GmPlayerView fv=tick_v;
         if(!c->fog_c1_init){
             c->fog_c1=gm_uw_fog_c1_seed(r->world,r->dimension,fv.x,fv.y,fv.z);
             c->fog_c1_init=1;
@@ -580,7 +592,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     }else if(!finish_pending(c)){
         set_error(err,err_cap,"cannot write frames-out image (deferred)");return 0;
     }
-    GmPlayerView v;gm_runtime_view(r,&v);gm_runtime_apply_tape_view(r,&v);
+    GmPlayerView v=tick_v;
     CrCamera cam=camera_for(&v,c->fb.w,c->fb.h);float day=time_of_day(r);
     /* eye-in-fluid state (fog / FOV / overlay - game/underwater.h) */
     GmUnderwater uw;gm_uw_eval(r->world,r->dimension,&v,c->fog_c1,&uw);
@@ -851,6 +863,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 c->pend_count=c->equip_count;c->pend_bob=c->hand_bob;
                 c->pend_uwov=uw.overlay&&!v.dead;
                 c->pend_uwb=uw.brightness;c->pend_uwfov=cam.fov_deg;
+                c->pend_texture_tick=fc_texture_tick(r->clock.total_time,
+                                                     v.portal_frame);
                 return 1;
             }
         }
@@ -870,6 +884,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         if(!v.dead&&!getenv("MAGMA_NO_HAND"))gm_hand_draw(&c->fb,&v,c->hand_bob);
         /* ItemRenderer.renderOverlays runs with the hand, BEFORE the HUD. */
         if(uw.overlay&&!v.dead)gm_uw_overlay_draw(&c->fb,&v,uw.brightness,cam.fov_deg);
+        if(v.fire&&!v.creative&&!v.dead)
+            gm_hand_fire_overlay_draw(&c->fb,&atlas,uw.fov_scale);
         if(v.portal>0.0f)gm_overlay_portal_screen(&c->fb,&atlas,v.portal);
         gm_hud_draw(&c->fb,&v);
         if(v.loading==1)gm_overlay_loading_screen(&c->fb);

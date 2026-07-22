@@ -12,6 +12,18 @@ extern "C" {
 /* Load the gui sprites once. Returns 0 on success, nonzero on failure. */
 int  gm_hud_init(void);
 
+/* Stateful GuiIngame.renderPlayerStats health bookkeeping. update_counter is
+ * GuiIngame.updateCounter (one increment per client tick). The derived values
+ * are stored in pv so deferred frame composition keeps the state of its tick. */
+typedef struct {
+    int initialized;
+    int player_health, last_player_health;
+    int previous_hurt_time;
+    long long health_update_counter, last_sync_counter;
+} GmHudState;
+void gm_hud_state_step(GmHudState *state, GmPlayerView *pv,
+                       long long update_counter);
+
 /* Draw the survival HUD (hotbar + selection, hearts, hunger, XP bar+level,
  * crosshair) onto fb. Does NOT touch fb->depth. Safe for any fb size. */
 void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv);

@@ -835,10 +835,12 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid inv_view\n",line_no);goto bad;
                 }
             } else if (!strcmp(type,"player_view")) {
-                long long xp,air,portal_frame=-1,portal_phase=0,loading=0,pinned=0;double frac,portal=0.0;
+                long long xp,air,portal_frame=-1,portal_phase=0,loading=0,pinned=0;
+                long long fire=0,creative=0,hurt=0;double frac,portal=0.0;
                 static const char *const keys[]={"tick","type","xp_level","xp_frac","air",
-                    "portal","portal_frame","portal_phase","loading","texture_animations_pinned"};
-                if(!keys_only(&pending,keys,10,err,sizeof err)||
+                    "portal","portal_frame","portal_phase","loading","texture_animations_pinned",
+                    "fire","creative","hurt"};
+                if(!keys_only(&pending,keys,13,err,sizeof err)||
                    !as_i64(field(&pending,"xp_level"),&xp)||
                    !as_double(field(&pending,"xp_frac"),&frac)||
                    !as_i64(field(&pending,"air"),&air)||
@@ -848,16 +850,20 @@ int gm_script_run(const GmConfig *cfg) {
                    (field(&pending,"loading")&&!as_i64(field(&pending,"loading"),&loading))||
                    (field(&pending,"texture_animations_pinned")&&
                     !as_i64(field(&pending,"texture_animations_pinned"),&pinned))||
+                   (field(&pending,"fire")&&!as_i64(field(&pending,"fire"),&fire))||
+                   (field(&pending,"creative")&&!as_i64(field(&pending,"creative"),&creative))||
+                   (field(&pending,"hurt")&&!as_i64(field(&pending,"hurt"),&hurt))||
                    /* vanilla drowning runs air down to -20 (damage pulse then
                     * resets it to 0), so negative values are legitimate tape data */
                    xp<0||xp>21863||frac<0||frac>1||air<-20||air>300||
                    portal<0||portal>1||portal_frame < -1||
-                   portal_phase<0||loading<0||loading>2||pinned<0||pinned>1){
+                   portal_phase<0||loading<0||loading>2||pinned<0||pinned>1||
+                   fire<0||fire>1||creative<0||creative>1||hurt<0||hurt>20){
                     fprintf(stderr,"script:%ld: invalid player_view\n",line_no);goto bad;
                 }
                 gm_runtime_tape_player_view(&r,(int)xp,(float)frac,(int)air,
                     (float)portal,(int)portal_frame,(int)portal_phase,(int)loading,
-                    (int)pinned);
+                    (int)pinned,(int)fire,(int)creative,(int)hurt);
             } else if (!strcmp(type,"spawn_entity")) {
                 long long entity;double x,y,z;
                 static const char *const keys[]={"tick","type","entity","x","y","z"};

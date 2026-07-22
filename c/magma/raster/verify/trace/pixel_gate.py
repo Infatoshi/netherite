@@ -35,6 +35,11 @@ MIN_CLUSTER = 50      # px; smaller components are per-pixel noise, dropped
 # (marker box ~10k, water fog ~60k, arena window ~147k) sit well above.
 FAIL_CLUSTER = 4000   # px; an UNEXPLAINED component this big fails the frame
 FAIL_TOTAL = 8000     # px; total UNEXPLAINED in one frame that fails it
+# Accepted semantic classes are local effects, never a license to absorb a
+# screen-sized miss. If one class exceeds its per-frame allowance, its clusters
+# become UNEXPLAINED and are judged by the normal fail thresholds.
+CLASS_PIXEL_BUDGETS = {"hud": 55000, "particles": 40000,
+                       "viewmodel": 40000}
 BOSSBAR_Y = 44        # top band (boss bar + name text) at 480p scale 2
 HUD_FRAC = 0.80       # bottom HUD strip starts here (hotbar top ~y=436/480)
 VIEWMODEL_X_FRAC = 0.52
@@ -301,6 +306,16 @@ def summarize(per_tick, transit=None):
             if t in transit:
                 for cl in cls_list:
                     cl["cls"] = "transit"
+    for cls_list in per_tick.values():
+        totals = {cls: sum(cl["px"] for cl in cls_list if cl["cls"] == cls)
+                  for cls in CLASS_PIXEL_BUDGETS}
+        for cl in cls_list:
+            cls = cl["cls"]
+            if cls in CLASS_PIXEL_BUDGETS and (
+                    cl["px"] > CLASS_PIXEL_BUDGETS[cls]
+                    or totals[cls] > CLASS_PIXEL_BUDGETS[cls]):
+                cl["soak_from"] = cls
+                cl["cls"] = "UNEXPLAINED"
     classes = {}
     failed = []
     for t, cls_list in sorted(per_tick.items()):
@@ -322,7 +337,8 @@ def summarize(per_tick, transit=None):
     failed.sort(key=lambda r: -r["unexplained_px"])
     return {"thresholds": {"diff": DIFF_THRESH, "min_cluster": MIN_CLUSTER,
                            "fail_cluster": FAIL_CLUSTER,
-                           "fail_total": FAIL_TOTAL},
+                           "fail_total": FAIL_TOTAL,
+                           "class_pixel_budgets": CLASS_PIXEL_BUDGETS},
             "frames_checked": len(per_tick),
             "classes": classes,
             "failed_frames": failed,

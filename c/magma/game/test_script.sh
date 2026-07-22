@@ -116,7 +116,7 @@ printf '%s\n' \
 	'{"tick":0,"type":"snapshot_block","dim":-1,"x":0,"y":200,"z":0,"id":87,"meta":0}' \
 	'{"tick":0,"type":"inv_view","slot":0,"item":17,"count":2,"meta":0}' \
 	'{"tick":0,"type":"inv_view","slot":40,"item":442,"count":1,"meta":0}' \
-	'{"tick":0,"type":"player_view","xp_level":7,"xp_frac":0.625,"air":123}' \
+	'{"tick":0,"type":"player_view","xp_level":7,"xp_frac":0.625,"air":123,"fire":1,"creative":0,"hurt":9}' \
 	'{"tick":0,"type":"ent_view","ent":"EntitySheep","x":1,"y":64,"z":2,"yaw":30,"hp":8,"id":7,"tape_pose":1,"head_yaw":55,"pitch":12,"swing":0.25,"hurt":4,"death":2,"body_yaw":28,"flags":3,"sheared":1,"fleece":14,"graze_y":0.75,"graze_x":1.1}' \
 	'{"tick":0,"type":"ent_view","ent":"EntityItem","x":2,"y":64,"z":3,"yaw":0,"hp":-1,"id":8,"item":318,"item_meta":0,"count":3,"age":12,"hover":1.25,"has_hover":1}' \
 	'{"tick":1,"type":"set_inventory","slot":40,"item":442,"count":1,"meta":0}' \

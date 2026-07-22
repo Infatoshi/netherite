@@ -39,6 +39,7 @@
 #include "game/hand.h"
 #include "assets/hand_atlas.h"
 #include "assets/blockmodels.h"
+#include "assets/atlas_gen.h"
 #include "assets/item_atlas.h"
 #include "game/block_registry.h"
 #include "game/item_render.h"
@@ -664,6 +665,53 @@ static void hand_raster(CrFramebuffer *fb, CrVertex *verts, int nv,
     sh.layer = cutout ? CR_LAYER_CUTOUT : CR_LAYER_SOLID;
 
     int ntris = cr_transform(verts, nv, NULL, 0, &cam, fb->w, fb->h,
+                             g_tris, HAND_MAX_VERTS * 2);
+    if (ntris > 0) cr_raster_cpu(fb, g_tris, ntris, &sh);
+}
+
+void gm_hand_fire_overlay_draw(CrFramebuffer *fb, const CrTexture *atlas,
+                               float fov_scale) {
+    if (!fb || !fb->color || !fb->depth || !atlas) return;
+    float u0, v0, u1, v1;
+    bm_sprite_uv(CR_SPRITE_FIRE_LAYER_1, &u0, &v0, &u1, &v1);
+    int nv = 0;
+    static const int tri[12] = {0,1,2, 0,2,3, 0,2,1, 0,3,2};
+
+    for (int i = 0; i < 2; ++i) {
+        int side = i * 2 - 1;
+        CrMat4 M = cr_mat4_identity();
+        M = mul(M, mat_translate((float)-side * 0.24f, -0.3f, 0.0f));
+        M = mul(M, mat_rot_y((float)side * 10.0f));
+        const float p[4][5] = {
+            {-0.5f, -0.5f, -0.5f, u1, v1},
+            { 0.5f, -0.5f, -0.5f, u0, v1},
+            { 0.5f,  0.5f, -0.5f, u0, v0},
+            {-0.5f,  0.5f, -0.5f, u1, v0},
+        };
+        CrVertex q[4];
+        for (int k = 0; k < 4; ++k) {
+            q[k].pos = xform_pt01(M, p[k][0], p[k][1], p[k][2]);
+            q[k].uv = (CrVec2){p[k][3], p[k][4]};
+            q[k].light = q[k].ao = 1.0f;
+            q[k].blk = 0.0f;
+            q[k].tint = (CrRgba){255, 255, 255, 230};
+        }
+        for (int k = 0; k < 12; ++k) g_verts[nv++] = q[tri[k]];
+    }
+
+    /* Vanilla uses GL_ALWAYS with depthMask(false). Clearing the scratch depth
+     * makes this pass unconditional; later screen overlays and HUD ignore it. */
+    for (int i = 0; i < fb->w * fb->h; ++i) fb->depth[i] = 1.0f;
+    CrCamera cam = {0};
+    cam.fov_deg = 70.0f * (fov_scale > 0.0f ? fov_scale : 1.0f);
+    cam.aspect = (float)fb->w / (float)fb->h;
+    cam.znear = 0.05f;
+    cam.zfar = 50.0f;
+    CrShadeCtx sh = {0};
+    sh.atlas = atlas;
+    sh.layer = CR_LAYER_TRANSLUCENT;
+    sh.blend = 1;
+    int ntris = cr_transform(g_verts, nv, NULL, 0, &cam, fb->w, fb->h,
                              g_tris, HAND_MAX_VERTS * 2);
     if (ntris > 0) cr_raster_cpu(fb, g_tris, ntris, &sh);
 }

@@ -445,6 +445,18 @@ def test_pixel_gate_rejects_marker_box_during_known_rain_window():
                for cluster in clusters)
 
 
+def test_pixel_gate_rejects_screen_sized_overlay_class_soak():
+    """A missing orange fire wash cannot hide in HUD/viewmodel classes."""
+    oracle = np.full((480, 854, 3), 18, dtype=np.int16)
+    magma = oracle.copy()
+    oracle[235:, :, :] = np.array([235, 92, 12], dtype=np.int16)
+    clusters = pixel_gate.gate_frame(oracle, magma, 854, 480, tick=120)
+    gate = pixel_gate.summarize({120: clusters})
+    assert gate["pass"] is False
+    assert any(cl.get("soak_from") in {"hud", "viewmodel", "particles"}
+               for cl in gate["failed_frames"][0]["clusters"])
+
+
 def test_wrong_window_sidecar_does_not_suppress_marker_box(tmp_path: Path):
     oracle, magma = _canonical_frame_pair(600)
     tape = tmp_path / "clean.jsonl"

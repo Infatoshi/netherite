@@ -20,6 +20,7 @@
 #include "game/underwater.h"
 #include "game/caps.h"
 #include "game/hand.h"
+#include "game/hud.h"
 #include "game/timer.h"   /* Timer.java port: 20 TPS accumulator + renderPartialTicks */
 #include "game/live_sim.h" /* minimal live entities + plant plot */
 #include "game/player_ctl.h"
@@ -33,6 +34,7 @@
 #include "game/item_render.h"    /* dropped-item mini blocks + flat sprites */
 #include "container_click.h"
 #include "items_core.h"
+#include "assets/blockmodels.h"
 
 /* mc-sim: PsvPlayer / Chunk / McSinTable + the verified init helpers. */
 #include "player_survival.h"
@@ -463,6 +465,7 @@ int main(int argc, char **argv) {
      * window on a left-click attack, mirroring MC's swingProgress. */
     float hand_bob = 0.0f;
     int   swing_ticks = 0;            /* frames remaining in the current swing */
+    GmHudState hud_state = {0};
     const int SWING_LEN = 6;         /* MC swings the arm over ~6 ticks */
 
     /* MEASUREMENT hooks (env-gated, no effect on a normal run):
@@ -650,6 +653,7 @@ int main(int argc, char **argv) {
         }
 
         GmPlayerView pv; gm_runtime_view(&runtime, &pv);
+        gm_hud_state_step(&hud_state, &pv, runtime.tick);
         /* camera view: headless keeps partial_ticks pinned at 1.0 and renders the
          * CURRENT state (byte-identical to the pre-timer loop); interactive lerps
          * prev->cur by renderPartialTicks, exactly Entity prevPos + (pos-prev)*pt
@@ -673,6 +677,7 @@ int main(int argc, char **argv) {
             gm_uw_eval(world, runtime.dimension, &cpv, c1, &uw);
         }
         cam.fov_deg *= uw.fov_scale;   /* getFOVModifier: 60/70 in water */
+        bm_atlas_set_animation_tick(g_clock.total_time);
         gm_sky_set_fluid_fog(uw.fluid ? 1 : 0, uw.fog01, uw.density);
         bench_stamp(3);
 
@@ -832,6 +837,8 @@ int main(int argc, char **argv) {
             /* ItemRenderer.renderOverlays: with the hand, before the HUD. */
             if (uw.overlay && !pv.dead)
                 gm_uw_overlay_draw(&fb, &cpv, uw.brightness, cam.fov_deg);
+            if (pv.fire && !pv.creative && !pv.dead)
+                gm_hand_fire_overlay_draw(&fb, &atlas, uw.fov_scale);
         }
         gm_hud_draw(&fb, &pv);
         if (screen_open && !pv.dead)

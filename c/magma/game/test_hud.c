@@ -57,6 +57,35 @@ int main(void) {
     pv.hotbar_ids[8] = 9;  pv.hotbar_counts[8] = 1;
 
     int init_rc = gm_hud_init();
+    {
+        GmHudState hs = {0};
+        GmPlayerView hv = {0};
+        hv.health = 15.0f;
+        gm_hud_state_step(&hs, &hv, 0);
+        hv.health = 11.333333f; hv.hurt_time = 9;
+        gm_hud_state_step(&hs, &hv, 1);
+        if (hv.hud_health != 12 || hv.hud_last_health != 15 || hv.hud_flash) {
+            fprintf(stderr, "FAIL: vanilla ceil/damage heart state\n");
+            return 1;
+        }
+        gm_hud_state_step(&hs, &hv, 4);
+        if (!hv.hud_flash) {
+            fprintf(stderr, "FAIL: healthUpdateCounter blink phase\n");
+            return 1;
+        }
+        memset(&hs, 0, sizeof hs);
+        memset(&hv, 0, sizeof hv);
+        hv.health = 20.0f; hv.hud_transition_lead = 1;
+        gm_hud_state_step(&hs, &hv, 84);
+        hv.health = 15.0f; hv.hurt_time = 9;
+        gm_hud_state_step(&hs, &hv, 86);
+        hv.hurt_time = 7;
+        gm_hud_state_step(&hs, &hv, 88);
+        if (!hv.hud_flash) {
+            fprintf(stderr, "FAIL: post-tick tape heart-flash lead\n");
+            return 1;
+        }
+    }
     gm_hud_draw(&fb, &pv);
 
     /* --- asserts --- */

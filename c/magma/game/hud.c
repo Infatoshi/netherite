@@ -417,6 +417,46 @@ void gm_hud_set_boss(int show, float frac) {
     g_boss_frac = frac;
 }
 
+void gm_hud_state_step(GmHudState *s, GmPlayerView *pv,
+                       long long update_counter) {
+    if (!s || !pv) return;
+    int health = (int)ceilf(pv->health);
+    if (health < 0) health = 0;
+    if (!s->initialized) {
+        s->initialized = 1;
+        s->player_health = health;
+        s->last_player_health = health;
+        s->last_sync_counter = update_counter;
+    }
+
+    /* GuiIngame.renderPlayerStats computes the blink from the previous
+     * healthUpdateCounter, then refreshes the counter on a health transition. */
+    pv->hud_flash = s->health_update_counter > update_counter &&
+        ((s->health_update_counter - update_counter) / 3LL) % 2LL == 1LL;
+    long long transition_counter = update_counter - pv->hud_transition_lead;
+    int hurt_resistant = pv->hurt_time > 0 ||
+        (pv->hud_transition_lead && s->previous_hurt_time > 0);
+    if (health < s->player_health && hurt_resistant) {
+        s->last_sync_counter = transition_counter;
+        s->health_update_counter = transition_counter + 20;
+    } else if (health > s->player_health && hurt_resistant) {
+        s->last_sync_counter = transition_counter;
+        s->health_update_counter = transition_counter + 10;
+    }
+    /* Vanilla uses a 1000 ms wall-clock guard. Tape replay is a fixed 20 Hz
+     * client tick stream, so strictly-more-than-one-second is 21 ticks. */
+    if (update_counter - s->last_sync_counter > 20) {
+        s->player_health = health;
+        s->last_player_health = health;
+        s->last_sync_counter = update_counter;
+    }
+    s->player_health = health;
+    pv->hud_health = health;
+    pv->hud_last_health = s->last_player_health;
+    pv->hud_state_valid = 1;
+    s->previous_hurt_time = pv->hurt_time;
+}
+
 void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
     if (!fb || !fb->color || !pv || !g_hud_ready) return;
 
@@ -546,12 +586,25 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
     /* Row baseline sits just above the XP bar, left-aligned to the hotbar. */
     /* vanilla GuiIngameForge: left_height/right_height start at 39 -> top = h - 39 */
     const int stat_y = (sh_s - 39) * scale;
+    /* GuiIngame's <=4-health one-pixel jitter is seeded from the absolute
+     * updateCounter (updateCounter*312871), which current tapes do not record.
+     * Keep the stable baseline rather than inventing a phase; health count and
+     * damage-flash state still use the recorded health/hurt fields. */
     const int max_hearts = (int)(pv->max_health / 2.f + 0.5f);
-    const int half_hearts = (int)(pv->health + 0.5f); /* health in half-hearts */
+    const int half_hearts = pv->hud_state_valid ? pv->hud_health
+                                                 : (int)ceilf(pv->health);
+    const int old_half_hearts = pv->hud_state_valid ? pv->hud_last_health
+                                                     : half_hearts;
     for (int i = 0; i < max_hearts; i++) {
         int hx = hb_x + (i * 8) * scale;
         int hy = stat_y;
-        hud_blit(fb, HUD_HEART_BG, hx, hy, scale);
+        hud_blit(fb, pv->hud_flash ? HUD_HEART_BG_FLASH : HUD_HEART_BG,
+                 hx, hy, scale);
+        if (pv->hud_flash) {
+            int old = old_half_hearts - i * 2;
+            if (old >= 2) hud_blit(fb, HUD_HEART_FLASH_FULL, hx, hy, scale);
+            else if (old == 1) hud_blit(fb, HUD_HEART_FLASH_HALF, hx, hy, scale);
+        }
         int hv = half_hearts - i * 2;
         if (hv >= 2)      hud_blit(fb, HUD_HEART_FULL, hx, hy, scale);
         else if (hv == 1) hud_blit(fb, HUD_HEART_HALF, hx, hy, scale);

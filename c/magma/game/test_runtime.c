@@ -35,9 +35,16 @@ int main(void) {
     }
     CHECK(isr_hotbar_total(&r.player.inv) + isr_main_total(&r.player.inv) == 0,
           "authoritative runtime starts with empty inventory");
+    r.player_fire_ticks = 2;
+    {
+        GmPlayerView fv;gm_runtime_view(&r,&fv);
+        CHECK(fv.fire==1&&fv.creative==0,
+              "live Entity fire ticks expose first-person burning state");
+    }
+    r.player_fire_ticks = 0;
     CHECK(gm_runtime_tape_inventory(&r,0,17,2,0),"tape inventory accepts hotbar stack");
     CHECK(gm_runtime_tape_inventory(&r,40,442,1,0),"tape inventory accepts offhand stack");
-    gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1,1);
+    gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1,1,1,0,9);
     {
         GmPlayerView tv;gm_runtime_view(&r,&tv);gm_runtime_apply_tape_view(&r,&tv);
         CHECK(tv.hotbar_ids[0]==17&&tv.hotbar_counts[0]==2,
@@ -49,6 +56,8 @@ int main(void) {
         CHECK(tv.portal==0.5f&&tv.portal_frame==17&&tv.portal_phase==1234&&tv.loading==1&&
               tv.texture_animations_pinned==1,
               "recorded portal and loading state override the rendered player view");
+        CHECK(tv.fire==1&&tv.creative==0&&tv.hurt_time==9,
+              "recorded fire and hurt state override the rendered player view");
     }
     {
         ICStack got;

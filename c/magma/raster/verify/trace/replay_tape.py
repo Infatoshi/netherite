@@ -605,6 +605,10 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                     "portal_phase": int(row.get("portal_phase", 0)),
                                     "texture_animations_pinned":
                                         int(animations_pinned),
+                                    "fire": int(row.get("fire", 0)),
+                                    "creative": int(header.get("gamemode") ==
+                                                    "creative"),
+                                    "hurt": int(row.get("hurt", 0)),
                                     # Physics remains frozen until the player is
                                     # loaded, but the brown loading screen is
                                     # visible only while this GUI is actually

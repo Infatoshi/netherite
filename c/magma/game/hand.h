@@ -21,6 +21,11 @@ extern "C" {
  * applyBobbing (no-op at rest). */
 void gm_hand_draw(CrFramebuffer *fb, const GmPlayerView *pv, float bob_phase);
 
+/* ItemRenderer.renderFireInFirstPerson: two animated fire_layer_1 quads at
+ * alpha 0.9, rendered after the water overlay and before GuiIngame. */
+void gm_hand_fire_overlay_draw(CrFramebuffer *fb, const CrTexture *atlas,
+                               float fov_scale);
+
 /* Set the current attack SWING progress in [0,1] (0 = rest). The game loop
  * advances a swing animation on left-click and pushes it here each frame
  * before gm_hand_draw; both arm and held-item paths fold it into the vanilla

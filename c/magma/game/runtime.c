@@ -199,7 +199,11 @@ static void tick_projectiles(GmRuntime *r) {
                 GmPlayerView v;gm_runtime_view(r,&v);
                 double dx=p->x-v.x,dy=p->y-(v.y+0.9),dz=p->z-v.z;
                 if(dx*dx+dy*dy+dz*dz<=0.75*0.75){
-                    pv_attack(&r->vitals,p->type==3?5.0f:4.0f);r->player.health=r->vitals.health;p->active=0;
+                    int hit=gm_mobs_attack_player(&r->mobs,
+                        (struct PvStats *)&r->vitals,p->type==3?5.0f:4.0f);
+                    r->player.health=r->vitals.health;
+                    if(hit&&p->type==3)r->player_fire_ticks=5*20;
+                    p->active=0;
                 }else if(block){
                     if(p->type==3)runtime_explode(r,p->x,p->y,p->z,1.0f);
                     p->active=0;
@@ -308,6 +312,15 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     /* EntityLivingBase.onUpdate ages hurtResistantTime every tick even when
      * --mobs off suppresses natural mob AI during a tape replay. */
     gm_mobs_player_hurt_tick(&r->mobs);
+    /* Entity.onEntityUpdate: burning is fire>0, damage lands while the
+     * pre-decrement counter is divisible by 20, then the counter ages. */
+    if(r->player_fire_ticks>0){
+        if(r->player_fire_ticks%20==0)
+            (void)gm_mobs_attack_player(&r->mobs,
+                (struct PvStats *)&r->vitals,1.0f);
+        --r->player_fire_ticks;
+        r->player.health=r->vitals.health;
+    }
     if(action.attack&&r->dimension==1&&gm_dragon_player_attack(&r->dragon,
             (const struct PsvPlayer *)&r->player,r->ox,r->oz))action.attack=0;
     if (action.attack && gm_mobs_player_attack(&r->mobs,
@@ -467,6 +480,11 @@ void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
     gm_player_view((const struct PsvPlayer *)&r->player, r->ox, r->oz, out);
     out->dead = r->dead;
     out->deaths = r->deaths;
+    out->fire = r->player_fire_ticks > 0;
+    out->creative = 0;
+    out->hurt_time = r->mobs.player_hurt_resistant > 0
+        ? (r->mobs.player_hurt_resistant < 10
+           ? r->mobs.player_hurt_resistant : 10) : 0;
     int xp=r->mobs.xp_total, level=0;
     for (;;) {
         int cap=level>=30?9*level-158:(level>=15?5*level-38:2*level+7);
@@ -699,7 +717,8 @@ int gm_runtime_tape_inventory(GmRuntime *r, int slot, int item, int count, int m
 
 void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int air,
                                  float portal, int portal_frame, int portal_phase,
-                                 int loading, int texture_animations_pinned) {
+                                 int loading, int texture_animations_pinned,
+                                 int fire, int creative, int hurt_time) {
     if (!r) return;
     r->tape_xp_active = 1;
     r->tape_xp_level = xp_level;
@@ -710,6 +729,9 @@ void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int 
     r->tape_portal_phase = portal_phase;
     r->tape_loading = loading;
     r->tape_texture_animations_pinned = texture_animations_pinned;
+    r->tape_fire = fire;
+    r->tape_creative = creative;
+    r->tape_hurt_time = hurt_time;
 }
 
 void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
@@ -731,6 +753,12 @@ void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
         view->portal_phase = r->tape_portal_phase;
         view->loading = r->tape_loading;
         view->texture_animations_pinned = r->tape_texture_animations_pinned;
+        view->fire = r->tape_fire;
+        view->creative = r->tape_creative;
+        view->hurt_time = r->tape_hurt_time;
+        /* Recorder rows are post-tick. GuiIngame rendered the same health
+         * transition one updateCounter earlier (portal_phase proves 1:1). */
+        view->hud_transition_lead = 1;
     }
 }
 

@@ -12,7 +12,9 @@ assets/hud_atlas.h. Also dumps /tmp/magma_hud_*.png for eyeballing.
 Sprite coords are the well-known GuiIngame constants for 1.11.2:
   widgets.png : hotbar (0,0,182x22), selection (0,22,24x24)
   icons.png   : crosshair (0,0,15x15);
-                heart  bg (16,0)  full (52,0)  half (61,0)   each 9x9
+                heart bg (16,0), flashing bg (25,0),
+                      full (52,0), half (61,0),
+                      flashing full (70,0), half (79,0)      each 9x9
                 haunch bg (16,27) full (52,27) half (61,27)  each 9x9
                 air full (16,18) partial (25,18)              each 9x9
                 xp bar empty (0,64,182x5) full (0,69,182x5)
@@ -35,8 +37,11 @@ SPRITES = [
     ("SELECT",      "widgets.png",   0, 22,  24, 24),
     ("CROSSHAIR",   "icons.png",     0,  0,  15, 15),
     ("HEART_BG",    "icons.png",    16,  0,   9,  9),
+    ("HEART_BG_FLASH", "icons.png", 25,  0,   9,  9),
     ("HEART_FULL",  "icons.png",    52,  0,   9,  9),
     ("HEART_HALF",  "icons.png",    61,  0,   9,  9),
+    ("HEART_FLASH_FULL", "icons.png", 70, 0,  9,  9),
+    ("HEART_FLASH_HALF", "icons.png", 79, 0,  9,  9),
     ("HUNGER_BG",   "icons.png",    16, 27,   9,  9),
     ("HUNGER_FULL", "icons.png",    52, 27,   9,  9),
     ("HUNGER_HALF", "icons.png",    61, 27,   9,  9),

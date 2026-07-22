@@ -103,6 +103,13 @@ typedef struct {
                                  * (drawn-bow viewmodel + pulling sprite) */
     int   hotbar_meta[9];       /* item damage / block metadata          */
     int   texture_animations_pinned; /* QRL physical-frame-zero atlas pin */
+    int   fire;                 /* Entity.isBurning(), after creative suppression */
+    int   creative;             /* capabilities.disableDamage           */
+    int   hurt_time;            /* EntityLivingBase.hurtTime countdown  */
+    /* GuiIngame.renderPlayerStats state, filled by gm_hud_state_step. */
+    int   hud_health, hud_last_health;
+    int   hud_flash, hud_state_valid;
+    int   hud_transition_lead; /* post-tick tape row trails GuiIngame by 1 */
 } GmPlayerView;
 
 /* A mob/entity to draw this frame (from the entity store). */
