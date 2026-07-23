@@ -39,7 +39,7 @@ FAIL_TOTAL = 8000     # px; total UNEXPLAINED in one frame that fails it
 # screen-sized miss. If one class exceeds its per-frame allowance, its clusters
 # become UNEXPLAINED and are judged by the normal fail thresholds.
 CLASS_PIXEL_BUDGETS = {"hud": 55000, "particles": 40000,
-                       "viewmodel": 40000}
+                       "viewmodel": 40000, "transit": 40000}
 BOSSBAR_Y = 44        # top band (boss bar + name text) at 480p scale 2
 HUD_FRAC = 0.80       # bottom HUD strip starts here (hotbar top ~y=436/480)
 VIEWMODEL_X_FRAC = 0.52

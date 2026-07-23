@@ -196,6 +196,8 @@ static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
     c.aspect = (float)w / (float)h;
     c.znear = 0.05f;
     c.zfar = 600.0f;
+    c.hurt_yaw_deg = v->hurt_yaw;
+    c.hurt_roll_deg = gm_view_hurt_roll_deg(v->hurt_time, v->max_hurt_time);
     return c;
 }
 

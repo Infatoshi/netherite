@@ -196,6 +196,71 @@ def test_packet_damage_keeps_same_tick_food_rollover_in_sim(tmp_path: Path):
             "food": 20} in events
 
 
+def test_recorded_drowning_damage_is_seeded_before_regeneration(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 4.0, "z": 0.5, "yaw": 0.0, "pitch": 55.0,
+              "hp": 17.5, "food": 20}
+    ticks = [{"t": 402, "in": {"f": 1, "s": 0}, "x": 0.5, "y": 2.0,
+              "z": 0.5, "yaw": 0.0, "pitch": 55.0, "hp": 15.5,
+              "food": 20, "air": -2, "hurt": 9, "ents": []}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 402, "type": "set_vitals", "health": 15.5,
+            "food": 20} in events
+
+
+def test_recorded_lava_damage_is_seeded_before_regeneration(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 4.0, "z": -1.5, "yaw": 0.0, "pitch": 20.0,
+              "hp": 19.0, "food": 20}
+    ticks = [{"t": 68, "in": {"f": 1, "s": 0}, "x": 0.5, "y": 3.8,
+              "z": 2.0, "yaw": 0.0, "pitch": 20.0, "hp": 16.0,
+              "food": 20, "fire": 1, "hurt": 9, "ents": []}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 68, "type": "set_vitals", "health": 16.0,
+            "food": 20} in events
+
+
+def test_recorded_respawn_revives_before_the_destination_tick(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 3.0, "z": 2.0, "yaw": 0.0, "pitch": 20.0,
+              "hp": 0.0, "food": 20}
+    ticks = [{"t": 115, "in": {"f": 0, "s": 0}, "x": 508.5, "y": 4.0,
+              "z": -0.5, "yaw": 0.0, "pitch": 0.0, "hp": 20.0,
+              "vx": 0.0, "vy": 0.0, "vz": 0.0, "og": 0,
+              "food": 20, "xpl": 0, "xpp": 0.0, "fire": 1,
+              "ppos": [508.5, 4.0, -0.5, 0.0, 0.0,
+                                      0.0, 0.0, 0.0], "ents": []}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 115, "type": "set_vitals", "health": 20.0,
+            "food": 20} in events
+    assert {"tick": 0, "type": "continue_after_death"} in events
+    assert not any(event["type"] == "set_regen_post" for event in events)
+    assert any(event["type"] == "player_view" and event["loading"] == 2
+               for event in events)
+
+
+def test_combat_respawn_keeps_the_terminal_death_contract(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 18000,
+              "x": 0.5, "y": 4.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 0.0, "food": 20}
+    ticks = [{"t": 10, "in": {"f": 0, "s": 0}, "x": 8.5, "y": 4.0,
+              "z": 8.5, "yaw": 0.0, "pitch": 0.0, "hp": 20.0,
+              "food": 20, "vx": 0.0, "vy": 0.0, "vz": 0.0, "og": 0,
+              "ppos": [8.5, 4.0, 8.5, 0.0, 0.0,
+                                      0.0, 0.0, 0.0],
+              "ents": [[1, "EntityBlaze", 9.0, 4.0, 9.0, 0.0, 20.0]]}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert not any(event["type"] == "continue_after_death" for event in events)
+
+
 def test_recorded_natural_regeneration_reconciles_hidden_timer(tmp_path: Path):
     header = {"header": 1, "seed": 0, "world_time": 18000,
               "x": 0.5, "y": 4.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
@@ -344,6 +409,20 @@ def test_legacy_dimension_loading_plateau_ends_when_physics_resumes():
     assert replay_tape.tape_loading_ticks(header, ticks) == {1, 2}
 
 
+def test_respawn_keeps_four_evidenced_empty_chunk_frames():
+    header = {"hp": 2.0, "position_packets": 1}
+    ticks = [
+        {"t": 114, "hp": 0.0},
+        {"t": 115, "hp": 20.0,
+         "ppos": [508.5, 4.0, -0.5, 0.0, 0.0, 0.0, 0.0, 0.0]},
+        {"t": 116, "hp": 20.0},
+        {"t": 117, "hp": 20.0},
+        {"t": 118, "hp": 20.0},
+        {"t": 119, "hp": 20.0},
+    ]
+    assert replay_tape.tape_loading_ticks(header, ticks) == {115, 116, 117, 118}
+
+
 def test_gui_container_slots_cursor_and_furnace_progress_are_mapped(tmp_path: Path):
     header = {
         "header": 1, "seed": 0, "world_time": 6000,
@@ -461,6 +540,17 @@ def test_pixel_gate_rejects_screen_sized_overlay_class_soak():
     gate = pixel_gate.summarize({120: clusters})
     assert gate["pass"] is False
     assert any(cl.get("soak_from") in {"hud", "viewmodel", "particles"}
+               for cl in gate["failed_frames"][0]["clusters"])
+
+
+def test_pixel_gate_rejects_screen_sized_transit_soak():
+    oracle = np.full((480, 854, 3), 18, dtype=np.int16)
+    magma = oracle.copy()
+    oracle[100:380, 120:734, :] = 235
+    clusters = pixel_gate.gate_frame(oracle, magma, 854, 480, tick=1000)
+    gate = pixel_gate.summarize({1000: clusters}, transit={1000})
+    assert gate["pass"] is False
+    assert any(cl.get("soak_from") == "transit"
                for cl in gate["failed_frames"][0]["clusters"])
 
 

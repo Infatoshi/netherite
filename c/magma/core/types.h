@@ -150,6 +150,9 @@ typedef struct {
     float  fov_deg;      /* vertical fov */
     float  aspect;       /* w/h */
     float  znear, zfar;
+    /* EntityRenderer.hurtCameraEffect, applied before orientCamera. Degrees
+     * match the vanilla GlStateManager.rotate arguments. */
+    float  hurt_yaw_deg, hurt_roll_deg;
 } CrCamera;
 
 /* ---- input snapshot from the present layer ---- */
@@ -185,6 +188,7 @@ CR_HD CrMat4 cr_mat4_mul(CrMat4 a, CrMat4 b);
 CR_HD CrVec4 cr_mat4_mul_vec4(CrMat4 m, CrVec4 v);
 CR_HD CrMat4 cr_perspective(float fov_deg, float aspect, float znear, float zfar);
 CR_HD CrMat4 cr_look_yaw_pitch(CrVec3 pos, float yaw, float pitch);
+CR_HD CrMat4 cr_camera_view(const CrCamera *cam);
 
 /* --- transform.c : world verts -> screen tris (MVP + near-clip + viewport) ---
  * Returns number of screen triangles written to `out` (<= max_out). Performs

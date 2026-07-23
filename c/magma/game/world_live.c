@@ -361,7 +361,7 @@ void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
      * framebuffer dims, view from the camera pose): bit-faithful to chunk_scene.h. */
     CrMat4 proj = cr_perspective(cam->fov_deg, (float)fb_w / (float)fb_h,
                                  cam->znear, cam->zfar);
-    CrMat4 view = cr_look_yaw_pitch(cam->pos, cam->yaw, cam->pitch);
+    CrMat4 view = cr_camera_view(cam);
     float planes[6][4];
     cr_frustum_extract(proj.m, view.m, planes);
 
@@ -449,7 +449,7 @@ int gm_world_mesh_chunks(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
 
     CrMat4 proj = cr_perspective(cam->fov_deg, (float)fb_w / (float)fb_h,
                                  cam->znear, cam->zfar);
-    CrMat4 view = cr_look_yaw_pitch(cam->pos, cam->yaw, cam->pitch);
+    CrMat4 view = cr_camera_view(cam);
     float planes[6][4];
     cr_frustum_extract(proj.m, view.m, planes);
     const int cull_off = getenv("MAGMA_NO_CULL") != NULL;

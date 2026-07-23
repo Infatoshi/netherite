@@ -34,7 +34,7 @@ static void render_frame(const char *path, const GmEntityView *ents, int n,
     static CrScreenTri tris[MAXV];   /* >= 1 tri per 3 verts */
     int nv = gm_entities_emit(ents, n, verts, MAXV);
 
-    CrCamera cam;
+    CrCamera cam = {0};
     cam.pos = campos;
     look_at(campos, target, &cam.yaw, &cam.pitch);
     cam.fov_deg = 60.0f;

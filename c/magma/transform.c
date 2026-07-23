@@ -160,7 +160,7 @@ int cr_transform(const CrVertex *verts, int nverts,
 
     float aspect = (float)fb_w / (float)fb_h; /* fb dims authoritative */
     CrMat4 proj = cr_perspective(cam->fov_deg, aspect, cam->znear, cam->zfar);
-    CrMat4 view = cr_look_yaw_pitch(cam->pos, cam->yaw, cam->pitch);
+    CrMat4 view = cr_camera_view(cam);
     CrMat4 mvp = cr_mat4_mul(proj, view);
 
     int ntris = (idx != NULL) ? (nidx / 3) : (nverts / 3);

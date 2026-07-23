@@ -358,6 +358,7 @@ int gm_script_run(const GmConfig *cfg) {
      * client ticks. Preserve an early local heal's hidden exhaustion/timer
      * effects while deferring its visible health until the recorded packet. */
     float held_regen = 0.0f;
+    int continue_after_death = 0;
     /* MAGMA_STATE_PROF: per-tick world-edit rate. gm_world_block_gen counts
      * every block edit (set_block_meta + populate gen events), so its per-tick
      * delta = journal entries/tick for a dirty-edit journal. Baseline taken
@@ -366,7 +367,11 @@ int gm_script_run(const GmConfig *cfg) {
     long long prof_last = 0, prof_tot = 0, prof_max = 0, prof_maxt = -1, prof_nz = 0;
     long long prof_h[5] = {0};   /* buckets: 0, 1-8, 9-64, 65-512, 513+ */
     if (prof_on) prof_last = gm_world_block_gen(r.world);
-    for (int tick = 0; tick < cfg->ticks && !r.dead && !r.won; ++tick) {
+    /* A tape can contain GuiGameOver followed by SPacketRespawn on the next
+     * row. Keep consuming scripted events while dead; gm_runtime_tick itself
+     * remains inert until an authoritative positive set_vitals revives it. */
+    for (int tick = 0; tick < cfg->ticks && !r.won &&
+         (!r.dead || continue_after_death); ++tick) {
         /* renderable ghost entities are per-tick state: last tick's recorded
          * entities must not linger into a tick whose tape row has none. */
         gm_runtime_ent_views_clear(&r);
@@ -402,7 +407,14 @@ int gm_script_run(const GmConfig *cfg) {
             if (pending_tick < tick) { fprintf(stderr,"script:%ld: events must be tick-sorted\n",line_no); goto bad; }
             const char *type;
             if (!as_string(field(&pending,"type"),&type)) { fprintf(stderr,"script:%ld: missing string type\n",line_no); goto bad; }
-            if (!strcmp(type,"action")) {
+            if (!strcmp(type,"continue_after_death")) {
+                static const char *const keys[]={"tick","type"};
+                if(!keys_only(&pending,keys,2,err,sizeof err)){
+                    fprintf(stderr,"script:%ld: invalid continue_after_death\n",line_no);
+                    goto bad;
+                }
+                continue_after_death=1;
+            } else if (!strcmp(type,"action")) {
                 if (!parse_action(&pending,&action,err,sizeof err)) { fprintf(stderr,"script:%ld: %s\n",line_no,err); goto bad; }
             } else if (!strcmp(type,"set_pose")) {
                 double x,y,z,yaw,pitch;

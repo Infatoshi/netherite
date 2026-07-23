@@ -248,7 +248,7 @@ static void test_render(void) {
     int nv = gm_entities_emit(ents, 2, verts, 2 * MAXV);
     CHECK(nv == 252 + 252, "zombie + pig emit 504 verts");
 
-    CrCamera cam;
+    CrCamera cam = {0};
     cam.pos.x = 11.0f; cam.pos.y = 65.9f; cam.pos.z = 26.0f;
     CrVec3 tgt = { 11.0f, 65.9f, 20.0f };
     look_at(cam.pos, tgt, &cam.yaw, &cam.pitch);

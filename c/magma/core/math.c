@@ -109,3 +109,37 @@ CR_HD CrMat4 cr_look_yaw_pitch(CrVec3 pos, float yaw, float pitch)
     zoff.m[14] = 0.05f;   /* translate eye-space +Z by 0.05 */
     return cr_mat4_mul(zoff, view);
 }
+
+static CR_HD CrMat4 rotation_y_deg(float deg)
+{
+    const float rad = deg * 0.01745329251994329577f;
+    const float c = cosf(rad), s = sinf(rad);
+    CrMat4 r = cr_mat4_identity();
+    r.m[0] = c; r.m[8] = s;
+    r.m[2] = -s; r.m[10] = c;
+    return r;
+}
+
+static CR_HD CrMat4 rotation_z_deg(float deg)
+{
+    const float rad = deg * 0.01745329251994329577f;
+    const float c = cosf(rad), s = sinf(rad);
+    CrMat4 r = cr_mat4_identity();
+    r.m[0] = c; r.m[4] = -s;
+    r.m[1] = s; r.m[5] = c;
+    return r;
+}
+
+CR_HD CrMat4 cr_camera_view(const CrCamera *cam)
+{
+    CrMat4 view = cr_look_yaw_pitch(cam->pos, cam->yaw, cam->pitch);
+    if (cam->hurt_roll_deg == 0.0f) return view;
+
+    /* EntityRenderer.hurtCameraEffect(partialTicks), in GL call order:
+     * rotate(-attackedAtYaw,Y), rotate(-f*14,Z), rotate(attackedAtYaw,Y).
+     * hurt_roll_deg is the already-eased middle rotation. */
+    CrMat4 hurt = rotation_y_deg(-cam->hurt_yaw_deg);
+    hurt = cr_mat4_mul(hurt, rotation_z_deg(cam->hurt_roll_deg));
+    hurt = cr_mat4_mul(hurt, rotation_y_deg(cam->hurt_yaw_deg));
+    return cr_mat4_mul(hurt, view);
+}

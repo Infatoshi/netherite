@@ -332,6 +332,9 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                             "value": int(header.get("total_time", 0))}) + "\n")
         f.write(json.dumps({"tick": 0, "type": "set_dimension",
                             "dimension": int(header.get("dim", 0))}) + "\n")
+        if tape_has_respawn(header, ticks) and tape_is_fluid_episode(ticks):
+            f.write(json.dumps({"tick": 0,
+                                "type": "continue_after_death"}) + "\n")
         # first-person arm variant: offline UUIDs hash to steve or alex.
         # This env's pinned Player0 session renders alex, so default slim
         # when the tape predates the header field.
@@ -433,6 +436,9 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
             food = int(row.get("food", last_food))
             food_changed = food != last_food
             remote_damage = "pvel" in row and hp < last_hp
+            environmental_damage = (hp < last_hp and not remote_damage
+                                    and (("air" in row and int(row["air"]) <= 0)
+                                         or bool(row.get("fire", 0))))
             dragon = next((e for e in row.get("ents", [])
                            if e[1] == "EntityDragon"), None)
             damage_delta = last_hp - hp
@@ -478,6 +484,21 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                     # health is post-damage, but the pre-tick
                                     # food input is the preceding row's value.
                                     "food": last_food if food_changed else food}) + "\n")
+            elif environmental_damage:
+                # Drowning and lava/fire damage happen on the integrated
+                # server. The tape observes the later SPacketUpdateHealth,
+                # so applying collision damage locally would lead the client
+                # row by the packet delay. Seed the authoritative packet edge
+                # before FoodStats, exactly like packet-backed mob damage.
+                f.write(json.dumps({"tick": t, "type": "set_vitals",
+                                    "health": hp,
+                                    "food": last_food if food_changed else food}) + "\n")
+            elif last_hp <= 0.0 and hp > 0.0:
+                # A position packet on the row after GuiGameOver is the
+                # client respawn. It must revive the runtime before this tick,
+                # not through the ordinary post-tick regeneration path.
+                f.write(json.dumps({"tick": t, "type": "set_vitals",
+                                    "health": hp, "food": food}) + "\n")
             elif hp > last_hp and not food_changed:
                 # Client health packets can expose server regeneration one
                 # tick before magma's local FoodStats phase. Reconcile the
@@ -619,7 +640,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                     # rendered from the world framebuffer.
                                     "loading": (1 if row.get("gui") ==
                                                 "GuiDownloadTerrain" else
-                                                2 if row.get("loading") else 0)}) + "\n")
+                                                2 if t in loading_ticks else 0)}) + "\n")
                 f.write(json.dumps({"tick": t, "type": "potion_clear"}) + "\n")
                 for potion_id, amplifier, duration in row.get("pots", []):
                     f.write(json.dumps({"tick": t, "type": "potion_view",
@@ -716,6 +737,23 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                     "type": "set_inventory", **state}) + "\n")
 
 
+def tape_has_respawn(header, ticks):
+    previous_hp = float(header.get("hp", 20.0))
+    for row in ticks:
+        hp = float(row.get("hp", previous_hp))
+        if "ppos" in row and previous_hp <= 0.0 and hp > 0.0:
+            return True
+        previous_hp = hp
+    return False
+
+
+def tape_is_fluid_episode(ticks):
+    if any("air" in row for row in ticks):
+        return True
+    return (any(row.get("fire") for row in ticks)
+            and not any(row.get("ents") for row in ticks))
+
+
 def tape_loading_ticks(header, ticks):
     """Ticks where vanilla deliberately did not simulate the client player.
 
@@ -726,6 +764,18 @@ def tape_loading_ticks(header, ticks):
     re-anchoring ordinary stationary gameplay.
     """
     explicit = {int(row["t"]) for row in ticks if row.get("loading")}
+    # SPacketRespawn recreates RenderGlobal and its chunk renderers. These two
+    # fresh tapes bound the visible empty-world interval: it is still blank at
+    # respawn+3 (water t1000) and populated by respawn+5 (lava t120). Preserve
+    # the four evidenced blank ticks; loading=2 renders vanilla's sky/fog plus
+    # crosshair/HUD without pretending GuiDownloadTerrain is still open.
+    previous_hp = float(header.get("hp", 20.0))
+    for row in ticks:
+        hp = float(row.get("hp", previous_hp))
+        if "ppos" in row and previous_hp <= 0.0 and hp > 0.0:
+            start = int(row["t"])
+            explicit.update(range(start, start + 4))
+        previous_hp = hp
     if header.get("position_packets"):
         return explicit
     result = set(explicit)

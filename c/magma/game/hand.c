@@ -670,7 +670,7 @@ int gm_hand_emit_held(int item_id, int item_meta, float swing, float equip,
 static void hand_raster(CrFramebuffer *fb, CrVertex *verts, int nv,
                         const CrTexture *tex, int cutout) {
     if (nv <= 0) return;
-    CrCamera cam;
+    CrCamera cam = {0};
     cam.pos.x = cam.pos.y = cam.pos.z = 0.0f;
     cam.yaw = 0.0f; cam.pitch = 0.0f;
     /* renderHand's gluPerspective uses getFOVModifier(pt, false): base 70,
@@ -679,6 +679,8 @@ static void hand_raster(CrFramebuffer *fb, CrVertex *verts, int nv,
     cam.aspect = (float)fb->w / (float)fb->h;
     cam.znear = 0.05f;
     cam.zfar = 50.0f;
+    cam.hurt_yaw_deg = 0.0f;
+    cam.hurt_roll_deg = 0.0f;
 
     CrRgba fog = {0,0,0,0};
     CrShadeCtx sh;

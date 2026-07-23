@@ -491,11 +491,22 @@ CrRgba gm_terrain_fog_color(float time_of_day) {
  * A pixel ray (eye z=-1) is  ndc_x*tanH*aspect*R + ndc_y*tanH*U + F, which is exactly
  * the inverse of cr_perspective*cr_look_yaw_pitch, with no matrix inverse needed. */
 static void sky_cam_basis(const CrCamera *cam, float b[11]) {
-    float cy = cosf(cam->yaw),   sy = sinf(cam->yaw);
-    float cp = cosf(cam->pitch), sp = sinf(cam->pitch);
-    b[0] = -sy * cp; b[1] = sp;   b[2] = -cy * cp;      /* F */
-    b[3] =  cy;      b[4] = 0.0f; b[5] = -sy;           /* R */
-    b[6] =  sy * sp; b[7] = cp;   b[8] =  cy * sp;      /* U */
+    if (cam->hurt_roll_deg == 0.0f) {
+        /* Preserve the original operation sequence bit-for-bit. End-sky cube
+         * selection is sensitive to even sub-ulp ray changes. */
+        float cy = cosf(cam->yaw), sy = sinf(cam->yaw);
+        float cp = cosf(cam->pitch), sp = sinf(cam->pitch);
+        b[0] = -sy * cp; b[1] = sp;   b[2] = -cy * cp; /* F */
+        b[3] =  cy;      b[4] = 0.0f; b[5] = -sy;      /* R */
+        b[6] =  sy * sp; b[7] = cp;   b[8] =  cy * sp; /* U */
+    } else {
+        /* Invert the complete hurt-camera view rotation by transposing its
+         * orthonormal 3x3. */
+        CrMat4 view = cr_camera_view(cam);
+        b[0] = -view.m[2]; b[1] = -view.m[6]; b[2] = -view.m[10]; /* F */
+        b[3] =  view.m[0]; b[4] =  view.m[4]; b[5] =  view.m[8];  /* R */
+        b[6] =  view.m[1]; b[7] =  view.m[5]; b[8] =  view.m[9];  /* U */
+    }
     float half_fov = cam->fov_deg * (M_PIf / 180.0f) * 0.5f;
     b[9] = sinf(half_fov) / cosf(half_fov);             /* tanH */
     b[10] = cam->aspect;
@@ -538,13 +549,12 @@ void gm_sky_draw(CrFramebuffer *fb, const CrCamera *cam, float time_of_day) {
 
 void gm_end_sky_draw(CrFramebuffer *fb, const CrCamera *cam) {
     if (!fb || !fb->color || !cam) return;
-    float cy = cosf(cam->yaw),   sy = sinf(cam->yaw);
-    float cp = cosf(cam->pitch), sp = sinf(cam->pitch);
-    CrVec3 F = v3(-sy * cp, sp, -cy * cp);
-    CrVec3 R = v3( cy,      0.0f, -sy);
-    CrVec3 U = v3( sy * sp, cp,    cy * sp);
-    float half_fov = cam->fov_deg * (M_PIf / 180.0f) * 0.5f;
-    float tanH = sinf(half_fov) / cosf(half_fov);
+    float b[11];
+    sky_cam_basis(cam, b);
+    CrVec3 F = v3(b[0], b[1], b[2]);
+    CrVec3 R = v3(b[3], b[4], b[5]);
+    CrVec3 U = v3(b[6], b[7], b[8]);
+    float tanH = b[9];
     int W = fb->w, H = fb->h;
     float aspect = (float)W / (float)H;
     /* Live first-person capture: player feet are the cube origin; eye height is 1.62. */

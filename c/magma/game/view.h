@@ -17,6 +17,8 @@
 #ifndef MAGMA_GAME_VIEW_H
 #define MAGMA_GAME_VIEW_H
 
+#include <math.h>
+
 #define GM_VIEW_DEG2RAD 0.01745329251994329577f
 
 static inline float gm_view_cam_yaw_rad(float mc_yaw_deg)
@@ -27,6 +29,18 @@ static inline float gm_view_cam_yaw_rad(float mc_yaw_deg)
 static inline float gm_view_cam_pitch_rad(float mc_pitch_deg)
 {
     return -mc_pitch_deg * GM_VIEW_DEG2RAD;
+}
+
+/* EntityRenderer.hurtCameraEffect at the tape/render tick boundary
+ * (partialTicks=1). The attackedAtYaw conjugation is stored separately on
+ * CrCamera; this returns vanilla's eased Z rotation in degrees. */
+static inline float gm_view_hurt_roll_deg(int hurt_time, int max_hurt_time)
+{
+    float f = (float)hurt_time - 1.0f;
+    if (f < 0.0f || max_hurt_time <= 0) return 0.0f;
+    f /= (float)max_hurt_time;
+    f = sinf(f * f * f * f * 3.14159265358979323846f);
+    return -f * 14.0f;
 }
 
 #endif /* MAGMA_GAME_VIEW_H */

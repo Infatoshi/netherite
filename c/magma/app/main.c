@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 
     /* --- spawn: a few blocks above the surface at the origin column --- */
     int surface = world_surface_y(world, 0, 0);
-    CrCamera cam;
+    CrCamera cam = {0};
     cam.pos     = (CrVec3){0.5f, (float)surface + 3.0f, 0.5f};
     cam.yaw     = 0.0f;
     cam.pitch   = -0.35f;                    /* look slightly downward */

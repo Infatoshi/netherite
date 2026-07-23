@@ -107,7 +107,7 @@ int main(int argc, char **argv)
     CrTexture atlas = scene_atlas();
 
     /* --- camera: a few units back, looking down -Z at the origin --- */
-    CrCamera cam;
+    CrCamera cam = {0};
     cam.pos    = (CrVec3){0.0f, 0.0f, 3.0f};
     cam.yaw    = 0.0f;
     cam.pitch  = 0.0f;

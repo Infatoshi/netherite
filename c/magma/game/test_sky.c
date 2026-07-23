@@ -48,7 +48,7 @@ static float celestial_angle(float tod) {
 /* Render one sky-only frame at (yaw,pitch,tod) into fb (must be preallocated,
  * depth pre-cleared to far). */
 static void render_pose(CrFramebuffer *fb, float yaw, float pitch, float tod) {
-    CrCamera cam;
+    CrCamera cam = {0};
     cam.pos = (CrVec3){0.0f, 80.0f, 0.0f};
     cam.yaw = yaw; cam.pitch = pitch;
     cam.fov_deg = 70.0f; cam.aspect = (float)W / (float)H;

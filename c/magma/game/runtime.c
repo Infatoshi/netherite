@@ -803,6 +803,14 @@ void gm_runtime_set_look(GmRuntime *r, float yaw, float pitch) {
  * starts from the recorded vitals instead of a fresh 20/20 player. */
 void gm_runtime_set_vitals(GmRuntime *r, float health, int food) {
     if (!r) return;
+    if (health > 0.0f && r->dead) {
+        /* SPacketRespawn + SPacketUpdateHealth: revive before the first
+         * destination tick and discard the old entity's burn/hurt state. */
+        r->dead = 0;
+        r->player_fire_ticks = 0;
+        r->mobs.player_hurt_resistant = 0;
+        r->mobs.player_last_damage = 0.0f;
+    }
     r->vitals.health = health;
     r->vitals.foodLevel = food;
     r->player.health = health;

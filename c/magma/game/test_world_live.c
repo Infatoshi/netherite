@@ -64,7 +64,7 @@ static void test_regression_lock(void) {
     GmWorld *w = gm_world_create(0);
 
     const float pi = 3.14159265358979323846f;
-    CrCamera cam;
+    CrCamera cam = {0};
     memset(&cam, 0, sizeof(cam));
     cam.pos.x   = 8.2994f;
     cam.pos.y   = 95.0f;
