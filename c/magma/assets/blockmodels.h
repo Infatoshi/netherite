@@ -48,6 +48,7 @@ enum {
     BM_KIND_SLAB_TOP,     /* top half box (y 8..16) */
     BM_KIND_STAIRS,       /* bottom slab + back upper box (faces +Z / south) */
     BM_KIND_FENCE,        /* centre post + N/S/E/W connector bars */
+    BM_KIND_WALL,         /* connection-state cobblestone-wall post + arms */
     BM_KIND_FLUID,        /* water/lava: top surface lowered to 14/16 when no fluid above */
     /* Vanilla models/block/waterlily.json: zero-thickness plane at y=0.25/16,
      * up+down faces only. NOT a full cube (that bug made swamp pads look like

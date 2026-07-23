@@ -134,6 +134,11 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         case 226: id = 1; meta = 4; break;        /* polished diorite */
         case 227: id = 1; meta = 6; break;        /* polished andesite */
         case 228: id = 112; break;                /* nether brick */
+        case 229: id = 165; break;                /* slime block */
+        case 230: id = 30; break;                 /* cobweb */
+        case 231: id = 174; break;                /* packed ice */
+        case 232: id = 113; break;                /* nether brick fence */
+        case 233: id = 139; meta = raw_meta; break;/* cobblestone wall */
         default: break;
     }
 
@@ -199,6 +204,7 @@ static inline int gm_state_to_model_key(uint16_t state) {
             if ((meta & 3) == 3) return 86;
             return 34;
         case 20: return 200;
+        case 30: return 230;
         case 21: return 29;
         case 24: return 8;
         case 31: return (meta & 3) == 2 ? 40 : 39;
@@ -243,15 +249,19 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 110: return 15;
         case 111: return 14;
         case 112: return 228;
+        case 113: return 232;
         case 120: return 216;
         case 121: return 212;
         case 127: return 88;
         case 129: return 75;
+        case 139: return 233;
         case 153: return 217;
         case 159: return 120 + (meta & 15);
         case 161: return (meta & 1) ? 78 : 83;
         case 162: return (meta & 1) ? 77 : 82;
+        case 165: return 229;
         case 172: return 17;
+        case 174: return 231;
         case 175: return (meta & 8) ? 66 : 60 + (meta & 7);
         case 179: return 9;
         case 213: return 220;

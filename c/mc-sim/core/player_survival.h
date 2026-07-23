@@ -78,6 +78,8 @@ typedef struct {
                                    * movement, so air accel lags the flag by one tick */
     int      jump_ticks;          /* EntityLivingBase.jumpTicks: 10-tick hold-jump
                                    * cooldown, decremented every tick */
+    int      is_in_web;           /* Entity.isInWeb: set after move, consumed by next move */
+    int      reset_fall_distance; /* setInWeb/onFallenUpon result for the game vitals pass */
     float    prev_move_forward;   /* last tick's movementInput.moveForward (pre-update flag2) */
     int      prev_sneak;          /* last tick's movementInput.sneak (pre-update flag1) */
     IsrInv   inv;            /* inventory (verified stack rules) */
@@ -140,30 +142,123 @@ MC_HD static inline void psv_set_block(Chunk *chunks, int wx, int wy, int wz, in
 
 /* solid (full-cube collision) per the block props table; liquids/air pass through. */
 MC_HD static inline int psv_solid(int id) {
-    return (mc_bpt_props(id).flags & BF_SOLID) != 0;
+    /* BlockWeb advertises material solidity in the generic table but its
+     * getCollisionBoundingBox is NULL_AABB. */
+    return id != BLK_WEB && (mc_bpt_props(id).flags & BF_SOLID) != 0;
 }
 MC_HD static inline float psv_slipperiness(int id) {
-    return (id == BLK_ICE) ? 0.98f : 0.6f;
+    if (id == BLK_ICE || id == BLK_PACKED_ICE) return 0.98f;
+    if (id == BLK_SLIME) return 0.8f;
+    return 0.6f;
 }
 
-/* Collect solid-block AABBs (world coords) intersecting the query box. */
+MC_HD static inline int psv_fence_connects(const Chunk *chunks, int id,
+                                            int x, int y, int z) {
+    int neighbor = psv_get_block(chunks, x, y, z);
+    if (id == BLK_NETHER_BRICK_FENCE && neighbor == BLK_NETHER_BRICK_FENCE) return 1;
+    if (id == BLK_FENCE && neighbor == BLK_FENCE) return 1;
+    /* BlockFenceGate plus an opaque full cube. The exact tape only exercises
+     * same-material fence runs, but these are the vanilla remaining cases. */
+    if (neighbor == 107) return 1;
+    return psv_solid(neighbor) && neighbor != BLK_FENCE &&
+           neighbor != BLK_NETHER_BRICK_FENCE && neighbor != BLK_COBBLESTONE_WALL;
+}
+
+MC_HD static inline int psv_wall_connects(const Chunk *chunks, int x, int y, int z) {
+    int neighbor = psv_get_block(chunks, x, y, z);
+    if (neighbor == BLK_COBBLESTONE_WALL || neighbor == 107) return 1;
+    return psv_solid(neighbor) && neighbor != BLK_FENCE &&
+           neighbor != BLK_NETHER_BRICK_FENCE;
+}
+
+MC_HD static inline void psv_add_collision_box(McAABB *blocks, int *n,
+                                                int maxblocks, McAABB box) {
+    if (*n < maxblocks) blocks[(*n)++] = box;
+}
+
+/* Collect vanilla block collision AABBs over the motion broadphase. Web is
+ * pass-through, soul sand is 7/8 tall, fences are multipart and 1.5 tall, and
+ * walls use the connection-state union box with collision maxY 1.5. */
 MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *query,
                                            McAABB *blocks, int maxblocks) {
     int n = 0;
     int x0 = mc_floor(query->minX), x1 = mc_floor(query->maxX);
-    int y0 = mc_floor(query->minY), y1 = mc_floor(query->maxY);
+    /* World.getCollisionBoxes scans one cell below floor(minY), which is
+     * observable for fence/wall collision boxes extending to block y + 1.5. */
+    int y0 = mc_floor(query->minY) - 1, y1 = mc_floor(query->maxY);
     int z0 = mc_floor(query->minZ), z1 = mc_floor(query->maxZ);
     if (y0 < 0) y0 = 0;
     if (y1 > 255) y1 = 255;
     for (int x = x0; x <= x1; ++x)
         for (int y = y0; y <= y1; ++y)
             for (int z = z0; z <= z1; ++z) {
-                if (!psv_solid(psv_get_block(chunks, x, y, z))) continue;
+                int id = psv_get_block(chunks, x, y, z);
+                if (id == BLK_WEB || !psv_solid(id)) continue;
+                if (id == BLK_SOUL_SAND) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z, x + 1.0, y + 0.875, z + 1.0));
+                } else if (id == BLK_FENCE || id == BLK_NETHER_BRICK_FENCE) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.375, y, z + 0.375,
+                                     x + 0.625, y + 1.5, z + 0.625));
+                    if (psv_fence_connects(chunks, id, x, y, z - 1))
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x + 0.375, y, z,
+                                         x + 0.625, y + 1.5, z + 0.375));
+                    if (psv_fence_connects(chunks, id, x + 1, y, z))
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x + 0.625, y, z + 0.375,
+                                         x + 1.0, y + 1.5, z + 0.625));
+                    if (psv_fence_connects(chunks, id, x, y, z + 1))
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x + 0.375, y, z + 0.625,
+                                         x + 0.625, y + 1.5, z + 1.0));
+                    if (psv_fence_connects(chunks, id, x - 1, y, z))
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x, y, z + 0.375,
+                                         x + 0.375, y + 1.5, z + 0.625));
+                } else if (id == BLK_COBBLESTONE_WALL) {
+                    int north = psv_wall_connects(chunks, x, y, z - 1);
+                    int east  = psv_wall_connects(chunks, x + 1, y, z);
+                    int south = psv_wall_connects(chunks, x, y, z + 1);
+                    int west  = psv_wall_connects(chunks, x - 1, y, z);
+                    double x0 = west ? 0.0 : 0.25, x1 = east ? 1.0 : 0.75;
+                    double z0 = north ? 0.0 : 0.25, z1 = south ? 1.0 : 0.75;
+                    if (north && south && !east && !west) { x0 = 0.3125; x1 = 0.6875; }
+                    if (east && west && !north && !south) { z0 = 0.3125; z1 = 0.6875; }
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + x0, y, z + z0,
+                                     x + x1, y + 1.5, z + z1));
+                } else {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z, x + 1.0, y + 1.0, z + 1.0));
+                }
                 if (n >= maxblocks) return n;
-                blocks[n++] = mc_aabb_make((double)x, (double)y, (double)z,
-                                           (double)x + 1.0, (double)y + 1.0, (double)z + 1.0);
             }
     return n;
+}
+
+/* Entity.doBlockCollisions after move(): callbacks use the contracted player
+ * box, in x/y/z loop order. Web sets the next-move latch and resets falling;
+ * every overlapping soul-sand cell compounds the 0.4 horizontal multiplier. */
+MC_HD static inline void psv_do_block_collisions(const Chunk *now, PsvPlayer *pl) {
+    McAABB *bb = &pl->ent.box;
+    int x0 = mc_floor(bb->minX + 0.001), x1 = mc_floor(bb->maxX - 0.001);
+    int y0 = mc_floor(bb->minY + 0.001), y1 = mc_floor(bb->maxY - 0.001);
+    int z0 = mc_floor(bb->minZ + 0.001), z1 = mc_floor(bb->maxZ - 0.001);
+    for (int x = x0; x <= x1; ++x)
+        for (int y = y0; y <= y1; ++y)
+            for (int z = z0; z <= z1; ++z) {
+                int id = psv_get_block(now, x, y, z);
+                if (id == BLK_WEB) {
+                    pl->is_in_web = 1;
+                    pl->fall_distance = 0.0f;
+                    pl->reset_fall_distance = 1;
+                } else if (id == BLK_SOUL_SAND) {
+                    pl->ent.motionX *= 0.4;
+                    pl->ent.motionZ *= 0.4;
+                }
+            }
 }
 
 /* ---- deterministic action tape (hash RNG + schedule gates) ---- */
@@ -344,6 +439,7 @@ MC_HD static inline int psv_offset_in_liquid(const Chunk *now, const McEntity *e
 MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st, PsvPlayer *pl,
                                           const PsvAction *act, McAABB *blocks) {
     McEntity *e = &pl->ent;
+    pl->reset_fall_distance = 0;
     float strafing = act->strafe * 0.98f;
     float forward  = act->forward * 0.98f;
 
@@ -442,9 +538,19 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
      * the loop, so motionX/Z survive the post-move zeroing): the player keeps
      * inching to the ledge lip on later ticks. Do NOT write mx/mz back into
      * e->motion*. */
-    double mvx = e->motionX, mvz = e->motionZ;
+    double mvx = e->motionX, mvy = e->motionY, mvz = e->motionZ;
+    /* Entity.move consumes isInWeb before the collision broadphase. It scales
+     * only the attempted displacement, clears stored motion, then the ordinary
+     * gravity/drag tail rebuilds next-tick velocity from zero. */
+    if (pl->is_in_web) {
+        pl->is_in_web = 0;
+        mvx *= 0.25;
+        mvy *= 0.05000000074505806;
+        mvz *= 0.25;
+        e->motionX = e->motionY = e->motionZ = 0.0;
+    }
     if (act->sneak && e->onGround) {
-        double mx = e->motionX, mz = e->motionZ;
+        double mx = mvx, mz = mvz;
         McAABB sq;
         McAABB squery = mc_aabb_addcoord(&e->box, mx, -0.6, mz);
         int snb = psv_collect_blocks(now, &squery, blocks, PSV_MAX_BLOCKS);
@@ -475,12 +581,35 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
         mvz = mz;
     }
 
-    McAABB query = mc_aabb_addcoord(&e->box, mvx, e->motionY, mvz);
+    McAABB query = mc_aabb_addcoord(&e->box, mvx, mvy, mvz);
     /* widen the broadphase for the auto-step retry's up-query (box.addCoord(x,+0.6,z));
      * mc_entity_move_step re-filters with the exact vanilla per-call queries. */
     if (e->box.maxY + 0.6 > query.maxY) query.maxY = e->box.maxY + 0.6;
     int nblocks = psv_collect_blocks(now, &query, blocks, PSV_MAX_BLOCKS);
-    mc_entity_move_step(e, mvx, e->motionY, mvz, blocks, nblocks, 0.6f);
+    mc_entity_move_step(e, mvx, mvy, mvz, blocks, nblocks, 0.6f);
+
+    /* Entity.move updateFallState -> BlockSlime.onFallenUpon/onLanded ->
+     * onEntityWalk. Living players negate the exact attempted negative Y;
+     * sneaking retains default landing and ordinary fall damage. */
+    if (e->collidedVertically) {
+        int bx = mc_floor(e->posX);
+        int by = mc_floor(e->posY - 0.20000000298023224);
+        int bz = mc_floor(e->posZ);
+        int landed_id = psv_get_block(now, bx, by, bz);
+        if (landed_id == BLK_SLIME && !act->sneak && mvy < 0.0) {
+            e->motionY = -mvy;
+            pl->fall_distance = 0.0f;
+            pl->reset_fall_distance = 1;
+        }
+        if (landed_id == BLK_SLIME && e->onGround && !act->sneak &&
+            fabs(e->motionY) < 0.1) {
+            double damping = 0.4 + fabs(e->motionY) * 0.2;
+            e->motionX *= damping;
+            e->motionZ *= damping;
+        }
+    }
+
+    psv_do_block_collisions(now, pl);
 
     e->motionY -= 0.08;
     e->motionY *= 0.9800000190734863;
@@ -687,6 +816,8 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
     pl->health = PSV_MAX_HEALTH;
     pl->food = PSV_MAX_FOOD;
     pl->fall_distance = 0.0f;
+    pl->is_in_web = 0;
+    pl->reset_fall_distance = 0;
     pl->sprinting = 0; pl->sprint_toggle_timer = 0; pl->jump_factor_sprint = 0;
     pl->jump_ticks = 0;
     pl->prev_move_forward = 0.0f; pl->prev_sneak = 0;

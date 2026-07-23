@@ -76,6 +76,7 @@
 #define ER_TYPE_CRYSTAL  31   /* EntityEnderCrystal (30 = GM_VIEW_BILLBOARD) */
 #define ER_TYPE_WITHER_SKELETON 32
 #define ER_TYPE_DRAGON_FIREBALL 33
+#define ER_TYPE_ARMOR_STAND 34
 
 #define ER_VERTS_PER_BOX 36  /* 6 faces * 2 tris * 3 verts */
 #define ER_PI 3.14159265358979323846f
@@ -397,6 +398,22 @@ static const ErModel M_MINECART = { .nparts = 6, .parts = {
     { CR_MOB_MINECART, 44, 10,  -9,-7,-1, 18,14,1,  0,22, 0,  -ER_PI/2.0f,0,0, 0,0 },
 } };
 
+/* ModelArmorStand: default summoned stand has no arms and keeps its base
+ * plate. The four biped pieces here are head, body and the two 1-degree legs;
+ * standRightSide/LeftSide/Waist/Base are the four remaining constructor boxes. */
+static const ErModel M_ARMOR_STAND = { .nparts = 8, .parts = {
+    { CR_MOB_ARMORSTAND,  0,  0, -1,-7,-1,  2, 7, 2,  0, 0,0,  0,0,0, 0,0 },
+    { CR_MOB_ARMORSTAND,  0, 26, -6, 0,-1.5f, 12,3,3,  0, 0,0,  0,0,0, 0,0 },
+    { CR_MOB_ARMORSTAND,  8,  0, -1, 0,-1,  2,11,2, -1.9f,12,0,
+      ER_DEG2RAD,0,ER_DEG2RAD, 0,0 },
+    { CR_MOB_ARMORSTAND, 40, 16, -1, 0,-1,  2,11,2,  1.9f,12,0,
+      -ER_DEG2RAD,0,-ER_DEG2RAD, 0,1 },
+    { CR_MOB_ARMORSTAND, 16,  0, -3, 3,-1,  2, 7,2,  0, 0,0,  0,0,0, 0,0 },
+    { CR_MOB_ARMORSTAND, 48, 16,  1, 3,-1,  2, 7,2,  0, 0,0,  0,0,0, 0,0 },
+    { CR_MOB_ARMORSTAND,  0, 48, -4,10,-1,  8, 2,2,  0, 0,0,  0,0,0, 0,0 },
+    { CR_MOB_ARMORSTAND,  0, 32, -6,11,-6, 12, 1,12, 0,12,0,  0,0,0, 0,0 },
+} };
+
 /* Legacy marker box for unmodeled types (dragon/crystal/projectile/xp orb...):
  * one 0.6x1.8x0.4 box wrapped with the whole zombie skin, as before. */
 static const ErModel M_MARKER = { 1, {
@@ -433,6 +450,7 @@ static const ErModel *er_model_for_type(int type) {
         case ER_TYPE_GHAST:    return &M_GHAST;
         case ER_TYPE_MAGMA:    return &M_MAGMA;
         case ER_TYPE_MINECART: return &M_MINECART;
+        case ER_TYPE_ARMOR_STAND: return &M_ARMOR_STAND;
         default:               return &M_MARKER; /* legacy marker box */
     }
 }
@@ -1273,6 +1291,7 @@ int gm_entity_type_for_name(const char *name) {
         /* RenderDragonFireball binds its own texture and scales the direct
          * camera-facing quad by 2.0. */
         { "EntityDragonFireball", ER_TYPE_DRAGON_FIREBALL },
+        { "EntityArmorStand",     ER_TYPE_ARMOR_STAND },
     };
     if (!name) return -1;
     for (unsigned i = 0; i < sizeof MAP / sizeof MAP[0]; ++i)
@@ -1332,6 +1351,7 @@ float gm_entity_eye_y(int type) {
         case ER_TYPE_MAGMA:    return 1.02f * 0.85f;  /* size-2 cube */
         case ER_TYPE_DRAGON:   return 8.0f * 0.85f;   /* setSize(16, 8) */
         case ER_TYPE_CRYSTAL:  return 2.0f * 0.85f;   /* setSize(2, 2) */
+        case ER_TYPE_ARMOR_STAND: return 1.975f * 0.85f;
         default:               return 0.5f;
     }
 }

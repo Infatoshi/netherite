@@ -39,6 +39,19 @@ static void fill_flat(Chunk *win)
     }
 }
 
+static void fill_mechanics_floor(Chunk *win)
+{
+    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+    for (int ci = 0; ci < PSV_NCHUNKS; ++ci) {
+        win[ci].cx = (ci % PSV_DIM) - PSV_R;
+        win[ci].cz = (ci / PSV_DIM) - PSV_R;
+        for (int lx = 0; lx < 16; ++lx)
+            for (int lz = 0; lz < 16; ++lz)
+                for (int y = 0; y <= 2; ++y)
+                    mc_set(&win[ci], lx, y, lz, mc_state(BLK_STONE, 0));
+    }
+}
+
 /* Spawn a player at a given LOCAL feet position (overrides psv_player_init's spawn). */
 static void spawn_at(PsvPlayer *pl, double x, double y, double z)
 {
@@ -256,6 +269,66 @@ int main(void)
         }
         printf("  plain walk-forward: y=%.3f z=%.3f\n", np.ent.posY, np.ent.posZ);
         CHECK(np.ent.posY < 66.0, "non-sneaking player walks off the ledge");
+    }
+
+    /* ---------------- (F) BLOCK CALLBACK/COLLISION EDGE CASES ------------ */
+    printf("case F: slime, web, soul sand, fence vanilla mechanics\n");
+    {
+        McAABB blocks[PSV_MAX_BLOCKS];
+        PsvAction idle; memset(&idle, 0, sizeof idle);
+
+        fill_mechanics_floor(win);
+        psv_set_block(win, 24, 3, 24, BLK_SLIME);
+        PsvPlayer sl; spawn_at(&sl, 24.5, 4.0, 24.5);
+        sl.ent.motionY = -1.2089724228714358;
+        psv_physics_tick(win, &st, &sl, &idle, blocks);
+        CHECK(sl.ent.posY == 4.0, "slime collision lands at the block top");
+        CHECK(sl.ent.motionY == 1.106392995947447,
+              "BlockSlime.onLanded negates motionY before gravity and drag");
+        PsvPlayer sneaking; spawn_at(&sneaking, 24.5, 4.0, 24.5);
+        sneaking.ent.motionY = -1.2089724228714358;
+        PsvAction sneak = idle; sneak.sneak = 1;
+        psv_physics_tick(win, &st, &sneaking, &sneak, blocks);
+        CHECK(sneaking.ent.motionY == -0.0784000015258789,
+              "sneaking suppresses BlockSlime.onLanded bounce");
+
+        fill_mechanics_floor(win);
+        psv_set_block(win, 24, 5, 24, BLK_WEB);
+        PsvPlayer web; spawn_at(&web, 24.5, 6.436443751762071, 24.5);
+        web.ent.motionY = -1.3163291646385942;
+        psv_physics_tick(win, &st, &web, &idle, blocks);
+        CHECK(web.ent.posY == 5.120114587123477,
+              "BlockWeb first contact does not scale the current move");
+        CHECK(web.is_in_web && web.fall_distance == 0.0f,
+              "BlockWeb.onEntityCollidedWithBlock calls setInWeb");
+        psv_physics_tick(win, &st, &web, &idle, blocks);
+        CHECK(web.ent.posY == 5.051694455705003,
+              "Entity.move consumes web latch with the 0.05 Y multiplier");
+        CHECK(web.ent.motionY == -0.0784000015258789,
+              "Entity.move clears webbed motion before gravity and drag");
+
+        fill_mechanics_floor(win);
+        psv_set_block(win, 24, 3, 24, BLK_SOUL_SAND);
+        PsvPlayer soul; spawn_at(&soul, 24.5, 4.0, 24.5);
+        soul.ent.motionX = 0.25; soul.ent.motionY = -0.0784000015258789;
+        psv_physics_tick(win, &st, &soul, &idle, blocks);
+        CHECK(soul.ent.posY == 3.921599998474121,
+              "soul sand 0.875 AABB permits the first fall step");
+        CHECK(soul.ent.motionX == 0.25 * 0.4 * (double)0.91f,
+              "BlockSoulSand.onEntityCollidedWithBlock applies 0.4 XZ");
+        psv_physics_tick(win, &st, &soul, &idle, blocks);
+        CHECK(soul.ent.posY == 3.875, "player rests on soul sand at y + 0.875");
+
+        fill_mechanics_floor(win);
+        for (int z = -1; z <= 1; ++z)
+            psv_set_block(win, 3, 4, z, BLK_NETHER_BRICK_FENCE);
+        PsvPlayer fence; spawn_at(&fence, 3.0202805722711217, 5.252203340253724, 0.5);
+        fence.ent.motionX = 0.15795508041190304;
+        fence.ent.motionY = -0.07544406518948656;
+        PsvAction east = idle; east.forward = 1.0f; east.yaw = -90.0f;
+        psv_physics_tick(win, &st, &fence, &east, blocks);
+        CHECK(fence.ent.posX == 3.074999988079071,
+              "BlockFence 1.5-high arm clamps player center at x=3.075");
     }
 
     printf(g_fail ? "\nRESULT: FAIL\n" : "\nRESULT: PASS (all cases)\n");

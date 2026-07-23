@@ -84,7 +84,8 @@ static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
 
     if (!e->onGround) {
         double dropped = prev_min_y - e->box.minY;
-        if (dropped > 0.0) pl->fall_distance += (float)dropped;
+        if (dropped > 0.0 && !pl->reset_fall_distance)
+            pl->fall_distance += (float)dropped;
     } else if (was_air && pl->fall_distance > 0.0f) {
         pv_fall_damage(vit, pl->fall_distance);
     }

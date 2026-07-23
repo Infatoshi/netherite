@@ -59,6 +59,8 @@ MOB_SPRITES = sorted([
     ("endercrystal", "endercrystal/endercrystal.png"),  # 128x64, ModelEnderCrystal
     ("dragon",       "enderdragon/dragon.png"),          # 256x256, ModelDragon
 ], key=lambda t: t[0])
+# Preserve every existing sprite index; mechanics tapes add this one at the end.
+MOB_SPRITES += [("armorstand", "armorstand/wood.png")]
 
 
 def next_pow2(n):

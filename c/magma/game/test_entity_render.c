@@ -313,6 +313,7 @@ static void test_name_map(void) {
         { "EntityWitherSkeleton", 32 },
         { "EntitySmallFireball", 30 },
         { "EntityDragonFireball", 33 },
+        { "EntityArmorStand", 34 },
         /* skin variants fold to the base silhouette */
         { "EntityHusk", 2 }, { "EntityZombieVillager", 2 },
         { "EntityPigZombie", 2 }, { "EntityStray", 3 },

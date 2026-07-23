@@ -41,6 +41,9 @@ struct CrWorldMC {
  * overrides getPackedLightmapCoords with 15728880 (sky=15, block=15). */
 #define CR_CB_MAGMA 220
 #define CR_CB_IRON_BARS 221
+#define CR_CB_TEST_FENCE 203
+#define CR_CB_WEB 230
+#define CR_CB_COBBLESTONE_WALL 233
 #define CR_CB_GRASS 3
 /* weighted-variant cubes (ids from assets/blockmodels.c) */
 #define CR_CB_STONE 1
@@ -1172,6 +1175,7 @@ static void emit_cross(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L
     const float aFrom[3] = { 0.8f, 0.0f, 8.0f }, aTo[3] = { 15.2f, 16.0f, 8.0f };
     const float bFrom[3] = { 8.0f, 0.0f, 0.8f }, bTo[3] = { 8.0f, 16.0f, 15.2f };
     const int   planeFace[4] = { BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST };
+    const float full_uv[4] = { 0.0f, 0.0f, 16.0f, 16.0f };
     /* Actual 1.11.2 getOffsetType bytecode: BlockTallGrass is XYZ;
      * BlockFlower and BlockDoublePlant are XZ; dead bush, mushrooms, reeds,
      * and cocoa inherit NONE. Block.getOffset hashes y=0, so double-plant
@@ -1190,8 +1194,17 @@ static void emit_cross(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L
         const float *from = (q < 2) ? aFrom : bFrom;
         const float *to   = (q < 2) ? aTo   : bTo;
         CrVertex quad[4];
-        bake_face(wx, wy, wz, from, to, planeFace[q], 1, 1, 45.0f, origin, 1,
-                  sprite, base01, 1.0f, tint, quad);
+        /* web.json needs cross.json's explicit full [0,0,16,16] UV. Keep the
+         * established plant path stable; its recorded scenes are calibrated
+         * to the older auto-UV bake. */
+        if (cb == CR_CB_WEB)
+            bake_face_custom(wx, wy, wz, from, to, planeFace[q], full_uv, 0,
+                             1, 1, 45.0f, origin, 1,
+                             sprite, base01, 1.0f, tint, quad);
+        else
+            bake_face(wx, wy, wz, from, to, planeFace[q],
+                      1, 1, 45.0f, origin, 1,
+                      sprite, base01, 1.0f, tint, quad);
         for (int i = 0; i < 4; ++i) {
             quad[i].pos.x += offx;
             quad[i].pos.y += offy;
@@ -1392,7 +1405,8 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
      * brightness, then applies the per-face 1/.8/.6/.5 multiplier below. Feeding
      * the scalar lightmap again here darkened surface water by almost exactly 2x. */
     float base01 = m->kind == BM_KIND_FLUID ? 1.0f :
-        (m->kind == BM_KIND_CROSS || m->kind == BM_KIND_IRON_BARS ||
+        ((m->kind == BM_KIND_CROSS && cb != CR_CB_WEB) ||
+         m->kind == BM_KIND_IRON_BARS ||
          m->kind == BM_KIND_TORCH)
         ? neighbor_model_light01(L, wx, wy, wz,
                                  m->kind == BM_KIND_TORCH ? 14 : 0, &tint)
@@ -1422,16 +1436,59 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
         case BM_KIND_FENCE: {
             const float pf[3] = {6,0,6}, pt[3] = {10,16,10};  /* centre post */
             emit_box(out, cap, m->layer, L, wx, wy, wz, pf, pt, side_spr, tint, base01, -1);
-            /* 4 connector bars (unit-test geometry; worldgen emits no fences) */
-            const float bars[4][2][3] = {
-                { {7,6,0},  {9,15,6}  },   /* north */
-                { {7,6,10}, {9,15,16} },   /* south */
-                { {0,6,7},  {6,15,9}  },   /* west  */
-                { {10,6,7}, {16,15,9} },   /* east  */
+            int connected[4] = {
+                cb == CR_CB_TEST_FENCE ||
+                    light_block(L, wx, wy, wz - 1) == cb,
+                cb == CR_CB_TEST_FENCE ||
+                    light_block(L, wx, wy, wz + 1) == cb,
+                cb == CR_CB_TEST_FENCE ||
+                    light_block(L, wx - 1, wy, wz) == cb,
+                cb == CR_CB_TEST_FENCE ||
+                    light_block(L, wx + 1, wy, wz) == cb,
             };
-            for (int i = 0; i < 4; ++i)
-                emit_box(out, cap, m->layer, L, wx, wy, wz, bars[i][0], bars[i][1],
+            /* fence_{north,south,east,west}.json: two separate rails per
+             * connection, preserving the 3-pixel vertical gap. */
+            const float rails[4][2][3] = {
+                { {7,0,0},  {9,0,9}  },   /* north */
+                { {7,0,7},  {9,0,16} },   /* south */
+                { {0,0,7},  {9,0,9}  },   /* west  */
+                { {7,0,7},  {16,0,9} },   /* east  */
+            };
+            for (int i = 0; i < 4; ++i) if (connected[i]) {
+                float lo_from[3] = {rails[i][0][0], 6, rails[i][0][2]};
+                float lo_to[3] = {rails[i][1][0], 9, rails[i][1][2]};
+                float hi_from[3] = {rails[i][0][0], 12, rails[i][0][2]};
+                float hi_to[3] = {rails[i][1][0], 15, rails[i][1][2]};
+                emit_box(out, cap, m->layer, L, wx, wy, wz, lo_from, lo_to,
                          side_spr, tint, base01, -1);
+                emit_box(out, cap, m->layer, L, wx, wy, wz, hi_from, hi_to,
+                         side_spr, tint, base01, -1);
+            }
+            break;
+        }
+        case BM_KIND_WALL: {
+            int north = light_block(L, wx, wy, wz - 1) == CR_CB_COBBLESTONE_WALL;
+            int south = light_block(L, wx, wy, wz + 1) == CR_CB_COBBLESTONE_WALL;
+            int west = light_block(L, wx - 1, wy, wz) == CR_CB_COBBLESTONE_WALL;
+            int east = light_block(L, wx + 1, wy, wz) == CR_CB_COBBLESTONE_WALL;
+            int straight_ns = north && south && !west && !east;
+            int straight_ew = east && west && !north && !south;
+            int up = !(straight_ns || straight_ew) || light_block(L, wx, wy + 1, wz) != 0;
+            if (up) {
+                const float from[3] = {4,0,4}, to[3] = {12,16,12};
+                emit_box(out, cap, m->layer, L, wx, wy, wz, from, to,
+                         side_spr, tint, base01, -1);
+            }
+            const float arms[4][2][3] = {
+                { {5,0,0}, {11,14,8} },
+                { {5,0,8}, {11,14,16} },
+                { {0,0,5}, {8,14,11} },
+                { {8,0,5}, {16,14,11} },
+            };
+            int connected[4] = {north, south, west, east};
+            for (int i = 0; i < 4; ++i) if (connected[i])
+                emit_box(out, cap, m->layer, L, wx, wy, wz,
+                         arms[i][0], arms[i][1], side_spr, tint, base01, -1);
             break;
         }
         case BM_KIND_FLUID: {

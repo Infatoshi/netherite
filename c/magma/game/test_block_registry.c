@@ -83,6 +83,11 @@ static void test_collision_barrier(void) {
     CHECK(gm_state_to_model_key(gm_pack_state(49, 0)) == 89, "obsidian reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(58, 0)) == 223, "crafting table reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(112, 0)) == 228, "nether brick reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(165, 0)) == 229, "slime reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(30, 0)) == 230, "web reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(174, 0)) == 231, "packed ice reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(113, 0)) == 232, "nether fence reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(139, 0)) == 233, "cobble wall reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(1, 2)) == 225, "polished granite reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(1, 4)) == 226, "polished diorite reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(1, 6)) == 227, "polished andesite reverse map");

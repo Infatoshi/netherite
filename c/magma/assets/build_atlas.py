@@ -161,6 +161,8 @@ SPRITE_NAMES = sorted([
 ])
 # Deduplicate while preserving sort order (list may mention a name twice).
 SPRITE_NAMES = sorted(set(SPRITE_NAMES))
+# Append new mechanics-pass sprites so existing generated indices remain stable.
+SPRITE_NAMES += ["ice_packed", "slime", "web"]
 
 
 def load_sprite(zf, tmpdir, name):
