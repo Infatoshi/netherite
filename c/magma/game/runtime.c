@@ -536,6 +536,11 @@ void gm_runtime_set_packet_velocity(GmRuntime *r, double x, double y, double z) 
     gm_player_set_packet_velocity((struct PsvPlayer *)&r->player,x,y,z);
 }
 
+void gm_runtime_set_elytra(GmRuntime *r, int equipped) {
+    if (!r) return;
+    r->player.elytra_equipped = equipped ? 1 : 0;
+}
+
 void gm_runtime_ent_box(GmRuntime *r, double x, double y, double z,
                         double w, double h) {
     if (!r || r->nghosts >= GM_RUNTIME_GHOSTS) return;
@@ -737,6 +742,7 @@ void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int 
     r->tape_texture_animations_pinned = texture_animations_pinned;
     r->tape_fire = fire;
     r->tape_creative = creative;
+    r->player.creative_mode = creative ? 1 : 0;
     r->tape_hurt_time = hurt_time;
     r->tape_max_hurt_time = max_hurt_time;
     r->tape_hurt_yaw = hurt_yaw;
@@ -744,7 +750,10 @@ void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int 
 }
 
 void gm_runtime_tape_potions_clear(GmRuntime *r) {
-    if (r) r->tape_potion_count = 0;
+    if (r) {
+        r->tape_potion_count = 0;
+        r->player.levitating = 0;
+    }
 }
 
 int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration) {
@@ -754,6 +763,7 @@ int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration) {
     p->id = id;
     p->amplifier = amplifier;
     p->duration = duration;
+    if (id == 25 && duration > 0) r->player.levitating = 1; /* MobEffects.LEVITATION */
     return 1;
 }
 
@@ -864,6 +874,7 @@ int gm_runtime_load_block(GmRuntime *r, int x, int y, int z, int id, int meta) {
     if (!r || !r->world || y < 0 || y > 255 || id < 0 || id > 4095 ||
         meta < 0 || meta > 15) return 0;
     gm_world_load_block_meta(r->world, x, y, z, id, meta);
+    r->win_gen = -1;
     return 1;
 }
 
@@ -880,6 +891,7 @@ int gm_runtime_load_block_dim(GmRuntime *r, int dimension, int x, int y, int z,
     if (!world || y < 0 || y > 255 || id < 0 || id > 4095 || meta < 0 || meta > 15)
         return 0;
     gm_world_load_block_meta(world, x, y, z, id, meta);
+    if (world == r->world) r->win_gen = -1;
     return 1;
 }
 

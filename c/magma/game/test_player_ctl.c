@@ -25,6 +25,13 @@
 static int g_fail = 0;
 #define CHECK(cond, msg) do { if (!(cond)) { printf("  FAIL: %s\n", msg); g_fail = 1; } } while (0)
 
+static u64 double_bits(double value)
+{
+    u64 bits;
+    memcpy(&bits, &value, sizeof bits);
+    return bits;
+}
+
 /* Fill a 9-Chunk window with a flat stone floor: solid stone for y in [0,64], air above. */
 static void fill_flat(Chunk *win)
 {
@@ -329,6 +336,32 @@ int main(void)
         psv_physics_tick(win, &st, &fence, &east, blocks);
         CHECK(fence.ent.posX == 3.074999988079071,
               "BlockFence 1.5-high arm clamps player center at x=3.075");
+    }
+
+    /* ---------------- (G) ELYTRA TRAVEL BITWISE FIXTURE ------------------ */
+    /* Tape t55 -> t56, independently derived by applying the 1.11.2
+     * EntityLivingBase.moveEntityWithHeading elytra equation once. These are
+     * binary64 payloads, not tolerance checks, so float/double boundary drift
+     * in the LUT look vector, lift, coupling, or damping fails immediately. */
+    printf("case G: elytra travel() seeded bitwise fixture\n");
+    {
+        McAABB blocks[PSV_MAX_BLOCKS];
+        PsvAction idle; memset(&idle, 0, sizeof idle);
+        memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+        PsvPlayer fly;
+        spawn_at(&fly, 5.647897003352311, 20.6537296175886, 0.5);
+        fly.yaw = -90.0f;
+        fly.pitch = 8.0f;
+        fly.elytra_equipped = fly.elytra_flying = 1;
+        fly.ent.motionX = 0.09812996242519258;
+        fly.ent.motionY = -0.7170746714356033;
+        psv_elytra_travel(win, &st, &fly, &idle, blocks);
+        CHECK(double_bits(fly.ent.motionX) == 0x3fc4b10404bc5c59ULL,
+              "elytra motionX matches hand-derived binary64");
+        CHECK(double_bits(fly.ent.motionY) == 0xbfe4e17c245e20d0ULL,
+              "elytra motionY matches hand-derived binary64");
+        CHECK(double_bits(fly.ent.motionZ) == 0x0000000000000000ULL,
+              "elytra motionZ matches hand-derived binary64");
     }
 
     printf(g_fail ? "\nRESULT: FAIL\n" : "\nRESULT: PASS (all cases)\n");

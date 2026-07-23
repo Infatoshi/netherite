@@ -754,6 +754,15 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid set_total_time\n",line_no);goto bad;
                 }
                 gm_runtime_set_total_time(&r,value);
+            } else if (!strcmp(type,"set_elytra")) {
+                long long equipped;
+                static const char *const keys[]={"tick","type","equipped"};
+                if(!keys_only(&pending,keys,3,err,sizeof err)||
+                   !as_i64(field(&pending,"equipped"),&equipped)||
+                   (equipped!=0&&equipped!=1)){
+                    fprintf(stderr,"script:%ld: invalid set_elytra\n",line_no);goto bad;
+                }
+                gm_runtime_set_elytra(&r,(int)equipped);
             } else if (!strcmp(type,"set_skin")) {
                 /* first-person arm variant: offline players get steve or alex
                  * by username-UUID hash; the tape header records which. */

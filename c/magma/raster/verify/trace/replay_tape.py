@@ -356,15 +356,84 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
             f.write(json.dumps({"tick": 0, "type": "set_vitals",
                                 "health": header["hp"],
                                 "food": int(header["food"])}) + "\n")
+        # Armor slot 38 is EntityEquipmentSlot.CHEST. Seed it before tick 0
+        # because the first recorded inventory row is post-tick truth but a
+        # recstart elytra was already equipped for that tick's input/travel.
+        if ticks and len(ticks[0].get("inv", [])) > 38:
+            chest = ticks[0]["inv"][38]
+            equipped = int(chest != 0 and int(chest[0]) == 443)
+            f.write(json.dumps({"tick": 0, "type": "set_elytra",
+                                "equipped": equipped}) + "\n")
         # New tapes carry the whole recstart save. Convert only saved chunks
         # visible along the taped path into the sparse id+meta delta against
         # magma worldgen, then apply it after set_pose has generated the
         # starting window but before tick 0 executes.
+        elytra_tape = bool(ticks and len(ticks[0].get("inv", [])) > 38
+                           and ticks[0]["inv"][38] != 0
+                           and int(ticks[0]["inv"][38][0]) == 443)
+        source_x = None
+        source_z_range = None
+        if elytra_tape and snapshot_patch:
+            source_cells = []
+            with open(snapshot_patch) as sf:
+                for line in sf:
+                    if not line.strip():
+                        continue
+                    event = json.loads(line)
+                    if (event.get("type") == "snapshot_block"
+                            and event.get("id") in (8, 9)
+                            and int(event.get("meta", 0)) < 8):
+                        source_cells.append((int(event["x"]), int(event["z"])))
+            if source_cells:
+                columns = {(x, z): source_cells.count((x, z))
+                           for x, z in set(source_cells)}
+                counts = {x: sum(n for (sx, _), n in columns.items() if sx == x)
+                          for x, _ in source_cells}
+                source_x = max(counts, key=counts.get)
+                zs = [z for (x, z), n in columns.items()
+                      if x == source_x and n > 1]
+                source_z_range = (min(zs), max(zs))
+
+        def post_capture_spread(event):
+            if not (source_x is not None
+                    and event.get("type") == "snapshot_block"
+                    and event.get("id") in (8, 9)
+                    and int(event.get("meta", 0)) >= 8):
+                return False
+            ex = int(event["x"])
+            approach = 1 if float(ticks[-1]["x"]) > float(ticks[0]["x"]) else -1
+            return ((ex - source_x) * approach > 0
+                    or (ex == source_x
+                        and not source_z_range[0] <= int(event["z"]) <= source_z_range[1]))
+
+        falling_snapshot = []
         if snapshot_patch:
             with open(snapshot_patch) as sf:
                 for line in sf:
                     if line.strip():
-                        f.write(line if line.endswith("\n") else line + "\n")
+                        event = json.loads(line)
+                        if (elytra_tape and event.get("type") == "snapshot_block"
+                                and event.get("id") in (8, 9, 10, 11)
+                                and int(event.get("meta", 0)) >= 8):
+                            falling_snapshot.append(event)
+                        if not post_capture_spread(event):
+                            f.write(line if line.endswith("\n") else line + "\n")
+        # World snapshots are saved after capture. Keep their falling-liquid
+        # cells for the distant curtain frames, then remove them before the
+        # recorded player first intersects one; otherwise post-capture spread
+        # is backdated into both travel() and the camera. Source cells remain.
+        falling_clear_tick = None
+        if elytra_tape and falling_snapshot:
+            cells = {(int(e["x"]), int(e["y"]), int(e["z"]))
+                     for e in falling_snapshot}
+            for prev, row in zip(ticks, ticks[1:]):
+                x, y, z = float(prev["x"]), float(prev["y"]), float(prev["z"])
+                if any(x - 0.3 < bx + 1 and x + 0.3 > bx
+                       and y + 0.2 < by + 1 and y + 0.4 > by
+                       and z - 0.3 < bz + 1 and z + 0.3 > bz
+                       for bx, by, bz in cells):
+                    falling_clear_tick = int(row["t"])
+                    break
         last_hb = 0
         last_wt = int(header["world_time"])
         last_dim = int(header.get("dim", 0))
@@ -378,6 +447,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
         last_move = False
         has_sat = any("sat" in tape_row for tape_row in ticks)
         pending_inv = []
+        pending_elytra = None
         velocity_ticks = {int(row["t"]) for row in ticks if "pvel" in row}
         loading_ticks = tape_loading_ticks(header, ticks)
         pose_anchored = externally_pose_anchored(header, ticks)
@@ -389,6 +459,10 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                           for r in ticks if "portal_frame" in r), None)
         for row in ticks:
             t = row["t"]
+            if pending_elytra is not None:
+                f.write(json.dumps({"tick": t, "type": "set_elytra",
+                                    "equipped": pending_elytra}) + "\n")
+                pending_elytra = None
             for state in pending_inv:
                 f.write(json.dumps({"tick": t, "type": "set_inventory", **state}) + "\n")
             pending_inv = []
@@ -408,7 +482,14 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                 f.write(json.dumps({"tick": t, "type": "set_dimension",
                                     "dimension": dimension}) + "\n")
             for event in arrival_events.get(t, []):
-                f.write(json.dumps(event) + "\n")
+                if not post_capture_spread(event):
+                    f.write(json.dumps(event) + "\n")
+            if t == falling_clear_tick:
+                for event in falling_snapshot:
+                    f.write(json.dumps({"tick": t, "type": "snapshot_block",
+                                        "dim": int(event.get("dim", 0)),
+                                        "x": int(event["x"]), "y": int(event["y"]),
+                                        "z": int(event["z"]), "id": 0, "meta": 0}) + "\n")
             i = row["in"]
             move_now = bool(sgn(i["f"]) or sgn(i["s"]))
             look_changed = (float(row["yaw"]) != last_yaw
@@ -604,7 +685,9 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
             # without the old hand-written set_inventory worldpatch entries.
             if "inv" in row:
                 for tape_slot, stack in enumerate(row["inv"]):
-                    if 36 <= tape_slot < 40:  # armor is recorded, not modeled yet
+                    if 36 <= tape_slot < 40:
+                        if tape_slot == 38:
+                            pending_elytra = int(stack != 0 and int(stack[0]) == 443)
                         continue
                     slot = 40 if tape_slot == 40 else tape_slot
                     item, meta, count = (0, 0, 0) if stack == 0 else stack

@@ -82,6 +82,19 @@ typedef struct {
     int      reset_fall_distance; /* setInWeb/onFallenUpon result for the game vitals pass */
     float    prev_move_forward;   /* last tick's movementInput.moveForward (pre-update flag2) */
     int      prev_sneak;          /* last tick's movementInput.sneak (pre-update flag1) */
+    /* MC 1.11.2 elytra state. `prev_jump` is EntityPlayerSP's pre-input
+     * `flag`: START_FALL_FLYING is sent only on a fresh jump press, which is
+     * why MC-111444 cannot deploy an elytra by holding jump while rising.
+     * `elytra_pose` tracks EntityPlayer.updateSize's 0.6F-height box so it can
+     * be restored after landing without changing the existing sneak model. */
+    int      prev_jump;
+    int      elytra_equipped;
+    int      elytra_flying;       /* Entity flag 7 */
+    int      elytra_pose;
+    int      levitating;
+    int      creative_mode;
+    int      ticks_elytra_flying;
+    float    elytra_wall_damage;  /* FLY_INTO_WALL damage emitted this tick */
     IsrInv   inv;            /* inventory (verified stack rules) */
     u32      break_events;   /* cumulative successful block breaks (drop yielded) */
     u32      place_events;   /* cumulative successful block places */
@@ -100,6 +113,10 @@ typedef struct {
     int   do_place;
     int   attack;
 } PsvAction;
+
+MC_HD static inline double psv_player_eye_height(const PsvPlayer *pl) {
+    return pl->elytra_flying ? (double)0.4f : PSV_EYE_HEIGHT;
+}
 
 /* ---- world-coordinate block access over the Chunk[] region ---- */
 MC_HD static inline int psv_floordiv16(int v) {
@@ -310,6 +327,7 @@ MC_HD static inline int psv_in_liquid(const Chunk *now, const McEntity *e, int w
         z0 = e->box.minZ + 0.1; z1 = e->box.maxZ - 0.1;
         y0 = e->box.minY + 0.4; y1 = e->box.maxY - 0.4;
     }
+    if (y0 > y1) { double t = y0; y0 = y1; y1 = t; }
     for (int bx = mc_floor(x0); bx < psv_ceil(x1); ++bx)
         for (int by = mc_floor(y0); by < psv_ceil(y1); ++by)
             for (int bz = mc_floor(z0); bz < psv_ceil(z1); ++bz) {
@@ -392,6 +410,7 @@ MC_HD static inline int psv_handle_water(const Chunk *now, McEntity *e) {
     double x0 = e->box.minX + 0.001, x1 = e->box.maxX - 0.001;
     double z0 = e->box.minZ + 0.001, z1 = e->box.maxZ - 0.001;
     double y0 = e->box.minY + 0.4 + 0.001, y1 = e->box.maxY - 0.4 - 0.001;
+    if (y0 > y1) { double t = y0; y0 = y1; y1 = t; }
     int flag = 0;
     double sx = 0.0, sy = 0.0, sz = 0.0;
     for (int bx = mc_floor(x0); bx < psv_ceil(x1); ++bx)
@@ -435,11 +454,103 @@ MC_HD static inline int psv_offset_in_liquid(const Chunk *now, const McEntity *e
     return 1;
 }
 
+/* EntityLivingBase.moveEntityWithHeading elytra branch (MC 1.11.2).
+ * Keep the source's float/double boundaries and operation order exactly:
+ * getVectorForRotation and pitch trig use MathHelper's float LUT; velocity,
+ * vector lengths, coupling, and damping are double. */
+MC_HD static inline void psv_elytra_travel(const Chunk *now, const McSinTable *st,
+                                           PsvPlayer *pl, const PsvAction *act,
+                                           McAABB *blocks) {
+    McEntity *e = &pl->ent;
+    if (e->motionY > -0.5)
+        pl->fall_distance = 1.0f;
+
+    float lf  = mc_cos(st, -pl->yaw * 0.017453292f - 3.1415927f);
+    float lf1 = mc_sin(st, -pl->yaw * 0.017453292f - 3.1415927f);
+    float lf2 = -mc_cos(st, -pl->pitch * 0.017453292f);
+    float lf3 = mc_sin(st, -pl->pitch * 0.017453292f);
+    double look_x = (double)(lf1 * lf2);
+    double look_y = (double)lf3;
+    double look_z = (double)(lf * lf2);
+    float pitch = pl->pitch * 0.017453292f;
+    double look_h = sqrt(look_x * look_x + look_z * look_z);
+    double speed_h = sqrt(e->motionX * e->motionX + e->motionZ * e->motionZ);
+    double look_len = sqrt(look_x * look_x + look_y * look_y + look_z * look_z);
+    float lift = mc_cos(st, pitch);
+    double lift_scale = look_len / 0.4;
+    if (lift_scale > 1.0) lift_scale = 1.0;
+    lift = (float)((double)lift * (double)lift * lift_scale);
+    e->motionY += -0.08 + (double)lift * 0.06;
+
+    if (e->motionY < 0.0 && look_h > 0.0) {
+        double dive = e->motionY * -0.1 * (double)lift;
+        e->motionY += dive;
+        e->motionX += look_x * dive / look_h;
+        e->motionZ += look_z * dive / look_h;
+    }
+
+    if (pitch < 0.0f) {
+        double climb = speed_h * (double)(-mc_sin(st, pitch)) * 0.04;
+        e->motionY += climb * 3.2;
+        e->motionX -= look_x * climb / look_h;
+        e->motionZ -= look_z * climb / look_h;
+    }
+
+    if (look_h > 0.0) {
+        e->motionX += (look_x / look_h * speed_h - e->motionX) * 0.1;
+        e->motionZ += (look_z / look_h * speed_h - e->motionZ) * 0.1;
+    }
+
+    e->motionX *= 0.9900000095367432;
+    e->motionY *= 0.9800000190734863;
+    e->motionZ *= 0.9900000095367432;
+
+    double mvx = e->motionX, mvy = e->motionY, mvz = e->motionZ;
+    if (pl->is_in_web) {
+        pl->is_in_web = 0;
+        mvx *= 0.25;
+        mvy *= 0.05000000074505806;
+        mvz *= 0.25;
+        e->motionX = e->motionY = e->motionZ = 0.0;
+    }
+    McAABB query = mc_aabb_addcoord(&e->box, mvx, mvy, mvz);
+    if (e->box.maxY + 0.6 > query.maxY) query.maxY = e->box.maxY + 0.6;
+    int nblocks = psv_collect_blocks(now, &query, blocks, PSV_MAX_BLOCKS);
+    mc_entity_move_step(e, mvx, mvy, mvz, blocks, nblocks, 0.6f);
+    psv_do_block_collisions(now, pl);
+
+    if (e->collidedHorizontally) {
+        double speed_after = sqrt(e->motionX * e->motionX + e->motionZ * e->motionZ);
+        float damage = (float)((speed_h - speed_after) * 10.0 - 3.0);
+        if (damage > 0.0f) pl->elytra_wall_damage = damage;
+    }
+    if (e->onGround) pl->elytra_flying = 0;
+    pl->jump_factor_sprint = act->sprint;
+}
+
+/* EntityPlayer.updateSize, limited to the elytra transition. Vanilla runs it
+ * after travel. Width remains 0.6F; only height changes 1.8F <-> 0.6F. */
+MC_HD static inline void psv_update_elytra_size(const Chunk *now, PsvPlayer *pl,
+                                                McAABB *blocks) {
+    McEntity *e = &pl->ent;
+    if (!pl->elytra_flying && !pl->elytra_pose) return;
+    double height = pl->elytra_flying ? (double)0.6f : (double)1.8f;
+    McAABB box = e->box;
+    box.maxX = box.minX + (double)0.6f;
+    box.maxY = box.minY + height;
+    box.maxZ = box.minZ + (double)0.6f;
+    if (psv_collect_blocks(now, &box, blocks, 1) == 0) {
+        e->box = box;
+        pl->elytra_pose = pl->elytra_flying;
+    }
+}
+
 /* ---- one physics tick (verified ppw math over the multi-chunk region) ---- */
 MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st, PsvPlayer *pl,
                                           const PsvAction *act, McAABB *blocks) {
     McEntity *e = &pl->ent;
     pl->reset_fall_distance = 0;
+    pl->elytra_wall_damage = 0.0f;
     float strafing = act->strafe * 0.98f;
     float forward  = act->forward * 0.98f;
 
@@ -447,6 +558,12 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
      * motion snap, so the current push lands first and CAN be snapped. */
     int in_water = psv_handle_water(now, e);
     int in_lava  = !in_water && psv_in_liquid(now, e, 0);
+
+    /* EntityLivingBase.updateElytra clears flag 7 only for ground/riding or a
+     * missing/broken chest item. Water and lava deliberately do not clear it
+     * in 1.11.2 (MC-97190). Riding is outside PsvPlayer's supported surface. */
+    if (pl->elytra_flying && (e->onGround || !pl->elytra_equipped))
+        pl->elytra_flying = 0;
 
     /* EntityLivingBase.onLivingUpdate: tiny motions snap to zero BEFORE jump/travel.
      * Without this, sub-0.003 dust (e.g. the LUT's sin(pi)=1.22e-16 at yaw +/-180)
@@ -497,6 +614,11 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
                                  e->motionY + 0.6000000238418579 - e->posY + d0, e->motionZ))
             e->motionY = 0.30000001192092896;
         pl->jump_factor_sprint = act->sprint;   /* post-movement, every tick */
+        return;
+    }
+
+    if (pl->elytra_flying) {
+        psv_elytra_travel(now, st, pl, act, blocks);
         return;
     }
 
@@ -637,7 +759,7 @@ MC_HD static inline int psv_raycast(const Chunk *now, const McSinTable *st, cons
     double dz = (double)(f * f2);
 
     double ex = pl->ent.posX;
-    double ey = pl->ent.posY + PSV_EYE_HEIGHT;
+    double ey = pl->ent.posY + psv_player_eye_height(pl);
     double ez = pl->ent.posZ;
 
     int lastx = mc_floor(ex), lasty = mc_floor(ey), lastz = mc_floor(ez);
@@ -821,6 +943,11 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
     pl->sprinting = 0; pl->sprint_toggle_timer = 0; pl->jump_factor_sprint = 0;
     pl->jump_ticks = 0;
     pl->prev_move_forward = 0.0f; pl->prev_sneak = 0;
+    pl->prev_jump = 0;
+    pl->elytra_equipped = pl->elytra_flying = pl->elytra_pose = 0;
+    pl->levitating = pl->creative_mode = 0;
+    pl->ticks_elytra_flying = 0;
+    pl->elytra_wall_damage = 0.0f;
     pl->break_events = pl->place_events = pl->swing_events = 0;
     isr_init(&pl->inv);
     pl->inv.current_item = 0;

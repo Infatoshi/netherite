@@ -61,6 +61,12 @@ static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
 {
     McEntity *e = &pl->ent;
 
+    /* EntityLivingBase's elytra wall branch attacks immediately after move.
+     * FLY_INTO_WALL is ordinary health damage; armor is absent for an elytra
+     * chest slot in this supported slice. */
+    if (pl->elytra_wall_damage > 0.0f)
+        pv_attack(vit, pl->elytra_wall_damage);
+
     /* EntityPlayer.addMovementStat: exhaustion is charged per WHOLE cm
      * (Math.round(MathHelper.sqrt(d)*100F), float sqrt), diving (eyes under,
      * 3D distance) and swimming (inWater, 2D) at 0.0001/cm, sprinting only
@@ -168,7 +174,7 @@ static int torch_placement_meta(const Chunk *w, int x, int y, int z, int face) {
  * its cell. BlockLiquid.getLiquidHeightPercent: falling (meta>=8) counts as a
  * full block; else (meta+1)/9, surface at (y+1) - percent. */
 static int eye_in_water(const Chunk *w, const PsvPlayer *pl) {
-    double eye_y = pl->ent.posY + PSV_EYE_HEIGHT;
+    double eye_y = pl->ent.posY + psv_player_eye_height(pl);
     int x = mc_floor(pl->ent.posX), y = mc_floor(eye_y), z = mc_floor(pl->ent.posZ);
     int id = psv_get_block(w, x, y, z);
     if (id != 8 && id != 9) return 0;
@@ -183,7 +189,7 @@ static int bucket_raycast(const Chunk *w,const McSinTable *st,const PsvPlayer *p
     float f1=mc_sin(st,-pl->yaw*0.017453292f-3.1415927f);
     float f2=-mc_cos(st,-pl->pitch*0.017453292f),f3=mc_sin(st,-pl->pitch*0.017453292f);
     double dx=(double)(f1*f2),dy=(double)f3,dz=(double)(f*f2);
-    double ex=pl->ent.posX,ey=pl->ent.posY+PSV_EYE_HEIGHT,ez=pl->ent.posZ;
+    double ex=pl->ent.posX,ey=pl->ent.posY+psv_player_eye_height(pl),ez=pl->ent.posZ;
     int lx=mc_floor(ex),ly=mc_floor(ey),lz=mc_floor(ez);
     for(double t=PSV_RAY_DT;t<=PSV_REACH;t+=PSV_RAY_DT){
         int x=mc_floor(ex+dx*t),y=mc_floor(ey+dy*t),z=mc_floor(ez+dz*t);
@@ -624,7 +630,22 @@ use_done:
         s_server_motion_z += (double)(mc_cos(st, fj) * 0.2f);
     }
 
+    int elytra_press = act.jump && !pl->prev_jump;
     psv_physics_tick(window, st, pl, &a, blocks);
+
+    /* EntityPlayerSP.onLivingUpdate sends START_FALL_FLYING on a fresh jump
+     * press, before client travel; the integrated-server flag becomes the
+     * next client tick's travel state. NetHandlerPlayServer requires airborne
+     * descending motion, usable elytra, and no water. The edge gate preserves
+     * the shipped upward-motion activation bug (MC-111444). */
+    if (elytra_press && !pl->elytra_flying && pl->elytra_equipped &&
+        !pl->creative_mode && !pl->levitating && !water_pre &&
+        !pl->ent.onGround && pl->ent.motionY < 0.0)
+        pl->elytra_flying = 1;
+    pl->prev_jump = act.jump;
+    if (pl->elytra_flying) ++pl->ticks_elytra_flying;
+    else pl->ticks_elytra_flying = 0;
+    psv_update_elytra_size(window, pl, blocks);
 
     {
         ICStack food=isr_get_stack(&pl->inv,pl->inv.current_item);
@@ -760,7 +781,7 @@ void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *o
     out->x = (float)(pl->ent.posX + (double)ox);
     out->y = (float)(pl->ent.posY);
     out->z = (float)(pl->ent.posZ + (double)oz);
-    out->eye_height = (float)PSV_EYE_HEIGHT;
+    out->eye_height = (float)psv_player_eye_height(pl);
 
     out->yaw   = pl->yaw;
     out->pitch = pl->pitch;

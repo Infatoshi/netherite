@@ -59,6 +59,7 @@ def parse_atlas_header(text: str):
 def jar_member_map(builder_text: str):
     """MOB_SPRITES (name, jar member) pairs straight from the builder source."""
     block = re.search(r"MOB_SPRITES = sorted\(\[(.*?)\]", builder_text, re.S).group(1)
+    block += "".join(re.findall(r"MOB_SPRITES\s*\+=\s*\[(.*?)\]", builder_text, re.S))
     return dict(re.findall(r'\(\s*"(\w+)",\s*"([\w/.]+)"\s*\)', block))
 
 

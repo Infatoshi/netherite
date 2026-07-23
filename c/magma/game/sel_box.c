@@ -291,7 +291,7 @@ int gm_raycast_sel_reach(const struct Chunk *win, const struct McSinTable *st_,
     double dy = (double)f3;
     double dz = (double)(f * f2);
     double ex = pl->ent.posX;
-    double ey = pl->ent.posY + PSV_EYE_HEIGHT;
+    double ey = pl->ent.posY + psv_player_eye_height(pl);
     double ez = pl->ent.posZ;
 
     int lastx = mc_floor(ex), lasty = mc_floor(ey), lastz = mc_floor(ez);
