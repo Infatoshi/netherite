@@ -1,0 +1,47 @@
+# Rank 13 mechanic: water spreads up to 7 horizontal blocks and has a 5-tick base scheduled rate;
+# lava uses 30 ticks in the Overworld/End and 10 in the Nether. The shallow-lava RNG branch has a
+# 75% chance to multiply delay by 4, yielding 120 or 40 ticks. Water beside/on a lava source makes
+# obsidian, beside flowing lava makes cobblestone, and downward lava entering water makes stone.
+# Expected wrong-magma divergence class: physics/state if levels, update ticks, or products differ;
+# structural pixels if fluid top/side geometry or obsidian/cobblestone/stone rendering differs.
+name: flow_convert
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p -3.5 4 12.5 180 25
+  - /fill -7 3 -5 1 3 5 minecraft:stone
+  - /fill -7 4 -5 1 4 -5 minecraft:glass
+  - /fill -7 4 -3 1 4 -3 minecraft:glass
+  - /fill -7 4 -1 1 4 -1 minecraft:glass
+  - /fill -7 4 1 1 4 1 minecraft:glass
+  - /fill -7 4 -5 -7 4 1 minecraft:glass
+  - /fill 1 4 -5 1 4 1 minecraft:glass
+  - /fill -1 4 3 1 8 5 minecraft:glass 0 hollow
+setup_qrl:
+  - cmd: runcmds
+    action:
+      cmds:
+        - setblock -6 4 -4 minecraft:water
+        - setblock 0 4 -4 minecraft:lava
+        - setblock -6 4 0 minecraft:water
+        - setblock 0 4 0 minecraft:flowing_lava 1
+        - setblock 0 4 4 minecraft:water
+        - setblock 0 8 4 minecraft:lava
+    settle_ticks: 0
+duration_ticks: 800
+frames_every: 10
+input:
+  segments:
+    - seconds: 40.0
+known_divergences: []

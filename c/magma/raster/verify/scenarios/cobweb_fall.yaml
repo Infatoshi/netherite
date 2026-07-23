@@ -1,0 +1,30 @@
+# Rank 6 mechanic: web contact marks isInWeb, resets fall distance, and applies its asymmetric
+# transform on the next movement resolution. Exact numeric expectations: attempted X/Z displacement
+# is multiplied by 0.25, Y by 0.05000000074505806, then all 3 stored motion components are zeroed.
+# Expected wrong-magma divergence class: physics if reset timing, displacement, stored velocity, or
+# fall damage differs; structural pixels if the old minecraft:web crossed planes/translucency differ.
+name: cobweb_fall
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 20 0.5 0 0
+  - /fill -1 4 -1 1 5 1 minecraft:web
+duration_ticks: 600
+frames_every: 10
+input:
+  segments:
+    - seconds: 3.0
+    - seconds: 15.0
+      keys: [w]
+known_divergences: []
