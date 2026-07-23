@@ -244,3 +244,94 @@ Removed 2026-07-11 (unused routes): `java/build_mac.sh`, `play_mac.sh` (Mac GL d
   Blaze demo class soak dropped 12.85M -> 4.02M px; burn frames t88/t120
   now ~2-4k residual px. Old-tape swingProgressInt unrecoverable -
   documented in TAPE_COMPLETENESS.md.
+
+## 2026-07-23 (pre-reset handoff: fluids/edge-blocks green, mob-AI + glitch research recovered, GPU0 wedged)
+
+System reset imminent; this entry is the full state capture. Everything below
+is committed and pushed on master unless marked otherwise.
+
+### Landed this session (dffab82 -> 4151434, all pushed)
+- dffab82 RenderFireball/RenderDragonFireball + missing_model gate.
+- aac4353 devlog: fireball blind spot.
+- 2658b7c renderFireInFirstPerson + renderPlayerStats + per-frame class
+  pixel budgets (hud 55k / particles 40k / viewmodel 40k).
+- 215b1d9 renderPotionEffects + updateEquippedItem + hurtCameraEffect +
+  orientCamera +0.05 Z-nudge fix.
+- eb25c4b devlog: player-state visual audit.
+- fb001ae fluid scenario specs (water_dive, lava_walk, water_flow).
+- cacd114 decreaseAirSupply air ledger + bubble HUD + flowing lava
+  animation + transit class budget 40k.
+- 63d95ed seven 1.11.2 edge-case scenario specs (elytra, slime, web,
+  soul sand, suffocation, fence, fluid conversion).
+- 4151434 edge block mechanics/models: slime bounce (+1.106 vy), web
+  multipliers, soul sand 0.875 box / 0.4 XZ, fence+wall 1.5 collision
+  boxes, armor stand model.
+
+### Gate state: 19/19 tapes rc=0 at 4151434 (CPU replay)
+Canonical 20260721T215812Z_fast_s0_survival_default_rd8_77b5b462 plus:
+scenario_smoke_zombie 081735Z, blaze_melee 092705Z, blaze_bow 092838Z,
+blaze_bow_demo 104234Z, pigmen_aggro 093154Z, wither_skeleton 093020Z,
+enderman_fight 093335Z, ender_dragon 094040Z, ender_dragon_demo 104500Z,
+water_dive 234816Z, lava_walk 234940Z, water_flow 235050Z,
+suffocate_camera 001923Z, flow_convert 002122Z, slime_bounce 001527Z,
+cobweb_fall 001656Z, soulsand_ice 001810Z, fence_collide 002017Z.
+(ender_dragon 093713Z is superseded/stale, known rc=3, not in gate set.)
+Replay cmd: `cd c/magma/raster/verify/trace && uv run --no-project --with
+numpy,scipy,pillow,nbt python replay_tape.py ../tapes/<stem>.jsonl --cpu
+--report`. zsh gotcha: rc through a pipe needs `${pipestatus[1]}`.
+
+### Research docs recovered into the repo (this commit)
+/tmp scratchpad was wiped by the reset; both codex research reports were
+recovered from codex rollouts (~/.codex/sessions/2026/07/22/) by decoding
+their apply-patch payloads:
+- docs/research/glitch_research_1112.md - 36 ranked deterministic 1.11.2
+  edge cases, do-not-bother list, recommended first ten (ranks 1,2,3,4,5,
+  6,8,11,12,13). Ranks covered so far: the edge-block/fluid rounds above.
+  Elytra (rank 1) is in flight, see below.
+- docs/research/mob_ai_audit.md - verdict: mob AI NOT solved for the live
+  simulator. Ordinary mobs share one direct-steering loop; no EntityAITasks
+  scheduler, pf12/PathNavigateGround not wired, pig zombie has no live
+  type. Top-10 fix program is in the doc (start: per-entity Java RNG +
+  trajectory-parity gate, then task scheduler, then pathfinding).
+Source rollouts if re-extraction is ever needed:
+rollout-2026-07-22T19-06-15-019f8c82... (glitch), rollout-2026-07-22T17-46-25-019f8c39... (mob audit).
+
+### In flight, interrupted by the reset
+- Elytra physics: branch wip/elytra (c9b18fc, pushed) holds the killed
+  codex round's UNVERIFIED travel() port (player_survival.h +129 and game
+  wiring). Divergence target: elytra_glide tape tick 56, oracle x=5.8095
+  vs magma 5.7460. Resume by having codex continue from the branch or
+  restart the round; do NOT merge unverified. All 19 tapes must stay rc=0.
+- Crafting/furnace GUI capture: 40-capture plan (capture_crafting.sh,
+  crafting_harness.py, run_crafting_verify.sh, manifest with recipes cited
+  to CraftingManager.java) was in /tmp and is lost; regenerate from the
+  codex rollout of that round or just re-prompt. Oracle-side capture never
+  completed (blocked by the GPU hang below).
+
+### Anvil GPU0 driver hang - reboot required
+nvidia-modeset "Error while waiting for GPU progress" loop; nvidia-smi
+cannot open GPU0 (Blackwell). Any process opening an nvidia DRM node
+D-states in drm_open (kill -9 immune; D-state PIDs 1288651 Xvfb :1,
+1613897). Mitigations in place, to revert after reboot:
+- chmod 000 /dev/dri/{card0,renderD128,card2,renderD130} + setfacl -b
+  (restore normal modes post-reboot).
+- Oracle stack moved to MC_DISPLAY=:3 - java/start_vnc_client.sh in the
+  mono repo is parameterized (MC_DISPLAY/MC_VNC_PORT env). Display :1
+  usable again after reboot.
+- CUDA replay unavailable; CPU replay unaffected. After reboot, rebuild
+  magma_game_cuda before trusting CUDA-scored gates (stale-binary trap).
+
+### Continuation queue (in order)
+1. Reboot anvil; revert /dev/dri modes; verify nvidia-smi sees both GPUs;
+   restart oracle stack (either display); rebuild CUDA binary.
+2. Finish elytra from wip/elytra; gate all 19 tapes + new elytra tape.
+3. Regenerate + run the crafting capture and run_crafting_verify.sh
+   bitwise GUI diff pass.
+4. Mob-AI program per docs/research/mob_ai_audit.md top-10 if launch scope
+   includes live sim (trajectory-parity gate first, then pig zombie/blaze/
+   enderman/skeleton).
+5. Mirror batch to mono (fb001ae, cacd114, 63d95ed, 4151434 + this docs
+   batch); mono has an uncommitted start_vnc_client.sh MC_DISPLAY edit to
+   commit first.
+6. Re-encode combat_sbs.mp4 after elytra lands; scp to macbook:~/Downloads.
+7. Remaining glitch-research ranks beyond the first ten, if desired.
