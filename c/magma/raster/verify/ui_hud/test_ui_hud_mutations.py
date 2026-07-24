@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Adversarial mutation regressions for fullscreen inside-block overlay gates.
 
-Honest C frames for overlay_inside_stone / overlay_inside_grass must PASS the
-fullscreen hard_px gate. Each mutation below must NOT pass:
+Honest C frames for overlay_inside_stone / overlay_inside_grass are evaluated
+under the fullscreen exact gate (thr=ceil(noise_max); noise_max==0 => thr 0).
+Honest may be PASS (exact) or RESIDUAL (nonzero hard_px) — residual is not a
+mutation leak; the ROI gate exits nonzero for residual. Capture FAIL fails
+this suite. Each mutation below must NOT pass (verdict != PASS):
 
   erase90      - set 90% of painted C pixels to composition gray
   blank_to_one - blank frame + single correct pixel
+  plus1_ch     - +1 on a single channel of one exact-match stable pixel
   shift_x2/x4  - global horizontal shift 2 / 4 px
   shift_y2/y4  - global vertical shift 2 / 4 px
   recolor      - add +20 per channel
@@ -26,6 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from compare_ui_hud_oracle import (  # noqa: E402
     FULLSCREEN_REPLACE,
     GRAY,
+    STABLE_AB_THR,
     evaluate_state,
     load_ppm,
     load_rgb,
@@ -36,6 +41,7 @@ IDS = sorted(FULLSCREEN_REPLACE)
 MUTATION_NAMES = (
     "erase90",
     "blank_to_one",
+    "plus1_ch",
     "shift_x2",
     "shift_x4",
     "shift_y2",
@@ -45,7 +51,7 @@ MUTATION_NAMES = (
 )
 
 
-def mutate(c0, name, ja):
+def mutate(c0, name, ja, jb=None):
     """Return a mutated C frame (int16 HxWx3)."""
     c0 = c0.astype(np.int16, copy=False)
     h, w = c0.shape[:2]
@@ -63,13 +69,40 @@ def mutate(c0, name, ja):
         c = np.full_like(c0, GRAY)
         painted = painted_mask(c0)
         dmax = np.abs(c0.astype(np.int16) - ja.astype(np.int16)).max(axis=2)
-        ys, xs = np.where(painted & (dmax <= 1))
+        ys, xs = np.where(painted & (dmax == 0))
+        if len(ys) == 0:
+            ys, xs = np.where(painted & (dmax <= 1))
         if len(ys) == 0:
             ys, xs = np.where(painted)
         assert len(ys) > 0, "no painted pixel for blank_to_one"
         # Mid-index so it is not an edge quirk.
         i = len(ys) // 2
         c[ys[i], xs[i]] = c0[ys[i], xs[i]]
+        return c
+    if name == "plus1_ch":
+        # Single-channel +1 on one A/B-stable exact C==J pixel. With noise_max=0
+        # the gate thr is 0, so this must produce hard_px>=1 and not PASS.
+        c = c0.copy()
+        if jb is None:
+            raise ValueError("plus1_ch requires jb")
+        ab = np.abs(ja.astype(np.int16) - jb.astype(np.int16)).mean(axis=2)
+        dmax = np.abs(c0.astype(np.int16) - ja.astype(np.int16)).max(axis=2)
+        stable_exact = (ab <= STABLE_AB_THR) & (dmax == 0)
+        ys, xs = np.where(stable_exact)
+        if len(ys) == 0:
+            ys, xs = np.where(dmax == 0)
+        if len(ys) == 0:
+            painted = painted_mask(c0)
+            ys, xs = np.where(painted)
+        assert len(ys) > 0, "no pixel for plus1_ch"
+        i = len(ys) // 2
+        y, x = int(ys[i]), int(xs[i])
+        for ch in range(3):
+            if c[y, x, ch] < 255:
+                c[y, x, ch] = c[y, x, ch] + 1
+                break
+        else:
+            raise AssertionError("plus1_ch: pixel fully saturated")
         return c
     if name == "shift_x2":
         c = np.full_like(c0, GRAY)
@@ -125,23 +158,39 @@ def main():
         jb = load_rgb(jb_p)
         c0 = load_ppm(c_p)
 
-        # Honest must PASS (gate not vacuously rejecting everything).
+        # Honest: capture must be OK. Exact PASS is ideal; RESIDUAL is honest
+        # residual (reported) not a mutation leak. FAIL breaks the suite.
         r0 = evaluate_state(sid, ja, jb, c0)
-        ok_honest = r0["verdict"] == "PASS" and (r0.get("hard_px") == 0)
-        print("%-22s %-14s %10.3f %8s %10s  %s" % (
+        if r0["verdict"] == "FAIL":
+            n_fail += 1
+            print("%-22s %-14s %10.3f %8s %10s  %s" % (
+                sid, "honest",
+                r0["c_vs_j"] if r0["c_vs_j"] == r0["c_vs_j"] else -1.0,
+                str(r0.get("hard_px")),
+                r0["verdict"],
+                "NEED_CAPTURE_OK"))
+            print("  reason=%s noise=%.4f" % (r0.get("reason"), r0.get("noise")))
+            continue
+
+        exact = (r0["verdict"] == "PASS" and r0.get("hard_px") == 0)
+        expect_h = "PASS" if exact else "RESIDUAL_OK"
+        print("%-22s %-14s %10.3f %8s %10s  %s thr=%s maxch=%s" % (
             sid, "honest",
             r0["c_vs_j"] if r0["c_vs_j"] == r0["c_vs_j"] else -1.0,
             str(r0.get("hard_px")),
             r0["verdict"],
-            "PASS" if ok_honest else "NEED_PASS"))
-        if not ok_honest:
-            n_fail += 1
-            print("  reason=%s noise=%.4f max_diff=%s stable_frac=%s" % (
-                r0.get("reason"), r0.get("noise"),
-                r0.get("max_diff"), r0.get("stable_frac")))
+            expect_h,
+            r0.get("hard_thr"),
+            r0.get("max_diff")))
+        if not exact:
+            print("  honest residual: hard_px=%s bbox=%s noise_max=%s" % (
+                r0.get("hard_px"), r0.get("residual_bbox"), r0.get("noise_max")))
+            for loc in (r0.get("residual_locs") or [])[:6]:
+                print("    @(%d,%d) maxch=%d C=%s J=%s" % (
+                    loc["x"], loc["y"], loc["maxch"], loc["c"], loc["j"]))
 
         for mut in MUTATION_NAMES:
-            cm = mutate(c0, mut, ja)
+            cm = mutate(c0, mut, ja, jb)
             r = evaluate_state(sid, ja, jb, cm)
             # Mutation must not claim parity.
             rejected = r["verdict"] != "PASS"

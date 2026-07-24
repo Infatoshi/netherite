@@ -37,11 +37,13 @@ Gray C backdrop is composition isolation only — not a live-world claim.
 **Inside-block fullscreen hard gate** (`overlay_inside_stone` /
 `overlay_inside_grass`): blend-off full-frame particle replace, so the compare is
 **strict full ROI on A/B-stable pixels** (Java HUD flicker excluded), not a
-painted-only mean. Explicit A/B noise (mean + max). Pass criterion is
-`hard_px == 0` where hard = per-pixel max-channel `|C-J| > 1` at the measured
-noise floor — **no** diluted mean sole gate and **no** `max(gate, margin+1)`
-hidden floor. Mutation suite (`test_ui_hud_mutations.py`) rejects erase-90%,
-blank-to-one, x/y shifts 2–4 px, recolor +20, and sparse extra pixels.
+painted-only mean. Explicit A/B noise (mean + max). `hard_thr = ceil(noise_max)`
+on the stable set: when `noise_max==0` every stable pixel must be **exact**
+(thr 0; any maxch>0 is residual). **No** thr floor of 1 (that allowed a +1
+single-channel mutation to pass). **No** diluted mean sole gate. Mutation suite
+(`test_ui_hud_mutations.py`) rejects erase-90%, blank-to-one, **+1 single-channel**,
+x/y shifts 2–4 px, recolor +20, and sparse extra pixels. Overlays are not
+marked PASS until hard_px==0.
 
 ## Required captures (missing evidence)
 
@@ -122,17 +124,17 @@ Example qrl + mcwindow sketch for armor + hurt flash:
 - **Drawn-bow registration (#29):** geometry follows ItemRenderer BOW branch at
   partialTicks=1; still-draw A/B against genuine `hand_bow_pull20.png` now
   available for further tuning (C residual ~55/ch on non-hotbar ROI).
-- **Inside-block hard-closed (gate hardened):** `gm_overlay_block_in_hand`
-  matches 1.11.2 `ItemRenderer.renderBlockInHand`: view-space z=-0.5 under hand
-  FOV 70, maxU/maxV on left/bottom (U mirrored), **blend off**, replace RGB
-  with `tex * 0.1`. Live path: `causesSuffocation` + INVISIBLE skip + particle
-  sprite (grass→dirt). Candidate uses black world (no faces inside solid) +
-  real atlas particle UVs. Renderer formula is source-approved; the **gate**
-  claims parity only with full A/B-stable ROI + `hard_px==0` (maxch≤1).
-  Measured residuals (stable ROI, noise=0): stone mean ≈0.006 maxch=1
-  hard_px=0; grass mean ≈0.198 maxch=1 hard_px=0. Java A/B still flickers ~692
-  HUD chrome px (excluded via stable mask). Mutation regressions must reject
-  erase/blank/shift/recolor/extra (see `test_ui_hud_mutations.py`).
+- **Inside-block gate (exact bar):** `gm_overlay_block_in_hand` matches 1.11.2
+  `ItemRenderer.renderBlockInHand`: view-space z=-0.5 under hand FOV 70,
+  maxU/maxV on left/bottom (U mirrored), **blend off**, replace RGB with
+  `round(tex * 0.1)`. Live path: `causesSuffocation` + INVISIBLE skip + particle
+  sprite (grass→dirt). Candidate uses black world + real atlas particle UVs.
+  Gate: full A/B-stable ROI, `hard_thr=ceil(noise_max)` (noise_max=0 => exact;
+  any maxch>0 residual). Do **not** PASS until hard_px==0. Open 1-LSB residuals
+  (measured under thr=0): stone hard_px is HUD-band only (non-HUD overlay exact);
+  grass hard_px is widespread maxch=1 (dirt particle vs Java — floor(tex*0.1)
+  makes stone worse, so not a global rounding flip; left open). Mutations must
+  reject erase/blank/+1ch/shift/recolor/extra.
 - **Underwater soft residual:** UV/blend/order match
   `renderWaterOverlayTexture` (4× tile, yaw/pitch/64, color(brightness,0.5),
   src-over, FOV 60). Full-frame C-vs-J stays ~15/ch because composition

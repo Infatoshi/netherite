@@ -314,7 +314,11 @@ void gm_overlay_block_in_hand(CrFramebuffer *fb, const CrTexture *atlas,
             if (tx >= atlas->w) tx = atlas->w - 1;
             CrRgba src = atlas->texels[ty * atlas->w + tx];
             CrRgba *dst = &fb->color[py * fb->w + px];
-            /* Blend off: replace with tex * color.rgb (alpha unused on RGB). */
+            /* Blend off: replace with tex * color.rgb (alpha unused on RGB).
+             * Round-half-up matches stone particle vs Java (non-HUD exact under
+             * thr=0). floor(src*0.1) systematically undershoots stone by 1 LSB.
+             * Grass/dirt still has sparse/widespread 1-LSB residual under this
+             * formula — open (atlas UV / sample path), not a thr loophole. */
             dst->r = (u8)((float)src.r * mul + 0.5f);
             dst->g = (u8)((float)src.g * mul + 0.5f);
             dst->b = (u8)((float)src.b * mul + 0.5f);
