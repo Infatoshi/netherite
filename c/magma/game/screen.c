@@ -11,13 +11,17 @@
 
 #define PANEL_W 176
 #define PANEL_H 166
-#define CHEST_PANEL_H 167  /* GuiChest ySize = 114 + 3*18 = 168; atlas is 167 */
+/* GuiChest: ySize = 114 + inventoryRows*18 = 168 for a single chest (3 rows).
+ * The generic_54 blit is only 167 tall (71+96); Java still centers with ySize. */
+#define CHEST_YSIZE 168
+#define CHEST_TEX_H 167
 #define CELL    16
 #define PITCH   18
 
 static int gui_scale(int fb_h) { int s = fb_h / 240; return s > 1 ? s : 1; }
 
-static int panel_h(int container) { return container == 3 ? CHEST_PANEL_H : PANEL_H; }
+/* Layout / hit-test height: GuiContainer uses ySize for guiTop and bounds. */
+static int panel_h(int container) { return container == 3 ? CHEST_YSIZE : PANEL_H; }
 
 int gm_screen_gui_scale(int fb_h) { return gui_scale(fb_h); }
 
@@ -358,7 +362,7 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
     } else if (r->container == 3) {
         gm_font_draw(fb, "Chest", px + 8 * s, py + 6 * s, s, 0x404040u, 0);
         /* GuiChest: upper inv label at ySize - 96 + 2 */
-        gm_font_draw(fb, "Inventory", px + 8 * s, py + (168 - 96 + 2) * s,
+        gm_font_draw(fb, "Inventory", px + 8 * s, py + (CHEST_YSIZE - 96 + 2) * s,
                      s, 0x404040u, 0);
     } else {
         gm_font_draw(fb, "Crafting", px + 97 * s, py + 8 * s, s, 0x404040u, 0);

@@ -13,14 +13,14 @@ echo "== build gui_actions_candidate =="
 make -s game/screen.o game/player_preview.o game/hud.o game/item_render.o game/container_live.o game/runtime.o \
     game/fluid_live.o game/config.o game/player_ctl.o game/sel_box.o game/world_live.o \
     game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o \
-    game/portal_live.o game/furnace_live.o game/caps.o world/light.o world/mesh_mc.o \
+    game/portal_live.o game/furnace_live.o game/chest_live.o game/caps.o world/light.o world/mesh_mc.o \
     world/populate_mc.o world/blocks.o world/mesh.o world/world.o \
     renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o core/math.o core/shade.o cpu/raster_cpu.o
 gcc "${FLAGS[@]}" "$OUT/gui_actions_candidate.c" \
     game/screen.o game/player_preview.o game/hud.o game/item_render.o game/runtime.o game/fluid_live.o \
     game/config.o game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o \
     game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o \
-    game/furnace_live.o game/container_live.o game/caps.o world/light.o \
+    game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o world/light.o \
     world/mesh_mc.o world/populate_mc.o world/blocks.o world/mesh.o world/world.o \
     renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o \
     core/math.o core/shade.o cpu/raster_cpu.o -lm -o "$OUT/gui_actions_candidate"
@@ -75,8 +75,10 @@ def panel_mask(shape):
     mask = np.zeros((h, w), dtype=bool)
     i = 4 * s
     mask[y0 + i:y0 + 166 * s - i, x0 + i:x0 + 176 * s - i] = True
-    # GuiInventory's live 3D player preview is a documented magma gap. Keep
-    # armor/craft/main/hotbar pixels gated; mask only the preview viewport.
+    # Action frames hover different slots, so the look-at preview pose changes
+    # per step. Preview geometry is gated in run_gui_verify.sh (pose1 parked
+    # mouse + pose2 action_00). This script masks the 52x72 viewport and gates
+    # slot/cursor ROIs only — those ROIs do NOT verify the player preview.
     mask[y0 + 7 * s:y0 + 79 * s, x0 + 24 * s:x0 + 76 * s] = False
     return mask
 

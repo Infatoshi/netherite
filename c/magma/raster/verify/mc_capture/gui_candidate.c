@@ -1,15 +1,15 @@
 /* gui_candidate - render ONE container screen (player inventory / crafting
- * table / furnace) through the real gm_screen_draw path onto a bare frame and
- * dump a PPM, to pixel-diff the 176x166 panel region against a live Minecraft
- * capture of the SAME screen (capture_gui.sh -> mc_gui_*.png).
+ * table / furnace / single chest) through the real gm_screen_draw path onto a
+ * bare frame and dump a PPM, to pixel-diff the panel region against a live
+ * Minecraft capture of the SAME screen (capture_gui.sh -> mc_gui_*.png).
  *
  * The runtime is a zeroed GmRuntime with only `container` set: an empty
- * inventory, empty grid, no furnace bound (idle furnace draws the vanilla
+ * inventory, empty grid, no furnace/chest bound (idle furnace draws the vanilla
  * 1px arrow slice), mouse parked at (5,5) so no slot is hovered and the
  * cursor pointer stays outside the panel crop. The 3D scene behind the
  * gradient dim is NOT compared (the diff crops to the panel inset).
  *
- *   gui_candidate --container 0|1|2 [--w 854 --h 480] [--ppm PATH]
+ *   gui_candidate --container 0|1|2|3 [--w 854 --h 480] [--ppm PATH]
  *
  * Prints "PANEL x y w h scale" (framebuffer px) for the diff script.
  */
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--ppm") && i + 1 < argc) out = argv[++i];
         else { fprintf(stderr, "unknown arg %s\n", argv[i]); return 2; }
     }
-    if (container < 0 || container > 2 || W < 320 || H < 240) {
+    if (container < 0 || container > 3 || W < 320 || H < 240) {
         fprintf(stderr, "bad args\n"); return 2;
     }
     if (gm_hud_init()) { fprintf(stderr, "hud init failed\n"); return 1; }
@@ -52,6 +52,7 @@ int main(int argc, char **argv)
     static GmRuntime r; /* zeroed: empty inventory/grid/cursor */
     r.container = container;
     r.active_furnace = -1;
+    r.active_chest = -1;
 
     CrFramebuffer fb;
     fb.w = W; fb.h = H;
@@ -69,9 +70,11 @@ int main(int argc, char **argv)
     if (write_ppm(out, fb.color, W, H)) { fprintf(stderr, "write failed\n"); return 1; }
     /* vanilla GuiContainer origin: floor((scaledW - 176) / 2) in gui units */
     int s = H / 240 > 1 ? H / 240 : 1;
+    /* GuiChest centers with ySize=168; drawn texture is 167 tall. */
+    int ph = container == 3 ? 168 : 166;
     int gw = (W + s - 1) / s, gh = (H + s - 1) / s;
-    printf("PANEL %d %d %d %d %d\n", (gw - 176) / 2 * s, (gh - 166) / 2 * s,
-           176 * s, 166 * s, s);
+    printf("PANEL %d %d %d %d %d\n", (gw - 176) / 2 * s, (gh - ph) / 2 * s,
+           176 * s, ph * s, s);
     fprintf(stderr, "wrote %s (container %d, %dx%d)\n", out, container, W, H);
     return 0;
 }

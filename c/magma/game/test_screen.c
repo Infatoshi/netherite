@@ -40,7 +40,7 @@ static void check_container(int container, int fb_w, int fb_h, int want_slots)
     /* panel top-left corner: inside the panel, not on a slot (vanilla origin:
      * integer division in GUI units, so 854x480 lands at fb x 250, not 251) */
     { int s = fb_h / 240 > 1 ? fb_h / 240 : 1;
-      int ph = container == 3 ? 167 : 166;
+      int ph = container == 3 ? 168 : 166; /* GuiChest ySize; tex is 167 */
       int gw = (fb_w + s - 1) / s, gh = (fb_h + s - 1) / s;
       int px = (gw - 176) / 2 * s, py = (gh - ph) / 2 * s;
       CHECK(gm_screen_slot_at(container, fb_w, fb_h, px, py) == -1,
