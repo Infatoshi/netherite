@@ -226,11 +226,19 @@ int main(void) {
     CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_GHAST,8.5,10.0,20.5)>=0,"spawn ghast");
     double gy0=0;{GmEntityView vv[EW_MAX_ENTITIES];int nn=gm_mobs_fill_views(&r.mobs,vv,EW_MAX_ENTITIES);
         for(int k=0;k<nn;++k)if(vv[k].type==GM_MOB_GHAST)gy0=vv[k].y;}
-    for(int i=0;i<60;++i)gm_runtime_tick(&r,idle);
+    int saw_fireball=0;
+    for(int i=0;i<60;++i){
+        gm_runtime_tick(&r,idle);
+        for(int k=0;k<GM_RUNTIME_PROJECTILES;++k)
+            if(r.projectiles[k].active&&r.projectiles[k].type==5)saw_fireball=1;
+    }
     {GmEntityView vv[EW_MAX_ENTITIES];int nn=gm_mobs_fill_views(&r.mobs,vv,EW_MAX_ENTITIES);
         int found=0;for(int k=0;k<nn;++k)if(vv[k].type==GM_MOB_GHAST){
-            found=1;CHECK(vv[k].y>4.0f,"ghast remains airborne");}}
+            found=1;CHECK(vv[k].y>4.0f,"ghast remains airborne");}
+        CHECK(found,"ghast remains in live entity store after flight ticks");
+    }
     CHECK(gm_mobs_alive(&r.mobs)==1,"ghast survives flight ticks");
+    CHECK(saw_fireball,"ghast charge produces a live large-fireball projectile");
     (void)gy0;
     gm_runtime_destroy(&r);
 
