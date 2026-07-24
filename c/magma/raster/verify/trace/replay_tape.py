@@ -685,11 +685,16 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
             # without the old hand-written set_inventory worldpatch entries.
             if "inv" in row:
                 for tape_slot, stack in enumerate(row["inv"]):
-                    if 36 <= tape_slot < 40:
-                        if tape_slot == 38:
-                            pending_elytra = int(stack != 0 and int(stack[0]) == 443)
+                    # 0..35 main, 36..39 armor (chest=38), 40 offhand. Replay
+                    # all four armor slots with metadata; keep set_elytra as a
+                    # narrow flight-eligibility re-anchor from chest content.
+                    if tape_slot == 38:
+                        pending_elytra = int(
+                            stack != 0 and int(stack[0]) == 443
+                            and int(stack[1]) < 431)
+                    if tape_slot > 40:
                         continue
-                    slot = 40 if tape_slot == 40 else tape_slot
+                    slot = tape_slot
                     item, meta, count = (0, 0, 0) if stack == 0 else stack
                     state = {"slot": slot, "item": int(item),
                              "count": int(count), "meta": int(meta)}

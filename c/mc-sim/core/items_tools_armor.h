@@ -318,6 +318,7 @@ MC_HD static inline int ita_stack_max_damage(const ITAStack *s) {
     if (mat >= 0) return ita_tool_max_uses(mat);
     int am = ita_armor_material(s->item);
     if (am >= 0) return ita_arm_max_damage(am, ita_armor_slot(s->item));
+    if (s->item == 443) return 432; /* Items.ELYTRA maxDamage */
     return 0;
 }
 
@@ -372,6 +373,32 @@ MC_HD static inline float ita_armor_set_toughness(const ITAStack slots[4]) {
         if (am >= 0) t += ita_arm_toughness(am);
     }
     return t;
+}
+
+/* InventoryPlayer.damageArmor: raw/4 (min 1) per ItemArmor piece; elytra excluded. */
+MC_HD static inline void ita_damage_armor_set(ITAStack slots[4], float raw_damage) {
+    float d = raw_damage / 4.0f;
+    int amount;
+    if (d < 1.0f) d = 1.0f;
+    amount = (int)d;
+    for (int i = 0; i < 4; ++i) {
+        if (ita_armor_material(slots[i].item) < 0) continue;
+        if (!ita_stack_is_damageable(&slots[i]) || amount <= 0) continue;
+        slots[i].damage += amount;
+        if (slots[i].damage > ita_stack_max_damage(&slots[i])) {
+            slots[i].item = 0;
+            slots[i].count = 0;
+            slots[i].damage = 0;
+        }
+    }
+}
+
+/* CombatRules absorb when source is not unblockable. */
+MC_HD static inline float ita_apply_armor_absorb(float damage, const ITAStack slots[4],
+                                                  int unblockable) {
+    if (unblockable || damage <= 0.0f) return damage;
+    return ita_damage_after_absorb(damage, (float)ita_armor_set_points(slots),
+                                   ita_armor_set_toughness(slots));
 }
 
 MC_HD static inline int ita_prot_calc_modifier(int level, int prot_type, int ds_flags) {

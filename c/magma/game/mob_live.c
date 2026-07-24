@@ -4,6 +4,7 @@
 
 #include "combat_math.h"
 #include "items_tools_armor.h"
+#include "inventory_stack_rules.h"
 #include "mc_rng.h"
 #include "player_vitals.h"
 
@@ -92,18 +93,48 @@ static float melee_damage(int type, int size) {
     return 4.0f;
 }
 
-int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals_, float amount) {
+/* Apply armor absorb + durability. Returns residual damage to health. */
+static float mob_apply_armor(IsrInv *inv, float amount, int bypass_armor)
+{
+    ITAStack slots[4];
+    if (!inv || bypass_armor || amount <= 0.0f) return amount;
+    for (int i = 0; i < 4; ++i) {
+        ICStack s = isr_get_stack(inv, ISR_ARMOR0 + i);
+        slots[i] = ita_mk(s.item, s.meta);
+        slots[i].count = s.count;
+    }
+    ita_damage_armor_set(slots, amount);
+    for (int i = 0; i < 4; ++i) {
+        if (slots[i].item <= 0 || slots[i].count <= 0)
+            isr_set_stack(inv, ISR_ARMOR0 + i, ic_empty());
+        else
+            isr_set_stack(inv, ISR_ARMOR0 + i,
+                          ic_mk(slots[i].item, 1, slots[i].damage));
+    }
+    return ita_apply_armor_absorb(amount, slots, 0);
+}
+
+/* EntityLivingBase.attackEntityFrom hurtResistantTime/lastDamage gate. Returns
+ * whether the attack was accepted, as EntityWitherSkeleton.attackEntityAsMob
+ * uses that result before adding PotionEffect(WITHER, 200, 0). lastDamage is
+ * the RAW pre-armor amount; armor runs in damageEntity after the gate. */
+int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals_,
+                          struct IsrInv *player_inv, float amount,
+                          int bypass_armor) {
     PvStats *v=(PvStats *)vitals_;
+    float applied;
     if (!m || !v || amount <= 0.0f) return 0;
     if (m->player_hurt_resistant > 10) {
         if (amount <= m->player_last_damage) return 0;
-        pv_attack(v, amount - m->player_last_damage);
+        applied = amount - m->player_last_damage;
         m->player_last_damage = amount;
-        return 1;
+    } else {
+        applied = amount;
+        m->player_last_damage = amount;
+        m->player_hurt_resistant = 20;
     }
-    m->player_last_damage = amount;
-    m->player_hurt_resistant = 20;
-    pv_attack(v, amount);
+    applied = mob_apply_armor((IsrInv *)player_inv, applied, bypass_armor);
+    if (applied > 0.0f) pv_attack(v, applied);
     return 1;
 }
 
@@ -885,8 +916,10 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     const McSinTable *st=(const McSinTable *)st_;
     EwStore *now=now_store(m), *nx=next_store(m); ew_store_copy(nx,now);
     if (m->player_wither_ticks > 0) {
+        /* DamageSource.WITHER is unblockable. */
         if (m->player_wither_ticks % 40 == 0)
-            (void)gm_mobs_attack_player(m, (struct PvStats *)v, 1.0f);
+            (void)gm_mobs_attack_player(m, (struct PvStats *)v,
+                                        &p->inv, 1.0f, 1);
         --m->player_wither_ticks;
         p->health = v->health;
     }
@@ -990,7 +1023,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                nx->attack_time[i]<=0){
                 float dmg=melee_damage(type,m->size[i]);
                 if(dmg>0.0f){
-                    (void)gm_mobs_attack_player(m,(struct PvStats *)v,dmg);
+                    (void)gm_mobs_attack_player(m,(struct PvStats *)v,
+                                                &p->inv,dmg,0);
                     p->health=v->health;
                 }
                 nx->attack_time[i]=20;
@@ -1000,7 +1034,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             nx->ai_state[i]=EW_AI_ATTACK;nx->yaw[i]=ehs_yaw_toward(dx,dz);
             if(nx->attack_time[i]<=0){
                 int hit=gm_mobs_attack_player(m,(struct PvStats *)v,
-                                              melee_damage(type,m->size[i]));
+                                              &p->inv,
+                                              melee_damage(type,m->size[i]),0);
                 p->health=v->health;
                 if(hit&&type==EW_TYPE_WITHER_SKELETON)
                     m->player_wither_ticks=200;

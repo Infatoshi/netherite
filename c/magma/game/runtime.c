@@ -9,6 +9,55 @@
 #include "game/portal_live.h"
 #include "game/structures_live.h"
 #include "explosion.h"
+#include "items_tools_armor.h"
+#include "inventory_stack_rules.h"
+
+/* EntityLivingBase.applyArmorCalculations + InventoryPlayer.damageArmor. */
+static float runtime_armor_damage(GmRuntime *r, float amount, int unblockable)
+{
+    ITAStack slots[4];
+    if (!r || amount <= 0.0f) return amount;
+    if (unblockable) return amount;
+    for (int i = 0; i < 4; ++i) {
+        ICStack s = isr_get_stack(&r->player.inv, ISR_ARMOR0 + i);
+        slots[i] = ita_mk(s.item, s.meta);
+        slots[i].count = s.count;
+    }
+    ita_damage_armor_set(slots, amount);
+    for (int i = 0; i < 4; ++i) {
+        if (slots[i].item <= 0 || slots[i].count <= 0)
+            isr_set_stack(&r->player.inv, ISR_ARMOR0 + i, ic_empty());
+        else {
+            ICStack s = ic_mk(slots[i].item, 1, slots[i].damage);
+            isr_set_stack(&r->player.inv, ISR_ARMOR0 + i, s);
+        }
+    }
+    {
+        ICStack chest = isr_get_stack(&r->player.inv, ISR_ARMOR_CHEST);
+        if (chest.item == ISR_ELYTRA_ITEM)
+            r->player.elytra_equipped = isr_elytra_usable(&chest);
+    }
+    return ita_apply_armor_absorb(amount, slots, 0);
+}
+
+static int isr_slot_ok(int slot)
+{
+    return (slot >= 0 && slot < ISR_MAIN_SLOTS) ||
+           isr_is_armor_index(slot) ||
+           slot == ISR_OFFHAND_SLOT;
+}
+
+static void sync_elytra_from_chest(GmRuntime *r)
+{
+    ICStack chest;
+    if (!r) return;
+    chest = isr_get_stack(&r->player.inv, ISR_ARMOR_CHEST);
+    if (chest.item == ISR_ELYTRA_ITEM)
+        r->player.elytra_equipped = isr_elytra_usable(&chest);
+    else if (!isr_is_empty(&chest))
+        r->player.elytra_equipped = 0;
+    /* empty chest: leave set_elytra test-hook flag alone */
+}
 
 #define GM_RUNTIME_MAX_EDITS 8
 
@@ -48,6 +97,8 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
         }
     GmPlayerView v;gm_runtime_view(r,&v);
     float damage=ex_entity_damage(v.x,v.y+v.eye_height,v.z,ex,ey,ez,size,1.0f);
+    /* ExplosionDamage is not unblockable; armor absorb + durability apply. */
+    damage = runtime_armor_damage(r, damage, 0);
     pv_attack(&r->vitals,damage);r->player.health=r->vitals.health;
     if(r->dimension==1&&r->dragon.initialized){
         EdDragon *d=&r->dragon.state.arena.dragon;
@@ -213,7 +264,8 @@ static void tick_projectiles(GmRuntime *r) {
                 if(dx*dx+dy*dy+dz*dz<=0.75*0.75){
                     float dmg=p->type==5?6.0f:(p->type==3?5.0f:4.0f);
                     int hit=gm_mobs_attack_player(&r->mobs,
-                        (struct PvStats *)&r->vitals,dmg);
+                        (struct PvStats *)&r->vitals, &r->player.inv,
+                        dmg, 0);
                     r->player.health=r->vitals.health;
                     if(hit&&p->type==3)r->player_fire_ticks=5*20;
                     if(p->type==5)runtime_explode(r,p->x,p->y,p->z,1.0f);
@@ -350,9 +402,10 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     /* Entity.onEntityUpdate: burning is fire>0, damage lands while the
      * pre-decrement counter is divisible by 20, then the counter ages. */
     if(r->player_fire_ticks>0){
+        /* DamageSource.ON_FIRE bypasses armor. */
         if(r->player_fire_ticks%20==0)
             (void)gm_mobs_attack_player(&r->mobs,
-                (struct PvStats *)&r->vitals,1.0f);
+                (struct PvStats *)&r->vitals, &r->player.inv, 1.0f, 1);
         --r->player_fire_ticks;
         r->player.health=r->vitals.health;
     }
@@ -572,6 +625,7 @@ void gm_runtime_set_packet_velocity(GmRuntime *r, double x, double y, double z) 
 }
 
 void gm_runtime_set_elytra(GmRuntime *r, int equipped) {
+    /* Narrow replay/test hook. Normal play derives flight from chest item 443. */
     if (!r) return;
     r->player.elytra_equipped = equipped ? 1 : 0;
 }
@@ -597,7 +651,9 @@ int gm_runtime_dragon_contact(GmRuntime *r, double min_x, double min_y,
     double lz0=min_z-r->oz,lz1=max_z-r->oz;
     if (!(pb->minX < lx1 && pb->maxX > lx0 && pb->minY < max_y &&
           pb->maxY > min_y && pb->minZ < lz1 && pb->maxZ > lz0)) return 0;
-    int hit=gm_mobs_attack_player(&r->mobs,(struct PvStats *)&r->vitals,damage);
+    /* Dragon part contact uses causeMobDamage-style path: armor applies. */
+    int hit=gm_mobs_attack_player(&r->mobs,(struct PvStats *)&r->vitals,
+                                 &r->player.inv, damage, 0);
     r->player.health=r->vitals.health;
     return hit;
 }
@@ -746,8 +802,7 @@ int gm_runtime_tape_furnace(GmRuntime *r, int burn, int current_burn,
 }
 
 int gm_runtime_tape_inventory(GmRuntime *r, int slot, int item, int count, int meta) {
-    if (!r || (slot < 0 && slot != ISR_OFFHAND_SLOT) ||
-        (slot >= ISR_MAIN_SLOTS && slot != ISR_OFFHAND_SLOT) ||
+    if (!r || !isr_slot_ok(slot) ||
         item < 0 || item > 4095 || count < 0 || count > 64 ||
         meta < 0 || meta > 32767 || ((item == 0) != (count == 0))) return 0;
     if (!r->tape_inv_active) {
@@ -935,12 +990,12 @@ int gm_runtime_snapshot_region_dim(GmRuntime *r, int dimension,
 }
 
 int gm_runtime_set_inventory(GmRuntime *r, int slot, int item, int count, int meta) {
-    if (!r || (slot < 0 && slot != ISR_OFFHAND_SLOT) ||
-        (slot >= ISR_MAIN_SLOTS && slot != ISR_OFFHAND_SLOT) || item < 0 || item > 4095 ||
+    if (!r || !isr_slot_ok(slot) || item < 0 || item > 4095 ||
         count < 0 || count > 64 || meta < 0 || meta > 32767 ||
         ((item == 0) != (count == 0))) return 0;
     isr_set_stack(&r->player.inv, slot,
                   count == 0 ? ic_empty() : ic_mk(item, count, meta));
+    if (slot == ISR_ARMOR_CHEST) sync_elytra_from_chest(r);
     return 1;
 }
 

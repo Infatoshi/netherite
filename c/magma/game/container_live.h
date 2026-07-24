@@ -4,7 +4,8 @@
  * PORT: net/minecraft/inventory/Container.java slotClick (PICKUP / QUICK_MOVE / THROW)
  *       + mergeItemStack(start,end,reverse), ContainerPlayer / ContainerWorkbench /
  *       ContainerFurnace transferStackInSlot target ordering, SlotCrafting take
- *       (consume one per grid cell), SlotFurnaceFuel validity (isItemFuel).
+ *       (consume one per grid cell), SlotFurnaceFuel validity (isItemFuel),
+ *       ContainerPlayer armor slots (stack limit 1 + isValidArmor).
  *
  * This is the ONE shipped click path: the windowed screen and the JSONL harness both
  * reach it through GmAction.inv_click -> gm_runtime_tick. The 9-slot verified kernel
@@ -17,7 +18,11 @@
  *   45      craft result (take-only; consumes one item per non-empty grid cell)
  *   46..48  open furnace input/fuel/output (fuel slot rejects non-fuel, output is
  *           take-only; insert/extract go through the verified furnace_live wrappers)
+ *   49..52  player armor GUI (feet/legs/chest/head) -> IsrInv 36..39; player screen only
  *   -999    outside the window (PICKUP drops the cursor)
+ *
+ * IsrInv tape/set_inventory armor indices remain 36..39 (chest = 38) and are distinct
+ * from craft-grid GMC ids 36..44.
  *
  * THROW / outside-drops spawn a REAL item entity at the player (vanilla dropItem),
  * unlike the synthetic 9-slot kernel which discards. Closing a container (walking
@@ -35,7 +40,8 @@ enum {
     GMC_GRID0      = 36,
     GMC_RESULT     = 45,
     GMC_FURNACE0   = 46,   /* 46 input, 47 fuel, 48 output */
-    GMC_SLOT_COUNT = 49,
+    GMC_ARMOR0     = 49,   /* 49 feet, 50 legs, 51 chest, 52 head -> isr 36..39 */
+    GMC_SLOT_COUNT = 53,
     GMC_OUTSIDE    = -999
 };
 

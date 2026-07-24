@@ -169,6 +169,51 @@ int main(void) {
             "non-fuel is rejected by the fuel slot (cursor unchanged)"); }
     click(&r, 5, 0, CC_CLICK_PICKUP);                 /* park them back */
 
+    /* ---- armor slots: validity, stack limit 1, QUICK_MOVE equip ---- */
+    gm_container_close(&r);
+    r.container = 0;
+    r.active_furnace = -1;
+    CHECK(gm_runtime_set_inventory(&r, 0, 306, 1, 0), "seed iron helmet");
+    click(&r, 0, 0, CC_CLICK_PICKUP);
+    click(&r, GMC_ARMOR0 + 0, 0, CC_CLICK_PICKUP); /* feet rejects helmet */
+    { ICStack c = gm_player_cursor();
+      ICStack feet = isr_get_stack(&r.player.inv, ISR_ARMOR_FEET);
+      CHECK(c.item == 306 && isr_is_empty(&feet),
+            "armor slot rejects wrong-slot armor (helmet into feet)"); }
+    click(&r, GMC_ARMOR0 + 3, 0, CC_CLICK_PICKUP); /* head accepts helmet */
+    { ICStack head = isr_get_stack(&r.player.inv, ISR_ARMOR_HEAD);
+      ICStack c = gm_player_cursor();
+      CHECK(head.item == 306 && head.count == 1 && isr_is_empty(&c),
+            "PICKUP equips iron helmet into head (GMC_ARMOR0+3 / isr 39)"); }
+    CHECK(gm_runtime_set_inventory(&r, 1, 1, 16, 0), "seed stone stack");
+    click(&r, 1, 0, CC_CLICK_PICKUP);
+    click(&r, GMC_ARMOR0 + 1, 0, CC_CLICK_PICKUP);
+    { ICStack c = gm_player_cursor();
+      ICStack legs = isr_get_stack(&r.player.inv, ISR_ARMOR_LEGS);
+      CHECK(c.item == 1 && c.count == 16 && isr_is_empty(&legs),
+            "armor slot rejects non-armor (stone into legs)"); }
+    click(&r, 1, 0, CC_CLICK_PICKUP); /* park stone */
+    CHECK(gm_runtime_set_inventory(&r, 2, 307, 1, 0), "seed iron chestplate");
+    click(&r, 2, 0, CC_CLICK_QUICK_MOVE);
+    { ICStack chest = isr_get_stack(&r.player.inv, ISR_ARMOR_CHEST);
+      ICStack s2 = slot(&r, 2);
+      CHECK(chest.item == 307 && isr_is_empty(&s2),
+            "QUICK_MOVE equips iron chestplate into chest (isr 38)"); }
+    /* chest occupied: vanilla skips armor equip and does main/hotbar instead */
+    CHECK(gm_runtime_set_inventory(&r, 3, 443, 1, 0), "seed elytra");
+    click(&r, 3, 0, CC_CLICK_QUICK_MOVE);
+    { ICStack chest = isr_get_stack(&r.player.inv, ISR_ARMOR_CHEST);
+      ICStack s3 = slot(&r, 3);
+      ICStack s9 = slot(&r, 9);
+      CHECK(chest.item == 307 && isr_is_empty(&s3) && s9.item == 443,
+            "QUICK_MOVE with full chest slot falls through to main inventory"); }
+    click(&r, GMC_ARMOR0 + 2, 0, CC_CLICK_PICKUP); /* take chestplate to cursor */
+    click(&r, 4, 0, CC_CLICK_PICKUP);               /* park chestplate */
+    click(&r, 9, 0, CC_CLICK_QUICK_MOVE);           /* equip elytra from main */
+    { ICStack chest = isr_get_stack(&r.player.inv, ISR_ARMOR_CHEST);
+      CHECK(chest.item == 443 && r.player.elytra_equipped == 1,
+            "QUICK_MOVE equips elytra into empty chest and arms flight"); }
+
     if (fail) { fprintf(stderr, "container_live: FAIL\n"); return 1; }
     fprintf(stderr, "container_live: PASS\n");
     return 0;

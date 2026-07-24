@@ -5,6 +5,7 @@
 #include "game/live_sim.h"
 #include "entity_hostile_spine.h"
 #include "entity_xp_orb.h"
+#include "inventory_stack_rules.h"
 
 #define GM_XP_ORBS 64
 #define GM_SPAWNERS 64
@@ -83,8 +84,11 @@ int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player,
                           int ox, int oz, GmLiveSim *drops);
 /* Shared EntityLivingBase.attackEntityFrom hurt-resistance path. Dragon
  * contact and tape-replay authoritative mob contacts use the same gate as
- * live hostile melee. */
-int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals, float amount);
+ * live hostile melee. When player_inv is non-NULL and bypass_armor is 0,
+ * CombatRules armor absorb + InventoryPlayer.damageArmor run first. */
+int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals,
+                          struct IsrInv *player_inv, float amount,
+                          int bypass_armor);
 void gm_mobs_player_hurt_tick(GmMobLive *m);
 void gm_mobs_tick(GmMobLive *m, GmWorld *world, const struct McSinTable *sin_table,
                   struct PsvPlayer *player, struct PvStats *vitals,

@@ -81,7 +81,10 @@ int gm_screen_layout(int container, int fb_w, int fb_h, GmScreenSlot *out, int m
         n = put(out, n, max, GMC_FURNACE0 + 1, px, py, s, 56, 53);
         n = put(out, n, max, GMC_FURNACE0 + 2, px, py, s, 116, 35);
     } else {
-        /* player screen: vanilla 2x2 matrix at (98,18), result at (154,28) */
+        /* player screen: armor HEAD..FEET at (8, 8+k*18) -> GMC_ARMOR0+3..0
+         * (isr 39..36); 2x2 matrix at (98,18), result at (154,28) */
+        for (int k = 0; k < 4; ++k)
+            n = put(out, n, max, GMC_ARMOR0 + (3 - k), px, py, s, 8, 8 + k * PITCH);
         static const int cells[4] = {0, 1, 3, 4};
         for (int i = 0; i < 4; ++i)
             n = put(out, n, max, GMC_GRID0 + cells[i], px, py, s,
@@ -115,6 +118,8 @@ static ICStack screen_stack(const GmRuntime *r, int id)
     ICStack taped;
     if (gm_runtime_tape_gui_slot_get(r, id, &taped)) return taped;
     if (id < GMC_INV_SLOTS) return isr_get_stack(&r->player.inv, id);
+    if (id >= GMC_ARMOR0 && id < GMC_ARMOR0 + ISR_ARMOR_SLOTS)
+        return isr_get_stack(&r->player.inv, ISR_ARMOR0 + (id - GMC_ARMOR0));
     if (id >= GMC_GRID0 && id < GMC_RESULT) return r->craft_grid[id - GMC_GRID0];
     if (id == GMC_RESULT) return gm_container_result(r);
     if (r->container == 2 && r->active_furnace >= 0) {
@@ -179,13 +184,21 @@ static void draw_inventory_ui_sprite(CrFramebuffer *fb, int sprite,
 static void draw_empty_player_slots(CrFramebuffer *fb, const GmRuntime *r,
                                     int px, int py, int s)
 {
-    static const int armor[4] = {
+    /* Empty armor icons only when the matching real slot is empty. Display
+     * order is HEAD, CHEST, LEGS, FEET (top to bottom). */
+    static const int armor_icon[4] = {
         INVENTORY_UI_EMPTY_HELMET, INVENTORY_UI_EMPTY_CHESTPLATE,
         INVENTORY_UI_EMPTY_LEGGINGS, INVENTORY_UI_EMPTY_BOOTS
     };
-    for (int i = 0; i < 4; ++i)
-        draw_inventory_ui_sprite(fb, armor[i], px + 8 * s,
+    static const int armor_isr[4] = {
+        ISR_ARMOR_HEAD, ISR_ARMOR_CHEST, ISR_ARMOR_LEGS, ISR_ARMOR_FEET
+    };
+    for (int i = 0; i < 4; ++i) {
+        ICStack piece = isr_get_stack(&r->player.inv, armor_isr[i]);
+        if (piece.item > 0 && piece.count > 0) continue;
+        draw_inventory_ui_sprite(fb, armor_icon[i], px + 8 * s,
                                  py + (8 + i * PITCH) * s, s);
+    }
 
     ICStack offhand = isr_get_stack(&r->player.inv, ISR_OFFHAND_SLOT);
     if (offhand.item > 0 && offhand.count > 0)

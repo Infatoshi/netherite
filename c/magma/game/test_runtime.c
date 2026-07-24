@@ -44,11 +44,20 @@ int main(void) {
     r.player_fire_ticks = 0;
     CHECK(gm_runtime_tape_inventory(&r,0,17,2,0),"tape inventory accepts hotbar stack");
     CHECK(gm_runtime_tape_inventory(&r,40,442,1,0),"tape inventory accepts offhand stack");
+    CHECK(gm_runtime_tape_inventory(&r,38,443,1,12),
+          "tape inventory accepts elytra chest slot 38 with meta");
+    CHECK(isr_get_stack(&r.tape_inv,38).meta==12,
+          "tape chest elytra preserves durability meta");
     gm_runtime_set_elytra(&r, 1);
     CHECK(r.player.elytra_equipped == 1,
           "set_elytra arms EntityEquipmentSlot.CHEST == Items.ELYTRA for travel");
     gm_runtime_set_elytra(&r, 0);
     CHECK(r.player.elytra_equipped == 0, "set_elytra clears chest equipment flag");
+    CHECK(gm_runtime_set_inventory(&r,38,443,1,0),"live set_inventory places elytra in chest");
+    CHECK(r.player.elytra_equipped==1,"chest elytra arms flight eligibility");
+    CHECK(gm_runtime_set_inventory(&r,38,0,0,0),"clear chest");
+    /* empty chest leaves set_elytra hook; clear explicitly for the next checks */
+    gm_runtime_set_elytra(&r, 0);
     gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1,1,1,0,9,
                                 10,27.5f,0.4f);
     gm_runtime_tape_potions_clear(&r);

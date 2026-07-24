@@ -52,7 +52,7 @@ int main(void)
     /* 854x480 (product default, scale 2) and a scale-1 window */
     static const int sizes[][2] = {{854, 480}, {320, 200}};
     for (int z = 0; z < 2; ++z) {
-        check_container(0, sizes[z][0], sizes[z][1], 41); /* 36 + 2x2 grid + result */
+        check_container(0, sizes[z][0], sizes[z][1], 45); /* 36 + 4 armor + 2x2 + result */
         check_container(1, sizes[z][0], sizes[z][1], 46); /* 36 + 3x3 grid + result */
         check_container(2, sizes[z][0], sizes[z][1], 39); /* 36 + furnace 3 */
     }

@@ -246,6 +246,7 @@ test-game: test-config test-block-registry test-launch
 	bash game/test_plants_live.sh
 	bash game/test_furnace_live.sh
 	bash game/test_container_live.sh
+	bash game/test_armor_live.sh
 	bash game/test_screen.sh
 	bash game/test_mob_live.sh
 	bash game/test_stronghold_live.sh

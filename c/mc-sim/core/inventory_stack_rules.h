@@ -2,7 +2,7 @@
  *
  * Subset: ItemStack.getMaxStackSize/isStackable/splitStack; InventoryPlayer.canMergeStacks,
  * storePartialItemStack/addItemStackToInventory, decrStackSize, getBestHotbarSlot, pickItem,
- * changeCurrentItem, getFirstEmptyStack. Main (36) + offhand (slot 40); armor/creative/GUI/NBT cut.
+ * changeCurrentItem, getFirstEmptyStack. Main (36) + armor (36..39) + offhand (40).
  *
  * Harness: fixed hex scenario battery (ISR_NUM_SCENARIOS). READ-ONLY: items_core.h (ICStack ids).
  * CPU==CUDA. */
@@ -13,14 +13,23 @@
 #include "items_core.h"
 
 #define ISR_MAIN_SLOTS   36
+#define ISR_ARMOR_SLOTS  4
+#define ISR_ARMOR0       36  /* feet, legs, chest, head (InventoryPlayer.armorInventory) */
+#define ISR_ARMOR_FEET   36
+#define ISR_ARMOR_LEGS   37
+#define ISR_ARMOR_CHEST  38
+#define ISR_ARMOR_HEAD   39
 #define ISR_OFFHAND_SLOT 40
 #define ISR_INV_LIMIT    64
 #define ISR_NUM_SCENARIOS 10
 #define ISR_FIELDS_PER    8
 #define ISR_OUT           (ISR_NUM_SCENARIOS * ISR_FIELDS_PER)
+#define ISR_ELYTRA_ITEM  443
+#define ISR_ELYTRA_MAX_DAMAGE 432
 
-typedef struct {
+typedef struct IsrInv {
     ICStack main[ISR_MAIN_SLOTS];
+    ICStack armor[ISR_ARMOR_SLOTS]; /* tape/Isr indices 36..39 */
     ICStack offhand;
     i32 current_item;
 } IsrInv;
@@ -31,12 +40,18 @@ MC_HD static inline int isr_is_empty(const ICStack *s) {
 
 MC_HD static inline i32 isr_inv_stack_limit(void) { return ISR_INV_LIMIT; }
 
+/* Leather..diamond armor ids 298..317 and elytra 443 are unstackable. */
+MC_HD static inline int isr_is_armor_or_elytra(i32 item) {
+    return (item >= 298 && item <= 317) || item == ISR_ELYTRA_ITEM;
+}
+
 MC_HD static inline i32 isr_max_stack_size(i32 item, i32 meta) {
     (void)meta;
     if (item == IC_WOODEN_PICKAXE || item == IC_STONE_PICKAXE ||
         item == 257 || item == 278 || /* iron/diamond pickaxe */
         item == 268 || item == 272 || item == 267 || item == 276 || /* swords */
         item == 261 || item == 259 || item == 359 || item == 442 || item == 355) return 1;
+    if (isr_is_armor_or_elytra(item)) return 1;
     if (item == IC_BUCKET || item == IC_WATER_BUCKET || item == IC_LAVA_BUCKET) return 1;
     return ISR_INV_LIMIT;
 }
@@ -44,7 +59,18 @@ MC_HD static inline i32 isr_max_stack_size(i32 item, i32 meta) {
 MC_HD static inline int isr_is_damageable(i32 item) {
     return item == IC_WOODEN_PICKAXE || item == IC_STONE_PICKAXE || item == 257 ||
         item == 278 || item == 268 || item == 272 || item == 267 || item == 276 ||
-        item == 261 || item == 259 || item == 359 || item == 442;
+        item == 261 || item == 259 || item == 359 || item == 442 ||
+        isr_is_armor_or_elytra(item);
+}
+
+/* ItemElytra.isBroken naming is inverted: true means still usable for flight. */
+MC_HD static inline int isr_elytra_usable(const ICStack *s) {
+    if (!s || s->item != ISR_ELYTRA_ITEM || s->count <= 0) return 0;
+    return s->meta < ISR_ELYTRA_MAX_DAMAGE - 1;
+}
+
+MC_HD static inline int isr_is_armor_index(int index) {
+    return index >= ISR_ARMOR0 && index < ISR_ARMOR0 + ISR_ARMOR_SLOTS;
 }
 
 MC_HD static inline int isr_is_stackable(i32 item, i32 meta) {
@@ -61,18 +87,21 @@ MC_HD static inline int isr_stack_equal_exact(const ICStack *a, const ICStack *b
 
 MC_HD static inline void isr_init(IsrInv *inv) {
     for (int i = 0; i < ISR_MAIN_SLOTS; ++i) inv->main[i] = ic_empty();
+    for (int i = 0; i < ISR_ARMOR_SLOTS; ++i) inv->armor[i] = ic_empty();
     inv->offhand = ic_empty();
     inv->current_item = 0;
 }
 
 MC_HD static inline ICStack isr_get_stack(const IsrInv *inv, int index) {
     if (index >= 0 && index < ISR_MAIN_SLOTS) return inv->main[index];
+    if (isr_is_armor_index(index)) return inv->armor[index - ISR_ARMOR0];
     if (index == ISR_OFFHAND_SLOT) return inv->offhand;
     return ic_empty();
 }
 
 MC_HD static inline void isr_set_stack(IsrInv *inv, int index, ICStack stack) {
     if (index >= 0 && index < ISR_MAIN_SLOTS) inv->main[index] = stack;
+    else if (isr_is_armor_index(index)) inv->armor[index - ISR_ARMOR0] = stack;
     else if (index == ISR_OFFHAND_SLOT) inv->offhand = stack;
 }
 
@@ -144,6 +173,7 @@ MC_HD static inline ICStack isr_split_stack(ICStack *src, int amount) {
 MC_HD static inline ICStack isr_decr_stack_size(IsrInv *inv, int index, int count) {
     ICStack *slot;
     if (index >= 0 && index < ISR_MAIN_SLOTS) slot = &inv->main[index];
+    else if (isr_is_armor_index(index)) slot = &inv->armor[index - ISR_ARMOR0];
     else if (index == ISR_OFFHAND_SLOT) slot = &inv->offhand;
     else return ic_empty();
     if (isr_is_empty(slot) || count <= 0) return ic_empty();

@@ -10,6 +10,7 @@
 #include "container_click.h"
 #include "crafting_recipes_full.h"
 #include "inventory_stack_rules.h"
+#include "items_tools_armor.h"
 
 #include <string.h>
 
@@ -17,7 +18,20 @@
 
 static int is_inv(int s)     { return s >= 0 && s < GMC_INV_SLOTS; }
 static int is_grid(int s)    { return s >= GMC_GRID0 && s < GMC_RESULT; }
-static int is_furnace(int s) { return s >= GMC_FURNACE0 && s < GMC_SLOT_COUNT; }
+static int is_furnace(int s) { return s >= GMC_FURNACE0 && s < GMC_ARMOR0; }
+static int is_armor(int s)   { return s >= GMC_ARMOR0 && s < GMC_ARMOR0 + ISR_ARMOR_SLOTS; }
+
+/* GMC armor id -> IsrInv index (36..39). */
+static int armor_isr(int s) { return ISR_ARMOR0 + (s - GMC_ARMOR0); }
+
+/* EntityLiving.getSlotForItemStack + Item.isValidArmor for the armor piece index
+ * (0 feet .. 3 head). Elytra (443) is valid only in the chest slot. */
+static int armor_item_valid(int item, int armor_idx)
+{
+    if (item <= 0) return 0;
+    if (item == ISR_ELYTRA_ITEM) return armor_idx == ITA_SLOT_CHEST;
+    return ita_armor_slot(item) == armor_idx;
+}
 
 /* Grid cell usable for the open container: player screen = vanilla 2x2 (row-major
  * cells 0,1,3,4 of the 3x3), crafting table = all 9, furnace = none. */
@@ -34,23 +48,31 @@ static int slot_usable(const GmRuntime *r, int s)
     if (is_grid(s)) return grid_cell_usable(r, s - GMC_GRID0);
     if (s == GMC_RESULT) return r->container != 2;
     if (is_furnace(s)) return r->container == 2 && r->active_furnace >= 0;
+    /* Armor only on the player inventory screen (ContainerPlayer). */
+    if (is_armor(s)) return r->container == 0;
     return 0;
 }
 
-/* ---- direct stack access (inventory + grid only) ------------------------ */
+/* ---- direct stack access (inventory + grid + armor) --------------------- */
 
 static ICStack ct_get(const GmRuntime *r, int s)
 {
-    if (is_inv(s))  return isr_get_stack(&r->player.inv, s);
-    if (is_grid(s)) return r->craft_grid[s - GMC_GRID0];
+    if (is_inv(s))   return isr_get_stack(&r->player.inv, s);
+    if (is_armor(s)) return isr_get_stack(&r->player.inv, armor_isr(s));
+    if (is_grid(s))  return r->craft_grid[s - GMC_GRID0];
     return ic_empty();
 }
 
 static void ct_set(GmRuntime *r, int s, ICStack v)
 {
     cc_normalize(&v);
-    if (is_inv(s))       isr_set_stack(&r->player.inv, s, v);
-    else if (is_grid(s)) r->craft_grid[s - GMC_GRID0] = v;
+    if (is_inv(s))        isr_set_stack(&r->player.inv, s, v);
+    else if (is_armor(s)) isr_set_stack(&r->player.inv, armor_isr(s), v);
+    else if (is_grid(s))  r->craft_grid[s - GMC_GRID0] = v;
+    if (is_armor(s) && armor_isr(s) == ISR_ARMOR_CHEST) {
+        ICStack chest = isr_get_stack(&r->player.inv, ISR_ARMOR_CHEST);
+        r->player.elytra_equipped = isr_elytra_usable(&chest);
+    }
 }
 
 static FurnaceLive *ct_furnace(GmRuntime *r)
@@ -218,6 +240,16 @@ static ICStack ct_transfer(GmRuntime *r, int slot_id)
         return original;
     }
 
+    /* armor source: shift-click returns the piece to main-then-hotbar */
+    if (is_armor(slot_id)) {
+        order_main_then_hotbar(order);
+        int before = v.count;
+        ct_merge_order(r, &v, order, 36);
+        if (v.count == before) return ic_empty();
+        ct_set(r, slot_id, v);
+        return original;
+    }
+
     /* inventory source */
     if (r->container == 2) {
         FurnaceLive *f = ct_furnace(r);
@@ -244,6 +276,23 @@ static ICStack ct_transfer(GmRuntime *r, int slot_id)
             }
         }
         /* not smeltable/fuel: main <-> hotbar swap, same as below */
+    }
+
+    /* ContainerPlayer: armor/elytra from inv -> matching empty armor slot. */
+    if (r->container == 0 && is_inv(slot_id)) {
+        int want = -1;
+        if (v.item == ISR_ELYTRA_ITEM) want = ITA_SLOT_CHEST;
+        else want = ita_armor_slot(v.item);
+        if (want >= 0) {
+            int as = GMC_ARMOR0 + want;
+            ICStack cur = ct_get(r, as);
+            if (cc_is_empty(&cur)) {
+                ICStack one = cc_split_stack(&v, 1);
+                ct_set(r, as, one);
+                ct_set(r, slot_id, v);
+                return original;
+            }
+        }
     }
 
     if (slot_id < 9) order_main(order);
@@ -320,10 +369,16 @@ static void click_pickup(GmRuntime *r, int slot_id, int button)
 {
     ICStack cur = gm_player_cursor();
     ICStack v = ct_get(r, slot_id);
+    int armor = is_armor(slot_id);
+    int armor_idx = armor ? (slot_id - GMC_ARMOR0) : -1;
+    /* Slot.getSlotStackLimit: armor slots accept exactly one item. */
+    i32 slot_lim = armor ? 1 : cc_slot_stack_limit();
 
     if (cc_is_empty(&v)) {
         if (!cc_is_empty(&cur)) {
+            if (armor && !armor_item_valid(cur.item, armor_idx)) return;
             int l2 = button == 0 ? cur.count : 1;
+            if (l2 > slot_lim) l2 = (int)slot_lim;
             i32 lim = cc_item_stack_limit(&cur);
             if (l2 > lim) l2 = lim;
             v = cc_split_stack(&cur, l2);
@@ -332,6 +387,7 @@ static void click_pickup(GmRuntime *r, int slot_id, int button)
         int k2 = button == 0 ? v.count : (v.count + 1) / 2;
         cur = cc_decr_slot(&v, k2);
     } else if (cc_stack_match(&v, &cur)) {
+        if (armor) return; /* stack limit 1: cannot merge into occupied armor */
         int j2 = button == 0 ? cur.count : 1;
         i32 lim = cc_item_stack_limit(&cur);
         i32 maxs = cc_max_stack_size(cur.item, cur.meta);
@@ -342,7 +398,9 @@ static void click_pickup(GmRuntime *r, int slot_id, int button)
             cc_grow(&v, j2);
         }
     } else {
-        i32 lim = cc_item_stack_limit(&cur);
+        if (armor && !armor_item_valid(cur.item, armor_idx)) return;
+        if (armor && cur.count > 1) return; /* swap only whole single pieces */
+        i32 lim = armor ? 1 : cc_item_stack_limit(&cur);
         if (cur.count <= lim) {
             ICStack tmp = v;
             v = cur;

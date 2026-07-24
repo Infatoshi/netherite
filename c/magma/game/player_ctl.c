@@ -16,6 +16,7 @@
 #include "item_block_place.h"
 #include "interact_blocks.h"
 #include "container_click.h"
+#include "items_tools_armor.h"
 #include "mc_blocks.h"
 #include <math.h>
 #include <limits.h>
@@ -62,8 +63,7 @@ static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
     McEntity *e = &pl->ent;
 
     /* EntityLivingBase's elytra wall branch attacks immediately after move.
-     * FLY_INTO_WALL is ordinary health damage; armor is absent for an elytra
-     * chest slot in this supported slice. */
+     * DamageSource.FLY_INTO_WALL is unblockable (setDamageBypassesArmor). */
     if (pl->elytra_wall_damage > 0.0f)
         pv_attack(vit, pl->elytra_wall_damage);
 
@@ -640,7 +640,18 @@ use_done:
      * the elytra_dip tape (jump t55, first elytra travel t56).
      * NetHandlerPlayServer: !onGround && motionY < 0 && !flying && !inWater
      * plus a usable chest elytra. capabilities.isFlying is creative flight,
-     * not gamemode; armor durability is not owned here (IsrInv has no chest). */
+     * not gamemode.
+     *
+     * Flight eligibility: when chest (isr 38) holds Items.ELYTRA, derive the
+     * equipped flag from ItemElytra.isBroken (usable). Other chest items clear
+     * it. Empty chest preserves set_elytra (replay/test hook). */
+    {
+        ICStack chest = isr_get_stack(&pl->inv, ISR_ARMOR_CHEST);
+        if (chest.item == ISR_ELYTRA_ITEM)
+            pl->elytra_equipped = isr_elytra_usable(&chest);
+        else if (!isr_is_empty(&chest))
+            pl->elytra_equipped = 0;
+    }
     int elytra_press = act.jump && !pl->prev_jump;
     int elytra_was = pl->elytra_flying;
     int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
@@ -654,8 +665,29 @@ use_done:
      * flag was true for this onUpdate. Activation is post-travel, so the
      * arming tick must not count; the first travel tick still starts at 0
      * so updateElytra's (ticks+1)%20 damage cadence stays aligned. */
-    if (elytra_was && pl->elytra_flying) ++pl->ticks_elytra_flying;
-    else if (!pl->elytra_flying) pl->ticks_elytra_flying = 0;
+    if (elytra_was && pl->elytra_flying) {
+        ++pl->ticks_elytra_flying;
+        /* EntityLivingBase.updateElytra: damage chest elytra every 20 flying
+         * ticks when the piece is still usable. */
+        if ((pl->ticks_elytra_flying % 20) == 0) {
+            ICStack chest = isr_get_stack(&pl->inv, ISR_ARMOR_CHEST);
+            if (chest.item == ISR_ELYTRA_ITEM && chest.count > 0) {
+                ITAStack e = ita_mk(chest.item, chest.meta);
+                if (ita_attempt_damage(&e, 1, NULL)) {
+                    isr_set_stack(&pl->inv, ISR_ARMOR_CHEST, ic_empty());
+                    pl->elytra_equipped = 0;
+                    pl->elytra_flying = 0;
+                } else {
+                    chest.meta = e.damage;
+                    isr_set_stack(&pl->inv, ISR_ARMOR_CHEST, chest);
+                    pl->elytra_equipped = isr_elytra_usable(&chest);
+                    if (!pl->elytra_equipped) pl->elytra_flying = 0;
+                }
+            }
+        }
+    } else if (!pl->elytra_flying) {
+        pl->ticks_elytra_flying = 0;
+    }
     psv_update_elytra_size(window, pl, blocks);
 
     {

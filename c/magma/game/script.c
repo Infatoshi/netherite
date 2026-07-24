@@ -221,10 +221,25 @@ static void write_state(FILE *out, const GmRuntime *r) {
     fprintf(out, "\"dead\":%d,\"deaths\":%d,\"won\":%s,\"credits\":%d,\"container\":%d,",
             v.dead,v.deaths,r->won?"true":"false",r->credits,r->container);
     fprintf(out, "\"inventory\":[");
-    for (int i = 0; i < ISR_MAIN_SLOTS; ++i) {
-        ICStack s = isr_get_stack(&r->player.inv, i);
-        fprintf(out, "%s{\"slot\":%d,\"item\":%d,\"count\":%d,\"meta\":%d}",
-                i ? "," : "", i, s.item, s.count, s.meta);
+    {
+        int first_inv = 1;
+        for (int i = 0; i < ISR_MAIN_SLOTS; ++i) {
+            ICStack s = isr_get_stack(&r->player.inv, i);
+            fprintf(out, "%s{\"slot\":%d,\"item\":%d,\"count\":%d,\"meta\":%d}",
+                    first_inv ? "" : ",", i, s.item, s.count, s.meta);
+            first_inv = 0;
+        }
+        for (int i = 0; i < ISR_ARMOR_SLOTS; ++i) {
+            ICStack s = isr_get_stack(&r->player.inv, ISR_ARMOR0 + i);
+            fprintf(out, "%s{\"slot\":%d,\"item\":%d,\"count\":%d,\"meta\":%d}",
+                    first_inv ? "" : ",", ISR_ARMOR0 + i, s.item, s.count, s.meta);
+            first_inv = 0;
+        }
+        {
+            ICStack oh = isr_get_stack(&r->player.inv, ISR_OFFHAND_SLOT);
+            fprintf(out, "%s{\"slot\":%d,\"item\":%d,\"count\":%d,\"meta\":%d}",
+                    first_inv ? "" : ",", ISR_OFFHAND_SLOT, oh.item, oh.count, oh.meta);
+        }
     }
     fprintf(out, "],");
     { ICStack c = gm_player_cursor();
@@ -603,7 +618,8 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid mob_damage\n",line_no);goto bad;
                 }
                 (void)gm_mobs_attack_player(&r.mobs,
-                    (struct PvStats *)&r.vitals,(float)damage);
+                    (struct PvStats *)&r.vitals, &r.player.inv,
+                    (float)damage, 0);
                 r.player.health=r.vitals.health;
             } else if (!strcmp(type,"ent_view")) {
                 /* Tape replay renderable ghost entity (divergence #10): the
@@ -843,8 +859,9 @@ int gm_script_run(const GmConfig *cfg) {
                    !as_i64(field(&pending,"item"),&item)||
                    !as_i64(field(&pending,"count"),&count)||
                    !as_i64(field(&pending,"meta"),&meta)||
-                   (slot<0&&slot!=ISR_OFFHAND_SLOT)||
-                   (slot>=ISR_MAIN_SLOTS&&slot!=ISR_OFFHAND_SLOT)||item<0||item>4095||
+                   !((slot>=0&&slot<ISR_MAIN_SLOTS)||
+                     (slot>=ISR_ARMOR0&&slot<ISR_ARMOR0+ISR_ARMOR_SLOTS)||
+                     slot==ISR_OFFHAND_SLOT)||item<0||item>4095||
                    count<0||count>64||meta<0||meta>32767||
                    !gm_runtime_set_inventory(&r,(int)slot,(int)item,(int)count,(int)meta)) {
                     fprintf(stderr,"script:%ld: invalid set_inventory\n",line_no);goto bad;

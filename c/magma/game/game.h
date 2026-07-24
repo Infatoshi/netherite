@@ -77,7 +77,7 @@ typedef struct {
     /* Container.slotClick applied this tick by gm_runtime_tick -> gm_container_click
      * (game/container_live.h): full inventory + open-container slot ids. */
     int   inv_click;
-    int   inv_slot;    /* 0..35 inventory, 36..44 grid, 45 result, 46..48 furnace, -999 outside */
+    int   inv_slot;    /* 0..35 inv, 36..44 grid, 45 result, 46..48 furnace, 49..52 armor, -999 */
     int   inv_button;  /* 0 left / 1 right */
     int   inv_type;    /* CC_CLICK_PICKUP / QUICK_MOVE / THROW */
 } GmAction;
