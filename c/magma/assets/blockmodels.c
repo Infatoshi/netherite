@@ -223,8 +223,11 @@ static const BmBlock g_blocks[CBX_MAX] = {
     [PB_BONE_BLOCK]  = { 0, 1, CR_LAYER_SOLID, BM_KIND_CUBE,
                          TBS(CR_SPRITE_BONE_BLOCK_TOP, CR_SPRITE_BONE_BLOCK_TOP,
                              CR_SPRITE_BONE_BLOCK_SIDE, BM_TINT_NONE, BM_TINT_NONE) },
-    /* chest: solid oak planks stand-in (entity model is separate) */
-    [PB_CHEST] = CUBE6(CR_SPRITE_PLANKS_OAK, BM_TINT_NONE),
+    /* chest: inset body + front knob (TileEntityChestRenderer ModelChest
+     * proportions; oak planks sprite stand-in for entity/chest/normal.png).
+     * Lid animation is not meshed (TESR cut; TE lid_angle still ticks). */
+    [PB_CHEST] = { 0, 0, CR_LAYER_SOLID, BM_KIND_CHEST,
+                   FULL6(CR_SPRITE_PLANKS_OAK, BM_TINT_NONE) },
     [CBX_PLANKS] = CUBE6(CR_SPRITE_PLANKS_OAK, BM_TINT_NONE),
 
     [PB_PUMPKIN_BASE] = { 0, 1, CR_LAYER_SOLID, BM_KIND_CUBE,

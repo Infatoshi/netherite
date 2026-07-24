@@ -1,9 +1,9 @@
 /* game/container_live.c - see container_live.h. Vanilla sources:
  * Container.slotClick / mergeItemStack / retrySlotClick, ContainerPlayer /
- * ContainerWorkbench / ContainerFurnace transferStackInSlot, SlotCrafting,
- * TileEntityFurnace.isItemFuel. Stack arithmetic reuses the verified cc_* helpers
- * from mc-sim container_click.h; furnace slot mutation goes through the verified
- * furnace_live wrappers so cook/fuel validity stays in one place. */
+ * ContainerWorkbench / ContainerFurnace / ContainerChest transferStackInSlot,
+ * SlotCrafting, TileEntityFurnace.isItemFuel. Stack arithmetic reuses the
+ * verified cc_* helpers from mc-sim container_click.h; furnace/chest mutation
+ * goes through the live wrappers. */
 #include "game/container_live.h"
 #include "game/runtime.h"
 
@@ -20,6 +20,7 @@ static int is_inv(int s)     { return s >= 0 && s < GMC_INV_SLOTS; }
 static int is_grid(int s)    { return s >= GMC_GRID0 && s < GMC_RESULT; }
 static int is_furnace(int s) { return s >= GMC_FURNACE0 && s < GMC_ARMOR0; }
 static int is_armor(int s)   { return s >= GMC_ARMOR0 && s < GMC_ARMOR0 + ISR_ARMOR_SLOTS; }
+static int is_chest(int s)   { return s >= GMC_CHEST0 && s < GMC_CHEST0 + GMC_CHEST_SLOTS; }
 
 /* GMC armor id -> IsrInv index (36..39). */
 static int armor_isr(int s) { return ISR_ARMOR0 + (s - GMC_ARMOR0); }
@@ -34,11 +35,11 @@ static int armor_item_valid(int item, int armor_idx)
 }
 
 /* Grid cell usable for the open container: player screen = vanilla 2x2 (row-major
- * cells 0,1,3,4 of the 3x3), crafting table = all 9, furnace = none. */
+ * cells 0,1,3,4 of the 3x3), crafting table = all 9, furnace/chest = none. */
 static int grid_cell_usable(const GmRuntime *r, int cell)
 {
     if (r->container == 1) return 1;
-    if (r->container == 2) return 0;
+    if (r->container == 2 || r->container == 3) return 0;
     return cell == 0 || cell == 1 || cell == 3 || cell == 4;
 }
 
@@ -46,11 +47,25 @@ static int slot_usable(const GmRuntime *r, int s)
 {
     if (is_inv(s)) return 1;
     if (is_grid(s)) return grid_cell_usable(r, s - GMC_GRID0);
-    if (s == GMC_RESULT) return r->container != 2;
+    if (s == GMC_RESULT) return r->container != 2 && r->container != 3;
     if (is_furnace(s)) return r->container == 2 && r->active_furnace >= 0;
     /* Armor only on the player inventory screen (ContainerPlayer). */
     if (is_armor(s)) return r->container == 0;
+    if (is_chest(s)) return r->container == 3 && r->active_chest >= 0;
     return 0;
+}
+
+static ChestLive *ct_chest(GmRuntime *r)
+{
+    if (r->container != 3 || r->active_chest < 0) return 0;
+    return &r->chests[r->active_chest].state;
+}
+
+static ICStack ct_chest_get(const GmRuntime *r, int s)
+{
+    if (r->container != 3 || r->active_chest < 0 || !is_chest(s)) return ic_empty();
+    const ChestLive *c = &r->chests[r->active_chest].state;
+    return chest_live_get(c, s - GMC_CHEST0);
 }
 
 /* ---- direct stack access (inventory + grid + armor) --------------------- */
@@ -127,7 +142,7 @@ static ICStack grid_match(const GmRuntime *r)
 
 ICStack gm_container_result(const struct GmRuntime *r)
 {
-    if (!r || r->container == 2) return ic_empty();
+    if (!r || r->container == 2 || r->container == 3) return ic_empty();
     return grid_match(r);
 }
 
@@ -213,6 +228,20 @@ static ICStack ct_transfer(GmRuntime *r, int slot_id)
         return original;
     }
 
+    /* ContainerChest: chest slots merge reverse into player inv */
+    if (is_chest(slot_id)) {
+        ChestLive *ch = ct_chest(r);
+        ICStack v = ct_chest_get(r, slot_id);
+        if (!ch || cc_is_empty(&v)) return ic_empty();
+        ICStack original = v;
+        order_reverse_all(order);
+        int before = v.count;
+        ct_merge_order(r, &v, order, 36);
+        if (v.count == before) return ic_empty();
+        (void)chest_live_extract(ch, slot_id - GMC_CHEST0, before - v.count);
+        return original;
+    }
+
     if (slot_id == GMC_RESULT) {
         ICStack res = grid_match(r);
         if (cc_is_empty(&res)) return ic_empty();
@@ -295,6 +324,21 @@ static ICStack ct_transfer(GmRuntime *r, int slot_id)
         }
     }
 
+    /* ContainerChest transferStackInSlot: inv -> chest slots (forward) */
+    if (r->container == 3) {
+        ChestLive *ch = ct_chest(r);
+        if (ch && is_inv(slot_id)) {
+            ICStack rem = v;
+            for (int s = 0; s < GMC_CHEST_SLOTS && !cc_is_empty(&rem); ++s) {
+                int moved = chest_live_insert(ch, s, rem);
+                if (moved > 0) cc_shrink(&rem, moved);
+            }
+            if (rem.count == v.count) return ic_empty();
+            ct_set(r, slot_id, rem);
+            return original;
+        }
+    }
+
     if (slot_id < 9) order_main(order);
     else             order_hotbar(order);
     int n = slot_id < 9 ? 27 : 9;
@@ -365,6 +409,43 @@ static void click_pickup_result(GmRuntime *r, int button)
     gm_player_cursor_set(cur);
 }
 
+static void click_pickup_chest(GmRuntime *r, int slot_id, int button)
+{
+    ChestLive *ch = ct_chest(r);
+    if (!ch) return;
+    int cslot = slot_id - GMC_CHEST0;
+    ICStack cur = gm_player_cursor();
+    ICStack v = chest_live_get(ch, cslot);
+
+    if (cc_is_empty(&v)) {
+        if (cc_is_empty(&cur)) return;
+        int amount = button == 0 ? cur.count : 1;
+        int moved = chest_live_insert(ch, cslot, ic_mk(cur.item, amount, cur.meta));
+        if (moved > 0) cc_shrink(&cur, moved);
+    } else if (cc_is_empty(&cur)) {
+        int take = button == 0 ? v.count : (v.count + 1) / 2;
+        cur = chest_live_extract(ch, cslot, take);
+    } else if (cc_stack_match(&v, &cur)) {
+        int amount = button == 0 ? cur.count : 1;
+        int moved = chest_live_insert(ch, cslot, ic_mk(cur.item, amount, cur.meta));
+        if (moved > 0) cc_shrink(&cur, moved);
+    } else {
+        /* swap whole stacks when the cursor fits the slot limit */
+        i32 lim = cc_item_stack_limit(&cur);
+        if (cur.count <= lim) {
+            ICStack taken = chest_live_extract(ch, cslot, v.count);
+            int moved = chest_live_insert(ch, cslot, cur);
+            if (moved == cur.count) {
+                cur = taken;
+            } else {
+                if (moved > 0) (void)chest_live_extract(ch, cslot, moved);
+                (void)chest_live_insert(ch, cslot, taken);
+            }
+        }
+    }
+    gm_player_cursor_set(cur);
+}
+
 static void click_pickup(GmRuntime *r, int slot_id, int button)
 {
     ICStack cur = gm_player_cursor();
@@ -432,6 +513,15 @@ static void click_throw(GmRuntime *r, int slot_id, int button)
         if (!sr_isEmpty(got)) ct_drop(r, ic_mk(got.item, got.count, got.meta));
         return;
     }
+    if (is_chest(slot_id)) {
+        ChestLive *ch = ct_chest(r);
+        ICStack v = ct_chest_get(r, slot_id);
+        if (!ch || cc_is_empty(&v)) return;
+        int amount = button == 0 ? 1 : v.count;
+        ICStack got = chest_live_extract(ch, slot_id - GMC_CHEST0, amount);
+        if (!cc_is_empty(&got)) ct_drop(r, got);
+        return;
+    }
     ICStack v = ct_get(r, slot_id);
     if (cc_is_empty(&v)) return;
     int amount = button == 0 ? 1 : v.count;
@@ -466,6 +556,7 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
     case CC_CLICK_PICKUP:
         if (slot_id == GMC_RESULT)      click_pickup_result(r, button);
         else if (is_furnace(slot_id))   click_pickup_furnace(r, slot_id, button);
+        else if (is_chest(slot_id))     click_pickup_chest(r, slot_id, button);
         else                            click_pickup(r, slot_id, button);
         return 1;
     case CC_CLICK_QUICK_MOVE: {
@@ -475,6 +566,7 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
             if (cc_is_empty(&moved)) break;
             ICStack now = slot_id == GMC_RESULT ? grid_match(r)
                         : is_furnace(slot_id)   ? ct_furnace_get(r, slot_id)
+                        : is_chest(slot_id)     ? ct_chest_get(r, slot_id)
                                                 : ct_get(r, slot_id);
             if (cc_is_empty(&now) || now.item != moved.item) break;
         }

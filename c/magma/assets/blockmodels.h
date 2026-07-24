@@ -73,7 +73,10 @@ enum {
     /* End-pillar cage pane network, connected to adjacent panes/full cubes. */
     BM_KIND_IRON_BARS,
     /* Standing/wall torch; legacy metadata selects its attachment side. */
-    BM_KIND_TORCH
+    BM_KIND_TORCH,
+    /* Single chest: inset body 1..15 x 0..14 x 1..15 + front knob from meta
+     * (2=N 3=S 4=W 5=E). Not a TESR; lid angle is not meshed. */
+    BM_KIND_CHEST
 };
 
 typedef struct {

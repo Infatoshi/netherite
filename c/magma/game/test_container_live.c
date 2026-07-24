@@ -214,6 +214,68 @@ int main(void) {
       CHECK(chest.item == 443 && r.player.elytra_equipped == 1,
             "QUICK_MOVE equips elytra into empty chest and arms flight"); }
 
+    /* ---- single chest: open, transfer, persist across close/reopen ---- */
+    { GmPlayerView v; gm_runtime_view(&r, &v);
+      /* close furnace by walking away, then tick so the new column is loaded */
+      gm_runtime_set_pose(&r, v.x + 20.0, v.y, v.z, 0.0f, 0.0f);
+      { GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
+        gm_runtime_tick(&r, idle); }
+      gm_runtime_view(&r, &v);
+      /* clear inv so transfers have room and no leftover cursor */
+      for (int s = 0; s < GMC_INV_SLOTS; ++s)
+          (void)gm_runtime_set_inventory(&r, s, 0, 0, 0);
+      gm_player_cursor_set(ic_empty());
+      int bx = (int)v.x + 1, by = (int)v.y, bz = (int)v.z;
+      int ground = gm_world_surface_y(r.world, bx, bz);
+      if (ground < 1) ground = by;
+      CHECK(gm_runtime_set_block(&r, bx, ground, bz, 54, 2), "place a chest");
+      CHECK(gm_world_block(r.world, bx, ground, bz) == 54, "chest block present");
+      CHECK(gm_runtime_use_block(&r, bx, ground, bz), "open the chest");
+      CHECK(r.container == 3 && r.active_chest >= 0, "chest container active");
+      CHECK(gm_container_click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP),
+            "chest slot 0 is usable");
+      CHECK(!gm_container_click(&r, GMC_GRID0, 0, CC_CLICK_PICKUP),
+            "craft grid is not reachable while a chest is open");
+      CHECK(gm_runtime_set_inventory(&r, 0, 4, 16, 0), "seed cobble for chest");
+      click(&r, 0, 0, CC_CLICK_PICKUP);
+      click(&r, GMC_CHEST0 + 3, 0, CC_CLICK_PICKUP);
+      { ICStack c = gm_player_cursor();
+        CHECK(isr_is_empty(&c), "cobble placed into chest slot 3");
+        ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 3);
+        CHECK(ch.item == 4 && ch.count == 16, "chest holds 16 cobble"); }
+      click(&r, GMC_CHEST0 + 3, 0, CC_CLICK_QUICK_MOVE);
+      { int cobble = 0;
+        for (int s = 0; s < GMC_INV_SLOTS; ++s) {
+            ICStack t = slot(&r, s); if (t.item == 4) cobble += t.count;
+        }
+        CHECK(cobble == 16, "QUICK_MOVE returns chest stack to inv");
+        ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 3);
+        CHECK(isr_is_empty(&ch), "chest slot emptied by QUICK_MOVE"); }
+      /* put one back and close by walking away */
+      {
+          ICStack cur = gm_player_cursor();
+          if (isr_is_empty(&cur)) {
+              for (int s = 0; s < GMC_INV_SLOTS; ++s) {
+                  ICStack t = slot(&r, s);
+                  if (t.item == 4 && t.count > 0) {
+                      click(&r, s, 0, CC_CLICK_PICKUP);
+                      break;
+                  }
+              }
+          }
+      }
+      click(&r, GMC_CHEST0, 1, CC_CLICK_PICKUP); /* place 1 cobble */
+      click(&r, 1, 0, CC_CLICK_PICKUP); /* park remainder */
+      gm_runtime_set_pose(&r, v.x + 20.0, v.y, v.z, 0.0f, 0.0f);
+      CHECK(r.container == 0, "walking away closes the chest");
+      /* walk back into range and reopen */
+      gm_runtime_set_pose(&r, bx + 0.5, (double)ground, bz + 0.5, 0.0f, 0.0f);
+      CHECK(gm_runtime_use_block(&r, bx, ground, bz), "reopen the chest");
+      CHECK(r.container == 3, "chest reopened");
+      { ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 0);
+        CHECK(ch.item == 4 && ch.count == 1, "chest contents persist after close/reopen"); }
+    }
+
     if (fail) { fprintf(stderr, "container_live: FAIL\n"); return 1; }
     fprintf(stderr, "container_live: PASS\n");
     return 0;

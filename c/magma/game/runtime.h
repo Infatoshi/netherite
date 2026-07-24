@@ -6,11 +6,13 @@
 #include "game/live_sim.h"
 #include "game/player_ctl.h"
 #include "game/furnace_live.h"
+#include "game/chest_live.h"
 #include "game/mob_live.h"
 #include "game/dragon_live.h"
 #include "game/container_live.h"
 
 #define GM_RUNTIME_FURNACES 16
+#define GM_RUNTIME_CHESTS 64
 #define GM_RUNTIME_PROJECTILES 32
 #define GM_RUNTIME_GHOSTS 16
 #define GM_RUNTIME_GHOST_VIEWS 32  /* REC_ENT_MAX in the qrl recorder */
@@ -19,6 +21,10 @@ typedef struct {
     int active, wx, wy, wz;
     FurnaceLive state;
 } GmRuntimeFurnace;
+typedef struct {
+    int active, wx, wy, wz;
+    ChestLive state;
+} GmRuntimeChest;
 
 typedef struct GmRuntime {
     GmWorld *world;
@@ -49,11 +55,13 @@ typedef struct GmRuntime {
     long long tick;
     int weather_enabled;
     int mobs_enabled; /* --mobs off skips gm_mobs_tick (tape-replay parity) */
-    int container; /* 0 player 2x2, 1 crafting table, 2 furnace */
+    int container; /* 0 player 2x2, 1 crafting table, 2 furnace, 3 chest */
     int container_wx, container_wy, container_wz;
     int active_furnace;
+    int active_chest;
     ICStack craft_grid[9]; /* live craft matrix (container_live slot ids 36..44) */
     GmRuntimeFurnace furnaces[GM_RUNTIME_FURNACES];
+    GmRuntimeChest chests[GM_RUNTIME_CHESTS];
     GmFluidLive fluids;    /* live water/lava flow region (game/fluid_live.c) */
     /* Tape-replay ghost pushers: recorded oracle entity boxes (world coords,
      * feet y, full width/height) injected per tick; gm_runtime_tick applies
@@ -73,7 +81,7 @@ typedef struct GmRuntime {
      * kind + ScaledResolution mouse coords. Cleared each tick like ghost_views.
      * Does NOT mutate r->container (physics/close distance stay untouched). */
     int gui_view_active;     /* 1 if a mapped gui_view event landed this tick */
-    int gui_view_container;  /* 0 player, 1 workbench, 2 furnace */
+    int gui_view_container;  /* 0 player, 1 workbench, 2 furnace, 3 chest */
     int gui_view_mx, gui_view_my; /* vanilla ScaledResolution mouse coords */
     /* Exact post-tick container render truth. Unlike the live container, these
      * slots/cursor/progress never participate in click or furnace simulation.
@@ -137,7 +145,7 @@ void gm_runtime_ent_views_clear(GmRuntime *r);
 /* Fill `out` with this tick's renderable ghost entities; returns count. */
 int gm_runtime_ghost_views(const GmRuntime *r, GmEntityView *out, int max);
 /* Tape replay: register an open container GUI for this tick's frame capture
- * (container 0/1/2; mx/my = vanilla ScaledResolution coords). Render-only. */
+ * (container 0/1/2/3; mx/my = vanilla ScaledResolution coords). Render-only. */
 void gm_runtime_gui_view(GmRuntime *r, int container, int mx, int my);
 void gm_runtime_gui_view_clear(GmRuntime *r);
 /* Returns 1 if a gui_view is active this tick; writes container/mx/my. */

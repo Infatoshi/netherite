@@ -317,6 +317,8 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     r->clock.freeze_daylight = !cfg->daylight;
     r->mobs_enabled = cfg->mobs;
     r->active_furnace = -1;
+    r->active_chest = -1;
+    memset(r->chests, 0, sizeof r->chests);
     for (int i = 0; i < 9; ++i) r->craft_grid[i] = ic_empty();
     return 1;
 }
@@ -363,10 +365,15 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         double dy=(r->container_wy+0.5)-(cv.y+cv.eye_height);
         double dz=(r->container_wz+0.5)-cv.z;
         int id=gm_world_block(r->world,r->container_wx,r->container_wy,r->container_wz);
-        int valid=r->container==1?id==58:(id==61||id==62);
+        int valid=r->container==1?id==58
+                 :r->container==2?(id==61||id==62)
+                 :r->container==3?id==54
+                 :0;
         if (!valid || dx*dx+dy*dy+dz*dz>36.0) {
+            if (r->container == 3 && r->active_chest >= 0)
+                chest_live_close(&r->chests[r->active_chest].state);
             gm_container_close(r);
-            r->container=0;r->active_furnace=-1;
+            r->container=0;r->active_furnace=-1;r->active_chest=-1;
         }
     }
     if (action.inv_click) {
@@ -391,7 +398,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         if(gm_raycast_sel_reach(r->window,&r->sin_table,&r->player,PSV_REACH,
                                 &hx,&hy,&hz,&ax,&ay,&az)>=0){
             int wx=hx+r->ox,wz=hz+r->oz,id=gm_world_block(r->world,wx,hy,wz);
-            if((id==58||id==61||id==62||id==120||id==26)&&gm_runtime_use_block(r,wx,hy,wz)){
+            if((id==58||id==61||id==62||id==54||id==120||id==26)&&gm_runtime_use_block(r,wx,hy,wz)){
                 action.do_place=0;action.use=0;
             }
         }
@@ -511,6 +518,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                                         gm_world_meta(r->world,f->wx,f->wy,f->wz));
         }
     }
+    for (int i = 0; i < GM_RUNTIME_CHESTS; ++i)
+        if (r->chests[i].active) chest_live_tick(&r->chests[i].state);
     if (r->vitals.health <= 0.0f) {
         r->dead = 1;
         r->deaths++;
@@ -599,8 +608,10 @@ void gm_runtime_set_pose(GmRuntime *r, double x, double y, double z,
     r->player.ent.onGround = 0;
     r->player.fall_distance = 0.0f;
     r->player.yaw = yaw; r->player.pitch = pitch;
+    if (r->container == 3 && r->active_chest >= 0)
+        chest_live_close(&r->chests[r->active_chest].state);
     gm_container_close(r);
-    r->container=0; r->active_furnace=-1;
+    r->container=0; r->active_furnace=-1; r->active_chest=-1;
     gm_player_dig_reset();
 }
 
@@ -733,7 +744,7 @@ int gm_runtime_ghost_views(const GmRuntime *r, GmEntityView *out, int max) {
 /* Open GUI screen for tape-replay frame capture (divergence #9). Render-only:
  * never touches r->container / craft grid / furnace so physics stays clean. */
 void gm_runtime_gui_view(GmRuntime *r, int container, int mx, int my) {
-    if (!r || container < 0 || container > 2) return;
+    if (!r || container < 0 || container > 3) return;
     r->gui_view_active = 1;
     r->gui_view_container = container;
     r->gui_view_mx = mx;
@@ -1070,6 +1081,16 @@ int gm_runtime_craft(GmRuntime *r, int grid_width, const int inv_slots[9]) {
     return 1;
 }
 
+/* Close any open container TE bookkeeping before switching screens. */
+static void runtime_close_container(GmRuntime *r)
+{
+    if (r->container == 3 && r->active_chest >= 0)
+        chest_live_close(&r->chests[r->active_chest].state);
+    gm_container_close(r);
+    r->active_furnace = -1;
+    r->active_chest = -1;
+}
+
 int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
     if (!r || !r->world) return 0;
     GmPlayerView v; gm_runtime_view(r, &v);
@@ -1079,12 +1100,12 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
     if (dx*dx + dy*dy + dz*dz > 36.0) return 0;
     int id = gm_world_block(r->world, wx, wy, wz);
     if (id == 58) {
-        gm_container_close(r); /* return any live grid/cursor before switching */
+        runtime_close_container(r); /* return any live grid/cursor before switching */
         r->container=1; r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
         return 1;
     }
     if (id == 61 || id == 62) {
-        gm_container_close(r);
+        runtime_close_container(r);
         int free_slot = -1;
         for (int i = 0; i < GM_RUNTIME_FURNACES; ++i) {
             GmRuntimeFurnace *f = &r->furnaces[i];
@@ -1099,6 +1120,33 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
         GmRuntimeFurnace *f=&r->furnaces[free_slot];
         f->active=1; f->wx=wx; f->wy=wy; f->wz=wz; furnace_live_init(&f->state);
         r->container=2; r->active_furnace=free_slot;
+        r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+        return 1;
+    }
+    if (id == 54) {
+        runtime_close_container(r);
+        int free_slot = -1;
+        for (int i = 0; i < GM_RUNTIME_CHESTS; ++i) {
+            GmRuntimeChest *c = &r->chests[i];
+            if (c->active && c->wx==wx && c->wy==wy && c->wz==wz) {
+                chest_live_open(&c->state);
+                r->container=3; r->active_chest=i;
+                r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+                return 1;
+            }
+            if (!c->active && free_slot < 0) free_slot=i;
+        }
+        if (free_slot < 0) return 0;
+        GmRuntimeChest *c=&r->chests[free_slot];
+        c->active=1; c->wx=wx; c->wy=wy; c->wz=wz;
+        chest_live_init(&c->state);
+        {
+            int tid = -1; long long lseed = 0;
+            if (gm_stronghold_chest_info(r->seed, wx, wy, wz, &tid, &lseed))
+                chest_live_set_loot(&c->state, tid, lseed);
+        }
+        chest_live_open(&c->state);
+        r->container=3; r->active_chest=free_slot;
         r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
         return 1;
     }

@@ -3,8 +3,8 @@
  *
  * PORT: net/minecraft/inventory/Container.java slotClick (PICKUP / QUICK_MOVE / THROW)
  *       + mergeItemStack(start,end,reverse), ContainerPlayer / ContainerWorkbench /
- *       ContainerFurnace transferStackInSlot target ordering, SlotCrafting take
- *       (consume one per grid cell), SlotFurnaceFuel validity (isItemFuel),
+ *       ContainerFurnace / ContainerChest transferStackInSlot target ordering,
+ *       SlotCrafting take (consume one per grid cell), SlotFurnaceFuel validity,
  *       ContainerPlayer armor slots (stack limit 1 + isValidArmor).
  *
  * This is the ONE shipped click path: the windowed screen and the JSONL harness both
@@ -19,6 +19,7 @@
  *   46..48  open furnace input/fuel/output (fuel slot rejects non-fuel, output is
  *           take-only; insert/extract go through the verified furnace_live wrappers)
  *   49..52  player armor GUI (feet/legs/chest/head) -> IsrInv 36..39; player screen only
+ *   53..79  open single chest (27 slots; ContainerChest)
  *   -999    outside the window (PICKUP drops the cursor)
  *
  * IsrInv tape/set_inventory armor indices remain 36..39 (chest = 38) and are distinct
@@ -27,7 +28,7 @@
  * THROW / outside-drops spawn a REAL item entity at the player (vanilla dropItem),
  * unlike the synthetic 9-slot kernel which discards. Closing a container (walking
  * away, opening another, dying) returns grid + cursor stacks to the inventory and
- * drops whatever does not fit. */
+ * drops whatever does not fit. Chest contents persist in the TE. */
 #ifndef MAGMA_GAME_CONTAINER_LIVE_H
 #define MAGMA_GAME_CONTAINER_LIVE_H
 
@@ -36,13 +37,15 @@
 struct GmRuntime;
 
 enum {
-    GMC_INV_SLOTS  = 36,
-    GMC_GRID0      = 36,
-    GMC_RESULT     = 45,
-    GMC_FURNACE0   = 46,   /* 46 input, 47 fuel, 48 output */
-    GMC_ARMOR0     = 49,   /* 49 feet, 50 legs, 51 chest, 52 head -> isr 36..39 */
-    GMC_SLOT_COUNT = 53,
-    GMC_OUTSIDE    = -999
+    GMC_INV_SLOTS   = 36,
+    GMC_GRID0       = 36,
+    GMC_RESULT      = 45,
+    GMC_FURNACE0    = 46,   /* 46 input, 47 fuel, 48 output */
+    GMC_ARMOR0      = 49,   /* 49 feet, 50 legs, 51 chest, 52 head -> isr 36..39 */
+    GMC_CHEST0      = 53,   /* 53..79 single-chest 27 slots */
+    GMC_CHEST_SLOTS = 27,
+    GMC_SLOT_COUNT  = 80,
+    GMC_OUTSIDE     = -999
 };
 
 /* Execute one Container.slotClick against the runtime. Returns 1 if the click was
@@ -54,7 +57,9 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
 ICStack gm_container_result(const struct GmRuntime *r);
 
 /* Return grid + cursor stacks to the inventory; drop what does not fit as live
- * item entities at the player. Called on container close / switch / death. */
+ * item entities at the player. Called on container close / switch / death.
+ * Chest TE contents are left in place (only open-count / lid is decremented by
+ * the runtime). */
 void gm_container_close(struct GmRuntime *r);
 
 #endif /* MAGMA_GAME_CONTAINER_LIVE_H */

@@ -126,7 +126,7 @@ static const Expect EXPECT[] = {
     { PB_MOSSY_COBBLESTONE, "mossy_cobble", BM_KIND_CUBE, 1, L_SOLID, BM_TINT_NONE },
     { PB_MOB_SPAWNER, "mob_spawner", BM_KIND_CUBE, 0, L_CUTOUT, BM_TINT_NONE },
     { PB_BONE_BLOCK, "bone_block", BM_KIND_CUBE, 1, L_SOLID, BM_TINT_NONE },
-    { PB_CHEST, "chest", BM_KIND_CUBE, 1, L_SOLID, BM_TINT_NONE },
+    { PB_CHEST, "chest", BM_KIND_CHEST, 0, L_SOLID, BM_TINT_NONE },
     { PB_PUMPKIN_BASE, "pumpkin", BM_KIND_CUBE, 1, L_SOLID, BM_TINT_NONE },
     { PB_VINE_BASE, "vine", BM_KIND_VINE, 0, L_CUTOUT, BM_TINT_FOLIAGE },
     { PB_BROWN_SHROOM_BLOCK, "brown_shroom_block", BM_KIND_CUBE, 1, L_SOLID, BM_TINT_NONE },

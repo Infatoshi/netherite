@@ -1566,6 +1566,30 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
         case BM_KIND_TORCH:
             emit_torch(out, cap, L, wx, wy, wz, m, tint, base01);
             break;
+        case BM_KIND_CHEST: {
+            /* ModelChest body is 14x10x14 texels at offset (1,0,1) in block
+             * space (closed lid treated as solid top of the body; no hinge).
+             * Knob 2x4x1 on the facing side from BlockChest meta. */
+            const float body0[3] = {1.0f, 0.0f, 1.0f};
+            const float body1[3] = {15.0f, 14.0f, 15.0f};
+            emit_box(out, cap, m->layer, L, wx, wy, wz, body0, body1,
+                     side_spr, tint, base01, -1);
+            int meta = light_meta(L, wx, wy, wz) & 7;
+            float k0[3], k1[3];
+            /* default north (meta 2): knob on -Z face */
+            if (meta == 3) { /* south */
+                k0[0]=7; k0[1]=7; k0[2]=15; k1[0]=9; k1[1]=11; k1[2]=16;
+            } else if (meta == 4) { /* west */
+                k0[0]=0; k0[1]=7; k0[2]=7; k1[0]=1; k1[1]=11; k1[2]=9;
+            } else if (meta == 5) { /* east */
+                k0[0]=15; k0[1]=7; k0[2]=7; k1[0]=16; k1[1]=11; k1[2]=9;
+            } else { /* north / 0 / 2 */
+                k0[0]=7; k0[1]=7; k0[2]=0; k1[0]=9; k1[1]=11; k1[2]=1;
+            }
+            emit_box(out, cap, m->layer, L, wx, wy, wz, k0, k1,
+                     side_spr, tint, base01, -1);
+            break;
+        }
         default: break;
     }
 }

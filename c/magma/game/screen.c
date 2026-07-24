@@ -1,6 +1,6 @@
 /* game/screen.c - see screen.h. Slot coordinates are the vanilla 1.11.2 GUI
- * positions (net/minecraft/inventory/Container{Player,Workbench,Furnace}.java
- * Slot constructor x/y args) on the standard 176x166 panel. */
+ * positions (net/minecraft/inventory/Container{Player,Workbench,Furnace,Chest}.java
+ * Slot constructor x/y args) on the standard 176-wide panel. */
 #include "game/screen.h"
 #include "game/runtime.h"
 #include "game/hud.h"
@@ -11,10 +11,13 @@
 
 #define PANEL_W 176
 #define PANEL_H 166
+#define CHEST_PANEL_H 167  /* GuiChest ySize = 114 + 3*18 = 168; atlas is 167 */
 #define CELL    16
 #define PITCH   18
 
 static int gui_scale(int fb_h) { int s = fb_h / 240; return s > 1 ? s : 1; }
+
+static int panel_h(int container) { return container == 3 ? CHEST_PANEL_H : PANEL_H; }
 
 int gm_screen_gui_scale(int fb_h) { return gui_scale(fb_h); }
 
@@ -24,6 +27,7 @@ int gm_screen_kind_for_gui(const char *gui_name)
     if (!strcmp(gui_name, "GuiInventory")) return 0;
     if (!strcmp(gui_name, "GuiCrafting"))  return 1;
     if (!strcmp(gui_name, "GuiFurnace"))   return 2;
+    if (!strcmp(gui_name, "GuiChest"))     return 3;
     return -1;
 }
 
@@ -38,11 +42,15 @@ void gm_screen_mouse_to_fb(int fb_w, int fb_h, int gmx, int gmy, int *mx, int *m
 /* Vanilla panel origin: GuiContainer centers in GUI units with integer
  * division ((scaledWidth - xSize) / 2), then scales. At 854x480 (scaled 427)
  * that floors to gui x 125 -> fb 250, one px left of naive fb centering. */
-static void panel_origin(int fb_w, int fb_h, int s, int *px, int *py)
+static void panel_origin_h(int fb_w, int fb_h, int s, int ph, int *px, int *py)
 {
     int gw = (fb_w + s - 1) / s, gh = (fb_h + s - 1) / s;
     *px = (gw - PANEL_W) / 2 * s;
-    *py = (gh - PANEL_H) / 2 * s;
+    *py = (gh - ph) / 2 * s;
+}
+static void panel_origin(int fb_w, int fb_h, int s, int *px, int *py)
+{
+    panel_origin_h(fb_w, fb_h, s, PANEL_H, px, py);
 }
 
 /* Append one slot at vanilla gui-space (gx,gy). */
@@ -61,15 +69,19 @@ static int put(GmScreenSlot *out, int n, int max, int id,
 int gm_screen_layout(int container, int fb_w, int fb_h, GmScreenSlot *out, int max)
 {
     const int s  = gui_scale(fb_h);
+    const int ph = panel_h(container);
     int px, py;
-    panel_origin(fb_w, fb_h, s, &px, &py);
+    panel_origin_h(fb_w, fb_h, s, ph, &px, &py);
     int n = 0;
 
-    /* player main 9..35 at (8,84) + hotbar 0..8 at (8,142): shared by every GUI */
+    /* ContainerChest: numRows=3, i=(3-4)*18=-18 -> main y=85, hotbar y=143.
+     * Other containers share main y=84 / hotbar y=142. */
+    int main_y = container == 3 ? 85 : 84;
+    int hot_y  = container == 3 ? 143 : 142;
     for (int i = 0; i < 27; ++i)
-        n = put(out, n, max, 9 + i, px, py, s, 8 + (i % 9) * PITCH, 84 + (i / 9) * PITCH);
+        n = put(out, n, max, 9 + i, px, py, s, 8 + (i % 9) * PITCH, main_y + (i / 9) * PITCH);
     for (int i = 0; i < 9; ++i)
-        n = put(out, n, max, i, px, py, s, 8 + i * PITCH, 142);
+        n = put(out, n, max, i, px, py, s, 8 + i * PITCH, hot_y);
 
     if (container == 1) {
         for (int i = 0; i < 9; ++i)
@@ -80,6 +92,11 @@ int gm_screen_layout(int container, int fb_w, int fb_h, GmScreenSlot *out, int m
         n = put(out, n, max, GMC_FURNACE0,     px, py, s, 56, 17);
         n = put(out, n, max, GMC_FURNACE0 + 1, px, py, s, 56, 53);
         n = put(out, n, max, GMC_FURNACE0 + 2, px, py, s, 116, 35);
+    } else if (container == 3) {
+        /* ContainerChest: 3 rows at (8, 18 + row*18) */
+        for (int i = 0; i < GMC_CHEST_SLOTS; ++i)
+            n = put(out, n, max, GMC_CHEST0 + i, px, py, s,
+                    8 + (i % 9) * PITCH, 18 + (i / 9) * PITCH);
     } else {
         /* player screen: armor HEAD..FEET at (8, 8+k*18) -> GMC_ARMOR0+3..0
          * (isr 39..36); 2x2 matrix at (98,18), result at (154,28) */
@@ -97,9 +114,10 @@ int gm_screen_layout(int container, int fb_w, int fb_h, GmScreenSlot *out, int m
 int gm_screen_slot_at(int container, int fb_w, int fb_h, int mx, int my)
 {
     const int s  = gui_scale(fb_h);
+    const int ph = panel_h(container);
     int px, py;
-    panel_origin(fb_w, fb_h, s, &px, &py);
-    if (mx < px || my < py || mx >= px + PANEL_W * s || my >= py + PANEL_H * s)
+    panel_origin_h(fb_w, fb_h, s, ph, &px, &py);
+    if (mx < px || my < py || mx >= px + PANEL_W * s || my >= py + ph * s)
         return GMC_OUTSIDE;
 
     GmScreenSlot slots[GMC_SLOT_COUNT];
@@ -129,6 +147,9 @@ static ICStack screen_stack(const GmRuntime *r, int id)
                                            : f->output;
         if (!sr_isEmpty(v)) return ic_mk(v.item, v.count, v.meta);
     }
+    if (r->container == 3 && r->active_chest >= 0 &&
+        id >= GMC_CHEST0 && id < GMC_CHEST0 + GMC_CHEST_SLOTS)
+        return chest_live_get(&r->chests[r->active_chest].state, id - GMC_CHEST0);
     return ic_empty();
 }
 
@@ -277,8 +298,9 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
 {
     if (!fb || !fb->color || !r) return;
     const int s  = gui_scale(fb->h);
+    const int ph = panel_h(r->container);
     int px, py;
-    panel_origin(fb->w, fb->h, s, &px, &py);
+    panel_origin_h(fb->w, fb->h, s, ph, &px, &py);
     const CrRgba highlight = {255, 255, 255, 128}; /* vanilla hovered-slot overlay */
 
     draw_background_dim(fb);
@@ -286,6 +308,7 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
     /* real MC panel art (drawGuiContainerBackgroundLayer) */
     int panel = r->container == 1 ? GM_GUI_TABLE_PANEL
               : r->container == 2 ? GM_GUI_FURNACE_PANEL
+              : r->container == 3 ? GM_GUI_CHEST_PANEL
                                   : GM_GUI_INV_PANEL;
     gm_gui_blit(fb, panel, px, py, s);
     if (r->container == 0) {
@@ -331,6 +354,11 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
                      px + (PANEL_W / 2 - gm_font_width("Furnace") / 2) * s,
                      py + 6 * s, s, 0x404040u, 0);
         gm_font_draw(fb, "Inventory", px + 8 * s, py + (PANEL_H - 96 + 2) * s,
+                     s, 0x404040u, 0);
+    } else if (r->container == 3) {
+        gm_font_draw(fb, "Chest", px + 8 * s, py + 6 * s, s, 0x404040u, 0);
+        /* GuiChest: upper inv label at ySize - 96 + 2 */
+        gm_font_draw(fb, "Inventory", px + 8 * s, py + (168 - 96 + 2) * s,
                      s, 0x404040u, 0);
     } else {
         gm_font_draw(fb, "Crafting", px + 97 * s, py + 8 * s, s, 0x404040u, 0);

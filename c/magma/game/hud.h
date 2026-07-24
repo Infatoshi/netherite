@@ -47,7 +47,8 @@ enum {
     GM_GUI_FURNACE_PANEL,
     GM_GUI_FURNACE_FLAME,
     GM_GUI_FURNACE_ARROW,
-    GM_GUI_FONT
+    GM_GUI_FONT,
+    GM_GUI_CHEST_PANEL
 };
 
 /* Container-GUI art (assets/gui_atlas.h: real MC panels, font, item icons).

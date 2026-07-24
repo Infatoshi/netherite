@@ -40,8 +40,9 @@ static void check_container(int container, int fb_w, int fb_h, int want_slots)
     /* panel top-left corner: inside the panel, not on a slot (vanilla origin:
      * integer division in GUI units, so 854x480 lands at fb x 250, not 251) */
     { int s = fb_h / 240 > 1 ? fb_h / 240 : 1;
+      int ph = container == 3 ? 167 : 166;
       int gw = (fb_w + s - 1) / s, gh = (fb_h + s - 1) / s;
-      int px = (gw - 176) / 2 * s, py = (gh - 166) / 2 * s;
+      int px = (gw - 176) / 2 * s, py = (gh - ph) / 2 * s;
       CHECK(gm_screen_slot_at(container, fb_w, fb_h, px, py) == -1,
             "panel background is a no-op (-1)");
       if (fb_w == 854) CHECK(px == 250, "vanilla 854-wide origin floors to 250"); }
@@ -55,12 +56,14 @@ int main(void)
         check_container(0, sizes[z][0], sizes[z][1], 45); /* 36 + 4 armor + 2x2 + result */
         check_container(1, sizes[z][0], sizes[z][1], 46); /* 36 + 3x3 grid + result */
         check_container(2, sizes[z][0], sizes[z][1], 39); /* 36 + furnace 3 */
+        check_container(3, sizes[z][0], sizes[z][1], 63); /* 36 + chest 27 */
     }
 
     /* tape "gui" class name -> container kind (OPEN_DIVERGENCES #9) */
     CHECK(gm_screen_kind_for_gui("GuiInventory") == 0, "GuiInventory -> player");
     CHECK(gm_screen_kind_for_gui("GuiCrafting") == 1, "GuiCrafting -> workbench");
     CHECK(gm_screen_kind_for_gui("GuiFurnace") == 2, "GuiFurnace -> furnace");
+    CHECK(gm_screen_kind_for_gui("GuiChest") == 3, "GuiChest -> chest");
     CHECK(gm_screen_kind_for_gui("GuiIngameMenu") == -1, "GuiIngameMenu skipped");
     CHECK(gm_screen_kind_for_gui("GuiChat") == -1, "GuiChat skipped");
     CHECK(gm_screen_kind_for_gui("GuiUnknown") == -1, "unknown skipped");

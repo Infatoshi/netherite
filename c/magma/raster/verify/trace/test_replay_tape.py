@@ -438,6 +438,9 @@ def test_gui_container_slots_cursor_and_furnace_progress_are_mapped(tmp_path: Pa
     furnace[0] = [15, 0, 2]
     furnace[1] = [263, 0, 4]
     furnace[2] = [265, 0, 1]
+    chest = [0] * 63
+    chest[0] = [264, 0, 2]   # diamond in first chest slot
+    chest[27] = [4, 0, 16]   # cobble in first main inv slot (vanilla idx 27)
     ticks = [
         {"t": 0, "in": empty_input, "x": 0.5, "y": 70.0, "z": 0.5,
          "yaw": 0.0, "pitch": 0.0, "ents": [], "gui": "GuiCrafting",
@@ -445,6 +448,9 @@ def test_gui_container_slots_cursor_and_furnace_progress_are_mapped(tmp_path: Pa
         {"t": 1, "in": empty_input, "x": 0.5, "y": 70.0, "z": 0.5,
          "yaw": 0.0, "pitch": 0.0, "ents": [], "gui": "GuiFurnace",
          "gslots": furnace, "gcur": 0, "gprop": [80, 1600, 100, 200]},
+        {"t": 2, "in": empty_input, "x": 0.5, "y": 70.0, "z": 0.5,
+         "yaw": 0.0, "pitch": 0.0, "ents": [], "gui": "GuiChest",
+         "gslots": chest, "gcur": [297, 0, 3]},
     ]
     script = tmp_path / "events.jsonl"
     replay_tape.tape_to_script(header, ticks, str(script))
@@ -471,6 +477,24 @@ def test_gui_container_slots_cursor_and_furnace_progress_are_mapped(tmp_path: Pa
                     "tick": 1, "type": "gui_furnace_view", "burn": 80,
                     "current_burn": 1600, "cook": 100, "total_cook": 200,
                 }
+
+    tick2 = [event for event in events if event["tick"] == 2]
+    slots2 = {event["slot"]: event for event in tick2
+              if event["type"] == "gui_slot_view"}
+    assert slots2[53]["item"] == 264 and slots2[53]["count"] == 2
+    assert slots2[9]["item"] == 4 and slots2[9]["count"] == 16
+    assert next(event for event in tick2
+                if event["type"] == "gui_cursor_view")["item"] == 297
+
+
+def test_gui_chest_slot_id_mapping():
+    assert replay_tape.gui_slot_id("GuiChest", 0) == 53
+    assert replay_tape.gui_slot_id("GuiChest", 26) == 79
+    assert replay_tape.gui_slot_id("GuiChest", 27) == 9
+    assert replay_tape.gui_slot_id("GuiChest", 53) == 35
+    assert replay_tape.gui_slot_id("GuiChest", 54) == 0
+    assert replay_tape.gui_slot_id("GuiChest", 62) == 8
+    assert replay_tape.gui_slot_id("GuiChest", 63) is None
 
 
 def test_health_packet_alignment_accepts_adjacent_tick():

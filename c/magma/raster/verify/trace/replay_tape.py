@@ -155,6 +155,14 @@ def gui_slot_id(gui, index):
             return index + 6
         if 30 <= index <= 38:
             return index - 30
+    elif gui == "GuiChest":
+        # ContainerChest single: 0..26 chest, 27..53 main, 54..62 hotbar
+        if 0 <= index <= 26:
+            return 53 + index
+        if 27 <= index <= 53:
+            return index - 27 + 9
+        if 54 <= index <= 62:
+            return index - 54
     return None
 
 

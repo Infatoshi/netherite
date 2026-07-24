@@ -298,7 +298,7 @@ assert any(s["item"] == 5 and s["count"] == 4 for s in final["inventory"])
 assert any(s["item"] == 17 and s["count"] == 1 for s in final["inventory"])
 PY
 printf '%s\n' \
-	'{"tick":0,"type":"action","inv_slot":53,"inv_button":0,"inv_type":0}' \
+	'{"tick":0,"type":"action","inv_slot":80,"inv_button":0,"inv_type":0}' \
 	>/tmp/magma-invalid-click.jsonl
 if ./magma_game --world superflat --headless --ticks 1 --script /tmp/magma-invalid-click.jsonl \
 	--render off --pace unlimited >/tmp/magma-invalid-click.out 2>&1; then

@@ -24,8 +24,8 @@ typedef struct {
 } GmScreenSlot;
 
 /* Fill `out` with every clickable slot rect for the given container type
- * (0 player, 1 crafting table, 2 furnace) on a fb_w x fb_h frame. Returns the
- * count written (<= max). */
+ * (0 player, 1 crafting table, 2 furnace, 3 chest) on a fb_w x fb_h frame.
+ * Returns the count written (<= max). */
 int gm_screen_layout(int container, int fb_w, int fb_h, GmScreenSlot *out, int max);
 
 /* Map a window-space mouse position to a container_live slot id: a slot id on a
@@ -38,8 +38,8 @@ int gm_screen_slot_at(int container, int fb_w, int fb_h, int mx, int my);
 void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my);
 
 /* Map a vanilla GuiScreen simple class name (tape "gui" field) to a container
- * kind for gm_screen_draw: 0 player, 1 workbench, 2 furnace. Returns -1 for
- * unmapped screens (GuiIngameMenu, GuiChat, etc.) - skip, do not draw. */
+ * kind for gm_screen_draw: 0 player, 1 workbench, 2 furnace, 3 chest. Returns -1
+ * for unmapped screens (GuiIngameMenu, GuiChat, etc.) - skip, do not draw. */
 int gm_screen_kind_for_gui(const char *gui_name);
 
 /* Vanilla gui scale factor used by screen layout (fb_h/240, min 1). At the

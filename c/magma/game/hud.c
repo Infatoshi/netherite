@@ -32,7 +32,8 @@ _Static_assert(GM_GUI_INV_PANEL == GUI_INV_PANEL &&
                GM_GUI_FURNACE_PANEL == GUI_FURNACE_PANEL &&
                GM_GUI_FURNACE_FLAME == GUI_FURNACE_FLAME &&
                GM_GUI_FURNACE_ARROW == GUI_FURNACE_ARROW &&
-               GM_GUI_FONT == GUI_FONT,
+               GM_GUI_FONT == GUI_FONT &&
+               GM_GUI_CHEST_PANEL == GUI_CHEST_PANEL,
                "hud.h GM_GUI_* ids must match generated gui_atlas.h order");
 
 /* ------------------------------------------------------------------ sprites */
