@@ -153,6 +153,10 @@ typedef struct {
      * historical round-half-up (*255+0.5) used by terrain goldens.
      * Preview-only path (player_preview); appended so entity fields keep ABI. */
     int    color_trunc;
+    /* >0 = pixel-space outward edge slack (px). Samples just outside a float
+     * edge by less than this still count as covered (Java/Mesa inventory
+     * preview). 0 (default) keeps strict top-left. */
+    float  cover_eps;
 } CrShadeCtx;
 
 /* per-fragment inputs handed to the shader (perspective-corrected already) */

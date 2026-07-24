@@ -24,20 +24,20 @@
       {
         "pose": "pose1",
         "noise": 0.0,
-        "magma_vs_j": 0.09036680911680911,
-        "hard_px": 2,
+        "magma_vs_j": 0.08079594017094018,
+        "hard_px": 0,
         "pass": false
       },
       {
         "pose": "pose2",
         "noise": 0.0,
-        "magma_vs_j": 0.047275641025641024,
+        "magma_vs_j": 0.04707532051282051,
         "hard_px": 0,
         "pass": false
       }
     ],
-    "pose1_mean_abs": 0.09036680911680911,
-    "pose1_hard_px": 2,
+    "pose1_mean_abs": 0.08079594017094018,
+    "pose1_hard_px": 0,
     "pose1_noise": 0.0
   }
 }

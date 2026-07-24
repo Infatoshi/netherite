@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #define PREVIEW_MAX_TRIS 144
@@ -15,6 +16,15 @@
 #define MODEL_SCALE 0.0625F
 /* prepareScale translate after the Y flip (feet ~ origin). */
 #define PREPARE_TY (-1.501f)
+
+/* Side-channel for PREVIEW_DIAG attribution (part/face per emitted tri). */
+static int g_diag_part[PREVIEW_MAX_TRIS];
+static int g_diag_face[PREVIEW_MAX_TRIS];
+static int g_diag_part_idx;
+static const char *const PART_NAMES[] = {
+    "head", "body", "rarm", "larm", "rleg", "lleg",
+    "headwear", "bodywear", "rarmwear", "larmwear", "rlegwear", "llegwear",
+};
 
 typedef struct {
     int u, v;
@@ -146,7 +156,11 @@ static CrScreenVert screen_vertex(float x, float y, float z, float u, float v,
     float dep = 0.5f - z * 0.02f - depth_bias;
     if (dep < 0.0f) dep = 0.0f;
     if (dep > 1.0f) dep = 1.0f;
-    out.spos = (CrVec3){cx + x * unit, bottom - y * unit, dep};
+    {
+        double sx = (double)cx + (double)x * (double)unit;
+        double sy = (double)bottom - (double)y * (double)unit;
+        out.spos = (CrVec3){(float)sx, (float)sy, dep};
+    }
     out.invw = 1.0f;
     out.uv_w = (CrVec2){u / 64.0f, v / 64.0f};
     out.light_w = light;
@@ -265,10 +279,111 @@ static int emit_part(const PreviewPart *part,
             tris[n].v[0] = a;
             tris[n].v[1] = area > 0.0f ? c : b;
             tris[n].v[2] = area > 0.0f ? b : c;
+            if (n < PREVIEW_MAX_TRIS) {
+                g_diag_part[n] = g_diag_part_idx;
+                g_diag_face[n] = f;
+            }
             ++n;
         }
     }
     return n;
+}
+
+/* Same edge / top-left tests as cpu/raster_cpu.c (y-down, pixel-center). */
+static float diag_edge(float ax, float ay, float bx, float by, float px, float py)
+{
+    return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+}
+static int diag_top_left(float ax, float ay, float bx, float by)
+{
+    float dx = bx - ax, dy = by - ay;
+    return (dy > 0.0f) || (dy == 0.0f && dx < 0.0f);
+}
+
+/* PREVIEW_DIAG=1: attribute pose1 hard pixels to part/face/tri/UV/depth/light. */
+static void preview_diag_attribute(const CrScreenTri *tris, int n, int w, int h)
+{
+    static const int probes[][2] = {{42, 49}, {49, 139}};
+    const float CR_FRONT_SIGN = -1.0f;
+    fprintf(stderr, "PREVIEW_DIAG ntris=%d viewport=%dx%d\n", n, w, h);
+    for (int pi = 0; pi < 2; ++pi) {
+        int px = probes[pi][0], py = probes[pi][1];
+        float fx = (float)px + 0.5f, fy = (float)py + 0.5f;
+        float best_z = 2.0f, best_inc_z = 2.0f;
+        int best = -1, best_inc = -1, hits = 0;
+        fprintf(stderr, "PREVIEW_DIAG pixel (%d,%d) center=(%.1f,%.1f)\n", px, py, fx, fy);
+        for (int t = 0; t < n; ++t) {
+            const CrScreenVert *v0 = &tris[t].v[0];
+            const CrScreenVert *v1 = &tris[t].v[1];
+            const CrScreenVert *v2 = &tris[t].v[2];
+            float x0 = v0->spos.x, y0 = v0->spos.y;
+            float x1 = v1->spos.x, y1 = v1->spos.y;
+            float x2 = v2->spos.x, y2 = v2->spos.y;
+            float area = diag_edge(x0, y0, x1, y1, x2, y2);
+            if (area * CR_FRONT_SIGN <= 0.0f) continue;
+            float w0 = diag_edge(x1, y1, x2, y2, fx, fy);
+            float w1 = diag_edge(x2, y2, x0, y0, fx, fy);
+            float w2 = diag_edge(x0, y0, x1, y1, fx, fy);
+            float b0 = w0 / area, b1 = w1 / area, b2 = w2 / area;
+            int tl0 = diag_top_left(x1, y1, x2, y2);
+            int tl1 = diag_top_left(x2, y2, x0, y0);
+            int tl2 = diag_top_left(x0, y0, x1, y1);
+            int in0 = (b0 > 0.0f) || (b0 == 0.0f && tl0);
+            int in1 = (b1 > 0.0f) || (b1 == 0.0f && tl1);
+            int in2 = (b2 > 0.0f) || (b2 == 0.0f && tl2);
+            int strict = in0 && in1 && in2;
+            int inclusive = (b0 >= 0.0f && b1 >= 0.0f && b2 >= 0.0f);
+            int near = (b0 > -2e-3f && b1 > -2e-3f && b2 > -2e-3f);
+            if (!strict && !near && !inclusive) continue;
+            float z = b0 * v0->spos.z + b1 * v1->spos.z + b2 * v2->spos.z;
+            float u = (b0 * v0->uv_w.x + b1 * v1->uv_w.x + b2 * v2->uv_w.x);
+            float v = (b0 * v0->uv_w.y + b1 * v1->uv_w.y + b2 * v2->uv_w.y);
+            float light = b0 * v0->light_w + b1 * v1->light_w + b2 * v2->light_w;
+            int pidx = g_diag_part[t];
+            const char *pname = (pidx >= 0 && pidx < 12) ? PART_NAMES[pidx] : "?";
+            /* Sample atlas at UV for alpha (cutout). */
+            int tu = (int)floorf(u * 64.0f), tv = (int)floorf(v * 64.0f);
+            if (tu < 0) tu = 0;
+            if (tu > 63) tu = 63;
+            if (tv < 0) tv = 0;
+            if (tv > 63) tv = 63;
+            const unsigned char *tex = HAND_SKIN_RGBA_STEVE + ((tv * 64 + tu) * 4);
+            fprintf(stderr,
+                    "  %s%s tri=%d part=%s face=%d z=%.6f light=%.6f uv=(%.4f,%.4f) "
+                    "bary=(%.5f,%.5f,%.5f) texel=(%u,%u,%u,%u)\n",
+                    strict ? "HIT " : "NEAR", inclusive && !strict ? "+INC" : "    ",
+                    t, pname, g_diag_face[t],
+                    z, light, u * 64.0f, v * 64.0f, b0, b1, b2,
+                    tex[0], tex[1], tex[2], tex[3]);
+            if (strict && tex[3] >= 128) {
+                ++hits;
+                if (z < best_z || (z == best_z && t > best)) {
+                    best_z = z;
+                    best = t;
+                }
+            }
+            if (inclusive && tex[3] >= 128) {
+                if (z < best_inc_z || (z == best_inc_z && t > best_inc)) {
+                    best_inc_z = z;
+                    best_inc = t;
+                }
+            }
+        }
+        if (best >= 0) {
+            int pidx = g_diag_part[best];
+            fprintf(stderr, "  WINNER(tl) tri=%d part=%s face=%d z=%.6f opaque_hits=%d\n",
+                    best, (pidx >= 0 && pidx < 12) ? PART_NAMES[pidx] : "?",
+                    g_diag_face[best], best_z, hits);
+        } else {
+            fprintf(stderr, "  WINNER(tl) none opaque (hits=%d)\n", hits);
+        }
+        if (best_inc >= 0) {
+            int pidx = g_diag_part[best_inc];
+            fprintf(stderr, "  WINNER(inc b>=0) tri=%d part=%s face=%d z=%.6f\n",
+                    best_inc, (pidx >= 0 && pidx < 12) ? PART_NAMES[pidx] : "?",
+                    g_diag_face[best_inc], best_inc_z);
+        }
+    }
 }
 
 void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
@@ -307,8 +422,67 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
         /* Later ModelBiped parts win exact coplanar float ties (GL_LEQUAL).
          * Keep this tiny vs real front/back separation (~0.01 depth units). */
         float depth_bias = (float)(i + 1) * 1.0e-5f;
+        g_diag_part_idx = i;
         n = emit_part(&PLAYER_PARTS[i], body_yaw_deg, net_head_yaw_deg, head_pitch_deg,
                       matrix_pitch_deg, cx, bottom, unit, depth_bias, tris, n);
+    }
+
+    {
+        const char *pd = getenv("PREVIEW_DIAG");
+        int mode = pd ? atoi(pd) : 0;
+        if (mode >= 1)
+            preview_diag_attribute(tris, n, w, h);
+        if (mode >= 2) {
+            /* Per-part screen AABB + 2d distance of probes to nearest front tri. */
+            static const int probes[][2] = {{42, 49}, {49, 139}};
+            for (int p = 0; p < 12; ++p) {
+                float minx = 1e9f, miny = 1e9f, maxx = -1e9f, maxy = -1e9f;
+                int any = 0;
+                for (int t = 0; t < n; ++t) {
+                    if (g_diag_part[t] != p) continue;
+                    for (int k = 0; k < 3; ++k) {
+                        float x = tris[t].v[k].spos.x, y = tris[t].v[k].spos.y;
+                        if (x < minx) minx = x;
+                        if (x > maxx) maxx = x;
+                        if (y < miny) miny = y;
+                        if (y > maxy) maxy = y;
+                        any = 1;
+                    }
+                }
+                if (!any) continue;
+                fprintf(stderr, "PREVIEW_DIAG part=%s aabb=(%.2f,%.2f)-(%.2f,%.2f)\n",
+                        PART_NAMES[p], minx, miny, maxx, maxy);
+            }
+            for (int pi = 0; pi < 2; ++pi) {
+                float fx = probes[pi][0] + 0.5f, fy = probes[pi][1] + 0.5f;
+                for (int p = 0; p < 12; ++p) {
+                    float best_out = 1e9f; /* how far outside (sum of negative bary * |area|) */
+                    int best_t = -1;
+                    for (int t = 0; t < n; ++t) {
+                        if (g_diag_part[t] != p) continue;
+                        const CrScreenVert *v0 = &tris[t].v[0];
+                        const CrScreenVert *v1 = &tris[t].v[1];
+                        const CrScreenVert *v2 = &tris[t].v[2];
+                        float area = diag_edge(v0->spos.x, v0->spos.y, v1->spos.x, v1->spos.y,
+                                               v2->spos.x, v2->spos.y);
+                        if (area * -1.0f <= 0.0f) continue;
+                        float w0 = diag_edge(v1->spos.x, v1->spos.y, v2->spos.x, v2->spos.y, fx, fy);
+                        float w1 = diag_edge(v2->spos.x, v2->spos.y, v0->spos.x, v0->spos.y, fx, fy);
+                        float w2 = diag_edge(v0->spos.x, v0->spos.y, v1->spos.x, v1->spos.y, fx, fy);
+                        float b0 = w0 / area, b1 = w1 / area, b2 = w2 / area;
+                        float outside = 0.0f;
+                        if (b0 < 0) outside += -b0;
+                        if (b1 < 0) outside += -b1;
+                        if (b2 < 0) outside += -b2;
+                        if (outside < best_out) { best_out = outside; best_t = t; }
+                    }
+                    if (best_t >= 0)
+                        fprintf(stderr, "  probe(%d,%d) part=%s outside_bary=%.5f tri=%d face=%d\n",
+                                probes[pi][0], probes[pi][1], PART_NAMES[p], best_out,
+                                best_t, g_diag_face[best_t]);
+                }
+            }
+        }
     }
 
     CrTexture skin = {0};
@@ -323,6 +497,9 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
     shade.depth_lequal = 1;
     /* Fixed-function entity color path truncates to 8-bit (not +0.5 round). */
     shade.color_trunc = 1;
+    /* Mesa/Java covers pixel centers ~1e-3 px outside our mathematical edges
+     * (pose1 hard pixels measured at ~0.0008 px). Pixel-space slack, not bary. */
+    shade.cover_eps = 0.001f;
     cr_raster_cpu(&local, tris, n, &shade);
 
     /* Depth-tested local buffer -> parent: replace when alpha survives cutout

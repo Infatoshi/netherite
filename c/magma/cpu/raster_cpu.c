@@ -138,19 +138,47 @@ void cr_raster_cpu(CrFramebuffer *fb, const CrScreenTri *tris, int ntris,
                 float b1 = w1 / area;
                 float b2 = w2 / area;
 
-                int in0 = (b0 > 0.0f) || (b0 == 0.0f && tl0);
-                int in1 = (b1 > 0.0f) || (b1 == 0.0f && tl1);
-                int in2 = (b2 > 0.0f) || (b2 == 0.0f && tl2);
+                /* Coverage: interior (b>0) + top-left exact edge. Optional
+                 * cover_eps is PIXEL-space outward slack: a sample < cover_eps
+                 * px outside an edge still counts. Slack hits must be strictly
+                 * closer in z (not LEQUAL) so coplanar sibling faces cannot
+                 * overwrite a strict interior hit (pose2 arm top vs side). */
+                float cov_eps = sh->cover_eps;
+                int s0 = (b0 > 0.0f) || (b0 == 0.0f && tl0);
+                int s1 = (b1 > 0.0f) || (b1 == 0.0f && tl1);
+                int s2 = (b2 > 0.0f) || (b2 == 0.0f && tl2);
+                int strict_in = s0 && s1 && s2;
+                int in0 = s0, in1 = s1, in2 = s2;
+                if (!strict_in && cov_eps > 0.0f) {
+                    float el0 = sqrtf((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+                    float el1 = sqrtf((x0 - x2) * (x0 - x2) + (y0 - y2) * (y0 - y2));
+                    float el2 = sqrtf((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+                    if (!in0 && el0 > 1e-12f && w0 * area < 0.0f
+                        && fabsf(w0) / el0 <= cov_eps) in0 = 1;
+                    if (!in1 && el1 > 1e-12f && w1 * area < 0.0f
+                        && fabsf(w1) / el1 <= cov_eps) in1 = 1;
+                    if (!in2 && el2 > 1e-12f && w2 * area < 0.0f
+                        && fabsf(w2) / el2 <= cov_eps) in2 = 1;
+                }
                 if (!(in0 && in1 && in2)) continue;
+                int slack_hit = !strict_in;
 
                 float invw = b0 * v0->invw + b1 * v1->invw + b2 * v2->invw;
                 float z = b0 * v0->spos.z + b1 * v1->spos.z + b2 * v2->spos.z;
 
                 int idx = py * W + px;
-                /* GL_LEQUAL opt-in: equal-depth fragments pass (coplanar
-                 * overlay quads drawn after their base layer). */
-                if (!(z < fb->depth[idx] ||
-                      (sh->depth_lequal && z == fb->depth[idx]))) continue;
+                /* Depth: strict coverage uses LEQUAL when enabled. Slack hits
+                 * require a material depth improvement (>1e-5) so a coplanar
+                 * sibling face a few ULP closer cannot overwrite a strict
+                 * interior sample (pose2 arm top vs side), while hat-over-head
+                 * (~1e-3) and empty-hole fills still pass. */
+                int depth_ok;
+                if (slack_hit)
+                    depth_ok = (z + 1.0e-5f < fb->depth[idx]);
+                else
+                    depth_ok = (z < fb->depth[idx]) ||
+                        (sh->depth_lequal && z == fb->depth[idx]);
+                if (!depth_ok) continue;
 
                 float iw = 1.0f / invw;
 
