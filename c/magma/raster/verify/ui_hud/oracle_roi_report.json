@@ -1,7 +1,34 @@
 {
   "margin": 2.0,
   "fail": 0,
+  "residual": 4,
   "blocked": [],
+  "residuals": [
+    {
+      "id": "hud_hurt_flash_on",
+      "noise": 0.0,
+      "c_vs_j": 115.27254901960784,
+      "gate": 2.0
+    },
+    {
+      "id": "hud_hurt_flash_off",
+      "noise": 0.0,
+      "c_vs_j": 106.25,
+      "gate": 2.0
+    },
+    {
+      "id": "hud_air_partial",
+      "noise": 0.11870578443612151,
+      "c_vs_j": 19.465488215488215,
+      "gate": 2.1187057844361217
+    },
+    {
+      "id": "hud_durability_half",
+      "noise": 0.0,
+      "c_vs_j": 11.587797619047619,
+      "gate": 2.0
+    }
+  ],
   "rows": [
     {
       "id": "hud_armor_iron",
@@ -16,7 +43,9 @@
         420
       ],
       "hard": true,
-      "n_painted": 4436
+      "n_painted": 4436,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
     },
     {
       "id": "hud_absorption_armor",
@@ -31,13 +60,15 @@
         420
       ],
       "hard": true,
-      "n_painted": 4436
+      "n_painted": 4436,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
     },
     {
       "id": "hud_hurt_flash_on",
-      "noise": 25.65030303030303,
-      "c_vs_j": 45.40882352941176,
-      "gate": 27.65030303030303,
+      "noise": 0.0,
+      "c_vs_j": 115.27254901960784,
+      "gate": 2.0,
       "verdict": "RESIDUAL",
       "roi": [
         244,
@@ -46,7 +77,9 @@
         420
       ],
       "hard": true,
-      "n_painted": 2040
+      "n_painted": 2040,
+      "noise_limit": 3.0,
+      "reason": "hard_residual"
     },
     {
       "id": "hud_hurt_flash_off",
@@ -61,12 +94,14 @@
         420
       ],
       "hard": true,
-      "n_painted": 1632
+      "n_painted": 1632,
+      "noise_limit": 3.0,
+      "reason": "hard_residual"
     },
     {
       "id": "hud_hunger_poison",
       "noise": 0.0,
-      "c_vs_j": 0.14285714285714285,
+      "c_vs_j": 1.1652983032293378,
       "gate": 2.0,
       "verdict": "PASS",
       "roi": [
@@ -76,13 +111,15 @@
         420
       ],
       "hard": true,
-      "n_painted": 1218
+      "n_painted": 1218,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
     },
     {
       "id": "hud_air_partial",
-      "noise": 0.17249271743653766,
-      "c_vs_j": 19.442340067340066,
-      "gate": 2.172492717436538,
+      "noise": 0.11870578443612151,
+      "c_vs_j": 19.465488215488215,
+      "gate": 2.1187057844361217,
       "verdict": "RESIDUAL",
       "roi": [
         430,
@@ -91,14 +128,16 @@
         400
       ],
       "hard": true,
-      "n_painted": 792
+      "n_painted": 792,
+      "noise_limit": 2.0,
+      "reason": "hard_residual"
     },
     {
       "id": "hud_xp_half",
       "noise": 0.0,
-      "c_vs_j": 6.9911563714324,
+      "c_vs_j": 0.3052391799544419,
       "gate": 2.0,
-      "verdict": "RESIDUAL",
+      "verdict": "PASS",
       "roi": [
         244,
         398,
@@ -106,7 +145,9 @@
         432
       ],
       "hard": true,
-      "n_painted": 7463
+      "n_painted": 7463,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
     },
     {
       "id": "hud_durability_half",
@@ -121,7 +162,9 @@
         474
       ],
       "hard": true,
-      "n_painted": 224
+      "n_painted": 224,
+      "noise_limit": 2.0,
+      "reason": "hard_residual"
     },
     {
       "id": "hud_boss_half",
@@ -136,14 +179,16 @@
         36
       ],
       "hard": true,
-      "n_painted": 4736
+      "n_painted": 4736,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
     },
     {
       "id": "hud_death",
-      "noise": 0.9734879867439934,
-      "c_vs_j": 55.06656820719715,
-      "gate": 2.9734879867439936,
-      "verdict": "INFO",
+      "noise": 0.9579942368671707,
+      "c_vs_j": 56.07607817605286,
+      "gate": 2.9579942368671706,
+      "verdict": "CAPTURE_OK",
       "roi": [
         0,
         222,
@@ -151,14 +196,16 @@
         258
       ],
       "hard": false,
-      "n_painted": 30744
+      "n_painted": 30744,
+      "noise_limit": 5.0,
+      "reason": "soft_capture"
     },
     {
       "id": "hand_bow_pull20",
-      "noise": 20.359601621381973,
-      "c_vs_j": 51.91130991271716,
-      "gate": 22.359601621381973,
-      "verdict": "INFO",
+      "noise": 0.0,
+      "c_vs_j": 61.12913169489538,
+      "gate": 2.0,
+      "verdict": "CAPTURE_OK",
       "roi": [
         569,
         320,
@@ -166,14 +213,16 @@
         472
       ],
       "hard": false,
-      "n_painted": 19897
+      "n_painted": 19897,
+      "noise_limit": 3.0,
+      "reason": "soft_capture"
     },
     {
       "id": "hand_eat_mid",
       "noise": 0.0,
-      "c_vs_j": 46.065145601921344,
+      "c_vs_j": 31.390573401380966,
       "gate": 2.0,
-      "verdict": "INFO",
+      "verdict": "CAPTURE_OK",
       "roi": [
         569,
         320,
@@ -181,14 +230,16 @@
         472
       ],
       "hard": false,
-      "n_painted": 3331
+      "n_painted": 3331,
+      "noise_limit": 2.0,
+      "reason": "soft_capture"
     },
     {
-      "id": "hand_block_sword",
+      "id": "hand_block_shield",
       "noise": 0.0,
-      "c_vs_j": 40.93343687155287,
+      "c_vs_j": 27.18488891953706,
       "gate": 2.0,
-      "verdict": "INFO",
+      "verdict": "CAPTURE_OK",
       "roi": [
         569,
         320,
@@ -196,14 +247,16 @@
         472
       ],
       "hard": false,
-      "n_painted": 16741
+      "n_painted": 29003,
+      "noise_limit": 2.0,
+      "reason": "soft_capture"
     },
     {
       "id": "overlay_inside_stone",
       "noise": 0.0,
-      "c_vs_j": 60.71198636246506,
+      "c_vs_j": 80.04016102070078,
       "gate": 2.0,
-      "verdict": "INFO",
+      "verdict": "CAPTURE_OK",
       "roi": [
         2,
         2,
@@ -211,14 +264,16 @@
         478
       ],
       "hard": false,
-      "n_painted": 404284
+      "n_painted": 404284,
+      "noise_limit": 3.0,
+      "reason": "soft_capture"
     },
     {
       "id": "overlay_inside_grass",
       "noise": 0.0,
-      "c_vs_j": 61.10365617937433,
+      "c_vs_j": 81.68331218986832,
       "gate": 2.0,
-      "verdict": "INFO",
+      "verdict": "CAPTURE_OK",
       "roi": [
         2,
         2,
@@ -226,14 +281,16 @@
         478
       ],
       "hard": false,
-      "n_painted": 404284
+      "n_painted": 404284,
+      "noise_limit": 3.0,
+      "reason": "soft_capture"
     },
     {
       "id": "overlay_portal_050",
-      "noise": 7.243779613820518,
-      "c_vs_j": 44.79479269538422,
-      "gate": 9.243779613820518,
-      "verdict": "INFO",
+      "noise": 8.57064884752883,
+      "c_vs_j": 49.83494529928806,
+      "gate": 10.57064884752883,
+      "verdict": "CAPTURE_OK",
       "roi": [
         2,
         2,
@@ -241,14 +298,16 @@
         478
       ],
       "hard": false,
-      "n_painted": 404368
+      "n_painted": 404368,
+      "noise_limit": 12.0,
+      "reason": "soft_capture"
     },
     {
       "id": "overlay_fire",
-      "noise": 0.06740731586752348,
-      "c_vs_j": 54.4656627829195,
-      "gate": 2.0674073158675235,
-      "verdict": "INFO",
+      "noise": 6.7267312307901115,
+      "c_vs_j": 4.479918106822424,
+      "gate": 8.726731230790111,
+      "verdict": "CAPTURE_OK",
       "roi": [
         2,
         2,
@@ -256,14 +315,16 @@
         478
       ],
       "hard": false,
-      "n_painted": 133548
+      "n_painted": 133548,
+      "noise_limit": 35.0,
+      "reason": "soft_capture"
     },
     {
       "id": "overlay_underwater",
-      "noise": 0.1939866534849234,
-      "c_vs_j": 16.6186578134549,
-      "gate": 2.1939866534849233,
-      "verdict": "INFO",
+      "noise": 0.1706401384083045,
+      "c_vs_j": 15.253536329550897,
+      "gate": 2.1706401384083045,
+      "verdict": "CAPTURE_OK",
       "roi": [
         2,
         2,
@@ -271,7 +332,10 @@
         478
       ],
       "hard": false,
-      "n_painted": 403620
+      "n_painted": 403620,
+      "noise_limit": 3.0,
+      "reason": "soft_capture"
     }
-  ]
+  ],
+  "notes": "PASS = hard C-vs-J within gate. RESIDUAL = hard capture OK but C residual (nonzero exit). CAPTURE_OK = soft state capture integrity only (no parity claim). FAIL = missing/noise/empty."
 }

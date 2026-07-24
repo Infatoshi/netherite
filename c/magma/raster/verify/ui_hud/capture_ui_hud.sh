@@ -122,7 +122,9 @@ log "bridge up."
 
 log "running capture driver..."
 cd "$ENVDIR" || fail "cd $ENVDIR"
-uv run --no-project python "$SCRIPT_DIR/capture_ui_hud_driver.py" \
+# Driver enforces A/B noise + feature presence (needs pillow/numpy).
+uv run --no-project --with pillow --with numpy python \
+  "$SCRIPT_DIR/capture_ui_hud_driver.py" \
   --out "$OUTDIR" \
   --seed "$SEED" \
   || fail "capture driver failed"
@@ -132,7 +134,7 @@ REQUIRED=(
   hud_armor_iron hud_absorption_armor hud_hurt_flash_on hud_hurt_flash_off
   hud_hunger_poison hud_air_partial hud_xp_half hud_durability_half
   hud_boss_half hud_death
-  hand_bow_pull20 hand_eat_mid hand_block_sword
+  hand_bow_pull20 hand_eat_mid hand_block_shield
   overlay_inside_stone overlay_inside_grass overlay_portal_050
   overlay_fire overlay_underwater
 )
@@ -146,7 +148,12 @@ for id in "${REQUIRED[@]}"; do
     fi
   done
 done
-[ "$missing" = 0 ] || fail "one or more goldens missing"
+# Contaminated legacy name from pre-audit sword-block captures.
+if [ -f "$OUTDIR/hand_block_sword_a.png" ] || [ -f "$OUTDIR/hand_block_sword_b.png" ]; then
+  echo "[capture_ui_hud] FAIL: contaminated hand_block_sword_* still present" >&2
+  missing=1
+fi
+[ "$missing" = 0 ] || fail "one or more goldens missing or contaminated"
 
 log "done: $(ls "$OUTDIR"/*_a.png 2>/dev/null | wc -l) states x2 frames under $OUTDIR"
 log "oracle cleanup runs on exit"

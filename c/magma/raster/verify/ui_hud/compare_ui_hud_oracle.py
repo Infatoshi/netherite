@@ -3,10 +3,18 @@
 
 For each state ID:
   noise  = mean |Java_a - Java_b| over ROI
-  c_vs_j = mean |C - Java_a| over ROI
-  gate   = noise + MARGIN  (hard only where C is expected to track HUD chrome)
+  c_vs_j = mean |C - Java_a| over ROI  (only where C painted non-gray)
+  gate   = noise + MARGIN
 
-Whole-frame class budgets are NOT acceptance. Per-ROI metrics always print.
+Verdicts (capture integrity first; no false parity claims):
+  FAIL        - missing files, capture noise over ceiling, C drew nothing on hard
+  CAPTURE_OK  - soft state: A/B frozen + feature ROI present; no hard C parity claim
+  PASS        - hard state: C painted pixels within noise+margin (parity claim)
+  RESIDUAL    - hard state: capture OK but C-vs-J exceeds gate (nonzero exit)
+
+Hard RESIDUAL returns nonzero. Soft states never claim pixel parity.
+Gray C backdrop is composition isolation only; not a live-world equivalence claim.
+Inside-block C uses real atlas particle UVs (not solid synthetic texels).
 """
 from __future__ import print_function
 
@@ -18,29 +26,38 @@ import sys
 import numpy as np
 from PIL import Image
 
-# 854x480, guiScale 2. Anchors match vanilla GuiIngame scaled coords * scale.
-# sw=427, sh=240, cx=213, hb_x=(213-91)*2=244, j1=(240-39)*2=402
 W, H = 854, 480
 S = 2
 CX = (W + S - 1) // S // 2  # 213
 SH = (H + S - 1) // S       # 240
 HB_X = (CX - 91) * S        # 244
 HB_Y = (SH - 22) * S        # 436
-J1 = (SH - 39) * S          # 402  hearts/food baseline
+J1 = (SH - 39) * S          # 402
+
+# Capture noise ceiling (must match driver intent; no 40 loophole).
+NOISE_MAX_DEFAULT = 2.0
+NOISE_MAX = {
+    "hud_hurt_flash_on": 3.0,
+    "hud_hurt_flash_off": 3.0,
+    "hand_bow_pull20": 3.0,
+    "overlay_portal_050": 12.0,
+    "overlay_fire": 35.0,
+    "hud_death": 5.0,
+    "overlay_inside_stone": 3.0,
+    "overlay_inside_grass": 3.0,
+    "overlay_underwater": 3.0,
+}
 
 
 def roi_rect(name):
     """Return (x0,y0,x1,y1) exclusive ROI for a state id / feature class."""
     if name in ("hud_armor_iron",):
-        # armor row at j1-10 = 382, hearts at 402; width 10*8*2=160
         return (HB_X, J1 - 10 * S, HB_X + 10 * 8 * S, J1 + 9 * S)
     if name in ("hud_absorption_armor",):
-        # armor lifted one row: j1 - 10 - 10 = 362
         return (HB_X, J1 - 20 * S, HB_X + 10 * 8 * S, J1 + 9 * S)
     if name in ("hud_hurt_flash_on", "hud_hurt_flash_off"):
         return (HB_X, J1, HB_X + 10 * 8 * S, J1 + 9 * S)
     if name in ("hud_hunger_poison",):
-        # hunger right of hotbar, mirrored 10 icons
         x1 = HB_X + 182 * S
         return (x1 - 10 * 8 * S - 9 * S, J1, x1, J1 + 9 * S)
     if name in ("hud_air_partial",):
@@ -49,10 +66,8 @@ def roi_rect(name):
         return (x1 - 10 * 8 * S - 9 * S, air_y, x1, air_y + 9 * S)
     if name in ("hud_xp_half",):
         xp_y = (SH - 29) * S
-        # bar + level text band
         return (HB_X, xp_y - 12 * S, HB_X + 182 * S, xp_y + 5 * S)
     if name in ("hud_durability_half",):
-        # slot 0 icon + durability strip at icon+(0,13)
         ix = HB_X + 3 * S
         iy = HB_Y + 3 * S
         return (ix, iy + 12 * S, ix + 14 * S, iy + 16 * S)
@@ -61,22 +76,17 @@ def roi_rect(name):
         bb_y = 12 * S
         return (bb_x, bb_y - 10 * S, bb_x + 182 * S, bb_y + 6 * S)
     if name in ("hud_death",):
-        # center banner band
         by = H // 2 - 18
         return (0, by, W, by + 36)
     if name.startswith("hand_"):
         return (W * 2 // 3, H * 2 // 3, W - 8, H - 8)
     if name.startswith("overlay_"):
-        # full frame but inset 2px (avoid window edge noise)
         return (2, 2, W - 2, H - 2)
     return (0, 0, W, H)
 
 
-# Hard gate only for HUD chrome where C path is sprite-faithful on gray.
-# Viewmodels / full-frame overlays remain INFO (known residual or backdrop).
-# Hard pixel gates: sprite-dominated HUD ROIs where C can transplant cleanly.
-# Death wash / viewmodels / full-frame overlays stay INFO (alpha over live world
-# or known residuals - metrics still reported).
+# Hard gate: sprite-dominated HUD ROIs where C composition can claim parity.
+# Viewmodels / full-frame overlays remain soft (CAPTURE_OK / residual report only).
 HARD = {
     "hud_armor_iron",
     "hud_absorption_armor",
@@ -94,7 +104,6 @@ def load_rgb(path):
     im = Image.open(path).convert("RGB")
     a = np.asarray(im, dtype=np.int16)
     if a.shape[0] != H or a.shape[1] != W:
-        # allow slight mismatch: center-crop or pad
         out = np.zeros((H, W, 3), dtype=np.int16)
         h, w = a.shape[:2]
         y0 = max(0, (H - h) // 2)
@@ -111,7 +120,6 @@ def load_ppm(path):
         magic = f.readline().strip()
         if magic != b"P6":
             raise ValueError("not P6: " + path)
-        # skip comments
         line = f.readline()
         while line.startswith(b"#"):
             line = f.readline()
@@ -159,15 +167,23 @@ def main():
         "hud_hurt_flash_on", "hud_hurt_flash_off",
         "hud_hunger_poison", "hud_air_partial", "hud_xp_half",
         "hud_durability_half", "hud_boss_half", "hud_death",
-        "hand_bow_pull20", "hand_eat_mid", "hand_block_sword",
+        "hand_bow_pull20", "hand_eat_mid", "hand_block_shield",
         "overlay_inside_stone", "overlay_inside_grass",
         "overlay_portal_050", "overlay_fire", "overlay_underwater",
     ]
 
-    print("%-24s %10s %10s %10s %8s  %s" % (
+    # Reject contaminated legacy name if still present.
+    legacy = os.path.join(args.goldens, "hand_block_sword_a.png")
+    if os.path.isfile(legacy):
+        print("FAIL: contaminated golden hand_block_sword_* present; "
+              "delete and recapture as hand_block_shield", file=sys.stderr)
+
+    print("%-24s %10s %10s %10s %10s  %s" % (
         "state", "noise", "C-vs-J", "gate", "verdict", "roi"))
-    fail = 0
+    n_fail = 0
+    n_residual = 0
     blocked = []
+    residuals = []
     rows = []
     for sid in ids:
         ja_p = os.path.join(args.goldens, "%s_a.png" % sid)
@@ -175,23 +191,32 @@ def main():
         c_p = os.path.join(args.cframes, "c_%s.ppm" % sid)
         rect = roi_rect(sid)
         if not (os.path.isfile(ja_p) and os.path.isfile(jb_p)):
-            print("%-24s %10s %10s %10s %8s  MISSING JAVA" % (
-                sid, "-", "-", "-", "BLOCKED"))
+            print("%-24s %10s %10s %10s %10s  MISSING JAVA" % (
+                sid, "-", "-", "-", "FAIL"))
             blocked.append(sid)
-            fail += 1
+            n_fail += 1
+            rows.append({
+                "id": sid, "noise": None, "c_vs_j": None, "gate": None,
+                "verdict": "FAIL", "roi": list(rect), "hard": sid in HARD,
+                "reason": "missing_java",
+            })
             continue
         if not os.path.isfile(c_p):
-            print("%-24s %10s %10s %10s %8s  MISSING C" % (
-                sid, "-", "-", "-", "BLOCKED"))
+            print("%-24s %10s %10s %10s %10s  MISSING C" % (
+                sid, "-", "-", "-", "FAIL"))
             blocked.append(sid)
-            fail += 1
+            n_fail += 1
+            rows.append({
+                "id": sid, "noise": None, "c_vs_j": None, "gate": None,
+                "verdict": "FAIL", "roi": list(rect), "hard": sid in HARD,
+                "reason": "missing_c",
+            })
             continue
         ja_full = load_rgb(ja_p)
         jb_full = load_rgb(jb_p)
         c_full = load_ppm(c_p)
-        # Compare only where C painted (non-gray): those pixels are the owned
-        # HUD/overlay/viewmodel contribution. Gray C backdrop is not compared
-        # against the live Java world.
+        # Compare only where C painted (non-gray): owned HUD/overlay/viewmodel.
+        # Gray C backdrop is composition isolation, NOT live-world equivalence.
         GRAY = 40
         painted_full = np.abs(c_full.astype(np.int16) - GRAY).max(axis=2) > 8
 
@@ -199,7 +224,6 @@ def main():
         jb = crop(jb_full, rect)
         c = crop(c_full, rect)
         painted = crop(painted_full.astype(np.uint8), rect).astype(bool)
-        # shape guard
         h = min(ja.shape[0], jb.shape[0], c.shape[0], painted.shape[0])
         w = min(ja.shape[1], jb.shape[1], c.shape[1], painted.shape[1])
         ja, jb, c = ja[:h, :w], jb[:h, :w], c[:h, :w]
@@ -211,55 +235,65 @@ def main():
         if stable.any():
             noise = float(np.abs(ja - jb)[stable].mean())
 
-        # C-vs-J on C-painted ∩ stable pixels (feature-specific, not whole class)
         m = painted & stable if stable.any() else painted
         n_painted = int(painted.sum())
         if m.any():
             diff = float(np.abs(c.astype(np.int16) - ja.astype(np.int16))[m].mean())
         elif n_painted == 0:
-            diff = float("nan")  # C drew nothing in ROI
+            diff = float("nan")
         else:
             diff = float(np.abs(c.astype(np.int16) - ja.astype(np.int16))[painted].mean())
 
         gate = noise + args.margin
         hard = sid in HARD
-        # Capture integrity: A/B must be frozen (noise finite and not absurd).
-        # Flash/portal/bow can have elevated A/B noise when the client tick
-        # races the socket thread; 40 is still well below a fully-unfrozen
-        # scene (typically 80+).
-        capture_ok = (noise == noise) and noise <= 40.0 and n_painted > 0
+        noise_lim = NOISE_MAX.get(sid, NOISE_MAX_DEFAULT)
+        capture_ok = (noise == noise) and noise <= noise_lim and n_painted > 0
+
         if not capture_ok:
             verdict = "FAIL"
-            fail += 1
+            n_fail += 1
+            reason = "capture_noise" if noise > noise_lim else "c_empty"
         elif hard:
-            # Sprite chrome: C painted pixels within calibrated noise+margin.
-            # Large residual is reported as residual, not a missing golden.
             ok = (diff == diff) and diff <= max(gate, args.margin + 1.0)
             if ok:
                 verdict = "PASS"
+                reason = "hard_parity"
             else:
-                # Hard residual: still a successful capture; mark RESIDUAL so the
-                # gate surfaces exact metrics without claiming parity.
+                # Hard residual: capture integrity held; C does not match Java.
+                # Nonzero exit — do not claim parity.
                 verdict = "RESIDUAL"
-                # Do not fail the shell on residual - capture integrity is the
-                # release bar for this oracle-capture task. Pixel parity is the
-                # reported metric for later renderer work.
+                n_residual += 1
+                reason = "hard_residual"
+                residuals.append({
+                    "id": sid, "noise": noise, "c_vs_j": diff, "gate": gate,
+                })
         else:
-            verdict = "INFO"
-        print("%-24s %10.3f %10.3f %10.3f %8s  painted=%d %s" % (
+            # Soft: capture-only success. Metrics reported; no parity claim.
+            verdict = "CAPTURE_OK"
+            reason = "soft_capture"
+
+        print("%-24s %10.3f %10.3f %10.3f %10s  painted=%d %s" % (
             sid, noise, diff if diff == diff else -1.0, gate, verdict,
             n_painted, rect))
         rows.append({
             "id": sid, "noise": noise, "c_vs_j": diff, "gate": gate,
             "verdict": verdict, "roi": list(rect), "hard": hard,
-            "n_painted": n_painted,
+            "n_painted": n_painted, "noise_limit": noise_lim, "reason": reason,
         })
 
     report = {
         "margin": args.margin,
-        "fail": fail,
+        "fail": n_fail,
+        "residual": n_residual,
         "blocked": blocked,
+        "residuals": residuals,
         "rows": rows,
+        "notes": (
+            "PASS = hard C-vs-J within gate. "
+            "RESIDUAL = hard capture OK but C residual (nonzero exit). "
+            "CAPTURE_OK = soft state capture integrity only (no parity claim). "
+            "FAIL = missing/noise/empty."
+        ),
     }
     if args.report:
         with open(args.report, "w") as f:
@@ -267,9 +301,22 @@ def main():
         print("report -> %s" % args.report)
 
     print("blocked: %s" % (blocked if blocked else "none"))
-    print("ui_hud oracle ROI gate: %s (%d hard fails / missing)" % (
-        "PASS" if fail == 0 else "FAIL", fail))
-    return 1 if fail else 0
+    print("open residuals (hard, no parity claim):")
+    if residuals:
+        for r in residuals:
+            print("  %s  noise=%.3f  C-vs-J=%.3f  gate=%.3f" % (
+                r["id"], r["noise"], r["c_vs_j"], r["gate"]))
+    else:
+        print("  none")
+    # Nonzero on capture FAIL or hard RESIDUAL.
+    exit_code = 1 if (n_fail or n_residual) else 0
+    status = "PASS" if exit_code == 0 else (
+        "FAIL" if n_fail else "RESIDUAL")
+    print("ui_hud oracle ROI gate: %s (fail=%d residual=%d)" % (
+        status, n_fail, n_residual))
+    if os.path.isfile(legacy):
+        exit_code = 1
+    return exit_code
 
 
 if __name__ == "__main__":

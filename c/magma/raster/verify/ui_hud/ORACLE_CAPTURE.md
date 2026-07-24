@@ -19,9 +19,20 @@ Java PNGs live under `goldens/` as `<id>_a.png` / `<id>_b.png` (twin captures
 for the A/B noise floor). Capture: `bash raster/verify/ui_hud/capture_ui_hud.sh`
 (uses qrl `hud_pin` + `frame` at partialTicks=1, llvmpipe, lock
 `/tmp/qrl_25575.lock`). ROI compare: `compare_ui_hud_oracle.py` via
-`run_ui_hud_gates.sh` when goldens are present. C-vs-J residual on painted
-pixels is reported per feature ROI; capture integrity (non-empty twins, bounded
-noise) is the hard bar for this directory.
+`run_ui_hud_gates.sh` when goldens are present.
+
+**Capture integrity (enforced):** every state starts from an asserted clean
+living player; `base_scene` fails on any server-command failure; `clear_effects`
+runs before requested effects; death uses real `respawnPlayer` + close
+`GuiGameOver`; A/B noise ceilings are tight (no 40 loophole); feature-presence
+checks cover death / shield / bow / eat / fire / inside-block / portal /
+underwater. Contaminated legacy `hand_block_sword` is rejected (1.11.2 blocks
+with **shield** item 442).
+
+**Gate verdicts:** `PASS` = hard HUD C-vs-J within noise+margin (parity claim).
+`RESIDUAL` = hard capture OK but C residual (**nonzero exit**, no parity claim).
+`CAPTURE_OK` = soft state capture integrity only. `FAIL` = missing/noise/empty.
+Gray C backdrop is composition isolation only — not a live-world claim.
 
 ## Required captures (missing evidence)
 
@@ -38,7 +49,7 @@ noise) is the hard bar for this directory.
 | `hud_death.png` | Dead player, deaths≥1 | Die to mob; hold death screen | Full-frame red wash + banner |
 | `hand_bow_pull20.png` | Bow drawn 20 ticks, fixed yaw/pitch 0, wall backdrop | Hold use 20 ticks against plain wall | Lower-right viewmodel |
 | `hand_eat_mid.png` | Bread, use remaining 16/32 | Hold right-click mid-eat | Lower-right viewmodel |
-| `hand_block_shield.png` | Shield (item 442) blocking | Hold right-click main/off hand | Lower-right viewmodel |
+| `hand_block_shield.png` | Shield blocking (1.11.2; swords do not block) | Hold right-click with shield (id 442) | Lower-right viewmodel |
 | `overlay_inside_stone.png` | Eye inside solid stone | `/tp` into stone (suffocation) | Full frame near-black **particle** texture, U mirrored (maxU left) |
 | `overlay_inside_grass.png` | Eye inside grass (particle=dirt not top) | `/tp` into grass block | Full frame dirt particle darken |
 | `overlay_portal_050.png` | `timeInPortal=0.5` | Stand in portal ~10 ticks | Full-frame portal swirl alpha |
@@ -71,6 +82,14 @@ Example qrl + mcwindow sketch for armor + hurt flash:
 
 ## Known open pixel residuals (do not mask)
 
+- **Hard HUD residuals (C-vs-J, capture noise ~0):** `hud_hurt_flash_on/off`
+  (~115/106), `hud_air_partial` (~19), `hud_durability_half` (~12). Gate returns
+  nonzero `RESIDUAL` for these; not parity.
+- **Hand viewmodels blank in Java goldens:** `hand_bow_pull20` / `hand_eat_mid` /
+  `hand_block_shield` share identical lower-right ROIs (wall only) despite
+  `hand_active=true` and distinct hotbar icons. Equip-progress pin is in
+  `hud_pin` (`equippedProgressMainHand=1`); still need a verified first-person
+  mesh before claiming viewmodel presence. Soft `CAPTURE_OK` only.
 - **Drawn-bow registration (#29):** geometry follows ItemRenderer BOW branch at
   partialTicks=1; remaining 3–4/ch silhouette error needs still-draw A/B against
   `hand_bow_pull20.png` before further tuning.

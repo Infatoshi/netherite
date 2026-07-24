@@ -2994,16 +2994,24 @@ public class QuantizedRL {
                     p.experienceTotal = 0;
                 }
                 if (a.has("fire")) {
-                    int ft = a.get("fire").getAsInt();
-                    if (ft > 0) p.setFire(ft / 20 + 1);
-                    else {
-                        p.extinguish();
-                        try {
-                            java.lang.reflect.Field ff =
-                                net.minecraft.entity.Entity.class.getDeclaredField("fire");
-                            ff.setAccessible(true);
+                    // Pin Entity.fire ticks directly so first-person fire overlay
+                    // (EntityRenderer.renderFireInFirstPerson / isBurning) is on.
+                    // Prefer direct field write; avoid setFire() which can enqueue
+                    // client/server work that hangs headless llvmpipe under load.
+                    final int ft = a.get("fire").getAsInt();
+                    try {
+                        java.lang.reflect.Field ff =
+                            net.minecraft.entity.Entity.class.getDeclaredField("fire");
+                        ff.setAccessible(true);
+                        if (ft > 0) {
+                            ff.setInt(p, ft);
+                        } else {
+                            p.extinguish();
                             ff.setInt(p, -1);
-                        } catch (Throwable ig) {}
+                        }
+                    } catch (Throwable ig) {
+                        if (ft > 0) p.setFire(Math.max(1, ft / 20));
+                        else p.extinguish();
                     }
                 }
                 if (a.has("portal")) {
@@ -3020,6 +3028,11 @@ public class QuantizedRL {
                     p.hurtResistantTime = Math.max(p.hurtResistantTime, p.maxHurtTime);
                 }
 
+                // clear_effects MUST run before applying requested effects; previous
+                // order wiped every pin that set both (hunger/absorption contamination).
+                if (a.has("clear_effects") && a.get("clear_effects").getAsBoolean()) {
+                    p.clearActivePotions();
+                }
                 // Potion effects (id + duration ticks + amplifier).
                 if (a.has("effects") && a.get("effects").isJsonArray()) {
                     for (com.google.gson.JsonElement el : a.getAsJsonArray("effects")) {
@@ -3034,9 +3047,39 @@ public class QuantizedRL {
                                 pot, dur, amp, false, false));
                     }
                 }
-                if (a.has("clear_effects") && a.get("clear_effects").getAsBoolean()) {
-                    p.clearActivePotions();
-                }
+
+                // Fully raise the main-hand viewmodel. ItemRenderer passes
+                // equipArg = 1 - equippedProgressMainHand into transforms, so
+                // equippedProgressMainHand=1 => equipArg=0 => raised (vanilla
+                // fully-equipped). Hotbar swaps leave progress near 0 (hidden)
+                // for several ticks and oracle hand frames capture empty walls.
+                try {
+                    java.lang.reflect.Field fEq =
+                        net.minecraft.client.renderer.ItemRenderer.class
+                            .getDeclaredField("equippedProgressMainHand");
+                    java.lang.reflect.Field fPrev =
+                        net.minecraft.client.renderer.ItemRenderer.class
+                            .getDeclaredField("prevEquippedProgressMainHand");
+                    java.lang.reflect.Field fItem =
+                        net.minecraft.client.renderer.ItemRenderer.class
+                            .getDeclaredField("itemStackMainHand");
+                    fEq.setAccessible(true); fPrev.setAccessible(true);
+                    fItem.setAccessible(true);
+                    net.minecraft.client.renderer.ItemRenderer ir =
+                        mc.getItemRenderer();
+                    // Default 1.0 = fully equipped / raised.
+                    float eq = a.has("equip_progress")
+                        ? a.get("equip_progress").getAsFloat() : 1.0F;
+                    fEq.setFloat(ir, eq);
+                    fPrev.setFloat(ir, eq);
+                    // Keep itemStackMainHand in lockstep with the hotbar so the
+                    // equip animation does not re-trigger on a stack mismatch.
+                    net.minecraft.item.ItemStack held = p.getHeldItemMainhand();
+                    if (!held.isEmpty())
+                        fItem.set(ir, held.copy());
+                    else
+                        fItem.set(ir, net.minecraft.item.ItemStack.EMPTY);
+                } catch (Throwable ig) {}
 
                 // Active hand use: action 0 none, 1 eat/drink, 2 block, 3 bow.
                 // remaining = getItemInUseCount; bow_pull = max - remaining.
@@ -3080,10 +3123,13 @@ public class QuantizedRL {
                     }
                 }
 
-                // GuiIngame health bookkeeping: pin flash phase relative to updateCounter.
+                // GuiIngame health bookkeeping: pin flash phase AND updateCounter.
                 // flash=1 => healthUpdateCounter > updateCounter and (delta/3)%2 == 1
                 // flash=0 with window still open => (delta/3)%2 == 0
-                if (a.has("hud_flash") || a.has("hud_health") || a.has("hud_last_health")) {
+                // Heart-row jitter uses rand(updateCounter*312871); freeze updateCounter
+                // to a fixed value so A/B noise is not 20-80 from tick race.
+                if (a.has("hud_flash") || a.has("hud_health") || a.has("hud_last_health")
+                        || a.has("hud_update_counter")) {
                     try {
                         net.minecraft.client.gui.GuiIngame gui = mc.ingameGUI;
                         java.lang.reflect.Field fUC =
@@ -3100,7 +3146,10 @@ public class QuantizedRL {
                                 .getDeclaredField("lastPlayerHealth");
                         fUC.setAccessible(true); fHUC.setAccessible(true);
                         fPH.setAccessible(true); fLPH.setAccessible(true);
-                        int uc = fUC.getInt(gui);
+                        // Fixed counter for deterministic heart jitter across A/B.
+                        int uc = a.has("hud_update_counter")
+                            ? a.get("hud_update_counter").getAsInt() : 1000;
+                        fUC.setInt(gui, uc);
                         int hNow = a.has("hud_health")
                             ? a.get("hud_health").getAsInt()
                             : (int)Math.ceil(p.getHealth());
@@ -3200,6 +3249,43 @@ public class QuantizedRL {
                     }
                 }
 
+                // Real respawn path: release death hold, respawnPlayer(), close GuiGameOver.
+                // Setting health alone leaves deathTime / GuiGameOver and contaminates later
+                // captures. Call this after every death-screen golden.
+                if (a.has("respawn") && a.get("respawn").getAsBoolean()) {
+                    holdDeath = false;
+                    try {
+                        if (p.getHealth() <= 0.0F || p.deathTime > 0
+                                || mc.currentScreen instanceof net.minecraft.client.gui.GuiGameOver) {
+                            p.respawnPlayer();
+                        }
+                    } catch (Throwable ig) {}
+                    try {
+                        if (mc.currentScreen instanceof net.minecraft.client.gui.GuiGameOver
+                                || mc.currentScreen != null
+                                   && mc.currentScreen.getClass().getSimpleName()
+                                       .contains("GameOver")) {
+                            mc.displayGuiScreen(null);
+                        }
+                    } catch (Throwable ig) {
+                        try { mc.displayGuiScreen(null); } catch (Throwable ig2) {}
+                    }
+                    float h = a.has("health") ? a.get("health").getAsFloat() : 20.0F;
+                    if (h <= 0.0F) h = 20.0F;
+                    p.setHealth(h);
+                    p.deathTime = 0;
+                    p.hurtTime = 0;
+                    p.isDead = false;
+                    wasDead = false;
+                    try {
+                        p.extinguish();
+                        java.lang.reflect.Field ff =
+                            net.minecraft.entity.Entity.class.getDeclaredField("fire");
+                        ff.setAccessible(true);
+                        ff.setInt(p, -1);
+                    } catch (Throwable ig) {}
+                }
+
                 // Sync key vitals + inventory to server player so nothing reverts.
                 final JsonObject fa = a;
                 net.minecraft.server.MinecraftServer srv2 = mc.getIntegratedServer();
@@ -3218,6 +3304,45 @@ public class QuantizedRL {
                                 pl.setAbsorptionAmount(fa.get("absorption").getAsFloat());
                             if (fa.has("dead") && fa.get("dead").getAsBoolean())
                                 pl.setHealth(0.0F);
+                            if (fa.has("fire")) {
+                                int ft = fa.get("fire").getAsInt();
+                                try {
+                                    java.lang.reflect.Field ff =
+                                        net.minecraft.entity.Entity.class
+                                            .getDeclaredField("fire");
+                                    ff.setAccessible(true);
+                                    if (ft > 0) {
+                                        ff.setInt(pl, ft);
+                                    } else {
+                                        pl.extinguish();
+                                        ff.setInt(pl, -1);
+                                    }
+                                } catch (Throwable ig) {
+                                    if (ft > 0) pl.setFire(Math.max(1, ft / 20));
+                                    else pl.extinguish();
+                                }
+                            }
+                            if (fa.has("clear_effects")
+                                    && fa.get("clear_effects").getAsBoolean()) {
+                                pl.clearActivePotions();
+                            }
+                            if (fa.has("effects") && fa.get("effects").isJsonArray()) {
+                                for (com.google.gson.JsonElement el :
+                                        fa.getAsJsonArray("effects")) {
+                                    com.google.gson.JsonObject pe = el.getAsJsonObject();
+                                    int id = pe.get("id").getAsInt();
+                                    int dur = pe.has("duration")
+                                        ? pe.get("duration").getAsInt() : 200;
+                                    int amp = pe.has("amplifier")
+                                        ? pe.get("amplifier").getAsInt() : 0;
+                                    net.minecraft.potion.Potion pot =
+                                        net.minecraft.potion.Potion.getPotionById(id);
+                                    if (pot != null)
+                                        pl.addPotionEffect(
+                                            new net.minecraft.potion.PotionEffect(
+                                                pot, dur, amp, false, false));
+                                }
+                            }
                             if (fa.has("hotbar") && fa.get("hotbar").isJsonArray()) {
                                 com.google.gson.JsonArray hb = fa.getAsJsonArray("hotbar");
                                 for (int i = 0; i < 9 && i < hb.size(); i++) {
@@ -3264,7 +3389,17 @@ public class QuantizedRL {
                     }});
                 }
 
-                StringBuilder sb = new StringBuilder(128);
+                int fireTicks = -1;
+                try {
+                    java.lang.reflect.Field ff =
+                        net.minecraft.entity.Entity.class.getDeclaredField("fire");
+                    ff.setAccessible(true);
+                    fireTicks = ff.getInt(p);
+                } catch (Throwable ig) {}
+                String screenName = mc.currentScreen == null ? "null"
+                    : mc.currentScreen.getClass().getSimpleName();
+
+                StringBuilder sb = new StringBuilder(256);
                 sb.append("{\"ok\":true");
                 sb.append(",\"health\":").append(p.getHealth());
                 sb.append(",\"food\":").append(p.getFoodStats().getFoodLevel());
@@ -3278,6 +3413,12 @@ public class QuantizedRL {
                 if (p.isHandActive())
                     sb.append(",\"use_count\":").append(p.getItemInUseCount())
                       .append(",\"use_max\":").append(p.getItemInUseMaxCount());
+                sb.append(",\"burning\":").append(p.isBurning());
+                sb.append(",\"fire_ticks\":").append(fireTicks);
+                sb.append(",\"portal\":").append(p.timeInPortal);
+                sb.append(",\"dead\":").append(p.getHealth() <= 0.0F || p.isDead);
+                sb.append(",\"screen\":\"").append(screenName).append("\"");
+                sb.append(",\"potion_count\":").append(p.getActivePotionEffects().size());
                 sb.append("}");
                 r.resp.offer(sb.toString());
             } catch (Throwable t) {

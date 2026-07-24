@@ -2,14 +2,16 @@
  * the real composition path (hand -> block overlay -> water -> fire -> portal
  * -> HUD), matching frame_capture.c order. Writes PPM per state for ROI gates.
  *
- * Does NOT claim whole-frame world parity; backdrop is solid gray so feature
- * ROIs isolate owned HUD / overlay / viewmodel pixels.
+ * Backdrop is solid gray for composition isolation of owned modules only.
+ * That gray fill is NOT a live-world equivalence claim. Inside-block uses real
+ * atlas particle UVs (stone / dirt), never synthetic solid texels.
  */
 #include "game/hud.h"
 #include "game/hand.h"
 #include "game/overlay.h"
 #include "game/underwater.h"
 #include "assets/blockmodels.h"
+#include "assets/atlas_gen.h"
 #include "core/types.h"
 
 #include <stdio.h>
@@ -218,9 +220,10 @@ static void s_eat(GmPlayerView *pv, CrFramebuffer *fb) {
     pv->use_max = 32;
 }
 
-static void s_block(GmPlayerView *pv, CrFramebuffer *fb) {
+static void s_block_shield(GmPlayerView *pv, CrFramebuffer *fb) {
     (void)fb;
-    set_hotbar(pv, 0, 267, 1, 0);
+    /* 1.11.2: EnumAction.BLOCK is shield (442), not sword. */
+    set_hotbar(pv, 0, 442, 1, 0);
     pv->use_action = 2;
     pv->use_remaining = 72000;
     pv->use_max = 72000;
@@ -228,28 +231,26 @@ static void s_block(GmPlayerView *pv, CrFramebuffer *fb) {
 
 static void s_inside_stone(GmPlayerView *pv, CrFramebuffer *fb) {
     (void)pv;
-    /* Synthetic full-frame particle darken (white tile UVs); live path needs world. */
-    CrRgba *texels = calloc(256, sizeof(CrRgba));
-    for (int i = 0; i < 256; ++i)
-        texels[i] = (CrRgba){ 128, 128, 128, 255 };
-    CrTexture atlas = { .w = 16, .h = 16, .texels = texels };
+    /* Real terrain atlas particle UVs (not synthetic solid texels). Backdrop
+     * is a neutral mid-gray so the darken overlay is visible; this is still
+     * composition isolation, not a live-world pixel claim. */
+    CrTexture atlas = bm_atlas();
+    float u0, v0, u1, v1;
+    bm_sprite_uv(CR_SPRITE_STONE, &u0, &v0, &u1, &v1);
     for (int i = 0; i < fb->w * fb->h; ++i)
         fb->color[i] = (CrRgba){ 180, 180, 180, 255 };
-    gm_overlay_block_in_hand(fb, &atlas, 0.f, 0.f, 1.f, 1.f);
-    free(texels);
+    gm_overlay_block_in_hand(fb, &atlas, u0, v0, u1, v1);
 }
 
 static void s_inside_grass(GmPlayerView *pv, CrFramebuffer *fb) {
     (void)pv;
-    /* Dirt-ish particle */
-    CrRgba *texels = calloc(256, sizeof(CrRgba));
-    for (int i = 0; i < 256; ++i)
-        texels[i] = (CrRgba){ 134, 96, 67, 255 };
-    CrTexture atlas = { .w = 16, .h = 16, .texels = texels };
+    /* Grass particle texture is dirt (vanilla BlockModelShapes). */
+    CrTexture atlas = bm_atlas();
+    float u0, v0, u1, v1;
+    bm_sprite_uv(CR_SPRITE_DIRT, &u0, &v0, &u1, &v1);
     for (int i = 0; i < fb->w * fb->h; ++i)
         fb->color[i] = (CrRgba){ 180, 180, 180, 255 };
-    gm_overlay_block_in_hand(fb, &atlas, 0.f, 0.f, 1.f, 1.f);
-    free(texels);
+    gm_overlay_block_in_hand(fb, &atlas, u0, v0, u1, v1);
 }
 
 static void s_portal(GmPlayerView *pv, CrFramebuffer *fb) {
@@ -282,7 +283,7 @@ static const State STATES[] = {
     { "hud_death", s_death },
     { "hand_bow_pull20", s_bow },
     { "hand_eat_mid", s_eat },
-    { "hand_block_sword", s_block },
+    { "hand_block_shield", s_block_shield },
     { "overlay_inside_stone", s_inside_stone },
     { "overlay_inside_grass", s_inside_grass },
     { "overlay_portal_050", s_portal },

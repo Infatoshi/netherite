@@ -98,12 +98,21 @@ if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
   echo "== render C composition frames =="
   /tmp/magma_ui_hud_candidate --out "$CFRAME_DIR"
   echo "== oracle ROI compare (feature-specific; noise + margin) =="
+  # RESIDUAL (hard C residual) and FAIL both exit nonzero — no false parity.
+  set +e
   uv run --no-project --with pillow --with numpy python \
     "$DIR/compare_ui_hud_oracle.py" \
     --goldens "$GOLDEN_DIR" \
     --cframes "$CFRAME_DIR" \
     --margin "${UI_HUD_MARGIN:-2.0}" \
     --report "$DIR/oracle_roi_report.json"
+  roi_rc=$?
+  set -e
+  if [ "$roi_rc" -ne 0 ]; then
+    echo "ui_hud oracle ROI: nonzero (fail or hard residual) rc=$roi_rc"
+    echo "ui_hud gates: RESIDUAL_OR_FAIL (composition gates above still ran)"
+    exit "$roi_rc"
+  fi
 else
   echo "== oracle ROI compare: SKIP (no goldens under $GOLDEN_DIR; run capture_ui_hud.sh) =="
   echo "oracle pixel parity: BLOCKED (no Java PNGs under raster/verify/ui_hud/goldens/)"

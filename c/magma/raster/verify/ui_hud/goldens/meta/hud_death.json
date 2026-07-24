@@ -83,7 +83,13 @@
     "xp_frac": 0.0,
     "armor": 0,
     "hold_death": true,
-    "hand_active": false
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": true,
+    "screen": "GuiGameOver",
+    "potion_count": 0
   },
   "pin_reply_b": {
     "ok": true,
@@ -95,7 +101,31 @@
     "xp_frac": 0.0,
     "armor": 0,
     "hold_death": true,
-    "hand_active": false
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": true,
+    "screen": "GuiGameOver",
+    "potion_count": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 0.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": true,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": true,
+    "screen": "GuiGameOver",
+    "potion_count": 0
   },
   "frame_a": {
     "ok": true,
@@ -124,6 +154,22 @@
   "height": 480,
   "gui_scale": 2,
   "partial_ticks": 1.0,
-  "notes": "A/B from qrl frame{} at partialTicks=1 with hud_pin freeze",
+  "ab_noise": 2.8846604215456675,
+  "noise_limit": 5.0,
+  "presence": {
+    "mean_rgb": [
+      106.44190736403851,
+      68.40463179807442,
+      70.63638433515483
+    ],
+    "std": 26.781728534558194,
+    "warm_frac": 0.7299863387978142,
+    "bot_warm_frac": 0.8140124902419984,
+    "lr_std": 25.54748860655846,
+    "dark_frac": 0.000585480093676815,
+    "purple_bias": 2.2317525370804105
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
   "roi": "full-frame death wash"
 }

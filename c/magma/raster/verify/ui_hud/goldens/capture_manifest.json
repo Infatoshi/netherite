@@ -14,7 +14,27 @@
     "hud_death",
     "hand_bow_pull20",
     "hand_eat_mid",
-    "hand_block_sword",
+    "hand_block_shield",
+    "overlay_inside_stone",
+    "overlay_inside_grass",
+    "overlay_portal_050",
+    "overlay_fire",
+    "overlay_underwater"
+  ],
+  "ok_ids": [
+    "hud_armor_iron",
+    "hud_absorption_armor",
+    "hud_hurt_flash_on",
+    "hud_hurt_flash_off",
+    "hud_hunger_poison",
+    "hud_air_partial",
+    "hud_xp_half",
+    "hud_durability_half",
+    "hud_boss_half",
+    "hud_death",
+    "hand_bow_pull20",
+    "hand_eat_mid",
+    "hand_block_shield",
     "overlay_inside_stone",
     "overlay_inside_grass",
     "overlay_portal_050",
@@ -22,7 +42,8 @@
     "overlay_underwater"
   ],
   "blocked": [],
+  "failed": [],
   "resolution": "from frame replies",
-  "java_home": "/tmp/netherite-jdk8.hO5KUx/root/usr/lib/jvm/java-8-openjdk-amd64",
-  "notes": "Genuine Java 1.11.2 FBO dumps via qrl frame{rerender:true}. State frozen with hud_pin per A/B pair."
+  "java_home": "/usr/lib/jvm/java-8-openjdk-amd64",
+  "notes": "Genuine Java 1.11.2 FBO dumps via qrl frame{rerender:true}. State frozen with hud_pin per A/B pair. Capture integrity: noise ceiling + feature presence. hand_block_shield replaces version-wrong hand_block_sword. failed[] entries had twins deleted (no contaminated goldens)."
 }

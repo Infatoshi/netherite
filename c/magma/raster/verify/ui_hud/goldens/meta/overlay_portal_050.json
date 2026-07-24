@@ -3,7 +3,7 @@
   "pin": {
     "x": 8.5,
     "y": 5.0,
-    "z": 9.5,
+    "z": 8.5,
     "yaw": 0.0,
     "pitch": 0.0,
     "no_gravity": true,
@@ -81,7 +81,13 @@
     "xp_frac": 0.0,
     "armor": 0,
     "hold_death": false,
-    "hand_active": false
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.5,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
   },
   "pin_reply_b": {
     "ok": true,
@@ -93,7 +99,31 @@
     "xp_frac": 0.0,
     "armor": 0,
     "hold_death": false,
-    "hand_active": false
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.5,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.5,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
   },
   "frame_a": {
     "ok": true,
@@ -114,7 +144,7 @@
   "pose": {
     "x": 8.5,
     "y": 5.0,
-    "z": 9.5,
+    "z": 8.5,
     "yaw": 0.0,
     "pitch": 0.0
   },
@@ -122,6 +152,23 @@
   "height": 480,
   "gui_scale": 2,
   "partial_ticks": 1.0,
-  "notes": "A/B from qrl frame{} at partialTicks=1 with hud_pin freeze",
-  "roi": "full-frame portal swirl"
+  "ab_noise": 11.865637666831438,
+  "noise_limit": 12.0,
+  "presence": {
+    "mean_rgb": [
+      99.87940682155215,
+      88.91297825012357,
+      119.70580326248147
+    ],
+    "std": 31.586326217516735,
+    "warm_frac": 0.007852751756440282,
+    "bot_warm_frac": 0.016588602654176426,
+    "lr_std": 23.35470054367123,
+    "dark_frac": 0.02930301532377657,
+    "purple_bias": 30.792825012357895
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "full-frame portal swirl",
+  "note": "timeInPortal pin only; no portal block animation"
 }
