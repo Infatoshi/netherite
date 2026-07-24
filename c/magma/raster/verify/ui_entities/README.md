@@ -17,13 +17,17 @@ described as such.
 
 ## Pixel gates (status)
 
+Honest status: **no Java frame goldens** for these interactive paths on this
+branch. Geometry/topology/UV gates pass; pixel match vs live MC remains open.
+
 | Feature | Pixel gate | Notes |
 |---------|------------|-------|
 | Fireball fire overlay extents | geometry only | Needs a live fireball frame golden |
-| Dragon death rays | topology + blend inputs only | Needs death-window Java frames |
+| Dragon death rays | topology + RH rotate + blend inputs | Needs death-window Java frames |
 | Dragon dissolve (per-texel) | marker + shade path | Pixel gate needs End death frames |
-| particles.png portal/dust | UV + counts only | **UNVERIFIED** vs Java pixels |
-| LayerSlimeGel | geometry only | **UNVERIFIED** vs Java pixels |
+| particles.png portal / EXPLOSION_LARGE+HUGE | UV + event counts only | **UNVERIFIED** vs Java pixels; recon lifetime not a live Particle list |
+| Dig ParticleDigging | terrain-atlas UVs only | **UNVERIFIED** vs Java pixels |
+| LayerSlimeGel | geometry + tint.a=255 + blend=4 | **UNVERIFIED** vs Java pixels |
 | Chest TESR lid | **not claimed** | See blocker below |
 
 ### Capture commands (when qrl client + oracle frames available)

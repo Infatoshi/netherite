@@ -24,7 +24,12 @@ static CrScreenVert to_screen(const ScnVert *v) {
     s.light_w = v->light * invw;
     s.ao_w    = 1.0f * invw;
     s.eye_dist_w = v->w * invw;
-    s.tint = (CrRgba){255, 255, 255, 255};
+    /* CrScreenVert tint is perspective-correct attr*invw (not CrRgba). */
+    s.tint_r_w = 255.0f * invw;
+    s.tint_g_w = 255.0f * invw;
+    s.tint_b_w = 255.0f * invw;
+    s.tint_a_w = 255.0f * invw;
+    s.blk_w = 0.0f;
     return s;
 }
 

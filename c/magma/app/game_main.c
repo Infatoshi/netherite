@@ -793,18 +793,6 @@ int main(int argc, char **argv) {
                                  ent_verts + nv, ent_max_verts - nv);
             nv += gm_particles_emit(ents, nents, pv.yaw, pv.pitch,
                                     ent_verts + nv, ent_max_verts - nv);
-            /* Dig dust while the player is mid-break. */
-            {
-                int dx, dy, dz; float dmg;
-                if (gm_player_dig_state(&dx, &dy, &dz, &dmg) && dmg > 0.0f) {
-                    int stage = (int)(dmg * 10.0f);
-                    if (stage < 1) stage = 1;
-                    if (stage > 10) stage = 10;
-                    nv += gm_block_break_particles_emit(
-                        dx, dy, dz, 0, stage, pv.yaw, pv.pitch,
-                        ent_verts + nv, ent_max_verts - nv);
-                }
-            }
             CrTexture eatlas = gm_entity_atlas();
             CrRgba fog = sky;
             CrShadeCtx esh = {0};
@@ -813,13 +801,34 @@ int main(int argc, char **argv) {
             esh.alpha_mask = 1;
             gm_entity_dissolve_mask(&esh.mask_u_off, &esh.mask_v_off);
             render_layer(&fb, &cam, ent_verts, nv, tris, &esh);
-            /* LayerSlimeGel translucent shell. */
+            /* Dig particles: ParticleDigging uses terrain-atlas block icons.
+             * dig_state is window-local; convert with ox/oz like overlay. */
+            {
+                int dx, dy, dz; float dmg;
+                if (gm_player_dig_state(&dx, &dy, &dz, &dmg) && dmg > 0.0f) {
+                    int stage = (int)(dmg * 10.0f);
+                    if (stage < 1) stage = 1;
+                    if (stage > 10) stage = 10;
+                    int wx = dx + ox, wz = dz + oz;
+                    int bid = gm_world_block(world, wx, dy, wz);
+                    int nd = gm_block_break_particles_emit(
+                        wx, dy, wz, bid, stage, pv.yaw, pv.pitch,
+                        ent_verts, ent_max_verts);
+                    if (nd > 0) {
+                        CrShadeCtx dig = {0};
+                        dig.atlas = &atlas; dig.fog_color = fog;
+                        dig.alpha_test = 1; dig.layer = CR_LAYER_CUTOUT;
+                        render_layer(&fb, &cam, ent_verts, nd, tris, &dig);
+                    }
+                }
+            }
+            /* LayerSlimeGel: texture alpha + depth write (blend=4). */
             nv = gm_slime_gel_emit(ents, nents, ent_verts, ent_max_verts);
             if (nv > 0) {
                 CrShadeCtx gel = {0};
                 gel.atlas = &eatlas; gel.fog_color = fog;
                 gel.alpha_test = 0; gel.layer = CR_LAYER_TRANSLUCENT;
-                gel.blend = 1;
+                gel.blend = 4;
                 render_layer(&fb, &cam, ent_verts, nv, tris, &gel);
             }
             /* LayerEnderDragonDeath: untextured additive smooth rays. */

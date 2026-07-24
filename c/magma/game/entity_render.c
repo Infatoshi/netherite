@@ -45,6 +45,7 @@
  */
 #include "game/entity_render.h"
 #include "assets/mob_atlas.h"
+#include "assets/blockmodels.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -1875,7 +1876,9 @@ static float er_jrand_float(unsigned long long *s) {
     return (float)((int)(*s >> 24)) / 1.6777216e7f; /* 2^24 */
 }
 
-/* Column-major 3x3: apply GlStateManager.rotate(deg, ax,ay,az) as M = M * R. */
+/* Row-major 3x3: apply GlStateManager.rotate(deg, ax,ay,az) as M = M * R.
+ * Rodrigues is right-handed OpenGL: positive angle is RH thumb-along-axis.
+ * Verified: Rx(+90) maps +Y -> +Z, +Z -> -Y. */
 static void er_mat3_mul_axis(float m[9], float deg, float ax, float ay, float az) {
     float rad = deg * ER_DEG2RAD;
     float c = cosf(rad), s = sinf(rad);
@@ -1883,10 +1886,11 @@ static void er_mat3_mul_axis(float m[9], float deg, float ax, float ay, float az
     if (len < 1e-8f) return;
     ax /= len; ay /= len; az /= len;
     float t = 1.0f - c;
+    /* Standard RH Rodrigues (sin skew signs match glRotate). */
     float r[9] = {
-        t*ax*ax + c,    t*ax*ay + s*az, t*ax*az - s*ay,
-        t*ax*ay - s*az, t*ay*ay + c,    t*ay*az + s*ax,
-        t*ax*az + s*ay, t*ay*az - s*ax, t*az*az + c
+        t*ax*ax + c,    t*ax*ay - s*az, t*ax*az + s*ay,
+        t*ax*ay + s*az, t*ay*ay + c,    t*ay*az - s*ax,
+        t*ax*az - s*ay, t*ay*az + s*ax, t*az*az + c
     };
     float o[9];
     for (int row = 0; row < 3; ++row)
@@ -1903,6 +1907,28 @@ static void er_mat3_xform(const float m[9], float x, float y, float z,
     *ox = m[0] * x + m[1] * y + m[2] * z;
     *oy = m[3] * x + m[4] * y + m[5] * z;
     *oz = m[6] * x + m[7] * y + m[8] * z;
+}
+
+/* Unit-test helpers for RH Rodrigues (death-ray orientation). */
+int gm_entity_rot_rx90_maps_y_to_z(void) {
+    float m[9] = { 1,0,0, 0,1,0, 0,0,1 };
+    er_mat3_mul_axis(m, 90.0f, 1, 0, 0);
+    float ox, oy, oz;
+    er_mat3_xform(m, 0, 1, 0, &ox, &oy, &oz);
+    return fabsf(ox) < 1e-5f && fabsf(oy) < 1e-5f && fabsf(oz - 1.0f) < 1e-5f;
+}
+int gm_entity_rot_axes_are_unit(void) {
+    /* Identity * Rx(90) * Ry(90) * Rz(90) columns stay unit length. */
+    float m[9] = { 1,0,0, 0,1,0, 0,0,1 };
+    er_mat3_mul_axis(m, 90.0f, 1, 0, 0);
+    er_mat3_mul_axis(m, 90.0f, 0, 1, 0);
+    er_mat3_mul_axis(m, 90.0f, 0, 0, 1);
+    for (int col = 0; col < 3; ++col) {
+        float lx = m[0 * 3 + col], ly = m[1 * 3 + col], lz = m[2 * 3 + col];
+        float n = sqrtf(lx * lx + ly * ly + lz * lz);
+        if (fabsf(n - 1.0f) > 1e-5f) return 0;
+    }
+    return 1;
 }
 
 /* LayerEnderDragonDeath: six composed Random(432) axis rotations, GL triangle
@@ -1983,8 +2009,97 @@ static void er_particle_uv(int index, float *u0, float *v0, float *u1, float *v1
     *u1 = (x0 + cell) / aw; *v1 = (y0 + cell) / ah;
 }
 
+/* Camera-facing billboard quad into out (6 verts). Returns verts written. */
+static int er_emit_billboard(float px0, float py0, float pz0, float pscale,
+                             float u0, float v0, float u1, float v1,
+                             CrRgba tint, float cy, float sy, float cp, float sp,
+                             CrVertex *out, int max) {
+    if (max < 6) return 0;
+    static const float CORN[4][2] = {
+        { -0.5f, -0.5f }, { 0.5f, -0.5f }, { 0.5f, 0.5f }, { -0.5f, 0.5f }
+    };
+    static const int TRI[6] = { 0, 1, 2, 0, 2, 3 };
+    float uus[4] = { u0, u1, u1, u0 };
+    float vvs[4] = { v1, v1, v0, v0 };
+    CrVertex quad[4];
+    for (int c = 0; c < 4; ++c) {
+        float px = CORN[c][0] * pscale, py = CORN[c][1] * pscale, pz = 0.0f;
+        float ty = py * cp - pz * sp, tz = py * sp + pz * cp;
+        py = ty; pz = tz;
+        float tx = px * cy + pz * sy;
+        tz = -px * sy + pz * cy;
+        CrVertex vtx;
+        vtx.pos.x = px0 + tx;
+        vtx.pos.y = py0 + py;
+        vtx.pos.z = pz0 + tz;
+        vtx.uv.x = uus[c]; vtx.uv.y = vvs[c];
+        vtx.light = 1.0f; vtx.blk = 15.0f;
+        vtx.tint = tint;
+        vtx.ao = 1.0f;
+        quad[c] = vtx;
+    }
+    for (int k = 0; k < 6; ++k) out[k] = quad[TRI[k]];
+    return 6;
+}
+
+/* Deterministic LCG float in [0,1) from seed (Java-ish stream for recon). */
+static float er_seed_f(unsigned *s) {
+    *s = (*s) * 1664525u + 1013904223u;
+    return (float)(*s & 0xffff) / 65535.0f;
+}
+
+/* ParticleExplosion sprite age: setParticleTextureIndex(7 - age*8/maxAge). */
+static int er_explosion_tex(int age, int max_age) {
+    if (max_age < 1) max_age = 1;
+    int t = 7 - age * 8 / max_age;
+    if (t < 0) t = 0;
+    if (t > 7) t = 7;
+    return t;
+}
+
+/* Emit one reconstructed EXPLOSION_LARGE-style billboard with ticked lifetime
+ * (ParticleExplosion cells 7→0, slight velocity). */
+static int er_emit_explosion_large(float bx, float by, float bz,
+                                   unsigned *seed, int age, int max_age,
+                                   float size_mul,
+                                   float cy, float sy, float cp, float sp,
+                                   CrVertex *out, int max) {
+    if (age < 0 || age >= max_age || max < 6) return 0;
+    float r0 = er_seed_f(seed), r1 = er_seed_f(seed), r2 = er_seed_f(seed);
+    float r3 = er_seed_f(seed), r4 = er_seed_f(seed), r5 = er_seed_f(seed);
+    /* Spawn offset (EntityDragon: ±4/±2/±4 around body+2). */
+    float ox = (r0 - 0.5f) * 8.0f;
+    float oy = 2.0f + (r1 - 0.5f) * 4.0f;
+    float oz = (r2 - 0.5f) * 8.0f;
+    /* ParticleExplosion motion residual integrated over age. */
+    float mx = (r3 * 2.0f - 1.0f) * 0.05f;
+    float my = (r4 * 2.0f - 1.0f) * 0.05f + 0.004f;
+    float mz = (r5 * 2.0f - 1.0f) * 0.05f;
+    float drag = 1.0f;
+    for (int a = 0; a < age; ++a) {
+        ox += mx; oy += my; oz += mz;
+        mx *= 0.9f; my *= 0.9f; mz *= 0.9f;
+        my += 0.004f;
+        drag *= 0.9f;
+        (void)drag;
+    }
+    float gray = 0.7f + r0 * 0.3f;
+    CrRgba tint = {
+        (u8)(gray * 255.0f), (u8)(gray * 255.0f), (u8)(gray * 255.0f), 255
+    };
+    float pscale = size_mul * (1.0f + r1 * r1 * 6.0f) * 0.15f;
+    if (pscale < 0.2f) pscale = 0.2f;
+    int tex = er_explosion_tex(age, max_age);
+    float u0, v0, u1, v1;
+    er_particle_uv(tex, &u0, &v0, &u1, &v1);
+    return er_emit_billboard(bx + ox, by + oy, bz + oz, pscale,
+                             u0, v0, u1, v1, tint, cy, sy, cp, sp, out, max);
+}
+
 /* Deterministic particle billboards from entity state (portal/enderman, dragon
- * death explosions, crystal burst). Real particles.png UVs. */
+ * death explosions, crystal burst). Real particles.png UVs. Dragon death follows
+ * EntityDragon: EXPLOSION_LARGE every dead tick; EXPLOSION_HUGE in [180,200]
+ * expands to 6 LARGE/tick for 8 ticks (ParticleExplosionHuge). */
 int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                       float view_pitch, CrVertex *out, int max) {
     if (!ents || !out || max < 6) return 0;
@@ -1992,137 +2107,157 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
     float pr = -view_pitch * ER_DEG2RAD;
     float cy = cosf(yr), sy = sinf(yr);
     float cp = cosf(pr), sp = sinf(pr);
-    static const float CORN[4][2] = {
-        { -0.5f, -0.5f }, { 0.5f, -0.5f }, { 0.5f, 0.5f }, { -0.5f, 0.5f }
-    };
-    static const int TRI[6] = { 0, 1, 2, 0, 2, 3 };
     int written = 0;
     for (int e = 0; e < n; ++e) {
-        int kind = 0; /* 1 portal, 2 explosion huge, 3 dig/crack dust */
-        int count = 0;
-        float scale = 0.1f;
-        CrRgba tint = { 255, 255, 255, 255 };
         if (ents[e].type == ER_TYPE_ENDERMAN) {
-            /* EntityEnderman: 2 PORTAL particles/tick; maxAge ~40-50. Reconstruct
-             * a steady cloud of 2 * ~45 age slots (capped) from ent id+age seed. */
-            kind = 1;
-            count = 90; /* 2/tick * ~45 age steady state */
-            scale = 0.15f;
-        } else if (ents[e].type == 9 /* dragon */ && ents[e].death_ticks >= 180 &&
-                   ents[e].death_ticks <= 200) {
-            /* onDeathUpdate: 1 EXPLOSION_HUGE per tick in [180,200] */
-            kind = 2; count = 1; scale = 1.0f;
-            tint = (CrRgba){ 255, 255, 255, 220 };
-        } else if (ents[e].type == 9 && ents[e].death_ticks > 0) {
-            /* earlier death window: sparse smoke-like puffs (smoke index 7) */
-            kind = 2; count = 4; scale = 0.4f;
-            tint = (CrRgba){ 180, 180, 180, 180 };
-        } else if (ents[e].type == ER_TYPE_CRYSTAL && ents[e].health <= 0.0f) {
-            kind = 2; count = 8; scale = 0.3f;
-            tint = (CrRgba){ 255, 220, 120, 220 };
-        } else if (ents[e].type == -100 /* dig synthetic */) {
-            kind = 3; count = ents[e].item_count > 0 ? ents[e].item_count : 4;
-            scale = 0.08f;
-            tint = (CrRgba){ 150, 150, 150, 255 };
-        }
-        if (!kind || count <= 0) continue;
-        unsigned seed = (unsigned)ents[e].ent_id * 1664525u
-                      + (unsigned)ents[e].age * 1013904223u
-                      + (unsigned)ents[e].death_ticks * 2246822519u
-                      + (unsigned)kind * 3266489917u;
-        for (int i = 0; i < count; ++i) {
-            if (written + 6 > max) return written;
-            seed = seed * 1664525u + 1013904223u;
-            float r0 = (float)(seed & 0xffff) / 65535.0f;
-            seed = seed * 1664525u + 1013904223u;
-            float r1 = (float)(seed & 0xffff) / 65535.0f;
-            seed = seed * 1664525u + 1013904223u;
-            float r2 = (float)(seed & 0xffff) / 65535.0f;
-            float ox, oy, oz, pscale = scale;
-            int tex = 0;
-            if (kind == 1) {
-                /* ParticlePortal: random offset in AABB, motion pulls to portal pos */
+            /* EntityEnderman: 2 PORTAL/tick; maxAge ~40-50. Reconstruct cloud. */
+            int count = 90;
+            unsigned seed = (unsigned)ents[e].ent_id * 1664525u
+                          + (unsigned)ents[e].age * 1013904223u + 7u;
+            for (int i = 0; i < count; ++i) {
+                if (written + 6 > max) return written;
+                float r0 = er_seed_f(&seed), r1 = er_seed_f(&seed),
+                      r2 = er_seed_f(&seed);
                 float width = 0.6f, height = 2.9f;
-                ox = (r0 - 0.5f) * width;
-                oy = r1 * height - 0.25f;
-                oz = (r2 - 0.5f) * width;
-                /* age-progress within particle lifetime for scale pulse */
-                float agef = (float)((ents[e].age + i) % 45) / 45.0f;
-                float sf = 1.0f - agef; sf = 1.0f - sf * sf; /* inverse of portal */
-                pscale = (0.1f + r0 * 0.2f) * sf;
+                float ox = (r0 - 0.5f) * width;
+                float oy = r1 * height - 0.25f;
+                float oz = (r2 - 0.5f) * width;
+                int max_age = 40 + (int)(r0 * 10.0f); /* ParticlePortal 40-50 */
+                int age = (ents[e].age + i) % max_age;
+                float agef = (float)age / (float)max_age;
+                float sf = 1.0f - agef; sf = 1.0f - sf * sf;
+                float pscale = (0.1f + r0 * 0.2f) * sf;
                 if (pscale < 0.02f) pscale = 0.02f;
                 float col = 0.4f + r1 * 0.6f;
-                tint = (CrRgba){
+                CrRgba tint = {
                     (u8)(col * 0.9f * 255.0f),
                     (u8)(col * 0.3f * 255.0f),
-                    (u8)(col * 255.0f),
-                    220
+                    (u8)(col * 255.0f), 220
                 };
-                tex = (int)(r2 * 8.0f) % 8; /* portal icons 0..7 */
-                /* motion residual: pull slightly toward body center as age grows */
+                int tex = (int)(r2 * 8.0f) % 8;
                 float f2 = 1.0f - (-agef + agef * agef * 2.0f);
                 ox *= f2; oz *= f2;
                 oy = oy * f2 + (1.0f - agef) * 0.5f;
-            } else if (kind == 2) {
-                ox = (r0 - 0.5f) * 8.0f;
-                oy = 2.0f + (r1 - 0.5f) * 4.0f;
-                oz = (r2 - 0.5f) * 8.0f;
-                tex = 0; /* explosion uses large sprite path; use flash cell */
-                pscale = scale * (0.6f + r0 * 0.8f);
-            } else {
-                ox = (r0 - 0.5f); oy = r1; oz = (r2 - 0.5f);
-                tex = 0;
+                float u0, v0, u1, v1;
+                er_particle_uv(tex, &u0, &v0, &u1, &v1);
+                written += er_emit_billboard(
+                    ents[e].x + ox, ents[e].y + oy, ents[e].z + oz, pscale,
+                    u0, v0, u1, v1, tint, cy, sy, cp, sp, out + written,
+                    max - written);
             }
-            float u0, v0, u1, v1;
-            er_particle_uv(tex, &u0, &v0, &u1, &v1);
-            float px0 = ents[e].x + ox, py0 = ents[e].y + oy, pz0 = ents[e].z + oz;
-            float uus[4] = { u0, u1, u1, u0 };
-            float vvs[4] = { v1, v1, v0, v0 };
-            CrVertex quad[4];
-            for (int c = 0; c < 4; ++c) {
-                float px = CORN[c][0] * pscale, py = CORN[c][1] * pscale, pz = 0.0f;
-                float ty = py * cp - pz * sp, tz = py * sp + pz * cp;
-                py = ty; pz = tz;
-                float tx = px * cy + pz * sy;
-                tz = -px * sy + pz * cy;
-                CrVertex vtx;
-                vtx.pos.x = px0 + tx;
-                vtx.pos.y = py0 + py;
-                vtx.pos.z = pz0 + tz;
-                vtx.uv.x = uus[c]; vtx.uv.y = vvs[c];
-                vtx.light = 1.0f; vtx.blk = 15.0f;
-                vtx.tint = tint;
-                vtx.ao = 1.0f;
-                quad[c] = vtx;
+            continue;
+        }
+
+        if (ents[e].type == 9 /* dragon */ && ents[e].death_ticks > 0) {
+            int dt = ents[e].death_ticks;
+            /* Reconstruct still-alive EXPLOSION_LARGE from recent death ticks.
+             * lifeTime = 6 + nextInt(4) → use 8 as fixed recon maxAge. */
+            const int large_life = 8;
+            int t0 = dt - large_life + 1;
+            if (t0 < 1) t0 = 1;
+            for (int st = t0; st <= dt; ++st) {
+                int age = dt - st;
+                unsigned seed = (unsigned)ents[e].ent_id * 2654435761u
+                              + (unsigned)st * 2246822519u + 0x4c415247u;
+                if (written + 6 > max) return written;
+                written += er_emit_explosion_large(
+                    ents[e].x, ents[e].y, ents[e].z, &seed, age, large_life,
+                    1.0f, cy, sy, cp, sp, out + written, max - written);
             }
-            for (int k = 0; k < 6; ++k) out[written++] = quad[TRI[k]];
+            /* onDeathUpdate: EXPLOSION_HUGE each tick in [180,200].
+             * ParticleExplosionHuge: 6 LARGE/tick for maximumTime=8. */
+            int h0 = 180, h1 = 200;
+            if (dt >= h0) {
+                int first_huge = dt - 7; /* each HUGE lives 8 ticks */
+                if (first_huge < h0) first_huge = h0;
+                int last_huge = dt;
+                if (last_huge > h1) last_huge = h1;
+                for (int ht = first_huge; ht <= last_huge; ++ht) {
+                    int huge_age = dt - ht; /* 0..7 */
+                    if (huge_age < 0 || huge_age >= 8) continue;
+                    unsigned hseed = (unsigned)ents[e].ent_id * 1597334677u
+                                   + (unsigned)ht * 3812015801u + 0x48554745u;
+                    for (int k = 0; k < 6; ++k) {
+                        if (written + 6 > max) return written;
+                        /* Size from ParticleExplosionLarge: 1 - progress*0.5 */
+                        float progress = (float)huge_age / 8.0f;
+                        float sm = 1.0f - progress * 0.5f;
+                        unsigned lseed = hseed + (unsigned)k * 747796405u;
+                        /* Secondary LARGE spawned this huge tick; age=0 of
+                         * that spawn, plus residual from later ticks ≈ huge_age
+                         * for the youngest; older huge children age with dt. */
+                        int lage = huge_age; /* approx: child spawned at ht */
+                        written += er_emit_explosion_large(
+                            ents[e].x, ents[e].y, ents[e].z, &lseed, lage,
+                            large_life, sm, cy, sy, cp, sp,
+                            out + written, max - written);
+                    }
+                }
+            }
+            continue;
+        }
+
+        if (ents[e].type == ER_TYPE_CRYSTAL && ents[e].health <= 0.0f) {
+            unsigned seed = (unsigned)ents[e].ent_id * 1664525u + 99u;
+            for (int i = 0; i < 8; ++i) {
+                if (written + 6 > max) return written;
+                written += er_emit_explosion_large(
+                    ents[e].x, ents[e].y, ents[e].z, &seed, i % 4, 8,
+                    0.5f, cy, sy, cp, sp, out + written, max - written);
+            }
+            continue;
         }
     }
     return written;
 }
 
-/* Dig dust while breaking: stage 1..10. Vanilla hit effects are block-textured;
- * we emit particles.png dust cells with stage-scaled count. */
+/* Dig dust while breaking: stage 1..10. ParticleDigging uses the block's
+ * terrain-atlas particle icon (getFXLayer=1). UVs from bm_block side sprite;
+ * caller must draw with the terrain atlas, not the mob atlas. */
 int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
                                   int stage, float view_yaw, float view_pitch,
                                   CrVertex *out, int max) {
     if (!out || max < 6 || stage <= 0) return 0;
-    (void)block_id;
-    GmEntityView fake;
-    memset(&fake, 0, sizeof fake);
-    fake.type = -100; /* dig synthetic branch */
-    fake.x = (float)wx + 0.5f;
-    fake.y = (float)wy + 0.5f;
-    fake.z = (float)wz + 0.5f;
-    fake.age = stage;
-    fake.item_count = stage * 2; /* more dust as crack advances */
-    if (fake.item_count > 16) fake.item_count = 16;
-    fake.ent_id = wx * 73856093 ^ wy * 19349663 ^ wz * 83492791;
-    return gm_particles_emit(&fake, 1, view_yaw, view_pitch, out, max);
+    float yr = (180.0f - view_yaw) * ER_DEG2RAD;
+    float pr = -view_pitch * ER_DEG2RAD;
+    float cy = cosf(yr), sy = sinf(yr);
+    float cp = cosf(pr), sp = sinf(pr);
+    const BmBlock *m = bm_block(block_id);
+    float bu0, bv0, bu1, bv1;
+    /* ParticleDigging samples the particle icon; we use the NORTH face sprite
+     * (same as item flat) and a sub-rect of it per particle. */
+    bm_sprite_uv(m->face[BM_NORTH].sprite, &bu0, &bv0, &bu1, &bv1);
+    float du = (bu1 - bu0), dv = (bv1 - bv0);
+    int count = stage * 2;
+    if (count < 4) count = 4;
+    if (count > 16) count = 16;
+    unsigned seed = (unsigned)(wx * 73856093 ^ wy * 19349663 ^ wz * 83492791)
+                  ^ (unsigned)stage * 2246822519u;
+    int written = 0;
+    float bx = (float)wx + 0.5f, by = (float)wy + 0.5f, bz = (float)wz + 0.5f;
+    for (int i = 0; i < count; ++i) {
+        if (written + 6 > max) return written;
+        float r0 = er_seed_f(&seed), r1 = er_seed_f(&seed), r2 = er_seed_f(&seed);
+        float r3 = er_seed_f(&seed), r4 = er_seed_f(&seed);
+        float ox = (r0 - 0.5f) * 0.9f;
+        float oy = (r1 - 0.5f) * 0.9f;
+        float oz = (r2 - 0.5f) * 0.9f;
+        /* Sub-rect of the block texture (ParticleDigging random icon crop). */
+        float su = r3 * 0.75f, sv = r4 * 0.75f;
+        float u0 = bu0 + su * du, v0 = bv0 + sv * dv;
+        float u1 = u0 + 0.25f * du, v1 = v0 + 0.25f * dv;
+        CrRgba tint = { 153, 153, 153, 255 }; /* ParticleDigging 0.6 gray */
+        float pscale = 0.08f;
+        written += er_emit_billboard(bx + ox, by + oy, bz + oz, pscale,
+                                     u0, v0, u1, v1, tint, cy, sy, cp, sp,
+                                     out + written, max - written);
+    }
+    return written;
 }
 
 /* LayerSlimeGel: ModelSlime(0) outer 8x8x8 gel shell after the base model.
- * Caller draws with blend=1 (SRC_ALPHA, ONE_MINUS_SRC_ALPHA). */
+ * Java GlStateManager.color(1,1,1,1) + texture alpha; depthMask stays true.
+ * Caller draws with blend=4 (src-over + depth write). */
 int gm_slime_gel_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
     if (!ents || !out || max < ER_VERTS_PER_BOX) return 0;
     int written = 0;
@@ -2142,7 +2277,8 @@ int gm_slime_gel_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         ErPart gel = {
             CR_MOB_SLIME, 0, 0, -4, 16, -4, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0
         };
-        CrRgba tint = { 255, 255, 255, 160 };
+        /* color(1,1,1,1): translucency from slime.png texel alpha only. */
+        CrRgba tint = { 255, 255, 255, 255 };
         float lv = 15.0f, blk = 0.0f;
         if (ents[e].lm_lit == 1) { lv = ents[e].lm_light; blk = ents[e].lm_blk; }
         else if (ents[e].lm_lit == 2) {

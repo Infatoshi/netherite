@@ -109,17 +109,24 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                               int max);
 
 /* Portal/enderman + dragon death + crystal-burst particle quads using the
- * packed particles.png sheet (CR_MOB_PARTICLES). Counts follow vanilla events. */
+ * packed particles.png sheet (CR_MOB_PARTICLES). Counts follow vanilla events
+ * (EntityDragon: EXPLOSION_LARGE each death tick; HUGE in [180,200]). */
 int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                       float view_pitch, CrVertex *out, int max);
 
-/* Dig-site dust billboards (stage 1..10). */
+/* Dig-site billboards (stage 1..10). ParticleDigging: block-textured UVs from
+ * the terrain atlas (bm_block side sprite). Draw with terrain atlas, not mob. */
 int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
                                   int stage, float view_yaw, float view_pitch,
                                   CrVertex *out, int max);
 
-/* LayerSlimeGel outer shell (draw translucent blend=1 after the base slime). */
+/* LayerSlimeGel outer shell. Draw with blend=4 (src-over + depth write);
+ * tint.a=255 so translucency is slime.png texel alpha only. */
 int gm_slime_gel_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
+
+/* RH Rodrigues unit checks (Rx+90 maps +Y→+Z; composed axes stay unit). */
+int gm_entity_rot_rx90_maps_y_to_z(void);
+int gm_entity_rot_axes_are_unit(void);
 
 /* UV offset dragon -> dragon_exploding for CrShadeCtx.alpha_mask dissolve. */
 void gm_entity_dissolve_mask(float *u_off, float *v_off);

@@ -59,7 +59,16 @@ int main(void) {
         s.type = 35; s.item_meta = 2; s.health = 4;
         int n = gm_slime_gel_emit(&s, 1, out, 8192);
         CHECK(n == 36, "LayerSlimeGel emits one 8x8x8 box");
-        CHECK(out[0].tint.a < 255, "gel shell carries translucent alpha");
+        /* Java color(1,1,1,1): translucency is slime.png texel alpha only. */
+        CHECK(out[0].tint.a == 255, "gel shell vertex alpha is opaque (texel alpha)");
+    }
+
+    /* RH Rodrigues / OpenGL rotate signs for death-ray axes. */
+    {
+        CHECK(gm_entity_rot_rx90_maps_y_to_z(),
+              "Rx(+90) maps +Y -> +Z (right-handed OpenGL)");
+        CHECK(gm_entity_rot_axes_are_unit(),
+              "composed +90 axis rotations keep unit columns");
     }
 
     /* Magma squish from real view field (not limb_swing). */

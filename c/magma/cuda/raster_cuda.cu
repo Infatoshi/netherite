@@ -213,8 +213,8 @@ __global__ void cr_raster_tri_kernel(CrRgba *color, float *depth, int W, int H,
     CrRgba c = cr_shade_dev(sh, &frag);
     if (c.a == 0) return;   /* alpha_test discard: no color/depth write */
 
-    if (sh->blend == 1) {
-        /* src-over into dst; do NOT write depth (translucent, pre-sorted). */
+    if (sh->blend == 1 || sh->blend == 4) {
+        /* src-over. blend=1 no depth; blend=4 LayerSlimeGel depth write. */
         CrRgba d = color[idx];
         float a = c.a * (1.0f / 255.0f);
         float ia = 1.0f - a;
@@ -222,6 +222,7 @@ __global__ void cr_raster_tri_kernel(CrRgba *color, float *depth, int W, int H,
         color[idx].g = (u8)(fminf(255.0f, fmaxf(0.0f, c.g * a + d.g * ia)) + 0.5f);
         color[idx].b = (u8)(fminf(255.0f, fmaxf(0.0f, c.b * a + d.b * ia)) + 0.5f);
         color[idx].a = 255;
+        if (sh->blend == 4) depth[idx] = z;
     } else if (sh->blend == 2) {
         /* GL blendFunc(DST_COLOR, SRC_COLOR): out = 2*src*dst. Dig crack. */
         CrRgba d = color[idx];
@@ -487,7 +488,7 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
         CrRgba c = cr_shade_dev(shl, &frag);
         if (c.a == 0) continue; /* alpha_test discard */
 
-        if (shl->blend == 1) {
+        if (shl->blend == 1 || shl->blend == 4) {
             CrRgba d = cur;
             float a = c.a * (1.0f / 255.0f);
             float ia = 1.0f - a;
@@ -495,6 +496,7 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
             cur.g = (u8)(fminf(255.0f, fmaxf(0.0f, c.g * a + d.g * ia)) + 0.5f);
             cur.b = (u8)(fminf(255.0f, fmaxf(0.0f, c.b * a + d.b * ia)) + 0.5f);
             cur.a = 255;
+            if (shl->blend == 4) curz = z;
         } else if (shl->blend == 2) {
             /* GL blendFunc(DST_COLOR, SRC_COLOR): out = 2*src*dst. Dig crack. */
             CrRgba d = cur;

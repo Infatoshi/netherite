@@ -178,8 +178,9 @@ void cr_raster_cpu(CrFramebuffer *fb, const CrScreenTri *tris, int ntris,
                 CrRgba c = cr_shade(sh, &frag);
                 if (c.a == 0) continue; /* alpha_test discard: no color/depth write */
 
-                if (sh->blend == 1) {
-                    /* src-over into dst; do NOT write depth (translucent, pre-sorted). */
+                if (sh->blend == 1 || sh->blend == 4) {
+                    /* src-over into dst. blend=1: translucent water (no depth).
+                     * blend=4: LayerSlimeGel (depth write; vanilla depthMask true). */
                     CrRgba d = fb->color[idx];
                     float a = c.a * (1.0f / 255.0f);
                     float ia = 1.0f - a;
@@ -187,6 +188,7 @@ void cr_raster_cpu(CrFramebuffer *fb, const CrScreenTri *tris, int ntris,
                     fb->color[idx].g = (u8)(fminf(255.0f, fmaxf(0.0f, c.g * a + d.g * ia)) + 0.5f);
                     fb->color[idx].b = (u8)(fminf(255.0f, fmaxf(0.0f, c.b * a + d.b * ia)) + 0.5f);
                     fb->color[idx].a = 255;
+                    if (sh->blend == 4) fb->depth[idx] = z;
                 } else if (sh->blend == 2) {
                     /* GL blendFunc(DST_COLOR, SRC_COLOR): out = 2*src*dst.
                      * Dig crack (RenderGlobal.preRenderDamagedBlocks). No depth. */

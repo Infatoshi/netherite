@@ -1185,21 +1185,18 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 m->explosion_x=now->x[i];m->explosion_y=now->y[i]+0.5;m->explosion_z=now->z[i];
             }
         }else if(aggro&&gm_is_slimey(type)){
-            /* Slime hop toward player. EntitySlime: jump sets squishAmount=1,
-             * land sets -0.5; each tick squishAmount *= 0.6 (magma 0.9) and
-             * squishFactor lerps toward squishAmount. */
+            /* Slime hop toward player. Squish edges use wasOnGround after
+             * move_mob (EntitySlime.onUpdate order); AI only triggers jumps. */
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;
             nx->yaw[i]=ehs_yaw_toward(dx,dz);
             if(m->jump_delay[i]>0)--m->jump_delay[i];
             if(now->on_ground[i]&&m->jump_delay[i]<=0){
                 jump=1;moving=1;
                 m->jump_delay[i]=10+m->size[i]*5;
-                m->squish_amount[i]=1.0f;
                 nx->ai_state[i]=EW_AI_CHASE;
             }else if(!now->on_ground[i]){
                 moving=1;nx->ai_state[i]=EW_AI_CHASE;
             }else {
-                if(m->squish_amount[i]>0.0f) m->squish_amount[i]=-0.5f; /* land */
                 nx->ai_state[i]=EW_AI_IDLE;
             }
             if(xz<=GM_MOB_REACH*(0.5+m->size[i]*0.25)&&fabs(dy)<(double)m->size[i]+1.0&&
@@ -1269,14 +1266,11 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 if(m->jump_delay[i]>0)--m->jump_delay[i];
                 else if(moving){
                     jump=1;m->jump_delay[i]=20+m->size[i]*10;
-                    m->squish_amount[i]=1.0f;
                 }
             }
         }
+        /* EntitySlime.onUpdate: lerp factor first (before physics). */
         if(gm_is_slimey(type)){
-            /* EntitySlime.onUpdate squishFactor integration. */
-            float damp = (type == EW_TYPE_MAGMA) ? 0.9f : 0.6f;
-            m->squish_amount[i] *= damp;
             m->squish_factor[i] += (m->squish_amount[i] - m->squish_factor[i]) * 0.5f;
         }
         if(moving&&type!=EW_TYPE_GHAST){
@@ -1296,6 +1290,15 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             }
         }
         move_mob(w,st,m,nx,i,moving,jump);
+        /* After super.onUpdate/move: wasOnGround edges then alterSquishAmount. */
+        if(gm_is_slimey(type)){
+            int on = nx->on_ground[i] ? 1 : 0;
+            if(on && !m->was_on_ground[i]) m->squish_amount[i] = -0.5f;
+            else if(!on && m->was_on_ground[i]) m->squish_amount[i] = 1.0f;
+            m->was_on_ground[i] = (unsigned char)on;
+            float damp = (type == EW_TYPE_MAGMA) ? 0.9f : 0.6f;
+            m->squish_amount[i] *= damp; /* alterSquishAmount */
+        }
     }
     tick_xp_orbs(m,w,p,ox,oz);
     ++m->tick;m->current^=1;

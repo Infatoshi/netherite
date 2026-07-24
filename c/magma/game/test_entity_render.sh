@@ -10,14 +10,28 @@ CC=${CC:-cc}
 CFLAGS="-ffp-contract=off -Wall -Wextra -O2 -I. -Icore"
 OUT="/tmp/magma_test_entity_render"
 
-# regenerate the mob atlas if missing (idempotent)
+# Clean trees and partial atlases: rebuild when missing CR_MOB_PARTICLES /
+# CR_MOB_DRAGON_EXPLODING (required by particle + dissolve paths).
+need_atlas=0
 if [ ! -f assets/mob_atlas.h ]; then
+  need_atlas=1
+elif ! grep -q 'CR_MOB_PARTICLES' assets/mob_atlas.h || \
+     ! grep -q 'CR_MOB_DRAGON_EXPLODING' assets/mob_atlas.h; then
+  need_atlas=1
+fi
+if [ "$need_atlas" = 1 ]; then
   uv run --no-project --with pillow python assets/build_mob_atlas.py
+fi
+# Fail closed if still missing (jar unavailable): checker would SKIP, tests must not.
+if ! grep -q 'CR_MOB_PARTICLES' assets/mob_atlas.h; then
+  echo "FAIL: mob_atlas.h missing CR_MOB_PARTICLES after rebuild" >&2
+  exit 1
 fi
 
 $CC $CFLAGS \
     game/test_entity_render.c \
     game/entity_render.c \
+    assets/blockmodels.c \
     transform.c \
     core/math.c \
     core/shade.c \

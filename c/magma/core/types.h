@@ -113,7 +113,9 @@ typedef struct {
      * (DST_COLOR, SRC_COLOR): out = 2*src*dst, no depth write - vanilla
      * RenderGlobal.preRenderDamagedBlocks dig-crack path;
      * 3 = additive (SRC_ALPHA, ONE): out = src*src.a + dst, no depth write
-     * (LayerEnderDragonDeath light rays). */
+     * (LayerEnderDragonDeath light rays);
+     * 4 = src-over + depth write (LayerSlimeGel: enableBlend without
+     * depthMask(false), texture alpha drives translucency). */
     int    blend;
     int    use_mips;  /* 1 = sample the atlas mip chain via CrFragment.lod */
     float  mip_bias;  /* LOD bias applied when use_mips */

@@ -47,6 +47,7 @@ typedef struct {
     unsigned char size[EW_MAX_ENTITIES];         /* slime/magma size 1/2/4 */
     float squish_amount[EW_MAX_ENTITIES];        /* EntitySlime.squishAmount */
     float squish_factor[EW_MAX_ENTITIES];        /* EntitySlime.squishFactor */
+    unsigned char was_on_ground[EW_MAX_ENTITIES]; /* EntitySlime.wasOnGround */
     int jump_delay[EW_MAX_ENTITIES];             /* slime/magma jump cooldown */
     int charge[EW_MAX_ENTITIES];                 /* ghast fireball charge (-40..20) */
     int boat_damage[EW_MAX_ENTITIES];            /* boat hit-to-break counter */

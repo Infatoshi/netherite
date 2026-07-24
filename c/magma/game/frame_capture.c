@@ -841,15 +841,6 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         int nv=gm_entities_emit(ents,n,eb[0],c->max_entity_verts);
         nv+=gm_xp_orbs_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
         nv+=gm_particles_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
-        /* Dig dust when the player is mid-break (stage from damage 0..1). */
-        {
-            int dx,dy,dz;float dmg;
-            if(gm_player_dig_state(&dx,&dy,&dz,&dmg)&&dmg>0.0f){
-                int stage=(int)(dmg*10.0f);if(stage<1)stage=1;if(stage>10)stage=10;
-                nv+=gm_block_break_particles_emit(dx,dy,dz,0,stage,v.yaw,v.pitch,
-                                                  eb[0]+nv,c->max_entity_verts-nv);
-            }
-        }
         CrTexture ea=gm_entity_atlas();
         /* fog entities like terrain: underwater EXP fog so distant squid don't
          * punch through as bright unfogged blobs (vanilla setupFog applies to
@@ -864,6 +855,27 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         gm_entity_dissolve_mask(&sh.mask_u_off,&sh.mask_v_off);
         if(uw.fluid){ sh.enable_fog=1; sh.fog_exp_density=uw.density; sh.fog_color=uw.fog_rgba; }
         render_layer(c,&cam,eb[0],nv,&sh);
+        /* Dig particles: terrain-atlas block icons (ParticleDigging).
+         * dig_state is window-local; add r->ox/oz like the dig-crack overlay. */
+        {
+            int dx,dy,dz;float dmg;
+            if(gm_player_dig_state(&dx,&dy,&dz,&dmg)&&dmg>0.0f){
+                int stage=(int)(dmg*10.0f);if(stage<1)stage=1;if(stage>10)stage=10;
+                int wx=dx+r->ox, wz=dz+r->oz;
+                int bid=gm_world_block(r->world,wx,dy,wz);
+                static CrVertex dig_ov[1024];
+                int nd=gm_block_break_particles_emit(wx,dy,wz,bid,stage,v.yaw,v.pitch,
+                                                     dig_ov,1024);
+                if(nd>0){
+                    CrTexture ta=gm_world_atlas(r->world);
+                    CrShadeCtx dig={0};
+                    dig.atlas=&ta; dig.fog_color=clear;
+                    dig.alpha_test=1; dig.layer=CR_LAYER_CUTOUT;
+                    if(uw.fluid){ dig.enable_fog=1; dig.fog_exp_density=uw.density; dig.fog_color=uw.fog_rgba; }
+                    render_layer(c,&cam,dig_ov,nd,&dig);
+                }
+            }
+        }
         /* LayerSlimeGel + LayerEnderDragonDeath use dedicated host buffers so
          * async CUDA uploads of eb[*] are not overwritten mid-flight. */
         {
@@ -873,7 +885,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             if(ng>0){
                 CrShadeCtx gel={0};
                 gel.atlas=&ea; gel.fog_color=clear;
-                gel.layer=CR_LAYER_TRANSLUCENT; gel.blend=1;
+                gel.layer=CR_LAYER_TRANSLUCENT; gel.blend=4; /* depth write */
                 if(uw.fluid){ gel.enable_fog=1; gel.fog_exp_density=uw.density; gel.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,gel_ov,ng,&gel);
             }

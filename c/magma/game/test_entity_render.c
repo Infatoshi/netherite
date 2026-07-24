@@ -19,6 +19,7 @@
 #include "core/types.h"
 #include "game/entity_render.h"
 #include "assets/mob_atlas.h"
+#include "assets/blockmodels.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -512,12 +513,49 @@ static void test_fireball_rays_particles(void) {
         }
         CHECK(bad == 0, "portal particle UVs sample particles.png sheet");
     }
+    /* EntityDragon: EXPLOSION_LARGE every death tick (reconstruct last ~8). */
     GmEntityView dd = drag; dd.death_ticks = 50;
     int sn = gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 8192);
-    CHECK(sn == 4 * 6, "mid-death dragon emits sparse smoke puffs");
+    CHECK(sn == 8 * 6, "mid-death: 8 reconstructed EXPLOSION_LARGE (life=8)");
+    /* Cells animate 7→0 (ParticleExplosion), not a single flash cell. */
+    {
+        const CrMobSprite *ps = &CR_MOB_SPRITES[CR_MOB_PARTICLES];
+        float aw = (float)CR_MOB_ATLAS_W;
+        int tex_ok = 0;
+        for (int i = 0; i < sn; i += 6) {
+            float px = out[i].uv.x * aw - (float)ps->x0;
+            float cell = (float)ps->w / 16.0f;
+            int idx = (int)(px / cell + 0.1f);
+            if (idx >= 0 && idx <= 7) tex_ok++;
+        }
+        CHECK(tex_ok == sn / 6, "EXPLOSION_LARGE uses particles.png cells 0..7");
+    }
     dd.death_ticks = 190;
     int hn = gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 8192);
-    CHECK(hn == 1 * 6, "deathTicks 180-200 emits EXPLOSION_HUGE (1/tick)");
+    /* base LARGE lookback (8) + HUGE window contributes 6*min(8, dt-179) more */
+    CHECK(hn > sn, "deathTicks 180-200 adds EXPLOSION_HUGE (6 LARGE/tick)");
+    CHECK(hn % 6 == 0, "HUGE-window particle verts stay as quads");
+
+    CHECK(gm_entity_rot_rx90_maps_y_to_z(), "Rx(+90) +Y -> +Z");
+    CHECK(gm_entity_rot_axes_are_unit(), "+90 axis compositions stay unit");
+
+    /* Dig particles: terrain-atlas block texture UVs (ParticleDigging). */
+    {
+        int dn = gm_block_break_particles_emit(0, 64, 0, 1 /* stone */, 5,
+                                               0.0f, 0.0f, out, 8192);
+        CHECK(dn == 10 * 6, "dig stage 5 emits 10 quads");
+        float bu0, bv0, bu1, bv1;
+        bm_sprite_uv(bm_block(1)->face[BM_NORTH].sprite, &bu0, &bv0, &bu1, &bv1);
+        int outside = 0;
+        for (int i = 0; i < dn; ++i) {
+            if (out[i].uv.x < bu0 - 1e-4f || out[i].uv.x > bu1 + 1e-4f ||
+                out[i].uv.y < bv0 - 1e-4f || out[i].uv.y > bv1 + 1e-4f)
+                outside++;
+        }
+        CHECK(outside == 0, "dig UVs stay inside block NORTH sprite (terrain atlas)");
+        CHECK(out[0].tint.r == 153 && out[0].tint.a == 255,
+              "dig particles use ParticleDigging 0.6 gray tint");
+    }
 
     /* Dragon dissolve: mid-death still emits full body; light/ao encode mask. */
     drag.death_ticks = 100;

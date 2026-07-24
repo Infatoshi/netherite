@@ -243,7 +243,11 @@ test-launch: game
 	grep -q 'frame 0 .* dead 1 deaths 1' /tmp/magma-test-death.log
 	! grep -q 'frame 1 ' /tmp/magma-test-death.log
 
-test-game: test-config test-block-registry test-launch
+# Ensure mob atlas exists with pixel-path sprites before atlas-dependent gates.
+assets/mob_atlas.h:
+	uv run --no-project --with pillow python assets/build_mob_atlas.py
+
+test-game: test-config test-block-registry test-launch assets/mob_atlas.h
 	uv run --no-project --with pillow python tests/check_mob_atlas.py
 	bash game/test_input_map.sh
 	bash game/test_view.sh
