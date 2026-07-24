@@ -119,6 +119,7 @@ int main(void)
         gm_runtime_view(&r, &v);
         int bx = (int)v.x + 1, by = (int)v.y, bz = (int)v.z;
         if (by < 1) by = 1;
+        gm_world_ensure(r.world, bx >> 4, bz >> 4, 0);
         CHECK(gm_runtime_set_block(&r, bx, by, bz, 54, 3), "place empty chest");
         CHECK(gm_world_block(r.world, bx, by, bz) == 54, "player chest block present");
         CHECK(gm_runtime_use_block(&r, bx, by, bz), "open player chest");

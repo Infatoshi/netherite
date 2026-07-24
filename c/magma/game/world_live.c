@@ -253,9 +253,6 @@ void gm_world_set_block(GmWorld *w, int wx, int wy, int wz, int id) {
 void gm_world_set_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int meta) {
     if (!w) return;
     int cx = wl_floordiv16(wx), cz = wl_floordiv16(wz);
-    /* Ensure the target chunk exists before light_set_state: an unloaded chunk
-     * makes light_set_state a silent no-op (find_chunk == NULL). */
-    gm_world_ensure(w, cx, cz, 0);
     int old_id = gm_world_block(w, wx, wy, wz);
 
     /* edit the block store, then re-light: light_ensure re-runs sky light for the
