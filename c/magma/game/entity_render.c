@@ -2009,21 +2009,44 @@ static void er_particle_uv(int index, float *u0, float *v0, float *u1, float *v1
     *u1 = (x0 + cell) / aw; *v1 = (y0 + cell) / ah;
 }
 
-/* Camera-facing billboard quad into out (6 verts). Returns verts written. */
-static int er_emit_billboard(float px0, float py0, float pz0, float pscale,
+/* ParticleExplosionLarge: textures/entity/explosion.png, 4x4 frames of 32 px
+ * on the 128 sheet. Frame i uses u = (i%4)/4 .. +0.24975, v = (i/4)/4. */
+static void er_explosion_png_uv(int frame, float *u0, float *v0,
+                                float *u1, float *v1) {
+    const CrMobSprite *sp = &CR_MOB_SPRITES[CR_MOB_EXPLOSION];
+    const float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+    if (frame < 0) frame = 0;
+    if (frame > 15) frame = 15;
+    float fu = (float)(frame % 4) / 4.0f;
+    float fv = (float)(frame / 4) / 4.0f;
+    float su = (float)sp->w / aw, sv = (float)sp->h / ah;
+    float bx = (float)sp->x0 / aw, by = (float)sp->y0 / ah;
+    /* Java: f = (i%4)/4, f1 = f+0.24975; f2 = (i/4)/4, f3 = f2+0.24975.
+     * Atlas-local: multiply 0.24975 by sheet span (native 128 -> full sprite). */
+    *u0 = bx + fu * su;
+    *u1 = bx + (fu + 0.24975f) * su;
+    *v0 = by + fv * sv;
+    *v1 = by + (fv + 0.24975f) * sv;
+}
+
+/* Camera-facing billboard. half_extent is the half-width of each axis of the
+ * quad (Java f4 = 0.1*particleScale for dig; f4 = 2.0*size for explosion). */
+static int er_emit_billboard(float px0, float py0, float pz0, float half_extent,
                              float u0, float v0, float u1, float v1,
                              CrRgba tint, float cy, float sy, float cp, float sp,
                              CrVertex *out, int max) {
     if (max < 6) return 0;
+    /* Corner layout matches Particle.renderParticle / ParticleExplosionLarge
+     * (rotationX/Z billboard axes); scale = full edge = 2*half. */
     static const float CORN[4][2] = {
-        { -0.5f, -0.5f }, { 0.5f, -0.5f }, { 0.5f, 0.5f }, { -0.5f, 0.5f }
+        { -1.0f, -1.0f }, { 1.0f, -1.0f }, { 1.0f, 1.0f }, { -1.0f, 1.0f }
     };
     static const int TRI[6] = { 0, 1, 2, 0, 2, 3 };
     float uus[4] = { u0, u1, u1, u0 };
     float vvs[4] = { v1, v1, v0, v0 };
     CrVertex quad[4];
     for (int c = 0; c < 4; ++c) {
-        float px = CORN[c][0] * pscale, py = CORN[c][1] * pscale, pz = 0.0f;
+        float px = CORN[c][0] * half_extent, py = CORN[c][1] * half_extent, pz = 0.0f;
         float ty = py * cp - pz * sp, tz = py * sp + pz * cp;
         py = ty; pz = tz;
         float tx = px * cy + pz * sy;
@@ -2047,59 +2070,44 @@ static float er_seed_f(unsigned *s) {
     *s = (*s) * 1664525u + 1013904223u;
     return (float)(*s & 0xffff) / 65535.0f;
 }
-
-/* ParticleExplosion sprite age: setParticleTextureIndex(7 - age*8/maxAge). */
-static int er_explosion_tex(int age, int max_age) {
-    if (max_age < 1) max_age = 1;
-    int t = 7 - age * 8 / max_age;
-    if (t < 0) t = 0;
-    if (t > 7) t = 7;
-    return t;
+static int er_seed_i(unsigned *s, int n) {
+    *s = (*s) * 1664525u + 1013904223u;
+    return (int)((*s >> 16) % (unsigned)(n > 0 ? n : 1));
 }
 
-/* Emit one reconstructed EXPLOSION_LARGE-style billboard with ticked lifetime
- * (ParticleExplosion cells 7→0, slight velocity). */
-static int er_emit_explosion_large(float bx, float by, float bz,
-                                   unsigned *seed, int age, int max_age,
-                                   float size_mul,
+/* ParticleExplosionLarge semantics (MC 1.11.2):
+ *   texture = entity/explosion.png (not particles.png)
+ *   lifeTime = 6 + nextInt(4)
+ *   color = nextFloat()*0.6+0.4 gray
+ *   size = 1.0 - progress*0.5  (progress is the spawn xSpeed arg)
+ *   frame = (life+pt)*15/lifeTime  clamped 0..15  (4x4 grid)
+ *   half-extent f4 = 2.0 * size
+ *   onUpdate: life++ only; NO motion integration (vel forced 0 at construct)
+ * Recon: spawn pos fixed; age = life; no fake positional integration. */
+static int er_emit_explosion_large(float px, float py, float pz,
+                                   int age, int life_time, float progress,
+                                   float gray,
                                    float cy, float sy, float cp, float sp,
                                    CrVertex *out, int max) {
-    if (age < 0 || age >= max_age || max < 6) return 0;
-    float r0 = er_seed_f(seed), r1 = er_seed_f(seed), r2 = er_seed_f(seed);
-    float r3 = er_seed_f(seed), r4 = er_seed_f(seed), r5 = er_seed_f(seed);
-    /* Spawn offset (EntityDragon: ±4/±2/±4 around body+2). */
-    float ox = (r0 - 0.5f) * 8.0f;
-    float oy = 2.0f + (r1 - 0.5f) * 4.0f;
-    float oz = (r2 - 0.5f) * 8.0f;
-    /* ParticleExplosion motion residual integrated over age. */
-    float mx = (r3 * 2.0f - 1.0f) * 0.05f;
-    float my = (r4 * 2.0f - 1.0f) * 0.05f + 0.004f;
-    float mz = (r5 * 2.0f - 1.0f) * 0.05f;
-    float drag = 1.0f;
-    for (int a = 0; a < age; ++a) {
-        ox += mx; oy += my; oz += mz;
-        mx *= 0.9f; my *= 0.9f; mz *= 0.9f;
-        my += 0.004f;
-        drag *= 0.9f;
-        (void)drag;
-    }
-    float gray = 0.7f + r0 * 0.3f;
-    CrRgba tint = {
-        (u8)(gray * 255.0f), (u8)(gray * 255.0f), (u8)(gray * 255.0f), 255
-    };
-    float pscale = size_mul * (1.0f + r1 * r1 * 6.0f) * 0.15f;
-    if (pscale < 0.2f) pscale = 0.2f;
-    int tex = er_explosion_tex(age, max_age);
+    if (life_time < 1) life_time = 1;
+    if (age < 0 || age >= life_time || max < 6) return 0;
+    float size = 1.0f - progress * 0.5f;
+    if (size < 0.05f) size = 0.05f;
+    float half = 2.0f * size;
+    int frame = (int)(((float)age /* +0 partial */) * 15.0f / (float)life_time);
+    if (frame > 15) frame = 15;
     float u0, v0, u1, v1;
-    er_particle_uv(tex, &u0, &v0, &u1, &v1);
-    return er_emit_billboard(bx + ox, by + oy, bz + oz, pscale,
-                             u0, v0, u1, v1, tint, cy, sy, cp, sp, out, max);
+    er_explosion_png_uv(frame, &u0, &v0, &u1, &v1);
+    u8 g = (u8)(gray * 255.0f + 0.5f);
+    CrRgba tint = { g, g, g, 255 };
+    return er_emit_billboard(px, py, pz, half, u0, v0, u1, v1, tint,
+                             cy, sy, cp, sp, out, max);
 }
 
-/* Deterministic particle billboards from entity state (portal/enderman, dragon
- * death explosions, crystal burst). Real particles.png UVs. Dragon death follows
- * EntityDragon: EXPLOSION_LARGE every dead tick; EXPLOSION_HUGE in [180,200]
- * expands to 6 LARGE/tick for 8 ticks (ParticleExplosionHuge). */
+/* Deterministic particle billboards from entity state.
+ * Portal: particles.png. EXPLOSION_LARGE/HUGE: explosion.png (FXLayer 3).
+ * EntityDragon: LARGE every dead tick (onUpdate health<=0); HUGE in [180,200]
+ * (onDeathUpdate) expands via ParticleExplosionHuge (6 LARGE/tick, maxTime=8). */
 int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                       float view_pitch, CrVertex *out, int max) {
     if (!ents || !out || max < 6) return 0;
@@ -2140,57 +2148,80 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                 oy = oy * f2 + (1.0f - agef) * 0.5f;
                 float u0, v0, u1, v1;
                 er_particle_uv(tex, &u0, &v0, &u1, &v1);
+                /* Portal half-extent ≈ 0.5 * pscale (legacy full-edge scale). */
                 written += er_emit_billboard(
-                    ents[e].x + ox, ents[e].y + oy, ents[e].z + oz, pscale,
-                    u0, v0, u1, v1, tint, cy, sy, cp, sp, out + written,
-                    max - written);
+                    ents[e].x + ox, ents[e].y + oy, ents[e].z + oz,
+                    pscale * 0.5f, u0, v0, u1, v1, tint, cy, sy, cp, sp,
+                    out + written, max - written);
             }
             continue;
         }
 
         if (ents[e].type == 9 /* dragon */ && ents[e].death_ticks > 0) {
             int dt = ents[e].death_ticks;
-            /* Reconstruct still-alive EXPLOSION_LARGE from recent death ticks.
-             * lifeTime = 6 + nextInt(4) → use 8 as fixed recon maxAge. */
-            const int large_life = 8;
-            int t0 = dt - large_life + 1;
+            /* Look back up to max lifeTime=9 so every still-alive LARGE remains. */
+            const int max_life = 9;
+            int t0 = dt - max_life + 1;
             if (t0 < 1) t0 = 1;
             for (int st = t0; st <= dt; ++st) {
                 int age = dt - st;
                 unsigned seed = (unsigned)ents[e].ent_id * 2654435761u
                               + (unsigned)st * 2246822519u + 0x4c415247u;
+                /* lifeTime = 6 + nextInt(4)  -> 6..9 */
+                int life = 6 + er_seed_i(&seed, 4);
+                if (age >= life) continue;
+                /* EntityDragon onUpdate: offset (rand-0.5)*{8,4,8}, y+2; progress=0. */
+                float r0 = er_seed_f(&seed), r1 = er_seed_f(&seed),
+                      r2 = er_seed_f(&seed);
+                float ox = (r0 - 0.5f) * 8.0f;
+                float oy = 2.0f + (r1 - 0.5f) * 4.0f;
+                float oz = (r2 - 0.5f) * 8.0f;
+                float gray = er_seed_f(&seed) * 0.6f + 0.4f;
                 if (written + 6 > max) return written;
                 written += er_emit_explosion_large(
-                    ents[e].x, ents[e].y, ents[e].z, &seed, age, large_life,
-                    1.0f, cy, sy, cp, sp, out + written, max - written);
+                    ents[e].x + ox, ents[e].y + oy, ents[e].z + oz,
+                    age, life, 0.0f, gray, cy, sy, cp, sp,
+                    out + written, max - written);
             }
             /* onDeathUpdate: EXPLOSION_HUGE each tick in [180,200].
-             * ParticleExplosionHuge: 6 LARGE/tick for maximumTime=8. */
-            int h0 = 180, h1 = 200;
-            if (dt >= h0) {
-                int first_huge = dt - 7; /* each HUGE lives 8 ticks */
-                if (first_huge < h0) first_huge = h0;
-                int last_huge = dt;
-                if (last_huge > h1) last_huge = h1;
+             * ParticleExplosionHuge: 6 LARGE/tick for maximumTime=8; progress =
+             * timeSinceStart/8 (size shrink). Children spawn with fixed offsets
+             * relative to the HUGE origin and do not move. */
+            if (dt >= 180) {
+                int first_huge = dt - 7;
+                if (first_huge < 180) first_huge = 180;
+                int last_huge = dt > 200 ? 200 : dt;
                 for (int ht = first_huge; ht <= last_huge; ++ht) {
-                    int huge_age = dt - ht; /* 0..7 */
+                    int huge_age = dt - ht; /* 0..7 = timeSinceStart of child? */
                     if (huge_age < 0 || huge_age >= 8) continue;
                     unsigned hseed = (unsigned)ents[e].ent_id * 1597334677u
                                    + (unsigned)ht * 3812015801u + 0x48554745u;
+                    /* HUGE origin itself is also offset (dragon onDeathUpdate). */
+                    float hx = (er_seed_f(&hseed) - 0.5f) * 8.0f;
+                    float hy = 2.0f + (er_seed_f(&hseed) - 0.5f) * 4.0f;
+                    float hz = (er_seed_f(&hseed) - 0.5f) * 8.0f;
                     for (int k = 0; k < 6; ++k) {
-                        if (written + 6 > max) return written;
-                        /* Size from ParticleExplosionLarge: 1 - progress*0.5 */
+                        /* Each HUGE tick spawns 6 LARGEs with progress =
+                         * timeSinceStart/maximumTime at that spawn tick. */
                         float progress = (float)huge_age / 8.0f;
-                        float sm = 1.0f - progress * 0.5f;
                         unsigned lseed = hseed + (unsigned)k * 747796405u;
-                        /* Secondary LARGE spawned this huge tick; age=0 of
-                         * that spawn, plus residual from later ticks ≈ huge_age
-                         * for the youngest; older huge children age with dt. */
-                        int lage = huge_age; /* approx: child spawned at ht */
+                        /* (rand-rand)*4 offsets from HUGE pos. */
+                        float d0 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
+                        float d1 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
+                        float d2 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
+                        int life = 6 + er_seed_i(&lseed, 4);
+                        /* Child age: spawned at ht, now age = huge_age for the
+                         * batch emitted that tick (all 6 same tick). Children
+                         * from earlier HUGE ticks have higher ages already
+                         * gated by outer loop's first_huge lookback. */
+                        int lage = huge_age;
+                        if (lage >= life) continue;
+                        float gray = er_seed_f(&lseed) * 0.6f + 0.4f;
+                        if (written + 6 > max) return written;
                         written += er_emit_explosion_large(
-                            ents[e].x, ents[e].y, ents[e].z, &lseed, lage,
-                            large_life, sm, cy, sy, cp, sp,
-                            out + written, max - written);
+                            ents[e].x + hx + d0, ents[e].y + hy + d1,
+                            ents[e].z + hz + d2, lage, life, progress, gray,
+                            cy, sy, cp, sp, out + written, max - written);
                     }
                 }
             }
@@ -2198,12 +2229,21 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
         }
 
         if (ents[e].type == ER_TYPE_CRYSTAL && ents[e].health <= 0.0f) {
+            /* Burst recon: several LARGE at crystal origin, progress 0. */
             unsigned seed = (unsigned)ents[e].ent_id * 1664525u + 99u;
             for (int i = 0; i < 8; ++i) {
+                int age = i % 4;
+                int life = 6 + er_seed_i(&seed, 4);
+                float gray = er_seed_f(&seed) * 0.6f + 0.4f;
+                float ox = (er_seed_f(&seed) - 0.5f) * 1.0f;
+                float oy = (er_seed_f(&seed) - 0.5f) * 1.0f;
+                float oz = (er_seed_f(&seed) - 0.5f) * 1.0f;
+                if (age >= life) continue;
                 if (written + 6 > max) return written;
                 written += er_emit_explosion_large(
-                    ents[e].x, ents[e].y, ents[e].z, &seed, i % 4, 8,
-                    0.5f, cy, sy, cp, sp, out + written, max - written);
+                    ents[e].x + ox, ents[e].y + oy, ents[e].z + oz,
+                    age, life, 0.0f, gray, cy, sy, cp, sp,
+                    out + written, max - written);
             }
             continue;
         }
@@ -2211,46 +2251,71 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
     return written;
 }
 
-/* Dig dust while breaking: stage 1..10. ParticleDigging uses the block's
- * terrain-atlas particle icon (getFXLayer=1). UVs from bm_block side sprite;
- * caller must draw with the terrain atlas, not the mob atlas. */
+/* Dig hit dust while progressive break: stage 1..10 is dig progress * 10.
+ *
+ * Java (ParticleManager.addBlockHitEffects): one ParticleDigging per client
+ * tick on the hit face, multiplyVelocity(0.2), multipleParticleScaleBy(0.6),
+ * texture = model particle icon, gray 0.6, render half-extent 0.1*scale.
+ *
+ * Input limits of the interactive dig signal:
+ *   - face is available via dig_state_ex when progressive dig is live
+ *   - no live particle age list / rand stream; we reconstruct a static spray
+ *     of `stage` quads (progress proxy), not one-per-tick over lifetime
+ *   - no gravity / collision motion integration
+ * Caller draws with the terrain atlas. */
 int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
-                                  int stage, float view_yaw, float view_pitch,
+                                  int stage, int face,
+                                  float view_yaw, float view_pitch,
                                   CrVertex *out, int max) {
     if (!out || max < 6 || stage <= 0) return 0;
     float yr = (180.0f - view_yaw) * ER_DEG2RAD;
     float pr = -view_pitch * ER_DEG2RAD;
     float cy = cosf(yr), sy = sinf(yr);
     float cp = cosf(pr), sp = sinf(pr);
-    const BmBlock *m = bm_block(block_id);
     float bu0, bv0, bu1, bv1;
-    /* ParticleDigging samples the particle icon; we use the NORTH face sprite
-     * (same as item flat) and a sub-rect of it per particle. */
-    bm_sprite_uv(m->face[BM_NORTH].sprite, &bu0, &bv0, &bu1, &bv1);
+    bm_sprite_uv(bm_particle_sprite(block_id), &bu0, &bv0, &bu1, &bv1);
     float du = (bu1 - bu0), dv = (bv1 - bv0);
-    int count = stage * 2;
-    if (count < 4) count = 4;
-    if (count > 16) count = 16;
+    /* stage particles ≈ reconstructed recent hit effects (1/tick in Java). */
+    int count = stage;
+    if (count < 1) count = 1;
+    if (count > 10) count = 10;
     unsigned seed = (unsigned)(wx * 73856093 ^ wy * 19349663 ^ wz * 83492791)
-                  ^ (unsigned)stage * 2246822519u;
+                  ^ (unsigned)stage * 2246822519u
+                  ^ (unsigned)(face + 3) * 2654435761u;
     int written = 0;
-    float bx = (float)wx + 0.5f, by = (float)wy + 0.5f, bz = (float)wz + 0.5f;
+    /* Full-cube AABB 0..1 (hit-effect uses block collision AABB; we lack TE). */
+    float minx = 0.0f, miny = 0.0f, minz = 0.0f;
+    float maxx = 1.0f, maxy = 1.0f, maxz = 1.0f;
     for (int i = 0; i < count; ++i) {
         if (written + 6 > max) return written;
         float r0 = er_seed_f(&seed), r1 = er_seed_f(&seed), r2 = er_seed_f(&seed);
-        float r3 = er_seed_f(&seed), r4 = er_seed_f(&seed);
-        float ox = (r0 - 0.5f) * 0.9f;
-        float oy = (r1 - 0.5f) * 0.9f;
-        float oz = (r2 - 0.5f) * 0.9f;
-        /* Sub-rect of the block texture (ParticleDigging random icon crop). */
-        float su = r3 * 0.75f, sv = r4 * 0.75f;
-        float u0 = bu0 + su * du, v0 = bv0 + sv * dv;
-        float u1 = u0 + 0.25f * du, v1 = v0 + 0.25f * dv;
-        CrRgba tint = { 153, 153, 153, 255 }; /* ParticleDigging 0.6 gray */
-        float pscale = 0.08f;
-        written += er_emit_billboard(bx + ox, by + oy, bz + oz, pscale,
-                                     u0, v0, u1, v1, tint, cy, sy, cp, sp,
-                                     out + written, max - written);
+        float jx = er_seed_f(&seed) * 3.0f; /* particleTextureJitter 0..3 */
+        float jy = er_seed_f(&seed) * 3.0f;
+        float sc0 = (er_seed_f(&seed) * 0.5f + 0.5f) * 2.0f; /* base scale */
+        /* addBlockHitEffects position in block-local then face snap. */
+        float px = r0 * (maxx - minx - 0.2f) + 0.1f + minx;
+        float py = r1 * (maxy - miny - 0.2f) + 0.1f + miny;
+        float pz = r2 * (maxz - minz - 0.2f) + 0.1f + minz;
+        if (face == 0 /* DOWN */)  py = miny - 0.1f;
+        if (face == 1 /* UP */)    py = maxy + 0.1f;
+        if (face == 2 /* NORTH */) pz = minz - 0.1f;
+        if (face == 3 /* SOUTH */) pz = maxz + 0.1f;
+        if (face == 4 /* WEST */)  px = minx - 0.1f;
+        if (face == 5 /* EAST */)  px = maxx + 0.1f;
+        /* multipleParticleScaleBy(0.6); render f4 = 0.1 * particleScale */
+        float pscale = sc0 * 0.6f;
+        float half = 0.1f * pscale;
+        /* UV crop: jitter/4 of the particle icon (ParticleDigging.render). */
+        float u0 = bu0 + (jx / 4.0f) * du;
+        float u1 = bu0 + ((jx + 1.0f) / 4.0f) * du;
+        float v0 = bv0 + (jy / 4.0f) * dv;
+        float v1 = bv0 + ((jy + 1.0f) / 4.0f) * dv;
+        CrRgba tint = { 153, 153, 153, 255 }; /* 0.6 gray (grass skips tint) */
+        /* Spawn at face; no velocity residual (would need live particle list). */
+        written += er_emit_billboard(
+            (float)wx + px, (float)wy + py, (float)wz + pz, half,
+            u0, v0, u1, v1, tint, cy, sy, cp, sp,
+            out + written, max - written);
     }
     return written;
 }

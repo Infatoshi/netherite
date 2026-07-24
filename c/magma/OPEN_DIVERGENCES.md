@@ -397,13 +397,19 @@ physics still clean; held-tool frames 123/140/146/156 whole means
 are full-border not per-texel extrusion; equip bob skipped; HUD-vs-no-HUD
 capture class. Evidence: docs/archive/GROK_REPORT.md + out_helditem_f146.png.
 
-## 14. MOSTLY FIXED (`ef4963d` + round-2 multiply): crack + selection default ON; particles still missing
+## 14. MOSTLY FIXED (`ef4963d` + round-2 multiply + ui-entities dig recon): crack + selection ON; dig particles partial
 (a)+(b) headless/replay frames emit selection ribbons + destroy_stage_N crack
 by default (opt out MAGMA_NO_OVERLAY / MAGMA_NO_CRACK). Selection is
 blend=1 SRC_ALPHA. Crack is blend=2 DST_COLOR/SRC_COLOR (2*src*dst) with white
 vertex colour and cutout alpha on destroy_stage strokes; hit-face only when
-dig target matches raycast. Dig t2860 22.24->21.60/ch. (c) block hit/break
-particles still absent (oracle 123, 129) - dominate residual dig look.
+dig target matches raycast. Dig t2860 22.24->21.60/ch. (c) PARTIAL: dig hit
+particles reconstruct ParticleDigging billboards from dig progress (stage
+1..10) using the model **particle** icon (`bm_particle_sprite`, not BM_NORTH),
+hit-face offset when dig_state_ex knows the face, 0.6 gray, and
+multipleParticleScaleBy(0.6) half-extent. Remaining gaps vs Java: no live
+particle age/rand stream (static stage spray, not 1/tick over lifetime), no
+gravity/collision motion, destroy-burst (`addBlockDestroyEffects` 4³) not
+emitted. Pixel match vs oracle dig frames still **UNVERIFIED**.
 (d) FIXED (tape 20260721T215812Z dig window): frame_capture mapped the crack
 face by comparing the raycast adjacent cell's sign (`ax<0`) instead of the
 cell delta `ax-hx`, pinning every crack to the +x face - top-face digs never
@@ -743,13 +749,19 @@ er_aff_box gains uvscale (crystal 2, dragon 1 - ModelDragon sets 256x256
 matching dragon.png). Any future model whose PNG size differs from its
 ModelBase textureWidth/Height needs the same factor.
 
-## 40. OPEN: particles not rendered (explosion burst, enderman portal specks)
+## 40. PARTIAL: portal + EXPLOSION_LARGE/HUGE geometry; pixel match open
 
-Crystal destruction (t276+ of 134124Z) shows oracle-only explosion particles
-plus constant purple portal specks around endermen; whole-frame diff 4.8-5.7/ch
-at 80-88% coverage in those windows while structural content matches. Class:
-magma has no particle system. Accept scattered speck diffs; revisit if a
-milestone needs the explosion visual.
+Portal/enderman: reconstructed particles.png PORTAL cloud (count/UV gates).
+Dragon death + crystal burst: ParticleExplosionLarge / Huge transcribed from
+1.11.2 Java — custom `textures/entity/explosion.png` packed fail-closed into
+mob_atlas (`CR_MOB_EXPLOSION`), lifeTime=6+nextInt(4), gray=rand*0.6+0.4,
+size=1-progress*0.5, frame=(life)*15/lifeTime on 4x4 sheet, **no** fake
+positional integration (Java forces zero motion). HUGE expands to 6 LARGE/tick
+for 8 ticks with progress=timeSinceStart/8. Remaining gaps: recon from entity
+state is not a live ParticleManager list (spawn rand / exact multi-tick HUGE
+children differ); EXPLOSION_NORMAL (creeper smoke, particles.png) still
+absent; AreaEffectCloud / crit trails still absent. Pixel match vs oracle
+death/crystal frames still **UNVERIFIED** (geometry/UV only).
 
 ## 41. OPEN: HUD heart flash blink not modeled
 
@@ -796,13 +808,15 @@ the same client session left a stale entry. Only one EntityDragon (eid 2463)
 exists in the tape. magma draws one bar from recorded state - arguably more
 correct than the oracle's leaked HUD. Fixed-position ~10px band diff; accept.
 
-## 46. OPEN: dragon death effects (light rays, XP orbs, exploding smoke)
+## 46. PARTIAL: dragon death rays + XP orbs + explosion recon; pixels open
 
-The kill tape (144207Z, deathTicks 1-196 at t32129+) shows three oracle-only
-effects: LayerEnderDragonDeath's expanding white light rays, the XP orb swarm,
-and the final smoke burst. magma renders none (no beam/orb/particle
-systems). The death window whole-frame diff runs 7-18/ch at 50-90% coverage,
-almost all from these. The dragon body itself matches (per-box dissolve, #47).
+LayerEnderDragonDeath light rays and XP orb billboards are implemented
+(geometry gates). EXPLOSION_LARGE each death tick + HUGE in [180,200] are
+reconstructed with explosion.png semantics (#40). Remaining vs kill-tape
+oracle: recon spawn/rand and multi-tick particle lifetime are not bit-matched;
+no live FXLayer-3 particle list; body dissolve still per-box (#47). Death
+window pixel diffs remain **UNVERIFIED** / expected non-zero until Java frame
+goldens exist.
 
 ## 47. OPEN: death dissolve is per-box, vanilla is per-texel
 

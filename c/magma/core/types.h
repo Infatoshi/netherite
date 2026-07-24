@@ -105,7 +105,10 @@ typedef struct {
     CrRgba fog_color;
     float  fog_start; /* world/eye distance where fog begins */
     float  fog_end;   /* fully fogged distance */
-    int    alpha_test;/* 1 = discard fragments with texel.a < 128 (cutout foliage) */
+    int    alpha_test;/* 1 = discard by alpha threshold (see alpha_ref) */
+    /* GL alphaFunc ref when alpha_test: 0 = default cutout 0.5 (a < 128);
+     * RenderLivingBase / LayerSlimeGel living path uses 0.1 (a <= 25). */
+    float  alpha_ref;
     int    enable_fog;
     int    layer;     /* CrRenderLayer; SOLID (0) if unset for back-compat */
     /* blend: 0 = replace + depth write; 1 = src-over (SRC_ALPHA,

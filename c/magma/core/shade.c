@@ -159,8 +159,9 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
             : cr_atlas_sample(sh->atlas, frag->uv.x, frag->uv.y);
     }
 
-    /* Alpha test: explicit flag, or the CUTOUT layers, discard texel.a < 128
-     * (matches GL glAlphaFunc(GL_GREATER, 0.5)). Skip when dissolve already
+    /* Alpha test: explicit flag, or the CUTOUT layers. Default ref 0.5
+     * (texel.a < 128, GL_GREATER 0.5). Living entities use alpha_ref=0.1
+     * (discard a/255 <= 0.1 i.e. a <= 25). Skip when dissolve already
      * applied the exploding-mask gate for this fragment. */
     int alpha_test = sh->alpha_test
         || sh->layer == CR_LAYER_CUTOUT
@@ -177,9 +178,14 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
         if (sa) alpha_test = 1;
     }
 #endif
-    if (alpha_test && texel.a < 128) {
-        out.r = 0; out.g = 0; out.b = 0; out.a = 0; /* discard */
-        return out;
+    if (alpha_test) {
+        float ref = sh->alpha_ref > 0.0f ? sh->alpha_ref : 0.5f;
+        /* GL_GREATER: discard when a/255 <= ref. Byte form for 0.5 stays a<128. */
+        int thr = (int)(ref * 255.0f + 1e-5f); /* floor(ref*255); 0.5 -> 127 */
+        if ((int)texel.a <= thr) {
+            out.r = 0; out.g = 0; out.b = 0; out.a = 0; /* discard */
+            return out;
+        }
     }
 
     /* Lightmap-coord mode: fragment light/blk are 0..15 lightmap levels; sample

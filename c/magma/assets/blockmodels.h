@@ -98,6 +98,10 @@ const BmBlock *bm_block(int cb_id);
 /* Atlas rect for a sprite index, normalized into [0,1] over the whole atlas. */
 void bm_sprite_uv(int sprite, float *u0, float *v0, float *u1, float *v1);
 
+/* Model particle icon sprite (Java BlockModelShapes.getTexture / "particle"
+ * texture). Used by ParticleDigging; not a face orientation. */
+int bm_particle_sprite(int cb_id);
+
 /* Sprite index of grass_side_overlay (vanilla block/grass.json second element:
  * a biome-tinted overlay quad on each grass side face). */
 int bm_grass_side_overlay_sprite(void);

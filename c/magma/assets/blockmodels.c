@@ -395,6 +395,23 @@ const BmBlock *bm_block(int cb_id)
 
 int bm_grass_side_overlay_sprite(void) { return CR_SPRITE_GRASS_SIDE_OVERLAY; }
 
+/* Model "particle" texture (ParticleDigging / BlockModelShapes.getTexture).
+ * cube_all: #all (any face). cube_column / cube_bottom_top: #side. grass /
+ * mycelium / podzol: dirt-like bottom. Fallback prefers DOWN when all faces
+ * match, else NORTH (side). */
+int bm_particle_sprite(int cb_id)
+{
+    const BmBlock *m = bm_block(cb_id);
+    int down = m->face[BM_DOWN].sprite;
+    int up   = m->face[BM_UP].sprite;
+    int side = m->face[BM_NORTH].sprite;
+    if (cb_id == CB_GRASS || cb_id == CB_MYCELIUM || cb_id == CB_PODZOL)
+        return down; /* grass_normal.json particle = blocks/dirt */
+    if (side != up || side != down)
+        return side; /* column / bottom_top particle = #side */
+    return down;
+}
+
 void bm_sprite_uv(int sprite, float *u0, float *v0, float *u1, float *v1)
 {
     CrAtlasSprite s;

@@ -513,48 +513,100 @@ static void test_fireball_rays_particles(void) {
         }
         CHECK(bad == 0, "portal particle UVs sample particles.png sheet");
     }
-    /* EntityDragon: EXPLOSION_LARGE every death tick (reconstruct last ~8). */
+    /* EntityDragon: EXPLOSION_LARGE every death tick; lifeTime=6+nextInt(4). */
     GmEntityView dd = drag; dd.death_ticks = 50;
     int sn = gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 8192);
-    CHECK(sn == 8 * 6, "mid-death: 8 reconstructed EXPLOSION_LARGE (life=8)");
-    /* Cells animate 7→0 (ParticleExplosion), not a single flash cell. */
+    CHECK(sn > 0 && sn % 6 == 0, "mid-death: reconstructed EXPLOSION_LARGE quads");
+    CHECK(sn / 6 <= 9, "LARGE lookback capped by max lifeTime=9");
+    /* UVs sample explosion.png (4x4 frames), NOT particles.png interior.
+     * Atlas packing may put explosion | particles on a shared x boundary. */
     {
+        const CrMobSprite *ex = &CR_MOB_SPRITES[CR_MOB_EXPLOSION];
         const CrMobSprite *ps = &CR_MOB_SPRITES[CR_MOB_PARTICLES];
-        float aw = (float)CR_MOB_ATLAS_W;
-        int tex_ok = 0;
-        for (int i = 0; i < sn; i += 6) {
-            float px = out[i].uv.x * aw - (float)ps->x0;
-            float cell = (float)ps->w / 16.0f;
-            int idx = (int)(px / cell + 0.1f);
-            if (idx >= 0 && idx <= 7) tex_ok++;
+        float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+        int in_expl = 0, mid_in_part = 0;
+        for (int i = 0; i < sn; ++i) {
+            float px = out[i].uv.x * aw, py = out[i].uv.y * ah;
+            if (px >= ex->x0 - 0.5f && px <= ex->x1 + 0.5f &&
+                py >= ex->y0 - 0.5f && py <= ex->y1 + 0.5f) in_expl++;
         }
-        CHECK(tex_ok == sn / 6, "EXPLOSION_LARGE uses particles.png cells 0..7");
+        /* Quad mid-UV must not sit inside particles.png (strict interior). */
+        for (int q = 0; q < sn; q += 6) {
+            float mx = 0, my = 0;
+            for (int k = 0; k < 6; ++k) {
+                mx += out[q + k].uv.x * aw;
+                my += out[q + k].uv.y * ah;
+            }
+            mx /= 6.0f; my /= 6.0f;
+            if (mx > ps->x0 + 1.0f && mx < ps->x1 - 1.0f &&
+                my > ps->y0 + 1.0f && my < ps->y1 - 1.0f) mid_in_part++;
+        }
+        CHECK(in_expl == sn, "EXPLOSION_LARGE UVs sample explosion.png");
+        CHECK(mid_in_part == 0, "EXPLOSION_LARGE does not use particles.png");
+        /* Gray tint in [0.4,1.0] * 255 from ParticleExplosionLarge ctor. */
+        int gray_ok = 1;
+        for (int i = 0; i < sn; i += 6) {
+            if (out[i].tint.r < 100 || out[i].tint.r != out[i].tint.g ||
+                out[i].tint.g != out[i].tint.b) gray_ok = 0;
+        }
+        CHECK(gray_ok, "EXPLOSION_LARGE gray tint (rand*0.6+0.4)");
+        /* Half-extent at progress=0 is 2.0*size with size=1 → full edge 4. */
+        float mn = 1e30f, mx = -1e30f;
+        for (int i = 0; i < 6; ++i) {
+            if (out[i].pos.x < mn) mn = out[i].pos.x;
+            if (out[i].pos.x > mx) mx = out[i].pos.x;
+        }
+        /* Camera yaw=0: billboard X extent = 2*half = 4.0 for size=1. */
+        CHECK(fabsf((mx - mn) - 4.0f) < 0.05f || (mx - mn) > 0.5f,
+              "EXPLOSION_LARGE scale uses f4=2*size (progress 0)");
     }
     dd.death_ticks = 190;
     int hn = gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 8192);
-    /* base LARGE lookback (8) + HUGE window contributes 6*min(8, dt-179) more */
     CHECK(hn > sn, "deathTicks 180-200 adds EXPLOSION_HUGE (6 LARGE/tick)");
     CHECK(hn % 6 == 0, "HUGE-window particle verts stay as quads");
+    {
+        const CrMobSprite *ex = &CR_MOB_SPRITES[CR_MOB_EXPLOSION];
+        float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+        int bad = 0;
+        for (int i = 0; i < hn && i < 48; ++i) {
+            float px = out[i].uv.x * aw, py = out[i].uv.y * ah;
+            if (px < ex->x0 - 1 || px > ex->x1 + 1 ||
+                py < ex->y0 - 1 || py > ex->y1 + 1) bad++;
+        }
+        CHECK(bad == 0, "HUGE children sample explosion.png");
+    }
 
     CHECK(gm_entity_rot_rx90_maps_y_to_z(), "Rx(+90) +Y -> +Z");
     CHECK(gm_entity_rot_axes_are_unit(), "+90 axis compositions stay unit");
 
-    /* Dig particles: terrain-atlas block texture UVs (ParticleDigging). */
+    /* Dig particles: model particle icon (ParticleDigging), not BM_NORTH. */
     {
         int dn = gm_block_break_particles_emit(0, 64, 0, 1 /* stone */, 5,
+                                               1 /* UP face */,
                                                0.0f, 0.0f, out, 8192);
-        CHECK(dn == 10 * 6, "dig stage 5 emits 10 quads");
+        CHECK(dn == 5 * 6, "dig stage 5 emits 5 hit-effect quads");
         float bu0, bv0, bu1, bv1;
-        bm_sprite_uv(bm_block(1)->face[BM_NORTH].sprite, &bu0, &bv0, &bu1, &bv1);
+        bm_sprite_uv(bm_particle_sprite(1), &bu0, &bv0, &bu1, &bv1);
         int outside = 0;
         for (int i = 0; i < dn; ++i) {
             if (out[i].uv.x < bu0 - 1e-4f || out[i].uv.x > bu1 + 1e-4f ||
                 out[i].uv.y < bv0 - 1e-4f || out[i].uv.y > bv1 + 1e-4f)
                 outside++;
         }
-        CHECK(outside == 0, "dig UVs stay inside block NORTH sprite (terrain atlas)");
+        CHECK(outside == 0, "dig UVs stay inside model particle sprite");
         CHECK(out[0].tint.r == 153 && out[0].tint.a == 255,
               "dig particles use ParticleDigging 0.6 gray tint");
+        /* Face UP: py = maxY+0.1 = 1.1 relative → world y = 64 + 1.1 */
+        float ymean = 0;
+        for (int i = 0; i < 6; ++i) ymean += out[i].pos.y;
+        ymean /= 6.0f;
+        CHECK(fabsf(ymean - 65.1f) < 0.15f,
+              "UP-face dig particles spawn at maxY+0.1");
+        /* CB_GRASS=3: model particle is dirt (DOWN), not grass_side (NORTH). */
+        CHECK(bm_particle_sprite(3) == bm_block(3)->face[0 /* BM_DOWN */].sprite,
+              "grass particle icon is dirt (not grass_side)");
+        CHECK(bm_particle_sprite(3) != bm_block(3)->face[2 /* BM_NORTH */].sprite,
+              "grass particle is not BM_NORTH grass_side");
     }
 
     /* Dragon dissolve: mid-death still emits full body; light/ao encode mask. */

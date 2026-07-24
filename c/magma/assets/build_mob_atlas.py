@@ -71,10 +71,12 @@ MOB_SPRITES += [
 ]
 # Pixel-path textures (append only). dragon_exploding is the per-texel death
 # alpha mask (same 256 UV layout as dragon.png). particles.png is the vanilla
-# 128x128 particle sheet (8x8 cells of 16x16 via setParticleTextureIndex).
+# 128x128 particle sheet (portal / FXLayer 0). explosion.png is the custom
+# ParticleExplosionLarge sheet (FXLayer 3, 4x4 frames of 32x32 on 128x128).
 MOB_SPRITES += [
     ("dragon_exploding", "enderdragon/dragon_exploding.png"),  # 256x256
     ("particles", "../particle/particles.png"),                # 128x128
+    ("explosion", "explosion.png"),                            # 128x128
 ]
 
 

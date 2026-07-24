@@ -32,6 +32,7 @@ static float s_fov_hand = 1.0f;
 /* ticks the bow has been drawn (ItemBow active use; getItemInUseMaxCount). */
 static int   s_bow_ticks;
 static int   s_dig_hx = INT_MIN, s_dig_hy, s_dig_hz;
+static int   s_dig_face = -1; /* EnumFacing of hit face while progressive dig */
 static int   s_dig_hitting;
 static int   s_dig_delay;
 static int   s_atk_prev;
@@ -454,6 +455,7 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
                     } else {
                         s_dig_hitting = 1;
                         s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
+                        s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                         s_dig_progress = 0.0f;
                         use_gate_hitting = 1;
                     }
@@ -464,6 +466,7 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
                         --s_dig_delay;
                     } else if (hx == s_dig_hx && hy == s_dig_hy && hz == s_dig_hz) {
                         /* isHittingPosition: accrue curBlockDamageMP */
+                        s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                         s_dig_progress += rel;
                         if (s_dig_progress >= 1.0f) {
                             s_dig_hitting = 0;
@@ -471,6 +474,7 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
                                         ox, oy, oz, edits, &ne, max_edits);
                             s_dig_progress = 0.0f;
                             s_dig_delay = 5;
+                            s_dig_face = -1;
                         }
                     } else {
                         /* clickBlock: target changed mid-hold */
@@ -480,6 +484,7 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
                         } else {
                             s_dig_hitting = 1;
                             s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
+                            s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                             s_dig_progress = 0.0f;
                         }
                     }
@@ -487,18 +492,21 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
             } else {
                 s_dig_hitting = 0;
                 s_dig_hx = INT_MIN;
+                s_dig_face = -1;
                 s_dig_progress = 0.0f;
             }
         } else {
             /* MISS: resetBlockRemoving (blockHitDelay persists) */
             s_dig_hitting = 0;
             s_dig_hx = INT_MIN;
+            s_dig_face = -1;
             s_dig_progress = 0.0f;
         }
     } else {
         /* attack released: resetBlockRemoving (blockHitDelay persists) */
         s_dig_hitting = 0;
         s_dig_hx = INT_MIN;
+        s_dig_face = -1;
         s_dig_progress = 0.0f;
     }
     s_atk_prev = act.attack;
@@ -792,6 +800,7 @@ void gm_player_cursor_set(ICStack s) { s_cursor = s; }
 void gm_player_dig_reset(void) {
     s_dig_progress = 0.0f;
     s_dig_hx = INT_MIN;
+    s_dig_face = -1;
     s_eat_ticks=0;s_eat_item=0;
     s_use_action=0;s_use_remaining=0;s_use_max=0;
     s_hurt_vel_reset=0;s_server_motion_x=0.0;s_server_motion_z=0.0;
@@ -842,12 +851,16 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
 
 /* Current progressive-dig target + damage 0..1 (RenderGlobal drawBlockDamageTexture
  * feed). Coords are window-LOCAL (caller adds ox/oz). Returns 0 when not digging. */
-int gm_player_dig_state(int *lx, int *ly, int *lz, float *progress) {
+int gm_player_dig_state_ex(int *lx, int *ly, int *lz, float *progress, int *face_out) {
     if (s_dig_hx == INT_MIN || s_dig_progress <= 0.0f)
         return 0;
     *lx = s_dig_hx; *ly = s_dig_hy; *lz = s_dig_hz;
     *progress = s_dig_progress > 1.0f ? 1.0f : s_dig_progress;
+    if (face_out) *face_out = s_dig_face;
     return 1;
+}
+int gm_player_dig_state(int *lx, int *ly, int *lz, float *progress) {
+    return gm_player_dig_state_ex(lx, ly, lz, progress, NULL);
 }
 
 void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *out)

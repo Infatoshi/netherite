@@ -855,17 +855,17 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         gm_entity_dissolve_mask(&sh.mask_u_off,&sh.mask_v_off);
         if(uw.fluid){ sh.enable_fog=1; sh.fog_exp_density=uw.density; sh.fog_color=uw.fog_rgba; }
         render_layer(c,&cam,eb[0],nv,&sh);
-        /* Dig particles: terrain-atlas block icons (ParticleDigging).
+        /* Dig particles: terrain-atlas model particle icons (ParticleDigging).
          * dig_state is window-local; add r->ox/oz like the dig-crack overlay. */
         {
-            int dx,dy,dz;float dmg;
-            if(gm_player_dig_state(&dx,&dy,&dz,&dmg)&&dmg>0.0f){
+            int dx,dy,dz,dface=-1;float dmg;
+            if(gm_player_dig_state_ex(&dx,&dy,&dz,&dmg,&dface)&&dmg>0.0f){
                 int stage=(int)(dmg*10.0f);if(stage<1)stage=1;if(stage>10)stage=10;
                 int wx=dx+r->ox, wz=dz+r->oz;
                 int bid=gm_world_block(r->world,wx,dy,wz);
                 static CrVertex dig_ov[1024];
-                int nd=gm_block_break_particles_emit(wx,dy,wz,bid,stage,v.yaw,v.pitch,
-                                                     dig_ov,1024);
+                int nd=gm_block_break_particles_emit(wx,dy,wz,bid,stage,dface,
+                                                     v.yaw,v.pitch,dig_ov,1024);
                 if(nd>0){
                     CrTexture ta=gm_world_atlas(r->world);
                     CrShadeCtx dig={0};
@@ -885,6 +885,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             if(ng>0){
                 CrShadeCtx gel={0};
                 gel.atlas=&ea; gel.fog_color=clear;
+                gel.alpha_test=1; gel.alpha_ref=0.1f; /* living GL_GREATER 0.1 */
                 gel.layer=CR_LAYER_TRANSLUCENT; gel.blend=4; /* depth write */
                 if(uw.fluid){ gel.enable_fog=1; gel.fog_exp_density=uw.density; gel.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,gel_ov,ng,&gel);

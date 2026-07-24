@@ -801,18 +801,19 @@ int main(int argc, char **argv) {
             esh.alpha_mask = 1;
             gm_entity_dissolve_mask(&esh.mask_u_off, &esh.mask_v_off);
             render_layer(&fb, &cam, ent_verts, nv, tris, &esh);
-            /* Dig particles: ParticleDigging uses terrain-atlas block icons.
+            /* Dig particles: ParticleDigging uses terrain-atlas particle icons.
              * dig_state is window-local; convert with ox/oz like overlay. */
             {
-                int dx, dy, dz; float dmg;
-                if (gm_player_dig_state(&dx, &dy, &dz, &dmg) && dmg > 0.0f) {
+                int dx, dy, dz, dface = -1; float dmg;
+                if (gm_player_dig_state_ex(&dx, &dy, &dz, &dmg, &dface) &&
+                    dmg > 0.0f) {
                     int stage = (int)(dmg * 10.0f);
                     if (stage < 1) stage = 1;
                     if (stage > 10) stage = 10;
                     int wx = dx + ox, wz = dz + oz;
                     int bid = gm_world_block(world, wx, dy, wz);
                     int nd = gm_block_break_particles_emit(
-                        wx, dy, wz, bid, stage, pv.yaw, pv.pitch,
+                        wx, dy, wz, bid, stage, dface, pv.yaw, pv.pitch,
                         ent_verts, ent_max_verts);
                     if (nd > 0) {
                         CrShadeCtx dig = {0};
@@ -822,12 +823,13 @@ int main(int argc, char **argv) {
                     }
                 }
             }
-            /* LayerSlimeGel: texture alpha + depth write (blend=4). */
+            /* LayerSlimeGel: living alphaFunc(GL_GREATER, 0.1) + blend depth write. */
             nv = gm_slime_gel_emit(ents, nents, ent_verts, ent_max_verts);
             if (nv > 0) {
                 CrShadeCtx gel = {0};
                 gel.atlas = &eatlas; gel.fog_color = fog;
-                gel.alpha_test = 0; gel.layer = CR_LAYER_TRANSLUCENT;
+                gel.alpha_test = 1; gel.alpha_ref = 0.1f;
+                gel.layer = CR_LAYER_TRANSLUCENT;
                 gel.blend = 4;
                 render_layer(&fb, &cam, ent_verts, nv, tris, &gel);
             }

@@ -74,8 +74,8 @@ REQUIRED_SPRITES = {
     "pigman", "husk", "stray", "cave_spider", "mooshroom",
     # base skins those variants must NOT displace
     "zombie", "skeleton", "spider", "cow", "sheep", "sheep_fur",
-    # interactive pixel path (4bc712e+)
-    "slime", "dragon", "dragon_exploding", "particles",
+    # interactive pixel path (4bc712e+ / explosion.png LARGE)
+    "slime", "dragon", "dragon_exploding", "particles", "explosion",
 }
 
 

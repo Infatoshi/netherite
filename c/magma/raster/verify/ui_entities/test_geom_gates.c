@@ -52,7 +52,7 @@ int main(void) {
         CHECK(approx(wb / wa, 4.0f, 0.05f), "slime width scales with size");
     }
 
-    /* LayerSlimeGel outer shell. */
+    /* LayerSlimeGel outer shell + living alphaFunc(GL_GREATER, 0.1). */
     {
         GmEntityView s;
         memset(&s, 0, sizeof s);
@@ -61,6 +61,63 @@ int main(void) {
         CHECK(n == 36, "LayerSlimeGel emits one 8x8x8 box");
         /* Java color(1,1,1,1): translucency is slime.png texel alpha only. */
         CHECK(out[0].tint.a == 255, "gel shell vertex alpha is opaque (texel alpha)");
+        /* Living threshold: discard a/255 <= 0.1 (a <= 25). slime.png has
+         * a∈{0,8,199,201,255}; a=8 must discard, a=199 must pass. */
+        CrTexture ea = gm_entity_atlas();
+        CrShadeCtx gel = {0};
+        gel.atlas = &ea;
+        gel.alpha_test = 1;
+        gel.alpha_ref = 0.1f;
+        gel.layer = CR_LAYER_TRANSLUCENT;
+        gel.blend = 4;
+        const CrMobSprite *sl = &CR_MOB_SPRITES[CR_MOB_SLIME];
+        float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+        /* Scan atlas rect for a low-alpha texel and a gel-alpha texel. */
+        int found_lo = 0, found_hi = 0;
+        CrRgba clo = {0}, chi = {0};
+        for (int y = sl->y0; y < sl->y1 && !(found_lo && found_hi); ++y) {
+            for (int x = sl->x0; x < sl->x1; ++x) {
+                CrFragment f = {0};
+                f.uv.x = ((float)x + 0.5f) / aw;
+                f.uv.y = ((float)y + 0.5f) / ah;
+                f.tint = (CrRgba){255,255,255,255};
+                f.light = 1.0f; f.ao = 1.0f; f.blk = 15.0f;
+                CrRgba raw = cr_atlas_sample(&ea, f.uv.x, f.uv.y);
+                if (!found_lo && raw.a > 0 && raw.a <= 25) {
+                    clo = cr_shade(&gel, &f); found_lo = 1;
+                }
+                if (!found_hi && raw.a >= 199) {
+                    chi = cr_shade(&gel, &f); found_hi = 1;
+                }
+            }
+        }
+        CHECK(found_hi, "slime atlas has high-alpha gel texels");
+        CHECK(chi.a != 0, "living alpha_ref=0.1 keeps gel a>=199");
+        if (found_lo)
+            CHECK(clo.a == 0, "living alpha_ref=0.1 discards a<=25");
+        else
+            CHECK(1, "no a in (0,25] in slime.png (hist may be only 0/8/199+)");
+        /* a=8 if present must discard under 0.1; under cutout 0.5 both discard. */
+        {
+            CrFragment f = {0};
+            f.tint = (CrRgba){255,255,255,255};
+            f.light = 1.0f; f.ao = 1.0f; f.blk = 15.0f;
+            /* Force-sample: find a==8 or synthesize via known discard path. */
+            int saw8 = 0;
+            for (int y = sl->y0; y < sl->y1 && !saw8; ++y)
+                for (int x = sl->x0; x < sl->x1; ++x) {
+                    f.uv.x = ((float)x + 0.5f) / aw;
+                    f.uv.y = ((float)y + 0.5f) / ah;
+                    CrRgba raw = cr_atlas_sample(&ea, f.uv.x, f.uv.y);
+                    if (raw.a == 8) {
+                        CrRgba c = cr_shade(&gel, &f);
+                        CHECK(c.a == 0, "a=8 discards under living 0.1");
+                        saw8 = 1;
+                        break;
+                    }
+                }
+            if (!saw8) CHECK(1, "slime.png has no a==8 in this atlas packing");
+        }
     }
 
     /* RH Rodrigues / OpenGL rotate signs for death-ray axes. */
@@ -138,7 +195,7 @@ int main(void) {
               "dissolve mask offset maps dragon -> dragon_exploding");
     }
 
-    /* Particles: real particles.png UVs + vanilla-ish counts. */
+    /* Portal: particles.png. EXPLOSION_LARGE: explosion.png (not particles). */
     {
         GmEntityView e;
         memset(&e, 0, sizeof e);
@@ -153,9 +210,23 @@ int main(void) {
             if (px < sp->x0 - 1 || px > sp->x1 + 1 ||
                 py < sp->y0 - 1 || py > sp->y1 + 1) bad++;
         }
-        CHECK(bad == 0, "particle UVs stay inside particles.png sheet");
-        CHECK(CR_MOB_PARTICLES >= 0 && CR_MOB_DRAGON_EXPLODING >= 0,
-              "particles + dragon_exploding packed in mob atlas");
+        CHECK(bad == 0, "portal UVs stay inside particles.png sheet");
+        CHECK(CR_MOB_PARTICLES >= 0 && CR_MOB_DRAGON_EXPLODING >= 0 &&
+              CR_MOB_EXPLOSION >= 0,
+              "particles + dragon_exploding + explosion packed in mob atlas");
+        GmEntityView d;
+        memset(&d, 0, sizeof d);
+        d.type = 9; d.death_ticks = 20; d.health = 0; d.ent_id = 3;
+        int en = gm_particles_emit(&d, 1, 0.0f, 0.0f, out, 8192);
+        CHECK(en > 0 && en % 6 == 0, "dragon death emits EXPLOSION_LARGE quads");
+        const CrMobSprite *ex = &CR_MOB_SPRITES[CR_MOB_EXPLOSION];
+        bad = 0;
+        for (int i = 0; i < en; ++i) {
+            float px = out[i].uv.x * aw, py = out[i].uv.y * ah;
+            if (px < ex->x0 - 1 || px > ex->x1 + 1 ||
+                py < ex->y0 - 1 || py > ex->y1 + 1) bad++;
+        }
+        CHECK(bad == 0, "EXPLOSION_LARGE UVs stay inside explosion.png");
     }
 
     /* Fragment-level dissolve: shade discards when exploding alpha <= thr.

@@ -108,20 +108,23 @@ void gm_entity_restore_large_fireball_types(GmEntityView *views, int nviews);
 int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                               int max);
 
-/* Portal/enderman + dragon death + crystal-burst particle quads using the
- * packed particles.png sheet (CR_MOB_PARTICLES). Counts follow vanilla events
- * (EntityDragon: EXPLOSION_LARGE each death tick; HUGE in [180,200]). */
+/* Portal (particles.png) + dragon death / crystal EXPLOSION_LARGE (explosion.png
+ * FXLayer 3). EntityDragon: LARGE each dead tick; HUGE in deathTicks [180,200]. */
 int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                       float view_pitch, CrVertex *out, int max);
 
-/* Dig-site billboards (stage 1..10). ParticleDigging: block-textured UVs from
- * the terrain atlas (bm_block side sprite). Draw with terrain atlas, not mob. */
+/* Dig hit-effect billboards (stage 1..10 progress proxy). ParticleDigging UVs
+ * from bm_particle_sprite (model particle icon), not a cube face. face is
+ * EnumFacing D-U-N-S-W-E or -1 when unknown (spawn without face offset).
+ * Draw with terrain atlas. Input limit: dig_state has no per-tick particle
+ * age list or continuous rand stream — recon only. */
 int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
-                                  int stage, float view_yaw, float view_pitch,
+                                  int stage, int face,
+                                  float view_yaw, float view_pitch,
                                   CrVertex *out, int max);
 
-/* LayerSlimeGel outer shell. Draw with blend=4 (src-over + depth write);
- * tint.a=255 so translucency is slime.png texel alpha only. */
+/* LayerSlimeGel outer shell. Draw with blend=4 (src-over + depth write),
+ * alpha_test + alpha_ref=0.1 (living GL_GREATER 0.1), tint.a=255. */
 int gm_slime_gel_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 
 /* RH Rodrigues unit checks (Rx+90 maps +Y→+Z; composed axes stay unit). */

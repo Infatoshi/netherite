@@ -43,8 +43,10 @@ void gm_player_set_packet_velocity(struct PsvPlayer *pl, double x, double y, dou
 /* A velocity-packet tape supplies EntityTracker's authoritative resend. Drop
  * a locally inferred pre-packet reset without changing current motion. */
 void gm_player_clear_inferred_hurt_velocity(void);
-/* Dig target (window-local coords) + damage 0..1; returns 0 when not digging. */
+/* Dig target (window-local coords) + damage 0..1; returns 0 when not digging.
+ * face_out optional: EnumFacing D-U-N-S-W-E of the hit face when known, else -1. */
 int  gm_player_dig_state(int *lx, int *ly, int *lz, float *progress);
+int  gm_player_dig_state_ex(int *lx, int *ly, int *lz, float *progress, int *face_out);
 
 /* Full snapshot of the player_ctl.c per-player statics that carry state
  * across ticks and can alter physics or dig timing: the progressive-dig

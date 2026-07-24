@@ -11,7 +11,7 @@ described as such.
 
 | Gate | Contract |
 |------|----------|
-| `test_geom_gates.c` | slime/magma size + squish field, LayerSlimeGel, large vs small fireball fire extents (width 1.0 vs 0.3125), death-ray 9-vert fans, dissolve markers, particles.png UVs |
+| `test_geom_gates.c` | slime/magma size + squish field, LayerSlimeGel living α=0.1, large vs small fireball fire extents (width 1.0 vs 0.3125), death-ray 9-vert fans, dissolve markers, portal particles.png + EXPLOSION explosion.png UVs |
 | `test_entity_render.sh` | full entity model suite + fireball/rays/particles/dissolve cases |
 | `test_item_render.sh` | billboard scales + fire overlay extents |
 
@@ -25,9 +25,10 @@ branch. Geometry/topology/UV gates pass; pixel match vs live MC remains open.
 | Fireball fire overlay extents | geometry only | Needs a live fireball frame golden |
 | Dragon death rays | topology + RH rotate + blend inputs | Needs death-window Java frames |
 | Dragon dissolve (per-texel) | marker + shade path | Pixel gate needs End death frames |
-| particles.png portal / EXPLOSION_LARGE+HUGE | UV + event counts only | **UNVERIFIED** vs Java pixels; recon lifetime not a live Particle list |
-| Dig ParticleDigging | terrain-atlas UVs only | **UNVERIFIED** vs Java pixels |
-| LayerSlimeGel | geometry + tint.a=255 + blend=4 | **UNVERIFIED** vs Java pixels |
+| Portal (particles.png) | UV + count recon | **UNVERIFIED** vs Java pixels; not a live Particle list |
+| EXPLOSION_LARGE/HUGE | explosion.png 4x4, life 6+nextInt(4), size/color, no motion | Geometry/UV transcribed from Java; recon not a live FXLayer-3 list; **UNVERIFIED** pixels |
+| Dig ParticleDigging | model particle icon + hit-face spawn/scale | Progress-stage recon only (no per-tick age stream); **UNVERIFIED** pixels |
+| LayerSlimeGel | geometry + tint.a=255 + blend=4 + α_ref=0.1 | **UNVERIFIED** vs Java pixels |
 | Chest TESR lid | **not claimed** | See blocker below |
 
 ### Capture commands (when qrl client + oracle frames available)
