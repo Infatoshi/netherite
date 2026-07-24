@@ -315,13 +315,14 @@ void gm_overlay_block_in_hand(CrFramebuffer *fb, const CrTexture *atlas,
             CrRgba src = atlas->texels[ty * atlas->w + tx];
             CrRgba *dst = &fb->color[py * fb->w + px];
             /* Blend off: replace with tex * color.rgb (alpha unused on RGB).
-             * Round-half-up matches stone particle vs Java (non-HUD exact under
-             * thr=0). floor(src*0.1) systematically undershoots stone by 1 LSB.
-             * Grass/dirt still has sparse/widespread 1-LSB residual under this
-             * formula — open (atlas UV / sample path), not a thr loophole. */
-            dst->r = (u8)((float)src.r * mul + 0.5f);
-            dst->g = (u8)((float)src.g * mul + 0.5f);
-            dst->b = (u8)((float)src.b * mul + 0.5f);
+             * GL_MODULATE then UNORM8 pack on llvmpipe/Java uses round-half-to-
+             * even (IEEE default / rintf), not half-up. Dirt particle hits .5
+             * boundaries (85->8.5, 185->18.5): half-up produced (12,9,6)/
+             * (19,13,9) vs Java (12,8,6)/(18,13,9). Stone has no .5 cases so
+             * half-up and rintf agree (body already bit-exact). */
+            dst->r = (u8)rintf((float)src.r * mul);
+            dst->g = (u8)rintf((float)src.g * mul);
+            dst->b = (u8)rintf((float)src.b * mul);
             dst->a = 255;
         }
     }
