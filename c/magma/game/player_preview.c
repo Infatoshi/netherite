@@ -119,13 +119,23 @@ static void rotate_x(float *y, float *z, float deg)
  * (7424): one face normal, flat light per quad. colorMaterial FRONT_AND_BACK
  * AMBIENT_AND_DIFFUSE with glColor(1,1,1): material ambient=diffuse=1.
  * Light model ambient 0.4; each light diffuse 0.6, ambient/specular 0.
- * Sum clamped at 1 (GL primary color). */
+ *
+ * Mesa/llvmpipe fixed-function path quantizes light*material to unorm8 before
+ * the n·L scale (same (a*b+128)>>8 used elsewhere for unorm8 modulate):
+ *   amb_u8  = round(0.4*255) = 102;  (102*255+128)>>8 = 102  → 102/255
+ *   diff_u8 = round(0.6*255) = 153;  (153*255+128)>>8 = 152  → 152/255
+ * Using raw 0.6 float for diffuse leaves primary L8 one high on the large
+ * pose1 -Z bins (211 vs Java 210) while trunc packing helps pose2; the unorm8
+ * light*material product closes both. Sum clamped at 1 (GL primary color). */
 static float standard_item_light(float nx, float ny, float nz)
 {
     /* Exact Java double Vec3d.normalize results, kept in double through the
      * Ry(135) sandwich then stored as float (glLight float upload). */
     static int init = 0;
     static float e0x, e0y, e0z, e1x, e1y, e1z;
+    /* unorm8 light*material (see comment above). */
+    static const float AMB = 102.0f / 255.0f;
+    static const float DIFF = 152.0f / 255.0f;
     if (!init) {
         const double lx = 0.20000000298023224, ly = 1.0, lz = -0.699999988079071;
         const double inv = 1.0 / sqrt(lx * lx + ly * ly + lz * lz);
@@ -140,11 +150,11 @@ static float standard_item_light(float nx, float ny, float nz)
         e1z = (float)(-s * l1x + c * l1z);
         init = 1;
     }
-    float sum = 0.4f;
+    float sum = AMB;
     float d0 = nx * e0x + ny * e0y + nz * e0z;
     float d1 = nx * e1x + ny * e1y + nz * e1z;
-    if (d0 > 0.0f) sum += 0.6f * d0;
-    if (d1 > 0.0f) sum += 0.6f * d1;
+    if (d0 > 0.0f) sum += DIFF * d0;
+    if (d1 > 0.0f) sum += DIFF * d1;
     return sum > 1.0f ? 1.0f : sum;
 }
 
@@ -762,22 +772,23 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
      * sample_mode=1: pure floor nearest (GL_NEAREST). Terrain keeps the
      * high-edge -1e-4 bias via sample_mode=0.
      *
-     * Color path (PREVIEW_COLOR_MODE, default 0 = float trunc via shade):
-     * Interior traces (>=20 faces, both poses) identify Mesa unorm8 modulate
-     *   L8 = round/trunc(primary*255);  out = (tex*L8 + 127) / 255
-     * as the packing once primary is exact. Our StandardItemLighting primary
-     * is still off by 1 L8 on some face orientations (pose1 -Z L8 211 vs Java
-     * 210; pose2 prefers trunc). Default stays float trunc until primary is
-     * bit-exact; modes 4/5/12 recolor for experiments (see PREVIEW_DIAG=3). */
+     * Color path (PREVIEW_COLOR_MODE):
+     * Default 4 = Mesa unorm8 modulate after ubyte primary:
+     *   L8 = trunc(primary*255);  out = (tex*L8 + 127) / 255
+     * Interior traces (>=20 faces, both poses) identify this packing once the
+     * unorm8 light*material primary is correct (see standard_item_light).
+     * Mode 0 keeps historical float trunc via shade for A/B; modes 2-12 are
+     * experiment recolors (PREVIEW_DIAG=3). */
     shade.sample_mode = 1;
     {
         const char *pcm = getenv("PREVIEW_COLOR_MODE");
-        g_preview_color_mode = pcm ? atoi(pcm) : 0;
+        /* Default 4: trunc L8 + (tex*L8+127)/255 — identified packing. */
+        g_preview_color_mode = pcm ? atoi(pcm) : 4;
         if (g_preview_color_mode == 1) shade.color_trunc = 0;
     }
     cr_raster_cpu(&local, tris, n, &shade);
 
-    /* Optional recolor: integer modulate using recovered per-face light. */
+    /* Integer unorm8 modulate recolor (default and experiment modes). */
     if (g_preview_color_mode != 0 && g_preview_color_mode != 1) {
         preview_recolor_modulate(&local, tris, n, &skin, g_preview_color_mode);
     }
