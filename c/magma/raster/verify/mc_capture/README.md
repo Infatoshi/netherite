@@ -120,8 +120,10 @@ budget):
   `hard_px` with thr 10). Residuals are reopened rather than absorbed.
 - **OS cursor non-claim**: neither the Java FBO golden nor `gm_screen_draw`
   includes the OS pointer. No 12x12 hole is punched over game pixels.
-- **Mutation self-tests**: one pixel, hundreds outside the old five ROIs, blank
-  armor/offhand, missing held stack, cursor-center corruption — all must be
-  rejected by the gate.
+- **Mutation self-tests** (non-vacuous): each case builds a perfect passing base
+  (genuine PASS magma step or Java oracle copy), asserts unmutated control
+  PASSes, applies the corruption, asserts mutated FAILs, and requires
+  meaningful painted counts. Covers one pixel, hundreds outside the old five
+  ROIs, blank armor/offhand, missing held stack, cursor-center corruption.
 - **`08_close`**: state-only (`focusdiag` `screen=None` + capture present). After
   close there is no inventory panel to pixel-claim.

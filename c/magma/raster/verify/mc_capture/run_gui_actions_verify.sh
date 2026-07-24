@@ -14,6 +14,10 @@
 #     gm_screen_draw includes the OS pointer. No 12x12 hole is punched over
 #     game pixels. If a candidate ever drew a synthetic cursor, strip it
 #     before compare or accept the residual as FAIL — never hide game pixels.
+#   - Mutation self-tests are non-vacuous: perfect base (PASS magma or Java
+#     oracle copy), control must PASS, corruption must FAIL, paint counts
+#     must be meaningful (one pixel / hundreds outside old ROIs / blank
+#     armor+offhand / missing held stack / cursor-center).
 #   - 08_close is state-only (focusdiag screen=None + capture present). After
 #     close there is no inventory panel to pixel-claim.
 set -euo pipefail
@@ -286,93 +290,224 @@ def paint_rect(img, x, y, ww, hh, color):
     return out_img
 
 
+def paint_rect_count(img, x, y, ww, hh, color, mask=None):
+    """Paint a rect; return (img, n_owned_pixels that actually changed)."""
+    out_img = img.copy()
+    h, w = out_img.shape[:2]
+    x0, y0 = max(0, x), max(0, y)
+    x1, y1 = min(w, x + ww), min(h, y + hh)
+    if x0 >= x1 or y0 >= y1:
+        return out_img, 0
+    region = np.zeros((h, w), dtype=bool)
+    region[y0:y1, x0:x1] = True
+    if mask is not None:
+        region &= mask
+    before = out_img[region]
+    color_a = np.asarray(color, dtype=out_img.dtype)
+    changed = int(np.any(before != color_a, axis=1).sum()) if before.size else 0
+    out_img[region] = color
+    return out_img, changed
+
+
+def perfect_base(oracle_img, magma_img, step, noise_mean, noise_max_ch):
+    """Non-vacuous control image that PASSes the hard gate.
+
+    Prefer a genuine magma PASS step; otherwise use the Java oracle copy so
+    residual is bit-exact under the owned mask (oracle vs oracle).
+    """
+    mask = owned_mask(oracle_img.shape, step)
+    st = residual_stats(oracle_img, magma_img, mask)
+    if gate_ok(st, noise_mean, noise_max_ch):
+        return magma_img.copy(), "magma_pass"
+    return oracle_img.copy(), "oracle_copy"
+
+
 def run_mutations(oracle, magma, noise_mean, noise_max_ch):
-    """Prove the gate catches corruptions the old mean+5-ROI hole allowed."""
+    """Prove the gate catches corruptions the old mean+5-ROI hole allowed.
+
+    Non-vacuous protocol per case:
+      1) build a perfect passing base (genuine PASS magma or Java oracle copy)
+      2) assert unmutated control PASSes
+      3) apply the intended corruption
+      4) assert mutated FAILs
+      5) require meaningful painted/changed owned counts for bulk cases
+    """
     shape = oracle["00_initial"].shape
     om0 = owned_mask(shape, "00_initial")
     legacy = legacy_five_roi_mask(shape)
     failed = False
     cases = []
 
-    # 1) Single owned pixel wrong.
-    mut = magma["00_initial"].copy()
+    def eval_case(name, step, base, mask, mut, n_paint, min_paint, note):
+        """Control must PASS; mutated must FAIL; paint count must be meaningful."""
+        st_ctrl = residual_stats(oracle[step], base, mask)
+        ctrl_ok = gate_ok(st_ctrl, noise_mean, noise_max_ch)
+        st_mut = residual_stats(oracle[step], mut, mask)
+        mut_ok = gate_ok(st_mut, noise_mean, noise_max_ch)
+        paint_ok = n_paint >= min_paint
+        # Residual must actually move: nz after mutation covers the paint.
+        residual_ok = st_mut["nz"] >= min(min_paint, max(1, n_paint))
+        caught = ctrl_ok and (not mut_ok) and paint_ok and residual_ok
+        detail = (
+            f"ctrl={'PASS' if ctrl_ok else 'FAIL'} "
+            f"mut={'FAIL' if not mut_ok else 'PASS'} "
+            f"n_paint={n_paint} (need>={min_paint}) "
+            f"nz={st_mut['nz']}"
+        )
+        if note:
+            detail = f"{note}; {detail}"
+        cases.append((name, caught, st_ctrl, st_mut, detail))
+        return caught
+
+    # 1) Single owned pixel wrong (prefer outside old five ROIs).
+    base0, src0 = perfect_base(
+        oracle["00_initial"], magma["00_initial"], "00_initial", noise_mean, noise_max_ch
+    )
     ys, xs = np.where(om0)
-    # Prefer a pixel outside legacy five ROIs if possible.
     outside = ~legacy[ys, xs]
     idx = int(np.flatnonzero(outside)[0]) if outside.any() else 0
     y, x = int(ys[idx]), int(xs[idx])
-    mut[y, x] = (255, 0, 0)
-    st = residual_stats(oracle["00_initial"], mut, om0)
-    ok = gate_ok(st, noise_mean, noise_max_ch)
-    cases.append(("one_pixel", not ok, st, f"@({x},{y})"))
+    mut = base0.copy()
+    orig = mut[y, x].copy()
+    # Force a channel-large difference so hard_px fires when noise is zero.
+    mut[y, x] = (255 if orig[0] < 128 else 0, 0, 0)
+    if np.array_equal(mut[y, x], orig):
+        mut[y, x] = (0, 255, 0)
+    n_paint = 0 if np.array_equal(mut[y, x], orig) else 1
+    if not eval_case(
+        "one_pixel",
+        "00_initial",
+        base0,
+        om0,
+        mut,
+        n_paint,
+        1,
+        f"base={src0} @({x},{y})",
+    ):
+        failed = True
 
-    # 2) Hundreds of wrong pixels outside the old five ROIs (armor column).
-    mut = magma["00_initial"].copy()
-    armor = [r for r in slot_rects(shape) if r[0] == "armor"]
-    n_paint = 0
-    for _n, ax, ay, aw, ah in armor:
-        region = np.zeros(shape[:2], dtype=bool)
-        fill_rect(region, ax, ay, aw, ah, True)
-        region &= om0 & ~legacy
-        mut[region] = (255, 0, 0)
-        n_paint += int(region.sum())
-    if n_paint < 200:
-        # Expand into craft cells if armor alone is insufficient.
+    # 2) Hundreds of wrong pixels outside the old five ROIs (armor, then craft).
+    base0, src0 = perfect_base(
+        oracle["00_initial"], magma["00_initial"], "00_initial", noise_mean, noise_max_ch
+    )
+    mut = base0.copy()
+    paint_mask = np.zeros(shape[:2], dtype=bool)
+    # Paint every armor cell outside the old five ROIs; expand to craft if
+    # armor alone cannot reach the bulk floor (require >=200 changed owned px).
+    for want in ("armor", "craft"):
         for _n, ax, ay, aw, ah in slot_rects(shape):
-            if _n != "craft":
+            if _n != want:
                 continue
             region = np.zeros(shape[:2], dtype=bool)
             fill_rect(region, ax, ay, aw, ah, True)
             region &= om0 & ~legacy
-            mut[region] = (200, 0, 0)
-            n_paint += int(region.sum())
-            if n_paint >= 200:
-                break
-    st = residual_stats(oracle["00_initial"], mut, om0)
-    ok = gate_ok(st, noise_mean, noise_max_ch)
-    cases.append(("hundreds_outside_five_rois", not ok, st, f"n_paint={n_paint}"))
+            if not region.any():
+                continue
+            paint_mask |= region
+            mut[region] = (255, 0, 0)
+        if int(paint_mask.sum()) >= 200 and want == "armor":
+            break  # armor alone is enough; keep craft for expansion only
+    # Count pixels that actually differ from oracle under owned∩paint.
+    changed = int(
+        np.any(mut[paint_mask] != oracle["00_initial"][paint_mask], axis=1).sum()
+    ) if paint_mask.any() else 0
+    n_paint = changed
+    if not eval_case(
+        "hundreds_outside_five_rois",
+        "00_initial",
+        base0,
+        om0,
+        mut,
+        n_paint,
+        200,
+        f"base={src0}",
+    ):
+        failed = True
 
     # 3) Blank armor + offhand empty icons (product owns those sprites).
-    mut = magma["00_initial"].copy()
+    base0, src0 = perfect_base(
+        oracle["00_initial"], magma["00_initial"], "00_initial", noise_mean, noise_max_ch
+    )
+    mut = base0.copy()
+    n_paint = 0
     for name, ax, ay, aw, ah in slot_rects(shape):
         if name in ("armor", "offhand"):
-            mut = paint_rect(mut, ax, ay, aw, ah, (0, 0, 0))
-    st = residual_stats(oracle["00_initial"], mut, om0)
-    ok = gate_ok(st, noise_mean, noise_max_ch)
-    cases.append(("blank_armor_offhand", not ok, st, ""))
+            mut, n_ch = paint_rect_count(mut, ax, ay, aw, ah, (0, 0, 0), om0)
+            n_paint += n_ch
+    if not eval_case(
+        "blank_armor_offhand",
+        "00_initial",
+        base0,
+        om0,
+        mut,
+        n_paint,
+        100,
+        f"base={src0}",
+    ):
+        failed = True
 
-    # 4) Missing held stack on pickup.
-    mut = magma["01_pickup_a"].copy()
+    # 4) Missing held stack on pickup (genuine PASS step preferred).
+    base1, src1 = perfect_base(
+        oracle["01_pickup_a"], magma["01_pickup_a"], "01_pickup_a", noise_mean, noise_max_ch
+    )
     om1 = owned_mask(shape, "01_pickup_a")
     hx, hy, hw, hh = held_stack_rect(shape, *HOVERED["01_pickup_a"])
-    mut = paint_rect(mut, hx, hy, hw, hh, (120, 120, 120))
-    st = residual_stats(oracle["01_pickup_a"], mut, om1)
-    ok = gate_ok(st, noise_mean, noise_max_ch)
-    cases.append(("missing_held_stack", not ok, st, f"held=({hx},{hy},{hw},{hh})"))
+    mut, n_paint = paint_rect_count(base1, hx, hy, hw, hh, (120, 120, 120), om1)
+    if not eval_case(
+        "missing_held_stack",
+        "01_pickup_a",
+        base1,
+        om1,
+        mut,
+        n_paint,
+        16,
+        f"base={src1} held=({hx},{hy},{hw},{hh})",
+    ):
+        failed = True
 
-    # 5) Cursor-center corruption (old 12x12 empty-cursor hole).
-    mut = magma["00_initial"].copy()
+    # 5) Cursor-center corruption (old 12x12 empty-cursor hole over game pixels).
+    base0, src0 = perfect_base(
+        oracle["00_initial"], magma["00_initial"], "00_initial", noise_mean, noise_max_ch
+    )
     mx, my = HOVERED["00_initial"]
-    mut = paint_rect(mut, mx - 6, my - 6, 12, 12, (255, 0, 255))
-    st = residual_stats(oracle["00_initial"], mut, om0)
-    ok = gate_ok(st, noise_mean, noise_max_ch)
-    cases.append(("cursor_center_corruption", not ok, st, f"12x12@({mx},{my})"))
+    mut, n_paint = paint_rect_count(base0, mx - 6, my - 6, 12, 12, (255, 0, 255), om0)
+    if not eval_case(
+        "cursor_center_corruption",
+        "00_initial",
+        base0,
+        om0,
+        mut,
+        n_paint,
+        12,
+        f"base={src0} 12x12@({mx},{my})",
+    ):
+        failed = True
 
-    print("-- mutation self-tests (must FAIL the gate) --")
-    print(f"{'case':<28} {'mean':>10} {'max':>6} {'hard':>6} {'nz':>7}  verdict")
-    for name, caught, st, note in cases:
+    print(
+        "-- mutation self-tests (non-vacuous: control PASS, then corruption FAIL) --"
+    )
+    print(
+        f"{'case':<28} {'ctrl_nz':>7} {'mut_mean':>10} {'mut_max':>7} "
+        f"{'hard':>6} {'nz':>7}  verdict"
+    )
+    for name, caught, st_ctrl, st_mut, note in cases:
         verdict = "CAUGHT" if caught else "MISSED"
         if not caught:
             failed = True
-        extra = f"  {note}" if note else ""
         print(
-            f"{name:<28} {st['mean']:10.6f} {st['max']:6.1f} {st['hard_px']:6d} "
-            f"{st['nz']:7d}  {verdict}{extra}"
+            f"{name:<28} {st_ctrl['nz']:7d} {st_mut['mean']:10.6f} "
+            f"{st_mut['max']:7.1f} {st_mut['hard_px']:6d} {st_mut['nz']:7d}  "
+            f"{verdict}  {note}"
         )
     if failed:
-        print("MUTATION SELF-TEST FAIL: gate still admits adversarial corruption")
+        print(
+            "MUTATION SELF-TEST FAIL: vacuous control, weak paint, or gate miss"
+        )
     else:
-        print("mutation self-tests: PASS (all five corruptions rejected)")
+        print(
+            "mutation self-tests: PASS "
+            "(control PASS + five corruptions rejected with paint counts)"
+        )
     return not failed
 
 
