@@ -15,6 +15,7 @@
  */
 #include "core/types.h"
 #include "game/game.h"
+#include "game/entity_render.h"
 #include "game/config.h"
 #include "game/sky.h"
 #include "game/underwater.h"
@@ -769,12 +770,31 @@ int main(int argc, char **argv) {
         GmEntityView ents[GM_LIVE_MAX];
         int nents = gm_dragon_fill_views(&runtime.dragon, ents, GM_LIVE_MAX);
         nents += gm_mobs_fill_views(&runtime.mobs, ents+nents, GM_LIVE_MAX-nents);
+        int n_proj0 = nents;
         nents += gm_runtime_projectile_views(&runtime, ents+nents, GM_LIVE_MAX-nents);
+        {
+            int ptypes[GM_RUNTIME_PROJECTILES], npt = 0;
+            for (int i = 0; i < GM_RUNTIME_PROJECTILES; ++i)
+                if (runtime.projectiles[i].active)
+                    ptypes[npt++] = runtime.projectiles[i].type;
+            gm_entity_patch_large_fireballs(ptypes, npt, ents + n_proj0,
+                                            nents - n_proj0);
+        }
         nents += gm_live_fill_views(&live, ents + nents, GM_LIVE_MAX - nents);
+        if (runtime.dragon.initialized) {
+            int dt = runtime.dragon.state.arena.dragon.death_ticks;
+            for (int i = 0; i < nents; ++i)
+                if (ents[i].type == GM_ENTITY_DRAGON && ents[i].death_ticks <= 0 && dt > 0)
+                    ents[i].death_ticks = dt;
+        }
         if (nents > 0) {
             int nv = gm_entities_emit(ents, nents, ent_verts, ent_max_verts);
             nv += gm_xp_orbs_emit(ents, nents, pv.yaw, pv.pitch,
                                  ent_verts + nv, ent_max_verts - nv);
+            nv += gm_dragon_death_rays_emit(ents, nents, ent_verts + nv,
+                                            ent_max_verts - nv);
+            nv += gm_particles_emit(ents, nents, pv.yaw, pv.pitch,
+                                    ent_verts + nv, ent_max_verts - nv);
             CrTexture eatlas = gm_entity_atlas();
             CrRgba fog = sky;
             CrShadeCtx esh = { &eatlas, fog, 0.f, 0.f, 1, 0, CR_LAYER_CUTOUT, 0, 0, 0.f };
@@ -796,8 +816,10 @@ int main(int argc, char **argv) {
                 CrShadeCtx fsh = { &iatlas, fog, 0.f, 0.f, 1, 0, CR_LAYER_CUTOUT, 0, 0, 0.f };
                 render_layer(&fb, &cam, ent_verts, nv, tris, &fsh);
             }
+            gm_entity_prep_large_fireball_fire(ents, nents);
             nv = gm_small_fireball_fire_emit(ents, nents, pv.yaw,
                                              ent_verts, ent_max_verts);
+            gm_entity_restore_large_fireball_types(ents, nents);
             if (nv > 0) {
                 CrShadeCtx fire_sh = { &atlas, fog, 0.f, 0.f, 1, 0,
                                        CR_LAYER_CUTOUT, 0, 0, 0.f };

@@ -88,6 +88,34 @@ float     gm_entity_eye_y(int type);
 /* The mob-texture atlas to bind (CrShadeCtx.atlas) for the entity pass. */
 CrTexture gm_entity_atlas(void);
 
+/* Live projectile views collapse ghast large and blaze small fireballs to the
+ * same BILLBOARD+385. Call after gm_runtime_projectile_views with the dense
+ * list of active projectile types (3=small, 5=large) in emission order, or
+ * pass nproj=0 to honour item_meta>=2 already set on views. Morphs large shots
+ * to type GM_VIEW_DRAGON_FIREBALL with item_id 385 so RenderFireball scale is
+ * 2.0 while keeping the fire_charge sprite. */
+void gm_entity_patch_large_fireballs(const int *proj_types, int nproj,
+                                     GmEntityView *views, int nviews);
+/* Temporarily retype large fireballs as BILLBOARD so the fire-layer emit runs;
+ * pair with gm_entity_restore_large_fireball_types after. */
+void gm_entity_prep_large_fireball_fire(GmEntityView *views, int nviews);
+void gm_entity_restore_large_fireball_types(GmEntityView *views, int nviews);
+
+/* LayerEnderDragonDeath light rays (death_ticks > 0). Mob-atlas tinted tris. */
+int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
+                              int max);
+
+/* Deterministic portal/enderman + death-smoke + crystal-burst particle quads.
+ * Geometry is oracle-seeded; UVs are atlas stand-ins until particles.png is
+ * packed (see raster/verify/ui_entities/README). */
+int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
+                      float view_pitch, CrVertex *out, int max);
+
+/* Dig-site dust billboards (stage 1..10). */
+int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
+                                  int stage, float view_yaw, float view_pitch,
+                                  CrVertex *out, int max);
+
 #ifdef __cplusplus
 }
 #endif

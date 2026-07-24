@@ -3,6 +3,7 @@
 #include "assets/blockmodels.h"
 #include "game/caps.h"
 #include "game/dragon_live.h"
+#include "game/entity_render.h"
 #include "game/hand.h"
 #include "game/hud.h"
 #include "game/item_render.h"
@@ -696,9 +697,25 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     enum { FC_ENTS = GM_LIVE_MAX + GM_RUNTIME_GHOST_VIEWS };
     GmEntityView ents[FC_ENTS];int n=gm_dragon_fill_views(&r->dragon,ents,FC_ENTS);
     n+=gm_mobs_fill_views(&r->mobs,ents+n,FC_ENTS-n);
+    int n_proj0=n;
     n+=gm_runtime_projectile_views(r,ents+n,FC_ENTS-n);
+    /* Dense list of active projectile types in the same order as views. */
+    {
+        int ptypes[GM_RUNTIME_PROJECTILES], npt=0;
+        for(int i=0;i<GM_RUNTIME_PROJECTILES;++i)
+            if(r->projectiles[i].active)
+                ptypes[npt++]=r->projectiles[i].type;
+        gm_entity_patch_large_fireballs(ptypes,npt,ents+n_proj0,n-n_proj0);
+    }
     n+=gm_live_fill_views(&r->entities,ents+n,FC_ENTS-n);
     n+=gm_runtime_ghost_views(r,ents+n,FC_ENTS-n);
+    /* Live dragon fill omits death_ticks; copy from sim so dissolve/rays run. */
+    if(r->dragon.initialized){
+        int dt=r->dragon.state.arena.dragon.death_ticks;
+        for(int i=0;i<n;++i)if(ents[i].type==GM_ENTITY_DRAGON){
+            if(ents[i].death_ticks<=0&&dt>0)ents[i].death_ticks=dt;
+        }
+    }
     /* GuiBossOverlay is world-scoped (BossInfo packets), not proximity: a
      * dragon sighting in dim 1 LATCHES the bar until the dimension changes;
      * the nearest-8 tape ents lose a far dragon for most of the fight. */
@@ -823,6 +840,17 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         gm_entity_geom_tick(c->frame);
         int nv=gm_entities_emit(ents,n,eb[0],c->max_entity_verts);
         nv+=gm_xp_orbs_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
+        nv+=gm_dragon_death_rays_emit(ents,n,eb[0]+nv,c->max_entity_verts-nv);
+        nv+=gm_particles_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
+        /* Dig dust when the player is mid-break (stage from damage 0..1). */
+        {
+            int dx,dy,dz;float dmg;
+            if(gm_player_dig_state(&dx,&dy,&dz,&dmg)&&dmg>0.0f){
+                int stage=(int)(dmg*10.0f);if(stage<1)stage=1;if(stage>10)stage=10;
+                nv+=gm_block_break_particles_emit(dx,dy,dz,0,stage,v.yaw,v.pitch,
+                                                  eb[0]+nv,c->max_entity_verts-nv);
+            }
+        }
         CrTexture ea=gm_entity_atlas();
         /* fog entities like terrain: underwater EXP fog so distant squid don't
          * punch through as bright unfogged blobs (vanilla setupFog applies to
@@ -856,10 +884,12 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             if(uw.fluid){ fsh.enable_fog=1; fsh.fog_exp_density=uw.density; fsh.fog_color=uw.fog_rgba; }
             render_layer(c,&cam,eb[2],nv,&fsh);
         }
-        /* Render.doRenderShadowAndFire runs after the entity renderer. Small
-         * fireballs are always fiery; dragon fireballs explicitly are not. */
+        /* Render.doRenderShadowAndFire: small fireballs always; large ghast
+         * fireballs are also fiery (item_meta>=2). Dragon fireballs (9003) not. */
+        gm_entity_prep_large_fireball_fire(ents,n);
         nv=gm_small_fireball_fire_emit(ents,n,v.yaw,eb[3],
                                       c->max_entity_verts);
+        gm_entity_restore_large_fireball_types(ents,n);
         if(nv>0){
             CrShadeCtx fire_sh={0};
             fire_sh.atlas=&atlas; fire_sh.fog_color=clear;

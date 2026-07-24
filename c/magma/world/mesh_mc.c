@@ -1567,24 +1567,36 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
             emit_torch(out, cap, L, wx, wy, wz, m, tint, base01);
             break;
         case BM_KIND_CHEST: {
-            /* ModelChest body is 14x10x14 texels at offset (1,0,1) in block
-             * space (closed lid treated as solid top of the body; no hinge).
-             * Knob 2x4x1 on the facing side from BlockChest meta. */
+            /* ModelChest (TileEntityChestRenderer), closed lid pose:
+             *   chestBelow: box(0,0,0, 14,10,14) at rp (1,6,1)  -> y 6..16
+             *   chestLid:   box(0,-5,-14, 14,5,14) at rp (1,7,15) closed ax=0
+             *               -> covers y 2..7 in model, mapped to block y 9..14
+             *               with the hinge on +Z; closed lid sits on the body.
+             *   chestKnob:  box(-1,-2,-15, 2,4,1) at rp (8,7,15)
+             * World mesh has no per-frame lid_angle (TESR would remesh each
+             * tick); closed pose matches vanilla when num_players_using==0.
+             * Texture: oak-plank stand-in — entity/chest/normal.png is not in
+             * the terrain atlas (atlas work is out of this scope). */
             const float body0[3] = {1.0f, 0.0f, 1.0f};
-            const float body1[3] = {15.0f, 14.0f, 15.0f};
+            const float body1[3] = {15.0f, 10.0f, 15.0f};
             emit_box(out, cap, m->layer, L, wx, wy, wz, body0, body1,
+                     side_spr, tint, base01, -1);
+            /* closed lid: 14x5x14 resting on body top (y 10..15) */
+            const float lid0[3] = {1.0f, 10.0f, 1.0f};
+            const float lid1[3] = {15.0f, 14.0f, 15.0f};
+            emit_box(out, cap, m->layer, L, wx, wy, wz, lid0, lid1,
                      side_spr, tint, base01, -1);
             int meta = light_meta(L, wx, wy, wz) & 7;
             float k0[3], k1[3];
-            /* default north (meta 2): knob on -Z face */
+            /* knob on the facing side, mid-lid height (y 11..13) */
             if (meta == 3) { /* south */
-                k0[0]=7; k0[1]=7; k0[2]=15; k1[0]=9; k1[1]=11; k1[2]=16;
+                k0[0]=7; k0[1]=11; k0[2]=15; k1[0]=9; k1[1]=13; k1[2]=16;
             } else if (meta == 4) { /* west */
-                k0[0]=0; k0[1]=7; k0[2]=7; k1[0]=1; k1[1]=11; k1[2]=9;
+                k0[0]=0; k0[1]=11; k0[2]=7; k1[0]=1; k1[1]=13; k1[2]=9;
             } else if (meta == 5) { /* east */
-                k0[0]=15; k0[1]=7; k0[2]=7; k1[0]=16; k1[1]=11; k1[2]=9;
+                k0[0]=15; k0[1]=11; k0[2]=7; k1[0]=16; k1[1]=13; k1[2]=9;
             } else { /* north / 0 / 2 */
-                k0[0]=7; k0[1]=7; k0[2]=0; k1[0]=9; k1[1]=11; k1[2]=1;
+                k0[0]=7; k0[1]=11; k0[2]=0; k1[0]=9; k1[1]=13; k1[2]=1;
             }
             emit_box(out, cap, m->layer, L, wx, wy, wz, k0, k1,
                      side_spr, tint, base01, -1);

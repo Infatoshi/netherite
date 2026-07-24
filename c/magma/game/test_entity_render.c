@@ -406,6 +406,101 @@ static void test_recorded_state(void) {
           "recorded invisible entity emits no geometry");
 }
 
+/* (I) slime/magma size scale from item_meta (RenderSlime/RenderMagmaCube). */
+static void test_slime_magma_size(void) {
+    printf("\n[I] slime/magma size scale\n");
+    CrVertex out[MAXV];
+    float mn[3], mx[3];
+    GmEntityView s1; memset(&s1, 0, sizeof s1);
+    s1.type = 35; s1.y = 64; s1.health = 4; s1.item_meta = 1;
+    int n1 = gm_entities_emit(&s1, 1, out, MAXV);
+    bounds(out, n1, mn, mx);
+    float h1 = mx[1] - mn[1], min_y1 = mn[1];
+    GmEntityView s2 = s1; s2.item_meta = 2;
+    int n2 = gm_entities_emit(&s2, 1, out, MAXV);
+    bounds(out, n2, mn, mx);
+    float h2 = mx[1] - mn[1];
+    GmEntityView s4 = s1; s4.item_meta = 4;
+    int n4 = gm_entities_emit(&s4, 1, out, MAXV);
+    bounds(out, n4, mn, mx);
+    float h4 = mx[1] - mn[1];
+    CHECK(n1 == 4 * 36 && n2 == 4 * 36 && n4 == 4 * 36,
+          "slime emits 4 boxes at every size");
+    CHECK(approx(h2 / h1, 2.0f, 0.05f), "slime size 2 is 2x size 1 height");
+    CHECK(approx(h4 / h1, 4.0f, 0.05f), "slime size 4 is 4x size 1 height");
+    /* ModelSlime body bottom at model y=23 -> world (24-23)/16 = 0.0625 above feet. */
+    CHECK(approx(min_y1, 64.0f + 0.0625f, 0.05f),
+          "slime size 1 rests near ground (model y=23 floor)");
+
+    GmEntityView m2; memset(&m2, 0, sizeof m2);
+    m2.type = 27; m2.y = 64; m2.health = 4; m2.item_meta = 2;
+    int nm2 = gm_entities_emit(&m2, 1, out, MAXV);
+    bounds(out, nm2, mn, mx);
+    float mh2 = mx[1] - mn[1];
+    GmEntityView m4 = m2; m4.item_meta = 4;
+    int nm4 = gm_entities_emit(&m4, 1, out, MAXV);
+    bounds(out, nm4, mn, mx);
+    float mh4 = mx[1] - mn[1];
+    CHECK(nm2 == 9 * 36, "magma emits 9 boxes");
+    CHECK(approx(mh4 / mh2, 2.0f, 0.05f), "magma size 4 is 2x size 2 height");
+    /* default meta 0 -> size 2 for magma */
+    GmEntityView md = m2; md.item_meta = 0;
+    int nmd = gm_entities_emit(&md, 1, out, MAXV);
+    bounds(out, nmd, mn, mx);
+    CHECK(approx(mx[1] - mn[1], mh2, 0.05f),
+          "magma item_meta 0 defaults to size 2");
+}
+
+/* (J) large vs small fireball scale patch + dragon death rays + particles. */
+static void test_fireball_rays_particles(void) {
+    printf("\n[J] fireball scale, death rays, particles\n");
+    GmEntityView fb[2];
+    memset(fb, 0, sizeof fb);
+    fb[0].type = 30; fb[0].item_id = 385; fb[0].y = 70; /* small */
+    fb[1].type = 30; fb[1].item_id = 385; fb[1].y = 72; /* large candidate */
+    int ptypes[2] = { 3, 5 };
+    gm_entity_patch_large_fireballs(ptypes, 2, fb, 2);
+    CHECK(fb[0].type == 30 && fb[0].item_meta == 1,
+          "small fireball stays BILLBOARD meta 1");
+    CHECK(fb[1].type == 33 && fb[1].item_id == 385 && fb[1].item_meta == 2,
+          "large fireball morphs to dragon-fireball type with fire_charge id");
+    /* item_meta-only path */
+    GmEntityView solo; memset(&solo, 0, sizeof solo);
+    solo.type = 30; solo.item_id = 385; solo.item_meta = 2;
+    gm_entity_patch_large_fireballs(NULL, 0, &solo, 1);
+    CHECK(solo.type == 33 && solo.item_id == 385,
+          "item_meta>=2 alone promotes large fireball scale path");
+    gm_entity_prep_large_fireball_fire(&solo, 1);
+    CHECK(solo.type == 30, "prep retypes large fireball as BILLBOARD for fire");
+    gm_entity_restore_large_fireball_types(&solo, 1);
+    CHECK(solo.type == 33, "restore returns large fireball type");
+
+    CHECK(gm_entity_type_for_name("EntityLargeFireball") == 30,
+          "EntityLargeFireball maps to billboard");
+    CHECK(gm_entity_billboard_item("EntityLargeFireball") == 385,
+          "EntityLargeFireball uses fire_charge particle icon");
+
+    CrVertex out[4096];
+    GmEntityView drag; memset(&drag, 0, sizeof drag);
+    drag.type = 9; drag.y = 80; drag.health = 0; drag.death_ticks = 100;
+    int rays = gm_dragon_death_rays_emit(&drag, 1, out, 4096);
+    CHECK(rays > 0 && rays % 6 == 0, "death rays emit triangle pairs");
+    /* f=0.5 -> (0.5+0.25)/2*60 = 22.5 -> 22 rays * 6 verts */
+    int expect = (int)((0.5f + 0.5f * 0.5f) / 2.0f * 60.0f) * 6;
+    CHECK(rays == expect, "deathTicks=100 ray count matches LayerEnderDragonDeath");
+    drag.death_ticks = 0;
+    CHECK(gm_dragon_death_rays_emit(&drag, 1, out, 4096) == 0,
+          "living dragon emits no death rays");
+
+    GmEntityView em; memset(&em, 0, sizeof em);
+    em.type = 6; em.y = 64; em.health = 40; em.age = 10; em.ent_id = 7;
+    int pn = gm_particles_emit(&em, 1, 0.0f, 0.0f, out, 4096);
+    CHECK(pn == 8 * 6, "enderman emits 8 portal particle quads");
+    GmEntityView dd = drag; dd.death_ticks = 50;
+    int sn = gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 4096);
+    CHECK(sn == 12 * 6, "dying dragon emits 12 smoke particle quads");
+}
+
 int main(void) {
     test_part_counts();
     test_geometry();
@@ -415,6 +510,8 @@ int main(void) {
     test_render();
     test_name_map();
     test_recorded_state();
+    test_slime_magma_size();
+    test_fireball_rays_particles();
     printf("\n%s\n", g_fail ? "*** SOME TESTS FAILED ***" : "ALL TESTS PASSED");
     return g_fail;
 }

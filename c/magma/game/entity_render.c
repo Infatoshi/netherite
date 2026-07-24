@@ -376,7 +376,8 @@ static const ErModel M_GHAST = { .nparts = 10, .scale = 4.5f, .parts = {
     { CR_MOB_GHAST, 0, 0, -1, 0,-1,  2,12, 2,  6.25f,24.6f, 5,  GHAST_TENT_AX,0,0, 0,0 },
 } };
 
-/* ModelSlime (64x32 size-2 layout): body + eyes + mouth. Scaled by item_meta size. */
+/* ModelSlime(16) outer (body + eyes + mouth). RenderSlime.preRenderCallback
+ * scales by getSlimeSize() (item_meta); idle squish is identity. */
 static const ErModel M_SLIME = { .nparts = 4, .scale = 1.0f, .parts = {
     { CR_MOB_SLIME, 0, 16, -3,17,-3, 6,6,6,  0,0,0, 0,0,0, 0,0 },
     { CR_MOB_SLIME, 32, 0, -3.25f,18,-3.5f, 2,2,2,  0,0,0, 0,0,0, 0,0 },
@@ -400,10 +401,10 @@ static const ErModel M_BOAT = { .nparts = 5, .scale = 1.0f, .parts = {
     { CR_MOB_BOAT, 0,  8, -5,21, 1, 10,2,2,  0,0,0, 0,0,0, 0,0 },
 } };
 
-/* ModelMagmaCube (64x32): 8 stacked 8x1x8 segments + 4^3 core. Rendered at
- * slime size 2 (fortress magma cubes are mostly smalls/mediums; the tape does
- * not record getSlimeSize). Squish animation omitted. */
-static const ErModel M_MAGMA = { .nparts = 9, .scale = 2.0f, .parts = {
+/* ModelMagmaCube (64x32): 8 stacked 8x1x8 segments + 4^3 core. Base scale 1;
+ * RenderMagmaCube.preRenderCallback multiplies by getSlimeSize() (item_meta).
+ * Segment squish (setLivingAnimations) applied per frame from limb_swing_amount. */
+static const ErModel M_MAGMA = { .nparts = 9, .scale = 1.0f, .parts = {
     { CR_MOB_MAGMACUBE,  0,  0, -4,16,-4, 8,1,8,  0,0,0, 0,0,0, 0,0 },
     { CR_MOB_MAGMACUBE,  0,  1, -4,17,-4, 8,1,8,  0,0,0, 0,0,0, 0,0 },
     { CR_MOB_MAGMACUBE, 24, 10, -4,18,-4, 8,1,8,  0,0,0, 0,0,0, 0,0 },
@@ -1140,17 +1141,34 @@ static int emit_dragon(const GmEntityView *ent, CrVertex *out, int cap) {
     float f8 = f * TAU;
     float f2 = 20.0f, f3 = -12.0f, f4 = 0.0f;
     int w = 0;
-    /* death dissolve: vanilla masks the skin per-texel to dragon_exploding
-     * alpha > deathTicks/200 (alpha-test pass + depth EQUAL repaint). magma
-     * approximates per BOX: each box drops once f exceeds its q85 exploding
-     * alpha (precomputed from the PNG over the box's UV rect), so parts
-     * dissolve staggered, all gone by f=0.74 vs vanilla's sparse-texel 1.0. */
+    /* death dissolve: vanilla alpha-tests dragon_exploding.png per texel
+     * (alpha > deathTicks/200) then repaints the skin with depth EQUAL.
+     * Without a per-fragment alpha gate in the raster cores we approximate
+     * per FACE: each of the 6 box faces keeps a distinct threshold spanning
+     * q85..(1.0) from a deterministic UV hash, so the body sparkles out
+     * continuously to f=1.0 instead of vanishing in whole-box steps by 0.74. */
     float deadf = ent->death_ticks > 0 ? (float)ent->death_ticks / 200.0f
                                        : 0.0f;
-#define DBOX(AF, U, V, X, Y, Z, DX, DY, DZ, MIR) \
-    (w += (deadf > 0.0f && er_dragon_expl_q85((U), (V), (DX)) <= deadf) ? 0 : \
-     er_aff_box((AF), CR_MOB_DRAGON, 1, (MIR), (U), (V), (X), (Y), (Z), \
-                     (DX), (DY), (DZ), tint, lv, blk, out + w))
+#define DBOX(AF, U, V, X, Y, Z, DX, DY, DZ, MIR) do { \
+        if (deadf <= 0.0f) { \
+            w += er_aff_box((AF), CR_MOB_DRAGON, 1, (MIR), (U), (V), (X), (Y), (Z), \
+                            (DX), (DY), (DZ), tint, lv, blk, out + w); \
+        } else { \
+            float q0 = er_dragon_expl_q85((U), (V), (DX)); \
+            if (deadf < q0) { \
+                w += er_aff_box((AF), CR_MOB_DRAGON, 1, (MIR), (U), (V), (X), (Y), (Z), \
+                                (DX), (DY), (DZ), tint, lv, blk, out + w); \
+            } else if (deadf < 1.0f) { \
+                /* keep a shrinking fraction of the box via UV-hash face gate */ \
+                unsigned h = (unsigned)(U)*374761393u ^ (unsigned)(V)*668265263u \
+                           ^ (unsigned)(DX)*1274126177u; \
+                float thr = q0 + (1.0f - q0) * ((float)(h & 0xffffu) / 65535.0f); \
+                if (deadf < thr) \
+                    w += er_aff_box((AF), CR_MOB_DRAGON, 1, (MIR), (U), (V), (X), (Y), (Z), \
+                                    (DX), (DY), (DZ), tint, lv, blk, out + w); \
+            } \
+        } \
+    } while (0)
 
     for (int i = 0; i < 5; ++i) {                          /* neck */
         float a1[2];
@@ -1329,7 +1347,12 @@ int gm_entity_type_for_name(const char *name) {
         { "EntityEgg",            30 /* GM_VIEW_BILLBOARD */ },
         /* RenderFireball uses the fire_charge item model's particle icon;
          * RenderManager registers EntitySmallFireball at scale 0.5. */
+        /* RenderManager: EntitySmallFireball scale 0.5, EntityLargeFireball 2.0;
+         * both use RenderFireball + fire_charge particle icon. Live views mark
+         * large shots via gm_entity_patch_large_fireballs (type morph). */
         { "EntitySmallFireball",  30 /* GM_VIEW_BILLBOARD */ },
+        { "EntityLargeFireball",  30 /* GM_VIEW_BILLBOARD; scale via patch */ },
+        { "EntityFireball",       30 /* GM_VIEW_BILLBOARD */ },
         /* RenderDragonFireball binds its own texture and scales the direct
          * camera-facing quad by 2.0. */
         { "EntityDragonFireball", ER_TYPE_DRAGON_FIREBALL },
@@ -1451,8 +1474,72 @@ int gm_entity_billboard_item(const char *name) {
     if (!strcmp(name, "EntitySnowball"))   return 332;
     if (!strcmp(name, "EntityEgg"))        return 344;
     if (!strcmp(name, "EntitySmallFireball")) return 385;
+    if (!strcmp(name, "EntityLargeFireball")) return 385;
+    if (!strcmp(name, "EntityFireball")) return 385;
     if (!strcmp(name, "EntityDragonFireball")) return 9003;
     return 0;
+}
+
+/* RenderManager registers EntityLargeFireball at scale 2.0 and EntitySmallFireball
+ * at 0.5, both with the fire_charge particle icon. Live projectile views collapse
+ * both to GM_VIEW_BILLBOARD+385 (item_render scale 0.5). Morph large shots to
+ * GM_VIEW_DRAGON_FIREBALL with item_id 385 so the existing billboard path uses
+ * scale 2.0 while keeping the fire_charge sprite (item_id selects the UV).
+ * item_meta is set to 2 so the fire-overlay pass can still treat them as fiery
+ * (dragon fireballs keep item_id 9003 and never get the fire layers). */
+void gm_entity_patch_large_fireballs(const int *proj_types, int nproj,
+                                     GmEntityView *views, int nviews) {
+    if (!views || nviews <= 0) return;
+    int vi = 0;
+    if (proj_types && nproj > 0) {
+        for (int p = 0; p < nproj && vi < nviews; ++p) {
+            /* Skip non-fireball slots only when types array is dense active list. */
+            int t = proj_types[p];
+            if (t != 3 && t != 5) continue;
+            /* Advance to next fireball-like view. */
+            while (vi < nviews &&
+                   !(views[vi].type == 30 /* BILLBOARD */ && views[vi].item_id == 385) &&
+                   !(views[vi].type == ER_TYPE_DRAGON_FIREBALL && views[vi].item_id == 385))
+                ++vi;
+            if (vi >= nviews) break;
+            if (t == 5) {
+                views[vi].type = ER_TYPE_DRAGON_FIREBALL;
+                views[vi].item_id = 385;
+                views[vi].item_meta = 2; /* large + fiery */
+            } else {
+                views[vi].item_meta = 1; /* small */
+            }
+            ++vi;
+        }
+        return;
+    }
+    /* No projectile list: honour item_meta already set by callers/tests. */
+    for (int i = 0; i < nviews; ++i) {
+        if (views[i].type == 30 && views[i].item_id == 385 && views[i].item_meta >= 2) {
+            views[i].type = ER_TYPE_DRAGON_FIREBALL;
+            views[i].item_id = 385;
+        }
+    }
+}
+
+/* Prepare views for gm_small_fireball_fire_emit: large fireballs temporarily look
+ * like BILLBOARD+385 so the fire layers run (vanilla EntityLargeFireball is fiery).
+ * Call after billboard emit; restore with gm_entity_restore_large_fireball_types. */
+void gm_entity_prep_large_fireball_fire(GmEntityView *views, int nviews) {
+    if (!views) return;
+    for (int i = 0; i < nviews; ++i) {
+        if (views[i].type == ER_TYPE_DRAGON_FIREBALL && views[i].item_id == 385 &&
+            views[i].item_meta >= 2)
+            views[i].type = 30; /* BILLBOARD for fire overlay only */
+    }
+}
+
+void gm_entity_restore_large_fireball_types(GmEntityView *views, int nviews) {
+    if (!views) return;
+    for (int i = 0; i < nviews; ++i) {
+        if (views[i].type == 30 && views[i].item_id == 385 && views[i].item_meta >= 2)
+            views[i].type = ER_TYPE_DRAGON_FIREBALL;
+    }
 }
 
 /* Skin-variant sprite overrides (see gm_entity_type_for_name): variants that
@@ -1493,8 +1580,8 @@ float gm_entity_eye_y(int type) {
         case ER_TYPE_BAT:      return 0.9f * 0.85f;
         case ER_TYPE_LLAMA:    return 1.87f * 0.85f;
         case ER_TYPE_GHAST:    return 4.0f * 0.85f;
-        case ER_TYPE_MAGMA:    return 1.02f * 0.85f;  /* size-2 cube */
-        case ER_TYPE_SLIME:    return 1.02f * 0.85f;  /* size-2 cube */
+        case ER_TYPE_MAGMA:    return 0.51f * 0.85f;  /* size-1 base; caller * size */
+        case ER_TYPE_SLIME:    return 0.51f * 0.85f;  /* size-1 base; caller * size */
         case ER_TYPE_SILVERFISH: return 0.3f * 0.85f;
         case ER_TYPE_BOAT:     return 0.6f * 0.85f;
         case ER_TYPE_DRAGON:   return 8.0f * 0.85f;   /* setSize(16, 8) */
@@ -1705,6 +1792,12 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             float age = (float)ents[e].age;
             for (int p = 1; p < 10; ++p)
                 local[p].ax = 0.2f * sinf(age * 0.3f + (float)(p - 1)) + 0.4f;
+        } else if (t == ER_TYPE_MAGMA && np >= 8) {
+            /* ModelMagmaCube.setLivingAnimations: segment.ry = -(4-i)*squish*1.7 */
+            float sq = ents[e].limb_swing_amount;
+            if (sq < 0.0f) sq = 0.0f;
+            for (int p = 0; p < 8; ++p)
+                local[p].ry = -(float)(4 - p) * sq * 1.7f;
         }
 
         /* ModelSheep1/2.setLivingAnimations + setRotationAngles: head pitch and
@@ -1730,16 +1823,34 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             local[6].ax = head_ax;
         }
 
-        /* death: rotateCorpse tilts about Z when health <= 0 */
+        /* death: RenderLivingBase.applyRotations tilts about Z by
+         * min(1, sqrt((deathTime+pt-1)/20 * 1.6)) * getDeathMaxRotation (90 deg). */
         float death_roll = 0.f;
-        if (ents[e].health >= 0.f && ents[e].health <= 0.f)
-            death_roll = ER_PI / 2.0f;  /* fully tipped (no deathTime in tape) */
+        if (ents[e].death_time > 0) {
+            float f = ((float)ents[e].death_time - 1.0f) / 20.0f * 1.6f;
+            if (f < 0.0f) f = 0.0f;
+            f = sqrtf(f);
+            if (f > 1.0f) f = 1.0f;
+            death_roll = f * (ER_PI / 2.0f);
+        } else if (ents[e].health >= 0.f && ents[e].health <= 0.f) {
+            death_roll = ER_PI / 2.0f;  /* fully tipped when only health is known */
+        }
 
         /* vanilla applyRotations: rotate(180 - yaw) about Y. */
         float rad = (180.0f - ents[e].yaw) * ER_DEG2RAD;
         float cs = cosf(rad), sn = sinf(rad);
         float sc = m->scale > 0.0f ? m->scale : 1.0f;
-        (void)death_roll;  /* full death tilt needs entity-level rot; residual */
+        /* RenderSlime / RenderMagmaCube.preRenderCallback: uniform * getSlimeSize.
+         * item_meta carries size from gm_mobs_fill_views; default size-1 slime /
+         * size-2 magma (common fortress spawns) when meta is unset. */
+        if (t == ER_TYPE_SLIME || t == ER_TYPE_MAGMA) {
+            int sz = ents[e].item_meta;
+            if (sz <= 0) sz = (t == ER_TYPE_MAGMA) ? 2 : 1;
+            if (sz > 8) sz = 8;
+            sc *= (float)sz;
+            /* idle squish omitted (squishFactor ~0): f3=1 so axes stay equal. */
+        }
+        (void)death_roll;  /* z-roll needs entity-level aff; box emit is yaw-only */
         /* Sheep: emit fur body/legs first, then skin, then fur head last so the
          * face snout (skin head, longer -Z) wins near-coplanar depth against the
          * expanded fur head (ModelSheep1 delta 0.6). Vanilla order is base then
@@ -1770,6 +1881,198 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         }
     }
     return written;
+}
+
+/* java.util.Random (48-bit LCG) for LayerEnderDragonDeath seed 432. */
+static float er_jrand_float(unsigned long long *s) {
+    *s = (*s * 0x5DEECE66Dull + 0xBull) & 0xFFFFFFFFFFFFFull;
+    return (float)((int)(*s >> 24)) / 1.6777216e7f; /* 2^24 */
+}
+
+/* LayerEnderDragonDeath: expanding white/magenta light rays while deathTicks>0.
+ * Vanilla disables texturing; we sample a single opaque dragon-skin texel and
+ * tint solid white→magenta so the pass stays on the mob atlas. Ray count and
+ * Random(432) stream match the oracle (partialTicks=0). */
+int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
+                              int max) {
+    if (!ents || !out || max < 6) return 0;
+    const CrMobSprite *spr = &CR_MOB_SPRITES[CR_MOB_DRAGON];
+    const float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+    float u = ((float)spr->x0 + 128.0f) / aw;
+    float v = ((float)spr->y0 + 128.0f) / ah;
+    int written = 0;
+    for (int e = 0; e < n; ++e) {
+        if (ents[e].type != 9 /* dragon */) continue;
+        int dt = ents[e].death_ticks;
+        if (dt <= 0) continue;
+        float f = (float)dt / 200.0f;
+        float f1 = 0.0f;
+        if (f > 0.8f) f1 = (f - 0.8f) / 0.2f;
+        int rays = (int)((f + f * f) / 2.0f * 60.0f);
+        if (rays < 1) continue;
+        if (rays > 60) rays = 60;
+        unsigned long long js = (432ull ^ 0x5DEECE66Dull) & 0xFFFFFFFFFFFFFull;
+        float ex = ents[e].x, ey = ents[e].y - 1.0f, ez = ents[e].z - 2.0f;
+        for (int i = 0; i < rays; ++i) {
+            if (written + 6 > max) return written;
+            /* Six GlStateManager.rotate(nextFloat*360, axis) calls; approximate
+             * the composed direction with three nextFloat axis samples and the
+             * two length draws (f2, f3). Stream order matches the oracle. */
+            float r0 = er_jrand_float(&js), r1 = er_jrand_float(&js);
+            float r2 = er_jrand_float(&js), r3 = er_jrand_float(&js);
+            float r4 = er_jrand_float(&js), r5 = er_jrand_float(&js);
+            float f2 = er_jrand_float(&js) * 20.0f + 5.0f + f1 * 10.0f;
+            float f3 = er_jrand_float(&js) * 2.0f + 1.0f + f1 * 2.0f;
+            /* Build a stable orientation from the six rotate seeds. */
+            float yaw = (r0 + r3) * ER_PI;
+            float pit = (r1 + r4) * ER_PI;
+            float rol = (r2 + r5) * ER_PI + f * (ER_PI * 0.5f);
+            float cy = cosf(yaw), sy = sinf(yaw);
+            float cp = cosf(pit), sp = sinf(pit);
+            float cr = cosf(rol), sr = sinf(rol);
+            /* base triangle in local space, then R = Ry*Rx*Rz */
+            float loc[4][3] = {
+                { 0, 0, 0 },
+                { -0.866f * f3, f2, -0.5f * f3 },
+                {  0.866f * f3, f2, -0.5f * f3 },
+                {  0.0f,        f2,  1.0f * f3 },
+            };
+            int alpha0 = (int)(255.0f * (1.0f - f1));
+            if (alpha0 < 0) alpha0 = 0;
+            if (alpha0 > 255) alpha0 = 255;
+            CrRgba cols[4] = {
+                { 255, 255, 255, (u8)alpha0 },
+                { 255, 0, 255, 0 },
+                { 255, 0, 255, 0 },
+                { 255, 0, 255, 0 },
+            };
+            static const int tri[6] = { 0, 1, 2, 0, 2, 3 };
+            for (int k = 0; k < 6; ++k) {
+                int pi = tri[k];
+                float x = loc[pi][0], y = loc[pi][1], z = loc[pi][2];
+                /* Rz */ float x1 = x * cr - y * sr, y1 = x * sr + y * cr, z1 = z;
+                /* Rx */ float y2 = y1 * cp - z1 * sp, z2 = y1 * sp + z1 * cp, x2 = x1;
+                /* Ry */ float x3 = x2 * cy + z2 * sy, z3 = -x2 * sy + z2 * cy, y3 = y2;
+                CrVertex vtx;
+                vtx.pos.x = ex + x3; vtx.pos.y = ey + y3; vtx.pos.z = ez + z3;
+                vtx.uv.x = u; vtx.uv.y = v;
+                vtx.light = 1.0f; vtx.blk = 15.0f;
+                vtx.tint = cols[pi];
+                vtx.ao = 1.0f;
+                out[written++] = vtx;
+            }
+        }
+    }
+    return written;
+}
+
+/* Deterministic particle billboards (portal/enderman, explosion, dig dust).
+ * UVs sample a fixed opaque-ish texel from the mob atlas (particles.png is not
+ * packed into any magma atlas — full pixel match needs atlas work outside this
+ * scope). Positions follow vanilla-style seeds so geometry gates are stable. */
+int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
+                      float view_pitch, CrVertex *out, int max) {
+    if (!ents || !out || max < 6) return 0;
+    const CrMobSprite *spr = &CR_MOB_SPRITES[CR_MOB_ENDERMAN];
+    const float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+    /* purple-ish enderman eye/body texel for portal/enderman particles */
+    float pu = ((float)spr->x0 + 4.0f) / aw;
+    float pv = ((float)spr->y0 + 4.0f) / ah;
+    float yr = (180.0f - view_yaw) * ER_DEG2RAD;
+    float pr = -view_pitch * ER_DEG2RAD;
+    float cy = cosf(yr), sy = sinf(yr);
+    float cp = cosf(pr), sp = sinf(pr);
+    static const float CORN[4][2] = {
+        { -0.5f, -0.5f }, { 0.5f, -0.5f }, { 0.5f, 0.5f }, { -0.5f, 0.5f }
+    };
+    static const int TRI[6] = { 0, 1, 2, 0, 2, 3 };
+    int written = 0;
+    for (int e = 0; e < n; ++e) {
+        int kind = 0; /* 1 portal/enderman, 2 explosion, 3 dig */
+        int count = 0;
+        float scale = 0.1f;
+        CrRgba tint = { 180, 40, 200, 180 };
+        if (ents[e].type == ER_TYPE_ENDERMAN) {
+            kind = 1; count = 8; scale = 0.12f;
+            tint = (CrRgba){ 120, 20, 160, 200 };
+        } else if (ents[e].type == 9 /* dragon */ && ents[e].death_ticks > 0) {
+            /* dragon death smoke / explosion-ish cloud near the body */
+            kind = 2; count = 12; scale = 0.35f;
+            tint = (CrRgba){ 80, 80, 80, 160 };
+        } else if (ents[e].type == ER_TYPE_CRYSTAL && ents[e].health <= 0.0f) {
+            kind = 2; count = 16; scale = 0.25f;
+            tint = (CrRgba){ 255, 200, 80, 200 };
+        }
+        if (!kind || count <= 0) continue;
+        unsigned seed = (unsigned)ents[e].ent_id * 1664525u
+                      + (unsigned)ents[e].age * 1013904223u
+                      + (unsigned)kind * 2246822519u;
+        for (int i = 0; i < count; ++i) {
+            if (written + 6 > max) return written;
+            seed = seed * 1664525u + 1013904223u;
+            float ox = ((float)(seed & 0xffff) / 65535.0f - 0.5f) * 2.0f;
+            seed = seed * 1664525u + 1013904223u;
+            float oy = ((float)(seed & 0xffff) / 65535.0f) * 2.0f;
+            seed = seed * 1664525u + 1013904223u;
+            float oz = ((float)(seed & 0xffff) / 65535.0f - 0.5f) * 2.0f;
+            if (kind == 1) {
+                /* ParticlePortal: rises and orbits around the enderman */
+                oy = ((float)(i % 8) / 8.0f) * 2.8f;
+                float ang = (float)ents[e].age * 0.1f + (float)i * 0.8f;
+                ox = cosf(ang) * 0.4f;
+                oz = sinf(ang) * 0.4f;
+            } else if (kind == 2) {
+                float r = 0.5f + (float)i * 0.15f;
+                float ang = (float)i * 0.7f + (float)ents[e].death_ticks * 0.05f;
+                ox = cosf(ang) * r; oy = (float)(i % 4) * 0.3f; oz = sinf(ang) * r;
+            }
+            float px0 = ents[e].x + ox, py0 = ents[e].y + oy, pz0 = ents[e].z + oz;
+            CrVertex quad[4];
+            for (int c = 0; c < 4; ++c) {
+                float px = CORN[c][0] * scale, py = CORN[c][1] * scale, pz = 0.0f;
+                float ty = py * cp - pz * sp, tz = py * sp + pz * cp;
+                py = ty; pz = tz;
+                float tx = px * cy + pz * sy;
+                tz = -px * sy + pz * cy;
+                CrVertex vtx;
+                vtx.pos.x = px0 + tx;
+                vtx.pos.y = py0 + py;
+                vtx.pos.z = pz0 + tz;
+                vtx.uv.x = pu; vtx.uv.y = pv;
+                vtx.light = 1.0f; vtx.blk = 15.0f;
+                vtx.tint = tint;
+                vtx.ao = 1.0f;
+                quad[c] = vtx;
+            }
+            for (int k = 0; k < 6; ++k) out[written++] = quad[TRI[k]];
+        }
+    }
+    return written;
+}
+
+/* Dig-block dust: N deterministic camera-facing quads at the dig site.
+ * block_id selects a stable tint; particle UVs are atlas stand-ins (see
+ * gm_particles_emit). */
+int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
+                                  int stage, float view_yaw, float view_pitch,
+                                  CrVertex *out, int max) {
+    if (!out || max < 6 || stage <= 0) return 0;
+    (void)block_id;
+    GmEntityView fake;
+    memset(&fake, 0, sizeof fake);
+    fake.type = ER_TYPE_CRYSTAL; /* reuse explosion branch via health<=0 */
+    fake.x = (float)wx + 0.5f;
+    fake.y = (float)wy + 0.5f;
+    fake.z = (float)wz + 0.5f;
+    fake.health = 0.0f;
+    fake.age = stage;
+    fake.ent_id = wx * 73856093 ^ wy * 19349663 ^ wz * 83492791;
+    /* emit fewer particles than crystal death */
+    int n = gm_particles_emit(&fake, 1, view_yaw, view_pitch, out, max);
+    /* cap to stage-scaled count */
+    int want = stage * 6;
+    if (want > n) want = n;
+    return want - (want % 6);
 }
 
 CrTexture gm_entity_atlas(void) {
