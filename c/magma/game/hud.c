@@ -317,6 +317,7 @@ static int hud_item_max_damage(int item_id) {
     if (item_id == 315) return 112;                   /* gold chest */
     if (item_id == 316) return 105;                   /* gold legs */
     if (item_id == 317) return 91;                    /* gold boots */
+    if (item_id == 346) return 64;                    /* fishing rod */
     if (item_id == 359) return 238;                   /* shears */
     if (item_id == 398) return 25;                    /* carrot on a stick */
     if (item_id == 442) return 336;                   /* shield */
@@ -542,20 +543,12 @@ static void hud_draw_potion_effects(CrFramebuffer *fb,
 static int   g_boss_show = 0;
 static float g_boss_frac = 1.0f;
 static const char *g_boss_name = "Ender Dragon";
-/* ForgeHooks.getTotalArmorValue points (0..20). */
-static int   g_armor_points = 0;
 
 void gm_hud_set_boss(int show, float frac) {
     g_boss_show = show;
     if (frac < 0.0f) frac = 0.0f;
     if (frac > 1.0f) frac = 1.0f;
     g_boss_frac = frac;
-}
-
-void gm_hud_set_armor(int points) {
-    if (points < 0) points = 0;
-    if (points > 20) points = 20;
-    g_armor_points = points;
 }
 
 void gm_hud_state_step(GmHudState *s, GmPlayerView *pv,
@@ -723,7 +716,9 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
             }
         }
         buf[len] = 0;
-        int lx = (cx_s - gm_font_width(buf) / 2) * scale;
+        /* FontRenderer: i1 = (scaledWidth - getStringWidth(s)) / 2
+         * (not cx - width/2; integer division differs when both are odd). */
+        int lx = ((sw_s - gm_font_width(buf)) / 2) * scale;
         int ly = (sh_s - 35) * scale;
         gm_font_draw(fb, buf, lx + scale, ly, scale, 0x000000u, 0);
         gm_font_draw(fb, buf, lx - scale, ly, scale, 0x000000u, 0);
@@ -733,14 +728,20 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
     }
 
     /* ---- hearts (above-left of the hotbar) ---- */
-    /* Row baseline sits just above the XP bar, left-aligned to the hotbar. */
-    /* vanilla GuiIngameForge: left_height/right_height start at 39 -> top = h - 39 */
-    const int stat_y = (sh_s - 39) * scale;
+    /* GuiIngame.renderPlayerStats: j1 = height - 39 baseline; multi-row hearts
+     * use i2 spacing and armor sits at j1 - (rows-1)*i2 - 10. */
+    const int j1_s = sh_s - 39;
+    const int max_hearts = (int)(pv->max_health / 2.f + 0.5f);
+    /* l1 = ceil((health+absorption)/2/10) heart rows; absorption not tracked. */
+    int heart_rows = (int)ceilf(((float)max_hearts) / 10.0f);
+    if (heart_rows < 1) heart_rows = 1;
+    int row_gap = 10 - (heart_rows - 2);
+    if (row_gap < 3) row_gap = 3;
+    const int stat_y = j1_s * scale; /* first heart row fb y (for hunger) */
     /* GuiIngame's <=4-health one-pixel jitter is seeded from the absolute
      * updateCounter (updateCounter*312871), which current tapes do not record.
      * Keep the stable baseline rather than inventing a phase; health count and
      * damage-flash state still use the recorded health/hurt fields. */
-    const int max_hearts = (int)(pv->max_health / 2.f + 0.5f);
     const int half_hearts = pv->hud_state_valid ? pv->hud_health
                                                  : (int)ceilf(pv->health);
     const int old_half_hearts = pv->hud_state_valid ? pv->hud_last_health
@@ -760,8 +761,9 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
         heart_flash_half = HUD_HEART_WITHER_FLASH_HALF;
     }
     for (int i = 0; i < max_hearts; i++) {
-        int hx = hb_x + (i * 8) * scale;
-        int hy = stat_y;
+        int row = (int)ceilf((float)(i + 1) / 10.0f) - 1;
+        int hx = hb_x + ((i % 10) * 8) * scale;
+        int hy = (j1_s - row * row_gap) * scale;
         hud_blit(fb, pv->hud_flash ? HUD_HEART_BG_FLASH : HUD_HEART_BG,
                  hx, hy, scale);
         if (pv->hud_flash) {
@@ -774,18 +776,22 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
         else if (hv == 1) hud_blit(fb, heart_half, hx, hy, scale);
     }
 
-    /* ---- armor row (GuiIngameForge.renderArmor): one row above hearts.
-     * top = height - left_height after health (left_height was 39+10).
-     * Icons: full (34,9) / half (25,9) / empty (16,9); only when points > 0. */
-    if (g_armor_points > 0) {
-        const int armor_y = (sh_s - 49) * scale;
-        for (int k = 0; k < 10; ++k) {
-            int ax = hb_x + (k * 8) * scale;
-            int bit = k * 2 + 1;
-            int spr = HUD_ARMOR_EMPTY;
-            if (bit < g_armor_points) spr = HUD_ARMOR_FULL;
-            else if (bit == g_armor_points) spr = HUD_ARMOR_HALF;
-            hud_blit(fb, spr, ax, armor_y, scale);
+    /* ---- armor row: GuiIngame j2 = j1 - (l1-1)*i2 - 10; only when points > 0.
+     * Icons: full (34,9) / half (25,9) / empty (16,9). Live points from view. */
+    {
+        int armor_pts = pv->armor_points;
+        if (armor_pts < 0) armor_pts = 0;
+        if (armor_pts > 20) armor_pts = 20;
+        if (armor_pts > 0) {
+            const int armor_y = (j1_s - (heart_rows - 1) * row_gap - 10) * scale;
+            for (int k = 0; k < 10; ++k) {
+                int ax = hb_x + (k * 8) * scale;
+                int bit = k * 2 + 1;
+                int spr = HUD_ARMOR_EMPTY;
+                if (bit < armor_pts) spr = HUD_ARMOR_FULL;
+                else if (bit == armor_pts) spr = HUD_ARMOR_HALF;
+                hud_blit(fb, spr, ax, armor_y, scale);
+            }
         }
     }
 

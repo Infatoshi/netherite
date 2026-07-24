@@ -101,6 +101,7 @@ struct GmFrameCapture {
     float pend_uwb;         /* ... with this Entity.getBrightness tint */
     float pend_uwfov;       /* ... through this hand-projection fov */
     long long pend_texture_tick; /* animated atlas phase of deferred frame */
+    const GmWorld *pend_world;   /* eye-block sample for deferred suffocate overlay */
     GmHudState hud_state;
     /* depth-1 pipeline (CUDA + devmesh): frame N+1's CPU prep + enqueue run
      * BEFORE waiting out frame N, so the CPU meshes while the GPU rasters.
@@ -542,14 +543,16 @@ static int finish_pending(GmFrameCapture *c) {
     gm_hand_set_item_override(c->pend_item, c->pend_meta, c->pend_count);
     if (!c->pend_v.dead && !getenv("MAGMA_NO_HAND"))
         gm_hand_draw(&pfb, &c->pend_v, c->pend_bob);
-    /* ItemRenderer.renderOverlays runs with the hand, BEFORE the HUD. */
-    if (c->pend_uwov)
-        gm_uw_overlay_draw(&pfb, &c->pend_v, c->pend_uwb, c->pend_uwfov);
+    /* ItemRenderer.renderOverlays: block, water, fire; then portal; then HUD. */
     if (c->pend_v.texture_animations_pinned)
         bm_atlas_set_animation_physical_zero();
     else
         bm_atlas_set_animation_tick(c->pend_texture_tick);
     CrTexture atlas=bm_atlas();
+    if (!c->pend_v.dead && c->pend_world)
+        gm_overlay_block_in_hand_live(&pfb, &atlas, c->pend_world, &c->pend_v);
+    if (c->pend_uwov)
+        gm_uw_overlay_draw(&pfb, &c->pend_v, c->pend_uwb, c->pend_uwfov);
     if (c->pend_v.fire && !c->pend_v.creative && !c->pend_v.dead)
         gm_hand_fire_overlay_draw(&pfb,&atlas,c->pend_uwfov/70.0f);
     if (c->pend_v.portal > 0.0f) {
@@ -887,6 +890,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 c->pend_uwb=uw.brightness;c->pend_uwfov=cam.fov_deg;
                 c->pend_texture_tick=fc_texture_tick(r->clock.total_time,
                                                      v.portal_frame);
+                c->pend_world=r->world;
                 return 1;
             }
         }
@@ -905,7 +909,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         gm_hud_draw(&c->fb,&v);
     }else{
         if(!v.dead&&!getenv("MAGMA_NO_HAND"))gm_hand_draw(&c->fb,&v,c->hand_bob);
-        /* ItemRenderer.renderOverlays runs with the hand, BEFORE the HUD. */
+        /* ItemRenderer.renderOverlays: block, water, fire; then portal; HUD. */
+        if(!v.dead)gm_overlay_block_in_hand_live(&c->fb,&atlas,r->world,&v);
         if(uw.overlay&&!v.dead)gm_uw_overlay_draw(&c->fb,&v,uw.brightness,cam.fov_deg);
         if(v.fire&&!v.creative&&!v.dead)
             gm_hand_fire_overlay_draw(&c->fb,&atlas,uw.fov_scale);

@@ -50,6 +50,10 @@ static int   s_use_prev;
 static int   s_hurt_vel_reset;
 static double s_server_motion_x, s_server_motion_z;
 static int   s_eat_ticks, s_eat_item;
+/* Active hand use for viewmodel (EAT/DRINK/BLOCK). BOW uses s_bow_ticks. */
+static int   s_use_action;      /* 0 none, 1 eat/drink, 2 block */
+static int   s_use_remaining;
+static int   s_use_max;
 
 /* Optional cursor for live inventory composition (hotbar is IsrInv slots 0..8). */
 static ICStack s_cursor;
@@ -707,8 +711,35 @@ use_done:
                 vit->saturation+=(float)hunger*sat*2.0f;
                 if(vit->saturation>(float)vit->foodLevel)vit->saturation=(float)vit->foodLevel;
                 pl->food=(float)vit->foodLevel;s_eat_ticks=0;s_eat_item=0;
+                s_use_action=0;s_use_remaining=0;s_use_max=0;
+            }else{
+                /* getItemInUseCount counts down from max (32); elapsed = s_eat_ticks. */
+                s_use_action=1;s_use_max=32;s_use_remaining=32-s_eat_ticks;
+                if(s_use_remaining<0)s_use_remaining=0;
             }
-        }else{s_eat_ticks=0;s_eat_item=0;}
+        }else if(act.use&&(food.item==373||food.item==335)){
+            /* Potion / milk: EnumAction.DRINK, same 32-tick transform as EAT. */
+            if(s_eat_item!=food.item){s_eat_item=food.item;s_eat_ticks=0;}
+            if(++s_eat_ticks>=32){
+                (void)isr_decr_stack_size(&pl->inv,pl->inv.current_item,1);
+                s_eat_ticks=0;s_eat_item=0;
+                s_use_action=0;s_use_remaining=0;s_use_max=0;
+            }else{
+                s_use_action=1;s_use_max=32;s_use_remaining=32-s_eat_ticks;
+                if(s_use_remaining<0)s_use_remaining=0;
+            }
+        }else if(act.use&&food.item!=261&&(
+                 food.item==267||food.item==268||food.item==272||
+                 food.item==276||food.item==283||food.item==442)){
+            /* Sword BLOCK / shield: getMaxItemUseDuration 72000. */
+            s_use_action=2;s_use_max=72000;
+            if(s_use_remaining<=0||s_use_remaining>72000)s_use_remaining=72000;
+            if(s_use_remaining>0)--s_use_remaining;
+            s_eat_ticks=0;s_eat_item=0;
+        }else{
+            s_eat_ticks=0;s_eat_item=0;
+            if(food.item!=261){s_use_action=0;s_use_remaining=0;s_use_max=0;}
+        }
     }
 
     if (a.attack) pl->swing_events++;
@@ -762,6 +793,7 @@ void gm_player_dig_reset(void) {
     s_dig_progress = 0.0f;
     s_dig_hx = INT_MIN;
     s_eat_ticks=0;s_eat_item=0;
+    s_use_action=0;s_use_remaining=0;s_use_max=0;
     s_hurt_vel_reset=0;s_server_motion_x=0.0;s_server_motion_z=0.0;
 }
 
@@ -853,6 +885,23 @@ void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *o
     out->hud_health = out->hud_last_health = 0;
     out->hud_flash = out->hud_state_valid = 0;
     out->hud_transition_lead = 0;
+    out->use_action = s_use_action;
+    out->use_remaining = s_use_remaining;
+    out->use_max = s_use_max;
+
+    /* ForgeHooks.getTotalArmorValue via ita_armor_set_points on equipped slots. */
+    {
+        ITAStack slots[4];
+        for (int i = 0; i < 4; ++i) {
+            ICStack s = isr_get_stack(&pl->inv, ISR_ARMOR0 + i);
+            slots[i] = ita_mk(s.item, s.meta);
+            slots[i].count = s.count;
+        }
+        int pts = ita_armor_set_points(slots);
+        if (pts < 0) pts = 0;
+        if (pts > 20) pts = 20;
+        out->armor_points = pts;
+    }
 
     int sel = pl->inv.current_item;
     if (sel < 0) sel = 0;

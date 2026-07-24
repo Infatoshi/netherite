@@ -1,41 +1,54 @@
 #!/usr/bin/env bash
-# Focused numerical gates for owned HUD / hand / overlay / underwater modules.
-# Does not touch shared mc_capture or tape scripts.
+# Focused gates for owned HUD / hand / overlay / underwater modules.
+# Numerical formula checks + end-to-end frame composition. Does not touch
+# shared mc_capture or tape scripts. Pixel parity vs Java requires goldens
+# listed in ORACLE_CAPTURE.md (do not fabricate).
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"  # -> c/magma
 cd "$ROOT"
 
 CC=${CC:-cc}
 CFLAGS="-ffp-contract=off -Wall -Wextra -O2 -I. -Icore"
-OUT="/tmp/magma_test_ui_hud_numerical"
 DIR="raster/verify/ui_hud"
 
-if [ ! -f assets/item_atlas.h ]; then
-  uv run --no-project --with pillow python assets/build_item_atlas.py
-fi
-if [ ! -f assets/hand_atlas.h ]; then
-  uv run --no-project --with pillow python assets/build_hand_atlas.py
-fi
-if [ ! -f assets/hud_atlas.h ]; then
-  uv run --no-project --with pillow python assets/build_hud_atlas.py
-fi
+regen_if_stale() {
+  local hdr="$1" py="$2"
+  if [ ! -f "$hdr" ] || [ "$py" -nt "$hdr" ]; then
+    echo "== regen $hdr (builder newer or missing) =="
+    uv run --no-project --with pillow python "$py"
+  fi
+}
+
+regen_if_stale assets/item_atlas.h assets/build_item_atlas.py
+regen_if_stale assets/hand_atlas.h assets/build_hand_atlas.py
+regen_if_stale assets/hud_atlas.h assets/build_hud_atlas.py
 if [ ! -f assets/loading_bg.h ]; then
   uv run --no-project --with pillow python assets/build_loading_bg.py
 fi
 
+COMMON_SRC=(
+  game/hud.c game/hand.c game/overlay.c
+  game/item_render.c
+  assets/blockmodels.c
+  transform.c
+  core/math.c core/shade.c
+  cpu/raster_cpu.c
+)
+
 echo "== build $DIR/test_ui_hud_numerical =="
-# underwater.c is formula-gated in the C test without linking the world stack;
-# overlay loading font stubs live in the test when not needed via hud.
 $CC $CFLAGS \
     "$DIR/test_ui_hud_numerical.c" \
-    game/hud.c game/hand.c game/overlay.c \
-    game/item_render.c \
-    assets/blockmodels.c \
-    transform.c \
-    core/math.c core/shade.c \
-    cpu/raster_cpu.c \
-    -lm -o "$OUT"
+    "${COMMON_SRC[@]}" \
+    -lm -o /tmp/magma_test_ui_hud_numerical
+echo "== run numerical =="
+/tmp/magma_test_ui_hud_numerical
 
-echo "== run =="
-"$OUT"
+echo "== build $DIR/test_ui_hud_compose =="
+$CC $CFLAGS \
+    "$DIR/test_ui_hud_compose.c" \
+    "${COMMON_SRC[@]}" \
+    -lm -o /tmp/magma_test_ui_hud_compose
+echo "== run compose =="
+/tmp/magma_test_ui_hud_compose
+
 echo "ui_hud gates: PASS"

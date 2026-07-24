@@ -1,11 +1,21 @@
 # Oracle capture instructions (ui_hud)
 
-These modules have **numerical gates** in `test_ui_hud_numerical.c` and the
-unit scripts `game/test_{hud,hand,overlay}.sh`. Full **pixel** gates against
-Java 1.11.2 frames need goldens that are **not** in this tree (repo policy:
-do not fabricate goldens). Record them with a live Forge 1.11.2 client at
-**854x480, GUI scale 2**, then drop PNGs under this directory and wire a
-diff harness.
+Focused gates: numerical formulas (`test_ui_hud_numerical.c`) plus end-to-end
+frame composition (`test_ui_hud_compose.c`) and unit scripts
+`game/test_{hud,hand,overlay}.sh`. Composition proves live plumbing (armor
+from `GmPlayerView`, hand use poses via `gm_hand_draw`, block-in-hand overlay
+order) but **does not claim pixel parity with Java**.
+
+Full **pixel** gates against Java 1.11.2 frames need goldens that are **not**
+in this tree (repo policy: do not fabricate goldens). Record them with a live
+Forge 1.11.2 client at **854x480, GUI scale 2**, then drop PNGs under this
+directory and wire a diff harness.
+
+## Remaining oracle-frame blocker
+
+No Java PNGs exist under `raster/verify/ui_hud/`. Until those captures land,
+pixel parity vs 1.11.2 is **blocked**. Composition + formula gates are the
+release bar for owned modules; they intentionally stop short of image A/B.
 
 ## Required captures (missing evidence)
 
@@ -56,9 +66,9 @@ Example qrl + mcwindow sketch for armor + hurt flash:
 - **Drawn-bow registration (#29):** geometry follows ItemRenderer BOW branch at
   partialTicks=1; remaining 3–4/ch silhouette error needs still-draw A/B against
   `hand_bow_pull20.png` before further tuning.
-- **Inside-block wiring (#27):** `gm_overlay_block_in_hand` implements the
-  renderBlockInHand modulate; live callers (frame_capture) still need to sample
-  the eye block and pass atlas UVs (out of this scope).
+- **Inside-block live path:** `gm_overlay_block_in_hand_live` samples the eye
+  block and real atlas UVs on interactive + frame_capture paths; pixel proof
+  still needs `overlay_inside_stone.png`.
 - **Low-health heart jitter:** vanilla `rand(updateCounter*312871)` not taped;
   numerical gates keep the stable baseline deliberately.
 
@@ -67,8 +77,10 @@ Example qrl + mcwindow sketch for armor + hurt flash:
 `run_ui_hud_gates.sh` + `game/test_{hud,hand,overlay}.sh` cover:
 
 - healthUpdateCounter blink phase
-- XP fill columns, durability width/hue, armor show/hide, boss half-fill
+- XP fill columns, durability (incl. fishing rod), armor from `GmPlayerView`,
+  boss half-fill, multi-row heart displacement of the armor row
 - stack counts, death wash, hunger-poison sprite swap
-- equip/swing/eat/block/bow viewmodel offsets, rim vertex budget
+- equip/swing/eat/block/bow viewmodel offsets (emit + `gm_hand_draw` path)
 - selection/crack geometry, portal alpha formula, block-in-hand darken,
   loading full-frame fill, underwater constants
+- end-to-end frame composition (hand + block overlay + HUD on one framebuffer)

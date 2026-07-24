@@ -32,10 +32,9 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv);
  * gm_hud_draw calls; frac is health/max in [0,1]. */
 void gm_hud_set_boss(int show, float frac);
 
-/* GuiIngame armor row: total armor points (0..20). Drawn above hearts when
- * > 0 (icons.png empty/half/full). Module-local like boss; callers that
- * know the live armor value push it before gm_hud_draw. */
-void gm_hud_set_armor(int points);
+/* Armor row reads GmPlayerView.armor_points (live equipped armor total).
+ * No module-global setter: both interactive and capture paths fill the
+ * field via gm_player_view / gm_runtime_view before gm_hud_draw. */
 
 /* Test helpers: vanilla XP fill column count (int)(frac*183) and durability
  * strip width/color for a (item_id, damage) pair. Returns 0 width when the

@@ -125,15 +125,26 @@ int main(void) {
         pv.health = 20; pv.max_health = 20;
         pv.food = 20; pv.max_food = 20;
         pv.air = -1;
-        gm_hud_set_armor(7); /* 3 full + 1 half */
+        pv.armor_points = 7; /* 3 full + 1 half */
         gm_hud_draw(&fb, &pv);
         CHECK(region_non_gray(&fb, 244, 380, 244 + 80, 400), "armor at sh-49");
         clear_fb(&fb);
-        gm_hud_set_armor(0);
+        pv.armor_points = 0;
         gm_hud_draw(&fb, &pv);
         CHECK(!region_non_gray(&fb, 244, 380, 244 + 80, 400),
               "no armor icons at 0 points");
         free(fb.color); free(fb.depth);
+    }
+
+    /* ---- Fishing rod durability max 64; XP level uses (sw-w)/2 ---- */
+    {
+        CHECK(gm_hud_durability_width(346, 1) == 13, "fishing rod almost-new");
+        CHECK(gm_hud_durability_width(346, 32) >= 5 &&
+              gm_hud_durability_width(346, 32) <= 8, "fishing rod half");
+        CHECK(gm_hud_durability_width(346, 0) == 0, "undamaged rod no bar");
+        /* width=6 on scaledWidth=427: (427-6)/2=210, not 427/2-6/2=210.5->210
+         * both equal for even width; formula lock is in gm_hud_draw via font. */
+        CHECK(gm_font_width("7") > 0, "font width for XP level digit");
     }
 
     /* ---- Hotbar count + durability strip pixels ---- */

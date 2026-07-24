@@ -799,6 +799,9 @@ void gm_hand_fire_overlay_draw(CrFramebuffer *fb, const CrTexture *atlas,
 void gm_hand_draw(CrFramebuffer *fb, const GmPlayerView *pv, float bob_phase) {
     if (!fb || !fb->color || !fb->depth || !pv) return;
     gm_hand_set_bow_pull(pv->bow_pull);
+    /* Live active-hand use from the player view (eat/drink/block). Tests that
+     * call gm_hand_emit_held still drive g_use_* via gm_hand_set_use. */
+    gm_hand_set_use(pv->use_action, pv->use_remaining, pv->use_max);
 
     /* Clear depth to far so the viewmodel always draws over the world. */
     int n = fb->w * fb->h;

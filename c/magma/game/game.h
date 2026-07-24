@@ -124,6 +124,14 @@ typedef struct {
     int   hud_health, hud_last_health;
     int   hud_flash, hud_state_valid;
     int   hud_transition_lead; /* post-tick tape row trails GuiIngame by 1 */
+    /* Live armor + active hand use (filled by gm_player_view / gm_runtime_view).
+     * armor_points: ForgeHooks.getTotalArmorValue / ita_armor_set_points (0..20).
+     * use_action: 0 none, 1 EAT/DRINK, 2 BLOCK (BOW uses bow_pull instead).
+     * use_remaining / use_max: getItemInUseCount / getMaxItemUseDuration. */
+    int   armor_points;
+    int   use_action;
+    int   use_remaining;
+    int   use_max;
 } GmPlayerView;
 
 /* A mob/entity to draw this frame (from the entity store). */

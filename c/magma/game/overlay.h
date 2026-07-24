@@ -17,6 +17,7 @@
 #define MAGMA_GAME_OVERLAY_H
 
 #include "core/types.h"
+#include "game/game.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +58,15 @@ void gm_overlay_loading_screen(CrFramebuffer *fb);
  * u0..v1 are atlas UVs of the block face TextureAtlasSprite. */
 void gm_overlay_block_in_hand(CrFramebuffer *fb, const CrTexture *atlas,
                               float u0, float v0, float u1, float v1);
+
+/* Live path: Entity.isEntityInsideOpaqueBlock + sample block face texture,
+ * then renderBlockInHand. No-op when the eye is not in a suffocating block.
+ * Call order among overlays (vanilla ItemRenderer.renderOverlays then portal):
+ *   block_in_hand_live -> underwater -> fire -> portal -> HUD. */
+struct GmWorld;
+void gm_overlay_block_in_hand_live(CrFramebuffer *fb, const CrTexture *atlas,
+                                   const struct GmWorld *w,
+                                   const GmPlayerView *pv);
 
 #ifdef __cplusplus
 }

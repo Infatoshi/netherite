@@ -839,12 +839,17 @@ int main(int argc, char **argv) {
              * to pixel-diff hand vs no-hand against the MC golden). Default draws. */
             if (!pv.dead && !getenv("MAGMA_NO_HAND"))
                 gm_hand_draw(&fb, &pv, hand_bob);
-            /* ItemRenderer.renderOverlays: with the hand, before the HUD. */
+            /* ItemRenderer.renderOverlays + GuiIngame portal: block, water,
+             * fire, then portal, then HUD. Use is filled on GmPlayerView. */
+            if (!pv.dead)
+                gm_overlay_block_in_hand_live(&fb, &atlas, world, &cpv);
             if (uw.overlay && !pv.dead)
                 gm_uw_overlay_draw(&fb, &cpv, uw.brightness, cam.fov_deg);
             if (pv.fire && !pv.creative && !pv.dead)
                 gm_hand_fire_overlay_draw(&fb, &atlas, uw.fov_scale);
         }
+        if (pv.portal > 0.0f)
+            gm_overlay_portal_screen(&fb, &atlas, pv.portal);
         gm_hud_draw(&fb, &pv);
         if (screen_open && !pv.dead)
             gm_screen_draw(&fb, &runtime, mouse_x, mouse_y);

@@ -36,7 +36,7 @@ OBJ_ASSETS = assets/blockmodels.o
 
 # seam: playable game (verified mc-sim player/world tick + magma render + HUD + mobs)
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/item_render.o \
-           game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/script.o game/rl_mode.o game/overlay.o game/sel_box.o game/fluid_live.o game/underwater.o
+           game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
 
 .PHONY: all demo world game game-cuda test test-game test-launch test-config test-block-registry clean cuda test-raster-parity test-fog-radial
 all: demo
@@ -80,6 +80,14 @@ magma_game: app/game_main.o $(OBJ_GAME) $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) \
 game/%.o: game/%.c core/types.h game/game.h
 	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) -I$(MCSIM)/core -c $< -o $@
 
+# Generated texture headers: rebuild when the Python generator changes so
+# assets/hud_atlas.h cannot stay stale after build_hud_atlas.py edits.
+# Requires a MC 1.11.2 jar (MC_JAR or bootstrap_oracle / launcher cache).
+UV_ATLAS = uv run --no-project --with pillow python
+assets/hud_atlas.h: assets/build_hud_atlas.py
+	$(UV_ATLAS) assets/build_hud_atlas.py
+game/hud.o: assets/hud_atlas.h
+
 game/runtime.o: game/runtime.c game/runtime.h game/mob_live.h game/dragon_live.h \
                 game/portal_live.h game/container_live.h $(MCSIM)/core/crafting_recipes_full.h
 game/container_live.o: game/container_live.c game/container_live.h game/runtime.h \
@@ -107,7 +115,7 @@ magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_sm86.o $(OBJ_GAME) $(OBJ_
 # Same sources as magma_game, one -g compile. See trace/alloctrack.c + caps.h.
 GAME_DBG_SRCS = app/game_main.c \
                 game/config.c game/input_map.c game/world_live.c game/player_ctl.c game/hud.c \
-                game/entity_render.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/script.c \
+                game/entity_render.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/script.c game/overlay_live.c \
                 world/mesh_mc.c world/light.c world/populate_mc.c \
                 world/world.c world/mesh.c world/blocks.c \
                 renderkernels/rk_31_facebakery_make_quad.c assets/blockmodels.c \

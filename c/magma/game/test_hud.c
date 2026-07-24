@@ -225,13 +225,13 @@ int main(void) {
         for (int i = 0; i < W * H; ++i)
             fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
         pv.potion_count = 0;
-        gm_hud_set_armor(15); /* full iron set */
+        pv.armor_points = 15; /* full iron set */
         gm_hud_draw(&fb, &pv);
         /* armor icons: y = (480/2 wait) sh=240 scale=2 -> armor_y = (240-49)*2=382 */
         if (!region_changed(&fb, 244, 380, 244 + 80, 400)) {
             fprintf(stderr, "FAIL: armor row missing at sh-49\n"); fail = 1;
         }
-        gm_hud_set_armor(0);
+        pv.armor_points = 0;
         for (int i = 0; i < W * H; ++i)
             fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
         gm_hud_draw(&fb, &pv);
