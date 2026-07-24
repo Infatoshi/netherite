@@ -249,6 +249,6 @@ int main(void) {
         return 1;
     }
     printf("ui_hud compose: PASS\n");
-    printf("oracle pixel parity: BLOCKED (no Java PNGs under raster/verify/ui_hud/)\n");
+    printf("oracle pixel ROI: see goldens/ + compare_ui_hud_oracle.py\n");
     return 0;
 }

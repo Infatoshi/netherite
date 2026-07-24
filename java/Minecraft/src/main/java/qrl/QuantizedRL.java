@@ -70,6 +70,8 @@ public class QuantizedRL {
     // death tracking for the observation space (replaces the death screen)
     private boolean wasDead = false;
     private int deaths = 0;
+    /** When true, skip auto-respawn so death-screen oracle captures can freeze. */
+    private volatile boolean holdDeath = false;
 
     // ---- chain-RL protocol v2 state (semantic camera / craft / interact) ----
     // Mirrors c/magma/game/rl_mode.c semantics so the blaze-trained policy
@@ -272,7 +274,7 @@ public class QuantizedRL {
             case "capture_lightmap": case "capture_limbanim": case "capture_lightprop":
             case "capture_chunkrebuild": case "runcmds": case "dim": case "kmode":
             case "reload_renderers":
-            case "portal_touch": case "use_end_eye": case "set_pose":
+            case "portal_touch": case "use_end_eye": case "set_pose": case "hud_pin":
             case "dumpblocks": case "frame": case "gldiag": case "focusdiag": case "camera": case "sample_light":
             case "recstart": case "recstop":
             case "getblocks": case "setblocks":
@@ -714,11 +716,14 @@ public class QuantizedRL {
         // Headless can't click "Respawn"; auto-respawn so a dead player never wedges the
         // session. With strip.menus the GuiGameOver screen never even opens (mixin blocks
         // it), so trigger purely off health; death is surfaced in obs as dead/deaths.
+        // holdDeath freezes the dead state for oracle HUD captures (hud_pin).
         if (mc.player != null && mc.player.getHealth() <= 0.0F) {
             if (!wasDead) { deaths++; wasDead = true; }
-            mc.player.respawnPlayer();
-            if (mc.currentScreen instanceof net.minecraft.client.gui.GuiGameOver) {
-                mc.displayGuiScreen(null);
+            if (!holdDeath) {
+                mc.player.respawnPlayer();
+                if (mc.currentScreen instanceof net.minecraft.client.gui.GuiGameOver) {
+                    mc.displayGuiScreen(null);
+                }
             }
         } else if (mc.player != null) {
             wasDead = false;
@@ -2834,23 +2839,450 @@ public class QuantizedRL {
             return;
         }
 
-        // frame: read the rendered framebuffer into a PNG at the given path. Runs on the
-        // client thread (GL context). Caller pauses inputs and lets a frame render first;
-        // at a quiescent tick every rendered frame shows the same world state (fixed time,
-        // clouds off), so this is tick-locked for tape keyframes.
+        // frame: re-render world+HUD at partialTicks=1.0 into the FBO, then write PNG.
+        // Tick-boundary capture matches tape keyframes (tb:1 / hud:1). Optional
+        // "rerender":false skips the re-render and just dumps the current FBO.
         if (r.cmd.equals("frame")) {
             try {
                 String file = r.action.get("file").getAsString();
                 int fw = mc.displayWidth, fh = mc.displayHeight;
-                // Use the vanilla screenshot path (glGetTexImage from the FBO's color
-                // texture when FBOs are on, glReadPixels otherwise): on macOS 26's
-                // GL-on-Metal layer a raw glReadPixels of the bound FBO / window
-                // surface returns all black, but the F2 texture-readback path works.
+                boolean rerender = !r.action.has("rerender")
+                    || r.action.get("rerender").getAsBoolean();
+                boolean hud = false, tb = false;
+                if (rerender && mc.world != null && mc.player != null
+                        && mc.entityRenderer != null) {
+                    try {
+                        net.minecraft.client.shader.Framebuffer fb = mc.getFramebuffer();
+                        fb.bindFramebuffer(true);
+                        mc.entityRenderer.renderWorld(1.0F, System.nanoTime());
+                        try {
+                            mc.entityRenderer.setupOverlayRendering();
+                            mc.ingameGUI.renderGameOverlay(1.0F);
+                            hud = true;
+                            if (mc.currentScreen != null) {
+                                net.minecraft.client.gui.ScaledResolution sr =
+                                    new net.minecraft.client.gui.ScaledResolution(mc);
+                                int mx = org.lwjgl.input.Mouse.getX() * sr.getScaledWidth()
+                                    / mc.displayWidth;
+                                int my = sr.getScaledHeight()
+                                    - org.lwjgl.input.Mouse.getY() * sr.getScaledHeight()
+                                    / mc.displayHeight - 1;
+                                mc.currentScreen.drawScreen(mx, my, 1.0F);
+                            }
+                        } catch (Throwable ig2) {}
+                        fb.unbindFramebuffer();
+                        tb = true;
+                    } catch (Throwable ig) {}
+                }
                 java.awt.image.BufferedImage img =
                     net.minecraft.util.ScreenShotHelper.createScreenshot(fw, fh, mc.getFramebuffer());
                 javax.imageio.ImageIO.write(img, "png", new java.io.File(file));
-                r.resp.offer("{\"ok\":true,\"file\":\"" + file + "\",\"w\":" + fw + ",\"h\":" + fh + "}");
+                r.resp.offer("{\"ok\":true,\"file\":\"" + file + "\",\"w\":" + fw
+                    + ",\"h\":" + fh + ",\"tb\":" + (tb ? 1 : 0)
+                    + ",\"hud\":" + (hud ? 1 : 0) + "}");
             } catch (Exception ex) { r.resp.offer(err("frame: " + ex)); }
+            return;
+        }
+
+        // hud_pin: freeze deterministic player/HUD state for oracle A/B captures.
+        // Pins camera, vitals, GuiIngame health bookkeeping, active item use,
+        // fire/portal, optional boss bar, and optional death hold. Does NOT
+        // advance the world; caller uses frame{} for the PNG dump.
+        if (r.cmd.equals("hud_pin")) {
+            try {
+                if (mc.player == null || mc.world == null) {
+                    r.resp.offer(err("no world")); return;
+                }
+                EntityPlayerSP p = mc.player;
+                JsonObject a = r.action;
+
+                if (a.has("hold_death")) holdDeath = a.get("hold_death").getAsBoolean();
+
+                // Pose + gravity pin (same contract as set_pose).
+                if (a.has("x") && a.has("y") && a.has("z")) {
+                    float yaw = a.has("yaw") ? a.get("yaw").getAsFloat() : p.rotationYaw;
+                    float pitch = a.has("pitch") ? a.get("pitch").getAsFloat() : p.rotationPitch;
+                    boolean noG = !a.has("no_gravity") || a.get("no_gravity").getAsBoolean();
+                    clearKeys(mc);
+                    p.setNoGravity(noG);
+                    p.motionX = p.motionY = p.motionZ = 0.0D;
+                    p.fallDistance = 0.0F;
+                    p.setPositionAndRotation(a.get("x").getAsDouble(), a.get("y").getAsDouble(),
+                        a.get("z").getAsDouble(), yaw, pitch);
+                    final double fx = a.get("x").getAsDouble(), fy = a.get("y").getAsDouble(),
+                        fz = a.get("z").getAsDouble();
+                    final float fyaw = yaw, fpitch = pitch;
+                    final boolean fng = noG;
+                    net.minecraft.server.MinecraftServer srv = mc.getIntegratedServer();
+                    if (srv != null) {
+                        srv.addScheduledTask(new Runnable() { public void run() {
+                            try {
+                                java.util.List<net.minecraft.entity.player.EntityPlayerMP> ps =
+                                    srv.getPlayerList().getPlayers();
+                                if (ps.isEmpty()) return;
+                                net.minecraft.entity.player.EntityPlayerMP pl = ps.get(0);
+                                pl.setNoGravity(fng);
+                                pl.motionX = pl.motionY = pl.motionZ = 0.0D;
+                                pl.connection.setPlayerLocation(fx, fy, fz, fyaw, fpitch);
+                            } catch (Throwable ig) {}
+                        }});
+                    }
+                }
+
+                // Hotbar / armor via replaceitem-style stacks (id, count, meta).
+                if (a.has("hotbar") && a.get("hotbar").isJsonArray()) {
+                    com.google.gson.JsonArray hb = a.getAsJsonArray("hotbar");
+                    for (int i = 0; i < 9 && i < hb.size(); i++) {
+                        if (hb.get(i).isJsonNull()) {
+                            p.inventory.mainInventory.set(i, net.minecraft.item.ItemStack.EMPTY);
+                            continue;
+                        }
+                        com.google.gson.JsonArray slot = hb.get(i).getAsJsonArray();
+                        int id = slot.get(0).getAsInt();
+                        int count = slot.size() > 1 ? slot.get(1).getAsInt() : 1;
+                        int meta = slot.size() > 2 ? slot.get(2).getAsInt() : 0;
+                        if (id <= 0 || count <= 0) {
+                            p.inventory.mainInventory.set(i, net.minecraft.item.ItemStack.EMPTY);
+                        } else {
+                            net.minecraft.item.Item it =
+                                net.minecraft.item.Item.getItemById(id);
+                            if (it != null)
+                                p.inventory.mainInventory.set(i,
+                                    new net.minecraft.item.ItemStack(it, count, meta));
+                        }
+                    }
+                    p.inventory.currentItem = a.has("hotbar_sel")
+                        ? a.get("hotbar_sel").getAsInt() : 0;
+                }
+                if (a.has("armor") && a.get("armor").isJsonArray()) {
+                    com.google.gson.JsonArray ar = a.getAsJsonArray("armor");
+                    // order: feet, legs, chest, head (armorInventory indices 0..3)
+                    for (int i = 0; i < 4 && i < ar.size(); i++) {
+                        if (ar.get(i).isJsonNull() || ar.get(i).getAsInt() <= 0) {
+                            p.inventory.armorInventory.set(i, net.minecraft.item.ItemStack.EMPTY);
+                            continue;
+                        }
+                        net.minecraft.item.Item it =
+                            net.minecraft.item.Item.getItemById(ar.get(i).getAsInt());
+                        if (it != null)
+                            p.inventory.armorInventory.set(i,
+                                new net.minecraft.item.ItemStack(it, 1, 0));
+                    }
+                    // InventoryPlayer.getTotalArmorValue reads the live list;
+                    // force a container detect so client attributes refresh.
+                    p.inventory.markDirty();
+                }
+
+                // Vitals (client entity; server copy follows for multiplayer-safe fields).
+                if (a.has("health")) {
+                    float h = a.get("health").getAsFloat();
+                    p.setHealth(h);
+                    if (h > 0.0F) holdDeath = false;
+                }
+                if (a.has("food")) {
+                    p.getFoodStats().setFoodLevel(a.get("food").getAsInt());
+                }
+                if (a.has("air")) {
+                    p.setAir(a.get("air").getAsInt());
+                }
+                if (a.has("absorption")) {
+                    p.setAbsorptionAmount(a.get("absorption").getAsFloat());
+                }
+                if (a.has("xp_level") || a.has("xp_frac")) {
+                    if (a.has("xp_level")) p.experienceLevel = a.get("xp_level").getAsInt();
+                    if (a.has("xp_frac")) p.experience = a.get("xp_frac").getAsFloat();
+                    p.experienceTotal = 0;
+                }
+                if (a.has("fire")) {
+                    int ft = a.get("fire").getAsInt();
+                    if (ft > 0) p.setFire(ft / 20 + 1);
+                    else {
+                        p.extinguish();
+                        try {
+                            java.lang.reflect.Field ff =
+                                net.minecraft.entity.Entity.class.getDeclaredField("fire");
+                            ff.setAccessible(true);
+                            ff.setInt(p, -1);
+                        } catch (Throwable ig) {}
+                    }
+                }
+                if (a.has("portal")) {
+                    p.timeInPortal = a.get("portal").getAsFloat();
+                    p.prevTimeInPortal = p.timeInPortal;
+                }
+                if (a.has("hurt_time")) {
+                    p.hurtTime = a.get("hurt_time").getAsInt();
+                    p.maxHurtTime = a.has("max_hurt_time")
+                        ? a.get("max_hurt_time").getAsInt()
+                        : Math.max(p.hurtTime, 10);
+                    p.attackedAtYaw = a.has("hurt_yaw")
+                        ? a.get("hurt_yaw").getAsFloat() : 0.0F;
+                    p.hurtResistantTime = Math.max(p.hurtResistantTime, p.maxHurtTime);
+                }
+
+                // Potion effects (id + duration ticks + amplifier).
+                if (a.has("effects") && a.get("effects").isJsonArray()) {
+                    for (com.google.gson.JsonElement el : a.getAsJsonArray("effects")) {
+                        com.google.gson.JsonObject pe = el.getAsJsonObject();
+                        int id = pe.get("id").getAsInt();
+                        int dur = pe.has("duration") ? pe.get("duration").getAsInt() : 200;
+                        int amp = pe.has("amplifier") ? pe.get("amplifier").getAsInt() : 0;
+                        net.minecraft.potion.Potion pot =
+                            net.minecraft.potion.Potion.getPotionById(id);
+                        if (pot != null)
+                            p.addPotionEffect(new net.minecraft.potion.PotionEffect(
+                                pot, dur, amp, false, false));
+                    }
+                }
+                if (a.has("clear_effects") && a.get("clear_effects").getAsBoolean()) {
+                    p.clearActivePotions();
+                }
+
+                // Active hand use: action 0 none, 1 eat/drink, 2 block, 3 bow.
+                // remaining = getItemInUseCount; bow_pull = max - remaining.
+                if (a.has("use_action")) {
+                    int action = a.get("use_action").getAsInt();
+                    if (action <= 0) {
+                        p.resetActiveHand();
+                    } else {
+                        net.minecraft.util.EnumHand hand =
+                            net.minecraft.util.EnumHand.MAIN_HAND;
+                        net.minecraft.item.ItemStack stack = p.getHeldItemMainhand();
+                        if (!stack.isEmpty()) {
+                            p.setActiveHand(hand);
+                            int remaining = a.has("use_remaining")
+                                ? a.get("use_remaining").getAsInt()
+                                : stack.getMaxItemUseDuration() / 2;
+                            try {
+                                java.lang.reflect.Field fCount =
+                                    net.minecraft.entity.EntityLivingBase.class
+                                        .getDeclaredField("activeItemStackUseCount");
+                                fCount.setAccessible(true);
+                                fCount.setInt(p, remaining);
+                            } catch (Throwable ig) {}
+                        }
+                    }
+                }
+                if (a.has("bow_pull")) {
+                    int pull = a.get("bow_pull").getAsInt();
+                    net.minecraft.item.ItemStack stack = p.getHeldItemMainhand();
+                    if (!stack.isEmpty() && pull > 0) {
+                        p.setActiveHand(net.minecraft.util.EnumHand.MAIN_HAND);
+                        int rem = stack.getMaxItemUseDuration() - pull;
+                        if (rem < 1) rem = 1;
+                        try {
+                            java.lang.reflect.Field fCount =
+                                net.minecraft.entity.EntityLivingBase.class
+                                    .getDeclaredField("activeItemStackUseCount");
+                            fCount.setAccessible(true);
+                            fCount.setInt(p, rem);
+                        } catch (Throwable ig) {}
+                    }
+                }
+
+                // GuiIngame health bookkeeping: pin flash phase relative to updateCounter.
+                // flash=1 => healthUpdateCounter > updateCounter and (delta/3)%2 == 1
+                // flash=0 with window still open => (delta/3)%2 == 0
+                if (a.has("hud_flash") || a.has("hud_health") || a.has("hud_last_health")) {
+                    try {
+                        net.minecraft.client.gui.GuiIngame gui = mc.ingameGUI;
+                        java.lang.reflect.Field fUC =
+                            net.minecraft.client.gui.GuiIngame.class
+                                .getDeclaredField("updateCounter");
+                        java.lang.reflect.Field fHUC =
+                            net.minecraft.client.gui.GuiIngame.class
+                                .getDeclaredField("healthUpdateCounter");
+                        java.lang.reflect.Field fPH =
+                            net.minecraft.client.gui.GuiIngame.class
+                                .getDeclaredField("playerHealth");
+                        java.lang.reflect.Field fLPH =
+                            net.minecraft.client.gui.GuiIngame.class
+                                .getDeclaredField("lastPlayerHealth");
+                        fUC.setAccessible(true); fHUC.setAccessible(true);
+                        fPH.setAccessible(true); fLPH.setAccessible(true);
+                        int uc = fUC.getInt(gui);
+                        int hNow = a.has("hud_health")
+                            ? a.get("hud_health").getAsInt()
+                            : (int)Math.ceil(p.getHealth());
+                        int hLast = a.has("hud_last_health")
+                            ? a.get("hud_last_health").getAsInt()
+                            : hNow;
+                        fPH.setInt(gui, hNow);
+                        fLPH.setInt(gui, hLast);
+                        if (a.has("hud_flash")) {
+                            boolean flash = a.get("hud_flash").getAsBoolean();
+                            // delta = huc - uc; need delta > 0 and (delta/3)%2 == flash?1:0
+                            // use delta=3 for flash on, delta=6 for flash off (still in window)
+                            long delta = flash ? 3L : 6L;
+                            fHUC.setLong(gui, (long)uc + delta);
+                        } else if (a.has("health_update_counter")) {
+                            fHUC.setLong(gui, a.get("health_update_counter").getAsLong());
+                        }
+                    } catch (Throwable t) {
+                        r.resp.offer(err("hud_pin flash: " + t)); return;
+                    }
+                }
+
+                // Boss bar: inject PINK progress bar into GuiBossOverlay map.
+                if (a.has("boss")) {
+                    try {
+                        JsonObject b = a.getAsJsonObject("boss");
+                        boolean show = !b.has("show") || b.get("show").getAsBoolean();
+                        net.minecraft.client.gui.GuiBossOverlay overlay =
+                            mc.ingameGUI.getBossOverlay();
+                        if (!show) {
+                            overlay.clearBossInfos();
+                        } else {
+                            float frac = b.has("frac") ? b.get("frac").getAsFloat() : 0.5f;
+                            String name = b.has("name") ? b.get("name").getAsString()
+                                : "Ender Dragon";
+                            net.minecraft.world.BossInfoServer bi =
+                                new net.minecraft.world.BossInfoServer(
+                                    new net.minecraft.util.text.TextComponentString(name),
+                                    net.minecraft.world.BossInfo.Color.PINK,
+                                    net.minecraft.world.BossInfo.Overlay.PROGRESS);
+                            // set via super to avoid BossInfoServer player fan-out
+                            try {
+                                java.lang.reflect.Field fPct0 =
+                                    net.minecraft.world.BossInfo.class
+                                        .getDeclaredField("percent");
+                                fPct0.setAccessible(true);
+                                fPct0.setFloat(bi, frac);
+                            } catch (Throwable ig) {
+                                bi.setPercent(frac);
+                            }
+                            net.minecraft.network.play.server.SPacketUpdateBossInfo pkt =
+                                new net.minecraft.network.play.server.SPacketUpdateBossInfo(
+                                    net.minecraft.network.play.server.SPacketUpdateBossInfo
+                                        .Operation.ADD, bi);
+                            overlay.clearBossInfos();
+                            overlay.read(pkt);
+                            // Freeze lerp at exact frac (rawPercent == percent).
+                            try {
+                                java.lang.reflect.Field fmap =
+                                    net.minecraft.client.gui.GuiBossOverlay.class
+                                        .getDeclaredField("mapBossInfos");
+                                fmap.setAccessible(true);
+                                @SuppressWarnings("unchecked")
+                                java.util.Map<java.util.UUID, net.minecraft.world.BossInfoLerping> map =
+                                    (java.util.Map<java.util.UUID, net.minecraft.world.BossInfoLerping>)
+                                        fmap.get(overlay);
+                                if (!map.isEmpty()) {
+                                    net.minecraft.world.BossInfoLerping bl =
+                                        map.values().iterator().next();
+                                    java.lang.reflect.Field fRaw =
+                                        net.minecraft.world.BossInfoLerping.class
+                                            .getDeclaredField("rawPercent");
+                                    java.lang.reflect.Field fPct =
+                                        net.minecraft.world.BossInfo.class
+                                            .getDeclaredField("percent");
+                                    fRaw.setAccessible(true); fPct.setAccessible(true);
+                                    fRaw.setFloat(bl, frac);
+                                    fPct.setFloat(bl, frac);
+                                }
+                            } catch (Throwable ig) {}
+                        }
+                    } catch (Throwable t) {
+                        r.resp.offer(err("hud_pin boss: " + t)); return;
+                    }
+                }
+
+                // Death hold: health 0 + optional GuiGameOver (needs strip.menus=false).
+                if (a.has("dead") && a.get("dead").getAsBoolean()) {
+                    holdDeath = true;
+                    p.setHealth(0.0F);
+                    if (!wasDead) { deaths++; wasDead = true; }
+                    if (!QLaunch.STRIP_MENUS) {
+                        try {
+                            mc.displayGuiScreen(
+                                new net.minecraft.client.gui.GuiGameOver(null));
+                        } catch (Throwable ig) {}
+                    }
+                }
+
+                // Sync key vitals + inventory to server player so nothing reverts.
+                final JsonObject fa = a;
+                net.minecraft.server.MinecraftServer srv2 = mc.getIntegratedServer();
+                if (srv2 != null) {
+                    srv2.addScheduledTask(new Runnable() { public void run() {
+                        try {
+                            java.util.List<net.minecraft.entity.player.EntityPlayerMP> ps =
+                                srv2.getPlayerList().getPlayers();
+                            if (ps.isEmpty()) return;
+                            net.minecraft.entity.player.EntityPlayerMP pl = ps.get(0);
+                            if (fa.has("health")) pl.setHealth(fa.get("health").getAsFloat());
+                            if (fa.has("food"))
+                                pl.getFoodStats().setFoodLevel(fa.get("food").getAsInt());
+                            if (fa.has("air")) pl.setAir(fa.get("air").getAsInt());
+                            if (fa.has("absorption"))
+                                pl.setAbsorptionAmount(fa.get("absorption").getAsFloat());
+                            if (fa.has("dead") && fa.get("dead").getAsBoolean())
+                                pl.setHealth(0.0F);
+                            if (fa.has("hotbar") && fa.get("hotbar").isJsonArray()) {
+                                com.google.gson.JsonArray hb = fa.getAsJsonArray("hotbar");
+                                for (int i = 0; i < 9 && i < hb.size(); i++) {
+                                    if (hb.get(i).isJsonNull()) {
+                                        pl.inventory.mainInventory.set(i,
+                                            net.minecraft.item.ItemStack.EMPTY);
+                                        continue;
+                                    }
+                                    com.google.gson.JsonArray slot = hb.get(i).getAsJsonArray();
+                                    int id = slot.get(0).getAsInt();
+                                    int count = slot.size() > 1 ? slot.get(1).getAsInt() : 1;
+                                    int meta = slot.size() > 2 ? slot.get(2).getAsInt() : 0;
+                                    if (id <= 0 || count <= 0) {
+                                        pl.inventory.mainInventory.set(i,
+                                            net.minecraft.item.ItemStack.EMPTY);
+                                    } else {
+                                        net.minecraft.item.Item it =
+                                            net.minecraft.item.Item.getItemById(id);
+                                        if (it != null)
+                                            pl.inventory.mainInventory.set(i,
+                                                new net.minecraft.item.ItemStack(it, count, meta));
+                                    }
+                                }
+                                if (fa.has("hotbar_sel"))
+                                    pl.inventory.currentItem = fa.get("hotbar_sel").getAsInt();
+                            }
+                            if (fa.has("armor") && fa.get("armor").isJsonArray()) {
+                                com.google.gson.JsonArray ar = fa.getAsJsonArray("armor");
+                                for (int i = 0; i < 4 && i < ar.size(); i++) {
+                                    if (ar.get(i).isJsonNull() || ar.get(i).getAsInt() <= 0) {
+                                        pl.inventory.armorInventory.set(i,
+                                            net.minecraft.item.ItemStack.EMPTY);
+                                        continue;
+                                    }
+                                    net.minecraft.item.Item it =
+                                        net.minecraft.item.Item.getItemById(ar.get(i).getAsInt());
+                                    if (it != null)
+                                        pl.inventory.armorInventory.set(i,
+                                            new net.minecraft.item.ItemStack(it, 1, 0));
+                                }
+                                pl.inventory.markDirty();
+                            }
+                        } catch (Throwable ig) {}
+                    }});
+                }
+
+                StringBuilder sb = new StringBuilder(128);
+                sb.append("{\"ok\":true");
+                sb.append(",\"health\":").append(p.getHealth());
+                sb.append(",\"food\":").append(p.getFoodStats().getFoodLevel());
+                sb.append(",\"air\":").append(p.getAir());
+                sb.append(",\"absorption\":").append(p.getAbsorptionAmount());
+                sb.append(",\"xp_level\":").append(p.experienceLevel);
+                sb.append(",\"xp_frac\":").append(p.experience);
+                sb.append(",\"armor\":").append(p.getTotalArmorValue());
+                sb.append(",\"hold_death\":").append(holdDeath);
+                sb.append(",\"hand_active\":").append(p.isHandActive());
+                if (p.isHandActive())
+                    sb.append(",\"use_count\":").append(p.getItemInUseCount())
+                      .append(",\"use_max\":").append(p.getItemInUseMaxCount());
+                sb.append("}");
+                r.resp.offer(sb.toString());
+            } catch (Throwable t) {
+                r.resp.offer(err("hud_pin: " + t));
+            }
             return;
         }
 

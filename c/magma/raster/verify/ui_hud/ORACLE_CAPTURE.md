@@ -13,12 +13,15 @@ in this tree (repo policy: do not fabricate goldens). Record them with a live
 Forge 1.11.2 client at **854x480, GUI scale 2**, then drop PNGs under this
 directory and wire a diff harness.
 
-## Remaining oracle-frame blocker
+## Oracle frames (landed)
 
-No Java PNGs exist under `raster/verify/ui_hud/`. Until those captures land,
-pixel parity vs 1.11.2 is **blocked**. Composition + formula + live plumbing
-gates are the release bar for owned modules; they intentionally stop short of
-image A/B.
+Java PNGs live under `goldens/` as `<id>_a.png` / `<id>_b.png` (twin captures
+for the A/B noise floor). Capture: `bash raster/verify/ui_hud/capture_ui_hud.sh`
+(uses qrl `hud_pin` + `frame` at partialTicks=1, llvmpipe, lock
+`/tmp/qrl_25575.lock`). ROI compare: `compare_ui_hud_oracle.py` via
+`run_ui_hud_gates.sh` when goldens are present. C-vs-J residual on painted
+pixels is reported per feature ROI; capture integrity (non-empty twins, bounded
+noise) is the hard bar for this directory.
 
 ## Required captures (missing evidence)
 

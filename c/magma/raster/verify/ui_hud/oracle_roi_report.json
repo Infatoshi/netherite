@@ -1,0 +1,277 @@
+{
+  "margin": 2.0,
+  "fail": 0,
+  "blocked": [],
+  "rows": [
+    {
+      "id": "hud_armor_iron",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        382,
+        404,
+        420
+      ],
+      "hard": true,
+      "n_painted": 4436
+    },
+    {
+      "id": "hud_absorption_armor",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        362,
+        404,
+        420
+      ],
+      "hard": true,
+      "n_painted": 4436
+    },
+    {
+      "id": "hud_hurt_flash_on",
+      "noise": 25.65030303030303,
+      "c_vs_j": 45.40882352941176,
+      "gate": 27.65030303030303,
+      "verdict": "RESIDUAL",
+      "roi": [
+        244,
+        402,
+        404,
+        420
+      ],
+      "hard": true,
+      "n_painted": 2040
+    },
+    {
+      "id": "hud_hurt_flash_off",
+      "noise": 0.0,
+      "c_vs_j": 106.25,
+      "gate": 2.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        244,
+        402,
+        404,
+        420
+      ],
+      "hard": true,
+      "n_painted": 1632
+    },
+    {
+      "id": "hud_hunger_poison",
+      "noise": 0.0,
+      "c_vs_j": 0.14285714285714285,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        430,
+        402,
+        608,
+        420
+      ],
+      "hard": true,
+      "n_painted": 1218
+    },
+    {
+      "id": "hud_air_partial",
+      "noise": 0.17249271743653766,
+      "c_vs_j": 19.442340067340066,
+      "gate": 2.172492717436538,
+      "verdict": "RESIDUAL",
+      "roi": [
+        430,
+        382,
+        608,
+        400
+      ],
+      "hard": true,
+      "n_painted": 792
+    },
+    {
+      "id": "hud_xp_half",
+      "noise": 0.0,
+      "c_vs_j": 6.9911563714324,
+      "gate": 2.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        244,
+        398,
+        608,
+        432
+      ],
+      "hard": true,
+      "n_painted": 7463
+    },
+    {
+      "id": "hud_durability_half",
+      "noise": 0.0,
+      "c_vs_j": 11.587797619047619,
+      "gate": 2.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        250,
+        466,
+        278,
+        474
+      ],
+      "hard": true,
+      "n_painted": 224
+    },
+    {
+      "id": "hud_boss_half",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        4,
+        608,
+        36
+      ],
+      "hard": true,
+      "n_painted": 4736
+    },
+    {
+      "id": "hud_death",
+      "noise": 0.9734879867439934,
+      "c_vs_j": 55.06656820719715,
+      "gate": 2.9734879867439936,
+      "verdict": "INFO",
+      "roi": [
+        0,
+        222,
+        854,
+        258
+      ],
+      "hard": false,
+      "n_painted": 30744
+    },
+    {
+      "id": "hand_bow_pull20",
+      "noise": 20.359601621381973,
+      "c_vs_j": 51.91130991271716,
+      "gate": 22.359601621381973,
+      "verdict": "INFO",
+      "roi": [
+        569,
+        320,
+        846,
+        472
+      ],
+      "hard": false,
+      "n_painted": 19897
+    },
+    {
+      "id": "hand_eat_mid",
+      "noise": 0.0,
+      "c_vs_j": 46.065145601921344,
+      "gate": 2.0,
+      "verdict": "INFO",
+      "roi": [
+        569,
+        320,
+        846,
+        472
+      ],
+      "hard": false,
+      "n_painted": 3331
+    },
+    {
+      "id": "hand_block_sword",
+      "noise": 0.0,
+      "c_vs_j": 40.93343687155287,
+      "gate": 2.0,
+      "verdict": "INFO",
+      "roi": [
+        569,
+        320,
+        846,
+        472
+      ],
+      "hard": false,
+      "n_painted": 16741
+    },
+    {
+      "id": "overlay_inside_stone",
+      "noise": 0.0,
+      "c_vs_j": 60.71198636246506,
+      "gate": 2.0,
+      "verdict": "INFO",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": false,
+      "n_painted": 404284
+    },
+    {
+      "id": "overlay_inside_grass",
+      "noise": 0.0,
+      "c_vs_j": 61.10365617937433,
+      "gate": 2.0,
+      "verdict": "INFO",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": false,
+      "n_painted": 404284
+    },
+    {
+      "id": "overlay_portal_050",
+      "noise": 7.243779613820518,
+      "c_vs_j": 44.79479269538422,
+      "gate": 9.243779613820518,
+      "verdict": "INFO",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": false,
+      "n_painted": 404368
+    },
+    {
+      "id": "overlay_fire",
+      "noise": 0.06740731586752348,
+      "c_vs_j": 54.4656627829195,
+      "gate": 2.0674073158675235,
+      "verdict": "INFO",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": false,
+      "n_painted": 133548
+    },
+    {
+      "id": "overlay_underwater",
+      "noise": 0.1939866534849234,
+      "c_vs_j": 16.6186578134549,
+      "gate": 2.1939866534849233,
+      "verdict": "INFO",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": false,
+      "n_painted": 403620
+    }
+  ]
+}

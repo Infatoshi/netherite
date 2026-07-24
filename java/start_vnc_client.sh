@@ -2,7 +2,11 @@
 # Launch Minecraft 1.11.2 (compiled from the decompiled source workspace) into a
 # virtual display on anvil, served over VNC (localhost-only; tunnel from the Mac).
 set -u
-export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+# Prefer a caller-supplied JAVA_HOME when it already has a working java binary
+# (e.g. a bootstrapped JDK under /tmp). Fall back to the system OpenJDK 8.
+if [ -z "${JAVA_HOME:-}" ] || [ ! -x "${JAVA_HOME}/bin/java" ]; then
+    export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+fi
 export PATH="$JAVA_HOME/bin:$PATH"
 export DISPLAY=:1
 export LIBGL_ALWAYS_SOFTWARE=1          # force llvmpipe software GL (keep off the busy NVIDIA GPU)

@@ -84,4 +84,29 @@ $CC $CFLAGS \
 echo "== run live =="
 /tmp/magma_test_ui_hud_live
 
+# Oracle pixel ROI gate: requires goldens/ from capture_ui_hud.sh.
+GOLDEN_DIR="$DIR/goldens"
+CFRAME_DIR="$DIR/c_frames"
+if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
+  echo "== build $DIR/ui_hud_candidate =="
+  mkdir -p "$CFRAME_DIR"
+  $CC $CFLAGS \
+      "$DIR/ui_hud_candidate.c" \
+      "${COMMON_SRC[@]}" \
+      game/underwater.c \
+      -lm -o /tmp/magma_ui_hud_candidate
+  echo "== render C composition frames =="
+  /tmp/magma_ui_hud_candidate --out "$CFRAME_DIR"
+  echo "== oracle ROI compare (feature-specific; noise + margin) =="
+  uv run --no-project --with pillow --with numpy python \
+    "$DIR/compare_ui_hud_oracle.py" \
+    --goldens "$GOLDEN_DIR" \
+    --cframes "$CFRAME_DIR" \
+    --margin "${UI_HUD_MARGIN:-2.0}" \
+    --report "$DIR/oracle_roi_report.json"
+else
+  echo "== oracle ROI compare: SKIP (no goldens under $GOLDEN_DIR; run capture_ui_hud.sh) =="
+  echo "oracle pixel parity: BLOCKED (no Java PNGs under raster/verify/ui_hud/goldens/)"
+fi
+
 echo "ui_hud gates: PASS"
