@@ -241,7 +241,11 @@ test-launch: game
 		--width 160 --height 90 --frames 100 --kill-frame 0 \
 		>/tmp/magma-test-death.log 2>&1
 	grep -q 'frame 0 .* dead 1 deaths 1' /tmp/magma-test-death.log
-	! grep -q 'frame 1 ' /tmp/magma-test-death.log
+	# GuiGameOver holds the interactive/headless run after death (Respawn /
+	# Title Screen only end it). Regression: stop-on-death would omit frame 1;
+	# auto-respawn would clear dead before the requested frame budget.
+	grep -q 'frame 1 .* dead 1 deaths 1' /tmp/magma-test-death.log
+	grep -q 'frame 99 .* dead 1 deaths 1' /tmp/magma-test-death.log
 
 # Ensure mob atlas exists with pixel-path sprites before atlas-dependent gates.
 assets/mob_atlas.h:
