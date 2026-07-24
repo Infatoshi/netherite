@@ -825,14 +825,20 @@ LayerEnderDragonDeath light rays and XP orb billboards are implemented
 reconstructed with explosion.png semantics (#40) only when health<=0
 (EntityDragon.onUpdate). ui_entities Java pins keep health full and only freeze
 client deathTicks for dissolve+rays — C oracle candidate matches that pin
-(health=200, no particle recon). Rays now use accumulating Random(432)
+(health=200, no particle recon). Rays use accumulating Random(432)
 rotations, partialTicks=1 f, and the RenderLivingBase prepareScale stack +
 Layer translate(0,-1,-2).
 
-ui_entities hard ROI residual (noise=0, budget=0.55) remains **OPEN**:
-dragon_death_50 c_vs_j≈22.8, 100≈24.7, 190≈30.2 (was 20.2/35.8/37.2; net
-sum −15.5). Dominant leftover: additive ray brightness/tint vs soft pink
-Java, body pose/UV, ground pad. Not exact; do not relax masks/budgets.
+FIXED (2026-07-24): er_jrand_float used mask `0xFFFFFFFFFFFFF` (13 hex F =
+52-bit) instead of java.util.Random's `(1<<48)-1` (12 F). nextFloat() returned
+values >> 1 so f2/f3 stretched rays ~10x into solid white beams. Correct 48-bit
+mask restores soft pink fans; pure-white pixel counts now track Java.
+
+ui_entities hard ROI residual (noise=0) remains **OPEN**:
+dragon_death_50 c_vs_j≈17.6, 100≈19.1, 190≈19.0 (was 22.8/24.7/30.2; sum
+−22.0). Dominant leftover: body pose/UV/dissolve continuity, ground pad/HUD
+strip, residual ray orientation vs ModelDragon bob. Not exact; do not relax
+masks/budgets.
 
 ## 47. OPEN: death dissolve is per-box, vanilla is per-texel
 

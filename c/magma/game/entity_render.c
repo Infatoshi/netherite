@@ -1884,9 +1884,13 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
     return written;
 }
 
-/* java.util.Random (48-bit LCG). new Random(seed) xors multiplier. */
+/* java.util.Random (48-bit LCG). new Random(seed) xors multiplier.
+ * Mask MUST be (1<<48)-1 = 0xFFFFFFFFFFFF (12 hex F); a 13-F mask lets the
+ * seed grow past 48 bits and nextFloat() returns values >> 1, which stretched
+ * LayerEnderDragonDeath rays ~10x (solid white beams vs soft pink). */
+#define ER_JRAND_MASK 0xFFFFFFFFFFFFull /* 48-bit, 12 F */
 static float er_jrand_float(unsigned long long *s) {
-    *s = (*s * 0x5DEECE66Dull + 0xBull) & 0xFFFFFFFFFFFFFull;
+    *s = (*s * 0x5DEECE66Dull + 0xBull) & ER_JRAND_MASK;
     return (float)((int)(*s >> 24)) / 1.6777216e7f; /* 2^24 */
 }
 
@@ -1988,7 +1992,7 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
         er_aff_translate(&base, 0.0f, -1.501f, 0.0f);
         er_aff_translate(&base, 0.0f, -1.0f, -2.0f);
 
-        unsigned long long js = (432ull ^ 0x5DEECE66Dull) & 0xFFFFFFFFFFFFFull;
+        unsigned long long js = (432ull ^ 0x5DEECE66Dull) & ER_JRAND_MASK;
         float m[9] = { 1,0,0, 0,1,0, 0,0,1 };
         for (int i = 0; (float)i < bound; ++i) {
             if (written + 9 > max) return written;

@@ -498,6 +498,20 @@ static void test_fireball_rays_particles(void) {
     CHECK(out[0].tint.r == 255 && out[0].tint.a > 0, "ray center is white+alpha");
     CHECK(out[1].tint.r == 255 && out[1].tint.g == 0 && out[1].tint.a == 0,
           "ray rim is magenta transparent");
+    /* Random(432) 48-bit LCG: first-ray span must stay model-scale, not the
+     * 52-bit mask overflow that produced 100+ block pure-white beams. */
+    {
+        float maxr = 0.0f;
+        for (int i = 0; i < 9 && i < rays; ++i) {
+            float dx = out[i].pos.x - drag.x;
+            float dy = out[i].pos.y - drag.y;
+            float dz = out[i].pos.z - drag.z;
+            float r = sqrtf(dx * dx + dy * dy + dz * dz);
+            if (r > maxr) maxr = r;
+        }
+        CHECK(maxr > 4.0f && maxr < 40.0f,
+              "death-ray length uses java.util.Random 48-bit nextFloat");
+    }
     drag.death_ticks = 0;
     CHECK(gm_dragon_death_rays_emit(&drag, 1, out, 8192) == 0,
           "living dragon emits no death rays");
