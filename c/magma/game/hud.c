@@ -600,28 +600,166 @@ void gm_hud_state_step(GmHudState *s, GmPlayerView *pv,
     s->previous_hurt_time = pv->hurt_time;
 }
 
+/* Pointer for GuiGameOver hover (framebuffer pixels). */
+static int g_ptr_x = -1, g_ptr_y = -1;
+
+void gm_hud_set_pointer(int mx, int my) {
+    g_ptr_x = mx;
+    g_ptr_y = my;
+}
+
+int gm_hud_death_buttons_enabled(int death_ticks) {
+    return death_ticks >= 20;
+}
+
+void gm_hud_death_layout(int fb_w, int fb_h,
+                         int *btn0_x, int *btn0_y, int *btn1_x, int *btn1_y,
+                         int *btn_w, int *btn_h) {
+    const int scale = (fb_h / 240) > 1 ? (fb_h / 240) : 1;
+    const int sw_s = (fb_w + scale - 1) / scale;
+    const int sh_s = (fb_h + scale - 1) / scale;
+    /* GuiGameOver.initGui: width/2-100, height/4+72 / +96, 200x20 */
+    int x = (sw_s / 2 - 100) * scale;
+    int y0 = (sh_s / 4 + 72) * scale;
+    int y1 = (sh_s / 4 + 96) * scale;
+    int w = 200 * scale, h = 20 * scale;
+    if (btn0_x) *btn0_x = x;
+    if (btn0_y) *btn0_y = y0;
+    if (btn1_x) *btn1_x = x;
+    if (btn1_y) *btn1_y = y1;
+    if (btn_w) *btn_w = w;
+    if (btn_h) *btn_h = h;
+}
+
+int gm_hud_death_button_at(int fb_w, int fb_h, int mx, int my,
+                           int buttons_enabled) {
+    if (!buttons_enabled) return -1;
+    int x0, y0, x1, y1, w, h;
+    gm_hud_death_layout(fb_w, fb_h, &x0, &y0, &x1, &y1, &w, &h);
+    if (mx >= x0 && my >= y0 && mx < x0 + w && my < y0 + h) return 0;
+    if (mx >= x1 && my >= y1 && mx < x1 + w && my < y1 + h) return 1;
+    return -1;
+}
+
+/* Gui.drawGradientRect over full frame: top 0x60500000, bottom 0xA0803030. */
+static void hud_death_gradient(CrFramebuffer *fb, int scale) {
+    const int sw = (fb->w + scale - 1) / scale;
+    const int sh = (fb->h + scale - 1) / scale;
+    const unsigned top = 0x60500000u;
+    const unsigned bot = 0xA0803030u;
+    int fy0 = 0, fy1 = sh * scale;
+    int h = fy1 - fy0;
+    if (h < 1) h = 1;
+    for (int y = 0; y < h; ++y) {
+        int den = h > 1 ? h - 1 : 1;
+        int ta = (top >> 24) & 255, tr = (top >> 16) & 255;
+        int tg = (top >> 8) & 255, tb = top & 255;
+        int ba = (bot >> 24) & 255, br = (bot >> 16) & 255;
+        int bg = (bot >> 8) & 255, bb = bot & 255;
+        CrRgba c = {
+            (u8)((tr * (den - y) + br * y + den / 2) / den),
+            (u8)((tg * (den - y) + bg * y + den / 2) / den),
+            (u8)((tb * (den - y) + bb * y + den / 2) / den),
+            (u8)((ta * (den - y) + ba * y + den / 2) / den)
+        };
+        hud_fill(fb, 0, fy0 + y, sw * scale, 1, c);
+    }
+}
+
+/* GuiButton.drawButton: full 200-wide strip (left+right halves of widgets.png). */
+static void hud_draw_button(CrFramebuffer *fb, int idx, int dx, int dy, int scale) {
+    hud_blit(fb, idx, dx, dy, scale);
+}
+
+static void hud_death_draw(CrFramebuffer *fb, const GmPlayerView *pv, int scale) {
+    const int sw_s = (fb->w + scale - 1) / scale;
+    const int sh_s = (fb->h + scale - 1) / scale;
+    const int cx_s = sw_s / 2;
+
+    /* Background tint (GuiGameOver.drawScreen drawGradientRect). */
+    hud_death_gradient(fb, scale);
+
+    /* Title: GlStateManager.scale(2,2); drawCenteredString(..., width/2/2, 30).
+     * Integer path: x_pre = (sw/2)/2 - tw/2; after *2 matrix gui_x = 2*x_pre
+     * (NOT sw/2 - tw — that is 1 GUI unit / 2 fb px too far right at sw=427).
+     * Glyph scale is 2*guiScale; baseline GUI y = 2*30 = 60. */
+    {
+        const char *title = "You died!";
+        int ts = scale * 2;
+        int tw = gm_font_width(title);
+        int x_pre = (sw_s / 2) / 2 - tw / 2;
+        int tx = (2 * x_pre) * scale;
+        int ty = 60 * scale;
+        gm_font_draw(fb, title, tx, ty, ts, 0xFFFFFFu, 1);
+    }
+
+    /* Score line at GUI y=100: "Score: " white + yellow number (TextFormatting.YELLOW). */
+    {
+        char num[16];
+        int score = pv->score;
+        if (score < 0) score = 0;
+        {
+            int n = score, len = 0, tmp = n;
+            if (tmp == 0) { num[0] = '0'; len = 1; }
+            else {
+                while (tmp > 0 && len < 15) { len++; tmp /= 10; }
+                num[len] = 0;
+                for (int d = len - 1; d >= 0; --d) {
+                    num[d] = (char)('0' + n % 10);
+                    n /= 10;
+                }
+            }
+            num[len] = 0;
+        }
+        const char *prefix = "Score: ";
+        int pw = gm_font_width(prefix);
+        int nw = gm_font_width(num);
+        int total = pw + nw;
+        int sx = (cx_s - total / 2) * scale;
+        int sy = 100 * scale;
+        gm_font_draw(fb, prefix, sx, sy, scale, 0xFFFFFFu, 1);
+        gm_font_draw(fb, num, sx + pw * scale, sy, scale, 0xFFFF55u, 1);
+    }
+
+    /* Buttons: disabled until enableButtonsTimer >= 20. */
+    {
+        int bx, by0, by1, bw, bh;
+        gm_hud_death_layout(fb->w, fb->h, &bx, &by0, &bx, &by1, &bw, &bh);
+        (void)bw; (void)bh;
+        int enabled = gm_hud_death_buttons_enabled(pv->death_ticks);
+        int gmx = g_ptr_x >= 0 ? g_ptr_x / scale : -9999;
+        int gmy = g_ptr_y >= 0 ? g_ptr_y / scale : -9999;
+        int bx_g = sw_s / 2 - 100;
+        int by0_g = sh_s / 4 + 72;
+        int by1_g = sh_s / 4 + 96;
+        const char *labels[2] = { "Respawn", "Title screen" };
+        int ys[2] = { by0, by1 };
+        int ysg[2] = { by0_g, by1_g };
+        for (int i = 0; i < 2; ++i) {
+            int hovered = enabled &&
+                gmx >= bx_g && gmy >= ysg[i] &&
+                gmx < bx_g + 200 && gmy < ysg[i] + 20;
+            int spr = !enabled ? HUD_BUTTON_DISABLED
+                    : (hovered ? HUD_BUTTON_HOVER : HUD_BUTTON_ENABLED);
+            hud_draw_button(fb, spr, bx, ys[i], scale);
+            unsigned col = !enabled ? 0xA0A0A0u
+                         : (hovered ? 0xFFFFA0u : 0xE0E0E0u);
+            int lw = gm_font_width(labels[i]);
+            int lx = (bx_g + 100 - lw / 2) * scale;
+            int ly = (ysg[i] + (20 - 8) / 2) * scale;
+            gm_font_draw(fb, labels[i], lx, ly, scale, col, 1);
+        }
+    }
+}
+
 void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
     if (!fb || !fb->color || !pv || !g_hud_ready) return;
 
     const int scale = (fb->h / 240) > 1 ? (fb->h / 240) : 1; /* MC-like gui scale */
-    const CrRgba white = { 255, 255, 255, 255 };
 
-    /* ---- death screen: when dead, dim the frame red and show a "YOU DIED" marker + death count.
-     * Only a 3x5 digit font exists here (no letter glyphs), so the marker is a red screen wash +
-     * a centered banner bar + the death counter drawn large. Replaces the normal HUD. ---- */
+    /* ---- GuiGameOver (1.11.2): replaces the survival HUD while dead. ---- */
     if (pv->dead) {
-        const CrRgba wash   = { 130, 0, 0, 120 };   /* translucent red over the whole frame */
-        const CrRgba banner = {  60, 0, 0, 190 };   /* darker centered bar */
-        hud_fill(fb, 0, 0, fb->w, fb->h, wash);
-        int bh = 18 * scale;
-        int by = fb->h / 2 - bh / 2;
-        hud_fill(fb, 0, by, fb->w, bh, banner);
-        /* death count, drawn large and centered just below the banner. */
-        const int ds = scale * 3;
-        int n = pv->deaths > 0 ? pv->deaths : 0, nd = 0, tmp = n;
-        if (tmp <= 0) nd = 1; else while (tmp > 0) { nd++; tmp /= 10; }
-        int num_w = nd * 4 * ds - 1 * ds;
-        hud_number(fb, n, (fb->w - num_w) / 2, by + bh + 4 * scale, ds, white);
+        hud_death_draw(fb, pv, scale);
         return;
     }
 
@@ -855,6 +993,4 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
 
     /* Vanilla draws the potion HUD after the XP bar and selected-item text. */
     hud_draw_potion_effects(fb, pv, scale, sw_s);
-
-    (void)white;
 }

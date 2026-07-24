@@ -25,8 +25,28 @@ void gm_hud_state_step(GmHudState *state, GmPlayerView *pv,
                        long long update_counter);
 
 /* Draw the survival HUD (hotbar + selection, hearts, hunger, XP bar+level,
- * crosshair) onto fb. Does NOT touch fb->depth. Safe for any fb size. */
+ * crosshair) onto fb. Does NOT touch fb->depth. Safe for any fb size.
+ * When pv->dead, draws GuiGameOver (gradient, title, score, buttons) instead
+ * of the survival HUD. Cursor from gm_hud_set_pointer drives button hover. */
 void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv);
+
+/* Framebuffer-space mouse for GuiGameOver button hover (and future screens).
+ * Call before gm_hud_draw when the death screen is interactive. */
+void gm_hud_set_pointer(int mx, int my);
+
+/* GuiGameOver layout at fb size (vanilla scale = fb_h/240). All outs are
+ * framebuffer pixels. Buttons are 200x20 gui units. */
+void gm_hud_death_layout(int fb_w, int fb_h,
+                         int *btn0_x, int *btn0_y, int *btn1_x, int *btn1_y,
+                         int *btn_w, int *btn_h);
+
+/* Hit-test GuiGameOver buttons. Returns 0 (Respawn), 1 (Title Screen), or -1.
+ * When buttons_enabled is 0 (enableButtonsTimer < 20) always returns -1. */
+int gm_hud_death_button_at(int fb_w, int fb_h, int mx, int my,
+                           int buttons_enabled);
+
+/* 1 when death_ticks >= 20 (GuiGameOver.enableButtonsTimer). */
+int gm_hud_death_buttons_enabled(int death_ticks);
 
 /* GuiBossOverlay: show/hide the ender-dragon boss bar for subsequent
  * gm_hud_draw calls; frac is health/max in [0,1]. */

@@ -73,6 +73,11 @@ SPRITES = [
     # GuiIngame.renderPotionEffects: normal background and the 8x3 icon grid.
     ("POTION_BG", "container/inventory.png", 141, 166, 24, 24),
     ("POTION_ICONS", "container/inventory.png", 0, 198, 144, 54),
+    # GuiButton (widgets.png): disabled / enabled / hover 200x20 strips.
+    # V-offsets 46 + state*20 with state 0/1/2 (GuiButton.getHoverState).
+    ("BUTTON_DISABLED", "widgets.png", 0, 46, 200, 20),
+    ("BUTTON_ENABLED",  "widgets.png", 0, 66, 200, 20),
+    ("BUTTON_HOVER",    "widgets.png", 0, 86, 200, 20),
 ]
 
 

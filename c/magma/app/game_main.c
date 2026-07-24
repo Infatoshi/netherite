@@ -517,7 +517,22 @@ int main(int argc, char **argv) {
                 cr_window_capture_enable(cwin, 0);
             }
 
-            if (screen_open) {
+            if (runtime.dead) {
+                /* GuiGameOver: freeze survival input; left-click hits Respawn /
+                 * Title Screen after enableButtonsTimer (20 ticks). */
+                GmAction dact; memset(&dact, 0, sizeof dact);
+                dact.hotbar_sel = -1;
+                if (in.click_left) {
+                    int btn = gm_hud_death_button_at(
+                        fb_w, fb_h, mouse_x, mouse_y,
+                        gm_hud_death_buttons_enabled(runtime.death_screen_ticks));
+                    if (btn >= 0) {
+                        dact.death_click = 1;
+                        dact.death_button = btn;
+                    }
+                }
+                act = dact;
+            } else if (screen_open) {
                 /* GUI mode: suppress movement/look/attack/use; clicks map to
                  * Container.slotClick ids via the vanilla-layout hit test. */
                 GmAction gui; memset(&gui, 0, sizeof gui);
@@ -632,6 +647,7 @@ int main(int argc, char **argv) {
                 tact.do_break = tact.do_place = 0;
                 tact.hotbar_sel = -1;
                 tact.inv_click = 0;
+                tact.death_click = 0;
             }
             /* held-use repeat (Minecraft.rightClickDelayTimer semantics): the
              * click edge fires immediately and arms the 4-tick timer; while the
@@ -644,7 +660,9 @@ int main(int argc, char **argv) {
         /* debug/test hook: force a lethal state at a chosen frame. */
         if (kill_frame >= 0 && frame == kill_frame) { vitals.health = 0.0f; pl.health = 0.0f; }
         gm_runtime_tick(&runtime, tact);
-        if (g_dead || runtime.won) running = 0;
+        /* Episode ends on victory or Title Screen from GuiGameOver. Death
+         * itself holds on the death screen (Respawn continues the run). */
+        if (runtime.won || runtime.quit_to_title) running = 0;
 
         }   /* end tick batch (for t < nticks) */
         bench_stamp(2);
@@ -920,6 +938,8 @@ int main(int argc, char **argv) {
         }
         if (pv.portal > 0.0f)
             gm_overlay_portal_screen(&fb, &atlas, pv.portal);
+        if (pv.dead)
+            gm_hud_set_pointer(mouse_x, mouse_y);
         gm_hud_draw(&fb, &pv);
         if (screen_open && !pv.dead)
             gm_screen_draw(&fb, &runtime, mouse_x, mouse_y);

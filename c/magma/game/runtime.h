@@ -53,6 +53,9 @@ typedef struct GmRuntime {
     int win_ccx, win_ccz;
     long long win_gen;
     int dead, deaths, won, credits;
+    int score;                 /* EntityPlayer.getScore (GuiGameOver line) */
+    int death_screen_ticks;    /* GuiGameOver.enableButtonsTimer */
+    int quit_to_title;         /* Title Screen confirmed / episode end */
     int dimension;
     int portal_time, portal_cooldown;
     long long seed;
@@ -177,6 +180,9 @@ int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration);
 void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view);
 /* Seed recorded vitals at tape-replay start. */
 void gm_runtime_set_vitals(GmRuntime *r, float health, int food);
+/* Interactive / harness respawn (GuiGameOver Respawn button / SPacketRespawn).
+ * Restores health to 20, clears dead + fire/hurt, resets death_screen_ticks. */
+void gm_runtime_respawn(GmRuntime *r);
 int gm_runtime_set_dimension(GmRuntime *r, int dimension);
 void gm_runtime_set_time(GmRuntime *r, long long world_time);
 void gm_runtime_set_total_time(GmRuntime *r, long long total_time);

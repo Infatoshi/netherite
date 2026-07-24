@@ -253,17 +253,26 @@ int main(void) {
         gm_hud_set_boss(0, 1.0f);
     }
 
-    /* (10) Death wash replaces normal HUD. */
+    /* (10) GuiGameOver replaces normal HUD (gradient + title + buttons). */
     {
         for (int i = 0; i < W * H; ++i)
             fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
         GmPlayerView dead = pv;
-        dead.dead = 1; dead.deaths = 3;
+        dead.dead = 1; dead.deaths = 3; dead.score = 0; dead.death_ticks = 0;
         gm_hud_draw(&fb, &dead);
         CrRgba c = fb.color[(H / 2) * W + (W / 2)];
         if (c.r <= c.g || c.r <= c.b) {
-            fprintf(stderr, "FAIL: death wash not red-tinted (%d,%d,%d)\n",
+            fprintf(stderr, "FAIL: death gradient not red-tinted (%d,%d,%d)\n",
                     c.r, c.g, c.b); fail = 1;
+        }
+        /* Respawn button origin at scale 2: (226, 264). */
+        CrRgba edge = fb.color[264 * W + 427];
+        if (edge.r > 30 || edge.g > 30 || edge.b > 30) {
+            fprintf(stderr, "FAIL: death button border not dark (%d,%d,%d)\n",
+                    edge.r, edge.g, edge.b); fail = 1;
+        }
+        if (gm_hud_death_button_at(W, H, 300, 280, 1) != 0) {
+            fprintf(stderr, "FAIL: respawn hit region\n"); fail = 1;
         }
     }
 

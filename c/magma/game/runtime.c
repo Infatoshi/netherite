@@ -346,8 +346,37 @@ void gm_runtime_destroy(GmRuntime *r) {
     memset(r, 0, sizeof *r);
 }
 
+void gm_runtime_respawn(GmRuntime *r) {
+    if (!r) return;
+    r->dead = 0;
+    r->death_screen_ticks = 0;
+    r->quit_to_title = 0;
+    r->vitals.health = 20.0f;
+    r->player.health = 20.0f;
+    r->player_fire_ticks = 0;
+    r->mobs.player_hurt_resistant = 0;
+    r->mobs.player_last_damage = 0.0f;
+}
+
 void gm_runtime_tick(GmRuntime *r, GmAction action) {
-    if (!r || !r->world || r->dead || r->won) return;
+    if (!r || !r->world || r->won) return;
+    /* GuiGameOver is open: advance enableButtonsTimer and handle button clicks.
+     * World/player physics stay frozen (vanilla doesGuiPauseGame=false but the
+     * player entity is already dead; magma freezes the survival transition). */
+    if (r->dead) {
+        if (r->death_screen_ticks < 1000000)
+            ++r->death_screen_ticks;
+        /* enableButtonsTimer == 20 unlocks buttons (GuiGameOver.updateScreen). */
+        if (action.death_click && r->death_screen_ticks >= 20) {
+            if (action.death_button == 0) {
+                gm_runtime_respawn(r);
+            } else if (action.death_button == 1) {
+                /* Title Screen: product has no main menu - end the episode. */
+                r->quit_to_title = 1;
+            }
+        }
+        return;
+    }
     recenter(r);
     ICStack held_now=isr_get_stack(&r->player.inv,r->player.inv.current_item);
     if(held_now.item==261&&action.use){r->bow_drawing=1;++r->bow_ticks;}
@@ -549,9 +578,11 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     }
     for (int i = 0; i < r->chests_cap; ++i)
         if (r->chests && r->chests[i].active) chest_live_tick(&r->chests[i].state);
-    if (r->vitals.health <= 0.0f) {
+    if (r->vitals.health <= 0.0f && !r->dead) {
         r->dead = 1;
         r->deaths++;
+        r->death_screen_ticks = 0;
+        r->quit_to_title = 0;
     }
     if(r->portal_cooldown>0)--r->portal_cooldown;
     int feet=gm_world_block(r->world,(int)floor(r->player.ent.posX+r->ox),
@@ -606,6 +637,8 @@ void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
     gm_player_view((const struct PsvPlayer *)&r->player, r->ox, r->oz, out);
     out->dead = r->dead;
     out->deaths = r->deaths;
+    out->score = r->score;
+    out->death_ticks = r->death_screen_ticks;
     out->fire = r->player_fire_ticks > 0;
     out->creative = 0;
     out->hurt_time = r->mobs.player_hurt_resistant > 0
@@ -964,6 +997,8 @@ void gm_runtime_set_vitals(GmRuntime *r, float health, int food) {
         /* SPacketRespawn + SPacketUpdateHealth: revive before the first
          * destination tick and discard the old entity's burn/hurt state. */
         r->dead = 0;
+        r->death_screen_ticks = 0;
+        r->quit_to_title = 0;
         r->player_fire_ticks = 0;
         r->mobs.player_hurt_resistant = 0;
         r->mobs.player_last_damage = 0.0f;

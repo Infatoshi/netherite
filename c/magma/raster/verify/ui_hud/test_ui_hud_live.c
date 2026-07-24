@@ -200,6 +200,44 @@ int main(void) {
         free(fb.color);
     }
 
+    /* ---- (3) GuiGameOver: timer lock, hit regions, respawn transition ---- */
+    {
+        r.vitals.health = 0.0f;
+        r.player.health = 0.0f;
+        GmAction idle; memset(&idle, 0, sizeof idle);
+        idle.hotbar_sel = -1;
+        gm_runtime_tick(&r, idle);
+        CHECK(r.dead && r.deaths >= 1, "live death: dead after lethal tick");
+        CHECK(r.death_screen_ticks == 0, "live death: timer starts at 0");
+
+        /* Clicks while locked are ignored. */
+        int bx, by0, bx1, by1, bw, bh;
+        gm_hud_death_layout(854, 480, &bx, &by0, &bx1, &by1, &bw, &bh);
+        (void)bx1; (void)by1; (void)bw; (void)bh;
+        GmAction click; memset(&click, 0, sizeof click);
+        click.hotbar_sel = -1;
+        click.death_click = 1;
+        click.death_button = 0;
+        gm_runtime_tick(&r, click);
+        CHECK(r.dead, "live death: respawn ignored while timer < 20");
+
+        for (int t = 0; t < 19; ++t)
+            gm_runtime_tick(&r, idle);
+        CHECK(r.death_screen_ticks == 20, "live death: timer reaches 20");
+        CHECK(gm_hud_death_buttons_enabled(r.death_screen_ticks),
+              "live death: buttons enabled at 20");
+        CHECK(gm_hud_death_button_at(854, 480, bx + 10, by0 + 10, 1) == 0,
+              "live death: respawn hit region");
+
+        gm_runtime_tick(&r, click);
+        CHECK(!r.dead, "live death: respawn clears dead");
+        CHECK(r.vitals.health == 20.0f && r.player.health == 20.0f,
+              "live death: respawn restores health 20");
+        CHECK(r.death_screen_ticks == 0, "live death: timer resets on respawn");
+        gm_runtime_view(&r, &pv);
+        CHECK(!pv.dead && pv.health == 20.0f, "live death: view is living post-respawn");
+    }
+
     gm_runtime_destroy(&r);
 
     if (g_fail) {

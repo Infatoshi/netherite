@@ -81,6 +81,10 @@ typedef struct {
                         * 49..52 armor, 53..79 chest, -999 */
     int   inv_button;  /* 0 left / 1 right */
     int   inv_type;    /* CC_CLICK_PICKUP / QUICK_MOVE / THROW */
+    /* GuiGameOver click this tick (only consumed while dead).
+     * death_click=1 and death_button 0=Respawn / 1=Title Screen. */
+    int   death_click;
+    int   death_button;
 } GmAction;
 
 /* Player state the camera + HUD read. Positions in WORLD coords (doubles collapsed
@@ -102,6 +106,8 @@ typedef struct {
      * ends the episode at health 0; component callers default these fields to 0. --- */
     int   dead;                 /* 1 when the terminal death state was reached */
     int   deaths;               /* running death count             */
+    int   score;                /* EntityPlayer.getScore for GuiGameOver line */
+    int   death_ticks;          /* GuiGameOver.enableButtonsTimer (ticks open) */
     float portal;               /* 0..1 client portal overlay/distortion ramp */
     int   portal_frame;         /* physical portal TextureAtlasSprite frame */
     int   portal_phase;         /* EntityRenderer.rendererUpdateCount */

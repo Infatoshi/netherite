@@ -79,8 +79,17 @@ def roi_rect(name):
         bb_y = 12 * S
         return (bb_x, bb_y - 10 * S, bb_x + 182 * S, bb_y + 6 * S)
     if name in ("hud_death",):
-        by = H // 2 - 18
-        return (0, by, W, by + 36)
+        # Full-frame GuiGameOver (gradient + title + score + both buttons).
+        return (0, 0, W, H)
+    if name in ("hud_death_title",):
+        # 2x title "You died!" at GUI y=60 -> fb y=120.
+        return (200, 118, 660, 150)
+    if name in ("hud_death_score",):
+        return (280, 198, 580, 216)
+    if name in ("hud_death_btn_respawn",):
+        return (226, 264, 626, 304)
+    if name in ("hud_death_btn_title",):
+        return (226, 312, 626, 352)
     if name.startswith("hand_"):
         # Non-hotbar lower-right viewmodel: above hotbar chrome (GUI y=sh-22).
         hb_y = (SH - 22) * S
@@ -112,6 +121,12 @@ HARD = {
     # isolation matches Java at noise floor.
     "overlay_inside_stone",
     "overlay_inside_grass",
+    # GuiGameOver: full frame + feature ROIs (title/score/buttons) at noise floor.
+    "hud_death",
+    "hud_death_title",
+    "hud_death_score",
+    "hud_death_btn_respawn",
+    "hud_death_btn_title",
 }
 
 
@@ -182,6 +197,8 @@ def main():
         "hud_hurt_flash_on", "hud_hurt_flash_off",
         "hud_hunger_poison", "hud_air_partial", "hud_xp_half",
         "hud_durability_half", "hud_boss_half", "hud_death",
+        "hud_death_title", "hud_death_score",
+        "hud_death_btn_respawn", "hud_death_btn_title",
         "hand_bow_pull20", "hand_eat_mid", "hand_block_shield",
         "overlay_inside_stone", "overlay_inside_grass",
         "overlay_portal_050", "overlay_fire", "overlay_underwater",
@@ -201,9 +218,13 @@ def main():
     residuals = []
     rows = []
     for sid in ids:
-        ja_p = os.path.join(args.goldens, "%s_a.png" % sid)
-        jb_p = os.path.join(args.goldens, "%s_b.png" % sid)
-        c_p = os.path.join(args.cframes, "c_%s.ppm" % sid)
+        # Feature ROIs for death share the hud_death golden / C frame pair.
+        base = sid
+        if sid.startswith("hud_death_"):
+            base = "hud_death"
+        ja_p = os.path.join(args.goldens, "%s_a.png" % base)
+        jb_p = os.path.join(args.goldens, "%s_b.png" % base)
+        c_p = os.path.join(args.cframes, "c_%s.ppm" % base)
         rect = roi_rect(sid)
         if not (os.path.isfile(ja_p) and os.path.isfile(jb_p)):
             print("%-24s %10s %10s %10s %10s  MISSING JAVA" % (
@@ -243,6 +264,29 @@ def main():
         w = min(ja.shape[1], jb.shape[1], c.shape[1], painted.shape[1])
         ja, jb, c = ja[:h, :w], jb[:h, :w], c[:h, :w]
         painted = painted[:h, :w]
+
+        # GuiGameOver: gradient is translucent over the live world, so the
+        # gray composition backdrop is not a world claim. Hard compare owns
+        # only opaque chrome (buttons + white/yellow text + near-black
+        # borders/shadows). Feature ROIs and full-frame share this mask.
+        if base == "hud_death":
+            cmax = c.max(axis=2)
+            cmin = c.min(axis=2)
+            white = (c[:, :, 0] > 200) & (c[:, :, 1] > 200) & (c[:, :, 2] > 200)
+            yellow = (c[:, :, 0] > 200) & (c[:, :, 1] > 180) & (c[:, :, 2] < 160)
+            near_black = cmax < 30
+            # Disabled button face ~45 and borders; include full button rects.
+            bx0, by0, bx1, by1 = 226, 264, 626, 304
+            bx0b, by0b, bx1b, by1b = 226, 312, 626, 352
+            yy, xx = np.ogrid[:h, :w]
+            # Map full-frame coords into this ROI crop.
+            x0, y0, _, _ = rect
+            btn0 = ((xx + x0) >= bx0) & ((xx + x0) < bx1) & \
+                   ((yy + y0) >= by0) & ((yy + y0) < by1)
+            btn1 = ((xx + x0) >= bx0b) & ((xx + x0) < bx1b) & \
+                   ((yy + y0) >= by0b) & ((yy + y0) < by1b)
+            owned = white | yellow | near_black | btn0 | btn1
+            painted = painted & owned
 
         noise = mean_abs(ja, jb)
         ab = np.abs(ja.astype(np.int16) - jb.astype(np.int16)).mean(axis=2)

@@ -179,20 +179,88 @@
     },
     {
       "id": "hud_death",
-      "noise": 0.9579942368671707,
-      "c_vs_j": 56.07607817605286,
-      "gate": 2.9579942368671706,
-      "verdict": "CAPTURE_OK",
+      "noise": 1.0910195533395772,
+      "c_vs_j": 0.0,
+      "gate": 3.091019553339577,
+      "verdict": "PASS",
       "roi": [
         0,
-        222,
+        0,
         854,
-        258
+        480
       ],
-      "hard": false,
-      "n_painted": 30744,
+      "hard": true,
+      "n_painted": 6604,
       "noise_limit": 5.0,
-      "reason": "soft_capture"
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_death_title",
+      "noise": 0.32827057073514443,
+      "c_vs_j": 0.0,
+      "gate": 2.3282705707351443,
+      "verdict": "PASS",
+      "roi": [
+        200,
+        118,
+        660,
+        150
+      ],
+      "hard": true,
+      "n_painted": 1472,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_death_score",
+      "noise": 0.07523510971786834,
+      "c_vs_j": 0.0,
+      "gate": 2.0752351097178683,
+      "verdict": "PASS",
+      "roi": [
+        280,
+        198,
+        580,
+        216
+      ],
+      "hard": true,
+      "n_painted": 340,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_death_btn_respawn",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        226,
+        264,
+        626,
+        304
+      ],
+      "hard": true,
+      "n_painted": 2352,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_death_btn_title",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        226,
+        312,
+        626,
+        352
+      ],
+      "hard": true,
+      "n_painted": 2440,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
     },
     {
       "id": "hand_bow_pull20",

@@ -365,14 +365,36 @@ int main(void) {
         CHECK(fabsf(pct - 0.11111111f) < 1e-5f, "liquid height percent meta0");
     }
 
-    /* ---- Death HUD wash ---- */
+    /* ---- GuiGameOver layout, tint, buttons, hit regions ---- */
     {
         CrFramebuffer fb = make_fb();
         GmPlayerView pv; memset(&pv, 0, sizeof pv);
-        pv.dead = 1; pv.deaths = 2;
+        pv.dead = 1; pv.deaths = 2; pv.score = 0; pv.death_ticks = 0;
         gm_hud_draw(&fb, &pv);
-        CrRgba c = fb.color[(H / 2) * W + W / 2];
-        CHECK(c.r > c.g && c.r > c.b, "death wash is red-dominant");
+        /* Gradient: top 0x60500000 / bottom 0xA0803030 over gray -> red-dominant. */
+        CrRgba mid = fb.color[(H / 2) * W + W / 2];
+        CHECK(mid.r > mid.g && mid.r > mid.b, "death gradient is red-dominant");
+        /* Title band (2x "You died!" at GUI y=60 -> fb y=120). */
+        CHECK(region_non_gray(&fb, 300, 118, 560, 150), "death title painted");
+        /* Score line at GUI y=100 -> fb y=200. */
+        CHECK(region_non_gray(&fb, 350, 198, 520, 216), "death score painted");
+        int bx0, by0, bx1, by1, bw, bh;
+        gm_hud_death_layout(W, H, &bx0, &by0, &bx1, &by1, &bw, &bh);
+        CHECK(bx0 == 226 && by0 == 264 && by1 == 312, "death button origins @scale2");
+        CHECK(bw == 400 && bh == 40, "death button size 200x20 * scale2");
+        /* Disabled buttons: widgets disabled strip mid ~45. */
+        CrRgba bmid = fb.color[(by0 + 20) * W + (bx0 + 200)];
+        CHECK(bmid.r < 80 && bmid.g < 80 && bmid.b < 80, "disabled button is dark gray");
+        CHECK(gm_hud_death_buttons_enabled(0) == 0, "buttons locked at t=0");
+        CHECK(gm_hud_death_buttons_enabled(19) == 0, "buttons locked at t=19");
+        CHECK(gm_hud_death_buttons_enabled(20) == 1, "buttons open at t=20");
+        CHECK(gm_hud_death_button_at(W, H, bx0 + 10, by0 + 10, 0) == -1,
+              "hit ignored while locked");
+        CHECK(gm_hud_death_button_at(W, H, bx0 + 10, by0 + 10, 1) == 0,
+              "respawn hit");
+        CHECK(gm_hud_death_button_at(W, H, bx1 + 10, by1 + 10, 1) == 1,
+              "title hit");
+        CHECK(gm_hud_death_button_at(W, H, 0, 0, 1) == -1, "miss outside");
         free(fb.color); free(fb.depth);
     }
 
