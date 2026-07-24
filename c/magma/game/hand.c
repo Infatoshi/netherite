@@ -647,7 +647,8 @@ static CrMat4 build_eat_drink(float equip, int remaining, int max_duration) {
     return M;
 }
 
-/* BLOCK use: transformSideFirstPerson only (no swing translate / first-person). */
+/* BLOCK use (ItemShield EnumAction.BLOCK only in 1.11.2): transformSideFirstPerson
+ * only (no swing translate / first-person). */
 static CrMat4 build_block_use(float equip) {
     CrMat4 M = cr_mat4_identity();
     M = mul(M, mat_translate(0.0f, 0.0f, -0.05f));

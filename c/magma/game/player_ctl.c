@@ -728,10 +728,9 @@ use_done:
                 s_use_action=1;s_use_max=32;s_use_remaining=32-s_eat_ticks;
                 if(s_use_remaining<0)s_use_remaining=0;
             }
-        }else if(act.use&&food.item!=261&&(
-                 food.item==267||food.item==268||food.item==272||
-                 food.item==276||food.item==283||food.item==442)){
-            /* Sword BLOCK / shield: getMaxItemUseDuration 72000. */
+        }else if(act.use&&food.item==442){
+            /* MC 1.11.2: only ItemShield has EnumAction.BLOCK (item 442).
+             * Swords are EnumAction.NONE (combat update); getMaxItemUseDuration 72000. */
             s_use_action=2;s_use_max=72000;
             if(s_use_remaining<=0||s_use_remaining>72000)s_use_remaining=72000;
             if(s_use_remaining>0)--s_use_remaining;
@@ -888,8 +887,9 @@ void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *o
     out->use_action = s_use_action;
     out->use_remaining = s_use_remaining;
     out->use_max = s_use_max;
-    /* Absorption hearts: live vitals path does not yet own getAbsorptionAmount;
-     * leave 0 so callers/tests can set GmPlayerView.absorption for HUD layout. */
+    /* Absorption: EntityLivingBase.getAbsorptionAmount. PvStats / PsvPlayer have
+     * no absorption field (player_vitals documents it out of scope). Leave 0 —
+     * do not invent gold hearts; HUD layout tests may still set pv.absorption. */
     out->absorption = 0.0f;
 
     /* ForgeHooks.getTotalArmorValue via ita_armor_set_points on equipped slots. */

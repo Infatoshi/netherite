@@ -101,6 +101,29 @@ int main(void) {
         free(fb.color); free(fb.depth);
     }
 
+    /* ---- (1b) Right-click use_action: swords NONE, shield BLOCK; absorption 0 ---- */
+    {
+        CHECK(gm_runtime_set_inventory(&r, 0, 267, 1, 0), "give iron sword");
+        r.player.inv.current_item = 0;
+        GmAction use; memset(&use, 0, sizeof use);
+        use.use = 1;
+        use.hotbar_sel = -1;
+        gm_runtime_tick(&r, use);
+        gm_runtime_view(&r, &pv);
+        CHECK(pv.use_action == 0,
+              "live: right-click iron sword does not set use_action");
+        CHECK(pv.absorption == 0.0f,
+              "live: absorption is 0 without vitals absorption field");
+
+        CHECK(gm_runtime_set_inventory(&r, 0, 442, 1, 0), "give shield");
+        r.player.inv.current_item = 0;
+        gm_player_dig_reset();
+        gm_runtime_tick(&r, use);
+        gm_runtime_view(&r, &pv);
+        CHECK(pv.use_action == 2, "live: right-click shield sets use_action BLOCK");
+        CHECK(pv.use_max == 72000, "live: shield use_max 72000");
+    }
+
     /* ---- (2) overlay_live 8-sample: stone at eye height darkens; air does not ---- */
     {
         /* Clear a volume then fill a stone shell so every eye-corner sample hits. */

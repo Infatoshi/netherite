@@ -259,6 +259,7 @@ int main(void) {
             d += dx * dx + dy * dy + dz * dz;
         }
         CHECK(d > 0.01f, "eat pose offsets food");
+        /* BLOCK pose geometry (forced use_action=2; live path is shield-only). */
         gm_hand_set_use(0, 0, 0);
         n0 = gm_hand_emit_held(267, 0, 0.5f, 0.0f, a, 6156);
         gm_hand_set_use(2, 0, 0);

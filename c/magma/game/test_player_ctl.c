@@ -514,6 +514,52 @@ int main(void)
               "MC-111444: jump while motionY>=0 does not start fall-flying");
     }
 
+    /* ---- MC 1.11.2 item use: swords NONE, shield BLOCK; absorption not faked ---- */
+    printf("case use-action: sword none / shield block / absorption zero\n");
+    {
+        fill_flat(win);
+        PsvPlayer pu;
+        spawn_at(&pu, 24.0, 65.0, 24.0);
+        pu.ent.onGround = 1;
+        PvStats vu; pv_init(&vu);
+        GmAction use_act; memset(&use_act, 0, sizeof use_act);
+        use_act.use = 1;
+        GmBlockEdit edits[4];
+        int nedits = 0;
+        GmPlayerView v;
+        int sword_ids[] = {267, 268, 272, 276, 283}; /* iron/wood/stone/diamond/gold */
+
+        for (int si = 0; si < (int)(sizeof sword_ids / sizeof sword_ids[0]); ++si) {
+            gm_player_dig_reset();
+            isr_set_stack(&pu.inv, 0, ic_mk(sword_ids[si], 1, 0));
+            pu.inv.current_item = 0;
+            nedits = 0;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pu, (struct PvStats *)&vu,
+                           use_act, 0, 0, 0, edits, &nedits, 4);
+            memset(&v, 0, sizeof v);
+            gm_player_view((const struct PsvPlayer *)&pu, 0, 0, &v);
+            CHECK(v.use_action == 0,
+                  "right-click sword does not set use_action (EnumAction.NONE)");
+        }
+
+        gm_player_dig_reset();
+        isr_set_stack(&pu.inv, 0, ic_mk(442, 1, 0)); /* shield */
+        pu.inv.current_item = 0;
+        nedits = 0;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&pu, (struct PvStats *)&vu,
+                       use_act, 0, 0, 0, edits, &nedits, 4);
+        memset(&v, 0, sizeof v);
+        gm_player_view((const struct PsvPlayer *)&pu, 0, 0, &v);
+        CHECK(v.use_action == 2, "right-click shield sets use_action BLOCK");
+        CHECK(v.use_max == 72000, "shield getMaxItemUseDuration is 72000");
+        CHECK(v.use_remaining > 0 && v.use_remaining <= 72000,
+              "shield use countdown started");
+        CHECK(v.absorption == 0.0f,
+              "live absorption stays 0 without vitals absorption field");
+    }
+
     printf(g_fail ? "\nRESULT: FAIL\n" : "\nRESULT: PASS (all cases)\n");
     free(win);
     return g_fail;

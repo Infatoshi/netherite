@@ -126,10 +126,12 @@ typedef struct {
     int   hud_transition_lead; /* post-tick tape row trails GuiIngame by 1 */
     /* Live armor + active hand use (filled by gm_player_view / gm_runtime_view).
      * armor_points: ForgeHooks.getTotalArmorValue / ita_armor_set_points (0..20).
-     * use_action: 0 none, 1 EAT/DRINK, 2 BLOCK (BOW uses bow_pull instead).
+     * use_action: 0 none, 1 EAT/DRINK, 2 BLOCK (shield item 442 only in 1.11.2;
+     * swords are NONE). BOW uses bow_pull instead.
      * use_remaining / use_max: getItemInUseCount / getMaxItemUseDuration.
      * absorption: EntityLivingBase.getAbsorptionAmount (health points); drives
-     * GuiIngame heart-row count and armor-row y (ceil((max+abs)/2/10) rows). */
+     * GuiIngame heart-row count and armor-row y. Live path leaves 0 when no
+     * vitals absorption field exists (do not invent). */
     int   armor_points;
     int   use_action;
     int   use_remaining;

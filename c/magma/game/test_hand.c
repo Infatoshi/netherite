@@ -177,8 +177,10 @@ int main(void) {
 
     /* ---- (I) block-use ignores swing (vs mid-swing idle path) ---- */
     {
-        /* Vanilla BLOCK use: transformSideFirstPerson only. With swing=0 the
-         * idle path's transformFirstPerson is net identity, so block == idle.
+        /* Vanilla BLOCK use (shield EnumAction.BLOCK): transformSideFirstPerson
+         * only. Force use_action=2 here to test the pose; live item resolution
+         * only arms BLOCK for shield 442 (swords are NONE in 1.11.2). With
+         * swing=0 idle transformFirstPerson is net identity, so block == idle.
          * Compare against a mid-swing pose instead. */
         gm_hand_set_use(0, 0, 0);
         int n_swing = gm_hand_emit_held(267, 0, 0.5f, 0.0f, out, TEST_MAX);

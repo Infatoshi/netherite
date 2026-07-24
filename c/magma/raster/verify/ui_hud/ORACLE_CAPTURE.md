@@ -35,7 +35,7 @@ image A/B.
 | `hud_death.png` | Dead player, deaths≥1 | Die to mob; hold death screen | Full-frame red wash + banner |
 | `hand_bow_pull20.png` | Bow drawn 20 ticks, fixed yaw/pitch 0, wall backdrop | Hold use 20 ticks against plain wall | Lower-right viewmodel |
 | `hand_eat_mid.png` | Bread, use remaining 16/32 | Hold right-click mid-eat | Lower-right viewmodel |
-| `hand_block_sword.png` | Iron sword blocking | Hold right-click | Lower-right viewmodel |
+| `hand_block_shield.png` | Shield (item 442) blocking | Hold right-click main/off hand | Lower-right viewmodel |
 | `overlay_inside_stone.png` | Eye inside solid stone | `/tp` into stone (suffocation) | Full frame near-black **particle** texture, U mirrored (maxU left) |
 | `overlay_inside_grass.png` | Eye inside grass (particle=dirt not top) | `/tp` into grass block | Full frame dirt particle darken |
 | `overlay_portal_050.png` | `timeInPortal=0.5` | Stand in portal ~10 ticks | Full-frame portal swirl alpha |
