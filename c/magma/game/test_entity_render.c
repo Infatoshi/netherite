@@ -591,7 +591,7 @@ static void test_fireball_rays_particles(void) {
     /* Dig particles: model particle icon (ParticleDigging), not BM_NORTH. */
     {
         int dn = gm_block_break_particles_emit(0, 64, 0, 1 /* stone */, 5,
-                                               1 /* UP face */,
+                                               1 /* UP face */, 0 /* count=stage */,
                                                0.0f, 0.0f, out, 8192);
         CHECK(dn == 5 * 6, "dig stage 5 emits 5 hit-effect quads");
         float bu0, bv0, bu1, bv1;
@@ -636,6 +636,11 @@ static void test_fireball_rays_particles(void) {
               "grass particle icon is dirt (not grass_side)");
         CHECK(bm_particle_sprite(3) != bm_block(3)->face[2 /* BM_NORTH */].sprite,
               "grass particle is not BM_NORTH grass_side");
+        /* entity_pin dig_hit freezes N billboards independent of crack stage. */
+        int dn8 = gm_block_break_particles_emit(0, 64, 0, 1, 4 /* stage */,
+                                                1 /* UP */, 8 /* pin count */,
+                                                0.0f, 0.0f, out, 8192);
+        CHECK(dn8 == 8 * 6, "dig particle_count override emits N quads");
     }
 
     /* Dragon dissolve: mid-death still emits full body; light/ao encode mask. */

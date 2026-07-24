@@ -2317,7 +2317,7 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
  *   - no gravity / collision motion integration
  * Caller draws with the terrain atlas. */
 int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
-                                  int stage, int face,
+                                  int stage, int face, int particle_count,
                                   float view_yaw, float view_pitch,
                                   CrVertex *out, int max) {
     if (!out || max < 6 || stage <= 0) return 0;
@@ -2328,10 +2328,10 @@ int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
     float bu0, bv0, bu1, bv1;
     bm_sprite_uv(bm_particle_sprite(block_id), &bu0, &bv0, &bu1, &bv1);
     float du = (bu1 - bu0), dv = (bv1 - bv0);
-    /* stage particles ≈ reconstructed recent hit effects (1/tick in Java). */
-    int count = stage;
+    /* entity_pin dig_hit may freeze N particles independent of crack stage. */
+    int count = particle_count > 0 ? particle_count : stage;
     if (count < 1) count = 1;
-    if (count > 10) count = 10;
+    if (count > 16) count = 16;
     unsigned seed = (unsigned)(wx * 73856093 ^ wy * 19349663 ^ wz * 83492791)
                   ^ (unsigned)stage * 2246822519u
                   ^ (unsigned)(face + 3) * 2654435761u;

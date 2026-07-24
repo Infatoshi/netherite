@@ -807,8 +807,6 @@ int main(int argc, char **argv) {
         }
         if (nents > 0) {
             int nv = gm_entities_emit(ents, nents, ent_verts, ent_max_verts);
-            nv += gm_xp_orbs_emit(ents, nents, pv.yaw, pv.pitch,
-                                 ent_verts + nv, ent_max_verts - nv);
             nv += gm_particles_emit(ents, nents, pv.yaw, pv.pitch,
                                     ent_verts + nv, ent_max_verts - nv);
             CrTexture eatlas = gm_entity_atlas();
@@ -819,6 +817,18 @@ int main(int argc, char **argv) {
             esh.alpha_mask = 1;
             gm_entity_dissolve_mask(&esh.mask_u_off, &esh.mask_v_off);
             render_layer(&fb, &cam, ent_verts, nv, tris, &esh);
+            /* RenderXPOrb: SRC_ALPHA + alpha 128 (not cutout thr 0.5). */
+            {
+                int nx = gm_xp_orbs_emit(ents, nents, pv.yaw, pv.pitch,
+                                         ent_verts, ent_max_verts);
+                if (nx > 0) {
+                    CrShadeCtx xp = {0};
+                    xp.atlas = &eatlas; xp.fog_color = fog;
+                    xp.alpha_test = 1; xp.alpha_ref = 0.1f;
+                    xp.layer = CR_LAYER_TRANSLUCENT; xp.blend = 1;
+                    render_layer(&fb, &cam, ent_verts, nx, tris, &xp);
+                }
+            }
             /* Dig particles: ParticleDigging uses terrain-atlas particle icons.
              * dig_state is window-local; convert with ox/oz like overlay. */
             {
@@ -831,8 +841,9 @@ int main(int argc, char **argv) {
                     int wx = dx + ox, wz = dz + oz;
                     int bid = gm_world_block(world, wx, dy, wz);
                     int nd = gm_block_break_particles_emit(
-                        wx, dy, wz, bid, stage, dface, pv.yaw, pv.pitch,
-                        ent_verts, ent_max_verts);
+                        wx, dy, wz, bid, stage, dface,
+                        gm_player_dig_particle_count(),
+                        pv.yaw, pv.pitch, ent_verts, ent_max_verts);
                     if (nd > 0) {
                         CrShadeCtx dig = {0};
                         dig.atlas = &atlas; dig.fog_color = fog;

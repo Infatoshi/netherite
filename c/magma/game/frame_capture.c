@@ -839,7 +839,6 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         CrVertex **eb=&c->entity_verts[c->ent_set*4];
         gm_entity_geom_tick(c->frame);
         int nv=gm_entities_emit(ents,n,eb[0],c->max_entity_verts);
-        nv+=gm_xp_orbs_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
         nv+=gm_particles_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
         CrTexture ea=gm_entity_atlas();
         /* fog entities like terrain: underwater EXP fog so distant squid don't
@@ -855,6 +854,20 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         gm_entity_dissolve_mask(&sh.mask_u_off,&sh.mask_v_off);
         if(uw.fluid){ sh.enable_fog=1; sh.fog_exp_density=uw.density; sh.fog_color=uw.fog_rgba; }
         render_layer(c,&cam,eb[0],nv,&sh);
+        /* RenderXPOrb: SRC_ALPHA blend, alpha 128, no cutout thr 0.5 kill. */
+        {
+            static CrVertex xp_ov[512];
+            int nx=gm_xp_orbs_emit(ents,n,v.yaw,v.pitch,xp_ov,512);
+            if(nx>0){
+                CrShadeCtx xp={0};
+                xp.atlas=&ea; xp.fog_color=clear;
+                xp.alpha_test=1; xp.alpha_ref=0.1f;
+                xp.layer=CR_LAYER_TRANSLUCENT; xp.blend=1;
+                xp.lightmap=lm;
+                if(uw.fluid){ xp.enable_fog=1; xp.fog_exp_density=uw.density; xp.fog_color=uw.fog_rgba; }
+                render_layer(c,&cam,xp_ov,nx,&xp);
+            }
+        }
         /* Dig particles: terrain-atlas model particle icons (ParticleDigging).
          * dig_state is window-local; add r->ox/oz like the dig-crack overlay. */
         {
@@ -864,8 +877,10 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 int wx=dx+r->ox, wz=dz+r->oz;
                 int bid=gm_world_block(r->world,wx,dy,wz);
                 static CrVertex dig_ov[1024];
-                int nd=gm_block_break_particles_emit(wx,dy,wz,bid,stage,dface,
-                                                     v.yaw,v.pitch,dig_ov,1024);
+                int nd=gm_block_break_particles_emit(
+                    wx,dy,wz,bid,stage,dface,
+                    gm_player_dig_particle_count(),
+                    v.yaw,v.pitch,dig_ov,1024);
                 if(nd>0){
                     CrTexture ta=gm_world_atlas(r->world);
                     CrShadeCtx dig={0};

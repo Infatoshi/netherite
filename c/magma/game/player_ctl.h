@@ -62,6 +62,7 @@ typedef struct {
     int    dig_face;                 /* EnumFacing 0..5, -1 unknown */
     int    dig_hitting;
     int    dig_delay;
+    int    dig_particle_count;       /* entity_pin dig_hit freeze count; 0=use stage */
     int    atk_prev;
     int    rc_delay;
     int    use_prev;
@@ -71,6 +72,8 @@ typedef struct {
 
 void gm_player_ctl_dig_export(GmPlayerCtlSnap *out);
 void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in);
+/* Pinned dig_hit particle billboard count (0 = live stage proxy). */
+int  gm_player_dig_particle_count(void);
 
 #ifdef __cplusplus
 }

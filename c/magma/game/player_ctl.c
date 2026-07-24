@@ -26,6 +26,7 @@
  * isHittingBlock, s_dig_delay = blockHitDelay (5 ticks after every damage-path
  * break), s_atk_prev = attack key edge (press tick = clickMouse -> clickBlock). */
 static float s_dig_progress;
+static int   s_dig_particle_count; /* entity_pin dig_hit count; 0 = stage proxy */
 
 /* EntityRenderer.fovModifierHand (client render state, not physics). */
 static float s_fov_hand = 1.0f;
@@ -801,6 +802,7 @@ void gm_player_dig_reset(void) {
     s_dig_progress = 0.0f;
     s_dig_hx = INT_MIN;
     s_dig_face = -1;
+    s_dig_particle_count = 0;
     s_eat_ticks=0;s_eat_item=0;
     s_use_action=0;s_use_remaining=0;s_use_max=0;
     s_hurt_vel_reset=0;s_server_motion_x=0.0;s_server_motion_z=0.0;
@@ -827,6 +829,7 @@ void gm_player_ctl_dig_export(GmPlayerCtlSnap *out) {
     out->dig_face       = s_dig_face;
     out->dig_hitting    = s_dig_hitting;
     out->dig_delay      = s_dig_delay;
+    out->dig_particle_count = s_dig_particle_count;
     out->atk_prev       = s_atk_prev;
     out->rc_delay       = s_rc_delay;
     out->use_prev       = s_use_prev;
@@ -843,12 +846,17 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
     s_dig_face       = in->dig_face;
     s_dig_hitting    = in->dig_hitting;
     s_dig_delay      = in->dig_delay;
+    s_dig_particle_count = in->dig_particle_count;
     s_atk_prev       = in->atk_prev;
     s_rc_delay       = in->rc_delay;
     s_use_prev       = in->use_prev;
     s_hurt_vel_reset = in->hurt_vel_reset;
     s_server_motion_x = in->server_motion_x;
     s_server_motion_z = in->server_motion_z;
+}
+
+int gm_player_dig_particle_count(void) {
+    return s_dig_particle_count;
 }
 
 /* Current progressive-dig target + damage 0..1 (RenderGlobal drawBlockDamageTexture

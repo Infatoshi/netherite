@@ -91,6 +91,8 @@ static void inject_from_meta(GmRuntime *rt, const char *state, const char *meta)
         snap.dig_hz = j_int(ds, "bz", 11);
         snap.dig_face = j_int(ds, "face", 1);
         snap.dig_hitting = 1;
+        /* entity_pin dig_hit freezes N ParticleDigging billboards (not stage). */
+        snap.dig_particle_count = j_int(ds, "count", 0);
         gm_player_ctl_dig_import(&snap);
         return;
     }
@@ -131,9 +133,11 @@ static void inject_from_meta(GmRuntime *rt, const char *state, const char *meta)
         ev.item_id = 385;
         ev.item_meta = 0;
     } else if (j_str_eq(es, "type", "dragon_fireball") || strstr(state, "fireball_dragon")) {
+        /* RenderDragonFireball: scale 2.0 + entity/enderdragon/dragon_fireball.png
+         * (item atlas id 9003). Not fire_charge (385) and not on-fire layers. */
         ev.type = 33;
-        ev.item_id = 385;
-        ev.item_meta = 2;
+        ev.item_id = 9003;
+        ev.item_meta = 0;
     } else if (j_str_eq(es, "type", "xp_orb") || strstr(state, "xp_orb")) {
         ev.type = 21;
         ev.item_id = j_int(es, "value", 7);

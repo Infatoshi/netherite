@@ -407,10 +407,12 @@ particles reconstruct ParticleDigging billboards from dig progress (stage
 1..10) using the model **particle** icon (`bm_particle_sprite`, not BM_NORTH),
 hit-face offset when dig_state_ex knows the face, 0.6 gray, ParticleDigging
 ctor `scale/=2` then `multipleParticleScaleBy(0.6)` so half-extent f4 is
-Java **[0.03, 0.06]**. Remaining gaps vs Java: no live particle age/rand
-stream (static stage spray, not 1/tick over lifetime), no gravity/collision
-motion, destroy-burst (`addBlockDestroyEffects` 4³) not emitted. Pixel match
-vs oracle dig frames still **UNVERIFIED**.
+Java **[0.03, 0.06]**. `entity_pin dig_hit` can freeze `count` billboards
+via `dig_particle_count` (independent of crack stage). Remaining gaps vs
+Java: no live particle age/rand stream (static recon spray, not 1/tick over
+lifetime), no gravity/collision motion, destroy-burst
+(`addBlockDestroyEffects` 4³) not emitted. ui_entities `dig_stone`/`dig_grass`
+C-vs-J hard owned residual still open (crack + recon spray + terrain floor).
 (d) FIXED (tape 20260721T215812Z dig window): frame_capture mapped the crack
 face by comparing the raycast adjacent cell's sign (`ax<0`) instead of the
 cell delta `ax-hx`, pinning every crack to the +x face - top-face digs never

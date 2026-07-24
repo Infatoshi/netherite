@@ -118,10 +118,12 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
 /* Dig hit-effect billboards (stage 1..10 progress proxy). ParticleDigging UVs
  * from bm_particle_sprite (model particle icon), not a cube face. face is
  * EnumFacing D-U-N-S-W-E or -1 when unknown (spawn without face offset).
- * Draw with terrain atlas. Input limit: dig_state has no per-tick particle
- * age list or continuous rand stream — recon only. */
+ * particle_count: when >0, number of billboards (entity_pin dig_hit count);
+ * when <=0, fall back to stage (live progress proxy). Draw with terrain atlas.
+ * Input limit: dig_state has no per-tick particle age list or continuous rand
+ * stream — recon only. */
 int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
-                                  int stage, int face,
+                                  int stage, int face, int particle_count,
                                   float view_yaw, float view_pitch,
                                   CrVertex *out, int max);
 
