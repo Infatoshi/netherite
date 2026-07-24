@@ -157,6 +157,9 @@ void gm_runtime_gui_view_clear(GmRuntime *r);
 int gm_runtime_gui_view_get(const GmRuntime *r, int *container, int *mx, int *my);
 int gm_runtime_tape_gui_slot(GmRuntime *r, int slot, int item, int count, int meta);
 int gm_runtime_tape_gui_cursor(GmRuntime *r, int item, int count, int meta);
+/* Same as above but retain StoredEnchantments subset (optional tape extension). */
+int gm_runtime_tape_gui_slot_stack(GmRuntime *r, int slot, ICStack stack);
+int gm_runtime_tape_gui_cursor_stack(GmRuntime *r, ICStack stack);
 int gm_runtime_tape_gui_slot_get(const GmRuntime *r, int slot, ICStack *out);
 int gm_runtime_tape_gui_cursor_get(const GmRuntime *r, ICStack *out);
 int gm_runtime_tape_furnace(GmRuntime *r, int burn, int current_burn,

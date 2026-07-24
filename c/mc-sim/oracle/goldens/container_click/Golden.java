@@ -7,30 +7,46 @@
 //   net/minecraft/inventory/ClickType.java  ordinals PICKUP=0 QUICK_MOVE=1 THROW=4
 //
 // Synthetic 9-slot inventory + cursor (no crafting matrix). Drop = discard (no entity spawn).
-// Stack limits: pickaxes/buckets max 1, else 64 (matches items_core / inventory_stack_rules).
+// Stack limits: pickaxes/buckets/enchanted_book max 1, else 64 (matches items_core /
+// inventory_stack_rules). Emit includes StoredEnchantments subset (n + 8 id/level pairs;
+// battery stacks always have n=0).
 //
-// CUT: drag painting (QUICK_CRAFT), CLONE, SWAP, PICKUP_ALL, armor special cases, NBT,
-// recipe book, creative. Cursor drop is PICKUP slotId=-999 (vanilla); THROW drops from slot
-// when cursor empty. Output: 16 clicks * 10 stacks * 3 fields (item,count,meta) as %08x.
+// CUT: drag painting (QUICK_CRAFT), CLONE, SWAP, PICKUP_ALL, armor special cases,
+// full arbitrary NBT beyond StoredEnchantments, recipe book, creative. Cursor drop is
+// PICKUP slotId=-999 (vanilla); THROW drops from slot when cursor empty.
+// Output: 16 clicks * 10 stacks * (4 + 2*8) fields as %08x.
 public class Golden {
-    static final int SLOTS = 9, INV_LIMIT = 64, NUM_CLICKS = 16;
+    static final int SLOTS = 9, INV_LIMIT = 64, NUM_CLICKS = 16, MAX_ENCHANTS = 8;
     static final int PICKUP = 0, QUICK_MOVE = 1, THROW = 4;
     static final int AIR = 0, STONE = 1, IRON_ORE = 15, APPLE = 260, BREAD = 297,
-        WOODEN_PICKAXE = 270, STONE_PICKAXE = 274, BUCKET = 325, WATER_BUCKET = 326, LAVA_BUCKET = 327;
+        WOODEN_PICKAXE = 270, STONE_PICKAXE = 274, ENCHANTED_BOOK = 403,
+        BUCKET = 325, WATER_BUCKET = 326, LAVA_BUCKET = 327;
 
     static class Stack {
-        int item, count, meta;
-        Stack(int i, int c, int m) { item = i; count = c; meta = m; }
-        Stack copy() { return new Stack(item, count, meta); }
+        int item, count, meta, nEnchants;
+        int[] enchId = new int[MAX_ENCHANTS];
+        int[] enchLvl = new int[MAX_ENCHANTS];
+        Stack(int i, int c, int m) { item = i; count = c; meta = m; nEnchants = 0; }
+        Stack copy() {
+            Stack s = new Stack(item, count, meta);
+            s.nEnchants = nEnchants;
+            for (int e = 0; e < nEnchants; ++e) {
+                s.enchId[e] = enchId[e]; s.enchLvl[e] = enchLvl[e];
+            }
+            return s;
+        }
     }
     static Stack empty() { return new Stack(AIR, 0, 0); }
     static Stack mk(int i, int c, int m) { return new Stack(i, c, m); }
     static boolean isEmpty(Stack s) { return s.item == AIR || s.count <= 0; }
     static void normalize(Stack s) {
-        if (s.count <= 0 || s.item == AIR) { s.item = AIR; s.count = 0; s.meta = 0; }
+        if (s.count <= 0 || s.item == AIR) {
+            s.item = AIR; s.count = 0; s.meta = 0; s.nEnchants = 0;
+        }
     }
     static int maxStackSize(int item, int meta) {
         if (item == WOODEN_PICKAXE || item == STONE_PICKAXE) return 1;
+        if (item == ENCHANTED_BOOK) return 1;
         if (item == BUCKET || item == WATER_BUCKET || item == LAVA_BUCKET) return 1;
         return INV_LIMIT;
     }
@@ -39,7 +55,10 @@ public class Golden {
     }
     static boolean stackMatch(Stack a, Stack b) {
         if (isEmpty(a) || isEmpty(b)) return false;
-        return a.item == b.item && a.meta == b.meta;
+        if (a.item != b.item || a.meta != b.meta || a.nEnchants != b.nEnchants) return false;
+        for (int e = 0; e < a.nEnchants; ++e)
+            if (a.enchId[e] != b.enchId[e] || a.enchLvl[e] != b.enchLvl[e]) return false;
+        return true;
     }
 
     Stack[] slots = new Stack[SLOTS];
@@ -51,6 +70,10 @@ public class Golden {
         int take = Math.min(amount, src.count);
         if (take <= 0 || isEmpty(src)) return empty();
         Stack out = mk(src.item, take, src.meta);
+        out.nEnchants = src.nEnchants;
+        for (int e = 0; e < src.nEnchants; ++e) {
+            out.enchId[e] = src.enchId[e]; out.enchLvl[e] = src.enchLvl[e];
+        }
         src.count -= take;
         normalize(src);
         return out;
@@ -199,15 +222,24 @@ public class Golden {
         };
     }
 
-    void emit(StringBuilder sb) {
-        for (int i = 0; i < SLOTS; ++i) {
-            u(sb, slots[i].item);
-            u(sb, slots[i].count);
-            u(sb, slots[i].meta);
+    void emitStack(StringBuilder sb, Stack s) {
+        u(sb, s.item);
+        u(sb, s.count);
+        u(sb, s.meta);
+        u(sb, s.nEnchants);
+        for (int e = 0; e < MAX_ENCHANTS; ++e) {
+            if (e < s.nEnchants) {
+                u(sb, s.enchId[e]);
+                u(sb, s.enchLvl[e]);
+            } else {
+                u(sb, 0);
+                u(sb, 0);
+            }
         }
-        u(sb, cursor.item);
-        u(sb, cursor.count);
-        u(sb, cursor.meta);
+    }
+    void emit(StringBuilder sb) {
+        for (int i = 0; i < SLOTS; ++i) emitStack(sb, slots[i]);
+        emitStack(sb, cursor);
     }
     static void u(StringBuilder sb, int v) {
         sb.append(String.format("%08x", ((long) v) & 0xFFFFFFFFL)).append('\n');

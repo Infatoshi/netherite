@@ -74,7 +74,7 @@ extern "C" {
 #define CU_NCOAL    32          /* RL_NCOAL   */
 #define CU_NBLOCKS  256         /* RL_NBLOCKS (emitted zeroed)   */
 #define CU_NLOGS    64          /* RL_NLOGS   (emitted zeroed)   */
-#define CU_MAX_ITEMS 16         /* GM_LIVE_MAX */
+#define CU_MAX_ITEMS 48         /* GM_LIVE_MAX */
 #define CU_MAX_EDITS 8          /* GM_RUNTIME_MAX_EDITS */
 #define CU_COAL_SCRATCH 512     /* rl_mode coalblk[512] cap */
 #define CU_COAL_CAND 1024       /* per-env geometric candidate cache cap */

@@ -73,7 +73,7 @@ MC_HD static inline void shl_entry_one(LtEntry *e, i32 item, i32 weight) {
 }
 
 /* enchant_with_levels: levels fixed range, treasure flag. Starts as book;
- * LT_FN_ENCHANT_LEVELS converts to enchanted_book (403) + packed meta. */
+ * LT_FN_ENCHANT_LEVELS converts to enchanted_book (403) + StoredEnchantments list. */
 MC_HD static inline void shl_entry_enchant_book(LtEntry *e, i32 weight,
                                                 float level_min, float level_max,
                                                 int treasure) {

@@ -95,6 +95,24 @@ int main(void) {
         CHECK(gm_runtime_tape_gui_cursor_get(&r,&got)&&
               got.item==17&&got.count==2&&got.meta==1,
               "tape GUI cursor round-trips");
+        {
+            ICStack book = ic_mk(403, 1, 0);
+            book.n_enchants = 2;
+            book.enchants[0].id = 16; book.enchants[0].level = 3;
+            book.enchants[1].id = 34; book.enchants[1].level = 1;
+            CHECK(gm_runtime_tape_gui_slot_stack(&r, GMC_CHEST0, book),
+                  "tape GUI slot accepts StoredEnchantments subset");
+            CHECK(gm_runtime_tape_gui_cursor_stack(&r, book),
+                  "tape GUI cursor accepts StoredEnchantments subset");
+            CHECK(gm_runtime_tape_gui_slot_get(&r, GMC_CHEST0, &got) &&
+                  got.item == 403 && got.n_enchants == 2 &&
+                  got.enchants[0].id == 16 && got.enchants[0].level == 3 &&
+                  got.enchants[1].id == 34 && got.enchants[1].level == 1,
+                  "tape GUI slot retains multi-enchant payload");
+            CHECK(gm_runtime_tape_gui_cursor_get(&r, &got) &&
+                  got.n_enchants == 2 && got.enchants[1].id == 34,
+                  "tape GUI cursor retains multi-enchant payload");
+        }
         gm_runtime_gui_view_clear(&r);
         CHECK(!gm_runtime_tape_gui_slot_get(&r,GMC_GRID0,&got)&&
               !gm_runtime_tape_gui_cursor_get(&r,&got)&&!r.tape_furnace_active,

@@ -21,7 +21,7 @@ references were verified at design time.
 
 ### 1.3 Item drops and pickup
 
-- `gm_live_spawn_item` (c/magma/game/live_sim.c:43-59): spawn with **zero motion** (memset), lifespan 6000. Item physics `gm_live_tick` (live_sim.c:66-108): `my -= 0.04`, snap-to-block-top ground model, friction 0.6*0.98 grounded / 0.98 air — deterministic, no RNG. Max 16 items (`GM_LIVE_MAX`, live_sim.h:15).
+- `gm_live_spawn_item` / `gm_live_spawn_stack` (c/magma/game/live_sim.c): spawn with **zero motion** (memset), lifespan 6000. Item physics `gm_live_tick`: `my -= 0.04`, snap-to-block-top ground model, friction 0.6*0.98 grounded / 0.98 air — deterministic, no RNG. Max 48 active items (`GM_LIVE_MAX`) plus bounded overflow hold when full.
 - Pickup `gm_live_tick_player` (live_sim.c:127-148): box test `|dx|<=1.0, |dz|<=1.0, py-0.25 <= ey <= py+2.8`, `pickup_delay==0`, merges via `isr_add_item_stack_to_inventory`.
 
 ### 1.4 Semantic camera and ore scan

@@ -42,33 +42,77 @@ void gm_live_init(GmLiveSim *s, long long seed, int surface_y) {
     s->ticks = 0;
 }
 
-int gm_live_spawn_stack(GmLiveSim *s, double x, double y, double z,
-                        ICStack stack, int pickup_delay) {
-    if (!s || stack.item <= 0 || stack.count <= 0) return 0;
+static void live_fill_ent(GmLiveEnt *e, double x, double y, double z,
+                          ICStack stack, int pickup_delay) {
+    int n, j;
+    memset(e, 0, sizeof *e);
+    e->active = 1; e->type = 0;
+    e->x = x; e->y = y; e->z = z;
+    e->item = stack.item;
+    e->count = stack.count;
+    e->meta = stack.meta;
+    n = stack.n_enchants;
+    if (n < 0) n = 0;
+    if (n > GM_LIVE_MAX_ENCHANTS) n = GM_LIVE_MAX_ENCHANTS;
+    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+    e->n_enchants = n;
+    for (j = 0; j < n; ++j) {
+        e->ench_id[j] = stack.enchants[j].id;
+        e->ench_lvl[j] = stack.enchants[j].level;
+    }
+    e->pickup_delay = pickup_delay < 0 ? 0 : pickup_delay;
+    e->lifespan = 6000;
+}
+
+static int live_try_active_slot(GmLiveSim *s, double x, double y, double z,
+                                ICStack stack, int pickup_delay) {
     for (int i = 0; i < GM_LIVE_MAX; ++i) {
         GmLiveEnt *e = &s->ents[i];
-        int n, j;
         if (e->active) continue;
-        memset(e, 0, sizeof *e);
-        e->active = 1; e->type = 0;
-        e->x = x; e->y = y; e->z = z;
-        e->item = stack.item;
-        e->count = stack.count;
-        e->meta = stack.meta;
-        n = stack.n_enchants;
-        if (n < 0) n = 0;
-        if (n > GM_LIVE_MAX_ENCHANTS) n = GM_LIVE_MAX_ENCHANTS;
-        if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
-        e->n_enchants = n;
-        for (j = 0; j < n; ++j) {
-            e->ench_id[j] = stack.enchants[j].id;
-            e->ench_lvl[j] = stack.enchants[j].level;
-        }
-        e->pickup_delay = pickup_delay < 0 ? 0 : pickup_delay;
-        e->lifespan = 6000;
+        live_fill_ent(e, x, y, z, stack, pickup_delay);
         s->n_active++;
         return 1;
     }
+    return 0;
+}
+
+/* Drain overflow into free active slots (FIFO). */
+static void live_drain_overflow(GmLiveSim *s) {
+    int i = 0;
+    if (!s || s->n_overflow <= 0) return;
+    while (i < s->n_overflow) {
+        if (!live_try_active_slot(s, s->overflow_x[i], s->overflow_y[i],
+                                  s->overflow_z[i], s->overflow[i],
+                                  s->overflow_delay[i]))
+            break;
+        /* Shift remaining overflow left. */
+        for (int j = i + 1; j < s->n_overflow; ++j) {
+            s->overflow[j - 1] = s->overflow[j];
+            s->overflow_x[j - 1] = s->overflow_x[j];
+            s->overflow_y[j - 1] = s->overflow_y[j];
+            s->overflow_z[j - 1] = s->overflow_z[j];
+            s->overflow_delay[j - 1] = s->overflow_delay[j];
+        }
+        s->n_overflow--;
+    }
+}
+
+int gm_live_spawn_stack(GmLiveSim *s, double x, double y, double z,
+                        ICStack stack, int pickup_delay) {
+    if (!s || stack.item <= 0 || stack.count <= 0) return 0;
+    live_drain_overflow(s);
+    if (live_try_active_slot(s, x, y, z, stack, pickup_delay)) return 1;
+    /* Table full: hold in bounded overflow (recoverable, not silent loss). */
+    if (s->n_overflow < GM_LIVE_OVERFLOW_MAX) {
+        int k = s->n_overflow++;
+        s->overflow[k] = stack;
+        s->overflow_x[k] = x;
+        s->overflow_y[k] = y;
+        s->overflow_z[k] = z;
+        s->overflow_delay[k] = pickup_delay < 0 ? 0 : pickup_delay;
+        return 1;
+    }
+    s->spawn_fail_count++;
     return 0;
 }
 
@@ -85,6 +129,7 @@ static int solid_at(GmWorld *w, int x, int y, int z) {
 void gm_live_tick(GmLiveSim *s, GmWorld *w) {
     if (!s || !w) return;
     s->ticks++;
+    live_drain_overflow(s);
 
     /* ---- item entities: gravity + ground friction (EntityItem-like) ---- */
     for (int i = 0; i < GM_LIVE_MAX; ++i) {
@@ -212,4 +257,12 @@ int gm_live_entity_moved(const GmLiveSim *s) {
 
 int gm_live_plant_age(const GmLiveSim *s) {
     return s ? s->plant_age : -1;
+}
+
+int gm_live_overflow_count(const GmLiveSim *s) {
+    return s ? s->n_overflow : 0;
+}
+
+int gm_live_spawn_fail_count(const GmLiveSim *s) {
+    return s ? s->spawn_fail_count : 0;
 }

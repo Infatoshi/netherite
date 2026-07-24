@@ -305,6 +305,102 @@ int main(void)
         }
     }
 
+    /* Full 27-slot chest break: no silent item loss (GM_LIVE_MAX + overflow). */
+    {
+        GmPlayerView v; gm_runtime_view(&r, &v);
+        int bx = (int)v.x + 4, by = (int)v.y, bz = (int)v.z;
+        int dropped = 0, overflow_before, fails_before;
+        if (by < 1) by = 1;
+        gm_world_ensure(r.world, bx >> 4, bz >> 4, 0);
+        /* Clear ground entities so counts are exact. */
+        for (int i = 0; i < GM_LIVE_MAX; ++i) r.entities.ents[i].active = 0;
+        r.entities.n_active = 0;
+        r.entities.n_overflow = 0;
+        r.entities.spawn_fail_count = 0;
+        CHECK(gm_runtime_set_block(&r, bx, by, bz, 54, 2), "place full-chest break fixture");
+        CHECK(gm_runtime_use_block(&r, bx, by, bz), "open full-chest fixture");
+        {
+            ChestLive *ch = &r.chests[r.active_chest].state;
+            for (int s = 0; s < CHEST_LIVE_SLOTS; ++s) {
+                ICStack st = ic_mk(1 /* stone */, 1 + (s % 3), 0);
+                if (s == 0) {
+                    st = ic_mk(403, 1, 0);
+                    st.n_enchants = 1;
+                    st.enchants[0].id = 16;
+                    st.enchants[0].level = 1;
+                }
+                chest_live_set(ch, s, st);
+            }
+            for (int s = 0; s < CHEST_LIVE_SLOTS; ++s) {
+                ICStack st = chest_live_get(ch, s);
+                CHECK(st.item > 0 && st.count > 0, "every chest slot filled");
+            }
+        }
+        gm_runtime_set_pose(&r, v.x + 40.0, v.y, v.z, 0.0f, 0.0f);
+        { GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
+          gm_runtime_tick(&r, idle); }
+        fails_before = gm_live_spawn_fail_count(&r.entities);
+        overflow_before = gm_live_overflow_count(&r.entities);
+        CHECK(gm_runtime_set_block(&r, bx, by, bz, 0, 0), "break full 27-slot chest");
+        for (int i = 0; i < GM_LIVE_MAX; ++i)
+            if (r.entities.ents[i].active && r.entities.ents[i].type == 0)
+                dropped++;
+        dropped += gm_live_overflow_count(&r.entities);
+        CHECK(dropped >= 27,
+              "full chest break materializes all 27 stacks (active+overflow)");
+        CHECK(gm_live_spawn_fail_count(&r.entities) == fails_before,
+              "full chest break does not hard-fail spawn (no silent loss)");
+        {
+            int book_ok = 0;
+            for (int i = 0; i < GM_LIVE_MAX; ++i) {
+                const GmLiveEnt *e = &r.entities.ents[i];
+                if (e->active && e->item == 403 && e->n_enchants == 1 &&
+                    e->ench_id[0] == 16) book_ok = 1;
+            }
+            for (int i = 0; i < r.entities.n_overflow; ++i) {
+                if (r.entities.overflow[i].item == 403 &&
+                    r.entities.overflow[i].n_enchants == 1)
+                    book_ok = 1;
+            }
+            CHECK(book_ok, "full-chest break keeps enchanted-book payload");
+        }
+        (void)overflow_before;
+        /* Drain overflow on subsequent ticks. */
+        {
+            GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
+            for (int t = 0; t < 5; ++t) gm_runtime_tick(&r, idle);
+        }
+        CHECK(gm_live_overflow_count(&r.entities) == 0 ||
+              gm_live_overflow_count(&r.entities) < 27,
+              "overflow drains into free entity slots over ticks");
+    }
+
+    /* Spawn-failure path: exhaust active+overflow, assert fail counter and no crash. */
+    {
+        int fails0, held = 0, rejected = 0;
+        for (int i = 0; i < GM_LIVE_MAX; ++i) r.entities.ents[i].active = 0;
+        r.entities.n_active = 0;
+        r.entities.n_overflow = 0;
+        r.entities.spawn_fail_count = 0;
+        fails0 = gm_live_spawn_fail_count(&r.entities);
+        for (int i = 0; i < GM_LIVE_MAX + GM_LIVE_OVERFLOW_MAX + 4; ++i) {
+            ICStack st = ic_mk(4 /* cobble */, 1, 0);
+            if (gm_live_spawn_stack(&r.entities, 0.5, 64.0, 0.5, st, 10))
+                held++;
+            else
+                rejected++;
+        }
+        CHECK(held == GM_LIVE_MAX + GM_LIVE_OVERFLOW_MAX,
+              "active+overflow caps hold exactly their bounds");
+        CHECK(rejected == 4 &&
+              gm_live_spawn_fail_count(&r.entities) == fails0 + 4,
+              "over-cap spawns increment spawn_fail_count (explicit, not silent)");
+        /* Free table so later tests are not starved. */
+        for (int i = 0; i < GM_LIVE_MAX; ++i) r.entities.ents[i].active = 0;
+        r.entities.n_active = 0;
+        r.entities.n_overflow = 0;
+    }
+
     /* Unopened structure chest break: materialize deferred loot without prior open. */
     {
         int ux = 0, uy = 0, uz = 0;

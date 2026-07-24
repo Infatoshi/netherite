@@ -95,15 +95,17 @@ int chest_live_insert(ChestLive *c, int slot, ICStack stack)
     if (slot < 0 || slot >= CHEST_LIVE_SLOTS) return 0;
     TecStack cur = tec_get_stack(&c->te, slot);
     TecStack in = ic_to_tec(stack);
+    i32 item_lim = tec_max_stack_size(stack.item);
+    if (item_lim > TEC_STACK_LIMIT) item_lim = TEC_STACK_LIMIT;
     if (tec_is_empty(&cur)) {
         i32 n = stack.count;
-        if (n > TEC_STACK_LIMIT) n = TEC_STACK_LIMIT;
+        if (n > item_lim) n = item_lim;
         in.count = n;
         tec_set_slot(&c->te, slot, in);
         return (int)n;
     }
     if (!tec_are_items_equal(&cur, &in)) return 0;
-    i32 room = TEC_STACK_LIMIT - cur.count;
+    i32 room = item_lim - cur.count;
     if (room <= 0) return 0;
     i32 n = stack.count < room ? stack.count : room;
     cur.count += n;

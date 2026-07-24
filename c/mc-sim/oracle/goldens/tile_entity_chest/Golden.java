@@ -36,8 +36,13 @@ public class Golden {
 
     Golden() { for (int i = 0; i < SLOTS; ++i) slots[i] = empty(); }
 
+    static final int ENCHANTED_BOOK = 403;
     int getInventoryStackLimit() { return STACK_LIMIT; }
-    int getMaxStackSize(Stack s) { return STACK_LIMIT; }
+    /* Item.getItemStackLimit subset: enchanted books max stack 1. */
+    int getMaxStackSize(Stack s) {
+        if (s.item == ENCHANTED_BOOK) return 1;
+        return STACK_LIMIT;
+    }
 
     // InventoryBasic.setInventorySlotContents: store, then clamp count to the inventory
     // stack limit (silently dropping any excess).

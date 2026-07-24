@@ -1,7 +1,8 @@
 /* tile_entity_chest: 27-slot chest inventory insert/extract (TileEntityChest + InventoryBasic.addItem).
- * ItemStack = (item,count,meta); areItemsEqual = item+meta match. Stack limit 64.
- * CUT: double chest, loot tables, NBT, sounds, player proximity sync. Lid animation from update() kept.
- * Deterministic op battery; CPU==CUDA. */
+ * ItemStack = (item,count,meta[,StoredEnchantments]); areItemsEqual = item+meta+tags.
+ * Inventory stack limit 64; ItemEnchantedBook (403) max stack 1 (1.11.2).
+ * CUT: double chest, loot tables (filled externally), sounds, player proximity sync.
+ * Lid animation from update() kept. Deterministic op battery; CPU==CUDA. */
 #ifndef MC_TILE_ENTITY_CHEST_H
 #define MC_TILE_ENTITY_CHEST_H
 
@@ -14,7 +15,8 @@ enum {
     TEC_APPLE          = 260,
     TEC_BREAD          = 297,
     TEC_COAL           = 263,
-    TEC_IRON_INGOT     = 265
+    TEC_IRON_INGOT     = 265,
+    TEC_ENCHANTED_BOOK = 403
 };
 
 #define TEC_LID_STEP 0.1f
@@ -73,7 +75,8 @@ MC_HD static inline int tec_are_items_equal(const TecStack *a, const TecStack *b
 }
 
 MC_HD static inline i32 tec_max_stack_size(i32 item) {
-    (void)item;
+    /* Item.getItemStackLimit subset: enchanted books are unstackable. */
+    if (item == TEC_ENCHANTED_BOOK) return 1;
     return TEC_STACK_LIMIT;
 }
 
@@ -108,8 +111,11 @@ MC_HD static inline TecStack tec_get_and_split(TeChest *c, int index, int amount
 
 MC_HD static inline void tec_set_slot(TeChest *c, int index, TecStack stack) {
     if (index < 0 || index >= TEC_SLOTS) return;
-    if (!tec_is_empty(&stack) && stack.count > TEC_STACK_LIMIT)
-        stack.count = TEC_STACK_LIMIT;
+    if (!tec_is_empty(&stack)) {
+        i32 lim = tec_max_stack_size(stack.item);
+        if (lim > TEC_STACK_LIMIT) lim = TEC_STACK_LIMIT;
+        if (stack.count > lim) stack.count = lim;
+    }
     c->slots[index] = stack;
 }
 
@@ -132,15 +138,19 @@ MC_HD static inline TecStack tec_add_item(TeChest *c, TecStack stack) {
     for (int i = 0; i < TEC_SLOTS; ++i) {
         TecStack slot = c->slots[i];
         if (tec_is_empty(&slot)) {
-            /* InventoryBasic.setInventorySlotContents clamps to the inventory stack limit,
-             * silently dropping any excess (vanilla addItem returns EMPTY here). */
-            if (rem.count > TEC_STACK_LIMIT) rem.count = TEC_STACK_LIMIT;
+            /* InventoryBasic.setInventorySlotContents clamps to min(inv limit, item max).
+             * Excess beyond that is dropped (vanilla addItem returns EMPTY here). */
+            {
+                i32 lim = tec_max_stack_size(rem.item);
+                if (lim > TEC_STACK_LIMIT) lim = TEC_STACK_LIMIT;
+                if (rem.count > lim) rem.count = lim;
+            }
             c->slots[i] = rem;
             return tec_empty();
         }
         if (tec_are_items_equal(&slot, &rem)) {
-            i32 limit = TEC_STACK_LIMIT;
-            if (tec_max_stack_size(slot.item) < limit) limit = tec_max_stack_size(slot.item);
+            i32 limit = tec_max_stack_size(slot.item);
+            if (limit > TEC_STACK_LIMIT) limit = TEC_STACK_LIMIT;
             i32 room = limit - slot.count;
             i32 move = rem.count;
             if (move > room) move = room;

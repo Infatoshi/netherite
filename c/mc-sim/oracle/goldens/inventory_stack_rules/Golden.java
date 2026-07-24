@@ -8,8 +8,8 @@
 //   net/minecraft/item/ItemStack.java  isStackable(), splitStack(), getMaxStackSize()
 //   net/minecraft/inventory/ItemStackHelper.java  getAndSplit()
 // Registry substitution: Item objects -> legacy int ids (core/items_core.h). getMaxStackSize is
-// baked from the item table (pickaxes / buckets == 1, else 64). isItemEnchanted()==false for the
-// whole subset (no NBT enchants), so getBestHotbarSlot's second loop returns currentItem.
+// baked from the item table (pickaxes / buckets / enchanted_book 403 == 1, else 64).
+// Battery stacks carry no StoredEnchantments; getBestHotbarSlot's second loop returns currentItem.
 //
 // CUT (matches core/inventory_stack_rules.h): armor slots, creative-mode branches (never taken:
 // non-creative), GUI/animation/NBT, offhand beyond slot 40. Output format matches
@@ -17,7 +17,8 @@
 public class Golden {
     static final int MAIN_SLOTS = 36, OFFHAND_SLOT = 40, INV_LIMIT = 64;
     static final int AIR = 0, STONE = 1, IRON_ORE = 15, APPLE = 260, BREAD = 297,
-        WOODEN_PICKAXE = 270, STONE_PICKAXE = 274, BUCKET = 325, WATER_BUCKET = 326, LAVA_BUCKET = 327;
+        WOODEN_PICKAXE = 270, STONE_PICKAXE = 274, ENCHANTED_BOOK = 403,
+        BUCKET = 325, WATER_BUCKET = 326, LAVA_BUCKET = 327;
 
     static class Stack {
         int item, count, meta;
@@ -30,6 +31,7 @@ public class Golden {
 
     static int maxStackSize(int item, int meta) {
         if (item == WOODEN_PICKAXE || item == STONE_PICKAXE) return 1;
+        if (item == ENCHANTED_BOOK) return 1;
         if (item == BUCKET || item == WATER_BUCKET || item == LAVA_BUCKET) return 1;
         return INV_LIMIT;
     }

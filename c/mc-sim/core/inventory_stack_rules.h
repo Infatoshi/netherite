@@ -51,6 +51,7 @@ MC_HD static inline i32 isr_max_stack_size(i32 item, i32 meta) {
         item == 257 || item == 278 || /* iron/diamond pickaxe */
         item == 268 || item == 272 || item == 267 || item == 276 || /* swords */
         item == 261 || item == 259 || item == 359 || item == 442 || item == 355) return 1;
+    if (item == IC_ENCHANTED_BOOK) return 1; /* ItemEnchantedBook 1.11.2 */
     if (isr_is_armor_or_elytra(item)) return 1;
     if (item == IC_BUCKET || item == IC_WATER_BUCKET || item == IC_LAVA_BUCKET) return 1;
     return ISR_INV_LIMIT;
@@ -136,7 +137,8 @@ MC_HD static inline int isr_get_best_hotbar_slot(const IsrInv *inv) {
     }
     for (i = 0; i < 9; ++i) {
         int j = (inv->current_item + i) % 9;
-        /* no enchantments in subset: all stacks are unenchanted */
+        /* Vanilla prefers unenchanted hotbar slots; subset has no item-enchant
+         * flag beyond StoredEnchantments-on-books (always max-stack 1). */
         (void)j;
         return j;
     }

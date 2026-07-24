@@ -5,6 +5,8 @@
  * ContainerWorkbench.java / ContainerFurnace.java (1.11.2 oracle source). */
 #include "game/runtime.h"
 #include "container_click.h"
+#include "inventory_stack_rules.h"
+#include "tile_entity_chest.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -359,35 +361,36 @@ int main(void) {
             }
         }
 
-        /* Stackability: equal StoredEnchantments merge; mismatch swaps (no silent strip). */
+        /* Stackability: 1.11.2 enchanted books max stack 1 — equal tags do NOT merge.
+         * Mismatch swaps (no silent strip). */
         {
+            CHECK(isr_max_stack_size(403, 0) == 1 &&
+                  cc_max_stack_size(403, 0) == 1 &&
+                  tec_max_stack_size(403) == 1,
+                  "enchanted book max stack is 1 in isr/cc/tec");
             ICStack twin = book; /* same multi-enchant list */
+            /* Slot 0 currently has multi book count 1. Put twin in slot 4. */
             chest_live_set(&r.chests[r.active_chest].state, 4, twin);
             click(&r, GMC_CHEST0 + 4, 0, CC_CLICK_PICKUP); /* twin on cursor */
-            click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP);     /* merge onto matching multi */
+            click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP);     /* try merge onto matching multi */
             {
                 ICStack c = gm_player_cursor();
                 ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 0);
-                CHECK(isr_is_empty(&c) && ch.item == 403 && ch.count == 2 &&
-                      ch.n_enchants == 2,
-                      "equal StoredEnchantments merge (count 2, list intact)");
+                /* Max stack 1: no merge; vanilla swaps equal unstackables. */
+                CHECK(c.item == 403 && c.count == 1 && c.n_enchants == 2 &&
+                      ch.item == 403 && ch.count == 1 && ch.n_enchants == 2,
+                      "equal-tag enchanted books do not merge (max stack 1)");
             }
-            /* Split one back out for the mismatch check. */
-            click(&r, GMC_CHEST0, 1, CC_CLICK_PICKUP); /* right-pick half -> 1 cursor, 1 slot */
-            {
-                ICStack c = gm_player_cursor();
-                CHECK(c.item == 403 && c.count == 1 && c.n_enchants == 2,
-                      "right-pick split copies StoredEnchantments");
-            }
+            /* Cursor still holds multi; place into empty slot for mismatch setup. */
+            click(&r, GMC_CHEST0 + 4, 0, CC_CLICK_PICKUP); /* deposit multi into 4 */
             chest_live_set(&r.chests[r.active_chest].state, 5, book_b);
-            /* Park multi on cursor, pick Sharpness V, try place onto multi still in slot 0. */
-            click(&r, GMC_CHEST0 + 5, 0, CC_CLICK_PICKUP); /* swap? slot 5 empty after set; take V */
+            click(&r, GMC_CHEST0 + 5, 0, CC_CLICK_PICKUP); /* Sharpness V on cursor */
             {
-                /* After take V: cursor=V, slot0 still multi count 1. Click slot0 -> swap. */
                 ICStack c = gm_player_cursor();
                 CHECK(c.item == 403 && c.n_enchants == 1 && c.enchants[0].level == 5,
                       "Sharpness V book on cursor before mismatch click");
             }
+            /* Slot 0 has multi; click -> swap with V. */
             click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP);
             {
                 ICStack c = gm_player_cursor();

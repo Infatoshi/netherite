@@ -725,25 +725,60 @@ int gm_script_run(const GmConfig *cfg) {
                     }
                     gm_runtime_gui_view(&r, kind, (int)mx, (int)my);
                 }
-            } else if (!strcmp(type,"gui_slot_view")) {
-                long long slot,item,count,meta;
-                static const char *const keys[]={"tick","type","slot","item","count","meta"};
-                if(!keys_only(&pending,keys,6,err,sizeof err)||
-                   !as_i64(field(&pending,"slot"),&slot)||
-                   !as_i64(field(&pending,"item"),&item)||
-                   !as_i64(field(&pending,"count"),&count)||
-                   !as_i64(field(&pending,"meta"),&meta)||
-                   !gm_runtime_tape_gui_slot(&r,(int)slot,(int)item,(int)count,(int)meta)){
-                    fprintf(stderr,"script:%ld: invalid gui_slot_view\n",line_no);goto bad;
+            } else if (!strcmp(type,"gui_slot_view") || !strcmp(type,"gui_cursor_view")) {
+                /* Optional StoredEnchantments subset: n_ench + e0..e7 packed as
+                 * (id<<16)|level. Absent => n_enchants=0 (backward compatible). */
+                long long slot=0,item,count,meta,n_ench=0;
+                int is_slot = !strcmp(type,"gui_slot_view");
+                static const char *const keys_slot[]={
+                    "tick","type","slot","item","count","meta","n_ench",
+                    "e0","e1","e2","e3","e4","e5","e6","e7"
+                };
+                static const char *const keys_cur[]={
+                    "tick","type","item","count","meta","n_ench",
+                    "e0","e1","e2","e3","e4","e5","e6","e7"
+                };
+                ICStack st;
+                if (is_slot) {
+                    if(!keys_only(&pending,keys_slot,15,err,sizeof err)||
+                       !as_i64(field(&pending,"slot"),&slot)||
+                       !as_i64(field(&pending,"item"),&item)||
+                       !as_i64(field(&pending,"count"),&count)||
+                       !as_i64(field(&pending,"meta"),&meta)){
+                        fprintf(stderr,"script:%ld: invalid gui_slot_view\n",line_no);goto bad;
+                    }
+                } else {
+                    if(!keys_only(&pending,keys_cur,14,err,sizeof err)||
+                       !as_i64(field(&pending,"item"),&item)||
+                       !as_i64(field(&pending,"count"),&count)||
+                       !as_i64(field(&pending,"meta"),&meta)){
+                        fprintf(stderr,"script:%ld: invalid gui_cursor_view\n",line_no);goto bad;
+                    }
                 }
-            } else if (!strcmp(type,"gui_cursor_view")) {
-                long long item,count,meta;
-                static const char *const keys[]={"tick","type","item","count","meta"};
-                if(!keys_only(&pending,keys,5,err,sizeof err)||
-                   !as_i64(field(&pending,"item"),&item)||
-                   !as_i64(field(&pending,"count"),&count)||
-                   !as_i64(field(&pending,"meta"),&meta)||
-                   !gm_runtime_tape_gui_cursor(&r,(int)item,(int)count,(int)meta)){
+                st = count == 0 ? ic_empty() : ic_mk((i32)item,(i32)count,(i32)meta);
+                if (field(&pending,"n_ench")) {
+                    char ek[4];
+                    int ei;
+                    if (!as_i64(field(&pending,"n_ench"),&n_ench) ||
+                        n_ench < 0 || n_ench > IC_MAX_ENCHANTS) {
+                        fprintf(stderr,"script:%ld: invalid n_ench\n",line_no);goto bad;
+                    }
+                    st.n_enchants = (i32)n_ench;
+                    for (ei = 0; ei < (int)n_ench; ++ei) {
+                        long long packed = 0;
+                        snprintf(ek, sizeof ek, "e%d", ei);
+                        if (!as_i64(field(&pending, ek), &packed)) {
+                            fprintf(stderr,"script:%ld: missing %s\n",line_no,ek);goto bad;
+                        }
+                        st.enchants[ei].id = (i16)((packed >> 16) & 0xffff);
+                        st.enchants[ei].level = (i16)(packed & 0xffff);
+                    }
+                }
+                if (is_slot) {
+                    if (!gm_runtime_tape_gui_slot_stack(&r,(int)slot,st)) {
+                        fprintf(stderr,"script:%ld: invalid gui_slot_view\n",line_no);goto bad;
+                    }
+                } else if (!gm_runtime_tape_gui_cursor_stack(&r,st)) {
                     fprintf(stderr,"script:%ld: invalid gui_cursor_view\n",line_no);goto bad;
                 }
             } else if (!strcmp(type,"gui_furnace_view")) {

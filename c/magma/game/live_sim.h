@@ -13,7 +13,11 @@
 extern "C" {
 #endif
 
-#define GM_LIVE_MAX 16
+/* Active EntityItem table. Must hold a full 27-slot chest break plus concurrent
+ * drops (mobs, player throw). Overflow is a bounded recoverable hold when the
+ * table is full - items are not silently discarded until overflow is also full. */
+#define GM_LIVE_MAX 48
+#define GM_LIVE_OVERFLOW_MAX 32
 #define GM_LIVE_MAX_ENCHANTS 8  /* matches IC_MAX_ENCHANTS / StoredEnchantments cap */
 
 typedef struct {
@@ -35,6 +39,14 @@ typedef struct {
 typedef struct {
     GmLiveEnt ents[GM_LIVE_MAX];
     int       n_active;
+    /* Recoverable hold when ents[] is full (chest break under pressure). */
+    ICStack   overflow[GM_LIVE_OVERFLOW_MAX];
+    double    overflow_x[GM_LIVE_OVERFLOW_MAX];
+    double    overflow_y[GM_LIVE_OVERFLOW_MAX];
+    double    overflow_z[GM_LIVE_OVERFLOW_MAX];
+    int       overflow_delay[GM_LIVE_OVERFLOW_MAX];
+    int       n_overflow;
+    int       spawn_fail_count; /* times both table and overflow rejected */
     /* wheat plot (world block coords) advanced with plant_growth-style rolls */
     int       plant_wx, plant_wy, plant_wz;
     int       plant_age;     /* 0..7 wheat meta */
@@ -47,7 +59,8 @@ void gm_live_init(GmLiveSim *s, long long seed, int surface_y);
 /* Plain spawn (no enchant payload). Prefer gm_live_spawn_stack for books. */
 int  gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
                         int item, int count, int meta, int pickup_delay);
-/* EntityItem with full ICStack payload (item/count/meta + StoredEnchantments). */
+/* EntityItem with full ICStack payload (item/count/meta + StoredEnchantments).
+ * Returns 1 if active or held in overflow; 0 only if both caps are exhausted. */
 int  gm_live_spawn_stack(GmLiveSim *s, double x, double y, double z,
                          ICStack stack, int pickup_delay);
 /* One tick: gravity/friction for live ents (world collision via gm_world_*), wheat growth. */
@@ -60,6 +73,8 @@ int  gm_live_fill_views(const GmLiveSim *s, GmEntityView *out, int max);
 /* Debug counters for harness / logs. */
 int  gm_live_entity_moved(const GmLiveSim *s); /* 1 if any ent pos changed last tick */
 int  gm_live_plant_age(const GmLiveSim *s);
+int  gm_live_overflow_count(const GmLiveSim *s);
+int  gm_live_spawn_fail_count(const GmLiveSim *s);
 
 #ifdef __cplusplus
 }

@@ -4,7 +4,8 @@
  *        + Slot get/put/decr, ItemStack split/grow/shrink, Container.mergeItemStack subset.
  *
  * State: 9 inventory stacks + 1 cursor {itemId, count, meta}. No crafting matrix.
- * After each scripted click, emit full inventory+cursor as packed u32s (item,count,meta).
+ * After each scripted click, emit full inventory+cursor as packed u32s
+ * (item,count,meta,n_enchants, then IC_MAX_ENCHANTS x (id,level)).
  *
  * Covered:
  *   PICKUP  (button 0 left / 1 right): pick, place, half-pick, place-one, merge, swap;
@@ -22,7 +23,7 @@
  * Stack match/split copy ICStack.n_enchants (1.11.2 areItemStackTagsEqual subset).
  *
  * READ-ONLY deps: items_core.h (ICStack + item ids). Stack limits mirror inventory_stack_rules
- * (pickaxes/buckets max 1, else 64). CPU==CUDA. */
+ * (pickaxes/buckets/enchanted_book max 1, else 64). CPU==CUDA. */
 #ifndef MC_CONTAINER_CLICK_H
 #define MC_CONTAINER_CLICK_H
 
@@ -36,7 +37,8 @@ enum {
     CC_CLICK_QUICK_MOVE = 1,
     CC_CLICK_THROW    = 4,
     CC_NUM_CLICKS     = 16,
-    CC_STACK_FIELDS   = 3,  /* item, count, meta */
+    /* item,count,meta,n_enchants + IC_MAX_ENCHANTS*(id,level). Battery uses n=0. */
+    CC_STACK_FIELDS   = (4 + 2 * IC_MAX_ENCHANTS),
     CC_STATE_FIELDS   = ((CC_SLOTS + 1) * CC_STACK_FIELDS), /* 9 slots + cursor */
     CC_OUT            = (CC_NUM_CLICKS * CC_STATE_FIELDS)
 };
@@ -65,6 +67,7 @@ MC_HD static inline void cc_normalize(ICStack *s) {
 MC_HD static inline i32 cc_max_stack_size(i32 item, i32 meta) {
     (void)meta;
     if (item == IC_WOODEN_PICKAXE || item == IC_STONE_PICKAXE) return 1;
+    if (item == IC_ENCHANTED_BOOK) return 1; /* ItemEnchantedBook 1.11.2 */
     if (item == IC_BUCKET || item == IC_WATER_BUCKET || item == IC_LAVA_BUCKET) return 1;
     return CC_INV_LIMIT;
 }
@@ -276,16 +279,31 @@ MC_HD static inline void cc_slot_click(CcInv *inv, int slot_id, int drag_type, i
 
 /* ---- emit / battery ---- */
 
+MC_HD static inline void cc_emit_stack(const ICStack *s, u32 *out, int *o) {
+    int e, n;
+    out[(*o)++] = (u32)s->item;
+    out[(*o)++] = (u32)s->count;
+    out[(*o)++] = (u32)s->meta;
+    n = s->n_enchants;
+    if (n < 0) n = 0;
+    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+    out[(*o)++] = (u32)n;
+    for (e = 0; e < IC_MAX_ENCHANTS; ++e) {
+        if (e < n) {
+            out[(*o)++] = (u32)(u16)s->enchants[e].id;
+            out[(*o)++] = (u32)(u16)s->enchants[e].level;
+        } else {
+            out[(*o)++] = 0u;
+            out[(*o)++] = 0u;
+        }
+    }
+}
+
 MC_HD static inline void cc_emit_state(const CcInv *inv, u32 *out, int base) {
     int i, o = base;
-    for (i = 0; i < CC_SLOTS; ++i) {
-        out[o++] = (u32)inv->slots[i].item;
-        out[o++] = (u32)inv->slots[i].count;
-        out[o++] = (u32)inv->slots[i].meta;
-    }
-    out[o++] = (u32)inv->cursor.item;
-    out[o++] = (u32)inv->cursor.count;
-    out[o++] = (u32)inv->cursor.meta;
+    for (i = 0; i < CC_SLOTS; ++i)
+        cc_emit_stack(&inv->slots[i], out, &o);
+    cc_emit_stack(&inv->cursor, out, &o);
 }
 
 /* Fixed start state + scripted click tape (identical in Golden.java). */

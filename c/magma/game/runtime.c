@@ -801,19 +801,41 @@ static int tape_stack_valid(int item, int count, int meta) {
            meta >= 0 && meta <= 32767 && ((item == 0) == (count == 0));
 }
 
-int gm_runtime_tape_gui_slot(GmRuntime *r, int slot, int item, int count, int meta) {
+static int tape_stack_enchants_ok(const ICStack *s) {
+    int n;
+    if (!s) return 0;
+    n = s->n_enchants;
+    if (n < 0 || n > IC_MAX_ENCHANTS) return 0;
+    return 1;
+}
+
+int gm_runtime_tape_gui_slot_stack(GmRuntime *r, int slot, ICStack stack) {
     if (!r || slot < 0 || slot >= GMC_SLOT_COUNT ||
-        !tape_stack_valid(item, count, meta)) return 0;
-    r->tape_gui_slots[slot] = count == 0 ? ic_empty() : ic_mk(item, count, meta);
+        !tape_stack_valid(stack.item, stack.count, stack.meta) ||
+        !tape_stack_enchants_ok(&stack)) return 0;
+    if (stack.count == 0) stack = ic_empty();
+    r->tape_gui_slots[slot] = stack;
     r->tape_gui_slot_active[slot] = 1;
     return 1;
 }
 
-int gm_runtime_tape_gui_cursor(GmRuntime *r, int item, int count, int meta) {
-    if (!r || !tape_stack_valid(item, count, meta)) return 0;
-    r->tape_gui_cursor = count == 0 ? ic_empty() : ic_mk(item, count, meta);
+int gm_runtime_tape_gui_cursor_stack(GmRuntime *r, ICStack stack) {
+    if (!r || !tape_stack_valid(stack.item, stack.count, stack.meta) ||
+        !tape_stack_enchants_ok(&stack)) return 0;
+    if (stack.count == 0) stack = ic_empty();
+    r->tape_gui_cursor = stack;
     r->tape_gui_cursor_active = 1;
     return 1;
+}
+
+int gm_runtime_tape_gui_slot(GmRuntime *r, int slot, int item, int count, int meta) {
+    return gm_runtime_tape_gui_slot_stack(
+        r, slot, count == 0 ? ic_empty() : ic_mk(item, count, meta));
+}
+
+int gm_runtime_tape_gui_cursor(GmRuntime *r, int item, int count, int meta) {
+    return gm_runtime_tape_gui_cursor_stack(
+        r, count == 0 ? ic_empty() : ic_mk(item, count, meta));
 }
 
 int gm_runtime_tape_gui_slot_get(const GmRuntime *r, int slot, ICStack *out) {
@@ -1125,11 +1147,21 @@ static void runtime_close_container(GmRuntime *r)
     r->active_chest = -1;
 }
 
-/* Drop one chest slot stack as a ground EntityItem, including StoredEnchantments. */
-static void runtime_drop_stack(GmRuntime *r, int wx, int wy, int wz, ICStack st)
+/* Drop one chest slot stack as a ground EntityItem, including StoredEnchantments.
+ * Uses live overflow hold when the active table is full (not silent discard).
+ * Returns 1 if held (active or overflow), 0 if both caps rejected the stack. */
+static int runtime_drop_stack(GmRuntime *r, int wx, int wy, int wz, ICStack st)
 {
-    if (!r || st.item <= 0 || st.count <= 0) return;
-    gm_live_spawn_stack(&r->entities, wx + 0.5, wy + 0.5, wz + 0.5, st, 10);
+    if (!r || st.item <= 0 || st.count <= 0) return 1;
+    if (gm_live_spawn_stack(&r->entities, wx + 0.5, wy + 0.5, wz + 0.5, st, 10))
+        return 1;
+    /* Last resort: try player inventory so a full-chest break cannot vanish. */
+    {
+        ICStack rem = st;
+        (void)isr_add_item_stack_to_inventory(&r->player.inv, &rem);
+        if (isr_is_empty(&rem)) return 1;
+    }
+    return 0;
 }
 
 /* Materialize deferred structure loot (or live TE slots) and drop all stacks.

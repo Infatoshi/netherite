@@ -27,6 +27,7 @@ enum {
     IC_STONE_PICKAXE  = 274,
     IC_APPLE          = 260,
     IC_BREAD          = 297,
+    IC_ENCHANTED_BOOK = 403, /* ItemEnchantedBook; max stack 1 in 1.11.2 */
     IC_BUCKET         = 325,
     IC_WATER_BUCKET   = 326,
     IC_LAVA_BUCKET    = 327,

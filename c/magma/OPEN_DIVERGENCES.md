@@ -950,29 +950,47 @@ Live TE lifecycle (open/close retention, growable storage without live
 eviction, break materializing deferred structure loot, placement-stream
 loot seeds via `sh_capture_chest_sites`, enchanted-book StoredEnchantments
 list via `et_build_list`) is covered by `game/test_chest_loot.sh`.
-Interactive click paths (`container_click` / `container_live` merge, split,
+
+C live interactive paths (`container_click` / `container_live` merge, split,
 deposit, quick-move, cursor) and ground EntityItem drop/pickup retain the
-full `ICStack` enchant list (including unopened chest break drops); equality
-and stackability follow 1.11.2 item+meta+tags semantics. Covered by
-`game/test_container_live.sh` multi-enchant round-trips and chest break
-assertions.
+`ICStack` StoredEnchantments subset (including unopened chest break drops).
+Equality is item+meta+tags; enchanted books (403) max stack 1 in
+`isr_max_stack_size` / `cc_max_stack_size` / `tec_max_stack_size` / chest
+insert (1.11.2 `ItemEnchantedBook`). Tape replay carries the same subset
+via optional `gui_slot_view`/`gui_cursor_view` fields `n_ench` + `e0..e7`
+(packed id<<16|level); `cc_emit_state` emits n_enchants + id/level pairs
+(battery stacks always n=0). Full 27-slot chest break uses
+`GM_LIVE_MAX=48` plus bounded overflow hold; hard reject only when both
+caps are full (`spawn_fail_count`). Covered by `game/test_container_live.sh`
+and `game/test_chest_loot.sh` (multi-enchant RT, full-chest break, overflow).
+
+Evidence class: **C self-tests**, not Java oracle stack-sequence bit-match.
+Library loot multi-enchant is C-probed; structure loot table weights are
+embedded from 1.11.2 JSON but fill fingerprints are C-only.
 
 Still open:
 - Renderer is a facing-aware 14x14 inset mesh (oak-plank texels); lid angle
   ticks but is not rendered; entity chest texture/TESR is absent.
 - C stronghold piece local chest coords and door/web RNG still diverge from
   full Java `StructureStrongholdPieces` (crossing/room chests not placed;
-  library second chest not placed). Seeds are exact for the C placement
-  stream only, not bit-equal to a Java world of the same seed.
+  library second chest not placed). Loot seeds are exact for the **C
+  placement stream** (`sh_place_blocks` / `sh_record_chest` nextLong) only,
+  not bit-equal to a Java world of the same world seed.
+- Oracle tape capture (`gslots`/`gcur`) still emits item/meta/count only;
+  magma accepts optional ench fields when a recorder supplies them.
 
 Repro: `cd c/magma && bash game/test_chest_loot.sh && bash
 game/test_container_live.sh`.
 
 ## 58. OPEN: mob roster AI / spawn / boat under-water are not Java-exact
 
-Supported encounter types are live. Mounted boats take WASD via
-`controlBoat`/`updateMotion` constants for IN_WATER / ON_LAND / IN_AIR
-(no auto-thrust). Still open:
+Supported encounter types are live. Mounted boats take WASD with
+`controlBoat`/`updateMotion` thrust constants for a simplified 3-way
+foot/head water sample (IN_WATER / ON_LAND / IN_AIR subset; no auto-thrust).
+Status sampling is **not** full Java multi-AABB `waterLevel` / passenger
+eject. Covered by `game/test_mob_live.sh` travel thresholds only.
+
+Still open:
 - Boat UNDER_WATER / UNDER_FLOWING_WATER status, full multi-AABB waterLevel
   sampling, and 60-tick underwater passenger ejection.
 - Natural spawning uses a route-roster weighted pick, not the full
