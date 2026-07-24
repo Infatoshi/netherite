@@ -15,10 +15,10 @@
 #include "mc.h"
 
 /* Product live roster needs more than the original 7-mob arena. Fixed SoA size
- * stays deterministic; slot 0 remains the reserved player/target slot. 32 is
- * enough for simultaneous fortress/swamp/Nether encounters without unbounded
- * growth (measured against route_e2e + natural spawn caps). */
-#define EW_MAX_ENTITIES 32
+ * stays deterministic; slot 0 remains the reserved player/target slot. 96
+ * leaves room for the 70-hostile and 10-passive natural caps plus
+ * route/spawner encounters (measured against route_e2e). */
+#define EW_MAX_ENTITIES 96
 
 /* entity type tags */
 enum { EW_TYPE_NONE = 0, EW_TYPE_PLAYER = 1, EW_TYPE_ZOMBIE = 2 };

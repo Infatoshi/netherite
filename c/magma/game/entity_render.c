@@ -1477,6 +1477,7 @@ int gm_entity_skin_for_name(const char *name) {
 float gm_entity_eye_y(int type) {
     switch (type) {
         case ER_TYPE_ZOMBIE:   return 1.74f;          /* EntityZombie override */
+        case ER_TYPE_PIGMAN:   return 1.74f;
         case ER_TYPE_SKELETON: return 1.99f * 0.85f;
         case ER_TYPE_WITHER_SKELETON: return 2.1f;
         case ER_TYPE_CREEPER:  return 1.7f * 0.85f;
@@ -1493,6 +1494,9 @@ float gm_entity_eye_y(int type) {
         case ER_TYPE_LLAMA:    return 1.87f * 0.85f;
         case ER_TYPE_GHAST:    return 4.0f * 0.85f;
         case ER_TYPE_MAGMA:    return 1.02f * 0.85f;  /* size-2 cube */
+        case ER_TYPE_SLIME:    return 1.02f * 0.85f;  /* size-2 cube */
+        case ER_TYPE_SILVERFISH: return 0.3f * 0.85f;
+        case ER_TYPE_BOAT:     return 0.6f * 0.85f;
         case ER_TYPE_DRAGON:   return 8.0f * 0.85f;   /* setSize(16, 8) */
         case ER_TYPE_CRYSTAL:  return 2.0f * 0.85f;   /* setSize(2, 2) */
         case ER_TYPE_ARMOR_STAND: return 1.975f * 0.85f;
@@ -1643,7 +1647,8 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
                     float b = cosf(ls * 0.6662f + ER_PI) * 1.4f * lsa;
                     local[4].ax = a; local[5].ax = b;
                 }
-            } else if (t == ER_TYPE_ZOMBIE || t == ER_TYPE_SKELETON ||
+            } else if (t == ER_TYPE_ZOMBIE || t == ER_TYPE_PIGMAN ||
+                       t == ER_TYPE_SKELETON ||
                        t == ER_TYPE_WITHER_SKELETON) {
                 /* ModelBiped legs at parts 4,5; wither arms use the walk cycle. */
                 if (np > 5) {

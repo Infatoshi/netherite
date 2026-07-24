@@ -226,11 +226,18 @@ int main(void) {
     CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_GHAST,8.5,10.0,20.5)>=0,"spawn ghast");
     double gy0=0;{GmEntityView vv[EW_MAX_ENTITIES];int nn=gm_mobs_fill_views(&r.mobs,vv,EW_MAX_ENTITIES);
         for(int k=0;k<nn;++k)if(vv[k].type==GM_MOB_GHAST)gy0=vv[k].y;}
-    int saw_fireball=0;
+    int saw_fireball=0,rendered_fireball=0;
     for(int i=0;i<60;++i){
         gm_runtime_tick(&r,idle);
         for(int k=0;k<GM_RUNTIME_PROJECTILES;++k)
-            if(r.projectiles[k].active&&r.projectiles[k].type==5)saw_fireball=1;
+            if(r.projectiles[k].active&&r.projectiles[k].type==5){
+                GmEntityView shots[GM_RUNTIME_PROJECTILES];
+                int sn=gm_runtime_projectile_views(&r,shots,GM_RUNTIME_PROJECTILES);
+                saw_fireball=1;
+                for(int q=0;q<sn;++q)
+                    if(shots[q].type==GM_VIEW_BILLBOARD&&shots[q].item_id==385)
+                        rendered_fireball=1;
+            }
     }
     {GmEntityView vv[EW_MAX_ENTITIES];int nn=gm_mobs_fill_views(&r.mobs,vv,EW_MAX_ENTITIES);
         int found=0;for(int k=0;k<nn;++k)if(vv[k].type==GM_MOB_GHAST){
@@ -239,7 +246,36 @@ int main(void) {
     }
     CHECK(gm_mobs_alive(&r.mobs)==1,"ghast survives flight ticks");
     CHECK(saw_fireball,"ghast charge produces a live large-fireball projectile");
+    CHECK(rendered_fireball,"ghast large fireball uses the live fire-charge render path");
     (void)gy0;
+    gm_runtime_destroy(&r);
+
+    /* A saturated runtime projectile pool must backpressure, not discard, a
+     * pending ghast shot. */
+    if(!init_flat(&r))return 1;
+    r.mobs.fireball_pending=1;
+    r.mobs.fireball_x=8.5;r.mobs.fireball_y=8.0;r.mobs.fireball_z=12.5;
+    r.mobs.fireball_vz=-0.5;
+    for(int k=0;k<GM_RUNTIME_PROJECTILES;++k){
+        r.projectiles[k].active=1;r.projectiles[k].type=4;
+        r.projectiles[k].x=1000.0+k;r.projectiles[k].y=100.0;
+        r.projectiles[k].z=1000.0;r.projectiles[k].vz=0.1;
+    }
+    gm_runtime_tick(&r,idle);
+    CHECK(r.mobs.fireball_pending,"full projectile pool retains pending ghast fireball");
+    r.projectiles[0].active=0;
+    gm_runtime_tick(&r,idle);
+    CHECK(!r.mobs.fireball_pending&&r.projectiles[0].active&&r.projectiles[0].type==5,
+          "pending ghast fireball spawns once a projectile slot is free");
+    gm_runtime_destroy(&r);
+
+    /* Magma cube: unlike slime, every size attacks for size + 2. */
+    if(!init_flat(&r))return 1;
+    r.vitals.foodLevel=0;r.vitals.saturation=0.0f;
+    CHECK(gm_mobs_spawn_sized(&r.mobs,GM_MOB_MAGMA,8.5,5.0,9.5,1)>=0,
+          "spawn size-1 damage-model magma");
+    gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==17.0f,"size-1 magma melee deals size + 2 damage");
     gm_runtime_destroy(&r);
 
     /* Magma cube: size, jump, split on death. */
@@ -322,10 +358,15 @@ int main(void) {
         gm_runtime_set_pose(&r,vv[bi].x,vv[bi].y+1.0,vv[bi].z-1.0,0.0f,30.0f);
     }
     isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
-    for(int i=0;i<12;++i){
-        gm_mobs_player_attack(&r.mobs,(const struct PsvPlayer *)&r.player,
-                              r.ox,r.oz,&r.entities);
-        r.mobs.player_attack_cooldown=0;
+    GmAction boat_hit;memset(&boat_hit,0,sizeof boat_hit);
+    boat_hit.attack=1;boat_hit.hotbar_sel=0;
+    for(int i=0;i<60;++i){
+        GmEntityView vv[EW_MAX_ENTITIES];
+        int nn=gm_mobs_fill_views(&r.mobs,vv,EW_MAX_ENTITIES),bi=-1;
+        for(int k=0;k<nn;++k)if(vv[k].type==GM_ENTITY_BOAT)bi=k;
+        if(bi<0)break;
+        gm_runtime_set_pose(&r,vv[bi].x,vv[bi].y+1.0,vv[bi].z-1.0,0.0f,30.0f);
+        gm_runtime_tick(&r,boat_hit);
     }
     int boat_item=0;for(int i=0;i<GM_LIVE_MAX;++i)
         if(r.entities.ents[i].active&&r.entities.ents[i].item==333)boat_item=1;
@@ -335,11 +376,40 @@ int main(void) {
     CHECK(boat_item&&!boat_alive,"broken boat drops boat item");
     gm_runtime_destroy(&r);
 
+    /* Entity ownership is dimension-scoped even for authoritative scripted
+     * transfers that do not rebuild the live store. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5,5.0,10.5)>=0,
+          "spawn Overworld dimension-owned zombie");
+    r.mobs.active_dimension=-1;
+    n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+    CHECK(n==0,"Nether view excludes Overworld-owned entities");
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_BLAZE,8.5,5.0,10.5)>=0,
+          "spawn Nether dimension-owned blaze");
+    n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+    CHECK(n==1&&v[0].type==GM_MOB_BLAZE,"Nether view contains only Nether entities");
+    r.mobs.active_dimension=0;
+    n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+    CHECK(n==1&&v[0].type==EW_TYPE_ZOMBIE,
+          "returning Overworld view restores only Overworld entities");
+    gm_runtime_destroy(&r);
+
     /* Wither skeleton: already covered for damage; natural type ok. */
     if(!init_flat(&r))return 1;
     CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_WITHER_SKELETON,8.5,5.0,10.5)>=0,
           "spawn wither skeleton type");
     CHECK(gm_mobs_alive(&r.mobs)==1,"wither skeleton lives");
+    gm_runtime_destroy(&r);
+
+    /* Low-profile mobs remain hittable through the runtime attack ray. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_SPIDER,8.5,5.0,10.5)>=0,
+          "spawn low-profile spider");
+    gm_runtime_set_pose(&r,8.5,6.0,10.5,0.0f,90.0f);
+    isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
+    {GmAction a;memset(&a,0,sizeof a);a.attack=1;a.hotbar_sel=0;gm_runtime_tick(&r,a);}
+    {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+     CHECK(s->health[1]<20.0f,"runtime attack ray hits low-profile spider");}
     gm_runtime_destroy(&r);
 
     /* Capacity > 7: spawn 12 zombies. */
@@ -410,7 +480,7 @@ int main(void) {
     /* Blaze burst: ranged AI sets attack_time=40; spawn_hostile_projectiles
      * emits a type-3 fireball on that exact cadence, then reloads. */
     if(!init_flat(&r))return 1;
-    r.dimension=-1;
+    r.dimension=-1;r.mobs.active_dimension=-1;
     CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_BLAZE,8.5,5.0,14.5)>=0,"autonomy: spawn blaze");
     int fireballs=0,first_age=-1;
     for(int i=0;i<120;++i){
@@ -434,7 +504,7 @@ int main(void) {
     /* Real spawner: natural_spawn Nether branch reads block id 52 and emits
      * blazes on a 200-tick cadence when under the alive_count cap. */
     if(!init_flat(&r))return 1;
-    r.dimension=-1;
+    r.dimension=-1;r.mobs.active_dimension=-1;
     for(int x=6;x<=10;++x)for(int z=6;z<=10;++z){
         gm_world_set_block(r.world,x,4,z,1);
         gm_world_set_block(r.world,x,5,z,0);

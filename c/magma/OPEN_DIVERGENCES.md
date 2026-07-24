@@ -943,3 +943,30 @@ equip lower/raise + swing restart + per-texel item rims (viewmodel 518,463 ->
 470,440), hotbar durability strip + GUI item lighting (hud), test_entity_render
 dragon assertion modernized, test_runtime bucket fixture corrected, blaze
 sm_86 chain-gate false hang fixed (single-thread verify camera render).
+
+## 57. OPEN: live chest lifecycle and rendering remain simplified
+
+Chest contents persist across close/reopen in the in-memory TE array, but
+breaking and replacing a chest does not yet clear/drop that TE, and the
+fixed array holds 64 unique opened positions. Stronghold entries, weights,
+and roll counts follow the 1.11.2 tables, but the per-position seed is a
+deterministic C policy rather than Java structure `nextLong`, and enchanted
+books degrade to plain books. The renderer is a facing-aware 14x14 inset
+mesh using oak-plank atlas texels; lid angle ticks but is not rendered and
+the entity chest texture/TESR is absent.
+
+Repro: `cd c/magma && bash game/test_chest_loot.sh && bash
+game/test_container_live.sh`. These prove the supported lifecycle and table
+shape, not break/drop or exact Java stack-sequence parity.
+
+## 58. OPEN: new live mob roster still uses the shared simplified AI/render layer
+
+The required encounter types are live, but boats always thrust forward while
+mounted because `GmAction.forward/strafe` is not passed into `gm_mobs_tick`.
+Slime and magma size is exported in `item_meta`, but renderer scale remains
+fixed; ghast large and blaze small fireballs currently share the fire-charge
+billboard scale. Natural spawning and typed-spawner discovery are covered,
+but not Java RNG call-order parity or the full `EntityAITasks` scheduler.
+
+Repro: `cd c/magma && bash game/test_mob_live.sh && bash
+game/test_entity_render.sh`.

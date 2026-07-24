@@ -369,3 +369,43 @@ D-states in drm_open (kill -9 immune; D-state PIDs 1288651 Xvfb :1,
   surface. Neither affects the recorded survival tape.
 - Next queue item is crafting/furnace GUI capture. CUDA was not re-gated in
   this round; GPU0 is healthy after reboot but occupied by a 92 GB vLLM job.
+
+## 2026-07-24 (Grok fan-out: route roster, armor, chests, renderer, gates)
+
+- Four isolated Grok implementation branches covered renderer gaps, armor and
+  elytra inventory ownership, single chests/stronghold loot, and the missing
+  route encounter roster. A fifth branch hardened the route, pixel/state
+  gates, nightly failure handling, and quick sweep coverage. Each branch was
+  reviewed and tested independently before integration.
+- Live encounters now include pigmen, ghasts, magma cubes, slimes,
+  silverfish, wither skeletons, blazes, boats, typed spawners, XP orbs, and
+  dimension ownership. The entity store is 96 entries with separate hostile
+  and passive natural caps, so ambient spawning cannot starve scripted or
+  route-critical encounters.
+- The independent mob review found and closed five integration defects:
+  boat damage decayed faster than legal cooldown hits could accumulate,
+  magma cubes used slime damage instead of `size + 2`, pigmen lost their
+  held gold sword, ghast fireballs used marker geometry, and a saturated
+  projectile pool discarded pending ghast shots. Live-tick regressions cover
+  all five.
+- Armor slots compose at 49..52 and chest slots at 53..79. Crafted armor
+  absorbs damage and loses durability; an equipped chest elytra owns flight
+  state. Single chests support open/click/shift/throw/close/reopen persistence,
+  the real `generic_54` GUI, deferred stronghold corridor/library loot, and a
+  facing-aware inset mesh.
+- Renderer coverage added the End portal surface, XP-orb billboard/animation,
+  new mob/boat atlas entries, pigman biped walk/held equipment, and live
+  ghast-fireball views. Tape inventory/state coverage now includes all 41
+  main/armor/offhand slots.
+- The macro route no longer clears the mob store or injects post-bed health.
+  It legally harvests food and wool, crafts/equips iron boots, regenerates
+  through food/vitals, uses bow and bed paths, survives the End bed blast at
+  the measured interaction boundary, kills the dragon, and reaches credits.
+- Verification: `make test-game` PASS, route fresh-spawn-to-credits PASS,
+  mob live suite PASS, entity renderer PASS, and verifier/scenario pytest
+  48 passed. `netherite_sweep.sh --quick` is green with no skips; its first
+  run exposed a stale five-box fence golden after the earlier two-rail model
+  landed, and the corrected nine-box/324-vertex golden now passes. The
+  repository-wide Ruff command remains red on 515 legacy findings; its 199
+  unrelated auto-fixes were reverted, and no Ruff edits outside the touched
+  verifier files were retained.

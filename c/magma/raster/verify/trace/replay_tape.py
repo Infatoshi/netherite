@@ -1010,19 +1010,18 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             tape_map = {}
             for slot, stack in enumerate(j["inv"]):
                 norm = _tape_inv_slot(stack)
-                if norm is not None and slot < 36:
+                if norm is not None and slot < 41:
                     tape_map[slot] = norm
             magma_map = _magma_inv_map(c)
             # Presence of non-empty tape slots in magma (counts may lag one
             # tick on GUI interactions; compare item id identity only).
             for slot, (item, _count, _meta) in tape_map.items():
                 m = magma_map.get(slot)
-                if m is None or m[0] != item:
-                    if len(inv_mismatches) < 20:
-                        inv_mismatches.append({
-                            "tick": t, "slot": slot, "tape_item": item,
-                            "magma_item": None if m is None else m[0],
-                        })
+                if (m is None or m[0] != item) and len(inv_mismatches) < 20:
+                    inv_mismatches.append({
+                        "tick": t, "slot": slot, "tape_item": item,
+                        "magma_item": None if m is None else m[0],
+                    })
         if "ents" in j:
             ent_checked += 1
             tape_types = _tape_entity_types(j)

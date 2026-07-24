@@ -8,8 +8,8 @@ Decided with the user on 2026-07-09.
 The shipped loop connects a fresh empty survival player to streamed default or superflat
 terrain, movement/collision, dig/place/interact edits, natural item drops and pickup,
 2x2/3x3 crafting, furnaces, route tools and durability, food/vitals, buckets and fluid
-reactions, beds/explosions, persistent route mobs, melee and projectiles, collectible XP
-orbs, linked Nether/End
+reactions, beds/explosions, armor and survival elytra, chests and stronghold loot,
+dimension-owned route mobs, melee and projectiles, collectible XP orbs, linked Nether/End
 travel, generated fortresses and strongholds, eyes of ender, End combat, the 200-tick dragon
 death sequence, exit-portal entry, credits, and terminal `won`. Windowed and JSONL headless
 execution share `gm_runtime_tick`; `--render off`, `--pace unlimited`, scripts, and state
@@ -22,9 +22,10 @@ dimensions, drops, health/death, portal activation, dragon state, or victory.
 
 Interactive container screens exist in the windowed client and share the single click
 path with headless play: E (or using a crafting table / furnace) opens the player
-2x2, table 3x3, or furnace screen; mouse clicks are vanilla `Container.slotClick`
+2x2, table 3x3, furnace, or single-chest screen; mouse clicks are vanilla `Container.slotClick`
 (PICKUP / shift QUICK_MOVE / Q THROW with real drop entities) over the full 36-slot
-inventory plus grid, result, and furnace slots, at the vanilla GUI slot coordinates
+inventory plus four armor slots, offhand, grids, result, furnace, and 27 chest slots,
+at the vanilla GUI slot coordinates
 (`game/container_live.c`, `game/screen.c`). The same clicks are a survival action in
 JSONL (`inv_slot`/`inv_button`/`inv_type`), and observations expose cursor, grid, and
 craft-result state. The screens render the real MC GUI art (the container panels,
@@ -41,8 +42,9 @@ available through normal survival input.
 Remaining product gaps are not hidden by those gates: the player-inventory screen's
 3D player-model preview is not rendered (its panel diff is reported informationally,
 not gated), block-items draw as flat texture tiles where vanilla renders mini 3D
-blocks, and item ids outside the atlas table fall back to colored pips; several
-required encounter types and exact type-specific entity models/particles are absent;
+blocks, and item ids outside the atlas table fall back to colored pips; chest rendering
+uses a static inset mesh without the animated lid/TESR texture, and several exact
+type-specific entity animations/particles remain simplified;
 optional villages/enchanting/brewing/weather bundles deliberately reject `on`; and
 the Java-pixel suite does not yet cover every required HUD/entity/particle state. The
 instrumented seed-0 and seed-7 terrain gates and the Java Nether/End portal suite pass.

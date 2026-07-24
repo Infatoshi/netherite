@@ -205,14 +205,14 @@ static void spawn_hostile_projectiles(GmRuntime *r) {
     }
     /* Ghast large fireball (EntityLargeFireball, explosionPower=1). */
     {
-        double x,y,z,vx,vy,vz;
-        if(gm_mobs_take_fireball(&r->mobs,&x,&y,&z,&vx,&vy,&vz)){
-            for(int i=0;i<GM_RUNTIME_PROJECTILES;++i){
-                GmRuntimeProjectile *p=&r->projectiles[i];if(p->active)continue;
+        for(int i=0;i<GM_RUNTIME_PROJECTILES;++i){
+            GmRuntimeProjectile *p=&r->projectiles[i];if(p->active)continue;
+            double x,y,z,vx,vy,vz;
+            if(gm_mobs_take_fireball(&r->mobs,&x,&y,&z,&vx,&vy,&vz)){
                 p->active=1;p->type=5;p->age=0;
                 p->x=x;p->y=y;p->z=z;p->vx=vx;p->vy=vy;p->vz=vz;
-                break;
             }
+            break;
         }
     }
 }
@@ -1034,8 +1034,10 @@ int gm_runtime_projectile_views(const GmRuntime *r, GmEntityView *out, int max) 
             double h = sqrt(p->vx * p->vx + p->vz * p->vz);
             v.yaw   = (float)(atan2(p->vx, p->vz) * 180.0 / MC_PI);
             v.pitch = (float)(atan2(p->vy, h) * 180.0 / MC_PI);
-        } else if (p->type == 3) {
-            /* EntitySmallFireball: RenderFireball scale 0.5, fire_charge
+        } else if (p->type == 3 || p->type == 5) {
+            /* Fireballs use the fire_charge particle icon; the large ghast
+             * shot shares this billboard path until scale is carried in views.
+             * EntitySmallFireball uses RenderFireball scale 0.5.
              * particle icon. gm_items_emit_billboard selects that exact path
              * from item id 385. */
             v.type = GM_VIEW_BILLBOARD; v.item_id = 385;

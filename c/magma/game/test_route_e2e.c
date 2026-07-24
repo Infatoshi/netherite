@@ -1,5 +1,6 @@
 #include "game/runtime.h"
 #include "game/structures_live.h"
+#include "container_click.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -160,27 +161,28 @@ static int cast_obsidian(GmRuntime *r,int x,int y,int z){
     if(gm_world_block(r->world,x,y,z)!=49){fprintf(stderr,"cast (%d,%d,%d): reaction id=%d\n",x,y,z,
         gm_world_block(r->world,x,y,z));return 0;}return 1;
 }
-/* EW_MAX_ENTITIES is 8 (7 mobs). Long routes fill the store via natural
- * passive_spawn; free slots so the permitted encounter hook can place. */
-static void clear_live_mobs(GmRuntime *r){
-    EwStore *s=r->mobs.current?&r->mobs.b:&r->mobs.a;
-    for(int i=1;i<EW_MAX_ENTITIES;++i){s->alive[i]=0;s->type[i]=EW_TYPE_NONE;}
-    ew_store_copy(r->mobs.current?&r->mobs.a:&r->mobs.b,s);
-}
 static int kill_hook_mob(GmRuntime *r,int type,double x,double y,double z){
     int slot=gm_mobs_spawn(&r->mobs,type,x,y,z);
-    if(slot<0){clear_live_mobs(r);slot=gm_mobs_spawn(&r->mobs,type,x,y,z);}
-    if(slot<0)return 0;
+    if(slot<0){
+        fprintf(stderr,"kill_hook_mob: spawn type=%d failed living=%d capacity=%d\n",
+                type,gm_mobs_living_count(&r->mobs),GM_MOB_CAPACITY);
+        return 0;
+    }
     /* Passives panic-flee; chase them like test_mob_live rather than the
      * hostile cooldown-hop (which leaves sheep out of reach). */
     int passive=type>=GM_MOB_SHEEP&&type<=GM_MOB_CHICKEN;
-    int max_hits=passive?120:16;
+    int max_hits=passive?120:80;
     for(int hit=0;hit<max_hits;++hit){const EwStore *s=r->mobs.current?&r->mobs.b:&r->mobs.a;int alive=0;
         double mx=x,my=y,mz=z;if(s->alive[slot]&&s->type[slot]==type){
             alive=1;mx=s->x[slot];my=s->y[slot];mz=s->z[slot];}
         if(!alive){collect_drops(r);return 1;}
-        float pitch=(float)(atan2(PSV_EYE_HEIGHT-0.975,2.5)*180.0/MC_PI);
-        gm_runtime_set_pose(r,mx,my,mz-2.0,0,pitch);GmAction a;memset(&a,0,sizeof a);
+        float mob_w,mob_h;ehs_size((u8)type,&mob_w,&mob_h);(void)mob_w;
+        int low_target=passive||type==EW_TYPE_SPIDER;
+        double reach=low_target?2.6:2.5;
+        double target_y=low_target?mob_h*0.5:0.975;
+        float pitch=(float)(atan2(PSV_EYE_HEIGHT-target_y,reach)*180.0/MC_PI);
+        gm_runtime_set_pose(r,mx,my,mz-reach,0,pitch);
+        GmAction a;memset(&a,0,sizeof a);
         int weapon_slot=slot_item(r,267,1);if(weapon_slot<0)weapon_slot=slot_item(r,272,1);
         if(weapon_slot<0)weapon_slot=slot_item(r,268,1);
         if(weapon_slot<0)weapon_slot=slot_item(r,274,1); /* stone pick */
@@ -191,6 +193,11 @@ static int kill_hook_mob(GmRuntime *r,int type,double x,double y,double z){
         a.attack=1;a.hotbar_sel=weapon_slot;gm_runtime_tick(r,a);
         if(!passive){gm_runtime_set_pose(r,mx+40,my+4,mz,0,0);idle_hover(r,10);}
         else idle(r,1);
+    }
+    {
+        const EwStore *s=r->mobs.current?&r->mobs.b:&r->mobs.a;
+        fprintf(stderr,"kill_hook_mob: type=%d slot=%d survived hit budget hp=%.1f alive=%d current=%d\n",
+                type,slot,s->health[slot],s->alive[slot],r->mobs.current);
     }
     return 0;
 }
@@ -246,8 +253,6 @@ int main(void){
     gm_runtime_set_pose(&r,0.5,72,2.5,0,0);CHECK(gm_runtime_use_block(&r,0,72,3),"open table for flint and steel");
     iron=slot_item(&r,265,1);int flint=slot_item(&r,318,1);empty_grid(g);g[0]=iron;g[1]=flint;
     CHECK(craft(&r,3,g),"craft flint and steel");
-    iron=slot_item(&r,265,2);sticks=slot_item(&r,280,1);empty_grid(g);
-    g[0]=g[3]=iron;g[6]=sticks;CHECK(craft(&r,3,g),"craft route iron sword");
     stone_pick=slot_item(&r,274,1);CHECK(mine_one(&r,1,stone_pick,0),"mine backup sword cobblestone one");
     CHECK(mine_one(&r,1,stone_pick,0),"mine backup sword cobblestone two");
     gm_runtime_set_pose(&r,0.5,72,2.5,0,0);CHECK(gm_runtime_use_block(&r,0,72,3),"open table for backup sword");
@@ -313,6 +318,20 @@ int main(void){
 
     /* PRODUCT food/wool/bed + bow after Nether return (keeps the fragile
      * bucket-cast portal path inventory-clean). Encounter placement only. */
+    gm_runtime_set_pose(&r,0.5,72,2.5,0,0);CHECK(gm_runtime_use_block(&r,0,72,3),
+        "open table for End armor");
+    iron=slot_item(&r,265,4);empty_grid(g);g[0]=g[2]=g[3]=g[5]=iron;
+    CHECK(craft(&r,3,g),"craft iron boots for End bed blast");
+    {
+        int armor=slot_item(&r,309,1);
+        gm_runtime_set_pose(&r,20.5,72,2.5,0,0);
+        GmAction equip;memset(&equip,0,sizeof equip);equip.hotbar_sel=-1;
+        equip.inv_click=1;equip.inv_slot=armor;equip.inv_type=CC_CLICK_QUICK_MOVE;
+        gm_runtime_tick(&r,equip);
+        CHECK(isr_get_stack(&r.player.inv,ISR_ARMOR_FEET).item==309,
+              "equip crafted boots through ContainerPlayer QUICK_MOVE");
+    }
+    STOP_IF_FAILED(&r);
     for(int i=0;i<2;++i)CHECK(mine_one(&r,17,-1,0),"mine extra oak for bed and bow planks");
     logs=slot_item(&r,17,1);empty_grid(g);g[0]=logs;
     for(int i=0;i<2&&logs>=0;++i){logs=slot_item(&r,17,1);empty_grid(g);g[0]=logs;
@@ -324,12 +343,16 @@ int main(void){
     int surf_y=gm_world_surface_y(r.world,2,6);
     gm_runtime_set_pose(&r,2.5,surf_y,2.5,0,0);
     int sheep_attempts=0;
-    while(total_item(&r,35)<3&&sheep_attempts++<20)
-        CHECK(kill_hook_mob(&r,GM_MOB_SHEEP,2.5,surf_y,6.5),
-              "kill spawned sheep for wool and food");
+    while((total_item(&r,35)<3||
+           total_item(&r,423)+total_item(&r,424)<12)&&sheep_attempts++<24){
+        int ex=512+sheep_attempts*256,ez=512;
+        gm_world_ensure(r.world,ex>>4,ez>>4,0);
+        int ey=gm_world_surface_y(r.world,ex,ez);
+        CHECK(kill_hook_mob(&r,GM_MOB_SHEEP,ex+0.5,ey,ez+0.5),
+              "kill spawned sheep for wool and food");}
     CHECK(total_item(&r,35)>=3,"collect three natural wool drops");
-    CHECK(total_item(&r,423)>=1||total_item(&r,424)>=1,
-          "sheep death yields mutton food for the route");
+    CHECK(total_item(&r,423)+total_item(&r,424)>=12,
+          "sheep deaths yield enough mutton for route recovery");
     {
         int food_item=total_item(&r,423)>=1?423:424;
         int food_slot=selectable_slot(&r,slot_item(&r,food_item,1));
@@ -348,19 +371,25 @@ int main(void){
     surf_y=gm_world_surface_y(r.world,2,6);
     gm_runtime_set_pose(&r,2.5,surf_y,2.5,0,0);
     int string_attempts=0;
-    while(total_item(&r,287)<3&&string_attempts++<20)
-        CHECK(kill_hook_mob(&r,EW_TYPE_SPIDER,2.5,surf_y,6.5),
-              "kill spawned spider for string");
+    while(total_item(&r,287)<3&&string_attempts++<20){
+        int ex=8192+string_attempts*256,ez=512;
+        gm_world_ensure(r.world,ex>>4,ez>>4,0);
+        int ey=gm_world_surface_y(r.world,ex,ez);
+        CHECK(kill_hook_mob(&r,EW_TYPE_SPIDER,ex+0.5,ey,ez+0.5),
+              "kill spawned spider for string");}
     CHECK(total_item(&r,287)>=3,"collect three natural string drops");
     int feather_attempts=0;
-    while(total_item(&r,288)<1&&feather_attempts++<10)
-        CHECK(kill_hook_mob(&r,GM_MOB_CHICKEN,2.5,surf_y,6.5),
-              "kill spawned chicken for feather");
+    while(total_item(&r,288)<1&&feather_attempts++<10){
+        int ex=16384+feather_attempts*256,ez=512;
+        gm_world_ensure(r.world,ex>>4,ez>>4,0);
+        int ey=gm_world_surface_y(r.world,ex,ez);
+        CHECK(kill_hook_mob(&r,GM_MOB_CHICKEN,ex+0.5,ey,ez+0.5),
+              "kill spawned chicken for feather");}
     CHECK(total_item(&r,288)>=1,"collect natural feather drop");
     if(total_item(&r,318)<1)CHECK(mine_one(&r,13,-1,1),"mine flint for arrows");
     gm_runtime_set_pose(&r,0.5,72,2.5,0,0);CHECK(gm_runtime_use_block(&r,0,72,3),
         "open table for bow and arrows");
-    if(total_item(&r,280)<3){
+    if(total_item(&r,280)<4){
         planks=slot_item(&r,5,2);empty_grid(g);g[0]=g[3]=planks;CHECK(craft(&r,2,g),
             "craft sticks for bow and arrows");}
     sticks=slot_item(&r,280,3);int string_slot=slot_item(&r,287,3);
@@ -383,14 +412,19 @@ int main(void){
         cobble=slot_item(&r,4,2);sticks=slot_item(&r,280,1);
         if(sticks<0){planks=slot_item(&r,5,2);empty_grid(g);g[0]=g[3]=planks;CHECK(craft(&r,2,g),
             "craft sticks for replacement sword");sticks=slot_item(&r,280,1);}
-        empty_grid(g);g[0]=g[3]=cobble;g[6]=sticks;
-        CHECK(cobble>=0&&sticks>=0&&craft(&r,3,g),"craft replacement stone sword");
+        empty_grid(g);
+        if(cobble>=0)g[0]=g[3]=cobble;
+        else{planks=slot_item(&r,5,2);g[0]=g[3]=planks;}
+        g[6]=sticks;
+        CHECK(g[0]>=0&&sticks>=0&&craft(&r,3,g),"craft replacement route sword");
     }
-    GmPlayerView ov;gm_runtime_view(&r,&ov);int ender_attempts=0;
-    int end_surf=gm_world_surface_y(r.world,(int)ov.x,(int)ov.z+4);
-    while(total_item(&r,368)<13&&ender_attempts++<40)
-        CHECK(kill_hook_mob(&r,EW_TYPE_ENDERMAN,ov.x,end_surf,ov.z+4.0),
-              "kill spawned Overworld enderman legally");
+    int ender_attempts=0;
+    while(total_item(&r,368)<13&&ender_attempts++<40){
+        int ex=24576+ender_attempts*256,ez=512;
+        gm_world_ensure(r.world,ex>>4,ez>>4,0);
+        int ey=gm_world_surface_y(r.world,ex,ez);
+        CHECK(kill_hook_mob(&r,EW_TYPE_ENDERMAN,ex+0.5,ey,ez+0.5),
+              "kill spawned Overworld enderman legally");}
     CHECK(total_item(&r,368)>=13,"collect thirteen natural pearl drops");STOP_IF_FAILED(&r);
 
     gm_runtime_set_pose(&r,0.5,72,2.5,0,0);CHECK(gm_runtime_use_block(&r,0,72,3),"open table for eyes of ender");
@@ -478,11 +512,35 @@ int main(void){
             for(int z=pad_z-2;z<=pad_z+3;++z)
                 if(gm_world_block(r.world,x,y,z)==26){bed_x=x;bed_y=y;bed_z=z;++bedparts;}
         CHECK(bedparts>=1,"bed places on generated End stone for explosion combat");
-        /* Size-5 bed blast is lethal unarmored inside use_block reach (6). The
-         * live explosion still runs; armor is a different worktree. After the
-         * blast we only clear terminal death so the already-started dragon
-         * finish can complete - we do not inject dragon health or victory. */
-        gm_runtime_set_pose(&r,bed_x+0.5,bed_y+1.0,bed_z+4.0,180,10);
+        /* Use from the edge of block reach; the legally crafted iron boots
+         * keep the route alive without any health/death state injection. */
+        gm_runtime_set_pose(&r,bed_x+0.5,bed_y,bed_z+6.39,180,10);
+        for(int recovery=0;recovery<20&&r.vitals.health<19.5f;++recovery){
+            if(r.vitals.foodLevel<18){
+                int food=slot_item(&r,423,1);
+                if(food<0)food=slot_item(&r,424,1);
+                if(food<0)food=slot_item(&r,365,1);
+                food=selectable_slot(&r,food);
+                CHECK(food>=0,"route retains harvested food for End recovery");
+                if(food<0)break;
+                GmAction eat;memset(&eat,0,sizeof eat);eat.use=1;eat.hotbar_sel=food;
+                for(int t=0;t<33;++t)gm_runtime_tick(&r,eat);
+            }
+            idle_hover(&r,200);
+        }
+        CHECK(r.vitals.health>=19.0f,
+              "natural food regeneration restores health before End bed combat");
+        for(int hits=0;hits<80&&d->health>0&&!r.dead;++hits){
+            gm_runtime_set_pose(&r,d->x,d->y+2-PSV_EYE_HEIGHT,d->z-2.5,0,0);
+            GmAction attack;memset(&attack,0,sizeof attack);
+            int weapon=slot_item(&r,267,1);if(weapon<0)weapon=slot_item(&r,272,1);
+            if(weapon<0)weapon=slot_item(&r,268,1);
+            if(weapon<0)weapon=slot_item(&r,274,1);
+            attack.attack=1;attack.hotbar_sel=selectable_slot(&r,weapon);
+            gm_runtime_tick(&r,attack);idle_hover(&r,10);
+        }
+        CHECK(d->health<=0,"legal repeated attacks defeat the live dragon");
+        gm_runtime_set_pose(&r,bed_x+0.5,bed_y,bed_z+6.39,180,10);
         float player_hp=r.vitals.health;
         float dragon_hp=d->health;
         CHECK(gm_runtime_use_block(&r,bed_x,bed_y,bed_z),
@@ -491,22 +549,12 @@ int main(void){
               "bed explosion removes the bed blocks");
         CHECK(r.vitals.health<player_hp||d->health<dragon_hp,
               "bed explosion is a live End combat event");
-        if(r.vitals.health<=0.0f||r.dead){
-            r.dead=0;r.vitals.health=8.0f;r.player.health=8.0f;
-        }
+        CHECK(!r.dead&&r.vitals.health>0.0f,
+              "route survives End bed blast without injected recovery");
         idle_hover(&r,10);
         (void)pre_hp;
     }
 
-    for(int hits=0;hits<80&&r.dragon.state.arena.dragon.health>0&&!r.dead;++hits){
-        EdDragon *d=&r.dragon.state.arena.dragon;
-        gm_runtime_set_pose(&r,d->x,d->y+2-PSV_EYE_HEIGHT,d->z-2.5,0,0);
-        GmAction attack;memset(&attack,0,sizeof attack);
-        int weapon=slot_item(&r,267,1);if(weapon<0)weapon=slot_item(&r,272,1);
-        if(weapon<0)weapon=slot_item(&r,274,1);
-        attack.attack=1;attack.hotbar_sel=selectable_slot(&r,weapon);
-        gm_runtime_tick(&r,attack);idle_hover(&r,10);}
-    CHECK(r.dragon.state.arena.dragon.health<=0,"legal repeated attacks defeat the live dragon");
     idle_hover(&r,200);CHECK(r.dragon.state.death_processed,"full 200-tick dragon death sequence completes");
     int exit_x=0,exit_y=0,exit_z=0,exit_found=0;
     for(int x=-4;x<=4;++x)for(int y=62;y<=65;++y)for(int z=-4;z<=4;++z)

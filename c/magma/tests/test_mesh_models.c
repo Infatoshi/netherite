@@ -315,16 +315,20 @@ int main(void) {
         CHECK(multiset_eq(got, n, &g, 1), "stairs: positions/uv do not match facebakery golden");
         free(g.v);
     }
-    /* --- FENCE: post + 4 bars = 5 boxes, SOLID, 180 verts --- */
+    /* --- FENCE: post + two rails in four directions = 9 boxes, 324 verts --- */
     {
         GList g = {0};
         float pf[3]={6,0,6}, pt[3]={10,16,10};
         golden_box(&g, xf, TY, zf, pf, pt, planks);
-        float bars[4][2][3] = { {{7,6,0},{9,15,6}}, {{7,6,10},{9,15,16}},
-                                {{0,6,7},{6,15,9}}, {{10,6,7},{16,15,9}} };
-        for (int i=0;i<4;++i) golden_box(&g, xf, TY, zf, bars[i][0], bars[i][1], planks);
+        float bars[8][2][3] = {
+            {{7,6,0},{9,9,9}},   {{7,12,0},{9,15,9}},
+            {{7,6,7},{9,9,16}},  {{7,12,7},{9,15,16}},
+            {{0,6,7},{9,9,9}},   {{0,12,7},{9,15,9}},
+            {{7,6,7},{16,9,9}},  {{7,12,7},{16,15,9}},
+        };
+        for (int i=0;i<8;++i) golden_box(&g, xf, TY, zf, bars[i][0], bars[i][1], planks);
         int n = collect(&m, CR_LAYER_SOLID, xf, zf, ylo, yhi, got, 512);
-        CHECK(n == 180, "fence: %d verts (want 180)", n);
+        CHECK(n == 324, "fence: %d verts (want 324)", n);
         CHECK(multiset_eq(got, n, &g, 1), "fence: positions/uv do not match facebakery golden");
         free(g.v);
     }

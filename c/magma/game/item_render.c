@@ -313,7 +313,8 @@ static int ir_held_item(const GmEntityView *v, const IrDisplay **disp,
     arm_rp[0] = -5.0f; arm_rp[1] = 2.0f; arm_rp[2] = 0.0f;
     arm_rot[0] = arm_rot[1] = arm_rot[2] = 0.0f;
     if (v->tape_pose && (v->flags & 4)) return 0;       /* invisible */
-    if (v->type == 2 && v->skin == CR_MOB_PIGMAN + 1) { /* ER_TYPE_ZOMBIE */
+    if (v->type == 15 ||
+        (v->type == 2 && v->skin == CR_MOB_PIGMAN + 1)) {
         *disp = &IR_DISP_HANDHELD; arm_rot[0] = -ER_PI_F / 2.25f; /* zombie arms */
         return 283;                                     /* gold sword */
     }

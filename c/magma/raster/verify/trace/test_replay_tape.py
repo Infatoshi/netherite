@@ -81,7 +81,7 @@ def test_new_recorder_state_becomes_sorted_render_and_next_tick_events(tmp_path:
 
     tick0 = [event for event in events if event["tick"] == 0]
     assert {event["slot"] for event in tick0 if event["type"] == "inv_view"} == (
-        set(range(36)) | {40}
+        set(range(41))
     )
     assert any(event["type"] == "player_view" and event["xp_level"] == 7
                and event["air"] == 123 and event["portal"] == 0.5
@@ -122,7 +122,7 @@ def test_new_recorder_state_becomes_sorted_render_and_next_tick_events(tmp_path:
 
     tick1 = [event for event in events if event["tick"] == 1]
     assert {event["slot"] for event in tick1 if event["type"] == "set_inventory"} == (
-        set(range(36)) | {40}
+        set(range(41))
     )
 
 
@@ -812,16 +812,23 @@ def test_elytra_inventory_change_applies_on_next_tick(tmp_path: Path):
 
 def test_state_assertions_report_inventory_entities_and_world_hash():
     """Non-player state gate is separate from physics and is not silent."""
+    inv = [[17, 0, 3]] + [0] * 40
+    inv[38] = [443, 0, 1]
+    inv[40] = [442, 0, 1]
     ticks = [{
         "t": 0, "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
         "og": 1, "hp": 20.0, "food": 20,
-        "inv": [[17, 0, 3]] + [0] * 40,
+        "inv": inv,
         "ents": [[7, "EntitySheep", 1.0, 70.0, 2.0, 0.0, 0.0]],
     }]
     c_rows = [{
         "tick": 0, "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
         "on_ground": 1, "health": 20.0, "food": 20.0,
-        "inventory": [{"slot": 0, "item": 17, "count": 3, "meta": 0}],
+        "inventory": [
+            {"slot": 0, "item": 17, "count": 3, "meta": 0},
+            {"slot": 38, "item": 443, "count": 1, "meta": 0},
+            {"slot": 40, "item": 442, "count": 1, "meta": 0},
+        ],
         "entities": [{"type": 10, "x": 1.0, "y": 70.0, "z": 2.0}],
         "nearby_hash": "aabb001122334455",
     }]

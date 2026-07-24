@@ -15,6 +15,7 @@
 /* TileEntityMobSpawner live state (entity id + delay countdown). */
 typedef struct {
     int active;
+    int dimension;
     int x, y, z;
     int entity_type;   /* EW_TYPE_* / GM_MOB_* */
     int delay;
@@ -28,11 +29,14 @@ typedef struct {
 typedef struct {
     EwStore a, b;
     int current;
+    int active_dimension;
+    signed char entity_dimension[EW_MAX_ENTITIES];
     long long seed, tick;
     int next_id;
     int player_attack_cooldown;
     int xp_total;
     McOrb xp_orbs[GM_XP_ORBS];
+    signed char orb_dimension[GM_XP_ORBS];
     int next_orb_id;
     int creeper_fuse[EW_MAX_ENTITIES];
     unsigned char hurt_aggro[EW_MAX_ENTITIES];   /* revenge target set */

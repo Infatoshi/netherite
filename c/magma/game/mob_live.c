@@ -20,6 +20,8 @@
 #define GM_MOB_DESPAWN_HARD 128.0
 #define GM_MOB_DESPAWN_DELAY 600
 #define GM_MOB_FIRE_TICKS 160
+#define GM_NATURAL_HOSTILE_CAP 70
+#define GM_NATURAL_PASSIVE_CAP 10
 #define GM_PIGMAN_ANGER_BASE 400
 #define GM_PIGMAN_ANGER_RANGE 400
 #define GM_PIGMAN_HELP_RANGE 32.0
@@ -79,14 +81,18 @@ static float max_health(int type, int size) {
 }
 
 /* EntityZombie ATTACK_DAMAGE=3; pigman=5; wither skeleton base 4 + stone sword 4;
- * silverfish base 1; slime damages when size > 1 for size. */
+ * silverfish base 1; slime damages when size > 1 for size; magma is size + 2. */
 static float melee_damage(int type, int size) {
     if (type == EW_TYPE_ENDERMAN) return 7.0f;
     if (type == EW_TYPE_ZOMBIE) return 3.0f;
     if (type == EW_TYPE_PIGMAN) return 5.0f;
     if (type == EW_TYPE_WITHER_SKELETON) return 8.0f;
     if (type == EW_TYPE_SILVERFISH) return 1.0f;
-    if (type == EW_TYPE_SLIME || type == EW_TYPE_MAGMA) {
+    if (type == EW_TYPE_MAGMA) {
+        int s = size > 0 ? size : 1;
+        return (float)(s + 2);
+    }
+    if (type == EW_TYPE_SLIME) {
         int s = size > 0 ? size : 1;
         return s > 1 ? (float)s : 0.0f;
     }
@@ -191,6 +197,7 @@ static void mark_hurt(GmMobLive *m, EwStore *s, int slot) {
         m->anger[slot] = GM_PIGMAN_ANGER_BASE + (int)mc_hash_bound(h, GM_PIGMAN_ANGER_RANGE);
         for (int j = 1; j < EW_MAX_ENTITIES; ++j) {
             if (j == slot || !s->alive[j] || s->type[j] != EW_TYPE_PIGMAN) continue;
+            if (m->entity_dimension[j] != m->entity_dimension[slot]) continue;
             double dx = s->x[j] - s->x[slot], dy = s->y[j] - s->y[slot], dz = s->z[j] - s->z[slot];
             if (dx * dx + dy * dy + dz * dz > GM_PIGMAN_HELP_RANGE * GM_PIGMAN_HELP_RANGE) continue;
             u64 h2 = mc_hash_seed((u64)m->seed, m->tick, j, s->id[j], 0, 0x414E4752u);
@@ -240,6 +247,7 @@ void gm_mobs_init(GmMobLive *m, long long seed) {
     memset(m, 0, sizeof *m);
     ew_store_clear(&m->a); ew_store_clear(&m->b);
     m->seed = seed; m->next_id = 1; m->next_orb_id=1000;
+    m->active_dimension = 0;
     m->boat_ride = -1;
 }
 
@@ -261,6 +269,7 @@ void gm_mobs_spawn_xp(GmMobLive *m,double x,double y,double z,int value){
         double angle=(double)(h&0xffffu)*(2.0*MC_PI/65536.0);
         double speed=(double)((h>>16)&0xffffu)*(0.2/65535.0);
         o->motionX=-sin(angle)*speed;o->motionZ=cos(angle)*speed;
+        m->orb_dimension[slot]=(signed char)m->active_dimension;
         eo_set_position(o,x,y,z);
     }
 }
@@ -271,6 +280,7 @@ int gm_mobs_spawn_sized(GmMobLive *m, int type, double x, double y, double z, in
     float hp = max_health(type, size);
     int slot = ew_store_spawn(s, (u8)type, m->next_id++, x, y, z, hp);
     if (slot >= 0) {
+        m->entity_dimension[slot]=(signed char)m->active_dimension;
         m->size[slot] = (unsigned char)(size > 0 ? size : (gm_is_slimey(type) ? 2 : 1));
         s->health[slot] = max_health(type, m->size[slot]);
         reset_slot_state_s(m, s, slot);
@@ -306,6 +316,7 @@ int gm_mobs_boat_mount(GmMobLive *m, struct PsvPlayer *player_, int ox, int oz) 
     int best = -1; double bd = 2.5 * 2.5;
     for (int i = 1; i < EW_MAX_ENTITIES; ++i) {
         if (!s->alive[i] || s->type[i] != EW_TYPE_BOAT) continue;
+        if (m->entity_dimension[i] != m->active_dimension) continue;
         double dx = s->x[i] - px, dy = s->y[i] - py, dz = s->z[i] - pz;
         double d = dx * dx + dy * dy + dz * dz;
         if (d < bd) { bd = d; best = i; }
@@ -362,6 +373,7 @@ static void slime_split(GmMobLive *m, EwStore *s, int i) {
                                   s->x[i] + ox, s->y[i] + 0.5, s->z[i] + oz,
                                   max_health(s->type[i], child));
         if (slot < 0) break;
+        m->entity_dimension[slot]=m->entity_dimension[i];
         m->size[slot] = (unsigned char)child;
         reset_slot_state_s(m, s, slot);
     }
@@ -441,6 +453,7 @@ int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player_,
     double dx = -sin(yr) * cos(pr), dy = -sin(pr), dz = cos(yr) * cos(pr);
     int best = -1; double best_t = 3.0;
     for (int i = 1; i < EW_MAX_ENTITIES; ++i) if (s->alive[i] && gm_living(s->type[i])) {
+        if (m->entity_dimension[i] != m->active_dimension) continue;
         float width, height;
         ehs_size_scaled(s->type[i], m->size[i], &width, &height);
         double cx = s->x[i], cy = s->y[i] + height * 0.5, cz = s->z[i];
@@ -528,20 +541,30 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
     ehs_store_living(s, i, &liv);
 }
 
-static int alive_count(const EwStore *s) {
+static int alive_count(const GmMobLive *m,const EwStore *s) {
     int n=0;
-    for (int i=1;i<EW_MAX_ENTITIES;++i) if (s->alive[i] && gm_hostile(s->type[i])) ++n;
+    for (int i=1;i<EW_MAX_ENTITIES;++i)
+        if (s->alive[i] && m->entity_dimension[i]==m->active_dimension &&
+            gm_hostile(s->type[i])) ++n;
     return n;
 }
-static int living_count(const EwStore *s) {
+static int living_count(const GmMobLive *m,const EwStore *s) {
     int n=0;
     for(int i=1;i<EW_MAX_ENTITIES;++i)
-        if(s->alive[i]&&gm_living(s->type[i]))++n;
+        if(s->alive[i]&&m->entity_dimension[i]==m->active_dimension&&
+           gm_living(s->type[i]))++n;
+    return n;
+}
+static int passive_count(const GmMobLive *m,const EwStore *s) {
+    int n=0;
+    for(int i=1;i<EW_MAX_ENTITIES;++i)
+        if(s->alive[i]&&m->entity_dimension[i]==m->active_dimension&&
+           gm_passive(s->type[i]))++n;
     return n;
 }
 
 int gm_mobs_living_count(const GmMobLive *m){
-    return m?living_count(const_store(m)):0;
+    return m?living_count(m,const_store(m)):0;
 }
 
 static int collect_orb_blocks(GmWorld *w,const McAABB *q,McAABB *out,int cap){
@@ -559,7 +582,8 @@ static int collect_orb_blocks(GmWorld *w,const McAABB *q,McAABB *out,int cap){
 
 static void tick_xp_orbs(GmMobLive *m,GmWorld *w,PsvPlayer *p,int ox,int oz){
     McAABB player=p->ent.box;player.minX+=ox;player.maxX+=ox;player.minZ+=oz;player.maxZ+=oz;
-    for(int i=0;i<GM_XP_ORBS;++i){McOrb *o=&m->xp_orbs[i];if(o->dead||o->xpValue<=0)continue;
+    for(int i=0;i<GM_XP_ORBS;++i){McOrb *o=&m->xp_orbs[i];
+        if(o->dead||o->xpValue<=0||m->orb_dimension[i]!=m->active_dimension)continue;
         McAABB q=mc_aabb_addcoord(&o->box,o->motionX,o->motionY,o->motionZ),blocks[64];
         int nb=collect_orb_blocks(w,&q,blocks,64);
         int ux=mc_floor(o->posX),uy=mc_floor(o->box.minY)-1,uz=mc_floor(o->posZ);
@@ -577,7 +601,8 @@ int gm_mobs_register_spawner(GmMobLive *m, int x, int y, int z, int entity_type)
     if (!m || !entity_type) return -1;
     for (int i = 0; i < GM_SPAWNERS; ++i) {
         if (m->spawners[i].active && m->spawners[i].x == x &&
-            m->spawners[i].y == y && m->spawners[i].z == z) {
+            m->spawners[i].y == y && m->spawners[i].z == z &&
+            m->spawners[i].dimension == m->active_dimension) {
             m->spawners[i].entity_type = entity_type;
             return i;
         }
@@ -585,6 +610,7 @@ int gm_mobs_register_spawner(GmMobLive *m, int x, int y, int z, int entity_type)
     for (int i = 0; i < GM_SPAWNERS; ++i) {
         if (m->spawners[i].active) continue;
         m->spawners[i].active = 1;
+        m->spawners[i].dimension = m->active_dimension;
         m->spawners[i].x = x; m->spawners[i].y = y; m->spawners[i].z = z;
         m->spawners[i].entity_type = entity_type;
         m->spawners[i].delay = 20;
@@ -599,10 +625,12 @@ int gm_mobs_register_spawner(GmMobLive *m, int x, int y, int z, int entity_type)
     return -1;
 }
 
-static int count_type_near(const EwStore *s, int type, double x, double y, double z, double r) {
+static int count_type_near(const GmMobLive *m,const EwStore *s, int type,
+                           double x, double y, double z, double r) {
     int n = 0; double r2 = r * r;
     for (int i = 1; i < EW_MAX_ENTITIES; ++i) {
         if (!s->alive[i] || s->type[i] != type) continue;
+        if (m->entity_dimension[i] != m->active_dimension) continue;
         double dx = s->x[i] - x, dy = s->y[i] - y, dz = s->z[i] - z;
         if (dx * dx + dy * dy + dz * dz <= r2) ++n;
     }
@@ -621,7 +649,8 @@ static void discover_spawners(GmMobLive *m, GmWorld *w, double px, double py, do
                 int known = 0;
                 for (int i = 0; i < GM_SPAWNERS; ++i)
                     if (m->spawners[i].active && m->spawners[i].x == x &&
-                        m->spawners[i].y == y && m->spawners[i].z == z) {
+                        m->spawners[i].y == y && m->spawners[i].z == z &&
+                        m->spawners[i].dimension == dimension) {
                         known = 1; break;
                     }
                 if (known) continue;
@@ -635,7 +664,7 @@ static void discover_spawners(GmMobLive *m, GmWorld *w, double px, double py, do
                                 if (gm_world_block(w, x + dx, y + dy, z + dz) == 112) {
                                     bricks = 1; break;
                                 }
-                    et = bricks ? EW_TYPE_BLAZE : EW_TYPE_BLAZE;
+                    et = bricks ? EW_TYPE_BLAZE : 0;
                 } else if (dimension == 0) {
                     /* Stronghold portal-room silverfish spawner. */
                     int frames = 0;
@@ -653,7 +682,7 @@ static void tick_spawners(GmMobLive *m, GmWorld *w, EwStore *s,
                           double px, double py, double pz) {
     for (int i = 0; i < GM_SPAWNERS; ++i) {
         GmSpawnerTE *sp = &m->spawners[i];
-        if (!sp->active) continue;
+        if (!sp->active || sp->dimension != m->active_dimension) continue;
         if (gm_world_block(w, sp->x, sp->y, sp->z) != 52) {
             sp->active = 0; continue;
         }
@@ -661,7 +690,7 @@ static void tick_spawners(GmMobLive *m, GmWorld *w, EwStore *s,
         double r = (double)sp->activate_range;
         if (dx * dx + dy * dy + dz * dz >= r * r) continue; /* strict < range */
         if (sp->delay > 0) { --sp->delay; continue; }
-        int nearby = count_type_near(s, sp->entity_type, sp->x + 0.5, sp->y + 0.5,
+        int nearby = count_type_near(m,s, sp->entity_type, sp->x + 0.5, sp->y + 0.5,
                                      sp->z + 0.5, 16.0);
         if (nearby >= sp->max_nearby) {
             u64 h = mc_hash_seed((u64)m->seed, m->tick, sp->x, sp->y, sp->z, 0x52455345u);
@@ -670,7 +699,7 @@ static void tick_spawners(GmMobLive *m, GmWorld *w, EwStore *s,
             continue;
         }
         int spawned = 0;
-        for (int k = 0; k < sp->spawn_count && living_count(s) < GM_MOB_CAPACITY; ++k) {
+        for (int k = 0; k < sp->spawn_count && living_count(m,s) < GM_MOB_CAPACITY; ++k) {
             u64 h = mc_hash_seed((u64)m->seed, m->tick, sp->x, sp->y, sp->z, 0x53504157u + k);
             double r1 = (double)mc_hash_f01(h);
             double r2 = (double)mc_hash_f01(mc_hash64(h));
@@ -690,6 +719,7 @@ static void tick_spawners(GmMobLive *m, GmWorld *w, EwStore *s,
                                       sx, sy, sz,
                                       max_health(sp->entity_type, sz_slime));
             if (slot < 0) break;
+            m->entity_dimension[slot]=(signed char)m->active_dimension;
             m->size[slot] = (unsigned char)sz_slime;
             reset_slot_state_s(m, s, slot);
             spawned = 1;
@@ -713,7 +743,8 @@ static int in_fortress_bricks(GmWorld *w, int x, int y, int z) {
 }
 
 static void passive_spawn(GmMobLive *m, GmWorld *w, EwStore *s, double px, double py, double pz) {
-    if (m->tick == 0 || (m->tick % 200) || living_count(s) >= GM_MOB_CAPACITY) return;
+    if (m->tick == 0 || (m->tick % 200) ||
+        passive_count(m,s) >= GM_NATURAL_PASSIVE_CAP) return;
     for (int a = 0; a < 8; ++a) {
         u64 h = mc_hash_seed((u64)m->seed, m->tick, a, 0, 0, 0x50415353u);
         int dx = 12 + mc_hash_bound(h, 9), dz = mc_hash_bound(mc_hash64(h), 17) - 8;
@@ -727,14 +758,17 @@ static void passive_spawn(GmMobLive *m, GmWorld *w, EwStore *s, double px, doubl
         int types[4] = {EW_TYPE_SHEEP, EW_TYPE_PIG, EW_TYPE_COW, EW_TYPE_CHICKEN};
         int slot = ew_store_spawn(s, (u8)types[mc_hash_bound(mc_hash64(h + 1), 4)],
                                   m->next_id++, x + 0.5, y, z + 0.5, 10.0f);
-        if (slot >= 0) reset_slot_state_s(m, s, slot);
+        if (slot >= 0) {
+            m->entity_dimension[slot]=(signed char)m->active_dimension;
+            reset_slot_state_s(m, s, slot);
+        }
         return;
     }
 }
 
 static void nether_natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
                                  double px, double py, double pz) {
-    if ((m->tick % 40) || living_count(s) >= GM_MOB_CAPACITY) return;
+    if ((m->tick % 40) || alive_count(m,s) >= GM_NATURAL_HOSTILE_CAP) return;
     for (int a = 0; a < 6; ++a) {
         u64 h = mc_hash_seed((u64)m->seed, m->tick, a, 0, 0, 0x4E455448u);
         int dx = 16 + mc_hash_bound(h, 17), dz = mc_hash_bound(mc_hash64(h), 33) - 16;
@@ -777,6 +811,7 @@ static void nether_natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
         int slot = ew_store_spawn(s, (u8)type, m->next_id++, x + 0.5, y, z + 0.5,
                                   max_health(type, sz));
         if (slot >= 0) {
+            m->entity_dimension[slot]=(signed char)m->active_dimension;
             m->size[slot] = (unsigned char)sz;
             reset_slot_state_s(m, s, slot);
         }
@@ -786,7 +821,7 @@ static void nether_natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
 
 static void slime_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
                         double px, double py, double pz) {
-    if ((m->tick % 80) || living_count(s) >= GM_MOB_CAPACITY) return;
+    if ((m->tick % 80) || alive_count(m,s) >= GM_NATURAL_HOSTILE_CAP) return;
     for (int a = 0; a < 4; ++a) {
         u64 h = mc_hash_seed((u64)m->seed, m->tick, a, 0, 0, 0x534C494Du);
         int dx = 16 + mc_hash_bound(h, 17), dz = mc_hash_bound(mc_hash64(h), 33) - 16;
@@ -820,6 +855,7 @@ static void slime_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
         int slot = ew_store_spawn(s, EW_TYPE_SLIME, m->next_id++, x + 0.5, y, z + 0.5,
                                   max_health(EW_TYPE_SLIME, sz));
         if (slot >= 0) {
+            m->entity_dimension[slot]=(signed char)m->active_dimension;
             m->size[slot] = (unsigned char)sz;
             reset_slot_state_s(m, s, slot);
         }
@@ -842,7 +878,8 @@ static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
 
     int tod = (int)(world_time % 24000LL); if (tod < 0) tod += 24000;
     if (tod < 12000) { passive_spawn(m, w, s, px, py, pz); return; }
-    if (tod < 13000 || tod > 23000 || (m->tick % 20) || alive_count(s) >= GM_MOB_CAPACITY) return;
+    if (tod < 13000 || tod > 23000 || (m->tick % 20) ||
+        alive_count(m,s) >= GM_NATURAL_HOSTILE_CAP) return;
     for (int a = 0; a < 8; ++a) {
         u64 h = mc_hash_seed((u64)m->seed, m->tick, a, 0, 0, 0x4d4f4253u);
         int dx = 24 + mc_hash_bound(h, 9), dz = mc_hash_bound(mc_hash64(h), 17) - 8;
@@ -860,7 +897,11 @@ static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
         int type = types[mc_hash_bound(mc_hash64(h + 1), 5)];
         int slot = ew_store_spawn(s, (u8)type, m->next_id++, x + 0.5, y, z + 0.5,
                                   max_health(type, 1));
-        if (slot >= 0) { s->cx[slot] = x >> 4; s->cz[slot] = z >> 4; reset_slot_state_s(m, s, slot); }
+        if (slot >= 0) {
+            m->entity_dimension[slot]=(signed char)m->active_dimension;
+            s->cx[slot] = x >> 4; s->cz[slot] = z >> 4;
+            reset_slot_state_s(m, s, slot);
+        }
         return;
     }
 }
@@ -905,13 +946,13 @@ static void tick_boat(GmMobLive *m, GmWorld *w, EwStore *nx, int i,
         nx->vx[i] = nx->vz[i] = 0.0;
         if (nx->vy[i] < 0) { nx->vy[i] = 0; nx->on_ground[i] = 1; }
     }
-    if (m->boat_damage[i] > 0) --m->boat_damage[i];
 }
 
 void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                   struct PsvPlayer *player_, struct PvStats *vitals_,
                   int ox, int oz, int dimension, long long world_time, GmLiveSim *drops) {
     if (!m || !w || !player_ || !vitals_) return;
+    m->active_dimension=dimension;
     PsvPlayer *p=(PsvPlayer *)player_; PvStats *v=(PvStats *)vitals_;
     const McSinTable *st=(const McSinTable *)st_;
     EwStore *now=now_store(m), *nx=next_store(m); ew_store_copy(nx,now);
@@ -933,7 +974,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
      * tests set path. Runtime sets forward via player look when mounted. */
     if (m->boat_ride >= 0) boat_fwd = 1.0f;
 
-    for(int i=1;i<EW_MAX_ENTITIES;++i) if(now->alive[i]&&gm_living(now->type[i])){
+    for(int i=1;i<EW_MAX_ENTITIES;++i)
+        if(now->alive[i]&&m->entity_dimension[i]==dimension&&gm_living(now->type[i])){
         int type=now->type[i];
         if (type == EW_TYPE_BOAT) {
             tick_boat(m, w, nx, i, p, ox, oz, boat_fwd, 0.0f);
@@ -988,7 +1030,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             nx->ai_state[i]=EW_AI_ATTACK;
             if(d>16.0){moving=1;nx->ai_state[i]=EW_AI_CHASE;}
             ++m->charge[i];
-            /* Charge 10 ticks then fire; reset for 40-tick cooldown. */
+            /* Charge 20 ticks, then reset through a 40-tick cooldown. */
             if(m->charge[i]>=20 && !m->fireball_pending){
                 double len=d>0.01?d:1.0;
                 m->fireball_pending=1;
@@ -1106,7 +1148,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
 int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
     if(!m||!out||max<=0)return 0;
     const EwStore *s=const_store(m);int n=0;
-    for(int i=1;i<EW_MAX_ENTITIES&&n<max;++i)if(s->alive[i]&&gm_living(s->type[i])){
+    for(int i=1;i<EW_MAX_ENTITIES&&n<max;++i)
+        if(s->alive[i]&&m->entity_dimension[i]==m->active_dimension&&gm_living(s->type[i])){
         out[n]=(GmEntityView){0};
         out[n].type=s->type[i];
         /* Live pigman uses type 15; render as zombie silhouette + pigman skin.
@@ -1120,7 +1163,7 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
         ++n;
     }
     for(int i=0;i<GM_XP_ORBS&&n<max;++i){const McOrb *o=&m->xp_orbs[i];
-        if(o->dead||o->xpValue<=0)continue;
+        if(o->dead||o->xpValue<=0||m->orb_dimension[i]!=m->active_dimension)continue;
         GmEntityView v; memset(&v,0,sizeof v);
         v.type=GM_ENTITY_XP_ORB;
         v.x=(float)o->posX;v.y=(float)o->posY;v.z=(float)o->posZ;
@@ -1132,13 +1175,14 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
     }return n;
 }
 
-int gm_mobs_alive(const GmMobLive *m){return m?alive_count(const_store(m)):0;}
+int gm_mobs_alive(const GmMobLive *m){return m?alive_count(m,const_store(m)):0;}
 
 int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
                         float damage,GmLiveSim *drops){
     if(!m)return 0;
     EwStore *s=now_store(m);int best=-1;double bd=radius*radius;
-    for(int i=1;i<EW_MAX_ENTITIES;++i)if(s->alive[i]&&gm_living(s->type[i])&&
+    for(int i=1;i<EW_MAX_ENTITIES;++i)
+        if(s->alive[i]&&m->entity_dimension[i]==m->active_dimension&&gm_living(s->type[i])&&
                                          s->type[i]!=EW_TYPE_BOAT){
         double dx=s->x[i]-x,dy=(s->y[i]+0.9)-y,dz=s->z[i]-z,d=dx*dx+dy*dy+dz*dz;
         if(d<=bd){bd=d;best=i;}
