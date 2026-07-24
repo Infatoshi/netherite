@@ -630,21 +630,30 @@ use_done:
         s_server_motion_z += (double)(mc_cos(st, fj) * 0.2f);
     }
 
+    /* EntityPlayerSP.onLivingUpdate gates START_FALL_FLYING on the pre-travel
+     * pose (fresh jump, airborne, descending). Checking after travel would
+     * wrongly arm flight on the apex tick where gravity flips motionY
+     * negative mid-tick (MC-111444 must stay broken the vanilla way). The
+     * integrated-server flag is consumed on the next tick's travel, matching
+     * the elytra_dip tape (jump t55, first elytra travel t56).
+     * NetHandlerPlayServer: !onGround && motionY < 0 && !flying && !inWater
+     * plus a usable chest elytra. capabilities.isFlying is creative flight,
+     * not gamemode; armor durability is not owned here (IsrInv has no chest). */
     int elytra_press = act.jump && !pl->prev_jump;
+    int elytra_was = pl->elytra_flying;
+    int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
     psv_physics_tick(window, st, pl, &a, blocks);
 
-    /* EntityPlayerSP.onLivingUpdate sends START_FALL_FLYING on a fresh jump
-     * press, before client travel; the integrated-server flag becomes the
-     * next client tick's travel state. NetHandlerPlayServer requires airborne
-     * descending motion, usable elytra, and no water. The edge gate preserves
-     * the shipped upward-motion activation bug (MC-111444). */
-    if (elytra_press && !pl->elytra_flying && pl->elytra_equipped &&
-        !pl->creative_mode && !pl->levitating && !water_pre &&
-        !pl->ent.onGround && pl->ent.motionY < 0.0)
+    if (elytra_press && !elytra_was && pl->elytra_equipped && !water_pre &&
+        elytra_can_start)
         pl->elytra_flying = 1;
     pl->prev_jump = act.jump;
-    if (pl->elytra_flying) ++pl->ticks_elytra_flying;
-    else pl->ticks_elytra_flying = 0;
+    /* EntityLivingBase.onUpdate increments ticksElytraFlying only when the
+     * flag was true for this onUpdate. Activation is post-travel, so the
+     * arming tick must not count; the first travel tick still starts at 0
+     * so updateElytra's (ticks+1)%20 damage cadence stays aligned. */
+    if (elytra_was && pl->elytra_flying) ++pl->ticks_elytra_flying;
+    else if (!pl->elytra_flying) pl->ticks_elytra_flying = 0;
     psv_update_elytra_size(window, pl, blocks);
 
     {

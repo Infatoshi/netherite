@@ -339,29 +339,164 @@ int main(void)
     }
 
     /* ---------------- (G) ELYTRA TRAVEL BITWISE FIXTURE ------------------ */
-    /* Tape t55 -> t56, independently derived by applying the 1.11.2
-     * EntityLivingBase.moveEntityWithHeading elytra equation once. These are
-     * binary64 payloads, not tolerance checks, so float/double boundary drift
-     * in the LUT look vector, lift, coupling, or damping fails immediately. */
-    printf("case G: elytra travel() seeded bitwise fixture\n");
+    /* scenario_elytra_dip tape: oracle t55->t56 is the first elytra travel
+     * tick (jump edge at t55, flag consumed at t56). Without the 1.11.2 elytra
+     * branch the air path stays at x≈5.7460 (pre-port magma); with it, motion
+     * matches the oracle binary64 payloads and position clears 5.8095. */
+    printf("case G: elytra travel() oracle t55->t56 + activation\n");
     {
         McAABB blocks[PSV_MAX_BLOCKS];
         PsvAction idle; memset(&idle, 0, sizeof idle);
         memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+        for (int ci = 0; ci < PSV_NCHUNKS; ++ci) {
+            win[ci].cx = (ci % PSV_DIM) - PSV_R;
+            win[ci].cz = (ci / PSV_DIM) - PSV_R;
+        }
+
+        const double t55_x = 5.647897003352311;
+        const double t55_y = 20.6537296175886;
+        const double t55_vx = 0.09812996242519258;
+        const double t55_vy = -0.7170746714356033;
+
+        /* Freefall control: same seed, no elytra -> old magma x≈5.7460. */
+        PsvPlayer fall;
+        spawn_at(&fall, t55_x, t55_y, 0.5);
+        fall.yaw = -90.0f;
+        fall.pitch = 8.0f;
+        fall.ent.motionX = t55_vx;
+        fall.ent.motionY = t55_vy;
+        psv_physics_tick(win, &st, &fall, &idle, blocks);
+        CHECK(double_bits(fall.ent.posX) == 0x4016fbee7e2fcb41ULL,
+              "non-elytra air path keeps the pre-port t56 x≈5.7460");
+
+        /* Direct elytra branch: LUT look vector + lift/dive/couple/damp. */
         PsvPlayer fly;
-        spawn_at(&fly, 5.647897003352311, 20.6537296175886, 0.5);
+        spawn_at(&fly, t55_x, t55_y, 0.5);
         fly.yaw = -90.0f;
         fly.pitch = 8.0f;
         fly.elytra_equipped = fly.elytra_flying = 1;
-        fly.ent.motionX = 0.09812996242519258;
-        fly.ent.motionY = -0.7170746714356033;
+        fly.ent.motionX = t55_vx;
+        fly.ent.motionY = t55_vy;
         psv_elytra_travel(win, &st, &fly, &idle, blocks);
         CHECK(double_bits(fly.ent.motionX) == 0x3fc4b10404bc5c59ULL,
-              "elytra motionX matches hand-derived binary64");
+              "elytra motionX matches oracle t56 binary64");
         CHECK(double_bits(fly.ent.motionY) == 0xbfe4e17c245e20d0ULL,
-              "elytra motionY matches hand-derived binary64");
+              "elytra motionY matches oracle t56 binary64");
         CHECK(double_bits(fly.ent.motionZ) == 0x0000000000000000ULL,
-              "elytra motionZ matches hand-derived binary64");
+              "elytra motionZ matches oracle t56 binary64");
+        CHECK(double_bits(fly.ent.posY) == 0x4034004ef1dd0732ULL,
+              "elytra posY matches oracle t56 binary64");
+        /* posX = t55_x + motionX (no collision); 1 ULP above the JSON tape
+         * digitization of the same value — motion/Y are the fidelity anchors. */
+        CHECK(double_bits(fly.ent.posX) == 0x40173cfa70082f41ULL,
+              "elytra posX is t55_x+motionX (oracle x≈5.809549093722865)");
+        CHECK(fly.ent.posX > 5.80 && fall.ent.posX < 5.75,
+              "elytra path diverges from freefall at t56 (5.8095 vs 5.7460)");
+
+        /* Full physics_tick entry + second oracle tick (t56 -> t57). */
+        PsvPlayer path;
+        spawn_at(&path, t55_x, t55_y, 0.5);
+        path.yaw = -90.0f;
+        path.pitch = 8.0f;
+        path.elytra_equipped = path.elytra_flying = 1;
+        path.ent.motionX = t55_vx;
+        path.ent.motionY = t55_vy;
+        psv_physics_tick(win, &st, &path, &idle, blocks);
+        CHECK(path.ent.posX == fly.ent.posX && path.ent.motionX == fly.ent.motionX,
+              "psv_physics_tick elytra branch matches psv_elytra_travel");
+        psv_physics_tick(win, &st, &path, &idle, blocks);
+        CHECK(double_bits(path.ent.posX) == 0x40181d217d244e14ULL,
+              "elytra t57 posX matches oracle 6.028448062268144");
+        CHECK(double_bits(path.ent.posY) == 0x403367de3d39b9bcULL,
+              "elytra t57 posY matches oracle 19.405734850495477");
+        CHECK(double_bits(path.ent.motionX) == 0x3fcc04e1a383da5fULL,
+              "elytra t57 motionX matches oracle 0.218898968545278");
+        CHECK(double_bits(path.ent.motionY) == 0xbfe30e169469aeb4ULL,
+              "elytra t57 motionY matches oracle -0.5954697512329035");
+
+        /* Fall-distance clamp when motionY > -0.5 (elytra branch). */
+        PsvPlayer soft;
+        spawn_at(&soft, 0.5, 40.0, 0.5);
+        soft.elytra_equipped = soft.elytra_flying = 1;
+        soft.fall_distance = 12.0f;
+        soft.ent.motionY = -0.4;
+        soft.yaw = -90.0f;
+        soft.pitch = 8.0f;
+        psv_elytra_travel(win, &st, &soft, &idle, blocks);
+        CHECK(soft.fall_distance == 1.0f,
+              "elytra sets fallDistance=1.0F when motionY > -0.5");
+
+        /* Ground contact clears flag 7. */
+        fill_flat(win);
+        PsvPlayer land;
+        spawn_at(&land, 24.0, 65.0, 24.0);
+        land.elytra_equipped = land.elytra_flying = land.elytra_pose = 1;
+        land.ent.box = psv_player_box(land.ent.posX, land.ent.posY, land.ent.posZ);
+        land.ent.box.maxY = land.ent.box.minY + (double)0.6f;
+        land.ent.onGround = 1;
+        land.ent.motionY = 0.0;
+        psv_physics_tick(win, &st, &land, &idle, blocks);
+        CHECK(!land.elytra_flying, "updateElytra clears flag 7 on ground");
+
+        /* Jump-edge deploy from tape t54: freefall to t55, elytra travel to t56. */
+        memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+        for (int ci = 0; ci < PSV_NCHUNKS; ++ci) {
+            win[ci].cx = (ci % PSV_DIM) - PSV_R;
+            win[ci].cz = (ci / PSV_DIM) - PSV_R;
+        }
+        PsvPlayer deploy;
+        spawn_at(&deploy, 5.540061882915932, 21.305438451751215, 0.5);
+        deploy.yaw = -90.0f;
+        deploy.pitch = 8.0f;
+        deploy.elytra_equipped = 1;
+        deploy.ent.motionX = 0.10783512043637802;
+        deploy.ent.motionY = -0.6517088341626173;
+        deploy.prev_jump = 0;
+        PvStats dv; pv_init(&dv);
+        GmAction jump_act; memset(&jump_act, 0, sizeof jump_act);
+        jump_act.jump = 1;
+        GmBlockEdit edits[4];
+        int nedits = -1;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&deploy, (struct PvStats *)&dv,
+                       jump_act, 0, 0, 0, edits, &nedits, 4);
+        CHECK(deploy.elytra_flying == 1, "jump edge arms elytra after travel");
+        CHECK(deploy.ticks_elytra_flying == 0,
+              "arming tick does not advance ticksElytraFlying");
+        CHECK(double_bits(deploy.ent.motionX) == 0x3fb91f0b935fb8a1ULL,
+              "arming tick freefall motionX matches oracle t55");
+        CHECK(double_bits(deploy.ent.motionY) == 0xbfe6f24694d36338ULL,
+              "arming tick freefall motionY matches oracle t55");
+        nedits = -1;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&deploy, (struct PvStats *)&dv,
+                       jump_act, 0, 0, 0, edits, &nedits, 4);
+        CHECK(deploy.elytra_flying == 1, "elytra stays armed while airborne");
+        CHECK(deploy.ticks_elytra_flying == 1,
+              "first elytra travel tick advances ticksElytraFlying to 1");
+        CHECK(double_bits(deploy.ent.motionX) == 0x3fc4b10404bc5c59ULL,
+              "first armed travel motionX matches oracle t56");
+        CHECK(double_bits(deploy.ent.motionY) == 0xbfe4e17c245e20d0ULL,
+              "first armed travel motionY matches oracle t56");
+        CHECK(double_bits(deploy.ent.posX) == 0x40173cfa70082f40ULL,
+              "chained t54->t56 posX matches oracle x=5.809549093722865");
+        CHECK(psv_player_eye_height(&deploy) == (double)0.4f,
+              "elytra pose uses eye height 0.4F");
+
+        /* Rising motion must not deploy (MC-111444). */
+        PsvPlayer rise;
+        spawn_at(&rise, 0.5, 30.0, 0.5);
+        rise.elytra_equipped = 1;
+        rise.ent.motionY = 0.2;
+        rise.prev_jump = 0;
+        GmAction rise_jump; memset(&rise_jump, 0, sizeof rise_jump);
+        rise_jump.jump = 1;
+        nedits = -1;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&rise, (struct PvStats *)&dv,
+                       rise_jump, 0, 0, 0, edits, &nedits, 4);
+        CHECK(!rise.elytra_flying,
+              "MC-111444: jump while motionY>=0 does not start fall-flying");
     }
 
     printf(g_fail ? "\nRESULT: FAIL\n" : "\nRESULT: PASS (all cases)\n");

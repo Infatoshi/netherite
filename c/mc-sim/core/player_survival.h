@@ -114,8 +114,9 @@ typedef struct {
     int   attack;
 } PsvAction;
 
+/* EntityPlayer.getEyeHeight: elytra flight or the 0.6F fall-flying pose uses 0.4F. */
 MC_HD static inline double psv_player_eye_height(const PsvPlayer *pl) {
-    return pl->elytra_flying ? (double)0.4f : PSV_EYE_HEIGHT;
+    return (pl->elytra_flying || pl->elytra_pose) ? (double)0.4f : PSV_EYE_HEIGHT;
 }
 
 /* ---- world-coordinate block access over the Chunk[] region ---- */
