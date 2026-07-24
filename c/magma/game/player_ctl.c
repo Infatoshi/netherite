@@ -824,6 +824,7 @@ void gm_player_ctl_dig_export(GmPlayerCtlSnap *out) {
     out->dig_hx         = s_dig_hx;
     out->dig_hy         = s_dig_hy;
     out->dig_hz         = s_dig_hz;
+    out->dig_face       = s_dig_face;
     out->dig_hitting    = s_dig_hitting;
     out->dig_delay      = s_dig_delay;
     out->atk_prev       = s_atk_prev;
@@ -839,6 +840,7 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
     s_dig_hx         = in->dig_hx;
     s_dig_hy         = in->dig_hy;
     s_dig_hz         = in->dig_hz;
+    s_dig_face       = in->dig_face;
     s_dig_hitting    = in->dig_hitting;
     s_dig_delay      = in->dig_delay;
     s_atk_prev       = in->atk_prev;

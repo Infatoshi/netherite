@@ -59,6 +59,7 @@ int  gm_player_dig_state_ex(int *lx, int *ly, int *lz, float *progress, int *fac
 typedef struct {
     float  dig_progress;
     int    dig_hx, dig_hy, dig_hz;   /* INT_MIN sentinel = no target */
+    int    dig_face;                 /* EnumFacing 0..5, -1 unknown */
     int    dig_hitting;
     int    dig_delay;
     int    atk_prev;

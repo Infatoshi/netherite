@@ -15,32 +15,28 @@ described as such.
 | `test_entity_render.sh` | full entity model suite + fireball/rays/particles/dissolve cases |
 | `test_item_render.sh` | billboard scales + fire overlay extents |
 
-## Pixel gates (status)
+## Pixel gates (Java goldens)
 
-Honest status: **no Java frame goldens** for these interactive paths on this
-branch. Geometry/topology/UV gates pass; pixel match vs live MC remains open.
+Real MC 1.11.2 frames live under `goldens/` (never fabricate). Capture + ROI
+gate:
+
+```bash
+cd c/magma
+bash raster/verify/ui_entities/capture_ui_entities.sh   # llvmpipe, lock, A/B
+bash raster/verify/ui_entities/run_oracle_gate.sh       # frame_capture C vs Java
+```
+
+See `ORACLE_CAPTURE.md` for state table and hard-gate policy (feature ROI,
+noise floor + margin, presence assert). C path is `entity_oracle_candidate.c`
+through `gm_frame_capture_write` (CPU raster), not a hand-painted candidate.
 
 | Feature | Pixel gate | Notes |
 |---------|------------|-------|
-| Fireball fire overlay extents | geometry only | Needs a live fireball frame golden |
-| Dragon death rays | topology + RH rotate + blend inputs | Needs death-window Java frames |
-| Dragon dissolve (per-texel) | marker + shade path | Pixel gate needs End death frames |
-| Portal (particles.png) | UV + count recon | **UNVERIFIED** vs Java pixels; not a live Particle list |
-| EXPLOSION_LARGE/HUGE | explosion.png 4x4, life 6+nextInt(4), size/color, no motion | Geometry/UV transcribed from Java; recon not a live FXLayer-3 list; **UNVERIFIED** pixels |
-| Dig ParticleDigging | model particle icon + hit-face spawn/scale | Progress-stage recon only (no per-tick age stream); **UNVERIFIED** pixels |
-| LayerSlimeGel | geometry + tint.a=255 + blend=4 + α_ref=0.1 | **UNVERIFIED** vs Java pixels |
-| Chest TESR lid | **not claimed** | See blocker below |
-
-### Capture commands (when qrl client + oracle frames available)
-
-```bash
-# 1. Live client on :25575 with focused scene (summon enderman / kill dragon / dig)
-# 2. Pose-pin tape with frames_every=1
-# 3. Diff magma frame_capture PPMs against oracle frames — never invent goldens
-cd c/magma
-# example: route e2e already records End death; re-gate with:
-#   uv run --no-project python raster/verify/trace/regate.py --tape ... --npy out/.../magma_frames.npy
-```
+| Slime/magma size + LayerSlimeGel | `slime_*` / `magma_*` | entity_pin size/squish |
+| Dragon death rays + explode | `dragon_death_{50,100,190}` | deathTicks pin; particles recon may residual |
+| Dig ParticleDigging | `dig_stone` / `dig_grass` | entity_pin dig_hit |
+| Small / dragon fireball | `fireball_*` | entity_pin |
+| XP orb | `xp_orb` | entity_pin value/age/color |
 
 ### Chest blocker (precise)
 
