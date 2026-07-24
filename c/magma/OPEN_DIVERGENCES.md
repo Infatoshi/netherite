@@ -405,11 +405,12 @@ vertex colour and cutout alpha on destroy_stage strokes; hit-face only when
 dig target matches raycast. Dig t2860 22.24->21.60/ch. (c) PARTIAL: dig hit
 particles reconstruct ParticleDigging billboards from dig progress (stage
 1..10) using the model **particle** icon (`bm_particle_sprite`, not BM_NORTH),
-hit-face offset when dig_state_ex knows the face, 0.6 gray, and
-multipleParticleScaleBy(0.6) half-extent. Remaining gaps vs Java: no live
-particle age/rand stream (static stage spray, not 1/tick over lifetime), no
-gravity/collision motion, destroy-burst (`addBlockDestroyEffects` 4³) not
-emitted. Pixel match vs oracle dig frames still **UNVERIFIED**.
+hit-face offset when dig_state_ex knows the face, 0.6 gray, ParticleDigging
+ctor `scale/=2` then `multipleParticleScaleBy(0.6)` so half-extent f4 is
+Java **[0.03, 0.06]**. Remaining gaps vs Java: no live particle age/rand
+stream (static stage spray, not 1/tick over lifetime), no gravity/collision
+motion, destroy-burst (`addBlockDestroyEffects` 4³) not emitted. Pixel match
+vs oracle dig frames still **UNVERIFIED**.
 (d) FIXED (tape 20260721T215812Z dig window): frame_capture mapped the crack
 face by comparing the raycast adjacent cell's sign (`ax<0`) instead of the
 cell delta `ax-hx`, pinning every crack to the +x face - top-face digs never
@@ -757,10 +758,12 @@ Dragon death + crystal burst: ParticleExplosionLarge / Huge transcribed from
 mob_atlas (`CR_MOB_EXPLOSION`), lifeTime=6+nextInt(4), gray=rand*0.6+0.4,
 size=1-progress*0.5, frame=(life)*15/lifeTime on 4x4 sheet, **no** fake
 positional integration (Java forces zero motion). HUGE expands to 6 LARGE/tick
-for 8 ticks with progress=timeSinceStart/8. Remaining gaps: recon from entity
-state is not a live ParticleManager list (spawn rand / exact multi-tick HUGE
-children differ); EXPLOSION_NORMAL (creeper smoke, particles.png) still
-absent; AreaEffectCloud / crit trails still absent. Pixel match vs oracle
+for 8 ticks: **spawn progress** (size) is fixed at construct as
+timeSinceStart/8; **child age** (frame) advances separately after spawn —
+recon approximates the latest batch per HUGE tick rather than a live multi-tick
+particle list. Remaining gaps: spawn rand / full prior-batch ages differ from
+ParticleManager; EXPLOSION_NORMAL (creeper smoke, particles.png) still absent;
+AreaEffectCloud / crit trails still absent. Pixel match vs oracle
 death/crystal frames still **UNVERIFIED** (geometry/UV only).
 
 ## 41. OPEN: HUD heart flash blink not modeled

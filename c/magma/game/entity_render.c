@@ -2184,15 +2184,17 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                     out + written, max - written);
             }
             /* onDeathUpdate: EXPLOSION_HUGE each tick in [180,200].
-             * ParticleExplosionHuge: 6 LARGE/tick for maximumTime=8; progress =
-             * timeSinceStart/8 (size shrink). Children spawn with fixed offsets
-             * relative to the HUGE origin and do not move. */
+             * ParticleExplosionHuge: 6 LARGE/tick for maximumTime=8.
+             * Spawn progress (size) is fixed at construct = timeSinceStart/8;
+             * child age (frame index) advances separately after spawn.
+             * Children keep fixed offsets from the HUGE origin (no motion). */
             if (dt >= 180) {
                 int first_huge = dt - 7;
                 if (first_huge < 180) first_huge = 180;
                 int last_huge = dt > 200 ? 200 : dt;
                 for (int ht = first_huge; ht <= last_huge; ++ht) {
-                    int huge_age = dt - ht; /* 0..7 = timeSinceStart of child? */
+                    /* huge_age ≈ HUGE timeSinceStart for this recon window. */
+                    int huge_age = dt - ht;
                     if (huge_age < 0 || huge_age >= 8) continue;
                     unsigned hseed = (unsigned)ents[e].ent_id * 1597334677u
                                    + (unsigned)ht * 3812015801u + 0x48554745u;
@@ -2201,8 +2203,10 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                     float hy = 2.0f + (er_seed_f(&hseed) - 0.5f) * 4.0f;
                     float hz = (er_seed_f(&hseed) - 0.5f) * 8.0f;
                     for (int k = 0; k < 6; ++k) {
-                        /* Each HUGE tick spawns 6 LARGEs with progress =
-                         * timeSinceStart/maximumTime at that spawn tick. */
+                        /* Spawn progress (size): fixed at LARGE construct from
+                         * HUGE timeSinceStart/maximumTime — does not advance
+                         * with child age. Recon approximates one batch per
+                         * surviving HUGE tick using current timeSinceStart. */
                         float progress = (float)huge_age / 8.0f;
                         unsigned lseed = hseed + (unsigned)k * 747796405u;
                         /* (rand-rand)*4 offsets from HUGE pos. */
@@ -2210,10 +2214,10 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                         float d1 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
                         float d2 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
                         int life = 6 + er_seed_i(&lseed, 4);
-                        /* Child age: spawned at ht, now age = huge_age for the
-                         * batch emitted that tick (all 6 same tick). Children
-                         * from earlier HUGE ticks have higher ages already
-                         * gated by outer loop's first_huge lookback. */
+                        /* Child age (frame): ticks since that spawn batch.
+                         * Live ParticleManager would keep every prior batch
+                         * with age = now-spawn; we only emit the latest batch
+                         * per HUGE tick and set lage ≈ huge_age (approx). */
                         int lage = huge_age;
                         if (lage >= life) continue;
                         float gray = er_seed_f(&lseed) * 0.6f + 0.4f;
@@ -2255,7 +2259,8 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
  *
  * Java (ParticleManager.addBlockHitEffects): one ParticleDigging per client
  * tick on the hit face, multiplyVelocity(0.2), multipleParticleScaleBy(0.6),
- * texture = model particle icon, gray 0.6, render half-extent 0.1*scale.
+ * texture = model particle icon, gray 0.6; ParticleDigging ctor scale/=2 so
+ * half-extent f4=0.1*scale lands in [0.03,0.06].
  *
  * Input limits of the interactive dig signal:
  *   - face is available via dig_state_ex when progressive dig is live
@@ -2291,7 +2296,9 @@ int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
         float r0 = er_seed_f(&seed), r1 = er_seed_f(&seed), r2 = er_seed_f(&seed);
         float jx = er_seed_f(&seed) * 3.0f; /* particleTextureJitter 0..3 */
         float jy = er_seed_f(&seed) * 3.0f;
-        float sc0 = (er_seed_f(&seed) * 0.5f + 0.5f) * 2.0f; /* base scale */
+        /* Particle ctor: (rand*0.5+0.5)*2 → [1,2]; ParticleDigging: /=2 → [0.5,1]. */
+        float sc0 = (er_seed_f(&seed) * 0.5f + 0.5f) * 2.0f;
+        sc0 /= 2.0f;
         /* addBlockHitEffects position in block-local then face snap. */
         float px = r0 * (maxx - minx - 0.2f) + 0.1f + minx;
         float py = r1 * (maxy - miny - 0.2f) + 0.1f + miny;
@@ -2302,7 +2309,7 @@ int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
         if (face == 3 /* SOUTH */) pz = maxz + 0.1f;
         if (face == 4 /* WEST */)  px = minx - 0.1f;
         if (face == 5 /* EAST */)  px = maxx + 0.1f;
-        /* multipleParticleScaleBy(0.6); render f4 = 0.1 * particleScale */
+        /* multipleParticleScaleBy(0.6) → scale [0.3,0.6]; f4 = 0.1*scale → [0.03,0.06]. */
         float pscale = sc0 * 0.6f;
         float half = 0.1f * pscale;
         /* UV crop: jitter/4 of the particle icon (ParticleDigging.render). */

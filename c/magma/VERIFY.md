@@ -301,7 +301,7 @@ bounds, but they are not oracle pixels.
 | XP-orb model/color animation | `game/entity_render.c:gm_entities_emit` | Marker/part count in `game/test_entity_render.sh` | **No** | High | Spawn a spread of differently valued XP orbs and record attraction/pickup. |
 | Hurt flash and death dissolve/roll | `game/entity_render.c:gm_entities_emit` | Recorded entity flags tested structurally | **No**; death roll is computed but unused, dissolve remains approximate (#47) | High | Damage then kill a close zombie against a plain wall and hold through removal. |
 | Burning, sneaking, and child entity transforms | `game/entity_render.c:gm_entities_emit` | No focused transform test; tape records flags but replay is incomplete | **No** | High | Stage burning adult, sneaking humanoid, and child zombie side by side. |
-| Slime model | `game/entity_render.c:gm_entity_type_for_name` (no `EntitySlime` mapping) | Negative name-map case only; stubbed/unsupported | **No** | High | Summon slime sizes 1, 2, and 4 to make the missing render path explicit. |
+| Slime model + LayerSlimeGel | `game/entity_render.c` (EntitySlime map, size/squish, `gm_slime_gel_emit`) | Size scale + gel α=0.1 geometry gates (`test_entity_render`, `ui_entities`) | **No** Java pixel goldens; gel translucency unverified | High | Summon slime sizes 1, 2, and 4; record bounce squish and outer gel pass. |
 | Horse model/variants | `game/entity_render.c:gm_entity_type_for_name` (no `EntityHorse` mapping) | Negative name-map case only; stubbed/unsupported | **No** | High | Summon horse, donkey, and mule in a close lineup to expose skipped entities. |
 
 ### HUD, screens, first-person hand, and overlays

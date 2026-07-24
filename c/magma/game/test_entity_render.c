@@ -602,6 +602,26 @@ static void test_fireball_rays_particles(void) {
         ymean /= 6.0f;
         CHECK(fabsf(ymean - 65.1f) < 0.15f,
               "UP-face dig particles spawn at maxY+0.1");
+        /* Java: ctor scale/=2 then *0.6 → f4=0.1*scale in [0.03,0.06].
+         * yaw=0 pitch=0: billboard X span = 2*half. */
+        {
+            int half_ok = 1;
+            float hmin = 1e30f, hmax = -1e30f;
+            for (int q = 0; q < dn; q += 6) {
+                float xmin = 1e30f, xmax = -1e30f;
+                for (int i = 0; i < 6; ++i) {
+                    float x = out[q + i].pos.x;
+                    if (x < xmin) xmin = x;
+                    if (x > xmax) xmax = x;
+                }
+                float half = 0.5f * (xmax - xmin);
+                if (half < hmin) hmin = half;
+                if (half > hmax) hmax = half;
+                if (half < 0.03f - 1e-5f || half > 0.06f + 1e-5f) half_ok = 0;
+            }
+            CHECK(half_ok && hmin >= 0.03f - 1e-5f && hmax <= 0.06f + 1e-5f,
+                  "dig ParticleDigging half-extent in Java [0.03,0.06]");
+        }
         /* CB_GRASS=3: model particle is dirt (DOWN), not grass_side (NORTH). */
         CHECK(bm_particle_sprite(3) == bm_block(3)->face[0 /* BM_DOWN */].sprite,
               "grass particle icon is dirt (not grass_side)");
