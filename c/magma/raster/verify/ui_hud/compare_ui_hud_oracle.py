@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 """Feature-specific ROI compare gate for ui_hud oracle goldens.
 
-For each state ID:
-  noise  = mean |Java_a - Java_b| over ROI
-  c_vs_j = mean |C - Java_a| over compare mask
+Hard HUD states (painted ROI mean):
+  noise  = mean |Java_a - Java_b| over stable A/B pixels in feature ROI
+  c_vs_j = mean |C - Java_a| over compare mask (painted / death chrome)
   gate   = noise + MARGIN
 
-Verdicts (capture integrity first; no false parity claims):
-  FAIL        - missing files, capture noise over ceiling, C drew nothing on hard
-  CAPTURE_OK  - soft state: A/B frozen + feature ROI present; no hard C parity claim
-  PASS        - hard state: C painted pixels within noise+margin (parity claim)
-  RESIDUAL    - hard state: capture OK but C-vs-J exceeds gate (nonzero exit)
-
-Hard RESIDUAL returns nonzero. Soft states never claim pixel parity.
-Gray C backdrop is composition isolation only; not a live-world equivalence claim.
-Inside-block C uses real atlas particle UVs (not solid synthetic texels).
+Full-screen blend-off inside-block overlays (overlay_inside_stone/grass):
+  Strict full-ROI compare on A/B-stable pixels (Java HUD flicker excluded).
+  No painted-only mask (gray C holes must count). No mean dilution sole gate.
+  Explicit A/B noise (mean + max). hard_thr = ceil(noise_max) on the stable
+  set: when noise_max==0 every stable pixel must be exact (thr 0; any
+  maxch>0 is residual). PASS only if hard_px == 0. Rejects erase-90%,
+  blank-to-one, +1 single-channel, 2-4px shifts, recolor, sparse extras.
 
 GuiGameOver (hud_death*):
   - Opaque chrome is hard: full button rectangles (no gray painted filter);
@@ -25,6 +23,16 @@ GuiGameOver (hud_death*):
   - hud_death_tint_pair is hard: pure gradient bands over the known C underlay
     must match Gui.drawGradientRect + SRC_ALPHA blend bit-exactly (paired
     background / source model). World underlay parity is a separate blocker.
+
+Verdicts (capture integrity first; no false parity claims):
+  FAIL        - missing files, capture noise over ceiling, empty/unstable
+  CAPTURE_OK  - soft state: A/B frozen + feature present; no hard C parity claim
+  PASS        - hard state: within gate / hard_px==0 (parity claim)
+  RESIDUAL    - hard capture OK but C residual (nonzero exit)
+
+Hard RESIDUAL returns nonzero. Soft states never claim pixel parity.
+Gray C backdrop is composition isolation only; not a live-world equivalence claim.
+Inside-block C uses real atlas particle UVs (not solid synthetic texels).
 """
 from __future__ import print_function
 
@@ -44,6 +52,10 @@ HB_X = (CX - 91) * S        # 244
 HB_Y = (SH - 22) * S        # 436
 J1 = (SH - 39) * S          # 402
 
+
+GRAY = 40
+GRAY_EPS = 8
+
 # Capture noise ceiling (must match driver intent; no 40 loophole).
 NOISE_MAX_DEFAULT = 2.0
 NOISE_MAX = {
@@ -58,6 +70,23 @@ NOISE_MAX = {
     "overlay_underwater": 3.0,
 }
 
+
+# Blend-off full-screen particle replace (ItemRenderer.renderBlockInHand).
+# Gate is full A/B-stable ROI + hard max-channel pixels, not painted mean.
+FULLSCREEN_REPLACE = {
+    "overlay_inside_stone",
+    "overlay_inside_grass",
+}
+# Per-pixel mean-ch A/B above this is "unstable" (Java HUD chrome flicker).
+STABLE_AB_THR = 2.0
+# hard_thr = ceil(noise_max) on stable A/B max-channel. noise_max==0 => thr 0
+# (literal equality; any maxch>0 is residual). Never floor thr at 1 — that
+# loophole let a +1 single-channel mutation pass when A/B was bit-exact.
+# Capture must keep nearly all ROI A/B-stable (not a blinking mess).
+MIN_STABLE_FRAC = 0.99
+# Residual location samples for honest reporting (full-frame coords).
+RESIDUAL_LOC_SAMPLES = 12
+
 # GuiGameOver button rects at scale2 (gm_hud_death_layout).
 DEATH_BTN0 = (226, 264, 626, 304)
 DEATH_BTN1 = (226, 312, 626, 352)
@@ -65,7 +94,7 @@ DEATH_TITLE = (200, 118, 660, 150)
 DEATH_SCORE = (280, 198, 580, 216)
 # Pure gradient bands (no title/score/buttons): for paired-tint verification.
 DEATH_PURE_BANDS = ((0, 100), (360, H))
-GRAY_BACKDROP = 40
+GRAY_BACKDROP = GRAY
 # GuiGameOver.drawScreen: drawGradientRect(..., 1615855616, -1602211792)
 # = top 0x60500000, bottom 0xA0803030.
 DEATH_GRAD_TOP = (0x60, 0x50, 0x00, 0x00)  # a,r,g,b
@@ -147,7 +176,7 @@ HARD = {
     "hand_block_shield",
     # Block-in-hand: replace tex*0.1 + perspective UV + real particle atlas
     # (stone / dirt-for-grass). Inside solid, world is black so composition
-    # isolation matches Java at noise floor.
+    # isolation matches Java at noise floor. Gated fullscreen hard_px (below).
     "overlay_inside_stone",
     "overlay_inside_grass",
     "hud_death_title",
@@ -291,6 +320,158 @@ def death_pure_mask():
     return m
 
 
+def painted_mask(c):
+    return np.abs(c.astype(np.int16) - GRAY).max(axis=2) > GRAY_EPS
+
+
+def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
+    """Full A/B-stable ROI hard_px gate for inside-block overlays.
+
+    hard_thr = ceil(noise_max) on stable A/B max-channel. noise_max==0 => thr 0
+    (exact equality). PASS only if hard_px==0.
+    """
+    rect = roi_rect(sid)
+    hard = sid in HARD
+    noise_lim = NOISE_MAX.get(sid, NOISE_MAX_DEFAULT)
+
+    ja = crop(ja_full, rect)
+    jb = crop(jb_full, rect)
+    c = crop(c_full, rect)
+    h = min(ja.shape[0], jb.shape[0], c.shape[0])
+    w = min(ja.shape[1], jb.shape[1], c.shape[1])
+    ja, jb, c = ja[:h, :w], jb[:h, :w], c[:h, :w]
+    n_roi = h * w
+
+    ab_ch = np.abs(ja.astype(np.int16) - jb.astype(np.int16)).astype(np.float64)
+    ab_mean_px = ab_ch.mean(axis=2)
+    ab_maxch_px = ab_ch.max(axis=2)
+
+    painted = painted_mask(c)
+    n_painted = int(painted.sum())
+
+    # Full A/B-stable ROI: exclude Java HUD flicker only. Every stable pixel
+    # counts — gray C holes fail.
+    stable = ab_mean_px <= STABLE_AB_THR
+    n_stable = int(stable.sum())
+    stable_frac = float(n_stable) / float(n_roi) if n_roi else 0.0
+    residual_locs = []
+    residual_bbox = None
+    if n_stable > 0:
+        noise = float(ab_ch[stable].mean())
+        noise_max = float(ab_maxch_px[stable].max())
+        diff_ch = np.abs(c.astype(np.int16) - ja.astype(np.int16)).astype(
+            np.float64)
+        diff_mean_px = diff_ch.mean(axis=2)
+        diff_maxch_px = diff_ch.max(axis=2)
+        diff = float(diff_mean_px[stable].mean())
+        max_diff = float(diff_maxch_px[stable].max())
+        # Literal bar: thr tracks measured A/B only. noise_max==0 => thr 0.
+        hard_thr = int(np.ceil(noise_max))
+        hard_mask = stable & (diff_maxch_px > hard_thr)
+        hard_px = int(hard_mask.sum())
+        if hard_px > 0:
+            ys, xs = np.where(hard_mask)
+            # ROI-local -> full-frame coords for reporting.
+            x0, y0, _, _ = rect
+            full_xs = xs + x0
+            full_ys = ys + y0
+            residual_bbox = [
+                int(full_xs.min()), int(full_ys.min()),
+                int(full_xs.max()), int(full_ys.max()),
+            ]
+            step = max(1, hard_px // RESIDUAL_LOC_SAMPLES)
+            for i in range(0, hard_px, step):
+                if len(residual_locs) >= RESIDUAL_LOC_SAMPLES:
+                    break
+                yi, xi = int(ys[i]), int(xs[i])
+                residual_locs.append({
+                    "x": int(full_xs[i]),
+                    "y": int(full_ys[i]),
+                    "maxch": int(diff_maxch_px[yi, xi]),
+                    "c": [int(c[yi, xi, k]) for k in range(3)],
+                    "j": [int(ja[yi, xi, k]) for k in range(3)],
+                })
+    else:
+        noise = float(ab_ch.mean())
+        noise_max = float(ab_maxch_px.max()) if ab_maxch_px.size else 0.0
+        diff = float("nan")
+        max_diff = float("nan")
+        hard_thr = 0
+        hard_px = n_roi
+
+    gate = noise  # no margin floor; hard_px is the pass criterion
+    capture_ok = (
+        (noise == noise)
+        and noise <= noise_lim
+        and n_stable > 0
+        and stable_frac >= MIN_STABLE_FRAC
+    )
+    if not capture_ok:
+        verdict = "FAIL"
+        if noise > noise_lim:
+            reason = "capture_noise"
+        elif n_stable == 0 or stable_frac < MIN_STABLE_FRAC:
+            reason = "unstable_ab"
+        else:
+            reason = "capture_bad"
+    elif hard_px == 0 and (diff == diff):
+        verdict = "PASS"
+        reason = "fullscreen_exact"
+    else:
+        verdict = "RESIDUAL"
+        reason = "hard_residual"
+
+    return {
+        "id": sid,
+        "noise": noise,
+        "noise_max": noise_max,
+        "c_vs_j": diff,
+        "max_diff": max_diff,
+        "hard_px": hard_px,
+        "hard_thr": hard_thr,
+        "gate": gate,
+        "verdict": verdict,
+        "roi": list(rect),
+        "hard": hard,
+        "fullscreen": True,
+        "n_painted": n_painted,
+        "n_stable": n_stable,
+        "stable_frac": stable_frac,
+        "n_roi": n_roi,
+        "noise_limit": noise_lim,
+        "reason": reason,
+        "rule": "fullscreen_replace_exact",
+        "residual_bbox": residual_bbox,
+        "residual_locs": residual_locs,
+    }
+
+
+def evaluate_state(sid, ja_full, jb_full, c_full, margin=2.0):
+    """Return a result dict for one state (used by gate + mutation suite)."""
+    if sid in FULLSCREEN_REPLACE:
+        return evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full)
+    if sid == "hud_death_tint_pair":
+        row, _fail, _resid = evaluate_death_tint_pair(ja_full, jb_full, c_full)
+        row = dict(row)
+        row.setdefault("noise_max", None)
+        row.setdefault("max_diff", None)
+        row.setdefault("hard_px", None)
+        row.setdefault("hard_thr", None)
+        row.setdefault("fullscreen", False)
+        row.setdefault("rule", "death_tint_pair")
+        return row
+    row, _fail, _resid = evaluate_roi_painted(sid, ja_full, jb_full, c_full, margin)
+    row = dict(row)
+    row.setdefault("noise_max", None)
+    row.setdefault("max_diff", None)
+    row.setdefault("hard_px", None)
+    row.setdefault("hard_thr", None)
+    row.setdefault("fullscreen", False)
+    row.setdefault("rule", "painted_mean" if not sid.startswith("hud_death_")
+                   else "death_chrome")
+    return row
+
+
 def evaluate_death_tint_pair(ja_full, jb_full, c_full):
     """Hard paired-background gate for GuiGameOver gradient compositing.
 
@@ -371,11 +552,10 @@ def evaluate_death_tint_pair(ja_full, jb_full, c_full):
     return row, 0, residual
 
 
-def evaluate_roi(sid, ja_full, jb_full, c_full, margin):
-    """Compare one state id. Returns row dict + fail/residual flags."""
+def evaluate_roi_painted(sid, ja_full, jb_full, c_full, margin):
+    """Painted-ROI / death-chrome compare. Returns row dict + fail/residual flags."""
     rect = roi_rect(sid)
-    GRAY = 40
-    painted_full = np.abs(c_full.astype(np.int16) - GRAY).max(axis=2) > 8
+    painted_full = painted_mask(c_full)
 
     ja = crop(ja_full, rect)
     jb = crop(jb_full, rect)
@@ -463,6 +643,16 @@ def evaluate_roi(sid, ja_full, jb_full, c_full, margin):
     return row, fail, residual
 
 
+def evaluate_roi(sid, ja_full, jb_full, c_full, margin):
+    """Compare one state id. Routes fullscreen overlays to exact hard_px gate."""
+    if sid in FULLSCREEN_REPLACE:
+        row = evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full)
+        fail = 1 if row["verdict"] == "FAIL" else 0
+        residual = 1 if row["verdict"] == "RESIDUAL" else 0
+        return row, fail, residual
+    return evaluate_roi_painted(sid, ja_full, jb_full, c_full, margin)
+
+
 def run_compare(goldens, cframes, margin, report_path=""):
     ids = [
         "hud_armor_iron", "hud_absorption_armor",
@@ -482,8 +672,8 @@ def run_compare(goldens, cframes, margin, report_path=""):
         print("FAIL: contaminated golden hand_block_sword_* present; "
               "delete and recapture as hand_block_shield", file=sys.stderr)
 
-    print("%-24s %10s %10s %10s %10s  %s" % (
-        "state", "noise", "C-vs-J", "gate", "verdict", "roi"))
+    print("%-24s %10s %10s %10s %8s %10s  %s" % (
+        "state", "noise", "C-vs-J", "gate", "hard_px", "verdict", "roi"))
     n_fail = 0
     n_residual = 0
     blocked = []
@@ -498,8 +688,8 @@ def run_compare(goldens, cframes, margin, report_path=""):
         c_p = os.path.join(cframes, "c_%s.ppm" % base)
         rect = roi_rect(sid) if sid != "hud_death_tint_pair" else (0, 0, W, H)
         if not (os.path.isfile(ja_p) and os.path.isfile(jb_p)):
-            print("%-24s %10s %10s %10s %10s  MISSING JAVA" % (
-                sid, "-", "-", "-", "FAIL"))
+            print("%-24s %10s %10s %10s %8s %10s  MISSING JAVA" % (
+                sid, "-", "-", "-", "-", "FAIL"))
             blocked.append(sid)
             n_fail += 1
             rows.append({
@@ -509,8 +699,8 @@ def run_compare(goldens, cframes, margin, report_path=""):
             })
             continue
         if not os.path.isfile(c_p):
-            print("%-24s %10s %10s %10s %10s  MISSING C" % (
-                sid, "-", "-", "-", "FAIL"))
+            print("%-24s %10s %10s %10s %8s %10s  MISSING C" % (
+                sid, "-", "-", "-", "-", "FAIL"))
             blocked.append(sid)
             n_fail += 1
             rows.append({
@@ -530,23 +720,41 @@ def run_compare(goldens, cframes, margin, report_path=""):
         n_residual += resid
         if resid:
             residuals.append({
-                "id": sid, "noise": row["noise"], "c_vs_j": row["c_vs_j"],
+                "id": sid,
+                "noise": row["noise"],
+                "noise_max": row.get("noise_max"),
+                "c_vs_j": row["c_vs_j"],
                 "gate": row["gate"],
+                "hard_px": row.get("hard_px"),
+                "hard_thr": row.get("hard_thr"),
+                "max_diff": row.get("max_diff"),
+                "reason": row.get("reason"),
+                "residual_bbox": row.get("residual_bbox"),
+                "residual_locs": row.get("residual_locs"),
             })
         if fail:
             blocked.append(sid)
         diff = row["c_vs_j"]
+        hard_px_s = ("-" if row.get("hard_px") is None
+                     else str(int(row["hard_px"])))
         extra = ""
         if sid == "hud_death_tint_pair":
             extra = (" c_vs_model=%.4f full_C-vs-J=%.4f world=%s" % (
                 row.get("c_vs_model", -1.0),
                 row.get("full_frame_c_vs_j", -1.0),
                 row.get("world_parity", "?")))
-        print("%-24s %10.3f %10.3f %10.3f %10s  painted=%d %s%s" % (
+        if row.get("fullscreen"):
+            extra = " stable=%.3f maxch=%.1f thr=%s%s" % (
+                row.get("stable_frac") or 0.0,
+                row.get("max_diff") if row.get("max_diff") == row.get("max_diff")
+                else -1.0,
+                row.get("hard_thr"),
+                extra)
+        print("%-24s %10.3f %10.3f %10.3f %8s %10s  painted=%d %s%s" % (
             sid, row["noise"] if row["noise"] == row["noise"] else -1.0,
             diff if diff == diff else -1.0,
             row["gate"] if row["gate"] == row["gate"] else -1.0,
-            row["verdict"], row["n_painted"], rect, extra))
+            hard_px_s, row["verdict"], row["n_painted"], rect, extra))
         rows.append(row)
 
     report = {
@@ -557,10 +765,12 @@ def run_compare(goldens, cframes, margin, report_path=""):
         "residuals": residuals,
         "rows": rows,
         "notes": (
-            "PASS = hard C-vs-J within gate. "
+            "PASS = hard parity. Fullscreen inside-block uses A/B-stable full "
+            "ROI + hard_px with thr=ceil(noise_max) (noise_max==0 => exact). "
+            "No painted-mean dilution, no thr floor of 1. "
             "RESIDUAL = hard capture OK but C residual (nonzero exit). "
-            "CAPTURE_OK = soft state capture integrity only (no parity claim). "
-            "FAIL = missing/noise/empty. "
+            "CAPTURE_OK = soft capture integrity only (portal/fire/underwater/"
+            "full-frame death). FAIL = missing/noise/empty/unstable. "
             "GuiGameOver: hard = opaque chrome (title/score body+shadow, "
             "full button rects) + hud_death_tint_pair (source gradient blend "
             "over known underlay); full-frame tint/world composition is soft "
@@ -576,8 +786,22 @@ def run_compare(goldens, cframes, margin, report_path=""):
     print("open residuals (hard, no parity claim):")
     if residuals:
         for r in residuals:
-            print("  %s  noise=%.3f  C-vs-J=%.3f  gate=%.3f" % (
-                r["id"], r["noise"], r["c_vs_j"], r["gate"]))
+            extra = ""
+            if r.get("hard_px") is not None:
+                extra = "  hard_px=%s  thr=%s  max_diff=%s  noise_max=%s" % (
+                    r.get("hard_px"), r.get("hard_thr"),
+                    r.get("max_diff"), r.get("noise_max"))
+            print("  %s  noise=%.3f  C-vs-J=%.3f  gate=%.3f%s" % (
+                r["id"], r["noise"], r["c_vs_j"], r["gate"], extra))
+            if r.get("residual_bbox"):
+                print("    residual_bbox(x0,y0,x1,y1)=%s" % (
+                    r["residual_bbox"],))
+            locs = r.get("residual_locs") or []
+            for loc in locs[:8]:
+                print("    residual @(%d,%d) maxch=%d C=%s J=%s" % (
+                    loc["x"], loc["y"], loc["maxch"], loc["c"], loc["j"]))
+            if len(locs) > 8:
+                print("    ... %d sample locs total" % len(locs))
     else:
         print("  none")
     exit_code = 1 if (n_fail or n_residual) else 0
