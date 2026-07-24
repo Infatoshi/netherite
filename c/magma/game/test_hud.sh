@@ -3,6 +3,9 @@
 # Run from anywhere: bash game/test_hud.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [ ! -f assets/hud_atlas.h ] || [ assets/build_hud_atlas.py -nt assets/hud_atlas.h ]; then
+    uv run --no-project --with pillow python assets/build_hud_atlas.py
+fi
 gcc -O2 -ffp-contract=off -Wall -Wextra -I. -Icore \
     game/hud.c game/item_render.c assets/blockmodels.c game/test_hud.c \
     -o game/test_hud -lm
