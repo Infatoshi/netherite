@@ -129,6 +129,23 @@ public class QuantizedRL {
     private static final int REC_ENT_RADIUS = 48;
     private static final int REC_ENT_MAX = 32;
 
+    /**
+     * Pending CLIENT render-entity pin for oracle A/B frames.
+     * Server spawn alone cannot pin squishFactor/deathTicks (not reliably synced;
+     * client onUpdate overwrites squish). frame{} applies this immediately before
+     * renderWorld(partialTicks=1) and restores afterward so free-running ticks
+     * cannot clobber the pin between settle and readback.
+     */
+    private volatile boolean renderPinActive = false;
+    private volatile String renderPinKind = null;
+    private volatile java.util.UUID renderPinUuid = null;
+    private volatile int renderPinEid = -1;
+    private volatile double renderPinX, renderPinY, renderPinZ;
+    private volatile float renderPinSquish;
+    private volatile int renderPinSize;
+    private volatile int renderPinDeathTicks;
+    private volatile boolean renderPinIsMagma;
+
     /** Client-thread hook from MixinRecordPlayerVelocity. Raw packet shorts are
      * retained so replay reproduces SPacketEntityVelocity's 1/8000 quantization. */
     public static void recordPlayerVelocityPacket(
@@ -156,6 +173,133 @@ public class QuantizedRL {
         recPositionVy = mc.player.motionY;
         recPositionVz = mc.player.motionZ;
         recPositionPending = true;
+    }
+
+    /** Snapshot of client entity fields restored after frame{} re-render. */
+    private static final class RenderPinSnap {
+        net.minecraft.entity.Entity entity;
+        boolean isSlime;
+        boolean isDragon;
+        float squishAmount, squishFactor, prevSquishFactor;
+        int deathTicks;
+        float health;
+    }
+
+    /** Match just-spawned server entity on the client world: UUID, then eid, then
+     * position+type within 2 blocks. */
+    private net.minecraft.entity.Entity findClientRenderPinEntity(Minecraft mc) {
+        if (mc == null || mc.world == null || !renderPinActive) return null;
+        java.util.UUID want = renderPinUuid;
+        if (want != null) {
+            for (net.minecraft.entity.Entity e : mc.world.loadedEntityList) {
+                if (e != null && want.equals(e.getUniqueID()) && typeMatchesRenderPin(e))
+                    return e;
+            }
+        }
+        if (renderPinEid >= 0) {
+            net.minecraft.entity.Entity byId = mc.world.getEntityByID(renderPinEid);
+            if (byId != null && typeMatchesRenderPin(byId)) return byId;
+        }
+        net.minecraft.entity.Entity best = null;
+        double bestD = 4.0 * 4.0; // 4-block radius
+        for (net.minecraft.entity.Entity e : mc.world.loadedEntityList) {
+            if (e == null || !typeMatchesRenderPin(e)) continue;
+            double dx = e.posX - renderPinX;
+            double dy = e.posY - renderPinY;
+            double dz = e.posZ - renderPinZ;
+            double d = dx * dx + dy * dy + dz * dz;
+            if (d < bestD) { bestD = d; best = e; }
+        }
+        return best;
+    }
+
+    private boolean typeMatchesRenderPin(net.minecraft.entity.Entity e) {
+        if (renderPinKind == null) return false;
+        String k = renderPinKind.toLowerCase();
+        if (k.contains("magma"))
+            return e instanceof net.minecraft.entity.monster.EntityMagmaCube;
+        if (k.equals("slime"))
+            return e instanceof net.minecraft.entity.monster.EntitySlime
+                && !(e instanceof net.minecraft.entity.monster.EntityMagmaCube);
+        if (k.contains("dragon") && !k.contains("fireball"))
+            return e instanceof net.minecraft.entity.boss.EntityDragon;
+        return false;
+    }
+
+    /** Write squishFactor/prevSquishFactor/squishAmount or deathTicks onto the
+     * CLIENT entity the renderer reads. For dragon, keep health > 0 so
+     * onDeathUpdate does not advance deathTicks or remove the entity. */
+    private void applyClientEntityRenderFields(net.minecraft.entity.Entity e) {
+        if (e instanceof net.minecraft.entity.monster.EntitySlime) {
+            net.minecraft.entity.monster.EntitySlime sl =
+                (net.minecraft.entity.monster.EntitySlime) e;
+            float sq = renderPinSquish;
+            sl.squishAmount = sq;
+            sl.squishFactor = sq;
+            sl.prevSquishFactor = sq;
+            // Size is data-manager synced from server; re-assert if pin carries size.
+            if (renderPinSize > 0) {
+                try {
+                    java.lang.reflect.Method m =
+                        net.minecraft.entity.monster.EntitySlime.class
+                            .getDeclaredMethod("setSlimeSize", int.class, boolean.class);
+                    m.setAccessible(true);
+                    m.invoke(sl, Integer.valueOf(renderPinSize), Boolean.FALSE);
+                } catch (Throwable ig) {}
+            }
+        } else if (e instanceof net.minecraft.entity.boss.EntityDragon) {
+            net.minecraft.entity.boss.EntityDragon dr =
+                (net.minecraft.entity.boss.EntityDragon) e;
+            // Keep alive so client onDeathUpdate does not ++deathTicks / spin yaw.
+            try {
+                if (dr.getHealth() <= 0.0F) dr.setHealth(dr.getMaxHealth());
+            } catch (Throwable ig) {}
+            dr.deathTicks = renderPinDeathTicks;
+            dr.motionX = dr.motionY = dr.motionZ = 0.0D;
+        }
+    }
+
+    /** Apply pending pin; return snapshot for restore, or null if no match. */
+    private RenderPinSnap applyPendingRenderPin(Minecraft mc) {
+        net.minecraft.entity.Entity e = findClientRenderPinEntity(mc);
+        if (e == null) return null;
+        RenderPinSnap snap = new RenderPinSnap();
+        snap.entity = e;
+        if (e instanceof net.minecraft.entity.monster.EntitySlime) {
+            net.minecraft.entity.monster.EntitySlime sl =
+                (net.minecraft.entity.monster.EntitySlime) e;
+            snap.isSlime = true;
+            snap.squishAmount = sl.squishAmount;
+            snap.squishFactor = sl.squishFactor;
+            snap.prevSquishFactor = sl.prevSquishFactor;
+        } else if (e instanceof net.minecraft.entity.boss.EntityDragon) {
+            net.minecraft.entity.boss.EntityDragon dr =
+                (net.minecraft.entity.boss.EntityDragon) e;
+            snap.isDragon = true;
+            snap.deathTicks = dr.deathTicks;
+            snap.health = dr.getHealth();
+        } else {
+            return null;
+        }
+        applyClientEntityRenderFields(e);
+        return snap;
+    }
+
+    private void restoreRenderPin(RenderPinSnap snap) {
+        if (snap == null || snap.entity == null) return;
+        if (snap.isSlime && snap.entity instanceof net.minecraft.entity.monster.EntitySlime) {
+            net.minecraft.entity.monster.EntitySlime sl =
+                (net.minecraft.entity.monster.EntitySlime) snap.entity;
+            sl.squishAmount = snap.squishAmount;
+            sl.squishFactor = snap.squishFactor;
+            sl.prevSquishFactor = snap.prevSquishFactor;
+        } else if (snap.isDragon
+                && snap.entity instanceof net.minecraft.entity.boss.EntityDragon) {
+            net.minecraft.entity.boss.EntityDragon dr =
+                (net.minecraft.entity.boss.EntityDragon) snap.entity;
+            dr.deathTicks = snap.deathTicks;
+            try { dr.setHealth(snap.health); } catch (Throwable ig) {}
+        }
     }
 
     private static int reflectedInt(Object owner, String name,
@@ -286,6 +430,7 @@ public class QuantizedRL {
             case "capture_chunkrebuild": case "runcmds": case "dim": case "kmode":
             case "reload_renderers":
             case "portal_touch": case "use_end_eye": case "set_pose": case "hud_pin":
+            case "entity_pin":
             case "dumpblocks": case "frame": case "gldiag": case "focusdiag": case "camera": case "sample_light":
             case "recstart": case "recstop":
             case "getblocks": case "setblocks":
@@ -2914,6 +3059,10 @@ public class QuantizedRL {
         // EntityRenderer.renderHand skips ItemRenderer when hideGUI is set, so
         // forced GUI overlays still paint but the first-person viewmodel is
         // missing. Oracle A/B frames must clear hideGUI for the re-render pass.
+        //
+        // When a pending entity render pin is active, apply it on the client entity
+        // immediately before renderWorld and restore afterward so no intervening
+        // client tick can overwrite squishFactor/deathTicks.
         if (r.cmd.equals("frame")) {
             try {
                 String file = r.action.get("file").getAsString();
@@ -2921,15 +3070,25 @@ public class QuantizedRL {
                 boolean rerender = !r.action.has("rerender")
                     || r.action.get("rerender").getAsBoolean();
                 boolean hud = false, tb = false;
+                int pinApplied = 0;
+                int pinClientEid = -1;
                 boolean prevHide = mc.gameSettings.hideGUI;
                 int prevTp = mc.gameSettings.thirdPersonView;
                 if (rerender && mc.world != null && mc.player != null
                         && mc.entityRenderer != null) {
+                    RenderPinSnap pinSnap = null;
                     try {
                         // First-person viewmodel requires: hideGUI=false,
                         // thirdPersonView=0, not spectator, not sleeping.
                         mc.gameSettings.hideGUI = false;
                         mc.gameSettings.thirdPersonView = 0;
+                        if (renderPinActive) {
+                            pinSnap = applyPendingRenderPin(mc);
+                            if (pinSnap != null && pinSnap.entity != null) {
+                                pinApplied = 1;
+                                pinClientEid = pinSnap.entity.getEntityId();
+                            }
+                        }
                         net.minecraft.client.shader.Framebuffer fb = mc.getFramebuffer();
                         fb.bindFramebuffer(true);
                         mc.entityRenderer.renderWorld(1.0F, System.nanoTime());
@@ -2951,8 +3110,11 @@ public class QuantizedRL {
                         fb.unbindFramebuffer();
                         tb = true;
                     } catch (Throwable ig) {
-                        /* re-render failed; still restore gameSettings below */
+                        /* re-render failed; still restore gameSettings / pin below */
                     } finally {
+                        if (pinSnap != null) {
+                            try { restoreRenderPin(pinSnap); } catch (Throwable ig3) {}
+                        }
                         mc.gameSettings.hideGUI = prevHide;
                         mc.gameSettings.thirdPersonView = prevTp;
                     }
@@ -2962,7 +3124,9 @@ public class QuantizedRL {
                 javax.imageio.ImageIO.write(img, "png", new java.io.File(file));
                 r.resp.offer("{\"ok\":true,\"file\":\"" + file + "\",\"w\":" + fw
                     + ",\"h\":" + fh + ",\"tb\":" + (tb ? 1 : 0)
-                    + ",\"hud\":" + (hud ? 1 : 0) + "}");
+                    + ",\"hud\":" + (hud ? 1 : 0)
+                    + ",\"render_pin\":" + pinApplied
+                    + ",\"render_pin_eid\":" + pinClientEid + "}");
             } catch (Exception ex) { r.resp.offer(err("frame: " + ex)); }
             return;
         }
@@ -3563,6 +3727,290 @@ public class QuantizedRL {
                 r.resp.offer(err("hud_pin: " + t));
             }
             return;
+        }
+
+        // entity_pin: freeze deterministic interactive-entity state for oracle A/B
+        // captures. Covers fields existing summon/NBT/tape cannot pin for render:
+        // slime/magma size+squishFactor, dragon deathTicks, fireball pose, XP orb
+        // age/color/value, and dig hit particles via ParticleManager.addBlockHitEffects.
+        // Size/fireball/xp/dig use server spawn or client particles. squishFactor and
+        // deathTicks are CLIENT render fields: arm a pending pin matched by UUID/eid/
+        // position/type; frame{} applies it on the client entity at render time.
+        // Does not advance the world; caller uses frame{} for the PNG dump.
+        if (r.cmd.equals("entity_pin")) {
+            try {
+                if (mc.player == null || mc.world == null) {
+                    r.resp.offer(err("no world")); return;
+                }
+                final JsonObject a = r.action;
+                final MinecraftServer s = mc.getIntegratedServer();
+                if (s == null) { r.resp.offer(err("no server")); return; }
+                final String kind = a.has("kind") ? a.get("kind").getAsString() : "";
+                final boolean clear = !a.has("clear") || a.get("clear").getAsBoolean();
+                final Req fr = r;
+
+                // Client-only dig hit spray (ParticleDigging). Face 0..5 = DUNSWE.
+                if ("dig_hit".equalsIgnoreCase(kind)) {
+                    renderPinActive = false;
+                    int bx = a.get("bx").getAsInt();
+                    int by = a.get("by").getAsInt();
+                    int bz = a.get("bz").getAsInt();
+                    int face = a.has("face") ? a.get("face").getAsInt() : 1; // UP default
+                    int n = a.has("count") ? a.get("count").getAsInt() : 4;
+                    if (n < 1) n = 1;
+                    if (n > 32) n = 32;
+                    net.minecraft.util.math.BlockPos pos =
+                        new net.minecraft.util.math.BlockPos(bx, by, bz);
+                    net.minecraft.util.EnumFacing fac =
+                        net.minecraft.util.EnumFacing.values()[face & 7];
+                    // Clear existing FX so A/B is the spray alone.
+                    try {
+                        java.lang.reflect.Field fl =
+                            net.minecraft.client.particle.ParticleManager.class
+                                .getDeclaredField("fxLayers");
+                        fl.setAccessible(true);
+                        @SuppressWarnings("unchecked")
+                        java.util.ArrayDeque<net.minecraft.client.particle.Particle>[][] layers =
+                            (java.util.ArrayDeque<net.minecraft.client.particle.Particle>[][])
+                                fl.get(mc.effectRenderer);
+                        if (layers != null) {
+                            for (int i = 0; i < layers.length; ++i)
+                                for (int j = 0; j < layers[i].length; ++j)
+                                    if (layers[i][j] != null) layers[i][j].clear();
+                        }
+                    } catch (Throwable ig) {}
+                    for (int i = 0; i < n; ++i)
+                        mc.effectRenderer.addBlockHitEffects(pos, fac);
+                    JsonObject o = new JsonObject();
+                    o.addProperty("ok", true);
+                    o.addProperty("kind", "dig_hit");
+                    o.addProperty("bx", bx); o.addProperty("by", by); o.addProperty("bz", bz);
+                    o.addProperty("face", face); o.addProperty("count", n);
+                    r.resp.offer(o.toString());
+                    return;
+                }
+
+                s.addScheduledTask(new Runnable() { public void run() {
+                    try {
+                        net.minecraft.world.WorldServer w = s.worlds[0];
+                        try {
+                            java.util.List<net.minecraft.entity.player.EntityPlayerMP> qps =
+                                s.getPlayerList().getPlayers();
+                            if (!qps.isEmpty()) w = qps.get(0).getServerWorld();
+                        } catch (Throwable ig) {}
+                        // EntitySlime.onUpdate sets isDead when difficulty==PEACEFUL and
+                        // size>0. Integrated flat worlds often start PEACEFUL; chat
+                        // /difficulty can fail (counted in runcmds failed). Force EASY
+                        // on the server before any IMob pin so slimes/magma stay alive.
+                        try {
+                            s.setDifficultyForAllWorlds(net.minecraft.world.EnumDifficulty.EASY);
+                            w.getWorldInfo().setDifficulty(net.minecraft.world.EnumDifficulty.EASY);
+                            try {
+                                w.getWorldInfo().setDifficultyLocked(false);
+                            } catch (Throwable ig2) {}
+                        } catch (Throwable ig) {}
+                        if (clear) {
+                            for (net.minecraft.entity.Entity e :
+                                    new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                        w.loadedEntityList)) {
+                                if (e instanceof net.minecraft.entity.player.EntityPlayer) continue;
+                                e.setDead();
+                            }
+                        }
+                        double sx = a.has("x") ? a.get("x").getAsDouble() : 0.5;
+                        double sy = a.has("y") ? a.get("y").getAsDouble() : 4.0;
+                        double sz = a.has("z") ? a.get("z").getAsDouble() : 0.5;
+                        float yaw = a.has("yaw") ? a.get("yaw").getAsFloat() : 0.0f;
+                        float pitch = a.has("pitch") ? a.get("pitch").getAsFloat() : 0.0f;
+                        net.minecraft.entity.Entity ent = null;
+                        JsonObject o = new JsonObject();
+                        o.addProperty("ok", true);
+                        o.addProperty("kind", kind);
+                        try {
+                            o.addProperty("difficulty", w.getDifficulty().name());
+                        } catch (Throwable ig) {}
+
+                        // Default: no client render pin unless slime/magma squish or dragon death.
+                        boolean armRenderPin = false;
+                        float pinSq = 0.0f;
+                        int pinSize = 0;
+                        int pinDt = 0;
+                        boolean pinMagma = false;
+
+                        if ("slime".equalsIgnoreCase(kind) || "magma_cube".equalsIgnoreCase(kind)
+                                || "magmacube".equalsIgnoreCase(kind)) {
+                            boolean magma = kind.toLowerCase().contains("magma");
+                            pinMagma = magma;
+                            net.minecraft.entity.monster.EntitySlime sl = magma
+                                ? new net.minecraft.entity.monster.EntityMagmaCube(w)
+                                : new net.minecraft.entity.monster.EntitySlime(w);
+                            int size = a.has("size") ? a.get("size").getAsInt() : 2;
+                            if (size < 1) size = 1;
+                            // setSlimeSize is protected; NBT Size is getSlimeSize()-1.
+                            try {
+                                java.lang.reflect.Method m =
+                                    net.minecraft.entity.monster.EntitySlime.class
+                                        .getDeclaredMethod("setSlimeSize", int.class, boolean.class);
+                                m.setAccessible(true);
+                                m.invoke(sl, Integer.valueOf(size), Boolean.TRUE);
+                            } catch (Throwable t) {
+                                net.minecraft.nbt.NBTTagCompound nbt =
+                                    new net.minecraft.nbt.NBTTagCompound();
+                                sl.writeToNBT(nbt);
+                                nbt.setInteger("Size", size - 1);
+                                sl.readFromNBT(nbt);
+                            }
+                            sl.setNoAI(true);
+                            try { sl.enablePersistence(); } catch (Throwable ig) {}
+                            // Prevent immediate peaceful cull if difficulty flip races a tick.
+                            try { sl.isDead = false; } catch (Throwable ig) {}
+                            sl.setLocationAndAngles(sx, sy, sz, yaw, pitch);
+                            float sq = a.has("squish") ? a.get("squish").getAsFloat() : 0.0f;
+                            // Server-side squish is not what RenderSlime reads; still set for
+                            // completeness. Client pin is armed below for actual render.
+                            sl.squishAmount = sq;
+                            sl.squishFactor = sq;
+                            sl.prevSquishFactor = sq;
+                            ent = sl;
+                            pinSq = sq;
+                            pinSize = size;
+                            // Always arm render pin for slime/magma so squish=0 and squish=1
+                            // both freeze client prev/current factors at the requested value.
+                            armRenderPin = true;
+                            o.addProperty("size", size);
+                            o.addProperty("squish", sq);
+                        } else if ("dragon".equalsIgnoreCase(kind)
+                                || "ender_dragon".equalsIgnoreCase(kind)) {
+                            net.minecraft.entity.boss.EntityDragon dr =
+                                new net.minecraft.entity.boss.EntityDragon(w);
+                            dr.setLocationAndAngles(sx, sy, sz, yaw, pitch);
+                            int dt = a.has("death_ticks") ? a.get("death_ticks").getAsInt() : 0;
+                            if (dt < 0) dt = 0;
+                            if (dt > 200) dt = 200;
+                            // Keep the SERVER dragon alive below removal. health<=0 runs
+                            // onDeathUpdate (deathTicks++ , setDead at 200). Client render
+                            // alone needs deathTicks for LayerEnderDragonDeath + dissolve;
+                            // do not zero server health or server deathTicks.
+                            try {
+                                dr.setHealth(dr.getMaxHealth());
+                            } catch (Throwable ig) {}
+                            dr.deathTicks = 0;
+                            try {
+                                // HOVER stays put; server remains alive (health full).
+                                dr.getPhaseManager().setPhase(
+                                    net.minecraft.entity.boss.dragon.phase.PhaseList.HOVER);
+                            } catch (Throwable ig) {
+                                try {
+                                    dr.getPhaseManager().setPhase(
+                                        net.minecraft.entity.boss.dragon.phase.PhaseList.HOLDING_PATTERN);
+                                } catch (Throwable ig2) {}
+                            }
+                            ent = dr;
+                            pinDt = dt;
+                            armRenderPin = (dt > 0);
+                            o.addProperty("death_ticks", dt);
+                            o.addProperty("server_alive", true);
+                        } else if ("small_fireball".equalsIgnoreCase(kind)
+                                || "fireball_small".equalsIgnoreCase(kind)) {
+                            renderPinActive = false;
+                            net.minecraft.entity.projectile.EntitySmallFireball fb =
+                                new net.minecraft.entity.projectile.EntitySmallFireball(w);
+                            fb.setPosition(sx, sy, sz);
+                            fb.rotationYaw = yaw; fb.rotationPitch = pitch;
+                            fb.motionX = fb.motionY = fb.motionZ = 0.0D;
+                            ent = fb;
+                        } else if ("dragon_fireball".equalsIgnoreCase(kind)
+                                || "fireball_dragon".equalsIgnoreCase(kind)) {
+                            renderPinActive = false;
+                            net.minecraft.entity.projectile.EntityDragonFireball fb =
+                                new net.minecraft.entity.projectile.EntityDragonFireball(w);
+                            fb.setPosition(sx, sy, sz);
+                            fb.rotationYaw = yaw; fb.rotationPitch = pitch;
+                            fb.motionX = fb.motionY = fb.motionZ = 0.0D;
+                            ent = fb;
+                        } else if ("xp_orb".equalsIgnoreCase(kind)
+                                || "xporb".equalsIgnoreCase(kind)) {
+                            renderPinActive = false;
+                            int val = a.has("value") ? a.get("value").getAsInt() : 7;
+                            net.minecraft.entity.item.EntityXPOrb orb =
+                                new net.minecraft.entity.item.EntityXPOrb(w, sx, sy, sz, val);
+                            orb.motionX = orb.motionY = orb.motionZ = 0.0D;
+                            if (a.has("age")) orb.xpOrbAge = a.get("age").getAsInt();
+                            if (a.has("color")) orb.xpColor = a.get("color").getAsInt();
+                            else orb.xpColor = 0;
+                            orb.delayBeforeCanPickup = 32767; // never attract
+                            ent = orb;
+                            o.addProperty("value", val);
+                            o.addProperty("age", orb.xpOrbAge);
+                            o.addProperty("color", orb.xpColor);
+                        } else {
+                            fr.resp.offer(err("entity_pin: unknown kind " + kind));
+                            return;
+                        }
+                        if (ent != null) {
+                            ent.motionX = ent.motionY = ent.motionZ = 0.0D;
+                            if (ent instanceof net.minecraft.entity.EntityLiving) {
+                                ((net.minecraft.entity.EntityLiving) ent).setNoAI(true);
+                            }
+                            w.spawnEntity(ent);
+                            o.addProperty("eid", ent.getEntityId());
+                            o.addProperty("uuid", ent.getUniqueID().toString());
+                            o.addProperty("x", sx); o.addProperty("y", sy); o.addProperty("z", sz);
+
+                            if (armRenderPin) {
+                                // Arm pending CLIENT render pin (matched later on client thread).
+                                renderPinKind = kind;
+                                renderPinUuid = ent.getUniqueID();
+                                renderPinEid = ent.getEntityId();
+                                renderPinX = sx;
+                                renderPinY = sy;
+                                renderPinZ = sz;
+                                renderPinSquish = pinSq;
+                                renderPinSize = pinSize;
+                                renderPinDeathTicks = pinDt;
+                                renderPinIsMagma = pinMagma;
+                                renderPinActive = true;
+                                o.addProperty("render_pin_armed", true);
+                                o.addProperty("render_pin_squish", pinSq);
+                                o.addProperty("render_pin_death_ticks", pinDt);
+                                // Best-effort early client apply (entity may not exist yet;
+                                // frame{} re-applies after packets land).
+                                final java.util.UUID pinUuid = ent.getUniqueID();
+                                final int pinEid = ent.getEntityId();
+                                try {
+                                    Minecraft.getMinecraft().addScheduledTask(new Runnable() {
+                                        public void run() {
+                                            try {
+                                                Minecraft cmc = Minecraft.getMinecraft();
+                                                if (cmc.world == null) return;
+                                                net.minecraft.entity.Entity ce =
+                                                    findClientRenderPinEntity(cmc);
+                                                if (ce != null) {
+                                                    applyClientEntityRenderFields(ce);
+                                                    System.out.println("[qrl] entity_pin client match"
+                                                        + " eid=" + ce.getEntityId()
+                                                        + " uuid=" + pinUuid
+                                                        + " server_eid=" + pinEid);
+                                                }
+                                            } catch (Throwable ig) {}
+                                        }
+                                    });
+                                } catch (Throwable ig) {}
+                            } else {
+                                renderPinActive = false;
+                                o.addProperty("render_pin_armed", false);
+                            }
+                        }
+                        fr.resp.offer(o.toString());
+                    } catch (Throwable t) {
+                        fr.resp.offer(err("entity_pin: " + t));
+                    }
+                }});
+                return;
+            } catch (Throwable t) {
+                r.resp.offer(err("entity_pin: " + t));
+                return;
+            }
         }
 
         // gldiag: interrogate the GL context from the client thread. Distinguishes
