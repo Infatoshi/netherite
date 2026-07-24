@@ -177,10 +177,10 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   sprite (grass→dirt). Candidate uses black world + real atlas particle UVs.
   Gate: full A/B-stable ROI, `hard_thr=0` (bit-exact). PASS only if
   `noise_max==0` and hard_px==0. Never `ceil(noise_max)` as PASS tolerance.
-  Open 1-LSB residuals (measured under thr=0): stone hard_px is HUD-band only
-  (non-HUD overlay exact); grass hard_px is widespread maxch=1 (dirt particle
-  vs Java — floor(tex*0.1) makes stone worse, so not a global rounding flip;
-  left open). Mutations must reject erase/blank/+1ch/shift/recolor/extra.
+  Body: banker's `rintf(tex*0.1)` (c8c9a68). HUD-band 1-LSB closed by textured
+  GUI src-over as separate round then add (`hud_blend_px_tex`); solid fills
+  (death gradient) keep fused `(s*a+d*ia+127)/255`. Stone/grass hard_px=0.
+  Mutations must reject erase/blank/+1ch/shift/recolor/extra.
 - **Portal CAPTURE_BLOCKED (source path, not black-fit):** `GuiIngame.renderPortal`
   (not ItemRenderer) is a full-screen blocks-atlas portal sprite with
   fourth-power alpha (`t^4*0.8+0.2` at `timeInPortal=0.5` → 0.25),

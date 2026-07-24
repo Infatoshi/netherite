@@ -826,9 +826,11 @@ def _load_hotbar_underlay_icon_rgb():
 
     Source: HUD_HOTBAR (widgets.png hotbar strip) nearest-scaled and alpha-
     composited over isolation GRAY with the same integer formula as
-    hud_blend_px: (src*a + dst*(255-a) + 127)//255. Icon cell maps to hotbar
-    sprite local (3..18, 3..18) (slot 0 at strip+3). Exact per-pixel colors —
-    not a mx/chroma threshold hole and not Java world underlay.
+    hud_blend_px_tex (separate round then add):
+      sp=(src*a+127)//255; out=min(255, sp+(dst*ia+127)//255).
+    Icon cell maps to hotbar sprite local (3..18, 3..18) (slot 0 at strip+3).
+    Exact per-pixel colors — not a mx/chroma threshold hole and not Java
+    world underlay.
     """
     global _HOTBAR_UNDERLAY_ICON
     if _HOTBAR_UNDERLAY_ICON is not None:
@@ -883,8 +885,9 @@ def _load_hotbar_underlay_icon_rgb():
     ia = 255 - a
     under16 = np.empty((16, 16, 3), dtype=np.uint8)
     for c in range(3):
-        under16[:, :, c] = (
-            (cell[:, :, c] * a + GRAY * ia + 127) // 255).astype(np.uint8)
+        sp = (cell[:, :, c] * a + 127) // 255
+        dp = (GRAY * ia + 127) // 255
+        under16[:, :, c] = np.minimum(255, sp + dp).astype(np.uint8)
     # a==0 leaves isolation gray (no hotbar paint).
     bare = a == 0
     under16[bare] = (GRAY, GRAY, GRAY)

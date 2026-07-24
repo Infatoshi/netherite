@@ -8,7 +8,8 @@
  *
  * Sprites are the real MC gui textures (widgets.png / icons.png) extracted by
  * assets/build_hud_atlas.py into assets/hud_atlas.h. Blits are nearest-neighbour
- * integer-scaled and alpha-composited (skip a=0, src-over for partial alpha).
+ * integer-scaled and alpha-composited (skip a=0; textured src-over uses separate
+ * round of src*a and dst*ia; solid fills keep fused (s*a+d*ia+127)/255).
  * gm_hud_draw NEVER touches fb->depth and clips every write to fb bounds.
  *
  * NOTES on stretch/optional items:
@@ -54,9 +55,9 @@ static CrRgba hud_texel(int idx, int sx, int sy) {
 }
 
 /* Alpha-composite src over the framebuffer pixel at (x,y). Clips to bounds.
- * Fused (src*a + dst*ia + 127)/255 — proven for HUD death tint, durability,
- * and all non-tooltip GUI fills. Inventory tooltip bg/border uses a separate
- * Mesa unorm8 mul+add path in screen.c (tooltip_mesa_unorm8_fill). */
+ * Fused (src*a + dst*ia + 127)/255, used for solid fills including the death
+ * gradient, pips, and digit rects. Textured sprite blits use the separate-round
+ * path below; inventory tooltip gradients use their scoped path in screen.c. */
 static void hud_blend_px(CrFramebuffer *fb, int x, int y, CrRgba src) {
     if (x < 0 || y < 0 || x >= fb->w || y >= fb->h) return;
     if (src.a == 0) return;
@@ -66,6 +67,29 @@ static void hud_blend_px(CrFramebuffer *fb, int x, int y, CrRgba src) {
     d->r = (u8)((src.r * a + d->r * ia + 127) / 255);
     d->g = (u8)((src.g * a + d->g * ia + 127) / 255);
     d->b = (u8)((src.b * a + d->b * ia + 127) / 255);
+    d->a = (u8)(a + (d->a * ia + 127) / 255);
+}
+
+/* Textured GUI blit src-over. Separate round of src*a and dst*ia, then add
+ * (clamp). Matches Java widgets/icons over the dark inside-block underlay:
+ * fused (s*a+d*ia+127)/255 is systematically 1 LSB off on hotbar a=186
+ * texels (stone/grass hard_px was HUD-band only after body bit-exact). Solid
+ * fills keep hud_blend_px so death/durability numerical rows stay exact. */
+static void hud_blend_px_tex(CrFramebuffer *fb, int x, int y, CrRgba src) {
+    if (x < 0 || y < 0 || x >= fb->w || y >= fb->h) return;
+    if (src.a == 0) return;
+    CrRgba *d = &fb->color[y * fb->w + x];
+    if (src.a == 255) { *d = src; return; }
+    int a = src.a, ia = 255 - a;
+    int r = (src.r * a + 127) / 255 + (d->r * ia + 127) / 255;
+    int g = (src.g * a + 127) / 255 + (d->g * ia + 127) / 255;
+    int b = (src.b * a + 127) / 255 + (d->b * ia + 127) / 255;
+    if (r > 255) r = 255;
+    if (g > 255) g = 255;
+    if (b > 255) b = 255;
+    d->r = (u8)r;
+    d->g = (u8)g;
+    d->b = (u8)b;
     d->a = (u8)(a + (d->a * ia + 127) / 255);
 }
 
@@ -81,7 +105,7 @@ static void hud_blit(CrFramebuffer *fb, int idx, int dx, int dy, int scale) {
             int px0 = dx + sx * scale, py0 = dy + sy * scale;
             for (int yy = 0; yy < scale; yy++)
                 for (int xx = 0; xx < scale; xx++)
-                    hud_blend_px(fb, px0 + xx, py0 + yy, t);
+                    hud_blend_px_tex(fb, px0 + xx, py0 + yy, t);
         }
     }
 }
@@ -101,8 +125,8 @@ static void hud_blit_sub_alpha(CrFramebuffer *fb, int idx, int sx0, int sy0,
             if (!t.a) continue;
             for (int yy = 0; yy < scale; ++yy)
                 for (int xx = 0; xx < scale; ++xx)
-                    hud_blend_px(fb, dx + sx * scale + xx,
-                                 dy + sy * scale + yy, t);
+                    hud_blend_px_tex(fb, dx + sx * scale + xx,
+                                     dy + sy * scale + yy, t);
         }
 }
 
@@ -120,7 +144,7 @@ static void hud_blit_rows(CrFramebuffer *fb, int idx, int dx, int dy, int scale,
             int px0 = dx + sx * scale, py0 = dy + sy * scale;
             for (int yy = 0; yy < scale; yy++)
                 for (int xx = 0; xx < scale; xx++)
-                    hud_blend_px(fb, px0 + xx, py0 + yy, t);
+                    hud_blend_px_tex(fb, px0 + xx, py0 + yy, t);
         }
     }
 }
@@ -139,7 +163,7 @@ static void hud_blit_cols(CrFramebuffer *fb, int idx, int dx, int dy, int scale,
             int px0 = dx + sx * scale, py0 = dy + sy * scale;
             for (int yy = 0; yy < scale; yy++)
                 for (int xx = 0; xx < scale; xx++)
-                    hud_blend_px(fb, px0 + xx, py0 + yy, t);
+                    hud_blend_px_tex(fb, px0 + xx, py0 + yy, t);
         }
     }
 }
@@ -253,7 +277,7 @@ static void gui_blit_sub(CrFramebuffer *fb, int idx, int sx0, int sy0, int sw, i
             int px0 = dx + sx * scale, py0 = dy + sy * scale;
             for (int yy = 0; yy < scale; yy++)
                 for (int xx = 0; xx < scale; xx++)
-                    hud_blend_px(fb, px0 + xx, py0 + yy, t);
+                    hud_blend_px_tex(fb, px0 + xx, py0 + yy, t);
         }
     }
 }
@@ -850,7 +874,7 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
                 int px0 = xp_x + sx * scale, py0 = xp_y + sy * scale;
                 for (int yy = 0; yy < scale; yy++)
                     for (int xx = 0; xx < scale; xx++)
-                        hud_blend_px(fb, px0 + xx, py0 + yy, t);
+                        hud_blend_px_tex(fb, px0 + xx, py0 + yy, t);
             }
     }
     /* XP level: FontRenderer outline (4 black offsets) + 0x80FF20 centre.
