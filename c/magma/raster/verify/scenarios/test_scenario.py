@@ -40,6 +40,24 @@ def test_materialize_segments_rejects_overrun(tmp_path):
         scenario.materialize_segments(spec, spec_path, tmp_path / "out.jsonl")
 
 
+def test_scenario_specs_declare_focused_combat_coverage():
+    """Pyramid-visible: focused scenario YAMLs cover required combat classes."""
+    root = Path(__file__).resolve().parent
+    required = {
+        "smoke_zombie.yaml",
+        "enderman_fight.yaml",
+        "blaze_bow.yaml",
+        "ender_dragon.yaml",
+    }
+    present = {p.name for p in root.glob("*.yaml")}
+    missing = required - present
+    assert not missing, f"focused scenarios missing from pyramid: {missing}"
+    for name in required:
+        spec = scenario.load_spec(root / name)
+        assert spec["duration_ticks"] > 0
+        assert "segments" in spec["input"] or "file" in spec["input"]
+
+
 def test_archive_rewrites_paths_and_seeds_known_divergences(tmp_path, monkeypatch):
     source_base = tmp_path / "20260722T010203Z_fast_s0_survival_flat_rd8_hash"
     tape = source_base.with_suffix(".jsonl")

@@ -35,6 +35,18 @@ MIN_CLUSTER = 50      # px; smaller components are per-pixel noise, dropped
 # (marker box ~10k, water fog ~60k, arena window ~147k) sit well above.
 FAIL_CLUSTER = 4000   # px; an UNEXPLAINED component this big fails the frame
 FAIL_TOTAL = 8000     # px; total UNEXPLAINED in one frame that fails it
+# Mild global wash gate (complement of the cluster gate). Uniform sub-threshold
+# shifts never form clusters at DIFF_THRESH=25, so a second metric is required.
+# Pinned from existing baseline data, not guessed:
+#   - Java-vs-Java GUI pair noise floor is ~0.000 mean_abs (run_gui_verify)
+#   - Standing pose pins in VERIFY.md / GATES.md: A 0.96/ch, B 1.66/ch
+#   - FAIL_MEAN_ABS = 2 * B pin (3.32) so settled B frames have headroom while
+#     a 5-level global wash (mean≈5) fails
+#   - FAIL_LOW_PCT: residual fraction at thr=1; global wash ≈100%, sparse
+#     silhouette noise stays well below. 40% requires BOTH mean and coverage.
+LOW_DIFF_THRESH = 1
+FAIL_MEAN_ABS = 3.32          # 2 * B standing pin 1.66/ch
+FAIL_LOW_PCT_DIFFERING = 40.0  # percent of residual pixels at thr=1
 # Accepted semantic classes are local effects, never a license to absorb a
 # screen-sized miss. If one class exceeds its per-frame allowance, its clusters
 # become UNEXPLAINED and are judged by the normal fail thresholds.
@@ -220,36 +232,97 @@ def _labeled_clusters(mask, o16, c16, w, h, fixed_class=None,
     return out
 
 
+def _positional_accept_masks(h, w):
+    """Bossbar / HUD / viewmodel topology barriers (shared by cluster + mild)."""
+    bossbar = np.zeros((h, w), dtype=bool)
+    bossbar[:BOSSBAR_Y + 1, :] = True
+    hud = np.zeros((h, w), dtype=bool)
+    hud[int(h * HUD_FRAC):, :] = True
+    viewmodel = np.zeros((h, w), dtype=bool)
+    viewmodel[int(h * VIEWMODEL_Y_FRAC) + 1:,
+              int(w * VIEWMODEL_X_FRAC) + 1:] = True
+    viewmodel &= ~hud
+    return bossbar, hud, viewmodel
+
+
+def mild_shift_stats(o16, c16, accept_mask=None):
+    """Per-frame mean / low-threshold residual metric (Java-vs-Java calibratable).
+
+    Residual = pixels outside positional acceptances (and optional extra mask).
+    mean_abs is channel-mean over residual; pct_differing uses LOW_DIFF_THRESH.
+    """
+    h, w = o16.shape[:2]
+    if accept_mask is None:
+        bossbar, hud, viewmodel = _positional_accept_masks(h, w)
+        accept_mask = bossbar | hud | viewmodel
+    residual = ~accept_mask
+    n = int(residual.sum())
+    if n <= 0:
+        return {"mean_abs": 0.0, "pct_differing": 0.0,
+                "low_thresh": LOW_DIFF_THRESH, "residual_px": 0}
+    diff = np.abs(o16.astype(np.int16) - c16.astype(np.int16))
+    mean_abs = float(diff[residual].mean())
+    per_px = diff.max(axis=2)
+    low = int(((per_px > LOW_DIFF_THRESH) & residual).sum())
+    return {"mean_abs": mean_abs,
+            "pct_differing": 100.0 * low / n,
+            "low_thresh": LOW_DIFF_THRESH,
+            "residual_px": n,
+            "low_differing_px": low}
+
+
+def mild_shift_fails(stats):
+    """True when residual is both elevated in mean and broadly covering."""
+    if not stats or stats.get("residual_px", 0) <= 0:
+        return False
+    return (stats["mean_abs"] > FAIL_MEAN_ABS
+            and stats["pct_differing"] > FAIL_LOW_PCT_DIFFERING)
+
+
 def gate_frame(o16, c16, w, h, *, tick=None, known=None):
     """Diff one frame pair (int16 (h,w,3) arrays) -> list of cluster dicts.
-    Only components >= MIN_CLUSTER are returned."""
+    Only components >= MIN_CLUSTER are returned.
+
+    Attaches mild-shift residual stats on the returned list via the
+    ``_mild_stats`` attribute (also returned by gate_frame_ex).
+    """
+    clusters, _mild = gate_frame_ex(o16, c16, w, h, tick=tick, known=known)
+    return clusters
+
+
+def gate_frame_ex(o16, c16, w, h, *, tick=None, known=None):
+    """Like gate_frame but also returns mild-shift residual stats."""
     d = np.abs(o16 - c16).max(axis=2)
     mask = d > DIFF_THRESH
+    bossbar, hud, viewmodel = _positional_accept_masks(h, w)
+    accept = bossbar | hud | viewmodel
+    entries = _active_known(known, tick)
+    # Known acceptances also drop out of the mild residual so filed weather
+    # windows cannot inflate the global mean. Solid marker boxes stay residual.
+    protected = _solid_box_mask(c16, mask if mask.any()
+                                else np.zeros((h, w), dtype=bool))
+    known_accept = np.zeros((h, w), dtype=bool)
+    if entries:
+        for known_mask, _cls in _known_pixel_masks(
+                entries, o16, c16, np.ones((h, w), dtype=bool) & ~accept,
+                protected):
+            known_accept |= known_mask & ~protected
+    mild = mild_shift_stats(o16, c16, accept_mask=accept | known_accept)
+
     if not mask.any():
-        return []
+        return [], mild
 
     # Positional acceptances are topology barriers, not post-label classes.
     # Remove them before labeling the remaining image so an accepted HUD,
     # bossbar, or viewmodel pixel cannot bridge otherwise separate terrain
     # components into one large unexplained blob. Label each accepted region
     # independently so its pixel totals remain visible in the baseline.
-    bossbar = np.zeros_like(mask)
-    bossbar[:BOSSBAR_Y + 1, :] = True
-    hud = np.zeros_like(mask)
-    hud[int(h * HUD_FRAC):, :] = True
-    viewmodel = np.zeros_like(mask)
-    viewmodel[int(h * VIEWMODEL_Y_FRAC) + 1:,
-              int(w * VIEWMODEL_X_FRAC) + 1:] = True
-    viewmodel &= ~hud
-    protected = _solid_box_mask(c16, mask)
-
     out = []
     for region, cls in ((bossbar, "bossbar"), (hud, "hud"),
                         (viewmodel, "viewmodel")):
         out.extend(_labeled_clusters(mask & region, o16, c16, w, h,
                                      fixed_class=cls))
-    mask &= ~(bossbar | hud | viewmodel)
-    entries = _active_known(known, tick)
+    mask = mask & ~accept
     for known_mask, cls in _known_pixel_masks(entries, o16, c16, mask,
                                                protected):
         out.extend(_labeled_clusters(known_mask, o16, c16, w, h,
@@ -258,15 +331,25 @@ def gate_frame(o16, c16, w, h, *, tick=None, known=None):
     out.extend(_labeled_clusters(mask, o16, c16, w, h,
                                  known_entries=entries,
                                  protected=protected))
-    return out
+    return out, mild
 
 
-def frame_verdict(clusters):
-    """(fails, unexplained_px) for one frame's cluster list."""
+def frame_verdict(clusters, mild=None):
+    """(fails, unexplained_px) for one frame's cluster list + optional mild stats.
+
+    Mild-global is only consulted when the egregious cluster gate would pass:
+    it closes the uniform sub-threshold wash hole without double-counting
+    frames that already fail on UNEXPLAINED clusters.
+    """
     unex = [cl for cl in clusters if cl["cls"] == "UNEXPLAINED"]
     total = sum(cl["px"] for cl in unex)
     big = max((cl["px"] for cl in unex), default=0)
-    return (big >= FAIL_CLUSTER or total >= FAIL_TOTAL), total
+    cluster_fail = big >= FAIL_CLUSTER or total >= FAIL_TOTAL
+    if cluster_fail:
+        return True, total
+    if mild is not None and mild_shift_fails(mild):
+        return True, total
+    return False, total
 
 
 def transit_ticks(rows, pad=40):
@@ -298,9 +381,11 @@ def transit_ticks(rows, pad=40):
     return marked
 
 
-def summarize(per_tick, transit=None):
+def summarize(per_tick, transit=None, mild_per_tick=None):
     """per_tick: {tick: [cluster,...]} -> gate summary dict (json-able).
-    Clusters on ticks in `transit` are reclassified to the transit class."""
+    Clusters on ticks in `transit` are reclassified to the transit class.
+    mild_per_tick: optional {tick: mild_shift_stats dict} for the global wash
+    gate; when omitted, only the egregious cluster gate applies."""
     if transit:
         for t, cls_list in per_tick.items():
             if t in transit:
@@ -318,6 +403,7 @@ def summarize(per_tick, transit=None):
                 cl["cls"] = "UNEXPLAINED"
     classes = {}
     failed = []
+    mild_fails = 0
     for t, cls_list in sorted(per_tick.items()):
         for cl in cls_list:
             s = classes.setdefault(cl["cls"], {"frames": 0, "px": 0,
@@ -327,19 +413,28 @@ def summarize(per_tick, transit=None):
                 s["ticks"].add(t)
             s["px"] += cl["px"]
             s["max_cluster"] = max(s["max_cluster"], cl["px"])
-        fails, total = frame_verdict(cls_list)
+        mild = (mild_per_tick or {}).get(t)
+        fails, total = frame_verdict(cls_list, mild=mild)
         if fails:
-            failed.append({"tick": t, "unexplained_px": total,
-                           "clusters": [cl for cl in cls_list
-                                        if cl["cls"] == "UNEXPLAINED"]})
+            row = {"tick": t, "unexplained_px": total,
+                   "clusters": [cl for cl in cls_list
+                                if cl["cls"] == "UNEXPLAINED"]}
+            if mild is not None and mild_shift_fails(mild):
+                row["mild_shift"] = mild
+                mild_fails += 1
+            failed.append(row)
     for s in classes.values():
         s.pop("ticks")
     failed.sort(key=lambda r: -r["unexplained_px"])
     return {"thresholds": {"diff": DIFF_THRESH, "min_cluster": MIN_CLUSTER,
                            "fail_cluster": FAIL_CLUSTER,
                            "fail_total": FAIL_TOTAL,
-                           "class_pixel_budgets": CLASS_PIXEL_BUDGETS},
+                           "class_pixel_budgets": CLASS_PIXEL_BUDGETS,
+                           "low_diff": LOW_DIFF_THRESH,
+                           "fail_mean_abs": FAIL_MEAN_ABS,
+                           "fail_low_pct_differing": FAIL_LOW_PCT_DIFFERING},
             "frames_checked": len(per_tick),
             "classes": classes,
             "failed_frames": failed,
+            "mild_shift_failures": mild_fails,
             "pass": not failed}

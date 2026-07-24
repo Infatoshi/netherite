@@ -940,6 +940,132 @@ def first_divergence(ticks, c_rows):
     return first, euclid
 
 
+# ---- Non-player state gate (inventory / entities / world hash) -------------
+# Deliberately separate from the physics (pose/vitals/dim) gate above. These
+# fields are reported in magma_state.jsonl and, when the tape carries them, are
+# asserted here. Missing tape fields are recorded as "unavailable", not green.
+
+
+def _tape_inv_slot(stack):
+    """Normalize a tape inv entry to (item, count, meta) or None if empty."""
+    if stack in (0, None, [], {}):
+        return None
+    if isinstance(stack, (list, tuple)):
+        if len(stack) < 1 or int(stack[0]) == 0:
+            return None
+        item = int(stack[0])
+        meta = int(stack[1]) if len(stack) > 1 else 0
+        count = int(stack[2]) if len(stack) > 2 else 1
+        return (item, count, meta)
+    return None
+
+
+def _magma_inv_map(row):
+    out = {}
+    for slot in row.get("inventory") or []:
+        item = int(slot.get("item", 0))
+        if item <= 0:
+            continue
+        out[int(slot["slot"])] = (item, int(slot.get("count", 1)),
+                                  int(slot.get("meta", 0)))
+    return out
+
+
+def _tape_entity_types(row):
+    types = []
+    for ent in row.get("ents") or []:
+        if len(ent) >= 2 and isinstance(ent[1], str):
+            types.append(ent[1])
+    return types
+
+
+def _magma_entity_types(row):
+    """Magma emits numeric type ids; keep them as 'type:<id>' for presence."""
+    types = []
+    for ent in row.get("entities") or []:
+        if isinstance(ent, dict) and "type" in ent:
+            types.append(f"type:{int(ent['type'])}")
+    return types
+
+
+def collect_state_assertions(ticks, c_rows, sample_every=20):
+    """Build explicit non-player state assertions for scenario/gate output.
+
+    Returns a dict with inventory, entity, and world-hash findings. This is a
+    *state* gate, not a physics gate: pose/vitals stay in first_divergence.
+    """
+    n = min(len(ticks), len(c_rows))
+    inv_checked = 0
+    inv_mismatches = []
+    ent_checked = 0
+    ent_presence = []
+    hash_checked = 0
+    hash_samples = []
+    prev_hash = None
+    hash_deltas = 0
+    for t in range(0, n, max(1, sample_every)):
+        j, c = ticks[t], c_rows[t]
+        if "inv" in j:
+            inv_checked += 1
+            tape_map = {}
+            for slot, stack in enumerate(j["inv"]):
+                norm = _tape_inv_slot(stack)
+                if norm is not None and slot < 36:
+                    tape_map[slot] = norm
+            magma_map = _magma_inv_map(c)
+            # Presence of non-empty tape slots in magma (counts may lag one
+            # tick on GUI interactions; compare item id identity only).
+            for slot, (item, _count, _meta) in tape_map.items():
+                m = magma_map.get(slot)
+                if m is None or m[0] != item:
+                    if len(inv_mismatches) < 20:
+                        inv_mismatches.append({
+                            "tick": t, "slot": slot, "tape_item": item,
+                            "magma_item": None if m is None else m[0],
+                        })
+        if "ents" in j:
+            ent_checked += 1
+            tape_types = _tape_entity_types(j)
+            magma_types = _magma_entity_types(c)
+            ent_presence.append({
+                "tick": t,
+                "tape_count": len(tape_types),
+                "tape_types": sorted(set(tape_types))[:12],
+                "magma_count": len(magma_types),
+                "magma_types": sorted(set(magma_types))[:12],
+            })
+        nh = c.get("nearby_hash")
+        if nh is not None:
+            hash_checked += 1
+            if prev_hash is not None and nh != prev_hash:
+                hash_deltas += 1
+            if t % max(sample_every * 5, 1) == 0 and len(hash_samples) < 32:
+                hash_samples.append({"tick": t, "nearby_hash": nh})
+            prev_hash = nh
+    return {
+        "kind": "state",  # not "physics"
+        "inventory": {
+            "ticks_checked": inv_checked,
+            "mismatches": inv_mismatches,
+            "pass": inv_checked == 0 or len(inv_mismatches) == 0,
+            "available": inv_checked > 0,
+        },
+        "entities": {
+            "ticks_checked": ent_checked,
+            "samples": ent_presence[:16],
+            "pass": True,  # presence is informational; types are recorded
+            "available": ent_checked > 0,
+        },
+        "world": {
+            "ticks_checked": hash_checked,
+            "hash_deltas": hash_deltas,
+            "samples": hash_samples,
+            "pass": hash_checked > 0,  # hash emitted = world gate available
+            "available": hash_checked > 0,
+        },
+    }
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser()
@@ -1033,6 +1159,7 @@ def main():
               f"(hp={last.get('health')} dead={last.get('dead')}) "
               f"of {len(ticks)} tape ticks")
     first, euclid = first_divergence(ticks, c_rows)
+    state_gate = collect_state_assertions(ticks, c_rows)
 
     if first is None:
         scope = (f"{len(euclid)} ticks through terminal death"
@@ -1048,6 +1175,17 @@ def main():
         ctx = ticks[t]
         print(f"[tape] inputs at divergence: {ctx['in']}  "
               f"yaw={ctx['yaw']:.2f} pitch={ctx['pitch']:.2f} og={ctx['og']}")
+
+    inv_s = state_gate["inventory"]
+    ent_s = state_gate["entities"]
+    world_s = state_gate["world"]
+    print(f"[tape] state: inventory "
+          f"{'n/a' if not inv_s['available'] else ('PASS' if inv_s['pass'] else 'FAIL')} "
+          f"({inv_s['ticks_checked']} ticks, {len(inv_s['mismatches'])} mismatches); "
+          f"entities {'n/a' if not ent_s['available'] else 'recorded'} "
+          f"({ent_s['ticks_checked']} ticks); "
+          f"world_hash {'n/a' if not world_s['available'] else 'recorded'} "
+          f"({world_s['ticks_checked']} ticks, {world_s['hash_deltas']} deltas)")
 
     # ---- pixels at the tape's sparse oracle frames (written by the one run) ----
     pix = []
@@ -1102,22 +1240,28 @@ def main():
             o16 = oframes[i].astype(np.int16)
             c16 = b8.astype(np.int16)
             s = ol.diff_regions_arrays(o16, c16, args.w, args.h)
-            clusters = (pg.gate_frame(o16, c16, args.w, args.h, tick=t,
-                                      known=known_divergences)
-                        if gate_on else None)
-            return t, b8, s, clusters
+            if gate_on:
+                clusters, mild = pg.gate_frame_ex(
+                    o16, c16, args.w, args.h, tick=t,
+                    known=known_divergences)
+            else:
+                clusters, mild = None, None
+            return t, b8, s, clusters, mild
 
         with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as ex:
             results = list(ex.map(diff_one, enumerate(oticks)))
         gate_ticks = {}
+        mild_ticks = {}
         for r_ in results:
             if r_ is None:
                 continue
-            t, b8, s, clusters = r_
+            t, b8, s, clusters, mild = r_
             pix.append((t, s))
             cticks.append(t)
             if clusters is not None:
                 gate_ticks[t] = clusters
+            if mild is not None:
+                mild_ticks[t] = mild
             print(f"[tape] pixels t={t:5d} whole {s['whole']['mean_abs']:6.2f}/ch "
                   f"({s['whole']['pct_differing']:5.2f}%) terrain "
                   f"{s['terrain']['mean_abs']:6.2f}")
@@ -1127,7 +1271,8 @@ def main():
                 mc_png = dict(frame_ticks)[t]
                 ol.side_by_side(mc_png, cpng,
                                 os.path.join(out, f"sbs_t{t:06d}.png"))
-        gate = (pg.summarize(gate_ticks, transit=pg.transit_ticks(ticks))
+        gate = (pg.summarize(gate_ticks, transit=pg.transit_ticks(ticks),
+                             mild_per_tick=mild_ticks)
                 if gate_on and gate_ticks else None)
         if gate_on:
             gate = apply_missing_model_gate(gate, skipped_renderables)
@@ -1191,6 +1336,17 @@ def main():
                         f"oracle={jv!r} magma={cv!r} |d|={d:.3g}; inputs "
                         f"{ticks[t]['in']}. End-of-tape euclid "
                         f"{euclid[-1]:.4f} blocks.\n\n")
+            f.write("**State gate** (inventory / entities / world hash; not "
+                    "physics):\n\n")
+            f.write(f"- inventory: checked={inv_s['ticks_checked']} "
+                    f"mismatches={len(inv_s['mismatches'])} "
+                    f"available={inv_s['available']} "
+                    f"pass={inv_s['pass']}\n")
+            f.write(f"- entities: checked={ent_s['ticks_checked']} "
+                    f"available={ent_s['available']}\n")
+            f.write(f"- world nearby_hash: checked={world_s['ticks_checked']} "
+                    f"deltas={world_s['hash_deltas']} "
+                    f"available={world_s['available']}\n\n")
             if gate:
                 f.write(f"**Pixel gate: {'PASS' if gate['pass'] else 'FAIL'}"
                         f"** over {gate['frames_checked']} frames.\n\n")
@@ -1234,14 +1390,25 @@ def main():
             for typ, rows in skipped_renderables.items():
                 print(f"[gate] skipped renderable {typ}: {rows} rows")
     if gate is not None:
+        gate["state"] = state_gate
         gj = os.path.join(here, "report", f"tape_{name}.gate.json")
         with open(gj, "w") as f:
             json.dump(gate, f, indent=1)
         print(f"[gate] baseline -> {gj}")
         if not gate["pass"]:
             return 3
+    else:
+        # No pixel frames: still emit a state-only gate sidecar for scenarios.
+        gj = os.path.join(here, "report", f"tape_{name}.gate.json")
+        os.makedirs(os.path.dirname(gj), exist_ok=True)
+        with open(gj, "w") as f:
+            json.dump({"pass": True, "frames_checked": 0, "classes": {},
+                       "failed_frames": [], "state": state_gate}, f, indent=1)
+        print(f"[gate] state-only baseline -> {gj}")
     if first is not None:
         return 4  # physics divergence: exact replay is the primary contract
+    if state_gate["inventory"]["available"] and not state_gate["inventory"]["pass"]:
+        return 5  # non-player state divergence (not physics)
     return 0
 
 

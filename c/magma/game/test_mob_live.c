@@ -354,6 +354,111 @@ int main(void) {
     CHECK(GM_MOB_CAPACITY>7,"product capacity constant exceeds legacy 7");
     gm_runtime_destroy(&r);
 
+    /* ---- Mobs-on autonomy: live spawn/AI/combat cadences (Java-derived) ----
+     * Not ent_view ghosts and not injected vitals. Pose placement only. */
+
+    /* Zombie melee: EntityZombie ATTACK_DAMAGE=3.0; EntityLiving.attackTime
+     * cooldown 20 after a hit (MAZ_ATTACK_COOLDOWN / EW path in magma). */
+    if(!init_flat(&r))return 1;
+    r.vitals.foodLevel=0;r.vitals.saturation=0.0f;r.player.food=0;
+    CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5,5.0,10.5)>=0,
+          "autonomy: spawn melee zombie");
+    float zhp0=r.vitals.health;
+    gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==zhp0-3.0f,"autonomy: zombie first melee is exactly 3 hp");
+    float zhp1=r.vitals.health;
+    for(int i=0;i<19;++i)gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==zhp1,
+          "autonomy: zombie melee silent through attack_time 19 of 20");
+    gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==zhp1-3.0f,
+          "autonomy: zombie second melee lands on the 20-tick cadence");
+    gm_runtime_destroy(&r);
+
+    /* Enderman acquisition: no look-trigger in this sim; revenge sets
+     * hurt_aggro, after which follow_range (16) chase engages. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_ENDERMAN,8.5,5.0,18.5)>=0,
+          "autonomy: spawn enderman");
+    double ez0=18.5;
+    for(int i=0;i<30;++i){
+        gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+        gm_runtime_tick(&r,idle);
+    }
+    n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+    int ei=-1;for(int k=0;k<n;++k)if(v[k].type==EW_TYPE_ENDERMAN)ei=k;
+    CHECK(ei>=0&&fabs(v[ei].z-ez0)<1.5,
+          "autonomy: unhurt enderman does not acquire the player");
+    isr_set_stack(&r.player.inv,0,ic_mk(268,1,0));
+    GmAction poke;memset(&poke,0,sizeof poke);poke.attack=1;poke.hotbar_sel=0;
+    gm_runtime_set_pose(&r,8.5,5.0,16.5,0.0f,10.0f);
+    gm_runtime_tick(&r,poke);
+    double ez1=0.0;int acquired=0;
+    for(int i=0;i<80;++i){
+        gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+        gm_runtime_tick(&r,idle);
+        n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+        ei=-1;for(int k=0;k<n;++k)if(v[k].type==EW_TYPE_ENDERMAN)ei=k;
+        if(ei<0)break;
+        ez1=v[ei].z;
+        if(ez1<ez0-1.0){acquired=1;break;}
+    }
+    fprintf(stderr,"mob_live: enderman acquisition z %.3f -> %.3f\n",ez0,ez1);
+    CHECK(acquired,"autonomy: hurt enderman acquires and chases the player");
+    gm_runtime_destroy(&r);
+
+    /* Blaze burst: ranged AI sets attack_time=40; spawn_hostile_projectiles
+     * emits a type-3 fireball on that exact cadence, then reloads. */
+    if(!init_flat(&r))return 1;
+    r.dimension=-1;
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_BLAZE,8.5,5.0,14.5)>=0,"autonomy: spawn blaze");
+    int fireballs=0,first_age=-1;
+    for(int i=0;i<120;++i){
+        gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+        gm_runtime_tick(&r,idle);
+        for(int p=0;p<GM_RUNTIME_PROJECTILES;++p){
+            if(r.projectiles[p].active&&r.projectiles[p].type==3){
+                if(r.projectiles[p].age==0||r.projectiles[p].age==1){
+                    if(first_age<0)first_age=i;
+                    ++fireballs;
+                }
+            }
+        }
+    }
+    fprintf(stderr,"mob_live: blaze fireballs=%d first_tick=%d\n",fireballs,first_age);
+    CHECK(fireballs>=1,"autonomy: blaze fires at least one live fireball");
+    CHECK(first_age>=0&&first_age<=45,
+          "autonomy: first blaze burst is within the 40-tick attack_time window");
+    gm_runtime_destroy(&r);
+
+    /* Real spawner: natural_spawn Nether branch reads block id 52 and emits
+     * blazes on a 200-tick cadence when under the alive_count cap. */
+    if(!init_flat(&r))return 1;
+    r.dimension=-1;
+    for(int x=6;x<=10;++x)for(int z=6;z<=10;++z){
+        gm_world_set_block(r.world,x,4,z,1);
+        gm_world_set_block(r.world,x,5,z,0);
+        gm_world_set_block(r.world,x,6,z,0);
+    }
+    gm_world_set_block(r.world,8,5,8,52);
+    gm_world_set_block(r.world,9,5,8,112);
+    gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+    int spawns=0;
+    for(int i=0;i<450;++i){
+        int before=gm_mobs_alive(&r.mobs);
+        gm_runtime_tick(&r,idle);
+        int after=gm_mobs_alive(&r.mobs);
+        if(after>before){
+            n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+            int blaze=0;for(int k=0;k<n;++k)if(v[k].type==GM_MOB_BLAZE)blaze=1;
+            CHECK(blaze,"autonomy: spawner emits blaze entities");
+            ++spawns;
+        }
+    }
+    fprintf(stderr,"mob_live: spawner blaze spawns=%d\n",spawns);
+    CHECK(spawns>=1,"autonomy: real blaze spawner produces live mobs");
+    gm_runtime_destroy(&r);
+
     if(fail)return 1;
     fprintf(stderr,"mob_live: PASS\n");
     return 0;

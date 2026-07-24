@@ -18,7 +18,7 @@
 # Output: trace/report/nightly_<date>.md (+ per-tape .gate.json refreshed
 # under trace/report/nightly/, the committed baselines are never touched).
 set -u
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
 TRACE=trace
 TAPES=tapes
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -29,8 +29,16 @@ mkdir -p "$NIGHT_DIR"
 
 GPU1_MB=$(nvidia-smi --id=1 --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1)
 if [ -n "${GPU1_MB:-}" ] && [ "$GPU1_MB" -gt 4096 ]; then
-    echo "[nightly] GPU1 busy (${GPU1_MB} MiB used) - skipping run" | tee "$OUT_MD"
-    exit 0
+    # Explicit SKIP, not green: callers must not treat exit 0 as a passed gate.
+    {
+        echo "# Nightly magma verify - $STAMP"
+        echo
+        echo "STATUS: SKIP"
+        echo "reason: GPU1 busy (${GPU1_MB} MiB used)"
+        echo
+        echo "This run did not verify any tape. Do not report as green."
+    } | tee "$OUT_MD"
+    exit 2
 fi
 
 # rebuild so the replay always tests HEAD (stale-object trap: clean game/)
@@ -81,32 +89,55 @@ done
 wait
 
 # ---- phase 2: serial, tape-ordered report + baseline diff ---------------
+# Required baselines: every verifiable tape that has goldens must either have
+# a committed baseline or fail loudly. Missing baseline was previously silent
+# green (gate_baseline_diff returned 0); that is a visible failure now.
+# rc=3 (pixel gate fail) is only non-fatal when a baseline exists and
+# gate_baseline_diff reports no regression.
 rc_all=0
 for base in "${TAPE_LIST[@]}"; do
     rc=$(cat "$NIGHT_DIR/${base}.rc" 2>/dev/null || echo 99)
     night_json=$NIGHT_DIR/${base}.gate.json
+    baseline_json=$TRACE/baselines/${base}.gate.json
     {
         echo "## $base (replay rc=$rc)"
         echo
-        if [ -f "$night_json" ]; then
-            uv run --no-project python "$TRACE/gate_baseline_diff.py" \
-                --baseline "$TRACE/baselines/${base}.gate.json" \
-                --current "$night_json" || rc_all=1
+        if [ ! -f "$baseline_json" ]; then
+            echo "FAIL: missing required baseline $baseline_json"
+            echo "commit a .gate.json baseline before this tape can green nightly"
+            rc_all=1
+        elif [ -f "$night_json" ]; then
+            if ! uv run --no-project python "$TRACE/gate_baseline_diff.py" \
+                --baseline "$baseline_json" \
+                --current "$night_json"; then
+                echo "FAIL: baseline regression for $base"
+                rc_all=1
+            fi
         elif [ "$rc" -eq 0 ]; then
-            # replay passed but ran no pixel gate: tape has no usable goldens
-            # (pre-convention rows or resolution-skipped frames, e.g. the 12k
-            # human tape) - physics-divergence verify only, by design.
+            # baseline exists but no gate.json: goldens unusable this run
             echo "replay PASS, no pixel gate (no usable goldens) - see $NIGHT_DIR/${base}.log"
         else
             echo "no gate.json produced (rc=$rc) - see $NIGHT_DIR/${base}.log"; rc_all=1
         fi
         echo
     } >> "$OUT_MD"
-    # rc=3 = gate found clusters, which the committed baseline already prices
-    # in - gate_baseline_diff above is the regression arbiter. Anything else
-    # above 1 is a crash/refusal and fails the sweep outright.
-    { [ "$rc" -gt 1 ] && [ "$rc" -ne 3 ]; } && rc_all=1
+    # Crash/refusal (rc not in {0,3}) always fails. rc=3 is priced by baseline
+    # diff above; without a baseline it already set rc_all=1.
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
+        rc_all=1
+    fi
+    # rc=3 with a baseline that did not absorb the failure (no night_json or
+    # baseline_diff already failed) is not silent green.
+    if [ "$rc" -eq 3 ] && [ ! -f "$night_json" ]; then
+        echo "FAIL: rc=3 without gate.json for $base" >> "$OUT_MD"
+        rc_all=1
+    fi
 done
 
 echo "[nightly] report -> $OUT_MD"
+if [ "$rc_all" -ne 0 ]; then
+    echo "[nightly] RESULT: FAIL" | tee -a "$OUT_MD"
+else
+    echo "[nightly] RESULT: PASS" | tee -a "$OUT_MD"
+fi
 exit $rc_all

@@ -179,6 +179,14 @@ run_step rl-reward-parity 300 "$MAGMA" \
 	env CUDA_VISIBLE_DEVICES="" \
 	uv run --no-project --with numpy,torch python rl/blaze/test_reward_chain.py
 
+# focused scenario + tape unit gates (no Java/GPU): pixel mild-shift, state
+# assertions, scenario materialize/archive, missing-model completeness
+run_step verify-unit-gates 600 "$MAGMA" \
+	uv run --no-project --with pytest --with numpy --with scipy --with pillow \
+	--with pyyaml \
+	pytest -q raster/verify/trace/test_replay_tape.py \
+	raster/verify/scenarios/test_scenario.py
+
 # ---- full-only: CUDA gates + tape replay + RL smoke -------------------------
 if [ "$MODE" = full ]; then
 	# blaze CUDA + mc-sim CUDA run on --gpu GPU_IDX (arch derived from compute cap)
@@ -304,12 +312,22 @@ fi
 note ""
 note "==================== netherite sweep summary ($MODE) ===================="
 printf '%-24s %-6s %-5s %s\n' STEP STATUS SECS DETAIL
+NSKIP=0
 for i in "${!NAMES[@]}"; do
 	printf '%-24s %-6s %-5s %s\n' "${NAMES[$i]}" "${STATUSES[$i]}" "${SECS[$i]}" "${DETAILS[$i]}"
+	case "${STATUSES[$i]}" in
+	SKIP) NSKIP=$((NSKIP + 1)) ;;
+	esac
 done
 note "=========================================================================="
 if [ "$NFAIL" -gt 0 ]; then
 	note "RESULT: $NFAIL step(s) FAILED (logs in $LOGDIR)"
 	exit 1
 fi
-note "RESULT: green (no failures; SKIPs listed above)"
+# SKIPs (GPU busy, missing artifacts) are not failures, but the summary must
+# not call a partially-run pyramid "green" - that hid skipped CUDA gates.
+if [ "$NSKIP" -gt 0 ]; then
+	note "RESULT: PASS with $NSKIP SKIP(s) (not fully green; see SKIPs above)"
+	exit 0
+fi
+note "RESULT: green (all steps PASS, no SKIPs)"

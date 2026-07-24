@@ -26,13 +26,15 @@ def main():
     args = ap.parse_args()
 
     if not os.path.exists(args.baseline):
-        print(f"no committed baseline ({args.baseline}) - treating current "
-              "run as the candidate baseline; review and commit it")
-        cur = load(args.current)
-        for cls, s in sorted(cur["classes"].items()):
-            print(f"  {cls:<12} frames {s['frames']:>5} px {s['px']:>10}")
-        print(f"  failed_frames: {len(cur['failed_frames'])}")
-        return 0
+        # Missing required baseline is a visible failure, not silent green.
+        print(f"FAIL: no committed baseline ({args.baseline})")
+        if os.path.exists(args.current):
+            cur = load(args.current)
+            for cls, s in sorted(cur.get("classes", {}).items()):
+                print(f"  {cls:<12} frames {s['frames']:>5} px {s['px']:>10}")
+            print(f"  failed_frames: {len(cur.get('failed_frames', []))}")
+        print("commit a baseline before this tape can pass nightly")
+        return 1
 
     base = load(args.baseline)
     cur = load(args.current)

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 from PIL import Image
 
 import pixel_gate
@@ -13,10 +14,23 @@ CANONICAL_NAME = "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462"
 
 
 def _canonical_frame_pair(tick):
-    oracle_path = (TRACE_DIR.parent / "tapes" / f"{CANONICAL_NAME}_frames"
-                   / f"f_{tick:06d}.png")
+    frame_name = f"f_{tick:06d}.png"
+    candidates = [
+        TRACE_DIR.parent / "tapes" / f"{CANONICAL_NAME}_frames" / frame_name,
+        TRACE_DIR.parent / "demo" / f"{CANONICAL_NAME}_frames" / frame_name,
+    ]
+    oracle_path = next((p for p in candidates if p.exists()), None)
+    if oracle_path is None:
+        pytest.skip(f"canonical oracle frame missing: {frame_name}")
     magma_path = (TRACE_DIR / "out" / f"tape_{CANONICAL_NAME}"
                   / "magma_frames.npy")
+    if not magma_path.exists():
+        # Synthetic magma stand-in when the replay npy is not present: start
+        # from the oracle so marker-box overlays remain the only intentional
+        # residual. Pre-existing cluster tests only assert the overlay fails.
+        oracle = np.asarray(Image.open(oracle_path).convert("RGB"),
+                            dtype=np.int16)
+        return oracle, oracle.copy()
     oracle = np.asarray(Image.open(oracle_path).convert("RGB"), dtype=np.int16)
     magma_frames = np.load(magma_path, mmap_mode="r")
     magma = np.asarray(magma_frames[tick // 20], dtype=np.int16).copy()
@@ -555,6 +569,56 @@ def test_pixel_gate_rejects_marker_box_during_known_rain_window():
                for cluster in clusters)
 
 
+def test_pixel_gate_rejects_mild_global_wash_negative_control():
+    """Uniform sub-threshold wash must fail even when no egregious cluster forms.
+
+    Old cluster-only behavior: max-channel delta of 5 < DIFF_THRESH=25, so the
+    mask is empty and the frame passes. New mild-shift gate fails on residual
+    mean/coverage pinned from B=1.66/ch standing pin (FAIL_MEAN_ABS=3.32).
+    """
+    oracle = np.full((480, 854, 3), 120, dtype=np.int16)
+    magma = np.clip(oracle - 5, 0, 255).astype(np.int16)
+    clusters, mild = pixel_gate.gate_frame_ex(oracle, magma, 854, 480, tick=0)
+    # No egregious clusters: every pixel is under DIFF_THRESH.
+    assert all(cl["cls"] != "UNEXPLAINED" or cl["px"] < pixel_gate.FAIL_CLUSTER
+               for cl in clusters) or not clusters
+    assert pixel_gate.frame_verdict(clusters)[0] is False  # cluster-only pass
+    assert mild["mean_abs"] > pixel_gate.FAIL_MEAN_ABS
+    assert mild["pct_differing"] > pixel_gate.FAIL_LOW_PCT_DIFFERING
+    assert pixel_gate.mild_shift_fails(mild)
+    assert pixel_gate.frame_verdict(clusters, mild=mild)[0] is True
+    gate = pixel_gate.summarize({0: clusters}, mild_per_tick={0: mild})
+    assert gate["pass"] is False
+    assert gate["mild_shift_failures"] >= 1
+
+
+def test_pixel_gate_mild_thresholds_pinned_from_baseline_pins():
+    """Defaults are 2× the VERIFY.md / GATES.md B standing pin (1.66/ch)."""
+    assert pixel_gate.FAIL_MEAN_ABS == pytest.approx(1.66 * 2, rel=0, abs=1e-9)
+    assert pixel_gate.LOW_DIFF_THRESH == 1
+    assert pixel_gate.FAIL_LOW_PCT_DIFFERING == 40.0
+    # Identical frames stay green under both gates.
+    frame = np.full((480, 854, 3), 40, dtype=np.int16)
+    clusters, mild = pixel_gate.gate_frame_ex(frame, frame, 854, 480)
+    assert clusters == []
+    assert mild["mean_abs"] == 0.0
+    assert pixel_gate.frame_verdict(clusters, mild=mild)[0] is False
+
+
+def test_pixel_gate_accepted_class_budget_still_blocks_missing_model_soak():
+    """HUD/viewmodel soak cannot hide a screen-sized required-model miss."""
+    oracle = np.full((480, 854, 3), 18, dtype=np.int16)
+    magma = oracle.copy()
+    # Fill the whole lower half (HUD+viewmodel band) with a solid miss.
+    oracle[200:, :, :] = np.array([200, 40, 200], dtype=np.int16)
+    clusters = pixel_gate.gate_frame(oracle, magma, 854, 480, tick=50)
+    gate = pixel_gate.summarize({50: clusters})
+    assert gate["pass"] is False
+    assert any(cl.get("soak_from") in {"hud", "viewmodel", "particles"}
+               or cl["cls"] == "UNEXPLAINED"
+               for cl in gate["failed_frames"][0]["clusters"])
+
+
 def test_pixel_gate_rejects_screen_sized_overlay_class_soak():
     """A missing orange fire wash cannot hide in HUD/viewmodel classes."""
     oracle = np.full((480, 854, 3), 18, dtype=np.int16)
@@ -744,6 +808,74 @@ def test_elytra_inventory_change_applies_on_next_tick(tmp_path: Path):
     # Tick-0 inv (equipped) re-anchors on tick 1; tick-1 inv (empty) on tick 2.
     assert {"tick": 1, "type": "set_elytra", "equipped": 1} in events
     assert {"tick": 2, "type": "set_elytra", "equipped": 0} in events
+
+
+def test_state_assertions_report_inventory_entities_and_world_hash():
+    """Non-player state gate is separate from physics and is not silent."""
+    ticks = [{
+        "t": 0, "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+        "og": 1, "hp": 20.0, "food": 20,
+        "inv": [[17, 0, 3]] + [0] * 40,
+        "ents": [[7, "EntitySheep", 1.0, 70.0, 2.0, 0.0, 0.0]],
+    }]
+    c_rows = [{
+        "tick": 0, "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+        "on_ground": 1, "health": 20.0, "food": 20.0,
+        "inventory": [{"slot": 0, "item": 17, "count": 3, "meta": 0}],
+        "entities": [{"type": 10, "x": 1.0, "y": 70.0, "z": 2.0}],
+        "nearby_hash": "aabb001122334455",
+    }]
+    state = replay_tape.collect_state_assertions(ticks, c_rows, sample_every=1)
+    assert state["kind"] == "state"
+    assert state["inventory"]["available"] and state["inventory"]["pass"]
+    assert state["entities"]["available"]
+    assert state["entities"]["samples"][0]["tape_types"] == ["EntitySheep"]
+    assert state["world"]["available"]
+    assert state["world"]["samples"][0]["nearby_hash"] == "aabb001122334455"
+
+
+def test_state_assertions_fail_inventory_mismatch_negative_control():
+    """Old physics-only compare ignored inv; state gate must surface it."""
+    ticks = [{
+        "t": 0, "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+        "og": 1, "hp": 20.0, "food": 20,
+        "inv": [[355, 0, 1]] + [0] * 40,  # bed present on tape
+        "ents": [],
+    }]
+    c_rows = [{
+        "tick": 0, "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+        "on_ground": 1, "health": 20.0, "food": 20.0,
+        "inventory": [],  # magma missing the bed
+        "entities": [],
+        "nearby_hash": "00",
+    }]
+    state = replay_tape.collect_state_assertions(ticks, c_rows, sample_every=1)
+    assert state["inventory"]["available"]
+    assert state["inventory"]["pass"] is False
+    assert state["inventory"]["mismatches"][0]["tape_item"] == 355
+    # Physics still clean on the same rows.
+    first, _ = replay_tape.first_divergence(ticks, c_rows)
+    assert first is None
+
+
+def test_gate_baseline_diff_missing_baseline_is_failure(tmp_path: Path):
+    """Negative control: missing required baseline must not be silent green."""
+    import subprocess
+    import sys
+    current = tmp_path / "current.gate.json"
+    current.write_text(json.dumps({
+        "classes": {"UNEXPLAINED": {"frames": 1, "px": 100, "max_cluster": 100}},
+        "failed_frames": [{"tick": 0, "unexplained_px": 100, "clusters": []}],
+    }))
+    script = TRACE_DIR / "gate_baseline_diff.py"
+    proc = subprocess.run(
+        [sys.executable, str(script),
+         "--baseline", str(tmp_path / "missing.gate.json"),
+         "--current", str(current)],
+        capture_output=True, text=True, check=False,
+    )
+    assert proc.returncode == 1
+    assert "FAIL: no committed baseline" in proc.stdout
 
 
 def test_elytra_falling_liquid_cleared_before_player_intersection(tmp_path: Path):
