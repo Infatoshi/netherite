@@ -620,3 +620,139 @@ def test_recorded_flat_world_selects_superflat_generator():
     assert replay_tape.magma_world({"world": "qrl_0_flat"}) == "superflat"
     assert replay_tape.magma_world({"world": "qrl_0"}) == "default"
     assert replay_tape.magma_world({}) == "default"
+
+
+def _elytra_inv(chest=None):
+    """41-slot inv row; chest is EntityEquipmentSlot.CHEST (tape index 38)."""
+    inv = [0] * 41
+    if chest is not None:
+        inv[38] = chest
+    return inv
+
+
+def test_elytra_chest_seeds_set_elytra_before_tick_zero(tmp_path: Path):
+    """Recstart with Items.ELYTRA (443) must arm elytra_equipped for tick-0 travel."""
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "vx": 0.0, "vy": -0.0784000015258789, "vz": 0.0, "og": 1,
+        "hp": 20.0, "food": 20,
+    }
+    ticks = [{
+        "t": 0, "in": {"f": 0, "s": 0, "jump": 0},
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "vx": 0.0, "vy": -0.0784000015258789, "vz": 0.0, "og": 1,
+        "hp": 20.0, "food": 20, "inv": _elytra_inv([443, 0, 1]), "ents": [],
+    }]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    seed = next(e for e in events if e["type"] == "set_elytra")
+    assert seed == {"tick": 0, "type": "set_elytra", "equipped": 1}
+    # Seed must land before look/action on tick 0 so travel sees equipped=1.
+    types0 = [e["type"] for e in events if e["tick"] == 0]
+    assert "set_elytra" in types0 and "set_look" in types0
+    assert types0.index("set_elytra") < types0.index("set_look")
+
+
+def test_non_elytra_chest_does_not_seed_set_elytra(tmp_path: Path):
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20,
+    }
+    ticks = [{
+        "t": 0, "in": {"f": 0, "s": 0},
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "inv": _elytra_inv([311, 0, 1]), "ents": [],  # diamond chestplate
+    }]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 0, "type": "set_elytra", "equipped": 0} in events
+    assert not any(e["type"] == "set_elytra" and e["equipped"] == 1
+                   for e in events)
+
+
+def test_elytra_inventory_change_applies_on_next_tick(tmp_path: Path):
+    """Post-tick inv truth re-anchors elytra_equipped before the following travel."""
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "hp": 20.0, "food": 20,
+    }
+    base = {"in": {"f": 0, "s": 0}, "x": 0.5, "y": 24.0, "z": 0.5,
+            "yaw": -90.0, "pitch": 8.0, "hp": 20.0, "food": 20, "ents": []}
+    ticks = [
+        {**base, "t": 0, "inv": _elytra_inv([443, 0, 1])},
+        {**base, "t": 1, "inv": _elytra_inv(0)},  # unequip after tick 0
+        {**base, "t": 2},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    # Tick-0 inv (equipped) re-anchors on tick 1; tick-1 inv (empty) on tick 2.
+    assert {"tick": 1, "type": "set_elytra", "equipped": 1} in events
+    assert {"tick": 2, "type": "set_elytra", "equipped": 0} in events
+
+
+def test_elytra_falling_liquid_cleared_before_player_intersection(tmp_path: Path):
+    """Post-capture falling-liquid cells must not backdate into travel()."""
+    tape = tmp_path / "elytra.jsonl"
+    (tmp_path / "elytra_world" / "region").mkdir(parents=True)
+    # Source water column at x=10 (meta<8) plus downwind falling water (meta>=8).
+    cache = tmp_path / "elytra.jsonl.snapshot_patch.jsonl"
+    cache.write_text(
+        '{"tick":0,"type":"snapshot_block","dim":0,"x":10,"y":5,"z":0,'
+        '"id":9,"meta":0}\n'
+        '{"tick":0,"type":"snapshot_block","dim":0,"x":10,"y":6,"z":0,'
+        '"id":9,"meta":0}\n'
+        '{"tick":0,"type":"snapshot_block","dim":0,"x":11,"y":5,"z":0,'
+        '"id":8,"meta":8}\n'
+        '{"tick":0,"type":"snapshot_block","dim":0,"x":11,"y":6,"z":0,'
+        '"id":8,"meta":8}\n'
+    )
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "hp": 20.0, "food": 20,
+    }
+    base_in = {"f": 1, "s": 0, "jump": 0}
+    # Approach +x; first body AABB that hits falling cell (11,5,0) around t=1.
+    ticks = [
+        {"t": 0, "in": base_in, "x": 0.5, "y": 5.0, "z": 0.5,
+         "yaw": -90.0, "pitch": 8.0, "hp": 20.0, "food": 20,
+         "inv": _elytra_inv([443, 0, 1]), "ents": []},
+        {"t": 1, "in": base_in, "x": 10.9, "y": 5.0, "z": 0.5,
+         "yaw": -90.0, "pitch": 8.0, "hp": 20.0, "food": 20, "ents": []},
+        {"t": 2, "in": base_in, "x": 11.2, "y": 5.0, "z": 0.5,
+         "yaw": -90.0, "pitch": 8.0, "hp": 20.0, "food": 20, "ents": []},
+        {"t": 3, "in": base_in, "x": 12.0, "y": 5.0, "z": 0.5,
+         "yaw": -90.0, "pitch": 8.0, "hp": 20.0, "food": 20, "ents": []},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script), tape_path=str(tape))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+
+    # Downwind falling water is filtered from tick-0 snapshot (post_capture_spread).
+    t0_falling = [
+        e for e in events
+        if e["tick"] == 0 and e.get("type") == "snapshot_block"
+        and e.get("x") == 11 and e.get("id") in (8, 9)
+    ]
+    assert t0_falling == []
+
+    # Source column remains.
+    assert any(e.get("type") == "snapshot_block" and e.get("x") == 10
+               and e.get("id") == 9 and e.get("meta") == 0
+               for e in events if e["tick"] == 0)
+
+    # Falling cells are kept only until the clear tick (air overwrite).
+    clears = [
+        e for e in events
+        if e.get("type") == "snapshot_block" and e.get("id") == 0
+        and e.get("x") == 11
+    ]
+    assert clears, "expected falling liquid air-clears before intersection"
+    assert all(e["tick"] == clears[0]["tick"] for e in clears)
+    assert clears[0]["tick"] in (1, 2)  # first intersecting row after prev
