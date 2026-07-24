@@ -144,19 +144,23 @@ int main(void) {
         CHECK(hb > ha * 1.05f, "magma squishFactor stretches height");
     }
 
-    /* Fire overlay extents: small width 0.3125 vs large width 1.0. */
+    /* Fire overlay extents: small width 0.3125 vs large width 1.0.
+     * flags bit 0 = isBurning (RenderManager gate); clear => no layers. */
     {
         GmEntityView sm, lg;
         memset(&sm, 0, sizeof sm); memset(&lg, 0, sizeof lg);
         sm.type = 30; sm.item_id = 385; sm.item_meta = 1;
         lg.type = 30; lg.item_id = 385; lg.item_meta = 2;
+        CHECK(gm_small_fireball_fire_emit(&sm, 1, 0.0f, out, 256) == 0,
+              "non-burning fireball emits no fire layers");
+        sm.flags = 1; lg.flags = 1;
         int ns = gm_small_fireball_fire_emit(&sm, 1, 0.0f, out, 256);
         bounds(out, ns, mn, mx);
         float ws = mx[0] - mn[0];
         int nl = gm_small_fireball_fire_emit(&lg, 1, 0.0f, out, 256);
         bounds(out, nl, mn, mx);
         float wl = mx[0] - mn[0];
-        CHECK(ns == 12 && nl == 12, "both fireballs emit two fire layers");
+        CHECK(ns == 12 && nl == 12, "both burning fireballs emit two fire layers");
         CHECK(approx(ws, 0.4375f, 1e-4f), "small fire scale = 0.3125*1.4");
         CHECK(approx(wl, 1.4f, 1e-4f), "large fire scale = 1.0*1.4");
         CHECK(approx(wl / ws, 1.0f / 0.3125f, 0.01f), "large/small fire width ratio");

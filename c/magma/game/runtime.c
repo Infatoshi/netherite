@@ -1128,8 +1128,11 @@ int gm_runtime_projectile_views(const GmRuntime *r, GmEntityView *out, int max) 
              * shot shares this billboard path until scale is carried in views.
              * EntitySmallFireball uses RenderFireball scale 0.5.
              * particle icon. gm_items_emit_billboard selects that exact path
-             * from item id 385. */
+             * from item id 385. Live shots are isFireballFiery (setFire each
+             * tick) so flags bit 0 enables renderEntityOnFire layers. */
             v.type = GM_VIEW_BILLBOARD; v.item_id = 385;
+            v.flags = 1; /* burn / isBurning */
+            if (p->type == 5) v.item_meta = 2; /* large width 1.0 fire overlay */
         } else if (p->type == 4) {
             v.type = GM_VIEW_BILLBOARD; v.item_id = 381; /* eye of ender */
         } else {

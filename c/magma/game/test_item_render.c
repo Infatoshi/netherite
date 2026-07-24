@@ -260,6 +260,11 @@ int main(void) {
         CHECK(gm_items_emit_billboard(&dragon, 1, 0.0f, 0.0f, out, 5) == 0,
               "direct fireball respects vertex cap");
 
+        /* Non-burning billboard (flags bit 0 clear): no fire overlay — matches
+         * RenderManager gating on isBurning() and the ui_entities pin golden. */
+        CHECK(gm_small_fireball_fire_emit(&small, 1, 0.0f, out, 256) == 0,
+              "non-burning small fireball emits no fire layers");
+        small.flags = 1; /* isBurning */
         n = gm_small_fireball_fire_emit(&small, 1, 0.0f, out, 256);
         CHECK(n == 12, "fiery small fireball emits two stacked fire quads");
         minx = miny = 1e9f; maxx = maxy = -1e9f;
@@ -277,6 +282,7 @@ int main(void) {
         /* Large fireball: EntityFireball width=1.0 -> scale 1.4. */
         GmEntityView large = small;
         large.item_meta = 2;
+        large.flags = 1;
         n = gm_small_fireball_fire_emit(&large, 1, 0.0f, out, 256);
         CHECK(n == 12, "fiery large fireball also emits two fire layers");
         minx = miny = 1e9f; maxx = maxy = -1e9f;

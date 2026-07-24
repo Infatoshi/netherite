@@ -549,9 +549,13 @@ int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
     return written;
 }
 
-/* Render.renderEntityOnFire for fiery fireballs. EntitySmallFireball has
- * width=height=0.3125 (scale 0.4375); EntityLargeFireball inherits
- * EntityFireball width=height=1.0 (scale 1.4). item_meta>=2 marks large after
+/* Render.doRenderShadowAndFire -> renderEntityOnFire for fireballs that are
+ * isBurning() (GmEntityView.flags bit 0). RenderManager only calls this when
+ * entityIn.isBurning(); EntityFireball.setFire(1) each tick when
+ * isFireballFiery(), but a freshly pinned non-ticked fireball has fire==0 and
+ * must show only the fire_charge billboard (ui_entities fireball_small golden).
+ * EntitySmallFireball width=height=0.3125 (scale 0.4375); EntityLargeFireball
+ * width=height=1.0 (scale 1.4). item_meta>=2 marks large after
  * gm_entity_prep_large_fireball_fire. Both heights/f yield two fire layers.
  * Dragon fireballs (item_id 9003) never enter here. */
 int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
@@ -564,6 +568,9 @@ int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
     int written = 0;
     for (int e = 0; e < n; ++e) {
         if (ents[e].type != GM_VIEW_BILLBOARD || ents[e].item_id != 385)
+            continue;
+        /* flags bit 0 = burn (Entity.isBurning). Unset => no fire overlay. */
+        if ((ents[e].flags & 1) == 0)
             continue;
         if (written + 12 > max) break;
         /* EntityLargeFireball width 1.0; EntitySmallFireball width 0.3125. */

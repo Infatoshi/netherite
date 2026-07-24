@@ -50,9 +50,10 @@ int gm_held_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
                             float view_pitch, CrVertex *out, int max);
 
-/* Render.doRenderShadowAndFire for fiery fireballs. item_meta>=2 uses
- * EntityLargeFireball width 1.0 (scale 1.4); else EntitySmallFireball 0.3125
- * (scale 0.4375). Terrain atlas fire_layer sprites. */
+/* Render.doRenderShadowAndFire for fireballs with flags&1 (isBurning).
+ * item_meta>=2 uses EntityLargeFireball width 1.0 (scale 1.4); else
+ * EntitySmallFireball 0.3125 (scale 0.4375). Terrain atlas fire_layer sprites.
+ * Non-burning views (flags bit 0 clear) emit nothing — matches RenderManager. */
 int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
                                 float view_yaw, CrVertex *out, int max);
 
