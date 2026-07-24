@@ -210,8 +210,11 @@ Two tapes are ground truth; nothing else is a match target:
   closed without `mc_gui_chest_{a,b}.png`. `capture_gui_actions.sh` +
   `run_gui_actions_verify.sh` verify inventory PICKUP, split/deposit,
   QUICK_MOVE, hotbar swap, THROW, cursor, counts, hover, and close against the
-  real GUI after each operation (preview masked; must not overwrite pose2
-  goldens).
+  real GUI after each operation. Pixel contract: all owned panel/slot/cursor
+  pixels at A/B noise (hard max / hard_px; no noise+1 mean budget); every
+  armor/craft/offhand/main/hotbar cell covered; OS cursor non-claim without a
+  game-pixel hole; mutation self-tests; `08_close` state-only. Preview masked
+  (preview gate is `run_gui_verify.sh`); must not overwrite pose2 goldens.
 - Open bugs: `OPEN_DIVERGENCES.md` (repro command per entry).
 
 ## Mechanics pixel-coverage audit (2026-07-22)

@@ -108,9 +108,20 @@ PICKUP clicks, press Q over hotbar 0, then close. It writes
 
 `run_gui_actions_verify.sh` applies the same logical operations through
 `gm_container_click`, renders `gm_screen_draw` after every visible step, and prints
-a per-step table. It gates the inventory panel with the same Java-repeat-noise +
-1.0 mean/channel rule as `run_gui_verify.sh`, masks only the documented live 3D
-player-preview viewport, and separately gates tight slot/cursor ROIs. Those ROIs
-exercise item sprites, count text, carried stacks, hover overlays, and both hotbar
-slots. Close is checked from the oracle `focusdiag` screen state because neither
-side has a container panel after that operation.
+a per-step table. The pixel gate is a hard owned-pixel contract (no mean+margin
+budget):
+
+- **Owned pixels**: full inventory panel (inset 4 gui px) including every slot
+  cell (armor, craft 2x2, result, offhand, main 27, hotbar 9), hover chrome,
+  tooltips, and carried stack. The live 3D player-preview viewport is the only
+  panel hole (preview is gated in `run_gui_verify.sh`).
+- **Noise floor**: Java A/B from `mc_gui_inventory_{a,b}.png` on the same owned
+  mask. When A/B noise is zero, one wrong owned pixel fails (`max` channel +
+  `hard_px` with thr 10). Residuals are reopened rather than absorbed.
+- **OS cursor non-claim**: neither the Java FBO golden nor `gm_screen_draw`
+  includes the OS pointer. No 12x12 hole is punched over game pixels.
+- **Mutation self-tests**: one pixel, hundreds outside the old five ROIs, blank
+  armor/offhand, missing held stack, cursor-center corruption — all must be
+  rejected by the gate.
+- **`08_close`**: state-only (`focusdiag` `screen=None` + capture present). After
+  close there is no inventory panel to pixel-claim.

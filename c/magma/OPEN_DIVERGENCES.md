@@ -1048,3 +1048,34 @@ not multi-AABB.
 
 Repro (C live): `cd c/magma && bash game/test_mob_live.sh && bash
 game/test_entity_render.sh`.
+
+## 59. OPEN: inventory action tooltip LSB residual (gui_actions hard gate)
+
+`run_gui_actions_verify.sh` now hard-gates every owned panel/slot/cursor pixel
+at the Java A/B noise floor (no mean+margin; no 12x12 empty-cursor hole).
+A/B owned noise is 0. Empty-cursor steps that draw a hover tooltip still show a
+1-channel residual on ~130-180 owned pixels (tooltip gradient / AA), max=1,
+hard_px=0 (thr 10). Held-stack steps (`01_pickup_a`, `03_split_b`) and
+`05_shift_b_to_hotbar` are bit-exact (mean=0, max=0, nz=0). Item icons, counts,
+armor/offhand empty sprites, and carried stacks are not the residual class.
+
+Reopened rather than weakened: the gate FAILs these steps until tooltip
+gradient matches Java bit-exact. Mutation self-tests (one pixel, hundreds
+outside the old five ROIs, blank armor/offhand, missing held stack, cursor-
+center corruption) all reject.
+
+Measured (owned mask, A/B noise=0):
+
+| step | mean | max | hard_px | nz | status |
+|------|------|-----|---------|-----|--------|
+| 00_initial | 0.000687 | 1 | 0 | 168 | OPEN |
+| 01_pickup_a | 0 | 0 | 0 | 0 | PASS |
+| 02_place_b | 0.000702 | 1 | 0 | 172 | OPEN |
+| 03_split_b | 0 | 0 | 0 | 0 | PASS |
+| 04_deposit_one_c | 0.000731 | 1 | 0 | 180 | OPEN |
+| 05_shift_b_to_hotbar | 0 | 0 | 0 | 0 | PASS |
+| 06_swap_hotbar_0_1 | 0.000683 | 1 | 0 | 131 | OPEN |
+| 07_drop_one_hotbar0 | 0.000683 | 1 | 0 | 131 | OPEN |
+| 08_close | — | — | — | — | state-only PASS |
+
+Repro: `cd c/magma && bash raster/verify/mc_capture/run_gui_actions_verify.sh`
