@@ -53,7 +53,10 @@ static CrRgba hud_texel(int idx, int sx, int sy) {
     return c;
 }
 
-/* Alpha-composite src over the framebuffer pixel at (x,y). Clips to bounds. */
+/* Alpha-composite src over the framebuffer pixel at (x,y). Clips to bounds.
+ * Fused (src*a + dst*ia + 127)/255 — proven for HUD death tint, durability,
+ * and all non-tooltip GUI fills. Inventory tooltip bg/border uses a separate
+ * Mesa unorm8 mul+add path in screen.c (tooltip_mesa_unorm8_fill). */
 static void hud_blend_px(CrFramebuffer *fb, int x, int y, CrRgba src) {
     if (x < 0 || y < 0 || x >= fb->w || y >= fb->h) return;
     if (src.a == 0) return;

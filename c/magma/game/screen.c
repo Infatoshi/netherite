@@ -233,26 +233,62 @@ static void draw_empty_player_slots(CrFramebuffer *fb, const GmRuntime *r,
                                  px + 77 * s, py + 62 * s, s);
 }
 
+/* Mesa/Java fixed-function SRC_ALPHA unorm8: separate (c*a+127)/255 multiplies
+ * then add (not fused (src*a+dst*ia+127)/255). Differs by 1 on some values
+ * (e.g. border end R=40 a=80 over fill 23: fused 28 vs separate 29). Scoped
+ * to inventory tooltip bg/border/gradient only — shared gm_hud_fill keeps the
+ * fused path proven for HUD death/durability goldens. */
+static void tooltip_mesa_unorm8_blend_px(CrFramebuffer *fb, int x, int y, CrRgba src)
+{
+    if (x < 0 || y < 0 || x >= fb->w || y >= fb->h) return;
+    if (src.a == 0) return;
+    CrRgba *d = &fb->color[y * fb->w + x];
+    if (src.a == 255) { *d = src; return; }
+    int a = src.a, ia = 255 - a;
+    int r = (src.r * a + 127) / 255 + (d->r * ia + 127) / 255;
+    int g = (src.g * a + 127) / 255 + (d->g * ia + 127) / 255;
+    int b = (src.b * a + 127) / 255 + (d->b * ia + 127) / 255;
+    d->r = (u8)(r > 255 ? 255 : r);
+    d->g = (u8)(g > 255 ? 255 : g);
+    d->b = (u8)(b > 255 ? 255 : b);
+    d->a = (u8)(a + (d->a * ia + 127) / 255);
+}
+
+static void tooltip_mesa_unorm8_fill(CrFramebuffer *fb, int dx, int dy, int w,
+                                    int h, CrRgba c)
+{
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+            tooltip_mesa_unorm8_blend_px(fb, dx + x, dy + y, c);
+}
+
 /* GuiUtils.drawGradientRect. Coordinates and colors are in scaled-GUI units;
- * interpolate over framebuffer rows as OpenGL does after the GUI transform. */
+ * after GUI scale(s) the quad spans [fy0, fy1) in framebuffer rows. OpenGL
+ * samples pixel centers: t = (y + 0.5) / h for row y in 0..h-1, then rounds
+ * each channel. Endpoint-inclusive (den=h-1) left tooltip side-border residual
+ * at max channel 1; pixel-center matches the GL smooth-shade sample points.
+ * Composites via tooltip_mesa_unorm8_fill (not gm_hud_fill). */
 static void draw_gui_gradient(CrFramebuffer *fb, int x0, int y0, int x1, int y1,
                               int s, unsigned top, unsigned bottom)
 {
     int fy0 = y0 * s, fy1 = y1 * s;
     int h = fy1 - fy0;
+    int ta = (top >> 24) & 255, tr = (top >> 16) & 255;
+    int tg = (top >> 8) & 255, tb = top & 255;
+    int ba = (bottom >> 24) & 255, br = (bottom >> 16) & 255;
+    int bg = (bottom >> 8) & 255, bb = bottom & 255;
     for (int y = 0; y < h; ++y) {
-        int den = h > 1 ? h - 1 : 1;
-        int ta = (top >> 24) & 255, tr = (top >> 16) & 255;
-        int tg = (top >> 8) & 255, tb = top & 255;
-        int ba = (bottom >> 24) & 255, br = (bottom >> 16) & 255;
-        int bg = (bottom >> 8) & 255, bb = bottom & 255;
+        /* t = (y+0.5)/h as fixed-point over 2h so +0.5 rounds cleanly. */
+        int num = 2 * y + 1; /* 2*(y+0.5) */
+        int den = 2 * h;
+        if (den < 1) den = 1;
         CrRgba c = {
-            (u8)((tr * (den - y) + br * y + den / 2) / den),
-            (u8)((tg * (den - y) + bg * y + den / 2) / den),
-            (u8)((tb * (den - y) + bb * y + den / 2) / den),
-            (u8)((ta * (den - y) + ba * y + den / 2) / den)
+            (u8)((tr * (den - num) + br * num + den / 2) / den),
+            (u8)((tg * (den - num) + bg * num + den / 2) / den),
+            (u8)((tb * (den - num) + bb * num + den / 2) / den),
+            (u8)((ta * (den - num) + ba * num + den / 2) / den)
         };
-        gm_hud_fill(fb, x0 * s, fy0 + y, (x1 - x0) * s, 1, c);
+        tooltip_mesa_unorm8_fill(fb, x0 * s, fy0 + y, (x1 - x0) * s, 1, c);
     }
 }
 

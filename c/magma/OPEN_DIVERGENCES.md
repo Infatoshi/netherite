@@ -1062,41 +1062,39 @@ not multi-AABB.
 Repro (C live): `cd c/magma && bash game/test_mob_live.sh && bash
 game/test_entity_render.sh`.
 
-## 59. OPEN: inventory action tooltip LSB residual (gui_actions hard gate)
+## 59. FIXED: inventory action tooltip LSB residual (gui_actions hard gate)
 
-`run_gui_actions_verify.sh` hard-gates every owned panel/slot/cursor pixel at
-the Java A/B noise floor (no mean+margin; no 12x12 empty-cursor hole). A/B
-owned noise is 0. Empty-cursor steps that draw a hover tooltip still show a
-1-channel residual on ~130-180 owned pixels (tooltip gradient / AA), max=1,
-hard_px=0 (thr 10). Held-stack steps (`01_pickup_a`, `03_split_b`) and
-`05_shift_b_to_hotbar` are bit-exact (mean=0, max=0, nz=0). Item icons, counts,
-armor/offhand empty sprites, and carried stacks are not the residual class.
+Root cause (two tooltip-local packing bugs, not font AA):
 
-Reopened rather than weakened: the gate FAILs these steps until tooltip
-gradient matches Java bit-exact. These OPEN rows are honest residuals, not a
-pass budget.
+1. Tooltip bg/border composites used fused `(src*a + dst*ia + 127)/255` via
+   `gm_hud_fill`. Mesa/Java SRC_ALPHA does separate `(c*a+127)/255` multiplies
+   then add; the forms differ by 1 on several values (e.g. border end R=40
+   a=80 over fill 23: fused 28 vs Java/separate 29). Fix is scoped:
+   `tooltip_mesa_unorm8_fill` / `tooltip_mesa_unorm8_blend_px` in screen.c for
+   inventory tooltip gradient only. Shared `hud_blend_px` / `gm_hud_fill`
+   remain fused (HUD death tint, durability, dim, slot highlight).
+2. `draw_gui_gradient` used endpoint-inclusive lerp (`den=h-1`, pure start at
+   y=0 / pure end at y=h-1). GL smooth-shade samples pixel centers
+   `t=(y+0.5)/h`. Switching to that fixed the remaining ~40 side-border nz.
 
-Mutation self-tests (non-vacuous): each case builds a perfect passing base
-from a genuine PASS magma step or a Java oracle copy, asserts the unmutated
-control PASSes, applies the intended corruption, asserts mutated FAILs, and
-requires meaningful painted counts. Covers one pixel, hundreds outside the old
-five ROIs, blank armor/offhand, missing held stack, and cursor-center
-corruption. Earlier aab743d wording overclaimed “all reject” while several
-cases corrupted already-OPEN magma frames (control never PASSed) — that was
-vacuous and is not evidence the gate works.
+After: every owned action step is bit-exact (mean=0, max=0, nz=0) including
+mutation self-tests with genuine magma PASS bases. Inventory non-preview
+chrome still bit-exact. HUD durability/death pure bands remain exact. Preview
+ROI residual unchanged (open L8 primary gap under pin_preview_anim; see
+`gui_preview_calibration.json`).
 
-Measured (owned mask, A/B noise=0):
+Before → after (owned mask, A/B noise=0):
 
-| step | mean | max | hard_px | nz | status |
-|------|------|-----|---------|-----|--------|
-| 00_initial | 0.000687 | 1 | 0 | 168 | OPEN |
-| 01_pickup_a | 0 | 0 | 0 | 0 | PASS |
-| 02_place_b | 0.000702 | 1 | 0 | 172 | OPEN |
-| 03_split_b | 0 | 0 | 0 | 0 | PASS |
-| 04_deposit_one_c | 0.000731 | 1 | 0 | 180 | OPEN |
-| 05_shift_b_to_hotbar | 0 | 0 | 0 | 0 | PASS |
-| 06_swap_hotbar_0_1 | 0.000683 | 1 | 0 | 131 | OPEN |
-| 07_drop_one_hotbar0 | 0.000683 | 1 | 0 | 131 | OPEN |
-| 08_close | — | — | — | — | state-only PASS |
+| step | before nz | after nz | status |
+|------|-----------|----------|--------|
+| 00_initial | 168 | 0 | PASS |
+| 01_pickup_a | 0 | 0 | PASS |
+| 02_place_b | 172 | 0 | PASS |
+| 03_split_b | 0 | 0 | PASS |
+| 04_deposit_one_c | 180 | 0 | PASS |
+| 05_shift_b_to_hotbar | 0 | 0 | PASS |
+| 06_swap_hotbar_0_1 | 131 | 0 | PASS |
+| 07_drop_one_hotbar0 | 131 | 0 | PASS |
+| 08_close | — | — | state-only PASS |
 
 Repro: `cd c/magma && bash raster/verify/mc_capture/run_gui_actions_verify.sh`
