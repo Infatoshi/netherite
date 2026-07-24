@@ -113,6 +113,13 @@ if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
     echo "ui_hud gates: RESIDUAL_OR_FAIL (composition gates above still ran)"
     exit "$roi_rc"
   fi
+  echo "== death chrome mutation self-test =="
+  uv run --no-project --with pillow --with numpy python \
+    "$DIR/compare_ui_hud_oracle.py" \
+    --goldens "$GOLDEN_DIR" \
+    --cframes "$CFRAME_DIR" \
+    --margin "${UI_HUD_MARGIN:-2.0}" \
+    --mutation-self-test
 else
   echo "== oracle ROI compare: SKIP (no goldens under $GOLDEN_DIR; run capture_ui_hud.sh) =="
   echo "oracle pixel parity: BLOCKED (no Java PNGs under raster/verify/ui_hud/goldens/)"

@@ -46,7 +46,7 @@ Gray C backdrop is composition isolation only — not a live-world claim.
 | `hud_xp_half.png` | `experience=0.5`, level 7 | `/xp` to known fraction | XP bar fill width = 91/182 GUI px + level outline text centered `(sw-w)/2` |
 | `hud_durability_half.png` | Wood pick damage 30/59 in hotbar slot 0 | `/give` + anvil or scripted damage | Slot 0 durability strip only (13x2 at icon +2,+13) |
 | `hud_boss_half.png` | Ender dragon bar at 50% | End fight or boss bar packet | Top center pink bar + "Ender Dragon" |
-| `hud_death.png` | Dead player, GuiGameOver | Die to mob; hold death screen | Full-frame gradient + "You died!" + Score + Respawn/Title buttons |
+| `hud_death.png` | Dead player, GuiGameOver | Die to mob; hold death screen | Opaque chrome: "You died!" + Score (body+shadow) + Respawn/Title buttons; full-frame gradient/world soft residual only |
 | `hand_bow_pull20.png` | Bow drawn 20 ticks, fixed yaw/pitch 0, wall backdrop | Hold use 20 ticks against plain wall | Lower-right viewmodel |
 | `hand_eat_mid.png` | Bread, use remaining 16/32 | Hold right-click mid-eat | Lower-right viewmodel |
 | `hand_block_shield.png` | Shield blocking (1.11.2; swords do not block) | Hold right-click with shield (id 442) | Lower-right viewmodel |
@@ -85,8 +85,14 @@ Example qrl + mcwindow sketch for armor + hurt flash:
 - **Hard HUD (closed at A/B noise floor):** `hud_hurt_flash_on/off` (flash phase
   sprites + last-health white hearts), `hud_air_partial` (pixels correspond to
   air 121–122: four full + one partial), and `hud_durability_half` (exact 13x2
-  feature ROI). GuiGameOver title, score, and disabled buttons are exact; its
-  translucent gradient-over-world composition remains open.
+  feature ROI).
+- **GuiGameOver chrome closed; tint open:** hard feature ROIs only —
+  `hud_death_title` / `hud_death_score` use oracle-derived body plus vanilla
+  drop-shadow color classes and the Java+C union so missing and extra pixels
+  fail. `hud_death_btn_*` compares full button rectangles. Full-frame
+  `hud_death` is soft `CAPTURE_OK`; the translucent gradient-over-world
+  composition remains open. Mutation tests cover missing button faces and
+  shadows, shifted glyphs, and extra glyph pixels.
 - **Hand viewmodels (capture closed):** `hand_bow_pull20` / `hand_eat_mid` /
   `hand_block_shield` Java A/B frames now show distinct lower-right viewmodels
   (bow drawn / bread mid-eat / shield block). Root cause of wall-only goldens

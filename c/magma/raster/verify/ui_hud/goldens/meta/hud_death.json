@@ -169,7 +169,7 @@
     "dark_frac": 0.000585480093676815,
     "purple_bias": 2.2317525370804105
   },
-  "verdict": "PASS",
-  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; C GuiGameOver owned chrome (title/score/buttons + full-frame owned mask) bit-exact at A/B noise floor.",
-  "roi": "full-frame GuiGameOver + feature title/score/buttons"
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; hard opaque chrome only (title/score body+shadow via oracle feature masks; full button rects, no gray filter) bit-exact at A/B noise floor. Full-frame gradient/world composition is soft/open residual (not a parity claim).",
+  "roi": "soft full-frame residual; hard features: title/score/buttons"
 }
