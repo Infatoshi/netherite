@@ -17,6 +17,7 @@ Sprite coords are the well-known GuiIngame constants for 1.11.2:
                       flashing full (70,0), half (79,0)      each 9x9
                 poison full/half (88/97,0), flash (106/115,0)
                 wither full/half (124/133,0), flash (142/151,0)
+                absorption full/half (160/169,0)              each 9x9
                 haunch bg (16,27) full (52,27) half (61,27)  each 9x9
                 air full (16,18) partial (25,18)              each 9x9
                 xp bar empty (0,64,182x5) full (0,69,182x5)
@@ -52,6 +53,9 @@ SPRITES = [
     ("HEART_WITHER_HALF", "icons.png", 133, 0, 9, 9),
     ("HEART_WITHER_FLASH_FULL", "icons.png", 142, 0, 9, 9),
     ("HEART_WITHER_FLASH_HALF", "icons.png", 151, 0, 9, 9),
+    # GuiIngame.renderPlayerStats absorption: k5+144 full / k5+153 half (k5=16).
+    ("HEART_ABSORB_FULL", "icons.png", 160, 0, 9, 9),
+    ("HEART_ABSORB_HALF", "icons.png", 169, 0, 9, 9),
     ("HUNGER_BG",   "icons.png",    16, 27,   9,  9),
     ("HUNGER_FULL", "icons.png",    52, 27,   9,  9),
     ("HUNGER_HALF", "icons.png",    61, 27,   9,  9),

@@ -1,38 +1,37 @@
 #!/usr/bin/env python3
 """Feature-specific ROI compare gate for ui_hud oracle goldens.
 
-Hard HUD states (painted ROI mean):
-  noise  = mean |Java_a - Java_b| over stable A/B pixels in feature ROI
-  c_vs_j = mean |C - Java_a| over compare mask (painted / death chrome)
-  gate   = noise + MARGIN
+Core hard HUD (armor/absorption/hearts/hunger/air/xp/durability/boss):
+  Oracle-derived complete feature masks UNION C feature (Java∪C). Missing Java
+  pixels and extra C both score. Hard PASS requires n_hard_px==0 and mean
+  within measured A/B noise (no margin floor). HARD_THR=2 max-channel.
+
+Absorption (closed): GuiIngame gold hearts (icons.png U=160/169) — exact
+  C-vs-J with oracle∪C masks (c_vs_j=0, hard_px=0) on committed A/B.
 
 Full-screen blend-off inside-block overlays (overlay_inside_stone/grass):
   Strict full-ROI compare on A/B-stable pixels (Java HUD flicker excluded).
-  No painted-only mask (gray C holes must count). No mean dilution sole gate.
-  Explicit A/B noise (mean + max). hard_thr = ceil(noise_max) on the stable
-  set: when noise_max==0 every stable pixel must be exact (thr 0; any
-  maxch>0 is residual). PASS only if hard_px == 0. Rejects erase-90%,
-  blank-to-one, +1 single-channel, 2-4px shifts, recolor, sparse extras.
+  No painted-only mask (gray C holes must count). hard_thr = ceil(noise_max)
+  on the stable set: when noise_max==0 every stable pixel must be exact
+  (thr 0; any maxch>0 is residual). PASS only if hard_px == 0.
+
+overlay_underwater (hard full-ROI, honest residual):
+  Same-scene glass-pool ambient + renderWaterOverlayTexture. Full A/B-stable
+  ROI hard_px gate (same exact bar as inside-block; no painted filter, no
+  noise/mean budget to claim parity). Measured residual ~4.97/ch stays
+  RESIDUAL until hard_px==0. Air partial is a separate hard HUD state.
 
 GuiGameOver (hud_death*):
-  - Opaque chrome is hard: full button rectangles (no gray painted filter);
-    title/score body + shadow via oracle-derived complete feature masks
-    (union of Java + C chrome so missing-Java and extra-C pixels both fail).
-  - Full-frame hud_death is soft: translucent gradient/world composition
-    residual is reported, never claimed exact (gray C isolation backdrop).
-  - hud_death_tint_pair is hard: pure gradient bands over the known C underlay
-    must match Gui.drawGradientRect + SRC_ALPHA blend bit-exactly (paired
-    background / source model). World underlay parity is a separate blocker.
+  - Opaque chrome is hard: full button rectangles; title/score body+shadow
+    via oracle-derived complete feature masks (Java+C union).
+  - Full-frame hud_death is soft (world underlay residual).
+  - hud_death_tint_pair is hard: pure gradient bands over known C underlay.
 
-Verdicts (capture integrity first; no false parity claims):
-  FAIL        - missing files, capture noise over ceiling, empty/unstable
-  CAPTURE_OK  - soft state: A/B frozen + feature present; no hard C parity claim
-  PASS        - hard state: within gate / hard_px==0 (parity claim)
-  RESIDUAL    - hard capture OK but C residual (nonzero exit)
+Hand viewmodels: wider mid-eat ROI; hard residual open (registration).
 
+Verdicts:
+  FAIL / CAPTURE_OK / PASS / RESIDUAL (hard residual => nonzero exit).
 Hard RESIDUAL returns nonzero. Soft states never claim pixel parity.
-Gray C backdrop is composition isolation only; not a live-world equivalence claim.
-Inside-block C uses real atlas particle UVs (not solid synthetic texels).
 """
 from __future__ import print_function
 
@@ -55,6 +54,7 @@ J1 = (SH - 39) * S          # 402
 
 GRAY = 40
 GRAY_EPS = 8
+HARD_THR = 2  # max-channel delta counts as a hard pixel
 
 # Capture noise ceiling (must match driver intent; no 40 loophole).
 NOISE_MAX_DEFAULT = 2.0
@@ -70,12 +70,25 @@ NOISE_MAX = {
     "overlay_underwater": 3.0,
 }
 
+# Core survival HUD hard gates: complete oracle∪C feature masks, noise floor.
+CORE_HARD = {
+    "hud_armor_iron",
+    "hud_absorption_armor",
+    "hud_hurt_flash_on",
+    "hud_hurt_flash_off",
+    "hud_hunger_poison",
+    "hud_air_partial",
+    "hud_xp_half",
+    "hud_durability_half",
+    "hud_boss_half",
+}
 
-# Blend-off full-screen particle replace (ItemRenderer.renderBlockInHand).
+# Blend-off full-screen particle replace + underwater full-ROI exact bar.
 # Gate is full A/B-stable ROI + hard max-channel pixels, not painted mean.
 FULLSCREEN_REPLACE = {
     "overlay_inside_stone",
     "overlay_inside_grass",
+    "overlay_underwater",
 }
 # Per-pixel mean-ch A/B above this is "unstable" (Java HUD chrome flicker).
 STABLE_AB_THR = 2.0
@@ -120,21 +133,19 @@ def roi_rect(name):
         xp_y = (SH - 29) * S
         return (HB_X, xp_y - 12 * S, HB_X + 182 * S, xp_y + 5 * S)
     if name in ("hud_durability_half",):
-        # RenderItem.renderItemOverlayIntoGUI: black 13x2 at (icon+2, icon+13),
-        # colored fill 13x1 on the top row of that strip. Feature ROI is the
-        # strip only (not icon/hotbar alpha over world backdrop).
+        # Full owned slot-0 icon (16x16 GUI) + complete 13x2 durability strip.
         ix = HB_X + 3 * S
         iy = HB_Y + 3 * S
-        return (ix + 2 * S, iy + 13 * S, ix + 15 * S, iy + 15 * S)
+        return (ix, iy, ix + 16 * S, iy + 16 * S)
     if name in ("hud_boss_half",):
+        # Bar at (cx-91, 12) plus name chrome above (y = 12-9).
         bb_x = (CX - 91) * S
         bb_y = 12 * S
-        return (bb_x, bb_y - 10 * S, bb_x + 182 * S, bb_y + 6 * S)
+        return (bb_x, max(0, bb_y - 12 * S), bb_x + 182 * S, bb_y + 6 * S)
     if name in ("hud_death",):
         # Full-frame soft residual (gradient over world / composition).
         return (0, 0, W, H)
     if name in ("hud_death_title",):
-        # 2x title "You died!" at GUI y=60 -> fb y=120.
         return DEATH_TITLE
     if name in ("hud_death_score",):
         return DEATH_SCORE
@@ -144,10 +155,7 @@ def roi_rect(name):
         return DEATH_BTN1
     if name.startswith("hand_"):
         # Non-hotbar viewmodel band above hotbar chrome (GUI y=sh-22).
-        # Idle / bow / block sit lower-right. Mid-eat (transformEatFirstPerson
-        # f3≈1) swings the item toward screen center — a lower-right-only ROI
-        # would score a false PASS on a few edge pixels. Use a wider lower band
-        # for eat so residual is measured on the actual painted feature.
+        # Mid-eat swings toward center — wider lower band for honest residual.
         hb_y = (SH - 22) * S
         y1 = max(H * 2 // 3 + 8, hb_y - 4)
         if name == "hand_eat_mid":
@@ -159,32 +167,19 @@ def roi_rect(name):
     return (0, 0, W, H)
 
 
-# Hard gate: HUD, first-person use viewmodels, inside-block ROIs, and opaque
-# GuiGameOver chrome. Full-frame death tint, fire/portal, and underwater are soft.
-HARD = {
-    "hud_armor_iron",
-    "hud_absorption_armor",
-    "hud_hurt_flash_on",
-    "hud_hurt_flash_off",
-    "hud_hunger_poison",
-    "hud_air_partial",
-    "hud_xp_half",
-    "hud_durability_half",
-    "hud_boss_half",
+# Hard gate: core HUD, hands, inside-block, underwater full-ROI, death chrome.
+HARD = set(CORE_HARD) | {
     "hand_bow_pull20",
     "hand_eat_mid",
     "hand_block_shield",
-    # Block-in-hand: replace tex*0.1 + perspective UV + real particle atlas
-    # (stone / dirt-for-grass). Inside solid, world is black so composition
-    # isolation matches Java at noise floor. Gated fullscreen hard_px (below).
     "overlay_inside_stone",
     "overlay_inside_grass",
+    "overlay_underwater",
     "hud_death_title",
     "hud_death_score",
     "hud_death_btn_respawn",
     "hud_death_btn_title",
 }
-
 
 def load_rgb(path):
     im = Image.open(path).convert("RGB")
@@ -446,6 +441,371 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
     }
 
 
+def cells_fg(img, x0, y0, n, pitch, cw, ch, thr=40):
+    """Per-icon cell feature: pixel far from that cell's border median.
+
+    Oracle-derived: independent of C. thr is high enough that flat wall bleed
+    in icon cells is rejected while sprite texels remain.
+    """
+    h, w = img.shape[:2]
+    m = np.zeros((h, w), dtype=bool)
+    for i in range(n):
+        xa = x0 + i * pitch
+        xb = min(w, xa + cw)
+        ya = y0
+        yb = min(h, ya + ch)
+        if xa >= w or ya >= h or xa >= xb or ya >= yb:
+            continue
+        cell = img[ya:yb, xa:xb].astype(np.int16)
+        border = np.concatenate([
+            cell[0, :].reshape(-1, 3),
+            cell[-1, :].reshape(-1, 3),
+            cell[:, 0].reshape(-1, 3),
+            cell[:, -1].reshape(-1, 3),
+        ], axis=0)
+        bg = np.median(border, axis=0)
+        d = np.abs(cell - bg).max(axis=2)
+        m[ya:yb, xa:xb] |= d >= thr
+    return m
+
+
+def icon_row_cells(y0, x0=None, n=10, pitch=None, cw=None, ch=None):
+    """Boolean ownership of atlas icon-cell rectangles (full frame)."""
+    if x0 is None:
+        x0 = HB_X
+    if pitch is None:
+        pitch = 8 * S
+    if cw is None:
+        cw = 9 * S
+    if ch is None:
+        ch = 9 * S
+    m = np.zeros((H, W), dtype=bool)
+    for i in range(n):
+        xa = x0 + i * pitch
+        m[y0:y0 + ch, xa:xa + cw] = True
+    return m
+
+
+def icon_row_chrome(img, y0, x0=None, n=10, pitch=None, cw=None, ch=None,
+                    thr=40):
+    """Atlas-geometry icon row: cells_fg body + black outlines + mid-gray ~61.
+
+    thr=40 alone drops armor mid-gray shadows (~61) when cell border median is
+    world gray ~92 (dist 31). Own those atlas chrome colors inside the cell
+    rectangles so erasing them cannot drop them from the Java∪C union.
+    Black outlines are also forced inside the same geometry (independent of thr).
+    """
+    if x0 is None:
+        x0 = HB_X
+    if pitch is None:
+        pitch = 8 * S
+    if cw is None:
+        cw = 9 * S
+    if ch is None:
+        ch = 9 * S
+    m = cells_fg(img, x0, y0, n, pitch, cw, ch, thr=thr)
+    cells = icon_row_cells(y0, x0=x0, n=n, pitch=pitch, cw=cw, ch=ch)
+    r = img[:, :, 0].astype(np.int16)
+    g = img[:, :, 1].astype(np.int16)
+    b = img[:, :, 2].astype(np.int16)
+    # icons.png black outline
+    m |= cells & (r < 20) & (g < 20) & (b < 20)
+    # armor/heart mid-gray shadow texel ~61 (omitted by thr=40 vs world~92)
+    m |= cells & (np.abs(r - 61) <= 2) & (np.abs(g - 61) <= 2) & (
+        np.abs(b - 61) <= 2)
+    return m
+
+
+def boss_bar_band():
+    """Atlas bars.png pink boss strip: GUI (cx-91, 12) size 182x5, scale S."""
+    bb_x = (CX - 91) * S
+    bb_y = 12 * S
+    m = np.zeros((H, W), dtype=bool)
+    m[bb_y:bb_y + 5 * S, bb_x:bb_x + 182 * S] = True
+    return m
+
+
+def boss_pink_gamut(r, g, b):
+    """Full pink / dark-pink boss-bar gamut (magenta family, g near 0).
+
+    Covers bright fill (~236,0,184), mid (~140,0,109), and dark empty/bg
+    (~73,0,57), (~57,0,44), (~38,0,30). Neutral world grays at bar corners
+    are excluded (chroma / g gate) to avoid world bleed.
+    """
+    return ((g < 50) & (r > 25) & (b > 15) & (r > g) & (b >= g))
+
+
+def oracle_core_feature(img, sid):
+    """Oracle-derived complete feature mask for core hard HUD (full frame).
+
+    Independent of C so missing Java feature pixels always score. Prefer
+    atlas/source geometry ownership (icon cells, boss bar band) over loose
+    full-frame color thresholds. Distinctive color classes still cover
+    features C might omit (gold absorption, red hearts, bubbles, xp green,
+    boss name) and are scored after crop to the state ROI.
+    """
+    r = img[:, :, 0].astype(np.int16)
+    g = img[:, :, 1].astype(np.int16)
+    b = img[:, :, 2].astype(np.int16)
+    m = np.zeros(img.shape[:2], dtype=bool)
+
+    if sid in ("hud_armor_iron", "hud_absorption_armor",
+               "hud_hurt_flash_on", "hud_hurt_flash_off"):
+        # Hearts row at J1 (always).
+        m |= icon_row_chrome(img, J1)
+        # red heart body (full / half) — restricted to heart/armor ROI band
+        heart_band = icon_row_cells(J1)
+        if sid in ("hud_armor_iron", "hud_absorption_armor"):
+            heart_band |= icon_row_cells(J1 - 10 * S)
+        if sid == "hud_absorption_armor":
+            heart_band |= icon_row_cells(J1 - 20 * S)
+        m |= heart_band & (r > 140) & (r > g + 30) & (r > b + 30)
+        # flash-white heart overlays
+        m |= heart_band & (r > 220) & (g > 220) & (b > 220)
+
+        if sid == "hud_armor_iron":
+            # Armor row sits at J1-10*S (no absorption lift).
+            m |= icon_row_chrome(img, J1 - 10 * S)
+        elif sid == "hud_absorption_armor":
+            # Absorption lifts armor to J1-20*S; gold abs hearts occupy J1-10*S.
+            # Do not duplicate J1-10*S as the armor row.
+            m |= icon_row_chrome(img, J1 - 20 * S)  # lifted armor + black outlines
+            m |= icon_row_chrome(img, J1 - 10 * S)  # gold absorption hearts row
+            gold = ((r > 160) & (g > 100) & (g < 230) & (b < 130) &
+                    (r > g + 10) & (g > b))
+            m |= icon_row_cells(J1 - 10 * S) & gold
+
+    elif sid == "hud_hunger_poison":
+        x1 = HB_X + 182 * S
+        for i in range(10):
+            xa = x1 - (i + 1) * 8 * S
+            m |= icon_row_chrome(img, J1, x0=xa, n=1)
+        # brown haunch + poison tint (hunger ROI only via later crop)
+        hunger_cells = np.zeros((H, W), dtype=bool)
+        for i in range(10):
+            xa = x1 - (i + 1) * 8 * S
+            hunger_cells |= icon_row_cells(J1, x0=xa, n=1)
+        m |= hunger_cells & (r > 90) & (r > g) & (g >= b - 5) & (b < 110) & (
+            (r - b) > 25)
+        m |= hunger_cells & (g > r + 5) & (g > b) & (g > 50) & (g < 200)
+
+    elif sid == "hud_air_partial":
+        air_y = (SH - 49) * S
+        x1 = (CX + 91) * S
+        air_cells = np.zeros((H, W), dtype=bool)
+        for i in range(10):
+            xa = x1 - (i + 1) * 8 * S
+            m |= icon_row_chrome(img, air_y, x0=xa, n=1)
+            air_cells |= icon_row_cells(air_y, x0=xa, n=1)
+        # bubble cyan / white highlights inside air cells
+        m |= air_cells & (b > 110) & (g > 90) & (b >= r - 5)
+        m |= air_cells & (r > 200) & (g > 200) & (b > 200)
+
+    elif sid == "hud_xp_half":
+        xp_y = (SH - 29) * S
+        rr = r[xp_y:xp_y + 5 * S, HB_X:HB_X + 182 * S]
+        gg = g[xp_y:xp_y + 5 * S, HB_X:HB_X + 182 * S]
+        bb = b[xp_y:xp_y + 5 * S, HB_X:HB_X + 182 * S]
+        bar = ((gg > rr) & (gg > bb) & (gg > 40)) | ((rr < 25) & (gg < 25) & (bb < 25))
+        m[xp_y:xp_y + 5 * S, HB_X:HB_X + 182 * S] |= bar
+        ty0 = xp_y - 12 * S
+        rr = r[ty0:xp_y, HB_X:HB_X + 182 * S]
+        gg = g[ty0:xp_y, HB_X:HB_X + 182 * S]
+        bb = b[ty0:xp_y, HB_X:HB_X + 182 * S]
+        # level glyph green 0x80FF20-ish + black outline
+        m[ty0:xp_y, HB_X:HB_X + 182 * S] |= (
+            ((gg > 180) & (rr < 160) & (bb < 80)) |
+            ((rr < 20) & (gg < 20) & (bb < 20))
+        )
+        # XP green only inside bar+glyph band (avoid world bleed)
+        xp_band = np.zeros((H, W), dtype=bool)
+        xp_band[ty0:xp_y + 5 * S, HB_X:HB_X + 182 * S] = True
+        m |= xp_band & (g > 100) & (g > r + 10) & (g > b + 10)
+
+    elif sid == "hud_durability_half":
+        ix = HB_X + 3 * S
+        iy = HB_Y + 3 * S
+        # full owned icon
+        m |= cells_fg(img, ix, iy, 1, 16 * S, 16 * S, 16 * S, thr=25)
+        icon = np.zeros((H, W), dtype=bool)
+        icon[iy:iy + 16 * S, ix:ix + 16 * S] = True
+        m |= icon & (r < 20) & (g < 20) & (b < 20)
+        # complete 13x2 strip region (black underlay + fill columns)
+        m[iy + 13 * S:iy + 15 * S, ix + 2 * S:ix + 15 * S] = True
+        mx = np.maximum(np.maximum(r, g), b)
+        mn = np.minimum(np.minimum(r, g), b)
+        m |= icon & ((mx - mn) > 50)  # colored durability fill
+
+    elif sid == "hud_boss_half":
+        # bars.png PINK strip geometry + full pink/dark-pink gamut (not r>120 only)
+        in_bar = boss_bar_band()
+        m |= in_bar & boss_pink_gamut(r, g, b)
+        # name body (white) + FontRenderer drop shadow — name band above bar
+        bb_y = 12 * S
+        bb_x = (CX - 91) * S
+        name_band = np.zeros((H, W), dtype=bool)
+        name_band[max(0, bb_y - 12 * S):bb_y, bb_x:bb_x + 182 * S] = True
+        m |= name_band & (r > 200) & (g > 200) & (b > 200)
+        m |= name_band & ((np.abs(r - 63) <= 3) & (np.abs(g - 63) <= 3) &
+                          (np.abs(b - 63) <= 3))
+
+    return m
+
+
+def c_painted_mask(c_full):
+    return np.abs(c_full.astype(np.int16) - GRAY).max(axis=2) > 8
+
+
+def core_compare_mask(sid, ja_full, c_full, painted_full):
+    """Java∪C complete feature mask for a core hard HUD state (full frame)."""
+    j_feat = oracle_core_feature(ja_full, sid)
+    c_feat = oracle_core_feature(c_full, sid) | painted_full
+    return j_feat | c_feat
+
+
+def durability_colored_fill_ok(c_full):
+    """Require non-black colored fill on the top row of the 13x2 strip."""
+    ix = HB_X + 3 * S
+    iy = HB_Y + 3 * S
+    top = c_full[iy + 13 * S:iy + 14 * S, ix + 2 * S:ix + 15 * S]
+    if top.size == 0:
+        return False
+    black = (top[:, :, 0] < 8) & (top[:, :, 1] < 8) & (top[:, :, 2] < 8)
+    colored = (top.max(axis=2) > 20) & ~black
+    return int(colored.sum()) >= 4
+
+
+
+# Keep painted_mask (defined above) and c_painted_mask in sync.
+# c_painted_mask is the core-path name; painted_mask is the overlay suite name.
+
+def evaluate_core(sid, ja_full, jb_full, c_full, margin):
+    """Core HUD oracle∪C hard gate. Returns row + fail/residual."""
+    """Compare one state id. Returns row dict + fail/residual flags."""
+    rect = roi_rect(sid)
+    painted_full = c_painted_mask(c_full)
+    core = sid in CORE_HARD
+
+    if core:
+        compare_full = core_compare_mask(sid, ja_full, c_full, painted_full)
+    else:
+        compare_full = painted_full
+
+    ja = crop(ja_full, rect)
+    jb = crop(jb_full, rect)
+    c = crop(c_full, rect)
+    painted = crop(painted_full.astype(np.uint8), rect).astype(bool)
+    compare = crop(compare_full.astype(np.uint8), rect).astype(bool)
+
+    h = min(ja.shape[0], jb.shape[0], c.shape[0], compare.shape[0], painted.shape[0])
+    w = min(ja.shape[1], jb.shape[1], c.shape[1], compare.shape[1], painted.shape[1])
+    ja, jb, c = ja[:h, :w], jb[:h, :w], c[:h, :w]
+    painted = painted[:h, :w]
+    compare = compare[:h, :w]
+
+    # A/B noise on the compare mask (stable pixels) for a truthful floor.
+    ab = np.abs(ja.astype(np.int16) - jb.astype(np.int16)).mean(axis=2)
+    if compare.any():
+        noise = float(np.abs(ja.astype(np.int16) - jb.astype(np.int16))[compare].mean())
+    else:
+        noise = mean_abs(ja, jb)
+    stable = ab <= max(2.0, noise * 3.0 + 1.0)
+    if (compare & stable).any():
+        noise = float(np.abs(ja - jb)[compare & stable].mean())
+
+    hard = sid in HARD
+    # Core hard: score the full complete feature mask (no stable filter that
+    # could drop a single mismatched chrome pixel). Other hard ROIs keep the
+    # painted∩stable mean used historically.
+    if core:
+        m = compare
+    else:
+        m = compare & stable if stable.any() else compare
+
+    n_painted = int(compare.sum()) if core else int(painted.sum())
+    if m.any():
+        diff = float(np.abs(c.astype(np.int16) - ja.astype(np.int16))[m].mean())
+    elif n_painted == 0:
+        diff = float("nan")
+    else:
+        diff = float(np.abs(c.astype(np.int16) - ja.astype(np.int16))[compare].mean())
+
+    pix_err = np.abs(c.astype(np.int16) - ja.astype(np.int16)).max(axis=2)
+    n_mismatch = int((m & (pix_err > 0)).sum()) if m.any() else 0
+    n_hard_px = int((m & (pix_err >= HARD_THR)).sum()) if m.any() else 0
+
+    if core:
+        # Hard pass at measured A/B noise — no margin floor.
+        gate = noise
+    else:
+        gate = noise + margin
+
+    noise_lim = NOISE_MAX.get(sid, NOISE_MAX_DEFAULT)
+    capture_ok = (noise == noise) and noise <= noise_lim and (
+        n_painted > 0 if hard else True)
+    # Hard states need some C paint in the ROI (composition isolation).
+    if hard and int(painted.sum()) == 0:
+        capture_ok = False
+
+    dura_fill_ok = True
+    if sid == "hud_durability_half":
+        dura_fill_ok = durability_colored_fill_ok(c_full)
+
+    if not capture_ok:
+        verdict = "FAIL"
+        reason = "capture_noise" if noise > noise_lim else "c_empty"
+        fail = 1
+        residual = 0
+    elif hard:
+        if core:
+            ok = ((diff == diff) and diff <= gate + 1e-6 and
+                  n_hard_px == 0 and dura_fill_ok)
+        else:
+            # No hidden max(gate, margin+1) floor.
+            ok = (diff == diff) and diff <= gate + 1e-6
+        if ok:
+            verdict = "PASS"
+            reason = "hard_parity"
+            fail = 0
+            residual = 0
+        else:
+            verdict = "RESIDUAL"
+            if not dura_fill_ok:
+                reason = "durability_no_colored_fill"
+            else:
+                reason = "hard_residual"
+            fail = 0
+            residual = 1
+    else:
+        verdict = "CAPTURE_OK"
+        reason = "soft_capture"
+        fail = 0
+        residual = 0
+
+    row = {
+        "id": sid,
+        "noise": noise,
+        "c_vs_j": diff,
+        "gate": gate,
+        "verdict": verdict,
+        "roi": list(rect),
+        "hard": hard,
+        "core_hard": core,
+        "n_painted": n_painted,
+        "n_compare": int(compare.sum()),
+        "n_mismatch": n_mismatch,
+        "n_hard_px": n_hard_px,
+        "hard_px": n_hard_px,
+        "hard_thr": HARD_THR,
+        "noise_limit": noise_lim,
+        "reason": reason,
+    }
+    if sid == "hud_durability_half":
+        row["colored_fill"] = bool(dura_fill_ok)
+    return row, fail, residual
+
+
+
 def evaluate_state(sid, ja_full, jb_full, c_full, margin=2.0):
     """Return a result dict for one state (used by gate + mutation suite)."""
     if sid in FULLSCREEN_REPLACE:
@@ -459,6 +819,18 @@ def evaluate_state(sid, ja_full, jb_full, c_full, margin=2.0):
         row.setdefault("hard_thr", None)
         row.setdefault("fullscreen", False)
         row.setdefault("rule", "death_tint_pair")
+        return row
+    if sid in CORE_HARD:
+        row, _fail, _resid = evaluate_core(sid, ja_full, jb_full, c_full, margin)
+        row = dict(row)
+        row.setdefault("noise_max", None)
+        row.setdefault("max_diff", None)
+        # n_hard_px already set; map to hard_px key for table consistency
+        if row.get("hard_px") is None and row.get("n_hard_px") is not None:
+            row["hard_px"] = row["n_hard_px"]
+        row.setdefault("hard_thr", HARD_THR)
+        row.setdefault("fullscreen", False)
+        row.setdefault("rule", "core_oracle_union")
         return row
     row, _fail, _resid = evaluate_roi_painted(sid, ja_full, jb_full, c_full, margin)
     row = dict(row)
@@ -644,12 +1016,14 @@ def evaluate_roi_painted(sid, ja_full, jb_full, c_full, margin):
 
 
 def evaluate_roi(sid, ja_full, jb_full, c_full, margin):
-    """Compare one state id. Routes fullscreen overlays to exact hard_px gate."""
+    """Compare one state id. Routes fullscreen / core / painted paths."""
     if sid in FULLSCREEN_REPLACE:
         row = evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full)
         fail = 1 if row["verdict"] == "FAIL" else 0
         residual = 1 if row["verdict"] == "RESIDUAL" else 0
         return row, fail, residual
+    if sid in CORE_HARD:
+        return evaluate_core(sid, ja_full, jb_full, c_full, margin)
     return evaluate_roi_painted(sid, ja_full, jb_full, c_full, margin)
 
 
@@ -769,8 +1143,10 @@ def run_compare(goldens, cframes, margin, report_path=""):
             "ROI + hard_px with thr=ceil(noise_max) (noise_max==0 => exact). "
             "No painted-mean dilution, no thr floor of 1. "
             "RESIDUAL = hard capture OK but C residual (nonzero exit). "
-            "CAPTURE_OK = soft capture integrity only (portal/fire/underwater/"
-            "full-frame death). FAIL = missing/noise/empty/unstable. "
+            "CAPTURE_OK = soft capture integrity only (portal/fire/"
+            "full-frame death). Underwater is hard full-ROI residual. "
+            "FAIL = missing/noise/empty/unstable. "
+            "Core HUD: oracle∪C masks, hard_px==0 at A/B noise. "
             "GuiGameOver: hard = opaque chrome (title/score body+shadow, "
             "full button rects) + hud_death_tint_pair (source gradient blend "
             "over known underlay); full-frame tint/world composition is soft "
@@ -814,24 +1190,45 @@ def run_compare(goldens, cframes, margin, report_path=""):
     return exit_code, report
 
 
-def _must_hard_fail(sid, ja, jb, c, margin, label):
+def _must_hard_fail(sid, ja, jb, c, margin, label, min_hard_px=1):
     """Assert evaluate_roi reports hard RESIDUAL/FAIL for a mutation."""
     row, fail, resid = evaluate_roi(sid, ja, jb, c, margin)
-    ok_fail = (row["verdict"] in ("RESIDUAL", "FAIL")) or fail or resid
+    hard_px = int(row.get("n_hard_px") or row.get("hard_px") or 0)
+    ok_fail = ((row["verdict"] in ("RESIDUAL", "FAIL")) or fail or resid)
+    if ok_fail and hard_px < min_hard_px and row["verdict"] != "FAIL":
+        # Fullscreen path uses hard_px; core uses n_hard_px. Require teeth.
+        if sid in CORE_HARD or sid in FULLSCREEN_REPLACE:
+            ok_fail = hard_px >= min_hard_px or resid or fail
     if not ok_fail:
         print("MUTATION SELF-TEST FAIL: %s did not trip hard gate "
-              "(verdict=%s c_vs_j=%s n=%s)" % (
-                  label, row["verdict"], row["c_vs_j"], row["n_painted"]),
+              "(verdict=%s c_vs_j=%s hard_px=%s n=%s)" % (
+                  label, row["verdict"], row["c_vs_j"], hard_px,
+                  row.get("n_painted")),
               file=sys.stderr)
         return 1
-    print("mutation ok: %-28s -> %s  c_vs_j=%.4f  n=%d" % (
+    print("mutation ok: %-32s -> %s  c_vs_j=%.4f  hard_px=%s  n=%s" % (
         label, row["verdict"],
         row["c_vs_j"] if row["c_vs_j"] == row["c_vs_j"] else -1.0,
-        row["n_painted"]))
+        hard_px, row.get("n_painted")))
     return 0
 
 
-def mutation_self_test(goldens, cframes, margin):
+def _must_pass(sid, ja, jb, c, margin, label):
+    """Assert evaluate_roi reports PASS for a control mutation."""
+    row, fail, resid = evaluate_roi(sid, ja, jb, c, margin)
+    if row["verdict"] != "PASS" or fail or resid:
+        print("MUTATION SELF-TEST FAIL: %s expected PASS, got %s "
+              "(c_vs_j=%s hard_px=%s)" % (
+                  label, row["verdict"], row.get("c_vs_j"),
+                  row.get("n_hard_px", row.get("hard_px"))),
+              file=sys.stderr)
+        return 1
+    print("mutation control ok: %-24s -> PASS  c_vs_j=%.4f  hard_px=%s" % (
+        label, row["c_vs_j"], row.get("n_hard_px", row.get("hard_px"))))
+    return 0
+
+
+def death_mutation_self_test(goldens, cframes, margin):
     """Prove missing button face, missing shadow, shifted glyph, extra pixel fail."""
     ja_p = os.path.join(goldens, "hud_death_a.png")
     jb_p = os.path.join(goldens, "hud_death_b.png")
@@ -967,6 +1364,348 @@ def mutation_self_test(goldens, cframes, margin):
     return 0
 
 
+def core_mutation_self_test(goldens, cframes, margin):
+    """Prove erase/missing/shift/recolor/extra mutations fail core hard gates."""
+    n_err = 0
+
+    def load_triple(sid):
+        ja_p = os.path.join(goldens, "%s_a.png" % sid)
+        jb_p = os.path.join(goldens, "%s_b.png" % sid)
+        c_p = os.path.join(cframes, "c_%s.ppm" % sid)
+        if not (os.path.isfile(ja_p) and os.path.isfile(jb_p) and os.path.isfile(c_p)):
+            return None
+        return load_rgb(ja_p), load_rgb(jb_p), load_ppm(c_p)
+
+    # ---- armor: baseline PASS + full mutation suite ----
+    trip = load_triple("hud_armor_iron")
+    if trip is None:
+        print("mutation self-test: SKIP hud_armor_iron (missing frames)",
+              file=sys.stderr)
+        return 1
+    ja, jb, c0 = trip
+    row, fail, resid = evaluate_roi("hud_armor_iron", ja, jb, c0, margin)
+    if row["verdict"] != "PASS" or fail or resid:
+        print("MUTATION SELF-TEST FAIL: baseline hud_armor_iron not PASS (%s)" %
+              row["verdict"], file=sys.stderr)
+        n_err += 1
+    else:
+        print("mutation baseline: hud_armor_iron PASS c_vs_j=%.4f hard_px=%d" % (
+            row["c_vs_j"], row["n_hard_px"]))
+
+    rect = roi_rect("hud_armor_iron")
+
+    # (1) erase 90% of C feature pixels
+    c = c0.copy()
+    painted = c_painted_mask(c)
+    p = crop(painted.astype(np.uint8), rect).astype(bool)
+    ys, xs = np.where(p)
+    rng = np.random.RandomState(0)
+    if len(ys) < 10:
+        print("MUTATION SELF-TEST FAIL: too few painted armor pixels",
+              file=sys.stderr)
+        n_err += 1
+    else:
+        for i in rng.choice(len(ys), int(0.9 * len(ys)), replace=False):
+            c[rect[1] + ys[i], rect[0] + xs[i]] = GRAY
+        n_err += _must_hard_fail(
+            "hud_armor_iron", ja, jb, c, margin, "erase_90pct")
+
+    # (2) one-pixel survivor
+    c = c0.copy()
+    painted = c_painted_mask(c0)
+    p = crop(painted.astype(np.uint8), rect).astype(bool)
+    ys, xs = np.where(p)
+    c[rect[1]:rect[3], rect[0]:rect[2]] = GRAY
+    c[rect[1] + ys[0], rect[0] + xs[0]] = c0[rect[1] + ys[0], rect[0] + xs[0]]
+    n_err += _must_hard_fail(
+        "hud_armor_iron", ja, jb, c, margin, "one_pixel_survivor")
+
+    # (3) missing heart row
+    c = c0.copy()
+    c[J1:J1 + 9 * S, HB_X:HB_X + 10 * 8 * S] = GRAY
+    n_err += _must_hard_fail(
+        "hud_armor_iron", ja, jb, c, margin, "missing_heart")
+
+    # (4) shift feature +2 px
+    c = np.full_like(c0, GRAY)
+    src = crop(c0, rect)
+    c[rect[1]:rect[3], rect[0] + 2:rect[2]] = src[:, :-2]
+    n_err += _must_hard_fail(
+        "hud_armor_iron", ja, jb, c, margin, "shift")
+
+    # (5) recolor painted pixels
+    c = c0.copy()
+    painted = c_painted_mask(c)
+    p = crop(painted.astype(np.uint8), rect).astype(bool)
+    patch = crop(c, rect).copy()
+    patch[p, 0] = np.clip(patch[p, 0].astype(np.int16) + 80, 0, 255)
+    patch[p, 1] = np.clip(patch[p, 1].astype(np.int16) - 20, 0, 255)
+    c[rect[1]:rect[3], rect[0]:rect[2]] = patch
+    n_err += _must_hard_fail(
+        "hud_armor_iron", ja, jb, c, margin, "recolor")
+
+    # (6) extra pixel
+    c = c0.copy()
+    painted = c_painted_mask(c)
+    p = crop(painted.astype(np.uint8), rect).astype(bool)
+    free = ~p
+    fys, fxs = np.where(free)
+    if len(fys) == 0:
+        print("MUTATION SELF-TEST FAIL: no free pixel for extra", file=sys.stderr)
+        n_err += 1
+    else:
+        mid = len(fys) // 2
+        c[rect[1] + int(fys[mid]), rect[0] + int(fxs[mid])] = (255, 0, 0)
+        n_err += _must_hard_fail(
+            "hud_armor_iron", ja, jb, c, margin, "extra_pixel")
+
+    # (7) armor_midgray_shadow_erase: thr=40 hole — mid-gray ~61 atlas shadows
+    c = c0.copy()
+    mg = ((c0[:, :, 0] == 61) & (c0[:, :, 1] == 61) & (c0[:, :, 2] == 61))
+    n_mg = int(mg.sum())
+    if n_mg < 50:
+        print("MUTATION SELF-TEST FAIL: too few midgray~61 armor pixels (%d)" %
+              n_mg, file=sys.stderr)
+        n_err += 1
+    else:
+        c[mg] = GRAY
+        n_err += _must_hard_fail(
+            "hud_armor_iron", ja, jb, c, margin, "armor_midgray_shadow_erase",
+            min_hard_px=min(200, n_mg // 2))
+    # control: erase midgray only outside armor ROI — still PASS
+    c = c0.copy()
+    x0, y0, x1, y1 = rect
+    mg_out = mg.copy()
+    mg_out[y0:y1, x0:x1] = False
+    c[mg_out] = GRAY
+    n_err += _must_pass(
+        "hud_armor_iron", ja, jb, c, margin, "armor_midgray_shadow_control")
+
+    # ---- missing bubble (air) ----
+    trip = load_triple("hud_air_partial")
+    if trip is None:
+        print("mutation self-test: SKIP hud_air_partial", file=sys.stderr)
+        n_err += 1
+    else:
+        ja, jb, c0 = trip
+        rect = roi_rect("hud_air_partial")
+        c = c0.copy()
+        painted = c_painted_mask(c0)
+        p = crop(painted.astype(np.uint8), rect).astype(bool)
+        ys, xs = np.where(p)
+        for i in range(min(50, len(ys))):
+            c[rect[1] + ys[i], rect[0] + xs[i]] = GRAY
+        n_err += _must_hard_fail(
+            "hud_air_partial", ja, jb, c, margin, "missing_bubble")
+
+    # ---- missing xp fill ----
+    trip = load_triple("hud_xp_half")
+    if trip is None:
+        print("mutation self-test: SKIP hud_xp_half", file=sys.stderr)
+        n_err += 1
+    else:
+        ja, jb, c0 = trip
+        c = c0.copy()
+        xp_y = (SH - 29) * S
+        c[xp_y:xp_y + 5 * S, HB_X:HB_X + 91 * S] = GRAY
+        n_err += _must_hard_fail(
+            "hud_xp_half", ja, jb, c, margin, "missing_xp_fill")
+
+    # ---- durability: black underlay only (no colored fill) ----
+    trip = load_triple("hud_durability_half")
+    if trip is None:
+        print("mutation self-test: SKIP hud_durability_half", file=sys.stderr)
+        n_err += 1
+    else:
+        ja, jb, c0 = trip
+        c = c0.copy()
+        ix = HB_X + 3 * S
+        iy = HB_Y + 3 * S
+        # Force strip to solid black (underlay only).
+        c[iy + 13 * S:iy + 15 * S, ix + 2 * S:ix + 15 * S] = 0
+        n_err += _must_hard_fail(
+            "hud_durability_half", ja, jb, c, margin, "durability_black_only")
+
+    # ---- boss: erase name chrome ----
+    trip = load_triple("hud_boss_half")
+    if trip is None:
+        print("mutation self-test: SKIP hud_boss_half", file=sys.stderr)
+        n_err += 1
+    else:
+        ja, jb, c0 = trip
+        row_b, _, _ = evaluate_roi("hud_boss_half", ja, jb, c0, margin)
+        if row_b["verdict"] != "PASS":
+            print("MUTATION SELF-TEST FAIL: baseline hud_boss_half not PASS (%s)" %
+                  row_b["verdict"], file=sys.stderr)
+            n_err += 1
+        else:
+            print("mutation baseline: hud_boss_half PASS c_vs_j=%.4f hard_px=%d" % (
+                row_b["c_vs_j"], row_b["n_hard_px"]))
+        c = c0.copy()
+        bb_x = (CX - 91) * S
+        bb_y = 12 * S
+        c[max(0, bb_y - 12 * S):bb_y, bb_x:bb_x + 182 * S] = GRAY
+        n_err += _must_hard_fail(
+            "hud_boss_half", ja, jb, c, margin, "boss_missing_name")
+
+        # boss_dark_pink_erase: full dark-pink gamut (~1820 px) must score
+        c = c0.copy()
+        bar = c0[bb_y:bb_y + 5 * S, bb_x:bb_x + 182 * S]
+        br = bar[:, :, 0].astype(np.int16)
+        bg = bar[:, :, 1].astype(np.int16)
+        bb = bar[:, :, 2].astype(np.int16)
+        # dark / mid pink empty+bg (not the bright fill r>180)
+        dp = boss_pink_gamut(br, bg, bb) & (br <= 120)
+        n_dp = int(dp.sum())
+        if n_dp < 1000:
+            print("MUTATION SELF-TEST FAIL: too few boss dark-pink pixels (%d)" %
+                  n_dp, file=sys.stderr)
+            n_err += 1
+        else:
+            patch = c[bb_y:bb_y + 5 * S, bb_x:bb_x + 182 * S].copy()
+            patch[dp] = GRAY
+            c[bb_y:bb_y + 5 * S, bb_x:bb_x + 182 * S] = patch
+            n_err += _must_hard_fail(
+                "hud_boss_half", ja, jb, c, margin, "boss_dark_pink_erase",
+                min_hard_px=min(1500, n_dp // 2))
+        # control: erase dark-pink only outside the bar band — still PASS
+        c = c0.copy()
+        r0 = c0[:, :, 0].astype(np.int16)
+        g0 = c0[:, :, 1].astype(np.int16)
+        b0 = c0[:, :, 2].astype(np.int16)
+        dp_full = boss_pink_gamut(r0, g0, b0) & (r0 <= 120)
+        dp_full &= ~boss_bar_band()
+        c[dp_full] = GRAY
+        n_err += _must_pass(
+            "hud_boss_half", ja, jb, c, margin, "boss_dark_pink_control")
+
+    # ---- absorption: baseline PASS + gold-row erase/recolor + black outline ----
+    trip = load_triple("hud_absorption_armor")
+    if trip is None:
+        print("mutation self-test: SKIP hud_absorption_armor", file=sys.stderr)
+        n_err += 1
+    else:
+        ja, jb, c0 = trip
+        row, fail, resid = evaluate_roi(
+            "hud_absorption_armor", ja, jb, c0, margin)
+        if row["verdict"] != "PASS" or fail or resid:
+            print("MUTATION SELF-TEST FAIL: baseline hud_absorption_armor "
+                  "not PASS (%s c_vs_j=%s hard_px=%s)" % (
+                      row["verdict"], row["c_vs_j"], row.get("n_hard_px")),
+                  file=sys.stderr)
+            n_err += 1
+        else:
+            print("mutation baseline: hud_absorption_armor PASS "
+                  "c_vs_j=%.4f hard_px=%d" % (
+                      row["c_vs_j"], row["n_hard_px"]))
+        # Erase second heart row (gold absorption icons at J1-10*S).
+        c = c0.copy()
+        c[J1 - 10 * S:J1 - 10 * S + 9 * S, HB_X:HB_X + 10 * 8 * S] = GRAY
+        n_err += _must_hard_fail(
+            "hud_absorption_armor", ja, jb, c, margin, "missing_gold_abs_row")
+        # Recolor gold row to pure red (wrong sprite class).
+        c = c0.copy()
+        y0, y1 = J1 - 10 * S, J1 - 10 * S + 9 * S
+        x0, x1 = HB_X, HB_X + 10 * 8 * S
+        gold = ((c[:, :, 0] > 160) & (c[:, :, 1] > 100) & (c[:, :, 1] < 230) &
+                (c[:, :, 2] < 130) & (c[:, :, 0] > c[:, :, 1] + 10) &
+                (c[:, :, 1] > c[:, :, 2]))
+        m = np.zeros(c.shape[:2], dtype=bool)
+        m[y0:y1, x0:x1] = gold[y0:y1, x0:x1]
+        c[m] = (255, 19, 19)
+        n_err += _must_hard_fail(
+            "hud_absorption_armor", ja, jb, c, margin, "recolor_gold_to_red")
+        # Black-outline erase on lifted armor row must residual.
+        c = c0.copy()
+        y_arm = J1 - 20 * S
+        blk = ((c0[:, :, 0] < 20) & (c0[:, :, 1] < 20) & (c0[:, :, 2] < 20))
+        cells = icon_row_cells(y_arm)
+        blk_arm = blk & cells
+        n_blk = int(blk_arm.sum())
+        if n_blk < 100:
+            print("MUTATION SELF-TEST FAIL: too few absorption armor black "
+                  "outline pixels (%d)" % n_blk, file=sys.stderr)
+            n_err += 1
+        else:
+            c[blk_arm] = GRAY
+            n_err += _must_hard_fail(
+                "hud_absorption_armor", ja, jb, c, margin,
+                "absorption_armor_black_erase", min_hard_px=min(200, n_blk // 2))
+        # control: erase black only outside owned icon rows — still PASS
+        c = c0.copy()
+        owned = (icon_row_cells(J1) | icon_row_cells(J1 - 10 * S) |
+                 icon_row_cells(J1 - 20 * S))
+        blk_out = blk & ~owned
+        c[blk_out] = GRAY
+        n_err += _must_pass(
+            "hud_absorption_armor", ja, jb, c, margin,
+            "absorption_armor_black_control")
+
+    # ---- underwater: honest RESIDUAL baseline + omission/extra must not PASS ----
+    trip = load_triple("overlay_underwater")
+    if trip is None:
+        print("mutation self-test: SKIP overlay_underwater", file=sys.stderr)
+        n_err += 1
+    else:
+        ja, jb, c0 = trip
+        row = evaluate_state("overlay_underwater", ja, jb, c0, margin)
+        if row["verdict"] == "PASS":
+            print("MUTATION SELF-TEST FAIL: overlay_underwater must stay "
+                  "honest RESIDUAL (got PASS)", file=sys.stderr)
+            n_err += 1
+        elif row["verdict"] == "FAIL":
+            print("MUTATION SELF-TEST FAIL: overlay_underwater capture FAIL "
+                  "(%s)" % row.get("reason"), file=sys.stderr)
+            n_err += 1
+        else:
+            print("mutation baseline: overlay_underwater RESIDUAL "
+                  "c_vs_j=%.4f hard_px=%s (honest open)" % (
+                      row["c_vs_j"], row.get("hard_px")))
+        # Omission: wipe most of C to ambient/gray — must not PASS
+        c = c0.copy()
+        c[:, :] = GRAY
+        row_m = evaluate_state("overlay_underwater", ja, jb, c, margin)
+        if row_m["verdict"] == "PASS":
+            print("MUTATION SELF-TEST FAIL: underwater full wipe still PASS",
+                  file=sys.stderr)
+            n_err += 1
+        else:
+            print("mutation ok: %-32s -> %s  hard_px=%s" % (
+                "underwater_omission_wipe", row_m["verdict"],
+                row_m.get("hard_px")))
+        # Extra: paint a bright wrong block in center — must not PASS
+        c = c0.copy()
+        c[H // 2 - 20:H // 2 + 20, W // 2 - 20:W // 2 + 20] = (255, 0, 255)
+        row_m = evaluate_state("overlay_underwater", ja, jb, c, margin)
+        if row_m["verdict"] == "PASS":
+            print("MUTATION SELF-TEST FAIL: underwater extra block still PASS",
+                  file=sys.stderr)
+            n_err += 1
+        else:
+            print("mutation ok: %-32s -> %s  hard_px=%s" % (
+                "underwater_extra_block", row_m["verdict"],
+                row_m.get("hard_px")))
+
+    if n_err:
+        print("ui_hud core mutation self-test: FAIL (%d)" % n_err)
+        return 1
+    print("ui_hud core mutation self-test: PASS")
+    return 0
+
+
+
+def mutation_self_test(goldens, cframes, margin):
+    """Death chrome + core HUD + underwater mutation self-tests."""
+    n = 0
+    n += death_mutation_self_test(goldens, cframes, margin)
+    n += core_mutation_self_test(goldens, cframes, margin)
+    if n:
+        print("ui_hud mutation self-test: FAIL (death+core combined rc=%d)" % n)
+        return 1
+    print("ui_hud mutation self-test: PASS (death + core + underwater)")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--goldens", required=True)
@@ -974,7 +1713,7 @@ def main():
     ap.add_argument("--margin", type=float, default=2.0)
     ap.add_argument("--report", default="")
     ap.add_argument("--mutation-self-test", action="store_true",
-                    help="Prove death chrome mutations trip the hard gate")
+                    help="Prove death/core/underwater mutations trip hard gates")
     args = ap.parse_args()
 
     if args.mutation_self_test:

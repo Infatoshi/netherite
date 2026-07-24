@@ -93,10 +93,17 @@ Example qrl + mcwindow sketch for armor + hurt flash:
 
 ## Known open pixel residuals (do not mask)
 
-- **Hard HUD (closed at A/B noise floor):** `hud_hurt_flash_on/off` (flash phase
-  sprites + last-health white hearts), `hud_air_partial` (pixels correspond to
-  air 121–122: four full + one partial), and `hud_durability_half` (exact 13x2
-  feature ROI).
+- **Hard core HUD (oracle∪C complete feature masks, A/B noise floor):**
+  `hud_armor_iron`, `hud_absorption_armor` (gold abs hearts + lifted armor),
+  `hud_hurt_flash_on/off`, `hud_hunger_poison`, `hud_air_partial` (air 121–122:
+  four full + one partial), `hud_xp_half`, `hud_boss_half` (bar + name chrome).
+  Gate scores Java∪C feature masks with `n_hard_px==0` (HARD_THR=2); no painted-
+  only holes, no noise/mean budget for parity.
+- **Hard HUD RESIDUAL (truthful; do not weaken masks):**
+  - `hud_durability_half`: full owned icon + 13x2 strip; strip/fill match but
+    wood-pick icon pixels still diverge vs Java (icon mean residual) — no
+    black-underlay-only pass. Production durability atlas-alpha ownership is a
+    separate stack (not this merge).
 - **GuiGameOver chrome closed; full-frame world tint open:** hard feature ROIs —
   `hud_death_title` / `hud_death_score` use oracle-derived body plus vanilla
   drop-shadow color classes and the Java+C union so missing and extra pixels
@@ -135,15 +142,23 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   grass hard_px is widespread maxch=1 (dirt particle vs Java — floor(tex*0.1)
   makes stone worse, so not a global rounding flip; left open). Mutations must
   reject erase/blank/+1ch/shift/recolor/extra.
-- **Underwater soft residual:** UV/blend/order match
-  `renderWaterOverlayTexture` (4× tile, yaw/pitch/64, color(brightness,0.5),
-  src-over, FOV 60). Full-frame C-vs-J stays ~15/ch because composition
-  isolation uses gray backdrop vs Java glass-pool world; fire/portal left
-  for a later animated-atlas pass.
+- **Underwater hard residual (improved, not noise-floor):** UV/blend/order
+  match `renderWaterOverlayTexture` (4× tile, yaw/pitch/64, color(brightness,0.5),
+  src-over, FOV 60). Candidate uses same-scene glass-pool ambient (fogged
+  nearby stone, not gray isolation) and water-attenuated eye brightness
+  (~light 10 → 1/3). Full-ROI hard gate (same exact hard_px bar as inside-block;
+  no painted-vs-gray filter; no noise/mean budget to claim parity). Measured
+  C-vs-J **15.25 → ~4.97**/ch on committed A/B. Remaining residual is
+  non-uniform pool geometry / hand registration under the translucent overlay
+  — needs a full mesh of the glass pool to close further. Air partial stays a
+  separate hard HUD gate. Fire/portal left soft for animated-atlas. Mutations
+  cover omission wipe and extra block (must not PASS).
 - **Low-health heart jitter:** vanilla `rand(updateCounter*312871)` not taped;
   numerical gates keep the stable baseline deliberately.
-- **Absorption gold hearts:** row/armor placement includes
-  `GmPlayerView.absorption`; yellow heart sprites are not yet drawn (layout only).
+- **Absorption gold hearts (closed):** `GuiIngame.renderPlayerStats` port —
+  high→low icon order, gold full/half (icons.png U=160/169), blink underlay
+  via last-health, armor drawn before health, row/gap lifts armor. Hard
+  `hud_absorption_armor` at A/B noise with oracle∪C masks (exact C-vs-J).
 
 ## What is gated without goldens
 

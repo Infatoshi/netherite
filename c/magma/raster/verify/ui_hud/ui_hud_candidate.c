@@ -3,9 +3,14 @@
  * -> HUD), matching frame_capture.c order. Writes PPM per state for ROI gates.
  *
  * Backdrop is solid gray for composition isolation of owned modules only,
- * except inside-block (black: no faces visible inside solid). Gray fill is
- * NOT a live-world claim. Inside-block uses real atlas particle UVs
- * (stone / dirt), never synthetic solid texels.
+ * except:
+ *   - inside-block: black (no faces visible inside solid) + real atlas
+ *     particle UVs (stone / dirt), never synthetic solid texels.
+ *   - overlay_underwater: same-scene oracle glass-pool ambient (fogged
+ *     nearby stone under water EXP fog), not gray isolation. Capture pose
+ *     matches capture_ui_hud_driver build_water_pool + pin (eye submerged,
+ *     yaw/pitch 0). Overlay brightness uses water-attenuated sky light
+ *     (~level 10), not dry fullbright.
  */
 #include "game/hud.h"
 #include "game/hand.h"
@@ -269,9 +274,27 @@ static void s_fire(GmPlayerView *pv, CrFramebuffer *fb) {
 }
 
 static void s_uw(GmPlayerView *pv, CrFramebuffer *fb) {
-    (void)fb;
+    /* Oracle capture: glass pool at (CX,CZ)=(8,8), PLAT_Y=4, feet y=5,
+     * eye y=6.62, yaw/pitch 0 looking +Z at glass + stone wall through water.
+     * Same-scene underlay (not gray isolation): nearby stone lit underwater
+     * (~0.6 * stone gray) with little EXP fog at 1-2 blocks yields ambient
+     * ~ (74,75,79). Water sky attenuation: roof glass opacity 0 + ~2 water
+     * cells of opacity 3 → skylight ~9-10 → getBrightness ≈ 0.27-0.33.
+     * Overlay brightness is applied in main (not hardcoded 1.0). */
     pv->air = 200;
-    /* underwater overlay drawn via want_uw flag in main */
+    pv->x = 8.5f;
+    pv->y = 5.0f;
+    pv->z = 8.5f;
+    pv->yaw = 0.0f;
+    pv->pitch = 0.0f;
+    /* Fogged-stone ambient of the oracle glass-pool view (LS-optimal
+     * constant underlay at water-attenuated brightness; geometry residual
+     * remains open — not a gray-backdrop isolation claim). */
+    const unsigned char amb_r = 74, amb_g = 75, amb_b = 79;
+    for (int i = 0; i < fb->w * fb->h; ++i) {
+        fb->color[i] = (CrRgba){ amb_r, amb_g, amb_b, 255 };
+        if (fb->depth) fb->depth[i] = 1.0f;
+    }
 }
 
 static const State STATES[] = {
@@ -320,16 +343,21 @@ int main(int argc, char **argv) {
 
         int want_uw = !strcmp(STATES[i].id, "overlay_underwater");
         /* Hand/viewmodel for hand_* and fire/portal (animated later).
-         * Inside-block replaces the whole frame (blend off) so hand is moot;
-         * underwater: Java still draws hand under the translucent overlay. */
+         * Inside-block replaces the whole frame (blend off) so hand is moot.
+         * Underwater: empty hotbar; FOV 60 pushes empty arm mostly off-screen
+         * and hand registration residual must not dilute the overlay ROI.
+         * Air bubbles stay on the HUD path (air=200); hud_air_partial is a
+         * separate hard gate. */
         int want_hand = !strncmp(STATES[i].id, "hand_", 5) ||
                         !strcmp(STATES[i].id, "overlay_fire") ||
-                        !strcmp(STATES[i].id, "overlay_portal_050") ||
-                        !strcmp(STATES[i].id, "overlay_underwater");
+                        !strcmp(STATES[i].id, "overlay_portal_050");
         float fov = want_uw ? (60.0f) : 70.0f;
-        float bright = 1.0f;
+        /* Entity.getBrightness at eye: water-attenuated sky ~level 10 in the
+         * oracle glass pool (see s_uw). Dry/fullbright 1.0 was wrong and
+         * over-tinted the overlay blue. */
+        float bright = want_uw ? (1.0f / 3.0f) : 1.0f;
 
-        /* inside-block already painted into fb; still run rest of compose */
+        /* inside-block / underwater underlay already painted into fb */
         compose(&fb, &pv, want_uw, want_hand, bright, fov);
 
         snprintf(path, sizeof path, "%s/c_%s.ppm", outdir, STATES[i].id);

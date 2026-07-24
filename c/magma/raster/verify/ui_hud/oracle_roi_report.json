@@ -1,9 +1,22 @@
 {
   "margin": 2.0,
   "fail": 0,
-  "residual": 5,
+  "residual": 7,
   "blocked": [],
   "residuals": [
+    {
+      "id": "hud_durability_half",
+      "noise": 0.0,
+      "noise_max": null,
+      "c_vs_j": 11.400716145833334,
+      "gate": 0.0,
+      "hard_px": 668,
+      "hard_thr": 2,
+      "max_diff": null,
+      "reason": "hard_residual",
+      "residual_bbox": null,
+      "residual_locs": null
+    },
     {
       "id": "hand_bow_pull20",
       "noise": 0.0,
@@ -440,6 +453,205 @@
           ]
         }
       ]
+    },
+    {
+      "id": "overlay_underwater",
+      "noise": 0.1706401384083045,
+      "noise_max": 3.0,
+      "c_vs_j": 4.96905091448344,
+      "gate": 0.1706401384083045,
+      "hard_px": 297401,
+      "hard_thr": 3,
+      "max_diff": 55.0,
+      "reason": "hard_residual",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 8,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            66,
+            70,
+            86
+          ]
+        },
+        {
+          "x": 52,
+          "y": 40,
+          "maxch": 4,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            55,
+            59,
+            78
+          ]
+        },
+        {
+          "x": 343,
+          "y": 78,
+          "maxch": 10,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            67,
+            71,
+            89
+          ]
+        },
+        {
+          "x": 73,
+          "y": 116,
+          "maxch": 10,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            47,
+            60,
+            78
+          ]
+        },
+        {
+          "x": 136,
+          "y": 147,
+          "maxch": 10,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            68,
+            72,
+            88
+          ]
+        },
+        {
+          "x": 800,
+          "y": 185,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            51,
+            55,
+            74
+          ]
+        },
+        {
+          "x": 751,
+          "y": 223,
+          "maxch": 7,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            52,
+            56,
+            75
+          ]
+        },
+        {
+          "x": 678,
+          "y": 264,
+          "maxch": 7,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            53,
+            70,
+            88
+          ]
+        },
+        {
+          "x": 386,
+          "y": 305,
+          "maxch": 4,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            55,
+            59,
+            77
+          ]
+        },
+        {
+          "x": 489,
+          "y": 343,
+          "maxch": 4,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            55,
+            59,
+            77
+          ]
+        },
+        {
+          "x": 42,
+          "y": 382,
+          "maxch": 9,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            50,
+            54,
+            74
+          ]
+        },
+        {
+          "x": 177,
+          "y": 421,
+          "maxch": 10,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            67,
+            71,
+            88
+          ]
+        }
+      ]
     }
   ],
   "rows": [
@@ -447,7 +659,7 @@
       "id": "hud_armor_iron",
       "noise": 0.0,
       "c_vs_j": 0.0,
-      "gate": 2.0,
+      "gate": 0.0,
       "verdict": "PASS",
       "roi": [
         244,
@@ -456,7 +668,13 @@
         420
       ],
       "hard": true,
+      "core_hard": true,
       "n_painted": 4436,
+      "n_compare": 4436,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
       "noise_limit": 2.0,
       "reason": "hard_parity"
     },
@@ -464,7 +682,7 @@
       "id": "hud_absorption_armor",
       "noise": 0.0,
       "c_vs_j": 0.0,
-      "gate": 2.0,
+      "gate": 0.0,
       "verdict": "PASS",
       "roi": [
         244,
@@ -473,7 +691,13 @@
         420
       ],
       "hard": true,
-      "n_painted": 4436,
+      "core_hard": true,
+      "n_painted": 6476,
+      "n_compare": 6476,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
       "noise_limit": 2.0,
       "reason": "hard_parity"
     },
@@ -481,7 +705,7 @@
       "id": "hud_hurt_flash_on",
       "noise": 0.0,
       "c_vs_j": 0.0,
-      "gate": 2.0,
+      "gate": 0.0,
       "verdict": "PASS",
       "roi": [
         244,
@@ -490,7 +714,13 @@
         420
       ],
       "hard": true,
+      "core_hard": true,
       "n_painted": 2040,
+      "n_compare": 2040,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
       "noise_limit": 3.0,
       "reason": "hard_parity"
     },
@@ -498,7 +728,7 @@
       "id": "hud_hurt_flash_off",
       "noise": 0.0,
       "c_vs_j": 0.0,
-      "gate": 2.0,
+      "gate": 0.0,
       "verdict": "PASS",
       "roi": [
         244,
@@ -507,7 +737,13 @@
         420
       ],
       "hard": true,
-      "n_painted": 1632,
+      "core_hard": true,
+      "n_painted": 2040,
+      "n_compare": 2040,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
       "noise_limit": 3.0,
       "reason": "hard_parity"
     },
@@ -515,7 +751,7 @@
       "id": "hud_hunger_poison",
       "noise": 0.0,
       "c_vs_j": 0.0,
-      "gate": 2.0,
+      "gate": 0.0,
       "verdict": "PASS",
       "roi": [
         430,
@@ -524,15 +760,21 @@
         420
       ],
       "hard": true,
-      "n_painted": 1160,
+      "core_hard": true,
+      "n_painted": 1640,
+      "n_compare": 1640,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
       "noise_limit": 2.0,
       "reason": "hard_parity"
     },
     {
       "id": "hud_air_partial",
-      "noise": 0.11870578443612151,
+      "noise": 0.0,
       "c_vs_j": 0.0,
-      "gate": 2.1187057844361217,
+      "gate": 0.0,
       "verdict": "PASS",
       "roi": [
         430,
@@ -541,7 +783,13 @@
         400
       ],
       "hard": true,
+      "core_hard": true,
       "n_painted": 676,
+      "n_compare": 676,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
       "noise_limit": 2.0,
       "reason": "hard_parity"
     },
@@ -549,7 +797,7 @@
       "id": "hud_xp_half",
       "noise": 0.0,
       "c_vs_j": 0.0,
-      "gate": 2.0,
+      "gate": 0.0,
       "verdict": "PASS",
       "roi": [
         244,
@@ -558,41 +806,60 @@
         432
       ],
       "hard": true,
-      "n_painted": 7364,
+      "core_hard": true,
+      "n_painted": 7444,
+      "n_compare": 7444,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
       "noise_limit": 2.0,
       "reason": "hard_parity"
     },
     {
       "id": "hud_durability_half",
       "noise": 0.0,
-      "c_vs_j": 0.0,
-      "gate": 2.0,
-      "verdict": "PASS",
+      "c_vs_j": 11.400716145833334,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
       "roi": [
-        254,
-        468,
-        280,
-        472
+        250,
+        442,
+        282,
+        474
       ],
       "hard": true,
-      "n_painted": 104,
+      "core_hard": true,
+      "n_painted": 1024,
+      "n_compare": 1024,
+      "n_mismatch": 668,
+      "n_hard_px": 668,
+      "hard_px": 668,
+      "hard_thr": 2,
       "noise_limit": 2.0,
-      "reason": "hard_parity"
+      "reason": "hard_residual",
+      "colored_fill": true
     },
     {
       "id": "hud_boss_half",
       "noise": 0.0,
       "c_vs_j": 0.0,
-      "gate": 2.0,
+      "gate": 0.0,
       "verdict": "PASS",
       "roi": [
         244,
-        4,
+        0,
         608,
         36
       ],
       "hard": true,
+      "core_hard": true,
       "n_painted": 4736,
+      "n_compare": 4736,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
       "noise_limit": 2.0,
       "reason": "hard_parity"
     },
@@ -1228,20 +1495,217 @@
     {
       "id": "overlay_underwater",
       "noise": 0.1706401384083045,
-      "c_vs_j": 15.253536329550897,
-      "gate": 2.1706401384083045,
-      "verdict": "CAPTURE_OK",
+      "noise_max": 3.0,
+      "c_vs_j": 4.96905091448344,
+      "max_diff": 55.0,
+      "hard_px": 297401,
+      "hard_thr": 3,
+      "gate": 0.1706401384083045,
+      "verdict": "RESIDUAL",
       "roi": [
         2,
         2,
         852,
         478
       ],
-      "hard": false,
-      "n_painted": 403620,
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404368,
+      "n_stable": 404600,
+      "stable_frac": 1.0,
+      "n_roi": 404600,
       "noise_limit": 3.0,
-      "reason": "soft_capture"
+      "reason": "hard_residual",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 8,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            66,
+            70,
+            86
+          ]
+        },
+        {
+          "x": 52,
+          "y": 40,
+          "maxch": 4,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            55,
+            59,
+            78
+          ]
+        },
+        {
+          "x": 343,
+          "y": 78,
+          "maxch": 10,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            67,
+            71,
+            89
+          ]
+        },
+        {
+          "x": 73,
+          "y": 116,
+          "maxch": 10,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            47,
+            60,
+            78
+          ]
+        },
+        {
+          "x": 136,
+          "y": 147,
+          "maxch": 10,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            68,
+            72,
+            88
+          ]
+        },
+        {
+          "x": 800,
+          "y": 185,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            51,
+            55,
+            74
+          ]
+        },
+        {
+          "x": 751,
+          "y": 223,
+          "maxch": 7,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            52,
+            56,
+            75
+          ]
+        },
+        {
+          "x": 678,
+          "y": 264,
+          "maxch": 7,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            53,
+            70,
+            88
+          ]
+        },
+        {
+          "x": 386,
+          "y": 305,
+          "maxch": 4,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            55,
+            59,
+            77
+          ]
+        },
+        {
+          "x": 489,
+          "y": 343,
+          "maxch": 4,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            55,
+            59,
+            77
+          ]
+        },
+        {
+          "x": 42,
+          "y": 382,
+          "maxch": 9,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            50,
+            54,
+            74
+          ]
+        },
+        {
+          "x": 177,
+          "y": 421,
+          "maxch": 10,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            67,
+            71,
+            88
+          ]
+        }
+      ]
     }
   ],
-  "notes": "PASS = hard parity. Fullscreen inside-block uses A/B-stable full ROI + hard_px with thr=ceil(noise_max) (noise_max==0 => exact). No painted-mean dilution, no thr floor of 1. RESIDUAL = hard capture OK but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (portal/fire/underwater/full-frame death). FAIL = missing/noise/empty/unstable. GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects) + hud_death_tint_pair (source gradient blend over known underlay); full-frame tint/world composition is soft and does not claim same-scene parity."
+  "notes": "PASS = hard parity. Fullscreen inside-block uses A/B-stable full ROI + hard_px with thr=ceil(noise_max) (noise_max==0 => exact). No painted-mean dilution, no thr floor of 1. RESIDUAL = hard capture OK but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (portal/fire/full-frame death). Underwater is hard full-ROI residual. FAIL = missing/noise/empty/unstable. Core HUD: oracle\u222aC masks, hard_px==0 at A/B noise. GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects) + hud_death_tint_pair (source gradient blend over known underlay); full-frame tint/world composition is soft and does not claim same-scene parity."
 }

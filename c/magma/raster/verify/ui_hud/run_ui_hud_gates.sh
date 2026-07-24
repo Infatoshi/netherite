@@ -97,7 +97,7 @@ if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
       -lm -o /tmp/magma_ui_hud_candidate
   echo "== render C composition frames =="
   /tmp/magma_ui_hud_candidate --out "$CFRAME_DIR"
-  echo "== oracle ROI compare (feature-specific; inside-block = full-ROI hard_px) =="
+  echo "== oracle ROI compare (core oracle∪C + fullscreen hard_px + death/hand) =="
   # RESIDUAL (hard C residual) and FAIL both exit nonzero — no false parity.
   set +e
   uv run --no-project --with pillow --with numpy python \
@@ -109,7 +109,7 @@ if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
   roi_rc=$?
   set -e
 
-  echo "== mutation regressions (fullscreen inside-block hard_px) =="
+  echo "== mutation regressions (fullscreen inside-block + underwater hard_px) =="
   set +e
   uv run --no-project --with pillow --with numpy python \
     "$DIR/test_ui_hud_mutations.py" \
@@ -123,18 +123,18 @@ if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
     echo "ui_hud gates: FAIL (mutation leak or honest gate broken)"
     exit "$mut_rc"
   fi
-  if [ "$roi_rc" -ne 0 ]; then
-    echo "ui_hud oracle ROI: nonzero (fail or hard residual) rc=$roi_rc"
-    echo "ui_hud gates: RESIDUAL_OR_FAIL (composition + mutations ran; mutations PASS)"
-    exit "$roi_rc"
-  fi
-  echo "== death chrome mutation self-test =="
+  echo "== death + core HUD + underwater mutation self-test =="
   uv run --no-project --with pillow --with numpy python \
     "$DIR/compare_ui_hud_oracle.py" \
     --goldens "$GOLDEN_DIR" \
     --cframes "$CFRAME_DIR" \
     --margin "${UI_HUD_MARGIN:-2.0}" \
     --mutation-self-test
+  if [ "$roi_rc" -ne 0 ]; then
+    echo "ui_hud oracle ROI: nonzero (fail or hard residual) rc=$roi_rc"
+    echo "ui_hud gates: RESIDUAL_OR_FAIL (composition + mutations ran; mutations PASS)"
+    exit "$roi_rc"
+  fi
 else
   echo "== oracle ROI compare: SKIP (no goldens under $GOLDEN_DIR; run capture_ui_hud.sh) =="
   echo "oracle pixel parity: BLOCKED (no Java PNGs under raster/verify/ui_hud/goldens/)"

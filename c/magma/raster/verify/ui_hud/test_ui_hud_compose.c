@@ -160,7 +160,7 @@ int main(void) {
           "compose: multi-row hearts base");
     pv.max_health = 20.0f; pv.health = 20.0f;
 
-    /* ---- (2b) Absorption increases heart rows and lifts armor ---- */
+    /* ---- (2b) Absorption increases heart rows, gold sprites, lifts armor ---- */
     fill_gray(&fb);
     pv.absorption = 20.0f; /* +10 gold heart icons -> 2 rows total with 20 max */
     pv.armor_points = 10;
@@ -168,6 +168,31 @@ int main(void) {
     /* heart_icons = ceil((20+20)/2)=20, rows=2 -> armor at same y as multi-row */
     CHECK(region_non_gray(&fb, 244, 360, 244 + 80, 378),
           "compose: absorption lifts armor row");
+    {
+        /* Second row must be gold (icons.png U=160), not empty containers. */
+        int gold_n = 0;
+        for (int i = 0; i < 10; ++i) {
+            CrRgba c = fb.color[386 * W + (244 + i * 16 + 8)];
+            if (c.r > 160 && c.g > 100 && c.g < 230 && c.b < 130 &&
+                c.r > c.g + 10 && c.g > c.b)
+                gold_n++;
+        }
+        CHECK(gold_n == 10, "compose: absorption draws 10 gold heart icons");
+    }
+    /* abs=3: half on highest then one full (Java l2 consume high->low). */
+    fill_gray(&fb);
+    pv.absorption = 3.0f;
+    pv.armor_points = 0;
+    gm_hud_draw(&fb, &pv);
+    {
+        /* heart_icons=ceil(23/2)=12; j5=11 half gold, j5=10 full gold on row1. */
+        CrRgba half = fb.color[386 * W + (244 + 1 * 16 + 8)]; /* j5=11 -> col1 */
+        CrRgba full = fb.color[386 * W + (244 + 0 * 16 + 8)]; /* j5=10 -> col0 */
+        int half_ok = (half.r > 160 && half.g > 100 && half.b < 130);
+        int full_ok = (full.r > 160 && full.g > 100 && full.b < 130);
+        CHECK(half_ok && full_ok,
+              "compose: abs=3 half+full gold on top row icons");
+    }
     pv.absorption = 0.0f;
 
     /* ---- (3) Hand eat pose wired through gm_hand_draw (not test setter only) ---- */

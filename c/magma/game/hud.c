@@ -874,19 +874,20 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
         gm_font_draw(fb, buf, lx, ly, scale, 0x80FF20u, 0);
     }
 
-    /* ---- hearts (above-left of the hotbar) ---- */
-    /* GuiIngame.renderPlayerStats: j1 = height - 39 baseline; multi-row hearts
-     * use i2 spacing and armor sits at j1 - (rows-1)*i2 - 10.
-     * l1 = ceil((maxHealth + ceil(absorption)) / 2 / 10); i2 = max(10-(l1-2),3). */
+    /* ---- hearts + armor (GuiIngame.renderPlayerStats) ---- */
+    /* j1 = height - 39; l1 = ceil((maxHealth + ceil(absorption)) / 2 / 10);
+     * i2 = max(10-(l1-2),3); armor j2 = j1 - (l1-1)*i2 - 10.
+     * Draw order matches vanilla: armor section first, then health (high j5
+     * down to 0). Absorption gold fills remaining slots from the top icon
+     * downward (full k5+144 / half k5+153 at icons.png U=160/169 when k5=16).
+     * Hardcore uses y*=5 (i5=5) on the same U; survival oracle is i5=0. */
     const int j1_s = sh_s - 39;
     float abs_amt = pv->absorption;
     if (abs_amt < 0.f) abs_amt = 0.f;
     int abs_ceil = (int)ceilf(abs_amt); /* MathHelper.ceil(getAbsorptionAmount()) */
-    /* Red (max) heart icons still track max_health; absorption adds gold slots
-     * and both count toward l1 / armor y. */
-    const int max_hearts = (int)(pv->max_health / 2.f + 0.5f);
+    /* Heart icon count is ceil((maxHealth + ceil(absorption)) / 2), same as
+     * the Java loop bound; rows/gap also drive armor y. */
     int heart_icons = (int)ceilf((pv->max_health + (float)abs_ceil) / 2.0f);
-    if (heart_icons < max_hearts) heart_icons = max_hearts;
     if (heart_icons < 1) heart_icons = 1;
     int heart_rows = (int)ceilf((float)heart_icons / 10.0f);
     if (heart_rows < 1) heart_rows = 1;
@@ -915,24 +916,8 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
         heart_flash_full = HUD_HEART_WITHER_FLASH_FULL;
         heart_flash_half = HUD_HEART_WITHER_FLASH_HALF;
     }
-    for (int i = 0; i < max_hearts; i++) {
-        int row = (int)ceilf((float)(i + 1) / 10.0f) - 1;
-        int hx = hb_x + ((i % 10) * 8) * scale;
-        int hy = (j1_s - row * row_gap) * scale;
-        hud_blit(fb, pv->hud_flash ? HUD_HEART_BG_FLASH : HUD_HEART_BG,
-                 hx, hy, scale);
-        if (pv->hud_flash) {
-            int old = old_half_hearts - i * 2;
-            if (old >= 2) hud_blit(fb, heart_flash_full, hx, hy, scale);
-            else if (old == 1) hud_blit(fb, heart_flash_half, hx, hy, scale);
-        }
-        int hv = half_hearts - i * 2;
-        if (hv >= 2)      hud_blit(fb, heart_full, hx, hy, scale);
-        else if (hv == 1) hud_blit(fb, heart_half, hx, hy, scale);
-    }
 
-    /* ---- armor row: GuiIngame j2 = j1 - (l1-1)*i2 - 10; only when points > 0.
-     * Icons: full (34,9) / half (25,9) / empty (16,9). Live points from view. */
+    /* Armor first (profiler "armor" before "health"). j2 = j1-(l1-1)*i2-10. */
     {
         int armor_pts = pv->armor_points;
         if (armor_pts < 0) armor_pts = 0;
@@ -946,6 +931,42 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
                 if (bit < armor_pts) spr = HUD_ARMOR_FULL;
                 else if (bit == armor_pts) spr = HUD_ARMOR_HALF;
                 hud_blit(fb, spr, ax, armor_y, scale);
+            }
+        }
+    }
+
+    /* Health + absorption: j5 from ceil((max+abs)/2)-1 down to 0 so the
+     * 1px icon overlap matches vanilla (left icons win). l2 starts at
+     * ceil(absorption) and consumes gold slots from the high end. */
+    {
+        int l2 = abs_ceil;
+        for (int j5 = heart_icons - 1; j5 >= 0; --j5) {
+            int row = (int)ceilf((float)(j5 + 1) / 10.0f) - 1;
+            int hx = hb_x + ((j5 % 10) * 8) * scale;
+            int hy = (j1_s - row * row_gap) * scale;
+            hud_blit(fb, pv->hud_flash ? HUD_HEART_BG_FLASH : HUD_HEART_BG,
+                     hx, hy, scale);
+            if (pv->hud_flash) {
+                /* lastPlayerHealth white overlay under current/gold fill */
+                if (j5 * 2 + 1 < old_half_hearts)
+                    hud_blit(fb, heart_flash_full, hx, hy, scale);
+                if (j5 * 2 + 1 == old_half_hearts)
+                    hud_blit(fb, heart_flash_half, hx, hy, scale);
+            }
+            if (l2 > 0) {
+                /* Odd total absorption: first (highest) gold slot is half. */
+                if (l2 == abs_ceil && (abs_ceil % 2) == 1) {
+                    hud_blit(fb, HUD_HEART_ABSORB_HALF, hx, hy, scale);
+                    --l2;
+                } else {
+                    hud_blit(fb, HUD_HEART_ABSORB_FULL, hx, hy, scale);
+                    l2 -= 2;
+                }
+            } else {
+                if (j5 * 2 + 1 < half_hearts)
+                    hud_blit(fb, heart_full, hx, hy, scale);
+                if (j5 * 2 + 1 == half_hearts)
+                    hud_blit(fb, heart_half, hx, hy, scale);
             }
         }
     }

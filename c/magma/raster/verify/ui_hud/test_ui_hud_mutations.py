@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Adversarial mutation regressions for fullscreen inside-block overlay gates.
+"""Adversarial mutation regressions for fullscreen full-ROI overlay gates.
 
-Honest C frames for overlay_inside_stone / overlay_inside_grass are evaluated
-under the fullscreen exact gate (thr=ceil(noise_max); noise_max==0 => thr 0).
-Honest may be PASS (exact) or RESIDUAL (nonzero hard_px) — residual is not a
-mutation leak; the ROI gate exits nonzero for residual. Capture FAIL fails
-this suite. Each mutation below must NOT pass (verdict != PASS):
+Honest C frames for overlay_inside_stone / overlay_inside_grass /
+overlay_underwater are evaluated under the fullscreen exact gate
+(thr=ceil(noise_max); noise_max==0 => thr 0). Honest may be PASS (exact) or
+RESIDUAL (nonzero hard_px) — residual is not a mutation leak; the ROI gate
+exits nonzero for residual. Capture FAIL fails this suite. Each mutation
+below must NOT pass (verdict != PASS):
 
   erase90      - set 90% of painted C pixels to composition gray
   blank_to_one - blank frame + single correct pixel
@@ -15,7 +16,8 @@ this suite. Each mutation below must NOT pass (verdict != PASS):
   recolor      - add +20 per channel
   extra_pixels - 50 sparse bright wrong pixels
 
-Portal / fire / underwater stay soft (not exercised here).
+Portal / fire stay soft (not exercised here). Underwater is hard full-ROI
+honest residual (~4.97/ch) — mutations must not claim PASS.
 """
 from __future__ import print_function
 

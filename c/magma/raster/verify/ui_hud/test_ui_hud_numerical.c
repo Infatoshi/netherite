@@ -148,6 +148,72 @@ int main(void) {
         free(fb.color); free(fb.depth);
     }
 
+    /* ---- Absorption gold hearts: GuiIngame l2 high->low, U=160/169 ---- */
+    {
+        CrFramebuffer fb = make_fb();
+        GmPlayerView pv; memset(&pv, 0, sizeof pv);
+        pv.health = 20; pv.max_health = 20;
+        pv.food = 20; pv.max_food = 20;
+        pv.air = -1;
+        pv.armor_points = 15;
+        pv.absorption = 20.0f; /* +10 full gold icons on second row */
+        gm_hud_draw(&fb, &pv);
+        /* scale=2: base hearts y=402, abs row y=382, armor y=362; icon pitch 16 */
+        int gold_icons = 0, red_icons = 0;
+        for (int i = 0; i < 10; ++i) {
+            int cx = 244 + i * 16 + 8;
+            CrRgba gld = fb.color[386 * W + cx]; /* second row center */
+            CrRgba red = fb.color[406 * W + cx]; /* base row center */
+            if (gld.r > 160 && gld.g > 100 && gld.g < 230 && gld.b < 130 &&
+                gld.r > gld.g + 10 && gld.g > gld.b)
+                gold_icons++;
+            if (red.r > 140 && red.r > red.g + 30 && red.r > red.b + 30)
+                red_icons++;
+        }
+        CHECK(gold_icons == 10, "abs=20 draws 10 full gold hearts on row 1");
+        CHECK(red_icons == 10, "abs=20 keeps 10 red hearts on row 0");
+        CHECK(region_non_gray(&fb, 244, 360, 244 + 80, 378),
+              "armor still above dual heart rows");
+
+        /* Odd absorption: half gold on highest icon (j5=heart_icons-1).
+         * abs=1 -> 11 icons; half gold at j5=10 -> row1 col0. */
+        clear_fb(&fb);
+        pv.absorption = 1.0f;
+        pv.armor_points = 0;
+        gm_hud_draw(&fb, &pv);
+        {
+            CrRgba half = fb.color[386 * W + (244 + 8)]; /* row1 icon0 center */
+            CrRgba no_g = fb.color[386 * W + (244 + 16 + 8)]; /* row1 icon1 */
+            int half_gold = (half.r > 160 && half.g > 100 && half.b < 130 &&
+                             half.g > half.b);
+            /* icon1 on row1 should be empty container only (grayish dark), not gold */
+            int icon1_gold = (no_g.r > 160 && no_g.g > 100 && no_g.b < 130 &&
+                              no_g.g > no_g.b && no_g.r > no_g.g + 10);
+            CHECK(half_gold, "abs=1 places half gold on highest icon");
+            CHECK(!icon1_gold, "abs=1 does not gold-fill lower abs slots");
+        }
+
+        /* Flash last-health under abs: last=20 on slots 0-9 only; abs row still gold. */
+        clear_fb(&fb);
+        pv.absorption = 20.0f;
+        pv.health = 14.0f;
+        pv.hud_health = 14;
+        pv.hud_last_health = 20;
+        pv.hud_flash = 1;
+        pv.hud_state_valid = 1;
+        gm_hud_draw(&fb, &pv);
+        {
+            CrRgba gld = fb.color[386 * W + (244 + 8)];
+            CHECK(gld.r > 160 && gld.g > 100 && gld.b < 130,
+                  "flash still leaves gold absorption hearts");
+            /* damaged base row: some red hearts remain (health 14 -> 7 full) */
+            CrRgba red0 = fb.color[406 * W + (244 + 8)];
+            CHECK(red0.r > 140 && red0.r > red0.g + 30,
+                  "flash path still draws current red hearts");
+        }
+        free(fb.color); free(fb.depth);
+    }
+
     /* ---- Fishing rod durability max 64; XP level uses (sw-w)/2 ---- */
     {
         CHECK(gm_hud_durability_width(346, 1) == 13, "fishing rod almost-new");
