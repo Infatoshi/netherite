@@ -398,6 +398,82 @@ int main(void) {
         free(fb.color); free(fb.depth);
     }
 
+    /* ---- GuiGameOver tint: paired-background compositing (source-grounded) ----
+     * Gui.drawGradientRect(0,0,w,h, 0x60500000, 0xA0803030) with GL_SMOOTH +
+     * SRC_ALPHA/ONE_MINUS_SRC_ALPHA. Integer row lerp +127/255 blend matches
+     * float vertex colors quantized to bytes (see compare_ui_hud_oracle.py).
+     * Hard-check pure gradient bands over several underlays — not world parity. */
+    {
+        /* Pure-tint bands: above title (fb y<118) and below Title button (y>=352). */
+        static const int bands[][2] = { {0, 100}, {360, H} };
+        typedef struct { unsigned char r, g, b; const char *name; int patterned; } UL;
+        UL underlays[] = {
+            { GRAY, GRAY, GRAY, "gray40", 0 },
+            { 0, 0, 0, "black", 0 },
+            { 255, 255, 255, "white", 0 },
+            { 180, 40, 40, "red180", 0 },
+            { 20, 90, 160, "blue", 0 },
+            { 0, 0, 0, "h_ramp", 1 },
+        };
+        for (int u = 0; u < (int)(sizeof underlays / sizeof underlays[0]); ++u) {
+            CrFramebuffer fb = make_fb();
+            for (int y = 0; y < H; ++y) {
+                for (int x = 0; x < W; ++x) {
+                    unsigned char r = underlays[u].r, g = underlays[u].g, b = underlays[u].b;
+                    if (underlays[u].patterned) {
+                        r = (unsigned char)(x % 256);
+                        g = (unsigned char)((x * 3 + y) % 256);
+                        b = (unsigned char)((y * 5 + x) % 256);
+                    }
+                    fb.color[y * W + x] = (CrRgba){ r, g, b, 255 };
+                }
+            }
+            GmPlayerView pv; memset(&pv, 0, sizeof pv);
+            pv.dead = 1; pv.deaths = 1; pv.score = 0; pv.death_ticks = 0;
+            gm_hud_draw(&fb, &pv);
+
+            int den = H > 1 ? H - 1 : 1;
+            const unsigned top = 0x60500000u, bot = 0xA0803030u;
+            int ta = (top >> 24) & 255, tr = (top >> 16) & 255;
+            int tg = (top >> 8) & 255, tb = top & 255;
+            int ba = (bot >> 24) & 255, br = (bot >> 16) & 255;
+            int bg = (bot >> 8) & 255, bb = bot & 255;
+            long long n_bad = 0, n_px = 0;
+            for (int bi = 0; bi < 2; ++bi) {
+                int y0 = bands[bi][0], y1 = bands[bi][1];
+                for (int y = y0; y < y1; ++y) {
+                    int ga = (ta * (den - y) + ba * y + den / 2) / den;
+                    int gr = (tr * (den - y) + br * y + den / 2) / den;
+                    int gg = (tg * (den - y) + bg * y + den / 2) / den;
+                    int gb = (tb * (den - y) + bb * y + den / 2) / den;
+                    int ia = 255 - ga;
+                    for (int x = 0; x < W; ++x) {
+                        unsigned char ur = underlays[u].r, ug = underlays[u].g, ub = underlays[u].b;
+                        if (underlays[u].patterned) {
+                            ur = (unsigned char)(x % 256);
+                            ug = (unsigned char)((x * 3 + y) % 256);
+                            ub = (unsigned char)((y * 5 + x) % 256);
+                        }
+                        int er = (gr * ga + ur * ia + 127) / 255;
+                        int eg = (gg * ga + ug * ia + 127) / 255;
+                        int eb = (gb * ga + ub * ia + 127) / 255;
+                        CrRgba c = fb.color[y * W + x];
+                        n_px++;
+                        if (c.r != er || c.g != eg || c.b != eb) n_bad++;
+                    }
+                }
+            }
+            CHECK(n_bad == 0, underlays[u].name);
+            if (n_bad == 0)
+                printf("death tint pair %-8s: PASS pure-band px=%lld model-exact\n",
+                       underlays[u].name, n_px);
+            else
+                fprintf(stderr, "FAIL: death tint pair %s bad=%lld / %lld\n",
+                        underlays[u].name, n_bad, n_px);
+            free(fb.color); free(fb.depth);
+        }
+    }
+
     if (g_fail) {
         fprintf(stderr, "ui_hud numerical: FAIL\n");
         return 1;

@@ -86,13 +86,16 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   sprites + last-health white hearts), `hud_air_partial` (pixels correspond to
   air 121–122: four full + one partial), and `hud_durability_half` (exact 13x2
   feature ROI).
-- **GuiGameOver chrome closed; tint open:** hard feature ROIs only —
+- **GuiGameOver chrome closed; full-frame world tint open:** hard feature ROIs —
   `hud_death_title` / `hud_death_score` use oracle-derived body plus vanilla
   drop-shadow color classes and the Java+C union so missing and extra pixels
-  fail. `hud_death_btn_*` compares full button rectangles. Full-frame
-  `hud_death` is soft `CAPTURE_OK`; the translucent gradient-over-world
-  composition remains open. Mutation tests cover missing button faces and
-  shadows, shifted glyphs, and extra glyph pixels.
+  fail. `hud_death_btn_*` compares full button rectangles. The hard
+  `hud_death_tint_pair` source-model gate checks pure gradient bands over the
+  known gray underlay against 1.11.2 `Gui.drawGradientRect` blend math.
+  Full-frame `hud_death` remains soft at ~33 C-vs-J because the Java frame has
+  a live stone-pad underlay; same-scene parity needs a world-only companion
+  capture. Mutation tests cover missing button faces/shadows, shifted/extra
+  glyphs, and a pure-band tint wipe.
 - **Hand viewmodels (capture closed):** `hand_bow_pull20` / `hand_eat_mid` /
   `hand_block_shield` Java A/B frames now show distinct lower-right viewmodels
   (bow drawn / bread mid-eat / shield block). Root cause of wall-only goldens

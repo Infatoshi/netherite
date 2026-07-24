@@ -21,7 +21,10 @@ GuiGameOver (hud_death*):
     title/score body + shadow via oracle-derived complete feature masks
     (union of Java + C chrome so missing-Java and extra-C pixels both fail).
   - Full-frame hud_death is soft: translucent gradient/world composition
-    residual is reported, never claimed exact.
+    residual is reported, never claimed exact (gray C isolation backdrop).
+  - hud_death_tint_pair is hard: pure gradient bands over the known C underlay
+    must match Gui.drawGradientRect + SRC_ALPHA blend bit-exactly (paired
+    background / source model). World underlay parity is a separate blocker.
 """
 from __future__ import print_function
 
@@ -60,6 +63,13 @@ DEATH_BTN0 = (226, 264, 626, 304)
 DEATH_BTN1 = (226, 312, 626, 352)
 DEATH_TITLE = (200, 118, 660, 150)
 DEATH_SCORE = (280, 198, 580, 216)
+# Pure gradient bands (no title/score/buttons): for paired-tint verification.
+DEATH_PURE_BANDS = ((0, 100), (360, H))
+GRAY_BACKDROP = 40
+# GuiGameOver.drawScreen: drawGradientRect(..., 1615855616, -1602211792)
+# = top 0x60500000, bottom 0xA0803030.
+DEATH_GRAD_TOP = (0x60, 0x50, 0x00, 0x00)  # a,r,g,b
+DEATH_GRAD_BOT = (0xA0, 0x80, 0x30, 0x30)
 
 
 def roi_rect(name):
@@ -245,6 +255,122 @@ def death_compare_mask(sid, ja, c, painted):
     return painted
 
 
+def death_grad_row(y, h=H):
+    """Per-row gradient ARGB. Integer lerp matches float GL_SMOOTH quantized
+    to bytes (den=h-1, +den//2). Source: Gui.drawGradientRect colors."""
+    den = h - 1 if h > 1 else 1
+    ta, tr, tg, tb = DEATH_GRAD_TOP
+    ba, br, bg, bb = DEATH_GRAD_BOT
+    a = (ta * (den - y) + ba * y + den // 2) // den
+    r = (tr * (den - y) + br * y + den // 2) // den
+    g = (tg * (den - y) + bg * y + den // 2) // den
+    b = (tb * (den - y) + bb * y + den // 2) // den
+    return a, r, g, b
+
+
+def death_blend_ch(src, a, dst):
+    """SRC_ALPHA, ONE_MINUS_SRC_ALPHA integer form (hud_blend_px)."""
+    return (src * a + dst * (255 - a) + 127) // 255
+
+
+def death_expected_over_underlay(underlay_rgb):
+    """Apply GuiGameOver gradient over an HxWx3 underlay (int)."""
+    out = np.empty((H, W, 3), dtype=np.int16)
+    u = underlay_rgb.astype(np.int32)
+    for y in range(H):
+        a, r, g, b = death_grad_row(y)
+        for ch, s in enumerate((r, g, b)):
+            out[y, :, ch] = death_blend_ch(s, a, u[y, :, ch])
+    return out
+
+
+def death_pure_mask():
+    m = np.zeros((H, W), dtype=bool)
+    for y0, y1 in DEATH_PURE_BANDS:
+        m[y0:y1, :] = True
+    return m
+
+
+def evaluate_death_tint_pair(ja_full, jb_full, c_full):
+    """Hard paired-background gate for GuiGameOver gradient compositing.
+
+    C candidate paints death over solid GRAY=40. Pure gradient bands (no
+    chrome) must match the source blend model bit-exactly. Full-frame and
+    pure-zone C-vs-Java residuals are reported without claiming world parity:
+    Java underlay is the live stone-pad scene; living HUD goldens are not a
+    valid pre-death underlay (survival chrome under the tint).
+    """
+    pure = death_pure_mask()
+    under = np.full((H, W, 3), GRAY_BACKDROP, dtype=np.int16)
+    expected = death_expected_over_underlay(under)
+
+    c_pure = c_full[pure]
+    e_pure = expected[pure]
+    pix_err = np.abs(c_pure.astype(np.int16) - e_pure.astype(np.int16)).max(axis=1)
+    n_mismatch = int((pix_err > 0).sum())
+    c_vs_model = float(np.abs(c_pure.astype(np.int16) - e_pure.astype(np.int16)).mean())
+
+    full_c_vs_j = mean_abs(c_full, ja_full)
+    pure_c_vs_j = float(np.abs(c_full[pure].astype(np.int16) - ja_full[pure].astype(np.int16)).mean())
+    pure_ab = float(np.abs(ja_full[pure].astype(np.int16) - jb_full[pure].astype(np.int16)).mean())
+    full_ab = mean_abs(ja_full, jb_full)
+
+    # Java capture vs integer model identity (unblend+reblend): GL quant bound.
+    # out ≈ (s*a + d*ia + 127)//255  =>  d ≈ (out*255 - s*a - 127)//ia
+    bg = np.zeros((H, W, 3), dtype=np.int32)
+    for y in range(H):
+        a, r, g, b = death_grad_row(y)
+        ia = 255 - a
+        if ia == 0:
+            continue
+        for ch, s in enumerate((r, g, b)):
+            bg[y, :, ch] = (
+                ja_full[y, :, ch].astype(np.int32) * 255 - s * a - 127
+            ) // ia
+    re = death_expected_over_underlay(np.clip(bg, 0, 255).astype(np.int16))
+    java_model_identity = float(
+        np.abs(re[pure].astype(np.int16) - ja_full[pure].astype(np.int16)).mean()
+    )
+    java_model_identity_max = int(
+        np.abs(re[pure].astype(np.int16) - ja_full[pure].astype(np.int16)).max()
+    )
+
+    ok = n_mismatch == 0 and c_vs_model == 0.0
+    row = {
+        "id": "hud_death_tint_pair",
+        "noise": pure_ab,
+        "c_vs_j": pure_c_vs_j,
+        "gate": pure_ab + 2.0,
+        "verdict": "PASS" if ok else "RESIDUAL",
+        "roi": [0, 0, W, H],
+        "hard": True,
+        "n_painted": int(pure.sum()),
+        "noise_limit": NOISE_MAX.get("hud_death", 5.0),
+        "reason": "paired_background_source_model" if ok else "tint_model_mismatch",
+        "n_mismatch": n_mismatch,
+        "c_vs_model": c_vs_model,
+        "full_frame_c_vs_j": full_c_vs_j,
+        "full_frame_ab_noise": full_ab,
+        "pure_zone_c_vs_j": pure_c_vs_j,
+        "pure_zone_ab_noise": pure_ab,
+        "java_model_identity_mean": java_model_identity,
+        "java_model_identity_max": java_model_identity_max,
+        "world_parity": "BLOCKED",
+        "blocker": (
+            "Same-scene full-frame death parity needs a world underlay companion "
+            "(no survival HUD) at the death pose/partialTicks. C isolation uses "
+            "GRAY=40; Java death is gradient over the live stone pad. Existing "
+            "living HUD goldens include survival chrome and are not a valid "
+            "pre-death underlay. qrl frame{} always runs renderGameOverlay; no "
+            "safe world-only companion via the current capture driver without "
+            "new frame flags. Pure-band C-vs-J is world composition residual, "
+            "not gradient math (c_vs_model=0 when PASS)."
+        ),
+    }
+    residual = 0 if ok else 1
+    return row, 0, residual
+
+
 def evaluate_roi(sid, ja_full, jb_full, c_full, margin):
     """Compare one state id. Returns row dict + fail/residual flags."""
     rect = roi_rect(sid)
@@ -345,6 +471,7 @@ def run_compare(goldens, cframes, margin, report_path=""):
         "hud_durability_half", "hud_boss_half", "hud_death",
         "hud_death_title", "hud_death_score",
         "hud_death_btn_respawn", "hud_death_btn_title",
+        "hud_death_tint_pair",
         "hand_bow_pull20", "hand_eat_mid", "hand_block_shield",
         "overlay_inside_stone", "overlay_inside_grass",
         "overlay_portal_050", "overlay_fire", "overlay_underwater",
@@ -369,7 +496,7 @@ def run_compare(goldens, cframes, margin, report_path=""):
         ja_p = os.path.join(goldens, "%s_a.png" % base)
         jb_p = os.path.join(goldens, "%s_b.png" % base)
         c_p = os.path.join(cframes, "c_%s.ppm" % base)
-        rect = roi_rect(sid)
+        rect = roi_rect(sid) if sid != "hud_death_tint_pair" else (0, 0, W, H)
         if not (os.path.isfile(ja_p) and os.path.isfile(jb_p)):
             print("%-24s %10s %10s %10s %10s  MISSING JAVA" % (
                 sid, "-", "-", "-", "FAIL"))
@@ -377,7 +504,7 @@ def run_compare(goldens, cframes, margin, report_path=""):
             n_fail += 1
             rows.append({
                 "id": sid, "noise": None, "c_vs_j": None, "gate": None,
-                "verdict": "FAIL", "roi": list(rect), "hard": sid in HARD,
+                "verdict": "FAIL", "roi": list(rect), "hard": True,
                 "reason": "missing_java",
             })
             continue
@@ -388,14 +515,17 @@ def run_compare(goldens, cframes, margin, report_path=""):
             n_fail += 1
             rows.append({
                 "id": sid, "noise": None, "c_vs_j": None, "gate": None,
-                "verdict": "FAIL", "roi": list(rect), "hard": sid in HARD,
+                "verdict": "FAIL", "roi": list(rect), "hard": True,
                 "reason": "missing_c",
             })
             continue
         ja_full = load_rgb(ja_p)
         jb_full = load_rgb(jb_p)
         c_full = load_ppm(c_p)
-        row, fail, resid = evaluate_roi(sid, ja_full, jb_full, c_full, margin)
+        if sid == "hud_death_tint_pair":
+            row, fail, resid = evaluate_death_tint_pair(ja_full, jb_full, c_full)
+        else:
+            row, fail, resid = evaluate_roi(sid, ja_full, jb_full, c_full, margin)
         n_fail += fail
         n_residual += resid
         if resid:
@@ -406,10 +536,17 @@ def run_compare(goldens, cframes, margin, report_path=""):
         if fail:
             blocked.append(sid)
         diff = row["c_vs_j"]
-        print("%-24s %10.3f %10.3f %10.3f %10s  painted=%d %s" % (
-            sid, row["noise"],
+        extra = ""
+        if sid == "hud_death_tint_pair":
+            extra = (" c_vs_model=%.4f full_C-vs-J=%.4f world=%s" % (
+                row.get("c_vs_model", -1.0),
+                row.get("full_frame_c_vs_j", -1.0),
+                row.get("world_parity", "?")))
+        print("%-24s %10.3f %10.3f %10.3f %10s  painted=%d %s%s" % (
+            sid, row["noise"] if row["noise"] == row["noise"] else -1.0,
             diff if diff == diff else -1.0,
-            row["gate"], row["verdict"], row["n_painted"], rect))
+            row["gate"] if row["gate"] == row["gate"] else -1.0,
+            row["verdict"], row["n_painted"], rect, extra))
         rows.append(row)
 
     report = {
@@ -425,7 +562,9 @@ def run_compare(goldens, cframes, margin, report_path=""):
             "CAPTURE_OK = soft state capture integrity only (no parity claim). "
             "FAIL = missing/noise/empty. "
             "GuiGameOver: hard = opaque chrome (title/score body+shadow, "
-            "full button rects); full-frame tint/world composition is soft."
+            "full button rects) + hud_death_tint_pair (source gradient blend "
+            "over known underlay); full-frame tint/world composition is soft "
+            "and does not claim same-scene parity."
         ),
     }
     if report_path:
@@ -505,6 +644,30 @@ def mutation_self_test(goldens, cframes, margin):
     else:
         print("mutation baseline: hud_death soft CAPTURE_OK residual=%.4f" %
               row["c_vs_j"])
+
+    # Paired tint gate: C pure bands match source model; world residual open.
+    row, fail, resid = evaluate_death_tint_pair(ja, jb, c0)
+    if row["verdict"] != "PASS" or fail or resid:
+        print("MUTATION SELF-TEST FAIL: hud_death_tint_pair baseline not PASS "
+              "(%s c_vs_model=%s)" % (row["verdict"], row.get("c_vs_model")),
+              file=sys.stderr)
+        n_err += 1
+    else:
+        print("mutation baseline: hud_death_tint_pair PASS c_vs_model=%.4f "
+              "pure_C-vs-J=%.4f full_C-vs-J=%.4f world=%s" % (
+                  row["c_vs_model"], row["pure_zone_c_vs_j"],
+                  row["full_frame_c_vs_j"], row["world_parity"]))
+    # Mutate a pure-band pixel: tint pair must residual.
+    c_mut = c0.copy()
+    c_mut[10, 10] = (0, 0, 0)
+    row_m, _, resid_m = evaluate_death_tint_pair(ja, jb, c_mut)
+    if row_m["verdict"] == "PASS" or row_m.get("n_mismatch", 0) == 0:
+        print("MUTATION SELF-TEST FAIL: pure-band pixel wipe did not trip "
+              "hud_death_tint_pair", file=sys.stderr)
+        n_err += 1
+    else:
+        print("mutation ok: %-28s -> %s  n_mismatch=%d" % (
+            "tint_pair_pure_pixel", row_m["verdict"], row_m["n_mismatch"]))
 
     # (1) Missing button face: wipe Respawn button rect to composition gray.
     c = c0.copy()

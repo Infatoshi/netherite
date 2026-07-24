@@ -267,6 +267,33 @@
       "n_mismatch": 0
     },
     {
+      "id": "hud_death_tint_pair",
+      "noise": 2.8777411113476687,
+      "c_vs_j": 32.09390036193315,
+      "gate": 4.877741111347669,
+      "verdict": "PASS",
+      "roi": [
+        0,
+        0,
+        854,
+        480
+      ],
+      "hard": true,
+      "n_painted": 187880,
+      "noise_limit": 5.0,
+      "reason": "paired_background_source_model",
+      "n_mismatch": 0,
+      "c_vs_model": 0.0,
+      "full_frame_c_vs_j": 31.02191240567265,
+      "full_frame_ab_noise": 2.6409307507155866,
+      "pure_zone_c_vs_j": 32.09390036193315,
+      "pure_zone_ab_noise": 2.8777411113476687,
+      "java_model_identity_mean": 0.9782112696047123,
+      "java_model_identity_max": 1,
+      "world_parity": "BLOCKED",
+      "blocker": "Same-scene full-frame death parity needs a world underlay companion (no survival HUD) at the death pose/partialTicks. C isolation uses GRAY=40; Java death is gradient over the live stone pad. Existing living HUD goldens include survival chrome and are not a valid pre-death underlay. qrl frame{} always runs renderGameOverlay; no safe world-only companion via the current capture driver without new frame flags. Pure-band C-vs-J is world composition residual, not gradient math (c_vs_model=0 when PASS)."
+    },
+    {
       "id": "hand_bow_pull20",
       "noise": 0.0,
       "c_vs_j": 54.9015201010497,
@@ -403,5 +430,5 @@
       "reason": "soft_capture"
     }
   ],
-  "notes": "PASS = hard C-vs-J within gate. RESIDUAL = hard capture OK but C residual (nonzero exit). CAPTURE_OK = soft state capture integrity only (no parity claim). FAIL = missing/noise/empty. GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects); full-frame tint/world composition is soft."
+  "notes": "PASS = hard C-vs-J within gate. RESIDUAL = hard capture OK but C residual (nonzero exit). CAPTURE_OK = soft state capture integrity only (no parity claim). FAIL = missing/noise/empty. GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects) + hud_death_tint_pair (source gradient blend over known underlay); full-frame tint/world composition is soft and does not claim same-scene parity."
 }
