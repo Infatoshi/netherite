@@ -244,6 +244,46 @@ int main(void) {
         free(fb.color); free(fb.depth);
     }
 
+    /* ---- Wood pick GUI icon: flat !isGui3d blit matches gui_atlas layer0 ---- */
+    {
+        CHECK(gm_gui_item_icon(NULL, 270, 0, 0, 0, 1), "wood pick has GUI icon");
+        CrFramebuffer fb = make_fb();
+        /* Blit icon alone at known origin, scale 2 (matches capture guiScale). */
+        const int scale = 2, ix = 40, iy = 40;
+        CHECK(gm_gui_item_icon(&fb, 270, 30, ix, iy, scale), "wood pick draws");
+        /* Known opaque texels from items/wood_pickaxe.png (nearest x scale). */
+        int hit_55 = 0, hit_107 = 0, wood_px = 0;
+        for (int y = iy; y < iy + 16 * scale; ++y)
+            for (int x = ix; x < ix + 16 * scale; ++x) {
+                CrRgba c = fb.color[y * W + x];
+                if (c.r == GRAY && c.g == GRAY && c.b == GRAY) continue;
+                wood_px++;
+                if (c.r == 55 && c.g == 41 && c.b == 16) hit_55 = 1;
+                if (c.r == 107 && c.g == 81 && c.b == 31) hit_107 = 1;
+            }
+        CHECK(wood_px >= 60, "wood pick icon has opaque body");
+        CHECK(hit_55 && hit_107, "wood pick icon samples layer0 texels");
+        /* Undamaged: no durability strip pixels (black 13x2 at +2,+13). */
+        clear_fb(&fb);
+        GmPlayerView pv; memset(&pv, 0, sizeof pv);
+        pv.health = 20; pv.max_health = 20;
+        pv.food = 20; pv.max_food = 20;
+        pv.air = -1;
+        pv.hotbar_ids[0] = 270;
+        pv.hotbar_counts[0] = 1;
+        pv.hotbar_meta[0] = 0; /* undamaged */
+        gm_hud_draw(&fb, &pv);
+        const int hix = 250, hiy = 442;
+        int strip_black = 0;
+        for (int y = hiy + 13 * 2; y < hiy + 15 * 2; ++y)
+            for (int x = hix + 2 * 2; x < hix + 15 * 2; ++x) {
+                CrRgba c = fb.color[y * W + x];
+                if (c.r < 8 && c.g < 8 && c.b < 8) strip_black++;
+            }
+        CHECK(strip_black == 0, "undamaged wood pick has no durability strip");
+        free(fb.color); free(fb.depth);
+    }
+
     /* ---- Air bubble formula (Forge GuiIngameForge.renderAir ceil) ---- */
     {
         /* air=121: full=ceil((121-2)*10/300)=ceil(3.966)=4

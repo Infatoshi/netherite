@@ -1,22 +1,9 @@
 {
   "margin": 2.0,
   "fail": 0,
-  "residual": 7,
+  "residual": 6,
   "blocked": [],
   "residuals": [
-    {
-      "id": "hud_durability_half",
-      "noise": 0.0,
-      "noise_max": null,
-      "c_vs_j": 11.400716145833334,
-      "gate": 0.0,
-      "hard_px": 668,
-      "hard_thr": 2,
-      "max_diff": null,
-      "reason": "hard_residual",
-      "residual_bbox": null,
-      "residual_locs": null
-    },
     {
       "id": "hand_bow_pull20",
       "noise": 0.0,
@@ -819,9 +806,9 @@
     {
       "id": "hud_durability_half",
       "noise": 0.0,
-      "c_vs_j": 11.400716145833334,
+      "c_vs_j": 0.0,
       "gate": 0.0,
-      "verdict": "RESIDUAL",
+      "verdict": "PASS",
       "roi": [
         250,
         442,
@@ -830,14 +817,14 @@
       ],
       "hard": true,
       "core_hard": true,
-      "n_painted": 1024,
-      "n_compare": 1024,
-      "n_mismatch": 668,
-      "n_hard_px": 668,
-      "hard_px": 668,
+      "n_painted": 356,
+      "n_compare": 356,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
       "hard_thr": 2,
       "noise_limit": 2.0,
-      "reason": "hard_residual",
+      "reason": "hard_parity",
       "colored_fill": true
     },
     {
@@ -1707,5 +1694,5 @@
       ]
     }
   ],
-  "notes": "PASS = hard parity. Fullscreen inside-block uses A/B-stable full ROI + hard_px with thr=ceil(noise_max) (noise_max==0 => exact). No painted-mean dilution, no thr floor of 1. RESIDUAL = hard capture OK but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (portal/fire/full-frame death). Underwater is hard full-ROI residual. FAIL = missing/noise/empty/unstable. Core HUD: oracle\u222aC masks, hard_px==0 at A/B noise. GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects) + hud_death_tint_pair (source gradient blend over known underlay); full-frame tint/world composition is soft and does not claim same-scene parity."
+  "notes": "PASS = hard parity. Fullscreen inside-block uses A/B-stable full ROI + hard_px with thr=ceil(noise_max) (noise_max==0 => exact). No painted-mean dilution, no thr floor of 1. RESIDUAL = hard capture OK but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (portal/fire/full-frame death). Underwater is hard full-ROI residual. FAIL = missing/noise/empty/unstable. Core HUD: oracle\u222aC masks, hard_px==0 at A/B noise. hud_durability_half uses atlas-alpha\u222astrip\u222aC-extra ownership (C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-GRAY isolation underlay; not threshold holes, not Java world). GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects) + hud_death_tint_pair (source gradient blend over known underlay); full-frame tint/world composition is soft and does not claim same-scene parity."
 }

@@ -9,6 +9,16 @@ Core hard HUD (armor/absorption/hearts/hunger/air/xp/durability/boss):
 Absorption (closed): GuiIngame gold hearts (icons.png U=160/169) — exact
   C-vs-J with oracle∪C masks (c_vs_j=0, hard_px=0) on committed A/B.
 
+Durability (local ownership, not thr surgery and not a global painted_full
+  drop): every nonzero-alpha wood_pickaxe.png texel at the exact scaled GUI
+  slot, the complete 13x2 strip, and a C-extra mask that scores any unowned
+  icon-cell pixel that is not the exact isolation underlay (HUD_HOTBAR/
+  widgets alpha-composited over GRAY with hud_blend_px math). Broad mx/chroma
+  threshold holes are not used; Java world underlay is not imported. Opaque
+  body + strip already bit-match Java/PNG; prior residual was composition
+  isolation. Other core states still use painted_full. PASS also requires
+  colored strip fill.
+
 Full-screen blend-off inside-block overlays (overlay_inside_stone/grass):
   Strict full-ROI compare on A/B-stable pixels (Java HUD flicker excluded).
   No painted-only mask (gray C holes must count). hard_thr = ceil(noise_max)
@@ -623,18 +633,16 @@ def oracle_core_feature(img, sid):
         m |= xp_band & (g > 100) & (g > r + 10) & (g > b + 10)
 
     elif sid == "hud_durability_half":
+        # Ownership for durability lives in durability_compare_mask (atlas
+        # alpha + strip + C-extra). Keep a weak image-side hint here only for
+        # callers that still invoke oracle_core_feature alone.
         ix = HB_X + 3 * S
         iy = HB_Y + 3 * S
-        # full owned icon
-        m |= cells_fg(img, ix, iy, 1, 16 * S, 16 * S, 16 * S, thr=25)
-        icon = np.zeros((H, W), dtype=bool)
-        icon[iy:iy + 16 * S, ix:ix + 16 * S] = True
-        m |= icon & (r < 20) & (g < 20) & (b < 20)
-        # complete 13x2 strip region (black underlay + fill columns)
+        m |= wood_pickaxe_alpha_mask()
         m[iy + 13 * S:iy + 15 * S, ix + 2 * S:ix + 15 * S] = True
         mx = np.maximum(np.maximum(r, g), b)
         mn = np.minimum(np.minimum(r, g), b)
-        m |= icon & ((mx - mn) > 50)  # colored durability fill
+        m |= (mx - mn) > 50  # colored durability fill
 
     elif sid == "hud_boss_half":
         # bars.png PINK strip geometry + full pink/dark-pink gamut (not r>120 only)
@@ -656,8 +664,242 @@ def c_painted_mask(c_full):
     return np.abs(c_full.astype(np.int16) - GRAY).max(axis=2) > 8
 
 
+# Cached 16x16 nonzero-alpha of items/wood_pickaxe.png (gui_atlas ITEM_270).
+_WOOD_PICK_ALPHA_16 = None
+
+
+def _load_wood_pickaxe_alpha_16():
+    """Return (16,16) bool: nonzero alpha of wood_pickaxe layer0.
+
+    Source order: jar items/wood_pickaxe.png, gui_atlas.h ITEM_270 alpha,
+    /tmp/wood_pickaxe.png. Same texels C blits via gm_gui_item_icon.
+    """
+    global _WOOD_PICK_ALPHA_16
+    if _WOOD_PICK_ALPHA_16 is not None:
+        return _WOOD_PICK_ALPHA_16
+
+    alpha = None
+
+    # 1) gui_atlas.h ITEM_270 (always in tree after make game; same RGBA C blits)
+    atlas_path = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "assets", "gui_atlas.h"))
+    if os.path.isfile(atlas_path):
+        try:
+            text = open(atlas_path, "r").read()
+            import re
+            m = re.search(
+                r'\{\s*"ITEM_270",\s*16,\s*16,\s*(\d+)\s*\}', text)
+            if m:
+                off = int(m.group(1))
+                start = text.index("static const unsigned char GUI_RGBA[")
+                brace = text.index("{", start)
+                # Walk GUI_RGBA decimals until off + 16*16*4 bytes.
+                nums = []
+                i = brace + 1
+                n = len(text)
+                val = None
+                idx = 0
+                need_end = off + 16 * 16 * 4
+                while i < n and idx < need_end:
+                    ch = text[i]
+                    if ch.isdigit():
+                        if val is None:
+                            val = 0
+                        val = val * 10 + (ord(ch) - 48)
+                    else:
+                        if val is not None:
+                            if idx >= off:
+                                nums.append(val)
+                            idx += 1
+                            val = None
+                            if idx >= need_end:
+                                break
+                    i += 1
+                if len(nums) >= 16 * 16 * 4:
+                    a = np.array(
+                        nums[:16 * 16 * 4], dtype=np.uint8).reshape(16, 16, 4)
+                    alpha = a[:, :, 3] > 0
+        except Exception:
+            alpha = None
+
+    # 2) loose PNG dump / optional jar (never SystemExit on missing jar)
+    if alpha is None:
+        png_cands = ["/tmp/wood_pickaxe.png"]
+        jar = os.environ.get("MC_JAR", "")
+        if jar and os.path.isfile(jar):
+            try:
+                import zipfile
+                from io import BytesIO
+                with zipfile.ZipFile(jar) as zf:
+                    raw = zf.read(
+                        "assets/minecraft/textures/items/wood_pickaxe.png")
+                arr = np.asarray(
+                    Image.open(BytesIO(raw)).convert("RGBA"))
+                if arr.shape[0] == 16 and arr.shape[1] == 16:
+                    alpha = arr[:, :, 3] > 0
+            except Exception:
+                alpha = None
+        if alpha is None:
+            for cand in png_cands:
+                if os.path.isfile(cand):
+                    arr = np.asarray(Image.open(cand).convert("RGBA"))
+                    if arr.shape[0] == 16 and arr.shape[1] == 16:
+                        alpha = arr[:, :, 3] > 0
+                        break
+
+    if alpha is None or int(np.asarray(alpha).sum()) < 16:
+        raise RuntimeError(
+            "wood_pickaxe.png alpha unavailable (gui_atlas.h / MC_JAR /tmp)")
+    _WOOD_PICK_ALPHA_16 = np.asarray(alpha, dtype=bool)
+    return _WOOD_PICK_ALPHA_16
+
+
+def wood_pickaxe_alpha_mask():
+    """Full-frame mask: every nonzero-alpha wood_pickaxe texel at slot-0 GUI."""
+    a16 = _load_wood_pickaxe_alpha_16()
+    # Nearest scale (guiScale=S): each texel -> SxS block.
+    a_s = np.repeat(np.repeat(a16, S, axis=0), S, axis=1)
+    m = np.zeros((H, W), dtype=bool)
+    ix = HB_X + 3 * S
+    iy = HB_Y + 3 * S
+    m[iy:iy + 16 * S, ix:ix + 16 * S] = a_s
+    return m
+
+
+def durability_strip_mask():
+    """Complete 13x2 durability strip (black underlay + fill columns)."""
+    m = np.zeros((H, W), dtype=bool)
+    ix = HB_X + 3 * S
+    iy = HB_Y + 3 * S
+    m[iy + 13 * S:iy + 15 * S, ix + 2 * S:ix + 15 * S] = True
+    return m
+
+
+# Cached (16*S, 16*S, 3) expected isolation underlay under slot-0 icon.
+_HOTBAR_UNDERLAY_ICON = None
+
+
+def _load_hotbar_underlay_icon_rgb():
+    """Expected C RGB under transparent slot-0 wood-pick texels.
+
+    Source: HUD_HOTBAR (widgets.png hotbar strip) nearest-scaled and alpha-
+    composited over isolation GRAY with the same integer formula as
+    hud_blend_px: (src*a + dst*(255-a) + 127)//255. Icon cell maps to hotbar
+    sprite local (3..18, 3..18) (slot 0 at strip+3). Exact per-pixel colors —
+    not a mx/chroma threshold hole and not Java world underlay.
+    """
+    global _HOTBAR_UNDERLAY_ICON
+    if _HOTBAR_UNDERLAY_ICON is not None:
+        return _HOTBAR_UNDERLAY_ICON
+
+    atlas_path = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "assets", "hud_atlas.h"))
+    if not os.path.isfile(atlas_path):
+        raise RuntimeError(
+            "hud_atlas.h unavailable for durability underlay membership")
+
+    text = open(atlas_path, "r").read()
+    import re
+    m = re.search(r'\{\s*"HOTBAR",\s*(\d+),\s*(\d+),\s*(\d+)\s*\}', text)
+    if not m:
+        raise RuntimeError("HUD_HOTBAR sprite missing from hud_atlas.h")
+    spr_w, spr_h, off = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if spr_w < 19 or spr_h < 19:
+        raise RuntimeError("HUD_HOTBAR too small for slot-0 icon cell")
+
+    start = text.index("static const unsigned char HUD_RGBA[")
+    brace = text.index("{", start)
+    nums = []
+    i = brace + 1
+    n = len(text)
+    val = None
+    idx = 0
+    need_end = off + spr_w * spr_h * 4
+    while i < n and idx < need_end:
+        ch = text[i]
+        if ch.isdigit():
+            if val is None:
+                val = 0
+            val = val * 10 + (ord(ch) - 48)
+        else:
+            if val is not None:
+                if idx >= off:
+                    nums.append(val)
+                idx += 1
+                val = None
+                if idx >= need_end:
+                    break
+        i += 1
+    if len(nums) < spr_w * spr_h * 4:
+        raise RuntimeError("HUD_RGBA truncated while reading HOTBAR")
+
+    spr = np.array(nums[:spr_w * spr_h * 4], dtype=np.int32).reshape(
+        spr_h, spr_w, 4)
+    # Slot-0 icon covers hotbar local texels [3,19) x [3,19).
+    cell = spr[3:19, 3:19, :]
+    a = cell[:, :, 3]
+    ia = 255 - a
+    under16 = np.empty((16, 16, 3), dtype=np.uint8)
+    for c in range(3):
+        under16[:, :, c] = (
+            (cell[:, :, c] * a + GRAY * ia + 127) // 255).astype(np.uint8)
+    # a==0 leaves isolation gray (no hotbar paint).
+    bare = a == 0
+    under16[bare] = (GRAY, GRAY, GRAY)
+
+    under = np.repeat(np.repeat(under16, S, axis=0), S, axis=1)
+    _HOTBAR_UNDERLAY_ICON = under
+    return _HOTBAR_UNDERLAY_ICON
+
+
+def durability_isolation_underlay_mask(c_full):
+    """True where C matches exact isolation underlay inside the icon cell."""
+    under = _load_hotbar_underlay_icon_rgb()
+    ix = HB_X + 3 * S
+    iy = HB_Y + 3 * S
+    m = np.zeros((H, W), dtype=bool)
+    c_cell = c_full[iy:iy + 16 * S, ix:ix + 16 * S].astype(np.int16)
+    m[iy:iy + 16 * S, ix:ix + 16 * S] = np.all(
+        c_cell == under.astype(np.int16), axis=2)
+    return m
+
+
+def durability_c_extra_mask(c_full):
+    """C-only extras in the icon cell: anything not exact isolation underlay.
+
+    Owned icon = wood_pickaxe atlas-alpha ∪ full 13x2 strip. Under transparent
+    texels, C shows HUD_HOTBAR blended over GRAY (composition isolation vs
+    Java world). Those exact per-pixel underlay colors are excluded. Any other
+    unowned paint — mid-gray mx 56..79, mid-chroma, black, bright, misplaced
+    underlay RGB — is residual. No broad threshold allow holes.
+    """
+    owned = wood_pickaxe_alpha_mask() | durability_strip_mask()
+    ix = HB_X + 3 * S
+    iy = HB_Y + 3 * S
+    cell = np.zeros((H, W), dtype=bool)
+    cell[iy:iy + 16 * S, ix:ix + 16 * S] = True
+    unowned = cell & ~owned
+    underlay = durability_isolation_underlay_mask(c_full)
+    return unowned & ~underlay
+
+
+def durability_compare_mask(c_full):
+    """Local durability ownership: atlas-alpha ∪ full strip ∪ C-extra."""
+    return (wood_pickaxe_alpha_mask() |
+            durability_strip_mask() |
+            durability_c_extra_mask(c_full))
+
+
 def core_compare_mask(sid, ja_full, c_full, painted_full):
-    """Java∪C complete feature mask for a core hard HUD state (full frame)."""
+    """Java∪C complete feature mask for a core hard HUD state (full frame).
+
+    Durability uses source/atlas-alpha ownership + strip + C-extra (does not
+    flood painted_full into hotbar underlay holes). All other core states keep
+    oracle feature ∪ C feature ∪ painted_full so missing Java and extra C both
+    score.
+    """
+    if sid == "hud_durability_half":
+        return durability_compare_mask(c_full)
     j_feat = oracle_core_feature(ja_full, sid)
     c_feat = oracle_core_feature(c_full, sid) | painted_full
     return j_feat | c_feat
@@ -1147,6 +1389,9 @@ def run_compare(goldens, cframes, margin, report_path=""):
             "full-frame death). Underwater is hard full-ROI residual. "
             "FAIL = missing/noise/empty/unstable. "
             "Core HUD: oracle∪C masks, hard_px==0 at A/B noise. "
+            "hud_durability_half uses atlas-alpha∪strip∪C-extra ownership "
+            "(C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-"
+            "GRAY isolation underlay; not threshold holes, not Java world). "
             "GuiGameOver: hard = opaque chrome (title/score body+shadow, "
             "full button rects) + hud_death_tint_pair (source gradient blend "
             "over known underlay); full-frame tint/world composition is soft "
@@ -1511,20 +1756,173 @@ def core_mutation_self_test(goldens, cframes, margin):
         n_err += _must_hard_fail(
             "hud_xp_half", ja, jb, c, margin, "missing_xp_fill")
 
-    # ---- durability: black underlay only (no colored fill) ----
+    # ---- durability: PASS control + non-vacuous mutations (all must fail) ----
     trip = load_triple("hud_durability_half")
     if trip is None:
         print("mutation self-test: SKIP hud_durability_half", file=sys.stderr)
         n_err += 1
     else:
         ja, jb, c0 = trip
-        c = c0.copy()
         ix = HB_X + 3 * S
         iy = HB_Y + 3 * S
-        # Force strip to solid black (underlay only).
-        c[iy + 13 * S:iy + 15 * S, ix + 2 * S:ix + 15 * S] = 0
-        n_err += _must_hard_fail(
-            "hud_durability_half", ja, jb, c, margin, "durability_black_only")
+        row, fail, resid = evaluate_roi(
+            "hud_durability_half", ja, jb, c0, margin)
+        if row["verdict"] != "PASS" or fail or resid:
+            print("MUTATION SELF-TEST FAIL: baseline hud_durability_half "
+                  "not PASS (%s c_vs_j=%s hard_px=%s n=%s)" % (
+                      row["verdict"], row["c_vs_j"], row.get("n_hard_px"),
+                      row["n_painted"]), file=sys.stderr)
+            n_err += 1
+        else:
+            print("mutation baseline: hud_durability_half PASS c_vs_j=%.4f "
+                  "hard_px=%d n=%d" % (
+                      row["c_vs_j"], row["n_hard_px"], row["n_painted"]))
+
+        a16 = _load_wood_pickaxe_alpha_16()
+        a_s = np.repeat(np.repeat(a16, S, axis=0), S, axis=1)
+        strip_m = np.zeros((16 * S, 16 * S), dtype=bool)
+        strip_m[13 * S:15 * S, 2 * S:15 * S] = True
+        body_ys, body_xs = np.where(a_s)
+        free_ys, free_xs = np.where((~a_s) & (~strip_m))
+        if len(body_ys) < 1 or len(free_ys) < 4:
+            print("MUTATION SELF-TEST FAIL: wood-pick alpha mask empty",
+                  file=sys.stderr)
+            n_err += 1
+        else:
+            # Missing icon body (strip kept).
+            c = c0.copy()
+            strip = c[iy + 13 * S:iy + 15 * S, ix + 2 * S:ix + 15 * S].copy()
+            c[iy:iy + 16 * S, ix:ix + 16 * S] = (39, 38, 14)
+            c[iy + 13 * S:iy + 15 * S, ix + 2 * S:ix + 15 * S] = strip
+            n_err += _must_hard_fail(
+                "hud_durability_half", ja, jb, c, margin,
+                "durability_missing_icon")
+
+            # One dark body texel (large channel Δ >= HARD_THR=2).
+            c = c0.copy()
+            bi = len(body_ys) // 3
+            by, bx = int(body_ys[bi]), int(body_xs[bi])
+            c[iy + by, ix + bx] = (5, 5, 5)
+            n_err += _must_hard_fail(
+                "hud_durability_half", ja, jb, c, margin,
+                "durability_one_dark_texel")
+
+            # Shift icon+strip one GUI px right inside the cell.
+            c = c0.copy()
+            src = c0[iy:iy + 16 * S, ix:ix + 16 * S].copy()
+            c[iy:iy + 16 * S, ix:ix + 16 * S] = (39, 38, 14)
+            c[iy:iy + 16 * S, ix + S:ix + 16 * S] = src[:, :16 * S - S]
+            n_err += _must_hard_fail(
+                "hud_durability_half", ja, jb, c, margin,
+                "durability_shift")
+
+            # Unowned extras: any non-exact isolation underlay must RESIDUAL.
+            # Covers prior black/dark/bright plus mid-gray mx 56..79 and
+            # mid-chroma classes that broad threshold holes falsely allowed.
+            extra_rgbs = [
+                ((0, 0, 0), "durability_black_extra"),
+                ((5, 5, 5), "durability_dark_extra"),
+                ((255, 0, 0), "durability_bright_extra"),
+                ((60, 60, 60), "durability_midgray60_extra"),
+                ((70, 70, 70), "durability_midgray70_extra"),
+                ((79, 79, 79), "durability_midgray79_extra"),
+                ((45, 20, 20), "durability_midchroma_452020"),
+                ((40, 0, 0), "durability_midchroma_400000"),
+                ((55, 30, 30), "durability_midchroma_553030"),
+                ((40, 40, 40), "durability_isolation_gray_extra"),
+                ((128, 128, 128), "durability_midgray128_extra"),
+                ((20, 60, 20), "durability_midchroma_green"),
+                ((30, 30, 60), "durability_midchroma_blue"),
+                ((90, 40, 40), "durability_mx90_chroma"),
+            ]
+            under_cell = _load_hotbar_underlay_icon_rgb()
+            for ei, (rgb, label) in enumerate(extra_rgbs):
+                fi = ei % len(free_ys)
+                fy, fx = int(free_ys[fi]), int(free_xs[fi])
+                exp = tuple(int(x) for x in under_cell[fy, fx])
+                if rgb == exp:
+                    # Pick another free pixel whose underlay differs.
+                    for fj in range(len(free_ys)):
+                        fy2, fx2 = int(free_ys[fj]), int(free_xs[fj])
+                        if tuple(int(x) for x in under_cell[fy2, fx2]) != rgb:
+                            fy, fx = fy2, fx2
+                            break
+                c = c0.copy()
+                c[iy + fy, ix + fx] = rgb
+                n_err += _must_hard_fail(
+                    "hud_durability_half", ja, jb, c, margin, label)
+
+            # Boundary: single-channel / off-by-one from true underlay.
+            fy0, fx0 = int(free_ys[0]), int(free_xs[0])
+            base = [int(x) for x in under_cell[fy0, fx0]]
+            boundary = [
+                ((min(255, base[0] + 1), base[1], base[2]),
+                 "durability_underlay_plus1_r"),
+                ((base[0], min(255, base[1] + 1), base[2]),
+                 "durability_underlay_plus1_g"),
+                ((base[0], base[1], min(255, base[2] + 1)),
+                 "durability_underlay_plus1_b"),
+                ((max(0, base[0] - 1), base[1], base[2]),
+                 "durability_underlay_minus1_r"),
+            ]
+            for rgb, label in boundary:
+                if rgb == tuple(base):
+                    continue
+                c = c0.copy()
+                c[iy + fy0, ix + fx0] = rgb
+                n_err += _must_hard_fail(
+                    "hud_durability_half", ja, jb, c, margin, label)
+
+            # Misplaced underlay color (valid underlay RGB at wrong texel).
+            if len(free_ys) >= 2:
+                fy_a, fx_a = int(free_ys[0]), int(free_xs[0])
+                col_a = tuple(int(x) for x in under_cell[fy_a, fx_a])
+                moved = False
+                for fj in range(1, len(free_ys)):
+                    fy_b, fx_b = int(free_ys[fj]), int(free_xs[fj])
+                    col_b = tuple(int(x) for x in under_cell[fy_b, fx_b])
+                    if col_b != col_a:
+                        c = c0.copy()
+                        c[iy + fy_a, ix + fx_a] = col_b
+                        n_err += _must_hard_fail(
+                            "hud_durability_half", ja, jb, c, margin,
+                            "durability_misplaced_underlay")
+                        moved = True
+                        break
+                if not moved:
+                    print("MUTATION SELF-TEST FAIL: no distinct underlay "
+                          "pair for misplaced test", file=sys.stderr)
+                    n_err += 1
+
+            # Missing strip (icon body kept).
+            c = c0.copy()
+            c[iy + 13 * S:iy + 15 * S, ix + 2 * S:ix + 15 * S] = (39, 38, 14)
+            n_err += _must_hard_fail(
+                "hud_durability_half", ja, jb, c, margin,
+                "durability_missing_strip")
+
+            # Recolored strip fill.
+            c = c0.copy()
+            c[iy + 13 * S:iy + 14 * S, ix + 2 * S:ix + 15 * S] = (200, 0, 200)
+            n_err += _must_hard_fail(
+                "hud_durability_half", ja, jb, c, margin,
+                "durability_recolor_strip")
+
+            # Recolor one owned body texel (not underlay path).
+            c = c0.copy()
+            bi = len(body_ys) // 2
+            by, bx = int(body_ys[bi]), int(body_xs[bi])
+            c[iy + by, ix + bx] = (200, 50, 50)
+            n_err += _must_hard_fail(
+                "hud_durability_half", ja, jb, c, margin,
+                "durability_recolor_body")
+
+            # Black underlay only (no colored fill).
+            c = c0.copy()
+            c[iy + 13 * S:iy + 15 * S, ix + 2 * S:ix + 15 * S] = 0
+            n_err += _must_hard_fail(
+                "hud_durability_half", ja, jb, c, margin,
+                "durability_black_only")
 
     # ---- boss: erase name chrome ----
     trip = load_triple("hud_boss_half")

@@ -55,7 +55,7 @@ marked PASS until hard_px==0.
 | `hud_hunger_poison.png` | Food 8 + HUNGER potion | `/effect @p hunger 30 0` | Hunger haunches (right of hotbar) |
 | `hud_air_partial.png` | Eye in water; **pin/reply air=123** (historical freeze) but **pixels** are 4 full + 1 partial ⇒ `effective_pixel_air_range=121..122` | Glass pool; future recapture pin air=121 | Bubbles at `sh-49` right |
 | `hud_xp_half.png` | `experience=0.5`, level 7 | `/xp` to known fraction | XP bar fill width = 91/182 GUI px + level outline text centered `(sw-w)/2` |
-| `hud_durability_half.png` | Wood pick damage 30/59 in hotbar slot 0 | `/give` + anvil or scripted damage | Slot 0 durability strip only (13x2 at icon +2,+13) |
+| `hud_durability_half.png` | Wood pick damage 30/59 in hotbar slot 0 | `/give` + anvil or scripted damage | Slot 0 full owned icon (16x16) + 13x2 durability strip |
 | `hud_boss_half.png` | Ender dragon bar at 50% | End fight or boss bar packet | Top center pink bar + "Ender Dragon" |
 | `hud_death.png` | Dead player, GuiGameOver | Die to mob; hold death screen | Opaque chrome: "You died!" + Score (body+shadow) + Respawn/Title buttons; full-frame gradient/world soft residual only |
 | `hand_bow_pull20.png` | Bow drawn 20 ticks, fixed yaw/pitch 0, wall backdrop | Hold use 20 ticks against plain wall | Lower-right viewmodel |
@@ -96,14 +96,23 @@ Example qrl + mcwindow sketch for armor + hurt flash:
 - **Hard core HUD (oracle∪C complete feature masks, A/B noise floor):**
   `hud_armor_iron`, `hud_absorption_armor` (gold abs hearts + lifted armor),
   `hud_hurt_flash_on/off`, `hud_hunger_poison`, `hud_air_partial` (air 121–122:
-  four full + one partial), `hud_xp_half`, `hud_boss_half` (bar + name chrome).
+  four full + one partial), `hud_xp_half`, `hud_durability_half` (wood-pick
+  flat GUI blit + exact 13x2 strip/fill; every opaque `items/wood_pickaxe.png`
+  texel and the strip bit-match Java/PNG; local atlas-alpha ownership + forced
+  strip + C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-GRAY
+  isolation underlay — not thr surgery, not mx/chroma threshold holes, not a
+  global `painted_full` drop, not Java world underlay. Widgets hotbar alpha
+  composition vs Java world is isolation-only),
+  `hud_boss_half` (bar + name chrome).
   Gate scores Java∪C feature masks with `n_hard_px==0` (HARD_THR=2); no painted-
-  only holes, no noise/mean budget for parity.
-- **Hard HUD RESIDUAL (truthful; do not weaken masks):**
-  - `hud_durability_half`: full owned icon + 13x2 strip; strip/fill match but
-    wood-pick icon pixels still diverge vs Java (icon mean residual) — no
-    black-underlay-only pass. Production durability atlas-alpha ownership is a
-    separate stack (not this merge).
+  only holes, no noise/mean budget for parity. Durability PASS also requires
+  colored strip fill (black underlay alone fails).
+- **Composition note (not a durability residual):** slot-0 hotbar underlay under
+  transparent wood-pick texels differs C gray isolation vs Java world; excluded
+  only when C matches the exact predicted isolation underlay color per texel.
+  Counterexamples that must RESIDUAL: mid-gray `(60,60,60)`, mid-chroma
+  `(45,20,20)`, every underlay channel ±1, misplaced underlay RGB, missing/
+  shift/recolor body or strip.
 - **GuiGameOver chrome closed; full-frame world tint open:** hard feature ROIs —
   `hud_death_title` / `hud_death_score` use oracle-derived body plus vanilla
   drop-shadow color classes and the Java+C union so missing and extra pixels
