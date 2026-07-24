@@ -811,15 +811,21 @@ the same client session left a stale entry. Only one EntityDragon (eid 2463)
 exists in the tape. magma draws one bar from recorded state - arguably more
 correct than the oracle's leaked HUD. Fixed-position ~10px band diff; accept.
 
-## 46. PARTIAL: dragon death rays + XP orbs + explosion recon; pixels open
+## 46. PARTIAL: dragon death rays + XP orbs + explosion recon; ui_entities open
 
 LayerEnderDragonDeath light rays and XP orb billboards are implemented
 (geometry gates). EXPLOSION_LARGE each death tick + HUGE in [180,200] are
-reconstructed with explosion.png semantics (#40). Remaining vs kill-tape
-oracle: recon spawn/rand and multi-tick particle lifetime are not bit-matched;
-no live FXLayer-3 particle list; body dissolve still per-box (#47). Death
-window pixel diffs remain **UNVERIFIED** / expected non-zero until Java frame
-goldens exist.
+reconstructed with explosion.png semantics (#40) only when health<=0
+(EntityDragon.onUpdate). ui_entities Java pins keep health full and only freeze
+client deathTicks for dissolve+rays — C oracle candidate matches that pin
+(health=200, no particle recon). Rays now use accumulating Random(432)
+rotations, partialTicks=1 f, and the RenderLivingBase prepareScale stack +
+Layer translate(0,-1,-2).
+
+ui_entities hard ROI residual (noise=0, budget=0.55) remains **OPEN**:
+dragon_death_50 c_vs_j≈22.8, 100≈24.7, 190≈30.2 (was 20.2/35.8/37.2; net
+sum −15.5). Dominant leftover: additive ray brightness/tint vs soft pink
+Java, body pose/UV, ground pad. Not exact; do not relax masks/budgets.
 
 ## 47. OPEN: death dissolve is per-box, vanilla is per-texel
 

@@ -123,7 +123,9 @@ static void inject_from_meta(GmRuntime *rt, const char *state, const char *meta)
     } else if (j_str_eq(es, "type", "dragon") || strstr(state, "dragon_death")) {
         ev.type = 9;
         ev.death_ticks = j_int(es, "death_ticks", 50);
-        ev.health = 0.0f;
+        /* Match qrl render pin: keep health full so onDeathUpdate/explosion
+         * particles do not run; only deathTicks drives dissolve + rays. */
+        ev.health = 200.0f;
     } else if (j_str_eq(es, "type", "small_fireball") || strstr(state, "fireball_small")) {
         ev.type = 30;
         ev.item_id = 385;

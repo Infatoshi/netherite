@@ -1931,8 +1931,10 @@ int gm_entity_rot_axes_are_unit(void) {
     return 1;
 }
 
-/* LayerEnderDragonDeath: six composed Random(432) axis rotations, GL triangle
- * fan of 5 verts (3 tris), untextured POSITION_COLOR, SRC_ALPHA/ONE smooth. */
+/* LayerEnderDragonDeath: Random(432) axis rotations ACCUMULATE across the ray
+ * loop (vanilla never reloads the matrix). Fans sit after applyRotations +
+ * prepareScale, then Layer translate(0,-1,-2). f = (deathTicks+partial)/200
+ * with partial=1.0 (frame_capture / qrl frame pin). POSITION_COLOR, SRC_ALPHA/ONE. */
 int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                               int max) {
     if (!ents || !out || max < 9) return 0;
@@ -1941,17 +1943,41 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
         if (ents[e].type != 9 /* dragon */) continue;
         int dt = ents[e].death_ticks;
         if (dt <= 0) continue;
-        float f = (float)dt / 200.0f;
+        float f = ((float)dt + 1.0f) / 200.0f;
         float f1 = 0.0f;
         if (f > 0.8f) f1 = (f - 0.8f) / 0.2f;
-        int rays = (int)((f + f * f) / 2.0f * 60.0f);
-        if (rays < 1) continue;
-        if (rays > 60) rays = 60;
+        float bound = (f + f * f) / 2.0f * 60.0f;
+        if (bound < 1.0f) continue;
+        if (bound > 60.0f) bound = 60.0f;
+
+        /* Body orientation from the same ring as emit_dragon. Do not pose_tick
+         * here (frame_capture already advanced via gm_entities_emit); seed only
+         * if this entity never entered the ring. */
+        ErDragonRing *rb = &er_dragon_ring;
+        if (!rb->inited || rb->ent_id != ents[e].ent_id)
+            gm_dragon_pose_tick(ents[e].ent_id, ents[e].yaw, ents[e].y);
+        int dead = ents[e].health <= 0.0f;
+        float mo5[2], mo7[2], mo10[2];
+        er_dragon_mo(rb, 5, dead, mo5);
+        er_dragon_mo(rb, 7, dead, mo7);
+        er_dragon_mo(rb, 10, dead, mo10);
+
+        ErAff base;
+        er_aff_identity(&base);
+        base.t[0] = ents[e].x;
+        base.t[1] = ents[e].y;
+        base.t[2] = ents[e].z;
+        er_aff_rot_y(&base, -mo7[0]);
+        er_aff_rot_x(&base, (mo5[1] - mo10[1]) * 10.0f);
+        er_aff_translate(&base, 0.0f, 0.0f, 1.0f);
+        er_aff_scale3(&base, -1.0f, -1.0f, 1.0f);
+        er_aff_translate(&base, 0.0f, -1.501f, 0.0f);
+        er_aff_translate(&base, 0.0f, -1.0f, -2.0f);
+
         unsigned long long js = (432ull ^ 0x5DEECE66Dull) & 0xFFFFFFFFFFFFFull;
-        float ex = ents[e].x, ey = ents[e].y - 1.0f, ez = ents[e].z - 2.0f;
-        for (int i = 0; i < rays; ++i) {
+        float m[9] = { 1,0,0, 0,1,0, 0,0,1 };
+        for (int i = 0; (float)i < bound; ++i) {
             if (written + 9 > max) return written;
-            float m[9] = { 1,0,0, 0,1,0, 0,0,1 };
             er_mat3_mul_axis(m, er_jrand_float(&js) * 360.0f, 1, 0, 0);
             er_mat3_mul_axis(m, er_jrand_float(&js) * 360.0f, 0, 1, 0);
             er_mat3_mul_axis(m, er_jrand_float(&js) * 360.0f, 0, 0, 1);
@@ -1960,7 +1986,6 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
             er_mat3_mul_axis(m, er_jrand_float(&js) * 360.0f + f * 90.0f, 0, 0, 1);
             float f2 = er_jrand_float(&js) * 20.0f + 5.0f + f1 * 10.0f;
             float f3 = er_jrand_float(&js) * 2.0f + 1.0f + f1 * 2.0f;
-            /* GL_TRIANGLE_FAN verts (mode 6): center + 3 rim + close to first. */
             float loc[5][3] = {
                 { 0, 0, 0 },
                 { -0.866f * f3, f2, -0.5f * f3 },
@@ -1978,14 +2003,19 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                 { 255, 0, 255, 0 },
                 { 255, 0, 255, 0 },
             };
-            /* Fan -> 3 triangles: (0,1,2) (0,2,3) (0,3,4) = 9 verts. */
             static const int tri[9] = { 0,1,2, 0,2,3, 0,3,4 };
             for (int k = 0; k < 9; ++k) {
                 int pi = tri[k];
-                float x, y, z;
-                er_mat3_xform(m, loc[pi][0], loc[pi][1], loc[pi][2], &x, &y, &z);
+                float lx, ly, lz;
+                er_mat3_xform(m, loc[pi][0], loc[pi][1], loc[pi][2],
+                              &lx, &ly, &lz);
                 CrVertex vtx;
-                vtx.pos.x = ex + x; vtx.pos.y = ey + y; vtx.pos.z = ez + z;
+                vtx.pos.x = base.m[0][0]*lx + base.m[0][1]*ly
+                          + base.m[0][2]*lz + base.t[0];
+                vtx.pos.y = base.m[1][0]*lx + base.m[1][1]*ly
+                          + base.m[1][2]*lz + base.t[1];
+                vtx.pos.z = base.m[2][0]*lx + base.m[2][1]*ly
+                          + base.m[2][2]*lz + base.t[2];
                 vtx.uv.x = 0.0f; vtx.uv.y = 0.0f;
                 vtx.light = 1.0f; vtx.blk = 15.0f;
                 vtx.tint = cols[pi];
@@ -2157,7 +2187,11 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
             continue;
         }
 
-        if (ents[e].type == 9 /* dragon */ && ents[e].death_ticks > 0) {
+        /* EntityDragon spawns EXPLOSION_LARGE only while health<=0 (onUpdate).
+         * Oracle deathTicks pins keep health full so rays/dissolve run without
+         * a multi-tick ParticleManager recon that Java never built. */
+        if (ents[e].type == 9 /* dragon */ && ents[e].death_ticks > 0
+            && ents[e].health <= 0.0f) {
             int dt = ents[e].death_ticks;
             /* Look back up to max lifeTime=9 so every still-alive LARGE remains. */
             const int max_life = 9;

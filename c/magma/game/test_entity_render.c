@@ -486,9 +486,14 @@ static void test_fireball_rays_particles(void) {
     drag.type = 9; drag.y = 80; drag.health = 0; drag.death_ticks = 100;
     int rays = gm_dragon_death_rays_emit(&drag, 1, out, 8192);
     CHECK(rays > 0 && rays % 9 == 0, "death rays are 5-vert fans = 3 tris (9 verts)");
-    /* f=0.5 -> (0.5+0.25)/2*60 = 22 rays * 9 verts */
-    int expect = (int)((0.5f + 0.5f * 0.5f) / 2.0f * 60.0f) * 9;
-    CHECK(rays == expect, "deathTicks=100 ray count matches LayerEnderDragonDeath");
+    /* f=(100+1)/200; Java float loop (float)i < bound */
+    {
+        float f = 101.0f / 200.0f;
+        float bound = (f + f * f) / 2.0f * 60.0f;
+        int nray = 0;
+        while ((float)nray < bound) ++nray;
+        CHECK(rays == nray * 9, "deathTicks=100+pt1 ray count matches LayerEnderDragonDeath");
+    }
     /* Smooth center alpha vs rim alpha 0 on first ray center verts. */
     CHECK(out[0].tint.r == 255 && out[0].tint.a > 0, "ray center is white+alpha");
     CHECK(out[1].tint.r == 255 && out[1].tint.g == 0 && out[1].tint.a == 0,
@@ -513,8 +518,12 @@ static void test_fireball_rays_particles(void) {
         }
         CHECK(bad == 0, "portal particle UVs sample particles.png sheet");
     }
-    /* EntityDragon: EXPLOSION_LARGE every death tick; lifeTime=6+nextInt(4). */
-    GmEntityView dd = drag; dd.death_ticks = 50;
+    /* EntityDragon: EXPLOSION_LARGE every death tick; lifeTime=6+nextInt(4).
+     * Only when health<=0 (onUpdate). Oracle pins keep health full. */
+    GmEntityView dd = drag; dd.death_ticks = 50; dd.health = 200.0f;
+    CHECK(gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 8192) == 0,
+          "alive+deathTicks pin: no explosion particle recon");
+    dd.health = 0.0f;
     int sn = gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 8192);
     CHECK(sn > 0 && sn % 6 == 0, "mid-death: reconstructed EXPLOSION_LARGE quads");
     CHECK(sn / 6 <= 9, "LARGE lookback capped by max lifeTime=9");

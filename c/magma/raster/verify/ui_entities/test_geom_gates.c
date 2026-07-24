@@ -168,8 +168,11 @@ int main(void) {
         memset(&d, 0, sizeof d);
         d.type = 9; d.death_ticks = 100; d.health = 0;
         int n = gm_dragon_death_rays_emit(&d, 1, out, 8192);
-        int rays = (int)((0.5f + 0.25f) / 2.0f * 60.0f);
-        CHECK(n == rays * 9, "deathTicks=100: 3 tris/ray (5-vert fan)");
+        float f = 101.0f / 200.0f;
+        float bound = (f + f * f) / 2.0f * 60.0f;
+        int rays = 0;
+        while ((float)rays < bound) ++rays;
+        CHECK(n == rays * 9, "deathTicks=100+pt1: 3 tris/ray (5-vert fan)");
         CHECK(out[0].tint.a > 0 && out[1].tint.a == 0,
               "ray smooth shading inputs: center alpha, rim alpha 0");
         d.death_ticks = 0;

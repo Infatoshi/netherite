@@ -104,12 +104,14 @@ void gm_entity_prep_large_fireball_fire(GmEntityView *views, int nviews);
 void gm_entity_restore_large_fireball_types(GmEntityView *views, int nviews);
 
 /* LayerEnderDragonDeath light rays (death_ticks > 0). Untextured additive
- * triangle fans (9 verts/ray = 3 tris). Draw with blend=3, untextured=1. */
+ * triangle fans (9 verts/ray = 3 tris). Rotations accumulate; verts after
+ * applyRotations+prepareScale+Layer(0,-1,-2). Draw with blend=3, untextured=1. */
 int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                               int max);
 
-/* Portal (particles.png) + dragon death / crystal EXPLOSION_LARGE (explosion.png
- * FXLayer 3). EntityDragon: LARGE each dead tick; HUGE in deathTicks [180,200]. */
+/* Portal (particles.png) + dragon death EXPLOSION_LARGE (explosion.png FXLayer 3).
+ * EntityDragon: LARGE each dead tick only when health<=0; HUGE in [180,200].
+ * Oracle deathTicks pins keep health full so particles do not fire. */
 int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                       float view_pitch, CrVertex *out, int max);
 
