@@ -231,16 +231,26 @@ def capture_pair(e, outdir, state_id, pin_fn, meta_extra=None, cam=None):
         "height": fa.get("h"),
         "gui_scale": 2,
         "partial_ticks": 1.0,
-        "notes": "A/B from qrl frame{} at partialTicks=1 with entity_pin freeze",
+        "notes": ("A/B from qrl frame{} at partialTicks=1; client render pin "
+                  "applied immediately before renderWorld for squish/deathTicks"),
     }
     if meta_extra:
         meta.update(meta_extra)
     with open(os.path.join(meta_dir, "%s.json" % state_id), "w") as f:
         json.dump(meta, f, indent=2)
-    log("captured %s  a=%s b=%s pin=%s" % (
+    log("captured %s  a=%s b=%s pin=%s frame_pin=%s/%s" % (
         state_id, fa.get("w"), fb.get("w"),
         {k: r1.get(k) for k in ("ok", "kind", "size", "squish", "death_ticks",
-                                "eid", "value", "face") if k in r1}))
+                                "eid", "uuid", "render_pin_armed", "value", "face")
+         if k in r1},
+        fa.get("render_pin"), fb.get("render_pin")))
+    # Squish/dragon goldens are worthless without a live client render pin.
+    needs_pin = (state_id.endswith("_squish")
+                 or state_id.startswith("dragon_death_"))
+    if needs_pin and not (fa.get("render_pin") and fb.get("render_pin")):
+        raise RuntimeError(
+            "frame{} did not apply client render pin for %s (a=%s b=%s pin=%s)" % (
+                state_id, fa.get("render_pin"), fb.get("render_pin"), r1))
     return meta
 
 

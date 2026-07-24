@@ -8,10 +8,10 @@ PNGs. Geometry gates in `test_geom_gates.c` stay separate.
 | ID | Feature | How |
 |----|---------|-----|
 | `slime_size1` / `slime_size2` / `slime_size4` | EntitySlime getSlimeSize + LayerSlimeGel | `entity_pin` kind=slime size N squish=0 |
-| `slime_squish` | squishFactor=1.0 (landing) on size 2 | `entity_pin` squish=1 |
+| `slime_squish` | client squishFactor=prev=amount=1.0 on size 2 | `entity_pin` + frame render pin |
 | `magma_size1` / `magma_size2` / `magma_size4` | EntityMagmaCube size | `entity_pin` kind=magma_cube |
-| `magma_squish` | magma squishFactor=1.0 size 2 | `entity_pin` squish=1 |
-| `dragon_death_50` / `100` / `190` | death rays + dissolve; 190 in HUGE window | `entity_pin` kind=dragon death_ticks=N |
+| `magma_squish` | client squishFactor=prev=amount=1.0 size 2 | `entity_pin` + frame render pin |
+| `dragon_death_50` / `100` / `190` | client deathTicks; server stays alive | `entity_pin` + frame render pin |
 | `dig_stone` / `dig_grass` | ParticleDigging hit spray | `entity_pin` dig_hit on stone/grass face UP |
 | `fireball_small` | RenderFireball scale 0.3125 + fire | `entity_pin` small_fireball |
 | `fireball_dragon` | RenderDragonFireball 2x | `entity_pin` dragon_fireball |
@@ -41,10 +41,16 @@ bash raster/verify/ui_entities/run_oracle_gate.sh
 3. `setblocks` pad / dig targets (never `/fill` into unloaded columns).
 4. `entity_pin` + settle for client entity packets, then A/B `frame{rerender:true}`.
 5. Dragon: pose to high air, place end-stone shelf, then pin death_ticks.
+6. Render pin: slime/magma `squishFactor`/`prevSquishFactor`/`squishAmount` and
+   dragon `deathTicks` are applied on the **client** entity (UUID/eid/pos/type
+   match). `frame{}` re-applies the pending pin immediately before
+   `renderWorld(1.0)` and restores afterward so no intervening client tick
+   overwrites the freeze. Server dragon stays alive (health full, deathTicks=0)
+   while client render state is 50/100/190.
 
 Reuse the project MalmoMod jar only (no `qrl_bridge.jar` in mods). Preserve
 existing non-empty goldens unless `FORCE_RECAPTURE=1`. Optional:
-`ONLY_STATES="slime_size2 magma_size2"`.
+`ONLY_STATES="slime_squish magma_squish dragon_death_50"`.
 
 ## Gate policy
 
@@ -53,8 +59,12 @@ the raster noise floor (default 0.5 mean abs RGB). Zero unexplained residual
 budget outside noise. Presence assert: Java A ROI must differ from a blank
 sky sample (feature not empty).
 
-Post-capture, `validate_ui_entities_goldens.py` must PASS (presence + A/B
-stability) before any commit. Never commit empty sky frames.
+Post-capture, `validate_ui_entities_goldens.py` must PASS before any commit:
+presence + A/B stability **and** inter-state geometry (squish taller/thinner
+than size2, size pairs distinct, dragon stages pairwise distinct with
+body/ray subject, reject near-empty 190). Approval is Pillow/numpy ROI stats,
+never filesize alone. Never commit empty sky frames.
 
 If C exactness is not reached, the ROI compare stays FAIL and prints clusters;
 Java goldens remain usable as the oracle baseline when validation PASSes.
+C-vs-J residual stays open until `run_oracle_gate.sh` is closed separately.
