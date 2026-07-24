@@ -48,6 +48,7 @@ ITEM_SPRITES = [
     (289, "gunpowder.png"),
     (295, "seeds_wheat.png"),
     (296, "wheat.png"),
+    (297, "bread.png"),  # hand_eat_mid viewmodel (was fallback iron_ingot)
     (318, "flint.png"),
     (319, "porkchop_raw.png"),
     (320, "porkchop_cooked.png"),
@@ -115,25 +116,51 @@ def main():
         for item_id, member in ITEM_SPRITES:
             data = zf.read(SPECIAL_PATHS.get(item_id, ITEMS + member))
             img = Image.open(io.BytesIO(data)).convert("RGBA")
-            if img.size != (TILE, TILE):
-                # Entity textures (shield 64x64, dragon fireball) resize into a
-                # tile; UV fractions in hand.c stay proportional to source.
+            name = member[:-4] if member.endswith(".png") else member
+            # ModelShield samples entity/shield_base_nopattern at native 64x64
+            # (box-net UVs in texels). Keep full res; do not downscale to 16.
+            # Other non-16 entity sprites (dragon fireball) still fit a tile.
+            if img.size != (TILE, TILE) and item_id != 442:
                 img = img.resize((TILE, TILE), Image.NEAREST)
-            imgs.append((item_id, member[:-4] if member.endswith(".png") else member, img))
+            imgs.append((item_id, name, img))
 
-    # fixed grid of 16x16 tiles, 8 per row, on a pow2 canvas
-    per_row = 8
-    rows = (len(imgs) + per_row - 1) // per_row
-    canvas_w = next_pow2(per_row * TILE)
-    canvas_h = next_pow2(rows * TILE)
+    # Shelf-pack native sizes (mostly 16x16; shield is 64x64) onto a pow2 canvas.
+    # Sort by height desc so the tall shield lands first and 16x16 fill shelves.
+    order = sorted(range(len(imgs)), key=lambda i: (-imgs[i][2].size[1], imgs[i][0]))
+    shelves = []  # list of [y, height, x_cursor]
+    placed = [None] * len(imgs)  # (x0,y0,x1,y1)
+    canvas_w_needed = 0
+    canvas_h_needed = 0
+    # Prefer ~8 tiles wide for the 16x16 majority (~128 px).
+    shelf_width = max(8 * TILE, max(im.size[0] for _, _, im in imgs))
+    for i in order:
+        item_id, name, img = imgs[i]
+        w, h = img.size
+        best = None
+        for s in shelves:
+            if s[1] >= h and s[2] + w <= shelf_width:
+                best = s
+                break
+        if best is None:
+            y = canvas_h_needed
+            best = [y, h, 0]
+            shelves.append(best)
+            canvas_h_needed = y + h
+        x = best[2]
+        best[2] = x + w
+        if best[2] > canvas_w_needed:
+            canvas_w_needed = best[2]
+        placed[i] = (x, best[0], x + w, best[0] + h)
 
+    canvas_w = next_pow2(max(canvas_w_needed, shelf_width))
+    canvas_h = next_pow2(canvas_h_needed)
     atlas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-    rects = []  # (id, name, x0, y0, x1, y1)
+    rects = []  # (id, name, x0, y0, x1, y1) sorted by item id
     for i, (item_id, name, img) in enumerate(imgs):
-        x = (i % per_row) * TILE
-        y = (i // per_row) * TILE
-        atlas.paste(img, (x, y))
-        rects.append((item_id, name, x, y, x + TILE, y + TILE))
+        x0, y0, x1, y1 = placed[i]
+        atlas.paste(img, (x0, y0))
+        rects.append((item_id, name, x0, y0, x1, y1))
+    rects.sort(key=lambda t: t[0])
 
     atlas.save(DUMP_PNG)
 

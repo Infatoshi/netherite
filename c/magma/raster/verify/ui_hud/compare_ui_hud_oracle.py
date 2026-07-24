@@ -104,11 +104,17 @@ def roi_rect(name):
     if name in ("hud_death_btn_title",):
         return DEATH_BTN1
     if name.startswith("hand_"):
-        # Non-hotbar lower-right viewmodel: above hotbar chrome (GUI y=sh-22).
+        # Non-hotbar viewmodel band above hotbar chrome (GUI y=sh-22).
+        # Idle / bow / block sit lower-right. Mid-eat (transformEatFirstPerson
+        # f3≈1) swings the item toward screen center — a lower-right-only ROI
+        # would score a false PASS on a few edge pixels. Use a wider lower band
+        # for eat so residual is measured on the actual painted feature.
         hb_y = (SH - 22) * S
+        y1 = max(H * 2 // 3 + 8, hb_y - 4)
+        if name == "hand_eat_mid":
+            return (W // 3, H // 2, W - 8, y1)
         x0, y0 = W * 2 // 3, H * 2 // 3
-        x1, y1 = W - 8, max(y0 + 8, hb_y - 4)
-        return (x0, y0, x1, y1)
+        return (x0, y0, W - 8, y1)
     if name.startswith("overlay_"):
         return (2, 2, W - 2, H - 2)
     return (0, 0, W, H)

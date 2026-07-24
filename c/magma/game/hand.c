@@ -658,8 +658,9 @@ static CrMat4 build_block_use(float equip) {
 }
 
 /* models/item/shield.json + shield_blocking.json firstperson_righthand.
- * builtin/entity path: no RenderItem T(-0.5); TEISR then scale(1,-1,-1).
- * translation values in JSON are 1/16-block units. */
+ * ItemCameraTransforms.applyTransformSide (makeQuaternion XYZ) then
+ * RenderItem.renderItem T(-0.5) then TEISR scale(1,-1,-1).
+ * JSON translation values are in 1/16-block units (*0.0625). */
 static CrMat4 apply_shield_fp_camera(CrMat4 M, int blocking) {
     /* idle: rot [0,180,5] trans [-10,2,-10] scale 1.25
      * blocking: rot [0,180,-5] trans [-15,5,-11] scale 1.25 */
@@ -670,66 +671,87 @@ static CrMat4 apply_shield_fp_camera(CrMat4 M, int blocking) {
     M = mul(M, mat_translate(tx * ARM_SCALE, ty * ARM_SCALE, tz * ARM_SCALE));
     M = mul(M, mat_rot_xyz(0.0f, 180.0f, rz));
     M = mul(M, mat_scale(1.25f, 1.25f, 1.25f));
-    /* RenderItem.renderItem: T(-0.5) even for builtin/entity before TEISR. */
     M = mul(M, mat_translate(-0.5f, -0.5f, -0.5f));
-    /* TileEntityItemStackRenderer: GlStateManager.scale(1, -1, -1) */
     M = mul(M, mat_scale(1.0f, -1.0f, -1.0f));
     return M;
 }
 
-/* ModelShield: plate (-6,-11,-2)+(12,22,1), handle (-1,-3,-1)+(2,6,6),
- * both * 0.0625. UV from shield_base_nopattern (64x64 atlas cell). */
+/* ModelBox box-net UV face (texU/texV origin, size dx,dy,dz in texels).
+ * Vertex order and (u1,v1,u2,v2) match ModelBox.java lines 75-80; TexturedQuad
+ * assigns v0=(u2,v1) v1=(u1,v1) v2=(u1,v2) v3=(u2,v2). Positions are pre-scale
+ * pixel units; caller multiplies by 0.0625 via xform. */
+typedef struct {
+    int c[4];
+    int u1, v1, u2, v2;
+} ModelBoxFace;
+
+/* Emit one ModelBox: 6 faces * 6 verts. Lighting is RenderHelper diffuse only
+ * (entity models do NOT use block face shades 0.5/0.6/0.8/1.0). */
+static int emit_model_box(CrMat4 M, int texU, int texV,
+                          float x, float y, float z,
+                          int dx, int dy, int dz,
+                          float au0, float av0, float au1, float av1,
+                          float texW, float texH,
+                          CrVertex *out, int max) {
+    if (max < 36) return 0;
+    float f = x + (float)dx, f1 = y + (float)dy, f2 = z + (float)dz;
+    /* P0..P7 as ModelBox */
+    const float P[8][3] = {
+        { x,  y,  z  }, { f,  y,  z  }, { f,  f1, z  }, { x,  f1, z  },
+        { x,  y,  f2 }, { f,  y,  f2 }, { f,  f1, f2 }, { x,  f1, f2 },
+    };
+    /* Face corner indices + net UV rects (ModelBox.quadList). */
+    const ModelBoxFace faces[6] = {
+        { {5,1,2,6}, texU + dz + dx,       texV + dz, texU + dz + dx + dz, texV + dz + dy }, /* +X */
+        { {0,4,7,3}, texU,                 texV + dz, texU + dz,           texV + dz + dy }, /* -X */
+        { {5,4,0,1}, texU + dz,            texV,      texU + dz + dx,      texV + dz     }, /* -Y */
+        { {2,3,7,6}, texU + dz + dx,       texV + dz, texU + dz + dx + dx, texV          }, /* +Y V-flip */
+        { {1,0,3,2}, texU + dz,            texV + dz, texU + dz + dx,      texV + dz + dy }, /* -Z */
+        { {4,5,6,7}, texU + dz + dx + dz,  texV + dz, texU + dz + dx + dz + dx, texV + dz + dy }, /* +Z */
+    };
+    float du = (au1 - au0) / texW, dv = (av1 - av0) / texH;
+    CrRgba white = {255, 255, 255, 255};
+    int w = 0;
+    for (int fi = 0; fi < 6; ++fi) {
+        const ModelBoxFace *F = &faces[fi];
+        /* TexturedQuad UV for corners 0..3 */
+        float uu[4] = {
+            au0 + (float)F->u2 * du, au0 + (float)F->u1 * du,
+            au0 + (float)F->u1 * du, au0 + (float)F->u2 * du,
+        };
+        float vv[4] = {
+            av0 + (float)F->v1 * dv, av0 + (float)F->v1 * dv,
+            av0 + (float)F->v2 * dv, av0 + (float)F->v2 * dv,
+        };
+        CrVertex q[4];
+        for (int c = 0; c < 4; ++c) {
+            const float *pp = P[F->c[c]];
+            CrVec4 p4 = { pp[0] * ARM_SCALE, pp[1] * ARM_SCALE,
+                          pp[2] * ARM_SCALE, 1.0f };
+            CrVec4 e = cr_mat4_mul_vec4(M, p4);
+            vtx_init(&q[c], (CrVec3){ e.x, e.y, e.z }, uu[c], vv[c], 1.0f, white);
+        }
+        float d = hand_diffuse(quad_normal(q[0].pos, q[1].pos, q[2].pos));
+        for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
+        for (int k = 0; k < 6; ++k) out[w++] = q[HAND_TRI[k]];
+    }
+    return w;
+}
+
+/* ModelShield: plate addBox(-6,-11,-2, 12,22,1) tex(0,0); handle
+ * addBox(-1,-3,-1, 2,6,6) tex(26,0); textureWidth/Height 64; *0.0625.
+ * UV net from shield_base_nopattern (native 64x64 atlas rect). */
 static int emit_held_shield(CrMat4 M, CrVertex *out, int max) {
-    /* 2 boxes * 6 faces * 6 verts = 72 */
     if (max < 72) return 0;
     const float aw = (float)CR_ITEM_ATLAS_W, ah = (float)CR_ITEM_ATLAS_H;
     const CrItemSprite *s = &CR_ITEM_SPRITES[gm_item_sprite_index(442)];
-    float u0 = (float)s->x0 / aw, v0 = (float)s->y0 / ah;
-    float u1 = (float)s->x1 / aw, v1 = (float)s->y1 / ah;
-    /* Plate uses tex (0,0) 12x22 of 64x64; handle (26,0) 6x6. Map into the
-     * atlas cell proportionally (full cell if sprite is the whole 64x64). */
-    float du = u1 - u0, dv = v1 - v0;
-    float pu0 = u0, pv0 = v0;
-    float pu1 = u0 + 12.0f / 64.0f * du, pv1 = v0 + 22.0f / 64.0f * dv;
-    float hu0 = u0 + 26.0f / 64.0f * du, hv0 = v0;
-    float hu1 = u0 + 32.0f / 64.0f * du, hv1 = v0 + 6.0f / 64.0f * dv;
-
-    typedef struct { float x0, y0, z0, x1, y1, z1; float uu0, vv0, uu1, vv1; } Box;
-    const Box boxes[2] = {
-        /* plate: addBox(-6,-11,-2, 12, 22, 1) */
-        { -6.f, -11.f, -2.f, 6.f, 11.f, -1.f, pu0, pv0, pu1, pv1 },
-        /* handle: addBox(-1,-3,-1, 2, 6, 6) */
-        { -1.f, -3.f, -1.f, 1.f, 3.f, 5.f, hu0, hv0, hu1, hv1 },
-    };
+    float au0 = (float)s->x0 / aw, av0 = (float)s->y0 / ah;
+    float au1 = (float)s->x1 / aw, av1 = (float)s->y1 / ah;
     int w = 0;
-    CrRgba white = {255, 255, 255, 255};
-    for (int b = 0; b < 2; ++b) {
-        const Box *bx = &boxes[b];
-        float cx[2] = { bx->x0, bx->x1 };
-        float cy[2] = { bx->y0, bx->y1 };
-        float cz[2] = { bx->z0, bx->z1 };
-        for (int f = 0; f < 6; ++f) {
-            CrVertex q[4];
-            for (int c = 0; c < 4; ++c) {
-                int ix = HAND_CUBE_FACES[f].c[c][0];
-                int iy = HAND_CUBE_FACES[f].c[c][1];
-                int iz = HAND_CUBE_FACES[f].c[c][2];
-                float px = cx[ix] * ARM_SCALE;
-                float py = cy[iy] * ARM_SCALE;
-                float pz = cz[iz] * ARM_SCALE;
-                float uu = bx->uu0 + HAND_CUV[c][0] * (bx->uu1 - bx->uu0);
-                float vv = bx->vv0 + HAND_CUV[c][1] * (bx->vv1 - bx->vv0);
-                CrVec4 p4 = { px, py, pz, 1.0f };
-                CrVec4 e = cr_mat4_mul_vec4(M, p4);
-                vtx_init(&q[c], (CrVec3){ e.x, e.y, e.z }, uu, vv, 1.0f, white);
-            }
-            float d = hand_diffuse(quad_normal(q[0].pos, q[1].pos, q[2].pos));
-            d *= HAND_CUBE_FACES[f].shade;
-            if (d > 1.0f) d = 1.0f;
-            for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
-            for (int k = 0; k < 6; ++k) out[w++] = q[HAND_TRI[k]];
-        }
-    }
+    w += emit_model_box(M, 0, 0, -6.f, -11.f, -2.f, 12, 22, 1,
+                        au0, av0, au1, av1, 64.f, 64.f, out + w, max - w);
+    w += emit_model_box(M, 26, 0, -1.f, -3.f, -1.f, 2, 6, 6,
+                        au0, av0, au1, av1, 64.f, 64.f, out + w, max - w);
     return w;
 }
 

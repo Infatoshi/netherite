@@ -39,11 +39,15 @@ static int region_non_gray(const CrFramebuffer *fb, int x0, int y0, int x1, int 
     return 0;
 }
 
+/* Mean R over non-gray painted pixels only (gray fill would dilute a large ROI
+ * enough for idle vs mid-eat to collide on integer means). */
 static int region_mean_r(const CrFramebuffer *fb, int x0, int y0, int x1, int y1) {
     long sum = 0; int n = 0;
     for (int y = y0; y < y1; ++y)
         for (int x = x0; x < x1; ++x) {
-            sum += fb->color[y * fb->w + x].r;
+            CrRgba c = fb->color[y * fb->w + x];
+            if (c.r == GRAY && c.g == GRAY && c.b == GRAY) continue;
+            sum += c.r;
             ++n;
         }
     return n ? (int)(sum / n) : 0;
@@ -167,19 +171,23 @@ int main(void) {
     pv.absorption = 0.0f;
 
     /* ---- (3) Hand eat pose wired through gm_hand_draw (not test setter only) ---- */
+    /* Idle sits lower-right; mid-eat (remaining=16/32) uses transformEatFirstPerson
+     * with f3≈1 and swings the item toward screen center. Compare on a shared
+     * lower band that covers both poses (not idle-only lower-right). */
+    const int hand_x0 = W / 3, hand_y0 = H / 2, hand_x1 = W - 20, hand_y1 = H - 20;
     fill_gray(&fb);
     pv.use_action = 0; pv.use_remaining = 0; pv.use_max = 0;
     gm_hand_draw(&fb, &pv, 0.0f);
-    int idle_r = region_mean_r(&fb, W * 2 / 3, H * 2 / 3, W - 20, H - 20);
+    int idle_r = region_mean_r(&fb, hand_x0, hand_y0, hand_x1, hand_y1);
     CHECK(region_non_gray(&fb, W * 2 / 3, H * 2 / 3, W - 20, H - 20),
           "compose: idle hand draws lower-right viewmodel");
 
     fill_gray(&fb);
     pv.use_action = 1; pv.use_remaining = 16; pv.use_max = 32; /* mid-eat */
     gm_hand_draw(&fb, &pv, 0.0f);
-    int eat_r = region_mean_r(&fb, W * 2 / 3, H * 2 / 3, W - 20, H - 20);
-    CHECK(region_non_gray(&fb, W * 2 / 3, H * 2 / 3, W - 20, H - 20),
-          "compose: eat hand draws lower-right viewmodel");
+    int eat_r = region_mean_r(&fb, hand_x0, hand_y0, hand_x1, hand_y1);
+    CHECK(region_non_gray(&fb, hand_x0, hand_y0, hand_x1, hand_y1),
+          "compose: eat hand draws mid/lower viewmodel");
     /* Non-vacuous: eat pose must change the region mean vs idle (not OR drawn). */
     CHECK(idle_r != eat_r, "compose: eat use changes hand region mean (non-vacuous)");
 

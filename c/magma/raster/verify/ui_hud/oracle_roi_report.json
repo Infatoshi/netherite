@@ -13,13 +13,13 @@
     {
       "id": "hand_eat_mid",
       "noise": 0.0,
-      "c_vs_j": 45.77581733264141,
+      "c_vs_j": 50.86531355845222,
       "gate": 2.0
     },
     {
       "id": "hand_block_shield",
       "noise": 0.0,
-      "c_vs_j": 50.212814690885914,
+      "c_vs_j": 40.34291290753022,
       "gate": 2.0
     }
   ],
@@ -286,24 +286,24 @@
     {
       "id": "hand_eat_mid",
       "noise": 0.0,
-      "c_vs_j": 45.77581733264141,
+      "c_vs_j": 50.86531355845222,
       "gate": 2.0,
       "verdict": "RESIDUAL",
       "roi": [
-        569,
-        320,
+        284,
+        240,
         846,
         432
       ],
       "hard": true,
-      "n_painted": 1927,
+      "n_painted": 38972,
       "noise_limit": 2.0,
       "reason": "hard_residual"
     },
     {
       "id": "hand_block_shield",
       "noise": 0.0,
-      "c_vs_j": 50.212814690885914,
+      "c_vs_j": 40.34291290753022,
       "gate": 2.0,
       "verdict": "RESIDUAL",
       "roi": [
@@ -313,7 +313,7 @@
         432
       ],
       "hard": true,
-      "n_painted": 16736,
+      "n_painted": 16737,
       "noise_limit": 2.0,
       "reason": "hard_residual"
     },

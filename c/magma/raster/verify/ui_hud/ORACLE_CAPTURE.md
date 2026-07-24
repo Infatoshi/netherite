@@ -100,8 +100,13 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   still force-painted HUD. Fix: `frame{}` + `hud_pin` clear `hideGUI` and
   pin equip/`itemStackMainHand`/active use. Presence rejects empty-hand
   baseline clones and cross-state-identical ROIs. Hard C residual remains
-  (registration/lighting; bow ~55, eat ~46, shield ~50 at A/B noise 0) —
-  no budgets/masking; RESIDUAL nonzero, not parity.
+  (registration/lighting; no budgets/masking; RESIDUAL nonzero, not parity).
+- **Viewmodel ports in flight:** bread (297) is in the item atlas (was silent
+  iron_ingot fallback). Shield keeps native 64x64 `shield_base_nopattern` and
+  ModelBox box-net UVs + RenderHelper diffuse only (no block face shades).
+  Mid-eat ROI is the wider lower band so residual is not a false PASS on
+  lower-right edge crumbs. Remaining gap is first-person registration vs Java
+  (C silhouettes larger/higher than the genuine tips) plus lighting nuance.
 - **Drawn-bow registration (#29):** geometry follows ItemRenderer BOW branch at
   partialTicks=1; still-draw A/B against genuine `hand_bow_pull20.png` now
   available for further tuning (C residual ~55/ch on non-hotbar ROI).
