@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "captured": "2026-07-24",
+  "pin": {
+    "cmd": "pin_preview_anim",
+    "ticks_existed": -1,
+    "age_in_ticks": 0.0,
+    "note": "drawEntityOnScreen partialTicks=1 => age = ticksExisted+1 = 0"
+  },
+  "geometry": {
+    "idle_arm_z": 0.10,
+    "formula": "cos(age*0.09)*0.05+0.05 at age=0",
+    "unit_test": "game/test_player_preview.sh"
+  },
+  "control": {
+    "description": "Measured raster-vs-GL floor on inventory preview pose1 (parked mouse, empty inv) after pin + arm-Z fix. J-vs-J noise was exactly 0 (bit-identical A/B). Residual is soft lighting/filtering plus 2 hard silhouette pixels; not an arbitrary +1.0 margin.",
+    "pose": "pose1",
+    "roi": "104x144",
+    "noise_mean_abs": 0.0,
+    "magma_vs_j_mean_abs": 0.15763,
+    "hard_thr": 10.0,
+    "hard_px": 2,
+    "p50": 0.0,
+    "p95": 0.75,
+    "p99": 1.0
+  },
+  "gate": {
+    "mean_allowance": 0.20,
+    "hard_px_cap": 16,
+    "hard_thr": 10.0,
+    "headroom_note": "mean_allowance = measured pose1 mean * 1.25 (0.15763*1.25≈0.197); hard_px_cap covers fill-rule silhouette budget at this ROI size"
+  }
+}

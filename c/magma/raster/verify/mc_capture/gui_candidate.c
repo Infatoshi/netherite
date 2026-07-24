@@ -9,9 +9,11 @@
  * cursor pointer stays outside the panel crop. The 3D scene behind the
  * gradient dim is NOT compared (the diff crops to the panel inset).
  *
- *   gui_candidate --container 0|1|2|3 [--w 854 --h 480] [--ppm PATH]
+ *   gui_candidate --container 0|1|2|3 [--w 854 --h 480] [--mx N --my N] [--ppm PATH]
  *
- * Prints "PANEL x y w h scale" (framebuffer px) for the diff script.
+ * Default mouse (5,5) parks the cursor outside the panel (no hover). Pass
+ * framebuffer mouse coords for a second inventory look-at pose (e.g. slot A
+ * at 282,258). Prints "PANEL x y w h scale" for the diff script.
  */
 #include "game/screen.h"
 #include "game/runtime.h"
@@ -36,11 +38,14 @@ static int write_ppm(const char *path, const CrRgba *px, int w, int h)
 int main(int argc, char **argv)
 {
     int container = 1, W = 854, H = 480;
+    int mx = 5, my = 5; /* parked: no slot hover, look-at near corner */
     const char *out = "/tmp/gui_candidate.ppm";
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--container") && i + 1 < argc) container = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--w") && i + 1 < argc) W = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--h") && i + 1 < argc) H = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--mx") && i + 1 < argc) mx = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--my") && i + 1 < argc) my = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--ppm") && i + 1 < argc) out = argv[++i];
         else { fprintf(stderr, "unknown arg %s\n", argv[i]); return 2; }
     }
@@ -65,7 +70,7 @@ int main(int argc, char **argv)
         fb.color[i] = g;
     }
 
-    gm_screen_draw(&fb, &r, 5, 5);
+    gm_screen_draw(&fb, &r, mx, my);
 
     if (write_ppm(out, fb.color, W, H)) { fprintf(stderr, "write failed\n"); return 1; }
     /* vanilla GuiContainer origin: floor((scaledW - 176) / 2) in gui units */

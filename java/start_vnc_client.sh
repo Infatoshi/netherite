@@ -11,6 +11,9 @@ export PATH="$JAVA_HOME/bin:$PATH"
 export DISPLAY=:1
 export LIBGL_ALWAYS_SOFTWARE=1          # force llvmpipe software GL (keep off the busy NVIDIA GPU)
 export MESA_GL_VERSION_OVERRIDE=2.1      # MC 1.11.2 expects a GL 2.x context
+# Fresh openjdk-8 packages enable GNOME Atk assistive tech by default; under
+# Xvfb that throws AWTError and aborts GradleStart before the bridge binds.
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Djavax.accessibility.assistive_technologies="
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # repo root
 MCDIR="$DIR/Minecraft"
 VNCPW="redstone"                         # 8-char VNC password (VNC protocol caps at 8)

@@ -266,6 +266,7 @@ test-game: test-config test-block-registry test-launch assets/mob_atlas.h
 	bash game/test_container_live.sh
 	bash game/test_armor_live.sh
 	bash game/test_screen.sh
+	bash game/test_player_preview.sh
 	bash game/test_chest_loot.sh
 	bash game/test_mob_live.sh
 	bash game/test_stronghold_live.sh

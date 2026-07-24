@@ -14,6 +14,7 @@ import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.world.GameType;
 import net.minecraft.world.WorldSettings;
 import net.minecraft.world.WorldType;
+import net.minecraftforge.client.event.RenderPlayerEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -72,6 +73,16 @@ public class QuantizedRL {
     private int deaths = 0;
     /** When true, skip auto-respawn so death-screen oracle captures can freeze. */
     private volatile boolean holdDeath = false;
+
+    // Inventory player-preview capture pin: freeze ModelBiped ageInTicks so
+    // GuiInventory.drawEntityOnScreen (partialTicks=1.0) is same-state for A/B
+    // grabs. handleRotationFloat = ticksExisted + partialTicks; with partial=1
+    // and ticksExisted=-1, ageInTicks=0 -> idle arm Z = ±0.10 exactly.
+    private static volatile boolean pinPreviewAnim = false;
+    private static volatile int pinPreviewTicksExisted = -1;
+    private int pinSavedTicksExisted = 0;
+    private float pinSavedLimbSwing = 0, pinSavedLimbSwingAmount = 0, pinSavedPrevLimb = 0;
+    private boolean pinSavedValid = false;
 
     // ---- chain-RL protocol v2 state (semantic camera / craft / interact) ----
     // Mirrors c/magma/game/rl_mode.c semantics so the blaze-trained policy
@@ -278,7 +289,8 @@ public class QuantizedRL {
             case "dumpblocks": case "frame": case "gldiag": case "focusdiag": case "camera": case "sample_light":
             case "recstart": case "recstop":
             case "getblocks": case "setblocks":
-            case "summon": case "getentities": case "killentities": break;
+            case "summon": case "getentities": case "killentities":
+            case "pin_preview_anim": break;
             case "coverage_reset": case "coverage_dump":
             case "coverage_setfile": case "coverage_enable": return handleCoverage(cmd, action);
             default: return err("unknown cmd");
@@ -700,11 +712,47 @@ public class QuantizedRL {
     private long srvTicks = 0;
 
     // ---------------- game thread ----------------
+    /** Apply pin fields just before the player model renders (inventory preview). */
+    @SubscribeEvent
+    public void onRenderPlayerPre(RenderPlayerEvent.Pre e) {
+        if (!pinPreviewAnim) return;
+        net.minecraft.entity.player.EntityPlayer p = e.getEntityPlayer();
+        if (p != Minecraft.getMinecraft().player) return;
+        pinSavedTicksExisted = p.ticksExisted;
+        pinSavedLimbSwing = p.limbSwing;
+        pinSavedLimbSwingAmount = p.limbSwingAmount;
+        pinSavedPrevLimb = p.prevLimbSwingAmount;
+        pinSavedValid = true;
+        p.ticksExisted = pinPreviewTicksExisted;
+        p.limbSwing = 0.0F;
+        p.limbSwingAmount = 0.0F;
+        p.prevLimbSwingAmount = 0.0F;
+    }
+
+    @SubscribeEvent
+    public void onRenderPlayerPost(RenderPlayerEvent.Post e) {
+        if (!pinPreviewAnim || !pinSavedValid) return;
+        net.minecraft.entity.player.EntityPlayer p = e.getEntityPlayer();
+        if (p != Minecraft.getMinecraft().player) return;
+        p.ticksExisted = pinSavedTicksExisted;
+        p.limbSwing = pinSavedLimbSwing;
+        p.limbSwingAmount = pinSavedLimbSwingAmount;
+        p.prevLimbSwingAmount = pinSavedPrevLimb;
+        pinSavedValid = false;
+    }
+
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent e) {
         if (e.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getMinecraft();
         mc.gameSettings.pauseOnLostFocus = false; // headless window never has focus; keep the server ticking
+        // Keep limb swing zeroed while pinned so any path that samples between
+        // ticks (not only RenderPlayer) still sees a parked idle pose.
+        if (pinPreviewAnim && mc.player != null) {
+            mc.player.limbSwing = 0.0F;
+            mc.player.limbSwingAmount = 0.0F;
+            mc.player.prevLimbSwingAmount = 0.0F;
+        }
         // The headless window auto-opens the pause menu (no focus), which freezes the
         // integrated server -> ticks only every ~120s. Close it so the game keeps running.
         // Only the pause menu; leave inventory/chest/chat GUIs alone. During human play
@@ -2836,6 +2884,25 @@ public class QuantizedRL {
                     fr.resp.offer(o.toString());
                 } catch (Throwable t) { fr.resp.offer(err("getentities: " + t)); }
             }});
+            return;
+        }
+
+        // pin_preview_anim: freeze the local player's living-anim clock for inventory
+        // player-preview goldens. drawEntityOnScreen calls doRenderEntity(..., partial=1),
+        // so ageInTicks = ticksExisted + 1. Default ticksExisted=-1 => age=0 (idle arm Z
+        // ±0.10, no arm X bob). A/B captures under the pin share one model pose.
+        if (r.cmd.equals("pin_preview_anim")) {
+            try {
+                boolean en = !r.action.has("enable") || r.action.get("enable").getAsBoolean();
+                pinPreviewAnim = en;
+                if (r.action.has("ticks_existed"))
+                    pinPreviewTicksExisted = r.action.get("ticks_existed").getAsInt();
+                else if (en)
+                    pinPreviewTicksExisted = -1;
+                if (!en) pinSavedValid = false;
+                reply(r, "{\"ok\":true,\"enable\":" + pinPreviewAnim
+                    + ",\"ticks_existed\":" + pinPreviewTicksExisted + "}");
+            } catch (Throwable t) { reply(r, err("pin_preview_anim: " + t)); }
             return;
         }
 

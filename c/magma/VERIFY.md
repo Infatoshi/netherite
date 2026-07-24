@@ -198,11 +198,17 @@ Two tapes are ground truth; nothing else is a match target:
   day-to-day use by replay_tape.py but keeps the fast physics-only C harness.
 - Frame-capture one-shots (rung 4, GUI, sky): `raster/verify/mc_capture/` -
   legacy single-frame gates, still wired to `make rung4-verify` etc.
-- Container screens: `raster/verify/mc_capture/run_gui_verify.sh` covers all
-  three implemented magma screens (inventory, crafting table, furnace).
-  `capture_gui_actions.sh` + `run_gui_actions_verify.sh` verify inventory
-  PICKUP, split/deposit, QUICK_MOVE, hotbar swap, THROW, cursor, counts, hover,
-  and close against the real GUI after each operation.
+- Container screens: `raster/verify/mc_capture/run_gui_verify.sh` covers
+  inventory, crafting table, furnace, and single chest. Inventory preview is a
+  hard 104x144 ROI gate under qrl `pin_preview_anim` (ageInTicks=0 so ModelBiped
+  idle arm Z = ±0.10); pose1 (parked mouse) and pose2 (slot A) each use their
+  own A/B noise. Raster-vs-GL mean allowance comes from
+  `gui_preview_calibration.json` (measured pose1 control), not an arbitrary
+  +1.0. Geometry unit test: `game/test_player_preview.sh`. Chest fails closed
+  without `mc_gui_chest_{a,b}.png`. `capture_gui_actions.sh` +
+  `run_gui_actions_verify.sh` verify inventory PICKUP, split/deposit,
+  QUICK_MOVE, hotbar swap, THROW, cursor, counts, hover, and close against the
+  real GUI after each operation (preview masked; pose gated in run_gui_verify).
 - Open bugs: `OPEN_DIVERGENCES.md` (repro command per entry).
 
 ## Mechanics pixel-coverage audit (2026-07-22)
@@ -318,7 +324,8 @@ bounds, but they are not oracle pixels.
 | Dragon boss bar fill and label | `game/hud.c:gm_hud_set_boss`; `game/hud.c:gm_hud_draw` | Dragon sim/geometry gates | **No**: `bossbar` accepted class does not verify contents | High | Fight dragon from full to half health and keep the bar unobstructed. |
 | Crosshair inversion | `game/hud.c:hud_draw_crosshair` | `game/test_hud.sh` | **Yes**: canonical static poses | Low | Pan crosshair over black, white, sky, water, and a mob. |
 | Death red wash, banner, and counter | `game/hud.c:gm_hud_draw` | No focused death-HUD test | **No** | High | Let a hostile kill the player and hold through the complete death screen. |
-| Player inventory panel | `game/screen.c:gm_screen_draw`; `game/screen.c:gm_screen_layout` | `game/test_screen.sh` | **Partial**: informational GUI gate; player-model preview is absent | High | Open a populated inventory, move cursor across armor/craft/hotbar slots, then close. |
+| Player inventory panel | `game/screen.c:gm_screen_draw`; `game/player_preview.c` | `game/test_screen.sh`; `game/test_player_preview.sh`; `run_gui_verify.sh` | **Yes** for empty static panel + preview ROI (pose1/pose2 at measured floor under pin; not bit-exact) | High | Open a populated inventory, move cursor across armor/craft/hotbar slots, then close. |
+| Single chest panel | `game/screen.c:gm_screen_draw`; `game/chest_live.c` | `run_gui_verify.sh` (fail-closed without goldens) | **Yes** for empty static panel only | Medium | Open an empty single chest and a looted stronghold chest. |
 | Crafting-table panel | `game/screen.c:gm_screen_draw`; `game/screen.c:gm_screen_layout` | `game/test_screen.sh` | **Yes** for empty static panel only | Medium | Open table with a populated 3x3 recipe and hover every active slot. |
 | Furnace panel | `game/screen.c:gm_screen_draw`; `game/screen.c:gm_screen_layout` | `game/test_screen.sh` | **Yes** for empty static panel only | Medium | Open a burning furnace with input/fuel/output and changing progress. |
 | GUI stack icons/counts, hover, cursor stack | `game/screen.c:draw_stack`; `game/screen.c:gm_screen_draw` | Layout and container tests | **No** | High | Split and carry several stacks while hovering slots in all three GUIs. |

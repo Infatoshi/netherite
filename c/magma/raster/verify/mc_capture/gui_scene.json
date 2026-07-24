@@ -6,7 +6,7 @@
   "inventory": [],
   "time": {
     "world_time": 6000,
-    "total_time": 81,
+    "total_time": 100,
     "moon_phase": 0,
     "raining": false,
     "thundering": false
@@ -17,7 +17,15 @@
   "screens": [
     "table",
     "furnace",
-    "inventory"
+    "inventory",
+    "chest",
+    "inventory_pose2"
   ],
-  "notes": "Empty survival inventory, frozen clear noon, mouse parked at window (5,5) so no slot hover. Each screen grabbed twice (_a/_b) for the repeat-capture noise floor. key.use was temporarily rebound to R for headless GUI opening."
+  "preview_anim_pin": {
+    "enable": true,
+    "ticks_existed": -1,
+    "age_in_ticks": 0.0,
+    "note": "drawEntityOnScreen partialTicks=1"
+  },
+  "notes": "Empty survival inventory, frozen clear noon. Inventory preview uses pin_preview_anim (ticksExisted=-1 => ageInTicks=0) so A/B grabs share idle arm Z=\u00b10.10. Pose1 mouse at window (5,5); pose2 at fb (282,258) slot A. Each screen grabbed twice (_a/_b) for the repeat-capture noise floor. key.use rebound to R. Chest empty (no loot)."
 }

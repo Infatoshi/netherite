@@ -30,19 +30,25 @@ typedef struct { int idx[4]; int u1, v1, u2, v2; } PreviewFace;
 typedef struct { float x, y, z, u, v; } PreviewVertex;
 
 /* ModelPlayer (wide / Steve): ModelBiped base boxes + 64x64 wear layers.
- * Idle arm Z bias matches ModelBiped.setRotationAngles at ageInTicks=0
- * (cos(0)*0.05+0.05 = 0.05). Legs use the non-sneak rotationPointZ=0.1. */
+ * Idle arm Z matches ModelBiped.setRotationAngles at ageInTicks=0 (the pin
+ * used by qrl pin_preview_anim + drawEntityOnScreen partialTicks=1 with
+ * ticksExisted=-1 so age = ticksExisted+partial = 0):
+ *   right.rotateAngleZ += cos(age*0.09)*0.05 + 0.05  ->  +0.10
+ *   left.rotateAngleZ  -= cos(age*0.09)*0.05 + 0.05  ->  -0.10
+ *   arm X bob sin(age*0.067)*0.05 is 0 at age 0.
+ * Legs use the non-sneak rotationPointZ=0.1. Wear layers copyModelAngles
+ * from the base limbs (right armwear ctor z=10 is overwritten before render). */
 static const PreviewPart PLAYER_PARTS[] = {
     { 0,  0, -4,-8,-4, 8, 8,8,  0, 0,0,     0,0,0,     0.0f,  1}, /* head */
     {16, 16, -4, 0,-2, 8,12,4,  0, 0,0,     0,0,0,     0.0f,  0}, /* body */
-    {40, 16, -3,-2,-2, 4,12,4, -5, 2,0,     0,0,0.05f, 0.0f,  0}, /* right arm */
-    {32, 48, -1,-2,-2, 4,12,4,  5, 2,0,     0,0,-0.05f,0.0f,  0}, /* left arm */
+    {40, 16, -3,-2,-2, 4,12,4, -5, 2,0,     0,0,0.10f, 0.0f,  0}, /* right arm */
+    {32, 48, -1,-2,-2, 4,12,4,  5, 2,0,     0,0,-0.10f,0.0f,  0}, /* left arm */
     { 0, 16, -2, 0,-2, 4,12,4, -1.9f,12,0.1f, 0,0,0,   0.0f,  0},
     {16, 48, -2, 0,-2, 4,12,4,  1.9f,12,0.1f, 0,0,0,   0.0f,  0},
     {32,  0, -4,-8,-4, 8, 8,8,  0, 0,0,     0,0,0,     0.5f,  1}, /* headwear */
     {16, 32, -4, 0,-2, 8,12,4,  0, 0,0,     0,0,0,     0.25f, 0}, /* body wear */
-    {40, 32, -3,-2,-2, 4,12,4, -5, 2,0,     0,0,0.05f, 0.25f, 0},
-    {48, 48, -1,-2,-2, 4,12,4,  5, 2,0,     0,0,-0.05f,0.25f, 0},
+    {40, 32, -3,-2,-2, 4,12,4, -5, 2,0,     0,0,0.10f, 0.25f, 0},
+    {48, 48, -1,-2,-2, 4,12,4,  5, 2,0,     0,0,-0.10f,0.25f, 0},
     { 0, 32, -2, 0,-2, 4,12,4, -1.9f,12,0.1f, 0,0,0,   0.25f, 0},
     { 0, 48, -2, 0,-2, 4,12,4,  1.9f,12,0.1f, 0,0,0,   0.25f, 0},
 };
@@ -118,7 +124,17 @@ static CrScreenVert screen_vertex(float x, float y, float z, float u, float v,
 {
     CrScreenVert out;
     memset(&out, 0, sizeof out);
-    /* Orthographic GUI map: entity +Y up -> screen -Y; unit is GUI px / entity. */
+    /* Orthographic GUI map: entity +Y up -> screen -Y; unit is GUI px / entity.
+     *
+     * Java depth (EntityRenderer.setupOverlayRendering):
+     *   ortho(near=1000, far=3000); modelview translate(0,0,-2000);
+     *   drawEntityOnScreen translate(posX,posY,50) then scale(-s,s,s).
+     * Eye-space z ≈ -1950 + s*ez_entity (plus body rotations). Relative
+     * order is monotonic in entity-frame +z (toward viewer after the GUI
+     * sandwich is absorbed). Pack into [0,1] depth for GL_LEQUAL as
+     *   depth = 0.5 - z * k
+     * with k=0.02 so a body-width of ~2 entity units stays ordered without
+     * saturating; absolute GL depth bits are not matched, only order. */
     out.spos = (CrVec3){cx + x * unit, bottom - y * unit, 0.5f - z * 0.02f};
     out.invw = 1.0f;
     out.uv_w = (CrVec2){u / 64.0f, v / 64.0f};

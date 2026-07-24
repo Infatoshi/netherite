@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # capture_gui.sh - capture the REAL Minecraft 1.11.2 container screens (player
-# inventory / crafting table / furnace) as pixel goldens for magma's
-# gm_screen_draw (run_gui_verify.sh diffs the 176x166 panel region).
+# inventory / crafting table / furnace / single chest) as pixel goldens for
+# magma's gm_screen_draw (run_gui_verify.sh diffs the panel region).
 #
 # Scene: fresh seed-0 qrl world, survival, EMPTY inventory, frozen clear noon,
-# a stone platform at a fixed spot with a crafting table + furnace placed on
-# it, GUI scale 2 (854x480 window). Each screen is grabbed TWICE (_a/_b) so
-# the verifier can calibrate the Java-vs-Java noise floor from repeat frames.
+# a stone platform at a fixed spot with a crafting table + furnace + chest
+# placed on it, GUI scale 2 (854x480 window). Each screen is grabbed TWICE
+# (_a/_b) so the verifier can calibrate the Java-vs-Java noise floor from
+# repeat frames.
 #
 # Input mechanics (headless Xvfb): keyboard XTEST events reach LWJGL2 but
 # synthetic/XTEST MOUSE clicks and the qrl use-keybind do NOT trigger
@@ -32,9 +33,11 @@ SEED=0
 PLAT_Y=86
 TABLE="16 87 266"
 FURNACE="17 87 266"
+CHEST="15 87 266"
 POSE_STAND="16.5 87.0 268.5"
 AIM_TABLE="180 29.3"    # crosshair on the crafting table from POSE_STAND
 AIM_FURNACE="206.6 26.6" # crosshair on the furnace from POSE_STAND
+AIM_CHEST="153.4 29.3"   # crosshair on the single chest from POSE_STAND
 LAUNCH_LOG=/tmp/mc_gui_launch.out
 RUNCLIENT_LOG="$ENVDIR/runclient.log"
 
@@ -109,6 +112,7 @@ cmds = [
     "fill 14 $PLAT_Y 266 19 $PLAT_Y 270 minecraft:stone",
     "setblock $TABLE minecraft:crafting_table",
     "setblock $FURNACE minecraft:furnace",
+    "setblock $CHEST minecraft:chest",
     "tp @a $POSE_STAND $AIM_TABLE",
 ]
 r = e._cmd({"cmd": "runcmds", "action": {"cmds": cmds}})
@@ -183,11 +187,48 @@ xdotool key --window "$WIN" r; sleep 1.5
 grab2 furnace
 xdotool key --window "$WIN" Escape; sleep 1
 
-# --- 6c. player inventory screen (E) ---
-log "opening player inventory screen ..."
+# pin living-anim clock so inventory player-preview A/B share ageInTicks=0
+pin_preview() {
+    local en=$1
+    uv run --no-project python - "$en" <<'PY'
+import sys
+import qrl_client
+e = qrl_client.QRLEnv()
+enable = sys.argv[1] == "1"
+r = e._cmd({"cmd": "pin_preview_anim",
+            "action": {"enable": enable, "ticks_existed": -1}})
+if not r.get("ok"):
+    raise SystemExit(f"pin_preview_anim failed: {r}")
+e.close()
+PY
+}
+
+# --- 6c. player inventory screen (E), preview anim pinned ---
+log "opening player inventory screen (pin_preview_anim ageInTicks=0) ..."
 retp "$POSE_STAND $AIM_TABLE"
 xdotool key --window "$WIN" e; sleep 1.5
+pin_preview 1
+# pose1: mouse parked at window (5,5) — look-at near panel corner
 grab2 inventory
+# pose2: mouse on inv slot A center (fb 282,258 at 854x480 scale-2)
+log "inventory preview pose2 (mouse on inv slot A) ..."
+xdotool mousemove $((AX + 282)) $((AY + 258)); sleep 0.4
+ffmpeg -hide_banner -loglevel error -y -f x11grab -draw_mouse 0 \
+    -video_size "${W}x${H}" -i ":1.0+${AX},${AY}" -frames:v 1 \
+    "$OUTDIR/mc_gui_inventory_pose2_a.png" || fail "grab inventory_pose2_a"
+sleep 0.5
+ffmpeg -hide_banner -loglevel error -y -f x11grab -draw_mouse 0 \
+    -video_size "${W}x${H}" -i ":1.0+${AX},${AY}" -frames:v 1 \
+    "$OUTDIR/mc_gui_inventory_pose2_b.png" || fail "grab inventory_pose2_b"
+[ -s "$OUTDIR/mc_gui_inventory_pose2_a.png" ] || fail "mc_gui_inventory_pose2_a.png empty"
+pin_preview 0
+xdotool key --window "$WIN" Escape; sleep 1
+
+# --- 6d. single-chest screen ---
+log "opening single chest screen ..."
+retp "$POSE_STAND $AIM_CHEST"
+xdotool key --window "$WIN" r; sleep 1.5
+grab2 chest
 xdotool key --window "$WIN" Escape; sleep 1
 
 # --- 7. metadata ---
@@ -196,13 +237,19 @@ import sys, json
 scene = json.load(open("/tmp/qrl_gui_scene.json"))
 scene.update({"width": int(sys.argv[2]), "height": int(sys.argv[3]),
               "gui_scale": 2,
-              "screens": ["table", "furnace", "inventory"],
-              "notes": ("Empty survival inventory, frozen clear noon, mouse parked at "
-                        "window (5,5) so no slot hover. Each screen grabbed twice "
-                        "(_a/_b) for the repeat-capture noise floor. key.use was "
-                        "temporarily rebound to R for headless GUI opening.")})
+              "screens": ["table", "furnace", "inventory", "chest",
+                          "inventory_pose2"],
+              "preview_anim_pin": {"enable": True, "ticks_existed": -1,
+                                   "age_in_ticks": 0.0,
+                                   "note": "drawEntityOnScreen partialTicks=1"},
+              "notes": ("Empty survival inventory, frozen clear noon. Inventory "
+                        "preview uses pin_preview_anim (ticksExisted=-1 => "
+                        "ageInTicks=0) so A/B grabs share idle arm Z=±0.10. "
+                        "Pose1 mouse at window (5,5); pose2 at fb (282,258) slot A. "
+                        "Each screen grabbed twice (_a/_b) for the repeat-capture "
+                        "noise floor. key.use rebound to R. Chest empty (no loot).")})
 json.dump(scene, open(sys.argv[1], "w"), indent=2)
 PY
 
-log "done: $OUTDIR/mc_gui_{table,furnace,inventory}_{a,b}.png + gui_scene.json"
+log "done: $OUTDIR/mc_gui_{table,furnace,inventory,chest}_{a,b}.png + pose2_{a,b} + gui_scene.json"
 log "oracle cleanup runs on exit"
