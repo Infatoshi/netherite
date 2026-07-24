@@ -15,10 +15,10 @@
   },
   "color_path": {
     "sample": "GL_NEAREST pure floor (CrShadeCtx.sample_mode=1); terrain keeps floor(u*w-1e-4)",
-    "packing_identified": "L8=ubyte(primary); out=(tex*L8+127)/255 (Mesa unorm8 modulate)",
-    "primary": "StandardItemLighting ambient 0.4 + two 0.6*max(n·L,0), clamp 1, GL_FLAT",
-    "primary_gap": "oracle L8 differs from round(L*255) by -1 on several face bins (e.g. pose1 -Z 211 vs 210)",
-    "default_mode": "float trunc (PREVIEW_COLOR_MODE=0) until primary bit-exact",
+    "packing_identified": "L8=trunc(primary*255); out=(tex*L8+127)/255 (Mesa unorm8 modulate)",
+    "primary": "RenderHelper ambient 102/255 + diffuse 152/255 after unorm8 light*material, GL_FLAT",
+    "primary_gap": "remaining max-channel-1 residual on smaller face bins; pose1 nz=442, pose2 nz=323",
+    "default_mode": "PREVIEW_COLOR_MODE=4; strict gate remains open until nz=0",
     "diagnostic": "raster/verify/mc_capture/test_preview_color_formula.py"
   },
   "gate_contract": {
@@ -33,7 +33,7 @@
       {
         "pose": "pose1",
         "noise": 0.0,
-        "magma_vs_j": 0.08066239316239317,
+        "magma_vs_j": 0.01164084757834758,
         "hard_px": 0,
         "max_ch": 1,
         "pass": false
@@ -41,15 +41,15 @@
       {
         "pose": "pose2",
         "noise": 0.0,
-        "magma_vs_j": 0.04676371082621083,
+        "magma_vs_j": 0.009949252136752136,
         "hard_px": 0,
         "max_ch": 1,
         "pass": false
       }
     ],
-    "pose1_mean_abs": 0.08066239316239317,
+    "pose1_mean_abs": 0.01164084757834758,
     "pose1_hard_px": 0,
     "pose1_noise": 0.0,
-    "cause": "ubyte primary L8 off-by-one on some StandardItemLighting faces after packing (tex*L8+127)/255"
+    "cause": "remaining fixed-function primary-light face-bin packing mismatch; maxch=1 and strict OPEN"
   }
 }
