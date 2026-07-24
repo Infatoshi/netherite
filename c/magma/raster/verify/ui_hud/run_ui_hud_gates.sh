@@ -97,7 +97,7 @@ if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
       -lm -o /tmp/magma_ui_hud_candidate
   echo "== render C composition frames =="
   /tmp/magma_ui_hud_candidate --out "$CFRAME_DIR"
-  echo "== oracle ROI compare (feature-specific; noise + margin) =="
+  echo "== oracle ROI compare (feature-specific; inside-block = full-ROI hard_px) =="
   # RESIDUAL (hard C residual) and FAIL both exit nonzero — no false parity.
   set +e
   uv run --no-project --with pillow --with numpy python \
@@ -108,9 +108,24 @@ if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
     --report "$DIR/oracle_roi_report.json"
   roi_rc=$?
   set -e
+
+  echo "== mutation regressions (fullscreen inside-block hard_px) =="
+  set +e
+  uv run --no-project --with pillow --with numpy python \
+    "$DIR/test_ui_hud_mutations.py" \
+    --goldens "$GOLDEN_DIR" \
+    --cframes "$CFRAME_DIR"
+  mut_rc=$?
+  set -e
+
+  if [ "$mut_rc" -ne 0 ]; then
+    echo "ui_hud mutations: FAIL rc=$mut_rc"
+    echo "ui_hud gates: FAIL (mutation leak or honest gate broken)"
+    exit "$mut_rc"
+  fi
   if [ "$roi_rc" -ne 0 ]; then
     echo "ui_hud oracle ROI: nonzero (fail or hard residual) rc=$roi_rc"
-    echo "ui_hud gates: RESIDUAL_OR_FAIL (composition gates above still ran)"
+    echo "ui_hud gates: RESIDUAL_OR_FAIL (composition + mutations ran; mutations PASS)"
     exit "$roi_rc"
   fi
   echo "== death chrome mutation self-test =="
