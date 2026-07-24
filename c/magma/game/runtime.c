@@ -1125,13 +1125,11 @@ static void runtime_close_container(GmRuntime *r)
     r->active_chest = -1;
 }
 
-/* Drop one chest slot stack as a ground item (meta only; enchants stay on TE
- * path until ICStack pickup; ground items carry item/count/meta). */
+/* Drop one chest slot stack as a ground EntityItem, including StoredEnchantments. */
 static void runtime_drop_stack(GmRuntime *r, int wx, int wy, int wz, ICStack st)
 {
     if (!r || st.item <= 0 || st.count <= 0) return;
-    gm_live_spawn_item(&r->entities, wx + 0.5, wy + 0.5, wz + 0.5,
-                       st.item, st.count, st.meta, 10);
+    gm_live_spawn_stack(&r->entities, wx + 0.5, wy + 0.5, wz + 0.5, st, 10);
 }
 
 /* Materialize deferred structure loot (or live TE slots) and drop all stacks.

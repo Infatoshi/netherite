@@ -950,6 +950,12 @@ Live TE lifecycle (open/close retention, growable storage without live
 eviction, break materializing deferred structure loot, placement-stream
 loot seeds via `sh_capture_chest_sites`, enchanted-book StoredEnchantments
 list via `et_build_list`) is covered by `game/test_chest_loot.sh`.
+Interactive click paths (`container_click` / `container_live` merge, split,
+deposit, quick-move, cursor) and ground EntityItem drop/pickup retain the
+full `ICStack` enchant list (including unopened chest break drops); equality
+and stackability follow 1.11.2 item+meta+tags semantics. Covered by
+`game/test_container_live.sh` multi-enchant round-trips and chest break
+assertions.
 
 Still open:
 - Renderer is a facing-aware 14x14 inset mesh (oak-plank texels); lid angle
@@ -958,8 +964,6 @@ Still open:
   full Java `StructureStrongholdPieces` (crossing/room chests not placed;
   library second chest not placed). Seeds are exact for the C placement
   stream only, not bit-equal to a Java world of the same seed.
-- Ground item entities carry item/count/meta only; multi-enchant payload is
-  retained in the TE/ICStack inventory path, not on dropped EntityItem.
 
 Repro: `cd c/magma && bash game/test_chest_loot.sh && bash
 game/test_container_live.sh`.

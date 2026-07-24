@@ -7,12 +7,14 @@
 #define MAGMA_GAME_LIVE_SIM_H
 
 #include "game/game.h"
+#include "items_core.h"  /* ICStack for gm_live_spawn_stack */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define GM_LIVE_MAX 16
+#define GM_LIVE_MAX_ENCHANTS 8  /* matches IC_MAX_ENCHANTS / StoredEnchantments cap */
 
 typedef struct {
     int    active;
@@ -22,6 +24,10 @@ typedef struct {
     int    on_ground;
     int    age;
     int    item, count, meta;
+    /* StoredEnchantments-equivalent (enchanted books); 0 for ordinary items. */
+    int    n_enchants;
+    short  ench_id[GM_LIVE_MAX_ENCHANTS];
+    short  ench_lvl[GM_LIVE_MAX_ENCHANTS];
     int    pickup_delay;
     int    lifespan;
 } GmLiveEnt;
@@ -38,8 +44,12 @@ typedef struct {
 } GmLiveSim;
 
 void gm_live_init(GmLiveSim *s, long long seed, int surface_y);
+/* Plain spawn (no enchant payload). Prefer gm_live_spawn_stack for books. */
 int  gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
                         int item, int count, int meta, int pickup_delay);
+/* EntityItem with full ICStack payload (item/count/meta + StoredEnchantments). */
+int  gm_live_spawn_stack(GmLiveSim *s, double x, double y, double z,
+                         ICStack stack, int pickup_delay);
 /* One tick: gravity/friction for live ents (world collision via gm_world_*), wheat growth. */
 void gm_live_tick(GmLiveSim *s, GmWorld *w);
 /* Same world tick plus vanilla-style pickup into the supplied local-frame player. */

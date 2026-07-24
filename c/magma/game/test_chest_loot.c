@@ -264,23 +264,37 @@ int main(void)
         CHECK(gm_runtime_use_block(&r, bx, by, bz), "open break-test chest");
         {
             ChestLive *ch = &r.chests[r.active_chest].state;
+            ICStack book = ic_mk(403, 1, 0);
+            book.n_enchants = 2;
+            book.enchants[0].id = 16; book.enchants[0].level = 3;
+            book.enchants[1].id = 34; book.enchants[1].level = 1;
             chest_live_set(ch, 0, ic_mk(265, 7, 0)); /* iron ingots */
             chest_live_set(ch, 3, ic_mk(264, 1, 0)); /* diamond */
-            CHECK(chest_live_total_items(ch) == 8, "inserted 8 items into chest TE");
+            chest_live_set(ch, 7, book);
+            CHECK(chest_live_total_items(ch) == 9, "inserted 9 items into chest TE");
         }
         gm_runtime_set_pose(&r, v.x + 30.0, v.y, v.z, 0.0f, 0.0f);
         { GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
           gm_runtime_tick(&r, idle); }
         CHECK(gm_runtime_set_block(&r, bx, by, bz, 0, 0), "break chest block");
-        int iron = 0, diamond = 0;
+        int iron = 0, diamond = 0, ench_book = 0;
         for (int i = 0; i < GM_LIVE_MAX; ++i) {
             if (!r.entities.ents[i].active) continue;
             if (r.entities.ents[i].item == 265 && r.entities.ents[i].count == 7)
                 iron = 1;
             if (r.entities.ents[i].item == 264 && r.entities.ents[i].count == 1)
                 diamond = 1;
+            if (r.entities.ents[i].item == 403 &&
+                r.entities.ents[i].n_enchants == 2 &&
+                r.entities.ents[i].ench_id[0] == 16 &&
+                r.entities.ents[i].ench_lvl[0] == 3 &&
+                r.entities.ents[i].ench_id[1] == 34 &&
+                r.entities.ents[i].ench_lvl[1] == 1)
+                ench_book = 1;
         }
         CHECK(iron && diamond, "breaking chest drops its contents as item entities");
+        CHECK(ench_book,
+              "breaking chest drops multi-enchant book with StoredEnchantments payload");
         CHECK(gm_runtime_set_block(&r, bx, by, bz, 54, 3), "replace chest after break");
         gm_runtime_set_pose(&r, bx + 0.5, by, bz + 0.5, 0.0f, 0.0f);
         CHECK(gm_runtime_use_block(&r, bx, by, bz), "open replacement chest");
@@ -332,6 +346,39 @@ int main(void)
                 dropped, expect_total);
         CHECK(dropped == expect_total,
               "breaking unopened structure chest drops full deferred loot");
+        /* Enchanted books among deferred loot must keep StoredEnchantments on EntityItem. */
+        {
+            int books_expect = 0, books_drop = 0, payload_ok = 1;
+            for (int s = 0; s < CHEST_LIVE_SLOTS; ++s) {
+                ICStack st = chest_live_get(&expect, s);
+                if (st.item == 403) {
+                    books_expect++;
+                    /* Match a ground drop with the same enchant list. */
+                    int matched = 0;
+                    for (int i = 0; i < GM_LIVE_MAX; ++i) {
+                        const GmLiveEnt *e = &r.entities.ents[i];
+                        if (!e->active || e->item != 403) continue;
+                        if (e->n_enchants != st.n_enchants) continue;
+                        int eq = 1;
+                        for (int k = 0; k < st.n_enchants; ++k)
+                            if (e->ench_id[k] != st.enchants[k].id ||
+                                e->ench_lvl[k] != st.enchants[k].level)
+                                eq = 0;
+                        if (eq) { matched = 1; break; }
+                    }
+                    if (!matched) payload_ok = 0;
+                }
+            }
+            for (int i = 0; i < GM_LIVE_MAX; ++i)
+                if (r.entities.ents[i].active && r.entities.ents[i].item == 403)
+                    books_drop++;
+            fprintf(stderr, "chest_loot: unopened break books expect=%d drop=%d\n",
+                    books_expect, books_drop);
+            if (books_expect > 0) {
+                CHECK(books_drop == books_expect && payload_ok,
+                      "unopened break: enchanted books retain StoredEnchantments on drops");
+            }
+        }
     }
 
     /* Growable TE: opening many unique chests retains live TEs (no eviction). */

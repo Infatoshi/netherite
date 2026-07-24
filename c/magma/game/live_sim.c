@@ -1,5 +1,7 @@
 /* game/live_sim.c - minimal live entities + plant plot (composition side effects). */
 #include "game/live_sim.h"
+#include "items_core.h"
+#include "inventory_stack_rules.h"
 #include "player_survival.h"
 #include "plant_growth.h"  /* PG_WHEAT, growth chance helpers */
 #include "mc_blocks.h"
@@ -40,22 +42,39 @@ void gm_live_init(GmLiveSim *s, long long seed, int surface_y) {
     s->ticks = 0;
 }
 
-int gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
-                       int item, int count, int meta, int pickup_delay) {
-    if (!s || item <= 0 || count <= 0) return 0;
+int gm_live_spawn_stack(GmLiveSim *s, double x, double y, double z,
+                        ICStack stack, int pickup_delay) {
+    if (!s || stack.item <= 0 || stack.count <= 0) return 0;
     for (int i = 0; i < GM_LIVE_MAX; ++i) {
         GmLiveEnt *e = &s->ents[i];
+        int n, j;
         if (e->active) continue;
         memset(e, 0, sizeof *e);
         e->active = 1; e->type = 0;
         e->x = x; e->y = y; e->z = z;
-        e->item = item; e->count = count; e->meta = meta & 15;
+        e->item = stack.item;
+        e->count = stack.count;
+        e->meta = stack.meta;
+        n = stack.n_enchants;
+        if (n < 0) n = 0;
+        if (n > GM_LIVE_MAX_ENCHANTS) n = GM_LIVE_MAX_ENCHANTS;
+        if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+        e->n_enchants = n;
+        for (j = 0; j < n; ++j) {
+            e->ench_id[j] = stack.enchants[j].id;
+            e->ench_lvl[j] = stack.enchants[j].level;
+        }
         e->pickup_delay = pickup_delay < 0 ? 0 : pickup_delay;
         e->lifespan = 6000;
         s->n_active++;
         return 1;
     }
     return 0;
+}
+
+int gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
+                       int item, int count, int meta, int pickup_delay) {
+    return gm_live_spawn_stack(s, x, y, z, ic_mk(item, count, meta), pickup_delay);
 }
 
 static int solid_at(GmWorld *w, int x, int y, int z) {
@@ -137,12 +156,24 @@ void gm_live_tick_player(GmLiveSim *s, GmWorld *w, struct PsvPlayer *pl_,
         if (!e->active || e->type != 0 || e->pickup_delay > 0) continue;
         if (fabs(e->x - px) > 1.0 || fabs(e->z - pz) > 1.0 ||
             e->y < py - 0.25 || e->y > py + 2.8) continue;
-        ICStack incoming = ic_mk(e->item, e->count, e->meta);
-        isr_add_item_stack_to_inventory(&pl->inv, &incoming);
-        e->count = incoming.count;
-        if (e->count <= 0) {
-            e->active = 0;
-            if (s->n_active > 0) s->n_active--;
+        {
+            ICStack incoming = ic_mk(e->item, e->count, e->meta);
+            int j, n = e->n_enchants;
+            if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+            if (n > GM_LIVE_MAX_ENCHANTS) n = GM_LIVE_MAX_ENCHANTS;
+            incoming.n_enchants = n;
+            for (j = 0; j < n; ++j) {
+                incoming.enchants[j].id = e->ench_id[j];
+                incoming.enchants[j].level = e->ench_lvl[j];
+            }
+            isr_add_item_stack_to_inventory(&pl->inv, &incoming);
+            e->count = incoming.count;
+            /* leftover retains the same StoredEnchantments payload */
+            if (e->count <= 0) {
+                e->active = 0;
+                e->n_enchants = 0;
+                if (s->n_active > 0) s->n_active--;
+            }
         }
     }
 }

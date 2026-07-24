@@ -81,18 +81,8 @@ MC_HD static inline int isr_is_stackable(i32 item, i32 meta) {
 }
 
 MC_HD static inline int isr_stack_equal_exact(const ICStack *a, const ICStack *b) {
-    if (isr_is_empty(a) || isr_is_empty(b)) return 0;
-    if (a->item != b->item || a->meta != b->meta) return 0;
-    /* Enchanted books: StoredEnchantments must match to stack. */
-    if (a->n_enchants != b->n_enchants) return 0;
-    {
-        int i;
-        for (i = 0; i < a->n_enchants; ++i)
-            if (a->enchants[i].id != b->enchants[i].id ||
-                a->enchants[i].level != b->enchants[i].level)
-                return 0;
-    }
-    return 1;
+    /* 1.11.2: item + damage + NBT tags (StoredEnchantments list). */
+    return ic_stack_equal(a, b);
 }
 
 MC_HD static inline void isr_init(IsrInv *inv) {
@@ -173,9 +163,9 @@ MC_HD static inline void isr_pick_item(IsrInv *inv, int index) {
 MC_HD static inline ICStack isr_split_stack(ICStack *src, int amount) {
     int take = amount;
     ICStack out;
+    if (!src || take <= 0 || isr_is_empty(src)) return ic_empty();
     if (take > src->count) take = src->count;
-    out = ic_mk(src->item, take, src->meta);
-    ic_copy_enchants(&out, src->enchants, src->n_enchants);
+    out = ic_with_count(src, take);
     src->count -= take;
     if (src->count <= 0) *src = ic_empty();
     return out;

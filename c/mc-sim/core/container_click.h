@@ -16,8 +16,10 @@
  *
  * Boundaries (not ported):
  *   QUICK_CRAFT drag painting, CLONE creative middle-click, SWAP hotbar keys, PICKUP_ALL
- *   double-click gather, armor slot limits/validity, crafting matrix / recipe book, NBT tags,
+ *   double-click gather, armor slot limits/validity, crafting matrix / recipe book,
+ *   full arbitrary NBT beyond StoredEnchantments on ICStack,
  *   player.dropItem entity spawn (drops are discarded), creative branches.
+ * Stack match/split copy ICStack.n_enchants (1.11.2 areItemStackTagsEqual subset).
  *
  * READ-ONLY deps: items_core.h (ICStack + item ids). Stack limits mirror inventory_stack_rules
  * (pickaxes/buckets max 1, else 64). CPU==CUDA. */
@@ -72,10 +74,9 @@ MC_HD static inline int cc_is_stackable(const ICStack *s) {
     return cc_max_stack_size(s->item, s->meta) > 1;
 }
 
-/* areItemsEqual + areItemStackTagsEqual (no NBT) */
+/* areItemsEqual + areItemStackTagsEqual (StoredEnchantments must match). */
 MC_HD static inline int cc_stack_match(const ICStack *a, const ICStack *b) {
-    if (cc_is_empty(a) || cc_is_empty(b)) return 0;
-    return a->item == b->item && a->meta == b->meta;
+    return ic_stack_equal(a, b);
 }
 
 MC_HD static inline i32 cc_slot_stack_limit(void) { return CC_INV_LIMIT; }
@@ -91,7 +92,8 @@ MC_HD static inline ICStack cc_split_stack(ICStack *src, int amount) {
     ICStack out;
     if (take > src->count) take = src->count;
     if (take <= 0 || cc_is_empty(src)) return ic_empty();
-    out = ic_mk(src->item, take, src->meta);
+    /* ItemStack.splitStack copies NBT/StoredEnchantments onto the taken half. */
+    out = ic_with_count(src, take);
     src->count -= take;
     cc_normalize(src);
     return out;

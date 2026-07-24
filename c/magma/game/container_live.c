@@ -112,11 +112,12 @@ static ICStack ct_furnace_get(const GmRuntime *r, int s)
 static void ct_drop(GmRuntime *r, ICStack s)
 {
     if (cc_is_empty(&s)) return;
-    gm_live_spawn_item(&r->entities,
-                       r->player.ent.posX + (double)r->ox,
-                       r->player.ent.posY + 1.3,
-                       r->player.ent.posZ + (double)r->oz,
-                       s.item, s.count, s.meta, 40);
+    /* Keep StoredEnchantments on EntityItem (do not strip to item/count/meta). */
+    gm_live_spawn_stack(&r->entities,
+                        r->player.ent.posX + (double)r->ox,
+                        r->player.ent.posY + 1.3,
+                        r->player.ent.posZ + (double)r->oz,
+                        s, 40);
 }
 
 /* ---- craft result ------------------------------------------------------- */
@@ -420,14 +421,15 @@ static void click_pickup_chest(GmRuntime *r, int slot_id, int button)
     if (cc_is_empty(&v)) {
         if (cc_is_empty(&cur)) return;
         int amount = button == 0 ? cur.count : 1;
-        int moved = chest_live_insert(ch, cslot, ic_mk(cur.item, amount, cur.meta));
+        /* Deposit retains StoredEnchantments (ic_mk alone would strip them). */
+        int moved = chest_live_insert(ch, cslot, ic_with_count(&cur, amount));
         if (moved > 0) cc_shrink(&cur, moved);
     } else if (cc_is_empty(&cur)) {
         int take = button == 0 ? v.count : (v.count + 1) / 2;
         cur = chest_live_extract(ch, cslot, take);
     } else if (cc_stack_match(&v, &cur)) {
         int amount = button == 0 ? cur.count : 1;
-        int moved = chest_live_insert(ch, cslot, ic_mk(cur.item, amount, cur.meta));
+        int moved = chest_live_insert(ch, cslot, ic_with_count(&cur, amount));
         if (moved > 0) cc_shrink(&cur, moved);
     } else {
         /* swap whole stacks when the cursor fits the slot limit */

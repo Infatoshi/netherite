@@ -11,7 +11,7 @@
 /* StoredEnchantments-equivalent for enchanted books (n_enchants==0 for normal). */
 enum { IC_MAX_ENCHANTS = 8 };
 typedef struct { i16 id; i16 level; } IcEnch;
-typedef struct {
+typedef struct ICStack {
     i32 item;
     i32 count;
     i32 meta;
@@ -59,6 +59,36 @@ MC_HD static inline void ic_copy_enchants(ICStack *dst, const IcEnch *src, int n
     dst->n_enchants = n;
     for (i = 0; i < n; ++i) dst->enchants[i] = src[i];
     for (; i < IC_MAX_ENCHANTS; ++i) { dst->enchants[i].id = 0; dst->enchants[i].level = 0; }
+}
+
+/* ItemStack.areItemStackTagsEqual subset: StoredEnchantments list must match. */
+MC_HD static inline int ic_enchants_equal(const ICStack *a, const ICStack *b) {
+    int i;
+    if (!a || !b) return 0;
+    if (a->n_enchants != b->n_enchants) return 0;
+    for (i = 0; i < a->n_enchants; ++i)
+        if (a->enchants[i].id != b->enchants[i].id ||
+            a->enchants[i].level != b->enchants[i].level)
+            return 0;
+    return 1;
+}
+
+/* ItemStack.areItemsEqual + areItemStackTagsEqual (item, meta, enchants). */
+MC_HD static inline int ic_stack_equal(const ICStack *a, const ICStack *b) {
+    if (!a || !b) return 0;
+    if (a->item == IC_AIR || a->count <= 0 || b->item == IC_AIR || b->count <= 0) return 0;
+    if (a->item != b->item || a->meta != b->meta) return 0;
+    return ic_enchants_equal(a, b);
+}
+
+/* Non-destructive partial copy: item/meta/enchants retained, count = amount. */
+MC_HD static inline ICStack ic_with_count(const ICStack *src, i32 amount) {
+    ICStack out;
+    if (!src || amount <= 0 || src->item == IC_AIR || src->count <= 0) return ic_empty();
+    if (amount > src->count) amount = src->count;
+    out = ic_mk(src->item, amount, src->meta);
+    ic_copy_enchants(&out, src->enchants, src->n_enchants);
+    return out;
 }
 
 MC_HD static inline int ic_idx(int x, int y, int z) { return (y * IC_W + z) * IC_W + x; }

@@ -276,6 +276,211 @@ int main(void) {
         CHECK(ch.item == 4 && ch.count == 1, "chest contents persist after close/reopen"); }
     }
 
+    /* ---- multi-enchant book: take / deposit / shift / drop / pickup ---- */
+    {
+        ICStack book = ic_mk(403, 1, 0);
+        ICStack book_b = ic_mk(403, 1, 0);
+        book.n_enchants = 2;
+        book.enchants[0].id = 16; book.enchants[0].level = 3; /* Sharpness III */
+        book.enchants[1].id = 34; book.enchants[1].level = 1; /* Unbreaking I */
+        book_b.n_enchants = 1;
+        book_b.enchants[0].id = 16; book_b.enchants[0].level = 5; /* Sharpness V */
+
+        /* Clear inv/cursor so round-trips are unambiguous. */
+        for (int s = 0; s < GMC_INV_SLOTS; ++s)
+            (void)gm_runtime_set_inventory(&r, s, 0, 0, 0);
+        gm_player_cursor_set(ic_empty());
+
+        GmPlayerView v; gm_runtime_view(&r, &v);
+        int bx = (int)v.x + 1, by = (int)v.y, bz = (int)v.z;
+        int ground = gm_world_surface_y(r.world, bx, bz);
+        if (ground < 1) ground = by;
+        /* Walk near, place chest, seed multi-enchant book in slot 0. */
+        gm_runtime_set_pose(&r, bx + 0.5, (double)ground, bz + 0.5, 0.0f, 0.0f);
+        CHECK(gm_runtime_set_block(&r, bx, ground, bz, 54, 2), "place chest for enchant RT");
+        CHECK(gm_runtime_use_block(&r, bx, ground, bz), "open chest for enchant RT");
+        CHECK(r.container == 3 && r.active_chest >= 0, "chest open for enchant RT");
+        chest_live_set(&r.chests[r.active_chest].state, 0, book);
+
+        /* TAKE: PICKUP from chest -> cursor keeps StoredEnchantments. */
+        click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP);
+        {
+            ICStack c = gm_player_cursor();
+            CHECK(c.item == 403 && c.count == 1 && c.n_enchants == 2 &&
+                  c.enchants[0].id == 16 && c.enchants[0].level == 3 &&
+                  c.enchants[1].id == 34 && c.enchants[1].level == 1,
+                  "PICKUP take multi-enchant book onto cursor");
+            ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 0);
+            CHECK(isr_is_empty(&ch), "chest slot empty after take");
+        }
+
+        /* DEPOSIT: place into chest slot 2, payload intact. */
+        click(&r, GMC_CHEST0 + 2, 0, CC_CLICK_PICKUP);
+        {
+            ICStack c = gm_player_cursor();
+            ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 2);
+            CHECK(isr_is_empty(&c), "cursor empty after deposit");
+            CHECK(ch.item == 403 && ch.n_enchants == 2 &&
+                  ch.enchants[0].id == 16 && ch.enchants[1].id == 34,
+                  "deposit retains multi-enchant StoredEnchantments");
+        }
+
+        /* SHIFT: quick-move chest -> inv keeps payload. */
+        click(&r, GMC_CHEST0 + 2, 0, CC_CLICK_QUICK_MOVE);
+        {
+            ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 2);
+            CHECK(isr_is_empty(&ch), "shift emptied chest slot");
+            int found = 0;
+            for (int s = 0; s < GMC_INV_SLOTS; ++s) {
+                ICStack t = slot(&r, s);
+                if (t.item == 403 && t.n_enchants == 2 &&
+                    t.enchants[0].id == 16 && t.enchants[0].level == 3 &&
+                    t.enchants[1].id == 34 && t.enchants[1].level == 1) {
+                    found = 1;
+                    break;
+                }
+            }
+            CHECK(found, "QUICK_MOVE inv stack keeps multi-enchant payload");
+        }
+
+        /* Shift inv -> chest and back once more for deposit path. */
+        {
+            int inv_slot = -1;
+            for (int s = 0; s < GMC_INV_SLOTS; ++s) {
+                ICStack t = slot(&r, s);
+                if (t.item == 403) { inv_slot = s; break; }
+            }
+            CHECK(inv_slot >= 0, "book still in inventory before reverse shift");
+            click(&r, inv_slot, 0, CC_CLICK_QUICK_MOVE);
+            {
+                ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 0);
+                CHECK(ch.item == 403 && ch.n_enchants == 2,
+                      "shift-deposit into chest retains enchants");
+            }
+        }
+
+        /* Stackability: equal StoredEnchantments merge; mismatch swaps (no silent strip). */
+        {
+            ICStack twin = book; /* same multi-enchant list */
+            chest_live_set(&r.chests[r.active_chest].state, 4, twin);
+            click(&r, GMC_CHEST0 + 4, 0, CC_CLICK_PICKUP); /* twin on cursor */
+            click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP);     /* merge onto matching multi */
+            {
+                ICStack c = gm_player_cursor();
+                ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 0);
+                CHECK(isr_is_empty(&c) && ch.item == 403 && ch.count == 2 &&
+                      ch.n_enchants == 2,
+                      "equal StoredEnchantments merge (count 2, list intact)");
+            }
+            /* Split one back out for the mismatch check. */
+            click(&r, GMC_CHEST0, 1, CC_CLICK_PICKUP); /* right-pick half -> 1 cursor, 1 slot */
+            {
+                ICStack c = gm_player_cursor();
+                CHECK(c.item == 403 && c.count == 1 && c.n_enchants == 2,
+                      "right-pick split copies StoredEnchantments");
+            }
+            chest_live_set(&r.chests[r.active_chest].state, 5, book_b);
+            /* Park multi on cursor, pick Sharpness V, try place onto multi still in slot 0. */
+            click(&r, GMC_CHEST0 + 5, 0, CC_CLICK_PICKUP); /* swap? slot 5 empty after set; take V */
+            {
+                /* After take V: cursor=V, slot0 still multi count 1. Click slot0 -> swap. */
+                ICStack c = gm_player_cursor();
+                CHECK(c.item == 403 && c.n_enchants == 1 && c.enchants[0].level == 5,
+                      "Sharpness V book on cursor before mismatch click");
+            }
+            click(&r, GMC_CHEST0, 0, CC_CLICK_PICKUP);
+            {
+                ICStack c = gm_player_cursor();
+                ICStack ch = chest_live_get(&r.chests[r.active_chest].state, 0);
+                CHECK(c.item == 403 && c.n_enchants == 2,
+                      "mismatched enchants swap (cursor gets multi)");
+                CHECK(ch.item == 403 && ch.n_enchants == 1 && ch.enchants[0].level == 5,
+                      "mismatched enchants swap (chest gets Sharpness V)");
+            }
+            /* multi book on cursor for drop test below */
+        }
+
+        /* DROP: outside PICKUP spawns EntityItem with full payload. */
+        {
+            int before_ents = 0;
+            for (int i = 0; i < GM_LIVE_MAX; ++i)
+                if (r.entities.ents[i].active && r.entities.ents[i].item == 403)
+                    before_ents++;
+            click(&r, GMC_OUTSIDE, 0, CC_CLICK_PICKUP);
+            {
+                ICStack c = gm_player_cursor();
+                CHECK(isr_is_empty(&c), "cursor cleared after outside drop");
+            }
+            int found_drop = 0;
+            for (int i = 0; i < GM_LIVE_MAX; ++i) {
+                const GmLiveEnt *e = &r.entities.ents[i];
+                if (!e->active || e->item != 403) continue;
+                if (e->n_enchants == 2 &&
+                    e->ench_id[0] == 16 && e->ench_lvl[0] == 3 &&
+                    e->ench_id[1] == 34 && e->ench_lvl[1] == 1) {
+                    found_drop = 1;
+                    break;
+                }
+            }
+            CHECK(found_drop, "outside drop EntityItem keeps multi-enchant payload");
+            (void)before_ents;
+        }
+
+        /* PICKUP ground item: walk-on + tick clears delay then merges into inv. */
+        {
+            /* Force pickup delay to 0 so the next tick collects. */
+            for (int i = 0; i < GM_LIVE_MAX; ++i) {
+                GmLiveEnt *e = &r.entities.ents[i];
+                if (e->active && e->item == 403 && e->n_enchants == 2)
+                    e->pickup_delay = 0;
+            }
+            for (int s = 0; s < GMC_INV_SLOTS; ++s)
+                (void)gm_runtime_set_inventory(&r, s, 0, 0, 0);
+            /* Position player on the drop and tick. */
+            {
+                GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
+                for (int t = 0; t < 5; ++t) gm_runtime_tick(&r, idle);
+            }
+            int found_inv = 0;
+            for (int s = 0; s < GMC_INV_SLOTS; ++s) {
+                ICStack t = slot(&r, s);
+                if (t.item == 403 && t.n_enchants == 2 &&
+                    t.enchants[0].id == 16 && t.enchants[0].level == 3 &&
+                    t.enchants[1].id == 34 && t.enchants[1].level == 1) {
+                    found_inv = 1;
+                    break;
+                }
+            }
+            CHECK(found_inv, "ground pickup restores multi-enchant book into inventory");
+        }
+
+        /* THROW from inv slot also retains payload on EntityItem. */
+        {
+            int inv_slot = -1;
+            for (int s = 0; s < GMC_INV_SLOTS; ++s) {
+                ICStack t = slot(&r, s);
+                if (t.item == 403 && t.n_enchants == 2) { inv_slot = s; break; }
+            }
+            CHECK(inv_slot >= 0, "book present for THROW test");
+            /* Clear other 403 ents so we can find the throw. */
+            for (int i = 0; i < GM_LIVE_MAX; ++i)
+                if (r.entities.ents[i].active && r.entities.ents[i].item == 403)
+                    r.entities.ents[i].active = 0;
+            click(&r, inv_slot, 0, CC_CLICK_THROW);
+            int found_throw = 0;
+            for (int i = 0; i < GM_LIVE_MAX; ++i) {
+                const GmLiveEnt *e = &r.entities.ents[i];
+                if (!e->active || e->item != 403) continue;
+                if (e->n_enchants == 2 && e->ench_lvl[0] == 3 &&
+                    e->ench_id[1] == 34) {
+                    found_throw = 1;
+                    break;
+                }
+            }
+            CHECK(found_throw, "THROW EntityItem keeps multi-enchant payload");
+        }
+    }
+
     if (fail) { fprintf(stderr, "container_live: FAIL\n"); return 1; }
     fprintf(stderr, "container_live: PASS\n");
     return 0;
