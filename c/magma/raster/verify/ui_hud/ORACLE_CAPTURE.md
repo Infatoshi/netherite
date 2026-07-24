@@ -190,13 +190,19 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   `portal_frame=0` via `bm_atlas_set_portal_frame`. Camera warp
   (`EntityRenderer.setupCameraTransform` on axis (0,1,1) from
   `rendererUpdateCount`) is frozen with sticky `portal_phase` on
-  `hud_pin`/`frame{}`. Hard gate: full A/B-stable ROI, thr=0, Java∪C owned
-  = full portal feature. Real A/B has residual maxch=1 on ~865 pixels →
-  product **CAPTURE_BLOCKED** (never PASS under any C: Java_a, Java_b,
-  midpoint, Java_a+1). **No** fitted black cell, **no** color-only purple
-  masks, **no** mean budgets, **no** ceil(noise_max) PASS tolerance.
-  Outdoor Java underlay vs gray C isolation under translucent alpha is the
-  honest composition residual until a same-scene underlay exists.
+  `hud_pin`/`frame{}`. Sticky `timeInPortal` is also re-applied at
+  `frame{}` (free-running ticks decay it when not in a portal block).
+  Drivers use atomic `frame_pair` (two re-renders, one client turn, shared
+  nanoTime). Hard gate: full A/B-stable ROI, thr=0, Java∪C owned = full
+  portal feature. **Reproducible blocker (2026-07-24):** even with sticky
+  time+phase, pin_texture_animations, and atomic `frame_pair` under
+  llvmpipe, A/B still shows maxch=1 residuals (measured ~6k px on a fresh
+  pair; accepted golden still ~865 maxch=1). Product remains
+  **CAPTURE_BLOCKED** (never PASS under any C: Java_a, Java_b, midpoint,
+  Java_a+1). Do not replace accepted goldens with a noisier pair. **No**
+  fitted black cell, **no** color-only purple masks, **no** mean budgets,
+  **no** ceil(noise_max) PASS tolerance. Outdoor Java underlay vs gray C
+  isolation under translucent alpha is the honest composition residual.
   Mutations + controls: synthetic zero-noise PASS; real A/B blocked; erase/
   blank/+1/shift/recolor/extra black-midgray-midchroma-bright.
 - **Underwater hard residual (improved, not noise-floor):** UV/blend/order

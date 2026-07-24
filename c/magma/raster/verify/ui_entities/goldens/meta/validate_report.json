@@ -424,7 +424,7 @@
       "id": "xp_orb",
       "status": "PASS",
       "ok": true,
-      "presence": 83.95436111111111,
+      "presence": 83.53258333333333,
       "noise": 0.0,
       "pmin": 20.0,
       "nmax": 3.0,
@@ -435,9 +435,9 @@
         280
       ],
       "roi_mean_rgb": [
-        121.62875,
-        121.62875,
-        121.62875
+        119.1245,
+        119.1245,
+        118.7545
       ],
       "yspan": 99,
       "xspan": 119,
@@ -445,8 +445,8 @@
       "subject_frac": 1.0,
       "meta": true,
       "detail": "",
-      "bytes_a": 53707,
-      "bytes_b": 53707
+      "bytes_a": 51926,
+      "bytes_b": 51926
     },
     {
       "id": "slime_sizes_distinct",

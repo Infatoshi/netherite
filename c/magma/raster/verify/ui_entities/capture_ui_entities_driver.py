@@ -66,6 +66,19 @@ def grab(e, path):
     return r
 
 
+def grab_pair(e, path_a, path_b):
+    """Atomic A/B re-render on one client-thread turn (no free-running ticks)."""
+    r = e._cmd({"cmd": "frame_pair", "action": {
+        "file_a": path_a, "file_b": path_b, "rerender": True,
+    }})
+    if not r.get("ok"):
+        raise RuntimeError("frame_pair failed for %s/%s: %s" % (path_a, path_b, r))
+    for path in (path_a, path_b):
+        if not os.path.isfile(path) or os.path.getsize(path) < 100:
+            raise RuntimeError("frame_pair file missing/empty: %s (%s)" % (path, r))
+    return r
+
+
 def settle(e, n=8):
     for _ in range(n):
         e.step({})
@@ -187,10 +200,14 @@ def base_scene(e, outdir=None):
         ensure_pad_rendered(e, outdir)
 
 
-def capture_pair(e, outdir, state_id, pin_fn, meta_extra=None, cam=None):
-    """pin_fn(e) -> pin reply dict; dumps A then re-pin and dump B.
+def capture_pair(e, outdir, state_id, pin_fn, meta_extra=None, cam=None,
+                 stable_ab=False):
+    """pin_fn(e) -> pin reply dict; dumps A then (optionally re-pin and) dump B.
 
     Re-pin after settle so client has the server entity before frame{} readback.
+    stable_ab=True: back-to-back A/B under the same pin (no re-spawn between
+    grabs). Required for xp_orb so free-running gravity/xpColor++ cannot
+    re-roll the subject; frame{} re-applies the client render pin each grab.
     Writes into outdir; caller may skip when a valid golden already exists.
     """
     os.makedirs(outdir, exist_ok=True)
@@ -210,15 +227,25 @@ def capture_pair(e, outdir, state_id, pin_fn, meta_extra=None, cam=None):
     settle(e, 6)
     set_pose(e, pose)
     path_a = os.path.join(outdir, "%s_a.png" % state_id)
-    fa = grab(e, path_a)
-    set_pose(e, pose)
-    r2 = pin_fn(e)
-    if not r2.get("ok"):
-        raise RuntimeError("entity_pin B failed for %s: %s" % (state_id, r2))
-    settle(e, 6)
-    set_pose(e, pose)
     path_b = os.path.join(outdir, "%s_b.png" % state_id)
-    fb = grab(e, path_b)
+    # Atomic frame_pair for same-state A/B (xp and any stable_ab). Dig particles
+    # intentionally re-pin for a second spray sample.
+    if stable_ab:
+        r2 = r1
+        pair = grab_pair(e, path_a, path_b)
+        fa = dict(pair)
+        fa["file"] = path_a
+        fb = dict(pair)
+        fb["file"] = path_b
+    else:
+        fa = grab(e, path_a)
+        set_pose(e, pose)
+        r2 = pin_fn(e)
+        if not r2.get("ok"):
+            raise RuntimeError("entity_pin B failed for %s: %s" % (state_id, r2))
+        settle(e, 6)
+        set_pose(e, pose)
+        fb = grab(e, path_b)
 
     meta = {
         "id": state_id,
@@ -231,22 +258,25 @@ def capture_pair(e, outdir, state_id, pin_fn, meta_extra=None, cam=None):
         "height": fa.get("h"),
         "gui_scale": 2,
         "partial_ticks": 1.0,
+        "stable_ab": bool(stable_ab),
         "notes": ("A/B from qrl frame{} at partialTicks=1; client render pin "
-                  "applied immediately before renderWorld for squish/deathTicks"),
+                  "applied immediately before renderWorld for "
+                  "squish/deathTicks/xp_orb"),
     }
     if meta_extra:
         meta.update(meta_extra)
     with open(os.path.join(meta_dir, "%s.json" % state_id), "w") as f:
         json.dump(meta, f, indent=2)
-    log("captured %s  a=%s b=%s pin=%s frame_pin=%s/%s" % (
+    log("captured %s  a=%s b=%s pin=%s frame_pin=%s/%s stable_ab=%s" % (
         state_id, fa.get("w"), fb.get("w"),
         {k: r1.get(k) for k in ("ok", "kind", "size", "squish", "death_ticks",
                                 "eid", "uuid", "render_pin_armed", "value", "face")
          if k in r1},
-        fa.get("render_pin"), fb.get("render_pin")))
-    # Squish/dragon goldens are worthless without a live client render pin.
+        fa.get("render_pin"), fb.get("render_pin"), stable_ab))
+    # Squish/dragon/xp goldens are worthless without a live client render pin.
     needs_pin = (state_id.endswith("_squish")
-                 or state_id.startswith("dragon_death_"))
+                 or state_id.startswith("dragon_death_")
+                 or state_id == "xp_orb")
     if needs_pin and not (fa.get("render_pin") and fb.get("render_pin")):
         raise RuntimeError(
             "frame{} did not apply client render pin for %s (a=%s b=%s pin=%s)" % (
@@ -294,16 +324,48 @@ def pin_fireball(kind):
 
 
 def pin_xp():
-    s = dict(SUBJ)
-    s["y"] = float(PLAT_Y + 1.5)
+    # Closer/higher than generic SUBJ so the 0.3-scale billboard is well inside
+    # the center ROI and not buried in pad/horizon. color=0 is a green-gold
+    # phase (sin≈0 → R mid, G 255, B low). Client render pin freezes pose+tint.
+    s = {
+        "x": CX + 0.5,
+        "y": float(PLAT_Y + 2.0),
+        "z": CZ + 2.5,  # ~2 blocks in front of camera at z=CX+0.5
+    }
 
     def _pin(e):
         return entity_pin(
             e, kind="xp_orb", clear=True,
             x=s["x"], y=s["y"], z=s["z"],
-            value=7, age=0, color=0,
+            value=17, age=0, color=0,  # tier-3 sheet cell; larger on atlas
         )
     return _pin
+
+
+def xp_orb_visible(path):
+    """True if experience_orb green-gold/yellow pixels exist near frame center."""
+    try:
+        from PIL import Image
+        import numpy as np
+        a = np.asarray(Image.open(path).convert("RGB"), dtype=np.int16)
+        # Match compare_ui_entities_oracle subject_seg xp_orb cuts (center ROI).
+        r = a[:, :, 0]
+        g = a[:, :, 1]
+        b = a[:, :, 2]
+        sky = (b > 200) & (g > 180) & (r > 140)
+        pad = (np.abs(r - g) <= 6) & (np.abs(g - b) <= 6) & (r >= 90) & (r <= 150)
+        green_gold = (
+            (g > 90) & (g >= r - 15) & (g > b + 10)
+            & (r > 40) & (b < 200) & ~sky & ~pad
+        )
+        yellow = (
+            (r > 140) & (g > 140) & (b < r - 20) & (b < g - 20) & ~sky & ~pad
+        )
+        n = int((green_gold | yellow).sum())
+        return n >= 8, n
+    except Exception as ex:
+        log("xp_orb_visible check failed: %s" % ex)
+        return False, 0
 
 
 def pin_dig(bx, by, bz, face=1, count=6):
@@ -398,14 +460,28 @@ def main():
     base_scene(e, outdir=out)
     states = []
 
-    def maybe_capture(sid, pin_fn, meta_extra=None, cam=None):
+    def maybe_capture(sid, pin_fn, meta_extra=None, cam=None, stable_ab=False):
         if not _state_wanted(only, sid):
             log("not in --only, skip %s" % sid)
             return
         if _skip_if_valid(out, sid, args.skip_valid):
             states.append(sid)
             return
-        capture_pair(e, out, sid, pin_fn, meta_extra=meta_extra, cam=cam)
+        meta = capture_pair(
+            e, out, sid, pin_fn, meta_extra=meta_extra, cam=cam,
+            stable_ab=stable_ab)
+        # xp_orb: require a visible green-gold orb (never commit pad-only).
+        if sid == "xp_orb":
+            path_a = os.path.join(out, "xp_orb_a.png")
+            ok_vis, n_gg = xp_orb_visible(path_a)
+            if not ok_vis:
+                raise RuntimeError(
+                    "xp_orb golden has no visible orb (green_gold_px=%d); "
+                    "CAPTURE_BLOCKED — not writing acceptance" % n_gg)
+            log("xp_orb presence ok green_gold_px=%d render_pin=%s/%s" % (
+                n_gg,
+                (meta.get("frame_a") or {}).get("render_pin"),
+                (meta.get("frame_b") or {}).get("render_pin")))
         states.append(sid)
 
     for size in (1, 2, 4):
@@ -489,9 +565,12 @@ def main():
                                "subject": dict(SUBJ, y=PLAT_Y + 2)}})
 
     maybe_capture(
-        "xp_orb", pin_xp(),
-        meta_extra={"entity": {"type": "xp_orb", "value": 7, "age": 0, "color": 0,
-                               "subject": dict(SUBJ, y=PLAT_Y + 1.5)}})
+        "xp_orb", pin_xp(), stable_ab=True,
+        meta_extra={"entity": {
+            "type": "xp_orb", "value": 17, "age": 0, "color": 0,
+            "subject": {
+                "x": CX + 0.5, "y": float(PLAT_Y + 2.0), "z": CZ + 2.5,
+            }}})
 
     # Merge with any pre-existing states when using --only / --skip-valid
     all_ids = [

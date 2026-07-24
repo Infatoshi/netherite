@@ -15,7 +15,7 @@ PNGs. Geometry gates in `test_geom_gates.c` stay separate.
 | `dig_stone` / `dig_grass` | ParticleDigging hit spray | `entity_pin` dig_hit on stone/grass face UP |
 | `fireball_small` | RenderFireball scale 0.3125 + fire | `entity_pin` small_fireball |
 | `fireball_dragon` | RenderDragonFireball 2x | `entity_pin` dragon_fireball |
-| `xp_orb` | RenderXPOrb billboard | `entity_pin` xp_orb value/age/color |
+| `xp_orb` | RenderXPOrb billboard | `entity_pin` xp_orb value/age/color + client render pin; `frame_pair` |
 
 ## Capture profile
 
@@ -62,9 +62,12 @@ because they alternated between missing dim/dark/extra entity pixels and
 owning grass, endstone, or pad. The interactive renderer must match the
 composed scene, so those ROI pixels are part of the contract.
 
-`xp_orb` has an additional presence prerequisite: its current Java golden is
-only gray pad, so it remains `CAPTURE_BLOCKED` until the Oracle visibly contains
-the green/gold orb. Full-ROI equality cannot certify a missing subject.
+`xp_orb` has an additional presence prerequisite: the Java golden must visibly
+contain the green/gold orb (pad-only frames are `CAPTURE_BLOCKED`). Capture
+uses a client render pin (pose + `xpColor`/`xpOrbAge`/`xpValue` + noGravity)
+and atomic `frame_pair` so A/B is same-state. Post-2026-07-24 recapture: orb
+visible, full-frame A/B exact (`noise_max==0`); honest C is **RESIDUAL** until
+`hard_px==0`.
 
 ### Verdicts
 

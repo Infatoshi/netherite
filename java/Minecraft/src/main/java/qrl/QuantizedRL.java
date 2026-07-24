@@ -76,6 +76,12 @@ public class QuantizedRL {
     /** When >= 0, re-apply EntityRenderer.rendererUpdateCount before each frame{}
      * re-render so portal camera warp is A/B-stable under a live client tick. */
     private volatile int pinPortalPhase = -1;
+    /** Sticky timeInPortal for oracle portal overlay. Free-running client ticks
+     * decay EntityPlayer.timeInPortal when not in a portal block; without
+     * re-applying here, A/B frame{} grabs sample different fourth-power alphas
+     * and leave maxch=1 residuals under the purple fullscreen swirl. */
+    private volatile boolean pinPortalTimeActive = false;
+    private volatile float pinPortalTime = 0.0F;
 
     /**
      * Sticky first-person use-pose pin for oracle hand captures.
@@ -178,6 +184,11 @@ public class QuantizedRL {
     private volatile int renderPinSize;
     private volatile int renderPinDeathTicks;
     private volatile boolean renderPinIsMagma;
+    /** XP orb client render pin: color/age/value + frozen world pose. */
+    private volatile int renderPinXpColor;
+    private volatile int renderPinXpAge;
+    private volatile int renderPinXpValue;
+    private volatile boolean renderPinIsXp;
 
     /** Client-thread hook from MixinRecordPlayerVelocity. Raw packet shorts are
      * retained so replay reproduces SPacketEntityVelocity's 1/8000 quantization. */
@@ -219,14 +230,29 @@ public class QuantizedRL {
         } catch (Throwable ig) { /* leave live phase */ }
     }
 
+    /** Re-apply sticky timeInPortal so GuiIngame.renderPortal alpha is identical
+     * on every frame{} re-render despite free-running client decay. */
+    private void applyPinnedPortalTime(Minecraft mc) {
+        if (!pinPortalTimeActive || mc == null || mc.player == null) return;
+        EntityPlayerSP p = mc.player;
+        p.timeInPortal = pinPortalTime;
+        p.prevTimeInPortal = pinPortalTime;
+    }
+
     /** Snapshot of client entity fields restored after frame{} re-render. */
     private static final class RenderPinSnap {
         net.minecraft.entity.Entity entity;
         boolean isSlime;
         boolean isDragon;
+        boolean isXp;
         float squishAmount, squishFactor, prevSquishFactor;
         int deathTicks;
         float health;
+        int xpColor, xpAge, xpValue, xpDelay;
+        double posX, posY, posZ;
+        double prevPosX, prevPosY, prevPosZ;
+        double lastTickPosX, lastTickPosY, lastTickPosZ;
+        double motionX, motionY, motionZ;
     }
 
     /** Match just-spawned server entity on the client world: UUID, then eid, then
@@ -267,12 +293,14 @@ public class QuantizedRL {
                 && !(e instanceof net.minecraft.entity.monster.EntityMagmaCube);
         if (k.contains("dragon") && !k.contains("fireball"))
             return e instanceof net.minecraft.entity.boss.EntityDragon;
+        if (k.contains("xp") || k.equals("xporb"))
+            return e instanceof net.minecraft.entity.item.EntityXPOrb;
         return false;
     }
 
-    /** Write squishFactor/prevSquishFactor/squishAmount or deathTicks onto the
-     * CLIENT entity the renderer reads. For dragon, keep health > 0 so
-     * onDeathUpdate does not advance deathTicks or remove the entity. */
+    /** Write squishFactor/prevSquishFactor/squishAmount, deathTicks, or XP orb
+     * color/age/pose onto the CLIENT entity the renderer reads. For dragon,
+     * keep health > 0 so onDeathUpdate does not advance deathTicks. */
     private void applyClientEntityRenderFields(net.minecraft.entity.Entity e) {
         if (e instanceof net.minecraft.entity.monster.EntitySlime) {
             net.minecraft.entity.monster.EntitySlime sl =
@@ -300,6 +328,25 @@ public class QuantizedRL {
             } catch (Throwable ig) {}
             dr.deathTicks = renderPinDeathTicks;
             dr.motionX = dr.motionY = dr.motionZ = 0.0D;
+        } else if (e instanceof net.minecraft.entity.item.EntityXPOrb) {
+            net.minecraft.entity.item.EntityXPOrb orb =
+                (net.minecraft.entity.item.EntityXPOrb) e;
+            // Freeze render inputs: xpColor drives sin-phase tint, xpOrbAge is
+            // lifetime, delay blocks attraction. Pose must not interpolate.
+            orb.xpColor = renderPinXpColor;
+            orb.xpOrbAge = renderPinXpAge;
+            if (renderPinXpValue > 0) orb.xpValue = renderPinXpValue;
+            orb.delayBeforeCanPickup = 32767;
+            try { orb.setNoGravity(true); } catch (Throwable ig) {}
+            orb.motionX = orb.motionY = orb.motionZ = 0.0D;
+            orb.setPosition(renderPinX, renderPinY, renderPinZ);
+            orb.prevPosX = renderPinX;
+            orb.prevPosY = renderPinY;
+            orb.prevPosZ = renderPinZ;
+            orb.lastTickPosX = renderPinX;
+            orb.lastTickPosY = renderPinY;
+            orb.lastTickPosZ = renderPinZ;
+            orb.isDead = false;
         }
     }
 
@@ -322,6 +369,22 @@ public class QuantizedRL {
             snap.isDragon = true;
             snap.deathTicks = dr.deathTicks;
             snap.health = dr.getHealth();
+        } else if (e instanceof net.minecraft.entity.item.EntityXPOrb) {
+            net.minecraft.entity.item.EntityXPOrb orb =
+                (net.minecraft.entity.item.EntityXPOrb) e;
+            snap.isXp = true;
+            snap.xpColor = orb.xpColor;
+            snap.xpAge = orb.xpOrbAge;
+            snap.xpValue = orb.xpValue;
+            snap.xpDelay = orb.delayBeforeCanPickup;
+            snap.posX = orb.posX; snap.posY = orb.posY; snap.posZ = orb.posZ;
+            snap.prevPosX = orb.prevPosX; snap.prevPosY = orb.prevPosY;
+            snap.prevPosZ = orb.prevPosZ;
+            snap.lastTickPosX = orb.lastTickPosX;
+            snap.lastTickPosY = orb.lastTickPosY;
+            snap.lastTickPosZ = orb.lastTickPosZ;
+            snap.motionX = orb.motionX; snap.motionY = orb.motionY;
+            snap.motionZ = orb.motionZ;
         } else {
             return null;
         }
@@ -343,6 +406,24 @@ public class QuantizedRL {
                 (net.minecraft.entity.boss.EntityDragon) snap.entity;
             dr.deathTicks = snap.deathTicks;
             try { dr.setHealth(snap.health); } catch (Throwable ig) {}
+        } else if (snap.isXp
+                && snap.entity instanceof net.minecraft.entity.item.EntityXPOrb) {
+            net.minecraft.entity.item.EntityXPOrb orb =
+                (net.minecraft.entity.item.EntityXPOrb) snap.entity;
+            orb.xpColor = snap.xpColor;
+            orb.xpOrbAge = snap.xpAge;
+            orb.xpValue = snap.xpValue;
+            orb.delayBeforeCanPickup = snap.xpDelay;
+            orb.motionX = snap.motionX;
+            orb.motionY = snap.motionY;
+            orb.motionZ = snap.motionZ;
+            orb.setPosition(snap.posX, snap.posY, snap.posZ);
+            orb.prevPosX = snap.prevPosX;
+            orb.prevPosY = snap.prevPosY;
+            orb.prevPosZ = snap.prevPosZ;
+            orb.lastTickPosX = snap.lastTickPosX;
+            orb.lastTickPosY = snap.lastTickPosY;
+            orb.lastTickPosZ = snap.lastTickPosZ;
         }
     }
 
@@ -475,7 +556,7 @@ public class QuantizedRL {
             case "reload_renderers":
             case "portal_touch": case "use_end_eye": case "set_pose": case "hud_pin":
             case "entity_pin":
-            case "dumpblocks": case "frame": case "gldiag": case "focusdiag": case "camera": case "sample_light":
+            case "dumpblocks": case "frame": case "frame_pair": case "gldiag": case "focusdiag": case "camera": case "sample_light":
             case "recstart": case "recstop":
             case "getblocks": case "setblocks":
             case "summon": case "getentities": case "killentities":
@@ -3110,6 +3191,11 @@ public class QuantizedRL {
         // Tick-boundary capture matches tape keyframes (tb:1 / hud:1). Optional
         // "rerender":false skips the re-render and just dumps the current FBO.
         //
+        // frame_pair: two re-renders + two PNG dumps on the SAME client-thread
+        // turn with no intervening game tick. Oracle A/B goldens that previously
+        // raced free-running ticks (portal underlay 1-LSB, underwater fog,
+        // entity pose) use this so twins measure true same-state noise.
+        //
         // Malmo ClientStateMachine sets hideGUI=true for the episode (F1 view).
         // EntityRenderer.renderHand skips ItemRenderer when hideGUI is set, so
         // forced GUI overlays still paint but the first-person viewmodel is
@@ -3123,9 +3209,13 @@ public class QuantizedRL {
         // processKeyBinds (earlier this tick) may have already onStoppedUsingItem
         // because the physical use key is not held. Without this, bow/eat/shield
         // goldens capture idle rest tips despite a successful hud_pin.
-        if (r.cmd.equals("frame")) {
+        if (r.cmd.equals("frame") || r.cmd.equals("frame_pair")) {
             try {
-                String file = r.action.get("file").getAsString();
+                final boolean isPair = r.cmd.equals("frame_pair");
+                String fileA = isPair
+                    ? r.action.get("file_a").getAsString()
+                    : r.action.get("file").getAsString();
+                String fileB = isPair ? r.action.get("file_b").getAsString() : null;
                 int fw = mc.displayWidth, fh = mc.displayHeight;
                 boolean rerender = !r.action.has("rerender")
                     || r.action.get("rerender").getAsBoolean();
@@ -3135,74 +3225,92 @@ public class QuantizedRL {
                 JsonObject useAtRender = null;
                 boolean prevHide = mc.gameSettings.hideGUI;
                 int prevTp = mc.gameSettings.thirdPersonView;
-                if (rerender && mc.world != null && mc.player != null
-                        && mc.entityRenderer != null) {
-                    RenderPinSnap pinSnap = null;
-                    try {
-                        // First-person viewmodel requires: hideGUI=false,
-                        // thirdPersonView=0, not spectator, not sleeping.
-                        mc.gameSettings.hideGUI = false;
-                        mc.gameSettings.thirdPersonView = 0;
-                        // Sticky portal warp phase: updateRenderer may have
-                        // advanced rendererUpdateCount since the last hud_pin.
-                        applyPinnedPortalPhase(mc);
-                        // Re-freeze camera so A/B wall registration matches
-                        // under large viewmodel silhouettes (drawn bow).
-                        applyStickyPosePin(mc);
-                        // Re-assert sticky use pose + equip + stack identity.
-                        // processKeyBinds may have already onStoppedUsingItem.
-                        if (pinUseActive) {
-                            useAtRender = applyUsePosePin(mc);
-                        }
-                        if (renderPinActive) {
-                            pinSnap = applyPendingRenderPin(mc);
-                            if (pinSnap != null && pinSnap.entity != null) {
-                                pinApplied = 1;
-                                pinClientEid = pinSnap.entity.getEntityId();
-                            }
-                        }
-                        net.minecraft.client.shader.Framebuffer fb = mc.getFramebuffer();
-                        fb.bindFramebuffer(true);
-                        mc.entityRenderer.renderWorld(1.0F, System.nanoTime());
+                // Fixed nanoTime for both A/B re-renders so any clock-derived
+                // shader/path does not inject A/B residual inside one pair.
+                final long pairNano = System.nanoTime();
+                int nPasses = isPair ? 2 : 1;
+                for (int pass = 0; pass < nPasses; ++pass) {
+                    String file = (pass == 0) ? fileA : fileB;
+                    if (rerender && mc.world != null && mc.player != null
+                            && mc.entityRenderer != null) {
+                        RenderPinSnap pinSnap = null;
                         try {
-                            mc.entityRenderer.setupOverlayRendering();
-                            mc.ingameGUI.renderGameOverlay(1.0F);
-                            hud = true;
-                            if (mc.currentScreen != null) {
-                                net.minecraft.client.gui.ScaledResolution sr =
-                                    new net.minecraft.client.gui.ScaledResolution(mc);
-                                int mx = org.lwjgl.input.Mouse.getX() * sr.getScaledWidth()
-                                    / mc.displayWidth;
-                                int my = sr.getScaledHeight()
-                                    - org.lwjgl.input.Mouse.getY() * sr.getScaledHeight()
-                                    / mc.displayHeight - 1;
-                                mc.currentScreen.drawScreen(mx, my, 1.0F);
+                            // First-person viewmodel requires: hideGUI=false,
+                            // thirdPersonView=0, not spectator, not sleeping.
+                            mc.gameSettings.hideGUI = false;
+                            mc.gameSettings.thirdPersonView = 0;
+                            // Sticky portal warp phase: updateRenderer may have
+                            // advanced rendererUpdateCount since the last hud_pin.
+                            applyPinnedPortalPhase(mc);
+                            // Sticky portal overlay alpha (timeInPortal decays every
+                            // free-running client tick when not in a portal block).
+                            applyPinnedPortalTime(mc);
+                            // Re-freeze camera so A/B wall registration matches
+                            // under large viewmodel silhouettes (drawn bow).
+                            applyStickyPosePin(mc);
+                            // Re-assert sticky use pose + equip + stack identity.
+                            // processKeyBinds may have already onStoppedUsingItem.
+                            if (pinUseActive) {
+                                useAtRender = applyUsePosePin(mc);
                             }
-                        } catch (Throwable ig2) {}
-                        fb.unbindFramebuffer();
-                        tb = true;
-                    } catch (Throwable ig) {
-                        /* re-render failed; still restore gameSettings / pin below */
-                    } finally {
-                        if (pinSnap != null) {
-                            try { restoreRenderPin(pinSnap); } catch (Throwable ig3) {}
+                            if (renderPinActive) {
+                                pinSnap = applyPendingRenderPin(mc);
+                                if (pinSnap != null && pinSnap.entity != null) {
+                                    pinApplied = 1;
+                                    pinClientEid = pinSnap.entity.getEntityId();
+                                }
+                            }
+                            net.minecraft.client.shader.Framebuffer fb = mc.getFramebuffer();
+                            fb.bindFramebuffer(true);
+                            mc.entityRenderer.renderWorld(1.0F, pairNano);
+                            try {
+                                mc.entityRenderer.setupOverlayRendering();
+                                mc.ingameGUI.renderGameOverlay(1.0F);
+                                hud = true;
+                                if (mc.currentScreen != null) {
+                                    net.minecraft.client.gui.ScaledResolution sr =
+                                        new net.minecraft.client.gui.ScaledResolution(mc);
+                                    int mx = org.lwjgl.input.Mouse.getX() * sr.getScaledWidth()
+                                        / mc.displayWidth;
+                                    int my = sr.getScaledHeight()
+                                        - org.lwjgl.input.Mouse.getY() * sr.getScaledHeight()
+                                        / mc.displayHeight - 1;
+                                    mc.currentScreen.drawScreen(mx, my, 1.0F);
+                                }
+                            } catch (Throwable ig2) {}
+                            fb.unbindFramebuffer();
+                            tb = true;
+                        } catch (Throwable ig) {
+                            /* re-render failed; still restore gameSettings / pin below */
+                        } finally {
+                            if (pinSnap != null) {
+                                try { restoreRenderPin(pinSnap); } catch (Throwable ig3) {}
+                            }
+                            mc.gameSettings.hideGUI = prevHide;
+                            mc.gameSettings.thirdPersonView = prevTp;
                         }
-                        mc.gameSettings.hideGUI = prevHide;
-                        mc.gameSettings.thirdPersonView = prevTp;
                     }
+                    java.awt.image.BufferedImage img =
+                        net.minecraft.util.ScreenShotHelper.createScreenshot(
+                            fw, fh, mc.getFramebuffer());
+                    javax.imageio.ImageIO.write(img, "png", new java.io.File(file));
                 }
-                java.awt.image.BufferedImage img =
-                    net.minecraft.util.ScreenShotHelper.createScreenshot(fw, fh, mc.getFramebuffer());
-                javax.imageio.ImageIO.write(img, "png", new java.io.File(file));
                 StringBuilder resp = new StringBuilder(256);
-                resp.append("{\"ok\":true,\"file\":\"").append(file)
-                  .append("\",\"w\":").append(fw)
+                resp.append("{\"ok\":true");
+                if (isPair) {
+                    resp.append(",\"file_a\":\"").append(fileA).append("\"")
+                        .append(",\"file_b\":\"").append(fileB).append("\"")
+                        .append(",\"pair\":1");
+                } else {
+                    resp.append(",\"file\":\"").append(fileA).append("\"");
+                }
+                resp.append(",\"w\":").append(fw)
                   .append(",\"h\":").append(fh)
                   .append(",\"tb\":").append(tb ? 1 : 0)
                   .append(",\"hud\":").append(hud ? 1 : 0)
                   .append(",\"render_pin\":").append(pinApplied)
                   .append(",\"render_pin_eid\":").append(pinClientEid);
-                // Sticky portal_phase diagnostic (pinned value or live count).
+                // Sticky portal_phase / timeInPortal diagnostic (pinned or live).
                 {
                     int phase = pinPortalPhase;
                     if (phase < 0) {
@@ -3217,6 +3325,12 @@ public class QuantizedRL {
                         } catch (Throwable ig) {}
                     }
                     resp.append(",\"portal_phase\":").append(phase);
+                    if (pinPortalTimeActive) {
+                        resp.append(",\"portal_time_pin\":").append(pinPortalTime);
+                        if (mc.player != null)
+                            resp.append(",\"portal_time_live\":")
+                                .append(mc.player.timeInPortal);
+                    }
                 }
                 resp.append(",\"pin_use_active\":").append(pinUseActive);
                 if (pinUseActive)
@@ -3396,8 +3510,18 @@ public class QuantizedRL {
                     }
                 }
                 if (a.has("portal")) {
-                    p.timeInPortal = a.get("portal").getAsFloat();
-                    p.prevTimeInPortal = p.timeInPortal;
+                    float pt = a.get("portal").getAsFloat();
+                    p.timeInPortal = pt;
+                    p.prevTimeInPortal = pt;
+                    // Sticky: free-running ticks decay timeInPortal; frame{}
+                    // re-applies so A/B share the same fourth-power alpha.
+                    if (pt > 0.0F) {
+                        pinPortalTimeActive = true;
+                        pinPortalTime = pt;
+                    } else {
+                        pinPortalTimeActive = false;
+                        pinPortalTime = 0.0F;
+                    }
                 }
                 // Freeze EntityRenderer.rendererUpdateCount so the portal camera
                 // warp (setupCameraTransform rotate/scale on axis (0,1,1)) is
@@ -3410,6 +3534,8 @@ public class QuantizedRL {
                 } else if (a.has("portal") && a.get("portal").getAsFloat() <= 0.0F) {
                     // Clear sticky phase when leaving portal pin states.
                     pinPortalPhase = -1;
+                    pinPortalTimeActive = false;
+                    pinPortalTime = 0.0F;
                 }
                 if (a.has("hurt_time")) {
                     p.hurtTime = a.get("hurt_time").getAsInt();
@@ -3848,6 +3974,9 @@ public class QuantizedRL {
                 sb.append(",\"burning\":").append(p.isBurning());
                 sb.append(",\"fire_ticks\":").append(fireTicks);
                 sb.append(",\"portal\":").append(p.timeInPortal);
+                sb.append(",\"portal_time_pin_active\":").append(pinPortalTimeActive);
+                if (pinPortalTimeActive)
+                    sb.append(",\"portal_time_pin\":").append(pinPortalTime);
                 {
                     int phase = -1;
                     try {
@@ -3860,6 +3989,8 @@ public class QuantizedRL {
                         }
                     } catch (Throwable ig) {}
                     sb.append(",\"portal_phase\":").append(phase);
+                    if (pinPortalPhase >= 0)
+                        sb.append(",\"portal_phase_pin\":").append(pinPortalPhase);
                 }
                 sb.append(",\"dead\":").append(p.getHealth() <= 0.0F || p.isDead);
                 sb.append(",\"screen\":\"").append(screenName).append("\"");
@@ -4012,12 +4143,14 @@ sb.append("}");
                             o.addProperty("difficulty", w.getDifficulty().name());
                         } catch (Throwable ig) {}
 
-                        // Default: no client render pin unless slime/magma squish or dragon death.
+                        // Default: no client render pin unless slime/magma squish,
+                        // dragon death, or xp_orb pose/color freeze.
                         boolean armRenderPin = false;
                         float pinSq = 0.0f;
                         int pinSize = 0;
                         int pinDt = 0;
                         boolean pinMagma = false;
+                        renderPinIsXp = false;
 
                         if ("slime".equalsIgnoreCase(kind) || "magma_cube".equalsIgnoreCase(kind)
                                 || "magmacube".equalsIgnoreCase(kind)) {
@@ -4112,19 +4245,30 @@ sb.append("}");
                             ent = fb;
                         } else if ("xp_orb".equalsIgnoreCase(kind)
                                 || "xporb".equalsIgnoreCase(kind)) {
-                            renderPinActive = false;
                             int val = a.has("value") ? a.get("value").getAsInt() : 7;
                             net.minecraft.entity.item.EntityXPOrb orb =
                                 new net.minecraft.entity.item.EntityXPOrb(w, sx, sy, sz, val);
                             orb.motionX = orb.motionY = orb.motionZ = 0.0D;
-                            if (a.has("age")) orb.xpOrbAge = a.get("age").getAsInt();
-                            if (a.has("color")) orb.xpColor = a.get("color").getAsInt();
-                            else orb.xpColor = 0;
+                            try { orb.setNoGravity(true); } catch (Throwable ig) {}
+                            int age = a.has("age") ? a.get("age").getAsInt() : 0;
+                            // Default color phase with visible green-gold tint
+                            // (sin phase ~0 → red mid, green 255, blue low).
+                            int col = a.has("color") ? a.get("color").getAsInt() : 0;
+                            orb.xpOrbAge = age;
+                            orb.xpColor = col;
                             orb.delayBeforeCanPickup = 32767; // never attract
+                            // Arm CLIENT render pin so free-running onUpdate
+                            // (gravity, attraction, xpColor++) cannot move or
+                            // despawn the orb between settle and frame{}.
+                            armRenderPin = true;
+                            renderPinXpColor = col;
+                            renderPinXpAge = age;
+                            renderPinXpValue = val;
+                            renderPinIsXp = true;
                             ent = orb;
                             o.addProperty("value", val);
-                            o.addProperty("age", orb.xpOrbAge);
-                            o.addProperty("color", orb.xpColor);
+                            o.addProperty("age", age);
+                            o.addProperty("color", col);
                         } else {
                             fr.resp.offer(err("entity_pin: unknown kind " + kind));
                             return;

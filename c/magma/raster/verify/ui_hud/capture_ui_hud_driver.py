@@ -164,6 +164,29 @@ def grab(e, path, expect_use_branch=None):
     return r
 
 
+def grab_pair(e, path_a, path_b, expect_use_branch=None):
+    """Atomic A/B re-render on one client-thread turn (no free-running ticks).
+
+    Uses qrl frame_pair so portal/underwater/entity A/B noise is same-state,
+    not inter-tick underlay drift.
+    """
+    r = e._cmd({"cmd": "frame_pair", "action": {
+        "file_a": path_a, "file_b": path_b, "rerender": True,
+    }})
+    if not r.get("ok"):
+        raise RuntimeError("frame_pair failed for %s/%s: %s" % (path_a, path_b, r))
+    for path in (path_a, path_b):
+        if not os.path.isfile(path) or os.path.getsize(path) < 100:
+            raise RuntimeError("frame_pair file missing/empty: %s (%s)" % (path, r))
+    if expect_use_branch is not None:
+        branch = str(r.get("use_branch") or "")
+        if branch != expect_use_branch:
+            raise RuntimeError(
+                "frame_pair use_branch=%s want %s: %s" % (
+                    branch, expect_use_branch, r))
+    return r
+
+
 def settle(e, n=8):
     for _ in range(n):
         e.step({})
@@ -688,21 +711,31 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
     for _ in range(n_repin):
         r1 = hud_pin_ok(e, **pin)
     path_a = os.path.join(outdir, "%s_a.png" % state_id)
+    path_b = os.path.join(outdir, "%s_b.png" % state_id)
     expect_branch = _HAND_USE_EXPECT_BRANCH.get(state_id)
-    fa = grab(e, path_a, expect_use_branch=expect_branch)
-    # Hand use poses: back-to-back double-grab under the sticky use+pose pin.
-    # A free-run re-pin between A/B produced systematic wall registration
-    # offset under the large drawn-bow silhouette. frame{} re-applies sticky
-    # pose/use immediately before each re-render, so A/B twins measure true
-    # capture noise without re-pin drift. A/B world/pose registration may
-    # still fail to stabilize for golden acceptance (OPEN; see ORACLE_CAPTURE).
-    if expect_branch is not None:
+    # Atomic same-state A/B via frame_pair: two re-renders on one client-thread
+    # turn with sticky portal/pose/use pins re-applied each pass. Separated
+    # frame{} calls race free-running ticks (portal underlay 1-LSB, underwater
+    # fog, hand wall registration).
+    use_pair = (
+        expect_branch is not None
+        or state_id in (
+            "overlay_portal_050", "overlay_underwater", "overlay_fire",
+            "overlay_inside_stone", "overlay_inside_grass",
+        )
+    )
+    if use_pair:
         r2 = r1
+        pair = grab_pair(e, path_a, path_b, expect_use_branch=expect_branch)
+        fa = dict(pair)
+        fa["file"] = path_a
+        fb = dict(pair)
+        fb["file"] = path_b
     else:
+        fa = grab(e, path_a, expect_use_branch=expect_branch)
         for _ in range(n_repin):
             r2 = hud_pin_ok(e, **pin)
-    path_b = os.path.join(outdir, "%s_b.png" % state_id)
-    fb = grab(e, path_b, expect_use_branch=expect_branch)
+        fb = grab(e, path_b, expect_use_branch=expect_branch)
 
     noise = None
     presence = None
