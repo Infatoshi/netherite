@@ -819,6 +819,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         CrVertex **eb=&c->entity_verts[c->ent_set*4];
         gm_entity_geom_tick(c->frame);
         int nv=gm_entities_emit(ents,n,eb[0],c->max_entity_verts);
+        nv+=gm_xp_orbs_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
         CrTexture ea=gm_entity_atlas();
         /* fog entities like terrain: underwater EXP fog so distant squid don't
          * punch through as bright unfogged blobs (vanilla setupFog applies to

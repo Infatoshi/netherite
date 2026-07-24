@@ -86,13 +86,38 @@ static void test_part_counts(void) {
     GmEntityView sk[2] = { {1, 0,0,0, 0,0}, {0, 0,0,0, 0,0} };
     int ns = gm_entities_emit(sk, 2, out, MAXV);
     CHECK(ns == 0, "PLAYER + NONE entities are skipped (0 verts)");
-    /* Unmodeled types keep the legacy 36-vert marker box. */
-    GmEntityView mk = { 21, 0, 64, 0, 0, 5 };
-    CHECK(gm_entities_emit(&mk, 1, out, MAXV) == 36,
-          "xp orb (21) keeps the legacy 36-vert marker box");
+    /* XP orb (21): skipped by gm_entities_emit (not marker); billboard path. */
+    GmEntityView mk; memset(&mk, 0, sizeof mk);
+    mk.type = 21; mk.y = 64; mk.health = 5; mk.item_id = 5;
+    CHECK(gm_entities_emit(&mk, 1, out, MAXV) == 0,
+          "xp orb (21) is not the legacy marker box in gm_entities_emit");
+    int xp_n = gm_xp_orbs_emit(&mk, 1, 0.0f, 0.0f, out, MAXV);
+    CHECK(xp_n == 6, "xp orb emits a 6-vert camera-facing billboard");
+    CHECK(xp_n != 36, "xp orb is not 36-vert marker geometry");
+    /* value-tier UV: xpValue 1 -> tier 0; 2477 -> tier 10 (different U). */
+    {
+        GmEntityView a, b;
+        memset(&a, 0, sizeof a); memset(&b, 0, sizeof b);
+        a.type = 21; a.item_id = 1; a.y = 64;
+        b.type = 21; b.item_id = 2477; b.y = 64;
+        CrVertex va[6], vb[6];
+        CHECK(gm_xp_orbs_emit(&a, 1, 0.0f, 0.0f, va, 6) == 6, "tier0 orb emits");
+        CHECK(gm_xp_orbs_emit(&b, 1, 0.0f, 0.0f, vb, 6) == 6, "tier10 orb emits");
+        CHECK(fabsf(va[0].uv.x - vb[0].uv.x) > 1e-5f ||
+              fabsf(va[0].uv.y - vb[0].uv.y) > 1e-5f,
+              "xp value tiers select different experience_orb UVs");
+        /* colour phase: xpColor changes tint (not pure white marker). */
+        a.item_meta = 0;
+        b.item_meta = 40;
+        gm_xp_orbs_emit(&a, 1, 0.0f, 0.0f, va, 6);
+        gm_xp_orbs_emit(&b, 1, 0.0f, 0.0f, vb, 6);
+        CHECK(va[0].tint.r != vb[0].tint.r || va[0].tint.b != vb[0].tint.b,
+              "xpColor phase modulates orb vertex colour");
+        CHECK(va[0].tint.a == 128, "RenderXPOrb vertex alpha is 128");
+    }
     /* Type 9 is the dedicated RenderDragon + ModelDragon transcription: five
      * neck segments, head/jaw, body, paired wings/legs, and 12 tail segments. */
-    mk.type = 9;
+    mk.type = 9; mk.item_id = 0;
     CHECK(gm_entities_emit(&mk, 1, out, MAXV) == 65 * 36,
           "dragon (9) emits the full 65-box ModelDragon (2340 verts)");
 }
@@ -339,7 +364,9 @@ static void test_name_map(void) {
     CHECK(gm_entity_skin_for_name("EntityPigZombie") == CR_MOB_PIGMAN + 1,
           "EntityPigZombie skin -> pigman sprite");
     CHECK(gm_entity_skin_for_name("EntityZombie") == 0, "EntityZombie skin -> 0");
-    static const char *NEG[] = { "EntityItem", "EntityXPOrb",
+    CHECK(gm_entity_type_for_name("EntityXPOrb") == 21,
+          "EntityXPOrb -> 21 (RenderXPOrb billboard)");
+    static const char *NEG[] = { "EntityItem",
                                  "EntityFallingBlock", "EntityNoSuchThing" };
     for (unsigned i = 0; i < sizeof NEG / sizeof NEG[0]; ++i) {
         char msg[96];

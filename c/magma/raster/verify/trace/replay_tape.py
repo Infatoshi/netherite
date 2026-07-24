@@ -51,12 +51,12 @@ MODELED_ENTITY_TYPES = frozenset({
     "EntityEnderPearl", "EntityEnderEye", "EntitySnowball", "EntityEgg",
     "EntitySmallFireball", "EntityDragonFireball",
     "EntityArmorStand",
+    "EntityXPOrb",
 })
 
 # RenderAreaEffectCloud itself has no geometry. Its client-side dragon-breath
 # particles are RNG-unrecoverable from tape entity rows and are scoped by the
-# scenario known-divergence sidecar. Visual classes such as EntityXPOrb are
-# deliberately NOT allowlisted: a repeated orb row must fail until rendered.
+# scenario known-divergence sidecar.
 SKIPPED_ENTITY_ALLOWLIST = frozenset({"EntityAreaEffectCloud"})
 MISSING_MODEL_ROW_THRESHOLD = 4  # five repeated rows is no longer "a handful"
 
@@ -761,6 +761,10 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                 elif e[1] == "EntityItem" and len(e) >= 12:
                     view.update(item=e[7], item_meta=e[8], count=e[9],
                                 age=e[10], hover=e[11], has_hover=1)
+                elif e[1] == "EntityXPOrb" and len(e) >= 10:
+                    # recorder: xpValue, xpColor, xpOrbAge after the base 7.
+                    view.update(item=int(e[7]), item_meta=int(e[8]),
+                                age=int(e[9]))
                 elif e[1] == "EntityEnderCrystal" and len(e) >= 12:
                     # recorder appends innerRotation, shouldShowBottom, beam
                     # target block (-1,-1,-1 = no beam).

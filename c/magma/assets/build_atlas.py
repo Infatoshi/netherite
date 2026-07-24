@@ -9,6 +9,7 @@ C header assets/atlas_gen.h with the atlas bytes + a sorted sprite rect table.
 Animated textures (Nx(N*frames)) contribute only their first 16x16 frame.
 Also dumps /tmp/magma_atlas.png for eyeballing.
 """
+import io
 import os
 import tempfile
 import zipfile
@@ -163,13 +164,23 @@ SPRITE_NAMES = sorted([
 SPRITE_NAMES = sorted(set(SPRITE_NAMES))
 # Append new mechanics-pass sprites so existing generated indices remain stable.
 SPRITE_NAMES += ["ice_packed", "slime", "web"]
+# TileEntityEndPortalRenderer binds textures/entity/end_portal.png (256x256);
+# pack a 16x16 NEAREST downsample so the chunk mesh can tint multi-layer
+# UP-face quads with the same starfield source as the Java TESR.
+SPRITE_NAMES += ["end_portal"]
+SPECIAL_SPRITE_PATHS = {
+    "end_portal": "assets/minecraft/textures/entity/end_portal.png",
+}
 
 
 def load_sprite(zf, tmpdir, name):
     """Extract one PNG, return a 16x16 RGBA Image (first frame if animated)."""
-    member = BLOCKS + name + ".png"
-    zf.extract(member, tmpdir)
-    img = Image.open(os.path.join(tmpdir, member)).convert("RGBA")
+    member = SPECIAL_SPRITE_PATHS.get(name, BLOCKS + name + ".png")
+    if name in SPECIAL_SPRITE_PATHS:
+        img = Image.open(io.BytesIO(zf.read(member))).convert("RGBA")
+    else:
+        zf.extract(member, tmpdir)
+        img = Image.open(os.path.join(tmpdir, member)).convert("RGBA")
     w, h = img.size
     # Animated textures are stored as a vertical strip w x (w*frames): take frame 0.
     if h > w and h % w == 0:

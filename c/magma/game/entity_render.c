@@ -38,9 +38,10 @@
  *   10 sheep, 11 pig, 12 cow, 13 chicken -> table-driven full models.
  *   8 crystal, 9 dragon -> dedicated full render paths below.
  *   0 NONE / 1 PLAYER -> skipped.
- *   anything else (20 projectile, 21 xp orb, ...) keeps
- *   the legacy single 0.6x1.8x0.4 zombie-wrapped marker box (previous behavior
- *   for unmodeled types, preserved).
+ *   21 GM_ENTITY_XP_ORB -> RenderXPOrb camera-facing billboard
+ *     (gm_xp_orbs_emit; skipped here so it is not a marker box).
+ *   anything else (20 projectile, ...) keeps the legacy single 0.6x1.8x0.4
+ *   zombie-wrapped marker box (previous behavior for unmodeled types).
  */
 #include "game/entity_render.h"
 #include "assets/mob_atlas.h"
@@ -414,17 +415,20 @@ static const ErModel M_ARMOR_STAND = { .nparts = 8, .parts = {
     { CR_MOB_ARMORSTAND,  0, 32, -6,11,-6, 12, 1,12, 0,12,0,  0,0,0, 0,0 },
 } };
 
-/* Legacy marker box for unmodeled types (dragon/crystal/projectile/xp orb...):
+/* Legacy marker box for unmodeled types (dragon/crystal/projectile...):
  * one 0.6x1.8x0.4 box wrapped with the whole zombie skin, as before. */
 static const ErModel M_MARKER = { 1, {
     { CR_MOB_ZOMBIE, 0, 0, -4.8f,0,-3.2f, 0,0,0,  0,24,0,  0,0,0, 0,0 },
 } };
 /* (dims 0 flags the special legacy wrap; geometry hardcoded in emit_marker) */
 
+#define ER_TYPE_XP_ORB 21  /* GM_ENTITY_XP_ORB */
+
 static const ErModel *er_model_for_type(int type) {
     switch (type) {
         case ER_TYPE_NONE:
         case ER_TYPE_PLAYER:   return 0;         /* skipped */
+        case ER_TYPE_XP_ORB:   return 0;         /* gm_xp_orbs_emit (billboard) */
         case 22 /* GM_VIEW_ITEM */: return 0;    /* drawn by the item pass */
         case 30 /* GM_VIEW_BILLBOARD */: return 0; /* item pass (camera-facing) */
         case ER_TYPE_DRAGON_FIREBALL: return 0; /* dedicated item-atlas billboard */
@@ -1292,11 +1296,113 @@ int gm_entity_type_for_name(const char *name) {
          * camera-facing quad by 2.0. */
         { "EntityDragonFireball", ER_TYPE_DRAGON_FIREBALL },
         { "EntityArmorStand",     ER_TYPE_ARMOR_STAND },
+        /* RenderXPOrb camera-facing billboard (gm_xp_orbs_emit). */
+        { "EntityXPOrb",          ER_TYPE_XP_ORB },
     };
     if (!name) return -1;
     for (unsigned i = 0; i < sizeof MAP / sizeof MAP[0]; ++i)
         if (!strcmp(name, MAP[i].name)) return MAP[i].type;
     return -1;
+}
+
+/* EntityXPOrb.getTextureByXP: tier index 0..10 into experience_orb.png. */
+static int er_xp_texture_tier(int xp_value) {
+    if (xp_value >= 2477) return 10;
+    if (xp_value >= 1237) return 9;
+    if (xp_value >= 617)  return 8;
+    if (xp_value >= 307)  return 7;
+    if (xp_value >= 149)  return 6;
+    if (xp_value >= 73)   return 5;
+    if (xp_value >= 37)   return 4;
+    if (xp_value >= 17)   return 3;
+    if (xp_value >= 7)    return 2;
+    if (xp_value >= 3)    return 1;
+    return 0;
+}
+
+/* RenderXPOrb.doRender: camera-facing quad on experience_orb.png.
+ *   T(pos) T(0,0.1,0) Ry(180-playerViewY) Rx(-playerViewX) S(0.3)
+ * verts (-.5,-.25,0)..(.5,.75,0); UV from getTextureByXP; colour from xpColor
+ * phase; alpha 128. xpValue in item_id (or health for live fill), xpColor in
+ * item_meta (legacy age when meta==0 and age set). World lighting via lm_*. */
+int gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
+                    float view_pitch, CrVertex *out, int max) {
+    if (!ents || !out || max < 6) return 0;
+    const CrMobSprite *spr = &CR_MOB_SPRITES[CR_MOB_EXPERIENCE_ORB];
+    const float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+    const float sw = (float)(spr->x1 - spr->x0); /* native 64 */
+    const float sh = (float)(spr->y1 - spr->y0);
+    float yr = (180.0f - view_yaw) * ER_DEG2RAD;
+    float pr = -view_pitch * ER_DEG2RAD;
+    float cy = cosf(yr), sy = sinf(yr);
+    float cp = cosf(pr), sp = sinf(pr);
+    static const float CORN[4][2] = {
+        { -0.5f, -0.25f }, {  0.5f, -0.25f },
+        {  0.5f,  0.75f }, { -0.5f,  0.75f },
+    };
+    static const int TRI[6] = { 0, 1, 2, 0, 2, 3 };
+    int written = 0;
+    for (int e = 0; e < n; ++e) {
+        if (ents[e].type != ER_TYPE_XP_ORB) continue;
+        if (written + 6 > max) break;
+        int xp_value = ents[e].item_id > 0 ? ents[e].item_id
+                     : (ents[e].health > 0 ? (int)ents[e].health : 1);
+        int tier = er_xp_texture_tier(xp_value);
+        /* UV in skin-texel space of the 64x64 sheet, then into the atlas. */
+        float u0 = (float)(tier % 4 * 16 + 0) / 64.0f;
+        float u1 = (float)(tier % 4 * 16 + 16) / 64.0f;
+        float v0 = (float)(tier / 4 * 16 + 0) / 64.0f;
+        float v1 = (float)(tier / 4 * 16 + 16) / 64.0f;
+        float au0 = ((float)spr->x0 + u0 * sw) / aw;
+        float au1 = ((float)spr->x0 + u1 * sw) / aw;
+        float av0 = ((float)spr->y0 + v0 * sh) / ah;
+        float av1 = ((float)spr->y0 + v1 * sh) / ah;
+        /* colour: (sin(f9)+1)*0.5*255 red, 255 green, (sin(f9+4.18879)+1)*0.1*255 blue */
+        int xp_color = ents[e].item_meta;
+        if (xp_color <= 0 && ents[e].age > 0) xp_color = ents[e].age;
+        float f9 = ((float)xp_color /* + partialTicks=0 */) / 2.0f;
+        int cr = (int)((sinf(f9 + 0.0f) + 1.0f) * 0.5f * 255.0f);
+        int cg = 255;
+        int cb = (int)((sinf(f9 + 4.1887903f) + 1.0f) * 0.1f * 255.0f);
+        if (cr < 0) cr = 0; else if (cr > 255) cr = 255;
+        if (cb < 0) cb = 0; else if (cb > 255) cb = 255;
+        CrRgba tint = { (u8)cr, (u8)cg, (u8)cb, 128 };
+        float lv = 1.0f, blk = 0.0f;
+        if (ents[e].lm_lit == 1) {
+            lv = ents[e].lm_light; blk = ents[e].lm_blk;
+        } else if (ents[e].lm_lit == 2) {
+            tint.r = (u8)(tint.r * ents[e].lm_mul_r + 0.5f);
+            tint.g = (u8)(tint.g * ents[e].lm_mul_g + 0.5f);
+            tint.b = (u8)(tint.b * ents[e].lm_mul_b + 0.5f);
+        }
+        /* getBrightnessForRender boosts block light; leave levels as sampled. */
+        static const float UVS[4][2] = {
+            { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 },
+        };
+        CrVertex quad[4];
+        for (int c = 0; c < 4; ++c) {
+            float px = CORN[c][0], py = CORN[c][1], pz = 0.0f;
+            float ty = py * cp - pz * sp, tz = py * sp + pz * cp;
+            py = ty; pz = tz;
+            float tx = px * cy + pz * sy;
+            tz = -px * sy + pz * cy;
+            px = tx; pz = tz;
+            const float scale = 0.3f;
+            CrVertex vtx;
+            vtx.pos.x = ents[e].x + px * scale;
+            vtx.pos.y = ents[e].y + 0.1f + py * scale;
+            vtx.pos.z = ents[e].z + pz * scale;
+            vtx.uv.x = au0 + UVS[c][0] * (au1 - au0);
+            vtx.uv.y = av0 + UVS[c][1] * (av1 - av0);
+            vtx.light = lv;
+            vtx.blk = blk;
+            vtx.tint = tint;
+            vtx.ao = 1.0f;
+            quad[c] = vtx;
+        }
+        for (int k = 0; k < 6; ++k) out[written++] = quad[TRI[k]];
+    }
+    return written;
 }
 
 /* GM_VIEW_BILLBOARD types -> the item id RenderSnowball draws (getStackToRender). */

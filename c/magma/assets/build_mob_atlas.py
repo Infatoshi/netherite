@@ -61,6 +61,8 @@ MOB_SPRITES = sorted([
 ], key=lambda t: t[0])
 # Preserve every existing sprite index; mechanics tapes add this one at the end.
 MOB_SPRITES += [("armorstand", "armorstand/wood.png")]
+# RenderXPOrb: full 64x64 experience_orb.png (4x4 grid of 16x16 value tiers).
+MOB_SPRITES += [("experience_orb", "experience_orb.png")]
 
 
 def next_pow2(n):

@@ -773,6 +773,8 @@ int main(int argc, char **argv) {
         nents += gm_live_fill_views(&live, ents + nents, GM_LIVE_MAX - nents);
         if (nents > 0) {
             int nv = gm_entities_emit(ents, nents, ent_verts, ent_max_verts);
+            nv += gm_xp_orbs_emit(ents, nents, pv.yaw, pv.pitch,
+                                 ent_verts + nv, ent_max_verts - nv);
             CrTexture eatlas = gm_entity_atlas();
             CrRgba fog = sky;
             CrShadeCtx esh = { &eatlas, fog, 0.f, 0.f, 1, 0, CR_LAYER_CUTOUT, 0, 0, 0.f };

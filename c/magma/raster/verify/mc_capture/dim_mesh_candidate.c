@@ -52,6 +52,7 @@ static int map_vanilla(int vid) {
     case 89: return CBX_GLOWSTONE;
     case 90: return CBX_PORTAL;
     case 101: return CBX_IRON_BARS;
+    case 119: return 234; /* CBX_END_PORTAL */
     case 120: return CBX_END_FRAME;
     case 121: return CBX_END_STONE;
     case 153: return CBX_QUARTZ_ORE;

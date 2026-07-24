@@ -58,7 +58,8 @@ enum {
     CBX_NETHER_BRICK = 228,
     CBX_SLIME = 229, CBX_WEB = 230, CBX_PACKED_ICE = 231,
     CBX_NETHER_BRICK_FENCE = 232, CBX_COBBLESTONE_WALL = 233,
-    CBX_MAX = 234
+    CBX_END_PORTAL = 234,
+    CBX_MAX = 235
 };
 
 /* Face order is BM_DOWN, BM_UP, BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST. */
@@ -283,6 +284,10 @@ static const BmBlock g_blocks[CBX_MAX] = {
                                FULL6(CR_SPRITE_COBBLESTONE, BM_TINT_NONE) },
     [CBX_PORTAL]     = { 0, 0, CR_LAYER_TRANSLUCENT, BM_KIND_PORTAL,
                          FULL6(CR_SPRITE_PORTAL, BM_TINT_NONE) },
+    /* Active End portal (vanilla id 119): TileEntityEndPortalRenderer UP-face
+     * only at y=0.75; end_portal.png multi-layer tints, not stone fallback. */
+    [CBX_END_PORTAL] = { 0, 0, CR_LAYER_TRANSLUCENT, BM_KIND_END_PORTAL,
+                         FULL6(CR_SPRITE_END_PORTAL, BM_TINT_NONE) },
     [CBX_END_STONE]  = CUBE6(CR_SPRITE_END_STONE, BM_TINT_NONE),
     /* fire face slots carry both animated sprite families: NORTH=layer0,
      * SOUTH=layer1. Geometry selection lives in mesh_mc.c BM_KIND_FIRE. */
@@ -354,6 +359,7 @@ static int bm_is_modeled(int id)
     case CBX_ANDESITE_SMOOTH: case CBX_NETHER_BRICK:
     case CBX_SLIME: case CBX_WEB: case CBX_PACKED_ICE:
     case CBX_NETHER_BRICK_FENCE: case CBX_COBBLESTONE_WALL:
+    case CBX_END_PORTAL:
         return 1;
     default:
         if (id >= CB_STAINED_CLAY_BASE && id < CB_STAINED_CLAY_BASE + 16) return 1;

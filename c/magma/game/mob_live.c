@@ -536,8 +536,14 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
     }
     for(int i=0;i<GM_XP_ORBS&&n<max;++i){const McOrb *o=&m->xp_orbs[i];
         if(o->dead||o->xpValue<=0)continue;
-        out[n++]=(GmEntityView){GM_ENTITY_XP_ORB,(float)o->posX,(float)o->posY,
-                               (float)o->posZ,0.0f,(float)o->xpValue};
+        GmEntityView v; memset(&v,0,sizeof v);
+        v.type=GM_ENTITY_XP_ORB;
+        v.x=(float)o->posX;v.y=(float)o->posY;v.z=(float)o->posZ;
+        v.health=(float)o->xpValue;   /* legacy field */
+        v.item_id=o->xpValue;         /* getTextureByXP */
+        v.item_meta=o->xpColor;       /* RenderXPOrb colour phase */
+        v.age=o->xpOrbAge;
+        out[n++]=v;
     }return n;
 }
 

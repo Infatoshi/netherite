@@ -1350,6 +1350,45 @@ static void emit_portal(CrChunkMeshMC *out, int *cap, const CrLight *L,
     }
 }
 
+/* TileEntityEndPortalRenderer (1.11.2): shouldRenderFace is UP only; getOffset
+ * places the plane at y=0.75. Full GL texgen + multi-pass projected end_sky /
+ * end_portal is not available in the chunk mesher, so we bake a deterministic
+ * multi-layer UP-face stack tinted with the Java Random(31100L) colour sequence
+ * (first 8 of the 15 close-range passes). Phase is fixed (seed replay-stable);
+ * live wall-clock UV scroll is a residual fidelity gap. Block light level is
+ * fullbright (BlockEndPortal.setLightLevel(1.0F)). */
+static void emit_end_portal(CrChunkMeshMC *out, int *cap, const CrLight *L,
+                            int wx, int wy, int wz, const BmBlock *m,
+                            CrRgba base_tint, float base01) {
+    (void)L; (void)base01;
+    /* Precomputed (RANDOM.nextFloat()*0.5+bias)*f1 for j=0..7 with seed 31100L
+     * and f1 = j==0 ? 0.15 : 2/(18-j). RGB as 0..255. */
+    static const unsigned char LAYER_RGB[8][3] = {
+        {  5, 25, 28 }, {  3, 24, 22 }, {  7, 25, 25 }, { 11, 28, 29 },
+        { 16, 30, 24 }, { 16, 22, 31 }, { 21, 28, 42 }, { 24, 39, 23 },
+    };
+    int sprite = m->face[BM_UP].sprite;
+    for (int j = 0; j < 8; ++j) {
+        /* y = 0.75 block = 12 model units (getOffset). Micro offsets avoid
+         * z-fighting when stacking translucent layers. */
+        float y = 12.0f + (float)j * 0.02f;
+        const float from_j[3] = { 0.0f, y, 0.0f };
+        const float to_j[3]   = { 16.0f, y, 16.0f };
+        CrRgba tint = {
+            (u8)((LAYER_RGB[j][0] * (int)base_tint.r + 127) / 255),
+            (u8)((LAYER_RGB[j][1] * (int)base_tint.g + 127) / 255),
+            (u8)((LAYER_RGB[j][2] * (int)base_tint.b + 127) / 255),
+            /* first pass SRC_ALPHA (sky-ish), rest additive-ish via translucent */
+            (u8)(j == 0 ? 200 : 180)
+        };
+        /* fullbright: shade=false equivalent, light=1 */
+        CrVertex quad[4];
+        bake_face(wx, wy, wz, from_j, to_j, BM_UP, 0, 3, 0.0f, NULL, 0,
+                  sprite, 1.0f, 1.0f, tint, quad);
+        push_face(out, cap, m->layer, quad);
+    }
+}
+
 /* end_portal_frame_{empty,filled}.json. Meta bits 0..1 rotate SOUTH/WEST/
  * NORTH/EAST; bit 2 selects the eye box. Geometry and face UV rectangles are
  * copied from the 1.11.2 JAR models. */
@@ -1517,6 +1556,9 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
             break;
         case BM_KIND_END_FRAME:
             emit_end_frame(out, cap, L, wx, wy, wz, m, tint, base01);
+            break;
+        case BM_KIND_END_PORTAL:
+            emit_end_portal(out, cap, L, wx, wy, wz, m, tint, base01);
             break;
         case BM_KIND_IRON_BARS:
             emit_iron_bars(out, cap, L, wx, wy, wz, m, tint, base01);

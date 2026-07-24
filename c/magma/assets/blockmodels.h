@@ -67,6 +67,9 @@ enum {
     BM_KIND_PORTAL,
     /* end_portal_frame_{empty,filled}.json: 13/16 base plus optional eye. */
     BM_KIND_END_FRAME,
+    /* TileEntityEndPortalRenderer: only UP face at y=0.75, multi-layer tinted
+     * end_portal texture (software approx of the Java texgen TESR). */
+    BM_KIND_END_PORTAL,
     /* End-pillar cage pane network, connected to adjacent panes/full cubes. */
     BM_KIND_IRON_BARS,
     /* Standing/wall torch; legacy metadata selects its attachment side. */

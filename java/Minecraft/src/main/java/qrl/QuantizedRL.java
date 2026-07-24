@@ -4025,6 +4025,14 @@ public class QuantizedRL {
                  .append(",").append(st.getCount())
                  .append(",").append(ei.getAge())
                  .append(",").append(ei.hoverStart); // unseeded random bob/spin phase
+            } else if (e instanceof net.minecraft.entity.item.EntityXPOrb) {
+                // RenderXPOrb: xpValue (texture tier), xpColor (green/yellow
+                // phase), xpOrbAge. Appended so old 7-field rows still parse.
+                net.minecraft.entity.item.EntityXPOrb orb =
+                    (net.minecraft.entity.item.EntityXPOrb) e;
+                b.append(",").append(orb.xpValue)
+                 .append(",").append(orb.xpColor)
+                 .append(",").append(orb.xpOrbAge);
             } else if (e instanceof net.minecraft.entity.item.EntityEnderCrystal) {
                 // RenderEnderCrystal state: random-init spin/bob phase, base
                 // plate flag, heal-beam target (-1,-1,-1 = no beam).

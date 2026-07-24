@@ -88,6 +88,17 @@ static void test_collision_barrier(void) {
     CHECK(gm_state_to_model_key(gm_pack_state(174, 0)) == 231, "packed ice reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(113, 0)) == 232, "nether fence reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(139, 0)) == 233, "cobble wall reverse map");
+    {
+        int ep = gm_state_to_model_key(gm_pack_state(119, 0));
+        CHECK(ep != GM_MODEL_FALLBACK, "active end portal 119 is not model fallback");
+        CHECK(ep != 1 && ep != 4095, "active end portal 119 is not stone/fallback key");
+        CHECK(ep == 234, "active end portal 119 -> CBX_END_PORTAL 234");
+        uint16_t st = 0;
+        CHECK(gm_model_key_to_state(234, 0, &st) == GM_MAP_EXACT,
+              "end portal key 234 supported");
+        CHECK(gm_state_id(st) == 119 && gm_state_meta(st) == 0,
+              "end portal key 234 -> vanilla id 119");
+    }
     CHECK(gm_state_to_model_key(gm_pack_state(1, 2)) == 225, "polished granite reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(1, 4)) == 226, "polished diorite reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(1, 6)) == 227, "polished andesite reverse map");

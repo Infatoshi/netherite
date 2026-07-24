@@ -617,8 +617,10 @@ int gm_script_run(const GmConfig *cfg) {
                     "tape_pose","head_yaw","pitch","swing","hurt","death","body_yaw","flags",
                     "sheared","fleece","graze_y","graze_x","item","item_meta","count","age",
                     "hover","has_hover","crystal_rot","show_bottom","beam_x","beam_y","beam_z",
-                    "anim_time","death_ticks","phase_id","stationary"};
-                if(!keys_only(&pending,keys,36,err,sizeof err)||
+                    "anim_time","death_ticks","phase_id","stationary",
+                    /* EntityXPOrb: item=xpValue, item_meta=xpColor, age=xpOrbAge */
+                    "xp_value","xp_color"};
+                if(!keys_only(&pending,keys,38,err,sizeof err)||
                    !as_string(field(&pending,"ent"),&ent)||
                    !as_double(field(&pending,"x"),&x)||!as_double(field(&pending,"y"),&y)||
                    !as_double(field(&pending,"z"),&z)||!as_double(field(&pending,"yaw"),&yaw)||
@@ -645,6 +647,8 @@ int gm_script_run(const GmConfig *cfg) {
                 OPT_DBL("graze_y",view.graze_y);OPT_DBL("graze_x",view.graze_x);
                 OPT_I64("item",view.item_id);OPT_I64("item_meta",view.item_meta);
                 OPT_I64("count",view.item_count);OPT_I64("age",view.age);
+                /* Explicit XP orb aliases (same fields as item/item_meta). */
+                OPT_I64("xp_value",view.item_id);OPT_I64("xp_color",view.item_meta);
                 OPT_DBL("hover",view.hover_start);OPT_I64("has_hover",view.has_hover_start);
                 view.beam_x=view.beam_y=view.beam_z=-1;
                 OPT_DBL("crystal_rot",view.crystal_rot);OPT_I64("show_bottom",view.show_bottom);
