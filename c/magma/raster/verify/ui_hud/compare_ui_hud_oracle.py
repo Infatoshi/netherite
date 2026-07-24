@@ -68,9 +68,12 @@ def roi_rect(name):
         xp_y = (SH - 29) * S
         return (HB_X, xp_y - 12 * S, HB_X + 182 * S, xp_y + 5 * S)
     if name in ("hud_durability_half",):
+        # RenderItem.renderItemOverlayIntoGUI: black 13x2 at (icon+2, icon+13),
+        # colored fill 13x1 on the top row of that strip. Feature ROI is the
+        # strip only (not icon/hotbar alpha over world backdrop).
         ix = HB_X + 3 * S
         iy = HB_Y + 3 * S
-        return (ix, iy + 12 * S, ix + 14 * S, iy + 16 * S)
+        return (ix + 2 * S, iy + 13 * S, ix + 15 * S, iy + 15 * S)
     if name in ("hud_boss_half",):
         bb_x = (CX - 91) * S
         bb_y = 12 * S

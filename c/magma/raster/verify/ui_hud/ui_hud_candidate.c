@@ -82,9 +82,11 @@ static GmPlayerView base_pv(void) {
     return pv;
 }
 
-/* Composition order matches frame_capture.c finish_pending / write path. */
+/* Composition order matches frame_capture.c finish_pending / write path.
+ * want_hand: first-person viewmodel. Off for pure HUD chrome states so the
+ * arm mesh cannot bleed into air/heart ROIs (Java goldens are wall/sky). */
 static void compose(CrFramebuffer *fb, GmPlayerView *pv, int want_uw,
-                    float uw_bright, float fov_deg) {
+                    int want_hand, float uw_bright, float fov_deg) {
     CrTexture atlas = bm_atlas();
     gm_hand_set_swing(0.0f);
     gm_hand_set_equip(0.0f);
@@ -98,7 +100,7 @@ static void compose(CrFramebuffer *fb, GmPlayerView *pv, int want_uw,
     gm_hand_set_env(NULL, 15.0f, 15.0f, 1.0f, 1.0f, 1.0f,
                     fov_deg / 70.0f, pv->yaw, pv->pitch);
 
-    if (!pv->dead)
+    if (want_hand && !pv->dead)
         gm_hand_draw(fb, pv, 0.0f);
 
     /* Block-in-hand: only when caller already sampled UVs into a synthetic
@@ -179,7 +181,10 @@ static void s_hunger(GmPlayerView *pv, CrFramebuffer *fb) {
 
 static void s_air(GmPlayerView *pv, CrFramebuffer *fb) {
     (void)fb;
-    pv->air = 123;
+    /* Committed Java golden is 4 full + 1 partial bubble.
+     * Forge renderAir: full=ceil((air-2)*10/300), partial=ceil(air*10/300)-full.
+     * air=121..122 => full=4, partial=1. Pin text said 123 (5 full); pixels win. */
+    pv->air = 121;
 }
 
 static void s_xp(GmPlayerView *pv, CrFramebuffer *fb) {
@@ -315,11 +320,14 @@ int main(int argc, char **argv) {
         STATES[i].setup(&pv, &fb);
 
         int want_uw = !strcmp(STATES[i].id, "overlay_underwater");
+        /* Hand/viewmodel only for hand_* and full-frame overlays that need it. */
+        int want_hand = !strncmp(STATES[i].id, "hand_", 5) ||
+                        !strncmp(STATES[i].id, "overlay_", 8);
         float fov = want_uw ? (60.0f) : 70.0f;
         float bright = 1.0f;
 
         /* inside-block already painted into fb; still run rest of compose */
-        compose(&fb, &pv, want_uw, bright, fov);
+        compose(&fb, &pv, want_uw, want_hand, bright, fov);
 
         snprintf(path, sizeof path, "%s/c_%s.ppm", outdir, STATES[i].id);
         if (!write_ppm(path, &fb)) {

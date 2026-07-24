@@ -64,9 +64,11 @@ int main(void) {
     CHECK(gm_hud_xp_fill_cols(0.5f) == 91, "xp half = 91");
     CHECK(gm_hud_xp_fill_cols(0.333f) == 60, "xp ~1/3");
 
-    /* ---- Durability width + hue ---- */
+    /* ---- Durability width + hue (ItemRenderer + Item.getRGBDurability) ---- */
     CHECK(gm_hud_durability_width(270, 0) == 0, "undamaged no bar");
     CHECK(gm_hud_durability_width(270, 1) == 13, "almost-new full width");
+    /* wood pick max=59, damage=30: round(13 - 30/59*13) = round(6.3898) = 6 */
+    CHECK(gm_hud_durability_width(270, 30) == 6, "wood pick half width=6");
     CHECK(gm_hud_durability_width(276, 780) >= 5 &&
           gm_hud_durability_width(276, 780) <= 8, "diamond sword half");
     {
@@ -75,6 +77,9 @@ int main(void) {
         CHECK(g >= r && g >= b, "fresh durability is green-dominant");
         gm_hud_durability_rgb(270, 55, &r, &g, &b);
         CHECK(r > g, "near-broken durability is red-dominant");
+        /* damage 30/59: hue=(1-30/59)/3 => HSV sector 0 => (255, 250, 0) */
+        gm_hud_durability_rgb(270, 30, &r, &g, &b);
+        CHECK(r == 255 && g == 250 && b == 0, "wood pick half is (255,250,0)");
     }
 
     /* ---- Hurt flash phase from healthUpdateCounter ---- */
@@ -173,18 +178,56 @@ int main(void) {
         free(fb.color); free(fb.depth);
     }
 
-    /* ---- Air bubble formula (ceil) ---- */
+    /* ---- Air bubble formula (Forge GuiIngameForge.renderAir ceil) ---- */
     {
-        /* air=123: full=ceil((123-2)*10/300)=ceil(4.033)=5
-         *          total=ceil(123*10/300)=ceil(4.1)=5 -> 5 full, 0 partial */
-        int air = 123;
+        /* air=121: full=ceil((121-2)*10/300)=ceil(3.966)=4
+         *          total=ceil(121*10/300)=ceil(4.033)=5 -> 4 full + 1 partial
+         * (committed oracle golden hud_air_partial). air=123 is 5 full only. */
+        int air = 121;
         int full = (int)ceil(((double)air - 2.0) * 10.0 / 300.0);
         int total = (int)ceil((double)air * 10.0 / 300.0);
-        CHECK(full == 5 && total == 5, "air=123 bubble counts");
+        int partial = total - full;
+        CHECK(full == 4 && partial == 1, "air=121 is 4 full + 1 partial");
+        air = 123;
+        full = (int)ceil(((double)air - 2.0) * 10.0 / 300.0);
+        total = (int)ceil((double)air * 10.0 / 300.0);
+        CHECK(full == 5 && total == 5, "air=123 is 5 full");
         air = 2;
         full = (int)ceil(((double)air - 2.0) * 10.0 / 300.0);
         total = (int)ceil((double)air * 10.0 / 300.0);
         CHECK(full == 0 && total == 1, "air=2 is one partial bubble");
+    }
+
+    /* ---- Hurt flash: pin path draws flash sprites when hud_flash set ---- */
+    {
+        CrFramebuffer fb = make_fb();
+        GmPlayerView pv; memset(&pv, 0, sizeof pv);
+        pv.health = 14.0f; pv.max_health = 20.0f;
+        pv.food = 20.0f; pv.max_food = 20.0f;
+        pv.air = -1;
+        pv.hud_health = 14; pv.hud_last_health = 20;
+        pv.hud_flash = 1; pv.hud_state_valid = 1;
+        gm_hud_draw(&fb, &pv);
+        /* Heart 7 (lost HP) shows white flash full, not empty-only. */
+        int hx = 244 + 7 * 8 * 2, hy = 402;
+        int saw_white = 0;
+        for (int y = hy; y < hy + 18; ++y)
+            for (int x = hx; x < hx + 16; ++x) {
+                CrRgba c = fb.color[y * W + x];
+                if (c.r > 240 && c.g > 240 && c.b > 240) saw_white = 1;
+            }
+        CHECK(saw_white, "hurt flash_on draws white flash hearts on lost HP");
+        clear_fb(&fb);
+        pv.hud_flash = 0;
+        gm_hud_draw(&fb, &pv);
+        saw_white = 0;
+        for (int y = hy; y < hy + 18; ++y)
+            for (int x = hx; x < hx + 16; ++x) {
+                CrRgba c = fb.color[y * W + x];
+                if (c.r > 240 && c.g > 240 && c.b > 240) saw_white = 1;
+            }
+        CHECK(!saw_white, "hurt flash_off has no white flash hearts");
+        free(fb.color); free(fb.depth);
     }
 
     /* ---- Held-item registration: rest pose lower-right ---- */

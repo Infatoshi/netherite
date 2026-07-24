@@ -325,24 +325,31 @@ static int hud_item_max_damage(int item_id) {
     return 0;
 }
 
-/* MathHelper.hsvToRGB used by Item.getRGBDurabilityForDisplay. */
+/* MathHelper.hsvToRGB(hue, 1, 1) used by Item.getRGBDurabilityForDisplay.
+ * hue = max(0, 1 - damage/maxDamage) / 3. Channels: clamp((int)(f*255),0,255). */
 static CrRgba hud_durability_color(int damage, int max_damage) {
-    float hue = (float)(1.0 - (double)damage / (double)max_damage) / 3.0f;
+    float dur = (float)((double)damage / (double)max_damage);
+    float hue = (1.0f - dur);
     if (hue < 0.0f) hue = 0.0f;
-    float h6 = hue * 6.0f;
-    int sector = (int)h6;
-    float f = h6 - (float)sector;
-    float r = 0.0f, g = 0.0f, b = 0.0f;
-    switch (sector % 6) {
-        case 0: r = 1.0f; g = f; break;
-        case 1: r = 1.0f - f; g = 1.0f; break;
-        case 2: g = 1.0f; b = f; break;
-        case 3: g = 1.0f - f; b = 1.0f; break;
-        case 4: r = f; b = 1.0f; break;
-        default: r = 1.0f; b = 1.0f - f; break;
+    hue /= 3.0f;
+    int i = (int)(hue * 6.0f) % 6;
+    float f = hue * 6.0f - (float)i;
+    float f1 = 0.0f;                         /* value*(1-sat) with V=S=1 */
+    float f2 = 1.0f - f;                     /* value*(1-f*sat) */
+    float f3 = f;                            /* value*(1-(1-f)*sat) */
+    float r, g, b;
+    switch (i) {
+        case 0: r = 1.0f; g = f3;   b = f1; break;
+        case 1: r = f2;   g = 1.0f; b = f1; break;
+        case 2: r = f1;   g = 1.0f; b = f3; break;
+        case 3: r = f1;   g = f2;   b = 1.0f; break;
+        case 4: r = f3;   g = f1;   b = 1.0f; break;
+        default: r = 1.0f; g = f1;  b = f2; break;
     }
-    return (CrRgba){(u8)(r * 255.0f), (u8)(g * 255.0f),
-                    (u8)(b * 255.0f), 255};
+    int ri = (int)(r * 255.0f); if (ri < 0) ri = 0; if (ri > 255) ri = 255;
+    int gi = (int)(g * 255.0f); if (gi < 0) gi = 0; if (gi > 255) gi = 255;
+    int bi = (int)(b * 255.0f); if (bi < 0) bi = 0; if (bi > 255) bi = 255;
+    return (CrRgba){(u8)ri, (u8)gi, (u8)bi, 255};
 }
 
 /* Vanilla GuiIngame.renderExpBar: fill = (int)(experience * 183.0F). */
@@ -355,10 +362,12 @@ int gm_hud_xp_fill_cols(float frac) {
 }
 
 int gm_hud_durability_width(int item_id, int damage) {
+    /* RenderItem: i = Math.round(13.0F - (float)health * 13.0F) with
+     * health = getDurabilityForDisplay = damage/maxDamage. */
     int max_damage = hud_item_max_damage(item_id);
     if (max_damage <= 0 || damage <= 0) return 0;
-    int width = (int)floorf(13.0f - (float)damage * 13.0f /
-                            (float)max_damage + 0.5f);
+    float health = (float)((double)damage / (double)max_damage);
+    int width = (int)floorf(13.0f - health * 13.0f + 0.5f);
     if (width < 0) width = 0;
     if (width > 13) width = 13;
     return width;

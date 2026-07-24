@@ -281,9 +281,10 @@ def roi_for(state_id):
         xp_y = (SH - 29) * S
         return (HB_X, xp_y - 12 * S, HB_X + 182 * S, xp_y + 5 * S)
     if state_id in ("hud_durability_half",):
+        # Exact durability strip: icon+(2,13) size 13x2 (gui px).
         ix = HB_X + 3 * S
         iy = (SH - 22) * S + 3 * S
-        return (ix, iy + 12 * S, ix + 14 * S, iy + 16 * S)
+        return (ix + 2 * S, iy + 13 * S, ix + 15 * S, iy + 15 * S)
     if state_id in ("hud_boss_half",):
         bb_x = (GUI_CX - 91) * S
         bb_y = 12 * S
@@ -694,7 +695,8 @@ def main():
     water_pose["x"] = CX + 0.5
     water_pose["z"] = CZ + 0.5
     add(capture_pair(e, outdir, "hud_air_partial", {
-        "health": 20.0, "food": 20, "air": 123, "absorption": 0.0,
+        # 121 => 4 full + 1 partial (Forge renderAir). 123 is 5 full only.
+        "health": 20.0, "food": 20, "air": 121, "absorption": 0.0,
         "armor": [0, 0, 0, 0],
         "hotbar": [[0, 0, 0]] * 9,
         "use_action": 0, "fire": 0, "portal": 0.0,

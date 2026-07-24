@@ -1,34 +1,9 @@
 {
   "margin": 2.0,
   "fail": 0,
-  "residual": 4,
+  "residual": 0,
   "blocked": [],
-  "residuals": [
-    {
-      "id": "hud_hurt_flash_on",
-      "noise": 0.0,
-      "c_vs_j": 115.27254901960784,
-      "gate": 2.0
-    },
-    {
-      "id": "hud_hurt_flash_off",
-      "noise": 0.0,
-      "c_vs_j": 106.25,
-      "gate": 2.0
-    },
-    {
-      "id": "hud_air_partial",
-      "noise": 0.11870578443612151,
-      "c_vs_j": 19.465488215488215,
-      "gate": 2.1187057844361217
-    },
-    {
-      "id": "hud_durability_half",
-      "noise": 0.0,
-      "c_vs_j": 11.587797619047619,
-      "gate": 2.0
-    }
-  ],
+  "residuals": [],
   "rows": [
     {
       "id": "hud_armor_iron",
@@ -67,9 +42,9 @@
     {
       "id": "hud_hurt_flash_on",
       "noise": 0.0,
-      "c_vs_j": 115.27254901960784,
+      "c_vs_j": 0.0,
       "gate": 2.0,
-      "verdict": "RESIDUAL",
+      "verdict": "PASS",
       "roi": [
         244,
         402,
@@ -79,14 +54,14 @@
       "hard": true,
       "n_painted": 2040,
       "noise_limit": 3.0,
-      "reason": "hard_residual"
+      "reason": "hard_parity"
     },
     {
       "id": "hud_hurt_flash_off",
       "noise": 0.0,
-      "c_vs_j": 106.25,
+      "c_vs_j": 0.0,
       "gate": 2.0,
-      "verdict": "RESIDUAL",
+      "verdict": "PASS",
       "roi": [
         244,
         402,
@@ -96,12 +71,12 @@
       "hard": true,
       "n_painted": 1632,
       "noise_limit": 3.0,
-      "reason": "hard_residual"
+      "reason": "hard_parity"
     },
     {
       "id": "hud_hunger_poison",
       "noise": 0.0,
-      "c_vs_j": 1.1652983032293378,
+      "c_vs_j": 0.0,
       "gate": 2.0,
       "verdict": "PASS",
       "roi": [
@@ -111,16 +86,16 @@
         420
       ],
       "hard": true,
-      "n_painted": 1218,
+      "n_painted": 1160,
       "noise_limit": 2.0,
       "reason": "hard_parity"
     },
     {
       "id": "hud_air_partial",
       "noise": 0.11870578443612151,
-      "c_vs_j": 19.465488215488215,
+      "c_vs_j": 0.0,
       "gate": 2.1187057844361217,
-      "verdict": "RESIDUAL",
+      "verdict": "PASS",
       "roi": [
         430,
         382,
@@ -128,14 +103,14 @@
         400
       ],
       "hard": true,
-      "n_painted": 792,
+      "n_painted": 676,
       "noise_limit": 2.0,
-      "reason": "hard_residual"
+      "reason": "hard_parity"
     },
     {
       "id": "hud_xp_half",
       "noise": 0.0,
-      "c_vs_j": 0.3052391799544419,
+      "c_vs_j": 0.0,
       "gate": 2.0,
       "verdict": "PASS",
       "roi": [
@@ -145,26 +120,26 @@
         432
       ],
       "hard": true,
-      "n_painted": 7463,
+      "n_painted": 7364,
       "noise_limit": 2.0,
       "reason": "hard_parity"
     },
     {
       "id": "hud_durability_half",
       "noise": 0.0,
-      "c_vs_j": 11.587797619047619,
+      "c_vs_j": 0.0,
       "gate": 2.0,
-      "verdict": "RESIDUAL",
+      "verdict": "PASS",
       "roi": [
-        250,
-        466,
-        278,
-        474
+        254,
+        468,
+        280,
+        472
       ],
       "hard": true,
-      "n_painted": 224,
+      "n_painted": 104,
       "noise_limit": 2.0,
-      "reason": "hard_residual"
+      "reason": "hard_parity"
     },
     {
       "id": "hud_boss_half",
