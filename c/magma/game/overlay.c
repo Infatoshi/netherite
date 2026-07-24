@@ -272,40 +272,53 @@ void gm_overlay_loading_screen(CrFramebuffer *fb) {
 }
 
 void gm_overlay_block_in_hand(CrFramebuffer *fb, const CrTexture *atlas,
-                              float u0, float v0, float u1, float v1) {
-    /* ItemRenderer.renderBlockInHand: NDC quad x,y in [-1,1] at view z=-0.5
-     * with tex (maxU,maxV) on the LEFT, (minU,minV) on the right — U is
-     * mirrored — and GlStateManager.color(0.1,0.1,0.1,0.5).
-     * Screen-space stretch of the sprite with that fixed modulate is enough for
-     * the near-black suffocation look (OPEN_DIVERGENCES #27). */
+                              float u0, float v0, float u1, float v1,
+                              float fov_deg) {
+    /* ItemRenderer.renderBlockInHand (1.11.2):
+     *   bind blocks atlas; color(0.1,0.1,0.1,0.5); blend not enabled
+     *   (renderOverlays disables alpha test only — water/fire enable blend)
+     *   view-space quad at z=-0.5, x,y in [-1,1], drawn under the hand
+     *   perspective (EntityRenderer.renderHand gluPerspective FOV).
+     *   tex: pos(-1,-1)->(maxU,maxV), pos(1,-1)->(minU,maxV),
+     *        pos(1,1)->(minU,minV), pos(-1,1)->(maxU,minV).
+     * Replace RGB with tex*0.1 (GL_MODULATE, blend off). Screen only sees
+     * the centre crop of the quad: eye x at |ndc|=1 is
+     *   0.5 * aspect * tan(fov/2)  (same inverse as gm_uw_overlay_draw). */
     if (!fb || !fb->color || !atlas || !atlas->texels) return;
-    int sx0 = (int)(u0 * (float)atlas->w);
-    int sy0 = (int)(v0 * (float)atlas->h);
-    int sw = (int)((u1 - u0) * (float)atlas->w + 0.5f);
-    int sh = (int)((v1 - v0) * (float)atlas->h + 0.5f);
-    if (sw < 1) sw = 1;
-    if (sh < 1) sh = 1;
-    const float mul = 0.1f, alpha = 0.5f;
-    for (int y = 0; y < fb->h; ++y) {
-        int ty = sy0 + (int)(((long long)(2 * y + 1) * sh) / (2 * fb->h));
+    if (fov_deg <= 0.0f) fov_deg = 70.0f;
+    const float d2r = 3.14159265358979323846f / 180.0f;
+    float tanH = tanf(0.5f * fov_deg * d2r);
+    float aspect = (float)fb->w / (float)fb->h;
+    /* Sprite bounds in atlas texels (NEAREST sample, GL unblurred blocks). */
+    float min_u = u0, max_u = u1, min_v = v0, max_v = v1;
+    if (max_u < min_u) { float t = min_u; min_u = max_u; max_u = t; }
+    if (max_v < min_v) { float t = min_v; min_v = max_v; max_v = t; }
+    const float mul = 0.1f;
+    for (int py = 0; py < fb->h; ++py) {
+        float ndcy = 1.0f - 2.0f * ((float)py + 0.5f) / (float)fb->h;
+        float yq = ndcy * tanH * 0.5f; /* eye y at |z|=0.5 */
+        /* y=-1 -> maxV, y=+1 -> minV */
+        float fv = (yq + 1.0f) * 0.5f;
+        float v = max_v + (min_v - max_v) * fv;
+        int ty = (int)(v * (float)atlas->h);
         if (ty < 0) ty = 0;
         if (ty >= atlas->h) ty = atlas->h - 1;
-        for (int x = 0; x < fb->w; ++x) {
-            /* Mirror U: left edge samples maxU (sx0+sw-1), right samples minU. */
-            int tx = sx0 + sw - 1 -
-                     (int)(((long long)(2 * x + 1) * sw) / (2 * fb->w));
+        for (int px = 0; px < fb->w; ++px) {
+            float ndcx = 2.0f * ((float)px + 0.5f) / (float)fb->w - 1.0f;
+            float xq = ndcx * tanH * aspect * 0.5f;
+            /* x=-1 -> maxU, x=+1 -> minU (U mirrored) */
+            float fu = (xq + 1.0f) * 0.5f;
+            float u = max_u + (min_u - max_u) * fu;
+            int tx = (int)(u * (float)atlas->w);
             if (tx < 0) tx = 0;
             if (tx >= atlas->w) tx = atlas->w - 1;
             CrRgba src = atlas->texels[ty * atlas->w + tx];
-            float sa = ((float)src.a / 255.0f) * alpha;
-            float ia = 1.0f - sa;
-            CrRgba *dst = &fb->color[y * fb->w + x];
-            float sr = ((float)src.r / 255.0f) * mul;
-            float sg = ((float)src.g / 255.0f) * mul;
-            float sb = ((float)src.b / 255.0f) * mul;
-            dst->r = (u8)(sr * sa * 255.0f + (float)dst->r * ia + 0.5f);
-            dst->g = (u8)(sg * sa * 255.0f + (float)dst->g * ia + 0.5f);
-            dst->b = (u8)(sb * sa * 255.0f + (float)dst->b * ia + 0.5f);
+            CrRgba *dst = &fb->color[py * fb->w + px];
+            /* Blend off: replace with tex * color.rgb (alpha unused on RGB). */
+            dst->r = (u8)((float)src.r * mul + 0.5f);
+            dst->g = (u8)((float)src.g * mul + 0.5f);
+            dst->b = (u8)((float)src.b * mul + 0.5f);
+            dst->a = 255;
         }
     }
 }

@@ -2,9 +2,10 @@
  * the real composition path (hand -> block overlay -> water -> fire -> portal
  * -> HUD), matching frame_capture.c order. Writes PPM per state for ROI gates.
  *
- * Backdrop is solid gray for composition isolation of owned modules only.
- * That gray fill is NOT a live-world equivalence claim. Inside-block uses real
- * atlas particle UVs (stone / dirt), never synthetic solid texels.
+ * Backdrop is solid gray for composition isolation of owned modules only,
+ * except inside-block (black: no faces visible inside solid). Gray fill is
+ * NOT a live-world claim. Inside-block uses real atlas particle UVs
+ * (stone / dirt), never synthetic solid texels.
  */
 #include "game/hud.h"
 #include "game/hand.h"
@@ -103,9 +104,8 @@ static void compose(CrFramebuffer *fb, GmPlayerView *pv, int want_uw,
     if (want_hand && !pv->dead)
         gm_hand_draw(fb, pv, 0.0f);
 
-    /* Block-in-hand: only when caller already sampled UVs into a synthetic
-     * full-frame darken via gm_overlay_block_in_hand (inside-stone/grass).
-     * Live world path needs GmWorld; oracle gate uses the UV form. */
+    /* Block-in-hand is painted in setup() for inside-stone/grass (real atlas
+     * particle UVs + replace tex*0.1). Live path needs GmWorld. */
 
     if (want_uw && !pv->dead)
         gm_uw_overlay_draw(fb, pv, uw_bright, fov_deg);
@@ -236,26 +236,25 @@ static void s_block_shield(GmPlayerView *pv, CrFramebuffer *fb) {
 
 static void s_inside_stone(GmPlayerView *pv, CrFramebuffer *fb) {
     (void)pv;
-    /* Real terrain atlas particle UVs (not synthetic solid texels). Backdrop
-     * is a neutral mid-gray so the darken overlay is visible; this is still
-     * composition isolation, not a live-world pixel claim. */
+    /* Real terrain atlas particle UVs. Inside solid, no faces are visible
+     * (world is black); overlay replaces with particle*0.1 (blend off). */
     CrTexture atlas = bm_atlas();
     float u0, v0, u1, v1;
     bm_sprite_uv(CR_SPRITE_STONE, &u0, &v0, &u1, &v1);
     for (int i = 0; i < fb->w * fb->h; ++i)
-        fb->color[i] = (CrRgba){ 180, 180, 180, 255 };
-    gm_overlay_block_in_hand(fb, &atlas, u0, v0, u1, v1);
+        fb->color[i] = (CrRgba){ 0, 0, 0, 255 };
+    gm_overlay_block_in_hand(fb, &atlas, u0, v0, u1, v1, 70.0f);
 }
 
 static void s_inside_grass(GmPlayerView *pv, CrFramebuffer *fb) {
     (void)pv;
-    /* Grass particle texture is dirt (vanilla BlockModelShapes). */
+    /* Grass particle texture is dirt (vanilla BlockModelShapes / DOWN face). */
     CrTexture atlas = bm_atlas();
     float u0, v0, u1, v1;
     bm_sprite_uv(CR_SPRITE_DIRT, &u0, &v0, &u1, &v1);
     for (int i = 0; i < fb->w * fb->h; ++i)
-        fb->color[i] = (CrRgba){ 180, 180, 180, 255 };
-    gm_overlay_block_in_hand(fb, &atlas, u0, v0, u1, v1);
+        fb->color[i] = (CrRgba){ 0, 0, 0, 255 };
+    gm_overlay_block_in_hand(fb, &atlas, u0, v0, u1, v1, 70.0f);
 }
 
 static void s_portal(GmPlayerView *pv, CrFramebuffer *fb) {
@@ -320,9 +319,13 @@ int main(int argc, char **argv) {
         STATES[i].setup(&pv, &fb);
 
         int want_uw = !strcmp(STATES[i].id, "overlay_underwater");
-        /* Hand/viewmodel only for hand_* and full-frame overlays that need it. */
+        /* Hand/viewmodel for hand_* and fire/portal (animated later).
+         * Inside-block replaces the whole frame (blend off) so hand is moot;
+         * underwater: Java still draws hand under the translucent overlay. */
         int want_hand = !strncmp(STATES[i].id, "hand_", 5) ||
-                        !strncmp(STATES[i].id, "overlay_", 8);
+                        !strcmp(STATES[i].id, "overlay_fire") ||
+                        !strcmp(STATES[i].id, "overlay_portal_050") ||
+                        !strcmp(STATES[i].id, "overlay_underwater");
         float fov = want_uw ? (60.0f) : 70.0f;
         float bright = 1.0f;
 

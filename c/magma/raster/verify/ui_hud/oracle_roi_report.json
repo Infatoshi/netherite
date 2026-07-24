@@ -248,36 +248,36 @@
     {
       "id": "overlay_inside_stone",
       "noise": 0.0,
-      "c_vs_j": 80.04016102070078,
+      "c_vs_j": 0.0060428000013211915,
       "gate": 2.0,
-      "verdict": "CAPTURE_OK",
+      "verdict": "PASS",
       "roi": [
         2,
         2,
         852,
         478
       ],
-      "hard": false,
-      "n_painted": 404284,
+      "hard": true,
+      "n_painted": 404368,
       "noise_limit": 3.0,
-      "reason": "soft_capture"
+      "reason": "hard_parity"
     },
     {
       "id": "overlay_inside_grass",
       "noise": 0.0,
-      "c_vs_j": 81.68331218986832,
+      "c_vs_j": 0.19805074696869107,
       "gate": 2.0,
-      "verdict": "CAPTURE_OK",
+      "verdict": "PASS",
       "roi": [
         2,
         2,
         852,
         478
       ],
-      "hard": false,
-      "n_painted": 404284,
+      "hard": true,
+      "n_painted": 404368,
       "noise_limit": 3.0,
-      "reason": "soft_capture"
+      "reason": "hard_parity"
     },
     {
       "id": "overlay_portal_050",

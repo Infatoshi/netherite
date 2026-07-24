@@ -54,10 +54,14 @@ void gm_overlay_portal_warp(CrFramebuffer *fb, CrRgba *scratch,
 void gm_overlay_loading_screen(CrFramebuffer *fb);
 
 /* ItemRenderer.renderBlockInHand: eye-inside-opaque-block screen overlay.
- * Full-screen atlas sprite stretch, colour (0.1,0.1,0.1,0.5), src-over.
- * u0..v1 are atlas UVs of the block face TextureAtlasSprite. */
+ * View-space quad x,y in [-1,1] at z=-0.5 under hand FOV (gluPerspective
+ * getFOVModifier(partial,false) = 70), UVs maxU/maxV on the left/bottom
+ * (U mirrored). GlStateManager.color(0.1,0.1,0.1,0.5) with blend OFF
+ * (unlike water/fire) -> replace RGB with tex * 0.1. u0..v1 = sprite
+ * minU,minV,maxU,maxV. fov_deg is the active hand projection FOV. */
 void gm_overlay_block_in_hand(CrFramebuffer *fb, const CrTexture *atlas,
-                              float u0, float v0, float u1, float v1);
+                              float u0, float v0, float u1, float v1,
+                              float fov_deg);
 
 /* Live path: Entity.isEntityInsideOpaqueBlock + sample block face texture,
  * then renderBlockInHand. No-op when the eye is not in a suffocating block.

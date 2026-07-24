@@ -212,9 +212,10 @@ int main(void) {
         CrTexture atlas = { .w = 16, .h = 16, .texels = texels };
         for (int i = 0; i < W * H; ++i)
             fb.color[i] = (CrRgba){200, 200, 200, 255};
-        gm_overlay_block_in_hand(&fb, &atlas, 0.f, 0.f, 1.f, 1.f);
+        gm_overlay_block_in_hand(&fb, &atlas, 0.f, 0.f, 1.f, 1.f, 70.f);
         int mid = fb.color[(H / 2) * W + W / 2].r;
-        CHECK(mid < 160 && mid > 80, "compose: block overlay darkens mid");
+        /* blend off: white*0.1 replace (~26), not src-over mid-gray */
+        CHECK(mid < 40 && mid > 15, "compose: block overlay replace dark");
         /* HUD over darkened frame still paints hotbar / armor */
         pv.use_action = 0;
         gm_hud_draw(&fb, &pv);
@@ -234,7 +235,7 @@ int main(void) {
         CrTexture atlas = { .w = 16, .h = 16, .texels = texels };
         for (int i = 0; i < W * H; ++i)
             fb.color[i] = (CrRgba){180, 180, 180, 255};
-        gm_overlay_block_in_hand(&fb, &atlas, 0.f, 0.f, 1.f, 1.f);
+        gm_overlay_block_in_hand(&fb, &atlas, 0.f, 0.f, 1.f, 1.f, 70.f);
         int after_block = fb.color[0].r;
         /* Portal with time<=0 is a no-op; time>0 needs real portal sprite.
          * Order gate: block ran first and changed the clear. */

@@ -147,25 +147,26 @@ int main(void)
          * full atlas we only check time<=0 is a no-op. */
         gm_overlay_portal_screen(&fb, &atlas, 0.0f);
         CHECK(color[0].r == 255, "portal time=0 leaves framebuffer");
-        /* block-in-hand darkens a white fb with mul 0.1 * alpha 0.5 */
+        /* block-in-hand: blend off, replace with tex*0.1 (black tile -> ~0) */
         for (int i = 0; i < PW * PH; ++i)
             color[i] = (CrRgba){255, 255, 255, 255};
-        gm_overlay_block_in_hand(&fb, &atlas, 0.0f, 0.0f, 1.0f, 1.0f);
-        /* src black * 0.1, a=0.5 -> out = 0*0.5 + 255*0.5 = 127.5 ~ 128 */
+        gm_overlay_block_in_hand(&fb, &atlas, 0.0f, 0.0f, 1.0f, 1.0f, 70.0f);
+        /* black * 0.1 replace -> 0; white backdrop is fully overwritten */
         int mid = color[(PH / 2) * PW + (PW / 2)].r;
-        CHECK(mid >= 120 && mid <= 140, "block-in-hand darkens toward ~128");
+        CHECK(mid <= 2, "block-in-hand replaces with tex*0.1 (black -> 0)");
         CHECK(mid < 200, "block-in-hand is visibly dark");
 
         /* ItemRenderer.renderBlockInHand: maxU on the left (U mirrored).
-         * Horizontal gradient: left texels bright, right dark -> after mirror
-         * left screen samples dark (maxU side). */
+         * Horizontal gradient: high tx bright. maxU=right of sprite is bright
+         * -> left screen samples dark? Wait: maxU is right of [0,1] atlas =
+         * high tx bright, left screen gets maxU = bright. */
         for (int ty = 0; ty < 16; ++ty)
             for (int tx = 0; tx < 16; ++tx)
                 texels[ty * 16 + tx] =
                     (CrRgba){(unsigned char)(tx * 16), 0, 0, 255};
         for (int i = 0; i < PW * PH; ++i)
             color[i] = (CrRgba){0, 0, 0, 255};
-        gm_overlay_block_in_hand(&fb, &atlas, 0.0f, 0.0f, 1.0f, 1.0f);
+        gm_overlay_block_in_hand(&fb, &atlas, 0.0f, 0.0f, 1.0f, 1.0f, 70.0f);
         int left_r = color[(PH / 2) * PW + 1].r;
         int right_r = color[(PH / 2) * PW + (PW - 2)].r;
         CHECK(left_r > right_r + 5,

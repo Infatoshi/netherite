@@ -119,5 +119,7 @@ void gm_overlay_block_in_hand_live(CrFramebuffer *fb, const CrTexture *atlas,
     int sprite = overlay_particle_sprite(bid, bmeta);
     float u0, v0, u1, v1;
     bm_sprite_uv(sprite, &u0, &v0, &u1, &v1);
-    gm_overlay_block_in_hand(fb, atlas, u0, v0, u1, v1);
+    /* Hand FOV base 70 (getFOVModifier useFOVSetting=false); water scale
+     * only applies when eye is in water, which is not causesSuffocation. */
+    gm_overlay_block_in_hand(fb, atlas, u0, v0, u1, v1, 70.0f);
 }

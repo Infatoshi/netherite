@@ -92,9 +92,8 @@ def roi_rect(name):
     return (0, 0, W, H)
 
 
-# Hard gate: sprite-dominated HUD ROIs + first-person use viewmodels where C
-# composition claims parity at A/B noise floor (no budgets / masking).
-# Full-frame overlays remain soft (CAPTURE_OK / residual report only).
+# Hard gate: HUD, first-person use viewmodels, and inside-block ROIs where C
+# claims parity at A/B noise floor. Fire/portal and underwater remain soft.
 HARD = {
     "hud_armor_iron",
     "hud_absorption_armor",
@@ -108,6 +107,11 @@ HARD = {
     "hand_bow_pull20",
     "hand_eat_mid",
     "hand_block_shield",
+    # Block-in-hand: replace tex*0.1 + perspective UV + real particle atlas
+    # (stone / dirt-for-grass). Inside solid, world is black so composition
+    # isolation matches Java at noise floor.
+    "overlay_inside_stone",
+    "overlay_inside_grass",
 }
 
 

@@ -98,10 +98,18 @@ Example qrl + mcwindow sketch for armor + hurt flash:
 - **Drawn-bow registration (#29):** geometry follows ItemRenderer BOW branch at
   partialTicks=1; still-draw A/B against genuine `hand_bow_pull20.png` now
   available for further tuning (C residual ~55/ch on non-hotbar ROI).
-- **Inside-block live path:** `gm_overlay_block_in_hand_live` uses
-  `Block.causesSuffocation` + INVISIBLE skip, BlockModelShapes particle texture
-  (chest/missing-model fallbacks), and maxU-on-left UV; pixel proof still needs
-  `overlay_inside_stone.png` / `overlay_inside_grass.png`.
+- **Inside-block hard-closed:** `gm_overlay_block_in_hand` matches 1.11.2
+  `ItemRenderer.renderBlockInHand`: view-space z=-0.5 under hand FOV 70,
+  maxU/maxV on left/bottom (U mirrored), **blend off**, replace RGB with
+  `tex * 0.1`. Live path: `causesSuffocation` + INVISIBLE skip + particle
+  sprite (grass→dirt). Candidate uses black world (no faces inside solid) +
+  real atlas particle UVs. Hard ROI PASS at A/B noise floor for
+  `overlay_inside_stone` / `overlay_inside_grass`.
+- **Underwater soft residual:** UV/blend/order match
+  `renderWaterOverlayTexture` (4× tile, yaw/pitch/64, color(brightness,0.5),
+  src-over, FOV 60). Full-frame C-vs-J stays ~15/ch because composition
+  isolation uses gray backdrop vs Java glass-pool world; fire/portal left
+  for a later animated-atlas pass.
 - **Low-health heart jitter:** vanilla `rand(updateCounter*312871)` not taped;
   numerical gates keep the stable baseline deliberately.
 - **Absorption gold hearts:** row/armor placement includes

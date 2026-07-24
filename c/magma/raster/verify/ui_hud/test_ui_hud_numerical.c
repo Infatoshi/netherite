@@ -340,10 +340,10 @@ int main(void) {
             texels[i] = (CrRgba){255, 255, 255, 255};
         CrFramebuffer fb = { .w = PW, .h = PH, .color = color, .depth = 0 };
         CrTexture atlas = { .w = 16, .h = 16, .texels = texels };
-        gm_overlay_block_in_hand(&fb, &atlas, 0.f, 0.f, 1.f, 1.f);
-        /* white*0.1 src, a=0.5 over 200: out = 25.5*0.5 + 200*0.5 ≈ 112.75 */
+        gm_overlay_block_in_hand(&fb, &atlas, 0.f, 0.f, 1.f, 1.f, 70.f);
+        /* blend off: white*0.1 replace -> ~26 (backdrop 200 overwritten) */
         int mid = color[(PH / 2) * PW + PW / 2].r;
-        CHECK(mid < 160 && mid > 80, "block overlay mid-tone");
+        CHECK(mid >= 20 && mid <= 35, "block overlay replace tex*0.1");
         free(color); free(texels);
 
         color = calloc((size_t)PW * PH, sizeof(CrRgba));
