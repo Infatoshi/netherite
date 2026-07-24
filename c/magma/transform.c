@@ -115,11 +115,11 @@ static CR_HD CrScreenVert to_screen(const ClipVert *cv, int fb_w, int fb_h)
     sv.ao_w = cv->ao * invw;
     sv.blk_w = cv->blk * invw;
     sv.eye_dist_w = cv->eye_dist * invw;
-
-    sv.tint.r = (u8)(cv->tint[0] + 0.5f);
-    sv.tint.g = (u8)(cv->tint[1] + 0.5f);
-    sv.tint.b = (u8)(cv->tint[2] + 0.5f);
-    sv.tint.a = (u8)(cv->tint[3] + 0.5f);
+    /* Smooth vertex color (LayerEnderDragonDeath); attr * invw. */
+    sv.tint_r_w = cv->tint[0] * invw;
+    sv.tint_g_w = cv->tint[1] * invw;
+    sv.tint_b_w = cv->tint[2] * invw;
+    sv.tint_a_w = cv->tint[3] * invw;
     return sv;
 }
 

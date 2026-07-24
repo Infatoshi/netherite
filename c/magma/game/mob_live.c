@@ -1185,17 +1185,23 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 m->explosion_x=now->x[i];m->explosion_y=now->y[i]+0.5;m->explosion_z=now->z[i];
             }
         }else if(aggro&&gm_is_slimey(type)){
-            /* Slime hop toward player. */
+            /* Slime hop toward player. EntitySlime: jump sets squishAmount=1,
+             * land sets -0.5; each tick squishAmount *= 0.6 (magma 0.9) and
+             * squishFactor lerps toward squishAmount. */
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;
             nx->yaw[i]=ehs_yaw_toward(dx,dz);
             if(m->jump_delay[i]>0)--m->jump_delay[i];
             if(now->on_ground[i]&&m->jump_delay[i]<=0){
                 jump=1;moving=1;
                 m->jump_delay[i]=10+m->size[i]*5;
+                m->squish_amount[i]=1.0f;
                 nx->ai_state[i]=EW_AI_CHASE;
             }else if(!now->on_ground[i]){
                 moving=1;nx->ai_state[i]=EW_AI_CHASE;
-            }else nx->ai_state[i]=EW_AI_IDLE;
+            }else {
+                if(m->squish_amount[i]>0.0f) m->squish_amount[i]=-0.5f; /* land */
+                nx->ai_state[i]=EW_AI_IDLE;
+            }
             if(xz<=GM_MOB_REACH*(0.5+m->size[i]*0.25)&&fabs(dy)<(double)m->size[i]+1.0&&
                nx->attack_time[i]<=0){
                 float dmg=melee_damage(type,m->size[i]);
@@ -1261,8 +1267,17 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             /* Neutral pigman / small slime idle hop. */
             if(gm_is_slimey(type)&&now->on_ground[i]){
                 if(m->jump_delay[i]>0)--m->jump_delay[i];
-                else if(moving){jump=1;m->jump_delay[i]=20+m->size[i]*10;}
+                else if(moving){
+                    jump=1;m->jump_delay[i]=20+m->size[i]*10;
+                    m->squish_amount[i]=1.0f;
+                }
             }
+        }
+        if(gm_is_slimey(type)){
+            /* EntitySlime.onUpdate squishFactor integration. */
+            float damp = (type == EW_TYPE_MAGMA) ? 0.9f : 0.6f;
+            m->squish_amount[i] *= damp;
+            m->squish_factor[i] += (m->squish_amount[i] - m->squish_factor[i]) * 0.5f;
         }
         if(moving&&type!=EW_TYPE_GHAST){
             double mvx=nx->path_tx[i]-now->x[i],mvz=nx->path_tz[i]-now->z[i];
@@ -1302,6 +1317,7 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
         out[n].z=(float)s->z[i];out[n].yaw=s->yaw[i];
         out[n].health=s->health[i];
         out[n].item_meta=m->size[i]; /* slime/magma size for render scale */
+        out[n].squish=m->squish_factor[i]; /* EntitySlime.squishFactor */
         ++n;
     }
     for(int i=0;i<GM_XP_ORBS&&n<max;++i){const McOrb *o=&m->xp_orbs[i];

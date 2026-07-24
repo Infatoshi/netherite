@@ -480,25 +480,56 @@ static void test_fireball_rays_particles(void) {
     CHECK(gm_entity_billboard_item("EntityLargeFireball") == 385,
           "EntityLargeFireball uses fire_charge particle icon");
 
-    CrVertex out[4096];
+    CrVertex out[8192];
     GmEntityView drag; memset(&drag, 0, sizeof drag);
     drag.type = 9; drag.y = 80; drag.health = 0; drag.death_ticks = 100;
-    int rays = gm_dragon_death_rays_emit(&drag, 1, out, 4096);
-    CHECK(rays > 0 && rays % 6 == 0, "death rays emit triangle pairs");
-    /* f=0.5 -> (0.5+0.25)/2*60 = 22.5 -> 22 rays * 6 verts */
-    int expect = (int)((0.5f + 0.5f * 0.5f) / 2.0f * 60.0f) * 6;
+    int rays = gm_dragon_death_rays_emit(&drag, 1, out, 8192);
+    CHECK(rays > 0 && rays % 9 == 0, "death rays are 5-vert fans = 3 tris (9 verts)");
+    /* f=0.5 -> (0.5+0.25)/2*60 = 22 rays * 9 verts */
+    int expect = (int)((0.5f + 0.5f * 0.5f) / 2.0f * 60.0f) * 9;
     CHECK(rays == expect, "deathTicks=100 ray count matches LayerEnderDragonDeath");
+    /* Smooth center alpha vs rim alpha 0 on first ray center verts. */
+    CHECK(out[0].tint.r == 255 && out[0].tint.a > 0, "ray center is white+alpha");
+    CHECK(out[1].tint.r == 255 && out[1].tint.g == 0 && out[1].tint.a == 0,
+          "ray rim is magenta transparent");
     drag.death_ticks = 0;
-    CHECK(gm_dragon_death_rays_emit(&drag, 1, out, 4096) == 0,
+    CHECK(gm_dragon_death_rays_emit(&drag, 1, out, 8192) == 0,
           "living dragon emits no death rays");
 
     GmEntityView em; memset(&em, 0, sizeof em);
     em.type = 6; em.y = 64; em.health = 40; em.age = 10; em.ent_id = 7;
-    int pn = gm_particles_emit(&em, 1, 0.0f, 0.0f, out, 4096);
-    CHECK(pn == 8 * 6, "enderman emits 8 portal particle quads");
+    int pn = gm_particles_emit(&em, 1, 0.0f, 0.0f, out, 8192);
+    CHECK(pn == 90 * 6, "enderman: 2 portal/tick * ~45 age = 90 quads");
+    /* UVs must land in CR_MOB_PARTICLES sheet, not enderman skin. */
+    {
+        const CrMobSprite *ps = &CR_MOB_SPRITES[CR_MOB_PARTICLES];
+        float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+        int bad = 0;
+        for (int i = 0; i < pn && i < 48; ++i) {
+            float px = out[i].uv.x * aw, py = out[i].uv.y * ah;
+            if (px < ps->x0 - 0.5f || px > ps->x1 + 0.5f ||
+                py < ps->y0 - 0.5f || py > ps->y1 + 0.5f) bad++;
+        }
+        CHECK(bad == 0, "portal particle UVs sample particles.png sheet");
+    }
     GmEntityView dd = drag; dd.death_ticks = 50;
-    int sn = gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 4096);
-    CHECK(sn == 12 * 6, "dying dragon emits 12 smoke particle quads");
+    int sn = gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 8192);
+    CHECK(sn == 4 * 6, "mid-death dragon emits sparse smoke puffs");
+    dd.death_ticks = 190;
+    int hn = gm_particles_emit(&dd, 1, 0.0f, 0.0f, out, 8192);
+    CHECK(hn == 1 * 6, "deathTicks 180-200 emits EXPLOSION_HUGE (1/tick)");
+
+    /* Dragon dissolve: mid-death still emits full body; light/ao encode mask. */
+    drag.death_ticks = 100;
+    int mid = gm_entities_emit(&drag, 1, out, 8192);
+    CHECK(mid > 0, "mid-death dragon still emits full geometry");
+    int marked = 0;
+    for (int i = 0; i < mid; ++i)
+        if (out[i].light < 0.0f && fabsf(out[i].ao - 0.5f) < 1e-4f) marked++;
+    CHECK(marked == mid, "all death verts mark dissolve (light<0, ao=f)");
+    drag.death_ticks = 200;
+    CHECK(gm_entities_emit(&drag, 1, out, 8192) == 0,
+          "deathTicks=200 emits no dragon body");
 }
 
 int main(void) {

@@ -42,6 +42,8 @@ typedef struct {
     int   lm_lit;
     float lm_light, lm_blk;
     float lm_mul_r, lm_mul_g, lm_mul_b;
+    /* EntitySlime/EntityMagmaCube.squishFactor (render partial=1). */
+    float squish;
 } GmEntityView;
 #endif
 
@@ -101,13 +103,13 @@ void gm_entity_patch_large_fireballs(const int *proj_types, int nproj,
 void gm_entity_prep_large_fireball_fire(GmEntityView *views, int nviews);
 void gm_entity_restore_large_fireball_types(GmEntityView *views, int nviews);
 
-/* LayerEnderDragonDeath light rays (death_ticks > 0). Mob-atlas tinted tris. */
+/* LayerEnderDragonDeath light rays (death_ticks > 0). Untextured additive
+ * triangle fans (9 verts/ray = 3 tris). Draw with blend=3, untextured=1. */
 int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                               int max);
 
-/* Deterministic portal/enderman + death-smoke + crystal-burst particle quads.
- * Geometry is oracle-seeded; UVs are atlas stand-ins until particles.png is
- * packed (see raster/verify/ui_entities/README). */
+/* Portal/enderman + dragon death + crystal-burst particle quads using the
+ * packed particles.png sheet (CR_MOB_PARTICLES). Counts follow vanilla events. */
 int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                       float view_pitch, CrVertex *out, int max);
 
@@ -115,6 +117,12 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
 int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
                                   int stage, float view_yaw, float view_pitch,
                                   CrVertex *out, int max);
+
+/* LayerSlimeGel outer shell (draw translucent blend=1 after the base slime). */
+int gm_slime_gel_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
+
+/* UV offset dragon -> dragon_exploding for CrShadeCtx.alpha_mask dissolve. */
+void gm_entity_dissolve_mask(float *u_off, float *v_off);
 
 #ifdef __cplusplus
 }

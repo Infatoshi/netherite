@@ -69,6 +69,13 @@ MOB_SPRITES += [
     ("silverfish", "silverfish.png"),       # 64x32 ModelSilverfish
     ("boat", "boat/boat_oak.png"),          # 64x32 ModelBoat oak
 ]
+# Pixel-path textures (append only). dragon_exploding is the per-texel death
+# alpha mask (same 256 UV layout as dragon.png). particles.png is the vanilla
+# 128x128 particle sheet (8x8 cells of 16x16 via setParticleTextureIndex).
+MOB_SPRITES += [
+    ("dragon_exploding", "enderdragon/dragon_exploding.png"),  # 256x256
+    ("particles", "../particle/particles.png"),                # 128x128
+]
 
 
 def next_pow2(n):
@@ -101,7 +108,15 @@ def main():
     imgs = []
     with zipfile.ZipFile(JAR) as zf:
         for name, member in MOB_SPRITES:
-            data = zf.read(ENTITY + member)
+            # members are relative to textures/entity/ unless they start with
+            # "assets/" or contain ".." (particle sheet lives next to entity/).
+            if member.startswith("assets/"):
+                path = member
+            elif member.startswith("../"):
+                path = "assets/minecraft/textures/" + member[3:]
+            else:
+                path = ENTITY + member
+            data = zf.read(path)
             img = Image.open(io.BytesIO(data)).convert("RGBA")
             imgs.append((name, img))
 

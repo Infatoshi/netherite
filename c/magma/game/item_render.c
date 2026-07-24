@@ -549,16 +549,13 @@ int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
     return written;
 }
 
-/* Render.renderEntityOnFire for EntitySmallFireball. EntitySmallFireball has
- * width=height=0.3125, so f=width*1.4=0.4375 and f3=height/f=5/7: exactly two
- * iterations of the vanilla f3-=0.45 loop. The GL chain is
- *   T(pos) S(f) Ry(-playerViewY) Tz(-0.3 + floor(f3)*0.02)
- * and each iteration narrows f1 by 0.9, raises f4 by 0.45, and advances z by
- * 0.03. Dragon fireballs override isFireballFiery=false and never enter here. */
+/* Render.renderEntityOnFire for fiery fireballs. EntitySmallFireball has
+ * width=height=0.3125 (scale 0.4375); EntityLargeFireball inherits
+ * EntityFireball width=height=1.0 (scale 1.4). item_meta>=2 marks large after
+ * gm_entity_prep_large_fireball_fire. Both heights/f yield two fire layers.
+ * Dragon fireballs (item_id 9003) never enter here. */
 int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
                                 float view_yaw, CrVertex *out, int max) {
-    const float scale = 0.3125f * 1.4f;
-    const float zbase = -0.3f; /* floor((0.3125 / scale)) == 0 */
     float yr = -view_yaw * IR_D2R;
     float cy = cosf(yr), sy = sinf(yr);
     static const int FIRE_SPRITE[2] = {
@@ -569,11 +566,21 @@ int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
         if (ents[e].type != GM_VIEW_BILLBOARD || ents[e].item_id != 385)
             continue;
         if (written + 12 > max) break;
+        /* EntityLargeFireball width 1.0; EntitySmallFireball width 0.3125. */
+        float width = (ents[e].item_meta >= 2) ? 1.0f : 0.3125f;
+        float height = width;
+        float scale = width * 1.4f;
+        float f3 = height / scale; /* 1/1.4 for both size classes */
+        float zbase = -0.3f + (float)((int)f3) * 0.02f;
         float half = 0.5f, yoff = 0.0f, zoff = 0.0f;
-        for (int layer = 0; layer < 2; ++layer) {
+        int layer = 0;
+        while (f3 > 0.0f && layer < 8) {
+            if (written + 6 > max) break;
             float u0, v0, u1, v1;
-            bm_sprite_uv(FIRE_SPRITE[layer], &u0, &v0, &u1, &v1);
-            /* i/2%2 == 0 for both iterations: vanilla swaps minU/maxU. */
+            bm_sprite_uv(FIRE_SPRITE[layer % 2], &u0, &v0, &u1, &v1);
+            if ((layer / 2) % 2 == 0) {
+                float t = u0; u0 = u1; u1 = t;
+            }
             float local[4][5] = {
                 {  half, 0.0f - yoff, zoff, u0, v1 },
                 { -half, 0.0f - yoff, zoff, u1, v1 },
@@ -585,7 +592,6 @@ int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
                 float px = local[c][0];
                 float py = local[c][1];
                 float pz = local[c][2] + zbase;
-                /* Ry(-playerViewY), then S(width*1.4). */
                 float tx = px * cy + pz * sy;
                 float tz = -px * sy + pz * cy;
                 CrVertex vtx;
@@ -603,6 +609,8 @@ int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
             half *= 0.9f;
             yoff -= 0.45f;
             zoff += 0.03f;
+            f3 -= 0.45f;
+            ++layer;
         }
     }
     return written;

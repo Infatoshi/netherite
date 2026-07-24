@@ -160,7 +160,17 @@ void cr_raster_cpu(CrFramebuffer *fb, const CrScreenTri *tris, int ntris,
                 frag.light = (b0 * v0->light_w + b1 * v1->light_w + b2 * v2->light_w) * iw;
                 frag.ao = (b0 * v0->ao_w + b1 * v1->ao_w + b2 * v2->ao_w) * iw;
                 frag.blk = (b0 * v0->blk_w + b1 * v1->blk_w + b2 * v2->blk_w) * iw;
-                frag.tint = v0->tint;   /* flat, provoking vertex 0 */
+                /* Smooth tint (GL_SMOOTH / shadeModel 7425). */
+                {
+                    float tr = (b0 * v0->tint_r_w + b1 * v1->tint_r_w + b2 * v2->tint_r_w) * iw;
+                    float tg = (b0 * v0->tint_g_w + b1 * v1->tint_g_w + b2 * v2->tint_g_w) * iw;
+                    float tb = (b0 * v0->tint_b_w + b1 * v1->tint_b_w + b2 * v2->tint_b_w) * iw;
+                    float ta = (b0 * v0->tint_a_w + b1 * v1->tint_a_w + b2 * v2->tint_a_w) * iw;
+                    frag.tint.r = (u8)(fminf(255.0f, fmaxf(0.0f, tr)) + 0.5f);
+                    frag.tint.g = (u8)(fminf(255.0f, fmaxf(0.0f, tg)) + 0.5f);
+                    frag.tint.b = (u8)(fminf(255.0f, fmaxf(0.0f, tb)) + 0.5f);
+                    frag.tint.a = (u8)(fminf(255.0f, fmaxf(0.0f, ta)) + 0.5f);
+                }
                 frag.eye_dist = (b0 * v0->eye_dist_w + b1 * v1->eye_dist_w
                                + b2 * v2->eye_dist_w) * iw;
                 frag.lod = tri_lod;
@@ -184,6 +194,15 @@ void cr_raster_cpu(CrFramebuffer *fb, const CrScreenTri *tris, int ntris,
                     fb->color[idx].r = (u8)(fminf(255.0f, (2.0f * c.r * d.r) * (1.0f / 255.0f)) + 0.5f);
                     fb->color[idx].g = (u8)(fminf(255.0f, (2.0f * c.g * d.g) * (1.0f / 255.0f)) + 0.5f);
                     fb->color[idx].b = (u8)(fminf(255.0f, (2.0f * c.b * d.b) * (1.0f / 255.0f)) + 0.5f);
+                    fb->color[idx].a = 255;
+                } else if (sh->blend == 3) {
+                    /* GL blendFunc(SRC_ALPHA, ONE): out = src*src.a + dst.
+                     * LayerEnderDragonDeath. No depth write. */
+                    CrRgba d = fb->color[idx];
+                    float a = c.a * (1.0f / 255.0f);
+                    fb->color[idx].r = (u8)(fminf(255.0f, c.r * a + (float)d.r) + 0.5f);
+                    fb->color[idx].g = (u8)(fminf(255.0f, c.g * a + (float)d.g) + 0.5f);
+                    fb->color[idx].b = (u8)(fminf(255.0f, c.b * a + (float)d.b) + 0.5f);
                     fb->color[idx].a = 255;
                 } else {
                     fb->color[idx] = c;

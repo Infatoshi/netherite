@@ -50,9 +50,9 @@ int gm_held_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
                             float view_pitch, CrVertex *out, int max);
 
-/* Render.doRenderShadowAndFire for fiery EntitySmallFireball. Two stacked
- * camera-yaw-facing fire_layer_0/1 quads (12 verts), emitted for the TERRAIN
- * atlas after the item-core pass. */
+/* Render.doRenderShadowAndFire for fiery fireballs. item_meta>=2 uses
+ * EntityLargeFireball width 1.0 (scale 1.4); else EntitySmallFireball 0.3125
+ * (scale 0.4375). Terrain atlas fire_layer sprites. */
 int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
                                 float view_yaw, CrVertex *out, int max);
 

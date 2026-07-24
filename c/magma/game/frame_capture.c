@@ -840,7 +840,6 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         gm_entity_geom_tick(c->frame);
         int nv=gm_entities_emit(ents,n,eb[0],c->max_entity_verts);
         nv+=gm_xp_orbs_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
-        nv+=gm_dragon_death_rays_emit(ents,n,eb[0]+nv,c->max_entity_verts-nv);
         nv+=gm_particles_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
         /* Dig dust when the player is mid-break (stage from damage 0..1). */
         {
@@ -855,13 +854,38 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         /* fog entities like terrain: underwater EXP fog so distant squid don't
          * punch through as bright unfogged blobs (vanilla setupFog applies to
          * the whole scene, including RenderLivingBase). Lightmap so outdoor
-         * sheep wool is not fullbright white (updateLightmap noon-ish). */
+         * sheep wool is not fullbright white (updateLightmap noon-ish).
+         * alpha_mask: per-texel dragon dissolve via dragon_exploding. */
         CrShadeCtx sh={0};
         sh.atlas=&ea; sh.fog_color=clear; sh.alpha_test=1;
         sh.layer=CR_LAYER_CUTOUT;
         sh.lightmap=lm;
+        sh.alpha_mask=1;
+        gm_entity_dissolve_mask(&sh.mask_u_off,&sh.mask_v_off);
         if(uw.fluid){ sh.enable_fog=1; sh.fog_exp_density=uw.density; sh.fog_color=uw.fog_rgba; }
         render_layer(c,&cam,eb[0],nv,&sh);
+        /* LayerSlimeGel + LayerEnderDragonDeath use dedicated host buffers so
+         * async CUDA uploads of eb[*] are not overwritten mid-flight. */
+        {
+            static CrVertex gel_ov[4096];
+            static CrVertex ray_ov[8192];
+            int ng=gm_slime_gel_emit(ents,n,gel_ov,4096);
+            if(ng>0){
+                CrShadeCtx gel={0};
+                gel.atlas=&ea; gel.fog_color=clear;
+                gel.layer=CR_LAYER_TRANSLUCENT; gel.blend=1;
+                if(uw.fluid){ gel.enable_fog=1; gel.fog_exp_density=uw.density; gel.fog_color=uw.fog_rgba; }
+                render_layer(c,&cam,gel_ov,ng,&gel);
+            }
+            int nr=gm_dragon_death_rays_emit(ents,n,ray_ov,8192);
+            if(nr>0){
+                CrShadeCtx rays={0};
+                rays.atlas=&ea; rays.fog_color=clear;
+                rays.untextured=1; rays.blend=3;
+                rays.layer=CR_LAYER_TRANSLUCENT;
+                render_layer(c,&cam,ray_ov,nr,&rays);
+            }
+        }
         /* dropped items: block cubes/plants on the TERRAIN atlas, then
          * non-block items on the item atlas. */
         nv=gm_items_emit(ents,n,eb[1],c->max_entity_verts);
@@ -884,8 +908,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             if(uw.fluid){ fsh.enable_fog=1; fsh.fog_exp_density=uw.density; fsh.fog_color=uw.fog_rgba; }
             render_layer(c,&cam,eb[2],nv,&fsh);
         }
-        /* Render.doRenderShadowAndFire: small fireballs always; large ghast
-         * fireballs are also fiery (item_meta>=2). Dragon fireballs (9003) not. */
+        /* Render.doRenderShadowAndFire: small width.3125 / large width 1.0. */
         gm_entity_prep_large_fireball_fire(ents,n);
         nv=gm_small_fireball_fire_emit(ents,n,v.yaw,eb[3],
                                       c->max_entity_verts);

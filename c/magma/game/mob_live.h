@@ -45,6 +45,8 @@ typedef struct {
     int despawn_ticks[EW_MAX_ENTITIES];          /* ticks spent >32 blocks from player */
     int anger[EW_MAX_ENTITIES];                  /* pigman angerLevel ticks */
     unsigned char size[EW_MAX_ENTITIES];         /* slime/magma size 1/2/4 */
+    float squish_amount[EW_MAX_ENTITIES];        /* EntitySlime.squishAmount */
+    float squish_factor[EW_MAX_ENTITIES];        /* EntitySlime.squishFactor */
     int jump_delay[EW_MAX_ENTITIES];             /* slime/magma jump cooldown */
     int charge[EW_MAX_ENTITIES];                 /* ghast fireball charge (-40..20) */
     int boat_damage[EW_MAX_ENTITIES];            /* boat hit-to-break counter */

@@ -274,6 +274,22 @@ int main(void) {
         CHECK(fabsf(miny - small.y) < eps &&
               fabsf(maxy - (small.y + 0.809375f)) < eps,
               "renderEntityOnFire exact two-layer y extent");
+        /* Large fireball: EntityFireball width=1.0 -> scale 1.4. */
+        GmEntityView large = small;
+        large.item_meta = 2;
+        n = gm_small_fireball_fire_emit(&large, 1, 0.0f, out, 256);
+        CHECK(n == 12, "fiery large fireball also emits two fire layers");
+        minx = miny = 1e9f; maxx = maxy = -1e9f;
+        for (int i = 0; i < n; ++i) {
+            if (out[i].pos.x < minx) minx = out[i].pos.x;
+            if (out[i].pos.x > maxx) maxx = out[i].pos.x;
+            if (out[i].pos.y < miny) miny = out[i].pos.y;
+            if (out[i].pos.y > maxy) maxy = out[i].pos.y;
+        }
+        CHECK(fabsf((maxx - minx) - 1.4f) < eps,
+              "large fireball fire overlay width*1.4 = 1.4");
+        CHECK(fabsf((maxx - minx) / 0.4375f - (1.4f / 0.4375f)) < 0.01f,
+              "large/small fire extent ratio is width ratio 1.0/0.3125");
         CHECK(gm_small_fireball_fire_emit(&dragon, 1, 0.0f, out, 256) == 0,
               "non-fiery dragon fireball has no fire overlay");
     }

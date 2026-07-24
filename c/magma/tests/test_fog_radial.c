@@ -26,7 +26,10 @@ int main(void) {
         tri.v[i].invw = 0.1f;
         tri.v[i].light_w = 0.1f;
         tri.v[i].ao_w = 0.1f;
-        tri.v[i].tint = white;
+        tri.v[i].tint_r_w = white.r * 0.1f;
+        tri.v[i].tint_g_w = white.g * 0.1f;
+        tri.v[i].tint_b_w = white.b * 0.1f;
+        tri.v[i].tint_a_w = white.a * 0.1f;
     }
     tri.v[0].eye_dist_w = 1.0f;
     tri.v[1].eye_dist_w = 1.0f;

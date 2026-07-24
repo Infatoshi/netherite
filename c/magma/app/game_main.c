@@ -791,20 +791,54 @@ int main(int argc, char **argv) {
             int nv = gm_entities_emit(ents, nents, ent_verts, ent_max_verts);
             nv += gm_xp_orbs_emit(ents, nents, pv.yaw, pv.pitch,
                                  ent_verts + nv, ent_max_verts - nv);
-            nv += gm_dragon_death_rays_emit(ents, nents, ent_verts + nv,
-                                            ent_max_verts - nv);
             nv += gm_particles_emit(ents, nents, pv.yaw, pv.pitch,
                                     ent_verts + nv, ent_max_verts - nv);
+            /* Dig dust while the player is mid-break. */
+            {
+                int dx, dy, dz; float dmg;
+                if (gm_player_dig_state(&dx, &dy, &dz, &dmg) && dmg > 0.0f) {
+                    int stage = (int)(dmg * 10.0f);
+                    if (stage < 1) stage = 1;
+                    if (stage > 10) stage = 10;
+                    nv += gm_block_break_particles_emit(
+                        dx, dy, dz, 0, stage, pv.yaw, pv.pitch,
+                        ent_verts + nv, ent_max_verts - nv);
+                }
+            }
             CrTexture eatlas = gm_entity_atlas();
             CrRgba fog = sky;
-            CrShadeCtx esh = { &eatlas, fog, 0.f, 0.f, 1, 0, CR_LAYER_CUTOUT, 0, 0, 0.f };
+            CrShadeCtx esh = {0};
+            esh.atlas = &eatlas; esh.fog_color = fog;
+            esh.alpha_test = 1; esh.layer = CR_LAYER_CUTOUT;
+            esh.alpha_mask = 1;
+            gm_entity_dissolve_mask(&esh.mask_u_off, &esh.mask_v_off);
             render_layer(&fb, &cam, ent_verts, nv, tris, &esh);
+            /* LayerSlimeGel translucent shell. */
+            nv = gm_slime_gel_emit(ents, nents, ent_verts, ent_max_verts);
+            if (nv > 0) {
+                CrShadeCtx gel = {0};
+                gel.atlas = &eatlas; gel.fog_color = fog;
+                gel.alpha_test = 0; gel.layer = CR_LAYER_TRANSLUCENT;
+                gel.blend = 1;
+                render_layer(&fb, &cam, ent_verts, nv, tris, &gel);
+            }
+            /* LayerEnderDragonDeath: untextured additive smooth rays. */
+            nv = gm_dragon_death_rays_emit(ents, nents, ent_verts, ent_max_verts);
+            if (nv > 0) {
+                CrShadeCtx rays = {0};
+                rays.atlas = &eatlas; rays.fog_color = fog;
+                rays.untextured = 1; rays.blend = 3;
+                rays.layer = CR_LAYER_TRANSLUCENT;
+                render_layer(&fb, &cam, ent_verts, nv, tris, &rays);
+            }
             /* dropped items, second pass: block cubes/plants on the TERRAIN
              * atlas, then non-block items on the item atlas. ent_verts is
              * reusable: render_layer consumed the mob verts above. */
             nv = gm_items_emit(ents, nents, ent_verts, ent_max_verts);
             if (nv > 0) {
-                CrShadeCtx ish = { &atlas, fog, 0.f, 0.f, 1, 0, CR_LAYER_CUTOUT, 0, 0, 0.f };
+                CrShadeCtx ish = {0};
+                ish.atlas = &atlas; ish.fog_color = fog;
+                ish.alpha_test = 1; ish.layer = CR_LAYER_CUTOUT;
                 render_layer(&fb, &cam, ent_verts, nv, tris, &ish);
             }
             nv = gm_items_emit_flat(ents, nents, ent_verts, ent_max_verts);
@@ -813,7 +847,9 @@ int main(int argc, char **argv) {
                                           ent_max_verts - nv);
             if (nv > 0) {
                 CrTexture iatlas = gm_item_atlas();
-                CrShadeCtx fsh = { &iatlas, fog, 0.f, 0.f, 1, 0, CR_LAYER_CUTOUT, 0, 0, 0.f };
+                CrShadeCtx fsh = {0};
+                fsh.atlas = &iatlas; fsh.fog_color = fog;
+                fsh.alpha_test = 1; fsh.layer = CR_LAYER_CUTOUT;
                 render_layer(&fb, &cam, ent_verts, nv, tris, &fsh);
             }
             gm_entity_prep_large_fireball_fire(ents, nents);
@@ -821,8 +857,9 @@ int main(int argc, char **argv) {
                                              ent_verts, ent_max_verts);
             gm_entity_restore_large_fireball_types(ents, nents);
             if (nv > 0) {
-                CrShadeCtx fire_sh = { &atlas, fog, 0.f, 0.f, 1, 0,
-                                       CR_LAYER_CUTOUT, 0, 0, 0.f };
+                CrShadeCtx fire_sh = {0};
+                fire_sh.atlas = &atlas; fire_sh.fog_color = fog;
+                fire_sh.alpha_test = 1; fire_sh.layer = CR_LAYER_CUTOUT;
                 render_layer(&fb, &cam, ent_verts, nv, tris, &fire_sh);
             }
         }

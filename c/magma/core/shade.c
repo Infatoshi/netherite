@@ -131,19 +131,41 @@ static CR_HD float cr_exp_neg(float x) {
  * Returned alpha carries texel*tint alpha (never fogged); a kept fragment never
  * returns alpha 0 (0 is reserved as the alpha_test discard signal). */
 CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
-    /* SOLID keeps level-0 nearest (byte-identical to the pre-layer path); mipped
-     * layers select a level from the chain via the fragment LOD + bias. */
-    CrRgba texel = sh->use_mips
-        ? cr_atlas_sample_lod(sh->atlas, frag->uv.x, frag->uv.y,
-                              frag->lod + sh->mip_bias)
-        : cr_atlas_sample(sh->atlas, frag->uv.x, frag->uv.y);
     CrRgba out;
+    const float inv255 = 1.0f / 255.0f;
+
+    /* RenderDragon death dissolve: light < 0 marks dissolve fragments; ao holds
+     * deathTicks/200. Sample dragon_exploding at uv+mask_off (GL_GREATER thr). */
+    if (sh->alpha_mask && frag->light < 0.0f && sh->atlas) {
+        float mu = frag->uv.x + sh->mask_u_off;
+        float mv = frag->uv.y + sh->mask_v_off;
+        CrRgba mask = cr_atlas_sample(sh->atlas, mu, mv);
+        if ((float)mask.a * inv255 <= frag->ao) {
+            out.r = 0; out.g = 0; out.b = 0; out.a = 0;
+            return out;
+        }
+    }
+
+    /* SOLID keeps level-0 nearest (byte-identical to the pre-layer path); mipped
+     * layers select a level from the chain via the fragment LOD + bias.
+     * untextured: opaque white (POSITION_COLOR / death rays). */
+    CrRgba texel;
+    if (sh->untextured) {
+        texel.r = 255; texel.g = 255; texel.b = 255; texel.a = 255;
+    } else {
+        texel = sh->use_mips
+            ? cr_atlas_sample_lod(sh->atlas, frag->uv.x, frag->uv.y,
+                                  frag->lod + sh->mip_bias)
+            : cr_atlas_sample(sh->atlas, frag->uv.x, frag->uv.y);
+    }
 
     /* Alpha test: explicit flag, or the CUTOUT layers, discard texel.a < 128
-     * (matches GL glAlphaFunc(GL_GREATER, 0.5)). */
+     * (matches GL glAlphaFunc(GL_GREATER, 0.5)). Skip when dissolve already
+     * applied the exploding-mask gate for this fragment. */
     int alpha_test = sh->alpha_test
         || sh->layer == CR_LAYER_CUTOUT
         || sh->layer == CR_LAYER_CUTOUT_MIPPED;
+    if (sh->alpha_mask && frag->light < 0.0f) alpha_test = 0;
 #if !defined(__CUDA_ARCH__)
     /* Opt-in: alpha-test SOLID too (experiment; Java Fast SOLID has alpha DISABLED). */
     if (!alpha_test && sh->layer == CR_LAYER_SOLID) {
@@ -160,7 +182,6 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
         return out;
     }
 
-    const float inv255 = 1.0f / 255.0f;
     /* Lightmap-coord mode: fragment light/blk are 0..15 lightmap levels; sample
      * the frame's 16x16 lightmap texture with GL_LINEAR semantics (bilerp of
      * the 8-bit texels; the GL coord (level*16+8)/256 puts the sample point at
@@ -168,8 +189,11 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
      * and frag->light is the prefolded 0..1 scalar (multiplying by 1.0f is an
      * exact IEEE identity, so the legacy path is bit-unchanged). */
     float lmr = 1.0f, lmg = 1.0f, lmb = 1.0f;
-    float lscalar = frag->light;
-    if (sh->lightmap) {
+    /* Dissolve fragments encode the death threshold in ao and mark light < 0;
+     * shade as fullbright (End sky) so the mask gate is the only visibility. */
+    float lscalar = (frag->light < 0.0f) ? 1.0f : frag->light;
+    float ao_mul = (sh->alpha_mask && frag->light < 0.0f) ? 1.0f : frag->ao;
+    if (sh->lightmap && frag->light >= 0.0f) {
         float s = fmaxf(0.0f, fminf(15.0f, frag->light));
         float b = fmaxf(0.0f, fminf(15.0f, frag->blk));
         int s0 = (int)floorf(s), b0 = (int)floorf(b);
@@ -188,7 +212,7 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
              + (float)t10.b * w10 + (float)t11.b * w11) * inv255;
         lscalar = 1.0f;
     }
-    float la = lscalar * frag->ao;
+    float la = lscalar * ao_mul;
     float tr = frag->tint.r * inv255, tg = frag->tint.g * inv255, tb = frag->tint.b * inv255;
 #if !defined(__CUDA_ARCH__)
     {

@@ -191,6 +191,8 @@ typedef struct {
     int   lm_lit;
     float lm_light, lm_blk;
     float lm_mul_r, lm_mul_g, lm_mul_b;
+    /* EntitySlime/EntityMagmaCube.squishFactor (render partialTicks=1). */
+    float squish;
 } GmEntityView;
 
 /* A block edit produced by the player tick, applied to the live world by app/main.c. */

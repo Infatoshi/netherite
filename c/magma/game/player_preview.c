@@ -70,7 +70,10 @@ static CrScreenVert screen_vertex(PreviewVertex v, int cx, int bottom,
     out.uv_w = (CrVec2){v.u / 64.0f, v.v / 64.0f};
     out.light_w = face_light;
     out.ao_w = 1.0f;
-    out.tint = (CrRgba){255,255,255,255};
+    out.tint_r_w = 255.0f;
+    out.tint_g_w = 255.0f;
+    out.tint_b_w = 255.0f;
+    out.tint_a_w = 255.0f;
     return out;
 }
 

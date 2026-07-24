@@ -15,6 +15,8 @@ fi
 $CC $CFLAGS \
     raster/verify/ui_entities/test_geom_gates.c \
     game/entity_render.c \
+    game/item_render.c \
+    assets/blockmodels.c \
     transform.c \
     core/math.c \
     core/shade.c \

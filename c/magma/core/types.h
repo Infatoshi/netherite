@@ -64,7 +64,9 @@ typedef struct {
     float  light_w;  /* light * invw */
     float  ao_w;     /* ao * invw */
     float  eye_dist_w; /* radial eye distance * invw (GL_EYE_RADIAL_NV fog) */
-    CrRgba tint;     /* flat per-vertex, not perspective-divided */
+    /* Perspective-correct tint (attr * invw). Smooth-shaded vertex color for
+     * LayerEnderDragonDeath rays; uniform per face for textured meshes. */
+    float  tint_r_w, tint_g_w, tint_b_w, tint_a_w;
     float  blk_w;    /* block light level * invw (only read when ctx lightmap set) */
 } CrScreenVert;
 
@@ -109,7 +111,9 @@ typedef struct {
     /* blend: 0 = replace + depth write; 1 = src-over (SRC_ALPHA,
      * ONE_MINUS_SRC_ALPHA), no depth write; 2 = multiply-2x
      * (DST_COLOR, SRC_COLOR): out = 2*src*dst, no depth write - vanilla
-     * RenderGlobal.preRenderDamagedBlocks dig-crack path. */
+     * RenderGlobal.preRenderDamagedBlocks dig-crack path;
+     * 3 = additive (SRC_ALPHA, ONE): out = src*src.a + dst, no depth write
+     * (LayerEnderDragonDeath light rays). */
     int    blend;
     int    use_mips;  /* 1 = sample the atlas mip chain via CrFragment.lod */
     float  mip_bias;  /* LOD bias applied when use_mips */
@@ -130,6 +134,15 @@ typedef struct {
      * the linear fog_start/fog_end ramp. 0 (default; every positional
      * initializer that predates this field leaves it 0) keeps GL_LINEAR. */
     float  fog_exp_density;
+    /* Optional per-texel dissolve (RenderDragon death): when alpha_mask is 1,
+     * fragments with light < 0 sample atlas at uv+(mask_u_off,mask_v_off) and
+     * discard when mask.a/255 <= ao (ao carries deathTicks/200). Color still
+     * samples the primary UV. Zero-init keeps every existing caller unchanged. */
+    int    alpha_mask;
+    float  mask_u_off, mask_v_off;
+    /* 1 = skip atlas sample; texel is opaque white (untextured POSITION_COLOR
+     * geometry such as LayerEnderDragonDeath). */
+    int    untextured;
 } CrShadeCtx;
 
 /* per-fragment inputs handed to the shader (perspective-corrected already) */

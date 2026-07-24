@@ -195,7 +195,16 @@ __global__ void cr_raster_tri_kernel(CrRgba *color, float *depth, int W, int H,
     frag.light = (b0 * v0->light_w + b1 * v1->light_w + b2 * v2->light_w) * iw;
     frag.ao = (b0 * v0->ao_w + b1 * v1->ao_w + b2 * v2->ao_w) * iw;
     frag.blk = (b0 * v0->blk_w + b1 * v1->blk_w + b2 * v2->blk_w) * iw;
-    frag.tint = v0->tint;   /* flat, provoking vertex 0 */
+    {
+        float tr = (b0 * v0->tint_r_w + b1 * v1->tint_r_w + b2 * v2->tint_r_w) * iw;
+        float tg = (b0 * v0->tint_g_w + b1 * v1->tint_g_w + b2 * v2->tint_g_w) * iw;
+        float tb = (b0 * v0->tint_b_w + b1 * v1->tint_b_w + b2 * v2->tint_b_w) * iw;
+        float ta = (b0 * v0->tint_a_w + b1 * v1->tint_a_w + b2 * v2->tint_a_w) * iw;
+        frag.tint.r = (u8)(fminf(255.0f, fmaxf(0.0f, tr)) + 0.5f);
+        frag.tint.g = (u8)(fminf(255.0f, fmaxf(0.0f, tg)) + 0.5f);
+        frag.tint.b = (u8)(fminf(255.0f, fmaxf(0.0f, tb)) + 0.5f);
+        frag.tint.a = (u8)(fminf(255.0f, fmaxf(0.0f, ta)) + 0.5f);
+    }
     frag.eye_dist = (b0 * v0->eye_dist_w + b1 * v1->eye_dist_w
                    + b2 * v2->eye_dist_w) * iw;
     /* per-triangle constant LOD (pure fn of tri+atlas => same value every pixel). */
@@ -219,6 +228,13 @@ __global__ void cr_raster_tri_kernel(CrRgba *color, float *depth, int W, int H,
         color[idx].r = (u8)(fminf(255.0f, (2.0f * c.r * d.r) * (1.0f / 255.0f)) + 0.5f);
         color[idx].g = (u8)(fminf(255.0f, (2.0f * c.g * d.g) * (1.0f / 255.0f)) + 0.5f);
         color[idx].b = (u8)(fminf(255.0f, (2.0f * c.b * d.b) * (1.0f / 255.0f)) + 0.5f);
+        color[idx].a = 255;
+    } else if (sh->blend == 3) {
+        CrRgba d = color[idx];
+        float a = c.a * (1.0f / 255.0f);
+        color[idx].r = (u8)(fminf(255.0f, c.r * a + (float)d.r) + 0.5f);
+        color[idx].g = (u8)(fminf(255.0f, c.g * a + (float)d.g) + 0.5f);
+        color[idx].b = (u8)(fminf(255.0f, c.b * a + (float)d.b) + 0.5f);
         color[idx].a = 255;
     } else {
         color[idx] = c;
@@ -454,7 +470,16 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
         frag.light = (b0 * v0->light_w + b1 * v1->light_w + b2 * v2->light_w) * iw;
         frag.ao = (b0 * v0->ao_w + b1 * v1->ao_w + b2 * v2->ao_w) * iw;
         frag.blk = (b0 * v0->blk_w + b1 * v1->blk_w + b2 * v2->blk_w) * iw;
-        frag.tint = v0->tint;   /* flat, provoking vertex 0 */
+        {
+            float tr = (b0 * v0->tint_r_w + b1 * v1->tint_r_w + b2 * v2->tint_r_w) * iw;
+            float tg = (b0 * v0->tint_g_w + b1 * v1->tint_g_w + b2 * v2->tint_g_w) * iw;
+            float tb = (b0 * v0->tint_b_w + b1 * v1->tint_b_w + b2 * v2->tint_b_w) * iw;
+            float ta = (b0 * v0->tint_a_w + b1 * v1->tint_a_w + b2 * v2->tint_a_w) * iw;
+            frag.tint.r = (u8)(fminf(255.0f, fmaxf(0.0f, tr)) + 0.5f);
+            frag.tint.g = (u8)(fminf(255.0f, fmaxf(0.0f, tg)) + 0.5f);
+            frag.tint.b = (u8)(fminf(255.0f, fmaxf(0.0f, tb)) + 0.5f);
+            frag.tint.a = (u8)(fminf(255.0f, fmaxf(0.0f, ta)) + 0.5f);
+        }
         frag.eye_dist = (b0 * v0->eye_dist_w + b1 * v1->eye_dist_w
                        + b2 * v2->eye_dist_w) * iw;
         frag.lod = tri_lod;
@@ -476,6 +501,13 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
             cur.r = (u8)(fminf(255.0f, (2.0f * c.r * d.r) * (1.0f / 255.0f)) + 0.5f);
             cur.g = (u8)(fminf(255.0f, (2.0f * c.g * d.g) * (1.0f / 255.0f)) + 0.5f);
             cur.b = (u8)(fminf(255.0f, (2.0f * c.b * d.b) * (1.0f / 255.0f)) + 0.5f);
+            cur.a = 255;
+        } else if (shl->blend == 3) {
+            CrRgba d = cur;
+            float a = c.a * (1.0f / 255.0f);
+            cur.r = (u8)(fminf(255.0f, c.r * a + (float)d.r) + 0.5f);
+            cur.g = (u8)(fminf(255.0f, c.g * a + (float)d.g) + 0.5f);
+            cur.b = (u8)(fminf(255.0f, c.b * a + (float)d.b) + 0.5f);
             cur.a = 255;
         } else {
             cur = c;
