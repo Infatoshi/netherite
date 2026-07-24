@@ -129,47 +129,37 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   a live stone-pad underlay; same-scene parity needs a world-only companion
   capture. Mutation tests cover missing button faces/shadows, shifted/extra
   glyphs, and a pure-band tint wipe.
-- **Hand viewmodels (use-pose pin; golden recapture OPEN):** `hand_bow_pull20`
-  / `hand_eat_mid` / `hand_block_shield` require sticky full-use geometry
-  (drawn bow / mid-eat / shield block), not idle rest tips. Two capture bugs
-  fixed in `hud_pin` + `frame{}` (source harness only; no goldens in this
-  salvage):
-  1. `Minecraft.processKeyBinds` calls `onStoppedUsingItem` every client tick
-     while `isHandActive() && !keyBindUseItem.isKeyDown()`, wiping
-     `setActiveHand` between pin and re-render. Fix: sticky `pinUseActive`
-     re-applied at ClientTickEvent END and immediately before `frame{}`
-     `renderWorld`, with use-key held.
+- **Hand viewmodels (use-pose pin; exact gate):** `hand_bow_pull20` /
+  `hand_eat_mid` / `hand_block_shield` require sticky full-use geometry
+  (drawn bow / mid-eat / shield block), not idle rest tips. Sticky pin bugs
+  fixed in `hud_pin` + `frame{}` (MAIN_HAND only):
+  1. `processKeyBinds` wiped `setActiveHand` between pin and re-render → sticky
+     `pinUseActive` re-applied at ClientTickEvent END and before `frame{}`
+     `renderWorld`, use-key held.
   2. `activeItemStack` / `itemStackMainHand` must be the **same inventory
-     reference** as the hotbar stack. `.copy()` breaks `ItemBow.pulling` /
-     `ItemShield.blocking` model predicates (`==` not `equals`) and
-     `updateActiveHand` identity checks.
-  Scope (do not expand product behavior): use-pose pin is **MAIN_HAND only**;
-  dual-wield / offhand active-use is out of scope. Optional `pinPoseActive`
-  freezes camera pos/yaw/pitch between A/B grabs for wall registration only
-  (not a general pose product API). Diagnostics: pin/frame reply fields
-  `use_branch`, `model_pulling` / `model_pull` / `model_blocking`,
-  `stack_id_eq`, `ir_id_eq`. Presence rejects tip-only geometry and wrong
-  branch (strict when expected branch is supplied). Driver offline self-test:
-  `capture_ui_hud_driver.py --self-test-hand-use`.
-- **OPEN: golden recapture + C parity.** A/B world/pose registration under
-  large full-use silhouettes (especially drawn bow) did not stabilize in the
-  interrupted hud-viewmodels experiment; partial captures and fitted
-  comparator/golden edits from that attempt are **not** salvaged. Existing
-  main goldens may still be idle-tip or wall-only until a clean recapture
-  with the sticky pin proves full-use branches at frame render. Hard C
-  residual remains OPEN (registration/lighting; no budgets/masks; RESIDUAL
-  nonzero, not parity). Do not claim hand viewmodel pixel close until
-  recapture + C gate re-run.
-- **Viewmodel ports in flight:** bread (297) is in the item atlas (was silent
-  iron_ingot fallback). Shield keeps native 64x64 `shield_base_nopattern` and
-  ModelBox box-net UVs + RenderHelper diffuse only (no block face shades).
-  Mid-eat ROI is the wider lower band so residual is not a false PASS on
-  lower-right edge crumbs. Remaining gap is first-person registration vs Java
-  plus lighting nuance once full-use goldens are recaptured.
-- **Drawn-bow registration (#29):** geometry follows ItemRenderer BOW branch at
-  partialTicks=1; still-draw A/B needs genuine full-use `hand_bow_pull20`
-  goldens after recapture (OPEN above; prior C residual ~55/ch on non-hotbar
-  ROI is not closed by this salvage).
+     reference** as the hotbar stack (`.copy()` breaks `==` predicates).
+  Diagnostics: `use_branch`, `model_pulling` / `model_pull` / `model_blocking`,
+  `stack_id_eq`, `ir_id_eq`. Driver: `capture_ui_hud_driver.py --self-test-hand-use`.
+  **Gate:** complete Java∪C subject ownership on the lower-band ROI (subject =
+  maxch distance from per-image ROI-border backdrop > thr; C isolation uses
+  GRAY, Java uses wall median). `hard_thr` always **0**. PASS only if
+  `noise_max==0` AND `hard_px==0`. No mean budget, no legacy `hard_parity`
+  label, no painted-only holes. A/B maxch residual ⇒ CAPTURE_BLOCKED.
+  Mutations (from a true bit-exact synthetic control): missing Java-only
+  silhouette, C-extra pixels, +1 single-channel, shift, recolor — all reject.
+- **Shield golden corrected; C parity RESIDUAL:** sticky-pin full-use
+  `hand_block_shield` A/B (`model_blocking=1.0`, A/B noise 0, CAPTURE_OK)
+  replaces the mislabeled idle-tip golden. Against the corrected golden,
+  C-painted residual mean **1.563** with **15,989/16,737** nonzero and maxch
+  **60** is **OPEN** (not PASS). Owned-subject hard residual under thr=0 also
+  nonzero (gray isolation vs wall + hand). Do not claim pixel-perfect.
+- **OPEN bow/eat goldens:** committed `hand_bow_pull20` / `hand_eat_mid` still
+  idle-tip capture blockers/residual (no stable full-use PNG; bow sticky meta
+  CAPTURE_FAIL). C use path source-correct; do not fit offsets to tip goldens.
+  Recapture only.
+- **Viewmodel ports:** bread (297) in item atlas; shield native 64x64
+  `shield_base_nopattern` + ModelBox UV + RenderHelper diffuse; mid-eat ROI is
+  the wider lower band.
 - **Inside-block gate (exact bar):** `gm_overlay_block_in_hand` matches 1.11.2
   `ItemRenderer.renderBlockInHand`: view-space z=-0.5 under hand FOV 70,
   maxU/maxV on left/bottom (U mirrored), **blend off**, replace RGB with

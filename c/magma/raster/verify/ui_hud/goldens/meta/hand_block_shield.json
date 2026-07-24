@@ -96,7 +96,17 @@
     "third_person": 0,
     "equip_progress": 1.0,
     "equip_pinned": 1,
-    "held_id": 442
+    "held_id": 442,
+    "pin_use_active": true,
+    "pin_use_remaining": 72000,
+    "use_branch": "block",
+    "use_action_name": "BLOCK",
+    "stack_id_eq": true,
+    "ir_id_eq": true,
+    "model_pulling": 0.0,
+    "model_pull": 0.0,
+    "model_blocking": 1.0,
+    "use_key_down": true
   },
   "pin_reply_b": {
     "ok": true,
@@ -121,7 +131,17 @@
     "third_person": 0,
     "equip_progress": 1.0,
     "equip_pinned": 1,
-    "held_id": 442
+    "held_id": 442,
+    "pin_use_active": true,
+    "pin_use_remaining": 72000,
+    "use_branch": "block",
+    "use_action_name": "BLOCK",
+    "stack_id_eq": true,
+    "ir_id_eq": true,
+    "model_pulling": 0.0,
+    "model_pull": 0.0,
+    "model_blocking": 1.0,
+    "use_key_down": true
   },
   "pin_reply_pre": {
     "ok": true,
@@ -146,7 +166,17 @@
     "third_person": 0,
     "equip_progress": 1.0,
     "equip_pinned": 1,
-    "held_id": 442
+    "held_id": 442,
+    "pin_use_active": true,
+    "pin_use_remaining": 72000,
+    "use_branch": "block",
+    "use_action_name": "BLOCK",
+    "stack_id_eq": true,
+    "ir_id_eq": true,
+    "model_pulling": 0.0,
+    "model_pull": 0.0,
+    "model_blocking": 1.0,
+    "use_key_down": true
   },
   "frame_a": {
     "ok": true,
@@ -154,7 +184,15 @@
     "w": 854,
     "h": 480,
     "tb": 1,
-    "hud": 1
+    "hud": 1,
+    "use_branch": "block",
+    "hand_active": true,
+    "use_count": 72000,
+    "model_pulling": 0.0,
+    "model_pull": 0.0,
+    "model_blocking": 1.0,
+    "stack_id_eq": true,
+    "ir_id_eq": true
   },
   "frame_b": {
     "ok": true,
@@ -162,7 +200,15 @@
     "w": 854,
     "h": 480,
     "tb": 1,
-    "hud": 1
+    "hud": 1,
+    "use_branch": "block",
+    "hand_active": true,
+    "use_count": 72000,
+    "model_pulling": 0.0,
+    "model_pull": 0.0,
+    "model_blocking": 1.0,
+    "stack_id_eq": true,
+    "ir_id_eq": true
   },
   "pose": {
     "x": 8.5,
@@ -179,18 +225,24 @@
   "noise_limit": 2.0,
   "presence": {
     "mean_rgb": [
-      94.15563841915258,
-      97.9249952498575,
-      89.74054721641649
+      81.73327949838495,
+      80.19012445373362,
+      63.61514345430363
     ],
-    "std": 24.552619701457942,
+    "std": 30.970010112569938,
     "warm_frac": 0.018440183450429352,
-    "bot_warm_frac": 0.06991120218579235,
-    "lr_std": 25.715123727074502,
-    "vm_std": 22.353834018240377,
-    "vm_dev": 15.373743057250977,
-    "dark_frac": 0.04481759452783583,
-    "purple_bias": -8.184448033441015
+    "bot_warm_frac": 0.10395686963309914,
+    "lr_std": 31.64884957853864,
+    "vm_std": 28.646630612965264,
+    "vm_dev": 24.599552154541016,
+    "dark_frac": 0.36158084742542274,
+    "purple_bias": -16.57498099942999,
+    "use_branch": "block",
+    "model_pulling": 0.0,
+    "model_pull": 0.0,
+    "model_blocking": 1.0,
+    "stack_id_eq": true,
+    "ir_id_eq": true
   },
   "verdict": "CAPTURE_OK",
   "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",

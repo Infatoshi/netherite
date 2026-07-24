@@ -51,7 +51,16 @@ GuiGameOver (hud_death*):
   - Full-frame hud_death is soft (world underlay residual).
   - hud_death_tint_pair is hard: pure gradient bands over known C underlay.
 
-Hand viewmodels: wider mid-eat ROI; hard residual open (registration).
+Hand viewmodels (hand_bow_pull20 / hand_eat_mid / hand_block_shield):
+  Complete Java∪C subject ownership on the lower-band ROI. Subject = pixels
+  farther than HAND_SUBJECT_THR from that image's own ROI-border backdrop
+  (GRAY isolation for C candidate; wall median for Java goldens). Missing
+  Java-only silhouette and C-only extras both score. hard_thr is always 0.
+  PASS only if noise_max==0 AND hard_px==0 (bit-exact). No mean budget, no
+  legacy hard_parity label, no painted-only holes. A/B maxch residual =>
+  CAPTURE_BLOCKED. Gray C isolation vs Java wall is residual until same-scene
+  underlay; sticky-pin shield golden is exact capture but C parity remains
+  OPEN when hard_px>0.
 
 Verdicts (capture integrity first; no false parity claims):
   FAIL             - missing files, capture noise over ceiling, empty/unstable
@@ -126,6 +135,17 @@ FULLSCREEN_REPLACE = {
     "overlay_underwater",
     "overlay_portal_050",
 }
+
+# Hand viewmodel hard states: Java∪C subject, hard_thr=0, A/B exact for PASS.
+HAND_HARD = {
+    "hand_bow_pull20",
+    "hand_eat_mid",
+    "hand_block_shield",
+}
+# Max-channel distance from per-image ROI-border backdrop for subject pixels.
+# Matches GRAY_EPS on isolation frames; wall goldens use border median.
+HAND_SUBJECT_THR = GRAY_EPS
+HAND_BORDER_BAND = 6
 # Per-pixel mean-ch A/B above this is "unstable" (Java HUD chrome flicker).
 STABLE_AB_THR = 2.0
 # hard_thr is always 0: bit-exact C vs Java_a on the stable set. Never
@@ -206,10 +226,7 @@ def roi_rect(name):
 
 # Hard gate: core HUD, hands, inside-block, underwater full-ROI, portal swirl,
 # and opaque GuiGameOver chrome. Full-frame death tint and fire stay soft.
-HARD = set(CORE_HARD) | {
-    "hand_bow_pull20",
-    "hand_eat_mid",
-    "hand_block_shield",
+HARD = set(CORE_HARD) | set(HAND_HARD) | {
     "overlay_inside_stone",
     "overlay_inside_grass",
     "overlay_underwater",
@@ -357,6 +374,182 @@ def death_pure_mask():
 
 def painted_mask(c):
     return np.abs(c.astype(np.int16) - GRAY).max(axis=2) > GRAY_EPS
+
+
+def hand_backdrop_rgb(img, band=HAND_BORDER_BAND):
+    """Per-image ROI backdrop: GRAY isolation if border is near-gray, else median.
+
+    C candidate frames are solid GRAY outside the viewmodel. Java goldens use
+    a wall; border median is the wall estimate. Subject is distance from this
+    backdrop (not a painted-only C hole).
+    """
+    h, w = img.shape[:2]
+    b = max(1, min(band, h // 4, w // 4))
+    border = np.concatenate([
+        img[:b].reshape(-1, 3),
+        img[-b:].reshape(-1, 3),
+        img[:, :b].reshape(-1, 3),
+        img[:, -b:].reshape(-1, 3),
+    ], axis=0)
+    med = np.median(border.astype(np.float64), axis=0)
+    if float(np.abs(med - float(GRAY)).max()) <= float(HAND_SUBJECT_THR + 4):
+        return np.array([GRAY, GRAY, GRAY], dtype=np.int16)
+    return med.astype(np.int16)
+
+
+def hand_subject_mask(img, thr=HAND_SUBJECT_THR):
+    """Non-backdrop subject pixels in a hand ROI crop (HxWx3)."""
+    bg = hand_backdrop_rgb(img)
+    return np.abs(img.astype(np.int16) - bg.astype(np.int16)).max(axis=2) > thr
+
+
+def hand_owned_mask(ja, c):
+    """Complete Java∪C subject ownership (missing Java + C-extra both score)."""
+    return hand_subject_mask(ja) | hand_subject_mask(c)
+
+
+def evaluate_hand_exact(sid, ja_full, jb_full, c_full):
+    """Hand viewmodel exact gate: Java∪C subject, hard_thr=0, A/B exact PASS.
+
+    Replaces the legacy painted-mean + margin hard_parity path. PASS only when
+    noise_max==0 and hard_px==0 on the owned subject. Any A/B maxch residual is
+    CAPTURE_BLOCKED. No mean budget.
+    """
+    rect = roi_rect(sid)
+    noise_lim = NOISE_MAX.get(sid, NOISE_MAX_DEFAULT)
+
+    ja = crop(ja_full, rect)
+    jb = crop(jb_full, rect)
+    c = crop(c_full, rect)
+    h = min(ja.shape[0], jb.shape[0], c.shape[0])
+    w = min(ja.shape[1], jb.shape[1], c.shape[1])
+    ja, jb, c = ja[:h, :w], jb[:h, :w], c[:h, :w]
+
+    j_subj = hand_subject_mask(ja)
+    c_subj = hand_subject_mask(c)
+    owned = j_subj | c_subj
+    n_owned = int(owned.sum())
+    n_j = int(j_subj.sum())
+    n_c = int(c_subj.sum())
+    n_only_j = int((j_subj & ~c_subj).sum())
+    n_only_c = int((c_subj & ~j_subj).sum())
+    n_painted = int(painted_mask(c).sum())  # isolation-paint diagnostic
+
+    ab_ch = np.abs(ja.astype(np.int16) - jb.astype(np.int16)).astype(np.float64)
+    ab_maxch_px = ab_ch.max(axis=2)
+    residual_locs = []
+    residual_bbox = None
+    n_ab_maxch_ge1 = 0
+
+    if n_owned > 0:
+        noise = float(ab_ch[owned].mean())
+        noise_max = float(ab_maxch_px[owned].max())
+        n_ab_maxch_ge1 = int((ab_maxch_px[owned] >= 1).sum())
+        diff_ch = np.abs(c.astype(np.int16) - ja.astype(np.int16)).astype(
+            np.float64)
+        diff_mean_px = diff_ch.mean(axis=2)
+        diff_maxch_px = diff_ch.max(axis=2)
+        diff = float(diff_mean_px[owned].mean())
+        max_diff = float(diff_maxch_px[owned].max())
+        hard_thr = 0
+        hard_mask = owned & (diff_maxch_px > hard_thr)
+        hard_px = int(hard_mask.sum())
+        # C-painted diagnostic (legacy false-PASS surface under mean budget).
+        c_paint = painted_mask(c)
+        if c_paint.any():
+            c_paint_nz = int((diff_maxch_px[c_paint] > 0).sum())
+            c_paint_maxch = int(diff_maxch_px[c_paint].max())
+            c_paint_mean = float(diff_mean_px[c_paint].mean())
+        else:
+            c_paint_nz = 0
+            c_paint_maxch = 0
+            c_paint_mean = float("nan")
+        if hard_px > 0:
+            ys, xs = np.where(hard_mask)
+            x0, y0, _, _ = rect
+            full_xs = xs + x0
+            full_ys = ys + y0
+            residual_bbox = [
+                int(full_xs.min()), int(full_ys.min()),
+                int(full_xs.max()), int(full_ys.max()),
+            ]
+            step = max(1, hard_px // RESIDUAL_LOC_SAMPLES)
+            for i in range(0, hard_px, step):
+                if len(residual_locs) >= RESIDUAL_LOC_SAMPLES:
+                    break
+                yi, xi = int(ys[i]), int(xs[i])
+                residual_locs.append({
+                    "x": int(full_xs[i]),
+                    "y": int(full_ys[i]),
+                    "maxch": int(diff_maxch_px[yi, xi]),
+                    "c": [int(c[yi, xi, k]) for k in range(3)],
+                    "j": [int(ja[yi, xi, k]) for k in range(3)],
+                })
+    else:
+        noise = float(ab_ch.mean()) if ab_ch.size else float("nan")
+        noise_max = float(ab_maxch_px.max()) if ab_maxch_px.size else 0.0
+        n_ab_maxch_ge1 = int((ab_maxch_px >= 1).sum()) if ab_maxch_px.size else 0
+        diff = float("nan")
+        max_diff = float("nan")
+        hard_thr = 0
+        hard_px = 0
+        c_paint_nz = 0
+        c_paint_maxch = 0
+        c_paint_mean = float("nan")
+
+    gate = noise  # diagnostic only; PASS is hard_px + noise_max, no mean budget
+    capture_ok = (
+        (noise == noise)
+        and noise <= noise_lim
+        and n_owned > 0
+    )
+    if not capture_ok:
+        verdict = "FAIL"
+        if noise != noise:
+            reason = "capture_bad"
+        elif noise > noise_lim:
+            reason = "capture_noise"
+        else:
+            reason = "empty_subject"
+    elif noise_max > 0:
+        verdict = "CAPTURE_BLOCKED"
+        reason = "ab_maxch_nonzero"
+    elif hard_px == 0 and (diff == diff):
+        verdict = "PASS"
+        reason = "hand_exact"
+    else:
+        verdict = "RESIDUAL"
+        reason = "hard_residual"
+
+    return {
+        "id": sid,
+        "noise": noise,
+        "noise_max": noise_max,
+        "n_ab_maxch_ge1": n_ab_maxch_ge1,
+        "c_vs_j": diff,
+        "max_diff": max_diff,
+        "hard_px": hard_px,
+        "hard_thr": hard_thr,
+        "gate": gate,
+        "verdict": verdict,
+        "roi": list(rect),
+        "hard": True,
+        "hand_exact": True,
+        "n_painted": n_painted,
+        "n_owned": n_owned,
+        "n_j_subj": n_j,
+        "n_c_subj": n_c,
+        "n_only_j": n_only_j,
+        "n_only_c": n_only_c,
+        "c_paint_nz": c_paint_nz,
+        "c_paint_maxch": c_paint_maxch,
+        "c_paint_mean": c_paint_mean,
+        "noise_limit": noise_lim,
+        "reason": reason,
+        "rule": "hand_java_union_c_subject_exact",
+        "residual_bbox": residual_bbox,
+        "residual_locs": residual_locs,
+    }
 
 
 def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
@@ -1097,6 +1290,8 @@ def evaluate_state(sid, ja_full, jb_full, c_full, margin=2.0):
     """Return a result dict for one state (used by gate + mutation suite)."""
     if sid in FULLSCREEN_REPLACE:
         return evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full)
+    if sid in HAND_HARD:
+        return evaluate_hand_exact(sid, ja_full, jb_full, c_full)
     if sid == "hud_death_tint_pair":
         row, _fail, _resid = evaluate_death_tint_pair(ja_full, jb_full, c_full)
         row = dict(row)
@@ -1303,12 +1498,17 @@ def evaluate_roi_painted(sid, ja_full, jb_full, c_full, margin):
 
 
 def evaluate_roi(sid, ja_full, jb_full, c_full, margin):
-    """Compare one state id. Routes fullscreen / core / painted paths."""
+    """Compare one state id. Routes fullscreen / hand / core / painted paths."""
     if sid in FULLSCREEN_REPLACE:
         row = evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full)
         fail = 1 if row["verdict"] == "FAIL" else 0
         # CAPTURE_BLOCKED: A/B not bit-exact (no parity claim). Counts as
         # residual for exit status — same nonzero path as hard C residual.
+        residual = 1 if row["verdict"] in ("RESIDUAL", "CAPTURE_BLOCKED") else 0
+        return row, fail, residual
+    if sid in HAND_HARD:
+        row = evaluate_hand_exact(sid, ja_full, jb_full, c_full)
+        fail = 1 if row["verdict"] == "FAIL" else 0
         residual = 1 if row["verdict"] in ("RESIDUAL", "CAPTURE_BLOCKED") else 0
         return row, fail, residual
     if sid in CORE_HARD:
@@ -1382,7 +1582,7 @@ def run_compare(goldens, cframes, margin, report_path=""):
         n_fail += fail
         n_residual += resid
         if resid:
-            residuals.append({
+            r_entry = {
                 "id": sid,
                 "noise": row["noise"],
                 "noise_max": row.get("noise_max"),
@@ -1396,7 +1596,19 @@ def run_compare(goldens, cframes, margin, report_path=""):
                 "reason": row.get("reason"),
                 "residual_bbox": row.get("residual_bbox"),
                 "residual_locs": row.get("residual_locs"),
-            })
+            }
+            if row.get("hand_exact"):
+                r_entry.update({
+                    "n_owned": row.get("n_owned"),
+                    "n_painted": row.get("n_painted"),
+                    "c_paint_nz": row.get("c_paint_nz"),
+                    "c_paint_maxch": row.get("c_paint_maxch"),
+                    "c_paint_mean": row.get("c_paint_mean"),
+                    "n_only_j": row.get("n_only_j"),
+                    "n_only_c": row.get("n_only_c"),
+                    "rule": row.get("rule"),
+                })
+            residuals.append(r_entry)
         if fail:
             blocked.append(sid)
         diff = row["c_vs_j"]
@@ -1415,6 +1627,17 @@ def run_compare(goldens, cframes, margin, report_path=""):
                 else -1.0,
                 row.get("hard_thr"),
                 extra)
+        if row.get("hand_exact"):
+            extra = (
+                " owned=%s maxch=%s thr=%s c_paint_nz=%s/%s c_paint_maxch=%s%s" % (
+                    row.get("n_owned"),
+                    row.get("max_diff") if row.get("max_diff") == row.get("max_diff")
+                    else -1.0,
+                    row.get("hard_thr"),
+                    row.get("c_paint_nz"),
+                    row.get("n_painted"),
+                    row.get("c_paint_maxch"),
+                    extra))
         print("%-24s %10.3f %10.3f %10.3f %8s %10s  painted=%d %s%s" % (
             sid, row["noise"] if row["noise"] == row["noise"] else -1.0,
             diff if diff == diff else -1.0,
@@ -1444,6 +1667,9 @@ def run_compare(goldens, cframes, margin, report_path=""):
             "hud_durability_half uses atlas-alpha∪strip∪C-extra ownership "
             "(C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-"
             "GRAY isolation underlay; not threshold holes, not Java world). "
+            "Hands: Java∪C subject ownership, hard_thr=0, A/B exact for PASS; "
+            "no mean-budget hard_parity. Sticky-pin shield golden is exact "
+            "capture; C residual with hard_px>0 stays RESIDUAL (not pixel-perfect). "
             "Portal: GuiIngame.renderPortal over gray C isolation; outdoor Java "
             "underlay is a same-scene product residual (not a fitted black cell). "
             "Real portal A/B has maxch=1 residuals -> CAPTURE_BLOCKED. "

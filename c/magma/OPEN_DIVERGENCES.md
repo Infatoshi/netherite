@@ -628,20 +628,30 @@ ordering, not a magma scene bug; deprioritized. Fix if ever needed:
 have replay skip (or fog-neutralize) the first rendered frame after each
 snapshot arrival event.
 
-## 29. OPEN (render, viewmodel): drawn-bow registration offset
+## 29. OPEN (render, viewmodel): hand use-pose — shield golden corrected; C residual open
 
-Salvage note (hand-capture-salvage): sticky `hud_pin`/`frame{}` use-pose
-pin proves BOW/EAT/BLOCK branches at render time (MAIN_HAND only; dual-wield
-out of scope); golden recapture and C parity remain OPEN because A/B
-world/pose registration did not stabilize.
+**Root cause (common):** pre-sticky-pin tip goldens were idle-tip silhouettes
+against full-use C. C implements ItemRenderer MAIN_HAND BOW/EAT/BLOCK
+(transformSideFirstPerson + eat/bow chains + shield_blocking + ModelShield
+TEISR). Gate is now strict Java∪C subject ownership, hard_thr=0, A/B exact for
+PASS (no mean-budget `hard_parity`).
 
-Dragon tape 104827Z: with the ItemRenderer BOW using-branch transform and
-bow_pulling_0/1/2 sprites implemented, the drawn bow lands close but the
-oracle's bow reads slightly larger/left of magma's (whole-frame 3.9/ch
-over ~14-17% during full draws, floor 1.0/ch elsewhere). Candidates: the
-draw-tremble phase (sin((f5-0.1)*1.3) sampled at partial ticks), a
-partial-tick term in f5 itself, or equip-progress differences. Tune with
-a still-draw A/B harness before chasing texture detail.
+**Shield golden corrected (not pixel-perfect closed):** sticky-pin full-use
+`hand_block_shield` A/B installed (`model_blocking=1.0`, A/B noise 0,
+CAPTURE_OK). Replaces mislabeled idle-tip golden. Unchanged C path against the
+corrected golden: C-painted residual mean **1.563** with **15,989 / 16,737**
+nonzero and maxch **60** — that is **OPEN / RESIDUAL**, not PASS. Owned-subject
+hard_px stays nonzero under thr=0 (gray C isolation vs wall + hand residual).
+
+**Still OPEN:**
+- `hand_block_shield` — sticky golden exact; C parity RESIDUAL (not closed).
+- `hand_bow_pull20` / `hand_eat_mid` — committed goldens still pre-pin idle-tip
+  (~54.9 / ~50.9 on C-paint mean); bow sticky meta can prove branch but no
+  stable full-use PNG (CAPTURE_FAIL). Recapture only; do not fit C offsets.
+  MAIN_HAND only.
+
+**Do not claim** hand pixel-perfect unless hard_px==0 and noise_max==0.
+
 
 ## 30. PARTIAL (render, entities): arrow ghosts modeled; old tapes lack pitch
 

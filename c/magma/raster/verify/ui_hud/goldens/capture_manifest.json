@@ -44,11 +44,11 @@
   "blocked": [],
   "failed": [],
   "last_focused_only": [
-    "overlay_portal_050"
+    "hand_block_shield"
   ],
   "resolution": "from frame replies",
   "java_home": "/usr/lib/jvm/java-8-openjdk-amd64",
   "portal_phase": 0,
   "ab_noise_portal": 0.0006928653814466964,
-  "notes": "Full existing golden set (18 states) preserved. Focused portal recapture (hud_pin timeInPortal=0.5 + portal_phase=0; pin_texture_animations freezes Blocks.PORTAL tile; outdoor glass-pad underlay) updated overlay_portal_050 A/B only — did not drop or rewrite other goldens. A/B mean ~0.0007 with residual maxch=1 on ~865 pixels (CAPTURE_BLOCKED for product; never PASS under any C). Genuine qrl frame{rerender:true} at partialTicks=1."
+  "notes": "Sticky-pin full-use hand_block_shield A/B kept (model_blocking=1.0, use_branch=block, stack_id_eq, A/B noise 0.0 CAPTURE_OK) — golden corrected vs idle-tip, not a C pixel-perfect close. Hand gate is Java∪C subject exact (hard_thr=0); shield C residual OPEN (c_paint mean 1.563, 15989/16737 nz, maxch 60). Bow/eat remain pre-pin tip residuals/blockers. Portal still CAPTURE_BLOCKED."
 }
