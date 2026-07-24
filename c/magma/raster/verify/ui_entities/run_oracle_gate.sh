@@ -63,9 +63,43 @@ if [ ! -d "$GOLDENS" ] || [ -z "$(ls "$GOLDENS"/*_a.png 2>/dev/null)" ]; then
   exit 1
 fi
 
-echo "== ROI gate vs goldens =="
+# Private fixture path (override with ENTITY_GATE_C_OUT). Never write shared
+# /tmp/magma_ui_entities_c from review/corrective runs by default.
+C_OUT="${ENTITY_GATE_C_OUT:-/tmp/magma_ui_entities_c_$$}"
+mkdir -p "$C_OUT"
+
+echo "== validate Java goldens (presence / A/B / inter-state) =="
+uv run --no-project --with pillow --with numpy \
+  python "$DIR/validate_ui_entities_goldens.py" \
+  --goldens "$GOLDENS" \
+  --json-out "$C_OUT/validate_report.json"
+
+echo "== hard owned-pixel gate vs goldens (c-out=$C_OUT) =="
+# Gate residual/CAPTURE_BLOCKED is nonzero exit; capture status without
+# aborting under set -e so mutations still run (policy self-test first-class).
+GATE_RC=0
 uv run --no-project --with pillow --with numpy \
   python "$DIR/compare_ui_entities_oracle.py" \
   --goldens "$GOLDENS" \
   --candidate "$OUT" \
-  --c-out /tmp/magma_ui_entities_c
+  --c-out "$C_OUT" \
+  --json-out "$C_OUT/gate_report.json" || GATE_RC=$?
+
+echo "== mutation self-tests (nonzero A/B blocked + synth zero-noise + holes) =="
+MUT_RC=0
+uv run --no-project --with pillow --with numpy \
+  python "$DIR/test_ui_entities_mutations.py" \
+  --goldens "$GOLDENS" \
+  --c-frames "$C_OUT" || MUT_RC=$?
+
+# Residual/CAPTURE_BLOCKED expected until renderer closes hard_px / recapture
+# freezes A/B; mutations must still PASS.
+if [ "$MUT_RC" -ne 0 ]; then
+  echo "FAIL: mutation suite" >&2
+  exit 1
+fi
+if [ "$GATE_RC" -ne 0 ]; then
+  echo "run_oracle_gate: nonzero (FAIL/RESIDUAL/CAPTURE_BLOCKED — see $C_OUT/gate_report.json)"
+  exit "$GATE_RC"
+fi
+echo "run_oracle_gate: all 16 hard PASS"

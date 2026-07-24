@@ -29,7 +29,7 @@ fresh flat seed-0 world; A/B via qrl frame{rerender:true} at partialTicks=1
 ```bash
 cd c/magma
 bash raster/verify/ui_entities/capture_ui_entities.sh
-# then compare (builds C candidate through frame_capture):
+# hard owned-pixel gate (builds C candidate through frame_capture):
 bash raster/verify/ui_entities/run_oracle_gate.sh
 ```
 
@@ -52,12 +52,44 @@ Reuse the project MalmoMod jar only (no `qrl_bridge.jar` in mods). Preserve
 existing non-empty goldens unless `FORCE_RECAPTURE=1`. Optional:
 `ONLY_STATES="slime_squish magma_squish dragon_death_50"`.
 
-## Gate policy
+## Gate policy (hard full ROI)
 
-Feature-specific ROIs. Hard gate: `c_vs_j <= noise + MARGIN` with MARGIN at
-the raster noise floor (default 0.5 mean abs RGB). Zero unexplained residual
-budget outside noise. Presence assert: Java A ROI must differ from a blank
-sky sample (feature not empty).
+Product parity is **max-channel exactness** across the complete family ROI with
+**deterministic Java A/B zero**. Nonzero A/B is never a PASS.
+
+The complete ROI is owned. Earlier color-derived subject masks were rejected
+because they alternated between missing dim/dark/extra entity pixels and
+owning grass, endstone, or pad. The interactive renderer must match the
+composed scene, so those ROI pixels are part of the contract.
+
+`xp_orb` has an additional presence prerequisite: its current Java golden is
+only gray pad, so it remains `CAPTURE_BLOCKED` until the Oracle visibly contains
+the green/gold orb. Full-ROI equality cannot certify a missing subject.
+
+### Verdicts
+
+| Verdict | When |
+|---------|------|
+| **PASS** | Full ROI A/B `noise_max == 0`, subject presence valid, and `hard_px == 0` |
+| **CAPTURE_BLOCKED** | Any ROI A/B pixel differs, or xp is missing its visible orb. **Never PASS**, even for `C == Java_A` or mid-envelope C. |
+| **RESIDUAL** | Capture OK (zero A/B) but full-ROI `hard_px > 0` |
+| **FAIL** | Missing files, candidate fail, or A/B mean noise over family ceiling |
+
+Deleted: `owned_within_per_pixel_ab` PASS (per-pixel A/B envelope is not product
+parity).
+
+**Mutations** (`test_ui_entities_mutations.py`):
+
+- Real-golden Java_A control: nonzero A/B → CAPTURE_BLOCKED; zero A/B + capable → PASS
+- Synthetic zero-noise control (A=B=C painted subject) → PASS
+- Corruptions of synthetic must not PASS (erase/blank/+1ch/missing dark/transparent/
+  shift/recolor/extra black/midgray/midchroma/bright/vivid)
+- Hole/extras counterexamples across the full ROI: dim fire, dark/purple/green
+  fringes, outside black/midgray/midchroma/bright/vivid extras, xp no-orb
+  blocked, and nonzero A/B controls blocked
+
+Honest current C candidates are expected **RESIDUAL** or **CAPTURE_BLOCKED** on
+all 16 until the renderer closes residual / recapture freezes A/B.
 
 Post-capture, `validate_ui_entities_goldens.py` must PASS before any commit:
 presence + A/B stability **and** inter-state geometry (squish taller/thinner
@@ -65,6 +97,6 @@ than size2, size pairs distinct, dragon stages pairwise distinct with
 body/ray subject, reject near-empty 190). Approval is Pillow/numpy ROI stats,
 never filesize alone. Never commit empty sky frames.
 
-If C exactness is not reached, the ROI compare stays FAIL and prints clusters;
-Java goldens remain usable as the oracle baseline when validation PASSes.
-C-vs-J residual stays open until `run_oracle_gate.sh` is closed separately.
+Do **not** modify production renderer paths or replace genuine Java goldens to
+close this gate. C-vs-J residual stays open until `run_oracle_gate.sh` reports
+PASS with `hard_px==0` and zero A/B for real.

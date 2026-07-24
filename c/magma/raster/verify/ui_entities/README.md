@@ -17,18 +17,26 @@ described as such.
 
 ## Pixel gates (Java goldens)
 
-Real MC 1.11.2 frames live under `goldens/` (never fabricate). Capture + ROI
-gate:
+Real MC 1.11.2 frames live under `goldens/` (never fabricate). Capture + hard
+owned-pixel gate:
 
 ```bash
 cd c/magma
 bash raster/verify/ui_entities/capture_ui_entities.sh   # llvmpipe, lock, A/B
 bash raster/verify/ui_entities/run_oracle_gate.sh       # frame_capture C vs Java
+# mutation self-tests (after C frames exist under /tmp/magma_ui_entities_c):
+uv run --no-project --with pillow --with numpy \
+  python raster/verify/ui_entities/test_ui_entities_mutations.py \
+  --goldens raster/verify/ui_entities/goldens \
+  --c-frames /tmp/magma_ui_entities_c
 ```
 
-See `ORACLE_CAPTURE.md` for state table and hard-gate policy (feature ROI,
-noise floor + margin, presence assert). C path is `entity_oracle_candidate.c`
-through `gm_frame_capture_write` (CPU raster), not a hand-painted candidate.
+See `ORACLE_CAPTURE.md` for state table and hard-gate policy: the complete
+family ROI is owned, and PASS requires zero Java A/B across that ROI plus
+`hard_px==0`. Nonzero A/B or xp-missing-orb is `CAPTURE_BLOCKED` (never
+mid-envelope PASS). `RESIDUAL`/`CAPTURE_BLOCKED` are nonzero exit. C path is
+`entity_oracle_candidate.c` through `gm_frame_capture_write` (CPU raster), not
+a hand-painted candidate.
 
 | Feature | Pixel gate | Notes |
 |---------|------------|-------|
