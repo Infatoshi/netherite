@@ -378,12 +378,13 @@ static const ErModel M_GHAST = { .nparts = 10, .scale = 4.5f, .parts = {
 } };
 
 /* ModelSlime(16) outer (body + eyes + mouth). RenderSlime.preRenderCallback
- * scales by getSlimeSize() (item_meta); idle squish is identity. */
+ * scales by getSlimeSize() (item_meta); idle squish is identity.
+ * Mouth addBox(0,21,-3.5, 1,1,1) — not centered at -0.5 (oracle ModelSlime). */
 static const ErModel M_SLIME = { .nparts = 4, .scale = 1.0f, .parts = {
     { CR_MOB_SLIME, 0, 16, -3,17,-3, 6,6,6,  0,0,0, 0,0,0, 0,0 },
     { CR_MOB_SLIME, 32, 0, -3.25f,18,-3.5f, 2,2,2,  0,0,0, 0,0,0, 0,0 },
     { CR_MOB_SLIME, 32, 4, 1.25f,18,-3.5f, 2,2,2,  0,0,0, 0,0,0, 0,0 },
-    { CR_MOB_SLIME, 32, 8, -1,21,-3.5f, 1,1,1,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_SLIME, 32, 8, 0,21,-3.5f, 1,1,1,  0,0,0, 0,0,0, 0,0 },
 } };
 
 /* ModelSilverfish: body segments approximate (body / shell pieces). */
@@ -1804,6 +1805,7 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         float cs = cosf(rad), sn = sinf(rad);
         float sc = m->scale > 0.0f ? m->scale : 1.0f;
         /* RenderSlime / RenderMagmaCube.preRenderCallback:
+         *   RenderSlime also GlStateManager.scale(0.999) before size/squish.
          *   f2 = squish / (size*0.5+1); f3 = 1/(f2+1);
          *   scale(f3*size, (1/f3)*size, f3*size)
          * item_meta = getSlimeSize; squish = EntitySlime.squishFactor. */
@@ -1816,8 +1818,10 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             float sq = ents[e].squish;
             float f2 = sq / (size * 0.5f + 1.0f);
             float f3 = 1.0f / (f2 + 1.0f);
-            scx = f3 * size * sc;
-            scy = (1.0f / f3) * size * sc;
+            float base = sc;
+            if (t == ER_TYPE_SLIME) base *= 0.999f; /* RenderSlime f=0.999 */
+            scx = f3 * size * base;
+            scy = (1.0f / f3) * size * base;
         }
         (void)death_roll;  /* z-roll needs entity-level aff; box emit is yaw-only */
         /* Sheep: emit fur body/legs first, then skin, then fur head last so the
@@ -1844,20 +1848,30 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
                                     lv, blk, out + written);
             }
         } else if (t == ER_TYPE_SLIME || t == ER_TYPE_MAGMA) {
-            /* Non-uniform preRenderCallback axes via per-axis scale in emit. */
-            for (int p = 0; p < np; ++p) {
+            /* Non-uniform preRenderCallback axes via per-axis scale in emit.
+             * ModelMagmaCube.render draws core first, then segments — so the
+             * outer shell depth-occludes the bright core eyes (Java golden). */
+            /* ModelSlime.render: GlStateManager.translate(0, 0.001, 0). */
+            float fy_slime = (t == ER_TYPE_SLIME) ? (fy + 0.001f) : fy;
+            int n_emit = np;
+            int order_buf[ER_MAX_PARTS];
+            const int *order = NULL;
+            if (t == ER_TYPE_MAGMA && np >= 9) {
+                order_buf[0] = 8; /* core */
+                for (int i = 0; i < 8; ++i) order_buf[i + 1] = i;
+                order = order_buf;
+                n_emit = 9;
+            }
+            for (int i = 0; i < n_emit; ++i) {
+                int p = order ? order[i] : i;
                 ErPart bp = local[p];
-                /* bake scy/scx ratio into rotation-point and box y via temp scale
-                 * on a uniform scx pass: rescale model Y after emit_box path by
-                 * rewriting part dims — use emit_box with uniform scx then
-                 * stretch Y about feet. */
                 int s0 = written;
-                written += emit_box(&bp, cs, sn, scx, fx, fy, fz, tint,
+                written += emit_box(&bp, cs, sn, scx, fx, fy_slime, fz, tint,
                                     lv, blk, out + written);
                 if (scy != scx && written > s0) {
                     float ymul = scy / scx;
                     for (int vi = s0; vi < written; ++vi) {
-                        out[vi].pos.y = fy + (out[vi].pos.y - fy) * ymul;
+                        out[vi].pos.y = fy_slime + (out[vi].pos.y - fy_slime) * ymul;
                     }
                 }
             }
@@ -2393,13 +2407,17 @@ int gm_slime_gel_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             tint.g = (u8)(tint.g * ents[e].lm_mul_g + 0.5f);
             tint.b = (u8)(tint.b * ents[e].lm_mul_b + 0.5f);
         }
+        /* ModelSlime.render translate(0, 0.001, 0); RenderSlime scale 0.999. */
+        float base_y = ents[e].y + 0.001f;
+        scx *= 0.999f;
+        scy *= 0.999f;
         int s0 = written;
-        written += emit_box(&gel, cs, sn, scx, ents[e].x, ents[e].y, ents[e].z,
+        written += emit_box(&gel, cs, sn, scx, ents[e].x, base_y, ents[e].z,
                             tint, lv, blk, out + written);
         if (scy != scx) {
             float ymul = scy / scx;
             for (int vi = s0; vi < written; ++vi)
-                out[vi].pos.y = ents[e].y + (out[vi].pos.y - ents[e].y) * ymul;
+                out[vi].pos.y = base_y + (out[vi].pos.y - base_y) * ymul;
         }
     }
     return written;
