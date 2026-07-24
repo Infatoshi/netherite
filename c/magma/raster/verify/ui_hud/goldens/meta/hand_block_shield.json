@@ -91,7 +91,12 @@
     "portal": 0.0,
     "dead": false,
     "screen": "null",
-    "potion_count": 0
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 442
   },
   "pin_reply_b": {
     "ok": true,
@@ -111,7 +116,12 @@
     "portal": 0.0,
     "dead": false,
     "screen": "null",
-    "potion_count": 0
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 442
   },
   "pin_reply_pre": {
     "ok": true,
@@ -131,11 +141,16 @@
     "portal": 0.0,
     "dead": false,
     "screen": "null",
-    "potion_count": 0
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 442
   },
   "frame_a": {
     "ok": true,
-    "file": "/tmp/netherite-hud-oracle/c/magma/raster/verify/ui_hud/goldens/hand_block_shield_a.png",
+    "file": "/tmp/netherite-hud-viewmodels/c/magma/raster/verify/ui_hud/goldens/hand_block_shield_a.png",
     "w": 854,
     "h": 480,
     "tb": 1,
@@ -143,7 +158,7 @@
   },
   "frame_b": {
     "ok": true,
-    "file": "/tmp/netherite-hud-oracle/c/magma/raster/verify/ui_hud/goldens/hand_block_shield_b.png",
+    "file": "/tmp/netherite-hud-viewmodels/c/magma/raster/verify/ui_hud/goldens/hand_block_shield_b.png",
     "w": 854,
     "h": 480,
     "tb": 1,
@@ -164,19 +179,21 @@
   "noise_limit": 2.0,
   "presence": {
     "mean_rgb": [
-      96.89364430932928,
-      100.56538571157135,
-      90.99439483184496
+      94.15563841915258,
+      97.9249952498575,
+      89.74054721641649
     ],
-    "std": 22.692440203410328,
+    "std": 24.552619701457942,
     "warm_frac": 0.018440183450429352,
     "bot_warm_frac": 0.06991120218579235,
-    "lr_std": 23.622828652409297,
-    "dark_frac": 0.03241972259167775,
-    "purple_bias": -9.570990879726395
+    "lr_std": 25.715123727074502,
+    "vm_std": 22.353834018240377,
+    "vm_dev": 15.373743057250977,
+    "dark_frac": 0.04481759452783583,
+    "purple_bias": -8.184448033441015
   },
   "verdict": "CAPTURE_OK",
   "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
-  "roi": "lower-right viewmodel",
+  "roi": "lower-right viewmodel non-hotbar",
   "note": "shield block (not sword)"
 }

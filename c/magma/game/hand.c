@@ -648,12 +648,89 @@ static CrMat4 build_eat_drink(float equip, int remaining, int max_duration) {
 }
 
 /* BLOCK use (ItemShield EnumAction.BLOCK only in 1.11.2): transformSideFirstPerson
- * only (no swing translate / first-person). */
+ * only (no swing translate / first-person). Item camera comes from
+ * shield_blocking.json (not generated firstperson). */
 static CrMat4 build_block_use(float equip) {
     CrMat4 M = cr_mat4_identity();
     M = mul(M, mat_translate(0.0f, 0.0f, -0.05f));
     M = mul(M, mat_translate(0.56f, -0.52f + equip * -0.6f, -0.72f));
     return M;
+}
+
+/* models/item/shield.json + shield_blocking.json firstperson_righthand.
+ * builtin/entity path: no RenderItem T(-0.5); TEISR then scale(1,-1,-1).
+ * translation values in JSON are 1/16-block units. */
+static CrMat4 apply_shield_fp_camera(CrMat4 M, int blocking) {
+    /* idle: rot [0,180,5] trans [-10,2,-10] scale 1.25
+     * blocking: rot [0,180,-5] trans [-15,5,-11] scale 1.25 */
+    float tx = blocking ? -15.0f : -10.0f;
+    float ty = blocking ?   5.0f :   2.0f;
+    float tz = blocking ? -11.0f : -10.0f;
+    float rz = blocking ?  -5.0f :   5.0f;
+    M = mul(M, mat_translate(tx * ARM_SCALE, ty * ARM_SCALE, tz * ARM_SCALE));
+    M = mul(M, mat_rot_xyz(0.0f, 180.0f, rz));
+    M = mul(M, mat_scale(1.25f, 1.25f, 1.25f));
+    /* RenderItem.renderItem: T(-0.5) even for builtin/entity before TEISR. */
+    M = mul(M, mat_translate(-0.5f, -0.5f, -0.5f));
+    /* TileEntityItemStackRenderer: GlStateManager.scale(1, -1, -1) */
+    M = mul(M, mat_scale(1.0f, -1.0f, -1.0f));
+    return M;
+}
+
+/* ModelShield: plate (-6,-11,-2)+(12,22,1), handle (-1,-3,-1)+(2,6,6),
+ * both * 0.0625. UV from shield_base_nopattern (64x64 atlas cell). */
+static int emit_held_shield(CrMat4 M, CrVertex *out, int max) {
+    /* 2 boxes * 6 faces * 6 verts = 72 */
+    if (max < 72) return 0;
+    const float aw = (float)CR_ITEM_ATLAS_W, ah = (float)CR_ITEM_ATLAS_H;
+    const CrItemSprite *s = &CR_ITEM_SPRITES[gm_item_sprite_index(442)];
+    float u0 = (float)s->x0 / aw, v0 = (float)s->y0 / ah;
+    float u1 = (float)s->x1 / aw, v1 = (float)s->y1 / ah;
+    /* Plate uses tex (0,0) 12x22 of 64x64; handle (26,0) 6x6. Map into the
+     * atlas cell proportionally (full cell if sprite is the whole 64x64). */
+    float du = u1 - u0, dv = v1 - v0;
+    float pu0 = u0, pv0 = v0;
+    float pu1 = u0 + 12.0f / 64.0f * du, pv1 = v0 + 22.0f / 64.0f * dv;
+    float hu0 = u0 + 26.0f / 64.0f * du, hv0 = v0;
+    float hu1 = u0 + 32.0f / 64.0f * du, hv1 = v0 + 6.0f / 64.0f * dv;
+
+    typedef struct { float x0, y0, z0, x1, y1, z1; float uu0, vv0, uu1, vv1; } Box;
+    const Box boxes[2] = {
+        /* plate: addBox(-6,-11,-2, 12, 22, 1) */
+        { -6.f, -11.f, -2.f, 6.f, 11.f, -1.f, pu0, pv0, pu1, pv1 },
+        /* handle: addBox(-1,-3,-1, 2, 6, 6) */
+        { -1.f, -3.f, -1.f, 1.f, 3.f, 5.f, hu0, hv0, hu1, hv1 },
+    };
+    int w = 0;
+    CrRgba white = {255, 255, 255, 255};
+    for (int b = 0; b < 2; ++b) {
+        const Box *bx = &boxes[b];
+        float cx[2] = { bx->x0, bx->x1 };
+        float cy[2] = { bx->y0, bx->y1 };
+        float cz[2] = { bx->z0, bx->z1 };
+        for (int f = 0; f < 6; ++f) {
+            CrVertex q[4];
+            for (int c = 0; c < 4; ++c) {
+                int ix = HAND_CUBE_FACES[f].c[c][0];
+                int iy = HAND_CUBE_FACES[f].c[c][1];
+                int iz = HAND_CUBE_FACES[f].c[c][2];
+                float px = cx[ix] * ARM_SCALE;
+                float py = cy[iy] * ARM_SCALE;
+                float pz = cz[iz] * ARM_SCALE;
+                float uu = bx->uu0 + HAND_CUV[c][0] * (bx->uu1 - bx->uu0);
+                float vv = bx->vv0 + HAND_CUV[c][1] * (bx->vv1 - bx->vv0);
+                CrVec4 p4 = { px, py, pz, 1.0f };
+                CrVec4 e = cr_mat4_mul_vec4(M, p4);
+                vtx_init(&q[c], (CrVec3){ e.x, e.y, e.z }, uu, vv, 1.0f, white);
+            }
+            float d = hand_diffuse(quad_normal(q[0].pos, q[1].pos, q[2].pos));
+            d *= HAND_CUBE_FACES[f].shade;
+            if (d > 1.0f) d = 1.0f;
+            for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
+            for (int k = 0; k < 6; ++k) out[w++] = q[HAND_TRI[k]];
+        }
+    }
+    return w;
 }
 
 int gm_hand_emit_held(int item_id, int item_meta, float swing, float equip,
@@ -680,6 +757,16 @@ int gm_hand_emit_held(int item_id, int item_meta, float swing, float equip,
                                    (float)sp->x0 / aw2, (float)sp->y0 / ah2,
                                    (float)sp->x1 / aw2, (float)sp->y1 / ah2,
                                    &tex, out, max);
+    }
+
+    /* Shield (442): builtin/entity ModelShield + shield.json display.
+     * Blocking uses shield_blocking.json firstperson_righthand. */
+    if (item_id == 442) {
+        int blocking = (g_use_action == 2);
+        CrMat4 base = blocking ? build_block_use(equip)
+                               : build_held_item_base(swing, equip);
+        CrMat4 M = apply_shield_fp_camera(base, blocking);
+        return emit_held_shield(M, out, max);
     }
 
     const BmBlock *bm = 0;

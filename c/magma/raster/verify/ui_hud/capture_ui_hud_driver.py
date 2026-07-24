@@ -281,10 +281,9 @@ def roi_for(state_id):
         xp_y = (SH - 29) * S
         return (HB_X, xp_y - 12 * S, HB_X + 182 * S, xp_y + 5 * S)
     if state_id in ("hud_durability_half",):
-        # Exact durability strip: icon+(2,13) size 13x2 (gui px).
         ix = HB_X + 3 * S
         iy = (SH - 22) * S + 3 * S
-        return (ix + 2 * S, iy + 13 * S, ix + 15 * S, iy + 15 * S)
+        return (ix, iy + 12 * S, ix + 14 * S, iy + 16 * S)
     if state_id in ("hud_boss_half",):
         bb_x = (GUI_CX - 91) * S
         bb_y = 12 * S
@@ -293,7 +292,7 @@ def roi_for(state_id):
         by = H // 2 - 18
         return (0, by, W, by + 36)
     if state_id.startswith("hand_"):
-        return (W * 2 // 3, H * 2 // 3, W - 8, H - 8)
+        return viewmodel_roi_rect()
     if state_id.startswith("overlay_"):
         return (2, 2, W - 2, H - 2)
     return (0, 0, W, H)
@@ -325,6 +324,55 @@ def assert_ab_noise(state_id, path_a, path_b):
     return noise
 
 
+# Non-hotbar lower-right viewmodel ROI (above hotbar chrome).
+# Hotbar sits at GUI y = sh-22; exclude the bottom ~44 px of FB + 8 px margin.
+def viewmodel_roi_rect():
+    hb_y = (SH - 22) * S
+    x0, y0 = W * 2 // 3, H * 2 // 3
+    x1, y1 = W - 8, max(y0 + 8, hb_y - 4)
+    return (x0, y0, x1, y1)
+
+
+# Cross-state viewmodel fingerprints for presence (reject wall-only clones).
+_HAND_VM_FINGERPRINTS = {}
+# Empty-hand wall baseline (no item) — each use-state must differ from this.
+_HAND_EMPTY_BASELINE = None
+
+
+def _vm_crop(a):
+    x0, y0, x1, y1 = viewmodel_roi_rect()
+    return a[y0:y1, x0:x1]
+
+
+def capture_empty_hand_baseline(e, outdir):
+    """Pin empty main hand against the wall; ROI is pure backdrop (no viewmodel item).
+
+    Bare-arm may appear in lower-right; that is fine — use-state items must still
+    differ from this baseline. Used only for presence, not as a golden.
+    """
+    global _HAND_EMPTY_BASELINE
+    pin = dict(POSE)
+    pin.update({
+        "health": 20.0, "food": 20, "air": 300,
+        "hotbar": [[0, 0, 0]] * 9, "hotbar_sel": 0,
+        "armor": [0, 0, 0, 0],
+        "use_action": 0, "fire": 0, "portal": 0.0,
+        "boss": {"show": False},
+        "clear_effects": True,
+        "yaw": 0.0, "pitch": 0.0, "z": CZ + 0.5,
+    })
+    hud_pin_ok(e, **pin)
+    settle(e, 4)
+    hud_pin_ok(e, **pin)
+    path = os.path.join(outdir, "_hand_empty_baseline.png")
+    grab(e, path)
+    a = load_rgb(path)
+    _HAND_EMPTY_BASELINE = _vm_crop(a).copy()
+    log("empty-hand baseline: vm_std=%.2f shape=%s" % (
+        float(_HAND_EMPTY_BASELINE.std()), _HAND_EMPTY_BASELINE.shape))
+    return _HAND_EMPTY_BASELINE
+
+
 def assert_feature_presence(state_id, path, pin_reply):
     """Automated state-presence sanity checks. Fail = contaminated golden."""
     a = load_rgb(path)
@@ -341,6 +389,12 @@ def assert_feature_presence(state_id, path, pin_reply):
     lr_std = float(lr.std())
     dark_frac = float((roi.mean(axis=2) < 50).mean())
     purple_bias = float(mean[2] - mean[1])  # B - G
+    vm = _vm_crop(a)
+    vm_std = float(vm.std()) if vm.size else 0.0
+    # Non-stone residual: stone wall is ~mid gray; viewmodels add brown/wood
+    # pixels and silhouette edges that push abs deviation from median gray.
+    vm_med = float(np.median(vm.reshape(-1, 3), axis=0).mean()) if vm.size else 0.0
+    vm_dev = float(np.abs(vm.astype(np.float32) - vm_med).mean()) if vm.size else 0.0
 
     if state_id == "hud_death":
         screen = str(pin_reply.get("screen") or "")
@@ -354,31 +408,58 @@ def assert_feature_presence(state_id, path, pin_reply):
         if std < 5.0:
             raise RuntimeError("hud_death: ROI nearly flat (std=%.2f)" % std)
 
-    elif state_id == "hand_block_shield":
+    elif state_id in ("hand_block_shield", "hand_bow_pull20", "hand_eat_mid"):
         if not pin_reply.get("hand_active"):
             raise RuntimeError(
-                "hand_block_shield: hand not active (shield block): %s" % pin_reply)
-        # Viewmodel must differ from a pure wall (cross-state identity is the bug).
-        if lr_std < 12.0:
+                "%s: hand not active: %s" % (state_id, pin_reply))
+        if pin_reply.get("hide_gui") is True:
             raise RuntimeError(
-                "hand_block_shield: lower-right viewmodel empty (std=%.2f)" % lr_std)
-
-    elif state_id == "hand_bow_pull20":
-        if not pin_reply.get("hand_active"):
-            raise RuntimeError("hand_bow_pull20: hand not active: %s" % pin_reply)
-        uc = int(pin_reply.get("use_count", -1) or -1)
-        # bow max 72000, pull 20 => remaining ~71980
-        if uc < 71900 or uc > 72000:
+                "%s: hide_gui still true after pin (viewmodel suppressed): %s"
+                % (state_id, pin_reply))
+        if int(pin_reply.get("equip_pinned", 1) or 0) == 0:
             raise RuntimeError(
-                "hand_bow_pull20: unexpected use_count=%s (want ~71980)" % uc)
-        if lr_std < 12.0:
-            raise RuntimeError("hand_bow_pull20: empty viewmodel std=%.2f" % lr_std)
-
-    elif state_id == "hand_eat_mid":
-        if not pin_reply.get("hand_active"):
-            raise RuntimeError("hand_eat_mid: hand not active: %s" % pin_reply)
-        if lr_std < 12.0:
-            raise RuntimeError("hand_eat_mid: empty viewmodel std=%.2f" % lr_std)
+                "%s: equip_progress pin failed (reflection): %s"
+                % (state_id, pin_reply))
+        held = int(pin_reply.get("held_id", -1) or -1)
+        expect_held = {
+            "hand_bow_pull20": BOW,
+            "hand_eat_mid": BREAD,
+            "hand_block_shield": SHIELD,
+        }[state_id]
+        if held != expect_held:
+            raise RuntimeError(
+                "%s: held_id=%s want %s: %s"
+                % (state_id, held, expect_held, pin_reply))
+        if state_id == "hand_bow_pull20":
+            uc = int(pin_reply.get("use_count", -1) or -1)
+            # bow max 72000, pull 20 => remaining ~71980
+            if uc < 71900 or uc > 72000:
+                raise RuntimeError(
+                    "hand_bow_pull20: unexpected use_count=%s (want ~71980)" % uc)
+        # Wall-only ROIs have stone texture variance (std~20+) but no viewmodel.
+        if vm_std < 8.0:
+            raise RuntimeError(
+                "%s: empty viewmodel vm_std=%.2f" % (state_id, vm_std))
+        # Must differ from empty-hand baseline (rejects hideGUI wall-only frames
+        # where hotbar icon changes but lower-right is still just stone).
+        if _HAND_EMPTY_BASELINE is not None and _HAND_EMPTY_BASELINE.shape == vm.shape:
+            vs_empty = float(np.abs(
+                vm.astype(np.int32) - _HAND_EMPTY_BASELINE.astype(np.int32)).mean())
+            if vs_empty < 2.0:
+                raise RuntimeError(
+                    "%s: viewmodel ROI matches empty-hand baseline "
+                    "(meanabs=%.3f) — wall-only / missing viewmodel"
+                    % (state_id, vs_empty))
+        # Cross-state identity: bow / eat / shield must not share the same ROI.
+        for other_id, other_vm in _HAND_VM_FINGERPRINTS.items():
+            if other_vm.shape != vm.shape:
+                continue
+            cross = float(np.abs(vm.astype(np.int32) - other_vm.astype(np.int32)).mean())
+            if cross < 1.5:
+                raise RuntimeError(
+                    "%s: viewmodel ROI identical to %s (cross=%.3f) — wall-only"
+                    % (state_id, other_id, cross))
+        _HAND_VM_FINGERPRINTS[state_id] = vm.copy()
 
     elif state_id == "overlay_fire":
         if not pin_reply.get("burning"):
@@ -424,6 +505,8 @@ def assert_feature_presence(state_id, path, pin_reply):
         "warm_frac": warm,
         "bot_warm_frac": bot_warm,
         "lr_std": lr_std,
+        "vm_std": vm_std,
+        "vm_dev": vm_dev,
         "dark_frac": dark_frac,
         "purple_bias": purple_bias,
     }
@@ -605,9 +688,27 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument(
+        "--only", default="",
+        help="Comma-separated state ids (or 'hand' for the three viewmodels). "
+             "Skips other states; still rebuilds a clean living scene.")
     args = ap.parse_args()
     outdir = args.out
     os.makedirs(outdir, exist_ok=True)
+
+    only = set()
+    if args.only.strip():
+        for tok in args.only.split(","):
+            tok = tok.strip()
+            if not tok:
+                continue
+            if tok == "hand" or tok == "hands" or tok == "viewmodel":
+                only.update((
+                    "hand_bow_pull20", "hand_eat_mid", "hand_block_shield"))
+            else:
+                only.add(tok)
+    def want(sid):
+        return (not only) or (sid in only)
 
     if Image is None or np is None:
         log("FATAL: pillow+numpy required for capture sanity checks")
@@ -629,7 +730,8 @@ def main():
 
     base_scene(e)
     ensure_living(e)
-    manifest = {"seed": args.seed, "states": [], "blocked": [], "failed": []}
+    manifest = {"seed": args.seed, "states": [], "blocked": [], "failed": [],
+                "only": sorted(only) if only else None}
 
     def add(meta):
         manifest["states"].append(meta)
@@ -638,241 +740,267 @@ def main():
 
     # ---- HUD states (all pre-death; revalidated via ensure_living) ----
     # HUD chrome on the stone pad: rebuild once, then light refresh between.
-    begin_state(e, "hud_armor_iron", rebuild_scene=True)
-    add(capture_pair(e, outdir, "hud_armor_iron", {
-        "health": 20.0, "food": 20, "air": 300, "absorption": 0.0,
-        "armor": ARMOR_IDS,
-        "hotbar": [[0, 0, 0]] * 9,
-        "xp_level": 0, "xp_frac": 0.0,
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-    }, {"roi": "armor+hearts"}))
-
-    begin_state(e, "hud_absorption_armor", rebuild_scene=False)
-    add(capture_pair(e, outdir, "hud_absorption_armor", {
-        "health": 20.0, "food": 20, "air": 300, "absorption": 20.0,
-        "armor": ARMOR_IDS,
-        "hotbar": [[0, 0, 0]] * 9,
-        "xp_level": 0, "xp_frac": 0.0,
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        "effects": [{"id": 22, "duration": 600, "amplifier": 4}],
-    }, {"roi": "armor lifted by absorption rows"}))
-
-    begin_state(e, "hud_hurt_flash", rebuild_scene=False)
-    for flash_on, sid in ((True, "hud_hurt_flash_on"), (False, "hud_hurt_flash_off")):
-        add(capture_pair(e, outdir, sid, {
-            "health": 14.0, "food": 20, "air": 300, "absorption": 0.0,
-            "armor": [0, 0, 0, 0],
+    if want("hud_armor_iron"):
+        begin_state(e, "hud_armor_iron", rebuild_scene=True)
+        add(capture_pair(e, outdir, "hud_armor_iron", {
+            "health": 20.0, "food": 20, "air": 300, "absorption": 0.0,
+            "armor": ARMOR_IDS,
             "hotbar": [[0, 0, 0]] * 9,
-            "hurt_time": 10, "max_hurt_time": 10, "hurt_yaw": 0.0,
-            "hud_flash": flash_on,
-            "hud_health": 14, "hud_last_health": 20,
-            "hud_update_counter": 1000,
+            "xp_level": 0, "xp_frac": 0.0,
             "use_action": 0, "fire": 0, "portal": 0.0,
             "boss": {"show": False},
             "clear_effects": True,
-        }, {"roi": "hearts row only", "hud_flash": flash_on}))
+        }, {"roi": "armor+hearts"}))
 
-    begin_state(e, "hud_hunger_poison", rebuild_scene=False)
-    add(capture_pair(e, outdir, "hud_hunger_poison", {
-        "health": 20.0, "food": 8, "air": 300, "absorption": 0.0,
-        "armor": [0, 0, 0, 0],
-        "hotbar": [[0, 0, 0]] * 9,
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        "effects": [{"id": 17, "duration": 600, "amplifier": 0}],
-    }, {"roi": "hunger haunches"}))
+    if want("hud_absorption_armor"):
+        begin_state(e, "hud_absorption_armor", rebuild_scene=False)
+        add(capture_pair(e, outdir, "hud_absorption_armor", {
+            "health": 20.0, "food": 20, "air": 300, "absorption": 20.0,
+            "armor": ARMOR_IDS,
+            "hotbar": [[0, 0, 0]] * 9,
+            "xp_level": 0, "xp_frac": 0.0,
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+            "effects": [{"id": 22, "duration": 600, "amplifier": 4}],
+        }, {"roi": "armor lifted by absorption rows"}))
+
+    if want("hud_hurt_flash_on") or want("hud_hurt_flash_off"):
+        begin_state(e, "hud_hurt_flash", rebuild_scene=False)
+        for flash_on, sid in ((True, "hud_hurt_flash_on"),
+                              (False, "hud_hurt_flash_off")):
+            if not want(sid):
+                continue
+            add(capture_pair(e, outdir, sid, {
+                "health": 14.0, "food": 20, "air": 300, "absorption": 0.0,
+                "armor": [0, 0, 0, 0],
+                "hotbar": [[0, 0, 0]] * 9,
+                "hurt_time": 10, "max_hurt_time": 10, "hurt_yaw": 0.0,
+                "hud_flash": flash_on,
+                "hud_health": 14, "hud_last_health": 20,
+                "hud_update_counter": 1000,
+                "use_action": 0, "fire": 0, "portal": 0.0,
+                "boss": {"show": False},
+                "clear_effects": True,
+            }, {"roi": "hearts row only", "hud_flash": flash_on}))
+
+    if want("hud_hunger_poison"):
+        begin_state(e, "hud_hunger_poison", rebuild_scene=False)
+        add(capture_pair(e, outdir, "hud_hunger_poison", {
+            "health": 20.0, "food": 8, "air": 300, "absorption": 0.0,
+            "armor": [0, 0, 0, 0],
+            "hotbar": [[0, 0, 0]] * 9,
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+            "effects": [{"id": 17, "duration": 600, "amplifier": 0}],
+        }, {"roi": "hunger haunches"}))
 
     # Water pool geometry change.
-    begin_state(e, "hud_air_partial", rebuild_scene=True)
-    build_water_pool(e)
-    water_pose = dict(POSE)
-    water_pose["y"] = float(PLAT_Y + 1)
-    water_pose["x"] = CX + 0.5
-    water_pose["z"] = CZ + 0.5
-    add(capture_pair(e, outdir, "hud_air_partial", {
-        # 121 => 4 full + 1 partial (Forge renderAir). 123 is 5 full only.
-        "health": 20.0, "food": 20, "air": 121, "absorption": 0.0,
-        "armor": [0, 0, 0, 0],
-        "hotbar": [[0, 0, 0]] * 9,
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        **water_pose
-    }, {"roi": "air bubbles sh-49 right"}))
+    if want("hud_air_partial"):
+        begin_state(e, "hud_air_partial", rebuild_scene=True)
+        build_water_pool(e)
+        water_pose = dict(POSE)
+        water_pose["y"] = float(PLAT_Y + 1)
+        water_pose["x"] = CX + 0.5
+        water_pose["z"] = CZ + 0.5
+        add(capture_pair(e, outdir, "hud_air_partial", {
+            # 121 => 4 full + 1 partial (Forge renderAir). 123 is 5 full only.
+            "health": 20.0, "food": 20, "air": 121, "absorption": 0.0,
+            "armor": [0, 0, 0, 0],
+            "hotbar": [[0, 0, 0]] * 9,
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+            **water_pose
+        }, {"roi": "air bubbles sh-49 right"}))
 
     # Leave water: full rebuild to dry pad.
-    begin_state(e, "hud_xp_half", rebuild_scene=True)
-    add(capture_pair(e, outdir, "hud_xp_half", {
-        "health": 20.0, "food": 20, "air": 300, "absorption": 0.0,
-        "armor": [0, 0, 0, 0],
-        "hotbar": [[0, 0, 0]] * 9,
-        "xp_level": 7, "xp_frac": 0.5,
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-    }, {"roi": "xp bar + level"}))
+    if want("hud_xp_half"):
+        begin_state(e, "hud_xp_half", rebuild_scene=True)
+        add(capture_pair(e, outdir, "hud_xp_half", {
+            "health": 20.0, "food": 20, "air": 300, "absorption": 0.0,
+            "armor": [0, 0, 0, 0],
+            "hotbar": [[0, 0, 0]] * 9,
+            "xp_level": 7, "xp_frac": 0.5,
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+        }, {"roi": "xp bar + level"}))
 
-    begin_state(e, "hud_durability_half", rebuild_scene=False)
-    hotbar_dur = [[WOOD_PICK, 1, 30]] + [[0, 0, 0]] * 8
-    add(capture_pair(e, outdir, "hud_durability_half", {
-        "health": 20.0, "food": 20, "air": 300, "absorption": 0.0,
-        "armor": [0, 0, 0, 0],
-        "hotbar": hotbar_dur, "hotbar_sel": 0,
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-    }, {"roi": "slot0 durability strip"}))
+    if want("hud_durability_half"):
+        begin_state(e, "hud_durability_half", rebuild_scene=False)
+        hotbar_dur = [[WOOD_PICK, 1, 30]] + [[0, 0, 0]] * 8
+        add(capture_pair(e, outdir, "hud_durability_half", {
+            "health": 20.0, "food": 20, "air": 300, "absorption": 0.0,
+            "armor": [0, 0, 0, 0],
+            "hotbar": hotbar_dur, "hotbar_sel": 0,
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+        }, {"roi": "slot0 durability strip"}))
 
-    begin_state(e, "hud_boss_half", rebuild_scene=False)
-    add(capture_pair(e, outdir, "hud_boss_half", {
-        "health": 20.0, "food": 20, "air": 300, "absorption": 0.0,
-        "armor": [0, 0, 0, 0],
-        "hotbar": [[0, 0, 0]] * 9,
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": True, "frac": 0.5, "name": "Ender Dragon"},
-        "clear_effects": True,
-    }, {"roi": "boss bar top center"}))
+    if want("hud_boss_half"):
+        begin_state(e, "hud_boss_half", rebuild_scene=False)
+        add(capture_pair(e, outdir, "hud_boss_half", {
+            "health": 20.0, "food": 20, "air": 300, "absorption": 0.0,
+            "armor": [0, 0, 0, 0],
+            "hotbar": [[0, 0, 0]] * 9,
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": True, "frac": 0.5, "name": "Ender Dragon"},
+            "clear_effects": True,
+        }, {"roi": "boss bar top center"}))
 
     # ---- Death (last HUD chrome) then real respawn before anything else ----
-    begin_state(e, "hud_death", rebuild_scene=False)
-    add(capture_pair(e, outdir, "hud_death", {
-        "dead": True,
-        "hold_death": True,
-        "health": 0.0,
-        "food": 20, "air": 300,
-        "armor": [0, 0, 0, 0],
-        "hotbar": [[0, 0, 0]] * 9,
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-    }, {"roi": "full-frame death wash"}))
-    # Real respawn + close GuiGameOver (not health-only revive).
-    log("post-death: real respawn + close GuiGameOver")
-    ensure_living(e, do_respawn=True)
-    base_scene(e)
-    ensure_living(e, do_respawn=False)
+    if want("hud_death"):
+        begin_state(e, "hud_death", rebuild_scene=False)
+        add(capture_pair(e, outdir, "hud_death", {
+            "dead": True,
+            "hold_death": True,
+            "health": 0.0,
+            "food": 20, "air": 300,
+            "armor": [0, 0, 0, 0],
+            "hotbar": [[0, 0, 0]] * 9,
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+        }, {"roi": "full-frame death wash"}))
+        # Real respawn + close GuiGameOver (not health-only revive).
+        log("post-death: real respawn + close GuiGameOver")
+        ensure_living(e, do_respawn=True)
+        base_scene(e)
+        ensure_living(e, do_respawn=False)
 
-    # ---- Viewmodels ----
-    wall_pose = dict(POSE)
-    wall_pose["yaw"] = 0.0
-    wall_pose["pitch"] = 0.0
-    wall_pose["z"] = CZ + 0.5
+    # ---- Viewmodels (bow / eat / shield) ----
+    hand_wanted = any(want(s) for s in (
+        "hand_bow_pull20", "hand_eat_mid", "hand_block_shield"))
+    if hand_wanted:
+        # Clean living wall scene; never inherit death/overlay geometry.
+        begin_state(e, "hand_viewmodels", rebuild_scene=True)
+        ensure_living(e, do_respawn=False)
+        wall_pose = dict(POSE)
+        wall_pose["yaw"] = 0.0
+        wall_pose["pitch"] = 0.0
+        wall_pose["z"] = CZ + 0.5
+        # Empty-hand baseline for presence (rejects wall-only ROIs).
+        capture_empty_hand_baseline(e, outdir)
 
-    begin_state(e, "hand_bow_pull20", rebuild_scene=False)
-    add(capture_pair(e, outdir, "hand_bow_pull20", {
-        "health": 20.0, "food": 20, "air": 300,
-        "hotbar": [[BOW, 1, 0]] + [[0, 0, 0]] * 8,
-        "hotbar_sel": 0,
-        "bow_pull": 20,
-        "armor": [0, 0, 0, 0],
-        "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        **wall_pose
-    }, {"roi": "lower-right viewmodel"}))
+        if want("hand_bow_pull20"):
+            begin_state(e, "hand_bow_pull20", rebuild_scene=False)
+            add(capture_pair(e, outdir, "hand_bow_pull20", {
+                "health": 20.0, "food": 20, "air": 300,
+                "hotbar": [[BOW, 1, 0]] + [[0, 0, 0]] * 8,
+                "hotbar_sel": 0,
+                "bow_pull": 20,
+                "armor": [0, 0, 0, 0],
+                "fire": 0, "portal": 0.0,
+                "boss": {"show": False},
+                "clear_effects": True,
+                **wall_pose
+            }, {"roi": "lower-right viewmodel non-hotbar"}))
 
-    begin_state(e, "hand_eat_mid", rebuild_scene=False)
-    add(capture_pair(e, outdir, "hand_eat_mid", {
-        "health": 20.0, "food": 10, "air": 300,
-        "hotbar": [[BREAD, 1, 0]] + [[0, 0, 0]] * 8,
-        "hotbar_sel": 0,
-        "use_action": 1, "use_remaining": 16,
-        "armor": [0, 0, 0, 0],
-        "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        **wall_pose
-    }, {"roi": "lower-right viewmodel"}))
+        if want("hand_eat_mid"):
+            begin_state(e, "hand_eat_mid", rebuild_scene=False)
+            add(capture_pair(e, outdir, "hand_eat_mid", {
+                "health": 20.0, "food": 10, "air": 300,
+                "hotbar": [[BREAD, 1, 0]] + [[0, 0, 0]] * 8,
+                "hotbar_sel": 0,
+                "use_action": 1, "use_remaining": 16,
+                "armor": [0, 0, 0, 0],
+                "fire": 0, "portal": 0.0,
+                "boss": {"show": False},
+                "clear_effects": True,
+                **wall_pose
+            }, {"roi": "lower-right viewmodel non-hotbar"}))
 
-    # 1.11.2: swords do not block; shields do (item 442, EnumAction.BLOCK).
-    begin_state(e, "hand_block_shield", rebuild_scene=False)
-    add(capture_pair(e, outdir, "hand_block_shield", {
-        "health": 20.0, "food": 20, "air": 300,
-        "hotbar": [[SHIELD, 1, 0]] + [[0, 0, 0]] * 8,
-        "hotbar_sel": 0,
-        "use_action": 2, "use_remaining": 72000,
-        "armor": [0, 0, 0, 0],
-        "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        **wall_pose
-    }, {"roi": "lower-right viewmodel", "note": "shield block (not sword)"}))
+        # 1.11.2: swords do not block; shields do (item 442, EnumAction.BLOCK).
+        if want("hand_block_shield"):
+            begin_state(e, "hand_block_shield", rebuild_scene=False)
+            add(capture_pair(e, outdir, "hand_block_shield", {
+                "health": 20.0, "food": 20, "air": 300,
+                "hotbar": [[SHIELD, 1, 0]] + [[0, 0, 0]] * 8,
+                "hotbar_sel": 0,
+                "use_action": 2, "use_remaining": 72000,
+                "armor": [0, 0, 0, 0],
+                "fire": 0, "portal": 0.0,
+                "boss": {"show": False},
+                "clear_effects": True,
+                **wall_pose
+            }, {"roi": "lower-right viewmodel non-hotbar",
+                "note": "shield block (not sword)"}))
 
     # ---- Overlays ----
-    begin_state(e, "overlay_inside_stone", rebuild_scene=True)
-    build_solid_cell(e, "minecraft:stone")
     stone_pose = dict(POSE)
     stone_pose["y"] = float(PLAT_Y + 1)
-    add(capture_pair(e, outdir, "overlay_inside_stone", {
-        "health": 20.0, "food": 20, "air": 300,
-        "hotbar": [[0, 0, 0]] * 9,
-        "armor": [0, 0, 0, 0],
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        **stone_pose
-    }, {"roi": "full-frame inside-block darken"}))
+    if want("overlay_inside_stone"):
+        begin_state(e, "overlay_inside_stone", rebuild_scene=True)
+        build_solid_cell(e, "minecraft:stone")
+        add(capture_pair(e, outdir, "overlay_inside_stone", {
+            "health": 20.0, "food": 20, "air": 300,
+            "hotbar": [[0, 0, 0]] * 9,
+            "armor": [0, 0, 0, 0],
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+            **stone_pose
+        }, {"roi": "full-frame inside-block darken"}))
 
-    begin_state(e, "overlay_inside_grass", rebuild_scene=True)
-    build_solid_cell(e, "minecraft:grass")
-    add(capture_pair(e, outdir, "overlay_inside_grass", {
-        "health": 20.0, "food": 20, "air": 300,
-        "hotbar": [[0, 0, 0]] * 9,
-        "armor": [0, 0, 0, 0],
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        **stone_pose
-    }, {"roi": "full-frame grass particle darken"}))
+    if want("overlay_inside_grass"):
+        begin_state(e, "overlay_inside_grass", rebuild_scene=True)
+        build_solid_cell(e, "minecraft:grass")
+        add(capture_pair(e, outdir, "overlay_inside_grass", {
+            "health": 20.0, "food": 20, "air": 300,
+            "hotbar": [[0, 0, 0]] * 9,
+            "armor": [0, 0, 0, 0],
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+            **stone_pose
+        }, {"roi": "full-frame grass particle darken"}))
 
-    # Portal swirl from timeInPortal only (no physical portal block): the portal
-    # block texture animation races A/B even with pin_texture_animations. The
-    # GuiIngame.renderPortal path is driven by timeInPortal alone.
-    begin_state(e, "overlay_portal_050", rebuild_scene=True)
-    portal_pose = dict(POSE)
-    add(capture_pair(e, outdir, "overlay_portal_050", {
-        "health": 20.0, "food": 20, "air": 300,
-        "hotbar": [[0, 0, 0]] * 9,
-        "armor": [0, 0, 0, 0],
-        "use_action": 0, "fire": 0, "portal": 0.5,
-        "boss": {"show": False},
-        "clear_effects": True,
-        **portal_pose
-    }, {"roi": "full-frame portal swirl",
-        "note": "timeInPortal pin only; no portal block animation"}))
+    # Portal swirl from timeInPortal only (no physical portal block).
+    if want("overlay_portal_050"):
+        begin_state(e, "overlay_portal_050", rebuild_scene=True)
+        portal_pose = dict(POSE)
+        add(capture_pair(e, outdir, "overlay_portal_050", {
+            "health": 20.0, "food": 20, "air": 300,
+            "hotbar": [[0, 0, 0]] * 9,
+            "armor": [0, 0, 0, 0],
+            "use_action": 0, "fire": 0, "portal": 0.5,
+            "boss": {"show": False},
+            "clear_effects": True,
+            **portal_pose
+        }, {"roi": "full-frame portal swirl",
+            "note": "timeInPortal pin only; no portal block animation"}))
 
-    begin_state(e, "overlay_fire", rebuild_scene=True)
-    # fire ticks (not seconds); modest value so llvmpipe frame path stays live.
-    add(capture_pair(e, outdir, "overlay_fire", {
-        "health": 20.0, "food": 20, "air": 300,
-        "hotbar": [[0, 0, 0]] * 9,
-        "armor": [0, 0, 0, 0],
-        "use_action": 0, "fire": 80, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        **POSE
-    }, {"roi": "first-person fire quads"}, settle_n=0))
+    if want("overlay_fire"):
+        begin_state(e, "overlay_fire", rebuild_scene=True)
+        add(capture_pair(e, outdir, "overlay_fire", {
+            "health": 20.0, "food": 20, "air": 300,
+            "hotbar": [[0, 0, 0]] * 9,
+            "armor": [0, 0, 0, 0],
+            "use_action": 0, "fire": 80, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+            **POSE
+        }, {"roi": "first-person fire quads"}, settle_n=0))
 
-    begin_state(e, "overlay_underwater", rebuild_scene=True)
-    build_water_pool(e)
-    uw_pose = dict(POSE)
-    uw_pose["y"] = float(PLAT_Y + 1)
-    uw_pose["yaw"] = 0.0
-    uw_pose["pitch"] = 0.0
-    add(capture_pair(e, outdir, "overlay_underwater", {
-        "health": 20.0, "food": 20, "air": 200,
-        "hotbar": [[0, 0, 0]] * 9,
-        "armor": [0, 0, 0, 0],
-        "use_action": 0, "fire": 0, "portal": 0.0,
-        "boss": {"show": False},
-        "clear_effects": True,
-        **uw_pose
-    }, {"roi": "full-frame underwater.png"}))
+    if want("overlay_underwater"):
+        begin_state(e, "overlay_underwater", rebuild_scene=True)
+        build_water_pool(e)
+        uw_pose = dict(POSE)
+        uw_pose["y"] = float(PLAT_Y + 1)
+        uw_pose["yaw"] = 0.0
+        uw_pose["pitch"] = 0.0
+        add(capture_pair(e, outdir, "overlay_underwater", {
+            "health": 20.0, "food": 20, "air": 200,
+            "hotbar": [[0, 0, 0]] * 9,
+            "armor": [0, 0, 0, 0],
+            "use_action": 0, "fire": 0, "portal": 0.0,
+            "boss": {"show": False},
+            "clear_effects": True,
+            **uw_pose
+        }, {"roi": "full-frame underwater.png"}))
 
     ok_ids = [s["id"] for s in manifest["states"]
               if s.get("verdict") != "CAPTURE_FAIL"]
@@ -885,12 +1013,15 @@ def main():
             "ok_ids": ok_ids,
             "blocked": manifest["blocked"],
             "failed": manifest["failed"],
+            "only": manifest.get("only"),
             "resolution": "from frame replies",
             "java_home": os.environ.get("JAVA_HOME"),
             "notes": (
                 "Genuine Java 1.11.2 FBO dumps via qrl frame{rerender:true}. "
                 "State frozen with hud_pin per A/B pair. "
-                "Capture integrity: noise ceiling + feature presence. "
+                "Capture integrity: noise ceiling + feature presence "
+                "(cross-state + empty-hand baseline for viewmodels). "
+                "frame{} clears Malmo hideGUI so first-person viewmodel paints. "
                 "hand_block_shield replaces version-wrong hand_block_sword. "
                 "failed[] entries had twins deleted (no contaminated goldens)."
             ),

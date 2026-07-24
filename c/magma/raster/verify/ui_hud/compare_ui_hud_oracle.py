@@ -82,14 +82,19 @@ def roi_rect(name):
         by = H // 2 - 18
         return (0, by, W, by + 36)
     if name.startswith("hand_"):
-        return (W * 2 // 3, H * 2 // 3, W - 8, H - 8)
+        # Non-hotbar lower-right viewmodel: above hotbar chrome (GUI y=sh-22).
+        hb_y = (SH - 22) * S
+        x0, y0 = W * 2 // 3, H * 2 // 3
+        x1, y1 = W - 8, max(y0 + 8, hb_y - 4)
+        return (x0, y0, x1, y1)
     if name.startswith("overlay_"):
         return (2, 2, W - 2, H - 2)
     return (0, 0, W, H)
 
 
-# Hard gate: sprite-dominated HUD ROIs where C composition can claim parity.
-# Viewmodels / full-frame overlays remain soft (CAPTURE_OK / residual report only).
+# Hard gate: sprite-dominated HUD ROIs + first-person use viewmodels where C
+# composition claims parity at A/B noise floor (no budgets / masking).
+# Full-frame overlays remain soft (CAPTURE_OK / residual report only).
 HARD = {
     "hud_armor_iron",
     "hud_absorption_armor",
@@ -100,6 +105,9 @@ HARD = {
     "hud_xp_half",
     "hud_durability_half",
     "hud_boss_half",
+    "hand_bow_pull20",
+    "hand_eat_mid",
+    "hand_block_shield",
 }
 
 

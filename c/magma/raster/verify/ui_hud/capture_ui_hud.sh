@@ -103,33 +103,50 @@ rm -rf "$ENVDIR/Minecraft/run/saves/qrl_${SEED}_flat" 2>/dev/null || true
 log "launching headless game via start_vnc_client.sh (JAVA_HOME=$JAVA_HOME)..."
 ( cd "$ENVDIR" && setsid nohup bash start_vnc_client.sh >"$LAUNCH_LOG" 2>&1 </dev/null 9>&- & )
 
-log "waiting for qrl bridge on :25575 (up to 420s)..."
+log "waiting for qrl bridge on :25575 with hud_pin (up to 420s)..."
 listened=0
 for i in $(seq 1 420); do
-  if uv run --no-project python -c 'import socket,sys
-s=socket.socket(); s.settimeout(1)
+  if uv run --no-project python -c '
+import socket, sys, json
+s = socket.socket(); s.settimeout(3.0)
 try:
-  s.connect(("127.0.0.1",25575)); s.close()
+    s.connect(("127.0.0.1", 25575))
 except Exception:
-  sys.exit(1)' 2>/dev/null; then
+    sys.exit(1)
+# Newline-delimited JSON protocol (see java/qrl_client.py).
+# Probe that this is OUR QuantizedRL (hud_pin exists), not a stale bridge.
+try:
+    s.sendall((json.dumps({"cmd": "hud_pin", "action": {}}) + "\n").encode())
+    buf = b""
+    while b"\n" not in buf:
+        chunk = s.recv(65536)
+        if not chunk:
+            break
+        buf += chunk
+    s.close()
+    if b"\n" not in buf:
+        sys.exit(2)
+    line = buf.split(b"\n", 1)[0]
+    r = json.loads(line.decode("utf-8", "replace"))
+    err = str(r.get("error", "") or "")
+    if "unknown cmd" in err.lower():
+        sys.exit(3)
+    # ok / no world / other real hud_pin errors all mean the cmd is registered
+    sys.exit(0)
+except Exception:
+    try: s.close()
+    except Exception: pass
+    sys.exit(2)
+' 2>/dev/null; then
     listened=1
     break
   fi
   sleep 1
 done
-[ "$listened" = 1 ] || fail "qrl bridge never accepted a connection within 420s"
-log "bridge up."
+[ "$listened" = 1 ] || fail "qrl bridge never accepted hud_pin within 420s"
+log "bridge up (hud_pin recognized)."
 
-log "running capture driver..."
-cd "$ENVDIR" || fail "cd $ENVDIR"
-# Driver enforces A/B noise + feature presence (needs pillow/numpy).
-uv run --no-project --with pillow --with numpy python \
-  "$SCRIPT_DIR/capture_ui_hud_driver.py" \
-  --out "$OUTDIR" \
-  --seed "$SEED" \
-  || fail "capture driver failed"
-
-# Sanity: every required ID has both frames non-empty
+ONLY_ARGS=()
 REQUIRED=(
   hud_armor_iron hud_absorption_armor hud_hurt_flash_on hud_hurt_flash_off
   hud_hunger_poison hud_air_partial hud_xp_half hud_durability_half
@@ -138,8 +155,33 @@ REQUIRED=(
   overlay_inside_stone overlay_inside_grass overlay_portal_050
   overlay_fire overlay_underwater
 )
+# Optional: ONLY=hand bash capture_ui_hud.sh  (or ONLY=hand_bow_pull20,...)
+if [ -n "${ONLY:-}" ]; then
+  ONLY_ARGS=(--only "$ONLY")
+  if [ "$ONLY" = "hand" ] || [ "$ONLY" = "hands" ] || [ "$ONLY" = "viewmodel" ]; then
+    REQUIRED=(hand_bow_pull20 hand_eat_mid hand_block_shield)
+  else
+    # comma list
+    IFS=',' read -r -a REQUIRED <<< "$ONLY"
+  fi
+  log "ONLY=$ONLY -> required: ${REQUIRED[*]}"
+fi
+
+log "running capture driver..."
+cd "$ENVDIR" || fail "cd $ENVDIR"
+# Driver enforces A/B noise + feature presence (needs pillow/numpy).
+uv run --no-project --with pillow --with numpy python \
+  "$SCRIPT_DIR/capture_ui_hud_driver.py" \
+  --out "$OUTDIR" \
+  --seed "$SEED" \
+  "${ONLY_ARGS[@]}" \
+  || fail "capture driver failed"
+
+# Sanity: every required ID has both frames non-empty
 missing=0
 for id in "${REQUIRED[@]}"; do
+  id="$(echo "$id" | tr -d '[:space:]')"
+  [ -n "$id" ] || continue
   for ab in a b; do
     f="$OUTDIR/${id}_${ab}.png"
     if [ ! -s "$f" ]; then

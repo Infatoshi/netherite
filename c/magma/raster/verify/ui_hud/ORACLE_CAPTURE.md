@@ -42,9 +42,9 @@ Gray C backdrop is composition isolation only — not a live-world claim.
 | `hud_absorption_armor.png` | Absorption 20 (golden apples) + armor | `/effect @p absorption 30 4` with iron set | Armor lifted by second heart row |
 | `hud_hurt_flash_on.png` / `hud_hurt_flash_off.png` | Health just dropped, `healthUpdateCounter` blink | Summon zombie, take 1 hit; capture two consecutive client ticks during the 20-tick flash window | Hearts row only |
 | `hud_hunger_poison.png` | Food 8 + HUNGER potion | `/effect @p hunger 30 0` | Hunger haunches (right of hotbar) |
-| `hud_air_partial.png` | Eye in water; **pin/reply air=123** (historical freeze) but **pixels** are 4 full + 1 partial ⇒ `effective_pixel_air_range=121..122` | Glass pool; future recapture pin air=121 | Bubbles at `sh-49` right |
+| `hud_air_partial.png` | Eye in water, air ~123 | Glass pool, submerge ~9s | Bubbles at `sh-49` right |
 | `hud_xp_half.png` | `experience=0.5`, level 7 | `/xp` to known fraction | XP bar fill width = 91/182 GUI px + level outline text centered `(sw-w)/2` |
-| `hud_durability_half.png` | Wood pick damage 30/59 in hotbar slot 0 | `/give` + anvil or scripted damage | Slot 0 durability strip only (13x2 at icon +2,+13) |
+| `hud_durability_half.png` | Wood pick damage 30/59 in hotbar slot 0 | `/give` + anvil or scripted damage | Slot 0 durability strip (13x2 at icon +2,+13) |
 | `hud_boss_half.png` | Ender dragon bar at 50% | End fight or boss bar packet | Top center pink bar + "Ender Dragon" |
 | `hud_death.png` | Dead player, deaths≥1 | Die to mob; hold death screen | Full-frame red wash + banner |
 | `hand_bow_pull20.png` | Bow drawn 20 ticks, fixed yaw/pitch 0, wall backdrop | Hold use 20 ticks against plain wall | Lower-right viewmodel |
@@ -80,34 +80,24 @@ Example qrl + mcwindow sketch for armor + hurt flash:
 # summon zombie in a 1x2 cell; wait until hurt; screenshot two frames 3 ticks apart
 ```
 
-## Capture metadata integrity (post d09d8bc)
-
-- **Hurt flash phase swap:** goldens were reordered so `hud_hurt_flash_on` has
-  white last-health hearts (pin `hud_flash=true` → updateCounter delta 3).
-  `goldens/meta/hud_hurt_flash_{on,off}.json` **presence** fields were recomputed
-  from the post-swap PNGs over the driver hearts ROI
-  `(244,402)–(404,420)` (mean_rgb / std / dark_frac now match content).
-- **Air pin vs pixels:** committed `meta/hud_air_partial.json` keeps historical
-  `pin` / `pin_reply_*` **air=123**. Derived fields document the mismatch:
-  `effective_pixel_air_range=121..122` via Forge
-  `full=ceil((air-2)*10/300)`, `total=ceil(air*10/300)` (4 full + 1 partial).
-  air=123 is 5 full only; C candidate uses **121**. No PNG recapture.
-
 ## Known open pixel residuals (do not mask)
 
 - **Hard HUD (closed at A/B noise floor):** `hud_hurt_flash_on/off` (flash phase
-  sprites + last-health white hearts; meta presence matches swapped PNGs),
-  `hud_air_partial` (pixels = air∈{121,122} → 4 full + 1 partial; pin reply
-  still 123; no hand bleed into ROI), `hud_durability_half` (width=6, RGB
-  255,250,0 at icon+2,+13; ROI is the 13x2 strip only).
-- **Hand viewmodels blank in Java goldens:** `hand_bow_pull20` / `hand_eat_mid` /
-  `hand_block_shield` share identical lower-right ROIs (wall only) despite
-  `hand_active=true` and distinct hotbar icons. Equip-progress pin is in
-  `hud_pin` (`equippedProgressMainHand=1`); still need a verified first-person
-  mesh before claiming viewmodel presence. Soft `CAPTURE_OK` only.
+  sprites + last-health white hearts), `hud_air_partial` (pixels correspond to
+  air 121–122: four full + one partial), and `hud_durability_half` (exact 13x2
+  feature ROI).
+- **Hand viewmodels (capture closed):** `hand_bow_pull20` / `hand_eat_mid` /
+  `hand_block_shield` Java A/B frames now show distinct lower-right viewmodels
+  (bow drawn / bread mid-eat / shield block). Root cause of wall-only goldens
+  was Malmo `hideGUI=true` (F1) suppressing `ItemRenderer` while `frame{}`
+  still force-painted HUD. Fix: `frame{}` + `hud_pin` clear `hideGUI` and
+  pin equip/`itemStackMainHand`/active use. Presence rejects empty-hand
+  baseline clones and cross-state-identical ROIs. Hard C residual remains
+  (registration/lighting; bow ~55, eat ~46, shield ~50 at A/B noise 0) —
+  no budgets/masking; RESIDUAL nonzero, not parity.
 - **Drawn-bow registration (#29):** geometry follows ItemRenderer BOW branch at
-  partialTicks=1; remaining 3–4/ch silhouette error needs still-draw A/B against
-  `hand_bow_pull20.png` before further tuning.
+  partialTicks=1; still-draw A/B against genuine `hand_bow_pull20.png` now
+  available for further tuning (C residual ~55/ch on non-hotbar ROI).
 - **Inside-block live path:** `gm_overlay_block_in_hand_live` uses
   `Block.causesSuffocation` + INVISIBLE skip, BlockModelShapes particle texture
   (chest/missing-model fallbacks), and maxU-on-left UV; pixel proof still needs

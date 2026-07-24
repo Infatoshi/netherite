@@ -204,6 +204,32 @@ int main(void) {
         CHECK(n >= 12 + 6 * 4, "stick has rim quads beyond front/back");
     }
 
+    /* ---- (K) shield 442: ModelShield plate+handle (72 verts), block pose ---- */
+    {
+        gm_hand_set_use(0, 0, 0);
+        int n_idle = gm_hand_emit_held(442, 0, 0.0f, 0.0f, out, TEST_MAX);
+        gm_hand_set_use(2, 72000, 72000);
+        int n_block = gm_hand_emit_held(442, 0, 0.0f, 0.0f, out2, TEST_MAX);
+        gm_hand_set_use(0, 0, 0);
+        CHECK(n_idle == 72 && n_block == 72, "shield emits 72 verts (2 boxes x 6 faces)");
+        float d = 0.0f;
+        for (int i = 0; i < n_idle; ++i) {
+            float dx = out2[i].pos.x - out[i].pos.x;
+            float dy = out2[i].pos.y - out[i].pos.y;
+            float dz = out2[i].pos.z - out[i].pos.z;
+            d += dx*dx + dy*dy + dz*dz;
+        }
+        CHECK(d > 0.01f, "shield blocking display differs from idle");
+        /* blocking firstperson sits in lower-right viewmodel region */
+        float mx = 0.0f, my = 0.0f, mz = 0.0f;
+        for (int i = 0; i < n_block; ++i) {
+            mx += out2[i].pos.x; my += out2[i].pos.y; mz += out2[i].pos.z;
+        }
+        mx /= (float)n_block; my /= (float)n_block; mz /= (float)n_block;
+        CHECK(mx > 0.0f, "shield block mean x > 0 (right hand)");
+        CHECK(mz < 0.0f, "shield block mean z < 0 (in front of eye)");
+    }
+
     if (g_fail) {
         fprintf(stderr, "test_hand: FAILED\n");
         return 1;

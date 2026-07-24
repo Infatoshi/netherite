@@ -87,11 +87,15 @@ ITEM_SPRITES = [
     (9001, "bow_pulling_1.png"),
     (9002, "bow_pulling_2.png"),
     (9003, "dragon_fireball.png"),
+    # shield (442): ModelShield uses entity/shield_base_nopattern (64x64);
+    # inventory GUI also paints a downscaled face. Hand path samples the atlas.
+    (442, "empty_armor_slot_shield.png"),  # placeholder path; SPECIAL_PATHS overrides
 ]
 ITEM_SPRITES.sort(key=lambda t: t[0])
 
 SPECIAL_PATHS = {
     9003: "assets/minecraft/textures/entity/enderdragon/dragon_fireball.png",
+    442: "assets/minecraft/textures/entity/shield_base_nopattern.png",
 }
 
 
@@ -112,8 +116,10 @@ def main():
             data = zf.read(SPECIAL_PATHS.get(item_id, ITEMS + member))
             img = Image.open(io.BytesIO(data)).convert("RGBA")
             if img.size != (TILE, TILE):
-                raise SystemExit("%s is %r, expected 16x16" % (member, img.size))
-            imgs.append((item_id, member[:-4], img))
+                # Entity textures (shield 64x64, dragon fireball) resize into a
+                # tile; UV fractions in hand.c stay proportional to source.
+                img = img.resize((TILE, TILE), Image.NEAREST)
+            imgs.append((item_id, member[:-4] if member.endswith(".png") else member, img))
 
     # fixed grid of 16x16 tiles, 8 per row, on a pow2 canvas
     per_row = 8

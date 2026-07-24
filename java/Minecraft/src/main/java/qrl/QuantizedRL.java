@@ -2909,6 +2909,11 @@ public class QuantizedRL {
         // frame: re-render world+HUD at partialTicks=1.0 into the FBO, then write PNG.
         // Tick-boundary capture matches tape keyframes (tb:1 / hud:1). Optional
         // "rerender":false skips the re-render and just dumps the current FBO.
+        //
+        // Malmo ClientStateMachine sets hideGUI=true for the episode (F1 view).
+        // EntityRenderer.renderHand skips ItemRenderer when hideGUI is set, so
+        // forced GUI overlays still paint but the first-person viewmodel is
+        // missing. Oracle A/B frames must clear hideGUI for the re-render pass.
         if (r.cmd.equals("frame")) {
             try {
                 String file = r.action.get("file").getAsString();
@@ -2916,9 +2921,15 @@ public class QuantizedRL {
                 boolean rerender = !r.action.has("rerender")
                     || r.action.get("rerender").getAsBoolean();
                 boolean hud = false, tb = false;
+                boolean prevHide = mc.gameSettings.hideGUI;
+                int prevTp = mc.gameSettings.thirdPersonView;
                 if (rerender && mc.world != null && mc.player != null
                         && mc.entityRenderer != null) {
                     try {
+                        // First-person viewmodel requires: hideGUI=false,
+                        // thirdPersonView=0, not spectator, not sleeping.
+                        mc.gameSettings.hideGUI = false;
+                        mc.gameSettings.thirdPersonView = 0;
                         net.minecraft.client.shader.Framebuffer fb = mc.getFramebuffer();
                         fb.bindFramebuffer(true);
                         mc.entityRenderer.renderWorld(1.0F, System.nanoTime());
@@ -2939,7 +2950,12 @@ public class QuantizedRL {
                         } catch (Throwable ig2) {}
                         fb.unbindFramebuffer();
                         tb = true;
-                    } catch (Throwable ig) {}
+                    } catch (Throwable ig) {
+                        /* re-render failed; still restore gameSettings below */
+                    } finally {
+                        mc.gameSettings.hideGUI = prevHide;
+                        mc.gameSettings.thirdPersonView = prevTp;
+                    }
                 }
                 java.awt.image.BufferedImage img =
                     net.minecraft.util.ScreenShotHelper.createScreenshot(fw, fh, mc.getFramebuffer());
@@ -3115,11 +3131,20 @@ public class QuantizedRL {
                     }
                 }
 
+                // First-person viewmodel visibility + equip pin.
+                // Malmo missions force hideGUI=true (F1), which EntityRenderer
+                // treats as "no hand". Always clear for oracle pins; frame{}
+                // also clears for the re-render pass.
+                mc.gameSettings.hideGUI = false;
+                mc.gameSettings.thirdPersonView = 0;
+
                 // Fully raise the main-hand viewmodel. ItemRenderer passes
                 // equipArg = 1 - equippedProgressMainHand into transforms, so
                 // equippedProgressMainHand=1 => equipArg=0 => raised (vanilla
                 // fully-equipped). Hotbar swaps leave progress near 0 (hidden)
                 // for several ticks and oracle hand frames capture empty walls.
+                float pinnedEquip = 1.0F;
+                int equipPinned = 0;
                 try {
                     java.lang.reflect.Field fEq =
                         net.minecraft.client.renderer.ItemRenderer.class
@@ -3130,15 +3155,27 @@ public class QuantizedRL {
                     java.lang.reflect.Field fItem =
                         net.minecraft.client.renderer.ItemRenderer.class
                             .getDeclaredField("itemStackMainHand");
+                    java.lang.reflect.Field fItemOff =
+                        net.minecraft.client.renderer.ItemRenderer.class
+                            .getDeclaredField("itemStackOffHand");
+                    java.lang.reflect.Field fEqOff =
+                        net.minecraft.client.renderer.ItemRenderer.class
+                            .getDeclaredField("equippedProgressOffHand");
+                    java.lang.reflect.Field fPrevOff =
+                        net.minecraft.client.renderer.ItemRenderer.class
+                            .getDeclaredField("prevEquippedProgressOffHand");
                     fEq.setAccessible(true); fPrev.setAccessible(true);
-                    fItem.setAccessible(true);
+                    fItem.setAccessible(true); fItemOff.setAccessible(true);
+                    fEqOff.setAccessible(true); fPrevOff.setAccessible(true);
                     net.minecraft.client.renderer.ItemRenderer ir =
                         mc.getItemRenderer();
                     // Default 1.0 = fully equipped / raised.
-                    float eq = a.has("equip_progress")
+                    pinnedEquip = a.has("equip_progress")
                         ? a.get("equip_progress").getAsFloat() : 1.0F;
-                    fEq.setFloat(ir, eq);
-                    fPrev.setFloat(ir, eq);
+                    fEq.setFloat(ir, pinnedEquip);
+                    fPrev.setFloat(ir, pinnedEquip);
+                    fEqOff.setFloat(ir, 1.0F);
+                    fPrevOff.setFloat(ir, 1.0F);
                     // Keep itemStackMainHand in lockstep with the hotbar so the
                     // equip animation does not re-trigger on a stack mismatch.
                     net.minecraft.item.ItemStack held = p.getHeldItemMainhand();
@@ -3146,10 +3183,19 @@ public class QuantizedRL {
                         fItem.set(ir, held.copy());
                     else
                         fItem.set(ir, net.minecraft.item.ItemStack.EMPTY);
-                } catch (Throwable ig) {}
+                    net.minecraft.item.ItemStack off = p.getHeldItemOffhand();
+                    if (!off.isEmpty())
+                        fItemOff.set(ir, off.copy());
+                    else
+                        fItemOff.set(ir, net.minecraft.item.ItemStack.EMPTY);
+                    equipPinned = 1;
+                } catch (Throwable ig) { equipPinned = 0; }
 
                 // Active hand use: action 0 none, 1 eat/drink, 2 block, 3 bow.
                 // remaining = getItemInUseCount; bow_pull = max - remaining.
+                // EntityPlayerSP keeps a client-local handActive flag; also pin
+                // activeItemStack + useCount so ItemRenderer BOW/EAT/BLOCK
+                // branches see a consistent stack for the use-action switch.
                 if (a.has("use_action")) {
                     int action = a.get("use_action").getAsInt();
                     if (action <= 0) {
@@ -3159,6 +3205,9 @@ public class QuantizedRL {
                             net.minecraft.util.EnumHand.MAIN_HAND;
                         net.minecraft.item.ItemStack stack = p.getHeldItemMainhand();
                         if (!stack.isEmpty()) {
+                            // reset first so setActiveHand is not a no-op when
+                            // re-pinning the same use state for A/B.
+                            p.resetActiveHand();
                             p.setActiveHand(hand);
                             int remaining = a.has("use_remaining")
                                 ? a.get("use_remaining").getAsInt()
@@ -3167,7 +3216,12 @@ public class QuantizedRL {
                                 java.lang.reflect.Field fCount =
                                     net.minecraft.entity.EntityLivingBase.class
                                         .getDeclaredField("activeItemStackUseCount");
+                                java.lang.reflect.Field fStack =
+                                    net.minecraft.entity.EntityLivingBase.class
+                                        .getDeclaredField("activeItemStack");
                                 fCount.setAccessible(true);
+                                fStack.setAccessible(true);
+                                fStack.set(p, stack.copy());
                                 fCount.setInt(p, remaining);
                             } catch (Throwable ig) {}
                         }
@@ -3177,6 +3231,7 @@ public class QuantizedRL {
                     int pull = a.get("bow_pull").getAsInt();
                     net.minecraft.item.ItemStack stack = p.getHeldItemMainhand();
                     if (!stack.isEmpty() && pull > 0) {
+                        p.resetActiveHand();
                         p.setActiveHand(net.minecraft.util.EnumHand.MAIN_HAND);
                         int rem = stack.getMaxItemUseDuration() - pull;
                         if (rem < 1) rem = 1;
@@ -3184,7 +3239,12 @@ public class QuantizedRL {
                             java.lang.reflect.Field fCount =
                                 net.minecraft.entity.EntityLivingBase.class
                                     .getDeclaredField("activeItemStackUseCount");
+                            java.lang.reflect.Field fStack =
+                                net.minecraft.entity.EntityLivingBase.class
+                                    .getDeclaredField("activeItemStack");
                             fCount.setAccessible(true);
+                            fStack.setAccessible(true);
+                            fStack.set(p, stack.copy());
                             fCount.setInt(p, rem);
                         } catch (Throwable ig) {}
                     }
@@ -3486,6 +3546,17 @@ public class QuantizedRL {
                 sb.append(",\"dead\":").append(p.getHealth() <= 0.0F || p.isDead);
                 sb.append(",\"screen\":\"").append(screenName).append("\"");
                 sb.append(",\"potion_count\":").append(p.getActivePotionEffects().size());
+                // Viewmodel pin diagnostics (equip + hideGUI + held id).
+                sb.append(",\"hide_gui\":").append(mc.gameSettings.hideGUI);
+                sb.append(",\"third_person\":").append(mc.gameSettings.thirdPersonView);
+                sb.append(",\"equip_progress\":").append(pinnedEquip);
+                sb.append(",\"equip_pinned\":").append(equipPinned);
+                {
+                    net.minecraft.item.ItemStack held0 = p.getHeldItemMainhand();
+                    int hid = held0.isEmpty() ? 0
+                        : net.minecraft.item.Item.getIdFromItem(held0.getItem());
+                    sb.append(",\"held_id\":").append(hid);
+                }
                 sb.append("}");
                 r.resp.offer(sb.toString());
             } catch (Throwable t) {
