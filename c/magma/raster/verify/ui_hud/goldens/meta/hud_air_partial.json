@@ -169,6 +169,9 @@
     "purple_bias": 22.872347066167293
   },
   "verdict": "CAPTURE_OK",
-  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
-  "roi": "air bubbles sh-49 right"
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence). pin/reply air=123 preserved; effective_pixel_air_range=121..122 (formula mismatch documented).",
+  "roi": "air bubbles sh-49 right",
+  "effective_pixel_air_range": "121..122",
+  "effective_pixel_air_formula": "Forge GuiIngameForge.renderAir: full=ceil((air-2)*10/300), total=ceil(air*10/300), partial=total-full. air\u2208{121,122} => full=4, partial=1; air=123 => full=5, partial=0.",
+  "effective_pixel_air_mismatch": "Historical pin/reply air=123 preserved (capture freeze). Committed golden pixels match 4 full + 1 partial bubbles, so effective pixel air is 121..122 not 123. C candidate uses air=121; re-pin to 121 not done (metadata-only followup, no qrl recapture)."
 }
