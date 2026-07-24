@@ -15,6 +15,16 @@
 #include <stdlib.h>
 #endif
 
+/* Per-call sample mode from CrShadeCtx.sample_mode (0 = env/default path).
+ * cr_atlas_sample is shared with CUDA and has no shade ctx arg, so cr_shade
+ * stashes the mode here for the duration of one fragment. Host-only override
+ * MAGMA_SAMPLE_MODE still applies when this is 0. */
+#if defined(__CUDA_ARCH__)
+static __device__ int g_cr_sample_mode_override = 0;
+#else
+static int g_cr_sample_mode_override = 0;
+#endif
+
 /* Nearest-neighbour atlas fetch with clamp-to-edge. u,v in [0,1] over the whole
  * atlas (level 0 only). */
 CR_HD CrRgba cr_atlas_sample(const CrTexture *tex, float u, float v) {
@@ -45,9 +55,9 @@ CR_HD CrRgba cr_atlas_sample(const CrTexture *tex, float u, float v) {
 #endif
     float fu = u * (float)tex->w + bu;
     float fv = v * (float)tex->h + bv;
-    int mode = 0;
+    int mode = g_cr_sample_mode_override;
 #if !defined(__CUDA_ARCH__)
-    {
+    if (mode == 0) {
         static int sm = -2;
         if (sm == -2) {
             const char *s = getenv("MAGMA_SAMPLE_MODE");
@@ -153,10 +163,12 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
     if (sh->untextured) {
         texel.r = 255; texel.g = 255; texel.b = 255; texel.a = 255;
     } else {
+        g_cr_sample_mode_override = sh->sample_mode;
         texel = sh->use_mips
             ? cr_atlas_sample_lod(sh->atlas, frag->uv.x, frag->uv.y,
                                   frag->lod + sh->mip_bias)
             : cr_atlas_sample(sh->atlas, frag->uv.x, frag->uv.y);
+        g_cr_sample_mode_override = 0;
     }
 
     /* Alpha test: explicit flag, or the CUTOUT layers. Default ref 0.5

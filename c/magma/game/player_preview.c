@@ -111,25 +111,38 @@ static void rotate_x(float *y, float *z, float deg)
  * geometry means lighting sees normals as if lights were Ry(135)*LIGHT.
  * With the GUI frame including Rz(180)*S(-s,s,s) absorbed into the screen
  * map, we light in the post-applyRotations / pre-GUI entity space using the
- * sandwich-adjusted directions.
+ * sandwich-adjusted directions. Y-flips from Rz(180)*S cancel in the dot
+ * product (see comments in emit_part).
  *
  * LIGHT0/1 match RenderHelper.java double normalize of
  * ( +-0.20000000298023224, 1.0, -+0.699999988079071 ). shadeModel is GL_FLAT
- * (7424): one face normal, flat light per quad. Ambient 0.4 + two 0.6
- * diffuse terms, clamped at 1. */
+ * (7424): one face normal, flat light per quad. colorMaterial FRONT_AND_BACK
+ * AMBIENT_AND_DIFFUSE with glColor(1,1,1): material ambient=diffuse=1.
+ * Light model ambient 0.4; each light diffuse 0.6, ambient/specular 0.
+ * Sum clamped at 1 (GL primary color). */
 static float standard_item_light(float nx, float ny, float nz)
 {
-    /* Pre-normalized from Java double Vec3d.normalize (bit-stable as float). */
-    const float l0x = 0.16169041669088864f, l0y = 0.8084520834544432f,
-                l0z = -0.5659164584181101f;
-    const float l1x = -0.16169041669088864f, l1y = 0.8084520834544432f,
-                l1z = 0.5659164584181101f;
-    const float c = cosf(135.0f * DEG2RAD), s = sinf(135.0f * DEG2RAD);
-    float e0x = c * l0x + s * l0z, e0z = -s * l0x + c * l0z;
-    float e1x = c * l1x + s * l1z, e1z = -s * l1x + c * l1z;
+    /* Exact Java double Vec3d.normalize results, kept in double through the
+     * Ry(135) sandwich then stored as float (glLight float upload). */
+    static int init = 0;
+    static float e0x, e0y, e0z, e1x, e1y, e1z;
+    if (!init) {
+        const double lx = 0.20000000298023224, ly = 1.0, lz = -0.699999988079071;
+        const double inv = 1.0 / sqrt(lx * lx + ly * ly + lz * lz);
+        const double l0x = lx * inv, l0y = ly * inv, l0z = lz * inv;
+        const double l1x = -l0x, l1y = l0y, l1z = -l0z;
+        const double c = cos(135.0 * (double)DEG2RAD), s = sin(135.0 * (double)DEG2RAD);
+        e0x = (float)(c * l0x + s * l0z);
+        e0y = (float)l0y;
+        e0z = (float)(-s * l0x + c * l0z);
+        e1x = (float)(c * l1x + s * l1z);
+        e1y = (float)l1y;
+        e1z = (float)(-s * l1x + c * l1z);
+        init = 1;
+    }
     float sum = 0.4f;
-    float d0 = nx * e0x + ny * l0y + nz * e0z;
-    float d1 = nx * e1x + ny * l1y + nz * e1z;
+    float d0 = nx * e0x + ny * e0y + nz * e0z;
+    float d1 = nx * e1x + ny * e1y + nz * e1z;
     if (d0 > 0.0f) sum += 0.6f * d0;
     if (d1 > 0.0f) sum += 0.6f * d1;
     return sum > 1.0f ? 1.0f : sum;
@@ -238,6 +251,14 @@ static int emit_part(const PreviewPart *part,
 
     PreviewFace faces[6];
     face_defs(part->u, part->v, part->dx, part->dy, part->dz, faces);
+    /* ModelBox outward normals in part-local space (TexturedQuad emits these;
+     * GL then transforms via modelview + RESCALE_NORMAL). Transform the unit
+     * axis normal through the same rotations as vertices (uniform scale drops
+     * out after renormalize) so lighting matches fixed-function, not a
+     * cross-product of float-transformed corners. */
+    static const float FACE_N[6][3] = {
+        { 1, 0, 0}, {-1, 0, 0}, { 0,-1, 0}, { 0, 1, 0}, { 0, 0,-1}, { 0, 0, 1},
+    };
     static const int tri_idx[2][3] = {{0, 1, 2}, {0, 2, 3}};
     for (int f = 0; f < 6 && n + 2 <= PREVIEW_MAX_TRIS; ++f) {
         /* TexturedQuad UV assignment order. */
@@ -250,12 +271,21 @@ static int emit_part(const PreviewPart *part,
             int c = faces[f].idx[k];
             q[k] = (PreviewVertex){corner[c][0], corner[c][1], corner[c][2], u[k], v[k]};
         }
-        /* Face normal from transformed quad (enableRescaleNormal renormalize). */
-        float e1x = q[1].x - q[0].x, e1y = q[1].y - q[0].y, e1z = q[1].z - q[0].z;
-        float e2x = q[2].x - q[0].x, e2y = q[2].y - q[0].y, e2z = q[2].z - q[0].z;
-        float nx = e1y * e2z - e1z * e2y;
-        float ny = e1z * e2x - e1x * e2z;
-        float nz = e1x * e2y - e1y * e2x;
+        /* Rotate part-local normal: ModelRenderer Rz*Ry*Rx on directions, then
+         * entity_frame linear part S(-1,-1,1) * Ry(180-body) * Rx(pitch). */
+        float nx = FACE_N[f][0], ny = FACE_N[f][1], nz = FACE_N[f][2];
+        rotate_zyx_vertex(&nx, &ny, &nz, ax, ay, az);
+        nx = -nx; ny = -ny; /* prepareScale S(-1,-1,1); z unchanged */
+        {
+            float tmpx = nx, tmpz = nz;
+            rotate_y(&tmpx, &tmpz, 180.0f - body_yaw_deg);
+            nx = tmpx; nz = tmpz;
+        }
+        {
+            float tmpy = ny, tmpz = nz;
+            rotate_x(&tmpy, &tmpz, matrix_pitch_deg);
+            ny = tmpy; nz = tmpz;
+        }
         float nl = sqrtf(nx * nx + ny * ny + nz * nz);
         if (nl > 1e-12f) { nx /= nl; ny /= nl; nz /= nl; }
         float light = standard_item_light(nx, ny, nz);
@@ -298,6 +328,232 @@ static int diag_top_left(float ax, float ay, float bx, float by)
 {
     float dx = bx - ax, dy = by - ay;
     return (dy > 0.0f) || (dy == 0.0f && dx < 0.0f);
+}
+
+/* Preview-local color packing experiment (env PREVIEW_COLOR_MODE). Not a
+ * terrain default; only player_preview recolor uses it. */
+static int g_preview_color_mode;
+
+/* Integer / float color conversions for GL_MODULATE of a flat primary light L
+ * with an 8-bit texel. Identified from >=20 interior pixel traces vs llvmpipe
+ * goldens: primary is quantized to u8 (round), then
+ *   out = (tex * L8 + 127) / 255
+ * which is the classic fixed-function 8x8->8 modulate (Mesa/llvmpipe path
+ * for RGBA8 * primary). Mode 0 keeps the historical float trunc for A/B. */
+static void preview_modulate_u8(u8 tex, float light, int mode, u8 *out)
+{
+    if (mode == 0) {
+        /* float trunc: (u8)(tex * L) via (tex/255)*L*255 */
+        float c = (tex * (1.0f / 255.0f)) * light;
+        if (c < 0.0f) c = 0.0f;
+        if (c > 1.0f) c = 1.0f;
+        *out = (u8)(c * 255.0f);
+        return;
+    }
+    if (mode == 1) {
+        float c = (tex * (1.0f / 255.0f)) * light;
+        if (c < 0.0f) c = 0.0f;
+        if (c > 1.0f) c = 1.0f;
+        *out = (u8)(c * 255.0f + 0.5f);
+        return;
+    }
+    if (mode == 10) {
+        double c = (double)tex * (double)light;
+        if (c < 0.0) c = 0.0;
+        if (c > 255.0) c = 255.0;
+        *out = (u8)c;
+        return;
+    }
+    if (mode == 11) {
+        double c = (double)tex * (double)light + 0.5;
+        if (c < 0.0) c = 0.0;
+        if (c > 255.0) c = 255.0;
+        *out = (u8)c;
+        return;
+    }
+    /* modes 2-9, 12: quantize light to u8 then integer modulate */
+    int L8;
+    if (mode == 2 || mode == 4 || mode == 6 || mode == 8)
+        L8 = (int)(light * 255.0f);           /* trunc */
+    else
+        L8 = (int)(light * 255.0f + 0.5f);    /* round: FLOAT_TO_UBYTE */
+    if (L8 < 0) L8 = 0;
+    if (L8 > 255) L8 = 255;
+    int p = (int)tex * L8;
+    int v;
+    switch (mode) {
+    case 2: case 3: v = p / 255; break;
+    case 4: case 5: v = (p + 127) / 255; break;
+    case 6: case 7: v = p >> 8; break;
+    case 8: case 9: v = (p + 255) >> 8; break;
+    /* 12: Mesa/llvmpipe unorm8 modulate (a*b + 0x80) >> 8 with L8=round.
+     * Measured mean residual ~0.008 on pose1 vs float-trunc ~0.081; exact
+     * /255 form needs a slightly lower primary (lighting residual). */
+    case 12: v = (p + 128) >> 8; break;
+    default: v = (p + 128) >> 8; break;
+    }
+    if (v < 0) v = 0;
+    if (v > 255) v = 255;
+    *out = (u8)v;
+}
+
+/* Same coverage / depth rule as the preview raster (cover_eps + LEQUAL / slack). */
+static int preview_cover_pixel(const CrScreenTri *tris, int n, int px, int py,
+                               float cover_eps, float *out_light, float *out_u, float *out_v,
+                               float *out_z, int *out_tri)
+{
+    const float CR_FRONT_SIGN = -1.0f;
+    float fx = (float)px + 0.5f, fy = (float)py + 0.5f;
+    float best_z = 2.0f;
+    int best = -1;
+    float best_b0 = 0, best_b1 = 0, best_b2 = 0;
+    int best_slack = 0;
+    for (int t = 0; t < n; ++t) {
+        const CrScreenVert *v0 = &tris[t].v[0];
+        const CrScreenVert *v1 = &tris[t].v[1];
+        const CrScreenVert *v2 = &tris[t].v[2];
+        float x0 = v0->spos.x, y0 = v0->spos.y;
+        float x1 = v1->spos.x, y1 = v1->spos.y;
+        float x2 = v2->spos.x, y2 = v2->spos.y;
+        float area = diag_edge(x0, y0, x1, y1, x2, y2);
+        if (area * CR_FRONT_SIGN <= 0.0f) continue;
+        float w0 = diag_edge(x1, y1, x2, y2, fx, fy);
+        float w1 = diag_edge(x2, y2, x0, y0, fx, fy);
+        float w2 = diag_edge(x0, y0, x1, y1, fx, fy);
+        float b0 = w0 / area, b1 = w1 / area, b2 = w2 / area;
+        int tl0 = diag_top_left(x1, y1, x2, y2);
+        int tl1 = diag_top_left(x2, y2, x0, y0);
+        int tl2 = diag_top_left(x0, y0, x1, y1);
+        int s0 = (b0 > 0.0f) || (b0 == 0.0f && tl0);
+        int s1 = (b1 > 0.0f) || (b1 == 0.0f && tl1);
+        int s2 = (b2 > 0.0f) || (b2 == 0.0f && tl2);
+        int strict_in = s0 && s1 && s2;
+        int in0 = s0, in1 = s1, in2 = s2;
+        if (!strict_in && cover_eps > 0.0f) {
+            float el0 = sqrtf((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+            float el1 = sqrtf((x0 - x2) * (x0 - x2) + (y0 - y2) * (y0 - y2));
+            float el2 = sqrtf((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+            if (!in0 && el0 > 1e-12f && w0 * area < 0.0f
+                && fabsf(w0) / el0 <= cover_eps) in0 = 1;
+            if (!in1 && el1 > 1e-12f && w1 * area < 0.0f
+                && fabsf(w1) / el1 <= cover_eps) in1 = 1;
+            if (!in2 && el2 > 1e-12f && w2 * area < 0.0f
+                && fabsf(w2) / el2 <= cover_eps) in2 = 1;
+        }
+        if (!(in0 && in1 && in2)) continue;
+        int slack_hit = !strict_in;
+        float z = b0 * v0->spos.z + b1 * v1->spos.z + b2 * v2->spos.z;
+        int better;
+        if (best < 0) better = 1;
+        else if (slack_hit)
+            better = (z + 1.0e-5f < best_z);
+        else if (best_slack)
+            better = (z < best_z) || (z == best_z); /* strict can replace prior slack at equal */
+        else
+            better = (z < best_z) || (z == best_z); /* LEQUAL + later tri wins */
+        if (!better) continue;
+        /* Alpha cutout: sample texel before accepting. */
+        float invw = b0 * v0->invw + b1 * v1->invw + b2 * v2->invw;
+        float iw = 1.0f / invw;
+        float u = (b0 * v0->uv_w.x + b1 * v1->uv_w.x + b2 * v2->uv_w.x) * iw;
+        float v = (b0 * v0->uv_w.y + b1 * v1->uv_w.y + b2 * v2->uv_w.y) * iw;
+        int tu = (int)floorf(u * 64.0f);
+        int tv = (int)floorf(v * 64.0f);
+        if (tu < 0) tu = 0;
+        if (tu > 63) tu = 63;
+        if (tv < 0) tv = 0;
+        if (tv > 63) tv = 63;
+        const unsigned char *tex = HAND_SKIN_RGBA_STEVE + ((tv * 64 + tu) * 4);
+        if (tex[3] < 128) continue;
+        best_z = z;
+        best = t;
+        best_b0 = b0; best_b1 = b1; best_b2 = b2;
+        best_slack = slack_hit;
+        (void)best_b0; (void)best_b1; (void)best_b2;
+        if (out_u) *out_u = u;
+        if (out_v) *out_v = v;
+        if (out_light) {
+            /* GL_FLAT: primary from provoking vertex 0 (same light on all verts). */
+            *out_light = v0->light_w; /* invw=1 so light_w == light */
+        }
+        if (out_z) *out_z = z;
+        if (out_tri) *out_tri = t;
+    }
+    return best >= 0;
+}
+
+static void preview_recolor_modulate(CrFramebuffer *local, const CrScreenTri *tris, int n,
+                                     const CrTexture *skin, int mode)
+{
+    (void)skin;
+    for (int py = 0; py < local->h; ++py) {
+        for (int px = 0; px < local->w; ++px) {
+            int idx = py * local->w + px;
+            if (!local->color[idx].a) continue;
+            float light = 0, u = 0, v = 0, z = 0;
+            if (!preview_cover_pixel(tris, n, px, py, 0.001f, &light, &u, &v, &z, NULL))
+                continue;
+            /* Pure floor nearest (matches shade.sample_mode=1 / GL_NEAREST). */
+            int tu = (int)floorf(u * 64.0f);
+            int tv = (int)floorf(v * 64.0f);
+            if (tu < 0) tu = 0;
+            if (tu > 63) tu = 63;
+            if (tv < 0) tv = 0;
+            if (tv > 63) tv = 63;
+            const unsigned char *tex = HAND_SKIN_RGBA_STEVE + ((tv * 64 + tu) * 4);
+            u8 r, g, b;
+            preview_modulate_u8(tex[0], light, mode, &r);
+            preview_modulate_u8(tex[1], light, mode, &g);
+            preview_modulate_u8(tex[2], light, mode, &b);
+            local->color[idx].r = r;
+            local->color[idx].g = g;
+            local->color[idx].b = b;
+            /* keep alpha */
+        }
+    }
+}
+
+/* PREVIEW_DIAG=3: CSV of interior samples for formula identification. */
+static void preview_dump_fragments(const CrScreenTri *tris, int n, const CrTexture *skin,
+                                   const CrRgba *color, int w, int h)
+{
+    (void)skin;
+    const char *path = getenv("PREVIEW_DUMP_PATH");
+    if (!path || !path[0]) path = "/tmp/preview_frags.csv";
+    FILE *f = fopen(path, "w");
+    if (!f) {
+        fprintf(stderr, "PREVIEW_DIAG dump open failed: %s\n", path);
+        return;
+    }
+    fprintf(f, "x,y,light,tex_r,tex_g,tex_b,tex_a,out_r,out_g,out_b,part,face,tri,u,v\n");
+    int written = 0;
+    /* Interior: shrink 3px; require opaque output. */
+    for (int py = 3; py < h - 3; ++py) {
+        for (int px = 3; px < w - 3; ++px) {
+            int idx = py * w + px;
+            if (!color[idx].a) continue;
+            float light = 0, u = 0, v = 0, z = 0;
+            int tri = -1;
+            if (!preview_cover_pixel(tris, n, px, py, 0.001f, &light, &u, &v, &z, &tri))
+                continue;
+            int tu = (int)floorf(u * 64.0f);
+            int tv = (int)floorf(v * 64.0f);
+            if (tu < 0) tu = 0;
+            if (tu > 63) tu = 63;
+            if (tv < 0) tv = 0;
+            if (tv > 63) tv = 63;
+            const unsigned char *tex = HAND_SKIN_RGBA_STEVE + ((tv * 64 + tu) * 4);
+            int pidx = (tri >= 0 && tri < PREVIEW_MAX_TRIS) ? g_diag_part[tri] : -1;
+            int face = (tri >= 0 && tri < PREVIEW_MAX_TRIS) ? g_diag_face[tri] : -1;
+            fprintf(f, "%d,%d,%.9f,%u,%u,%u,%u,%u,%u,%u,%d,%d,%d,%.6f,%.6f\n",
+                    px, py, light, tex[0], tex[1], tex[2], tex[3],
+                    color[idx].r, color[idx].g, color[idx].b,
+                    pidx, face, tri, u * 64.0f, v * 64.0f);
+            ++written;
+        }
+    }
+    fclose(f);
+    fprintf(stderr, "PREVIEW_DIAG dump %d frags -> %s\n", written, path);
 }
 
 /* PREVIEW_DIAG=1: attribute pose1 hard pixels to part/face/tri/UV/depth/light. */
@@ -430,9 +686,10 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
     {
         const char *pd = getenv("PREVIEW_DIAG");
         int mode = pd ? atoi(pd) : 0;
-        if (mode >= 1)
+        /* mode 1: hard-pixel attribute; 2: +AABB; 3: fragment dump only. */
+        if (mode == 1 || mode == 2)
             preview_diag_attribute(tris, n, w, h);
-        if (mode >= 2) {
+        if (mode == 2) {
             /* Per-part screen AABB + 2d distance of probes to nearest front tri. */
             static const int probes[][2] = {{42, 49}, {49, 139}};
             for (int p = 0; p < 12; ++p) {
@@ -495,12 +752,43 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
     /* GL depth func is LEQUAL; coplanar head/body neck edges need it so the
      * later ModelBiped part wins the way fixed-function does. */
     shade.depth_lequal = 1;
-    /* Fixed-function entity color path truncates to 8-bit (not +0.5 round). */
+    /* Terrain goldens keep shade.color_trunc default (round). Preview uses a
+     * separate Mesa fixed-function modulate (see recolor below). */
     shade.color_trunc = 1;
     /* Mesa/Java covers pixel centers ~1e-3 px outside our mathematical edges
      * (pose1 hard pixels measured at ~0.0008 px). Pixel-space slack, not bary. */
     shade.cover_eps = 0.001f;
+    /* Preview-local packing (does not touch terrain defaults).
+     * sample_mode=1: pure floor nearest (GL_NEAREST). Terrain keeps the
+     * high-edge -1e-4 bias via sample_mode=0.
+     *
+     * Color path (PREVIEW_COLOR_MODE, default 0 = float trunc via shade):
+     * Interior traces (>=20 faces, both poses) identify Mesa unorm8 modulate
+     *   L8 = round/trunc(primary*255);  out = (tex*L8 + 127) / 255
+     * as the packing once primary is exact. Our StandardItemLighting primary
+     * is still off by 1 L8 on some face orientations (pose1 -Z L8 211 vs Java
+     * 210; pose2 prefers trunc). Default stays float trunc until primary is
+     * bit-exact; modes 4/5/12 recolor for experiments (see PREVIEW_DIAG=3). */
+    shade.sample_mode = 1;
+    {
+        const char *pcm = getenv("PREVIEW_COLOR_MODE");
+        g_preview_color_mode = pcm ? atoi(pcm) : 0;
+        if (g_preview_color_mode == 1) shade.color_trunc = 0;
+    }
     cr_raster_cpu(&local, tris, n, &shade);
+
+    /* Optional recolor: integer modulate using recovered per-face light. */
+    if (g_preview_color_mode != 0 && g_preview_color_mode != 1) {
+        preview_recolor_modulate(&local, tris, n, &skin, g_preview_color_mode);
+    }
+
+    /* PREVIEW_DIAG=3: dump interior pixel (x,y,light,tex,out) for formula fit. */
+    {
+        const char *pd = getenv("PREVIEW_DIAG");
+        int mode = pd ? atoi(pd) : 0;
+        if (mode >= 3)
+            preview_dump_fragments(tris, n, &skin, color, w, h);
+    }
 
     /* Depth-tested local buffer -> parent: replace when alpha survives cutout
      * (entity pass is opaque + alpha test, not translucent blend). */

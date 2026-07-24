@@ -157,6 +157,10 @@ typedef struct {
      * edge by less than this still count as covered (Java/Mesa inventory
      * preview). 0 (default) keeps strict top-left. */
     float  cover_eps;
+    /* Nearest sample phase: 0 (default) = floor(u*w - 1e-4) for terrain atlas
+     * high-edge; 1 = pure floor(u*w) (fixed-function / entity skin, exact
+     * integer model UVs). Other values reserved. Does not change when 0. */
+    int    sample_mode;
 } CrShadeCtx;
 
 /* per-fragment inputs handed to the shader (perspective-corrected already) */
