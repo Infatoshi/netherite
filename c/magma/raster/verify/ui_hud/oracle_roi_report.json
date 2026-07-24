@@ -1,9 +1,28 @@
 {
   "margin": 2.0,
   "fail": 0,
-  "residual": 0,
+  "residual": 3,
   "blocked": [],
-  "residuals": [],
+  "residuals": [
+    {
+      "id": "hand_bow_pull20",
+      "noise": 0.0,
+      "c_vs_j": 54.9015201010497,
+      "gate": 2.0
+    },
+    {
+      "id": "hand_eat_mid",
+      "noise": 0.0,
+      "c_vs_j": 45.77581733264141,
+      "gate": 2.0
+    },
+    {
+      "id": "hand_block_shield",
+      "noise": 0.0,
+      "c_vs_j": 50.212814690885914,
+      "gate": 2.0
+    }
+  ],
   "rows": [
     {
       "id": "hud_armor_iron",
@@ -178,53 +197,53 @@
     {
       "id": "hand_bow_pull20",
       "noise": 0.0,
-      "c_vs_j": 61.12913169489538,
+      "c_vs_j": 54.9015201010497,
       "gate": 2.0,
-      "verdict": "CAPTURE_OK",
+      "verdict": "RESIDUAL",
       "roi": [
         569,
         320,
         846,
-        472
+        432
       ],
-      "hard": false,
-      "n_painted": 19897,
+      "hard": true,
+      "n_painted": 15306,
       "noise_limit": 3.0,
-      "reason": "soft_capture"
+      "reason": "hard_residual"
     },
     {
       "id": "hand_eat_mid",
       "noise": 0.0,
-      "c_vs_j": 31.390573401380966,
+      "c_vs_j": 45.77581733264141,
       "gate": 2.0,
-      "verdict": "CAPTURE_OK",
+      "verdict": "RESIDUAL",
       "roi": [
         569,
         320,
         846,
-        472
+        432
       ],
-      "hard": false,
-      "n_painted": 3331,
+      "hard": true,
+      "n_painted": 1927,
       "noise_limit": 2.0,
-      "reason": "soft_capture"
+      "reason": "hard_residual"
     },
     {
       "id": "hand_block_shield",
       "noise": 0.0,
-      "c_vs_j": 27.18488891953706,
+      "c_vs_j": 50.212814690885914,
       "gate": 2.0,
-      "verdict": "CAPTURE_OK",
+      "verdict": "RESIDUAL",
       "roi": [
         569,
         320,
         846,
-        472
+        432
       ],
-      "hard": false,
-      "n_painted": 29003,
+      "hard": true,
+      "n_painted": 16736,
       "noise_limit": 2.0,
-      "reason": "soft_capture"
+      "reason": "hard_residual"
     },
     {
       "id": "overlay_inside_stone",
