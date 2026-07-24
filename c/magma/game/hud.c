@@ -282,15 +282,45 @@ int gm_gui_item_icon(CrFramebuffer *fb, int item_id, int item_meta,
     return 0;
 }
 
-/* Item.getMaxDamage for damageable items carried by the generated GUI atlas. */
+/* Item.getMaxDamage for damageable items (ToolMaterial + swords/armor/etc). */
 static int hud_item_max_damage(int item_id) {
-    if (item_id >= 256 && item_id <= 258) return 250; /* iron tools */
+    if (item_id >= 256 && item_id <= 258) return 250; /* iron shovel/pick/axe */
     if (item_id == 259) return 64;                    /* flint and steel */
     if (item_id == 261) return 384;                   /* bow */
     if (item_id == 267) return 250;                   /* iron sword */
-    if (item_id >= 268 && item_id <= 271) return 59;  /* wooden tools */
-    if (item_id >= 272 && item_id <= 275) return 131; /* stone tools */
-    if (item_id == 276) return 1561;                  /* diamond sword */
+    if (item_id >= 268 && item_id <= 271) return 59;  /* wood sword+tools */
+    if (item_id >= 272 && item_id <= 275) return 131; /* stone sword+tools */
+    if (item_id >= 276 && item_id <= 279) return 1561;/* diamond sword+tools */
+    if (item_id >= 283 && item_id <= 286) return 32;  /* gold sword+tools */
+    if (item_id == 290) return 59;                    /* wood hoe */
+    if (item_id == 291) return 131;                   /* stone hoe */
+    if (item_id == 292) return 250;                   /* iron hoe */
+    if (item_id == 293) return 1561;                  /* diamond hoe */
+    if (item_id == 294) return 32;                    /* gold hoe */
+    if (item_id == 298) return 55;                    /* leather helmet */
+    if (item_id == 299) return 80;                    /* leather chest */
+    if (item_id == 300) return 75;                    /* leather legs */
+    if (item_id == 301) return 65;                    /* leather boots */
+    if (item_id == 302) return 165;                   /* chain helmet */
+    if (item_id == 303) return 240;                   /* chain chest */
+    if (item_id == 304) return 225;                   /* chain legs */
+    if (item_id == 305) return 195;                   /* chain boots */
+    if (item_id == 306) return 165;                   /* iron helmet */
+    if (item_id == 307) return 240;                   /* iron chest */
+    if (item_id == 308) return 225;                   /* iron legs */
+    if (item_id == 309) return 195;                   /* iron boots */
+    if (item_id == 310) return 363;                   /* diamond helmet */
+    if (item_id == 311) return 528;                   /* diamond chest */
+    if (item_id == 312) return 495;                   /* diamond legs */
+    if (item_id == 313) return 429;                   /* diamond boots */
+    if (item_id == 314) return 77;                    /* gold helmet */
+    if (item_id == 315) return 112;                   /* gold chest */
+    if (item_id == 316) return 105;                   /* gold legs */
+    if (item_id == 317) return 91;                    /* gold boots */
+    if (item_id == 359) return 238;                   /* shears */
+    if (item_id == 398) return 25;                    /* carrot on a stick */
+    if (item_id == 442) return 336;                   /* shield */
+    if (item_id == 443) return 432;                   /* elytra */
     return 0;
 }
 
@@ -314,16 +344,43 @@ static CrRgba hud_durability_color(int damage, int max_damage) {
                     (u8)(b * 255.0f), 255};
 }
 
+/* Vanilla GuiIngame.renderExpBar: fill = (int)(experience * 183.0F). */
+int gm_hud_xp_fill_cols(float frac) {
+    if (frac < 0.f) frac = 0.f;
+    if (frac > 1.f) frac = 1.f;
+    int cols = (int)(frac * 183.0f);
+    if (cols > 182) cols = 182;
+    return cols;
+}
+
+int gm_hud_durability_width(int item_id, int damage) {
+    int max_damage = hud_item_max_damage(item_id);
+    if (max_damage <= 0 || damage <= 0) return 0;
+    int width = (int)floorf(13.0f - (float)damage * 13.0f /
+                            (float)max_damage + 0.5f);
+    if (width < 0) width = 0;
+    if (width > 13) width = 13;
+    return width;
+}
+
+void gm_hud_durability_rgb(int item_id, int damage, unsigned char *r,
+                           unsigned char *g, unsigned char *b) {
+    int max_damage = hud_item_max_damage(item_id);
+    CrRgba c = {0, 0, 0, 255};
+    if (max_damage > 0 && damage > 0)
+        c = hud_durability_color(damage, max_damage);
+    if (r) *r = c.r;
+    if (g) *g = c.g;
+    if (b) *b = c.b;
+}
+
 /* RenderItem.renderItemOverlayIntoGUI durability strip: 13x2 black backing,
  * one-pixel colored fill at x+2,y+13 in 16x16 item coordinates. */
 static void hud_item_durability(CrFramebuffer *fb, int item_id, int damage,
                                 int x, int y, int scale) {
     int max_damage = hud_item_max_damage(item_id);
     if (max_damage <= 0 || damage <= 0) return;
-    int width = (int)floorf(13.0f - (float)damage * 13.0f /
-                            (float)max_damage + 0.5f);
-    if (width < 0) width = 0;
-    if (width > 13) width = 13;
+    int width = gm_hud_durability_width(item_id, damage);
     hud_fill(fb, x + 2 * scale, y + 13 * scale,
              13 * scale, 2 * scale, (CrRgba){0, 0, 0, 255});
     if (width > 0)
@@ -485,12 +542,20 @@ static void hud_draw_potion_effects(CrFramebuffer *fb,
 static int   g_boss_show = 0;
 static float g_boss_frac = 1.0f;
 static const char *g_boss_name = "Ender Dragon";
+/* ForgeHooks.getTotalArmorValue points (0..20). */
+static int   g_armor_points = 0;
 
 void gm_hud_set_boss(int show, float frac) {
     g_boss_show = show;
     if (frac < 0.0f) frac = 0.0f;
     if (frac > 1.0f) frac = 1.0f;
     g_boss_frac = frac;
+}
+
+void gm_hud_set_armor(int points) {
+    if (points < 0) points = 0;
+    if (points > 20) points = 20;
+    g_armor_points = points;
 }
 
 void gm_hud_state_step(GmHudState *s, GmPlayerView *pv,
@@ -538,7 +603,6 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
 
     const int scale = (fb->h / 240) > 1 ? (fb->h / 240) : 1; /* MC-like gui scale */
     const CrRgba white = { 255, 255, 255, 255 };
-    const CrRgba xp_green = { 128, 255, 32, 255 };
 
     /* ---- death screen: when dead, dim the frame red and show a "YOU DIED" marker + death count.
      * Only a 3x5 digit font exists here (no letter glyphs), so the marker is a red screen wash +
@@ -583,7 +647,7 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
 
     /* ---- hotbar (bottom-center, ~1px above the bottom) ---- */
     const HudSprite *hb = &HUD_SPRITES[HUD_HOTBAR];
-    const int hb_w = hb->w * scale, hb_h = hb->h * scale;
+    const int hb_w = hb->w * scale;
     const int hb_x = (cx_s - 91) * scale;
     /* vanilla GuiIngame: drawTexturedModalRect(i - 91, sh - 22, ...) */
     const int hb_y = (sh_s - 22) * scale;
@@ -627,18 +691,15 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
 
     /* ---- XP bar (directly under the hotbar strip position, MC draws it just
      * above the hotbar; place it spanning the hotbar width just above it) ---- */
-    const HudSprite *xp = &HUD_SPRITES[HUD_XP_EMPTY];
     const int xp_x = (cx_s - 91) * scale;
     /* vanilla renderExpBar: l = sh - 32 + 3 */
     const int xp_y = (sh_s - 29) * scale;
     hud_blit(fb, HUD_XP_EMPTY, xp_x, xp_y, scale);
-    /* filled portion: clip the full bar to xp_frac of its width */
+    /* filled portion: vanilla (int)(experience * 183.0F) columns of 182px. */
     {
-        float frac = pv->xp_frac;
-        if (frac < 0.f) frac = 0.f;
-        if (frac > 1.f) frac = 1.f;
+        int fill_cols = gm_hud_xp_fill_cols(pv->xp_frac);
         const HudSprite *xpf = &HUD_SPRITES[HUD_XP_FULL];
-        int fill_cols = (int)(xpf->w * frac + 0.5f);
+        if (fill_cols > xpf->w) fill_cols = xpf->w;
         for (int sy = 0; sy < xpf->h; sy++)
             for (int sx = 0; sx < fill_cols; sx++) {
                 CrRgba t = hud_texel(HUD_XP_FULL, sx, sy);
@@ -649,13 +710,26 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
                         hud_blend_px(fb, px0 + xx, py0 + yy, t);
             }
     }
-    /* XP level number, centered just above the bar */
+    /* XP level: FontRenderer outline (4 black offsets) + 0x80FF20 centre.
+     * y = sh - 31 - 4 = sh - 35 (= xp_y - 6 at scale 1). */
     if (pv->xp_level > 0) {
-        int n = pv->xp_level, nd = 0;
-        while (n > 0) { nd++; n /= 10; }
-        int num_w_s = nd * 4 - 1;
-        hud_number(fb, pv->xp_level, ((sw_s - num_w_s) / 2) * scale,
-                   xp_y - 6 * scale, scale, xp_green);
+        char buf[16];
+        int n = pv->xp_level, len = 0, tmp = n;
+        if (tmp <= 0) { buf[0] = '0'; len = 1; }
+        else {
+            while (tmp > 0 && len < 15) { len++; tmp /= 10; }
+            for (int d = len - 1; d >= 0; d--) {
+                buf[d] = (char)('0' + n % 10); n /= 10;
+            }
+        }
+        buf[len] = 0;
+        int lx = (cx_s - gm_font_width(buf) / 2) * scale;
+        int ly = (sh_s - 35) * scale;
+        gm_font_draw(fb, buf, lx + scale, ly, scale, 0x000000u, 0);
+        gm_font_draw(fb, buf, lx - scale, ly, scale, 0x000000u, 0);
+        gm_font_draw(fb, buf, lx, ly + scale, scale, 0x000000u, 0);
+        gm_font_draw(fb, buf, lx, ly - scale, scale, 0x000000u, 0);
+        gm_font_draw(fb, buf, lx, ly, scale, 0x80FF20u, 0);
     }
 
     /* ---- hearts (above-left of the hotbar) ---- */
@@ -700,18 +774,41 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
         else if (hv == 1) hud_blit(fb, heart_half, hx, hy, scale);
     }
 
+    /* ---- armor row (GuiIngameForge.renderArmor): one row above hearts.
+     * top = height - left_height after health (left_height was 39+10).
+     * Icons: full (34,9) / half (25,9) / empty (16,9); only when points > 0. */
+    if (g_armor_points > 0) {
+        const int armor_y = (sh_s - 49) * scale;
+        for (int k = 0; k < 10; ++k) {
+            int ax = hb_x + (k * 8) * scale;
+            int bit = k * 2 + 1;
+            int spr = HUD_ARMOR_EMPTY;
+            if (bit < g_armor_points) spr = HUD_ARMOR_FULL;
+            else if (bit == g_armor_points) spr = HUD_ARMOR_HALF;
+            hud_blit(fb, spr, ax, armor_y, scale);
+        }
+    }
+
     /* ---- hunger haunches (above-right of the hotbar, mirrored) ---- */
     const int max_hunger = (int)(pv->max_food / 2.f + 0.5f);
     const int half_food = (int)(pv->food + 0.5f);
     const int hunger_right = hb_x + hb_w; /* right edge of the hotbar */
+    /* MobEffects.HUNGER = 17 swaps the haunch sprites (Forge renderFood). */
+    int hunger_bg = HUD_HUNGER_BG, hunger_full = HUD_HUNGER_FULL,
+        hunger_half = HUD_HUNGER_HALF;
+    if (potion_active(pv, 17)) {
+        hunger_bg = HUD_HUNGER_POISON_BG;
+        hunger_full = HUD_HUNGER_POISON_FULL;
+        hunger_half = HUD_HUNGER_POISON_HALF;
+    }
     for (int i = 0; i < max_hunger; i++) {
         /* i=0 is the rightmost haunch */
         int hx = hunger_right - (i * 8 + 9) * scale;  /* vanilla: left - i*8 - 9 */
         int hy = stat_y;
-        hud_blit(fb, HUD_HUNGER_BG, hx, hy, scale);
+        hud_blit(fb, hunger_bg, hx, hy, scale);
         int hv = half_food - i * 2;
-        if (hv >= 2)      hud_blit(fb, HUD_HUNGER_FULL, hx, hy, scale);
-        else if (hv == 1) hud_blit(fb, HUD_HUNGER_HALF, hx, hy, scale);
+        if (hv >= 2)      hud_blit(fb, hunger_full, hx, hy, scale);
+        else if (hv == 1) hud_blit(fb, hunger_half, hx, hy, scale);
     }
 
     /* ---- air bubbles: Forge GuiIngameForge.renderAir, one row above food. */

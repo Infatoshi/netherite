@@ -127,6 +127,81 @@ int main(void) {
         CHECK(memcmp(&out[0], &canary, sizeof canary) == 0, "cap does not overwrite out");
     }
 
+    /* ---- (F) equip lower shifts held item down (y decreases in eye space) ---- */
+    {
+        int n0 = gm_hand_emit_held(280, 0, 0.0f, 0.0f, out, TEST_MAX);
+        int n1 = gm_hand_emit_held(280, 0, 0.0f, 1.0f, out2, TEST_MAX);
+        CHECK(n0 == n1 && n0 > 0, "equip preserves topology");
+        float y0 = 0.0f, y1 = 0.0f;
+        for (int i = 0; i < n0; ++i) { y0 += out[i].pos.y; y1 += out2[i].pos.y; }
+        y0 /= (float)n0; y1 /= (float)n1;
+        CHECK(y1 < y0 - 0.2f, "equip=1 lowers held item");
+    }
+
+    /* ---- (G) drawn-bow offset differs from idle bow ---- */
+    {
+        gm_hand_set_bow_pull(0);
+        int n0 = gm_hand_emit_held(261, 0, 0.0f, 0.0f, out, TEST_MAX);
+        gm_hand_set_bow_pull(20);
+        int n1 = gm_hand_emit_held(261, 0, 0.0f, 0.0f, out2, TEST_MAX);
+        gm_hand_set_bow_pull(0);
+        CHECK(n0 > 12 && n1 > 12, "bow emits verts idle and drawn");
+        float d = 0.0f;
+        int n = n0 < n1 ? n0 : n1;
+        for (int i = 0; i < n; ++i) {
+            float dx = out2[i].pos.x - out[i].pos.x;
+            float dy = out2[i].pos.y - out[i].pos.y;
+            float dz = out2[i].pos.z - out[i].pos.z;
+            d += dx*dx + dy*dy + dz*dz;
+        }
+        CHECK(d > 0.01f, "drawn bow pose moves verts vs idle");
+    }
+
+    /* ---- (H) eat use pose lifts/offsets vs idle bread ---- */
+    {
+        gm_hand_set_use(0, 0, 0);
+        int n0 = gm_hand_emit_held(297, 0, 0.0f, 0.0f, out, TEST_MAX); /* bread */
+        gm_hand_set_use(1, 16, 32); /* mid-eat, max 32 ticks for bread */
+        int n1 = gm_hand_emit_held(297, 0, 0.0f, 0.0f, out2, TEST_MAX);
+        gm_hand_set_use(0, 0, 0);
+        CHECK(n0 > 0 && n1 == n0, "eat preserves topology");
+        float d = 0.0f;
+        for (int i = 0; i < n0; ++i) {
+            float dx = out2[i].pos.x - out[i].pos.x;
+            float dy = out2[i].pos.y - out[i].pos.y;
+            float dz = out2[i].pos.z - out[i].pos.z;
+            d += dx*dx + dy*dy + dz*dz;
+        }
+        CHECK(d > 0.01f, "eat pose offsets held item");
+    }
+
+    /* ---- (I) block-use ignores swing (vs mid-swing idle path) ---- */
+    {
+        /* Vanilla BLOCK use: transformSideFirstPerson only. With swing=0 the
+         * idle path's transformFirstPerson is net identity, so block == idle.
+         * Compare against a mid-swing pose instead. */
+        gm_hand_set_use(0, 0, 0);
+        int n_swing = gm_hand_emit_held(267, 0, 0.5f, 0.0f, out, TEST_MAX);
+        gm_hand_set_use(2, 0, 0);
+        int n_block = gm_hand_emit_held(267, 0, 0.5f, 0.0f, out2, TEST_MAX);
+        gm_hand_set_use(0, 0, 0);
+        CHECK(n_swing > 0 && n_block == n_swing, "block-use topology");
+        float d = 0.0f;
+        for (int i = 0; i < n_swing; ++i) {
+            float dx = out2[i].pos.x - out[i].pos.x;
+            float dy = out2[i].pos.y - out[i].pos.y;
+            float dz = out2[i].pos.z - out[i].pos.z;
+            d += dx*dx + dy*dy + dz*dz;
+        }
+        CHECK(d > 1e-4f, "block-use ignores mid-swing transform");
+    }
+
+    /* ---- (J) edge/rim verts: stick has many more than 12 (front+back) ---- */
+    {
+        int n = gm_hand_emit_held(280, 0, 0.0f, 0.0f, out, TEST_MAX);
+        CHECK(n >= 12 + 6 * 4, "stick has rim quads beyond front/back");
+    }
+
     if (g_fail) {
         fprintf(stderr, "test_hand: FAILED\n");
         return 1;

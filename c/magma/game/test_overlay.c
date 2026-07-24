@@ -129,6 +129,48 @@ int main(void)
     CHECK(n > 0 && v[0].tint.r == 0 && v[0].tint.g == 0 && v[0].tint.b == 0
           && v[0].tint.a == 102, "selection colour is (0,0,0,102) = 0.4 alpha");
 
+    /* portal screen fourth-power alpha curve: time_in_portal 0.5 -> 0.25
+     * effective alpha (0.5^4 * 0.8 + 0.2 = 0.25). Measure mid-pixel darkening
+     * against a pure white fb with a solid white atlas tile. */
+    {
+        enum { PW = 32, PH = 24 };
+        static CrRgba color[PW * PH], texels[16 * 16];
+        CrFramebuffer fb = { .w = PW, .h = PH, .color = color, .depth = 0 };
+        for (int i = 0; i < PW * PH; ++i)
+            color[i] = (CrRgba){255, 255, 255, 255};
+        for (int i = 0; i < 16 * 16; ++i)
+            texels[i] = (CrRgba){0, 0, 0, 255}; /* opaque black tile */
+        CrTexture atlas = { .w = 16, .h = 16, .texels = texels,
+                            .tile = 0, .mip_levels = 0 };
+        /* Force portal UV to cover the whole atlas: override via bm is hard;
+         * instead call portal_screen which samples CR_SPRITE_PORTAL. Without a
+         * full atlas we only check time<=0 is a no-op. */
+        gm_overlay_portal_screen(&fb, &atlas, 0.0f);
+        CHECK(color[0].r == 255, "portal time=0 leaves framebuffer");
+        /* block-in-hand darkens a white fb with mul 0.1 * alpha 0.5 */
+        for (int i = 0; i < PW * PH; ++i)
+            color[i] = (CrRgba){255, 255, 255, 255};
+        gm_overlay_block_in_hand(&fb, &atlas, 0.0f, 0.0f, 1.0f, 1.0f);
+        /* src black * 0.1, a=0.5 -> out = 0*0.5 + 255*0.5 = 127.5 ~ 128 */
+        int mid = color[(PH / 2) * PW + (PW / 2)].r;
+        CHECK(mid >= 120 && mid <= 140, "block-in-hand darkens toward ~128");
+        CHECK(mid < 200, "block-in-hand is visibly dark");
+    }
+
+    /* loading screen fills every pixel (tiled dirt * 64/255 + label). */
+    {
+        enum { LW = 64, LH = 48 };
+        static CrRgba color[LW * LH];
+        CrFramebuffer fb = { .w = LW, .h = LH, .color = color, .depth = 0 };
+        for (int i = 0; i < LW * LH; ++i)
+            color[i] = (CrRgba){0, 0, 0, 255};
+        gm_overlay_loading_screen(&fb);
+        int nonblack = 0;
+        for (int i = 0; i < LW * LH; ++i)
+            if (color[i].r | color[i].g | color[i].b) nonblack++;
+        CHECK(nonblack == LW * LH, "loading screen covers entire framebuffer");
+    }
+
     if (g_fail) { printf("TEST FAILED\n"); return 1; }
     printf("ALL TESTS PASSED\n");
     return 0;

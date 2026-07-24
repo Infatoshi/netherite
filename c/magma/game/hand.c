@@ -312,14 +312,14 @@ static CrMat4 build_arm_matrix(float swing, float bob_phase) {
      * modelview is identity WITHOUT that nudge, so cancel it here. */
     M = mul(M, mat_translate(0.0f, 0.0f, -0.05f));
 
-    /* ---- ItemRenderer.renderArmFirstPerson(equip=0, swing, RIGHT), f = +1 ----
+    /* ---- ItemRenderer.renderArmFirstPerson(equip, swing, RIGHT), f = +1 ----
      * GlStateManager.translate(f*(f2+0.64000005F), f3 + -0.6F + equip*-0.6F, f4 + -0.71999997F)
-     * with equip=0 (fully raised). */
+     * equip = 1 - equippedProgress (g_equip), fully raised when 0. */
     float f1 = sqrtf(swing);
     float f2 = -0.3f * sinf(f1 * HAND_PI);
     float f3 =  0.4f * sinf(f1 * (HAND_PI * 2.0f));
     float f4 = -0.4f * sinf(swing * HAND_PI);
-    const float equip = 0.0f; /* 1 - equippedProgress; empty hand fully equipped */
+    const float equip = g_equip;
     M = mul(M, mat_translate(f2 + 0.64000005f,
                              f3 + -0.6f + equip * -0.6f,
                              f4 + -0.71999997f));
@@ -587,8 +587,18 @@ static CrScreenTri g_tris[HAND_MAX_VERTS * 2]; /* near-clip may split; ample */
  * 0 when the stack is empty (caller should draw the bare arm instead). */
 /* ticks the bow has been drawn (getItemInUseMaxCount elapsed); <=0 = idle. */
 static int g_bow_pull = 0;
+/* Active use action: 0 none, 1 eat/drink, 2 block. */
+static int g_use_action = 0;
+static int g_use_remaining = 0;
+static int g_use_max = 0;
 
 void gm_hand_set_bow_pull(int ticks) { g_bow_pull = ticks; }
+
+void gm_hand_set_use(int action, int remaining_ticks, int max_duration) {
+    g_use_action = action;
+    g_use_remaining = remaining_ticks;
+    g_use_max = max_duration;
+}
 
 /* ItemRenderer.renderItemInFirstPerson isHandActive BOW branch: no swing
  * translate, transformSideFirstPerson, then the draw-back chain (j=+1). */
@@ -612,6 +622,36 @@ static CrMat4 build_bow_drawn(float equip, float f5) {
     M = mul(M, mat_translate(0.0f, 0.0f, f6 * 0.04f));
     M = mul(M, mat_scale(1.0f, 1.0f, 1.0f + f6 * 0.2f));
     M = mul(M, mat_rot_y(-45.0f)); /* rotate(j*45, 0,-1,0) */
+    return M;
+}
+
+/* ItemRenderer.transformEatFirstPerson + transformSideFirstPerson (RIGHT).
+ * partialTicks=1 at tick-boundary frames: f = remaining - 1 + 1 = remaining. */
+static CrMat4 build_eat_drink(float equip, int remaining, int max_duration) {
+    CrMat4 M = cr_mat4_identity();
+    M = mul(M, mat_translate(0.0f, 0.0f, -0.05f));
+    float f = (float)remaining; /* remaining - pt + 1 with pt=1 */
+    float f1 = max_duration > 0 ? f / (float)max_duration : 0.0f;
+    if (f1 < 0.8f) {
+        float f2 = fabsf(cosf(f / 4.0f * HAND_PI) * 0.1f);
+        M = mul(M, mat_translate(0.0f, f2, 0.0f));
+    }
+    float f3 = 1.0f - (float)pow((double)f1, 27.0);
+    const int i = 1; /* RIGHT */
+    M = mul(M, mat_translate(f3 * 0.6f * (float)i, f3 * -0.5f, 0.0f));
+    M = mul(M, mat_rot_y((float)i * f3 * 90.0f));
+    M = mul(M, mat_rot_x(f3 * 10.0f));
+    M = mul(M, mat_rot_z((float)i * f3 * 30.0f));
+    /* transformSideFirstPerson(RIGHT, equip) */
+    M = mul(M, mat_translate(0.56f, -0.52f + equip * -0.6f, -0.72f));
+    return M;
+}
+
+/* BLOCK use: transformSideFirstPerson only (no swing translate / first-person). */
+static CrMat4 build_block_use(float equip) {
+    CrMat4 M = cr_mat4_identity();
+    M = mul(M, mat_translate(0.0f, 0.0f, -0.05f));
+    M = mul(M, mat_translate(0.56f, -0.52f + equip * -0.6f, -0.72f));
     return M;
 }
 
@@ -643,7 +683,15 @@ int gm_hand_emit_held(int item_id, int item_meta, float swing, float equip,
 
     const BmBlock *bm = 0;
     int is_block = held_is_block(item_id, item_meta, &bm);
-    CrMat4 M = apply_fp_camera(build_held_item_base(swing, equip), is_block);
+    CrMat4 base;
+    if (g_use_action == 1 && g_use_max > 0) {
+        base = build_eat_drink(equip, g_use_remaining, g_use_max);
+    } else if (g_use_action == 2) {
+        base = build_block_use(equip);
+    } else {
+        base = build_held_item_base(swing, equip);
+    }
+    CrMat4 M = apply_fp_camera(base, is_block);
 
     if (is_block && bm) return emit_held_block(M, bm, out, max);
 

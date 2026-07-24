@@ -193,6 +193,106 @@ int main(void) {
         fprintf(stderr, "FAIL: gm_hud_draw modified fb->depth\n"); fail = 1;
     }
 
+    /* (6) XP fill columns: vanilla (int)(frac * 183), not round(182*frac). */
+    if (gm_hud_xp_fill_cols(0.0f) != 0 || gm_hud_xp_fill_cols(1.0f) != 182 ||
+        gm_hud_xp_fill_cols(0.5f) != 91) {
+        fprintf(stderr, "FAIL: xp fill cols %d/%d/%d\n",
+                gm_hud_xp_fill_cols(0.0f), gm_hud_xp_fill_cols(0.5f),
+                gm_hud_xp_fill_cols(1.0f));
+        fail = 1;
+    }
+
+    /* (7) Durability strip width + green->red hue (wood pick max 59). */
+    {
+        int w_half = gm_hud_durability_width(270, 30); /* ~half worn */
+        int w_full = gm_hud_durability_width(270, 1);
+        int w_gone = gm_hud_durability_width(270, 59);
+        unsigned char r0, g0, b0, r1, g1, b1;
+        gm_hud_durability_rgb(270, 1, &r0, &g0, &b0);
+        gm_hud_durability_rgb(270, 50, &r1, &g1, &b1);
+        if (w_half < 5 || w_half > 8 || w_full != 13 || w_gone != 0) {
+            fprintf(stderr, "FAIL: durability width half=%d full=%d gone=%d\n",
+                    w_half, w_full, w_gone); fail = 1;
+        }
+        if (!(g0 > r0 && r1 > g1)) {
+            fprintf(stderr, "FAIL: durability hue fresh=%d,%d,%d worn=%d,%d,%d\n",
+                    r0, g0, b0, r1, g1, b1); fail = 1;
+        }
+    }
+
+    /* (8) Armor row above hearts (sh-49) when points > 0. */
+    {
+        for (int i = 0; i < W * H; ++i)
+            fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
+        pv.potion_count = 0;
+        gm_hud_set_armor(15); /* full iron set */
+        gm_hud_draw(&fb, &pv);
+        /* armor icons: y = (480/2 wait) sh=240 scale=2 -> armor_y = (240-49)*2=382 */
+        if (!region_changed(&fb, 244, 380, 244 + 80, 400)) {
+            fprintf(stderr, "FAIL: armor row missing at sh-49\n"); fail = 1;
+        }
+        gm_hud_set_armor(0);
+        for (int i = 0; i < W * H; ++i)
+            fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
+        gm_hud_draw(&fb, &pv);
+        if (region_changed(&fb, 244, 380, 244 + 80, 400)) {
+            fprintf(stderr, "FAIL: armor row drawn with 0 points\n"); fail = 1;
+        }
+    }
+
+    /* (9) Boss bar progress columns and name region. */
+    {
+        for (int i = 0; i < W * H; ++i)
+            fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
+        gm_hud_set_boss(1, 0.5f);
+        gm_hud_draw(&fb, &pv);
+        /* bar at y=12*2=24, x=(213-91)*2=244 */
+        if (!region_changed(&fb, 244, 22, 244 + 200, 40)) {
+            fprintf(stderr, "FAIL: boss bar missing\n"); fail = 1;
+        }
+        gm_hud_set_boss(0, 1.0f);
+    }
+
+    /* (10) Death wash replaces normal HUD. */
+    {
+        for (int i = 0; i < W * H; ++i)
+            fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
+        GmPlayerView dead = pv;
+        dead.dead = 1; dead.deaths = 3;
+        gm_hud_draw(&fb, &dead);
+        CrRgba c = fb.color[(H / 2) * W + (W / 2)];
+        if (c.r <= c.g || c.r <= c.b) {
+            fprintf(stderr, "FAIL: death wash not red-tinted (%d,%d,%d)\n",
+                    c.r, c.g, c.b); fail = 1;
+        }
+    }
+
+    /* (11) Hunger-poison sprites differ from normal haunches. */
+    {
+        CrRgba normal_food[162 * 18];
+        for (int i = 0; i < W * H; ++i)
+            fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
+        pv.dead = 0; pv.potion_count = 0; pv.food = 8;
+        gm_hud_draw(&fb, &pv);
+        /* hunger right side near bottom: roughly x 450-610, y 400-420 */
+        for (int y = 0; y < 18; ++y)
+            memcpy(&normal_food[y * 162], &fb.color[(402 + y) * W + 450],
+                   162 * sizeof(CrRgba));
+        for (int i = 0; i < W * H; ++i)
+            fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
+        pv.potion_count = 1;
+        pv.potions[0] = (GmPotionEffectView){17, 0, 200};
+        gm_hud_draw(&fb, &pv);
+        int hunger_changed = 0;
+        for (int y = 0; y < 18; ++y)
+            if (memcmp(&normal_food[y * 162], &fb.color[(402 + y) * W + 450],
+                       162 * sizeof(CrRgba)) != 0) hunger_changed = 1;
+        if (!hunger_changed) {
+            fprintf(stderr, "FAIL: hunger-poison sprites equal normal\n"); fail = 1;
+        }
+        pv.potion_count = 0;
+    }
+
     /* --- dump PPM (P6) --- */
     FILE *f = fopen("game/hud_preview.ppm", "wb");
     if (!f) { fprintf(stderr, "cannot open ppm\n"); return 1; }

@@ -55,6 +55,14 @@ SPRITES = [
     ("HUNGER_BG",   "icons.png",    16, 27,   9,  9),
     ("HUNGER_FULL", "icons.png",    52, 27,   9,  9),
     ("HUNGER_HALF", "icons.png",    61, 27,   9,  9),
+    # GuiIngameForge.renderFood under MobEffects.HUNGER: bg index 13, icon+36.
+    ("HUNGER_POISON_BG",   "icons.png", 133, 27,  9,  9),
+    ("HUNGER_POISON_FULL", "icons.png",  88, 27,  9,  9),
+    ("HUNGER_POISON_HALF", "icons.png",  97, 27,  9,  9),
+    # GuiIngame.renderPlayerStats armor row: empty / half / full at y=9.
+    ("ARMOR_EMPTY", "icons.png",    16,  9,   9,  9),
+    ("ARMOR_HALF",  "icons.png",    25,  9,   9,  9),
+    ("ARMOR_FULL",  "icons.png",    34,  9,   9,  9),
     ("AIR_FULL",     "icons.png",    16, 18,   9,  9),
     ("AIR_PARTIAL",  "icons.png",    25, 18,   9,  9),
     ("XP_EMPTY",    "icons.png",     0, 64, 182,  5),

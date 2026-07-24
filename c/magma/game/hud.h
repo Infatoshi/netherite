@@ -32,6 +32,19 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv);
  * gm_hud_draw calls; frac is health/max in [0,1]. */
 void gm_hud_set_boss(int show, float frac);
 
+/* GuiIngame armor row: total armor points (0..20). Drawn above hearts when
+ * > 0 (icons.png empty/half/full). Module-local like boss; callers that
+ * know the live armor value push it before gm_hud_draw. */
+void gm_hud_set_armor(int points);
+
+/* Test helpers: vanilla XP fill column count (int)(frac*183) and durability
+ * strip width/color for a (item_id, damage) pair. Returns 0 width when the
+ * item is not damageable or damage is 0. */
+int gm_hud_xp_fill_cols(float frac);
+int gm_hud_durability_width(int item_id, int damage);
+void gm_hud_durability_rgb(int item_id, int damage, unsigned char *r,
+                           unsigned char *g, unsigned char *b);
+
 /* 2D overlay primitives shared with the container screen (game/screen.c):
  * alpha-composited fill, 3x5-digit number (returns width in px), and the
  * deterministic per-item pip color used for slot markers. */

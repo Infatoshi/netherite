@@ -52,6 +52,12 @@ void gm_overlay_portal_warp(CrFramebuffer *fb, CrRgba *scratch,
 /* GuiDownloadTerrain: vanilla tiled dirt background and centered label. */
 void gm_overlay_loading_screen(CrFramebuffer *fb);
 
+/* ItemRenderer.renderBlockInHand: eye-inside-opaque-block screen overlay.
+ * Full-screen atlas sprite stretch, colour (0.1,0.1,0.1,0.5), src-over.
+ * u0..v1 are atlas UVs of the block face TextureAtlasSprite. */
+void gm_overlay_block_in_hand(CrFramebuffer *fb, const CrTexture *atlas,
+                              float u0, float v0, float u1, float v1);
+
 #ifdef __cplusplus
 }
 #endif

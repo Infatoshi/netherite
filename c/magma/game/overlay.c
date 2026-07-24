@@ -270,3 +270,39 @@ void gm_overlay_loading_screen(CrFramebuffer *fb) {
     int y = (gui_h / 2 - 50) * scale;
     gm_font_draw(fb, label, x, y, scale, 0xFFFFFFu, 1);
 }
+
+void gm_overlay_block_in_hand(CrFramebuffer *fb, const CrTexture *atlas,
+                              float u0, float v0, float u1, float v1) {
+    /* ItemRenderer.renderBlockInHand: NDC quad x,y in [-1,1] at view z=-0.5
+     * with tex (maxU,maxV)..(minU,minV) and GlStateManager.color(0.1,0.1,0.1,0.5).
+     * Screen-space stretch of the sprite with that fixed modulate is enough for
+     * the near-black suffocation look (OPEN_DIVERGENCES #27). */
+    if (!fb || !fb->color || !atlas || !atlas->texels) return;
+    int sx0 = (int)(u0 * (float)atlas->w);
+    int sy0 = (int)(v0 * (float)atlas->h);
+    int sw = (int)((u1 - u0) * (float)atlas->w + 0.5f);
+    int sh = (int)((v1 - v0) * (float)atlas->h + 0.5f);
+    if (sw < 1) sw = 1;
+    if (sh < 1) sh = 1;
+    const float mul = 0.1f, alpha = 0.5f;
+    for (int y = 0; y < fb->h; ++y) {
+        int ty = sy0 + (int)(((long long)(2 * y + 1) * sh) / (2 * fb->h));
+        if (ty < 0) ty = 0;
+        if (ty >= atlas->h) ty = atlas->h - 1;
+        for (int x = 0; x < fb->w; ++x) {
+            int tx = sx0 + (int)(((long long)(2 * x + 1) * sw) / (2 * fb->w));
+            if (tx < 0) tx = 0;
+            if (tx >= atlas->w) tx = atlas->w - 1;
+            CrRgba src = atlas->texels[ty * atlas->w + tx];
+            float sa = ((float)src.a / 255.0f) * alpha;
+            float ia = 1.0f - sa;
+            CrRgba *dst = &fb->color[y * fb->w + x];
+            float sr = ((float)src.r / 255.0f) * mul;
+            float sg = ((float)src.g / 255.0f) * mul;
+            float sb = ((float)src.b / 255.0f) * mul;
+            dst->r = (u8)(sr * sa * 255.0f + (float)dst->r * ia + 0.5f);
+            dst->g = (u8)(sg * sa * 255.0f + (float)dst->g * ia + 0.5f);
+            dst->b = (u8)(sb * sa * 255.0f + (float)dst->b * ia + 0.5f);
+        }
+    }
+}

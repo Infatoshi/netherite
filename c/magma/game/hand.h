@@ -48,6 +48,14 @@ void gm_hand_set_skin(int slim);
  * drawn-bow viewmodel pose + pulling sprite (ItemRenderer BOW using branch). */
 void gm_hand_set_bow_pull(int ticks);
 
+/* Item use pose while the main hand is active (isHandActive). action:
+ *   0 = none (swing path)
+ *   1 = EAT / DRINK (transformEatFirstPerson + transformSideFirstPerson)
+ *   2 = BLOCK (transformSideFirstPerson only; no swing transform)
+ * remaining/max: getItemInUseCount / getMaxItemUseDuration (eat branch).
+ * BOW is driven by gm_hand_set_bow_pull instead. */
+void gm_hand_set_use(int action, int remaining_ticks, int max_duration);
+
 /* Per-frame viewmodel environment (all optional; defaults keep legacy look):
  * lightmap  - the frame's 16x16 updateLightmap texture (NULL = fold mul_* into
  *             the vertex tint instead, for the legacy/Nether/End path);
