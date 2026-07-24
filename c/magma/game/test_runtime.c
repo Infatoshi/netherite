@@ -51,23 +51,9 @@ int main(void) {
     CHECK(r.player.elytra_equipped == 0, "set_elytra clears chest equipment flag");
     gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1,1,1,0,9,
                                 10,27.5f,0.4f);
-    CHECK(r.player.creative_mode == 0,
-          "player_view creative=0 clears creative_mode for elytra deploy gate");
-    gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1,1,1,1,9,
-                                10,27.5f,0.4f);
-    CHECK(r.player.creative_mode == 1,
-          "player_view creative=1 blocks START_FALL_FLYING on the sim player");
     gm_runtime_tape_potions_clear(&r);
-    CHECK(r.player.levitating == 0,
-          "potion_clear resets levitation gate for elytra deploy");
     CHECK(gm_runtime_tape_potion(&r,20,0,157),
           "tape potion accepts wither effect");
-    CHECK(r.player.levitating == 0,
-          "non-levitation potion does not set levitating");
-    CHECK(gm_runtime_tape_potion(&r,25,0,40),
-          "tape potion accepts levitation effect");
-    CHECK(r.player.levitating == 1,
-          "MobEffects.LEVITATION (id 25) blocks elytra deploy");
     {
         GmPlayerView tv;gm_runtime_view(&r,&tv);gm_runtime_apply_tape_view(&r,&tv);
         CHECK(tv.hotbar_ids[0]==17&&tv.hotbar_counts[0]==2,
@@ -79,10 +65,10 @@ int main(void) {
         CHECK(tv.portal==0.5f&&tv.portal_frame==17&&tv.portal_phase==1234&&tv.loading==1&&
               tv.texture_animations_pinned==1,
               "recorded portal and loading state override the rendered player view");
-        CHECK(tv.fire==1&&tv.creative==1&&tv.hurt_time==9&&
+        CHECK(tv.fire==1&&tv.creative==0&&tv.hurt_time==9&&
               tv.max_hurt_time==10&&fabsf(tv.hurt_yaw-27.5f)<1e-6f,
               "recorded fire and hurt state override the rendered player view");
-        CHECK(fabsf(tv.attack_cooldown-0.4f)<1e-6f&&tv.potion_count==2&&
+        CHECK(fabsf(tv.attack_cooldown-0.4f)<1e-6f&&tv.potion_count==1&&
               tv.potions[0].id==20&&tv.potions[0].duration==157,
               "recorded cooldown and potion state override the rendered player view");
     }

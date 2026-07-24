@@ -335,3 +335,37 @@ D-states in drm_open (kill -9 immune; D-state PIDs 1288651 Xvfb :1,
    commit first.
 6. Re-encode combat_sbs.mp4 after elytra lands; scp to macbook:~/Downloads.
 7. Remaining glitch-research ranks beyond the first ten, if desired.
+
+## 2026-07-23 (post-reset: elytra physics landed, 20/20 CPU tapes green)
+
+- Resumed `wip/elytra` with three isolated Grok rounds: core physics, direct
+  Java-oracle audit, and replay/runtime gating. All agreed the interrupted
+  `EntityLivingBase.moveEntityWithHeading` branch already resolved the main
+  divergence; the remaining fixes were activation timing and numeric edges.
+- Elytra travel now follows 1.11.2 float/double boundaries, including
+  `Vec3d.lengthVector` widening `MathHelper.sqrt`'s float result. A jump edge
+  samples airborne/descending state before travel (MC-111444), arms flag 7
+  after that tick, and takes the elytra branch on the following tick. The
+  0.6-high pose and 0.4 eye height persist until a collision-safe resize.
+- Tape equipment replay seeds chest-slot item 443 before tick 0 and applies
+  later inventory changes on the following tick. Falling liquid created after
+  capture is no longer backdated into the recorded glide.
+- Exact regression fixtures cover the old freefall path (`x=5.7460`), the
+  corrected t54->t56 chain (`x=5.809549093722865`), dive/climb binary64
+  motion, activation edge, landing, eye height, runtime equipment bridge, and
+  tape conversion.
+- `scenario_elytra_dip_20260723T001355Z`: 505/505 ticks physics-exact at
+  1e-9; 51-frame pixel gate PASS. All prior 19 CPU tape replays also rc=0:
+  gate state is now 20/20.
+- Clean rebuild exposed two stale-object-hidden defects and both were fixed:
+  selection-box APIs now use the real `Chunk`/`McSinTable`/`PsvPlayer`
+  typedefs, and `gm_world_clock_init` initializes `freeze_daylight`.
+- Verification: `make test-game` PASS; non-live pytest 40 passed; elytra
+  replay tests 4 passed; scoped ruff PASS. Full pytest still requires a live
+  qrl client and populated DIM-1 save, so those explicit integration tests
+  were excluded from the non-live run.
+- Remaining elytra cuts: chest armor durability is not owned by `IsrInv`, and
+  creative free-flight (`capabilities.isFlying`) is outside the simulator
+  surface. Neither affects the recorded survival tape.
+- Next queue item is crafting/furnace GUI capture. CUDA was not re-gated in
+  this round; GPU0 is healthy after reboot but occupied by a 92 GB vLLM job.

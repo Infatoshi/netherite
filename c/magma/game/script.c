@@ -213,7 +213,8 @@ static void write_state(FILE *out, const GmRuntime *r) {
     fprintf(out, "\"on_ground\":%d,\"health\":%.9g,\"food\":%.9g,\"xp_level\":%d,\"xp_frac\":%.9g,",
             v.on_ground,(double)v.health,(double)v.food,v.xp_level,(double)v.xp_frac);
     { int hx,hy,hz,ax,ay,az;
-      int hit=gm_raycast_sel((const struct Chunk *)r->window,(const struct McSinTable *)&r->sin_table,(const struct PsvPlayer *)&r->player,&hx,&hy,&hz,&ax,&ay,&az);
+      int hit=gm_raycast_sel(r->window,&r->sin_table,&r->player,
+                             &hx,&hy,&hz,&ax,&ay,&az);
       if(hit>=0) fprintf(out,"\"look\":{\"x\":%d,\"y\":%d,\"z\":%d,\"id\":%d},",
           hx+r->ox,hy,hz+r->oz,gm_world_block(r->world,hx+r->ox,hy,hz+r->oz));
       else fprintf(out,"\"look\":null,"); }

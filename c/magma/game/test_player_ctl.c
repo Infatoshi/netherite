@@ -393,6 +393,21 @@ int main(void)
         CHECK(fly.ent.posX > 5.80 && fall.ent.posX < 5.75,
               "elytra path diverges from freefall at t56 (5.8095 vs 5.7460)");
 
+        /* Looking up exercises Vec3d.lengthVector's float MathHelper.sqrt
+         * boundary before the climb and coupling terms. */
+        PsvPlayer climb;
+        spawn_at(&climb, 8.0, 40.0, 8.0);
+        climb.yaw = -90.0f;
+        climb.pitch = -15.0f;
+        climb.elytra_equipped = climb.elytra_flying = 1;
+        climb.ent.motionX = 0.4;
+        climb.ent.motionY = -0.2;
+        psv_elytra_travel(win, &st, &climb, &idle, blocks);
+        CHECK(double_bits(climb.ent.motionX) == 0x3fda4cbdf4026447ULL,
+              "elytra climb motionX matches Java-order binary64");
+        CHECK(double_bits(climb.ent.motionY) == 0xbfc7d140d45d8861ULL,
+              "elytra climb motionY matches Java-order binary64");
+
         /* Full physics_tick entry + second oracle tick (t56 -> t57). */
         PsvPlayer path;
         spawn_at(&path, t55_x, t55_y, 0.5);

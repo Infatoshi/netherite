@@ -512,6 +512,7 @@ void gm_world_clock_init(GmWorldClock *c, i64 seed) {
     c->thunder_time = g_clock.ww.thunderTime;
     c->raining      = g_clock.ww.raining;
     c->thundering   = g_clock.ww.thundering;
+    c->freeze_daylight = 0;
 }
 
 void gm_world_tick(GmWorldClock *c) {

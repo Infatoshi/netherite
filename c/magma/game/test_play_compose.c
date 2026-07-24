@@ -160,9 +160,7 @@ static void test_torch_click_uses_aabb_face(void) {
           "first pit-wall torch placement succeeds in the expected cell");
 
     int hx, hy, hz, ax, ay, az;
-    int hit = gm_raycast_sel_reach((const struct Chunk *)win,
-                                   (const struct McSinTable *)&st,
-                                   (const struct PsvPlayer *)&pl, PSV_REACH,
+    int hit = gm_raycast_sel_reach(win, &st, &pl, PSV_REACH,
                                    &hx, &hy, &hz, &ax, &ay, &az);
     CHECK(hit == 1 && hx == 9 && hy == 69 && hz == 8,
           "follow-up selection ray stops on the placed wall torch");

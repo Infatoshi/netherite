@@ -723,7 +723,8 @@ int main(int argc, char **argv) {
         if (want_frames < 0 && !screen_open && !g_dead) {
             static CrVertex ov[GM_OVERLAY_MAX_VERTS];
             int hx = 0, hy = 0, hz = 0, ax, ay, az;
-            int have_sel = gm_raycast_sel((const struct Chunk *)win, (const struct McSinTable *)&st, (const struct PsvPlayer *)&pl, &hx, &hy, &hz, &ax, &ay, &az) >= 0;
+            int have_sel = gm_raycast_sel(win, &st, &pl,
+                                          &hx, &hy, &hz, &ax, &ay, &az) >= 0;
             int dx = 0, dy2 = 0, dz = 0; float dmg = 0.0f;
             int have_dig = gm_player_dig_state(&dx, &dy2, &dz, &dmg);
             float selb[6];

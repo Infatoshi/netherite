@@ -276,12 +276,9 @@ static int ray_transparent(int id) {
 #define GM_SEL_REACH 4.5
 #endif
 
-int gm_raycast_sel_reach(const struct Chunk *win, const struct McSinTable *st_,
-                         const struct PsvPlayer *pl_, double reach,
+int gm_raycast_sel_reach(const Chunk *win, const McSinTable *st,
+                         const PsvPlayer *pl, double reach,
                          int *hx, int *hy, int *hz, int *ax, int *ay, int *az) {
-    const Chunk *now = (const Chunk *)win;
-    const McSinTable *st = (const McSinTable *)st_;
-    const PsvPlayer *pl = (const PsvPlayer *)pl_;
     /* vanilla getVectorForRotation(pitch, yaw), same as psv_raycast */
     float f  = mc_cos(st, -pl->yaw * 0.017453292f - 3.1415927f);
     float f1 = mc_sin(st, -pl->yaw * 0.017453292f - 3.1415927f);
@@ -301,7 +298,7 @@ int gm_raycast_sel_reach(const struct Chunk *win, const struct McSinTable *st_,
         int by = mc_floor(ey + dy * t);
         int bz = mc_floor(ez + dz * t);
         if (bx == lastx && by == lasty && bz == lastz) continue;
-        int id = psv_get_block(now, bx, by, bz);
+        int id = psv_get_block(win, bx, by, bz);
         if (!ray_transparent(id)) {
             float b[6];
             int nx, ny, nz;
@@ -322,14 +319,14 @@ int gm_raycast_sel_reach(const struct Chunk *win, const struct McSinTable *st_,
     return -1;
 }
 
-int gm_raycast_sel(const struct Chunk *win, const struct McSinTable *st,
-                   const struct PsvPlayer *pl,
+int gm_raycast_sel(const Chunk *win, const McSinTable *st,
+                   const PsvPlayer *pl,
                    int *hx, int *hy, int *hz, int *ax, int *ay, int *az) {
     return gm_raycast_sel_reach(win, st, pl, GM_SEL_REACH, hx, hy, hz, ax, ay, az);
 }
 
-void gm_sel_box_at(const struct Chunk *win, int x, int y, int z, float b[6]) {
-    const Chunk *w = (const Chunk *)win;   /* Chunk is a typedef in mc-sim */
+void gm_sel_box_at(const Chunk *win, int x, int y, int z, float b[6]) {
+    const Chunk *w = win;
     GmSelIn in;
     in.id   = psv_get_block(w, x, y, z);
     in.meta = psv_get_meta(w, x, y, z);

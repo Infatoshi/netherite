@@ -302,7 +302,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     }
     if(action.do_place){
         int hx,hy,hz,ax,ay,az;
-        if(gm_raycast_sel_reach((const struct Chunk *)r->window,(const struct McSinTable *)&r->sin_table,(const struct PsvPlayer *)&r->player,PSV_REACH,&hx,&hy,&hz,&ax,&ay,&az)>=0){
+        if(gm_raycast_sel_reach(r->window,&r->sin_table,&r->player,PSV_REACH,
+                                &hx,&hy,&hz,&ax,&ay,&az)>=0){
             int wx=hx+r->ox,wz=hz+r->oz,id=gm_world_block(r->world,wx,hy,wz);
             if((id==58||id==61||id==62||id==120||id==26)&&gm_runtime_use_block(r,wx,hy,wz)){
                 action.do_place=0;action.use=0;
@@ -742,7 +743,6 @@ void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int 
     r->tape_texture_animations_pinned = texture_animations_pinned;
     r->tape_fire = fire;
     r->tape_creative = creative;
-    r->player.creative_mode = creative ? 1 : 0;
     r->tape_hurt_time = hurt_time;
     r->tape_max_hurt_time = max_hurt_time;
     r->tape_hurt_yaw = hurt_yaw;
@@ -750,10 +750,7 @@ void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int 
 }
 
 void gm_runtime_tape_potions_clear(GmRuntime *r) {
-    if (r) {
-        r->tape_potion_count = 0;
-        r->player.levitating = 0;
-    }
+    if (r) r->tape_potion_count = 0;
 }
 
 int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration) {
@@ -763,7 +760,6 @@ int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration) {
     p->id = id;
     p->amplifier = amplifier;
     p->duration = duration;
-    if (id == 25 && duration > 0) r->player.levitating = 1; /* MobEffects.LEVITATION */
     return 1;
 }
 

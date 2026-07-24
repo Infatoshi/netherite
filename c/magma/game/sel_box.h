@@ -9,6 +9,8 @@
 #ifndef MAGMA_GAME_SEL_BOX_H
 #define MAGMA_GAME_SEL_BOX_H
 
+#include "player_survival.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -24,8 +26,7 @@ typedef struct {
 void gm_sel_box(const GmSelIn *in, float b[6]);
 
 /* Convenience: fill GmSelIn from the psv chunk window at local (x,y,z). */
-struct Chunk;
-void gm_sel_box_at(const struct Chunk *win, int x, int y, int z, float b[6]);
+void gm_sel_box_at(const Chunk *win, int x, int y, int z, float b[6]);
 
 /* Selection-box raycast: like psv_raycast but vanilla-correct - the ray hits
  * ANY targetable block (torch, plants, crops, slabs...) whose selection box
@@ -39,13 +40,11 @@ void gm_sel_box_at(const struct Chunk *win, int x, int y, int z, float b[6]);
  * gm_raycast_sel uses PlayerControllerMP survival reach 4.5 (outline / look).
  * gm_raycast_sel_reach lets dig/place pass PSV_REACH (5.0) until the shared
  * sim path is fully aligned to survival 4.5. */
-struct McSinTable;
-struct PsvPlayer;
-int gm_raycast_sel(const struct Chunk *win, const struct McSinTable *st,
-                   const struct PsvPlayer *pl,
+int gm_raycast_sel(const Chunk *win, const McSinTable *st,
+                   const PsvPlayer *pl,
                    int *hx, int *hy, int *hz, int *ax, int *ay, int *az);
-int gm_raycast_sel_reach(const struct Chunk *win, const struct McSinTable *st,
-                         const struct PsvPlayer *pl, double reach,
+int gm_raycast_sel_reach(const Chunk *win, const McSinTable *st,
+                         const PsvPlayer *pl, double reach,
                          int *hx, int *hy, int *hz, int *ax, int *ay, int *az);
 
 #ifdef __cplusplus

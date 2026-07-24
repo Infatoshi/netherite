@@ -417,7 +417,8 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
         int press = !s_atk_prev;
         int hx, hy, hz, ax, ay, az;
         /* dig uses PSV_REACH (5.0); outline uses survival 4.5 via gm_raycast_sel */
-        int r = gm_raycast_sel_reach((const struct Chunk *)window, (const struct McSinTable *)st, (const struct PsvPlayer *)pl, PSV_REACH, &hx, &hy, &hz, &ax, &ay, &az);
+        int r = gm_raycast_sel_reach(window, st, pl, PSV_REACH,
+                                     &hx, &hy, &hz, &ax, &ay, &az);
         if (r >= 0) {
             int bid = psv_get_block(window, hx, hy, hz);
             BptProps bp = mc_bpt_props(bid);
@@ -530,7 +531,8 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
             }
         }
         int hx, hy, hz, ax, ay, az;
-        int r = gm_raycast_sel_reach((const struct Chunk *)window, (const struct McSinTable *)st, (const struct PsvPlayer *)pl, PSV_REACH, &hx, &hy, &hz, &ax, &ay, &az);
+        int r = gm_raycast_sel_reach(window, st, pl, PSV_REACH,
+                                     &hx, &hy, &hz, &ax, &ay, &az);
         if (r >= 0) {
             int hit_id = psv_get_block(window, hx, hy, hz);
             int hit_meta = psv_get_meta(window, hx, hy, hz);

@@ -91,8 +91,6 @@ typedef struct {
     int      elytra_equipped;
     int      elytra_flying;       /* Entity flag 7 */
     int      elytra_pose;
-    int      levitating;
-    int      creative_mode;
     int      ticks_elytra_flying;
     float    elytra_wall_damage;  /* FLY_INTO_WALL damage emitted this tick */
     IsrInv   inv;            /* inventory (verified stack rules) */
@@ -476,7 +474,9 @@ MC_HD static inline void psv_elytra_travel(const Chunk *now, const McSinTable *s
     float pitch = pl->pitch * 0.017453292f;
     double look_h = sqrt(look_x * look_x + look_z * look_z);
     double speed_h = sqrt(e->motionX * e->motionX + e->motionZ * e->motionZ);
-    double look_len = sqrt(look_x * look_x + look_y * look_y + look_z * look_z);
+    /* Vec3d.lengthVector widens MathHelper.sqrt's float result to double. */
+    double look_len = (double)(float)sqrt(look_x * look_x + look_y * look_y +
+                                           look_z * look_z);
     float lift = mc_cos(st, pitch);
     double lift_scale = look_len / 0.4;
     if (lift_scale > 1.0) lift_scale = 1.0;
@@ -946,7 +946,6 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
     pl->prev_move_forward = 0.0f; pl->prev_sneak = 0;
     pl->prev_jump = 0;
     pl->elytra_equipped = pl->elytra_flying = pl->elytra_pose = 0;
-    pl->levitating = pl->creative_mode = 0;
     pl->ticks_elytra_flying = 0;
     pl->elytra_wall_damage = 0.0f;
     pl->break_events = pl->place_events = pl->swing_events = 0;

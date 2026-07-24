@@ -735,9 +735,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         static CrVertex sel_ov[GM_OVERLAY_MAX_VERTS];
         static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
         int hx=0,hy=0,hz=0,ax,ay,az;
-        int have_sel=gm_raycast_sel((const struct Chunk *)r->window,
-                                    (const struct McSinTable *)&r->sin_table,
-                                    (const struct PsvPlayer *)&r->player,
+        int have_sel=gm_raycast_sel(r->window,&r->sin_table,&r->player,
                                     &hx,&hy,&hz,&ax,&ay,&az)>=0;
         int dx=0,dy=0,dz=0;float dmg=0.0f;
         int have_dig=gm_player_dig_state(&dx,&dy,&dz,&dmg);
