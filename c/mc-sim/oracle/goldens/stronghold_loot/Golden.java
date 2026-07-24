@@ -1,14 +1,15 @@
 // Verbatim MC 1.11.2 LootTable.fillInventory materialization ground truth.
-// Eval-pure: no game launch.
+// Eval-pure hand-port of decompiled oracle-src (not a live Mojang process).
 //
-// Logic from the decompiled oracle:
-//   net/minecraft/world/storage/loot/LootTable.java  fillInventory / shuffleItems subset
+// Logic from:
+//   net/minecraft/world/storage/loot/LootTable.java  fillInventory / shuffleItems
+//   net/minecraft/util/math/MathHelper.java           getInt(Random,min,max)
 //   java.util.Collections.shuffle via Random.nextInt Fisher-Yates
 //   java.util.Random (48-bit LCG) seeded with structure loot nextLong
 //
 // Fixed pre-rolled stacks (including multi-enchant books) are placed into a 27-slot
-// chest. StoredEnchantments (id/level pairs) must survive shuffle + slot assignment.
-// This is the unopened-chest materialization path once a loot_seed is known.
+// chest. StoredEnchantments (id/level pairs) must survive splitStack + slot assignment.
+// Vanilla order: getEmptySlotsRandomized (shuffle empties) THEN shuffleItems.
 //
 // CUT / OPEN: world-layout seed parity (C sh_place_blocks vs Java
 // StructureStrongholdPieces nextLong capture); full generateLootForPools of the
@@ -16,7 +17,12 @@
 // loot_table + enchant_table goldens; C integration in magma test_chest_loot).
 //
 // Output: 3 seeds * 2 stack-sets * (27 slots * 8 fields + nonempty) as %08x.
+// Per slot fields: item, count, meta, n_enchants, e0id, e0lvl, e1id, e1lvl.
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Random;
 
 public class Golden {
@@ -39,6 +45,15 @@ public class Golden {
             return s;
         }
         boolean isEmpty() { return item == 0 || count <= 0; }
+        /* ItemStack.splitStack: copy (incl. tags) then shrink. */
+        Stack splitStack(int amount) {
+            int take = Math.min(amount, count);
+            Stack out = copy();
+            out.count = take;
+            count -= take;
+            if (count <= 0) { item = 0; count = 0; meta = 0; nEnchants = 0; }
+            return out;
+        }
     }
     static Stack empty() { return new Stack(0, 0, 0); }
     static Stack mk(int i, int c, int m) { return new Stack(i, c, m); }
@@ -69,57 +84,57 @@ public class Golden {
         };
     }
 
-    /* Simplified shuffleItems: optional half-split then Fisher-Yates (matches C). */
-    static Stack[] shuffleItems(Stack[] stacks, Random r) {
-        Stack[] work = new Stack[MAX_STACKS];
-        int wn = 0;
-        for (int i = 0; i < stacks.length && wn < MAX_STACKS; ++i) {
-            if (stacks[i].isEmpty()) continue;
-            if (stacks[i].count > 1 && wn + 1 < MAX_STACKS && r.nextInt(2) == 0) {
-                int half = stacks[i].count / 2;
-                if (half < 1) half = 1;
-                if (half >= stacks[i].count) half = stacks[i].count - 1;
-                Stack a = stacks[i].copy(); a.count = stacks[i].count - half;
-                Stack b = stacks[i].copy(); b.count = half;
-                /* splits of multi-count plain items; books are count 1 so skip */
-                work[wn++] = a;
-                work[wn++] = b;
-            } else {
-                work[wn++] = stacks[i].copy();
+    /* MathHelper.getInt(Random, min, max) VERBATIM. */
+    static int mathGetInt(Random r, int minimum, int maximum) {
+        return minimum >= maximum ? minimum : r.nextInt(maximum - minimum + 1) + minimum;
+    }
+
+    /* LootTable.shuffleItems VERBATIM (1.11.2). freeSlots is a gate only. */
+    static void shuffleItems(List<Stack> stacks, int freeSlots, Random rand) {
+        List<Stack> multi = new ArrayList<Stack>();
+        Iterator<Stack> it = stacks.iterator();
+        while (it.hasNext()) {
+            Stack s = it.next();
+            if (s.isEmpty()) {
+                it.remove();
+            } else if (s.count > 1) {
+                multi.add(s);
+                it.remove();
             }
         }
-        int[] idx = new int[wn];
-        for (int k = 0; k < wn; ++k) idx[k] = k;
-        for (int k = wn; k > 1; --k) {
-            int j = r.nextInt(k);
-            int tmp = idx[k - 1]; idx[k - 1] = idx[j]; idx[j] = tmp;
+        freeSlots = freeSlots - stacks.size();
+        while (freeSlots > 0 && multi.size() > 0) {
+            Stack item2 = multi.remove(mathGetInt(rand, 0, multi.size() - 1));
+            int i = mathGetInt(rand, 1, item2.count / 2);
+            Stack item1 = item2.splitStack(i);
+            if (item2.count > 1 && rand.nextBoolean()) multi.add(item2);
+            else stacks.add(item2);
+            if (item1.count > 1 && rand.nextBoolean()) multi.add(item1);
+            else stacks.add(item1);
         }
-        Stack[] out = new Stack[wn];
-        for (int k = 0; k < wn; ++k) out[k] = work[idx[k]];
-        return out;
+        stacks.addAll(multi);
+        Collections.shuffle(stacks, rand);
     }
 
-    static void shuffleInts(int[] a, int n, Random r) {
-        for (int i = n; i > 1; --i) {
-            int j = r.nextInt(i);
-            int tmp = a[i - 1]; a[i - 1] = a[j]; a[j] = tmp;
-        }
-    }
-
-    /* LootTable.fillInventory subset into 27 slots. */
-    static Stack[] fillFromStacks(Stack[] stacks, long lootSeed) {
+    /* LootTable.fillInventory subset: empty-slots shuffle first, then shuffleItems. */
+    static Stack[] fillFromStacks(Stack[] src, long lootSeed) {
         Stack[] slots = new Stack[SLOTS];
         for (int i = 0; i < SLOTS; ++i) slots[i] = empty();
         Random r = new Random(lootSeed);
-        int[] emptyIdx = new int[SLOTS];
-        for (int i = 0; i < SLOTS; ++i) emptyIdx[i] = i;
-        int nEmpty = SLOTS;
-        Stack[] shuffled = shuffleItems(stacks, r);
-        shuffleInts(emptyIdx, nEmpty, r);
-        for (int i = 0; i < shuffled.length && nEmpty > 0; ++i) {
-            if (shuffled[i].isEmpty()) { nEmpty--; continue; }
-            int slot = emptyIdx[--nEmpty];
-            slots[slot] = shuffled[i].copy();
+        List<Integer> emptyIdx = new ArrayList<Integer>();
+        for (int i = 0; i < SLOTS; ++i) emptyIdx.add(Integer.valueOf(i));
+        Collections.shuffle(emptyIdx, r);
+        List<Stack> list = new ArrayList<Stack>();
+        for (int i = 0; i < src.length; ++i) list.add(src[i].copy());
+        shuffleItems(list, emptyIdx.size(), r);
+        for (int i = 0; i < list.size() && !emptyIdx.isEmpty(); ++i) {
+            Stack s = list.get(i);
+            if (s.isEmpty()) {
+                emptyIdx.remove(emptyIdx.size() - 1);
+                continue;
+            }
+            int slot = emptyIdx.remove(emptyIdx.size() - 1).intValue();
+            slots[slot] = s.copy();
         }
         return slots;
     }

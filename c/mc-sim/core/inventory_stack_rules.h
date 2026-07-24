@@ -21,9 +21,24 @@
 #define ISR_ARMOR_HEAD   39
 #define ISR_OFFHAND_SLOT 40
 #define ISR_INV_LIMIT    64
-/* 0..9 ordinary; 10..11 enchanted-book max-stack-1 + StoredEnchantments retention. */
+/* 0..9 ordinary; 10..11 enchanted-book max-stack-1 + StoredEnchantments retention.
+ *
+ * Per-scenario emit schema (ISR_FIELDS_PER = 10 u32s), all scenarios:
+ *   [0] current_item
+ *   [1] leftover.count
+ *   [2] leftover.item
+ *   [3] hotbar_total (main[0..8] counts)
+ *   [4] main_total   (main[9..35] counts)
+ *   [5] main[0].count
+ *   [6] op_ok (1/0)
+ *   [7] merge_slot (or sentinel used by the scenario)
+ *   [8] main[0].n_enchants
+ *   [9] leftover.n_enchants  -- ordinary scenarios 0..9
+ *       main[1].n_enchants   -- scenarios 10..11 overwrite field 9 after emit
+ *                              so both book payloads are goldened (multi n=2, sharp5 n=1)
+ */
 #define ISR_NUM_SCENARIOS 12
-#define ISR_FIELDS_PER    10  /* + main[0].n_enchants + leftover.n_enchants */
+#define ISR_FIELDS_PER    10
 #define ISR_OUT           (ISR_NUM_SCENARIOS * ISR_FIELDS_PER)
 #define ISR_ELYTRA_ITEM  443
 #define ISR_ELYTRA_MAX_DAMAGE 432

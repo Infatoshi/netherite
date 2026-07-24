@@ -1,5 +1,7 @@
 /* tile_entity_chest: 27-slot chest inventory insert/extract (TileEntityChest + InventoryBasic.addItem).
- * ItemStack = (item,count,meta[,StoredEnchantments]); areItemsEqual = item+meta+tags.
+ * ItemStack = (item,count,meta[,StoredEnchantments payload for oracle emit]).
+ * InventoryBasic.addItem uses ItemStack.areItemsEqual = item+damage only (no NBT).
+ * Enchanted-book max stack 1 still prevents equal-tag merge (merge room is 0).
  * Inventory stack limit 64; ItemEnchantedBook (403) max stack 1 (1.11.2).
  * CUT: double chest, loot tables (filled externally), sounds, player proximity sync.
  * Lid animation from update() kept. Deterministic op battery; CPU==CUDA. */
@@ -68,10 +70,12 @@ MC_HD static inline int tec_enchants_equal(const TecStack *a, const TecStack *b)
     return 1;
 }
 
+/* ItemStack.areItemsEqual / isItemEqual: item + damage only (no NBT tags).
+ * InventoryBasic.addItem uses this; merge room still respects getMaxStackSize,
+ * so max-stack-1 books never combine even when tags match. */
 MC_HD static inline int tec_are_items_equal(const TecStack *a, const TecStack *b) {
     if (tec_is_empty(a) || tec_is_empty(b)) return 0;
-    if (a->item != b->item || a->meta != b->meta) return 0;
-    return tec_enchants_equal(a, b);
+    return a->item == b->item && a->meta == b->meta;
 }
 
 MC_HD static inline i32 tec_max_stack_size(i32 item) {
@@ -195,8 +199,12 @@ MC_HD static inline int tec_total_items(const TeChest *c) {
 /* Marks 0..5 ordinary (counts only). Marks 6..8 book-focused with tag fields. */
 #define TEC_NMARKS 9
 #define TEC_PER_MARK (TEC_SLOTS + 4) /* counts + lid + players + total + leftover */
-/* Extra fields per book mark: slot0/1 item+n_ench+e0id+e0lvl + leftover item+n_ench */
-#define TEC_BOOK_EXTRA 10
+/* Extra fields per book mark:
+ *   slot0: item, n_ench, e0id, e0lvl, e1id, e1lvl
+ *   slot1: item, n_ench, e0id, e0lvl, e1id, e1lvl
+ *   leftover: item, n_ench
+ * (golden every modeled enchant entry, not only e0). */
+#define TEC_BOOK_EXTRA 14
 #define TEC_OUT (TEC_NMARKS * TEC_PER_MARK + 3 * TEC_BOOK_EXTRA)
 
 MC_HD static inline void tec_dump_mark(const TeChest *c, TecStack leftover, u64 *out, int *o) {
@@ -211,17 +219,16 @@ MC_HD static inline void tec_dump_mark(const TeChest *c, TecStack leftover, u64 
 }
 
 MC_HD static inline void tec_dump_book_extra(const TeChest *c, TecStack leftover, u64 *out, int *o) {
-    /* slot 0 */
-    out[(*o)++] = (u64)(u32)c->slots[0].item;
-    out[(*o)++] = (u64)(u32)c->slots[0].n_enchants;
-    out[(*o)++] = (u64)(u32)(c->slots[0].n_enchants > 0 ? c->slots[0].enchants[0].id : 0);
-    out[(*o)++] = (u64)(u32)(c->slots[0].n_enchants > 0 ? c->slots[0].enchants[0].level : 0);
-    /* slot 1 */
-    out[(*o)++] = (u64)(u32)c->slots[1].item;
-    out[(*o)++] = (u64)(u32)c->slots[1].n_enchants;
-    out[(*o)++] = (u64)(u32)(c->slots[1].n_enchants > 0 ? c->slots[1].enchants[0].id : 0);
-    out[(*o)++] = (u64)(u32)(c->slots[1].n_enchants > 0 ? c->slots[1].enchants[0].level : 0);
-    /* leftover */
+    int s;
+    for (s = 0; s < 2; ++s) {
+        const TecStack *sl = &c->slots[s];
+        out[(*o)++] = (u64)(u32)sl->item;
+        out[(*o)++] = (u64)(u32)sl->n_enchants;
+        out[(*o)++] = (u64)(u32)(sl->n_enchants > 0 ? sl->enchants[0].id : 0);
+        out[(*o)++] = (u64)(u32)(sl->n_enchants > 0 ? sl->enchants[0].level : 0);
+        out[(*o)++] = (u64)(u32)(sl->n_enchants > 1 ? sl->enchants[1].id : 0);
+        out[(*o)++] = (u64)(u32)(sl->n_enchants > 1 ? sl->enchants[1].level : 0);
+    }
     out[(*o)++] = (u64)(u32)leftover.item;
     out[(*o)++] = (u64)(u32)leftover.n_enchants;
 }

@@ -1,19 +1,34 @@
 /* boat_control: EntityBoat.controlBoat + updateMotion momentum subset (MC 1.11.2).
  *
  * PORT: net/minecraft/entity/item/EntityBoat.java
- *   controlBoat() thrust/turn constants
+ *   controlBoat() thrust/turn constants (client-only when world.isRemote)
  *   updateMotion() momentum by Status (IN_WATER / ON_LAND / IN_AIR subset)
  *   MathHelper.sin/cos for yaw thrust (table-based, via mc_math.h)
+ *
+ * Composed step order matches client onUpdate when canPassengerSteer:
+ *   updateMotion() THEN controlBoat()  (EntityBoat.java ~314-318)
+ * controlBoat is client-only; this battery models that client composed step.
+ * It is NOT a full entity tick (no gravity/buoyancy/move/paddle packets).
+ *
+ * From rest (vx=vz=0) on water with forward=1: controlBoat adds 0.04 along look;
+ * because updateMotion already applied 0.9 to the prior zero velocity, the post-
+ * step horizontal speed is 0.04, not 0.04*0.9=0.036 (that would be the wrong
+ * control-then-motion composition).
+ *
+ * Per-function constants (independent of composition):
+ *   controlBoat: forward +0.04, back -0.005, turn-only +0.005, deltaRot +/-1
+ *   updateMotion: IN_WATER 0.9, IN_AIR 0.9, ON_LAND boatGlide (halves under player)
  *
  * Eval-pure: no world, no multi-AABB waterLevel sampling. Status is injected,
  * matching the simplified 3-way sample used by magma mob_live (IN_WATER/ON_LAND/IN_AIR).
  *
  * OPEN (not in this battery):
  *   UNDER_WATER / UNDER_FLOWING_WATER status, full multi-AABB getWaterLevelAbove,
- *   60-tick underwater passenger ejection, land boatGlide block-friction table.
+ *   60-tick underwater passenger ejection, land boatGlide block-friction table,
+ *   server-side path where controlBoat does not run.
  *
  * Battery: scripted (status, forward, strafe, yaw) scenarios; emit float bits of
- * yaw/vx/vz/deltaRot/momentum after one controlBoat + one updateMotion step. */
+ * yaw/vx/vz/deltaRot/momentum after one updateMotion + one controlBoat step. */
 #ifndef MC_BOAT_CONTROL_H
 #define MC_BOAT_CONTROL_H
 
@@ -46,7 +61,7 @@ MC_HD static inline u32 bc_fbits(float f) {
     return u.u;
 }
 
-/* EntityBoat.controlBoat VERBATIM (ridden), using MathHelper sin/cos. */
+/* EntityBoat.controlBoat VERBATIM (ridden / client), using MathHelper sin/cos. */
 MC_HD static inline void bc_control_boat(BcState *s, const McSinTable *st) {
     float f = 0.0f;
     int left = s->strafe < 0;
@@ -113,7 +128,7 @@ MC_HD static inline void bc_run_scenario(int idx, const McSinTable *st, u32 *out
     case 0: /* water idle */
         s.status = BC_STATUS_IN_WATER;
         break;
-    case 1: /* water forward */
+    case 1: /* water forward from rest: expect |v|~0.04 not 0.036 */
         s.status = BC_STATUS_IN_WATER;
         s.forward = 1;
         s.yaw = 0.0f;
@@ -171,8 +186,9 @@ MC_HD static inline void bc_run_scenario(int idx, const McSinTable *st, u32 *out
         break;
     }
 
-    bc_control_boat(&s, st);
+    /* Client canPassengerSteer order: updateMotion then controlBoat. */
     mom = bc_update_motion(&s);
+    bc_control_boat(&s, st);
     bc_emit(&s, mom, out, base);
 }
 

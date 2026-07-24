@@ -11,6 +11,20 @@
 // baked from the item table (pickaxes / buckets / enchanted_book 403 == 1, else 64).
 // Scenarios 0..9 ordinary (n_enchants=0). Scenarios 10..11 exercise ItemEnchantedBook
 // max-stack 1 + StoredEnchantments retention through addItemStackToInventory (pickup path).
+// Hand-port twin of C (not live Mojang execution). InventoryPlayer.canMergeStacks uses
+// stackEqualExact (item+meta+tags); that is NOT InventoryBasic.areItemsEqual.
+//
+// Field schema (10 u32s per scenario):
+//   0 current_item
+//   1 leftover.count
+//   2 leftover.item
+//   3 hotbar_total (main[0..8])
+//   4 main_total (main[9..35])
+//   5 main[0].count
+//   6 op_ok
+//   7 merge_slot
+//   8 main[0].n_enchants
+//   9 leftover.n_enchants (sc 0..9) OR main[1].n_enchants (sc 10..11 overwrite)
 //
 // CUT (matches core/inventory_stack_rules.h): armor slots, creative-mode branches (never taken:
 // non-creative), GUI/animation, full arbitrary NBT beyond StoredEnchantments, offhand beyond 40.

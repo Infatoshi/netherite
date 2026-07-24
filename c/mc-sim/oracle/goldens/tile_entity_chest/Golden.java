@@ -3,15 +3,17 @@
 // Logic copied VERBATIM from the decompiled oracle:
 //   net/minecraft/inventory/InventoryBasic.java  addItem(), setInventorySlotContents(),
 //                                                 getStackInSlot(), decrStackSize()
-//   net/minecraft/item/ItemStack.java            areItemsEqual(), grow(), shrink(), copy()
+//   net/minecraft/item/ItemStack.java            areItemsEqual()=item+damage, grow/shrink/copy
 //   net/minecraft/tileentity/TileEntityChest.java update()  (lid-angle subset)
 // getInventoryStackLimit()==64 (InventoryBasic default). All battery items (apple 260,
 // bread 297, coal 263, iron ingot 265) have getMaxStackSize()==64, so the merge cap j is 64.
+// Enchanted books: areItemsEqual is item+damage only; max stack 1 still blocks merge.
+// Hand-port twin of C (not live Mojang execution).
 //
 // CUT (matches core/tile_entity_chest.h): double chest, loot tables, sounds, player proximity
 // sync, adjacent-chest lid gating. Output format matches cpu/tile_entity_chest.c:
 //   marks 0..5: 27 counts + lid + players + total + leftover count
-//   marks 6..8: same + book extra (slot0/1 item+n_ench+e0id+e0lvl + leftover item+n_ench)
+//   marks 6..8: same + book extra (slot0/1 item+n_ench+e0id+e0lvl+e1id+e1lvl + leftover item+n_ench)
 // All as %016x.
 public class Golden {
     static final int SLOTS = 27;
@@ -49,13 +51,11 @@ public class Golden {
         return s;
     }
 
-    // ItemStack.areItemsEqual + areItemStackTagsEqual (StoredEnchantments).
+    // ItemStack.areItemsEqual / isItemEqual: item + damage only (no NBT).
+    // InventoryBasic.addItem uses this; max-stack-1 books still fail to merge.
     static boolean areItemsEqual(Stack a, Stack b) {
         if (a.isEmpty() || b.isEmpty()) return false;
-        if (a.item != b.item || a.meta != b.meta || a.nEnchants != b.nEnchants) return false;
-        for (int e = 0; e < a.nEnchants; ++e)
-            if (a.enchId[e] != b.enchId[e] || a.enchLvl[e] != b.enchLvl[e]) return false;
-        return true;
+        return a.item == b.item && a.meta == b.meta;
     }
 
     Stack[] slots = new Stack[SLOTS];
@@ -148,14 +148,15 @@ public class Golden {
         emit(sb, leftover.count);
     }
     void dumpBookExtra(Stack leftover, StringBuilder sb) {
-        emit(sb, slots[0].item);
-        emit(sb, slots[0].nEnchants);
-        emit(sb, slots[0].nEnchants > 0 ? slots[0].enchId[0] : 0);
-        emit(sb, slots[0].nEnchants > 0 ? slots[0].enchLvl[0] : 0);
-        emit(sb, slots[1].item);
-        emit(sb, slots[1].nEnchants);
-        emit(sb, slots[1].nEnchants > 0 ? slots[1].enchId[0] : 0);
-        emit(sb, slots[1].nEnchants > 0 ? slots[1].enchLvl[0] : 0);
+        for (int s = 0; s < 2; ++s) {
+            Stack sl = slots[s];
+            emit(sb, sl.item);
+            emit(sb, sl.nEnchants);
+            emit(sb, sl.nEnchants > 0 ? sl.enchId[0] : 0);
+            emit(sb, sl.nEnchants > 0 ? sl.enchLvl[0] : 0);
+            emit(sb, sl.nEnchants > 1 ? sl.enchId[1] : 0);
+            emit(sb, sl.nEnchants > 1 ? sl.enchLvl[1] : 0);
+        }
         emit(sb, leftover.item);
         emit(sb, leftover.nEnchants);
     }

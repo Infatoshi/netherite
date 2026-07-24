@@ -9,7 +9,8 @@
  * Structure loot seeds: captured from the real place_blocks JavaRandom stream
  * at each placed chest (sh_record_chest / gm_stronghold_chest_info).
  *
- * fillInventory: shuffle empty slots + multi-stack split (LootTable.fillInventory).
+ * fillInventory (LootTable 1.11.2): getEmptySlotsRandomized first, then
+ * shuffleItems multi-pass split (MathHelper.getInt + nextBoolean) + Collections.shuffle.
  * PURE host/device. Does not mutate the loot_table.h battery goldens. */
 #ifndef MC_STRONGHOLD_LOOT_H
 #define MC_STRONGHOLD_LOOT_H
@@ -222,8 +223,7 @@ MC_HD static inline i32 shl_generate(const ShlTable *table, JavaRandom *r,
     return n;
 }
 
-/* LootTable.getEmptySlotsRandomized + Collections.shuffle (Fisher-Yates via
- * nextInt). */
+/* Collections.shuffle(List, Random): Fisher-Yates from the end via nextInt(i). */
 MC_HD static inline void shl_shuffle_ints(i32 *a, i32 n, JavaRandom *r) {
     i32 i;
     for (i = n; i > 1; --i) {
@@ -234,43 +234,84 @@ MC_HD static inline void shl_shuffle_ints(i32 *a, i32 n, JavaRandom *r) {
     }
 }
 
-/* Simplified shuffleItems: split oversized stacks then Fisher-Yates. Enough
- * for structure chests; not every edge of the Java multi-split path. */
-MC_HD static inline i32 shl_shuffle_items(LtStack *stacks, i32 n, i32 empty_slots,
-                                          JavaRandom *r, LtStack *work, i32 work_cap) {
-    i32 wn = 0;
-    i32 i;
-    (void)empty_slots;
-    for (i = 0; i < n && wn < work_cap; ++i) {
-        if (lt_stack_is_empty(stacks[i])) continue;
-        if (stacks[i].count > 1 && wn + 1 < work_cap && jrand_int_bound(r, 2) == 0) {
-            i32 half = stacks[i].count / 2;
-            if (half < 1) half = 1;
-            if (half >= stacks[i].count) half = stacks[i].count - 1;
-            work[wn++] = lt_stack_mk(stacks[i].item, stacks[i].count - half, stacks[i].meta);
-            work[wn++] = lt_stack_mk(stacks[i].item, half, stacks[i].meta);
-        } else {
-            work[wn++] = stacks[i];
-        }
-    }
-    /* Fisher-Yates on work stacks via index array */
-    {
-        i32 idx[SHL_MAX_STACKS];
-        i32 k;
-        if (wn > SHL_MAX_STACKS) wn = SHL_MAX_STACKS;
-        for (k = 0; k < wn; ++k) idx[k] = k;
-        for (k = wn; k > 1; --k) {
-            i32 j = jrand_int_bound(r, k);
-            i32 tmp = idx[k - 1];
-            idx[k - 1] = idx[j];
-            idx[j] = tmp;
-        }
-        for (k = 0; k < wn; ++k) stacks[k] = work[idx[k]];
-    }
-    return wn;
+/* ItemStack.splitStack: copy (incl. StoredEnchantments) then shrink source. */
+MC_HD static inline LtStack shl_stack_split(LtStack *src, i32 amount) {
+    LtStack out;
+    i32 take;
+    if (!src || amount <= 0 || lt_stack_is_empty(*src)) return lt_stack_empty();
+    take = amount;
+    if (take > src->count) take = src->count;
+    out = *src;
+    out.count = take;
+    src->count -= take;
+    if (src->count <= 0) *src = lt_stack_empty();
+    return out;
 }
 
-/* LootTable.fillInventory into a 27-slot TeChest. */
+/* Random.nextBoolean == next(1) != 0. */
+MC_HD static inline int shl_next_boolean(JavaRandom *r) {
+    return jrand_next(r, 1) != 0;
+}
+
+/* LootTable.shuffleItems VERBATIM (1.11.2 bytecode):
+ *  1) strip empties; park count>1 stacks in a side list
+ *  2) free = empty_slots - remaining_singles (gate only; not decremented in loop)
+ *  3) while free>0 && multi non-empty:
+ *       pick multi via MathHelper.getInt(0, size-1)
+ *       split amount via MathHelper.getInt(1, count/2)
+ *       each half: if count>1 && nextBoolean -> requeue multi, else finalize
+ *  4) append leftover multi, Collections.shuffle
+ * Enchants ride splitStack.copy(). work[] is scratch (multi list); stacks mutated. */
+MC_HD static inline i32 shl_shuffle_items(LtStack *stacks, i32 n, i32 empty_slots,
+                                          JavaRandom *r, LtStack *work, i32 work_cap) {
+    i32 n_kept = 0;
+    i32 n_multi = 0;
+    i32 i;
+    if (work_cap > SHL_MAX_STACKS) work_cap = SHL_MAX_STACKS;
+    for (i = 0; i < n; ++i) {
+        if (lt_stack_is_empty(stacks[i])) continue;
+        if (stacks[i].count > 1) {
+            if (n_multi < work_cap) work[n_multi++] = stacks[i];
+        } else {
+            if (n_kept < work_cap) stacks[n_kept++] = stacks[i];
+        }
+    }
+    empty_slots = empty_slots - n_kept;
+    while (empty_slots > 0 && n_multi > 0) {
+        i32 pick = lt_math_get_int(r, 0, n_multi - 1);
+        LtStack item2 = work[pick];
+        i32 split_amt, j;
+        LtStack item1;
+        /* ArrayList.remove(pick): shift left, preserve relative order of tail. */
+        for (j = pick; j < n_multi - 1; ++j) work[j] = work[j + 1];
+        --n_multi;
+        split_amt = lt_math_get_int(r, 1, item2.count / 2);
+        item1 = shl_stack_split(&item2, split_amt);
+        if (item2.count > 1 && shl_next_boolean(r)) {
+            if (n_multi < work_cap) work[n_multi++] = item2;
+        } else {
+            if (n_kept < work_cap) stacks[n_kept++] = item2;
+        }
+        if (item1.count > 1 && shl_next_boolean(r)) {
+            if (n_multi < work_cap) work[n_multi++] = item1;
+        } else {
+            if (n_kept < work_cap) stacks[n_kept++] = item1;
+        }
+    }
+    for (i = 0; i < n_multi && n_kept < work_cap; ++i)
+        stacks[n_kept++] = work[i];
+    /* Collections.shuffle(stacks[0..n_kept), rand) */
+    for (i = n_kept; i > 1; --i) {
+        i32 j = jrand_int_bound(r, i);
+        LtStack tmp = stacks[i - 1];
+        stacks[i - 1] = stacks[j];
+        stacks[j] = tmp;
+    }
+    return n_kept;
+}
+
+/* LootTable.fillInventory into a 27-slot TeChest.
+ * Vanilla order: getEmptySlotsRandomized (shuffle empties) THEN shuffleItems. */
 MC_HD static inline void shl_fill_chest(TeChest *chest, int table_id, i64 loot_seed) {
     ShlTable table;
     LtContext ctx;
@@ -294,8 +335,8 @@ MC_HD static inline void shl_fill_chest(TeChest *chest, int table_id, i64 loot_s
     }
     if (n_empty <= 0) return;
 
-    n = shl_shuffle_items(stacks, n, n_empty, &rng, work, SHL_MAX_STACKS);
     shl_shuffle_ints(empty, n_empty, &rng);
+    n = shl_shuffle_items(stacks, n, n_empty, &rng, work, SHL_MAX_STACKS);
 
     for (i = 0; i < n && n_empty > 0; ++i) {
         if (lt_stack_is_empty(stacks[i])) {
@@ -378,7 +419,8 @@ MC_HD static inline i32 shl_bat_stacks(int set, LtStack *out, i32 cap) {
     return n;
 }
 
-/* LootTable.fillInventory over a fixed stack list (no generateLootForPools). */
+/* LootTable.fillInventory over a fixed stack list (no generateLootForPools).
+ * Order matches vanilla: shuffle empty slots first, then shuffleItems. */
 MC_HD static inline void shl_fill_from_stacks(TeChest *chest, LtStack *stacks, i32 n,
                                               i64 loot_seed) {
     JavaRandom rng;
@@ -389,8 +431,8 @@ MC_HD static inline void shl_fill_from_stacks(TeChest *chest, LtStack *stacks, i
     tec_init(chest);
     jrand_set(&rng, loot_seed);
     for (i = 0; i < TEC_SLOTS; ++i) empty[n_empty++] = i;
-    n = shl_shuffle_items(stacks, n, n_empty, &rng, work, SHL_MAX_STACKS);
     shl_shuffle_ints(empty, n_empty, &rng);
+    n = shl_shuffle_items(stacks, n, n_empty, &rng, work, SHL_MAX_STACKS);
     for (i = 0; i < n && n_empty > 0; ++i) {
         if (lt_stack_is_empty(stacks[i])) { --n_empty; continue; }
         {

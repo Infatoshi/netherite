@@ -963,15 +963,20 @@ sm_86 chain-gate false hang fixed (single-thread verify camera render).
 
 ## 57. OPEN: chest rendering and world-layout seed parity
 
-### Java-verified (mc-sim oracle runner, exact int/item/tag sequences)
+### Hand-port Java twin (mc-sim oracle: C kernel == standalone Golden.java)
+
+These oracles prove **C twin == hand-ported Java twin** bit-exact. The Golden
+is a pure-Java reimplementation of the decompiled 1.11.2 subset under
+`java/oracle-src`, not a live Mojang / Forge process. Do not read
+"java==cpu" as "ran inside MC 1.11.2."
 
 | Claim | Oracle | Notes |
 |-------|--------|-------|
-| Enchanted book max stack 1 | `inventory_stack_rules`, `container_click`, `tile_entity_chest` | ItemEnchantedBook 403; equal-tag books do not merge |
-| StoredEnchantments through PICKUP take/deposit, mismatch swap, equal-tag no-merge, QUICK_MOVE, THROW, cursor drop | `container_click` phase 2 (32 clicks) | emit item/count/meta/n_enchants + 8 id/level pairs |
-| Ground-pickup path (addItemStackToInventory) keeps multi-enchant payload; mismatch no-merge | `inventory_stack_rules` scenarios 10-11 | |
-| Chest insert/extract + decr keeps tags; two equal books take two slots | `tile_entity_chest` marks 6-8 | |
-| Unopened-chest fillInventory materialization (loot_seed -> 27-slot TE) keeps tags | `stronghold_loot` | fixed pre-rolled stacks + seeds {0,42,12345} |
+| Enchanted book max stack 1 | `inventory_stack_rules`, `container_click`, `tile_entity_chest` | ItemEnchantedBook 403; equal books do not merge |
+| StoredEnchantments through PICKUP take/deposit, mismatch swap, equal-tag no-merge, QUICK_MOVE, THROW, cursor drop | `container_click` phase 2 (32 clicks) | emit item/count/meta/n_enchants + 8 id/level pairs; Container-style tag equality |
+| Ground-pickup path (addItemStackToInventory) keeps multi-enchant payload; mismatch no-merge | `inventory_stack_rules` scenarios 10-11 | InventoryPlayer.canMergeStacks = item+meta+tags; field schema in header |
+| Chest InventoryBasic.addItem: item+damage equality; max-stack-1 books take two slots; decr keeps tags | `tile_entity_chest` marks 6-8 | InventoryBasic.areItemsEqual has no NBT; e0+e1 goldened on book marks |
+| Unopened-chest fillInventory (loot_seed -> 27-slot TE): empty-slot shuffle first, vanilla multi-pass shuffleItems, tags through split | `stronghold_loot` | fixed pre-rolled stacks + seeds {0,42,12345}; e0+e1 per slot |
 
 Repro:
 ```bash
@@ -987,7 +992,7 @@ uv run --no-project python oracle/runner.py --cpu-only stronghold_loot
 Live TE lifecycle, chest break of deferred structure loot, full-chest overflow
 caps, and tape `n_ench` fields are covered by `game/test_chest_loot.sh` and
 `game/test_container_live.sh` (EntityItem drop/pickup, chest GUI clicks). These
-compose the Java-verified kernels above but are not a full live-Java bit match.
+compose the hand-port-verified kernels above but are not a full live-Java bit match.
 
 ### Still open
 
@@ -1002,8 +1007,8 @@ compose the Java-verified kernels above but are not a full live-Java bit match.
   not structure nextLong capture order.
 - Full `generateLootForPools` of embedded stronghold JSON with
   EnchantWithLevels is integrated in C (`shl_fill_chest` + `et_build_list`);
-  weight/SetCount and enchant-list builders are separately Java-goldened
-  (`loot_table`, `enchant_table`), but a single end-to-end Java golden of
+  weight/SetCount and enchant-list builders are separately hand-port goldened
+  (`loot_table`, `enchant_table`), but a single end-to-end live-Java golden of
   library multi-enchant roll fingerprints is not yet wired.
 - Oracle tape capture (`gslots`/`gcur`) still emits item/meta/count only;
   magma accepts optional ench fields when a recorder supplies them.
@@ -1013,20 +1018,22 @@ game/test_container_live.sh`.
 
 ## 58. OPEN: mob roster AI / spawn / boat UNDER_WATER
 
-### Java-verified
+### Hand-port Java twin
 
 | Claim | Oracle | Notes |
 |-------|--------|-------|
-| controlBoat WASD thrust/turn constants (0.04 / 0.005 / deltaRot +/-1) | `boat_control` | MathHelper.sin/cos table; exact float bits |
+| controlBoat WASD thrust/turn constants (0.04 / 0.005 / deltaRot +/-1) | `boat_control` | MathHelper.sin/cos table; exact float bits; client-only in vanilla |
 | updateMotion momentum for IN_WATER 0.9 / ON_LAND glide / IN_AIR 0.9 | `boat_control` | land glide halves each player tick |
+| Client composed step: updateMotion then controlBoat; from rest water forward = 0.04 not 0.036 | `boat_control` sc1 | not a full entity tick (no gravity/move/packets) |
 
 Repro: `cd c/mc-sim && uv run --no-project python oracle/runner.py --cpu-only boat_control`
 
 ### C self-tests
 
 Mounted boat land/water travel thresholds (no auto-thrust, forward travel,
-deltaRotation yaw) in `game/test_mob_live.sh`. Uses simplified 3-way
-foot/head water sample, not multi-AABB.
+deltaRotation yaw) in `game/test_mob_live.sh`. Live path already uses
+updateMotion then controlBoat with simplified 3-way foot/head water sample,
+not multi-AABB.
 
 ### Still open
 

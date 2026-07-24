@@ -1,13 +1,21 @@
 // Verbatim MC 1.11.2 EntityBoat.controlBoat + updateMotion momentum subset.
-// Eval-pure: no game launch, no world AABB sampling.
+// Eval-pure hand-port of decompiled oracle-src (not a live Mojang process).
 //
-// Logic from the decompiled oracle:
+// Logic from:
 //   net/minecraft/entity/item/EntityBoat.java  controlBoat, updateMotion (momentum branch)
 //   net/minecraft/util/math/MathHelper.java    sin/cos SIN_TABLE
 //
+// Composed step order matches client onUpdate when canPassengerSteer:
+//   updateMotion() THEN controlBoat()  (EntityBoat.java ~314-318)
+// controlBoat is client-only (world.isRemote). This battery models that client
+// composed step from rest; it is not a full entity tick.
+//
+// From rest water forward: post-step |v| is 0.04 (not 0.04*0.9=0.036).
+// Per-function constants are independent of composition (0.04 / 0.005 / deltaRot).
+//
 // Status is injected (IN_WATER=0, ON_LAND=1, IN_AIR=2) matching magma's simplified
 // 3-way sample. OPEN: UNDER_WATER / UNDER_FLOWING_WATER, full multi-AABB waterLevel,
-// 60-tick passenger eject, land boatGlide block-friction table.
+// 60-tick passenger eject, land boatGlide block-friction table, server path.
 //
 // Output: 12 scenarios * 6 fields (yaw,vx,vz,deltaRot,momentum bits + status) as %08x.
 
@@ -34,7 +42,7 @@ public class Golden {
         int status, forward, strafe;
     }
 
-    // EntityBoat.controlBoat VERBATIM
+    // EntityBoat.controlBoat VERBATIM (client/ridden)
     static void controlBoat(State s) {
         float f = 0.0F;
         boolean left = s.strafe < 0, right = s.strafe > 0;
@@ -96,8 +104,9 @@ public class Golden {
         case 11: s.status = ON_LAND; s.forward = 1; s.boatGlide = 0.4f; s.yaw = -30.0f; break;
         default: break;
         }
-        controlBoat(s);
+        /* Client composed order: updateMotion then controlBoat. */
         float mom = updateMotion(s);
+        controlBoat(s);
         emit(sb, s, mom);
     }
 
