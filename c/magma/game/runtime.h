@@ -12,10 +12,14 @@
 #include "game/container_live.h"
 
 #define GM_RUNTIME_FURNACES 16
-#define GM_RUNTIME_CHESTS 64
+/* Growable chest TE table: starts at this capacity, doubles when full.
+ * Never evicts a live TE while its block 54 still exists. */
+#define GM_RUNTIME_CHESTS_INITIAL 64
 #define GM_RUNTIME_PROJECTILES 32
 #define GM_RUNTIME_GHOSTS 16
 #define GM_RUNTIME_GHOST_VIEWS 32  /* REC_ENT_MAX in the qrl recorder */
+/* Compat alias for tests that still reference the old fixed size. */
+#define GM_RUNTIME_CHESTS GM_RUNTIME_CHESTS_INITIAL
 typedef struct {int active,type,age;double x,y,z,vx,vy,vz;} GmRuntimeProjectile;
 typedef struct {
     int active, wx, wy, wz;
@@ -61,7 +65,8 @@ typedef struct GmRuntime {
     int active_chest;
     ICStack craft_grid[9]; /* live craft matrix (container_live slot ids 36..44) */
     GmRuntimeFurnace furnaces[GM_RUNTIME_FURNACES];
-    GmRuntimeChest chests[GM_RUNTIME_CHESTS];
+    GmRuntimeChest *chests; /* growable; capacity in chests_cap */
+    int chests_cap;
     GmFluidLive fluids;    /* live water/lava flow region (game/fluid_live.c) */
     /* Tape-replay ghost pushers: recorded oracle entity boxes (world coords,
      * feet y, full width/height) injected per tick; gm_runtime_tick applies

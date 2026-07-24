@@ -24,6 +24,7 @@
 #include "mc.h"
 #include "mc_math.h"
 #include "mc_rng.h"
+#include "enchant_table.h"
 
 /* ---- item ids (legacy, same convention as items_core / crafting_recipes) ---- */
 enum {
@@ -42,9 +43,11 @@ enum {
 
 /* ---- function kinds ---- */
 enum {
-    LT_FN_NONE       = 0,
-    LT_FN_SET_COUNT  = 1,
-    LT_FN_LOOTING    = 2
+    LT_FN_NONE            = 0,
+    LT_FN_SET_COUNT       = 1,
+    LT_FN_LOOTING         = 2,
+    /* EnchantWithLevels: levels in count min/max; limit=1 means treasure. */
+    LT_FN_ENCHANT_LEVELS  = 3
 };
 
 #define LT_MAX_FUNCS   2
@@ -93,10 +96,14 @@ typedef struct {
     i32 looting_level;  /* context.getLootingModifier() stand-in */
 } LtContext;
 
+enum { LT_MAX_ENCHANTS = 8 };
 typedef struct {
     i32 item;
     i32 count;
     i32 meta;
+    i32 n_enchants;
+    i16 ench_id[LT_MAX_ENCHANTS];
+    i16 ench_lvl[LT_MAX_ENCHANTS];
 } LtStack;
 
 /* ---- MathHelper helpers used by loot ---- */
@@ -134,12 +141,16 @@ MC_HD static inline i32 lt_effective_weight(i32 weight, i32 quality, float luck)
 
 /* ---- stack helpers ---- */
 MC_HD static inline LtStack lt_stack_empty(void) {
-    LtStack s = {LT_AIR, 0, 0};
+    LtStack s;
+    int i;
+    s.item = LT_AIR; s.count = 0; s.meta = 0; s.n_enchants = 0;
+    for (i = 0; i < LT_MAX_ENCHANTS; ++i) { s.ench_id[i] = 0; s.ench_lvl[i] = 0; }
     return s;
 }
 
 MC_HD static inline LtStack lt_stack_mk(i32 item, i32 count, i32 meta) {
-    LtStack s = {item, count, meta};
+    LtStack s = lt_stack_empty();
+    s.item = item; s.count = count; s.meta = meta;
     return s;
 }
 
@@ -148,6 +159,9 @@ MC_HD static inline int lt_stack_is_empty(LtStack s) {
 }
 
 /* ---- apply functions ---- */
+/* Enchanted book: item 403 + StoredEnchantments-equivalent list (not packed meta). */
+enum { LT_ENCHANTED_BOOK = 403, LT_BOOK = 340 };
+
 MC_HD static inline LtStack lt_apply_func(LtStack stack, const LtFunc *fn, JavaRandom *r,
                                          const LtContext *ctx) {
     if (fn->kind == LT_FN_SET_COUNT) {
@@ -172,6 +186,31 @@ MC_HD static inline LtStack lt_apply_func(LtStack stack, const LtFunc *fn, JavaR
         }
         return stack;
     }
+    if (fn->kind == LT_FN_ENCHANT_LEVELS) {
+        /* EnchantWithLevels -> EnchantmentHelper.addRandomEnchantment via
+         * et_build_list (candidate datas, weighted pick, removeIncompatible).
+         * Continues on the same JavaRandom; does not reseed or pack meta. */
+        (void)ctx;
+        {
+            i32 level = lt_rvr_generate_int(r, fn->count);
+            i32 allow_treasure = fn->limit != 0 ? 1 : 0;
+            EtData list[ET_MAX_LIST];
+            int n = et_build_list(r, ET_ITEM_BOOK, (int)level, allow_treasure,
+                                  list, ET_MAX_LIST);
+            int i;
+            if (stack.item == LT_BOOK || stack.item == 0)
+                stack.item = LT_ENCHANTED_BOOK;
+            stack.count = 1;
+            stack.meta = 0; /* identity is n_enchants list, not damage meta */
+            stack.n_enchants = 0;
+            for (i = 0; i < n && stack.n_enchants < LT_MAX_ENCHANTS; ++i) {
+                stack.ench_id[stack.n_enchants] = (i16)list[i].id;
+                stack.ench_lvl[stack.n_enchants] = (i16)list[i].level;
+                stack.n_enchants++;
+            }
+        }
+        return stack;
+    }
     return stack;
 }
 
@@ -186,7 +225,8 @@ MC_HD static inline void lt_add_loot_entry(const LtEntry *e, JavaRandom *r, cons
     if (lt_stack_is_empty(stack))
         return;
 
-    /* if count < itemStackLimit (64 for subset) add once; else split into max-size stacks */
+    /* if count < itemStackLimit (64 for subset) add once; else split into max-size stacks.
+     * Enchant lists only attach to count-1 books; splits of plain stacks drop enchants. */
     if (stack.count < LT_MAX_STACK) {
         if (*n_out < max_out)
             out[(*n_out)++] = stack;

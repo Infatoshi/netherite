@@ -338,14 +338,60 @@ int main(void) {
     CHECK(bl,"blaze spawner still selects blaze from stored entity id");
     gm_runtime_destroy(&r);
 
-    /* Boat: place, mount, move, break drop. */
+    /* Boat: place, mount, no-autothrust, controlBoat thrust, water status,
+     * deltaRotation turn, land AABB, break drop. */
     if(!init_flat(&r))return 1;
     CHECK(gm_mobs_place_boat(&r.mobs,8.5,5.0,8.5,0.0f)>=0,"place boat");
     gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
     CHECK(gm_mobs_boat_mount(&r.mobs,(struct PsvPlayer *)&r.player,r.ox,r.oz),
           "mount boat");
     CHECK(gm_mobs_boat_riding(&r.mobs),"boat riding flag");
-    for(int i=0;i<10;++i)gm_runtime_tick(&r,idle);
+    /* Idle: no forced forward thrust while mounted. */
+    {
+        double bx0=0,bz0=0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT){bx0=s->x[i];bz0=s->z[i];}}
+        for(int i=0;i<20;++i)gm_runtime_tick(&r,idle);
+        double bx1=0,bz1=0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT){bx1=s->x[i];bz1=s->z[i];}}
+        double drift=sqrt((bx1-bx0)*(bx1-bx0)+(bz1-bz0)*(bz1-bz0));
+        CHECK(drift<0.15,"mounted boat without forward input does not auto-thrust");
+    }
+    /* Forward input moves the boat along look yaw (controlBoat f+=0.04). */
+    {
+        double bx0=0,bz0=0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT){bx0=s->x[i];bz0=s->z[i];}}
+        GmAction fwd;memset(&fwd,0,sizeof fwd);fwd.forward=1.0f;fwd.hotbar_sel=-1;
+        for(int i=0;i<30;++i)gm_runtime_tick(&r,fwd);
+        double bx1=0,bz1=0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT){bx1=s->x[i];bz1=s->z[i];}}
+        double moved=sqrt((bx1-bx0)*(bx1-bx0)+(bz1-bz0)*(bz1-bz0));
+        fprintf(stderr,"mob_live: boat land forward travel %.4f\n",moved);
+        CHECK(moved>0.3,"mounted boat with forward=1 travels under controlBoat thrust");
+    }
+    /* Turn-only: left input accumulates deltaRotation (oracle: +/-1 per tick). */
+    {
+        float yaw0=0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT)yaw0=s->yaw[i];}
+        GmAction left;memset(&left,0,sizeof left);left.strafe=-1.0f;left.hotbar_sel=-1;
+        for(int i=0;i<10;++i)gm_runtime_tick(&r,left);
+        float yaw1=yaw0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT)yaw1=s->yaw[i];}
+        fprintf(stderr,"mob_live: boat deltaRotation yaw %.3f -> %.3f\n",yaw0,yaw1);
+        CHECK(yaw1 < yaw0 - 5.0f,
+              "left input applies controlBoat deltaRotation (yaw decreases)");
+    }
     gm_mobs_boat_dismount(&r.mobs,(struct PsvPlayer *)&r.player,r.ox,r.oz);
     CHECK(!gm_mobs_boat_riding(&r.mobs),"dismount clears ride");
     /* Break: stand on the boat and hit until hull drops the item. */
@@ -354,7 +400,6 @@ int main(void) {
         int nn=gm_mobs_fill_views(&r.mobs,vv,EW_MAX_ENTITIES),bi=-1;
         for(int k=0;k<nn;++k)if(vv[k].type==GM_ENTITY_BOAT)bi=k;
         CHECK(bi>=0,"boat still present after dismount");
-        /* Stand slightly back and look down into the hull. */
         gm_runtime_set_pose(&r,vv[bi].x,vv[bi].y+1.0,vv[bi].z-1.0,0.0f,30.0f);
     }
     isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
@@ -374,6 +419,56 @@ int main(void) {
         for(int i=1;i<EW_MAX_ENTITIES;++i)
             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT)boat_alive=1;}
     CHECK(boat_item&&!boat_alive,"broken boat drops boat item");
+    gm_runtime_destroy(&r);
+
+    /* Water boat: IN_WATER momentum 0.9, controlBoat forward, no autothrust. */
+    if(!init_flat(&r))return 1;
+    /* Large water basin so 20-tick thrust stays inside the pool. */
+    for(int x=0;x<=24;++x)for(int z=0;z<=24;++z){
+        gm_world_set_block(r.world,x,4,z,1); /* floor */
+        gm_world_set_block(r.world,x,5,z,9); /* source water */
+        gm_world_set_block(r.world,x,6,z,0);
+    }
+    CHECK(gm_mobs_place_boat(&r.mobs,12.5,5.2,12.5,0.0f)>=0,"place water boat");
+    gm_runtime_set_pose(&r,12.5,5.6,12.5,0.0f,10.0f);
+    CHECK(gm_mobs_boat_mount(&r.mobs,(struct PsvPlayer *)&r.player,r.ox,r.oz),
+          "mount water boat");
+    {
+        double bx0=0,bz0=0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT){bx0=s->x[i];bz0=s->z[i];}}
+        for(int i=0;i<20;++i)gm_runtime_tick(&r,idle);
+        double bx1=0,bz1=0,by1=0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT){
+                 bx1=s->x[i];by1=s->y[i];bz1=s->z[i];}}
+        double drift=sqrt((bx1-bx0)*(bx1-bx0)+(bz1-bz0)*(bz1-bz0));
+        CHECK(drift<0.2,"water boat without input does not auto-thrust");
+        CHECK(by1>4.5&&by1<7.0,"idle water boat stays near surface (IN_WATER buoyancy)");
+    }
+    {
+        double bx0=0,bz0=0,by0=0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT){
+                 bx0=s->x[i];by0=s->y[i];bz0=s->z[i];}}
+        GmAction fwd;memset(&fwd,0,sizeof fwd);fwd.forward=1.0f;fwd.hotbar_sel=-1;
+        for(int i=0;i<20;++i)gm_runtime_tick(&r,fwd);
+        double bx1=0,bz1=0,by1=0;
+        {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT){
+                 bx1=s->x[i];by1=s->y[i];bz1=s->z[i];}}
+        double moved=sqrt((bx1-bx0)*(bx1-bx0)+(bz1-bz0)*(bz1-bz0));
+        fprintf(stderr,"mob_live: water boat forward travel %.4f y %.3f->%.3f\n",
+                moved,by0,by1);
+        /* Oracle-valued: 20 ticks of 0.04 thrust with 0.9 water momentum is
+         * well above 0.3 block horizontal travel; boat stays in the water body. */
+        CHECK(moved>0.3,"water boat controlBoat forward travels under 0.9 momentum");
+        CHECK(by1>4.5&&by1<7.0,"water boat remains near water surface (buoyancy)");
+    }
     gm_runtime_destroy(&r);
 
     /* Entity ownership is dimension-scoped even for authoritative scripted
@@ -477,7 +572,7 @@ int main(void) {
     CHECK(acquired,"autonomy: hurt enderman acquires and chases the player");
     gm_runtime_destroy(&r);
 
-    /* Blaze burst: ranged AI sets attack_time=40; spawn_hostile_projectiles
+    /* Blaze burst: ranged AI reloads attack_time=40; spawn_hostile_projectiles
      * emits a type-3 fireball on that exact cadence, then reloads. */
     if(!init_flat(&r))return 1;
     r.dimension=-1;r.mobs.active_dimension=-1;
@@ -499,6 +594,59 @@ int main(void) {
     CHECK(fireballs>=1,"autonomy: blaze fires at least one live fireball");
     CHECK(first_age>=0&&first_age<=45,
           "autonomy: first blaze burst is within the 40-tick attack_time window");
+    gm_runtime_destroy(&r);
+
+    /* Skeleton: type-specific keep-away + ranged (not shared melee stand). */
+    if(!init_flat(&r))return 1;
+    r.vitals.foodLevel=0;r.vitals.saturation=0.0f;
+    CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_SKELETON,8.5,5.0,10.5)>=0,
+          "type AI: spawn skeleton");
+    int sk_arrows=0;double sk_z_max=10.5;
+    for(int i=0;i<100;++i){
+        gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+        gm_runtime_tick(&r,idle);
+        for(int p=0;p<GM_RUNTIME_PROJECTILES;++p)
+            if(r.projectiles[p].active&&r.projectiles[p].type==2&&
+               (r.projectiles[p].age==0||r.projectiles[p].age==1))
+                ++sk_arrows;
+        n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+        for(int k=0;k<n;++k)
+            if(v[k].type==EW_TYPE_SKELETON&&v[k].z>sk_z_max)sk_z_max=v[k].z;
+    }
+    CHECK(sk_arrows>=1,"type AI: skeleton fires arrows on ranged cadence");
+    /* Close skeleton backs off along -player direction (z increases here). */
+    CHECK(sk_z_max>11.5,
+          "type AI: close skeleton keep-away navigates outward (not zombie melee stand)");
+    gm_runtime_destroy(&r);
+
+    /* Approximate weighted natural spawn (NOT Java WorldEntitySpawner parity):
+     * enderman is rare vs zombie/skeleton/creeper/spider in the route roster. */
+    if(!init_flat(&r))return 1;
+    gm_runtime_set_time(&r,14000);
+    int counts[32];memset(counts,0,sizeof counts);
+    for(int trial=0;trial<40;++trial){
+        /* Clear living hostiles between trials. */
+        {EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+         for(int i=1;i<EW_MAX_ENTITIES;++i)
+             if(s->alive[i]){s->alive[i]=0;s->type[i]=EW_TYPE_NONE;}}
+        r.mobs.tick=20*(trial+1); /* natural_spawn gates on tick%20==0 */
+        for(int i=0;i<25;++i){
+            gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+            gm_runtime_tick(&r,idle);
+        }
+        n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+        for(int k=0;k<n;++k){
+            int t=v[k].type;
+            if(t>=0&&t<32)counts[t]++;
+        }
+    }
+    int common=counts[EW_TYPE_ZOMBIE]+counts[EW_TYPE_SKELETON]+
+               counts[EW_TYPE_CREEPER]+counts[EW_TYPE_SPIDER];
+    fprintf(stderr,"mob_live: natural spawn common=%d enderman=%d\n",
+            common,counts[EW_TYPE_ENDERMAN]);
+    CHECK(common>0,"type AI: night natural spawn produces common hostiles");
+    CHECK(counts[EW_TYPE_ENDERMAN]<=common,
+          "type AI: enderman weight is not above the common hostiles combined");
     gm_runtime_destroy(&r);
 
     /* Real spawner: natural_spawn Nether branch reads block id 52 and emits

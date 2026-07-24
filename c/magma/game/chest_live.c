@@ -8,6 +8,32 @@
 
 #include <string.h>
 
+static ICStack tec_to_ic(TecStack t)
+{
+    ICStack s = ic_mk(t.item, t.count, t.meta);
+    int i, n = t.n_enchants;
+    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+    s.n_enchants = n;
+    for (i = 0; i < n; ++i) {
+        s.enchants[i].id = t.enchants[i].id;
+        s.enchants[i].level = t.enchants[i].level;
+    }
+    return s;
+}
+
+static TecStack ic_to_tec(ICStack s)
+{
+    TecStack t = tec_mk(s.item, s.count, s.meta);
+    int i, n = s.n_enchants;
+    if (n > TEC_MAX_ENCHANTS) n = TEC_MAX_ENCHANTS;
+    t.n_enchants = n;
+    for (i = 0; i < n; ++i) {
+        t.enchants[i].id = s.enchants[i].id;
+        t.enchants[i].level = s.enchants[i].level;
+    }
+    return t;
+}
+
 void chest_live_init(ChestLive *c)
 {
     if (!c) return;
@@ -40,7 +66,7 @@ ICStack chest_live_get(const ChestLive *c, int slot)
      * get on unfilled chest returns empty (vanilla fills on openInventory). */
     TecStack t = tec_get_stack(&c->te, slot);
     if (tec_is_empty(&t)) return ic_empty();
-    return ic_mk(t.item, t.count, t.meta);
+    return tec_to_ic(t);
 }
 
 void chest_live_set(ChestLive *c, int slot, ICStack stack)
@@ -50,7 +76,7 @@ void chest_live_set(ChestLive *c, int slot, ICStack stack)
     if (stack.item <= 0 || stack.count <= 0)
         tec_set_slot(&c->te, slot, tec_empty());
     else
-        tec_set_slot(&c->te, slot, tec_mk(stack.item, stack.count, stack.meta));
+        tec_set_slot(&c->te, slot, ic_to_tec(stack));
 }
 
 ICStack chest_live_extract(ChestLive *c, int slot, int amount)
@@ -59,7 +85,7 @@ ICStack chest_live_extract(ChestLive *c, int slot, int amount)
     chest_live_ensure_loot(c);
     TecStack got = tec_get_and_split(&c->te, slot, amount);
     if (tec_is_empty(&got)) return ic_empty();
-    return ic_mk(got.item, got.count, got.meta);
+    return tec_to_ic(got);
 }
 
 int chest_live_insert(ChestLive *c, int slot, ICStack stack)
@@ -68,13 +94,15 @@ int chest_live_insert(ChestLive *c, int slot, ICStack stack)
     chest_live_ensure_loot(c);
     if (slot < 0 || slot >= CHEST_LIVE_SLOTS) return 0;
     TecStack cur = tec_get_stack(&c->te, slot);
+    TecStack in = ic_to_tec(stack);
     if (tec_is_empty(&cur)) {
         i32 n = stack.count;
         if (n > TEC_STACK_LIMIT) n = TEC_STACK_LIMIT;
-        tec_set_slot(&c->te, slot, tec_mk(stack.item, n, stack.meta));
+        in.count = n;
+        tec_set_slot(&c->te, slot, in);
         return (int)n;
     }
-    if (cur.item != stack.item || cur.meta != stack.meta) return 0;
+    if (!tec_are_items_equal(&cur, &in)) return 0;
     i32 room = TEC_STACK_LIMIT - cur.count;
     if (room <= 0) return 0;
     i32 n = stack.count < room ? stack.count : room;

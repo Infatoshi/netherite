@@ -164,6 +164,9 @@ static int take_arrow(PsvPlayer *p) {
     return 0;
 }
 
+static void runtime_close_container(GmRuntime *r);
+static void runtime_break_chest_te(GmRuntime *r, int wx, int wy, int wz);
+
 static void spawn_bow_arrow(GmRuntime *r, int draw) {
     float f = (float)draw / 20.0f;
     f = (f * f + f * 2.0f) / 3.0f;
@@ -190,8 +193,11 @@ static void spawn_hostile_projectiles(GmRuntime *r) {
     const EwStore *s=r->mobs.current?&r->mobs.b:&r->mobs.a;
     GmPlayerView v;gm_runtime_view(r,&v);
     for(int j=1;j<EW_MAX_ENTITIES;++j){
-        if(!s->alive[j]||s->attack_time[j]!=40||
-           (s->type[j]!=EW_TYPE_SKELETON&&s->type[j]!=GM_MOB_BLAZE))continue;
+        if (!s->alive[j]) continue;
+        /* Fire on the tick attack_time is reloaded (skeleton/blaze = 40). */
+        int reload = (s->type[j] == GM_MOB_BLAZE || s->type[j] == EW_TYPE_SKELETON)
+                     ? 40 : 0;
+        if (!reload || s->attack_time[j] != reload) continue;
         for(int i=0;i<GM_RUNTIME_PROJECTILES;++i){
             GmRuntimeProjectile *p=&r->projectiles[i];if(p->active)continue;
             double sx=s->x[j],sy=s->y[j]+1.5,sz=s->z[j];
@@ -318,7 +324,14 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     r->mobs_enabled = cfg->mobs;
     r->active_furnace = -1;
     r->active_chest = -1;
-    memset(r->chests, 0, sizeof r->chests);
+    r->chests_cap = GM_RUNTIME_CHESTS_INITIAL;
+    r->chests = (GmRuntimeChest *)calloc((size_t)r->chests_cap, sizeof(GmRuntimeChest));
+    if (!r->chests) {
+        free(r->window);
+        for (int i = 0; i < 3; ++i) if (r->worlds[i]) gm_world_destroy(r->worlds[i]);
+        set_error(err, err_cap, "chest TE storage allocation failed");
+        return 0;
+    }
     for (int i = 0; i < 9; ++i) r->craft_grid[i] = ic_empty();
     return 1;
 }
@@ -326,6 +339,9 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
 void gm_runtime_destroy(GmRuntime *r) {
     if (!r) return;
     free(r->window);
+    free(r->chests);
+    r->chests = NULL;
+    r->chests_cap = 0;
     for(int i=0;i<3;++i)if(r->worlds[i])gm_world_destroy(r->worlds[i]);
     memset(r, 0, sizeof *r);
 }
@@ -359,6 +375,15 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     /* Sneak dismounts boat. */
     if(action.sneak&&gm_mobs_boat_riding(&r->mobs))
         gm_mobs_boat_dismount(&r->mobs,(struct PsvPlayer *)&r->player,r->ox,r->oz);
+    /* Mounted: WASD drives the boat (EntityBoat.controlBoat); player walk is
+     * suppressed so the hull is the only motion source. */
+    float boat_fwd = 0.0f, boat_str = 0.0f;
+    if (gm_mobs_boat_riding(&r->mobs)) {
+        boat_fwd = action.forward;
+        boat_str = action.strafe;
+        action.forward = 0.0f;
+        action.strafe = 0.0f;
+    }
     if (r->container) {
         GmPlayerView cv; gm_runtime_view(r,&cv);
         double dx=(r->container_wx+0.5)-cv.x;
@@ -464,6 +489,9 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         r->nghosts = 0;
     }
     for (int i = 0; i < n; ++i) {
+        int old_id = gm_world_block(r->world, edits[i].wx, edits[i].wy, edits[i].wz);
+        if (old_id == 54 && edits[i].id != 54)
+            runtime_break_chest_te(r, edits[i].wx, edits[i].wy, edits[i].wz);
         gm_world_set_block_meta(r->world, edits[i].wx, edits[i].wy, edits[i].wz,
                                 edits[i].id, edits[i].meta);
         gm_fluid_mark(&r->fluids, r->world, r->dimension,
@@ -493,7 +521,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     if (r->mobs_enabled) {
         gm_mobs_tick(&r->mobs,r->world,(const struct McSinTable *)&r->sin_table,
                      (struct PsvPlayer *)&r->player,(struct PvStats *)&r->vitals,
-                     r->ox,r->oz,r->dimension,r->clock.world_time,&r->entities);
+                     r->ox,r->oz,r->dimension,r->clock.world_time,&r->entities,
+                     boat_fwd, boat_str);
         {double x,y,z;if(gm_mobs_take_explosion(&r->mobs,&x,&y,&z))runtime_explode(r,x,y,z,3.0f);}
         spawn_hostile_projectiles(r);
     }
@@ -518,8 +547,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                                         gm_world_meta(r->world,f->wx,f->wy,f->wz));
         }
     }
-    for (int i = 0; i < GM_RUNTIME_CHESTS; ++i)
-        if (r->chests[i].active) chest_live_tick(&r->chests[i].state);
+    for (int i = 0; i < r->chests_cap; ++i)
+        if (r->chests && r->chests[i].active) chest_live_tick(&r->chests[i].state);
     if (r->vitals.health <= 0.0f) {
         r->dead = 1;
         r->deaths++;
@@ -960,6 +989,9 @@ void gm_runtime_set_total_time(GmRuntime *r, long long total_time) {
 int gm_runtime_set_block(GmRuntime *r, int x, int y, int z, int id, int meta) {
     if (!r || !r->world || y < 0 || y > 255 || id < 0 || id > 4095 ||
         meta < 0 || meta > 15) return 0;
+    int old_id = gm_world_block(r->world, x, y, z);
+    if (old_id == 54 && id != 54)
+        runtime_break_chest_te(r, x, y, z);
     gm_world_set_block_meta(r->world, x, y, z, id, meta);
     gm_fluid_mark(&r->fluids, r->world, r->dimension, x, y, z);
     break_unsupported_plants(r, x, y, z);
@@ -1093,6 +1125,95 @@ static void runtime_close_container(GmRuntime *r)
     r->active_chest = -1;
 }
 
+/* Drop one chest slot stack as a ground item (meta only; enchants stay on TE
+ * path until ICStack pickup; ground items carry item/count/meta). */
+static void runtime_drop_stack(GmRuntime *r, int wx, int wy, int wz, ICStack st)
+{
+    if (!r || st.item <= 0 || st.count <= 0) return;
+    gm_live_spawn_item(&r->entities, wx + 0.5, wy + 0.5, wz + 0.5,
+                       st.item, st.count, st.meta, 10);
+}
+
+/* Materialize deferred structure loot (or live TE slots) and drop all stacks.
+ * Vanilla: breakBlock -> InventoryHelper after fillWithLoot on first access. */
+static void runtime_drop_chest_contents(GmRuntime *r, ChestLive *ch, int wx, int wy, int wz)
+{
+    int s;
+    if (!r || !ch) return;
+    chest_live_ensure_loot(ch);
+    for (s = 0; s < CHEST_LIVE_SLOTS; ++s) {
+        ICStack st = chest_live_get(ch, s);
+        runtime_drop_stack(r, wx, wy, wz, st);
+    }
+}
+
+/* TileEntityChest break: drop every slot (after deferred loot fill) and free
+ * the TE so a replacement chest at the same block starts empty. Unopened
+ * structure chests with no TE still materialize deferred loot on break. */
+static void runtime_break_chest_te(GmRuntime *r, int wx, int wy, int wz)
+{
+    if (!r || !r->chests) return;
+    for (int i = 0; i < r->chests_cap; ++i) {
+        GmRuntimeChest *c = &r->chests[i];
+        if (!c->active || c->wx != wx || c->wy != wy || c->wz != wz) continue;
+        runtime_drop_chest_contents(r, &c->state, wx, wy, wz);
+        if (r->container == 3 && r->active_chest == i)
+            runtime_close_container(r);
+        c->active = 0;
+        chest_live_init(&c->state);
+        return;
+    }
+    /* No TE yet: unopened structure chest still drops deferred loot. */
+    {
+        int tid = -1;
+        long long lseed = 0;
+        if (gm_stronghold_chest_info(r->seed, wx, wy, wz, &tid, &lseed)) {
+            ChestLive tmp;
+            chest_live_init(&tmp);
+            chest_live_set_loot(&tmp, tid, lseed);
+            runtime_drop_chest_contents(r, &tmp, wx, wy, wz);
+        }
+    }
+}
+
+/* Free slot for a new TE. Never evicts a live chest while its block exists.
+ * Reclaims slots whose block is gone; grows the table when full. */
+static int runtime_chest_free_slot(GmRuntime *r, int wx, int wy, int wz)
+{
+    int free_slot = -1;
+    if (!r || !r->chests) return -1;
+    for (int i = 0; i < r->chests_cap; ++i) {
+        GmRuntimeChest *c = &r->chests[i];
+        if (!c->active) {
+            if (free_slot < 0) free_slot = i;
+            continue;
+        }
+        if (c->wx == wx && c->wy == wy && c->wz == wz) return i;
+        /* Reclaim only when the world no longer has a chest block here. */
+        if (gm_world_block(r->world, c->wx, c->wy, c->wz) != 54) {
+            if (r->container == 3 && r->active_chest == i)
+                runtime_close_container(r);
+            c->active = 0;
+            chest_live_init(&c->state);
+            if (free_slot < 0) free_slot = i;
+        }
+    }
+    if (free_slot >= 0) return free_slot;
+    /* Grow: never drop inventory of a live block-backed TE. */
+    {
+        int new_cap = r->chests_cap > 0 ? r->chests_cap * 2 : GM_RUNTIME_CHESTS_INITIAL;
+        GmRuntimeChest *grown = (GmRuntimeChest *)realloc(
+            r->chests, (size_t)new_cap * sizeof(GmRuntimeChest));
+        if (!grown) return -1; /* fail safely: no open, no loss */
+        memset(grown + r->chests_cap, 0,
+               (size_t)(new_cap - r->chests_cap) * sizeof(GmRuntimeChest));
+        free_slot = r->chests_cap;
+        r->chests = grown;
+        r->chests_cap = new_cap;
+        return free_slot;
+    }
+}
+
 int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
     if (!r || !r->world) return 0;
     GmPlayerView v; gm_runtime_view(r, &v);
@@ -1127,8 +1248,8 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
     }
     if (id == 54) {
         runtime_close_container(r);
-        int free_slot = -1;
-        for (int i = 0; i < GM_RUNTIME_CHESTS; ++i) {
+        if (!r->chests) return 0;
+        for (int i = 0; i < r->chests_cap; ++i) {
             GmRuntimeChest *c = &r->chests[i];
             if (c->active && c->wx==wx && c->wy==wy && c->wz==wz) {
                 chest_live_open(&c->state);
@@ -1136,8 +1257,8 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
                 r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
                 return 1;
             }
-            if (!c->active && free_slot < 0) free_slot=i;
         }
+        int free_slot = runtime_chest_free_slot(r, wx, wy, wz);
         if (free_slot < 0) return 0;
         GmRuntimeChest *c=&r->chests[free_slot];
         c->active=1; c->wx=wx; c->wy=wy; c->wz=wz;

@@ -2,9 +2,12 @@
  * tables embedded for LootTable.generateLootForPools + fillInventory.
  *
  * Source: assets/minecraft/loot_tables/chests/stronghold_*.json (MC 1.11.2 jar).
- * Engine: loot_table.h (SetCount, weight pick). enchant_with_levels is CUT (NBT);
- * those entries still roll as plain books (item present, no enchants) so weights
- * and roll counts stay faithful.
+ * Engine: loot_table.h (SetCount, weight pick, EnchantWithLevels via et_build_list).
+ * enchant_with_levels entries emit Items.ENCHANTED_BOOK (403) with a full
+ * StoredEnchantments-equivalent list on TecStack (not packed into meta).
+ *
+ * Structure loot seeds: captured from the real place_blocks JavaRandom stream
+ * at each placed chest (sh_record_chest / gm_stronghold_chest_info).
  *
  * fillInventory: shuffle empty slots + multi-stack split (LootTable.fillInventory).
  * PURE host/device. Does not mutate the loot_table.h battery goldens. */
@@ -43,6 +46,7 @@ enum {
     SHL_GOLD_HORSE_ARMOR = 418,
     SHL_DIAMOND_HORSE_ARMOR = 419,
     SHL_BOOK             = 340,
+    SHL_ENCHANTED_BOOK   = 403,
     SHL_PAPER            = 339,
     SHL_MAP              = 395, /* empty map */
     SHL_COMPASS          = 345,
@@ -66,6 +70,19 @@ MC_HD static inline void shl_entry_count(LtEntry *e, i32 item, i32 weight,
 MC_HD static inline void shl_entry_one(LtEntry *e, i32 item, i32 weight) {
     e->item = item; e->meta = 0; e->weight = weight; e->quality = 0;
     e->n_funcs = 0;
+}
+
+/* enchant_with_levels: levels fixed range, treasure flag. Starts as book;
+ * LT_FN_ENCHANT_LEVELS converts to enchanted_book (403) + packed meta. */
+MC_HD static inline void shl_entry_enchant_book(LtEntry *e, i32 weight,
+                                                float level_min, float level_max,
+                                                int treasure) {
+    e->item = SHL_BOOK; e->meta = 0; e->weight = weight; e->quality = 0;
+    e->n_funcs = 1;
+    e->funcs[0].kind = LT_FN_ENCHANT_LEVELS;
+    e->funcs[0].count.min = level_min;
+    e->funcs[0].count.max = level_max;
+    e->funcs[0].limit = treasure ? 1 : 0;
 }
 
 /* Expand LT_MAX_ENTRIES for stronghold tables (corridor has 19 entries). */
@@ -125,8 +142,8 @@ MC_HD static inline void shl_table_get(int table_id, ShlTable *t) {
         shl_entry_one(&p->entries[15], SHL_IRON_HORSE_ARMOR, 1);
         shl_entry_one(&p->entries[16], SHL_GOLD_HORSE_ARMOR, 1);
         shl_entry_one(&p->entries[17], SHL_DIAMOND_HORSE_ARMOR, 1);
-        /* enchant_with_levels treasure book -> plain book (NBT cut) */
-        shl_entry_one(&p->entries[18], SHL_BOOK, 1);
+        /* enchant_with_levels levels=30 treasure -> enchanted_book */
+        shl_entry_enchant_book(&p->entries[18], 1, 30.0f, 30.0f, 1);
     } else if (table_id == SHL_LIBRARY) {
         /* chests/stronghold_library.json: rolls 2..10 */
         ShlPool *p = &t->pools[0];
@@ -138,8 +155,8 @@ MC_HD static inline void shl_table_get(int table_id, ShlTable *t) {
         shl_entry_count(&p->entries[1], SHL_PAPER, 20, 2, 7);
         shl_entry_one(&p->entries[2], SHL_MAP, 1);
         shl_entry_one(&p->entries[3], SHL_COMPASS, 1);
-        /* enchanted book entry -> plain book */
-        shl_entry_one(&p->entries[4], SHL_BOOK, 10);
+        /* enchant_with_levels levels=30 treasure weight 10 */
+        shl_entry_enchant_book(&p->entries[4], 10, 30.0f, 30.0f, 1);
     } else if (table_id == SHL_CROSSING) {
         /* chests/stronghold_crossing.json: rolls 1..4 */
         ShlPool *p = &t->pools[0];
@@ -154,7 +171,7 @@ MC_HD static inline void shl_table_get(int table_id, ShlTable *t) {
         shl_entry_count(&p->entries[4], SHL_BREAD, 15, 1, 3);
         shl_entry_count(&p->entries[5], SHL_APPLE, 15, 1, 3);
         shl_entry_one(&p->entries[6], SHL_IRON_PICKAXE, 1);
-        shl_entry_one(&p->entries[7], SHL_BOOK, 1);
+        shl_entry_enchant_book(&p->entries[7], 1, 30.0f, 30.0f, 1);
     }
 }
 
@@ -288,13 +305,21 @@ MC_HD static inline void shl_fill_chest(TeChest *chest, int table_id, i64 loot_s
         {
             i32 slot = empty[--n_empty];
             TecStack ts = tec_mk(stacks[i].item, stacks[i].count, stacks[i].meta);
+            {
+                int e, ne = stacks[i].n_enchants;
+                if (ne > TEC_MAX_ENCHANTS) ne = TEC_MAX_ENCHANTS;
+                ts.n_enchants = ne;
+                for (e = 0; e < ne; ++e) {
+                    ts.enchants[e].id = stacks[i].ench_id[e];
+                    ts.enchants[e].level = stacks[i].ench_lvl[e];
+                }
+            }
             tec_set_slot(chest, slot, ts);
         }
     }
 }
 
-/* Deterministic loot seed when structure-placement nextLong is unavailable.
- * Distinct per (seed,x,y,z); used only as JavaRandom seed for fillInventory. */
+/* Legacy position-mix seed (tests may still call; not used for structure chests). */
 MC_HD static inline i64 shl_pos_loot_seed(i64 world_seed, int x, int y, int z) {
     return world_seed
          ^ ((i64)(i32)x * 3129871LL)

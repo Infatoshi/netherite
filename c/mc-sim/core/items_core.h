@@ -8,7 +8,16 @@
 #include "mc_world.h"
 #include "mc_blocks.h"
 
-typedef struct { i32 item; i32 count; i32 meta; } ICStack;
+/* StoredEnchantments-equivalent for enchanted books (n_enchants==0 for normal). */
+enum { IC_MAX_ENCHANTS = 8 };
+typedef struct { i16 id; i16 level; } IcEnch;
+typedef struct {
+    i32 item;
+    i32 count;
+    i32 meta;
+    i32 n_enchants;
+    IcEnch enchants[IC_MAX_ENCHANTS];
+} ICStack;
 
 enum {
     IC_AIR            = 0,
@@ -30,9 +39,26 @@ enum {
 
 typedef struct { u16 cells[IC_VOL]; } ICWorld;
 
-MC_HD static inline ICStack ic_empty(void) { ICStack s = {IC_AIR, 0, 0}; return s; }
+MC_HD static inline ICStack ic_empty(void) {
+    ICStack s;
+    int i;
+    s.item = IC_AIR; s.count = 0; s.meta = 0; s.n_enchants = 0;
+    for (i = 0; i < IC_MAX_ENCHANTS; ++i) { s.enchants[i].id = 0; s.enchants[i].level = 0; }
+    return s;
+}
 MC_HD static inline ICStack ic_mk(i32 item, i32 count, i32 meta) {
-    ICStack s = {item, count, meta}; return s;
+    ICStack s = ic_empty();
+    s.item = item; s.count = count; s.meta = meta;
+    return s;
+}
+MC_HD static inline void ic_copy_enchants(ICStack *dst, const IcEnch *src, int n) {
+    int i;
+    if (!dst) return;
+    if (n < 0) n = 0;
+    if (n > IC_MAX_ENCHANTS) n = IC_MAX_ENCHANTS;
+    dst->n_enchants = n;
+    for (i = 0; i < n; ++i) dst->enchants[i] = src[i];
+    for (; i < IC_MAX_ENCHANTS; ++i) { dst->enchants[i].id = 0; dst->enchants[i].level = 0; }
 }
 
 MC_HD static inline int ic_idx(int x, int y, int z) { return (y * IC_W + z) * IC_W + x; }

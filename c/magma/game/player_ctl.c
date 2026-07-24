@@ -248,6 +248,7 @@ static void harvest_drop(int block_id, int block_meta, int tool_id,int wx,int wy
         case 16: *item = 263; *count = 1; break;/* coal ore -> coal */
         case 17: *item = 17; *count = 1; *meta = block_meta & 3; break;
         case 49: *item = 49; *count = 1; break; /* obsidian */
+        case 54: *item = 54; *count = 1; break; /* chest block item */
         case 56: *item = 264; *count = 1; break;/* diamond ore -> diamond */
         default: break;
     }

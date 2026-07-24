@@ -153,8 +153,32 @@ static double follow_range(int type) {
     if (type == EW_TYPE_GHAST) return 64.0;
     if (type == EW_TYPE_BLAZE) return 48.0;
     if (type == EW_TYPE_ENDERMAN) return 64.0;
+    if (type == EW_TYPE_SKELETON || type == EW_TYPE_WITHER_SKELETON) return 16.0;
+    if (type == EW_TYPE_SPIDER) return 16.0;
+    if (type == EW_TYPE_CREEPER) return 16.0;
+    if (type == EW_TYPE_SILVERFISH) return 8.0;
     return 16.0;
 }
+
+/* EntityLiving.attackTime / AI attack cooldowns (ticks) after a landed hit
+ * or ranged release. Route-roster values from 1.11.2 Entity* classes.
+ * Ranged skeleton/blaze use 40 so spawn_hostile_projectiles (reload edge)
+ * stays aligned with the existing fireball/arrow emit path. */
+static int attack_cooldown_ticks(int type) {
+    if (type == EW_TYPE_BLAZE) return 40;
+    if (type == EW_TYPE_SKELETON) return 40;
+    if (type == EW_TYPE_WITHER_SKELETON) return 20;
+    if (type == EW_TYPE_GHAST) return 40;
+    if (type == EW_TYPE_SILVERFISH) return 20;
+    if (type == EW_TYPE_SPIDER) return 20;
+    if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_PIGMAN) return 20;
+    if (type == EW_TYPE_ENDERMAN) return 20;
+    return 20;
+}
+
+/* EntityBoat.deltaRotation + land boatGlide (per-slot; not in EwStore). */
+static float s_boat_delta_rot[EW_MAX_ENTITIES];
+static float s_boat_glide[EW_MAX_ENTITIES];
 
 static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     if (slot < 0 || slot >= EW_MAX_ENTITIES) return;
@@ -168,6 +192,8 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->jump_delay[slot] = 0;
     m->charge[slot] = 0;
     m->boat_damage[slot] = 0;
+    s_boat_delta_rot[slot] = 0.0f;
+    s_boat_glide[slot] = 0.8f;
     if (!m->size[slot]) m->size[slot] = gm_is_slimey(s ? s->type[slot] : 0) ? 2 : 1;
 }
 
@@ -300,6 +326,10 @@ int gm_mobs_place_boat(GmMobLive *m, double x, double y, double z, float yaw) {
     if (slot < 0) return -1;
     now_store(m)->yaw[slot] = yaw;
     next_store(m)->yaw[slot] = yaw;
+    if (slot >= 0 && slot < EW_MAX_ENTITIES) {
+        s_boat_delta_rot[slot] = 0.0f;
+        s_boat_glide[slot] = 0.8f;
+    }
     return slot;
 }
 
@@ -863,6 +893,19 @@ static void slime_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
     }
 }
 
+/* Route-roster weighted pick — NOT Java-exact WorldEntitySpawner pack loop.
+ * Approximate biome monster weights for supported types only (zombie 95,
+ * skeleton/creeper/spider 100, enderman 10). Full pack enumeration, chunk
+ * RNG order, and type-specific EntityAITasks remain open (OPEN_DIVERGENCES). */
+static int overworld_hostile_weighted(JavaRandom *r) {
+    int roll = jrand_int_bound(r, 405);
+    if (roll < 95) return EW_TYPE_ZOMBIE;
+    if (roll < 195) return EW_TYPE_SKELETON;
+    if (roll < 295) return EW_TYPE_CREEPER;
+    if (roll < 395) return EW_TYPE_SPIDER;
+    return EW_TYPE_ENDERMAN;
+}
+
 static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
                           double px, double py, double pz, int dimension, long long world_time) {
     discover_spawners(m, w, px, py, pz, dimension);
@@ -874,16 +917,20 @@ static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
     }
     if (dimension != 0) return;
 
+    /* Simplified natural spawn (not Java WorldEntitySpawner call-order parity):
+     * slime pocket, then day creature / night monster attempt. */
     slime_spawn(m, w, s, px, py, pz);
 
     int tod = (int)(world_time % 24000LL); if (tod < 0) tod += 24000;
     if (tod < 12000) { passive_spawn(m, w, s, px, py, pz); return; }
     if (tod < 13000 || tod > 23000 || (m->tick % 20) ||
         alive_count(m,s) >= GM_NATURAL_HOSTILE_CAP) return;
+    JavaRandom rng;
+    jrand_set(&rng, (i64)m->seed ^ ((i64)m->tick * 6364136223846793005LL) ^ 0x4d4f4253LL);
     for (int a = 0; a < 8; ++a) {
-        u64 h = mc_hash_seed((u64)m->seed, m->tick, a, 0, 0, 0x4d4f4253u);
-        int dx = 24 + mc_hash_bound(h, 9), dz = mc_hash_bound(mc_hash64(h), 17) - 8;
-        if (h & 1ULL) dx = -dx;
+        int dx = 24 + jrand_int_bound(&rng, 9);
+        int dz = jrand_int_bound(&rng, 17) - 8;
+        if (jrand_int_bound(&rng, 2) == 0) dx = -dx;
         int x = mc_floor(px) + dx, z = mc_floor(pz) + dz;
         gm_world_ensure(w, x >> 4, z >> 4, 0);
         int y = gm_world_surface_y(w, x, z);
@@ -892,9 +939,7 @@ static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
         if (ds < 24.0 * 24.0 || ds > 32.0 * 32.0 || !solid_id(gm_world_block(w, x, y - 1, z)) ||
             gm_world_block(w, x, y, z) != 0 || gm_world_block(w, x, y + 1, z) != 0 ||
             gm_world_block_light(w, x, y, z) > 7) continue;
-        int types[5] = {EW_TYPE_ZOMBIE, EW_TYPE_SKELETON, EW_TYPE_CREEPER,
-                        EW_TYPE_SPIDER, EW_TYPE_ENDERMAN};
-        int type = types[mc_hash_bound(mc_hash64(h + 1), 5)];
+        int type = overworld_hostile_weighted(&rng);
         int slot = ew_store_spawn(s, (u8)type, m->next_id++, x + 0.5, y, z + 0.5,
                                   max_health(type, 1));
         if (slot >= 0) {
@@ -906,51 +951,129 @@ static void natural_spawn(GmMobLive *m, GmWorld *w, EwStore *s,
     }
 }
 
-static void tick_boat(GmMobLive *m, GmWorld *w, EwStore *nx, int i,
-                      PsvPlayer *p, int ox, int oz, float forward, float strafe) {
-    (void)strafe;
-    /* Buoyancy: if water below/at, float; else gravity via living spine-lite. */
-    int bx = mc_floor(nx->x[i]), by = mc_floor(nx->y[i]), bz = mc_floor(nx->z[i]);
+/* Status: 0 IN_WATER, 1 ON_LAND, 2 IN_AIR (subset of EntityBoat.Status). */
+static int boat_status(GmWorld *w, double x, double y, double z) {
+    /* Feet sample: water in body cell => IN_WATER; solid below empty feet => ON_LAND. */
+    int bx = mc_floor(x), by = mc_floor(y), bz = mc_floor(z);
     int feet = gm_world_block(w, bx, by, bz);
     int below = gm_world_block(w, bx, by - 1, bz);
-    int in_water = (feet == 8 || feet == 9 || below == 8 || below == 9);
-    if (in_water) {
-        if (nx->y[i] < (double)by + 0.45) nx->vy[i] = 0.04;
-        else nx->vy[i] *= 0.9;
-        nx->vy[i] *= 0.95;
-    } else {
-        nx->vy[i] -= 0.04;
-        if (nx->vy[i] < -0.5) nx->vy[i] = -0.5;
+    int head = gm_world_block(w, bx, mc_floor(y + 0.5625), bz);
+    if (feet == 8 || feet == 9 || head == 8 || head == 9) return 0; /* IN_WATER */
+    if (solid_id(below) && feet == 0) return 1; /* ON_LAND */
+    return 2; /* IN_AIR */
+}
+
+static void tick_boat(GmMobLive *m, GmWorld *w, EwStore *nx, int i,
+                      PsvPlayer *p, int ox, int oz, float forward, float strafe) {
+    /* Boat half-extents for AABB collision (1.375 wide, 0.5625 tall). */
+    const double half_w = 1.375 * 0.5;
+    const double height = 0.5625;
+    int status = boat_status(w, nx->x[i], nx->y[i], nx->z[i]);
+    float momentum = 0.05f;
+    double d1 = -0.03999999910593033; /* gravity */
+    double d2 = 0.0;                  /* buoyancy factor */
+
+    if (status == 0) { /* IN_WATER */
+        momentum = 0.9f;
+        /* Approximate waterLevel - minY: partial submersion buoyancy. */
+        {
+            int by = mc_floor(nx->y[i]);
+            double water_level = (double)by + 1.0;
+            d2 = (water_level - nx->y[i]) / height;
+            if (d2 < 0.0) d2 = 0.0;
+            if (d2 > 1.0) d2 = 1.0;
+        }
+    } else if (status == 1) { /* ON_LAND */
+        if (s_boat_glide[i] <= 0.0f) s_boat_glide[i] = 0.8f; /* default land glide */
+        momentum = s_boat_glide[i];
+        if (m->boat_ride == i)
+            s_boat_glide[i] *= 0.5f; /* player-controlled land glide halves each tick */
+    } else { /* IN_AIR */
+        momentum = 0.9f;
     }
+
+    /* updateMotion: apply momentum then gravity/buoyancy. */
+    nx->vx[i] *= (double)momentum;
+    nx->vz[i] *= (double)momentum;
+    s_boat_delta_rot[i] *= momentum;
+    nx->vy[i] += d1;
+    if (d2 > 0.0) {
+        nx->vy[i] += d2 * 0.06153846016296973;
+        nx->vy[i] *= 0.75;
+    }
+
+    /* controlBoat when ridden: no auto-thrust without forward/back input. */
     if (m->boat_ride == i && p) {
-        nx->yaw[i] = p->yaw;
-        double yr = p->yaw * MC_PI / 180.0;
-        double speed = in_water ? 0.25 : 0.04;
-        nx->vx[i] = -sin(yr) * forward * speed;
-        nx->vz[i] = cos(yr) * forward * speed;
+        int left = strafe < -0.01f, right = strafe > 0.01f;
+        int fwd = forward > 0.01f, back = forward < -0.01f;
+        float f = 0.0f;
+        if (left) s_boat_delta_rot[i] += -1.0f;
+        if (right) s_boat_delta_rot[i] += 1.0f;
+        if (left != right && !fwd && !back) f += 0.005f;
+        nx->yaw[i] += s_boat_delta_rot[i];
+        if (fwd) f += 0.04f;
+        if (back) f -= 0.005f;
+        {
+            double yr = (double)nx->yaw[i] * 0.017453292;
+            nx->vx[i] += -sin(yr) * (double)f;
+            nx->vz[i] += cos(yr) * (double)f;
+        }
+        p->yaw = nx->yaw[i];
         p->ent.posX = nx->x[i] - ox;
         p->ent.posY = nx->y[i] + 0.35;
         p->ent.posZ = nx->z[i] - oz;
         p->ent.motionX = p->ent.motionY = p->ent.motionZ = 0.0;
-        p->ent.onGround = 1;
-    } else {
-        nx->vx[i] *= 0.9; nx->vz[i] *= 0.9;
+        p->ent.onGround = (status == 1);
     }
-    /* Simple collision: don't enter solid blocks. */
-    double nx_ = nx->x[i] + nx->vx[i];
-    double ny_ = nx->y[i] + nx->vy[i];
-    double nz_ = nx->z[i] + nx->vz[i];
-    if (!solid_id(gm_world_block(w, mc_floor(nx_), mc_floor(ny_), mc_floor(nz_)))) {
-        nx->x[i] = nx_; nx->y[i] = ny_; nx->z[i] = nz_;
-    } else {
-        nx->vx[i] = nx->vz[i] = 0.0;
-        if (nx->vy[i] < 0) { nx->vy[i] = 0; nx->on_ground[i] = 1; }
+
+    /* AABB-style collide: sample corners of the 1.375 x 0.5625 box on XZ and Y. */
+    {
+        double try_x = nx->x[i] + nx->vx[i];
+        double try_z = nx->z[i] + nx->vz[i];
+        double try_y = nx->y[i] + nx->vy[i];
+        int blocked_xz = 0;
+        int mid_y = mc_floor(nx->y[i] + height * 0.5);
+        double corners[4][2] = {
+            { try_x - half_w, try_z - half_w },
+            { try_x + half_w, try_z - half_w },
+            { try_x - half_w, try_z + half_w },
+            { try_x + half_w, try_z + half_w }
+        };
+        for (int c = 0; c < 4; ++c) {
+            if (solid_id(gm_world_block(w, mc_floor(corners[c][0]), mid_y,
+                                        mc_floor(corners[c][1])))) {
+                blocked_xz = 1; break;
+            }
+        }
+        if (!blocked_xz) {
+            nx->x[i] = try_x;
+            nx->z[i] = try_z;
+        } else {
+            nx->vx[i] = nx->vz[i] = 0.0;
+        }
+        {
+            int foot = mc_floor(try_y);
+            int head = mc_floor(try_y + height);
+            int bx = mc_floor(nx->x[i]), bz = mc_floor(nx->z[i]);
+            if (!solid_id(gm_world_block(w, bx, foot, bz)) &&
+                !solid_id(gm_world_block(w, bx, head, bz))) {
+                nx->y[i] = try_y;
+                nx->on_ground[i] = 0;
+            } else if (nx->vy[i] < 0) {
+                nx->vy[i] = 0;
+                nx->on_ground[i] = 1;
+                nx->y[i] = (double)foot + 1.0;
+            } else {
+                nx->vy[i] = 0;
+            }
+        }
     }
 }
 
 void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                   struct PsvPlayer *player_, struct PvStats *vitals_,
-                  int ox, int oz, int dimension, long long world_time, GmLiveSim *drops) {
+                  int ox, int oz, int dimension, long long world_time, GmLiveSim *drops,
+                  float boat_forward, float boat_strafe) {
     if (!m || !w || !player_ || !vitals_) return;
     m->active_dimension=dimension;
     PsvPlayer *p=(PsvPlayer *)player_; PvStats *v=(PvStats *)vitals_;
@@ -969,16 +1092,14 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     natural_spawn(m,w,nx,px,py,pz,dimension,world_time);
     int tod=(int)(world_time%24000LL); if(tod<0)tod+=24000;
     int day=dimension==0&&tod<12000;
-    float boat_fwd = 0.0f;
-    /* While riding, WASD is not available here; boat holds position unless
-     * tests set path. Runtime sets forward via player look when mounted. */
-    if (m->boat_ride >= 0) boat_fwd = 1.0f;
+    float boat_fwd = m->boat_ride >= 0 ? boat_forward : 0.0f;
+    float boat_str = m->boat_ride >= 0 ? boat_strafe : 0.0f;
 
     for(int i=1;i<EW_MAX_ENTITIES;++i)
         if(now->alive[i]&&m->entity_dimension[i]==dimension&&gm_living(now->type[i])){
         int type=now->type[i];
         if (type == EW_TYPE_BOAT) {
-            tick_boat(m, w, nx, i, p, ox, oz, boat_fwd, 0.0f);
+            tick_boat(m, w, nx, i, p, ox, oz, boat_fwd, boat_str);
             continue;
         }
         int hostile=gm_hostile(type), passive=gm_passive(type);
@@ -1039,9 +1160,23 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 m->charge[i]=-40;
             }
         }else if(aggro&&ranged){
-            nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
-            nx->ai_state[i]=EW_AI_ATTACK;nx->yaw[i]=ehs_yaw_toward(dx,dz);
-            if(nx->attack_time[i]<=0)nx->attack_time[i]=40;
+            /* Skeleton/blaze: hold range. Skeleton backs off inside 6 blocks
+             * (EntityAIAttackRangedBow strafe-away); blaze holds mid range. */
+            nx->yaw[i]=ehs_yaw_toward(dx,dz);
+            if(type==EW_TYPE_SKELETON&&xz<6.0&&xz>0.01){
+                double ux=dx/xz, uz=dz/xz;
+                nx->path_tx[i]=now->x[i]-ux*4.0;nx->path_ty[i]=now->y[i];
+                nx->path_tz[i]=now->z[i]-uz*4.0;nx->path_len[i]=0;
+                nx->ai_state[i]=EW_AI_CHASE;moving=1;
+            }else if(type==EW_TYPE_SKELETON&&xz>14.0){
+                nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;
+                nx->path_len[i]=0;nx->ai_state[i]=EW_AI_CHASE;moving=1;
+            }else{
+                nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
+                nx->ai_state[i]=EW_AI_ATTACK;
+            }
+            if(nx->attack_time[i]<=0)
+                nx->attack_time[i]=attack_cooldown_ticks(type);
         }else if(aggro&&type==EW_TYPE_CREEPER&&xz<=3.0&&fabs(dy)<3.0){
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
             nx->ai_state[i]=EW_AI_ATTACK;nx->yaw[i]=ehs_yaw_toward(dx,dz);
@@ -1069,7 +1204,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                                                 &p->inv,dmg,0);
                     p->health=v->health;
                 }
-                nx->attack_time[i]=20;
+                nx->attack_time[i]=attack_cooldown_ticks(type);
             }
         }else if(aggro&&xz<=GM_MOB_REACH&&fabs(dy)<3.0){
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
@@ -1081,12 +1216,19 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 p->health=v->health;
                 if(hit&&type==EW_TYPE_WITHER_SKELETON)
                     m->player_wither_ticks=200;
-                nx->attack_time[i]=20;
+                nx->attack_time[i]=attack_cooldown_ticks(type);
             }
+            /* Spider leap (EntityAILeapAtTarget): periodic, not every tick. */
+            if(type==EW_TYPE_SPIDER&&now->on_ground[i]&&xz>1.5&&xz<8.0&&
+               (m->tick % 20)==0)jump=1;
         }else if(aggro){
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
             nx->ai_state[i]=EW_AI_CHASE;moving=1;
             if(type==EW_TYPE_CREEPER&&m->creeper_fuse[i]>0)--m->creeper_fuse[i];
+            if(type==EW_TYPE_SPIDER&&now->on_ground[i]&&xz>2.0&&xz<10.0&&
+               (m->tick % 20)==0)jump=1;
+            /* Silverfish short follow; hop on a 10-tick cadence. */
+            if(type==EW_TYPE_SILVERFISH&&now->on_ground[i]&&(m->tick % 10)==0)jump=1;
         }else if(passive&&m->panic_ticks[i]>0){
             --m->panic_ticks[i];
             double ux=xz>0.01?dx/xz:1.0, uz=xz>0.01?dz/xz:0.0;

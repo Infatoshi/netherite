@@ -10,6 +10,7 @@
 enum {
     TEC_SLOTS          = 27,
     TEC_STACK_LIMIT    = 64,
+    TEC_MAX_ENCHANTS   = 8,  /* StoredEnchantments list cap for enchanted books */
     TEC_APPLE          = 260,
     TEC_BREAD          = 297,
     TEC_COAL           = 263,
@@ -18,7 +19,16 @@ enum {
 
 #define TEC_LID_STEP 0.1f
 
-typedef struct { i32 item; i32 count; i32 meta; } TecStack;
+/* StoredEnchantments-equivalent payload (id,level pairs). Ordinary items use n=0. */
+typedef struct { i16 id; i16 level; } TecEnch;
+
+typedef struct {
+    i32 item;
+    i32 count;
+    i32 meta;
+    i32 n_enchants;
+    TecEnch enchants[TEC_MAX_ENCHANTS];
+} TecStack;
 
 typedef struct {
     TecStack slots[TEC_SLOTS];
@@ -29,12 +39,16 @@ typedef struct {
 } TeChest;
 
 MC_HD static inline TecStack tec_empty(void) {
-    TecStack s = {0, 0, 0};
+    TecStack s;
+    int i;
+    s.item = 0; s.count = 0; s.meta = 0; s.n_enchants = 0;
+    for (i = 0; i < TEC_MAX_ENCHANTS; ++i) { s.enchants[i].id = 0; s.enchants[i].level = 0; }
     return s;
 }
 
 MC_HD static inline TecStack tec_mk(i32 item, i32 count, i32 meta) {
-    TecStack s = {item, count, meta};
+    TecStack s = tec_empty();
+    s.item = item; s.count = count; s.meta = meta;
     return s;
 }
 
@@ -42,9 +56,20 @@ MC_HD static inline int tec_is_empty(const TecStack *s) {
     return s->count <= 0 || s->item == 0;
 }
 
+MC_HD static inline int tec_enchants_equal(const TecStack *a, const TecStack *b) {
+    int i;
+    if (a->n_enchants != b->n_enchants) return 0;
+    for (i = 0; i < a->n_enchants; ++i)
+        if (a->enchants[i].id != b->enchants[i].id ||
+            a->enchants[i].level != b->enchants[i].level)
+            return 0;
+    return 1;
+}
+
 MC_HD static inline int tec_are_items_equal(const TecStack *a, const TecStack *b) {
     if (tec_is_empty(a) || tec_is_empty(b)) return 0;
-    return a->item == b->item && a->meta == b->meta;
+    if (a->item != b->item || a->meta != b->meta) return 0;
+    return tec_enchants_equal(a, b);
 }
 
 MC_HD static inline i32 tec_max_stack_size(i32 item) {
@@ -70,8 +95,12 @@ MC_HD static inline TecStack tec_get_and_split(TeChest *c, int index, int amount
     TecStack *slot = &c->slots[index];
     if (tec_is_empty(slot)) return tec_empty();
     int take = amount;
+    int e;
     if (take > slot->count) take = slot->count;
     TecStack out = tec_mk(slot->item, take, slot->meta);
+    out.n_enchants = slot->n_enchants;
+    for (e = 0; e < slot->n_enchants && e < TEC_MAX_ENCHANTS; ++e)
+        out.enchants[e] = slot->enchants[e];
     slot->count -= take;
     if (slot->count <= 0) *slot = tec_empty();
     return out;

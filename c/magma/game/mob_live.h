@@ -94,9 +94,12 @@ int gm_mobs_attack_player(GmMobLive *m, struct PvStats *vitals,
                           struct IsrInv *player_inv, float amount,
                           int bypass_armor);
 void gm_mobs_player_hurt_tick(GmMobLive *m);
+/* boat_forward/boat_strafe: player WASD while mounted (GmAction.forward/strafe).
+ * Zero when not riding; runtime passes the action and suppresses player walk. */
 void gm_mobs_tick(GmMobLive *m, GmWorld *world, const struct McSinTable *sin_table,
                   struct PsvPlayer *player, struct PvStats *vitals,
-                  int ox, int oz, int dimension, long long world_time, GmLiveSim *drops);
+                  int ox, int oz, int dimension, long long world_time, GmLiveSim *drops,
+                  float boat_forward, float boat_strafe);
 int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max);
 int gm_mobs_alive(const GmMobLive *m);
 int gm_mobs_living_count(const GmMobLive *m);

@@ -1,6 +1,7 @@
 #include "game/structures_live.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -59,52 +60,10 @@ int gm_fortress_spawner_room(long long seed,int radius,GmStructureBox *box){
     free(s);return 0;
 }
 
-/* Match C map_gen_stronghold chest placements (corridor local 3,1,3; library
- * local 7,1,7). Crossing pieces currently place no chest in the C port. */
-static int piece_chest_match(const SHPiece *p, int x, int y, int z,
-                             int *table_id)
-{
-    int wx, wy, wz;
-    if (p->type == SH_CHEST_CORRIDOR) {
-        wy = sh_get_y(p, 1);
-        wx = sh_get_x(p, 3, 3);
-        wz = sh_get_z(p, 3, 3);
-        if (wx == x && wy == y && wz == z) {
-            if (table_id) *table_id = SHL_CORRIDOR;
-            return 1;
-        }
-    } else if (p->type == SH_P_LIBRARY) {
-        wy = sh_get_y(p, 1);
-        wx = sh_get_x(p, 7, 7);
-        wz = sh_get_z(p, 7, 7);
-        if (wx == x && wy == y && wz == z) {
-            if (table_id) *table_id = SHL_LIBRARY;
-            return 1;
-        }
-        if (p->is_large_room) {
-            /* Java large library second chest at local 12,8,1 - C port does
-             * not place it; keep the branch for future parity. */
-            wy = sh_get_y(p, 8);
-            wx = sh_get_x(p, 12, 1);
-            wz = sh_get_z(p, 12, 1);
-            if (wx == x && wy == y && wz == z) {
-                if (table_id) *table_id = SHL_LIBRARY;
-                return 1;
-            }
-        }
-    } else if (p->type == SH_P_CROSSING) {
-        /* Java places crossing chest at 3,4,8; C place_crossing omits it. */
-        wy = sh_get_y(p, 4);
-        wx = sh_get_x(p, 3, 8);
-        wz = sh_get_z(p, 3, 8);
-        if (wx == x && wy == y && wz == z) {
-            if (table_id) *table_id = SHL_CROSSING;
-            return 1;
-        }
-    }
-    return 0;
-}
-
+/* Look up table_id + loot_seed for a block that the real C placement stream
+ * placed as a stronghold chest. Seed is the nextLong taken at that site after
+ * all preceding stone-brick RNG in piece order — not a worldseed/xor/ordinal
+ * helper, and not phantom sites for unplaced crossing/large-library chests. */
 int gm_stronghold_chest_info(long long seed, int x, int y, int z,
                              int *table_id, long long *loot_seed)
 {
@@ -115,12 +74,12 @@ int gm_stronghold_chest_info(long long seed, int x, int y, int z,
         if (!s) return 0;
         sh_generate(s, (i64)seed, xs[i], zs[i]);
         if (!s->valid) { free(s); continue; }
-        for (int p = 0; p < s->piece_count; ++p) {
-            int tid = -1;
-            if (piece_chest_match(&s->pieces[p], x, y, z, &tid)) {
-                if (table_id) *table_id = tid;
-                if (loot_seed)
-                    *loot_seed = (long long)shl_pos_loot_seed((i64)seed, x, y, z);
+        sh_capture_chest_sites(s);
+        for (int c = 0; c < s->n_chest_sites; ++c) {
+            const SHChestSite *cs = &s->chest_sites[c];
+            if (cs->x == x && cs->y == y && cs->z == z) {
+                if (table_id) *table_id = cs->table_id;
+                if (loot_seed) *loot_seed = (long long)cs->loot_seed;
                 free(s);
                 return 1;
             }
@@ -128,4 +87,29 @@ int gm_stronghold_chest_info(long long seed, int x, int y, int z,
         free(s);
     }
     return 0;
+}
+
+/* Oracle fixture helper: enumerate placement-stream chest sites for seed0 sh0. */
+int gm_stronghold_chest_sites(long long seed, int index,
+                              int *out_x, int *out_y, int *out_z,
+                              int *out_table, long long *out_seed, int max_out)
+{
+    int cx, cz, n_out = 0;
+    SHStart *s;
+    if (max_out <= 0 || !locate_chunk(seed, index, &cx, &cz)) return 0;
+    s = (SHStart *)malloc(sizeof *s);
+    if (!s) return 0;
+    sh_generate(s, (i64)seed, cx, cz);
+    if (!s->valid) { free(s); return 0; }
+    sh_capture_chest_sites(s);
+    for (int c = 0; c < s->n_chest_sites && n_out < max_out; ++c) {
+        if (out_x) out_x[n_out] = s->chest_sites[c].x;
+        if (out_y) out_y[n_out] = s->chest_sites[c].y;
+        if (out_z) out_z[n_out] = s->chest_sites[c].z;
+        if (out_table) out_table[n_out] = s->chest_sites[c].table_id;
+        if (out_seed) out_seed[n_out] = (long long)s->chest_sites[c].loot_seed;
+        ++n_out;
+    }
+    free(s);
+    return n_out;
 }

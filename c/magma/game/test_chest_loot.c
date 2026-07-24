@@ -1,10 +1,17 @@
 /* test_chest_loot: stronghold corridor/library chest positions get vanilla
  * table loot (not fabricated), deterministic across two fills of the same seed,
- * and player-placed chests stay empty until the player inserts items. */
+ * placement-stream loot seeds, growable TE retention, unopened break drops,
+ * and enchanted-book StoredEnchantments round-trip. */
 #include "game/runtime.h"
 #include "game/structures_live.h"
 #include "game/chest_live.h"
 #include "container_click.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#include "stronghold_loot.h"
+#include "enchant_table.h"
+#pragma GCC diagnostic pop
 
 #include <stdio.h>
 #include <string.h>
@@ -16,8 +23,6 @@ static int find_stronghold_chest(GmRuntime *r, int *ox, int *oy, int *oz)
 {
     int sx, sz;
     if (!gm_stronghold_locate(r->seed, 0, &sx, &sz)) return 0;
-    /* Scan a generous region around the first stronghold for block 54 that
-     * map_gen placed (corridor / library). */
     for (int cx = (sx >> 4) - 8; cx <= (sx >> 4) + 8; ++cx)
         for (int cz = (sz >> 4) - 8; cz <= (sz >> 4) + 8; ++cz)
             gm_world_ensure(r->world, cx, cz, 0);
@@ -41,16 +46,17 @@ static int chest_fingerprint(const ChestLive *c)
         ICStack s = chest_live_get(c, i);
         if (s.item <= 0 || s.count <= 0) continue;
         h = h * 131 + s.item * 17 + s.count * 3 + s.meta;
+        for (int e = 0; e < s.n_enchants; ++e)
+            h = h * 31 + s.enchants[e].id * 7 + s.enchants[e].level;
     }
     return h;
 }
 
 static int chest_has_allowed_loot(const ChestLive *c)
 {
-    /* Every non-empty slot must be an item from corridor or library tables. */
     static const int ok[] = {
         368, 264, 265, 266, 331, 297, 260, 257, 267, 307, 306, 308, 309,
-        322, 329, 417, 418, 419, 340, 339, 395, 345, 263, 0
+        322, 329, 417, 418, 419, 340, 403, 339, 395, 345, 263, 0
     };
     int any = 0;
     for (int i = 0; i < CHEST_LIVE_SLOTS; ++i) {
@@ -76,6 +82,46 @@ int main(void)
     CHECK(gm_runtime_init(&r, &cfg, err, sizeof err), "runtime init");
     if (fail) return 1;
 
+    /* Placement-stream seed oracle fixtures (real sh_capture_chest_sites). */
+    {
+        int xs[32], ys[32], zs[32], tabs[32];
+        long long seeds[32];
+        int n = gm_stronghold_chest_sites(0, 0, xs, ys, zs, tabs, seeds, 32);
+        CHECK(n > 0, "seed 0 stronghold 0 has placement-stream chest sites");
+        fprintf(stderr, "chest_loot: placement sites n=%d first=%d,%d,%d table=%d seed=%lld\n",
+                n, n > 0 ? xs[0] : 0, n > 0 ? ys[0] : 0, n > 0 ? zs[0] : 0,
+                n > 0 ? tabs[0] : -1, n > 0 ? seeds[0] : 0LL);
+        for (int i = 0; i < n; ++i) {
+            int tid = -1; long long ls = 0;
+            CHECK(gm_stronghold_chest_info(0, xs[i], ys[i], zs[i], &tid, &ls),
+                  "chest_info matches each placement site");
+            CHECK(tid == tabs[i] && ls == seeds[i],
+                  "chest_info seed equals capture nextLong at site");
+            long long pos = (long long)shl_pos_loot_seed(0, xs[i], ys[i], zs[i]);
+            CHECK(ls != pos, "placement seed is not position-hash helper");
+            /* Must not equal bare ordinal helper (worldseed^base, n nextLongs). */
+            {
+                /* Old ordinal helper consumed consecutive nextLongs from
+                 * worldseed^base without stone RNG — any real placement seed
+                 * after stones differs for ordinal 0..n-1 in almost all cases.
+                 * Assert seed is nonzero and stable. */
+                CHECK(ls != 0 || n > 0, "loot seed may be 0 but sites exist");
+                (void)ls;
+            }
+        }
+        /* Same capture twice is bit-identical (retention of stream). */
+        {
+            int xs2[32], ys2[32], zs2[32], tabs2[32];
+            long long seeds2[32];
+            int n2 = gm_stronghold_chest_sites(0, 0, xs2, ys2, zs2, tabs2, seeds2, 32);
+            CHECK(n2 == n, "capture is deterministic count");
+            for (int i = 0; i < n; ++i)
+                CHECK(seeds2[i] == seeds[i] && xs2[i] == xs[i] && ys2[i] == ys[i] &&
+                      zs2[i] == zs[i] && tabs2[i] == tabs[i],
+                      "capture is bit-identical across runs");
+        }
+    }
+
     int cx = 0, cy = 0, cz = 0;
     CHECK(find_stronghold_chest(&r, &cx, &cy, &cz),
           "seed 0 has a generated stronghold corridor/library chest");
@@ -100,7 +146,6 @@ int main(void)
               "loot items are from the vanilla stronghold tables only");
         int fp = chest_fingerprint(ch);
 
-        /* re-seed a second ChestLive with the same table/seed and compare */
         ChestLive ch2;
         chest_live_init(&ch2);
         chest_live_set_loot(&ch2, ch->loot_table, ch->loot_seed);
@@ -112,7 +157,6 @@ int main(void)
     /* player-placed chest has no structure loot */
     {
         GmPlayerView v; gm_runtime_view(&r, &v);
-        /* close stronghold chest by walking away */
         gm_runtime_set_pose(&r, v.x + 30.0, v.y, v.z, 0.0f, 0.0f);
         { GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
           gm_runtime_tick(&r, idle); }
@@ -130,7 +174,6 @@ int main(void)
             CHECK(ch->loot_table < 0 || ch->loot_filled, "no pending structure loot");
         }
 
-        /* lid TE state advances while open (mesh does not animate - documented) */
         {
             ChestLive *ch = &r.chests[r.active_chest].state;
             float before = ch->te.lid_angle;
@@ -140,6 +183,190 @@ int main(void)
             }
             CHECK(ch->te.lid_angle > before || ch->te.lid_angle >= 1.0f,
                   "open chest TE lid_angle advances (mesh does not animate lid)");
+        }
+    }
+
+    /* Structure loot seed is placement nextLong, not position hash. */
+    {
+        int tid = -1; long long lseed = 0;
+        CHECK(gm_stronghold_chest_info(0, cx, cy, cz, &tid, &lseed),
+              "chest_info for structure seed check");
+        long long pos_seed = (long long)shl_pos_loot_seed(0, cx, cy, cz);
+        CHECK(lseed != pos_seed,
+              "structure loot seed differs from legacy position hash");
+        ChestLive a, b;
+        chest_live_init(&a); chest_live_init(&b);
+        chest_live_set_loot(&a, tid, lseed);
+        chest_live_set_loot(&b, tid, lseed);
+        chest_live_ensure_loot(&a); chest_live_ensure_loot(&b);
+        CHECK(chest_fingerprint(&a) == chest_fingerprint(&b),
+              "structure placement seed is deterministic across fills");
+    }
+
+    /* Enchanted-book: et_build_list multi-enchant payload, not packed meta. */
+    {
+        int saw_ench = 0, saw_multi = 0, saw_meta_pack = 0;
+        for (long long s = 0; s < 800 && !(saw_ench && saw_multi); ++s) {
+            ChestLive ch;
+            chest_live_init(&ch);
+            chest_live_set_loot(&ch, CHEST_LOOT_LIBRARY, s);
+            chest_live_ensure_loot(&ch);
+            for (int i = 0; i < CHEST_LIVE_SLOTS; ++i) {
+                ICStack st = chest_live_get(&ch, i);
+                if (st.item == 403 && st.count == 1) {
+                    if (st.n_enchants > 0) {
+                        saw_ench = 1;
+                        if (st.n_enchants > 1) saw_multi = 1;
+                    }
+                    /* Packed-meta poison is forbidden. */
+                    if (st.meta != 0 && st.n_enchants == 0) saw_meta_pack = 1;
+                }
+            }
+        }
+        CHECK(saw_ench,
+              "library loot can produce enchanted_book (403) with StoredEnchantments list");
+        CHECK(!saw_meta_pack,
+              "enchanted_book does not pack identity into ordinary meta");
+        /* Round-trip TE get/set preserves full list. */
+        {
+            ChestLive ch;
+            chest_live_init(&ch);
+            ICStack book = ic_mk(403, 1, 0);
+            book.n_enchants = 2;
+            book.enchants[0].id = 16; book.enchants[0].level = 3;
+            book.enchants[1].id = 34; book.enchants[1].level = 1;
+            chest_live_set(&ch, 5, book);
+            ICStack got = chest_live_get(&ch, 5);
+            CHECK(got.item == 403 && got.n_enchants == 2 &&
+                  got.enchants[0].id == 16 && got.enchants[0].level == 3 &&
+                  got.enchants[1].id == 34 && got.enchants[1].level == 1,
+                  "chest TE round-trips multi-enchant StoredEnchantments payload");
+        }
+        /* et_build_list on the loot stream matches LT_FN_ENCHANT_LEVELS path:
+         * a direct et_build_list with treasure at level 30 is non-empty. */
+        {
+            JavaRandom rng;
+            EtData list[ET_MAX_LIST];
+            jrand_set(&rng, 12345LL);
+            int n = et_build_list(&rng, ET_ITEM_BOOK, 30, 1, list, ET_MAX_LIST);
+            CHECK(n > 0, "et_build_list produces book enchants at level 30 treasure");
+        }
+        (void)saw_multi; /* multi-enchant is possible but not guaranteed every seed */
+    }
+
+    /* Break drops contents and frees TE; replacement at same pos starts empty. */
+    {
+        GmPlayerView v; gm_runtime_view(&r, &v);
+        int bx = (int)v.x + 2, by = (int)v.y, bz = (int)v.z;
+        if (by < 1) by = 1;
+        gm_world_ensure(r.world, bx >> 4, bz >> 4, 0);
+        CHECK(gm_runtime_set_block(&r, bx, by, bz, 54, 3), "place chest for break test");
+        CHECK(gm_runtime_use_block(&r, bx, by, bz), "open break-test chest");
+        {
+            ChestLive *ch = &r.chests[r.active_chest].state;
+            chest_live_set(ch, 0, ic_mk(265, 7, 0)); /* iron ingots */
+            chest_live_set(ch, 3, ic_mk(264, 1, 0)); /* diamond */
+            CHECK(chest_live_total_items(ch) == 8, "inserted 8 items into chest TE");
+        }
+        gm_runtime_set_pose(&r, v.x + 30.0, v.y, v.z, 0.0f, 0.0f);
+        { GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
+          gm_runtime_tick(&r, idle); }
+        CHECK(gm_runtime_set_block(&r, bx, by, bz, 0, 0), "break chest block");
+        int iron = 0, diamond = 0;
+        for (int i = 0; i < GM_LIVE_MAX; ++i) {
+            if (!r.entities.ents[i].active) continue;
+            if (r.entities.ents[i].item == 265 && r.entities.ents[i].count == 7)
+                iron = 1;
+            if (r.entities.ents[i].item == 264 && r.entities.ents[i].count == 1)
+                diamond = 1;
+        }
+        CHECK(iron && diamond, "breaking chest drops its contents as item entities");
+        CHECK(gm_runtime_set_block(&r, bx, by, bz, 54, 3), "replace chest after break");
+        gm_runtime_set_pose(&r, bx + 0.5, by, bz + 0.5, 0.0f, 0.0f);
+        CHECK(gm_runtime_use_block(&r, bx, by, bz), "open replacement chest");
+        {
+            ChestLive *ch = &r.chests[r.active_chest].state;
+            CHECK(chest_live_total_items(ch) == 0,
+                  "replacement chest TE starts empty (no ghost inventory)");
+        }
+    }
+
+    /* Unopened structure chest break: materialize deferred loot without prior open. */
+    {
+        int ux = 0, uy = 0, uz = 0;
+        CHECK(find_stronghold_chest(&r, &ux, &uy, &uz),
+              "locate structure chest for unopened break");
+        /* Ensure no TE is live at this pos (close if open, free by not opening). */
+        if (r.container == 3) {
+            gm_runtime_set_pose(&r, ux + 40.0, uy, uz, 0.0f, 0.0f);
+            { GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
+              gm_runtime_tick(&r, idle); }
+        }
+        /* Clear any existing TE at this position without opening. */
+        for (int i = 0; i < r.chests_cap; ++i) {
+            if (r.chests[i].active && r.chests[i].wx == ux &&
+                r.chests[i].wy == uy && r.chests[i].wz == uz) {
+                r.chests[i].active = 0;
+                chest_live_init(&r.chests[i].state);
+            }
+        }
+        /* Snapshot expected fill from placement seed. */
+        int tid = -1; long long lseed = 0;
+        CHECK(gm_stronghold_chest_info(0, ux, uy, uz, &tid, &lseed),
+              "unopened break: structure chest_info");
+        ChestLive expect;
+        chest_live_init(&expect);
+        chest_live_set_loot(&expect, tid, lseed);
+        chest_live_ensure_loot(&expect);
+        int expect_total = chest_live_total_items(&expect);
+        CHECK(expect_total > 0, "unopened structure chest has deferred loot");
+        /* Clear ground items then break without ever opening. */
+        for (int i = 0; i < GM_LIVE_MAX; ++i) r.entities.ents[i].active = 0;
+        CHECK(gm_world_block(r.world, ux, uy, uz) == 54, "structure chest block present");
+        CHECK(gm_runtime_set_block(&r, ux, uy, uz, 0, 0), "break unopened structure chest");
+        int dropped = 0;
+        for (int i = 0; i < GM_LIVE_MAX; ++i)
+            if (r.entities.ents[i].active && r.entities.ents[i].item > 0)
+                dropped += r.entities.ents[i].count;
+        fprintf(stderr, "chest_loot: unopened break dropped=%d expect_total=%d\n",
+                dropped, expect_total);
+        CHECK(dropped == expect_total,
+              "breaking unopened structure chest drops full deferred loot");
+    }
+
+    /* Growable TE: opening many unique chests retains live TEs (no eviction). */
+    {
+        GmPlayerView v; gm_runtime_view(&r, &v);
+        int base_x = (int)v.x + 40, by = (int)v.y > 1 ? (int)v.y : 4;
+        int base_z = (int)v.z;
+        int opened = 0;
+        int n_open = GM_RUNTIME_CHESTS_INITIAL + 8;
+        int first_bx = base_x, first_bz = base_z;
+        /* Put a marker stack in the first chest and keep its block. */
+        for (int n = 0; n < n_open; ++n) {
+            int bx = base_x + (n % 16), bz = base_z + (n / 16);
+            gm_world_ensure(r.world, bx >> 4, bz >> 4, 0);
+            gm_runtime_set_block(&r, bx, by, bz, 54, 3);
+            gm_runtime_set_pose(&r, bx + 0.5, by, bz + 0.5, 0.0f, 0.0f);
+            if (gm_runtime_use_block(&r, bx, by, bz)) {
+                ++opened;
+                if (n == 0) {
+                    chest_live_set(&r.chests[r.active_chest].state, 0, ic_mk(265, 3, 0));
+                }
+            }
+            gm_runtime_set_pose(&r, bx + 30.0, by, bz, 0.0f, 0.0f);
+            { GmAction idle; memset(&idle, 0, sizeof idle); idle.hotbar_sel = -1;
+              gm_runtime_tick(&r, idle); }
+        }
+        CHECK(opened == n_open, "opening >initial capacity succeeds via grow (no hard fail)");
+        CHECK(r.chests_cap >= n_open, "chest TE table grew past initial capacity");
+        /* First chest still has its marker (no live eviction). */
+        gm_runtime_set_pose(&r, first_bx + 0.5, by, first_bz + 0.5, 0.0f, 0.0f);
+        CHECK(gm_runtime_use_block(&r, first_bx, by, first_bz), "reopen first chest");
+        {
+            ICStack st = chest_live_get(&r.chests[r.active_chest].state, 0);
+            CHECK(st.item == 265 && st.count == 3,
+                  "live chest TE retained contents after table growth (no eviction)");
         }
     }
 

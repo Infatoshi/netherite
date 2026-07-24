@@ -13,8 +13,17 @@ enum { SH_P_STAIRS2=100, SH_P_STRAIGHT, SH_P_PRISON, SH_P_LEFT_TURN, SH_P_RIGHT_
     SH_P_ROOM_CROSSING, SH_P_STAIRS_STRAIGHT, SH_P_STAIRS, SH_P_CROSSING, SH_CHEST_CORRIDOR, SH_P_LIBRARY, SH_P_PORTAL_ROOM };
 #define SH_RANGE 8
 #define SH_MAX_PIECES 64
+#define SH_MAX_CHEST_SITES 32
+/* Loot table ids for real placed stronghold chests (stronghold_loot SHL_*). */
+enum { SH_LOOT_CORRIDOR = 0, SH_LOOT_LIBRARY = 1, SH_LOOT_CROSSING = 2 };
 typedef struct { int minX,minY,minZ,maxX,maxY,maxZ; } SHBB;
 typedef struct { int type,coord_base,component_type,has_spawner,has_rails,has_spiders,spawner_placed,section_count,is_multiple_floors,corridor_direction,is_large_room,portal_room,chest_placed; SHBB bb; } SHPiece;
+/* One real chest placed by sh_place_* after that piece's prior RNG draws. */
+typedef struct {
+    int x, y, z;
+    int table_id;
+    i64 loot_seed; /* JavaRandom.nextLong() at generateChest site */
+} SHChestSite;
 #define SH_P_WEIGHT_COUNT 11
 
 typedef struct {
@@ -32,6 +41,9 @@ typedef struct {
     SHPieceWeight weights[SH_P_WEIGHT_COUNT];
     int total_weight;
     int portal_room_idx;
+    /* Filled only during sh_place_blocks: real chest sites + placement-stream seeds. */
+    SHChestSite chest_sites[SH_MAX_CHEST_SITES];
+    int n_chest_sites;
 } SHStart;
 #ifndef MC_CHUNK_PROVIDER_H
 typedef struct { u16 data[65536]; } ChunkPrimer;
@@ -704,10 +716,25 @@ MC_HD MC_NOINLINE static void sh_place_crossing(SHWorld *w, SHPiece *p, JavaRand
     sh_fill(w, p, clip, 9, 1, 4, 9, 7, 5, SH_STONE_BRICK, SH_STONE_BRICK, 0);
 }
 
-MC_HD MC_NOINLINE static void sh_place_chest_corridor(SHWorld *w, SHPiece *p, JavaRandom *r, const SHBB *clip) {
+/* Record a real generateChest-equivalent: nextLong after prior piece RNG. */
+MC_HD MC_NOINLINE static void sh_record_chest(SHStart *start, JavaRandom *r,
+                                              int wx, int wy, int wz, int table_id) {
+    i64 seed = jrand_long(r);
+    if (!start || start->n_chest_sites >= SH_MAX_CHEST_SITES) return;
+    {
+        SHChestSite *cs = &start->chest_sites[start->n_chest_sites++];
+        cs->x = wx; cs->y = wy; cs->z = wz;
+        cs->table_id = table_id;
+        cs->loot_seed = seed;
+    }
+}
+
+MC_HD MC_NOINLINE static void sh_place_chest_corridor(SHWorld *w, SHStart *start, SHPiece *p,
+                                                       JavaRandom *r, const SHBB *clip) {
+    /* Stones consume nextFloat per edge cell before the chest (Java STRONGHOLD_STONES). */
     sh_fill_sh_stones(w, p, clip, r, 0, 0, 0, 4, 4, 6, 0);
     sh_fill(w, p, clip, 1, 1, 0, 3, 3, 6, SH_AIR, SH_AIR, 0);
-    /* Chest */
+    /* Real C chest site (local 3,1,3). No phantom ordinals for unplaced pieces. */
     if (!p->chest_placed) {
         int wy = sh_get_y(p, 1);
         int wx = sh_get_x(p, 3, 3);
@@ -715,11 +742,13 @@ MC_HD MC_NOINLINE static void sh_place_chest_corridor(SHWorld *w, SHPiece *p, Ja
         if (shbb_contains(clip, wx, wy, wz)) {
             p->chest_placed = 1;
             sh_set(w, wx, wy, wz, SH_CHEST);
+            sh_record_chest(start, r, wx, wy, wz, SH_LOOT_CORRIDOR);
         }
     }
 }
 
-MC_HD MC_NOINLINE static void sh_place_library(SHWorld *w, SHPiece *p, JavaRandom *r, const SHBB *clip) {
+MC_HD MC_NOINLINE static void sh_place_library(SHWorld *w, SHStart *start, SHPiece *p,
+                                               JavaRandom *r, const SHBB *clip) {
     int height = p->is_large_room ? 11 : 6;
     (void)height;
 
@@ -743,8 +772,16 @@ MC_HD MC_NOINLINE static void sh_place_library(SHWorld *w, SHPiece *p, JavaRando
     sh_place(w, p, clip, SH_TORCH, 0, 3, 3, 13);
     sh_place(w, p, clip, SH_TORCH, 0, 10, 3, 13);
 
-    /* Chest in center */
-    sh_place(w, p, clip, SH_CHEST, 0, 7, 1, 7);
+    /* Real C library chest at local 7,1,7 only (no phantom second large-room chest). */
+    {
+        int wy = sh_get_y(p, 1);
+        int wx = sh_get_x(p, 7, 7);
+        int wz = sh_get_z(p, 7, 7);
+        if (shbb_contains(clip, wx, wy, wz)) {
+            sh_set(w, wx, wy, wz, SH_CHEST);
+            sh_record_chest(start, r, wx, wy, wz, SH_LOOT_LIBRARY);
+        }
+    }
 }
 
 MC_HD MC_NOINLINE static void sh_place_portal_room(SHWorld *w, SHPiece *p, JavaRandom *r, const SHBB *clip) {
@@ -831,7 +868,9 @@ MC_HD MC_NOINLINE static void sh_place_blocks(SHWorld *w, SHStart *start) {
     clip.minY = 0; clip.maxY = 255;
 
     JavaRandom r;
+    /* Placement stream seed matches MapGenStructure chunk random mix used by C. */
     jrand_set(&r, (i64)start->cx * 341873128712LL + (i64)start->cz * 132897987541LL);
+    start->n_chest_sites = 0;
 
     for (int i = 0; i < start->piece_count; i++) {
         SHPiece *p = &start->pieces[i];
@@ -845,11 +884,28 @@ MC_HD MC_NOINLINE static void sh_place_blocks(SHWorld *w, SHStart *start) {
             case SH_P_ROOM_CROSSING:   sh_place_room_crossing(w, p, &r, &clip); break;
             case SH_P_STAIRS_STRAIGHT: sh_place_stairs_straight(w, p, &r, &clip); break;
             case SH_P_CROSSING:        sh_place_crossing(w, p, &r, &clip); break;
-            case SH_CHEST_CORRIDOR:  sh_place_chest_corridor(w, p, &r, &clip); break;
-            case SH_P_LIBRARY:         sh_place_library(w, p, &r, &clip); break;
+            case SH_CHEST_CORRIDOR:  sh_place_chest_corridor(w, start, p, &r, &clip); break;
+            case SH_P_LIBRARY:         sh_place_library(w, start, p, &r, &clip); break;
             case SH_P_PORTAL_ROOM:     sh_place_portal_room(w, p, &r, &clip); break;
         }
     }
+}
+
+/* Replay place_blocks RNG to fill start->chest_sites without needing world chunks. */
+MC_HD MC_NOINLINE static void sh_capture_chest_sites(SHStart *start) {
+    ChunkPrimer primer;
+    SHWorld w;
+    int i;
+    if (!start) return;
+    memset(&primer, 0, sizeof primer);
+    w.primer = &primer;
+    w.chunkX = start->cx;
+    w.chunkZ = start->cz;
+    w.worldSeed = 0;
+    w.seaLevel = 63;
+    for (i = 0; i < start->piece_count; ++i)
+        start->pieces[i].chest_placed = 0;
+    sh_place_blocks(&w, start);
 }
 
 #define SH_MAX_STARTS 8

@@ -944,29 +944,39 @@ equip lower/raise + swing restart + per-texel item rims (viewmodel 518,463 ->
 dragon assertion modernized, test_runtime bucket fixture corrected, blaze
 sm_86 chain-gate false hang fixed (single-thread verify camera render).
 
-## 57. OPEN: live chest lifecycle and rendering remain simplified
+## 57. OPEN: chest rendering and remaining placement fidelity gaps
 
-Chest contents persist across close/reopen in the in-memory TE array, but
-breaking and replacing a chest does not yet clear/drop that TE, and the
-fixed array holds 64 unique opened positions. Stronghold entries, weights,
-and roll counts follow the 1.11.2 tables, but the per-position seed is a
-deterministic C policy rather than Java structure `nextLong`, and enchanted
-books degrade to plain books. The renderer is a facing-aware 14x14 inset
-mesh using oak-plank atlas texels; lid angle ticks but is not rendered and
-the entity chest texture/TESR is absent.
+Live TE lifecycle (open/close retention, growable storage without live
+eviction, break materializing deferred structure loot, placement-stream
+loot seeds via `sh_capture_chest_sites`, enchanted-book StoredEnchantments
+list via `et_build_list`) is covered by `game/test_chest_loot.sh`.
+
+Still open:
+- Renderer is a facing-aware 14x14 inset mesh (oak-plank texels); lid angle
+  ticks but is not rendered; entity chest texture/TESR is absent.
+- C stronghold piece local chest coords and door/web RNG still diverge from
+  full Java `StructureStrongholdPieces` (crossing/room chests not placed;
+  library second chest not placed). Seeds are exact for the C placement
+  stream only, not bit-equal to a Java world of the same seed.
+- Ground item entities carry item/count/meta only; multi-enchant payload is
+  retained in the TE/ICStack inventory path, not on dropped EntityItem.
 
 Repro: `cd c/magma && bash game/test_chest_loot.sh && bash
-game/test_container_live.sh`. These prove the supported lifecycle and table
-shape, not break/drop or exact Java stack-sequence parity.
+game/test_container_live.sh`.
 
-## 58. OPEN: new live mob roster still uses the shared simplified AI/render layer
+## 58. OPEN: mob roster AI / spawn / boat under-water are not Java-exact
 
-The required encounter types are live, but boats always thrust forward while
-mounted because `GmAction.forward/strafe` is not passed into `gm_mobs_tick`.
-Slime and magma size is exported in `item_meta`, but renderer scale remains
-fixed; ghast large and blaze small fireballs currently share the fire-charge
-billboard scale. Natural spawning and typed-spawner discovery are covered,
-but not Java RNG call-order parity or the full `EntityAITasks` scheduler.
+Supported encounter types are live. Mounted boats take WASD via
+`controlBoat`/`updateMotion` constants for IN_WATER / ON_LAND / IN_AIR
+(no auto-thrust). Still open:
+- Boat UNDER_WATER / UNDER_FLOWING_WATER status, full multi-AABB waterLevel
+  sampling, and 60-tick underwater passenger ejection.
+- Natural spawning uses a route-roster weighted pick, not the full
+  `WorldEntitySpawner` pack loop / chunk RNG call order.
+- Type-specific tasks (skeleton keep-away, spider leap cadence) are
+  simplified stand-ins, not the full `EntityAITasks` scheduler.
+- Slime/magma size is in `item_meta` but renderer scale is fixed; ghast
+  large and blaze small fireballs share fire-charge billboard scale.
 
 Repro: `cd c/magma && bash game/test_mob_live.sh && bash
 game/test_entity_render.sh`.
