@@ -317,9 +317,14 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
     gm_gui_blit(fb, panel, px, py, s);
     if (r->container == 0) {
         draw_empty_player_slots(fb, r, px, py, s);
-        gm_player_preview_draw(fb, px + 24 * s, py + 7 * s, 52 * s, 72 * s,
-                               (float)(px + 51 * s - mx) / s,
-                               (float)(py + 25 * s - my) / s);
+        {
+            int gw = (fb->w + s - 1) / s, gh = (fb->h + s - 1) / s;
+            int guiLeft = (gw - PANEL_W) / 2, guiTop = (gh - PANEL_H) / 2;
+            int gmx = mx * gw / fb->w, gmy = my * gh / fb->h;
+            gm_player_preview_draw(fb, px + 24 * s, py + 7 * s, 52 * s, 72 * s,
+                                   (float)(guiLeft + 51 - gmx),
+                                   (float)(guiTop + 25 - gmy));
+        }
     }
 
     /* furnace progress sprites (GuiFurnace.drawGuiContainerBackgroundLayer).

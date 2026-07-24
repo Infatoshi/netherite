@@ -148,6 +148,11 @@ typedef struct {
     /* 1 = skip atlas sample; texel is opaque white (untextured POSITION_COLOR
      * geometry such as LayerEnderDragonDeath). */
     int    untextured;
+    /* 1 = convert float RGB to u8 by truncation (int)(c*255), matching fixed-
+     * function GL / DynamicTexture lightmap stores. 0 (default) keeps the
+     * historical round-half-up (*255+0.5) used by terrain goldens.
+     * Preview-only path (player_preview); appended so entity fields keep ABI. */
+    int    color_trunc;
 } CrShadeCtx;
 
 /* per-fragment inputs handed to the shader (perspective-corrected already) */

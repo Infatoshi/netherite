@@ -171,24 +171,11 @@ print("[capture_gui_actions] pin_preview_anim enable ticks_existed=-1")
 PY
 
 # Open inventory, then drive framebuffer-space slot centers at GUI scale 2.
+# Pose2 inventory goldens live only in capture_gui.sh (empty inv); this script
+# must not overwrite mc_gui_inventory_pose2_{a,b}.png with the action loadout.
 drive open "5,5" - e
 drive hover_a "282,258" - -
 capture 00_initial
-# pose2 noise floor: second grab at the same hover (own _b, not inventory A/B)
-sleep 0.35
-uv run --no-project python - "$SCRIPT_DIR/mc_gui_action_00_initial_b.png" <<'PY'
-import sys
-import qrl_client
-e = qrl_client.QRLEnv()
-r = e._cmd({"cmd": "frame", "action": {"file": sys.argv[1]}})
-if not r.get("ok") or (r.get("w"), r.get("h")) != (854, 480):
-    raise SystemExit(f"frame capture b failed: {r}")
-e.close()
-print("[capture_gui_actions] captured 00_initial_b")
-PY
-# alias for run_gui_verify pose2 A/B
-cp -f "$SCRIPT_DIR/mc_gui_action_00_initial.png" "$SCRIPT_DIR/mc_gui_inventory_pose2_a.png"
-cp -f "$SCRIPT_DIR/mc_gui_action_00_initial_b.png" "$SCRIPT_DIR/mc_gui_inventory_pose2_b.png"
 drive pickup_a "282,258" 1 -
 capture 01_pickup_a
 drive place_b "318,258" 1 -

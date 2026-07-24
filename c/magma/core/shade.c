@@ -252,9 +252,17 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
         cb = cb + (fb - cb) * t;
     }
 
-    out.r = (u8)(fmaxf(0.0f, fminf(1.0f, cr)) * 255.0f + 0.5f);
-    out.g = (u8)(fmaxf(0.0f, fminf(1.0f, cg)) * 255.0f + 0.5f);
-    out.b = (u8)(fmaxf(0.0f, fminf(1.0f, cb)) * 255.0f + 0.5f);
+    /* color_trunc: match fixed-function GL / DynamicTexture (int)(c*255).
+     * Default remains round-half-up for terrain/oracle goldens. */
+    if (sh->color_trunc) {
+        out.r = (u8)(fmaxf(0.0f, fminf(1.0f, cr)) * 255.0f);
+        out.g = (u8)(fmaxf(0.0f, fminf(1.0f, cg)) * 255.0f);
+        out.b = (u8)(fmaxf(0.0f, fminf(1.0f, cb)) * 255.0f);
+    } else {
+        out.r = (u8)(fmaxf(0.0f, fminf(1.0f, cr)) * 255.0f + 0.5f);
+        out.g = (u8)(fmaxf(0.0f, fminf(1.0f, cg)) * 255.0f + 0.5f);
+        out.b = (u8)(fmaxf(0.0f, fminf(1.0f, cb)) * 255.0f + 0.5f);
+    }
 
     if (sh->layer == CR_LAYER_SOLID) {
         /* opaque: force full alpha (never blended, never discarded). */
@@ -263,7 +271,11 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
         /* CUTOUT/TRANSLUCENT: carry texel*tint alpha un-premultiplied; the raster
          * uses it for src-over when ctx->blend. Reserve 0 for the discard path. */
         float ca = (texel.a * inv255) * (frag->tint.a * inv255);
-        u8 av = (u8)(fmaxf(0.0f, fminf(1.0f, ca)) * 255.0f + 0.5f);
+        u8 av;
+        if (sh->color_trunc)
+            av = (u8)(fmaxf(0.0f, fminf(1.0f, ca)) * 255.0f);
+        else
+            av = (u8)(fmaxf(0.0f, fminf(1.0f, ca)) * 255.0f + 0.5f);
         if (av == 0) av = 1;
         out.a = av;
     }

@@ -80,13 +80,15 @@ use-keybind do NOT reach `rightClickMouse` under Xvfb, but keyboard XTEST does; 
 script temporarily rebinds `key.use` to R in options.txt (restored on exit) and opens
 the block GUIs with `xdotool key r`, the player screen with E.
 
-`run_gui_verify.sh` renders the same three screens through the REAL `gm_screen_draw`
-path (`gui_candidate.c`, zeroed runtime = empty everything) and pixel-diffs the
-176x166 panel region (inset 4px per side: only the translucent rounded corners that
-composite over the live 3D scene are dropped). Tolerance = measured repeat noise +
-1.0 mean abs/channel. HARD gates: table + furnace - both currently BIT-EXACT (0.000).
-INFORMATIONAL: the player inventory screen (its 3D player-model preview is not
-rendered by magma; the number is printed, not gated, per PRODUCT.md honesty rules).
+`run_gui_verify.sh` renders inventory, table, furnace, and chest through the REAL
+`gm_screen_draw` path (`gui_candidate.c`, zeroed runtime = empty everything) and
+pixel-diffs the panel region (inset 4px per side: translucent rounded corners over
+the live 3D scene are dropped). Table / furnace / chest / inventory non-preview
+chrome are **bit-exact** gates (near-zero A/B noise prerequisite; no margin).
+Inventory player-preview ROI is a hard **open** gate under `pin_preview_anim`:
+PASS only if bit-exact; any residual is FAIL (no PASS-FLOOR budget). Pose2 goldens
+come only from `capture_gui.sh` (held-out); `capture_gui_actions.sh` must not
+overwrite them.
 
 Panel origin gotcha: vanilla GuiContainer centers in GUI units with INTEGER division
 - at 854x480/scale2 that is floor((427-176)/2)=125 gui -> fb x 250. Naive framebuffer

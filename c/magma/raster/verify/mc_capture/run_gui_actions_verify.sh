@@ -77,7 +77,7 @@ def panel_mask(shape):
     mask[y0 + i:y0 + 166 * s - i, x0 + i:x0 + 176 * s - i] = True
     # Action frames hover different slots, so the look-at preview pose changes
     # per step. Preview geometry is gated in run_gui_verify.sh (pose1 parked
-    # mouse + pose2 action_00). This script masks the 52x72 viewport and gates
+    # mouse). This script masks the 52x72 viewport and gates
     # slot/cursor ROIs only — those ROIs do NOT verify the player preview.
     mask[y0 + 7 * s:y0 + 79 * s, x0 + 24 * s:x0 + 76 * s] = False
     return mask

@@ -6,14 +6,17 @@
 #
 # Gate design (PRODUCT.md "Visual acceptance"):
 #   - Panel region is inset by 4px per side (rounded corners over the 3D scene).
-#   - Tolerance is CALIBRATED: Java-vs-Java repeat (_a vs _b) + measured allowance.
-#   - Inventory: dedicated 104x144 (scale-2) player-preview ROI is a HARD gate.
-#     Preview A/B goldens must be captured under qrl pin_preview_anim (ageInTicks=0).
-#     Raster-vs-GL allowance is measured from an edge-band control on the same
-#     frames (not an arbitrary +1.0 margin). Residual clusters are reported;
-#     "pixel-perfect" is only claimed when residual is at the J-vs-J noise floor.
-#   - Pose2 (mouse on inv slot A) has its own _a/_b noise (mc_gui_inventory_pose2_*
-#     or mc_gui_action_00_initial{,_b}).
+#   - Table / furnace / chest / inventory non-preview chrome: BIT-EXACT against
+#     Java when A/B noise is near-zero (diff <= noise + 1e-6). No margin budget.
+#   - Inventory player-preview ROI is a HARD open gate under pin_preview_anim
+#     (ageInTicks=0). Pixel-perfect (PASS) only when residual is at the J-vs-J
+#     noise floor with zero hard pixels. Any residual is FAIL / open - never a
+#     circular PASS-FLOOR measured from the same residual.
+#   - Pinned A/B noise must be near-zero (prerequisite). Non-zero noise fails
+#     closed (pin/capture broken), not absorbed into a pass budget.
+#   - Pose2 (mouse on inv slot A) uses capture_gui.sh goldens only
+#     (mc_gui_inventory_pose2_{a,b}.png). Held-out; never overwritten by
+#     capture_gui_actions.sh.
 #   - Slot/cursor ROIs live in run_gui_actions_verify.sh and do NOT claim preview.
 #   - Chest fails clearly if mc_gui_chest_{a,b}.png are absent (no fabricate).
 #   - Not implemented: dispenser/dropper/hopper/enchant/brew/anvil/villager/
@@ -24,14 +27,8 @@ cd "$(dirname "$0")/../../.."          # -> c/magma
 MCSIM="$(cd ../mc-sim/core && pwd)"
 OUT=raster/verify/mc_capture
 FLAGS=(-O2 -ffp-contract=off -Wall -Wextra -I. -Icore -I"$MCSIM")
-# 2D panel chrome (table/furnace) still uses a small absolute margin on top of
-# J-vs-J noise: those screens are bit-exact today; margin only absorbs capture
-# quantization. Preview does NOT use this — see PREVIEW path below.
-MARGIN="${MARGIN:-1.0}"
-# Optional override for the measured raster-vs-GL mean allowance (mean-abs).
-# Default: load gui_preview_calibration.json (pose1 control under pin).
-PREVIEW_RASTER_ALLOWANCE="${PREVIEW_RASTER_ALLOWANCE:-}"
-CALIB="$OUT/gui_preview_calibration.json"
+# Near-zero A/B noise ceiling (mean abs). Pin/capture must hit this or FAIL.
+NOISE_MAX="${NOISE_MAX:-1e-6}"
 
 echo "== build gui_candidate =="
 make -s game/screen.o game/player_preview.o game/hud.o game/item_render.o game/container_live.o game/runtime.o game/fluid_live.o game/config.o \
@@ -68,7 +65,7 @@ echo "not implemented: dispenser/dropper, hopper, enchanting, brewing, anvil, vi
 
 echo "== panel + preview ROI pixel diff =="
 rc=0
-uv run --no-project --with pillow --with numpy python - "$OUT" "$MARGIN" "${PREVIEW_RASTER_ALLOWANCE}" "$CALIB" <<'PY' || rc=$?
+uv run --no-project --with pillow --with numpy python - "$OUT" "$NOISE_MAX" <<'PY' || rc=$?
 import json
 import sys
 from pathlib import Path
@@ -76,28 +73,13 @@ import numpy as np
 from PIL import Image
 
 out = Path(sys.argv[1])
-margin = float(sys.argv[2])
-allow_override = sys.argv[3].strip() if len(sys.argv) > 3 else ""
-calib_path = Path(sys.argv[4]) if len(sys.argv) > 4 else out / "gui_preview_calibration.json"
+noise_max = float(sys.argv[2]) if len(sys.argv) > 2 else 1e-6
 INSET = 4
 # GuiInventory player-model viewport at scale 2: 52x72 gui -> 104x144 fb.
 PREVIEW_GUI = (24, 7, 52, 72)
-
-# Load measured raster-vs-GL floor from explicit pose1 control calibration.
-# NOT an arbitrary +1.0. See gui_preview_calibration.json provenance.
-if calib_path.is_file():
-    calib = json.loads(calib_path.read_text())
-    MEAN_ALLOWANCE = float(calib["gate"]["mean_allowance"])
-    HARD_PX_CAP = int(calib["gate"]["hard_px_cap"])
-    HARD_THR = float(calib["gate"].get("hard_thr", 10.0))
-    CALIB_SRC = str(calib_path.name)
-else:
-    MEAN_ALLOWANCE, HARD_PX_CAP, HARD_THR = 0.20, 16, 10.0
-    CALIB_SRC = "builtin-fallback (missing calibration file)"
-
-if allow_override:
-    MEAN_ALLOWANCE = float(allow_override)
-    CALIB_SRC = f"override MEAN={MEAN_ALLOWANCE}"
+HARD_THR = 10.0
+# Residual report only (not a pass budget). Written by this gate after measure.
+CALIB_PATH = out / "gui_preview_calibration.json"
 
 def ysize(name):
     # GuiChest centers with ySize=168; drawn generic_54 composite is 167 tall.
@@ -173,49 +155,58 @@ def residual_clusters(d, thr=10.0, min_px=8):
     clusters.sort(key=lambda c: -c["n"])
     return clusters
 
-def gate_preview(label, ja, jb, jm):
-    """Gate against pose-specific J-vs-J noise + measured raster-vs-GL floor.
+def gate_bitexact(label, ja, jb, jm, noise_max):
+    """Bit-exact chrome gate. A/B noise must be near-zero; magma must match Java
+    within that noise (no margin budget)."""
+    assert ja.shape == jm.shape == jb.shape, (label, ja.shape, jm.shape, jb.shape)
+    noise = mean_abs(ja, jb)
+    diff = mean_abs(ja, jm)
+    if noise > noise_max:
+        print(f"{label:<14} {noise:>13.6f} {diff:>13.6f} {'bit==':>8}  FAIL "
+              f"(A/B noise {noise:.6g} > {noise_max:g}; pin/capture broken)")
+        return False, diff, noise
+    ok = diff <= noise + 1e-6
+    verdict = "PASS" if ok else "FAIL"
+    print(f"{label:<14} {noise:>13.6f} {diff:>13.6f} {'bit==':>8}  {verdict}")
+    if not ok:
+        d = per_px(ja, jm)
+        print(f"  residual: mean={diff:.6f} max={float(d.max()):.3f} "
+              f"px>0={(d > 0).sum()} (bit-exact required)")
+    return ok, diff, noise
 
-    Dual criteria (both required):
-      1. mean_abs(J, magma) <= noise + MEAN_ALLOWANCE
-      2. hard_px (per-pixel mean-abs >= HARD_THR) <= HARD_PX_CAP
-
-    MEAN_ALLOWANCE / HARD_PX_CAP come from gui_preview_calibration.json
-    (pose1 control under pin_preview_anim), not from convention.
-    """
+def gate_preview(label, ja, jb, jm, noise_max):
+    """Preview ROI: near-zero A/B noise is a prerequisite. PASS only if
+    bit-exact (residual at noise floor, zero hard pixels). Any residual is
+    FAIL / open gate — never PASS-FLOOR from a measured allowance."""
     assert ja.shape == jm.shape == jb.shape, (label, ja.shape, jm.shape, jb.shape)
     noise = mean_abs(ja, jb)
     diff = mean_abs(ja, jm)
     d = per_px(ja, jm)
     hard_px = int((d >= HARD_THR).sum())
-    gate = noise + MEAN_ALLOWANCE
-    mean_ok = diff <= gate
-    hard_ok = hard_px <= HARD_PX_CAP
-    ok = mean_ok and hard_ok
+    if noise > noise_max:
+        print(f"{label:<14} {noise:>13.6f} {diff:>13.6f} {'exact':>8}  FAIL "
+              f"(A/B noise {noise:.6g} > {noise_max:g}; pin_preview_anim / capture broken)")
+        print(f"  preview ROI exact: shape={ja.shape[1]}x{ja.shape[0]} "
+              f"noise={noise:.6f} magma_vs_J={diff:.6f}")
+        return False, diff, noise, residual_clusters(d, thr=HARD_THR, min_px=8), hard_px
     pixel_perfect = diff <= noise + 1e-6 and hard_px == 0
-    clusters = residual_clusters(d, thr=HARD_THR, min_px=8)
-    if pixel_perfect:
-        verdict = "PASS"
-    elif ok:
-        verdict = "PASS-FLOOR"
-    else:
-        verdict = "FAIL"
-    print(f"{label:<14} {noise:>13.3f} {diff:>13.3f} {gate:>8.3f}  {verdict}")
+    verdict = "PASS" if pixel_perfect else "FAIL"
+    print(f"{label:<14} {noise:>13.6f} {diff:>13.6f} {'exact':>8}  {verdict}")
     print(f"  preview ROI exact: shape={ja.shape[1]}x{ja.shape[0]} "
-          f"noise={noise:.6f} magma_vs_J={diff:.6f} gate={gate:.6f}")
-    print(f"  raster-vs-GL: mean_allowance={MEAN_ALLOWANCE:.6f} hard_px={hard_px} "
-          f"hard_cap={HARD_PX_CAP} hard_thr={HARD_THR} mean_ok={mean_ok} "
-          f"hard_ok={hard_ok} calib={CALIB_SRC}")
+          f"noise={noise:.6f} magma_vs_J={diff:.6f}")
+    print(f"  residual: hard_px={hard_px} hard_thr={HARD_THR} "
+          f"(open gate until bit-exact; no PASS-FLOOR budget)")
     print(f"  dist: p50={float(np.median(d)):.3f} p95={float(np.percentile(d,95)):.3f} "
           f"p99={float(np.percentile(d,99)):.3f} max={float(d.max()):.3f} "
-          f"px>1={(d > 1).sum()} px>5={(d > 5).sum()}")
+          f"px>0={(d > 0).sum()} px>1={(d > 1).sum()} px>5={(d > 5).sum()}")
     if pixel_perfect:
         print("  claim: pixel-perfect (residual at J-vs-J noise floor)")
     else:
-        print("  claim: NOT pixel-perfect; residual above capture noise "
-              f"(extra={diff - noise:.6f})")
+        print("  claim: NOT pixel-perfect; preview residual is an OPEN FAIL gate "
+              f"(extra_mean={diff - noise:.6f})")
+    clusters = residual_clusters(d, thr=HARD_THR, min_px=1)
     if clusters:
-        print(f"  residual clusters (thr={HARD_THR}, min_px=8): {len(clusters)}")
+        print(f"  residual clusters (thr={HARD_THR}, min_px=1): {len(clusters)}")
         for i, c in enumerate(clusters[:12]):
             x0, y0, x1, y1 = c["bbox"]
             print(f"    [{i}] n={c['n']} mean={c['mean']:.1f} max={c['max']:.1f} "
@@ -223,11 +214,21 @@ def gate_preview(label, ja, jb, jm):
         if len(clusters) > 12:
             print(f"    ... +{len(clusters) - 12} more")
     else:
-        print(f"  residual clusters: none above thr={HARD_THR} / min_px=8")
-    return ok, diff, noise, clusters
+        print(f"  residual clusters: none above thr={HARD_THR}")
+    # Hot single pixels (even below min cluster size) for the hard pair.
+    ys, xs = np.where(d >= HARD_THR)
+    if len(ys):
+        print("  hard pixels:")
+        for y, x in list(zip(ys, xs))[:16]:
+            print(f"    ({x},{y}) J={tuple(int(v) for v in ja[y, x])} "
+                  f"M={tuple(int(v) for v in jm[y, x])} d={d[y, x]:.1f}")
+    return pixel_perfect, diff, noise, clusters, hard_px
 
 fail = 0
-print(f"{'screen':<14} {'noise(J-vs-J)':>13} {'magma-vs-J':>13} {'gate':>8}  verdict")
+print(f"{'screen':<14} {'noise(J-vs-J)':>13} {'magma-vs-J':>13} {'rule':>8}  verdict")
+print(f"  (A/B noise prerequisite: <= {noise_max:g}; chrome bit-exact; "
+      f"preview open until equality)")
+
 for name in ("table", "furnace", "inventory", "chest"):
     ja_path = out / f"mc_gui_{name}_a.png"
     jb_path = out / f"mc_gui_{name}_b.png"
@@ -245,19 +246,14 @@ for name in ("table", "furnace", "inventory", "chest"):
     jb, _ = panel_crop(Image.open(jb_path), name)
     c, _ = panel_crop(Image.open(mag_path), name)
     assert ja.shape == c.shape == jb.shape, (name, ja.shape, c.shape, jb.shape)
-    noise = mean_abs(ja, jb)
-    diff = mean_abs(ja, c)
-    gate = noise + margin
-    ok = diff <= gate
-    # Inventory: whole-panel mean is informational only (dilution risk). Hard
-    # gates are preview ROI + non-preview panel below.
+    # Inventory whole-panel mean is informational only (preview dilutes chrome).
     if name == "inventory":
-        verdict = "INFO" if ok else "INFO-HIGH"
-        print(f"{name:<14} {noise:>13.3f} {diff:>13.3f} {gate:>8.3f}  {verdict} (panel mean; not sole pass)")
+        noise = mean_abs(ja, jb)
+        diff = mean_abs(ja, c)
+        print(f"{name:<14} {noise:>13.6f} {diff:>13.6f} {'info':>8}  INFO (panel mean; not sole pass)")
     else:
-        verdict = "PASS" if ok else "FAIL"
+        ok, _, _ = gate_bitexact(name, ja, jb, c, noise_max)
         fail |= not ok
-        print(f"{name:<14} {noise:>13.3f} {diff:>13.3f} {gate:>8.3f}  {verdict}")
         if not ok:
             raw = np.abs(ja.astype(int) - c.astype(int)).clip(0, 255).astype(np.uint8)
             path = out / f"diff_gui_{name}.png"
@@ -267,6 +263,7 @@ for name in ("table", "furnace", "inventory", "chest"):
 # --- inventory preview ROI (pose1: parked mouse 5,5) + non-preview panel ---
 print("-- inventory preview ROI (104x144 @ scale2) + non-preview panel --")
 print("  (goldens must be pin_preview_anim ageInTicks=0; see capture_gui.sh)")
+preview_stats = []
 ja_path = out / "mc_gui_inventory_a.png"
 jb_path = out / "mc_gui_inventory_b.png"
 mag_path = out / "magma_gui_inventory.ppm"
@@ -278,15 +275,20 @@ else:
     prev_b = preview_crop(Image.open(jb_path))
     prev_m = preview_crop(Image.open(mag_path))
     assert prev_a.shape == (144, 104, 3), prev_a.shape
-    pok, _, _, _ = gate_preview("preview pose1", prev_a, prev_b, prev_m)
+    pok, pdiff, pnoise, _, phard = gate_preview(
+        "preview pose1", prev_a, prev_b, prev_m, noise_max)
     fail |= not pok
+    preview_stats.append({
+        "pose": "pose1", "noise": pnoise, "magma_vs_j": pdiff, "hard_px": phard,
+        "pass": bool(pok),
+    })
     if not pok:
         raw = np.abs(prev_a.astype(int) - prev_m.astype(int)).clip(0, 255).astype(np.uint8)
         path = out / "diff_gui_inventory_preview.png"
         Image.fromarray(raw).save(path)
         print(f"  diff: {path}")
 
-    # Non-preview: inset panel minus the preview viewport.
+    # Non-preview chrome: bit-exact (inset panel minus the preview viewport).
     ja, (x0, y0, s) = panel_crop(Image.open(ja_path), "inventory")
     jb, _ = panel_crop(Image.open(jb_path), "inventory")
     cm, _ = panel_crop(Image.open(mag_path), "inventory")
@@ -296,21 +298,30 @@ else:
     prx = gx * s - i
     pry = gy * s - i
     mask[pry:pry + gh * s, prx:prx + gw * s] = False
-    nnoise = mean_abs(ja, jb, mask)
-    ndiff = mean_abs(ja, cm, mask)
-    ngate = nnoise + margin
-    nok = ndiff <= ngate
-    fail |= not nok
-    print(f"{'non-preview':<14} {nnoise:>13.3f} {ndiff:>13.3f} {ngate:>8.3f}  {'PASS' if nok else 'FAIL'}")
+    # Build masked arrays for gate_bitexact via mean_abs path
+    noise = mean_abs(ja, jb, mask)
+    diff = mean_abs(ja, cm, mask)
+    if noise > noise_max:
+        print(f"{'non-preview':<14} {noise:>13.6f} {diff:>13.6f} {'bit==':>8}  FAIL "
+              f"(A/B noise {noise:.6g} > {noise_max:g})")
+        fail = 1
+    else:
+        nok = diff <= noise + 1e-6
+        fail |= not nok
+        print(f"{'non-preview':<14} {noise:>13.6f} {diff:>13.6f} {'bit==':>8}  "
+              f"{'PASS' if nok else 'FAIL'}")
+        if not nok:
+            print(f"  residual: mean={diff:.6f} (bit-exact chrome required)")
 
 # --- second fixed mouse pose (slot A) with its OWN A/B noise ---
 print("-- inventory preview pose2 (mouse fb 282,258 / inv slot A, empty inv) --")
+print("  (held-out; goldens from capture_gui.sh only — not capture_gui_actions)")
 pose2_ja = out / "mc_gui_inventory_pose2_a.png"
 pose2_jb = out / "mc_gui_inventory_pose2_b.png"
 pose2_m = out / "magma_gui_inventory_pose2.ppm"
 if not pose2_ja.is_file() or not pose2_jb.is_file():
     print("preview pose2: FAIL (missing pose2 A/B goldens; run capture_gui.sh "
-          "— fail-closed, no borrowed inventory noise)")
+          "— fail-closed, no action-loadout overwrite)")
     print("  need: mc_gui_inventory_pose2_{a,b}.png")
     fail = 1
 elif not pose2_m.is_file():
@@ -320,13 +331,52 @@ else:
     p2a = preview_crop(Image.open(pose2_ja))
     p2b = preview_crop(Image.open(pose2_jb))
     p2m = preview_crop(Image.open(pose2_m))
-    p2ok, _, _, _ = gate_preview("preview pose2", p2a, p2b, p2m)
+    p2ok, p2diff, p2noise, _, p2hard = gate_preview(
+        "preview pose2", p2a, p2b, p2m, noise_max)
     fail |= not p2ok
+    preview_stats.append({
+        "pose": "pose2", "noise": p2noise, "magma_vs_j": p2diff, "hard_px": p2hard,
+        "pass": bool(p2ok),
+    })
     if not p2ok:
         raw = np.abs(p2a.astype(int) - p2m.astype(int)).clip(0, 255).astype(np.uint8)
         path = out / "diff_gui_inventory_preview_pose2.png"
         Image.fromarray(raw).save(path)
         print(f"  diff: {path}")
+
+# Write residual report (not a pass budget).
+if preview_stats:
+    pose1 = next((p for p in preview_stats if p["pose"] == "pose1"), preview_stats[0])
+    report = {
+        "version": 2,
+        "captured": "2026-07-24",
+        "pin": {
+            "cmd": "pin_preview_anim",
+            "ticks_existed": -1,
+            "age_in_ticks": 0.0,
+            "note": "drawEntityOnScreen partialTicks=1 => age = ticksExisted+1 = 0",
+        },
+        "geometry": {
+            "idle_arm_z": 0.10,
+            "formula": "cos(age*0.09)*0.05+0.05 at age=0",
+            "unit_test": "game/test_player_preview.sh",
+        },
+        "gate_contract": {
+            "chrome": "bit-exact (diff <= A/B noise + 1e-6); A/B noise near-zero required",
+            "preview": "PASS only if bit-exact; residual is open FAIL (no PASS-FLOOR budget)",
+            "noise_max": noise_max,
+            "claim_pixel_perfect": "only when residual at J-vs-J noise floor and hard_px==0",
+        },
+        "residual": {
+            "description": "Measured magma-vs-Java preview residual under pin. Not a pass allowance.",
+            "poses": preview_stats,
+            "pose1_mean_abs": pose1["magma_vs_j"],
+            "pose1_hard_px": pose1["hard_px"],
+            "pose1_noise": pose1["noise"],
+        },
+    }
+    CALIB_PATH.write_text(json.dumps(report, indent=2) + "\n")
+    print(f"wrote residual report: {CALIB_PATH.name}")
 
 sys.exit(1 if fail else 0)
 PY

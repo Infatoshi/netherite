@@ -101,14 +101,20 @@ static void rotate_x(float *y, float *z, float deg)
  * geometry means lighting sees normals as if lights were Ry(135)*LIGHT.
  * With the GUI frame including Rz(180)*S(-s,s,s) absorbed into the screen
  * map, we light in the post-applyRotations / pre-GUI entity space using the
- * sandwich-adjusted directions. */
+ * sandwich-adjusted directions.
+ *
+ * LIGHT0/1 match RenderHelper.java double normalize of
+ * ( +-0.20000000298023224, 1.0, -+0.699999988079071 ). shadeModel is GL_FLAT
+ * (7424): one face normal, flat light per quad. Ambient 0.4 + two 0.6
+ * diffuse terms, clamped at 1. */
 static float standard_item_light(float nx, float ny, float nz)
 {
-    const float il = 1.0f / sqrtf(1.53f);
-    /* LIGHT0/LIGHT1 after Ry(135) into the post-sandwich draw space. */
+    /* Pre-normalized from Java double Vec3d.normalize (bit-stable as float). */
+    const float l0x = 0.16169041669088864f, l0y = 0.8084520834544432f,
+                l0z = -0.5659164584181101f;
+    const float l1x = -0.16169041669088864f, l1y = 0.8084520834544432f,
+                l1z = 0.5659164584181101f;
     const float c = cosf(135.0f * DEG2RAD), s = sinf(135.0f * DEG2RAD);
-    float l0x = 0.2f * il, l0y = 1.0f * il, l0z = -0.7f * il;
-    float l1x = -0.2f * il, l1y = 1.0f * il, l1z = 0.7f * il;
     float e0x = c * l0x + s * l0z, e0z = -s * l0x + c * l0z;
     float e1x = c * l1x + s * l1z, e1z = -s * l1x + c * l1z;
     float sum = 0.4f;
@@ -120,7 +126,8 @@ static float standard_item_light(float nx, float ny, float nz)
 }
 
 static CrScreenVert screen_vertex(float x, float y, float z, float u, float v,
-                                  float light, int cx, int bottom, float unit)
+                                  float light, int cx, int bottom, float unit,
+                                  float depth_bias)
 {
     CrScreenVert out;
     memset(&out, 0, sizeof out);
@@ -132,10 +139,14 @@ static CrScreenVert screen_vertex(float x, float y, float z, float u, float v,
      * Eye-space z ≈ -1950 + s*ez_entity (plus body rotations). Relative
      * order is monotonic in entity-frame +z (toward viewer after the GUI
      * sandwich is absorbed). Pack into [0,1] depth for GL_LEQUAL as
-     *   depth = 0.5 - z * k
+     *   depth = 0.5 - z * k - depth_bias
      * with k=0.02 so a body-width of ~2 entity units stays ordered without
-     * saturating; absolute GL depth bits are not matched, only order. */
-    out.spos = (CrVec3){cx + x * unit, bottom - y * unit, 0.5f - z * 0.02f};
+     * saturating. depth_bias is a tiny per-part term so later ModelBiped
+     * parts win true coplanar ties the way GL_LEQUAL does after draw order. */
+    float dep = 0.5f - z * 0.02f - depth_bias;
+    if (dep < 0.0f) dep = 0.0f;
+    if (dep > 1.0f) dep = 1.0f;
+    out.spos = (CrVec3){cx + x * unit, bottom - y * unit, dep};
     out.invw = 1.0f;
     out.uv_w = (CrVec2){u / 64.0f, v / 64.0f};
     out.light_w = light;
@@ -187,6 +198,7 @@ static int emit_part(const PreviewPart *part,
                      float body_yaw_deg, float net_head_yaw_deg, float head_pitch_deg,
                      float matrix_pitch_deg,
                      int cx, int bottom, float unit,
+                     float depth_bias,
                      CrScreenTri *tris, int n)
 {
     float x0 = part->x - part->inflate, x1 = part->x + part->dx + part->inflate;
@@ -237,13 +249,16 @@ static int emit_part(const PreviewPart *part,
         for (int t = 0; t < 2; ++t) {
             CrScreenVert a = screen_vertex(q[tri_idx[t][0]].x, q[tri_idx[t][0]].y,
                                            q[tri_idx[t][0]].z, q[tri_idx[t][0]].u,
-                                           q[tri_idx[t][0]].v, light, cx, bottom, unit);
+                                           q[tri_idx[t][0]].v, light, cx, bottom, unit,
+                                           depth_bias);
             CrScreenVert b = screen_vertex(q[tri_idx[t][1]].x, q[tri_idx[t][1]].y,
                                            q[tri_idx[t][1]].z, q[tri_idx[t][1]].u,
-                                           q[tri_idx[t][1]].v, light, cx, bottom, unit);
+                                           q[tri_idx[t][1]].v, light, cx, bottom, unit,
+                                           depth_bias);
             CrScreenVert c = screen_vertex(q[tri_idx[t][2]].x, q[tri_idx[t][2]].y,
                                            q[tri_idx[t][2]].z, q[tri_idx[t][2]].u,
-                                           q[tri_idx[t][2]].v, light, cx, bottom, unit);
+                                           q[tri_idx[t][2]].v, light, cx, bottom, unit,
+                                           depth_bias);
             /* Rasterizer keeps one winding; pick positive framebuffer area. */
             float area = (b.spos.x - a.spos.x) * (c.spos.y - a.spos.y)
                        - (b.spos.y - a.spos.y) * (c.spos.x - a.spos.x);
@@ -287,9 +302,14 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
 
     CrScreenTri tris[PREVIEW_MAX_TRIS];
     int n = 0;
-    for (int i = 0; i < (int)(sizeof PLAYER_PARTS / sizeof PLAYER_PARTS[0]); ++i)
+    int nparts = (int)(sizeof PLAYER_PARTS / sizeof PLAYER_PARTS[0]);
+    for (int i = 0; i < nparts; ++i) {
+        /* Later ModelBiped parts win exact coplanar float ties (GL_LEQUAL).
+         * Keep this tiny vs real front/back separation (~0.01 depth units). */
+        float depth_bias = (float)(i + 1) * 1.0e-5f;
         n = emit_part(&PLAYER_PARTS[i], body_yaw_deg, net_head_yaw_deg, head_pitch_deg,
-                      matrix_pitch_deg, cx, bottom, unit, tris, n);
+                      matrix_pitch_deg, cx, bottom, unit, depth_bias, tris, n);
+    }
 
     CrTexture skin = {0};
     skin.w = HAND_SKIN_W; skin.h = HAND_SKIN_H;
@@ -298,6 +318,11 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
     shade.atlas = &skin;
     shade.alpha_test = 1;          /* cutout like entity skin */
     shade.layer = CR_LAYER_CUTOUT;
+    /* GL depth func is LEQUAL; coplanar head/body neck edges need it so the
+     * later ModelBiped part wins the way fixed-function does. */
+    shade.depth_lequal = 1;
+    /* Fixed-function entity color path truncates to 8-bit (not +0.5 round). */
+    shade.color_trunc = 1;
     cr_raster_cpu(&local, tris, n, &shade);
 
     /* Depth-tested local buffer -> parent: replace when alpha survives cutout
