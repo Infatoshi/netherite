@@ -93,6 +93,10 @@ static GmPlayerView base_pv(void) {
  * arm mesh cannot bleed into air/heart ROIs (Java goldens are wall/sky). */
 static void compose(CrFramebuffer *fb, GmPlayerView *pv, int want_uw,
                     int want_hand, float uw_bright, float fov_deg) {
+    /* frame_capture / live path: pin portal atlas frame before sampling.
+     * GuiIngame.renderPortal uses Blocks.PORTAL TextureAtlasSprite (anim). */
+    if (pv->portal > 0.0f && pv->portal_frame >= 0)
+        bm_atlas_set_portal_frame(pv->portal_frame);
     CrTexture atlas = bm_atlas();
     gm_hand_set_swing(0.0f);
     gm_hand_set_equip(0.0f);
@@ -264,8 +268,13 @@ static void s_inside_grass(GmPlayerView *pv, CrFramebuffer *fb) {
 
 static void s_portal(GmPlayerView *pv, CrFramebuffer *fb) {
     (void)fb;
+    /* GuiIngame.renderPortal: timeInPortal=0.5 -> alpha = 0.5^4*0.8+0.2 = 0.25.
+     * Frame 0 matches pin_texture_animations default tile. Gray underlay is
+     * composition isolation only (not a live outdoor claim). Hand still drawn
+     * under the portal (ItemRenderer first-person before GUI portal). */
     pv->portal = 0.5f;
     pv->portal_frame = 0;
+    pv->portal_phase = 0;
 }
 
 static void s_fire(GmPlayerView *pv, CrFramebuffer *fb) {

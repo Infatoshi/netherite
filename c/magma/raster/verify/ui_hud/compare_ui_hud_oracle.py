@@ -21,15 +21,29 @@ Durability (local ownership, not thr surgery and not a global painted_full
 
 Full-screen blend-off inside-block overlays (overlay_inside_stone/grass):
   Strict full-ROI compare on A/B-stable pixels (Java HUD flicker excluded).
-  No painted-only mask (gray C holes must count). hard_thr = ceil(noise_max)
-  on the stable set: when noise_max==0 every stable pixel must be exact
-  (thr 0; any maxch>0 is residual). PASS only if hard_px == 0.
+  No painted-only mask (gray C holes must count). No mean dilution sole gate.
+  Explicit A/B noise (mean + max). hard_thr is always 0 (bit-exact C vs
+  Java_a on stable pixels). PASS only if noise_max==0 AND hard_px==0.
+  Never use ceil(noise_max) as a PASS tolerance — that let C=Java_a /
+  Java_a+1 claim parity when A/B still had maxch=1 residuals. Rejects
+  erase-90%, blank-to-one, +1 single-channel, 2-4px shifts, recolor, extras.
 
 overlay_underwater (hard full-ROI, honest residual):
   Same-scene glass-pool ambient + renderWaterOverlayTexture. Full A/B-stable
   ROI hard_px gate (same exact bar as inside-block; no painted filter, no
   noise/mean budget to claim parity). Measured residual ~4.97/ch stays
   RESIDUAL until hard_px==0. Air partial is a separate hard HUD state.
+
+Portal (overlay_portal_050) — GuiIngame.renderPortal, not ItemRenderer:
+  Full-frame hard_px on A/B-stable pixels (Java∪C owned = full portal feature).
+  No mean/noise budgets as pass criterion, no color-only purple masks, no
+  fitted black underlay claim. Gray C isolation vs outdoor Java underlay
+  under translucent alpha (0.25 at t=0.5) is a product residual until a
+  same-scene underlay exists. Capture needs sticky portal_phase so warp
+  A/B is stable (pin_texture_animations freezes the atlas tile).
+  Real portal A/B has residual maxch=1 on hundreds of pixels: product
+  verdict is CAPTURE_BLOCKED (never PASS under any C, including C=Java_a,
+  Java_b, midpoint, or Java_a+1). Synthetic bit-exact A=B controls may PASS.
 
 GuiGameOver (hud_death*):
   - Opaque chrome is hard: full button rectangles; title/score body+shadow
@@ -39,9 +53,17 @@ GuiGameOver (hud_death*):
 
 Hand viewmodels: wider mid-eat ROI; hard residual open (registration).
 
-Verdicts:
-  FAIL / CAPTURE_OK / PASS / RESIDUAL (hard residual => nonzero exit).
-Hard RESIDUAL returns nonzero. Soft states never claim pixel parity.
+Verdicts (capture integrity first; no false parity claims):
+  FAIL             - missing files, capture noise over ceiling, empty/unstable
+  CAPTURE_OK       - soft state: A/B frozen + feature present; no hard C parity
+  CAPTURE_BLOCKED  - hard state but A/B maxch residual > 0 (no C may PASS)
+  PASS             - hard_px==0 and noise_max==0 (bit-exact parity claim)
+  RESIDUAL         - A/B bit-exact but C residual (nonzero exit)
+
+Hard RESIDUAL and CAPTURE_BLOCKED return nonzero. Soft states never claim
+pixel parity. Gray C backdrop is composition isolation only; not a live-world
+equivalence claim. Inside-block C uses real atlas particle UVs (not solid
+synthetic texels).
 """
 from __future__ import print_function
 
@@ -72,7 +94,8 @@ NOISE_MAX = {
     "hud_hurt_flash_on": 3.0,
     "hud_hurt_flash_off": 3.0,
     "hand_bow_pull20": 3.0,
-    "overlay_portal_050": 12.0,
+    # Portal: sticky portal_phase + pin_texture_animations must freeze A/B.
+    "overlay_portal_050": 3.0,
     "overlay_fire": 35.0,
     "hud_death": 5.0,
     "overlay_inside_stone": 3.0,
@@ -93,18 +116,22 @@ CORE_HARD = {
     "hud_boss_half",
 }
 
-# Blend-off full-screen particle replace + underwater full-ROI exact bar.
-# Gate is full A/B-stable ROI + hard max-channel pixels, not painted mean.
+# Full-screen hard_px gates (A/B-stable ROI, hard_thr always 0).
+# inside-*: ItemRenderer.renderBlockInHand blend-off replace.
+# underwater: renderWaterOverlayTexture same-scene residual (exact bar).
+# portal: GuiIngame.renderPortal full-frame translucent (Java∪C = full feature).
 FULLSCREEN_REPLACE = {
     "overlay_inside_stone",
     "overlay_inside_grass",
     "overlay_underwater",
+    "overlay_portal_050",
 }
 # Per-pixel mean-ch A/B above this is "unstable" (Java HUD chrome flicker).
 STABLE_AB_THR = 2.0
-# hard_thr = ceil(noise_max) on stable A/B max-channel. noise_max==0 => thr 0
-# (literal equality; any maxch>0 is residual). Never floor thr at 1 — that
-# loophole let a +1 single-channel mutation pass when A/B was bit-exact.
+# hard_thr is always 0: bit-exact C vs Java_a on the stable set. Never
+# ceil(noise_max) as PASS tolerance — with noise_max=1 that let C=Java_a,
+# midpoint, and Java_a+1 all PASS while A/B still disagreed. PASS requires
+# noise_max==0 AND hard_px==0. noise_max>0 => CAPTURE_BLOCKED (no C may PASS).
 # Capture must keep nearly all ROI A/B-stable (not a blinking mess).
 MIN_STABLE_FRAC = 0.99
 # Residual location samples for honest reporting (full-frame coords).
@@ -177,7 +204,8 @@ def roi_rect(name):
     return (0, 0, W, H)
 
 
-# Hard gate: core HUD, hands, inside-block, underwater full-ROI, death chrome.
+# Hard gate: core HUD, hands, inside-block, underwater full-ROI, portal swirl,
+# and opaque GuiGameOver chrome. Full-frame death tint and fire stay soft.
 HARD = set(CORE_HARD) | {
     "hand_bow_pull20",
     "hand_eat_mid",
@@ -185,6 +213,8 @@ HARD = set(CORE_HARD) | {
     "overlay_inside_stone",
     "overlay_inside_grass",
     "overlay_underwater",
+    # GuiIngame.renderPortal: full-frame A/B-stable hard_px (no soft CAPTURE_OK).
+    "overlay_portal_050",
     "hud_death_title",
     "hud_death_score",
     "hud_death_btn_respawn",
@@ -330,10 +360,13 @@ def painted_mask(c):
 
 
 def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
-    """Full A/B-stable ROI hard_px gate for inside-block overlays.
+    """Full A/B-stable ROI hard_px gate for inside-block and portal overlays.
 
-    hard_thr = ceil(noise_max) on stable A/B max-channel. noise_max==0 => thr 0
-    (exact equality). PASS only if hard_px==0.
+    Java∪C owned = full portal/inside feature (fullscreen ROI). hard_thr is
+    always 0 (bit-exact C vs Java_a). PASS only if noise_max==0 AND hard_px==0.
+    Any stable A/B maxch residual blocks PASS (CAPTURE_BLOCKED) — no C,
+    including C=Java_a / Java_b / midpoint / Java_a+1, may claim parity.
+    No mean budgets, no color-only masks, no ceil(noise_max) tolerance.
     """
     rect = roi_rect(sid)
     hard = sid in HARD
@@ -361,17 +394,19 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
     stable_frac = float(n_stable) / float(n_roi) if n_roi else 0.0
     residual_locs = []
     residual_bbox = None
+    n_ab_maxch_ge1 = 0
     if n_stable > 0:
         noise = float(ab_ch[stable].mean())
         noise_max = float(ab_maxch_px[stable].max())
+        n_ab_maxch_ge1 = int((ab_maxch_px[stable] >= 1).sum())
         diff_ch = np.abs(c.astype(np.int16) - ja.astype(np.int16)).astype(
             np.float64)
         diff_mean_px = diff_ch.mean(axis=2)
         diff_maxch_px = diff_ch.max(axis=2)
         diff = float(diff_mean_px[stable].mean())
         max_diff = float(diff_maxch_px[stable].max())
-        # Literal bar: thr tracks measured A/B only. noise_max==0 => thr 0.
-        hard_thr = int(np.ceil(noise_max))
+        # Bit-exact bar only. Never ceil(noise_max) as a PASS tolerance.
+        hard_thr = 0
         hard_mask = stable & (diff_maxch_px > hard_thr)
         hard_px = int(hard_mask.sum())
         if hard_px > 0:
@@ -399,12 +434,13 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
     else:
         noise = float(ab_ch.mean())
         noise_max = float(ab_maxch_px.max()) if ab_maxch_px.size else 0.0
+        n_ab_maxch_ge1 = int((ab_maxch_px >= 1).sum()) if ab_maxch_px.size else 0
         diff = float("nan")
         max_diff = float("nan")
         hard_thr = 0
         hard_px = n_roi
 
-    gate = noise  # no margin floor; hard_px is the pass criterion
+    gate = noise  # no margin floor; hard_px + noise_max gate PASS
     capture_ok = (
         (noise == noise)
         and noise <= noise_lim
@@ -419,6 +455,11 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
             reason = "unstable_ab"
         else:
             reason = "capture_bad"
+    elif noise_max > 0:
+        # A/B not bit-exact: product cannot claim PASS for any C (including
+        # C=Java_a / Java_b / midpoint / Java_a+1).
+        verdict = "CAPTURE_BLOCKED"
+        reason = "ab_maxch_nonzero"
     elif hard_px == 0 and (diff == diff):
         verdict = "PASS"
         reason = "fullscreen_exact"
@@ -430,6 +471,7 @@ def evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full):
         "id": sid,
         "noise": noise,
         "noise_max": noise_max,
+        "n_ab_maxch_ge1": n_ab_maxch_ge1,
         "c_vs_j": diff,
         "max_diff": max_diff,
         "hard_px": hard_px,
@@ -1262,7 +1304,9 @@ def evaluate_roi(sid, ja_full, jb_full, c_full, margin):
     if sid in FULLSCREEN_REPLACE:
         row = evaluate_fullscreen_replace(sid, ja_full, jb_full, c_full)
         fail = 1 if row["verdict"] == "FAIL" else 0
-        residual = 1 if row["verdict"] == "RESIDUAL" else 0
+        # CAPTURE_BLOCKED: A/B not bit-exact (no parity claim). Counts as
+        # residual for exit status — same nonzero path as hard C residual.
+        residual = 1 if row["verdict"] in ("RESIDUAL", "CAPTURE_BLOCKED") else 0
         return row, fail, residual
     if sid in CORE_HARD:
         return evaluate_core(sid, ja_full, jb_full, c_full, margin)
@@ -1339,11 +1383,13 @@ def run_compare(goldens, cframes, margin, report_path=""):
                 "id": sid,
                 "noise": row["noise"],
                 "noise_max": row.get("noise_max"),
+                "n_ab_maxch_ge1": row.get("n_ab_maxch_ge1"),
                 "c_vs_j": row["c_vs_j"],
                 "gate": row["gate"],
                 "hard_px": row.get("hard_px"),
                 "hard_thr": row.get("hard_thr"),
                 "max_diff": row.get("max_diff"),
+                "verdict": row.get("verdict"),
                 "reason": row.get("reason"),
                 "residual_bbox": row.get("residual_bbox"),
                 "residual_locs": row.get("residual_locs"),
@@ -1381,17 +1427,23 @@ def run_compare(goldens, cframes, margin, report_path=""):
         "residuals": residuals,
         "rows": rows,
         "notes": (
-            "PASS = hard parity. Fullscreen inside-block uses A/B-stable full "
-            "ROI + hard_px with thr=ceil(noise_max) (noise_max==0 => exact). "
-            "No painted-mean dilution, no thr floor of 1. "
-            "RESIDUAL = hard capture OK but C residual (nonzero exit). "
-            "CAPTURE_OK = soft capture integrity only (portal/fire/"
+            "PASS = hard parity only when noise_max==0 and hard_px==0 "
+            "(bit-exact C vs Java_a on A/B-stable full ROI). Fullscreen "
+            "inside-block + portal + underwater never use ceil(noise_max) as "
+            "PASS tolerance. "
+            "CAPTURE_BLOCKED = A/B stable maxch residual > 0 (no C may PASS, "
+            "including C=Java_a / Java_b / midpoint / Java_a+1). "
+            "RESIDUAL = A/B bit-exact but C residual (nonzero exit). "
+            "CAPTURE_OK = soft capture integrity only (fire/"
             "full-frame death). Underwater is hard full-ROI residual. "
             "FAIL = missing/noise/empty/unstable. "
             "Core HUD: oracle∪C masks, hard_px==0 at A/B noise. "
             "hud_durability_half uses atlas-alpha∪strip∪C-extra ownership "
             "(C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-"
             "GRAY isolation underlay; not threshold holes, not Java world). "
+            "Portal: GuiIngame.renderPortal over gray C isolation; outdoor Java "
+            "underlay is a same-scene product residual (not a fitted black cell). "
+            "Real portal A/B has maxch=1 residuals -> CAPTURE_BLOCKED. "
             "GuiGameOver: hard = opaque chrome (title/score body+shadow, "
             "full button rects) + hud_death_tint_pair (source gradient blend "
             "over known underlay); full-frame tint/world composition is soft "
@@ -1404,14 +1456,18 @@ def run_compare(goldens, cframes, margin, report_path=""):
         print("report -> %s" % report_path)
 
     print("blocked: %s" % (blocked if blocked else "none"))
-    print("open residuals (hard, no parity claim):")
+    print("open residuals / capture blocks (hard, no parity claim):")
     if residuals:
         for r in residuals:
             extra = ""
             if r.get("hard_px") is not None:
-                extra = "  hard_px=%s  thr=%s  max_diff=%s  noise_max=%s" % (
-                    r.get("hard_px"), r.get("hard_thr"),
-                    r.get("max_diff"), r.get("noise_max"))
+                extra = (
+                    "  hard_px=%s  thr=%s  max_diff=%s  noise_max=%s  "
+                    "ab_maxch_ge1=%s  verdict=%s" % (
+                        r.get("hard_px"), r.get("hard_thr"),
+                        r.get("max_diff"), r.get("noise_max"),
+                        r.get("n_ab_maxch_ge1"), r.get("verdict"))
+                )
             print("  %s  noise=%.3f  C-vs-J=%.3f  gate=%.3f%s" % (
                 r["id"], r["noise"], r["c_vs_j"], r["gate"], extra))
             if r.get("residual_bbox"):

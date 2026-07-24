@@ -73,6 +73,39 @@ public class QuantizedRL {
     private int deaths = 0;
     /** When true, skip auto-respawn so death-screen oracle captures can freeze. */
     private volatile boolean holdDeath = false;
+    /** When >= 0, re-apply EntityRenderer.rendererUpdateCount before each frame{}
+     * re-render so portal camera warp is A/B-stable under a live client tick. */
+    private volatile int pinPortalPhase = -1;
+
+    /**
+     * Sticky first-person use-pose pin for oracle hand captures.
+     *
+     * Vanilla Minecraft.runTick processKeyBinds() calls onStoppedUsingItem whenever
+     * isHandActive() && !keyBindUseItem.isKeyDown(). Free-running client ticks
+     * between hud_pin and frame{} therefore wipe setActiveHand, so ItemRenderer
+     * falls through to the idle/rest branch (tip only) despite pin_reply reporting
+     * hand_active=true at pin time.
+     *
+     * Also: ItemBow.pulling / ItemShield.blocking model predicates require
+     * getActiveItemStack() == rendered stack (reference equality). Pinning a
+     * .copy() breaks bow_pulling_* / shield_blocking overrides even if the
+     * BOW/EAT/BLOCK transform branch is taken.
+     *
+     * pinUseActive is re-applied at ClientTickEvent END and immediately before
+     * frame{} re-render so processKeyBinds cannot leave an idle viewmodel.
+     *
+     * Scope: MAIN_HAND only (dual-wield / offhand active-use out of scope).
+     * pinPoseActive freezes camera for capture A/B registration only.
+     */
+    private volatile boolean pinUseActive = false;
+    private volatile int pinUseRemaining = 0;
+    private volatile boolean pinUseKeyHeld = false;
+    /** Optional sticky camera freeze (set by hud_pin x/y/z) so free-running
+     * ticks between A/B cannot drift the wall registration under a large
+     * viewmodel silhouette (drawn bow). */
+    private volatile boolean pinPoseActive = false;
+    private volatile double pinPoseX, pinPoseY, pinPoseZ;
+    private volatile float pinPoseYaw, pinPosePitch;
 
     // Inventory player-preview capture pin: freeze ModelBiped ageInTicks so
     // GuiInventory.drawEntityOnScreen (partialTicks=1.0) is same-state for A/B
@@ -173,6 +206,17 @@ public class QuantizedRL {
         recPositionVy = mc.player.motionY;
         recPositionVz = mc.player.motionZ;
         recPositionPending = true;
+    }
+
+    private void applyPinnedPortalPhase(Minecraft mc) {
+        if (pinPortalPhase < 0 || mc == null || mc.entityRenderer == null) return;
+        try {
+            java.lang.reflect.Field fPhase =
+                net.minecraft.client.renderer.EntityRenderer.class
+                    .getDeclaredField("rendererUpdateCount");
+            fPhase.setAccessible(true);
+            fPhase.setInt(mc.entityRenderer, pinPortalPhase);
+        } catch (Throwable ig) { /* leave live phase */ }
     }
 
     /** Snapshot of client entity fields restored after frame{} re-render. */
@@ -920,6 +964,17 @@ public class QuantizedRL {
             }
         } else if (mc.player != null) {
             wasDead = false;
+        }
+
+        // Sticky camera freeze + use-pose: processKeyBinds (earlier this tick)
+        // stops use when the physical key is up. Re-assert after that so
+        // free-running ticks and the upcoming render still see BOW/EAT/BLOCK
+        // at a fixed wall registration. frame{} also re-applies.
+        if (mc.player != null && mc.world != null) {
+            try { applyStickyPosePin(mc); } catch (Throwable ig) {}
+            if (pinUseActive) {
+                try { applyUsePosePin(mc); } catch (Throwable ig) {}
+            }
         }
 
         // CLI-driven launch: skip the main menu entirely, go straight into the configured world.
@@ -3063,6 +3118,11 @@ public class QuantizedRL {
         // When a pending entity render pin is active, apply it on the client entity
         // immediately before renderWorld and restore afterward so no intervening
         // client tick can overwrite squishFactor/deathTicks.
+        //
+        // Sticky use-pose is re-applied HERE immediately before renderWorld:
+        // processKeyBinds (earlier this tick) may have already onStoppedUsingItem
+        // because the physical use key is not held. Without this, bow/eat/shield
+        // goldens capture idle rest tips despite a successful hud_pin.
         if (r.cmd.equals("frame")) {
             try {
                 String file = r.action.get("file").getAsString();
@@ -3072,6 +3132,7 @@ public class QuantizedRL {
                 boolean hud = false, tb = false;
                 int pinApplied = 0;
                 int pinClientEid = -1;
+                JsonObject useAtRender = null;
                 boolean prevHide = mc.gameSettings.hideGUI;
                 int prevTp = mc.gameSettings.thirdPersonView;
                 if (rerender && mc.world != null && mc.player != null
@@ -3082,6 +3143,17 @@ public class QuantizedRL {
                         // thirdPersonView=0, not spectator, not sleeping.
                         mc.gameSettings.hideGUI = false;
                         mc.gameSettings.thirdPersonView = 0;
+                        // Sticky portal warp phase: updateRenderer may have
+                        // advanced rendererUpdateCount since the last hud_pin.
+                        applyPinnedPortalPhase(mc);
+                        // Re-freeze camera so A/B wall registration matches
+                        // under large viewmodel silhouettes (drawn bow).
+                        applyStickyPosePin(mc);
+                        // Re-assert sticky use pose + equip + stack identity.
+                        // processKeyBinds may have already onStoppedUsingItem.
+                        if (pinUseActive) {
+                            useAtRender = applyUsePosePin(mc);
+                        }
                         if (renderPinActive) {
                             pinSnap = applyPendingRenderPin(mc);
                             if (pinSnap != null && pinSnap.entity != null) {
@@ -3122,11 +3194,61 @@ public class QuantizedRL {
                 java.awt.image.BufferedImage img =
                     net.minecraft.util.ScreenShotHelper.createScreenshot(fw, fh, mc.getFramebuffer());
                 javax.imageio.ImageIO.write(img, "png", new java.io.File(file));
-                r.resp.offer("{\"ok\":true,\"file\":\"" + file + "\",\"w\":" + fw
-                    + ",\"h\":" + fh + ",\"tb\":" + (tb ? 1 : 0)
-                    + ",\"hud\":" + (hud ? 1 : 0)
-                    + ",\"render_pin\":" + pinApplied
-                    + ",\"render_pin_eid\":" + pinClientEid + "}");
+                StringBuilder resp = new StringBuilder(256);
+                resp.append("{\"ok\":true,\"file\":\"").append(file)
+                  .append("\",\"w\":").append(fw)
+                  .append(",\"h\":").append(fh)
+                  .append(",\"tb\":").append(tb ? 1 : 0)
+                  .append(",\"hud\":").append(hud ? 1 : 0)
+                  .append(",\"render_pin\":").append(pinApplied)
+                  .append(",\"render_pin_eid\":").append(pinClientEid);
+                // Sticky portal_phase diagnostic (pinned value or live count).
+                {
+                    int phase = pinPortalPhase;
+                    if (phase < 0) {
+                        try {
+                            if (mc.entityRenderer != null) {
+                                java.lang.reflect.Field fPhase =
+                                    net.minecraft.client.renderer.EntityRenderer.class
+                                        .getDeclaredField("rendererUpdateCount");
+                                fPhase.setAccessible(true);
+                                phase = fPhase.getInt(mc.entityRenderer);
+                            }
+                        } catch (Throwable ig) {}
+                    }
+                    resp.append(",\"portal_phase\":").append(phase);
+                }
+                resp.append(",\"pin_use_active\":").append(pinUseActive);
+                if (pinUseActive)
+                    resp.append(",\"pin_use_remaining\":").append(pinUseRemaining);
+                if (useAtRender != null) {
+                    if (useAtRender.has("branch"))
+                        resp.append(",\"use_branch\":\"").append(
+                            useAtRender.get("branch").getAsString()).append("\"");
+                    if (useAtRender.has("hand_active"))
+                        resp.append(",\"hand_active\":").append(
+                            useAtRender.get("hand_active").getAsBoolean());
+                    if (useAtRender.has("use_count"))
+                        resp.append(",\"use_count\":").append(
+                            useAtRender.get("use_count").getAsInt());
+                    if (useAtRender.has("pulling"))
+                        resp.append(",\"model_pulling\":").append(
+                            useAtRender.get("pulling").getAsFloat());
+                    if (useAtRender.has("pull"))
+                        resp.append(",\"model_pull\":").append(
+                            useAtRender.get("pull").getAsFloat());
+                    if (useAtRender.has("blocking"))
+                        resp.append(",\"model_blocking\":").append(
+                            useAtRender.get("blocking").getAsFloat());
+                    if (useAtRender.has("stack_id_eq"))
+                        resp.append(",\"stack_id_eq\":").append(
+                            useAtRender.get("stack_id_eq").getAsBoolean());
+                    if (useAtRender.has("ir_id_eq"))
+                        resp.append(",\"ir_id_eq\":").append(
+                            useAtRender.get("ir_id_eq").getAsBoolean());
+                }
+                resp.append("}");
+                r.resp.offer(resp.toString());
             } catch (Exception ex) { r.resp.offer(err("frame: " + ex)); }
             return;
         }
@@ -3156,8 +3278,20 @@ public class QuantizedRL {
                     p.fallDistance = 0.0F;
                     p.setPositionAndRotation(a.get("x").getAsDouble(), a.get("y").getAsDouble(),
                         a.get("z").getAsDouble(), yaw, pitch);
-                    final double fx = a.get("x").getAsDouble(), fy = a.get("y").getAsDouble(),
-                        fz = a.get("z").getAsDouble();
+                    // Freeze interpolation sources so partialTicks=1 and any
+                    // free-run tick cannot leave prev!=current camera state.
+                    p.prevPosX = p.posX; p.prevPosY = p.posY; p.prevPosZ = p.posZ;
+                    p.lastTickPosX = p.posX; p.lastTickPosY = p.posY; p.lastTickPosZ = p.posZ;
+                    p.prevRotationYaw = yaw; p.prevRotationPitch = pitch;
+                    p.renderYawOffset = yaw; p.prevRenderYawOffset = yaw;
+                    p.rotationYawHead = yaw; p.prevRotationYawHead = yaw;
+                    pinPoseActive = true;
+                    pinPoseX = a.get("x").getAsDouble();
+                    pinPoseY = a.get("y").getAsDouble();
+                    pinPoseZ = a.get("z").getAsDouble();
+                    pinPoseYaw = yaw;
+                    pinPosePitch = pitch;
+                    final double fx = pinPoseX, fy = pinPoseY, fz = pinPoseZ;
                     final float fyaw = yaw, fpitch = pitch;
                     final boolean fng = noG;
                     net.minecraft.server.MinecraftServer srv = mc.getIntegratedServer();
@@ -3265,6 +3399,18 @@ public class QuantizedRL {
                     p.timeInPortal = a.get("portal").getAsFloat();
                     p.prevTimeInPortal = p.timeInPortal;
                 }
+                // Freeze EntityRenderer.rendererUpdateCount so the portal camera
+                // warp (setupCameraTransform rotate/scale on axis (0,1,1)) is
+                // identical on A and B frame{} re-renders. Client ticks still
+                // advance updateRenderer between socket commands; sticky pin is
+                // re-applied immediately before each frame{} re-render.
+                if (a.has("portal_phase")) {
+                    pinPortalPhase = a.get("portal_phase").getAsInt();
+                    applyPinnedPortalPhase(mc);
+                } else if (a.has("portal") && a.get("portal").getAsFloat() <= 0.0F) {
+                    // Clear sticky phase when leaving portal pin states.
+                    pinPortalPhase = -1;
+                }
                 if (a.has("hurt_time")) {
                     p.hurtTime = a.get("hurt_time").getAsInt();
                     p.maxHurtTime = a.has("max_hurt_time")
@@ -3340,16 +3486,16 @@ public class QuantizedRL {
                     fPrev.setFloat(ir, pinnedEquip);
                     fEqOff.setFloat(ir, 1.0F);
                     fPrevOff.setFloat(ir, 1.0F);
-                    // Keep itemStackMainHand in lockstep with the hotbar so the
-                    // equip animation does not re-trigger on a stack mismatch.
+                    // Same inventory reference - not copy (see applyUsePosePin).
+                    // ItemBow.pulling / ItemShield.blocking require == not equals.
                     net.minecraft.item.ItemStack held = p.getHeldItemMainhand();
                     if (!held.isEmpty())
-                        fItem.set(ir, held.copy());
+                        fItem.set(ir, held);
                     else
                         fItem.set(ir, net.minecraft.item.ItemStack.EMPTY);
                     net.minecraft.item.ItemStack off = p.getHeldItemOffhand();
                     if (!off.isEmpty())
-                        fItemOff.set(ir, off.copy());
+                        fItemOff.set(ir, off);
                     else
                         fItemOff.set(ir, net.minecraft.item.ItemStack.EMPTY);
                     equipPinned = 1;
@@ -3357,60 +3503,42 @@ public class QuantizedRL {
 
                 // Active hand use: action 0 none, 1 eat/drink, 2 block, 3 bow.
                 // remaining = getItemInUseCount; bow_pull = max - remaining.
-                // EntityPlayerSP keeps a client-local handActive flag; also pin
-                // activeItemStack + useCount so ItemRenderer BOW/EAT/BLOCK
-                // branches see a consistent stack for the use-action switch.
-                if (a.has("use_action")) {
-                    int action = a.get("use_action").getAsInt();
-                    if (action <= 0) {
-                        p.resetActiveHand();
-                    } else {
-                        net.minecraft.util.EnumHand hand =
-                            net.minecraft.util.EnumHand.MAIN_HAND;
-                        net.minecraft.item.ItemStack stack = p.getHeldItemMainhand();
-                        if (!stack.isEmpty()) {
-                            // reset first so setActiveHand is not a no-op when
-                            // re-pinning the same use state for A/B.
-                            p.resetActiveHand();
-                            p.setActiveHand(hand);
-                            int remaining = a.has("use_remaining")
+                // Sticky pin survives free-running ticks (processKeyBinds would
+                // otherwise onStoppedUsingItem every tick while use key is up)
+                // and is re-applied in frame{} immediately before re-render.
+                JsonObject useDiag = null;
+                if (a.has("use_action") || a.has("bow_pull")) {
+                    int remaining = 0;
+                    boolean wantUse = false;
+                    net.minecraft.item.ItemStack stack = p.getHeldItemMainhand();
+                    if (a.has("bow_pull")) {
+                        int pull = a.get("bow_pull").getAsInt();
+                        if (!stack.isEmpty() && pull > 0) {
+                            remaining = stack.getMaxItemUseDuration() - pull;
+                            if (remaining < 1) remaining = 1;
+                            wantUse = true;
+                        }
+                    } else if (a.has("use_action")) {
+                        int action = a.get("use_action").getAsInt();
+                        if (action <= 0) {
+                            clearUsePosePin(mc);
+                            wantUse = false;
+                        } else if (!stack.isEmpty()) {
+                            remaining = a.has("use_remaining")
                                 ? a.get("use_remaining").getAsInt()
                                 : stack.getMaxItemUseDuration() / 2;
-                            try {
-                                java.lang.reflect.Field fCount =
-                                    net.minecraft.entity.EntityLivingBase.class
-                                        .getDeclaredField("activeItemStackUseCount");
-                                java.lang.reflect.Field fStack =
-                                    net.minecraft.entity.EntityLivingBase.class
-                                        .getDeclaredField("activeItemStack");
-                                fCount.setAccessible(true);
-                                fStack.setAccessible(true);
-                                fStack.set(p, stack.copy());
-                                fCount.setInt(p, remaining);
-                            } catch (Throwable ig) {}
+                            if (remaining < 1) remaining = 1;
+                            wantUse = true;
                         }
                     }
-                }
-                if (a.has("bow_pull")) {
-                    int pull = a.get("bow_pull").getAsInt();
-                    net.minecraft.item.ItemStack stack = p.getHeldItemMainhand();
-                    if (!stack.isEmpty() && pull > 0) {
-                        p.resetActiveHand();
-                        p.setActiveHand(net.minecraft.util.EnumHand.MAIN_HAND);
-                        int rem = stack.getMaxItemUseDuration() - pull;
-                        if (rem < 1) rem = 1;
-                        try {
-                            java.lang.reflect.Field fCount =
-                                net.minecraft.entity.EntityLivingBase.class
-                                    .getDeclaredField("activeItemStackUseCount");
-                            java.lang.reflect.Field fStack =
-                                net.minecraft.entity.EntityLivingBase.class
-                                    .getDeclaredField("activeItemStack");
-                            fCount.setAccessible(true);
-                            fStack.setAccessible(true);
-                            fStack.set(p, stack.copy());
-                            fCount.setInt(p, rem);
-                        } catch (Throwable ig) {}
+                    if (wantUse) {
+                        armUsePosePin(remaining);
+                        useDiag = applyUsePosePin(mc);
+                        // Prefer equip_progress from the use-pin path when set.
+                        if (useDiag.has("equip_pinned"))
+                            equipPinned = useDiag.get("equip_pinned").getAsInt();
+                        if (useDiag.has("equip_progress"))
+                            pinnedEquip = useDiag.get("equip_progress").getAsFloat();
                     }
                 }
 
@@ -3700,6 +3828,19 @@ public class QuantizedRL {
                 sb.append(",\"xp_frac\":").append(p.experience);
                 sb.append(",\"armor\":").append(p.getTotalArmorValue());
                 sb.append(",\"hold_death\":").append(holdDeath);
+                // Re-assert sticky use pose after server inventory schedule so
+                // pin_reply reflects the exact state frame{} will re-apply.
+                if (pinUseActive) {
+                    JsonObject re = applyUsePosePin(mc);
+                    if (useDiag == null) useDiag = re;
+                    else {
+                        useDiag = re;
+                    }
+                    if (useDiag.has("equip_pinned"))
+                        equipPinned = useDiag.get("equip_pinned").getAsInt();
+                    if (useDiag.has("equip_progress"))
+                        pinnedEquip = useDiag.get("equip_progress").getAsFloat();
+                }
                 sb.append(",\"hand_active\":").append(p.isHandActive());
                 if (p.isHandActive())
                     sb.append(",\"use_count\":").append(p.getItemInUseCount())
@@ -3707,10 +3848,23 @@ public class QuantizedRL {
                 sb.append(",\"burning\":").append(p.isBurning());
                 sb.append(",\"fire_ticks\":").append(fireTicks);
                 sb.append(",\"portal\":").append(p.timeInPortal);
+                {
+                    int phase = -1;
+                    try {
+                        if (mc.entityRenderer != null) {
+                            java.lang.reflect.Field fPhase =
+                                net.minecraft.client.renderer.EntityRenderer.class
+                                    .getDeclaredField("rendererUpdateCount");
+                            fPhase.setAccessible(true);
+                            phase = fPhase.getInt(mc.entityRenderer);
+                        }
+                    } catch (Throwable ig) {}
+                    sb.append(",\"portal_phase\":").append(phase);
+                }
                 sb.append(",\"dead\":").append(p.getHealth() <= 0.0F || p.isDead);
                 sb.append(",\"screen\":\"").append(screenName).append("\"");
                 sb.append(",\"potion_count\":").append(p.getActivePotionEffects().size());
-                // Viewmodel pin diagnostics (equip + hideGUI + held id).
+                // Viewmodel pin diagnostics (equip + hideGUI + held id + use branch).
                 sb.append(",\"hide_gui\":").append(mc.gameSettings.hideGUI);
                 sb.append(",\"third_person\":").append(mc.gameSettings.thirdPersonView);
                 sb.append(",\"equip_progress\":").append(pinnedEquip);
@@ -3721,7 +3875,35 @@ public class QuantizedRL {
                         : net.minecraft.item.Item.getIdFromItem(held0.getItem());
                     sb.append(",\"held_id\":").append(hid);
                 }
-                sb.append("}");
+                sb.append(",\"pin_use_active\":").append(pinUseActive);
+                sb.append(",\"pin_use_remaining\":").append(pinUseRemaining);
+                if (useDiag != null) {
+                    if (useDiag.has("branch"))
+                        sb.append(",\"use_branch\":\"").append(
+                            useDiag.get("branch").getAsString()).append("\"");
+                    if (useDiag.has("use_action"))
+                        sb.append(",\"use_action_name\":\"").append(
+                            useDiag.get("use_action").getAsString()).append("\"");
+                    if (useDiag.has("stack_id_eq"))
+                        sb.append(",\"stack_id_eq\":").append(
+                            useDiag.get("stack_id_eq").getAsBoolean());
+                    if (useDiag.has("ir_id_eq"))
+                        sb.append(",\"ir_id_eq\":").append(
+                            useDiag.get("ir_id_eq").getAsBoolean());
+                    if (useDiag.has("pulling"))
+                        sb.append(",\"model_pulling\":").append(
+                            useDiag.get("pulling").getAsFloat());
+                    if (useDiag.has("pull"))
+                        sb.append(",\"model_pull\":").append(
+                            useDiag.get("pull").getAsFloat());
+                    if (useDiag.has("blocking"))
+                        sb.append(",\"model_blocking\":").append(
+                            useDiag.get("blocking").getAsFloat());
+                    if (useDiag.has("use_key_down"))
+                        sb.append(",\"use_key_down\":").append(
+                            useDiag.get("use_key_down").getAsBoolean());
+                }
+sb.append("}");
                 r.resp.offer(sb.toString());
             } catch (Throwable t) {
                 r.resp.offer(err("hud_pin: " + t));
@@ -4477,12 +4659,243 @@ public class QuantizedRL {
         key(mc.gameSettings.keyBindJump, false);
         key(mc.gameSettings.keyBindSneak, false);
         key(mc.gameSettings.keyBindAttack, false);
-        key(mc.gameSettings.keyBindUseItem, false);
+        // Keep use-key held while a sticky use-pose pin is live so processKeyBinds
+        // does not call onStoppedUsingItem between hud_pin and frame{}.
+        key(mc.gameSettings.keyBindUseItem, pinUseKeyHeld);
     }
 
     // 1.11.2 MCP: setKeyBindState takes a key CODE, not a KeyBinding
     private static void key(KeyBinding kb, boolean down) {
         KeyBinding.setKeyBindState(kb.getKeyCode(), down);
+    }
+
+    /** Clear sticky use-pose pin (idle/rest hand). */
+    private void clearUsePosePin(Minecraft mc) {
+        pinUseActive = false;
+        pinUseRemaining = 0;
+        pinUseKeyHeld = false;
+        if (mc != null && mc.gameSettings != null) {
+            key(mc.gameSettings.keyBindUseItem, false);
+        }
+        if (mc != null && mc.player != null) {
+            try { mc.player.resetActiveHand(); } catch (Throwable ig) {}
+        }
+    }
+
+    /** Re-apply sticky camera freeze (pos + yaw/pitch + prev* interpolants). */
+    private void applyStickyPosePin(Minecraft mc) {
+        if (!pinPoseActive || mc == null || mc.player == null) return;
+        EntityPlayerSP p = mc.player;
+        p.motionX = p.motionY = p.motionZ = 0.0D;
+        p.fallDistance = 0.0F;
+        p.setNoGravity(true);
+        p.setPositionAndRotation(pinPoseX, pinPoseY, pinPoseZ, pinPoseYaw, pinPosePitch);
+        p.prevPosX = p.posX; p.prevPosY = p.posY; p.prevPosZ = p.posZ;
+        p.lastTickPosX = p.posX; p.lastTickPosY = p.posY; p.lastTickPosZ = p.posZ;
+        p.prevRotationYaw = pinPoseYaw; p.prevRotationPitch = pinPosePitch;
+        p.renderYawOffset = pinPoseYaw; p.prevRenderYawOffset = pinPoseYaw;
+        p.rotationYawHead = pinPoseYaw; p.prevRotationYawHead = pinPoseYaw;
+    }
+
+    /**
+     * Arm sticky first-person use pose. remaining = getItemInUseCount countdown
+     * (bow max-pull, eat leftover, shield full duration).
+     */
+    private void armUsePosePin(int remaining) {
+        if (remaining <= 0) {
+            pinUseActive = false;
+            pinUseRemaining = 0;
+            pinUseKeyHeld = false;
+            return;
+        }
+        pinUseActive = true;
+        pinUseRemaining = remaining;
+        pinUseKeyHeld = true;
+    }
+
+    /**
+     * Pin EntityPlayerSP + ItemRenderer so ItemRenderer's use branch and the
+     * bow/shield model predicates see a consistent, sticky full-use pose.
+     * Returns diagnostics for pin_reply / frame{} (branch, model overrides,
+     * stack identity).
+     */
+    private JsonObject applyUsePosePin(Minecraft mc) {
+        JsonObject d = new JsonObject();
+        d.addProperty("pin_use_active", pinUseActive);
+        d.addProperty("pin_use_remaining", pinUseRemaining);
+        if (mc == null || mc.player == null) {
+            d.addProperty("branch", "no_player");
+            return d;
+        }
+        EntityPlayerSP p = mc.player;
+        if (!pinUseActive || pinUseRemaining <= 0) {
+            d.addProperty("branch", "idle_unpinned");
+            d.addProperty("hand_active", p.isHandActive());
+            d.addProperty("use_count", p.getItemInUseCount());
+            return d;
+        }
+
+        // Hold use key so processKeyBinds will not stopActiveHand this tick.
+        pinUseKeyHeld = true;
+        key(mc.gameSettings.keyBindUseItem, true);
+        // Also force the pressed field: isKeyDown gates on KeyConflictContext,
+        // but onStoppedUsingItem only checks isKeyDown(); keep both paths hot.
+        try {
+            java.lang.reflect.Field fPressed =
+                KeyBinding.class.getDeclaredField("pressed");
+            fPressed.setAccessible(true);
+            fPressed.setBoolean(mc.gameSettings.keyBindUseItem, true);
+        } catch (Throwable ig) {}
+
+        net.minecraft.item.ItemStack held = p.getHeldItemMainhand();
+        int heldId = held.isEmpty() ? 0
+            : net.minecraft.item.Item.getIdFromItem(held.getItem());
+        d.addProperty("held_id", heldId);
+        if (held.isEmpty()) {
+            d.addProperty("branch", "empty_hand");
+            d.addProperty("hand_active", false);
+            return d;
+        }
+
+        // (Re)activate main hand. reset+set when already active so re-pins
+        // refresh activeItemStack to the current inventory reference.
+        try {
+            p.resetActiveHand();
+            p.setActiveHand(net.minecraft.util.EnumHand.MAIN_HAND);
+        } catch (Throwable t) {
+            d.addProperty("set_active_err", String.valueOf(t));
+        }
+
+        // CRITICAL: activeItemStack and itemStackMainHand must be the SAME
+        // reference as the hotbar stack. ItemBow.pulling / ItemShield.blocking
+        // use == (not equals); updateActiveHand also resets on identity mismatch.
+        int equipPinned = 0;
+        boolean stackIdOk = false;
+        boolean irIdOk = false;
+        float equipProg = -1.0F;
+        try {
+            java.lang.reflect.Field fCount =
+                net.minecraft.entity.EntityLivingBase.class
+                    .getDeclaredField("activeItemStackUseCount");
+            java.lang.reflect.Field fStack =
+                net.minecraft.entity.EntityLivingBase.class
+                    .getDeclaredField("activeItemStack");
+            fCount.setAccessible(true);
+            fStack.setAccessible(true);
+            // Same inventory reference - not held.copy().
+            fStack.set(p, held);
+            fCount.setInt(p, pinUseRemaining);
+
+            // EntityPlayerSP private handActive / activeHand (setActiveHand
+            // already sets these; re-assert after any intervening reset).
+            try {
+                java.lang.reflect.Field fHa =
+                    EntityPlayerSP.class.getDeclaredField("handActive");
+                java.lang.reflect.Field fAh =
+                    EntityPlayerSP.class.getDeclaredField("activeHand");
+                fHa.setAccessible(true);
+                fAh.setAccessible(true);
+                fHa.setBoolean(p, true);
+                fAh.set(p, net.minecraft.util.EnumHand.MAIN_HAND);
+            } catch (Throwable ig) {}
+
+            net.minecraft.client.renderer.ItemRenderer ir = mc.getItemRenderer();
+            java.lang.reflect.Field fEq =
+                net.minecraft.client.renderer.ItemRenderer.class
+                    .getDeclaredField("equippedProgressMainHand");
+            java.lang.reflect.Field fPrev =
+                net.minecraft.client.renderer.ItemRenderer.class
+                    .getDeclaredField("prevEquippedProgressMainHand");
+            java.lang.reflect.Field fItem =
+                net.minecraft.client.renderer.ItemRenderer.class
+                    .getDeclaredField("itemStackMainHand");
+            java.lang.reflect.Field fItemOff =
+                net.minecraft.client.renderer.ItemRenderer.class
+                    .getDeclaredField("itemStackOffHand");
+            java.lang.reflect.Field fEqOff =
+                net.minecraft.client.renderer.ItemRenderer.class
+                    .getDeclaredField("equippedProgressOffHand");
+            java.lang.reflect.Field fPrevOff =
+                net.minecraft.client.renderer.ItemRenderer.class
+                    .getDeclaredField("prevEquippedProgressOffHand");
+            fEq.setAccessible(true); fPrev.setAccessible(true);
+            fItem.setAccessible(true); fItemOff.setAccessible(true);
+            fEqOff.setAccessible(true); fPrevOff.setAccessible(true);
+            fEq.setFloat(ir, 1.0F);
+            fPrev.setFloat(ir, 1.0F);
+            fEqOff.setFloat(ir, 1.0F);
+            fPrevOff.setFloat(ir, 1.0F);
+            // Same inventory reference as activeItemStack / hotbar.
+            fItem.set(ir, held);
+            fItemOff.set(ir, net.minecraft.item.ItemStack.EMPTY);
+            equipPinned = 1;
+            equipProg = fEq.getFloat(ir);
+            stackIdOk = (p.getActiveItemStack() == held);
+            irIdOk = (fItem.get(ir) == held);
+        } catch (Throwable t) {
+            d.addProperty("reflect_err", String.valueOf(t));
+            equipPinned = 0;
+        }
+
+        // What ItemRenderer.renderItemInFirstPerson would switch on.
+        boolean handActive = p.isHandActive();
+        int useCount = p.getItemInUseCount();
+        net.minecraft.util.EnumHand activeHand = p.getActiveHand();
+        net.minecraft.item.EnumAction action = held.getItemUseAction();
+        String branch = "idle";
+        if (handActive && useCount > 0
+                && activeHand == net.minecraft.util.EnumHand.MAIN_HAND) {
+            switch (action) {
+                case EAT: case DRINK: branch = "eat"; break;
+                case BLOCK: branch = "block"; break;
+                case BOW: branch = "bow"; break;
+                case NONE: default: branch = "use_none"; break;
+            }
+        }
+
+        // Model property overrides (same predicates as ItemBow / ItemShield).
+        float pulling = 0.0F;
+        float pull = 0.0F;
+        float blocking = 0.0F;
+        try {
+            net.minecraft.item.ItemStack active = p.getActiveItemStack();
+            if (handActive && active == held) {
+                if (held.getItem() == net.minecraft.init.Items.BOW) {
+                    pulling = 1.0F;
+                    pull = (float)(held.getMaxItemUseDuration() - useCount) / 20.0F;
+                }
+                if (held.getItem() == net.minecraft.init.Items.SHIELD) {
+                    blocking = 1.0F;
+                }
+            } else if (handActive && !active.isEmpty()
+                    && active.getItem() == net.minecraft.init.Items.BOW
+                    && held.getItem() == net.minecraft.init.Items.BOW) {
+                // pull amount uses getItem() check, not ==
+                pull = (float)(held.getMaxItemUseDuration() - useCount) / 20.0F;
+            }
+        } catch (Throwable ig) {}
+
+        boolean useKey = false;
+        try { useKey = mc.gameSettings.keyBindUseItem.isKeyDown(); } catch (Throwable ig) {}
+
+        d.addProperty("branch", branch);
+        d.addProperty("hand_active", handActive);
+        d.addProperty("use_count", useCount);
+        d.addProperty("use_max_elapsed", p.getItemInUseMaxCount());
+        d.addProperty("use_action", action.name());
+        d.addProperty("active_hand", activeHand == null ? "null" : activeHand.name());
+        d.addProperty("stack_id_eq", stackIdOk);
+        d.addProperty("ir_id_eq", irIdOk);
+        d.addProperty("active_eq_held", p.getActiveItemStack() == held);
+        d.addProperty("pulling", pulling);
+        d.addProperty("pull", pull);
+        d.addProperty("blocking", blocking);
+        d.addProperty("equip_progress", equipProg);
+        d.addProperty("equip_pinned", equipPinned);
+        d.addProperty("use_key_down", useKey);
+        d.addProperty("hide_gui", mc.gameSettings.hideGUI);
+        d.addProperty("third_person", mc.gameSettings.thirdPersonView);
+        return d;
     }
 
     // headless world launch, settings from Python (folder per seed for reuse/determinism)

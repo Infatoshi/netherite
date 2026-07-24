@@ -109,7 +109,7 @@ if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
   roi_rc=$?
   set -e
 
-  echo "== mutation regressions (fullscreen inside-block + underwater hard_px) =="
+  echo "== mutation regressions (fullscreen hard_px: inside + portal + underwater) =="
   set +e
   uv run --no-project --with pillow --with numpy python \
     "$DIR/test_ui_hud_mutations.py" \

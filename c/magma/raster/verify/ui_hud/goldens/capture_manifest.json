@@ -1,24 +1,54 @@
 {
   "seed": 0,
-  "n_states": 3,
+  "n_states": 18,
   "ids": [
+    "hud_armor_iron",
+    "hud_absorption_armor",
+    "hud_hurt_flash_on",
+    "hud_hurt_flash_off",
+    "hud_hunger_poison",
+    "hud_air_partial",
+    "hud_xp_half",
+    "hud_durability_half",
+    "hud_boss_half",
+    "hud_death",
     "hand_bow_pull20",
     "hand_eat_mid",
-    "hand_block_shield"
+    "hand_block_shield",
+    "overlay_inside_stone",
+    "overlay_inside_grass",
+    "overlay_portal_050",
+    "overlay_fire",
+    "overlay_underwater"
   ],
   "ok_ids": [
+    "hud_armor_iron",
+    "hud_absorption_armor",
+    "hud_hurt_flash_on",
+    "hud_hurt_flash_off",
+    "hud_hunger_poison",
+    "hud_air_partial",
+    "hud_xp_half",
+    "hud_durability_half",
+    "hud_boss_half",
+    "hud_death",
     "hand_bow_pull20",
     "hand_eat_mid",
-    "hand_block_shield"
+    "hand_block_shield",
+    "overlay_inside_stone",
+    "overlay_inside_grass",
+    "overlay_portal_050",
+    "overlay_fire",
+    "overlay_underwater"
   ],
   "blocked": [],
   "failed": [],
-  "only": [
-    "hand_block_shield",
-    "hand_bow_pull20",
-    "hand_eat_mid"
+  "last_focused_only": [
+    "overlay_portal_050"
   ],
   "resolution": "from frame replies",
   "java_home": "/usr/lib/jvm/java-8-openjdk-amd64",
-  "notes": "Genuine Java 1.11.2 FBO dumps via qrl frame{rerender:true}. State frozen with hud_pin per A/B pair. Capture integrity: noise ceiling + feature presence (cross-state + empty-hand baseline for viewmodels). frame{} clears Malmo hideGUI so first-person viewmodel paints. hand_block_shield replaces version-wrong hand_block_sword. failed[] entries had twins deleted (no contaminated goldens)."
+  "portal_phase": 0,
+  "ab_noise_portal": 0.0006928653814466964,
+  "notes": "Full existing golden set (18 states) preserved. Focused portal recapture (hud_pin timeInPortal=0.5 + portal_phase=0; pin_texture_animations freezes Blocks.PORTAL tile; outdoor glass-pad underlay) updated overlay_portal_050 A/B only — did not drop or rewrite other goldens. A/B mean ~0.0007 with residual maxch=1 on ~865 pixels (CAPTURE_BLOCKED for product; never PASS under any C). Genuine qrl frame{rerender:true} at partialTicks=1."
 }

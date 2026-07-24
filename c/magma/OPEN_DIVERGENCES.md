@@ -630,6 +630,11 @@ snapshot arrival event.
 
 ## 29. OPEN (render, viewmodel): drawn-bow registration offset
 
+Salvage note (hand-capture-salvage): sticky `hud_pin`/`frame{}` use-pose
+pin proves BOW/EAT/BLOCK branches at render time (MAIN_HAND only; dual-wield
+out of scope); golden recapture and C parity remain OPEN because A/B
+world/pose registration did not stabilize.
+
 Dragon tape 104827Z: with the ItemRenderer BOW using-branch transform and
 bow_pulling_0/1/2 sprites implemented, the drawn bow lands close but the
 oracle's bow reads slightly larger/left of magma's (whole-frame 3.9/ch

@@ -1,18 +1,20 @@
 {
   "margin": 2.0,
   "fail": 0,
-  "residual": 6,
+  "residual": 7,
   "blocked": [],
   "residuals": [
     {
       "id": "hand_bow_pull20",
       "noise": 0.0,
       "noise_max": null,
+      "n_ab_maxch_ge1": null,
       "c_vs_j": 54.9015201010497,
       "gate": 2.0,
       "hard_px": null,
       "hard_thr": null,
       "max_diff": null,
+      "verdict": "RESIDUAL",
       "reason": "hard_residual",
       "residual_bbox": null,
       "residual_locs": null
@@ -21,11 +23,13 @@
       "id": "hand_eat_mid",
       "noise": 0.0,
       "noise_max": null,
+      "n_ab_maxch_ge1": null,
       "c_vs_j": 50.86531355845222,
       "gate": 2.0,
       "hard_px": null,
       "hard_thr": null,
       "max_diff": null,
+      "verdict": "RESIDUAL",
       "reason": "hard_residual",
       "residual_bbox": null,
       "residual_locs": null
@@ -34,11 +38,13 @@
       "id": "hand_block_shield",
       "noise": 0.0,
       "noise_max": null,
+      "n_ab_maxch_ge1": null,
       "c_vs_j": 40.34291290753022,
       "gate": 2.0,
       "hard_px": null,
       "hard_thr": null,
       "max_diff": null,
+      "verdict": "RESIDUAL",
       "reason": "hard_residual",
       "residual_bbox": null,
       "residual_locs": null
@@ -47,11 +53,13 @@
       "id": "overlay_inside_stone",
       "noise": 0.0,
       "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
       "c_vs_j": 0.0061680712769574585,
       "gate": 0.0,
       "hard_px": 6610,
       "hard_thr": 0,
       "max_diff": 1.0,
+      "verdict": "RESIDUAL",
       "reason": "hard_residual",
       "residual_bbox": [
         252,
@@ -246,11 +254,13 @@
       "id": "overlay_inside_grass",
       "noise": 0.0,
       "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
       "c_vs_j": 0.1980657311400946,
       "gate": 0.0,
       "hard_px": 239293,
       "hard_thr": 0,
       "max_diff": 1.0,
+      "verdict": "RESIDUAL",
       "reason": "hard_residual",
       "residual_bbox": [
         2,
@@ -442,15 +452,218 @@
       ]
     },
     {
+      "id": "overlay_portal_050",
+      "noise": 0.0006928653814466964,
+      "noise_max": 1.0,
+      "n_ab_maxch_ge1": 826,
+      "c_vs_j": 47.96094084692701,
+      "gate": 0.0006928653814466964,
+      "hard_px": 391176,
+      "hard_thr": 0,
+      "max_diff": 182.0,
+      "verdict": "CAPTURE_BLOCKED",
+      "reason": "ab_maxch_nonzero",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 176,
+          "c": [
+            46,
+            33,
+            67
+          ],
+          "j": [
+            132,
+            151,
+            243
+          ]
+        },
+        {
+          "x": 300,
+          "y": 40,
+          "maxch": 64,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            106,
+            97,
+            123
+          ]
+        },
+        {
+          "x": 598,
+          "y": 78,
+          "maxch": 43,
+          "c": [
+            54,
+            36,
+            74
+          ],
+          "j": [
+            96,
+            79,
+            114
+          ]
+        },
+        {
+          "x": 46,
+          "y": 117,
+          "maxch": 52,
+          "c": [
+            47,
+            33,
+            67
+          ],
+          "j": [
+            97,
+            85,
+            116
+          ]
+        },
+        {
+          "x": 344,
+          "y": 155,
+          "maxch": 45,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            87,
+            78,
+            104
+          ]
+        },
+        {
+          "x": 642,
+          "y": 193,
+          "maxch": 53,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            95,
+            86,
+            111
+          ]
+        },
+        {
+          "x": 90,
+          "y": 232,
+          "maxch": 44,
+          "c": [
+            45,
+            33,
+            65
+          ],
+          "j": [
+            89,
+            77,
+            107
+          ]
+        },
+        {
+          "x": 388,
+          "y": 270,
+          "maxch": 43,
+          "c": [
+            46,
+            33,
+            67
+          ],
+          "j": [
+            89,
+            76,
+            108
+          ]
+        },
+        {
+          "x": 686,
+          "y": 308,
+          "maxch": 44,
+          "c": [
+            45,
+            33,
+            64
+          ],
+          "j": [
+            88,
+            77,
+            106
+          ]
+        },
+        {
+          "x": 134,
+          "y": 347,
+          "maxch": 44,
+          "c": [
+            45,
+            33,
+            64
+          ],
+          "j": [
+            88,
+            77,
+            106
+          ]
+        },
+        {
+          "x": 432,
+          "y": 385,
+          "maxch": 50,
+          "c": [
+            55,
+            36,
+            74
+          ],
+          "j": [
+            103,
+            86,
+            121
+          ]
+        },
+        {
+          "x": 396,
+          "y": 432,
+          "maxch": 44,
+          "c": [
+            47,
+            33,
+            68
+          ],
+          "j": [
+            90,
+            77,
+            109
+          ]
+        }
+      ]
+    },
+    {
       "id": "overlay_underwater",
       "noise": 0.1706401384083045,
       "noise_max": 3.0,
+      "n_ab_maxch_ge1": 183372,
       "c_vs_j": 4.96905091448344,
       "gate": 0.1706401384083045,
-      "hard_px": 297401,
-      "hard_thr": 3,
+      "hard_px": 388084,
+      "hard_thr": 0,
       "max_diff": 55.0,
-      "reason": "hard_residual",
+      "verdict": "CAPTURE_BLOCKED",
+      "reason": "ab_maxch_nonzero",
       "residual_bbox": [
         2,
         2,
@@ -474,7 +687,7 @@
           ]
         },
         {
-          "x": 52,
+          "x": 42,
           "y": 40,
           "maxch": 4,
           "c": [
@@ -489,128 +702,53 @@
           ]
         },
         {
-          "x": 343,
+          "x": 82,
           "y": 78,
-          "maxch": 10,
+          "maxch": 5,
           "c": [
-            57,
+            58,
             63,
             81
           ],
           "j": [
+            63,
             67,
-            71,
-            89
+            86
           ]
         },
         {
-          "x": 73,
+          "x": 122,
           "y": 116,
-          "maxch": 10,
+          "maxch": 7,
           "c": [
             57,
             63,
             81
           ],
           "j": [
-            47,
-            60,
-            78
-          ]
-        },
-        {
-          "x": 136,
-          "y": 147,
-          "maxch": 10,
-          "c": [
-            58,
-            63,
-            81
-          ],
-          "j": [
+            64,
             68,
-            72,
-            88
+            86
           ]
         },
         {
-          "x": 800,
-          "y": 185,
-          "maxch": 8,
-          "c": [
-            57,
-            63,
-            81
-          ],
-          "j": [
-            51,
-            55,
-            74
-          ]
-        },
-        {
-          "x": 751,
-          "y": 223,
-          "maxch": 7,
-          "c": [
-            57,
-            63,
-            81
-          ],
-          "j": [
-            52,
-            56,
-            75
-          ]
-        },
-        {
-          "x": 678,
-          "y": 264,
-          "maxch": 7,
+          "x": 162,
+          "y": 154,
+          "maxch": 1,
           "c": [
             58,
             63,
             81
           ],
           "j": [
-            53,
-            70,
-            88
-          ]
-        },
-        {
-          "x": 386,
-          "y": 305,
-          "maxch": 4,
-          "c": [
-            57,
+            59,
             63,
             81
-          ],
-          "j": [
-            55,
-            59,
-            77
           ]
         },
         {
-          "x": 489,
-          "y": 343,
-          "maxch": 4,
-          "c": [
-            57,
-            63,
-            81
-          ],
-          "j": [
-            55,
-            59,
-            77
-          ]
-        },
-        {
-          "x": 42,
-          "y": 382,
+          "x": 202,
+          "y": 192,
           "maxch": 9,
           "c": [
             57,
@@ -618,24 +756,99 @@
             81
           ],
           "j": [
-            50,
-            54,
-            74
+            66,
+            70,
+            88
           ]
         },
         {
-          "x": 177,
-          "y": 421,
-          "maxch": 10,
+          "x": 242,
+          "y": 230,
+          "maxch": 5,
           "c": [
             57,
             63,
             81
           ],
           "j": [
+            54,
+            58,
+            76
+          ]
+        },
+        {
+          "x": 282,
+          "y": 268,
+          "maxch": 8,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            51,
+            64,
+            79
+          ]
+        },
+        {
+          "x": 322,
+          "y": 306,
+          "maxch": 4,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            56,
+            60,
+            77
+          ]
+        },
+        {
+          "x": 362,
+          "y": 344,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 402,
+          "y": 382,
+          "maxch": 10,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            51,
+            55,
+            71
+          ]
+        },
+        {
+          "x": 44,
+          "y": 429,
+          "maxch": 9,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
             67,
             71,
-            88
+            87
           ]
         }
       ]
@@ -1021,6 +1234,7 @@
       "id": "overlay_inside_stone",
       "noise": 0.0,
       "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
       "c_vs_j": 0.0061680712769574585,
       "max_diff": 1.0,
       "hard_px": 6610,
@@ -1235,6 +1449,7 @@
       "id": "overlay_inside_grass",
       "noise": 0.0,
       "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
       "c_vs_j": 0.1980657311400946,
       "max_diff": 1.0,
       "hard_px": 239293,
@@ -1447,20 +1662,218 @@
     },
     {
       "id": "overlay_portal_050",
-      "noise": 8.57064884752883,
-      "c_vs_j": 49.83494529928806,
-      "gate": 10.57064884752883,
-      "verdict": "CAPTURE_OK",
+      "noise": 0.0006928653814466964,
+      "noise_max": 1.0,
+      "n_ab_maxch_ge1": 826,
+      "c_vs_j": 47.96094084692701,
+      "max_diff": 182.0,
+      "hard_px": 391176,
+      "hard_thr": 0,
+      "gate": 0.0006928653814466964,
+      "verdict": "CAPTURE_BLOCKED",
       "roi": [
         2,
         2,
         852,
         478
       ],
-      "hard": false,
+      "hard": true,
+      "fullscreen": true,
       "n_painted": 404368,
-      "noise_limit": 12.0,
-      "reason": "soft_capture"
+      "n_stable": 404600,
+      "stable_frac": 1.0,
+      "n_roi": 404600,
+      "noise_limit": 3.0,
+      "reason": "ab_maxch_nonzero",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 176,
+          "c": [
+            46,
+            33,
+            67
+          ],
+          "j": [
+            132,
+            151,
+            243
+          ]
+        },
+        {
+          "x": 300,
+          "y": 40,
+          "maxch": 64,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            106,
+            97,
+            123
+          ]
+        },
+        {
+          "x": 598,
+          "y": 78,
+          "maxch": 43,
+          "c": [
+            54,
+            36,
+            74
+          ],
+          "j": [
+            96,
+            79,
+            114
+          ]
+        },
+        {
+          "x": 46,
+          "y": 117,
+          "maxch": 52,
+          "c": [
+            47,
+            33,
+            67
+          ],
+          "j": [
+            97,
+            85,
+            116
+          ]
+        },
+        {
+          "x": 344,
+          "y": 155,
+          "maxch": 45,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            87,
+            78,
+            104
+          ]
+        },
+        {
+          "x": 642,
+          "y": 193,
+          "maxch": 53,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            95,
+            86,
+            111
+          ]
+        },
+        {
+          "x": 90,
+          "y": 232,
+          "maxch": 44,
+          "c": [
+            45,
+            33,
+            65
+          ],
+          "j": [
+            89,
+            77,
+            107
+          ]
+        },
+        {
+          "x": 388,
+          "y": 270,
+          "maxch": 43,
+          "c": [
+            46,
+            33,
+            67
+          ],
+          "j": [
+            89,
+            76,
+            108
+          ]
+        },
+        {
+          "x": 686,
+          "y": 308,
+          "maxch": 44,
+          "c": [
+            45,
+            33,
+            64
+          ],
+          "j": [
+            88,
+            77,
+            106
+          ]
+        },
+        {
+          "x": 134,
+          "y": 347,
+          "maxch": 44,
+          "c": [
+            45,
+            33,
+            64
+          ],
+          "j": [
+            88,
+            77,
+            106
+          ]
+        },
+        {
+          "x": 432,
+          "y": 385,
+          "maxch": 50,
+          "c": [
+            55,
+            36,
+            74
+          ],
+          "j": [
+            103,
+            86,
+            121
+          ]
+        },
+        {
+          "x": 396,
+          "y": 432,
+          "maxch": 44,
+          "c": [
+            47,
+            33,
+            68
+          ],
+          "j": [
+            90,
+            77,
+            109
+          ]
+        }
+      ]
     },
     {
       "id": "overlay_fire",
@@ -1483,12 +1896,13 @@
       "id": "overlay_underwater",
       "noise": 0.1706401384083045,
       "noise_max": 3.0,
+      "n_ab_maxch_ge1": 183372,
       "c_vs_j": 4.96905091448344,
       "max_diff": 55.0,
-      "hard_px": 297401,
-      "hard_thr": 3,
+      "hard_px": 388084,
+      "hard_thr": 0,
       "gate": 0.1706401384083045,
-      "verdict": "RESIDUAL",
+      "verdict": "CAPTURE_BLOCKED",
       "roi": [
         2,
         2,
@@ -1502,7 +1916,7 @@
       "stable_frac": 1.0,
       "n_roi": 404600,
       "noise_limit": 3.0,
-      "reason": "hard_residual",
+      "reason": "ab_maxch_nonzero",
       "rule": "fullscreen_replace_exact",
       "residual_bbox": [
         2,
@@ -1527,7 +1941,7 @@
           ]
         },
         {
-          "x": 52,
+          "x": 42,
           "y": 40,
           "maxch": 4,
           "c": [
@@ -1542,128 +1956,53 @@
           ]
         },
         {
-          "x": 343,
+          "x": 82,
           "y": 78,
-          "maxch": 10,
+          "maxch": 5,
           "c": [
-            57,
+            58,
             63,
             81
           ],
           "j": [
+            63,
             67,
-            71,
-            89
+            86
           ]
         },
         {
-          "x": 73,
+          "x": 122,
           "y": 116,
-          "maxch": 10,
+          "maxch": 7,
           "c": [
             57,
             63,
             81
           ],
           "j": [
-            47,
-            60,
-            78
-          ]
-        },
-        {
-          "x": 136,
-          "y": 147,
-          "maxch": 10,
-          "c": [
-            58,
-            63,
-            81
-          ],
-          "j": [
+            64,
             68,
-            72,
-            88
+            86
           ]
         },
         {
-          "x": 800,
-          "y": 185,
-          "maxch": 8,
-          "c": [
-            57,
-            63,
-            81
-          ],
-          "j": [
-            51,
-            55,
-            74
-          ]
-        },
-        {
-          "x": 751,
-          "y": 223,
-          "maxch": 7,
-          "c": [
-            57,
-            63,
-            81
-          ],
-          "j": [
-            52,
-            56,
-            75
-          ]
-        },
-        {
-          "x": 678,
-          "y": 264,
-          "maxch": 7,
+          "x": 162,
+          "y": 154,
+          "maxch": 1,
           "c": [
             58,
             63,
             81
           ],
           "j": [
-            53,
-            70,
-            88
-          ]
-        },
-        {
-          "x": 386,
-          "y": 305,
-          "maxch": 4,
-          "c": [
-            57,
+            59,
             63,
             81
-          ],
-          "j": [
-            55,
-            59,
-            77
           ]
         },
         {
-          "x": 489,
-          "y": 343,
-          "maxch": 4,
-          "c": [
-            57,
-            63,
-            81
-          ],
-          "j": [
-            55,
-            59,
-            77
-          ]
-        },
-        {
-          "x": 42,
-          "y": 382,
+          "x": 202,
+          "y": 192,
           "maxch": 9,
           "c": [
             57,
@@ -1671,28 +2010,103 @@
             81
           ],
           "j": [
-            50,
-            54,
-            74
+            66,
+            70,
+            88
           ]
         },
         {
-          "x": 177,
-          "y": 421,
-          "maxch": 10,
+          "x": 242,
+          "y": 230,
+          "maxch": 5,
           "c": [
             57,
             63,
             81
           ],
           "j": [
+            54,
+            58,
+            76
+          ]
+        },
+        {
+          "x": 282,
+          "y": 268,
+          "maxch": 8,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            51,
+            64,
+            79
+          ]
+        },
+        {
+          "x": 322,
+          "y": 306,
+          "maxch": 4,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            56,
+            60,
+            77
+          ]
+        },
+        {
+          "x": 362,
+          "y": 344,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 402,
+          "y": 382,
+          "maxch": 10,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            51,
+            55,
+            71
+          ]
+        },
+        {
+          "x": 44,
+          "y": 429,
+          "maxch": 9,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
             67,
             71,
-            88
+            87
           ]
         }
       ]
     }
   ],
-  "notes": "PASS = hard parity. Fullscreen inside-block uses A/B-stable full ROI + hard_px with thr=ceil(noise_max) (noise_max==0 => exact). No painted-mean dilution, no thr floor of 1. RESIDUAL = hard capture OK but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (portal/fire/full-frame death). Underwater is hard full-ROI residual. FAIL = missing/noise/empty/unstable. Core HUD: oracle\u222aC masks, hard_px==0 at A/B noise. hud_durability_half uses atlas-alpha\u222astrip\u222aC-extra ownership (C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-GRAY isolation underlay; not threshold holes, not Java world). GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects) + hud_death_tint_pair (source gradient blend over known underlay); full-frame tint/world composition is soft and does not claim same-scene parity."
+  "notes": "PASS = hard parity only when noise_max==0 and hard_px==0 (bit-exact C vs Java_a on A/B-stable full ROI). Fullscreen inside-block + portal + underwater never use ceil(noise_max) as PASS tolerance. CAPTURE_BLOCKED = A/B stable maxch residual > 0 (no C may PASS, including C=Java_a / Java_b / midpoint / Java_a+1). RESIDUAL = A/B bit-exact but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (fire/full-frame death). Underwater is hard full-ROI residual. FAIL = missing/noise/empty/unstable. Core HUD: oracle\u222aC masks, hard_px==0 at A/B noise. hud_durability_half uses atlas-alpha\u222astrip\u222aC-extra ownership (C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-GRAY isolation underlay; not threshold holes, not Java world). Portal: GuiIngame.renderPortal over gray C isolation; outdoor Java underlay is a same-scene product residual (not a fitted black cell). Real portal A/B has maxch=1 residuals -> CAPTURE_BLOCKED. GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects) + hud_death_tint_pair (source gradient blend over known underlay); full-frame tint/world composition is soft and does not claim same-scene parity."
 }

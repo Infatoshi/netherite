@@ -29,21 +29,27 @@ checks cover death / shield / bow / eat / fire / inside-block / portal /
 underwater. Contaminated legacy `hand_block_sword` is rejected (1.11.2 blocks
 with **shield** item 442).
 
-**Gate verdicts:** `PASS` = hard C parity claim. `RESIDUAL` = hard capture OK but
-C residual (**nonzero exit**, no parity claim). `CAPTURE_OK` = soft state capture
-integrity only (portal / fire / underwater / death). `FAIL` = missing/noise/empty.
+**Gate verdicts:** `PASS` = hard C parity claim only when `noise_max==0` and
+`hard_px==0` (bit-exact C vs Java_a on A/B-stable ROI). `CAPTURE_BLOCKED` =
+A/B stable maxch residual > 0 (**nonzero exit**; **no** C may PASS, including
+C=Java_a / Java_b / midpoint / Java_a+1). `RESIDUAL` = A/B bit-exact but C
+residual (**nonzero exit**). `CAPTURE_OK` = soft state capture integrity only
+(fire / underwater / death). `FAIL` = missing/noise/empty/unstable.
 Gray C backdrop is composition isolation only — not a live-world claim.
+Portal is hard full-frame A/B-stable hard_px (not soft CAPTURE_OK).
+**Never** use `ceil(noise_max)` as a PASS tolerance.
 
 **Inside-block fullscreen hard gate** (`overlay_inside_stone` /
 `overlay_inside_grass`): blend-off full-frame particle replace, so the compare is
 **strict full ROI on A/B-stable pixels** (Java HUD flicker excluded), not a
-painted-only mean. Explicit A/B noise (mean + max). `hard_thr = ceil(noise_max)`
-on the stable set: when `noise_max==0` every stable pixel must be **exact**
-(thr 0; any maxch>0 is residual). **No** thr floor of 1 (that allowed a +1
-single-channel mutation to pass). **No** diluted mean sole gate. Mutation suite
+painted-only mean. Explicit A/B noise (mean + max). `hard_thr` is always **0**
+(bit-exact C vs Java_a). PASS only if `noise_max==0` AND `hard_px==0`.
+**No** `ceil(noise_max)` tolerance (that allowed C=Java_a / Java_a+1 to PASS
+when A/B still had maxch=1). **No** diluted mean sole gate. Mutation suite
 (`test_ui_hud_mutations.py`) rejects erase-90%, blank-to-one, **+1 single-channel**,
-x/y shifts 2–4 px, recolor +20, and sparse extra pixels. Overlays are not
-marked PASS until hard_px==0.
+x/y shifts 2–4 px, recolor +20, and sparse extra pixels; plus explicit
+controls: synthetic zero-noise PASS, real portal A/B CAPTURE_BLOCKED under
+any C, Java_a+1 blocked.
 
 ## Required captures (missing evidence)
 
@@ -63,7 +69,7 @@ marked PASS until hard_px==0.
 | `hand_block_shield.png` | Shield blocking (1.11.2; swords do not block) | Hold right-click with shield (id 442) | Lower-right viewmodel |
 | `overlay_inside_stone.png` | Eye inside solid stone | `/tp` into stone (suffocation) | Full frame near-black **particle** texture, U mirrored (maxU left) |
 | `overlay_inside_grass.png` | Eye inside grass (particle=dirt not top) | `/tp` into grass block | Full frame dirt particle darken |
-| `overlay_portal_050.png` | `timeInPortal=0.5` | Stand in portal ~10 ticks | Full-frame portal swirl alpha |
+| `overlay_portal_050.png` | `timeInPortal=0.5`, `portal_phase=0` | Outdoor pad; texture anim pinned | Full-frame portal swirl (hard_px) |
 | `overlay_fire.png` | Player on fire | Lava edge / flame | First-person fire quads |
 | `overlay_underwater.png` | Fully submerged, yaw 0 pitch 0 | Glass pool floor | Full-frame underwater.png |
 
@@ -123,34 +129,76 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   a live stone-pad underlay; same-scene parity needs a world-only companion
   capture. Mutation tests cover missing button faces/shadows, shifted/extra
   glyphs, and a pure-band tint wipe.
-- **Hand viewmodels (capture closed):** `hand_bow_pull20` / `hand_eat_mid` /
-  `hand_block_shield` Java A/B frames now show distinct lower-right viewmodels
-  (bow drawn / bread mid-eat / shield block). Root cause of wall-only goldens
-  was Malmo `hideGUI=true` (F1) suppressing `ItemRenderer` while `frame{}`
-  still force-painted HUD. Fix: `frame{}` + `hud_pin` clear `hideGUI` and
-  pin equip/`itemStackMainHand`/active use. Presence rejects empty-hand
-  baseline clones and cross-state-identical ROIs. Hard C residual remains
-  (registration/lighting; no budgets/masking; RESIDUAL nonzero, not parity).
+- **Hand viewmodels (use-pose pin; golden recapture OPEN):** `hand_bow_pull20`
+  / `hand_eat_mid` / `hand_block_shield` require sticky full-use geometry
+  (drawn bow / mid-eat / shield block), not idle rest tips. Two capture bugs
+  fixed in `hud_pin` + `frame{}` (source harness only; no goldens in this
+  salvage):
+  1. `Minecraft.processKeyBinds` calls `onStoppedUsingItem` every client tick
+     while `isHandActive() && !keyBindUseItem.isKeyDown()`, wiping
+     `setActiveHand` between pin and re-render. Fix: sticky `pinUseActive`
+     re-applied at ClientTickEvent END and immediately before `frame{}`
+     `renderWorld`, with use-key held.
+  2. `activeItemStack` / `itemStackMainHand` must be the **same inventory
+     reference** as the hotbar stack. `.copy()` breaks `ItemBow.pulling` /
+     `ItemShield.blocking` model predicates (`==` not `equals`) and
+     `updateActiveHand` identity checks.
+  Scope (do not expand product behavior): use-pose pin is **MAIN_HAND only**;
+  dual-wield / offhand active-use is out of scope. Optional `pinPoseActive`
+  freezes camera pos/yaw/pitch between A/B grabs for wall registration only
+  (not a general pose product API). Diagnostics: pin/frame reply fields
+  `use_branch`, `model_pulling` / `model_pull` / `model_blocking`,
+  `stack_id_eq`, `ir_id_eq`. Presence rejects tip-only geometry and wrong
+  branch (strict when expected branch is supplied). Driver offline self-test:
+  `capture_ui_hud_driver.py --self-test-hand-use`.
+- **OPEN: golden recapture + C parity.** A/B world/pose registration under
+  large full-use silhouettes (especially drawn bow) did not stabilize in the
+  interrupted hud-viewmodels experiment; partial captures and fitted
+  comparator/golden edits from that attempt are **not** salvaged. Existing
+  main goldens may still be idle-tip or wall-only until a clean recapture
+  with the sticky pin proves full-use branches at frame render. Hard C
+  residual remains OPEN (registration/lighting; no budgets/masks; RESIDUAL
+  nonzero, not parity). Do not claim hand viewmodel pixel close until
+  recapture + C gate re-run.
 - **Viewmodel ports in flight:** bread (297) is in the item atlas (was silent
   iron_ingot fallback). Shield keeps native 64x64 `shield_base_nopattern` and
   ModelBox box-net UVs + RenderHelper diffuse only (no block face shades).
   Mid-eat ROI is the wider lower band so residual is not a false PASS on
   lower-right edge crumbs. Remaining gap is first-person registration vs Java
-  (C silhouettes larger/higher than the genuine tips) plus lighting nuance.
+  plus lighting nuance once full-use goldens are recaptured.
 - **Drawn-bow registration (#29):** geometry follows ItemRenderer BOW branch at
-  partialTicks=1; still-draw A/B against genuine `hand_bow_pull20.png` now
-  available for further tuning (C residual ~55/ch on non-hotbar ROI).
+  partialTicks=1; still-draw A/B needs genuine full-use `hand_bow_pull20`
+  goldens after recapture (OPEN above; prior C residual ~55/ch on non-hotbar
+  ROI is not closed by this salvage).
 - **Inside-block gate (exact bar):** `gm_overlay_block_in_hand` matches 1.11.2
   `ItemRenderer.renderBlockInHand`: view-space z=-0.5 under hand FOV 70,
   maxU/maxV on left/bottom (U mirrored), **blend off**, replace RGB with
   `round(tex * 0.1)`. Live path: `causesSuffocation` + INVISIBLE skip + particle
   sprite (grass→dirt). Candidate uses black world + real atlas particle UVs.
-  Gate: full A/B-stable ROI, `hard_thr=ceil(noise_max)` (noise_max=0 => exact;
-  any maxch>0 residual). Do **not** PASS until hard_px==0. Open 1-LSB residuals
-  (measured under thr=0): stone hard_px is HUD-band only (non-HUD overlay exact);
-  grass hard_px is widespread maxch=1 (dirt particle vs Java — floor(tex*0.1)
-  makes stone worse, so not a global rounding flip; left open). Mutations must
-  reject erase/blank/+1ch/shift/recolor/extra.
+  Gate: full A/B-stable ROI, `hard_thr=0` (bit-exact). PASS only if
+  `noise_max==0` and hard_px==0. Never `ceil(noise_max)` as PASS tolerance.
+  Open 1-LSB residuals (measured under thr=0): stone hard_px is HUD-band only
+  (non-HUD overlay exact); grass hard_px is widespread maxch=1 (dirt particle
+  vs Java — floor(tex*0.1) makes stone worse, so not a global rounding flip;
+  left open). Mutations must reject erase/blank/+1ch/shift/recolor/extra.
+- **Portal CAPTURE_BLOCKED (source path, not black-fit):** `GuiIngame.renderPortal`
+  (not ItemRenderer) is a full-screen blocks-atlas portal sprite with
+  fourth-power alpha (`t^4*0.8+0.2` at `timeInPortal=0.5` → 0.25),
+  SRC_ALPHA blend, depth off, drawn in the GUI pass after world+hand.
+  Nausea skips the texture (camera warp only, rate 7 vs 20). C
+  `gm_overlay_portal_screen` matches the alpha/blend; candidate pins
+  `portal_frame=0` via `bm_atlas_set_portal_frame`. Camera warp
+  (`EntityRenderer.setupCameraTransform` on axis (0,1,1) from
+  `rendererUpdateCount`) is frozen with sticky `portal_phase` on
+  `hud_pin`/`frame{}`. Hard gate: full A/B-stable ROI, thr=0, Java∪C owned
+  = full portal feature. Real A/B has residual maxch=1 on ~865 pixels →
+  product **CAPTURE_BLOCKED** (never PASS under any C: Java_a, Java_b,
+  midpoint, Java_a+1). **No** fitted black cell, **no** color-only purple
+  masks, **no** mean budgets, **no** ceil(noise_max) PASS tolerance.
+  Outdoor Java underlay vs gray C isolation under translucent alpha is the
+  honest composition residual until a same-scene underlay exists.
+  Mutations + controls: synthetic zero-noise PASS; real A/B blocked; erase/
+  blank/+1/shift/recolor/extra black-midgray-midchroma-bright.
 - **Underwater hard residual (improved, not noise-floor):** UV/blend/order
   match `renderWaterOverlayTexture` (4× tile, yaw/pitch/64, color(brightness,0.5),
   src-over, FOV 60). Candidate uses same-scene glass-pool ambient (fogged
@@ -160,7 +208,7 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   C-vs-J **15.25 → ~4.97**/ch on committed A/B. Remaining residual is
   non-uniform pool geometry / hand registration under the translucent overlay
   — needs a full mesh of the glass pool to close further. Air partial stays a
-  separate hard HUD gate. Fire/portal left soft for animated-atlas. Mutations
+  separate hard HUD gate. Fire left soft for animated-atlas. Mutations
   cover omission wipe and extra block (must not PASS).
 - **Low-health heart jitter:** vanilla `rand(updateCounter*312871)` not taped;
   numerical gates keep the stable baseline deliberately.

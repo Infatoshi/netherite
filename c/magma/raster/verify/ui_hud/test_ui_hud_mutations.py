@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Adversarial mutation regressions for fullscreen full-ROI overlay gates.
+"""Adversarial mutation regressions for fullscreen hard_px overlay gates.
 
 Honest C frames for overlay_inside_stone / overlay_inside_grass /
-overlay_underwater are evaluated under the fullscreen exact gate
-(thr=ceil(noise_max); noise_max==0 => thr 0). Honest may be PASS (exact) or
-RESIDUAL (nonzero hard_px) — residual is not a mutation leak; the ROI gate
-exits nonzero for residual. Capture FAIL fails this suite. Each mutation
-below must NOT pass (verdict != PASS):
+overlay_underwater / overlay_portal_050 are evaluated under the fullscreen
+exact gate (hard_thr always 0; PASS only if noise_max==0 AND hard_px==0).
+Honest may be PASS (bit-exact), RESIDUAL (C residual with bit-exact A/B), or
+CAPTURE_BLOCKED (A/B maxch residual > 0 — no C may PASS). Capture FAIL fails
+this suite. Each mutation below must NOT pass (verdict != PASS):
 
   erase90      - set 90% of painted C pixels to composition gray
   blank_to_one - blank frame + single correct pixel
@@ -15,9 +15,16 @@ below must NOT pass (verdict != PASS):
   shift_y2/y4  - global vertical shift 2 / 4 px
   recolor      - add +20 per channel
   extra_pixels - 50 sparse bright wrong pixels
+  extra_black / extra_midgray / extra_midchroma / extra_bright
+               - 50 sparse extras at black, mid-gray, mid-chroma, bright
 
-Portal / fire stay soft (not exercised here). Underwater is hard full-ROI
-honest residual (~4.97/ch) — mutations must not claim PASS.
+Explicit non-vacuous controls (always run):
+  synth_zero_noise_pass - bit-exact A=B=C synthetic can PASS
+  portal_real_ab_blocked - real portal A/B: C in {Java_a, Java_b, mid, Ja+1}
+                           must never PASS (CAPTURE_BLOCKED)
+  portal_java_a_plus1_blocked - C=Java_a+1 blocked on real portal goldens
+
+Fire stays soft (not exercised here). Underwater is hard full-ROI honest residual (~4.97/ch) — mutations must not claim PASS.
 """
 from __future__ import print_function
 
@@ -32,7 +39,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from compare_ui_hud_oracle import (  # noqa: E402
     FULLSCREEN_REPLACE,
     GRAY,
+    H,
     STABLE_AB_THR,
+    W,
+    evaluate_fullscreen_replace,
     evaluate_state,
     load_ppm,
     load_rgb,
@@ -50,7 +60,15 @@ MUTATION_NAMES = (
     "shift_y4",
     "recolor",
     "extra_pixels",
+    "extra_black",
+    "extra_midgray",
+    "extra_midchroma",
+    "extra_bright",
 )
+
+PORTAL_SID = "overlay_portal_050"
+# Real portal A/B residual floor (measured: 865 full-frame maxch=1 pixels).
+PORTAL_MIN_AB_MAXCH_GE1 = 100
 
 
 def mutate(c0, name, ja, jb=None):
@@ -82,8 +100,9 @@ def mutate(c0, name, ja, jb=None):
         c[ys[i], xs[i]] = c0[ys[i], xs[i]]
         return c
     if name == "plus1_ch":
-        # Single-channel +1 on one A/B-stable exact C==J pixel. With noise_max=0
-        # the gate thr is 0, so this must produce hard_px>=1 and not PASS.
+        # Single-channel +1 on one A/B-stable exact C==J pixel. With hard_thr=0
+        # the gate thr is 0, so this must produce hard_px>=1 and not PASS
+        # (or CAPTURE_BLOCKED when A/B itself has residual maxch).
         c = c0.copy()
         if jb is None:
             raise ValueError("plus1_ch requires jb")
@@ -132,7 +151,96 @@ def mutate(c0, name, ja, jb=None):
             x = int(rng.randint(0, w))
             c[y, x] = [255, 0, 0]
         return c
+    if name in ("extra_black", "extra_midgray", "extra_midchroma", "extra_bright"):
+        colors = {
+            "extra_black": [0, 0, 0],
+            "extra_midgray": [128, 128, 128],
+            "extra_midchroma": [64, 160, 200],
+            "extra_bright": [255, 255, 255],
+        }
+        c = c0.copy()
+        rng = np.random.RandomState(2 + hash(name) % 97)
+        col = colors[name]
+        for _ in range(50):
+            y = int(rng.randint(0, h))
+            x = int(rng.randint(0, w))
+            c[y, x] = col
+        return c
     raise ValueError("unknown mutation: " + name)
+
+
+def _synth_zero_noise_pass():
+    """Bit-exact synthetic A=B=C must PASS (proves gate is non-vacuous)."""
+    ja = np.full((H, W, 3), GRAY, dtype=np.int16)
+    # Distinct non-gray portal-like patch so painted_mask is non-empty.
+    ja[40:200, 80:400, 0] = 120
+    ja[40:200, 80:400, 1] = 40
+    ja[40:200, 80:400, 2] = 160
+    jb = ja.copy()
+    c = ja.copy()
+    r = evaluate_fullscreen_replace(PORTAL_SID, ja, jb, c)
+    ok = (
+        r["verdict"] == "PASS"
+        and r.get("hard_px") == 0
+        and r.get("noise_max") == 0.0
+        and r.get("hard_thr") == 0
+    )
+    if not ok:
+        print("CONTROL FAIL: synth_zero_noise_pass verdict=%s hard_px=%s "
+              "noise_max=%s thr=%s reason=%s" % (
+                  r.get("verdict"), r.get("hard_px"), r.get("noise_max"),
+                  r.get("hard_thr"), r.get("reason")))
+        return 1
+    print("control ok: %-28s -> PASS  hard_px=0 noise_max=0 thr=0" % (
+        "synth_zero_noise_pass",))
+    return 0
+
+
+def _portal_real_ab_controls(goldens):
+    """Real portal A/B has residual maxch=1: no C may PASS."""
+    ja_p = os.path.join(goldens, "%s_a.png" % PORTAL_SID)
+    jb_p = os.path.join(goldens, "%s_b.png" % PORTAL_SID)
+    if not (os.path.isfile(ja_p) and os.path.isfile(jb_p)):
+        print("CONTROL FAIL: missing portal goldens for A/B controls")
+        return 1
+
+    ja = load_rgb(ja_p)
+    jb = load_rgb(jb_p)
+    ab_max = np.abs(ja.astype(np.int16) - jb.astype(np.int16)).max(axis=2)
+    n_ab = int((ab_max >= 1).sum())
+    if n_ab < PORTAL_MIN_AB_MAXCH_GE1:
+        print("CONTROL FAIL: portal A/B maxch>=1 count %d < floor %d "
+              "(control would be vacuous)" % (n_ab, PORTAL_MIN_AB_MAXCH_GE1))
+        return 1
+    print("control info: portal full-frame ab_maxch_ge1=%d (max=%d)" % (
+        n_ab, int(ab_max.max())))
+
+    n_err = 0
+    controls = [
+        ("portal_C_Java_a", ja),
+        ("portal_C_Java_b", jb),
+        ("portal_C_midpoint",
+         ((ja.astype(np.int16) + jb.astype(np.int16)) // 2).astype(np.int16)),
+        ("portal_C_Java_a_plus1",
+         np.clip(ja.astype(np.int16) + 1, 0, 255).astype(np.int16)),
+    ]
+    for label, c in controls:
+        r = evaluate_fullscreen_replace(PORTAL_SID, ja, jb, c)
+        blocked = r["verdict"] != "PASS"
+        # Stronger: must be CAPTURE_BLOCKED (A/B residual), not a false PASS.
+        want_blocked = r["verdict"] == "CAPTURE_BLOCKED" and r.get("noise_max", 0) > 0
+        if not blocked or not want_blocked:
+            print("CONTROL FAIL: %s verdict=%s (want CAPTURE_BLOCKED) "
+                  "hard_px=%s thr=%s noise_max=%s" % (
+                      label, r.get("verdict"), r.get("hard_px"),
+                      r.get("hard_thr"), r.get("noise_max")))
+            n_err += 1
+        else:
+            print("control ok: %-28s -> %s  hard_px=%s thr=%s noise_max=%s "
+                  "ab_ge1=%s" % (
+                      label, r["verdict"], r.get("hard_px"), r.get("hard_thr"),
+                      r.get("noise_max"), r.get("n_ab_maxch_ge1")))
+    return n_err
 
 
 def main():
@@ -142,9 +250,13 @@ def main():
     args = ap.parse_args()
 
     n_fail = 0
-    print("ui_hud mutation regressions (fullscreen inside-block):")
+    print("ui_hud mutation regressions (fullscreen hard_px: inside + portal + underwater):")
     print("%-22s %-14s %10s %8s %10s  %s" % (
         "state", "mutation", "C-vs-J", "hard_px", "verdict", "expect"))
+
+    # Non-vacuous controls first (do not depend on C frames).
+    n_fail += _synth_zero_noise_pass()
+    n_fail += _portal_real_ab_controls(args.goldens)
 
     for sid in IDS:
         ja_p = os.path.join(args.goldens, "%s_a.png" % sid)
@@ -160,8 +272,7 @@ def main():
         jb = load_rgb(jb_p)
         c0 = load_ppm(c_p)
 
-        # Honest: capture must be OK. Exact PASS is ideal; RESIDUAL is honest
-        # residual (reported) not a mutation leak. FAIL breaks the suite.
+        # Honest: capture must not FAIL. PASS / RESIDUAL / CAPTURE_BLOCKED OK.
         r0 = evaluate_state(sid, ja, jb, c0)
         if r0["verdict"] == "FAIL":
             n_fail += 1
@@ -174,22 +285,37 @@ def main():
             print("  reason=%s noise=%.4f" % (r0.get("reason"), r0.get("noise")))
             continue
 
-        exact = (r0["verdict"] == "PASS" and r0.get("hard_px") == 0)
-        expect_h = "PASS" if exact else "RESIDUAL_OK"
-        print("%-22s %-14s %10.3f %8s %10s  %s thr=%s maxch=%s" % (
+        exact = (r0["verdict"] == "PASS" and r0.get("hard_px") == 0
+                 and (r0.get("noise_max") or 0) == 0)
+        if r0["verdict"] == "CAPTURE_BLOCKED":
+            expect_h = "CAPTURE_BLOCKED_OK"
+        elif exact:
+            expect_h = "PASS"
+        else:
+            expect_h = "RESIDUAL_OK"
+        print("%-22s %-14s %10.3f %8s %10s  %s thr=%s maxch=%s nmax=%s" % (
             sid, "honest",
             r0["c_vs_j"] if r0["c_vs_j"] == r0["c_vs_j"] else -1.0,
             str(r0.get("hard_px")),
             r0["verdict"],
             expect_h,
             r0.get("hard_thr"),
-            r0.get("max_diff")))
+            r0.get("max_diff"),
+            r0.get("noise_max")))
         if not exact:
-            print("  honest residual: hard_px=%s bbox=%s noise_max=%s" % (
-                r0.get("hard_px"), r0.get("residual_bbox"), r0.get("noise_max")))
+            print("  honest residual/block: hard_px=%s bbox=%s noise_max=%s "
+                  "ab_ge1=%s" % (
+                      r0.get("hard_px"), r0.get("residual_bbox"),
+                      r0.get("noise_max"), r0.get("n_ab_maxch_ge1")))
             for loc in (r0.get("residual_locs") or [])[:6]:
                 print("    @(%d,%d) maxch=%d C=%s J=%s" % (
                     loc["x"], loc["y"], loc["maxch"], loc["c"], loc["j"]))
+
+        # Portal product must never honest-PASS under real A/B residual.
+        if sid == PORTAL_SID and r0["verdict"] == "PASS":
+            n_fail += 1
+            print("  CONTROL FAIL: real portal honest must not PASS "
+                  "(noise_max=%s)" % r0.get("noise_max"))
 
         for mut in MUTATION_NAMES:
             cm = mutate(c0, mut, ja, jb)

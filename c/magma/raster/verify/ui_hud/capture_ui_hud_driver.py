@@ -59,7 +59,8 @@ NOISE_MAX = {
     # Portal / fire atlas frames still race under pin_texture_animations on
     # llvmpipe. Presence checks enforce the feature; these ceilings reject
     # fully-unfrozen scenes (>>40) without the old 40 loophole.
-    "overlay_portal_050": 12.0,
+    # Sticky portal_phase + pin_texture_animations must freeze A/B warp/tile.
+    "overlay_portal_050": 3.0,
     "overlay_fire": 35.0,
     "hud_death": 5.0,  # GuiGameOver text can subpixel-shift slightly
     "overlay_inside_stone": 3.0,
@@ -130,12 +131,36 @@ def focusdiag(e):
     return e._cmd({"cmd": "focusdiag", "action": {}})
 
 
-def grab(e, path):
+def grab(e, path, expect_use_branch=None):
     r = e._cmd({"cmd": "frame", "action": {"file": path, "rerender": True}})
     if not r.get("ok"):
         raise RuntimeError("frame failed for %s: %s" % (path, r))
     if not os.path.isfile(path) or os.path.getsize(path) < 100:
         raise RuntimeError("frame file missing/empty: %s (%s)" % (path, r))
+    # Render-time diagnostics from frame{} (post sticky re-apply).
+    if expect_use_branch is not None:
+        branch = str(r.get("use_branch") or "")
+        if branch != expect_use_branch:
+            raise RuntimeError(
+                "frame render use_branch=%s want %s (idle tip risk): %s"
+                % (branch, expect_use_branch, r))
+        if r.get("hand_active") is False:
+            raise RuntimeError(
+                "frame render hand_active=false despite use pin: %s" % r)
+        if expect_use_branch == "bow":
+            if float(r.get("model_pulling", 0) or 0) < 0.5:
+                raise RuntimeError(
+                    "frame render model_pulling not set (bow idle sprite): %s" % r)
+            if float(r.get("model_pull", 0) or 0) < 0.9:
+                raise RuntimeError(
+                    "frame render model_pull < 0.9 (not full draw): %s" % r)
+        if expect_use_branch == "block":
+            if float(r.get("model_blocking", 0) or 0) < 0.5:
+                raise RuntimeError(
+                    "frame render model_blocking not set (shield idle): %s" % r)
+        if r.get("stack_id_eq") is False or r.get("ir_id_eq") is False:
+            raise RuntimeError(
+                "frame render stack identity broken: %s" % r)
     return r
 
 
@@ -373,6 +398,84 @@ def capture_empty_hand_baseline(e, outdir):
     return _HAND_EMPTY_BASELINE
 
 
+# Item ids used by hand use presence (1.11.2).
+_HAND_USE_EXPECT_BRANCH = {
+    "hand_bow_pull20": "bow",
+    "hand_eat_mid": "eat",
+    "hand_block_shield": "block",
+}
+
+
+def check_hand_use_pin_reply(state_id, pin_reply):
+    """Offline-checkable pin/frame diagnostics for full use poses.
+
+    Proves use_branch / model overrides / stack identity without a live client.
+    When state_id maps to an expected branch, the check is strict: missing or
+    empty use_branch fails (same as grab(expect_use_branch=...)).
+    """
+    expect_branch = _HAND_USE_EXPECT_BRANCH[state_id]
+    branch = str(pin_reply.get("use_branch") or "")
+    # Strict: expected branch is always supplied for hand-use state_ids.
+    if branch != expect_branch:
+        raise RuntimeError(
+            "%s: use_branch=%s want %s (idle tip / wrong branch / missing): %s"
+            % (state_id, branch or "<missing>", expect_branch, pin_reply))
+    if pin_reply.get("stack_id_eq") is False or pin_reply.get("ir_id_eq") is False:
+        raise RuntimeError(
+            "%s: stack identity broken (activeItemStack/itemStackMainHand "
+            "must share hotbar ref for model predicates): %s"
+            % (state_id, pin_reply))
+    if state_id == "hand_bow_pull20":
+        pulling = float(pin_reply.get("model_pulling", -1) or -1)
+        pull = float(pin_reply.get("model_pull", -1) or -1)
+        if pulling < 0.5:
+            raise RuntimeError(
+                "hand_bow_pull20: model_pulling=%.3f (want 1.0 bow_pulling "
+                "override); pin=%s" % (pulling, pin_reply))
+        if pull < 0.9:
+            raise RuntimeError(
+                "hand_bow_pull20: model_pull=%.3f (want ~1.0 for 20-tick "
+                "draw); pin=%s" % (pull, pin_reply))
+    if state_id == "hand_block_shield":
+        blocking = float(pin_reply.get("model_blocking", -1) or -1)
+        if blocking < 0.5:
+            raise RuntimeError(
+                "hand_block_shield: model_blocking=%.3f (want 1.0 "
+                "shield_blocking override); pin=%s"
+                % (blocking, pin_reply))
+    return expect_branch
+
+
+def check_hand_use_geometry(state_id, vm):
+    """Reject tip-only viewmodel geometry (idle rest corner crumbs).
+
+    Full drawn/eat/block poses paint into the upper 2/3 of the ROI.
+    """
+    med = np.median(vm.reshape(-1, 3), axis=0).astype(np.float32)
+    dev = np.abs(vm.astype(np.float32) - med).max(axis=2)
+    feat = dev > 18.0
+    hh = feat.shape[0]
+    upper = feat[: max(1, int(hh * 0.65))]
+    lower = feat[int(hh * 0.78):]
+    upper_frac = float(upper.mean()) if upper.size else 0.0
+    lower_frac = float(lower.mean()) if lower.size else 0.0
+    feat_frac = float(feat.mean()) if feat.size else 0.0
+    if feat_frac < 0.035:
+        raise RuntimeError(
+            "%s: viewmodel feature too sparse feat_frac=%.4f "
+            "(tip-only / missing geometry)" % (state_id, feat_frac))
+    if upper_frac < 0.012 and lower_frac > 0.03:
+        raise RuntimeError(
+            "%s: tip-only geometry (upper_frac=%.4f lower_frac=%.4f) — "
+            "need full drawn/eat/block pose, not idle rest tip"
+            % (state_id, upper_frac, lower_frac))
+    return {
+        "feat_frac": feat_frac,
+        "upper_frac": upper_frac,
+        "lower_frac": lower_frac,
+    }
+
+
 def assert_feature_presence(state_id, path, pin_reply):
     """Automated state-presence sanity checks. Fail = contaminated golden."""
     a = load_rgb(path)
@@ -436,10 +539,14 @@ def assert_feature_presence(state_id, path, pin_reply):
             if uc < 71900 or uc > 72000:
                 raise RuntimeError(
                     "hand_bow_pull20: unexpected use_count=%s (want ~71980)" % uc)
+        # Render-time branch / model override must match the use pose.
+        # Idle/rest tips pass older presence checks; require the exact branch.
+        check_hand_use_pin_reply(state_id, pin_reply)
         # Wall-only ROIs have stone texture variance (std~20+) but no viewmodel.
         if vm_std < 8.0:
             raise RuntimeError(
                 "%s: empty viewmodel vm_std=%.2f" % (state_id, vm_std))
+        check_hand_use_geometry(state_id, vm)
         # Must differ from empty-hand baseline (rejects hideGUI wall-only frames
         # where hotbar icon changes but lower-right is still just stone).
         if _HAND_EMPTY_BASELINE is not None and _HAND_EMPTY_BASELINE.shape == vm.shape:
@@ -450,14 +557,21 @@ def assert_feature_presence(state_id, path, pin_reply):
                     "%s: viewmodel ROI matches empty-hand baseline "
                     "(meanabs=%.3f) — wall-only / missing viewmodel"
                     % (state_id, vs_empty))
+            # Full-use poses diverge much harder from empty than idle tips.
+            if vs_empty < 6.0:
+                raise RuntimeError(
+                    "%s: viewmodel too close to empty-hand baseline "
+                    "(meanabs=%.3f) — likely idle tip not full use pose"
+                    % (state_id, vs_empty))
         # Cross-state identity: bow / eat / shield must not share the same ROI.
         for other_id, other_vm in _HAND_VM_FINGERPRINTS.items():
             if other_vm.shape != vm.shape:
                 continue
             cross = float(np.abs(vm.astype(np.int32) - other_vm.astype(np.int32)).mean())
-            if cross < 1.5:
+            if cross < 3.0:
                 raise RuntimeError(
-                    "%s: viewmodel ROI identical to %s (cross=%.3f) — wall-only"
+                    "%s: viewmodel ROI near-identical to %s (cross=%.3f) — "
+                    "need cross-state separation of full use poses"
                     % (state_id, other_id, cross))
         _HAND_VM_FINGERPRINTS[state_id] = vm.copy()
 
@@ -499,7 +613,7 @@ def assert_feature_presence(state_id, path, pin_reply):
             raise RuntimeError(
                 "overlay_underwater: not blue-biased meanRGB=%s" % mean.tolist())
 
-    return {
+    out = {
         "mean_rgb": [float(mean[0]), float(mean[1]), float(mean[2])],
         "std": std,
         "warm_frac": warm,
@@ -510,6 +624,14 @@ def assert_feature_presence(state_id, path, pin_reply):
         "dark_frac": dark_frac,
         "purple_bias": purple_bias,
     }
+    if state_id in ("hand_block_shield", "hand_bow_pull20", "hand_eat_mid"):
+        out["use_branch"] = pin_reply.get("use_branch")
+        out["model_pulling"] = pin_reply.get("model_pulling")
+        out["model_pull"] = pin_reply.get("model_pull")
+        out["model_blocking"] = pin_reply.get("model_blocking")
+        out["stack_id_eq"] = pin_reply.get("stack_id_eq")
+        out["ir_id_eq"] = pin_reply.get("ir_id_eq")
+    return out
 
 
 def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
@@ -566,11 +688,21 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
     for _ in range(n_repin):
         r1 = hud_pin_ok(e, **pin)
     path_a = os.path.join(outdir, "%s_a.png" % state_id)
-    fa = grab(e, path_a)
-    for _ in range(n_repin):
-        r2 = hud_pin_ok(e, **pin)
+    expect_branch = _HAND_USE_EXPECT_BRANCH.get(state_id)
+    fa = grab(e, path_a, expect_use_branch=expect_branch)
+    # Hand use poses: back-to-back double-grab under the sticky use+pose pin.
+    # A free-run re-pin between A/B produced systematic wall registration
+    # offset under the large drawn-bow silhouette. frame{} re-applies sticky
+    # pose/use immediately before each re-render, so A/B twins measure true
+    # capture noise without re-pin drift. A/B world/pose registration may
+    # still fail to stabilize for golden acceptance (OPEN; see ORACLE_CAPTURE).
+    if expect_branch is not None:
+        r2 = r1
+    else:
+        for _ in range(n_repin):
+            r2 = hud_pin_ok(e, **pin)
     path_b = os.path.join(outdir, "%s_b.png" % state_id)
-    fb = grab(e, path_b)
+    fb = grab(e, path_b, expect_use_branch=expect_branch)
 
     noise = None
     presence = None
@@ -682,6 +814,120 @@ def begin_state(e, label, rebuild_scene=True):
             fire=0, portal=0.0, use_action=0, boss={"show": False}, **POSE)
         settle(e, 2)
     ensure_living(e, do_respawn=False)
+
+
+def self_test_hand_use_assertions():
+    """Static driver tests: pin-reply diagnostics + tip-only geometry (no client)."""
+    if np is None:
+        log("SELFTEST FAIL: numpy required (uv run ... --self-test-hand-use)")
+        return 1
+    errors = []
+
+    # --- pin reply: good bow ---
+    try:
+        check_hand_use_pin_reply("hand_bow_pull20", {
+            "use_branch": "bow",
+            "model_pulling": 1.0,
+            "model_pull": 1.0,
+            "stack_id_eq": True,
+            "ir_id_eq": True,
+        })
+    except Exception as ex:
+        errors.append("good bow pin should pass: %s" % ex)
+
+    # --- pin reply: idle branch rejected ---
+    try:
+        check_hand_use_pin_reply("hand_bow_pull20", {
+            "use_branch": "idle",
+            "model_pulling": 1.0,
+            "model_pull": 1.0,
+            "stack_id_eq": True,
+            "ir_id_eq": True,
+        })
+        errors.append("idle branch should fail for hand_bow_pull20")
+    except RuntimeError:
+        pass
+
+    # --- pin reply: missing/empty branch rejected (strict expected branch) ---
+    try:
+        check_hand_use_pin_reply("hand_bow_pull20", {
+            "model_pulling": 1.0,
+            "model_pull": 1.0,
+            "stack_id_eq": True,
+            "ir_id_eq": True,
+        })
+        errors.append("missing use_branch should fail when expected branch set")
+    except RuntimeError:
+        pass
+    try:
+        check_hand_use_pin_reply("hand_eat_mid", {
+            "use_branch": "",
+            "stack_id_eq": True,
+            "ir_id_eq": True,
+        })
+        errors.append("empty use_branch should fail when expected branch set")
+    except RuntimeError:
+        pass
+
+    # --- pin reply: stack identity ---
+    try:
+        check_hand_use_pin_reply("hand_eat_mid", {
+            "use_branch": "eat",
+            "stack_id_eq": False,
+            "ir_id_eq": True,
+        })
+        errors.append("stack_id_eq=false should fail")
+    except RuntimeError:
+        pass
+
+    # --- pin reply: shield blocking ---
+    try:
+        check_hand_use_pin_reply("hand_block_shield", {
+            "use_branch": "block",
+            "model_blocking": 0.0,
+            "stack_id_eq": True,
+            "ir_id_eq": True,
+        })
+        errors.append("model_blocking=0 should fail for shield")
+    except RuntimeError:
+        pass
+
+    # --- geometry: tip-only (feature only in bottom corner) ---
+    h, w = 80, 100
+    tip = np.full((h, w, 3), 120, dtype=np.uint8)
+    tip[int(h * 0.85):, int(w * 0.7):, :] = 40  # dark tip bottom-right
+    try:
+        check_hand_use_geometry("hand_bow_pull20", tip)
+        errors.append("tip-only geometry should fail")
+    except RuntimeError:
+        pass
+
+    # --- geometry: full-use blob covering upper+lower ---
+    full = np.full((h, w, 3), 120, dtype=np.uint8)
+    full[10:70, 30:90, :] = 30
+    try:
+        check_hand_use_geometry("hand_eat_mid", full)
+    except Exception as ex:
+        errors.append("full-use geometry should pass: %s" % ex)
+
+    # --- grab expect_use_branch pure checks via synthetic reply path ---
+    # (no live frame; just re-use check_hand_use_pin_reply contract)
+    try:
+        check_hand_use_pin_reply("hand_block_shield", {
+            "use_branch": "block",
+            "model_blocking": 1.0,
+            "stack_id_eq": True,
+            "ir_id_eq": True,
+        })
+    except Exception as ex:
+        errors.append("good shield pin should pass: %s" % ex)
+
+    if errors:
+        for e in errors:
+            log("SELFTEST FAIL: %s" % e)
+        return 1
+    log("self_test_hand_use_assertions: PASS")
+    return 0
 
 
 def main():
@@ -959,6 +1205,10 @@ def main():
         }, {"roi": "full-frame grass particle darken"}))
 
     # Portal swirl from timeInPortal only (no physical portal block).
+    # portal_phase freezes EntityRenderer.rendererUpdateCount (camera warp).
+    # pin_texture_animations freezes Blocks.PORTAL atlas tile. Outdoor glass
+    # pad underlay is intentional (no fitted black cell); C uses gray isolation
+    # so hard C-vs-J residual reports underlay mismatch honestly.
     if want("overlay_portal_050"):
         begin_state(e, "overlay_portal_050", rebuild_scene=True)
         portal_pose = dict(POSE)
@@ -967,11 +1217,13 @@ def main():
             "hotbar": [[0, 0, 0]] * 9,
             "armor": [0, 0, 0, 0],
             "use_action": 0, "fire": 0, "portal": 0.5,
+            "portal_phase": 0,
             "boss": {"show": False},
             "clear_effects": True,
             **portal_pose
         }, {"roi": "full-frame portal swirl",
-            "note": "timeInPortal pin only; no portal block animation"}))
+            "note": ("timeInPortal=0.5 + portal_phase=0; texture anim pinned; "
+                     "no portal block; outdoor underlay (not black-fit)")}))
 
     if want("overlay_fire"):
         begin_state(e, "overlay_fire", rebuild_scene=True)
@@ -1004,36 +1256,87 @@ def main():
 
     ok_ids = [s["id"] for s in manifest["states"]
               if s.get("verdict") != "CAPTURE_FAIL"]
+    # Focused --only must not erase bookkeeping for goldens already on disk.
+    # Merge existing <id>_a.png twins into the full id set; this run only
+    # rewrites the states it captured.
+    existing_ids = []
+    try:
+        for fn in sorted(os.listdir(outdir)):
+            if fn.endswith("_a.png"):
+                existing_ids.append(fn[:-len("_a.png")])
+    except OSError:
+        existing_ids = []
+    run_ids = [s["id"] for s in manifest["states"]]
+    full_ids = list(run_ids)
+    for eid in existing_ids:
+        if eid not in full_ids:
+            full_ids.append(eid)
+    # Prefer stable product order when the full set is present.
+    preferred = [
+        "hud_armor_iron", "hud_absorption_armor",
+        "hud_hurt_flash_on", "hud_hurt_flash_off",
+        "hud_hunger_poison", "hud_air_partial", "hud_xp_half",
+        "hud_durability_half", "hud_boss_half", "hud_death",
+        "hand_bow_pull20", "hand_eat_mid", "hand_block_shield",
+        "overlay_inside_stone", "overlay_inside_grass",
+        "overlay_portal_050", "overlay_fire", "overlay_underwater",
+    ]
+    ordered = [i for i in preferred if i in full_ids]
+    ordered += [i for i in full_ids if i not in ordered]
+    full_ok = []
+    for sid in ordered:
+        if sid in ok_ids:
+            full_ok.append(sid)
+        elif sid in existing_ids and os.path.isfile(
+                os.path.join(outdir, "%s_b.png" % sid)):
+            full_ok.append(sid)
     man_path = os.path.join(outdir, "capture_manifest.json")
+    notes = (
+        "Genuine Java 1.11.2 FBO dumps via qrl frame{rerender:true}. "
+        "State frozen with hud_pin per A/B pair. "
+        "Capture integrity: noise ceiling + feature presence "
+        "(cross-state + empty-hand baseline for viewmodels). "
+        "frame{} clears Malmo hideGUI so first-person viewmodel paints. "
+        "hand_block_shield replaces version-wrong hand_block_sword. "
+        "failed[] entries had twins deleted (no contaminated goldens)."
+    )
+    if only:
+        notes += (
+            " Focused recapture only=%s; manifest lists full existing golden "
+            "set on disk (n_states=%d), not only this run." % (
+                sorted(only), len(ordered))
+        )
     with open(man_path, "w") as f:
         json.dump({
             "seed": args.seed,
-            "n_states": len(manifest["states"]),
-            "ids": [s["id"] for s in manifest["states"]],
-            "ok_ids": ok_ids,
+            "n_states": len(ordered),
+            "ids": ordered,
+            "ok_ids": full_ok,
             "blocked": manifest["blocked"],
             "failed": manifest["failed"],
-            "only": manifest.get("only"),
+            "last_focused_only": manifest.get("only"),
+            "this_run_ids": run_ids,
             "resolution": "from frame replies",
             "java_home": os.environ.get("JAVA_HOME"),
-            "notes": (
-                "Genuine Java 1.11.2 FBO dumps via qrl frame{rerender:true}. "
-                "State frozen with hud_pin per A/B pair. "
-                "Capture integrity: noise ceiling + feature presence "
-                "(cross-state + empty-hand baseline for viewmodels). "
-                "frame{} clears Malmo hideGUI so first-person viewmodel paints. "
-                "hand_block_shield replaces version-wrong hand_block_sword. "
-                "failed[] entries had twins deleted (no contaminated goldens)."
-            ),
+            "notes": notes,
         }, f, indent=2)
-    log("manifest -> %s (%d states, %d failed)" % (
-        man_path, len(manifest["states"]), len(manifest["failed"])))
+    log("manifest -> %s (%d full states, this_run=%d, %d failed)" % (
+        man_path, len(ordered), len(run_ids), len(manifest["failed"])))
     e.close()
     # Nonzero if any state failed integrity — caller must not claim full set.
     return 1 if manifest["failed"] else 0
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in (
+            "--self-test-hand-use", "--self-test-hand-use-assertions"):
+        try:
+            sys.exit(self_test_hand_use_assertions())
+        except Exception as ex:
+            log("FATAL self-test: %s" % ex)
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
     try:
         sys.exit(main())
     except Exception as ex:
