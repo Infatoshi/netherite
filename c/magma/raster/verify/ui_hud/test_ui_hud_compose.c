@@ -49,6 +49,26 @@ static int region_mean_r(const CrFramebuffer *fb, int x0, int y0, int x1, int y1
     return n ? (int)(sum / n) : 0;
 }
 
+/* Find horizontal span of green XP-level pixels (0x80FF20-ish) on a scanline band. */
+static int xp_green_span(const CrFramebuffer *fb, int y0, int y1,
+                         int *out_x0, int *out_x1) {
+    int minx = fb->w, maxx = -1;
+    for (int y = y0; y < y1; ++y)
+        for (int x = 0; x < fb->w; ++x) {
+            CrRgba c = fb->color[y * fb->w + x];
+            /* centre glyph is 0x80FF20; outline is black — accept green channel
+             * dominant near the XP colour. */
+            if (c.g > 180 && c.r < 160 && c.b < 80) {
+                if (x < minx) minx = x;
+                if (x > maxx) maxx = x;
+            }
+        }
+    if (maxx < 0) return 0;
+    if (out_x0) *out_x0 = minx;
+    if (out_x1) *out_x1 = maxx;
+    return 1;
+}
+
 static CrFramebuffer make_fb(void) {
     CrFramebuffer fb;
     fb.w = W; fb.h = H;
@@ -99,13 +119,35 @@ int main(void) {
     /* XP level 7 green text around center above bar */
     CHECK(region_non_gray(&fb, 400, 400, 454, 430), "compose: XP level region");
 
+    /* Pixel-assert XP centering: FontRenderer i1 = (sw - stringWidth) / 2.
+     * Midpoint of green glyph span must sit at fb centre (W/2) within 1 px of
+     * the integer formula (both even/odd cases). */
+    {
+        int gx0 = 0, gx1 = 0;
+        CHECK(xp_green_span(&fb, 400, 430, &gx0, &gx1),
+              "compose: XP level green pixels present");
+        int mid = (gx0 + gx1) / 2;
+        int expect_mid = W / 2; /* 427 for 854; font centre of mass near sw/2 */
+        /* Level "7" is one glyph; (sw - w)/2 * scale centres the string. */
+        char buf[8];
+        snprintf(buf, sizeof buf, "%d", pv.xp_level);
+        int sw_s = W / 2; /* scale=2 -> scaledWidth 427 */
+        int lx = ((sw_s - gm_font_width(buf)) / 2) * 2;
+        int glyph_w = gm_font_width(buf) * 2;
+        int formula_mid = lx + glyph_w / 2;
+        CHECK(abs(mid - formula_mid) <= 2,
+              "compose: XP level pixels match (sw-w)/2 centering");
+        CHECK(abs(mid - expect_mid) <= glyph_w,
+              "compose: XP level near framebuffer horizontal centre");
+        (void)expect_mid;
+    }
+
     /* ---- (2) Multi-row hearts displace armor upward ---- */
     fill_gray(&fb);
     pv.max_health = 40.0f; /* two heart rows */
     pv.health = 40.0f;
     pv.armor_points = 10;
     gm_hud_draw(&fb, &pv);
-    /* single-row armor sits at y=(240-49)*2=382; two rows -> j1-(1)*10-10 = 221 -> 442? */
     /* j1=201, rows=2, gap=10, armor_y_s = 201-10-10=181, fb y=362 */
     CHECK(region_non_gray(&fb, 244, 360, 244 + 80, 378),
           "compose: armor above multi-row hearts");
@@ -114,22 +156,32 @@ int main(void) {
           "compose: multi-row hearts base");
     pv.max_health = 20.0f; pv.health = 20.0f;
 
+    /* ---- (2b) Absorption increases heart rows and lifts armor ---- */
+    fill_gray(&fb);
+    pv.absorption = 20.0f; /* +10 gold heart icons -> 2 rows total with 20 max */
+    pv.armor_points = 10;
+    gm_hud_draw(&fb, &pv);
+    /* heart_icons = ceil((20+20)/2)=20, rows=2 -> armor at same y as multi-row */
+    CHECK(region_non_gray(&fb, 244, 360, 244 + 80, 378),
+          "compose: absorption lifts armor row");
+    pv.absorption = 0.0f;
+
     /* ---- (3) Hand eat pose wired through gm_hand_draw (not test setter only) ---- */
     fill_gray(&fb);
     pv.use_action = 0; pv.use_remaining = 0; pv.use_max = 0;
     gm_hand_draw(&fb, &pv, 0.0f);
     int idle_r = region_mean_r(&fb, W * 2 / 3, H * 2 / 3, W - 20, H - 20);
+    CHECK(region_non_gray(&fb, W * 2 / 3, H * 2 / 3, W - 20, H - 20),
+          "compose: idle hand draws lower-right viewmodel");
 
     fill_gray(&fb);
     pv.use_action = 1; pv.use_remaining = 16; pv.use_max = 32; /* mid-eat */
     gm_hand_draw(&fb, &pv, 0.0f);
     int eat_r = region_mean_r(&fb, W * 2 / 3, H * 2 / 3, W - 20, H - 20);
     CHECK(region_non_gray(&fb, W * 2 / 3, H * 2 / 3, W - 20, H - 20),
-          "compose: hand draws lower-right viewmodel");
-    /* Pose change moves/re-tints pixels vs idle (not identical mean). */
-    CHECK(idle_r != eat_r ||
-          region_non_gray(&fb, W * 2 / 3, H * 2 / 3, W - 20, H - 20),
-          "compose: eat use changes hand region");
+          "compose: eat hand draws lower-right viewmodel");
+    /* Non-vacuous: eat pose must change the region mean vs idle (not OR drawn). */
+    CHECK(idle_r != eat_r, "compose: eat use changes hand region mean (non-vacuous)");
 
     /* Geometry path also differs under emit (belt-and-suspenders). */
     {

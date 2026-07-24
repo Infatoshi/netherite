@@ -113,9 +113,12 @@ magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_sm86.o $(OBJ_GAME) $(OBJ_
 # ALLOCATE-ONCE alloc-tripwire build: magma_game with debug symbols (so the
 # trace/alloctrack.so summary offsets resolve via addr2line -e magma_game_dbg).
 # Same sources as magma_game, one -g compile. See trace/alloctrack.c + caps.h.
+# Same game sources as OBJ_GAME (plus app/game_main + world/assets/core/present).
 GAME_DBG_SRCS = app/game_main.c \
                 game/config.c game/input_map.c game/world_live.c game/player_ctl.c game/hud.c \
-                game/entity_render.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/script.c game/overlay_live.c \
+                game/screen.c game/player_preview.c \
+                game/entity_render.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/script.c game/rl_mode.c \
+                game/overlay.c game/overlay_live.c game/sel_box.c game/fluid_live.c game/underwater.c \
                 world/mesh_mc.c world/light.c world/populate_mc.c \
                 world/world.c world/mesh.c world/blocks.c \
                 renderkernels/rk_31_facebakery_make_quad.c assets/blockmodels.c \

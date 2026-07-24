@@ -133,6 +133,13 @@ int main(void) {
         gm_hud_draw(&fb, &pv);
         CHECK(!region_non_gray(&fb, 244, 380, 244 + 80, 400),
               "no armor icons at 0 points");
+        /* absorption 20 with max 20 -> 2 heart rows; armor lifts to multi-row y */
+        clear_fb(&fb);
+        pv.armor_points = 10;
+        pv.absorption = 20.0f;
+        gm_hud_draw(&fb, &pv);
+        CHECK(region_non_gray(&fb, 244, 360, 244 + 80, 378),
+              "absorption lifts armor above base heart row");
         free(fb.color); free(fb.depth);
     }
 

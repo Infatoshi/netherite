@@ -155,6 +155,21 @@ int main(void)
         int mid = color[(PH / 2) * PW + (PW / 2)].r;
         CHECK(mid >= 120 && mid <= 140, "block-in-hand darkens toward ~128");
         CHECK(mid < 200, "block-in-hand is visibly dark");
+
+        /* ItemRenderer.renderBlockInHand: maxU on the left (U mirrored).
+         * Horizontal gradient: left texels bright, right dark -> after mirror
+         * left screen samples dark (maxU side). */
+        for (int ty = 0; ty < 16; ++ty)
+            for (int tx = 0; tx < 16; ++tx)
+                texels[ty * 16 + tx] =
+                    (CrRgba){(unsigned char)(tx * 16), 0, 0, 255};
+        for (int i = 0; i < PW * PH; ++i)
+            color[i] = (CrRgba){0, 0, 0, 255};
+        gm_overlay_block_in_hand(&fb, &atlas, 0.0f, 0.0f, 1.0f, 1.0f);
+        int left_r = color[(PH / 2) * PW + 1].r;
+        int right_r = color[(PH / 2) * PW + (PW - 2)].r;
+        CHECK(left_r > right_r + 5,
+              "block-in-hand mirrors U (maxU/bright on left)");
     }
 
     /* loading screen fills every pixel (tiled dirt * 64/255 + label). */

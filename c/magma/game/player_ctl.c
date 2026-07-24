@@ -888,6 +888,9 @@ void gm_player_view(const struct PsvPlayer *pl_, int ox, int oz, GmPlayerView *o
     out->use_action = s_use_action;
     out->use_remaining = s_use_remaining;
     out->use_max = s_use_max;
+    /* Absorption hearts: live vitals path does not yet own getAbsorptionAmount;
+     * leave 0 so callers/tests can set GmPlayerView.absorption for HUD layout. */
+    out->absorption = 0.0f;
 
     /* ForgeHooks.getTotalArmorValue via ita_armor_set_points on equipped slots. */
     {

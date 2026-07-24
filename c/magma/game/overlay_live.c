@@ -6,36 +6,92 @@
 #include "game/overlay.h"
 #include "game/block_registry.h"
 #include "assets/blockmodels.h"
+#include "assets/atlas_gen.h"
 
 #include <math.h>
 
-/* Block.causesSuffocation ~ material.blocksMovement && isFullCube. Approximate
- * with the model table: full solid cube, not air/liquid/translucent/leaves. */
+/* EnumBlockRenderType.INVISIBLE: ItemRenderer.renderOverlays skips the
+ * block-in-hand draw even when causesSuffocation is true (barrier). */
+static int overlay_render_invisible(int id) {
+    if (id <= 0) return 1;          /* air / BlockAir */
+    if (id == 166) return 1;        /* barrier */
+    if (id == 217) return 1;        /* structure_void */
+    if (id == 119) return 1;        /* end_portal (BlockContainer) */
+    if (id == 36) return 1;         /* piston_extension (moving) */
+    return 0;
+}
+
+/* Block.causesSuffocation (1.11.2 default):
+ *   material.blocksMovement() && getDefaultState().isFullCube()
+ * Overrides: leaves false; shulker true; piston !EXTENDED.
+ * Full-cube / kind from the supported model table (bm_block). */
 static int overlay_causes_suffocation(int id, int meta) {
     if (id <= 0) return 0;
-    if (id == 8 || id == 9 || id == 10 || id == 11) return 0; /* fluids */
-    if (id == 18 || id == 161) return 0;                     /* leaves */
-    if (id == 20 || id == 95 || id == 102 || id == 160) return 0; /* glass */
-    if (id == 6 || id == 30 || id == 31 || id == 32 || id == 37 || id == 38 ||
-        id == 39 || id == 40 || id == 50 || id == 51 || id == 59 || id == 83 ||
-        id == 106 || id == 111 || id == 175 || id == 90)
-        return 0; /* plants / torch / fire / portal / vine / lily / reed */
+    if (id == 18 || id == 161) return 0; /* BlockLeaves */
+    if (id >= 219 && id <= 234) return 1; /* BlockShulkerBox */
+    if (id == 33 || id == 29) {
+        /* BlockPistonBase: EXTENDED property is meta bit 3 in 1.11.2. */
+        return (meta & 8) == 0;
+    }
+    if (id == 30) return 0; /* web: Material.WEB !blocksMovement */
+
     int key = gm_state_to_model_key(gm_pack_state(id, meta & 15));
     if (key == GM_MODEL_FALLBACK) {
-        /* Unknown solid: treat opaque-ish full blocks as suffocating. */
-        return id > 0 && id < 256;
+        /* No supported model: do not invent solid full-cube for wheat/doors/etc. */
+        return 0;
     }
     const BmBlock *bm = bm_block(key);
-    if (!bm || bm->is_air || !bm->is_full_cube) return 0;
-    if (bm->layer == CR_LAYER_TRANSLUCENT) return 0;
-    return 1;
+    if (!bm || bm->is_air) return 0;
+    /* Kind filter covers materials that never blocksMovement or are not cubes. */
+    if (bm->kind == BM_KIND_FLUID || bm->kind == BM_KIND_CROSS ||
+        bm->kind == BM_KIND_VINE || bm->kind == BM_KIND_FIRE ||
+        bm->kind == BM_KIND_PORTAL || bm->kind == BM_KIND_SNOW_LAYER ||
+        bm->kind == BM_KIND_LILY || bm->kind == BM_KIND_TORCH ||
+        bm->kind == BM_KIND_SLAB_BOTTOM || bm->kind == BM_KIND_SLAB_TOP ||
+        bm->kind == BM_KIND_STAIRS || bm->kind == BM_KIND_FENCE ||
+        bm->kind == BM_KIND_WALL || bm->kind == BM_KIND_CHEST ||
+        bm->kind == BM_KIND_CACTUS || bm->kind == BM_KIND_IRON_BARS ||
+        bm->kind == BM_KIND_END_FRAME || bm->kind == BM_KIND_END_PORTAL)
+        return 0;
+    /* Default: isFullCube from model (glass/leaves-overrides already handled). */
+    return bm->is_full_cube != 0;
+}
+
+/* BlockModelShapes.getTexture: missing-model specials, else particle sprite.
+ * Particle for CUBE6 equals any face; for TBS (grass) particle is dirt = DOWN. */
+static int overlay_particle_sprite(int id, int meta) {
+    /* Missing / builtin model fallbacks from BlockModelShapes.getTexture. */
+    if (id == 54 || id == 146) return CR_SPRITE_PLANKS_OAK; /* chest / trapped */
+    if (id == 63 || id == 68) return CR_SPRITE_PLANKS_OAK;  /* signs */
+    if (id == 176 || id == 177) return CR_SPRITE_PLANKS_OAK; /* banners */
+    if (id == 130) return CR_SPRITE_OBSIDIAN;               /* ender chest */
+    if (id == 10 || id == 11) return CR_SPRITE_LAVA_STILL;
+    if (id == 8 || id == 9) return CR_SPRITE_WATER_STILL;
+    if (id == 144) return CR_SPRITE_SOUL_SAND;              /* skull */
+    /* barrier / structure_void use item sprites (not block atlas); callers
+     * skip via INVISIBLE before texture fetch. */
+
+    int key = gm_state_to_model_key(gm_pack_state(id, meta & 15));
+    if (key == GM_MODEL_FALLBACK) return CR_SPRITE_STONE; /* missing model particle */
+    const BmBlock *bm = bm_block(key);
+    if (!bm || bm->is_air) return CR_SPRITE_STONE;
+    if (bm->kind == BM_KIND_CHEST) return CR_SPRITE_PLANKS_OAK;
+    /* getParticleTexture: when top/bottom differ (grass/mycelium), particle is
+     * the dirt/bottom face; otherwise UP equals the uniform cube particle. */
+    int up = bm->face[BM_UP].sprite;
+    int dn = bm->face[BM_DOWN].sprite;
+    if (dn >= 0 && up >= 0 && dn != up) return dn;
+    if (up >= 0) return up;
+    for (int f = 0; f < 6; ++f)
+        if (bm->face[f].sprite >= 0) return bm->face[f].sprite;
+    return CR_SPRITE_STONE;
 }
 
 void gm_overlay_block_in_hand_live(CrFramebuffer *fb, const CrTexture *atlas,
                                    const struct GmWorld *w,
                                    const GmPlayerView *pv) {
     /* ItemRenderer.renderOverlays isEntityInsideOpaqueBlock path: sample the
-     * 8 eye-box corners; use the last suffocating block's particle/UP face. */
+     * 8 eye-box corners; last causesSuffocation block wins; skip INVISIBLE. */
     if (!fb || !fb->color || !atlas || !atlas->texels || !w || !pv) return;
     if (pv->dead) return;
     const float width = 0.6f;
@@ -59,12 +115,8 @@ void gm_overlay_block_in_hand_live(CrFramebuffer *fb, const CrTexture *atlas,
         }
     }
     if (!found) return;
-    int key = gm_state_to_model_key(gm_pack_state(bid, bmeta & 15));
-    if (key == GM_MODEL_FALLBACK) key = 1; /* stone particle fallback */
-    const BmBlock *bm = bm_block(key);
-    if (!bm || bm->is_air) return;
-    /* BlockModelShapes.getTexture: particle ~= UP face sprite. */
-    int sprite = bm->face[BM_UP].sprite;
+    if (overlay_render_invisible(bid)) return;
+    int sprite = overlay_particle_sprite(bid, bmeta);
     float u0, v0, u1, v1;
     bm_sprite_uv(sprite, &u0, &v0, &u1, &v1);
     gm_overlay_block_in_hand(fb, atlas, u0, v0, u1, v1);

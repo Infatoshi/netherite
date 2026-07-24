@@ -729,11 +729,19 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
 
     /* ---- hearts (above-left of the hotbar) ---- */
     /* GuiIngame.renderPlayerStats: j1 = height - 39 baseline; multi-row hearts
-     * use i2 spacing and armor sits at j1 - (rows-1)*i2 - 10. */
+     * use i2 spacing and armor sits at j1 - (rows-1)*i2 - 10.
+     * l1 = ceil((maxHealth + ceil(absorption)) / 2 / 10); i2 = max(10-(l1-2),3). */
     const int j1_s = sh_s - 39;
+    float abs_amt = pv->absorption;
+    if (abs_amt < 0.f) abs_amt = 0.f;
+    int abs_ceil = (int)ceilf(abs_amt); /* MathHelper.ceil(getAbsorptionAmount()) */
+    /* Red (max) heart icons still track max_health; absorption adds gold slots
+     * and both count toward l1 / armor y. */
     const int max_hearts = (int)(pv->max_health / 2.f + 0.5f);
-    /* l1 = ceil((health+absorption)/2/10) heart rows; absorption not tracked. */
-    int heart_rows = (int)ceilf(((float)max_hearts) / 10.0f);
+    int heart_icons = (int)ceilf((pv->max_health + (float)abs_ceil) / 2.0f);
+    if (heart_icons < max_hearts) heart_icons = max_hearts;
+    if (heart_icons < 1) heart_icons = 1;
+    int heart_rows = (int)ceilf((float)heart_icons / 10.0f);
     if (heart_rows < 1) heart_rows = 1;
     int row_gap = 10 - (heart_rows - 2);
     if (row_gap < 3) row_gap = 3;
