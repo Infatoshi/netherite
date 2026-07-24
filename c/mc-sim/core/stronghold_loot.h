@@ -327,4 +327,119 @@ MC_HD static inline i64 shl_pos_loot_seed(i64 world_seed, int x, int y, int z) {
          ^ ((i64)(i32)y * 42317861LL);
 }
 
+/* ---- Oracle battery: seed-scoped fillInventory materialization ----
+ * Verifies LootTable.fillInventory over fixed pre-rolled stacks (including
+ * multi-enchant books) with JavaRandom loot seeds. This is the unopened-chest
+ * materialization path once structure code has captured a loot nextLong.
+ *
+ * World-layout seed parity (C sh_place_blocks vs Java StructureStrongholdPieces)
+ * remains OPEN — this battery scopes only the loot_seed -> chest-TE mapping.
+ *
+ * Emit per (seed,mark): 27 slots * (item,count,meta,n_ench,e0id,e0lvl,e1id,e1lvl)
+ * + nonempty count. Seeds {0, 42, 12345}. Two stack-sets (plain + books). */
+enum {
+    SHL_BAT_SEEDS     = 3,
+    SHL_BAT_SETS      = 2,
+    SHL_BAT_SLOT_F    = 8,
+    SHL_BAT_PER       = (TEC_SLOTS * SHL_BAT_SLOT_F + 1),
+    SHL_BAT_OUT       = (SHL_BAT_SEEDS * SHL_BAT_SETS * SHL_BAT_PER)
+};
+
+MC_HD static inline i64 shl_bat_seed(int i) {
+    static const i64 s[3] = { 0, 42, 12345 };
+    return (i >= 0 && i < 3) ? s[i] : 0;
+}
+
+/* Fixed pre-rolled stacks for set 0 (no books) and set 1 (StoredEnchantments). */
+MC_HD static inline i32 shl_bat_stacks(int set, LtStack *out, i32 cap) {
+    i32 n = 0;
+    if (set == 0) {
+        if (n < cap) out[n++] = lt_stack_mk(SHL_APPLE, 20, 0);
+        if (n < cap) out[n++] = lt_stack_mk(SHL_BREAD, 5, 0);
+        if (n < cap) out[n++] = lt_stack_mk(SHL_IRON_INGOT, 3, 0);
+        if (n < cap) out[n++] = lt_stack_mk(SHL_COAL, 12, 0);
+        if (n < cap) out[n++] = lt_stack_mk(SHL_DIAMOND, 1, 0);
+    } else {
+        LtStack multi, sharp;
+        multi = lt_stack_mk(SHL_ENCHANTED_BOOK, 1, 0);
+        multi.n_enchants = 2;
+        multi.ench_id[0] = 16; multi.ench_lvl[0] = 3;
+        multi.ench_id[1] = 34; multi.ench_lvl[1] = 1;
+        sharp = lt_stack_mk(SHL_ENCHANTED_BOOK, 1, 0);
+        sharp.n_enchants = 1;
+        sharp.ench_id[0] = 16; sharp.ench_lvl[0] = 5;
+        if (n < cap) out[n++] = multi;
+        if (n < cap) out[n++] = sharp;
+        if (n < cap) out[n++] = multi; /* second equal multi: stays separate (max 1) */
+        if (n < cap) out[n++] = lt_stack_mk(SHL_BOOK, 2, 0);
+        if (n < cap) out[n++] = lt_stack_mk(SHL_PAPER, 7, 0);
+        if (n < cap) out[n++] = lt_stack_mk(SHL_COMPASS, 1, 0);
+    }
+    return n;
+}
+
+/* LootTable.fillInventory over a fixed stack list (no generateLootForPools). */
+MC_HD static inline void shl_fill_from_stacks(TeChest *chest, LtStack *stacks, i32 n,
+                                              i64 loot_seed) {
+    JavaRandom rng;
+    LtStack work[SHL_MAX_STACKS];
+    i32 empty[TEC_SLOTS];
+    i32 n_empty = 0, i;
+    if (!chest) return;
+    tec_init(chest);
+    jrand_set(&rng, loot_seed);
+    for (i = 0; i < TEC_SLOTS; ++i) empty[n_empty++] = i;
+    n = shl_shuffle_items(stacks, n, n_empty, &rng, work, SHL_MAX_STACKS);
+    shl_shuffle_ints(empty, n_empty, &rng);
+    for (i = 0; i < n && n_empty > 0; ++i) {
+        if (lt_stack_is_empty(stacks[i])) { --n_empty; continue; }
+        {
+            i32 slot = empty[--n_empty];
+            TecStack ts = tec_mk(stacks[i].item, stacks[i].count, stacks[i].meta);
+            int e, ne = stacks[i].n_enchants;
+            if (ne > TEC_MAX_ENCHANTS) ne = TEC_MAX_ENCHANTS;
+            ts.n_enchants = ne;
+            for (e = 0; e < ne; ++e) {
+                ts.enchants[e].id = stacks[i].ench_id[e];
+                ts.enchants[e].level = stacks[i].ench_lvl[e];
+            }
+            tec_set_slot(chest, slot, ts);
+        }
+    }
+}
+
+MC_HD static inline void shl_emit_chest(const TeChest *c, u32 *out, int *o) {
+    int i, nonempty = 0;
+    for (i = 0; i < TEC_SLOTS; ++i) {
+        const TecStack *s = &c->slots[i];
+        out[(*o)++] = (u32)s->item;
+        out[(*o)++] = (u32)s->count;
+        out[(*o)++] = (u32)s->meta;
+        out[(*o)++] = (u32)s->n_enchants;
+        out[(*o)++] = (u32)(s->n_enchants > 0 ? (u16)s->enchants[0].id : 0);
+        out[(*o)++] = (u32)(s->n_enchants > 0 ? (u16)s->enchants[0].level : 0);
+        out[(*o)++] = (u32)(s->n_enchants > 1 ? (u16)s->enchants[1].id : 0);
+        out[(*o)++] = (u32)(s->n_enchants > 1 ? (u16)s->enchants[1].level : 0);
+        if (!tec_is_empty(s)) nonempty++;
+    }
+    out[(*o)++] = (u32)nonempty;
+}
+
+MC_HD static inline void shl_run_battery(u32 *out) {
+    int si, set, o = 0;
+    for (si = 0; si < SHL_BAT_SEEDS; ++si) {
+        for (set = 0; set < SHL_BAT_SETS; ++set) {
+            TeChest chest;
+            LtStack stacks[SHL_MAX_STACKS];
+            LtStack copy[SHL_MAX_STACKS];
+            i32 n = shl_bat_stacks(set, stacks, SHL_MAX_STACKS);
+            i32 i;
+            /* shuffle mutates via work; keep source stable by copying */
+            for (i = 0; i < n; ++i) copy[i] = stacks[i];
+            shl_fill_from_stacks(&chest, copy, n, shl_bat_seed(si));
+            shl_emit_chest(&chest, out, &o);
+        }
+    }
+}
+
 #endif /* MC_STRONGHOLD_LOOT_H */

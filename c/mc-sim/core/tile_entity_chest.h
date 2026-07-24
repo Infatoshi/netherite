@@ -192,9 +192,12 @@ MC_HD static inline int tec_total_items(const TeChest *c) {
     return sum;
 }
 
-#define TEC_NMARKS 6
+/* Marks 0..5 ordinary (counts only). Marks 6..8 book-focused with tag fields. */
+#define TEC_NMARKS 9
 #define TEC_PER_MARK (TEC_SLOTS + 4) /* counts + lid + players + total + leftover */
-#define TEC_OUT (TEC_NMARKS * TEC_PER_MARK)
+/* Extra fields per book mark: slot0/1 item+n_ench+e0id+e0lvl + leftover item+n_ench */
+#define TEC_BOOK_EXTRA 10
+#define TEC_OUT (TEC_NMARKS * TEC_PER_MARK + 3 * TEC_BOOK_EXTRA)
 
 MC_HD static inline void tec_dump_mark(const TeChest *c, TecStack leftover, u64 *out, int *o) {
     for (int i = 0; i < TEC_SLOTS; ++i)
@@ -205,6 +208,37 @@ MC_HD static inline void tec_dump_mark(const TeChest *c, TecStack leftover, u64 
     out[(*o)++] = (u64)(u32)c->num_players_using;
     out[(*o)++] = (u64)(u32)tec_total_items(c);
     out[(*o)++] = (u64)(u32)leftover.count;
+}
+
+MC_HD static inline void tec_dump_book_extra(const TeChest *c, TecStack leftover, u64 *out, int *o) {
+    /* slot 0 */
+    out[(*o)++] = (u64)(u32)c->slots[0].item;
+    out[(*o)++] = (u64)(u32)c->slots[0].n_enchants;
+    out[(*o)++] = (u64)(u32)(c->slots[0].n_enchants > 0 ? c->slots[0].enchants[0].id : 0);
+    out[(*o)++] = (u64)(u32)(c->slots[0].n_enchants > 0 ? c->slots[0].enchants[0].level : 0);
+    /* slot 1 */
+    out[(*o)++] = (u64)(u32)c->slots[1].item;
+    out[(*o)++] = (u64)(u32)c->slots[1].n_enchants;
+    out[(*o)++] = (u64)(u32)(c->slots[1].n_enchants > 0 ? c->slots[1].enchants[0].id : 0);
+    out[(*o)++] = (u64)(u32)(c->slots[1].n_enchants > 0 ? c->slots[1].enchants[0].level : 0);
+    /* leftover */
+    out[(*o)++] = (u64)(u32)leftover.item;
+    out[(*o)++] = (u64)(u32)leftover.n_enchants;
+}
+
+MC_HD static inline TecStack tec_mk_book_multi(void) {
+    TecStack s = tec_mk(TEC_ENCHANTED_BOOK, 1, 0);
+    s.n_enchants = 2;
+    s.enchants[0].id = 16; s.enchants[0].level = 3;
+    s.enchants[1].id = 34; s.enchants[1].level = 1;
+    return s;
+}
+
+MC_HD static inline TecStack tec_mk_book_sharp5(void) {
+    TecStack s = tec_mk(TEC_ENCHANTED_BOOK, 1, 0);
+    s.n_enchants = 1;
+    s.enchants[0].id = 16; s.enchants[0].level = 5;
+    return s;
 }
 
 MC_HD static inline void tec_run_battery(u64 *out) {
@@ -240,6 +274,29 @@ MC_HD static inline void tec_run_battery(u64 *out) {
     /* overflow: chest nearly full; leftover must be non-zero */
     leftover = tec_add_item(&c, tec_mk(TEC_BREAD, 200, 0));
     tec_dump_mark(&c, leftover, out, &o);
+
+    /* ---- Marks 6..8: enchanted-book max stack 1 + StoredEnchantments ---- */
+    {
+        TeChest bc;
+        tec_init(&bc);
+        leftover = tec_add_item(&bc, tec_mk_book_multi());
+        tec_dump_mark(&bc, leftover, out, &o);
+        tec_dump_book_extra(&bc, leftover, out, &o);
+
+        /* Equal-tag second book must occupy a new slot (not merge). */
+        leftover = tec_add_item(&bc, tec_mk_book_multi());
+        tec_dump_mark(&bc, leftover, out, &o);
+        tec_dump_book_extra(&bc, leftover, out, &o);
+
+        /* Mismatched tags also take a new slot; split keeps tags. */
+        leftover = tec_add_item(&bc, tec_mk_book_sharp5());
+        {
+            TecStack got = tec_decr_stack_size(&bc, 0, 1);
+            leftover = got; /* multi book extracted with tags */
+        }
+        tec_dump_mark(&bc, leftover, out, &o);
+        tec_dump_book_extra(&bc, leftover, out, &o);
+    }
 }
 
 #endif /* MC_TILE_ENTITY_CHEST_H */

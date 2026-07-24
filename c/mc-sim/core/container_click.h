@@ -8,10 +8,12 @@
  * (item,count,meta,n_enchants, then IC_MAX_ENCHANTS x (id,level)).
  *
  * Covered:
+ *   Phase 1 ordinary stacks + Phase 2 multi-enchant books (StoredEnchantments).
  *   PICKUP  (button 0 left / 1 right): pick, place, half-pick, place-one, merge, swap;
- *            slotId -999 drops cursor (all / one).
+ *            slotId -999 drops cursor (all / one); equal-tag books max-stack 1 no-merge;
+ *            mismatched book tags swap with payload intact.
  *   QUICK_MOVE (shift-click): transfer into other empty/mergeable slots (mergeItemStack-style
- *            excluding source; retry while same item remains).
+ *            excluding source; retry while same item remains); books keep tags.
  *   THROW   (Q / ctrl-Q): drop one/all FROM SLOT when cursor empty (vanilla). Cursor drop is
  *            PICKUP/-999, not THROW.
  *
@@ -36,8 +38,11 @@ enum {
     CC_CLICK_PICKUP   = 0,  /* ClickType.PICKUP ordinal */
     CC_CLICK_QUICK_MOVE = 1,
     CC_CLICK_THROW    = 4,
-    CC_NUM_CLICKS     = 16,
-    /* item,count,meta,n_enchants + IC_MAX_ENCHANTS*(id,level). Battery uses n=0. */
+    /* Phase 1: ordinary stacks (16). Phase 2: StoredEnchantments books (16). */
+    CC_NUM_CLICKS     = 32,
+    CC_PHASE1_CLICKS  = 16,
+    CC_PHASE2_CLICKS  = 16,
+    /* item,count,meta,n_enchants + IC_MAX_ENCHANTS*(id,level). */
     CC_STACK_FIELDS   = (4 + 2 * IC_MAX_ENCHANTS),
     CC_STATE_FIELDS   = ((CC_SLOTS + 1) * CC_STACK_FIELDS), /* 9 slots + cursor */
     CC_OUT            = (CC_NUM_CLICKS * CC_STATE_FIELDS)
@@ -306,6 +311,25 @@ MC_HD static inline void cc_emit_state(const CcInv *inv, u32 *out, int base) {
     cc_emit_stack(&inv->cursor, out, &o);
 }
 
+/* Multi-enchant book: Sharpness III (16:3) + Unbreaking I (34:1). */
+MC_HD static inline ICStack cc_mk_book_multi(void) {
+    ICStack s = ic_mk(IC_ENCHANTED_BOOK, 1, 0);
+    IcEnch e[2];
+    e[0].id = 16; e[0].level = 3;
+    e[1].id = 34; e[1].level = 1;
+    ic_copy_enchants(&s, e, 2);
+    return s;
+}
+
+/* Single-enchant book: Sharpness V (16:5). */
+MC_HD static inline ICStack cc_mk_book_sharp5(void) {
+    ICStack s = ic_mk(IC_ENCHANTED_BOOK, 1, 0);
+    IcEnch e[1];
+    e[0].id = 16; e[0].level = 5;
+    ic_copy_enchants(&s, e, 1);
+    return s;
+}
+
 /* Fixed start state + scripted click tape (identical in Golden.java). */
 MC_HD static inline void cc_setup_start(CcInv *inv) {
     cc_init(inv);
@@ -321,8 +345,23 @@ MC_HD static inline void cc_setup_start(CcInv *inv) {
     inv->cursor = ic_empty();
 }
 
+/* Phase-2 start: multi-enchant books + ordinary filler. */
+MC_HD static inline void cc_setup_enchants(CcInv *inv) {
+    cc_init(inv);
+    inv->slots[0] = cc_mk_book_multi();   /* Sharpness III + Unbreaking I */
+    inv->slots[1] = cc_mk_book_sharp5();  /* Sharpness V */
+    inv->slots[2] = ic_empty();
+    inv->slots[3] = ic_empty();
+    inv->slots[4] = cc_mk_book_multi();   /* identical multi (max-stack 1 no-merge) */
+    inv->slots[5] = ic_mk(IC_APPLE, 16, 0);
+    inv->slots[6] = ic_empty();
+    inv->slots[7] = ic_empty();
+    inv->slots[8] = ic_mk(IC_BREAD, 4, 0);
+    inv->cursor = ic_empty();
+}
+
 MC_HD static inline void cc_get_click_tape(CcClick *tape) {
-    /* 16 clicks covering PICKUP / QUICK_MOVE / THROW (+ cursor drop via PICKUP -999). */
+    /* Phase 1: 16 clicks covering PICKUP / QUICK_MOVE / THROW (+ cursor drop). */
     tape[0]  = (CcClick){0, 0, CC_CLICK_PICKUP};       /* pick 32 apple */
     tape[1]  = (CcClick){3, 0, CC_CLICK_PICKUP};       /* place all into empty 3 */
     tape[2]  = (CcClick){2, 1, CC_CLICK_PICKUP};       /* right-pick half bread(10)->5 cursor */
@@ -339,17 +378,45 @@ MC_HD static inline void cc_get_click_tape(CcClick *tape) {
     tape[13] = (CcClick){4, 0, CC_CLICK_THROW};        /* Q: drop 1 stone from slot 4 */
     tape[14] = (CcClick){4, 1, CC_CLICK_THROW};        /* ctrl-Q: drop rest of stone */
     tape[15] = (CcClick){8, 0, CC_CLICK_QUICK_MOVE};   /* shift-move bread */
+
+    /* Phase 2: StoredEnchantments take / deposit / swap / no-merge / QM / throw. */
+    tape[16] = (CcClick){0, 0, CC_CLICK_PICKUP};       /* take multi book */
+    tape[17] = (CcClick){2, 0, CC_CLICK_PICKUP};       /* deposit multi into empty 2 */
+    tape[18] = (CcClick){1, 0, CC_CLICK_PICKUP};       /* take Sharpness V */
+    tape[19] = (CcClick){2, 0, CC_CLICK_PICKUP};       /* swap V <-> multi (tags differ) */
+    tape[20] = (CcClick){3, 0, CC_CLICK_PICKUP};       /* deposit multi into 3 */
+    tape[21] = (CcClick){4, 0, CC_CLICK_PICKUP};       /* take identical multi onto cursor */
+    tape[22] = (CcClick){3, 0, CC_CLICK_PICKUP};       /* equal tags + max1: no merge (no-op) */
+    tape[23] = (CcClick){6, 0, CC_CLICK_PICKUP};       /* deposit cursor multi into 6 */
+    tape[24] = (CcClick){3, 0, CC_CLICK_PICKUP};       /* take multi from 3 */
+    tape[25] = (CcClick){-999, 0, CC_CLICK_PICKUP};    /* throw all from cursor (discard) */
+    tape[26] = (CcClick){2, 0, CC_CLICK_PICKUP};       /* take Sharpness V from 2 */
+    tape[27] = (CcClick){0, 0, CC_CLICK_PICKUP};       /* place V into 0 */
+    tape[28] = (CcClick){0, 0, CC_CLICK_QUICK_MOVE};   /* shift-move book (payload intact) */
+    tape[29] = (CcClick){6, 0, CC_CLICK_THROW};        /* Q throw multi book from slot 6 */
+    tape[30] = (CcClick){5, 1, CC_CLICK_PICKUP};       /* half apple (split path still works) */
+    tape[31] = (CcClick){7, 1, CC_CLICK_PICKUP};       /* right-place one apple */
 }
 
 MC_HD static inline void cc_run_battery(u32 *out) {
     CcInv inv;
     CcClick tape[CC_NUM_CLICKS];
     int c;
-    cc_setup_start(&inv);
     cc_get_click_tape(tape);
-    for (c = 0; c < CC_NUM_CLICKS; ++c) {
+
+    /* Phase 1 */
+    cc_setup_start(&inv);
+    for (c = 0; c < CC_PHASE1_CLICKS; ++c) {
         cc_slot_click(&inv, tape[c].slot_id, tape[c].button, tape[c].click_type);
         cc_emit_state(&inv, out, c * CC_STATE_FIELDS);
+    }
+
+    /* Phase 2: re-seed with enchanted books (independent of phase-1 residue). */
+    cc_setup_enchants(&inv);
+    for (c = 0; c < CC_PHASE2_CLICKS; ++c) {
+        int idx = CC_PHASE1_CLICKS + c;
+        cc_slot_click(&inv, tape[idx].slot_id, tape[idx].button, tape[idx].click_type);
+        cc_emit_state(&inv, out, idx * CC_STATE_FIELDS);
     }
 }
 

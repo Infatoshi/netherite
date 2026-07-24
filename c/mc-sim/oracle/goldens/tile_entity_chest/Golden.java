@@ -8,26 +8,54 @@
 // getInventoryStackLimit()==64 (InventoryBasic default). All battery items (apple 260,
 // bread 297, coal 263, iron ingot 265) have getMaxStackSize()==64, so the merge cap j is 64.
 //
-// CUT (matches core/tile_entity_chest.h): double chest, loot, NBT, sounds, player proximity
-// sync, adjacent-chest lid gating. Output format matches cpu/tile_entity_chest.c
-// (6 marks * (27 slot counts + lid bits + players + total + leftover count), %016llx).
+// CUT (matches core/tile_entity_chest.h): double chest, loot tables, sounds, player proximity
+// sync, adjacent-chest lid gating. Output format matches cpu/tile_entity_chest.c:
+//   marks 0..5: 27 counts + lid + players + total + leftover count
+//   marks 6..8: same + book extra (slot0/1 item+n_ench+e0id+e0lvl + leftover item+n_ench)
+// All as %016x.
 public class Golden {
     static final int SLOTS = 27;
     static final int STACK_LIMIT = 64;   // InventoryBasic.getInventoryStackLimit()
     static final int APPLE = 260, BREAD = 297, COAL = 263, IRON = 265;
+    static final int MAX_ENCHANTS = 8;
 
     static class Stack {
-        int item, count, meta;
-        Stack(int i, int c, int m) { item = i; count = c; meta = m; }
+        int item, count, meta, nEnchants;
+        int[] enchId = new int[MAX_ENCHANTS];
+        int[] enchLvl = new int[MAX_ENCHANTS];
+        Stack(int i, int c, int m) { item = i; count = c; meta = m; nEnchants = 0; }
         boolean isEmpty() { return count <= 0 || item == 0; }
-        Stack copy() { return new Stack(item, count, meta); }
+        Stack copy() {
+            Stack s = new Stack(item, count, meta);
+            s.nEnchants = nEnchants;
+            for (int e = 0; e < nEnchants; ++e) {
+                s.enchId[e] = enchId[e]; s.enchLvl[e] = enchLvl[e];
+            }
+            return s;
+        }
     }
     static Stack empty() { return new Stack(0, 0, 0); }
+    static Stack mkBookMulti() {
+        Stack s = new Stack(ENCHANTED_BOOK, 1, 0);
+        s.nEnchants = 2;
+        s.enchId[0] = 16; s.enchLvl[0] = 3;
+        s.enchId[1] = 34; s.enchLvl[1] = 1;
+        return s;
+    }
+    static Stack mkBookSharp5() {
+        Stack s = new Stack(ENCHANTED_BOOK, 1, 0);
+        s.nEnchants = 1;
+        s.enchId[0] = 16; s.enchLvl[0] = 5;
+        return s;
+    }
 
-    // ItemStack.areItemsEqual: same item + same meta (our stacks carry no NBT).
+    // ItemStack.areItemsEqual + areItemStackTagsEqual (StoredEnchantments).
     static boolean areItemsEqual(Stack a, Stack b) {
         if (a.isEmpty() || b.isEmpty()) return false;
-        return a.item == b.item && a.meta == b.meta;
+        if (a.item != b.item || a.meta != b.meta || a.nEnchants != b.nEnchants) return false;
+        for (int e = 0; e < a.nEnchants; ++e)
+            if (a.enchId[e] != b.enchId[e] || a.enchLvl[e] != b.enchLvl[e]) return false;
+        return true;
     }
 
     Stack[] slots = new Stack[SLOTS];
@@ -74,12 +102,16 @@ public class Golden {
         return itemstack;
     }
 
-    // InventoryBasic.decrStackSize (get-and-split).
+    // InventoryBasic.decrStackSize (get-and-split; copies StoredEnchantments).
     Stack decrStackSize(int index, int amount) {
         Stack slot = slots[index];
         if (slot.isEmpty() || amount <= 0) return empty();
         int take = Math.min(amount, slot.count);
         Stack out = new Stack(slot.item, take, slot.meta);
+        out.nEnchants = slot.nEnchants;
+        for (int e = 0; e < slot.nEnchants; ++e) {
+            out.enchId[e] = slot.enchId[e]; out.enchLvl[e] = slot.enchLvl[e];
+        }
         slot.count -= take;
         if (slot.count <= 0) slots[index] = empty();
         return out;
@@ -115,6 +147,18 @@ public class Golden {
         emit(sb, totalItems());
         emit(sb, leftover.count);
     }
+    void dumpBookExtra(Stack leftover, StringBuilder sb) {
+        emit(sb, slots[0].item);
+        emit(sb, slots[0].nEnchants);
+        emit(sb, slots[0].nEnchants > 0 ? slots[0].enchId[0] : 0);
+        emit(sb, slots[0].nEnchants > 0 ? slots[0].enchLvl[0] : 0);
+        emit(sb, slots[1].item);
+        emit(sb, slots[1].nEnchants);
+        emit(sb, slots[1].nEnchants > 0 ? slots[1].enchId[0] : 0);
+        emit(sb, slots[1].nEnchants > 0 ? slots[1].enchLvl[0] : 0);
+        emit(sb, leftover.item);
+        emit(sb, leftover.nEnchants);
+    }
     static void emit(StringBuilder sb, int v) {
         sb.append(String.format("%016x", ((long) v) & 0xFFFFFFFFL)).append('\n');
     }
@@ -147,6 +191,21 @@ public class Golden {
 
         leftover = c.addItem(new Stack(BREAD, 200, 0));
         c.dumpMark(leftover, sb);
+
+        /* Marks 6..8: enchanted-book max stack 1 + StoredEnchantments */
+        Golden bc = new Golden();
+        leftover = bc.addItem(mkBookMulti());
+        bc.dumpMark(leftover, sb);
+        bc.dumpBookExtra(leftover, sb);
+
+        leftover = bc.addItem(mkBookMulti());
+        bc.dumpMark(leftover, sb);
+        bc.dumpBookExtra(leftover, sb);
+
+        leftover = bc.addItem(mkBookSharp5());
+        leftover = bc.decrStackSize(0, 1); /* extract multi with tags */
+        bc.dumpMark(leftover, sb);
+        bc.dumpBookExtra(leftover, sb);
 
         System.out.print(sb);
     }

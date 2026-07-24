@@ -14,9 +14,11 @@
 // CUT: drag painting (QUICK_CRAFT), CLONE, SWAP, PICKUP_ALL, armor special cases,
 // full arbitrary NBT beyond StoredEnchantments, recipe book, creative. Cursor drop is
 // PICKUP slotId=-999 (vanilla); THROW drops from slot when cursor empty.
-// Output: 16 clicks * 10 stacks * (4 + 2*8) fields as %08x.
+// Output: 32 clicks * 10 stacks * (4 + 2*8) fields as %08x
+//   (phase1 ordinary 16 + phase2 StoredEnchantments books 16).
 public class Golden {
-    static final int SLOTS = 9, INV_LIMIT = 64, NUM_CLICKS = 16, MAX_ENCHANTS = 8;
+    static final int SLOTS = 9, INV_LIMIT = 64, NUM_CLICKS = 32, PHASE1 = 16, PHASE2 = 16;
+    static final int MAX_ENCHANTS = 8;
     static final int PICKUP = 0, QUICK_MOVE = 1, THROW = 4;
     static final int AIR = 0, STONE = 1, IRON_ORE = 15, APPLE = 260, BREAD = 297,
         WOODEN_PICKAXE = 270, STONE_PICKAXE = 274, ENCHANTED_BOOK = 403,
@@ -38,6 +40,19 @@ public class Golden {
     }
     static Stack empty() { return new Stack(AIR, 0, 0); }
     static Stack mk(int i, int c, int m) { return new Stack(i, c, m); }
+    static Stack mkBookMulti() {
+        Stack s = mk(ENCHANTED_BOOK, 1, 0);
+        s.nEnchants = 2;
+        s.enchId[0] = 16; s.enchLvl[0] = 3; /* Sharpness III */
+        s.enchId[1] = 34; s.enchLvl[1] = 1; /* Unbreaking I */
+        return s;
+    }
+    static Stack mkBookSharp5() {
+        Stack s = mk(ENCHANTED_BOOK, 1, 0);
+        s.nEnchants = 1;
+        s.enchId[0] = 16; s.enchLvl[0] = 5; /* Sharpness V */
+        return s;
+    }
     static boolean isEmpty(Stack s) { return s.item == AIR || s.count <= 0; }
     static void normalize(Stack s) {
         if (s.count <= 0 || s.item == AIR) {
@@ -196,6 +211,20 @@ public class Golden {
         slots[8] = mk(BREAD, 5, 0);
     }
 
+    void setupEnchants() {
+        for (int i = 0; i < SLOTS; ++i) slots[i] = empty();
+        cursor = empty();
+        slots[0] = mkBookMulti();
+        slots[1] = mkBookSharp5();
+        slots[2] = empty();
+        slots[3] = empty();
+        slots[4] = mkBookMulti();
+        slots[5] = mk(APPLE, 16, 0);
+        slots[6] = empty();
+        slots[7] = empty();
+        slots[8] = mk(BREAD, 4, 0);
+    }
+
     static class Click {
         int slotId, button, type;
         Click(int s, int b, int t) { slotId = s; button = b; type = t; }
@@ -203,6 +232,7 @@ public class Golden {
 
     static Click[] tape() {
         return new Click[] {
+            /* Phase 1: ordinary stacks */
             new Click(0, 0, PICKUP),
             new Click(3, 0, PICKUP),
             new Click(2, 1, PICKUP),
@@ -219,6 +249,23 @@ public class Golden {
             new Click(4, 0, THROW),
             new Click(4, 1, THROW),
             new Click(8, 0, QUICK_MOVE),
+            /* Phase 2: StoredEnchantments books */
+            new Click(0, 0, PICKUP),
+            new Click(2, 0, PICKUP),
+            new Click(1, 0, PICKUP),
+            new Click(2, 0, PICKUP),
+            new Click(3, 0, PICKUP),
+            new Click(4, 0, PICKUP),
+            new Click(3, 0, PICKUP),
+            new Click(6, 0, PICKUP),
+            new Click(3, 0, PICKUP),
+            new Click(-999, 0, PICKUP),
+            new Click(2, 0, PICKUP),
+            new Click(0, 0, PICKUP),
+            new Click(0, 0, QUICK_MOVE),
+            new Click(6, 0, THROW),
+            new Click(5, 1, PICKUP),
+            new Click(7, 1, PICKUP),
         };
     }
 
@@ -247,11 +294,17 @@ public class Golden {
 
     public static void main(String[] args) {
         Golden g = new Golden();
-        g.setupStart();
         Click[] t = tape();
         StringBuilder sb = new StringBuilder();
-        for (int c = 0; c < NUM_CLICKS; ++c) {
+        g.setupStart();
+        for (int c = 0; c < PHASE1; ++c) {
             g.slotClick(t[c].slotId, t[c].button, t[c].type);
+            g.emit(sb);
+        }
+        g.setupEnchants();
+        for (int c = 0; c < PHASE2; ++c) {
+            int idx = PHASE1 + c;
+            g.slotClick(t[idx].slotId, t[idx].button, t[idx].type);
             g.emit(sb);
         }
         System.out.print(sb);

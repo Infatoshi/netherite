@@ -9,24 +9,48 @@
 //   net/minecraft/inventory/ItemStackHelper.java  getAndSplit()
 // Registry substitution: Item objects -> legacy int ids (core/items_core.h). getMaxStackSize is
 // baked from the item table (pickaxes / buckets / enchanted_book 403 == 1, else 64).
-// Battery stacks carry no StoredEnchantments; getBestHotbarSlot's second loop returns currentItem.
+// Scenarios 0..9 ordinary (n_enchants=0). Scenarios 10..11 exercise ItemEnchantedBook
+// max-stack 1 + StoredEnchantments retention through addItemStackToInventory (pickup path).
 //
 // CUT (matches core/inventory_stack_rules.h): armor slots, creative-mode branches (never taken:
-// non-creative), GUI/animation/NBT, offhand beyond slot 40. Output format matches
-// cpu/inventory_stack_rules.c: 10 scenarios * 8 u32 fields, %08x.
+// non-creative), GUI/animation, full arbitrary NBT beyond StoredEnchantments, offhand beyond 40.
+// Output: 12 scenarios * 10 u32 fields, %08x.
 public class Golden {
     static final int MAIN_SLOTS = 36, OFFHAND_SLOT = 40, INV_LIMIT = 64;
+    static final int NUM_SCENARIOS = 12, FIELDS = 10, MAX_ENCHANTS = 8;
     static final int AIR = 0, STONE = 1, IRON_ORE = 15, APPLE = 260, BREAD = 297,
         WOODEN_PICKAXE = 270, STONE_PICKAXE = 274, ENCHANTED_BOOK = 403,
         BUCKET = 325, WATER_BUCKET = 326, LAVA_BUCKET = 327;
 
     static class Stack {
-        int item, count, meta;
-        Stack(int i, int c, int m) { item = i; count = c; meta = m; }
-        Stack copy() { return new Stack(item, count, meta); }
+        int item, count, meta, nEnchants;
+        int[] enchId = new int[MAX_ENCHANTS];
+        int[] enchLvl = new int[MAX_ENCHANTS];
+        Stack(int i, int c, int m) { item = i; count = c; meta = m; nEnchants = 0; }
+        Stack copy() {
+            Stack s = new Stack(item, count, meta);
+            s.nEnchants = nEnchants;
+            for (int e = 0; e < nEnchants; ++e) {
+                s.enchId[e] = enchId[e]; s.enchLvl[e] = enchLvl[e];
+            }
+            return s;
+        }
     }
     static Stack empty() { return new Stack(AIR, 0, 0); }
     static Stack mk(int i, int c, int m) { return new Stack(i, c, m); }
+    static Stack mkBookMulti() {
+        Stack s = mk(ENCHANTED_BOOK, 1, 0);
+        s.nEnchants = 2;
+        s.enchId[0] = 16; s.enchLvl[0] = 3;
+        s.enchId[1] = 34; s.enchLvl[1] = 1;
+        return s;
+    }
+    static Stack mkBookSharp5() {
+        Stack s = mk(ENCHANTED_BOOK, 1, 0);
+        s.nEnchants = 1;
+        s.enchId[0] = 16; s.enchLvl[0] = 5;
+        return s;
+    }
     static boolean isEmpty(Stack s) { return s.item == AIR || s.count <= 0; }
 
     static int maxStackSize(int item, int meta) {
@@ -41,7 +65,10 @@ public class Golden {
     }
     static boolean stackEqualExact(Stack a, Stack b) {
         if (isEmpty(a) || isEmpty(b)) return false;
-        return a.item == b.item && a.meta == b.meta;
+        if (a.item != b.item || a.meta != b.meta || a.nEnchants != b.nEnchants) return false;
+        for (int e = 0; e < a.nEnchants; ++e)
+            if (a.enchId[e] != b.enchId[e] || a.enchLvl[e] != b.enchLvl[e]) return false;
+        return true;
     }
 
     Stack[] main = new Stack[MAIN_SLOTS];
@@ -115,12 +142,18 @@ public class Golden {
         }
         return in.count < prev ? 1 : 0;
     }
-    // ItemStack.splitStack + ItemStackHelper.getAndSplit.
+    // ItemStack.splitStack + ItemStackHelper.getAndSplit (copies StoredEnchantments).
     Stack split(Stack src, int amount) {
         int take = Math.min(amount, src.count);
         Stack out = mk(src.item, take, src.meta);
+        out.nEnchants = src.nEnchants;
+        for (int e = 0; e < src.nEnchants; ++e) {
+            out.enchId[e] = src.enchId[e]; out.enchLvl[e] = src.enchLvl[e];
+        }
         src.count -= take;
-        if (src.count <= 0) { src.item = AIR; src.count = 0; src.meta = 0; }
+        if (src.count <= 0) {
+            src.item = AIR; src.count = 0; src.meta = 0; src.nEnchants = 0;
+        }
         return out;
     }
     Stack decrStackSize(int index, int count) {
@@ -155,6 +188,11 @@ public class Golden {
     int mainTotal() { int s = 0; for (int i = 9; i < MAIN_SLOTS; ++i) s += main[i].count; return s; }
 
     void emit(StringBuilder sb, Stack leftover, int opOk, int mergeSlot) {
+        emitEx(sb, leftover, opOk, mergeSlot, main[0].nEnchants,
+               leftover != null ? leftover.nEnchants : 0);
+    }
+    void emitEx(StringBuilder sb, Stack leftover, int opOk, int mergeSlot,
+                int main0NEnch, int field9) {
         u(sb, currentItem);
         u(sb, leftover != null ? leftover.count : 0);
         u(sb, leftover != null ? leftover.item : 0);
@@ -163,6 +201,8 @@ public class Golden {
         u(sb, main[0].count);
         u(sb, opOk != 0 ? 1 : 0);
         u(sb, mergeSlot);
+        u(sb, main0NEnch);
+        u(sb, field9);
     }
     static void u(StringBuilder sb, int v) {
         sb.append(String.format("%08x", ((long) v) & 0xFFFFFFFFL)).append('\n');
@@ -248,6 +288,24 @@ public class Golden {
             opOk = inv.addItemStackToInventory(leftover);
             inv.emit(sb, leftover, opOk, OFFHAND_SLOT);
             break;
+        case 10: {
+            /* Two equal-tag enchanted books: max stack 1 => two slots, tags kept. */
+            leftover = mkBookMulti();
+            opOk = inv.addItemStackToInventory(leftover);
+            leftover = mkBookMulti();
+            opOk &= inv.addItemStackToInventory(leftover);
+            mergeSlot = inv.getFirstEmptyStack();
+            inv.emitEx(sb, empty(), opOk, mergeSlot, inv.main[0].nEnchants, inv.main[1].nEnchants);
+            break;
+        }
+        case 11: {
+            inv.main[0] = mkBookMulti();
+            leftover = mkBookSharp5();
+            opOk = inv.addItemStackToInventory(leftover);
+            mergeSlot = inv.storeItemStack(inv.main[0]); /* -1: cannot merge full unstackable */
+            inv.emitEx(sb, empty(), opOk, mergeSlot, inv.main[0].nEnchants, inv.main[1].nEnchants);
+            break;
+        }
         default:
             inv.emit(sb, empty(), 0, -1);
             break;
@@ -259,7 +317,7 @@ public class Golden {
         if (args.length > 0) {
             runScenario(Integer.parseInt(args[0]), sb);
         } else {
-            for (int i = 0; i < 10; ++i) runScenario(i, sb);
+            for (int i = 0; i < NUM_SCENARIOS; ++i) runScenario(i, sb);
         }
         System.out.print(sb);
     }

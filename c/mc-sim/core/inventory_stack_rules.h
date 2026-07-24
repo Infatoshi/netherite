@@ -21,8 +21,9 @@
 #define ISR_ARMOR_HEAD   39
 #define ISR_OFFHAND_SLOT 40
 #define ISR_INV_LIMIT    64
-#define ISR_NUM_SCENARIOS 10
-#define ISR_FIELDS_PER    8
+/* 0..9 ordinary; 10..11 enchanted-book max-stack-1 + StoredEnchantments retention. */
+#define ISR_NUM_SCENARIOS 12
+#define ISR_FIELDS_PER    10  /* + main[0].n_enchants + leftover.n_enchants */
 #define ISR_OUT           (ISR_NUM_SCENARIOS * ISR_FIELDS_PER)
 #define ISR_ELYTRA_ITEM  443
 #define ISR_ELYTRA_MAX_DAMAGE 432
@@ -266,6 +267,26 @@ MC_HD static inline void isr_emit_scenario(const IsrInv *inv, const ICStack *lef
     out[base + 5] = (u32)inv->main[0].count;
     out[base + 6] = (u32)(op_ok ? 1 : 0);
     out[base + 7] = (u32)merge_slot;
+    out[base + 8] = (u32)inv->main[0].n_enchants;
+    out[base + 9] = leftover ? (u32)leftover->n_enchants : 0u;
+}
+
+/* Sharpness III + Unbreaking I book (matches container_click multi book). */
+MC_HD static inline ICStack isr_mk_book_multi(void) {
+    ICStack s = ic_mk(IC_ENCHANTED_BOOK, 1, 0);
+    IcEnch e[2];
+    e[0].id = 16; e[0].level = 3;
+    e[1].id = 34; e[1].level = 1;
+    ic_copy_enchants(&s, e, 2);
+    return s;
+}
+
+MC_HD static inline ICStack isr_mk_book_sharp5(void) {
+    ICStack s = ic_mk(IC_ENCHANTED_BOOK, 1, 0);
+    IcEnch e[1];
+    e[0].id = 16; e[0].level = 5;
+    ic_copy_enchants(&s, e, 1);
+    return s;
 }
 
 MC_HD static inline void isr_run_scenario(int idx, u32 *out) {
@@ -361,6 +382,35 @@ MC_HD static inline void isr_run_scenario(int idx, u32 *out) {
         op_ok = isr_add_item_stack_to_inventory(&inv, &leftover);
         merge_slot = ISR_OFFHAND_SLOT;
         isr_emit_scenario(&inv, &leftover, op_ok, merge_slot, out, base);
+        break;
+    case 10:
+        /* Enchanted books max stack 1: two equal-tag books occupy two slots
+         * (ground-pickup path via addItemStackToInventory). Tags retained. */
+        {
+            ICStack b1 = isr_mk_book_multi();
+            ICStack b2 = isr_mk_book_multi();
+            leftover = b1;
+            op_ok = isr_add_item_stack_to_inventory(&inv, &leftover);
+            leftover = b2;
+            op_ok &= isr_add_item_stack_to_inventory(&inv, &leftover);
+            /* After both placed, first empty is slot 2; store_item sees no merge. */
+            merge_slot = isr_get_first_empty_stack(&inv);
+            /* leftover emptied; emit n_enchants from main[0] via field 8. */
+            leftover = ic_empty();
+            isr_emit_scenario(&inv, &leftover, op_ok, merge_slot, out, base);
+            /* Overwrite field 9 with main[1].n_enchants so both payloads are checked. */
+            out[base + 9] = (u32)inv.main[1].n_enchants;
+        }
+        break;
+    case 11:
+        /* Mismatched StoredEnchantments never merge (Sharpness V next to multi). */
+        inv.main[0] = isr_mk_book_multi();
+        leftover = isr_mk_book_sharp5();
+        op_ok = isr_add_item_stack_to_inventory(&inv, &leftover);
+        merge_slot = isr_store_item_stack(&inv, &inv.main[0]); /* -1: cannot merge self full */
+        leftover = ic_empty();
+        isr_emit_scenario(&inv, &leftover, op_ok, merge_slot, out, base);
+        out[base + 9] = (u32)inv.main[1].n_enchants; /* Sharpness V has n=1 */
         break;
     default:
         leftover = ic_empty();
