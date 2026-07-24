@@ -59,10 +59,16 @@ MOB_SPRITES = sorted([
     ("endercrystal", "endercrystal/endercrystal.png"),  # 128x64, ModelEnderCrystal
     ("dragon",       "enderdragon/dragon.png"),          # 256x256, ModelDragon
 ], key=lambda t: t[0])
-# Preserve every existing sprite index; mechanics tapes add this one at the end.
+# Preserve every existing sprite index; append-only for stable CR_MOB_* ids.
 MOB_SPRITES += [("armorstand", "armorstand/wood.png")]
 # RenderXPOrb: full 64x64 experience_orb.png (4x4 grid of 16x16 value tiers).
 MOB_SPRITES += [("experience_orb", "experience_orb.png")]
+# Live roster additions (append only; do not re-sort into MOB_SPRITES).
+MOB_SPRITES += [
+    ("slime", "slime/slime.png"),           # 64x32 ModelSlime
+    ("silverfish", "silverfish.png"),       # 64x32 ModelSilverfish
+    ("boat", "boat/boat_oak.png"),          # 64x32 ModelBoat oak
+]
 
 
 def next_pow2(n):

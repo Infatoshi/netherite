@@ -17,13 +17,26 @@
 #include "living_base.h"
 #include "ew_entity_store.h"
 
-/* Extend EW_TYPE_* (ew_entity_store.h has NONE/PLAYER/ZOMBIE). Keep ZOMBIE=2 stable. */
+/* Extend EW_TYPE_* (ew_entity_store.h has NONE/PLAYER/ZOMBIE). Keep ZOMBIE=2 stable.
+ * Magma product roster ids must match game/entity_render.c ER_TYPE_* where models exist. */
 enum {
     EW_TYPE_SKELETON = 3,
     EW_TYPE_CREEPER  = 4,
     EW_TYPE_SPIDER   = 5,
     EW_TYPE_ENDERMAN = 6,
-    EW_TYPE_WITHER_SKELETON = 32
+    EW_TYPE_BLAZE    = 7,
+    /* 8 crystal, 9 dragon reserved by magma dragon_live */
+    EW_TYPE_SHEEP    = 10,
+    EW_TYPE_PIG      = 11,
+    EW_TYPE_COW      = 12,
+    EW_TYPE_CHICKEN  = 13,
+    EW_TYPE_PIGMAN   = 15,   /* live type; render = zombie + pigman skin */
+    EW_TYPE_GHAST    = 26,
+    EW_TYPE_MAGMA    = 27,
+    EW_TYPE_WITHER_SKELETON = 32,
+    EW_TYPE_SLIME    = 35,
+    EW_TYPE_SILVERFISH = 36,
+    EW_TYPE_BOAT     = 37
 };
 
 /* AI phase tags already in ew_entity_store (IDLE/CHASE/ATTACK). Skeleton "ranged hold" and
@@ -39,23 +52,32 @@ typedef struct {
 MC_HD static inline int ehs_is_hostile(u8 type) {
     return type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON || type == EW_TYPE_CREEPER
         || type == EW_TYPE_SPIDER || type == EW_TYPE_ENDERMAN
-        || type == EW_TYPE_WITHER_SKELETON;
+        || type == EW_TYPE_WITHER_SKELETON || type == EW_TYPE_BLAZE
+        || type == EW_TYPE_PIGMAN || type == EW_TYPE_GHAST
+        || type == EW_TYPE_MAGMA || type == EW_TYPE_SLIME
+        || type == EW_TYPE_SILVERFISH;
 }
 
 /* SharedMonsterAttributes.MOVEMENT_SPEED base from oracle applyEntityAttributes. */
 MC_HD static inline float ehs_land_speed(u8 type) {
     switch (type) {
     case EW_TYPE_ZOMBIE:   return 0.23000000417232513f;
+    case EW_TYPE_PIGMAN:   return 0.23000000417232513f;
     case EW_TYPE_SKELETON: return 0.25f;                 /* AbstractSkeleton */
     case EW_TYPE_WITHER_SKELETON: return 0.25f;
     case EW_TYPE_CREEPER:  return 0.25f;
     case EW_TYPE_SPIDER:   return 0.30000001192092896f;
     case EW_TYPE_ENDERMAN: return 0.30000001192092896f;
+    case EW_TYPE_BLAZE:    return 0.23000000417232513f;
+    case EW_TYPE_MAGMA:    return 0.20000000298023224f;
+    case EW_TYPE_SILVERFISH: return 0.25f;
+    case EW_TYPE_SLIME:    return 0.2f;
     default:               return 0.23000000417232513f;
     }
 }
 
-/* Entity*.setSize defaults used by the living spine box. */
+/* Entity*.setSize defaults used by the living spine box.
+ * Slime/magma size is scaled by the caller via ehs_size_scaled when known. */
 MC_HD static inline void ehs_size(u8 type, float *width, float *height) {
     switch (type) {
     case EW_TYPE_SPIDER:
@@ -67,10 +89,45 @@ MC_HD static inline void ehs_size(u8 type, float *width, float *height) {
     case EW_TYPE_WITHER_SKELETON:
         *width = 0.7f; *height = 2.4f;
         break;
-    default: /* zombie / skeleton / creeper */
+    case EW_TYPE_BLAZE:
+        *width = 0.6f; *height = 1.8f;
+        break;
+    case EW_TYPE_GHAST:
+        *width = 4.0f; *height = 4.0f;
+        break;
+    case EW_TYPE_SILVERFISH:
+        *width = 0.4f; *height = 0.3f;
+        break;
+    case EW_TYPE_SLIME:
+    case EW_TYPE_MAGMA:
+        /* size-2 default; live layer overrides via size[] */
+        *width = 1.02f; *height = 1.02f;
+        break;
+    case EW_TYPE_BOAT:
+        *width = 1.375f; *height = 0.5625f;
+        break;
+    case EW_TYPE_SHEEP:
+    case EW_TYPE_PIG:
+    case EW_TYPE_COW:
+        *width = 0.9f; *height = 1.4f;
+        break;
+    case EW_TYPE_CHICKEN:
+        *width = 0.4f; *height = 0.7f;
+        break;
+    default: /* zombie / skeleton / creeper / pigman */
         *width = 0.6f; *height = 1.95f;
         break;
     }
+}
+
+/* EntitySlime.setSlimeSize: width = height = 0.51000005 * size. */
+MC_HD static inline void ehs_size_scaled(u8 type, int slime_size, float *width, float *height) {
+    if ((type == EW_TYPE_SLIME || type == EW_TYPE_MAGMA) && slime_size > 0) {
+        float s = 0.51000005f * (float)slime_size;
+        *width = s; *height = s;
+        return;
+    }
+    ehs_size(type, width, height);
 }
 
 /* yaw (deg) so forward=1 moveRelative heads toward (dx,dz): dir = (-sin, cos). Same as ew_yaw_toward. */

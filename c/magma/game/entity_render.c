@@ -78,6 +78,10 @@
 #define ER_TYPE_WITHER_SKELETON 32
 #define ER_TYPE_DRAGON_FIREBALL 33
 #define ER_TYPE_ARMOR_STAND 34
+#define ER_TYPE_PIGMAN   15
+#define ER_TYPE_SLIME    35
+#define ER_TYPE_SILVERFISH 36
+#define ER_TYPE_BOAT     37
 
 #define ER_VERTS_PER_BOX 36  /* 6 faces * 2 tris * 3 verts */
 #define ER_PI 3.14159265358979323846f
@@ -372,6 +376,30 @@ static const ErModel M_GHAST = { .nparts = 10, .scale = 4.5f, .parts = {
     { CR_MOB_GHAST, 0, 0, -1, 0,-1,  2,12, 2,  6.25f,24.6f, 5,  GHAST_TENT_AX,0,0, 0,0 },
 } };
 
+/* ModelSlime (64x32 size-2 layout): body + eyes + mouth. Scaled by item_meta size. */
+static const ErModel M_SLIME = { .nparts = 4, .scale = 1.0f, .parts = {
+    { CR_MOB_SLIME, 0, 16, -3,17,-3, 6,6,6,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_SLIME, 32, 0, -3.25f,18,-3.5f, 2,2,2,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_SLIME, 32, 4, 1.25f,18,-3.5f, 2,2,2,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_SLIME, 32, 8, -1,21,-3.5f, 1,1,1,  0,0,0, 0,0,0, 0,0 },
+} };
+
+/* ModelSilverfish: body segments approximate (body / shell pieces). */
+static const ErModel M_SILVERFISH = { .nparts = 3, .scale = 1.0f, .parts = {
+    { CR_MOB_SILVERFISH, 20, 0, -1.5f,22,-0.5f, 3,2,1,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_SILVERFISH, 20, 0, -1.5f,21, 0.5f, 3,2,2,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_SILVERFISH,  2, 0, -0.5f,22, 2.5f, 1,1,1,  0,0,0, 0,0,0, 0,0 },
+} };
+
+/* ModelBoat simplified hull (minecart-like box stack). */
+static const ErModel M_BOAT = { .nparts = 5, .scale = 1.0f, .parts = {
+    { CR_MOB_BOAT, 0,  0, -7,23,-3, 14,2,6,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_BOAT, 0, 10, -7,21,-3,  2,2,6,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_BOAT, 0, 10,  5,21,-3,  2,2,6,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_BOAT, 0,  8, -5,21,-3, 10,2,2,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_BOAT, 0,  8, -5,21, 1, 10,2,2,  0,0,0, 0,0,0, 0,0 },
+} };
+
 /* ModelMagmaCube (64x32): 8 stacked 8x1x8 segments + 4^3 core. Rendered at
  * slime size 2 (fortress magma cubes are mostly smalls/mediums; the tape does
  * not record getSlimeSize). Squish animation omitted. */
@@ -433,6 +461,7 @@ static const ErModel *er_model_for_type(int type) {
         case 30 /* GM_VIEW_BILLBOARD */: return 0; /* item pass (camera-facing) */
         case ER_TYPE_DRAGON_FIREBALL: return 0; /* dedicated item-atlas billboard */
         case ER_TYPE_ZOMBIE:   return &M_ZOMBIE;
+        case ER_TYPE_PIGMAN:   return &M_ZOMBIE; /* same biped; pigman skin via .skin */
         case ER_TYPE_SKELETON: return &M_SKELETON;
         case ER_TYPE_WITHER_SKELETON: return &M_WITHER_SKELETON;
         case ER_TYPE_CREEPER:  return &M_CREEPER;
@@ -453,6 +482,9 @@ static const ErModel *er_model_for_type(int type) {
         case ER_TYPE_LLAMA:    return &M_LLAMA;
         case ER_TYPE_GHAST:    return &M_GHAST;
         case ER_TYPE_MAGMA:    return &M_MAGMA;
+        case ER_TYPE_SLIME:    return &M_SLIME;
+        case ER_TYPE_SILVERFISH: return &M_SILVERFISH;
+        case ER_TYPE_BOAT:     return &M_BOAT;
         case ER_TYPE_MINECART: return &M_MINECART;
         case ER_TYPE_ARMOR_STAND: return &M_ARMOR_STAND;
         default:               return &M_MARKER; /* legacy marker box */
@@ -1249,7 +1281,10 @@ int gm_entity_type_for_name(const char *name) {
         { "EntityZombie",         ER_TYPE_ZOMBIE },
         { "EntityHusk",           ER_TYPE_ZOMBIE },
         { "EntityZombieVillager", ER_TYPE_ZOMBIE },
-        { "EntityPigZombie",      ER_TYPE_ZOMBIE },
+        /* Tape pigmen historically fold to zombie silhouette; live product uses
+         * ER_TYPE_PIGMAN=15 with the same model + pigman skin. Map tape name to
+         * the live type so fill_views and ghosts share one id. */
+        { "EntityPigZombie",      ER_TYPE_PIGMAN },
         { "EntitySkeleton",       ER_TYPE_SKELETON },
         { "EntityStray",          ER_TYPE_SKELETON },
         { "EntityWitherSkeleton", ER_TYPE_WITHER_SKELETON },
@@ -1269,6 +1304,9 @@ int gm_entity_type_for_name(const char *name) {
         { "EntityLlama",          ER_TYPE_LLAMA },
         { "EntityGhast",          ER_TYPE_GHAST },
         { "EntityMagmaCube",      ER_TYPE_MAGMA },
+        { "EntitySlime",          ER_TYPE_SLIME },
+        { "EntitySilverfish",     ER_TYPE_SILVERFISH },
+        { "EntityBoat",           ER_TYPE_BOAT },
         { "EntityMinecartEmpty",  ER_TYPE_MINECART },
         { "EntityMinecartChest",  ER_TYPE_MINECART },
         { "EntityMinecartFurnace",ER_TYPE_MINECART },
@@ -1557,9 +1595,14 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         /* skin-variant override (pigman/husk/stray/cave spider/mooshroom):
          * same model, different atlas sprite. All variant bases are
          * single-skin models (sheep, the only two-sprite model, has none). */
-        if (ents[e].skin > 0)
-            for (int p = 0; p < np; ++p)
-                local[p].sprite = ents[e].skin - 1;
+        {
+            int skin = ents[e].skin;
+            if (skin <= 0 && ents[e].type == ER_TYPE_PIGMAN)
+                skin = CR_MOB_PIGMAN + 1;
+            if (skin > 0)
+                for (int p = 0; p < np; ++p)
+                    local[p].sprite = skin - 1;
+        }
 
         float lsa = ents[e].limb_swing_amount;
         float ls  = ents[e].limb_swing;

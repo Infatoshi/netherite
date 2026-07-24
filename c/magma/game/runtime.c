@@ -152,6 +152,18 @@ static void spawn_hostile_projectiles(GmRuntime *r) {
             break;
         }
     }
+    /* Ghast large fireball (EntityLargeFireball, explosionPower=1). */
+    {
+        double x,y,z,vx,vy,vz;
+        if(gm_mobs_take_fireball(&r->mobs,&x,&y,&z,&vx,&vy,&vz)){
+            for(int i=0;i<GM_RUNTIME_PROJECTILES;++i){
+                GmRuntimeProjectile *p=&r->projectiles[i];if(p->active)continue;
+                p->active=1;p->type=5;p->age=0;
+                p->x=x;p->y=y;p->z=z;p->vx=vx;p->vy=vy;p->vz=vz;
+                break;
+            }
+        }
+    }
 }
 
 static int throw_eye_of_ender(GmRuntime *r) {
@@ -199,20 +211,22 @@ static void tick_projectiles(GmRuntime *r) {
                 GmPlayerView v;gm_runtime_view(r,&v);
                 double dx=p->x-v.x,dy=p->y-(v.y+0.9),dz=p->z-v.z;
                 if(dx*dx+dy*dy+dz*dz<=0.75*0.75){
+                    float dmg=p->type==5?6.0f:(p->type==3?5.0f:4.0f);
                     int hit=gm_mobs_attack_player(&r->mobs,
-                        (struct PvStats *)&r->vitals,p->type==3?5.0f:4.0f);
+                        (struct PvStats *)&r->vitals,dmg);
                     r->player.health=r->vitals.health;
                     if(hit&&p->type==3)r->player_fire_ticks=5*20;
+                    if(p->type==5)runtime_explode(r,p->x,p->y,p->z,1.0f);
                     p->active=0;
                 }else if(block){
-                    if(p->type==3)runtime_explode(r,p->x,p->y,p->z,1.0f);
+                    if(p->type==3||p->type==5)runtime_explode(r,p->x,p->y,p->z,1.0f);
                     p->active=0;
                 }
             }
         }
         ++p->age;
         if (!p->active || p->age > 1200) { p->active = 0; continue; }
-        if(p->type!=3)p->vy -= 0.05;
+        if(p->type!=3&&p->type!=5)p->vy -= 0.05;
         p->vx *= 0.99; p->vy *= 0.99; p->vz *= 0.99;
     }
 }
@@ -271,6 +285,26 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     if(action.do_place&&held_now.item==381&&throw_eye_of_ender(r)){
         action.do_place=0;action.use=0;
     }
+    /* ItemBoat: place on water/adjacent block (oak boat item id 333). */
+    if(action.do_place&&held_now.item==333){
+        int hx,hy,hz,ax,ay,az;
+        if(gm_raycast_sel_reach(r->window,&r->sin_table,&r->player,PSV_REACH,
+                                &hx,&hy,&hz,&ax,&ay,&az)>=0){
+            double bx=ax+r->ox+0.5,by=ay+0.1,bz=az+r->oz+0.5;
+            if(gm_mobs_place_boat(&r->mobs,bx,by,bz,r->player.yaw)>=0){
+                (void)isr_decr_stack_size(&r->player.inv,r->player.inv.current_item,1);
+                action.do_place=0;action.use=0;
+            }
+        }
+    }
+    /* Mount nearby boat on use when not already placing a block. */
+    if(action.use&&!action.do_place&&gm_mobs_boat_mount(&r->mobs,
+            (struct PsvPlayer *)&r->player,r->ox,r->oz)){
+        action.use=0;
+    }
+    /* Sneak dismounts boat. */
+    if(action.sneak&&gm_mobs_boat_riding(&r->mobs))
+        gm_mobs_boat_dismount(&r->mobs,(struct PsvPlayer *)&r->player,r->ox,r->oz);
     if (r->container) {
         GmPlayerView cv; gm_runtime_view(r,&cv);
         double dx=(r->container_wx+0.5)-cv.x;

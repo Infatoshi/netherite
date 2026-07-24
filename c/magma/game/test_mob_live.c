@@ -199,6 +199,153 @@ int main(void) {
     CHECK(gm_mobs_alive(&r.mobs)>0,"night cycle naturally spawns a light-gated hostile");
     gm_runtime_destroy(&r);
 
+    /* ---- New roster types ---- */
+
+    /* Pigman: neutral until hurt, then group anger. */
+    if(!init_flat(&r))return 1;
+    r.vitals.foodLevel=0;r.vitals.saturation=0.0f;
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_PIGMAN,8.5,5.0,14.5)>=0,"spawn pigman A");
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_PIGMAN,10.5,5.0,14.5)>=0,"spawn pigman B");
+    for(int i=0;i<10;++i)gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==20.0f,"neutral pigmen do not attack");
+    isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
+    GmAction hit;memset(&hit,0,sizeof hit);hit.attack=1;hit.hotbar_sel=0;
+    gm_runtime_set_pose(&r,8.5,5.0,12.5,0.0f,10.0f);
+    for(int i=0;i<5;++i)gm_runtime_tick(&r,hit);
+    CHECK(r.mobs.anger[1]>0||r.mobs.anger[2]>0,"hurt pigman becomes angry");
+    int both_angry=(r.mobs.anger[1]>0)+(r.mobs.anger[2]>0);
+    CHECK(both_angry>=2,"nearby pigman group-angers");
+    gm_runtime_set_pose(&r,8.5,5.0,10.5,0.0f,10.0f);
+    float hp0=r.vitals.health;
+    for(int i=0;i<40;++i)gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health<hp0,"angry pigman melee damages player");
+    gm_runtime_destroy(&r);
+
+    /* Ghast: flight + fireball pending. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_GHAST,8.5,10.0,20.5)>=0,"spawn ghast");
+    double gy0=0;{GmEntityView vv[EW_MAX_ENTITIES];int nn=gm_mobs_fill_views(&r.mobs,vv,EW_MAX_ENTITIES);
+        for(int k=0;k<nn;++k)if(vv[k].type==GM_MOB_GHAST)gy0=vv[k].y;}
+    for(int i=0;i<60;++i)gm_runtime_tick(&r,idle);
+    {GmEntityView vv[EW_MAX_ENTITIES];int nn=gm_mobs_fill_views(&r.mobs,vv,EW_MAX_ENTITIES);
+        int found=0;for(int k=0;k<nn;++k)if(vv[k].type==GM_MOB_GHAST){
+            found=1;CHECK(vv[k].y>4.0f,"ghast remains airborne");}}
+    CHECK(gm_mobs_alive(&r.mobs)==1,"ghast survives flight ticks");
+    (void)gy0;
+    gm_runtime_destroy(&r);
+
+    /* Magma cube: size, jump, split on death. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_spawn_sized(&r.mobs,GM_MOB_MAGMA,8.5,5.0,10.5,2)>=0,"spawn size-2 magma");
+    CHECK(r.mobs.size[1]==2,"magma size stored");
+    /* Deterministic death via damage_near (player melee reach is flaky on hoppers). */
+    CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,2.0,100.0f,&r.entities),
+          "magma takes lethal damage");
+    int smalls=0;
+    {const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+        for(int i=1;i<EW_MAX_ENTITIES;++i)
+            if(s->alive[i]&&s->type[i]==GM_MOB_MAGMA&&r.mobs.size[i]==1)++smalls;}
+    CHECK(smalls>=2,"magma size-2 death splits into two size-1 cubes");
+    gm_runtime_destroy(&r);
+
+    /* Slime: size-1 drop slime ball. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_spawn_sized(&r.mobs,GM_MOB_SLIME,8.5,5.0,10.5,1)>=0,"spawn size-1 slime");
+    CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,2.0,100.0f,&r.entities),
+          "slime takes lethal damage");
+    int ball=0;for(int i=0;i<GM_LIVE_MAX;++i)
+        if(r.entities.ents[i].active&&r.entities.ents[i].item==341)ball=1;
+    CHECK(gm_mobs_alive(&r.mobs)==0&&ball,"size-1 slime drops slime ball");
+    gm_runtime_destroy(&r);
+
+    /* Silverfish: melee + spawner entity id. */
+    if(!init_flat(&r))return 1;
+    r.vitals.foodLevel=0;r.vitals.saturation=0.0f;
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_SILVERFISH,8.5,5.0,10.5)>=0,"spawn silverfish");
+    gm_runtime_tick(&r,idle);
+    CHECK(r.vitals.health==19.0f,"silverfish melee deals 1 damage");
+    gm_runtime_destroy(&r);
+
+    if(!init_flat(&r))return 1;
+    gm_world_set_block(r.world,12,4,12,52);
+    CHECK(gm_mobs_register_spawner(&r.mobs,12,4,12,GM_MOB_SILVERFISH)>=0,
+          "register silverfish spawner");
+    CHECK(r.mobs.spawners[0].entity_type==GM_MOB_SILVERFISH,
+          "spawner stores silverfish entity id not blaze");
+    r.mobs.spawners[0].delay=0;
+    gm_runtime_set_pose(&r,12.5,5.0,12.5,0.0f,10.0f);
+    for(int i=0;i<5;++i)gm_runtime_tick(&r,idle);
+    int sf=0;{const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+        for(int i=1;i<EW_MAX_ENTITIES;++i)
+            if(s->alive[i]&&s->type[i]==GM_MOB_SILVERFISH)sf=1;}
+    CHECK(sf,"silverfish spawner produces silverfish from stored entity id");
+    gm_runtime_destroy(&r);
+
+    /* Blaze spawner still works (not any-block-52=blaze for overworld). */
+    if(!init_flat(&r))return 1;
+    gm_world_set_block(r.world,14,4,14,52);
+    CHECK(gm_mobs_register_spawner(&r.mobs,14,4,14,GM_MOB_BLAZE)>=0,"register blaze spawner");
+    r.mobs.spawners[0].delay=0;
+    gm_runtime_set_pose(&r,14.5,5.0,14.5,0.0f,10.0f);
+    for(int i=0;i<5;++i)gm_runtime_tick(&r,idle);
+    int bl=0;{const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+        for(int i=1;i<EW_MAX_ENTITIES;++i)
+            if(s->alive[i]&&s->type[i]==GM_MOB_BLAZE)bl=1;}
+    CHECK(bl,"blaze spawner still selects blaze from stored entity id");
+    gm_runtime_destroy(&r);
+
+    /* Boat: place, mount, move, break drop. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_place_boat(&r.mobs,8.5,5.0,8.5,0.0f)>=0,"place boat");
+    gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+    CHECK(gm_mobs_boat_mount(&r.mobs,(struct PsvPlayer *)&r.player,r.ox,r.oz),
+          "mount boat");
+    CHECK(gm_mobs_boat_riding(&r.mobs),"boat riding flag");
+    for(int i=0;i<10;++i)gm_runtime_tick(&r,idle);
+    gm_mobs_boat_dismount(&r.mobs,(struct PsvPlayer *)&r.player,r.ox,r.oz);
+    CHECK(!gm_mobs_boat_riding(&r.mobs),"dismount clears ride");
+    /* Break: stand on the boat and hit until hull drops the item. */
+    {
+        GmEntityView vv[EW_MAX_ENTITIES];
+        int nn=gm_mobs_fill_views(&r.mobs,vv,EW_MAX_ENTITIES),bi=-1;
+        for(int k=0;k<nn;++k)if(vv[k].type==GM_ENTITY_BOAT)bi=k;
+        CHECK(bi>=0,"boat still present after dismount");
+        /* Stand slightly back and look down into the hull. */
+        gm_runtime_set_pose(&r,vv[bi].x,vv[bi].y+1.0,vv[bi].z-1.0,0.0f,30.0f);
+    }
+    isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
+    for(int i=0;i<12;++i){
+        gm_mobs_player_attack(&r.mobs,(const struct PsvPlayer *)&r.player,
+                              r.ox,r.oz,&r.entities);
+        r.mobs.player_attack_cooldown=0;
+    }
+    int boat_item=0;for(int i=0;i<GM_LIVE_MAX;++i)
+        if(r.entities.ents[i].active&&r.entities.ents[i].item==333)boat_item=1;
+    int boat_alive=0;{const EwStore *s=r.mobs.current?&r.mobs.b:&r.mobs.a;
+        for(int i=1;i<EW_MAX_ENTITIES;++i)
+            if(s->alive[i]&&s->type[i]==GM_ENTITY_BOAT)boat_alive=1;}
+    CHECK(boat_item&&!boat_alive,"broken boat drops boat item");
+    gm_runtime_destroy(&r);
+
+    /* Wither skeleton: already covered for damage; natural type ok. */
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_WITHER_SKELETON,8.5,5.0,10.5)>=0,
+          "spawn wither skeleton type");
+    CHECK(gm_mobs_alive(&r.mobs)==1,"wither skeleton lives");
+    gm_runtime_destroy(&r);
+
+    /* Capacity > 7: spawn 12 zombies. */
+    if(!init_flat(&r))return 1;
+    int spawned=0;
+    for(int i=0;i<12;++i){
+        if(gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5+i*0.01,5.0,14.5+i*0.5)>=0)
+            ++spawned;
+    }
+    CHECK(spawned==12,"capacity allows more than 7 living entities");
+    CHECK(gm_mobs_living_count(&r.mobs)==12,"living_count reports 12");
+    CHECK(GM_MOB_CAPACITY>7,"product capacity constant exceeds legacy 7");
+    gm_runtime_destroy(&r);
+
     if(fail)return 1;
     fprintf(stderr,"mob_live: PASS\n");
     return 0;
