@@ -48,7 +48,9 @@ if [ -n "${GPU_MB:-}" ] && [ "$GPU_MB" -gt 4096 ]; then
         echo "reason: GPU$GPU busy (${GPU_MB} MiB used)"
         echo
         echo "This run did not verify any tape. Do not report as green."
-        echo "Re-run with NIGHTLY_BACKEND=cpu to sweep without a GPU."
+        echo "Re-run with NIGHTLY_BACKEND=cpu to sweep without a GPU,"
+        echo "or NIGHTLY_GPU=<n> if a different card is free (the sm_ target"
+        echo "is read from that card, so this is safe across GPU generations)."
     } | tee "$OUT_MD"
     exit 2
 fi
