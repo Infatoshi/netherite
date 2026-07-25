@@ -108,14 +108,19 @@ initializer and is **fixed** - see DEVLOG 2026-07-25. What remains on
   7291 unexplained px (was t=80 / 74783). UNEXPLAINED total 122_581 px over
   63 frames (was 1_540_406 over 67).
 - t=260 and t=460 hold the two big residual clusters (3380 px and 2989 px at
-  t=260, on the near canopy and a distant tree). Re-measured with `pxdiff.py`
-  on 2026-07-25 the frame now has 93 clusters, biggest 9696 px at
-  y[146,265] x[0,369]; the canopy cluster at y[83,178] x[526,611] comes back
-  `cutout-sky+` (mean delta [4.3,5.1,7.9], pointing straight along the
-  sky-minus-leaf axis), i.e. magma shows MORE background through the canopy
-  than the oracle. That is a cutout-coverage lead, distinct from the
-  interior texel noise below, and it is the largest unexplained residual on
-  the canonical tape.
+  t=260, on the near canopy and a distant tree). Re-measured 2026-07-25 with
+  `pxdiff.py`: t=260 is 103 clusters, the canopy one at y[83,178] x[526,611]
+  is 2989 px, `texel-selection`, exact-match 0.55 / tol4 0.83 at shift (1,-1).
+  It is NOT a cutout-coverage bug, and the oracle's own capture settings say
+  why it cannot be: the tape ran `fancyGraphics=false, mipmapLevels=0`, where
+  vanilla `BlockLeaves.getBlockLayer` returns SOLID, not CUTOUT_MIPPED, and
+  magma already meshes leaves as `CR_LAYER_SOLID` with alpha forced opaque.
+  Direct count of the canopy bbox: 118 of 3991 differing pixels (3.0%) are
+  true sky-holes, the other 96% are both-leaf texel flips. An earlier pxdiff
+  build called this `cutout-sky+` from the mean-delta direction alone; the
+  discriminator now requires a measured hole fraction, because on a minified
+  canopy sigma is 50-70 and a mean of +4 along the sky axis gives an
+  alignment of 0.997 at 3% coverage error.
   The leaf INTERIOR, separately, is nearest-neighbour texel selection on
   minified faces, not shading or geometry: the per-channel delta there is
   zero-mean with a large spread (near canopy mean +0.1/+0.2/+0.2, sigma 19/28/8; distant tree

@@ -34,9 +34,13 @@ Verdicts (what the discriminators mean):
   content          one side has structure the other lacks: missing or extra
                    geometry, the only family that is a hard bug by itself.
   edge             differing pixels hug golden gradients: silhouette / AA.
-  cutout-sky+/-    the delta points along the sky-minus-surface axis: a CUTOUT
-                   surface (foliage, cross plants) is letting through more (+)
-                   or less (-) background than the oracle does.
+  cutout-sky+/-    a real coverage difference: >15 percent of the differing
+                   pixels have one side at the background colour and the other
+                   not, so a CUTOUT surface (foliage, cross plants) is letting
+                   through more (+) or less (-) background than the oracle.
+                   sky_align alone does NOT establish this - on a minified
+                   canopy the delta is zero-mean with sigma 50-70 and a mean of
+                   +4 along the sky axis gives align 0.997 at 3 percent holes.
 
 Usage:
   uv run --no-project --with numpy,scipy,pillow python pxdiff.py clusters \\
@@ -182,6 +186,22 @@ def sky_alignment(g, c, ys, xs):
     return float(np.dot(axis / na, d / nd))
 
 
+def sky_coverage(g, c, ys, xs):
+    """Count pixels where one side actually shows background and the other does
+    not. Direction alone is not enough: on a minified canopy the delta is
+    zero-mean with sigma 50-70, and a mean of +4 along the sky axis makes
+    sky_align 0.997 while only 3 percent of the pixels are real holes. Measured
+    on the canonical tape t=260 canopy, which this tool first mislabelled."""
+    sky = np.median(g[:8].reshape(-1, 3), axis=0)
+    dg = np.abs(g[ys, xs] - sky).max(axis=1)
+    dc = np.abs(c[ys, xs] - sky).max(axis=1)
+    if not len(ys):
+        return 0.0, 0.0
+    hole = float(((dc < 30) & (dg > 60)).mean())   # candidate leaks background
+    fill = float(((dg < 30) & (dc > 60)).mean())   # candidate covers background
+    return hole, fill
+
+
 def verdict(g, c, ys, xs, box):
     d = (c[ys, xs].astype(np.int32) - g[ys, xs])
     mean = d.mean(axis=0)
@@ -192,6 +212,7 @@ def verdict(g, c, ys, xs, box):
     ef = edge_frac(g, ys, xs)
     bias, spread = content_frac(g, c, ys, xs)
     sky = sky_alignment(g, c, ys, xs)
+    hole, fill = sky_coverage(g, c, ys, xs)
     facts = {
         "mean_delta": [round(float(v), 2) for v in mean],
         "sigma": [round(float(v), 1) for v in sigma],
@@ -204,6 +225,8 @@ def verdict(g, c, ys, xs, box):
         "bias": round(bias, 2),
         "bias_sigma": round(spread, 1),
         "sky_align": round(sky, 3),
+        "sky_hole_frac": round(hole, 3),
+        "sky_fill_frac": round(fill, 3),
     }
     biased = np.abs(mean).max() > 0.6 * sigma.max() and np.abs(mean).max() > 3
     local = (box[2] - box[0] + 1) * (box[3] - box[1] + 1) < 0.05 * g.shape[0] * g.shape[1]
@@ -212,14 +235,18 @@ def verdict(g, c, ys, xs, box):
         # the minified-surface texel-row family, not a camera misregistration.
         cause = ("texel-selection" if local and max(abs(bdy), abs(bdx)) <= 1
                  and sel_tol > 0.55 else "registration")
-    elif sel > 0.55 and not biased:
+    elif (sel > 0.55 or sel_tol > 0.75) and not biased:
+        # sel_tol carries the real surfaces: a swapped texel usually also has a
+        # small per-row light/fog difference on top, so exact equality misses it.
         cause = "texel-selection"
     elif biased and sigma.max() < 12:
         cause = "shading-offset"
+    elif max(hole, fill) > 0.15 and abs(sky) > 0.9:
+        # Ahead of "content" on purpose: a cutout leak IS a content difference,
+        # and naming the surface type is the more useful answer.
+        cause = "cutout-sky+" if hole >= fill else "cutout-sky-"
     elif abs(bias) > 40 and spread > 25:
         cause = "content"
-    elif abs(sky) > 0.9 and sel < 0.55 and np.abs(mean).max() > 6:
-        cause = "cutout-sky+" if sky > 0 else "cutout-sky-"
     elif ef > 0.6:
         cause = "edge"
     else:
@@ -325,11 +352,29 @@ def selftest():
     # content: a solid block only one side draws
     con = base.copy()
     con[40:80, 40:90] = 250
-    cases = [("texel-selection", tex), ("shading-offset", sha),
-             ("registration", reg), ("content", con)]
+    # texel swap PLUS a small light difference on top: exact match fails, the
+    # tolerant one must still catch it. This is the shape of every real
+    # minified surface in the tapes.
+    texn = tex.copy()
+    texn[ys, xs] = np.clip(texn[ys, xs] + 2, 0, 255)
+    # a genuine cutout hole: candidate shows sky where golden shows leaf
+    cut = base.copy()
+    cut[:8] = [140, 180, 255]
+    # 60 percent density so the holes percolate into one component above
+    # MIN_CLUSTER; scattered single texels are per-pixel noise by policy.
+    hy, hx = np.nonzero(rng.random((120, 160)) < 0.6)
+    sel_h = (hy > 50) & (hy < 90) & (hx > 30) & (hx < 120)
+    cut[hy[sel_h], hx[sel_h]] = [140, 180, 255]
+    basec = base.copy()
+    basec[:8] = [140, 180, 255]
+    cases = [("texel-selection", tex), ("texel-selection", texn),
+             ("shading-offset", sha), ("registration", reg),
+             ("content", con)]
     ok = True
-    for want, cand in cases:
-        cl = cluster_list(base, cand, pg.DIFF_THRESH, pg.MIN_CLUSTER)
+    for want, cand in cases + [("cutout-sky+", None)]:
+        ref = base if cand is not None else basec
+        cand = cut if cand is None else cand
+        cl = cluster_list(ref, cand, pg.DIFF_THRESH, pg.MIN_CLUSTER)
         got = cl[0]["cause"] if cl else "no-cluster"
         flag = "ok " if got == want else "FAIL"
         if got != want:
