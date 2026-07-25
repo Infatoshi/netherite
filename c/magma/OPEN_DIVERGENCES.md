@@ -176,7 +176,11 @@ independently re-measured here.
   mean 3.43 (partial, no principle); every V bias worsens both metrics. No
   sampling-operator change gets unex→0 without a nightly regression - do not
   fudge MAGMA_TEXEL_BIAS. Residual is UV phase at pixel centres (wrong side of
-  texel boundaries on the oblique top faces), not floor-vs-round.
+  texel boundaries on the oblique top faces), not floor-vs-round. Checked
+  separately: `raster_cpu.c` already samples at `(px+0.5f, py+0.5f)`, so the
+  other cheap phase suspect - rasterising at the pixel corner - is ruled out
+  too. What is left to test is the quad's world position / perspective-correct
+  UV precision on grazing top faces, which is a different investigation.
 - `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
   1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
   rendered at the wrong spatial frequency - coarse block-scale flats where the
