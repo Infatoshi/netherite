@@ -121,3 +121,12 @@ Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).
 - Goldens from **real MC only**; C bit-match needs `-ffp-contract=off`.
 - Private remote only when oracle-src is present (decompiled Mojang source).
 - No emojis, no em dashes. Minimal diffs. Verify before claiming done.
+- A replay that reports `magma_game failed (rc=-11)` and then
+  `EOFError: No data left in file` is a **SIGSEGV in the first captured frame**,
+  and the first thing to try is `make -C c/magma clean && make -C c/magma`. Seen
+  2026-07-25: an incremental build in the main tree produced a binary that
+  faulted inside `getenv` at the top of `gm_world_mesh_view` (a corrupted
+  `environ`, i.e. heap damage). The same commit built clean in a worktree, every
+  generated `assets/*.h` was byte-identical, and an ASAN build reported nothing;
+  only the incremental objects were bad. Do not go hunting for a source bug
+  before you have reproduced it from a clean build.

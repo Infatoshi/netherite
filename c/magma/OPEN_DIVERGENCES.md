@@ -205,9 +205,46 @@ independently re-measured here.
   (t=360/440/480/500) are gone, and what is left in the newly measured region
   is t=520 (near-field pit floor, same dirt palette in a different projection -
   the golden's floor texels streak, magma's stay square, everything outside the
-  pit matches to 0.1 percent) and t=2440 / t=2860 (the golden draws a transient
-  brown object at the frame's bottom-right corner that magma does not; gone
-  again by t=2460, and not the hand). Both are under investigation.
+  pit matches to 0.1 percent) and t=2440 / t=2860.
+  t=2440 IS the hand, and an earlier revision of this entry said it was not.
+  The transient brown object in the bottom-right corner is the oracle's held
+  wooden shovel. `capture.hand_from_tick` (2440 here, carried to
+  `frame_capture.c` as `MAGMA_HAND_FROM_TICK`) turns magma's hand back on from
+  that tick: t=2440 goes 3.167 -> 0.969 per channel whole-frame and stops
+  failing (`c4b7f00`), and at t=2860 both sides now draw the same shovel.
+  **What that tick actually means** is not what `c4b7f00` claimed. It is not
+  the tick where the oracle's viewmodel returns - the oracle draws a viewmodel
+  through the whole tape. It is the first golden at which MAGMA's held item is
+  finally known to be right. The tape rows carry no `inv` field at all; the
+  only inventory magma ever receives is two `set_inventory` rows in
+  `<tape>.worldpatch.jsonl`, at t=2274 (item 58, crafting table) and t=2320
+  (item 269, wooden shovel, slot 6). Before t=2320 magma holds nothing and can
+  only draw a bare arm, which is wrong wherever the oracle holds something; the
+  first golden after the re-anchor is t=2440. So the hand window is a property
+  of the sidecar, not of the oracle, and it moves if the sidecar is extended.
+  **t=1140..1220 is that same gap, seen directly.** The golden draws a large
+  brown blocky held object filling the lower-right corner (17969 px at t=1180,
+  `mean_delta [-85.49, -29.37, 105.65]`: magma is bluer because it draws the
+  water behind it); magma draws nothing there because its inventory is empty
+  until t=2320. Proof that it is a viewmodel and not terrain: the object is
+  pixel-identical in position, silhouette and shading at t=1140 and t=1220
+  while the water behind it changes completely, across a 60 degree yaw sweep
+  and four blocks of travel. Nothing in the world survives that.
+  **A discriminator that reads backwards, so do not reuse it:** the fraction of
+  that box holding wood/skin colour is constant to three decimals (0.747 /
+  0.748 / 0.747 / 0.747 / 0.747) over t=1140..1220 and swings wildly (0.089 /
+  0.000 / 0.000 / 0.436 / 0.005) over the confirmed hand window t=2440..2520.
+  Constancy looked like bulk terrain and it is the opposite: a held BLOCK is
+  static and fills the corner, a held shovel is small and its thin silhouette
+  moves with the camera. Compare the two frames at 2x and look, rather than
+  scoring a colour fraction.
+  **A gate hole this exposed:** `hide_gui`/`hide_hand` drop the POSITIONAL
+  viewmodel barrier, but `pixel_gate` also has a post-hoc semantic `viewmodel`
+  class ("held-item region: lower-right, touching a frame edge") with a 40000 px
+  budget, and it still absorbs whatever lands there - those 17969 px at t=1180
+  are classed `viewmodel` and never counted. So un-masking the quadrant did not
+  actually put that region under measurement on frames where the heuristic
+  fires. The class needs to honour `hide_hand`.
   **A wrong reading to not repeat:** the t=1800..1960 window first looked like
   a missing first-person held item - the oracle shows a dark held log and
   magma appeared to show none. It is not. Golden/candidate over that window is
@@ -350,6 +387,32 @@ The tape's exit code is still 3 (its long-standing pixel FAIL short-circuits
 before the state check), so the run now prints an explicit
 `[gate] NOTE: inventory state ALSO failed` and `gate_baseline_diff.py`
 compares the state block.
+
+### The world diverges from the oracle's on the canonical tape
+
+`20260712T055346Z` reports `world nearby_hash` deltas on **96 of its 157**
+sampled ticks. The hashes agree through t=300 and separate from t=400 onward,
+which is where the mission starts digging. Block state is not compared by the
+replay gate (only physics, inventory and pixels), so this has been sitting
+under the pixel numbers rather than being reported as itself.
+
+It accounts for the tape's worst remaining frames, t=2840..2900: 47846-48202
+px, `mean_delta [-41.69, -39.60, -38.63]`, an achromatic ~40-level darkening
+over a third of the frame. Side by side at 2x it is block content, not shading:
+both sides are in the same mined tunnel and draw the same held shovel, but
+magma has a large flat near face filling the left of the view where the golden
+sees a lit tunnel receding. One side has a block the other does not. The player
+holds `atk=1` continuously through that stretch. The gate classes both frames
+as `particles` and only flags them because they blow the 40000 px class budget;
+an achromatic darkening over a third of the frame is not particles, so the
+class is wrong even though the failure is real.
+
+The cause is the recorder, not magma's simulation: dig progress depends on the
+held tool and on GUI/inventory interactions that tapes do not record (see the
+recorder blocker and the `worldpatch.jsonl` re-anchor above), so magma's dig
+timing drifts from the oracle's and the two worlds part company. Chasing these
+frames as rendering bugs is wasted effort until either the world is re-anchored
+or the tape is re-recorded with block edits taped.
 
 ### Inventory gate coverage is still uneven
 

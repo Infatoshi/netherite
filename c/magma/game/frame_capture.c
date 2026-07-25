@@ -565,18 +565,24 @@ static int hud_hidden(void) {
     return s && *s && *s != '0';
 }
 
-/* ...but the viewmodel comes BACK partway through 20260712T055346Z while the
- * overlay never does, so the two cannot share one switch. Measured, not
- * guessed: replaying the whole tape twice, once with the hand and once without,
- * and scoring the lower-right quadrant of every one of the 157 goldens, the
- * hand-off run wins every frame up to t=2420 and the hand-on run wins from
- * t=2440 (at t=2440 itself 8.00/ch vs 1.63/ch, and the golden's held wooden
- * shovel lands on magma's). No golden anywhere in the tape has hearts or a
- * hotbar, so gameSettings.hideGUI is still true at t=2440 and this is not a
- * plain toggle - QuantizedRL re-renders capture frames with hideGUI temporarily
- * cleared (QuantizedRL.java:3240) and never draws the overlay in that pass,
- * which fits, but why the switch happens at that tick is not established. The
- * meta records the measured tick; MAGMA_HAND_FROM_TICK carries it here. */
+/* ...but the hand and the overlay cannot share one switch, because on
+ * 20260712T055346Z the goldens draw a first-person viewmodel while never
+ * drawing an overlay. QuantizedRL re-renders capture frames with hideGUI
+ * temporarily cleared (QuantizedRL.java:3240) and does not draw the overlay in
+ * that pass, which is exactly that shape.
+ * MAGMA_HAND_FROM_TICK is therefore NOT "the tick the oracle's hand comes
+ * back" - the oracle has one throughout. It is the first golden at which OUR
+ * hand is known to be right. That tape's rows carry no inv field at all; the
+ * only inventory magma ever gets is two set_inventory rows in the worldpatch
+ * sidecar, t=2274 (crafting table) and t=2320 (wooden shovel, slot 6). Before
+ * that magma holds nothing and can only draw a bare arm, which is wrong
+ * wherever the oracle holds something - at t=1140..1220 the golden fills the
+ * lower-right corner with a held block magma does not have. The first golden
+ * after the re-anchor is t=2440, and the A/B agrees: replaying the tape twice
+ * and scoring the lower-right quadrant of all 157 goldens, hand-off wins every
+ * frame through t=2420 and hand-on wins from t=2440 (8.00/ch vs 1.63/ch there,
+ * with the golden's shovel landing on magma's). Extend the sidecar and this
+ * tick moves; it is a property of the sidecar, not of the oracle. */
 static int hand_hidden(long long tick) {
     const char *s;
     if (!hud_hidden()) return 0;
