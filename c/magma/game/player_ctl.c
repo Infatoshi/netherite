@@ -335,35 +335,28 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
     a.do_place = 0;
     a.attack   = act.attack;
 
-    /* vanilla sprint state machine */
-    {
-        if (pl->sprint_toggle_timer > 0) pl->sprint_toggle_timer--;
-        int   flag1 = pl->prev_sneak;
-        int   flag2 = pl->prev_move_forward >= 0.8f;
-        float mf = act.sneak ? (float)((double)act.forward * 0.3) : act.forward;
-        int   flag4 = pl->food > 6.0f;
-        if (pl->ent.onGround && !flag1 && !flag2 && mf >= 0.8f && !pl->sprinting && flag4) {
-            if (pl->sprint_toggle_timer <= 0 && !act.sprint)
-                pl->sprint_toggle_timer = 7;
-            else
-                pl->sprinting = 1;
-        }
-        if (!pl->sprinting && mf >= 0.8f && flag4 && act.sprint) pl->sprinting = 1;
-        if (pl->sprinting && (mf < 0.8f || pl->ent.collidedHorizontally || !flag4))
-            pl->sprinting = 0;
-        pl->prev_move_forward = mf;
-        pl->prev_sneak = act.sneak;
-        act.sprint = pl->sprinting;
-    }
-    a.sprint = act.sprint;
-
     /* EntityRenderer.updateFovModifierHand: FOV eases toward the player's
      * fov modifier at 0.5/tick. AbstractClientPlayer.getFovModifier =
      * (movement_speed_attr / walk_speed + 1) / 2; the sprint attribute
      * modifier (+30% multiply_total) makes that 1.15 while sprinting, 1.0
      * otherwise (no speed potions / creative flight / bow draw simulated).
-     * Sprint-into-a-wall oscillates the flag via collidedHorizontally above,
-     * which is exactly the vanilla FOV pumping artifact. */
+     * Sprint-into-a-wall oscillates the flag via collidedHorizontally below,
+     * which is exactly the vanilla FOV pumping artifact.
+     *
+     * This runs BEFORE the sprint state machine, and the order is the point.
+     * Minecraft.runTick calls entityRenderer.updateRenderer() at
+     * Minecraft.java:1862 (-> updateFovModifierHand, EntityRenderer.java:296)
+     * and world.updateEntities() at Minecraft.java:1881, so the FOV eased on
+     * tick N sees the sprint flag left by tick N-1. Easing it after the
+     * transition instead put magma one tick ahead: at t=260 of
+     * 20260721T215812Z that is 1.1453125 (80.171875 deg) against vanilla's
+     * 1.140625 (79.84375 deg). A third of a degree of FOV is invisible as
+     * shading and decisive as sampling - it moves every pixel centre across
+     * the frame, so on oblique faces it lands on the wrong side of a texel
+     * boundary and the face fills with a shuffled version of the right
+     * palette. That is the "texel-selection" residual, and it was NOT a
+     * sampling rule, UV interpolation, FaceBakery baking or attribute
+     * precision bug; see OPEN_DIVERGENCES for what each of those measured. */
     {
         float target = pl->sprinting ? 1.15f : 1.0f;
         /* getFovModifier bow branch: while the bow is drawn, the world FOV
@@ -387,6 +380,29 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
         if (s_fov_hand > 1.5f) s_fov_hand = 1.5f;
         if (s_fov_hand < 0.1f) s_fov_hand = 0.1f;
     }
+
+    /* vanilla sprint state machine (EntityPlayerSP.onLivingUpdate, inside
+     * world.updateEntities and so after the FOV ease above) */
+    {
+        if (pl->sprint_toggle_timer > 0) pl->sprint_toggle_timer--;
+        int   flag1 = pl->prev_sneak;
+        int   flag2 = pl->prev_move_forward >= 0.8f;
+        float mf = act.sneak ? (float)((double)act.forward * 0.3) : act.forward;
+        int   flag4 = pl->food > 6.0f;
+        if (pl->ent.onGround && !flag1 && !flag2 && mf >= 0.8f && !pl->sprinting && flag4) {
+            if (pl->sprint_toggle_timer <= 0 && !act.sprint)
+                pl->sprint_toggle_timer = 7;
+            else
+                pl->sprinting = 1;
+        }
+        if (!pl->sprinting && mf >= 0.8f && flag4 && act.sprint) pl->sprinting = 1;
+        if (pl->sprinting && (mf < 0.8f || pl->ent.collidedHorizontally || !flag4))
+            pl->sprinting = 0;
+        pl->prev_move_forward = mf;
+        pl->prev_sneak = act.sneak;
+        act.sprint = pl->sprinting;
+    }
+    a.sprint = act.sprint;
 
     int    was_air    = !pl->ent.onGround;
     double prev_min_y =  pl->ent.box.minY;

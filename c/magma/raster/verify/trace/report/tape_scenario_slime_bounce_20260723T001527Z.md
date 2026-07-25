@@ -14,10 +14,10 @@
 
 | class | frames | px | max cluster |
 |---|---|---|---|
-| UNEXPLAINED | 10 | 6839 | 386 |
-| hud | 22 | 464583 | 40733 |
-| particles | 38 | 346478 | 25111 |
-| viewmodel | 27 | 297827 | 21207 |
+| UNEXPLAINED | 9 | 6709 | 386 |
+| hud | 21 | 461531 | 40733 |
+| particles | 38 | 346475 | 25111 |
+| viewmodel | 27 | 297822 | 21208 |
 
 Failed frames (worst first, top 20):
 
@@ -30,7 +30,6 @@ Failed frames (worst first, top 20):
 - t=110: 744 unexplained px, clusters [{'px': 54, 'cls': 'UNEXPLAINED', 'bbox': [244, 347, 247, 394]}, {'px': 115, 'cls': 'UNEXPLAINED', 'bbox': [244, 396, 249, 444]}, {'px': 278, 'cls': 'UNEXPLAINED', 'bbox': [245, 143, 251, 310]}, {'px': 297, 'cls': 'UNEXPLAINED', 'bbox': [246, 0, 253, 141]}]
 - t=120: 744 unexplained px, clusters [{'px': 54, 'cls': 'UNEXPLAINED', 'bbox': [244, 347, 247, 394]}, {'px': 115, 'cls': 'UNEXPLAINED', 'bbox': [244, 396, 249, 444]}, {'px': 278, 'cls': 'UNEXPLAINED', 'bbox': [245, 143, 251, 310]}, {'px': 297, 'cls': 'UNEXPLAINED', 'bbox': [246, 0, 253, 141]}]
 - t=130: 744 unexplained px, clusters [{'px': 54, 'cls': 'UNEXPLAINED', 'bbox': [244, 347, 247, 394]}, {'px': 115, 'cls': 'UNEXPLAINED', 'bbox': [244, 396, 249, 444]}, {'px': 278, 'cls': 'UNEXPLAINED', 'bbox': [245, 143, 251, 310]}, {'px': 297, 'cls': 'UNEXPLAINED', 'bbox': [246, 0, 253, 141]}]
-- t=290: 130 unexplained px, clusters [{'px': 66, 'cls': 'UNEXPLAINED', 'bbox': [350, 372, 359, 386]}, {'px': 64, 'cls': 'UNEXPLAINED', 'bbox': [354, 319, 361, 342]}]
 - t=0: 0 unexplained px, clusters []
 - t=40: 0 unexplained px, clusters []
 - t=140: 0 unexplained px, clusters []
@@ -54,7 +53,7 @@ Failed frames (worst first, top 20):
 | 110 | 7.15 | 78.11% | 7.86 |
 | 120 | 7.15 | 78.11% | 7.86 |
 | 130 | 7.15 | 78.11% | 7.86 |
-| 140 | 5.67 | 79.08% | 6.13 |
+| 140 | 5.60 | 79.07% | 6.04 |
 | 150 | 5.33 | 79.07% | 5.61 |
 | 160 | 5.07 | 79.08% | 5.35 |
 | 170 | 4.84 | 79.07% | 5.00 |
@@ -69,8 +68,8 @@ Failed frames (worst first, top 20):
 | 260 | 0.81 | 78.45% | 0.91 |
 | 270 | 0.90 | 78.44% | 1.04 |
 | 280 | 0.79 | 78.25% | 0.84 |
-| 290 | 4.71 | 78.25% | 5.25 |
-| 300 | 0.87 | 76.70% | 0.96 |
+| 290 | 0.79 | 77.49% | 0.86 |
+| 300 | 0.85 | 76.70% | 0.93 |
 | 310 | 0.73 | 76.70% | 0.76 |
 | 320 | 0.73 | 76.70% | 0.76 |
 | 330 | 0.73 | 76.70% | 0.76 |

@@ -22,14 +22,9 @@
    "max_cluster": 13451
   },
   "viewmodel": {
-   "frames": 2,
-   "px": 3862,
-   "max_cluster": 3507
-  },
-  "UNEXPLAINED": {
    "frames": 1,
-   "px": 1226,
-   "max_cluster": 370
+   "px": 3507,
+   "max_cluster": 3507
   },
   "particles": {
    "frames": 1,
