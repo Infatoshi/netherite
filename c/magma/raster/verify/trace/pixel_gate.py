@@ -232,20 +232,32 @@ def _labeled_clusters(mask, o16, c16, w, h, fixed_class=None,
     return out
 
 
-def _positional_accept_masks(h, w):
-    """Bossbar / HUD / viewmodel topology barriers (shared by cluster + mild)."""
+def _positional_accept_masks(h, w, hide_gui=False):
+    """Bossbar / HUD / viewmodel topology barriers (shared by cluster + mild).
+
+    hide_gui drops the HUD barrier entirely. On a tape recorded through Malmo
+    the oracle drew no overlay and magma is told not to either, so the bottom
+    rows are ordinary scene pixels: accepting them positionally would hide a
+    fifth of the frame, and routing them through the normal path lets a filed
+    known-divergence claim them instead of the hud class tripping its budget.
+    """
     bossbar = np.zeros((h, w), dtype=bool)
     bossbar[:BOSSBAR_Y + 1, :] = True
-    hud = np.zeros((h, w), dtype=bool)
-    hud[int(h * HUD_FRAC):, :] = True
+    strip = np.zeros((h, w), dtype=bool)
+    strip[int(h * HUD_FRAC):, :] = True
     viewmodel = np.zeros((h, w), dtype=bool)
     viewmodel[int(h * VIEWMODEL_Y_FRAC) + 1:,
               int(w * VIEWMODEL_X_FRAC) + 1:] = True
-    viewmodel &= ~hud
+    # Carve the strip out of viewmodel in BOTH modes. Its geometry - and so
+    # the CLASS_PIXEL_BUDGETS number calibrated against it - must not change
+    # just because the strip stopped being accepted; growing the viewmodel
+    # region by half would silently re-scale what that budget permits.
+    viewmodel &= ~strip
+    hud = np.zeros((h, w), dtype=bool) if hide_gui else strip
     return bossbar, hud, viewmodel
 
 
-def mild_shift_stats(o16, c16, accept_mask=None):
+def mild_shift_stats(o16, c16, accept_mask=None, hide_gui=False):
     """Per-frame mean / low-threshold residual metric (Java-vs-Java calibratable).
 
     Residual = pixels outside positional acceptances (and optional extra mask).
@@ -253,7 +265,7 @@ def mild_shift_stats(o16, c16, accept_mask=None):
     """
     h, w = o16.shape[:2]
     if accept_mask is None:
-        bossbar, hud, viewmodel = _positional_accept_masks(h, w)
+        bossbar, hud, viewmodel = _positional_accept_masks(h, w, hide_gui)
         accept_mask = bossbar | hud | viewmodel
     residual = ~accept_mask
     n = int(residual.sum())
@@ -290,11 +302,11 @@ def gate_frame(o16, c16, w, h, *, tick=None, known=None):
     return clusters
 
 
-def gate_frame_ex(o16, c16, w, h, *, tick=None, known=None):
+def gate_frame_ex(o16, c16, w, h, *, tick=None, known=None, hide_gui=False):
     """Like gate_frame but also returns mild-shift residual stats."""
     d = np.abs(o16 - c16).max(axis=2)
     mask = d > DIFF_THRESH
-    bossbar, hud, viewmodel = _positional_accept_masks(h, w)
+    bossbar, hud, viewmodel = _positional_accept_masks(h, w, hide_gui)
     accept = bossbar | hud | viewmodel
     entries = _active_known(known, tick)
     # Known acceptances also drop out of the mild residual so filed weather
@@ -307,7 +319,8 @@ def gate_frame_ex(o16, c16, w, h, *, tick=None, known=None):
                 entries, o16, c16, np.ones((h, w), dtype=bool) & ~accept,
                 protected):
             known_accept |= known_mask & ~protected
-    mild = mild_shift_stats(o16, c16, accept_mask=accept | known_accept)
+    mild = mild_shift_stats(o16, c16, accept_mask=accept | known_accept,
+                            hide_gui=hide_gui)
 
     if not mask.any():
         return [], mild

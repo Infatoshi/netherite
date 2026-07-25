@@ -68,6 +68,18 @@ def _tape_frames_dir(tape):
     return os.path.join(HERE, "..", "tapes", tape + "_frames")
 
 
+def tape_hide_gui(tape):
+    """Mirror replay_tape.tape_hide_gui: no HUD was drawn on either side."""
+    if not tape:
+        return False
+    meta = os.path.join(HERE, "..", "tapes", tape + ".meta.json")
+    try:
+        with open(meta) as f:
+            return bool(json.load(f).get("capture", {}).get("hide_gui", False))
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def load_known(tape):
     if not tape:
         return []
@@ -256,7 +268,7 @@ def verdict(g, c, ys, xs, box):
 
 # ------------------------------------------------------------------ core
 
-def cluster_list(g, c, thresh, min_px, known=None, tick=None):
+def cluster_list(g, c, thresh, min_px, known=None, tick=None, hide_gui=False):
     """Label the diff the way the gate does, then name each cluster's cause.
 
     This mirrors pixel_gate.gate_frame_ex's masking order on purpose: positional
@@ -271,7 +283,7 @@ def cluster_list(g, c, thresh, min_px, known=None, tick=None):
     h, w = g.shape[:2]
     d = np.abs(c - g).max(axis=2)
     mask = d > thresh
-    bossbar, hud, viewmodel = pg._positional_accept_masks(h, w)
+    bossbar, hud, viewmodel = pg._positional_accept_masks(h, w, hide_gui)
     accept = bossbar | hud | viewmodel
     entries = pg._active_known(known, tick)
     protected = pg._solid_box_mask(
@@ -427,6 +439,7 @@ def main():
         fr = np.load(os.path.join(out, "magma_frames.npy"), mmap_mode="r")
         tk = np.load(os.path.join(out, "magma_frames.ticks.npy"))
         known = load_known(args.tape)
+        hide_gui = tape_hide_gui(args.tape)
         rows = []
         for i, t in enumerate(tk):
             gp = os.path.join(_tape_frames_dir(args.tape), f"f_{int(t):06d}.png")
@@ -435,7 +448,7 @@ def main():
             g = np.asarray(Image.open(gp).convert("RGB"), dtype=np.int16)
             c = np.asarray(fr[i][..., :3], dtype=np.int16)
             cl = cluster_list(g, c, args.thresh, args.min_px,
-                              known=known, tick=int(t))
+                              known=known, tick=int(t), hide_gui=hide_gui)
             unex = sum(r["px"] for r in cl if r["gate_class"] == "UNEXPLAINED")
             rows.append((int(t), unex, sum(r["px"] for r in cl),
                          float(np.abs(c - g).mean()),
@@ -453,7 +466,8 @@ def main():
 
     g, c, label = load_pair(args)
     clusters = cluster_list(g, c, args.thresh, args.min_px,
-                            known=load_known(args.tape), tick=args.tick)
+                            known=load_known(args.tape), tick=args.tick,
+                            hide_gui=tape_hide_gui(args.tape))
 
     if args.cmd == "clusters":
         if args.json:

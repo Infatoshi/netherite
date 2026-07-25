@@ -1306,6 +1306,9 @@ def main():
                 import pixel_gate as pg
                 from scipy import ndimage as _nd  # noqa: F401
                 known_divergences = pg.load_known_divergences(args.tape)
+                # No overlay was drawn on either side, so the bottom rows are
+                # scene pixels and must not be accepted positionally.
+                gate_hide_gui = tape_hide_gui(args.tape)
             except ImportError as e:
                 raise SystemExit(
                     f"[tape] pixel gate deps missing ({e}); add --with scipy "
@@ -1324,7 +1327,7 @@ def main():
             if gate_on:
                 clusters, mild = pg.gate_frame_ex(
                     o16, c16, args.w, args.h, tick=t,
-                    known=known_divergences)
+                    known=known_divergences, hide_gui=gate_hide_gui)
             else:
                 clusters, mild = None, None
             return t, b8, s, clusters, mild

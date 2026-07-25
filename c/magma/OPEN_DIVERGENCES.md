@@ -186,13 +186,26 @@ independently re-measured here.
   the gate's positional `hud` accept swallowed the whole mismatch - the bottom
   96 rows, 20 percent of the frame, had no pixel verification at all on this
   tape. `capture.hide_gui` + `MAGMA_HIDE_GUI` fixed that (`3dc2d19`) and the
-  uncovered rows immediately failed: 14 -> 19 failed frames, with t=1520
-  closing and **t=1800..1960 now failing as one contiguous window**, 100
-  percent of its unexplained mass below y=384 (t=1960: 80747 px). The oracle
-  draws a held log in first person across that window; magma draws no held
-  item at all, even though its own hotbar (before suppression) showed the log
-  in slot 0. So the inventory is right and the viewmodel path is not - this is
-  a first-person held-block bug, not the crafted-item worldpatch gap. Open.
+  tape. `capture.hide_gui` + `MAGMA_HIDE_GUI` stops magma drawing it
+  (`3dc2d19`), and the gate stops accepting those rows positionally when the
+  tape sets that flag - `_positional_accept_masks(hide_gui=True)` returns an
+  empty HUD barrier while carving the same strip out of `viewmodel`, so the
+  region behind `CLASS_PIXEL_BUDGETS["viewmodel"]` does not silently grow by
+  half. The legacy sidecar regions, all recorder gaps and all scene-global,
+  were widened from y1=383 to y1=479 for the same reason: their old limit was
+  an artifact of the mask, not of the gap.
+  Failed frames go 14 -> 25. That is the price of measuring a fifth of the
+  frame that was never measured before, on all 157 frames; the tape was
+  already failing. The rain window t=1800..2100 now resolves cleanly into
+  `known:12` where before it leaked (t=1800/1940/1960 were failing, now 0
+  unexplained), and the new failures are at t=360..520 and t=1140..1220.
+  **A wrong reading to not repeat:** the t=1800..1960 window first looked like
+  a missing first-person held item - the oracle shows a dark held log and
+  magma appeared to show none. It is not. Golden/candidate over that window is
+  a uniform ~0.45 ratio across the whole frame including the sky (t=1900 whole
+  0.726, sky 0.809, ground 0.696), i.e. the already-filed oracle rain
+  darkening; magma's log is simply drawn at full brightness against grass and
+  reads as absent at a glance. Zoom before concluding.
   The other canonical tape, `20260721T215812Z`, has a HUD on all 181 goldens
   and is unaffected; do not set `capture.hide_gui` on it.
 - `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
