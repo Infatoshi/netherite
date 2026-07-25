@@ -305,17 +305,23 @@ independently re-measured here.
   snapshot rather than an edit log. Recovering WHICH item needs the tape
   re-recorded with the every-20-tick inventory keyframes the recorder now
   emits; recovering the ARM does not.
-  **Still unexplained: t=540..660, where the oracle draws no arm at all.** Those
-  are the only 10 ticks the forced-hand A/B improves, because the player is
-  looking straight down (`pitch` is exactly 90.0 for the whole window) and the
-  golden's lower-right corner is bare terrain. It is terrain and not a held
-  block: the same yaw-sweep test that identifies a viewmodel says the opposite
-  here, with the corner tracking the background almost exactly across the
-  window (corner mean |d| 0.85 / 10.98 / 11.93 at t=620/640/660 against a
-  background control of 0.96 / 15.22 / 14.13). Vanilla's `renderHand` has no
-  pitch gate, so something else suppresses it there; the forced-hand A/B only
-  improves because a pale wedge is closer to the golden's brown terrain than
-  the green grass magma draws with no hand at all. The
+  **t=540..660 is a held DIRT BLOCK, and it is inferable from the tape.** These
+  are the only 10 ticks the forced-hand A/B improves, because magma's pale arm
+  is closer to a brown block than the grass it draws with no hand at all. The
+  player is looking straight down (`pitch` exactly 90.0 across the window) and
+  the corner is filled by a dirt-textured object that is pixel-identical at
+  t=600 / 620 / 660 while the grass at its edges shifts. A whole-corner region
+  test says "terrain" here and is wrong - region `[350:480, 560:854]` tracks the
+  background (mean |d| 0.85 / 10.98 / 11.93 against a control of 0.96 / 15.22 /
+  14.13) only because the viewmodel is a small part of it. The 12x14 patch at
+  the arm's own location is identical to 0.1 across all four ticks. Take the
+  measurement on the object, not on a region that mostly is not the object, and
+  then look at it at 3x.
+  The inputs say the same thing: `atk` at t=560, `use` at t=680, i.e. mine,
+  hold, place. That is the one held-item interval on this tape whose identity is
+  recoverable without re-recording - not from `EntityItem` (no item id) but from
+  the block that was mined, which the tick-1 world snapshot does contain at the
+  position the player was aimed at. Nobody has tried it. The
   goldens over that window also draw the block selection outline, which is
   worth checking against magma separately.
   **A wrong reading to not repeat:** the t=1800..1960 window first looked like
