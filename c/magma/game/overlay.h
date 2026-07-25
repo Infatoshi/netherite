@@ -72,6 +72,15 @@ void gm_overlay_block_in_hand_live(CrFramebuffer *fb, const CrTexture *atlas,
                                    const struct GmWorld *w,
                                    const GmPlayerView *pv);
 
+/* The two halves of the above. A deferred frame must resolve the block while
+ * the world still matches that frame's tick and draw from the snapshot later;
+ * re-sampling the live world at retire time reads a world that has moved on. */
+int gm_overlay_block_in_hand_pick(const struct GmWorld *w,
+                                  const GmPlayerView *pv,
+                                  int *out_id, int *out_meta);
+void gm_overlay_block_in_hand_draw(CrFramebuffer *fb, const CrTexture *atlas,
+                                   int bid, int bmeta);
+
 #ifdef __cplusplus
 }
 #endif

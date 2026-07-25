@@ -87,13 +87,12 @@ static int overlay_particle_sprite(int id, int meta) {
     return CR_SPRITE_STONE;
 }
 
-void gm_overlay_block_in_hand_live(CrFramebuffer *fb, const CrTexture *atlas,
-                                   const struct GmWorld *w,
-                                   const GmPlayerView *pv) {
+int gm_overlay_block_in_hand_pick(const struct GmWorld *w,
+                                  const GmPlayerView *pv,
+                                  int *out_id, int *out_meta) {
     /* ItemRenderer.renderOverlays isEntityInsideOpaqueBlock path: sample the
      * 8 eye-box corners; last causesSuffocation block wins; skip INVISIBLE. */
-    if (!fb || !fb->color || !atlas || !atlas->texels || !w || !pv) return;
-    if (pv->dead) return;
+    if (!w || !pv || pv->dead) return 0;
     const float width = 0.6f;
     int found = 0, bid = 0, bmeta = 0;
     for (int i = 0; i < 8; ++i) {
@@ -114,12 +113,28 @@ void gm_overlay_block_in_hand_live(CrFramebuffer *fb, const CrTexture *atlas,
             bmeta = meta;
         }
     }
-    if (!found) return;
-    if (overlay_render_invisible(bid)) return;
+    if (!found) return 0;
+    if (overlay_render_invisible(bid)) return 0;
+    *out_id = bid;
+    *out_meta = bmeta;
+    return 1;
+}
+
+void gm_overlay_block_in_hand_draw(CrFramebuffer *fb, const CrTexture *atlas,
+                                   int bid, int bmeta) {
+    if (!fb || !fb->color || !atlas || !atlas->texels) return;
     int sprite = overlay_particle_sprite(bid, bmeta);
     float u0, v0, u1, v1;
     bm_sprite_uv(sprite, &u0, &v0, &u1, &v1);
     /* Hand FOV base 70 (getFOVModifier useFOVSetting=false); water scale
      * only applies when eye is in water, which is not causesSuffocation. */
     gm_overlay_block_in_hand(fb, atlas, u0, v0, u1, v1, 70.0f);
+}
+
+void gm_overlay_block_in_hand_live(CrFramebuffer *fb, const CrTexture *atlas,
+                                   const struct GmWorld *w,
+                                   const GmPlayerView *pv) {
+    int bid, bmeta;
+    if (gm_overlay_block_in_hand_pick(w, pv, &bid, &bmeta))
+        gm_overlay_block_in_hand_draw(fb, atlas, bid, bmeta);
 }
