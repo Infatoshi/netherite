@@ -45,6 +45,7 @@ struct CrWorldMC {
 #define CR_CB_WEB 230
 #define CR_CB_COBBLESTONE_WALL 233
 #define CR_CB_GRASS 3
+#define CR_CB_SLIME 229
 /* weighted-variant cubes (ids from assets/blockmodels.c) */
 #define CR_CB_STONE 1
 #define CR_CB_DIRT 4
@@ -1749,6 +1750,37 @@ static int mesh_body(CrWorldMC *w, int ccx, int ccz, CrChunkMeshMC *out, int *ca
                     if (smooth_light_enabled() && light_dimension(L) == 0)
                         apply_smooth_fullcube_face(L, wx, wy, wz, f, quad);
 
+                    /* models/block/slime.json element 0 before element 1:
+                     * from [3,3,3] to [13,13,13], uv [3,3,13,13] every face,
+                     * no cullface (generalQuads). Core first so SRC_ALPHA stacks
+                     * under the outer shell (opacity 1-(1-a)^2, a~0.74 from
+                     * slime.png). Real 3/16 inset, not a coplanar re-emit.
+                     * BmBlock is single-box; dual-element geometry lives here
+                     * like grass_side_overlay. Outer still uses BlockBreakable
+                     * same-slime cull (ignoreSimilarity=false). */
+                    if (cb == CR_CB_SLIME) {
+                        static const float SLIME_CORE_FROM[3] = { 3.0f, 3.0f, 3.0f };
+                        static const float SLIME_CORE_TO[3]   = { 13.0f, 13.0f, 13.0f };
+                        static const float SLIME_CORE_UV[4]   = { 3.0f, 3.0f, 13.0f, 13.0f };
+                        CrVertex iq[4];
+                        bake_face_custom(wx, wy, wz, SLIME_CORE_FROM,
+                                         SLIME_CORE_TO, g, SLIME_CORE_UV, 0,
+                                         0, 3, 0.0f, NULL, 0,
+                                         m->face[g].sprite, vlight, 1.0f,
+                                         tint, iq);
+                        if (v_on) {
+                            if (v_qx) rotate_quad_x(iq, wy, wz, v_qx);
+                            if (v_qy) rotate_quad_y(iq, wx, wz, v_qy);
+                        }
+                        for (int c = 0; c < 4; ++c) {
+                            iq[c].light = quad[c].light;
+                            iq[c].blk   = quad[c].blk;
+                            iq[c].ao    = quad[c].ao;
+                            iq[c].tint  = tint;
+                        }
+                        push_face(out, cap, m->layer, iq);
+                    }
+
                     push_face(out, cap, m->layer, quad);
 
                     /* Vanilla block/grass.json has a SECOND element on the four
@@ -1777,6 +1809,7 @@ static int mesh_body(CrWorldMC *w, int ccx, int ccz, CrChunkMeshMC *out, int *ca
                         push_face(out, cap, CR_LAYER_CUTOUT_MIPPED, oq);
                     }
                 }
+
             }
         }
     }

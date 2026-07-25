@@ -277,6 +277,11 @@ static const BmBlock g_blocks[CBX_MAX] = {
     /* ---- nether / end / portal (vanilla dumpblocks mapped into CBX_*) ---- */
     [CBX_NETHERRACK] = CUBE6(CR_SPRITE_NETHERRACK, BM_TINT_NONE),
     [CBX_NETHER_BRICK] = CUBE6(CR_SPRITE_NETHER_BRICK, BM_TINT_NONE),
+    /* BlockSlime.getBlockLayer = TRANSLUCENT. Verified models/block/slime.json
+     * (no cullface on either element):
+     *   0: from [3,3,3] to [13,13,13], uv [3,3,13,13] all 6 faces
+     *   1: from [0,0,0] to [16,16,16], uv [0,0,16,16] all 6 faces
+     * mesh_mc emits both in that order (BmBlock is single-box). */
     [CBX_SLIME] = { 0, 1, CR_LAYER_TRANSLUCENT, BM_KIND_CUBE,
                     FULL6(CR_SPRITE_SLIME, BM_TINT_NONE) },
     [CBX_WEB] = CROSS1(CR_SPRITE_WEB, BM_TINT_NONE),
