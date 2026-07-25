@@ -97,6 +97,32 @@ These have useful capture-integrity checks but no pixel-perfect product claim:
 - Rain/overcast rendering is not modeled for the canonical rain window.
 - High-altitude and long-distance haze are weaker than Java.
 
+### Canonical tape residual unexplained clusters
+
+The dominant early-tape failure (all CUTOUT geometry discarded: tallgrass,
+cross plants, grass_side_overlay) was a misaligned positional `CrShadeCtx`
+initializer and is **fixed** - see DEVLOG 2026-07-25. What remains on
+`20260721T215812Z_fast_s0_survival_default_rd8_77b5b462`:
+
+- Pixel gate still FAIL, but 7 failed frames (was 58), worst t=260 with
+  7291 unexplained px (was t=80 / 74783). UNEXPLAINED total 122_581 px over
+  63 frames (was 1_540_406 over 67).
+- t=260 and t=460 hold the two big residual clusters (~3k and ~0.8k px,
+  lower-left / upper-left FOV); cause not yet attributed.
+- t=3180/3200/3220 clusters soak from `viewmodel` (hand/item residual), a
+  separate open item under "First-person hand use poses".
+- Residual whole-frame mean at t=80 is 3.76/ch, all outdoor terrain: grass
+  tint / AO / luminance (the `known:4` class), not geometry.
+
+Repro:
+
+```bash
+uv run --no-project --with numpy --with scipy --with pillow --with nbt \
+  python c/magma/raster/verify/trace/replay_tape.py \
+  c/magma/raster/verify/tapes/20260721T215812Z_fast_s0_survival_default_rd8_77b5b462.jsonl \
+  --cpu --report
+```
+
 ### Remaining isolated render features
 
 - One-frame loading sky after a dimension transfer.

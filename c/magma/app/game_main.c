@@ -108,11 +108,20 @@ static int render_world(CrFramebuffer *fb, const CrCamera *cam, const GmMeshView
     int    fon = gm_terrain_fog_enabled();
     CrRgba fog = gm_terrain_fog_color(time_of_day);
     const float fst = GM_TERRAIN_FOG_START, fen = GM_TERRAIN_FOG_END;
-    CrShadeCtx sh_solid = { atlas, fog, fst, fen, 0, fon, CR_LAYER_SOLID,         0, 0, 0.f };
-    CrShadeCtx sh_cmip  = { atlas, fog, fst, fen, 1, fon, CR_LAYER_CUTOUT_MIPPED, 0, 0, 0.f }; /* mips off: oracle profiles pin mipmapLevels:0 */
+    /* Designated, NOT positional - see terrain_shades() in frame_capture.c:
+     * the old positional forms predate CrShadeCtx.alpha_ref and shifted the
+     * fog flag into alpha_ref, killing every CUTOUT texel. */
+#define TSH(at, ly, bl) { .atlas = atlas, .fog_color = fog,                  \
+                          .fog_start = fst, .fog_end = fen,                  \
+                          .alpha_test = (at), .enable_fog = fon,             \
+                          .layer = (ly), .blend = (bl) }
+    CrShadeCtx sh_solid = TSH(0, CR_LAYER_SOLID,         0);
+    /* mips off: oracle profiles pin mipmapLevels:0 */
+    CrShadeCtx sh_cmip  = TSH(1, CR_LAYER_CUTOUT_MIPPED, 0);
     sh_cmip.depth_lequal = 1;  /* coplanar grass_side_overlay (GL_LEQUAL) */
-    CrShadeCtx sh_cut   = { atlas, fog, fst, fen, 1, fon, CR_LAYER_CUTOUT,        0, 0, 0.f };
-    CrShadeCtx sh_trans = { atlas, fog, fst, fen, 0, fon, CR_LAYER_TRANSLUCENT,   1, 0, 0.f };
+    CrShadeCtx sh_cut   = TSH(1, CR_LAYER_CUTOUT,        0);
+    CrShadeCtx sh_trans = TSH(0, CR_LAYER_TRANSLUCENT,   1);
+#undef TSH
     if (uw && uw->fluid) {
         /* setupFog fluid branch: GL_EXP over every terrain layer. */
         CrShadeCtx *all[4] = { &sh_solid, &sh_cmip, &sh_cut, &sh_trans };

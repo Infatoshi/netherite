@@ -409,3 +409,36 @@ D-states in drm_open (kill -9 immune; D-state PIDs 1288651 Xvfb :1,
   repository-wide Ruff command remains red on 515 legacy findings; its 199
   unrelated auto-fixes were reverted, and no Ruff edits outside the touched
   verifier files were retained.
+
+## 2026-07-25 (CrShadeCtx positional-init misalignment: all CUTOUT geometry was discarded)
+
+- Root cause: `terrain_shades()` (`c/magma/game/frame_capture.c`) and
+  `render_world()` (`c/magma/app/game_main.c`) built their four per-layer
+  `CrShadeCtx` values with positional initializers written before
+  `CrShadeCtx.alpha_ref` was inserted (commit `3819bcf`). Every value from
+  slot 6 on shifted by one: the fog-enable flag landed in `alpha_ref`, the
+  layer enum in `enable_fog`, and `blend` in `layer`. With fog on (the
+  default) `alpha_ref=1.0` gives an alpha threshold of 255, so
+  `cr_shade` discarded *every* CUTOUT and CUTOUT_MIPPED texel - all cross
+  plants, tallgrass and grass_side_overlay - and translucent water rendered
+  with blend=0 (opaque, depth-writing). `-Wextra` only flagged the missing
+  trailing `mip_bias`, never the misalignment.
+- Fix: both sites now use designated initializers, so a future field insert
+  cannot repeat this. No other change.
+- Effect on the canonical tape
+  `20260721T215812Z_fast_s0_survival_default_rd8_77b5b462` (CPU replay,
+  181 frames), before -> after: UNEXPLAINED 1_540_406 px / 67 frames ->
+  122_581 px / 63 frames; failed frames 58 -> 7; worst frame t=80 with
+  74_783 px -> t=260 with 7_291 px; viewmodel 1_199_958 -> 256_366;
+  particles 580_964 -> 181_116; hud 313_882 -> 163_264; bossbar 159_110 ->
+  57_319; known:14 109_693 -> 98_557. Whole-frame mean at t=80 3.76/ch, and
+  the oracle/magma side-by-side now shows the same tallgrass field.
+  Physics stayed clean; `make test-game` PASS (27 suites).
+- Still open: t=260 / t=460 residual clusters, the viewmodel soak at
+  t=3180-3220, and the outdoor `known:4` tint/AO residual. Same misaligned
+  pattern survives in `app/trace_main.c` and the `raster/verify/*_candidate.c`
+  fixtures; those run with fog off so alpha is unaffected, but their layer
+  and blend slots are equally shifted and their goldens are pinned to it.
+- Pre-existing, unrelated: `make game-cuda` fails to link
+  (`cr_camera_view` defined in both `core/math.o` and
+  `cuda/raster_cuda_sm86.o`), so this round was measured on the CPU path.

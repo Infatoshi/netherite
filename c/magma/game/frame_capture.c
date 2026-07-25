@@ -242,12 +242,22 @@ static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
      * boundaries and average colors on minified faces the oracle samples at
      * level 0. The vanilla layer NAME only selects alpha handling; the
      * sampler state follows mipmapLevels. */
+    /* Designated, NOT positional: these four predate CrShadeCtx.alpha_ref
+     * (added in 3819bcf) and the positional forms silently shifted every
+     * value from slot 6 on - fog flag into alpha_ref (=1.0 -> threshold 255
+     * -> every CUTOUT texel discarded), layer into enable_fog, blend into
+     * layer. Keep designated so the next field insert cannot repeat it. */
+#define TSH(at, ly, bl) { .atlas = atlas, .fog_color = fog,                  \
+                          .fog_start = fog_start, .fog_end = fog_end,        \
+                          .alpha_test = (at), .enable_fog = enabled,         \
+                          .layer = (ly), .blend = (bl) }
     CrShadeCtx s[4] = {
-        {atlas,fog,fog_start,fog_end,0,enabled,CR_LAYER_SOLID,0,0,0.f},
-        {atlas,fog,fog_start,fog_end,1,enabled,CR_LAYER_CUTOUT_MIPPED,0,0,0.f},
-        {atlas,fog,fog_start,fog_end,1,enabled,CR_LAYER_CUTOUT,0,0,0.f},
-        {atlas,fog,fog_start,fog_end,0,enabled,CR_LAYER_TRANSLUCENT,1,0,0.f},
+        TSH(0, CR_LAYER_SOLID,         0),
+        TSH(1, CR_LAYER_CUTOUT_MIPPED, 0),
+        TSH(1, CR_LAYER_CUTOUT,        0),
+        TSH(0, CR_LAYER_TRANSLUCENT,   1),
     };
+#undef TSH
     for (int i = 0; i < 4; ++i) { shade[i] = s[i]; shade[i].lightmap = lm; }
     /* grass_side_overlay quads are coplanar with their SOLID base faces. */
     shade[CR_LAYER_CUTOUT_MIPPED].depth_lequal = 1;
