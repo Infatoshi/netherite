@@ -204,25 +204,52 @@ static CR_HD CrVec3 mc_view_fog_color(CrVec3 sky, CrVec3 provider_fog) {
 }
 
 /* RenderGlobal.renderSky first draws glSkyList, a tiled flat plane at y=+16 in
- * eye-relative world space, with vertex color world.getSkyColor. setupFog(-1) has
- * GL_LINEAR fog start=0 and end=farPlaneDistance (renderDistanceChunks*16), with
- * updateFogColor's color as the fog target. For a normalized view ray d, the plane
- * hit distance is t = plane_y / d.y when t > 0. GL linear fog then yields:
- *   fogFactor = clamp((end - t) / end, 0, 1)
- *   out = fogColor * (1 - fogFactor) + vertexColor * fogFactor
- * The under-horizon glSkyList2 uses the same geometry at y=-16 and black vertices,
- * but RenderGlobal only draws it when eyeY < world.getHorizon(). The verify goldens
- * are aerial captures above the horizon, and gm_sky_ray_color has no eye-height
- * parameter, so downward rays in this path remain at the clear/fog color. */
+ * FEET-relative space (generateSky / renderSky(posY=16), tiles of size 64 from
+ * -384..384), with vertex color world.getSkyColor. EntityRenderer.orientCamera
+ * then applies
+ *   GlStateManager.translate(0.0F, -entity.getEyeHeight(), 0.0F)
+ * before the sky draw, so the plane sits at y = 16 - eyeHeight in the
+ * camera-centered frame (standing 1.62 -> 14.38). setupFog(-1) has GL_LINEAR
+ * fog start=0 and end=farPlaneDistance (renderDistanceChunks*16).
+ *
+ * Fixed-function GL fog is evaluated PER VERTEX on those 64x64 tiles, then
+ * Gouraud-interpolated across the fragment. Per-pixel ray fog (t = plane_y/d.y)
+ * is close at the horizon but too bright at the zenith: tile corners are farther
+ * than the centre hit, so vertex fog darkens the disc. We reproduce the vertex
+ * path: hit the plane, bilinear-sample the four surrounding tile corners.
+ *
+ * The under-horizon glSkyList2 uses y=-16 and black vertices, but RenderGlobal
+ * only draws it when eyeY < world.getHorizon(). Downward rays remain clear/fog. */
+#define SKY_TILE 64.0f
+static CR_HD CrVec3 mc_sky_corner_fog(CrVec3 vertex_color, CrVec3 fog_color,
+                                      float cx, float plane_y, float cz) {
+    float dist = sqrtf(cx * cx + plane_y * plane_y + cz * cz);
+    float fog_factor = clamp01((SKY_FOG_END - dist) / SKY_FOG_END);
+    return v3mix(fog_color, vertex_color, fog_factor);
+}
 static CR_HD CrVec3 mc_sky_plane_fog(CrVec3 vertex_color, CrVec3 fog_color,
-                                     float dir_y, float plane_y) {
+                                     CrVec3 dir, float plane_y) {
+    float dir_y = dir.y;
     if ((plane_y > 0.0f && dir_y <= 0.0f) || (plane_y < 0.0f && dir_y >= 0.0f)) {
         return fog_color;
     }
     float t = plane_y / dir_y;
     if (t <= 0.0f) return fog_color;
-    float fog_factor = clamp01((SKY_FOG_END - t) / SKY_FOG_END);
-    return v3mix(fog_color, vertex_color, fog_factor);
+    /* Hit in the camera-centred frame (origin at the eye, Y up). */
+    float px = dir.x * t;
+    float pz = dir.z * t;
+    float tx0 = floorf(px / SKY_TILE) * SKY_TILE;
+    float tz0 = floorf(pz / SKY_TILE) * SKY_TILE;
+    float fx = (px - tx0) / SKY_TILE;
+    float fz = (pz - tz0) / SKY_TILE;
+    CrVec3 c00 = mc_sky_corner_fog(vertex_color, fog_color, tx0, plane_y, tz0);
+    CrVec3 c10 = mc_sky_corner_fog(vertex_color, fog_color, tx0 + SKY_TILE, plane_y, tz0);
+    CrVec3 c01 = mc_sky_corner_fog(vertex_color, fog_color, tx0, plane_y, tz0 + SKY_TILE);
+    CrVec3 c11 = mc_sky_corner_fog(vertex_color, fog_color, tx0 + SKY_TILE, plane_y,
+                                   tz0 + SKY_TILE);
+    CrVec3 c0 = v3mix(c00, c10, fx);
+    CrVec3 c1 = v3mix(c01, c11, fx);
+    return v3mix(c0, c1, fz);
 }
 
 /* WorldProvider.calcSunriseSunsetColors. Returns 1 if a glow is active (fills rgba). */
@@ -255,6 +282,8 @@ static CrVec3 g_fluid_fog_col;
 static float  g_fluid_fog_density = 0.0f;
 /* updateFogColor f13: light-at-feet fog brightness smoother (fogColor1). */
 static float  g_fog_c1 = 1.0f;
+/* Entity.getEyeHeight for orientCamera's -eyeHeight translate (default standing). */
+static float  g_eye_height = 1.62f;
 #endif
 
 void gm_sky_set_fluid_fog(int on, CrVec3 fog01, float density) {
@@ -272,6 +301,15 @@ void gm_sky_set_fog_c1(float fog_c1) {
     g_fog_c1 = fog_c1 < 0.0f ? 0.0f : (fog_c1 > 1.0f ? 1.0f : fog_c1);
 #else
     (void)fog_c1;
+#endif
+}
+
+void gm_sky_set_eye_height(float eye_height) {
+#if !defined(__CUDA_ARCH__)
+    /* Match Entity.getEyeHeight floor: ignore non-positive (keeps last/default). */
+    if (eye_height > 0.01f) g_eye_height = eye_height;
+#else
+    (void)eye_height;
 #endif
 }
 
@@ -313,12 +351,16 @@ static CR_HD GmSkyCtx gm_sky_ctx(float time_of_day) {
     c.uw = 0;
     c.uw_fog = v3(0.0f, 0.0f, 0.0f);
     c.uw_density = 0.0f;
+    /* orientCamera: plane at y=+16 feet-relative, then translate(0,-eyeH,0).
+     * Device path without host state keeps the standing default 1.62. */
+    c.plane_y = 16.0f - 1.62f;
 #if !defined(__CUDA_ARCH__)
     /* host frame state (gm_sky_set_fluid_fog); the CUDA kernel gets the ctx
      * pre-built on the host, so device-compiled copies keep uw = 0. */
     c.uw = g_fluid_fog_on;
     c.uw_fog = g_fluid_fog_col;
     c.uw_density = g_fluid_fog_density;
+    c.plane_y = 16.0f - g_eye_height;
 #endif
     return c;
 }
@@ -329,14 +371,14 @@ static CR_HD CrRgba gm_sky_ray_color_ctx(const GmSkyCtx *sc, CrVec3 dir_in) {
 
     if (sc->uw) {
         /* Eye in fluid: setupFog's fluid branch is GL_EXP(uw_density) toward
-         * uw_fog for EVERY sky draw. The sky plane sits at y = +16 (see
-         * mc_sky_plane_fog): factor = exp(-density * planeDist). Sunset glow,
-         * stars and the sun/moon quads live at dist >= 100 -> factor <= e^-10
-         * at water density 0.1: invisible, skipped. Downward rays never hit
-         * the +16 plane -> pure fog color (matches the fog clearColor). */
+         * uw_fog for EVERY sky draw. Same orientCamera plane as air
+         * (sc->plane_y = 16 - eyeHeight): factor = exp(-density * planeDist).
+         * Sunset glow, stars and the sun/moon quads live at dist >= 100 ->
+         * factor <= e^-10 at water density 0.1: invisible, skipped. Downward
+         * rays never hit the plane -> pure fog color (matches clearColor). */
         CrVec3 col = sc->uw_fog;
         if (ey > 1e-4f) {
-            float t = 16.0f / ey;
+            float t = sc->plane_y / ey;
             float f = expf(-sc->uw_density * t);
             col = v3mix(sc->uw_fog, sc->sky_top, f);
         }
@@ -351,8 +393,9 @@ static CR_HD CrRgba gm_sky_ray_color_ctx(const GmSkyCtx *sc, CrVec3 dir_in) {
     CrVec3 sky_top = sc->sky_top;
     CrVec3 fog = sc->fog;
 
-    /* --- vertical gradient: exact GL linear fog on MC's flat sky planes. --- */
-    CrVec3 col = (ey >= 0.0f) ? mc_sky_plane_fog(sky_top, fog, ey, 16.0f) : fog;
+    /* --- vertical gradient: GL linear fog on MC's 64-tile sky plane (Gouraud). --- */
+    CrVec3 col = (ey >= 0.0f) ? mc_sky_plane_fog(sky_top, fog, dir, sc->plane_y)
+                              : fog;
 
     /* --- sunrise / sunset horizon glow, centered on the sun's azimuth. --- */
     if (sc->sunset_active) {

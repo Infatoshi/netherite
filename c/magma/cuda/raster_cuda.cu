@@ -77,6 +77,7 @@ static __managed__ unsigned char cr_sky_end_m[65536];
 #define gm_terrain_fog_enabled cr_priv_gm_terrain_fog_enabled
 #define gm_sky_set_fluid_fog   cr_priv_gm_sky_set_fluid_fog
 #define gm_sky_set_fog_c1      cr_priv_gm_sky_set_fog_c1
+#define gm_sky_set_eye_height  cr_priv_gm_sky_set_eye_height
 #include "game/sky.c"
 #undef gm_sky_draw
 #undef gm_sky_frame_args
@@ -87,6 +88,7 @@ static __managed__ unsigned char cr_sky_end_m[65536];
 #undef gm_terrain_fog_enabled
 #undef gm_sky_set_fluid_fog
 #undef gm_sky_set_fog_c1
+#undef gm_sky_set_eye_height
 #undef CR_SUN_RGBA
 #undef CR_MOON_RGBA
 #undef CR_END_SKY_RGBA

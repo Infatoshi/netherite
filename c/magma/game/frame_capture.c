@@ -642,6 +642,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     GmUnderwater uw;gm_uw_eval(r->world,r->dimension,&v,c->fog_c1,&uw);
     cam.fov_deg*=uw.fov_scale;   /* getFOVModifier: 60/70 with the eye in water */
     gm_sky_set_fog_c1(c->fog_c1);  /* updateFogColor f13 on clear/view fog */
+    /* orientCamera glTranslate(0,-eyeHeight,0): sky plane at 16-eyeH. */
+    gm_sky_set_eye_height(v.eye_height > 0.01f ? v.eye_height : 1.62f);
     gm_sky_set_fluid_fog(uw.fluid?1:0,uw.fog01,uw.density);
     /* clearColor = updateFogColor result (view fog * fogColor1). Fluid path
      * already bakes fog_c1 into uw.fog_rgba. */

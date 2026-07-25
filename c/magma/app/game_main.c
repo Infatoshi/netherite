@@ -710,6 +710,7 @@ int main(int argc, char **argv) {
         }
         cam.fov_deg *= uw.fov_scale;   /* getFOVModifier: 60/70 in water */
         bm_atlas_set_animation_tick(g_clock.total_time);
+        gm_sky_set_eye_height(cpv.eye_height > 0.01f ? cpv.eye_height : 1.62f);
         gm_sky_set_fluid_fog(uw.fluid ? 1 : 0, uw.fog01, uw.density);
         bench_stamp(3);
 

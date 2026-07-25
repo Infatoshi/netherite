@@ -48,6 +48,11 @@ typedef struct {
     int    uw;
     CrVec3 uw_fog;
     float  uw_density;
+    /* RenderGlobal glSkyList is authored at y=+16 in feet-relative space.
+     * EntityRenderer.orientCamera then glTranslate(0, -eyeHeight, 0) before
+     * the sky draw, so the plane sits at y = 16 - eyeHeight in eye space
+     * (standing 1.62 -> 14.38). Per-ray fog uses this height. */
+    float  plane_y;
 } GmSkyCtx;
 
 /* Host-side (cc-compiled, -ffp-contract=off, glibc) computation of everything
@@ -104,6 +109,11 @@ void gm_sky_set_fluid_fog(int on, CrVec3 fog01, float density);
  * the clear/view-fog colour. Call each frame before gm_sky_draw /
  * gm_sky_frame_args / gm_terrain_fog_color. Host state; default 1.0. */
 void gm_sky_set_fog_c1(float fog_c1);
+
+/* Entity.getEyeHeight for orientCamera's glTranslate(0,-eyeHeight,0). Sets the
+ * sky-plane eye-space height to 16 - eh (see GmSkyCtx.plane_y). Call each
+ * frame before gm_sky_draw / gm_sky_frame_args. Host state; default 1.62. */
+void gm_sky_set_eye_height(float eye_height);
 
 #ifdef __cplusplus
 }
