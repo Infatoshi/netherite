@@ -576,6 +576,13 @@ These are not established C product bugs, but they block direct parity claims:
   worldgen.
 - Live-session population order can change individual decorations.
 - Legacy GUI interactions and inventory contents were not fully recorded.
+- Legacy tape headers omit `EntityRenderer.fogColor1` and its pre-capture
+  brightness history. On `scenario_suffocate_camera_20260723T001923Z`, the
+  actual in-block overlay frames pass, but t=0 is a frame-wide shading offset
+  that decays from 7.69 mean/ch at t=0 to 2.41 at t=10 and 1.16 at t=20.
+  Vanilla carries this 0.1/tick smoother in
+  `EntityRenderer.updateRenderer`; reconstructing its initial value from the
+  golden would be fitting an unrecorded constant.
 - Walking/turning tapes retain partial-tick camera registration uncertainty.
 - Legacy `EntityItem` rows omit required render state.
 - The mine segment contains a mid-tape staged arena-state window.
