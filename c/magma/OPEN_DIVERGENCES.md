@@ -108,7 +108,14 @@ initializer and is **fixed** - see DEVLOG 2026-07-25. What remains on
   7291 unexplained px (was t=80 / 74783). UNEXPLAINED total 122_581 px over
   63 frames (was 1_540_406 over 67).
 - t=260 and t=460 hold the two big residual clusters (3380 px and 2989 px at
-  t=260, on the near canopy and a distant tree). Attributed to
+  t=260, on the near canopy and a distant tree). Re-measured with `pxdiff.py`
+  on 2026-07-25 the frame now has 93 clusters, biggest 9696 px at
+  y[146,265] x[0,369]; the canopy cluster at y[83,178] x[526,611] comes back
+  `cutout-sky+` (mean delta [4.3,5.1,7.9], pointing straight along the
+  sky-minus-leaf axis), i.e. magma shows MORE background through the canopy
+  than the oracle. That is a cutout-coverage lead, distinct from the
+  interior texel noise below, and it is the largest unexplained residual on
+  the canonical tape. Attributed to
   nearest-neighbour texel selection on minified leaf faces, not to shading or
   geometry: on leaf interiors the per-channel delta is zero-mean with a large
   spread (near canopy mean +0.1/+0.2/+0.2, sigma 19/28/8; distant tree
@@ -148,12 +155,16 @@ independently re-measured here.
   light smoother was sampling the post-tick feet, one tick ahead of vanilla's
   pre-movement `updateRenderer` (`5c4cf6e`). The tape is rc=0.
   Still open on this tape: ~1226 px of UNEXPLAINED at t=50, in 11 clusters of
-  50-478 px. The earlier triage called this hand silhouette outside the
-  viewmodel mask; that is wrong. Looked at the pixels: every cluster sits in
-  the middle of the frame (y 259-337, x 354-520) on the receding soul sand
-  path, and the diff is per-texel speckle on the minified path texture, with
-  the grass either side clean. Same texel-selection family as the elytra_dip
-  near-field grass below, not gate topology.
+  50-478 px, all mid-frame (y 259-337, x 354-520) on the receding soul sand
+  path with the grass either side clean. Two earlier readings of this were
+  wrong - a delegated triage called it hand silhouette outside the viewmodel
+  mask, and eyeballing it called it random per-texel speckle. `pxdiff.py`
+  measures it: the clusters are bands of screen rows where the whole band
+  matches the oracle after a one-row shift (cluster 1 at y[320,331]: mean
+  25.26/ch at dy=0, **1.72/ch at dy=-1**), with `edge_frac` 0.61 - the
+  minified path texture is picking the neighbouring texture ROW for those
+  bands, coherently, not sampling at random. Same V-rounding family as the
+  canonical-tape leaf faces below.
 - `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
   1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
   rendered at the wrong spatial frequency - coarse block-scale flats where the
