@@ -619,3 +619,37 @@ re-run here.
   `-arch=sm_120`) and nothing rebuilt it on an arch change, so a GPU switch
   could silently link the wrong arch. Renamed to `raster_cuda_game.o`;
   `scripts/demo_pixel_sbs.sh` now cleans `cuda/*.o`.
+
+### 2026-07-25 - Deferred frame end closed: CUDA equals the CPU on every tape
+
+Two bugs, both in `finish_pending`, both invisible to the CPU path because it
+draws the hand/HUD/overlays at the frame's own tick.
+
+- **Fire overlay fov.** The sync path passes `uw.fov_scale`; the deferred path
+  re-derived it as `pend_uwfov / 70`, and `pend_uwfov` is
+  `cam.fov_deg = 70 * fov_mult * fov_scale`. That folded `getFovModifier`'s
+  bow-pull / sprint term into the overlay projection, which is why the
+  divergence needed `fire=1` AND `use=1`. `blaze_bow_demo` went from 57 failed
+  frames to 1, matching its CPU baseline byte-for-byte.
+- **Suffocate overlay world.** `finish_pending` re-ran
+  `gm_overlay_block_in_hand_live` against `c->pend_world` - the live world
+  pointer - so the eye-block sample ran one rendered frame (20 ticks) after the
+  frame being drawn. On the canonical tape t=660 that resolved to dirt and
+  painted the entire frame with the suffocation overlay: 371_279 unexplained
+  px, 100% of pixels differing at mean_abs 70.5. Split into
+  `gm_overlay_block_in_hand_pick` / `_draw`; the deferred path resolves at arm
+  time and snapshots the block.
+
+The second one took a bisect worth recording, because every plausible GPU
+explanation was wrong: `MAGMA_NO_HAND=1`, `MAGMA_NO_OVERLAY=1`, a full
+`cudaStreamSynchronize` inside `frame_end_async`, and resetting the shade-ctx
+ring at `frame_begin` all left the frame **bit-identically** wrong (83_341_540
+px on 3/3 runs), while dumping the raw deferred readback with the host retire
+draws skipped showed a perfectly normal frame (mean 81.4 vs 80.1/82.8 at the
+neighbouring goldens). Deterministic-to-the-byte corruption is evidence
+*against* an async race, not for one.
+
+Also removed a build landmine: `cuda/raster_cuda_sm86.o` held whichever arch
+was built last (`NVFLAGS_GAME` is overridable, GPU0 needs `-arch=sm_120`) and
+nothing rebuilt it on an arch change. Renamed to `raster_cuda_game.o`;
+`scripts/demo_pixel_sbs.sh` cleans `cuda/*.o`.

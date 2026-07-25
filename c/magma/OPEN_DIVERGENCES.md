@@ -172,29 +172,8 @@ independently re-measured here.
   portal path additionally carves a platform and sets the pose, neither of
   which an authoritative tape transfer should do.
 
-### CUDA deferred frame end diverges on bow pull + first-person fire
 
-With the hurt-camera fix in place (see below), CUDA still differs from the CPU
-on frames where the tape has `fire=1` **and** the bow is being drawn (`use=1`);
-pure fire with `use=0` matches. Turning off the deferred frame end
-(`MAGMA_NO_DEFER=1`, i.e. `frame_end_async` + `finish_pending`) removes the
-divergence entirely - 12_875 px total over 407 frames, 0 frames above 1000,
-max 46 px, which is GPU sky-star noise from device `sinf` in the star hash.
-
-The hand and fire layers are host `cr_raster_cpu`, so this is deferred
-state/snapshot ordering, not GPU raster math. Not yet pinned to a line;
-suspect the pending frame is finished after `advance_hand_state` has already
-moved `bow_pull`/equip on for the next tick.
-
-It is not bow-specific: the canonical `20260712T055346Z` tape carries the same
-regression under the deferred path and also matches the CPU baseline exactly
-with `MAGMA_NO_DEFER=1`. These two tapes are the only CUDA sweep regressions
-left.
-
-Until it is closed, a CUDA parity gate needs `MAGMA_NO_DEFER=1` to be
-meaningful. Do not treat a deferred-path CUDA replay as parity evidence.
-
-### CPU/CUDA replay parity: hurt camera fixed, deferred frame end remains
+### CPU/CUDA replay parity: closed, keep sweeping
 
 Parity had only ever been measured on one tape. The canonical
 `20260721T215812Z` replay is bit identical CPU vs CUDA, but a full 23-tape
@@ -227,16 +206,30 @@ sweep, with baseline regressions on **two** tapes instead of five.
 `scenario_lava_walk_20260722T234940Z` are now byte-identical to their CPU
 baselines on every class.
 
-The two that still regress -
-`20260712T055346Z_fast_s0_survival_default_rd8_77b5b462` and
-`scenario_blaze_bow_demo_20260722T104234Z` - are the deferred frame end, not a
-second bug. Replaying each with `MAGMA_NO_DEFER=1` on GPU0 reproduces the CPU
-baseline exactly, every class and `failed_frames` unchanged (canonical: 3121 of
-3121 ticks, UNEXPLAINED 538_620 both sides; bow demo: UNEXPLAINED 168_484 both
-sides). So in the non-deferred path CUDA now equals the CPU on all 23 tapes,
-and the deferred frame end is the sole remaining CPU/CUDA divergence.
+The two that still regressed were both the deferred frame end, and both are
+now **fixed** - the DEFERRED path reproduces the CPU baseline byte-for-byte on
+every class, `failed_frames` and the state block:
 
-Baselines remain CPU-authoritative.
+- `finish_pending` re-derived the fire overlay's fov scale as
+  `cam.fov_deg / 70`, which folds in `getFovModifier`'s bow-pull / sprint
+  term; the sync path passes `uw.fov_scale`. Divergence on exactly the
+  fire+bow ticks (`blaze_bow_demo`: 57 failed frames -> 1).
+- `finish_pending` also re-ran `gm_overlay_block_in_hand_live` against
+  `c->pend_world`, which is just the live world pointer, so the eye-block
+  sample happened one rendered frame (20 ticks) after the frame it drew. On
+  the canonical tape t=660 that resolved to dirt and painted the whole frame
+  with the suffocation overlay. The overlay is now split into pick/draw and
+  the deferred path resolves at arm time.
+
+The bisect that found the second one: `MAGMA_NO_HAND=1`, `MAGMA_NO_OVERLAY=1`,
+a full `cudaStreamSynchronize` inside `frame_end_async`, and resetting the
+shade-ctx ring at `frame_begin` each left the frame bit-identically wrong
+(83_341_540 px, 3/3 runs), while the raw deferred readback with all host
+retire draws skipped was normal (mean 81.4). That ruled out GPU asynchrony
+entirely and pointed at the host draws in `finish_pending`.
+
+A deferred-path CUDA replay is parity evidence again. Baselines remain
+CPU-authoritative.
 
 ### Late-tape item acquisition on the canonical tape
 
