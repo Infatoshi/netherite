@@ -749,66 +749,6 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         render_world(c,&cam,&mv,&atlas,clear,r->dimension,c->boss_latch,
                      lm,&uw);
     }
-    /* Selection outline + dig crack decal (default ON, matching vanilla
-     * RenderGlobal.drawSelectionBox / drawBlockDamageTexture). Opt out with
-     * MAGMA_NO_OVERLAY=1 for goldens that predate the overlay pass. */
-    if(!getenv("MAGMA_NO_OVERLAY")&&!v.dead){
-        /* GPU uploads are asynchronous until frame_end. Selection and crack
-         * therefore need distinct pinned host buffers: reusing one here lets
-         * the crack emit overwrite selection vertices still in flight. */
-        static CrVertex sel_ov[GM_OVERLAY_MAX_VERTS];
-        static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
-        int hx=0,hy=0,hz=0,ax,ay,az;
-        int have_sel=gm_raycast_sel(r->window,&r->sin_table,&r->player,
-                                    &hx,&hy,&hz,&ax,&ay,&az)>=0;
-        int dx=0,dy=0,dz=0;float dmg=0.0f;
-        int have_dig=gm_player_dig_state(&dx,&dy,&dz,&dmg);
-        float selb[6];
-        if(have_sel)gm_sel_box_at(r->window,hx,hy,hz,selb);
-        /* Selection: SRC_ALPHA/ONE_MINUS_SRC_ALPHA (blend=1). Crack:
-         * DST_COLOR/SRC_COLOR multiply-2x (blend=2). Separate passes -
-         * vanilla RenderGlobal draws them with different blend state. */
-        if(have_sel){
-            int ns=gm_overlay_emit_sel(sel_ov,GM_OVERLAY_MAX_VERTS,
-                                       hx+r->ox,hy,hz+r->oz,selb,
-                                       cam.pos.x,cam.pos.y,cam.pos.z);
-            if(ns>0){
-                CrShadeCtx osh = {0};
-                osh.atlas = &atlas;
-                osh.fog_color = clear;
-                osh.alpha_test = 0;
-                osh.enable_fog = 0;
-                osh.layer = CR_LAYER_TRANSLUCENT;
-                osh.blend = 1;
-                osh.depth_lequal = 1;
-                render_layer(c,&cam,sel_ov,ns,&osh);
-            }
-        }
-        if(have_dig && dmg>0.0f && !getenv("MAGMA_NO_CRACK")){
-            /* BlockRendererDispatcher.renderBlockDamage re-renders the full
-             * block model with the destroy sprite, not only the raycast face. */
-            int nc=gm_overlay_emit_crack(crack_ov,GM_OVERLAY_MAX_VERTS,
-                                         dx+r->ox,dy,dz+r->oz,dmg,-1);
-            if(getenv("MAGMA_LOG_DIG"))
-                fprintf(stderr,"CRK t%lld face=%d nc=%d at %d,%d,%d cam %.1f,%.1f,%.1f\n",
-                        r->tick,-1,nc,dx+r->ox,dy,dz+r->oz,
-                        cam.pos.x,cam.pos.y,cam.pos.z);
-            if(nc>0){
-                CrShadeCtx csh = {0};
-                csh.atlas = &atlas;
-                csh.fog_color = clear;
-                /* alphaFunc(GL_GREATER, 0.1F): discard a <= ~26. Our cutout
-                 * threshold is 128 - tighter than vanilla, keeps only solid
-                 * crack strokes (destroy_stage bg is a≈1 white). */
-                csh.alpha_test = 1;
-                csh.enable_fog = 0;
-                csh.layer = CR_LAYER_CUTOUT;
-                csh.blend = 2;           /* DST_COLOR, SRC_COLOR → 2*src*dst */
-                csh.depth_lequal = 1;
-                render_layer(c,&cam,crack_ov,nc,&csh);
-            }
-        }
-    }
     /* world light at each entity's eye block (RenderLivingBase brightness):
      * lightmap mode passes the raw 0..15 levels through the LUT; the legacy /
      * Nether/End path (lm==NULL) folds the exact updateLightmap color into the
@@ -872,33 +812,6 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 render_layer(c,&cam,xp_ov,nx,&xp);
             }
         }
-        /* Dig particles: terrain-atlas model particle icons (ParticleDigging).
-         * dig_state is window-local; add r->ox/oz like the dig-crack overlay. */
-        {
-            int dx,dy,dz,dface=-1;float dmg;
-            if(gm_player_dig_state_ex(&dx,&dy,&dz,&dmg,&dface)&&dmg>0.0f){
-                int stage=(int)(dmg*10.0f);if(stage<1)stage=1;if(stage>10)stage=10;
-                int wx=dx+r->ox, wz=dz+r->oz;
-                /* emit takes a MODEL KEY (CB_/PB_ space), not the vanilla id
-                 * gm_world_block returns (grass -> water_flow otherwise). */
-                int bid=gm_state_to_model_key(gm_pack_state(
-                    gm_world_block(r->world,wx,dy,wz),
-                    gm_world_meta(r->world,wx,dy,wz)&15));
-                static CrVertex dig_ov[1024];
-                int nd=gm_block_break_particles_emit(
-                    wx,dy,wz,bid,stage,dface,
-                    gm_player_dig_particle_count(),
-                    v.yaw,v.pitch,dig_ov,1024);
-                if(nd>0){
-                    CrTexture ta=gm_world_atlas(r->world);
-                    CrShadeCtx dig={0};
-                    dig.atlas=&ta; dig.fog_color=clear;
-                    dig.alpha_test=1; dig.layer=CR_LAYER_CUTOUT;
-                    if(uw.fluid){ dig.enable_fog=1; dig.fog_exp_density=uw.density; dig.fog_color=uw.fog_rgba; }
-                    render_layer(c,&cam,dig_ov,nd,&dig);
-                }
-            }
-        }
         /* LayerSlimeGel + LayerEnderDragonDeath use dedicated host buffers so
          * async CUDA uploads of eb[*] are not overwritten mid-flight. */
         {
@@ -955,6 +868,98 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             fire_sh.alpha_test=1; fire_sh.layer=CR_LAYER_CUTOUT;
             if(uw.fluid){ fire_sh.enable_fog=1; fire_sh.fog_exp_density=uw.density; fire_sh.fog_color=uw.fog_rgba; }
             render_layer(c,&cam,eb[3],nv,&fire_sh);
+        }
+    }
+    /* EntityRenderer.renderWorldPass draw order: renderEntities, then
+     * drawSelectionBox, then the particle passes, then drawBlockDamageTexture.
+     * These used to run BEFORE the entity/item passes, so a dropped item could
+     * overdraw the crack decal entirely (the decal emitted verts and changed
+     * zero pixels on those ticks). Dig particles also sat inside the n>0
+     * entity block, so digging with no entities in range drew none at all. */
+    if(!getenv("MAGMA_NO_OVERLAY")&&!v.dead){
+        /* GPU uploads are asynchronous until frame_end. Selection and crack
+         * therefore need distinct pinned host buffers: reusing one here lets
+         * the crack emit overwrite selection vertices still in flight. */
+        static CrVertex sel_ov[GM_OVERLAY_MAX_VERTS];
+        int hx=0,hy=0,hz=0,ax,ay,az;
+        int have_sel=gm_raycast_sel(r->window,&r->sin_table,&r->player,
+                                    &hx,&hy,&hz,&ax,&ay,&az)>=0;
+        float selb[6];
+        if(have_sel)gm_sel_box_at(r->window,hx,hy,hz,selb);
+        /* Selection: SRC_ALPHA/ONE_MINUS_SRC_ALPHA (blend=1). Crack:
+         * DST_COLOR/SRC_COLOR multiply-2x (blend=2). Separate passes -
+         * vanilla RenderGlobal draws them with different blend state. */
+        if(have_sel){
+            int ns=gm_overlay_emit_sel(sel_ov,GM_OVERLAY_MAX_VERTS,
+                                       hx+r->ox,hy,hz+r->oz,selb,
+                                       cam.pos.x,cam.pos.y,cam.pos.z);
+            if(ns>0){
+                CrShadeCtx osh = {0};
+                osh.atlas = &atlas;
+                osh.fog_color = clear;
+                osh.alpha_test = 0;
+                osh.enable_fog = 0;
+                osh.layer = CR_LAYER_TRANSLUCENT;
+                osh.blend = 1;
+                osh.depth_lequal = 1;
+                render_layer(c,&cam,sel_ov,ns,&osh);
+            }
+        }
+    }
+    /* Dig particles: terrain-atlas model particle icons (ParticleDigging).
+     * dig_state is window-local; add r->ox/oz like the dig-crack overlay. */
+    {
+        int dx,dy,dz,dface=-1;float dmg;
+        if(gm_player_dig_state_ex(&dx,&dy,&dz,&dmg,&dface)&&dmg>0.0f){
+            int stage=(int)(dmg*10.0f);if(stage<1)stage=1;if(stage>10)stage=10;
+            int wx=dx+r->ox, wz=dz+r->oz;
+            /* emit takes a MODEL KEY (CB_/PB_ space), not the vanilla id
+             * gm_world_block returns (grass -> water_flow otherwise). */
+            int bid=gm_state_to_model_key(gm_pack_state(
+                gm_world_block(r->world,wx,dy,wz),
+                gm_world_meta(r->world,wx,dy,wz)&15));
+            static CrVertex dig_ov[1024];
+            int nd=gm_block_break_particles_emit(
+                wx,dy,wz,bid,stage,dface,
+                gm_player_dig_particle_count(),
+                v.yaw,v.pitch,dig_ov,1024);
+            if(nd>0){
+                CrTexture ta=gm_world_atlas(r->world);
+                CrShadeCtx dig={0};
+                dig.atlas=&ta; dig.fog_color=clear;
+                dig.alpha_test=1; dig.layer=CR_LAYER_CUTOUT;
+                if(uw.fluid){ dig.enable_fog=1; dig.fog_exp_density=uw.density; dig.fog_color=uw.fog_rgba; }
+                render_layer(c,&cam,dig_ov,nd,&dig);
+            }
+        }
+    }
+    if(!getenv("MAGMA_NO_OVERLAY")&&!v.dead){
+        static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
+        int dx=0,dy=0,dz=0;float dmg=0.0f;
+        int have_dig=gm_player_dig_state(&dx,&dy,&dz,&dmg);
+        if(have_dig && dmg>0.0f && !getenv("MAGMA_NO_CRACK")){
+            /* BlockRendererDispatcher.renderBlockDamage re-renders the full
+             * block model with the destroy sprite, not only the raycast face. */
+            int nc=gm_overlay_emit_crack(crack_ov,GM_OVERLAY_MAX_VERTS,
+                                         dx+r->ox,dy,dz+r->oz,dmg,-1);
+            if(getenv("MAGMA_LOG_DIG"))
+                fprintf(stderr,"CRK t%lld face=%d nc=%d at %d,%d,%d cam %.1f,%.1f,%.1f\n",
+                        r->tick,-1,nc,dx+r->ox,dy,dz+r->oz,
+                        cam.pos.x,cam.pos.y,cam.pos.z);
+            if(nc>0){
+                CrShadeCtx csh = {0};
+                csh.atlas = &atlas;
+                csh.fog_color = clear;
+                /* alphaFunc(GL_GREATER, 0.1F): discard a <= ~26. Our cutout
+                 * threshold is 128 - tighter than vanilla, keeps only solid
+                 * crack strokes (destroy_stage bg is a≈1 white). */
+                csh.alpha_test = 1;
+                csh.enable_fog = 0;
+                csh.layer = CR_LAYER_CUTOUT;
+                csh.blend = 2;           /* DST_COLOR, SRC_COLOR → 2*src*dst */
+                csh.depth_lequal = 1;
+                render_layer(c,&cam,crack_ov,nc,&csh);
+            }
         }
     }
     /* Open GUI screen this tick (tape gui_view / divergence #9): force the
