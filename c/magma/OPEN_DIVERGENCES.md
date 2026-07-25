@@ -336,25 +336,38 @@ independently re-measured here.
   purely on mild-shift, i.e. the same wash spread thin. Closing the texel
   residual closes this tape.
 - `scenario_slime_bounce_20260723T001527Z`: the slime platform renders too
-  dark. `models/block/slime.json` (read out of the 1.11.2 jar) has TWO
-  elements - an inset core `[3,3,3]..[13,13,13]` and the full cube - and
-  `BlockSlime.getBlockLayer` is TRANSLUCENT, so a face-on platform is two
-  `SRC_ALPHA` layers of a~0.74, opacity `1-(1-a)^2`. magma drew one. Emitting
-  the real inset core (not a coplanar re-emit of the shell) takes it from 19 to
-  16 failed frames, worst mean_abs 6.64 -> 5.50.
-  The residual is compositing, not geometry, and there is a measurement that
-  says so. Neither element carries a `cullface`, so all 12 quads land in
-  `getQuads(state, null)` and `renderModelFlat` draws that list unconditionally
-  - the `shouldSideBeRendered` check only guards the per-facing lists
-  (`BlockModelRenderer.java:93-110`). Vanilla therefore never culls a slime
-  face, and a platform is four layers deep through its top. Feeding magma those
-  same extra layers makes it WORSE, not better: 16 -> 20 failed frames, a new
-  64941 px failure at t=0, mean_delta `[-93.64, -122.45, -67.26]`, i.e. magma
-  overshoots into darkness where vanilla stays light. So magma's translucent
-  blend/sort is what cannot carry the layer count, and stacking geometry at it
-  is the wrong lever. A coplanar double-emit of the shell scores better (12
-  frames, 4.03) precisely because it fakes uniform full-face dual coverage;
-  it is not what vanilla draws and is not landed.
+  dark. Baseline on current master: **15 failed frames, 6709 UNEXPLAINED px**.
+  `models/block/slime.json` (1.11.2 jar) has TWO elements - inset core
+  `[3,3,3]..[13,13,13]` and full cube - both without cullface.
+  `BlockSlime.getBlockLayer` is TRANSLUCENT. Emitting the real inset core
+  (`5da6b29`) took 19 -> 16 failed frames.
+  **Per-pixel arithmetic (t=50, face ROI y[300,360], a=188/255 from slime.png):**
+  solve `g = C·(1-(1-a)^2) + B·(1-a)^2`, `c = C·a + B·(1-a)` on dark residual
+  pixels gives C≈tex mean [120.7,200.0,101.1] and B≈0. Golden matches dual-layer
+  over black; magma matches single-layer. On dual-covered pixels (block
+  centers) magma already equals golden, so `raster_cpu` SRC_ALPHA
+  (`c·a + d·(1-a)`, blend=1, no depth write) is correct when both layers hit.
+  **Coverage map:** residual is a block-scale checkerboard - bright dual centers
+  (core XY [3,13]^2) vs dark single rims (the 3/16 XZ frame where only the
+  outer top draws). Golden is uniform dual brightness across the whole face.
+  Rim fraction of a top face is `1-(10/16)^2 ≈ 61%`, which matches the bulk of
+  the dark residual.
+  **Levers tried (2026-07-25, wt/slime2), all rejected or insufficient:**
+  - Full generalQuads (no neighbor cull on both elements): 15 -> 17 failed,
+    darker (confirms prior -93/ch overshoot). Vanilla draws those quads
+    (`BlockModelRenderer.java:105-110`) with GL cull + `sortVertexData`, but
+    magma still overshoots when given the same layer count.
+  - Translucent B2F sort alone (painter's order on 6-vert quads): 15 -> 14
+    failed on this tape, but nightly REGRESSION on `elytra_dip` UNEXPLAINED
+    784 -> 16495. Not landed.
+  - Always-emit all 6 core faces (outer still culled): no further gain; core
+    sides do not fill the rim to dual-top brightness (side shade 0.8 stacks to
+    ~0.78·C, dual top is ~0.93·C).
+  - Coplanar outer re-emit: 12 failed / 4.03 (prior), fakes uniform dual
+    coverage; not the model; not landed.
+  Open gap: how vanilla keeps the rim as bright as dual-top without the
+  overshoot magma hits when fed full generalQuads. Blend equation itself is
+  not the bug on dual-covered pixels.
 - `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
   1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
   rendered at the wrong spatial frequency - coarse block-scale flats where the
