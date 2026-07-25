@@ -22,8 +22,8 @@
    "max_cluster": 13451
   },
   "viewmodel": {
-   "frames": 3,
-   "px": 3924,
+   "frames": 2,
+   "px": 3862,
    "max_cluster": 3507
   },
   "UNEXPLAINED": {
@@ -33,26 +33,13 @@
   },
   "particles": {
    "frames": 1,
-   "px": 99,
-   "max_cluster": 99
+   "px": 68,
+   "max_cluster": 68
   }
  },
- "failed_frames": [
-  {
-   "tick": 60,
-   "unexplained_px": 0,
-   "clusters": [],
-   "mild_shift": {
-    "mean_abs": 5.371525527429155,
-    "pct_differing": 77.00757378646747,
-    "low_thresh": 1,
-    "residual_px": 211387,
-    "low_differing_px": 162784
-   }
-  }
- ],
- "mild_shift_failures": 1,
- "pass": false,
+ "failed_frames": [],
+ "mild_shift_failures": 0,
+ "pass": true,
  "missing_models": {},
  "missing_model_row_threshold": 4,
  "missing_model_failures": {},
