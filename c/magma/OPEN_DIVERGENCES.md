@@ -163,6 +163,44 @@ independently re-measured here.
   path (`game/runtime.c:609`) does, so an authoritative tape dimension switch
   arrives in the End without the fight initialised. Prefer `094040Z` as the
   dragon gate tape.
+  Do **not** "fix" this by calling `gm_dragon_init` from `set_dimension`:
+  `replay_tape.py` already turns every recorded entity into a render-only
+  `ent_view` ghost, and `frame_capture.c:712` fills live-dragon views before
+  appending ghost views, so a live dragon would be drawn *on top of* the tape
+  one. The symptom here is too much bright geometry, not too little, so the
+  likelier cause is End island worldgen / snapshot coverage at x~100. The
+  portal path additionally carves a platform and sets the pose, neither of
+  which an authoritative tape transfer should do.
+
+### CPU/CUDA replay parity breaks on scenario tapes
+
+Parity was only ever measured on one tape. The canonical
+`20260721T215812Z` replay is bit identical CPU vs CUDA (0 differing pixels
+over 181 frames), but a full 23-tape CUDA sweep on GPU0 (`sm_120`,
+`nightly_20260725T062525Z`) is **FAIL** with baseline regressions on six
+tapes, where the same sweep on the CPU is PASS.
+
+Measured on `scenario_blaze_bow_demo_20260722T104234Z` (407 frames, same
+tape, same build tree, serial runs so GPU contention is not a factor):
+
+- All 407 frames differ, 12_772_658 differing pixels total, max channel
+  delta 237.
+- The difference is bursty, not uniform: 88 frames carry 99.92% of it
+  (index 43-98 and 231-272), while the other ~319 frames differ by only
+  ~30 scattered sky pixels.
+- On a burst frame the CPU renders a large lit terrain wedge at the left
+  horizon that CUDA leaves flat and dark, and the terrain silhouette itself
+  sits at a different height. That is terrain extent / lighting state, not
+  shading arithmetic.
+
+Ruled out: GPU contention (serial re-runs reproduce byte-for-byte) and the
+early player deaths seen on three tapes - `blaze_bow_demo` stops at tick 814
+`hp=0 dead=1` on **both** backends with an identical worst frame
+(t=812, 167724 px), so those deaths are a separate pre-existing sim issue,
+not a CUDA divergence.
+
+Until this is closed, a CUDA sweep result is not interchangeable with a CPU
+one, and the committed baselines are CPU-authoritative.
 
 ### Inventory state gate is shallow
 

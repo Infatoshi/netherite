@@ -7,8 +7,12 @@
 # inline work only replays the one relevant tape, this catches cross-tape
 # regressions the session didn't sweep.
 #
-# GPU policy: replays run on GPU1 (3090) only; GPU0 is the shared big card.
-# Skips the run entirely if GPU1 already has >4GB in use (someone's job).
+# GPU policy: replays default to GPU1 (3090); GPU0 is the shared big card and
+# is only used when a human explicitly hands it over via NIGHTLY_GPU=0.
+# Skips the run entirely if the chosen GPU already has >4GB in use.
+# The nvcc arch is derived from that GPU's compute capability, not assumed -
+# the default sm_86 in the Makefile is a GPU1 constant and silently produces a
+# no-kernel-image failure on Blackwell.
 #
 # Parallel: replays run NIGHTLY_PAR at a time (default 6). Each replay is
 # single-core CPU-bound at ~1.8 GB GPU1 (measured 2026-07-13; GPU sat at 32%
@@ -30,28 +34,38 @@ PAR=${NIGHTLY_PAR:-6}
 # rather than skip - but only when asked for explicitly, so an unattended run
 # still self-defers instead of quietly taking hours.
 BACKEND=${NIGHTLY_BACKEND:-cuda}
+GPU=${NIGHTLY_GPU:-1}
 mkdir -p "$NIGHT_DIR"
 
 if [ "$BACKEND" = cuda ]; then
-GPU1_MB=$(nvidia-smi --id=1 --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1)
-if [ -n "${GPU1_MB:-}" ] && [ "$GPU1_MB" -gt 4096 ]; then
+GPU_MB=$(nvidia-smi --id="$GPU" --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1)
+if [ -n "${GPU_MB:-}" ] && [ "$GPU_MB" -gt 4096 ]; then
     # Explicit SKIP, not green: callers must not treat exit 0 as a passed gate.
     {
         echo "# Nightly magma verify - $STAMP"
         echo
         echo "STATUS: SKIP"
-        echo "reason: GPU1 busy (${GPU1_MB} MiB used)"
+        echo "reason: GPU$GPU busy (${GPU_MB} MiB used)"
         echo
         echo "This run did not verify any tape. Do not report as green."
-        echo "Re-run with NIGHTLY_BACKEND=cpu to sweep without GPU1."
+        echo "Re-run with NIGHTLY_BACKEND=cpu to sweep without a GPU."
     } | tee "$OUT_MD"
     exit 2
 fi
+# sm_XY from the actual card (8.6 -> sm_86, 12.0 -> sm_120).
+CC=$(nvidia-smi --id="$GPU" --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1)
+NIGHTLY_SM=${NIGHTLY_SM:-sm_${CC%.*}${CC#*.}}
 fi
 
 # rebuild so the replay always tests HEAD (stale-object trap: clean game/)
 if [ "$BACKEND" = cuda ]; then BUILD_TARGET=magma_game_cuda; else BUILD_TARGET=magma_game; fi
-( cd ../.. && rm -f game/*.o && make "$BUILD_TARGET" -j"$(nproc)" >/dev/null ) || {
+BUILD_ENV=()
+if [ "$BACKEND" = cuda ]; then
+    BUILD_ENV=(NVFLAGS_GAME="-O2 --fmad=false -arch=${NIGHTLY_SM} -Icore -I.")
+    echo "[nightly] GPU$GPU, nvcc -arch=${NIGHTLY_SM}"
+fi
+( cd ../.. && rm -f game/*.o cuda/*.o && make "${BUILD_ENV[@]}" "$BUILD_TARGET" \
+    -j"$(nproc)" >/dev/null ) || {
     echo "[nightly] BUILD FAILED" | tee "$OUT_MD"; exit 1; }
 
 # warm the uv venv once so the parallel workers all hit the resolver cache
@@ -70,7 +84,7 @@ done
 {
     echo "# Nightly magma verify - $STAMP"
     echo
-    if [ "$BACKEND" = cuda ]; then where="on GPU1"; else where="on the CPU"; fi
+    if [ "$BACKEND" = cuda ]; then where="on GPU$GPU (${NIGHTLY_SM})"; else where="on the CPU"; fi
     echo "${#TAPE_LIST[@]} tapes, $PAR replays in parallel $where"
     echo
 } > "$OUT_MD"
@@ -81,7 +95,7 @@ replay_one() {
     base=$1
     log=$NIGHT_DIR/${base}.log
     if [ "$BACKEND" = cuda ]; then
-        ( cd "$TRACE" && CUDA_VISIBLE_DEVICES=1 uv run --no-project \
+        ( cd "$TRACE" && CUDA_VISIBLE_DEVICES=$GPU uv run --no-project \
             --with numpy,scipy,pillow,nbt python replay_tape.py \
             "../$TAPES/${base}.jsonl" --cuda --report ) > "$log" 2>&1
     else

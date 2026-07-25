@@ -532,3 +532,15 @@ re-run here before landing.
   baselines, so no pixel regression. The 8 rc=3 are the honest open pixel
   work, not a green wash: baselines absorb them by design, and any increase
   fails the run.
+- Then ran the same sweep on CUDA (GPU0 handed over explicitly; GPU1's 12 GB
+  co-tenant never cleared across two watches totalling ~7h). `nightly_verify.sh`
+  gained `NIGHTLY_GPU` for this, and derives `-arch=sm_XY` from the card's
+  compute capability instead of assuming the Makefile's GPU1 `sm_86`, which
+  would have produced a no-kernel-image failure on Blackwell.
+- **The CUDA sweep is FAIL where CPU is PASS** - six tapes regress. Parity had
+  only ever been measured on the canonical tape (bit identical), and it does
+  not generalise. Details and measurements in OPEN_DIVERGENCES. Two wrong
+  first guesses, both killed by measurement: GPU contention (serial re-runs
+  reproduce byte-for-byte at identical ticks) and the three early
+  `hp=0 dead=1` exits (they happen identically on the CPU, so they are a
+  pre-existing sim issue, not a backend divergence).
