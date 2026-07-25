@@ -653,3 +653,31 @@ Also removed a build landmine: `cuda/raster_cuda_sm86.o` held whichever arch
 was built last (`NVFLAGS_GAME` is overridable, GPU0 needs `-arch=sm_120`) and
 nothing rebuilt it on an arch change. Renamed to `raster_cuda_game.o`;
 `scripts/demo_pixel_sbs.sh` cleans `cuda/*.o`.
+
+## 2026-07-25 - fogColor1 samples the tick-entry feet, and soulsand_ice closes
+
+The sky-plane fog fix (`ac47c2b`) took `scenario_soulsand_ice` from 45 failed
+frames to 1. The survivor, t=60, was the step down onto soul sand: 77% of the
+frame differing at mean_abs 5.37, the shape of a global brightness term.
+
+That term is `EntityRenderer.updateRenderer`'s `fogColor1` smoother, a
+0.1-per-tick lerp toward the light brightness at the player's FEET block. Soul
+sand is `useNeighborBrightness = false` and opaque, so standing on it puts the
+feet block at light 0 and starts a long ramp from 1.0 down to 0.25 - a step the
+gate only catches at its largest sampled point.
+
+Rather than guess the phase, we solved the goldens for the `c1` they were drawn
+with: render the frame at two known `c1` values, fit the local slope of frame
+mean vs `c1`, invert. soulsand_ice t=60 implies 0.8548 - two smoother steps -
+against our three. But a blanket one-tick lag then broke `water_dive` t=1000,
+whose golden implies 0.5771, exactly four steps from the t=997 teleport.
+
+Both are explained by where `updateRenderer` sits in `Minecraft.runTick`: after
+the network phase, before the local player's movement update. A teleport
+arrives as a pose packet and is visible to the same tick's smoother; ordinary
+movement is not. Capture now samples `gm_runtime_tick_entry_feet` - the feet
+position snapshotted at the top of `gm_runtime_tick` - instead of the post-tick
+view. Same class of off-by-one as the deferred `set_look` already documented in
+`game/script.c`.
+
+CPU sweep `nightly_20260725T081035Z`: PASS, soulsand_ice rc=0, no regressions.

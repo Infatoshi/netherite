@@ -140,14 +140,16 @@ Diagnosis only, from a delegated triage pass; the code claims below were
 spot-checked but the pixel measurements are the triage agent's, not
 independently re-measured here.
 
-- `scenario_soulsand_ice_20260723T001810Z`: 45 of 51 frames fail, but only one
-  frame has any UNEXPLAINED cluster (1226 px at t=50, and that is hand
-  silhouette just outside the viewmodel mask, so gate topology). The other 44
-  fail mild-shift alone (`mean_abs` 3.57-5.29 over the 3.32 budget). The
-  residual is fogged lower sky / horizon, not worldgen or the mesher: at t=100
-  the oracle horizon is `[60,74,101]` against magma's `[53,64,84]`, while the
-  zenith nearly matches. Suspect `game/sky.c` fog/sky blend and the
-  `terrain_shades` fog setup.
+- `scenario_soulsand_ice_20260723T001810Z`: **closed** (2026-07-25). The 44
+  mild-shift failures were the sky-plane fog: `orientCamera` puts the 64-tile
+  sky plane at `16 - eyeHeight` and vanilla's fixed-function fog on it is
+  per-vertex Gouraud, not per-pixel (`ac47c2b`). That left one frame, t=60, a
+  77%-of-frame 5.37 shift on the step down onto soul sand: the `fogColor1`
+  light smoother was sampling the post-tick feet, one tick ahead of vanilla's
+  pre-movement `updateRenderer` (`5c4cf6e`). The tape is rc=0.
+  Still open on this tape: the 1226 px UNEXPLAINED cluster at t=50 is hand
+  silhouette just outside the viewmodel mask (`_classify` in `pixel_gate.py`
+  wants `x0 > 0.52w` and an edge touch), so it is gate topology, not pixels.
 - `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
   1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
   rendered at the wrong spatial frequency - coarse block-scale flats where the
