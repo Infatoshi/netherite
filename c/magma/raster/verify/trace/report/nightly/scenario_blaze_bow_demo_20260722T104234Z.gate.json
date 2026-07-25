@@ -175,11 +175,11 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 62.81419229501657,
-    "pct_differing": 62.83593598471051,
+    "mean_abs": 62.7812826711198,
+    "pct_differing": 60.59407626769858,
     "low_thresh": 1,
     "residual_px": 211387,
-    "low_differing_px": 132827
+    "low_differing_px": 128088
    }
   }
  ],

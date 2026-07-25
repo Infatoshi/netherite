@@ -38,7 +38,7 @@
    "unexplained_px": 0,
    "clusters": [],
    "mild_shift": {
-    "mean_abs": 8.397965185497059,
+    "mean_abs": 8.474341689255567,
     "pct_differing": 80.27977122528821,
     "low_thresh": 1,
     "residual_px": 211387,
