@@ -100,13 +100,19 @@ game/chest_live.o: game/chest_live.c game/chest_live.h \
 # CUDA-accelerated game binary: same sources as magma_game but game_main.c is
 # compiled with -DMAGMA_CUDA (adds the --cuda / MAGMA_CUDA=1 switch that
 # routes render_layer through the alloc-once cr_raster_cuda_into) and links the
-# sm_86 raster object + cudart. `make game` (pure CPU) is unaffected.
+# raster object + cudart. `make game` (pure CPU) is unaffected.
+#
+# The object name is arch-NEUTRAL on purpose. It used to be raster_cuda_sm86.o
+# while NVFLAGS_GAME is overridable (GPU0 needs -arch=sm_120), so the same file
+# held whichever arch was built last and the name lied. Nothing rebuilds it on
+# an NVFLAGS_GAME change either - the recipe depends on sources only - so after
+# switching GPUs you must `rm cuda/*.o` or you silently link the wrong arch.
 game-cuda: magma_game_cuda
 app/game_main_cuda.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_CUDA -I$(MCSIM)/core -c $< -o $@
-cuda/raster_cuda_sm86.o: cuda/raster_cuda.cu core/types.h core/shade.c
+cuda/raster_cuda_game.o: cuda/raster_cuda.cu core/types.h core/shade.c
 	$(NVCC) $(NVFLAGS_GAME) -c $< -o $@
-magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_sm86.o $(OBJ_GAME) $(OBJ_WORLD) \
+magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_game.o $(OBJ_GAME) $(OBJ_WORLD) \
               $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_LIBS)
 

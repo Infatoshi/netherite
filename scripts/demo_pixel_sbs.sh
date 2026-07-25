@@ -98,7 +98,7 @@ echo "cuda=$USE_CUDA sm=${SM:-none} gpu=$GPU_IDX"
 if [ "$SKIP_BUILD" -eq 0 ]; then
   make -C "$MAGMA" game -j"$(nproc)"
   if [ "$USE_CUDA" -eq 1 ]; then
-    rm -f "$MAGMA/cuda/raster_cuda_sm86.o" "$MAGMA/app/game_main_cuda.o" "$MAGMA/magma_game_cuda"
+    rm -f "$MAGMA"/cuda/*.o "$MAGMA/app/game_main_cuda.o" "$MAGMA/magma_game_cuda"
     make -C "$MAGMA" magma_game_cuda -j"$(nproc)" \
       NVFLAGS_GAME="-O2 --fmad=false -arch=$SM -Icore -I."
   fi
