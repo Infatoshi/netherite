@@ -811,13 +811,28 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             if(ents[i].death_ticks<=0&&dt>0)ents[i].death_ticks=dt;
         }
     }
-    /* GuiBossOverlay is world-scoped (BossInfo packets), not proximity: a
-     * dragon sighting in dim 1 LATCHES the bar until the dimension changes;
-     * the nearest-8 tape ents lose a far dragon for most of the fight. */
+    /* GuiBossOverlay is world-scoped (BossInfo packets), not proximity.
+     * DragonFightManager constructs bossInfo with setCreateFog(true)
+     * (DragonFightManager.java:54); clients in VALID_PLAYER range keep that
+     * entry while !dragonKilled (BossInfoServer.setVisible). EntityRenderer
+     * setupFog then pulls the linear ramp to [far*0.05, min(far,192)*0.5]
+     * (EntityRenderer.java:2044-2047) - independent of dragon proximity.
+     * Magma has no BossInfo packets: latch createFog on a live dragon OR any
+     * ender crystal (tape ghosts map EntityEnderCrystal -> type 31, live fill
+     * uses GM_ENTITY_CRYSTAL=8). The nearest-8 window drops a far dragon for
+     * most of this fight; crystals stay in the list and keep fog armed. */
     if(r->dimension!=1)c->boss_latch=0;
     for(int i=0;i<n;++i)if(ents[i].type==GM_ENTITY_DRAGON){
         if(!c->boss_latch){c->boss_latch=1;c->boss_frac=1.0f;}
         if(ents[i].health>=0.0f)c->boss_frac=ents[i].health/200.0f;break;
+    }
+    if(!c->boss_latch){
+        for(int i=0;i<n;++i){
+            /* 31 = ER_TYPE_CRYSTAL (tape/name map); 8 = GM_ENTITY_CRYSTAL. */
+            if(ents[i].type==GM_ENTITY_CRYSTAL || ents[i].type==31){
+                c->boss_latch=1;c->boss_frac=1.0f;break;
+            }
+        }
     }
     /* The fast oracle profile's MixinStripBossBar suppresses only HUD chrome;
      * BossInfo fog remains active. Replay passes the metadata-derived flag. */
