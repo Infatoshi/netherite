@@ -526,3 +526,9 @@ re-run here before landing.
   the gate was passing vacuously. Now 1.5/1.0, about 0.4 above measured.
 - Triage of the three worst pixel-gate tapes produced no landed C fix (nothing
   unambiguous and small enough); findings are in OPEN_DIVERGENCES.
+- **Nightly is green for the first time**: `nightly_20260725T052804Z`,
+  `RESULT: PASS`, 23/23 tapes actually replayed (not skipped) on the CPU.
+  15 rc=0 (was 6), 0 rc=5 (was 9), 8 rc=3 all matching their committed
+  baselines, so no pixel regression. The 8 rc=3 are the honest open pixel
+  work, not a green wash: baselines absorb them by design, and any increase
+  fails the run.
