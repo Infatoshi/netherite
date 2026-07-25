@@ -88,6 +88,23 @@ drives the mc_capture / ui_hud / ui_entities gates. `grind.py` ranks a whole
 tape by mean/ch; `pixel_gate.py` decides pass/fail. Never report `unresolved`
 as a diagnosis, and never claim a cause the tool did not measure.
 
+Two things that make a pixel measurement lie, both paid for already:
+
+- **Do not replay tapes in parallel across worktrees** unless you are on
+  `b9fe039` or later. `tapes/` is symlinked into every agent worktree, and the
+  `.snapshot_patch.jsonl` cache keys its staleness off `snapshot_patch.py`'s
+  mtime, so concurrent replays all regenerate the same file at once. Before
+  that fix they clobbered each other and a clean tape measured 3.63/ch terrain
+  against a 0.94/ch baseline. If a number looks like a regression, re-measure
+  with nothing else running before you believe it.
+- **Check what the goldens actually contain before chasing a diff.** A tape
+  recorded through Malmo has `hideGUI` forced on for the whole mission, so its
+  goldens have no HUD at all; `capture.hide_gui` in the tape meta is the
+  measured value (`qrl_launch.hide_gui` is only what the launcher asked for)
+  and replay forwards it as `MAGMA_HIDE_GUI`. Oracle captures can also be
+  wrong: the eat/bow viewmodel goldens are idle tips, not mid-use poses, and
+  fitting C to them would be fitting to a bad reference.
+
 Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).
 
 ## Critical: anvil is headless

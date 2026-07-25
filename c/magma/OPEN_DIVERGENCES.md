@@ -181,6 +181,20 @@ independently re-measured here.
   other cheap phase suspect - rasterising at the pixel corner - is ruled out
   too. What is left to test is the quad's world position / perspective-correct
   UV precision on grazing top faces, which is a different investigation.
+- `20260712T055346Z_fast_s0_survival_default_rd8_77b5b462`: the goldens have
+  no HUD (Malmo forces `hideGUI` for the mission), magma used to draw one, and
+  the gate's positional `hud` accept swallowed the whole mismatch - the bottom
+  96 rows, 20 percent of the frame, had no pixel verification at all on this
+  tape. `capture.hide_gui` + `MAGMA_HIDE_GUI` fixed that (`3dc2d19`) and the
+  uncovered rows immediately failed: 14 -> 19 failed frames, with t=1520
+  closing and **t=1800..1960 now failing as one contiguous window**, 100
+  percent of its unexplained mass below y=384 (t=1960: 80747 px). The oracle
+  draws a held log in first person across that window; magma draws no held
+  item at all, even though its own hotbar (before suppression) showed the log
+  in slot 0. So the inventory is right and the viewmodel path is not - this is
+  a first-person held-block bug, not the crafted-item worldpatch gap. Open.
+  The other canonical tape, `20260721T215812Z`, has a HUD on all 181 goldens
+  and is unaffected; do not set `capture.hide_gui` on it.
 - `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
   1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
   rendered at the wrong spatial frequency - coarse block-scale flats where the

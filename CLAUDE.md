@@ -15,6 +15,12 @@ auto-load has a project file; it does not duplicate the full map.
 | History | `docs/DEVLOG.md` |
 | Fidelity | `c/magma/VERIFY.md` |
 | Why a pixel differs | `pxdiff.py` (AGENTS.md "Pixel investigation") |
+| Isolated worktree for a delegate | `scripts/agent_worktree.sh NAME` |
+
+Fanning out agents: give each one `scripts/agent_worktree.sh` (a bare `git
+worktree add` cannot build or replay - tapes and generated headers are
+gitignored), and read AGENTS.md "Pixel investigation" for the two ways a
+parallel measurement lies.
 
 Anvil is headless: demos scp to Mac; human play via Moonlight or mcwindow;
 agent stack is Xvfb `:1` (`java/start_vnc_client.sh`). One qrl port 25575 owner.
