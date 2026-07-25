@@ -216,7 +216,15 @@ independently re-measured here.
   darkening; magma's log is simply drawn at full brightness against grass and
   reads as absent at a glance. Zoom before concluding.
   The other canonical tape, `20260721T215812Z`, has a HUD on all 181 goldens
-  and is unaffected; do not set `capture.hide_gui` on it.
+  and is unaffected; do not set `capture.hide_gui` on it. Its own 7 failed
+  frames are all ONE family and it is the texel-selection residual above, not
+  anything tape-specific: t=260 (7291 px) and t=460 (6252 px) fail on
+  `texel-selection` clusters at sel 0.55 / 0.50 on a distant canopy and a
+  grazing leaf underside, where both sides draw the same leaves from the same
+  palette in a shuffled arrangement plus a 1-2 px sky/leaf silhouette edge.
+  t=300 / t=320 / t=700 have no UNEXPLAINED cluster over 300 px at all and fail
+  purely on mild-shift, i.e. the same wash spread thin. Closing the texel
+  residual closes this tape.
 - `scenario_slime_bounce_20260723T001527Z`: the slime platform renders too
   dark. `models/block/slime.json` (read out of the 1.11.2 jar) has TWO
   elements - an inset core `[3,3,3]..[13,13,13]` and the full cube - and
