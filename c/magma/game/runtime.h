@@ -46,6 +46,12 @@ typedef struct GmRuntime {
     int player_fire_ticks; /* Entity.fire, setFire(seconds) stores seconds*20 */
     int ccx, ccz;
     int ox, oz;
+    /* Feet position (world coords) as of the ENTRY of the last gm_runtime_tick:
+     * server pose packets have landed, this tick's own movement has not. That
+     * is the position EntityRenderer.updateRenderer samples for the fogColor1
+     * light term - see gm_runtime_tick_entry_feet. */
+    double te_x, te_y, te_z;
+    int te_valid;
     /* physics-window fill memo: refill only on recenter / world switch / block
      * mutation (gm_world_block_gen). The unconditional per-tick refill was 94%
      * of a physics-only tape replay (find_chunk+light_state, perf 2026-07-10). */
@@ -178,6 +184,15 @@ void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int 
 void gm_runtime_tape_potions_clear(GmRuntime *r);
 int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration);
 void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view);
+
+/* Feet position at the entry of the last gm_runtime_tick, in world coords.
+ * EntityRenderer.updateRenderer runs before the local player's movement update
+ * within Minecraft.runTick, so its fogColor1 light sample sees the pre-move
+ * position - but AFTER the network phase, so a server pose packet (the tape's
+ * pre-tick set_pose) is already applied. Falls back to the live view before
+ * the first tick. */
+void gm_runtime_tick_entry_feet(const GmRuntime *r,
+                                double *x, double *y, double *z);
 /* Seed recorded vitals at tape-replay start. */
 void gm_runtime_set_vitals(GmRuntime *r, float health, int food);
 /* Interactive / harness respawn (GuiGameOver Respawn button / SPacketRespawn).

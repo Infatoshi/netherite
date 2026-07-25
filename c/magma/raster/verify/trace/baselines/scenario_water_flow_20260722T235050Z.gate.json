@@ -38,8 +38,8 @@
   },
   "particles": {
    "frames": 34,
-   "px": 6355,
-   "max_cluster": 195
+   "px": 6339,
+   "max_cluster": 189
   },
   "thinline": {
    "frames": 26,

@@ -600,15 +600,27 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     advance_hand_state(c, r, &tick_v, action, &swing, &equip);
     gm_hud_state_step(&c->hud_state,&tick_v,c->frame);
     /* fogColor1 smoother (light brightness at the player FEET): one vanilla
-     * updateRenderer step per tick, rendered or not. */
+     * updateRenderer step per tick, rendered or not. updateRenderer runs
+     * BEFORE the local player's movement update, so it samples the position
+     * the tick started with - after the network phase (a tape pre-tick
+     * set_pose is already in) but before this tick's own physics. Sampling
+     * the post-tick feet instead starts every ramp one tick early: on
+     * soulsand_ice t=60 (the step down onto soul sand, feet light 15 -> 0)
+     * that is a 77%-of-frame 5.37 mean_abs mild_shift, and solving the two
+     * goldens for the c1 they were drawn with gives 0.8548 (2 steps, the
+     * tick-entry sample) against our 0.7967 (3 steps). The teleport tape
+     * water_dive t=1000 pins the other side: its jump arrives as a pre-tick
+     * set_pose, so its ramp does start on the row tick (implied 0.5771 == 4
+     * steps from t=997), which a blanket one-tick lag would break. */
     {
-        GmPlayerView fv=tick_v;
+        double fx,fy,fz;
+        gm_runtime_tick_entry_feet(r,&fx,&fy,&fz);
         if(!c->fog_c1_init){
-            c->fog_c1=gm_uw_fog_c1_seed(r->world,r->dimension,fv.x,fv.y,fv.z);
+            c->fog_c1=gm_uw_fog_c1_seed(r->world,r->dimension,fx,fy,fz);
             c->fog_c1_init=1;
         }else{
             c->fog_c1=gm_uw_fog_c1_step(c->fog_c1,r->world,r->dimension,
-                                        fv.x,fv.y,fv.z);
+                                        fx,fy,fz);
         }
     }
     if(!render){

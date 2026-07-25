@@ -360,6 +360,10 @@ void gm_runtime_respawn(GmRuntime *r) {
 
 void gm_runtime_tick(GmRuntime *r, GmAction action) {
     if (!r || !r->world || r->won) return;
+    r->te_x = r->player.ent.posX + (double)r->ox;
+    r->te_y = r->player.ent.posY;
+    r->te_z = r->player.ent.posZ + (double)r->oz;
+    r->te_valid = 1;
     /* GuiGameOver is open: advance enableButtonsTimer and handle button clicks.
      * World/player physics stay frozen (vanilla doesGuiPauseGame=false but the
      * player entity is already dead; magma freezes the survival transition). */
@@ -631,6 +635,15 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         }
     }else if(feet!=90&&head!=90)r->portal_time=0;
     r->tick++;
+}
+
+void gm_runtime_tick_entry_feet(const GmRuntime *r,
+                                double *x, double *y, double *z) {
+    if (!r) return;
+    if (r->te_valid) { *x = r->te_x; *y = r->te_y; *z = r->te_z; return; }
+    *x = r->player.ent.posX + (double)r->ox;
+    *y = r->player.ent.posY;
+    *z = r->player.ent.posZ + (double)r->oz;
 }
 
 void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {

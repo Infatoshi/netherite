@@ -23,12 +23,12 @@
   },
   "viewmodel": {
    "frames": 51,
-   "px": 241631,
+   "px": 241634,
    "max_cluster": 8135
   },
   "particles": {
    "frames": 51,
-   "px": 204340,
+   "px": 204342,
    "max_cluster": 20522
   },
   "UNEXPLAINED": {
@@ -1318,11 +1318,11 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 6.184806381975555,
-    "pct_differing": 63.14484807485796,
+    "mean_abs": 6.184792189995916,
+    "pct_differing": 63.144375008869986,
     "low_thresh": 1,
     "residual_px": 211387,
-    "low_differing_px": 133480
+    "low_differing_px": 133479
    }
   },
   {
@@ -9399,11 +9399,11 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 6.014395398014069,
-    "pct_differing": 62.90689588290671,
+    "mean_abs": 6.0142156329386385,
+    "pct_differing": 62.900746025063036,
     "low_thresh": 1,
     "residual_px": 211387,
-    "low_differing_px": 132977
+    "low_differing_px": 132964
    }
   },
   {
@@ -10168,11 +10168,11 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 6.050171801797966,
-    "pct_differing": 63.06915751678201,
+    "mean_abs": 6.0501434178386875,
+    "pct_differing": 63.06679218684214,
     "low_thresh": 1,
     "residual_px": 211387,
-    "low_differing_px": 133320
+    "low_differing_px": 133315
    }
   },
   {
@@ -10787,11 +10787,11 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 5.9488489516069265,
-    "pct_differing": 63.0265815778643,
+    "mean_abs": 5.948826875194154,
+    "pct_differing": 63.0227970499605,
     "low_thresh": 1,
     "residual_px": 211387,
-    "low_differing_px": 133230
+    "low_differing_px": 133222
    }
   },
   {
@@ -10845,11 +10845,11 @@
    "unexplained_px": 0,
    "clusters": [],
    "mild_shift": {
-    "mean_abs": 7.286435148172152,
-    "pct_differing": 79.64586280140217,
+    "mean_abs": 6.725459307652158,
+    "pct_differing": 79.61795190811166,
     "low_thresh": 1,
     "residual_px": 211387,
-    "low_differing_px": 168361
+    "low_differing_px": 168302
    }
   },
   {
@@ -10857,11 +10857,11 @@
    "unexplained_px": 0,
    "clusters": [],
    "mild_shift": {
-    "mean_abs": 3.6978921756462477,
-    "pct_differing": 77.875176808413,
+    "mean_abs": 4.3485360973002125,
+    "pct_differing": 77.98682038157503,
     "low_thresh": 1,
     "residual_px": 211387,
-    "low_differing_px": 164618
+    "low_differing_px": 164854
    }
   }
  ],

@@ -28,12 +28,12 @@
   },
   "UNEXPLAINED": {
    "frames": 63,
-   "px": 122522,
+   "px": 122514,
    "max_cluster": 3380
   },
   "particles": {
    "frames": 75,
-   "px": 181175,
+   "px": 181178,
    "max_cluster": 6707
   },
   "bossbar": {
@@ -43,7 +43,7 @@
   },
   "known:4": {
    "frames": 12,
-   "px": 143850,
+   "px": 140374,
    "max_cluster": 19171
   },
   "thinline": {
@@ -53,8 +53,8 @@
   },
   "known:1": {
    "frames": 2,
-   "px": 17593,
-   "max_cluster": 9955
+   "px": 17590,
+   "max_cluster": 9962
   },
   "known:14": {
    "frames": 9,
@@ -436,10 +436,10 @@
   },
   {
    "tick": 300,
-   "unexplained_px": 978,
+   "unexplained_px": 976,
    "clusters": [
     {
-     "px": 62,
+     "px": 61,
      "cls": "UNEXPLAINED",
      "bbox": [
       115,
@@ -459,7 +459,7 @@
      ]
     },
     {
-     "px": 295,
+     "px": 294,
      "cls": "UNEXPLAINED",
      "bbox": [
       138,
@@ -520,11 +520,11 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 29.19611979416371,
-    "pct_differing": 45.28717997890497,
+    "mean_abs": 29.289433237271854,
+    "pct_differing": 45.31219980787704,
     "low_thresh": 1,
-    "residual_px": 10429,
-    "low_differing_px": 4723
+    "residual_px": 10410,
+    "low_differing_px": 4717
    }
   },
   {
@@ -686,11 +686,11 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 34.413121790449914,
-    "pct_differing": 86.57162566107151,
+    "mean_abs": 34.46124823274908,
+    "pct_differing": 86.57059635137207,
     "low_thresh": 1,
-    "residual_px": 39141,
-    "low_differing_px": 33885
+    "residual_px": 39138,
+    "low_differing_px": 33882
    }
   },
   {
