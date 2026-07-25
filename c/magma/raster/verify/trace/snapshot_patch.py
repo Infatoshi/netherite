@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import struct
 import subprocess
 from pathlib import Path
@@ -147,8 +148,17 @@ def ensure_snapshot_patch(tape_path: str, header: dict, ticks: list[dict]) -> Pa
         tiles.setdefault((dimension, cx // 8, cz // 8), []).append((cx, cz))
 
     events = 0
-    temp = cache.with_suffix(cache.suffix + ".tmp.bin")
-    with cache.open("w") as out:
+    # Both scratch names carry the pid, and the cache is published with an
+    # atomic rename. Agent worktrees symlink tapes/ to one shared directory,
+    # and the staleness check above keys off this file's mtime, which differs
+    # per worktree - so N concurrent replays all decide to regenerate the same
+    # cache at once. With a fixed temp name they overwrite each other's
+    # world_dump tiles (wrong patch, silently), and with an in-place cache
+    # write a reader sees a truncated patch (unpatched cells, silently). Both
+    # showed up as a phantom 3.5x terrain residual on a tape that was fine.
+    part = cache.with_suffix(cache.suffix + f".{os.getpid()}.part")
+    temp = cache.with_suffix(cache.suffix + f".{os.getpid()}.tmp.bin")
+    with part.open("w") as out:
         for dimension, tx, tz in sorted(tiles):
             overworld_type = (1 if str(header.get("world", "")).endswith("_flat")
                               else 0)
@@ -179,5 +189,6 @@ def ensure_snapshot_patch(tape_path: str, header: dict, ticks: list[dict]) -> Pa
                     }, separators=(",", ":")) + "\n")
                     events += 1
     temp.unlink(missing_ok=True)
+    os.replace(part, cache)
     print(f"[tape] snapshot patch: {len(java)} visible saved chunks, {events} cells -> {cache}")
     return cache
