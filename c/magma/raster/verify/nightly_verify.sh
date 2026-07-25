@@ -25,8 +25,14 @@ STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 NIGHT_DIR=$TRACE/report/nightly
 OUT_MD=$TRACE/report/nightly_${STAMP}.md
 PAR=${NIGHTLY_PAR:-6}
+# NIGHTLY_BACKEND=cpu replays on the CPU instead of GPU1. Correctness sweeps
+# are not timed, so a busy GPU1 (the default target) is a reason to fall back
+# rather than skip - but only when asked for explicitly, so an unattended run
+# still self-defers instead of quietly taking hours.
+BACKEND=${NIGHTLY_BACKEND:-cuda}
 mkdir -p "$NIGHT_DIR"
 
+if [ "$BACKEND" = cuda ]; then
 GPU1_MB=$(nvidia-smi --id=1 --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1)
 if [ -n "${GPU1_MB:-}" ] && [ "$GPU1_MB" -gt 4096 ]; then
     # Explicit SKIP, not green: callers must not treat exit 0 as a passed gate.
@@ -37,12 +43,15 @@ if [ -n "${GPU1_MB:-}" ] && [ "$GPU1_MB" -gt 4096 ]; then
         echo "reason: GPU1 busy (${GPU1_MB} MiB used)"
         echo
         echo "This run did not verify any tape. Do not report as green."
+        echo "Re-run with NIGHTLY_BACKEND=cpu to sweep without GPU1."
     } | tee "$OUT_MD"
     exit 2
 fi
+fi
 
 # rebuild so the replay always tests HEAD (stale-object trap: clean game/)
-( cd ../.. && rm -f game/*.o && make magma_game_cuda -j"$(nproc)" >/dev/null ) || {
+if [ "$BACKEND" = cuda ]; then BUILD_TARGET=magma_game_cuda; else BUILD_TARGET=magma_game; fi
+( cd ../.. && rm -f game/*.o && make "$BUILD_TARGET" -j"$(nproc)" >/dev/null ) || {
     echo "[nightly] BUILD FAILED" | tee "$OUT_MD"; exit 1; }
 
 # warm the uv venv once so the parallel workers all hit the resolver cache
@@ -61,7 +70,8 @@ done
 {
     echo "# Nightly magma verify - $STAMP"
     echo
-    echo "${#TAPE_LIST[@]} tapes, $PAR replays in parallel on GPU1"
+    if [ "$BACKEND" = cuda ]; then where="on GPU1"; else where="on the CPU"; fi
+    echo "${#TAPE_LIST[@]} tapes, $PAR replays in parallel $where"
     echo
 } > "$OUT_MD"
 
@@ -70,9 +80,15 @@ done
 replay_one() {
     base=$1
     log=$NIGHT_DIR/${base}.log
-    ( cd "$TRACE" && CUDA_VISIBLE_DEVICES=1 uv run --no-project \
-        --with numpy,scipy,pillow,nbt python replay_tape.py \
-        "../$TAPES/${base}.jsonl" --cuda --report ) > "$log" 2>&1
+    if [ "$BACKEND" = cuda ]; then
+        ( cd "$TRACE" && CUDA_VISIBLE_DEVICES=1 uv run --no-project \
+            --with numpy,scipy,pillow,nbt python replay_tape.py \
+            "../$TAPES/${base}.jsonl" --cuda --report ) > "$log" 2>&1
+    else
+        ( cd "$TRACE" && uv run --no-project \
+            --with numpy,scipy,pillow,nbt python replay_tape.py \
+            "../$TAPES/${base}.jsonl" --cpu --report ) > "$log" 2>&1
+    fi
     echo $? > "$NIGHT_DIR/${base}.rc"
     new_json=$TRACE/report/tape_${base}.gate.json
     [ -f "$new_json" ] && cp "$new_json" "$NIGHT_DIR/${base}.gate.json"

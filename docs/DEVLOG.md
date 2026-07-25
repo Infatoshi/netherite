@@ -442,3 +442,34 @@ D-states in drm_open (kill -9 immune; D-state PIDs 1288651 Xvfb :1,
 - Pre-existing, unrelated: `make game-cuda` fails to link
   (`cr_camera_view` defined in both `core/math.o` and
   `cuda/raster_cuda_sm86.o`), so this round was measured on the CPU path.
+
+## 2026-07-25 (post-fix sweep: every tape re-baselined, CUDA game link repaired)
+
+- `magma_game_cuda` had not linked since `cr_camera_view` was added to
+  `core/math.c`: `cuda/raster_cuda.cu` #includes math.c under `_dev` private
+  names, and the new symbol was not in that rename list, so it collided with
+  the gcc-built `core/math.o`. Added `cr_camera_view` to the rename block.
+- `raster/verify/nightly_verify.sh` gained `NIGHTLY_BACKEND=cpu`, which
+  replays on the CPU instead of GPU1. Default behaviour is unchanged (GPU1,
+  `--cuda`, self-defer when GPU1 is busy); the override exists because a
+  correctness sweep is not timed, so a 12 GB co-tenant on GPU1 is a reason to
+  fall back rather than skip. GPU0 stays reserved.
+- First full sweep: 23 tapes on the CPU, all post-CUTOUT-fix. 5 clean (rc=0),
+  8 pixel-gate FAIL (rc=3), 10 non-player state divergence (rc=5, pixel gate
+  itself PASS). All 23 gate.json results are now committed under
+  `trace/baselines/`, which is what nightly diffs against - previously only
+  one tape had a baseline and the other 22 failed as "missing required
+  baseline", so the sweep had never produced a usable signal.
+- Nightly will still report RESULT: FAIL until the ten rc=5 state divergences
+  are closed; baselines can absorb pixel-gate failures, not those.
+- Residual on the canonical tape (t=260, t=460) characterised, not fixed:
+  it is not geometry, not a camera offset (best whole-frame alignment is
+  dx=dy=0), and not the fog distance mode. The oracle's own GL query records
+  `fog_distance_mode_nv = 34139` (GL_EYE_RADIAL_NV), which is what magma
+  already does; forcing planar |z| fog as an experiment made the tape worse
+  (particles 181k -> 436k px, viewmodel 256k -> 411k, failed frames 7 -> 10)
+  and the experiment was reverted. On leaf interiors the delta is zero-mean
+  with a large spread (near canopy mean +0.1/+0.2/+0.2 per channel, sigma
+  19/28/8), i.e. individual texels flipping between neighbours rather than a
+  shading offset - nearest-neighbour texel selection on minified noisy leaf
+  faces.

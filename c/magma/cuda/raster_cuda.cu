@@ -35,6 +35,7 @@
 #define cr_mat4_mul_vec4    cr_mat4_mul_vec4_dev
 #define cr_perspective      cr_perspective_dev
 #define cr_look_yaw_pitch   cr_look_yaw_pitch_dev
+#define cr_camera_view      cr_camera_view_dev
 #include "core/math.c"
 #define cr_transform        cr_transform_dev
 #define cr_transform_tri    cr_transform_tri_dev
@@ -46,6 +47,7 @@
 #undef cr_mat4_mul_vec4
 #undef cr_perspective
 #undef cr_look_yaw_pitch
+#undef cr_camera_view
 
 /* Private copy of the sky shader (game/sky.c) for the GPU sky pass. The frame
  * ctx (all celestial trig) is built on the HOST by the cc-compiled sky.o
