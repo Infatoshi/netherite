@@ -102,6 +102,7 @@ struct GmFrameCapture {
     float boss_frac;        /* last seen health/200 */
     float pend_uwb;         /* ... with this Entity.getBrightness tint */
     float pend_uwfov;       /* ... through this hand-projection fov */
+    float pend_fovscale;    /* ... and this eye-in-fluid fov scale (fire overlay) */
     long long pend_texture_tick; /* animated atlas phase of deferred frame */
     const GmWorld *pend_world;   /* eye-block sample for deferred suffocate overlay */
     GmHudState hud_state;
@@ -569,7 +570,7 @@ static int finish_pending(GmFrameCapture *c) {
     if (c->pend_uwov)
         gm_uw_overlay_draw(&pfb, &c->pend_v, c->pend_uwb, c->pend_uwfov);
     if (c->pend_v.fire && !c->pend_v.creative && !c->pend_v.dead)
-        gm_hand_fire_overlay_draw(&pfb,&atlas,c->pend_uwfov/70.0f);
+        gm_hand_fire_overlay_draw(&pfb,&atlas,c->pend_fovscale);
     if (c->pend_v.portal > 0.0f) {
         bm_atlas_set_portal_frame(c->pend_v.portal_frame);
         gm_overlay_portal_screen(&pfb,&atlas,c->pend_v.portal);
@@ -991,7 +992,13 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 c->pend_item=c->equip_item;c->pend_meta=c->equip_meta;
                 c->pend_count=c->equip_count;c->pend_bob=c->hand_bob;
                 c->pend_uwov=uw.overlay&&!v.dead;
+                /* The sync path passes uw.fov_scale to the fire overlay, not
+                 * cam.fov_deg/70: cam.fov_deg is 70 * fov_mult * fov_scale, so
+                 * deriving the scale back out of it silently folds in
+                 * getFovModifier's bow-pull / sprint term. That is the whole
+                 * CPU-vs-CUDA divergence on fire+bow ticks. Snapshot both. */
                 c->pend_uwb=uw.brightness;c->pend_uwfov=cam.fov_deg;
+                c->pend_fovscale=uw.fov_scale;
                 c->pend_texture_tick=fc_texture_tick(r->clock.total_time,
                                                      v.portal_frame);
                 c->pend_world=r->world;
