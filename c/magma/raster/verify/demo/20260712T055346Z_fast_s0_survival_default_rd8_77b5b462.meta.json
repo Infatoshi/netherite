@@ -1,75 +1,77 @@
 {
-  "name": "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462",
-  "created_utc": "20260712T055346Z",
-  "git_rev": "fd847f349b0f7df586ba5be778c337df2f60fc59",
+ "name": "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462",
+ "created_utc": "20260712T055346Z",
+ "git_rev": "fd847f349b0f7df586ba5be778c337df2f60fc59",
+ "profile": "fast",
+ "qrl_launch": {
+  "port": 25575,
   "profile": "fast",
-  "qrl_launch": {
-    "port": 25575,
-    "profile": "fast",
-    "chat": false,
-    "hide_gui": false,
-    "strip": {
-      "menus": true,
-      "overlays": true,
-      "sound": true
-    },
-    "determinism": {
-      "pin_flicker": true,
-      "pin_skin": true,
-      "pin_texture_animations": true
-    },
-    "world": {
-      "seed": 0,
-      "mode": "survival",
-      "type": "default",
-      "structures": true,
-      "time": 6000,
-      "weather": "clear",
-      "gamerules": {
-        "sendCommandFeedback": "false",
-        "showDeathMessages": "false",
-        "doDaylightCycle": "false",
-        "doWeatherCycle": "false",
-        "doMobSpawning": "true",
-        "doFireTick": "true",
-        "doMobLoot": "true",
-        "doEntityDrops": "true",
-        "doTileDrops": "true",
-        "mobGriefing": "true",
-        "randomTickSpeed": "3",
-        "keepInventory": "false"
-      }
-    }
+  "chat": false,
+  "hide_gui": false,
+  "strip": {
+   "menus": true,
+   "overlays": true,
+   "sound": true
   },
-  "options": {
-    "fov": "0.0",
-    "gamma": "0.0",
-    "renderDistance": "8",
-    "guiScale": "2",
-    "particles": "2",
-    "bobView": "false",
-    "anaglyph3d": "false",
-    "maxFps": "260",
-    "fboEnable": "true",
-    "fancyGraphics": "false",
-    "ao": "0",
-    "renderClouds": "false",
-    "chatVisibility": "2",
-    "enableVsync": "false",
-    "useVbo": "true",
-    "mipmapLevels": "0",
-    "entityShadows": "false",
-    "soundCategory_master": "0.0"
+  "determinism": {
+   "pin_flicker": true,
+   "pin_skin": true,
+   "pin_texture_animations": true
   },
-  "frames_every": 20,
-  "tape_jsonl": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/magma/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.jsonl",
-  "frames_dir": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/magma/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462_frames",
-  "ticks": 3121,
-  "parquet": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/magma/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.parquet",
-  "parquet_rows": 3121,
-  "frames": 157,
-  "capture": {
-    "hide_gui": true,
-    "hide_gui_source": "measured from the goldens: all 157 frames have no hearts, hotbar or crosshair; Malmo ClientStateMachine forces hideGUI=true for the mission, which qrl_launch.hide_gui does not record"
+  "world": {
+   "seed": 0,
+   "mode": "survival",
+   "type": "default",
+   "structures": true,
+   "time": 6000,
+   "weather": "clear",
+   "gamerules": {
+    "sendCommandFeedback": "false",
+    "showDeathMessages": "false",
+    "doDaylightCycle": "false",
+    "doWeatherCycle": "false",
+    "doMobSpawning": "true",
+    "doFireTick": "true",
+    "doMobLoot": "true",
+    "doEntityDrops": "true",
+    "doTileDrops": "true",
+    "mobGriefing": "true",
+    "randomTickSpeed": "3",
+    "keepInventory": "false"
+   }
   }
+ },
+ "options": {
+  "fov": "0.0",
+  "gamma": "0.0",
+  "renderDistance": "8",
+  "guiScale": "2",
+  "particles": "2",
+  "bobView": "false",
+  "anaglyph3d": "false",
+  "maxFps": "260",
+  "fboEnable": "true",
+  "fancyGraphics": "false",
+  "ao": "0",
+  "renderClouds": "false",
+  "chatVisibility": "2",
+  "enableVsync": "false",
+  "useVbo": "true",
+  "mipmapLevels": "0",
+  "entityShadows": "false",
+  "soundCategory_master": "0.0"
+ },
+ "frames_every": 20,
+ "tape_jsonl": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/magma/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.jsonl",
+ "frames_dir": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/magma/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462_frames",
+ "ticks": 3121,
+ "parquet": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/magma/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.parquet",
+ "parquet_rows": 3121,
+ "frames": 157,
+ "capture": {
+  "hide_gui": true,
+  "hide_gui_source": "measured from the goldens: all 157 frames have no hearts, hotbar or crosshair; Malmo ClientStateMachine forces hideGUI=true for the mission, which qrl_launch.hide_gui does not record",
+  "hand_from_tick": 2440,
+  "hand_from_tick_source": "measured by replaying the whole tape twice, hand on and hand off, and scoring the lower-right quadrant of all 157 goldens: hand-off wins every frame through t=2420, hand-on wins from t=2440 (8.00/ch vs 1.63/ch at t=2440, where the golden holds a wooden shovel). No golden has a hotbar at any tick, so this is not a plain hideGUI toggle"
+ }
 }

@@ -210,6 +210,25 @@ def tape_hide_gui(path):
         return False
 
 
+def tape_hand_from_tick(path):
+    """First tick whose goldens draw the first-person viewmodel again, or None.
+
+    hideGUI suppresses the hand as well as the overlay
+    (EntityRenderer.renderHand), but the two are not always in step: on
+    20260712T055346Z the viewmodel comes back at t=2440 while no golden in the
+    tape ever has a hotbar. capture.hand_from_tick is the measured tick, from
+    replaying the tape with and without the hand and scoring every golden's
+    lower-right quadrant. Only meaningful alongside capture.hide_gui.
+    """
+    meta = os.path.splitext(path)[0] + ".meta.json"
+    try:
+        with open(meta) as f:
+            v = json.load(f).get("capture", {}).get("hand_from_tick")
+        return None if v is None else int(v)
+    except (OSError, ValueError, TypeError):
+        return None
+
+
 def tape_texture_animations_pinned(path):
     """Return whether QRL froze atlas sprites on uploaded physical frame zero."""
     meta = os.path.splitext(path)[0] + ".meta.json"
@@ -1192,6 +1211,9 @@ def main():
             replay_env["MAGMA_STRIP_OVERLAYS"] = "1"
         if tape_hide_gui(args.tape):
             replay_env["MAGMA_HIDE_GUI"] = "1"
+            hand_from = tape_hand_from_tick(args.tape)
+            if hand_from is not None:
+                replay_env["MAGMA_HAND_FROM_TICK"] = str(hand_from)
         if frames_npy:
             # daylight=False: the trace profile (fast.yaml) records with
             # doDaylightCycle=false, so the oracle session's world_time never
@@ -1307,8 +1329,11 @@ def main():
                 from scipy import ndimage as _nd  # noqa: F401
                 known_divergences = pg.load_known_divergences(args.tape)
                 # No overlay was drawn on either side, so the bottom rows are
-                # scene pixels and must not be accepted positionally.
+                # scene pixels and must not be accepted positionally. The
+                # viewmodel quadrant is the same story until the tick where the
+                # oracle's hand comes back, after which both sides draw one.
                 gate_hide_gui = tape_hide_gui(args.tape)
+                gate_hand_from = tape_hand_from_tick(args.tape)
             except ImportError as e:
                 raise SystemExit(
                     f"[tape] pixel gate deps missing ({e}); add --with scipy "
@@ -1325,9 +1350,12 @@ def main():
             c16 = b8.astype(np.int16)
             s = ol.diff_regions_arrays(o16, c16, args.w, args.h)
             if gate_on:
+                hide_hand = gate_hide_gui and (gate_hand_from is None
+                                               or t < gate_hand_from)
                 clusters, mild = pg.gate_frame_ex(
                     o16, c16, args.w, args.h, tick=t,
-                    known=known_divergences, hide_gui=gate_hide_gui)
+                    known=known_divergences, hide_gui=gate_hide_gui,
+                    hide_hand=hide_hand)
             else:
                 clusters, mild = None, None
             return t, b8, s, clusters, mild

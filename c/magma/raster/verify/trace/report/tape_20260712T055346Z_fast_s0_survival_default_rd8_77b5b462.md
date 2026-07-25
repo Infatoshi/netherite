@@ -14,17 +14,17 @@
 
 | class | frames | px | max cluster |
 |---|---|---|---|
-| UNEXPLAINED | 60 | 434097 | 64445 |
+| UNEXPLAINED | 60 | 404128 | 64445 |
 | bossbar | 76 | 384822 | 38430 |
-| hud | 106 | 223375 | 9573 |
+| hud | 107 | 244695 | 9573 |
 | known:1 | 32 | 568462 | 49020 |
 | known:12 | 16 | 1829525 | 146981 |
 | known:20 | 2 | 72738 | 45272 |
-| known:54 | 23 | 323802 | 28012 |
+| known:54 | 23 | 170521 | 14631 |
 | known:9 | 7 | 99295 | 4466 |
-| particles | 145 | 1752024 | 20867 |
-| thinline | 31 | 26934 | 1339 |
-| viewmodel | 46 | 813010 | 30734 |
+| particles | 135 | 1782990 | 20867 |
+| thinline | 31 | 26549 | 1295 |
+| viewmodel | 63 | 461603 | 30734 |
 
 Skipped renderable entity rows (more than 4 fails the gate):
 
@@ -34,9 +34,8 @@ Failed frames (worst first, top 20):
 
 - t=1620: 78076 unexplained px, clusters [{'px': 962, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 92, 67], 'soak_from': 'particles'}, {'px': 381, 'cls': 'UNEXPLAINED', 'bbox': [86, 9, 103, 49], 'soak_from': 'particles'}, {'px': 64445, 'cls': 'UNEXPLAINED', 'bbox': [96, 0, 479, 461], 'soak_from': 'particles'}, {'px': 387, 'cls': 'UNEXPLAINED', 'bbox': [112, 815, 139, 853], 'soak_from': 'particles'}]
 - t=1540: 67615 unexplained px, clusters [{'px': 47041, 'cls': 'UNEXPLAINED', 'bbox': [45, 179, 293, 482], 'soak_from': 'particles'}, {'px': 52, 'cls': 'UNEXPLAINED', 'bbox': [72, 5, 82, 12], 'soak_from': 'particles'}, {'px': 257, 'cls': 'UNEXPLAINED', 'bbox': [72, 88, 94, 115], 'soak_from': 'particles'}, {'px': 50, 'cls': 'UNEXPLAINED', 'bbox': [72, 227, 100, 231], 'soak_from': 'particles'}]
-- t=2860: 55164 unexplained px, clusters [{'px': 360, 'cls': 'UNEXPLAINED', 'bbox': [57, 23, 72, 57], 'soak_from': 'particles'}, {'px': 49856, 'cls': 'UNEXPLAINED', 'bbox': [65, 0, 479, 503], 'soak_from': 'particles'}, {'px': 1046, 'cls': 'UNEXPLAINED', 'bbox': [91, 44, 126, 89], 'soak_from': 'particles'}, {'px': 86, 'cls': 'UNEXPLAINED', 'bbox': [143, 726, 164, 738], 'soak_from': 'particles'}]
-- t=2840: 51274 unexplained px, clusters [{'px': 257, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 73, 12], 'soak_from': 'particles'}, {'px': 48202, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 473, 326], 'soak_from': 'particles'}, {'px': 140, 'cls': 'UNEXPLAINED', 'bbox': [102, 347, 115, 365], 'soak_from': 'particles'}, {'px': 67, 'cls': 'UNEXPLAINED', 'bbox': [144, 90, 157, 97], 'soak_from': 'particles'}]
-- t=2440: 27052 unexplained px, clusters [{'px': 125, 'cls': 'UNEXPLAINED', 'bbox': [77, 822, 93, 839]}, {'px': 54, 'cls': 'UNEXPLAINED', 'bbox': [83, 839, 96, 853]}, {'px': 596, 'cls': 'UNEXPLAINED', 'bbox': [97, 738, 150, 803]}, {'px': 83, 'cls': 'UNEXPLAINED', 'bbox': [101, 838, 115, 853]}]
+- t=2860: 52289 unexplained px, clusters [{'px': 360, 'cls': 'UNEXPLAINED', 'bbox': [57, 23, 72, 57], 'soak_from': 'particles'}, {'px': 47846, 'cls': 'UNEXPLAINED', 'bbox': [65, 0, 479, 503], 'soak_from': 'particles'}, {'px': 1046, 'cls': 'UNEXPLAINED', 'bbox': [91, 44, 126, 89], 'soak_from': 'particles'}, {'px': 86, 'cls': 'UNEXPLAINED', 'bbox': [143, 726, 164, 738], 'soak_from': 'particles'}]
+- t=2840: 50296 unexplained px, clusters [{'px': 257, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 73, 12], 'soak_from': 'particles'}, {'px': 48202, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 473, 326], 'soak_from': 'particles'}, {'px': 140, 'cls': 'UNEXPLAINED', 'bbox': [102, 347, 115, 365], 'soak_from': 'particles'}, {'px': 67, 'cls': 'UNEXPLAINED', 'bbox': [144, 90, 157, 97], 'soak_from': 'particles'}]
 - t=520: 12940 unexplained px, clusters [{'px': 51, 'cls': 'UNEXPLAINED', 'bbox': [45, 248, 60, 252]}, {'px': 61, 'cls': 'UNEXPLAINED', 'bbox': [55, 356, 81, 359]}, {'px': 53, 'cls': 'UNEXPLAINED', 'bbox': [70, 142, 88, 147]}, {'px': 92, 'cls': 'UNEXPLAINED', 'bbox': [73, 208, 95, 214]}]
 - t=1160: 744 unexplained px, clusters [{'px': 255, 'cls': 'UNEXPLAINED', 'bbox': [187, 20, 203, 61]}, {'px': 61, 'cls': 'UNEXPLAINED', 'bbox': [224, 243, 231, 258]}, {'px': 183, 'cls': 'UNEXPLAINED', 'bbox': [225, 286, 238, 314]}, {'px': 53, 'cls': 'UNEXPLAINED', 'bbox': [237, 373, 246, 383]}]
 - t=1200: 666 unexplained px, clusters [{'px': 554, 'cls': 'UNEXPLAINED', 'bbox': [217, 310, 249, 375]}, {'px': 58, 'cls': 'UNEXPLAINED', 'bbox': [218, 270, 224, 285]}, {'px': 54, 'cls': 'UNEXPLAINED', 'bbox': [224, 407, 236, 419]}]
@@ -176,38 +175,38 @@ Failed frames (worst first, top 20):
 | 2380 | 2.50 | 21.87% | 1.89 |
 | 2400 | 2.50 | 21.87% | 1.89 |
 | 2420 | 1.18 | 18.05% | 0.96 |
-| 2440 | 3.17 | 22.07% | 1.46 |
-| 2460 | 2.25 | 16.29% | 2.04 |
-| 2480 | 2.84 | 18.23% | 3.30 |
-| 2500 | 1.85 | 9.93% | 1.64 |
-| 2520 | 3.29 | 13.48% | 4.13 |
-| 2540 | 3.14 | 17.42% | 2.43 |
-| 2560 | 3.42 | 19.00% | 4.30 |
-| 2580 | 2.75 | 20.57% | 3.22 |
-| 2600 | 1.44 | 10.86% | 1.25 |
-| 2620 | 3.19 | 13.17% | 3.00 |
-| 2640 | 5.34 | 24.35% | 3.73 |
-| 2660 | 6.24 | 31.21% | 4.33 |
-| 2680 | 7.70 | 43.40% | 4.08 |
-| 2700 | 6.33 | 30.06% | 3.68 |
-| 2720 | 6.30 | 28.22% | 3.96 |
-| 2740 | 5.85 | 21.67% | 3.33 |
-| 2760 | 1.53 | 17.79% | 1.84 |
-| 2780 | 3.09 | 26.42% | 2.74 |
-| 2800 | 4.41 | 25.36% | 5.33 |
-| 2820 | 7.00 | 33.82% | 9.75 |
-| 2840 | 11.96 | 52.62% | 11.82 |
-| 2860 | 12.93 | 55.91% | 12.98 |
-| 2880 | 10.56 | 51.96% | 11.52 |
-| 2900 | 10.90 | 51.53% | 11.99 |
-| 2920 | 5.09 | 13.58% | 2.19 |
-| 2940 | 4.88 | 12.61% | 1.80 |
-| 2960 | 4.88 | 12.61% | 1.80 |
-| 2980 | 4.88 | 12.61% | 1.80 |
-| 3000 | 4.88 | 12.61% | 1.80 |
-| 3020 | 4.88 | 12.61% | 1.80 |
-| 3040 | 4.88 | 12.61% | 1.80 |
-| 3060 | 4.88 | 12.61% | 1.80 |
-| 3080 | 4.88 | 12.61% | 1.80 |
-| 3100 | 4.88 | 12.61% | 1.80 |
-| 3120 | 4.88 | 12.61% | 1.80 |
+| 2440 | 0.97 | 16.37% | 0.81 |
+| 2460 | 1.57 | 15.12% | 1.39 |
+| 2480 | 2.06 | 17.06% | 2.53 |
+| 2500 | 0.99 | 8.76% | 0.82 |
+| 2520 | 2.50 | 12.31% | 3.41 |
+| 2540 | 2.27 | 16.25% | 1.69 |
+| 2560 | 2.68 | 17.83% | 3.59 |
+| 2580 | 3.49 | 21.96% | 3.89 |
+| 2600 | 0.68 | 9.69% | 0.56 |
+| 2620 | 2.23 | 12.01% | 2.10 |
+| 2640 | 3.14 | 18.65% | 2.94 |
+| 2660 | 4.90 | 28.71% | 4.07 |
+| 2680 | 5.68 | 43.95% | 4.38 |
+| 2700 | 2.39 | 26.88% | 2.54 |
+| 2720 | 2.57 | 27.30% | 2.68 |
+| 2740 | 1.35 | 15.97% | 1.82 |
+| 2760 | 2.49 | 19.14% | 2.56 |
+| 2780 | 2.06 | 25.25% | 1.97 |
+| 2800 | 3.05 | 24.19% | 4.01 |
+| 2820 | 5.69 | 32.65% | 8.50 |
+| 2840 | 10.81 | 51.45% | 10.86 |
+| 2860 | 11.86 | 54.74% | 12.12 |
+| 2880 | 11.57 | 52.51% | 12.23 |
+| 2900 | 9.59 | 50.36% | 10.75 |
+| 2920 | 0.55 | 7.88% | 0.39 |
+| 2940 | 0.31 | 6.91% | 0.10 |
+| 2960 | 0.31 | 6.91% | 0.10 |
+| 2980 | 0.31 | 6.91% | 0.10 |
+| 3000 | 0.31 | 6.91% | 0.10 |
+| 3020 | 0.31 | 6.91% | 0.10 |
+| 3040 | 0.31 | 6.91% | 0.10 |
+| 3060 | 0.31 | 6.91% | 0.10 |
+| 3080 | 0.31 | 6.91% | 0.10 |
+| 3100 | 0.31 | 6.91% | 0.10 |
+| 3120 | 0.31 | 6.91% | 0.10 |

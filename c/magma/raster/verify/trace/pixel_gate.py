@@ -232,19 +232,25 @@ def _labeled_clusters(mask, o16, c16, w, h, fixed_class=None,
     return out
 
 
-def _positional_accept_masks(h, w, hide_gui=False):
+def _positional_accept_masks(h, w, hide_gui=False, hide_hand=None):
     """Bossbar / HUD / viewmodel topology barriers (shared by cluster + mild).
 
-    hide_gui drops the HUD and viewmodel barriers entirely. On a tape recorded
-    through Malmo the oracle drew no overlay and magma is told not to either, so
-    the bottom rows are ordinary scene pixels: accepting them positionally would
-    hide a fifth of the frame, and routing them through the normal path lets a
-    filed known-divergence claim them instead of the hud class tripping its
-    budget. The viewmodel barrier goes for the same reason - vanilla
-    EntityRenderer.renderHand is gated on !hideGUI, so neither side draws an arm
-    and that whole quadrant is scene too. Everything drawn there under hideGUI
-    (renderOverlays: block-in-hand, water, fire) is drawn by both sides.
+    hide_gui drops the HUD barrier. On a tape recorded through Malmo the oracle
+    drew no overlay and magma is told not to either, so the bottom rows are
+    ordinary scene pixels: accepting them positionally would hide a fifth of the
+    frame, and routing them through the normal path lets a filed
+    known-divergence claim them instead of the hud class tripping its budget.
+
+    hide_hand drops the viewmodel barrier for the same reason, and defaults to
+    hide_gui because vanilla EntityRenderer.renderHand is gated on !hideGUI. It
+    is separate because the two are not always in step: on 20260712T055346Z the
+    oracle's viewmodel returns at t=2440 while the overlay never does, so from
+    that tick the quadrant holds a real hand on both sides and must be accepted
+    again. Everything else drawn there under hideGUI (renderOverlays:
+    block-in-hand, water, fire) is drawn by both sides in either mode.
     """
+    if hide_hand is None:
+        hide_hand = hide_gui
     bossbar = np.zeros((h, w), dtype=bool)
     bossbar[:BOSSBAR_Y + 1, :] = True
     strip = np.zeros((h, w), dtype=bool)
@@ -257,13 +263,14 @@ def _positional_accept_masks(h, w, hide_gui=False):
     # just because the strip stopped being accepted; growing the viewmodel
     # region by half would silently re-scale what that budget permits.
     viewmodel &= ~strip
-    if hide_gui:
-        empty = np.zeros((h, w), dtype=bool)
-        return bossbar, empty, empty
-    return bossbar, strip, viewmodel
+    empty = np.zeros((h, w), dtype=bool)
+    return (bossbar,
+            empty if hide_gui else strip,
+            empty if hide_hand else viewmodel)
 
 
-def mild_shift_stats(o16, c16, accept_mask=None, hide_gui=False):
+def mild_shift_stats(o16, c16, accept_mask=None, hide_gui=False,
+                     hide_hand=None):
     """Per-frame mean / low-threshold residual metric (Java-vs-Java calibratable).
 
     Residual = pixels outside positional acceptances (and optional extra mask).
@@ -271,7 +278,8 @@ def mild_shift_stats(o16, c16, accept_mask=None, hide_gui=False):
     """
     h, w = o16.shape[:2]
     if accept_mask is None:
-        bossbar, hud, viewmodel = _positional_accept_masks(h, w, hide_gui)
+        bossbar, hud, viewmodel = _positional_accept_masks(
+            h, w, hide_gui, hide_hand)
         accept_mask = bossbar | hud | viewmodel
     residual = ~accept_mask
     n = int(residual.sum())
@@ -308,11 +316,13 @@ def gate_frame(o16, c16, w, h, *, tick=None, known=None):
     return clusters
 
 
-def gate_frame_ex(o16, c16, w, h, *, tick=None, known=None, hide_gui=False):
+def gate_frame_ex(o16, c16, w, h, *, tick=None, known=None, hide_gui=False,
+                  hide_hand=None):
     """Like gate_frame but also returns mild-shift residual stats."""
     d = np.abs(o16 - c16).max(axis=2)
     mask = d > DIFF_THRESH
-    bossbar, hud, viewmodel = _positional_accept_masks(h, w, hide_gui)
+    bossbar, hud, viewmodel = _positional_accept_masks(
+        h, w, hide_gui, hide_hand)
     accept = bossbar | hud | viewmodel
     entries = _active_known(known, tick)
     # Known acceptances also drop out of the mild residual so filed weather
@@ -326,7 +336,7 @@ def gate_frame_ex(o16, c16, w, h, *, tick=None, known=None, hide_gui=False):
                 protected):
             known_accept |= known_mask & ~protected
     mild = mild_shift_stats(o16, c16, accept_mask=accept | known_accept,
-                            hide_gui=hide_gui)
+                            hide_gui=hide_gui, hide_hand=hide_hand)
 
     if not mask.any():
         return [], mild
