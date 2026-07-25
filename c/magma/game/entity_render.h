@@ -120,11 +120,15 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
  * EnumFacing D-U-N-S-W-E or -1 when unknown (spawn without face offset).
  * particle_count: when >0, number of billboards (entity_pin dig_hit count);
  * when <=0, fall back to stage (live progress proxy). Draw with terrain atlas.
+ * lm_r/g/b: EntityRenderer.updateLightmap RGB at the particle (0..1). Vanilla
+ * ParticleDigging multiplies its 0.6 gray by the lightmap (VertexBuffer.lightmap
+ * + color); without that fold End dig dust stays fullbright gray on unlit stone.
  * Input limit: dig_state has no per-tick particle age list or continuous rand
  * stream — recon only. */
 int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
                                   int stage, int face, int particle_count,
                                   float view_yaw, float view_pitch,
+                                  float lm_r, float lm_g, float lm_b,
                                   CrVertex *out, int max);
 
 /* LayerSlimeGel outer shell. Draw with blend=4 (src-over + depth write),

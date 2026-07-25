@@ -963,10 +963,21 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 gm_world_block(r->world,wx,dy,wz),
                 gm_world_meta(r->world,wx,dy,wz)&15));
             static CrVertex dig_ov[1024];
+            /* ParticleDigging.getBrightnessForRender: light at the particle
+             * (spawned just outside the hit face). Sample the face-neighbour
+             * air cell when known; fall back to the dig cell. */
+            int lx=wx, ly=dy, lz=wz;
+            if (dface==0) ly=dy-1; else if (dface==1) ly=dy+1;
+            else if (dface==2) lz=wz-1; else if (dface==3) lz=wz+1;
+            else if (dface==4) lx=wx-1; else if (dface==5) lx=wx+1;
+            int dsky=gm_world_sky_light(r->world,lx,ly,lz);
+            int dblk=gm_world_block_light(r->world,lx,ly,lz);
+            CrLightmapRgb dlm=cr_lightmap_rgb(r->dimension,dsky,dblk,
+                cr_dimension_sun_brightness(r->dimension),0.f,0.f);
             int nd=gm_block_break_particles_emit(
                 wx,dy,wz,bid,stage,dface,
                 gm_player_dig_particle_count(),
-                v.yaw,v.pitch,dig_ov,1024);
+                v.yaw,v.pitch,dlm.r,dlm.g,dlm.b,dig_ov,1024);
             if(nd>0){
                 CrTexture ta=gm_world_atlas(r->world);
                 CrShadeCtx dig={0};

@@ -2312,7 +2312,10 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
  * Java (ParticleManager.addBlockHitEffects): one ParticleDigging per client
  * tick on the hit face, multiplyVelocity(0.2), multipleParticleScaleBy(0.6),
  * texture = model particle icon, gray 0.6; ParticleDigging ctor scale/=2 so
- * half-extent f4=0.1*scale lands in [0.03,0.06].
+ * half-extent f4=0.1*scale lands in [0.03,0.06]. renderParticle then multiplies
+ * that gray by the lightmap (VertexBuffer.color * .lightmap) from
+ * getBrightnessForRender at the particle pos — without the lightmap fold the
+ * dust reads as near-full texture brightness on unlit End stone.
  *
  * Input limits of the interactive dig signal:
  *   - face is available via dig_state_ex when progressive dig is live
@@ -2323,6 +2326,7 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
 int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
                                   int stage, int face, int particle_count,
                                   float view_yaw, float view_pitch,
+                                  float lm_r, float lm_g, float lm_b,
                                   CrVertex *out, int max) {
     if (!out || max < 6 || stage <= 0) return 0;
     float yr = (180.0f - view_yaw) * ER_DEG2RAD;
@@ -2336,6 +2340,20 @@ int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
     int count = particle_count > 0 ? particle_count : stage;
     if (count < 1) count = 1;
     if (count > 16) count = 16;
+    /* Clamp lightmap so a bad caller cannot blow the u8 pack. */
+    if (lm_r < 0.0f) lm_r = 0.0f;
+    if (lm_r > 1.0f) lm_r = 1.0f;
+    if (lm_g < 0.0f) lm_g = 0.0f;
+    if (lm_g > 1.0f) lm_g = 1.0f;
+    if (lm_b < 0.0f) lm_b = 0.0f;
+    if (lm_b > 1.0f) lm_b = 1.0f;
+    /* ParticleDigging base gray 0.6 * updateLightmap RGB (GL_MODULATE). */
+    CrRgba base_tint = {
+        (u8)(0.6f * 255.0f * lm_r + 0.5f),
+        (u8)(0.6f * 255.0f * lm_g + 0.5f),
+        (u8)(0.6f * 255.0f * lm_b + 0.5f),
+        255
+    };
     unsigned seed = (unsigned)(wx * 73856093 ^ wy * 19349663 ^ wz * 83492791)
                   ^ (unsigned)stage * 2246822519u
                   ^ (unsigned)(face + 3) * 2654435761u;
@@ -2369,11 +2387,10 @@ int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
         float u1 = bu0 + ((jx + 1.0f) / 4.0f) * du;
         float v0 = bv0 + (jy / 4.0f) * dv;
         float v1 = bv0 + ((jy + 1.0f) / 4.0f) * dv;
-        CrRgba tint = { 153, 153, 153, 255 }; /* 0.6 gray (grass skips tint) */
         /* Spawn at face; no velocity residual (would need live particle list). */
         written += er_emit_billboard(
             (float)wx + px, (float)wy + py, (float)wz + pz, half,
-            u0, v0, u1, v1, tint, cy, sy, cp, sp,
+            u0, v0, u1, v1, base_tint, cy, sy, cp, sp,
             out + written, max - written);
     }
     return written;

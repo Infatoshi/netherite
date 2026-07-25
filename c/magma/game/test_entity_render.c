@@ -608,7 +608,7 @@ static void test_fireball_rays_particles(void) {
     {
         int dn = gm_block_break_particles_emit(0, 64, 0, 1 /* stone */, 5,
                                                1 /* UP face */, 0 /* count=stage */,
-                                               0.0f, 0.0f, out, 8192);
+                                               0.0f, 0.0f, 1.f, 1.f, 1.f, out, 8192);
         CHECK(dn == 5 * 6, "dig stage 5 emits 5 hit-effect quads");
         float bu0, bv0, bu1, bv1;
         bm_sprite_uv(bm_particle_sprite(1), &bu0, &bv0, &bu1, &bv1);
@@ -644,7 +644,8 @@ static void test_fireball_rays_particles(void) {
                 float eu0, ev0, eu1, ev1;
                 bm_sprite_uv(PS[k].sprite, &eu0, &ev0, &eu1, &ev1);
                 int n = gm_block_break_particles_emit(0, 64, 0, key, 5, 1, 0,
-                                                      0.0f, 0.0f, out, 8192);
+                                                      0.0f, 0.0f, 1.f, 1.f, 1.f,
+                                                      out, 8192);
                 int bad = (n != 5 * 6);
                 for (int i = 0; i < n; ++i) {
                     if (out[i].uv.x < eu0 - 1e-4f || out[i].uv.x > eu1 + 1e-4f ||
@@ -693,7 +694,8 @@ static void test_fireball_rays_particles(void) {
         /* entity_pin dig_hit freezes N billboards independent of crack stage. */
         int dn8 = gm_block_break_particles_emit(0, 64, 0, 1, 4 /* stage */,
                                                 1 /* UP */, 8 /* pin count */,
-                                                0.0f, 0.0f, out, 8192);
+                                                0.0f, 0.0f, 1.f, 1.f, 1.f,
+                                                out, 8192);
         CHECK(dn8 == 8 * 6, "dig particle_count override emits N quads");
     }
 

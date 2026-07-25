@@ -883,10 +883,21 @@ int main(int argc, char **argv) {
                     int bid = gm_state_to_model_key(gm_pack_state(
                         gm_world_block(world, wx, dy, wz),
                         gm_world_meta(world, wx, dy, wz) & 15));
+                    int lx = wx, ly = dy, lz = wz;
+                    if (dface == 0) ly = dy - 1; else if (dface == 1) ly = dy + 1;
+                    else if (dface == 2) lz = wz - 1; else if (dface == 3) lz = wz + 1;
+                    else if (dface == 4) lx = wx - 1; else if (dface == 5) lx = wx + 1;
+                    int dsky = gm_world_sky_light(world, lx, ly, lz);
+                    int dblk = gm_world_block_light(world, lx, ly, lz);
+                    CrLightmapRgb dlm = cr_lightmap_rgb(
+                        runtime.dimension, dsky, dblk,
+                        cr_dimension_sun_brightness(runtime.dimension),
+                        0.f, 0.f);
                     int nd = gm_block_break_particles_emit(
                         wx, dy, wz, bid, stage, dface,
                         gm_player_dig_particle_count(),
-                        pv.yaw, pv.pitch, ent_verts, ent_max_verts);
+                        pv.yaw, pv.pitch, dlm.r, dlm.g, dlm.b,
+                        ent_verts, ent_max_verts);
                     if (nd > 0) {
                         CrShadeCtx dig = {0};
                         dig.atlas = &atlas; dig.fog_color = fog;
