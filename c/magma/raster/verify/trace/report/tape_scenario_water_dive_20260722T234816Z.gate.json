@@ -33,12 +33,12 @@
   },
   "particles": {
    "frames": 10,
-   "px": 3776,
-   "max_cluster": 924
+   "px": 3721,
+   "max_cluster": 884
   },
   "thinline": {
    "frames": 2,
-   "px": 856,
+   "px": 855,
    "max_cluster": 533
   },
   "transit": {

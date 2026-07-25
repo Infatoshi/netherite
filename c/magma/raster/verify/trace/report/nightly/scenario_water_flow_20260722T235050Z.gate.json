@@ -28,7 +28,7 @@
   },
   "viewmodel": {
    "frames": 33,
-   "px": 11605,
+   "px": 11604,
    "max_cluster": 3507
   },
   "UNEXPLAINED": {
@@ -38,8 +38,8 @@
   },
   "particles": {
    "frames": 34,
-   "px": 6355,
-   "max_cluster": 195
+   "px": 6339,
+   "max_cluster": 189
   },
   "thinline": {
    "frames": 26,

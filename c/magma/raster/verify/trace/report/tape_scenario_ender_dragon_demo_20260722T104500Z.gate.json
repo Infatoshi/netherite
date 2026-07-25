@@ -18,7 +18,7 @@
  "classes": {
   "bossbar": {
    "frames": 166,
-   "px": 181094,
+   "px": 181093,
    "max_cluster": 1191
   },
   "hud": {

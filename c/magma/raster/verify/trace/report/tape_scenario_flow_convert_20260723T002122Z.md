@@ -14,7 +14,7 @@
 
 | class | frames | px | max cluster |
 |---|---|---|---|
-| UNEXPLAINED | 81 | 255159 | 584 |
+| UNEXPLAINED | 81 | 255402 | 584 |
 | bossbar | 81 | 115830 | 406 |
 | hud | 1 | 13196 | 13196 |
 | particles | 81 | 72981 | 245 |
