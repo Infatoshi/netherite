@@ -182,23 +182,32 @@ independently re-measured here.
   too. What is left to test is the quad's world position / perspective-correct
   UV precision on grazing top faces, which is a different investigation.
 - `20260712T055346Z_fast_s0_survival_default_rd8_77b5b462`: the goldens have
-  no HUD (Malmo forces `hideGUI` for the mission), magma used to draw one, and
-  the gate's positional `hud` accept swallowed the whole mismatch - the bottom
-  96 rows, 20 percent of the frame, had no pixel verification at all on this
-  tape. `capture.hide_gui` + `MAGMA_HIDE_GUI` fixed that (`3dc2d19`) and the
-  tape. `capture.hide_gui` + `MAGMA_HIDE_GUI` stops magma drawing it
-  (`3dc2d19`), and the gate stops accepting those rows positionally when the
-  tape sets that flag - `_positional_accept_masks(hide_gui=True)` returns an
-  empty HUD barrier while carving the same strip out of `viewmodel`, so the
-  region behind `CLASS_PIXEL_BUDGETS["viewmodel"]` does not silently grow by
-  half. The legacy sidecar regions, all recorder gaps and all scene-global,
-  were widened from y1=383 to y1=479 for the same reason: their old limit was
-  an artifact of the mask, not of the gap.
-  Failed frames go 14 -> 25. That is the price of measuring a fifth of the
-  frame that was never measured before, on all 157 frames; the tape was
+  no HUD and no first-person hand (Malmo forces `hideGUI` for the mission),
+  magma used to draw both, and the gate's positional `hud` and `viewmodel`
+  accepts swallowed the whole mismatch - the bottom 96 rows plus the lower
+  right quadrant had no pixel verification at all on this tape.
+  `capture.hide_gui` + `MAGMA_HIDE_GUI` stops magma drawing them (`3dc2d19`,
+  `81ea54e`), and the gate stops accepting those regions positionally when the
+  tape sets that flag: `_positional_accept_masks(hide_gui=True)` returns empty
+  HUD and viewmodel barriers. The legacy sidecar regions, all recorder gaps and
+  all scene-global, were widened from y1=383 to y1=479 for the same reason:
+  their old limit was an artifact of the mask, not of the gap.
+  `hideGUI` covers more than the overlay. `EntityRenderer.renderHand` gates
+  `renderItemInFirstPerson` on `(thirdPersonView == 0 && !sleeping &&
+  !hideGUI && !spectator)` (oracle-src `EntityRenderer.java:824`), and
+  `GuiIngame.renderPortal` is called from inside `renderGameOverlay`
+  (`GuiIngame.java:156`). `itemRenderer.renderOverlays` (block-in-hand, water,
+  fire) and `hurtCameraEffect` sit outside that branch at line 833 and stay on.
+  Failed frames go 14 -> 25 -> 19. That is the price of measuring a quarter of
+  the frame that was never measured before, on all 157 frames; the tape was
   already failing. The rain window t=1800..2100 now resolves cleanly into
-  `known:12` where before it leaked (t=1800/1940/1960 were failing, now 0
-  unexplained), and the new failures are at t=360..520 and t=1140..1220.
+  `known:12` where before it leaked, the four pure-arm frames
+  (t=360/440/480/500) are gone, and what is left in the newly measured region
+  is t=520 (near-field pit floor, same dirt palette in a different projection -
+  the golden's floor texels streak, magma's stay square, everything outside the
+  pit matches to 0.1 percent) and t=2440 / t=2860 (the golden draws a transient
+  brown object at the frame's bottom-right corner that magma does not; gone
+  again by t=2460, and not the hand). Both are under investigation.
   **A wrong reading to not repeat:** the t=1800..1960 window first looked like
   a missing first-person held item - the oracle shows a dark held log and
   magma appeared to show none. It is not. Golden/candidate over that window is
