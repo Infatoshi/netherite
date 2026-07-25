@@ -122,16 +122,20 @@ def best_shift(g, c, box, span=3):
     Y0, X0 = max(0, y0 - p), max(0, x0 - p)
     Y1, X1 = min(h, y1 + p + 1), min(w, x1 + p + 1)
     gg, cc = g[Y0:Y1, X0:X1], c[Y0:Y1, X0:X1]
+    # A cluster spanning the whole frame leaves no room to crop the roll
+    # wraparound off; shrink the guard band rather than comparing empty slices.
+    py = min(p, max(0, (Y1 - Y0 - 1) // 3))
+    px = min(p, max(0, (X1 - X0 - 1) // 3))
+    def _in(a):
+        return a[py:a.shape[0] - py or None, px:a.shape[1] - px or None]
     best = None
     for dy in range(-span, span + 1):
         for dx in range(-span, span + 1):
             gs = np.roll(np.roll(gg, dy, axis=0), dx, axis=1)
-            m = float(np.abs(gs[p:-p or None, p:-p or None].astype(np.int32)
-                             - cc[p:-p or None, p:-p or None]).mean())
+            m = float(np.abs(_in(gs).astype(np.int32) - _in(cc)).mean())
             if best is None or m < best[2]:
                 best = (dy, dx, m)
-    zero = float(np.abs(gg[p:-p or None, p:-p or None].astype(np.int32)
-                        - cc[p:-p or None, p:-p or None]).mean())
+    zero = float(np.abs(_in(gg).astype(np.int32) - _in(cc)).mean())
     return best, zero
 
 
