@@ -115,10 +115,10 @@ initializer and is **fixed** - see DEVLOG 2026-07-25. What remains on
   sky-minus-leaf axis), i.e. magma shows MORE background through the canopy
   than the oracle. That is a cutout-coverage lead, distinct from the
   interior texel noise below, and it is the largest unexplained residual on
-  the canonical tape. Attributed to
-  nearest-neighbour texel selection on minified leaf faces, not to shading or
-  geometry: on leaf interiors the per-channel delta is zero-mean with a large
-  spread (near canopy mean +0.1/+0.2/+0.2, sigma 19/28/8; distant tree
+  the canonical tape.
+  The leaf INTERIOR, separately, is nearest-neighbour texel selection on
+  minified faces, not shading or geometry: the per-channel delta there is
+  zero-mean with a large spread (near canopy mean +0.1/+0.2/+0.2, sigma 19/28/8; distant tree
   -0.9/-1.1/-0.4, sigma 32/46/14), i.e. individual texels flip between
   neighbouring values rather than the surface being uniformly off. Ruled out:
   a global sub-pixel camera offset (best whole-frame alignment is dx=dy=0,
