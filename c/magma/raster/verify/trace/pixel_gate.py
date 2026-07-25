@@ -235,11 +235,15 @@ def _labeled_clusters(mask, o16, c16, w, h, fixed_class=None,
 def _positional_accept_masks(h, w, hide_gui=False):
     """Bossbar / HUD / viewmodel topology barriers (shared by cluster + mild).
 
-    hide_gui drops the HUD barrier entirely. On a tape recorded through Malmo
-    the oracle drew no overlay and magma is told not to either, so the bottom
-    rows are ordinary scene pixels: accepting them positionally would hide a
-    fifth of the frame, and routing them through the normal path lets a filed
-    known-divergence claim them instead of the hud class tripping its budget.
+    hide_gui drops the HUD and viewmodel barriers entirely. On a tape recorded
+    through Malmo the oracle drew no overlay and magma is told not to either, so
+    the bottom rows are ordinary scene pixels: accepting them positionally would
+    hide a fifth of the frame, and routing them through the normal path lets a
+    filed known-divergence claim them instead of the hud class tripping its
+    budget. The viewmodel barrier goes for the same reason - vanilla
+    EntityRenderer.renderHand is gated on !hideGUI, so neither side draws an arm
+    and that whole quadrant is scene too. Everything drawn there under hideGUI
+    (renderOverlays: block-in-hand, water, fire) is drawn by both sides.
     """
     bossbar = np.zeros((h, w), dtype=bool)
     bossbar[:BOSSBAR_Y + 1, :] = True
@@ -253,8 +257,10 @@ def _positional_accept_masks(h, w, hide_gui=False):
     # just because the strip stopped being accepted; growing the viewmodel
     # region by half would silently re-scale what that budget permits.
     viewmodel &= ~strip
-    hud = np.zeros((h, w), dtype=bool) if hide_gui else strip
-    return bossbar, hud, viewmodel
+    if hide_gui:
+        empty = np.zeros((h, w), dtype=bool)
+        return bossbar, empty, empty
+    return bossbar, strip, viewmodel
 
 
 def mild_shift_stats(o16, c16, accept_mask=None, hide_gui=False):

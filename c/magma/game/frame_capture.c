@@ -549,7 +549,16 @@ static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
  * frames of 20260712T055346Z, against all 181 of 20260721T215812Z which was
  * recorded after QuantizedRL started clearing the flag. Replaying those with a
  * HUD is a guaranteed divergence over the bottom 96 rows; the tape meta says
- * which recording it was and replay_tape.py forwards it here. */
+ * which recording it was and replay_tape.py forwards it here.
+ *
+ * hideGUI hides more than the overlay, and this file previously claimed it did
+ * not. EntityRenderer.renderHand gates renderItemInFirstPerson on
+ * (thirdPersonView == 0 && !sleeping && !hideGUI && !spectator), so the
+ * first-person arm goes too - t=360..520 of that tape is magma's bare arm over
+ * the oracle's grass, ~7k px each. GuiIngame.renderPortal is called from inside
+ * renderGameOverlay, so the portal wash is gated as well. What is NOT gated is
+ * itemRenderer.renderOverlays (block-in-hand, water, fire) and hurtCameraEffect:
+ * those sit outside the hideGUI branch a few lines further down. */
 static int hud_hidden(void) {
     const char *s = getenv("MAGMA_HIDE_GUI");
     return s && *s && *s != '0';
@@ -573,7 +582,7 @@ static int finish_pending(GmFrameCapture *c) {
     gm_hand_set_hurt(c->pend_v.hurt_time, c->pend_v.max_hurt_time,
                      c->pend_v.hurt_yaw);
     gm_hand_set_item_override(c->pend_item, c->pend_meta, c->pend_count);
-    if (!c->pend_v.dead && !getenv("MAGMA_NO_HAND"))
+    if (!c->pend_v.dead && !getenv("MAGMA_NO_HAND") && !hud_hidden())
         gm_hand_draw(&pfb, &c->pend_v, c->pend_bob);
     /* ItemRenderer.renderOverlays: block, water, fire; then portal; then HUD. */
     if (c->pend_v.texture_animations_pinned)
@@ -588,7 +597,7 @@ static int finish_pending(GmFrameCapture *c) {
         gm_uw_overlay_draw(&pfb, &c->pend_v, c->pend_uwb, c->pend_uwfov);
     if (c->pend_v.fire && !c->pend_v.creative && !c->pend_v.dead)
         gm_hand_fire_overlay_draw(&pfb,&atlas,c->pend_fovscale);
-    if (c->pend_v.portal > 0.0f) {
+    if (c->pend_v.portal > 0.0f && !hud_hidden()) {
         bm_atlas_set_portal_frame(c->pend_v.portal_frame);
         gm_overlay_portal_screen(&pfb,&atlas,c->pend_v.portal);
     }
@@ -1065,13 +1074,15 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
         if(!hud_hidden()||have_gui)gm_hud_draw(&c->fb,&v);
     }else{
-        if(!v.dead&&!getenv("MAGMA_NO_HAND"))gm_hand_draw(&c->fb,&v,c->hand_bob);
+        if(!v.dead&&!getenv("MAGMA_NO_HAND")&&!hud_hidden())
+            gm_hand_draw(&c->fb,&v,c->hand_bob);
         /* ItemRenderer.renderOverlays: block, water, fire; then portal; HUD. */
         if(!v.dead)gm_overlay_block_in_hand_live(&c->fb,&atlas,r->world,&v);
         if(uw.overlay&&!v.dead)gm_uw_overlay_draw(&c->fb,&v,uw.brightness,cam.fov_deg);
         if(v.fire&&!v.creative&&!v.dead)
             gm_hand_fire_overlay_draw(&c->fb,&atlas,uw.fov_scale);
-        if(v.portal>0.0f)gm_overlay_portal_screen(&c->fb,&atlas,v.portal);
+        if(v.portal>0.0f&&(!hud_hidden()||have_gui))
+            gm_overlay_portal_screen(&c->fb,&atlas,v.portal);
         if(!hud_hidden()||have_gui)gm_hud_draw(&c->fb,&v);
         if(v.loading==1)gm_overlay_loading_screen(&c->fb);
     }
