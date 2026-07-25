@@ -725,10 +725,30 @@
  "missing_model_failures": {},
  "state": {
   "kind": "state",
+  "coverage": {
+   "ticks_total": 3617,
+   "ticks_run": 3617,
+   "truncated": false
+  },
   "inventory": {
-   "ticks_checked": 1,
-   "mismatches": [],
-   "pass": true,
+   "ticks_checked": 9,
+   "ticks_independent": 8,
+   "seeded_only": false,
+   "mismatches": [
+    {
+     "tick": 3257,
+     "slot": 1,
+     "tape_item": 270,
+     "magma_item": null
+    },
+    {
+     "tick": 3267,
+     "slot": 2,
+     "tape_item": 50,
+     "magma_item": null
+    }
+   ],
+   "pass": false,
    "available": true
   },
   "entities": {

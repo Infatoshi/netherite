@@ -172,45 +172,111 @@ independently re-measured here.
   portal path additionally carves a platform and sets the pose, neither of
   which an authoritative tape transfer should do.
 
-### CPU/CUDA replay parity breaks on scenario tapes
+### CUDA deferred frame end diverges on bow pull + first-person fire
 
-Parity was only ever measured on one tape. The canonical
-`20260721T215812Z` replay is bit identical CPU vs CUDA (0 differing pixels
-over 181 frames), but a full 23-tape CUDA sweep on GPU0 (`sm_120`,
-`nightly_20260725T062525Z`) is **FAIL** with baseline regressions on six
-tapes, where the same sweep on the CPU is PASS.
+With the hurt-camera fix in place (see below), CUDA still differs from the CPU
+on frames where the tape has `fire=1` **and** the bow is being drawn (`use=1`);
+pure fire with `use=0` matches. Turning off the deferred frame end
+(`MAGMA_NO_DEFER=1`, i.e. `frame_end_async` + `finish_pending`) removes the
+divergence entirely - 12_875 px total over 407 frames, 0 frames above 1000,
+max 46 px, which is GPU sky-star noise from device `sinf` in the star hash.
 
-Measured on `scenario_blaze_bow_demo_20260722T104234Z` (407 frames, same
-tape, same build tree, serial runs so GPU contention is not a factor):
+The hand and fire layers are host `cr_raster_cpu`, so this is deferred
+state/snapshot ordering, not GPU raster math. Not yet pinned to a line;
+suspect the pending frame is finished after `advance_hand_state` has already
+moved `bow_pull`/equip on for the next tick.
 
-- All 407 frames differ, 12_772_658 differing pixels total, max channel
-  delta 237.
-- The difference is bursty, not uniform: 88 frames carry 99.92% of it
-  (index 43-98 and 231-272), while the other ~319 frames differ by only
-  ~30 scattered sky pixels.
-- On a burst frame the CPU renders a large lit terrain wedge at the left
-  horizon that CUDA leaves flat and dark, and the terrain silhouette itself
-  sits at a different height. That is terrain extent / lighting state, not
-  shading arithmetic.
+Until it is closed, a CUDA parity gate needs `MAGMA_NO_DEFER=1` to be
+meaningful. Do not treat a deferred-path CUDA replay as parity evidence.
 
-Ruled out: GPU contention (serial re-runs reproduce byte-for-byte) and the
-early player deaths seen on three tapes - `blaze_bow_demo` stops at tick 814
-`hp=0 dead=1` on **both** backends with an identical worst frame
-(t=812, 167724 px), so those deaths are a separate pre-existing sim issue,
-not a CUDA divergence.
+### CPU/CUDA replay parity: hurt camera fixed, sweep not yet re-run
 
-Until this is closed, a CUDA sweep result is not interchangeable with a CPU
-one, and the committed baselines are CPU-authoritative.
+Parity had only ever been measured on one tape. The canonical
+`20260721T215812Z` replay is bit identical CPU vs CUDA, but a full 23-tape
+CUDA sweep on GPU0 (`sm_120`, `nightly_20260725T062525Z`) was **FAIL** with
+baseline regressions on six tapes where the CPU sweep was PASS.
 
-### Inventory state gate is shallow
+The terrain half of that is **fixed**: `cuda/raster_cuda.cu` built its MVP with
+`cr_look_yaw_pitch_dev`, which is look-only, while the host path uses
+`cr_camera_view` - so CUDA silently dropped
+`EntityRenderer.hurtCameraEffect` (hurt roll/yaw). Every tick the player took
+damage, the CPU rendered a rolled horizon and CUDA a flat one. Both MVP sites
+now call `cr_camera_view_dev`.
 
-`collect_state_assertions` samples every 20 ticks and only checks ticks that
-carry an `inv` row. On every current scenario tape that is tick 0 alone
-(`inv_checked=1`), and replay now seeds live inventory at tick 0 from
-`ticks[0]["inv"]`, so the single checked tick largely verifies the seeding path
-rather than inventory evolution. The divergence this closed was real (empty
-inventory where the tape had a bow and 64 arrows), but hardening requires
-re-recording tapes with periodic `inv` rows.
+On `scenario_blaze_bow_demo_20260722T104234Z` (407 frames, serial runs):
+whole-tape diff 12_212_050 px before, 9_344_718 after the hurt fix, and the two
+hurt bursts collapse (fi=43: 167_824 px -> 36; fi=231: 156_540 -> 23). With
+`MAGMA_NO_DEFER=1` on top, 12_875 px total, 0 frames over 1000, max 46 - sky
+stars only. The remainder is the deferred-frame-end issue above.
+
+Ruled out along the way: GPU contention (serial re-runs reproduce
+byte-for-byte); a chunk/mesh upload budget (`wl_ensure_mesh` is dirty-driven,
+there is no per-frame budget); and the early player deaths, which happen
+identically on the CPU and are a separate matter.
+
+The 23-tape CUDA sweep has **not** been re-run since the fix, so the six
+regressions are not yet confirmed cleared. Baselines remain CPU-authoritative.
+
+### Late-tape item acquisition on the canonical tape
+
+Widening the inventory gate to every `inv`-bearing tick (rather than only the
+every-20 sample grid) exposed two real divergences on
+`20260721T215812Z`, which the old gate could not see:
+
+- t=3257 slot 1: tape has item 270 (wooden pickaxe), magma has nothing.
+- t=3267 slot 2: tape has item 50 (torch, count 8), magma has nothing.
+
+Both are **crafted** items, and crafting/container clicks are not recorded in
+tapes at all. The documented re-anchor for that is a `<tape>.worldpatch.jsonl`
+sidecar carrying `set_inventory` events; `20260712T055346Z` has one, the
+canonical `20260721T215812Z` does not. So this is an instance of the known
+recorder blocker ("Legacy GUI interactions and inventory contents were not
+fully recorded"), not a magma simulation bug - but it was invisible until the
+gate started checking off-grid inv ticks. Fix is to author the sidecar from the
+oracle session save, or to re-record with GUI interactions taped.
+
+The tape's exit code is still 3 (its long-standing pixel FAIL short-circuits
+before the state check), so the run now prints an explicit
+`[gate] NOTE: inventory state ALSO failed` and `gate_baseline_diff.py`
+compares the state block.
+
+### Inventory gate coverage is still uneven
+
+The gate now reports `ticks_independent` and flags `seeded_only`, but 13 of 23
+tapes still carry only the tick-0 `inv` row and so verify nothing beyond the
+seed. The recorder emits an inventory keyframe every 20 ticks as of this
+change; the tapes have to be **re-recorded** before that takes effect. Count
+and metadata are also still not compared - only item identity per slot - so
+arrow-count drift and durability ticking remain ungated.
+
+### Truncated tapes verify only a prefix
+
+**Seven** tapes stop at a terminal death and only ever replay part of their
+length. Four of them exit rc=0, so nightly counted them fully green while
+verifying less than half:
+
+| tape | replayed | of | % |
+|---|---|---|---|
+| `smoke_zombie` | 358 | 803 | 45 |
+| `ender_dragon_demo` | 596 | 1614 | 37 |
+| `ender_dragon_094040` | 607 | 1610 | 38 |
+| `wither_skeleton` | 610 | 1202 | 51 |
+| `enderman_fight` | 666 | 1402 | 48 |
+| `blaze_bow_demo` | 814 | 1407 | 58 |
+| `blaze_melee` | 999 | 1203 | 83 |
+
+The deaths are **correct** - the oracle dies
+at those ticks too and respawns (canonical check: tape tick 813 `hp=0.0`, tick
+814 `hp=20.0`) - and `continue_after_death` is deliberately emitted only for
+fluid episodes (`replay_tape.py`, `game/script.c` script loop), with a test
+pinning that contract.
+
+The problem was that nothing recorded the truncation, so a tape verifying 38%
+of itself reported clean. The state gate now carries a `coverage` block and the
+replay prints `[tape] COVERAGE: only N of M tape ticks were replayed`. Whether
+to extend the contract past respawn (emit `continue_after_death` for any
+`tape_has_respawn`, teach `first_divergence` to resume, update the pinning
+tests) is an open product decision, not a bug.
 
 ### Remaining isolated render features
 

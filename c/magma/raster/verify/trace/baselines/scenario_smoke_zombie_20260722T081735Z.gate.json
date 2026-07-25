@@ -45,17 +45,17 @@
  "missing_model_failures": {},
  "state": {
   "kind": "state",
+  "coverage": {
+   "ticks_total": 803,
+   "ticks_run": 358,
+   "truncated": true
+  },
   "inventory": {
-   "ticks_checked": 1,
-   "mismatches": [
-    {
-     "tick": 0,
-     "slot": 0,
-     "tape_item": 276,
-     "magma_item": null
-    }
-   ],
-   "pass": false,
+   "ticks_checked": 2,
+   "ticks_independent": 1,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
    "available": true
   },
   "entities": {

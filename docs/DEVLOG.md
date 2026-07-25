@@ -544,3 +544,58 @@ re-run here before landing.
   reproduce byte-for-byte at identical ticks) and the three early
   `hp=0 dead=1` exits (they happen identically on the CPU, so they are a
   pre-existing sim issue, not a backend divergence).
+
+## 2026-07-25 (four-way Grok fan-out: hurt camera, inventory gate, coverage)
+
+Four agents in isolated worktrees. Every diff reviewed and every acceptance
+re-run here.
+
+- **CUDA dropped the hurt camera.** `cuda/raster_cuda.cu` built its MVP with
+  `cr_look_yaw_pitch_dev` (look-only) at both sites while the host path uses
+  `cr_camera_view`, so CUDA silently skipped
+  `EntityRenderer.hurtCameraEffect`. Every damage tick the CPU drew a rolled
+  horizon and CUDA a flat one - which is exactly the "terrain wedge at the
+  left horizon" I had measured and mis-attributed to terrain extent/lighting.
+  Both sites now call `cr_camera_view_dev`. On `blaze_bow_demo`: 12_212_050
+  differing px -> 9_344_718, and the two hurt bursts collapse from 167_824 and
+  156_540 px to 36 and 23. This also closes a loop: I added `cr_camera_view`
+  to the CUDA `_dev` rename block earlier today to fix the link break, but the
+  call sites were never switched over.
+- Remaining CUDA gap is the deferred frame end on bow-pull + fire frames;
+  `MAGMA_NO_DEFER=1` gives 12_875 px over 407 frames (sky-star noise only).
+  Recorded in OPEN_DIVERGENCES - a deferred-path CUDA replay is not parity
+  evidence until that is closed. The 23-tape CUDA sweep has not been re-run
+  since the fix.
+- **Inventory gate now checks every `inv`-bearing tick**, not just the
+  every-20 sample grid. `blaze_bow` already carried change dumps at t=77/78
+  that the grid never landed on, so this bought 10 independent checked ticks
+  with no re-capture. Tick 0 no longer counts as independent (replay seeds
+  from it) and seed-only tapes report `seeded_only`. The Java recorder also
+  emits an inventory keyframe every 20 ticks, which needs a re-record to take
+  effect. 48 unit tests, including a mutation test that makes the gate fail.
+- That immediately caught two real misses on the canonical tape (t=3257 slot 1
+  item 270, t=3267 slot 2 item 50). Chased to cause: both are **crafted**, and
+  crafting clicks are not taped - the fix is a `.worldpatch.jsonl` sidecar,
+  which `20260712` has and the canonical tape does not. Known recorder
+  blocker, previously invisible.
+- **No more silent coverage caps.** The state gate carries a `coverage` block,
+  the replay prints `[tape] COVERAGE: only N of M tape ticks were replayed`,
+  and `gate_baseline_diff.py` now compares the state block as well as pixel
+  classes (it previously compared neither inventory nor coverage, so a state
+  regression could never turn nightly red). A state failure under a pixel
+  failure is called out instead of being swallowed by `return 3`.
+- That surfaced that **seven** tapes truncate at a terminal death, not the
+  three I had found - `smoke_zombie` verifies 45% of itself, `ender_dragon_*`
+  37-38%, and four of the seven were exiting rc=0. The deaths themselves are
+  oracle-correct (tape tick 813 `hp=0.0`, 814 `hp=20.0`); the delegated agent
+  correctly refused to "fix" them and I confirmed it from the tape directly.
+  My briefing premise - that magma killed a player the real game kept alive -
+  was wrong.
+- All 23 baselines re-committed to carry the state block. Nightly is PASS
+  again (15 rc=0, 8 rc=3) with the known inventory failure absorbed the same
+  way pixel failures are.
+- Setup note for future fan-outs: `raster/verify/tapes/` mixes tracked sidecars
+  with gitignored bulk, and a worktree that links only `*.jsonl` and `*_frames`
+  silently omits the `*_world` snapshot dirs. Replay then skips snapshot
+  patching without erroring, and the sweep fails for reasons that look like
+  real bugs. Link every entry; assert the count matches the main tree.

@@ -62,6 +62,39 @@ def main():
     if cf > bf:
         bad = True
     print(f"  failed_frames base {bf} now {cf}{mark}")
+
+    # State block. Without this only pixel classes were diffed, so an
+    # inventory divergence or a tape that stopped replaying half way through
+    # could ride along under a pixel-gate FAIL and still be reported green.
+    bs = base.get("state", {})
+    cs = cur.get("state", {})
+    b_inv = bs.get("inventory", {})
+    c_inv = cs.get("inventory", {})
+    if c_inv.get("available"):
+        b_ind = b_inv.get("ticks_independent", 0)
+        c_ind = c_inv.get("ticks_independent", 0)
+        mark = ""
+        if b_inv.get("pass", True) and not c_inv.get("pass", True):
+            mark = "  <-- REGRESSION"
+            bad = True
+        elif c_ind < b_ind:
+            # Losing verified ticks is a coverage regression even if it passes.
+            mark = "  <-- COVERAGE REGRESSION"
+            bad = True
+        print(f"  inventory    base pass={b_inv.get('pass')} ind={b_ind} "
+              f"now pass={c_inv.get('pass')} ind={c_ind}{mark}")
+    b_cov = bs.get("coverage", {})
+    c_cov = cs.get("coverage", {})
+    if c_cov:
+        b_run = b_cov.get("ticks_run", 0)
+        c_run = c_cov.get("ticks_run", 0)
+        mark = ""
+        if b_run and c_run < b_run:
+            mark = "  <-- COVERAGE REGRESSION"
+            bad = True
+        note = " TRUNCATED" if c_cov.get("truncated") else ""
+        print(f"  tape_ticks   base {b_run} now {c_run} of "
+              f"{c_cov.get('ticks_total')}{note}{mark}")
     return 1 if bad else 0
 
 

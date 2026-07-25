@@ -6,7 +6,7 @@
 
 **State gate** (inventory / entities / world hash; not physics):
 
-- inventory: checked=1 mismatches=0 available=True pass=True
+- inventory: checked=11 independent=10 seeded_only=False mismatches=0 available=True pass=True
 - entities: checked=71 available=True
 - world nearby_hash: checked=71 deltas=6 available=True
 

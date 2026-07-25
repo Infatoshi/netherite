@@ -190,8 +190,15 @@
  "missing_model_failures": {},
  "state": {
   "kind": "state",
+  "coverage": {
+   "ticks_total": 1407,
+   "ticks_run": 814,
+   "truncated": true
+  },
   "inventory": {
-   "ticks_checked": 1,
+   "ticks_checked": 11,
+   "ticks_independent": 10,
+   "seeded_only": false,
    "mismatches": [],
    "pass": true,
    "available": true

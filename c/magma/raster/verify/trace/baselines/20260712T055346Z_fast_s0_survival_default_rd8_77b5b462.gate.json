@@ -1228,8 +1228,15 @@
  },
  "state": {
   "kind": "state",
+  "coverage": {
+   "ticks_total": 3121,
+   "ticks_run": 3121,
+   "truncated": false
+  },
   "inventory": {
    "ticks_checked": 0,
+   "ticks_independent": 0,
+   "seeded_only": false,
    "mismatches": [],
    "pass": true,
    "available": false

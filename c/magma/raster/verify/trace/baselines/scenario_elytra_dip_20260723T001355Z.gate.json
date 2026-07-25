@@ -10872,17 +10872,17 @@
  "missing_model_failures": {},
  "state": {
   "kind": "state",
+  "coverage": {
+   "ticks_total": 505,
+   "ticks_run": 505,
+   "truncated": false
+  },
   "inventory": {
-   "ticks_checked": 1,
-   "mismatches": [
-    {
-     "tick": 0,
-     "slot": 38,
-     "tape_item": 443,
-     "magma_item": null
-    }
-   ],
-   "pass": false,
+   "ticks_checked": 5,
+   "ticks_independent": 4,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
    "available": true
   },
   "entities": {

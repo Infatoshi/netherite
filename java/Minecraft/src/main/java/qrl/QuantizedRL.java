@@ -5501,10 +5501,11 @@ sb.append("}");
             }
             b.append("]");
         }
-        // full inventory whenever it changed (slots 0-40: main 36, armor 4,
-        // offhand): the ground truth that retires worldpatch set_inventory
-        // and feeds hotbar icons/counts + GUI slot rendering. Delta-encoded
-        // as a full dump on change; absent when unchanged.
+        // full inventory on change OR keyframe cadence (slots 0-40: main 36,
+        // armor 4, offhand). Change dumps catch real evolution; keyframes every
+        // 20 ticks line up with collect_state_assertions sampling so a tape is
+        // not "inventory PASS" on the tick-0 seed alone. Full 41-slot dump each
+        // time (not sparse deltas) keeps old readers working.
         try {
             StringBuilder inv = new StringBuilder(128);
             inv.append("[");
@@ -5521,7 +5522,12 @@ sb.append("}");
             }
             inv.append("]");
             String cur = inv.toString();
-            if (!cur.equals(recLastInv)) {
+            // recTick was already incremented for this row; same cadence as
+            // sparse pixel goldens (recFrameEvery, default 20). When frames
+            // are off (0), still keyframe every 20 so the state gate has rows.
+            int invEvery = recFrameEvery > 0 ? recFrameEvery : 20;
+            boolean invKeyframe = ((recTick - 1) % invEvery) == 0;
+            if (!cur.equals(recLastInv) || invKeyframe) {
                 b.append(",\"inv\":").append(cur);
                 recLastInv = cur;
             }

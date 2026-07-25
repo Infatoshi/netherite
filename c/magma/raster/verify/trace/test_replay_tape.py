@@ -873,6 +873,10 @@ def test_state_assertions_report_inventory_entities_and_world_hash():
     state = replay_tape.collect_state_assertions(ticks, c_rows, sample_every=1)
     assert state["kind"] == "state"
     assert state["inventory"]["available"] and state["inventory"]["pass"]
+    # Tick-0 alone is seed verification, not independent inventory evolution.
+    assert state["inventory"]["seeded_only"] is True
+    assert state["inventory"]["ticks_independent"] == 0
+    assert state["inventory"]["ticks_checked"] == 1
     assert state["entities"]["available"]
     assert state["entities"]["samples"][0]["tape_types"] == ["EntitySheep"]
     assert state["world"]["available"]
@@ -901,6 +905,118 @@ def test_state_assertions_fail_inventory_mismatch_negative_control():
     # Physics still clean on the same rows.
     first, _ = replay_tape.first_divergence(ticks, c_rows)
     assert first is None
+
+
+def _pose_tick(t, inv=None, **extra):
+    row = {
+        "t": t, "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+        "og": 1, "hp": 20.0, "food": 20, "ents": [],
+    }
+    if inv is not None:
+        row["inv"] = inv
+    row.update(extra)
+    return row
+
+
+def _magma_row(t, inventory, nearby_hash="00"):
+    return {
+        "tick": t, "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+        "on_ground": 1, "health": 20.0, "food": 20.0,
+        "inventory": inventory,
+        "entities": [],
+        "nearby_hash": nearby_hash,
+    }
+
+
+def test_inventory_gate_seeded_only_when_only_tick_zero_has_inv():
+    """A tape with only ticks[0]['inv'] must not claim independent verification."""
+    inv = [[261, 0, 1], 0, 0, 0, 0, 0, 0, 0, [262, 0, 64]] + [0] * 32
+    ticks = [_pose_tick(0, inv=inv), _pose_tick(1), _pose_tick(2)]
+    c_rows = [
+        _magma_row(0, [{"slot": 0, "item": 261, "count": 1, "meta": 0},
+                       {"slot": 8, "item": 262, "count": 64, "meta": 0}]),
+        _magma_row(1, [{"slot": 0, "item": 261, "count": 1, "meta": 0},
+                       {"slot": 8, "item": 262, "count": 64, "meta": 0}]),
+        _magma_row(2, [{"slot": 0, "item": 261, "count": 1, "meta": 0},
+                       {"slot": 8, "item": 262, "count": 64, "meta": 0}]),
+    ]
+    state = replay_tape.collect_state_assertions(ticks, c_rows, sample_every=20)
+    inv_s = state["inventory"]
+    assert inv_s["pass"] is True
+    assert inv_s["seeded_only"] is True
+    assert inv_s["ticks_checked"] == 1
+    assert inv_s["ticks_independent"] == 0
+
+
+def test_inventory_gate_independent_pass_and_mutation_fail():
+    """Prove the gate catches post-seed inventory divergence.
+
+    Synthetic tape: inv at t=0 (seed) and t=20 (keyframe). Matching magma
+    inventory at t=20 PASSes with independent verification; mutating magma
+    (extra arrow consume / missing stack) FAILs. Tick 0 alone is not enough.
+    """
+    inv0 = [[261, 0, 1]] + [0] * 7 + [[262, 0, 64]] + [0] * 32
+    inv20 = [[261, 0, 1]] + [0] * 7 + [[262, 0, 63]] + [0] * 32  # one arrow used
+    ticks = [_pose_tick(t, inv=(inv0 if t == 0 else inv20 if t == 20 else None))
+             for t in range(21)]
+    magma_ok = [
+        _magma_row(t, (
+            [{"slot": 0, "item": 261, "count": 1, "meta": 0},
+             {"slot": 8, "item": 262, "count": 64 if t < 20 else 63, "meta": 0}]
+        ))
+        for t in range(21)
+    ]
+    ok = replay_tape.collect_state_assertions(ticks, magma_ok, sample_every=20)
+    assert ok["inventory"]["pass"] is True
+    assert ok["inventory"]["seeded_only"] is False
+    assert ok["inventory"]["ticks_independent"] == 1
+    assert ok["inventory"]["ticks_checked"] == 2
+
+    # Mutation: magma kept 64 arrows / dropped the stack (sim failed to consume
+    # but more critically reports wrong item identity if stack is gone).
+    magma_bad = [dict(r) for r in magma_ok]
+    magma_bad[20] = _magma_row(20, [
+        {"slot": 0, "item": 261, "count": 1, "meta": 0},
+        # slot 8 empty: arrows fully gone while tape still has 63
+    ])
+    bad = replay_tape.collect_state_assertions(ticks, magma_bad, sample_every=20)
+    assert bad["inventory"]["pass"] is False
+    assert bad["inventory"]["seeded_only"] is False
+    assert bad["inventory"]["ticks_independent"] == 1
+    assert any(m["tick"] == 20 and m["slot"] == 8 and m["tape_item"] == 262
+               for m in bad["inventory"]["mismatches"])
+
+    # Alternate mutation: wrong item id in a non-empty slot (picked up dirt
+    # instead of keeping arrows).
+    magma_wrong_item = [dict(r) for r in magma_ok]
+    magma_wrong_item[20] = _magma_row(20, [
+        {"slot": 0, "item": 261, "count": 1, "meta": 0},
+        {"slot": 8, "item": 3, "count": 63, "meta": 0},  # dirt, not arrow
+    ])
+    wrong = replay_tape.collect_state_assertions(
+        ticks, magma_wrong_item, sample_every=20)
+    assert wrong["inventory"]["pass"] is False
+    assert wrong["inventory"]["mismatches"][0]["tape_item"] == 262
+    assert wrong["inventory"]["mismatches"][0]["magma_item"] == 3
+
+
+def test_inventory_gate_checks_off_grid_change_dumps():
+    """Change-dump at t=77 must be checked even though sample_every=20 skips it."""
+    inv0 = [[261, 0, 1]] + [0] * 40
+    inv77 = [[261, 0, 1]] + [0] * 7 + [[262, 0, 1]] + [0] * 32  # picked up arrow
+    ticks = [_pose_tick(t, inv=(inv0 if t == 0 else inv77 if t == 77 else None))
+             for t in range(78)]
+    # Magma never got the arrow (pickup miss) — gate must FAIL.
+    c_rows = [
+        _magma_row(t, [{"slot": 0, "item": 261, "count": 1, "meta": 0}])
+        for t in range(78)
+    ]
+    state = replay_tape.collect_state_assertions(ticks, c_rows, sample_every=20)
+    assert state["inventory"]["ticks_checked"] == 2
+    assert state["inventory"]["ticks_independent"] == 1
+    assert state["inventory"]["pass"] is False
+    assert state["inventory"]["mismatches"][0]["tick"] == 77
+    assert state["inventory"]["mismatches"][0]["tape_item"] == 262
 
 
 def test_gate_baseline_diff_missing_baseline_is_failure(tmp_path: Path):

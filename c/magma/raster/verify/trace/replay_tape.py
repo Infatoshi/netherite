@@ -1004,14 +1004,39 @@ def _magma_entity_types(row):
     return types
 
 
+def _compare_inv_tick(t, tape_row, magma_row, mismatches, max_mismatches=20):
+    """Compare one tape inv snapshot to magma state; append mismatch dicts."""
+    tape_map = {}
+    for slot, stack in enumerate(tape_row["inv"]):
+        norm = _tape_inv_slot(stack)
+        if norm is not None and slot < 41:
+            tape_map[slot] = norm
+    magma_map = _magma_inv_map(magma_row)
+    # Presence of non-empty tape slots in magma (counts may lag one tick on
+    # GUI interactions; compare item id identity only).
+    for slot, (item, _count, _meta) in tape_map.items():
+        m = magma_map.get(slot)
+        if (m is None or m[0] != item) and len(mismatches) < max_mismatches:
+            mismatches.append({
+                "tick": t, "slot": slot, "tape_item": item,
+                "magma_item": None if m is None else m[0],
+            })
+
+
 def collect_state_assertions(ticks, c_rows, sample_every=20):
     """Build explicit non-player state assertions for scenario/gate output.
 
     Returns a dict with inventory, entity, and world-hash findings. This is a
     *state* gate, not a physics gate: pose/vitals stay in first_divergence.
+
+    Inventory: check every tick that carries an ``inv`` row (sparse dumps), not
+    only the sample grid. Tick 0 is compared for seed correctness but is NOT
+    counted as an independent verification - replay seeds live inventory from
+    that same row, so a tick-0-only tape is reported as ``seeded_only``.
     """
     n = min(len(ticks), len(c_rows))
     inv_checked = 0
+    inv_independent = 0
     inv_mismatches = []
     ent_checked = 0
     ent_presence = []
@@ -1019,25 +1044,20 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
     hash_samples = []
     prev_hash = None
     hash_deltas = 0
+    # Inventory: every inv-bearing tick (change dumps + keyframes). Sparse, so
+    # full coverage is cheap and catches mid-tape evolution that misses the
+    # sample grid (e.g. arrow consume at t=77 when sample_every=20).
+    for t in range(n):
+        j = ticks[t]
+        if "inv" not in j:
+            continue
+        inv_checked += 1
+        if t > 0:
+            inv_independent += 1
+        _compare_inv_tick(t, j, c_rows[t], inv_mismatches)
+    seeded_only = inv_checked > 0 and inv_independent == 0
     for t in range(0, n, max(1, sample_every)):
         j, c = ticks[t], c_rows[t]
-        if "inv" in j:
-            inv_checked += 1
-            tape_map = {}
-            for slot, stack in enumerate(j["inv"]):
-                norm = _tape_inv_slot(stack)
-                if norm is not None and slot < 41:
-                    tape_map[slot] = norm
-            magma_map = _magma_inv_map(c)
-            # Presence of non-empty tape slots in magma (counts may lag one
-            # tick on GUI interactions; compare item id identity only).
-            for slot, (item, _count, _meta) in tape_map.items():
-                m = magma_map.get(slot)
-                if (m is None or m[0] != item) and len(inv_mismatches) < 20:
-                    inv_mismatches.append({
-                        "tick": t, "slot": slot, "tape_item": item,
-                        "magma_item": None if m is None else m[0],
-                    })
         if "ents" in j:
             ent_checked += 1
             tape_types = _tape_entity_types(j)
@@ -1059,8 +1079,19 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             prev_hash = nh
     return {
         "kind": "state",  # not "physics"
+        # How much of the tape was actually simulated. A run that stops at a
+        # terminal death verifies only its prefix; without this the gate.json
+        # records frames_checked with no hint that 60% of the tape was never
+        # replayed, and nightly reports the tape clean. No silent caps.
+        "coverage": {
+            "ticks_total": len(ticks),
+            "ticks_run": len(c_rows),
+            "truncated": len(c_rows) < len(ticks),
+        },
         "inventory": {
             "ticks_checked": inv_checked,
+            "ticks_independent": inv_independent,
+            "seeded_only": seeded_only,
             "mismatches": inv_mismatches,
             "pass": inv_checked == 0 or len(inv_mismatches) == 0,
             "available": inv_checked > 0,
@@ -1194,13 +1225,30 @@ def main():
     inv_s = state_gate["inventory"]
     ent_s = state_gate["entities"]
     world_s = state_gate["world"]
-    print(f"[tape] state: inventory "
-          f"{'n/a' if not inv_s['available'] else ('PASS' if inv_s['pass'] else 'FAIL')} "
-          f"({inv_s['ticks_checked']} ticks, {len(inv_s['mismatches'])} mismatches); "
+    if not inv_s["available"]:
+        inv_status = "n/a"
+        inv_detail = "0 ticks"
+    elif inv_s.get("seeded_only"):
+        # Tick-0 inv is the seed source; do not claim independent verification.
+        inv_status = "PASS" if inv_s["pass"] else "FAIL"
+        inv_detail = (f"seeded-only; {inv_s['ticks_checked']} seed tick(s), "
+                      f"0 independent, {len(inv_s['mismatches'])} mismatches")
+    else:
+        inv_status = "PASS" if inv_s["pass"] else "FAIL"
+        inv_detail = (f"{inv_s.get('ticks_independent', 0)} independent ticks, "
+                      f"{inv_s['ticks_checked']} compared, "
+                      f"{len(inv_s['mismatches'])} mismatches")
+    print(f"[tape] state: inventory {inv_status} ({inv_detail}); "
           f"entities {'n/a' if not ent_s['available'] else 'recorded'} "
           f"({ent_s['ticks_checked']} ticks); "
           f"world_hash {'n/a' if not world_s['available'] else 'recorded'} "
           f"({world_s['ticks_checked']} ticks, {world_s['hash_deltas']} deltas)")
+    cov = state_gate["coverage"]
+    if cov["truncated"]:
+        print(f"[tape] COVERAGE: only {cov['ticks_run']} of "
+              f"{cov['ticks_total']} tape ticks were replayed "
+              f"({100.0 * cov['ticks_run'] / max(1, cov['ticks_total']):.0f}%);"
+              f" the rest of the tape is UNVERIFIED")
 
     # ---- pixels at the tape's sparse oracle frames (written by the one run) ----
     pix = []
@@ -1354,6 +1402,8 @@ def main():
             f.write("**State gate** (inventory / entities / world hash; not "
                     "physics):\n\n")
             f.write(f"- inventory: checked={inv_s['ticks_checked']} "
+                    f"independent={inv_s.get('ticks_independent', 0)} "
+                    f"seeded_only={inv_s.get('seeded_only', False)} "
                     f"mismatches={len(inv_s['mismatches'])} "
                     f"available={inv_s['available']} "
                     f"pass={inv_s['pass']}\n")
@@ -1411,6 +1461,16 @@ def main():
             json.dump(gate, f, indent=1)
         print(f"[gate] baseline -> {gj}")
         if not gate["pass"]:
+            # An inventory divergence must not be swallowed by a pixel failure:
+            # a tape can fail both, and returning 3 alone hid two real missing
+            # items on the canonical tape (t=3257 slot 1, t=3267 slot 2) behind
+            # its long-standing pixel FAIL. Say it out loud before returning.
+            if (state_gate["inventory"]["available"]
+                    and not state_gate["inventory"]["pass"]):
+                print("[gate] NOTE: inventory state ALSO failed "
+                      f"({len(state_gate['inventory']['mismatches'])} "
+                      "mismatches); rc=3 reports the pixel gate, the state "
+                      "failure is in the gate.json state block")
             return 3
     else:
         # No pixel frames: still emit a state-only gate sidecar for scenarios.

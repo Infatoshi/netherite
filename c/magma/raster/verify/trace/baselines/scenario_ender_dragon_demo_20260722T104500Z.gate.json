@@ -65,29 +65,17 @@
  "missing_model_failures": {},
  "state": {
   "kind": "state",
+  "coverage": {
+   "ticks_total": 1614,
+   "ticks_run": 596,
+   "truncated": true
+  },
   "inventory": {
-   "ticks_checked": 1,
-   "mismatches": [
-    {
-     "tick": 0,
-     "slot": 0,
-     "tape_item": 276,
-     "magma_item": null
-    },
-    {
-     "tick": 0,
-     "slot": 1,
-     "tape_item": 261,
-     "magma_item": null
-    },
-    {
-     "tick": 0,
-     "slot": 9,
-     "tape_item": 262,
-     "magma_item": null
-    }
-   ],
-   "pass": false,
+   "ticks_checked": 2,
+   "ticks_independent": 1,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
    "available": true
   },
   "entities": {

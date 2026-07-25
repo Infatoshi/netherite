@@ -948,7 +948,11 @@ static void cr_cuda_run_layer(CrFramebuffer *fb, int nverts,
 
     float aspect = (float)W / (float)H; /* fb dims authoritative (transform.c) */
     CrMat4 proj = cr_perspective_dev(cam->fov_deg, aspect, cam->znear, cam->zfar);
-    CrMat4 view = cr_look_yaw_pitch_dev(cam->pos, cam->yaw, cam->pitch);
+    /* Must match host cr_transform / transform.c: cr_camera_view applies
+     * EntityRenderer.hurtCameraEffect (hurt_roll_deg / hurt_yaw_deg). Using
+     * look-only here made CPU vs CUDA frames diverge on every hurt tick
+     * (scenario combat tapes: rolled horizon on CPU, flat on CUDA). */
+    CrMat4 view = cr_camera_view_dev(cam);
     CrMat4 mvp  = cr_mat4_mul_dev(proj, view);
 
     CrTexture *d_tex = cr_cuda_sync_atlas(sh->atlas);
@@ -1175,7 +1179,8 @@ extern "C" void cr_raster_cuda_render_terrain(CrFramebuffer *fb,
 
     float aspect = (float)W / (float)H;
     CrMat4 proj = cr_perspective_dev(cam->fov_deg, aspect, cam->znear, cam->zfar);
-    CrMat4 view = cr_look_yaw_pitch_dev(cam->pos, cam->yaw, cam->pitch);
+    /* Same as cr_cuda_run_layer: full camera view including hurt roll. */
+    CrMat4 view = cr_camera_view_dev(cam);
     CrMat4 mvp  = cr_mat4_mul_dev(proj, view);
 
     /* 4 CONTIGUOUS shade-ctx ring slots (kernel indexes d_sh[0..3]); modulo
