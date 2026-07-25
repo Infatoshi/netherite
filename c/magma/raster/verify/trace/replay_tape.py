@@ -193,6 +193,23 @@ def tape_strip_overlays(path):
         return False
 
 
+def tape_hide_gui(path):
+    """Return whether the goldens were captured with the F1 overlay hidden.
+
+    Not the same thing as qrl_launch.hide_gui, which only records what the
+    launcher asked for: Malmo's ClientStateMachine forces hideGUI=true for the
+    duration of a mission regardless, so the launch config reads false on tapes
+    whose goldens have no HUD at all. capture.hide_gui is the measured value,
+    read off the goldens themselves and written into the meta.
+    """
+    meta = os.path.splitext(path)[0] + ".meta.json"
+    try:
+        with open(meta) as f:
+            return bool(json.load(f).get("capture", {}).get("hide_gui", False))
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def tape_texture_animations_pinned(path):
     """Return whether QRL froze atlas sprites on uploaded physical frame zero."""
     meta = os.path.splitext(path)[0] + ".meta.json"
@@ -1170,6 +1187,11 @@ def main():
     # judged against the tape's recorded ents, not magma's own spawner.
     died_early = False
     try:
+        replay_env = {}
+        if tape_strip_overlays(args.tape):
+            replay_env["MAGMA_STRIP_OVERLAYS"] = "1"
+        if tape_hide_gui(args.tape):
+            replay_env["MAGMA_HIDE_GUI"] = "1"
         if frames_npy:
             # daylight=False: the trace profile (fast.yaml) records with
             # doDaylightCycle=false, so the oracle session's world_time never
@@ -1180,17 +1202,13 @@ def main():
                                   frame_every=every, frame_offset=offset,
                                   mobs=False, backend=backend, daylight=False,
                                   world=world,
-                                  extra_env=({"MAGMA_STRIP_OVERLAYS": "1"}
-                                             if tape_strip_overlays(args.tape)
-                                             else None))
+                                  extra_env=replay_env or None)
         else:
             ol.run_magma_script(scr, len(ticks), None, state,
                                   w=args.w, h=args.h,
                                   seed=int(header["seed"]), mobs=False,
                                   daylight=False, world=world,
-                                  extra_env=({"MAGMA_STRIP_OVERLAYS": "1"}
-                                             if tape_strip_overlays(args.tape)
-                                             else None))
+                                  extra_env=replay_env or None)
     except RuntimeError as e:
         # A dead magma player stops consuming script events and the run exits
         # rc=2 ("event lies beyond --ticks"). The state written up to the death

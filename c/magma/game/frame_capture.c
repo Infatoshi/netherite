@@ -540,6 +540,20 @@ static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
     *equip = 1.0f - c->equip_progress;
 }
 
+/* EntityRenderer.updateCameraAndRender draws ingameGUI.renderGameOverlay only
+ * when (!gameSettings.hideGUI || currentScreen != null): F1 hides the overlay
+ * but an open screen brings it back. Malmo's ClientStateMachine forces
+ * hideGUI=true for the whole mission, so RL tapes recorded through it have
+ * goldens with no hearts, hotbar or crosshair at all - every one of the 157
+ * frames of 20260712T055346Z, against all 181 of 20260721T215812Z which was
+ * recorded after QuantizedRL started clearing the flag. Replaying those with a
+ * HUD is a guaranteed divergence over the bottom 96 rows; the tape meta says
+ * which recording it was and replay_tape.py forwards it here. */
+static int hud_hidden(void) {
+    const char *s = getenv("MAGMA_HIDE_GUI");
+    return s && *s && *s != '0';
+}
+
 /* Retire the deferred frame: wait for its readback, then draw hand/hud and
  * write the PPM from the pinned pending buffer. Returns write success. */
 static int finish_pending(GmFrameCapture *c) {
@@ -577,7 +591,9 @@ static int finish_pending(GmFrameCapture *c) {
         bm_atlas_set_portal_frame(c->pend_v.portal_frame);
         gm_overlay_portal_screen(&pfb,&atlas,c->pend_v.portal);
     }
-    gm_hud_draw(&pfb, &c->pend_v);
+    /* No open GUI on this path (see the gui_view note below), so the vanilla
+     * condition reduces to !hideGUI. */
+    if (!hud_hidden()) gm_hud_draw(&pfb, &c->pend_v);
     if (c->pend_v.loading) gm_overlay_loading_screen(&pfb);
     /* gui_view frames never defer (inventory must match this tick); see
      * gm_frame_capture_write. pend path has no open GUI to composite. */
@@ -1035,7 +1051,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         cr_fb_clear(&c->fb,clear);
         if(r->dimension==0)gm_sky_draw(&c->fb,&cam,day);
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
-        gm_hud_draw(&c->fb,&v);
+        if(!hud_hidden()||have_gui)gm_hud_draw(&c->fb,&v);
     }else{
         if(!v.dead&&!getenv("MAGMA_NO_HAND"))gm_hand_draw(&c->fb,&v,c->hand_bob);
         /* ItemRenderer.renderOverlays: block, water, fire; then portal; HUD. */
@@ -1044,7 +1060,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         if(v.fire&&!v.creative&&!v.dead)
             gm_hand_fire_overlay_draw(&c->fb,&atlas,uw.fov_scale);
         if(v.portal>0.0f)gm_overlay_portal_screen(&c->fb,&atlas,v.portal);
-        gm_hud_draw(&c->fb,&v);
+        if(!hud_hidden()||have_gui)gm_hud_draw(&c->fb,&v);
         if(v.loading==1)gm_overlay_loading_screen(&c->fb);
     }
     /* Container GUI over the finished frame (after HUD), same order as

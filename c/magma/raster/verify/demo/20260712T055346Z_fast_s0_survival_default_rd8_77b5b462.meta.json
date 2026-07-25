@@ -67,5 +67,9 @@
   "ticks": 3121,
   "parquet": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/magma/raster/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.parquet",
   "parquet_rows": 3121,
-  "frames": 157
+  "frames": 157,
+  "capture": {
+    "hide_gui": true,
+    "hide_gui_source": "measured from the goldens: all 157 frames have no hearts, hotbar or crosshair; Malmo ClientStateMachine forces hideGUI=true for the mission, which qrl_launch.hide_gui does not record"
+  }
 }
