@@ -324,7 +324,9 @@ def cluster_list(g, c, thresh, min_px, known=None, tick=None, hide_gui=False,
                 continue
             ys, xs = np.nonzero(lab == i)
             box = (int(ys.min()), int(xs.min()), int(ys.max()), int(xs.max()))
-            cls = fixed or pg._classify(gb, cb, ys, xs, w, h)
+            cls = fixed or pg._classify(
+                gb, cb, ys, xs, w, h, hide_gui=hide_gui,
+                hide_hand=hide_gui if hide_hand is None else hide_hand)
             if cls == "UNEXPLAINED" and entries:
                 cls = (pg._known_cluster_class(entries, ys, xs, protected)
                        or cls)

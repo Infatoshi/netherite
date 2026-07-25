@@ -241,10 +241,27 @@ independently re-measured here.
   **A gate hole this exposed:** `hide_gui`/`hide_hand` drop the POSITIONAL
   viewmodel barrier, but `pixel_gate` also has a post-hoc semantic `viewmodel`
   class ("held-item region: lower-right, touching a frame edge") with a 40000 px
-  budget, and it still absorbs whatever lands there - those 17969 px at t=1180
-  are classed `viewmodel` and never counted. So un-masking the quadrant did not
-  actually put that region under measurement on frames where the heuristic
-  fires. The class needs to honour `hide_hand`.
+  budget, and the same `hud` heuristic (`y0 >= h*HUD_FRAC`) shadowed the bottom
+  rows, so un-masking those regions did not actually put them under measurement
+  on any frame where a heuristic fired - the 17969 px at t=1180 were classed
+  `viewmodel` and never counted. Both semantic classes now honour
+  `hide_gui`/`hide_hand`. On this tape `hud` disappears entirely (107 frames /
+  244695 px of it were never an explanation), `viewmodel` drops to the ticks
+  from 2440 where there really is a hand (63 frames / 461603 px -> 35 / 94657),
+  and failed frames go **18 -> 28**. That is the price of measuring the last
+  unmeasured quarter of the frame, and every one of the new failures is in it.
+  No other tape sets `capture.hide_gui`, so nothing else moves.
+  With the gate honest, the missing held item is the single largest remaining
+  divergence on this tape: **11 of the 20 cluster-failing frames** are
+  dominated by one cluster in that corner, in two silhouettes - 30064-30503 px
+  at y[349,479] x[559,853] over t=600..660, and 17076-18406 px at y[335,479]
+  x[601,771] over t=700 and t=1200..1340. It is recorder-blocked, not a
+  rendering bug: the tape has no `inv` field and the sidecar's first
+  `set_inventory` is t=2274, so there is nothing to tell magma what to hold.
+  The worldpatch is no help either - all 1317 of its `set_block` rows are at
+  tick 1, an initial-world snapshot rather than an edit log, so the placements
+  cannot be used to infer the held item. Closing it needs the tape re-recorded
+  with the every-20-tick inventory keyframes the recorder now emits.
   **A wrong reading to not repeat:** the t=1800..1960 window first looked like
   a missing first-person held item - the oracle shows a dark held log and
   magma appeared to show none. It is not. Golden/candidate over that window is

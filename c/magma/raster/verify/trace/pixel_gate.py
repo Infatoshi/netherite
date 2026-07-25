@@ -185,14 +185,24 @@ def _known_pixel_masks(entries, o16, c16, mask, protected):
     return masks
 
 
-def _classify(o, c, ys, xs, w, h):
-    """One labeled component (pixel coords ys/xs) -> class string."""
+def _classify(o, c, ys, xs, w, h, hide_gui=False, hide_hand=False):
+    """One labeled component (pixel coords ys/xs) -> class string.
+
+    hide_gui / hide_hand disable the "hud" and "viewmodel" SEMANTIC classes,
+    not just the positional barriers of the same names. Dropping the barrier
+    alone achieved nothing on a hideGUI tape: a cluster in the lower right
+    still landed in the post-hoc viewmodel class and rode its 40000 px budget,
+    so 17969 px of held-block divergence at t=1180 of 20260712T055346Z stayed
+    invisible in the region the barrier had just stopped accepting. When the
+    tape says neither side draws a HUD or a hand, "it is in the HUD region" and
+    "it looks like a held item" are not explanations for anything.
+    """
     y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
     area = len(ys)
     bbox_area = (y1 - y0 + 1) * (x1 - x0 + 1)
     if y1 <= BOSSBAR_Y:
         return "bossbar"
-    if y0 >= int(h * HUD_FRAC):
+    if y0 >= int(h * HUD_FRAC) and not hide_gui:
         return "hud"
     if bbox_area >= 400 and area / bbox_area < 0.12:
         return "thinline"
@@ -201,13 +211,14 @@ def _classify(o, c, ys, xs, w, h):
     if ob > cb + 12.0:
         return "particles"          # oracle-only additive glow
     if (x0 > w * 0.52 and y0 > h * 0.40
-            and (x1 >= w - 3 or y1 >= h - 3)):
+            and (x1 >= w - 3 or y1 >= h - 3) and not hide_hand):
         return "viewmodel"
     return "UNEXPLAINED"
 
 
 def _labeled_clusters(mask, o16, c16, w, h, fixed_class=None,
-                      known_entries=None, protected=None):
+                      known_entries=None, protected=None,
+                      hide_gui=False, hide_hand=False):
     """Label one isolated mask and return its non-noise components."""
     from scipy import ndimage
 
@@ -222,7 +233,9 @@ def _labeled_clusters(mask, o16, c16, w, h, fixed_class=None,
         if sizes[i] < MIN_CLUSTER:
             continue
         ys, xs = np.nonzero(lab == i)
-        cls = fixed_class or _classify(ob, cb, ys, xs, w, h)
+        cls = fixed_class or _classify(ob, cb, ys, xs, w, h,
+                                       hide_gui=hide_gui,
+                                       hide_hand=hide_hand)
         if cls == "UNEXPLAINED" and known_entries:
             cls = (_known_cluster_class(known_entries, ys, xs, protected)
                    or cls)
@@ -359,7 +372,10 @@ def gate_frame_ex(o16, c16, w, h, *, tick=None, known=None, hide_gui=False,
         mask &= ~known_mask
     out.extend(_labeled_clusters(mask, o16, c16, w, h,
                                  known_entries=entries,
-                                 protected=protected))
+                                 protected=protected,
+                                 hide_gui=hide_gui,
+                                 hide_hand=hide_gui if hide_hand is None
+                                 else hide_hand))
     return out, mild
 
 

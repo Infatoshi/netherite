@@ -17,19 +17,14 @@
  "frames_checked": 157,
  "classes": {
   "UNEXPLAINED": {
-   "frames": 60,
-   "px": 404128,
+   "frames": 63,
+   "px": 723326,
    "max_cluster": 64445
   },
   "particles": {
-   "frames": 135,
-   "px": 1784222,
+   "frames": 136,
+   "px": 1893054,
    "max_cluster": 20867
-  },
-  "hud": {
-   "frames": 107,
-   "px": 244695,
-   "max_cluster": 9573
   },
   "bossbar": {
    "frames": 76,
@@ -38,17 +33,12 @@
   },
   "known:1": {
    "frames": 32,
-   "px": 568462,
+   "px": 676873,
    "max_cluster": 49020
   },
-  "viewmodel": {
-   "frames": 63,
-   "px": 461603,
-   "max_cluster": 30734
-  },
   "thinline": {
-   "frames": 31,
-   "px": 26549,
+   "frames": 32,
+   "px": 28393,
    "max_cluster": 1295
   },
   "known:20": {
@@ -63,19 +53,24 @@
   },
   "known:9": {
    "frames": 7,
-   "px": 99295,
-   "max_cluster": 4466
+   "px": 149201,
+   "max_cluster": 28903
+  },
+  "viewmodel": {
+   "frames": 35,
+   "px": 94657,
+   "max_cluster": 9573
   },
   "known:54": {
    "frames": 23,
-   "px": 170137,
+   "px": 193587,
    "max_cluster": 14631
   }
  },
  "failed_frames": [
   {
    "tick": 1620,
-   "unexplained_px": 78076,
+   "unexplained_px": 79154,
    "clusters": [
     {
      "px": 962,
@@ -307,6 +302,28 @@
       750
      ],
      "soak_from": "particles"
+    },
+    {
+     "px": 777,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      400,
+      460,
+      479,
+      478
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 301,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      418,
+      480,
+      470,
+      490
+     ],
+     "soak_from": "particles"
     }
    ]
   },
@@ -494,7 +511,7 @@
   },
   {
    "tick": 2860,
-   "unexplained_px": 52289,
+   "unexplained_px": 53998,
    "clusters": [
     {
      "px": 360,
@@ -649,6 +666,72 @@
       287
      ],
      "soak_from": "particles"
+    },
+    {
+     "px": 280,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      384,
+      516,
+      398,
+      558
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 417,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      395,
+      216,
+      434,
+      245
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 68,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      431,
+      209,
+      445,
+      217
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 59,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      436,
+      263,
+      448,
+      269
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 831,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      445,
+      442,
+      479,
+      502
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 54,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      462,
+      204,
+      474,
+      211
+     ],
+     "soak_from": "particles"
     }
    ],
    "mild_shift": {
@@ -661,7 +744,7 @@
   },
   {
    "tick": 2840,
-   "unexplained_px": 50296,
+   "unexplained_px": 51420,
    "clusters": [
     {
      "px": 257,
@@ -816,6 +899,72 @@
       200
      ],
      "soak_from": "particles"
+    },
+    {
+     "px": 95,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      389,
+      224,
+      401,
+      234
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 126,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      413,
+      319,
+      433,
+      338
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 138,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      414,
+      0,
+      441,
+      8
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 50,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      415,
+      464,
+      433,
+      475
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 493,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      419,
+      443,
+      453,
+      489
+     ],
+     "soak_from": "particles"
+    },
+    {
+     "px": 222,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      466,
+      83,
+      479,
+      114
+     ],
+     "soak_from": "particles"
     }
    ],
    "mild_shift": {
@@ -827,8 +976,434 @@
    }
   },
   {
+   "tick": 660,
+   "unexplained_px": 32875,
+   "clusters": [
+    {
+     "px": 30242,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      349,
+      559,
+      479,
+      853
+     ]
+    },
+    {
+     "px": 361,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      354,
+      826,
+      383,
+      853
+     ]
+    },
+    {
+     "px": 2272,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      368,
+      419,
+      445,
+      485
+     ]
+    }
+   ]
+  },
+  {
+   "tick": 640,
+   "unexplained_px": 32817,
+   "clusters": [
+    {
+     "px": 30064,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      349,
+      559,
+      479,
+      853
+     ]
+    },
+    {
+     "px": 2753,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      402,
+      416,
+      479,
+      496
+     ]
+    }
+   ]
+  },
+  {
+   "tick": 600,
+   "unexplained_px": 30637,
+   "clusters": [
+    {
+     "px": 66,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      134,
+      784,
+      143,
+      800
+     ]
+    },
+    {
+     "px": 68,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      149,
+      813,
+      157,
+      822
+     ]
+    },
+    {
+     "px": 30503,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      349,
+      559,
+      479,
+      853
+     ]
+    }
+   ]
+  },
+  {
+   "tick": 620,
+   "unexplained_px": 30591,
+   "clusters": [
+    {
+     "px": 65,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      135,
+      784,
+      143,
+      800
+     ]
+    },
+    {
+     "px": 67,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      149,
+      813,
+      157,
+      822
+     ]
+    },
+    {
+     "px": 30459,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      349,
+      559,
+      479,
+      853
+     ]
+    }
+   ]
+  },
+  {
+   "tick": 700,
+   "unexplained_px": 19391,
+   "clusters": [
+    {
+     "px": 678,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      250,
+      753,
+      284,
+      831
+     ]
+    },
+    {
+     "px": 17840,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      338,
+      601,
+      479,
+      771
+     ]
+    },
+    {
+     "px": 662,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      364,
+      761,
+      401,
+      819
+     ]
+    },
+    {
+     "px": 211,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      420,
+      775,
+      441,
+      814
+     ]
+    }
+   ]
+  },
+  {
+   "tick": 1200,
+   "unexplained_px": 18692,
+   "clusters": [
+    {
+     "px": 554,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      217,
+      310,
+      249,
+      375
+     ]
+    },
+    {
+     "px": 58,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      218,
+      270,
+      224,
+      285
+     ]
+    },
+    {
+     "px": 54,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      224,
+      407,
+      236,
+      419
+     ]
+    },
+    {
+     "px": 18026,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      338,
+      602,
+      479,
+      771
+     ]
+    }
+   ],
+   "mild_shift": {
+    "mean_abs": 5.162665661704667,
+    "pct_differing": 45.837303830520334,
+    "low_thresh": 1,
+    "residual_px": 371490,
+    "low_differing_px": 170281
+   }
+  },
+  {
+   "tick": 1220,
+   "unexplained_px": 18664,
+   "clusters": [
+    {
+     "px": 323,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      197,
+      277,
+      219,
+      314
+     ]
+    },
+    {
+     "px": 57,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      207,
+      380,
+      221,
+      392
+     ]
+    },
+    {
+     "px": 260,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      209,
+      316,
+      231,
+      344
+     ]
+    },
+    {
+     "px": 18024,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      338,
+      602,
+      479,
+      771
+     ]
+    }
+   ]
+  },
+  {
+   "tick": 1180,
+   "unexplained_px": 18603,
+   "clusters": [
+    {
+     "px": 155,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      228,
+      340,
+      238,
+      365
+     ]
+    },
+    {
+     "px": 212,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      237,
+      377,
+      259,
+      402
+     ]
+    },
+    {
+     "px": 170,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      244,
+      41,
+      255,
+      66
+     ]
+    },
+    {
+     "px": 97,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      260,
+      353,
+      270,
+      365
+     ]
+    },
+    {
+     "px": 17969,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      338,
+      602,
+      479,
+      771
+     ]
+    }
+   ],
+   "mild_shift": {
+    "mean_abs": 5.212986441985877,
+    "pct_differing": 49.11653072761043,
+    "low_thresh": 1,
+    "residual_px": 371490,
+    "low_differing_px": 182463
+   }
+  },
+  {
+   "tick": 1280,
+   "unexplained_px": 18533,
+   "clusters": [
+    {
+     "px": 127,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      168,
+      392,
+      168,
+      518
+     ]
+    },
+    {
+     "px": 18406,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      335,
+      601,
+      479,
+      770
+     ]
+    }
+   ]
+  },
+  {
+   "tick": 1340,
+   "unexplained_px": 18152,
+   "clusters": [
+    {
+     "px": 128,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      225,
+      341,
+      227,
+      467
+     ]
+    },
+    {
+     "px": 18024,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      338,
+      602,
+      479,
+      771
+     ]
+    }
+   ]
+  },
+  {
+   "tick": 1300,
+   "unexplained_px": 18024,
+   "clusters": [
+    {
+     "px": 18024,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      338,
+      602,
+      479,
+      771
+     ]
+    }
+   ]
+  },
+  {
+   "tick": 1320,
+   "unexplained_px": 17076,
+   "clusters": [
+    {
+     "px": 17076,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      338,
+      602,
+      479,
+      771
+     ]
+    }
+   ]
+  },
+  {
    "tick": 520,
-   "unexplained_px": 12940,
+   "unexplained_px": 14173,
    "clusters": [
     {
      "px": 51,
@@ -1009,8 +1584,191 @@
       357,
       538
      ]
+    },
+    {
+     "px": 303,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      416,
+      367,
+      429,
+      393
+     ]
+    },
+    {
+     "px": 401,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      433,
+      350,
+      446,
+      378
+     ]
+    },
+    {
+     "px": 201,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      448,
+      746,
+      458,
+      765
+     ]
+    },
+    {
+     "px": 170,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      451,
+      342,
+      460,
+      361
+     ]
+    },
+    {
+     "px": 64,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      469,
+      396,
+      479,
+      408
+     ]
+    },
+    {
+     "px": 94,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      473,
+      322,
+      479,
+      341
+     ]
     }
    ]
+  },
+  {
+   "tick": 1800,
+   "unexplained_px": 1143,
+   "clusters": [
+    {
+     "px": 95,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      352,
+      674,
+      372,
+      685
+     ]
+    },
+    {
+     "px": 58,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      361,
+      688,
+      371,
+      698
+     ]
+    },
+    {
+     "px": 54,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      373,
+      707,
+      383,
+      713
+     ]
+    },
+    {
+     "px": 111,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      377,
+      718,
+      396,
+      728
+     ]
+    },
+    {
+     "px": 167,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      385,
+      723,
+      410,
+      742
+     ]
+    },
+    {
+     "px": 60,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      405,
+      735,
+      417,
+      747
+     ]
+    },
+    {
+     "px": 146,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      426,
+      678,
+      444,
+      697
+     ]
+    },
+    {
+     "px": 69,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      428,
+      718,
+      439,
+      726
+     ]
+    },
+    {
+     "px": 231,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      434,
+      700,
+      459,
+      721
+     ]
+    },
+    {
+     "px": 79,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      448,
+      726,
+      463,
+      736
+     ]
+    },
+    {
+     "px": 73,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      458,
+      740,
+      473,
+      747
+     ]
+    }
+   ],
+   "mild_shift": {
+    "mean_abs": 19.023519913173534,
+    "pct_differing": 84.65051023784628,
+    "low_thresh": 1,
+    "residual_px": 75553,
+    "low_differing_px": 63956
+   }
   },
   {
    "tick": 1160,
@@ -1086,102 +1844,6 @@
    }
   },
   {
-   "tick": 1200,
-   "unexplained_px": 666,
-   "clusters": [
-    {
-     "px": 554,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      217,
-      310,
-      249,
-      375
-     ]
-    },
-    {
-     "px": 58,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      218,
-      270,
-      224,
-      285
-     ]
-    },
-    {
-     "px": 54,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      224,
-      407,
-      236,
-      419
-     ]
-    }
-   ],
-   "mild_shift": {
-    "mean_abs": 5.162665661704667,
-    "pct_differing": 45.837303830520334,
-    "low_thresh": 1,
-    "residual_px": 371490,
-    "low_differing_px": 170281
-   }
-  },
-  {
-   "tick": 1180,
-   "unexplained_px": 634,
-   "clusters": [
-    {
-     "px": 155,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      228,
-      340,
-      238,
-      365
-     ]
-    },
-    {
-     "px": 212,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      237,
-      377,
-      259,
-      402
-     ]
-    },
-    {
-     "px": 170,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      244,
-      41,
-      255,
-      66
-     ]
-    },
-    {
-     "px": 97,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      260,
-      353,
-      270,
-      365
-     ]
-    }
-   ],
-   "mild_shift": {
-    "mean_abs": 5.212986441985877,
-    "pct_differing": 49.11653072761043,
-    "low_thresh": 1,
-    "residual_px": 371490,
-    "low_differing_px": 182463
-   }
-  },
-  {
    "tick": 1140,
    "unexplained_px": 589,
    "clusters": [
@@ -1222,59 +1884,6 @@
     "low_thresh": 1,
     "residual_px": 371490,
     "low_differing_px": 180067
-   }
-  },
-  {
-   "tick": 1800,
-   "unexplained_px": 318,
-   "clusters": [
-    {
-     "px": 95,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      352,
-      674,
-      372,
-      685
-     ]
-    },
-    {
-     "px": 58,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      361,
-      688,
-      371,
-      698
-     ]
-    },
-    {
-     "px": 54,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      373,
-      707,
-      383,
-      713
-     ]
-    },
-    {
-     "px": 111,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      377,
-      718,
-      396,
-      728
-     ]
-    }
-   ],
-   "mild_shift": {
-    "mean_abs": 19.023519913173534,
-    "pct_differing": 84.65051023784628,
-    "low_thresh": 1,
-    "residual_px": 75553,
-    "low_differing_px": 63956
    }
   },
   {
