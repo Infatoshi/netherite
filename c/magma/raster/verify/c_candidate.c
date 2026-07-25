@@ -81,23 +81,35 @@ int main(int argc, char **argv) {
     CrRgba fog = {135,206,235,255};
 
     /* 1) SOLID */
-    CrShadeCtx sh_solid = { &tex_solid, fog, 0.f, 0.f, 0, 0,
-                            CR_LAYER_SOLID, 0, 0, 0.f };
+    CrShadeCtx sh_solid = {
+            .atlas = &tex_solid, .fog_color = fog, .fog_start = 0.f,
+            .fog_end = 0.f, .alpha_test = 0, .enable_fog = 0,
+            .layer = CR_LAYER_SOLID, .blend = 0, .use_mips = 0,
+            .mip_bias = 0.f };
     draw_group(&fb, SCN_VERTS, SCN_NVERTS, &sh_solid);
 
     /* 2) CUTOUT (alpha test) */
-    CrShadeCtx sh_cut = { &tex_cut, fog, 0.f, 0.f, 0, 0,
-                          CR_LAYER_CUTOUT, 0, 0, 0.f };
+    CrShadeCtx sh_cut = {
+            .atlas = &tex_cut, .fog_color = fog, .fog_start = 0.f,
+            .fog_end = 0.f, .alpha_test = 0, .enable_fog = 0,
+            .layer = CR_LAYER_CUTOUT, .blend = 0, .use_mips = 0,
+            .mip_bias = 0.f };
     draw_group(&fb, SCN_CUT_VERTS, SCN_CUT_NVERTS, &sh_cut);
 
     /* 3) TRANSLUCENT (src-over blend, no depth write) */
-    CrShadeCtx sh_trans = { &tex_trans, fog, 0.f, 0.f, 0, 0,
-                            CR_LAYER_TRANSLUCENT, 1, 0, 0.f };
+    CrShadeCtx sh_trans = {
+            .atlas = &tex_trans, .fog_color = fog, .fog_start = 0.f,
+            .fog_end = 0.f, .alpha_test = 0, .enable_fog = 0,
+            .layer = CR_LAYER_TRANSLUCENT, .blend = 1, .use_mips = 0,
+            .mip_bias = 0.f };
     draw_group(&fb, SCN_TRANS_VERTS, SCN_TRANS_NVERTS, &sh_trans);
 
     /* 4) mipped SOLID */
-    CrShadeCtx sh_mip = { &tex_mip, fog, 0.f, 0.f, 0, 0,
-                          CR_LAYER_SOLID, 0, 1, 0.f };
+    CrShadeCtx sh_mip = {
+            .atlas = &tex_mip, .fog_color = fog, .fog_start = 0.f,
+            .fog_end = 0.f, .alpha_test = 0, .enable_fog = 0,
+            .layer = CR_LAYER_SOLID, .blend = 0, .use_mips = 1,
+            .mip_bias = 0.f };
     draw_group(&fb, SCN_MIP_VERTS, SCN_MIP_NVERTS, &sh_mip);
 
     uint8_t *rgb = malloc((size_t)SCN_W * SCN_H * 3);

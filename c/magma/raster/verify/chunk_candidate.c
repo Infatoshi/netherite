@@ -51,16 +51,29 @@ int main(int argc, char **argv) {
 
     CrRgba fog = {135, 206, 235, 255};
 
-    /* Per-layer CrShadeCtx: {atlas,fog,fog_start,fog_end,alpha_test,enable_fog,
-     *                        layer,blend,use_mips,mip_bias}. Fog off throughout. */
-    CrShadeCtx sh_solid = { &scn.atlas, fog, 0.f, 0.f, 0, 0,
-                            CR_LAYER_SOLID, 0, 0, 0.f };
-    CrShadeCtx sh_cmip  = { &scn.atlas, fog, 0.f, 0.f, 1, 0,
-                            CR_LAYER_CUTOUT_MIPPED, 0, 1, 0.f };
-    CrShadeCtx sh_cut   = { &scn.atlas, fog, 0.f, 0.f, 1, 0,
-                            CR_LAYER_CUTOUT, 0, 0, 0.f };
-    CrShadeCtx sh_trans = { &scn.atlas, fog, 0.f, 0.f, 0, 0,
-                            CR_LAYER_TRANSLUCENT, 1, 0, 0.f };
+    /* Per-layer CrShadeCtx, designated so a new struct field cannot silently
+     * shift the slots (that regression discarded every CUTOUT texel once
+     * alpha_ref was inserted). Fog off throughout. */
+    CrShadeCtx sh_solid = {
+            .atlas = &scn.atlas, .fog_color = fog, .fog_start = 0.f,
+            .fog_end = 0.f, .alpha_test = 0, .enable_fog = 0,
+            .layer = CR_LAYER_SOLID, .blend = 0, .use_mips = 0,
+            .mip_bias = 0.f };
+    CrShadeCtx sh_cmip  = {
+            .atlas = &scn.atlas, .fog_color = fog, .fog_start = 0.f,
+            .fog_end = 0.f, .alpha_test = 1, .enable_fog = 0,
+            .layer = CR_LAYER_CUTOUT_MIPPED, .blend = 0, .use_mips = 1,
+            .mip_bias = 0.f };
+    CrShadeCtx sh_cut   = {
+            .atlas = &scn.atlas, .fog_color = fog, .fog_start = 0.f,
+            .fog_end = 0.f, .alpha_test = 1, .enable_fog = 0,
+            .layer = CR_LAYER_CUTOUT, .blend = 0, .use_mips = 0,
+            .mip_bias = 0.f };
+    CrShadeCtx sh_trans = {
+            .atlas = &scn.atlas, .fog_color = fog, .fog_start = 0.f,
+            .fog_end = 0.f, .alpha_test = 0, .enable_fog = 0,
+            .layer = CR_LAYER_TRANSLUCENT, .blend = 1, .use_mips = 0,
+            .mip_bias = 0.f };
 
     render_layer(&fb, &scn, CR_LAYER_SOLID,          &sh_solid);
     render_layer(&fb, &scn, CR_LAYER_CUTOUT_MIPPED,  &sh_cmip);

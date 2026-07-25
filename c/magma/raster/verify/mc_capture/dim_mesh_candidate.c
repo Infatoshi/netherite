@@ -282,10 +282,26 @@ int main(int argc, char **argv) {
             fog_end = far_plane;
         }
     }
-    CrShadeCtx sh0 = { &atlas, fog, fog_start, fog_end, 0, 1, CR_LAYER_SOLID, 0, 0, 0.f };
-    CrShadeCtx sh1 = { &atlas, fog, fog_start, fog_end, 1, 1, CR_LAYER_CUTOUT_MIPPED, 0, 0, 0.f };
-    CrShadeCtx sh2 = { &atlas, fog, fog_start, fog_end, 1, 1, CR_LAYER_CUTOUT, 0, 0, 0.f };
-    CrShadeCtx sh3 = { &atlas, fog, fog_start, fog_end, 0, 1, CR_LAYER_TRANSLUCENT, 1, 0, 0.f };
+    CrShadeCtx sh0 = {
+            .atlas = &atlas, .fog_color = fog, .fog_start = fog_start,
+            .fog_end = fog_end, .alpha_test = 0, .enable_fog = 1,
+            .layer = CR_LAYER_SOLID, .blend = 0, .use_mips = 0,
+            .mip_bias = 0.f };
+    CrShadeCtx sh1 = {
+            .atlas = &atlas, .fog_color = fog, .fog_start = fog_start,
+            .fog_end = fog_end, .alpha_test = 1, .enable_fog = 1,
+            .layer = CR_LAYER_CUTOUT_MIPPED, .blend = 0, .use_mips = 0,
+            .mip_bias = 0.f };
+    CrShadeCtx sh2 = {
+            .atlas = &atlas, .fog_color = fog, .fog_start = fog_start,
+            .fog_end = fog_end, .alpha_test = 1, .enable_fog = 1,
+            .layer = CR_LAYER_CUTOUT, .blend = 0, .use_mips = 0,
+            .mip_bias = 0.f };
+    CrShadeCtx sh3 = {
+            .atlas = &atlas, .fog_color = fog, .fog_start = fog_start,
+            .fog_end = fog_end, .alpha_test = 0, .enable_fog = 1,
+            .layer = CR_LAYER_TRANSLUCENT, .blend = 1, .use_mips = 0,
+            .mip_bias = 0.f };
     render_layer(&fb, verts[0], nverts[0], &cam, W, H, &sh0);
     render_layer(&fb, verts[1], nverts[1], &cam, W, H, &sh1);
     render_layer(&fb, verts[2], nverts[2], &cam, W, H, &sh2);

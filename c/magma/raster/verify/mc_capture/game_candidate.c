@@ -150,14 +150,26 @@ int main(int argc, char **argv) {
     int    fon = gm_terrain_fog_enabled();
     CrRgba fog = gm_terrain_fog_color(0.25f);
     const float fst = GM_TERRAIN_FOG_START, fen = GM_TERRAIN_FOG_END;
-    CrShadeCtx sh_solid = { &scn.atlas, fog, fst, fen, 0, fon,
-                            CR_LAYER_SOLID, 0, 0, 0.f };
-    CrShadeCtx sh_cmip  = { &scn.atlas, fog, fst, fen, 1, fon,
-                            CR_LAYER_CUTOUT_MIPPED, 0, 1, 0.f };
-    CrShadeCtx sh_cut   = { &scn.atlas, fog, fst, fen, 1, fon,
-                            CR_LAYER_CUTOUT, 0, 0, 0.f };
-    CrShadeCtx sh_trans = { &scn.atlas, fog, fst, fen, 0, fon,
-                            CR_LAYER_TRANSLUCENT, 1, 0, 0.f };
+    CrShadeCtx sh_solid = {
+            .atlas = &scn.atlas, .fog_color = fog, .fog_start = fst,
+            .fog_end = fen, .alpha_test = 0, .enable_fog = fon,
+            .layer = CR_LAYER_SOLID, .blend = 0, .use_mips = 0,
+            .mip_bias = 0.f };
+    CrShadeCtx sh_cmip  = {
+            .atlas = &scn.atlas, .fog_color = fog, .fog_start = fst,
+            .fog_end = fen, .alpha_test = 1, .enable_fog = fon,
+            .layer = CR_LAYER_CUTOUT_MIPPED, .blend = 0, .use_mips = 1,
+            .mip_bias = 0.f };
+    CrShadeCtx sh_cut   = {
+            .atlas = &scn.atlas, .fog_color = fog, .fog_start = fst,
+            .fog_end = fen, .alpha_test = 1, .enable_fog = fon,
+            .layer = CR_LAYER_CUTOUT, .blend = 0, .use_mips = 0,
+            .mip_bias = 0.f };
+    CrShadeCtx sh_trans = {
+            .atlas = &scn.atlas, .fog_color = fog, .fog_start = fst,
+            .fog_end = fen, .alpha_test = 0, .enable_fog = fon,
+            .layer = CR_LAYER_TRANSLUCENT, .blend = 1, .use_mips = 0,
+            .mip_bias = 0.f };
 
     render_layer(&fb, &scn, W, H, CR_LAYER_SOLID,         &sh_solid);
     if (!getenv("MAGMA_NO_CUTOUT")) {

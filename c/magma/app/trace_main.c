@@ -147,11 +147,23 @@ static void render_layer(CrFramebuffer *fb, const CrCamera *cam,
 static void render_world(CrFramebuffer *fb, const CrCamera *cam, const GmMeshView *mv,
                          const CrTexture *atlas, CrScreenTri *tris) {
     CrRgba fog = {135, 206, 235, 255};
-    CrShadeCtx sh_solid = { atlas, fog, 0.f, 0.f, 0, 0, CR_LAYER_SOLID,         0, 0, 0.f };
-    CrShadeCtx sh_cmip  = { atlas, fog, 0.f, 0.f, 1, 0, CR_LAYER_CUTOUT_MIPPED, 0, 1, 0.f };
+    CrShadeCtx sh_solid = {
+            .atlas = atlas, .fog_color = fog, .fog_start = 0.f, .fog_end = 0.f,
+            .alpha_test = 0, .enable_fog = 0, .layer = CR_LAYER_SOLID,
+            .blend = 0, .use_mips = 0, .mip_bias = 0.f };
+    CrShadeCtx sh_cmip  = {
+            .atlas = atlas, .fog_color = fog, .fog_start = 0.f, .fog_end = 0.f,
+            .alpha_test = 1, .enable_fog = 0, .layer = CR_LAYER_CUTOUT_MIPPED,
+            .blend = 0, .use_mips = 1, .mip_bias = 0.f };
     sh_cmip.depth_lequal = 1;  /* coplanar grass_side_overlay (GL_LEQUAL) */
-    CrShadeCtx sh_cut   = { atlas, fog, 0.f, 0.f, 1, 0, CR_LAYER_CUTOUT,        0, 0, 0.f };
-    CrShadeCtx sh_trans = { atlas, fog, 0.f, 0.f, 0, 0, CR_LAYER_TRANSLUCENT,   1, 0, 0.f };
+    CrShadeCtx sh_cut   = {
+            .atlas = atlas, .fog_color = fog, .fog_start = 0.f, .fog_end = 0.f,
+            .alpha_test = 1, .enable_fog = 0, .layer = CR_LAYER_CUTOUT,
+            .blend = 0, .use_mips = 0, .mip_bias = 0.f };
+    CrShadeCtx sh_trans = {
+            .atlas = atlas, .fog_color = fog, .fog_start = 0.f, .fog_end = 0.f,
+            .alpha_test = 0, .enable_fog = 0, .layer = CR_LAYER_TRANSLUCENT,
+            .blend = 1, .use_mips = 0, .mip_bias = 0.f };
     render_layer(fb, cam, mv->verts[0], mv->nverts[0], tris, &sh_solid);
     render_layer(fb, cam, mv->verts[1], mv->nverts[1], tris, &sh_cmip);
     render_layer(fb, cam, mv->verts[2], mv->nverts[2], tris, &sh_cut);
