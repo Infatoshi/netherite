@@ -599,3 +599,23 @@ re-run here.
   silently omits the `*_world` snapshot dirs. Replay then skips snapshot
   patching without erroring, and the sweep fails for reasons that look like
   real bugs. Link every entry; assert the count matches the main tree.
+
+### 2026-07-25 - CUDA sweep after the hurt fix: deferred frame end is the only gap left
+
+- Re-ran the full 23-tape CUDA sweep on GPU0 (`sm_120`,
+  `nightly_20260725T071901Z`). 15 rc=0 / 8 rc=3, the same tally as the CPU
+  sweep, with baseline regressions on two tapes rather than the five the
+  pre-fix sweep had (`nightly_20260725T062525Z`, 13/10).
+  `ender_dragon_094040Z`, `ender_dragon_demo` and `lava_walk` are now
+  byte-identical to their CPU baselines on every class.
+- Both survivors are the same bug. Replaying the canonical
+  `20260712T055346Z` and `blaze_bow_demo` with `MAGMA_NO_DEFER=1` reproduces
+  the CPU baseline exactly - every pixel class, `failed_frames`, and the
+  state block unchanged (canonical 3121/3121 ticks, UNEXPLAINED 538_620 on
+  both sides; bow demo UNEXPLAINED 168_484). So the deferred frame end is now
+  the sole CPU/CUDA divergence, and it is not bow-specific.
+- Removed a build landmine while there: `cuda/raster_cuda_sm86.o` held
+  whichever arch was built last (`NVFLAGS_GAME` is overridable, GPU0 needs
+  `-arch=sm_120`) and nothing rebuilt it on an arch change, so a GPU switch
+  could silently link the wrong arch. Renamed to `raster_cuda_game.o`;
+  `scripts/demo_pixel_sbs.sh` now cleans `cuda/*.o`.

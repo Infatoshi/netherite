@@ -186,10 +186,15 @@ state/snapshot ordering, not GPU raster math. Not yet pinned to a line;
 suspect the pending frame is finished after `advance_hand_state` has already
 moved `bow_pull`/equip on for the next tick.
 
+It is not bow-specific: the canonical `20260712T055346Z` tape carries the same
+regression under the deferred path and also matches the CPU baseline exactly
+with `MAGMA_NO_DEFER=1`. These two tapes are the only CUDA sweep regressions
+left.
+
 Until it is closed, a CUDA parity gate needs `MAGMA_NO_DEFER=1` to be
 meaningful. Do not treat a deferred-path CUDA replay as parity evidence.
 
-### CPU/CUDA replay parity: hurt camera fixed, sweep not yet re-run
+### CPU/CUDA replay parity: hurt camera fixed, deferred frame end remains
 
 Parity had only ever been measured on one tape. The canonical
 `20260721T215812Z` replay is bit identical CPU vs CUDA, but a full 23-tape
@@ -214,8 +219,24 @@ byte-for-byte); a chunk/mesh upload budget (`wl_ensure_mesh` is dirty-driven,
 there is no per-frame budget); and the early player deaths, which happen
 identically on the CPU and are a separate matter.
 
-The 23-tape CUDA sweep has **not** been re-run since the fix, so the six
-regressions are not yet confirmed cleared. Baselines remain CPU-authoritative.
+Re-run of the 23-tape CUDA sweep on GPU0 after the fix
+(`nightly_20260725T071901Z`): 15 rc=0 / 8 rc=3, the same tally as the CPU
+sweep, with baseline regressions on **two** tapes instead of five.
+`scenario_ender_dragon_20260722T094040Z`,
+`scenario_ender_dragon_demo_20260722T104500Z` and
+`scenario_lava_walk_20260722T234940Z` are now byte-identical to their CPU
+baselines on every class.
+
+The two that still regress -
+`20260712T055346Z_fast_s0_survival_default_rd8_77b5b462` and
+`scenario_blaze_bow_demo_20260722T104234Z` - are the deferred frame end, not a
+second bug. Replaying each with `MAGMA_NO_DEFER=1` on GPU0 reproduces the CPU
+baseline exactly, every class and `failed_frames` unchanged (canonical: 3121 of
+3121 ticks, UNEXPLAINED 538_620 both sides; bow demo: UNEXPLAINED 168_484 both
+sides). So in the non-deferred path CUDA now equals the CPU on all 23 tapes,
+and the deferred frame end is the sole remaining CPU/CUDA divergence.
+
+Baselines remain CPU-authoritative.
 
 ### Late-tape item acquisition on the canonical tape
 
