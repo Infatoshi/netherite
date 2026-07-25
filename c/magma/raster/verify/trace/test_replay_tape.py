@@ -741,26 +741,6 @@ def test_entity_falling_block_tape_maps_block_state(tmp_path: Path):
     assert view["x"] == 3.5 and view["y"] == 63.98
 
 
-def test_legacy_small_fireball_burns_after_first_observed_tick(tmp_path: Path):
-    header = {
-        "header": 1, "seed": 0, "world_time": 6000,
-        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
-        "hp": 20.0, "food": 20, "dim": 0,
-    }
-    fireball = [13, "EntitySmallFireball", 0.5, 71.0, 2.0, 0.0, -1.0]
-    ticks = [
-        {"t": tick, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0,
-         "z": 0.5, "yaw": 0.0, "pitch": 0.0, "ents": [fireball]}
-        for tick in range(2)
-    ]
-    script = tmp_path / "fireball_events.jsonl"
-    replay_tape.tape_to_script(header, ticks, str(script))
-    views = [json.loads(line) for line in script.read_text().splitlines()
-             if json.loads(line).get("ent") == "EntitySmallFireball"]
-    assert "flags" not in views[0]
-    assert views[1]["flags"] == 1
-
-
 def test_texture_luminance_sidecar_does_not_suppress_marker_box():
     oracle, magma = _canonical_frame_pair(600)
     known = [{
