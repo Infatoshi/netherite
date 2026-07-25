@@ -743,3 +743,85 @@ Also: `pxdiff.py` grew a `cutout-sky` discriminator that requires measured
 background coverage instead of a delta direction, after a delegated agent proved
 my own tool's verdict on the canopy was a false positive; and
 `scripts/agent_worktree.sh` builds worktrees that can actually build and replay.
+
+## 2026-07-25 (overnight: sprint-FOV ordering, and the viewmodel story was wrong)
+
+**The FOV eased on tick N sees tick N-1's sprint flag.** `Minecraft.runTick`
+calls `entityRenderer.updateRenderer()` at `Minecraft.java:1862`
+(-> `updateFovModifierHand`, `EntityRenderer.java:296`, easing
+`fovModifierHand += (f - fovModifierHand) * 0.5F`) BEFORE `world.updateEntities()`
+at `Minecraft.java:1881`. magma ran the ease after its sprint state machine and
+was one tick ahead: at t=260 of `20260721T215812Z` it projected at 1.1453125
+(80.171875 deg) against vanilla's 1.140625 (79.84375 deg). A third of a degree
+of FOV is invisible as shading and decisive as sampling, and it is what had been
+filed for weeks as a "texel-selection" residual - not a sampling rule, not UV
+interpolation, not FaceBakery baking, not attribute precision. Moving the block
+above the state machine took `20260721T215812Z` 7 -> 3 failed frames (worst 7291
+px at t=260 -> 865 px at t=700; the t=460 cluster 6252 -> 72), slime 16 -> 15,
+the canonical tape 28 -> 27, and one tape's UNEXPLAINED 1226 -> 0 (`130d0bd`).
+
+**EntityFallingBlock renders the block MODEL.** `RenderFallingBlock.doRender`
+draws the model at the blockpos then translates by
+`(x - blockpos.x - 0.5, y - blockpos.y, z - blockpos.z - 0.5)`, so the cube is
+`[posX-0.5, posX+0.5] x [posY, posY+1] x [posZ-0.5, posZ+0.5]`: a unit cube, not
+the 0.98 collision box a delegate sized it from and not the 0.25 ground item
+drop (`e03ac5f`).
+
+**The gate had a hole in the same quarter of the frame it had just un-masked.**
+`hide_gui`/`hide_hand` dropped the POSITIONAL hud and viewmodel barriers, but
+`pixel_gate` also has post-hoc SEMANTIC classes with the same names and a 40000
+px budget each, so un-masking put nothing new under measurement on any frame
+where a heuristic fired. Both now honour the flags. On the canonical tape `hud`
+disappears entirely (107 frames / 244695 px that were never an explanation) and
+failed frames go 18 -> 28, all of them in the newly measured region (`b251384`).
+
+**The canonical tape's viewmodel family was filed wrong, twice.** It had been
+recorded as a missing HELD ITEM, recorder-blocked because the tape carries no
+`inv` field. Opening the lower-right crops at t=0, 900, 1140, 1800, 2400, 2800
+and 3100 shows the same skin wedge in the same screen position over seven
+different backgrounds: the oracle is EMPTY HANDED for most of the tape and what
+it draws is `renderArmFirstPerson`. magma has that path and lands it on the
+right pixels - it draws it far too bright. On rain-free frames whose terrain and
+sky agree to within 1/255, the arm is off by a per-channel 0.72/0.60/0.58
+(t=900: golden (139,103,84), magma (192,173,148); terrain (87,114,69) vs
+(87,114,70)). Per-channel and warm-biased, so a lightmap colour and not a
+brightness scalar. Forced on for the whole tape it moves 110 of 157 frames the
+wrong way on the gate-independent whole mean/ch, which is why the suppression is
+still there; under investigation on `wt/armlight` (`2819f9a`).
+Two methodology notes came out of it. The yaw-sweep test that produced the
+original reading is sound about "screen-fixed viewmodel" and was over-read into
+"held block", which it cannot support. And `MAGMA_HAND_FROM_TICK` in the
+environment now overrides the sidecar (`de54029`), because the only previous way
+to A/B the hand was editing `demo/`, which is symlinked into every agent
+worktree - a probe in one worktree silently changed what every other running
+agent was measuring.
+
+**Pickup inference cannot rescue the held-item intervals.** The tape carries
+8673 `EntityItem` rows, 530 of them within three blocks of the player, and every
+one is 7 fields (`id, name, x, y, z, yaw, pitch`) with no item id. All 1317
+`set_block` rows in the worldpatch are at tick 1, an initial snapshot rather than
+an edit log. Recovering WHICH item needs the tape re-recorded; recovering the
+ARM does not.
+
+**Still open and newly visible:** over t=540..660 the oracle draws no viewmodel
+at all, at `pitch` exactly 90.0. The corner object there is terrain, measured
+rather than assumed - it tracks the background across the window (mean |d|
+0.85/10.98/11.93 at t=620/640/660 against a control of 0.96/15.22/14.13).
+Vanilla's `renderHand` has no pitch gate.
+
+**Release-path GPU verified.** CUDA on GPU0 (sm_120) is identical to the
+CPU baselines on all 164 base-vs-now quantities across 23 tapes (`8058633`).
+`nightly_verify.sh` now says so in its SKIP message: `NIGHTLY_GPU=<n>` is safe
+across GPU generations because the `sm_` target is read from the chosen card.
+
+**From the fan-out.** Boss fog now latches on ender crystals as well as a nearby
+dragon - `DragonFightManager` constructs its `bossInfo` with
+`setCreateFog(true)` and clients keep it for the whole fight, while magma's
+nearest-8 tape window loses a far dragon (`e7b274d`). It is citation-backed and
+moves no pixel on any tape we have, including the three other End tapes, which
+all still pass. The slime platform residual was measured to a conclusion without
+a fix: at a=188/255 the dual-covered block centres already equal the golden, so
+`raster_cpu`'s SRC_ALPHA is right, and the dark residual is the single-layer rim
+of the 3/16 inset (61% of a top face). Four levers were tried and all rejected,
+including a back-to-front translucent sort that takes slime 15 -> 14 and
+regresses `elytra_dip` UNEXPLAINED 784 -> 16495 (`8945ac4`).
