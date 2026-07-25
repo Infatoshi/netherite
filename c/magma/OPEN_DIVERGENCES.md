@@ -147,9 +147,13 @@ independently re-measured here.
   77%-of-frame 5.37 shift on the step down onto soul sand: the `fogColor1`
   light smoother was sampling the post-tick feet, one tick ahead of vanilla's
   pre-movement `updateRenderer` (`5c4cf6e`). The tape is rc=0.
-  Still open on this tape: the 1226 px UNEXPLAINED cluster at t=50 is hand
-  silhouette just outside the viewmodel mask (`_classify` in `pixel_gate.py`
-  wants `x0 > 0.52w` and an edge touch), so it is gate topology, not pixels.
+  Still open on this tape: ~1226 px of UNEXPLAINED at t=50, in 11 clusters of
+  50-478 px. The earlier triage called this hand silhouette outside the
+  viewmodel mask; that is wrong. Looked at the pixels: every cluster sits in
+  the middle of the frame (y 259-337, x 354-520) on the receding soul sand
+  path, and the diff is per-texel speckle on the minified path texture, with
+  the grass either side clean. Same texel-selection family as the elytra_dip
+  near-field grass below, not gate topology.
 - `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
   1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
   rendered at the wrong spatial frequency - coarse block-scale flats where the
