@@ -614,6 +614,35 @@ to extend the contract past respawn (emit `continue_after_death` for any
 `tape_has_respawn`, teach `first_divergence` to resume, update the pinning
 tests) is an open product decision, not a bug.
 
+### The far chunk-cull boundary is one chunk short in some directions
+
+All 15 of `slime_bounce`'s failed frames are the same static artifact, and the
+gate's "744 unexplained px in 4 clusters" hides what it is: a 7-row band at the
+horizon (y 244..253) spanning the full width, identical on every frame from
+t=60 on.
+
+Measured per column rather than per cluster (first row scanning down whose blue
+channel drops below 200 = the terrain silhouette), at t=80: **711 of 854
+columns agree exactly, and 143 have magma's terrain edge exactly one row
+lower.** Nothing is off by two, and rows above 244 and below 249 are
+bit-identical, so this is not shading and not a sub-pixel camera offset.
+
+The 143 columns are **not scattered - they are 4 contiguous runs of 37, 35, 33
+and 33 columns** (plus four 1-2px stragglers). Scattered would have meant
+rasteriser edge precision on grazing faces, which is the open texel/precision
+family; blocky at ~35 columns means a chunk. On a flat world the horizon row is
+set by the farthest chunk actually drawn - a more distant chunk sits higher on
+screen, i.e. at a lower row number - so magma being one row lower over four
+angular sectors means magma is **drawing one chunk ring less in those
+directions**. That points at the render-distance cull test (Euclidean vs
+Chebyshev chunk distance, or a `>` that should be `>=`) rather than anything in
+the raster, and `sky.h`'s note that "the outermost terrain is clipped like Java"
+is the code that owns it.
+
+Not yet done: confirm the four sectors are the diagonals of the square
+chunk-render box (which would make it a distance-metric mismatch outright), and
+check whether the same 4-run signature appears on the other flat-world tapes.
+
 ### The oracle's fogColor1 had not converged when recording started
 
 Every scenario tape is worse at t=0 than at t=10, by 2-6x, on the whole-frame
