@@ -159,17 +159,24 @@ independently re-measured here.
   77%-of-frame 5.37 shift on the step down onto soul sand: the `fogColor1`
   light smoother was sampling the post-tick feet, one tick ahead of vanilla's
   pre-movement `updateRenderer` (`5c4cf6e`). The tape is rc=0.
-  Still open on this tape: ~1226 px of UNEXPLAINED at t=50, in 11 clusters of
-  50-478 px, all mid-frame (y 259-337, x 354-520) on the receding soul sand
-  path with the grass either side clean. Two earlier readings of this were
-  wrong - a delegated triage called it hand silhouette outside the viewmodel
-  mask, and eyeballing it called it random per-texel speckle. `pxdiff.py`
-  measures it: the clusters are bands of screen rows where the whole band
-  matches the oracle after a one-row shift (cluster 1 at y[320,331]: mean
-  25.26/ch at dy=0, **1.72/ch at dy=-1**), with `edge_frac` 0.61 - the
-  minified path texture is picking the neighbouring texture ROW for those
-  bands, coherently, not sampling at random. Same V-rounding family as the
-  canonical-tape leaf faces below.
+  Still open on this tape: ~1226 px of UNEXPLAINED at t=50, in 7 clusters of
+  50-370 px (plus viewmodel-masked siblings), all mid-frame on the receding
+  soul sand path with the grass either side clean. `pxdiff.py` on the
+  texel-selection bands (e.g. y[320,331] x[407,444]): zero_shift 26.26/ch,
+  best_shift dy=-1 at 1.52/ch; remeasured as C[y]≈G[y+1] at 0.4-1.5/ch
+  across those rows. At yaw=-90 pitch=0 the screen-Y axis maps to texture U
+  (world X / path depth), not V.
+  **Sampling-rule dead end (2026-07-25, wt/texel):** magma already uses
+  GL_NEAREST `floor(u*w)` (default is `floor(u*w - 1e-4)`; pure floor via
+  MAGMA_SAMPLE_MODE=1 is bit-identical on this residual). Vanilla 1.11.2 with
+  `mipmapLevels:0` binds the terrain atlas as plain GL_NEAREST (EntityRenderer
+  only forces non-mip for CUTOUT; SOLID uses the upload filter, still nearest
+  with no mips). Sweeps: round / UV+0.5 drop UNEXPLAINED to 165 but raise
+  whole-frame mean 3.51→5.47 and shred HUD/viewmodel; U+0.2 yields unex 864
+  mean 3.43 (partial, no principle); every V bias worsens both metrics. No
+  sampling-operator change gets unex→0 without a nightly regression - do not
+  fudge MAGMA_TEXEL_BIAS. Residual is UV phase at pixel centres (wrong side of
+  texel boundaries on the oblique top faces), not floor-vs-round.
 - `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
   1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
   rendered at the wrong spatial frequency - coarse block-scale flats where the
