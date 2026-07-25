@@ -241,6 +241,33 @@ def tape_texture_animations_pinned(path):
         return False
 
 
+def tape_skin(path, header=None):
+    """First-person arm skin: 'slim' (Alex) or 'default' (Steve).
+
+    Prefer the tape header's ``skin`` field (recorded from
+    AbstractClientPlayer.getSkinType). When missing (older tapes), honour
+    qrl_launch.determinism.pin_skin: MixinRandomSkinTexture forces the classic
+    Steve model whenever that flag is set, so replaying those goldens as Alex
+    is a pure skin-mismatch (pale full-bright arm vs the oracle's dim Steve).
+    Only unpinned sessions without a header field keep the historical slim
+    default (Player0's offline UUID hash).
+    """
+    if header and header.get("skin"):
+        s = header["skin"]
+        return "slim" if s == "slim" else "default"
+    if path:
+        meta = os.path.splitext(path)[0] + ".meta.json"
+        try:
+            with open(meta) as f:
+                pinned = bool(json.load(f).get("qrl_launch", {}).get(
+                    "determinism", {}).get("pin_skin", False))
+            if pinned:
+                return "default"
+        except (OSError, ValueError, TypeError):
+            pass
+    return "slim"
+
+
 def magma_world(header):
     """Map the recorder world name to magma's matching Overworld generator."""
     return "superflat" if str(header.get("world", "")).endswith("_flat") else "default"
@@ -381,11 +408,10 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
         if tape_has_respawn(header, ticks) and tape_is_fluid_episode(ticks):
             f.write(json.dumps({"tick": 0,
                                 "type": "continue_after_death"}) + "\n")
-        # first-person arm variant: offline UUIDs hash to steve or alex.
-        # This env's pinned Player0 session renders alex, so default slim
-        # when the tape predates the header field.
+        # first-person arm variant: header.skin when present; else pin_skin
+        # meta -> Steve, else historical slim default (see tape_skin).
         f.write(json.dumps({"tick": 0, "type": "set_skin",
-                            "skin": header.get("skin", "slim")}) + "\n")
+                            "skin": tape_skin(tape_path, header)}) + "\n")
         f.write(json.dumps({"tick": 0, "type": "set_pose",
                             "x": header["x"], "y": header["y"], "z": header["z"],
                             "yaw": header["yaw"], "pitch": header["pitch"]}) + "\n")
