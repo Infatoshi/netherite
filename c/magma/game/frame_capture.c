@@ -200,7 +200,8 @@ static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
     c.fov_deg = 70.0f * (v->fov_mult > 0.01f ? v->fov_mult : 1.0f);
     c.aspect = (float)w / (float)h;
     c.znear = 0.05f;
-    c.zfar = 600.0f;
+    /* EntityRenderer.setupCameraTransform: far = RD*16 * sqrt(2). See GM_TERRAIN_ZFAR. */
+    c.zfar = GM_TERRAIN_ZFAR;
     c.hurt_yaw_deg = v->hurt_yaw;
     c.hurt_roll_deg = gm_view_hurt_roll_deg(v->hurt_time, v->max_hurt_time);
     return c;

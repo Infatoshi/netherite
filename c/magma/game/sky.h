@@ -88,6 +88,12 @@ CR_HD CrRgba gm_sky_ray_color(CrVec3 dir, float time_of_day);
 #define GM_TERRAIN_FOG_FAR   128.0f
 #define GM_TERRAIN_FOG_START (GM_TERRAIN_FOG_FAR * 0.75f)
 #define GM_TERRAIN_FOG_END   (GM_TERRAIN_FOG_FAR)
+/* EntityRenderer.setupCameraTransform (oracle :730): gluPerspective far =
+ * farPlaneDistance * SQRT_2. Fog end stays farPlaneDistance (no *sqrt2); the
+ * projection must still reach the Chebyshev RD corner at RD*16*sqrt2 so the
+ * outermost terrain is clipped like Java, not drawn as unfogged green past
+ * the horizon (elytra_dip / slime_bounce full-width band). */
+#define GM_TERRAIN_ZFAR      (GM_TERRAIN_FOG_FAR * 1.41421356237f)
 CrRgba gm_terrain_fog_color(float time_of_day);
 
 /* Terrain fog: DEFAULT ON (EntityRenderer.setupFog(0) always runs in Java).

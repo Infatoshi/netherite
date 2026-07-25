@@ -530,7 +530,14 @@ MC_HD static inline void psv_elytra_travel(const Chunk *now, const McSinTable *s
 }
 
 /* EntityPlayer.updateSize, limited to the elytra transition. Vanilla runs it
- * after travel. Width remains 0.6F; only height changes 1.8F <-> 0.6F. */
+ * after travel. Width remains 0.6F; only height changes 1.8F <-> 0.6F.
+ *
+ * collidesWithAnyBlock uses AxisAlignedBB.intersects (strict <), so the floor
+ * the player is standing on (maxY == feet) does NOT count. psv_collect_blocks
+ * is only a broadphase cell scan - it returns that floor and must be filtered
+ * with mc_aabb_intersects, otherwise expand-to-standing always "collides" with
+ * the ground and the 0.6F pose / 0.4F eye height sticks forever after landing
+ * (elytra_dip full-width horizon band: camera 1.22 blocks too low). */
 MC_HD static inline void psv_update_elytra_size(const Chunk *now, PsvPlayer *pl,
                                                 McAABB *blocks) {
     McEntity *e = &pl->ent;
@@ -540,7 +547,12 @@ MC_HD static inline void psv_update_elytra_size(const Chunk *now, PsvPlayer *pl,
     box.maxX = box.minX + (double)0.6f;
     box.maxY = box.minY + height;
     box.maxZ = box.minZ + (double)0.6f;
-    if (psv_collect_blocks(now, &box, blocks, 1) == 0) {
+    int n = psv_collect_blocks(now, &box, blocks, PSV_MAX_BLOCKS);
+    int collides = 0;
+    for (int i = 0; i < n; ++i) {
+        if (mc_aabb_intersects(&box, &blocks[i])) { collides = 1; break; }
+    }
+    if (!collides) {
         e->box = box;
         pl->elytra_pose = pl->elytra_flying;
     }

@@ -56,6 +56,7 @@
  */
 #include "core/types.h"
 #include "game/game.h"
+#include "game/sky.h"
 #include "game/view.h"
 
 /* mc-sim: PsvPlayer / Chunk / McSinTable + the verified init helpers. */
@@ -180,7 +181,7 @@ static CrCamera cam_from_view(const GmPlayerView *pv, int fb_w, int fb_h) {
     c.fov_deg = 70.0f;
     c.aspect  = (float)fb_w / (float)fb_h;
     c.znear   = 0.05f;
-    c.zfar    = 600.0f;
+    c.zfar    = GM_TERRAIN_ZFAR;
     c.hurt_yaw_deg = pv->hurt_yaw;
     c.hurt_roll_deg = gm_view_hurt_roll_deg(pv->hurt_time, pv->max_hurt_time);
     return c;

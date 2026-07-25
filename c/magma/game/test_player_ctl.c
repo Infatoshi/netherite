@@ -452,6 +452,15 @@ int main(void)
         land.ent.motionY = 0.0;
         psv_physics_tick(win, &st, &land, &idle, blocks);
         CHECK(!land.elytra_flying, "updateElytra clears flag 7 on ground");
+        /* EntityPlayer.updateSize: expand 0.6->1.8 when floor only touches
+         * feet (strict AABB intersects). Broadphase-only collect wrongly
+         * treated the floor as a blocker and left eye height at 0.4F. */
+        psv_update_elytra_size(win, &land, blocks);
+        CHECK(!land.elytra_pose, "updateSize clears elytra pose on open ground");
+        CHECK(psv_player_eye_height(&land) == PSV_EYE_HEIGHT,
+              "standing eye height restored after elytra land");
+        CHECK(land.ent.box.maxY - land.ent.box.minY == (double)1.8f,
+              "standing height 1.8F after expand");
 
         /* Jump-edge deploy from tape t54: freefall to t55, elytra travel to t56. */
         memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
