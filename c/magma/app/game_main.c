@@ -740,33 +740,58 @@ int main(int argc, char **argv) {
         int ntris = render_world(&fb, &cam, &mv, &atlas, tris, day, &uw);
         bench_stamp(7);
 
-        /* ---- targeted-block selection outline + dig crack decal (windowed) ---- */
-        if (want_frames < 0 && !screen_open && !g_dead) {
-            static CrVertex ov[GM_OVERLAY_MAX_VERTS];
+        /* ---- targeted-block selection outline + dig crack decal (windowed) ----
+         * Selection: SRC_ALPHA/ONE_MINUS_SRC_ALPHA (blend=1). Crack:
+         * DST_COLOR/SRC_COLOR multiply-2x (blend=2). Separate passes -
+         * vanilla RenderGlobal draws them with different blend state
+         * (drawSelectionBox vs preRenderDamagedBlocks). Combined
+         * gm_overlay_emit is legacy-tests-only. */
+        if (want_frames < 0 && !screen_open && !g_dead
+            && !getenv("MAGMA_NO_OVERLAY")) {
+            static CrVertex sel_ov[GM_OVERLAY_MAX_VERTS];
+            static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
             int hx = 0, hy = 0, hz = 0, ax, ay, az;
             int have_sel = gm_raycast_sel(win, &st, &pl,
                                           &hx, &hy, &hz, &ax, &ay, &az) >= 0;
-            int dx = 0, dy2 = 0, dz = 0; float dmg = 0.0f;
-            int have_dig = gm_player_dig_state(&dx, &dy2, &dz, &dmg);
             float selb[6];
             if (have_sel) gm_sel_box_at(win, hx, hy, hz, selb);
-            int nov = gm_overlay_emit(ov, GM_OVERLAY_MAX_VERTS,
-                                      have_sel, hx + ox, hy, hz + oz,
-                                      have_sel ? selb : 0,
-                                      have_dig, dx + ox, dy2, dz + oz, dmg,
-                                      cam.pos.x, cam.pos.y, cam.pos.z);
-            if (nov > 0) {
-                /* vanilla drawSelectionBox: SRC_ALPHA blend, GL_LEQUAL, no
-                 * depth write (blend path), no fog/alpha-test. */
-                CrShadeCtx osh = {0};
-                osh.atlas = &atlas;
-                osh.fog_color = sky;
-                osh.alpha_test = 0;
-                osh.enable_fog = 0;
-                osh.layer = CR_LAYER_TRANSLUCENT;
-                osh.blend = 1;
-                osh.depth_lequal = 1;
-                render_layer(&fb, &cam, ov, nov, tris, &osh);
+            if (have_sel) {
+                int ns = gm_overlay_emit_sel(sel_ov, GM_OVERLAY_MAX_VERTS,
+                                             hx + ox, hy, hz + oz, selb,
+                                             cam.pos.x, cam.pos.y, cam.pos.z);
+                if (ns > 0) {
+                    CrShadeCtx osh = {0};
+                    osh.atlas = &atlas;
+                    osh.fog_color = sky;
+                    osh.alpha_test = 0;
+                    osh.enable_fog = 0;
+                    osh.layer = CR_LAYER_TRANSLUCENT;
+                    osh.blend = 1;
+                    osh.depth_lequal = 1;
+                    render_layer(&fb, &cam, sel_ov, ns, tris, &osh);
+                }
+            }
+            int dx = 0, dy2 = 0, dz = 0; float dmg = 0.0f;
+            int have_dig = gm_player_dig_state(&dx, &dy2, &dz, &dmg);
+            if (have_dig && dmg > 0.0f && !getenv("MAGMA_NO_CRACK")) {
+                /* BlockRendererDispatcher.renderBlockDamage re-renders the full
+                 * block model with the destroy sprite, not only the raycast face. */
+                int nc = gm_overlay_emit_crack(crack_ov, GM_OVERLAY_MAX_VERTS,
+                                               dx + ox, dy2, dz + oz, dmg, -1);
+                if (nc > 0) {
+                    CrShadeCtx csh = {0};
+                    csh.atlas = &atlas;
+                    csh.fog_color = sky;
+                    /* alphaFunc(GL_GREATER, 0.1F): discard a <= ~26. Our cutout
+                     * threshold is 128 - tighter than vanilla, keeps only solid
+                     * crack strokes (destroy_stage bg is a≈1 white). */
+                    csh.alpha_test = 1;
+                    csh.enable_fog = 0;
+                    csh.layer = CR_LAYER_CUTOUT;
+                    csh.blend = 2;           /* DST_COLOR, SRC_COLOR → 2*src*dst */
+                    csh.depth_lequal = 1;
+                    render_layer(&fb, &cam, crack_ov, nc, tris, &csh);
+                }
             }
         }
 
