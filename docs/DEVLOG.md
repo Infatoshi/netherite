@@ -825,3 +825,45 @@ a fix: at a=188/255 the dual-covered block centres already equal the golden, so
 of the 3/16 inset (61% of a top face). Four levers were tried and all rejected,
 including a back-to-front translucent sort that takes slime 15 -> 14 and
 regresses `elytra_dip` UNEXPLAINED 784 -> 16495 (`8945ac4`).
+
+### 2026-07-25 addendum (the arm was Alex, and one delegate fix did not hold)
+
+**Half the arm's over-brightness was a skin mismatch, and my "per-channel, so a
+lightmap colour" reading was wrong.** The tape header has no `skin` field, so
+`replay_tape.py` fell back to slim and magma drew ALEX against the oracle's
+Steve. The tape's own `qrl_launch.determinism.pin_skin` is true and
+`MixinRandomSkinTexture` forces the classic model whenever it is set;
+`tape_skin()` honours it now (`db5ac63`). Against the Steve texel (150,111,91)
+the golden is a clean scalar 0.660/0.658/0.659 - never a coloured multiplier,
+just a paler texture. With Steve drawn, forcing the hand on flips the A/B from
+110-worse/10-better to **91 better, 29 worse, 37 unchanged, mean whole/ch 5.91
+-> 5.07**, which I reproduced independently. What is left is a scalar ~1.57x:
+magma applies diffuse x lightmap ~0.98 where the oracle applies ~0.66, i.e. the
+arm is essentially unattenuated. Light levels and the LUT path measure correct,
+so the next place to look is eye-space face normals out of `build_arm_matrix`
+against `hand_diffuse` under `rotateArroundXAndY`.
+Whether to flip the sidecar's `hand_from_tick` to 0 is a release-time call: the
+metric now favours the arm being on, but turning it on re-baselines the tape and
+bakes in a known-wrong 1.57x, so it stays off until the residual lands.
+
+**Reverted a delegate fix whose acceptance did not reproduce.** "render legacy
+fiery fireballs" takes `scenario_blaze_bow_demo` from 1 to 3 failed frames
+against its committed baseline (new ticks t=454 and t=460), even though
+UNEXPLAINED drops 168484 -> 155626 and particles 154028 -> 83755. The mechanism
+is why: inferring `Entity.fire=1` for every `EntitySmallFireball` after its
+first observed tick puts on-fire layers back, and this repo already established
+the opposite. The UV half of that commit IS correct - vanilla's
+`Render.renderEntityOnFire` gives the first vertex `maxU` and the second `minU`
+(`Render.java:174-177`) and magma had them mirrored - but it was bundled, and it
+is inert once nothing burns, so it went back with the rest and should be
+re-landed with a test. After the revert the tape matches its baseline on every
+quantity.
+
+Also from the fan-out, both rejected by their own authors rather than shipped: a
+five-neighbour-maximum skylight for `fogColor1` that takes `elytra_dip` 4 -> 2
+failed frames and regresses `water_dive` 0 -> 14, and a back-to-front translucent
+sort that takes slime 15 -> 14 and regresses `elytra_dip` 784 -> 16495 px.
+
+Tree state at hand-off: full nightly on GPU0, 23 tapes, RESULT PASS, zero
+REGRESSION lines; `make -C c/magma test-game` PASS; `demos/pixel_match_sbs.mp4`
+regenerated and inspected.
