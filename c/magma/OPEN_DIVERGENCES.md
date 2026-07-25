@@ -301,15 +301,32 @@ independently re-measured here.
   1.38, t=2300 2.50 -> 1.15). The suppression is still on because the residual
   is unfixed, not because the arm is a net loss; flipping the sidecar is a
   release-time call since it re-baselines the tape.
-  **The remaining residual is a scalar ~1.57x over-bright** (magma applies
-  diffuse x lightmap ~ 0.98 where the oracle applies ~0.66; after the skin fix
-  magma is 1.04x the raw texel, i.e. essentially unattenuated). Light levels and
-  the LUT path measure correct, so the next place to look is the eye-space face
-  normals out of `build_arm_matrix` against `hand_diffuse`'s light directions
-  under `rotateArroundXAndY` - not a lightmap level and not a brightness knob.
-  Do not take the t=1800 numbers for any of this: that frame is inside the rain
-  window and its ratio is the rain darkening and the arm residual multiplied,
-  which is why t=1800 and t=2200 are still among the 29 that get worse.
+  **There is no "scalar ~1.57x over-bright arm" residual. That entry was wrong
+  and is retracted (2026-07-25).** It came from dividing the golden by a raw
+  atlas texel, which prices in the shading the oracle also applies. Measured
+  against the actual magma render on the actual arm pixels, the arm is already
+  right. Method: replay the tape twice, once with `MAGMA_HAND_FROM_TICK=0` and
+  once with it past the end, and take the arm mask as the pixels where the two
+  differ by more than 3 (eroded 2x to drop the silhouette); then read
+  golden/magma over that mask. Every rain-free frame from t=0 to t=1780 comes
+  back **0.997 / 0.995 / 0.995**, on 16796 arm pixels, across seven distinct
+  yaw/pitch poses (yaw 0 to -390, pitch -45 to +90). `hand_diffuse` and
+  `build_arm_matrix` need no further work; do not go looking at the eye-space
+  normals, which is what the retracted entry sent the last agent to do.
+  What is actually left on the arm is two things, neither a hand bug:
+  - **The rain window t=1800..1980**, where the arm ratio is a flat achromatic
+    **0.670 / 0.668 / 0.672** while sky (0.787/0.805/0.827) and terrain
+    (0.758/0.774/0.694) are chromatic and milder. The arm is the pure lightmap
+    readout - it takes no fog blend - so it shows the whole error. See "The
+    lightmap ignores rain and thunder" below; the arm is just the cleanest
+    place to measure it.
+  - t=2020..2200 (0.836/0.904/0.920) and the wild ratios at t=2280/2360/2680/
+    2760, which are frames where magma holds a different item, or none - the
+    `worldpatch.jsonl` inventory re-anchor gap already filed above.
+  Because the arm is exact outside those two windows, **flipping the sidecar's
+  `hand_from_tick` to 0 is now the better default** and no longer trades a
+  known-wrong brightness for a position win. It still re-baselines the tape, so
+  it stays a release-time call.
   **Pickup inference cannot rescue the held-item intervals, so do not try it.**
   The idea was to derive `set_inventory` rows from `EntityItem`s that vanish
   near the player. The tape does carry 8673 EntityItem rows, 530 of them within
@@ -596,6 +613,84 @@ replay prints `[tape] COVERAGE: only N of M tape ticks were replayed`. Whether
 to extend the contract past respawn (emit `continue_after_death` for any
 `tape_has_respawn`, teach `first_divergence` to resume, update the pinning
 tests) is an open product decision, not a bug.
+
+### The oracle's fogColor1 had not converged when recording started
+
+Every scenario tape is worse at t=0 than at t=10, by 2-6x, on the whole-frame
+mean. It is the same shape on all of them and it had never been filed because
+each tape's t=0 sat under its own gate class. It is the whole reason
+`suffocate_camera` and half the reason `elytra_dip` fail their gate: both have
+t=0 failures with **zero** unexplained pixels, i.e. the frame is uniformly off
+rather than structurally wrong.
+
+The direction settles it: **magma is flat from t=0 and the ORACLE ramps.**
+On `suffocate_camera`, golden sky goes 135.1 -> 140.9 and golden grass
+117.9 -> 124.9 over the first 40 ticks while magma sits at 141.1 / 125.0 the
+whole time. The error decays by 0.35 per 10 ticks, and 0.9^10 = 0.3487 - that
+is exactly `EntityRenderer.updateRenderer`'s
+`this.fogColor1 += (f2 - this.fogColor1) * 0.1F` (`EntityRenderer.java:327`),
+which starts at 0 on a fresh EntityRenderer and had not finished converging by
+recstart. magma implements the smoother correctly but seeds it converged
+(`gm_uw_fog_c1_seed`, and `underwater.h` states the assumption out loud: "the
+oracle client has been running long before recstart, so its c1 has converged").
+
+Mechanism check, on `suffocate_camera` (whole mean/ch, tape floor 0.75):
+
+| c1 seed | t=0 | t=10 | t=20 | t=30 | t=40 |
+|---|---|---|---|---|---|
+| steady (current) | 7.69 | 2.41 | 1.16 | 0.85 | 0.75 |
+| 0.88 | 3.70 | 1.19 | 0.89 | 0.77 | 0.76 |
+| **0.90** | **2.44** | **0.82** | **0.80** | **0.73** | **0.72** |
+| 0.93 | 3.17 | 0.98 | 0.77 | 0.74 | 0.72 |
+
+One parameter, a single clean optimum, and fitting it on t=0 alone drags t=10,
+t=20 and t=30 to the tape's floor as a side effect - it is the mechanism, not a
+per-frame fit. With the seed supplied, the tape's gate goes **FAIL -> PASS**.
+
+**Do not hardcode 0.90.** The starting value is a property of the recording
+session and is not derivable from the tape: `cobweb_fall` and `water_dive` have
+near-identical `total_time` (112 and 113) yet start at 0.9946 and 0.9612,
+because what matters is the light the client saw while the world loaded. The
+per-tape t=0 ratios measured on the sky band are suffocate 0.9632, water_dive
+0.9612, lava_walk 0.9846, elytra_dip 0.9903, soulsand_ice 0.9941, cobweb_fall
+0.9946, fence_collide 0.9996, flow_convert 1.0068 (the last two have no ramp).
+
+Fixed the only honest way: the recorder now writes `fog_color1` into the tape
+header (`QuantizedRL.recFogColor1`, reflected off `EntityRenderer`, -1 when
+unreadable), and `replay_tape.py` seeds magma from it when present via
+`MAGMA_FOG_C1_INIT`. Tapes recorded before the field existed return None and
+keep the steady-state seed, so nothing re-baselines. **This is inert until the
+tapes are re-recorded** - the same re-record that would close the inventory
+keyframe and rain gaps.
+
+`MAGMA_FOG_C1_INIT` also works standalone, for sweeping the value on tapes that
+predate the header field.
+
+### The lightmap ignores rain and thunder
+
+`build_lightmap_lut` (`frame_capture.c`) calls
+`cr_lightmap_rgb(0, sl, bl, sun, 0.0f, 0.0f)` - rain and thunder hardcoded to
+zero - and its `sun` comes from `fc_sun_brightness(sin_table, world_time)`,
+which takes no weather at all. Vanilla's `updateLightmap` uses
+`world.getSunBrightness(1.0F)` (`EntityRenderer.java:892`), and
+`getSunBrightnessFactor` (`World.java:1551`) scales it by
+`(1 - rainStrength * 5/16)` and again by `(1 - thunderStrength * 5/16)`. So
+magma lights every rainy frame as if the sky were clear.
+
+Cleanest measurement is the first-person arm on the canonical tape, because it
+reads the lightmap directly with no fog blend on top: through t=1800..1980 the
+arm is a flat achromatic **0.670** golden/magma while sky (0.787/0.805/0.827)
+and terrain (0.758/0.774/0.694) are chromatic and milder - they pick up part of
+the darkening through the fog colour, which magma does model. Outside that
+window the same arm measures 0.997.
+
+Blocked on the recorder, not on the renderer: **no tape has ever recorded rain**
+- there is no rain field in any header or row, so magma cannot know it is
+raining. The recorder now writes `rain_strength` and `thunder_strength` into the
+header (both public on `World`); wiring them through `build_lightmap_lut` is
+pointless until a tape carries them, and the values are per-tick anyway, so a
+window that starts mid-tape needs them on rows rather than the header. This is
+what the canonical tape's `known:12` rain class has been standing in for.
 
 ### Remaining isolated render features
 

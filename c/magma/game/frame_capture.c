@@ -680,7 +680,17 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         double fx,fy,fz;
         gm_runtime_tick_entry_feet(r,&fx,&fy,&fz);
         if(!c->fog_c1_init){
-            c->fog_c1=gm_uw_fog_c1_seed(r->world,r->dimension,fx,fy,fz);
+            /* The steady-state seed assumes the oracle client had been
+             * running long enough before recstart for fogColor1 to converge.
+             * On several scenario tapes it had NOT: the goldens ramp for the
+             * first ~40 ticks at exactly the vanilla 0.1/tick rate while
+             * magma is flat from t=0. MAGMA_FOG_C1_INIT overrides the seed so
+             * that ramp can be measured; the real fix is for the recorder to
+             * write the client's fogColor1 into the tape header, since the
+             * warmup depends on the session, not on anything in the tape. */
+            const char *s=getenv("MAGMA_FOG_C1_INIT");
+            if(s&&*s)c->fog_c1=(float)atof(s);
+            else c->fog_c1=gm_uw_fog_c1_seed(r->world,r->dimension,fx,fy,fz);
             c->fog_c1_init=1;
         }else{
             c->fog_c1=gm_uw_fog_c1_step(c->fog_c1,r->world,r->dimension,

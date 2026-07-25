@@ -211,6 +211,34 @@ def tape_hide_gui(path):
         return False
 
 
+def tape_fog_color1(path):
+    """EntityRenderer.fogColor1 as the recorder saw it at t=0, or None.
+
+    Vanilla ramps it at 0.1/tick from 0 on a fresh EntityRenderer, and
+    recording starts before it converges - so the first ~40 goldens of a tape
+    are darker than steady state and magma, which seeds the smoother converged,
+    is flat and too bright over exactly that window. The starting value depends
+    on the light the client saw while the world loaded, not on anything the tape
+    records: cobweb_fall and water_dive have near-identical total_time (112 vs
+    113) and start at 0.99 and 0.96. Tapes recorded before the header field
+    existed return None and keep the steady-state seed.
+    """
+    try:
+        with open(path) as f:
+            header = json.loads(f.readline())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(header, dict) or not header.get("header"):
+        return None
+    v = header.get("fog_color1")
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    # the recorder writes -1 when it could not read the field
+    return v if 0.0 <= v <= 1.0 else None
+
+
 def tape_hand_from_tick(path):
     """First tick whose goldens draw the first-person viewmodel again, or None.
 
@@ -1255,6 +1283,20 @@ def main():
                 hand_from = None if v is None else str(v)
             if hand_from is not None:
                 replay_env["MAGMA_HAND_FROM_TICK"] = hand_from
+        # EntityRenderer.fogColor1 had not converged when recording started, so
+        # the first ~40 goldens of a tape ramp while magma is flat from t=0
+        # (measured: suffocate_camera t=0 is 7.69 mean/ch against a 0.75 floor,
+        # decaying 0.35 per 10 ticks, which is vanilla's 0.9^10). The starting
+        # value is a property of the recording session and cannot be derived
+        # from the tape, so magma uses it only when the recorder wrote it.
+        # An explicit MAGMA_FOG_C1_INIT still wins, for sweeping it on the
+        # tapes recorded before the header field existed.
+        fog_c1 = os.environ.get("MAGMA_FOG_C1_INIT")
+        if fog_c1 is None:
+            v = tape_fog_color1(args.tape)
+            fog_c1 = None if v is None else repr(v)
+        if fog_c1 is not None:
+            replay_env["MAGMA_FOG_C1_INIT"] = fog_c1
         if frames_npy:
             # daylight=False: the trace profile (fast.yaml) records with
             # doDaylightCycle=false, so the oracle session's world_time never

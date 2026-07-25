@@ -427,6 +427,20 @@ public class QuantizedRL {
         }
     }
 
+    /** EntityRenderer.fogColor1 at recstart, or -1 when it cannot be read.
+     * -1 (not 0) so a replay can tell "unknown, use the steady-state seed"
+     * apart from a genuine "the client had just started and it really is 0". */
+    private static float recFogColor1(Minecraft mc) {
+        if (mc == null || mc.entityRenderer == null) return -1.0F;
+        try {
+            java.lang.reflect.Field f =
+                net.minecraft.client.renderer.EntityRenderer.class
+                    .getDeclaredField("fogColor1");
+            f.setAccessible(true);
+            return f.getFloat(mc.entityRenderer);
+        } catch (Throwable ig) { return -1.0F; }
+    }
+
     private static int reflectedInt(Object owner, String name,
                                     java.lang.reflect.Field cached) throws Exception {
         java.lang.reflect.Field field = cached;
@@ -1173,7 +1187,22 @@ public class QuantizedRL {
                  // "default" (steve arm) or "slim" (alex) - offline UUID hash
                  // picks one; magma's first-person arm must match (set_skin).
                  .append("\",\"skin\":\"").append(mc.player.getSkinType())
-                 .append("\",\"velocity_packets\":1,\"position_packets\":1}");
+                 // EntityRenderer.fogColor1 is an exponential smoother
+                 // (+= (f2 - it) * 0.1F per updateRenderer) that starts at 0
+                 // on a fresh EntityRenderer. Recording starts before it has
+                 // converged, so the first ~40 goldens ramp; magma cannot
+                 // derive the starting value from anything else in the tape
+                 // (it depends on the light the client saw while loading, not
+                 // on total_time - measured 0.90 on suffocate_camera against
+                 // 0.99 on cobweb_fall at the same tick count).
+                 .append("\",\"fog_color1\":").append(recFogColor1(mc))
+                 // Rain and thunder scale getSunBrightness (each by up to
+                 // 5/16), which drives the whole lightmap. Nothing in a tape
+                 // recorded these, so magma has always replayed rain frames
+                 // as clear sky.
+                 .append(",\"rain_strength\":").append(mc.world.getRainStrength(1.0F))
+                 .append(",\"thunder_strength\":").append(mc.world.getThunderStrength(1.0F))
+                 .append(",\"velocity_packets\":1,\"position_packets\":1}");
                 recWriter.println(h.toString());
                 recWriter.flush();
                 // world snapshot: flush all dirty chunks to disk and copy the

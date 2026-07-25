@@ -104,6 +104,19 @@ Two things that make a pixel measurement lie, both paid for already:
   and replay forwards it as `MAGMA_HIDE_GUI`. Oracle captures can also be
   wrong: the eat/bow viewmodel goldens are idle tips, not mid-use poses, and
   fitting C to them would be fitting to a bad reference.
+- **A tape's first ~40 goldens are not steady state.** The oracle's
+  `EntityRenderer.fogColor1` smoother had not converged at recstart, so t=0 is
+  2-6x worse than t=10 on every tape and two tapes fail their gate on t=0
+  alone. The recorder writes `fog_color1` in the header and replay seeds magma
+  from it; tapes recorded before that field keep the old converged seed.
+  `MAGMA_FOG_C1_INIT=<0..1>` overrides the seed for sweeping it on old tapes.
+  Do not hardcode a value - it depends on the recording session, not the tape
+  (see `c/magma/OPEN_DIVERGENCES.md`).
+- **Measure a viewmodel residual against the render, not against a texel.**
+  Dividing a golden by a raw atlas texel prices in shading the oracle also
+  applies, and that is how a phantom "1.57x over-bright arm" got filed for a
+  week. Replay twice with `MAGMA_HAND_FROM_TICK` on and off, mask on the
+  pixels that differ, and read golden/magma there.
 
 Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).
 
