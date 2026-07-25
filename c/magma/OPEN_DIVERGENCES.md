@@ -307,9 +307,15 @@ independently re-measured here.
   emits; recovering the ARM does not.
   **Still unexplained: t=540..660, where the oracle draws no arm at all.** Those
   are the only 10 ticks the forced-hand A/B improves, because the player is
-  looking straight down and the golden's lower-right corner is bare terrain
-  (a dirt block edge, which moves frame to frame - not a viewmodel). Vanilla's
-  `renderHand` has no pitch gate, so something else suppresses it there. The
+  looking straight down (`pitch` is exactly 90.0 for the whole window) and the
+  golden's lower-right corner is bare terrain. It is terrain and not a held
+  block: the same yaw-sweep test that identifies a viewmodel says the opposite
+  here, with the corner tracking the background almost exactly across the
+  window (corner mean |d| 0.85 / 10.98 / 11.93 at t=620/640/660 against a
+  background control of 0.96 / 15.22 / 14.13). Vanilla's `renderHand` has no
+  pitch gate, so something else suppresses it there; the forced-hand A/B only
+  improves because a pale wedge is closer to the golden's brown terrain than
+  the green grass magma draws with no hand at all. The
   goldens over that window also draw the block selection outline, which is
   worth checking against magma separately.
   **A wrong reading to not repeat:** the t=1800..1960 window first looked like
