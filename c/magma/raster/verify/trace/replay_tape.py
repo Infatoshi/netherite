@@ -1217,9 +1217,18 @@ def main():
             replay_env["MAGMA_STRIP_OVERLAYS"] = "1"
         if tape_hide_gui(args.tape):
             replay_env["MAGMA_HIDE_GUI"] = "1"
-            hand_from = tape_hand_from_tick(args.tape)
+            # An explicit MAGMA_HAND_FROM_TICK in the caller's environment wins
+            # over the sidecar. The sidecar value is not a property of the
+            # oracle (see the meta's hand_from_tick_source); investigating the
+            # viewmodel means replaying the same tape with the hand forced on,
+            # and the alternative is editing demo/, which is symlinked into
+            # every agent worktree and so shared with whoever else is running.
+            hand_from = os.environ.get("MAGMA_HAND_FROM_TICK")
+            if hand_from is None:
+                v = tape_hand_from_tick(args.tape)
+                hand_from = None if v is None else str(v)
             if hand_from is not None:
-                replay_env["MAGMA_HAND_FROM_TICK"] = str(hand_from)
+                replay_env["MAGMA_HAND_FROM_TICK"] = hand_from
         if frames_npy:
             # daylight=False: the trace profile (fast.yaml) records with
             # doDaylightCycle=false, so the oracle session's world_time never
@@ -1340,6 +1349,10 @@ def main():
                 # oracle's hand comes back, after which both sides draw one.
                 gate_hide_gui = tape_hide_gui(args.tape)
                 gate_hand_from = tape_hand_from_tick(args.tape)
+                # Same override as the replay env above, so a forced-hand run
+                # gates the same frames it rendered.
+                if os.environ.get("MAGMA_HAND_FROM_TICK") is not None:
+                    gate_hand_from = int(os.environ["MAGMA_HAND_FROM_TICK"])
             except ImportError as e:
                 raise SystemExit(
                     f"[tape] pixel gate deps missing ({e}); add --with scipy "
