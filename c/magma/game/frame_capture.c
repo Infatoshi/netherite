@@ -574,25 +574,26 @@ static int hud_hidden(void) {
     return s && *s && *s != '0';
 }
 
-/* Suppressing the hand is a WORKAROUND for a recorder gap, and the only honest
- * way to describe it. The oracle draws a viewmodel on every frame of
- * 20260712T055346Z; magma cannot, because it does not know what the player is
- * holding. Given a wrong hand or no hand, no hand scores better - that is the
- * whole justification, and it disappears the moment the tape is re-recorded
- * with inventory keyframes.
+/* Suppressing the hand is a WORKAROUND for a magma bug, and the only honest
+ * way to describe it. The oracle draws a viewmodel on nearly every frame of
+ * 20260712T055346Z, and on most of them it is the BARE ARM - it is empty
+ * handed. magma has that path and puts it on the right pixels; it draws it far
+ * too bright, so no hand currently scores better than our hand. That is the
+ * whole justification, and it disappears when the arm's shading is fixed.
  * MAGMA_HAND_FROM_TICK is therefore NOT "the tick the oracle's hand comes
  * back" - the oracle has one throughout. It is the first golden at which OUR
- * hand is known to be right. That tape's rows carry no inv field at all; the
- * only inventory magma ever gets is two set_inventory rows in the worldpatch
- * sidecar, t=2274 (crafting table) and t=2320 (wooden shovel, slot 6). Before
- * that magma holds nothing and can only draw a bare arm, which is wrong
- * wherever the oracle holds something - at t=1140..1220 the golden fills the
- * lower-right corner with a held block magma does not have. The first golden
- * after the re-anchor is t=2440, and the A/B agrees: replaying the tape twice
- * and scoring the lower-right quadrant of all 157 goldens, hand-off wins every
- * frame through t=2420 and hand-on wins from t=2440 (8.00/ch vs 1.63/ch there,
- * with the golden's shovel landing on magma's). Extend the sidecar and this
- * tick moves; it is a property of the sidecar, not of the oracle. */
+ * viewmodel is known to be right. Forcing it on for the whole tape moves 110
+ * of 157 frames the wrong way on the gate-independent whole mean/ch and only
+ * 10 the right way. The over-brightness is measured on rain-free frames where
+ * terrain and sky agree to 1/255: at t=900 the arm is golden (139,103,84)
+ * against magma (192,173,148), a per-channel 0.72/0.60/0.58, which is a
+ * lightmap colour and not a brightness scalar. See OPEN_DIVERGENCES.
+ * The two set_inventory rows in the worldpatch sidecar (t=2274 crafting table,
+ * t=2320 wooden shovel slot 6) are why 2440 in particular: it is the first
+ * golden after magma's inventory is re-anchored, so it is the first frame
+ * where a HELD item, not just the arm, is known right. An explicit
+ * MAGMA_HAND_FROM_TICK in the environment overrides the sidecar so the arm can
+ * be investigated without editing demo/, which is shared across worktrees. */
 static int hand_hidden(long long tick) {
     const char *s;
     if (!hud_hidden()) return 0;

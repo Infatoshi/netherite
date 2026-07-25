@@ -186,14 +186,15 @@ independently re-measured here.
   the original diagnosis in this entry was wrong about the mechanism: the tape's
   own `qrl_launch` records `hide_gui: false` with `strip.overlays: true`, so the
   recorder skipped the overlay pass rather than Malmo forcing
-  `gameSettings.hideGUI`. The goldens draw a first-person held item throughout,
-  which settles it. That matters because vanilla's real `hideGUI` would take
+  `gameSettings.hideGUI`. The goldens draw a first-person viewmodel on nearly
+  every frame - a bare arm on most of them, a held item on a few - which
+  settles it. That matters because vanilla's real `hideGUI` would take
   the hand and the portal wash with it; "overlays stripped" takes only the
   overlay, so the portal wash stays tied to this flag (it is drawn inside
   `renderGameOverlay`) while suppressing magma's HAND is a workaround for the
-  missing inventory, not fidelity. `options.bobView` is also false in this
-  recording, so the oracle's held item never bobs - it sits on identical screen
-  pixels frame to frame, which is what made the yaw-sweep test decisive.
+  arm's over-bright shading, not fidelity. `options.bobView` is also false in
+  this recording, so the oracle's viewmodel never bobs - it sits on identical
+  screen pixels frame to frame, which is what made the yaw-sweep test decisive.
   The original (wrong) framing follows, kept because the pixel numbers in it
   are real: the goldens have no HUD and no first-person hand (Malmo forces
   `hideGUI` for the mission),
@@ -236,22 +237,21 @@ independently re-measured here.
   only draw a bare arm, which is wrong wherever the oracle holds something; the
   first golden after the re-anchor is t=2440. So the hand window is a property
   of the sidecar, not of the oracle, and it moves if the sidecar is extended.
-  **t=1140..1220 is that same gap, seen directly.** The golden draws a large
-  brown blocky held object filling the lower-right corner (17969 px at t=1180,
-  `mean_delta [-85.49, -29.37, 105.65]`: magma is bluer because it draws the
-  water behind it); magma draws nothing there because its inventory is empty
-  until t=2320. Proof that it is a viewmodel and not terrain: the object is
-  pixel-identical in position, silhouette and shading at t=1140 and t=1220
-  while the water behind it changes completely, across a 60 degree yaw sweep
-  and four blocks of travel. Nothing in the world survives that.
+  **t=1140..1220 is a BARE ARM, not a held block, and this entry said otherwise
+  twice.** The yaw-sweep test was right that the corner object is a screen-fixed
+  viewmodel; the identification of it as a held block was wrong. Opening the
+  lower-right crop of the goldens at t=0, 900, 1140, 1800, 2400, 2800 and 3100
+  shows the same skin-toned tapered wedge in the same screen position over
+  seven completely different backgrounds (water, grass, stone, planks). That is
+  `ItemRenderer.renderArmFirstPerson` with an empty main hand, and magma has
+  had that path since the HAND agent landed it.
   **A discriminator that reads backwards, so do not reuse it:** the fraction of
   that box holding wood/skin colour is constant to three decimals (0.747 /
   0.748 / 0.747 / 0.747 / 0.747) over t=1140..1220 and swings wildly (0.089 /
   0.000 / 0.000 / 0.436 / 0.005) over the confirmed hand window t=2440..2520.
-  Constancy looked like bulk terrain and it is the opposite: a held BLOCK is
-  static and fills the corner, a held shovel is small and its thin silhouette
-  moves with the camera. Compare the two frames at 2x and look, rather than
-  scoring a colour fraction.
+  The constancy is real and the reading taken from it was not: it says
+  "screen-fixed", which a bare arm and a held block satisfy equally. Compare
+  the two frames at 2x and look, rather than scoring a colour fraction.
   **A gate hole this exposed:** `hide_gui`/`hide_hand` drop the POSITIONAL
   viewmodel barrier, but `pixel_gate` also has a post-hoc semantic `viewmodel`
   class ("held-item region: lower-right, touching a frame edge") with a 40000 px
@@ -265,17 +265,53 @@ independently re-measured here.
   and failed frames go **18 -> 28**. That is the price of measuring the last
   unmeasured quarter of the frame, and every one of the new failures is in it.
   No other tape sets `capture.hide_gui`, so nothing else moves.
-  With the gate honest, the missing held item is the single largest remaining
+  With the gate honest, the viewmodel is the single largest remaining
   divergence on this tape: **11 of the 20 cluster-failing frames** are
   dominated by one cluster in that corner, in two silhouettes - 30064-30503 px
   at y[349,479] x[559,853] over t=600..660, and 17076-18406 px at y[335,479]
-  x[601,771] over t=700 and t=1200..1340. It is recorder-blocked, not a
-  rendering bug: the tape has no `inv` field and the sidecar's first
-  `set_inventory` is t=2274, so there is nothing to tell magma what to hold.
-  The worldpatch is no help either - all 1317 of its `set_block` rows are at
-  tick 1, an initial-world snapshot rather than an edit log, so the placements
-  cannot be used to infer the held item. Closing it needs the tape re-recorded
-  with the every-20-tick inventory keyframes the recorder now emits.
+  x[601,771] over t=700 and t=1200..1340.
+  **It is NOT recorder-blocked, and an earlier revision of this entry filed it
+  that way.** The oracle is empty-handed for most of the tape, so there is no
+  inventory to miss; magma's arm geometry is already right. What is wrong is
+  the arm's SHADING. Forcing the hand on for the whole tape
+  (`MAGMA_HAND_FROM_TICK=0`, which now overrides the sidecar) and comparing the
+  gate-independent per-tick `whole mean/ch` against the suppressed run: **110
+  of 157 frames get worse, 10 better, 37 unchanged** (mean 5.91 -> 6.92). The
+  arm is drawn far too bright. On the two cleanest frames, where terrain and
+  sky agree to within 1/255:
+
+  | tick | probe | golden | magma | ratio |
+  |---|---|---|---|---|
+  | 900  | arm (639,429)     | (139,103,84) | (192,173,148) | 0.72 / 0.60 / 0.58 |
+  | 900  | terrain (639,299) | (87,114,69)  | (87,114,70)   | exact |
+  | 900  | sky (299,59)      | (155,188,255)| (154,190,255) | exact |
+  | 1140 | arm (639,429)     | (146,107,88) | (201,180,154) | 0.73 / 0.60 / 0.58 |
+  | 1140 | terrain (640,301) | (152,147,103)| (152,147,104) | exact |
+
+  Per-channel and warm-biased, so it is a lightmap colour and not a brightness
+  scalar, and it is not the filed rain darkening: t=900 and t=1140 are outside
+  the rain window and their sky and terrain are exact. (Do not take the t=1800
+  numbers for this; that frame IS inside the rain window and its arm ratio
+  0.463/0.380/0.366 is the two effects multiplied.) `hand_light_vtx` writes the
+  raw 0..15 sky and block levels into `CrVertex.light` / `.blk` while every
+  other vertex producer in `hand.c` writes a 0..1 quantity there - the leading
+  hypothesis, under investigation on `wt/armlight`.
+  **Pickup inference cannot rescue the held-item intervals, so do not try it.**
+  The idea was to derive `set_inventory` rows from `EntityItem`s that vanish
+  near the player. The tape does carry 8673 EntityItem rows, 530 of them within
+  three blocks of the player, but every one is **7 fields**
+  (`id, name, x, y, z, yaw, pitch`) with no item id. The worldpatch is no help
+  either - all 1317 of its `set_block` rows are at tick 1, an initial-world
+  snapshot rather than an edit log. Recovering WHICH item needs the tape
+  re-recorded with the every-20-tick inventory keyframes the recorder now
+  emits; recovering the ARM does not.
+  **Still unexplained: t=540..660, where the oracle draws no arm at all.** Those
+  are the only 10 ticks the forced-hand A/B improves, because the player is
+  looking straight down and the golden's lower-right corner is bare terrain
+  (a dirt block edge, which moves frame to frame - not a viewmodel). Vanilla's
+  `renderHand` has no pitch gate, so something else suppresses it there. The
+  goldens over that window also draw the block selection outline, which is
+  worth checking against magma separately.
   **A wrong reading to not repeat:** the t=1800..1960 window first looked like
   a missing first-person held item - the oracle shows a dark held log and
   magma appeared to show none. It is not. Golden/candidate over that window is
