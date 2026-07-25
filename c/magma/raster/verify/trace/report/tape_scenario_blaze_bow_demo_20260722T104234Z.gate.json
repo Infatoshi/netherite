@@ -17,174 +17,34 @@
  "frames_checked": 407,
  "classes": {
   "hud": {
-   "frames": 293,
-   "px": 76037,
+   "frames": 292,
+   "px": 75131,
    "max_cluster": 1292
   },
   "particles": {
-   "frames": 323,
-   "px": 154028,
-   "max_cluster": 22664
+   "frames": 312,
+   "px": 79741,
+   "max_cluster": 717
   },
   "viewmodel": {
-   "frames": 247,
-   "px": 53319,
-   "max_cluster": 3461
+   "frames": 238,
+   "px": 40214,
+   "max_cluster": 436
   },
   "UNEXPLAINED": {
-   "frames": 3,
-   "px": 168484,
-   "max_cluster": 125540
-  },
-  "bossbar": {
-   "frames": 1,
-   "px": 1121,
-   "max_cluster": 1121
+   "frames": 2,
+   "px": 760,
+   "max_cluster": 190
   },
   "transit": {
-   "frames": 19,
-   "px": 13900,
-   "max_cluster": 2508
+   "frames": 20,
+   "px": 7620,
+   "max_cluster": 244
   }
  },
- "failed_frames": [
-  {
-   "tick": 812,
-   "unexplained_px": 167724,
-   "clusters": [
-    {
-     "px": 11809,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      0,
-      79,
-      44,
-      401
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 25807,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      384,
-      45,
-      479,
-      449
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 256,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      442,
-      250,
-      473,
-      273
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 638,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      442,
-      297,
-      473,
-      321
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 907,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      442,
-      330,
-      473,
-      361
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 1024,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      442,
-      370,
-      473,
-      401
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 1024,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      442,
-      410,
-      473,
-      441
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 169,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      450,
-      258,
-      467,
-      273
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 190,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      197,
-      445,
-      234,
-      449
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 360,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      312,
-      445,
-      383,
-      449
-     ],
-     "soak_from": "transit"
-    },
-    {
-     "px": 125540,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      45,
-      45,
-      383,
-      444
-     ],
-     "soak_from": "transit"
-    }
-   ],
-   "mild_shift": {
-    "mean_abs": 62.78138201497727,
-    "pct_differing": 60.595022399674534,
-    "low_thresh": 1,
-    "residual_px": 211387,
-    "low_differing_px": 128090
-   }
-  }
- ],
- "mild_shift_failures": 1,
- "pass": false,
+ "failed_frames": [],
+ "mild_shift_failures": 0,
+ "pass": true,
  "missing_models": {},
  "missing_model_row_threshold": 4,
  "missing_model_failures": {},

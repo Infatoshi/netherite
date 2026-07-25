@@ -532,6 +532,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
         last_yaw = float(header.get("yaw", 0.0))
         last_pitch = float(header.get("pitch", 0.0))
         last_move = False
+        previous_entity_ids = set()
         has_sat = any("sat" in tape_row for tape_row in ticks)
         pending_inv = []
         pending_elytra = None
@@ -881,7 +882,14 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                         if len(e) >= 18:
                             # AI phase id + stationary (getHeadPartYOffset)
                             view.update(phase_id=e[16], stationary=e[17])
+                elif (e[1] == "EntitySmallFireball"
+                      and e[0] in previous_entity_ids):
+                    # Legacy rows omit Entity.fire. After one onUpdate a fiery
+                    # EntityFireball has called setFire(1); keep a newly seen
+                    # fireball clear for its possible pre-update render.
+                    view["flags"] = 1
                 f.write(json.dumps(view) + "\n")
+            previous_entity_ids = {e[0] for e in row.get("ents", [])}
             # open GUI screen (OPEN_DIVERGENCES #9): when the recorder emits
             # "gui" (GuiScreen simple name) + optional gmx/gmy (ScaledResolution
             # mouse), emit a render-only gui_view. magma maps the class to a
