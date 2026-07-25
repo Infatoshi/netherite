@@ -37,6 +37,12 @@ static int   s_dig_face = -1; /* EnumFacing of hit face while progressive dig */
 static int   s_dig_hitting;
 static int   s_dig_delay;
 static int   s_atk_prev;
+/* Minecraft.sendClickBlockToController: every tick onPlayerDamageBlock returns
+ * true it calls EntityLivingBase.swingArm(MAIN_HAND), so a held dig keeps
+ * restarting the swing. Render-only per-tick transient, consumed in the SAME
+ * tick (gm_runtime_tick then gm_frame_capture_write), so deliberately NOT part
+ * of GmPlayerCtlSnap. */
+static int   s_dig_swing;
 /* rightClickMouse state: s_rc_delay = Minecraft.rightClickDelayTimer (set to 4
  * on every fire, decremented each tick before the fire checks), s_use_prev =
  * use key edge (press edge fires regardless of the timer; held use re-fires
@@ -420,6 +426,7 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
     int use_gate_hitting = s_dig_hitting; /* isHittingBlock as rightClickMouse
         sees it: after clickMouse (attack press) but BEFORE the damage phase /
         release reset (vanilla runTick order). */
+    s_dig_swing = 0;
     if (act.attack) {
         int press = !s_atk_prev;
         int hx, hy, hz, ax, ay, az;
@@ -463,6 +470,7 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
                 }
                 /* sendClickBlockToController -> onPlayerDamageBlock */
                 if (bid != BLK_AIR) {
+                    s_dig_swing = 1;   /* onPlayerDamageBlock true -> swingArm */
                     if (s_dig_delay > 0) {
                         --s_dig_delay;
                     } else if (hx == s_dig_hx && hy == s_dig_hy && hz == s_dig_hz) {
@@ -857,6 +865,10 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
 
 int gm_player_dig_particle_count(void) {
     return s_dig_particle_count;
+}
+
+int gm_player_dig_swing(void) {
+    return s_dig_swing;
 }
 
 /* Current progressive-dig target + damage 0..1 (RenderGlobal drawBlockDamageTexture

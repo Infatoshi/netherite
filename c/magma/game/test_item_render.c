@@ -99,6 +99,34 @@ int main(void) {
         }
     }
 
+    /* ---- (A2) drop lightmap: a dropped stack is lit by the world light at its
+     * position (RenderManager -> setLightmapTextureCoords), like every other
+     * entity. Emitting it at full daylight made a dirt drop read as an opaque
+     * bright cube against shaded terrain. Both drop passes must fold lm_mul. */
+    {
+        GmEntityView lit = mk_item(3, 0, 0), dark = mk_item(3, 0, 0);
+        dark.lm_lit = 2;
+        dark.lm_mul_r = 0.25f; dark.lm_mul_g = 0.25f; dark.lm_mul_b = 0.30f;
+        CrVertex a[64], b[64];
+        int na = gm_items_emit(&lit, 1, a, 64);
+        int nb2 = gm_items_emit(&dark, 1, b, 64);
+        CHECK(na == 36 && nb2 == 36, "lit/dark dirt drops emit the same geometry");
+        int darker = 1;
+        for (int i = 0; i < nb2; ++i)
+            if (b[i].tint.r >= a[i].tint.r || b[i].tint.b >= a[i].tint.b)
+                darker = 0;
+        CHECK(darker, "dark-lit block drop is dimmer than the same drop in daylight");
+        /* item-atlas drops (flat sprites) go through the same fold. */
+        GmEntityView flit = mk_item(318, 0, 0), fdark = mk_item(318, 0, 0);
+        fdark.lm_lit = 2;
+        fdark.lm_mul_r = 0.25f; fdark.lm_mul_g = 0.25f; fdark.lm_mul_b = 0.30f;
+        int fa = gm_items_emit_flat(&flit, 1, a, 64);
+        int fb = gm_items_emit_flat(&fdark, 1, b, 64);
+        CHECK(fa == 36 && fb == 36, "lit/dark flint drops emit the same geometry");
+        CHECK(b[0].tint.r < a[0].tint.r,
+              "dark-lit item drop is dimmer than the same drop in daylight");
+    }
+
     /* ---- (B) item drop: flint (id 318) - extruded thin box ---- */
     {
         GmEntityView e = mk_item(318, 0, 0);

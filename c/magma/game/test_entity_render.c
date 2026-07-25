@@ -20,6 +20,8 @@
 #include "game/entity_render.h"
 #include "assets/mob_atlas.h"
 #include "assets/blockmodels.h"
+#include "game/block_registry.h"
+#include "assets/atlas_gen.h"     /* CR_SPRITE_* names for the particle class audit */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -617,6 +619,44 @@ static void test_fireball_rays_particles(void) {
                 outside++;
         }
         CHECK(outside == 0, "dig UVs stay inside model particle sprite");
+        /* CLASS AUDIT: the emit takes a MODEL KEY, and stone happens to be a
+         * fixed point of the vanilla->key map, so testing stone alone hid a
+         * live bug where callers passed the vanilla id (grass -> water_flow,
+         * sand -> lava_flow). Drive the whole class through the SAME
+         * conversion the callers use, and assert by sprite NAME. */
+        {
+            typedef struct { int id, meta; const char *name; int sprite; } PSpec;
+            static const PSpec PS[] = {
+                { 1,  0, "stone",          CR_SPRITE_STONE },
+                { 2,  0, "grass",          CR_SPRITE_DIRT },   /* vanilla: dirt */
+                { 3,  0, "dirt",           CR_SPRITE_DIRT },
+                { 5,  0, "planks_oak",     CR_SPRITE_PLANKS_OAK },
+                { 12, 0, "sand",           CR_SPRITE_SAND },
+                { 13, 0, "gravel",         CR_SPRITE_GRAVEL },
+                { 16, 0, "coal_ore",       CR_SPRITE_COAL_ORE },
+                { 17, 0, "log_oak",        CR_SPRITE_LOG_OAK },
+                { 18, 0, "leaves_oak",     CR_SPRITE_LEAVES_OAK },
+                { 58, 0, "crafting_table", CR_SPRITE_CRAFTING_TABLE_FRONT },
+            };
+            for (unsigned k = 0; k < sizeof PS / sizeof PS[0]; ++k) {
+                int key = gm_state_to_model_key(
+                    gm_pack_state(PS[k].id, PS[k].meta & 15));
+                float eu0, ev0, eu1, ev1;
+                bm_sprite_uv(PS[k].sprite, &eu0, &ev0, &eu1, &ev1);
+                int n = gm_block_break_particles_emit(0, 64, 0, key, 5, 1, 0,
+                                                      0.0f, 0.0f, out, 8192);
+                int bad = (n != 5 * 6);
+                for (int i = 0; i < n; ++i) {
+                    if (out[i].uv.x < eu0 - 1e-4f || out[i].uv.x > eu1 + 1e-4f ||
+                        out[i].uv.y < ev0 - 1e-4f || out[i].uv.y > ev1 + 1e-4f)
+                        bad = 1;
+                }
+                char msg[96];
+                snprintf(msg, sizeof msg, "%s particles use its own sprite",
+                         PS[k].name);
+                CHECK(bad == 0, msg);
+            }
+        }
         CHECK(out[0].tint.r == 153 && out[0].tint.a == 255,
               "dig particles use ParticleDigging 0.6 gray tint");
         /* Face UP: py = maxY+0.1 = 1.1 relative → world y = 64 + 1.1 */

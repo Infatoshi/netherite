@@ -1,6 +1,7 @@
 #include "game/frame_capture.h"
 
 #include "assets/blockmodels.h"
+#include "game/block_registry.h"   /* vanilla state -> particle model key */
 #include "game/caps.h"
 #include "game/dragon_live.h"
 #include "game/entity_render.h"
@@ -478,8 +479,11 @@ static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
         c->attack_cooldown_initialized = 1;
     }
     /* `attack` is held-key state, not swingProgress. Entity/miss clicks swing
-     * on the press edge; newer tapes expose later clicks as cooldown resets. */
-    if (((attack && !c->prev_attack) || cooldown_reset) &&
+     * on the press edge; newer tapes expose later clicks as cooldown resets;
+     * a held dig re-swings on EVERY damaged tick (sendClickBlockToController),
+     * which is what makes the arm keep cycling instead of freezing. */
+    if (((attack && !c->prev_attack) || cooldown_reset ||
+         gm_player_dig_swing()) &&
         (!c->swing_active || c->swing_progress_int >= 3 ||
          c->swing_progress_int < 0)) {
         c->swing_progress_int = -1;
@@ -875,7 +879,11 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             if(gm_player_dig_state_ex(&dx,&dy,&dz,&dmg,&dface)&&dmg>0.0f){
                 int stage=(int)(dmg*10.0f);if(stage<1)stage=1;if(stage>10)stage=10;
                 int wx=dx+r->ox, wz=dz+r->oz;
-                int bid=gm_world_block(r->world,wx,dy,wz);
+                /* emit takes a MODEL KEY (CB_/PB_ space), not the vanilla id
+                 * gm_world_block returns (grass -> water_flow otherwise). */
+                int bid=gm_state_to_model_key(gm_pack_state(
+                    gm_world_block(r->world,wx,dy,wz),
+                    gm_world_meta(r->world,wx,dy,wz)&15));
                 static CrVertex dig_ov[1024];
                 int nd=gm_block_break_particles_emit(
                     wx,dy,wz,bid,stage,dface,

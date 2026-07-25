@@ -36,6 +36,7 @@
 #include "container_click.h"
 #include "items_core.h"
 #include "assets/blockmodels.h"
+#include "game/block_registry.h"   /* vanilla state -> particle model key */
 
 /* mc-sim: PsvPlayer / Chunk / McSinTable + the verified init helpers. */
 #include "player_survival.h"
@@ -468,6 +469,7 @@ int main(int argc, char **argv) {
      * window on a left-click attack, mirroring MC's swingProgress. */
     float hand_bob = 0.0f;
     int   swing_ticks = 0;            /* frames remaining in the current swing */
+    int   prev_atk = 0;               /* attack held last tick (clickMouse edge) */
     GmHudState hud_state = {0};
     const int SWING_LEN = 6;         /* MC swings the arm over ~6 ticks */
 
@@ -839,7 +841,12 @@ int main(int argc, char **argv) {
                     if (stage < 1) stage = 1;
                     if (stage > 10) stage = 10;
                     int wx = dx + ox, wz = dz + oz;
-                    int bid = gm_world_block(world, wx, dy, wz);
+                    /* emit takes a MODEL KEY (CB_/PB_ space), not the vanilla
+                     * id gm_world_block returns: passing the vanilla id lands
+                     * grass on water_flow and sand on lava_flow. */
+                    int bid = gm_state_to_model_key(gm_pack_state(
+                        gm_world_block(world, wx, dy, wz),
+                        gm_world_meta(world, wx, dy, wz) & 15));
                     int nd = gm_block_break_particles_emit(
                         wx, dy, wz, bid, stage, dface,
                         gm_player_dig_particle_count(),
@@ -913,8 +920,16 @@ int main(int argc, char **argv) {
         {
             float mv_mag = fabsf(act.forward) + fabsf(act.strafe);
             if (mv_mag > 0.01f) hand_bob += 0.30f;   /* advance walk bob */
-            if (act.attack || act.do_break) {         /* (re)start a swing */
-                if (swing_ticks <= 0) swing_ticks = SWING_LEN;
+            /* EntityLivingBase.swingArm restart rule: the clickMouse press edge
+             * and every tick sendClickBlockToController damages a block. Vanilla
+             * restarts once swingProgressInt >= end/2, so a held dig loops over
+             * the first half rather than replaying all six ticks or freezing. */
+            {
+                int atk = act.attack || act.do_break;
+                int swing_arm = (atk && !prev_atk) || gm_player_dig_swing();
+                prev_atk = atk;
+                if (swing_arm && swing_ticks <= SWING_LEN / 2)
+                    swing_ticks = SWING_LEN;
             }
             float swing = swing_ticks > 0
                 ? (float)(SWING_LEN - swing_ticks) / (float)SWING_LEN : 0.0f;

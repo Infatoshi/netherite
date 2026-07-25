@@ -87,6 +87,31 @@ static CrRgba ir_tint(int tint_class) {
     }
 }
 
+/* RenderManager/OpenGlHelper.setLightmapTextureCoords: a dropped stack is lit by
+ * the world light at its position, exactly like every other entity. The dropped
+ * item passes bind no lightmap LUT (frame_capture.c/game_main.c ish/fsh), so
+ * fold the entity's updateLightmap colour into the vertex tint the same way
+ * gm_held_items_emit already does. Without this a drop renders at full daylight
+ * and reads as an opaque bright cube in shade/at night. */
+static CrRgba ir_lm_fold(const GmEntityView *e, CrRgba base) {
+    float mr = 1.0f, mg = 1.0f, mb = 1.0f;
+    if (e->lm_lit == 1) {
+        if (e->lm_mul_r > 0.0f || e->lm_mul_g > 0.0f || e->lm_mul_b > 0.0f) {
+            mr = e->lm_mul_r; mg = e->lm_mul_g; mb = e->lm_mul_b;
+        } else {
+            CrLightmapRgb c3 = cr_lightmap_rgb(0, (int)e->lm_light,
+                                               (int)e->lm_blk, 1.0f, 0, 0);
+            mr = c3.r; mg = c3.g; mb = c3.b;
+        }
+    } else if (e->lm_lit == 2) {
+        mr = e->lm_mul_r; mg = e->lm_mul_g; mb = e->lm_mul_b;
+    }
+    base.r = (u8)((float)base.r * mr + 0.5f);
+    base.g = (u8)((float)base.g * mg + 0.5f);
+    base.b = (u8)((float)base.b * mb + 0.5f);
+    return base;
+}
+
 /* Model-key lookup for a dropped stack; NULL when the stack is not a block
  * with a usable model (renders via the item atlas instead). */
 static const BmBlock *ir_block_model(int item_id, int item_meta) {
@@ -122,14 +147,15 @@ static void ir_place(float fx, float fy, float fz, float bob, float ground_sy,
 }
 
 /* one miniature block cube: GROUND scale 0.25, spun about Y, bobbing. */
-static int ir_emit_cube(const BmBlock *m, float fx, float fy, float fz,
+static int ir_emit_cube(const BmBlock *m, const GmEntityView *ev,
+                        float fx, float fy, float fz,
                         int age, float hover, CrVertex *out) {
     float bob = ir_bob(age, hover), spin = ir_spin(age, hover);
     int written = 0;
     for (int f = 0; f < 6; ++f) {
         float u0, v0, u1, v1;
         bm_sprite_uv(m->face[f].sprite, &u0, &v0, &u1, &v1);
-        CrRgba tint = ir_tint(m->face[f].tint);
+        CrRgba tint = ir_lm_fold(ev, ir_tint(m->face[f].tint));
         CrVertex quad[4];
         for (int c = 0; c < 4; ++c) {
             float lx = IR_FACES[f].c[c][0] ? IR_CUBE_HALF : -IR_CUBE_HALF;
@@ -212,11 +238,12 @@ int gm_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             bm_sprite_uv(m->face[BM_SOUTH].sprite, &u0, &v0, &u1, &v1);
             written += ir_emit_flat(ents[e].x, ents[e].y, ents[e].z,
                                     ents[e].age, hover, u0, v0, u1, v1,
-                                    ir_tint(m->face[BM_SOUTH].tint),
+                                    ir_lm_fold(&ents[e],
+                                        ir_tint(m->face[BM_SOUTH].tint)),
                                     out + written);
         } else {
             if (written + IR_CUBE_VERTS > max) break;
-            written += ir_emit_cube(m, ents[e].x, ents[e].y, ents[e].z,
+            written += ir_emit_cube(m, &ents[e], ents[e].x, ents[e].y, ents[e].z,
                                     ents[e].age, hover, out + written);
         }
     }
@@ -236,7 +263,9 @@ int gm_items_emit_flat(const GmEntityView *ents, int n, CrVertex *out, int max) 
         written += ir_emit_flat(ents[e].x, ents[e].y, ents[e].z, ents[e].age, hover,
                                 (float)s->x0 / aw, (float)s->y0 / ah,
                                 (float)s->x1 / aw, (float)s->y1 / ah,
-                                (CrRgba){255, 255, 255, 255}, out + written);
+                                ir_lm_fold(&ents[e],
+                                    (CrRgba){255, 255, 255, 255}),
+                                out + written);
     }
     return written;
 }

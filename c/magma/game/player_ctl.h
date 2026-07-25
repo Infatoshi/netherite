@@ -74,6 +74,10 @@ void gm_player_ctl_dig_export(GmPlayerCtlSnap *out);
 void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in);
 /* Pinned dig_hit particle billboard count (0 = live stage proxy). */
 int  gm_player_dig_particle_count(void);
+/* 1 when this tick's dig phase reached vanilla's swingArm call in
+ * Minecraft.sendClickBlockToController (onPlayerDamageBlock returned true).
+ * Valid only between gm_player_tick and the next tick's dig phase. */
+int  gm_player_dig_swing(void);
 
 #ifdef __cplusplus
 }
