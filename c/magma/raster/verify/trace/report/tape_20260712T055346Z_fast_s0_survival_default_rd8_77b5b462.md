@@ -14,17 +14,17 @@
 
 | class | frames | px | max cluster |
 |---|---|---|---|
-| UNEXPLAINED | 66 | 850127 | 80747 |
-| bossbar | 76 | 384772 | 38430 |
-| hud | 134 | 2138961 | 35510 |
-| known:1 | 32 | 258438 | 17683 |
-| known:12 | 16 | 1180983 | 70427 |
+| UNEXPLAINED | 66 | 850120 | 80747 |
+| bossbar | 76 | 384822 | 38430 |
+| hud | 134 | 2138952 | 35511 |
+| known:1 | 32 | 258432 | 17683 |
+| known:12 | 16 | 1180983 | 70428 |
 | known:20 | 2 | 21235 | 6898 |
-| known:54 | 23 | 144555 | 9210 |
+| known:54 | 23 | 144554 | 9210 |
 | known:9 | 7 | 97090 | 4466 |
-| particles | 128 | 349874 | 19722 |
-| thinline | 30 | 18771 | 1059 |
-| viewmodel | 155 | 737557 | 21424 |
+| particles | 128 | 349925 | 19722 |
+| thinline | 30 | 18715 | 1059 |
+| viewmodel | 155 | 737558 | 21424 |
 
 Skipped renderable entity rows (more than 4 fails the gate):
 
@@ -41,8 +41,8 @@ Failed frames (worst first, top 20):
 - t=1860: 57087 unexplained px, clusters [{'px': 56560, 'cls': 'UNEXPLAINED', 'bbox': [384, 0, 479, 750], 'soak_from': 'hud'}, {'px': 118, 'cls': 'UNEXPLAINED', 'bbox': [420, 745, 442, 756], 'soak_from': 'hud'}, {'px': 67, 'cls': 'UNEXPLAINED', 'bbox': [437, 809, 445, 826], 'soak_from': 'hud'}, {'px': 61, 'cls': 'UNEXPLAINED', 'bbox': [448, 801, 467, 810], 'soak_from': 'hud'}]
 - t=1880: 56884 unexplained px, clusters [{'px': 56357, 'cls': 'UNEXPLAINED', 'bbox': [384, 0, 479, 750], 'soak_from': 'hud'}, {'px': 118, 'cls': 'UNEXPLAINED', 'bbox': [420, 745, 442, 756], 'soak_from': 'hud'}, {'px': 67, 'cls': 'UNEXPLAINED', 'bbox': [437, 809, 445, 826], 'soak_from': 'hud'}, {'px': 61, 'cls': 'UNEXPLAINED', 'bbox': [448, 801, 467, 810], 'soak_from': 'hud'}]
 - t=1900: 56862 unexplained px, clusters [{'px': 56236, 'cls': 'UNEXPLAINED', 'bbox': [384, 0, 479, 750], 'soak_from': 'hud'}, {'px': 99, 'cls': 'UNEXPLAINED', 'bbox': [399, 423, 407, 433], 'soak_from': 'hud'}, {'px': 118, 'cls': 'UNEXPLAINED', 'bbox': [420, 745, 442, 756], 'soak_from': 'hud'}, {'px': 67, 'cls': 'UNEXPLAINED', 'bbox': [437, 809, 445, 826], 'soak_from': 'hud'}]
-- t=1620: 51618 unexplained px, clusters [{'px': 962, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 92, 67], 'soak_from': 'particles'}, {'px': 381, 'cls': 'UNEXPLAINED', 'bbox': [86, 9, 103, 49], 'soak_from': 'particles'}, {'px': 48431, 'cls': 'UNEXPLAINED', 'bbox': [96, 0, 383, 444], 'soak_from': 'particles'}, {'px': 387, 'cls': 'UNEXPLAINED', 'bbox': [112, 815, 139, 853], 'soak_from': 'particles'}]
-- t=1540: 49582 unexplained px, clusters [{'px': 46969, 'cls': 'UNEXPLAINED', 'bbox': [45, 179, 293, 482], 'soak_from': 'particles'}, {'px': 52, 'cls': 'UNEXPLAINED', 'bbox': [72, 5, 82, 12], 'soak_from': 'particles'}, {'px': 257, 'cls': 'UNEXPLAINED', 'bbox': [72, 88, 94, 115], 'soak_from': 'particles'}, {'px': 50, 'cls': 'UNEXPLAINED', 'bbox': [72, 227, 100, 231], 'soak_from': 'particles'}]
+- t=1620: 51617 unexplained px, clusters [{'px': 962, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 92, 67], 'soak_from': 'particles'}, {'px': 381, 'cls': 'UNEXPLAINED', 'bbox': [86, 9, 103, 49], 'soak_from': 'particles'}, {'px': 48430, 'cls': 'UNEXPLAINED', 'bbox': [96, 0, 383, 444], 'soak_from': 'particles'}, {'px': 387, 'cls': 'UNEXPLAINED', 'bbox': [112, 815, 139, 853], 'soak_from': 'particles'}]
+- t=1540: 49575 unexplained px, clusters [{'px': 46962, 'cls': 'UNEXPLAINED', 'bbox': [45, 179, 293, 482], 'soak_from': 'particles'}, {'px': 52, 'cls': 'UNEXPLAINED', 'bbox': [72, 5, 82, 12], 'soak_from': 'particles'}, {'px': 257, 'cls': 'UNEXPLAINED', 'bbox': [72, 88, 94, 115], 'soak_from': 'particles'}, {'px': 50, 'cls': 'UNEXPLAINED', 'bbox': [72, 227, 100, 231], 'soak_from': 'particles'}]
 - t=2840: 44107 unexplained px, clusters [{'px': 257, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 73, 12], 'soak_from': 'particles'}, {'px': 42207, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 383, 326], 'soak_from': 'particles'}, {'px': 140, 'cls': 'UNEXPLAINED', 'bbox': [102, 347, 115, 365], 'soak_from': 'particles'}, {'px': 67, 'cls': 'UNEXPLAINED', 'bbox': [144, 90, 157, 97], 'soak_from': 'particles'}]
 - t=2860: 40105 unexplained px, clusters [{'px': 360, 'cls': 'UNEXPLAINED', 'bbox': [57, 23, 72, 57], 'soak_from': 'particles'}, {'px': 35829, 'cls': 'UNEXPLAINED', 'bbox': [65, 0, 383, 503], 'soak_from': 'particles'}, {'px': 1046, 'cls': 'UNEXPLAINED', 'bbox': [91, 44, 126, 89], 'soak_from': 'particles'}, {'px': 86, 'cls': 'UNEXPLAINED', 'bbox': [143, 726, 164, 738], 'soak_from': 'particles'}]
 - t=820: 0 unexplained px, clusters []
@@ -73,7 +73,7 @@ Failed frames (worst first, top 20):
 | 320 | 6.08 | 44.41% | 5.10 |
 | 340 | 6.08 | 44.41% | 5.10 |
 | 360 | 4.50 | 42.37% | 3.02 |
-| 380 | 5.71 | 27.80% | 4.85 |
+| 380 | 5.71 | 27.81% | 4.85 |
 | 400 | 6.44 | 39.09% | 5.57 |
 | 420 | 5.62 | 29.25% | 5.20 |
 | 440 | 3.49 | 27.97% | 2.81 |
@@ -82,7 +82,7 @@ Failed frames (worst first, top 20):
 | 500 | 3.69 | 25.78% | 3.18 |
 | 520 | 3.50 | 27.39% | 3.40 |
 | 540 | 2.79 | 24.36% | 2.82 |
-| 560 | 3.20 | 25.10% | 3.38 |
+| 560 | 3.20 | 25.11% | 3.38 |
 | 580 | 3.51 | 24.60% | 2.80 |
 | 600 | 1.32 | 11.97% | 0.84 |
 | 620 | 1.30 | 11.94% | 0.84 |
@@ -92,7 +92,7 @@ Failed frames (worst first, top 20):
 | 700 | 5.44 | 17.58% | 3.92 |
 | 720 | 9.25 | 36.72% | 8.09 |
 | 740 | 8.52 | 44.03% | 7.75 |
-| 760 | 7.44 | 30.51% | 5.75 |
+| 760 | 7.45 | 30.51% | 5.75 |
 | 780 | 10.10 | 34.99% | 8.23 |
 | 800 | 8.25 | 34.02% | 7.35 |
 | 820 | 16.93 | 72.38% | 14.17 |
@@ -109,7 +109,7 @@ Failed frames (worst first, top 20):
 | 1040 | 1.92 | 82.82% | 1.41 |
 | 1060 | 2.91 | 75.90% | 2.19 |
 | 1080 | 1.67 | 66.07% | 1.23 |
-| 1100 | 5.44 | 48.12% | 3.91 |
+| 1100 | 5.44 | 48.11% | 3.91 |
 | 1120 | 5.16 | 58.78% | 3.92 |
 | 1140 | 5.01 | 64.68% | 4.05 |
 | 1160 | 5.35 | 63.17% | 4.41 |
@@ -131,7 +131,7 @@ Failed frames (worst first, top 20):
 | 1480 | 6.85 | 36.90% | 6.88 |
 | 1500 | 6.14 | 25.64% | 6.16 |
 | 1520 | 16.01 | 55.85% | 16.46 |
-| 1540 | 12.74 | 49.24% | 14.02 |
+| 1540 | 12.74 | 49.23% | 14.02 |
 | 1560 | 10.05 | 36.98% | 9.54 |
 | 1580 | 6.83 | 19.62% | 4.49 |
 | 1600 | 4.84 | 12.15% | 3.52 |
@@ -155,7 +155,7 @@ Failed frames (worst first, top 20):
 | 1960 | 26.20 | 77.16% | 23.96 |
 | 1980 | 20.01 | 51.31% | 17.78 |
 | 2000 | 9.74 | 45.69% | 11.19 |
-| 2020 | 10.06 | 45.81% | 11.53 |
+| 2020 | 10.06 | 45.80% | 11.53 |
 | 2040 | 9.98 | 42.19% | 11.51 |
 | 2060 | 9.98 | 42.12% | 11.51 |
 | 2080 | 9.99 | 41.22% | 11.51 |
@@ -166,7 +166,7 @@ Failed frames (worst first, top 20):
 | 2180 | 9.99 | 41.22% | 11.51 |
 | 2200 | 9.99 | 41.22% | 11.51 |
 | 2220 | 11.72 | 38.16% | 12.96 |
-| 2240 | 13.92 | 41.15% | 13.87 |
+| 2240 | 13.92 | 41.15% | 13.86 |
 | 2260 | 8.83 | 29.19% | 6.42 |
 | 2280 | 5.64 | 18.21% | 4.00 |
 | 2300 | 4.83 | 21.94% | 3.57 |
@@ -176,7 +176,7 @@ Failed frames (worst first, top 20):
 | 2380 | 4.28 | 25.33% | 2.42 |
 | 2400 | 4.28 | 25.33% | 2.42 |
 | 2420 | 3.02 | 22.07% | 1.49 |
-| 2440 | 0.97 | 16.38% | 0.81 |
+| 2440 | 0.97 | 16.37% | 0.81 |
 | 2460 | 1.57 | 15.12% | 1.39 |
 | 2480 | 2.06 | 17.10% | 2.53 |
 | 2500 | 0.99 | 8.78% | 0.83 |
@@ -188,10 +188,10 @@ Failed frames (worst first, top 20):
 | 2620 | 2.24 | 12.20% | 2.10 |
 | 2640 | 3.14 | 18.65% | 2.94 |
 | 2660 | 4.90 | 28.71% | 4.07 |
-| 2680 | 5.68 | 43.95% | 4.37 |
+| 2680 | 5.68 | 43.95% | 4.38 |
 | 2700 | 2.39 | 26.88% | 2.54 |
 | 2720 | 2.57 | 27.30% | 2.68 |
-| 2740 | 1.35 | 15.97% | 1.83 |
+| 2740 | 1.35 | 15.97% | 1.82 |
 | 2760 | 2.49 | 19.14% | 2.56 |
 | 2780 | 2.06 | 25.25% | 1.97 |
 | 2800 | 3.05 | 24.19% | 4.01 |
@@ -199,7 +199,7 @@ Failed frames (worst first, top 20):
 | 2840 | 10.81 | 51.48% | 10.86 |
 | 2860 | 11.84 | 54.74% | 12.09 |
 | 2880 | 11.57 | 52.51% | 12.23 |
-| 2900 | 9.59 | 50.37% | 10.75 |
+| 2900 | 9.59 | 50.36% | 10.75 |
 | 2920 | 0.55 | 7.88% | 0.39 |
 | 2940 | 0.31 | 6.91% | 0.10 |
 | 2960 | 0.31 | 6.91% | 0.10 |
