@@ -320,8 +320,12 @@ independently re-measured here.
   The inputs say the same thing: `atk` at t=560, `use` at t=680, i.e. mine,
   hold, place. That is the one held-item interval on this tape whose identity is
   recoverable without re-recording - not from `EntityItem` (no item id) but from
-  the block that was mined, which the tick-1 world snapshot does contain at the
-  position the player was aimed at. Nobody has tried it. The
+  the block that was mined, by ray-casting the recorded eye/yaw/pitch at t=480
+  (the mine runs t=480..562 at `pitch` 15, the place t=611..680 at `pitch` 90
+  with `y` climbing 71 -> 73, i.e. pillaring up with what was just dug). Doing
+  it needs magma's generated world, not just the sidecar: the worldpatch is a
+  sparse PATCH of 1317 cells, not a full snapshot, and a raycast against it
+  alone hits nothing. Nobody has tried it. The
   goldens over that window also draw the block selection outline, which is
   worth checking against magma separately.
   **A wrong reading to not repeat:** the t=1800..1960 window first looked like
