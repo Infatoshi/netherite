@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# run_rung4.sh - the repeatable rung-4 check: render the seed-0 ChunkScene through
-# magma at the MC client resolution/pose (rung4_candidate) and whole-frame
-# pixel-diff it against the captured REAL Minecraft golden (mc_frame.png), both
-# whole-frame and over a terrain crop.
+# run_rung4.sh - the repeatable rung-4 check: render the seed-0 hard leaf-canopy
+# scene through magma at the MC client resolution/pose (rung4_candidate) and
+# whole-frame pixel-diff it against the captured REAL Minecraft golden
+# (mc_frame.png), both whole-frame and over a terrain crop.
 #
 # This does NOT capture the MC frame (that is capture.sh, which needs the live
 # game + display :1). It consumes whatever mc_frame.png is present - a real golden
@@ -10,9 +10,22 @@
 # against a placeholder still exercises the whole harness end to end; the numbers
 # are only MEANINGFUL once mc_frame.png is a real capture at the matching pose.
 #
-# Rung 4 is a MEAN-channel gate vs live MC, not bitwise. It is intentionally
-# HARSH relative to the historical 90/70 "not completely broken" floor: tols sit
-# just above measured (~46 whole / ~39 crop) so lighting/atlas regressions fail.
+# Pose + pipeline match hard-scene-verify / multi-verify seed0 (camera.json):
+#   eye (8.3, 95, 40.5), FOV 77, pose_scene prepare, sky, terrain fog.
+# The older FOV-70 / z=40.0 / chunk_scene path is stale against the re-capture
+# (run_multi_verify.sh says the same); scoring it against this golden measured
+# the pose gap, not the renderer, which is where the old ~42 whole came from.
+#
+# COVERAGE NOTE: with the pose corrected this is the LEAN TWIN of
+# hard-scene-verify - same scene, same golden, same numbers (1.13 / 0.67) -
+# through a standalone fixed-pose binary instead of game_candidate's
+# arbitrary-pose path with ablations. It is a second entry point over
+# mesh/light/populate/shade/raster, NOT independent scene coverage.
+#
+# Rung 4 is a MEAN-channel gate vs live MC, not bitwise. Tols sit just above
+# measured (1.13 whole / 0.67 crop at the corrected pose) so lighting/atlas
+# regressions fail. The old 38/33 pair was sized for the stale-pose numbers
+# (~42/~33) and could no longer fail anything once the pose was fixed.
 # Structural bugs (lily as full cube in swamps) are gated by make test-model-oracle
 # / test-mesh / test-jar-models - seed-0 does not show them. See VERIFY.md.
 set -euo pipefail
@@ -26,17 +39,21 @@ CAND_PPM=/tmp/rung4_candidate.ppm
 CAND_PNG="$OUT/magma_frame.png"
 FLAGS=(-O2 -ffp-contract=off -Wall -Icore -I. -I"$MCSIM")
 
+# Same cumulative populate order as hard-scene-verify (spawn qrl_0 -> chunk 2,11).
+export MAGMA_SPAWN_CX="${MAGMA_SPAWN_CX:-2}"
+export MAGMA_SPAWN_CZ="${MAGMA_SPAWN_CZ:-11}"
 echo "== build objects =="
 for u in world/mesh_mc world/light world/populate_mc assets/blockmodels \
-         renderkernels/rk_31_facebakery_make_quad game/caps \
+         renderkernels/rk_31_facebakery_make_quad game/sky game/caps \
          core/math core/shade cpu/raster_cpu transform; do
   gcc "${FLAGS[@]}" -c "$u.c" -o "$u.o"
 done
 
-echo "== build + render candidate (854x480, matched pose) =="
+echo "== build + render candidate (854x480, hard-scene pose) =="
+echo "    prepare: spawn=($MAGMA_SPAWN_CX,$MAGMA_SPAWN_CZ) prep_list=${MAGMA_PREP_LIST:-derived}"
 gcc "${FLAGS[@]}" raster/verify/mc_capture/rung4_candidate.c \
     world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
-    renderkernels/rk_31_facebakery_make_quad.o game/caps.o core/math.o \
+    renderkernels/rk_31_facebakery_make_quad.o game/sky.o game/caps.o core/math.o \
     core/shade.o cpu/raster_cpu.o transform.o \
     -o /tmp/rung4_candidate -lm
 /tmp/rung4_candidate "$CAND_PPM"
@@ -66,12 +83,12 @@ uv run --no-project --with numpy --with pillow python "$DIFF" \
     "$GOLDEN" "$CAND_PNG" --crop "$TCROP"
 
 # --- TIGHT tolerance gate (ratchet down as lighting/atlas/sky improve) ------
-# Measured (seed 0, view-distance mesh, 2026-07-09): whole ~31/ch, crop ~27/ch.
-# Old gate WHOLE=90 CROP=70 only failed total pose breakage / placeholder goldens.
-# Gate sits ~7 above measured so small regressions fail. Target over time:
-# crop <15, then <5 (see VERIFY.md). Override with WHOLE_TOL=/CROP_TOL= env.
-WHOLE_TOL="${WHOLE_TOL:-38.0}"
-CROP_TOL="${CROP_TOL:-33.0}"
+# Measured at the corrected hard-scene pose (seed 0, 2026-07-25):
+# whole 1.13/ch, crop 0.67/ch. Gate sits ~0.4 above measured so a small
+# lighting/atlas/sky regression fails. Target over time: crop <0.3, then
+# bitwise (see VERIFY.md). Override with WHOLE_TOL=/CROP_TOL= env.
+WHOLE_TOL="${WHOLE_TOL:-1.5}"
+CROP_TOL="${CROP_TOL:-1.0}"
 echo
 echo "== tight tolerance gate (whole<$WHOLE_TOL, crop<$CROP_TOL) =="
 uv run --no-project --with numpy --with pillow python - \

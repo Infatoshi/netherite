@@ -42,21 +42,8 @@
   "kind": "state",
   "inventory": {
    "ticks_checked": 1,
-   "mismatches": [
-    {
-     "tick": 0,
-     "slot": 0,
-     "tape_item": 261,
-     "magma_item": null
-    },
-    {
-     "tick": 0,
-     "slot": 8,
-     "tape_item": 262,
-     "magma_item": null
-    }
-   ],
-   "pass": false,
+   "mismatches": [],
+   "pass": true,
    "available": true
   },
   "entities": {

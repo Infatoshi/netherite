@@ -364,9 +364,25 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
             f.write(json.dumps({"tick": 0, "type": "set_vitals",
                                 "health": header["hp"],
                                 "food": int(header["food"])}) + "\n")
-        # Armor slot 38 is EntityEquipmentSlot.CHEST. Seed it before tick 0
-        # because the first recorded inventory row is post-tick truth but a
-        # recstart elytra was already equipped for that tick's input/travel.
+        # Seed live inventory before tick 0 from the first recorded inv row.
+        # inv rows are post-tick truth, re-anchored via set_inventory on tick
+        # t+1 so action t still sees the pre-tick stack; inv_view is render-
+        # only. Without a tick-0 seed, player.inv stays empty on the first
+        # state dump (and the state gate fails on any gear present at recstart).
+        # Same approximation set_elytra already uses for chest equipment.
+        if ticks and "inv" in ticks[0]:
+            for tape_slot, stack in enumerate(ticks[0]["inv"]):
+                if tape_slot > 40:
+                    continue
+                item, meta, count = (0, 0, 0) if stack == 0 else stack
+                f.write(json.dumps({"tick": 0, "type": "set_inventory",
+                                    "slot": int(tape_slot),
+                                    "item": int(item),
+                                    "count": int(count),
+                                    "meta": int(meta)}) + "\n")
+        # Armor slot 38 is EntityEquipmentSlot.CHEST. Seed the flight flag
+        # before tick 0 even when the chest stack is empty (test hook); when
+        # the chest holds elytra, set_inventory above already synced it.
         if ticks and len(ticks[0].get("inv", [])) > 38:
             chest = ticks[0]["inv"][38]
             equipped = int(chest != 0 and int(chest[0]) == 443)

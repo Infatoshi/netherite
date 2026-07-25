@@ -744,6 +744,44 @@ def _elytra_inv(chest=None):
     return inv
 
 
+def test_starting_inventory_seeds_set_inventory_before_tick_zero(tmp_path: Path):
+    """Recstart gear must land in live player.inv before tick 0 (not only inv_view)."""
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20,
+    }
+    inv = [0] * 41
+    inv[0] = [261, 0, 1]   # bow
+    inv[8] = [262, 0, 64]  # arrows
+    inv[38] = [443, 0, 1]  # elytra chest
+    ticks = [{
+        "t": 0, "in": {"f": 0, "s": 0},
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "inv": inv, "ents": [],
+    }, {
+        "t": 1, "in": {"f": 0, "s": 0},
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "ents": [],
+    }]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    seed0 = {e["slot"]: e for e in events
+             if e["tick"] == 0 and e["type"] == "set_inventory"}
+    assert seed0[0] == {"tick": 0, "type": "set_inventory", "slot": 0,
+                        "item": 261, "count": 1, "meta": 0}
+    assert seed0[8]["item"] == 262 and seed0[8]["count"] == 64
+    assert seed0[38]["item"] == 443
+    # Empty slots are cleared too so leftover state cannot leak in.
+    assert seed0[1]["item"] == 0 and seed0[1]["count"] == 0
+    types0 = [e["type"] for e in events if e["tick"] == 0]
+    assert types0.index("set_inventory") < types0.index("set_look")
+    # Deferred re-anchor of post-tick inv still fires on the next tick.
+    assert any(e["tick"] == 1 and e["type"] == "set_inventory" and e["slot"] == 0
+               for e in events)
+
+
 def test_elytra_chest_seeds_set_elytra_before_tick_zero(tmp_path: Path):
     """Recstart with Items.ELYTRA (443) must arm elytra_equipped for tick-0 travel."""
     header = {

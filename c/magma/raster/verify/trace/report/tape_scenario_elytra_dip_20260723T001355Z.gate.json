@@ -10874,15 +10874,8 @@
   "kind": "state",
   "inventory": {
    "ticks_checked": 1,
-   "mismatches": [
-    {
-     "tick": 0,
-     "slot": 38,
-     "tape_item": 443,
-     "magma_item": null
-    }
-   ],
-   "pass": false,
+   "mismatches": [],
+   "pass": true,
    "available": true
   },
   "entities": {

@@ -134,6 +134,46 @@ uv run --no-project --with numpy --with scipy --with pillow --with nbt \
   --cpu --report
 ```
 
+### Scenario tape pixel-gate failures (triaged, unfixed)
+
+Diagnosis only, from a delegated triage pass; the code claims below were
+spot-checked but the pixel measurements are the triage agent's, not
+independently re-measured here.
+
+- `scenario_soulsand_ice_20260723T001810Z`: 45 of 51 frames fail, but only one
+  frame has any UNEXPLAINED cluster (1226 px at t=50, and that is hand
+  silhouette just outside the viewmodel mask, so gate topology). The other 44
+  fail mild-shift alone (`mean_abs` 3.57-5.29 over the 3.32 budget). The
+  residual is fogged lower sky / horizon, not worldgen or the mesher: at t=100
+  the oracle horizon is `[60,74,101]` against magma's `[53,64,84]`, while the
+  zenith nearly matches. Suspect `game/sky.c` fog/sky blend and the
+  `terrain_shades` fog setup.
+- `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
+  1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
+  rendered at the wrong spatial frequency - coarse block-scale flats where the
+  oracle has fine noise. UNEXPLAINED clusters stay small (max 520, under
+  FAIL_CLUSTER), so it fails via mild-shift. Likely the same texel-selection
+  family as the canonical-tape leaf residual above.
+- `scenario_ender_dragon_20260722T093713Z` (stale, superseded by `094040Z`):
+  magma draws large extra bright geometry the oracle does not have (45216 px
+  cluster at t=420, magma mean `[118,124,89]` where the oracle is
+  `[34,45,30]`), so this is added content rather than a gate misclass. One
+  contributing cause is confirmed in code: `gm_runtime_set_dimension`
+  (`game/runtime.c:1022`) never calls `gm_dragon_init`, which only the portal
+  path (`game/runtime.c:609`) does, so an authoritative tape dimension switch
+  arrives in the End without the fight initialised. Prefer `094040Z` as the
+  dragon gate tape.
+
+### Inventory state gate is shallow
+
+`collect_state_assertions` samples every 20 ticks and only checks ticks that
+carry an `inv` row. On every current scenario tape that is tick 0 alone
+(`inv_checked=1`), and replay now seeds live inventory at tick 0 from
+`ticks[0]["inv"]`, so the single checked tick largely verifies the seeding path
+rather than inventory evolution. The divergence this closed was real (empty
+inventory where the tape had a bow and 64 arrows), but hardening requires
+re-recording tapes with periodic `inv` rows.
+
 ### Remaining isolated render features
 
 - One-frame loading sky after a dimension transfer.
