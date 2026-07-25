@@ -182,7 +182,21 @@ independently re-measured here.
   too. What is left to test is the quad's world position / perspective-correct
   UV precision on grazing top faces, which is a different investigation.
 - `20260712T055346Z_fast_s0_survival_default_rd8_77b5b462`: the goldens have
-  no HUD and no first-person hand (Malmo forces `hideGUI` for the mission),
+  no HUD, and magma used to draw one. **`capture.hide_gui` is a misnomer** and
+  the original diagnosis in this entry was wrong about the mechanism: the tape's
+  own `qrl_launch` records `hide_gui: false` with `strip.overlays: true`, so the
+  recorder skipped the overlay pass rather than Malmo forcing
+  `gameSettings.hideGUI`. The goldens draw a first-person held item throughout,
+  which settles it. That matters because vanilla's real `hideGUI` would take
+  the hand and the portal wash with it; "overlays stripped" takes only the
+  overlay, so the portal wash stays tied to this flag (it is drawn inside
+  `renderGameOverlay`) while suppressing magma's HAND is a workaround for the
+  missing inventory, not fidelity. `options.bobView` is also false in this
+  recording, so the oracle's held item never bobs - it sits on identical screen
+  pixels frame to frame, which is what made the yaw-sweep test decisive.
+  The original (wrong) framing follows, kept because the pixel numbers in it
+  are real: the goldens have no HUD and no first-person hand (Malmo forces
+  `hideGUI` for the mission),
   magma used to draw both, and the gate's positional `hud` and `viewmodel`
   accepts swallowed the whole mismatch - the bottom 96 rows plus the lower
   right quadrant had no pixel verification at all on this tape.

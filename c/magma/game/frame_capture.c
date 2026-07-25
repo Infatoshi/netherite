@@ -542,34 +542,44 @@ static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
     *equip = 1.0f - c->equip_progress;
 }
 
-/* EntityRenderer.updateCameraAndRender draws ingameGUI.renderGameOverlay only
- * when (!gameSettings.hideGUI || currentScreen != null): F1 hides the overlay
- * but an open screen brings it back. Malmo's ClientStateMachine forces
- * hideGUI=true for the whole mission, so RL tapes recorded through it have
- * goldens with no hearts, hotbar or crosshair at all - every one of the 157
- * frames of 20260712T055346Z, against all 181 of 20260721T215812Z which was
- * recorded after QuantizedRL started clearing the flag. Replaying those with a
- * HUD is a guaranteed divergence over the bottom 96 rows; the tape meta says
- * which recording it was and replay_tape.py forwards it here.
+/* MAGMA_HIDE_GUI means "the recorder did not draw the overlay pass", and the
+ * name is a historical misnomer worth knowing about before you reason from it.
+ * The goldens of 20260712T055346Z have no hearts, hotbar or crosshair on any of
+ * their 157 frames, against all 181 of 20260721T215812Z which do, and that was
+ * first read as Malmo's ClientStateMachine forcing gameSettings.hideGUI. It is
+ * not: that tape's own meta records qrl_launch.hide_gui FALSE with
+ * strip.overlays TRUE, i.e. the recorder skipped the overlay draw itself.
  *
- * hideGUI hides more than the overlay. EntityRenderer.renderHand gates
- * renderItemInFirstPerson on (thirdPersonView == 0 && !sleeping && !hideGUI &&
- * !spectator), so the first-person viewmodel goes too - t=360..520 of that tape
- * is magma's bare arm over the oracle's grass, ~7k px each.
- * GuiIngame.renderPortal is called from inside renderGameOverlay, so the portal
- * wash is gated as well. What is NOT gated is itemRenderer.renderOverlays
- * (block-in-hand, water, fire) and hurtCameraEffect: those sit outside the
- * hideGUI branch a few lines further down. */
+ * The distinction is not academic, because vanilla's hideGUI hides more than
+ * the overlay. EntityRenderer.renderHand gates renderItemInFirstPerson on
+ * (thirdPersonView == 0 && !sleeping && !hideGUI && !spectator), and
+ * GuiIngame.renderPortal is called from inside renderGameOverlay. Under a real
+ * hideGUI the hand and the portal wash go too; under "overlays stripped" only
+ * the overlay does, and the goldens confirm the latter - they draw a
+ * first-person held item throughout (a block filling the lower-right corner
+ * over t=600..1340, the wooden shovel from t=2440). So the portal wash is
+ * still correctly tied to this flag, since it is drawn inside the pass the
+ * recorder skipped, but hiding the HAND is a deliberate workaround, not
+ * fidelity: see hand_hidden below.
+ * What no version of this touches is itemRenderer.renderOverlays
+ * (block-in-hand, water, fire) and hurtCameraEffect, which sit outside the
+ * hideGUI branch a few lines further down.
+ *
+ * One more recorder setting matters here: that meta has options.bobView FALSE,
+ * so the oracle's held item does not bob. It sits at exactly the same screen
+ * pixels frame after frame, which is what let a 60 degree yaw sweep prove the
+ * corner object was a viewmodel and not terrain. */
 static int hud_hidden(void) {
     const char *s = getenv("MAGMA_HIDE_GUI");
     return s && *s && *s != '0';
 }
 
-/* ...but the hand and the overlay cannot share one switch, because on
- * 20260712T055346Z the goldens draw a first-person viewmodel while never
- * drawing an overlay. QuantizedRL re-renders capture frames with hideGUI
- * temporarily cleared (QuantizedRL.java:3240) and does not draw the overlay in
- * that pass, which is exactly that shape.
+/* Suppressing the hand is a WORKAROUND for a recorder gap, and the only honest
+ * way to describe it. The oracle draws a viewmodel on every frame of
+ * 20260712T055346Z; magma cannot, because it does not know what the player is
+ * holding. Given a wrong hand or no hand, no hand scores better - that is the
+ * whole justification, and it disappears the moment the tape is re-recorded
+ * with inventory keyframes.
  * MAGMA_HAND_FROM_TICK is therefore NOT "the tick the oracle's hand comes
  * back" - the oracle has one throughout. It is the first golden at which OUR
  * hand is known to be right. That tape's rows carry no inv field at all; the
