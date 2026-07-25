@@ -909,9 +909,10 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 render_layer(c,&cam,ray_ov,nr,&rays);
             }
         }
-        /* dropped items: block cubes/plants on the TERRAIN atlas, then
-         * non-block items on the item atlas. */
+        /* dropped items + falling blocks: block cubes/plants on the TERRAIN
+         * atlas, then non-block items on the item atlas. */
         nv=gm_items_emit(ents,n,eb[1],c->max_entity_verts);
+        nv+=gm_falling_blocks_emit(ents,n,eb[1]+nv,c->max_entity_verts-nv);
         if(nv>0){
             CrShadeCtx ish={0};
             ish.atlas=&atlas; ish.fog_color=clear; ish.alpha_test=1;

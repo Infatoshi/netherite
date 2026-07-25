@@ -375,8 +375,9 @@ static void test_name_map(void) {
     CHECK(gm_entity_skin_for_name("EntityZombie") == 0, "EntityZombie skin -> 0");
     CHECK(gm_entity_type_for_name("EntityXPOrb") == 21,
           "EntityXPOrb -> 21 (RenderXPOrb billboard)");
-    static const char *NEG[] = { "EntityItem",
-                                 "EntityFallingBlock", "EntityNoSuchThing" };
+    CHECK(gm_entity_type_for_name("EntityFallingBlock") == 38,
+          "EntityFallingBlock -> 38 (RenderFallingBlock full cube)");
+    static const char *NEG[] = { "EntityItem", "EntityNoSuchThing" };
     for (unsigned i = 0; i < sizeof NEG / sizeof NEG[0]; ++i) {
         char msg[96];
         snprintf(msg, sizeof msg, "%s -> -1 (no model)", NEG[i]);

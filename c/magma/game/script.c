@@ -647,6 +647,13 @@ int gm_script_run(const GmConfig *cfg) {
                 GmEntityView view;memset(&view,0,sizeof view);
                 view.type=!strcmp(ent,"EntityItem")&&field(&pending,"item")
                     ?GM_VIEW_ITEM:gm_entity_type_for_name(ent);
+                /* EntityFallingBlock: fallTile id/meta travel as item/item_meta
+                 * (RenderFallingBlock). Legacy 7-field rows have no state; NBT
+                 * load default is sand (EntityFallingBlock.java:328). */
+                if(view.type==GM_VIEW_FALLING_BLOCK&&!field(&pending,"item")){
+                    view.item_id=12; /* Blocks.SAND */
+                    view.item_meta=0;
+                }
                 view.skin=gm_entity_skin_for_name(ent);
                 if(view.type==GM_VIEW_BILLBOARD||
                    view.type==GM_VIEW_DRAGON_FIREBALL)

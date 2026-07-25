@@ -5766,6 +5766,18 @@ sb.append("}");
                  .append(",").append(bt == null ? -1 : bt.getX())
                  .append(",").append(bt == null ? -1 : bt.getY())
                  .append(",").append(bt == null ? -1 : bt.getZ());
+            } else if (e instanceof net.minecraft.entity.item.EntityFallingBlock) {
+                // RenderFallingBlock: fallTile block id + meta. Appended so
+                // old 7-field rows still parse (magma defaults to sand).
+                net.minecraft.entity.item.EntityFallingBlock fb =
+                    (net.minecraft.entity.item.EntityFallingBlock) e;
+                net.minecraft.block.state.IBlockState st = fb.getBlock();
+                int bid = 12, meta = 0; // Blocks.SAND default
+                if (st != null) {
+                    bid = net.minecraft.block.Block.getIdFromBlock(st.getBlock());
+                    meta = st.getBlock().getMetaFromState(st);
+                }
+                b.append(",").append(bid).append(",").append(meta);
             }
             b.append("]");
             if (++n >= REC_ENT_MAX) break;

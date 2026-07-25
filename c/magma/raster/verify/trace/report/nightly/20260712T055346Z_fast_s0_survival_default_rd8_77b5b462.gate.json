@@ -23,7 +23,7 @@
   },
   "particles": {
    "frames": 135,
-   "px": 1782990,
+   "px": 1784222,
    "max_cluster": 20867
   },
   "hud": {
@@ -68,7 +68,7 @@
   },
   "known:54": {
    "frames": 23,
-   "px": 170521,
+   "px": 170137,
    "max_cluster": 14631
   }
  },
@@ -1376,13 +1376,9 @@
  ],
  "mild_shift_failures": 15,
  "pass": false,
- "missing_models": {
-  "EntityFallingBlock": 7
- },
+ "missing_models": {},
  "missing_model_row_threshold": 4,
- "missing_model_failures": {
-  "EntityFallingBlock": 7
- },
+ "missing_model_failures": {},
  "state": {
   "kind": "state",
   "coverage": {

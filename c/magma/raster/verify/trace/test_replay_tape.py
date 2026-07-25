@@ -694,6 +694,13 @@ def test_missing_model_gate_rejects_fake_tape_and_allows_sidecar_entity():
     assert "EntityXPOrb" not in replay_tape.skipped_renderable_counts(orb_ticks)
     assert "EntityXPOrb" in replay_tape.MODELED_ENTITY_TYPES
 
+    # EntityFallingBlock is modeled (RenderFallingBlock full cube).
+    fall = [10, "EntityFallingBlock", 3.5, 64.0, 132.5, 0.0, -1.0, 13, 0]
+    fall_ticks = [{"t": tick, "ents": [fall]} for tick in range(7)]
+    assert "EntityFallingBlock" not in replay_tape.skipped_renderable_counts(
+        fall_ticks)
+    assert "EntityFallingBlock" in replay_tape.MODELED_ENTITY_TYPES
+
 
 def test_entity_xp_orb_tape_maps_value_color_age(tmp_path: Path):
     header = {
@@ -713,6 +720,25 @@ def test_entity_xp_orb_tape_maps_value_color_age(tmp_path: Path):
     assert view["item_meta"] == 55
     assert view["age"] == 8
     assert view["x"] == 3.0 and view["y"] == 65.0
+
+
+def test_entity_falling_block_tape_maps_block_state(tmp_path: Path):
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20, "dim": 0,
+    }
+    fall = [12, "EntityFallingBlock", 3.5, 63.98, 132.5, 0.0, -1.0, 13, 0]
+    ticks = [{"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0, "z": 0.5,
+              "yaw": 0.0, "pitch": 0.0, "ents": [fall]}]
+    script = tmp_path / "fall_events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    view = next(e for e in events if e.get("type") == "ent_view"
+                and e.get("ent") == "EntityFallingBlock")
+    assert view["item"] == 13
+    assert view["item_meta"] == 0
+    assert view["x"] == 3.5 and view["y"] == 63.98
 
 
 def test_texture_luminance_sidecar_does_not_suppress_marker_box():

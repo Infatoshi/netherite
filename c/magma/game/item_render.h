@@ -33,6 +33,12 @@ extern "C" {
  * Returns vertex count written (<= max). */
 int gm_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 
+/* RenderFallingBlock (oracle-src RenderFallingBlock.java:32-74): full-size
+ * block MODEL at the entity feet, using item_id/item_meta as the fallTile
+ * block state. Terrain atlas; 36 verts per entity. Skips when item_id has no
+ * block model. */
+int gm_falling_blocks_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
+
 /* Item-atlas pass: extruded 16x16 sprite boxes for non-block items (36 verts
  * each; 1/16 extrusion after GROUND scale 0.5). Returns vertex count written. */
 int gm_items_emit_flat(const GmEntityView *ents, int n, CrVertex *out, int max);

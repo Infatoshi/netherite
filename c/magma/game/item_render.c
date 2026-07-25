@@ -250,6 +250,57 @@ int gm_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
     return written;
 }
 
+/* RenderFallingBlock.doRender (oracle-src RenderFallingBlock.java:56-59):
+ * the block MODEL, i.e. a UNIT cube, not the 0.25 GROUND item drop and not
+ * the 0.98 entity bounding box. It renders the model at blockpos and then
+ * translates by (x - blockpos.x - 0.5, y - blockpos.y, z - blockpos.z - 0.5),
+ * so the cube spans [posX-0.5, posX+0.5] x [posY, posY+1] x [posZ-0.5,
+ * posZ+0.5]: half-extent 0.5 in XZ, full height, base at the entity feet
+ * (Entity.setPosition puts posY at the box minY). Face shades match mesh_mc /
+ * item drops. */
+static int ir_emit_falling_cube(const BmBlock *m, const GmEntityView *ev,
+                                CrVertex *out) {
+    const float half = 0.5f;
+    int written = 0;
+    for (int f = 0; f < 6; ++f) {
+        float u0, v0, u1, v1;
+        bm_sprite_uv(m->face[f].sprite, &u0, &v0, &u1, &v1);
+        CrRgba tint = ir_lm_fold(ev, ir_tint(m->face[f].tint));
+        CrVertex quad[4];
+        for (int c = 0; c < 4; ++c) {
+            float lx = IR_FACES[f].c[c][0] ? half : -half;
+            float ly = IR_FACES[f].c[c][1] ? 1.0f : 0.0f;
+            float lz = IR_FACES[f].c[c][2] ? half : -half;
+            CrVertex vtx;
+            vtx.pos.x = ev->x + lx;
+            vtx.pos.y = ev->y + ly;
+            vtx.pos.z = ev->z + lz;
+            vtx.uv.x = u0 + IR_CUV[c][0] * (u1 - u0);
+            vtx.uv.y = v0 + IR_CUV[c][1] * (v1 - v0);
+            vtx.light = IR_FACES[f].shade;
+            vtx.tint = tint;
+            vtx.ao = 1.0f;
+            vtx.blk = 0.0f;
+            quad[c] = vtx;
+        }
+        for (int k = 0; k < 6; ++k) out[written++] = quad[IR_TRI[k]];
+    }
+    return written;
+}
+
+int gm_falling_blocks_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
+    int written = 0;
+    if (!ents || !out || max < IR_CUBE_VERTS) return 0;
+    for (int e = 0; e < n; ++e) {
+        if (ents[e].type != GM_VIEW_FALLING_BLOCK) continue;
+        const BmBlock *m = ir_block_model(ents[e].item_id, ents[e].item_meta);
+        if (!m || m->kind == BM_KIND_CROSS) continue; /* MODEL render type only */
+        if (written + IR_CUBE_VERTS > max) break;
+        written += ir_emit_falling_cube(m, &ents[e], out + written);
+    }
+    return written;
+}
+
 int gm_items_emit_flat(const GmEntityView *ents, int n, CrVertex *out, int max) {
     const float aw = (float)CR_ITEM_ATLAS_W, ah = (float)CR_ITEM_ATLAS_H;
     int written = 0;

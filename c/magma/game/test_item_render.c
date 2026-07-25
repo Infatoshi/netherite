@@ -378,6 +378,48 @@ int main(void) {
         free(fb.color); free(fb.depth);
     }
 
+    /* ---- (H) EntityFallingBlock full-size cube (RenderFallingBlock) ---- */
+    {
+        CrVertex out[64];
+        GmEntityView fb;
+        memset(&fb, 0, sizeof fb);
+        fb.type = GM_VIEW_FALLING_BLOCK;
+        fb.x = 5.0f; fb.y = 70.0f; fb.z = 8.0f;
+        fb.item_id = 12; /* sand */
+        fb.item_meta = 0;
+        int n = gm_falling_blocks_emit(&fb, 1, out, 64);
+        CHECK(n == 36, "falling sand emits 36 verts (full cube)");
+        float minx = 1e9f, miny = 1e9f, minz = 1e9f;
+        float maxx = -1e9f, maxy = -1e9f, maxz = -1e9f;
+        for (int i = 0; i < n; ++i) {
+            if (out[i].pos.x < minx) minx = out[i].pos.x;
+            if (out[i].pos.x > maxx) maxx = out[i].pos.x;
+            if (out[i].pos.y < miny) miny = out[i].pos.y;
+            if (out[i].pos.y > maxy) maxy = out[i].pos.y;
+            if (out[i].pos.z < minz) minz = out[i].pos.z;
+            if (out[i].pos.z > maxz) maxz = out[i].pos.z;
+        }
+        const float eps = 1e-4f;
+        CHECK(fabsf(miny - 70.0f) < eps && fabsf(maxy - 71.0f) < eps,
+              "falling block y spans feet..feet+1 (block model, not the box)");
+        CHECK(fabsf((maxx - minx) - 1.0f) < eps &&
+              fabsf((maxz - minz) - 1.0f) < eps,
+              "falling block xz is a unit cube centred on the entity");
+        /* item drop stays miniature; falling is full-size. */
+        GmEntityView drop = mk_item(12, 0, 0);
+        int nd = gm_items_emit(&drop, 1, out, 64);
+        CHECK(nd == 36, "sand drop still emits");
+        float dmaxx = -1e9f, dminx = 1e9f;
+        for (int i = 0; i < nd; ++i) {
+            if (out[i].pos.x < dminx) dminx = out[i].pos.x;
+            if (out[i].pos.x > dmaxx) dmaxx = out[i].pos.x;
+        }
+        CHECK((dmaxx - dminx) < 0.5f, "item drop cube is sub-block scale");
+        fb.item_id = 0;
+        CHECK(gm_falling_blocks_emit(&fb, 1, out, 64) == 0,
+              "falling block with no block id emits nothing");
+    }
+
     if (g_fail) { fprintf(stderr, "test_item_render: FAILED\n"); return 1; }
     printf("test_item_render: OK\n");
     return 0;

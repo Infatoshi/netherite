@@ -52,6 +52,7 @@ MODELED_ENTITY_TYPES = frozenset({
     "EntitySmallFireball", "EntityDragonFireball",
     "EntityArmorStand",
     "EntityXPOrb",
+    "EntityFallingBlock",
 })
 
 # RenderAreaEffectCloud itself has no geometry. Its client-side dragon-breath
@@ -826,6 +827,11 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                 elif e[1] == "EntityItem" and len(e) >= 12:
                     view.update(item=e[7], item_meta=e[8], count=e[9],
                                 age=e[10], hover=e[11], has_hover=1)
+                elif e[1] == "EntityFallingBlock" and len(e) >= 9:
+                    # recorder: Block.getIdFromBlock + meta (fallTile).
+                    # 7-field legacy rows leave item unset; script.c defaults
+                    # to sand (EntityFallingBlock NBT load fallback).
+                    view.update(item=int(e[7]), item_meta=int(e[8]))
                 elif e[1] == "EntityXPOrb" and len(e) >= 10:
                     # recorder: xpValue, xpColor, xpOrbAge after the base 7.
                     view.update(item=int(e[7]), item_meta=int(e[8]),
