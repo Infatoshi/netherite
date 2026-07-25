@@ -107,8 +107,19 @@ initializer and is **fixed** - see DEVLOG 2026-07-25. What remains on
 - Pixel gate still FAIL, but 7 failed frames (was 58), worst t=260 with
   7291 unexplained px (was t=80 / 74783). UNEXPLAINED total 122_581 px over
   63 frames (was 1_540_406 over 67).
-- t=260 and t=460 hold the two big residual clusters (~3k and ~0.8k px,
-  lower-left / upper-left FOV); cause not yet attributed.
+- t=260 and t=460 hold the two big residual clusters (3380 px and 2989 px at
+  t=260, on the near canopy and a distant tree). Attributed to
+  nearest-neighbour texel selection on minified leaf faces, not to shading or
+  geometry: on leaf interiors the per-channel delta is zero-mean with a large
+  spread (near canopy mean +0.1/+0.2/+0.2, sigma 19/28/8; distant tree
+  -0.9/-1.1/-0.4, sigma 32/46/14), i.e. individual texels flip between
+  neighbouring values rather than the surface being uniformly off. Ruled out:
+  a global sub-pixel camera offset (best whole-frame alignment is dx=dy=0,
+  6.23 mean/ch, vs 7.45 at dx=-1) and the fog distance mode - the oracle's own
+  GL query records `fog_distance_mode_nv = 34139` (GL_EYE_RADIAL_NV), which is
+  what `CrFragment.eye_dist` already implements, and forcing planar |z| fog
+  makes the tape worse (particles 181k -> 436k px, viewmodel 256k -> 411k,
+  failed frames 7 -> 10).
 - t=3180/3200/3220 clusters soak from `viewmodel` (hand/item residual), a
   separate open item under "First-person hand use poses".
 - Residual whole-frame mean at t=80 is 3.76/ch, all outdoor terrain: grass

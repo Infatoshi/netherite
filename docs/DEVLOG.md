@@ -462,6 +462,12 @@ D-states in drm_open (kill -9 immune; D-state PIDs 1288651 Xvfb :1,
   baseline", so the sweep had never produced a usable signal.
 - Nightly will still report RESULT: FAIL until the ten rc=5 state divergences
   are closed; baselines can absorb pixel-gate failures, not those.
+- CPU/CUDA parity re-confirmed after the shade fix: the canonical tape
+  replayed with `magma_game_cuda` built `-arch=sm_120` on GPU0 is **bit
+  identical** to the CPU replay - 0 differing pixels over all 181 frames,
+  every gate class and max_cluster equal. (GPU1 had a 12 GB co-tenant, so the
+  parity run used the idle GPU0 and a matching sm_120 object; the tree is
+  built back to the default sm_86.)
 - Residual on the canonical tape (t=260, t=460) characterised, not fixed:
   it is not geometry, not a camera offset (best whole-frame alignment is
   dx=dy=0), and not the fog distance mode. The oracle's own GL query records
