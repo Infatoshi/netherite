@@ -288,14 +288,28 @@ independently re-measured here.
   | 1140 | arm (639,429)     | (146,107,88) | (201,180,154) | 0.73 / 0.60 / 0.58 |
   | 1140 | terrain (640,301) | (152,147,103)| (152,147,104) | exact |
 
-  Per-channel and warm-biased, so it is a lightmap colour and not a brightness
-  scalar, and it is not the filed rain darkening: t=900 and t=1140 are outside
-  the rain window and their sky and terrain are exact. (Do not take the t=1800
-  numbers for this; that frame IS inside the rain window and its arm ratio
-  0.463/0.380/0.366 is the two effects multiplied.) `hand_light_vtx` writes the
-  raw 0..15 sky and block levels into `CrVertex.light` / `.blk` while every
-  other vertex producer in `hand.c` writes a 0..1 quantity there - the leading
-  hypothesis, under investigation on `wt/armlight`.
+  **Half of that was a SKIN MISMATCH, and reading the ratio as "per-channel, so
+  a lightmap colour" was wrong.** The tape header has no `skin` field, so
+  `replay_tape.py` fell back to slim and magma drew ALEX against the oracle's
+  Steve. The tape's own `qrl_launch.determinism.pin_skin` is true, and
+  `MixinRandomSkinTexture` forces the classic model whenever it is set;
+  `tape_skin()` now honours it (`db5ac63`). Against the Steve texel (150,111,91)
+  the golden is a clean scalar 0.660/0.658/0.659 - it was never a coloured
+  multiplier, it was a paler texture. With Steve drawn, forcing the hand on for
+  the whole tape flips the A/B: **91 of 157 frames better, 29 worse, 37
+  unchanged, mean whole/ch 5.91 -> 5.07** (t=900 7.44 -> 6.17, t=1140 4.69 ->
+  1.38, t=2300 2.50 -> 1.15). The suppression is still on because the residual
+  is unfixed, not because the arm is a net loss; flipping the sidecar is a
+  release-time call since it re-baselines the tape.
+  **The remaining residual is a scalar ~1.57x over-bright** (magma applies
+  diffuse x lightmap ~ 0.98 where the oracle applies ~0.66; after the skin fix
+  magma is 1.04x the raw texel, i.e. essentially unattenuated). Light levels and
+  the LUT path measure correct, so the next place to look is the eye-space face
+  normals out of `build_arm_matrix` against `hand_diffuse`'s light directions
+  under `rotateArroundXAndY` - not a lightmap level and not a brightness knob.
+  Do not take the t=1800 numbers for any of this: that frame is inside the rain
+  window and its ratio is the rain darkening and the arm residual multiplied,
+  which is why t=1800 and t=2200 are still among the 29 that get worse.
   **Pickup inference cannot rescue the held-item intervals, so do not try it.**
   The idea was to derive `set_inventory` rows from `EntityItem`s that vanish
   near the player. The tape does carry 8673 EntityItem rows, 530 of them within
@@ -346,6 +360,7 @@ independently re-measured here.
   purely on mild-shift, i.e. the same wash spread thin. Closing the texel
   residual closes this tape.
 - `scenario_slime_bounce_20260723T001527Z`: the slime platform renders too
+<<<<<<< HEAD
   dark. Baseline on current master: **15 failed frames, 6709 UNEXPLAINED px**.
   `models/block/slime.json` (1.11.2 jar) has TWO elements - inset core
   `[3,3,3]..[13,13,13]` and full cube - both without cullface.
@@ -384,6 +399,40 @@ independently re-measured here.
   oracle has fine noise. UNEXPLAINED clusters stay small (max 520, under
   FAIL_CLUSTER), so it fails via mild-shift. Likely the same texel-selection
   family as the canonical-tape leaf residual above.
+=======
+  dark. `models/block/slime.json` (read out of the 1.11.2 jar) has TWO
+  elements - an inset core `[3,3,3]..[13,13,13]` and the full cube - and
+  `BlockSlime.getBlockLayer` is TRANSLUCENT, so a face-on platform is two
+  `SRC_ALPHA` layers of a~0.74, opacity `1-(1-a)^2`. magma drew one. Emitting
+  the real inset core (not a coplanar re-emit of the shell) takes it from 19 to
+  16 failed frames, worst mean_abs 6.64 -> 5.50.
+  The residual is compositing, not geometry, and there is a measurement that
+  says so. Neither element carries a `cullface`, so all 12 quads land in
+  `getQuads(state, null)` and `renderModelFlat` draws that list unconditionally
+  - the `shouldSideBeRendered` check only guards the per-facing lists
+  (`BlockModelRenderer.java:93-110`). Vanilla therefore never culls a slime
+  face, and a platform is four layers deep through its top. Feeding magma those
+  same extra layers makes it WORSE, not better: 16 -> 20 failed frames, a new
+  64941 px failure at t=0, mean_delta `[-93.64, -122.45, -67.26]`, i.e. magma
+  overshoots into darkness where vanilla stays light. So magma's translucent
+  blend/sort is what cannot carry the layer count, and stacking geometry at it
+  is the wrong lever. A coplanar double-emit of the shell scores better (12
+  frames, 4.03) precisely because it fakes uniform full-face dual coverage;
+  it is not what vanilla draws and is not landed.
+- `scenario_elytra_dip_20260723T001355Z`: 4 failed frames. The t=70/t=80
+  whole-frame dark decay is `fogColor1`: `Block` marks liquids translucent and
+  therefore `useNeighborBrightness`, while `World.getLightBrightness` calls
+  `getLightFromNeighbors`. Magma uses the water cell's own skylight 11 instead
+  of the adjacent 14. Vanilla's five-neighbour maximum reduces t=70 5.71 ->
+  2.13/ch and t=80 3.14 -> 1.97/ch, but the same exact lookup regresses
+  `water_dive` from 0 to 14 failed frames because magma's simulated neighbour
+  skylight is not yet oracle-exact there. It is therefore not landed; fixing
+  the light field is prerequisite. The other failures are t=0 (4.39/ch plus
+  an 85 px one-row registration cluster) and t=60 (10.62/ch water-colour wash,
+  463 unexplained px). A separate native `water_flow` quadrant experiment
+  removed that cluster locally but caused broad `water_dive`/`water_flow`
+  regressions and was also rejected.
+>>>>>>> f4c8c48 (docs(verify): record elytra lighting blocker)
 - `scenario_ender_dragon_20260722T093713Z` (stale, superseded by `094040Z`):
   magma draws large extra bright geometry the oracle does not have (45216 px
   cluster at t=420, magma mean `[118,124,89]` where the oracle is

@@ -37,9 +37,10 @@ static int viewpoint_fluid(const GmWorld *w, double ex, double ey, double ez) {
     return 0;
 }
 
-/* World.getLightBrightness: lightBrightnessTable[getLightFromNeighbors(pos)].
- * Water/air do not useNeighborBrightness, so the light is the cell's own
- * max(sky - skylightSubtracted, block); tapes are clear weather -> sub 0. */
+/* Magma currently samples the cell's own max(sky, block). Vanilla liquids use
+ * neighbour brightness, but enabling that here is blocked on exact simulated
+ * skylight: it fixes elytra_dip t=70/80 while regressing passing water tapes.
+ * Tapes are clear weather, so skylightSubtracted is zero. */
 static float light_brightness_at(const GmWorld *w, int dim,
                                  int x, int y, int z) {
     int sky = gm_world_sky_light(w, x, y, z);
