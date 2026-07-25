@@ -217,6 +217,26 @@ independently re-measured here.
   reads as absent at a glance. Zoom before concluding.
   The other canonical tape, `20260721T215812Z`, has a HUD on all 181 goldens
   and is unaffected; do not set `capture.hide_gui` on it.
+- `scenario_slime_bounce_20260723T001527Z`: the slime platform renders too
+  dark. `models/block/slime.json` (read out of the 1.11.2 jar) has TWO
+  elements - an inset core `[3,3,3]..[13,13,13]` and the full cube - and
+  `BlockSlime.getBlockLayer` is TRANSLUCENT, so a face-on platform is two
+  `SRC_ALPHA` layers of a~0.74, opacity `1-(1-a)^2`. magma drew one. Emitting
+  the real inset core (not a coplanar re-emit of the shell) takes it from 19 to
+  16 failed frames, worst mean_abs 6.64 -> 5.50.
+  The residual is compositing, not geometry, and there is a measurement that
+  says so. Neither element carries a `cullface`, so all 12 quads land in
+  `getQuads(state, null)` and `renderModelFlat` draws that list unconditionally
+  - the `shouldSideBeRendered` check only guards the per-facing lists
+  (`BlockModelRenderer.java:93-110`). Vanilla therefore never culls a slime
+  face, and a platform is four layers deep through its top. Feeding magma those
+  same extra layers makes it WORSE, not better: 16 -> 20 failed frames, a new
+  64941 px failure at t=0, mean_delta `[-93.64, -122.45, -67.26]`, i.e. magma
+  overshoots into darkness where vanilla stays light. So magma's translucent
+  blend/sort is what cannot carry the layer count, and stacking geometry at it
+  is the wrong lever. A coplanar double-emit of the shell scores better (12
+  frames, 4.03) precisely because it fakes uniform full-face dual coverage;
+  it is not what vanilla draws and is not landed.
 - `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
   1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
   rendered at the wrong spatial frequency - coarse block-scale flats where the
