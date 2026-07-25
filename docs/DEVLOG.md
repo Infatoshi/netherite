@@ -681,3 +681,65 @@ view. Same class of off-by-one as the deferred `set_look` already documented in
 `game/script.c`.
 
 CPU sweep `nightly_20260725T081035Z`: PASS, soulsand_ice rc=0, no regressions.
+
+## 2026-07-25 - the gate was measuring 80 percent of the frame on the canonical tape
+
+Four fixes landed and one was rejected, but the finding that reframes the rest
+is that two of our measurements were not measuring what we thought.
+
+**Concurrent replays corrupted each other.** Agent worktrees symlink `tapes/`
+to one shared directory, and `.snapshot_patch.jsonl`'s staleness check keys off
+`snapshot_patch.py`'s mtime, which differs per worktree. So every parallel
+replay decided to regenerate the same cache at once, through two shared
+fixed-name files: the `world_dump` scratch, where processes read each other's
+tiles and emit a silently WRONG patch, and the cache itself, written in place so
+a reader gets a TRUNCATED one and replays an unpatched world. `blaze_bow`
+measured 3.63/ch terrain against a 0.94/ch baseline and reproduced 0.94 exactly
+once the machine was idle. Nothing was wrong with the renderer. Both names now
+carry the pid and the cache is published with `os.replace` (`b9fe039`). A
+delegated agent reported the same phantom regression independently; that report
+was correct about the symptom and wrong about the cause, as was I at first.
+
+**The canonical tape's goldens have no HUD.** Malmo's `ClientStateMachine`
+forces `hideGUI=true` for the whole mission, so all 157 goldens of
+`20260712T055346Z` have no hearts, hotbar or crosshair, while all 181 of
+`20260721T215812Z` (recorded after QuantizedRL started clearing the flag) do.
+`qrl_launch.hide_gui` reads false on both, so it could not be the source;
+`capture.hide_gui` is the measured value now. Magma was drawing a HUD over
+goldens that have none, and the gate's positional `hud` accept swallowed it -
+the bottom 96 rows, a fifth of the frame, had no pixel verification at all on
+that tape. Suppressing the HUD was not enough on its own: `gate_frame_ex`
+removes positional accepts as topology barriers *before* known-divergence
+matching, so those rows never reached the filed rain entry and instead tripped
+the `hud` class budget. The accept is now dropped entirely on `hide_gui` tapes,
+while the same strip is still carved out of `viewmodel` so its budget is not
+silently re-scaled (`3dc2d19`, `b3922ac`). 14 -> 25 failed frames, which is what
+measuring 20 percent more of every frame costs. The rain window t=1800..2100
+now resolves cleanly into `known:12` instead of leaking.
+
+**Elytra pose never cleared after landing.** `psv_update_elytra_size` treated
+`psv_collect_blocks(...) == 0` as "no collision", but that is a cell broadphase
+and always returns the floor under the feet; vanilla's `collidesWithAnyBlock`
+uses strict `AxisAlignedBB.intersects`, so a floor touching `minY` does not
+block the expand. The 0.6F pose and 0.4F eye height stuck forever, putting the
+camera 1.22 blocks low - the full-width horizon band on `elytra_dip` was sky vs
+grass from the wrong eye height, not fog. 41 -> 4 failed frames (`9b165bf`).
+
+**Dig dust skipped the lightmap.** `ParticleDigging` sets a flat 0.6 gray and
+`Particle.renderParticle` multiplies it by the lightmap at the particle; magma
+kept the gray. Mining unlit End stone therefore painted a 45216 px near-full
+brightness patch across the wall. `ender_dragon_093713Z` 57 -> 55 failed frames,
+worst mild_shift 25.94 -> 12.55 (`8ae0a38`).
+
+**Rejected:** a slime fix that re-emitted the outer cube face coplanar to double
+its translucent opacity. The diagnosis was right (the dark field is the slime
+platform, `slime.json` has two translucent elements, one layer renders 0.74x too
+dark) and it measured well, 19 -> 12 failed frames. But the second element is an
+inset cube, not a duplicate shell, and geometry the model does not contain will
+be wrong somewhere the golden does not happen to look. Sent back for the real
+inset element.
+
+Also: `pxdiff.py` grew a `cutout-sky` discriminator that requires measured
+background coverage instead of a delta direction, after a delegated agent proved
+my own tool's verdict on the canopy was a false positive; and
+`scripts/agent_worktree.sh` builds worktrees that can actually build and replay.
