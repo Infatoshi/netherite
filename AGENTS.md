@@ -68,6 +68,26 @@ cd java/Minecraft && ./gradlew -g run/gradle build
 uv run --no-project python c/mc-sim/oracle/runner.py <name>
 ```
 
+## Pixel investigation
+
+When a tape frame is wrong, do not hand-roll numpy. `c/magma/raster/verify/trace`:
+
+```bash
+U="uv run --no-project --with numpy,scipy,pillow python"
+$U pxdiff.py selftest                                   # trust the tool first
+$U pxdiff.py frames  --tape <NAME>                      # rank ticks by unexplained px
+$U pxdiff.py clusters --tape <NAME> --tick N            # cluster table + CAUSE
+$U pxdiff.py zoom    --tape <NAME> --tick N --cluster 0 --scale 10 -o /tmp/z.png
+$U pxdiff.py probe   --tape <NAME> --tick N --cluster 0 # every discriminator
+$U pxdiff.py pixels  --tape <NAME> --tick N --cluster 0 # exact RGB pairs
+```
+
+Causes: `texel-selection`, `shading-offset`, `registration`, `cutout-sky+/-`,
+`content`, `edge`, `unresolved`. `--a/--b` takes any PNG pair, so the same tool
+drives the mc_capture / ui_hud / ui_entities gates. `grind.py` ranks a whole
+tape by mean/ch; `pixel_gate.py` decides pass/fail. Never report `unresolved`
+as a diagnosis, and never claim a cause the tool did not measure.
+
 Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).
 
 ## Critical: anvil is headless

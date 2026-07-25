@@ -14,6 +14,7 @@ auto-load has a project file; it does not duplicate the full map.
 | Product gates | `docs/GATES.md` |
 | History | `docs/DEVLOG.md` |
 | Fidelity | `c/magma/VERIFY.md` |
+| Why a pixel differs | `pxdiff.py` (AGENTS.md "Pixel investigation") |
 
 Anvil is headless: demos scp to Mac; human play via Moonlight or mcwindow;
 agent stack is Xvfb `:1` (`java/start_vnc_client.sh`). One qrl port 25575 owner.
