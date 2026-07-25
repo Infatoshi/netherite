@@ -18,7 +18,7 @@
  "classes": {
   "viewmodel": {
    "frames": 55,
-   "px": 145037,
+   "px": 145036,
    "max_cluster": 12770
   },
   "particles": {
@@ -1102,7 +1102,7 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 10.400246940445722,
+    "mean_abs": 10.40023905601259,
     "pct_differing": 94.85162285287174,
     "low_thresh": 1,
     "residual_px": 211387,
@@ -1461,7 +1461,7 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 10.519383878857262,
+    "mean_abs": 10.519375994424129,
     "pct_differing": 94.96847015190149,
     "low_thresh": 1,
     "residual_px": 211387,
@@ -1932,7 +1932,7 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 6.642631760704301,
+    "mean_abs": 6.642891946997687,
     "pct_differing": 54.49814794665708,
     "low_thresh": 1,
     "residual_px": 211387,
@@ -3233,7 +3233,7 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 5.804978546457446,
+    "mean_abs": 5.8049470087249135,
     "pct_differing": 77.37325379517189,
     "low_thresh": 1,
     "residual_px": 211387,
@@ -3276,7 +3276,7 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 5.88679688596429,
+    "mean_abs": 5.886754310025372,
     "pct_differing": 76.34953899719471,
     "low_thresh": 1,
     "residual_px": 211387,
@@ -3329,11 +3329,11 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 5.814558132713932,
-    "pct_differing": 77.88984185404021,
+    "mean_abs": 5.814586516673211,
+    "pct_differing": 77.89031492002819,
     "low_thresh": 1,
     "residual_px": 211387,
-    "low_differing_px": 164649
+    "low_differing_px": 164650
    }
   },
   {
@@ -3352,7 +3352,7 @@
     }
    ],
    "mild_shift": {
-    "mean_abs": 8.70593272055519,
+    "mean_abs": 8.705924836122056,
     "pct_differing": 93.66990401491104,
     "low_thresh": 1,
     "residual_px": 211387,
@@ -3412,7 +3412,7 @@
    "unexplained_px": 0,
    "clusters": [],
    "mild_shift": {
-    "mean_abs": 8.62478140409139,
+    "mean_abs": 8.624773519658257,
     "pct_differing": 92.89076433271677,
     "low_thresh": 1,
     "residual_px": 211387,
@@ -3424,7 +3424,7 @@
    "unexplained_px": 0,
    "clusters": [],
    "mild_shift": {
-    "mean_abs": 8.455180939855968,
+    "mean_abs": 8.455173055422835,
     "pct_differing": 93.44756300056295,
     "low_thresh": 1,
     "residual_px": 211387,
@@ -3436,11 +3436,11 @@
    "unexplained_px": 0,
    "clusters": [],
    "mild_shift": {
-    "mean_abs": 4.423606938931911,
-    "pct_differing": 44.42893839261639,
+    "mean_abs": 4.423535979033716,
+    "pct_differing": 44.42846532662841,
     "low_thresh": 1,
     "residual_px": 211387,
-    "low_differing_px": 93917
+    "low_differing_px": 93916
    }
   },
   {

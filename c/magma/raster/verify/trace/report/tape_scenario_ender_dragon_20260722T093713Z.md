@@ -19,7 +19,7 @@
 | hud | 55 | 346068 | 13592 |
 | particles | 48 | 216019 | 2621 |
 | thinline | 3 | 271 | 133 |
-| viewmodel | 55 | 145037 | 12770 |
+| viewmodel | 55 | 145036 | 12770 |
 
 Failed frames (worst first, top 20):
 
