@@ -614,34 +614,46 @@ to extend the contract past respawn (emit `continue_after_death` for any
 `tape_has_respawn`, teach `first_divergence` to resume, update the pinning
 tests) is an open product decision, not a bug.
 
-### The far chunk-cull boundary is one chunk short in some directions
+### slime_bounce horizon band: NOT a render-distance cull mismatch
 
-All 15 of `slime_bounce`'s failed frames are the same static artifact, and the
-gate's "744 unexplained px in 4 clusters" hides what it is: a 7-row band at the
-horizon (y 244..253) spanning the full width, identical on every frame from
-t=60 on.
+All 15 of `slime_bounce`'s failed frames are the same static artifact: a band at
+the horizon (y 244..253) spanning the full width, identical from t=60 on.
+Per-column silhouette at t=80 (first row from y=235 with blue < 200): **711 of
+854 columns agree exactly, 143 have magma's edge exactly one row lower**, in 4
+runs of 33/37/33/35 cols (plus 1-2px stragglers).
 
-Measured per column rather than per cluster (first row scanning down whose blue
-channel drops below 200 = the terrain silhouette), at t=80: **711 of 854
-columns agree exactly, and 143 have magma's terrain edge exactly one row
-lower.** Nothing is off by two, and rows above 244 and below 249 are
-bit-identical, so this is not shading and not a sub-pixel camera offset.
+**Hypothesis tested and refuted (wt/chunkcull, 2026-07-26):** magma's
+render-distance cull does **not** use a different metric or off-by-one vs
+vanilla.
 
-The 143 columns are **not scattered - they are 4 contiguous runs of 37, 35, 33
-and 33 columns** (plus four 1-2px stragglers). Scattered would have meant
-rasteriser edge precision on grazing faces, which is the open texel/precision
-family; blocky at ~35 columns means a chunk. On a flat world the horizon row is
-set by the farthest chunk actually drawn - a more distant chunk sits higher on
-screen, i.e. at a lower row number - so magma being one row lower over four
-angular sectors means magma is **drawing one chunk ring less in those
-directions**. That points at the render-distance cull test (Euclidean vs
-Chebyshev chunk distance, or a `>` that should be `>=`) rather than anything in
-the raster, and `sky.h`'s note that "the outermost terrain is clipped like Java"
-is the code that owns it.
+| Side | Cull test | Metric |
+|------|-----------|--------|
+| magma | `game/world_live.c:381-388` (`gm_world_mesh_view`; twin at 459-466) | Chebyshev square `cx,cz ∈ [ccx-R, ccx+R]` with R=8, then `cr_aabb_in_frustum` |
+| vanilla | `RenderGlobal.getRenderChunkOffset` (oracle-src ~1027) + `ViewFrustum` `(2*RD+1)^2` | `abs(playerChunkOrigin - neighborOrigin) > RD*16` → reject (keeps `\|d\| ≤ RD`); same inclusive Chebyshev |
 
-Not yet done: confirm the four sectors are the diagonals of the square
-chunk-render box (which would make it a distance-metric mismatch outright), and
-check whether the same 4-run signature appears on the other flat-world tapes.
+No Euclidean chunk test in either path. Magma's `<= R` matches vanilla's `>`
+(equality kept). Frustum port is the verified ClippingHelper path
+(`core/frustum.h`); full-column AABBs for outer-ring ground sections at this
+pose are **kept** for the front diagonal chunks `(±8,8)`.
+
+**Diagonals check (tape yaw=0, vFOV 70 → hFOV ~102.5°):** run mid-angles are
+**-45.8°, -34.4°, +34.3°, +45.8°**. Only two of four sit on the square diagonals;
+a pure cheby-vs-euclid mismatch would be two large side sectors (~400 cols
+each), not four ~35-col runs. So the angular pattern does **not** diagnose a
+distance-metric bug.
+
+**Vanilla ViewFrustum centering note (not the fix direction):** at player
+(0.5,0.5), `updateChunkPositions` uses `floor(x)-8` and covers chunk origins
+**-9..7**, then the BFS distance filter keeps **-8..7**. Magma's symmetric
+**-8..8** is one chunk *longer* on the + side, so matching that quirk would not
+raise magma's horizon.
+
+**Cause remains open** (elsewhere than the RD cull): on the 143 run columns the
+sky rows above the band are bit-identical, but the first non-sky row is a
+fog/edge blend where gold crosses blue<200 one row earlier; terrain rows below
+the band also still differ. `sky.h` `GM_TERRAIN_ZFAR = RD*16*sqrt2` already
+matches `EntityRenderer.setupCameraTransform`. Do not widen R or fudge fog end
+to paper over this.
 
 ### The oracle's fogColor1 had not converged when recording started
 
