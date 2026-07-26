@@ -377,7 +377,6 @@ independently re-measured here.
   purely on mild-shift, i.e. the same wash spread thin. Closing the texel
   residual closes this tape.
 - `scenario_slime_bounce_20260723T001527Z`: the slime platform renders too
-<<<<<<< HEAD
   dark. Baseline on current master: **15 failed frames, 6709 UNEXPLAINED px**.
   `models/block/slime.json` (1.11.2 jar) has TWO elements - inset core
   `[3,3,3]..[13,13,13]` and full cube - both without cullface.
@@ -410,32 +409,6 @@ independently re-measured here.
   Open gap: how vanilla keeps the rim as bright as dual-top without the
   overshoot magma hits when fed full generalQuads. Blend equation itself is
   not the bug on dual-covered pixels.
-- `scenario_elytra_dip_20260723T001355Z`: passes in flight (t=100 mild_abs
-  1.19) and starts failing at landing (t>=140, ~6-7/ch). Near-field grass is
-  rendered at the wrong spatial frequency - coarse block-scale flats where the
-  oracle has fine noise. UNEXPLAINED clusters stay small (max 520, under
-  FAIL_CLUSTER), so it fails via mild-shift. Likely the same texel-selection
-  family as the canonical-tape leaf residual above.
-=======
-  dark. `models/block/slime.json` (read out of the 1.11.2 jar) has TWO
-  elements - an inset core `[3,3,3]..[13,13,13]` and the full cube - and
-  `BlockSlime.getBlockLayer` is TRANSLUCENT, so a face-on platform is two
-  `SRC_ALPHA` layers of a~0.74, opacity `1-(1-a)^2`. magma drew one. Emitting
-  the real inset core (not a coplanar re-emit of the shell) takes it from 19 to
-  16 failed frames, worst mean_abs 6.64 -> 5.50.
-  The residual is compositing, not geometry, and there is a measurement that
-  says so. Neither element carries a `cullface`, so all 12 quads land in
-  `getQuads(state, null)` and `renderModelFlat` draws that list unconditionally
-  - the `shouldSideBeRendered` check only guards the per-facing lists
-  (`BlockModelRenderer.java:93-110`). Vanilla therefore never culls a slime
-  face, and a platform is four layers deep through its top. Feeding magma those
-  same extra layers makes it WORSE, not better: 16 -> 20 failed frames, a new
-  64941 px failure at t=0, mean_delta `[-93.64, -122.45, -67.26]`, i.e. magma
-  overshoots into darkness where vanilla stays light. So magma's translucent
-  blend/sort is what cannot carry the layer count, and stacking geometry at it
-  is the wrong lever. A coplanar double-emit of the shell scores better (12
-  frames, 4.03) precisely because it fakes uniform full-face dual coverage;
-  it is not what vanilla draws and is not landed.
 - `scenario_elytra_dip_20260723T001355Z`: 4 failed frames. The t=70/t=80
   whole-frame dark decay is `fogColor1`: `Block` marks liquids translucent and
   therefore `useNeighborBrightness`, while `World.getLightBrightness` calls
@@ -449,7 +422,14 @@ independently re-measured here.
   463 unexplained px). A separate native `water_flow` quadrant experiment
   removed that cluster locally but caused broad `water_dive`/`water_flow`
   regressions and was also rejected.
->>>>>>> f4c8c48 (docs(verify): record elytra lighting blocker)
+  Re-confirmed from the frames (2026-07-26): only t=60 is underwater (a
+  one-frame dip); golden's underwater frame is brighter with per-channel
+  ratios R 1.084 / G 1.072 / B 1.135, and after resurfacing golden carries a
+  decaying brightness excess (1.026 at t=70, 1.016 at t=80, 1.004 at t=90,
+  gone by t=110) - a `fogColor1` that dropped less during the dip than
+  magma's, exactly the neighbour-brightness gap `game/underwater.c:40` states.
+  Fixing the simulated skylight field is the prerequisite; nothing else in
+  this tape's window is a separate bug.
 - `scenario_ender_dragon_20260722T093713Z` (stale, superseded by `094040Z`):
   magma draws large extra bright geometry the oracle does not have (45216 px
   cluster at t=420, magma mean `[118,124,89]` where the oracle is
