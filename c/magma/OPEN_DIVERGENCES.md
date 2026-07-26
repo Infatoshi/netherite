@@ -428,8 +428,25 @@ independently re-measured here.
   decaying brightness excess (1.026 at t=70, 1.016 at t=80, 1.004 at t=90,
   gone by t=110) - a `fogColor1` that dropped less during the dip than
   magma's, exactly the neighbour-brightness gap `game/underwater.c:40` states.
-  Fixing the simulated skylight field is the prerequisite; nothing else in
-  this tape's window is a separate bug.
+  **The t=60 463px cluster is a DEVELOPING waterfall the replay cannot
+  represent (2026-07-26).** The scenario fills a single water wall at x=10
+  (`/fill 10 4 -3 10 22 3 water`) and starts recording immediately; the x=9
+  and x=11 curtain columns are that wall's live sideways spread, still
+  growing through the first ~seconds of the tape. The world save is
+  post-capture (fully grown, all three columns, oracle skylight 12/9/12 at
+  z=0), so `tape_to_script`'s elytra post-capture-spread heuristic freezes an
+  approximation: x9+x10 falls patched in at t0, x11's dropped, everything
+  cleared at t=65 before player contact. Both directions of "fix" were
+  measured and are wrong: keeping x11's falls (sustained-under-source
+  exemption in `post_capture_spread`) takes t=60 from 463 to 14047
+  UNEXPLAINED px because the golden still sees past the curtain's right edge
+  at t=60; the committed drop leaves the 463px top-of-screen sliver where the
+  golden's partially-grown x11 fall has water and magma has none. Magma's
+  fluid CA does not grow it either: snapshot water is deliberately not
+  fluid-marked (re-simulating patched water was the rejected native
+  water_flow experiment). The clean fix is in the scenario, not the replay:
+  add a settle wait between the water fill and recstart and re-record -
+  already on the re-record decision list.
 - `scenario_ender_dragon_20260722T093713Z` (stale, superseded by `094040Z`):
   magma draws large extra bright geometry the oracle does not have (45216 px
   cluster at t=420, magma mean `[118,124,89]` where the oracle is
