@@ -669,10 +669,10 @@ int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
                 float t = u0; u0 = u1; u1 = t;
             }
             float local[4][5] = {
-                {  half, 0.0f - yoff, zoff, u0, v1 },
-                { -half, 0.0f - yoff, zoff, u1, v1 },
-                { -half, 1.4f - yoff, zoff, u1, v0 },
-                {  half, 1.4f - yoff, zoff, u0, v0 },
+                {  half, 0.0f - yoff, zoff, u1, v1 },
+                { -half, 0.0f - yoff, zoff, u0, v1 },
+                { -half, 1.4f - yoff, zoff, u0, v0 },
+                {  half, 1.4f - yoff, zoff, u1, v0 },
             };
             CrVertex quad[4];
             for (int c = 0; c < 4; ++c) {

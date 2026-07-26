@@ -12,7 +12,7 @@
  *     overruns `out` (canary vertex intact); non-item entity types skipped.
  * (E) FALLBACK: an unknown item id still resolves to a valid sprite index.
  * (F) FIREBALLS: exact RenderFireball / RenderDragonFireball scale, offset,
- *     full-bright state, and atlas sprites.
+ *     full-bright state, atlas sprites, and renderEntityOnFire UV order.
  * (G) GUI ISO: dirt/cobble/crafting-table block icons draw into a 16x16 slot
  *     (non-empty pixels); a stick id does not claim the block-icon path.
  *
@@ -21,6 +21,7 @@
 #include "core/types.h"
 #include "game/item_render.h"
 #include "game/block_registry.h"
+#include "assets/atlas_gen.h"
 #include "assets/blockmodels.h"
 #include "assets/item_atlas.h"
 
@@ -295,6 +296,28 @@ int main(void) {
         small.flags = 1; /* isBurning */
         n = gm_small_fireball_fire_emit(&small, 1, 0.0f, out, 256);
         CHECK(n == 12, "fiery small fireball emits two stacked fire quads");
+        /* Render.renderEntityOnFire: f6=minU, f8=maxU, swap f6/f8 when
+         * i/2%2==0, then emit corners (f8,f9), (f6,f9), (f6,f7), (f8,f7).
+         * Triangle-list corner indices are 0,1,2,5 for IR_TRI={0,1,2,0,2,3}. */
+        for (int layer = 0; layer < 2; ++layer) {
+            int sprite = layer == 0 ? CR_SPRITE_FIRE_LAYER_0
+                                    : CR_SPRITE_FIRE_LAYER_1;
+            float f6, f7, f8, f9;
+            bm_sprite_uv(sprite, &f6, &f7, &f8, &f9);
+            if ((layer / 2) % 2 == 0) {
+                float t = f8; f8 = f6; f6 = t;
+            }
+            const int base = layer * 6;
+            CHECK(fabsf(out[base + 0].uv.x - f8) < eps &&
+                  fabsf(out[base + 0].uv.y - f9) < eps &&
+                  fabsf(out[base + 1].uv.x - f6) < eps &&
+                  fabsf(out[base + 1].uv.y - f9) < eps &&
+                  fabsf(out[base + 2].uv.x - f6) < eps &&
+                  fabsf(out[base + 2].uv.y - f7) < eps &&
+                  fabsf(out[base + 5].uv.x - f8) < eps &&
+                  fabsf(out[base + 5].uv.y - f7) < eps,
+                  "renderEntityOnFire UV corners match vanilla f8/f6 order");
+        }
         minx = miny = 1e9f; maxx = maxy = -1e9f;
         for (int i = 0; i < n; ++i) {
             if (out[i].pos.x < minx) minx = out[i].pos.x;
