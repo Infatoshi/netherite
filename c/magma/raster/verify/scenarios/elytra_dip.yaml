@@ -25,6 +25,11 @@ setup_commands:
   - /replaceitem entity @p slot.armor.chest minecraft:elytra 1 0
   - /tp @p 0.5 24 0.5 -90 8
   - /fill 10 4 -3 10 22 3 minecraft:water
+# The water wall spreads sideways (x9/x11 curtain columns) and pools for
+# ~150 ticks after the fill. The 20260723T001355Z tape recorded mid-growth,
+# which no static snapshot patch can replay (OPEN_DIVERGENCES: elytra_dip
+# t=60); wait it out before recstart on the next record.
+setup_settle_ticks: 200
 duration_ticks: 500
 frames_every: 10
 input:
