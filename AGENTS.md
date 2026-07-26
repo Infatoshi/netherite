@@ -97,6 +97,13 @@ Two things that make a pixel measurement lie, both paid for already:
   that fix they clobbered each other and a clean tape measured 3.63/ch terrain
   against a 0.94/ch baseline. If a number looks like a regression, re-measure
   with nothing else running before you believe it.
+- **`/tmp` on anvil is a 46 GB RAM-backed tmpfs.** A delegated agent that puts
+  a uv cache or build tree there can fill it, kill its own run, and break every
+  other shell on the box (a codex run wrote 15 GB of CUDA wheels to
+  `/tmp/<name>-uv-cache` and died on "Disk quota exceeded"). When launching
+  delegates, pin `UV_CACHE_DIR=/home/infatoshi/.cache/uv` and
+  `TMPDIR=/home/infatoshi/dev/nw/.tmp` in their environment and say so in the
+  prompt.
 - **Check what the goldens actually contain before chasing a diff.** A tape
   recorded through Malmo has `hideGUI` forced on for the whole mission, so its
   goldens have no HUD at all; `capture.hide_gui` in the tape meta is the
