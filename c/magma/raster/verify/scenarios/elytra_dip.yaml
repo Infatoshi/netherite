@@ -21,7 +21,12 @@ setup_commands:
   - /gamemode survival @p
   - /tp @p 0.5 4 0.5 -90 8
   - /fill -2 23 -2 3 23 2 minecraft:stone
-  - /fill 24 3 -4 40 3 4 minecraft:lava
+  # 24..36, not ..40: with the settled water curtain's full drag the glide
+  # lands at x~40.7, and a 1-block lava sea ending at 40 makes that a
+  # stand-in-lava death + respawn (20260727T213715Z), which replay cannot
+  # follow. The mid-flight lava skim at x 24..36 still exercises the
+  # rank-4 keep-flight-through-lava contact.
+  - /fill 24 3 -4 36 3 4 minecraft:lava
   - /replaceitem entity @p slot.armor.chest minecraft:elytra 1 0
   - /tp @p 0.5 24 0.5 -90 8
   - /fill 10 4 -3 10 22 3 minecraft:water
