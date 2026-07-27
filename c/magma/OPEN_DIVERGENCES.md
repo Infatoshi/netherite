@@ -800,6 +800,74 @@ ramp everywhere; a mapping difference shows t(d) on-ramp but with d
 shifted only on grazing ground, not on vertical faces at the same
 distance.
 
+**Addendum (2026-07-27, wt/fogcurve): t(d) probe — hypothesis A survives,
+B refuted.** Repro:
+`cd c/magma/raster/verify/trace && uv run --no-project --with numpy,scipy,pillow
+python fogcurve_probe.py --scene all --out /home/infatoshi/dev/nw/.tmp/fogcurve`
+(uses existing slime_bounce fog/nofog magma frames under `.tmp/hfog_{out,nofog}`
+if present; seed7 re-rendered via `game_candidate --seed 7 --fov 77` with
+`--depth` dump).
+
+Method: recover `t = median_ch (P − T)/(F − T)` with `T` from `MAGMA_FOG=0`
+and recorded `F`. Analytic eye-radial `d` on slime flat ground via ray/plane
+at y=4; seed7 `d` from magma depth buffer. Magma's own `t_magma` tracks
+`t_ramp = clamp((d−96)/32)` to RMSE 0.002 on clean grass (control).
+
+*slime_bounce t=80, clean grass tops, plane d (n=991 HC; bulk 100..122 n=599):*
+
+| d     | n   | t_gold | t_magma | t_ramp | t_gold−ramp | t_magma−ramp |
+|-------|-----|--------|---------|--------|-------------|--------------|
+| 100–102 | 90 | 0.005 | 0.162 | 0.161 | **−0.155** | +0.002 |
+| 104–106 | 51 | 0.120 | 0.281 | 0.279 | **−0.159** | +0.001 |
+| 108–110 | 52 | 0.241 | 0.408 | 0.406 | **−0.165** | +0.002 |
+| 112–114 | 48 | 0.344 | 0.539 | 0.537 | **−0.193** | +0.001 |
+| 116–118 | 58 | 0.474 | 0.656 | 0.655 | **−0.181** | +0.001 |
+| 120–122 | 39 | 0.600 | 0.783 | 0.781 | **−0.181** | +0.002 |
+
+Bulk mean `t_gold − t_ramp` = **−0.169** (flat across the band, not a
+growing bend). Implied constant distance shift
+`δ = d − (96 + 32·t_gold)`: median **5.26 blocks** (mean 5.33, std 1.52);
+`0.18 × 32 = 5.76` matches the horizon-band Δt. Free linear-ramp fit for
+gold: start≈**101**, end≈**134.5** (RMSE 0.045 vs 0.173 on vanilla 96/128).
+Magma vs vanilla ramp RMSE **0.0023**. Flat world has no far vertical faces
+in the fog band (entities empty at t=80), so orientation needs seed7.
+
+*seed7 (camera_seed7.json: eye (16.5, 89, 268.5), pitch −40°, FOV 77,
+F=(179,206,255), fog 96/128 LINEAR EYE_RADIAL), mid-band d∈[104,120],
+material classes from nofog albedo + orth-to-fog filter:*
+
+| class | n   | t_gold−ramp | t_magma−ramp | t_gold−t_magma |
+|-------|-----|-------------|--------------|----------------|
+| trunk (vertical) | 666 | +0.212 | +0.002 | +0.210 |
+| grass (ground)   | 975 | +0.174 | +0.002 | +0.172 |
+
+`grass − trunk` residual = **−0.038** (B predicted **−0.18** if only
+grazing ground were distance-shifted; A predicted ~0). Absolute seed7
+t_gold is *positive* (gold looks more fogged) because magma nofog `T` is not
+bit-aligned to the golden's albedo (lighting/smooth residuals on the
+mc_capture path); that biases both classes equally and is why the
+**relative** residual is the discriminator, not the absolute sign.
+
+**Verdict: A (orientation-independent fog-curve gap).** Gold is under-fogged
+by ~0.17 vs the documented linear EYE_RADIAL ramp on clean same-geometry
+ground; vertical faces do **not** sit on the ramp while ground is offset, so
+B (grazing-only distance mapping) is out. Equivalent descriptions of A: a
+constant Δt ≈ −0.17, a constant δd ≈ 5.3 blocks, or an effective
+start/end ≈ 101/134.5 — all the same linear warp. Live GL state still
+reports 96/128, so this is evaluation / post-fog, not the configured
+params.
+
+**No magma code change.** Magma already matches the oracle formula
+(`EntityRenderer.setupFog(0)` start=`far*0.75` end=`far`,
+`glFogi(34138, 34139)` EYE_RADIAL) to 0.002 RMSE; fudging
+`GM_TERRAIN_FOG_*` toward 101/134 would paper over the golden and break the
+documented ramp. Next leads: (1) llvmpipe / capture GL fog evaluation vs
+spec at large eye-radial d (does the driver honour LINEAR EYE_RADIAL as
+`(d−start)/(end−start)`?), (2) any post-fog colour path on the recording
+client that pulls toward terrain, (3) a live depth/fog-factor dump from the
+Java capture at the same columns. Do not retune CLASS_PIXEL_BUDGETS for the
+band.
+
 ### The oracle's fogColor1 had not converged when recording started
 
 Every scenario tape is worse at t=0 than at t=10, by 2-6x, on the whole-frame

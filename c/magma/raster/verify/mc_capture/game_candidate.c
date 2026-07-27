@@ -76,6 +76,7 @@ int main(int argc, char **argv) {
     int   W = 854, H = 480;
     long long seed = 0;
     const char *out = NULL;
+    const char *depth_out = NULL; /* optional float32 LE depth dump (w*h) */
 
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--eye") && i + 3 < argc) {
@@ -96,6 +97,8 @@ int main(int argc, char **argv) {
             seed = atoll(argv[++i]);
         } else if (!strcmp(argv[i], "--ppm") && i + 1 < argc) {
             out = argv[++i];
+        } else if (!strcmp(argv[i], "--depth") && i + 1 < argc) {
+            depth_out = argv[++i];
         } else if (argv[i][0] != '-' && !out) {
             out = argv[i];   /* positional PPM path, rung4 parity */
         }
@@ -189,6 +192,23 @@ int main(int argc, char **argv) {
         fprintf(stderr, "write failed\n"); return 1;
     }
     printf("wrote %s (%dx%d)\n", out, W, H);
+    if (depth_out) {
+        FILE *df = fopen(depth_out, "wb");
+        if (!df) {
+            perror(depth_out);
+            free(rgb); cr_fb_free(&fb); posescene_free(&scn);
+            return 1;
+        }
+        size_t n = (size_t)W * (size_t)H;
+        if (fwrite(fb.depth, sizeof(float), n, df) != n) {
+            fprintf(stderr, "depth write failed\n");
+            fclose(df);
+            free(rgb); cr_fb_free(&fb); posescene_free(&scn);
+            return 1;
+        }
+        fclose(df);
+        printf("wrote %s (float32 depth %dx%d)\n", depth_out, W, H);
+    }
     free(rgb); cr_fb_free(&fb);
     posescene_free(&scn);
     return 0;
