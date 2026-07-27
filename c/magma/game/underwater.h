@@ -40,7 +40,8 @@ typedef struct {
 } GmUnderwater;
 
 /* One tick of EntityRenderer.updateRenderer's fogColor1 smoothing:
- *   f3 = lightBrightnessTable[max(sky, block) at BlockPos(entity)] (feet)
+ *   f3 = world.getLightBrightness(BlockPos(entity)) (feet), including
+ *        useNeighborBrightness where the block registry enables it
  *   f4 = renderDistanceChunks / 32   (pinned RD 8 -> 0.25, see sky.h)
  *   c1 += (f3*(1-f4) + f4 - c1) * 0.1
  * Call once per game tick; seed the state with gm_uw_fog_c1_seed at start

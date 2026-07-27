@@ -4,6 +4,7 @@
 
 #include "game/sky.h"           /* GM_TERRAIN_FOG_FAR (pinned render distance) */
 #include "assets/underwater_tex.h"
+#include "world/light.h"        /* cr_k14_light_query */
 #include "world/lightmap.h"
 #include "mc_math.h"
 
@@ -37,15 +38,30 @@ static int viewpoint_fluid(const GmWorld *w, double ex, double ey, double ez) {
     return 0;
 }
 
-/* Magma currently samples the cell's own max(sky, block). Vanilla liquids use
- * neighbour brightness, but enabling that here is blocked on exact simulated
- * skylight: it fixes elytra_dip t=70/80 while regressing passing water tapes.
- * Tapes are clear weather, so skylightSubtracted is zero. */
-static float light_brightness_at(const GmWorld *w, int dim,
-                                 int x, int y, int z) {
+static int combined_light_at(const GmWorld *w, int x, int y, int z) {
     int sky = gm_world_sky_light(w, x, y, z);
     int blk = gm_world_block_light(w, x, y, z);
-    int l = sky > blk ? sky : blk;
+    return sky > blk ? sky : blk;
+}
+
+/* World.getLightBrightness -> getLightFromNeighbors -> getLight(pos, true).
+ * Blocks with useNeighborBrightness select the maximum stored combined light
+ * at up/east/west/south/north; World.java deliberately does not sample down.
+ * Registry finalization enables it for zero-opacity lava, but not opacity-3
+ * water (MaterialLiquid.blocksLight remains true). Tapes are clear weather,
+ * so skylightSubtracted is zero. */
+static float light_brightness_at(const GmWorld *w, int dim,
+                                 int x, int y, int z) {
+    int own = combined_light_at(w, x, y, z);
+    int id = gm_world_block(w, x, y, z);
+    int l = cr_k14_light_query(
+        is_lava(id),
+        combined_light_at(w, x, y + 1, z),
+        combined_light_at(w, x + 1, y, z),
+        combined_light_at(w, x - 1, y, z),
+        combined_light_at(w, x, y, z + 1),
+        combined_light_at(w, x, y, z - 1),
+        own);
     return cr_light_brightness(dim, l);
 }
 

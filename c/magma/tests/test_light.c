@@ -235,6 +235,15 @@ int main(void) {
     check(light_sky(L, wx, 200, wz) == 15,
           "direct-sky air rebuilt to 15 after leaf removal");
 
+    /* BlockLiquid is non-opaque. Water explicitly overrides light opacity to
+     * 3, while lava keeps Block's constructor-derived opacity 0. */
+    light_set_state(L, wx, 200, wz, (uint16_t)((10 << 4) | 1));
+    light_ensure(L, 0, 0, 1);
+    check(light_sky(L, wx, 200, wz) == 15,
+          "flowing lava opacity 0 preserves direct skylight");
+    light_set_state(L, wx, 200, wz, 0);
+    light_ensure(L, 0, 0, 1);
+
     /* block light near lava > 0 (scan the whole 3x3 loaded region for lava) */
     int lava_found = 0, lit = 0, lava_self = 0;
     for (int cx = -1; cx <= 1 && !lit; ++cx)
