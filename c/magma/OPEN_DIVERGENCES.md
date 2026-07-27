@@ -868,6 +868,21 @@ client that pulls toward terrain, (3) a live depth/fog-factor dump from the
 Java capture at the same columns. Do not retune CLASS_PIXEL_BUDGETS for the
 band.
 
+Two sharpening facts (2026-07-27 review): the fitted endpoints are BOTH the
+configured ones scaled by the same factor - 101/96 = 1.052 and
+134.5/128 = 1.051 - so the warp is exactly "the capture stack's fog
+distance reads as d/1.05", a multiplicative radial-distance underestimate,
+not an additive offset or a start/end reconfiguration. And the recording
+renderer is on record as llvmpipe (Mesa 26.0.3, the `glxinfo` preamble in
+every `start_vnc_client.sh` log), so lead (1) concretely means: how does
+Mesa/llvmpipe evaluate GL_NV_fog_distance EYE_RADIAL - per-vertex fog
+coord with screen-linear interpolation across the quad would systematically
+underestimate the radial distance of interior pixels on large ground quads
+(chord-vs-arc), which has the right sign and is orientation-independent at
+these view angles. Reproducing THAT (vertex-evaluated radial fog,
+interpolated) in magma would be a mechanism port, not a fudge - but measure
+it against a llvmpipe minimal repro first.
+
 ### The oracle's fogColor1 had not converged when recording started
 
 Every scenario tape is worse at t=0 than at t=10, by 2-6x, on the whole-frame
