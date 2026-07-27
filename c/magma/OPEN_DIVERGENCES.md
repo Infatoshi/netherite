@@ -406,6 +406,54 @@ independently re-measured here.
     ~0.78·C, dual top is ~0.93·C).
   - Coplanar outer re-emit: 12 failed / 4.03 (prior), fakes uniform dual
     coverage; not the model; not landed.
+  **Source and ordering closure (2026-07-27, wt/slimerim):**
+  the adjacent-slime cull hypothesis is ruled out. `ModelBakery.java:685-698`
+  puts every face whose JSON `cullface` is null into `generalQuads`; therefore
+  slime's two six-face elements produce 12 general quads and zero per-facing
+  quads. `BlockModelRenderer.java:93-110` calls `shouldSideBeRendered` only for
+  per-facing lists and renders the null-facing list unconditionally.
+  `BlockBreakable.java:37-55` does suppress a face against the same block type,
+  but that method is never consulted for these 12 quads. Shared faces must
+  therefore be present in the vanilla buffer.
+
+  The other two state hypotheses are also source-closed. Vanilla sorts
+  TRANSLUCENT quads by descending squared centroid distance within each
+  16-high `RenderChunk` (`RenderChunk.java:339-344`,
+  `VertexBuffer.java:69-92`) and renders the layer with depth writes disabled
+  (`EntityRenderer.java:1448-1466`). Magma already uses the same SRC_ALPHA
+  blend without a translucent depth write (`cpu/raster_cpu.c:209-219`), so a
+  first translucent face cannot selectively occlude the inset core through
+  the depth buffer.
+
+  A new combination experiment tested the two faithful source consequences
+  together rather than repeating either rejected lever alone: emit all 12
+  general quads for every slime and partition the C column mesh into vanilla
+  16-high sections, sorting each section's six-vertex quads by the same
+  descending centroid-distance key. It regressed **15 -> 17 failed frames**;
+  UNEXPLAINED stayed **6709 px**, and t=50 whole/terrain error increased from
+  **7.21/8.00 to 7.93/8.83 per channel**. Reversing both section and quad order
+  was a direction diagnostic, not a proposed fix: it failed much harder at
+  **19 frames, 73321 UNEXPLAINED px**, with t=50 whole/terrain
+  **34.80/35.74**. Neither change is landed.
+
+  The t=50 arithmetic explains why ordering looked plausible but also refutes
+  it as the missing implementation lever. On 30205 selected dark-rim pixels,
+  golden/candidate medians are `[113,185,95]` / `[91,148,76]`; on 2061
+  already-dual pixels both medians are `[114,185,96]`. With
+  `a=188/255`, a dual top has coefficient
+  `1-(1-a)^2 = 0.930965`. A top plus two 0.8-shaded internal N/S faces behind
+  has coefficient `a + (1-a)*0.8*(1-(1-a)^2) = 0.932940`, only
+  `[0.24,0.40,0.20]` RGB above dual at the texture mean. That numerical match
+  does not survive the actual source-defined quad population and order.
+
+  **Gate-accounting correction:** in the current baseline, `pxdiff clusters`
+  assigns the large dark platform clusters at t=50 to the semantic
+  `particles`, `viewmodel`, and `hud` masks. The reported 6709 UNEXPLAINED
+  pixels are the separate horizon-edge family, so a rim-only correction cannot
+  make that counter approach its alleged ~750 floor without changing
+  classification. The next non-fudged experiment needs a live oracle
+  translucent draw capture (quad buffer plus post-transform fragment order),
+  not another inferred cull/sort/depth variant.
   Open gap: how vanilla keeps the rim as bright as dual-top without the
   overshoot magma hits when fed full generalQuads. Blend equation itself is
   not the bug on dual-covered pixels.
