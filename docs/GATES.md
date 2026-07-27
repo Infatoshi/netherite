@@ -90,14 +90,15 @@ ticks (v2 leg fell 0.42->0.27 over its back half; pin1 continuation fell
 preserves the peak state; _last is the regressed tail. Cause undiagnosed
 (entropy/KL telemetry is not printed per update) - evaluate the BEST
 checkpoint, never the tail.
-fps pin NOT met (measured 2026-07-17, MAGMA_BENCH env-gated 12-stage timers,
-still cam, vd=8, 600 measured frames): CPU backend 5.00 fps at 1080p; CUDA
-backend 11.74 fps on the 3090 with host-rendered sky; 24.67 fps on the RTX
-PRO 6000 after moving the windowed sky fill to the existing capture-path k_sky
-kernel (sky stage 34.8 -> 0.65 ms; pixel A/B: 0.0019% isolated star dots only).
-The remaining 28.6 ms raster stage is the wall: 60 fps needs a ~3x raster
-kernel (bit-parity-constrained), hud caching (4.7 ms) and io/present overlap
-(~3.8 ms). CPU backend is not on the 60 fps path.
+fps pin NOT met (re-measured 2026-07-27, MAGMA_BENCH env-gated 12-stage
+timers, still cam, vd=8, SDL dummy video, 600 measured frames at 1080p):
+CPU backend 4.51 fps (was 5.00 on 07-17; the cutout-coverage fix added real
+geometry); RTX PRO 6000 CUDA backend 35.93 fps mean / 35.98 p50 (was 24.67
+on 07-17 - the raster stage fell 28.6 -> 17.5 ms). Stage means now: raster
+17.5, hud 4.4, mesh 2.3, present 1.3, cuda in+out 1.7, sky 0.43 ms. 60 fps
+needs a ~1.6x raster kernel (bit-parity-constrained) plus hud caching and
+io/present overlap. The 3090's 11.74 (07-17, host-rendered sky) was not
+re-measured - it has a co-tenant. CPU backend is not on the 60 fps path.
 
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.
