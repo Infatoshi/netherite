@@ -203,14 +203,24 @@ def wait_for_qrl(timeout: float = 600.0) -> QRLEnv:
     deadline = time.monotonic() + timeout
     last_error: Exception | None = None
     while time.monotonic() < deadline:
+        # The bridge serves ONE client at a time: a probe that times out but
+        # leaves its socket open wedges the port for every retry until TCP
+        # resets it (~5 min), which is longer than this whole loop. Always
+        # close the probe env on failure, and give the first reset enough
+        # time to ride out a slow initial world load.
+        env = None
         try:
             env = QRLEnv()
-            response = env.reset(timeout=10.0)
+            response = env.reset(timeout=30.0)
             if response.get("ok"):
                 return env
-            env.close()
         except (ConnectionError, OSError, TimeoutError) as error:
             last_error = error
+        if env is not None:
+            try:
+                env.close()
+            except OSError:
+                pass
         time.sleep(1.0)
     raise TimeoutError(f"qrl bridge did not become ready: {last_error}")
 
