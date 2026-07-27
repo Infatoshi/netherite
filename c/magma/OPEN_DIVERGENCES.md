@@ -780,6 +780,26 @@ position of a tall NEAR vertical edge (slime block silhouette) golden vs
 magma on the same frame - a registration offset shows there too; a pure fog
 difference does not.
 
+Probe results (same day): the near-edge measurement over 122 high-contrast
+edge pairs at t=80 gives magma-minus-gold dy median 0.000 px (mean 0.21,
+std 0.41 - outlier-driven), and a lower-frame band agrees (median 0.000).
+A uniform screen shift, eye-height offset, or FOV-scale error would all
+have moved those near edges by the same ~0.3 px, so every screen-space form
+of H3 is now refuted alongside H1/H2. Separately, the oracle's LIVE GL fog
+state is on record: `mc_capture/camera_seed7.json` captures
+`fog_start 96.0, fog_end 128.0, fog_mode 9729 (LINEAR),
+fog_distance_mode_nv 34139` from the running client, so the empirical
+"102/134" fit is NOT the oracle's fog config either. What survives: either
+the capture GL stack's fog EVALUATION deviates from t=(d-96)/32 at large d,
+or golden's row-to-distance mapping at grazing incidence differs in a way
+near edges cannot see. Next probe that separates them: compute golden's
+empirical t(d) across the whole 96..128 band on the mc_capture pose/seed7
+scenes (exact camera + fog state recorded per capture) against analytic
+ground distances - a fog-curve deviation shows as t(d) bending off the
+ramp everywhere; a mapping difference shows t(d) on-ramp but with d
+shifted only on grazing ground, not on vertical faces at the same
+distance.
+
 ### The oracle's fogColor1 had not converged when recording started
 
 Every scenario tape is worse at t=0 than at t=10, by 2-6x, on the whole-frame
