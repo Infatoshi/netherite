@@ -483,9 +483,21 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
         # visible along the taped path into the sparse id+meta delta against
         # magma worldgen, then apply it after set_pose has generated the
         # starting window but before tick 0 executes.
+        # The falling-liquid heuristics below (drop one-sided falls, clear
+        # falling cells at first player contact) exist because LEGACY elytra
+        # tapes recorded scenario liquids mid-growth: the post-capture world
+        # save holds a fuller curtain than the goldens ever saw. Tapes whose
+        # header carries fog_color1 come from the recorder generation that
+        # also waits for scenario liquids to settle before recstart
+        # (fix e4937f0 + cb1add4 landed together), so their saves are
+        # capture-consistent and the heuristics DELETE real water/lava the
+        # goldens render (t=70 curtain interior, t=150 lava-dip fog on the
+        # 20260727 re-record). Scope them to the legacy tapes.
         elytra_tape = bool(ticks and len(ticks[0].get("inv", [])) > 38
                            and ticks[0]["inv"][38] != 0
-                           and int(ticks[0]["inv"][38][0]) == 443)
+                           and int(ticks[0]["inv"][38][0]) == 443
+                           and (tape_path is None
+                                or tape_fog_color1(tape_path) is None))
         source_x = None
         source_z_range = None
         if elytra_tape and snapshot_patch:
