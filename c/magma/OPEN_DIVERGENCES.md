@@ -457,7 +457,26 @@ independently re-measured here.
   Open gap: how vanilla keeps the rim as bright as dual-top without the
   overshoot magma hits when fed full generalQuads. Blend equation itself is
   not the bug on dual-covered pixels.
-- `scenario_elytra_dip_20260723T001355Z`: 4 failed frames.
+- `scenario_elytra_dip`: **re-recorded 2026-07-27 as `20260727T214459Z`**
+  (old `20260723T001355Z` moved to `tapes/retired/`, baseline swapped). The
+  new tape has settled liquids (200 settle ticks per setup command), a
+  converged recorded `fog_color1` (0.99999976 in the header), and the lava
+  sea trimmed to x<=36 - the first settled recording (`213715Z`, also in
+  retired/) landed at x=40.7 in the last lava column, burned to death
+  standing there, and respawned at world spawn, which replay cannot follow.
+  Current state: **1 failed frame, t=60, 3010 px** - narrow ~12px vertical
+  strips inside the curtain where the golden renders darker falling-water
+  streaks and magma is flat brighter blue (cluster means g [45,65,160] vs
+  m [48,69,182]). Texture animations ARE pinned on this tape, so it is not
+  animation phase; it is the flow-texture selection/orientation on falling
+  cells viewed from inside the curtain, the same family as the rejected
+  native `water_flow` quadrant experiment. Whole-frame at t=60 is
+  mean_abs 3.57 (threshold 3.32), ratio g/m ~0.98/ch.
+  The remainder of this entry documents the RETIRED `20260723T001355Z`
+  tape's failures for the record; its mechanisms (fogColor1 warmup at t=0,
+  mid-growth waterfall at t=60-80) are closed by construction on the new
+  tape.
+  Old `scenario_elytra_dip_20260723T001355Z`: 4 failed frames.
   **RETRACTED (2026-07-27): the t=70/t=80 "neighbour brightness for water"
   mechanism above was wrong.** Registry finalization (`Block.java`
   `registerBlocks` tail) sets `useNeighborBrightness` only for stairs, slabs,
