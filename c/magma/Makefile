@@ -216,7 +216,8 @@ cuda/raster_cuda.o: cuda/raster_cuda.cu core/types.h core/shade.c
 # TU (C sources included) so the verified cr_raster_cuda + the CPU path agree.
 test-raster-parity:
 	$(NVCC) $(NVFLAGS_GAME) -Iraster/verify tests/test_raster_parity.c \
-	    cpu/raster_cpu.c core/shade.c cuda/raster_cuda.cu -o tests/test_raster_parity
+	    cpu/raster_cpu.c core/shade.c core/math.c cuda/raster_cuda.cu \
+	    -o tests/test_raster_parity
 	CUDA_VISIBLE_DEVICES=1 ./tests/test_raster_parity
 
 # Minecraft selects GL_EYE_RADIAL_NV on the live llvmpipe renderer. Keep fog

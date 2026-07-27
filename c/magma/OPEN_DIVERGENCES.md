@@ -409,15 +409,22 @@ independently re-measured here.
   Open gap: how vanilla keeps the rim as bright as dual-top without the
   overshoot magma hits when fed full generalQuads. Blend equation itself is
   not the bug on dual-covered pixels.
-- `scenario_elytra_dip_20260723T001355Z`: 4 failed frames. The t=70/t=80
-  whole-frame dark decay is `fogColor1`: `Block` marks liquids translucent and
-  therefore `useNeighborBrightness`, while `World.getLightBrightness` calls
-  `getLightFromNeighbors`. Magma uses the water cell's own skylight 11 instead
-  of the adjacent 14. Vanilla's five-neighbour maximum reduces t=70 5.71 ->
-  2.13/ch and t=80 3.14 -> 1.97/ch, but the same exact lookup regresses
-  `water_dive` from 0 to 14 failed frames because magma's simulated neighbour
-  skylight is not yet oracle-exact there. It is therefore not landed; fixing
-  the light field is prerequisite. The other failures are t=0 (4.39/ch plus
+- `scenario_elytra_dip_20260723T001355Z`: 4 failed frames.
+  **RETRACTED (2026-07-27): the t=70/t=80 "neighbour brightness for water"
+  mechanism above was wrong.** Registry finalization (`Block.java`
+  `registerBlocks` tail) sets `useNeighborBrightness` only for stairs, slabs,
+  farmland/grass path, translucent, or `lightOpacity == 0` blocks. Water has
+  opacity 3 and `MaterialLiquid.blocksLight()` keeps it non-translucent, so
+  vanilla samples the water cell's OWN light - exactly what magma already
+  did. Forcing the neighbour lookup for water fails `water_dive` 93 frames.
+  Lava DOES qualify (registered without `setLightOpacity`, so opacity 0 -
+  magma's 255 was the real light bug, fixed with the exact
+  `getLightBrightness` port through rk_14 in `game/underwater.c`; all four
+  water tapes now diff clean against the oracle's saved SkyLight, see
+  `trace/skylight_diff.py`). t=70/t=80's decay improved by neither, which
+  fits the mid-growth waterfall below: the oracle's feet crossed water cells
+  whose growth state magma's frozen approximation does not carry.
+  The other failures are t=0 (4.39/ch plus
   an 85 px one-row registration cluster) and t=60 (10.62/ch water-colour wash,
   463 unexplained px). A separate native `water_flow` quadrant experiment
   removed that cluster locally but caused broad `water_dive`/`water_flow`
@@ -427,7 +434,10 @@ independently re-measured here.
   ratios R 1.084 / G 1.072 / B 1.135, and after resurfacing golden carries a
   decaying brightness excess (1.026 at t=70, 1.016 at t=80, 1.004 at t=90,
   gone by t=110) - a `fogColor1` that dropped less during the dip than
-  magma's, exactly the neighbour-brightness gap `game/underwater.c:40` states.
+  magma's. With the neighbour-brightness reading retracted, the remaining
+  driver is the water cells themselves: the oracle's dip crossed a
+  partially-grown curtain whose cell contents (and thus feet light) differ
+  from magma's frozen approximation.
   **The t=60 463px cluster is a DEVELOPING waterfall the replay cannot
   represent (2026-07-26).** The scenario fills a single water wall at x=10
   (`/fill 10 4 -3 10 22 3 water`) and starts recording immediately; the x=9
@@ -750,6 +760,25 @@ confirm with a depth/eye_dist dump from the live Java capture at these columns.
 
 Do **not** widen RD cull, fudge `GM_TERRAIN_FOG_*`, or retune CLASS_PIXEL_BUDGETS
 for this band.
+
+**Addendum (2026-07-27, independent re-measure): the fit degeneracy is
+resolved - same fog color, real fog-factor gap - and lead (b) is the live
+one.** On t=80 agreeing columns, both sides converge to the identical
+sky/fog color (179,207,255) in the row above the silhouette and to the same
+grass color a few rows below; magma's last terrain rows are consistently
+~+37 blue foggier (x=100: gold (128,154,152) vs magma (149,176,191); x=220
+and x=530 alike, and magma's sil+1 row is still fog-tinted where gold's is
+already clean grass). So it is genuinely Δt with shared F, not a fog-color
+difference. Converting: Δt 0.18 x 32-block ramp ≈ 5.8 blocks of effective
+distance, and at the horizon's ~6 m per pixel row that is ~0.3 px of
+vertical registration - exactly the sensitivity the H3 note computed, and
+invisible to the integer-shift test that "refuted" it. A single sub-pixel
+vertical projection offset (eye height, pitch, gluPerspective cotangent, or
+viewport pixel-center convention) explains a global horizon-only Δt with
+zero near-field effect. Discriminating probe: measure the sub-pixel screen
+position of a tall NEAR vertical edge (slime block silhouette) golden vs
+magma on the same frame - a registration offset shows there too; a pure fog
+difference does not.
 
 ### The oracle's fogColor1 had not converged when recording started
 
