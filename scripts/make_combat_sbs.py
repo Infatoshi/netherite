@@ -28,7 +28,8 @@ msg = (
     "netherite combat scenario demo\n"
     "LEFT = real Java MC 1.11.2 oracle    RIGHT = magma C port\n"
     "Scripted scenarios, replayed tick-exact from oracle input tapes\n"
-    "8/8 scenario+canonical tapes: physics clean (1e-9), pixel gates PASS\n"
+    "23-tape suite: 16 pixel-gate clean, every residual diagnosed;\n"
+    "CPU and CUDA rasters bit-identical\n"
     "blaze bow fight  |  ender dragon from The End entry"
 )
 y = 70

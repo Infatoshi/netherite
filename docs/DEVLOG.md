@@ -867,3 +867,36 @@ sort that takes slime 15 -> 14 and regresses `elytra_dip` 784 -> 16495 px.
 Tree state at hand-off: full nightly on GPU0, 23 tapes, RESULT PASS, zero
 REGRESSION lines; `make -C c/magma test-game` PASS; `demos/pixel_match_sbs.mp4`
 regenerated and inspected.
+
+## 2026-07-27 (launch prep: M3 throughput measured, tapes/assets refreshed)
+
+- **M3 throughput gate: PASS.** GPU0 (RTX PRO 6000 Blackwell, sm_120),
+  exclusive card (nvidia-smi clean before every run), `verify_cuda.py
+  --bench`, t0 snapshots (full action decode), repeat 4, camera per
+  decision, 1000 timed decisions with pre-generated on-device random
+  actions and periodic masked resets:
+
+  | N | env-ticks/s | decisions/s |
+  |---|---|---|
+  | 1024 | 0.79M | 198k |
+  | 4096 | **2.22M** | 554k |
+  | 8192 | 3.02M | 756k |
+  | 16384 | OOM: region pool 128^3 x N = 137.4 GB > 96 GB |
+
+  Gate was >=1M aggregate at N=4096: cleared at 2.22M (repeatable to 3
+  digits across two runs; a shorter 250-decision run reads ~5% higher, so
+  report the 1000-decision figure). Curriculum snapshots at N=4096: 2.61M /
+  653k (cheaper worlds). CPU reference (9950X3D, 32 threads,
+  `blaze_cpu.so` OMP, same loop/actions/snapshots via a mirror script):
+  0.29M env-ticks/s at N=256, 0.25M at N=1024 - best-vs-best the GPU is
+  ~10-12x the whole CPU.
+- elytra_dip re-recorded and adopted (`20260727T214459Z`): settled liquids,
+  converged fog_color1 header, 1 failed frame (flow-texture streaks) vs 4.
+  Old tape retired. Recorder now writes fog_color1 + rain/thunder strength.
+- Fidelity state for launch copy: 23-tape suite, 16 rc=0, 7 rc=3 with every
+  residual diagnosed in OPEN_DIVERGENCES.md; CPU==CUDA raster parity
+  bit-exact; CPU and CUDA nightly sweeps both RESULT: PASS.
+- Demos re-encoded from today's binaries: `demos/pixel_match_sbs.mp4`
+  (gates re-verified PASS during encode) and `demos/combat_sbs.mp4`
+  (blaze_bow_demo + ender_dragon_demo, title copy updated to the 23-tape
+  claim).
