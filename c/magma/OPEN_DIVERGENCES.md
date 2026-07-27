@@ -652,6 +652,105 @@ the band also still differ. `sky.h` `GM_TERRAIN_ZFAR = RD*16*sqrt2` already
 matches `EntityRenderer.setupCameraTransform`. Do not widen R or fudge fog end
 to paper over this.
 
+### slime_bounce horizon band: fog-blend decomposition (wt/horizonfog, 2026-07-27)
+
+Measured on t=80 of `scenario_slime_bounce_20260723T001527Z` (flat world, pose
+feet `(0.5,4,0.5)` yaw/pitch 0, RD8, fog linear 96→128, GL_EYE_RADIAL_NV).
+Replay via `replay_tape.py --cpu`; goldens from the tape frames dir. Silhouette
+= first row from y=235 with blue < 200. Baseline gate: 15 failed frames,
+UNEXPLAINED 6709.
+
+**Blend model.** Horizon sky / fog colour F = (179, 207, 255) (matches
+`updateFogColor` clear at this noon flat take). Unfogged terrain T recovered
+from a `MAGMA_FOG=0` replay of the same tape (same geometry, no fog lerp). Then
+for each edge pixel:
+
+```
+c = (1 - t) * T + t * F    →    t = fog factor in [0,1]
+```
+
+G−M colour delta at the first gold-visible row is **parallel to (F−T) with
+cos ≈ −0.999** (orth residual ~2/ch): same albedo T, almost pure fog-factor
+difference. Not a texel flip, not a sky-gradient bug (rows above the band are
+bit-identical).
+
+**Per-run numbers (t=80, mean over run columns at first gold-visible row):**
+
+| run cols | mid-angle | gold sil y | magma sil y | t_gold | t_magma | Δt (m−g) | r_eff gold | r_eff magma |
+|----------|-----------|------------|-------------|--------|---------|----------|------------|-------------|
+| 58–90 (33) | −45.8° | 246 | 247 | 0.647 | 0.831 | **+0.185** | ~117 m | ~123 m |
+| 174–210 (37) | −34.4° | 245 | 246 | 0.626 | 0.825 | **+0.199** | ~116 m | ~122 m |
+| 644–676 (33) | +34.3° | 245 | 246 | 0.626 | 0.820 | **+0.194** | ~116 m | ~122 m |
+| 762–796 (35) | +45.8° | 246 | 247 | 0.639 | 0.831 | **+0.192** | ~116 m | ~123 m |
+
+Full-width mean Δt at `min(sil_g, sil_m)` is **+0.178** (std 0.057) — the
+same ~0.18 over-fog is present on the 711 agreeing columns; the 143 flips are
+only where gold's t pushes blue under 200 one row earlier than magma.
+
+Re-fogging magma's nofog T with `t_magma − 0.18` cuts edge-row error from
+~25/ch to ~4/ch on every run (residual then matches gold_as_fog(T) ~2/ch). So
+the band **is** the fog-factor gap, not a separate coverage hole.
+
+**Geometric coverage (`MAGMA_FOG=0`).** Magma has terrain (blue≪200) from y=244
+on the run columns; with fog on, y=244–245 are sky-exact (t=1, fully fogged to
+F). Gold's visible sil is y=245/246. Magma is not missing far geometry — it
+draws it, fully fogged, then shows a more-fogged transition row.
+
+**Analytic flat-plane check** (ground y=4, eye y=5.62, vFOV 70, pitch 0):
+
+- Magma's measured t matches radial fog on the plane hit: mean
+  `|t_magma − t_radial(r_hit)| ≈ 0.002` for |angle| > 10°.
+- Gold is systematically under-fogged vs the same hit:
+  `|t_gold − t_radial| ≈ 0.19`. Planar |z| is worse for gold
+  (`|t_gold − t_planar| ≈ 0.30`).
+- Magma vs documented ramp 96/128: RMSE **0.0015**. Gold vs 96/128: RMSE
+  **0.15**. Best unconstrained fit for gold is roughly start≈102 end≈134
+  (not a constant present in oracle-src).
+
+**Hypothesis results:**
+
+1. **Per-vertex vs per-pixel fog — REFUTED as the 0.18 gap.** Magma already
+   does perspective-correct per-fragment radial fog (`raster_cpu.c` interpolates
+   `eye_dist_w`, `shade.c` applies the linear ramp). Vanilla 1.11.2 sets no
+   `glHint(GL_FOG_HINT, …)` (default DONT_CARE). On 1×1 block faces (both
+   mesher and vanilla FaceBakery), max |t_true − t_affine_vertex| and
+   |t_true − t_persp_lerp_r| are **~7e−5** at the horizon — three orders below
+   0.18. The sky-plane Gouraud fix (`ac47c2b`, 64×64 tiles) does not transfer:
+   terrain quads are 1 m, not 64 m.
+
+2. **Planar |z| vs radial — REFUTED as the fix direction.** Oracle capture
+   queries `fog_distance_mode_nv = 34139` (GL_EYE_RADIAL_NV); magma matches that
+   and the analytic plane. Forcing planar was already shown to regress the
+   canonical tape (OPEN_DIVERGENCES "Canonical tape residual"). Gold is closer
+   to radial than planar but still Δt≈−0.18 vs true radial.
+
+3. **Projected far-edge / half-pixel — open but not sufficient alone.** Far
+   ground tops foreshorten to ~0.04 px of height; the visible rim is extremely
+   pitch-sensitive (Δr ≈ 6 m for ~0.04° ≈ 0.3 px). A pure integer row-shift of
+   magma vs gold is a *worse* match than same-row fog adjust (best dy=0). The
+   data prefer "same pixel, same T, different t" over "magma is one row late."
+   A sub-pixel registration gap could still contribute at the threshold, but it
+   does not explain the global Δt≈0.18 on agreeing columns.
+
+**What magma implements (oracle-aligned):**
+`EntityRenderer.setupFog(0)` linear start=`far*0.75` end=`far` with
+`far=RD*16=128` (`EntityRenderer.java:2025–2036`), plus
+`glFogi(34138, 34139)` when NV_fog_distance is present (`:2039–2041`). Magma:
+`GM_TERRAIN_FOG_START/END` in `sky.h`, radial `eye_dist` in `transform.c` /
+`shade.c`. No `glHint` for fog in oracle-src.
+
+**Not a safe code fix yet.** Dropping magma fog by ~0.18 (or widening fog end /
+narrowing start toward the empirical 102/134 fit) would paper over gold and
+break the documented vanilla ramp that magma already matches to 0.0015 RMSE on
+this geometry. Next leads if revisited: (a) capture-side fog evaluation on the
+recording GL stack (does the golden's driver honour EYE_RADIAL the same way the
+seed7 probe claims?), (b) any remaining view/projection registration at the
+0.3 px level that would put gold on a nearer isosurface while sharing T, (c)
+confirm with a depth/eye_dist dump from the live Java capture at these columns.
+
+Do **not** widen RD cull, fudge `GM_TERRAIN_FOG_*`, or retune CLASS_PIXEL_BUDGETS
+for this band.
+
 ### The oracle's fogColor1 had not converged when recording started
 
 Every scenario tape is worse at t=0 than at t=10, by 2-6x, on the whole-frame
