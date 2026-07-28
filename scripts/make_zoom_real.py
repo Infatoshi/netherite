@@ -1,14 +1,16 @@
 """Launch-thread zoom video over 8192 REAL exact-renderer tiles.
 
 - Hero tile (zoom start) is the TRAINED chain policy's POV replayed through
-  the exact renderer (scripts/zoom_hero_clip.py renders it first).
-- A ring of neighbours around the hero is animated (slow scripted camera
-  pans) so the opening does not look frozen; every other tile is a distinct
-  scenic (world, pose) still.
-- The zoom is a PURE scale about a fixed anchor (the hero tile): no lateral
-  drift, no easing of the center. Sampling goes through a mip pyramid with
-  float-box Image.transform, so there is no per-frame integer snapping
-  (the earlier cut's jitter) and no aliasing shimmer.
+  the exact renderer, window picked by camera-motion score so it never sits
+  still (scripts/zoom_hero_clip.py renders it first).
+- A 9x7 block around the hero is animated (slow scripted pans). While the
+  viewport is inside that block, the whole view is sampled from ONE rigid
+  per-frame canvas built at 512x288/tile, so neighbouring tiles cannot
+  wobble against each other; the hero is overlaid from its native render.
+- Outside the block, the view samples a native-256x144-per-tile mosaic
+  through a mip pyramid with float-box transforms: no integer snapping,
+  no shimmer, and tiles stay crisp right through the handoff.
+- The zoom is a PURE exponential scale about a fixed anchor. No drift.
 
 Run:
   1) cd c/magma && uv run --no-project --with numpy python \
@@ -32,9 +34,10 @@ CONF = "/home/infatoshi/dev/nw/.tmp/zoom_video.conf"
 HERO_DIR = "/home/infatoshi/dev/nw/.tmp/zoom_hero"
 W, H, FPS = 1920, 960, 30
 ZOOM_FRAMES, HOLD_FRAMES = 270, 74
-RW, RH = 256, 144          # per-pose render size
-TW, TH = 128, 72           # mosaic tile size
-PAN_RATE = 0.30            # deg/frame for animated neighbour tiles
+TW, TH = 256, 144          # tile size (native still-render resolution)
+PW, PH = 512, 288          # animated-tile render resolution
+PAN_RATE = 0.30            # deg/frame for animated tiles
+BLK_C, BLK_R = 9, 7        # animated block around the hero
 
 
 def poses_for(seed, n_poses):
@@ -73,7 +76,7 @@ def render_seed(job):
     ticks = 3 + 2 * n_poses + 2
     r = subprocess.run(
         [GAME, "--headless", "--world", "default", "--seed", str(seed),
-         "--ticks", str(ticks), "--width", str(RW), "--height", str(RH),
+         "--ticks", str(ticks), "--width", str(TW), "--height", str(TH),
          "--mobs", "off", "--script", script,
          "--state-out", "/dev/null", "--frames-out", outdir],
         env=game_env(), cwd=MAGMA, capture_output=True, timeout=600)
@@ -84,11 +87,8 @@ def render_seed(job):
     return seed
 
 
-PW, PH = 512, 288          # animated-neighbour render size (crisp when big)
-
-
 def render_pan(job):
-    """Slow-pan clip for one animated neighbour tile."""
+    """Slow-pan clip for one animated tile; returns its dir + last frame."""
     seed, pose_i, n_poses, frames, workdir = job
     outdir = os.path.join(workdir, f"pan512_s{seed}_p{pose_i}")
     marker = os.path.join(outdir, "DONE")
@@ -115,28 +115,31 @@ def render_pan(job):
             raise RuntimeError(f"pan {seed}/{pose_i}: "
                                f"{r.stderr.decode(errors='replace')[-200:]}")
         open(marker, "w").close()
-    clip = np.zeros((frames, TH, TW, 3), np.uint8)
-    for t in range(frames):
-        fp = os.path.join(outdir, f"frame_{3 + t + 1:06d}.ppm")
-        clip[t] = np.asarray(Image.open(fp).resize((TW, TH), Image.LANCZOS))
-    return outdir, clip
+    last = np.asarray(Image.open(
+        os.path.join(outdir, f"frame_{3 + frames:06d}.ppm")).resize(
+            (TW, TH), Image.LANCZOS))
+    return outdir, last
+
+
+def pan_frame(pdir, f):
+    return Image.open(os.path.join(pdir, f"frame_{3 + f + 1:06d}.ppm"))
 
 
 def tile_of(workdir, seed, pose_i):
     fp = os.path.join(workdir, f"s{seed}",
                       f"frame_{3 + 2 * pose_i + 1:06d}.ppm")
-    return np.asarray(Image.open(fp).resize((TW, TH), Image.LANCZOS))
+    return np.asarray(Image.open(fp))
 
 
 def tile_stats(img):
-    """(usable, land, sky_frac) - rejects dark/inside-terrain/flat frames."""
+    """(usable, land) - rejects dark/inside-terrain/flat frames."""
     a = img.astype(np.int16)
     blueish = (a[..., 2] - np.maximum(a[..., 0], a[..., 1])) > 20
     lum = a.mean(axis=2)
     land = 1.0 - float(blueish.mean())
     dark = float((lum < 25).mean())
     usable = (lum.mean() >= 60 and dark <= 0.25 and float(lum.std()) >= 18)
-    return usable, land, float(blueish.mean())
+    return usable, land
 
 
 def main():
@@ -167,7 +170,7 @@ def main():
     for seed in range(args.seeds):
         for pose_i in range(args.poses):
             img = tile_of(args.workdir, seed, pose_i)
-            usable, land, _sky = tile_stats(img)
+            usable, land = tile_stats(img)
             row = (land, seed, pose_i, img)
             if usable and land >= args.min_land:
                 good.append(row)
@@ -190,7 +193,7 @@ def main():
         idx_of[(r, c)] = (seed, pose_i)
         mosaic[r * TH:(r + 1) * TH, c * TW:(c + 1) * TW] = img
 
-    # hero: trained-policy POV clip (zoom_hero_clip.py output)
+    # hero: trained-policy POV clip
     meta = json.load(open(os.path.join(HERO_DIR, "META.json")))
     hero_frames_dir = os.path.join(HERO_DIR, "frames")
     hero_files = sorted(f for f in os.listdir(hero_frames_dir)
@@ -198,57 +201,44 @@ def main():
     assert len(hero_files) >= 200, f"hero clip too short: {len(hero_files)}"
     cr, cc = rows // 2, cols // 2
 
-    # animated neighbour ring: 5x3 block around the hero
-    ring = [(r, c) for r in range(cr - 1, cr + 2)
-            for c in range(cc - 2, cc + 3) if (r, c) != (cr, cc)]
-    print(f"rendering {len(ring)} animated neighbour tiles...")
+    # animated block: rendered pans, sampled per frame from disk
+    r0, c0 = cr - BLK_R // 2, cc - BLK_C // 2
+    block = [(r, c) for r in range(r0, r0 + BLK_R)
+             for c in range(c0, c0 + BLK_C) if (r, c) != (cr, cc)]
+    print(f"rendering {len(block)} animated tiles...")
     pan_jobs = [(idx_of[rc][0], idx_of[rc][1], args.poses, total,
-                 args.workdir) for rc in ring]
-    anim = {}
-    with ProcessPoolExecutor(max_workers=min(args.jobs, len(ring))) as ex:
-        for rc, (pdir, clip) in zip(ring, ex.map(render_pan, pan_jobs)):
-            anim[rc] = (pdir, clip)
+                 args.workdir) for rc in block]
+    pan_dirs = {}
+    with ProcessPoolExecutor(max_workers=args.jobs) as ex:
+        for rc, (pdir, last) in zip(block, ex.map(render_pan, pan_jobs)):
+            pan_dirs[rc] = pdir
             r, c = rc
-            mosaic[r * TH:(r + 1) * TH, c * TW:(c + 1) * TW] = clip[-1]
+            mosaic[r * TH:(r + 1) * TH, c * TW:(c + 1) * TW] = last
     hero_last = np.asarray(Image.open(
         os.path.join(hero_frames_dir, hero_files[-1])).resize(
             (TW, TH), Image.LANCZOS))
     mosaic[cr * TH:(cr + 1) * TH, cc * TW:(cc + 1) * TW] = hero_last
     mh, mw = mosaic.shape[:2]
 
-    # mip pyramid for shimmer-free minification
     mips = [Image.fromarray(mosaic)]
-    while mips[-1].width > cols * 4:
+    while mips[-1].width > 1024:
         mips.append(mips[-1].reduce(2))
 
-    # pure zoom about the hero tile center: fixed anchor, no drift
+    # canvas geometry (mosaic units and 2x canvas pixels)
+    K = PW // TW
+    ox, oy = c0 * TW, r0 * TH
+    span_w, span_h = BLK_C * TW, BLK_R * TH
+
     ax, ay = (cc + 0.5) * TW, (cr + 0.5) * TH
     w0, w1 = float(TW), float(mw)
     font = ImageFont.truetype(
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 96)
 
-    def paste_clip(frame, pdir, clip, r, c, x0, y0, scale, f):
-        sx, sy = (c * TW - x0) * scale, (r * TH - y0) * scale
-        sw, sh = TW * scale, TH * scale
-        if sw < 2 or sx > W or sy > H or sx + sw < 0 or sy + sh < 0:
-            return
-        fi = min(f, len(clip) - 1)
-        if sw >= 192:
-            # big on screen: paste from the native 512x288 render
-            src = Image.open(os.path.join(pdir, f"frame_{3 + fi + 1:06d}.ppm"))
-            res = src.resize((max(int(round(sw)), 1),
-                              max(int(round(sh)), 1)),
-                             Image.LANCZOS if sw < PW else Image.NEAREST)
-        else:
-            res = Image.fromarray(clip[fi]).resize(
-                (max(int(round(sw)), 1), max(int(round(sh)), 1)),
-                Image.LANCZOS)
-        frame.paste(res, (int(round(sx)), int(round(sy))))
-
     enc = subprocess.Popen(
         ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
          "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v", "libx264",
          "-crf", "18", "-pix_fmt", "yuv420p", args.out], stdin=subprocess.PIPE)
+    canvas = Image.new("RGB", (BLK_C * PW, BLK_R * PH))
     for f in range(total):
         t = min(f / (ZOOM_FRAMES - 1), 1.0)
         s = t * t * (3 - 2 * t)
@@ -256,21 +246,34 @@ def main():
         vh = vw * H / W
         x0 = float(np.clip(ax - vw / 2, 0, mw - vw))
         y0 = float(np.clip(ay - vh / 2, 0, max(mh - vh, 0)))
+        in_canvas = (x0 >= ox and y0 >= oy and x0 + vw <= ox + span_w
+                     and y0 + vh <= oy + span_h)
+        if in_canvas:
+            # one rigid hi-res layer: tiles cannot move against each other
+            for (r, c) in block:
+                px, py = (c - c0) * PW, (r - r0) * PH
+                canvas.paste(pan_frame(pan_dirs[(r, c)],
+                                       min(f, total - 1)), (px, py))
+            frame = canvas.transform(
+                (W, H), Image.EXTENT,
+                ((x0 - ox) * K, (y0 - oy) * K,
+                 (x0 - ox + vw) * K, (y0 - oy + vh) * K),
+                resample=Image.BILINEAR)
+        else:
+            lvl = int(np.clip(np.floor(np.log2(max(vw / W, 1.0))), 0,
+                              len(mips) - 1))
+            d = 1 << lvl
+            frame = mips[lvl].transform(
+                (W, H), Image.EXTENT,
+                (x0 / d, y0 / d, (x0 + vw) / d, (y0 + vh) / d),
+                resample=Image.BILINEAR)
+        # hero overlay from its native render, on top in both phases
         scale = W / vw
-        lvl = int(np.clip(np.floor(np.log2(max(vw / W, 1.0))), 0,
-                          len(mips) - 1))
-        d = 1 << lvl
-        frame = mips[lvl].transform(
-            (W, H), Image.EXTENT,
-            (x0 / d, y0 / d, (x0 + vw) / d, (y0 + vh) / d),
-            resample=Image.BILINEAR)
-        for (r, c), (pdir, clip) in anim.items():
-            paste_clip(frame, pdir, clip, r, c, x0, y0, scale, f)
-        hf = min(f, len(hero_files) - 1)
-        hero = Image.open(os.path.join(hero_frames_dir, hero_files[hf]))
-        sx, sy = (cc * TW - x0) * scale, (cr * TH - y0) * scale
         sw, sh = TW * scale, TH * scale
-        if sw >= 2:
+        if sw >= 3:
+            hf = min(f, len(hero_files) - 1)
+            hero = Image.open(os.path.join(hero_frames_dir, hero_files[hf]))
+            sx, sy = (cc * TW - x0) * scale, (cr * TH - y0) * scale
             res = hero.resize((max(int(round(sw)), 1),
                                max(int(round(sh)), 1)),
                               Image.LANCZOS if sw < hero.width
