@@ -1,236 +1,115 @@
-"""Launch-thread zoom video over 8192 REAL exact-renderer tiles.
+"""Launch-thread zoom video: 8192 LIVE agent worlds, exact renderer.
 
-- Hero tile (zoom start) is the TRAINED chain policy's POV replayed through
-  the exact renderer, window picked by camera-motion score so it never sits
-  still (scripts/zoom_hero_clip.py renders it first).
-- A 9x7 block around the hero is animated (slow scripted pans). While the
-  viewport is inside that block, the whole view is sampled from ONE rigid
-  per-frame canvas built at 512x288/tile, so neighbouring tiles cannot
-  wobble against each other; the hero is overlaid from its native render.
-- Outside the block, the view samples a native-256x144-per-tile mosaic
-  through a mip pyramid with float-box transforms: no integer snapping,
-  no shimmer, and tiles stay crisp right through the handoff.
-- The zoom is a PURE exponential scale about a fixed anchor. No drift.
+Every tile is a random-action agent rollout in its own world, rendered by
+the exact rasteriser (scripts/zoom_rollouts.py renders them first; hero =
+trained chain policy via scripts/zoom_hero_clip.py). The grid is 128x64
+SQUARE tiles, so the full mosaic is exactly 2:1 - the final frame fills
+1920x960 with no bars.
 
-Run:
-  1) cd c/magma && uv run --no-project --with numpy python \
-         ../../scripts/zoom_hero_clip.py
-  2) cd netherite && uv run --no-project --with numpy,pillow python \
-         scripts/make_zoom_real.py [--jobs 16]
+Per output frame, the visible region is assembled from every visible
+tile's clip at the mip level just above its on-screen size, then sampled
+with one float-box transform: tiles are composited before the zoom, so
+nothing can wobble, and the zoom is a pure exponential scale about the
+hero tile.
+
+Run (after zoom_rollouts.py and zoom_hero_clip.py):
+  cd netherite && uv run --no-project --with numpy,pillow python \
+      scripts/make_zoom_real.py
 """
 import argparse
 import json
 import os
 import subprocess
-from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAGMA = os.path.join(ROOT, "c", "magma")
-GAME = os.path.join(MAGMA, "magma_game")
-CONF = "/home/infatoshi/dev/nw/.tmp/zoom_video.conf"
+WORK = "/home/infatoshi/dev/nw/.tmp/zoomrolls"
 HERO_DIR = "/home/infatoshi/dev/nw/.tmp/zoom_hero"
 W, H, FPS = 1920, 960, 30
 ZOOM_FRAMES, HOLD_FRAMES = 270, 74
-TW, TH = 256, 144          # tile size (native still-render resolution)
-PW, PH = 512, 288          # animated-tile render resolution
-PAN_RATE = 0.30            # deg/frame for animated tiles
-BLK_C, BLK_R = 9, 7        # animated block around the hero
+T = 192                    # square tile size (native rollout render)
+MIPS = (96, 48, 24)
+COLS, ROWS = 128, 64
+N = COLS * ROWS
 
 
-def poses_for(seed, n_poses):
-    rng = np.random.default_rng(1000 + seed)
-    out = []
-    for _ in range(n_poses):
-        out.append({
-            "x": float(rng.uniform(-40, 40)) + 0.5,
-            "y": float(rng.uniform(74, 88)),
-            "z": float(rng.uniform(-40, 40)) + 0.5,
-            "yaw": float(rng.uniform(-180, 180)),
-            "pitch": float(rng.uniform(16, 40)),
-        })
-    return out, int(rng.integers(0, 12000))
+class Clips:
+    """Lazy mmap access to every env's multi-res clips."""
 
+    def __init__(self, work):
+        self.work = work
+        self.cache = {}
+        self.native_first = {}
 
-def game_env():
-    return dict(os.environ, MAGMA_HIDE_GUI="1", MAGMA_CONF=CONF)
+    def mip(self, env, level, f):
+        key = (env, level)
+        if key not in self.cache:
+            self.cache[key] = np.load(
+                os.path.join(self.work, f"e{env}", f"clip{level}.npy"),
+                mmap_mode="r")
+        clip = self.cache[key]
+        return clip[min(f, clip.shape[0] - 1)]
 
-
-def render_seed(job):
-    seed, n_poses, workdir = job
-    outdir = os.path.join(workdir, f"s{seed}")
-    marker = os.path.join(outdir, "DONE")
-    if os.path.exists(marker):
-        return seed
-    os.makedirs(outdir, exist_ok=True)
-    poses, wtime = poses_for(seed, n_poses)
-    script = os.path.join(outdir, "script.jsonl")
-    with open(script, "w") as f:
-        f.write(json.dumps({"tick": 0, "type": "set_time",
-                            "value": wtime}) + "\n")
-        for i, p in enumerate(poses):
-            f.write(json.dumps({"tick": 3 + 2 * i, "type": "set_pose",
-                                **p}) + "\n")
-    ticks = 3 + 2 * n_poses + 2
-    r = subprocess.run(
-        [GAME, "--headless", "--world", "default", "--seed", str(seed),
-         "--ticks", str(ticks), "--width", str(TW), "--height", str(TH),
-         "--mobs", "off", "--script", script,
-         "--state-out", "/dev/null", "--frames-out", outdir],
-        env=game_env(), cwd=MAGMA, capture_output=True, timeout=600)
-    if r.returncode != 0:
-        raise RuntimeError(f"seed {seed}: rc={r.returncode} "
-                           f"{r.stderr.decode(errors='replace')[-300:]}")
-    open(marker, "w").close()
-    return seed
-
-
-def render_pan(job):
-    """Slow-pan clip for one animated tile; returns its dir + last frame."""
-    seed, pose_i, n_poses, frames, workdir = job
-    outdir = os.path.join(workdir, f"pan512_s{seed}_p{pose_i}")
-    marker = os.path.join(outdir, "DONE")
-    if not os.path.exists(marker):
-        os.makedirs(outdir, exist_ok=True)
-        poses, wtime = poses_for(seed, n_poses)
-        p = poses[pose_i]
-        script = os.path.join(outdir, "script.jsonl")
-        with open(script, "w") as f:
-            f.write(json.dumps({"tick": 0, "type": "set_time",
-                                "value": wtime}) + "\n")
-            for t in range(frames):
-                q = dict(p)
-                q["yaw"] = ((p["yaw"] + PAN_RATE * t + 180) % 360) - 180
-                f.write(json.dumps({"tick": 3 + t, "type": "set_pose",
-                                    **q}) + "\n")
-        r = subprocess.run(
-            [GAME, "--headless", "--world", "default", "--seed", str(seed),
-             "--ticks", str(3 + frames + 1), "--width", str(PW),
-             "--height", str(PH), "--mobs", "off", "--script", script,
-             "--state-out", "/dev/null", "--frames-out", outdir],
-            env=game_env(), cwd=MAGMA, capture_output=True, timeout=900)
-        if r.returncode != 0:
-            raise RuntimeError(f"pan {seed}/{pose_i}: "
-                               f"{r.stderr.decode(errors='replace')[-200:]}")
-        open(marker, "w").close()
-    last = np.asarray(Image.open(
-        os.path.join(outdir, f"frame_{3 + frames:06d}.ppm")).resize(
-            (TW, TH), Image.LANCZOS))
-    return outdir, last
-
-
-def pan_frame(pdir, f):
-    return Image.open(os.path.join(pdir, f"frame_{3 + f + 1:06d}.ppm"))
-
-
-def tile_of(workdir, seed, pose_i):
-    fp = os.path.join(workdir, f"s{seed}",
-                      f"frame_{3 + 2 * pose_i + 1:06d}.ppm")
-    return np.asarray(Image.open(fp))
-
-
-def tile_stats(img):
-    """(usable, land) - rejects dark/inside-terrain/flat frames."""
-    a = img.astype(np.int16)
-    blueish = (a[..., 2] - np.maximum(a[..., 0], a[..., 1])) > 20
-    lum = a.mean(axis=2)
-    land = 1.0 - float(blueish.mean())
-    dark = float((lum < 25).mean())
-    usable = (lum.mean() >= 60 and dark <= 0.25 and float(lum.std()) >= 18)
-    return usable, land
+    def native(self, env, f):
+        nd = os.path.join(self.work, f"e{env}", "native")
+        if env not in self.native_first:
+            first = open(os.path.join(nd, "FIRST.txt")).read().strip()
+            self.native_first[env] = int(first.split("_")[1].split(".")[0])
+        i = self.native_first[env] + f
+        fp = os.path.join(nd, f"frame_{i:06d}.ppm")
+        if not os.path.exists(fp):
+            files = sorted(x for x in os.listdir(nd) if x.endswith(".ppm"))
+            fp = os.path.join(nd, files[-1])
+        return np.asarray(Image.open(fp))
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--seeds", type=int, default=1024)
-    ap.add_argument("--poses", type=int, default=16)
-    ap.add_argument("--cols", type=int, default=128)
-    ap.add_argument("--jobs", type=int, default=16)
-    ap.add_argument("--min-land", type=float, default=0.25)
-    ap.add_argument("--workdir",
-                    default="/home/infatoshi/dev/nw/.tmp/zoomtiles")
+    ap.add_argument("--keep-native", type=int, default=256)
     ap.add_argument("--out",
                     default=os.path.join(ROOT, "demos", "zoom_8192_real.mp4"))
     args = ap.parse_args()
-    n, cols = 8192, args.cols
-    rows = n // cols
     total = ZOOM_FRAMES + HOLD_FRAMES
 
-    os.makedirs(args.workdir, exist_ok=True)
-    jobs = [(s, args.poses, args.workdir) for s in range(args.seeds)]
-    with ProcessPoolExecutor(max_workers=args.jobs) as ex:
-        for i, _ in enumerate(ex.map(render_seed, jobs)):
-            if (i + 1) % 128 == 0:
-                print(f"rendered {i + 1}/{args.seeds} worlds")
+    missing = [e for e in range(N)
+               if not os.path.exists(os.path.join(WORK, f"e{e}", "DONE"))]
+    assert not missing, f"{len(missing)} rollouts missing (first {missing[:5]})"
 
-    print("scoring tiles...")
-    good, spare = [], []
-    for seed in range(args.seeds):
-        for pose_i in range(args.poses):
-            img = tile_of(args.workdir, seed, pose_i)
-            usable, land = tile_stats(img)
-            row = (land, seed, pose_i, img)
-            if usable and land >= args.min_land:
-                good.append(row)
-            else:
-                spare.append((usable, row))
-    good.sort(key=lambda x: -x[0])
-    kept = good[:n]
-    if len(kept) < n:
-        spare.sort(key=lambda x: (-int(x[0]), -x[1][0]))
-        kept += [r for _, r in spare[:n - len(kept)]]
-    print(f"kept {len(kept)} tiles, land {kept[-1][0]:.2f}..{kept[0][0]:.2f}")
-
+    # slot -> env. The center block must map to envs that kept native ppms.
+    cr, cc = ROWS // 2, COLS // 2
     rng = np.random.default_rng(7)
-    order = rng.permutation(n)
-    mosaic = np.zeros((rows * TH, cols * TW, 3), np.uint8)
-    idx_of = {}
-    for slot in range(n):
-        _land, seed, pose_i, img = kept[int(order[slot])]
-        r, c = divmod(slot, cols)
-        idx_of[(r, c)] = (seed, pose_i)
-        mosaic[r * TH:(r + 1) * TH, c * TW:(c + 1) * TW] = img
+    # native-mapped block must cover every tile that can appear >96px on
+    # screen: at sw=96 the viewport spans 20x10 tiles, so use 21x11
+    block = [(r, c) for r in range(cr - 5, cr + 6)
+             for c in range(cc - 10, cc + 11)]
+    natives = [int(e) for e in rng.permutation(args.keep_native)]
+    block_envs = natives[:len(block)]
+    spare = natives[len(block):] + list(range(args.keep_native, N))
+    others = [int(e) for e in rng.permutation(spare)]
+    env_of = {}
+    bi = oi = 0
+    blockset = set(block)
+    for r in range(ROWS):
+        for c in range(COLS):
+            if (r, c) in blockset:
+                env_of[(r, c)] = block_envs[bi]
+                bi += 1
+            else:
+                env_of[(r, c)] = others[oi]
+                oi += 1
+    clips = Clips(WORK)
 
-    # hero: trained-policy POV clip
     meta = json.load(open(os.path.join(HERO_DIR, "META.json")))
     hero_frames_dir = os.path.join(HERO_DIR, "frames")
     hero_files = sorted(f for f in os.listdir(hero_frames_dir)
                         if f.endswith(".ppm"))
-    assert len(hero_files) >= 200, f"hero clip too short: {len(hero_files)}"
-    cr, cc = rows // 2, cols // 2
+    assert len(hero_files) >= 200
 
-    # animated block: rendered pans, sampled per frame from disk
-    r0, c0 = cr - BLK_R // 2, cc - BLK_C // 2
-    block = [(r, c) for r in range(r0, r0 + BLK_R)
-             for c in range(c0, c0 + BLK_C) if (r, c) != (cr, cc)]
-    print(f"rendering {len(block)} animated tiles...")
-    pan_jobs = [(idx_of[rc][0], idx_of[rc][1], args.poses, total,
-                 args.workdir) for rc in block]
-    pan_dirs = {}
-    with ProcessPoolExecutor(max_workers=args.jobs) as ex:
-        for rc, (pdir, last) in zip(block, ex.map(render_pan, pan_jobs)):
-            pan_dirs[rc] = pdir
-            r, c = rc
-            mosaic[r * TH:(r + 1) * TH, c * TW:(c + 1) * TW] = last
-    hero_last = np.asarray(Image.open(
-        os.path.join(hero_frames_dir, hero_files[-1])).resize(
-            (TW, TH), Image.LANCZOS))
-    mosaic[cr * TH:(cr + 1) * TH, cc * TW:(cc + 1) * TW] = hero_last
-    mh, mw = mosaic.shape[:2]
-
-    mips = [Image.fromarray(mosaic)]
-    while mips[-1].width > 1024:
-        mips.append(mips[-1].reduce(2))
-
-    # canvas geometry (mosaic units and 2x canvas pixels)
-    K = PW // TW
-    ox, oy = c0 * TW, r0 * TH
-    span_w, span_h = BLK_C * TW, BLK_R * TH
-
-    ax, ay = (cc + 0.5) * TW, (cr + 0.5) * TH
-    w0, w1 = float(TW), float(mw)
+    mw, mh = COLS * T, ROWS * T          # 24576 x 12288 - exactly 2:1
+    ax, ay = (cc + 0.5) * T, (cr + 0.5) * T
+    w0, w1 = float(T), float(mw)
     font = ImageFont.truetype(
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 96)
 
@@ -238,47 +117,50 @@ def main():
         ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
          "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v", "libx264",
          "-crf", "18", "-pix_fmt", "yuv420p", args.out], stdin=subprocess.PIPE)
-    canvas = Image.new("RGB", (BLK_C * PW, BLK_R * PH))
     for f in range(total):
         t = min(f / (ZOOM_FRAMES - 1), 1.0)
         s = t * t * (3 - 2 * t)
         vw = w0 * (w1 / w0) ** s
-        vh = vw * H / W
+        vh = vw / 2
         x0 = float(np.clip(ax - vw / 2, 0, mw - vw))
-        y0 = float(np.clip(ay - vh / 2, 0, max(mh - vh, 0)))
-        in_canvas = (x0 >= ox and y0 >= oy and x0 + vw <= ox + span_w
-                     and y0 + vh <= oy + span_h)
-        if in_canvas:
-            # one rigid hi-res layer: tiles cannot move against each other
-            for (r, c) in block:
-                px, py = (c - c0) * PW, (r - r0) * PH
-                canvas.paste(pan_frame(pan_dirs[(r, c)],
-                                       min(f, total - 1)), (px, py))
-            frame = canvas.transform(
-                (W, H), Image.EXTENT,
-                ((x0 - ox) * K, (y0 - oy) * K,
-                 (x0 - ox + vw) * K, (y0 - oy + vh) * K),
-                resample=Image.BILINEAR)
-        else:
-            lvl = int(np.clip(np.floor(np.log2(max(vw / W, 1.0))), 0,
-                              len(mips) - 1))
-            d = 1 << lvl
-            frame = mips[lvl].transform(
-                (W, H), Image.EXTENT,
-                (x0 / d, y0 / d, (x0 + vw) / d, (y0 + vh) / d),
-                resample=Image.BILINEAR)
-        # hero overlay from its native render, on top in both phases
+        y0 = float(np.clip(ay - vh / 2, 0, mh - vh))
+        sw = W * T / vw                   # tile size on screen
+        level = T if sw > MIPS[0] else min(m for m in MIPS if m >= sw) \
+            if sw <= MIPS[0] else T
+        # visible slot range
+        c0, c1 = int(x0 // T), min(int((x0 + vw) // T) + 1, COLS)
+        r0, r1 = int(y0 // T), min(int((y0 + vh) // T) + 1, ROWS)
+        L = level
+        region = np.empty(((r1 - r0) * L, (c1 - c0) * L, 3), np.uint8)
+        for r in range(r0, r1):
+            for c in range(c0, c1):
+                env = env_of[(r, c)]
+                if L == T:
+                    tile = clips.native(env, f) if env < args.keep_native \
+                        else np.asarray(Image.fromarray(
+                            np.asarray(clips.mip(env, 96, f))).resize(
+                                (T, T), Image.NEAREST))
+                else:
+                    tile = clips.mip(env, L, f)
+                region[(r - r0) * L:(r - r0 + 1) * L,
+                       (c - c0) * L:(c - c0 + 1) * L] = tile
+        k = L / T
+        frame = Image.fromarray(region).transform(
+            (W, H), Image.EXTENT,
+            ((x0 - c0 * T) * k, (y0 - r0 * T) * k,
+             (x0 - c0 * T + vw) * k, (y0 - r0 * T + vh) * k),
+            resample=Image.BILINEAR)
+        # hero overlay from its native square render
         scale = W / vw
-        sw, sh = TW * scale, TH * scale
-        if sw >= 3:
+        hsw = T * scale
+        if hsw >= 3:
             hf = min(f, len(hero_files) - 1)
             hero = Image.open(os.path.join(hero_frames_dir, hero_files[hf]))
-            sx, sy = (cc * TW - x0) * scale, (cr * TH - y0) * scale
-            res = hero.resize((max(int(round(sw)), 1),
-                               max(int(round(sh)), 1)),
-                              Image.LANCZOS if sw < hero.width
+            hx, hy = (cc * T - x0) * scale, (cr * T - y0) * scale
+            res = hero.resize((max(int(round(hsw)), 1),) * 2,
+                              Image.LANCZOS if hsw < hero.width
                               else Image.BILINEAR)
-            frame.paste(res, (int(round(sx)), int(round(sy))))
+            frame.paste(res, (int(round(hx)), int(round(hy))))
         if f >= ZOOM_FRAMES - 10:
             a = min((f - (ZOOM_FRAMES - 10)) / 20.0, 1.0)
             dr = ImageDraw.Draw(frame, "RGBA")
@@ -289,10 +171,12 @@ def main():
             dr.text((bx, by), "netherite", font=font,
                     fill=(245, 240, 235, int(255 * a)))
         enc.stdin.write(np.asarray(frame.convert("RGB")).tobytes())
+        if (f + 1) % 60 == 0:
+            print(f"composed {f + 1}/{total}", flush=True)
     enc.stdin.close()
     enc.wait()
     assert enc.returncode == 0
-    print(f"wrote {args.out} ({total} frames, {cols}x{rows} real tiles, "
+    print(f"wrote {args.out} ({total} frames, {COLS}x{ROWS} live worlds, "
           f"hero window from t={meta['start']})")
 
 

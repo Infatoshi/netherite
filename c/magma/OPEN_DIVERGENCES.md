@@ -146,6 +146,20 @@ uv run --no-project --with numpy --with scipy --with pillow --with nbt \
   --cpu --report
 ```
 
+### Double-height plants render as solid tinted slabs
+
+Found 2026-07-29 recording `scenario_scenic_walk_20260729T063050Z` (seed 3
+default world, dense forest): the oracle draws the forest-floor grass as
+normal cross-plants, magma fills the same cells with opaque
+biome-green quads that occlude trunks behind them. The seed-0 canonical
+area spawns single tallgrass (id 31, handled by the CUTOUT fix) but not
+the double_plant family (id 175, two-block grass/fern/peony), which the
+mesher appears to emit as untextured tinted geometry. Repro: replay the
+scenic_walk tape, t=80, center of frame. Not gated anywhere yet - no
+committed tape covers double plants; the tape is kept in tapes/ for the
+fix. Launch-thread note: the zoom video's wipe segment was moved off this
+scene onto hold_dig_dense because of this bug.
+
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 
 Diagnosis only, from a delegated triage pass; the code claims below were
