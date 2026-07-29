@@ -210,8 +210,18 @@ static const BmBlock g_blocks[CBX_MAX] = {
     [PB_RED_FLOWER_BASE + 6] = CROSS1(CR_SPRITE_FLOWER_TULIP_WHITE, BM_TINT_NONE),
     [PB_RED_FLOWER_BASE + 7] = CROSS1(CR_SPRITE_FLOWER_TULIP_PINK, BM_TINT_NONE),
     [PB_RED_FLOWER_BASE + 8] = CROSS1(CR_SPRITE_FLOWER_OXEYE_DAISY, BM_TINT_NONE),
-    [PB_DPLANT_LOWER_BASE]   = CROSS1(CR_SPRITE_DOUBLE_PLANT_GRASS_BOTTOM, BM_TINT_GRASS),
-    [PB_DPLANT_LOWER_BASE+3] = CROSS1(CR_SPRITE_DOUBLE_PLANT_FERN_BOTTOM,  BM_TINT_GRASS),
+    /* BlockDoublePlant: half=lower meta 0..5 = EnumPlantType. Grass/fern use
+     * tinted_cross + biome grass color; flowers use plain cross (no tint).
+     * Upper half meta carries only facing - VARIANT comes from the block below
+     * (getActualState); mesh_mc resolves that and calls bm_dplant_upper. */
+    [PB_DPLANT_LOWER_BASE + 0] = CROSS1(CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_BOTTOM, BM_TINT_NONE),
+    [PB_DPLANT_LOWER_BASE + 1] = CROSS1(CR_SPRITE_DOUBLE_PLANT_SYRINGA_BOTTOM,   BM_TINT_NONE),
+    [PB_DPLANT_LOWER_BASE + 2] = CROSS1(CR_SPRITE_DOUBLE_PLANT_GRASS_BOTTOM,     BM_TINT_GRASS),
+    [PB_DPLANT_LOWER_BASE + 3] = CROSS1(CR_SPRITE_DOUBLE_PLANT_FERN_BOTTOM,      BM_TINT_GRASS),
+    [PB_DPLANT_LOWER_BASE + 4] = CROSS1(CR_SPRITE_DOUBLE_PLANT_ROSE_BOTTOM,      BM_TINT_NONE),
+    [PB_DPLANT_LOWER_BASE + 5] = CROSS1(CR_SPRITE_DOUBLE_PLANT_PAEONIA_BOTTOM,   BM_TINT_NONE),
+    /* Default upper (worldgen writes PB_DPLANT_UPPER without type). Mesh replaces
+     * this via bm_dplant_upper after reading the lower half. */
     [PB_DPLANT_UPPER]        = CROSS1(CR_SPRITE_DOUBLE_PLANT_GRASS_TOP,    BM_TINT_GRASS),
     /* cocoa: cross-ish cutout (stage0 texture stand-in uses brown mushroom). */
     [PB_COCOA] = CROSS1(CR_SPRITE_MUSHROOM_BROWN, BM_TINT_NONE),
@@ -388,15 +398,34 @@ const BmBlock *bm_block(int cb_id)
      * Red flowers (meta 0..8) each keep their own sprite - do NOT collapse. */
     if (cb_id >= CB_STAINED_CLAY_BASE && cb_id < CB_STAINED_CLAY_BASE + 16)
         return &g_blocks[CB_STAINED_CLAY_BASE];
-    if (cb_id > PB_DPLANT_LOWER_BASE && cb_id < PB_DPLANT_UPPER &&
-        cb_id != PB_DPLANT_LOWER_BASE + 3)
-        return &g_blocks[PB_DPLANT_LOWER_BASE];
+    /* Double-plant lowers 60..65 each have their own sprite/tint - do not collapse. */
     if (cb_id > PB_PUMPKIN_BASE && cb_id < PB_PUMPKIN_BASE + 4)
         return &g_blocks[PB_PUMPKIN_BASE];
     if (cb_id > PB_VINE_BASE && cb_id < PB_VINE_BASE + 4)
         return &g_blocks[PB_VINE_BASE];
     return &g_blocks[cb_id];
 }
+
+/* Upper-half models per EnumPlantType (0 sunflower .. 5 paeonia). Worldgen and
+ * the state->key map only store PB_DPLANT_UPPER; the mesher picks the row after
+ * getActualState-style lookup of the lower half. */
+static const BmBlock g_dplant_upper[6] = {
+    CROSS1(CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE),
+    CROSS1(CR_SPRITE_DOUBLE_PLANT_SYRINGA_TOP,   BM_TINT_NONE),
+    CROSS1(CR_SPRITE_DOUBLE_PLANT_GRASS_TOP,     BM_TINT_GRASS),
+    CROSS1(CR_SPRITE_DOUBLE_PLANT_FERN_TOP,      BM_TINT_GRASS),
+    CROSS1(CR_SPRITE_DOUBLE_PLANT_ROSE_TOP,      BM_TINT_NONE),
+    CROSS1(CR_SPRITE_DOUBLE_PLANT_PAEONIA_TOP,   BM_TINT_NONE),
+};
+
+const BmBlock *bm_dplant_upper(int type)
+{
+    if (type < 0 || type > 5) type = 3; /* BlockDoublePlant.getType fallback: FERN */
+    return &g_dplant_upper[type];
+}
+
+int bm_dplant_sunflower_front_sprite(void) { return CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_FRONT; }
+int bm_dplant_sunflower_back_sprite(void)  { return CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_BACK; }
 
 int bm_grass_side_overlay_sprite(void) { return CR_SPRITE_GRASS_SIDE_OVERLAY; }
 

@@ -22,7 +22,7 @@ BLOCKS = "assets/minecraft/textures/blocks/"
 TILE = 16
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_H = os.path.join(HERE, "atlas_gen.h")
-DUMP_PNG = "/tmp/magma_atlas.png"
+DUMP_PNG = "/home/infatoshi/dev/nw/.tmp/magma_atlas.png"
 
 # Every unique block texture referenced by the CB_*/PB_* worldgen set.
 SPRITE_NAMES = sorted([
@@ -90,6 +90,16 @@ SPRITE_NAMES = sorted([
     "double_plant_grass_top",
     "double_plant_fern_bottom",
     "double_plant_fern_top",
+    "double_plant_sunflower_bottom",
+    "double_plant_sunflower_top",
+    "double_plant_sunflower_front",
+    "double_plant_sunflower_back",
+    "double_plant_syringa_bottom",
+    "double_plant_syringa_top",
+    "double_plant_rose_bottom",
+    "double_plant_rose_top",
+    "double_plant_paeonia_bottom",
+    "double_plant_paeonia_top",
     "mushroom_brown",
     "mushroom_red",
     "vine",

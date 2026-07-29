@@ -117,9 +117,12 @@ static const Expect EXPECT[] = {
     { PB_YELLOW_FLOWER, "dandelion", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
     { PB_RED_FLOWER_BASE, "poppy", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
     { PB_RED_FLOWER_BASE + 8, "oxeye_daisy", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
-    { PB_DPLANT_LOWER_BASE, "dplant_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
+    /* EnumPlantType: 0 sunflower (no tint), 2 grass (biome tint), 3 fern (tint). */
+    { PB_DPLANT_LOWER_BASE + 0, "dplant_sunflower_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
+    { PB_DPLANT_LOWER_BASE + 2, "dplant_grass_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
+    { PB_DPLANT_LOWER_BASE + 3, "dplant_fern_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
     { 223, "crafting_table", BM_KIND_CUBE, 1, L_SOLID, BM_TINT_NONE },
-    { PB_DPLANT_UPPER, "dplant_upper", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
+    { PB_DPLANT_UPPER, "dplant_upper_default", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
     { PB_COCOA, "cocoa", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
 
     { PB_COBBLESTONE, "cobblestone", BM_KIND_CUBE, 1, L_SOLID, BM_TINT_NONE },

@@ -95,6 +95,13 @@ typedef struct {
 /* Per CB_* id (mc-sim block id). Never NULL: unknown/out-of-range -> stone. */
 const BmBlock *bm_block(int cb_id);
 
+/* BlockDoublePlant upper half model for EnumPlantType 0..5 (sunflower..paeonia).
+ * Callers resolve type from the lower half (getActualState); out-of-range -> fern. */
+const BmBlock *bm_dplant_upper(int type);
+/* Sunflower upper face planes (double_sunflower_top.json #front / #back). */
+int bm_dplant_sunflower_front_sprite(void);
+int bm_dplant_sunflower_back_sprite(void);
+
 /* Atlas rect for a sprite index, normalized into [0,1] over the whole atlas. */
 void bm_sprite_uv(int sprite, float *u0, float *v0, float *u1, float *v1);
 

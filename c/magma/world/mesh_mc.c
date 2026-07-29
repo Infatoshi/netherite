@@ -56,6 +56,8 @@ struct CrWorldMC {
 #define CR_CB_FERN 40
 #define CR_CB_YELLOW_FLOWER 50
 #define CR_CB_RED_FLOWER_LAST 59
+#define CR_CB_DPLANT_LOWER_BASE 60
+#define CR_CB_DPLANT_UPPER 66
 #define CR_CB_DPLANT_LAST 66
 
 /* One cube face template, indexed by EnumFacing (0=DOWN 1=UP 2=NORTH 3=SOUTH
@@ -1435,12 +1437,39 @@ static void emit_end_frame(CrChunkMeshMC *out, int *cap, const CrLight *L,
     }
 }
 
+/* BlockDoublePlant.getActualState: upper half copies VARIANT from the block
+ * below. getType falls back to FERN when the below cell is not this block. */
+static int dplant_type_from_below(const CrLight *L, int wx, int wy, int wz) {
+    if (wy <= 0) return 3;
+    int below = light_block(L, wx, wy - 1, wz);
+    if (below >= CR_CB_DPLANT_LOWER_BASE && below < CR_CB_DPLANT_UPPER)
+        return below - CR_CB_DPLANT_LOWER_BASE;
+    /* Snapshot / live edits store canonical state; lower meta is type 0..5. */
+    uint16_t st = light_state(L, wx, wy - 1, wz);
+    int id = (int)(st >> 4), meta = (int)(st & 15);
+    if (id == 175 && (meta & 8) == 0) return meta & 7;
+    return 3; /* EnumPlantType.FERN */
+}
+
 /* Dispatch a non-cube block model. */
 static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
                          int cb, const BmBlock *m, int wx, int wy, int wz) {
+    int dplant_type = -1;
+    /* Upper double-plant: resolve model from lower half (BlockDoublePlant
+     * getActualState). Without this, every upper is grass-top + grass tint and
+     * forest lilac/rose/peony render as opaque biome-green slabs. */
+    if (cb == CR_CB_DPLANT_UPPER) {
+        dplant_type = dplant_type_from_below(L, wx, wy, wz);
+        m = bm_dplant_upper(dplant_type);
+    } else if (cb >= CR_CB_DPLANT_LOWER_BASE && cb < CR_CB_DPLANT_UPPER) {
+        dplant_type = cb - CR_CB_DPLANT_LOWER_BASE;
+    }
     int side_spr = m->face[BM_NORTH].sprite;
     int side_tint = m->face[BM_NORTH].tint;
-    CrRgba tint = face_tint(L, side_tint, wx, wy, wz);
+    /* BlockColors DOUBLE_PLANT: grass/fern upper samples biome at pos.down(). */
+    int tint_wy = (cb == CR_CB_DPLANT_UPPER && side_tint == BM_TINT_GRASS && wy > 0)
+                      ? wy - 1 : wy;
+    CrRgba tint = face_tint(L, side_tint, wx, tint_wy, wz);
     /* BlockFluidRenderer's live Java output uses the texture/tint at full
      * brightness, then applies the per-face 1/.8/.6/.5 multiplier below. Feeding
      * the scalar lightmap again here darkened surface water by almost exactly 2x. */
@@ -1453,8 +1482,57 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
         : cell_light01(L, wx, wy, wz, &tint);
     switch (m->kind) {
         case BM_KIND_CROSS:
-            emit_cross(out, cap, m->layer, L, cb, wx, wy, wz, side_spr, tint,
-                       base01);
+            /* Sunflower upper: double_sunflower_top.json - half-height cross
+             * (y 0..8, UV v 8..16) plus a 22.5deg face plane. Other types are
+             * plain cross / tinted_cross full height. */
+            if (cb == CR_CB_DPLANT_UPPER && dplant_type == 0) {
+                const float origin[3] = { 0.5f, 0.5f, 0.5f };
+                const float aFrom[3] = { 0.8f, 0.0f, 8.0f }, aTo[3] = { 15.2f, 8.0f, 8.0f };
+                const float bFrom[3] = { 8.0f, 0.0f, 0.8f }, bTo[3] = { 8.0f, 8.0f, 15.2f };
+                const float half_uv[4] = { 0.0f, 8.0f, 16.0f, 16.0f };
+                const int planeFace[4] = { BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST };
+                uint64_t r = mc_position_random(wx, 0, wz);
+                float offx = (((float)((r >> 16) & 15u) / 15.0f) - 0.5f) * 0.5f;
+                float offz = (((float)((r >> 24) & 15u) / 15.0f) - 0.5f) * 0.5f;
+                for (int q = 0; q < 4; ++q) {
+                    const float *from = (q < 2) ? aFrom : bFrom;
+                    const float *to   = (q < 2) ? aTo   : bTo;
+                    CrVertex quad[4];
+                    bake_face_custom(wx, wy, wz, from, to, planeFace[q], half_uv, 0,
+                                     1, 1, 45.0f, origin, 1,
+                                     side_spr, base01, 1.0f, tint, quad);
+                    for (int i = 0; i < 4; ++i) {
+                        quad[i].pos.x += offx;
+                        quad[i].pos.z += offz;
+                    }
+                    push_face(out, cap, m->layer, quad);
+                }
+                /* Face plane: from [9.6,-1,1]..[9.6,15,15], rot z 22.5, front/back. */
+                {
+                    const float fFrom[3] = { 9.6f, -1.0f, 1.0f };
+                    const float fTo[3]   = { 9.6f, 15.0f, 15.0f };
+                    const float full_uv[4] = { 0.0f, 0.0f, 16.0f, 16.0f };
+                    CrRgba white = { 255, 255, 255, 255 };
+                    int front = bm_dplant_sunflower_front_sprite();
+                    int back  = bm_dplant_sunflower_back_sprite();
+                    for (int fi = 0; fi < 2; ++fi) {
+                        int face = fi ? BM_EAST : BM_WEST;
+                        int spr = fi ? front : back;
+                        CrVertex quad[4];
+                        bake_face_custom(wx, wy, wz, fFrom, fTo, face, full_uv, 0,
+                                         1, 2, 22.5f, origin, 1,
+                                         spr, base01, 1.0f, white, quad);
+                        for (int i = 0; i < 4; ++i) {
+                            quad[i].pos.x += offx;
+                            quad[i].pos.z += offz;
+                        }
+                        push_face(out, cap, m->layer, quad);
+                    }
+                }
+            } else {
+                emit_cross(out, cap, m->layer, L, cb, wx, wy, wz, side_spr, tint,
+                           base01);
+            }
             break;
         case BM_KIND_SLAB_BOTTOM: {
             const float from[3] = {0,0,0}, to[3] = {16,8,16};

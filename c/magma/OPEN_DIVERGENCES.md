@@ -182,19 +182,34 @@ uv run --no-project --with numpy --with scipy --with pillow --with nbt \
   --cpu --report
 ```
 
-### Double-height plants render as solid tinted slabs
+### Double-height plants render as solid tinted slabs — FIXED
 
-Found 2026-07-29 recording `scenario_scenic_walk_20260729T063050Z` (seed 3
-default world, dense forest): the oracle draws the forest-floor grass as
-normal cross-plants, magma fills the same cells with opaque
-biome-green quads that occlude trunks behind them. The seed-0 canonical
-area spawns single tallgrass (id 31, handled by the CUTOUT fix) but not
-the double_plant family (id 175, two-block grass/fern/peony), which the
-mesher appears to emit as untextured tinted geometry. Repro: replay the
-scenic_walk tape, t=80, center of frame. Not gated anywhere yet - no
-committed tape covers double plants; the tape is kept in tapes/ for the
-fix. Launch-thread note: the zoom video's wipe segment was moved off this
-scene onto hold_dig_dense because of this bug.
+Found 2026-07-29 on `scenario_scenic_walk_20260729T063050Z`; fixed on
+`wt/doubleplant`. Root cause was the double_plant model table, not cutout
+raster:
+
+- Only grass lower / fern lower / grass upper had CROSS entries; other
+  EnumPlantType lowers collapsed to grass-bottom + biome grass tint
+  (flowers became solid-looking green crosses).
+- Upper half always used grass-top: meta only carries half+facing
+  (`BlockDoublePlant.getMetaFromState` / `getStateFromMeta`). Vanilla
+  `getActualState` copies VARIANT from the block below
+  (`BlockDoublePlant.java:275-287`); magma never did, so every upper was
+  grass-top + grass tint.
+- Tint: only GRASS/FERN take biome color
+  (`BlockColors.java:37-41`, sample at `pos.down()` for the upper half);
+  flowers use plain `cross` (no tintindex). Magma tinted everything grass.
+- Atlas lacked sunflower / syringa / rose / paeonia textures.
+
+Fix: per-type lower CROSS models + `bm_dplant_upper(type)` resolved at mesh
+time from the lower half; grass/fern upper tint at `wy-1`; sunflower upper
+half-height cross + face plane (`double_sunflower_top.json`). Citations in
+the commit message.
+
+Scenic t=80 residual is multi-factor (fast-graphics solid leaves, viewmodel,
+HUD) and barely moves with this fix (~10.3/ch before and after). The
+double-plant path itself is verified by a placed lilac/rose/peony/grass
+scene (colored cutout crosses, not green slabs).
 
 ### Nether arrival: fire/lava content missing from the replayed world
 
