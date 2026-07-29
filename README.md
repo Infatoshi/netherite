@@ -7,6 +7,13 @@
 From-scratch C/CUDA Minecraft **1.11.2** (bit-verified vs the real Java game) +
 batched CUDA RL.
 
+<p align="center">
+  <img src="docs/assets/zoom_farm.gif" width="800"
+       alt="one agent's observation zooming out to 7,200 live batched worlds">
+</p>
+<p align="center"><i>One env's semantic camera, zooming out to 7,200 live
+worlds stepping in lockstep on one GPU (recorded from a real batch).</i></p>
+
 ## Platforms
 
 | | Support |
