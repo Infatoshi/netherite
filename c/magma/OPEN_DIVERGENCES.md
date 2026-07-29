@@ -257,7 +257,7 @@ kernel, not a Java oracle, so nothing caught it. Not fixed here (it needs a
 regenerated golden and an mc-sim gate pass); the snapshot patch masks it in
 replay.
 
-### Eye-in-fluid overlay timing: lava fires early, water releases late
+### Eye-in-fluid overlay timing: CLOSED (root-caused 2026-07-29)
 
 Found 2026-07-29 on the dense elytra tape
 (`scenario_elytra_dense_20260729T082313Z`, frames every tick) via a
@@ -267,11 +267,57 @@ per-tick L/R mean-abs scan - the 10-tick gate summary never showed it:
   surface during the skim. Ten ticks of solid red on magma only.
 - t=78: magma still applies underwater fog one tick after the oracle
   eye exits the water curtain (single-tick flicker, ~70/255).
-Suspects: `game/underwater.c` viewpoint_fluid boundary (`liquid_height
-percent - 0.11111111` vs vanilla ActiveRenderInfo partial-tick eye pos)
-and render-tick vs sim-tick eye sampling (cf. the fog_c1 tick-entry-feet
-note in frame_capture.c). Repro: replay the dense tape, diff ticks
-140..155 and 76..80 against goldens.
+
+Both filed suspects were wrong. Two independent causes, neither in the
+`liquid_height_percent` boundary and neither a tick-phase problem:
+
+**1. The lava band is PHYSICS, not overlay timing.** The tape's first
+divergence is tick 141 `vy`: oracle `0.30000001192092896`, magma
+`-0.10051` (`= -0.16102 * 0.5 - 0.02`, i.e. magma ran the lava branch
+correctly but skipped the climb-out kick). `EntityLivingBase`
+`moveEntityWithHeading`:2119 sets `motionY = 0.3` when
+`isCollidedHorizontally && isOffsetPositionInLiquid(...)`;
+`Entity.isOffsetPositionInLiquid`:651 is TRUE when the offset box is
+FREE, and its collision half is `World.getCollisionBoxes`, which keeps a
+candidate only if `Block.addCollisionBoxToList`:548 passes
+`AxisAlignedBB.intersectsWith` (strict `<`, `AxisAlignedBB.java:341`).
+`psv_offset_in_liquid` was calling `psv_collect_blocks` - a broadphase
+CELL scan, inclusive on `floor(max)` and reaching one cell below
+`floor(minY)` - with no intersects re-filter. The elytra pilot is pressed
+against a wall at `x = 37`, so his box maxX is exactly `37.0`; the
+broadphase returned the wall cell, the kick never fired, and instead of
+popping out of the pool he sank and stayed eye-deep in lava for ten
+ticks. Fixed by re-filtering with `mc_aabb_intersects`, exactly as
+`psv_update_elytra_size` already documents having to do. Removing that
+one line of slack also removes every downstream residual on the tape
+(t>=152 went 4.4-5.0/ch to 0.7-1.2/ch) and the physics gate is clean.
+
+**2. The viewpoint is not the eye.** `ActiveRenderInfo.projectViewFromEntity`
+adds the static `position` vector, which `updateRenderInfo`:50 gets by
+gluUnProject-ing the viewport centre at winZ 0 - the NEAR PLANE - through
+the finished modelview. First person that modelview carries
+`orientCamera`'s `translate(0,0,0.05)` (EntityRenderer:681) and the
+projection is `gluPerspective(..., zNear = 0.05F, ...)` (EntityRenderer:730),
+so the camera sits 0.05 ahead of the eye and the sampled point another
+0.05 ahead of the camera:
+`viewpoint = (x, y + eyeHeight, z) + 0.1 * getVectorForRotation(pitch, yaw)`.
+At t=78 the eye is at x 11.98790 - still cell 11, water - but the oracle
+viewpoint is 11.98790 + 0.09903 = cell 12, air. The remaining `position`
+terms (view bobbing, hurt camera) are zero on these tapes:
+`EntityPlayer.onLivingUpdate` zeroes `cameraYaw`'s target whenever
+`!onGround`, and no tape frame is inside `hurtTime` at a fluid boundary.
+They are NOT modelled; a ground-level tape that crosses a fluid surface
+while walking would need them.
+Consequence worth remembering: `ItemRenderer.renderOverlays` is gated on
+`isInsideOfMaterial(WATER)` alone, off the entity's own eye with no
+look-ahead, so the overlay texture and the fog/FOV can legitimately
+disagree for a tick at a surface crossing. `gm_uw_eval` no longer nests
+the overlay test inside `fluid == 1`.
+
+Result on the dense tape: t=78 70.35 -> 0.80/ch, t=142..151 ~75 -> 0.7-1.3/ch,
+no physics divergence at all, unexplained gate frames 178 -> 10 (the
+survivors are the pre-existing t=58..65 waterfall-entry cluster and t=77,
+unchanged by this work).
 
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 

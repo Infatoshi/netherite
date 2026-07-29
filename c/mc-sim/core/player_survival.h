@@ -435,15 +435,28 @@ MC_HD static inline int psv_handle_water(const Chunk *now, McEntity *e) {
 /* Entity.isOffsetPositionInLiquid: despite the vanilla name, TRUE means the
  * offset box is FREE - no collision boxes (getCollisionBoxes empty) and no
  * liquid cells (containsAnyLiquid false, cells [floor(min), ceil(max))). The
- * water-edge hop fires only when the spot ahead is clear to hop into. */
+ * water-edge hop fires only when the spot ahead is clear to hop into.
+ *
+ * getCollisionBoxes keeps a candidate only when Block.addCollisionBoxToList
+ * passes AxisAlignedBB.intersectsWith (strict <, AxisAlignedBB.java:341), so
+ * psv_collect_blocks - a broadphase CELL scan that is inclusive on floor(max)
+ * and reaches one cell below floor(minY) - must be re-filtered, exactly like
+ * psv_update_elytra_size does. Unfiltered, an offset box whose maxX lands
+ * exactly on the wall it is pressed against (feet at blockface - 0.3) reports
+ * a collision, the lava/water climb-out kick never fires, and an elytra pilot
+ * who skims a lava pool sinks instead of popping back out (elytra_dense
+ * t=141: oracle motionY 0.3, magma -0.1005, then 10 ticks of magma-only
+ * full-screen lava overlay). */
 MC_HD static inline int psv_offset_in_liquid(const Chunk *now, const McEntity *e,
-                                             double dx, double dy, double dz) {
+                                             double dx, double dy, double dz,
+                                             McAABB *scratch) {
     McAABB off = e->box;
     off.minX += dx; off.maxX += dx;
     off.minY += dy; off.maxY += dy;
     off.minZ += dz; off.maxZ += dz;
-    McAABB hit;
-    if (psv_collect_blocks(now, &off, &hit, 1) > 0) return 0;
+    int nhit = psv_collect_blocks(now, &off, scratch, PSV_MAX_BLOCKS);
+    for (int i = 0; i < nhit; ++i)
+        if (mc_aabb_intersects(&off, &scratch[i])) return 0;
     for (int bx = mc_floor(off.minX); bx < psv_ceil(off.maxX); ++bx)
         for (int by = mc_floor(off.minY); by < psv_ceil(off.maxY); ++by)
             for (int bz = mc_floor(off.minZ); bz < psv_ceil(off.maxZ); ++bz) {
@@ -624,7 +637,8 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
         e->motionY -= 0.02;
         if (e->collidedHorizontally &&
             psv_offset_in_liquid(now, e, e->motionX,
-                                 e->motionY + 0.6000000238418579 - e->posY + d0, e->motionZ))
+                                 e->motionY + 0.6000000238418579 - e->posY + d0,
+                                 e->motionZ, blocks))
             e->motionY = 0.30000001192092896;
         pl->jump_factor_sprint = act->sprint;   /* post-movement, every tick */
         return;

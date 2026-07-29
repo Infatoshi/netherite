@@ -87,18 +87,53 @@ float gm_uw_fog_c1_seed(const GmWorld *w, int dim,
     return f3 * (1.0f - f4) + f4;
 }
 
+/* ActiveRenderInfo.projectViewFromEntity: the viewpoint is the near-plane
+ * centre, which orientCamera's translate(0,0,0.05) plus gluPerspective's
+ * zNear 0.05F put 0.1 ahead of the eye along the look vector (derivation and
+ * line references in underwater.h). GlStateManager.rotate feeds glRotatef, so
+ * this uses real trig, not MathHelper's LUT. */
+#define GM_UW_VIEWPOINT_AHEAD 0.1
+static void viewpoint_offset(float yaw, float pitch, double *dx, double *dy,
+                             double *dz) {
+    const float d2r = 0.017453292f;
+    float cp = cosf(pitch * d2r);
+    *dx = (double)(-sinf(yaw * d2r) * cp) * GM_UW_VIEWPOINT_AHEAD;
+    *dy = (double)(-sinf(pitch * d2r))    * GM_UW_VIEWPOINT_AHEAD;
+    *dz = (double)( cosf(yaw * d2r) * cp) * GM_UW_VIEWPOINT_AHEAD;
+}
+
 void gm_uw_eval(const GmWorld *w, int dim, const GmPlayerView *pv,
                 float fog_c1, GmUnderwater *out) {
     double ex = (double)pv->x;
     double ey = (double)pv->y + (double)pv->eye_height;
     double ez = (double)pv->z;
-    out->fluid = viewpoint_fluid(w, ex, ey, ez);
+    double vdx, vdy, vdz;
+    viewpoint_offset(pv->yaw, pv->pitch, &vdx, &vdy, &vdz);
+    out->fluid = viewpoint_fluid(w, ex + vdx, ey + vdy, ez + vdz);
     out->overlay = 0;
     out->fog01 = (CrVec3){0.0f, 0.0f, 0.0f};
     out->fog_rgba = (CrRgba){0, 0, 0, 255};
     out->density = 0.0f;
     out->fov_scale = 1.0f;
     out->brightness = 0.0f;
+
+    /* ItemRenderer.renderOverlays is gated on player.isInsideOfMaterial(WATER)
+     * alone, NOT on the viewpoint block, and isInsideOfMaterial uses the
+     * entity's own eye (no near-plane look-ahead) -> ForgeHooks: the block at
+     * the EYE BlockPos is water and eyes < pos.y + 1 + filled (filled =
+     * getLiquidHeightPercent). The two tests disagree by up to the 0.1
+     * look-ahead at a surface crossing. */
+    {
+        int x = mc_floor(ex), y = mc_floor(ey), z = mc_floor(ez);
+        int id = gm_world_block(w, x, y, z);
+        if (is_water(id)) {
+            float filled = liquid_height_percent(gm_world_meta(w, x, y, z));
+            out->overlay = ey < (double)(y + 1) + (double)filled;
+            /* Entity.getBrightness: light brightness at the eye BlockPos. */
+            if (out->overlay) out->brightness = light_brightness_at(w, dim, x, y, z);
+        }
+    }
+
     if (out->fluid == 0) return;
 
     /* updateFogColor fluid branches (no respiration / water breathing /
@@ -121,19 +156,6 @@ void gm_uw_eval(const GmWorld *w, int dim, const GmPlayerView *pv,
     out->fog_rgba = (CrRgba){(u8)(cr * 255.0f + 0.5f), (u8)(cg * 255.0f + 0.5f),
                              (u8)(cb * 255.0f + 0.5f), 255};
 
-    if (out->fluid == 1) {
-        /* ItemRenderer.renderOverlays: player.isInsideOfMaterial(WATER) ->
-         * ForgeHooks.isInsideOfMaterial: block at the EYE BlockPos is water
-         * and eyes < pos.y + 1 + filled (filled = getLiquidHeightPercent). */
-        int x = mc_floor(ex), y = mc_floor(ey), z = mc_floor(ez);
-        int id = gm_world_block(w, x, y, z);
-        if (is_water(id)) {
-            float filled = liquid_height_percent(gm_world_meta(w, x, y, z));
-            out->overlay = ey < (double)(y + 1) + (double)filled;
-        }
-        /* Entity.getBrightness: light brightness at the eye BlockPos. */
-        out->brightness = light_brightness_at(w, dim, x, y, z);
-    }
 }
 
 void gm_uw_overlay_draw(CrFramebuffer *fb, const GmPlayerView *pv,
