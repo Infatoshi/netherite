@@ -1,0 +1,44 @@
+# Dense nether-portal roundtrip for the launch follow-up: build a lit
+# portal in front of spawn, walk in, cross to the nether, look around,
+# walk back through. Frames every tick so the dimension transit (purple
+# overlay, fog swap, nether terrain) is smooth at 30fps.
+name: portal_roundtrip
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 1.0 -90 0
+  - /fill 8 3 -1 8 7 2 minecraft:obsidian
+  - /fill 8 4 0 8 6 1 minecraft:air
+  - /fill 8 4 0 8 6 1 minecraft:portal 2
+  - /tp @p 0.5 4 1.0 -90 0
+duration_ticks: 480
+frames_every: 1
+input:
+  segments:
+    - seconds: 0.6
+    - seconds: 1.9
+      keys: [w]
+    - seconds: 6.0
+    - seconds: 1.6
+      keys: [w]
+      look: [20, 2]
+    - seconds: 2.4
+      look: [150, -4]
+    - seconds: 1.8
+      keys: [w]
+      look: [30, 2]
+    - seconds: 6.0
+    - seconds: 1.6
+      keys: [w]
+known_divergences: []

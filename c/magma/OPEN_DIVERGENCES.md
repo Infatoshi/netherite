@@ -160,6 +160,21 @@ committed tape covers double plants; the tape is kept in tapes/ for the
 fix. Launch-thread note: the zoom video's wipe segment was moved off this
 scene onto hold_dig_dense because of this bug.
 
+### Nether arrival: fire/lava content missing from the replayed world
+
+Found 2026-07-29 on the first dense portal tape
+(`scenario_portal_roundtrip_20260729T075228Z`, flat overworld, built+lit
+portal, dims {0:133, -1:350}). The dimension TRANSIT replays tick-exact
+(physics gate clean; the in-portal overlay matches frame-for-frame), and
+the netherrack cave geometry at the arrival matches - but the oracle's
+arrival chamber has burning fire blocks and a lava pool that magma's
+replay does not place, so the magma pane is also much darker (the absent
+blocks are the absent block-light). Suspects: DIM-1 snapshot-patch
+coverage around the arrival chunks vs the toroidal pool, or fire (51) /
+flowing-lava cells being dropped by a displaceable/falling-liquid filter
+on the patch path. Tape kept in tapes/ as the repro; nether fidelity has
+never been pixel-gated before this tape.
+
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 
 Diagnosis only, from a delegated triage pass; the code claims below were

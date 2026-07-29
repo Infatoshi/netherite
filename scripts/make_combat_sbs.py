@@ -9,8 +9,19 @@ from PIL import Image, ImageDraw
 ROOT = Path("/home/infatoshi/dev/netherite")
 TAPES = ROOT / "c/magma/raster/verify/tapes"
 OUT_TRACE = ROOT / "c/magma/raster/verify/trace/out"
-OUT_MP4 = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "demos/combat_sbs.mp4"
-NAMES = sys.argv[2:]  # tape stem names
+ARGV = sys.argv[1:]
+FPS = 10.0
+if "--fps" in ARGV:
+    i = ARGV.index("--fps")
+    FPS = float(ARGV[i + 1])
+    del ARGV[i : i + 2]
+MAX_TICK = None
+if "--max-tick" in ARGV:
+    i = ARGV.index("--max-tick")
+    MAX_TICK = int(ARGV[i + 1])
+    del ARGV[i : i + 2]
+OUT_MP4 = Path(ARGV[0]) if ARGV else ROOT / "demos/combat_sbs.mp4"
+NAMES = ARGV[1:]  # tape stem names
 
 def load_rgb(p):
     return np.asarray(Image.open(p).convert("RGB"))
@@ -25,18 +36,18 @@ W, H = 854 * 2, 480 + 36
 title = Image.new("RGB", (W, H), (12, 10, 9))
 d = ImageDraw.Draw(title)
 msg = (
-    "netherite combat scenario demo\n"
+    "netherite scenario demo\n"
     "LEFT = real Java MC 1.11.2 oracle    RIGHT = magma C port\n"
     "Scripted scenarios, replayed tick-exact from oracle input tapes\n"
     "23-tape suite: 16 pixel-gate clean, every residual diagnosed;\n"
     "CPU and CUDA rasters bit-identical\n"
-    "blaze bow fight  |  ender dragon from The End entry"
+    + "  |  ".join(n.replace("scenario_", "").split("_2026")[0] for n in NAMES)
 )
 y = 70
 for line in msg.split("\n"):
     d.text((40, y), line, fill=(230, 210, 190))
     y += 42
-for _ in range(30):
+for _ in range(int(round(FPS * 3))):
     frames.append(np.asarray(title))
 
 for name in NAMES:
@@ -49,6 +60,8 @@ for name in NAMES:
     tk = np.load(tk_path)
     label = name.replace("scenario_", "").split("_2026")[0]
     for i, t in enumerate(tk):
+        if MAX_TICK is not None and int(t) > MAX_TICK:
+            continue
         p = fdir / f"f_{int(t):06d}.png"
         if not p.exists():
             continue
@@ -73,7 +86,7 @@ def fit(f):
 ff = subprocess.Popen(
     ["ffmpeg", "-y", "-loglevel", "error",
      "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}",
-     "-r", "10", "-i", "-",
+     "-r", f"{FPS:g}", "-i", "-",
      "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", str(OUT_MP4)],
     stdin=subprocess.PIPE,
 )
@@ -82,4 +95,4 @@ for f in frames:
 ff.stdin.close()
 if ff.wait() != 0:
     raise SystemExit("ffmpeg failed")
-print(f"wrote {OUT_MP4} ({len(frames)} frames @ 10fps)")
+print(f"wrote {OUT_MP4} ({len(frames)} frames @ {FPS:g}fps)")
