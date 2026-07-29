@@ -87,6 +87,42 @@ bash c/magma/raster/verify/ui_entities/run_gates.sh
 bash c/magma/raster/verify/ui_entities/run_oracle_gate.sh
 ```
 
+### Blaze on-fire flag in the LIVE simulator (tape replay is fixed)
+
+Fixed for replay (2026-07-29, `wt/blazeglow`): the blaze now renders
+full-bright and engulfed in fire whenever the recorded entity flags say
+`isBurning()`. Vanilla mechanism, both in `java/oracle-src`:
+
+- `EntityBlaze.getBrightnessForRender` (`EntityBlaze.java:99-102`) returns
+  `15728880 = (240<<16)|240`, i.e. lightmap sky 15 / block 15 regardless of the
+  world cell. `RenderBlaze` itself is a plain `RenderLiving` with no glow
+  layer, so ALL of the oracle's "highlighted" look is this override.
+- `EntityBlaze.isBurning()` (`:172-175`) is overridden to `isCharged()`
+  (`:180-186`), the `ON_FIRE` datamanager byte bit 0 that
+  `AIFireballAttack.updateTask` sets at `attackStep == 1` and clears at step 5
+  / `resetTask` (`:246`, `:281-291`) - 78 ticks on, 100 off. That is what
+  `Render.doRenderShadowAndFire` (`Render.java:344-348`) tests before drawing
+  `renderEntityOnFire`'s layers, so an aggroed blaze burns and an idle one does
+  not.
+
+**Old tapes already carry this.** The recorder writes
+`(isBurning?1:0)|(isSneaking?2)|(isInvisible?4)|(isChild?8)` per living entity
+row (`QuantizedRL.java` "flags bitfield"), `replay_tape.py` forwards it as
+`ent_view.flags`, and `script.c` stores it in `GmEntityView.flags`. Measured on
+the three 2026-07-22 blaze tapes: 388-603 burning blaze rows each, with exactly
+the vanilla 78-on/100-off duty cycle (`blaze_melee` transitions t=18, 93, 191,
+269, ...). No recorder change was needed and none was made. Nothing was
+inferred from "the blaze looks aggroed" - the reverted `60f4076` failure mode.
+
+Still open: the LIVE simulator never sets the bit. `gm_mobs_fill_views`
+(`game/mob_live.c`) leaves `flags` zero, and `mob_live.c` has no port of
+`AIFireballAttack`'s `attackStep`/`attackTime` state machine (its blaze uses a
+flat 40-tick ranged cooldown, `attack_cooldown_ticks`). So an interactive /
+RL-env blaze is full-bright but never engulfed, and daylight-burning mobs
+(`m->fire_ticks`) draw no flames either. Porting the attack-step machine is a
+simulation change with fight-state consequences and was deliberately left out
+of the render fix.
+
 ### Full-frame soft surfaces
 
 These have useful capture-integrity checks but no pixel-perfect product claim:

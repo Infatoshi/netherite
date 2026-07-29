@@ -875,6 +875,11 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         int ez=(int)floorf(ents[i].z);
         int sky=gm_world_sky_light(r->world,ex,ey,ez);
         int bl=gm_world_block_light(r->world,ex,ey,ez);
+        /* getBrightnessForRender overrides (EntityBlaze: 15728880) pin the
+         * lightmap coords at max, so the model is drawn glowing whatever the
+         * cell light is. Forcing sky/bl here keeps both the LUT and the folded
+         * (Nether/End) path exact for the dimension. */
+        if(gm_entity_fullbright(ents[i].type)){sky=15;bl=15;}
         if(lm){
             ents[i].lm_lit=1;
             ents[i].lm_light=(float)sky;ents[i].lm_blk=(float)bl;
@@ -979,6 +984,10 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         nv=gm_small_fireball_fire_emit(ents,n,v.yaw,eb[3],
                                       c->max_entity_verts);
         gm_entity_restore_large_fireball_types(ents,n);
+        /* ... and for living entities whose recorded flags say isBurning()
+         * (a charged blaze is engulfed: EntityBlaze.isBurning -> isCharged). */
+        nv+=gm_entity_fire_emit(ents,n,v.yaw,eb[3]+nv,
+                                c->max_entity_verts-nv);
         if(nv>0){
             CrShadeCtx fire_sh={0};
             fire_sh.atlas=&atlas; fire_sh.fog_color=clear;

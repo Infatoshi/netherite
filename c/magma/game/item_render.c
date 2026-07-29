@@ -629,6 +629,109 @@ int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
     return written;
 }
 
+/* Vanilla Entity*.setSize AABB (width, height) per LIVING view type - the box
+ * Render.renderEntityOnFire scales its fire layers by. 0 for view types that
+ * are not living entities (items, projectiles, crystals, boats, ...), so the
+ * fire pass skips them. EW_TYPE_* / render-only ids as in entity_render.c;
+ * slime_size is GmEntityView.item_meta (EntitySlime.setSlimeSize:
+ * 0.51000005 * size). Blaze/player inherit the Entity default 0.6 x 1.8. */
+static int ir_living_box(int type, int slime_size, float *w, float *h) {
+    float bw, bh;
+    switch (type) {
+        case 1:  bw = 0.6f;  bh = 1.8f;  break;  /* player */
+        case 2:                                  /* zombie */
+        case 15: bw = 0.6f;  bh = 1.95f; break;  /* pigman */
+        case 3:  bw = 0.6f;  bh = 1.99f; break;  /* skeleton */
+        case 32: bw = 0.7f;  bh = 2.4f;  break;  /* wither skeleton */
+        case 4:  bw = 0.6f;  bh = 1.7f;  break;  /* creeper */
+        case 5:  bw = 1.4f;  bh = 0.9f;  break;  /* spider */
+        case 6:  bw = 0.6f;  bh = 2.9f;  break;  /* enderman */
+        case 7:  bw = 0.6f;  bh = 1.8f;  break;  /* blaze */
+        case 10:                                 /* sheep */
+        case 11:                                 /* pig */
+        case 12: bw = 0.9f;  bh = 1.4f;  break;  /* cow */
+        case 13: bw = 0.4f;  bh = 0.7f;  break;  /* chicken */
+        case 14: bw = 0.8f;  bh = 0.8f;  break;  /* squid */
+        case 23: bw = 0.6f;  bh = 1.95f; break;  /* witch */
+        case 24: bw = 0.5f;  bh = 0.9f;  break;  /* bat */
+        case 25: bw = 0.9f;  bh = 1.87f; break;  /* llama */
+        case 26: bw = 4.0f;  bh = 4.0f;  break;  /* ghast */
+        case 36: bw = 0.4f;  bh = 0.3f;  break;  /* silverfish */
+        case 34: bw = 0.5f;  bh = 1.975f; break; /* armor stand */
+        case 27:                                 /* magma cube */
+        case 35: {                               /* slime */
+            int sz = slime_size > 0 ? slime_size : 1;
+            bw = bh = 0.51000005f * (float)sz;
+            break;
+        }
+        default: return 0;
+    }
+    if (w) *w = bw;
+    if (h) *h = bh;
+    return 1;
+}
+
+/* Render.renderEntityOnFire (oracle-src Render.java:136-190) as camera-facing
+ * quads: scale f = width*1.4, layer count from f3 = height/f, z base
+ * -0.3 + (int)f3 * 0.02, then per layer f3/f4 -= 0.45, f1 *= 0.9, f5 += 0.03.
+ * f4 (posY - boundingBox.minY) is 0 for every view magma carries: tape/live
+ * entity y IS the AABB bottom. Unlit (GlStateManager.disableLighting) ->
+ * light 1 / blk 15. (cy,sy) is the -playerViewY billboard rotation.
+ * Returns verts written; stops early when out of room. */
+static int ir_fire_layers(float ex, float ey, float ez,
+                          float width, float height,
+                          float cy, float sy,
+                          CrVertex *out, int max) {
+    static const int FIRE_SPRITE[2] = {
+        CR_SPRITE_FIRE_LAYER_0, CR_SPRITE_FIRE_LAYER_1
+    };
+    float scale = width * 1.4f;
+    if (scale <= 0.0f) return 0;
+    float f3 = height / scale;
+    float zbase = -0.3f + (float)((int)f3) * 0.02f;
+    float half = 0.5f, yoff = 0.0f, zoff = 0.0f;
+    int written = 0, layer = 0;
+    while (f3 > 0.0f && layer < 8) {
+        if (written + 6 > max) break;
+        float u0, v0, u1, v1;
+        bm_sprite_uv(FIRE_SPRITE[layer % 2], &u0, &v0, &u1, &v1);
+        if ((layer / 2) % 2 == 0) {
+            float t = u0; u0 = u1; u1 = t;
+        }
+        float local[4][5] = {
+            {  half, 0.0f - yoff, zoff, u1, v1 },
+            { -half, 0.0f - yoff, zoff, u0, v1 },
+            { -half, 1.4f - yoff, zoff, u0, v0 },
+            {  half, 1.4f - yoff, zoff, u1, v0 },
+        };
+        CrVertex quad[4];
+        for (int c = 0; c < 4; ++c) {
+            float px = local[c][0];
+            float py = local[c][1];
+            float pz = local[c][2] + zbase;
+            float tx = px * cy + pz * sy;
+            float tz = -px * sy + pz * cy;
+            CrVertex vtx;
+            vtx.pos.x = ex + tx * scale;
+            vtx.pos.y = ey + py * scale;
+            vtx.pos.z = ez + tz * scale;
+            vtx.uv.x = local[c][3]; vtx.uv.y = local[c][4];
+            vtx.light = 1.0f; vtx.blk = 15.0f;
+            vtx.tint = (CrRgba){255, 255, 255, 255};
+            vtx.ao = 1.0f;
+            quad[c] = vtx;
+        }
+        for (int k = 0; k < 6; ++k)
+            out[written++] = quad[IR_TRI[k]];
+        half *= 0.9f;
+        yoff -= 0.45f;
+        zoff += 0.03f;
+        f3 -= 0.45f;
+        ++layer;
+    }
+    return written;
+}
+
 /* Render.doRenderShadowAndFire -> renderEntityOnFire for fireballs that are
  * isBurning() (GmEntityView.flags bit 0). RenderManager only calls this when
  * entityIn.isBurning(); EntityFireball.setFire(1) each tick when
@@ -642,9 +745,6 @@ int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
                                 float view_yaw, CrVertex *out, int max) {
     float yr = -view_yaw * IR_D2R;
     float cy = cosf(yr), sy = sinf(yr);
-    static const int FIRE_SPRITE[2] = {
-        CR_SPRITE_FIRE_LAYER_0, CR_SPRITE_FIRE_LAYER_1
-    };
     int written = 0;
     for (int e = 0; e < n; ++e) {
         if (ents[e].type != GM_VIEW_BILLBOARD || ents[e].item_id != 385)
@@ -655,50 +755,37 @@ int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
         if (written + 12 > max) break;
         /* EntityLargeFireball width 1.0; EntitySmallFireball width 0.3125. */
         float width = (ents[e].item_meta >= 2) ? 1.0f : 0.3125f;
-        float height = width;
-        float scale = width * 1.4f;
-        float f3 = height / scale; /* 1/1.4 for both size classes */
-        float zbase = -0.3f + (float)((int)f3) * 0.02f;
-        float half = 0.5f, yoff = 0.0f, zoff = 0.0f;
-        int layer = 0;
-        while (f3 > 0.0f && layer < 8) {
-            if (written + 6 > max) break;
-            float u0, v0, u1, v1;
-            bm_sprite_uv(FIRE_SPRITE[layer % 2], &u0, &v0, &u1, &v1);
-            if ((layer / 2) % 2 == 0) {
-                float t = u0; u0 = u1; u1 = t;
-            }
-            float local[4][5] = {
-                {  half, 0.0f - yoff, zoff, u1, v1 },
-                { -half, 0.0f - yoff, zoff, u0, v1 },
-                { -half, 1.4f - yoff, zoff, u0, v0 },
-                {  half, 1.4f - yoff, zoff, u1, v0 },
-            };
-            CrVertex quad[4];
-            for (int c = 0; c < 4; ++c) {
-                float px = local[c][0];
-                float py = local[c][1];
-                float pz = local[c][2] + zbase;
-                float tx = px * cy + pz * sy;
-                float tz = -px * sy + pz * cy;
-                CrVertex vtx;
-                vtx.pos.x = ents[e].x + tx * scale;
-                vtx.pos.y = ents[e].y + py * scale;
-                vtx.pos.z = ents[e].z + tz * scale;
-                vtx.uv.x = local[c][3]; vtx.uv.y = local[c][4];
-                vtx.light = 1.0f; vtx.blk = 15.0f;
-                vtx.tint = (CrRgba){255, 255, 255, 255};
-                vtx.ao = 1.0f;
-                quad[c] = vtx;
-            }
-            for (int k = 0; k < 6; ++k)
-                out[written++] = quad[IR_TRI[k]];
-            half *= 0.9f;
-            yoff -= 0.45f;
-            zoff += 0.03f;
-            f3 -= 0.45f;
-            ++layer;
-        }
+        written += ir_fire_layers(ents[e].x, ents[e].y, ents[e].z,
+                                  width, width, cy, sy,
+                                  out + written, max - written);
+    }
+    return written;
+}
+
+/* Render.doRenderShadowAndFire -> renderEntityOnFire for LIVING entities that
+ * are isBurning() (Render.java:344-348). The tape recorder writes bit 0 of the
+ * per-entity flags field straight from EntityLivingBase.isBurning()
+ * (QuantizedRL.java "flags bitfield: 1=burning"), so this is the RECORDED
+ * oracle state, never an inference. EntityBlaze overrides isBurning() to
+ * return isCharged() - the ON_FIRE datamanager bit its EntityAIFireballAttack
+ * sets for the whole volley (EntityBlaze.java:172-186, 281-291) - which is why
+ * an aggroed oracle blaze is engulfed in flames while idling ones are not.
+ * Fireball billboards keep their own pass (gm_small_fireball_fire_emit); every
+ * other view type with no living AABB is skipped. */
+int gm_entity_fire_emit(const GmEntityView *ents, int n,
+                        float view_yaw, CrVertex *out, int max) {
+    float yr = -view_yaw * IR_D2R;
+    float cy = cosf(yr), sy = sinf(yr);
+    int written = 0;
+    for (int e = 0; e < n; ++e) {
+        if ((ents[e].flags & 1) == 0)
+            continue;
+        float w, h;
+        if (!ir_living_box(ents[e].type, ents[e].item_meta, &w, &h))
+            continue;
+        if (written + 6 > max) break;
+        written += ir_fire_layers(ents[e].x, ents[e].y, ents[e].z, w, h,
+                                  cy, sy, out + written, max - written);
     }
     return written;
 }

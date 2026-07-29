@@ -950,6 +950,8 @@ int main(int argc, char **argv) {
             nv = gm_small_fireball_fire_emit(ents, nents, pv.yaw,
                                              ent_verts, ent_max_verts);
             gm_entity_restore_large_fireball_types(ents, nents);
+            nv += gm_entity_fire_emit(ents, nents, pv.yaw,
+                                      ent_verts + nv, ent_max_verts - nv);
             if (nv > 0) {
                 CrShadeCtx fire_sh = {0};
                 fire_sh.atlas = &atlas; fire_sh.fog_color = fog;
