@@ -1005,6 +1005,7 @@ typedef struct {
     int ent_id, inited;
     int idx;
     float yaw[64], y[64];
+    float pend_yaw, pend_y;   /* row awaiting the NEXT tick's push (see below) */
 } ErDragonRing;
 static ErDragonRing er_dragon_ring;   /* one dragon per fight */
 
@@ -1037,19 +1038,40 @@ static void geom_log(const char *lbl, float rpx, float rpy, float rpz,
  * must still push or every getMovementOffsets lookback reaches N-frames-per-
  * tick too far back and the flying body/neck/tail pose goes stale). Rendered
  * ticks keep pushing inside emit_dragon; callers use exactly one of the two
- * per tick. */
-void gm_dragon_pose_tick(int ent_id, float yaw, float y) {
+ * per tick.
+ *
+ * PHASE. Vanilla's push (EntityDragon.onLivingUpdate:239-240) runs BEFORE the
+ * tick's own motion: the interpolation block that advances rotationYaw/posY
+ * sits at :242-255 and the phase movement below it. So ringBuffer[idx] holds
+ * the pose as of the END of tick T-1, while the render at partialTicks=1.0
+ * draws the body at the END of tick T. The tape's ent row is post-tick state,
+ * so magma pushes the PREVIOUS row and holds the current one in pend_*; that
+ * makes ring[] a literal ringBuffer[] and keeps er_dragon_mo a literal
+ * getMovementOffsets. Pushing the current row instead ran the whole
+ * neck/head/tail chain and the applyRotations body yaw one tick early.
+ *
+ * DEATH. `health <= 0` takes onLivingUpdate's :191-197 branch (explosion
+ * particles) and never reaches the push at :225-240, so the ring - and with it
+ * the entire model pose - FREEZES at death. onDeathUpdate meanwhile spins
+ * rotationYaw +20 deg/tick (EntityDragon.java:701) and that spin is recorded
+ * into the tape, but vanilla never feeds it to the ring: applyRotations reads
+ * getMovementOffsets(7), not rotationYaw. Pushing it rotated magma's dying
+ * dragon ~20 deg/tick, reading as a mirrored body within ~9 death ticks. */
+void gm_dragon_pose_tick(int ent_id, float yaw, float y, float health) {
     ErDragonRing *rb = &er_dragon_ring;
     if (!rb->inited || rb->ent_id != ent_id) {
         rb->inited = 1;
         rb->ent_id = ent_id;
         rb->idx = 0;
         for (int i = 0; i < 64; ++i) { rb->yaw[i] = yaw; rb->y[i] = y; }
-    } else {
-        rb->idx = (rb->idx + 1) & 63;
-        rb->yaw[rb->idx] = yaw;
-        rb->y[rb->idx] = y;
+        rb->pend_yaw = yaw; rb->pend_y = y;
+        return;
     }
+    if (health <= 0.0f) return;          /* dead: ring frozen, see above */
+    rb->idx = (rb->idx + 1) & 63;
+    rb->yaw[rb->idx] = rb->pend_yaw;
+    rb->y[rb->idx] = rb->pend_y;
+    rb->pend_yaw = yaw; rb->pend_y = y;
 }
 
 static void er_dragon_mo(const ErDragonRing *rb, int p, int dead, float o[2]) {
@@ -1095,7 +1117,7 @@ static int emit_dragon(const GmEntityView *ent, CrVertex *out, int cap) {
     if (cap < 65 * ER_VERTS_PER_BOX) return 0;
 
     ErDragonRing *rb = &er_dragon_ring;
-    gm_dragon_pose_tick(ent->ent_id, ent->yaw, ent->y);
+    gm_dragon_pose_tick(ent->ent_id, ent->yaw, ent->y, ent->health);
     int dead = ent->health <= 0.0f;
 
     float lv = 15.0f, blk = 0.0f;
@@ -2016,7 +2038,8 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
          * if this entity never entered the ring. */
         ErDragonRing *rb = &er_dragon_ring;
         if (!rb->inited || rb->ent_id != ents[e].ent_id)
-            gm_dragon_pose_tick(ents[e].ent_id, ents[e].yaw, ents[e].y);
+            gm_dragon_pose_tick(ents[e].ent_id, ents[e].yaw, ents[e].y,
+                                ents[e].health);
         int dead = ents[e].health <= 0.0f;
         float mo5[2], mo7[2], mo10[2];
         er_dragon_mo(rb, 5, dead, mo5);

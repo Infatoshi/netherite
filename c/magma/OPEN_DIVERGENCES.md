@@ -536,9 +536,47 @@ command-block kill so the real onDeathUpdate plays; see the yaml):
   px, matching the golden, and mean-abs drops further to t=260 0.121,
   t=340 0.482, t=458 6.901, whole tape 1.817. THIS RETIRED TAPE STILL
   SHOWS BOTH until it is re-recorded with the new recorder.
-- **Entity interpolation**: dragon sits ~16px right of the oracle with
-  wing-flap phase offset - consistent with a one-tick view lag.
-  (Still open. Visible at t=260 as a mirrored/rotated body pose.)
+- **Entity interpolation / mirrored death pose**: **root-caused and
+  FIXED** (2026-07-29, `wt/dragonfx`). Not view lag and not
+  interpolation - two bugs in the `getMovementOffsets` trail ring, both
+  in `gm_dragon_pose_tick` (`game/entity_render.c`). Nothing reads the
+  entity's `rotationYaw` directly: `RenderDragon.applyRotations` and the
+  whole `ModelDragon` neck/head/tail chain are driven ONLY by the ring,
+  so a ring-phase error rotates and re-poses the entire dragon while
+  leaving its translation correct - which is why the symptom read as a
+  positional offset with no fixable `(dx,dy)`.
+  1. *Ring phase one tick early*: vanilla's push
+     (`EntityDragon.onLivingUpdate:239-240`) runs BEFORE the tick's own
+     motion - the client interpolation block is at `:242-255` and the
+     phase movement below it - so `ringBuffer[idx]` is the pose at the
+     END of tick T-1 while the render at `partialTicks=1.0` draws the
+     body at the end of tick T. The tape's `ents` row is post-tick
+     state, so magma was pushing tick T. Fix: hold the current row in
+     `pend_*` and push the PREVIOUS one, which makes `ring[]` a literal
+     `ringBuffer[]` and keeps `er_dragon_mo` a literal
+     `getMovementOffsets`.
+  2. *Ring kept advancing after death*: `health <= 0` takes
+     `onLivingUpdate`'s `:191-197` branch (explosion particles) and
+     never reaches the push, so vanilla's ring - and with it the ENTIRE
+     model pose, `animTime` included - freezes at death. Meanwhile
+     `onDeathUpdate` spins `rotationYaw += 20` per tick
+     (`EntityDragon.java:701`) and the recorder faithfully writes that
+     spin into the tape (`yaw` runs 157.5 -> 797.5 over t=258..290,
+     unwrapped, because the `wrapDegrees` at `:217` is in the alive
+     branch). magma fed the spin to the ring, so its dying dragon
+     rotated ~20 deg/tick and read as MIRRORED within ~9 death ticks.
+  Measured with the geometry oracle (`<tape>.geom.jsonl` vs
+  `MAGMA_GEOM_DUMP`, `geom_diff.py --offset 0`, ticks 180-458 - below
+  180 the recorder's golden re-render is still stale, `jaw` is pinned at
+  its t=0 value there). 1668 part comparisons: 255 mismatches, worst
+  164.6 texels / 3.109 rad -> **0 mismatches, max 0.000 texel /
+  0.0000 rad**. Dead ticks alone went 198/1188 bad -> 0. Pixel residual
+  in the dragon window (x[300,620] y[100,370], per-pixel max-channel
+  delta > 16, best-shift scan +-16 px): t=230 542 -> 183, t=244
+  482 -> 195, t=260 617 -> 436, t=270 4957 -> 1954, t=280 5284 -> 2277.
+  Best shift is (0,0) before AND after - there was never a translation
+  to recover, confirming the "~16px right" reading was pose error.
+  Residual after t=270 is the death-ray/dissolve pass, tracked above.
 
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 

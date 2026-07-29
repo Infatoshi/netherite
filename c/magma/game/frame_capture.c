@@ -712,7 +712,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         int dn=gm_dragon_fill_views(&r->dragon,dv,GM_RUNTIME_GHOST_VIEWS);
         dn+=gm_runtime_ghost_views(r,dv+dn,GM_RUNTIME_GHOST_VIEWS-dn);
         for(int i=0;i<dn;++i)if(dv[i].type==GM_ENTITY_DRAGON){
-            gm_dragon_pose_tick(dv[i].ent_id,dv[i].yaw,dv[i].y);break;
+            gm_dragon_pose_tick(dv[i].ent_id,dv[i].yaw,dv[i].y,
+                                dv[i].health);break;
         }
         c->frame++;return 1;
     }

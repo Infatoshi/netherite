@@ -382,7 +382,7 @@ int       gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
 CrTexture gm_entity_atlas(void);
 /* Advance the dragon trail ring on a tick whose frame is not rendered
  * (sparse --frame-every capture); rendered ticks push inside the emit. */
-void      gm_dragon_pose_tick(int ent_id, float yaw, float y);
+void      gm_dragon_pose_tick(int ent_id, float yaw, float y, float health);
 /* Stamp the tick written on MAGMA_GEOM_DUMP part-pose lines (geometry oracle). */
 void      gm_entity_geom_tick(long tick);
 /* Tape type string ("EntitySheep"...) -> EW_TYPE_* id with a model, or -1. */

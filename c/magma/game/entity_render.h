@@ -64,7 +64,7 @@ int       gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
 /* Advance the dragon trail ring for a tick whose frame is NOT rendered
  * (--frame-every sparse capture). Rendered ticks push inside the dragon
  * emit; call exactly one of the two per tick or the trail desyncs. */
-void      gm_dragon_pose_tick(int ent_id, float yaw, float y);
+void      gm_dragon_pose_tick(int ent_id, float yaw, float y, float health);
 
 /* Geometry oracle: when MAGMA_GEOM_DUMP names a file, each emit logs its
  * model-part poses ("D <tick> <label> rpx rpy rpz rx ry rz", vanilla
