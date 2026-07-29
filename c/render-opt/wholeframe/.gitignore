@@ -1,0 +1,3 @@
+# per-run capture/launch logs and diff outputs (frames + READMEs are committed)
+stripcheck/*.out
+diffs/

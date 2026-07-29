@@ -1,0 +1,13 @@
+{
+  "name": "mipmap_blend_gamma",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/texture/TextureUtil.java:108  blendColors() + blendColorComponent() (~158) + COLOR_GAMMAS init (~402)",
+  "describe": "Gamma-correct 2x2 box blend of 4 ARGB texels for mipmap generation. Linearizes each channel via COLOR_GAMMAS (pow 2.2 LUT), averages, re-encodes via pow 0.45454... Transparency branch skips alpha-0 texels and zeroes alpha<96.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

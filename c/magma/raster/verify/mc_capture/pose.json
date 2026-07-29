@@ -1,0 +1,15 @@
+{
+  "seed": 0,
+  "x": 8.3,
+  "y": 93.38,
+  "z": 40.5,
+  "yaw": -180.0,
+  "pitch": 35.0,
+  "eye_y": 95.0,
+  "mc_yaw": 180,
+  "mc_pitch": 35,
+  "fov": 70,
+  "width": 854,
+  "height": 480,
+  "notes": "spiral RD10 settled, eye 95.0 (obs y is feet=93.38), Fast/AO0/gamma0, no wipe"
+}

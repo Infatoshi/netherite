@@ -1,0 +1,40 @@
+# Rank 12 mechanic: fence and cobblestone-wall collision reaches Y + 1.5 although visible/selection
+# geometry is roughly 1 block high, so players cannot jump over it. In 1.11.2 MC-114722 lets a
+# projectile pass through that invisible upper 0.5 because it uses hitbox/selection geometry.
+# Expected wrong-magma divergence class: physics if player collision or arrow block impact differs;
+# structural pixels if isolated/connected wall geometry, fence geometry, or the arrow view differs.
+name: fence_collide
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 0.5 -90 3
+  - /fill 3 4 -3 3 4 3 minecraft:nether_brick_fence
+  - /setblock 3 4 6 minecraft:cobblestone_wall
+  - /fill 3 4 8 3 4 11 minecraft:cobblestone_wall
+  - /replaceitem entity @p slot.hotbar.0 minecraft:bow 1
+  - /replaceitem entity @p slot.hotbar.8 minecraft:arrow 16
+  - /summon armor_stand 8.5 4 0.5 {NoGravity:1b}
+duration_ticks: 500
+frames_every: 10
+input:
+  segments:
+    - seconds: 1.0
+    - seconds: 2.0
+      keys: [w, space]
+    - seconds: 2.0
+      keys: [s]
+    - seconds: 1.5
+      buttons: [3]
+    - seconds: 0.5
+known_divergences: []

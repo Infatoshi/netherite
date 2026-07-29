@@ -1,0 +1,13 @@
+{
+  "name": "visgraph_floodfill",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/chunk/VisGraph.java:40  computeVisibility() (+ floodFill, getNeighborIndexAtFace, addEdges, INDEX_OF_EDGES, SetVisibility)",
+  "describe": "Per-chunk visibility graph: BFS flood-fill over a 16^3 opaque bitset to determine which of the 6 chunk faces can see through to which others. Output = the 6x6 SetVisibility bitset packed into a long. PURE: opaque cells given as a 4096-bit input; Guava/IntegerCache/EnumFacing/BlockPos deps reduced to stdlib equivalents with identical behavior.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

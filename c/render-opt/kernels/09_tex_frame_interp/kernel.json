@@ -1,0 +1,13 @@
+{
+  "name": "tex_frame_interp",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/texture/TextureAtlasSprite.java:242  interpolateColor(double,int,int) + per-pixel assembly ~226-233",
+  "describe": "Animated-texture frame interpolation: per-channel linear blend of two ARGB frames by factor d0, keeping the source alpha. (int) truncation toward zero.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

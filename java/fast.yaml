@@ -1,0 +1,74 @@
+# fast.yaml - AGENT/TRACE profile (headless llvmpipe stack, mc_cli.py default).
+# Rule of thumb: strip harness chrome and clock/weather noise, but the GAME
+# stays the game - blocks drop, mobs spawn and drop loot, crops grow, fire
+# spreads. A test that needs a sterile world passes its own gamerules through
+# the bridge reset (world.gamerules), not here.
+#
+# Video is the cheap pinned profile magma mirrors: fast leaves, ao 0,
+# no mips, minimal particles. Goldens assume it - re-golden before changing.
+
+instance:
+  port: 25575        # qrl TCP bridge port (batch: +1 per extra instance)
+  display: ":1"      # X display for headless launch (batch: +1 per extra instance)
+  username: Player0  # pinned player name (vanilla default is wall-clock random)
+
+world:
+  seed: 0
+  mode: survival     # survival | creative
+  type: default      # default overworld for hard-scene / worldgen goldens (flat only for cheap sim)
+  structures: true
+  time: 6000         # frozen mid-morning for deterministic sky/lightmap pixels
+  weather: clear     # clear | none
+  gamerules:
+    sendCommandFeedback: false   # no "[Server: ...]" chat spam (pixel-diff noise)
+    showDeathMessages: false     # chat noise, not gameplay
+    doDaylightCycle: false       # frozen clock (pixel determinism)
+    doWeatherCycle: false        # no weather rolls (pixel determinism)
+    # everything below stays VANILLA - do not strip gameplay from the oracle
+    doMobSpawning: true
+    doFireTick: true
+    doMobLoot: true
+    doEntityDrops: true
+    doTileDrops: true
+    mobGriefing: true
+    randomTickSpeed: 3
+    keepInventory: false
+
+video:               # patched into Minecraft/run/options.txt before launch
+  fov: 70            # degrees, 30..110
+  max_fps: 260       # 1.11.2 "unlimited" ceiling (headless: no encoder to starve)
+  render_distance: 8 # chunks (pin shared with hard-scene; lower only after re-golden)
+  gui_scale: 2       # 0 = auto
+  clouds: false      # false | fast | true
+  particles: minimal # all | decreased | minimal  (0/1/2 in options.txt)
+  smooth_lighting: 0 # 0 off, 1 minimal, 2 maximum - OFF for perf + simple C path
+  mipmap_levels: 0   # 0..4 - 0 skips mip chain cost
+  vsync: false
+  fancy_graphics: false  # Fast leaves (SOLID), no vignette
+  entity_shadows: false
+  gamma: 0.0         # raw gammaSetting; 0 = no brighten
+  bob_view: false
+  anaglyph: false
+  use_vbo: true      # VBOs are faster than immediate mode
+  fbo_enable: true   # keep FBOs (many render paths assume them)
+  sound: 0.0         # master volume 0..1
+  mute_all_sounds: true
+
+ui:
+  chat: false        # chat overlay fully hidden (visibility HIDDEN)
+  hide_gui: false    # true = also no hotbar/crosshair (F1 view)
+
+determinism:
+  pin_flicker: true  # zero the Math.random() torch-flicker (unseedable); required for
+                     # cross-launch pixel diffs of blocklight scenes (nether)
+  pin_skin: true     # always the classic (Steve) arm; Malmo randomizes slim/classic
+                     # per launch, which flips the first-person arm pixels
+  pin_texture_animations: true  # keep the initially uploaded physical frame 0 for
+                                # fire/lava/water/portal pixel-golden determinism
+
+strip:               # remove harness chrome (not gameplay)
+  menus: true        # no pause menu, no options screen, no death screen
+                     # (death -> obs "dead"/"deaths" + instant auto-respawn)
+  overlays: true     # no boss bar (vignette already off via fancyGraphics:false;
+                     # hotbar/health/hunger/xp/crosshair/inventory GUIs are KEPT)
+  sound: true        # never boot the SoundSystem (no threads, no OpenAL)

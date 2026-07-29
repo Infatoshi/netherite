@@ -1,0 +1,16 @@
+{
+  "poses": {
+    "wide": {"x": 203.5, "y": 100.0, "z": 216.5, "epsilon": 0.08},
+    "underwater": {"x": 194.5, "y": 100.0, "z": 202.5, "epsilon": 0.08}
+  },
+  "regions": {
+    "still_water": {"pose": "wide", "box": [60, 210, 275, 390], "abs_tol": 32.0, "motion_min": 2.0, "temporal_tol": 5.5, "phase_shift_ticks": 2},
+    "flowing_water": {"pose": "wide", "box": [275, 135, 505, 390], "abs_tol": 32.0, "motion_min": 2.0, "temporal_tol": 5.5, "phase_shift_ticks": 2},
+    "portal_swirl": {"pose": "wide", "box": [505, 115, 690, 385], "abs_tol": 32.0, "motion_min": 2.0, "temporal_tol": 15.0, "phase_shift_ticks": 10},
+    "lava": {"pose": "wide", "box": [690, 115, 854, 410], "abs_tol": 32.0, "motion_min": 2.0, "temporal_tol": 16.5, "phase_shift_ticks": 8},
+    "underwater_overlay": {"pose": "underwater", "box": [0, 0, 854, 480], "abs_tol": 10.0, "max_abs_tol": 10.0}
+  },
+  "atlas_regions": {
+    "fire": {"sprites": ["fire_layer_0", "fire_layer_1"], "temporal_tol": 0.1, "phase_shift_ticks": 1}
+  }
+}

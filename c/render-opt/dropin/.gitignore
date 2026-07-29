@@ -1,0 +1,4 @@
+
+# build/runtime artifacts
+*.class
+*_mode.txt

@@ -1,0 +1,13 @@
+{
+  "name": "fast_inv_sqrt",
+  "tier": 0,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/util/math/MathHelper.java:539  fastInvSqrt(double)",
+  "describe": "Quake-style fast inverse sqrt (magic long 6910469410427058090 + 1 Newton step). Bit-exact sensitive.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "doubles", "n": 100000, "lo": 1e-6, "hi": 1e6, "seed": 7 },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

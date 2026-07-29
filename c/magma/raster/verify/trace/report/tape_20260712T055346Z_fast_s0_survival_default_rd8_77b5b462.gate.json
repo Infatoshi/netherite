@@ -1,0 +1,356 @@
+{
+ "pass": true,
+ "frames_checked": 0,
+ "classes": {},
+ "failed_frames": [],
+ "state": {
+  "kind": "state",
+  "coverage": {
+   "ticks_total": 3121,
+   "ticks_run": 3121,
+   "truncated": false
+  },
+  "inventory": {
+   "ticks_checked": 0,
+   "ticks_independent": 0,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
+   "available": false
+  },
+  "entities": {
+   "ticks_checked": 157,
+   "samples": [
+    {
+     "tick": 0,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 20,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 40,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 60,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 80,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 100,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 120,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 140,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 160,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 180,
+     "tape_count": 9,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 200,
+     "tape_count": 9,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 220,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 240,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 260,
+     "tape_count": 9,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 280,
+     "tape_count": 9,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 300,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    }
+   ],
+   "pass": true,
+   "available": true
+  },
+  "world": {
+   "ticks_checked": 157,
+   "hash_deltas": 96,
+   "samples": [
+    {
+     "tick": 0,
+     "nearby_hash": "e7c92f400bef2bd9"
+    },
+    {
+     "tick": 100,
+     "nearby_hash": "e7c92f400bef2bd9"
+    },
+    {
+     "tick": 200,
+     "nearby_hash": "e7c92f400bef2bd9"
+    },
+    {
+     "tick": 300,
+     "nearby_hash": "e7c92f400bef2bd9"
+    },
+    {
+     "tick": 400,
+     "nearby_hash": "4675fcfd00215221"
+    },
+    {
+     "tick": 500,
+     "nearby_hash": "7dee9a73d4a4070c"
+    },
+    {
+     "tick": 600,
+     "nearby_hash": "acdd92e32d6f01a4"
+    },
+    {
+     "tick": 700,
+     "nearby_hash": "f5a5f9249e3cf529"
+    },
+    {
+     "tick": 800,
+     "nearby_hash": "45e9fc13cf02314d"
+    },
+    {
+     "tick": 900,
+     "nearby_hash": "2e8748f90a6d6139"
+    },
+    {
+     "tick": 1000,
+     "nearby_hash": "df5192ab2f232e29"
+    },
+    {
+     "tick": 1100,
+     "nearby_hash": "4b9b64ff7f787f59"
+    },
+    {
+     "tick": 1200,
+     "nearby_hash": "85fc354b9ffa6f49"
+    },
+    {
+     "tick": 1300,
+     "nearby_hash": "2900adeccefc1049"
+    },
+    {
+     "tick": 1400,
+     "nearby_hash": "bd78b212d2d413d3"
+    },
+    {
+     "tick": 1500,
+     "nearby_hash": "2beb1457e06dab4f"
+    },
+    {
+     "tick": 1600,
+     "nearby_hash": "4cdab904a0c1f4a1"
+    },
+    {
+     "tick": 1700,
+     "nearby_hash": "c594d0a079f64747"
+    },
+    {
+     "tick": 1800,
+     "nearby_hash": "5a46800565d9c19e"
+    },
+    {
+     "tick": 1900,
+     "nearby_hash": "f152a5adeb833505"
+    },
+    {
+     "tick": 2000,
+     "nearby_hash": "b201a74829682c53"
+    },
+    {
+     "tick": 2100,
+     "nearby_hash": "b201a74829682c53"
+    },
+    {
+     "tick": 2200,
+     "nearby_hash": "b201a74829682c53"
+    },
+    {
+     "tick": 2300,
+     "nearby_hash": "27c5d183c61adaa7"
+    },
+    {
+     "tick": 2400,
+     "nearby_hash": "27c5d183c61adaa7"
+    },
+    {
+     "tick": 2500,
+     "nearby_hash": "1fae12a1575a82e8"
+    },
+    {
+     "tick": 2600,
+     "nearby_hash": "fd230c23eb24c4d3"
+    },
+    {
+     "tick": 2700,
+     "nearby_hash": "89485b3c0b33d6f4"
+    },
+    {
+     "tick": 2800,
+     "nearby_hash": "b62288c70bad7447"
+    },
+    {
+     "tick": 2900,
+     "nearby_hash": "024db4fcd6ed804b"
+    },
+    {
+     "tick": 3000,
+     "nearby_hash": "8469437a7c0d9c48"
+    },
+    {
+     "tick": 3100,
+     "nearby_hash": "8469437a7c0d9c48"
+    }
+   ],
+   "pass": true,
+   "available": true
+  }
+ }
+}

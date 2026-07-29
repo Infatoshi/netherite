@@ -1,0 +1,20 @@
+{
+  "seed": 7,
+  "x": 16.5,
+  "y": 87.38,
+  "z": 268.5,
+  "yaw": -180.0,
+  "pitch": 40.0,
+  "eye_x": 16.5,
+  "eye_y": 89.00000000476837,
+  "eye_z": 268.5,
+  "fov_setting": 70.0,
+  "fov_effective": 77.0,
+  "fov_modifier": 1.1,
+  "magma_yaw_deg": 0.0,
+  "magma_pitch_deg": -40.0,
+  "width": 854,
+  "height": 480,
+  "camera_json": "camera_seed7.json",
+  "notes": "instrumented capture; use camera.json as source of truth for verify"
+}

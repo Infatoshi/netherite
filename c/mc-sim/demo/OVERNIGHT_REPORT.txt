@@ -1,0 +1,57 @@
+mc-sim overnight report — 2026-06-30T20:44:31-06:00
+host: anvil
+
+=== Wave 14 CPU verify (fast) ===
+== smoke (arch sm_120) ==  256 lines  [no Java golden]  [cpu-only]  [nvcc skipped]
+PASS
+  PASS  verify-cpu-smoke
+== tick_compose_full (arch sm_120) ==  576 lines  [no Java golden]  [cpu-only]  [nvcc skipped]
+PASS
+  PASS  verify-cpu-tick_compose_full
+== cuda_batch_tick (arch sm_120) ==  768 lines  [no Java golden]  [cpu-only]  [nvcc skipped]
+PASS
+  PASS  verify-cpu-cuda_batch_tick
+== cuda_batch_worldgen (arch sm_120) ==  16 lines  [no Java golden]  [cpu-only]  [nvcc skipped]
+PASS
+  PASS  verify-cpu-cuda_batch_worldgen
+  ok  determinism replay (17 obs hashes)
+  skip pybind11 schema (import failed: /home/infatoshi/dev/minecraft/mc-sim/py/build/mcsim_gym.cpython-313-x86_64-linux-gnu.so: undefined symbol: PyThreadState_GetUnchecked)
+  skip pybind11 schema (module not built; see py/README.md)
+PASS py_gym_env_smoke oracle
+== py_gym_env_smoke (arch sm_120) ==  17 lines  [cpu-only]  [nvcc skipped]
+  ok  cpu_run1 == cpu_run2  (17 lines)
+PASS
+  PASS  verify-cpu-py_gym_env_smoke
+== sps_benchmark (arch sm_120) ==  2 lines  [no Java golden]  [cpu-only]  [nvcc skipped]
+PASS
+  PASS  verify-cpu-sps_benchmark
+
+=== SPS benchmark (CPU + CUDA if nvcc) ===
+CPU:
+sps_benchmark cpu: envs=4 ticks=64 rounds=2 steps=512 elapsed=0.093s sps=5489
+0000000000000200
+00efcdd5310edc62
+sps_benchmark cpu: envs=4 ticks=64 rounds=2 steps=512 elapsed=0.092s sps=5539
+CUDA:
+sps_benchmark cuda: envs=4 ticks=64 rounds=2 steps=512 elapsed=17.961s sps=29
+0000000000000200
+00efcdd5310edc62
+sps_benchmark cuda: envs=4 ticks=64 rounds=2 steps=512 elapsed=18.029s sps=28
+== sps_benchmark (arch sm_120) ==  2 lines  [no Java golden]
+  ok  cpu == cuda  (2 lines)
+PASS
+  PASS  oracle sps_benchmark (CPU==CUDA hash)
+
+=== CUDA device kernel (cp_provide_kernel.o) ===
+  building cp_provide_kernel.o (~10-20 min)...
+  [cuda-k] cp_provide_kernel.o (~10-20 min first time; cached after)
+Killed
+make: *** [Makefile:49: build/obj/cuda/cp_provide_kernel.o] Error 255
+  FAIL  cp_provide_kernel.o build
+
+=== Quick stats ===
+  cpu kernels: 106
+  core headers: 113
+
+Done. Pull demo/OVERNIGHT_REPORT.txt on the Mac to read results.
+Try: make help | make verify-cpu-tick_compose_full | make batch

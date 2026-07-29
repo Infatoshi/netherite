@@ -1,0 +1,127 @@
+{
+ "thresholds": {
+  "diff": 25,
+  "min_cluster": 50,
+  "fail_cluster": 4000,
+  "fail_total": 8000,
+  "class_pixel_budgets": {
+   "hud": 55000,
+   "particles": 40000,
+   "viewmodel": 40000,
+   "transit": 40000
+  },
+  "low_diff": 1,
+  "fail_mean_abs": 3.32,
+  "fail_low_pct_differing": 40.0
+ },
+ "frames_checked": 108,
+ "classes": {
+  "hud": {
+   "frames": 14,
+   "px": 59816,
+   "max_cluster": 13767
+  },
+  "viewmodel": {
+   "frames": 48,
+   "px": 18331,
+   "max_cluster": 3507
+  },
+  "UNEXPLAINED": {
+   "frames": 84,
+   "px": 32397,
+   "max_cluster": 464
+  },
+  "particles": {
+   "frames": 54,
+   "px": 6913,
+   "max_cluster": 170
+  }
+ },
+ "failed_frames": [],
+ "mild_shift_failures": 0,
+ "pass": true,
+ "missing_models": {},
+ "missing_model_row_threshold": 4,
+ "missing_model_failures": {},
+ "state": {
+  "kind": "state",
+  "coverage": {
+   "ticks_total": 108,
+   "ticks_run": 108,
+   "truncated": false
+  },
+  "inventory": {
+   "ticks_checked": 1,
+   "ticks_independent": 0,
+   "seeded_only": true,
+   "mismatches": [],
+   "pass": true,
+   "available": true
+  },
+  "entities": {
+   "ticks_checked": 6,
+   "samples": [
+    {
+     "tick": 0,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 20,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 40,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 60,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 80,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 100,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    }
+   ],
+   "pass": true,
+   "available": true
+  },
+  "world": {
+   "ticks_checked": 6,
+   "hash_deltas": 0,
+   "samples": [
+    {
+     "tick": 0,
+     "nearby_hash": "a69c55793dc48b19"
+    },
+    {
+     "tick": 100,
+     "nearby_hash": "a69c55793dc48b19"
+    }
+   ],
+   "pass": true,
+   "available": true
+  }
+ }
+}

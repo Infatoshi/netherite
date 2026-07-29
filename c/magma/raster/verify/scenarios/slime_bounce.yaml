@@ -1,0 +1,33 @@
+# Rank 5 mechanic: a non-sneaking living entity negates negative Y velocity exactly on slime and
+# takes zero fall damage; sneaking suppresses the bounce and restores ordinary landing damage.
+# Exact numeric expectations: nonliving bounce is -motionY * 0.8; walking with abs(motionY) < 0.1
+# multiplies X/Z by 0.4 + abs(motionY) * 0.2; slime slipperiness is 0.8.
+# Expected wrong-magma divergence class: physics if contact velocity, fall damage, apex, or walking
+# damping differs; structural pixels if slime texture or the player/block contact height differs.
+name: slime_bounce
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 16 0.5 0 0
+  - /fill -10 3 -10 10 3 10 minecraft:slime
+duration_ticks: 400
+frames_every: 10
+input:
+  segments:
+    - seconds: 1.4
+    - seconds: 5.0
+      keys: [Shift_L]
+    - seconds: 8.0
+      keys: [w, Control_L]
+known_divergences: []

@@ -1,0 +1,13 @@
+{
+  "name": "particle_billboard",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/particle/Particle.java:183 renderParticle (particleTexture==null path)",
+  "describe": "Camera-facing particle quad: from particle scalars (pos/prevPos, scale, angle, color, the 5 rotation params, partialTicks, interpPos, cameraViewDir, light) compute the 4 output vertices (pos floats, uv floats, packed color, lightmap j/k). angle!=0 takes the MathHelper sin/cos quaternion-rotate path. Bit-exact: float/double cast points, MathHelper SIN_TABLE, and Vec3d's -0.0->+0.0 ctor normalization.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

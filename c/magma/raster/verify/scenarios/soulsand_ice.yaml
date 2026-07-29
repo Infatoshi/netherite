@@ -1,0 +1,31 @@
+# Rank 8 mechanic: soul sand is 0.875 block tall, so the player visibly sinks by 0.125 block, and
+# every collision multiplies X and Z velocity by 0.4. In 1.11.2 the ice slipperiness underneath still
+# contributes, producing the historical compounded slowdown (without post-1.13 bubble columns).
+# Expected wrong-magma divergence class: physics if rest Y, repeated *0.4 damping, or entry/exit speed
+# differs; structural pixels if the recessed soul-sand surface or packed-ice-underlay view differs.
+name: soulsand_ice
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p -10.5 4 0.5 -90 0
+  - /fill -8 2 -1 12 2 1 minecraft:packed_ice
+  - /fill -8 3 -1 12 3 1 minecraft:soul_sand
+duration_ticks: 500
+frames_every: 10
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 18.0
+      keys: [w, Control_L]
+known_divergences: []

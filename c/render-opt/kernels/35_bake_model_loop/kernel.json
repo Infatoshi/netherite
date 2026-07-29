@@ -1,0 +1,13 @@
+{
+  "name": "bake_model_loop",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/block/model/ModelBakery.java:673 bakeModel + SimpleBakedModel.Builder",
+  "describe": "Model-bake assembly/dispatch loop: per element/face, route each baked quad into the SimpleBakedModel buckets - general list if cullFace==null OR the model-rotation matrix is non-integer, else the per-facing list keyed by modelRotation.rotate(cullFace). Verbatim dispatch + EnumMap bucketing. REDUCED deps (the assembly never inspects them): makeBakedQuad -> a quad id input; ModelRotation.rotate -> a precomputed rotatedCullFace input. Quad baking itself is kernels 31-34.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

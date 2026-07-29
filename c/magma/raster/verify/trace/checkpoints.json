@@ -1,0 +1,18 @@
+[
+  {"name": "spawn_plains", "x": 44.5, "y": 68.0, "z": 176.5, "yaw": 0.0, "pitch": 5.0, "time": 6000,
+   "note": "Seed-0 world spawn column (extreme-hills edge, grass). Feet on ground y=68 (surface 67)."},
+  {"name": "water_bank", "x": -28.5, "y": 64.0, "z": 316.5, "yaw": -41.0, "pitch": 20.0, "time": 6000,
+   "note": "Grass bank of the large lake SW of spawn, looking down across open water."},
+  {"name": "forest_canopy", "x": -103.5, "y": 73.0, "z": 82.5, "yaw": 45.0, "pitch": -10.0, "time": 6000,
+   "note": "Inside the roofed-forest canopy NW of spawn; dark-oak leaves 2-5 blocks overhead, looking slightly up."},
+  {"name": "beach_sand", "x": 74.5, "y": 67.0, "z": 74.5, "yaw": -86.0, "pitch": 10.0, "time": 6000,
+   "note": "Sand beach column with water to the west; tests sand/water/biome tint."},
+  {"name": "mountain_vista", "x": 90.5, "y": 111.0, "z": 267.5, "yaw": 153.0, "pitch": 10.0, "time": 6000,
+   "note": "Top of the extreme-hills peak SE of spawn (highest ground in the surveyed box, y=110), looking back toward spawn."},
+  {"name": "underground_cave", "x": -99.5, "y": 39.0, "z": 66.5, "yaw": 270.0, "pitch": 0.0, "time": 6000,
+   "note": "Inside a natural cave pocket (air at y=39-41 under 30+ blocks of stone). Tests darkness/light falloff parity; expect a near-black frame on both sides."},
+  {"name": "snow_slope", "x": 68.5, "y": 106.0, "z": 180.5, "yaw": 200.0, "pitch": 10.0, "time": 6000,
+   "note": "Snow-layer-covered high slope near spawn; tests snow layers + high-altitude fog."},
+  {"name": "night_spawn", "x": 44.5, "y": 68.0, "z": 176.5, "yaw": 0.0, "pitch": 5.0, "time": 18000,
+   "note": "Same pose as spawn_plains at midnight (time 18000, frozen). Tests sky/lightmap night parity."}
+]

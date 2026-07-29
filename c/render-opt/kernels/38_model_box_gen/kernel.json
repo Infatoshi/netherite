@@ -1,0 +1,13 @@
+{
+  "name": "model_box_gen",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/model/ModelBox.java:32 ctor + TexturedQuad.java:22 ctor/:48 draw normal",
+  "describe": "Entity ModelBox baking: from (texU,texV,x,y,z,dx,dy,dz,delta,mirror,texW,texH) build the 8 box corner vertices (delta inflate + mirror x-swap), the 6 faces' UV mapping (int texcoords / sheet size), and each face's draw() normal (Vec3d cross+normalize, MathHelper.sqrt float precision, -0.0 ctor norm). mirror flipFace reverses each quad (UV order + normal sign). GL emit dropped. Pure.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

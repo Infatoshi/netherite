@@ -1,0 +1,71 @@
+# vanilla.yaml - HUMAN PLAY profile (Moonlight). The game behaves like real
+# Minecraft: drops, mobs, growth, day/night, weather, sound, menus, chat.
+# sunshine_launch_mc.sh regenerates run/options.txt + run/qrl_launch.json from
+# this file on every launch, so it also HEALS saves whose level.dat still
+# carries the old harness gamerules (gamerules persist per-world).
+#
+# Video stays on the same cheap profile as fast.yaml ON PURPOSE: magma
+# mirrors this exact look (fast leaves, ao 0, no mips, minimal particles), and
+# human-play tapes are pixel-verified against it. Do not turn fancy back on
+# without re-goldening.
+
+instance:
+  port: 25575        # qrl bridge stays up so recstart/recstop taping works
+  display: ":0"      # Moonlight streams X :0 (AMD iGPU hardware GL)
+  username: Player0
+
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: true
+  time: -1           # leave the clock alone
+  weather: none      # do not force weather
+  gamerules:         # explicit VANILLA values - heals worlds poisoned by old configs
+    sendCommandFeedback: true
+    doDaylightCycle: true
+    doWeatherCycle: true
+    doMobSpawning: true
+    doFireTick: true
+    doMobLoot: true
+    doEntityDrops: true
+    doTileDrops: true
+    mobGriefing: true
+    randomTickSpeed: 3
+    keepInventory: false
+    showDeathMessages: true
+
+video:
+  fov: 70
+  max_fps: 120       # cap: the 2-CU iGPU also feeds sunshine capture; uncapped
+                     # rendering starved the stream encoder (2026-07-10)
+  render_distance: 8
+  gui_scale: 2
+  clouds: false
+  particles: minimal
+  smooth_lighting: 0
+  mipmap_levels: 0
+  vsync: false       # keep off: the headless CRTC has no real vblank
+  fancy_graphics: false
+  entity_shadows: false
+  gamma: 0.0
+  bob_view: false
+  anaglyph: false
+  use_vbo: true
+  fbo_enable: true
+  sound: 1.0
+  mute_all_sounds: false
+
+ui:
+  chat: true
+  hide_gui: false
+
+determinism:         # all off: real torch flicker, animated water/lava/portal
+  pin_flicker: false
+  pin_skin: false
+  pin_texture_animations: false
+
+strip:               # all off: pause menu, death screen, boss bar, sound engine
+  menus: false
+  overlays: false
+  sound: false

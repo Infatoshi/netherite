@@ -1,0 +1,10 @@
+{
+  "name": "light_propagation",
+  "tier": 2,
+  "capture_mode": "live-hook",
+  "source": "src/net/minecraft/world/World.java:3025 checkLightFor (BFS)",
+  "describe": "GROUP B: golden captured live (golden/inputs.txt + golden/golden.txt). No C port yet; Mac can port later from the durable capture.",
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

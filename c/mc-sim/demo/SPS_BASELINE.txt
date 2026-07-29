@@ -1,0 +1,16 @@
+# SPS baseline (anvil, 2026-06-30)
+
+Harness: 4 envs x 64 ticks x 2 rounds = 512 sim-steps per run.
+
+| Path | SPS (approx) | Notes |
+|------|----------------|-------|
+| CPU scalar (`build/bin/cpu/sps_benchmark`) | ~5,600 | tick_compose_full chain on CPU |
+| CUDA serial (`build/bin/cuda/sps_benchmark`) | run overnight script for number | one env per launch in current harness |
+
+Oracle: stdout hash lines CPU==CUDA PASS (deterministic; timing not compared).
+
+Re-run:
+```bash
+make cpu-sps_benchmark && build/bin/cpu/sps_benchmark
+python3 oracle/runner.py sps_benchmark
+```

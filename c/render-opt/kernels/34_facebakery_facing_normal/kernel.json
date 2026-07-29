@@ -1,0 +1,13 @@
+{
+  "name": "facebakery_facing_normal",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/block/model/FaceBakery.java:242 getFacingFromVertexData + :283 applyFacing",
+  "describe": "Model-bake facing+reorder: getFacingFromVertexData computes the quad normal from int[28] (Vector3f sub/cross, sqrt-normalize) and argmaxes 6 axis dots -> EnumFacing; applyFacing reorders the 4 vertices to the target facing's corner layout (min/max bounds + EnumFaceDirection vertex info) and copies u/v lanes on an epsilonEquals position match. Inputs are structured axis-aligned planar quads so the facing argmax is unambiguous. Vector3f inlined with exact LWJGL 2.9.2 semantics (validated vs the real jar).",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

@@ -1,0 +1,2529 @@
+{
+  "margin": 2.0,
+  "fail": 0,
+  "residual": 5,
+  "blocked": [],
+  "residuals": [
+    {
+      "id": "hand_bow_pull20",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 47.09466864363074,
+      "gate": 0.0,
+      "hard_px": 30260,
+      "hard_thr": 0,
+      "max_diff": 125.0,
+      "verdict": "RESIDUAL",
+      "reason": "hard_residual",
+      "residual_bbox": [
+        569,
+        320,
+        845,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 569,
+          "y": 320,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 597,
+          "y": 329,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 625,
+          "y": 338,
+          "maxch": 47,
+          "c": [
+            54,
+            54,
+            54
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 653,
+          "y": 347,
+          "maxch": 58,
+          "c": [
+            43,
+            43,
+            43
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 681,
+          "y": 356,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 709,
+          "y": 365,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 737,
+          "y": 374,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 765,
+          "y": 383,
+          "maxch": 30,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            36,
+            26,
+            10
+          ]
+        },
+        {
+          "x": 793,
+          "y": 392,
+          "maxch": 25,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            51,
+            38,
+            15
+          ]
+        },
+        {
+          "x": 821,
+          "y": 401,
+          "maxch": 25,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            51,
+            38,
+            15
+          ]
+        },
+        {
+          "x": 786,
+          "y": 411,
+          "maxch": 25,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            51,
+            38,
+            15
+          ]
+        },
+        {
+          "x": 705,
+          "y": 421,
+          "maxch": 30,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            36,
+            26,
+            10
+          ]
+        }
+      ],
+      "n_owned": 31024,
+      "n_painted": 15306,
+      "c_paint_nz": 14558,
+      "c_paint_maxch": 125,
+      "c_paint_mean": 54.901520101049705,
+      "n_only_j": 15718,
+      "n_only_c": 0,
+      "rule": "hand_java_union_c_subject_exact"
+    },
+    {
+      "id": "hand_eat_mid",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 53.77502533115857,
+      "gate": 0.0,
+      "hard_px": 101880,
+      "hard_thr": 0,
+      "max_diff": 215.0,
+      "verdict": "RESIDUAL",
+      "reason": "hard_residual",
+      "residual_bbox": [
+        284,
+        240,
+        845,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 284,
+          "y": 240,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 344,
+          "y": 255,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 404,
+          "y": 270,
+          "maxch": 88,
+          "c": [
+            54,
+            40,
+            13
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 464,
+          "y": 285,
+          "maxch": 88,
+          "c": [
+            57,
+            42,
+            13
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 524,
+          "y": 300,
+          "maxch": 84,
+          "c": [
+            35,
+            26,
+            8
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 584,
+          "y": 315,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 644,
+          "y": 330,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 704,
+          "y": 345,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 764,
+          "y": 360,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 824,
+          "y": 375,
+          "maxch": 49,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            68,
+            89,
+            42
+          ]
+        },
+        {
+          "x": 322,
+          "y": 391,
+          "maxch": 75,
+          "c": [
+            73,
+            53,
+            17
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 756,
+          "y": 407,
+          "maxch": 27,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            57,
+            42,
+            13
+          ]
+        }
+      ],
+      "n_owned": 107904,
+      "n_painted": 38972,
+      "c_paint_nz": 33092,
+      "c_paint_maxch": 215,
+      "c_paint_mean": 50.86531355845222,
+      "n_only_j": 68932,
+      "n_only_c": 0,
+      "rule": "hand_java_union_c_subject_exact"
+    },
+    {
+      "id": "hand_block_shield",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 24.08126637057283,
+      "gate": 0.0,
+      "hard_px": 28506,
+      "hard_thr": 0,
+      "max_diff": 100.0,
+      "verdict": "RESIDUAL",
+      "reason": "hard_residual",
+      "residual_bbox": [
+        569,
+        320,
+        845,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 569,
+          "y": 320,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 621,
+          "y": 329,
+          "maxch": 2,
+          "c": [
+            67,
+            53,
+            33
+          ],
+          "j": [
+            65,
+            51,
+            32
+          ]
+        },
+        {
+          "x": 663,
+          "y": 338,
+          "maxch": 2,
+          "c": [
+            67,
+            53,
+            33
+          ],
+          "j": [
+            65,
+            51,
+            32
+          ]
+        },
+        {
+          "x": 709,
+          "y": 347,
+          "maxch": 2,
+          "c": [
+            89,
+            89,
+            95
+          ],
+          "j": [
+            87,
+            88,
+            93
+          ]
+        },
+        {
+          "x": 740,
+          "y": 356,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 777,
+          "y": 365,
+          "maxch": 58,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            76,
+            98,
+            46
+          ]
+        },
+        {
+          "x": 574,
+          "y": 375,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 615,
+          "y": 384,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 672,
+          "y": 393,
+          "maxch": 2,
+          "c": [
+            67,
+            53,
+            33
+          ],
+          "j": [
+            65,
+            51,
+            32
+          ]
+        },
+        {
+          "x": 723,
+          "y": 402,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 691,
+          "y": 412,
+          "maxch": 2,
+          "c": [
+            89,
+            89,
+            95
+          ],
+          "j": [
+            87,
+            88,
+            93
+          ]
+        },
+        {
+          "x": 804,
+          "y": 421,
+          "maxch": 99,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            139,
+            139,
+            139
+          ]
+        }
+      ],
+      "n_owned": 29270,
+      "n_painted": 16737,
+      "c_paint_nz": 15989,
+      "c_paint_maxch": 60,
+      "c_paint_mean": 1.5632431140586724,
+      "n_only_j": 12533,
+      "n_only_c": 0,
+      "rule": "hand_java_union_c_subject_exact"
+    },
+    {
+      "id": "overlay_portal_050",
+      "noise": 0.0006928653814466964,
+      "noise_max": 1.0,
+      "n_ab_maxch_ge1": 826,
+      "c_vs_j": 47.960219146482125,
+      "gate": 0.0006928653814466964,
+      "hard_px": 391116,
+      "hard_thr": 0,
+      "max_diff": 182.0,
+      "verdict": "CAPTURE_BLOCKED",
+      "reason": "ab_maxch_nonzero",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 176,
+          "c": [
+            46,
+            33,
+            67
+          ],
+          "j": [
+            132,
+            151,
+            243
+          ]
+        },
+        {
+          "x": 295,
+          "y": 40,
+          "maxch": 53,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            95,
+            86,
+            112
+          ]
+        },
+        {
+          "x": 588,
+          "y": 78,
+          "maxch": 43,
+          "c": [
+            54,
+            36,
+            74
+          ],
+          "j": [
+            96,
+            79,
+            114
+          ]
+        },
+        {
+          "x": 31,
+          "y": 117,
+          "maxch": 176,
+          "c": [
+            47,
+            33,
+            67
+          ],
+          "j": [
+            140,
+            158,
+            243
+          ]
+        },
+        {
+          "x": 324,
+          "y": 155,
+          "maxch": 45,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            87,
+            78,
+            104
+          ]
+        },
+        {
+          "x": 617,
+          "y": 193,
+          "maxch": 63,
+          "c": [
+            44,
+            33,
+            63
+          ],
+          "j": [
+            106,
+            96,
+            124
+          ]
+        },
+        {
+          "x": 60,
+          "y": 232,
+          "maxch": 62,
+          "c": [
+            45,
+            33,
+            65
+          ],
+          "j": [
+            107,
+            95,
+            125
+          ]
+        },
+        {
+          "x": 353,
+          "y": 270,
+          "maxch": 52,
+          "c": [
+            43,
+            33,
+            62
+          ],
+          "j": [
+            94,
+            85,
+            112
+          ]
+        },
+        {
+          "x": 646,
+          "y": 308,
+          "maxch": 44,
+          "c": [
+            45,
+            33,
+            64
+          ],
+          "j": [
+            88,
+            77,
+            106
+          ]
+        },
+        {
+          "x": 89,
+          "y": 347,
+          "maxch": 61,
+          "c": [
+            55,
+            36,
+            74
+          ],
+          "j": [
+            114,
+            97,
+            132
+          ]
+        },
+        {
+          "x": 382,
+          "y": 385,
+          "maxch": 50,
+          "c": [
+            55,
+            36,
+            75
+          ],
+          "j": [
+            104,
+            86,
+            122
+          ]
+        },
+        {
+          "x": 341,
+          "y": 432,
+          "maxch": 63,
+          "c": [
+            44,
+            33,
+            63
+          ],
+          "j": [
+            106,
+            96,
+            123
+          ]
+        }
+      ]
+    },
+    {
+      "id": "overlay_underwater",
+      "noise": 0.1706401384083045,
+      "noise_max": 3.0,
+      "n_ab_maxch_ge1": 183372,
+      "c_vs_j": 4.96943153732081,
+      "gate": 0.1706401384083045,
+      "hard_px": 388620,
+      "hard_thr": 0,
+      "max_diff": 55.0,
+      "verdict": "CAPTURE_BLOCKED",
+      "reason": "ab_maxch_nonzero",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 8,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            66,
+            70,
+            86
+          ]
+        },
+        {
+          "x": 87,
+          "y": 40,
+          "maxch": 5,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            62,
+            66,
+            85
+          ]
+        },
+        {
+          "x": 172,
+          "y": 78,
+          "maxch": 7,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            66,
+            70,
+            86
+          ]
+        },
+        {
+          "x": 257,
+          "y": 116,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            49,
+            62,
+            80
+          ]
+        },
+        {
+          "x": 342,
+          "y": 154,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 427,
+          "y": 192,
+          "maxch": 5,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            56,
+            60,
+            76
+          ]
+        },
+        {
+          "x": 512,
+          "y": 230,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            53,
+            71,
+            89
+          ]
+        },
+        {
+          "x": 597,
+          "y": 268,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 682,
+          "y": 306,
+          "maxch": 1,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            59,
+            63,
+            81
+          ]
+        },
+        {
+          "x": 767,
+          "y": 344,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            58,
+            62,
+            79
+          ]
+        },
+        {
+          "x": 44,
+          "y": 383,
+          "maxch": 9,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            50,
+            54,
+            74
+          ]
+        },
+        {
+          "x": 53,
+          "y": 430,
+          "maxch": 4,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            62,
+            66,
+            85
+          ]
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "hud_armor_iron",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        382,
+        404,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 4436,
+      "n_compare": 4436,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_absorption_armor",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        362,
+        404,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 6476,
+      "n_compare": 6476,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_hurt_flash_on",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        402,
+        404,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 2040,
+      "n_compare": 2040,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "noise_limit": 3.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_hurt_flash_off",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        402,
+        404,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 2040,
+      "n_compare": 2040,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "noise_limit": 3.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_hunger_poison",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        430,
+        402,
+        608,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 1640,
+      "n_compare": 1640,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_air_partial",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        430,
+        382,
+        608,
+        400
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 676,
+      "n_compare": 676,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_xp_half",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        398,
+        608,
+        432
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 7444,
+      "n_compare": 7444,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_durability_half",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        250,
+        442,
+        282,
+        474
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 356,
+      "n_compare": 356,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "colored_fill": true
+    },
+    {
+      "id": "hud_boss_half",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        0,
+        608,
+        36
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 4736,
+      "n_compare": 4736,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_death",
+      "noise": 1.0910195533395772,
+      "c_vs_j": 33.1654646762295,
+      "gate": 3.091019553339577,
+      "verdict": "CAPTURE_OK",
+      "roi": [
+        0,
+        0,
+        854,
+        480
+      ],
+      "hard": false,
+      "n_painted": 382712,
+      "noise_limit": 5.0,
+      "reason": "soft_capture"
+    },
+    {
+      "id": "hud_death_title",
+      "noise": 0.32827057073514443,
+      "c_vs_j": 0.0,
+      "gate": 2.3282705707351443,
+      "verdict": "PASS",
+      "roi": [
+        200,
+        118,
+        660,
+        150
+      ],
+      "hard": true,
+      "n_painted": 2544,
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "n_mismatch": 0
+    },
+    {
+      "id": "hud_death_score",
+      "noise": 0.07523510971786834,
+      "c_vs_j": 0.0,
+      "gate": 2.0752351097178683,
+      "verdict": "PASS",
+      "roi": [
+        280,
+        198,
+        580,
+        216
+      ],
+      "hard": true,
+      "n_painted": 616,
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "n_mismatch": 0
+    },
+    {
+      "id": "hud_death_btn_respawn",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        226,
+        264,
+        626,
+        304
+      ],
+      "hard": true,
+      "n_painted": 16000,
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "n_mismatch": 0
+    },
+    {
+      "id": "hud_death_btn_title",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        226,
+        312,
+        626,
+        352
+      ],
+      "hard": true,
+      "n_painted": 16000,
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "n_mismatch": 0
+    },
+    {
+      "id": "hud_death_tint_pair",
+      "noise": 2.8777411113476687,
+      "c_vs_j": 32.09390036193315,
+      "gate": 4.877741111347669,
+      "verdict": "PASS",
+      "roi": [
+        0,
+        0,
+        854,
+        480
+      ],
+      "hard": true,
+      "n_painted": 187880,
+      "noise_limit": 5.0,
+      "reason": "paired_background_source_model",
+      "n_mismatch": 0,
+      "c_vs_model": 0.0,
+      "full_frame_c_vs_j": 31.02191240567265,
+      "full_frame_ab_noise": 2.6409307507155866,
+      "pure_zone_c_vs_j": 32.09390036193315,
+      "pure_zone_ab_noise": 2.8777411113476687,
+      "java_model_identity_mean": 0.9782112696047123,
+      "java_model_identity_max": 1,
+      "world_parity": "BLOCKED",
+      "blocker": "Same-scene full-frame death parity needs a world underlay companion (no survival HUD) at the death pose/partialTicks. C isolation uses GRAY=40; Java death is gradient over the live stone pad. Existing living HUD goldens include survival chrome and are not a valid pre-death underlay. qrl frame{} always runs renderGameOverlay; no safe world-only companion via the current capture driver without new frame flags. Pure-band C-vs-J is world composition residual, not gradient math (c_vs_model=0 when PASS)."
+    },
+    {
+      "id": "hand_bow_pull20",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 47.09466864363074,
+      "max_diff": 125.0,
+      "hard_px": 30260,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        569,
+        320,
+        846,
+        432
+      ],
+      "hard": true,
+      "hand_exact": true,
+      "n_painted": 15306,
+      "n_owned": 31024,
+      "n_j_subj": 31024,
+      "n_c_subj": 15306,
+      "n_only_j": 15718,
+      "n_only_c": 0,
+      "c_paint_nz": 14558,
+      "c_paint_maxch": 125,
+      "c_paint_mean": 54.901520101049705,
+      "noise_limit": 3.0,
+      "reason": "hard_residual",
+      "rule": "hand_java_union_c_subject_exact",
+      "residual_bbox": [
+        569,
+        320,
+        845,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 569,
+          "y": 320,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 597,
+          "y": 329,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 625,
+          "y": 338,
+          "maxch": 47,
+          "c": [
+            54,
+            54,
+            54
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 653,
+          "y": 347,
+          "maxch": 58,
+          "c": [
+            43,
+            43,
+            43
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 681,
+          "y": 356,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 709,
+          "y": 365,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 737,
+          "y": 374,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 765,
+          "y": 383,
+          "maxch": 30,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            36,
+            26,
+            10
+          ]
+        },
+        {
+          "x": 793,
+          "y": 392,
+          "maxch": 25,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            51,
+            38,
+            15
+          ]
+        },
+        {
+          "x": 821,
+          "y": 401,
+          "maxch": 25,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            51,
+            38,
+            15
+          ]
+        },
+        {
+          "x": 786,
+          "y": 411,
+          "maxch": 25,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            51,
+            38,
+            15
+          ]
+        },
+        {
+          "x": 705,
+          "y": 421,
+          "maxch": 30,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            36,
+            26,
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hand_eat_mid",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 53.77502533115857,
+      "max_diff": 215.0,
+      "hard_px": 101880,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        284,
+        240,
+        846,
+        432
+      ],
+      "hard": true,
+      "hand_exact": true,
+      "n_painted": 38972,
+      "n_owned": 107904,
+      "n_j_subj": 107904,
+      "n_c_subj": 38972,
+      "n_only_j": 68932,
+      "n_only_c": 0,
+      "c_paint_nz": 33092,
+      "c_paint_maxch": 215,
+      "c_paint_mean": 50.86531355845222,
+      "noise_limit": 2.0,
+      "reason": "hard_residual",
+      "rule": "hand_java_union_c_subject_exact",
+      "residual_bbox": [
+        284,
+        240,
+        845,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 284,
+          "y": 240,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 344,
+          "y": 255,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 404,
+          "y": 270,
+          "maxch": 88,
+          "c": [
+            54,
+            40,
+            13
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 464,
+          "y": 285,
+          "maxch": 88,
+          "c": [
+            57,
+            42,
+            13
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 524,
+          "y": 300,
+          "maxch": 84,
+          "c": [
+            35,
+            26,
+            8
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 584,
+          "y": 315,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 644,
+          "y": 330,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 704,
+          "y": 345,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 764,
+          "y": 360,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 824,
+          "y": 375,
+          "maxch": 49,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            68,
+            89,
+            42
+          ]
+        },
+        {
+          "x": 322,
+          "y": 391,
+          "maxch": 75,
+          "c": [
+            73,
+            53,
+            17
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 756,
+          "y": 407,
+          "maxch": 27,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            57,
+            42,
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hand_block_shield",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 24.08126637057283,
+      "max_diff": 100.0,
+      "hard_px": 28506,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        569,
+        320,
+        846,
+        432
+      ],
+      "hard": true,
+      "hand_exact": true,
+      "n_painted": 16737,
+      "n_owned": 29270,
+      "n_j_subj": 29270,
+      "n_c_subj": 16737,
+      "n_only_j": 12533,
+      "n_only_c": 0,
+      "c_paint_nz": 15989,
+      "c_paint_maxch": 60,
+      "c_paint_mean": 1.5632431140586724,
+      "noise_limit": 2.0,
+      "reason": "hard_residual",
+      "rule": "hand_java_union_c_subject_exact",
+      "residual_bbox": [
+        569,
+        320,
+        845,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 569,
+          "y": 320,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 621,
+          "y": 329,
+          "maxch": 2,
+          "c": [
+            67,
+            53,
+            33
+          ],
+          "j": [
+            65,
+            51,
+            32
+          ]
+        },
+        {
+          "x": 663,
+          "y": 338,
+          "maxch": 2,
+          "c": [
+            67,
+            53,
+            33
+          ],
+          "j": [
+            65,
+            51,
+            32
+          ]
+        },
+        {
+          "x": 709,
+          "y": 347,
+          "maxch": 2,
+          "c": [
+            89,
+            89,
+            95
+          ],
+          "j": [
+            87,
+            88,
+            93
+          ]
+        },
+        {
+          "x": 740,
+          "y": 356,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 777,
+          "y": 365,
+          "maxch": 58,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            76,
+            98,
+            46
+          ]
+        },
+        {
+          "x": 574,
+          "y": 375,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 615,
+          "y": 384,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 672,
+          "y": 393,
+          "maxch": 2,
+          "c": [
+            67,
+            53,
+            33
+          ],
+          "j": [
+            65,
+            51,
+            32
+          ]
+        },
+        {
+          "x": 723,
+          "y": 402,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 691,
+          "y": 412,
+          "maxch": 2,
+          "c": [
+            89,
+            89,
+            95
+          ],
+          "j": [
+            87,
+            88,
+            93
+          ]
+        },
+        {
+          "x": 804,
+          "y": 421,
+          "maxch": 99,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            139,
+            139,
+            139
+          ]
+        }
+      ]
+    },
+    {
+      "id": "overlay_inside_stone",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 0.0,
+      "max_diff": 0.0,
+      "hard_px": 0,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404364,
+      "n_stable": 403908,
+      "stable_frac": 0.9982896688087,
+      "n_roi": 404600,
+      "noise_limit": 3.0,
+      "reason": "fullscreen_exact",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": null,
+      "residual_locs": []
+    },
+    {
+      "id": "overlay_inside_grass",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 0.0,
+      "max_diff": 0.0,
+      "hard_px": 0,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404364,
+      "n_stable": 403908,
+      "stable_frac": 0.9982896688087,
+      "n_roi": 404600,
+      "noise_limit": 3.0,
+      "reason": "fullscreen_exact",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": null,
+      "residual_locs": []
+    },
+    {
+      "id": "overlay_portal_050",
+      "noise": 0.0006928653814466964,
+      "noise_max": 1.0,
+      "n_ab_maxch_ge1": 826,
+      "c_vs_j": 47.960219146482125,
+      "max_diff": 182.0,
+      "hard_px": 391116,
+      "hard_thr": 0,
+      "gate": 0.0006928653814466964,
+      "verdict": "CAPTURE_BLOCKED",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404364,
+      "n_stable": 404600,
+      "stable_frac": 1.0,
+      "n_roi": 404600,
+      "noise_limit": 3.0,
+      "reason": "ab_maxch_nonzero",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 176,
+          "c": [
+            46,
+            33,
+            67
+          ],
+          "j": [
+            132,
+            151,
+            243
+          ]
+        },
+        {
+          "x": 295,
+          "y": 40,
+          "maxch": 53,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            95,
+            86,
+            112
+          ]
+        },
+        {
+          "x": 588,
+          "y": 78,
+          "maxch": 43,
+          "c": [
+            54,
+            36,
+            74
+          ],
+          "j": [
+            96,
+            79,
+            114
+          ]
+        },
+        {
+          "x": 31,
+          "y": 117,
+          "maxch": 176,
+          "c": [
+            47,
+            33,
+            67
+          ],
+          "j": [
+            140,
+            158,
+            243
+          ]
+        },
+        {
+          "x": 324,
+          "y": 155,
+          "maxch": 45,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            87,
+            78,
+            104
+          ]
+        },
+        {
+          "x": 617,
+          "y": 193,
+          "maxch": 63,
+          "c": [
+            44,
+            33,
+            63
+          ],
+          "j": [
+            106,
+            96,
+            124
+          ]
+        },
+        {
+          "x": 60,
+          "y": 232,
+          "maxch": 62,
+          "c": [
+            45,
+            33,
+            65
+          ],
+          "j": [
+            107,
+            95,
+            125
+          ]
+        },
+        {
+          "x": 353,
+          "y": 270,
+          "maxch": 52,
+          "c": [
+            43,
+            33,
+            62
+          ],
+          "j": [
+            94,
+            85,
+            112
+          ]
+        },
+        {
+          "x": 646,
+          "y": 308,
+          "maxch": 44,
+          "c": [
+            45,
+            33,
+            64
+          ],
+          "j": [
+            88,
+            77,
+            106
+          ]
+        },
+        {
+          "x": 89,
+          "y": 347,
+          "maxch": 61,
+          "c": [
+            55,
+            36,
+            74
+          ],
+          "j": [
+            114,
+            97,
+            132
+          ]
+        },
+        {
+          "x": 382,
+          "y": 385,
+          "maxch": 50,
+          "c": [
+            55,
+            36,
+            75
+          ],
+          "j": [
+            104,
+            86,
+            122
+          ]
+        },
+        {
+          "x": 341,
+          "y": 432,
+          "maxch": 63,
+          "c": [
+            44,
+            33,
+            63
+          ],
+          "j": [
+            106,
+            96,
+            123
+          ]
+        }
+      ]
+    },
+    {
+      "id": "overlay_fire",
+      "noise": 6.7267312307901115,
+      "c_vs_j": 4.475125201979145,
+      "gate": 8.726731230790111,
+      "verdict": "CAPTURE_OK",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": false,
+      "n_painted": 133544,
+      "noise_limit": 35.0,
+      "reason": "soft_capture"
+    },
+    {
+      "id": "overlay_underwater",
+      "noise": 0.1706401384083045,
+      "noise_max": 3.0,
+      "n_ab_maxch_ge1": 183372,
+      "c_vs_j": 4.96943153732081,
+      "max_diff": 55.0,
+      "hard_px": 388620,
+      "hard_thr": 0,
+      "gate": 0.1706401384083045,
+      "verdict": "CAPTURE_BLOCKED",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404364,
+      "n_stable": 404600,
+      "stable_frac": 1.0,
+      "n_roi": 404600,
+      "noise_limit": 3.0,
+      "reason": "ab_maxch_nonzero",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 8,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            66,
+            70,
+            86
+          ]
+        },
+        {
+          "x": 87,
+          "y": 40,
+          "maxch": 5,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            62,
+            66,
+            85
+          ]
+        },
+        {
+          "x": 172,
+          "y": 78,
+          "maxch": 7,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            66,
+            70,
+            86
+          ]
+        },
+        {
+          "x": 257,
+          "y": 116,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            49,
+            62,
+            80
+          ]
+        },
+        {
+          "x": 342,
+          "y": 154,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 427,
+          "y": 192,
+          "maxch": 5,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            56,
+            60,
+            76
+          ]
+        },
+        {
+          "x": 512,
+          "y": 230,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            53,
+            71,
+            89
+          ]
+        },
+        {
+          "x": 597,
+          "y": 268,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 682,
+          "y": 306,
+          "maxch": 1,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            59,
+            63,
+            81
+          ]
+        },
+        {
+          "x": 767,
+          "y": 344,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            58,
+            62,
+            79
+          ]
+        },
+        {
+          "x": 44,
+          "y": 383,
+          "maxch": 9,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            50,
+            54,
+            74
+          ]
+        },
+        {
+          "x": 53,
+          "y": 430,
+          "maxch": 4,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            62,
+            66,
+            85
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": "PASS = hard parity only when noise_max==0 and hard_px==0 (bit-exact C vs Java_a on A/B-stable full ROI). Fullscreen inside-block + portal + underwater never use ceil(noise_max) as PASS tolerance. CAPTURE_BLOCKED = A/B stable maxch residual > 0 (no C may PASS, including C=Java_a / Java_b / midpoint / Java_a+1). RESIDUAL = A/B bit-exact but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (fire/full-frame death). Underwater is hard full-ROI residual. FAIL = missing/noise/empty/unstable. Core HUD: oracle\u222aC masks, hard_px==0 at A/B noise. hud_durability_half uses atlas-alpha\u222astrip\u222aC-extra ownership (C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-GRAY isolation underlay; not threshold holes, not Java world). Hands: Java\u222aC subject ownership, hard_thr=0, A/B exact for PASS; no mean-budget hard_parity. Sticky-pin shield golden is exact capture; C residual with hard_px>0 stays RESIDUAL (not pixel-perfect). Portal: GuiIngame.renderPortal over gray C isolation; outdoor Java underlay is a same-scene product residual (not a fitted black cell). Real portal A/B has maxch=1 residuals -> CAPTURE_BLOCKED. GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects) + hud_death_tint_pair (source gradient blend over known underlay); full-frame tint/world composition is soft and does not claim same-scene parity."
+}

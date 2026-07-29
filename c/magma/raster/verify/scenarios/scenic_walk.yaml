@@ -1,0 +1,41 @@
+# Launch-video hook: a bright daytime sprint through default-world terrain,
+# recorded with a frame EVERY tick so the oracle|magma wipe plays smooth at
+# 30fps. Seed 3's spawn area has mountains, spruce forest and water pools.
+name: scenic_walk
+world:
+  seed: 3
+  mode: survival
+  type: default
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+duration_ticks: 280
+frames_every: 1
+input:
+  segments:
+    - seconds: 0.5
+    - seconds: 2.0
+      keys: [w, Control_L]
+      look: [12, -3]
+    - seconds: 2.0
+      keys: [w, Control_L]
+      look: [-18, 4]
+    - seconds: 0.6
+      keys: [w, Control_L, space]
+    - seconds: 2.5
+      keys: [w, Control_L]
+      look: [10, -2]
+    - seconds: 0.6
+      keys: [w, space]
+      look: [-6, 0]
+    - seconds: 4.0
+      keys: [w, Control_L]
+      look: [14, 2]
+known_divergences: []

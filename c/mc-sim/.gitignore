@@ -1,0 +1,8 @@
+build/
+oracle/build/
+a.out
+*.o
+*.so
+*.dylib
+__pycache__/
+.venv/

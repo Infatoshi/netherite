@@ -1,0 +1,40 @@
+{
+  "name": "seed0_leaf_canopy",
+  "description": "Hard scene-level integration golden: elevated aerial over seed-0 forest. Dominated by oak canopies; the known crop~27 floor case. Not a kernel unit test \u2014 composed magma (worldgen+mesh+shade+raster) vs REAL MC frame.",
+  "seed": 0,
+  "eye": [
+    8.3,
+    95.0,
+    40.5
+  ],
+  "magma_yaw_deg": 0.0,
+  "magma_pitch_deg": -35.0,
+  "mc_yaw_deg": 180.0,
+  "mc_pitch_deg": 35.0,
+  "fov_deg": 77.0,
+  "width": 854,
+  "height": 480,
+  "time_of_day": 0.25,
+  "golden": "mc_frame.png",
+  "terrain_crop": "180:479,180:674",
+  "canopy_crop": "120:360,200:650",
+  "view_radius_chunks": 8,
+  "graphics": {
+    "fancy": false,
+    "ao": 0,
+    "mipmap": 0,
+    "gamma": 0.0,
+    "particles": "minimal",
+    "terrain_fog": true
+  },
+  "notes": [
+    "magma_yaw = 180 - mc_yaw; magma_pitch = -mc_pitch",
+    "eye y=95 is CAMERA (feet = 93.38 = 95-1.62); pose.json y is feet",
+    "fov 77 = options 70 * spectator isFlying 1.1 (AbstractClientPlayer.getFovModifier)",
+    "z=40.5 matches spiral re-capture obs; pin tp feet carefully on future captures",
+    "terrain_crop: lower-center band both sides show ground (excludes sky voids)",
+    "canopy_crop: upper mid-frame leaf silhouette band",
+    "Shared perf profile: Fast leaves, AO off, mips 0, gamma 0, RD 8 (java/fast.yaml)",
+    "Baseline env: MAGMA_SMOOTH unset (off); terrain fog ON by default (MAGMA_FOG=0 off); prepare ON (pose_scene.h)"
+  ]
+}

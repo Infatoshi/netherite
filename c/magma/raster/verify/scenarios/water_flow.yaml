@@ -1,0 +1,30 @@
+name: water_flow
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 6.5 0 30
+  - /fill 0 3 0 0 3 12 minecraft:air
+  - /setblock 0 3 12 minecraft:water
+duration_ticks: 600
+frames_every: 10
+input:
+  segments:
+    - seconds: 3.0
+    - seconds: 10.0
+    - seconds: 3.0
+      look: [180, -25]
+    - seconds: 8.0
+      keys: [w]
+    - seconds: 3.0
+known_divergences: []

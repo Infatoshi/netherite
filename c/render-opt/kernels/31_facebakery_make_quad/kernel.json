@@ -1,0 +1,13 @@
+{
+  "name": "facebakery_make_quad",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "eval-pure",
+  "source": "src/net/minecraft/client/renderer/block/model/FaceBakery.java:55 makeBakedQuad",
+  "describe": "Full BakedQuad int[28] bake: getPositionsDiv16 + 4x fillVertexData/storeVertexData (shade=false so lane3=-1) + getFacingFromVertexData + applyFacing (when partRotation==null) + ForgeHooksClient.fillNormal. PURE: modelRotation=identity, uvLock=false (post-lock uvs fed), sprite reduced to 4 UV bounds, BlockPartRotation reduced to scalars. fillNormal's int-bits-widened-to-float-by-value quirk replicated faithfully.",
+  "golden": { "lang": "java", "file": "golden/Golden.java", "class": "Golden" },
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "inputs": { "gen": "script", "file": "gen_inputs.py" },
+  "compare": { "mode": "bitwise" },
+  "status": "todo"
+}
