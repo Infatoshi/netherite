@@ -1000,3 +1000,15 @@ Still open (agents/wave-2 or filed): entity-interp pose mirroring,
 populate-order decoration beyond the vegetation band, fortress placement
 y/z, spawner data plumbing, waterfall-entry flow-texture family, fire
 animation phase, live-sim blaze aggro.
+
+Late additions to the overnight batch:
+- 63f26bd dragon trail-ring phase + freeze-on-death: the "interp lag /
+  mirrored corpse" was ring pollution from the unwrapped death spin;
+  dragon geometry now byte-exact vs the recorder's geom oracle (1668
+  parts, 0 bad).
+- 9296165 snapshot patch diffs against the replay's OWN worldgen (probe
+  pass): replayed worlds now bit-identical to the save (scenic 7046
+  wrong cells -> 0; patches shrink up to 300k -> 3 events). The scenic
+  tape's remaining 39 failing frames are measured to be particle/
+  viewmodel residuals, not decoration.
+Nine landed fixes total; suite RESULT: PASS; agent worktrees cleaned.
