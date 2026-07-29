@@ -103,6 +103,54 @@ def _ensure_world_dump() -> Path:
     return binary
 
 
+# Blocks a vanilla BiomeDecorator run can stand vegetation on, i.e. the ids that
+# can be the top of a column under the decoration pass. Used to place the
+# DECORATION BAND (below) - not a claim about collision or opacity.
+_GROUND_IDS = np.array([
+    1, 2, 3, 4, 8, 9, 12, 13, 24, 48, 60, 78, 79, 80, 82,
+    87, 88, 110, 121, 159, 172, 179,
+], dtype=np.uint16)
+
+# Height of the band above each column's ground top that the patch makes
+# AUTHORITATIVE. BiomeDecorator's vegetation lands within 3 blocks of the
+# surface (tall grass 1, double plants 2, reeds/cactus 3); 4 leaves a margin.
+_BAND = 4
+
+
+def _decoration_band(jstate: np.ndarray) -> set[tuple[int, int, int]]:
+    """Cells the patch must state EXPLICITLY, not just where magma disagrees.
+
+    `snapshot_patch` diffs the save against `world_dump`'s generation, but the
+    replay renders the GAME's generation, and the two do not agree on
+    decoration. magma's populate windows seed each other with their neighbours'
+    out-of-bounds spill (`world/populate_mc.c` build_window donor seeding), so a
+    window's cell list depends on which windows were already resident when it
+    was built. `world_dump` builds them in one fixed sweep; the game builds them
+    around a walking player. Measured on scenario_scenic_walk_20260729T063050Z
+    chunk (-11,15), seed 3: world_dump generates 24 tallgrass cells, the game
+    42, agreeing on only 12. Cells where the save and `world_dump` HAPPEN to
+    agree therefore emitted no event and kept whatever the game grew there -
+    phantom plants, including one 0.8 blocks from the t=80 camera that filled a
+    third of the frame with a single magnified texel.
+
+    Stating the save's value for the whole vegetation band removes magma's
+    generation from the answer for exactly the cells that drift, which is what
+    this module's docstring already promises for the rest of the world.
+    """
+    ground = np.isin(jstate >> 4, _GROUND_IDS)
+    ys = np.arange(256, dtype=np.int32)[None, :, None]
+    top = np.where(ground, ys, -1).max(axis=1)          # (16, 16) per column
+    out = set()
+    for lx in range(16):
+        for lz in range(16):
+            t = int(top[lx, lz])
+            if t < 0:
+                continue
+            for y in range(t + 1, min(t + 1 + _BAND, 256)):
+                out.add((lx, y, lz))
+    return out
+
+
 def ensure_snapshot_patch(tape_path: str, header: dict, ticks: list[dict]) -> Path | None:
     tape = Path(tape_path).resolve()
     snapshot = tape.with_suffix("").with_name(tape.stem + "_world")
@@ -178,8 +226,10 @@ def ensure_snapshot_patch(tape_path: str, header: dict, ticks: list[dict]) -> Pa
             }, separators=(",", ":")) + "\n")
             for cx, cz in tiles[(dimension, tx, tz)]:
                 jstate, cstate = java[(dimension, cx, cz)], magma[(cx, cz)]
-                xs, ys, zs = np.where(jstate != cstate)
-                for lx, y, lz in zip(xs.tolist(), ys.tolist(), zs.tolist()):
+                cells = set(zip(*(a.tolist()
+                                  for a in np.where(jstate != cstate))))
+                cells |= _decoration_band(jstate) - cells
+                for lx, y, lz in sorted(cells):
                     state = int(jstate[lx, y, lz])
                     out.write(json.dumps({
                         "tick": 0, "type": "snapshot_block",

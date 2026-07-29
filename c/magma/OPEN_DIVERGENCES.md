@@ -184,16 +184,48 @@ uv run --no-project --with numpy --with scipy --with pillow --with nbt \
 
 ### Double-height plants render as solid tinted slabs
 
-UPDATE 2026-07-29 overnight: the double_plant model mapping (upper-half
-meta quirk, per-type tint) was fixed and passes the 90 model-oracle
-contracts, but the VISIBLE bug persists and is texture, not geometry:
-on scenic_walk t=80 magma draws the plant cross-quads as FLAT
-biome-tint-colored rectangles (no texture detail) where the oracle has
-textured tufts - a plant-texture sampling failure (atlas uv resolving to
-a solid?), affecting tallgrass-family quads en masse in this forest
-scene (mean 10.3/ch center cluster). Triptych evidence:
+RESOLVED 2026-07-29. Two separate defects wore the same face. The model
+mapping (upper-half meta quirk, per-type tint) was the first and is fixed
+(90 model-oracle contracts). The residual "FLAT biome-tint rectangles"
+was **not a renderer bug at all** - nothing in the plant texture path is
+wrong:
+
+- The mesh UVs are correct. Dumping every cross quad the scenic_walk
+  replay emits gives tallgrass `uv=(0.191,0.500)..(0.247,0.562)`, i.e.
+  the full 14x16-texel span of the sprite's atlas rect (48,128)-(64,144).
+- The sampling is correct. Rendering the CUTOUT layer's interpolated UV
+  showed a smooth gradient, and each rendered pixel equals
+  `texel * tint * light` exactly (px(300,280): magma (70,109,52),
+  sampled texel.r 149, tint (122,191,91) -> implied texel 146).
+- The quads only LOOKED flat because they were point-blank: the biggest
+  "solid" blob (11937 px, 142x118) spans **1.8 texels** of UV. It is one
+  tallgrass card 0.81 blocks from the camera, magnified ~74 px/texel.
+
+That card should not have existed. The recorded save has AIR at
+(-171,70,247); the replay grew a plant there. `snapshot_patch.py` diffs
+the save against `world_dump`'s generation and emits an event only where
+they disagree - but the replay renders the GAME's generation, and the two
+do not agree on decoration. magma's populate windows seed each other with
+their neighbours' out-of-bounds spill (`world/populate_mc.c`
+build_window donor seeding), so a window's cell list depends on which
+windows were resident when it was built: `world_dump` builds them in one
+fixed sweep, the game builds them around a walking player. Measured on
+chunk (-11,15), seed 3: `world_dump` 24 tallgrass cells, the game 42,
+agreeing on only 12. Every cell where the save and `world_dump` happened
+to agree emitted no event and kept whatever the game grew there.
+
+Fix: `snapshot_patch.py` now also states the save's value for the whole
+vegetation band (4 blocks above each column's ground top), making the
+patch authoritative exactly where generation drifts instead of trusting
+`world_dump` to match. scenic_walk t=80 whole-frame 10.33 -> 3.39 /ch
+(terrain 12.55 -> 3.13), tape mean 4.86 -> 3.34, unexplained gate pixels
+4.03M -> 2.38M, failing frames 92 -> 39. Triptych:
 /home/infatoshi/dev/nw/.tmp/dp/scenic_t80_golden_before_after.png.
-Being chased by a dedicated agent (plant texture sampling).
+
+Still open underneath: magma's decoration is order-dependent, so the
+game and `world_dump` disagree by construction. The patch now covers the
+vegetation band; trees, ores and lakes are still only covered where
+`world_dump` happens to be right.
 
 ### Nether arrival: fire/lava content missing from the replayed world
 

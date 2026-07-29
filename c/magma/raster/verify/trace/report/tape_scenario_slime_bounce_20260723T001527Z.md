@@ -15,9 +15,9 @@
 | class | frames | px | max cluster |
 |---|---|---|---|
 | UNEXPLAINED | 9 | 6709 | 386 |
-| hud | 21 | 461531 | 40733 |
-| particles | 38 | 346475 | 25111 |
-| viewmodel | 27 | 297822 | 21208 |
+| hud | 21 | 461531 | 40732 |
+| particles | 38 | 346474 | 25111 |
+| viewmodel | 27 | 297821 | 21207 |
 
 Failed frames (worst first, top 20):
 
