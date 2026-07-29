@@ -321,16 +321,52 @@ the overlay test inside `fluid == 1`.
 Result on the dense tape: t=78 70.35 -> 0.80/ch, t=142..151 ~75 -> 0.7-1.3/ch,
 no physics divergence at all, unexplained gate frames 178 -> 10 (the
 survivors are the pre-existing t=58..65 waterfall-entry cluster and t=77,
-unchanged by this work).
+unchanged by this work; the t=58..65 cluster was closed later - see the next
+section).
 
-### Waterfall ENTRY window on the dense elytra tape (t=58..65)
+### Waterfall ENTRY window on the dense elytra tape (t=58..65) - CLOSED
 
-Pre-existing 8-frame failure on scenario_elytra_dense_20260729T082313Z
-(worst 19.85/ch at t=58), unchanged by the eye-in-fluid fixes - the exit
-(t=78) and the lava band (t=142..151) are closed, the entry is not. The
-glide crosses INTO the waterfall over these ticks; suspects are the same
-eye/viewpoint family at water entry or curtain-cell content during the
-crossing. Dense tape is the repro; not yet root-caused.
+Root cause was NOT the water at all: it was the elytra ARMING tick's camera
+height, and t=58 is simply the tick where a 1.22-block camera error points at
+a waterfall. Measured per-tick before the fix, magma's t=58 frame showed water
+where the oracle still showed sky over rows 0..75 (oracle (137,179,255) vs
+magma (55,80,223) at x=427), while t=57 and t=59 agreed - a one-tick-early
+`getEyeHeight` 1.62 -> 0.4 drop, not a fog/overlay/liquid-boundary difference
+(magma's own `gm_uw_eval` reports `fluid=0` across the whole window; the eye
+does not enter water until t=67).
+
+Vanilla: the client only SENDS `CPacketEntityAction(START_FALL_FLYING)`
+(`EntityPlayerSP.onLivingUpdate`:1028-1036). Entity flag 7 is set on the
+SERVER (`NetHandlerPlayServer.processEntityAction` case START_FALL_FLYING:1019
+-> `EntityPlayerMP.setElytraFlying`:1441) and reaches the client one tick later
+as entity metadata (`EntityTrackerEntry.sendMetadataToAllAssociatedPlayers`).
+So on the arming tick the client's `isElytraFlying()` is still FALSE, and
+everything the client derives from it is still standing-pose:
+`EntityPlayer.updateSize`:372 keeps the 1.8F box and `getEyeHeight`:2486
+(`isElytraFlying() || height == 0.6F`) keeps 1.62. magma set `elytra_flying`
+inline right after `psv_physics_tick` and then ran `psv_update_elytra_size` in
+the SAME tick, so the arming tick rendered from eye 0.4. The flag is now staged
+in `PsvPlayer.elytra_flying_pending` and applied at the top of the next
+`gm_player_tick`, which leaves the already-correct travel timing untouched
+(first elytra travel is still the tick after the jump edge) and additionally
+makes that first travel tick move with the 1.8F box, as vanilla does.
+
+Result on scenario_elytra_dense_20260729T082313Z: t=58 19.85 -> 3.83/ch, and
+the whole t=58..65 window is now 3.3-4.3/ch (was 19.85/3.4/3.3/3.6/3.7/3.8/
+4.0/4.3). Physics still byte-clean over 310 ticks; the best whole-frame
+row-shift at t=58 is now 0 rows, i.e. the camera is aligned. Unexplained gate
+px 84183 -> 67249, worst cluster 42219 -> 15852. No regressions: elytra_dip 1
+failed (t=60), water_dive 0, lava_walk 0, suffocate_camera 1 (t=0, 0 px).
+
+Residual, NOT the entry: the same 10 frames still fail the cluster gate. What
+is left in t=58..65 is waterfall SURFACE content - at t=58 magma paints the
+lit top face of the y=22 water plateau (cells x=9..11, z=-4..4, meta 1/0/1
+over meta 9 falling columns) across rows ~78..165 where the oracle has only
+~78..95, i.e. magma's rendered surface sits lower/extends further at a grazing
+view; at t=59..65 it is flow-texture streak placement inside the curtain. Both
+are the same class as the never-failing 12-15/ch bands at t=50..57, present
+before this fix, and belong to the mid-growth/flowing-water surface family
+already filed for elytra_dip t=60 - not to the eye-in-fluid family.
 
 ### Fortress-hunt tape finds (2026-07-29, scenario_portal_fortress_blaze)
 

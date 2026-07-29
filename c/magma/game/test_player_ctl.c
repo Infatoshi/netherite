@@ -484,7 +484,12 @@ int main(void)
         gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
                        (struct PsvPlayer *)&deploy, (struct PvStats *)&dv,
                        jump_act, 0, 0, 0, edits, &nedits, 4);
-        CHECK(deploy.elytra_flying == 1, "jump edge arms elytra after travel");
+        CHECK(deploy.elytra_flying_pending == 1,
+              "jump edge stages START_FALL_FLYING after travel");
+        CHECK(deploy.elytra_flying == 0,
+              "flag 7 is not client-visible on the arming tick (metadata lag)");
+        CHECK(!deploy.elytra_pose && psv_player_eye_height(&deploy) == PSV_EYE_HEIGHT,
+              "arming tick keeps the 1.8F box and the 1.62 eye height");
         CHECK(deploy.ticks_elytra_flying == 0,
               "arming tick does not advance ticksElytraFlying");
         CHECK(double_bits(deploy.ent.motionX) == 0x3fb91f0b935fb8a1ULL,
@@ -519,7 +524,7 @@ int main(void)
         gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
                        (struct PsvPlayer *)&rise, (struct PvStats *)&dv,
                        rise_jump, 0, 0, 0, edits, &nedits, 4);
-        CHECK(!rise.elytra_flying,
+        CHECK(!rise.elytra_flying && !rise.elytra_flying_pending,
               "MC-111444: jump while motionY>=0 does not start fall-flying");
     }
 

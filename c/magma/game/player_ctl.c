@@ -303,6 +303,14 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
     McAABB blocks[PSV_MAX_BLOCKS];
     int ne = 0;
 
+    /* Entity flag 7 set by the server last tick arrives as metadata at the top
+     * of this client tick, before EntityPlayerSP.onUpdate. See
+     * PsvPlayer.elytra_flying_pending. */
+    if (pl->elytra_flying_pending) {
+        pl->elytra_flying = 1;
+        pl->elytra_flying_pending = 0;
+    }
+
     /* hotbar selection (keys 1-9 / scroll) */
     if (act.hotbar_sel >= 0 && act.hotbar_sel <= 8)
         pl->inv.current_item = act.hotbar_sel;
@@ -675,7 +683,11 @@ use_done:
      * wrongly arm flight on the apex tick where gravity flips motionY
      * negative mid-tick (MC-111444 must stay broken the vanilla way). The
      * integrated-server flag is consumed on the next tick's travel, matching
-     * the elytra_dip tape (jump t55, first elytra travel t56).
+     * the elytra_dip tape (jump t55, first elytra travel t56); it is staged in
+     * elytra_flying_pending so the arming tick's own updateSize/getEyeHeight
+     * still see the client-visible flag CLEAR, exactly as the metadata round
+     * trip forces (elytra_dense t=58: the arming tick's camera stayed at eye
+     * 1.62, magma dropped it to 0.4 a tick early).
      * NetHandlerPlayServer: !onGround && motionY < 0 && !flying && !inWater
      * plus a usable chest elytra. capabilities.isFlying is creative flight,
      * not gamemode.
@@ -697,7 +709,7 @@ use_done:
 
     if (elytra_press && !elytra_was && pl->elytra_equipped && !water_pre &&
         elytra_can_start)
-        pl->elytra_flying = 1;
+        pl->elytra_flying_pending = 1;
     pl->prev_jump = act.jump;
     /* EntityLivingBase.onUpdate increments ticksElytraFlying only when the
      * flag was true for this onUpdate. Activation is post-travel, so the

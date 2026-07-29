@@ -14,16 +14,16 @@
 
 | class | frames | px | max cluster |
 |---|---|---|---|
-| UNEXPLAINED | 20 | 84183 | 42219 |
-| bossbar | 9 | 53381 | 38118 |
-| hud | 109 | 99841 | 4704 |
+| UNEXPLAINED | 20 | 67249 | 15852 |
+| bossbar | 8 | 15263 | 4462 |
+| hud | 109 | 99767 | 4704 |
 | particles | 215 | 344969 | 9562 |
 | thinline | 18 | 2612 | 212 |
-| viewmodel | 234 | 295469 | 11080 |
+| viewmodel | 234 | 294205 | 11080 |
 
 Failed frames (worst first, top 20):
 
-- t=58: 46229 unexplained px, clusters [{'px': 42219, 'cls': 'UNEXPLAINED', 'bbox': [45, 7, 115, 846], 'soak_from': 'particles'}, {'px': 129, 'cls': 'UNEXPLAINED', 'bbox': [94, 486, 112, 499], 'soak_from': 'particles'}, {'px': 120, 'cls': 'UNEXPLAINED', 'bbox': [96, 258, 112, 265], 'soak_from': 'particles'}, {'px': 112, 'cls': 'UNEXPLAINED', 'bbox': [97, 376, 112, 382], 'soak_from': 'particles'}]
+- t=58: 29295 unexplained px, clusters [{'px': 11349, 'cls': 'UNEXPLAINED', 'bbox': [78, 80, 165, 368]}, {'px': 15852, 'cls': 'UNEXPLAINED', 'bbox': [78, 390, 153, 774]}, {'px': 52, 'cls': 'UNEXPLAINED', 'bbox': [84, 650, 87, 680]}, {'px': 422, 'cls': 'UNEXPLAINED', 'bbox': [124, 181, 175, 198]}]
 - t=64: 7088 unexplained px, clusters [{'px': 300, 'cls': 'UNEXPLAINED', 'bbox': [45, 817, 66, 835]}, {'px': 697, 'cls': 'UNEXPLAINED', 'bbox': [57, 71, 131, 90]}, {'px': 188, 'cls': 'UNEXPLAINED', 'bbox': [76, 111, 105, 123]}, {'px': 53, 'cls': 'UNEXPLAINED', 'bbox': [131, 39, 138, 46]}]
 - t=62: 5942 unexplained px, clusters [{'px': 285, 'cls': 'UNEXPLAINED', 'bbox': [45, 137, 69, 150]}, {'px': 153, 'cls': 'UNEXPLAINED', 'bbox': [45, 693, 57, 705]}, {'px': 120, 'cls': 'UNEXPLAINED', 'bbox': [47, 840, 61, 853]}, {'px': 89, 'cls': 'UNEXPLAINED', 'bbox': [50, 105, 65, 115]}]
 - t=63: 4018 unexplained px, clusters [{'px': 84, 'cls': 'UNEXPLAINED', 'bbox': [45, 139, 58, 147]}, {'px': 651, 'cls': 'UNEXPLAINED', 'bbox': [78, 74, 143, 90]}, {'px': 799, 'cls': 'UNEXPLAINED', 'bbox': [100, 749, 152, 776]}, {'px': 57, 'cls': 'UNEXPLAINED', 'bbox': [110, 700, 120, 707]}]
@@ -64,7 +64,7 @@ Failed frames (worst first, top 20):
 | 55 | 2.71 | 67.87% | 3.95 |
 | 56 | 2.51 | 74.47% | 3.58 |
 | 57 | 2.42 | 83.06% | 3.33 |
-| 58 | 19.85 | 90.93% | 8.53 |
+| 58 | 3.83 | 88.18% | 5.54 |
 | 59 | 3.41 | 90.74% | 3.45 |
 | 60 | 3.33 | 90.81% | 3.48 |
 | 61 | 3.58 | 91.09% | 3.77 |

@@ -86,10 +86,20 @@ typedef struct {
      * `flag`: START_FALL_FLYING is sent only on a fresh jump press, which is
      * why MC-111444 cannot deploy an elytra by holding jump while rising.
      * `elytra_pose` tracks EntityPlayer.updateSize's 0.6F-height box so it can
-     * be restored after landing without changing the existing sneak model. */
+     * be restored after landing without changing the existing sneak model.
+     *
+     * `elytra_flying_pending` is the CPacketEntityAction round trip. The client
+     * only SENDS START_FALL_FLYING (EntityPlayerSP:1030-1036); flag 7 is set on
+     * the SERVER (NetHandlerPlayServer:1019-1027 -> EntityPlayerMP.setElytraFlying)
+     * and reaches the client one tick later as entity metadata
+     * (EntityTrackerEntry.sendMetadataToAllAssociatedPlayers). Everything the
+     * client derives from the flag inside the arming tick - travel, and
+     * EntityPlayer.updateSize's 0.6F box with its 0.4F getEyeHeight - must
+     * therefore still see flag 7 CLEAR. */
     int      prev_jump;
     int      elytra_equipped;
-    int      elytra_flying;       /* Entity flag 7 */
+    int      elytra_flying;       /* Entity flag 7 (client-visible) */
+    int      elytra_flying_pending; /* server set it; metadata lands next tick */
     int      elytra_pose;
     int      ticks_elytra_flying;
     float    elytra_wall_damage;  /* FLY_INTO_WALL damage emitted this tick */
@@ -972,6 +982,7 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
     pl->prev_move_forward = 0.0f; pl->prev_sneak = 0;
     pl->prev_jump = 0;
     pl->elytra_equipped = pl->elytra_flying = pl->elytra_pose = 0;
+    pl->elytra_flying_pending = 0;
     pl->ticks_elytra_flying = 0;
     pl->elytra_wall_damage = 0.0f;
     pl->break_events = pl->place_events = pl->swing_events = 0;

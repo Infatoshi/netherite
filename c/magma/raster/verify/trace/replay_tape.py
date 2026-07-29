@@ -1280,6 +1280,21 @@ def main():
     tape_to_script(header, ticks, scr, tape_path=args.tape)
     state = os.path.join(out, "magma_state.jsonl")
     frame_ticks = [(row["t"], row["frame"]) for row in ticks if "frame" in row]
+    # The recorder writes ABSOLUTE golden paths. Retiring a tape moves both the
+    # jsonl and its _frames/ dir into tapes/retired/, so those baked paths go
+    # dead and every golden silently vanishes - the gate then "PASSes" over 0
+    # frames. Re-anchor on the tape's own <tape>_frames/ dir whenever the
+    # recorded path is gone.
+    if frame_ticks and not os.path.exists(frame_ticks[0][1]):
+        fdir = args.tape[:-len(".jsonl")] + "_frames"
+        if os.path.isdir(fdir):
+            frame_ticks = [(t, os.path.join(fdir, os.path.basename(p)))
+                           for t, p in frame_ticks]
+            print(f"[tape] goldens re-anchored to {fdir} "
+                  f"(recorded paths no longer exist)")
+        else:
+            raise SystemExit(f"[tape] golden frames missing: neither the "
+                             f"recorded path {frame_ticks[0][1]} nor {fdir}")
     frames_npy = None
     every = 1
     offset = 0
