@@ -1,18 +1,18 @@
-"""Launch zoom video, story cut: oracle -> exact render -> policy obs ->
-zoom out over the LIVE batched farm.
+"""Launch zoom video: the game -> the fast parallel renderer -> the farm.
 
-Timeline (30 fps, 650 frames, ~21.7 s):
-  A   0..49    real Java oracle POV (hold_dig_dense goldens, every tick)
-  B  50..107   slider wipe L->R: magma's exact render of the SAME ticks
-  C 108..167   second wipe to the center env's semantic camera (what the
-               policy sees), full-bleed chunky pixels
-  D 168..517   pure zoom out (fixed anchor, exponential scale) over the
-               recorded live batch mosaic (16:9 tiles on a 9:8 grid fills
-               2:1, so the end frame fills 1920x960)
-  E 518..547   full farm + title fade (batch still stepping)
+Timeline (30 fps, 530 frames, ~17.7 s), one continuous subject - the
+trained chain policy playing in seed 10:
+  A   0..59    exact render POV (pixel-gated against the real game)
+  B  60..149   slider wipe L->R: SAME world, SAME ticks, rendered by the
+               batched sim's semantic camera (the fast parallel renderer)
+  H 150..169   hold on the obs view
+  D 170..499   pure zoom out (fixed anchor): the hero pane shrinks into a
+               RECORDED LIVE 90x80 = 7200-env GPU batch, every pane its
+               own world stepping in lockstep (repeat=1, ~1.5x real time)
+  E 500..529   full farm + title fade (farm still stepping)
 
-Inputs: scripts/batch_obs_record.py output (live mosaic memmap) and the
-blaze_bow_demo tape goldens + magma replay frames.
+Inputs: scripts/zoom_hero_clip.py (exact frames + hero_obs.npz) and
+scripts/batch_obs_record.py (live farm mosaic).
 
 Run: cd netherite && uv run --no-project --with numpy,pillow python \
        scripts/make_zoom_story.py
@@ -20,28 +20,31 @@ Run: cd netherite && uv run --no-project --with numpy,pillow python \
 import json
 import os
 import subprocess
+import sys
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VERIFY = os.path.join(ROOT, "c", "magma", "raster", "verify")
-TAPE = "scenario_hold_dig_dense_20260725T031854Z"
-GOLD_DIR = os.path.join(VERIFY, "tapes", f"{TAPE}_frames")
-MAGMA_NPY = os.path.join(VERIFY, "trace", "out", f"tape_{TAPE}",
-                         "magma_frames.npy")
-MAGMA_TICKS = os.path.join(VERIFY, "trace", "out", f"tape_{TAPE}",
-                           "magma_frames.ticks.npy")
+sys.path.insert(0, os.path.join(ROOT, "c", "magma", "rl"))
+from make_videos import COLORS                          # noqa: E402
+
 OBS = "/home/infatoshi/dev/nw/.tmp/batchobs"
+HERO_DIR = "/home/infatoshi/dev/nw/.tmp/zoom_hero"
 W, H, FPS = 1920, 960, 30
-A_END, B_END, C_END, D_END, TOTAL = 50, 108, 168, 518, 548
-TICK0 = 0                       # dig tape is dense from t=0
+A_END, B_END, H_END, D_END, TOTAL = 60, 150, 170, 500, 530
+
+PAL = np.full((4096, 3), (90, 90, 90), np.uint8)
+for bid, col in COLORS.items():
+    PAL[bid] = col
 
 
-def game_frame(img854):
-    """854x480 -> center 2:1 crop -> 1920x960."""
-    a = np.asarray(img854)[26:453]
-    return Image.fromarray(a).resize((W, H), Image.LANCZOS)
+def colorize(cam, dep, edge):
+    img = PAL[np.clip(cam, 0, 4095)].astype(np.float32)
+    shade = np.clip(1.0 - dep.astype(np.float32) / 512.0, 0.0, 1.0)[..., None]
+    np.multiply(img, shade, where=(cam != 0)[..., None], out=img)
+    np.multiply(img, 0.55, where=edge[..., None], out=img)
+    return img.astype(np.uint8)
 
 
 def main():
@@ -51,44 +54,37 @@ def main():
     mosaic = np.load(os.path.join(OBS, "mosaic.npy"), mmap_mode="r")
     F = mosaic.shape[0]
     mw, mh = cols * cw, rows * ch
+    assert mw * H == mh * W, "farm grid must fill the output aspect exactly"
 
-    magma = np.load(MAGMA_NPY, mmap_mode="r")
-    ticks = list(np.load(MAGMA_TICKS))
-    tick_ix = {int(t): i for i, t in enumerate(ticks)}
+    hero_frames_dir = os.path.join(HERO_DIR, "frames")
+    hero_files = sorted(f for f in os.listdir(hero_frames_dir)
+                        if f.endswith(".ppm"))
+    hz = np.load(os.path.join(HERO_DIR, "hero_obs.npz"))
+    hero_obs = colorize(hz["cam"], hz["depth"], hz["edge"])   # [T,36,64,3]
+    HT = hero_obs.shape[0]
+    assert HT >= TOTAL, f"hero obs too short: {HT} < {TOTAL}"
 
-    # pick the liveliest bright center-region env and swap it to dead center
     cr, cc = rows // 2, cols // 2
-    best, best_v = (cr, cc), -1.0
-    for r in range(cr - 6, cr + 7):
-        for c in range(cc - 6, cc + 7):
-            tile = np.asarray(
-                mosaic[:120, r * ch:(r + 1) * ch, c * cw:(c + 1) * cw],
-                dtype=np.int16)
-            lum = tile.mean()
-            motion = np.abs(np.diff(tile[::10], axis=0)).mean()
-            if lum > 70 and motion + lum / 50 > best_v:
-                best, best_v = (r, c), motion + lum / 50
-    swap = np.empty((F, ch, cw, 3), np.uint8)
-    br, bc = best
-    if best != (cr, cc):
-        swap[:] = mosaic[:, br * ch:(br + 1) * ch, bc * cw:(bc + 1) * cw]
-    print(f"center env: slot {best} (score {best_v:.1f}) swapped to "
-          f"({cr},{cc})")
-
-    def mosaic_frame(d):
-        m = np.asarray(mosaic[min(d, F - 1)])
-        if best != (cr, cc):
-            m = m.copy()
-            a = m[cr * ch:(cr + 1) * ch, cc * cw:(cc + 1) * cw].copy()
-            m[cr * ch:(cr + 1) * ch, cc * cw:(cc + 1) * cw] = \
-                swap[min(d, F - 1)]
-            m[br * ch:(br + 1) * ch, bc * cw:(bc + 1) * cw] = a
-        return m
-
     ax, ay = (cc + 0.5) * cw, (cr + 0.5) * ch
     w0, w1 = float(cw), float(mw)
     font = ImageFont.truetype(
         "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 96)
+
+    def hero_exact(f):
+        im = Image.open(os.path.join(hero_frames_dir,
+                                     hero_files[min(f, len(hero_files) - 1)]))
+        band = np.asarray(im)[im.height // 4: 3 * im.height // 4]
+        return Image.fromarray(band).resize((W, H), Image.LANCZOS)
+
+    def hero_obs_band(f):
+        band = hero_obs[min(f, HT - 1)][2:34]
+        return Image.fromarray(band).resize((W, H), Image.NEAREST)
+
+    def farm_frame(f, d_i):
+        m = np.asarray(mosaic[min(d_i, F - 1)]).copy()
+        m[cr * ch:(cr + 1) * ch, cc * cw:(cc + 1) * cw] = \
+            hero_obs[min(f, HT - 1)]
+        return m
 
     enc = subprocess.Popen(
         ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
@@ -96,46 +92,25 @@ def main():
          "-crf", "18", "-pix_fmt", "yuv420p",
          os.path.join(ROOT, "demos", "zoom_8192_story.mp4")],
         stdin=subprocess.PIPE)
-
-    def obs_band(d):
-        m = mosaic_frame(d)
-        band = m[cr * ch + 2:cr * ch + 34, cc * cw:(cc + 1) * cw]
-        return Image.fromarray(band).resize((W, H), Image.NEAREST)
-
     for f in range(TOTAL):
-        tick = TICK0 + f
-        if f < C_END and tick in tick_ix:
-            gold = game_frame(Image.open(
-                os.path.join(GOLD_DIR, f"f_{tick:06d}.png")).convert("RGB"))
-            mag = game_frame(Image.fromarray(
-                np.asarray(magma[tick_ix[tick]])[..., :3]))
         if f < A_END:
-            frame = gold
+            frame = hero_exact(f)
         elif f < B_END:
             x = int(W * (f - A_END + 1) / (B_END - A_END))
-            frame = gold.copy()
-            frame.paste(mag.crop((0, 0, x, H)), (0, 0))
+            frame = hero_exact(f)
+            frame.paste(hero_obs_band(f).crop((0, 0, x, H)), (0, 0))
             d = ImageDraw.Draw(frame)
             d.rectangle([x - 2, 0, x + 2, H], fill=(245, 240, 235))
-        elif f < C_END:
-            x = int(W * (f - B_END + 1) / 30)
-            frame = mag.copy()
-            if x < W:
-                frame.paste(obs_band(f - B_END).crop((0, 0, min(x, W), H)),
-                            (0, 0))
-                d = ImageDraw.Draw(frame)
-                d.rectangle([x - 2, 0, x + 2, H], fill=(245, 240, 235))
-            else:
-                frame = obs_band(f - B_END)
+        elif f < H_END:
+            frame = hero_obs_band(f)
         else:
-            d_i = f - B_END              # obs stream continues from wipe C
-            t = min((f - C_END) / (D_END - C_END - 1), 1.0)
+            t = min((f - H_END) / (D_END - H_END - 1), 1.0)
             s = t * t * (3 - 2 * t)
             vw = w0 * (w1 / w0) ** s
-            vh = min(vw / 2, float(mh))   # 96x85 grid is 0.4% shy of 2:1
+            vh = vw / 2
             x0 = float(np.clip(ax - vw / 2, 0, mw - vw))
             y0 = float(np.clip(ay - vh / 2, 0, mh - vh))
-            m = mosaic_frame(d_i)
+            m = farm_frame(f, f - H_END)
             ix0, iy0 = int(x0), int(y0)
             ix1 = min(int(np.ceil(x0 + vw)) + 1, mw)
             iy1 = min(int(np.ceil(y0 + vh)) + 1, mh)

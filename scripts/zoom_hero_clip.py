@@ -20,7 +20,7 @@ OUT = os.path.join(MAGMA, "rl", "out")
 HERO_DIR = "/home/infatoshi/dev/nw/.tmp/zoom_hero"
 SEED = 10
 HW, HH = 1152, 1152
-WINDOW = 400
+WINDOW = 540
 
 
 def replay(width, height, fdir, frame_offset, stop_after=None):
@@ -86,10 +86,19 @@ def main():
     print(f"liveliest window [{start}, {start + WINDOW}) of {len(poses)} ticks")
 
     frames_dir = os.path.join(HERO_DIR, "frames")
-    replay(HW, HH, frames_dir, frame_offset=start,
-           stop_after=start + WINDOW + 5)
+    poses2 = replay(HW, HH, frames_dir, frame_offset=start,
+                    stop_after=start + WINDOW + 5)
     n = len([f for f in os.listdir(frames_dir) if f.endswith(".ppm")])
     print(f"captured {n} hero frames at {HW}x{HH} in {frames_dir}")
+    # save the SAME ticks' semantic camera (what the batched renderer sees)
+    import numpy as np
+    win = [o for o in poses2 if start <= o["t"] < start + WINDOW]
+    cam = np.array([o["cam"] for o in win], np.int32).reshape(-1, 36, 64)
+    dep = np.array([o["depth"] for o in win], np.float32).reshape(-1, 36, 64)
+    edge = np.array([o["edge"] for o in win], bool).reshape(-1, 36, 64)
+    np.savez_compressed(os.path.join(HERO_DIR, "hero_obs.npz"),
+                        cam=cam, depth=dep, edge=edge)
+    print(f"saved {len(win)} obs frames (cam/depth/edge)")
     with open(os.path.join(HERO_DIR, "META.json"), "w") as f:
         json.dump({"start": start, "w": HW, "h": HH, "frames": n}, f)
 
