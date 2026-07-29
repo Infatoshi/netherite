@@ -328,6 +328,26 @@ glide crosses INTO the waterfall over these ticks; suspects are the same
 eye/viewpoint family at water entry or curtain-cell content during the
 crossing. Dense tape is the repro; not yet root-caused.
 
+### Fortress-hunt tape finds (2026-07-29, scenario_portal_fortress_blaze)
+
+Three divergences from the staged fortress-melee recording
+(`tapes/retired/scenario_portal_fortress_blaze_20260729T090129Z`):
+- **Fortress placement**: `gm_fortress_locate`/`gm_fortress_spawner_room`
+  and mc-sim `nether_full` both put seed-0's spawner room at
+  (-325, 72, -151); the oracle's own DIM-1 region files have rooms at
+  (-325, 56, -215) and (-325, 56, -102). x matches, y/z do not - the
+  structure-gen port diverges beyond terrain.
+- **Blaze death animation**: on kill the oracle renders the death body
+  (scaled, hurt-tinted, ~53k px at t=278); magma keeps the live-size
+  model until despawn. `pxdiff` calls it cutout-sky+ (content absent).
+- **Spawner cage miniature**: the oracle draws the spinning miniature
+  blaze inside the mob-spawner cage; magma draws the cage only.
+Harness notes that cost takes (now in the yaml): `structures: false`
+disables fortresses entirely; melee attacks fire on the mouse-DOWN edge
+so held button-1 lands exactly one swing (this is why the older
+blaze_melee/blaze_bow tapes never damage their blaze); the target is
+NoAI-pinned because a live blaze kites to fireball range.
+
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 
 Diagnosis only, from a delegated triage pass; the code claims below were
