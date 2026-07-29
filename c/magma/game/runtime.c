@@ -292,6 +292,7 @@ static void tick_projectiles(GmRuntime *r) {
 int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     if (!r || !cfg) { set_error(err, err_cap, "invalid runtime arguments"); return 0; }
     memset(r, 0, sizeof *r);
+    r->tape_armor_points = -1;   /* no recorded armor total until a tape sets it */
     r->world = gm_world_create_type(cfg->seed, (int)cfg->world);
     if (!r->world) { set_error(err, err_cap, "gm_world_create failed"); return 0; }
     r->window = (Chunk *)calloc(PSV_NCHUNKS, sizeof(Chunk));
@@ -950,14 +951,22 @@ void gm_runtime_tape_potions_clear(GmRuntime *r) {
     if (r) r->tape_potion_count = 0;
 }
 
-int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration) {
+int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration,
+                           int show_particles) {
     if (!r || id < 1 || id > 255 || amplifier < 0 || amplifier > 255 ||
         duration < 0 || r->tape_potion_count >= GM_MAX_POTION_EFFECTS) return 0;
     GmPotionEffectView *p = &r->tape_potions[r->tape_potion_count++];
     p->id = id;
     p->amplifier = amplifier;
     p->duration = duration;
+    p->hide_particles = show_particles ? 0 : 1;
     return 1;
+}
+
+void gm_runtime_tape_armor(GmRuntime *r, int points) {
+    if (!r) return;
+    if (points > 20) points = 20;
+    r->tape_armor_points = points < 0 ? -1 : points;
 }
 
 void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
@@ -988,6 +997,11 @@ void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
         view->potion_count = r->tape_potion_count;
         memcpy(view->potions, r->tape_potions,
                (size_t)r->tape_potion_count * sizeof view->potions[0]);
+        /* Only the recorder can know the real generic.armor total (NBT
+         * AttributeModifiers replace an armor item's defaults), so a tape
+         * that carries it wins over the item-id guess. */
+        if (r->tape_armor_points >= 0)
+            view->armor_points = r->tape_armor_points;
         /* Recorder rows are post-tick. GuiIngame rendered the same health
          * transition one updateCounter earlier (portal_phase proves 1:1). */
         view->hud_transition_lead = 1;

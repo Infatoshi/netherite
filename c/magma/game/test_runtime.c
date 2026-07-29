@@ -61,8 +61,10 @@ int main(void) {
     gm_runtime_tape_player_view(&r,7,0.625f,123,0.5f,17,1234,1,1,1,0,9,
                                 10,27.5f,0.4f);
     gm_runtime_tape_potions_clear(&r);
-    CHECK(gm_runtime_tape_potion(&r,20,0,157),
+    CHECK(gm_runtime_tape_potion(&r,20,0,157,1),
           "tape potion accepts wither effect");
+    CHECK(gm_runtime_tape_potion(&r,11,4,1000,0),
+          "tape potion accepts a hidden-particle effect");
     {
         GmPlayerView tv;gm_runtime_view(&r,&tv);gm_runtime_apply_tape_view(&r,&tv);
         CHECK(tv.hotbar_ids[0]==17&&tv.hotbar_counts[0]==2,
@@ -71,13 +73,30 @@ int main(void) {
               "render inventory does not mutate current-tick simulation state");
         CHECK(tv.xp_level==7&&fabsf(tv.xp_frac-0.625f)<1e-6f&&tv.air==123,
               "recorded XP and air override the rendered player view");
+        /* GuiIngame.renderPotionEffects gates the icon on doesShowParticles. */
+        CHECK(tv.potion_count==2&&tv.potions[0].hide_particles==0&&
+              tv.potions[1].hide_particles==1,
+              "recorded showParticles flag reaches the HUD view");
+        /* AttributeModifiers NBT can zero an armor item: the tape wins. */
+        CHECK(tv.armor_points==0,"no armor override leaves the derived value");
+        gm_runtime_tape_armor(&r,0);
+        {
+            GmPlayerView av;gm_runtime_view(&r,&av);gm_runtime_apply_tape_view(&r,&av);
+            CHECK(av.armor_points==0,"recorded armor total 0 overrides the guess");
+        }
+        gm_runtime_tape_armor(&r,7);
+        {
+            GmPlayerView av;gm_runtime_view(&r,&av);gm_runtime_apply_tape_view(&r,&av);
+            CHECK(av.armor_points==7,"recorded armor total overrides the guess");
+        }
+        gm_runtime_tape_armor(&r,-1);
         CHECK(tv.portal==0.5f&&tv.portal_frame==17&&tv.portal_phase==1234&&tv.loading==1&&
               tv.texture_animations_pinned==1,
               "recorded portal and loading state override the rendered player view");
         CHECK(tv.fire==1&&tv.creative==0&&tv.hurt_time==9&&
               tv.max_hurt_time==10&&fabsf(tv.hurt_yaw-27.5f)<1e-6f,
               "recorded fire and hurt state override the rendered player view");
-        CHECK(fabsf(tv.attack_cooldown-0.4f)<1e-6f&&tv.potion_count==1&&
+        CHECK(fabsf(tv.attack_cooldown-0.4f)<1e-6f&&tv.potion_count==2&&
               tv.potions[0].id==20&&tv.potions[0].duration==157,
               "recorded cooldown and potion state override the rendered player view");
     }

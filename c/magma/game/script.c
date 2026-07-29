@@ -963,15 +963,31 @@ int gm_script_run(const GmConfig *cfg) {
                 }
                 gm_runtime_tape_potions_clear(&r);
             } else if (!strcmp(type,"potion_view")) {
-                long long id,amplifier,duration;
-                static const char *const keys[]={"tick","type","id","amplifier","duration"};
-                if(!keys_only(&pending,keys,5,err,sizeof err)||
+                long long id,amplifier,duration,show=1;
+                /* show_particles is optional: tapes recorded before the flag
+                 * existed carry visible effects only by ASSUMPTION, so the
+                 * legacy default stays 1 (the PotionEffect ctor default). */
+                static const char *const keys[]={"tick","type","id","amplifier",
+                                                 "duration","show_particles"};
+                if(!keys_only(&pending,keys,6,err,sizeof err)||
                    !as_i64(field(&pending,"id"),&id)||
                    !as_i64(field(&pending,"amplifier"),&amplifier)||
                    !as_i64(field(&pending,"duration"),&duration)||
-                   !gm_runtime_tape_potion(&r,(int)id,(int)amplifier,(int)duration)){
+                   (field(&pending,"show_particles")&&
+                    !as_i64(field(&pending,"show_particles"),&show))||
+                   !gm_runtime_tape_potion(&r,(int)id,(int)amplifier,(int)duration,
+                                           (int)show)){
                     fprintf(stderr,"script:%ld: invalid potion_view\n",line_no);goto bad;
                 }
+            } else if (!strcmp(type,"armor_view")) {
+                /* Recorded ForgeHooks.getTotalArmorValue; -1 clears. */
+                long long points;
+                static const char *const keys[]={"tick","type","points"};
+                if(!keys_only(&pending,keys,3,err,sizeof err)||
+                   !as_i64(field(&pending,"points"),&points)||points<-1||points>20){
+                    fprintf(stderr,"script:%ld: invalid armor_view\n",line_no);goto bad;
+                }
+                gm_runtime_tape_armor(&r,(int)points);
             } else if (!strcmp(type,"spawn_entity")) {
                 long long entity;double x,y,z;
                 static const char *const keys[]={"tick","type","entity","x","y","z"};

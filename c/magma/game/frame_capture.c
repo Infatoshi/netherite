@@ -227,18 +227,24 @@ static int render_layer(GmFrameCapture *c, const CrCamera *cam,
     return n;
 }
 
+/* EntityRenderer.setupFog: Nether doesXZShowFog OR the dragon fight's
+ * BossInfo createFog flag (GuiBossOverlay.shouldCreateFog) pull the linear
+ * ramp in to [far*0.05, min(far,192)*0.5]. setupFog is scene-wide state, so
+ * every pass drawn after it - terrain AND entity layers - is fogged. */
+static void world_fog_params(int dimension, int boss_fog, int *enabled,
+                             float *fog_start, float *fog_end) {
+    int dense = dimension == -1 || boss_fog;
+    *enabled = gm_terrain_fog_enabled();
+    *fog_start = dense ? GM_TERRAIN_FOG_FAR * 0.05f : GM_TERRAIN_FOG_START;
+    *fog_end = dense ? GM_TERRAIN_FOG_FAR * 0.5f : GM_TERRAIN_FOG_END;
+}
+
 static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
                            int boss_fog, const CrRgba *lm,
                            const GmUnderwater *uw, CrShadeCtx shade[4]) {
-    int enabled = gm_terrain_fog_enabled();
-    /* EntityRenderer.setupFog: Nether doesXZShowFog OR the dragon fight's
-     * BossInfo createFog flag (GuiBossOverlay.shouldCreateFog) pull the
-     * linear ramp in to [far*0.05, min(far,192)*0.5]. */
-    int dense = dimension == -1 || boss_fog;
-    float fog_start = dense ? GM_TERRAIN_FOG_FAR * 0.05f
-                            : GM_TERRAIN_FOG_START;
-    float fog_end = dense ? GM_TERRAIN_FOG_FAR * 0.5f
-                          : GM_TERRAIN_FOG_END;
+    int enabled;
+    float fog_start, fog_end;
+    world_fog_params(dimension, boss_fog, &enabled, &fog_start, &fog_end);
     /* use_mips=0 on EVERY layer, including CUTOUT_MIPPED: both oracle launch
      * profiles (java/fast.yaml + java/vanilla.yaml) pin mipmapLevels:0, which
      * makes TextureMap.setBlurMipmap give the terrain atlas plain GL_NEAREST
@@ -917,6 +923,12 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         sh.lightmap=lm;
         sh.alpha_mask=1;
         gm_entity_dissolve_mask(&sh.mask_u_off,&sh.mask_v_off);
+        /* setupFog is scene state, so RenderLivingBase draws under the same
+         * linear ramp as the terrain (dense in the Nether / during a boss
+         * fight). Without it a dissolving dragon 45 blocks out kept its full
+         * white instead of washing to the End fog color. */
+        world_fog_params(r->dimension,c->boss_latch,&sh.enable_fog,
+                         &sh.fog_start,&sh.fog_end);
         if(uw.fluid){ sh.enable_fog=1; sh.fog_exp_density=uw.density; sh.fog_color=uw.fog_rgba; }
         render_layer(c,&cam,eb[0],nv,&sh);
         /* RenderXPOrb: SRC_ALPHA blend, alpha 128, no cutout thr 0.5 kill. */
@@ -953,6 +965,21 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 rays.atlas=&ea; rays.fog_color=clear;
                 rays.untextured=1; rays.blend=3;
                 rays.layer=CR_LAYER_TRANSLUCENT;
+                /* lightmap unit 1 is never disabled by the layer (see
+                 * gm_dragon_death_rays_emit): keep it bound here too. */
+                rays.lightmap=lm;
+                /* setupFog is scene state and the death fans are drawn inside
+                 * the entity pass, so the SAME linear ramp applies. In the End
+                 * the fight's BossInfo.createFog is live for the whole death
+                 * animation (MixinStripBossBar cancels only the HUD draw, not
+                 * the BossInfo), pulling the ramp to [6.4, 64]: the dragon is
+                 * 39-54 blocks out over this tape, i.e. 57-83% fogged.
+                 * Unfogged, the additive fans came out several times too
+                 * bright and read as longer and wider than the oracle's. */
+                world_fog_params(r->dimension,c->boss_latch,&rays.enable_fog,
+                                 &rays.fog_start,&rays.fog_end);
+                if(uw.fluid){ rays.enable_fog=1; rays.fog_exp_density=uw.density;
+                              rays.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,ray_ov,nr,&rays);
             }
         }

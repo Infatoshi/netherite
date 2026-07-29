@@ -543,8 +543,12 @@ static int potion_beneficial(int id) {
     }
 }
 
-/* GuiIngame.renderPotionEffects. Tape effects are ordinary, visible effects:
- * the recorder stores id/amplifier/duration but not Ambient/ShowParticles. */
+/* GuiIngame.renderPotionEffects: `if (potioneffect.doesShowParticles())` gates
+ * the whole icon, so a hidden-particle effect (`/effect ... <amp> true`, e.g.
+ * the dragon_kill scenario's Resistance V) draws NOTHING even though the
+ * effect is active. Magma drew a phantom shield icon top-right for exactly
+ * that reason. hide_particles is set only by a tape row that carries the
+ * recorded flag; everything else keeps vanilla's shown default. */
 static void hud_draw_potion_effects(CrFramebuffer *fb,
                                     const GmPlayerView *pv, int scale,
                                     int sw_s) {
@@ -552,7 +556,7 @@ static void hud_draw_potion_effects(CrFramebuffer *fb,
     for (int n = 0; n < pv->potion_count; ++n) {
         const GmPotionEffectView *p = &pv->potions[n];
         int icon = potion_icon_index(p->id);
-        if (icon < 0) continue;
+        if (icon < 0 || p->hide_particles) continue;
         int x = sw_s - 25 * (potion_beneficial(p->id) ? ++good : ++bad);
         int y = potion_beneficial(p->id) ? 1 : 27;
         hud_blit_sub_alpha(fb, HUD_POTION_BG, 0, 0, 24, 24,

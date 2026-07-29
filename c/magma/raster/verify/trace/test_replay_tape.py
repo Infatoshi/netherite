@@ -92,6 +92,12 @@ def test_new_recorder_state_becomes_sorted_render_and_next_tick_events(tmp_path:
     assert any(event["type"] == "potion_clear" for event in tick0)
     assert any(event["type"] == "potion_view" and event["id"] == 20
                and event["duration"] == 157 for event in tick0)
+    # 3-field legacy pots rows carry no showParticles: magma must keep
+    # vanilla's shown default rather than invent a flag.
+    assert all("show_particles" not in event for event in tick0
+               if event["type"] == "potion_view")
+    # No "armor" in the row -> no override event (item-derived value stands).
+    assert not any(event["type"] == "armor_view" for event in tick0)
     tick1 = [json.loads(line) for line in script.read_text().splitlines()
              if json.loads(line)["tick"] == 1]
     assert any(event["type"] == "set_dimension" and event["dimension"] == -1
@@ -1157,3 +1163,27 @@ def test_elytra_falling_liquid_cleared_before_player_intersection(tmp_path: Path
     assert clears, "expected falling liquid air-clears before intersection"
     assert all(e["tick"] == clears[0]["tick"] for e in clears)
     assert clears[0]["tick"] in (1, 2)  # first intersecting row after prev
+
+
+def test_potion_show_particles_and_armor_rows(tmp_path):
+    """Recorder >= 2026-07-29 rows: pots gain doesShowParticles, and the
+    player's generic.armor total is recorded because NBT AttributeModifiers
+    make it underivable from the inventory dump."""
+    header = {"header": 1, "seed": 0, "world": "qrl_0", "world_time": 6000,
+              "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+              "hp": 20.0, "food": 20, "dim": 1,
+              "velocity_packets": 1, "position_packets": 1}
+    ticks = [
+        {"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0, "z": 0.5,
+         "yaw": 0.0, "pitch": 0.0, "wt": 6001, "hp": 20.0, "food": 20,
+         "dim": 1, "xpl": 0, "xpp": 0.0,
+         "pots": [[11, 4, 32721, 0], [20, 0, 199, 1]], "armor": 0,
+         "vx": 0.0, "vy": 0.0, "vz": 0.0, "og": 1, "ents": []},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    pots = [e for e in events if e["type"] == "potion_view"]
+    assert [(e["id"], e["show_particles"]) for e in pots] == [(11, 0), (20, 1)]
+    armor = [e for e in events if e["type"] == "armor_view"]
+    assert len(armor) == 1 and armor[0]["points"] == 0

@@ -2002,9 +2002,14 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
         float f = ((float)dt + 1.0f) / 200.0f;
         float f1 = 0.0f;
         if (f > 0.8f) f1 = (f - 0.8f) / 0.2f;
+        /* Vanilla's loop is `for (i = 0; (float)i < (f+f*f)/2*60; ++i)`: it
+         * runs whenever the bound is > 0, so deathTicks 1 already draws ONE
+         * ray. Skipping until bound >= 1 delayed the onset by ~5 death ticks
+         * (~3 tape frames). No upper clamp either - the CLIENT keeps ticking
+         * deathTicks past 200 (setDead is server-side only), and 60 was a
+         * bound on f<=1. The output buffer is the only real limit. */
         float bound = (f + f * f) / 2.0f * 60.0f;
-        if (bound < 1.0f) continue;
-        if (bound > 60.0f) bound = 60.0f;
+        if (bound <= 0.0f) continue;
 
         /* Body orientation from the same ring as emit_dragon. Do not pose_tick
          * here (frame_capture already advanced via gm_entities_emit); seed only
@@ -2030,6 +2035,21 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
         er_aff_translate(&base, 0.0f, -1.501f, 0.0f);
         er_aff_translate(&base, 0.0f, -1.0f, -2.0f);
 
+        /* The layer's disableTexture2D() turns off the ACTIVE unit (0) only;
+         * the lightmap on OpenGlHelper.lightmapTexUnit stays bound and keeps
+         * MODULATing, so the fans carry the DRAGON's brightness, not white.
+         * In the End (lm_lit==2, no bound LUT) that folds a ~0.2 multiplier
+         * into the color - unmodulated fans were several times too bright. */
+        float lv = 1.0f, blk = 15.0f;
+        float lmr = 1.0f, lmg = 1.0f, lmb = 1.0f;
+        if (ents[e].lm_lit == 1) {
+            lv = ents[e].lm_light; blk = ents[e].lm_blk;
+        } else if (ents[e].lm_lit == 2) {
+            lv = 1.0f; blk = 0.0f;
+            lmr = ents[e].lm_mul_r; lmg = ents[e].lm_mul_g;
+            lmb = ents[e].lm_mul_b;
+        }
+
         unsigned long long js = (432ull ^ 0x5DEECE66Dull) & ER_JRAND_MASK;
         float m[9] = { 1,0,0, 0,1,0, 0,0,1 };
         for (int i = 0; (float)i < bound; ++i) {
@@ -2049,16 +2069,24 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                 {  0.0f,        f2,  1.0f * f3 },
                 { -0.866f * f3, f2, -0.5f * f3 },
             };
-            int alpha0 = (int)(255.0f * (1.0f - f1));
-            if (alpha0 < 0) alpha0 = 0;
-            if (alpha0 > 255) alpha0 = 255;
+            /* vertexbuffer.color(255,255,255,(int)(255.0F*(1.0F-f1))) stores
+             * the alpha through a Java `(byte)` narrowing cast (VertexBuffer
+             * .color, UBYTE branch), NOT a clamp. Past deathTicks 200 f1 > 1,
+             * the int goes negative and wraps to ~250: that wrap IS vanilla's
+             * final starburst. Clamping to 0 made magma's rays vanish exactly
+             * when the oracle's peak. Mask, do not clamp. */
+            int alpha0 = (int)(255.0f * (1.0f - f1)) & 255;
+#define ER_RAY_LM(r, g, b, a) { (u8)((float)(r) * lmr + 0.5f),               \
+                                (u8)((float)(g) * lmg + 0.5f),               \
+                                (u8)((float)(b) * lmb + 0.5f), (u8)(a) }
             CrRgba cols[5] = {
-                { 255, 255, 255, (u8)alpha0 },
-                { 255, 0, 255, 0 },
-                { 255, 0, 255, 0 },
-                { 255, 0, 255, 0 },
-                { 255, 0, 255, 0 },
+                ER_RAY_LM(255, 255, 255, alpha0),
+                ER_RAY_LM(255, 0, 255, 0),
+                ER_RAY_LM(255, 0, 255, 0),
+                ER_RAY_LM(255, 0, 255, 0),
+                ER_RAY_LM(255, 0, 255, 0),
             };
+#undef ER_RAY_LM
             static const int tri[9] = { 0,1,2, 0,2,3, 0,3,4 };
             for (int k = 0; k < 9; ++k) {
                 int pi = tri[k];
@@ -2073,7 +2101,7 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                 vtx.pos.z = base.m[2][0]*lx + base.m[2][1]*ly
                           + base.m[2][2]*lz + base.t[2];
                 vtx.uv.x = 0.0f; vtx.uv.y = 0.0f;
-                vtx.light = 1.0f; vtx.blk = 15.0f;
+                vtx.light = lv; vtx.blk = blk;
                 vtx.tint = cols[pi];
                 vtx.ao = 1.0f;
                 out[written++] = vtx;

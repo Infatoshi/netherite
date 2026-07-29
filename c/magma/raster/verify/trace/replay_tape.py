@@ -879,11 +879,26 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
                                                 "GuiDownloadTerrain" else
                                                 2 if t in loading_ticks else 0)}) + "\n")
                 f.write(json.dumps({"tick": t, "type": "potion_clear"}) + "\n")
-                for potion_id, amplifier, duration in row.get("pots", []):
-                    f.write(json.dumps({"tick": t, "type": "potion_view",
-                                        "id": int(potion_id),
-                                        "amplifier": int(amplifier),
-                                        "duration": int(duration)}) + "\n")
+                for pot in row.get("pots", []):
+                    # 4th element (recorder >= 2026-07-29) is
+                    # PotionEffect.doesShowParticles: 0 means vanilla draws NO
+                    # top-right icon (`/effect ... <amp> true`). Rows without
+                    # it keep the shown default.
+                    potion_id, amplifier, duration = pot[0], pot[1], pot[2]
+                    ev = {"tick": t, "type": "potion_view",
+                          "id": int(potion_id), "amplifier": int(amplifier),
+                          "duration": int(duration)}
+                    if len(pot) >= 4:
+                        ev["show_particles"] = int(pot[3])
+                    f.write(json.dumps(ev) + "\n")
+                # Recorded generic.armor total. Only the recorder can know it:
+                # an ItemStack with an AttributeModifiers tag REPLACES the
+                # armor item's default modifiers, so magma's item-id guess is
+                # wrong for e.g. the dragon_kill knockback chestplate (0, not
+                # 3). Absent from older tapes -> magma keeps the guess.
+                if "armor" in row:
+                    f.write(json.dumps({"tick": t, "type": "armor_view",
+                                        "points": int(row["armor"])}) + "\n")
             # ghost pushers near the oracle player (push reach is ~1.5 blocks;
             # 4 gives slack for magma-vs-oracle drift within tolerance)
             for e in row.get("ents", []):

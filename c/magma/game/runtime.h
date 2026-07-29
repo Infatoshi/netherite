@@ -122,6 +122,9 @@ typedef struct GmRuntime {
     float tape_hurt_yaw, tape_attack_cooldown;
     int tape_potion_count;
     GmPotionEffectView tape_potions[GM_MAX_POTION_EFFECTS];
+    /* Recorded ForgeHooks.getTotalArmorValue. -1 = the tape did not carry it
+     * (pre-2026-07-29 schema); the view then keeps the item-derived guess. */
+    int tape_armor_points;
 } GmRuntime;
 
 int  gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap);
@@ -182,7 +185,10 @@ void gm_runtime_tape_player_view(GmRuntime *r, int xp_level, float xp_frac, int 
                                  int max_hurt_time, float hurt_yaw,
                                  float attack_cooldown);
 void gm_runtime_tape_potions_clear(GmRuntime *r);
-int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration);
+int gm_runtime_tape_potion(GmRuntime *r, int id, int amplifier, int duration,
+                           int show_particles);
+/* points < 0 clears the override (fall back to the item-derived value). */
+void gm_runtime_tape_armor(GmRuntime *r, int points);
 void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view);
 
 /* Feet position at the entry of the last gm_runtime_tick, in world coords.

@@ -56,6 +56,13 @@ typedef struct {
     int id;        /* vanilla Potion registry id */
     int amplifier;
     int duration;  /* remaining client ticks */
+    /* !PotionEffect.doesShowParticles(). GuiIngame.renderPotionEffects skips
+     * the top-right status icon entirely when showParticles is false
+     * (`/effect <ent> <id> <sec> <amp> true`), so it is NOT cosmetic - it is
+     * the whole gate on the icon. Stored INVERTED so the zero value of every
+     * existing producer (live effects, HUD layout tests, tape rows predating
+     * the flag) keeps vanilla's shown-by-default behaviour. */
+    int hide_particles;
 } GmPotionEffectView;
 
 /* One tick of intent, produced from CrInput by game/input_map.c and consumed by
@@ -137,7 +144,13 @@ typedef struct {
      * use_remaining / use_max: getItemInUseCount / getMaxItemUseDuration.
      * absorption: EntityLivingBase.getAbsorptionAmount (health points); drives
      * GuiIngame heart-row count and armor-row y. Live path leaves 0 when no
-     * vitals absorption field exists (do not invent). */
+     * vitals absorption field exists (do not invent).
+     * NOTE armor_points derived from item ids alone is a GUESS: vanilla reads
+     * the generic.armor attribute, and an ItemStack carrying an
+     * AttributeModifiers tag REPLACES the item's default modifiers
+     * (ItemStack.getAttributeModifiers), so e.g. a knockback-resistance
+     * leather chestplate is worth 0 armor. A tape that records the player's
+     * real total overrides the guess (gm_runtime_tape_armor). */
     int   armor_points;
     int   use_action;
     int   use_remaining;

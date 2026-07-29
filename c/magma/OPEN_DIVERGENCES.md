@@ -441,17 +441,72 @@ NoAI-pinned because a live blaze kites to fireball range.
 
 From `tapes/retired/scenario_dragon_kill_20260729T094414Z` (pitch-armed
 command-block kill so the real onDeathUpdate plays; see the yaml):
-- **Death-ray intensity curve**: magma's purple death rays onset a frame
-  or two late, then run brighter/longer/wider than the oracle mid-death
-  (t=340, the 25k-px UNEXPLAINED bulk), then cut out BEFORE the oracle's
-  final starburst (t=458: oracle at maximum, magma rays already gone).
-  Curve shape, not a constant scale.
-- **Dragon boss bar**: magma draws it as a small strip above the hotbar
-  instead of vanilla's top-center bar.
-- **Phantom HUD icon**: magma paints a shield-shaped icon top-right that
-  the oracle does not have on this tape.
+- **Death-ray intensity curve**: **root-caused and FIXED** (2026-07-29,
+  `wt/dragonfx`). Three independent bugs in one symptom, all in the
+  `LayerEnderDragonDeath` port:
+  1. *Late onset*: `gm_dragon_death_rays_emit` skipped the entity while
+     `(f+f*f)/2*60 < 1`. Vanilla's loop is `for (i = 0; (float)i < bound;
+     ++i)`, so ANY bound > 0 draws one ray - deathTicks 1 already has a
+     beam (`LayerEnderDragonDeath.doRenderLayer`). Cost: ~5 death ticks.
+  2. *Too bright mid-death*: the ray pass ran with no fog and no
+     lightmap. `EntityRenderer.setupFog` is scene state (entities are
+     drawn under it), and the End dragon fight's `BossInfo.createFog`
+     (`DragonFightManager.bossInfo` ... `setCreateFog(true)`,
+     `GuiBossOverlay.shouldCreateFog`) pulls the linear ramp to
+     `[far*0.05, min(far,192)*0.5]` = [6.4, 64] - the dragon sits 39-54
+     blocks out, i.e. 57-83% fogged. Separately, the layer's
+     `disableTexture2D()` only disables the ACTIVE unit, so the lightmap
+     on `OpenGlHelper.lightmapTexUnit` keeps MODULATing the fans with the
+     dragon's brightness (0.24 in the End, not 1.0). MixinStripBossBar
+     hides only the HUD bar, never the BossInfo, so the fog is live for
+     the whole animation even though no bar is in frame.
+  3. *No final starburst*: `(int)(255.0F * (1.0F - f1))` goes NEGATIVE
+     once deathTicks+partial > 200, and `VertexBuffer.color(int,int,int,
+     int)` stores it through a Java `(byte)` narrowing cast (UBYTE
+     branch) - it WRAPS to ~250. That wrap IS vanilla's t=458 starburst;
+     magma clamped to 0 and the rays vanished at the oracle's peak. The
+     `bound > 60` clamp went too: the CLIENT keeps ticking deathTicks
+     past 200 (`setDead` is inside `!world.isRemote`).
+  Measured on the tape, mean-abs/ch vs golden: t=260 0.683 -> 0.572,
+  t=340 3.354 -> 0.932, t=458 8.484 -> 7.355; whole tape 3.307 -> 2.235,
+  death window (t=258..470) 3.917 -> 1.066. Ray energy now tracks the
+  oracle within 1-9% for every frame from deathTicks 100 to 198.
+  Residual at t=458 only (oracle ~2x brighter in the far field): the
+  EXPLOSION_HUGE cloud `onDeathUpdate` spawns at deathTicks 180-200, and
+  magma stops drawing the dragon entirely after t=458 because the tape's
+  `ents` rows stop while the oracle client renders it to deathTicks ~204.
+- **Dragon boss bar**: **not a boss bar** (2026-07-29). Neither side
+  draws one on this tape - the recorder's `strip.overlays` cancels
+  `GuiBossOverlay.renderBossHealth` (MixinStripBossBar) and magma gates
+  its own top-center bar on `MAGMA_STRIP_OVERLAYS`. The "small strip
+  above the hotbar" is magma's ARMOR row: the scenario equips a leather
+  chestplate whose only job is knockback resistance, and an ItemStack
+  with an `AttributeModifiers` tag REPLACES the item's default modifiers
+  (`ItemStack.getAttributeModifiers`), so vanilla's generic.armor total
+  is 0 and no icons are drawn. magma derived 3 from the item id, which
+  is all the tape carries. **Fixed in code, needs a re-record**: the
+  recorder now writes the real total (`QuantizedRL.recordTick`,
+  `"armor":p.getTotalArmorValue()`), the replay emits `armor_view`, and
+  `gm_runtime_tape_armor` overrides the item-derived guess.
+- **Phantom HUD icon**: **root-caused, fixed in code, needs a re-record**
+  (2026-07-29). It is the Resistance status icon (a shield in
+  inventory.png), drawn because the scenario runs `effect @p resistance
+  1000000 4 true` - the trailing `true` is hideParticles, and
+  `GuiIngame.renderPotionEffects` wraps the whole icon blit in
+  `if (potioneffect.doesShowParticles())`. The recorder's `pots` triples
+  never carried that bit, so magma could only assume "visible". `pots`
+  entries now carry `doesShowParticles` as a 4th field, `potion_view`
+  takes `show_particles`, and `GmPotionEffectView.hide_particles` gates
+  the blit (inverted so legacy rows keep vanilla's shown default - the
+  wither_skeleton tape's icon must not disappear).
+  Verified by replaying this tape's generated script with both fields
+  injected (what a re-record would produce): armor row and icon go to 0
+  px, matching the golden, and mean-abs drops further to t=260 0.121,
+  t=340 0.482, t=458 6.901, whole tape 1.817. THIS RETIRED TAPE STILL
+  SHOWS BOTH until it is re-recorded with the new recorder.
 - **Entity interpolation**: dragon sits ~16px right of the oracle with
   wing-flap phase offset - consistent with a one-tick view lag.
+  (Still open. Visible at t=260 as a mirrored/rotated body pose.)
 
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 

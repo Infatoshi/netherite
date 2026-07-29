@@ -5559,7 +5559,10 @@ sb.append("}");
         // tape can't always derive)
         float cd = p.getCooledAttackStrength(1.0F);
         if (cd < 1.0F) b.append(",\"cd\":").append(cd);
-        // active potions retint the whole frame (night vision/blindness/nausea)
+        // active potions retint the whole frame (night vision/blindness/nausea).
+        // 4th field = doesShowParticles: GuiIngame.renderPotionEffects draws the
+        // top-right status icon ONLY when it is true, so a hideParticles effect
+        // (`/effect <ent> <id> <sec> <amp> true`) must not make magma paint one.
         java.util.Collection<net.minecraft.potion.PotionEffect> pots = p.getActivePotionEffects();
         if (!pots.isEmpty()) {
             b.append(",\"pots\":[");
@@ -5568,10 +5571,16 @@ sb.append("}");
                 if (pn++ > 0) b.append(",");
                 b.append("[").append(net.minecraft.potion.Potion.getIdFromPotion(pe.getPotion()))
                  .append(",").append(pe.getAmplifier())
-                 .append(",").append(pe.getDuration()).append("]");
+                 .append(",").append(pe.getDuration())
+                 .append(",").append(pe.doesShowParticles() ? 1 : 0).append("]");
             }
             b.append("]");
         }
+        // generic.armor total behind the HUD armor row. NOT derivable from the
+        // inv dump: ItemStack.getAttributeModifiers returns ONLY the NBT
+        // AttributeModifiers when that tag is present, so a leather chestplate
+        // carrying just a knockbackResistance modifier is worth 0 armor.
+        b.append(",\"armor\":").append(p.getTotalArmorValue());
         // full inventory on change OR keyframe cadence (slots 0-40: main 36,
         // armor 4, offhand). Change dumps catch real evolution; keyframes every
         // 20 ticks line up with collect_state_assertions sampling so a tape is
