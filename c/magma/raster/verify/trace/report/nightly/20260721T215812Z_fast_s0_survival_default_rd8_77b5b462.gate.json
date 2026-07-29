@@ -23,17 +23,17 @@
   },
   "viewmodel": {
    "frames": 87,
-   "px": 208566,
+   "px": 195829,
    "max_cluster": 14924
   },
   "UNEXPLAINED": {
-   "frames": 62,
-   "px": 111336,
+   "frames": 58,
+   "px": 91783,
    "max_cluster": 3037
   },
   "particles": {
-   "frames": 73,
-   "px": 138455,
+   "frames": 72,
+   "px": 134107,
    "max_cluster": 6706
   },
   "bossbar": {
@@ -43,13 +43,8 @@
   },
   "known:4": {
    "frames": 12,
-   "px": 53678,
+   "px": 47972,
    "max_cluster": 5464
-  },
-  "known:1": {
-   "frames": 1,
-   "px": 1110,
-   "max_cluster": 850
   },
   "thinline": {
    "frames": 12,
