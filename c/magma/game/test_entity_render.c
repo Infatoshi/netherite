@@ -713,6 +713,152 @@ static void test_fireball_rays_particles(void) {
           "deathTicks=200 emits no dragon body");
 }
 
+/* (K) death keel (RenderLivingBase.applyRotations) + spawner miniature. */
+static void test_death_and_spawner(void) {
+    printf("\n[K] death keel + spawner miniature\n");
+    static CrVertex out[65536], out2[65536];
+
+    /* er_death_roll: f = min(1, sqrt(deathTime/20*1.6)) * 90deg, partial=1. */
+    GmEntityView v; memset(&v, 0, sizeof v);
+    v.type = 7; v.tape_pose = 1;                      /* EntityBlaze */
+    v.x = 0.5f; v.y = 64.0f; v.z = 0.5f; v.health = 0.0f;
+    CHECK(er_death_roll(&v) == 0.0f, "alive (deathTime 0) has no keel");
+    v.death_time = 1;
+    CHECK(fabsf(er_death_roll(&v) - sqrtf(1.0f/20.0f*1.6f)*(float)M_PI/2.0f)
+          < 1e-6f, "deathTime=1 keel = sqrt(0.08)*90deg");
+    v.death_time = 20;
+    CHECK(fabsf(er_death_roll(&v) - (float)M_PI/2.0f) < 1e-6f,
+          "deathTime=20 saturates at getDeathMaxRotation (90deg)");
+    v.death_time = 100;
+    CHECK(fabsf(er_death_roll(&v) - (float)M_PI/2.0f) < 1e-6f,
+          "keel clamps at 90deg past deathTime=20");
+    /* monotone rise over the vanilla 0..20 window */
+    /* sqrt(deathTime * 0.08) reaches 1 at deathTime 12.5, so the body is
+     * fully keeled from deathTime 13 - a full 7 ticks before onDeathUpdate
+     * removes the entity at 20. Strictly rising to 12, flat after. */
+    float prev = -1.0f;
+    int rising = 1, flat = 1;
+    for (int d = 1; d <= 20; ++d) {
+        v.death_time = d;
+        float r = er_death_roll(&v);
+        if (d <= 12 && r <= prev) rising = 0;
+        if (d >= 13 && fabsf(r - (float)M_PI / 2.0f) > 1e-6f) flat = 0;
+        prev = r;
+    }
+    CHECK(rising, "keel rises strictly over deathTime 1..12");
+    CHECK(flat, "keel is saturated at 90deg from deathTime 13 on");
+
+    /* The keel must actually move geometry, about the FEET, without changing
+     * the vertex count: a fully keeled blaze is as wide as it was tall. */
+    v.death_time = 0;
+    int nlive = gm_entities_emit(&v, 1, out, 65536);
+    v.death_time = 20;
+    int ndead = gm_entities_emit(&v, 1, out2, 65536);
+    CHECK(nlive == ndead && nlive > 0, "keel changes no vertex count");
+    float ly0 = 1e9f, ly1 = -1e9f, lx0 = 1e9f, lx1 = -1e9f;
+    float dy0 = 1e9f, dy1 = -1e9f, dx0 = 1e9f, dx1 = -1e9f;
+    for (int i = 0; i < nlive; ++i) {
+        if (out[i].pos.y < ly0) ly0 = out[i].pos.y;
+        if (out[i].pos.y > ly1) ly1 = out[i].pos.y;
+        if (out[i].pos.x < lx0) lx0 = out[i].pos.x;
+        if (out[i].pos.x > lx1) lx1 = out[i].pos.x;
+        if (out2[i].pos.y < dy0) dy0 = out2[i].pos.y;
+        if (out2[i].pos.y > dy1) dy1 = out2[i].pos.y;
+        if (out2[i].pos.x < dx0) dx0 = out2[i].pos.x;
+        if (out2[i].pos.x > dx1) dx1 = out2[i].pos.x;
+    }
+    CHECK(dy1 - dy0 < ly1 - ly0, "keeled body is shorter than the live one");
+    CHECK(dx1 - dx0 > lx1 - lx0, "keeled body is wider than the live one");
+    /* 90deg about Z at the feet: the dead height ~= the live half-width span,
+     * and the dead x-span ~= the live height. Both within a texel. */
+    CHECK(fabsf((dx1 - dx0) - (ly1 - ly0)) < 0.07f,
+          "90deg keel maps the live height onto the dead x-span");
+    /* the feet stay put (rotation pivot is the entity origin) */
+    CHECK(fabsf(dy0 - v.y) < 0.7f && ly0 >= v.y - 0.7f,
+          "keel pivots on the feet, not the model centre");
+
+    /* Hurt/death tint: RenderLivingBase.setBrightness flag1 covers BOTH. */
+    GmEntityView t = v;
+    t.death_time = 0; t.hurt_time = 0;
+    gm_entities_emit(&t, 1, out, 65536);
+    CrRgba plain = out[0].tint;
+    t.hurt_time = 5;
+    gm_entities_emit(&t, 1, out, 65536);
+    CrRgba hurt = out[0].tint;
+    t.hurt_time = 0; t.death_time = 10;   /* hurtTime expired, still dying */
+    gm_entities_emit(&t, 1, out, 65536);
+    CrRgba dead = out[0].tint;
+    CHECK(hurt.g < plain.g && hurt.b < plain.b && hurt.r == plain.r,
+          "hurtTime>0 leans the tint red");
+    CHECK(dead.g == hurt.g && dead.b == hurt.b,
+          "deathTime>0 keeps the red tint after hurtTime hits 0");
+
+    /* ---- TileEntityMobSpawnerRenderer miniature ---- */
+    float w = 0.0f, h = 0.0f;
+    gm_entity_size(7, &w, &h);
+    CHECK(fabsf(w - 0.6f) < 1e-6f && fabsf(h - 1.8f) < 1e-6f,
+          "EntityBlaze setSize(0.6, 1.8)");
+    CHECK(fabsf(gm_spawner_mini_scale(7) - 0.53125f / 1.8f) < 1e-6f,
+          "renderMob f = 0.53125 / max(width,height) for a blaze");
+    gm_entity_size(13, &w, &h);              /* chicken 0.4 x 0.7, both < 1 */
+    CHECK(fabsf(gm_spawner_mini_scale(13) - 0.53125f) < 1e-6f,
+          "max(w,h) <= 1 leaves f at 0.53125 (no shrink)");
+
+    GmSpawnerView sp; memset(&sp, 0, sizeof sp);
+    sp.wx = -325; sp.wy = 56; sp.wz = -102; sp.type = 7; sp.mob_rotation = 0.0f;
+    int ns = gm_spawner_miniatures_emit(&sp, 1, out, 65536);
+    CHECK(ns > 0 && ns % 36 == 0, "miniature emits whole 36-vert boxes");
+    CHECK(ns == nlive, "miniature has the blaze's full part count");
+    float mx0 = 1e9f, mx1 = -1e9f, my0 = 1e9f, my1 = -1e9f,
+          mz0 = 1e9f, mz1 = -1e9f;
+    for (int i = 0; i < ns; ++i) {
+        if (out[i].pos.x < mx0) mx0 = out[i].pos.x;
+        if (out[i].pos.x > mx1) mx1 = out[i].pos.x;
+        if (out[i].pos.y < my0) my0 = out[i].pos.y;
+        if (out[i].pos.y > my1) my1 = out[i].pos.y;
+        if (out[i].pos.z < mz0) mz0 = out[i].pos.z;
+        if (out[i].pos.z > mz1) mz1 = out[i].pos.z;
+    }
+    /* It must live INSIDE the spawner block, not at world scale. */
+    CHECK(mx0 > -326.0f && mx1 < -324.0f && mz0 > -103.0f && mz1 < -101.0f,
+          "miniature stays inside the spawner block footprint");
+    CHECK(my0 > 55.5f && my1 < 57.5f, "miniature stays within the cage in y");
+    /* full-size blaze spans ~1.8 blocks tall; the miniature is f times that */
+    CHECK((my1 - my0) < (ly1 - ly0) * 0.6f,
+          "miniature is much smaller than a world-scale blaze");
+    /* the -30deg pitch means it is NOT axis aligned: some box is tilted */
+    CHECK((mz1 - mz0) > 0.2f, "the -30deg X tilt gives the mini real z extent");
+
+    /* mobRotation spins it about Y: a different rotation moves vertices, and
+     * the +36deg (x10) case must equal a 360-degree wrap of itself. */
+    GmSpawnerView sp2 = sp; sp2.mob_rotation = 9.0f;   /* 90 degrees rendered */
+    int ns2 = gm_spawner_miniatures_emit(&sp2, 1, out2, 65536);
+    CHECK(ns2 == ns, "rotation does not change the vertex count");
+    int moved = 0;
+    for (int i = 0; i < ns; ++i)
+        if (fabsf(out[i].pos.x - out2[i].pos.x) > 1e-4f ||
+            fabsf(out[i].pos.z - out2[i].pos.z) > 1e-4f) moved++;
+    CHECK(moved > ns / 2, "mobRotation actually spins the miniature about Y");
+    GmSpawnerView sp3 = sp; sp3.mob_rotation = 36.0f;  /* 360 degrees */
+    gm_spawner_miniatures_emit(&sp3, 1, out2, 65536);
+    int same = 1;
+    for (int i = 0; i < ns; ++i)
+        if (fabsf(out[i].pos.x - out2[i].pos.x) > 2e-3f ||
+            fabsf(out[i].pos.y - out2[i].pos.y) > 2e-3f ||
+            fabsf(out[i].pos.z - out2[i].pos.z) > 2e-3f) { same = 0; break; }
+    CHECK(same, "mobRotation 36 (=360 deg) is a full turn back to identity");
+
+    /* No cached entity (unknown spawn id) draws nothing - vanilla's null guard.
+     * This is the state every magma spawner is in today: no tile-entity data
+     * reaches the renderer (see OPEN_DIVERGENCES "Spawner-cage miniature"). */
+    GmSpawnerView none = sp; none.type = -1;
+    CHECK(gm_spawner_miniatures_emit(&none, 1, out, 65536) == 0,
+          "no cached entity type emits no miniature");
+    /* overflow safety */
+    CHECK(gm_spawner_miniatures_emit(&sp, 1, out, 10) == 0,
+          "miniature emit respects the vertex budget");
+}
+
 int main(void) {
     test_part_counts();
     test_geometry();
@@ -724,6 +870,7 @@ int main(void) {
     test_recorded_state();
     test_slime_magma_size();
     test_fireball_rays_particles();
+    test_death_and_spawner();
     printf("\n%s\n", g_fail ? "*** SOME TESTS FAILED ***" : "ALL TESTS PASSED");
     return g_fail;
 }

@@ -104,6 +104,15 @@ Two things that make a pixel measurement lie, both paid for already:
   delegates, pin `UV_CACHE_DIR=/home/infatoshi/.cache/uv` and
   `TMPDIR=/home/infatoshi/dev/nw/.tmp` in their environment and say so in the
   prompt.
+- **A retired tape used to measure as a silent PASS over zero frames.**
+  The recorder bakes an ABSOLUTE golden path into every tick row, so moving
+  a tape into `tapes/retired/` orphaned all of them;
+  `oracle_frames_cache` skipped every missing file without a word and the
+  pixel gate reported `PASS: no unexplained clusters over 0 frames`. Fixed
+  2026-07-29: goldens now fall back to `<dir of the tape file>/<frames dir>/`,
+  pxdiff resolves `tapes/retired/` too, and a tape that declares goldens but
+  resolves none is a FATAL, not a pass. If a gate reports 0 frames checked,
+  that is a harness failure - never read it as a clean tape.
 - **Check what the goldens actually contain before chasing a diff.** A tape
   recorded through Malmo has `hideGUI` forced on for the whole mission, so its
   goldens have no HUD at all; `capture.hide_gui` in the tape meta is the

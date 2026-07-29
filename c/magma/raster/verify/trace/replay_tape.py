@@ -1431,8 +1431,18 @@ def main():
         # window resize) are skipped by the cache, loudly, as before.
         import numpy as np
         from concurrent.futures import ThreadPoolExecutor
-        oticks, oframes, skipped_res = ol.oracle_frames_cache(
-            frame_ticks, args.w, args.h)
+        oticks, oframes, skipped_res, missing_g = ol.oracle_frames_cache(
+            frame_ticks, args.w, args.h, tape_path=args.tape)
+        if missing_g:
+            print(f"[tape] WARNING: {missing_g}/{len(frame_ticks)} goldens not "
+                  f"found at their baked path nor next to the tape file")
+        if not oticks:
+            # A tape that declares goldens but resolves none used to "PASS"
+            # the pixel gate over 0 frames. That is a harness failure, not a
+            # clean tape - say so and fail.
+            sys.exit(f"[tape] FATAL: tape declares {len(frame_ticks)} golden "
+                     f"frames but none could be loaded at {args.w}x{args.h}; "
+                     f"first baked path {frame_ticks[0][1]}")
         # Recorder artifact: right after the recstart handoff the renderer can
         # lag the bridge, so the first frames of a tape are byte-identical
         # stale duplicates of frame 0. Drop the stale prefix LOUDLY - diffing
@@ -1515,7 +1525,8 @@ def main():
             if first is not None and abs(t - first[0]) <= 40:
                 cpng = os.path.join(out, f"magma_t{t:06d}.png")
                 ol.rgb_to_png(b8, cpng)
-                mc_png = dict(frame_ticks)[t]
+                mc_png = ol.relocate_golden(dict(frame_ticks)[t],
+                                           args.tape)
                 ol.side_by_side(mc_png, cpng,
                                 os.path.join(out, f"sbs_t{t:06d}.png"))
         gate = (pg.summarize(gate_ticks, transit=pg.transit_ticks(ticks),
@@ -1534,7 +1545,8 @@ def main():
                 j = (t - offset) // every
                 cpng = os.path.join(out, f"gatefail_t{t:06d}.png")
                 ol.rgb_to_png(np.asarray(carr[j]), cpng)
-                ol.side_by_side(dict(frame_ticks)[t], cpng,
+                ol.side_by_side(ol.relocate_golden(
+                                    dict(frame_ticks)[t], args.tape), cpng,
                                 os.path.join(out, f"gatefail_sbs_t{t:06d}.png"))
             if skipped_renderables:
                 failed_rows = sum(gate["missing_model_failures"].values())

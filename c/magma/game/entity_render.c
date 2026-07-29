@@ -524,12 +524,34 @@ static float er_shade(float nx, float ny, float nz) {
     return 0.6f;
 }
 
+/* RenderLivingBase.applyRotations death keel, in radians about the local Z:
+ *   f = sqrt((deathTime + partialTicks - 1) / 20 * 1.6), clamped to 1
+ *   rotate(f * getDeathMaxRotation, 0, 0, 1)   (90 deg, not overridden by any
+ *                                               mob renderer in 1.11.2)
+ * Capture partial is 1.0 throughout this file, so the numerator is deathTime;
+ * measured, partial=0 (deathTime-1) costs 155k unexplained px on
+ * scenario_portal_fortress_blaze relative to partial=1.
+ * deathTime is recorded per entity row by the tape (field 11 of a 14+ field
+ * row -> ent_view "death" -> GmEntityView.death_time); nothing here is
+ * inferred from health, which vanilla's applyRotations never consults. */
+float er_death_roll(const GmEntityView *v) {
+    if (v->death_time <= 0) return 0.0f;
+    float f = sqrtf((float)v->death_time / 20.0f * 1.6f);
+    if (f > 1.0f) f = 1.0f;
+    return f * (ER_PI / 2.0f);
+}
+
 /* emit one vanilla box: model-space transform -> world space -> 12 tris.
  * cs/sn are cos/sin of the whole-entity yaw rotation; (fx,fy,fz) = feet.
+ * rc/rs are cos/sin of the RenderLivingBase.applyRotations death keel about
+ * the local Z axis (identity = 1,0). Vanilla call order is
+ *   translate(pos) . rotateY(180-yaw) . rotateZ(deathRoll) . prepareScale,
+ * so the roll acts on the flipped/scaled model vector before the body yaw and
+ * pivots on the entity's feet (the origin at that point in the stack).
  * tint multiplies the white vertex colour (hurt flash uses red-leaning). */
 static int emit_box(const ErPart *p, float cs, float sn, float sc,
                     float fx, float fy, float fz, CrRgba tint,
-                    float lv, float blk, CrVertex *out) {
+                    float lv, float blk, float rc, float rs, CrVertex *out) {
     const CrMobSprite *spr = &CR_MOB_SPRITES[p->sprite];
     const float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
 
@@ -561,6 +583,12 @@ static int emit_box(const ErPart *p, float cs, float sn, float sc,
         float wx = -px / 16.0f * sc;
         float wy = (24.0f - py) / 16.0f * sc;
         float wz = pz / 16.0f * sc;
+        /* death keel about local Z (GL rotate(a,0,0,1)) before the body yaw */
+        if (rs != 0.0f) {
+            float rx2 = wx * rc - wy * rs;
+            wy        = wx * rs + wy * rc;
+            wx        = rx2;
+        }
         /* whole-entity yaw about Y (cs/sn precomputed for 180-yaw) + feet */
         world[i][0] = fx + wx * cs + wz * sn;
         world[i][1] = fy + wy;
@@ -1633,9 +1661,13 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         }
 
         /* hurt flash: RenderLivingBase.setBrightness red (1,0,0,0.3) blend
-         * approximates as mix(tex, red, 0.3) -> tint (255, 178, 178). */
+         * approximates as mix(tex, red, 0.3) -> tint (255, 178, 178).
+         * flag1 there is `hurtTime > 0 || deathTime > 0`, so the whole death
+         * animation stays tinted after hurtTime counts back down to 0
+         * (measured: dropping the deathTime half costs 44693 unexplained px
+         * on scenario_portal_fortress_blaze). */
         CrRgba tint = { 255, 255, 255, 255 };
-        if (ents[e].hurt_time > 0) {
+        if (ents[e].hurt_time > 0 || ents[e].death_time > 0) {
             tint.r = 255; tint.g = 178; tint.b = 178;
         }
 
@@ -1804,18 +1836,7 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             local[6].ax = head_ax;
         }
 
-        /* death: RenderLivingBase.applyRotations tilts about Z by
-         * min(1, sqrt((deathTime+pt-1)/20 * 1.6)) * getDeathMaxRotation (90 deg). */
-        float death_roll = 0.f;
-        if (ents[e].death_time > 0) {
-            float f = ((float)ents[e].death_time - 1.0f) / 20.0f * 1.6f;
-            if (f < 0.0f) f = 0.0f;
-            f = sqrtf(f);
-            if (f > 1.0f) f = 1.0f;
-            death_roll = f * (ER_PI / 2.0f);
-        } else if (ents[e].health >= 0.f && ents[e].health <= 0.f) {
-            death_roll = ER_PI / 2.0f;  /* fully tipped when only health is known */
-        }
+        float death_roll = er_death_roll(&ents[e]);
 
         /* vanilla applyRotations: rotate(180 - yaw) about Y. */
         float rad = (180.0f - ents[e].yaw) * ER_DEG2RAD;
@@ -1840,7 +1861,7 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             scx = f3 * size * base;
             scy = (1.0f / f3) * size * base;
         }
-        (void)death_roll;  /* z-roll needs entity-level aff; box emit is yaw-only */
+        float roll_c = cosf(death_roll), roll_s = sinf(death_roll);
         /* Sheep: emit fur body/legs first, then skin, then fur head last so the
          * face snout (skin head, longer -Z) wins near-coplanar depth against the
          * expanded fur head (ModelSheep1 delta 0.6). Vanilla order is base then
@@ -1848,7 +1869,7 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         if (t == ER_TYPE_SHEEP && ents[e].tape_pose && ents[e].sheared && np >= 12) {
             for (int p = 0; p < 6; ++p)
                 written += emit_box(&local[p], cs, sn, scx, fx, fy, fz, tint,
-                                    lv, blk, out + written);
+                                    lv, blk, roll_c, roll_s, out + written);
         } else if (t == ER_TYPE_SHEEP && np >= 12) {
             static const int order[12] = { 7, 8, 9, 10, 11, 1, 2, 3, 4, 5, 6, 0 };
             CrRgba wool = sheep_wool_tint(ents[e].tape_pose ? ents[e].fleece_color : 0,
@@ -1862,7 +1883,7 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
                 int p = order[i];
                 written += emit_box(&local[p], cs, sn, scx, fx, fy, fz,
                                     p >= 6 ? wool : tint,
-                                    lv, blk, out + written);
+                                    lv, blk, roll_c, roll_s, out + written);
             }
         } else if (t == ER_TYPE_SLIME || t == ER_TYPE_MAGMA) {
             /* Non-uniform preRenderCallback axes via per-axis scale in emit.
@@ -1884,7 +1905,7 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
                 ErPart bp = local[p];
                 int s0 = written;
                 written += emit_box(&bp, cs, sn, scx, fx, fy_slime, fz, tint,
-                                    lv, blk, out + written);
+                                    lv, blk, roll_c, roll_s, out + written);
                 if (scy != scx && written > s0) {
                     float ymul = scy / scx;
                     for (int vi = s0; vi < written; ++vi) {
@@ -1895,7 +1916,7 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         } else {
             for (int p = 0; p < np; ++p)
                 written += emit_box(&local[p], cs, sn, sc, fx, fy, fz, tint,
-                                    lv, blk, out + written);
+                                    lv, blk, roll_c, roll_s, out + written);
         }
     }
     return written;
@@ -2449,9 +2470,13 @@ int gm_slime_gel_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         float base_y = ents[e].y + 0.001f;
         scx *= 0.999f;
         scy *= 0.999f;
+        /* LayerSlimeGel draws inside the same applyRotations as the body, so
+         * it keels with it (see the death_roll block in gm_entities_emit). */
+        float roll = er_death_roll(&ents[e]);
         int s0 = written;
         written += emit_box(&gel, cs, sn, scx, ents[e].x, base_y, ents[e].z,
-                            tint, lv, blk, out + written);
+                            tint, lv, blk, cosf(roll), sinf(roll),
+                            out + written);
         if (scy != scx) {
             float ymul = scy / scx;
             for (int vi = s0; vi < written; ++vi)
@@ -2478,4 +2503,112 @@ CrTexture gm_entity_atlas(void) {
     t.mip_levels = 0;
     for (int i = 0; i < 15; ++i) { t.mip[i] = 0; t.mipw[i] = 0; t.miph[i] = 0; }
     return t;
+}
+
+/* ------------------------------------------------------------------ */
+/* TileEntityMobSpawnerRenderer: the spinning miniature inside the cage. */
+
+/* Vanilla Entity width/height, for the renderer's
+ * `f1 = max(width, height); if (f1 > 1) f /= f1` shrink-to-fit. Values are the
+ * setSize() calls in each entity constructor (they match replay_tape.ENT_SIZE,
+ * which is the same table on the harness side). */
+void gm_entity_size(int type, float *w, float *h) {
+    float ww = 0.6f, hh = 1.8f;                 /* EntityLiving default-ish */
+    switch (type) {
+        case ER_TYPE_BLAZE:    ww = 0.6f;  hh = 1.8f;  break;
+        case ER_TYPE_ZOMBIE:
+        case ER_TYPE_PIGMAN:   ww = 0.6f;  hh = 1.95f; break;
+        case ER_TYPE_SKELETON: ww = 0.6f;  hh = 1.99f; break;
+        case ER_TYPE_WITHER_SKELETON: ww = 0.7f; hh = 2.4f; break;
+        case ER_TYPE_CREEPER:  ww = 0.6f;  hh = 1.7f;  break;
+        case ER_TYPE_SPIDER:   ww = 1.4f;  hh = 0.9f;  break;
+        case ER_TYPE_SILVERFISH: ww = 0.4f; hh = 0.3f; break;
+        case ER_TYPE_ENDERMAN: ww = 0.6f;  hh = 2.9f;  break;
+        case ER_TYPE_WITCH:    ww = 0.6f;  hh = 1.95f; break;
+        case ER_TYPE_SHEEP:    ww = 0.9f;  hh = 1.3f;  break;
+        case ER_TYPE_COW:      ww = 0.9f;  hh = 1.4f;  break;
+        case ER_TYPE_PIG:      ww = 0.9f;  hh = 0.9f;  break;
+        case ER_TYPE_CHICKEN:  ww = 0.4f;  hh = 0.7f;  break;
+        case ER_TYPE_BAT:      ww = 0.5f;  hh = 0.9f;  break;
+        case ER_TYPE_SLIME:
+        case ER_TYPE_MAGMA:    ww = 0.51f; hh = 0.51f; break;
+        default: break;
+    }
+    if (w) *w = ww;
+    if (h) *h = hh;
+}
+
+float gm_spawner_mini_scale(int type) {
+    float w, h, f = 0.53125f;
+    gm_entity_size(type, &w, &h);
+    float f1 = w > h ? w : h;
+    if (f1 > 1.0f) f /= f1;
+    return f;
+}
+
+/* TileEntityMobSpawnerRenderer.renderTileEntityAt + renderMob, transcribed:
+ *   translate(x + 0.5, y, z + 0.5)          // note: y, NOT y + 0.5
+ *   translate(0, 0.4, 0)
+ *   rotate(lerp(prevMobRotation, mobRotation, partial) * 10, 0,1,0)
+ *   translate(0, -0.2, 0)
+ *   rotate(-30, 1,0,0)
+ *   scale(f, f, f)                          // gm_spawner_mini_scale
+ *   doRenderEntity(entity, 0,0,0, 0, partial)
+ * The cached entity is setLocationAndAngles(...,0,0) first, so inside
+ * RenderLivingBase the body yaw is 0 and applyRotations is a flat rotate(180)
+ * about Y with no death keel; prepareScale is the usual scale(-1,-1,1),
+ * preRenderCallback, translate(0,-1.501,0).
+ *
+ * sp[i].mob_rotation is MobSpawnerBaseLogic.mobRotation in its pre-x10 units
+ * (0 while the spawner is not activated: updateSpawner only copies
+ * mobRotation into prevMobRotation when no player is in range, so an inert
+ * spawner's miniature is frozen, not spinning). */
+int gm_spawner_miniatures_emit(const GmSpawnerView *sp, int n,
+                               CrVertex *out, int max) {
+    int written = 0;
+    for (int i = 0; i < n; ++i) {
+        const ErModel *m = er_model_for_type(sp[i].type);
+        if (!m || m == &M_MARKER) continue;   /* no cached entity / no model */
+        if (written + m->nparts * ER_VERTS_PER_BOX > max) break;
+
+        ErAff a;
+        er_aff_identity(&a);
+        er_aff_translate(&a, (float)sp[i].wx + 0.5f, (float)sp[i].wy,
+                         (float)sp[i].wz + 0.5f);
+        er_aff_translate(&a, 0.0f, 0.4f, 0.0f);
+        er_aff_rot_y(&a, sp[i].mob_rotation * 10.0f);
+        er_aff_translate(&a, 0.0f, -0.2f, 0.0f);
+        er_aff_rot_x(&a, -30.0f);
+        er_aff_scale(&a, gm_spawner_mini_scale(sp[i].type));
+        /* RenderLivingBase.applyRotations with renderYawOffset 0 */
+        er_aff_rot_y(&a, 180.0f);
+        /* prepareScale */
+        er_aff_scale3(&a, -1.0f, -1.0f, 1.0f);
+        if (m->scale > 0.0f) er_aff_scale(&a, m->scale);
+        er_aff_translate(&a, 0.0f, -1.501f, 0.0f);
+
+        /* Spawner miniatures are drawn at the block's own light; the entity is
+         * never hurt or dying, so no tint and no keel. Blaze-like fullbright
+         * types keep getBrightnessForRender's block-15. */
+        CrRgba tint = { 255, 255, 255, 255 };
+        float lv = 15.0f, blk = gm_entity_fullbright(sp[i].type) ? 15.0f : 0.0f;
+
+        for (int p = 0; p < m->nparts; ++p) {
+            const ErPart *q = &m->parts[p];
+            ErAff pa = a;
+            er_aff_translate(&pa, q->rx * 0.0625f, q->ry * 0.0625f,
+                             q->rz * 0.0625f);
+            /* ModelRenderer.render: Rz, then Ry, then Rx */
+            if (q->az != 0.0f)
+                er_aff_rot_z(&pa, q->az / ER_DEG2RAD);
+            if (q->ay != 0.0f)
+                er_aff_rot_y(&pa, q->ay / ER_DEG2RAD);
+            if (q->ax != 0.0f)
+                er_aff_rot_x(&pa, q->ax / ER_DEG2RAD);
+            written += er_aff_box(&pa, q->sprite, 1, q->mirror, q->u, q->v,
+                                  q->x, q->y, q->z, q->dx, q->dy, q->dz,
+                                  tint, lv, blk, out + written);
+        }
+    }
+    return written;
 }

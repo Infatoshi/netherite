@@ -139,6 +139,42 @@ int gm_block_break_particles_emit(int wx, int wy, int wz, int block_id,
  * alpha_test + alpha_ref=0.1 (living GL_GREATER 0.1), tint.a=255. */
 int gm_slime_gel_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 
+/* RenderLivingBase.applyRotations death keel for this view, radians about the
+ * entity-local Z (0 while alive). f = min(1, sqrt(deathTime/20*1.6)) * 90deg
+ * with the file-wide capture partialTicks of 1.0; driven only by the tape's
+ * recorded deathTime. */
+float er_death_roll(const GmEntityView *v);
+
+/* ---- TileEntityMobSpawnerRenderer miniature -------------------------------
+ * One mob-spawner tile entity's render input: the block it sits in, the
+ * EW_TYPE_* of MobSpawnerBaseLogic.getCachedEntity() (i.e. the spawner's
+ * SpawnData/SpawnPotentials entity id), and MobSpawnerBaseLogic.mobRotation
+ * in its pre-x10 units. type < 0 (no cached entity) emits nothing, exactly
+ * like the oracle's `if (entity != null)` guard.
+ *
+ * NOTE: magma has no tile-entity store fed from world data, so NOTHING
+ * currently constructs a GmSpawnerView from a real spawner - see
+ * c/magma/OPEN_DIVERGENCES.md "Spawner-cage miniature" for the exact missing
+ * plumbing. This renderer is verified against the oracle transform by
+ * game/test_entity_render.c and is correct the moment the type flows. */
+typedef struct {
+    int   wx, wy, wz;
+    int   type;
+    float mob_rotation;
+} GmSpawnerView;
+
+/* Vanilla Entity setSize() width/height, for the miniature's shrink-to-fit. */
+void  gm_entity_size(int type, float *w, float *h);
+
+/* TileEntityMobSpawnerRenderer.renderMob: f = 0.53125, and f /= max(w,h)
+ * when max(w,h) > 1. Blaze (0.6 x 1.8) -> 0.53125/1.8. */
+float gm_spawner_mini_scale(int type);
+
+/* Emit the miniature entities for `n` spawners. nparts*36 verts each; binds
+ * the same mob atlas as gm_entities_emit. */
+int   gm_spawner_miniatures_emit(const GmSpawnerView *sp, int n,
+                                 CrVertex *out, int max);
+
 /* RH Rodrigues unit checks (Rx+90 maps +Y→+Z; composed axes stay unit). */
 int gm_entity_rot_rx90_maps_y_to_z(void);
 int gm_entity_rot_axes_are_unit(void);

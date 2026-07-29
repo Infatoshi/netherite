@@ -298,31 +298,53 @@ def read_ppm(path):
     return px.reshape(h, w, 3)
 
 
-def oracle_frames_cache(frame_ticks, w, h):
+def relocate_golden(png, tape_path):
+    """Resolve a tape's baked golden path after the tape dir moved.
+
+    The recorder bakes an ABSOLUTE frame path into every tick row, so moving a
+    tape (e.g. tapes/X.jsonl -> tapes/retired/X.jsonl) orphans every golden.
+    Fall back to <dir of the tape file>/<frames dir name>/<png name>, which is
+    the layout the recorder always writes. Returns None when neither exists."""
+    if os.path.exists(png):
+        return png
+    if not tape_path:
+        return None
+    alt = os.path.join(os.path.dirname(os.path.abspath(tape_path)),
+                       os.path.basename(os.path.dirname(png)),
+                       os.path.basename(png))
+    return alt if os.path.exists(alt) else None
+
+
+def oracle_frames_cache(frame_ticks, w, h, tape_path=None):
     """Decode the tape's oracle PNG frames ONCE into a sidecar npy stack.
 
     frame_ticks: [(tick, png_path)] from the tape. Returns (ticks, frames,
-    skipped) where frames is a (n,h,w,3) uint8 memmap-backed array aligned
-    with ticks, and skipped counts frames not at (w,h) (mid-session window
-    resize). Tapes are immutable, so the cache lives next to the frames dir
-    (<dir>/frames_<w>x<h>.npy + .ticks.npy) and is rebuilt only if the tick
-    set changed."""
+    skipped, missing) where frames is a (n,h,w,3) uint8 memmap-backed array
+    aligned with ticks, skipped counts frames not at (w,h) (mid-session window
+    resize), and missing counts goldens that exist at neither the baked path
+    nor the tape-relative one. Tapes are immutable, so the cache lives next to
+    the frames dir (<dir>/frames_<w>x<h>.npy + .ticks.npy) and is rebuilt only
+    if the tick set changed."""
     import numpy as np
     if not frame_ticks:
-        return [], None, 0
-    d = os.path.dirname(frame_ticks[0][1])
+        return [], None, 0, 0
+    paths = [(t, relocate_golden(p, tape_path)) for t, p in frame_ticks]
+    missing = sum(1 for _, p in paths if p is None)
+    found = [(t, p) for t, p in paths if p is not None]
+    if not found:
+        return [], None, 0, missing
+    d = os.path.dirname(found[0][1])
     base = os.path.join(d, f"frames_{w}x{h}")
     npy, tnpy = base + ".npy", base + ".ticks.npy"
     want = [t for t, _ in frame_ticks]
     if os.path.exists(npy) and os.path.exists(tnpy):
         ticks = np.load(tnpy).tolist()
         if set(ticks) <= set(want):
-            return ticks, np.load(npy, mmap_mode="r"), len(want) - len(ticks)
+            return (ticks, np.load(npy, mmap_mode="r"),
+                    len(want) - len(ticks) - missing, missing)
     from PIL import Image
     ticks, imgs, skipped = [], [], 0
-    for t, p in frame_ticks:
-        if not os.path.exists(p):
-            continue
+    for t, p in found:
         im = Image.open(p)
         if im.size != (w, h):
             skipped += 1
@@ -333,7 +355,7 @@ def oracle_frames_cache(frame_ticks, w, h):
     if frames is not None:
         np.save(npy, frames)
         np.save(tnpy, np.asarray(ticks))
-    return ticks, frames, skipped
+    return ticks, frames, skipped, missing
 
 
 def rgb_to_png(arr, png):

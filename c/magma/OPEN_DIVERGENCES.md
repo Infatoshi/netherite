@@ -376,11 +376,61 @@ Three divergences from the staged fortress-melee recording
   (-325, 72, -151); the oracle's own DIM-1 region files have rooms at
   (-325, 56, -215) and (-325, 56, -102). x matches, y/z do not - the
   structure-gen port diverges beyond terrain.
-- **Blaze death animation**: on kill the oracle renders the death body
-  (scaled, hurt-tinted, ~53k px at t=278); magma keeps the live-size
-  model until despawn. `pxdiff` calls it cutout-sky+ (content absent).
-- **Spawner cage miniature**: the oracle draws the spinning miniature
-  blaze inside the mob-spawner cage; magma draws the cage only.
+- **Blaze death animation**: FIXED 2026-07-29. `gm_entities_emit`
+  computed the `RenderLivingBase.applyRotations` keel and then threw it
+  away (`(void)death_roll;  /* z-roll needs entity-level aff */`), and it
+  tinted only on `hurtTime`, not `hurtTime || deathTime`. The tape has
+  always carried both: entity row fields 10/11 are `hurtTime`/`deathTime`
+  (t=274 is the first row with hp 0, hurtTime 9, deathTime 1; deathTime
+  runs to 19 at t=292, then the entity despawns), `tape_to_script` writes
+  them as ent_view `hurt`/`death` and `script.c` loads them into
+  `GmEntityView`. Nothing needed inventing. `emit_box` now takes the keel
+  cos/sin and applies it between the flipped model vector and the body
+  yaw, matching the vanilla stack
+  `translate(pos) . rotateY(180-yaw) . rotateZ(keel) . prepareScale`.
+  Two conventions were settled by measurement, not assumption:
+  partialTicks is 1.0 (partial=0 costs 155k unexplained px), and the red
+  tint persists for the whole death (dropping it costs 44.7k px). Result
+  on the repro tape: mean abs error over the death body falls at every
+  death tick (t=281 42.6 -> 22.2/ch, t=283 27.3 -> 8.5/ch), tape
+  UNEXPLAINED 5238675 -> 5124969 px. Note the keel saturates at 90 deg
+  from deathTime 13, not 20 - `sqrt(deathTime*0.08)` hits 1 at 12.5.
+- **Spawner cage miniature**: STILL OPEN, and it is a data gap, not a
+  renderer gap. The renderer now exists and is verified
+  (`gm_spawner_miniatures_emit`, `game/entity_render.c`; the exact
+  `TileEntityMobSpawnerRenderer` stack - translate(x+0.5, y, z+0.5),
+  translate(0,0.4,0), rotate(mobRotation*10) about Y, translate(0,-0.2,0),
+  rotate(-30) about X, scale 0.53125/max(width,height), then the entity's
+  own applyRotations/prepareScale - with unit coverage in
+  `game/test_entity_render.c`). NOTHING CALLS IT, because no spawner's
+  entity type reaches the renderer. Precisely what is missing, in order:
+  1. `raster/verify/trace/snapshot_patch.py` `_read_mca_states` reads only
+     `Sections[].Blocks/Add/Data`; it never touches
+     `chunk["Level"]["TileEntities"]`. The data IS in the region files -
+     both fortress spawners in
+     `..._world/DIM-1/region/r.-1.-1.mca` carry
+     `SpawnData.id = "minecraft:blaze"` (1.11.2 string form, not the
+     pre-1.9 `EntityId`) at (-325,56,-215) and (-325,56,-102).
+  2. There is no script event that carries tile-entity payload. The
+     snapshot path emits only `snapshot_region` and `snapshot_block`
+     (id/meta), and `script.c` has no `set_tile_entity` handler.
+  3. Magma's world store is block id + metadata only; there is no
+     position-keyed tile-entity store fed from world data. The chest and
+     furnace tables in `GmRuntime` are created lazily by player
+     interaction, and `mob_live.c discover_spawners` GUESSES a spawner's
+     mob by sniffing nearby blocks (nether brick within +/-4 -> blaze).
+     That heuristic must NOT be used to drive the renderer - it would
+     paint a blaze into every nether spawner by construction rather than
+     by data, which is exactly the bug the pixel gate is supposed to
+     catch.
+  4. `frame_capture.c` has no tile-entity render pass; the miniature emit
+     has to be drawn after the world layers with the mob atlas bound.
+  The spawner visible in the approach frames (t~150-230) is the
+  (-325,56,-102) one, whose NBT `RequiredPlayerRange` is 0. Vanilla's
+  `MobSpawnerBaseLogic.updateSpawner` only advances `mobRotation` when a
+  player is inside that range, so this miniature is FROZEN at rotation 0,
+  not spinning - once the type flows, no rotation simulation is needed
+  for this tape.
 Harness notes that cost takes (now in the yaml): `structures: false`
 disables fortresses entirely; melee attacks fire on the mouse-DOWN edge
 so held button-1 lands exactly one swing (this is why the older

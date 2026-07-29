@@ -65,14 +65,28 @@ import pixel_gate as pg  # noqa: E402
 # ---------------------------------------------------------------- sources
 
 def _tape_frames_dir(tape):
-    return os.path.join(HERE, "..", "tapes", tape + "_frames")
+    """tapes/<tape>_frames, falling back to tapes/retired/<tape>_frames."""
+    d = os.path.join(HERE, "..", "tapes", tape + "_frames")
+    if os.path.isdir(d):
+        return d
+    alt = os.path.join(HERE, "..", "tapes", "retired", tape + "_frames")
+    return alt if os.path.isdir(alt) else d
+
+
+def _tape_meta(tape):
+    """tapes/<tape>.meta.json, falling back to tapes/retired/."""
+    m = os.path.join(HERE, "..", "tapes", tape + ".meta.json")
+    if os.path.exists(m):
+        return m
+    return os.path.join(HERE, "..", "tapes", "retired",
+                        tape + ".meta.json")
 
 
 def tape_hide_gui(tape):
     """Mirror replay_tape.tape_hide_gui: no HUD was drawn on either side."""
     if not tape:
         return False
-    meta = os.path.join(HERE, "..", "tapes", tape + ".meta.json")
+    meta = _tape_meta(tape)
     try:
         with open(meta) as f:
             return bool(json.load(f).get("capture", {}).get("hide_gui", False))
@@ -84,7 +98,7 @@ def tape_hand_from_tick(tape):
     """Mirror replay_tape.tape_hand_from_tick: first tick with a hand again."""
     if not tape:
         return None
-    meta = os.path.join(HERE, "..", "tapes", tape + ".meta.json")
+    meta = _tape_meta(tape)
     try:
         with open(meta) as f:
             v = json.load(f).get("capture", {}).get("hand_from_tick")
