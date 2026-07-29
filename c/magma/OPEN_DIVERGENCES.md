@@ -319,6 +319,15 @@ no physics divergence at all, unexplained gate frames 178 -> 10 (the
 survivors are the pre-existing t=58..65 waterfall-entry cluster and t=77,
 unchanged by this work).
 
+### Waterfall ENTRY window on the dense elytra tape (t=58..65)
+
+Pre-existing 8-frame failure on scenario_elytra_dense_20260729T082313Z
+(worst 19.85/ch at t=58), unchanged by the eye-in-fluid fixes - the exit
+(t=78) and the lava band (t=142..151) are closed, the entry is not. The
+glide crosses INTO the waterfall over these ticks; suspects are the same
+eye/viewpoint family at water entry or curtain-cell content during the
+crossing. Dense tape is the repro; not yet root-caused.
+
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 
 Diagnosis only, from a delegated triage pass; the code claims below were
