@@ -900,3 +900,15 @@ regenerated and inspected.
   (gates re-verified PASS during encode) and `demos/combat_sbs.mp4`
   (blaze_bow_demo + ender_dragon_demo, title copy updated to the 23-tape
   claim).
+
+## 2026-07-29 (LAUNCHED)
+
+- Public launch: https://x.com/elliotarledge/status/2082366172222439879
+  (8-tweet thread, zoom video lead). Public repo:
+  https://github.com/Infatoshi/netherite - clean tree via
+  export_public_tree.sh (1704 files, 549 Mojang-derived excluded), FRESH
+  history. The full private repo was renamed to Infatoshi/netherite-dev;
+  this checkout's origin now points there. Never push this repo's history
+  to the public remote.
+- Launch video pipeline documented in docs/DEMO_VIDEO.md; thread archives
+  on the macbook in ~/Downloads/netherite_thread{,_v2}/.
