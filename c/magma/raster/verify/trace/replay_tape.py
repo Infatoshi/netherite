@@ -415,7 +415,8 @@ def snapshot_arrival_events(snapshot_patch, header, ticks, chunk_radius=1):
     return by_tick
 
 
-def tape_to_script(header, ticks, script_path, tape_path=None):
+def tape_to_script(header, ticks, script_path, tape_path=None,
+                   snapshot_override=None):
     """Emit the magma JSONL event script for this tape.
 
     Optional sidecar <tape>.worldpatch.jsonl: set_block / set_inventory events
@@ -438,7 +439,15 @@ def tape_to_script(header, ticks, script_path, tape_path=None):
         patch.sort(key=lambda p: p[0])
     snapshot_patch = None
     arrival_events = {}
-    if tape_path:
+    if snapshot_override is not None:
+        # Probe pass (snapshot_patch._game_states): the same script the real
+        # replay runs, with the patch reduced to its snapshot_region ensures and
+        # no snapshot_block. Those ensures - and the simulated walk - are what
+        # fix the populate-window build order, so the world the probe generates
+        # is the world the real replay will generate.
+        snapshot_patch = snapshot_override
+        arrival_events = snapshot_arrival_events(snapshot_patch, header, ticks)
+    elif tape_path:
         snapshot_root = os.path.splitext(tape_path)[0] + "_world"
         if os.path.isdir(os.path.join(snapshot_root, "region")):
             from snapshot_patch import ensure_snapshot_patch

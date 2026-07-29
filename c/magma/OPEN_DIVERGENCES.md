@@ -222,10 +222,51 @@ patch authoritative exactly where generation drifts instead of trusting
 4.03M -> 2.38M, failing frames 92 -> 39. Triptych:
 /home/infatoshi/dev/nw/.tmp/dp/scenic_t80_golden_before_after.png.
 
-Still open underneath: magma's decoration is order-dependent, so the
-game and `world_dump` disagree by construction. The patch now covers the
-vegetation band; trees, ores and lakes are still only covered where
-`world_dump` happens to be right.
+**Closed 2026-07-29.** The band was a workaround for diffing against the
+wrong world; the patch now diffs against the right one. Census of the 169
+chunks around the scenic_walk start (save vs `world_dump` vs the game's own
+generation, `MAGMA_WORLDDUMP` in `game/script.c`): 4664 cells where the game
+disagrees with the save while `world_dump` agrees with it, so no event was
+emitted - and 4488 of them (96%) are logs and leaves, up to 30 blocks above
+the ground the band is anchored to. A band cannot reach those. Ores are 1
+cell and lakes 2: `WorldGenMinable` only reads base terrain, so ore placement
+is effectively order-independent and never needed covering.
+
+Fix: `snapshot_patch.py` runs a PROBE pass before it diffs - the tape's own
+replay script with the patch reduced to its `snapshot_region` ensures and no
+`snapshot_block` - and reads the world back out of the running game. That
+probe builds populate windows in the real replay's order, because the order
+is fixed by the ensure sequence and the simulated walk and neither depends on
+the patch's block contents (`snapshot_region` is a plain `gm_world_ensure`,
+and its tile list is derived from the tape). Verified: the per-tick player
+chunk is identical across all 274 scenic_walk ticks with and without the
+block events applied.
+
+The patch is now exact rather than approximate, and much smaller for it.
+Diffing the PATCHED replay's live world against the save, over the 289
+chunks visible from the tape:
+
+| tape | patch cells before | after | world cells still wrong |
+|---|---|---|---|
+| scenic_walk | 350646 | 66051 | 7046 -> 0 |
+| slime_bounce | 302080 | 1465 | 0 -> 0 |
+| hold_dig_dense | 295936 | 3 | 0 -> 0 |
+
+Only scenic_walk was actually WRONG before; the other two were merely paying
+~300k events to restate cells `world_dump` had guessed wrong but that the
+game would have generated correctly anyway. scenic_walk's 7046 were 4517 tree
+blocks, 2477 air where the save has a tree, 48 terrain, 1 ore, 1 plant. It is
+now bit-identical to the save at
+t=60/120/200/239/244/260/273, and the canonical 215812Z tape ends 3616 ticks
+in with 5 differing cells, all of them blocks the session itself placed or
+broke. Chunks the probe cannot observe (outside the resident 19x19 pool at
+every dump tick) still fall back to `world_dump` plus the vegetation band;
+that is 68 of 357 chunks on the canonical tape, 0 on the other three.
+
+Consequence for the pixel gate: scenic_walk's remaining 39 failing frames
+are NOT decoration. The world behind them is provably the save's, so the
+residual is renderer-side (the failing frames' clusters are 40% particle
+soak, the rest viewmodel and thin-line).
 
 ### Nether arrival: fire/lava content missing from the replayed world
 

@@ -1111,6 +1111,60 @@ int gm_script_run(const GmConfig *cfg) {
                 }
             }
         }
+        /* Flywheel probe: MAGMA_WORLDDUMP="tick,cx0,cz0,ncx,ncz,path[;...]" writes
+         * the LIVE world's canonical vanilla states for a chunk range in exactly
+         * the trace/world_dump --states "CRWS" layout, so snapshot_patch.py can
+         * diff the save against THE GAME'S OWN generation instead of world_dump's.
+         * The two do not agree by construction: populate windows seed each other
+         * with their neighbours' out-of-bounds spill (world/populate_mc.c
+         * build_window), so decoration depends on the order windows were built,
+         * and the game builds them around a walking player while world_dump
+         * sweeps. Semicolon-separated specs let one run dump several ticks - the
+         * dimension is whichever one the replay is in at that tick, and a range
+         * wider than the resident pool needs several player-centred rectangles.
+         * Non-resident chunks dump as all-zero and are counted on stderr: a
+         * silent all-zero tile would read as "the game generated air here" and
+         * would patch a whole real chunk away. */
+        {
+            const char *dbg = getenv("MAGMA_WORLDDUMP");
+            for (const char *spec = dbg; spec && *spec; ) {
+                int dt,cx0,cz0,ncx,ncz; char path[512];
+                const char *next = strchr(spec, ';');
+                if (sscanf(spec,"%d,%d,%d,%d,%d,%511[^;]",&dt,&cx0,&cz0,&ncx,&ncz,path)==6 &&
+                    (long long)dt==r.tick && ncx>0 && ncz>0) {
+                    FILE *wf=fopen(path,"wb");
+                    if (!wf) { fprintf(stderr,"MAGMA_WORLDDUMP: cannot open %s\n",path); }
+                    else {
+                        long long zero=0; int32_t hdr[4]={cx0,cz0,ncx,ncz};
+                        fwrite("CRWS",1,4,wf); fwrite(&zero,8,1,wf);
+                        fwrite(hdr,sizeof(int32_t),4,wf);
+                        static unsigned short blk[16*256*16];
+                        static int32_t bio[16*16];
+                        int missing=0;
+                        for (int ix=0;ix<ncx;++ix) for (int iz=0;iz<ncz;++iz) {
+                            int cx=cx0+ix, cz=cz0+iz, any=0;
+                            for (int lx=0;lx<16;++lx) for (int lz=0;lz<16;++lz) {
+                                bio[lx*16+lz]=gm_world_biome(r.world,cx*16+lx,cz*16+lz);
+                                for (int y=0;y<256;++y) {
+                                    int id=gm_world_block(r.world,cx*16+lx,y,cz*16+lz);
+                                    int mt=gm_world_meta(r.world,cx*16+lx,y,cz*16+lz);
+                                    blk[lx*4096+lz*256+y]=(unsigned short)((id<<4)|(mt&15));
+                                    if (id) any=1;
+                                }
+                            }
+                            if (!any) ++missing;
+                            fwrite(blk,sizeof(unsigned short),16*256*16,wf);
+                            fwrite(bio,sizeof(int32_t),16*16,wf);
+                        }
+                        fclose(wf);
+                        fprintf(stderr,"[worlddump t%d] %d chunks (%d,%d)+%dx%d -> %s "
+                                "(%d empty/non-resident)\n",
+                                dt,ncx*ncz,cx0,cz0,ncx,ncz,path,missing);
+                    }
+                }
+                spec = next ? next + 1 : NULL;
+            }
+        }
         /* Same, for light: MAGMA_DUMP_LIGHT="tick,x0,x1,y0,y1,z0,z1" dumps
          * "wx wy wz sky blk" lines (matches the qrl sample_light CSV columns)
          * so live-game light can be diffed cell-for-cell against magma's. */
