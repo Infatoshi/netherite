@@ -175,6 +175,22 @@ flowing-lava cells being dropped by a displaceable/falling-liquid filter
 on the patch path. Tape kept in tapes/ as the repro; nether fidelity has
 never been pixel-gated before this tape.
 
+### Eye-in-fluid overlay timing: lava fires early, water releases late
+
+Found 2026-07-29 on the dense elytra tape
+(`scenario_elytra_dense_20260729T082313Z`, frames every tick) via a
+per-tick L/R mean-abs scan - the 10-tick gate summary never showed it:
+- t=142..151: magma draws the full-screen lava submersion overlay/fog
+  (~75/255 mean abs) while the oracle eye is still ABOVE the lava
+  surface during the skim. Ten ticks of solid red on magma only.
+- t=78: magma still applies underwater fog one tick after the oracle
+  eye exits the water curtain (single-tick flicker, ~70/255).
+Suspects: `game/underwater.c` viewpoint_fluid boundary (`liquid_height
+percent - 0.11111111` vs vanilla ActiveRenderInfo partial-tick eye pos)
+and render-tick vs sim-tick eye sampling (cf. the fog_c1 tick-entry-feet
+note in frame_capture.c). Repro: replay the dense tape, diff ticks
+140..155 and 76..80 against goldens.
+
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 
 Diagnosis only, from a delegated triage pass; the code claims below were
