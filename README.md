@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/assets/logo.png" width="160" alt="netherite">
-</p>
-
 # netherite
 
 From-scratch C/CUDA Minecraft **1.11.2** (bit-verified vs the real Java game) +
