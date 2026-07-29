@@ -348,6 +348,22 @@ so held button-1 lands exactly one swing (this is why the older
 blaze_melee/blaze_bow tapes never damage their blaze); the target is
 NoAI-pinned because a live blaze kites to fireball range.
 
+### Dragon-kill tape finds (2026-07-29, scenario_dragon_kill)
+
+From `tapes/retired/scenario_dragon_kill_20260729T094414Z` (pitch-armed
+command-block kill so the real onDeathUpdate plays; see the yaml):
+- **Death-ray intensity curve**: magma's purple death rays onset a frame
+  or two late, then run brighter/longer/wider than the oracle mid-death
+  (t=340, the 25k-px UNEXPLAINED bulk), then cut out BEFORE the oracle's
+  final starburst (t=458: oracle at maximum, magma rays already gone).
+  Curve shape, not a constant scale.
+- **Dragon boss bar**: magma draws it as a small strip above the hotbar
+  instead of vanilla's top-center bar.
+- **Phantom HUD icon**: magma paints a shield-shaped icon top-right that
+  the oracle does not have on this tape.
+- **Entity interpolation**: dragon sits ~16px right of the oracle with
+  wing-flap phase offset - consistent with a one-tick view lag.
+
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 
 Diagnosis only, from a delegated triage pass; the code claims below were
