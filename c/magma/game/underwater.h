@@ -5,6 +5,26 @@
  *     used by updateFogColor / setupFog / getFOVModifier: block at the eye
  *     pos; if liquid, surface at (y+1) - (getLiquidHeightPercent(level) -
  *     0.11111111F); an eye at/above that reads the block ABOVE instead.
+ *   ActiveRenderInfo.projectViewFromEntity - that "eye pos" is NOT posY +
+ *     getEyeHeight: it is the interpolated FEET position plus the static
+ *     `position` vector, which updateRenderInfo obtains by gluUnProject-ing
+ *     the viewport centre at winZ 0 (the NEAR PLANE) through the finished
+ *     modelview. First person, that modelview is
+ *       [hurtCam] [bobbing] translate(0,0,0.05) rot(pitch) rot(yaw+180)
+ *       translate(0,-eyeHeight,0)
+ *     (EntityRenderer.orientCamera:681, :693-699, :702) and the projection is
+ *     gluPerspective(..., zNear = 0.05F, ...) (EntityRenderer:730). Inverting:
+ *     the camera sits 0.05 ahead of the eye and the near plane another 0.05
+ *     ahead of that, so
+ *       viewpoint = (x, y + eyeHeight, z) + 0.1 * getVectorForRotation(pitch,
+ *                                                                      yaw)
+ *     plus the bobbing/hurt-camera screen offsets. Both of those are zero on
+ *     these tapes (EntityPlayer.onLivingUpdate zeroes cameraYaw's target
+ *     whenever !onGround, and no tape frame is inside hurtTime at a fluid
+ *     boundary), so only the 0.1 look-ahead is modelled. Without it magma
+ *     leaves a waterfall a full tick late (elytra_dense t=78: the eye is at
+ *     x 11.988, still cell 11, but the oracle viewpoint is 11.988 + 0.099 =
+ *     cell 12 = air).
  *   EntityRenderer.updateFogColor - water branch overwrites the fog color
  *     with (0.02, 0.02, 0.2) (+ respiration/water-breathing, none here);
  *     lava (0.6, 0.1, 0.0); then EVERY branch multiplies by f13 =

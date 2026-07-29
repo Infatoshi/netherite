@@ -87,6 +87,42 @@ bash c/magma/raster/verify/ui_entities/run_gates.sh
 bash c/magma/raster/verify/ui_entities/run_oracle_gate.sh
 ```
 
+### Blaze on-fire flag in the LIVE simulator (tape replay is fixed)
+
+Fixed for replay (2026-07-29, `wt/blazeglow`): the blaze now renders
+full-bright and engulfed in fire whenever the recorded entity flags say
+`isBurning()`. Vanilla mechanism, both in `java/oracle-src`:
+
+- `EntityBlaze.getBrightnessForRender` (`EntityBlaze.java:99-102`) returns
+  `15728880 = (240<<16)|240`, i.e. lightmap sky 15 / block 15 regardless of the
+  world cell. `RenderBlaze` itself is a plain `RenderLiving` with no glow
+  layer, so ALL of the oracle's "highlighted" look is this override.
+- `EntityBlaze.isBurning()` (`:172-175`) is overridden to `isCharged()`
+  (`:180-186`), the `ON_FIRE` datamanager byte bit 0 that
+  `AIFireballAttack.updateTask` sets at `attackStep == 1` and clears at step 5
+  / `resetTask` (`:246`, `:281-291`) - 78 ticks on, 100 off. That is what
+  `Render.doRenderShadowAndFire` (`Render.java:344-348`) tests before drawing
+  `renderEntityOnFire`'s layers, so an aggroed blaze burns and an idle one does
+  not.
+
+**Old tapes already carry this.** The recorder writes
+`(isBurning?1:0)|(isSneaking?2)|(isInvisible?4)|(isChild?8)` per living entity
+row (`QuantizedRL.java` "flags bitfield"), `replay_tape.py` forwards it as
+`ent_view.flags`, and `script.c` stores it in `GmEntityView.flags`. Measured on
+the three 2026-07-22 blaze tapes: 388-603 burning blaze rows each, with exactly
+the vanilla 78-on/100-off duty cycle (`blaze_melee` transitions t=18, 93, 191,
+269, ...). No recorder change was needed and none was made. Nothing was
+inferred from "the blaze looks aggroed" - the reverted `60f4076` failure mode.
+
+Still open: the LIVE simulator never sets the bit. `gm_mobs_fill_views`
+(`game/mob_live.c`) leaves `flags` zero, and `mob_live.c` has no port of
+`AIFireballAttack`'s `attackStep`/`attackTime` state machine (its blaze uses a
+flat 40-tick ranged cooldown, `attack_cooldown_ticks`). So an interactive /
+RL-env blaze is full-bright but never engulfed, and daylight-burning mobs
+(`m->fire_ticks`) draw no flames either. Porting the attack-step machine is a
+simulation change with fight-state consequences and was deliberately left out
+of the render fix.
+
 ### Full-frame soft surfaces
 
 These have useful capture-integrity checks but no pixel-perfect product claim:
@@ -159,6 +195,158 @@ scenic_walk tape, t=80, center of frame. Not gated anywhere yet - no
 committed tape covers double plants; the tape is kept in tapes/ for the
 fix. Launch-thread note: the zoom video's wipe segment was moved off this
 scene onto hold_dig_dense because of this bug.
+
+### Nether arrival: fire/lava content missing from the replayed world
+
+Found 2026-07-29 on the first dense portal tape
+(`scenario_portal_roundtrip_20260729T075228Z`); **root-caused and fixed the
+same day**. Neither suspect in the original note was right: no filter dropped
+fire (51) or lava, and the patch never covered DIM-1 because **there was no
+DIM-1 to cover**.
+
+- The recorder snapshots the save at `recstart` (`QuantizedRL.java`, recstart
+  handler). A dimension the player first enters DURING the recording has no
+  region files on disk at that moment, so it can never be in that copy:
+  `075228Z_world/DIM-1/` held only `data/` and `forcedchunks.dat`, and
+  `snapshot_patch.py` emitted 0 dim -1 events (its cache is 29 events, all
+  dim 0). The replayed Nether was therefore 100% magma's own generation.
+- magma generates Nether TERRAIN (`nether_full.h` `nf_run` =
+  ChunkProviderHell prepareHeights/buildSurfaces/MapGenCavesHell + fortress),
+  which is why the cave geometry matched. It does not run
+  `ChunkProviderHell.populate` - fire, lava springs, glowstone, quartz, magma
+  blocks, mushrooms - and it cannot: that method's `Random` is reseeded only
+  in `provideChunk` (`ChunkProviderHell.java:267`), so `populate` consumes
+  whatever RNG state the previously generated chunk left behind. Nether
+  decoration is chunk-load-order dependent, not seed-derivable. The saved
+  world snapshot is the only sound mechanism for it.
+- Second, independent defect on the replay side: `snapshot_arrival_events`
+  detected arrivals only from position packets, and a portal transit has none
+  (the server moves the player inside `changeDimension`). On this tape the
+  row `dim` flips at t=133 and the first `ppos` is t=168, so even with DIM-1
+  data the patch would only have been applied at tick 0, to a world the
+  player was not in yet.
+
+Fixes: `snapshotSaveDir(mc, snapRoot, addOnly)` in `QuantizedRL.java` - the
+recstart pass is unchanged, and `recstop` runs a second ADD-ONLY pass that
+copies only paths the snapshot does not already have, so dimensions born
+during the recording are added while recstart truth for the start dimension,
+`level.dat` and `playerdata` is never overwritten with end-of-session state.
+Plus the dim-flip arrival in `replay_tape.py::snapshot_arrival_events`.
+
+The 075228Z tape is NOT repairable - its Nether was never written to any
+disk that still exists - so the scenario was re-recorded with the fixed
+recorder as `scenario_portal_roundtrip_20260729T083543Z` (dims {0:134,
+-1:352}, `recstop` reported `snapshot_added: 4`, one per Nether region file).
+Same-tape A/B, CPU replay (DIM-1 region hidden vs present, patch cache
+dropped both times): 387 failed frames / 75.1M UNEXPLAINED px over 368
+frames, worst t=292 at 266k -> 170 failed frames / 11.2M px over 143 frames,
+worst t=281 at 175k. Fire and the arrival lava pool are present and the
+chamber is lit in both panes (t=216, t=280 SBS).
+
+Still open on that tape (170 frames): fire/lava ANIMATION phase and the
+lightmap around them, plus the pre-existing viewmodel/HUD classes.
+
+Newly found, separately scoped: `nf_to_vanilla` in
+`c/mc-sim/core/nether_full.h` maps `CPN_LAVA`(10) -> vanilla 10 and
+`CPN_FLOWING_LAVA`(11) -> vanilla 11, but vanilla 1.11.2 is 10 =
+`flowing_lava`, 11 = `lava` (still) (`Block.java:2414-2415`), and
+ChunkProviderHell fills the sea with `Blocks.LAVA` (still). magma's generated
+Nether sea is therefore FLOWING lava: 123,556 of the new tape's patch cells
+are id-11 lava at y 24-31. The nether_full golden is a self-capture of the C
+kernel, not a Java oracle, so nothing caught it. Not fixed here (it needs a
+regenerated golden and an mc-sim gate pass); the snapshot patch masks it in
+replay.
+
+### Eye-in-fluid overlay timing: CLOSED (root-caused 2026-07-29)
+
+Found 2026-07-29 on the dense elytra tape
+(`scenario_elytra_dense_20260729T082313Z`, frames every tick) via a
+per-tick L/R mean-abs scan - the 10-tick gate summary never showed it:
+- t=142..151: magma draws the full-screen lava submersion overlay/fog
+  (~75/255 mean abs) while the oracle eye is still ABOVE the lava
+  surface during the skim. Ten ticks of solid red on magma only.
+- t=78: magma still applies underwater fog one tick after the oracle
+  eye exits the water curtain (single-tick flicker, ~70/255).
+
+Both filed suspects were wrong. Two independent causes, neither in the
+`liquid_height_percent` boundary and neither a tick-phase problem:
+
+**1. The lava band is PHYSICS, not overlay timing.** The tape's first
+divergence is tick 141 `vy`: oracle `0.30000001192092896`, magma
+`-0.10051` (`= -0.16102 * 0.5 - 0.02`, i.e. magma ran the lava branch
+correctly but skipped the climb-out kick). `EntityLivingBase`
+`moveEntityWithHeading`:2119 sets `motionY = 0.3` when
+`isCollidedHorizontally && isOffsetPositionInLiquid(...)`;
+`Entity.isOffsetPositionInLiquid`:651 is TRUE when the offset box is
+FREE, and its collision half is `World.getCollisionBoxes`, which keeps a
+candidate only if `Block.addCollisionBoxToList`:548 passes
+`AxisAlignedBB.intersectsWith` (strict `<`, `AxisAlignedBB.java:341`).
+`psv_offset_in_liquid` was calling `psv_collect_blocks` - a broadphase
+CELL scan, inclusive on `floor(max)` and reaching one cell below
+`floor(minY)` - with no intersects re-filter. The elytra pilot is pressed
+against a wall at `x = 37`, so his box maxX is exactly `37.0`; the
+broadphase returned the wall cell, the kick never fired, and instead of
+popping out of the pool he sank and stayed eye-deep in lava for ten
+ticks. Fixed by re-filtering with `mc_aabb_intersects`, exactly as
+`psv_update_elytra_size` already documents having to do. Removing that
+one line of slack also removes every downstream residual on the tape
+(t>=152 went 4.4-5.0/ch to 0.7-1.2/ch) and the physics gate is clean.
+
+**2. The viewpoint is not the eye.** `ActiveRenderInfo.projectViewFromEntity`
+adds the static `position` vector, which `updateRenderInfo`:50 gets by
+gluUnProject-ing the viewport centre at winZ 0 - the NEAR PLANE - through
+the finished modelview. First person that modelview carries
+`orientCamera`'s `translate(0,0,0.05)` (EntityRenderer:681) and the
+projection is `gluPerspective(..., zNear = 0.05F, ...)` (EntityRenderer:730),
+so the camera sits 0.05 ahead of the eye and the sampled point another
+0.05 ahead of the camera:
+`viewpoint = (x, y + eyeHeight, z) + 0.1 * getVectorForRotation(pitch, yaw)`.
+At t=78 the eye is at x 11.98790 - still cell 11, water - but the oracle
+viewpoint is 11.98790 + 0.09903 = cell 12, air. The remaining `position`
+terms (view bobbing, hurt camera) are zero on these tapes:
+`EntityPlayer.onLivingUpdate` zeroes `cameraYaw`'s target whenever
+`!onGround`, and no tape frame is inside `hurtTime` at a fluid boundary.
+They are NOT modelled; a ground-level tape that crosses a fluid surface
+while walking would need them.
+Consequence worth remembering: `ItemRenderer.renderOverlays` is gated on
+`isInsideOfMaterial(WATER)` alone, off the entity's own eye with no
+look-ahead, so the overlay texture and the fog/FOV can legitimately
+disagree for a tick at a surface crossing. `gm_uw_eval` no longer nests
+the overlay test inside `fluid == 1`.
+
+Result on the dense tape: t=78 70.35 -> 0.80/ch, t=142..151 ~75 -> 0.7-1.3/ch,
+no physics divergence at all, unexplained gate frames 178 -> 10 (the
+survivors are the pre-existing t=58..65 waterfall-entry cluster and t=77,
+unchanged by this work).
+
+### Waterfall ENTRY window on the dense elytra tape (t=58..65)
+
+Pre-existing 8-frame failure on scenario_elytra_dense_20260729T082313Z
+(worst 19.85/ch at t=58), unchanged by the eye-in-fluid fixes - the exit
+(t=78) and the lava band (t=142..151) are closed, the entry is not. The
+glide crosses INTO the waterfall over these ticks; suspects are the same
+eye/viewpoint family at water entry or curtain-cell content during the
+crossing. Dense tape is the repro; not yet root-caused.
+
+### Fortress-hunt tape finds (2026-07-29, scenario_portal_fortress_blaze)
+
+Three divergences from the staged fortress-melee recording
+(`tapes/retired/scenario_portal_fortress_blaze_20260729T090129Z`):
+- **Fortress placement**: `gm_fortress_locate`/`gm_fortress_spawner_room`
+  and mc-sim `nether_full` both put seed-0's spawner room at
+  (-325, 72, -151); the oracle's own DIM-1 region files have rooms at
+  (-325, 56, -215) and (-325, 56, -102). x matches, y/z do not - the
+  structure-gen port diverges beyond terrain.
+- **Blaze death animation**: on kill the oracle renders the death body
+  (scaled, hurt-tinted, ~53k px at t=278); magma keeps the live-size
+  model until despawn. `pxdiff` calls it cutout-sky+ (content absent).
+- **Spawner cage miniature**: the oracle draws the spinning miniature
+  blaze inside the mob-spawner cage; magma draws the cage only.
+Harness notes that cost takes (now in the yaml): `structures: false`
+disables fortresses entirely; melee attacks fire on the mouse-DOWN edge
+so held button-1 lands exactly one swing (this is why the older
+blaze_melee/blaze_bow tapes never damage their blaze); the target is
+NoAI-pinned because a live blaze kites to fireball range.
 
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 

@@ -349,6 +349,38 @@ int main(void) {
               "large/small fire extent ratio is width ratio 1.0/0.3125");
         CHECK(gm_small_fireball_fire_emit(&dragon, 1, 0.0f, out, 256) == 0,
               "non-fiery dragon fireball has no fire overlay");
+
+        /* Living entities: EntityBlaze.isBurning() is its charged/aggro flag,
+         * recorded as flags bit 0. Blaze inherits the Entity default AABB
+         * 0.6 x 1.8 -> scale 0.84, f3 = 1.8/0.84 = 2.142857 -> five layers
+         * (2.142, 1.692, 1.242, 0.792, 0.342). */
+        GmEntityView blaze;
+        memset(&blaze, 0, sizeof blaze);
+        blaze.type = 7; /* EW_TYPE_BLAZE */
+        blaze.x = 3.0f; blaze.y = 5.0f; blaze.z = -2.0f;
+        CHECK(gm_entity_fire_emit(&blaze, 1, 0.0f, out, 256) == 0,
+              "idle (uncharged) blaze emits no fire layers");
+        blaze.flags = 1; /* isBurning -> isCharged */
+        n = gm_entity_fire_emit(&blaze, 1, 0.0f, out, 256);
+        CHECK(n == 30, "charged blaze emits five stacked fire quads");
+        minx = miny = 1e9f; maxx = maxy = -1e9f;
+        for (int i = 0; i < n; ++i) {
+            if (out[i].pos.x < minx) minx = out[i].pos.x;
+            if (out[i].pos.x > maxx) maxx = out[i].pos.x;
+            if (out[i].pos.y < miny) miny = out[i].pos.y;
+            if (out[i].pos.y > maxy) maxy = out[i].pos.y;
+        }
+        CHECK(fabsf((maxx - minx) - 0.84f) < eps,
+              "blaze fire overlay width = 0.6 * 1.4");
+        CHECK(fabsf(miny - blaze.y) < eps && maxy > blaze.y + 1.8f,
+              "blaze fire starts at the feet and overshoots the model top");
+        CHECK(out[0].light > 0.99f && out[0].blk > 14.99f,
+              "fire layers are unlit (disableLighting -> lightmap max)");
+        /* Not a living entity: dropped items/projectiles keep their own pass. */
+        GmEntityView burning_item = blaze;
+        burning_item.type = GM_VIEW_ITEM;
+        CHECK(gm_entity_fire_emit(&burning_item, 1, 0.0f, out, 256) == 0,
+              "non-living views are skipped by the living fire pass");
     }
 
     /* ---- (G) GUI isometric block icons ---- */

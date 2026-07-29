@@ -23,23 +23,23 @@
   },
   "viewmodel": {
    "frames": 23,
-   "px": 208350,
+   "px": 205893,
    "max_cluster": 23683
   },
+  "UNEXPLAINED": {
+   "frames": 9,
+   "px": 14514,
+   "max_cluster": 2727
+  },
   "particles": {
-   "frames": 19,
-   "px": 58978,
+   "frames": 17,
+   "px": 33852,
    "max_cluster": 13306
   },
-  "UNEXPLAINED": {
-   "frames": 2,
-   "px": 205,
-   "max_cluster": 114
-  },
   "bossbar": {
-   "frames": 2,
-   "px": 249,
-   "max_cluster": 135
+   "frames": 1,
+   "px": 224,
+   "max_cluster": 130
   }
  },
  "failed_frames": [],

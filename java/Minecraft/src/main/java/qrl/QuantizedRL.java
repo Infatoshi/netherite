@@ -160,6 +160,7 @@ public class QuantizedRL {
     private static double recPositionX, recPositionY, recPositionZ;
     private static double recPositionVx, recPositionVy, recPositionVz;
     private static float recPositionYaw, recPositionPitch;
+    private volatile String recSnapRoot = null;   // <tape>_world, live while recording
     private int recLastPlayerTicksExisted = Integer.MIN_VALUE;
     private int recLastDimension = Integer.MIN_VALUE;
     private boolean recPlayerLoading = false;
@@ -425,6 +426,57 @@ public class QuantizedRL {
             orb.lastTickPosY = snap.lastTickPosY;
             orb.lastTickPosZ = snap.lastTickPosZ;
         }
+    }
+
+    /**
+     * Flush every loaded dimension to disk and copy the save next to the tape.
+     * Replay loads the ACTUAL world instead of trusting regenerated worldgen,
+     * which kills the populate-order/provenance divergence class at the source.
+     *
+     * addOnly=false (recstart): full copy, overwriting.  addOnly=true
+     * (recstop): copy only paths the snapshot does NOT already have, so the
+     * recstart truth for the starting dimension, level.dat and playerdata is
+     * never overwritten with end-of-session state (dug blocks, spent items),
+     * while dimensions that came into existence during the recording - which
+     * cannot be in the recstart copy, because they had no region files yet -
+     * are added.  Returns the number of files added/copied.
+     */
+    private static int snapshotSaveDir(Minecraft mc, java.io.File snapRoot,
+                                       final boolean addOnly) throws Exception {
+        net.minecraft.server.integrated.IntegratedServer srv = mc.getIntegratedServer();
+        for (net.minecraft.world.WorldServer ws : srv.worlds)
+            if (ws != null) ws.saveAllChunks(true, null);
+        // saveAllChunks only queues AnvilChunkLoader writes. Copying
+        // immediately raced the File IO Thread and produced a valid
+        // region file missing the just-loaded course/player chunks.
+        net.minecraft.world.storage.ThreadedFileIOBase
+            .getThreadedIOInstance().waitForFinish();
+        java.io.File saveDir = new java.io.File(srv.getDataDirectory(),
+            "saves/" + srv.getFolderName());
+        final java.nio.file.Path src = saveDir.toPath(), dst = snapRoot.toPath();
+        final int[] copied = {0};
+        java.nio.file.Files.walkFileTree(src, new java.nio.file.SimpleFileVisitor<java.nio.file.Path>() {
+            @Override public java.nio.file.FileVisitResult preVisitDirectory(
+                    java.nio.file.Path d, java.nio.file.attribute.BasicFileAttributes a) throws java.io.IOException {
+                java.nio.file.Files.createDirectories(dst.resolve(src.relativize(d)));
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+            @Override public java.nio.file.FileVisitResult visitFile(
+                    java.nio.file.Path f, java.nio.file.attribute.BasicFileAttributes a) throws java.io.IOException {
+                java.nio.file.Path target = dst.resolve(src.relativize(f));
+                if (addOnly && java.nio.file.Files.exists(target))
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                java.nio.file.Files.copy(f, target,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                ++copied[0];
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+            @Override public java.nio.file.FileVisitResult visitFileFailed(
+                    java.nio.file.Path f, java.io.IOException e) {
+                return java.nio.file.FileVisitResult.CONTINUE; // session.lock etc.
+            }
+        });
+        return copied[0];
     }
 
     /** EntityRenderer.fogColor1 at recstart, or -1 when it cannot be read.
@@ -1211,41 +1263,13 @@ public class QuantizedRL {
                 // kills the populate-order/provenance divergence class
                 // (OPEN_DIVERGENCES #1/#8/#18-20) at the source.
                 String snapErr = null;
+                recSnapRoot = file.replaceAll("\\.jsonl$", "") + "_world";
                 try {
-                    net.minecraft.server.integrated.IntegratedServer srv = mc.getIntegratedServer();
-                    for (net.minecraft.world.WorldServer ws : srv.worlds)
-                        if (ws != null) ws.saveAllChunks(true, null);
-                    // saveAllChunks only queues AnvilChunkLoader writes. Copying
-                    // immediately raced the File IO Thread and produced a valid
-                    // region file missing the just-loaded course/player chunks.
-                    net.minecraft.world.storage.ThreadedFileIOBase
-                        .getThreadedIOInstance().waitForFinish();
-                    java.io.File saveDir = new java.io.File(srv.getDataDirectory(),
-                        "saves/" + srv.getFolderName());
                     // WHOLE save dir: level.dat + playerdata (initial inventory/
                     // xp/potions) + all dimension regions + data/ (maps,
                     // villages). Region-only proved insufficient (audit
                     // 2026-07-12): held-item/XP truth lives in playerdata.
-                    java.io.File snapRoot = new java.io.File(
-                        file.replaceAll("\\.jsonl$", "") + "_world");
-                    final java.nio.file.Path src = saveDir.toPath(), dst = snapRoot.toPath();
-                    java.nio.file.Files.walkFileTree(src, new java.nio.file.SimpleFileVisitor<java.nio.file.Path>() {
-                        @Override public java.nio.file.FileVisitResult preVisitDirectory(
-                                java.nio.file.Path d, java.nio.file.attribute.BasicFileAttributes a) throws java.io.IOException {
-                            java.nio.file.Files.createDirectories(dst.resolve(src.relativize(d)));
-                            return java.nio.file.FileVisitResult.CONTINUE;
-                        }
-                        @Override public java.nio.file.FileVisitResult visitFile(
-                                java.nio.file.Path f, java.nio.file.attribute.BasicFileAttributes a) throws java.io.IOException {
-                            java.nio.file.Files.copy(f, dst.resolve(src.relativize(f)),
-                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                            return java.nio.file.FileVisitResult.CONTINUE;
-                        }
-                        @Override public java.nio.file.FileVisitResult visitFileFailed(
-                                java.nio.file.Path f, java.io.IOException e) {
-                            return java.nio.file.FileVisitResult.CONTINUE; // session.lock etc.
-                        }
-                    });
+                    snapshotSaveDir(mc, new java.io.File(recSnapRoot), false);
                 } catch (Throwable t) { snapErr = String.valueOf(t); }
                 reply(r, "{\"ok\":true,\"file\":\"" + file + "\""
                     + (snapErr != null ? ",\"snapshot_error\":\"" + snapErr.replace('"','\'') + "\"" : "")
@@ -1260,7 +1284,25 @@ public class QuantizedRL {
             long n = recTick;
             if (recWriter != null) { recWriter.flush(); recWriter.close(); recWriter = null; }
             if (recGeomWriter != null) { recGeomWriter.flush(); recGeomWriter.close(); recGeomWriter = null; }
-            reply(r, "{\"ok\":true,\"ticks\":" + n + "}");
+            // Second snapshot pass, ADD-ONLY (see snapshotSaveDir): a dimension
+            // the player first enters DURING the recording does not exist on
+            // disk at recstart, so its region files can never be in the
+            // recstart copy. Without this pass the replay falls back to
+            // magma's own generator for that dimension, and the Nether's
+            // populate() decoration (fire, lava springs, glowstone, quartz -
+            // ChunkProviderHell.populate, whose rand is NOT reseeded per chunk
+            // and is therefore chunk-load-order dependent, i.e. not derivable
+            // from the seed) is simply absent from the replayed world.
+            String snapErr = null;
+            int added = 0;
+            if (recSnapRoot != null) {
+                try { added = snapshotSaveDir(mc, new java.io.File(recSnapRoot), true); }
+                catch (Throwable t) { snapErr = String.valueOf(t); }
+                recSnapRoot = null;
+            }
+            reply(r, "{\"ok\":true,\"ticks\":" + n + ",\"snapshot_added\":" + added
+                + (snapErr != null ? ",\"snapshot_error\":\"" + snapErr.replace('"','\'') + "\"" : "")
+                + "}");
             return;
         }
         if (r.cmd.equals("overclock")) {

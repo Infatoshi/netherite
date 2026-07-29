@@ -360,10 +360,22 @@ def snapshot_arrival_events(snapshot_patch, header, ticks, chunk_radius=1):
     prev_cx = math.floor(float(header["x"])) // 16
     prev_cz = math.floor(float(header["z"])) // 16
     for row in ticks:
+        dimension = int(row.get("dim", prev_dim))
+        # A portal transit is a world transfer with NO position packet: the
+        # server moves the player as part of changeDimension, so the row's own
+        # dim flip is the only arrival signal in the tape (portal roundtrip
+        # 075228Z: dim 0 -> -1 at t=133, first ppos not until t=168). The
+        # destination needs the WHOLE pool neighbourhood, not a 3x3: its
+        # tick-zero patch was applied to a world the player was not in, and a
+        # non-start dimension's pool is filled by whatever the replay's own
+        # generator touched on the way in.
+        if dimension != prev_dim and "x" in row and "z" in row:
+            arrivals.append((int(row["t"]), dimension,
+                             math.floor(float(row["x"])) // 16,
+                             math.floor(float(row["z"])) // 16, POOL_R))
         if "ppos" in row:
             x, _, z = row["ppos"][:3]
             cx, cz = math.floor(float(x)) // 16, math.floor(float(z)) // 16
-            dimension = int(row.get("dim", prev_dim))
             if (dimension != prev_dim or abs(cx - prev_cx) > POOL_R
                     or abs(cz - prev_cz) > POOL_R):
                 arrivals.append((int(row["t"]), dimension, cx, cz,
@@ -375,11 +387,15 @@ def snapshot_arrival_events(snapshot_patch, header, ticks, chunk_radius=1):
     if not arrivals:
         return {}
 
-    by_tick = {
-        tick: [{"tick": tick, "type": "snapshot_region", "dim": dimension,
-                "cx": cx, "cz": cz, "radius": radius}]
-        for tick, dimension, cx, cz, radius in arrivals
-    }
+    # A transfer can be signalled twice on the same tick (dim flip plus a
+    # position packet), so accumulate instead of overwriting, and de-duplicate
+    # the cells: applying one cell twice is harmless but doubles the script.
+    by_tick = {}
+    for tick, dimension, cx, cz, radius in arrivals:
+        by_tick.setdefault(tick, []).append(
+            {"tick": tick, "type": "snapshot_region", "dim": dimension,
+             "cx": cx, "cz": cz, "radius": radius})
+    seen = {tick: set() for tick, *_ in arrivals}
     with open(snapshot_patch) as sf:
         for line in sf:
             event = json.loads(line)
@@ -390,6 +406,11 @@ def snapshot_arrival_events(snapshot_patch, header, ticks, chunk_radius=1):
             for tick, target_dim, cx, cz, radius in arrivals:
                 if (dimension == target_dim and abs(bx - cx) <= radius
                         and abs(bz - cz) <= radius):
+                    cell = (dimension, int(event["x"]), int(event["y"]),
+                            int(event["z"]))
+                    if cell in seen[tick]:
+                        continue
+                    seen[tick].add(cell)
                     by_tick[tick].append({**event, "tick": tick})
     return by_tick
 

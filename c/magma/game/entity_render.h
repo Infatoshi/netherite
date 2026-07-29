@@ -87,6 +87,10 @@ int       gm_entity_skin_for_name(const char *name);
 /* Vanilla getEyeHeight for a rendered type - where to sample world light. */
 float     gm_entity_eye_y(int type);
 
+/* 1 when the type overrides getBrightnessForRender to lightmap max, so world
+ * light must not dim it. EntityBlaze returns 15728880 (sky 15 / block 15). */
+int       gm_entity_fullbright(int type);
+
 /* The mob-texture atlas to bind (CrShadeCtx.atlas) for the entity pass. */
 CrTexture gm_entity_atlas(void);
 

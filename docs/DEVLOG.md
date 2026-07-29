@@ -900,3 +900,77 @@ regenerated and inspected.
   (gates re-verified PASS during encode) and `demos/combat_sbs.mp4`
   (blaze_bow_demo + ender_dragon_demo, title copy updated to the 23-tape
   claim).
+
+## 2026-07-29 (LAUNCHED)
+
+- Public launch: https://x.com/elliotarledge/status/2082366172222439879
+  (8-tweet thread, zoom video lead). Public repo:
+  https://github.com/Infatoshi/netherite - clean tree via
+  export_public_tree.sh (1704 files, 549 Mojang-derived excluded), FRESH
+  history. The full private repo was renamed to Infatoshi/netherite-dev;
+  this checkout's origin now points there. Never push this repo's history
+  to the public remote.
+- Launch video pipeline documented in docs/DEMO_VIDEO.md; thread archives
+  on the macbook in ~/Downloads/netherite_thread{,_v2}/.
+
+## 2026-07-29 (blaze glow + on-fire engulfment, wt/blazeglow)
+
+Operator catch: the oracle's blaze is full-bright with flames wrapped around
+it while magma drew a dull brown mob. Two vanilla mechanisms were missing, both
+render-only; the tapes already carried everything needed.
+
+- `EntityBlaze.getBrightnessForRender` returns `15728880` (sky 15 / block 15),
+  so the model ignores world light. `frame_capture.c` now pins the sampled
+  sky/block levels for types where `gm_entity_fullbright` is true, which keeps
+  both the LUT and the folded Nether/End paths exact.
+- `Render.doRenderShadowAndFire` draws `renderEntityOnFire` for any entity with
+  `isBurning()`, and `EntityBlaze.isBurning()` is `isCharged()` (the `ON_FIRE`
+  datamanager bit its fireball AI holds for the 78-tick volley). magma only had
+  a fireball-billboard fire pass; `gm_entity_fire_emit` now runs the same
+  vanilla layer loop for living views whose recorded `flags` bit 0 is set,
+  sized by the entity AABB. The layer math is shared with the fireball pass
+  (`ir_fire_layers`).
+
+The burning bit is RECORDED, not inferred (the `60f4076` trap): the qrl
+recorder has written `isBurning|isSneaking|isInvisible|isChild` per living row
+since 2026-07-12, and the three blaze tapes carry 388-603 burning blaze rows
+each with the exact vanilla 78-on/100-off cycle. No recorder change was needed.
+
+Gates (CPU replay, sequential): `failed_frames` unchanged on all three -
+`blaze_bow_demo` keeps its single known t=812 fight-state frame (167_724 ->
+167_712 px), `blaze_melee` and `blaze_bow` stay rc=0. Whole-tape diff pixels
+drop (demo 664_810 -> 616_752 over the golden frames; melee blaze-ROI at t=200
+3_495 -> 1_609). Gate CLASS counts churn: the big bright "blaze missing"
+clusters used to soak into `particles`, and the small residual left over
+(blaze rod pose, fire animation phase) lands in `UNEXPLAINED` instead - demo
+particles 154_028 -> 83_313 px while UNEXPLAINED 168_484 -> 191_133 px over
+3 -> 173 frames, every new cluster far under the 4000 px fail threshold.
+Baselines refreshed. Live-sim gap (no `attackStep` port, so an interactive
+blaze never reports burning) documented in OPEN_DIVERGENCES.md.
+## 2026-07-29 (nether arrival: dimensions born mid-recording were never snapshotted)
+
+- The portal tape's Nether had no fire, no lava pools and no block light
+  because `<tape>_world/DIM-1/` had no `region/` at all: the recorder
+  snapshots the save at `recstart`, and a dimension the player first enters
+  DURING the recording does not exist on disk yet. `snapshot_patch.py`
+  emitted 0 dim -1 events and the replay ran on magma's own generation.
+- magma has Nether TERRAIN (`nf_run`) but not `ChunkProviderHell.populate`,
+  and cannot have it: that `Random` is reseeded only in `provideChunk`
+  (`ChunkProviderHell.java:267`), so Nether decoration is chunk-load-order
+  dependent, not seed-derivable. Saved-world snapshot is the only mechanism.
+- `QuantizedRL.snapshotSaveDir(mc, snapRoot, addOnly)`: recstart pass
+  unchanged; `recstop` adds an ADD-ONLY pass that copies only paths the
+  snapshot lacks, so new dimensions land in the tape while recstart truth for
+  the start dimension / level.dat / playerdata is never overwritten.
+- `snapshot_arrival_events` also only knew position packets, and a portal
+  transit has none (dim flips at t=134, first ppos t=168). Added the dim-flip
+  arrival at pool radius; arrivals on one tick now accumulate instead of the
+  dict-comprehension silently dropping all but the last.
+- Re-recorded `scenario_portal_roundtrip_20260729T083543Z` with the fixed
+  recorder (`snapshot_added: 4`). Same-tape A/B: 387 failed frames / 75.1M
+  UNEXPLAINED px -> 170 / 11.2M; fire and the arrival lava pool now render in
+  both panes. `demos/portal_sbs.mp4` re-encoded from those frames.
+- Found while measuring, NOT fixed: `nf_to_vanilla` swaps the lava ids -
+  magma's generated Nether sea is `flowing_lava` (10) where vanilla is still
+  `lava` (11), 123k cells of the patch. The nether_full "golden" is a
+  self-capture of the C kernel, so no gate ever saw it.

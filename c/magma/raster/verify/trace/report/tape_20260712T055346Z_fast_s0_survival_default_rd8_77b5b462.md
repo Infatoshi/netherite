@@ -10,6 +10,44 @@
 - entities: checked=157 available=True
 - world nearby_hash: checked=157 deltas=96 available=True
 
+**Pixel gate: FAIL** over 157 frames.
+
+| class | frames | px | max cluster |
+|---|---|---|---|
+| UNEXPLAINED | 63 | 723517 | 64445 |
+| bossbar | 75 | 382236 | 38430 |
+| known:1 | 32 | 674398 | 49020 |
+| known:12 | 16 | 1830995 | 146981 |
+| known:20 | 2 | 72738 | 45272 |
+| known:54 | 23 | 193587 | 14631 |
+| known:9 | 7 | 149201 | 28903 |
+| particles | 136 | 1883773 | 20867 |
+| thinline | 30 | 26079 | 1295 |
+| viewmodel | 35 | 94657 | 9573 |
+
+Failed frames (worst first, top 20):
+
+- t=1620: 79154 unexplained px, clusters [{'px': 962, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 92, 67], 'soak_from': 'particles'}, {'px': 381, 'cls': 'UNEXPLAINED', 'bbox': [86, 9, 103, 49], 'soak_from': 'particles'}, {'px': 64445, 'cls': 'UNEXPLAINED', 'bbox': [96, 0, 479, 461], 'soak_from': 'particles'}, {'px': 387, 'cls': 'UNEXPLAINED', 'bbox': [112, 815, 139, 853], 'soak_from': 'particles'}]
+- t=1540: 67615 unexplained px, clusters [{'px': 47041, 'cls': 'UNEXPLAINED', 'bbox': [45, 179, 293, 482], 'soak_from': 'particles'}, {'px': 52, 'cls': 'UNEXPLAINED', 'bbox': [72, 5, 82, 12], 'soak_from': 'particles'}, {'px': 257, 'cls': 'UNEXPLAINED', 'bbox': [72, 88, 94, 115], 'soak_from': 'particles'}, {'px': 50, 'cls': 'UNEXPLAINED', 'bbox': [72, 227, 100, 231], 'soak_from': 'particles'}]
+- t=2860: 53998 unexplained px, clusters [{'px': 360, 'cls': 'UNEXPLAINED', 'bbox': [57, 23, 72, 57], 'soak_from': 'particles'}, {'px': 47846, 'cls': 'UNEXPLAINED', 'bbox': [65, 0, 479, 503], 'soak_from': 'particles'}, {'px': 1046, 'cls': 'UNEXPLAINED', 'bbox': [91, 44, 126, 89], 'soak_from': 'particles'}, {'px': 86, 'cls': 'UNEXPLAINED', 'bbox': [143, 726, 164, 738], 'soak_from': 'particles'}]
+- t=2840: 51420 unexplained px, clusters [{'px': 257, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 73, 12], 'soak_from': 'particles'}, {'px': 48202, 'cls': 'UNEXPLAINED', 'bbox': [45, 0, 473, 326], 'soak_from': 'particles'}, {'px': 140, 'cls': 'UNEXPLAINED', 'bbox': [102, 347, 115, 365], 'soak_from': 'particles'}, {'px': 67, 'cls': 'UNEXPLAINED', 'bbox': [144, 90, 157, 97], 'soak_from': 'particles'}]
+- t=660: 32875 unexplained px, clusters [{'px': 30242, 'cls': 'UNEXPLAINED', 'bbox': [349, 559, 479, 853]}, {'px': 361, 'cls': 'UNEXPLAINED', 'bbox': [354, 826, 383, 853]}, {'px': 2272, 'cls': 'UNEXPLAINED', 'bbox': [368, 419, 445, 485]}]
+- t=640: 32817 unexplained px, clusters [{'px': 30064, 'cls': 'UNEXPLAINED', 'bbox': [349, 559, 479, 853]}, {'px': 2753, 'cls': 'UNEXPLAINED', 'bbox': [402, 416, 479, 496]}]
+- t=600: 30637 unexplained px, clusters [{'px': 66, 'cls': 'UNEXPLAINED', 'bbox': [134, 784, 143, 800]}, {'px': 68, 'cls': 'UNEXPLAINED', 'bbox': [149, 813, 157, 822]}, {'px': 30503, 'cls': 'UNEXPLAINED', 'bbox': [349, 559, 479, 853]}]
+- t=620: 30591 unexplained px, clusters [{'px': 65, 'cls': 'UNEXPLAINED', 'bbox': [135, 784, 143, 800]}, {'px': 67, 'cls': 'UNEXPLAINED', 'bbox': [149, 813, 157, 822]}, {'px': 30459, 'cls': 'UNEXPLAINED', 'bbox': [349, 559, 479, 853]}]
+- t=700: 19391 unexplained px, clusters [{'px': 678, 'cls': 'UNEXPLAINED', 'bbox': [250, 753, 284, 831]}, {'px': 17840, 'cls': 'UNEXPLAINED', 'bbox': [338, 601, 479, 771]}, {'px': 662, 'cls': 'UNEXPLAINED', 'bbox': [364, 761, 401, 819]}, {'px': 211, 'cls': 'UNEXPLAINED', 'bbox': [420, 775, 441, 814]}]
+- t=1200: 18692 unexplained px, clusters [{'px': 554, 'cls': 'UNEXPLAINED', 'bbox': [217, 310, 249, 375]}, {'px': 58, 'cls': 'UNEXPLAINED', 'bbox': [218, 270, 224, 285]}, {'px': 54, 'cls': 'UNEXPLAINED', 'bbox': [224, 407, 236, 419]}, {'px': 18026, 'cls': 'UNEXPLAINED', 'bbox': [338, 602, 479, 771]}]
+- t=1220: 18664 unexplained px, clusters [{'px': 323, 'cls': 'UNEXPLAINED', 'bbox': [197, 277, 219, 314]}, {'px': 57, 'cls': 'UNEXPLAINED', 'bbox': [207, 380, 221, 392]}, {'px': 260, 'cls': 'UNEXPLAINED', 'bbox': [209, 316, 231, 344]}, {'px': 18024, 'cls': 'UNEXPLAINED', 'bbox': [338, 602, 479, 771]}]
+- t=1180: 18603 unexplained px, clusters [{'px': 155, 'cls': 'UNEXPLAINED', 'bbox': [228, 340, 238, 365]}, {'px': 212, 'cls': 'UNEXPLAINED', 'bbox': [237, 377, 259, 402]}, {'px': 170, 'cls': 'UNEXPLAINED', 'bbox': [244, 41, 255, 66]}, {'px': 97, 'cls': 'UNEXPLAINED', 'bbox': [260, 353, 270, 365]}]
+- t=1280: 18533 unexplained px, clusters [{'px': 127, 'cls': 'UNEXPLAINED', 'bbox': [168, 392, 168, 518]}, {'px': 18406, 'cls': 'UNEXPLAINED', 'bbox': [335, 601, 479, 770]}]
+- t=1340: 18152 unexplained px, clusters [{'px': 128, 'cls': 'UNEXPLAINED', 'bbox': [225, 341, 227, 467]}, {'px': 18024, 'cls': 'UNEXPLAINED', 'bbox': [338, 602, 479, 771]}]
+- t=1300: 18024 unexplained px, clusters [{'px': 18024, 'cls': 'UNEXPLAINED', 'bbox': [338, 602, 479, 771]}]
+- t=1320: 17076 unexplained px, clusters [{'px': 17076, 'cls': 'UNEXPLAINED', 'bbox': [338, 602, 479, 771]}]
+- t=520: 14173 unexplained px, clusters [{'px': 51, 'cls': 'UNEXPLAINED', 'bbox': [45, 248, 60, 252]}, {'px': 61, 'cls': 'UNEXPLAINED', 'bbox': [55, 356, 81, 359]}, {'px': 53, 'cls': 'UNEXPLAINED', 'bbox': [70, 142, 88, 147]}, {'px': 92, 'cls': 'UNEXPLAINED', 'bbox': [73, 208, 95, 214]}]
+- t=1160: 744 unexplained px, clusters [{'px': 255, 'cls': 'UNEXPLAINED', 'bbox': [187, 20, 203, 61]}, {'px': 61, 'cls': 'UNEXPLAINED', 'bbox': [224, 243, 231, 258]}, {'px': 183, 'cls': 'UNEXPLAINED', 'bbox': [225, 286, 238, 314]}, {'px': 53, 'cls': 'UNEXPLAINED', 'bbox': [237, 373, 246, 383]}]
+- t=1140: 589 unexplained px, clusters [{'px': 102, 'cls': 'UNEXPLAINED', 'bbox': [146, 54, 157, 88]}, {'px': 359, 'cls': 'UNEXPLAINED', 'bbox': [176, 0, 199, 30]}, {'px': 128, 'cls': 'UNEXPLAINED', 'bbox': [199, 103, 215, 126]}]
+- t=820: 0 unexplained px, clusters []
+
 | tick | whole mean/ch | %diff | terrain mean/ch |
 |---|---|---|---|
 | 0 | 3.83 | 47.80% | 3.47 |

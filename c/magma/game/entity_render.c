@@ -1558,6 +1558,14 @@ float gm_entity_eye_y(int type) {
     }
 }
 
+/* EntityBlaze.getBrightnessForRender (EntityBlaze.java:99-102) returns
+ * 15728880 == (240 << 16) | 240, i.e. the model always samples the lightmap
+ * at sky 15 / block 15 no matter how dark the world cell is. Callers that
+ * sample world light for an entity apply this exemption first. */
+int gm_entity_fullbright(int type) {
+    return type == ER_TYPE_BLAZE;
+}
+
 /* ModelQuadruped leg indices (after head/body[/extras]): alternate pairs.
  * Sheep: parts 0 head, 1 body, 2-5 legs, 6-11 fur. Legs 2,3,4,5.
  * Pig/cow similar. Vanilla: leg1/4 cos(ls*0.6662)*1.4*lsa,
@@ -1641,6 +1649,11 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             tint.r = (u8)(tint.r * ents[e].lm_mul_r + 0.5f);
             tint.g = (u8)(tint.g * ents[e].lm_mul_g + 0.5f);
             tint.b = (u8)(tint.b * ents[e].lm_mul_b + 0.5f);
+        } else if (gm_entity_fullbright(ents[e].type)) {
+            /* legacy callers sample no world light; a blaze still needs the
+             * block half of its getBrightnessForRender max (sky 15/block 15).
+             * lm_lit 1/2 callers already pinned both levels. */
+            blk = 15.0f;
         }
 
         /* copy parts so limb swing / death pose can mutate ax without

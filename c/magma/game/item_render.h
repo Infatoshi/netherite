@@ -63,6 +63,14 @@ int gm_items_emit_billboard(const GmEntityView *ents, int n, float view_yaw,
 int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
                                 float view_yaw, CrVertex *out, int max);
 
+/* Render.doRenderShadowAndFire for LIVING entities with flags&1 (the recorded
+ * EntityLivingBase.isBurning bit; for a blaze that is the ON_FIRE/charged
+ * aggro flag). Fire layers sized by the entity AABB (gm_entity_render_box),
+ * terrain-atlas fire_layer sprites, same pass as the fireball overlay.
+ * Non-living views and non-burning views emit nothing. */
+int gm_entity_fire_emit(const GmEntityView *ents, int n,
+                        float view_yaw, CrVertex *out, int max);
+
 /* The packed item-sprite atlas as a CrTexture (no mips; CUTOUT layer). */
 CrTexture gm_item_atlas(void);
 
