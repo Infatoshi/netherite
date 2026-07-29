@@ -974,3 +974,29 @@ blaze never reports burning) documented in OPEN_DIVERGENCES.md.
   magma's generated Nether sea is `flowing_lava` (10) where vanilla is still
   `lava` (11), 123k cells of the patch. The nether_full "golden" is a
   self-capture of the C kernel, so no gate ever saw it.
+
+## 2026-07-29 overnight (divergence grind + nether clips)
+
+Seven renderer/sim/pipeline fixes landed, each agent-produced, personally
+re-verified, and regression-gated:
+- ab3e853 nether lava sea id swap (goldens upgraded to real Java oracles)
+- 5efc186 elytra flag-7 one-tick latency (eye height on the arming tick)
+  + retired-tape gate repair (absolute golden paths -> re-anchor or fatal;
+  a retired tape used to "PASS over 0 frames" - see AGENTS.md)
+- 0e73841 double_plant cross models / upper-half type / tint
+- 83784f0 snapshot patch authoritative over the vegetation band (phantom
+  plants from populate-order-dependent decoration; scenic 92->39 frames)
+- 5224721 vanilla death keel + hurt tint; spawner miniature renderer
+  built + unit-tested (data plumbing filed, 4 layers)
+- af5fbd8 dragon death-ray curve (onset, boss fog, lightmap unit, the
+  byte-wrap starburst) + recorder now captures armor row/hidden-particle
+  HUD gates
+Headline: re-recorded dragon_kill passes the FULL pixel gate (rc 0, 201
+frames) - first entity-death scene to do so; adopted into the suite with
+nether_elytra (115-block lava-cavern glide, wall-slam landing).
+Clips shipped to the mac: nether_elytra_sbs, dragon_kill_sbs (gate-clean),
+blaze_melee_sbs (death keel).
+Still open (agents/wave-2 or filed): entity-interp pose mirroring,
+populate-order decoration beyond the vegetation band, fortress placement
+y/z, spawner data plumbing, waterfall-entry flow-texture family, fire
+animation phase, live-sim blaze aggro.
