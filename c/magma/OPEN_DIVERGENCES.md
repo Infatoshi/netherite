@@ -199,17 +199,63 @@ scene onto hold_dig_dense because of this bug.
 ### Nether arrival: fire/lava content missing from the replayed world
 
 Found 2026-07-29 on the first dense portal tape
-(`scenario_portal_roundtrip_20260729T075228Z`, flat overworld, built+lit
-portal, dims {0:133, -1:350}). The dimension TRANSIT replays tick-exact
-(physics gate clean; the in-portal overlay matches frame-for-frame), and
-the netherrack cave geometry at the arrival matches - but the oracle's
-arrival chamber has burning fire blocks and a lava pool that magma's
-replay does not place, so the magma pane is also much darker (the absent
-blocks are the absent block-light). Suspects: DIM-1 snapshot-patch
-coverage around the arrival chunks vs the toroidal pool, or fire (51) /
-flowing-lava cells being dropped by a displaceable/falling-liquid filter
-on the patch path. Tape kept in tapes/ as the repro; nether fidelity has
-never been pixel-gated before this tape.
+(`scenario_portal_roundtrip_20260729T075228Z`); **root-caused and fixed the
+same day**. Neither suspect in the original note was right: no filter dropped
+fire (51) or lava, and the patch never covered DIM-1 because **there was no
+DIM-1 to cover**.
+
+- The recorder snapshots the save at `recstart` (`QuantizedRL.java`, recstart
+  handler). A dimension the player first enters DURING the recording has no
+  region files on disk at that moment, so it can never be in that copy:
+  `075228Z_world/DIM-1/` held only `data/` and `forcedchunks.dat`, and
+  `snapshot_patch.py` emitted 0 dim -1 events (its cache is 29 events, all
+  dim 0). The replayed Nether was therefore 100% magma's own generation.
+- magma generates Nether TERRAIN (`nether_full.h` `nf_run` =
+  ChunkProviderHell prepareHeights/buildSurfaces/MapGenCavesHell + fortress),
+  which is why the cave geometry matched. It does not run
+  `ChunkProviderHell.populate` - fire, lava springs, glowstone, quartz, magma
+  blocks, mushrooms - and it cannot: that method's `Random` is reseeded only
+  in `provideChunk` (`ChunkProviderHell.java:267`), so `populate` consumes
+  whatever RNG state the previously generated chunk left behind. Nether
+  decoration is chunk-load-order dependent, not seed-derivable. The saved
+  world snapshot is the only sound mechanism for it.
+- Second, independent defect on the replay side: `snapshot_arrival_events`
+  detected arrivals only from position packets, and a portal transit has none
+  (the server moves the player inside `changeDimension`). On this tape the
+  row `dim` flips at t=133 and the first `ppos` is t=168, so even with DIM-1
+  data the patch would only have been applied at tick 0, to a world the
+  player was not in yet.
+
+Fixes: `snapshotSaveDir(mc, snapRoot, addOnly)` in `QuantizedRL.java` - the
+recstart pass is unchanged, and `recstop` runs a second ADD-ONLY pass that
+copies only paths the snapshot does not already have, so dimensions born
+during the recording are added while recstart truth for the start dimension,
+`level.dat` and `playerdata` is never overwritten with end-of-session state.
+Plus the dim-flip arrival in `replay_tape.py::snapshot_arrival_events`.
+
+The 075228Z tape is NOT repairable - its Nether was never written to any
+disk that still exists - so the scenario was re-recorded with the fixed
+recorder as `scenario_portal_roundtrip_20260729T083543Z` (dims {0:134,
+-1:352}, `recstop` reported `snapshot_added: 4`, one per Nether region file).
+Same-tape A/B, CPU replay (DIM-1 region hidden vs present, patch cache
+dropped both times): 387 failed frames / 75.1M UNEXPLAINED px over 368
+frames, worst t=292 at 266k -> 170 failed frames / 11.2M px over 143 frames,
+worst t=281 at 175k. Fire and the arrival lava pool are present and the
+chamber is lit in both panes (t=216, t=280 SBS).
+
+Still open on that tape (170 frames): fire/lava ANIMATION phase and the
+lightmap around them, plus the pre-existing viewmodel/HUD classes.
+
+Newly found, separately scoped: `nf_to_vanilla` in
+`c/mc-sim/core/nether_full.h` maps `CPN_LAVA`(10) -> vanilla 10 and
+`CPN_FLOWING_LAVA`(11) -> vanilla 11, but vanilla 1.11.2 is 10 =
+`flowing_lava`, 11 = `lava` (still) (`Block.java:2414-2415`), and
+ChunkProviderHell fills the sea with `Blocks.LAVA` (still). magma's generated
+Nether sea is therefore FLOWING lava: 123,556 of the new tape's patch cells
+are id-11 lava at y 24-31. The nether_full golden is a self-capture of the C
+kernel, not a Java oracle, so nothing caught it. Not fixed here (it needs a
+regenerated golden and an mc-sim gate pass); the snapshot patch masks it in
+replay.
 
 ### Eye-in-fluid overlay timing: lava fires early, water releases late
 

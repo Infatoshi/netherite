@@ -947,3 +947,30 @@ particles 154_028 -> 83_313 px while UNEXPLAINED 168_484 -> 191_133 px over
 3 -> 173 frames, every new cluster far under the 4000 px fail threshold.
 Baselines refreshed. Live-sim gap (no `attackStep` port, so an interactive
 blaze never reports burning) documented in OPEN_DIVERGENCES.md.
+## 2026-07-29 (nether arrival: dimensions born mid-recording were never snapshotted)
+
+- The portal tape's Nether had no fire, no lava pools and no block light
+  because `<tape>_world/DIM-1/` had no `region/` at all: the recorder
+  snapshots the save at `recstart`, and a dimension the player first enters
+  DURING the recording does not exist on disk yet. `snapshot_patch.py`
+  emitted 0 dim -1 events and the replay ran on magma's own generation.
+- magma has Nether TERRAIN (`nf_run`) but not `ChunkProviderHell.populate`,
+  and cannot have it: that `Random` is reseeded only in `provideChunk`
+  (`ChunkProviderHell.java:267`), so Nether decoration is chunk-load-order
+  dependent, not seed-derivable. Saved-world snapshot is the only mechanism.
+- `QuantizedRL.snapshotSaveDir(mc, snapRoot, addOnly)`: recstart pass
+  unchanged; `recstop` adds an ADD-ONLY pass that copies only paths the
+  snapshot lacks, so new dimensions land in the tape while recstart truth for
+  the start dimension / level.dat / playerdata is never overwritten.
+- `snapshot_arrival_events` also only knew position packets, and a portal
+  transit has none (dim flips at t=134, first ppos t=168). Added the dim-flip
+  arrival at pool radius; arrivals on one tick now accumulate instead of the
+  dict-comprehension silently dropping all but the last.
+- Re-recorded `scenario_portal_roundtrip_20260729T083543Z` with the fixed
+  recorder (`snapshot_added: 4`). Same-tape A/B: 387 failed frames / 75.1M
+  UNEXPLAINED px -> 170 / 11.2M; fire and the arrival lava pool now render in
+  both panes. `demos/portal_sbs.mp4` re-encoded from those frames.
+- Found while measuring, NOT fixed: `nf_to_vanilla` swaps the lava ids -
+  magma's generated Nether sea is `flowing_lava` (10) where vanilla is still
+  `lava` (11), 123k cells of the patch. The nether_full "golden" is a
+  self-capture of the C kernel, so no gate ever saw it.

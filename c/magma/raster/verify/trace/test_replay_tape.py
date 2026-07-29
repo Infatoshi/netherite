@@ -160,11 +160,43 @@ def test_position_packet_reloads_nearby_snapshot_chunks(tmp_path: Path):
               "ppos": [24.5, 76.0, 24.5, 270.0, 0.0, 0.0, 0.0, 0.0]}]
     header = {"dim": 0, "x": 0.5, "z": 0.5}
     events = replay_tape.snapshot_arrival_events(patch, header, ticks)
-    assert events[7][0] == {"tick": 7, "type": "snapshot_region", "dim": -1,
-                            "cx": 1, "cz": 1, "radius": 1}
+    # The tape-start ensure lands on this same tick; both regions survive
+    # (a dict keyed by tick used to silently drop the earlier one).
+    assert {"tick": 7, "type": "snapshot_region", "dim": -1,
+            "cx": 1, "cz": 1, "radius": 1} in events[7]
     blocks = [event for event in events[7] if event["type"] == "snapshot_block"]
     assert blocks == [{"tick": 7, "type": "snapshot_block", "dim": -1,
                        "x": 24, "y": 75, "z": 24, "id": 49, "meta": 0}]
+
+
+def test_portal_transit_reloads_arrival_dimension_snapshot(tmp_path: Path):
+    """A dim flip with no position packet is still a world transfer.
+
+    Portal roundtrip 075228Z: the recorder logs dim -1 from t=133, but the
+    first ppos row is t=168.  Without the dim-flip arrival the Nether patch is
+    only ever applied at tick 0, to a world the player is not in yet.
+    """
+    patch = tmp_path / "snapshot.jsonl"
+    patch.write_text(
+        '{"tick":0,"type":"snapshot_block","dim":-1,'
+        '"x":5,"y":22,"z":-5,"id":51,"meta":0}\n'
+        '{"tick":0,"type":"snapshot_block","dim":-1,'
+        '"x":9,"y":21,"z":-3,"id":11,"meta":0}\n'
+        '{"tick":0,"type":"snapshot_block","dim":0,'
+        '"x":8,"y":4,"z":0,"id":49,"meta":0}\n'
+    )
+    ticks = [{"t": 132, "dim": 0, "x": 8.5, "y": 4.0, "z": 0.5},
+             {"t": 133, "dim": -1, "x": 5.5, "y": 22.0, "z": -5.0}]
+    header = {"dim": 0, "x": 0.5, "z": 1.0}
+    events = replay_tape.snapshot_arrival_events(patch, header, ticks)
+    assert 133 in events
+    region = events[133][0]
+    assert region["type"] == "snapshot_region" and region["dim"] == -1
+    assert (region["cx"], region["cz"]) == (0, -1)
+    assert region["radius"] == 8
+    cells = {(event["id"], event["x"], event["y"], event["z"])
+             for event in events[133] if event["type"] == "snapshot_block"}
+    assert cells == {(51, 5, 22, -5), (11, 9, 21, -3)}
 
 
 def test_recorded_food_change_is_reanchored_post_tick(tmp_path: Path):
