@@ -16,9 +16,11 @@
 #include "mc_math.h"
 #include "map_gen_fortress.h"
 
+/* Vanilla 1.11.2 block ids (Block.java registerBlocks): 10=flowing_lava, 11=lava still.
+ * prepareHeights/buildSurfaces place Blocks.LAVA (still); caves only test for either. */
 enum {
     CPN_AIR = 0, CPN_STONE = 1, CPN_GRASS = 2, CPN_DIRT = 3, CPN_BEDROCK = 7,
-    CPN_LAVA = 10, CPN_FLOWING_LAVA = 11, CPN_GRAVEL = 13,
+    CPN_FLOWING_LAVA = 10, CPN_LAVA = 11, CPN_GRAVEL = 13,
     CPN_NETHERRACK = 87, CPN_SOUL_SAND = 88
 };
 

@@ -49,8 +49,8 @@ MC_HD static inline u16 npm_cpn_to_vanilla(u16 id) {
         case CPN_GRASS: return 2;
         case CPN_DIRT: return 3;
         case CPN_BEDROCK: return 7;
-        case CPN_LAVA: return 10;
-        case CPN_FLOWING_LAVA: return 11;
+        case CPN_FLOWING_LAVA: return 10; /* Blocks.FLOWING_LAVA */
+        case CPN_LAVA: return 11;         /* Blocks.LAVA (still) */
         case CPN_GRAVEL: return 13;
         case CPN_NETHERRACK: return 87;
         case CPN_SOUL_SAND: return 88;

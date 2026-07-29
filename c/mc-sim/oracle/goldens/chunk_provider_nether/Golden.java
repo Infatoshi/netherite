@@ -4,7 +4,8 @@
 import java.util.Random;
 
 public class Golden {
-    static final int AIR = 0, GRASS = 2, DIRT = 3, BEDROCK = 7, LAVA = 10, FLOWING_LAVA = 11, GRAVEL = 13;
+    /* Vanilla Block.java: 10=flowing_lava, 11=lava still. Sea/oceans use Blocks.LAVA. */
+    static final int AIR = 0, GRASS = 2, DIRT = 3, BEDROCK = 7, FLOWING_LAVA = 10, LAVA = 11, GRAVEL = 13;
     static final int NETHERRACK = 87, SOUL_SAND = 88;
     static final int SEA_LEVEL = 63;
 

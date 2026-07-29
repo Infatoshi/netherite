@@ -246,16 +246,20 @@ chamber is lit in both panes (t=216, t=280 SBS).
 Still open on that tape (170 frames): fire/lava ANIMATION phase and the
 lightmap around them, plus the pre-existing viewmodel/HUD classes.
 
-Newly found, separately scoped: `nf_to_vanilla` in
-`c/mc-sim/core/nether_full.h` maps `CPN_LAVA`(10) -> vanilla 10 and
-`CPN_FLOWING_LAVA`(11) -> vanilla 11, but vanilla 1.11.2 is 10 =
-`flowing_lava`, 11 = `lava` (still) (`Block.java:2414-2415`), and
-ChunkProviderHell fills the sea with `Blocks.LAVA` (still). magma's generated
-Nether sea is therefore FLOWING lava: 123,556 of the new tape's patch cells
-are id-11 lava at y 24-31. The nether_full golden is a self-capture of the C
-kernel, not a Java oracle, so nothing caught it. Not fixed here (it needs a
-regenerated golden and an mc-sim gate pass); the snapshot patch masks it in
-replay.
+### Magma's generated nether lava sea is FLOWING lava: FIXED (2026-07-29)
+
+Was: `CPN_LAVA=10` / `CPN_FLOWING_LAVA=11` in `chunk_provider_nether.h`, and
+`nf_to_vanilla` / `npm_cpn_to_vanilla` identity-mapped those wrong numbers.
+Vanilla 1.11.2 is 10=`flowing_lava`, 11=`lava` still (`Block.java:2414-2415`);
+ChunkProviderHell prepareHeights/buildSurfaces place `Blocks.LAVA` (still).
+Sea cells were therefore id-10 flowing; a portal tape's DIM-1 snapshot patch
+held 123,556 corrections of exactly this. nether_full golden was a C self-
+capture so the gate never saw it.
+
+Fix: enum + remappers to vanilla order (`CPN_FLOWING_LAVA=10`, `CPN_LAVA=11`);
+verbatim Java golden constants for chunk_provider_nether; nether_full golden
+regenerated (seed 7: 2523 cells 10->11 only; seed 49: 1132). Fortress
+`FT_LAVA=10` stays (StructureNetherBridgePieces uses `Blocks.FLOWING_LAVA`).
 
 ### Eye-in-fluid overlay timing: CLOSED (root-caused 2026-07-29)
 
