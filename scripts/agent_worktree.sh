@@ -39,11 +39,14 @@ echo "linked $n tapes/ entries"
 
 # Generated asset headers (bootstrap_assets.sh output).
 a=0
+# COPY (not symlink): make's regeneration rules stat these against sources
+# and a symlink's target mtime makes it try to rebuild them, which fails
+# without a jar in the worktree (found by the blazeglow agent 2026-07-29).
 for e in "$ROOT"/c/magma/assets/*.h; do
     [ -e "$e" ] || continue
     t="$WT/c/magma/assets/$(basename "$e")"
     [ -e "$t" ] && continue
-    ln -s "$e" "$t"; a=$((a+1))
+    cp -p "$e" "$t"; a=$((a+1))
 done
 echo "linked $a generated asset headers"
 
