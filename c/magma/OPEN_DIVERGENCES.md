@@ -182,34 +182,18 @@ uv run --no-project --with numpy --with scipy --with pillow --with nbt \
   --cpu --report
 ```
 
-### Double-height plants render as solid tinted slabs — FIXED
+### Double-height plants render as solid tinted slabs
 
-Found 2026-07-29 on `scenario_scenic_walk_20260729T063050Z`; fixed on
-`wt/doubleplant`. Root cause was the double_plant model table, not cutout
-raster:
-
-- Only grass lower / fern lower / grass upper had CROSS entries; other
-  EnumPlantType lowers collapsed to grass-bottom + biome grass tint
-  (flowers became solid-looking green crosses).
-- Upper half always used grass-top: meta only carries half+facing
-  (`BlockDoublePlant.getMetaFromState` / `getStateFromMeta`). Vanilla
-  `getActualState` copies VARIANT from the block below
-  (`BlockDoublePlant.java:275-287`); magma never did, so every upper was
-  grass-top + grass tint.
-- Tint: only GRASS/FERN take biome color
-  (`BlockColors.java:37-41`, sample at `pos.down()` for the upper half);
-  flowers use plain `cross` (no tintindex). Magma tinted everything grass.
-- Atlas lacked sunflower / syringa / rose / paeonia textures.
-
-Fix: per-type lower CROSS models + `bm_dplant_upper(type)` resolved at mesh
-time from the lower half; grass/fern upper tint at `wy-1`; sunflower upper
-half-height cross + face plane (`double_sunflower_top.json`). Citations in
-the commit message.
-
-Scenic t=80 residual is multi-factor (fast-graphics solid leaves, viewmodel,
-HUD) and barely moves with this fix (~10.3/ch before and after). The
-double-plant path itself is verified by a placed lilac/rose/peony/grass
-scene (colored cutout crosses, not green slabs).
+UPDATE 2026-07-29 overnight: the double_plant model mapping (upper-half
+meta quirk, per-type tint) was fixed and passes the 90 model-oracle
+contracts, but the VISIBLE bug persists and is texture, not geometry:
+on scenic_walk t=80 magma draws the plant cross-quads as FLAT
+biome-tint-colored rectangles (no texture detail) where the oracle has
+textured tufts - a plant-texture sampling failure (atlas uv resolving to
+a solid?), affecting tallgrass-family quads en masse in this forest
+scene (mean 10.3/ch center cluster). Triptych evidence:
+/home/infatoshi/dev/nw/.tmp/dp/scenic_t80_golden_before_after.png.
+Being chased by a dedicated agent (plant texture sampling).
 
 ### Nether arrival: fire/lava content missing from the replayed world
 
