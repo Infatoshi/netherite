@@ -18,38 +18,38 @@
  "classes": {
   "hud": {
    "frames": 91,
-   "px": 137940,
+   "px": 137939,
    "max_cluster": 13061
   },
   "viewmodel": {
    "frames": 87,
-   "px": 212493,
+   "px": 208566,
    "max_cluster": 14924
   },
   "UNEXPLAINED": {
    "frames": 62,
-   "px": 113350,
+   "px": 111336,
    "max_cluster": 3037
   },
   "particles": {
    "frames": 73,
-   "px": 154914,
+   "px": 138455,
    "max_cluster": 6706
   },
   "bossbar": {
    "frames": 26,
-   "px": 31694,
+   "px": 31688,
    "max_cluster": 1589
   },
   "known:4": {
    "frames": 12,
-   "px": 55686,
+   "px": 53678,
    "max_cluster": 5464
   },
   "known:1": {
    "frames": 1,
-   "px": 1264,
-   "max_cluster": 1001
+   "px": 1110,
+   "max_cluster": 850
   },
   "thinline": {
    "frames": 12,
@@ -188,7 +188,7 @@
    "unexplained_px": 0,
    "clusters": [],
    "mild_shift": {
-    "mean_abs": 6.961966924431514,
+    "mean_abs": 6.961775514891662,
     "pct_differing": 47.157568333205724,
     "low_thresh": 1,
     "residual_px": 52244,

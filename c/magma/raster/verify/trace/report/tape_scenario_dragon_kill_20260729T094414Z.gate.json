@@ -3,9 +3,6 @@
  "frames_checked": 0,
  "classes": {},
  "failed_frames": [],
- "missing_models": {},
- "missing_model_row_threshold": 4,
- "missing_model_failures": {},
  "state": {
   "kind": "state",
   "coverage": {

@@ -27,23 +27,23 @@
    "max_cluster": 11826
   },
   "known:39": {
-   "frames": 4,
-   "px": 673,
-   "max_cluster": 251
+   "frames": 2,
+   "px": 360,
+   "max_cluster": 182
   },
   "UNEXPLAINED": {
-   "frames": 3,
-   "px": 413,
+   "frames": 2,
+   "px": 286,
    "max_cluster": 204
   },
   "bossbar": {
    "frames": 21,
-   "px": 36097,
+   "px": 34449,
    "max_cluster": 1242
   },
   "particles": {
    "frames": 21,
-   "px": 56695,
+   "px": 56971,
    "max_cluster": 3989
   }
  },
