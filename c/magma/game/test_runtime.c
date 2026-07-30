@@ -150,6 +150,27 @@ int main(void) {
               "oracle entity pose/state survives runtime without inference");
         gm_runtime_ent_views_clear(&r);
     }
+    {
+        GmEntityView fireball; memset(&fireball,0,sizeof fireball);
+        fireball.type=GM_VIEW_DRAGON_FIREBALL;fireball.item_id=385;
+        fireball.item_meta=2;fireball.ent_id=3578;
+        fireball.x=(float)(r.player.ent.posX+r.ox)+1;
+        fireball.y=(float)r.player.ent.posY+1;
+        fireball.z=(float)(r.player.ent.posZ+r.oz);
+        gm_runtime_ent_view(&r,&fireball);
+        gm_runtime_ent_views_clear(&r);
+        gm_runtime_ent_view(&r,&fireball);
+        gm_runtime_ent_views_clear(&r);
+        gm_runtime_ent_views_clear(&r);
+        GmEntityView got[1];
+        CHECK(gm_runtime_ghost_views(&r,got,1)==1&&
+              got[0].type==GM_VIEW_EXPLOSION_LARGE&&got[0].ent_id==3578&&
+              got[0].age==1,
+              "nearby large-fireball removal latches its impact particle");
+        gm_runtime_ent_views_clear(&r);
+        CHECK(gm_runtime_ghost_views(&r,got,1)==0,
+              "large-fireball impact latch is limited to its anchored puff");
+    }
 
     /* Pin a naturally exposed iron vein for the next binary progression tape. */
     int iron_found=0, iron_x=0, iron_y=0, iron_z=0;

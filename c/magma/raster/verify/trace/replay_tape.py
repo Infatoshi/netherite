@@ -49,7 +49,7 @@ MODELED_ENTITY_TYPES = frozenset({
     "EntityMinecartTNT", "EntityDragon", "EntityArrow",
     "EntityTippedArrow", "EntitySpectralArrow", "EntityEnderCrystal",
     "EntityEnderPearl", "EntityEnderEye", "EntitySnowball", "EntityEgg",
-    "EntitySmallFireball", "EntityDragonFireball",
+    "EntitySmallFireball", "EntityLargeFireball", "EntityDragonFireball",
     "EntityArmorStand",
     "EntityXPOrb",
     "EntityFallingBlock",
@@ -95,6 +95,37 @@ def sgn(v):
     return 1 if v > 1e-6 else (-1 if v < -1e-6 else 0)
 
 
+def movement_uses_new_look(row, prev, old_yaw):
+    """Infer whether a mid-walk look change preceded this tick's movement."""
+    if prev is None or "pvel" in row or "ppos" in row:
+        return False
+    i = row["in"]
+    forward, strafe = float(i["f"]), float(i["s"])
+    if not (sgn(forward) or sgn(strafe)):
+        return False
+    # Remove last tick's post-friction motion from this tick's displacement.
+    # The remainder is the yaw-rotated input acceleration, so its direction
+    # distinguishes an old-yaw move from a same-tick mouse turn without
+    # guessing the block's acceleration magnitude.
+    ax = float(row["x"]) - float(prev["x"]) - float(prev["vx"])
+    az = float(row["z"]) - float(prev["z"]) - float(prev["vz"])
+    if ax * ax + az * az < 1e-8:
+        return False
+
+    def residual(yaw):
+        yr = math.radians(float(yaw))
+        ex = strafe * math.cos(yr) - forward * math.sin(yr)
+        ez = forward * math.cos(yr) + strafe * math.sin(yr)
+        norm = ex * ex + ez * ez
+        scale = max(0.0, (ax * ex + az * ez) / norm)
+        dx, dz = ax - scale * ex, az - scale * ez
+        return dx * dx + dz * dz
+
+    old_error = residual(old_yaw)
+    new_error = residual(row["yaw"])
+    return new_error < old_error * 0.25
+
+
 # Ghost pushers: recorded oracle entities become ent_box events so magma can
 # apply the vanilla applyEntityCollision player push (mobs=off replays have no
 # pushers otherwise; found at tick 1471 of the fresh-world tape, sheep push).
@@ -106,7 +137,8 @@ NONPUSHABLE = {"EntityItem", "EntityXPOrb", "EntityArrow", "EntityTippedArrow",
                "EntityEnderEye", "EntitySnowball", "EntityEgg", "EntityPotion",
                "EntityExpBottle", "EntityFallingBlock", "EntityTNTPrimed",
                "EntityLightningBolt", "EntityAreaEffectCloud",
-               "EntityFireball", "EntitySmallFireball", "EntityWitherSkull",
+               "EntityFireball", "EntitySmallFireball", "EntityLargeFireball",
+               "EntityWitherSkull",
                "EntityDragonFireball", "EntityShulkerBullet",
                "EntityItemFrame", "EntityPainting", "EntityArmorStand",
                "EntityEnderCrystal", "EntityLeashKnot"}
@@ -638,7 +670,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
         # row and extrapolate for the rest of the session.
         pf_anchor = next(((int(r["t"]), int(r["portal_frame"]))
                           for r in ticks if "portal_frame" in r), None)
-        for row in ticks:
+        for row_index, row in enumerate(ticks):
             t = row["t"]
             if pending_elytra is not None:
                 f.write(json.dumps({"tick": t, "type": "set_elytra",
@@ -675,8 +707,12 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
             move_now = bool(sgn(i["f"]) or sgn(i["s"]))
             look_changed = (float(row["yaw"]) != last_yaw
                             or float(row["pitch"]) != last_pitch)
-            look_type = ("set_look_pre" if move_now and not last_move
-                         and look_changed else "set_look")
+            prev_row = ticks[row_index - 1] if row_index else None
+            look_before_move = (
+                move_now and look_changed and
+                (not last_move or
+                 movement_uses_new_look(row, prev_row, last_yaw)))
+            look_type = "set_look_pre" if look_before_move else "set_look"
             f.write(json.dumps({"tick": t, "type": look_type,
                                 "yaw": row["yaw"], "pitch": row["pitch"]}) + "\n")
             # Authoritative SPacketEntityVelocity delivered to the local

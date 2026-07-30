@@ -13,6 +13,10 @@
 extern "C" {
 #endif
 
+#ifndef GM_VIEW_EXPLOSION_LARGE
+#define GM_VIEW_EXPLOSION_LARGE 39
+#endif
+
 /* GmEntityView matches game/game.h exactly (POD). Redeclared here (guarded) so
  * this module compiles without game.h; game.h defines the same layout. */
 #ifndef MAGMA_GAME_H

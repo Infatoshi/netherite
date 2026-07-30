@@ -807,13 +807,111 @@ void gm_runtime_ent_view(GmRuntime *r, const GmEntityView *view) {
 }
 
 void gm_runtime_ent_views_clear(GmRuntime *r) {
-    if (r) r->nghost_views = 0;
+    if (!r) return;
+
+    for (int i = 0; i < GM_RUNTIME_FIREBALL_TRACKS; ++i)
+        if (r->tape_fireball_impacts[i].active &&
+            ++r->tape_fireball_impacts[i].age >= 2)
+            r->tape_fireball_impacts[i].active = 0;
+
+    struct { int ent_id; float x, y, z, dx, dy, dz; }
+        current[GM_RUNTIME_FIREBALL_TRACKS];
+    int ncurrent = 0;
+    for (int i = 0; i < r->nghost_views &&
+                    ncurrent < GM_RUNTIME_FIREBALL_TRACKS; ++i) {
+        const GmEntityView *v = &r->ghost_views[i];
+        if (v->type != GM_VIEW_DRAGON_FIREBALL || v->item_id != 385 ||
+            v->item_meta < 2)
+            continue;
+        current[ncurrent].ent_id = v->ent_id;
+        current[ncurrent].x = v->x;
+        current[ncurrent].y = v->y;
+        current[ncurrent].z = v->z;
+        current[ncurrent].dx = 0.0f;
+        current[ncurrent].dy = 0.0f;
+        current[ncurrent].dz = 0.0f;
+        for (int j = 0; j < r->ntape_large_fireballs; ++j)
+            if (r->tape_large_fireballs[j].ent_id == v->ent_id) {
+                current[ncurrent].dx = v->x - r->tape_large_fireballs[j].x;
+                current[ncurrent].dy = v->y - r->tape_large_fireballs[j].y;
+                current[ncurrent].dz = v->z - r->tape_large_fireballs[j].z;
+                break;
+            }
+        ncurrent++;
+    }
+
+    for (int i = 0; i < r->ntape_large_fireballs; ++i) {
+        int present = 0;
+        for (int j = 0; j < ncurrent; ++j)
+            if (current[j].ent_id == r->tape_large_fireballs[i].ent_id) {
+                present = 1;
+                break;
+            }
+        if (present) continue;
+
+        /* The recorder keeps only its nearest entity window. A distant
+         * disappearance may only mean it fell outside that window; infer an
+         * impact only where the last position could affect the player view. */
+        double dx = (double)r->tape_large_fireballs[i].x -
+                    (r->player.ent.posX + r->ox);
+        double dy = (double)r->tape_large_fireballs[i].y -
+                    r->player.ent.posY;
+        double dz = (double)r->tape_large_fireballs[i].z -
+                    (r->player.ent.posZ + r->oz);
+        if (dx * dx + dy * dy + dz * dz > 64.0 ||
+            r->tape_hurt_time <= 0)
+            continue;
+        for (int j = 0; j < GM_RUNTIME_FIREBALL_TRACKS; ++j)
+            if (!r->tape_fireball_impacts[j].active) {
+                r->tape_fireball_impacts[j].active = 1;
+                r->tape_fireball_impacts[j].ent_id =
+                    r->tape_large_fireballs[i].ent_id;
+                r->tape_fireball_impacts[j].age = 1;
+                /* The removal packet reaches the client after the server-side
+                 * collision. Rewind the last client velocity by two samples
+                 * to recover the impact-side position instead of drawing the
+                 * puff behind the camera at the extrapolated removal pose. */
+                r->tape_fireball_impacts[j].x =
+                    r->tape_large_fireballs[i].x -
+                    2.0f * r->tape_large_fireballs[i].dx;
+                r->tape_fireball_impacts[j].y =
+                    r->tape_large_fireballs[i].y -
+                    2.0f * r->tape_large_fireballs[i].dy;
+                r->tape_fireball_impacts[j].z =
+                    r->tape_large_fireballs[i].z -
+                    2.0f * r->tape_large_fireballs[i].dz;
+                break;
+            }
+    }
+
+    r->ntape_large_fireballs = ncurrent;
+    for (int i = 0; i < ncurrent; ++i) {
+        r->tape_large_fireballs[i].ent_id = current[i].ent_id;
+        r->tape_large_fireballs[i].x = current[i].x;
+        r->tape_large_fireballs[i].y = current[i].y;
+        r->tape_large_fireballs[i].z = current[i].z;
+        r->tape_large_fireballs[i].dx = current[i].dx;
+        r->tape_large_fireballs[i].dy = current[i].dy;
+        r->tape_large_fireballs[i].dz = current[i].dz;
+    }
+    r->nghost_views = 0;
 }
 
 int gm_runtime_ghost_views(const GmRuntime *r, GmEntityView *out, int max) {
     if (!r) return 0;
     int n = r->nghost_views < max ? r->nghost_views : max;
     for (int i = 0; i < n; ++i) out[i] = r->ghost_views[i];
+    for (int i = 0; i < GM_RUNTIME_FIREBALL_TRACKS && n < max; ++i)
+        if (r->tape_fireball_impacts[i].active) {
+            GmEntityView *v = &out[n++];
+            memset(v, 0, sizeof *v);
+            v->type = GM_VIEW_EXPLOSION_LARGE;
+            v->x = r->tape_fireball_impacts[i].x;
+            v->y = r->tape_fireball_impacts[i].y;
+            v->z = r->tape_fireball_impacts[i].z;
+            v->ent_id = r->tape_fireball_impacts[i].ent_id;
+            v->age = r->tape_fireball_impacts[i].age;
+        }
     return n;
 }
 

@@ -661,6 +661,8 @@ int gm_script_run(const GmConfig *cfg) {
                 if(view.type==GM_VIEW_BILLBOARD||
                    view.type==GM_VIEW_DRAGON_FIREBALL)
                     view.item_id=gm_entity_billboard_item(ent);
+                if(!strcmp(ent,"EntityLargeFireball"))
+                    view.item_meta=2; /* RenderFireball scale 2 + large fire layers */
                 view.x=(float)x;view.y=(float)y;view.z=(float)z;view.yaw=(float)yaw;
                 view.health=(float)hp;view.ent_id=(int)eid;
 #define OPT_I64(K,DST) do{if(field(&pending,K)){if(!as_i64(field(&pending,K),&n)){fprintf(stderr,"script:%ld: invalid ent_view %s\n",line_no,K);goto bad;}DST=(int)n;}}while(0)

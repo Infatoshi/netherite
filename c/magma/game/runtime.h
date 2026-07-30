@@ -18,6 +18,7 @@
 #define GM_RUNTIME_PROJECTILES 32
 #define GM_RUNTIME_GHOSTS 16
 #define GM_RUNTIME_GHOST_VIEWS 32  /* REC_ENT_MAX in the qrl recorder */
+#define GM_RUNTIME_FIREBALL_TRACKS 8
 /* Compat alias for tests that still reference the old fixed size. */
 #define GM_RUNTIME_CHESTS GM_RUNTIME_CHESTS_INITIAL
 typedef struct {int active,type,age;double x,y,z,vx,vy,vz;} GmRuntimeProjectile;
@@ -90,6 +91,14 @@ typedef struct GmRuntime {
      * loop clears this at the top of every tick. */
     GmEntityView ghost_views[GM_RUNTIME_GHOST_VIEWS];
     int nghost_views;
+    /* Tape rows carry a nearby EntityLargeFireball removal but not its
+     * SPacketExplosion. Retain enough trajectory to reconstruct the first
+     * renderable ParticleExplosionLarge puff on a player-hit removal. */
+    struct { int ent_id; float x, y, z, dx, dy, dz; }
+        tape_large_fireballs[GM_RUNTIME_FIREBALL_TRACKS];
+    int ntape_large_fireballs;
+    struct { int active, ent_id, age; float x, y, z; }
+        tape_fireball_impacts[GM_RUNTIME_FIREBALL_TRACKS];
     /* Tape-replay open GUI screen (divergence #9): render-only. When set,
      * frame capture draws gm_screen_draw after the HUD using this container
      * kind + ScaledResolution mouse coords. Cleared each tick like ghost_views.
