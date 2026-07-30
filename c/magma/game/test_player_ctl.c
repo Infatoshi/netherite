@@ -287,10 +287,22 @@ int main(void)
     }
 
     /* ---------------- (F) BLOCK CALLBACK/COLLISION EDGE CASES ------------ */
-    printf("case F: slabs, trapdoors, slime, web, soul sand, fence vanilla mechanics\n");
+    printf("case F: cactus, slabs, trapdoors, slime, web, soul sand, fence vanilla mechanics\n");
     {
         McAABB blocks[PSV_MAX_BLOCKS];
         PsvAction idle; memset(&idle, 0, sizeof idle);
+
+        fill_mechanics_floor(win);
+        psv_set_block(win, 24, 3, 24, BLK_CACTUS);
+        McAABB cactus_query = mc_aabb_make(24.0, 3.0, 24.0, 25.0, 4.0, 25.0);
+        int ncactus = psv_collect_blocks(win, &cactus_query, blocks, PSV_MAX_BLOCKS);
+        int cactus_ok = 0;
+        for (int i = 0; i < ncactus; ++i)
+            if (blocks[i].minX == 24.0625 && blocks[i].minY == 3.0 &&
+                blocks[i].minZ == 24.0625 && blocks[i].maxX == 24.9375 &&
+                blocks[i].maxY == 3.9375 && blocks[i].maxZ == 24.9375)
+                cactus_ok = 1;
+        CHECK(cactus_ok, "BlockCactus collision is inset 1/16 on X/Z and at the top");
 
         fill_mechanics_floor(win);
         set_block_meta(win, 24, 3, 24, BLK_STONE_SLAB, 0);

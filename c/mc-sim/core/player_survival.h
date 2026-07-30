@@ -242,10 +242,11 @@ MC_HD static inline void psv_add_stairs_collision(int x, int y, int z, int meta,
 }
 
 /* Collect vanilla block collision AABBs over the motion broadphase. Web is
- * pass-through, slabs preserve their metadata half, stairs use their
- * metadata-oriented two-box straight shape, trapdoors use their 3/16 panel
- * pose, soul sand is 7/8 tall, fences are multipart and 1.5 tall, and walls
- * use the connection-state union box with collision maxY 1.5. */
+ * pass-through, cactus is inset 1/16 on X/Z and at the top, slabs preserve
+ * their metadata half, stairs use their metadata-oriented two-box straight
+ * shape, trapdoors use their 3/16 panel pose, soul sand is 7/8 tall, fences
+ * are multipart and 1.5 tall, and walls use the connection-state union box
+ * with collision maxY 1.5. */
 MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *query,
                                            McAABB *blocks, int maxblocks) {
     int n = 0;
@@ -261,7 +262,11 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
             for (int z = z0; z <= z1; ++z) {
                 int id = psv_get_block(chunks, x, y, z);
                 if (id == BLK_WEB || !psv_solid(id)) continue;
-                if (id == BLK_TRAPDOOR) {
+                if (id == BLK_CACTUS) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.0625, y, z + 0.0625,
+                                     x + 0.9375, y + 0.9375, z + 0.9375));
+                } else if (id == BLK_TRAPDOOR) {
                     int meta = psv_get_meta(chunks, x, y, z);
                     double min_x = 0.0, min_y = 0.0, min_z = 0.0;
                     double max_x = 1.0, max_y = 1.0, max_z = 1.0;
