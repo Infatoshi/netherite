@@ -463,6 +463,7 @@ static const ErModel *er_model_for_type(int type) {
         case 22 /* GM_VIEW_ITEM */: return 0;    /* drawn by the item pass */
         case 30 /* GM_VIEW_BILLBOARD */: return 0; /* item pass (camera-facing) */
         case 38 /* GM_VIEW_FALLING_BLOCK */: return 0; /* gm_falling_blocks_emit */
+        case 39 /* GM_VIEW_EXPLOSION_LARGE */: return 0; /* particle pass */
         case ER_TYPE_DRAGON_FIREBALL: return 0; /* dedicated item-atlas billboard */
         case ER_TYPE_ZOMBIE:   return &M_ZOMBIE;
         case ER_TYPE_PIGMAN:   return &M_ZOMBIE; /* same biped; pigman skin via .skin */
@@ -1409,7 +1410,7 @@ int gm_entity_type_for_name(const char *name) {
          * both use RenderFireball + fire_charge particle icon. Live views mark
          * large shots via gm_entity_patch_large_fireballs (type morph). */
         { "EntitySmallFireball",  30 /* GM_VIEW_BILLBOARD */ },
-        { "EntityLargeFireball",  30 /* GM_VIEW_BILLBOARD; scale via patch */ },
+        { "EntityLargeFireball",  ER_TYPE_DRAGON_FIREBALL /* scale 2, fire_charge UV */ },
         { "EntityFireball",       30 /* GM_VIEW_BILLBOARD */ },
         /* RenderDragonFireball binds its own texture and scales the direct
          * camera-facing quad by 2.0. */
@@ -2708,6 +2709,19 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
     float cp = cosf(pr), sp = sinf(pr);
     int written = 0;
     for (int e = 0; e < n; ++e) {
+        if (ents[e].type == GM_VIEW_EXPLOSION_LARGE) {
+            unsigned seed = (unsigned)ents[e].ent_id * 1664525u + 99u;
+            int life = 6 + er_seed_i(&seed, 4);
+            /* The recorder does not carry ParticleManager's global Random
+             * cursor. Use a stable in-range tint for the single anchored puff;
+             * later random frames remain in the particle divergence class. */
+            float gray = 0.56f;
+            written += er_emit_explosion_large(
+                ents[e].x, ents[e].y, ents[e].z,
+                ents[e].age, life, 0.0f, gray, cy, sy, cp, sp,
+                out + written, max - written);
+            continue;
+        }
         if (ents[e].type == ER_TYPE_ENDERMAN) {
             /* EntityEnderman: 2 PORTAL/tick; maxAge ~40-50. Reconstruct cloud. */
             int count = 90;

@@ -132,6 +132,22 @@ def test_new_recorder_state_becomes_sorted_render_and_next_tick_events(tmp_path:
     )
 
 
+def test_large_fireball_is_modeled_and_never_becomes_a_ghost_pusher(tmp_path: Path):
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20,
+    }
+    fireball = [9, "EntityLargeFireball", 0.6, 70.5, 0.6, 0.0, -1.0]
+    ticks = [{"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0,
+              "z": 0.5, "yaw": 0.0, "pitch": 0.0, "ents": [fireball]}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert not any(event["type"] == "ent_box" for event in events)
+    assert replay_tape.skipped_renderable_counts(ticks) == {}
+
+
 def test_cached_snapshot_patch_is_applied_at_tick_zero(tmp_path: Path):
     tape = tmp_path / "sample.jsonl"
     (tmp_path / "sample_world" / "region").mkdir(parents=True)
@@ -383,6 +399,26 @@ def test_movement_start_uses_same_tick_look_change(tmp_path: Path):
     events = [json.loads(line) for line in script.read_text().splitlines()]
     assert {"tick": 0, "type": "set_look_pre", "yaw": 0.15,
             "pitch": -10.6} in events
+
+
+def test_midwalk_turn_uses_position_evidence_for_same_tick_look(tmp_path: Path):
+    header = {"header": 1, "seed": 0, "world_time": 6000,
+              "x": 0.0, "y": 64.0, "z": 0.0, "yaw": 1.8,
+              "pitch": 0.0, "hp": 20.0, "food": 20}
+    ticks = [
+        {"t": 0, "in": {"f": 0, "s": -1}, "x": -0.1, "y": 64.0,
+         "z": 0.0, "yaw": 1.8, "pitch": 0.0, "vx": -0.05, "vz": 0.0,
+         "hp": 20.0, "food": 20, "ents": []},
+        # displacement - previous velocity is exactly -X: yaw 0, not yaw 1.8
+        {"t": 1, "in": {"f": 0, "s": -1}, "x": -0.25, "y": 64.0,
+         "z": 0.0, "yaw": 0.0, "pitch": 0.0, "vx": -0.08, "vz": 0.0,
+         "hp": 20.0, "food": 20, "ents": []},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert {"tick": 1, "type": "set_look_pre", "yaw": 0.0,
+            "pitch": 0.0} in events
 
 
 def test_recorded_saturation_zero_switches_foodstats_branch(tmp_path: Path):

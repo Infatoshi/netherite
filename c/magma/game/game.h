@@ -163,6 +163,7 @@ typedef struct {
 #define GM_VIEW_BILLBOARD 30 /* thrown pearl/eye: camera-facing item sprite */
 #define GM_VIEW_DRAGON_FIREBALL 33 /* RenderDragonFireball direct 2x quad */
 #define GM_VIEW_FALLING_BLOCK 38 /* EntityFallingBlock full-size block model */
+#define GM_VIEW_EXPLOSION_LARGE 39 /* replay-only ParticleExplosionLarge */
 typedef struct {
     int   type;       /* EW_TYPE_* (zombie/skeleton/...) or GM_VIEW_ITEM */
     float x, y, z;    /* FEET position, world coords */

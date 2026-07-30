@@ -479,8 +479,8 @@ static void test_fireball_rays_particles(void) {
     gm_entity_restore_large_fireball_types(&solo, 1);
     CHECK(solo.type == 33, "restore returns large fireball type");
 
-    CHECK(gm_entity_type_for_name("EntityLargeFireball") == 30,
-          "EntityLargeFireball maps to billboard");
+    CHECK(gm_entity_type_for_name("EntityLargeFireball") == 33,
+          "EntityLargeFireball maps to scale-2 fireball billboard");
     CHECK(gm_entity_billboard_item("EntityLargeFireball") == 385,
           "EntityLargeFireball uses fire_charge particle icon");
 
