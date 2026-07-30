@@ -85,6 +85,17 @@ static void test_collision_barrier(void) {
     CHECK(gm_state_to_model_key(gm_pack_state(66, 0)) == 235, "rail reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(102, 0)) == 253,
           "glass pane reverse map");
+    for (int meta = 0; meta < 16; ++meta) {
+        uint16_t st = 0;
+        CHECK(gm_state_to_model_key(gm_pack_state(96, meta)) ==
+                  GM_MODEL_TRAPDOOR,
+              "trapdoor reverse map");
+        CHECK(gm_model_key_to_state(GM_MODEL_TRAPDOOR, meta, &st) ==
+                  GM_MAP_EXACT,
+              "trapdoor model key supported");
+        CHECK(gm_state_id(st) == 96 && gm_state_meta(st) == meta,
+              "trapdoor model key preserves metadata");
+    }
     CHECK(gm_state_to_model_key(gm_pack_state(112, 0)) == 228, "nether brick reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(165, 0)) == 229, "slime reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(30, 0)) == 230, "web reverse map");

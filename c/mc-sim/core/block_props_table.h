@@ -109,7 +109,7 @@ MC_HD static inline BptProps mc_bpt_props(int id) {
         case 90: d = (BptProps){ -1.0f, 11, 0, 0 }; break;
         case 91: d = (BptProps){ 1.0f, 15, 255, 1 }; break;
         case 92: d = (BptProps){ 0.5f, 0, 255, 1 }; break;
-        case 96: d = (BptProps){ 3.0f, 0, 255, 1 }; break;
+        case 96: d = (BptProps){ 3.0f, 0, 0, 1 }; break;
         case 98: d = (BptProps){ 1.5f, 0, 255, 1 }; break;
         case 99: d = (BptProps){ 0.2f, 0, 255, 1 }; break;
         case 100: d = (BptProps){ 0.2f, 0, 255, 1 }; break;

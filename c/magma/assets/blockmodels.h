@@ -81,7 +81,9 @@ enum {
      * (2=N 3=S 4=W 5=E). Not a TESR; lid angle is not meshed. */
     BM_KIND_CHEST,
     /* rail_flat.json: two-sided cutout plane at y=1/16 block. */
-    BM_KIND_RAIL
+    BM_KIND_RAIL,
+    /* wooden_trapdoor_{bottom,top,open}: metadata selects a 3/16 panel box. */
+    BM_KIND_TRAPDOOR
 };
 
 typedef struct {

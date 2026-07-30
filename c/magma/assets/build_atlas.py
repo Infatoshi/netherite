@@ -208,6 +208,8 @@ SPRITE_NAMES += [
 # BlockPane uses the glass texture for its faces and a separate two-pixel edge
 # texture for the post and connected-arm caps.
 SPRITE_NAMES += ["glass_pane_top"]
+# BlockTrapDoor's wooden model uses the legacy blocks/trapdoor texture.
+SPRITE_NAMES += ["trapdoor"]
 SPECIAL_SPRITE_PATHS = {
     "end_portal": "assets/minecraft/textures/entity/end_portal.png",
 }
