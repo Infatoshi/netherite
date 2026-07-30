@@ -38,7 +38,7 @@ OBJ_ASSETS = assets/blockmodels.o
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/item_render.o \
            game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
 
-.PHONY: all demo world game game-cuda test test-game test-launch test-config test-block-registry clean cuda test-raster-parity test-fog-radial
+.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry clean cuda test-raster-parity test-fog-radial
 all: demo
 
 # --- CUDA raster for the game (RTX 3090 / sm_86 on anvil GPU1) ---
@@ -115,6 +115,53 @@ cuda/raster_cuda_game.o: cuda/raster_cuda.cu core/types.h core/shade.c
 magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_game.o $(OBJ_GAME) $(OBJ_WORLD) \
               $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_LIBS)
+
+# Metal-accelerated game binary (macOS / Apple silicon only). Same seam shape
+# as game-cuda: game_main.c AND frame_capture.c recompile with -DMAGMA_METAL
+# (adds --backend metal and maps the frame-capture GPU calls onto the
+# cr_raster_metal_* mirrors), linked against the ObjC Metal host
+# (metal/raster_metal_host.m) plus the MSL kernel library
+# metal/raster_kernels.metallib (built via xcrun metal/metallib; loaded at
+# runtime by the host). Determinism: C objects keep -ffp-contract=off via
+# CFLAGS; the MSL compile pins -fno-fast-math (float discipline is documented
+# with the kernels). SDL2 comes from the sdl2-config/pkg-config discovery at
+# the top of this file (Homebrew path included).
+METALC   ?= xcrun -sdk macosx metal
+METALLIB ?= xcrun -sdk macosx metallib
+METAL_FRAMEWORKS = -framework Metal -framework Foundation -framework QuartzCore
+# Mach-O ld does not resolve absent weak refs to NULL on its own (see
+# CUDA_WEAK_LD above): allow every cr_raster_metal_* weak ref from
+# game/frame_capture_metal.o to stay undefined. Defined symbols make the
+# corresponding -U a no-op, so a full host implementation is unaffected.
+METAL_WEAK_LD = $(foreach s,pre into frame_begin frame_end post atlas_dirty \
+                  pin unpin render_layer sky frame_end_async frame_wait \
+                  slab_pool slab_sync slabs_reset render_gather render_terrain \
+                  uploads_mark uploads_wait,-Wl,-U,_cr_raster_metal_$(s)) \
+                -Wl,-U,_alloctrack_frame
+OBJ_GAME_METAL = $(patsubst game/frame_capture.o,game/frame_capture_metal.o,$(OBJ_GAME))
+# Fail fast off-macOS: everything below needs xcrun + the Metal frameworks.
+# The guard runs before any sub-make, so a Linux `make game-metal` dies with
+# one clear message instead of a wall of clang/xcrun errors.
+game-metal:
+	@if [ "$$(uname -s)" != "Darwin" ]; then \
+	  echo "error: game-metal builds only on macOS (needs xcrun + Metal frameworks); this host is $$(uname -s)" >&2; \
+	  exit 1; \
+	fi
+	$(MAKE) magma_game_metal
+app/game_main_metal.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
+game/frame_capture_metal.o: game/frame_capture.c game/frame_capture.h core/types.h game/game.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
+metal/raster_metal_host.o: metal/raster_metal_host.m core/types.h
+	$(CC) -x objective-c $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
+metal/raster_kernels.air: metal/raster_kernels.metal core/types.h
+	$(METALC) -fno-fast-math -Icore -I. -o $@ -c $<
+metal/raster_kernels.metallib: metal/raster_kernels.air
+	$(METALLIB) -o $@ $<
+magma_game_metal: app/game_main_metal.o metal/raster_metal_host.o $(OBJ_GAME_METAL) \
+              $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) \
+              $(OBJ_XFORM) $(OBJ_PRESENT) metal/raster_kernels.metallib
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(filter %.o,$^) -o $@ $(SDL_LIBS) $(LDLIBS) $(METAL_FRAMEWORKS) $(METAL_WEAK_LD)
 
 # ALLOCATE-ONCE alloc-tripwire build: magma_game with debug symbols (so the
 # trace/alloctrack.so summary offsets resolve via addr2line -e magma_game_dbg).
@@ -343,7 +390,8 @@ blaze_cuda_so: ../blaze/env/blaze_cuda.so
 	    ../blaze/env/blaze_snapshot.c -o $@
 
 clean:
-	rm -f magma_demo magma_world magma_game magma_game_dbg magma_game_cuda
+	rm -f magma_demo magma_world magma_game magma_game_dbg magma_game_cuda magma_game_metal
+	rm -f metal/raster_kernels.air metal/raster_kernels.metallib
 	rm -f ../blaze/env/blaze_verify ../blaze/env/blaze_cpu.so ../blaze/env/blaze_cuda.so
 	find . -name '*.o' -delete
 	find . -name '*.d' -delete

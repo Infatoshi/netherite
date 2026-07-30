@@ -26,6 +26,63 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#ifdef MAGMA_METAL
+/* Metal backend seam (magma_game_metal, game/frame_capture_metal.o): this file
+ * dispatches the GPU raster path through the cr_raster_cuda_* names below.
+ * Under -DMAGMA_METAL those names map onto their cr_raster_metal_* mirrors
+ * (identical signatures; metal/raster_metal_host.m), so every call site,
+ * NULL-check and CPU fallback stays textually identical across backends. */
+extern void cr_raster_metal_pre(int, int, int) __attribute__((weak));
+extern void cr_raster_metal_into(CrFramebuffer *, const CrScreenTri *, int,
+                                 const CrShadeCtx *) __attribute__((weak));
+extern void cr_raster_metal_frame_begin(const CrFramebuffer *) __attribute__((weak));
+extern void cr_raster_metal_frame_end(CrFramebuffer *) __attribute__((weak));
+extern void cr_raster_metal_post(void) __attribute__((weak));
+extern void cr_raster_metal_atlas_dirty(void) __attribute__((weak));
+extern void cr_raster_metal_pin(void *, size_t) __attribute__((weak));
+extern void cr_raster_metal_unpin(void *) __attribute__((weak));
+extern void cr_raster_metal_render_layer(CrFramebuffer *, const CrVertex *, int,
+                                         const CrCamera *, const CrShadeCtx *)
+    __attribute__((weak));
+extern void cr_raster_metal_sky(const GmSkyCtx *, const float *, int, int)
+    __attribute__((weak));
+extern int cr_raster_metal_frame_end_async(CrFramebuffer *, CrRgba *)
+    __attribute__((weak));
+extern void cr_raster_metal_frame_wait(void) __attribute__((weak));
+extern int cr_raster_metal_slab_pool(int, int) __attribute__((weak));
+extern void cr_raster_metal_slab_sync(int, int, const void *, int)
+    __attribute__((weak));
+extern void cr_raster_metal_slabs_reset(void) __attribute__((weak));
+extern void cr_raster_metal_render_gather(CrFramebuffer *, const int *,
+                                          const int *, int, int,
+                                          const CrCamera *, const CrShadeCtx *)
+    __attribute__((weak));
+extern void cr_raster_metal_render_terrain(CrFramebuffer *, const int *,
+                                           const int *, int, const int[4],
+                                           const CrCamera *, const CrShadeCtx *)
+    __attribute__((weak));
+extern void cr_raster_metal_uploads_mark(void) __attribute__((weak));
+extern void cr_raster_metal_uploads_wait(void) __attribute__((weak));
+#define cr_raster_cuda_pre             cr_raster_metal_pre
+#define cr_raster_cuda_into            cr_raster_metal_into
+#define cr_raster_cuda_frame_begin     cr_raster_metal_frame_begin
+#define cr_raster_cuda_frame_end       cr_raster_metal_frame_end
+#define cr_raster_cuda_post            cr_raster_metal_post
+#define cr_raster_cuda_atlas_dirty     cr_raster_metal_atlas_dirty
+#define cr_raster_cuda_pin             cr_raster_metal_pin
+#define cr_raster_cuda_unpin           cr_raster_metal_unpin
+#define cr_raster_cuda_render_layer    cr_raster_metal_render_layer
+#define cr_raster_cuda_sky             cr_raster_metal_sky
+#define cr_raster_cuda_frame_end_async cr_raster_metal_frame_end_async
+#define cr_raster_cuda_frame_wait      cr_raster_metal_frame_wait
+#define cr_raster_cuda_slab_pool       cr_raster_metal_slab_pool
+#define cr_raster_cuda_slab_sync       cr_raster_metal_slab_sync
+#define cr_raster_cuda_slabs_reset     cr_raster_metal_slabs_reset
+#define cr_raster_cuda_render_gather   cr_raster_metal_render_gather
+#define cr_raster_cuda_render_terrain  cr_raster_metal_render_terrain
+#define cr_raster_cuda_uploads_mark    cr_raster_metal_uploads_mark
+#define cr_raster_cuda_uploads_wait    cr_raster_metal_uploads_wait
+#else
 extern void cr_raster_cuda_pre(int, int, int) __attribute__((weak));
 extern void cr_raster_cuda_into(CrFramebuffer *, const CrScreenTri *, int,
                                 const CrShadeCtx *) __attribute__((weak));
@@ -57,6 +114,7 @@ extern void cr_raster_cuda_render_terrain(CrFramebuffer *, const int *,
     __attribute__((weak));
 extern void cr_raster_cuda_uploads_mark(void) __attribute__((weak));
 extern void cr_raster_cuda_uploads_wait(void) __attribute__((weak));
+#endif /* MAGMA_METAL */
 
 /* 2 x 4 rotating entity vert buffers: a frame emits entities, terrain items,
  * item-atlas geometry, then the post-render fire overlay (4 buffers), and the
@@ -71,7 +129,7 @@ struct GmFrameCapture {
     CrVertex *entity_verts[GM_FC_ENT_BUFS];
     unsigned char *ppm_buf; /* packed RGB scratch, one fwrite per frame */
     int max_tris, max_entity_verts;
-    int use_cuda;
+    int use_cuda;           /* GPU raster on (CUDA; Metal under MAGMA_METAL) */
     int dev_mesh;           /* terrain layers gathered from the device slab pool */
     const void *slab_world; /* world whose slabs the GPU pool currently mirrors */
     GmChunkDraw *chunks;    /* caps.mesh_slots entries (dev_mesh scratch) */
@@ -431,11 +489,19 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
         }
         npy_stamp_header(c->npy_f,0,c->fb.h,c->fb.w);
     }
+#ifdef MAGMA_METAL
+    c->use_cuda=cfg->backend==GM_BACKEND_METAL; /* use_cuda == "GPU raster on" */
+#else
     c->use_cuda=cfg->backend==GM_BACKEND_CUDA;
+#endif
     if(c->use_cuda){
         if(!cr_raster_cuda_pre||!cr_raster_cuda_into||!cr_raster_cuda_frame_begin||
            !cr_raster_cuda_frame_end||!cr_raster_cuda_post){
+#ifdef MAGMA_METAL
+            set_error(err,err_cap,"Metal frame capture unavailable in this binary");gm_frame_capture_close(c);return NULL;
+#else
             set_error(err,err_cap,"CUDA frame capture unavailable in this binary");gm_frame_capture_close(c);return NULL;
+#endif
         }
         cr_raster_cuda_pre(c->fb.w,c->fb.h,c->max_tris);
         /* device-resident chunk meshes: mirror world_live's slab pool on the
