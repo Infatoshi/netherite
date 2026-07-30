@@ -175,13 +175,10 @@ static const BmBlock g_blocks[CBX_MAX] = {
                     FULL6(CR_SPRITE_TORCH_ON, BM_TINT_NONE) },
     [CBX_RAIL] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_RAIL,
                    FULL6(CR_SPRITE_RAIL_NORMAL, BM_TINT_NONE) },
-<<<<<<< HEAD
     [CBX_TRAPDOOR] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_TRAPDOOR,
                        FULL6(CR_SPRITE_TRAPDOOR, BM_TINT_NONE) },
-=======
     [CBX_LADDER] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_LADDER,
                      FULL6(CR_SPRITE_LADDER, BM_TINT_NONE) },
->>>>>>> wt/ladderfix
     [CB_COARSE_DIRT] = CUBE6(CR_SPRITE_COARSE_DIRT, BM_TINT_NONE),
 
     /* ---- stone variants + ores + clay ---- */

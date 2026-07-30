@@ -148,12 +148,9 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         case 236: id = 46; break;                   /* TNT */
         case 253: id = 102; break;                  /* glass pane */
         case 254: id = 67; meta = raw_meta; break;  /* cobblestone stairs */
-<<<<<<< HEAD
         case GM_MODEL_TRAPDOOR:
             id = 96; meta = raw_meta; break;        /* oak trapdoor */
-=======
         case GM_MODEL_LADDER: id = 65; meta = raw_meta; break;
->>>>>>> wt/ladderfix
         default: break;
     }
 
