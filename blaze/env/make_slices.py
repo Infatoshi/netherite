@@ -18,7 +18,7 @@ import sys
 
 RL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rl")
 sys.path.insert(0, RL)
-sys.path.insert(0, os.path.join(RL, "blaze"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from ppo_coal import make_env, nearest_coal        # noqa: E402
 import chain_probe as cp                           # noqa: E402

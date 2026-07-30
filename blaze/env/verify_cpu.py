@@ -32,7 +32,7 @@ import sys
 RL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rl")
 MAGMA = os.path.join(os.path.dirname(os.path.dirname(RL)), "magma")
 BIN = os.path.join(MAGMA, "magma_game")
-SO = os.path.join(RL, "blaze", "blaze_cpu.so")
+SO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blaze_cpu.so")
 SNAPS = os.path.join(RL, "out", "snaps")
 
 TRAIN_SEEDS = [14, 16, 20, 27, 29, 32, 44, 46]

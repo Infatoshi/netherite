@@ -301,10 +301,17 @@ int main(void) {
     float ylo = 99.0f, yhi = 103.0f;
     int planks = CR_SPRITE_PLANKS_OAK;
 
-    /* --- SLAB: 1 box {0,0,0}-{16,8,16}, SOLID, 36 verts, pos+uv match kernel --- */
+    /* --- SLAB: 1 box {0,0,0}-{16,8,16}, SOLID, 36 verts, pos+uv match kernel.
+     * Side faces carry vanilla half_slab explicit UVs (bottom half samples
+     * V=8..16), not auto-UV (world/mesh_mc.c emit_slab). --- */
     {
         GList g = {0}; float from[3]={0,0,0}, to[3]={16,8,16};
-        golden_box(&g, xsl, TY, zsl, from, to, planks);
+        float full_uv[4] = {0.0f, 0.0f, 16.0f, 16.0f};
+        float side_uv[4] = {0.0f, 8.0f, 16.0f, 16.0f};
+        for (int f = 0; f < 6; ++f)
+            golden_face_custom(&g, xsl, TY, zsl, from, to, f,
+                               f >= BM_NORTH ? side_uv : full_uv,
+                               0, 3, 0.0f, NULL, 0, planks);
         int n = collect(&m, CR_LAYER_SOLID, xsl, zsl, ylo, yhi, got, 512);
         CHECK(n == 36, "slab: %d verts (want 36)", n);
         CHECK(multiset_eq(got, n, &g, 1), "slab: positions/uv do not match facebakery golden");
