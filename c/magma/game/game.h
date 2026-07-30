@@ -223,6 +223,12 @@ typedef struct {
      * the dragon's for the beam texture scroll and the crystal's for the beam
      * origin pulse). Recorded per entity; 0 when the tape predates the field. */
     int   ticks_existed;
+    /* EntityArmorStand saved render state. Armor slots hold vanilla item ids
+     * (feet, legs, chest, head). stand_flags: 1 ShowArms, 2 NoBasePlate,
+     * 4 Small. Zeroed legacy callers keep the default no-arms/base-plate
+     * stand and no armor layers. */
+    int   armor_feet, armor_legs, armor_chest, armor_head;
+    int   stand_flags;
 } GmEntityView;
 
 /* A block edit produced by the player tick, applied to the live world by app/main.c. */

@@ -166,6 +166,27 @@ static void test_geometry(void) {
     bounds(out, np, mn, mx);
     CHECK(mx[1] < 64.0f + 1.05f, "pig stays under ~1 block tall");
     CHECK(approx(mn[1], 64.0f, E), "pig feet on the ground");
+
+    GmEntityView stand = {0};
+    stand.type = 34;
+    stand.health = 20.0f;
+    CHECK(gm_entities_emit(&stand, 1, out, MAXV) == 8 * 36,
+          "default armor stand hides arms and keeps base plate");
+    stand.stand_flags = 1;
+    CHECK(gm_entities_emit(&stand, 1, out, MAXV) == 10 * 36,
+          "ShowArms armor stand emits both wooden arms");
+    stand.armor_head = 306;
+    stand.armor_chest = 307;
+    stand.armor_legs = 308;
+    stand.armor_feet = 309;
+    int na = gm_entities_emit(&stand, 1, out, MAXV);
+    CHECK(na == 20 * 36,
+          "fully equipped armor stand emits vanilla base plus ten armor boxes");
+    CHECK(out[10 * 36].uv.x >=
+              (float)CR_MOB_SPRITES[CR_MOB_IRON_LAYER_1].x0 / CR_MOB_ATLAS_W &&
+          out[10 * 36].uv.x <=
+              (float)CR_MOB_SPRITES[CR_MOB_IRON_LAYER_1].x1 / CR_MOB_ATLAS_W,
+          "armor stand chest samples iron layer-1 texture");
 }
 
 static void test_uvs(void) {
@@ -369,14 +390,14 @@ static void test_name_map(void) {
     CHECK(gm_entity_type_for_name("EntityMagmaCube") == 27, "EntityMagmaCube -> 27");
     CHECK(gm_entity_type_for_name("EntityMinecartEmpty") == 28,
           "EntityMinecartEmpty -> 28");
-    CHECK(gm_entity_type_for_name("EntityMinecartChest") == 39,
-          "EntityMinecartChest -> 39");
-    CHECK(gm_entity_type_for_name("EntityMinecartFurnace") == 40,
-          "EntityMinecartFurnace -> 40");
-    CHECK(gm_entity_type_for_name("EntityMinecartHopper") == 41,
-          "EntityMinecartHopper -> 41");
-    CHECK(gm_entity_type_for_name("EntityMinecartTNT") == 42,
-          "EntityMinecartTNT -> 42");
+    CHECK(gm_entity_type_for_name("EntityMinecartChest") == 40,
+          "EntityMinecartChest -> 40");
+    CHECK(gm_entity_type_for_name("EntityMinecartFurnace") == 41,
+          "EntityMinecartFurnace -> 41");
+    CHECK(gm_entity_type_for_name("EntityMinecartHopper") == 42,
+          "EntityMinecartHopper -> 42");
+    CHECK(gm_entity_type_for_name("EntityMinecartTNT") == 43,
+          "EntityMinecartTNT -> 43");
     /* skin-variant sprite overrides */
     CHECK(gm_entity_skin_for_name("EntityPigZombie") == CR_MOB_PIGMAN + 1,
           "EntityPigZombie skin -> pigman sprite");
