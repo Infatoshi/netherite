@@ -27,10 +27,14 @@ From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (magma + blaze),
 bit-verified against the real Java game, plus a batched CUDA RL env (blaze).
 Product name: **netherite**. Trees:
 
-- `java/` - playable Forge+Malmo/qrl client, launch scripts, oracle-src (bootstrap)
-- `magma/` - product C game + software rasterizer + RL
-- `blaze/` - simulation kernels (CPU == CUDA)
-- `java/render-opt/` - verified render kernels + JNI drop-ins (lab closed)
+- `java/` - the oracle: Forge+Malmo/qrl client, launch scripts, oracle-src
+  (bootstrap), render-opt kernel lab (closed)
+- `blaze/` - the simulation: reference CPU + production CUDA tick (CPU == CUDA),
+  batched RL env (`blaze/env/`) and trainers (`blaze/rl/`)
+- `magma/` - the playable fidelity tier: blaze's tick + software rasterizer
+- `verify/` - cross-stack harness: tapes, scenarios, gates, nightly sweep
+
+Glossary and naming rationale (incl. the blaze mob collision): `NAMES.md`.
 
 ## Where to read (stop when you have enough)
 
