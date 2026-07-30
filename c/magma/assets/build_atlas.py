@@ -3,10 +3,12 @@
 
 Run: uv run --no-project --with pillow python assets/build_atlas.py
 
-Unzips the needed 16x16 block textures from the client jar, stitches them into
-one square power-of-two atlas (16x16 grid of 16px tiles), and emits a generated
-C header assets/atlas_gen.h with the atlas bytes + a sorted sprite rect table.
-Animated textures (Nx(N*frames)) contribute only their first 16x16 frame.
+Unzips the needed block textures from the client jar, stitches them into one
+square power-of-two atlas, and emits a generated C header assets/atlas_gen.h
+with the atlas bytes + a sorted sprite rect table. Most sprites are 16x16;
+water_flow and lava_flow retain their native 32x32 frames because vanilla's
+BlockFluidRenderer addresses their full-resolution TextureAtlasSprites.
+Animated textures contribute only their first frame.
 Also dumps /tmp/magma_atlas.png for eyeballing.
 """
 import io
@@ -181,10 +183,11 @@ SPRITE_NAMES += ["end_portal"]
 SPECIAL_SPRITE_PATHS = {
     "end_portal": "assets/minecraft/textures/entity/end_portal.png",
 }
+NATIVE_FLOW_SPRITES = ("water_flow", "lava_flow")
 
 
 def load_sprite(zf, tmpdir, name):
-    """Extract one PNG, return a 16x16 RGBA Image (first frame if animated)."""
+    """Extract one PNG and return its first RGBA animation frame."""
     member = SPECIAL_SPRITE_PATHS.get(name, BLOCKS + name + ".png")
     if name in SPECIAL_SPRITE_PATHS:
         img = Image.open(io.BytesIO(zf.read(member))).convert("RGBA")
@@ -196,7 +199,11 @@ def load_sprite(zf, tmpdir, name):
     if h > w and h % w == 0:
         img = img.crop((0, 0, w, w))
         w, h = img.size
-    if (w, h) != (TILE, TILE):
+    if name in NATIVE_FLOW_SPRITES:
+        if (w, h) != (32, 32):
+            raise SystemExit("native flow sprite is not 32x32: %s is %r" %
+                             (name, (w, h)))
+    elif (w, h) != (TILE, TILE):
         img = img.resize((TILE, TILE), Image.NEAREST)
     return img
 
@@ -225,10 +232,20 @@ def main():
         with zipfile.ZipFile(JAR) as zf:
             for i, name in enumerate(SPRITE_NAMES):
                 spr = load_sprite(zf, tmpdir, name)
-                tx = (i % side_tiles) * TILE
-                ty = (i // side_tiles) * TILE
+                if name in NATIVE_FLOW_SPRITES:
+                    # Keep stable sprite indices while parking the two native
+                    # 32x32 frames in an unused atlas row. Their historical
+                    # 16x16 slots remain empty, so every other sprite keeps
+                    # the same coordinates.
+                    tx = NATIVE_FLOW_SPRITES.index(name) * 32
+                    ty = atlas_dim - 32
+                else:
+                    tx = (i % side_tiles) * TILE
+                    ty = (i // side_tiles) * TILE
+                    if ty + TILE > atlas_dim - 32:
+                        raise SystemExit("sprite grid overlaps native flow row")
                 atlas.paste(spr, (tx, ty))
-                rects.append((name, tx, ty, tx + TILE, ty + TILE))
+                rects.append((name, tx, ty, tx + spr.width, ty + spr.height))
 
     atlas.save(DUMP_PNG)
 

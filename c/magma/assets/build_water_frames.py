@@ -19,11 +19,11 @@ from mc_jar import find_jar
 JAR = find_jar()
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_H = os.path.join(HERE, "water_frames.h")
-TILE = 16
 SPECS = (
     "water_still", "water_flow", "lava_still", "lava_flow",
     "fire_layer_0", "fire_layer_1",
 )
+NATIVE_FLOW_SPRITES = {"water_flow", "lava_flow"}
 
 
 def macro(name: str) -> str:
@@ -46,28 +46,35 @@ def main():
             assert not meta.get("interpolate", False), (name, "interpolation")
             frame_time = int(meta.get("frametime", 1))
             sequence = [int(v) for v in meta.get("frames", range(count))]
+            frame_size = width if name in NATIVE_FLOW_SPRITES else 16
+            if name in NATIVE_FLOW_SPRITES and width != 32:
+                raise SystemExit(f"native flow sprite is not 32px: {name} is {width}")
             frames = []
             for physical in range(count):
                 tile = im.crop((0, physical * width, width,
                                 (physical + 1) * width))
-                if width != TILE:
-                    tile = tile.resize((TILE, TILE), Image.Resampling.NEAREST)
+                if width != frame_size:
+                    tile = tile.resize((frame_size, frame_size),
+                                       Image.Resampling.NEAREST)
                 frames.append(tile.tobytes())
-            animations.append((name, frame_time, sequence, frames))
+            animations.append((name, frame_time, sequence, frame_size, frames))
 
     with open(OUT_H, "w") as f:
         f.write("/* GENERATED vanilla block animation frames - DO NOT EDIT. */\n")
         f.write("#ifndef MAGMA_WATER_FRAMES_H\n#define MAGMA_WATER_FRAMES_H\n")
-        for name, frame_time, sequence, frames in animations:
+        for name, frame_time, sequence, frame_size, frames in animations:
             tag = macro(name)
             f.write(f"#define CR_{tag}_FRAMES {len(frames)}\n")
             f.write(f"#define CR_{tag}_FRAMETIME {frame_time}\n")
             f.write(f"#define CR_{tag}_SEQUENCE_LEN {len(sequence)}\n")
+            f.write(f"#define CR_{tag}_W {frame_size}\n")
+            f.write(f"#define CR_{tag}_H {frame_size}\n")
             f.write(f"static const unsigned char CR_{tag}_SEQUENCE"
                     f"[{len(sequence)}] = {{")
             f.write(", ".join(str(v) for v in sequence) + "};\n")
             f.write("static const unsigned char "
-                    f"CR_{tag}_RGBA[{len(frames)}][{TILE}*{TILE}*4] = {{\n")
+                    f"CR_{tag}_RGBA[{len(frames)}]"
+                    f"[{frame_size}*{frame_size}*4] = {{\n")
             for tile in frames:
                 f.write("  {\n")
                 for row in range(len(tile) // 32):

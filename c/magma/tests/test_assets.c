@@ -19,9 +19,10 @@ static int g_fail = 0;
 static int tile_equals(CrTexture atlas, int sprite, const unsigned char *rgba)
 {
     CrAtlasSprite s = CR_ATLAS_SPRITES[sprite];
-    for (int y = 0; y < 16; ++y) {
+    int w = s.x1 - s.x0, h = s.y1 - s.y0;
+    for (int y = 0; y < h; ++y) {
         const CrRgba *got = atlas.texels + (s.y0 + y) * atlas.w + s.x0;
-        if (memcmp(got, rgba + y * 16 * 4, 16 * sizeof(CrRgba)) != 0)
+        if (memcmp(got, rgba + y * w * 4, w * sizeof(CrRgba)) != 0)
             return 0;
     }
     return 1;
@@ -55,6 +56,12 @@ int main(void)
     CHECK(grass->face[BM_NORTH].sprite == CR_SPRITE_GRASS_SIDE, "grass side = grass_side");
     CHECK(water->layer == CR_LAYER_TRANSLUCENT, "water layer == TRANSLUCENT");
     CHECK(ice->layer == CR_LAYER_TRANSLUCENT, "ice layer == TRANSLUCENT");
+    CHECK(CR_ATLAS_SPRITES[CR_SPRITE_WATER_FLOW].x1 -
+          CR_ATLAS_SPRITES[CR_SPRITE_WATER_FLOW].x0 == 32,
+          "water_flow keeps native 32px width");
+    CHECK(CR_ATLAS_SPRITES[CR_SPRITE_LAVA_FLOW].y1 -
+          CR_ATLAS_SPRITES[CR_SPRITE_LAVA_FLOW].y0 == 32,
+          "lava_flow keeps native 32px height");
     CHECK(stone->is_full_cube == 1, "stone is_full_cube == 1");
     CHECK(stone->is_air == 0, "stone is_air == 0");
     CHECK(air->is_air == 1, "air is_air == 1");
