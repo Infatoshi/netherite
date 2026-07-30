@@ -369,14 +369,14 @@ static void test_name_map(void) {
     CHECK(gm_entity_type_for_name("EntityMagmaCube") == 27, "EntityMagmaCube -> 27");
     CHECK(gm_entity_type_for_name("EntityMinecartEmpty") == 28,
           "EntityMinecartEmpty -> 28");
-    CHECK(gm_entity_type_for_name("EntityMinecartChest") == 39,
-          "EntityMinecartChest -> 39");
-    CHECK(gm_entity_type_for_name("EntityMinecartFurnace") == 40,
-          "EntityMinecartFurnace -> 40");
-    CHECK(gm_entity_type_for_name("EntityMinecartHopper") == 41,
-          "EntityMinecartHopper -> 41");
-    CHECK(gm_entity_type_for_name("EntityMinecartTNT") == 42,
-          "EntityMinecartTNT -> 42");
+    CHECK(gm_entity_type_for_name("EntityMinecartChest") == 40,
+          "EntityMinecartChest -> 40");
+    CHECK(gm_entity_type_for_name("EntityMinecartFurnace") == 41,
+          "EntityMinecartFurnace -> 41");
+    CHECK(gm_entity_type_for_name("EntityMinecartHopper") == 42,
+          "EntityMinecartHopper -> 42");
+    CHECK(gm_entity_type_for_name("EntityMinecartTNT") == 43,
+          "EntityMinecartTNT -> 43");
     /* skin-variant sprite overrides */
     CHECK(gm_entity_skin_for_name("EntityPigZombie") == CR_MOB_PIGMAN + 1,
           "EntityPigZombie skin -> pigman sprite");
@@ -385,7 +385,7 @@ static void test_name_map(void) {
           "EntityXPOrb -> 21 (RenderXPOrb billboard)");
     CHECK(gm_entity_type_for_name("EntityFallingBlock") == 38,
           "EntityFallingBlock -> 38 (RenderFallingBlock full cube)");
-    CHECK(gm_entity_type_for_name("EntityTNTPrimed") == 39,
+    CHECK(gm_entity_type_for_name("EntityTNTPrimed") == 44,
           "EntityTNTPrimed -> primed TNT block pass");
     static const char *NEG[] = { "EntityItem", "EntityNoSuchThing" };
     for (unsigned i = 0; i < sizeof NEG / sizeof NEG[0]; ++i) {
