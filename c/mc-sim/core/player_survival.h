@@ -122,8 +122,12 @@ typedef struct {
     int   attack;
 } PsvAction;
 
-/* EntityPlayer.getEyeHeight: elytra flight or the 0.6F fall-flying pose uses 0.4F. */
+/* EntityPlayer.getEyeHeight: sneaking subtracts 0.08F from the standing
+ * 1.62F eye before the elytra/0.6F-pose branch; otherwise fall flight uses
+ * 0.4F. Keep the subtraction in float, as in Java. */
 MC_HD static inline double psv_player_eye_height(const PsvPlayer *pl) {
+    if (pl->prev_sneak)
+        return (double)((float)PSV_EYE_HEIGHT - 0.08f);
     return (pl->elytra_flying || pl->elytra_pose) ? (double)0.4f : PSV_EYE_HEIGHT;
 }
 

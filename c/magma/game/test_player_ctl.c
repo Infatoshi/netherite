@@ -461,6 +461,10 @@ int main(void)
               "standing eye height restored after elytra land");
         CHECK(land.ent.box.maxY - land.ent.box.minY == (double)1.8f,
               "standing height 1.8F after expand");
+        land.prev_sneak = 1;
+        CHECK(psv_player_eye_height(&land) == (double)(1.62f - 0.08f),
+              "sneaking eye height subtracts Java's 0.08F");
+        land.prev_sneak = 0;
 
         /* Jump-edge deploy from tape t54: freefall to t55, elytra travel to t56. */
         memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
