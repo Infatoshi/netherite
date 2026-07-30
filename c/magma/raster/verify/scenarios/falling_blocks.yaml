@@ -30,12 +30,17 @@ setup_commands:
   - /gamemode creative @p
   - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_shovel 1
 setup_qrl:
-  # Pin camera, place column, then settle so the client has chunk meshes
-  # before recstart (sky-only goldens on the prior take were empty settle).
+  # Phased tp-first: tp and world edits in ONE runcmds batch is the known
+  # qrl no-op failure mode (fills can silently miss). Land the player first,
+  # then build, then settle so chunk meshes exist before recstart.
   - cmd: runcmds
     action:
       cmds:
         - tp @p 0.5 4 0.5 0 20
+    settle_ticks: 20
+  - cmd: runcmds
+    action:
+      cmds:
         - setblock 0 4 3 minecraft:sand
         - fill 0 5 3 0 8 3 minecraft:sand
         - fill 0 9 3 0 12 3 minecraft:gravel
