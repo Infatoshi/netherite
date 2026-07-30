@@ -306,8 +306,11 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
     /* Entity flag 7 set by the server last tick arrives as metadata at the top
      * of this client tick, before EntityPlayerSP.onUpdate. See
      * PsvPlayer.elytra_flying_pending. */
-    if (pl->elytra_flying_pending) {
-        pl->elytra_flying = 1;
+    if (pl->elytra_flying_pending > 0) {
+        if (--pl->elytra_flying_pending == 0)
+            pl->elytra_flying = 1;
+    } else if (pl->elytra_flying_pending < 0) {
+        pl->elytra_flying = 0;
         pl->elytra_flying_pending = 0;
     }
 
@@ -719,9 +722,11 @@ use_done:
     int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
     psv_physics_tick(window, st, pl, &a, blocks);
 
+    if (elytra_was && pl->ent.onGround)
+        pl->elytra_flying_pending = -1;
     if (elytra_press && !elytra_was && pl->elytra_equipped && !water_pre &&
         elytra_can_start)
-        pl->elytra_flying_pending = 1;
+        pl->elytra_flying_pending = 2;
     pl->prev_jump = act.jump;
     /* EntityLivingBase.onUpdate increments ticksElytraFlying only when the
      * flag was true for this onUpdate. Activation is post-travel, so the
