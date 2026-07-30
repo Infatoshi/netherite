@@ -2047,6 +2047,11 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         float rad = (180.0f - ents[e].yaw) * ER_DEG2RAD;
         float cs = cosf(rad), sn = sinf(rad);
         float sc = m->scale > 0.0f ? m->scale : 1.0f;
+        /* RenderCaveSpider.preRenderCallback scales the shared ModelSpider
+         * uniformly to 70%; the skin override distinguishes it from a normal
+         * spider without adding a duplicate render type/model table entry. */
+        if (t == ER_TYPE_SPIDER && ents[e].skin == CR_MOB_CAVE_SPIDER + 1)
+            sc *= 0.7f;
         /* RenderSlime / RenderMagmaCube.preRenderCallback:
          *   RenderSlime also GlStateManager.scale(0.999) before size/squish.
          *   f2 = squish / (size*0.5+1); f3 = 1/(f2+1);
