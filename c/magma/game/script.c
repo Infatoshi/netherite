@@ -649,8 +649,10 @@ int gm_script_run(const GmConfig *cfg) {
                     "xp_value","xp_color",
                     /* Entity.ticksExisted (client): crystal-beam UV scroll and
                      * the beam-origin pulse (RenderDragon.renderCrystalBeams). */
-                    "ticks_existed"};
-                if(!keys_only(&pending,keys,39,err,sizeof err)||
+                    "ticks_existed",
+                    /* EntityArmorStand equipment + saved display flags. */
+                    "armor_feet","armor_legs","armor_chest","armor_head","stand_flags"};
+                if(!keys_only(&pending,keys,44,err,sizeof err)||
                    !as_string(field(&pending,"ent"),&ent)||
                    !as_double(field(&pending,"x"),&x)||!as_double(field(&pending,"y"),&y)||
                    !as_double(field(&pending,"z"),&z)||!as_double(field(&pending,"yaw"),&yaw)||
@@ -696,6 +698,9 @@ int gm_script_run(const GmConfig *cfg) {
                 OPT_DBL("anim_time",view.anim_time);OPT_I64("death_ticks",view.death_ticks);
                 OPT_I64("phase_id",view.phase_id);OPT_I64("stationary",view.stationary);
                 OPT_I64("ticks_existed",view.ticks_existed);
+                OPT_I64("armor_feet",view.armor_feet);OPT_I64("armor_legs",view.armor_legs);
+                OPT_I64("armor_chest",view.armor_chest);OPT_I64("armor_head",view.armor_head);
+                OPT_I64("stand_flags",view.stand_flags);
 #undef OPT_I64
 #undef OPT_DBL
                 int vt=view.type;
@@ -715,6 +720,12 @@ int gm_script_run(const GmConfig *cfg) {
                          view.fleece_color<0||view.fleece_color>15||
                          (view.flags&~15)||view.hurt_time<0||view.death_time<0){
                     fprintf(stderr,"script:%ld: invalid ent_view state\n",line_no);goto bad;
+                }else if(view.armor_feet<0||view.armor_feet>4095||
+                         view.armor_legs<0||view.armor_legs>4095||
+                         view.armor_chest<0||view.armor_chest>4095||
+                         view.armor_head<0||view.armor_head>4095||
+                         (view.stand_flags&~7)){
+                    fprintf(stderr,"script:%ld: invalid armor stand state\n",line_no);goto bad;
                 }else gm_runtime_ent_view(&r,&view);
             } else if (!strcmp(type,"gui_view")) {
                 /* Tape replay open container GUI (divergence #9): draw-only.

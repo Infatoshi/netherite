@@ -166,6 +166,27 @@ static void test_geometry(void) {
     bounds(out, np, mn, mx);
     CHECK(mx[1] < 64.0f + 1.05f, "pig stays under ~1 block tall");
     CHECK(approx(mn[1], 64.0f, E), "pig feet on the ground");
+
+    GmEntityView stand = {0};
+    stand.type = 34;
+    stand.health = 20.0f;
+    CHECK(gm_entities_emit(&stand, 1, out, MAXV) == 8 * 36,
+          "default armor stand hides arms and keeps base plate");
+    stand.stand_flags = 1;
+    CHECK(gm_entities_emit(&stand, 1, out, MAXV) == 10 * 36,
+          "ShowArms armor stand emits both wooden arms");
+    stand.armor_head = 306;
+    stand.armor_chest = 307;
+    stand.armor_legs = 308;
+    stand.armor_feet = 309;
+    int na = gm_entities_emit(&stand, 1, out, MAXV);
+    CHECK(na == 20 * 36,
+          "fully equipped armor stand emits vanilla base plus ten armor boxes");
+    CHECK(out[10 * 36].uv.x >=
+              (float)CR_MOB_SPRITES[CR_MOB_IRON_LAYER_1].x0 / CR_MOB_ATLAS_W &&
+          out[10 * 36].uv.x <=
+              (float)CR_MOB_SPRITES[CR_MOB_IRON_LAYER_1].x1 / CR_MOB_ATLAS_W,
+          "armor stand chest samples iron layer-1 texture");
 }
 
 static void test_uvs(void) {

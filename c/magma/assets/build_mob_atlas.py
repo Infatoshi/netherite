@@ -23,7 +23,8 @@ JAR = find_jar()
 ENTITY = "assets/minecraft/textures/entity/"
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_H = os.path.join(HERE, "mob_atlas.h")
-DUMP_PNG = "/tmp/magma_mob_atlas.png"
+DUMP_PNG = os.path.join(os.environ.get("TMPDIR", "/tmp"),
+                        "magma_mob_atlas.png")
 
 # (symbolic name, jar member relative to ENTITY). Sorted by name for a
 # deterministic sprite-index order (the CR_MOB_* defines).
@@ -84,6 +85,14 @@ MOB_SPRITES += [
 MOB_SPRITES += [
     ("endercrystal_beam", "endercrystal/endercrystal_beam.png"),  # 16x256
 ]
+# LayerBipedArmor textures used by armor stands. Keep append-only so every
+# existing CR_MOB_* index remains stable.
+MOB_SPRITES += [
+    ("iron_layer_1", "../models/armor/iron_layer_1.png"),
+    ("iron_layer_2", "../models/armor/iron_layer_2.png"),
+    ("diamond_layer_1", "../models/armor/diamond_layer_1.png"),
+    ("diamond_layer_2", "../models/armor/diamond_layer_2.png"),
+]
 
 
 def next_pow2(n):
@@ -129,7 +138,18 @@ def main():
             imgs.append((name, img))
 
     # shelf-pack at native size onto a pow2 canvas
-    order = sorted(range(len(imgs)), key=lambda i: (-imgs[i][1].height, imgs[i][0]))
+    # The first 36 sprites predate the armor layers and their packed positions
+    # are part of the generated-header stability contract. New append-only
+    # sprites pack after that stable prefix within each height.
+    stable_prefix = 36
+    order = sorted(
+        range(len(imgs)),
+        key=lambda i: (
+            -imgs[i][1].height,
+            0 if i < stable_prefix else 1,
+            imgs[i][0] if i < stable_prefix else i,
+        ),
+    )
     sizes = [(i, imgs[i][1].width, imgs[i][1].height) for i in order]
     canvas_w = next_pow2(max(w for _, w, _ in sizes) * 4)  # 4 skins per shelf
     pos, used_h = shelf_pack(sizes, canvas_w)

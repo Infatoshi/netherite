@@ -448,6 +448,128 @@ def snapshot_arrival_events(snapshot_patch, header, ticks, chunk_radius=1):
     return by_tick
 
 
+_ARMOR_ITEM_IDS = {
+    "minecraft:iron_helmet": 306,
+    "minecraft:iron_chestplate": 307,
+    "minecraft:iron_leggings": 308,
+    "minecraft:iron_boots": 309,
+    "minecraft:diamond_helmet": 310,
+    "minecraft:diamond_chestplate": 311,
+    "minecraft:diamond_leggings": 312,
+    "minecraft:diamond_boots": 313,
+}
+
+
+def snapshot_armor_stands(tape_path, header, ticks):
+    """Recover armor-stand equipment/display flags from the recstart save.
+
+    The 2026-07-30 recorder models EntityArmorStand pose rows but does not yet
+    append its equipment or ShowArms/NoBasePlate data. Those values are still
+    authoritative in the tape's recstart Anvil snapshot. Match each tape id by
+    its first recorded position and return render-only fields for ent_view.
+    """
+    first = {}
+    last_dim = int(header.get("dim", 0))
+    for row in ticks:
+        dimension = int(row.get("dim", last_dim))
+        last_dim = dimension
+        for ent in row.get("ents", []):
+            if len(ent) >= 5 and ent[1] == "EntityArmorStand":
+                first.setdefault(
+                    int(ent[0]),
+                    (dimension, float(ent[2]), float(ent[3]), float(ent[4])),
+                )
+    if not first or not tape_path:
+        return {}
+
+    from pathlib import Path
+    from nbt.region import RegionFile
+
+    root = Path(tape_path).with_suffix("")
+    root = root.with_name(root.name + "_world")
+    dim_regions = {
+        0: root / "region",
+        -1: root / "DIM-1" / "region",
+        1: root / "DIM1" / "region",
+    }
+    by_chunk = {}
+    for ent_id, (dimension, x, y, z) in first.items():
+        cx, cz = math.floor(x) // 16, math.floor(z) // 16
+        by_chunk.setdefault((dimension, cx, cz), []).append((ent_id, x, y, z))
+
+    recovered = {}
+    for (dimension, cx, cz), targets in by_chunk.items():
+        region_dir = dim_regions.get(dimension)
+        if region_dir is None:
+            continue
+        region_path = region_dir / f"r.{cx >> 5}.{cz >> 5}.mca"
+        if not region_path.is_file():
+            continue
+        try:
+            # nbt.RegionFile(filename=...) opens r+b even for a read. The save
+            # is an immutable tape input, so hand it an explicitly read-only
+            # file object instead.
+            with region_path.open("rb") as source:
+                region = RegionFile(fileobj=source)
+                chunk = region.get_chunk(cx & 31, cz & 31)
+                entities = chunk["Level"].get("Entities", [])
+                for saved in entities:
+                    if str(saved.get("id", "")) != "minecraft:armor_stand":
+                        continue
+                    pos = saved.get("Pos", [])
+                    if len(pos) != 3:
+                        continue
+                    sx, sy, sz = (float(tag.value) for tag in pos)
+                    match = next(
+                        (
+                            target
+                            for target in targets
+                            if abs(target[1] - sx) < 1e-4
+                            and abs(target[2] - sy) < 1e-4
+                            and abs(target[3] - sz) < 1e-4
+                        ),
+                        None,
+                    )
+                    if match is None:
+                        continue
+                    armor = []
+                    for stack in saved.get("ArmorItems", []):
+                        count = int(stack.get("Count").value) if "Count" in stack else 0
+                        name = str(stack.get("id", "")) if count > 0 else ""
+                        armor.append(_ARMOR_ITEM_IDS.get(name, 0))
+                    armor = (armor + [0, 0, 0, 0])[:4]
+                    show_arms = (
+                        int(saved.get("ShowArms").value)
+                        if "ShowArms" in saved
+                        else 0
+                    )
+                    no_base = (
+                        int(saved.get("NoBasePlate").value)
+                        if "NoBasePlate" in saved
+                        else 0
+                    )
+                    small = (
+                        int(saved.get("Small").value) if "Small" in saved else 0
+                    )
+                    recovered[match[0]] = {
+                        "armor_feet": armor[0],
+                        "armor_legs": armor[1],
+                        "armor_chest": armor[2],
+                        "armor_head": armor[3],
+                        "stand_flags": (
+                            (1 if show_arms else 0)
+                            | (2 if no_base else 0)
+                            | (4 if small else 0)
+                        ),
+                    }
+        except Exception as exc:
+            print(
+                f"[tape] WARNING: could not read armor-stand snapshot "
+                f"{region_path}: {exc}"
+            )
+    return recovered
+
+
 def tape_to_script(header, ticks, script_path, tape_path=None,
                    snapshot_override=None):
     """Emit the magma JSONL event script for this tape.
@@ -489,6 +611,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
         rt = int(r.get("tick", 0))
         for e in r.get("ents", []):
             first_seen.setdefault(int(e[0]), rt)
+    armor_stands = snapshot_armor_stands(tape_path, header, ticks)
     if tape_path and os.path.exists(tape_path + ".worldpatch.jsonl"):
         with open(tape_path + ".worldpatch.jsonl") as pf:
             patch = [(max(int(json.loads(ln).get("tick", 1)), 1), ln)
@@ -1009,6 +1132,8 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                 view = {"tick": t, "type": "ent_view", "ent": e[1],
                         "x": e[2], "y": e[3], "z": e[4], "yaw": e[5],
                         "hp": e[6], "id": e[0]}
+                if e[1] == "EntityArmorStand" and int(e[0]) in armor_stands:
+                    view.update(armor_stands[int(e[0])])
                 if "Arrow" in e[1] and len(e) >= 8:
                     # recorder appends rotationPitch for arrows (RenderArrow
                     # Rz tilt); 7-field rows from older tapes render flat.

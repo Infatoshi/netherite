@@ -434,12 +434,17 @@ static const ErModel M_MINECART = { .nparts = 6, .parts = {
     { CR_MOB_MINECART, 44, 10,  -9,-7,-1, 18,14,1,  0,22.1f, 0, -ER_PI/2.0f,0,0, 0,0 },
 } };
 
-/* ModelArmorStand: default summoned stand has no arms and keeps its base
- * plate. The four biped pieces here are head, body and the two 1-degree legs;
- * standRightSide/LeftSide/Waist/Base are the four remaining constructor boxes. */
-static const ErModel M_ARMOR_STAND = { .nparts = 8, .parts = {
+/* ModelArmorStand: biped wood pieces followed by standRightSide/LeftSide,
+ * standWaist and standBase. Arm visibility and base-plate visibility come
+ * from GmEntityView.stand_flags; the default pose constants are owned by
+ * EntityArmorStand, not ModelBiped's walk cycle. */
+static const ErModel M_ARMOR_STAND = { .nparts = 10, .parts = {
     { CR_MOB_ARMORSTAND,  0,  0, -1,-7,-1,  2, 7, 2,  0, 0,0,  0,0,0, 0,0 },
     { CR_MOB_ARMORSTAND,  0, 26, -6, 0,-1.5f, 12,3,3,  0, 0,0,  0,0,0, 0,0 },
+    { CR_MOB_ARMORSTAND, 24,  0, -2,-2,-1,  2,12,2, -5, 2,0,
+      -15.0f*ER_DEG2RAD,0, 10.0f*ER_DEG2RAD, 0,0 },
+    { CR_MOB_ARMORSTAND, 32, 16,  0,-2,-1,  2,12,2,  5, 2,0,
+      -10.0f*ER_DEG2RAD,0,-10.0f*ER_DEG2RAD, 0,1 },
     { CR_MOB_ARMORSTAND,  8,  0, -1, 0,-1,  2,11,2, -1.9f,12,0,
       ER_DEG2RAD,0,ER_DEG2RAD, 0,0 },
     { CR_MOB_ARMORSTAND, 40, 16, -1, 0,-1,  2,11,2,  1.9f,12,0,
@@ -449,6 +454,39 @@ static const ErModel M_ARMOR_STAND = { .nparts = 8, .parts = {
     { CR_MOB_ARMORSTAND,  0, 48, -4,10,-1,  8, 2,2,  0, 0,0,  0,0,0, 0,0 },
     { CR_MOB_ARMORSTAND,  0, 32, -6,11,-6, 12, 1,12, 0,12,0,  0,0,0, 0,0 },
 } };
+
+/* RenderArmorStand installs ModelArmorStandArmor(1.0) for layer 1 and
+ * ModelArmorStandArmor(0.5) for leggings/layer 2. These are the visible
+ * ModelBiped boxes for LayerBipedArmor's CHEST, LEGS, FEET, HEAD order. The
+ * sprite is replaced per equipped material immediately before emission. */
+static const ErPart ARMOR_CHEST_PARTS[] = {
+    { CR_MOB_IRON_LAYER_1, 16,16, -4, 0,-2, 8,12,4,  0,0,0,
+      0,0,0, 1.0f,0 },
+    { CR_MOB_IRON_LAYER_1, 40,16, -3,-2,-2, 4,12,4, -5,2,0,
+      -15.0f*ER_DEG2RAD,0, 10.0f*ER_DEG2RAD, 1.0f,0 },
+    { CR_MOB_IRON_LAYER_1, 40,16, -1,-2,-2, 4,12,4,  5,2,0,
+      -10.0f*ER_DEG2RAD,0,-10.0f*ER_DEG2RAD, 1.0f,1 },
+};
+static const ErPart ARMOR_LEGS_PARTS[] = {
+    { CR_MOB_IRON_LAYER_2, 16,16, -4,0,-2, 8,12,4,  0,0,0,
+      0,0,0, 0.5f,0 },
+    { CR_MOB_IRON_LAYER_2,  0,16, -2,0,-2, 4,12,4, -1.9f,11,0,
+       ER_DEG2RAD,0, ER_DEG2RAD, 0.5f,0 },
+    { CR_MOB_IRON_LAYER_2,  0,16, -2,0,-2, 4,12,4,  1.9f,11,0,
+      -ER_DEG2RAD,0,-ER_DEG2RAD, 0.5f,1 },
+};
+static const ErPart ARMOR_FEET_PARTS[] = {
+    { CR_MOB_IRON_LAYER_1, 0,16, -2,0,-2, 4,12,4, -1.9f,11,0,
+       ER_DEG2RAD,0, ER_DEG2RAD, 1.0f,0 },
+    { CR_MOB_IRON_LAYER_1, 0,16, -2,0,-2, 4,12,4,  1.9f,11,0,
+      -ER_DEG2RAD,0,-ER_DEG2RAD, 1.0f,1 },
+};
+static const ErPart ARMOR_HEAD_PARTS[] = {
+    { CR_MOB_IRON_LAYER_1,  0,0, -4,-8,-4, 8,8,8, 0,1,0,
+      0,0,0, 1.0f,0 },
+    { CR_MOB_IRON_LAYER_1, 32,0, -4,-8,-4, 8,8,8, 0,1,0,
+      0,0,0, 1.5f,0 },
+};
 
 /* Legacy marker box for unmodeled types (dragon/crystal/projectile...):
  * one 0.6x1.8x0.4 box wrapped with the whole zombie skin, as before. */
@@ -1715,6 +1753,68 @@ static CrRgba sheep_wool_tint(int meta, int hurt) {
     return c;
 }
 
+static int er_armor_sprite(int item_id, int layer) {
+    if (item_id >= 306 && item_id <= 309)
+        return layer == 2 ? CR_MOB_IRON_LAYER_2 : CR_MOB_IRON_LAYER_1;
+    if (item_id >= 310 && item_id <= 313)
+        return layer == 2 ? CR_MOB_DIAMOND_LAYER_2 : CR_MOB_DIAMOND_LAYER_1;
+    return -1;
+}
+
+static int er_armor_stand_box_count(const GmEntityView *v) {
+    int n = 0;
+    if (er_armor_sprite(v->armor_chest, 1) >= 0) n += 3;
+    if (er_armor_sprite(v->armor_legs, 2) >= 0) n += 3;
+    if (er_armor_sprite(v->armor_feet, 1) >= 0) n += 2;
+    if (er_armor_sprite(v->armor_head, 1) >= 0) n += 2;
+    return n;
+}
+
+static int er_emit_armor_parts(const ErPart *parts, int nparts, int sprite,
+                               float cs, float sn, float sc,
+                               float fx, float fy, float fz, CrRgba tint,
+                               float lv, float blk, float roll_c, float roll_s,
+                               CrVertex *out) {
+    int written = 0;
+    for (int i = 0; i < nparts; ++i) {
+        ErPart part = parts[i];
+        part.sprite = sprite;
+        written += emit_box(&part, cs, sn, sc, fx, fy, fz, tint, lv, blk,
+                            roll_c, roll_s, out + written);
+    }
+    return written;
+}
+
+static int er_emit_armor_stand_layers(const GmEntityView *v,
+                                      float cs, float sn, float sc,
+                                      float fx, float fy, float fz, CrRgba tint,
+                                      float lv, float blk,
+                                      float roll_c, float roll_s,
+                                      CrVertex *out) {
+    int written = 0;
+    int sprite = er_armor_sprite(v->armor_chest, 1);
+    if (sprite >= 0)
+        written += er_emit_armor_parts(
+            ARMOR_CHEST_PARTS, 3, sprite, cs, sn, sc, fx, fy, fz, tint,
+            lv, blk, roll_c, roll_s, out + written);
+    sprite = er_armor_sprite(v->armor_legs, 2);
+    if (sprite >= 0)
+        written += er_emit_armor_parts(
+            ARMOR_LEGS_PARTS, 3, sprite, cs, sn, sc, fx, fy, fz, tint,
+            lv, blk, roll_c, roll_s, out + written);
+    sprite = er_armor_sprite(v->armor_feet, 1);
+    if (sprite >= 0)
+        written += er_emit_armor_parts(
+            ARMOR_FEET_PARTS, 2, sprite, cs, sn, sc, fx, fy, fz, tint,
+            lv, blk, roll_c, roll_s, out + written);
+    sprite = er_armor_sprite(v->armor_head, 1);
+    if (sprite >= 0)
+        written += er_emit_armor_parts(
+            ARMOR_HEAD_PARTS, 2, sprite, cs, sn, sc, fx, fy, fz, tint,
+            lv, blk, roll_c, roll_s, out + written);
+    return written;
+}
+
 int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
     int written = 0;
     for (int e = 0; e < n; ++e) {
@@ -1736,6 +1836,8 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         const ErModel *m = er_model_for_type(ents[e].type);
         if (!m) continue;                            /* NONE / PLAYER */
         int need = m->nparts * ER_VERTS_PER_BOX;
+        if (ents[e].type == ER_TYPE_ARMOR_STAND)
+            need += er_armor_stand_box_count(&ents[e]) * ER_VERTS_PER_BOX;
         if (written + need > max) break;             /* would overflow -> stop */
 
         float fx = ents[e].x, fy = ents[e].y, fz = ents[e].z;
@@ -1815,7 +1917,8 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             if (t == ER_TYPE_LLAMA)      { h0 = 0; h1 = 3; }
             else if (t == ER_TYPE_BAT)   { h0 = 0; h1 = 2; }
             else if (t == ER_TYPE_WITCH || t == ER_TYPE_GHAST ||
-                     t == ER_TYPE_MAGMA || er_is_minecart(t)) {
+                     t == ER_TYPE_MAGMA || t == ER_TYPE_ARMOR_STAND ||
+                     er_is_minecart(t)) {
                 /* none */
             }
             else                         { h0 = 0; h1 = 0; }
@@ -1907,6 +2010,12 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             if (sq < 0.0f) sq = 0.0f;
             for (int p = 0; p < 8; ++p)
                 local[p].ry = -(float)(4 - p) * sq * 1.7f;
+        }
+        if (t == ER_TYPE_ARMOR_STAND && np >= 10) {
+            /* ModelArmorStand.setRotationAngles keeps the square plate fixed
+             * in world orientation by applying -entity.rotationYaw inside the
+             * renderer's outer (180-yaw) transform. */
+            local[9].ay = -ents[e].yaw * ER_DEG2RAD;
         }
 
         /* ModelSheep1/2.setLivingAnimations + setRotationAngles: head pitch and
@@ -2009,6 +2118,18 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
                     }
                 }
             }
+        } else if (t == ER_TYPE_ARMOR_STAND) {
+            for (int p = 0; p < np; ++p) {
+                if ((p == 2 || p == 3) && !(ents[e].stand_flags & 1))
+                    continue;
+                if (p == 9 && (ents[e].stand_flags & 2))
+                    continue;
+                written += emit_box(&local[p], cs, sn, sc, fx, fy, fz, tint,
+                                    lv, blk, roll_c, roll_s, out + written);
+            }
+            written += er_emit_armor_stand_layers(
+                &ents[e], cs, sn, sc, fx, fy, fz, tint, lv, blk,
+                roll_c, roll_s, out + written);
         } else {
             for (int p = 0; p < np; ++p)
                 written += emit_box(&local[p], cs, sn, sc, fx, fy, fz, tint,
