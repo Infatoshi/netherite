@@ -17,14 +17,14 @@
  "frames_checked": 198,
  "classes": {
   "viewmodel": {
-   "frames": 2,
-   "px": 3346,
-   "max_cluster": 2362
+   "frames": 1,
+   "px": 224,
+   "max_cluster": 62
   },
   "UNEXPLAINED": {
-   "frames": 86,
-   "px": 29134,
-   "max_cluster": 1139
+   "frames": 92,
+   "px": 35082,
+   "max_cluster": 2983
   },
   "hud": {
    "frames": 1,
@@ -32,9 +32,14 @@
    "max_cluster": 593
   },
   "particles": {
-   "frames": 107,
-   "px": 84250,
-   "max_cluster": 27075
+   "frames": 52,
+   "px": 31405,
+   "max_cluster": 5220
+  },
+  "known:40": {
+   "frames": 3,
+   "px": 13040,
+   "max_cluster": 4855
   }
  },
  "failed_frames": [],

@@ -629,6 +629,55 @@ command-block kill so the real onDeathUpdate plays; see the yaml):
   to recover, confirming the "~16px right" reading was pose error.
   Residual after t=270 is the death-ray/dissolve pass, tracked above.
 
+### Geared dragon-kill tape: the death clock desyncs (2026-07-29)
+
+`scenario_dragon_kill_geared_20260730T025316Z` is the same bow kill with a
+geared player, and after the burst rebuild above it failed the gate on two
+frames (t=454 4855 px, t=456 4258 px, both magma-brighter UNEXPLAINED). It is
+not a magma timing bug: **that recording's client and server death clocks are
+6 ticks apart, and the tape records only the client's.**
+
+Evidence, all from the tape's own frames:
+
+- The death rays agree exactly. `LayerEnderDragonDeath` is driven by
+  `deathTicks` through a fixed `Random(432L)`, so the spoke pattern is a
+  fingerprint of the render clock. Magma's t=454 rays vs the oracle's:
+  **IoU 0.900 at t=454 and 0.000 at 448, 450, 452, 456, 458, 460**. The
+  recorded `deathTicks` IS the client's render clock, including the
+  `(byte)(255*(1-f1))` alpha wrap that makes the dt-201 starburst.
+- The cloud does not. The oracle's explosion cloud drops the dense
+  `BossInfo` fog ramp (p90 33.7 grey -> 180.0 white, px>150 68 -> 3692)
+  between t=446 and t=448, i.e. at recorded `deathTicks` 195 - six ticks
+  before that same clock reaches 200. Particle brightness has no other
+  input: `ParticleExplosionLarge` hardcodes `lightmap(0, 240)` and
+  `explosion.png` is pure white with binary alpha, so only fog can move it.
+- Fog is server state (`DragonFightManager.processDragonDeath` ->
+  `setVisible(false)` at server `deathTicks` 200), so the server led the
+  client by 6 ticks here. On the synced recording
+  (`scenario_dragon_kill_20260729T110941Z`) both clocks coincide: white
+  cloud at t=462, recorded dt 201, one tick after the entity leaves the
+  tape.
+- Ruled out with measurements: `VALID_PLAYER` scoping (player stationary at
+  67.2 blocks, hp constant, never leaves the 192 sphere), launch profile
+  (both `fast`, `strip.overlays`), `MixinStripBossBar` (cancels
+  `renderBossHealth` only, BossInfo and its fog stay live), a row/frame skew
+  (geared t=448-452 match no original frame at any dt, MAE 16-19 vs ~2), and
+  a latch tick offset (magma's population crosses the oracle's between t=456
+  and t=460 rather than sitting at a constant sign).
+
+Nothing in the tape exposes the server clock: `processDragonDeath`'s only
+other observables are XP orbs and the gateway, and the recorder's entity
+whitelist logs neither. Magma therefore keeps snapping at the one server
+event the tape does expose (`deathTicks` 200 / entity removal), which is
+correct wherever the recording is synced. On this tape that puts magma's
+white-cloud window 6 ticks late, which flips the residual bright-puff
+placement mismatch - the unrecoverable `EntityDragon.rand` / `Particle.rand`
+offsets of divergence 40 - onto the magma-brighter side at t=454-458. Extent
+and decay still track (bright px 10571 vs 10535 at t=454, 4531 vs 4233 at
+456, 3804 vs 3876 at 460), so those three frames are filed in the tape's
+`known_divergences.json` sidecar as divergence 40, scoped to
+`[170, 280, 300, 460]` and ticks 454-458.
+
 ### Scenario tape pixel-gate failures (triaged, unfixed)
 
 Diagnosis only, from a delegated triage pass; the code claims below were

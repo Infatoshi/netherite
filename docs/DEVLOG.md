@@ -1029,3 +1029,20 @@ Fixed all three; the burst now matches the oracle in extent, brightness and
 decay, tape mean 0.2266 -> 0.1753/ch (55 frames better, 2 worse), particles
 class 51057 -> 26761 px, gate rc 0. Placement stays stochastic: the offsets
 come from `EntityDragon.rand`/`Particle.rand`, which no tape records.
+
+Geared dragon-kill tape (master, 2026-07-29): the follow-up tape
+`scenario_dragon_kill_geared_20260730T025316Z` failed the gate on two frames
+(t=454 4855 px, t=456 4258 px, magma-brighter) and read as "magma's burst runs
+a few ticks late". It is not a magma clock error. The oracle's own death rays
+are a fingerprint of the client render clock (fixed `Random(432L)`, count and
+length from deathTicks) and magma's spokes match the oracle's at IoU 0.900 at
+t=454, 0.000 at every neighbouring tick - so the recorded deathTicks IS the
+client's. Yet the oracle's cloud loses the BossInfo fog ramp at t=448, six
+ticks before that clock reaches 200, and particle brightness has no other
+input (`lightmap(0,240)` hardcoded, explosion.png pure white). The fog is
+server state (`processDragonDeath`), so the server led the client by 6 ticks
+in that recording; the synced tape has both clocks together. No tape field
+exposes the server clock (no XP orbs or gateway in the recorder whitelist), so
+the three affected frames are filed as divergence 40 in a per-tape
+`known_divergences.json`, with no code change: gate rc 0 on both dragon-kill
+tapes, original particles 26842 px and max unexplained cluster 3793.
