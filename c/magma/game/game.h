@@ -169,6 +169,7 @@ typedef struct {
 #define GM_VIEW_MINECART_FURNACE 41
 #define GM_VIEW_MINECART_HOPPER 42
 #define GM_VIEW_MINECART_TNT 43
+#define GM_VIEW_TNT_PRIMED 44 /* EntityTNTPrimed lifted/scaled TNT block */
 typedef struct {
     int   type;       /* EW_TYPE_* (zombie/skeleton/...) or GM_VIEW_ITEM */
     float x, y, z;    /* FEET position, world coords */

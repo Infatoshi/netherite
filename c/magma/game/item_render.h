@@ -34,10 +34,10 @@ extern "C" {
  * Returns vertex count written (<= max). */
 int gm_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 
-/* RenderFallingBlock (oracle-src RenderFallingBlock.java:32-74): full-size
- * block MODEL at the entity feet, using item_id/item_meta as the fallTile
- * block state. Terrain atlas; 36 verts per entity. Skips when item_id has no
- * block model. */
+/* RenderFallingBlock (oracle-src RenderFallingBlock.java:32-74) and
+ * RenderTNTPrimed: full-size block models at the entity feet. Falling blocks
+ * use item_id/item_meta as fallTile; primed TNT uses block 46 and applies the
+ * final-ten-fuse-ticks expansion. Terrain atlas; 36 verts per entity. */
 int gm_falling_blocks_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 
 /* RenderMinecart display tiles (chest/furnace/hopper/TNT), terrain atlas. */

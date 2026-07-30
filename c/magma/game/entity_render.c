@@ -468,6 +468,7 @@ static const ErModel *er_model_for_type(int type) {
         case 30 /* GM_VIEW_BILLBOARD */: return 0; /* item pass (camera-facing) */
         case 38 /* GM_VIEW_FALLING_BLOCK */: return 0; /* gm_falling_blocks_emit */
         case 39 /* GM_VIEW_EXPLOSION_LARGE */: return 0; /* particle pass */
+        case 44 /* GM_VIEW_TNT_PRIMED */: return 0; /* gm_falling_blocks_emit */
         case ER_TYPE_DRAGON_FIREBALL: return 0; /* dedicated item-atlas billboard */
         case ER_TYPE_ZOMBIE:   return &M_ZOMBIE;
         case ER_TYPE_PIGMAN:   return &M_ZOMBIE; /* same biped; pigman skin via .skin */
@@ -1437,6 +1438,8 @@ int gm_entity_type_for_name(const char *name) {
         { "EntityXPOrb",          ER_TYPE_XP_ORB },
         /* RenderFallingBlock: full-size block model (gm_falling_blocks_emit). */
         { "EntityFallingBlock",   38 /* GM_VIEW_FALLING_BLOCK */ },
+        /* RenderTNTPrimed: lifted TNT block model (gm_falling_blocks_emit). */
+        { "EntityTNTPrimed",      44 /* GM_VIEW_TNT_PRIMED */ },
     };
     if (!name) return -1;
     for (unsigned i = 0; i < sizeof MAP / sizeof MAP[0]; ++i)
@@ -1642,6 +1645,7 @@ int gm_entity_skin_for_name(const char *name) {
 float gm_entity_eye_y(int type) {
     switch (type) {
         case 38 /* GM_VIEW_FALLING_BLOCK */: return 0.49f; /* mid-block */
+        case 44 /* GM_VIEW_TNT_PRIMED */: return 0.49f; /* mid-block */
         case ER_TYPE_ZOMBIE:   return 1.74f;          /* EntityZombie override */
         case ER_TYPE_PIGMAN:   return 1.74f;
         case ER_TYPE_SKELETON: return 1.99f * 0.85f;

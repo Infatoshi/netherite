@@ -191,6 +191,9 @@ SPRITE_NAMES += ["ice_packed", "slime", "web"]
 # pack a 16x16 NEAREST downsample so the chunk mesh can tint multi-layer
 # UP-face quads with the same starfield source as the Java TESR.
 SPRITE_NAMES += ["end_portal"]
+# Primed TNT is rendered through RenderTNTPrimed rather than the chunk mesh,
+# but it samples the same three block textures from TextureMap.
+SPRITE_NAMES += ["tnt_bottom", "tnt_side", "tnt_top"]
 SPECIAL_SPRITE_PATHS = {
     "end_portal": "assets/minecraft/textures/entity/end_portal.png",
 }

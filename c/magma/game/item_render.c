@@ -59,6 +59,17 @@ static const struct { float shade; int c[4][3]; } IR_FACES[6] = {
     { 0.6f, { {0,0,0},{0,0,1},{0,1,1},{0,1,0} } },  /* BM_WEST  */
     { 0.6f, { {1,0,1},{1,0,0},{1,1,0},{1,1,1} } },  /* BM_EAST  */
 };
+/* FaceBakery's default auto-UV in IR_FACES corner order. UP and NORTH have a
+ * different corner rotation from the other four faces; using one shared map
+ * rotates their textures by 90 degrees (visible on primed TNT lettering). */
+static const float IR_FACE_UV[6][4][2] = {
+    { {0,1}, {1,1}, {1,0}, {0,0} }, /* DOWN  */
+    { {0,0}, {0,1}, {1,1}, {1,0} }, /* UP    */
+    { {1,1}, {1,0}, {0,0}, {0,1} }, /* NORTH */
+    { {0,1}, {1,1}, {1,0}, {0,0} }, /* SOUTH */
+    { {0,1}, {1,1}, {1,0}, {0,0} }, /* WEST  */
+    { {0,1}, {1,1}, {1,0}, {0,0} }, /* EAST  */
+};
 static const float IR_CUV[4][2] = { {0,1}, {1,1}, {1,0}, {0,0} };
 static const int   IR_TRI[6] = { 0, 1, 2, 0, 2, 3 };
 
@@ -264,8 +275,9 @@ int gm_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
  * (Entity.setPosition puts posY at the box minY). Face shades match mesh_mc /
  * item drops. */
 static int ir_emit_falling_cube(const BmBlock *m, const GmEntityView *ev,
-                                CrVertex *out) {
-    const float half = 0.5f;
+                                float scale, CrVertex *out) {
+    const float half = 0.5f * scale;
+    const float cy = ev->y + 0.5f;
     int written = 0;
     for (int f = 0; f < 6; ++f) {
         float u0, v0, u1, v1;
@@ -274,14 +286,14 @@ static int ir_emit_falling_cube(const BmBlock *m, const GmEntityView *ev,
         CrVertex quad[4];
         for (int c = 0; c < 4; ++c) {
             float lx = IR_FACES[f].c[c][0] ? half : -half;
-            float ly = IR_FACES[f].c[c][1] ? 1.0f : 0.0f;
+            float ly = IR_FACES[f].c[c][1] ? half : -half;
             float lz = IR_FACES[f].c[c][2] ? half : -half;
             CrVertex vtx;
             vtx.pos.x = ev->x + lx;
-            vtx.pos.y = ev->y + ly;
+            vtx.pos.y = cy + ly;
             vtx.pos.z = ev->z + lz;
-            vtx.uv.x = u0 + IR_CUV[c][0] * (u1 - u0);
-            vtx.uv.y = v0 + IR_CUV[c][1] * (v1 - v0);
+            vtx.uv.x = u0 + IR_FACE_UV[f][c][0] * (u1 - u0);
+            vtx.uv.y = v0 + IR_FACE_UV[f][c][1] * (v1 - v0);
             vtx.light = IR_FACES[f].shade;
             vtx.tint = tint;
             vtx.ao = 1.0f;
@@ -293,15 +305,54 @@ static int ir_emit_falling_cube(const BmBlock *m, const GmEntityView *ev,
     return written;
 }
 
+/* The recorder did not carry EntityTNTPrimed.fuse in this tape generation,
+ * but it does carry a monotonic ticksExisted reconstruction. Normalize that
+ * counter per entity: the first client-visible row is after one onUpdate, so
+ * the default fuse 80 renders as 79 there. */
+static int ir_tnt_fuse(const GmEntityView *ev) {
+    enum { TNT_TRACKED = 16 };
+    static struct { int id, first_ticks, used; } tracked[TNT_TRACKED];
+    int free_slot = -1;
+    for (int i = 0; i < TNT_TRACKED; ++i) {
+        if (tracked[i].used && tracked[i].id == ev->ent_id) {
+            int age = ev->ticks_existed - tracked[i].first_ticks + 1;
+            return 80 - (age > 0 ? age : 1);
+        }
+        if (!tracked[i].used && free_slot < 0) free_slot = i;
+    }
+    if (free_slot < 0) free_slot = (unsigned)ev->ent_id % TNT_TRACKED;
+    tracked[free_slot].used = 1;
+    tracked[free_slot].id = ev->ent_id;
+    tracked[free_slot].first_ticks = ev->ticks_existed;
+    return 79;
+}
+
 int gm_falling_blocks_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
     int written = 0;
     if (!ents || !out || max < IR_CUBE_VERTS) return 0;
     for (int e = 0; e < n; ++e) {
-        if (ents[e].type != GM_VIEW_FALLING_BLOCK) continue;
-        const BmBlock *m = ir_block_model(ents[e].item_id, ents[e].item_meta);
+        int id = ents[e].item_id;
+        int meta = ents[e].item_meta;
+        float scale = 1.0f;
+        if (ents[e].type == GM_VIEW_TNT_PRIMED) {
+            id = 46;
+            meta = 0;
+            int fuse = ir_tnt_fuse(&ents[e]);
+            if (fuse + 1 < 10) {
+                float swell = 1.0f - (float)(fuse + 1) / 10.0f;
+                if (swell < 0.0f) swell = 0.0f;
+                if (swell > 1.0f) swell = 1.0f;
+                swell *= swell;
+                swell *= swell;
+                scale = 1.0f + swell * 0.3f;
+            }
+        } else if (ents[e].type != GM_VIEW_FALLING_BLOCK) {
+            continue;
+        }
+        const BmBlock *m = ir_block_model(id, meta);
         if (!m || m->kind == BM_KIND_CROSS) continue; /* MODEL render type only */
         if (written + IR_CUBE_VERTS > max) break;
-        written += ir_emit_falling_cube(m, &ents[e], out + written);
+        written += ir_emit_falling_cube(m, &ents[e], scale, out + written);
     }
     return written;
 }

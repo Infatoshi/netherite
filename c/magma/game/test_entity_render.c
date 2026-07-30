@@ -385,6 +385,8 @@ static void test_name_map(void) {
           "EntityXPOrb -> 21 (RenderXPOrb billboard)");
     CHECK(gm_entity_type_for_name("EntityFallingBlock") == 38,
           "EntityFallingBlock -> 38 (RenderFallingBlock full cube)");
+    CHECK(gm_entity_type_for_name("EntityTNTPrimed") == 39,
+          "EntityTNTPrimed -> primed TNT block pass");
     static const char *NEG[] = { "EntityItem", "EntityNoSuchThing" };
     for (unsigned i = 0; i < sizeof NEG / sizeof NEG[0]; ++i) {
         char msg[96];

@@ -582,7 +582,20 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
         if (r >= 0) {
             int hit_id = psv_get_block(window, hx, hy, hz);
             int hit_meta = psv_get_meta(window, hx, hy, hz);
-            if (ib_is_interactable(hit_id)) {
+            ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
+            if (r == 1 && hit_id == 46 && held.item == 259) {
+                /* BlockTNT.onBlockActivated: flint and steel primes TNT and
+                 * removes the block itself. Tape replay supplies the recorded
+                 * EntityTNTPrimed view; do not also place fire next to it. */
+                psv_set_state(window, hx, hy, hz, BLK_AIR, 0);
+                held.meta++;
+                if (held.meta > 64)
+                    (void)isr_decr_stack_size(&pl->inv, pl->inv.current_item, 1);
+                else
+                    isr_set_stack(&pl->inv, pl->inv.current_item, held);
+                emit_edit(edits, &ne, max_edits, ox, oy, oz, hx, hy, hz,
+                          BLK_AIR, 0, 0, 0, 0);
+            } else if (ib_is_interactable(hit_id)) {
                 IbCase ic;
                 ic.block_id = hit_id;
                 ic.meta_in = hit_meta;
@@ -596,7 +609,6 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
                 }
             } else if (r == 1) {
                 /* place against hit face into air cell */
-                ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
                 if ((held.item==326||held.item==327) && psv_replaceable(psv_get_block(window,ax,ay,az))) {
                     int fluid=held.item==326?8:10;
                     psv_set_state(window,ax,ay,az,fluid,0);
