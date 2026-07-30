@@ -363,6 +363,36 @@ int main(void)
         psv_physics_tick(win, &st, &fence, &east, blocks);
         CHECK(fence.ent.posX == 3.074999988079071,
               "BlockFence 1.5-high arm clamps player center at x=3.075");
+
+        /* BlockStairs straight collision: metadata rotates the raised half,
+         * and bit 2 flips the slab and step vertically. */
+        fill_mechanics_floor(win);
+        {
+            int lx, lz, ci = psv_chunk_index(24, 24, &lx, &lz);
+            McAABB query = mc_aabb_make(24.0, 10.0, 24.0,
+                                        25.0, 11.0, 25.0);
+            for (int meta = 0; meta < 8; ++meta) {
+                mc_set(&win[ci], lx, 10, lz,
+                       mc_state(BLK_STONE_STAIRS, meta));
+                int nstairs = psv_collect_blocks(win, &query, blocks,
+                                                  PSV_MAX_BLOCKS);
+                CHECK(nstairs == 2, "BlockStairs emits slab + step AABBs");
+                CHECK(blocks[0].minY == (meta & 4 ? 10.5 : 10.0) &&
+                      blocks[0].maxY == (meta & 4 ? 11.0 : 10.5),
+                      "BlockStairs half metadata selects slab Y");
+                CHECK(blocks[1].minY == (meta & 4 ? 10.0 : 10.5) &&
+                      blocks[1].maxY == (meta & 4 ? 10.5 : 11.0),
+                      "BlockStairs half metadata selects step Y");
+                if ((meta & 3) == 0)
+                    CHECK(blocks[1].minX == 24.5, "east stair raises east half");
+                else if ((meta & 3) == 1)
+                    CHECK(blocks[1].maxX == 24.5, "west stair raises west half");
+                else if ((meta & 3) == 2)
+                    CHECK(blocks[1].minZ == 24.5, "south stair raises south half");
+                else
+                    CHECK(blocks[1].maxZ == 24.5, "north stair raises north half");
+            }
+        }
     }
 
     /* ---------------- (G) ELYTRA TRAVEL BITWISE FIXTURE ------------------ */

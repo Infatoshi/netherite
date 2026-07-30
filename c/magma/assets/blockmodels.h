@@ -46,7 +46,7 @@ enum {
     BM_KIND_CROSS,        /* two diagonal billboards (flowers/tall grass/saplings) */
     BM_KIND_SLAB_BOTTOM,  /* bottom half box (y 0..8) */
     BM_KIND_SLAB_TOP,     /* top half box (y 8..16) */
-    BM_KIND_STAIRS,       /* bottom slab + back upper box (faces +Z / south) */
+    BM_KIND_STAIRS,       /* metadata-facing half slab + half-height step box */
     BM_KIND_FENCE,        /* centre post + N/S/E/W connector bars */
     BM_KIND_WALL,         /* connection-state cobblestone-wall post + arms */
     BM_KIND_FLUID,        /* water/lava: top surface lowered to 14/16 when no fluid above */

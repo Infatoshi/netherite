@@ -206,10 +206,40 @@ MC_HD static inline void psv_add_collision_box(McAABB *blocks, int *n,
     if (*n < maxblocks) blocks[(*n)++] = box;
 }
 
+MC_HD static inline int psv_is_stairs(int id) {
+    return id == BLK_OAK_STAIRS || id == BLK_STONE_STAIRS;
+}
+
+/* BlockStairs straight collision shape. Legacy metadata 0..3 is
+ * east/west/south/north; bit 2 selects the upper half. */
+MC_HD static inline void psv_add_stairs_collision(int x, int y, int z, int meta,
+                                                  McAABB *blocks, int *n,
+                                                  int maxblocks) {
+    int top = (meta & 4) != 0;
+    double slab_y0 = top ? 0.5 : 0.0;
+    double slab_y1 = top ? 1.0 : 0.5;
+    double step_y0 = top ? 0.0 : 0.5;
+    double step_y1 = top ? 0.5 : 1.0;
+    double x0 = 0.0, x1 = 1.0, z0 = 0.0, z1 = 1.0;
+
+    switch (meta & 3) {
+        case 0: x0 = 0.5; break; /* east */
+        case 1: x1 = 0.5; break; /* west */
+        case 2: z0 = 0.5; break; /* south */
+        default: z1 = 0.5; break; /* north */
+    }
+    psv_add_collision_box(blocks, n, maxblocks,
+        mc_aabb_make(x, y + slab_y0, z, x + 1.0, y + slab_y1, z + 1.0));
+    psv_add_collision_box(blocks, n, maxblocks,
+        mc_aabb_make(x + x0, y + step_y0, z + z0,
+                     x + x1, y + step_y1, z + z1));
+}
+
 /* Collect vanilla block collision AABBs over the motion broadphase. Web is
- * pass-through, slabs preserve their metadata half, soul sand is 7/8 tall,
- * fences are multipart and 1.5 tall, and walls use the connection-state union
- * box with collision maxY 1.5. */
+ * pass-through, slabs preserve their metadata half, stairs use their
+ * metadata-oriented two-box straight shape, soul sand is 7/8 tall, fences are
+ * multipart and 1.5 tall, and walls use the connection-state union box with
+ * collision maxY 1.5. */
 MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *query,
                                            McAABB *blocks, int maxblocks) {
     int n = 0;
@@ -232,6 +262,10 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
                     double max_y = (meta & 8) ? y + 1.0 : y + 0.5;
                     psv_add_collision_box(blocks, &n, maxblocks,
                         mc_aabb_make(x, min_y, z, x + 1.0, max_y, z + 1.0));
+                } else if (psv_is_stairs(id)) {
+                    psv_add_stairs_collision(x, y, z,
+                                             psv_get_meta(chunks, x, y, z),
+                                             blocks, &n, maxblocks);
                 } else if (id == BLK_SOUL_SAND) {
                     psv_add_collision_box(blocks, &n, maxblocks,
                         mc_aabb_make(x, y, z, x + 1.0, y + 0.875, z + 1.0));

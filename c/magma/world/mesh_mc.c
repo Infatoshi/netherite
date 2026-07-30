@@ -1600,6 +1600,102 @@ static void emit_end_frame(CrChunkMeshMC *out, int *cap, const CrLight *L,
     }
 }
 
+static int rotate_model_face(int face, int qx, int qy) {
+    for (int i = 0; i < (qx & 3); ++i) face = ROTX_FACE[face];
+    for (int i = 0; i < (qy & 3); ++i) face = ROTY_FACE[face];
+    return face;
+}
+
+/* ForgeHooksClient.applyUVLock for the X0/X180 and quarter-Y rotations used by
+ * stairs. The transform applies to the JSON UV rectangle before FaceBakery. */
+static int stair_uv_lock(const float src[4], int face, int qx, int qy,
+                         float dst[4]) {
+    int turns = 0;
+    if (face == BM_DOWN || face == BM_UP) {
+        int sign = face == BM_DOWN ? 1 : -1;
+        if (qx == 2) sign = -sign;
+        turns = (sign * qy) & 3;
+    } else if (qx == 2) {
+        turns = 2;
+    }
+    switch (turns) {
+        case 1:
+            dst[0] = src[1];         dst[1] = 16.0f - src[2];
+            dst[2] = src[3];         dst[3] = 16.0f - src[0];
+            break;
+        case 2:
+            dst[0] = 16.0f - src[2]; dst[1] = 16.0f - src[3];
+            dst[2] = 16.0f - src[0]; dst[3] = 16.0f - src[1];
+            break;
+        case 3:
+            dst[0] = 16.0f - src[3]; dst[1] = src[0];
+            dst[2] = 16.0f - src[1]; dst[3] = src[2];
+            break;
+        default:
+            memcpy(dst, src, 4 * sizeof(float));
+            break;
+    }
+    return turns;
+}
+
+/* models/block/stairs.json plus its uvlock blockstate rotations. Keeping the
+ * two source elements intact matters: their explicit half-texture UVs are not
+ * the auto-UVs of the rotated axis-aligned boxes. */
+static void emit_stairs(CrChunkMeshMC *out, int *cap, const CrLight *L,
+                        int wx, int wy, int wz, const BmBlock *m,
+                        int sprite, CrRgba tint, float base01) {
+    static const float from[2][3] = {
+        {0, 0, 0}, {8, 8, 0},
+    };
+    static const float to[2][3] = {
+        {16, 8, 16}, {16, 16, 16},
+    };
+    static const float uv[2][6][4] = {
+        {
+            {0,0,16,16}, {0,0,16,16},
+            {0,8,16,16}, {0,8,16,16},
+            {0,8,16,16}, {0,8,16,16},
+        },
+        {
+            {8,0,16,16}, {8,0,16,16},
+            {0,0,8,8}, {8,0,16,8},
+            {0,0,16,8}, {0,0,16,8},
+        },
+    };
+    static const unsigned cull_mask[2] = {
+        0x3fu & ~(1u << BM_UP),
+        0x3fu & ~(1u << BM_WEST),
+    };
+    int meta = light_meta(L, wx, wy, wz) & 7;
+    int qx = (meta & 4) ? 2 : 0;
+    static const int qy_for_facing[4] = {0, 2, 1, 3};
+    int qy = qy_for_facing[meta & 3];
+
+    for (int elem = 0; elem < 2; ++elem) {
+        for (int face = 0; face < 6; ++face) {
+            int world_face = rotate_model_face(face, qx, qy);
+            if (cull_mask[elem] & (1u << face)) {
+                const Face *fc = &FACES[world_face];
+                int ncb = light_block(L, wx + fc->n[0], wy + fc->n[1],
+                                      wz + fc->n[2]);
+                const BmBlock *nm = bm_block(ncb);
+                if (nm->is_full_cube && nm->layer == CR_LAYER_SOLID) continue;
+            }
+            float locked_uv[4];
+            int uv_quarter = stair_uv_lock(uv[elem][face], face, qx, qy,
+                                           locked_uv);
+            CrVertex quad[4];
+            bake_face_custom(wx, wy, wz, from[elem], to[elem], face,
+                             locked_uv, uv_quarter, 0, 3, 0.0f, NULL, 0,
+                             sprite, base01 * FACES[world_face].shade,
+                             1.0f, tint, quad);
+            if (qx) rotate_quad_x(quad, wy, wz, qx);
+            if (qy) rotate_quad_y(quad, wx, wz, qy);
+            push_face(out, cap, m->layer, quad);
+        }
+    }
+}
+
 /* BlockDoublePlant.getActualState: upper half copies VARIANT from the block
  * below. getType falls back to FERN when the below cell is not this block. */
 static int dplant_type_from_below(const CrLight *L, int wx, int wy, int wz) {
@@ -1639,6 +1735,7 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
     float base01 = m->kind == BM_KIND_FLUID ? 1.0f :
         ((m->kind == BM_KIND_CROSS && cb != CR_CB_WEB) ||
          m->kind == BM_KIND_SLAB_BOTTOM || m->kind == BM_KIND_SLAB_TOP ||
+         m->kind == BM_KIND_STAIRS ||
          m->kind == BM_KIND_IRON_BARS ||
          m->kind == BM_KIND_GLASS_PANE ||
          m->kind == BM_KIND_TORCH)
@@ -1708,10 +1805,7 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
             break;
         }
         case BM_KIND_STAIRS: {
-            const float bf[3] = {0,0,0}, bt[3] = {16,8,16};   /* bottom slab */
-            const float uf[3] = {0,8,0}, ut[3] = {16,16,8};   /* raised back (north half) */
-            emit_box(out, cap, m->layer, L, wx, wy, wz, bf, bt, side_spr, tint, base01, -1);
-            emit_box(out, cap, m->layer, L, wx, wy, wz, uf, ut, side_spr, tint, base01, -1);
+            emit_stairs(out, cap, L, wx, wy, wz, m, side_spr, tint, base01);
             break;
         }
         case BM_KIND_FENCE: {

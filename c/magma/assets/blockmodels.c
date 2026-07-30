@@ -65,7 +65,8 @@ enum {
     CBX_STONE_SLAB_BOTTOM_BASE = 237,
     CBX_STONE_SLAB_TOP_BASE = 245,
     CBX_GLASS_PANE = 253,
-    CBX_MAX = 254
+    CBX_COBBLESTONE_STAIRS = 254,
+    CBX_MAX = 255
 };
 
 /* Face order is BM_DOWN, BM_UP, BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST. */
@@ -297,6 +298,8 @@ static const BmBlock g_blocks[CBX_MAX] = {
                      FULL6(CR_SPRITE_GLASS, BM_TINT_NONE) },
     [CBX_STAIRS] = { 0, 0, CR_LAYER_SOLID, BM_KIND_STAIRS,
                      FULL6(CR_SPRITE_PLANKS_OAK, BM_TINT_NONE) },
+    [CBX_COBBLESTONE_STAIRS] = { 0, 0, CR_LAYER_SOLID, BM_KIND_STAIRS,
+                                 FULL6(CR_SPRITE_COBBLESTONE, BM_TINT_NONE) },
     [CBX_SLAB]   = { 0, 0, CR_LAYER_SOLID, BM_KIND_SLAB_BOTTOM,
                      FULL6(CR_SPRITE_PLANKS_OAK, BM_TINT_NONE) },
     [CBX_FENCE]  = { 0, 0, CR_LAYER_SOLID, BM_KIND_FENCE,
@@ -448,6 +451,7 @@ static int bm_is_modeled(int id)
     case CBX_SLIME: case CBX_WEB: case CBX_PACKED_ICE:
     case CBX_NETHER_BRICK_FENCE: case CBX_COBBLESTONE_WALL:
     case CBX_END_PORTAL: case CBX_RAIL: case CBX_TNT:
+    case CBX_COBBLESTONE_STAIRS:
         return 1;
     default:
         if (id >= CBX_STONE_SLAB_BOTTOM_BASE && id < CBX_MAX) return 1;

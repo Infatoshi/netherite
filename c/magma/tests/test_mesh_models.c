@@ -310,12 +310,26 @@ int main(void) {
         CHECK(multiset_eq(got, n, &g, 1), "slab: positions/uv do not match facebakery golden");
         free(g.v);
     }
-    /* --- STAIRS: bottom slab + raised back box, SOLID, 72 verts --- */
+    /* --- STAIRS meta 0: bottom slab + raised east box, SOLID, 72 verts --- */
     {
         GList g = {0};
-        float bf[3]={0,0,0}, bt[3]={16,8,16}, uf[3]={0,8,0}, ut[3]={16,16,8};
-        golden_box(&g, xs, TY, zs, bf, bt, planks);
-        golden_box(&g, xs, TY, zs, uf, ut, planks);
+        float bf[3]={0,0,0}, bt[3]={16,8,16}, uf[3]={8,8,0}, ut[3]={16,16,16};
+        const float buv[6][4] = {
+            {0,0,16,16}, {0,0,16,16},
+            {0,8,16,16}, {0,8,16,16},
+            {0,8,16,16}, {0,8,16,16},
+        };
+        const float uuv[6][4] = {
+            {8,0,16,16}, {8,0,16,16},
+            {0,0,8,8}, {8,0,16,8},
+            {0,0,16,8}, {0,0,16,8},
+        };
+        for (int f=0; f<6; ++f) {
+            golden_face_custom(&g, xs,TY,zs, bf,bt, f,buv[f],
+                               0,3,0.0f,NULL,0,planks);
+            golden_face_custom(&g, xs,TY,zs, uf,ut, f,uuv[f],
+                               0,3,0.0f,NULL,0,planks);
+        }
         int n = collect(&m, CR_LAYER_SOLID, xs, zs, ylo, yhi, got, 512);
         CHECK(n == 72, "stairs: %d verts (want 72)", n);
         CHECK(multiset_eq(got, n, &g, 1), "stairs: positions/uv do not match facebakery golden");

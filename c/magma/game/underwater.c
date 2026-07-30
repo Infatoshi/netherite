@@ -19,6 +19,7 @@ static float liquid_height_percent(int meta) {
 
 static int is_water(int id) { return id == 8 || id == 9; }
 static int is_lava(int id)  { return id == 10 || id == 11; }
+static int is_stairs(int id) { return id == 53 || id == 67; }
 
 /* ActiveRenderInfo.getBlockStateAtEntityViewpoint -> material at the eye:
  * 0 none, 1 water, 2 lava. */
@@ -55,7 +56,7 @@ static float light_brightness_at(const GmWorld *w, int dim,
     int own = combined_light_at(w, x, y, z);
     int id = gm_world_block(w, x, y, z);
     int l = cr_k14_light_query(
-        is_lava(id) || id == 44 || id == 126 || id == 182,
+        is_lava(id) || is_stairs(id) || id == 44 || id == 126 || id == 182,
         combined_light_at(w, x, y + 1, z),
         combined_light_at(w, x + 1, y, z),
         combined_light_at(w, x - 1, y, z),
