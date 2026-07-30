@@ -724,6 +724,23 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                                     "x": int(vx) / 8000.0,
                                     "y": int(vy) / 8000.0,
                                     "z": int(vz) / 8000.0}) + "\n")
+            # SPacketExplosion applied before this client tick: knockback is
+            # ADDED to the player's motion (unlike pvel, which replaces it),
+            # and the packet's affected-block list is cleared client-side by
+            # Explosion.doExplosionB. New recorders emit "expl"; old tapes
+            # without it diverge at the blast tick (recorder gap, filed).
+            for expl in row.get("expl", []):
+                _ex, _ey, _ez, _strength, mx, my, mz, blocks = expl
+                if mx or my or mz:
+                    f.write(json.dumps({"tick": t, "type": "add_velocity",
+                                        "x": float(mx), "y": float(my),
+                                        "z": float(mz)}) + "\n")
+                for bx, by, bz in blocks:
+                    f.write(json.dumps({"tick": t, "type": "snapshot_block",
+                                        "dim": int(row.get("dim", 0)),
+                                        "x": int(bx), "y": int(by),
+                                        "z": int(bz), "id": 0, "meta": 0})
+                            + "\n")
             if "ppos" in row:
                 x, y, z, yaw, pitch, vx, vy, vz = row["ppos"]
                 f.write(json.dumps({"tick": t, "type": "set_pose",

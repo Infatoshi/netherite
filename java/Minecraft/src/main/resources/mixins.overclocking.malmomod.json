@@ -27,6 +27,7 @@
     "MixinPinTextureAnimations",
     "MixinRecordPlayerVelocity",
     "MixinRecordPlayerPosition",
+    "MixinRecordExplosion",
     "MixinModelRendererNoLists",
     "MixinFramebufferStatusTolerant"
   ],

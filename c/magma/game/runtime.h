@@ -149,6 +149,7 @@ void gm_runtime_set_pose_state(GmRuntime *r, double x, double y, double z,
                                double vz, int on_ground, float fall_distance);
 void gm_runtime_set_velocity(GmRuntime *r, double x, double y, double z);
 void gm_runtime_set_packet_velocity(GmRuntime *r, double x, double y, double z);
+void gm_runtime_add_velocity(GmRuntime *r, double x, double y, double z);
 /* Tape/live equipment bridge for EntityEquipmentSlot.CHEST == Items.ELYTRA. */
 void gm_runtime_set_elytra(GmRuntime *r, int equipped);
 /* Absolute camera rotation only (tape replay of recorded mouse look). */

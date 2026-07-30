@@ -711,6 +711,15 @@ void gm_runtime_set_packet_velocity(GmRuntime *r, double x, double y, double z) 
     gm_player_set_packet_velocity((struct PsvPlayer *)&r->player,x,y,z);
 }
 
+void gm_runtime_add_velocity(GmRuntime *r, double x, double y, double z) {
+    /* SPacketExplosion knockback: handleExplosion adds the packet motion to
+     * the local player's current motion (it does not replace it). */
+    if (!r) return;
+    r->player.ent.motionX += x;
+    r->player.ent.motionY += y;
+    r->player.ent.motionZ += z;
+}
+
 void gm_runtime_set_elytra(GmRuntime *r, int equipped) {
     /* Narrow replay/test hook. Normal play derives flight from chest item 443. */
     if (!r) return;

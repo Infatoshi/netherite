@@ -160,6 +160,11 @@ public class QuantizedRL {
     private static double recPositionX, recPositionY, recPositionZ;
     private static double recPositionVx, recPositionVy, recPositionVz;
     private static float recPositionYaw, recPositionPitch;
+    /** SPacketExplosion events applied since the last recorded tick. Each
+     * entry: [x,y,z,strength,mx,my,mz,[[bx,by,bz],...]]. Client thread only;
+     * a tick can carry several blasts (e.g. chained TNT). */
+    private static final java.util.List<String> recExplosions =
+        new java.util.ArrayList<String>();
     private volatile String recSnapRoot = null;   // <tape>_world, live while recording
     private int recLastPlayerTicksExisted = Integer.MIN_VALUE;
     private int recLastDimension = Integer.MIN_VALUE;
@@ -202,6 +207,33 @@ public class QuantizedRL {
         recVelocityY = packet.getMotionY();
         recVelocityZ = packet.getMotionZ();
         recVelocityPending = true;
+    }
+
+    /** Client-thread hook from MixinRecordExplosion. Serialized immediately:
+     * the packet's block list is authoritative (Explosion.doExplosionB clears
+     * exactly these positions client-side) and the motion components are the
+     * knockback added to the local player. */
+    public static void recordExplosionPacket(
+            net.minecraft.network.play.server.SPacketExplosion packet) {
+        StringBuilder e = new StringBuilder();
+        e.append('[').append(packet.getX())
+         .append(',').append(packet.getY())
+         .append(',').append(packet.getZ())
+         .append(',').append(packet.getStrength())
+         .append(',').append(packet.getMotionX())
+         .append(',').append(packet.getMotionY())
+         .append(',').append(packet.getMotionZ())
+         .append(",[");
+        java.util.List<net.minecraft.util.math.BlockPos> blocks =
+            packet.getAffectedBlockPositions();
+        for (int i = 0; i < blocks.size(); i++) {
+            net.minecraft.util.math.BlockPos bp = blocks.get(i);
+            if (i > 0) e.append(',');
+            e.append('[').append(bp.getX()).append(',')
+             .append(bp.getY()).append(',').append(bp.getZ()).append(']');
+        }
+        e.append("]]");
+        recExplosions.add(e.toString());
     }
 
     /** Client-thread tail hook from MixinRecordPlayerPosition. Store the
@@ -5510,6 +5542,15 @@ sb.append("}");
              .append(",").append(recVelocityY)
              .append(",").append(recVelocityZ).append("]");
             recVelocityPending = false;
+        }
+        if (!recExplosions.isEmpty()) {
+            b.append(",\"expl\":[");
+            for (int i = 0; i < recExplosions.size(); i++) {
+                if (i > 0) b.append(',');
+                b.append(recExplosions.get(i));
+            }
+            b.append(']');
+            recExplosions.clear();
         }
         if (recPositionPending) {
             b.append(",\"ppos\":[").append(recPositionX)

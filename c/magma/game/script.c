@@ -579,6 +579,17 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid set_packet_velocity\n",line_no);goto bad;
                 }
                 gm_runtime_set_packet_velocity(&r,x,y,z);
+            } else if (!strcmp(type,"add_velocity")) {
+                /* SPacketExplosion knockback: handleExplosion ADDS the
+                 * packet motion to the local player, unlike pvel. */
+                double x,y,z;
+                static const char *const keys[]={"tick","type","x","y","z"};
+                if(!keys_only(&pending,keys,5,err,sizeof err)||
+                   !as_double(field(&pending,"x"),&x)||!as_double(field(&pending,"y"),&y)||
+                   !as_double(field(&pending,"z"),&z)){
+                    fprintf(stderr,"script:%ld: invalid add_velocity\n",line_no);goto bad;
+                }
+                gm_runtime_add_velocity(&r,x,y,z);
             } else if (!strcmp(type,"ent_box")) {
                 /* Tape replay ghost pusher: recorded oracle entity box (world
                  * coords, feet y, width, height) applied as a vanilla
