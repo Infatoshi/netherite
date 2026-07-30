@@ -47,15 +47,15 @@ static int combined_light_at(const GmWorld *w, int x, int y, int z) {
 /* World.getLightBrightness -> getLightFromNeighbors -> getLight(pos, true).
  * Blocks with useNeighborBrightness select the maximum stored combined light
  * at up/east/west/south/north; World.java deliberately does not sample down.
- * Registry finalization enables it for zero-opacity lava, but not opacity-3
- * water (MaterialLiquid.blocksLight remains true). Tapes are clear weather,
- * so skylightSubtracted is zero. */
+ * Registry finalization enables it for zero-opacity lava and partial slabs,
+ * but not opacity-3 water (MaterialLiquid.blocksLight remains true). Tapes are
+ * clear weather, so skylightSubtracted is zero. */
 static float light_brightness_at(const GmWorld *w, int dim,
                                  int x, int y, int z) {
     int own = combined_light_at(w, x, y, z);
     int id = gm_world_block(w, x, y, z);
     int l = cr_k14_light_query(
-        is_lava(id),
+        is_lava(id) || id == 44 || id == 126 || id == 182,
         combined_light_at(w, x, y + 1, z),
         combined_light_at(w, x + 1, y, z),
         combined_light_at(w, x - 1, y, z),

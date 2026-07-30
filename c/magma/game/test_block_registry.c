@@ -110,6 +110,17 @@ static void test_collision_barrier(void) {
     CHECK(gm_state_to_model_key(gm_pack_state(37, 0)) == 50, "dandelion reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(38, 0)) == 51, "poppy reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(38, 8)) == 59, "oxeye daisy reverse map");
+    for (int meta = 0; meta < 16; ++meta) {
+        uint16_t st = 0;
+        int key = gm_state_to_model_key(gm_pack_state(44, meta));
+        int want = (meta & 8 ? GM_MODEL_STONE_SLAB_TOP_BASE
+                             : GM_MODEL_STONE_SLAB_BOTTOM_BASE) + (meta & 7);
+        CHECK(key == want, "stone slab model key preserves variant and half");
+        CHECK(gm_model_key_to_state(key, 0, &st) == GM_MAP_EXACT,
+              "stone slab model key maps exactly");
+        CHECK(gm_state_id(st) == 44 && gm_state_meta(st) == meta,
+              "stone slab model key round-trips canonical state");
+    }
     {
         uint16_t st = 0;
         CHECK(gm_model_key_to_state(223, 0, &st) == GM_MAP_EXACT, "craft table key supported");

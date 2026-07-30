@@ -854,6 +854,33 @@ static void emit_box(CrChunkMeshMC *out, int *cap, int layer,
     }
 }
 
+/* Vanilla half_slab/upper_slab use per-face textures and explicit side UVs:
+ * bottom halves sample V=8..16, top halves V=0..8. Auto-UV derives the
+ * opposite halves from geometry, which makes a correctly placed slab select
+ * the wrong vertical half of its side texture. */
+static void emit_slab(CrChunkMeshMC *out, int *cap, const CrLight *L,
+                      const BmBlock *m, int wx, int wy, int wz,
+                      CrRgba tint, float base01) {
+    int top = m->kind == BM_KIND_SLAB_TOP;
+    const float from[3] = {0.0f, top ? 8.0f : 0.0f, 0.0f};
+    const float to[3] = {16.0f, top ? 16.0f : 8.0f, 16.0f};
+    const float full_uv[4] = {0.0f, 0.0f, 16.0f, 16.0f};
+    const float bottom_side_uv[4] = {0.0f, 8.0f, 16.0f, 16.0f};
+    const float top_side_uv[4] = {0.0f, 0.0f, 16.0f, 8.0f};
+    (void)L;
+    for (int f = 0; f < 6; ++f) {
+        const float *uv = f >= BM_NORTH
+            ? (top ? top_side_uv : bottom_side_uv)
+            : full_uv;
+        CrVertex quad[4];
+        bake_face_custom(wx, wy, wz, from, to, f, uv, 0,
+                         0, 3, 0.0f, NULL, 0,
+                         m->face[f].sprite, base01 * FACES[f].shade,
+                         1.0f, tint, quad);
+        push_face(out, cap, m->layer, quad);
+    }
+}
+
 /* Lily pad: models/block/waterlily.json - zero-thickness horizontal plane at
  * model y=0.25, UP+DOWN only, ambientocclusion false (ao=1). CUTOUT layer. */
 static void emit_lily(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L,
@@ -1488,6 +1515,7 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
      * the scalar lightmap again here darkened surface water by almost exactly 2x. */
     float base01 = m->kind == BM_KIND_FLUID ? 1.0f :
         ((m->kind == BM_KIND_CROSS && cb != CR_CB_WEB) ||
+         m->kind == BM_KIND_SLAB_BOTTOM || m->kind == BM_KIND_SLAB_TOP ||
          m->kind == BM_KIND_IRON_BARS ||
          m->kind == BM_KIND_TORCH)
         ? neighbor_model_light01(L, wx, wy, wz,
@@ -1548,13 +1576,11 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
             }
             break;
         case BM_KIND_SLAB_BOTTOM: {
-            const float from[3] = {0,0,0}, to[3] = {16,8,16};
-            emit_box(out, cap, m->layer, L, wx, wy, wz, from, to, side_spr, tint, base01, -1);
+            emit_slab(out, cap, L, m, wx, wy, wz, tint, base01);
             break;
         }
         case BM_KIND_SLAB_TOP: {
-            const float from[3] = {0,8,0}, to[3] = {16,16,16};
-            emit_box(out, cap, m->layer, L, wx, wy, wz, from, to, side_spr, tint, base01, -1);
+            emit_slab(out, cap, L, m, wx, wy, wz, tint, base01);
             break;
         }
         case BM_KIND_STAIRS: {

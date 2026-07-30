@@ -59,6 +59,14 @@ static void fill_mechanics_floor(Chunk *win)
     }
 }
 
+static void set_block_meta(Chunk *win, int wx, int wy, int wz, int id, int meta)
+{
+    int lx, lz;
+    int ci = psv_chunk_index(wx, wz, &lx, &lz);
+    if (ci >= 0)
+        mc_set(&win[ci], lx, wy, lz, mc_state(id, meta));
+}
+
 /* Spawn a player at a given LOCAL feet position (overrides psv_player_init's spawn). */
 static void spawn_at(PsvPlayer *pl, double x, double y, double z)
 {
@@ -279,10 +287,29 @@ int main(void)
     }
 
     /* ---------------- (F) BLOCK CALLBACK/COLLISION EDGE CASES ------------ */
-    printf("case F: slime, web, soul sand, fence vanilla mechanics\n");
+    printf("case F: slabs, slime, web, soul sand, fence vanilla mechanics\n");
     {
         McAABB blocks[PSV_MAX_BLOCKS];
         PsvAction idle; memset(&idle, 0, sizeof idle);
+
+        fill_mechanics_floor(win);
+        set_block_meta(win, 24, 3, 24, BLK_STONE_SLAB, 0);
+        McAABB slab_query = mc_aabb_make(24.0, 3.0, 24.0, 25.0, 4.0, 25.0);
+        int nslab = psv_collect_blocks(win, &slab_query, blocks, PSV_MAX_BLOCKS);
+        int bottom_ok = 0;
+        for (int i = 0; i < nslab; ++i)
+            if (blocks[i].minX == 24.0 && blocks[i].minY == 3.0 &&
+                blocks[i].minZ == 24.0 && blocks[i].maxY == 3.5)
+                bottom_ok = 1;
+        CHECK(bottom_ok, "bottom slab collision box is y..y+0.5");
+        set_block_meta(win, 24, 3, 24, BLK_STONE_SLAB, 8);
+        nslab = psv_collect_blocks(win, &slab_query, blocks, PSV_MAX_BLOCKS);
+        int top_ok = 0;
+        for (int i = 0; i < nslab; ++i)
+            if (blocks[i].minX == 24.0 && blocks[i].minY == 3.5 &&
+                blocks[i].minZ == 24.0 && blocks[i].maxY == 4.0)
+                top_ok = 1;
+        CHECK(top_ok, "top slab collision box is y+0.5..y+1");
 
         fill_mechanics_floor(win);
         psv_set_block(win, 24, 3, 24, BLK_SLIME);

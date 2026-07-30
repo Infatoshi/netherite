@@ -194,6 +194,17 @@ SPRITE_NAMES += ["end_portal"]
 # Primed TNT is rendered through RenderTNTPrimed rather than the chunk mesh,
 # but it samples the same three block textures from TextureMap.
 SPRITE_NAMES += ["tnt_bottom", "tnt_side", "tnt_top"]
+# Stone-slab variants. Append so every established atlas index/rect remains
+# stable; the slab state bridge selects these by legacy metadata.
+SPRITE_NAMES += [
+    "brick",
+    "quartz_block_bottom",
+    "quartz_block_side",
+    "quartz_block_top",
+    "stone_slab_side",
+    "stone_slab_top",
+    "stonebrick",
+]
 SPECIAL_SPRITE_PATHS = {
     "end_portal": "assets/minecraft/textures/entity/end_portal.png",
 }

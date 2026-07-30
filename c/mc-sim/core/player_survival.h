@@ -207,8 +207,9 @@ MC_HD static inline void psv_add_collision_box(McAABB *blocks, int *n,
 }
 
 /* Collect vanilla block collision AABBs over the motion broadphase. Web is
- * pass-through, soul sand is 7/8 tall, fences are multipart and 1.5 tall, and
- * walls use the connection-state union box with collision maxY 1.5. */
+ * pass-through, slabs preserve their metadata half, soul sand is 7/8 tall,
+ * fences are multipart and 1.5 tall, and walls use the connection-state union
+ * box with collision maxY 1.5. */
 MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *query,
                                            McAABB *blocks, int maxblocks) {
     int n = 0;
@@ -224,7 +225,14 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
             for (int z = z0; z <= z1; ++z) {
                 int id = psv_get_block(chunks, x, y, z);
                 if (id == BLK_WEB || !psv_solid(id)) continue;
-                if (id == BLK_SOUL_SAND) {
+                if (id == BLK_STONE_SLAB || id == BLK_WOODEN_SLAB ||
+                    id == BLK_RED_SANDSTONE_SLAB) {
+                    int meta = psv_get_meta(chunks, x, y, z);
+                    double min_y = (meta & 8) ? y + 0.5 : (double)y;
+                    double max_y = (meta & 8) ? y + 1.0 : y + 0.5;
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, min_y, z, x + 1.0, max_y, z + 1.0));
+                } else if (id == BLK_SOUL_SAND) {
                     psv_add_collision_box(blocks, &n, maxblocks,
                         mc_aabb_make(x, y, z, x + 1.0, y + 0.875, z + 1.0));
                 } else if (id == BLK_FENCE || id == BLK_NETHER_BRICK_FENCE) {
