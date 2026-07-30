@@ -1104,6 +1104,27 @@ void gm_runtime_apply_tape_view(const GmRuntime *r, GmPlayerView *view) {
         view->potion_count = r->tape_potion_count;
         memcpy(view->potions, r->tape_potions,
                (size_t)r->tape_potion_count * sizeof view->potions[0]);
+        /* AbstractClientPlayer.getFovModifier reads generic.movementSpeed.
+         * SPEED and SLOWNESS are operation-2 modifiers, so each multiplier is
+         * applied in sequence before the ratio is averaged with 1. Tape
+         * scenarios apply their effects before recording starts, after the
+         * 0.5/tick EntityRenderer easing has converged. */
+        {
+            float speed_ratio = 1.0f;
+            int has_speed_modifier = 0;
+            for (int i = 0; i < r->tape_potion_count; ++i) {
+                const GmPotionEffectView *p = &r->tape_potions[i];
+                if (p->id == 1) {
+                    speed_ratio *= 1.0f + 0.2f * (float)(p->amplifier + 1);
+                    has_speed_modifier = 1;
+                } else if (p->id == 2) {
+                    speed_ratio *= 1.0f - 0.15f * (float)(p->amplifier + 1);
+                    has_speed_modifier = 1;
+                }
+            }
+            if (has_speed_modifier)
+                view->fov_mult = (speed_ratio + 1.0f) * 0.5f;
+        }
         /* Only the recorder can know the real generic.armor total (NBT
          * AttributeModifiers replace an armor item's defaults), so a tape
          * that carries it wins over the item-id guess. */
