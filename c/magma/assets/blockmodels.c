@@ -59,7 +59,8 @@ enum {
     CBX_SLIME = 229, CBX_WEB = 230, CBX_PACKED_ICE = 231,
     CBX_NETHER_BRICK_FENCE = 232, CBX_COBBLESTONE_WALL = 233,
     CBX_END_PORTAL = 234,
-    CBX_MAX = 235
+    CBX_RAIL = 235,
+    CBX_MAX = 236
 };
 
 /* Face order is BM_DOWN, BM_UP, BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST. */
@@ -154,6 +155,8 @@ static const BmBlock g_blocks[CBX_MAX] = {
                         FULL6(CR_SPRITE_IRON_BARS, BM_TINT_NONE) },
     [CBX_TORCH] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_TORCH,
                     FULL6(CR_SPRITE_TORCH_ON, BM_TINT_NONE) },
+    [CBX_RAIL] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_RAIL,
+                   FULL6(CR_SPRITE_RAIL_NORMAL, BM_TINT_NONE) },
     [CB_COARSE_DIRT] = CUBE6(CR_SPRITE_COARSE_DIRT, BM_TINT_NONE),
 
     /* ---- stone variants + ores + clay ---- */
@@ -377,7 +380,7 @@ static int bm_is_modeled(int id)
     case CBX_ANDESITE_SMOOTH: case CBX_NETHER_BRICK:
     case CBX_SLIME: case CBX_WEB: case CBX_PACKED_ICE:
     case CBX_NETHER_BRICK_FENCE: case CBX_COBBLESTONE_WALL:
-    case CBX_END_PORTAL:
+    case CBX_END_PORTAL: case CBX_RAIL:
         return 1;
     default:
         if (id >= CB_STAINED_CLAY_BASE && id < CB_STAINED_CLAY_BASE + 16) return 1;

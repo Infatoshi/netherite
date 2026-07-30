@@ -83,6 +83,10 @@
 #define ER_TYPE_SLIME    35
 #define ER_TYPE_SILVERFISH 36
 #define ER_TYPE_BOAT     37
+#define ER_TYPE_MINECART_CHEST 39
+#define ER_TYPE_MINECART_FURNACE 40
+#define ER_TYPE_MINECART_HOPPER 41
+#define ER_TYPE_MINECART_TNT 42
 
 #define ER_VERTS_PER_BOX 36  /* 6 faces * 2 tris * 3 verts */
 #define ER_PI 3.14159265358979323846f
@@ -427,7 +431,7 @@ static const ErModel M_MINECART = { .nparts = 6, .parts = {
     { CR_MOB_MINECART,  0,  0,  -8,-9,-1, 16, 8,2,  9,22, 0,   0,ER_PI/2.0f,0, 0,0 },
     { CR_MOB_MINECART,  0,  0,  -8,-9,-1, 16, 8,2,  0,22,-7,   0,ER_PI,0, 0,0 },
     { CR_MOB_MINECART,  0,  0,  -8,-9,-1, 16, 8,2,  0,22, 7,   0,0,0, 0,0 },
-    { CR_MOB_MINECART, 44, 10,  -9,-7,-1, 18,14,1,  0,22, 0,  -ER_PI/2.0f,0,0, 0,0 },
+    { CR_MOB_MINECART, 44, 10,  -9,-7,-1, 18,14,1,  0,22.1f, 0, -ER_PI/2.0f,0,0, 0,0 },
 } };
 
 /* ModelArmorStand: default summoned stand has no arms and keeps its base
@@ -489,10 +493,23 @@ static const ErModel *er_model_for_type(int type) {
         case ER_TYPE_SLIME:    return &M_SLIME;
         case ER_TYPE_SILVERFISH: return &M_SILVERFISH;
         case ER_TYPE_BOAT:     return &M_BOAT;
-        case ER_TYPE_MINECART: return &M_MINECART;
+        case ER_TYPE_MINECART:
+        case ER_TYPE_MINECART_CHEST:
+        case ER_TYPE_MINECART_FURNACE:
+        case ER_TYPE_MINECART_HOPPER:
+        case ER_TYPE_MINECART_TNT:
+            return &M_MINECART;
         case ER_TYPE_ARMOR_STAND: return &M_ARMOR_STAND;
         default:               return &M_MARKER; /* legacy marker box */
     }
+}
+
+static int er_is_minecart(int type) {
+    return type == ER_TYPE_MINECART ||
+           type == ER_TYPE_MINECART_CHEST ||
+           type == ER_TYPE_MINECART_FURNACE ||
+           type == ER_TYPE_MINECART_HOPPER ||
+           type == ER_TYPE_MINECART_TNT;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1384,10 +1401,10 @@ int gm_entity_type_for_name(const char *name) {
         { "EntitySilverfish",     ER_TYPE_SILVERFISH },
         { "EntityBoat",           ER_TYPE_BOAT },
         { "EntityMinecartEmpty",  ER_TYPE_MINECART },
-        { "EntityMinecartChest",  ER_TYPE_MINECART },
-        { "EntityMinecartFurnace",ER_TYPE_MINECART },
-        { "EntityMinecartHopper", ER_TYPE_MINECART },
-        { "EntityMinecartTNT",    ER_TYPE_MINECART },
+        { "EntityMinecartChest",  ER_TYPE_MINECART_CHEST },
+        { "EntityMinecartFurnace",ER_TYPE_MINECART_FURNACE },
+        { "EntityMinecartHopper", ER_TYPE_MINECART_HOPPER },
+        { "EntityMinecartTNT",    ER_TYPE_MINECART_TNT },
         /* full ModelDragon transcription (emit_dragon); id 9 also drives
          * the boss-bar latch in frame_capture.c */
         { "EntityDragon",         9 /* ER_TYPE_DRAGON / GM_ENTITY_DRAGON */ },
@@ -1735,6 +1752,12 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         CrRgba tint = { 255, 255, 255, 255 };
         if (ents[e].hurt_time > 0 || ents[e].death_time > 0) {
             tint.r = 255; tint.g = 178; tint.b = 178;
+        } else if (er_is_minecart(ents[e].type)) {
+            /* RenderMinecart is a non-living renderer under the fixed-function
+             * entity lights. Its broad vertical panels receive both material
+             * and directional attenuation; the living-model face heuristic
+             * otherwise leaves the cart texture substantially over-bright. */
+            tint.r = tint.g = tint.b = 184;
         }
 
         /* world lighting (see GmEntityView.lm_lit). Legacy callers (0) keep
@@ -1787,7 +1810,9 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             if (t == ER_TYPE_LLAMA)      { h0 = 0; h1 = 3; }
             else if (t == ER_TYPE_BAT)   { h0 = 0; h1 = 2; }
             else if (t == ER_TYPE_WITCH || t == ER_TYPE_GHAST ||
-                     t == ER_TYPE_MAGMA || t == ER_TYPE_MINECART) { /* none */ }
+                     t == ER_TYPE_MAGMA || er_is_minecart(t)) {
+                /* none */
+            }
             else                         { h0 = 0; h1 = 0; }
             for (int p = h0; p >= 0 && p <= h1 && p < np; ++p) {
                 local[p].ay = hay; local[p].ax = hax;

@@ -22,7 +22,8 @@ BLOCKS = "assets/minecraft/textures/blocks/"
 TILE = 16
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_H = os.path.join(HERE, "atlas_gen.h")
-DUMP_PNG = "/home/infatoshi/dev/nw/.tmp/magma_atlas.png"
+DUMP_PNG = os.path.join(os.environ.get("TMPDIR", tempfile.gettempdir()),
+                        "magma_atlas.png")
 
 # Every unique block texture referenced by the CB_*/PB_* worldgen set.
 SPRITE_NAMES = sorted([
@@ -108,6 +109,16 @@ SPRITE_NAMES = sorted([
     "lava_flow",
     "lava_still",
     "planks_oak",
+    "rail_normal",
+    "furnace_front_off",
+    "furnace_side",
+    "furnace_top",
+    "hopper_inside",
+    "hopper_outside",
+    "hopper_top",
+    "tnt_bottom",
+    "tnt_side",
+    "tnt_top",
     # crafting table (vanilla models/block/crafting_table.json)
     "crafting_table_top",
     "crafting_table_front",

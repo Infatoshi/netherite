@@ -56,6 +56,10 @@ typedef struct {
  * XP orbs (type 21, drawn by gm_xp_orbs_emit) are skipped. */
 int       gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 
+/* Minecart display tiles are emitted in the terrain-atlas pass. */
+int       gm_minecart_contents_emit(const GmEntityView *ents, int n,
+                                    CrVertex *out, int max);
+
 /* RenderXPOrb.doRender: camera-facing experience_orb.png billboard. 6 verts per
  * orb. Uses view_yaw/view_pitch (playerViewY/X). item_id=xpValue, item_meta=
  * xpColor, age=xpOrbAge. Binds the mob atlas (CR_MOB_EXPERIENCE_ORB). */

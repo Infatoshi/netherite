@@ -160,9 +160,14 @@ typedef struct {
 
 /* A mob/entity to draw this frame (from the entity store). */
 #define GM_VIEW_ITEM 22   /* dropped-item entity view type (not an EW_TYPE) */
+#define GM_VIEW_MINECART_EMPTY 28
 #define GM_VIEW_BILLBOARD 30 /* thrown pearl/eye: camera-facing item sprite */
 #define GM_VIEW_DRAGON_FIREBALL 33 /* RenderDragonFireball direct 2x quad */
 #define GM_VIEW_FALLING_BLOCK 38 /* EntityFallingBlock full-size block model */
+#define GM_VIEW_MINECART_CHEST 39
+#define GM_VIEW_MINECART_FURNACE 40
+#define GM_VIEW_MINECART_HOPPER 41
+#define GM_VIEW_MINECART_TNT 42
 typedef struct {
     int   type;       /* EW_TYPE_* (zombie/skeleton/...) or GM_VIEW_ITEM */
     float x, y, z;    /* FEET position, world coords */
@@ -381,6 +386,8 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv);
  * entities. Bound with gm_entity_atlas() as a SEPARATE raster pass (mob textures live in
  * their own atlas, not the block atlas). Returns vertex count written (<= max). */
 int       gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
+int       gm_minecart_contents_emit(const GmEntityView *ents, int n,
+                                    CrVertex *out, int max);
 int       gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
                           float view_pitch, CrVertex *out, int max);
 CrTexture gm_entity_atlas(void);

@@ -301,6 +301,135 @@ int gm_falling_blocks_emit(const GmEntityView *ents, int n, CrVertex *out, int m
     return written;
 }
 
+/* RenderMinecart display-tile transform. RenderMinecart translates the cart
+ * up 0.375, scales the display model by 0.75, then applies the subtype's
+ * (displayOffset - 8) / 16 vertical translation. Coordinates below are
+ * vanilla block-model units, centered on the cart in XZ. */
+static int ir_emit_minecart_box(const GmEntityView *ev, int display_offset,
+                                const float from[3], const float to[3],
+                                const int sprite[6], CrVertex *out) {
+    const float scale = 0.75f;
+    const float ybase = ev->y + 0.375f
+                      + scale * (float)(display_offset - 8) / 16.0f;
+    const float a = (180.0f - ev->yaw) * (3.14159265358979323846f / 180.0f);
+    const float cs = cosf(a), sn = sinf(a);
+    int written = 0;
+    for (int f = 0; f < 6; ++f) {
+        float u0, v0, u1, v1;
+        bm_sprite_uv(sprite[f], &u0, &v0, &u1, &v1);
+        CrVertex quad[4];
+        for (int c = 0; c < 4; ++c) {
+            float bx = IR_FACES[f].c[c][0] ? to[0] : from[0];
+            float by = IR_FACES[f].c[c][1] ? to[1] : from[1];
+            float bz = IR_FACES[f].c[c][2] ? to[2] : from[2];
+            float lx = (bx / 16.0f - 0.5f) * scale;
+            float lz = (bz / 16.0f - 0.5f) * scale;
+            CrVertex vtx;
+            vtx.pos.x = ev->x + cs * lx + sn * lz;
+            vtx.pos.y = ybase + by * (scale / 16.0f);
+            vtx.pos.z = ev->z - sn * lx + cs * lz;
+            vtx.uv.x = u0 + IR_CUV[c][0] * (u1 - u0);
+            vtx.uv.y = v0 + IR_CUV[c][1] * (v1 - v0);
+            vtx.light = IR_FACES[f].shade;
+            /* renderModelBrightness supplies entity brightness as vertex
+             * colour, then fixed-function entity lighting attenuates it again.
+             * The terrain pass has no GL lights, so fold their measured
+             * material contribution into the display-tile tint here. */
+            vtx.tint = ir_lm_fold(ev, (CrRgba){170, 170, 170, 255});
+            vtx.ao = 1.0f;
+            vtx.blk = 0.0f;
+            quad[c] = vtx;
+        }
+        for (int k = 0; k < 6; ++k) out[written++] = quad[IR_TRI[k]];
+    }
+    return written;
+}
+
+static int ir_minecart_box(const GmEntityView *ev, int offset,
+                           const float from[3], const float to[3],
+                           const int sprite[6], CrVertex *out, int max) {
+    if (max < IR_CUBE_VERTS) return 0;
+    return ir_emit_minecart_box(ev, offset, from, to, sprite, out);
+}
+
+int gm_minecart_contents_emit(const GmEntityView *ents, int n,
+                              CrVertex *out, int max) {
+    int written = 0;
+    if (!ents || !out) return 0;
+    for (int e = 0; e < n; ++e) {
+        const GmEntityView *ev = &ents[e];
+        const float full0[3] = {0, 0, 0}, full1[3] = {16, 16, 16};
+        int face[6], offset = 6;
+        if (ev->type == GM_VIEW_MINECART_TNT) {
+            const int f[6] = {
+                CR_SPRITE_TNT_BOTTOM, CR_SPRITE_TNT_TOP,
+                CR_SPRITE_TNT_SIDE, CR_SPRITE_TNT_SIDE,
+                CR_SPRITE_TNT_SIDE, CR_SPRITE_TNT_SIDE
+            };
+            memcpy(face, f, sizeof face);
+            written += ir_minecart_box(ev, offset, full0, full1, face,
+                                       out + written, max - written);
+        } else if (ev->type == GM_VIEW_MINECART_FURNACE) {
+            const int f[6] = {
+                CR_SPRITE_FURNACE_TOP, CR_SPRITE_FURNACE_TOP,
+                CR_SPRITE_FURNACE_FRONT_OFF, CR_SPRITE_FURNACE_SIDE,
+                CR_SPRITE_FURNACE_SIDE, CR_SPRITE_FURNACE_SIDE
+            };
+            memcpy(face, f, sizeof face);
+            written += ir_minecart_box(ev, offset, full0, full1, face,
+                                       out + written, max - written);
+        } else if (ev->type == GM_VIEW_MINECART_CHEST) {
+            const int f[6] = {
+                CR_SPRITE_PLANKS_OAK, CR_SPRITE_PLANKS_OAK,
+                CR_SPRITE_PLANKS_OAK, CR_SPRITE_PLANKS_OAK,
+                CR_SPRITE_PLANKS_OAK, CR_SPRITE_PLANKS_OAK
+            };
+            const float body0[3] = {1, 0, 1}, body1[3] = {15, 10, 15};
+            const float lid0[3] = {1, 10, 1}, lid1[3] = {15, 14, 15};
+            const float knob0[3] = {7, 11, 0}, knob1[3] = {9, 13, 1};
+            offset = 8;
+            memcpy(face, f, sizeof face);
+            written += ir_minecart_box(ev, offset, body0, body1, face,
+                                       out + written, max - written);
+            written += ir_minecart_box(ev, offset, lid0, lid1, face,
+                                       out + written, max - written);
+            written += ir_minecart_box(ev, offset, knob0, knob1, face,
+                                       out + written, max - written);
+        } else if (ev->type == GM_VIEW_MINECART_HOPPER) {
+            const int side[6] = {
+                CR_SPRITE_HOPPER_OUTSIDE, CR_SPRITE_HOPPER_OUTSIDE,
+                CR_SPRITE_HOPPER_OUTSIDE, CR_SPRITE_HOPPER_OUTSIDE,
+                CR_SPRITE_HOPPER_OUTSIDE, CR_SPRITE_HOPPER_OUTSIDE
+            };
+            const int rim[6] = {
+                CR_SPRITE_HOPPER_OUTSIDE, CR_SPRITE_HOPPER_TOP,
+                CR_SPRITE_HOPPER_OUTSIDE, CR_SPRITE_HOPPER_OUTSIDE,
+                CR_SPRITE_HOPPER_OUTSIDE, CR_SPRITE_HOPPER_OUTSIDE
+            };
+            const int floor[6] = {
+                CR_SPRITE_HOPPER_OUTSIDE, CR_SPRITE_HOPPER_INSIDE,
+                CR_SPRITE_HOPPER_OUTSIDE, CR_SPRITE_HOPPER_OUTSIDE,
+                CR_SPRITE_HOPPER_OUTSIDE, CR_SPRITE_HOPPER_OUTSIDE
+            };
+            static const float b0[7][3] = {
+                {0,10,0}, {0,11,0}, {14,11,0}, {2,11,0},
+                {2,11,14}, {4,4,4}, {6,0,6}
+            };
+            static const float b1[7][3] = {
+                {16,11,16}, {2,16,16}, {16,16,16}, {14,16,2},
+                {14,16,16}, {12,10,12}, {10,4,10}
+            };
+            offset = 1;
+            for (int b = 0; b < 7; ++b) {
+                const int *spr = b == 0 ? floor : (b < 5 ? rim : side);
+                written += ir_minecart_box(ev, offset, b0[b], b1[b], spr,
+                                           out + written, max - written);
+            }
+        }
+    }
+    return written;
+}
+
 int gm_items_emit_flat(const GmEntityView *ents, int n, CrVertex *out, int max) {
     const float aw = (float)CR_ITEM_ATLAS_W, ah = (float)CR_ITEM_ATLAS_H;
     int written = 0;
