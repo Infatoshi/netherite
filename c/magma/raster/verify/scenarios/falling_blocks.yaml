@@ -44,7 +44,7 @@ setup_qrl:
         - setblock 0 4 3 minecraft:sand
         - fill 0 5 3 0 8 3 minecraft:sand
         - fill 0 9 3 0 12 3 minecraft:gravel
-    settle_ticks: 120
+    settle_ticks: 400
 duration_ticks: 300
 frames_every: 20
 input:
