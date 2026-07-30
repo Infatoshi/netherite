@@ -1818,6 +1818,7 @@ static int er_emit_armor_stand_layers(const GmEntityView *v,
 int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
     int written = 0;
     for (int e = 0; e < n; ++e) {
+        int entity_start = written;
         if (ents[e].tape_pose && (ents[e].flags & 4)) continue; /* invisible */
         if (ents[e].type == ER_TYPE_ARROW) {
             if (written + ER_VERTS_PER_BOX > max) break;   /* 6 quads = 36 */
@@ -2065,6 +2066,18 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             if (t == ER_TYPE_SLIME) base *= 0.999f; /* RenderSlime f=0.999 */
             scx = f3 * size * base;
             scy = (1.0f / f3) * size * base;
+        } else if (t == ER_TYPE_CREEPER && ents[e].creeper_fuse > 0) {
+            /* RenderCreeper.preRenderCallback(getCreeperFlashIntensity(1)).
+             * Java clamps only before the fourth power, not before the pulse. */
+            float f = (float)ents[e].creeper_fuse / 28.0f;
+            float pulse = 1.0f + sinf(f * 100.0f) * f * 0.01f;
+            float fc = f;
+            if (fc < 0.0f) fc = 0.0f;
+            if (fc > 1.0f) fc = 1.0f;
+            fc *= fc;
+            fc *= fc;
+            scx = sc * (1.0f + fc * 0.4f) * pulse;
+            scy = sc * (1.0f + fc * 0.1f) / pulse;
         }
         float roll_c = cosf(death_roll), roll_s = sinf(death_roll);
         /* Sheep: emit fur body/legs first, then skin, then fur head last so the
@@ -2090,7 +2103,8 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
                                     p >= 6 ? wool : tint,
                                     lv, blk, roll_c, roll_s, out + written);
             }
-        } else if (t == ER_TYPE_SLIME || t == ER_TYPE_MAGMA) {
+        } else if (t == ER_TYPE_SLIME || t == ER_TYPE_MAGMA ||
+                   t == ER_TYPE_CREEPER) {
             /* Non-uniform preRenderCallback axes via per-axis scale in emit.
              * ModelMagmaCube.render draws core first, then segments — so the
              * outer shell depth-occludes the bright core eyes (Java golden). */
@@ -2134,6 +2148,23 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             for (int p = 0; p < np; ++p)
                 written += emit_box(&local[p], cs, sn, sc, fx, fy, fz, tint,
                                     lv, blk, roll_c, roll_s, out + written);
+        }
+        if (t == ER_TYPE_CREEPER && ents[e].creeper_fuse > 0 &&
+            ents[e].hurt_time <= 0 && ents[e].death_time <= 0) {
+            /* RenderCreeper.getColorMultiplier returns 0x(30|i)FFFFFF on
+             * alternating phases. RenderLivingBase then interpolates the
+             * lit texture toward white by 1-alpha. Pack that mix into blk;
+             * the entity shade context decodes it without changing CrVertex. */
+            float f = (float)ents[e].creeper_fuse / 28.0f;
+            if (((int)(f * 10.0f) & 1) != 0) {
+                int i = (int)(f * 0.2f * 255.0f);
+                if (i < 0) i = 0;
+                if (i > 255) i = 255;
+                int alpha = i | 0x30;
+                float mix = 1.0f - (float)alpha / 255.0f;
+                for (int vi = entity_start; vi < written; ++vi)
+                    out[vi].blk = -(out[vi].blk + 1.0f + mix / 32.0f);
+            }
         }
     }
     return written;

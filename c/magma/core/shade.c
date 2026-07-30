@@ -207,13 +207,24 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
      * and frag->light is the prefolded 0..1 scalar (multiplying by 1.0f is an
      * exact IEEE identity, so the legacy path is bit-unchanged). */
     float lmr = 1.0f, lmg = 1.0f, lmb = 1.0f;
+    float brightness_mix = 0.0f;
+    float frag_blk = frag->blk;
+    if (sh->entity_brightness && frag_blk < 0.0f) {
+        /* gm_entities_emit packs an integer block-light level and a [0,1]
+         * white-combiner mix into one otherwise non-negative attribute. */
+        float packed = -frag_blk;
+        float whole = floorf(packed);
+        frag_blk = whole - 1.0f;
+        brightness_mix = (packed - whole) * 32.0f;
+        brightness_mix = fmaxf(0.0f, fminf(1.0f, brightness_mix));
+    }
     /* Dissolve fragments encode the death threshold in ao and mark light < 0;
      * shade as fullbright (End sky) so the mask gate is the only visibility. */
     float lscalar = (frag->light < 0.0f) ? 1.0f : frag->light;
     float ao_mul = (sh->alpha_mask && frag->light < 0.0f) ? 1.0f : frag->ao;
     if (sh->lightmap && frag->light >= 0.0f) {
         float s = fmaxf(0.0f, fminf(15.0f, frag->light));
-        float b = fmaxf(0.0f, fminf(15.0f, frag->blk));
+        float b = fmaxf(0.0f, fminf(15.0f, frag_blk));
         int s0 = (int)floorf(s), b0 = (int)floorf(b);
         int s1 = s0 < 15 ? s0 + 1 : 15, b1 = b0 < 15 ? b0 + 1 : 15;
         float fs = s - (float)s0, fb = b - (float)b0;
@@ -245,6 +256,11 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
     float cr = (texel.r * inv255) * tr * la * lmr;
     float cg = (texel.g * inv255) * tg * la * lmg;
     float cb = (texel.b * inv255) * tb * la * lmb;
+    if (brightness_mix > 0.0f) {
+        cr += (1.0f - cr) * brightness_mix;
+        cg += (1.0f - cg) * brightness_mix;
+        cb += (1.0f - cb) * brightness_mix;
+    }
 
     if (sh->enable_fog) {
         float t;

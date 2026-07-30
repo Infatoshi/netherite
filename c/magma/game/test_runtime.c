@@ -151,6 +151,24 @@ int main(void) {
         gm_runtime_ent_views_clear(&r);
     }
     {
+        GmEntityView src; memset(&src,0,sizeof src);
+        src.type=EW_TYPE_CREEPER;src.health=20;src.ent_id=9201;
+        src.x=(float)(r.player.ent.posX+r.ox);
+        src.y=(float)r.player.ent.posY;
+        src.z=(float)(r.player.ent.posZ+r.oz)+2.5f;
+        GmEntityView got[1]; int first=-1,last=-1;
+        for(int t=0;t<12;++t){
+            gm_runtime_ent_view(&r,&src);
+            CHECK(gm_runtime_ghost_views(&r,got,1)==1,
+                  "near tape creeper remains a render-only ghost");
+            if(t==0)first=got[0].creeper_fuse;
+            if(t==11)last=got[0].creeper_fuse;
+            gm_runtime_ent_views_clear(&r);
+        }
+        CHECK(first==0&&last==11,
+              "tape creeper fuse starts one frame after the proximity transition");
+    }
+    {
         GmEntityView fireball; memset(&fireball,0,sizeof fireball);
         fireball.type=GM_VIEW_DRAGON_FIREBALL;fireball.item_id=385;
         fireball.item_meta=2;fireball.ent_id=3578;

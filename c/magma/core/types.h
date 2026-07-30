@@ -161,6 +161,9 @@ typedef struct {
      * high-edge; 1 = pure floor(u*w) (fixed-function / entity skin, exact
      * integer model UVs). Other values reserved. Does not change when 0. */
     int    sample_mode;
+    /* Entity-only RenderLivingBase brightness combiner. A negative fragment
+     * blk packs the original block-light level plus a white-overlay mix. */
+    int    entity_brightness;
 } CrShadeCtx;
 
 /* per-fragment inputs handed to the shader (perspective-corrected already) */
