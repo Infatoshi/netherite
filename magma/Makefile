@@ -123,7 +123,7 @@ magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_game.o $(OBJ_GAME) $(OBJ_
 # (metal/raster_metal_host.m) plus the MSL kernel library
 # metal/raster_kernels.metallib (built via xcrun metal/metallib; loaded at
 # runtime by the host). Determinism: C objects keep -ffp-contract=off via
-# CFLAGS; the MSL compile pins -fno-fast-math (float discipline is documented
+# CFLAGS; the MSL compile pins -fno-fast-math -ffp-contract=off (float discipline is documented
 # with the kernels). SDL2 comes from the sdl2-config/pkg-config discovery at
 # the top of this file (Homebrew path included).
 METALC   ?= xcrun -sdk macosx metal
@@ -155,7 +155,7 @@ game/frame_capture_metal.o: game/frame_capture.c game/frame_capture.h core/types
 metal/raster_metal_host.o: metal/raster_metal_host.m core/types.h
 	$(CC) -x objective-c -fobjc-arc $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
 metal/raster_kernels.air: metal/raster_kernels.metal core/types.h
-	$(METALC) -fno-fast-math -Icore -I. -o $@ -c $<
+	$(METALC) -fno-fast-math -ffp-contract=off -Icore -I. -o $@ -c $<
 metal/raster_kernels.metallib: metal/raster_kernels.air
 	$(METALLIB) -o $@ $<
 magma_game_metal: app/game_main_metal.o metal/raster_metal_host.o $(OBJ_GAME_METAL) \
