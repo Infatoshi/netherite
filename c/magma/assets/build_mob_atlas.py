@@ -78,6 +78,12 @@ MOB_SPRITES += [
     ("particles", "../particle/particles.png"),                # 128x128
     ("explosion", "explosion.png"),                            # 128x128
 ]
+# RenderDragon.renderCrystalBeams healing beam. 16x256, sampled with GL_REPEAT
+# on V (the scroll runs the texture off both ends); entity_render.c splits the
+# strip at every integer V so the atlas rect is only ever sampled in [0,1).
+MOB_SPRITES += [
+    ("endercrystal_beam", "endercrystal/endercrystal_beam.png"),  # 16x256
+]
 
 
 def next_pow2(n):

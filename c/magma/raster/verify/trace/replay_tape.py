@@ -432,6 +432,30 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
     patch = []
     animations_pinned = bool(tape_path and
                              tape_texture_animations_pinned(tape_path))
+    # Entity.ticksExisted on the CLIENT. RenderDragon.renderCrystalBeams
+    # scrolls the beam texture by -ticksExisted*0.01 per tick and pulses the
+    # crystal end of the beam by sin(crystal.ticksExisted*0.2), so the beam is
+    # only pixel-exact with the real counter. The recorder appends it (field 18
+    # on a dragon row, 12 on a crystal row) from 2026-07-29 on; older tapes are
+    # reconstructed as (tick - first tick the entity appears) + an offset,
+    # which is exact for the OFFSET only, not for the absolute phase. The
+    # dragon and the End crystals all become client entities the moment the
+    # player is tracked into the dimension, so one shared offset covers both.
+    # The default 7 is MEASURED, not guessed: sweeping the offset over its full
+    # period (the scroll repeats every 100 ticks) on
+    # scenario_dragon_kill_20260729T110941Z gives 76805 differing px summed over
+    # ticks 300-476 at offset 7 against 109211-114438 at all 99 others - a
+    # single sharp minimum, i.e. the QRL harness starts recording 7 ticks after
+    # the client spawns the End entities. MAGMA_ENT_TICKS0 re-sweeps it; see
+    # AGENTS.md on MAGMA_FOG_C1_INIT for the same "recorded value wins over the
+    # reconstruction" rule.
+    ticks0 = int(os.environ.get("MAGMA_ENT_TICKS0",
+                                header.get("ent_ticks0", 7)))
+    first_seen = {}
+    for r in ticks:
+        rt = int(r.get("tick", 0))
+        for e in r.get("ents", []):
+            first_seen.setdefault(int(e[0]), rt)
     if tape_path and os.path.exists(tape_path + ".worldpatch.jsonl"):
         with open(tape_path + ".worldpatch.jsonl") as pf:
             patch = [(max(int(json.loads(ln).get("tick", 1)), 1), ln)
@@ -949,9 +973,11 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                                 age=int(e[9]))
                 elif e[1] == "EntityEnderCrystal" and len(e) >= 12:
                     # recorder appends innerRotation, shouldShowBottom, beam
-                    # target block (-1,-1,-1 = no beam).
+                    # target block (-1,-1,-1 = no beam), then ticksExisted.
                     view.update(crystal_rot=e[7], show_bottom=e[8],
                                 beam_x=e[9], beam_y=e[10], beam_z=e[11])
+                    if len(e) >= 13:
+                        view["ticks_existed"] = int(e[12])
                 elif len(e) >= 14:
                     view.update(tape_pose=1, head_yaw=e[7], pitch=e[8],
                                 swing=e[9], hurt=e[10], death=e[11],
@@ -966,6 +992,10 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                         if len(e) >= 18:
                             # AI phase id + stationary (getHeadPartYOffset)
                             view.update(phase_id=e[16], stationary=e[17])
+                        if len(e) >= 19:
+                            view["ticks_existed"] = int(e[18])
+                if "ticks_existed" not in view:
+                    view["ticks_existed"] = (t - first_seen[int(e[0])]) + ticks0
                 f.write(json.dumps(view) + "\n")
             # open GUI screen (OPEN_DIVERGENCES #9): when the recorder emits
             # "gui" (GuiScreen simple name) + optional gmx/gmy (ScaledResolution

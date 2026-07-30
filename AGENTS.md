@@ -128,6 +128,16 @@ Two things that make a pixel measurement lie, both paid for already:
   `MAGMA_FOG_C1_INIT=<0..1>` overrides the seed for sweeping it on old tapes.
   Do not hardcode a value - it depends on the recording session, not the tape
   (see `c/magma/OPEN_DIVERGENCES.md`).
+- **The end-crystal healing beam needs the client's `ticksExisted`.**
+  `RenderDragon.renderCrystalBeams` scrolls `endercrystal_beam` by
+  `-ticksExisted*0.01` per tick over a 16x256 sheet that is ~2x minified, so a
+  one-tick phase error randomizes the whole glyph speckle. The recorder now
+  writes it per entity (dragon field 18, crystal field 12); tapes older than
+  that are reconstructed as `tick - first_seen + ent_ticks0`, default 7,
+  overridable with `MAGMA_ENT_TICKS0`. The default is a measured sweep, not a
+  guess: over the offset's full 100-tick period exactly one value is sharply
+  better (76.8k differing px vs 109-114k at all 99 others). Re-sweep it rather
+  than fitting anything else if a new End tape's beam looks like noise.
 - **Measure a viewmodel residual against the render, not against a texel.**
   Dividing a golden by a raw atlas texel prices in shading the oracle also
   applies, and that is how a phantom "1.57x over-bright arm" got filed for a

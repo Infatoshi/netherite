@@ -16,6 +16,11 @@
  },
  "frames_checked": 298,
  "classes": {
+  "bossbar": {
+   "frames": 146,
+   "px": 154562,
+   "max_cluster": 1191
+  },
   "hud": {
    "frames": 20,
    "px": 36490,
@@ -27,24 +32,14 @@
    "max_cluster": 11826
   },
   "UNEXPLAINED": {
-   "frames": 139,
-   "px": 33429,
-   "max_cluster": 347
-  },
-  "bossbar": {
-   "frames": 144,
-   "px": 168279,
-   "max_cluster": 1191
+   "frames": 53,
+   "px": 6818,
+   "max_cluster": 309
   },
   "particles": {
-   "frames": 142,
-   "px": 254099,
+   "frames": 165,
+   "px": 256321,
    "max_cluster": 2445
-  },
-  "known:40": {
-   "frames": 1,
-   "px": 67,
-   "max_cluster": 67
   },
   "thinline": {
    "frames": 2,
@@ -53,7 +48,7 @@
   },
   "transit": {
    "frames": 19,
-   "px": 88744,
+   "px": 88704,
    "max_cluster": 1928
   }
  },

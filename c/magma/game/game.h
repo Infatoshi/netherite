@@ -213,6 +213,10 @@ typedef struct {
     float lm_mul_r, lm_mul_g, lm_mul_b;
     /* EntitySlime/EntityMagmaCube.squishFactor (render partialTicks=1). */
     float squish;
+    /* Entity.ticksExisted on the CLIENT (RenderDragon.renderCrystalBeams uses
+     * the dragon's for the beam texture scroll and the crystal's for the beam
+     * origin pulse). Recorded per entity; 0 when the tape predates the field. */
+    int   ticks_existed;
 } GmEntityView;
 
 /* A block edit produced by the player tick, applied to the live world by app/main.c. */

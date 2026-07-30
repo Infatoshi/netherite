@@ -44,6 +44,7 @@ typedef struct {
     float lm_mul_r, lm_mul_g, lm_mul_b;
     /* EntitySlime/EntityMagmaCube.squishFactor (render partial=1). */
     float squish;
+    int   ticks_existed;
 } GmEntityView;
 #endif
 
@@ -112,6 +113,16 @@ void gm_entity_restore_large_fireball_types(GmEntityView *views, int nviews);
  * applyRotations+prepareScale+Layer(0,-1,-2). Draw with blend=3, untextured=1. */
 int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
                               int max);
+
+/* RenderDragon.renderCrystalBeams: the dragon's healing beam to its
+ * healingEnderCrystal, plus any crystal's own getBeamTarget() beam. Textured
+ * with CR_MOB_ENDERCRYSTAL_BEAM, vertex-coloured black (origin) to white (far
+ * end), lightmap folded from the drawn entity. Vanilla disables culling, so
+ * both windings are emitted. Draw on the mob atlas with alpha_test,
+ * alpha_ref=0.1, CR_LAYER_CUTOUT and the same fog/lightmap as the entity pass.
+ * Up to 16 tris * 2 windings * (1 + V bands) * 3 verts per beam. */
+int gm_crystal_beams_emit(const GmEntityView *ents, int n, CrVertex *out,
+                          int max);
 
 /* Portal (particles.png) + dragon death EXPLOSION_LARGE (explosion.png FXLayer 3).
  * EntityDragon: LARGE each dead tick only when health<=0; HUGE in [180,200].
