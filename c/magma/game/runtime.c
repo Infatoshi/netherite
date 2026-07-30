@@ -764,6 +764,8 @@ typedef struct {
     float limb_swing;
     float limb_amount;
     int   hurt_time;
+    int   creeper_fuse;
+    int   creeper_primed;
     int   used;
 } GmEntAnim;
 static GmEntAnim g_ent_anim[GM_ENT_ANIM_CAP];
@@ -812,6 +814,30 @@ void gm_runtime_ent_view(GmRuntime *r, const GmEntityView *view) {
         a->hp = view->health;
         v->limb_swing = a->limb_swing;
         v->limb_swing_amount = a->limb_amount;
+        if (view->type == EW_TYPE_CREEPER && view->creeper_fuse <= 0) {
+            double dxp = (double)view->x -
+                         (r->player.ent.posX + (double)r->ox);
+            double dzp = (double)view->z -
+                         (r->player.ent.posZ + (double)r->oz);
+            double engage_sq = a->creeper_fuse > 0 ? 49.0 : 9.0;
+            if (dxp * dxp + dzp * dzp < engage_sq) {
+                /* EntityAICreeperSwell changes the synced state first; the
+                 * following EntityCreeper.onUpdate advances the fuse. A tape
+                 * first observes that state transition one frame before its
+                 * first non-zero flash intensity. */
+                if (a->creeper_primed) {
+                    if (a->creeper_fuse < 30) a->creeper_fuse++;
+                } else {
+                    a->creeper_primed = 1;
+                }
+            } else if (a->creeper_fuse > 0) {
+                a->creeper_fuse--;
+                if (a->creeper_fuse == 0) a->creeper_primed = 0;
+            } else {
+                a->creeper_primed = 0;
+            }
+            v->creeper_fuse = a->creeper_fuse;
+        }
     }
 }
 

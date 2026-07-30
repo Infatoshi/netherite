@@ -979,6 +979,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         sh.layer=CR_LAYER_CUTOUT;
         sh.lightmap=lm;
         sh.alpha_mask=1;
+        sh.entity_brightness=1;
         gm_entity_dissolve_mask(&sh.mask_u_off,&sh.mask_v_off);
         /* setupFog is scene state, so RenderLivingBase draws under the same
          * linear ramp as the terrain (dense in the Nether / during a boss

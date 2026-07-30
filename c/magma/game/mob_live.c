@@ -1321,6 +1321,7 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
         out[n].health=s->health[i];
         out[n].item_meta=m->size[i]; /* slime/magma size for render scale */
         out[n].squish=m->squish_factor[i]; /* EntitySlime.squishFactor */
+        out[n].creeper_fuse=m->creeper_fuse[i];
         ++n;
     }
     for(int i=0;i<GM_XP_ORBS&&n<max;++i){const McOrb *o=&m->xp_orbs[i];

@@ -220,6 +220,8 @@ typedef struct {
     float lm_mul_r, lm_mul_g, lm_mul_b;
     /* EntitySlime/EntityMagmaCube.squishFactor (render partialTicks=1). */
     float squish;
+    /* EntityCreeper.timeSinceIgnited (render partialTicks=1). */
+    int   creeper_fuse;
     /* Entity.ticksExisted on the CLIENT (RenderDragon.renderCrystalBeams uses
      * the dragon's for the beam texture scroll and the crystal's for the beam
      * origin pulse). Recorded per entity; 0 when the tape predates the field. */

@@ -167,6 +167,43 @@ static void test_geometry(void) {
     CHECK(mx[1] < 64.0f + 1.05f, "pig stays under ~1 block tall");
     CHECK(approx(mn[1], 64.0f, E), "pig feet on the ground");
 
+    /* RenderCreeper fuse: preRenderCallback swells X/Z faster than Y, while
+     * odd flash phases pack the RenderLivingBase white-combiner strength. */
+    {
+        GmEntityView idle = {0}, primed = {0}, flashing = {0};
+        idle.type = primed.type = flashing.type = 4;
+        idle.y = primed.y = flashing.y = 64.0f;
+        idle.health = primed.health = flashing.health = 20.0f;
+        float i0[3], i1[3], p0[3], p1[3];
+        int ni = gm_entities_emit(&idle, 1, out, MAXV);
+        bounds(out, ni, i0, i1);
+        primed.creeper_fuse = 25; /* non-flashing phase, strong swell */
+        int npr = gm_entities_emit(&primed, 1, out, MAXV);
+        bounds(out, npr, p0, p1);
+        CHECK((p1[0] - p0[0]) > (i1[0] - i0[0]) * 1.15f,
+              "primed creeper swells laterally");
+        CHECK((p1[1] - p0[1]) > (i1[1] - i0[1]),
+              "primed creeper applies the smaller vertical swell");
+
+        flashing.creeper_fuse = 3; /* int(f*10) == 1 */
+        int nf = gm_entities_emit(&flashing, 1, out, MAXV);
+        CHECK(nf == ni && out[0].blk < 0.0f,
+              "flashing creeper packs its white brightness combiner");
+        CrRgba texel = {64, 64, 64, 255};
+        CrTexture tex = {1, 1, &texel, 0, 0, {0}, {0}, {0}};
+        CrShadeCtx sh = {0};
+        sh.atlas = &tex;
+        sh.layer = CR_LAYER_CUTOUT;
+        sh.entity_brightness = 1;
+        CrFragment frag = {0};
+        frag.light = frag.ao = 1.0f;
+        frag.tint = (CrRgba){255, 255, 255, 255};
+        frag.blk = out[0].blk;
+        CrRgba bright = cr_shade(&sh, &frag);
+        CHECK(bright.r > 200 && bright.g == bright.r && bright.b == bright.r,
+              "creeper flash interpolates the lit texture strongly toward white");
+    }
+
     GmEntityView stand = {0};
     stand.type = 34;
     stand.health = 20.0f;

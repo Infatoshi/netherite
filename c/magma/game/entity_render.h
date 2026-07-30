@@ -48,6 +48,7 @@ typedef struct {
     float lm_mul_r, lm_mul_g, lm_mul_b;
     /* EntitySlime/EntityMagmaCube.squishFactor (render partial=1). */
     float squish;
+    int   creeper_fuse;
     int   ticks_existed;
     int   armor_feet, armor_legs, armor_chest, armor_head;
     int   stand_flags;
