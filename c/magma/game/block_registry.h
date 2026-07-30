@@ -140,6 +140,7 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         case 232: id = 113; break;                /* nether brick fence */
         case 233: id = 139; meta = raw_meta; break;/* cobblestone wall */
         case 234: id = 119; break;                  /* end portal (active) */
+        case 235: id = 46; break;                   /* TNT */
         default: break;
     }
 
@@ -215,6 +216,7 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 39: return 42;
         case 40: return 43;
         case 44: return (meta & 7) == 1 ? 84 : 202;
+        case 46: return 235;
         case 48: return 46;
         case 49: return 89;
         case 50: return 222;

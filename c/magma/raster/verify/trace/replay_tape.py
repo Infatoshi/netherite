@@ -53,6 +53,7 @@ MODELED_ENTITY_TYPES = frozenset({
     "EntityArmorStand",
     "EntityXPOrb",
     "EntityFallingBlock",
+    "EntityTNTPrimed",
 })
 
 # RenderAreaEffectCloud itself has no geometry. Its client-side dragon-breath

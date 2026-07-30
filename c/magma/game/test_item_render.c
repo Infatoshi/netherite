@@ -477,6 +477,21 @@ int main(void) {
         fb.item_id = 0;
         CHECK(gm_falling_blocks_emit(&fb, 1, out, 64) == 0,
               "falling block with no block id emits nothing");
+
+        memset(&fb, 0, sizeof fb);
+        fb.type = GM_VIEW_TNT_PRIMED;
+        fb.ent_id = 9708;
+        fb.ticks_existed = 35;
+        fb.x = 0.5f; fb.y = 4.16f; fb.z = 4.5f;
+        n = gm_falling_blocks_emit(&fb, 1, out, 64);
+        CHECK(n == 36, "primed TNT emits the TNT block model");
+        CHECK(out[0].pos.y >= fb.y && out[0].pos.y <= fb.y + 1.0f,
+              "primed TNT block is lifted from entity feet");
+        CHECK(fabsf(out[12].uv.x - out[13].uv.x) < eps &&
+              out[12].uv.y > out[13].uv.y &&
+              fabsf(out[13].uv.y - out[14].uv.y) < eps &&
+              out[13].uv.x > out[14].uv.x,
+              "primed TNT north face uses FaceBakery UV orientation");
     }
 
     if (g_fail) { fprintf(stderr, "test_item_render: FAILED\n"); return 1; }
