@@ -749,8 +749,11 @@ int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
     for (int e = 0; e < n; ++e) {
         if (ents[e].type != GM_VIEW_BILLBOARD || ents[e].item_id != 385)
             continue;
-        /* flags bit 0 = burn (Entity.isBurning). Unset => no fire overlay. */
-        if ((ents[e].flags & 1) == 0)
+        /* flags bit 0 = burn (Entity.isBurning). Legacy projectile rows do
+         * not carry Entity.fire, but EntityFireball calls setFire(1) on its
+         * first update; ticksExisted distinguishes that state from a fresh,
+         * not-yet-ticked fireball pin. */
+        if ((ents[e].flags & 1) == 0 && ents[e].ticks_existed <= 0)
             continue;
         if (written + 12 > max) break;
         /* EntityLargeFireball width 1.0; EntitySmallFireball width 0.3125. */
