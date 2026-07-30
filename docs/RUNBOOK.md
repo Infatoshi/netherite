@@ -57,3 +57,13 @@ bash netherite_sweep.sh --full    # + CUDA oracles, tape replay, raster parity
 ```
 
 Details and ship criteria: `docs/GATES.md`.
+
+## Metal backend (MacBook)
+
+`bash scripts/mac_metal_verify.sh` from the repo root on the MacBook builds
+`magma_game_metal`, runs the CPU-vs-Metal raster parity gate
+(`make -C magma test-raster-parity-metal`), and replays the zombie smoke tape
+with `replay_tape.py --metal`. Tapes must be rsynced from anvil first (exact
+command in the script header). Metal parity is UNVERIFIED until that script
+passes on the MacBook; status and scope: `magma/VERIFY.md` "Metal backend
+(macOS)".
