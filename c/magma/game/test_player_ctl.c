@@ -287,7 +287,7 @@ int main(void)
     }
 
     /* ---------------- (F) BLOCK CALLBACK/COLLISION EDGE CASES ------------ */
-    printf("case F: slabs, slime, web, soul sand, fence vanilla mechanics\n");
+    printf("case F: slabs, trapdoors, slime, web, soul sand, fence vanilla mechanics\n");
     {
         McAABB blocks[PSV_MAX_BLOCKS];
         PsvAction idle; memset(&idle, 0, sizeof idle);
@@ -310,6 +310,37 @@ int main(void)
                 blocks[i].minZ == 24.0 && blocks[i].maxY == 4.0)
                 top_ok = 1;
         CHECK(top_ok, "top slab collision box is y+0.5..y+1");
+
+        static const double trap_boxes[4][6] = {
+            {0.0, 0.0, 0.8125, 1.0, 1.0, 1.0},
+            {0.0, 0.0, 0.0, 1.0, 1.0, 0.1875},
+            {0.8125, 0.0, 0.0, 1.0, 1.0, 1.0},
+            {0.0, 0.0, 0.0, 0.1875, 1.0, 1.0},
+        };
+        for (int meta = 0; meta < 16; ++meta) {
+            set_block_meta(win, 24, 3, 24, BLK_TRAPDOOR, meta);
+            int nt = psv_collect_blocks(win, &slab_query, blocks, PSV_MAX_BLOCKS);
+            double want[6];
+            if (meta & 4) {
+                for (int j = 0; j < 6; ++j)
+                    want[j] = trap_boxes[meta & 3][j];
+            } else {
+                want[0] = 0.0; want[2] = 0.0;
+                want[3] = 1.0; want[5] = 1.0;
+                want[1] = (meta & 8) ? 0.8125 : 0.0;
+                want[4] = (meta & 8) ? 1.0 : 0.1875;
+            }
+            int trap_ok = 0;
+            for (int i = 0; i < nt; ++i)
+                if (blocks[i].minX == 24.0 + want[0] &&
+                    blocks[i].minY == 3.0 + want[1] &&
+                    blocks[i].minZ == 24.0 + want[2] &&
+                    blocks[i].maxX == 24.0 + want[3] &&
+                    blocks[i].maxY == 3.0 + want[4] &&
+                    blocks[i].maxZ == 24.0 + want[5])
+                    trap_ok = 1;
+            CHECK(trap_ok, "trapdoor collision box preserves facing/open/half");
+        }
 
         fill_mechanics_floor(win);
         psv_set_block(win, 24, 3, 24, BLK_SLIME);

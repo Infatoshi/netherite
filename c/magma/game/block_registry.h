@@ -22,6 +22,7 @@ enum {
 #define GM_MODEL_FALLBACK 4095
 #define GM_MODEL_STONE_SLAB_BOTTOM_BASE 237
 #define GM_MODEL_STONE_SLAB_TOP_BASE 245
+#define GM_MODEL_TRAPDOOR 255
 
 static inline uint16_t gm_pack_state(int id, int meta) {
     return (uint16_t)(((id & 0x0fff) << 4) | (meta & 15));
@@ -146,6 +147,8 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         case 236: id = 46; break;                   /* TNT */
         case 253: id = 102; break;                  /* glass pane */
         case 254: id = 67; meta = raw_meta; break;  /* cobblestone stairs */
+        case GM_MODEL_TRAPDOOR:
+            id = 96; meta = raw_meta; break;        /* oak trapdoor */
         default: break;
     }
 
@@ -257,6 +260,7 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 88: return 215;
         case 89: return 214;
         case 90: return 211;
+        case 96: return GM_MODEL_TRAPDOOR;
         case 97: return 76;
         case 99: return 79;
         case 100: return 80;

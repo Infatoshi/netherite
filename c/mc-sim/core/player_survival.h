@@ -237,9 +237,9 @@ MC_HD static inline void psv_add_stairs_collision(int x, int y, int z, int meta,
 
 /* Collect vanilla block collision AABBs over the motion broadphase. Web is
  * pass-through, slabs preserve their metadata half, stairs use their
- * metadata-oriented two-box straight shape, soul sand is 7/8 tall, fences are
- * multipart and 1.5 tall, and walls use the connection-state union box with
- * collision maxY 1.5. */
+ * metadata-oriented two-box straight shape, trapdoors use their 3/16 panel
+ * pose, soul sand is 7/8 tall, fences are multipart and 1.5 tall, and walls
+ * use the connection-state union box with collision maxY 1.5. */
 MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *query,
                                            McAABB *blocks, int maxblocks) {
     int n = 0;
@@ -255,7 +255,26 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
             for (int z = z0; z <= z1; ++z) {
                 int id = psv_get_block(chunks, x, y, z);
                 if (id == BLK_WEB || !psv_solid(id)) continue;
-                if (id == BLK_STONE_SLAB || id == BLK_WOODEN_SLAB ||
+                if (id == BLK_TRAPDOOR) {
+                    int meta = psv_get_meta(chunks, x, y, z);
+                    double min_x = 0.0, min_y = 0.0, min_z = 0.0;
+                    double max_x = 1.0, max_y = 1.0, max_z = 1.0;
+                    if (meta & 4) {
+                        switch (meta & 3) {
+                            case 0: min_z = 0.8125; break;
+                            case 1: max_z = 0.1875; break;
+                            case 2: min_x = 0.8125; break;
+                            default: max_x = 0.1875; break;
+                        }
+                    } else if (meta & 8) {
+                        min_y = 0.8125;
+                    } else {
+                        max_y = 0.1875;
+                    }
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + min_x, y + min_y, z + min_z,
+                                     x + max_x, y + max_y, z + max_z));
+                } else if (id == BLK_STONE_SLAB || id == BLK_WOODEN_SLAB ||
                     id == BLK_RED_SANDSTONE_SLAB) {
                     int meta = psv_get_meta(chunks, x, y, z);
                     double min_y = (meta & 8) ? y + 0.5 : (double)y;

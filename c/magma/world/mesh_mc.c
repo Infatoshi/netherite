@@ -265,7 +265,8 @@ static int mc_use_neighbor_brightness_at(const CrLight *L, int wx, int wy, int w
     if (m->kind == BM_KIND_SLAB_BOTTOM || m->kind == BM_KIND_SLAB_TOP ||
         m->kind == BM_KIND_STAIRS || m->kind == BM_KIND_IRON_BARS ||
         m->kind == BM_KIND_GLASS_PANE ||
-        m->kind == BM_KIND_TORCH || m->kind == BM_KIND_RAIL)
+        m->kind == BM_KIND_TORCH || m->kind == BM_KIND_RAIL ||
+        m->kind == BM_KIND_TRAPDOOR)
         return 1;
     if (mc_translucent_at(L, wx, wy, wz)) return 1;
     return 0;
@@ -881,6 +882,72 @@ static void emit_slab(CrChunkMeshMC *out, int *cap, const CrLight *L,
                          m->face[f].sprite, base01 * FACES[f].shade,
                          1.0f, tint, quad);
         push_face(out, cap, m->layer, quad);
+    }
+}
+
+static int rotate_face_y(int face, int quarter_turns);
+static void emit_model_face(CrChunkMeshMC *out, int *cap, int layer,
+                            int wx, int wy, int wz,
+                            const float from[3], const float to[3], int face,
+                            const float uv[4], int part_present, int axis,
+                            float angle, const float origin[3], int rescale,
+                            int sprite, CrRgba tint, float base01,
+                            int shade, int quarter_turns);
+
+/* models/block/trapdoor_{bottom,top,open}.json. The local open model occupies
+ * z=13..16; metadata 0..3 maps NORTH, SOUTH, WEST, EAST and rotates that panel
+ * by 0, 180, 270, 90 degrees. Explicit UVs preserve the texture's holes and
+ * three-pixel edge strips. */
+static void emit_trapdoor(CrChunkMeshMC *out, int *cap, const CrLight *L,
+                          const BmBlock *m, int wx, int wy, int wz,
+                          CrRgba tint, float base01) {
+    int meta = light_meta(L, wx, wy, wz);
+    int open = (meta & 4) != 0;
+    int top = (meta & 8) != 0;
+    static const int turns[4] = {0, 2, 3, 1};
+    int qy = open ? turns[meta & 3] : 0;
+    const float closed_bottom_from[3] = {0.0f, 0.0f, 0.0f};
+    const float closed_bottom_to[3] = {16.0f, 3.0f, 16.0f};
+    const float closed_top_from[3] = {0.0f, 13.0f, 0.0f};
+    const float closed_top_to[3] = {16.0f, 16.0f, 16.0f};
+    const float open_from[3] = {0.0f, 0.0f, 13.0f};
+    const float open_to[3] = {16.0f, 16.0f, 16.0f};
+    const float *from = open ? open_from
+                      : top ? closed_top_from : closed_bottom_from;
+    const float *to = open ? open_to
+                    : top ? closed_top_to : closed_bottom_to;
+    const float full_uv[4] = {0.0f, 0.0f, 16.0f, 16.0f};
+    const float edge_uv[4] = {0.0f, 16.0f, 16.0f, 13.0f};
+    static const float open_uv[6][4] = {
+        {0.0f, 13.0f, 16.0f, 16.0f},
+        {0.0f, 16.0f, 16.0f, 13.0f},
+        {0.0f, 0.0f, 16.0f, 16.0f},
+        {0.0f, 0.0f, 16.0f, 16.0f},
+        {16.0f, 0.0f, 13.0f, 16.0f},
+        {13.0f, 0.0f, 16.0f, 16.0f},
+    };
+    for (int face = 0; face < 6; ++face) {
+        int has_cullface;
+        if (open)
+            has_cullface = face != BM_NORTH;
+        else if (top)
+            has_cullface = face != BM_DOWN;
+        else
+            has_cullface = face != BM_UP;
+        if (has_cullface) {
+            int cull_face = rotate_face_y(face, qy);
+            const Face *fc = &FACES[cull_face];
+            const BmBlock *neighbor = bm_block(light_block(
+                L, wx + fc->n[0], wy + fc->n[1], wz + fc->n[2]));
+            if (neighbor->is_full_cube &&
+                neighbor->layer == CR_LAYER_SOLID)
+                continue;
+        }
+        const float *uv = open ? open_uv[face]
+                        : face >= BM_NORTH ? edge_uv : full_uv;
+        emit_model_face(out, cap, m->layer, wx, wy, wz, from, to, face,
+                        uv, 0, 3, 0.0f, NULL, 0,
+                        m->face[face].sprite, tint, base01, 1, qy);
     }
 }
 
@@ -1738,7 +1805,8 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
          m->kind == BM_KIND_STAIRS ||
          m->kind == BM_KIND_IRON_BARS ||
          m->kind == BM_KIND_GLASS_PANE ||
-         m->kind == BM_KIND_TORCH)
+         m->kind == BM_KIND_TORCH ||
+         m->kind == BM_KIND_TRAPDOOR)
         ? neighbor_model_light01(L, wx, wy, wz,
                                  m->kind == BM_KIND_TORCH ? 14 : 0, &tint)
         : cell_light01(L, wx, wy, wz, &tint);
@@ -1876,6 +1944,9 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
             break;
         case BM_KIND_RAIL:
             emit_rail(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);
+            break;
+        case BM_KIND_TRAPDOOR:
+            emit_trapdoor(out, cap, L, m, wx, wy, wz, tint, base01);
             break;
         case BM_KIND_SNOW_LAYER:
             emit_snow_layer(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);
