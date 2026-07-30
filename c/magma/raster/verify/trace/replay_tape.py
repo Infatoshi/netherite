@@ -45,6 +45,7 @@ MODELED_ENTITY_TYPES = frozenset({
     "EntityPig", "EntityCow", "EntityMooshroom", "EntityChicken",
     "EntitySquid", "EntityWitch", "EntityBat", "EntityLlama",
     "EntityGhast", "EntityMagmaCube", "EntityMinecartEmpty",
+    "EntityBoat",
     "EntityMinecartChest", "EntityMinecartFurnace", "EntityMinecartHopper",
     "EntityMinecartTNT", "EntityDragon", "EntityArrow",
     "EntityTippedArrow", "EntitySpectralArrow", "EntityEnderCrystal",

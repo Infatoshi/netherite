@@ -151,6 +151,35 @@ int main(void) {
         gm_runtime_ent_views_clear(&r);
     }
     {
+        GmAction use; memset(&use,0,sizeof use); use.use=1; use.hotbar_sel=-1;
+        GmAction idle; memset(&idle,0,sizeof idle); idle.hotbar_sel=-1;
+        GmAction sneak=idle; sneak.sneak=1;
+        gm_runtime_set_pose(&r,0.5,3.0,0.5,0,20);
+        gm_runtime_tape_boat_view(&r,10163,0.5,3.56,3.5,0);
+        gm_runtime_tick(&r,use);
+        CHECK(r.tape_boat_ride_id<0&&r.tape_boat_mount_pending==10163,
+              "tape boat click waits one client tick for mount response");
+        gm_runtime_ent_views_clear(&r);
+        gm_runtime_tape_boat_view(&r,10163,0.5,3.55,3.5,0);
+        gm_runtime_tick(&r,idle);
+        CHECK(r.tape_boat_ride_id==10163&&
+              fabs(r.player.ent.posX+r.ox-0.5)<1e-12&&
+              fabs(r.player.ent.posY-
+                   (3.55-0.44999998807907104))<1e-12&&
+              fabs(r.player.ent.posZ+r.oz-3.5)<1e-12,
+              "mounted tape player follows exact boat pose at vanilla offset");
+        gm_runtime_ent_views_clear(&r);
+        gm_runtime_tape_boat_view(&r,10163,0.5,3.54,3.5,0);
+        gm_runtime_tick(&r,sneak);
+        CHECK(r.tape_boat_ride_id==10163&&r.tape_boat_dismount_pending,
+              "tape boat sneak waits one client tick for dismount response");
+        gm_runtime_ent_views_clear(&r);
+        gm_runtime_tape_boat_view(&r,10163,0.5,3.53,3.5,0);
+        gm_runtime_tick(&r,idle);
+        CHECK(r.tape_boat_ride_id<0&&!r.tape_boat_dismount_pending,
+              "tape boat dismount response clears passenger relationship");
+    }
+    {
         GmEntityView src; memset(&src,0,sizeof src);
         src.type=EW_TYPE_CREEPER;src.health=20;src.ent_id=9201;
         src.x=(float)(r.player.ent.posX+r.ox);

@@ -91,6 +91,20 @@ typedef struct GmRuntime {
      * loop clears this at the top of every tick. */
     GmEntityView ghost_views[GM_RUNTIME_GHOST_VIEWS];
     int nghost_views;
+    /* Exact-double EntityBoat pose from the current tape row. Unlike the
+     * render ghost above, this drives the recorded local player's riding
+     * relationship: mount/dismount packets take effect one client tick after
+     * the input, then EntityBoat.updatePassenger pins the player's feet at
+     * boat y + getMountedYOffset() + EntityPlayer.getYOffset(), evaluated
+     * through EntityBoat's float local, is y - 0.44999998807907104. */
+    struct { int valid, ent_id; double x, y, z, yaw; } tape_boat;
+    int tape_boat_ride_id;       /* -1 while the recorded player is on foot */
+    int tape_boat_mount_pending; /* entity id; activates next client tick */
+    int tape_boat_dismount_pending;
+    int tape_boat_mount_message_ticks;
+    float tape_boat_paddle[2];
+    double tape_boat_prev_yaw;
+    int tape_boat_prev_yaw_valid;
     /* Tape rows carry a nearby EntityLargeFireball removal but not its
      * SPacketExplosion. Retain enough trajectory to reconstruct the first
      * renderable ParticleExplosionLarge puff on a player-hit removal. */
@@ -168,6 +182,10 @@ int gm_runtime_dragon_contact(GmRuntime *r, double min_x, double min_y,
  * ent_id is the tape entity id (for hurtTime/limbSwing continuity); pass -1
  * if unknown. */
 void gm_runtime_ent_view(GmRuntime *r, const GmEntityView *view);
+/* Preserve an EntityBoat tape row at JSON double precision for passenger
+ * position following. Call before gm_runtime_ent_view for the same entity. */
+void gm_runtime_tape_boat_view(GmRuntime *r, int ent_id, double x, double y,
+                               double z, double yaw);
 void gm_runtime_ent_views_clear(GmRuntime *r);
 /* Fill `out` with this tick's renderable ghost entities; returns count. */
 int gm_runtime_ghost_views(const GmRuntime *r, GmEntityView *out, int max);

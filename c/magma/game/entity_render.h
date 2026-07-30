@@ -52,6 +52,7 @@ typedef struct {
     int   ticks_existed;
     int   armor_feet, armor_legs, armor_chest, armor_head;
     int   stand_flags;
+    float boat_paddle[2];
 } GmEntityView;
 #endif
 

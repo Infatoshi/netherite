@@ -629,7 +629,8 @@ static int finish_pending(GmFrameCapture *c) {
     gm_hand_set_hurt(c->pend_v.hurt_time, c->pend_v.max_hurt_time,
                      c->pend_v.hurt_yaw);
     gm_hand_set_item_override(c->pend_item, c->pend_meta, c->pend_count);
-    if (!c->pend_v.dead && !getenv("MAGMA_NO_HAND") && !hand_hidden(c->pend_tick))
+    if (!c->pend_v.dead && !c->pend_v.riding_boat &&
+        !getenv("MAGMA_NO_HAND") && !hand_hidden(c->pend_tick))
         gm_hand_draw(&pfb, &c->pend_v, c->pend_bob);
     /* ItemRenderer.renderOverlays: block, water, fire; then portal; then HUD. */
     if (c->pend_v.texture_animations_pinned)
@@ -1251,7 +1252,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
         if(!hud_hidden()||have_gui)gm_hud_draw(&c->fb,&v);
     }else{
-        if(!v.dead&&!getenv("MAGMA_NO_HAND")&&!hand_hidden(r->tick))
+        if(!v.dead&&!v.riding_boat&&!getenv("MAGMA_NO_HAND")&&!hand_hidden(r->tick))
             gm_hand_draw(&c->fb,&v,c->hand_bob);
         /* ItemRenderer.renderOverlays: block, water, fire; then portal; HUD. */
         if(!v.dead)gm_overlay_block_in_hand_live(&c->fb,&atlas,r->world,&v);

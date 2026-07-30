@@ -678,6 +678,8 @@ int gm_script_run(const GmConfig *cfg) {
                     view.item_meta=2; /* RenderFireball scale 2 + large fire layers */
                 view.x=(float)x;view.y=(float)y;view.z=(float)z;view.yaw=(float)yaw;
                 view.health=(float)hp;view.ent_id=(int)eid;
+                if (view.type == EW_TYPE_BOAT)
+                    gm_runtime_tape_boat_view(&r, (int)eid, x, y, z, yaw);
 #define OPT_I64(K,DST) do{if(field(&pending,K)){if(!as_i64(field(&pending,K),&n)){fprintf(stderr,"script:%ld: invalid ent_view %s\n",line_no,K);goto bad;}DST=(int)n;}}while(0)
 #define OPT_DBL(K,DST) do{if(field(&pending,K)){if(!as_double(field(&pending,K),&d)){fprintf(stderr,"script:%ld: invalid ent_view %s\n",line_no,K);goto bad;}DST=(float)d;}}while(0)
                 OPT_I64("tape_pose",view.tape_pose);OPT_DBL("head_yaw",view.head_yaw);
