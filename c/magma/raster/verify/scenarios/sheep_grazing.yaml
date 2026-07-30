@@ -1,0 +1,39 @@
+name: sheep_grazing
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 0.5 4 0.5 0 8
+  - /fill -5 4 6 5 4 6 minecraft:fence
+  - /fill -5 4 16 5 4 16 minecraft:fence
+  - /fill -5 4 7 -5 4 15 minecraft:fence
+  - /fill 5 4 7 5 4 15 minecraft:fence
+  - /summon sheep -3.5 4 9.5 {PersistenceRequired:1b}
+  - /summon sheep 3.5 4 9.5 {PersistenceRequired:1b}
+  - /summon sheep -3.5 4 13.5 {PersistenceRequired:1b}
+  - /summon sheep 3.5 4 13.5 {PersistenceRequired:1b}
+duration_ticks: 600
+frames_every: 20
+input:
+  segments:
+    - seconds: 6.0
+    - seconds: 6.0
+      look: [-18.0, 0.0]
+    - seconds: 6.0
+      look: [36.0, 0.0]
+    - seconds: 6.0
+      look: [-36.0, 0.0]
+    - seconds: 6.0
+      look: [18.0, 0.0]
+known_divergences: []

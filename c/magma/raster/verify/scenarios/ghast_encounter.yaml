@@ -1,0 +1,56 @@
+name: ghast_encounter
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /effect @p minecraft:resistance 1000000 3 true
+setup_qrl:
+  - cmd: dim
+    action: {id: -1}
+    settle_ticks: 100
+  - cmd: runcmds
+    action: {cmds: ["tp @p 0.5 101 -0.5 0 -12"]}
+    settle_ticks: 10
+  # Build solid first so clearing the open-air arena cannot be a zero-change
+  # fill. The inner clear removes the roof as well as the sight line.
+  - cmd: runcmds
+    action:
+      cmds:
+        - fill -12 100 -4 12 116 28 minecraft:netherrack
+        - fill -11 101 -3 11 116 27 minecraft:air
+    settle_ticks: 10
+  - cmd: runcmds
+    action:
+      cmds:
+        - summon ghast 0.5 106 20.5 {PersistenceRequired:1b}
+    settle_ticks: 10
+duration_ticks: 600
+frames_every: 20
+input:
+  segments:
+    - seconds: 6.0
+    - seconds: 1.5
+      keys: [a]
+    - seconds: 4.0
+    - seconds: 1.5
+      keys: [d]
+    - seconds: 5.0
+      look: [12.0, -3.0]
+    - seconds: 1.5
+      keys: [a]
+    - seconds: 1.5
+      keys: [d]
+    - seconds: 9.0
+      look: [-12.0, 3.0]
+known_divergences: []

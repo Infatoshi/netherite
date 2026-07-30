@@ -1,0 +1,32 @@
+name: item_pickup_toss
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 0.5 4 0.5 0 35
+  - /replaceitem entity @p slot.hotbar.0 minecraft:cobblestone 8
+duration_ticks: 300
+frames_every: 20
+input:
+  segments:
+    - seconds: 1.0
+    - seconds: 0.2
+      keys: [q]
+    - seconds: 0.3
+    - seconds: 0.2
+      keys: [q]
+    - seconds: 0.3
+    - seconds: 0.2
+      keys: [q]
+    - seconds: 12.8
+known_divergences: []

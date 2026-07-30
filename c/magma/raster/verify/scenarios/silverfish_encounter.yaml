@@ -1,0 +1,34 @@
+name: silverfish_encounter
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /gamerule naturalRegeneration false
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 1.5 0 18
+  - /fill -5 3 -1 5 3 14 minecraft:stonebrick
+  - /fill -5 4 10 5 5 10 minecraft:glass
+  - /effect @p minecraft:resistance 999 2 true
+  - '/summon minecraft:silverfish -1.5 4 7.5 {PersistenceRequired:1b}'
+  - '/summon minecraft:silverfish 0.5 4 8.5 {PersistenceRequired:1b}'
+  - '/summon minecraft:silverfish 2.5 4 7.5 {PersistenceRequired:1b}'
+duration_ticks: 360
+frames_every: 10
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 6.0
+      keys: [a, Shift_L]
+    - seconds: 6.0
+      keys: [d, Shift_L]
+    - seconds: 4.0
+known_divergences: []
