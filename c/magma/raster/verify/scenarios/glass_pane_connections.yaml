@@ -29,6 +29,13 @@ setup_commands:
   # Solid-glass endpoints expose pane-to-block joins.
   - /setblock 2 4 8 minecraft:glass
   - /setblock 7 4 8 minecraft:glass
+setup_qrl:
+  # Final render-settle: first recording's ticks 0-40 goldens were stale sky.
+  - cmd: runcmds
+    action:
+      cmds:
+        - time set 6000
+    settle_ticks: 120
 duration_ticks: 300
 frames_every: 20
 input:
