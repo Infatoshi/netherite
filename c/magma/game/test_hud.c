@@ -202,6 +202,26 @@ int main(void) {
         fail = 1;
     }
 
+    /* (6b) Creative retains hotbar/crosshair but suppresses survival stats. */
+    {
+        for (int i = 0; i < W * H; ++i)
+            fb.color[i] = (CrRgba){ GRAY, GRAY, GRAY, 255 };
+        pv.creative = 1;
+        pv.armor_points = 15;
+        gm_hud_draw(&fb, &pv);
+        if (!region_changed(&fb, W/2 - 60, H - 30, W/2 + 60, H - 2) ||
+            !region_changed(&fb, W/2 - 8, H/2 - 8, W/2 + 8, H/2 + 8)) {
+            fprintf(stderr, "FAIL: creative hotbar or crosshair missing\n");
+            fail = 1;
+        }
+        if (region_changed(&fb, 244, 380, 610, 432)) {
+            fprintf(stderr, "FAIL: creative HUD drew survival stats\n");
+            fail = 1;
+        }
+        pv.creative = 0;
+        pv.armor_points = 0;
+    }
+
     /* (7) Durability strip width + green->red hue (wood pick max 59). */
     {
         int w_half = gm_hud_durability_width(270, 30); /* ~half worn */

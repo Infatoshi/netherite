@@ -870,6 +870,15 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
                             ix, iy, scale);
     }
 
+    /* Creative keeps the hotbar and crosshair but omits the survival-only
+     * experience, health, armor, hunger, and air rows. Potion effects remain
+     * visible in the top-right just as they do in survival. */
+    if (pv->creative) {
+        hud_draw_crosshair(fb);
+        hud_draw_potion_effects(fb, pv, scale, sw_s);
+        return;
+    }
+
     /* ---- XP bar (directly under the hotbar strip position, MC draws it just
      * above the hotbar; place it spanning the hotbar width just above it) ---- */
     const int xp_x = (cx_s - 91) * scale;
