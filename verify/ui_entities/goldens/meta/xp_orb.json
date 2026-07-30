@@ -1,0 +1,90 @@
+{
+  "id": "xp_orb",
+  "pin_reply_a": {
+    "ok": true,
+    "kind": "xp_orb",
+    "difficulty": "EASY",
+    "value": 17,
+    "age": 0,
+    "color": 0,
+    "eid": 3905,
+    "uuid": "be08587d-0e0d-42ae-a111-d32f657216dd",
+    "x": 8.5,
+    "y": 6.0,
+    "z": 10.5,
+    "render_pin_armed": true,
+    "render_pin_squish": 0.0,
+    "render_pin_death_ticks": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "kind": "xp_orb",
+    "difficulty": "EASY",
+    "value": 17,
+    "age": 0,
+    "color": 0,
+    "eid": 3905,
+    "uuid": "be08587d-0e0d-42ae-a111-d32f657216dd",
+    "x": 8.5,
+    "y": 6.0,
+    "z": 10.5,
+    "render_pin_armed": true,
+    "render_pin_squish": 0.0,
+    "render_pin_death_ticks": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file_a": "/tmp/netherite-fidelity-captures-v3/verify/ui_entities/goldens/xp_orb_a.png",
+    "file_b": "/tmp/netherite-fidelity-captures-v3/verify/ui_entities/goldens/xp_orb_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_eid": 3905,
+    "portal_phase": 341,
+    "pin_use_active": false,
+    "file": "/tmp/netherite-fidelity-captures-v3/verify/ui_entities/goldens/xp_orb_a.png"
+  },
+  "frame_b": {
+    "ok": true,
+    "file_a": "/tmp/netherite-fidelity-captures-v3/verify/ui_entities/goldens/xp_orb_a.png",
+    "file_b": "/tmp/netherite-fidelity-captures-v3/verify/ui_entities/goldens/xp_orb_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_eid": 3905,
+    "portal_phase": 341,
+    "pin_use_active": false,
+    "file": "/tmp/netherite-fidelity-captures-v3/verify/ui_entities/goldens/xp_orb_b.png"
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 25.0,
+    "no_gravity": true
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "stable_ab": true,
+  "notes": "A/B from qrl frame{} at partialTicks=1; client render pin applied immediately before renderWorld for squish/deathTicks/xp_orb",
+  "entity": {
+    "type": "xp_orb",
+    "value": 17,
+    "age": 0,
+    "color": 0,
+    "subject": {
+      "x": 8.5,
+      "y": 6.0,
+      "z": 10.5
+    }
+  }
+}

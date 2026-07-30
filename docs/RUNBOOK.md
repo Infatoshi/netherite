@@ -1,7 +1,7 @@
 # Runbook
 
 How to play, tape, and drive the env. Agent entry is root `AGENTS.md`.
-Verification procedure lives in `c/magma/VERIFY.md`.
+Verification procedure lives in `magma/VERIFY.md`.
 
 Anvil is headless. Humans view via Mac (mcwindow or Moonlight). Never open a
 game window expecting a local monitor on anvil.
@@ -22,7 +22,7 @@ game window expecting a local monitor on anvil.
 - App "Minecraft 1.11.2 (mc-env)" -> `java/sunshine_launch_mc.sh`
   (forces virtual 1920x1080; mode name must be plain WIDTHxHEIGHT or LWJGL2 crashes).
 - From Mac: Moonlight -> anvil -> app (or Desktop if game already running).
-- Taping: `c/magma/VERIFY.md`.
+- Taping: `magma/VERIFY.md`.
 
 ## Run B: headless VNC (agent / trace stack)
 
@@ -42,11 +42,11 @@ bash java/start_vnc_client.sh   # Xvfb :1 + openbox + x11vnc + gradlew runClient
 - qrl TCP on `127.0.0.1:25575`, newline-JSON: `reset` / `step` / `obs`.
 - Client: `uv run --no-project python java/qrl_client.py` -> `QRLEnv()`.
 - Needs a live client (Run A or B). World loads headlessly.
-- Human tape: `recstart` / `recstop` on the bridge; see `c/magma/VERIFY.md`.
+- Human tape: `recstart` / `recstop` on the bridge; see `magma/VERIFY.md`.
 
 ## Batched CUDA env (blaze)
 
-Product RL path is `c/magma/rl/blaze/` (not the discrete qrl bridge).
+Product RL path is `blaze/env/` (not the discrete qrl bridge).
 Gates and snapshots: `docs/BOOTSTRAP.md` (RL artifacts section) and `docs/GATES.md`.
 
 ## One-command verification pyramid

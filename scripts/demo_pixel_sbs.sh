@@ -27,21 +27,21 @@ for arg in "$@"; do
   esac
 done
 
-DEMO_DIR="$ROOT/c/magma/raster/verify/demo"
+DEMO_DIR="$ROOT/verify/demo"
 # DEMO_TAPE_NAME overrides the tape (e.g. the current canonical in tapes/);
-# the default is the shipped cold-box pack under raster/verify/demo/.
+# the default is the shipped cold-box pack under verify/demo/.
 NAME="${DEMO_TAPE_NAME:-20260712T055346Z_fast_s0_survival_default_rd8_77b5b462}"
 TAPE="$DEMO_DIR/${NAME}.jsonl"
 FRAMES="$DEMO_DIR/${NAME}_frames"
 OUT_DIR="$ROOT/demos"
-TRACE="$ROOT/c/magma/raster/verify/trace"
-MAGMA="$ROOT/c/magma"
-MC_CAP="$MAGMA/raster/verify/mc_capture"
+TRACE="$ROOT/verify/trace"
+MAGMA="$ROOT/magma"
+MC_CAP="$ROOT/verify/mc_capture"
 
 # Tapes not in the shipped pack resolve from the working tapes/ dir.
-if [ ! -f "$TAPE" ] && [ -f "$MAGMA/raster/verify/tapes/${NAME}.jsonl" ]; then
-  TAPE="$MAGMA/raster/verify/tapes/${NAME}.jsonl"
-  FRAMES="$MAGMA/raster/verify/tapes/${NAME}_frames"
+if [ ! -f "$TAPE" ] && [ -f "$ROOT/verify/tapes/${NAME}.jsonl" ]; then
+  TAPE="$ROOT/verify/tapes/${NAME}.jsonl"
+  FRAMES="$ROOT/verify/tapes/${NAME}_frames"
 fi
 
 [ -f "$TAPE" ] || { echo "ERROR: missing $TAPE"; exit 1; }
@@ -56,7 +56,7 @@ cp -f "$DEMO_DIR/mc_frame.png" "$MC_CAP/mc_frame.png"
 
 # Standard tapes/ location for replay_tape / make_sbs (skip when the tape
 # already lives there - linking onto itself would loop).
-TAPES_LINK="$MAGMA/raster/verify/tapes"
+TAPES_LINK="$ROOT/verify/tapes"
 mkdir -p "$TAPES_LINK"
 if [ "$TAPE" != "$TAPES_LINK/${NAME}.jsonl" ]; then
 ln -sfn "$TAPE" "$TAPES_LINK/${NAME}.jsonl"
@@ -207,8 +207,8 @@ for _ in range(40):  # ~2s at 20fps
     frames.append(title_arr)
 
 # Gated scenes (hard-scene-verify + run_multi_verify.sh write under /tmp)
-mc0 = root / "c/magma/raster/verify/mc_capture/mc_frame.png"
-mc7 = root / "c/magma/raster/verify/mc_capture/mc_seed7.png"
+mc0 = root / "verify/mc_capture/mc_frame.png"
+mc7 = root / "verify/mc_capture/mc_seed7.png"
 pairs = []
 for label, g, c in [
     ("hard-scene seed0 (PASS)", mc0, Path("/tmp/hard_scene_seed0/cand_default.png")),
@@ -232,10 +232,10 @@ for label, gpath, cpath in pairs:
 # Short tape strip (physics-clean motion)
 name = os.environ.get("DEMO_TAPE_NAME_RESOLVED",
                       "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462")
-fr_path = root / f"c/magma/raster/verify/trace/out/tape_{name}/magma_frames.npy"
-tk_path = root / f"c/magma/raster/verify/trace/out/tape_{name}/magma_frames.ticks.npy"
+fr_path = root / f"verify/trace/out/tape_{name}/magma_frames.npy"
+tk_path = root / f"verify/trace/out/tape_{name}/magma_frames.ticks.npy"
 odir = Path(os.environ.get("DEMO_TAPE_FRAMES",
-                           str(root / f"c/magma/raster/verify/demo/{name}_frames")))
+                           str(root / f"verify/demo/{name}_frames")))
 if fr_path.exists() and tk_path.exists() and odir.exists():
     fr = np.load(fr_path)
     tk = np.load(tk_path)

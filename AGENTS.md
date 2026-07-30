@@ -23,14 +23,14 @@ One-shot clean box: `bash scripts/setup_and_verify.sh` (then `--full` with GPU).
 
 ## What this repo is
 
-From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (magma + mc-sim),
+From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (magma + blaze),
 bit-verified against the real Java game, plus a batched CUDA RL env (blaze).
 Product name: **netherite**. Trees:
 
 - `java/` - playable Forge+Malmo/qrl client, launch scripts, oracle-src (bootstrap)
-- `c/magma/` - product C game + software rasterizer + RL
-- `c/mc-sim/` - simulation kernels (CPU == CUDA)
-- `c/render-opt/` - verified render kernels + JNI drop-ins (lab closed)
+- `magma/` - product C game + software rasterizer + RL
+- `blaze/` - simulation kernels (CPU == CUDA)
+- `java/render-opt/` - verified render kernels + JNI drop-ins (lab closed)
 
 ## Where to read (stop when you have enough)
 
@@ -40,8 +40,8 @@ Product name: **netherite**. Trees:
 | How to play, VNC, qrl, sweep | `docs/RUNBOOK.md` |
 | Ship criteria / gate status | `docs/GATES.md` |
 | Is X in the game? cut / pinned / open / unrecoverable | `docs/SCOPE.md` |
-| Fidelity procedure | `c/magma/VERIFY.md` |
-| Product contract / open bugs | `c/magma/PRODUCT.md`, `OPEN_DIVERGENCES.md` (closed forensics: `CLOSED_DIVERGENCES.md`) |
+| Fidelity procedure | `magma/VERIFY.md` |
+| Product contract / open bugs | `magma/PRODUCT.md`, `OPEN_DIVERGENCES.md` (closed forensics: `CLOSED_DIVERGENCES.md`) |
 | Architecture for a tree | that tree's `SPEC.md` |
 | History / lessons | `docs/DEVLOG.md` |
 | Old reports | `docs/archive/` (ignore by default) |
@@ -62,16 +62,16 @@ bash scripts/demo_pixel_sbs.sh
 # or stepwise:
 bash scripts/bootstrap_oracle.sh
 bash scripts/bootstrap_assets.sh
-make -C c/magma game
+make -C magma game
 bash netherite_sweep.sh --quick
 
 cd java/Minecraft && ./gradlew -g run/gradle build
-uv run --no-project python c/mc-sim/oracle/runner.py <name>
+uv run --no-project python blaze/oracle/runner.py <name>
 ```
 
 ## Pixel investigation
 
-When a tape frame is wrong, do not hand-roll numpy. `c/magma/raster/verify/trace`:
+When a tape frame is wrong, do not hand-roll numpy. `verify/trace`:
 
 ```bash
 U="uv run --no-project --with numpy,scipy,pillow python"
@@ -128,7 +128,7 @@ Two things that make a pixel measurement lie, both paid for already:
   from it; tapes recorded before that field keep the old converged seed.
   `MAGMA_FOG_C1_INIT=<0..1>` overrides the seed for sweeping it on old tapes.
   Do not hardcode a value - it depends on the recording session, not the tape
-  (see `c/magma/OPEN_DIVERGENCES.md`).
+  (see `magma/OPEN_DIVERGENCES.md`).
 - **The end-crystal healing beam needs the client's `ticksExisted`.**
   `RenderDragon.renderCrystalBeams` scrolls `endercrystal_beam` by
   `-ticksExisted*0.01` per tick over a 16x256 sheet that is ~2x minified, so a
@@ -163,7 +163,7 @@ Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).
 - No emojis, no em dashes. Minimal diffs. Verify before claiming done.
 - A replay that reports `magma_game failed (rc=-11)` and then
   `EOFError: No data left in file` is a **SIGSEGV in the first captured frame**,
-  and the first thing to try is `make -C c/magma clean && make -C c/magma`. Seen
+  and the first thing to try is `make -C magma clean && make -C magma`. Seen
   2026-07-25: an incremental build in the main tree produced a binary that
   faulted inside `getenv` at the top of `gm_world_mesh_view` (a corrupted
   `environ`, i.e. heap damage). The same commit built clean in a worktree, every

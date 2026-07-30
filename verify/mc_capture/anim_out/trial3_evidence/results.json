@@ -1,0 +1,54 @@
+{
+  "tape": "verify/mc_capture/anim_fixture/20260722T083516Z_fast_s0_survival_default_rd8_8afc5b34.jsonl",
+  "header_total_time": 720,
+  "portal_anchor": [
+    0,
+    9
+  ],
+  "results": {
+    "still_water": {
+      "frames": 219,
+      "absolute_mean_ch": 2.40720945964548,
+      "absolute_tol": 32.0,
+      "temporal_mean_ch": 2.461829607503813,
+      "temporal_tol": 5.0,
+      "shifted_temporal_mean_ch": 3.1363134833147637,
+      "phase_sensitive": false,
+      "verdict": "FAIL",
+      "worst_tick": 23
+    },
+    "flowing_water": {
+      "frames": 219,
+      "absolute_mean_ch": 2.1379820439856174,
+      "absolute_tol": 32.0,
+      "temporal_mean_ch": 0.7709375317737786,
+      "temporal_tol": 5.0,
+      "shifted_temporal_mean_ch": 0.9823675408203435,
+      "phase_sensitive": false,
+      "verdict": "FAIL",
+      "worst_tick": 55
+    },
+    "portal_swirl": {
+      "frames": 219,
+      "absolute_mean_ch": 3.5749966404760927,
+      "absolute_tol": 32.0,
+      "temporal_mean_ch": 1.5841296342213773,
+      "temporal_tol": 5.0,
+      "shifted_temporal_mean_ch": 1.900412338944449,
+      "phase_sensitive": false,
+      "verdict": "FAIL",
+      "worst_tick": 30
+    },
+    "underwater_overlay": {
+      "frames": 40,
+      "absolute_mean_ch": 1.6297972978467343,
+      "absolute_tol": 32.0,
+      "temporal_mean_ch": 1.333490232824249,
+      "temporal_tol": null,
+      "shifted_temporal_mean_ch": null,
+      "phase_sensitive": true,
+      "verdict": "PASS",
+      "worst_tick": 247
+    }
+  }
+}

@@ -124,7 +124,7 @@ public class QuantizedRL {
     private boolean pinSavedValid = false;
 
     // ---- chain-RL protocol v2 state (semantic camera / craft / interact) ----
-    // Mirrors c/magma/game/rl_mode.c semantics so the blaze-trained policy
+    // Mirrors magma/game/rl_mode.c semantics so the blaze-trained policy
     // transfers: container is MOD state (no GUI opens - headless keybind play
     // must keep running), validity-checked every tick like gm_runtime_tick.
     private final SemanticCamera semCam = new SemanticCamera();
@@ -554,7 +554,7 @@ public class QuantizedRL {
         // vanilla path; "off"/absent leaves normal Forge rendering untouched.
         try {
             String m = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(
-                "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/dropin/ao/qao_mode.txt"))).trim();
+                "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/ao/qao_mode.txt"))).trim();
             if ("native".equals(m) || "sabotage".equals(m) || "vanilla".equals(m)) {
                 net.minecraftforge.common.ForgeModContainer.forgeLightPipelineEnabled = false;
                 System.err.println("[qao] Forge light pipeline DISABLED (vanilla getAoBrightness live) for qao_mode=" + m);
@@ -1702,7 +1702,7 @@ public class QuantizedRL {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 5000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 16;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/14_light_query/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/14_light_query/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -1798,7 +1798,7 @@ public class QuantizedRL {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 2000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 10;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/19_fluid_height/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/19_fluid_height/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -1878,7 +1878,7 @@ public class QuantizedRL {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 1000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 48;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/18_biome_color_blend/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/18_biome_color_blend/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -1934,7 +1934,7 @@ public class QuantizedRL {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 5000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 12;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/21_should_side_render/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/21_should_side_render/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2028,7 +2028,7 @@ public class QuantizedRL {
             final int py = (int) Math.floor(mc.player.posY);
             final int pz = (int) Math.floor(mc.player.posZ);
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : ("/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/"
+                : ("/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/"
                    + (smooth ? "24_render_quads_smooth" : "23_render_quads_flat") + "/golden");
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
@@ -2179,7 +2179,7 @@ public class QuantizedRL {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 200;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 10;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/20_fluid_quad_gen/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/20_fluid_quad_gen/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2351,7 +2351,7 @@ public class QuantizedRL {
             final int py = (int) Math.floor(mc.player.posY);
             final int pz = (int) Math.floor(mc.player.posZ);
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/12_ao_vertex_brightness/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/12_ao_vertex_brightness/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2511,7 +2511,7 @@ public class QuantizedRL {
             if (s == null || mc.player == null) { r.resp.offer(err("no world")); return; }
             final double px = mc.player.posX, pz = mc.player.posZ;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/29_particle_update/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/29_particle_update/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2599,7 +2599,7 @@ public class QuantizedRL {
             final int px = (int) Math.floor(mc.player.posX);
             final int pz = (int) Math.floor(mc.player.posZ);
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/17_skylight_gen/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/17_skylight_gen/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2675,7 +2675,7 @@ public class QuantizedRL {
         // ---- 37_entity_limb_anim: ModelQuadruped(ModelCow).setRotationAngles (per-limb trig) ----
         if (r.cmd.equals("capture_limbanim")) {
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/37_entity_limb_anim/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/37_entity_limb_anim/golden";
             final Req fr = r;
             final MinecraftServer s = mc.getIntegratedServer();
             if (s == null) { r.resp.offer(err("no world")); return; }
@@ -2734,7 +2734,7 @@ public class QuantizedRL {
             final int pz = (int) Math.floor(mc.player.posZ);
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 14;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/16_light_propagation/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/16_light_propagation/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2808,7 +2808,7 @@ public class QuantizedRL {
         if (r.cmd.equals("capture_lightmap")) {
             if (mc.world == null || mc.player == null) { r.resp.offer(err("no world")); return; }
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/11_lightmap/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/11_lightmap/golden";
             try {
                 net.minecraft.client.renderer.EntityRenderer er = mc.entityRenderer;
                 Class<?> ec = net.minecraft.client.renderer.EntityRenderer.class;
@@ -2868,7 +2868,7 @@ public class QuantizedRL {
         if (r.cmd.equals("capture_chunkrebuild")) {
             if (mc.world == null || mc.player == null) { r.resp.offer(err("no world")); return; }
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/kernels/26_chunk_rebuild_loop/golden";
+                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/26_chunk_rebuild_loop/golden";
             try {
                 int px = (int) Math.floor(mc.player.posX);
                 int py = (int) Math.floor(mc.player.posY);

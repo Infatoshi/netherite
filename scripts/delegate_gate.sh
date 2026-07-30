@@ -7,12 +7,12 @@
 #    thresholds, divergence classes, known_divergences sidecars, or committed
 #    gate baselines. A pass achieved by retuning is a lie and is rejected
 #    mechanically.
-# 2. Build: make -C c/magma game (CUDA parity is checked at merge time).
+# 2. Build: make -C magma game (CUDA parity is checked at merge time).
 # 3. Replay + gate each TAPE_NAME (--cpu --report), rc must be 0.
 # 4. Replay the pinned regression set (scripts/regression_pins.txt), rc 0.
 set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERIFY="$ROOT/c/magma/raster/verify"
+VERIFY="$ROOT/verify"
 PINS="$ROOT/scripts/regression_pins.txt"
 export UV_CACHE_DIR=/home/infatoshi/.cache/uv TMPDIR=/home/infatoshi/dev/nw/.tmp
 mkdir -p "$TMPDIR"
@@ -26,12 +26,12 @@ touched=$( { git -C "$ROOT" diff --name-only "$base"...HEAD; git -C "$ROOT" diff
 # report/*.gate.json is NOT frozen: replay_tape.py --report regenerates those
 # tracked artifacts as a side effect of the required replays. rc comes from a
 # fresh replay, so editing them cannot fake a pass; merges drop report diffs.
-frozen='(known_divergences\.json$|raster/verify/trace/pixel_gate\.py$|^GOAL\.md$|scripts/delegate_gate\.sh$|scripts/regression_pins\.txt$)'
+frozen='(known_divergences\.json$|verify/trace/pixel_gate\.py$|^GOAL\.md$|scripts/delegate_gate\.sh$|scripts/regression_pins\.txt$)'
 bad=$(printf '%s\n' "$touched" | rg "$frozen" || true)
 [ -z "$bad" ] || fail "diff touches frozen gate machinery:"$'\n'"$bad"
 
 # --- 2. build --------------------------------------------------------------
-make -C "$ROOT/c/magma" game -j"$(nproc)" >/dev/null || fail "build failed"
+make -C "$ROOT/magma" game -j"$(nproc)" >/dev/null || fail "build failed"
 
 # --- 3+4. replays ----------------------------------------------------------
 replay_one() {

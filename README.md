@@ -37,4 +37,4 @@ bash scripts/setup_and_verify.sh --demo   # + physics/pixel tape replay + SBS MP
 ```
 
 Prism is optional. Bootstrap uses ForgeGradle; details in [`docs/BOOTSTRAP.md`](docs/BOOTSTRAP.md).
-Pixel demo uses the shipped canonical tape under `c/magma/raster/verify/demo/`.
+Pixel demo uses the shipped canonical tape under `verify/demo/`.

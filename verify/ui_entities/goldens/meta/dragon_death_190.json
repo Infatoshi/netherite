@@ -1,0 +1,77 @@
+{
+  "id": "dragon_death_190",
+  "pin_reply_a": {
+    "ok": true,
+    "kind": "dragon",
+    "difficulty": "EASY",
+    "death_ticks": 190,
+    "server_alive": true,
+    "eid": 5119,
+    "uuid": "404a254e-4a56-4527-b816-fb3e1bd68de5",
+    "x": 0.5,
+    "y": 80.0,
+    "z": 0.5,
+    "render_pin_armed": true,
+    "render_pin_squish": 0.0,
+    "render_pin_death_ticks": 190
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "kind": "dragon",
+    "difficulty": "EASY",
+    "death_ticks": 190,
+    "server_alive": true,
+    "eid": 5137,
+    "uuid": "1fed0616-2218-4a1d-bfe8-b07e1c702e33",
+    "x": 0.5,
+    "y": 80.0,
+    "z": 0.5,
+    "render_pin_armed": true,
+    "render_pin_squish": 0.0,
+    "render_pin_death_ticks": 190
+  },
+  "frame_a": {
+    "ok": true,
+    "file": "/tmp/netherite-entity-oracle/verify/ui_entities/goldens/dragon_death_190_a.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_eid": 5119
+  },
+  "frame_b": {
+    "ok": true,
+    "file": "/tmp/netherite-entity-oracle/verify/ui_entities/goldens/dragon_death_190_b.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_eid": 5137
+  },
+  "pose": {
+    "x": 0.5,
+    "y": 70.0,
+    "z": -40.5,
+    "yaw": 0.0,
+    "pitch": 15.0,
+    "no_gravity": true
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "notes": "A/B from qrl frame{} at partialTicks=1; client render pin applied immediately before renderWorld for squish/deathTicks",
+  "entity": {
+    "type": "dragon",
+    "death_ticks": 190,
+    "subject": {
+      "x": 0.5,
+      "y": 80.0,
+      "z": 0.5,
+      "yaw": 180.0,
+      "pitch": 0.0
+    }
+  }
+}

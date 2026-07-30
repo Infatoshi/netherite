@@ -1,0 +1,198 @@
+{
+  "id": "hand_eat_mid",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 10,
+    "air": 300,
+    "hotbar": [
+      [
+        297,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "hotbar_sel": 0,
+    "use_action": 1,
+    "use_remaining": 16,
+    "armor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "fire": 0,
+    "portal": 0.0,
+    "boss": {
+      "show": false
+    },
+    "clear_effects": true
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 10,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": true,
+    "use_count": 16,
+    "use_max": 16,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 297
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 10,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": true,
+    "use_count": 16,
+    "use_max": 16,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 297
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 10,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": true,
+    "use_count": 16,
+    "use_max": 16,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 297
+  },
+  "frame_a": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-viewmodels/verify/ui_hud/goldens/hand_eat_mid_a.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "frame_b": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-viewmodels/verify/ui_hud/goldens/hand_eat_mid_b.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 0.0,
+  "noise_limit": 2.0,
+  "presence": {
+    "mean_rgb": [
+      85.0817737032111,
+      84.60751947558427,
+      67.6628823864716
+    ],
+    "std": 32.162412256991075,
+    "warm_frac": 0.01838407494145199,
+    "bot_warm_frac": 0.06935011709601874,
+    "lr_std": 32.90730118995775,
+    "vm_std": 28.46538507477933,
+    "vm_dev": 20.157846450805664,
+    "dark_frac": 0.24669865095952878,
+    "purple_bias": -16.944637089112675
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "lower-right viewmodel non-hotbar"
+}

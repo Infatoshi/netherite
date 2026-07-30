@@ -14,7 +14,7 @@
 # fix fan-out's work list.
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERIFY="$HERE/c/magma/raster/verify"
+VERIFY="$HERE/verify"
 BOARD="$VERIFY/trace/report/overnight_board.jsonl"
 LIST="${1:?usage: scenario_queue.sh LIST_FILE}"
 mkdir -p "$(dirname "$BOARD")"

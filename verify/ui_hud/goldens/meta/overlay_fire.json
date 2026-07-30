@@ -1,0 +1,173 @@
+{
+  "id": "overlay_fire",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "hotbar": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "armor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "use_action": 0,
+    "fire": 80,
+    "portal": 0.0,
+    "boss": {
+      "show": false
+    },
+    "clear_effects": true
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": true,
+    "fire_ticks": 80,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": true,
+    "fire_ticks": 80,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": true,
+    "fire_ticks": 80,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-oracle/verify/ui_hud/goldens/overlay_fire_a.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "frame_b": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-oracle/verify/ui_hud/goldens/overlay_fire_b.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 11.097174987642116,
+  "noise_limit": 35.0,
+  "presence": {
+    "mean_rgb": [
+      128.54801779535345,
+      108.53163618388533,
+      85.73674493326743
+    ],
+    "std": 53.8597811572485,
+    "warm_frac": 0.2886270491803279,
+    "bot_warm_frac": 0.6092359484777518,
+    "lr_std": 68.69959214248813,
+    "dark_frac": 0.022923875432525952,
+    "purple_bias": -22.794891250617894
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "first-person fire quads"
+}

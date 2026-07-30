@@ -1,0 +1,74 @@
+{
+  "name": "scenario_falling_blocks_20260730T110807Z",
+  "created_utc": "20260730T110807Z",
+  "git_rev": "94df05a2fc5f21828cbc73afeb73e89fb87d96bb",
+  "profile": "fast",
+  "qrl_launch": {
+    "port": 25575,
+    "profile": "fast",
+    "chat": false,
+    "hide_gui": false,
+    "strip": {
+      "menus": true,
+      "overlays": true,
+      "sound": true
+    },
+    "determinism": {
+      "pin_flicker": true,
+      "pin_skin": true,
+      "pin_texture_animations": true
+    },
+    "world": {
+      "seed": 0,
+      "mode": "creative",
+      "type": "flat",
+      "structures": false,
+      "time": 6000,
+      "weather": "clear",
+      "gamerules": {
+        "sendCommandFeedback": "false",
+        "showDeathMessages": "false",
+        "doDaylightCycle": "false",
+        "doWeatherCycle": "false",
+        "doMobSpawning": "true",
+        "doFireTick": "true",
+        "doMobLoot": "true",
+        "doEntityDrops": "true",
+        "doTileDrops": "true",
+        "mobGriefing": "true",
+        "randomTickSpeed": "3",
+        "keepInventory": "false"
+      }
+    }
+  },
+  "options": {
+    "fov": "0.0",
+    "gamma": "0.0",
+    "renderDistance": "8",
+    "guiScale": "2",
+    "particles": "2",
+    "bobView": "false",
+    "anaglyph3d": "false",
+    "maxFps": "260",
+    "fboEnable": "true",
+    "fancyGraphics": "false",
+    "ao": "0",
+    "renderClouds": "false",
+    "chatVisibility": "2",
+    "enableVsync": "false",
+    "useVbo": "true",
+    "mipmapLevels": "0",
+    "entityShadows": "false",
+    "soundCategory_master": "0.0"
+  },
+  "frames_every": 20,
+  "tape_jsonl": "/home/infatoshi/dev/netherite/verify/tapes/scenario_falling_blocks_20260730T110807Z.jsonl",
+  "frames_dir": "/home/infatoshi/dev/netherite/verify/tapes/scenario_falling_blocks_20260730T110807Z_frames",
+  "ticks": 310,
+  "parquet": "/home/infatoshi/dev/netherite/verify/tapes/scenario_falling_blocks_20260730T110807Z.parquet",
+  "parquet_rows": 310,
+  "frames": 16,
+  "scenario": "falling_blocks",
+  "scenario_spec": "/home/infatoshi/dev/netherite/verify/scenarios/falling_blocks.yaml",
+  "duration_ticks": 300
+}

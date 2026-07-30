@@ -1,0 +1,4 @@
+# regenerable gate artifacts (rendered candidates); goldens/tapes are handled
+# by the tapes/goldens data policy, trace/ has its own .gitignore
+*.ppm
+ui_hud/c_frames/

@@ -1,8 +1,8 @@
 package qrl;
 
 // Worldgen RNG-cursor probe: logs the populate Random's raw 48-bit LCG state at every
-// Forge terrain-gen stage boundary, per chunk. Ground truth for the magma/mc-sim
-// worldgen flywheel (c/magma/trace/genprobe_diff.py): the first checkpoint whose
+// Forge terrain-gen stage boundary, per chunk. Ground truth for the magma/blaze
+// worldgen flywheel (magma/trace/genprobe_diff.py): the first checkpoint whose
 // cursor differs from the C side pinpoints the exact stage where the streams diverge.
 // Enabled only when the env var QRL_GENPROBE is set (path of the log file).
 
@@ -58,7 +58,7 @@ public class WorldGenProbe {
         try { out.write(s); out.write('\n'); out.flush(); } catch (Exception e) { }
     }
 
-    // Elapsed-ticks feed for the fluid-CA-timing replay (see c/magma SPEC / DEVLOG): the
+    // Elapsed-ticks feed for the fluid-CA-timing replay (see magma SPEC / DEVLOG): the
     // between-populate fluid evolution class needs the world's total tick count at every
     // probe line, so the C replay driver can compute how many tickRate-multiples (5 water /
     // 30-10 lava) have had real time to fire between an originating placement and a later

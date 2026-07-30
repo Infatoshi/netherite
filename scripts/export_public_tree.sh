@@ -26,7 +26,7 @@ filtered=$(mktemp)
 ALLOW='^docs/assets/zoom_farm\.gif$'
 grep -vE \
     -e '^java/oracle-src/' \
-    -e '^c/magma/assets/(atlas_gen|colormap_gen|gui_atlas|hand_atlas|hud_atlas|inventory_ui_atlas|item_atlas|loading_bg|mob_atlas|portal_tex|sky_atlas|underwater_tex|water_frames)\.h$' \
+    -e '^magma/assets/(atlas_gen|colormap_gen|gui_atlas|hand_atlas|hud_atlas|inventory_ui_atlas|item_atlas|loading_bg|mob_atlas|portal_tex|sky_atlas|underwater_tex|water_frames)\.h$' \
     -e '\.(png|ppm|jpg|jpeg|gif|mp4)$' \
     "$list" > "$filtered"
 grep -E "$ALLOW" "$list" >> "$filtered" || true
@@ -41,19 +41,19 @@ cat >> "$DST/.gitignore" <<'EOF'
 # scripts/bootstrap_oracle.sh
 java/oracle-src/
 # scripts/bootstrap_assets.sh
-c/magma/assets/atlas_gen.h
-c/magma/assets/colormap_gen.h
-c/magma/assets/gui_atlas.h
-c/magma/assets/hand_atlas.h
-c/magma/assets/inventory_ui_atlas.h
-c/magma/assets/hud_atlas.h
-c/magma/assets/item_atlas.h
-c/magma/assets/loading_bg.h
-c/magma/assets/mob_atlas.h
-c/magma/assets/portal_tex.h
-c/magma/assets/sky_atlas.h
-c/magma/assets/underwater_tex.h
-c/magma/assets/water_frames.h
+magma/assets/atlas_gen.h
+magma/assets/colormap_gen.h
+magma/assets/gui_atlas.h
+magma/assets/hand_atlas.h
+magma/assets/inventory_ui_atlas.h
+magma/assets/hud_atlas.h
+magma/assets/item_atlas.h
+magma/assets/loading_bg.h
+magma/assets/mob_atlas.h
+magma/assets/portal_tex.h
+magma/assets/sky_atlas.h
+magma/assets/underwater_tex.h
+magma/assets/water_frames.h
 EOF
 
 n_all=$(wc -l < "$list"); n_pub=$(wc -l < "$filtered")

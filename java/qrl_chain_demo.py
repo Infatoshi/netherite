@@ -1,7 +1,7 @@
 """JVM chain demo: the blaze-trained spawn-to-torch policy driving the REAL
 Java Minecraft 1.11.2 game over the qrl bridge, zero scripted actions.
 
-Feature pipeline mirrors c/magma/rl/eval_chain_rl.py exactly, computed from
+Feature pipeline mirrors blaze/rl/eval_chain_rl.py exactly, computed from
 the bridge's protocol-v2 obs (semantic camera cam/depth/edge, coal list,
 inv_counts/held/container, pose). Action decode = ppo_chain_cu acts_to_rows
 mapped onto the bridge action keys (dyaw/dpitch float deltas, craft 0..5,
@@ -29,7 +29,7 @@ import torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))            # java/
 ROOT = os.path.dirname(HERE)
-RL = os.path.join(ROOT, "c", "magma", "rl")
+RL = os.path.join(ROOT, "blaze", "rl")
 sys.path.insert(0, HERE)
 sys.path.insert(0, RL)
 sys.path.insert(0, os.path.join(RL, "blaze"))

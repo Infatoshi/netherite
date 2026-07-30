@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class CoverageLog
 {
     public static final String DEFAULT_FILE =
-        System.getProperty("user.home") + "/dev/minecraft/mc-1.11.2-env/c/render-opt/coverage.log";
+        System.getProperty("user.home") + "/dev/minecraft/mc-1.11.2-env/java/render-opt/coverage.log";
 
     // Branch-flag bits (orthogonal; call sites OR them; dim bits added by hit()).
     public static final int F_WATER        = 1 << 0;

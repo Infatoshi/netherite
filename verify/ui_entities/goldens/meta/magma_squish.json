@@ -1,0 +1,78 @@
+{
+  "id": "magma_squish",
+  "pin_reply_a": {
+    "ok": true,
+    "kind": "magma_cube",
+    "difficulty": "EASY",
+    "size": 2,
+    "squish": 1.0,
+    "eid": 4989,
+    "uuid": "73732d12-140d-478c-ae5a-b5771fd4805b",
+    "x": 8.5,
+    "y": 5.0,
+    "z": 12.5,
+    "render_pin_armed": true,
+    "render_pin_squish": 1.0,
+    "render_pin_death_ticks": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "kind": "magma_cube",
+    "difficulty": "EASY",
+    "size": 2,
+    "squish": 1.0,
+    "eid": 4991,
+    "uuid": "f7abcdd4-b2fc-4448-94e8-26ad12297dd7",
+    "x": 8.5,
+    "y": 5.0,
+    "z": 12.5,
+    "render_pin_armed": true,
+    "render_pin_squish": 1.0,
+    "render_pin_death_ticks": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file": "/tmp/netherite-entity-oracle/verify/ui_entities/goldens/magma_squish_a.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_eid": 4989
+  },
+  "frame_b": {
+    "ok": true,
+    "file": "/tmp/netherite-entity-oracle/verify/ui_entities/goldens/magma_squish_b.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_eid": 4991
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 25.0,
+    "no_gravity": true
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "notes": "A/B from qrl frame{} at partialTicks=1; client render pin applied immediately before renderWorld for squish/deathTicks",
+  "entity": {
+    "type": "magma_cube",
+    "size": 2,
+    "squish": 1.0,
+    "subject": {
+      "x": 8.5,
+      "y": 5.0,
+      "z": 12.5,
+      "yaw": 180.0,
+      "pitch": 0.0
+    }
+  }
+}

@@ -12,7 +12,7 @@ feature means: a scenario yaml exists, a Java oracle tape exists (frames,
 physics, inventory, entities, world hash), the magma replay is bit-verified
 against it at the frame level on CPU and CUDA, and any residual divergence is
 either fixed in C or PROVEN to be a recorder/tape limitation and filed in
-`c/magma/OPEN_DIVERGENCES.md` + the tape's `known_divergences.json` with
+`magma/OPEN_DIVERGENCES.md` + the tape's `known_divergences.json` with
 evidence. The goal does not stop while any tape has an UNEXPLAINED cluster
 that is not so proven.
 
@@ -25,13 +25,13 @@ and never by loosening a threshold.
 
 P1 CENSUS - fan out read-only delegates over `java/oracle-src` registries
    (Block.registerBlocks, Item.registerItems, entity list, mechanics) vs
-   magma (`c/magma/game/block_registry.h`, item tables, entity_render.c,
+   magma (`magma/game/block_registry.h`, item tables, entity_render.c,
    runtime.c). Output: `docs/CENSUS.md`, one row per block/item/entity/
    mechanic: implemented / partial / missing / cut (cut = listed in
    docs/SCOPE.md section 1). No code changes in this phase.
 P2 SYNTHESIZE - for every non-cut row not covered by an existing tape
-   (`c/magma/raster/verify/tapes/`), author a scenario yaml per the contract
-   in `c/magma/raster/verify/scenarios/README.md`. Small, staged, one system
+   (`verify/tapes/`), author a scenario yaml per the contract
+   in `verify/scenarios/README.md`. Small, staged, one system
    per scenario. Validate with `uv run ... scenarios/test_scenario.py`.
 P3 RECORD - `scripts/scenario_queue.sh LIST` records serially through the
    single oracle (flock on /tmp/qrl_25575.lock). Each recording auto-replays
@@ -84,6 +84,6 @@ the board has no unproven failures.
 
 ## Status
 
-Board: `c/magma/raster/verify/trace/report/overnight_board.jsonl`
+Board: `verify/trace/report/overnight_board.jsonl`
 Morning report: append a dated section to docs/DEVLOG.md - tapes recorded,
 pass/fail, fixes merged, residuals filed, census coverage percentage.

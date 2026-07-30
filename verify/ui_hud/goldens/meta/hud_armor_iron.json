@@ -1,0 +1,176 @@
+{
+  "id": "hud_armor_iron",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "armor": [
+      309,
+      308,
+      307,
+      306
+    ],
+    "hotbar": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "use_action": 0,
+    "fire": 0,
+    "portal": 0.0,
+    "boss": {
+      "show": false
+    },
+    "clear_effects": true
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 15,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 15,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-oracle/verify/ui_hud/goldens/hud_armor_iron_a.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "frame_b": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-oracle/verify/ui_hud/goldens/hud_armor_iron_b.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 0.0,
+  "noise_limit": 2.0,
+  "presence": {
+    "mean_rgb": [
+      116.1141447368421,
+      67.82796052631579,
+      69.64703947368422
+    ],
+    "std": 79.67374946534206,
+    "warm_frac": 0.02102117486338798,
+    "bot_warm_frac": 0.0748536299765808,
+    "lr_std": 23.776438638235348,
+    "dark_frac": 0.26842105263157895,
+    "purple_bias": 1.8190789473684248
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "armor+hearts"
+}

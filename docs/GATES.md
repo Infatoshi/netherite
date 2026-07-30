@@ -1,7 +1,7 @@
 # Product gates (netherite)
 
 **netherite** is the product name: a from-scratch C/CUDA reimplementation of
-Minecraft 1.11.2 (magma + mc-sim), bit-verified against the real Java game,
+Minecraft 1.11.2 (magma + blaze), bit-verified against the real Java game,
 plus a batched CUDA RL env (blaze). Humans play the oracle; tapes record; magma
 replays; every divergence is a bug with a repro.
 
@@ -14,11 +14,11 @@ Accept: a human plays magma spawn -> End with zero divergences; canonical tapes 
 bit-exact (physics tol 1e-9, pixels day-bit-exact / isolated star pixels at night, no
 unexplained diff clusters).
 Status: OPEN, machinery green. The physics canonical tape
-(`c/magma/raster/verify/tapes/20260721T215812Z_..._77b5b462.jsonl`, 3,617 ticks, bot-recorded)
+(`verify/tapes/20260721T215812Z_..._77b5b462.jsonl`, 3,617 ticks, bot-recorded)
 replays with no physics divergence end-to-end; the 12k human tape holds the pixel
 baselines (A 0.96/ch, B 1.66/ch). Remaining bugs live in
-`c/magma/OPEN_DIVERGENCES.md`; the full spawn->End human session has not yet been
-played clean. Verification procedure: `c/magma/VERIFY.md`.
+`magma/OPEN_DIVERGENCES.md`; the full spawn->End human session has not yet been
+played clean. Verification procedure: `magma/VERIFY.md`.
 
 ### Gate 2 - RL
 Accept: spawn -> torches learned with ZERO scripted stages in the batched CUDA env
@@ -110,8 +110,8 @@ A FAIL exits nonzero; SKIPs never do.
 
 ```bash
 bash netherite_sweep.sh --quick          # builds + unit batteries + blaze CPU gate + vec-env (<10 min)
-bash netherite_sweep.sh --full           # + mc-sim CUDA oracle, blaze CUDA gate, canonical tape replay (GPU1), raster parity, RL smoke (<40 min)
-bash netherite_sweep.sh --full --gpu 0   # device for blaze/mc-sim CUDA steps (tape replay + parity stay pinned to GPU1)
+bash netherite_sweep.sh --full           # + blaze core CUDA oracle, blaze env CUDA gate, canonical tape replay (GPU1), raster parity, RL smoke (<40 min)
+bash netherite_sweep.sh --full --gpu 0   # device for blaze CUDA steps (tape replay + parity stay pinned to GPU1)
 ```
 
 Each step wraps an existing gate (make target or script - nothing reimplemented), has
@@ -119,8 +119,8 @@ its own timeout and log (path printed at start), and reports [PASS]/[FAIL]/[SKIP
 a summary table. GPU steps preflight `nvidia-smi` and SKIP when the device is >50%
 util - the box is shared. Missing artifacts (snapshots, tapes, prefixes) SKIP with a
 reason. Deeper/slower layers of the pyramid stay where they live: the nightly all-tape
-sweep is `c/magma/raster/verify/nightly_verify.sh`, per-kernel CPU==CUDA verifies are
-`make -C c/mc-sim verify-<kernel>`.
+sweep is `verify/nightly_verify.sh`, per-kernel CPU==CUDA verifies are
+`make -C blaze verify-<kernel>`.
 
 ## Out of scope
 

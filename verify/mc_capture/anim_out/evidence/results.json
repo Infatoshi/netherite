@@ -1,0 +1,91 @@
+{
+  "tape": "/home/infatoshi/dev/netherite/verify/mc_capture/anim_fixture/20260722T083516Z_fast_s0_survival_default_rd8_8afc5b34.jsonl",
+  "header_total_time": 720,
+  "portal_anchor": [
+    0,
+    9
+  ],
+  "results": {
+    "still_water": {
+      "frames": 219,
+      "absolute_mean_ch": 2.4071457450867024,
+      "absolute_max_ch": 2.932721791559001,
+      "absolute_tol": 32.0,
+      "max_absolute_tol": null,
+      "temporal_mean_ch": 4.159804370827177,
+      "temporal_tol": 5.5,
+      "shifted_temporal_mean_ch": 7.079808591881401,
+      "motion_pixels": 8749,
+      "phase_sensitive": true,
+      "verdict": "PASS",
+      "worst_tick": 23
+    },
+    "flowing_water": {
+      "frames": 219,
+      "absolute_mean_ch": 2.1379820439856174,
+      "absolute_max_ch": 2.3048366013071897,
+      "absolute_tol": 32.0,
+      "max_absolute_tol": null,
+      "temporal_mean_ch": 4.111294180081685,
+      "temporal_tol": 5.5,
+      "shifted_temporal_mean_ch": 6.984341468883124,
+      "motion_pixels": 3469,
+      "phase_sensitive": true,
+      "verdict": "PASS",
+      "worst_tick": 55
+    },
+    "portal_swirl": {
+      "frames": 219,
+      "absolute_mean_ch": 3.5749966404760927,
+      "absolute_max_ch": 3.8854454454454452,
+      "absolute_tol": 32.0,
+      "max_absolute_tol": null,
+      "temporal_mean_ch": 9.911633018791731,
+      "temporal_tol": 15.0,
+      "shifted_temporal_mean_ch": 21.27095824411135,
+      "motion_pixels": 7005,
+      "phase_sensitive": true,
+      "verdict": "PASS",
+      "worst_tick": 30
+    },
+    "lava": {
+      "frames": 219,
+      "absolute_mean_ch": 4.028959788785257,
+      "absolute_max_ch": 4.447912360479537,
+      "absolute_tol": 32.0,
+      "max_absolute_tol": null,
+      "temporal_mean_ch": 12.545360324600864,
+      "temporal_tol": 16.5,
+      "shifted_temporal_mean_ch": 21.10390839938339,
+      "motion_pixels": 7558,
+      "phase_sensitive": true,
+      "verdict": "PASS",
+      "worst_tick": 28
+    },
+    "underwater_overlay": {
+      "frames": 40,
+      "absolute_mean_ch": 1.6297988631928182,
+      "absolute_max_ch": 1.8247804449648712,
+      "absolute_tol": 10.0,
+      "max_absolute_tol": 10.0,
+      "temporal_mean_ch": 1.3334926723246396,
+      "temporal_tol": null,
+      "shifted_temporal_mean_ch": null,
+      "motion_pixels": null,
+      "phase_sensitive": true,
+      "verdict": "PASS",
+      "worst_tick": 247
+    },
+    "fire": {
+      "source": "compiled_atlas",
+      "frames": 259,
+      "absolute_mean_ch": 0.0,
+      "absolute_max_ch": 0.0,
+      "temporal_mean_ch": 0.0,
+      "temporal_tol": 0.1,
+      "shifted_temporal_mean_ch": 42.482233782222764,
+      "phase_sensitive": true,
+      "verdict": "PASS"
+    }
+  }
+}
