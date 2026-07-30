@@ -19,11 +19,16 @@ setup_commands:
   - /fill -2 4 7 2 6 7 minecraft:dirt
   - /setblock 0 4 4 minecraft:tnt
   - /replaceitem entity @p slot.hotbar.0 minecraft:flint_and_steel 1
+setup_qrl:
+  # Final render-settle: first recording caught unloaded-chunk sky in the
+  # first 16 goldens; wait for the client to render the arena before recstart.
+  - cmd: runcmds
+    action:
+      cmds:
+        - time set 6000
+    settle_ticks: 120
 duration_ticks: 300
 frames_every: 2
-# First recording caught unloaded-chunk sky in the first 16 goldens; give the
-# client time to render the arena before the tape starts.
-setup_settle_ticks: 120
 input:
   segments:
     - seconds: 1.0
