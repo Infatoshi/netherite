@@ -1,0 +1,35 @@
+name: cave_spider_pen
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /gamerule naturalRegeneration false
+  - /time set 18000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 2.5 0 12
+  - /fill -5 3 0 5 3 18 minecraft:glowstone
+  - /fill -5 4 5 -5 6 18 minecraft:stone
+  - /fill 5 4 5 5 6 18 minecraft:stone
+  - /fill -5 4 18 5 6 18 minecraft:stone
+  - /effect @p minecraft:resistance 999 4 true
+  - '/summon minecraft:cave_spider -2.5 4 12.5 {PersistenceRequired:1b}'
+  - '/summon minecraft:spider 2.5 4 12.5 {PersistenceRequired:1b}'
+duration_ticks: 400
+frames_every: 10
+input:
+  segments:
+    - seconds: 3.0
+    - seconds: 6.0
+      keys: [a, Shift_L]
+    - seconds: 6.0
+      keys: [d, Shift_L]
+    - seconds: 5.0
+known_divergences: []

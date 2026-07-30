@@ -1,0 +1,173 @@
+{
+  "id": "overlay_inside_stone",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "hotbar": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "armor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "use_action": 0,
+    "fire": 0,
+    "portal": 0.0,
+    "boss": {
+      "show": false
+    },
+    "clear_effects": true
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-oracle/verify/ui_hud/goldens/overlay_inside_stone_a.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "frame_b": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-oracle/verify/ui_hud/goldens/overlay_inside_stone_b.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 0.4361344537815126,
+  "noise_limit": 3.0,
+  "presence": {
+    "mean_rgb": [
+      15.950469599604547,
+      15.169569945625309,
+      14.579535343549184
+    ],
+    "std": 19.373121360627618,
+    "warm_frac": 0.005269320843091335,
+    "bot_warm_frac": 0.01053864168618267,
+    "lr_std": 13.013615099862376,
+    "dark_frac": 0.9783193277310924,
+    "purple_bias": -0.5900346020761251
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "full-frame inside-block darken"
+}

@@ -974,3 +974,130 @@ blaze never reports burning) documented in OPEN_DIVERGENCES.md.
   magma's generated Nether sea is `flowing_lava` (10) where vanilla is still
   `lava` (11), 123k cells of the patch. The nether_full "golden" is a
   self-capture of the C kernel, so no gate ever saw it.
+
+## 2026-07-29 overnight (divergence grind + nether clips)
+
+Seven renderer/sim/pipeline fixes landed, each agent-produced, personally
+re-verified, and regression-gated:
+- ab3e853 nether lava sea id swap (goldens upgraded to real Java oracles)
+- 5efc186 elytra flag-7 one-tick latency (eye height on the arming tick)
+  + retired-tape gate repair (absolute golden paths -> re-anchor or fatal;
+  a retired tape used to "PASS over 0 frames" - see AGENTS.md)
+- 0e73841 double_plant cross models / upper-half type / tint
+- 83784f0 snapshot patch authoritative over the vegetation band (phantom
+  plants from populate-order-dependent decoration; scenic 92->39 frames)
+- 5224721 vanilla death keel + hurt tint; spawner miniature renderer
+  built + unit-tested (data plumbing filed, 4 layers)
+- af5fbd8 dragon death-ray curve (onset, boss fog, lightmap unit, the
+  byte-wrap starburst) + recorder now captures armor row/hidden-particle
+  HUD gates
+Headline: re-recorded dragon_kill passes the FULL pixel gate (rc 0, 201
+frames) - first entity-death scene to do so; adopted into the suite with
+nether_elytra (115-block lava-cavern glide, wall-slam landing).
+Clips shipped to the mac: nether_elytra_sbs, dragon_kill_sbs (gate-clean),
+blaze_melee_sbs (death keel).
+Still open (agents/wave-2 or filed): entity-interp pose mirroring,
+populate-order decoration beyond the vegetation band, fortress placement
+y/z, spawner data plumbing, waterfall-entry flow-texture family, fire
+animation phase, live-sim blaze aggro.
+
+Late additions to the overnight batch:
+- 63f26bd dragon trail-ring phase + freeze-on-death: the "interp lag /
+  mirrored corpse" was ring pollution from the unwrapped death spin;
+  dragon geometry now byte-exact vs the recorder's geom oracle (1668
+  parts, 0 bad).
+- 9296165 snapshot patch diffs against the replay's OWN worldgen (probe
+  pass): replayed worlds now bit-identical to the save (scenic 7046
+  wrong cells -> 0; patches shrink up to 300k -> 3 events). The scenic
+  tape's remaining 39 failing frames are measured to be particle/
+  viewmodel residuals, not decoration.
+Nine landed fixes total; suite RESULT: PASS; agent worktrees cleaned.
+
+Dragon death burst (wt/dragonparticles, 2026-07-29): the death explosion was
+filed as a ~3 px "shading-offset" but pxdiff's shift always sat on the span-3
+search boundary; a wide-span search says zero shift is best by 3x at every
+burst tick, so it was never a registration error. Three real causes, all in
+the reconstruction: (1) one `ParticleExplosionHuge` spawns 6 LARGE on each of
+its 8 onUpdate ticks, and magma emitted only the newest batch (~48 puffs where
+vanilla has ~360); (2) vanilla removes the dragon at deathTicks 200 but its
+ParticleManager cloud lives ~17 more ticks, which an entity-derived emitter
+pops off - the oracle's brightest 7 frames had no magma cloud at all; (3) the
+GuiBossOverlay fog latch never cleared, and `processDragonDeath` does
+`bossInfo.setVisible(false)`, so the oracle's fog ramp snaps back at death and
+the same cloud jumps ~4x in brightness (grey 35-60 -> white 180-245).
+Fixed all three; the burst now matches the oracle in extent, brightness and
+decay, tape mean 0.2266 -> 0.1753/ch (55 frames better, 2 worse), particles
+class 51057 -> 26761 px, gate rc 0. Placement stays stochastic: the offsets
+come from `EntityDragon.rand`/`Particle.rand`, which no tape records.
+
+Geared dragon-kill tape (master, 2026-07-29): the follow-up tape
+`scenario_dragon_kill_geared_20260730T025316Z` failed the gate on two frames
+(t=454 4855 px, t=456 4258 px, magma-brighter) and read as "magma's burst runs
+a few ticks late". It is not a magma clock error. The oracle's own death rays
+are a fingerprint of the client render clock (fixed `Random(432L)`, count and
+length from deathTicks) and magma's spokes match the oracle's at IoU 0.900 at
+t=454, 0.000 at every neighbouring tick - so the recorded deathTicks IS the
+client's. Yet the oracle's cloud loses the BossInfo fog ramp at t=448, six
+ticks before that clock reaches 200, and particle brightness has no other
+input (`lightmap(0,240)` hardcoded, explosion.png pure white). The fog is
+server state (`processDragonDeath`), so the server led the client by 6 ticks
+in that recording; the synced tape has both clocks together. No tape field
+exposes the server clock (no XP orbs or gateway in the recorder whitelist), so
+the three affected frames are filed as divergence 40 in a per-tape
+`known_divergences.json`, with no code change: gate rc 0 on both dragon-kill
+tapes, original particles 26842 px and max unexplained cluster 3793.
+
+## 2026-07-30 (overnight flywheel: 12-scenario wave 2, 13 merges, 3 recorder gaps proven)
+
+Autonomous overnight run (GOAL.md): census -> scenario synthesis -> serial qrl
+recording -> parallel worktree fix delegates -> serial merge+gate on master.
+Codex delegates authored fixes in isolated worktrees; every merge, gate rerun,
+and divergence filing stayed with the shepherd. 42 of 48 surviving suite tapes
+replay rc 0 on the CPU backend this morning.
+
+Landed (each merged with delegate_gate ACCEPT: target tape + 6-pin regression
+set, both binaries rebuilt, test-game green):
+- Blocks: stone slabs (16 rows, half-box collision, side UV halves), connected
+  glass panes, straight stairs (facing/half, two-box collision), trapdoors
+  (3/16 poses by metadata), ladders (climb clamp, sneak hold, 0.2 kick, cutout
+  plane), cactus (1/16 inset box + neighbor brightness), stonebrick id-98
+  model bridge, rails + primed TNT + TNT block.
+- Entities: minecart variants, armor stands (NBT pose/equipment, mob atlas),
+  cave spider 0.7 scale, creeper fuse swell + white flash, silverfish replay
+  mirror, dropped-item ground transforms, boat riding (seat-offset mount,
+  passenger physics, paddle model, camera follow).
+- HUD/camera: potion HUD order + speed/slowness FOV, creative HUD suppression,
+  ItemLayerModel rim normal inversion, duplicate sneak eye-height removed
+  (found independently by three delegates), slime horizon closed via sneak eye
+  height 0.08F.
+- Recorder (new capability): SPacketExplosion capture ("expl" tick field) with
+  replay-side additive knockback + block clears; creeper/TNT physics now
+  bit-exact through explosions.
+
+Recorder gaps proven and filed (OPEN_DIVERGENCES, dated today):
+1. Explosion particle clouds consume client world.rand which no tape records;
+   substitute seeds visibly fail. Next step: whitelist particle-instance
+   capture in ParticleManager.addEffect (also fixes dragon-death white puffs).
+2. Elytra flag-7 arming round-trip varies per recording: 2-tick model makes
+   nether_elytra physics-exact (351/351) but breaks elytra_dip at t=59 and
+   vice versa. No constant satisfies both; needs recorded flag-7 metadata
+   arrival. Candidate diff preserved on wt/netherelytra; revert ce6aa39.
+3. Tape header records no gamerules: silverfish_encounter runs
+   naturalRegeneration false, replay regens, hp drifts 0.4 at t49 (damage
+   amount itself exact). Needs gamerule serialization at recstart.
+Also filed: falling_blocks records sky-only goldens (4 deterministic repros;
+client has block data, chunk meshes never build) - live oracle debugging
+needed; netherelytra world snapshot lacks transient lavafall cells.
+
+Suite hygiene: fresh gate baselines committed for all accepted tapes;
+superseded stale-prefix recordings and the four defective falling_blocks
+takes retired out of the sweep. One priced regression stands: nether_elytra
+t=63 gained 2409 unexplained px (7 small clusters) from tonight's renderer
+merges - filed, baseline left old so it stays visible.
+
+Final sweep (nightly_20260730T122129Z, CPU): 48 tapes, 42 rc 0; the six rc 3
+all replay physics-clean and pass their committed baselines (2 legacy
+full-course tapes improved, tnt + creeper priced at the filed particle gap,
+slime priced at the isolated shell contradiction) except nether_elytra, whose
+single-line "baseline regression" (t=63, 2409 px) is the one open item and is
+deliberately not absorbed. Suite RESULT: FAIL on that line alone.

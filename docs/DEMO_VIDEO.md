@@ -78,7 +78,7 @@ exactly, and 7,200 is what fits on the card next to the obs recorder
 (8,192 remains the separately benched perf number; the thread master
 notes the distinction).
 
-Also found along the way, filed in `c/magma/OPEN_DIVERGENCES.md`: the
+Also found along the way, filed in `magma/OPEN_DIVERGENCES.md`: the
 mesher renders double-height plants (id 175) as solid tinted slabs - the
 scenic-walk tape recorded for an earlier cut is kept as the repro.
 
@@ -113,10 +113,10 @@ scenic-walk tape recorded for an earlier cut is kept as the repro.
 cd ~/dev/netherite
 # 0. once: video-only caps file (bigger draw buffers for posed shots)
 sed 's/draw_cutout = 262144/draw_cutout = 1048576/' \
-    c/magma/magma.conf > /home/infatoshi/dev/nw/.tmp/zoom_video.conf
+    magma/magma.conf > /home/infatoshi/dev/nw/.tmp/zoom_video.conf
 
 # 1. hero: trained-chain POV, exact + semantic, motion-scored window
-(cd c/magma && uv run --no-project --with numpy python \
+(cd magma && uv run --no-project --with numpy python \
     ../../scripts/zoom_hero_clip.py)
 
 # 2. farm: live 7200-env batch recording on GPU0 (check nvidia-smi first)

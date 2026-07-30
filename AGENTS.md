@@ -23,14 +23,18 @@ One-shot clean box: `bash scripts/setup_and_verify.sh` (then `--full` with GPU).
 
 ## What this repo is
 
-From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (magma + mc-sim),
+From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (magma + blaze),
 bit-verified against the real Java game, plus a batched CUDA RL env (blaze).
 Product name: **netherite**. Trees:
 
-- `java/` - playable Forge+Malmo/qrl client, launch scripts, oracle-src (bootstrap)
-- `c/magma/` - product C game + software rasterizer + RL
-- `c/mc-sim/` - simulation kernels (CPU == CUDA)
-- `c/render-opt/` - verified render kernels + JNI drop-ins (lab closed)
+- `java/` - the oracle: Forge+Malmo/qrl client, launch scripts, oracle-src
+  (bootstrap), render-opt kernel lab (closed)
+- `blaze/` - the simulation: reference CPU + production CUDA tick (CPU == CUDA),
+  batched RL env (`blaze/env/`) and trainers (`blaze/rl/`)
+- `magma/` - the playable fidelity tier: blaze's tick + software rasterizer
+- `verify/` - cross-stack harness: tapes, scenarios, gates, nightly sweep
+
+Glossary and naming rationale (incl. the blaze mob collision): `NAMES.md`.
 
 ## Where to read (stop when you have enough)
 
@@ -40,8 +44,8 @@ Product name: **netherite**. Trees:
 | How to play, VNC, qrl, sweep | `docs/RUNBOOK.md` |
 | Ship criteria / gate status | `docs/GATES.md` |
 | Is X in the game? cut / pinned / open / unrecoverable | `docs/SCOPE.md` |
-| Fidelity procedure | `c/magma/VERIFY.md` |
-| Product contract / open bugs | `c/magma/PRODUCT.md`, `OPEN_DIVERGENCES.md` |
+| Fidelity procedure | `magma/VERIFY.md` |
+| Product contract / open bugs | `magma/PRODUCT.md`, `OPEN_DIVERGENCES.md` (closed forensics: `CLOSED_DIVERGENCES.md`) |
 | Architecture for a tree | that tree's `SPEC.md` |
 | History / lessons | `docs/DEVLOG.md` |
 | Old reports | `docs/archive/` (ignore by default) |
@@ -62,16 +66,16 @@ bash scripts/demo_pixel_sbs.sh
 # or stepwise:
 bash scripts/bootstrap_oracle.sh
 bash scripts/bootstrap_assets.sh
-make -C c/magma game
+make -C magma game
 bash netherite_sweep.sh --quick
 
 cd java/Minecraft && ./gradlew -g run/gradle build
-uv run --no-project python c/mc-sim/oracle/runner.py <name>
+uv run --no-project python blaze/oracle/runner.py <name>
 ```
 
 ## Pixel investigation
 
-When a tape frame is wrong, do not hand-roll numpy. `c/magma/raster/verify/trace`:
+When a tape frame is wrong, do not hand-roll numpy. `verify/trace`:
 
 ```bash
 U="uv run --no-project --with numpy,scipy,pillow python"
@@ -105,6 +109,15 @@ Two things that make a pixel measurement lie, both paid for already:
   delegates, pin `UV_CACHE_DIR=/home/infatoshi/.cache/uv` and
   `TMPDIR=/home/infatoshi/dev/nw/.tmp` in their environment and say so in the
   prompt.
+- **A retired tape used to measure as a silent PASS over zero frames.**
+  The recorder bakes an ABSOLUTE golden path into every tick row, so moving
+  a tape into `tapes/retired/` orphaned all of them;
+  `oracle_frames_cache` skipped every missing file without a word and the
+  pixel gate reported `PASS: no unexplained clusters over 0 frames`. Fixed
+  2026-07-29: goldens now fall back to `<dir of the tape file>/<frames dir>/`,
+  pxdiff resolves `tapes/retired/` too, and a tape that declares goldens but
+  resolves none is a FATAL, not a pass. If a gate reports 0 frames checked,
+  that is a harness failure - never read it as a clean tape.
 - **Check what the goldens actually contain before chasing a diff.** A tape
   recorded through Malmo has `hideGUI` forced on for the whole mission, so its
   goldens have no HUD at all; `capture.hide_gui` in the tape meta is the
@@ -119,7 +132,17 @@ Two things that make a pixel measurement lie, both paid for already:
   from it; tapes recorded before that field keep the old converged seed.
   `MAGMA_FOG_C1_INIT=<0..1>` overrides the seed for sweeping it on old tapes.
   Do not hardcode a value - it depends on the recording session, not the tape
-  (see `c/magma/OPEN_DIVERGENCES.md`).
+  (see `magma/OPEN_DIVERGENCES.md`).
+- **The end-crystal healing beam needs the client's `ticksExisted`.**
+  `RenderDragon.renderCrystalBeams` scrolls `endercrystal_beam` by
+  `-ticksExisted*0.01` per tick over a 16x256 sheet that is ~2x minified, so a
+  one-tick phase error randomizes the whole glyph speckle. The recorder now
+  writes it per entity (dragon field 18, crystal field 12); tapes older than
+  that are reconstructed as `tick - first_seen + ent_ticks0`, default 7,
+  overridable with `MAGMA_ENT_TICKS0`. The default is a measured sweep, not a
+  guess: over the offset's full 100-tick period exactly one value is sharply
+  better (76.8k differing px vs 109-114k at all 99 others). Re-sweep it rather
+  than fitting anything else if a new End tape's beam looks like noise.
 - **Measure a viewmodel residual against the render, not against a texel.**
   Dividing a golden by a raw atlas texel prices in shading the oracle also
   applies, and that is how a phantom "1.57x over-bright arm" got filed for a
@@ -144,7 +167,7 @@ Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).
 - No emojis, no em dashes. Minimal diffs. Verify before claiming done.
 - A replay that reports `magma_game failed (rc=-11)` and then
   `EOFError: No data left in file` is a **SIGSEGV in the first captured frame**,
-  and the first thing to try is `make -C c/magma clean && make -C c/magma`. Seen
+  and the first thing to try is `make -C magma clean && make -C magma`. Seen
   2026-07-25: an incremental build in the main tree produced a binary that
   faulted inside `getenv` at the top of `gm_world_mesh_view` (a corrupted
   `environ`, i.e. heap damage). The same commit built clean in a worktree, every

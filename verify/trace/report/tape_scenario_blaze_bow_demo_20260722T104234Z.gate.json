@@ -1,0 +1,281 @@
+{
+ "thresholds": {
+  "diff": 25,
+  "min_cluster": 50,
+  "fail_cluster": 4000,
+  "fail_total": 8000,
+  "class_pixel_budgets": {
+   "hud": 55000,
+   "particles": 40000,
+   "viewmodel": 40000,
+   "transit": 40000
+  },
+  "low_diff": 1,
+  "fail_mean_abs": 3.32,
+  "fail_low_pct_differing": 40.0
+ },
+ "frames_checked": 407,
+ "classes": {
+  "hud": {
+   "frames": 292,
+   "px": 76815,
+   "max_cluster": 1292
+  },
+  "UNEXPLAINED": {
+   "frames": 177,
+   "px": 23852,
+   "max_cluster": 542
+  },
+  "particles": {
+   "frames": 99,
+   "px": 8505,
+   "max_cluster": 211
+  },
+  "viewmodel": {
+   "frames": 41,
+   "px": 4119,
+   "max_cluster": 191
+  },
+  "transit": {
+   "frames": 20,
+   "px": 5495,
+   "max_cluster": 165
+  }
+ },
+ "failed_frames": [],
+ "mild_shift_failures": 0,
+ "pass": true,
+ "missing_models": {},
+ "missing_model_row_threshold": 4,
+ "missing_model_failures": {},
+ "state": {
+  "kind": "state",
+  "coverage": {
+   "ticks_total": 1407,
+   "ticks_run": 814,
+   "truncated": true
+  },
+  "inventory": {
+   "ticks_checked": 11,
+   "ticks_independent": 10,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
+   "available": true
+  },
+  "entities": {
+   "ticks_checked": 41,
+   "samples": [
+    {
+     "tick": 0,
+     "tape_count": 1,
+     "tape_types": [
+      "EntityBlaze"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 20,
+     "tape_count": 1,
+     "tape_types": [
+      "EntityBlaze"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 40,
+     "tape_count": 1,
+     "tape_types": [
+      "EntityBlaze"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 60,
+     "tape_count": 1,
+     "tape_types": [
+      "EntityBlaze"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 80,
+     "tape_count": 5,
+     "tape_types": [
+      "EntityBlaze",
+      "EntitySmallFireball",
+      "EntityTippedArrow"
+     ],
+     "magma_count": 1,
+     "magma_types": [
+      "type:29"
+     ]
+    },
+    {
+     "tick": 100,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityBlaze",
+      "EntitySmallFireball"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 120,
+     "tape_count": 3,
+     "tape_types": [
+      "EntityBlaze",
+      "EntitySmallFireball",
+      "EntityTippedArrow"
+     ],
+     "magma_count": 1,
+     "magma_types": [
+      "type:29"
+     ]
+    },
+    {
+     "tick": 140,
+     "tape_count": 1,
+     "tape_types": [
+      "EntityBlaze"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 160,
+     "tape_count": 1,
+     "tape_types": [
+      "EntityBlaze"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 180,
+     "tape_count": 1,
+     "tape_types": [
+      "EntityBlaze"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 200,
+     "tape_count": 1,
+     "tape_types": [
+      "EntityBlaze"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 220,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityBlaze",
+      "EntityTippedArrow"
+     ],
+     "magma_count": 1,
+     "magma_types": [
+      "type:29"
+     ]
+    },
+    {
+     "tick": 240,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityBlaze",
+      "EntityTippedArrow"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 260,
+     "tape_count": 5,
+     "tape_types": [
+      "EntityBlaze",
+      "EntitySmallFireball",
+      "EntityTippedArrow"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 280,
+     "tape_count": 5,
+     "tape_types": [
+      "EntityBlaze",
+      "EntitySmallFireball",
+      "EntityTippedArrow"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 300,
+     "tape_count": 4,
+     "tape_types": [
+      "EntityBlaze",
+      "EntitySmallFireball",
+      "EntityTippedArrow"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    }
+   ],
+   "pass": true,
+   "available": true
+  },
+  "world": {
+   "ticks_checked": 41,
+   "hash_deltas": 9,
+   "samples": [
+    {
+     "tick": 0,
+     "nearby_hash": "0db292b768844939"
+    },
+    {
+     "tick": 100,
+     "nearby_hash": "64fecbcf121a1089"
+    },
+    {
+     "tick": 200,
+     "nearby_hash": "f63a2e55f4417889"
+    },
+    {
+     "tick": 300,
+     "nearby_hash": "7269f34f83de5cf9"
+    },
+    {
+     "tick": 400,
+     "nearby_hash": "7269f34f83de5cf9"
+    },
+    {
+     "tick": 500,
+     "nearby_hash": "3960a087f0f3fc59"
+    },
+    {
+     "tick": 600,
+     "nearby_hash": "3960a087f0f3fc59"
+    },
+    {
+     "tick": 700,
+     "nearby_hash": "3960a087f0f3fc59"
+    },
+    {
+     "tick": 800,
+     "nearby_hash": "3960a087f0f3fc59"
+    }
+   ],
+   "pass": true,
+   "available": true
+  }
+ }
+}

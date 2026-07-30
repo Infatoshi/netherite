@@ -5,7 +5,7 @@ live here; do not conflate them:
 
 1. **Cut** - not in scope, no open work, saying otherwise would be a lie.
 2. **Open** - in scope, partially built or known-wrong; tracked in
-   `c/magma/OPEN_DIVERGENCES.md` (the resolve queue) and `c/magma/VERIFY.md`
+   `magma/OPEN_DIVERGENCES.md` (the resolve queue) and `magma/VERIFY.md`
    (the coverage ledger). This file only summarizes; those stay authoritative.
 3. **Pinned** - vanilla behavior deliberately suppressed in the ORACLE (via
    `java/fast.yaml` flags and mixins) so pixels are deterministic; magma
@@ -21,10 +21,10 @@ live here; do not conflate them:
   exist. (`docs/DEVLOG.md:54`)
 - Multiplayer/servers, audio, disk saves as a product feature.
 - Villages/villagers/trading, enchanting, brewing, weather: `--villages on`
-  etc. hard-reject at startup as "not wired yet" (`c/magma/game/config.c`).
+  etc. hard-reject at startup as "not wired yet" (`magma/game/config.c`).
 - Side structures (monuments, mansions, temples, igloos) and rare-biome mobs
   (wither, guardians, shulkers, wolves, ocelots...) until a route needs them;
-  the roster is the speedrun-visible subset (`c/magma/PRODUCT.md`).
+  the roster is the speedrun-visible subset (`magma/PRODUCT.md`).
 - Minecarts/rails as simulation (render models only), maps, anvils, beacons,
   jukeboxes, note blocks, signs, doors, pressure plates, hoppers.
 - Horses/donkeys/mules (entity skipped), zombie villager as a distinct model.

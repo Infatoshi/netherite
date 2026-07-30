@@ -1,0 +1,38 @@
+{
+ "pass": true,
+ "frames_checked": 0,
+ "classes": {},
+ "failed_frames": [],
+ "missing_models": {},
+ "missing_model_row_threshold": 4,
+ "missing_model_failures": {},
+ "state": {
+  "kind": "state",
+  "coverage": {
+   "ticks_total": 304,
+   "ticks_run": 0,
+   "truncated": true
+  },
+  "inventory": {
+   "ticks_checked": 0,
+   "ticks_independent": 0,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
+   "available": false
+  },
+  "entities": {
+   "ticks_checked": 0,
+   "samples": [],
+   "pass": true,
+   "available": false
+  },
+  "world": {
+   "ticks_checked": 0,
+   "hash_deltas": 0,
+   "samples": [],
+   "pass": false,
+   "available": false
+  }
+ }
+}

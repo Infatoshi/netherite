@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "divergences": [
+    {
+      "ticks": [454, 458],
+      "open_divergence": 40,
+      "reason": "This recording's client and server death clocks are 6 ticks apart and the tape records only the client's. Proof from the tape's own frames: magma's and the oracle's LayerEnderDragonDeath spokes (fixed Random(432L), count and length driven by deathTicks) coincide at IoU 0.900 at t=454 and 0.000 at every neighbouring even tick, so the recorded deathTicks IS the client's render clock; yet the oracle's explosion cloud loses the dense BossInfo fog ramp at t=448 (recorded deathTicks 195), six ticks before that same clock reaches 200. The fog is server state (DragonFightManager.processDragonDeath -> setVisible(false) at server deathTicks 200), so the server led the client by 6 ticks in this recording. Magma snaps at the only server event the tape exposes (deathTicks 200 / entity removal), which is correct on a synced recording (scenario_dragon_kill_20260729T110941Z, where both clocks agree), so on this tape magma's white-cloud window starts 6 ticks late and the residual bright-puff placement mismatch - itself unrecoverable EntityDragon.rand / Particle.rand offsets, divergence 40 - lands on the magma-brighter side for these ticks. Population and decay still track: bright px 10571 vs 10535 at t=454, 4531 vs 4233 at 456, 3804 vs 3876 at 460.",
+      "regions": [[170, 280, 300, 460]],
+      "predicate": {"type": "non_solid_scene"}
+    }
+  ]
+}

@@ -4,7 +4,7 @@
 
 This list is ranked by demo visibility, determinism in the tape harness, and likelihood that magma differs. It is deliberately specific to Java 1.11.2. Exact constants were checked against the repo's pinned Forge 1.11.2 source archive, chiefly `Entity`, `EntityLivingBase`, `EntityPlayer`, `FoodStats`, `EntityBoat`, `EntityMinecart`, `EntityTNTPrimed`, `EntityFallingBlock`, and `EntityXPOrb`. Linked upstream sources establish release history or the shipped bug. Current wiki prose is used only where it agrees with that source.
 
-Scenario snippets are sketches, not copy-paste-complete fixtures. They use the vocabulary of `c/magma/raster/verify/scenarios/*.yaml`. Coordinates assume the usual flat-world ground near Y=3. All input times are seconds at 20 ticks/s. For fluid fixtures, put commands in one `setup_qrl: runcmds` step and give it `settle_ticks` when a settled flow field is intended.
+Scenario snippets are sketches, not copy-paste-complete fixtures. They use the vocabulary of `verify/scenarios/*.yaml`. Coordinates assume the usual flat-world ground near Y=3. All input times are seconds at 20 ticks/s. For fluid fixtures, put commands in one `setup_qrl: runcmds` step and give it `settle_ticks` when a settled flow field is intended.
 
 Useful common prelude:
 
@@ -231,7 +231,7 @@ duration_ticks: 150
 
 **1.11.2 caveat.** Magma records player physics as matching but lists the camera-inside-opaque-block overlay as an open visual divergence. The two tests must be kept together because identical health does not prove identical camera selection.
 
-**Sources.** pinned 1.11.2 `EntityPlayer#isEntityInsideOpaqueBlock`, `EntityPlayer#onLivingUpdate`, and the repo's `c/magma/OPEN_DIVERGENCES.md`.
+**Sources.** pinned 1.11.2 `EntityPlayer#isEntityInsideOpaqueBlock`, `EntityPlayer#onLivingUpdate`, and the repo's `magma/OPEN_DIVERGENCES.md`.
 
 ```yaml
 setup_commands:
@@ -408,7 +408,7 @@ duration_ticks: 110
 
 **1.11.2 caveat.** Natural orb spawn velocity and merge/order effects are random or entity-order-sensitive. Summon exactly one orb with explicit position, value, and zero motion. Magma marks XP attraction as insufficiently pixel-verified.
 
-**Sources.** pinned 1.11.2 `EntityXPOrb#onUpdate`; repo `c/magma/VERIFY.md`.
+**Sources.** pinned 1.11.2 `EntityXPOrb#onUpdate`; repo `magma/VERIFY.md`.
 
 ```yaml
 setup_commands:

@@ -1,0 +1,38 @@
+name: boat_ride
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode creative @p
+  - /tp @p 0.5 4 0.5 0 20
+  - /fill -4 3 -2 4 3 22 minecraft:stone
+  - /fill -2 3 0 2 3 16 minecraft:water
+  - /fill -2 3 14 2 3 20 minecraft:sand
+  - /summon minecraft:boat 0.5 4 3.5
+duration_ticks: 500
+frames_every: 10
+input:
+  segments:
+    - seconds: 1.0
+      buttons: [3]
+    - seconds: 6.0
+      keys: [w]
+    - seconds: 3.0
+      keys: [w, a]
+    - seconds: 3.0
+      keys: [w, d]
+    - seconds: 5.0
+      keys: [w]
+    - seconds: 1.0
+      keys: [Shift_L]
+    - seconds: 6.0
+known_divergences: []

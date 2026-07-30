@@ -1,0 +1,197 @@
+{
+  "id": "hand_bow_pull20",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "hotbar": [
+      [
+        261,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "hotbar_sel": 0,
+    "bow_pull": 20,
+    "armor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "fire": 0,
+    "portal": 0.0,
+    "boss": {
+      "show": false
+    },
+    "clear_effects": true
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": true,
+    "use_count": 71980,
+    "use_max": 20,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 261
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": true,
+    "use_count": 71980,
+    "use_max": 20,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 261
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": true,
+    "use_count": 71980,
+    "use_max": 20,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 261
+  },
+  "frame_a": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-viewmodels/verify/ui_hud/goldens/hand_bow_pull20_a.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "frame_b": {
+    "ok": true,
+    "file": "/tmp/netherite-hud-viewmodels/verify/ui_hud/goldens/hand_bow_pull20_b.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 0.0,
+  "noise_limit": 3.0,
+  "presence": {
+    "mean_rgb": [
+      74.63108018240547,
+      72.64920197605929,
+      63.16782253467604
+    ],
+    "std": 38.457656324293154,
+    "warm_frac": 0.01605191256830601,
+    "bot_warm_frac": 0.058645589383294304,
+    "lr_std": 38.79470956243982,
+    "vm_std": 36.65367738025766,
+    "vm_dev": 29.065034866333008,
+    "dark_frac": 0.3694898346950409,
+    "purple_bias": -9.481379441383247
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "lower-right viewmodel non-hotbar"
+}

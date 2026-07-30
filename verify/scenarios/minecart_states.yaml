@@ -1,0 +1,35 @@
+name: minecart_states
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode creative @p
+  - /tp @p -7.5 4 0.5 0 5
+  - /fill -4 4 5 -4 4 7 minecraft:rail
+  - /fill -2 4 5 -2 4 7 minecraft:rail
+  - /fill 0 4 5 0 4 7 minecraft:rail
+  - /fill 2 4 5 2 4 7 minecraft:rail
+  - /fill 4 4 5 4 4 7 minecraft:rail
+  - /summon minecart -3.5 4.1 6.5
+  - /summon chest_minecart -1.5 4.1 6.5
+  - /summon furnace_minecart 0.5 4.1 6.5 {Fuel:3600s,PushX:0.0d,PushZ:0.0d}
+  - /summon hopper_minecart 2.5 4.1 6.5
+  - /summon tnt_minecart 4.5 4.1 6.5
+duration_ticks: 400
+frames_every: 20
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 11.0
+      keys: [a, Shift_L]
+    - seconds: 7.0
+known_divergences: []

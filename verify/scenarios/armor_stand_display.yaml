@@ -1,0 +1,42 @@
+name: armor_stand_display
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode creative @p
+  - /tp @p -6.5 4 0.5 0 5
+  - /setblock -3 3 7 minecraft:stone
+  - /setblock 0 3 7 minecraft:stone
+  - /setblock 3 3 7 minecraft:stone
+  - '/summon armor_stand -2.5 4 7.5 {NoGravity:1b,ShowArms:1b,Rotation:[180.0f],ArmorItems:[{id:"minecraft:iron_boots",Count:1b},{id:"minecraft:iron_leggings",Count:1b},{id:"minecraft:iron_chestplate",Count:1b},{id:"minecraft:iron_helmet",Count:1b}]}'
+  - '/summon armor_stand 0.5 4 7.5 {NoGravity:1b,ShowArms:1b,Rotation:[180.0f],ArmorItems:[{id:"minecraft:diamond_boots",Count:1b},{id:"minecraft:diamond_leggings",Count:1b},{id:"minecraft:diamond_chestplate",Count:1b},{id:"minecraft:diamond_helmet",Count:1b}]}'
+  - '/summon armor_stand 3.5 4 7.5 {NoGravity:1b,ShowArms:1b,Rotation:[180.0f],ArmorItems:[{id:"minecraft:diamond_boots",Count:1b},{id:"minecraft:iron_leggings",Count:1b},{id:"minecraft:diamond_chestplate",Count:1b},{id:"minecraft:iron_helmet",Count:1b}]}'
+setup_qrl:
+  # Final render-settle: prior take's first three goldens were stale sky
+  # (recstart before the client rendered the staged scene).
+  - cmd: runcmds
+    action:
+      cmds:
+        - time set 6000
+    settle_ticks: 120
+duration_ticks: 400
+frames_every: 20
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 10.0
+      keys: [a, Shift_L]
+    - seconds: 4.0
+      look: [18.0, 0.0]
+    - seconds: 4.0
+      look: [-18.0, 0.0]
+known_divergences: []

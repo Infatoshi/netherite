@@ -1,0 +1,108 @@
+# Nether elytra flight for the launch follow-up: launch from a built
+# netherrack perch high over the lava sea, glide across it with banking
+# turns (human-looking flight), flare and land on a built shore pad.
+# Frames every tick so the SBS plays at real time.
+#
+# Seed 0 nether: lava sea surface y=31. The perch and pad are placed by
+# setup so the route is deterministic; structures off would kill
+# fortresses but we keep default rules from the fast profile.
+name: nether_elytra
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /gamerule doMobLoot false
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /replaceitem entity @p slot.armor.chest minecraft:elytra 1 0
+setup_qrl:
+  - cmd: dim
+    action: { id: -1 }
+    settle_ticks: 100
+  # Route read out of the DIM-1 snapshot (take 1): a natural open cavern
+  # over the lava sea spans x -152..-72 at z -104..-72, air y36..63,
+  # sea surface y31. Perch on the east rim, pad on the west shore;
+  # heading yaw=90 (-x). Only two small builds, no corridor carving.
+  # Load the route chunks without giving the player time to fall (2-tick
+  # settles), THEN build, THEN drop him one block onto the finished perch.
+  - cmd: runcmds
+    action: { cmds: ["tp @p -69.5 120 -84.5 90 10"] }
+    settle_ticks: 2
+  - cmd: runcmds
+    action: { cmds: ["fill -72 57 -87 -68 57 -82 minecraft:netherrack"] }
+    settle_ticks: 2
+  - cmd: runcmds
+    action: { cmds: ["fill -72 58 -87 -68 66 -82 minecraft:air"] }
+    settle_ticks: 2
+  - cmd: runcmds
+    action: { cmds: ["tp @p -120.5 120 -84.5 90 10"] }
+    settle_ticks: 2
+  - cmd: runcmds
+    action: { cmds: ["fill -136 33 -94 -104 33 -76 minecraft:netherrack"] }
+    settle_ticks: 2
+  - cmd: runcmds
+    action: { cmds: ["fill -136 34 -94 -104 52 -76 minecraft:air"] }
+    settle_ticks: 2
+  - cmd: runcmds
+    action: { cmds: ["tp @p -69.5 59 -84.5 90 8"] }
+    settle_ticks: 40
+duration_ticks: 420
+frames_every: 1
+input:
+  segments:
+    - seconds: 0.8
+    # run off the perch edge
+    - seconds: 1.0
+      keys: [w]
+    # deploy is timing-independent: alternate jump press/release through
+    # the whole launch window. Pre-edge presses are just running jumps;
+    # post-deploy presses are no-ops in 1.11; whenever the fall starts, a
+    # fresh >=0.5s press lands within 1.1s of it (client drops shorter
+    # events under llvmpipe load - measured takes 4-7).
+    - seconds: 0.6
+      keys: [w, space]
+    - seconds: 0.5
+      keys: [w]
+      look: [0, -4]
+    - seconds: 0.6
+      keys: [w, space]
+    - seconds: 0.5
+      keys: [w]
+      look: [0, -4]
+    - seconds: 0.6
+      keys: [w, space]
+    - seconds: 0.5
+      keys: [w]
+      look: [0, -4]
+    - seconds: 0.6
+      keys: [w, space]
+    # cruise flat over the sea
+    - seconds: 1.5
+      keys: [w]
+      look: [0, -3]
+    # sweeping bank right, holding altitude
+    - seconds: 1.5
+      keys: [w]
+      look: [22, 0]
+    # bank back across the corridor
+    - seconds: 1.6
+      keys: [w]
+      look: [-30, 0]
+    # line up west on the pad, gentle descent
+    - seconds: 1.5
+      keys: [w]
+      look: [10, 3]
+    # flare: nose up to bleed speed into the touchdown
+    - seconds: 1.4
+      keys: [w]
+      look: [0, -14]
+    - seconds: 2.2
+known_divergences: []

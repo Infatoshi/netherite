@@ -1,0 +1,38 @@
+name: mooshroom_compare
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode creative @p
+  - /tp @p -6.5 4 0.5 0 5
+  - /fill -7 3 -2 7 3 15 minecraft:hardened_clay
+  - '/summon minecraft:mooshroom -2.5 4 8.5 {PersistenceRequired:1b}'
+  - '/summon minecraft:cow 2.5 4 8.5 {PersistenceRequired:1b}'
+setup_qrl:
+  # Final render-settle: first recording's t=0-40 goldens were stale sky.
+  - cmd: runcmds
+    action:
+      cmds:
+        - time set 6000
+    settle_ticks: 120
+duration_ticks: 360
+frames_every: 10
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 7.0
+      keys: [a, Shift_L]
+    - seconds: 2.0
+      look: [24.0, 0.0]
+    - seconds: 7.0
+      keys: [d, Shift_L]
+known_divergences: []

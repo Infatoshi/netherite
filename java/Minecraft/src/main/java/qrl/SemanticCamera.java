@@ -8,7 +8,7 @@ import net.minecraft.world.World;
 /**
  * Semantic camera obs for the chain-RL bridge: a 64x36 pinhole DDA voxel
  * raycast (Amanatides-Woo) from the player eye, mirroring the verified
- * c/mc-sim/core/obs_camera.h (oc_pixel) geometry exactly:
+ * blaze/core/obs_camera.h (oc_pixel) geometry exactly:
  *   - FOV 70 deg vertical: tan(35 deg) as the same double literal (OC_TANY),
  *     horizontal = vertical * (64/36) (OC_TANX)
  *   - 48-block reach (OC_FAR); depth = (int)(t*4) clamped 255; sky = id 0,
@@ -19,7 +19,7 @@ import net.minecraft.world.World;
  *   - trig via MathHelper's 65536-entry sin LUT - the exact table mc_sin
  *     replicates - so ray directions match the magma/blaze camera
  * Cells hold PLAIN BLOCK IDS (Block.getIdFromBlock), matching rl_camreg in
- * c/magma/game/rl_mode.c (ids, not packed states). Row 0 = top.
+ * magma/game/rl_mode.c (ids, not packed states). Row 0 = top.
  */
 final class SemanticCamera {
     static final int W = 64, H = 36, NPIX = W * H;

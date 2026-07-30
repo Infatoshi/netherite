@@ -1,0 +1,262 @@
+{
+ "thresholds": {
+  "diff": 25,
+  "min_cluster": 50,
+  "fail_cluster": 4000,
+  "fail_total": 8000,
+  "class_pixel_budgets": {
+   "hud": 55000,
+   "particles": 40000,
+   "viewmodel": 40000,
+   "transit": 40000
+  },
+  "low_diff": 1,
+  "fail_mean_abs": 3.32,
+  "fail_low_pct_differing": 40.0
+ },
+ "frames_checked": 41,
+ "classes": {
+  "hud": {
+   "frames": 1,
+   "px": 12189,
+   "max_cluster": 12189
+  },
+  "viewmodel": {
+   "frames": 33,
+   "px": 37276,
+   "max_cluster": 3312
+  },
+  "thinline": {
+   "frames": 2,
+   "px": 617,
+   "max_cluster": 330
+  },
+  "UNEXPLAINED": {
+   "frames": 3,
+   "px": 1043,
+   "max_cluster": 307
+  },
+  "particles": {
+   "frames": 10,
+   "px": 589,
+   "max_cluster": 86
+  }
+ },
+ "failed_frames": [],
+ "mild_shift_failures": 0,
+ "pass": true,
+ "missing_models": {},
+ "missing_model_row_threshold": 4,
+ "missing_model_failures": {},
+ "state": {
+  "kind": "state",
+  "coverage": {
+   "ticks_total": 407,
+   "ticks_run": 407,
+   "truncated": false
+  },
+  "inventory": {
+   "ticks_checked": 41,
+   "ticks_independent": 40,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
+   "available": true
+  },
+  "entities": {
+   "ticks_checked": 21,
+   "samples": [
+    {
+     "tick": 0,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 20,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 40,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 60,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 80,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 100,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 120,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 140,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 160,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 180,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 200,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 220,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 240,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 260,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 280,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 300,
+     "tape_count": 2,
+     "tape_types": [
+      "EntityCaveSpider",
+      "EntitySpider"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    }
+   ],
+   "pass": true,
+   "available": true
+  },
+  "world": {
+   "ticks_checked": 21,
+   "hash_deltas": 11,
+   "samples": [
+    {
+     "tick": 0,
+     "nearby_hash": "564458cc69940719"
+    },
+    {
+     "tick": 100,
+     "nearby_hash": "d41d86b4fd7bfb49"
+    },
+    {
+     "tick": 200,
+     "nearby_hash": "0f62352970be2019"
+    },
+    {
+     "tick": 300,
+     "nearby_hash": "564458cc69940719"
+    },
+    {
+     "tick": 400,
+     "nearby_hash": "564458cc69940719"
+    }
+   ],
+   "pass": true,
+   "available": true
+  }
+ }
+}

@@ -1,0 +1,8 @@
+# Pinned regression set for delegate_gate.sh: fast, diverse, verified rc 0
+# on master 2026-07-30. A fix that breaks any of these is rejected.
+scenario_smoke_zombie_20260722T081735Z
+scenario_fence_collide_20260723T002017Z
+scenario_water_flow_20260722T235050Z
+scenario_cobweb_fall_20260723T001656Z
+scenario_water_dive_20260722T234816Z
+scenario_dragon_kill_geared_20260730T025316Z

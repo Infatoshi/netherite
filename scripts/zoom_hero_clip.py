@@ -5,7 +5,7 @@ sliding window of the run by camera motion (yaw/pitch turn + travel, with a
 hard penalty for >1.5s static stares that read as a frozen video), and
 captures the liveliest window at hero resolution.
 
-Run: cd netherite/c/magma && uv run --no-project --with numpy python \
+Run: cd netherite/magma && uv run --no-project --with numpy python \
        ../../scripts/zoom_hero_clip.py
 """
 import json

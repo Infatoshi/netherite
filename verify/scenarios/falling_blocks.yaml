@@ -1,0 +1,56 @@
+# Falling sand/gravel column. Prior take was junk: recstart before chunks
+# rendered (no settle after setup), and the stone support sat at z=6
+# (~5.5 m from the player, outside vanilla dig reach) so the free-aimed
+# 0.2s attack never connected and the entity stream stayed empty for all
+# 303 rows.
+#
+# Staging choice: support is sand at eye-adjacent z=3; player holds a
+# diamond shovel and left-clicks for 1.5s. Creative makes the dig
+# instant; the shovel + sand pairing and held window make the release
+# independent of free aim. Camera is pinned by the setup tp (yaw 0,
+# pitch 20) at the support center so no look deltas are required. Once
+# the support is air the column becomes FallingBlock entities within a
+# tick or two, so continued dig cannot chain-break the solids. Column
+# stands a few blocks in front of the fixed viewpoint so the fall stays
+# on screen.
+name: falling_blocks
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode creative @p
+  - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_shovel 1
+setup_qrl:
+  # Phased tp-first: tp and world edits in ONE runcmds batch is the known
+  # qrl no-op failure mode (fills can silently miss). Land the player first,
+  # then build, then settle so chunk meshes exist before recstart.
+  - cmd: runcmds
+    action:
+      cmds:
+        - tp @p 0.5 4 0.5 0 20
+    settle_ticks: 20
+  - cmd: runcmds
+    action:
+      cmds:
+        - setblock 0 4 3 minecraft:sand
+        - fill 0 5 3 0 8 3 minecraft:sand
+        - fill 0 9 3 0 12 3 minecraft:gravel
+    settle_ticks: 400
+duration_ticks: 300
+frames_every: 20
+input:
+  segments:
+    - seconds: 0.5
+    - seconds: 1.5
+      buttons: [1]
+    - seconds: 13.0
+known_divergences: []
