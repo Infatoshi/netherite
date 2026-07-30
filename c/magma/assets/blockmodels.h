@@ -72,6 +72,9 @@ enum {
     BM_KIND_END_PORTAL,
     /* End-pillar cage pane network, connected to adjacent panes/full cubes. */
     BM_KIND_IRON_BARS,
+    /* Glass-pane multipart: central post, connected arms, and absent-side
+     * faces with distinct pane/edge textures. */
+    BM_KIND_GLASS_PANE,
     /* Standing/wall torch; legacy metadata selects its attachment side. */
     BM_KIND_TORCH,
     /* Single chest: inset body 1..15 x 0..14 x 1..15 + front knob from meta

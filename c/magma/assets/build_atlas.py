@@ -205,6 +205,9 @@ SPRITE_NAMES += [
     "stone_slab_top",
     "stonebrick",
 ]
+# BlockPane uses the glass texture for its faces and a separate two-pixel edge
+# texture for the post and connected-arm caps.
+SPRITE_NAMES += ["glass_pane_top"]
 SPECIAL_SPRITE_PATHS = {
     "end_portal": "assets/minecraft/textures/entity/end_portal.png",
 }

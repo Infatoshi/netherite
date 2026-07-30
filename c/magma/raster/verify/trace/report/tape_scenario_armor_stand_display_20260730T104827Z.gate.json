@@ -14,32 +14,27 @@
   "fail_mean_abs": 3.32,
   "fail_low_pct_differing": 40.0
  },
- "frames_checked": 17,
+ "frames_checked": 18,
  "classes": {
   "hud": {
-   "frames": 1,
-   "px": 13196,
-   "max_cluster": 13196
+   "frames": 18,
+   "px": 130868,
+   "max_cluster": 3597
   },
   "viewmodel": {
-   "frames": 2,
-   "px": 3566,
-   "max_cluster": 3507
-  },
-  "particles": {
-   "frames": 17,
-   "px": 7628,
-   "max_cluster": 862
+   "frames": 18,
+   "px": 5992,
+   "max_cluster": 202
   },
   "UNEXPLAINED": {
-   "frames": 1,
-   "px": 60,
-   "max_cluster": 60
+   "frames": 8,
+   "px": 2868,
+   "max_cluster": 129
   },
-  "thinline": {
-   "frames": 1,
-   "px": 95,
-   "max_cluster": 95
+  "particles": {
+   "frames": 8,
+   "px": 784,
+   "max_cluster": 128
   }
  },
  "failed_frames": [],
@@ -51,130 +46,162 @@
  "state": {
   "kind": "state",
   "coverage": {
-   "ticks_total": 328,
-   "ticks_run": 328,
+   "ticks_total": 409,
+   "ticks_run": 409,
    "truncated": false
   },
   "inventory": {
-   "ticks_checked": 17,
-   "ticks_independent": 16,
+   "ticks_checked": 21,
+   "ticks_independent": 20,
    "seeded_only": false,
    "mismatches": [],
    "pass": true,
    "available": true
   },
   "entities": {
-   "ticks_checked": 17,
+   "ticks_checked": 21,
    "samples": [
     {
      "tick": 0,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 20,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 40,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 60,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 80,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 100,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 120,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 140,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 160,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 180,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 200,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 220,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 240,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 260,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 280,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 300,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 3,
+     "tape_types": [
+      "EntityArmorStand"
+     ],
      "magma_count": 0,
      "magma_types": []
     }
@@ -183,16 +210,16 @@
    "available": true
   },
   "world": {
-   "ticks_checked": 17,
-   "hash_deltas": 6,
+   "ticks_checked": 21,
+   "hash_deltas": 0,
    "samples": [
     {
      "tick": 0,
-     "nearby_hash": "d15fc2828cdc6149"
+     "nearby_hash": "f63a2e55f4417889"
     },
     {
      "tick": 100,
-     "nearby_hash": "04942cb91a0ce5d1"
+     "nearby_hash": "f63a2e55f4417889"
     },
     {
      "tick": 200,
@@ -200,6 +227,10 @@
     },
     {
      "tick": 300,
+     "nearby_hash": "f63a2e55f4417889"
+    },
+    {
+     "tick": 400,
      "nearby_hash": "f63a2e55f4417889"
     }
    ],

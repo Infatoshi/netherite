@@ -64,7 +64,8 @@ enum {
      * and half (bit 3). Keep the 16 rows contiguous for the registry bridge. */
     CBX_STONE_SLAB_BOTTOM_BASE = 237,
     CBX_STONE_SLAB_TOP_BASE = 245,
-    CBX_MAX = 253
+    CBX_GLASS_PANE = 253,
+    CBX_MAX = 254
 };
 
 /* Face order is BM_DOWN, BM_UP, BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST. */
@@ -159,6 +160,14 @@ static const BmBlock g_blocks[CBX_MAX] = {
                         BM_TINT_NONE, BM_TINT_NONE) },
     [CBX_IRON_BARS] = { 0, 0, CR_LAYER_CUTOUT_MIPPED, BM_KIND_IRON_BARS,
                         FULL6(CR_SPRITE_IRON_BARS, BM_TINT_NONE) },
+    [CBX_GLASS_PANE] = { 0, 0, CR_LAYER_CUTOUT_MIPPED, BM_KIND_GLASS_PANE, {
+        { CR_SPRITE_GLASS_PANE_TOP, BM_TINT_NONE },
+        { CR_SPRITE_GLASS_PANE_TOP, BM_TINT_NONE },
+        { CR_SPRITE_GLASS, BM_TINT_NONE },
+        { CR_SPRITE_GLASS, BM_TINT_NONE },
+        { CR_SPRITE_GLASS, BM_TINT_NONE },
+        { CR_SPRITE_GLASS, BM_TINT_NONE },
+    } },
     [CBX_TORCH] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_TORCH,
                     FULL6(CR_SPRITE_TORCH_ON, BM_TINT_NONE) },
     [CBX_RAIL] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_RAIL,
@@ -432,7 +441,8 @@ static int bm_is_modeled(int id)
     case CBX_NETHERRACK: case CBX_PORTAL: case CBX_END_STONE: case CBX_FIRE:
     case CBX_GLOWSTONE: case CBX_SOUL_SAND: case CBX_END_FRAME: case CBX_QUARTZ_ORE:
     case CBX_BROWN_MUSHROOM: case CBX_RED_MUSHROOM: case CBX_MAGMA:
-    case CBX_IRON_BARS: case CBX_TORCH: case CBX_CRAFTING_TABLE:
+    case CBX_IRON_BARS: case CBX_GLASS_PANE:
+    case CBX_TORCH: case CBX_CRAFTING_TABLE:
     case CBX_PLANKS: case CBX_GRANITE_SMOOTH: case CBX_DIORITE_SMOOTH:
     case CBX_ANDESITE_SMOOTH: case CBX_NETHER_BRICK:
     case CBX_SLIME: case CBX_WEB: case CBX_PACKED_ICE:
