@@ -96,3 +96,35 @@ entity row into per-tick `ent_view` events (and the recorded player packets
 re-anchor mob hits and knockback), rather than rerunning the oracle AI RNG.
 Thus the JSONL entity timeline, not magma's spawner or AI, is the replay source
 of truth.
+
+## Authoring contract (paid-for gotchas - read before writing a yaml)
+
+Every rule below cost a debugging session. Violating one wastes an oracle
+recording slot.
+
+- One system per scenario. A scenario that stages three mechanics produces
+  a tape whose failures cannot be assigned to a delegate.
+- `setup_commands` run in ONE qrl tick and the run aborts on any command
+  failure. `/clear` on an empty inventory and `/fill` that changes zero
+  blocks REPORT FAILURE in 1.11.2. Order matters: teleport first, then act
+  on the arrival cell only if something is guaranteed to be there.
+- Instant potions take their duration argument in TICKS, not seconds:
+  `/effect @p minecraft:instant_damage 1 1` is one tick of amplifier 1.
+- Reduced player HP needs `gamerule naturalRegeneration false` or the HP
+  regenerates before the input segments start.
+- An `AttributeModifiers` NBT tag REPLACES an armor piece's default
+  attributes; declare `generic.armor` explicitly or the piece protects for
+  zero.
+- `/replaceitem entity @p slot.armor.<part>` is how armor is worn;
+  `/give` only fills the hotbar.
+- Summon with explicit coordinates a known offset from the player tp
+  point; never rely on natural spawns for the encounter under test.
+- Keep `duration_ticks` minimal for the mechanic (200-800). Recording time
+  is the serial bottleneck of the whole flywheel; frames_every: 2 only when
+  pixel evidence needs tick resolution.
+- Validate before queueing:
+  `uv run --no-project --with pyyaml --with pytest python -m pytest scenarios/test_scenario.py`
+  plus a read of your yaml against the schema block above.
+- `known_divergences` in a NEW scenario yaml is almost always wrong: new
+  tapes should expect rc 0 or produce an honest failure for the fix
+  fan-out. Filing divergences is the merge owner's call, with proof.
