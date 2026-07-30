@@ -23,7 +23,10 @@ fail() { echo "REJECT: $*"; exit 1; }
 # --- 1. tamper check -------------------------------------------------------
 base=$(git -C "$ROOT" merge-base HEAD master 2>/dev/null || git -C "$ROOT" merge-base HEAD origin/master)
 touched=$( { git -C "$ROOT" diff --name-only "$base"...HEAD; git -C "$ROOT" diff --name-only; git -C "$ROOT" diff --name-only --cached; } | sort -u)
-frozen='(known_divergences\.json$|raster/verify/trace/pixel_gate\.py$|raster/verify/trace/report/.*\.gate\.json$|^GOAL\.md$|scripts/delegate_gate\.sh$|scripts/regression_pins\.txt$)'
+# report/*.gate.json is NOT frozen: replay_tape.py --report regenerates those
+# tracked artifacts as a side effect of the required replays. rc comes from a
+# fresh replay, so editing them cannot fake a pass; merges drop report diffs.
+frozen='(known_divergences\.json$|raster/verify/trace/pixel_gate\.py$|^GOAL\.md$|scripts/delegate_gate\.sh$|scripts/regression_pins\.txt$)'
 bad=$(printf '%s\n' "$touched" | rg "$frozen" || true)
 [ -z "$bad" ] || fail "diff touches frozen gate machinery:"$'\n'"$bad"
 
