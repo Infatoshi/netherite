@@ -8,10 +8,10 @@ source, the build system, and the verification harnesses are all here; the
 Mojang-derived inputs they reference are regenerated locally, byte-identical,
 from your own Minecraft installation.
 
-Requirements: JDK 8, `uv`, network on first run. You must own Minecraft
-(https://www.minecraft.net); the game files are fetched by ForgeGradle from
-Mojang's official distribution endpoints exactly as any Forge 1.11.2 mod
-development environment does.
+Requirements on Linux oracle hosts: JDK 8, `uv`, and network on first run.
+Native Apple Silicon builds need Xcode or its Command Line Tools, SDL2, `uv`,
+and network on first asset bootstrap; JDK 8 is optional unless live Java-oracle
+work is requested. You must own Minecraft (https://www.minecraft.net).
 
 One-shot (preferred on a clean Linux box):
 
@@ -19,6 +19,18 @@ One-shot (preferred on a clean Linux box):
 bash scripts/setup_and_verify.sh          # bootstrap + build + --quick
 bash scripts/setup_and_verify.sh --full   # + CUDA gates
 ```
+
+One-shot on a clean Apple Silicon Mac:
+
+```bash
+bash scripts/setup_macos.sh          # official client assets + native quick sweep
+bash scripts/setup_macos.sh --full   # broader CPU/Metal gates + measurements
+```
+
+The macOS path resolves the official 1.11.2 client through Mojang's published
+version manifest, verifies its published SHA-1 and size, and stores it only in
+the ignored local ForgeGradle cache. To require an already installed jar, use
+`--no-fetch-client`; to point at one explicitly, set `MC_JAR`.
 
 Stepwise equivalent:
 
@@ -43,10 +55,13 @@ What each step reproduces:
   verified against; `c/mc-sim/ref/mc-src` symlinks to it. The MCP mapping
   snapshot is pinned in `java/Minecraft/build.gradle`, so the decompiled
   output is deterministic.
-- `scripts/bootstrap_assets.sh` -> the 12 generated headers in
+- `scripts/bootstrap_assets.sh` -> the 13 generated headers in
   `c/magma/assets/` (block/GUI/HUD/item/mob/sky atlases, colormaps, water
   animation frames). Each `build_*.py` extracts textures from the jar found
   by `assets/mc_jar.py`.
+- `scripts/bootstrap_assets.sh --fetch-client` first runs the verified official
+  client downloader when no launcher or Gradle cache contains 1.11.2. It does
+  not generate or download decompiled oracle source.
 
 Pixel-baseline captures (`c/magma/raster/verify/mc_capture`, tape videos)
 are also not distributed; the verify steps that need them SKIP until you

@@ -1,9 +1,11 @@
-"""Scripted executive for the spawn-to-coal chain (RL protocol v2 probe).
+"""Scripted executive for the survival progression chain (RL protocol v2).
 
 Stages: chop 4 logs -> craft planks/sticks/table -> place table -> interact
 -> craft wooden pickaxe -> dig to stone (cobble) -> locate + mine coal ->
-craft torches. Every stage talks to magma --rl-bin through MagmaEnv and
-verifies itself from inv_counts, so a silent protocol regression fails loudly.
+craft torches. IRON=1 extends through furnace smelting and an iron pickaxe;
+DIAMOND=1 continues through eleven natural diamond drops and the complete
+diamond tool set. Every stage talks to magma through MagmaEnv and verifies
+its inventory milestone, so a silent protocol regression fails loudly.
 
 The executive is scripted on purpose: it is the ground-truth demonstration
 that the full chain is reachable in-sim, and the per-stage skills (approach,
@@ -27,9 +29,11 @@ OUT = os.path.join(HERE, "out")
 IX_LOG, IX_PLANK, IX_STICK, IX_COBBLE, IX_TABLE, IX_WPICK, IX_SPICK, \
     IX_COAL, IX_TORCH = range(9)
 
-# 16 planks: table 4 + sticks 2 + pick 3 leaves margin. The iron extension
-# burns two more tables (underground kit + final craft) -> chop 6.
-LOG_TARGET = 6 if os.environ.get("IRON") else 4
+DIAMOND_CHAIN = bool(os.environ.get("DIAMOND"))
+IRON_CHAIN = DIAMOND_CHAIN or bool(os.environ.get("IRON"))
+
+# The extended routes carry extra underground tables and tool sticks.
+LOG_TARGET = 7 if DIAMOND_CHAIN else (6 if IRON_CHAIN else 4)
 COBBLE_TARGET = 3
 REACH = 4.5
 
@@ -74,8 +78,10 @@ def select_hotbar(env, item_id):
 
 
 # ---------------------------------------------------------------- stages
-def stage_chop(env, budget=1200):
+def stage_chop(env, budget=None):
     """Greedy approach + hold-attack until LOG_TARGET logs are in inventory."""
+    if budget is None:
+        budget = 1400 if DIAMOND_CHAIN else 1200
     for t in range(budget):
         if inv(env, IX_LOG) >= LOG_TARGET:
             return True
@@ -202,7 +208,7 @@ def stage_coal(env, budget=3000, stop_dist=None):
     nearest ore is within that distance - used to build training prefixes
     that end on the last mile."""
     spent = 0
-    target = 2 if os.environ.get("IRON") else 1
+    target = 2 if IRON_CHAIN else 1
     while spent < budget:
         if inv(env, IX_COAL) >= target:
             return True
@@ -273,7 +279,7 @@ def stage_torch(env):
     step(env, {"craft": 5})             # coal + stick -> 4 torches
     if inv(env, IX_TORCH) < 4:
         return False
-    if not os.environ.get("IRON"):
+    if not IRON_CHAIN:
         return True
     # Light the tunnel and free the hotbar slot before the table/furnace/
     # stone-pick outputs compete with incidental dirt and split wood stacks.
@@ -302,9 +308,11 @@ def stage_torch(env):
     return inv(env, IX_TORCH) == 0
 
 
-# ------------------------------------------------- iron extension (IRON=1)
+# --------------------------------------- iron/diamond extensions (JSON obs)
 # item ids past the 9-slot inv_counts window: tracked via the hotbar
 IRON_ORE, INGOT, FURNACE_ITEM, IPICK, COAL_ITEM = 15, 265, 61, 257, 263
+DIAMOND_ORE, DIAMOND = 56, 264
+DPICK, DSHOVEL, DAXE, DHOE, DSWORD = 278, 277, 279, 293, 276
 
 
 def hotbar_count(env, item_id):
@@ -319,6 +327,12 @@ def iron_count(env, item_id):
     cannot confirm them. Needs the env in JSON mode (bin=False)."""
     ids = (FURNACE_ITEM, IRON_ORE, INGOT, IPICK)
     return env.obs["inv_iron"][ids.index(item_id)]
+
+
+def diamond_count(env, item_id):
+    """Full-inventory count from the JSON-only diamond progression vector."""
+    ids = (DIAMOND, DPICK, DSHOVEL, DAXE, DHOE, DSWORD)
+    return env.obs["inv_diamond"][ids.index(item_id)]
 
 
 def stage_cobble_bank(env, target=15, budget=1600):
@@ -359,7 +373,8 @@ def place_from_hotbar(env, item_id, budget=80):
                   f"pos=({pxx:.1f},{pyy:.1f},{pzz:.1f}) "
                   f"pocket=({cx},{feet},{cz}) yaw={env.obs['yaw']:.1f}",
                   flush=True)
-        if not select_hotbar(env, 274) and not select_hotbar(env, 270):
+        if not select_hotbar(env, IPICK) and not select_hotbar(env, 274) \
+                and not select_hotbar(env, 270):
             return None
         mine_block(env, cx, feet, cz)
         mine_block(env, cx, feet + 1, cz)
@@ -388,11 +403,13 @@ def stage_iron_kit(env):
     the hotbar fills, place one, then craft the stone picks."""
     while inv(env, IX_LOG) > 0:
         step(env, {"craft": 0})         # free a hotbar slot on overshoot seeds
-    while inv(env, IX_STICK) < 8 and inv(env, IX_PLANK) >= 2:
-        step(env, {"craft": 1})     # 2 spicks + ipick need 6 sticks total
-    while inv(env, IX_TABLE) < 2 and inv(env, IX_PLANK) >= 4:
-        step(env, {"craft": 2})         # kit table + carried final table
-    if inv(env, IX_STICK) < 4 or inv(env, IX_TABLE) < 2:
+    stick_target = 12 if DIAMOND_CHAIN else 8
+    table_target = 3 if DIAMOND_CHAIN else 2
+    while inv(env, IX_STICK) < stick_target and inv(env, IX_PLANK) >= 2:
+        step(env, {"craft": 1})
+    while inv(env, IX_TABLE) < table_target and inv(env, IX_PLANK) >= 4:
+        step(env, {"craft": 2})
+    if inv(env, IX_STICK) < 4 or inv(env, IX_TABLE) < table_target:
         return False
     pos = place_from_hotbar(env, 58)
     if pos is None:
@@ -404,15 +421,17 @@ def stage_iron_kit(env):
     else:
         return False
     step(env, {"craft": 4})
-    step(env, {"craft": 4})             # spare spick may overflow - fine
-    # one table stays behind; the other shares its hotbar stack until the
-    # smelting site, where placing it frees the furnace-output slot
-    return inv(env, IX_SPICK) >= 1 and hotbar_count(env, 58) >= 1 \
+    if not DIAMOND_CHAIN:
+        step(env, {"craft": 4})         # spare for the longer iron-only dig
+    # One table stays behind; the remaining stack supplies the smelting site
+    # and, for DIAMOND, the final tool-crafting site.
+    return inv(env, IX_SPICK) >= 1 and \
+        hotbar_count(env, 58) >= table_target - 1 \
         and select_hotbar(env, 274)
 
 
-def load_iron_oracle(seed):
-    """Static iron-ore world positions from the seed's t0 snapshot region
+def load_ore_oracle(seed, ore_id):
+    """Static ore world positions from the seed's t0 snapshot region
     (worldgen is deterministic, so the t0 dump stays valid). The scripted
     executive may use snapshot oracles - same standing as the env coal scan
     the coal stage navigates by; the LEARNED policy never sees this."""
@@ -429,19 +448,19 @@ def load_iron_oracle(seed):
     cells = np.frombuffer(data, "<u2", rnx * rny * rnz, 752 + n_items * 76)
     ids = (cells >> 4).reshape(rnx, rny, rnz)
     return [[rx0 + int(x), ry0 + int(y), rz0 + int(z)]
-            for x, y, z in np.argwhere(ids == IRON_ORE)]
+            for x, y, z in np.argwhere(ids == ore_id)]
 
 
-def probe_cell(env, tx, ty, tz):
+def probe_cell(env, tx, ty, tz, expected_id):
     """Aim at the cell center and classify it with the semantic camera:
-    'ore' (center pixel is iron ore), 'gone' (unobstructed ray passes beyond
+    'ore' (center pixel is the expected ore), 'gone' (the ray passes beyond
     the cell - it is air), 'blocked' (a nearer block obstructs the ray).
     Depth units are dist*4 (obs_camera.h)."""
     for _ in range(10):
         ry, rp, dist = aim_error(env.obs, tx, ty, tz)
         if abs(ry) < 4 and abs(rp) < 4:
             cid, d = center_probe(env.obs)
-            if cid == IRON_ORE:
+            if cid == expected_id:
                 return "ore"
             # a block directly BEHIND the cell reads (dist+1)*4 - the ray
             # passing the cell center by half a block already proves air
@@ -450,24 +469,24 @@ def probe_cell(env, tx, ty, tz):
     return "blocked"
 
 
-def stage_iron_mine(env, want=3, budget=9000):
-    """Tunnel to the nearest oracle iron ore with the stone pick - the same
-    staircase burrow that reaches coal, pointed at snapshot-oracle targets
-    (no in-env iron scan exists)."""
-    if not select_hotbar(env, 274):
+def stage_mine_oracle_ore(env, ore_id, item_id, pick_id, count_fn, want,
+                          budget, up_weight=25.0, min_y=0):
+    """Tunnel to snapshot-oracle ore positions and collect natural drops."""
+    if not select_hotbar(env, pick_id):
         return False
-    ores = load_iron_oracle(env.seed)
+    ores = [cell for cell in load_ore_oracle(env.seed, ore_id)
+            if cell[1] >= min_y]
     if not ores:
         return False
     spent = 0
     attempts = {}
     stall = {}                          # key -> (best_dist, no-progress count)
     while spent < budget:
-        if iron_count(env, IRON_ORE) >= want:
+        if count_fn(env, item_id) >= want:
             return True
         if not ores:
             return False
-        select_hotbar(env, 274)     # re-arm the spare when a pick breaks
+        select_hotbar(env, pick_id)     # re-arm a spare when a pick breaks
         px, py, pz = env.obs["x"], env.obs["y"], env.obs["z"]
 
         def okey(c):
@@ -475,7 +494,7 @@ def stage_iron_mine(env, want=3, budget=9000):
             dyy = c[1] + 0.5 - py - EYE
             dzz = c[2] + 0.5 - pz
             up = max(0.0, dyy)      # ores overhead are hard to stair up to:
-            return dxx * dxx + dyy * dyy + dzz * dzz + 25.0 * up * up
+            return dxx * dxx + dyy * dyy + dzz * dzz + up_weight * up * up
         ores.sort(key=okey)
         tx, ty, tz = ores[0]
         key = (tx, ty, tz)
@@ -499,9 +518,36 @@ def stage_iron_mine(env, want=3, budget=9000):
             if dist < 1.1:
                 ores.pop(0)
                 continue
-            state = probe_cell(env, tx, ty, tz)
+            state = probe_cell(env, tx, ty, tz, ore_id)
             spent += 10
             if state == "gone":
+                # A neighboring block may have broken this ore incidentally.
+                # Visit its cell before retiring the static-oracle entry so
+                # the natural drop is collected instead of abandoned.
+                n0 = count_fn(env, item_id)
+                for _ in range(3):
+                    px, py, pz = env.obs["x"], env.obs["y"], env.obs["z"]
+                    if count_fn(env, item_id) > n0:
+                        break
+                    if math.floor(px) == tx and math.floor(pz) == tz:
+                        for _ in range(6):
+                            step(env, {})
+                        break
+                    ddx, ddz = tx + 0.5 - px, tz + 0.5 - pz
+                    if abs(ddx) >= abs(ddz):
+                        cx = math.floor(px) + (1 if ddx > 0 else -1)
+                        cz = math.floor(pz)
+                    else:
+                        cx = math.floor(px)
+                        cz = math.floor(pz) + (1 if ddz > 0 else -1)
+                    feet = math.floor(py)
+                    mine_block(env, cx, feet, cz, budget=60)
+                    mine_block(env, cx, feet + 1, cz, budget=60)
+                    ry, _, _ = aim_error(env.obs, cx, feet, cz)
+                    step(env, turn_act(ry, 0))
+                    for _ in range(10):
+                        step(env, {"forward": 1, "jump": 1})
+                    spent += 135
                 ores.pop(0)
                 continue
             # close range: mine along the crosshair ray (each attempt breaks
@@ -509,7 +555,7 @@ def stage_iron_mine(env, want=3, budget=9000):
             # the ore), steer onto the cell to collect. PICKUP is the only
             # trusted break confirmation: the depth heuristic reports "broke"
             # for any block on the ray, not necessarily the ore.
-            n0 = iron_count(env, IRON_ORE)
+            n0 = count_fn(env, item_id)
             mine_block(env, tx, ty, tz, budget=160)
             # the drop lands in the ore cell; collection means STANDING there.
             # Open headroom above the ore, then walk in with face-adjacent
@@ -518,7 +564,7 @@ def stage_iron_mine(env, want=3, budget=9000):
             mine_block(env, tx, ty + 1, tz, budget=60)
             spent += 230
             for _ in range(3):
-                if iron_count(env, IRON_ORE) > n0:
+                if count_fn(env, item_id) > n0:
                     break
                 px, py, pz = env.obs["x"], env.obs["y"], env.obs["z"]
                 if math.floor(px) == tx and math.floor(pz) == tz:
@@ -539,7 +585,7 @@ def stage_iron_mine(env, want=3, budget=9000):
                     step(env, {"forward": 1, "jump": 1})
                 spent += 135
             attempts[key] = attempts.get(key, 0) + 1
-            if iron_count(env, IRON_ORE) > n0 or attempts[key] >= 6:
+            if count_fn(env, item_id) > n0 or attempts[key] >= 6:
                 ores.pop(0)
             continue
         # clear the next tunnel cell toward the ore (stage_coal recipe)
@@ -594,9 +640,82 @@ def stage_iron_mine(env, want=3, budget=9000):
     return False
 
 
-def stage_smelt(env, want=3, budget=2400):
+def stage_iron_mine(env, want=None, budget=12000):
+    """Mine and collect enough iron ore for one or two iron pickaxes."""
+    if want is None:
+        want = 6 if DIAMOND_CHAIN else 3
+    return stage_mine_oracle_ore(env, IRON_ORE, IRON_ORE, 274, iron_count,
+                                 want, budget)
+
+
+def stage_diamond_pick(env, budget=24000):
+    """Mine three diamonds, immediately upgrade the mining tool, and bank a
+    fresh table for the final four recipes. This keeps the natural-survival
+    route inside iron-pick durability instead of strip-mining eleven diamonds
+    with the temporary tool."""
+    if not stage_mine_oracle_ore(env, DIAMOND_ORE, DIAMOND, IPICK,
+                                 diamond_count, 3, budget, up_weight=0.0,
+                                 min_y=5):
+        return False
+    while inv(env, IX_STICK) < 9 and inv(env, IX_PLANK) >= 2:
+        step(env, {"craft": 1})
+    if inv(env, IX_STICK) < 9:
+        return False
+    table_pos = place_from_hotbar(env, 58)
+    if table_pos is None:
+        return False
+    for _ in range(40):
+        if env.obs["container"] == 1:
+            break
+        step(env, {"interact": 1})
+        if env.obs["container"] != 1:
+            ry, _, _ = aim_error(env.obs, *table_pos)
+            step(env, turn_act(ry, 0))
+    else:
+        return False
+    step(env, {"craft": 8})
+    if diamond_count(env, DPICK) < 1:
+        return False
+    # The pick fills the slot freed by placing this table. Clear one small
+    # expendable block stack so the replacement table is reachable through
+    # the hotbar-only survival action interface instead of landing in storage.
+    if sum(c > 0 for c in env.obs["hotbar_counts"]) == 9:
+        for disposable in (3, 1, 4):
+            while hotbar_count(env, disposable) > 0:
+                if place_from_hotbar(env, disposable) is None:
+                    return False
+            if sum(c > 0 for c in env.obs["hotbar_counts"]) < 9:
+                break
+        else:
+            return False
+    step(env, {"craft": 2})            # portable table for the final recipes
+    return hotbar_count(env, 58) >= 1 and select_hotbar(env, DPICK)
+
+
+def stage_diamond_mine(env, want=8, budget=24000):
+    """Use the upgraded pick to mine the eight remaining recipe diamonds."""
+    return stage_mine_oracle_ore(env, DIAMOND_ORE, DIAMOND, DPICK,
+                                 diamond_count, want, budget, up_weight=0.0,
+                                 min_y=5)
+
+
+def stage_smelt(env, want=None, budget=3000):
     """At the ore site, place the carried final table, craft/place a furnace,
     load it (smelt:1 = ore + coal), and wait out the cook."""
+    if want is None:
+        want = 6 if DIAMOND_CHAIN else 3
+    # Iron pickups normally fill the slot freed by the torches. Empty one
+    # expendable block stack so the furnace recipe lands in the hotbar and
+    # can be selected by the survival action interface.
+    if sum(c > 0 for c in env.obs["hotbar_counts"]) == 9:
+        for disposable in (3, 1, 17):
+            while hotbar_count(env, disposable) > 0:
+                if place_from_hotbar(env, disposable) is None:
+                    return False
+            if sum(c > 0 for c in env.obs["hotbar_counts"]) < 9:
+                break
+        else:
+            return False
     table_pos = place_from_hotbar(env, 58)
     if table_pos is None:
         return False
@@ -640,7 +759,7 @@ def stage_smelt(env, want=3, budget=2400):
 
 
 def stage_ipick(env):
-    """Return to the table beside the furnace and craft:7."""
+    """Return to the table and craft the required iron pickaxe supply."""
     table_pos = getattr(env, "final_table_pos", None)
     if table_pos is None:
         return False
@@ -656,26 +775,59 @@ def stage_ipick(env):
             step(env, a)
     else:
         return False
-    step(env, {"craft": 7})
-    return iron_count(env, IPICK) >= 1
+    target = 2 if DIAMOND_CHAIN else 1
+    for _ in range(target):
+        step(env, {"craft": 7})
+    return iron_count(env, IPICK) >= target
+
+
+def stage_diamond_tools(env):
+    """Place the carried table and craft shovel, axe, hoe, and sword."""
+    if diamond_count(env, DPICK) < 1 or diamond_count(env, DIAMOND) < 8:
+        return False
+    while inv(env, IX_STICK) < 7 and inv(env, IX_PLANK) >= 2:
+        step(env, {"craft": 1})
+    if inv(env, IX_STICK) < 7:
+        return False
+    table_pos = place_from_hotbar(env, 58)
+    if table_pos is None:
+        return False
+    for _ in range(40):
+        if env.obs["container"] == 1:
+            break
+        step(env, {"interact": 1})
+        if env.obs["container"] != 1:
+            ry, _, _ = aim_error(env.obs, *table_pos)
+            step(env, turn_act(ry, 0))
+    else:
+        return False
+    for craft in range(9, 13):
+        step(env, {"craft": craft})
+    return all(diamond_count(env, item) >= 1 for item in
+               (DPICK, DSHOVEL, DAXE, DHOE, DSWORD))
 
 
 IRON_STAGES = [("cobble_bank", stage_cobble_bank), ("iron_kit", stage_iron_kit),
                ("iron_mine", stage_iron_mine), ("smelt", stage_smelt),
                ("iron_pick", stage_ipick)]
+DIAMOND_STAGES = [("diamond_pick", stage_diamond_pick),
+                  ("diamond_mine", stage_diamond_mine),
+                  ("diamond_tools", stage_diamond_tools)]
 
 STAGES = [("chop", stage_chop), ("craft_kit", stage_craft_kit),
           ("place_table", stage_place_table), ("wooden_pick", stage_pick),
           ("dig", stage_dig), ("mine_coal", stage_coal),
           ("torches", stage_torch)]
-if os.environ.get("IRON"):
+if IRON_CHAIN:
     STAGES = STAGES + IRON_STAGES
+if DIAMOND_CHAIN:
+    STAGES = STAGES + DIAMOND_STAGES
 
 
 def run_seed(seed, verbose=True):
-    # IRON runs need the JSON obs (inv_iron field); the base chain keeps the
+    # Extended runs need JSON-only inventory vectors; base keeps the
     # fast binary protocol
-    env = MagmaEnv(seed, bin=not os.environ.get("IRON"))
+    env = MagmaEnv(seed, bin=not IRON_CHAIN)
     results = []
     try:
         for name, fn in STAGES:
@@ -687,13 +839,20 @@ def run_seed(seed, verbose=True):
                           for i, c in enumerate(env.obs["inv_counts"]) if c}
                 print(f"  seed {seed} {name:12s} "
                       f"{'OK  ' if ok else 'FAIL'} +{env.obs['t'] - t0:4d}t "
-                      f"y={env.obs['y']:.1f} inv={counts}", flush=True)
+                      f"y={env.obs['y']:.1f} inv={counts}", end="")
+                if DIAMOND_CHAIN:
+                    print(f" diamond={env.obs.get('inv_diamond')}", flush=True)
+                else:
+                    print(flush=True)
                 if os.environ.get("IRON_DBG"):
                     hotbar = [(item, count) for item, count in zip(
                         env.obs["hotbar_ids"], env.obs["hotbar_counts"])
                         if count]
                     print(f"    hotbar={hotbar} inv_iron="
                           f"{env.obs.get('inv_iron')}", flush=True)
+                    if DIAMOND_CHAIN:
+                        print(f"    inv_diamond={env.obs.get('inv_diamond')}",
+                              flush=True)
             if not ok:
                 return results, env.actions
         return results, env.actions
@@ -748,10 +907,21 @@ def main():
         print(f"seed {seed}:", flush=True)
         results, actions = run_seed(seed)
         if all(ok for _, ok, _ in results):
-            path = os.path.join(OUT, f"chain_actions_s{seed}.json")
+            stem = "diamond_actions" if DIAMOND_CHAIN else \
+                ("iron_actions" if IRON_CHAIN else "chain_actions")
+            path = os.path.join(OUT, f"{stem}_s{seed}.json")
             with open(path, "w") as f:
                 json.dump(actions, f)
             total = sum(t for _, _, t in results)
+            end = 0
+            stages = []
+            for name, ok, ticks in results:
+                end += ticks
+                stages.append({"name": name, "ok": bool(ok),
+                               "ticks": ticks, "end": end})
+            with open(path[:-5] + ".meta.json", "w") as f:
+                json.dump({"seed": seed, "total_ticks": total,
+                           "stages": stages}, f, indent=2)
             print(f"FULL CHAIN COMPLETE seed {seed}: {total} ticks, "
                   f"actions -> {path}", flush=True)
             return 0

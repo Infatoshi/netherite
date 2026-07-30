@@ -59,13 +59,15 @@ instrumented seed-0 and seed-7 terrain gates and the Java Nether/End portal suit
 
 ## Product promise
 
-`make -C c/magma game` builds one native Minecraft 1.11.2 simulation binary. In a
+`make -C c/magma game` builds the CPU reference binary; `game-cuda` and
+`game-metal` build explicit accelerator-capable variants without changing that
+reference. In a
 default world, a human or scripted survival player can start with an empty inventory,
 legally reach the End, kill the dragon, enter the exit portal, and receive a terminal
 `won` observation. The world is in memory and an episode ends on death or victory.
 
-The simulator is behaviorally faithful for supported mechanics, deterministic between
-its CPU and CUDA implementations, and objectively checked against Java Minecraft.
+The simulator is behaviorally faithful for supported mechanics, deterministic across
+its supported CPU/CUDA/Metal boundaries, and objectively checked against Java Minecraft.
 Simulation need not reproduce Java RNG call order or every floating-point bit. Rendering
 is compared numerically against pinned Java scenes; it is never approved by a subjective
 "looks right" play session.
@@ -149,7 +151,7 @@ magma_game
   --brewing on|off
   --weather on|off
   --render off|window
-  --backend cpu|cuda
+  --backend cpu|cuda|metal
   --pace realtime|unlimited
   --view-distance <supported integer>
   --width <pixels> --height <pixels>
@@ -172,9 +174,13 @@ injections for pose, velocity, block state, inventory, time/weather, and entitie
 are harness mutations, not a creative game mode. Interactive and headless execution must
 share one tick function; a second drifting simulation loop is forbidden.
 
-`--frames-out` writes one deterministic `frame_NNNNNN.ppm` after each executed tick.
-It includes the same terrain, entity, first-person hand, and HUD passes, follows world
-time, and is bit-identical between the CPU and CUDA binaries for the tested scenes.
+`--frames-out` writes one deterministic `frame_NNNNNN.ppm` after each selected
+executed tick, or streams `[N,H,W,3]` uint8 frames directly when the destination
+ends in `.npy`. CPU, CUDA, and native Metal use the same capture simulation and
+composition path. It includes the same terrain, entity, first-person hand, overlay,
+and HUD passes and follows world time. CPU and Metal are bit-exact for the gated
+daylight and underwater scenes. At night, device `sin` in the star hash is limited by
+the measured parity gates to isolated pixels only; simulation state remains exact.
 
 ## Test-hook boundary
 

@@ -30,6 +30,8 @@ def find_jar():
             "1.11.2/minecraft-1.11.2-client.jar",
             "~/Library/Application Support/PrismLauncher/libraries/com/"
             "mojang/minecraft/1.11.2/minecraft-1.11.2-client.jar",
+            "~/Library/Application Support/minecraft/versions/1.11.2/"
+            "1.11.2.jar",
             "~/.minecraft/versions/1.11.2/1.11.2.jar",
             "~/scoop/persist/prismlauncher/libraries/com/mojang/minecraft/"
             "1.11.2/minecraft-1.11.2-client.jar"):

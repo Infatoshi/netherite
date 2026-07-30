@@ -13,13 +13,13 @@ CFLAGS="-O2 -ffp-contract=off -Wall -Wextra -I. -Icore -I$MCSIM/core"
 
 # Force rebuild of composition objects, then link harness against them.
 make game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o game/caps.o game/timer.o \
-  game/input_map.o world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o \
+  game/input_map.o world/light.o world/mesh_mc.o world/populate_mc.o world/gen_prefetch.o world/blocks.o \
   world/mesh.o world/world.o renderkernels/rk_31_facebakery_make_quad.o \
   assets/blockmodels.o core/math.o core/shade.o
 
 OBJS="game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o game/caps.o game/input_map.o \
   game/timer.o \
-  world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o world/mesh.o world/world.o \
+  world/light.o world/mesh_mc.o world/populate_mc.o world/gen_prefetch.o world/blocks.o world/mesh.o world/world.o \
   renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o \
   core/math.o core/shade.o"
 

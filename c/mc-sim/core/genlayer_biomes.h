@@ -1,4 +1,4 @@
-/* genlayer_biomes: exact C port of MC 1.11.2 world/gen/layer/* (the GenLayer biome stack).
+/* genlayer_biomes: exact C port of the MC 1.11.2 world/gen/layer package.
  * PORT TARGET: net/minecraft/world/gen/layer/GenLayer.java + all subclasses wired by
  * GenLayer.initializeAllBiomeGenerators(seed, WorldType.DEFAULT, null) and
  * WorldType.DEFAULT.getBiomeLayer(...). Produces the full-resolution biome id per column.

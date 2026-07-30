@@ -12,21 +12,21 @@ FLAGS=(-O2 -ffp-contract=off -Wall -Icore -I. -I"$MCSIM")
 DIFF="$(cd "$(dirname "$0")/../../render-opt/wholeframe" && pwd)/diff_frame.py"
 
 echo "== build objects =="
-for u in world/mesh_mc world/light world/populate_mc assets/blockmodels \
+for u in world/mesh_mc world/light world/populate_mc world/gen_prefetch assets/blockmodels \
          renderkernels/rk_31_facebakery_make_quad \
-         core/math core/shade cpu/raster_cpu transform; do
+         core/math core/shade cpu/raster_cpu transform game/caps; do
   gcc "${FLAGS[@]}" -c "$u.c" -o "$u.o"
 done
 
 echo "== build golden + candidate =="
 gcc "${FLAGS[@]}" raster/verify/chunk_golden.c \
-    world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
-    renderkernels/rk_31_facebakery_make_quad.o core/math.o \
+    world/mesh_mc.o world/light.o world/populate_mc.o world/gen_prefetch.o assets/blockmodels.o \
+    renderkernels/rk_31_facebakery_make_quad.o core/math.o game/caps.o \
     -o /tmp/chunk_golden -lOSMesa -lGL -lm
 gcc "${FLAGS[@]}" raster/verify/chunk_candidate.c \
-    world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
+    world/mesh_mc.o world/light.o world/populate_mc.o world/gen_prefetch.o assets/blockmodels.o \
     renderkernels/rk_31_facebakery_make_quad.o core/math.o \
-    core/shade.o cpu/raster_cpu.o transform.o \
+    core/shade.o cpu/raster_cpu.o transform.o game/caps.o \
     -o /tmp/chunk_candidate -lm
 
 echo "== render =="

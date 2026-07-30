@@ -45,6 +45,8 @@ __pycache__/
 /Minecraft/
 c/magma/trace/alloctrack.so
 c/magma/magma_game_dbg
+c/magma/magma_game_dbg.dSYM/
+c/magma/magma_world
 c/magma/game/sky_pose_*.png
 c/magma/game/sky_pose_*.ppm
 c/magma/trace/uvfix/
@@ -64,6 +66,9 @@ c/magma/game/test_route_e2e
 c/magma/game/test_*
 !c/magma/game/test_*.*
 c/magma/magma_game_cuda
+c/magma/magma_game_metal
+c/magma/tests/test_raster_metal_parity
+c/magma/tests/test_framebuffer
 c/magma/raster/verify/mc_capture/*.bak_*
 java/Minecraft/qrl/
 c/magma/raster/verify/mc_capture/gui_candidate
@@ -98,6 +103,7 @@ c/magma/assets/water_frames.h
 demos/*
 !demos/.gitkeep
 c/magma/rl/blaze/*.so
+c/magma/rl/blaze/*.dylib
 c/magma/rl/blaze/blaze_verify
 
 # ---- regenerated from YOUR Minecraft install (never committed) ----

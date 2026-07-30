@@ -5,7 +5,12 @@
 
 typedef enum { GM_WORLD_DEFAULT = 0, GM_WORLD_SUPERFLAT = 1 } GmWorldType;
 typedef enum { GM_RENDER_WINDOW = 0, GM_RENDER_OFF = 1 } GmRenderMode;
-typedef enum { GM_BACKEND_CPU = 0, GM_BACKEND_CUDA = 1 } GmBackend;
+typedef enum {
+    GM_BACKEND_CPU = 0,
+    GM_BACKEND_CUDA = 1,
+    GM_BACKEND_METAL = 2
+} GmBackend;
+#define GM_BACKEND_BIT(B) (1u << (unsigned)(B))
 typedef enum { GM_PACE_REALTIME = 0, GM_PACE_UNLIMITED = 1 } GmPace;
 
 typedef struct {
@@ -67,7 +72,7 @@ void gm_config_defaults(GmConfig *cfg);
 /* 0 success, 2 command-line error. */
 int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap);
 /* Reject accepted target settings that this build cannot execute yet. */
-int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,
+int gm_config_validate_runtime(const GmConfig *cfg, unsigned backend_mask,
                                char *err, int err_cap);
 void gm_config_print_usage(FILE *out, const char *argv0);
 void gm_config_print(FILE *out, const GmConfig *cfg);

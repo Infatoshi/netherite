@@ -23,6 +23,7 @@ DEPFLAGS = -MMD -MP
 # module objects (each owned by one agent per SPEC.md)
 OBJ_CORE   = core/math.o core/shade.o
 OBJ_RASTER = cpu/raster_cpu.o
+OBJ_BACKEND= raster/backend.o
 OBJ_XFORM  = transform.o
 OBJ_PRESENT= present/present.o
 
@@ -38,7 +39,10 @@ OBJ_ASSETS = assets/blockmodels.o
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/item_render.o \
            game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
 
-.PHONY: all demo world game game-cuda test test-game test-launch test-config test-block-registry clean cuda test-raster-parity test-fog-radial
+.PHONY: all demo world game game-cuda game-metal test test-game test-launch \
+        test-launch-metal test-metal-frame-capture test-metal bench-metal bench-macos-cpu test-config test-block-registry \
+        clean cuda test-raster-parity test-raster-metal-parity test-fog-radial \
+        test-metal-sky-parity test-framebuffer
 all: demo
 
 # --- CUDA raster for the game (RTX 3090 / sm_86 on anvil GPU1) ---
@@ -63,17 +67,25 @@ world/%.o: world/%.c core/types.h
 	$(CC) $(CFLAGS) $(DEPFLAGS) -I$(MCSIM)/core -c $< -o $@
 
 # playable game binary: seam-wires the verified sim tick to the magma renderer.
-# The CPU binary references cr_raster_cuda_* only as weak symbols (frame_capture,
-# game_main check them for NULL). ELF resolves absent weak refs to NULL; Mach-O's
+# The CPU binary references cr_raster_cuda_* only as weak symbols from frame_capture.
+# ELF resolves absent weak refs to NULL; Mach-O's
 # ld needs them explicitly allowed, so Darwin gets -Wl,-U per symbol.
 ifeq ($(shell uname -s),Darwin)
 CUDA_WEAK_LD = -Wl,-U,_cr_raster_cuda_pre -Wl,-U,_cr_raster_cuda_into \
                -Wl,-U,_cr_raster_cuda_frame_begin -Wl,-U,_cr_raster_cuda_frame_end \
-               -Wl,-U,_cr_raster_cuda_post -Wl,-U,_alloctrack_frame
+               -Wl,-U,_cr_raster_cuda_post -Wl,-U,_cr_raster_cuda_atlas_dirty \
+               -Wl,-U,_cr_raster_cuda_pin -Wl,-U,_cr_raster_cuda_unpin \
+               -Wl,-U,_cr_raster_cuda_render_layer -Wl,-U,_cr_raster_cuda_sky \
+               -Wl,-U,_cr_raster_cuda_frame_end_async -Wl,-U,_cr_raster_cuda_frame_wait \
+               -Wl,-U,_cr_raster_cuda_slab_pool -Wl,-U,_cr_raster_cuda_slab_sync \
+               -Wl,-U,_cr_raster_cuda_slabs_reset -Wl,-U,_cr_raster_cuda_render_gather \
+               -Wl,-U,_cr_raster_cuda_render_terrain \
+               -Wl,-U,_cr_raster_cuda_uploads_mark -Wl,-U,_cr_raster_cuda_uploads_wait \
+               -Wl,-U,_alloctrack_frame
 endif
 game: magma_game
 magma_game: app/game_main.o $(OBJ_GAME) $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) \
-              $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
+              $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_BACKEND) $(OBJ_XFORM) $(OBJ_PRESENT)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
 
 # game/ modules include game/game.h + (world_live/player_ctl) player_survival.h.
@@ -97,10 +109,9 @@ game/container_live.o: game/container_live.c game/container_live.h game/runtime.
 game/chest_live.o: game/chest_live.c game/chest_live.h \
                 $(MCSIM)/core/tile_entity_chest.h $(MCSIM)/core/stronghold_loot.h
 
-# CUDA-accelerated game binary: same sources as magma_game but game_main.c is
-# compiled with -DMAGMA_CUDA (adds the --cuda / MAGMA_CUDA=1 switch that
-# routes render_layer through the alloc-once cr_raster_cuda_into) and links the
-# raster object + cudart. `make game` (pure CPU) is unaffected.
+# CUDA-accelerated game binary: the shared game uses the backend API while
+# backend_cuda.o is compiled with MAGMA_CUDA and links the existing raster
+# object + cudart. `make game` (pure CPU) is unaffected.
 #
 # The object name is arch-NEUTRAL on purpose. It used to be raster_cuda_sm86.o
 # while NVFLAGS_GAME is overridable (GPU0 needs -arch=sm_120), so the same file
@@ -108,13 +119,37 @@ game/chest_live.o: game/chest_live.c game/chest_live.h \
 # an NVFLAGS_GAME change either - the recipe depends on sources only - so after
 # switching GPUs you must `rm cuda/*.o` or you silently link the wrong arch.
 game-cuda: magma_game_cuda
-app/game_main_cuda.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_CUDA -I$(MCSIM)/core -c $< -o $@
 cuda/raster_cuda_game.o: cuda/raster_cuda.cu core/types.h core/shade.c
 	$(NVCC) $(NVFLAGS_GAME) -c $< -o $@
-magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_game.o $(OBJ_GAME) $(OBJ_WORLD) \
+magma_game_cuda: app/game_main.o raster/backend_cuda.o cuda/raster_cuda_game.o $(OBJ_GAME) $(OBJ_WORLD) \
               $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_LIBS)
+
+raster/backend_cuda.o: raster/backend.c raster/backend.h game/config.h core/types.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) -DMAGMA_CUDA -c $< -o $@
+
+# Native Apple-silicon game: runtime-compiles its MSL with
+# newLibraryWithSource, so Xcode's optional offline MetalToolchain is not a
+# build prerequisite. The binary contains both CPU and Metal backends.
+METAL_CXX ?= clang++
+METAL_FRAMEWORKS = -framework Metal -framework Foundation
+ifeq ($(shell uname -s)-$(shell uname -m),Darwin-arm64)
+game-metal: magma_game_metal
+else
+game-metal:
+	@echo "error: game-metal requires native Darwin arm64" >&2; false
+endif
+
+raster/backend_metal.o: raster/backend.c raster/backend.h metal/raster_metal.h game/config.h core/types.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) -DMAGMA_METAL -c $< -o $@
+metal/raster_metal.o: metal/raster_metal.mm metal/raster_metal.h \
+                      metal/raster_metal_shared.h metal/raster_metal_source.h core/types.h
+	$(METAL_CXX) $(CFLAGS) -std=c++17 -fobjc-arc $(DEPFLAGS) -c $< -o $@
+magma_game_metal: app/game_main.o raster/backend_metal.o metal/raster_metal.o \
+              $(OBJ_GAME) $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) \
+              $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
+	$(METAL_CXX) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS) \
+	    $(METAL_FRAMEWORKS) $(CUDA_WEAK_LD)
 
 # ALLOCATE-ONCE alloc-tripwire build: magma_game with debug symbols (so the
 # trace/alloctrack.so summary offsets resolve via addr2line -e magma_game_dbg).
@@ -125,23 +160,24 @@ GAME_DBG_SRCS = app/game_main.c \
                 game/screen.c game/player_preview.c \
                 game/entity_render.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/script.c game/rl_mode.c \
                 game/overlay.c game/overlay_live.c game/sel_box.c game/fluid_live.c game/underwater.c \
-                world/mesh_mc.c world/light.c world/populate_mc.c \
+                world/mesh_mc.c world/light.c world/populate_mc.c world/gen_prefetch.c \
                 world/world.c world/mesh.c world/blocks.c \
                 renderkernels/rk_31_facebakery_make_quad.c assets/blockmodels.c \
-                core/math.c core/shade.c cpu/raster_cpu.c transform.c present/present.c
+                core/math.c core/shade.c cpu/raster_cpu.c raster/backend.c transform.c present/present.c
 .PHONY: game-dbg
 game-dbg: magma_game_dbg
 magma_game_dbg: $(GAME_DBG_SRCS)
 	$(CC) $(CFLAGS) -g $(SDL_CFLAGS) -I$(MCSIM)/core $(GAME_DBG_SRCS) -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
 
-app/game_main.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h
+app/game_main.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h raster/backend.h
 	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) -I$(MCSIM)/core -c $< -o $@
 
 # non-cube mesh unit test: build a synthetic chunk, assert facebakery geometry
 .PHONY: test-mesh
 test-mesh: $(OBJ_WORLD) $(OBJ_RK) core/math.o core/shade.o game/caps.o
 	$(CC) $(CFLAGS) -I$(MCSIM)/core tests/test_mesh_models.c \
-	    world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
+	    world/mesh_mc.o world/light.o world/populate_mc.o world/gen_prefetch.o \
+	    assets/blockmodels.o \
 	    $(OBJ_RK) core/math.o core/shade.o game/caps.o -o tests/test_mesh_models $(LDLIBS)
 	./tests/test_mesh_models
 
@@ -204,7 +240,9 @@ demo/demo_cube.o: demo/demo_cube.c core/types.h
 
 -include $(OBJ_CORE:.o=.d) $(OBJ_RASTER:.o=.d) $(OBJ_XFORM:.o=.d) \
          $(OBJ_PRESENT:.o=.d) $(OBJ_WORLD:.o=.d) $(OBJ_RK:.o=.d) \
-         $(OBJ_ASSETS:.o=.d) $(OBJ_GAME:.o=.d) app/game_main.d
+         $(OBJ_ASSETS:.o=.d) $(OBJ_GAME:.o=.d) $(OBJ_BACKEND:.o=.d) app/game_main.d \
+         raster/backend_cuda.d raster/backend_metal.d metal/raster_metal.d \
+         tests/test_raster_metal_parity.d tests/test_metal_sky_parity.d
 
 # CUDA raster backend
 cuda: cuda/raster_cuda.o
@@ -220,12 +258,39 @@ test-raster-parity:
 	    -o tests/test_raster_parity
 	CUDA_VISIBLE_DEVICES=1 ./tests/test_raster_parity
 
+test-raster-metal-parity: tests/test_raster_metal_parity
+	./tests/test_raster_metal_parity
+tests/test_raster_metal_parity.o: tests/test_raster_metal_parity.c raster/backend.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) -Iraster/verify -c $< -o $@
+tests/test_raster_metal_parity: tests/test_raster_metal_parity.o \
+                               raster/backend_metal.o metal/raster_metal.o \
+                               cpu/raster_cpu.o core/shade.o core/math.o
+	$(METAL_CXX) $(CFLAGS) -std=c++17 -fobjc-arc $^ -o $@ \
+	    $(LDLIBS) $(METAL_FRAMEWORKS)
+
+test-metal-sky-parity: tests/test_metal_sky_parity
+	./tests/test_metal_sky_parity
+tests/test_metal_sky_parity.o: tests/test_metal_sky_parity.c raster/backend.h game/sky.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
+tests/test_metal_sky_parity: tests/test_metal_sky_parity.o game/sky.o \
+                             raster/backend_metal.o metal/raster_metal.o \
+                             cpu/raster_cpu.o core/math.o core/shade.o
+	$(METAL_CXX) $(CFLAGS) -std=c++17 -fobjc-arc $^ -o $@ \
+	    $(LDLIBS) $(METAL_FRAMEWORKS)
+
 # Minecraft selects GL_EYE_RADIAL_NV on the live llvmpipe renderer. Keep fog
 # distance radial through transform, clipping, and perspective interpolation.
 test-fog-radial: core/math.o core/shade.o cpu/raster_cpu.o transform.o
 	$(CC) $(CFLAGS) tests/test_fog_radial.c core/math.o core/shade.o \
 	    cpu/raster_cpu.o transform.o -o tests/test_fog_radial $(LDLIBS)
 	./tests/test_fog_radial
+
+# Cross-platform checked-allocation contract. Keep this independent of CUDA or
+# Metal so the Linux CPU pyramid also gates adversarial framebuffer dimensions.
+test-framebuffer: core/math.o core/shade.o cpu/raster_cpu.o
+	$(CC) $(CFLAGS) tests/test_framebuffer.c core/math.o core/shade.o \
+	    cpu/raster_cpu.o -o tests/test_framebuffer $(LDLIBS)
+	./tests/test_framebuffer
 
 test: magma_demo
 	@echo "run per-module tests in tests/ (see SPEC.md)"
@@ -235,7 +300,7 @@ test: magma_demo
 test-block-registry:
 	bash game/test_block_registry.sh
 
-test-config:
+test-config: test-framebuffer
 	bash game/test_config.sh
 
 test-launch: game
@@ -253,6 +318,47 @@ test-launch: game
 	# auto-respawn would clear dead before the requested frame budget.
 	grep -q 'frame 1 .* dead 1 deaths 1' /tmp/magma-test-death.log
 	grep -q 'frame 99 .* dead 1 deaths 1' /tmp/magma-test-death.log
+
+test-launch-metal: game-metal
+	SDL_VIDEODRIVER=dummy ./magma_game_metal --backend metal --world superflat \
+		--view-distance 1 --width 160 --height 90 --frames 1 \
+		--ppm /tmp/magma-test-launch-metal.ppm \
+		>/tmp/magma-test-launch-metal.log 2>&1
+	SDL_VIDEODRIVER=dummy ./magma_game_metal --backend cpu --world superflat \
+		--view-distance 1 --width 160 --height 90 --frames 1 \
+		--ppm /tmp/magma-test-launch-cpu.ppm \
+		>/tmp/magma-test-launch-cpu.log 2>&1
+	grep -q 'backend=metal' /tmp/magma-test-launch-metal.log
+	grep -q 'frame 0 ' /tmp/magma-test-launch-metal.log
+	uv run --no-project python tests/check_ppm_parity.py \
+		/tmp/magma-test-launch-cpu.ppm /tmp/magma-test-launch-metal.ppm \
+		--max-changed-pixels 1 --max-channel-diff 1
+
+test-metal-frame-capture: game game-metal
+	bash game/test_metal_frame_capture.sh
+
+test-metal:
+	$(MAKE) test-raster-metal-parity
+	$(MAKE) test-metal-sky-parity
+	$(MAKE) test-launch-metal
+	$(MAKE) test-metal-frame-capture
+
+METAL_BENCH_FRAMES ?= 240
+METAL_BENCH_WARMUP ?= 60
+METAL_BENCH_WIDTH ?= 1920
+METAL_BENCH_HEIGHT ?= 1080
+METAL_BENCH_VIEW ?= 1
+bench-metal: game-metal
+	SDL_VIDEODRIVER=dummy MAGMA_STILL=1 MAGMA_BENCH=1 MAGMA_BENCH_WARMUP=$(METAL_BENCH_WARMUP) \
+		./magma_game_metal --backend metal --world superflat --view-distance $(METAL_BENCH_VIEW) \
+		--width $(METAL_BENCH_WIDTH) --height $(METAL_BENCH_HEIGHT) \
+		--frames $(METAL_BENCH_FRAMES)
+
+bench-macos-cpu: game
+	SDL_VIDEODRIVER=dummy MAGMA_STILL=1 MAGMA_BENCH=1 MAGMA_BENCH_WARMUP=$(METAL_BENCH_WARMUP) \
+		./magma_game --backend cpu --world superflat --view-distance $(METAL_BENCH_VIEW) \
+		--width $(METAL_BENCH_WIDTH) --height $(METAL_BENCH_HEIGHT) \
+		--frames $(METAL_BENCH_FRAMES)
 
 # Ensure mob atlas exists with pixel-path sprites before atlas-dependent gates.
 assets/mob_atlas.h:
@@ -342,14 +448,19 @@ rl/blaze/blaze_cuda.so: rl/blaze/blaze_cuda.cu rl/blaze/blaze_snapshot.c \
 	    -Xcompiler -fPIC --shared rl/blaze/blaze_cuda.cu \
 	    rl/blaze/blaze_snapshot.c -o $@
 
+# Additive Darwin Metal dylib targets (`blaze_metal_dylib`,
+# `blaze_metal_check`). The fragment is absent on older checkouts.
+-include rl/blaze/metal.mk
+
 clean:
-	rm -f magma_demo magma_world magma_game magma_game_dbg magma_game_cuda
+	rm -f magma_demo magma_world magma_game magma_game_dbg magma_game_cuda magma_game_metal
+	rm -rf magma_game_dbg.dSYM
 	rm -f rl/blaze/blaze_verify rl/blaze/blaze_cpu.so rl/blaze/blaze_cuda.so
 	find . -name '*.o' -delete
-	find . -name '*.d' -delete
+	find . -name '*.d' ! -path './game/test_screen.d' -delete
 	rm -f tests/test_transform tests/test_present tests/test_scene tests/test_world \
-	      tests/test_raster_parity tests/test_assets tests/test_light tests/test_mesh_mc \
+	      tests/test_raster_parity tests/test_raster_metal_parity tests/test_metal_sky_parity tests/test_assets tests/test_light tests/test_mesh_mc \
 	      tests/test_mesh_models tests/test_model_oracle tests/test_light_brightness \
-	      tests/test_fog_radial \
+	      tests/test_fog_radial tests/test_framebuffer \
 	      tests/Golden.class renderkernels/test_rk *.ppm
 	rm -f game/test_config game/test_block_registry game/test_player_ctl game/test_world_live game/test_play_compose

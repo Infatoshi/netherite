@@ -136,8 +136,12 @@ MC_HD static inline int cpf_parse_layer_token(int version, const char *token, in
         if (cnt < 0) cnt = 0;
     } else {
         /* no separator: entire token is block spec, count=1 */
-        for (int i = 0; buf[i]; ++i) block_part[i] = buf[i];
-        block_part[127] = 0;
+        int i = 0;
+        while (buf[i] && i < (int)sizeof(block_part) - 1) {
+            block_part[i] = buf[i];
+            ++i;
+        }
+        block_part[i] = 0;
     }
 
     int meta = 0;

@@ -1,9 +1,9 @@
-# mc-sim: Minecraft 1.11.2 simulation -> C/CUDA for batched RL
+# mc-sim: Minecraft 1.11.2 simulation -> C with CUDA and Metal kernels
 
 Goal: port as much of MC 1.11.2's *simulation* (world, blocks, fluids, light, entities, mobs,
-crafting, win condition) into data-oriented C that compiles BOTH ways - single-instance CPU
-(the reference oracle) and a batched CUDA megakernel (N parallel envs) - from one
-`__host__ __device__` source. Rendering is NOT re-implemented here: render-opt
+crafting, win condition) into data-oriented C with a single-instance CPU reference,
+batched CUDA kernels, and deliberately adapted Metal kernels where MSL can preserve
+the contract. Rendering is NOT re-implemented here: render-opt
 (`ref/render-opt`, 40 kernels bit-verified vs real MC) + MC's GL own the visuals.
 
 This is the sim layer. It is the bigger, more important target than rendering.
@@ -18,7 +18,7 @@ outside that contract do not imply product support.
 
 INTERNAL CONSISTENCY, not vanilla bit-exactness. The oracle is:
 
-    CPU scalar path  ==  CUDA batch path   (bitwise, same source compiled twice)
+    CPU scalar path == CUDA batch path, and == Metal for each ported kernel
 
 We do NOT try to match vanilla MC tick-for-tick. That deletes the three things that killed the
 prior real-MC rewrites (netherite v0/v1):
@@ -56,6 +56,9 @@ rewrites were abandoned twice. We are not repeating that.
   May live in .cu/.cpp files to use light host-side C++ niceties. No std::vector/map or
   inheritance on device.
 - C++ only at the edges: host orchestration, pybind11, test harness.
+- Objective-C++ exists only at the Metal host boundary. MSL does not consume the
+  CUDA-oriented headers textually: shared layouts have explicit fixed-width,
+  pointer-free descriptors and compile-time size/offset checks.
 - MC's OOP is FLATTENED, not ported:
   - Blocks -> data tables indexed by packed state u16 = (blockId<<4)|meta (hardness, light,
     opacity, collision AABB, flags). Only blocks with real tick logic get a switch branch.
@@ -125,6 +128,12 @@ Waves 0–14 unit oracles are in-tree and marked verified under `oracle/goldens/
 `cpu/`/`cuda/` drivers. Product wiring and live-Java traces continue in **magma**
 and qrl tapes; isolated kernel PASS does not imply product support (see PRODUCT.md).
 
+The first native Metal parity surface covers exact Java-LCG/stateless RNG smoke
+and semantic-camera observations, including multiple seeds/counts, over-dispatch
+sentinels, threadgroup tails, and repeated deterministic dispatches. Full simulation
+still runs natively through the CPU reference. MSL has no `double`, so FP64-heavy
+worldgen/physics kernels are not silently downcast and are not claimed as Metal ports.
+
 Open notes (code owns detail):
 - `populate` Golden.java may lag live world_diff (stale-skylight / mushrooms); prefer
   genprobe + `c/magma/trace/world_verify.py` for worldgen truth.
@@ -146,6 +155,7 @@ mc-sim/
   core/              <- __host__ __device__ shared C
   cpu/               <- single-instance scalar drivers
   cuda/              <- device drivers (parity / batch scaffolds)
+  metal/             <- Objective-C++ runtime + checked MSL parity kernels
   oracle/            <- goldens + runner
   py/                <- pybind11 gym smoke
   ref/               <- mc-src, render-opt, netherite-csrc symlinks
@@ -155,6 +165,8 @@ mc-sim/
 
 - CPU:  cc -O2 -ffp-contract=off ...
 - CUDA: nvcc -arch=sm_120 -O3 --fmad=false ...   (anvil = RTX PRO 6000 Blackwell)
+- Metal: `make metal-all`; MSL runtime compilation uses safe math and shared buffers.
 - Oracle: `uv run --no-project python oracle/runner.py <name>` -> builds both, diffs bitwise.
+- Native parity: `make verify-metal` -> CPU/Metal RNG and semantic-camera matrices.
 - Python: UV only.
 - History: `../../docs/DEVLOG.md`.

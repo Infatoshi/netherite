@@ -163,7 +163,7 @@ def synth_batch(n, steps, dev, gen, nseeds=3, lmax=11):
     log_t = torch.randn(nseeds, lmax, 3, device=dev, generator=gen) * 12
     out = []
     for _ in range(steps):
-        inv = torch.zeros((n, 17), dtype=torch.int32, device=dev)
+        inv = torch.zeros((n, 23), dtype=torch.int32, device=dev)
         inv[:, :9] = torch.randint(0, 6, (n, 9), device=dev,
                                    generator=gen).int()
         # iron cols 13..16 random: the DEFAULT spec must ignore them bitwise
@@ -274,7 +274,7 @@ def test_iron_milestones():
     logt = torch.full((1, 1, 3), 1e6)
 
     def step(furn=0, ore=0, ingot=0, ipick=0, cont=0):
-        st = torch.zeros((1, 17), dtype=torch.int32)
+        st = torch.zeros((1, 23), dtype=torch.int32)
         st[0, 11] = cont
         st[0, IX_FURN], st[0, IX_IRONORE] = furn, ore
         st[0, IX_INGOT], st[0, IX_IPICK] = ingot, ipick

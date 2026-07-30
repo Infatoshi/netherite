@@ -5,20 +5,63 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <stdint.h>
 
 #include "blaze_snapshot.h"
 
 typedef unsigned short cu_u16;
+
+#define BLAZE_SNAP_MAX_CELLS ((size_t)1 << 24)
 
 static int snap_fail(char *err, int cap, const char *msg, const char *path) {
     if (err && cap > 0) snprintf(err, (size_t)cap, "%s: %s", msg, path);
     return 0;
 }
 
+static int snap_checked_volume(const RlSnapHead *h, size_t *out) {
+    size_t nx, ny, nz, xy;
+    if (!h || !out || h->rnx <= 0 || h->rny <= 0 || h->rnz <= 0)
+        return 0;
+    nx = (size_t)h->rnx;
+    ny = (size_t)h->rny;
+    nz = (size_t)h->rnz;
+    if (nx > BLAZE_SNAP_MAX_CELLS / ny) return 0;
+    xy = nx * ny;
+    if (xy > BLAZE_SNAP_MAX_CELLS / nz) return 0;
+    *out = xy * nz;
+    return 1;
+}
+
+static int snap_extent_fits_int(int origin, int extent) {
+    int64_t end = (int64_t)origin + (int64_t)extent - 1;
+    return end >= INT_MIN && end <= INT_MAX;
+}
+
+static int64_t snap_floor_div16(int v) {
+    int64_t x = (int64_t)v;
+    return x >= 0 ? x / 16 : -((-x + 15) / 16);
+}
+
+static int snap_window_origin_safe(int origin) {
+    int64_t chunk = snap_floor_div16(origin);
+    int64_t lo = (chunk - 1) * 16;
+    int64_t hi = (chunk + 1) * 16 + 15;
+    return lo >= INT_MIN && hi <= INT_MAX;
+}
+
+static int snap_coordinates_safe(const RlSnapHead *h) {
+    return snap_extent_fits_int(h->rx0, h->rnx) &&
+           snap_extent_fits_int(h->ry0, h->rny) &&
+           snap_extent_fits_int(h->rz0, h->rnz) &&
+           snap_window_origin_safe(h->ox) &&
+           snap_window_origin_safe(h->oz);
+}
+
 int blaze_snapshot_load(const char *path, CuSnapshot *out,
                         char *err, int err_cap) {
     FILE *f;
-    long vol;
+    size_t vol;
     unsigned i;
 
     memset(out, 0, sizeof *out);
@@ -29,27 +72,28 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
         fclose(f);
         return snap_fail(err, err_cap, "bad .bsnp header", path);
     }
-    if (out->head.n_items > BLAZE_SNAP_MAX_ITEMS || out->head.rnx <= 0 ||
-        out->head.rny <= 0 || out->head.rnz <= 0 ||
-        (long)out->head.rnx * out->head.rny * out->head.rnz > (long)1 << 24) {
+    if (out->head.n_items > BLAZE_SNAP_MAX_ITEMS ||
+        !snap_checked_volume(&out->head, &vol)) {
         fclose(f);
         return snap_fail(err, err_cap, "implausible .bsnp counts", path);
+    }
+    if (!snap_coordinates_safe(&out->head)) {
+        fclose(f);
+        return snap_fail(err, err_cap, "implausible .bsnp coordinates", path);
     }
     for (i = 0; i < out->head.n_items; ++i)
         if (fread(&out->items[i], sizeof out->items[i], 1, f) != 1) {
             fclose(f);
             return snap_fail(err, err_cap, "truncated .bsnp items", path);
         }
-    vol = (long)out->head.rnx * out->head.rny * out->head.rnz;
-    out->cells = (unsigned short *)malloc((size_t)vol * sizeof *out->cells);
-    if (!out->cells || fread(out->cells, sizeof *out->cells, (size_t)vol, f) !=
-                           (size_t)vol) {
+    out->cells = (unsigned short *)malloc(vol * sizeof *out->cells);
+    if (!out->cells || fread(out->cells, sizeof *out->cells, vol, f) != vol) {
         free(out->cells); out->cells = NULL;
         fclose(f);
         return snap_fail(err, err_cap, "truncated .bsnp region", path);
     }
     if (fread(&out->ncoal, sizeof out->ncoal, 1, f) != 1 ||
-        out->ncoal > (unsigned)vol) {
+        (size_t)out->ncoal > vol) {
         free(out->cells); out->cells = NULL;
         fclose(f);
         return snap_fail(err, err_cap, "truncated .bsnp coal count", path);
@@ -64,6 +108,19 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             fclose(f);
             return snap_fail(err, err_cap, "truncated .bsnp coal list", path);
         }
+        for (i = 0; i < out->ncoal; ++i) {
+            int64_t ix = (int64_t)out->coal[i * 3 + 0] - out->head.rx0;
+            int64_t iy = (int64_t)out->coal[i * 3 + 1] - out->head.ry0;
+            int64_t iz = (int64_t)out->coal[i * 3 + 2] - out->head.rz0;
+            if (ix < 0 || iy < 0 || iz < 0 || ix >= out->head.rnx ||
+                iy >= out->head.rny || iz >= out->head.rnz) {
+                free(out->cells); out->cells = NULL;
+                free(out->coal); out->coal = NULL;
+                fclose(f);
+                return snap_fail(err, err_cap,
+                                 "coal coordinate outside .bsnp region", path);
+            }
+        }
     }
     fclose(f);
 
@@ -75,8 +132,8 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
     out->xy_off = NULL;
     if (out->ncoal && !(getenv("BLAZE_NO_ORE_XY") &&
                         atoi(getenv("BLAZE_NO_ORE_XY")))) {
-        long ncell = (long)out->head.rnx * out->head.rny;
-        out->xy_off = (int *)malloc(((size_t)ncell + 1) * sizeof *out->xy_off);
+        size_t ncell = (size_t)out->head.rnx * (size_t)out->head.rny;
+        out->xy_off = (int *)malloc((ncell + 1) * sizeof *out->xy_off);
         if (out->xy_off &&
             !blaze_build_ore_xy(out->coal, (int)out->ncoal,
                                 out->head.rx0, out->head.ry0, out->head.rz0,
@@ -88,7 +145,7 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
     }
 
     out->has_liquid = 0;
-    for (i = 0; i < (unsigned)vol; ++i) {
+    for (i = 0; (size_t)i < vol; ++i) {
         int id = out->cells[i] >> 4;
         if (id >= 8 && id <= 11) { out->has_liquid = 1; break; }
     }
@@ -141,9 +198,9 @@ int blaze_build_ore_xy(const int *ore, int nore,
     long prev = -1, cell;
     int i;
     for (i = 0; i < nore; ++i) {   /* verify strict writer (lex x,y,z) order */
-        long ix = ore[i * 3 + 0] - rx0;
-        long iy = ore[i * 3 + 1] - ry0;
-        long iz = ore[i * 3 + 2] - rz0;
+        long ix = (long)ore[i * 3 + 0] - (long)rx0;
+        long iy = (long)ore[i * 3 + 1] - (long)ry0;
+        long iz = (long)ore[i * 3 + 2] - (long)rz0;
         long key;
         if (ix < 0 || iy < 0 || iz < 0 || ix >= rnx || iy >= rny || iz >= rnz)
             return 0;
@@ -153,7 +210,8 @@ int blaze_build_ore_xy(const int *ore, int nore,
     }
     for (cell = 0; cell <= ncell; ++cell) off[cell] = 0;
     for (i = 0; i < nore; ++i)
-        off[(long)(ore[i * 3 + 0] - rx0) * rny + (ore[i * 3 + 1] - ry0) + 1]++;
+        off[((long)ore[i * 3 + 0] - (long)rx0) * rny +
+            ((long)ore[i * 3 + 1] - (long)ry0) + 1]++;
     for (cell = 1; cell <= ncell; ++cell) off[cell] += off[cell - 1];
     return 1;
 }

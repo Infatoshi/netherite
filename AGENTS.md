@@ -1,7 +1,8 @@
 # netherite (AGENTS.md)
 
-Home: **Anvil-primary** - canonical at `anvil:~/dev/netherite`. Build and run
-here. MacBook is control plane / Moonlight / image viewing only.
+Home: Linux/CUDA remains canonical at `anvil:~/dev/netherite`; Apple Silicon
+macOS is also a native CPU/Metal build and test host. Do not copy generated or
+licensed assets between hosts.
 
 This file is the **only agent entry**. Do not hunt other root markdown for
 instructions. How-tos and history live under `docs/`; living contracts live
@@ -11,20 +12,22 @@ next to the code they govern.
 
 | OS | Role |
 |----|------|
-| **Linux x86_64** | Full stack. Build C/CUDA, run Java oracle, train blaze, sweep. Canonical host: anvil (Ubuntu). Needs JDK 8 + NVIDIA CUDA for GPU paths. |
-| **macOS** | Control plane only. SSH, Moonlight/mcwindow viewer, image/video review. **Do not** expect native `runClient` or CUDA here (legacy GL under Rosetta is dead; no Blackwell/CUDA train path). |
+| **Linux x86_64** | Full stack. Build C/CUDA, run Java oracle, train blaze, sweep. Canonical CUDA host: anvil (Ubuntu). Needs JDK 8 + NVIDIA CUDA for GPU paths. |
+| **macOS arm64** | Native C game and CPU/Metal raster, representative mc-sim Metal gates, Metal-assisted blaze, and PyTorch MPS smoke training. Rosetta is unsupported. JDK 8 is optional and only needed for live Java-oracle work. |
 | **Windows** | Not a supported build/run host for this monorepo. Use WSL2 Linux if you must, or a remote Linux box. |
 
 Prism / MultiMC / official launcher: optional jar source for assets. Fresh
 boxes do **not** need Prism credentials; `scripts/bootstrap_oracle.sh` pulls
 MC 1.11.2 via ForgeGradle (you must own the game).
 
-One-shot clean box: `bash scripts/setup_and_verify.sh` (then `--full` with GPU).
+One-shot Linux box: `bash scripts/setup_and_verify.sh` (then `--full` with GPU).
+One-shot Apple Silicon Mac: `bash scripts/setup_macos.sh` (then `--full`).
 
 ## What this repo is
 
-From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (magma + mc-sim),
-bit-verified against the real Java game, plus a batched CUDA RL env (blaze).
+From-scratch C reimplementation of Minecraft 1.11.2 (magma + mc-sim),
+bit-verified against the real Java game, with CUDA and Metal accelerator
+backends plus a batched RL env (blaze).
 Product name: **netherite**. Trees:
 
 - `java/` - playable Forge+Malmo/qrl client, launch scripts, oracle-src (bootstrap)
@@ -67,6 +70,16 @@ bash netherite_sweep.sh --quick
 
 cd java/Minecraft && ./gradlew -g run/gradle build
 uv run --no-project python c/mc-sim/oracle/runner.py <name>
+
+# clean Apple Silicon Mac (official client assets + native CPU/Metal sweep):
+bash scripts/setup_macos.sh
+bash scripts/setup_macos.sh --full
+
+# explicit native backends:
+make -C c/magma game-metal test-metal
+c/magma/magma_game_metal --backend metal --world superflat --view-distance 4
+make -C c/mc-sim verify-metal
+make -C c/magma blaze_metal_dylib
 ```
 
 ## Pixel investigation
@@ -141,6 +154,13 @@ Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).
 - Launch game standalone (`setsid`/`nohup`); never chain kill+launch+poll.
 - Goldens from **real MC only**; C bit-match needs `-ffp-contract=off`.
 - Private remote only when oracle-src is present (decompiled Mojang source).
+- Metal has no FP64. Never downcast fidelity-critical simulation state to make
+  it fit MSL: blaze keeps its double-precision tick/reset on CPU and dispatches
+  the compatible semantic-camera work to Metal over shared buffers. See
+  `docs/MACOS_METAL.md`.
+- Select GPU backends explicitly (`--backend metal`, `BLAZE_BACKEND=metal`).
+  An explicit backend request must fail with a useful error, never silently
+  fall back to CPU.
 - No emojis, no em dashes. Minimal diffs. Verify before claiming done.
 - A replay that reports `magma_game failed (rc=-11)` and then
   `EOFError: No data left in file` is a **SIGSEGV in the first captured frame**,

@@ -1272,6 +1272,28 @@ These are not established C product bugs, but they block direct parity claims:
 When one of these is encountered, improve the recorder/pin or classify the
 capture as blocked. Do not fit C output to an unproven Oracle state.
 
+## Apple Silicon Metal boundary
+
+These are explicit platform boundaries, not hidden parity allowances:
+
+- MSL has no FP64 type. The blaze Metal backend therefore runs the exact
+  double-precision simulation tick and reset on CPU and dispatches the semantic
+  camera to Metal through persistent shared buffers. Downcasting physics,
+  worldgen, snapshot, or action state to float32 is forbidden.
+- The mc-sim Metal oracle currently covers the exact RNG smoke surface and the
+  semantic camera. FP64-heavy worldgen and physics continue through the native
+  CPU implementation on macOS.
+- Public PyTorch MPS APIs do not expose a stable external-`MTLBuffer` tensor
+  import. `output_device="host"` is a zero-extra-copy NumPy view of shared
+  storage; `output_device="mps"` performs an explicit synchronized copy into a
+  persistent MPS tensor and reports the transfer time.
+- `magma_game_metal` supports the normal SDL and dummy-video frame loops.
+  Harness `--frames-out` capture is not wired for Metal and is rejected rather
+  than silently switching backends.
+- The native Metal sweep uses committed/generated C goldens without Java.
+  Live Minecraft oracle regeneration still requires a user-owned client,
+  locally generated oracle source, and JDK 8.
+
 ## Verification commands
 
 ```bash
@@ -1280,4 +1302,5 @@ bash c/magma/raster/verify/ui_hud/run_ui_hud_gates.sh
 bash c/magma/raster/verify/ui_entities/run_oracle_gate.sh
 bash c/magma/raster/verify/mc_capture/run_gui_actions_verify.sh
 bash c/magma/raster/verify/mc_capture/run_gui_verify.sh
+bash netherite_macos_sweep.sh --full
 ```

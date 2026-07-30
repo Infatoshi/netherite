@@ -1,4 +1,5 @@
 #include "game/config.h"
+#include "core/types.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -89,6 +90,11 @@ static int parse_on_off(const char *s, int *out) {
     if (!strcmp(s, "on")) { *out = 1; return 1; }
     if (!strcmp(s, "off")) { *out = 0; return 1; }
     return 0;
+}
+
+static int framebuffer_size_ok(int width, int height) {
+    return width > 0 && height > 0 &&
+           (uint64_t)width * (uint64_t)height <= CR_MAX_FRAMEBUFFER_PIXELS;
 }
 
 void gm_config_defaults(GmConfig *cfg) {
@@ -201,6 +207,7 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
                 if (!(v = need_value(&i, argc, argv, err, err_cap))) return 2;
                 if (!strcmp(v, "cpu")) cfg->backend = GM_BACKEND_CPU;
                 else if (!strcmp(v, "cuda")) cfg->backend = GM_BACKEND_CUDA;
+                else if (!strcmp(v, "metal")) cfg->backend = GM_BACKEND_METAL;
                 else return fail(err, err_cap, "invalid backend: %s", v);
             }
         } else if (!strcmp(a, "--pace")) {
@@ -253,11 +260,20 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
         return fail(err, err_cap, "--ticks may not be combined with legacy --frames");
     if (cfg->headless && !cfg->rl && !(seen & SEEN_TICKS))
         return fail(err, err_cap, "--headless requires --ticks");
+    if (!framebuffer_size_ok(cfg->width, cfg->height))
+        return fail(err, err_cap,
+                    "framebuffer %dx%d exceeds the checked %llu-pixel cap",
+                    cfg->width, cfg->height,
+                    (unsigned long long)CR_MAX_FRAMEBUFFER_PIXELS);
     return 0;
 }
 
-int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,
+int gm_config_validate_runtime(const GmConfig *cfg, unsigned backend_mask,
                                char *err, int err_cap) {
+    if (!cfg || !framebuffer_size_ok(cfg->width, cfg->height))
+        return fail(err, err_cap,
+                    "invalid or oversized framebuffer dimensions (cap %llu pixels)",
+                    (unsigned long long)CR_MAX_FRAMEBUFFER_PIXELS);
     if (cfg->villages)
         return fail(err, err_cap, "--villages on is specified but the village bundle is not wired yet");
     if (cfg->enchanting)
@@ -274,9 +290,22 @@ int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,
         return fail(err, err_cap, "harness controls require --headless");
     if (cfg->snapshot_in && !cfg->rl)
         return fail(err, err_cap, "--snapshot-in requires --rl/--rl-bin");
-    if (cfg->backend == GM_BACKEND_CUDA && !cuda_compiled)
-        return fail(err, err_cap, "CUDA backend unavailable; rebuild with `make game-cuda`");
+    if (cfg->backend < GM_BACKEND_CPU || cfg->backend > GM_BACKEND_METAL)
+        return fail(err, err_cap, "invalid runtime backend value");
+    if (!(backend_mask & GM_BACKEND_BIT(cfg->backend))) {
+        if (cfg->backend == GM_BACKEND_METAL)
+            return fail(err, err_cap, "Metal backend unavailable; rebuild on Apple silicon with `make game-metal`");
+        if (cfg->backend == GM_BACKEND_CUDA)
+            return fail(err, err_cap, "CUDA backend unavailable; rebuild with `make game-cuda`");
+        return fail(err, err_cap, "CPU backend unavailable in this binary");
+    }
     return 0;
+}
+
+static const char *backend_name(GmBackend backend) {
+    if (backend == GM_BACKEND_CUDA) return "cuda";
+    if (backend == GM_BACKEND_METAL) return "metal";
+    return "cpu";
 }
 
 void gm_config_print(FILE *out, const GmConfig *c) {
@@ -290,7 +319,7 @@ void gm_config_print(FILE *out, const GmConfig *c) {
         c->brewing ? "on" : "off", c->weather ? "on" : "off",
         c->mobs ? "on" : "off", c->daylight ? "on" : "off",
         c->render == GM_RENDER_WINDOW ? "window" : "off",
-        c->backend == GM_BACKEND_CPU ? "cpu" : "cuda",
+        backend_name(c->backend),
         c->pace == GM_PACE_REALTIME ? "realtime" : "unlimited",
         c->view_distance, c->width, c->height,
         c->headless ? "on" : "off", c->ticks,
@@ -311,7 +340,7 @@ void gm_config_print_usage(FILE *out, const char *argv0) {
         "  --daylight on|off            doDaylightCycle (off = frozen clock)\n"
         "  --mobs on|off                mob spawning + AI (default on)\n"
         "  --render window|off          presentation mode\n"
-        "  --backend cpu|cuda           raster backend\n"
+        "  --backend cpu|cuda|metal     raster backend\n"
         "  --pace realtime|unlimited    simulation pacing\n"
         "  --view-distance N            supported range 1..8\n"
         "  --width W --height H         framebuffer size\n"

@@ -22,7 +22,7 @@ for arg in "$@"; do
   case "$arg" in
     --cpu) FORCE_CPU=1 ;;
     --skip-build) SKIP_BUILD=1 ;;
-    -h|--help) sed -n '2,18p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    -h|--help) sed -n '2,18p' "$0" | sed 's/^#[[:space:]]*//'; exit 0 ;;
     *) echo "unknown arg: $arg" >&2; exit 2 ;;
   esac
 done

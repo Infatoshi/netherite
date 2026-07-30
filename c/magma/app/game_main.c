@@ -33,6 +33,7 @@
 #include "game/overlay.h"        /* selection outline + dig crack decal geometry */
 #include "game/sel_box.h"        /* vanilla per-block selection bounding boxes */
 #include "game/item_render.h"    /* dropped-item mini blocks + flat sprites */
+#include "raster/backend.h"
 #include "container_click.h"
 #include "items_core.h"
 #include "assets/blockmodels.h"
@@ -61,23 +62,8 @@
  * cr_transform without threading it through every call. */
 static int g_max_tris = CR_DEF_MAX_TRIS;
 
-/* CUDA raster wiring (only compiled into magma_game_cuda, built by `make
- * game-cuda` with -DMAGMA_CUDA and cuda/raster_cuda.o + -lcudart). The default
- * `make game` is pure gcc: MAGMA_CUDA is undefined, g_use_cuda is a const 0,
- * and none of the cr_raster_cuda_* symbols are referenced, so nothing changes. */
-#ifdef MAGMA_CUDA
-extern void cr_raster_cuda_pre(int w, int h, int max_tris);
-extern void cr_raster_cuda_into(CrFramebuffer *fb, const CrScreenTri *tris,
-                                int ntris, const CrShadeCtx *sh);
-extern void cr_raster_cuda_frame_begin(const CrFramebuffer *fb);
-extern void cr_raster_cuda_frame_end(CrFramebuffer *fb);
-extern void cr_raster_cuda_sky(const GmSkyCtx *sc, const float *basis,
-                               int W, int H);
-extern void cr_raster_cuda_post(void);
-static int g_use_cuda = 0;   /* runtime switch: --backend cuda / legacy --cuda */
-#else
-static const int g_use_cuda __attribute__((unused)) = 0;  /* CPU build: referenced only under MAGMA_CUDA */
-#endif
+static CrRasterBackend *g_backend;
+static int g_backend_failed;
 
 /* Raster one concatenated per-layer vertex buffer once (normal backface cull;
  * unlike the GL-parity candidate we do NOT double windings). The CUDA path
@@ -85,15 +71,11 @@ static const int g_use_cuda __attribute__((unused)) = 0;  /* CPU build: referenc
 static int render_layer(CrFramebuffer *fb, const CrCamera *cam,
                          const CrVertex *verts, int nv,
                          CrScreenTri *tris, const CrShadeCtx *sh) {
-    if (nv < 3) return 0;
+    if (nv < 3 || g_backend_failed) return 0;
     int ntris = cr_transform(verts, nv, NULL, 0, cam, fb->w, fb->h, tris, g_max_tris);
-    if (ntris > 0) {
-#ifdef MAGMA_CUDA
-        if (g_use_cuda) cr_raster_cuda_into(fb, tris, ntris, sh);
-        else            cr_raster_cpu(fb, tris, ntris, sh);
-#else
-        cr_raster_cpu(fb, tris, ntris, sh);
-#endif
+    if (ntris > 0 && !cr_backend_raster(g_backend, fb, tris, ntris, sh)) {
+        fprintf(stderr, "error: %s\n", cr_backend_last_error(g_backend));
+        g_backend_failed = 1;
     }
     return ntris;
 }
@@ -326,12 +308,8 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-#ifdef MAGMA_CUDA
-    const int cuda_compiled = 1;
-#else
-    const int cuda_compiled = 0;
-#endif
-    if (gm_config_validate_runtime(&cfg, cuda_compiled, cfg_err, sizeof cfg_err) != 0) {
+    if (gm_config_validate_runtime(&cfg, cr_backend_compiled_mask(),
+                                   cfg_err, sizeof cfg_err) != 0) {
         fprintf(stderr, "error: %s\n", cfg_err);
         return 2;
     }
@@ -343,10 +321,6 @@ int main(int argc, char **argv) {
     int         kill_frame  = cfg.kill_frame;
     const char *ppm_path = cfg.ppm_path;
     bench_init(want_frames);
-
-#ifdef MAGMA_CUDA
-    g_use_cuda = cfg.backend == GM_BACKEND_CUDA;
-#endif
 
     /* Transitional bridge until view distance is carried through GmWorldConfig.
      * It is still sourced from the strict argv config, never a hidden user setting. */
@@ -378,17 +352,37 @@ int main(int argc, char **argv) {
     if (cfg.headless) return gm_script_run(&cfg);
 
     /* --- framebuffer + scratch (all sized from caps, allocated once here) --- */
-    CrFramebuffer fb; cr_fb_alloc(&fb, fb_w, fb_h);
+    CrFramebuffer fb;
+    if (!cr_fb_alloc(&fb, fb_w, fb_h)) {
+        uint64_t pixels = fb_w > 0 && fb_h > 0
+            ? (uint64_t)fb_w * (uint64_t)fb_h : 0;
+        if (!pixels || pixels > CR_MAX_FRAMEBUFFER_PIXELS) {
+            fprintf(stderr,
+                    "error: framebuffer %dx%d rejected (cap %llu pixels)\n",
+                    fb_w, fb_h,
+                    (unsigned long long)CR_MAX_FRAMEBUFFER_PIXELS);
+        } else {
+            double mib = (double)pixels *
+                         (sizeof(CrRgba) + sizeof(float)) / 1048576.0;
+            fprintf(stderr,
+                    "error: host allocation failed for framebuffer %dx%d (%.1f MiB color+depth)\n",
+                    fb_w, fb_h, mib);
+        }
+        return 1;
+    }
     CrScreenTri *tris = (CrScreenTri *)malloc((size_t)caps->max_tris * sizeof(CrScreenTri));
     CrVertex    *ent_verts = (CrVertex *)malloc((size_t)ent_max_verts * sizeof(CrVertex));
-    if (!fb.color || !tris || !ent_verts) { fprintf(stderr, "alloc failed\n"); return 1; }
-
-#ifdef MAGMA_CUDA
-    /* ALLOCATE-ONCE: cudaMalloc the device framebuffer + tri buffer + shade-ctx
-     * ONCE here, sized from caps (fb w*h, max_tris). Every frame only memcpys
-     * up/down and launches; no per-frame cudaMalloc. Freed at exit. */
-    if (g_use_cuda) cr_raster_cuda_pre(fb_w, fb_h, caps->max_tris);
-#endif
+    if (!fb.color || !fb.depth || !tris || !ent_verts) {
+        fprintf(stderr, "alloc failed\n");
+        free(tris); free(ent_verts); cr_fb_free(&fb);
+        return 1;
+    }
+    if (!cr_backend_open(&g_backend, cfg.backend, fb_w, fb_h, caps->max_tris,
+                         cfg_err, sizeof cfg_err)) {
+        fprintf(stderr, "error: %s\n", cfg_err);
+        free(tris); free(ent_verts); cr_fb_free(&fb);
+        return 1;
+    }
 
     /* One owned simulation state and one authoritative transition. The macros keep
      * the rendering code readable while making every gameplay field part of runtime. */
@@ -396,6 +390,8 @@ int main(int argc, char **argv) {
     char runtime_err[256];
     if (!gm_runtime_init(&runtime, &cfg, runtime_err, sizeof runtime_err)) {
         fprintf(stderr, "error: %s\n", runtime_err);
+        cr_backend_close(g_backend);
+        free(tris); free(ent_verts); cr_fb_free(&fb);
         return 1;
     }
 #define world   (runtime.world)
@@ -435,7 +431,13 @@ int main(int argc, char **argv) {
     gm_hud_init();
 
     CrWindow *cwin = cr_window_open(fb_w, fb_h, "magma - game");
-    if (!cwin) { fprintf(stderr, "cr_window_open failed\n"); return 1; }
+    if (!cwin) {
+        fprintf(stderr, "cr_window_open failed\n");
+        gm_runtime_destroy(&runtime);
+        cr_backend_close(g_backend);
+        free(tris); free(ent_verts); cr_fb_free(&fb);
+        return 1;
+    }
 
     const CrRgba sky = {135, 206, 235, 255};
     int frame = 0, running = 1;
@@ -711,6 +713,7 @@ int main(int argc, char **argv) {
         }
         cam.fov_deg *= uw.fov_scale;   /* getFOVModifier: 60/70 in water */
         bm_atlas_set_animation_tick(g_clock.total_time);
+        cr_backend_atlas_dirty(g_backend);
         gm_sky_set_eye_height(cpv.eye_height > 0.01f ? cpv.eye_height : 1.62f);
         gm_sky_set_fluid_fog(uw.fluid ? 1 : 0, uw.fog01, uw.density);
         bench_stamp(3);
@@ -728,23 +731,24 @@ int main(int argc, char **argv) {
          * path already uses; day frames bit-identical, night star pixels can
          * differ by device sinf in hash21 <=0.012%/frame). MAGMA_CPU_SKY
          * forces the host loop for A/B. */
-        int gpu_sky = 0;
-#ifdef MAGMA_CUDA
-        gpu_sky = g_use_cuda && runtime.dimension == 0 && !getenv("MAGMA_CPU_SKY");
-#endif
+        int gpu_sky = (cr_backend_caps(g_backend) & CR_BACKEND_CAP_SKY) &&
+                      runtime.dimension == 0 && !getenv("MAGMA_CPU_SKY");
         if (!gpu_sky) gm_sky_draw(&fb, &cam, day);
         bench_stamp(4);
-        /* CUDA: upload the (sky- or clear-filled) fb ONCE, keep it device-resident
-         * across the 4 terrain layers + entities, download ONCE after (frame_end,
-         * before HUD). */
-#ifdef MAGMA_CUDA
-        if (g_use_cuda) cr_raster_cuda_frame_begin(&fb);
+        /* Accelerated backends upload the sky/clear framebuffer once and keep
+         * it resident across terrain and entity layers. CPU begin/end are no-ops. */
+        if (!cr_backend_frame_begin(g_backend, &fb)) {
+            fprintf(stderr, "error: %s\n", cr_backend_last_error(g_backend));
+            g_backend_failed = 1;
+        }
         if (gpu_sky) {
             GmSkyCtx sc; float bas[11];
             gm_sky_frame_args(&cam, day, &sc, bas);
-            cr_raster_cuda_sky(&sc, bas, fb_w, fb_h);
+            if (!cr_backend_sky(g_backend, &sc, bas, fb_w, fb_h)) {
+                fprintf(stderr, "error: %s\n", cr_backend_last_error(g_backend));
+                g_backend_failed = 1;
+            }
         }
-#endif
         bench_stamp(5);
         GmMeshView mv; gm_world_mesh_view(world, &cam, fb_w, fb_h, &mv);
         bench_stamp(6);
@@ -961,9 +965,10 @@ int main(int argc, char **argv) {
         }
 
         bench_stamp(9);
-#ifdef MAGMA_CUDA
-        if (g_use_cuda) cr_raster_cuda_frame_end(&fb);   /* device fb -> host, once */
-#endif
+        if (!cr_backend_frame_end(g_backend, &fb)) {
+            fprintf(stderr, "error: %s\n", cr_backend_last_error(g_backend));
+            g_backend_failed = 1;
+        }
         bench_stamp(10);
         /* ---- first-person hand (over the world, before the 2D HUD) ---- */
         {
@@ -1040,6 +1045,7 @@ int main(int argc, char **argv) {
                     pv.x, pv.y, pv.z);
 
         if (want_frames >= 0 && ++frame >= want_frames) running = 0;
+        if (g_backend_failed) running = 0;
     }
 
     bench_report();
@@ -1063,12 +1069,10 @@ int main(int argc, char **argv) {
             gm_live_entity_moved(&live),
             live.ents[0].age, live.ents[0].y);
 
-#ifdef MAGMA_CUDA
-    if (g_use_cuda) cr_raster_cuda_post();
-#endif
+    cr_backend_close(g_backend);
     free(tris); free(ent_verts);
     gm_runtime_destroy(&runtime);
     cr_window_close(cwin);
     cr_fb_free(&fb);
-    return 0;
+    return g_backend_failed ? 1 : 0;
 }

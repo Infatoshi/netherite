@@ -83,3 +83,8 @@ WORLDGEN := $(WORLDGEN_CORE) $(WORLDGEN_SURFACE) $(WORLDGEN_CARVE) $(WORLDGEN_FE
 ALL_KERNELS := $(TRUNK) $(WORLDGEN) $(BLOCKS) $(FLUIDS) $(LIGHT) $(POPULATE) $(PHYSICS) \
 	$(PLAYER) $(UNIFIED) $(COMBAT) $(ITEMS) $(MOBS) $(PORTALS) $(TICK) $(ENTITY) $(BATCH) \
 	$(REGION)
+
+# Native Metal currently covers deliberately selected FP32/integer leaf kernels.
+# FP64-heavy worldgen/full-tick closures remain explicit non-members rather than
+# silently narrowing their Java-compatible doubles.
+METAL_KERNELS := smoke obs_camera

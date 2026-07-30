@@ -8,6 +8,7 @@ Run: cd c/magma && COAL_NET=coal_net_cu.pt uv run --no-project \
        --with numpy,torch python rl/blaze/eval_batched.py
 """
 import os
+import platform
 import sys
 
 import numpy as np
@@ -18,7 +19,7 @@ RL = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 sys.path.insert(0, RL)
 
-from blaze import VecBlaze, CUDA_SO                     # noqa: E402
+from blaze import VecBlaze                              # noqa: E402
 from ppo_coal import ConvPolicy, STACK, REPEAT, EP_LEN  # noqa: E402
 from ppo_coal_cu import (TRAIN_SEEDS, STAGES, NOOP,     # noqa: E402
                          build_frame, obs_float)
@@ -26,13 +27,32 @@ from ppo_coal_cu import (TRAIN_SEEDS, STAGES, NOOP,     # noqa: E402
 OUT = os.path.join(RL, "out")
 LANES_PER = int(os.environ.get("LANES_PER", 64))
 EP_TICKS = int(os.environ.get("EP_TICKS", EP_LEN))
-DEVICE = int(os.environ.get("BLAZE_DEV", 1))
+DEVICE = int(os.environ.get("BLAZE_DEV", 0 if platform.system() == "Darwin" else 1))
 GREEDY = bool(int(os.environ.get("GREEDY", 0)))
+BACKEND = os.environ.get(
+    "BLAZE_BACKEND", "metal" if platform.system() == "Darwin" else "cuda")
+TORCH_DEVICE = os.environ.get(
+    "BLAZE_TORCH_DEVICE",
+    "mps" if BACKEND == "metal" else
+    (f"cuda:{DEVICE}" if BACKEND == "cuda" else "cpu"))
+
+
+def as_torch(x, dev):
+    """Make backend transfer explicit when env and policy devices differ."""
+    if isinstance(x, torch.Tensor):
+        return x.to(dev)
+    return torch.as_tensor(x, device=dev)
+
+
+def torch_obs(result, dev):
+    return tuple(as_torch(x, dev) for x in result)
 
 
 def main():
     torch.manual_seed(0)
-    dev = torch.device(f"cuda:{DEVICE}")
+    if BACKEND not in ("cpu", "cuda", "metal"):
+        raise ValueError("BLAZE_BACKEND must be cpu, cuda, or metal")
+    dev = torch.device(TORCH_DEVICE)
     net_file = os.environ.get("COAL_NET", "coal_net_cu.pt")
     net = ConvPolicy().to(dev)
     net.load_state_dict(torch.load(os.path.join(OUT, net_file),
@@ -43,14 +63,17 @@ def main():
     paths = [os.path.join(OUT, "snaps", f"s{s}_d{d}.bsnp")
              for s, d in combos]
     n = len(combos) * LANES_PER
-    env = VecBlaze(n, device=DEVICE, so_path=CUDA_SO)
+    env = VecBlaze(n, device=DEVICE, backend=BACKEND,
+                   output_device="mps" if BACKEND == "metal" and
+                   dev.type == "mps" else None)
     env.load_snapshots(paths)
     env.assign([i // LANES_PER for i in range(n)])
     env.reset()
 
     noop = torch.tensor(NOOP, dtype=torch.int32, device=dev)
     acts = noop.repeat(n, 1)
-    cam, depth, edge, scal, rew, done, pose = env.step(acts, repeat=REPEAT)
+    cam, depth, edge, scal, rew, done, pose = torch_obs(
+        env.step(acts, repeat=REPEAT), dev)
     frame = build_frame(cam, depth, edge)
     stack = frame.repeat(1, STACK, 1, 1)
     finished = torch.zeros(n, dtype=torch.bool, device=dev)
@@ -65,8 +88,8 @@ def main():
                 a = torch.stack(
                     [torch.distributions.Categorical(logits=lg).sample()
                      for lg in logits], dim=1)
-        cam, depth, edge, scal, rew, done, pose = env.step(
-            a.to(torch.int32), repeat=REPEAT)
+        cam, depth, edge, scal, rew, done, pose = torch_obs(
+            env.step(a.to(torch.int32), repeat=REPEAT), dev)
         term = done > 0
         succ |= (done == 1) & ~finished
         finished |= term
@@ -78,7 +101,7 @@ def main():
 
     succ = succ.view(len(combos), LANES_PER).float().mean(dim=1).cpu()
     print(f"net {net_file}  {'greedy' if GREEDY else 'sampled'}  "
-          f"{LANES_PER} lanes per combo")
+          f"{LANES_PER} lanes per combo  backend={env.backend} policy={dev}")
     print("seed   " + "  ".join(f"d{d}" for d in STAGES))
     per_stage = {d: [] for d in STAGES}
     for k, (s, d) in enumerate(combos):

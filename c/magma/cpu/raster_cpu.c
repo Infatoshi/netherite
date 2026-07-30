@@ -69,14 +69,32 @@ static inline float cr_tri_lod(const CrScreenVert *v0, const CrScreenVert *v1,
     return 0.5f * cr_log2_det(texArea2 / pixArea2);
 }
 
-void cr_fb_alloc(CrFramebuffer *fb, int w, int h) {
+int cr_fb_alloc(CrFramebuffer *fb, int w, int h) {
+    size_t count;
+    if (!fb) return 0;
+    fb->w = fb->h = 0;
+    fb->color = NULL;
+    fb->depth = NULL;
+    if (w <= 0 || h <= 0 ||
+        (uint64_t)w * (uint64_t)h > CR_MAX_FRAMEBUFFER_PIXELS)
+        return 0;
+    count = (size_t)w * (size_t)h;
+    fb->color = (CrRgba *)malloc(count * sizeof(CrRgba));
+    fb->depth = (float *)malloc(count * sizeof(float));
+    if (!fb->color || !fb->depth) {
+        free(fb->color);
+        free(fb->depth);
+        fb->color = NULL;
+        fb->depth = NULL;
+        return 0;
+    }
     fb->w = w;
     fb->h = h;
-    fb->color = (CrRgba *)malloc((size_t)w * (size_t)h * sizeof(CrRgba));
-    fb->depth = (float *)malloc((size_t)w * (size_t)h * sizeof(float));
+    return 1;
 }
 
 void cr_fb_free(CrFramebuffer *fb) {
+    if (!fb) return;
     free(fb->color);
     free(fb->depth);
     fb->color = NULL;
@@ -86,8 +104,9 @@ void cr_fb_free(CrFramebuffer *fb) {
 }
 
 void cr_fb_clear(CrFramebuffer *fb, CrRgba color) {
-    int n = fb->w * fb->h;
-    for (int i = 0; i < n; i++) {
+    if (!fb || !fb->color || !fb->depth || fb->w <= 0 || fb->h <= 0) return;
+    size_t n = (size_t)fb->w * (size_t)fb->h;
+    for (size_t i = 0; i < n; i++) {
         fb->color[i] = color;
         fb->depth[i] = 1.0f;
     }

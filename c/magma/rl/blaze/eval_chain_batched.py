@@ -9,6 +9,7 @@ Run: cd c/magma && CHAIN_NET=chain_net_cu.pt uv run --no-project \
        --with numpy,torch python rl/blaze/eval_chain_batched.py
 """
 import os
+import platform
 import sys
 
 import numpy as np
@@ -19,7 +20,7 @@ RL = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 sys.path.insert(0, RL)
 
-from blaze import VecBlaze, CUDA_SO                          # noqa: E402
+from blaze import VecBlaze                                   # noqa: E402
 from ppo_chain_cu import (ChainPolicy, build_frame, build_scal, obs_float,
                           stage_of_best, acts_to_rows, NPLANES, STACK,
                           REPEAT, EP_DEC, NHEAD, N_STAGES,
@@ -33,11 +34,38 @@ HELD_OUT = {11, 33}
 LANES_PER = int(os.environ.get("LANES_PER", 64))
 DEVICE = int(os.environ.get("BLAZE_DEV", 0))
 EP = int(os.environ.get("EP_DEC", EP_DEC))
+BACKEND = os.environ.get(
+    "BLAZE_BACKEND", "metal" if platform.system() == "Darwin" else "cuda")
+TORCH_DEVICE = os.environ.get(
+    "BLAZE_TORCH_DEVICE",
+    "mps" if BACKEND == "metal" else
+    (f"cuda:{DEVICE}" if BACKEND == "cuda" else "cpu"))
+
+
+def as_torch(x, dev):
+    if isinstance(x, torch.Tensor):
+        return x.to(dev)
+    return torch.as_tensor(x, device=dev)
+
+
+def torch_obs(result, dev):
+    return tuple(as_torch(x, dev) for x in result)
+
+
+def env_action_rows(a, dev):
+    # PyTorch MPS has no float64, while the public Blaze action ABI is double.
+    # Decode full chain rows explicitly on CPU; VecBlaze accounts for the
+    # subsequent host transfer into the hybrid backend.
+    if BACKEND == "metal":
+        return acts_to_rows(a.detach().cpu(), torch.device("cpu"))
+    return acts_to_rows(a, dev)
 
 
 def main():
     torch.manual_seed(0)
-    dev = torch.device(f"cuda:{DEVICE}")
+    if BACKEND not in ("cpu", "cuda", "metal"):
+        raise ValueError("BLAZE_BACKEND must be cpu, cuda, or metal")
+    dev = torch.device(TORCH_DEVICE)
     net = ChainPolicy().to(dev)
     net_file = os.environ.get("CHAIN_NET", "chain_net_cu.pt")
     net.load_state_dict(torch.load(os.path.join(OUT, net_file),
@@ -46,7 +74,9 @@ def main():
 
     paths = [os.path.join(SNAPS, f"s{s}_t0.bsnp") for s in SEEDS]
     n = len(SEEDS) * LANES_PER
-    env = VecBlaze(n, device=DEVICE, so_path=CUDA_SO)
+    env = VecBlaze(n, device=DEVICE, backend=BACKEND,
+                   output_device="mps" if BACKEND == "metal" and
+                   dev.type == "mps" else None)
     env.set_success_item(50)
     env.load_snapshots(paths)
     env.assign([i // LANES_PER for i in range(n)])
@@ -54,26 +84,28 @@ def main():
 
     noop = torch.zeros((n, NHEAD), dtype=torch.int64, device=dev)
     noop[:, 0] = noop[:, 1] = noop[:, 2] = 1
-    cam, depth, edge, scal, rew, done, pose = env.step(
-        acts_to_rows(noop, dev), repeat=REPEAT)
+    cam, depth, edge, scal, rew, done, pose = torch_obs(env.step(
+        env_action_rows(noop, dev), repeat=REPEAT), dev)
     frame = build_frame(cam, depth, edge)
     stack = frame.repeat(1, STACK, 1, 1)
-    best = env.status[:, :9].clone()
+    best = as_torch(env.status, dev)[:, :9].clone()
     finished = torch.zeros(n, dtype=torch.bool, device=dev)
     succ = torch.zeros(n, dtype=torch.bool, device=dev)
     ep_dec = torch.zeros(n, dtype=torch.float32, device=dev)
 
     for t in range(EP):
-        scal_full = build_scal(scal, env.status, pose, ep_dec / EP)
+        scal_full = build_scal(scal, as_torch(env.status, dev), pose,
+                               ep_dec / EP)
         with torch.no_grad():
             logits, _ = net(obs_float(stack), scal_full)
             a = torch.stack(
                 [torch.distributions.Categorical(logits=lg).sample()
                  for lg in logits], dim=1)
-        cam, depth, edge, scal, rew, done, pose = env.step(
-            acts_to_rows(a, dev), repeat=REPEAT)
+        cam, depth, edge, scal, rew, done, pose = torch_obs(env.step(
+            env_action_rows(a, dev), repeat=REPEAT), dev)
+        status = as_torch(env.status, dev)
         alive = ~finished
-        best[alive] = torch.maximum(best[alive], env.status[alive, :9])
+        best[alive] = torch.maximum(best[alive], status[alive, :9])
         succ |= (done == 1) & alive
         finished |= done > 0
         ep_dec += 1
@@ -86,7 +118,7 @@ def main():
     reach[succ] = N_STAGES
     reach = reach.view(len(SEEDS), LANES_PER).cpu().numpy()
     print(f"net {net_file}  sampled  {LANES_PER} lanes/seed  "
-          f"{EP} decisions")
+          f"{EP} decisions  backend={env.backend} policy={dev}")
     print("seed    " + "  ".join(f"{m:>7s}" for m in
                                  (*MILE_NAMES[1:], "TORCH")))
     for i, s in enumerate(SEEDS):

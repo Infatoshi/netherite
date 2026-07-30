@@ -1,9 +1,10 @@
 # Product gates (netherite)
 
-**netherite** is the product name: a from-scratch C/CUDA reimplementation of
+**netherite** is the product name: a from-scratch C reimplementation of
 Minecraft 1.11.2 (magma + mc-sim), bit-verified against the real Java game,
-plus a batched CUDA RL env (blaze). Humans play the oracle; tapes record; magma
-replays; every divergence is a bug with a repro.
+with Linux/CUDA and native Apple Silicon/Metal accelerator paths plus the
+batched blaze RL env. Humans play the oracle; tapes record; magma replays;
+every divergence is a bug with a repro.
 
 Agent entry: root `AGENTS.md`. How to run: `docs/RUNBOOK.md`.
 
@@ -48,6 +49,12 @@ miss = seed 16 at coal), superseding the v1 net's 11/13. IMPORTANT: evaluate
 scores only 10/13 (see the gate-3 collapse hazard). Independent confirmation of
 the recipe tonight: a 1.35-h from-scratch run's best checkpoint
 (chain_net_pin1_best.pt) ties v1 at 11/13 with roughly half of v1's 1.92B ticks.
+
+Apple Silicon portability does not replace this CUDA acceptance gate. The
+native Metal backend preserves the same snapshot/action/observation ABI, runs
+the FP64 tick/reset exactly on CPU, dispatches the semantic camera to Metal,
+and has an MPS one-update/checkpoint/evaluation smoke. Its measured status is
+reported under Gate 3 and `docs/MACOS_METAL.md`.
 
 ### Gate 3 - perf pins
 Accept: >=1M env-ticks/s FULL-FEATURE at N>=8192; spawn-to-torch trains <1h; magma
@@ -100,11 +107,32 @@ needs a ~1.6x raster kernel (bit-parity-constrained) plus hud caching and
 io/present overlap. The 3090's 11.74 (07-17, host-rendered sky) was not
 re-measured - it has a co-tenant. CPU backend is not on the 60 fps path.
 
+Native Apple M4 measurement (2026-07-30; 24 GB, macOS 27.0 beta) is a separate
+portability result, not an RTX pin comparison. On the identical superflat
+still-camera workload at view distance 1, 1920x1080, 600 total frames with the
+first 120 discarded (480 measured), the final full-sweep pair measured CPU at
+63.228 ms / 15.82 FPS and Metal at 16.625 ms / 60.15 FPS (3.80x end-to-end).
+Metal moved the sky stage from 38.687 ms on CPU to 0.921 ms and the raster
+stage from 19.737 ms to 7.656 ms. An immediately preceding identical Metal run
+measured 18.068 ms / 55.35 FPS, so the 60 FPS pin is demonstrated but not yet
+repeatably held; CPU HUD/presentation and synchronization are now material
+costs. The real-T0 Blaze hybrid at N=256,
+repeat 4 measured 347,934.6 env-ticks/s and 200.4M semantic rays/s, using
+2,495.2 MiB of Metal shared buffers and 2,430.2 MiB peak RSS. The MPS smoke at
+N=32 completed a real Adam update, checkpoint reload, evaluation, and masked
+reset. Full context and transfer timings are in `docs/MACOS_METAL.md`.
+
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.
-Status: SHIPPED as `netherite_sweep.sh` (repo root). `--quick` is green today except
-steps listed as SKIP (known-broken `make test-config` at HEAD; artifact-gated steps).
-A FAIL exits nonzero; SKIPs never do.
+Status: SHIPPED on Linux/CUDA as `netherite_sweep.sh` and on Apple Silicon as
+`netherite_macos_sweep.sh` (repo root). Both have quick/full modes, isolated
+logs, explicit PASS/FAIL/SKIP summaries, and nonzero exit on any failure.
+Artifact-dependent or Java steps may SKIP only with the reason printed; native
+implementation gaps are failures.
+Clean Apple M4 `--full` validation passed on 2026-07-30. The only skips were a
+missing working JDK for live Java goldens and a missing external
+real-Minecraft `mc_frame.png` pixel golden; all native implementation gates
+passed.
 
 ## Running the sweep
 
@@ -112,6 +140,10 @@ A FAIL exits nonzero; SKIPs never do.
 bash netherite_sweep.sh --quick          # builds + unit batteries + blaze CPU gate + vec-env (<10 min)
 bash netherite_sweep.sh --full           # + mc-sim CUDA oracle, blaze CUDA gate, canonical tape replay (GPU1), raster parity, RL smoke (<40 min)
 bash netherite_sweep.sh --full --gpu 0   # device for blaze/mc-sim CUDA steps (tape replay + parity stay pinned to GPU1)
+
+# Native Apple Silicon CPU/Metal pyramid and measurements:
+bash netherite_macos_sweep.sh --quick
+bash netherite_macos_sweep.sh --full
 ```
 
 Each step wraps an existing gate (make target or script - nothing reimplemented), has

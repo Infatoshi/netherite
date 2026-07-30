@@ -9,7 +9,7 @@
 #   bash scripts/setup_and_verify.sh --bootstrap-only
 #   bash scripts/setup_and_verify.sh --skip-bootstrap   # already bootstrapped
 #
-# Requirements (Linux x86_64, the only full-stack platform):
+# Requirements (Linux x86_64 CPU/CUDA + Java-oracle workflow):
 #   - JDK 8 (JAVA_HOME or /usr/lib/jvm/java-8-openjdk-amd64)
 #   - uv, make, gcc/g++, git, network (first bootstrap)
 #   - NVIDIA GPU + CUDA toolkit for --full (and for blaze CUDA steps)
@@ -36,7 +36,7 @@ for arg in "$@"; do
     --skip-bootstrap) DO_BOOTSTRAP=0 ;;
     --demo) DO_DEMO=1 ;;
     -h|--help)
-      sed -n '2,30p' "$0" | sed 's/^# \?//'
+      sed -n '2,30p' "$0" | sed 's/^#[[:space:]]*//'
       exit 0
       ;;
     *)

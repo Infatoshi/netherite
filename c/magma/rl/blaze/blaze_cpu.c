@@ -39,7 +39,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
+#include <stdint.h>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 #include "blaze_core.h"
 
@@ -166,15 +170,33 @@ int blaze_op_trace(void *vh, unsigned long long *out) {
 
 /* Size the region pools from the first-loaded snapshot's dims (all further
  * snapshots must match). Init-time only. */
+static int cu_size_mul(size_t a, size_t b, size_t *out) {
+    if (a && b > SIZE_MAX / a) return 0;
+    *out = a * b;
+    return 1;
+}
+
 static int cu_alloc_region_pools(CuVec *v, int rnx, int rny, int rnz) {
     int i;
+    size_t xy, vol, count, bytes;
+    u16 *cells_pool, *camcells_pool;
+    if (!v || v->n <= 0 || rnx <= 0 || rny <= 0 || rnz <= 0 ||
+        !cu_size_mul((size_t)rnx, (size_t)rny, &xy) ||
+        !cu_size_mul(xy, (size_t)rnz, &vol) || vol > (size_t)LONG_MAX ||
+        !cu_size_mul((size_t)v->n, vol, &count) ||
+        !cu_size_mul(count, sizeof *cells_pool, &bytes))
+        return 0;
+    cells_pool = (u16 *)malloc(bytes);
+    if (!cells_pool) return 0;
+    camcells_pool = (u16 *)malloc(bytes);
+    if (!camcells_pool) {
+        free(cells_pool);
+        return 0;
+    }
     v->rnx = rnx; v->rny = rny; v->rnz = rnz;
-    v->rvol = (long)rnx * rny * rnz;
-    v->cells_pool = (u16 *)malloc((size_t)v->n * v->rvol *
-                                  sizeof *v->cells_pool);
-    v->camcells_pool = (u16 *)malloc((size_t)v->n * v->rvol *
-                                     sizeof *v->camcells_pool);
-    if (!v->cells_pool || !v->camcells_pool) return 0;
+    v->rvol = (long)vol;
+    v->cells_pool = cells_pool;
+    v->camcells_pool = camcells_pool;
     for (i = 0; i < v->n; ++i) {
         v->envs[i].cells = v->cells_pool + (size_t)i * v->rvol;
         v->envs[i].cam_cells = v->camcells_pool + (size_t)i * v->rvol;
@@ -292,7 +314,12 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
     CuVec *v = (CuVec *)vh;
     int i;
     if (!v || !actions || repeat < 1) return -1;
+    for (i = 0; i < v->n; ++i)
+        if (v->envs[i].rvol <= 0 ||
+            !blaze_action_valid(&actions[i * BLAZE_ACT_HEADS])) return -1;
+#ifdef _OPENMP
 #pragma omp parallel for schedule(static) if(v->n > 1)
+#endif
     for (i = 0; i < v->n; ++i) {
         Blaze *e = &v->envs[i];
         McAABB *blocks = v->blocks + (size_t)i * PSV_MAX_BLOCKS;
@@ -329,59 +356,77 @@ int blaze_step(void *vh, const double *actions, int repeat,
 int blaze_capture(void *vh, int env, int slot) {
     CuVec *v = (CuVec *)vh;
     Blaze *e;
-    CuSnapshot *s;
+    const CuSnapshot *src;
+    CuSnapshot next, old;
+    size_t cell_bytes, coal_elems, coal_bytes, xy_cells, xy_bytes;
+    size_t cont_elems, cont_bytes;
+    int i, append;
     if (!v || env < 0 || env >= v->n || slot < 0 ||
         slot >= BLAZE_MAX_SNAPS || slot > v->nsnaps || v->rvol == 0)
         return -1;
     if (v->assign[env] < 0) return -1;
     e = &v->envs[env];
-    s = &v->snaps[slot];
-    if (slot == v->nsnaps) {
-        memset(s, 0, sizeof *s);
-        v->nsnaps++;
+    if (e->nore < 0 || e->nore > v->rvol ||
+        e->n_cont > BLAZE_SNAP_MAX_CONT)
+        return -1;
+    src = &v->snaps[v->assign[env]];
+    memset(&next, 0, sizeof next);
+    (void)blaze_capture_head(e, &next.head, next.items);
+    if (!cu_size_mul((size_t)v->rvol, sizeof *next.cells, &cell_bytes))
+        goto fail;
+    next.cells = (unsigned short *)malloc(cell_bytes);
+    if (!next.cells) goto fail;
+    memcpy(next.cells, e->cells, cell_bytes);
+
+    next.ncoal = (unsigned)e->nore;
+    if (e->nore) {
+        if (!cu_size_mul((size_t)e->nore, 3, &coal_elems) ||
+            !cu_size_mul(coal_elems, sizeof *next.coal, &coal_bytes))
+            goto fail;
+        next.coal = (int *)malloc(coal_bytes);
+        if (!next.coal) goto fail;
+        memcpy(next.coal, e->ore, coal_bytes);
     }
-    (void)blaze_capture_head(e, &s->head, s->items);
-    if (!s->cells) {
-        s->cells = (unsigned short *)malloc((size_t)v->rvol *
-                                            sizeof *s->cells);
-        if (!s->cells) return -1;
+
+    if (src->xy_off) {
+        if (!cu_size_mul((size_t)v->rnx, (size_t)v->rny, &xy_cells) ||
+            xy_cells == SIZE_MAX ||
+            !cu_size_mul(xy_cells + 1, sizeof *next.xy_off, &xy_bytes))
+            goto fail;
+        next.xy_off = (int *)malloc(xy_bytes);
+        if (!next.xy_off) goto fail;
+        memcpy(next.xy_off, src->xy_off, xy_bytes);
     }
-    memcpy(s->cells, e->cells, (size_t)v->rvol * sizeof *s->cells);
-    if ((int)s->ncoal != e->nore) {
-        free(s->coal);
-        s->coal = e->nore ? (int *)malloc((size_t)e->nore * 3 *
-                                          sizeof *s->coal) : NULL;
-        if (e->nore && !s->coal) { s->ncoal = 0; return -1; }
-        s->ncoal = (unsigned)e->nore;
-    }
-    if (e->nore)
-        memcpy(s->coal, e->ore, (size_t)e->nore * 3 * sizeof *s->coal);
-    {   /* the captured ore list IS the assign-source snapshot's (e->ore was
-         * bound at reset and never mutates), so its spatial index carries
-         * over verbatim. NULL source index -> NULL (full-scan fallback). */
-        const int *src_xy = v->snaps[v->assign[env]].xy_off;
-        size_t nb = ((size_t)v->rnx * v->rny + 1) * sizeof *s->xy_off;
-        if (src_xy) {
-            if (!s->xy_off) s->xy_off = (int *)malloc(nb);
-            if (s->xy_off) memcpy(s->xy_off, src_xy, nb);
-        } else {
-            free(s->xy_off);
-            s->xy_off = NULL;
+
+    if (!cu_size_mul((size_t)BLAZE_SNAP_MAX_CONT, 3, &cont_elems) ||
+        !cu_size_mul(cont_elems, sizeof *next.cont, &cont_bytes))
+        goto fail;
+    next.cont = (int *)malloc(cont_bytes);
+    if (!next.cont) goto fail;
+    next.ncont = e->n_cont;
+    if (e->n_cont > 0)
+        memcpy(next.cont, e->cont,
+               (size_t)e->n_cont * 3 * sizeof *next.cont);
+    next.has_liquid = src->has_liquid;
+
+    append = slot == v->nsnaps;
+    old = v->snaps[slot];
+    v->snaps[slot] = next;
+    if (append) v->nsnaps++;
+    for (i = 0; i < v->n; ++i) {
+        if (old.coal && v->envs[i].ore == old.coal) {
+            v->envs[i].ore = v->snaps[slot].coal;
+            v->envs[i].nore = (int)v->snaps[slot].ncoal;
         }
+        if (old.xy_off && v->envs[i].ore_xy == old.xy_off)
+            v->envs[i].ore_xy = v->snaps[slot].xy_off;
     }
-    {   /* container list: the env's LIVE list is exactly the captured
-         * region's (maintained on every edit); overflow (-1) rides along
-         * and keeps the full-scan fallback. */
-        if (!s->cont)
-            s->cont = (int *)malloc((size_t)BLAZE_SNAP_MAX_CONT * 3 *
-                                    sizeof *s->cont);
-        s->ncont = s->cont ? e->n_cont : -1;
-        if (s->cont && e->n_cont > 0)
-            memcpy(s->cont, e->cont,
-                   (size_t)e->n_cont * 3 * sizeof *s->cont);
-    }
-    s->has_liquid = v->snaps[v->assign[env]].has_liquid;
+    blaze_snapshot_free(&old);
     return 0;
+
+fail:
+    blaze_snapshot_free(&next);
+    return -1;
 }
 
 /* ---- verify helpers ---- */
@@ -390,7 +435,8 @@ int blaze_obs_size(void) { return (int)sizeof(CuBinObs); }
 
 int blaze_emit(void *vh, int env, int want_cam, void *out) {
     CuVec *v = (CuVec *)vh;
-    if (!v || env < 0 || env >= v->n || !out) return -1;
+    if (!v || env < 0 || env >= v->n || !out || v->envs[env].rvol <= 0)
+        return -1;
     blaze_emit_bolr(&v->envs[env], &v->st, (CuBinObs *)out, want_cam);
     return 0;
 }
@@ -405,14 +451,19 @@ int blaze_tick_raw(void *vh, int env, const double a[13], int want_cam,
                    void *out) {
     CuVec *v = (CuVec *)vh;
     CuAction act;
-    if (!v || env < -1 || env >= v->n || !a) return -1;
+    if (!v || env < -1 || env >= v->n || !blaze_action_valid(a)) return -1;
     if (env == -1) {   /* broadcast: same raw action to ALL envs, no obs */
         int i, rc = 0;
+        for (i = 0; i < v->n; ++i)
+            if (v->envs[i].rvol <= 0) return -1;
+#ifdef _OPENMP
 #pragma omp parallel for schedule(static) reduction(|:rc) if(v->n > 1)
+#endif
         for (i = 0; i < v->n; ++i)
             rc |= blaze_tick_raw(vh, i, a, 0, NULL);
         return rc;
     }
+    if (v->envs[env].rvol <= 0) return -1;
     memset(&act, 0, sizeof act);
     act.forward = (float)a[0];
     act.strafe = (float)a[1];

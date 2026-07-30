@@ -1,21 +1,23 @@
-# magma - full C/CUDA software rasterizer for the Minecraft C engine
+# magma - C, CUDA, and Metal software rasterizer for the Minecraft C engine
 
 The standalone game's supported product surface, survival completion route, launch
 settings, test-hook boundary, and deliberate cuts are defined in `PRODUCT.md`. This
 SPEC remains the renderer architecture and verification contract.
 
 Location: `c/magma` in this monorepo (with `../mc-sim`, `../render-opt`).
-Build/run on anvil (Linux, headless). Display over Xvfb :1 (VNC) or dump PPM frames.
+Build/run on anvil (Linux/CUDA, headless) or natively on Apple Silicon
+(CPU/Metal, local SDL or dummy video).
 Product contract: `PRODUCT.md`. Verification: `VERIFY.md`. History: `../../docs/DEVLOG.md`.
 
 ## Goal
-Render the Minecraft world with a TRUE software/CUDA rasterizer: the triangle -> pixel
-step is our own C and CUDA code, NOT OpenGL. OpenGL/GL is banned in the render path.
+Render the Minecraft world with a TRUE software/CUDA/Metal rasterizer: the triangle ->
+pixel step is our own C, CUDA, or MSL code, NOT OpenGL. OpenGL/GL is banned in the render path.
 SDL2 (or raw X11) is allowed ONLY to open a window and blit a finished RGBA buffer, and
 to read keyboard/mouse. No GL, no GPU rasterization API - we write the z-buffer loop.
 
-Two backends that must agree: a C reference (`cpu/`) and a CUDA port (`cuda/`).
-Philosophy inherited from mc-sim/render-opt: CPU == CUDA, verified. For the color
+Three backends must agree: a C reference (`cpu/`), CUDA (`cuda/`), and Metal
+(`metal/`). Philosophy inherited from mc-sim/render-opt: accelerator output is
+checked against CPU. For the color
 buffer, match bit-exact where feasible (compile with `-ffp-contract=off`, identical op
 order in C and CUDA); otherwise tolerance <= 1 LSB per channel on <0.1% of pixels.
 
@@ -23,7 +25,7 @@ order in C and CUDA); otherwise tolerance <= 1 LSB per channel on <0.1% of pixel
 ```
 mc-sim worldgen -> chunk voxels -> render-opt meshing kernels -> CrVertex[] (world space)
    -> transform.c (MVP + near-clip + viewport)   -> CrScreenTri[]
-   -> raster (cpu/cuda: edge fns, z-buffer, persp-correct interp, calls cr_shade)
+   -> raster (cpu/cuda/metal: edge fns, z-buffer, persp-correct interpolation)
    -> CrFramebuffer -> present.c (blit + input) -> camera update -> loop
 ```
 All types and the exact module prototypes are in `core/types.h`. That header is the
@@ -35,6 +37,8 @@ CONTRACT. Do not change a signature without updating this file.
 - `transform.c`         - cr_transform: MVP, near-plane clip, viewport (TRANSFORM agent).
 - `cpu/raster_cpu.c`    - cr_raster_cpu, cr_fb_* helpers (RASTER agent).
 - `cuda/raster_cuda.cu` - cr_raster_cuda (RASTER agent).
+- `metal/raster_metal.mm` + generated MSL source - native Metal host/kernel backend.
+- `raster/backend.[ch]` - explicit CPU/CUDA/Metal capability boundary.
 - `core/shade.c`        - cr_shade, cr_atlas_sample (SHADE agent).
 - `present/present.c`   - SDL2 window, blit, input (PRESENT agent).
 - `demo/demo_cube.c`    - main(): spinning textured cube, exercises whole spine (PRESENT agent).
@@ -53,6 +57,10 @@ CONTRACT. Do not change a signature without updating this file.
   the .cu #includes `core/shade.c` so device code uses the identical function.
 - CUDA: one thread per pixel over each tri's bounding box, or tiled; free choice, but
   output must equal the CPU path. Target `-arch=sm_120` (RTX PRO 6000) and sm_86.
+- Metal: process 16x16 tiles in submitted triangle order so depth/blend ordering
+  stays deterministic. Use persistent `MTLStorageModeShared` buffers, checked
+  sizing, pointer-free host/MSL descriptors, and safe math (no contraction/fast
+  transformations). Dispatch tails must be bounds-checked.
 
 ## Transform requirements (transform.c, core/math.c)
 - MC camera: yaw about Y, pitch about X; +Z... use standard right-handed view; document
@@ -82,7 +90,9 @@ CONTRACT. Do not change a signature without updating this file.
   smoke test of the whole spine.
 
 ## Build
-`make` builds: `magma_demo` (cpu spine), `raster_cuda.o`, and per-module tests.
+`make` builds the CPU demo. `make game`, `make game-cuda`, and `make game-metal`
+build the explicit product variants; `make test-metal` builds and runs the
+native CPU-vs-Metal raster, sky, launch, and script/RL frame-capture gates.
 Compile flags: `-O2 -ffp-contract=off -Wall`. CUDA: `nvcc -O2 --fmad=false -arch=sm_120`.
 Each agent must ensure `make <their-target>` compiles and their test passes before done.
 
@@ -91,6 +101,17 @@ Two independent checks, matching this repo's philosophy:
 - Self-consistency: `tests/test_raster_parity` renders a fixed scene with cr_raster_cpu
   and cr_raster_cuda and asserts the framebuffers match (currently bit-exact, 0 diff).
   This proves the CPU and CUDA backends agree; it does NOT prove correctness.
+- Native Metal self-consistency: `make test-raster-metal-parity` exercises every
+  render layer, alpha/cutout, fog, mip inputs, blend ordering, degenerate/offscreen
+  geometry, odd framebuffer sizes, empty work, repeated runs, and non-tile-aligned
+  triangle counts against `cr_raster_cpu`, with actionable first-difference output.
+- Native Metal sky and capture: `make test-metal-sky-parity` compares the
+  `CR_BACKEND_CAP_SKY` implementation with `gm_sky_draw` across daylight, sunset,
+  night, underwater, odd sizes, error paths, and repeated runs. `make
+  test-metal-frame-capture` exercises the shared `GmFrameCapture` path for script
+  and RL PPM/NPY output, sparse tick numbering, exact repeats, empty work, and
+  actionable failures. Daylight/underwater output is exact; the night tolerance is
+  pinned to the isolated star pixels measured by the tests.
 - Correctness (KernelBench-style, golden = real GL): `make raster-verify` rasterizes a
   fixed clip-space scene with real Mesa software GL (OSMesa golden, the same llvmpipe
   path MC uses on anvil) and with cr_raster_cpu (candidate) on identical inputs, then

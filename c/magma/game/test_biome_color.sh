@@ -27,6 +27,7 @@ SRCS=(
   world/mesh_mc.c
   world/light.c
   world/populate_mc.c
+  world/gen_prefetch.c
   assets/blockmodels.c
   renderkernels/rk_31_facebakery_make_quad.c
   core/math.c

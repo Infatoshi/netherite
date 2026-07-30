@@ -14,6 +14,7 @@
 #include "game/sky.h"
 #include "game/underwater.h"
 #include "game/view.h"
+#include "raster/backend.h"
 #include "world/mesh_mc.h"
 #include "world/lightmap.h"
 #include "mc_math.h"
@@ -71,6 +72,9 @@ struct GmFrameCapture {
     unsigned char *ppm_buf; /* packed RGB scratch, one fwrite per frame */
     int max_tris, max_entity_verts;
     int use_cuda;
+    int use_metal;
+    int backend_failed;
+    CrRasterBackend *backend;
     int dev_mesh;           /* terrain layers gathered from the device slab pool */
     const void *slab_world; /* world whose slabs the GPU pool currently mirrors */
     GmChunkDraw *chunks;    /* caps.mesh_slots entries (dev_mesh scratch) */
@@ -222,6 +226,10 @@ static int render_layer(GmFrameCapture *c, const CrCamera *cam,
                          c->tris, c->max_tris);
     if (n > 0) {
         if (c->use_cuda) cr_raster_cuda_into(&c->fb, c->tris, n, shade);
+        else if (c->use_metal) {
+            if (!cr_backend_raster(c->backend, &c->fb, c->tris, n, shade))
+                c->backend_failed = 1;
+        }
         else cr_raster_cpu(&c->fb, c->tris, n, shade);
     }
     return n;
@@ -406,13 +414,21 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
     strcpy(c->dir,cfg->frames_out_dir);
     c->lm_mode=worldmc_lightmap_mode();
     const CrCaps *caps=cr_caps();c->max_tris=caps->max_tris;c->max_entity_verts=caps->ent_max_verts;
-    cr_fb_alloc(&c->fb,cfg->width,cfg->height);
+    if(!cr_fb_alloc(&c->fb,cfg->width,cfg->height)){
+        uint64_t pixels=cfg->width>0&&cfg->height>0
+            ?(uint64_t)cfg->width*(uint64_t)cfg->height:0;
+        if(!pixels||pixels>CR_MAX_FRAMEBUFFER_PIXELS)
+            set_error(err,err_cap,"frame capture dimensions exceed the checked framebuffer cap");
+        else
+            set_error(err,err_cap,"frame capture framebuffer allocation failed");
+        gm_frame_capture_close(c);return NULL;
+    }
     c->tris=malloc((size_t)c->max_tris*sizeof *c->tris);
     for(int i=0;i<GM_FC_ENT_BUFS;++i)
         c->entity_verts[i]=malloc((size_t)c->max_entity_verts*sizeof *c->entity_verts[i]);
     c->ppm_buf=malloc((size_t)cfg->width*(size_t)cfg->height*3);
     c->post_scratch=malloc((size_t)cfg->width*(size_t)cfg->height*sizeof *c->post_scratch);
-    if(!c->fb.color||!c->tris||!c->entity_verts[0]||!c->entity_verts[1]||
+    if(!c->fb.color||!c->fb.depth||!c->tris||!c->entity_verts[0]||!c->entity_verts[1]||
        !c->entity_verts[2]||!c->entity_verts[3]||!c->ppm_buf||!c->post_scratch){set_error(err,err_cap,"frame capture allocation failed");gm_frame_capture_close(c);return NULL;}
     if(npy){
         c->npy_f=fopen(c->dir,"wb");
@@ -423,6 +439,13 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
         npy_stamp_header(c->npy_f,0,c->fb.h,c->fb.w);
     }
     c->use_cuda=cfg->backend==GM_BACKEND_CUDA;
+    c->use_metal=cfg->backend==GM_BACKEND_METAL;
+    if(c->use_metal){
+        if(!cr_backend_open(&c->backend,GM_BACKEND_METAL,c->fb.w,c->fb.h,
+                            c->max_tris,err,err_cap)){
+            gm_frame_capture_close(c);return NULL;
+        }
+    }
     if(c->use_cuda){
         if(!cr_raster_cuda_pre||!cr_raster_cuda_into||!cr_raster_cuda_frame_begin||
            !cr_raster_cuda_frame_end||!cr_raster_cuda_post){
@@ -754,7 +777,19 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     }
     if(uw.fluid)clear=uw.fog_rgba;
     cr_fb_clear(&c->fb,clear);
-    if(r->dimension==0&&c->use_cuda&&cr_raster_cuda_sky&&!getenv("MAGMA_CPU_SKY")){
+    int metal_sky=c->use_metal&&
+        (cr_backend_caps(c->backend)&CR_BACKEND_CAP_SKY)&&
+        r->dimension==0&&!getenv("MAGMA_CPU_SKY");
+    if(metal_sky){
+        if(!cr_backend_frame_begin(c->backend,&c->fb)){
+            set_error(err,err_cap,cr_backend_last_error(c->backend));return 0;
+        }
+        GmSkyCtx sc;float bas[11];
+        gm_sky_frame_args(&cam,day,&sc,bas);
+        if(!cr_backend_sky(c->backend,&sc,bas,c->fb.w,c->fb.h)){
+            set_error(err,err_cap,cr_backend_last_error(c->backend));return 0;
+        }
+    }else if(r->dimension==0&&c->use_cuda&&cr_raster_cuda_sky&&!getenv("MAGMA_CPU_SKY")){
         /* sky on the GPU: upload the cleared fb, then the kernel fills every
          * pixel (depth is still far everywhere - sky is the first draw).
          * Frame ctx + camera basis stay host/glibc (gm_sky_frame_args), so
@@ -768,6 +803,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         if(r->dimension==0)gm_sky_draw(&c->fb,&cam,day);
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
         if(c->use_cuda)cr_raster_cuda_frame_begin(&c->fb);
+        else if(c->use_metal&&!cr_backend_frame_begin(c->backend,&c->fb)){
+            set_error(err,err_cap,cr_backend_last_error(c->backend));return 0;
+        }
     }
     /* QRL's pin mixin cancels updateAnimation, leaving TextureMap's initially
      * uploaded physical frame zero. Otherwise follow the recorded client tick. */
@@ -778,6 +816,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                                                      v.portal_frame));
     bm_atlas_set_portal_frame(v.portal_frame);
     if(c->use_cuda&&cr_raster_cuda_atlas_dirty)cr_raster_cuda_atlas_dirty();
+    if(c->use_metal)cr_backend_atlas_dirty(c->backend);
     CrTexture atlas=gm_world_atlas(r->world);
     const CrRgba *lm=build_lightmap_lut(c,r);
     /* Viewmodel environment: renderHand fov (70 * eye-in-water 60/70), the
@@ -1136,6 +1175,14 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         }
         cr_raster_cuda_frame_end(&c->fb);
     }
+    if(c->use_metal){
+        if(c->backend_failed){
+            set_error(err,err_cap,cr_backend_last_error(c->backend));return 0;
+        }
+        if(!cr_backend_frame_end(c->backend,&c->fb)){
+            set_error(err,err_cap,cr_backend_last_error(c->backend));return 0;
+        }
+    }
     gm_hand_set_swing(swing);
     gm_hand_set_equip(equip);
     gm_hand_set_hurt(v.hurt_time, v.max_hurt_time, v.hurt_yaw);
@@ -1193,6 +1240,7 @@ void gm_frame_capture_close(GmFrameCapture *c) {
         if(c->pend_color)cr_raster_cuda_unpin(c->pend_color);
     }
     if(c->use_cuda&&cr_raster_cuda_post)cr_raster_cuda_post();
+    cr_backend_close(c->backend);
     free(c->tris);
     for(int i=0;i<GM_FC_ENT_BUFS;++i)free(c->entity_verts[i]);
     free(c->chunks);free(c->gsrc);free(c->gcnt);free(c->pend_color);

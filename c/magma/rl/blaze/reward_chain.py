@@ -48,7 +48,8 @@ IX_LOG, IX_PLANK, IX_STICK, IX_COBBLE, IX_TABLE, IX_WPICK, IX_SPICK, \
     IX_COAL, IX_TORCH = range(9)
 # inv item ids for the 9 status columns (must match CU_INV_IDS in blaze_core.h)
 # log=17 plank=5 stick=280 cobble=4 table=58 wpick=270 spick=274 coal=263 torch=50
-# iron-chain columns (CU_STATUS_K 17): furnace=61 ironore=15 ingot=265 ipick=257
+# progression columns (CU_STATUS_K 23): furnace=61 ironore=15 ingot=265
+# ipick=257, then diamond=264 and diamond pick/shovel/axe/hoe/sword
 IX_FURN, IX_IRONORE, IX_INGOT, IX_IPICK = 13, 14, 15, 16
 
 
@@ -91,7 +92,7 @@ class ChainRewardSpec:
     coal_chew: float = 0.0
     hunt_desc: float = 0.0
     # iron chain milestones (default 0 = exact stone-chain behavior; enable
-    # via REWARD_JSON; needs CU_STATUS_K>=17 status cols 13..16)
+    # via REWARD_JSON; uses status cols 13..16)
     w_furnace_first: float = 0.0
     w_furnace_open: float = 0.0   # first container==2
     w_ironore_per: float = 0.0

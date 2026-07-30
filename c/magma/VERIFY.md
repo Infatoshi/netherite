@@ -3,7 +3,7 @@
 THE verification doc. PRODUCT.md is the product contract; OPEN_DIVERGENCES.md
 is the open-bug board; this file is how we know magma is right. Ground truth
 is ALWAYS the real Java 1.11.2 game (the oracle), never a self-captured golden
-(CPU==CUDA and self-goldens can share bugs).
+(CPU==CUDA/Metal and self-goldens can share bugs).
 
 ## Harsh make targets (from c/magma)
 
@@ -12,6 +12,10 @@ make verify-harsh           # structural + hard-scene + multi-scene
 make test-mesh test-model-oracle test-jar-models
 make hard-scene-verify      # seed-0 canopy vs mc_frame.png
 make rung4-verify multi-verify
+
+# Native Apple Silicon accelerator checks (self-consistency, not Java truth):
+make test-metal
+bash ../../netherite_macos_sweep.sh --quick
 ```
 
 Kernel unit tests alone miss wrong models fed into correct math; use the composed
@@ -79,6 +83,7 @@ pixel- and physics-clean, that slice of the game is done.
 | Gate | Command | Threshold / what to look for |
 |------|---------|------------------------------|
 | Unit goldens (models, mesh, light, raster parity) | `make verify-harsh && make test-game` | bit-exact vs decompiled-Java formulas; any FAIL is a regression, fix before anything else |
+| Metal raster, sky, and capture self-consistency | `make test-metal` on Apple Silicon | Raster color/depth is bit-exact across layers, odd sizes, batch boundaries, error paths, and repeated runs. Script/RL PPM/NPY capture, sparse ticks, and composition are gated. Sky is exact for daylight/underwater; measured device-sine night-star differences must stay inside the printed isolated-pixel budget |
 | Rasterizer vs GL | `make raster-verify` | fill-rule/subpixel noise floor only; rarely re-run (raster is stable) |
 | Pinned-pose pixel checkpoints | `bash raster/verify/trace/run_trace.sh checkpoints` | terrain mean/ch per scene vs `report/checkpoints.md` history; a scene that JUMPS is a regression, the standing worst scenes are the open leads |
 | Scripted trajectory + spawns | `bash raster/verify/trace/run_trace.sh trajectory\|spawns` | position curve should stay near 0; spawn counts are oracle ground truth for future entity parity |

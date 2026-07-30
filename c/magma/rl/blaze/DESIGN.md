@@ -96,6 +96,62 @@ Throughput check: camera dominates. 1M env-ticks/s at repeat 4 = 250k decisions/
 - The trainer allocates `torch.empty((N,36,64), dtype=torch.int16, device=dev)` etc. and passes `.data_ptr()`; the .so launches kernels writing into those pointers. Zero-copy, no dlpack needed.
 - Justification: nvcc flags must be **exactly** mc-sim's determinism flags (`--fmad=false`, no fast-math; mc-sim/Makefile:22, SPEC.md:46-47,139). cpp_extension injects its own flag set and torch-ABI coupling; a bare .so built by the existing Makefile pattern (magma already builds sm_120 objects with `NVFLAGS ?= -O2 --fmad=false -arch=sm_120`, magma/Makefile:8) keeps the CPU==CUDA guarantee auditable. Stream/sync: `blaze_step` uses its own stream + `cudaStreamSynchronize` before returning.
 
+## Apple Metal and MPS backend
+
+`blaze_metal.dylib` is a correctness-first hybrid, not an FP32 rewrite of the
+simulation. MSL has no binary64 type, so the existing `blaze_core.h` tick,
+masked reset, snapshot restore/capture, reward, and final observation scalar
+logic execute on the CPU with `-ffp-contract=off`. The pointer-free float32
+semantic camera executes on Metal with one thread per ray, runtime MSL
+compilation, safe/precise math options, and a command-buffer fence before CPU
+finalization. This preserves the public 13-double action ABI and the existing
+CPU/CUDA entry points while making the accelerated portion native Apple GPU
+work.
+
+The hot environment, camera, scratch, action, and observation pools used by the
+hybrid handle are persistent `MTLStorageModeShared` buffers. There are no Metal
+allocations in step or reset. Allocation sizes and `maxBufferLength` are checked
+before each request; the handle refuses the aggregate Metal-buffer request
+before exceeding its configured working-set budget and reports the required
+bytes, budget, and an approximate maximum N. The default budget is 45 percent
+of `recommendedMaxWorkingSetSize` and can be overridden with
+`BLAZE_METAL_MEMORY_LIMIT_MB`. Host snapshot archives (at most 128) and
+PyTorch-owned MPS tensors are outside that guard; backend info reports snapshot
+bytes separately and benchmarks report peak RSS.
+
+`VecBlaze(..., backend="metal", output_device="host")` exposes NumPy views of
+the shared buffers. `output_device="mps"` retains those host views and performs
+explicit, synchronized copies into persistent MPS tensors after each step;
+MPS actions are explicitly copied to host float64 because PyTorch MPS has no
+float64 tensor support. `transfer_stats` records action and observation bytes
+and wall time. CPU, CUDA, and Metal selection is explicit through `backend` or
+`BLAZE_BACKEND`; Linux keeps its CUDA default in the evaluator scripts.
+
+The measured local M4 full gate on 2026-07-30 was byte-exact against CPU for
+default, the committed 2,058-tick torch chain, and mixed full-action streams, masked
+reset, snapshot capture, camera/depth/edge, rewards/status/pose, N=1, 31, 32,
+33, 127, and 129 tail cases, and repeated SHA-256 runs. A real-T0 N=256,
+100-decision benchmark measured 86,983.7 env-decisions/s, 347,934.6
+env-ticks/s, and 200.4M semantic rays/s, with 2,495.2 MiB shared buffers,
+4.2 MiB host snapshot storage, and 2,430.2 MiB peak RSS. These are diagnostic
+local measurements, not claims against the RTX throughput pins above. The MPS
+smoke completed a real Adam update, actual minibatching, checkpoint reload,
+evaluation forward pass, and masked reset over N=32 using the real
+`s10_t0.bsnp` snapshot.
+
+The survival action protocol also exposes diamond pick, shovel, axe, hoe, and
+sword crafts as indices 8..12, and the status record is 23 columns with raw
+diamond plus those five tool counts in columns 17..22. `DIAMOND=1
+rl/chain_probe.py 2` is the deterministic reference executive: it gathers
+wood, coal, six iron ore, smelts two iron picks, mines three natural diamonds,
+upgrades to a diamond pick, mines the remaining eight diamonds, and crafts the
+full tool set. Its 23,306-tick seed-2 tape passed CPU/Metal replay with exact
+simulation state, block IDs, depth, pose, inventory, and final tool counts.
+Across 53.7 million edge-mask samples, three pixels on three frames landed on
+opposite sides of the 0.05 float32 border threshold; the long-run gate permits
+at most 32 total and two per frame, while the representative mc-sim camera
+matrix remains byte-exact.
+
 ## Part 3 — Fidelity contract
 
 ### Must match EXACTLY (bit-exact target)

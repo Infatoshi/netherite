@@ -71,6 +71,11 @@ static const RlCraft rl_crafts[] = {
     /* 5 torch   */ {2, {263, 0, 0, 280, 0, 0, 0, 0, 0}},
     /* 6 furnace */ {3, {4, 4, 4, 4, 0, 4, 4, 4, 4}},
     /* 7 i.pick  */ {3, {265, 265, 265, 0, 280, 0, 0, 280, 0}},
+    /* 8 d.pick  */ {3, {264, 264, 264, 0, 280, 0, 0, 280, 0}},
+    /* 9 d.shovel*/ {3, {264, 0, 0, 280, 0, 0, 280, 0, 0}},
+    /*10 d.axe   */ {3, {264, 264, 0, 264, 280, 0, 0, 280, 0}},
+    /*11 d.hoe   */ {3, {264, 264, 0, 0, 280, 0, 0, 280, 0}},
+    /*12 d.sword */ {3, {264, 0, 0, 264, 0, 0, 280, 0, 0}},
 };
 #define RL_NCRAFTS (int)(sizeof rl_crafts / sizeof rl_crafts[0])
 
@@ -731,13 +736,16 @@ static void rl_emit_obs(GmRuntime *r, int bin, int want_cam) {
                v.hotbar_sel, r->container);
         for (i = 0; i < 9; ++i)
             printf("%s%d", i ? "," : "", rl_inv_count(r, rl_inv_ids[i]));
-        /* full-inventory iron-chain counts (furnace, iron ore, ingot, iron
-         * pick) - JSON path only, the binary BOLR layout stays frozen. The
-         * hotbar overflows during the iron chain, so hotbar-only visibility
-         * cannot confirm pickups. Mirrors the qrl bridge's inv_iron. */
+        /* Full-inventory progression counts. JSON-only so the binary BOLR
+         * layout stays frozen. The hotbar overflows on the extended chains,
+         * so hotbar-only visibility cannot confirm pickups or crafted tools. */
         printf("],\"inv_iron\":[%d,%d,%d,%d",
                rl_inv_count(r, 61), rl_inv_count(r, 15),
                rl_inv_count(r, 265), rl_inv_count(r, 257));
+        printf("],\"inv_diamond\":[%d,%d,%d,%d,%d,%d",
+               rl_inv_count(r, 264), rl_inv_count(r, 278),
+               rl_inv_count(r, 277), rl_inv_count(r, 279),
+               rl_inv_count(r, 293), rl_inv_count(r, 276));
         printf("],\"blocks\":[");
         for (i = 0; i < RL_NBLOCKS; ++i) {
             if (i < nblk)
@@ -785,6 +793,7 @@ int gm_rl_run(const GmConfig *cfg) {
     size_t cap = 0;
     long long t;
     GmFrameCapture *frames = NULL;
+    int run_failed = 0;
 
     if (!gm_runtime_init(&r, cfg, err, sizeof err)) {
         fprintf(stderr, "runtime: %s\n", err);
@@ -864,6 +873,7 @@ int gm_rl_run(const GmConfig *cfg) {
             if (!gm_frame_capture_write(frames, &r, &a, render,
                                         err, sizeof err)) {
                 fprintf(stderr, "frames-out: %s\n", err);
+                run_failed = 1;
                 break;
             }
         }
@@ -882,5 +892,5 @@ int gm_rl_run(const GmConfig *cfg) {
     }
     free(line);
     gm_runtime_destroy(&r);
-    return 0;
+    return run_failed ? 1 : 0;
 }

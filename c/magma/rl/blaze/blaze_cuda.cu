@@ -1194,7 +1194,7 @@ int blaze_tick_raw(void *vh, int env, const double a[13], int want_cam,
                    void *out) {
     CuVecCu *v = (CuVecCu *)vh;
     CuRawAct ra;
-    if (!v || env < -1 || env >= v->n || !a) return -1;
+    if (!v || env < -1 || env >= v->n || !blaze_action_valid(a)) return -1;
     memcpy(ra.a, a, sizeof ra.a);
     cudaSetDevice(v->device);
     if (env == -1)

@@ -45,6 +45,7 @@
 #define BLAZE_CORE_H
 
 #include <math.h>
+#include <float.h>
 #include <limits.h>
 #include <string.h>
 
@@ -267,7 +268,9 @@ typedef struct {
 /* =================== region / window accessors =================== */
 
 MC_HD static inline long cu_region_idx(const Blaze *e, int wx, int wy, int wz) {
-    int ix = wx - e->rx0, iy = wy - e->ry0, iz = wz - e->rz0;
+    long ix = (long)wx - (long)e->rx0;
+    long iy = (long)wy - (long)e->ry0;
+    long iz = (long)wz - (long)e->rz0;
     if (ix < 0 || iy < 0 || iz < 0 || ix >= e->rnx || iy >= e->rny || iz >= e->rnz)
         return -1;
     return ((long)ix * e->rny + iy) * e->rnz + iz;
@@ -919,7 +922,13 @@ MC_HD static inline void cu_harvest_drop(int block_id, int block_meta, int tool_
     *item = 0; *count = 0; *meta = 0;
     if (!pb_can_harvest(tool_id, block_id)) return;
     switch (block_id) {
-        case 1:  *item = 4;  *count = 1; break;
+        case 1:
+            /* BlockStone.getItemDropped/damageDropped: plain stone becomes
+             * cobblestone; granite/diorite/andesite retain stone metadata. */
+            *item = block_meta >= 1 && block_meta <= 6 ? 1 : 4;
+            *count = 1;
+            *meta = *item == 1 ? block_meta : 0;
+            break;
         case 2:  *item = 3;  *count = 1; break;
         case 3:  *item = 3;  *count = 1; *meta = block_meta & 3; break;
         case 4:  *item = 4;  *count = 1; break;
@@ -1591,8 +1600,10 @@ MC_HD static inline void cu_furnace_tick(CuFurnace *f) {
 MC_HD static inline int blaze_do_craft(Blaze *env, int which,
                                        const CRRecipe *recipes, int nrecipes) {
     /* rl_crafts (rl_mode.c:65): 3x3 row-major cells, 2x2 uses 0,1,3,4 */
-    static const int cu_craft_w[8] = {2, 2, 2, 3, 3, 2, 3, 3};
-    static const int cu_craft_cell[8][9] = {
+    static const int cu_craft_w[13] = {
+        2, 2, 2, 3, 3, 2, 3, 3, 3, 3, 3, 3, 3
+    };
+    static const int cu_craft_cell[13][9] = {
         /* 0 planks  */ {17, 0, 0, 0, 0, 0, 0, 0, 0},
         /* 1 sticks  */ {5, 0, 0, 5, 0, 0, 0, 0, 0},
         /* 2 table   */ {5, 5, 0, 5, 5, 0, 0, 0, 0},
@@ -1601,6 +1612,11 @@ MC_HD static inline int blaze_do_craft(Blaze *env, int which,
         /* 5 torch   */ {263, 0, 0, 280, 0, 0, 0, 0, 0},
         /* 6 furnace */ {4, 4, 4, 4, 0, 4, 4, 4, 4},
         /* 7 i.pick  */ {265, 265, 265, 0, 280, 0, 0, 280, 0},
+        /* 8 d.pick  */ {264, 264, 264, 0, 280, 0, 0, 280, 0},
+        /* 9 d.shovel*/ {264, 0, 0, 280, 0, 0, 280, 0, 0},
+        /*10 d.axe   */ {264, 264, 0, 264, 280, 0, 0, 280, 0},
+        /*11 d.hoe   */ {264, 264, 0, 0, 280, 0, 0, 280, 0},
+        /*12 d.sword */ {264, 0, 0, 264, 0, 0, 280, 0, 0},
     };
     int slots[9], need_id[9], need_n[9], nids = 0, i, j, width, slot;
     CRStack grid[9], result;
@@ -1609,7 +1625,7 @@ MC_HD static inline int blaze_do_craft(Blaze *env, int which,
     ICStack output;
 
     CU_OP(env, CU_OP_CRAFT);
-    if (which < 0 || which >= 8) return 0;
+    if (which < 0 || which >= 13) return 0;
     width = cu_craft_w[which];
     for (i = 0; i < 9; ++i) slots[i] = -1;
     for (i = 0; i < 9; ++i) {
@@ -2018,32 +2034,36 @@ MC_HD static inline void blaze_coal_cache_sync(Blaze *env, int pwx, int pwy,
              * ascending ore-index accept sequence byte-for-byte - only the z
              * test (and the ri guard) remains per entry. Ores outside the
              * region cannot exist here (build rejects them -> ore_xy NULL). */
-            int ix0 = pwx - CU_OBS_R - env->rx0;
-            int ix1 = pwx + CU_OBS_R - env->rx0;
-            int iy0 = y0 - env->ry0, iy1 = y1 - env->ry0;
+            long ix0 = (long)pwx - CU_OBS_R - (long)env->rx0;
+            long ix1 = (long)pwx + CU_OBS_R - (long)env->rx0;
+            long iy0 = (long)y0 - (long)env->ry0;
+            long iy1 = (long)y1 - (long)env->ry0;
             int ix;
             if (ix0 < 0) ix0 = 0;
             if (ix1 > env->rnx - 1) ix1 = env->rnx - 1;
             if (iy0 < 0) iy0 = 0;
             if (iy1 > env->rny - 1) iy1 = env->rny - 1;
-            for (ix = ix0; ix <= ix1 && iy0 <= iy1 && m >= 0; ++ix) {
-                int b1 = env->ore_xy[ix * env->rny + iy1 + 1];
-                for (i = env->ore_xy[ix * env->rny + iy0]; i < b1; ++i) {
-                    int wx = env->ore[i * 3 + 0];
-                    int wy = env->ore[i * 3 + 1];
-                    int wz = env->ore[i * 3 + 2];
-                    long ri;
-                    if (wz < pwz - CU_OBS_R || wz > pwz + CU_OBS_R) continue;
-                    ri = cu_region_idx(env, wx, wy, wz);
-                    if (ri < 0) continue;
-                    if (m >= CU_COAL_CAND) { m = -1; break; }
-                    env->coal_cand[m].x = wx;
-                    env->coal_cand[m].y = wy;
-                    env->coal_cand[m].z = wz;
-                    env->coal_cand[m].ri =
-                        mc_state_id(env->cells[ri]) == BLK_COAL_ORE
-                            ? (int)ri : ((int)ri | CU_CAND_MINED);
-                    ++m;
+            if (ix0 <= ix1 && iy0 <= iy1) {
+                for (ix = (int)ix0; ix <= ix1 && m >= 0; ++ix) {
+                    int b1 = env->ore_xy[ix * env->rny + (int)iy1 + 1];
+                    for (i = env->ore_xy[ix * env->rny + (int)iy0]; i < b1; ++i) {
+                        int wx = env->ore[i * 3 + 0];
+                        int wy = env->ore[i * 3 + 1];
+                        int wz = env->ore[i * 3 + 2];
+                        long ri;
+                        if ((long)wz < (long)pwz - CU_OBS_R ||
+                            (long)wz > (long)pwz + CU_OBS_R) continue;
+                        ri = cu_region_idx(env, wx, wy, wz);
+                        if (ri < 0) continue;
+                        if (m >= CU_COAL_CAND) { m = -1; break; }
+                        env->coal_cand[m].x = wx;
+                        env->coal_cand[m].y = wy;
+                        env->coal_cand[m].z = wz;
+                        env->coal_cand[m].ri =
+                            mc_state_id(env->cells[ri]) == BLK_COAL_ORE
+                                ? (int)ri : ((int)ri | CU_CAND_MINED);
+                        ++m;
+                    }
                 }
             }
         } else {
@@ -2052,8 +2072,10 @@ MC_HD static inline void blaze_coal_cache_sync(Blaze *env, int pwx, int pwy,
                 int wy = env->ore[i * 3 + 1];
                 int wz = env->ore[i * 3 + 2];
                 long ri;
-                if (wx < pwx - CU_OBS_R || wx > pwx + CU_OBS_R) continue;
-                if (wz < pwz - CU_OBS_R || wz > pwz + CU_OBS_R) continue;
+                if ((long)wx < (long)pwx - CU_OBS_R ||
+                    (long)wx > (long)pwx + CU_OBS_R) continue;
+                if ((long)wz < (long)pwz - CU_OBS_R ||
+                    (long)wz > (long)pwz + CU_OBS_R) continue;
                 if (wy < y0 || wy > y1) continue;
                 ri = cu_region_idx(env, wx, wy, wz);
                 if (ri < 0) continue;     /* permanently non-coal: never cache */
@@ -2309,6 +2331,28 @@ MC_HD static inline int blaze_nearest_coal(const int coal[CU_NCOAL][3],
 /* Decision prologue: dec_* reset, done gate, pre-tick protocol primitives,
  * prev_dist init. Returns 0 when the env is done (idle until reset), 1 when
  * the sub-tick loop should run. */
+MC_HD static inline int blaze_action_valid(const double *a) {
+    int i;
+    if (!a) return 0;
+    for (i = 0; i < 13; ++i)
+        if (!isfinite(a[i])) return 0;
+    if (a[0] < -1.0 || a[0] > 1.0 || a[1] < -1.0 || a[1] > 1.0 ||
+        a[2] < -(double)FLT_MAX || a[2] > (double)FLT_MAX ||
+        a[3] < -(double)FLT_MAX || a[3] > (double)FLT_MAX)
+        return 0;
+    for (i = 4; i <= 8; ++i)
+        if (a[i] != 0.0 && a[i] != 1.0) return 0;
+    if (a[9] != -1.0 && (a[9] < 0.0 || a[9] > 8.0 ||
+                         a[9] != (double)(int)a[9]))
+        return 0;
+    if (a[10] != -1.0 && (a[10] < 0.0 || a[10] > 12.0 ||
+                           a[10] != (double)(int)a[10]))
+        return 0;
+    for (i = 11; i <= 12; ++i)
+        if (a[i] != 0.0 && a[i] != 1.0) return 0;
+    return 1;
+}
+
 MC_HD static inline int blaze_decision_begin(Blaze *e, const McSinTable *st,
                                              const double *a,
                                              const CRRecipe *recipes,
@@ -2404,8 +2448,10 @@ MC_HD static inline void blaze_subtick_post(Blaze *e, int rep, int repeat,
              * (DESIGN Part 4). */
             double wx = e->pl.ent.posX + (double)e->ox;
             double wz = e->pl.ent.posZ + (double)e->oz;
-            if (wx < e->rx0 + 2 || wx > e->rx0 + e->rnx - 2 ||
-                wz < e->rz0 + 2 || wz > e->rz0 + e->rnz - 2)
+            if (wx < (double)e->rx0 + 2.0 ||
+                wx > (double)e->rx0 + (double)e->rnx - 2.0 ||
+                wz < (double)e->rz0 + 2.0 ||
+                wz > (double)e->rz0 + (double)e->rnz - 2.0)
                 e->done = 2;
         }
 
@@ -2533,11 +2579,12 @@ MC_HD static inline void blaze_decision_finalize(Blaze *e, const McSinTable *st,
  * item id (0 when the slot is empty), the container state, the live dig
  * progress in permille (0 when not hitting a block), then the iron-chain
  * counts: furnace item (61), iron ore (15), iron ingot (265), iron pickaxe
- * (257). Everything a milestone-chain trainer needs that the float outputs
+ * (257), then diamond (264), diamond pickaxe/shovel/axe/hoe/sword
+ * (278/277/279/293/276). Everything a milestone-chain trainer needs that the float outputs
  * do not carry. Consumed by the blaze_step_full drivers; NOT part of the
  * sim-fidelity gate (pure readout of gated state; the gated BOLR
  * inv_counts stays the 9-id CU_INV_IDS layout). */
-#define CU_STATUS_K 17
+#define CU_STATUS_K 23
 MC_HD static inline void blaze_fill_status(const Blaze *e, int *out) {
     static const int inv_ids[9] = CU_INV_IDS;
     int i, sel = e->pl.inv.current_item;
@@ -2555,6 +2602,12 @@ MC_HD static inline void blaze_fill_status(const Blaze *e, int *out) {
     out[14] = blaze_inv_count(e, 15);
     out[15] = blaze_inv_count(e, 265);
     out[16] = blaze_inv_count(e, 257);
+    out[17] = blaze_inv_count(e, 264);
+    out[18] = blaze_inv_count(e, 278);
+    out[19] = blaze_inv_count(e, 277);
+    out[20] = blaze_inv_count(e, 279);
+    out[21] = blaze_inv_count(e, 293);
+    out[22] = blaze_inv_count(e, 276);
 }
 
 /* =================== live env -> snapshot capture ========================= */
@@ -2708,8 +2761,10 @@ MC_HD static inline void blaze_reset_bulk(Blaze *env, const u16 *cells_src,
         int lx = cell % MC_CX, lz = (cell / MC_CX) % MC_CZ;
         int y = cell / (MC_CX * MC_CZ);
         int dx = ci % PSV_DIM - PSV_R, dz = ci / PSV_DIM - PSV_R;
-        int wx = (env->ccx + dx) * 16 + lx, wz = (env->ccz + dz) * 16 + lz;
-        long ri = cu_region_idx(env, wx, y, wz);
+        long wx = ((long)env->ccx + dx) * 16 + lx;
+        long wz = ((long)env->ccz + dz) * 16 + lz;
+        long ri = wx < INT_MIN || wx > INT_MAX || wz < INT_MIN || wz > INT_MAX
+                    ? -1 : cu_region_idx(env, (int)wx, y, (int)wz);
         env->window[ci].blocks[cell] = ri < 0 ? 0 : cells_src[ri];
     } else {
         long pix = idx - env->rvol - (long)PSV_NCHUNKS * MC_CHUNK_VOL;
@@ -2733,7 +2788,7 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
 
     env->rx0 = h->rx0; env->ry0 = h->ry0; env->rz0 = h->rz0;
     env->rnx = h->rnx; env->rny = h->rny; env->rnz = h->rnz;
-    env->rvol = (long)h->rnx * h->rny * h->rnz;
+    env->rvol = ((long)h->rnx * h->rny) * h->rnz;
     env->ore = ore;
     env->nore = nore;
     env->ore_xy = ore_xy;

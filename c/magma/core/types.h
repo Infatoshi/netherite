@@ -73,6 +73,10 @@ typedef struct {
 typedef struct { CrScreenVert v[3]; } CrScreenTri;
 
 /* ---- framebuffer ---- */
+/* Checked product boundary: enough for 8K UHD (33,177,600 pixels) while
+ * preventing attacker-controlled CLI dimensions from overflowing allocation,
+ * clear, or backend byte counts. */
+#define CR_MAX_FRAMEBUFFER_PIXELS UINT64_C(33554432)
 typedef struct {
     int    w, h;
     CrRgba *color;   /* w*h, row-major, y=0 at top */
@@ -249,7 +253,11 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag);
 CR_HD CrRgba cr_atlas_sample(const CrTexture *tex, float u, float v); /* nearest */
 
 /* --- framebuffer helpers (raster owner provides) --- */
-void cr_fb_alloc(CrFramebuffer *fb, int w, int h);
+/* Allocate a fresh framebuffer. The incoming fields are ignored, so an owning
+ * framebuffer must be passed to cr_fb_free before reuse. Returns 1 on success.
+ * On failure the framebuffer is left empty and safe to pass to cr_fb_free;
+ * callers that ignore the return retain source compatibility. */
+int cr_fb_alloc(CrFramebuffer *fb, int w, int h);
 void cr_fb_free(CrFramebuffer *fb);
 void cr_fb_clear(CrFramebuffer *fb, CrRgba color); /* color + depth=1.0 */
 
