@@ -17,23 +17,23 @@
  "frames_checked": 181,
  "classes": {
   "hud": {
-   "frames": 51,
-   "px": 85638,
+   "frames": 42,
+   "px": 64395,
    "max_cluster": 13061
   },
   "viewmodel": {
-   "frames": 52,
-   "px": 108010,
+   "frames": 45,
+   "px": 101726,
    "max_cluster": 14924
   },
   "UNEXPLAINED": {
    "frames": 23,
-   "px": 13291,
-   "max_cluster": 1637
+   "px": 15090,
+   "max_cluster": 1804
   },
   "particles": {
    "frames": 38,
-   "px": 57230,
+   "px": 53943,
    "max_cluster": 6670
   },
   "known:4": {
@@ -53,7 +53,7 @@
   },
   "known:14": {
    "frames": 9,
-   "px": 92793,
+   "px": 92791,
    "max_cluster": 5439
   },
   "known:40": {
@@ -80,11 +80,11 @@
    "unexplained_px": 0,
    "clusters": [],
    "mild_shift": {
-    "mean_abs": 6.961775514891662,
-    "pct_differing": 47.157568333205724,
+    "mean_abs": 6.96213919301738,
+    "pct_differing": 47.15948242860424,
     "low_thresh": 1,
     "residual_px": 52244,
-    "low_differing_px": 24637
+    "low_differing_px": 24638
    }
   }
  ],

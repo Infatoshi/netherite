@@ -17,29 +17,24 @@
  "frames_checked": 51,
  "classes": {
   "hud": {
-   "frames": 51,
-   "px": 160303,
+   "frames": 5,
+   "px": 11448,
    "max_cluster": 5434
   },
   "viewmodel": {
-   "frames": 51,
-   "px": 143223,
+   "frames": 9,
+   "px": 21506,
    "max_cluster": 18622
   },
   "UNEXPLAINED": {
-   "frames": 51,
-   "px": 9722,
-   "max_cluster": 2253
+   "frames": 1,
+   "px": 72,
+   "max_cluster": 72
   },
   "particles": {
    "frames": 9,
    "px": 3190,
    "max_cluster": 234
-  },
-  "bossbar": {
-   "frames": 2,
-   "px": 204,
-   "max_cluster": 122
   }
  },
  "failed_frames": [],

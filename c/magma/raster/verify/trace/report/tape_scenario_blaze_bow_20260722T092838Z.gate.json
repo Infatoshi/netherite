@@ -18,23 +18,23 @@
  "classes": {
   "hud": {
    "frames": 62,
-   "px": 413655,
+   "px": 414588,
    "max_cluster": 3711
   },
   "UNEXPLAINED": {
-   "frames": 30,
-   "px": 3754,
+   "frames": 32,
+   "px": 3921,
    "max_cluster": 214
   },
   "particles": {
-   "frames": 52,
-   "px": 27602,
-   "max_cluster": 751
+   "frames": 50,
+   "px": 23147,
+   "max_cluster": 218
   },
   "viewmodel": {
-   "frames": 66,
-   "px": 27154,
-   "max_cluster": 2140
+   "frames": 50,
+   "px": 20574,
+   "max_cluster": 212
   }
  },
  "failed_frames": [],

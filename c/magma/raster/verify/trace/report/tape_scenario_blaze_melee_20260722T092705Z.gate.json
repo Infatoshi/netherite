@@ -18,12 +18,12 @@
  "classes": {
   "hud": {
    "frames": 18,
-   "px": 149730,
-   "max_cluster": 44305
+   "px": 151920,
+   "max_cluster": 48322
   },
   "viewmodel": {
-   "frames": 23,
-   "px": 205893,
+   "frames": 22,
+   "px": 205700,
    "max_cluster": 23683
   },
   "UNEXPLAINED": {
@@ -32,8 +32,8 @@
    "max_cluster": 2727
   },
   "particles": {
-   "frames": 17,
-   "px": 33852,
+   "frames": 14,
+   "px": 32640,
    "max_cluster": 13306
   },
   "bossbar": {

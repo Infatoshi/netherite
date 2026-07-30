@@ -17,155 +17,52 @@
  "frames_checked": 181,
  "classes": {
   "hud": {
-   "frames": 91,
-   "px": 137939,
+   "frames": 42,
+   "px": 64395,
    "max_cluster": 13061
   },
   "viewmodel": {
-   "frames": 87,
-   "px": 195829,
+   "frames": 45,
+   "px": 101726,
    "max_cluster": 14924
   },
   "UNEXPLAINED": {
-   "frames": 58,
-   "px": 91783,
-   "max_cluster": 3037
+   "frames": 23,
+   "px": 15090,
+   "max_cluster": 1804
   },
   "particles": {
-   "frames": 72,
-   "px": 134107,
-   "max_cluster": 6706
-  },
-  "bossbar": {
-   "frames": 26,
-   "px": 31688,
-   "max_cluster": 1589
+   "frames": 38,
+   "px": 53943,
+   "max_cluster": 6670
   },
   "known:4": {
-   "frames": 12,
-   "px": 47972,
-   "max_cluster": 5464
+   "frames": 10,
+   "px": 18888,
+   "max_cluster": 5618
   },
   "thinline": {
    "frames": 12,
-   "px": 8732,
+   "px": 8764,
    "max_cluster": 1590
+  },
+  "bossbar": {
+   "frames": 12,
+   "px": 11113,
+   "max_cluster": 1564
   },
   "known:14": {
    "frames": 9,
-   "px": 97255,
+   "px": 92791,
    "max_cluster": 5439
   },
   "known:40": {
    "frames": 1,
-   "px": 20917,
+   "px": 19181,
    "max_cluster": 3883
   }
  },
  "failed_frames": [
-  {
-   "tick": 700,
-   "unexplained_px": 865,
-   "clusters": [
-    {
-     "px": 125,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      76,
-      691,
-      105,
-      705
-     ]
-    },
-    {
-     "px": 172,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      79,
-      776,
-      106,
-      785
-     ]
-    },
-    {
-     "px": 77,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      100,
-      570,
-      121,
-      574
-     ]
-    },
-    {
-     "px": 66,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      138,
-      378,
-      171,
-      380
-     ]
-    },
-    {
-     "px": 57,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      144,
-      431,
-      157,
-      435
-     ]
-    },
-    {
-     "px": 56,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      147,
-      233,
-      155,
-      239
-     ]
-    },
-    {
-     "px": 121,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      154,
-      122,
-      163,
-      135
-     ]
-    },
-    {
-     "px": 106,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      156,
-      246,
-      183,
-      252
-     ]
-    },
-    {
-     "px": 85,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      163,
-      208,
-      171,
-      218
-     ]
-    }
-   ],
-   "mild_shift": {
-    "mean_abs": 68.90186188430164,
-    "pct_differing": 56.33289744068747,
-    "low_thresh": 1,
-    "residual_px": 10706,
-    "low_differing_px": 6031
-   }
-  },
   {
    "tick": 3080,
    "unexplained_px": 0,
@@ -183,15 +80,15 @@
    "unexplained_px": 0,
    "clusters": [],
    "mild_shift": {
-    "mean_abs": 6.961775514891662,
-    "pct_differing": 47.157568333205724,
+    "mean_abs": 6.96213919301738,
+    "pct_differing": 47.15948242860424,
     "low_thresh": 1,
     "residual_px": 52244,
-    "low_differing_px": 24637
+    "low_differing_px": 24638
    }
   }
  ],
- "mild_shift_failures": 3,
+ "mild_shift_failures": 2,
  "pass": false,
  "missing_models": {},
  "missing_model_row_threshold": 4,

@@ -1261,6 +1261,21 @@ the band also still differ. `sky.h` `GM_TERRAIN_ZFAR = RD*16*sqrt2` already
 matches `EntityRenderer.setupCameraTransform`. Do not widen R or fudge fog end
 to paper over this.
 
+### slime_bounce: horizon band CLOSED, shell contradiction isolated (2026-07-30)
+
+The horizon-band family is SOLVED: the camera sat 0.08F too high because
+magma skipped EntityPlayerSP's sneaking eye height (1.62 -> 1.54); fix merged
+65ea82a, and three delegates independently removed a second, duplicate
+application of the same offset in frame_capture. Re-recorded
+scenario_slime_bounce_20260730T095754Z: t=0 is clean (the fogColor1 recorder
+fix confirmed), and EVERY remaining failed frame has 0 unexplained px,
+failing only the global check. That residual is the slime-shell
+inset-vs-full-element contradiction documented below: honest geometry
+attempts render worse (fix_slimebounce findings); a fake double-shell was
+rejected. Old tape 20260723T001527Z is superseded and retired. The 2026-07-27
+fog-blend decomposition below remains for reference; its baseline numbers
+predate the eye-height fix.
+
 ### slime_bounce horizon band: fog-blend decomposition (wt/horizonfog, 2026-07-27)
 
 Measured on t=80 of `scenario_slime_bounce_20260723T001527Z` (flat world, pose
@@ -1601,6 +1616,49 @@ These are not established C product bugs, but they block direct parity claims:
 
 When one of these is encountered, improve the recorder/pin or classify the
 capture as blocked. Do not fit C output to an unproven Oracle state.
+
+### Recorder gaps proven 2026-07-30 (overnight flywheel)
+
+1. Explosion particle clouds are unreproducible from any tape:
+   `doExplosionB` particle spawns consume client `world.rand`, and the tape
+   records neither RNG state nor particle instances. A substitute-seed
+   reconstruction visibly differs and fails the gate (creeperpix delegate,
+   fix_creeperpix findings). Physics through explosions IS exact via the new
+   `expl` packet capture (MixinRecordExplosion, additive knockback + block
+   clears in replay). Next recorder step: whitelist particle-instance capture
+   in `ParticleManager.addEffect` for explosion classes; this also makes the
+   dragon-death white puffs deterministic. Affected today: tnt_explosion
+   (t=30 blast cloud, partly classed UNEXPLAINED because the particles
+   brightness heuristic misses cloud edges), creeper_encounter.
+2. Elytra flag-7 arming round-trip varies per recording. A 2-tick
+   `elytra_flying_pending` model makes scenario_nether_elytra_20260729T110024Z
+   physics-exact (351/351) but breaks scenario_elytra_dip_20260727T214459Z at
+   tick 59 (x |d|=0.069, exactly one missing elytra travel tick); the 1-tick
+   model does the reverse. The CPacketEntityAction -> metadata round trip on
+   the integrated server is not a constant, so replay must consume the
+   recorded flag-7 arrival tick instead of predicting it. Candidate C diff
+   preserved on branch wt/netherelytra; merge reverted in ce6aa39.
+3. Tape headers record no gamerule state. silverfish_encounter runs
+   `naturalRegeneration false`, replay simulates the vanilla default, and hp
+   diverges 0.4 at t49 (= 1.0 silverfish damage x Resistance III 40%
+   residual: the damage amount itself is exact), then food/exhaustion drifts
+   at t361. Suppressing only regeneration in an instrumented replay removes
+   both. Recorder fix: serialize gamerules at recstart; replay consumes them.
+   Affects any scenario relying on non-default gamerules for survival stats.
+4. falling_blocks records sky-only goldens deterministically (4 takes,
+   including phased tp-first staging and a 400-tick settle): selection
+   wireframe and hotbar render, so the client HAS block data, but chunk
+   meshes never build during this specific scenario while same-session
+   neighbors record fine. Needs live oracle debugging; all four takes retired
+   from the sweep.
+5. The nether_elytra world snapshot lacks transient lavafall cells
+   (x=-123, z=-86, y=32..46); a counterfactual fill reproduces the golden.
+   Needs dynamic-fluid snapshot capture; re-recording alone will not fix it.
+
+Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
+unexplained px (7 clusters, largest 1463) relative to its 2026-07-29
+baseline after the night's renderer merges; physics still 351/351. Baseline
+intentionally left old so the delta stays visible until attributed.
 
 ## Verification commands
 

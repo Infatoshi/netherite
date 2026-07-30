@@ -14,12 +14,11 @@
 
 | class | frames | px | max cluster |
 |---|---|---|---|
-| UNEXPLAINED | 165 | 937756 | 93850 |
+| UNEXPLAINED | 160 | 900225 | 93850 |
 | bossbar | 26 | 89146 | 8702 |
-| hud | 181 | 280461 | 17033 |
-| particles | 39 | 193813 | 13606 |
-| thinline | 2 | 298 | 196 |
-| viewmodel | 32 | 143234 | 24951 |
+| hud | 169 | 242408 | 17033 |
+| particles | 32 | 111396 | 7296 |
+| viewmodel | 20 | 115745 | 24951 |
 
 Failed frames (worst first, top 20):
 
@@ -30,19 +29,12 @@ Failed frames (worst first, top 20):
 - t=78: 107402 unexplained px, clusters [{'px': 40441, 'cls': 'UNEXPLAINED', 'bbox': [193, 445, 383, 721], 'soak_from': 'viewmodel'}, {'px': 7824, 'cls': 'UNEXPLAINED', 'bbox': [45, 313, 118, 450]}, {'px': 57165, 'cls': 'UNEXPLAINED', 'bbox': [136, 132, 383, 481], 'soak_from': 'particles'}, {'px': 137, 'cls': 'UNEXPLAINED', 'bbox': [160, 500, 171, 512]}]
 - t=88: 70136 unexplained px, clusters [{'px': 2236, 'cls': 'UNEXPLAINED', 'bbox': [45, 4, 96, 74], 'soak_from': 'particles'}, {'px': 48315, 'cls': 'UNEXPLAINED', 'bbox': [45, 225, 383, 521], 'soak_from': 'particles'}, {'px': 2201, 'cls': 'UNEXPLAINED', 'bbox': [45, 544, 84, 661], 'soak_from': 'particles'}, {'px': 612, 'cls': 'UNEXPLAINED', 'bbox': [73, 140, 105, 172]}]
 - t=90: 49852 unexplained px, clusters [{'px': 30159, 'cls': 'UNEXPLAINED', 'bbox': [45, 250, 291, 600], 'soak_from': 'particles'}, {'px': 442, 'cls': 'UNEXPLAINED', 'bbox': [45, 625, 58, 672], 'soak_from': 'particles'}, {'px': 611, 'cls': 'UNEXPLAINED', 'bbox': [49, 123, 81, 155]}, {'px': 2406, 'cls': 'UNEXPLAINED', 'bbox': [65, 602, 136, 673]}]
-- t=74: 12051 unexplained px, clusters [{'px': 12051, 'cls': 'UNEXPLAINED', 'bbox': [212, 358, 383, 444]}]
-- t=70: 9550 unexplained px, clusters [{'px': 9550, 'cls': 'UNEXPLAINED', 'bbox': [224, 358, 383, 444]}]
-- t=68: 7726 unexplained px, clusters [{'px': 7726, 'cls': 'UNEXPLAINED', 'bbox': [228, 369, 383, 444]}]
 - t=94: 6980 unexplained px, clusters [{'px': 226, 'cls': 'UNEXPLAINED', 'bbox': [45, 178, 56, 211]}, {'px': 734, 'cls': 'UNEXPLAINED', 'bbox': [45, 282, 69, 337]}, {'px': 1789, 'cls': 'UNEXPLAINED', 'bbox': [45, 615, 94, 680]}, {'px': 51, 'cls': 'UNEXPLAINED', 'bbox': [69, 497, 74, 506]}]
 - t=92: 5562 unexplained px, clusters [{'px': 251, 'cls': 'UNEXPLAINED', 'bbox': [45, 114, 59, 140]}, {'px': 585, 'cls': 'UNEXPLAINED', 'bbox': [49, 190, 81, 221]}, {'px': 1841, 'cls': 'UNEXPLAINED', 'bbox': [53, 610, 109, 672]}, {'px': 56, 'cls': 'UNEXPLAINED', 'bbox': [70, 462, 79, 471]}]
-- t=64: 5071 unexplained px, clusters [{'px': 5071, 'cls': 'UNEXPLAINED', 'bbox': [232, 373, 383, 444]}]
 - t=96: 4721 unexplained px, clusters [{'px': 114, 'cls': 'UNEXPLAINED', 'bbox': [45, 300, 50, 318]}, {'px': 1263, 'cls': 'UNEXPLAINED', 'bbox': [45, 624, 81, 686]}, {'px': 81, 'cls': 'UNEXPLAINED', 'bbox': [119, 746, 127, 754]}, {'px': 672, 'cls': 'UNEXPLAINED', 'bbox': [147, 759, 185, 790]}]
 - t=98: 3939 unexplained px, clusters [{'px': 768, 'cls': 'UNEXPLAINED', 'bbox': [45, 639, 68, 691]}, {'px': 128, 'cls': 'UNEXPLAINED', 'bbox': [89, 232, 104, 247]}, {'px': 81, 'cls': 'UNEXPLAINED', 'bbox': [103, 753, 111, 761]}, {'px': 50, 'cls': 'UNEXPLAINED', 'bbox': [105, 771, 114, 780]}]
 - t=76: 3838 unexplained px, clusters [{'px': 3345, 'cls': 'UNEXPLAINED', 'bbox': [47, 12, 124, 106]}, {'px': 76, 'cls': 'UNEXPLAINED', 'bbox': [169, 418, 178, 427]}, {'px': 325, 'cls': 'UNEXPLAINED', 'bbox': [171, 271, 196, 291]}, {'px': 92, 'cls': 'UNEXPLAINED', 'bbox': [314, 234, 320, 256]}]
 - t=100: 3663 unexplained px, clusters [{'px': 194, 'cls': 'UNEXPLAINED', 'bbox': [45, 654, 57, 695]}, {'px': 128, 'cls': 'UNEXPLAINED', 'bbox': [76, 229, 91, 244]}, {'px': 72, 'cls': 'UNEXPLAINED', 'bbox': [88, 759, 95, 767]}, {'px': 540, 'cls': 'UNEXPLAINED', 'bbox': [96, 742, 130, 767]}]
-- t=48: 0 unexplained px, clusters []
-- t=50: 0 unexplained px, clusters []
-- t=54: 0 unexplained px, clusters []
 
 | tick | whole mean/ch | %diff | terrain mean/ch |
 |---|---|---|---|
@@ -70,21 +62,21 @@ Failed frames (worst first, top 20):
 | 42 | 1.31 | 81.22% | 1.48 |
 | 44 | 1.49 | 81.33% | 1.60 |
 | 46 | 1.46 | 81.40% | 1.52 |
-| 48 | 5.30 | 81.65% | 7.59 |
-| 50 | 5.27 | 81.65% | 7.59 |
-| 52 | 1.33 | 81.28% | 1.53 |
-| 54 | 5.60 | 81.66% | 8.09 |
-| 56 | 5.53 | 81.66% | 7.99 |
-| 58 | 1.38 | 81.27% | 1.60 |
-| 60 | 5.49 | 81.71% | 7.91 |
-| 62 | 1.87 | 81.45% | 2.38 |
-| 64 | 2.17 | 81.55% | 2.86 |
-| 66 | 6.06 | 81.91% | 8.79 |
-| 68 | 2.71 | 81.79% | 3.69 |
-| 70 | 3.15 | 82.00% | 4.37 |
-| 72 | 7.45 | 82.38% | 10.91 |
-| 74 | 4.04 | 82.51% | 5.80 |
-| 76 | 5.70 | 77.57% | 7.84 |
+| 48 | 1.26 | 81.60% | 1.38 |
+| 50 | 1.25 | 81.65% | 1.38 |
+| 52 | 1.33 | 81.28% | 1.51 |
+| 54 | 1.24 | 81.66% | 1.38 |
+| 56 | 1.25 | 81.66% | 1.40 |
+| 58 | 1.33 | 81.24% | 1.53 |
+| 60 | 1.25 | 81.71% | 1.40 |
+| 62 | 1.34 | 81.34% | 1.54 |
+| 64 | 1.36 | 81.36% | 1.57 |
+| 66 | 1.27 | 81.91% | 1.43 |
+| 68 | 1.38 | 81.39% | 1.62 |
+| 70 | 1.42 | 81.44% | 1.68 |
+| 72 | 1.32 | 82.38% | 1.51 |
+| 74 | 1.48 | 81.73% | 1.77 |
+| 76 | 4.41 | 77.18% | 5.98 |
 | 78 | 36.19 | 84.25% | 47.85 |
 | 80 | 40.59 | 86.95% | 55.04 |
 | 82 | 38.67 | 87.75% | 52.42 |

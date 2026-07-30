@@ -18,7 +18,7 @@
  "classes": {
   "hud": {
    "frames": 292,
-   "px": 75131,
+   "px": 76815,
    "max_cluster": 1292
   },
   "UNEXPLAINED": {
@@ -32,9 +32,9 @@
    "max_cluster": 211
   },
   "viewmodel": {
-   "frames": 214,
-   "px": 28798,
-   "max_cluster": 334
+   "frames": 41,
+   "px": 4119,
+   "max_cluster": 191
   },
   "transit": {
    "frames": 20,

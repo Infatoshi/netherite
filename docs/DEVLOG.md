@@ -1046,3 +1046,58 @@ exposes the server clock (no XP orbs or gateway in the recorder whitelist), so
 the three affected frames are filed as divergence 40 in a per-tape
 `known_divergences.json`, with no code change: gate rc 0 on both dragon-kill
 tapes, original particles 26842 px and max unexplained cluster 3793.
+
+## 2026-07-30 (overnight flywheel: 12-scenario wave 2, 13 merges, 3 recorder gaps proven)
+
+Autonomous overnight run (GOAL.md): census -> scenario synthesis -> serial qrl
+recording -> parallel worktree fix delegates -> serial merge+gate on master.
+Codex delegates authored fixes in isolated worktrees; every merge, gate rerun,
+and divergence filing stayed with the shepherd. 42 of 48 surviving suite tapes
+replay rc 0 on the CPU backend this morning.
+
+Landed (each merged with delegate_gate ACCEPT: target tape + 6-pin regression
+set, both binaries rebuilt, test-game green):
+- Blocks: stone slabs (16 rows, half-box collision, side UV halves), connected
+  glass panes, straight stairs (facing/half, two-box collision), trapdoors
+  (3/16 poses by metadata), ladders (climb clamp, sneak hold, 0.2 kick, cutout
+  plane), cactus (1/16 inset box + neighbor brightness), stonebrick id-98
+  model bridge, rails + primed TNT + TNT block.
+- Entities: minecart variants, armor stands (NBT pose/equipment, mob atlas),
+  cave spider 0.7 scale, creeper fuse swell + white flash, silverfish replay
+  mirror, dropped-item ground transforms, boat riding (seat-offset mount,
+  passenger physics, paddle model, camera follow).
+- HUD/camera: potion HUD order + speed/slowness FOV, creative HUD suppression,
+  ItemLayerModel rim normal inversion, duplicate sneak eye-height removed
+  (found independently by three delegates), slime horizon closed via sneak eye
+  height 0.08F.
+- Recorder (new capability): SPacketExplosion capture ("expl" tick field) with
+  replay-side additive knockback + block clears; creeper/TNT physics now
+  bit-exact through explosions.
+
+Recorder gaps proven and filed (OPEN_DIVERGENCES, dated today):
+1. Explosion particle clouds consume client world.rand which no tape records;
+   substitute seeds visibly fail. Next step: whitelist particle-instance
+   capture in ParticleManager.addEffect (also fixes dragon-death white puffs).
+2. Elytra flag-7 arming round-trip varies per recording: 2-tick model makes
+   nether_elytra physics-exact (351/351) but breaks elytra_dip at t=59 and
+   vice versa. No constant satisfies both; needs recorded flag-7 metadata
+   arrival. Candidate diff preserved on wt/netherelytra; revert ce6aa39.
+3. Tape header records no gamerules: silverfish_encounter runs
+   naturalRegeneration false, replay regens, hp drifts 0.4 at t49 (damage
+   amount itself exact). Needs gamerule serialization at recstart.
+Also filed: falling_blocks records sky-only goldens (4 deterministic repros;
+client has block data, chunk meshes never build) - live oracle debugging
+needed; netherelytra world snapshot lacks transient lavafall cells.
+
+Suite hygiene: fresh gate baselines committed for all accepted tapes;
+superseded stale-prefix recordings and the four defective falling_blocks
+takes retired out of the sweep. One priced regression stands: nether_elytra
+t=63 gained 2409 unexplained px (7 small clusters) from tonight's renderer
+merges - filed, baseline left old so it stays visible.
+
+Final sweep (nightly_20260730T122129Z, CPU): 48 tapes, 42 rc 0; the six rc 3
+all replay physics-clean and pass their committed baselines (2 legacy
+full-course tapes improved, tnt + creeper priced at the filed particle gap,
+slime priced at the isolated shell contradiction) except nether_elytra, whose
+single-line "baseline regression" (t=63, 2409 px) is the one open item and is
+deliberately not absorbed. Suite RESULT: FAIL on that line alone.

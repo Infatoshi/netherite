@@ -17,13 +17,13 @@
  "frames_checked": 61,
  "classes": {
   "hud": {
-   "frames": 9,
-   "px": 15038,
+   "frames": 10,
+   "px": 15094,
    "max_cluster": 13196
   },
   "viewmodel": {
    "frames": 47,
-   "px": 14994,
+   "px": 15122,
    "max_cluster": 3507
   },
   "particles": {
