@@ -733,11 +733,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         set_error(err,err_cap,"cannot write frames-out image (deferred)");return 0;
     }
     GmPlayerView v=tick_v;
-    /* EntityPlayerSP.getEyeHeight lowers the first-person camera while
-     * sneaking. The simulation's eye height intentionally remains the
-     * standing interaction height, so apply the client-only 1.62 -> 1.54
-     * adjustment at camera construction. */
-    if(action&&action->sneak&&v.eye_height>1.0f)v.eye_height-=0.08f;
+    /* tick_v already carries EntityPlayer.getEyeHeight, including the
+     * sneaking 1.62F -> 1.54F adjustment from psv_player_eye_height. */
     CrCamera cam=camera_for(&v,c->fb.w,c->fb.h);float day=time_of_day(r);
     /* eye-in-fluid state (fog / FOV / overlay - game/underwater.h) */
     GmUnderwater uw;gm_uw_eval(r->world,r->dimension,&v,c->fog_c1,&uw);
