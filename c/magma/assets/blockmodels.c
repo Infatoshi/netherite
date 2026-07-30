@@ -567,13 +567,14 @@ static void atlas_init(void)
     g_atlas_init = 1;
 }
 
-static void atlas_set_tile(int sprite, const unsigned char *src)
+static void atlas_set_sprite(int sprite, const unsigned char *src)
 {
     CrAtlasSprite s = CR_ATLAS_SPRITES[sprite];
-    for (int row = 0; row < 16; ++row) {
+    int w = s.x1 - s.x0, h = s.y1 - s.y0;
+    for (int row = 0; row < h; ++row) {
         CrRgba *dst = g_atlas_live + (s.y0 + row) * CR_ATLAS_W + s.x0;
-        const unsigned char *p = src + row * 16 * 4;
-        for (int col = 0; col < 16; ++col) {
+        const unsigned char *p = src + row * w * 4;
+        for (int col = 0; col < w; ++col) {
             dst[col].r = p[col * 4 + 0];
             dst[col].g = p[col * 4 + 1];
             dst[col].b = p[col * 4 + 2];
@@ -621,7 +622,7 @@ void bm_atlas_set_animation_tick(long long client_tick)
     atlas_live_init();
     for (int i = 0; i < 6; ++i) {
         if (frames[i] == g_anim_frames[i]) continue;
-        atlas_set_tile(sprites[i], rgba[i]);
+        atlas_set_sprite(sprites[i], rgba[i]);
         g_anim_frames[i] = frames[i];
     }
 }
@@ -641,7 +642,7 @@ void bm_atlas_set_animation_physical_zero(void)
     atlas_live_init();
     for (int i = 0; i < 6; ++i) {
         if (g_anim_frames[i] == 0) continue;
-        atlas_set_tile(sprites[i], rgba[i]);
+        atlas_set_sprite(sprites[i], rgba[i]);
         g_anim_frames[i] = 0;
     }
 }
