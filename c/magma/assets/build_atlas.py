@@ -208,6 +208,8 @@ SPRITE_NAMES += [
 # BlockPane uses the glass texture for its faces and a separate two-pixel edge
 # texture for the post and connected-arm caps.
 SPRITE_NAMES += ["glass_pane_top"]
+# BlockLadder's two-sided cutout wall plane.
+SPRITE_NAMES += ["ladder"]
 SPECIAL_SPRITE_PATHS = {
     "end_portal": "assets/minecraft/textures/entity/end_portal.png",
 }

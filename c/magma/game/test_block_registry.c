@@ -87,6 +87,8 @@ static void test_collision_barrier(void) {
           "glass pane reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(67, 6)) == 254,
           "cobblestone stairs reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(65, 2)) == 255,
+          "ladder reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(112, 0)) == 228, "nether brick reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(165, 0)) == 229, "slime reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(30, 0)) == 230, "web reverse map");
@@ -157,6 +159,10 @@ static void test_collision_barrier(void) {
               "cobblestone stairs key supported");
         CHECK(gm_state_id(st) == 67 && gm_state_meta(st) == 6,
               "cobblestone stairs key -> id 67, meta kept");
+        CHECK(gm_model_key_to_state(255, 2, &st) == GM_MAP_EXACT,
+              "ladder key supported");
+        CHECK(gm_state_id(st) == 65 && gm_state_meta(st) == 2,
+              "ladder key -> id 65, meta kept");
     }
 }
 

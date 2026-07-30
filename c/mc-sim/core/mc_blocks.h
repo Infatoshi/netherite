@@ -17,7 +17,8 @@ enum {
     BLK_IRON_ORE = 15, BLK_COAL_ORE = 16, BLK_LOG = 17, BLK_LEAVES = 18, BLK_GLASS = 20,
     BLK_LAPIS_ORE = 21, BLK_SANDSTONE = 24, BLK_WEB = 30, BLK_STONE_SLAB = 44,
     BLK_OBSIDIAN = 49, BLK_TORCH = 50, BLK_OAK_STAIRS = 53,
-    BLK_DIAMOND_ORE = 56, BLK_STONE_STAIRS = 67, BLK_REDSTONE_ORE = 73,
+    BLK_DIAMOND_ORE = 56, BLK_LADDER = 65, BLK_STONE_STAIRS = 67,
+    BLK_REDSTONE_ORE = 73,
     BLK_SNOW_LAYER = 78, BLK_ICE = 79, BLK_CLAY = 82, BLK_FENCE = 85,
     BLK_NETHERRACK = 87, BLK_SOUL_SAND = 88, BLK_GLOWSTONE = 89,
     BLK_NETHER_BRICK_FENCE = 113, BLK_END_STONE = 121, BLK_WOODEN_SLAB = 126,
@@ -68,6 +69,7 @@ MC_HD static inline BlockProps mc_block_props(int id) {
         case BLK_WOODEN_SLAB:
         case BLK_RED_SANDSTONE_SLAB:
                                p = (BlockProps){ 2.0f, 0, 0, BF_SOLID }; break;
+        case BLK_LADDER:       p = (BlockProps){ 0.4f, 0, 0, BF_SOLID }; break;
         default: break;   /* subagents append cases here */
     }
     return p;

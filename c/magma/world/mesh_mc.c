@@ -265,7 +265,8 @@ static int mc_use_neighbor_brightness_at(const CrLight *L, int wx, int wy, int w
     if (m->kind == BM_KIND_SLAB_BOTTOM || m->kind == BM_KIND_SLAB_TOP ||
         m->kind == BM_KIND_STAIRS || m->kind == BM_KIND_IRON_BARS ||
         m->kind == BM_KIND_GLASS_PANE ||
-        m->kind == BM_KIND_TORCH || m->kind == BM_KIND_RAIL)
+        m->kind == BM_KIND_TORCH || m->kind == BM_KIND_RAIL ||
+        m->kind == BM_KIND_LADDER)
         return 1;
     if (mc_translucent_at(L, wx, wy, wz)) return 1;
     return 0;
@@ -914,6 +915,26 @@ static void emit_rail(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L,
     const float to[3]   = { 16.0f, 1.0f, 16.0f };
     const int faces[2] = { BM_DOWN, BM_UP };
     int quarter_turns = (light_meta(L, wx, wy, wz) & 15) == 1;
+    for (int i = 0; i < 2; ++i) {
+        CrVertex quad[4];
+        bake_face(wx, wy, wz, from, to, faces[i], 0, 3, 0.0f, NULL, 0,
+                  sprite, base01, 1.0f, tint, quad);
+        if (quarter_turns) rotate_quad_y(quad, wx, wz, quarter_turns);
+        push_face(out, cap, layer, quad);
+    }
+}
+
+/* ladder.json: default north-facing model is a two-sided plane at z=15.2.
+ * Blockstate rotations map legacy EnumFacing metadata 2/5/3/4 to
+ * north/east/south/west. Ambient occlusion and face shade are both disabled. */
+static void emit_ladder(CrChunkMeshMC *out, int *cap, int layer,
+                        const CrLight *L, int wx, int wy, int wz,
+                        int sprite, CrRgba tint, float base01) {
+    const float from[3] = { 0.0f, 0.0f, 15.2f };
+    const float to[3]   = { 16.0f, 16.0f, 15.2f };
+    const int faces[2] = { BM_NORTH, BM_SOUTH };
+    int meta = light_meta(L, wx, wy, wz) & 7;
+    int quarter_turns = meta == 5 ? 1 : meta == 3 ? 2 : meta == 4 ? 3 : 0;
     for (int i = 0; i < 2; ++i) {
         CrVertex quad[4];
         bake_face(wx, wy, wz, from, to, faces[i], 0, 3, 0.0f, NULL, 0,
@@ -1738,7 +1759,8 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
          m->kind == BM_KIND_STAIRS ||
          m->kind == BM_KIND_IRON_BARS ||
          m->kind == BM_KIND_GLASS_PANE ||
-         m->kind == BM_KIND_TORCH)
+         m->kind == BM_KIND_TORCH ||
+         m->kind == BM_KIND_LADDER)
         ? neighbor_model_light01(L, wx, wy, wz,
                                  m->kind == BM_KIND_TORCH ? 14 : 0, &tint)
         : cell_light01(L, wx, wy, wz, &tint);
@@ -1876,6 +1898,10 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
             break;
         case BM_KIND_RAIL:
             emit_rail(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);
+            break;
+        case BM_KIND_LADDER:
+            emit_ladder(out, cap, m->layer, L, wx, wy, wz,
+                        side_spr, tint, base01);
             break;
         case BM_KIND_SNOW_LAYER:
             emit_snow_layer(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);

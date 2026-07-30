@@ -210,6 +210,12 @@ MC_HD static inline int psv_is_stairs(int id) {
     return id == BLK_OAK_STAIRS || id == BLK_STONE_STAIRS;
 }
 
+MC_HD static inline int psv_is_on_ladder(const Chunk *chunks,
+                                          const McEntity *e) {
+    return psv_get_block(chunks, mc_floor(e->posX), mc_floor(e->box.minY),
+                        mc_floor(e->posZ)) == BLK_LADDER;
+}
+
 /* BlockStairs straight collision shape. Legacy metadata 0..3 is
  * east/west/south/north; bit 2 selects the upper half. */
 MC_HD static inline void psv_add_stairs_collision(int x, int y, int z, int meta,
@@ -266,6 +272,17 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
                     psv_add_stairs_collision(x, y, z,
                                              psv_get_meta(chunks, x, y, z),
                                              blocks, &n, maxblocks);
+                } else if (id == BLK_LADDER) {
+                    double x0 = 0.0, x1 = 1.0, z0 = 0.0, z1 = 1.0;
+                    switch (psv_get_meta(chunks, x, y, z)) {
+                        case 2: z0 = 0.8125; break; /* north */
+                        case 3: z1 = 0.1875; break; /* south */
+                        case 4: x0 = 0.8125; break; /* west */
+                        default: x1 = 0.1875; break; /* east */
+                    }
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + x0, y, z + z0,
+                                     x + x1, y + 1.0, z + z1));
                 } else if (id == BLK_SOUL_SAND) {
                     psv_add_collision_box(blocks, &n, maxblocks,
                         mc_aabb_make(x, y, z, x + 1.0, y + 0.875, z + 1.0));
@@ -735,6 +752,19 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
 
     ppw_move_flying(st, e, act->yaw, strafing, forward, accel);
 
+    /* EntityLivingBase.moveEntityWithHeading ladder branch. The block test
+     * uses floor(posX, box.minY, posZ), not an AABB overlap query. */
+    if (psv_is_on_ladder(now, e)) {
+        const double limit = 0.15000000596046448;
+        if (e->motionX < -limit) e->motionX = -limit;
+        if (e->motionX >  limit) e->motionX =  limit;
+        if (e->motionZ < -limit) e->motionZ = -limit;
+        if (e->motionZ >  limit) e->motionZ =  limit;
+        pl->fall_distance = 0.0f;
+        if (e->motionY < -0.15) e->motionY = -0.15;
+        if (act->sneak && e->motionY < 0.0) e->motionY = 0.0;
+    }
+
     /* Entity.move sneak edge clamp (1.11.2): while sneaking on the ground,
      * shave x/z toward 0 in 0.05 steps while the box offset by (x,-stepHeight,z)
      * would collide with NOTHING (i.e. the move would leave the ledge). Player
@@ -792,6 +822,9 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
     if (e->box.maxY + 0.6 > query.maxY) query.maxY = e->box.maxY + 0.6;
     int nblocks = psv_collect_blocks(now, &query, blocks, PSV_MAX_BLOCKS);
     mc_entity_move_step(e, mvx, mvy, mvz, blocks, nblocks, 0.6f);
+
+    if (e->collidedHorizontally && psv_is_on_ladder(now, e))
+        e->motionY = 0.2;
 
     /* Entity.move updateFallState -> BlockSlime.onFallenUpon/onLanded ->
      * onEntityWalk. Living players negate the exact attempted negative Y;

@@ -393,6 +393,63 @@ int main(void)
                     CHECK(blocks[1].maxZ == 24.5, "north stair raises north half");
             }
         }
+
+        /* BlockLadder collision is the facing-specific 3/16 wall panel.
+         * Travel while inside clamps horizontal speed, holds a sneaking fall,
+         * and converts a forward wall collision into the 0.2 climb kick. */
+        fill_mechanics_floor(win);
+        {
+            CHECK(mc_bpt_props(BLK_LADDER).light_opacity == 0,
+                  "BlockLadder has vanilla zero light opacity");
+            const double expected[4][4] = {
+                {24.0, 25.0, 24.8125, 25.0}, /* north, metadata 2 */
+                {24.0, 25.0, 24.0, 24.1875}, /* south, metadata 3 */
+                {24.8125, 25.0, 24.0, 25.0}, /* west, metadata 4 */
+                {24.0, 24.1875, 24.0, 25.0}  /* east, metadata 5 */
+            };
+            McAABB query = mc_aabb_make(24.0, 10.0, 24.0,
+                                        25.0, 11.0, 25.0);
+            for (int meta = 2; meta <= 5; ++meta) {
+                set_block_meta(win, 24, 10, 24, BLK_LADDER, meta);
+                int nladder = psv_collect_blocks(win, &query, blocks,
+                                                  PSV_MAX_BLOCKS);
+                CHECK(nladder == 1, "BlockLadder emits one panel AABB");
+                CHECK(blocks[0].minX == expected[meta - 2][0] &&
+                      blocks[0].maxX == expected[meta - 2][1] &&
+                      blocks[0].minZ == expected[meta - 2][2] &&
+                      blocks[0].maxZ == expected[meta - 2][3],
+                      "BlockLadder metadata rotates the 3/16 panel");
+            }
+
+            set_block_meta(win, 24, 3, 24, BLK_LADDER, 2);
+            PsvPlayer ladder;
+            spawn_at(&ladder, 24.5, 3.0, 24.2);
+            ladder.ent.motionZ = 0.3;
+            ladder.fall_distance = 4.0f;
+            psv_physics_tick(win, &st, &ladder, &idle, blocks);
+            CHECK(ladder.ent.posZ == 24.350000005960464,
+                  "ladder travel clamps horizontal displacement to 0.15");
+            CHECK(ladder.fall_distance == 0.0f,
+                  "ladder travel clears fall distance");
+
+            PsvPlayer wall_climb;
+            spawn_at(&wall_climb, 24.5, 3.0, 24.5);
+            wall_climb.ent.motionZ = 0.3;
+            psv_physics_tick(win, &st, &wall_climb, &idle, blocks);
+            CHECK(wall_climb.ent.posZ == 24.51249998807907,
+                  "ladder panel clamps the player center at its collision face");
+            CHECK(wall_climb.ent.motionY == 0.11760000228881837,
+                  "horizontal ladder collision applies the 0.2 climb kick");
+
+            PsvPlayer sneak_hold;
+            spawn_at(&sneak_hold, 24.5, 3.5, 24.5);
+            sneak_hold.ent.motionY = -0.1;
+            PsvAction ladder_sneak = idle;
+            ladder_sneak.sneak = 1;
+            psv_physics_tick(win, &st, &sneak_hold, &ladder_sneak, blocks);
+            CHECK(sneak_hold.ent.posY == 3.5,
+                  "sneaking on a ladder holds downward movement");
+        }
     }
 
     /* ---------------- (G) ELYTRA TRAVEL BITWISE FIXTURE ------------------ */
