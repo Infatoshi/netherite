@@ -553,8 +553,18 @@ static void hud_draw_potion_effects(CrFramebuffer *fb,
                                     const GmPlayerView *pv, int scale,
                                     int sw_s) {
     int good = 0, bad = 0;
+    int order[GM_MAX_POTION_EFFECTS];
     for (int n = 0; n < pv->potion_count; ++n) {
-        const GmPotionEffectView *p = &pv->potions[n];
+        int at = n;
+        while (at > 0 &&
+               pv->potions[order[at - 1]].duration < pv->potions[n].duration) {
+            order[at] = order[at - 1];
+            --at;
+        }
+        order[at] = n;
+    }
+    for (int n = 0; n < pv->potion_count; ++n) {
+        const GmPotionEffectView *p = &pv->potions[order[n]];
         int icon = potion_icon_index(p->id);
         if (icon < 0 || p->hide_particles) continue;
         int x = sw_s - 25 * (potion_beneficial(p->id) ? ++good : ++bad);
