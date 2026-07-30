@@ -78,6 +78,16 @@ No strict entity family is pixel-perfect yet:
   complete ROI remains open.
 - Dragon death uses the correct 48-bit `java.util.Random`; remaining gaps are
   body pose/UV/dissolve, fine ray orientation, and surrounding scene pixels.
+- The death burst (deathTicks 180-217) now reconstructs the full vanilla
+  timeline - every one of a `ParticleExplosionHuge`'s 8 batches (not just the
+  newest), and the ~17 ticks of cloud that outlive the entity - and the boss
+  fog now ends at `processDragonDeath` as vanilla does, which is what makes
+  the post-death cloud read white instead of fog grey. What stays open is
+  placement: the offsets come from `EntityDragon.rand` / `Particle.rand`,
+  neither recorded in a tape and both seeded from system time, so magma's
+  cloud matches the oracle's extent, brightness, and decay but not puff for
+  puff (~0.6 IoU on the bright mask). Exact match needs the recorder to log
+  `spawnParticle` calls.
 - Death dissolve is still per-box rather than vanilla per-texel.
 
 Repro:

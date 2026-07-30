@@ -100,6 +100,8 @@ struct GmFrameCapture {
     int boss_latch;         /* GuiBossOverlay: dragon bar latched (world-scoped;
                              * the nearest-8 tape ents lose a far dragon) */
     float boss_frac;        /* last seen health/200 */
+    int dragon_dying;       /* a dragon view with deathTicks>0 and hp<=0 */
+    int dragon_killed;      /* processDragonDeath: bar + createFog gone */
     float pend_uwb;         /* ... with this Entity.getBrightness tint */
     float pend_uwfov;       /* ... through this hand-projection fov */
     float pend_fovscale;    /* ... and this eye-in-fluid fov scale (fire overlay) */
@@ -838,12 +840,26 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * ender crystal (tape ghosts map EntityEnderCrystal -> type 31, live fill
      * uses GM_ENTITY_CRYSTAL=8). The nearest-8 window drops a far dragon for
      * most of this fight; crystals stay in the list and keep fog armed. */
-    if(r->dimension!=1)c->boss_latch=0;
+    /* ... and it goes away for good the moment the dragon dies:
+     * processDragonDeath does bossInfo.setVisible(false) at deathTicks 200
+     * (DragonFightManager.java:390-391), so the fog ramp snaps back to the
+     * normal one on the tick the entity is removed. That is a ~4x brightness
+     * step on everything 40 blocks out - most visibly the death cloud, which
+     * the oracle shows washed to fog grey while the dragon lives and near
+     * white afterwards. Keeping the latch armed left magma's cloud grey. */
+    if(r->dimension!=1){c->boss_latch=0;c->dragon_killed=0;c->dragon_dying=0;}
+    int dragon_seen=0;
     for(int i=0;i<n;++i)if(ents[i].type==GM_ENTITY_DRAGON){
-        if(!c->boss_latch){c->boss_latch=1;c->boss_frac=1.0f;}
+        dragon_seen=1;
+        if(ents[i].death_ticks>=200)c->dragon_killed=1;
+        if(ents[i].death_ticks>0&&ents[i].health<=0.0f)c->dragon_dying=1;
+        if(!c->boss_latch&&!c->dragon_killed){c->boss_latch=1;c->boss_frac=1.0f;}
         if(ents[i].health>=0.0f)c->boss_frac=ents[i].health/200.0f;break;
     }
-    if(!c->boss_latch){
+    /* A dying dragon that leaves the view list has reached deathTicks 200. */
+    if(!dragon_seen&&c->dragon_dying)c->dragon_killed=1;
+    if(c->dragon_killed){c->boss_latch=0;c->boss_frac=0.0f;}
+    else if(!c->boss_latch){
         for(int i=0;i<n;++i){
             /* 31 = ER_TYPE_CRYSTAL (tape/name map); 8 = GM_ENTITY_CRYSTAL. */
             if(ents[i].type==GM_ENTITY_CRYSTAL || ents[i].type==31){
@@ -911,6 +927,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         CrVertex **eb=&c->entity_verts[c->ent_set*4];
         gm_entity_geom_tick(c->frame);
         int nv=gm_entities_emit(ents,n,eb[0],c->max_entity_verts);
+        gm_particles_dragon_latch(r->tick,ents,n);
         nv+=gm_particles_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
         CrTexture ea=gm_entity_atlas();
         /* fog entities like terrain: underwater EXP fog so distant squid don't

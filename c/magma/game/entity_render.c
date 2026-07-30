@@ -2241,6 +2241,142 @@ static int er_emit_explosion_large(float px, float py, float pz,
                              cy, sy, cp, sp, out, max);
 }
 
+/* EntityDragon death burst, reconstructed from deathTicks alone.
+ *
+ * Java timeline (server spawn -> client ParticleManager):
+ *   - onUpdate, health<=0: ONE EXPLOSION_LARGE per tick at pos + (rand-0.5)*
+ *     {8,4,8}, y+2, speed 0 -> ParticleExplosionLarge size = 1.0.
+ *   - onDeathUpdate, deathTicks in [180,200]: ONE EXPLOSION_HUGE per tick at
+ *     the same randomized offset. ParticleExplosionHuge draws nothing itself:
+ *     on EACH of its 8 onUpdate ticks it spawns SIX EXPLOSION_LARGE at
+ *     (rand-rand)*4 around its origin with speed = timeSinceStart/8, which
+ *     ParticleExplosionLarge turns into size = 1 - progress*0.5.
+ *   - every child lives 6 + nextInt(4) ticks and walks explosion.png frames.
+ *
+ * So one HUGE contributes 8 batches x 6 puffs, not one batch: at deathTicks
+ * 190 roughly 8 live HUGEs x 6 x ~7.5 surviving ticks = ~360 live puffs. The
+ * previous recon emitted only the newest batch per HUGE (~48) and drew a cloud
+ * about 7x too thin. Emitting every batch is what makes the dense core.
+ *
+ * The particles also OUTLIVE the entity: the dragon is removed at deathTicks
+ * 200, the last HUGE keeps spawning children through deathTicks 208 and those
+ * live to ~217, which is the bright cloud the oracle shows for ~15 ticks after
+ * the dragon is gone. gm_particles_dragon_latch() keeps that window alive. */
+static int er_dragon_death_particles(float ex, float ey, float ez, int ent_id,
+                                     int dt, float cy, float sy, float cp,
+                                     float sp, CrVertex *out, int max) {
+    if (max < 6 || dt <= 0) return 0;
+    int written = 0;
+    const int max_life = 9;      /* lifeTime = 6 + nextInt(4) */
+    const int huge_time = 8;     /* ParticleExplosionHuge.maximumTime */
+    /* (1) one LARGE per dead tick, while the entity still exists (<=200). */
+    int t0 = dt - max_life + 1;
+    if (t0 < 1) t0 = 1;
+    int t1 = dt > 200 ? 200 : dt;
+    for (int st = t0; st <= t1; ++st) {
+        int age = dt - st;
+        unsigned seed = (unsigned)ent_id * 2654435761u
+                      + (unsigned)st * 2246822519u + 0x4c415247u;
+        int life = 6 + er_seed_i(&seed, 4);
+        if (age >= life) continue;
+        float r0 = er_seed_f(&seed), r1 = er_seed_f(&seed),
+              r2 = er_seed_f(&seed);
+        float ox = (r0 - 0.5f) * 8.0f;
+        float oy = 2.0f + (r1 - 0.5f) * 4.0f;
+        float oz = (r2 - 0.5f) * 8.0f;
+        float gray = er_seed_f(&seed) * 0.6f + 0.4f;
+        if (written + 6 > max) return written;
+        written += er_emit_explosion_large(
+            ex + ox, ey + oy, ez + oz, age, life, 0.0f, gray,
+            cy, sy, cp, sp, out + written, max - written);
+    }
+    if (dt < 181) return written;
+    /* (2) every HUGE still inside the child window, every batch it spawned. */
+    int hs0 = dt - (huge_time - 1 + max_life);
+    if (hs0 < 180) hs0 = 180;
+    int hs1 = dt > 200 ? 200 : dt;
+    for (int hs = hs0; hs <= hs1; ++hs) {
+        unsigned hseed = (unsigned)ent_id * 1597334677u
+                       + (unsigned)hs * 3812015801u + 0x48554745u;
+        /* HUGE origin: the dragon's own onDeathUpdate offset. */
+        float hx = (er_seed_f(&hseed) - 0.5f) * 8.0f;
+        float hy = 2.0f + (er_seed_f(&hseed) - 0.5f) * 4.0f;
+        float hz = (er_seed_f(&hseed) - 0.5f) * 8.0f;
+        for (int k = 0; k < huge_time; ++k) {
+            /* Minecraft.runTick updates entities (line 1881) before the
+             * ParticleManager (line 1934), so the HUGE spawned by the dragon
+             * on tick hs already runs its first onUpdate that same tick: the
+             * k-th batch lands on tick hs+k with timeSinceStart = k, and its
+             * children keep size 1 - (k/8)*0.5 for their whole life. Children
+             * queued during updateEffects only start ageing the next tick. */
+            int u = hs + k;
+            if (u > dt) break;
+            int age = dt - u;
+            if (age >= max_life) continue;
+            float progress = (float)k / (float)huge_time;
+            for (int c = 0; c < 6; ++c) {
+                unsigned lseed = hseed ^ ((unsigned)u * 2654435761u);
+                lseed += (unsigned)c * 747796405u + 0x9e3779b9u;
+                float d0 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
+                float d1 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
+                float d2 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
+                int life = 6 + er_seed_i(&lseed, 4);
+                if (age >= life) continue;
+                float gray = er_seed_f(&lseed) * 0.6f + 0.4f;
+                if (written + 6 > max) return written;
+                written += er_emit_explosion_large(
+                    ex + hx + d0, ey + hy + d1, ez + hz + d2,
+                    age, life, progress, gray,
+                    cy, sy, cp, sp, out + written, max - written);
+            }
+        }
+    }
+    return written;
+}
+
+/* Last dying dragon seen by the renderer, so its burst survives the entity.
+ * Vanilla removes EntityDragon at deathTicks 200 but the ParticleManager keeps
+ * ticking the cloud; a purely entity-derived recon pops it off instead. */
+static struct {
+    int active, present, ent_id, dt;
+    long long tick;
+    float x, y, z;
+} er_dragon_death;
+
+/* Called once per simulated tick with that tick's entity list, BEFORE
+ * gm_particles_emit. Arms on a dying dragon and keeps counting deathTicks
+ * after the entity disappears until every child LARGE spawned by the last
+ * HUGE (deathTicks 200 -> children through 208 -> life <=9) has expired.
+ * Idempotent within a tick, so extra rendered frames cannot advance it. */
+void gm_particles_dragon_latch(long long tick, const GmEntityView *ents, int n) {
+    const int last_dt = 200 + 8 + 9;
+    for (int i = 0; i < n; ++i) {
+        if (ents[i].type != 9 /* dragon */) continue;
+        if (ents[i].death_ticks <= 0 || ents[i].health > 0.0f) continue;
+        er_dragon_death.active = 1;
+        er_dragon_death.ent_id = ents[i].ent_id;
+        er_dragon_death.dt = ents[i].death_ticks;
+        er_dragon_death.tick = tick;
+        er_dragon_death.x = ents[i].x;
+        er_dragon_death.y = ents[i].y;
+        er_dragon_death.z = ents[i].z;
+        er_dragon_death.present = 1;
+        return;
+    }
+    if (!er_dragon_death.active) return;
+    er_dragon_death.present = 0;
+    long long d = tick - er_dragon_death.tick;
+    /* Same tick re-render, a rewind, or a gap long enough that the cloud is
+     * certainly gone: no advance / disarm. */
+    if (d == 0) return;
+    if (d < 0 || d > 64) { er_dragon_death.active = 0; return; }
+    er_dragon_death.dt += (int)d;
+    er_dragon_death.tick = tick;
+    /* The dragon keeps drifting up 0.1/tick through onDeathUpdate; it is
+     * removed at 200, so the cloud origin simply stays where it was. */
+    if (er_dragon_death.dt > last_dt) er_dragon_death.active = 0;
+}
+
 /* Deterministic particle billboards from entity state.
  * Portal: particles.png. EXPLOSION_LARGE/HUGE: explosion.png (FXLayer 3).
  * EntityDragon: LARGE every dead tick (onUpdate health<=0); HUGE in [180,200]
@@ -2299,77 +2435,10 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
          * a multi-tick ParticleManager recon that Java never built. */
         if (ents[e].type == 9 /* dragon */ && ents[e].death_ticks > 0
             && ents[e].health <= 0.0f) {
-            int dt = ents[e].death_ticks;
-            /* Look back up to max lifeTime=9 so every still-alive LARGE remains. */
-            const int max_life = 9;
-            int t0 = dt - max_life + 1;
-            if (t0 < 1) t0 = 1;
-            for (int st = t0; st <= dt; ++st) {
-                int age = dt - st;
-                unsigned seed = (unsigned)ents[e].ent_id * 2654435761u
-                              + (unsigned)st * 2246822519u + 0x4c415247u;
-                /* lifeTime = 6 + nextInt(4)  -> 6..9 */
-                int life = 6 + er_seed_i(&seed, 4);
-                if (age >= life) continue;
-                /* EntityDragon onUpdate: offset (rand-0.5)*{8,4,8}, y+2; progress=0. */
-                float r0 = er_seed_f(&seed), r1 = er_seed_f(&seed),
-                      r2 = er_seed_f(&seed);
-                float ox = (r0 - 0.5f) * 8.0f;
-                float oy = 2.0f + (r1 - 0.5f) * 4.0f;
-                float oz = (r2 - 0.5f) * 8.0f;
-                float gray = er_seed_f(&seed) * 0.6f + 0.4f;
-                if (written + 6 > max) return written;
-                written += er_emit_explosion_large(
-                    ents[e].x + ox, ents[e].y + oy, ents[e].z + oz,
-                    age, life, 0.0f, gray, cy, sy, cp, sp,
-                    out + written, max - written);
-            }
-            /* onDeathUpdate: EXPLOSION_HUGE each tick in [180,200].
-             * ParticleExplosionHuge: 6 LARGE/tick for maximumTime=8.
-             * Spawn progress (size) is fixed at construct = timeSinceStart/8;
-             * child age (frame index) advances separately after spawn.
-             * Children keep fixed offsets from the HUGE origin (no motion). */
-            if (dt >= 180) {
-                int first_huge = dt - 7;
-                if (first_huge < 180) first_huge = 180;
-                int last_huge = dt > 200 ? 200 : dt;
-                for (int ht = first_huge; ht <= last_huge; ++ht) {
-                    /* huge_age ≈ HUGE timeSinceStart for this recon window. */
-                    int huge_age = dt - ht;
-                    if (huge_age < 0 || huge_age >= 8) continue;
-                    unsigned hseed = (unsigned)ents[e].ent_id * 1597334677u
-                                   + (unsigned)ht * 3812015801u + 0x48554745u;
-                    /* HUGE origin itself is also offset (dragon onDeathUpdate). */
-                    float hx = (er_seed_f(&hseed) - 0.5f) * 8.0f;
-                    float hy = 2.0f + (er_seed_f(&hseed) - 0.5f) * 4.0f;
-                    float hz = (er_seed_f(&hseed) - 0.5f) * 8.0f;
-                    for (int k = 0; k < 6; ++k) {
-                        /* Spawn progress (size): fixed at LARGE construct from
-                         * HUGE timeSinceStart/maximumTime — does not advance
-                         * with child age. Recon approximates one batch per
-                         * surviving HUGE tick using current timeSinceStart. */
-                        float progress = (float)huge_age / 8.0f;
-                        unsigned lseed = hseed + (unsigned)k * 747796405u;
-                        /* (rand-rand)*4 offsets from HUGE pos. */
-                        float d0 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
-                        float d1 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
-                        float d2 = (er_seed_f(&lseed) - er_seed_f(&lseed)) * 4.0f;
-                        int life = 6 + er_seed_i(&lseed, 4);
-                        /* Child age (frame): ticks since that spawn batch.
-                         * Live ParticleManager would keep every prior batch
-                         * with age = now-spawn; we only emit the latest batch
-                         * per HUGE tick and set lage ≈ huge_age (approx). */
-                        int lage = huge_age;
-                        if (lage >= life) continue;
-                        float gray = er_seed_f(&lseed) * 0.6f + 0.4f;
-                        if (written + 6 > max) return written;
-                        written += er_emit_explosion_large(
-                            ents[e].x + hx + d0, ents[e].y + hy + d1,
-                            ents[e].z + hz + d2, lage, life, progress, gray,
-                            cy, sy, cp, sp, out + written, max - written);
-                    }
-                }
-            }
+            written += er_dragon_death_particles(
+                ents[e].x, ents[e].y, ents[e].z, ents[e].ent_id,
+                ents[e].death_ticks, cy, sy, cp, sp,
+                out + written, max - written);
             continue;
         }
 
@@ -2393,6 +2462,13 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
             continue;
         }
     }
+    /* The dragon is gone but its cloud is not: keep drawing the latched burst
+     * (see gm_particles_dragon_latch) until the last child LARGE expires. */
+    if (er_dragon_death.active && !er_dragon_death.present)
+        written += er_dragon_death_particles(
+            er_dragon_death.x, er_dragon_death.y, er_dragon_death.z,
+            er_dragon_death.ent_id, er_dragon_death.dt, cy, sy, cp, sp,
+            out + written, max - written);
     return written;
 }
 
