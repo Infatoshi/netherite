@@ -204,6 +204,19 @@ static void test_geometry(void) {
               "creeper flash interpolates the lit texture strongly toward white");
     }
 
+    /* RenderCaveSpider reuses ModelSpider and applies a uniform 0.7 scale. */
+    GmEntityView spider = { 5, 0.0f, 64.0f, 0.0f, 0.0f, 16.0f };
+    int nsp = gm_entities_emit(&spider, 1, out, MAXV);
+    bounds(out, nsp, mn, mx);
+    float spider_ext[3] = { mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2] };
+    spider.skin = CR_MOB_CAVE_SPIDER + 1;
+    int ncsp = gm_entities_emit(&spider, 1, out, MAXV);
+    bounds(out, ncsp, mn, mx);
+    CHECK(approx(mx[0] - mn[0], spider_ext[0] * 0.7f, E) &&
+          approx(mx[1] - mn[1], spider_ext[1] * 0.7f, E) &&
+          approx(mx[2] - mn[2], spider_ext[2] * 0.7f, E),
+          "cave spider model is uniformly 0.7 scale");
+
     GmEntityView stand = {0};
     stand.type = 34;
     stand.health = 20.0f;

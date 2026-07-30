@@ -18,18 +18,18 @@
  "classes": {
   "UNEXPLAINED": {
    "frames": 43,
-   "px": 641506,
+   "px": 642450,
    "max_cluster": 143603
   },
   "hud": {
-   "frames": 138,
-   "px": 1247269,
-   "max_cluster": 18368
+   "frames": 1,
+   "px": 20462,
+   "max_cluster": 14675
   },
   "viewmodel": {
-   "frames": 138,
-   "px": 157427,
-   "max_cluster": 9432
+   "frames": 5,
+   "px": 12489,
+   "max_cluster": 9440
   },
   "particles": {
    "frames": 41,
@@ -45,10 +45,10 @@
  "failed_frames": [
   {
    "tick": 30,
-   "unexplained_px": 295402,
+   "unexplained_px": 295901,
    "clusters": [
     {
-     "px": 65367,
+     "px": 65866,
      "cls": "UNEXPLAINED",
      "bbox": [
       384,
@@ -190,27 +190,16 @@
   },
   {
    "tick": 32,
-   "unexplained_px": 295304,
+   "unexplained_px": 295749,
    "clusters": [
     {
-     "px": 65315,
+     "px": 65868,
      "cls": "UNEXPLAINED",
      "bbox": [
       384,
       0,
       479,
       853
-     ],
-     "soak_from": "hud"
-    },
-    {
-     "px": 108,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      424,
-      508,
-      429,
-      525
      ],
      "soak_from": "hud"
     },
