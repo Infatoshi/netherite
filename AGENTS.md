@@ -41,7 +41,7 @@ Product name: **netherite**. Trees:
 | Ship criteria / gate status | `docs/GATES.md` |
 | Is X in the game? cut / pinned / open / unrecoverable | `docs/SCOPE.md` |
 | Fidelity procedure | `c/magma/VERIFY.md` |
-| Product contract / open bugs | `c/magma/PRODUCT.md`, `OPEN_DIVERGENCES.md` |
+| Product contract / open bugs | `c/magma/PRODUCT.md`, `OPEN_DIVERGENCES.md` (closed forensics: `CLOSED_DIVERGENCES.md`) |
 | Architecture for a tree | that tree's `SPEC.md` |
 | History / lessons | `docs/DEVLOG.md` |
 | Old reports | `docs/archive/` (ignore by default) |

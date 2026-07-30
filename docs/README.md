@@ -11,7 +11,7 @@ How-tos, product gates, and history. **Agents start at root `AGENTS.md`**, not h
    - `GATES.md` - what "shipped" means (four product gates)
    - `c/magma/VERIFY.md` - how we prove fidelity against real MC
    - `c/magma/PRODUCT.md` - game product contract
-   - `c/magma/OPEN_DIVERGENCES.md` - open bugs with repros
+   - `c/magma/OPEN_DIVERGENCES.md` - open bugs with repros (closed forensics: `CLOSED_DIVERGENCES.md`)
    - `c/*/SPEC.md` - architecture for that tree
 5. `DEVLOG.md` - compressed history and hard lessons (optional)
 6. `archive/` - old reports and pre-mainline experiments. **Ignore unless archaeology.**
