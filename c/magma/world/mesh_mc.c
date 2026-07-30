@@ -1197,17 +1197,12 @@ static void emit_cross(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L
         const float *from = (q < 2) ? aFrom : bFrom;
         const float *to   = (q < 2) ? aTo   : bTo;
         CrVertex quad[4];
-        /* web.json needs cross.json's explicit full [0,0,16,16] UV. Keep the
-         * established plant path stable; its recorded scenes are calibrated
-         * to the older auto-UV bake. */
-        if (cb == CR_CB_WEB)
-            bake_face_custom(wx, wy, wz, from, to, planeFace[q], full_uv, 0,
-                             1, 1, 45.0f, origin, 1,
-                             sprite, base01, 1.0f, tint, quad);
-        else
-            bake_face(wx, wy, wz, from, to, planeFace[q],
-                      1, 1, 45.0f, origin, 1,
-                      sprite, base01, 1.0f, tint, quad);
+        /* cross.json gives every plant/web face the full [0,0,16,16] UV.
+         * FaceBakery's automatic UV would instead inherit the inset model
+         * bounds (0.8..15.2), selecting the wrong texels across the plane. */
+        bake_face_custom(wx, wy, wz, from, to, planeFace[q], full_uv, 0,
+                         1, 1, 45.0f, origin, 1,
+                         sprite, base01, 1.0f, tint, quad);
         for (int i = 0; i < 4; ++i) {
             quad[i].pos.x += offx;
             quad[i].pos.y += offy;

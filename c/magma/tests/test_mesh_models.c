@@ -337,11 +337,12 @@ int main(void) {
         GList g = {0}; const float o[3]={0.5f,0.5f,0.5f};
         const float aF[3]={0.8f,0,8}, aT[3]={15.2f,16,8};
         const float bF[3]={8,0,0.8f}, bT[3]={8,16,15.2f};
+        const float uv[4]={0,0,16,16};
         int spr = CR_SPRITE_TALLGRASS;
-        golden_face(&g, xc,TY,zc, aF,aT, BM_NORTH, 1,1,45.0f,o,1, spr);
-        golden_face(&g, xc,TY,zc, aF,aT, BM_SOUTH, 1,1,45.0f,o,1, spr);
-        golden_face(&g, xc,TY,zc, bF,bT, BM_WEST,  1,1,45.0f,o,1, spr);
-        golden_face(&g, xc,TY,zc, bF,bT, BM_EAST,  1,1,45.0f,o,1, spr);
+        golden_face_custom(&g, xc,TY,zc, aF,aT, BM_NORTH, uv, 1,1,45.0f,o,1, spr);
+        golden_face_custom(&g, xc,TY,zc, aF,aT, BM_SOUTH, uv, 1,1,45.0f,o,1, spr);
+        golden_face_custom(&g, xc,TY,zc, bF,bT, BM_WEST,  uv, 1,1,45.0f,o,1, spr);
+        golden_face_custom(&g, xc,TY,zc, bF,bT, BM_EAST,  uv, 1,1,45.0f,o,1, spr);
         uint64_t r = worldmc_test_position_random(xc, 0, zc);
         float ox = (((float)((r >> 16) & 15u) / 15.0f) - 0.5f) * 0.5f;
         float oy = (((float)((r >> 20) & 15u) / 15.0f) - 1.0f) * 0.2f;
