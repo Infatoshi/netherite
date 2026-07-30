@@ -46,8 +46,11 @@ for e in "$ROOT"/c/magma/assets/*.h; do
     [ -e "$e" ] || continue
     t="$WT/c/magma/assets/$(basename "$e")"
     [ -e "$t" ] && continue
-    cp -p "$e" "$t"; a=$((a+1))
+    cp "$e" "$t"; a=$((a+1))
 done
+# Fresh mtimes: a header older than a recently edited assets/build_*.py makes
+# make regenerate it, which fails without a jar in the worktree.
+touch "$WT"/c/magma/assets/*.h 2>/dev/null || true
 echo "linked $a generated asset headers"
 
 # Oracle goldens / captures used by the non-tape gates.
