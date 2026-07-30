@@ -1012,3 +1012,20 @@ Late additions to the overnight batch:
   tape's remaining 39 failing frames are measured to be particle/
   viewmodel residuals, not decoration.
 Nine landed fixes total; suite RESULT: PASS; agent worktrees cleaned.
+
+Dragon death burst (wt/dragonparticles, 2026-07-29): the death explosion was
+filed as a ~3 px "shading-offset" but pxdiff's shift always sat on the span-3
+search boundary; a wide-span search says zero shift is best by 3x at every
+burst tick, so it was never a registration error. Three real causes, all in
+the reconstruction: (1) one `ParticleExplosionHuge` spawns 6 LARGE on each of
+its 8 onUpdate ticks, and magma emitted only the newest batch (~48 puffs where
+vanilla has ~360); (2) vanilla removes the dragon at deathTicks 200 but its
+ParticleManager cloud lives ~17 more ticks, which an entity-derived emitter
+pops off - the oracle's brightest 7 frames had no magma cloud at all; (3) the
+GuiBossOverlay fog latch never cleared, and `processDragonDeath` does
+`bossInfo.setVisible(false)`, so the oracle's fog ramp snaps back at death and
+the same cloud jumps ~4x in brightness (grey 35-60 -> white 180-245).
+Fixed all three; the burst now matches the oracle in extent, brightness and
+decay, tape mean 0.2266 -> 0.1753/ch (55 frames better, 2 worse), particles
+class 51057 -> 26761 px, gate rc 0. Placement stays stochastic: the offsets
+come from `EntityDragon.rand`/`Particle.rand`, which no tape records.

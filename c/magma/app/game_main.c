@@ -845,6 +845,7 @@ int main(int argc, char **argv) {
         }
         if (nents > 0) {
             int nv = gm_entities_emit(ents, nents, ent_verts, ent_max_verts);
+            gm_particles_dragon_latch(runtime.tick, ents, nents);
             nv += gm_particles_emit(ents, nents, pv.yaw, pv.pitch,
                                     ent_verts + nv, ent_max_verts - nv);
             CrTexture eatlas = gm_entity_atlas();

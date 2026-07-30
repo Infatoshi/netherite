@@ -119,6 +119,12 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
 int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                       float view_pitch, CrVertex *out, int max);
 
+/* Vanilla removes EntityDragon at deathTicks 200 while its ParticleManager
+ * cloud lives ~17 more ticks. Call once per simulated tick with that tick's
+ * views, before gm_particles_emit, so the burst does not pop off with the
+ * entity. Idempotent within a tick. */
+void gm_particles_dragon_latch(long long tick, const GmEntityView *ents, int n);
+
 /* Dig hit-effect billboards (stage 1..10 progress proxy). ParticleDigging UVs
  * from bm_particle_sprite (model particle icon), not a cube face. face is
  * EnumFacing D-U-N-S-W-E or -1 when unknown (spawn without face offset).
