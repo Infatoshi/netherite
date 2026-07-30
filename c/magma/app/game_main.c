@@ -926,6 +926,15 @@ int main(int argc, char **argv) {
                 rays.layer = CR_LAYER_TRANSLUCENT;
                 render_layer(&fb, &cam, ent_verts, nv, tris, &rays);
             }
+            /* RenderDragon.renderCrystalBeams: end-crystal healing beam. */
+            nv = gm_crystal_beams_emit(ents, nents, ent_verts, ent_max_verts);
+            if (nv > 0) {
+                CrShadeCtx bm = {0};
+                bm.atlas = &eatlas; bm.fog_color = fog;
+                bm.alpha_test = 1; bm.alpha_ref = 0.1f;
+                bm.layer = CR_LAYER_CUTOUT;
+                render_layer(&fb, &cam, ent_verts, nv, tris, &bm);
+            }
             /* dropped items, second pass: block cubes/plants on the TERRAIN
              * atlas, then non-block items on the item atlas. ent_verts is
              * reusable: render_layer consumed the mob verts above. */

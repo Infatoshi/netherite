@@ -1000,6 +1000,23 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                               rays.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,ray_ov,nr,&rays);
             }
+            /* RenderDragon.renderCrystalBeams. Own pass, not appended to the
+             * entity buffer, because the entity pass runs alpha_mask=1 (the
+             * dragon dissolve mask) and that would punch holes in the beam. */
+            static CrVertex beam_ov[16384];
+            int nb=gm_crystal_beams_emit(ents,n,beam_ov,16384);
+            if(nb>0){
+                CrShadeCtx bm={0};
+                bm.atlas=&ea; bm.fog_color=clear;
+                bm.alpha_test=1; bm.alpha_ref=0.1f;
+                bm.layer=CR_LAYER_CUTOUT;
+                bm.lightmap=lm;
+                world_fog_params(r->dimension,c->boss_latch,&bm.enable_fog,
+                                 &bm.fog_start,&bm.fog_end);
+                if(uw.fluid){ bm.enable_fog=1; bm.fog_exp_density=uw.density;
+                              bm.fog_color=uw.fog_rgba; }
+                render_layer(c,&cam,beam_ov,nb,&bm);
+            }
         }
         /* dropped items + falling blocks: block cubes/plants on the TERRAIN
          * atlas, then non-block items on the item atlas. */

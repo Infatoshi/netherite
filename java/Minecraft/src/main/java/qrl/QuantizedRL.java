@@ -5813,7 +5813,11 @@ sb.append("}");
                     b.append(",").append(dr.animTime)
                      .append(",").append(dr.deathTicks)
                      .append(",").append(phaseId)
-                     .append(",").append(stationary);
+                     .append(",").append(stationary)
+                     // Entity.ticksExisted: RenderDragon.renderCrystalBeams
+                     // scrolls the healing beam by -ticksExisted*0.01 per tick.
+                     // Client-side counter, not derivable from the tape.
+                     .append(",").append(e.ticksExisted);
                 }
             } else if (e instanceof net.minecraft.entity.projectile.EntityArrow) {
                 // render pitch (RenderArrow Rz): stuck arrows keep the impact
@@ -5845,7 +5849,10 @@ sb.append("}");
                  .append(",").append(ec.shouldShowBottom() ? 1 : 0)
                  .append(",").append(bt == null ? -1 : bt.getX())
                  .append(",").append(bt == null ? -1 : bt.getY())
-                 .append(",").append(bt == null ? -1 : bt.getZ());
+                 .append(",").append(bt == null ? -1 : bt.getZ())
+                 // Entity.ticksExisted: RenderDragon.doRender pulses the
+                 // healing beam's crystal end by sin(ticksExisted*0.2).
+                 .append(",").append(ec.ticksExisted);
             } else if (e instanceof net.minecraft.entity.item.EntityFallingBlock) {
                 // RenderFallingBlock: fallTile block id + meta. Appended so
                 // old 7-field rows still parse (magma defaults to sand).

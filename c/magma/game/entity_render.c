@@ -862,6 +862,41 @@ static void er_aff_translate(ErAff *a, float x, float y, float z) {
     a->t[2] += a->m[2][0]*x + a->m[2][1]*y + a->m[2][2]*z;
 }
 
+/* RenderHelper.enableStandardItemLighting: two directional lights, diffuse
+ * 0.6 each, model ambient 0.4, colorMaterial AMBIENT_AND_DIFFUSE. The light
+ * POSITIONs are set while the modelview is the camera matrix, so the
+ * directions are fixed in WORLD space and the shade is a pure function of the
+ * world face normal:
+ *     shade = min(1, 0.4 + 0.6*max(0, n.l0) + 0.6*max(0, n.l1))
+ * On an axis-aligned box this gives 1.0 up / 0.737 north-south / 0.496
+ * east-west / 0.4 down, which er_shade's block-face quantization (1/0.8/0.6/
+ * 0.5) approximates well enough for mob models. ModelEnderCrystal's cubes are
+ * rotated 60 degrees about (0.7071,0,0.7071), so every face normal is oblique
+ * and the quantization lands on the wrong bucket: measured on
+ * scenario_dragon_kill the whole crystal came out a uniform ~1.47x too bright
+ * (magma 0.6 where vanilla gives ~0.41). Exact only for boxes drawn with unit
+ * normals under a uniform scale, which is every ModelBase box. */
+static float er_shade_item(float nx, float ny, float nz) {
+    float n = sqrtf(nx*nx + ny*ny + nz*nz);
+    if (n <= 0.0f) return 1.0f;
+    nx /= n; ny /= n; nz /= n;
+    /* Vec3d(0.2, 1.0, -0.7).normalize() and its x/z mirror. */
+    const float il = 1.0f / 1.2449899f;
+    float d0 = (nx*0.2f + ny*1.0f + nz*-0.7f) * il;
+    float d1 = (nx*-0.2f + ny*1.0f + nz*0.7f) * il;
+    if (d0 < 0.0f) d0 = 0.0f;
+    if (d1 < 0.0f) d1 = 0.0f;
+    float s = 0.4f + 0.6f*d0 + 0.6f*d1;
+    return s > 1.0f ? 1.0f : s;
+}
+
+/* shade_mode 0: er_shade block-face quantization (mob/dragon models).
+ * shade_mode 1: er_shade_item exact standard item lighting. */
+static int er_aff_box_m(const ErAff *a, int sprite, int uvscale, int mirror,
+                        int shade_mode, int u, int v,
+                        float bx, float by, float bz, int dx, int dy, int dz,
+                        CrRgba tint, float lv, float blk, CrVertex *out);
+
 /* one ModelBox under an affine (texel coords * 0.0625), UVs via er_quad_defs.
  * mirror swaps the x corners (ModelRenderer.mirror UV flip). uvscale maps
  * model texel coords to image pixels: ModelBase UVs are normalized by the
@@ -872,6 +907,14 @@ static int er_aff_box(const ErAff *a, int sprite, int uvscale, int mirror,
                       int u, int v,
                       float bx, float by, float bz, int dx, int dy, int dz,
                       CrRgba tint, float lv, float blk, CrVertex *out) {
+    return er_aff_box_m(a, sprite, uvscale, mirror, 0, u, v,
+                        bx, by, bz, dx, dy, dz, tint, lv, blk, out);
+}
+
+static int er_aff_box_m(const ErAff *a, int sprite, int uvscale, int mirror,
+                        int shade_mode, int u, int v,
+                        float bx, float by, float bz, int dx, int dy, int dz,
+                        CrRgba tint, float lv, float blk, CrVertex *out) {
     const CrMobSprite *spr = &CR_MOB_SPRITES[sprite];
     const float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
     float x0 = bx * 0.0625f, x1 = (bx + (float)dx) * 0.0625f;
@@ -919,7 +962,8 @@ static int er_aff_box(const ErAff *a, int sprite, int uvscale, int mirror,
             ord[0] = 3; ord[1] = 2; ord[2] = 1; ord[3] = 0;
             nx = -nx; ny = -ny; nz = -nz;
         }
-        float shade = er_shade(nx, ny, nz);
+        float shade = shade_mode ? er_shade_item(nx, ny, nz)
+                                 : er_shade(nx, ny, nz);
         CrVertex quad[4];
         for (int k = 0; k < 4; ++k) {
             int s = ord[k];
@@ -964,24 +1008,24 @@ static int emit_crystal(const GmEntityView *ent, CrVertex *out) {
     er_aff_translate(&a, 0.0f, -0.5f, 0.0f);
     int written = 0;
     if (ent->show_bottom)
-        written += er_aff_box(&a, CR_MOB_ENDERCRYSTAL, 2, 0, 0, 16,
-                              -6, 0, -6, 12, 4, 12, tint, lv, blk,
-                              out + written);
+        written += er_aff_box_m(&a, CR_MOB_ENDERCRYSTAL, 2, 0, 1, 0, 16,
+                                -6, 0, -6, 12, 4, 12, tint, lv, blk,
+                                out + written);
     er_aff_rot_y(&a, f * 3.0f);
     er_aff_translate(&a, 0.0f, 0.8f + f1 * 0.2f, 0.0f);
     er_aff_rot_axis(&a, 60.0f, 0.7071f, 0.0f, 0.7071f);
-    written += er_aff_box(&a, CR_MOB_ENDERCRYSTAL, 2, 0, 0, 0,
-                          -4, -4, -4, 8, 8, 8, tint, lv, blk, out + written);
+    written += er_aff_box_m(&a, CR_MOB_ENDERCRYSTAL, 2, 0, 1, 0, 0,
+                            -4, -4, -4, 8, 8, 8, tint, lv, blk, out + written);
     er_aff_scale(&a, 0.875f);
     er_aff_rot_axis(&a, 60.0f, 0.7071f, 0.0f, 0.7071f);
     er_aff_rot_y(&a, f * 3.0f);
-    written += er_aff_box(&a, CR_MOB_ENDERCRYSTAL, 2, 0, 0, 0,
-                          -4, -4, -4, 8, 8, 8, tint, lv, blk, out + written);
+    written += er_aff_box_m(&a, CR_MOB_ENDERCRYSTAL, 2, 0, 1, 0, 0,
+                            -4, -4, -4, 8, 8, 8, tint, lv, blk, out + written);
     er_aff_scale(&a, 0.875f);
     er_aff_rot_axis(&a, 60.0f, 0.7071f, 0.0f, 0.7071f);
     er_aff_rot_y(&a, f * 3.0f);
-    written += er_aff_box(&a, CR_MOB_ENDERCRYSTAL, 2, 0, 32, 0,
-                          -4, -4, -4, 8, 8, 8, tint, lv, blk, out + written);
+    written += er_aff_box_m(&a, CR_MOB_ENDERCRYSTAL, 2, 0, 1, 32, 0,
+                            -4, -4, -4, 8, 8, 8, tint, lv, blk, out + written);
     return written;
 }
 
@@ -2134,6 +2178,280 @@ int gm_dragon_death_rays_emit(const GmEntityView *ents, int n, CrVertex *out,
     return written;
 }
 
+/* ---- RenderDragon.renderCrystalBeams (end-crystal healing beam) ----------
+ *
+ * A closed 8-sided cone: an inner ring of radius 0.75*0.2 at the beam origin
+ * and an outer ring of radius 0.75 at distance f4, drawn as GL_TRIANGLE_STRIP
+ * (18 verts, 16 triangles) with POSITION_TEX_COLOR, smooth shading, vertex
+ * colour black at the origin ring and white at the far ring. Vanilla draws it
+ * with GL_CULL_FACE OFF, so every triangle is emitted in BOTH windings (the
+ * texture is a sparse alpha-0/255 rune sheet, so the far wall shows through
+ * the near one). RenderHelper.disableStandardItemLighting only kills GL_LIGHT*;
+ * the lightmap texture unit keeps MODULATing at the coords RenderManager set
+ * from the *rendered entity's* getBrightnessForRender - i.e. the dragon's for
+ * the healing beam, the crystal's for RenderEnderCrystal's own beam target -
+ * so the caller's per-entity lm_* fields are folded in exactly like the death
+ * rays.
+ *
+ * TEXTURE V WRAP. endercrystal_beam.png is sampled with GL_REPEAT and the V
+ * range runs from f5 = -(ticksExisted+partial)*0.01 to f5 + f4/32, i.e. off
+ * both ends of [0,1] and scrolling one 1/100th of the sheet per tick. The mob
+ * atlas has no wrap mode, so each of the 16 strip triangles is CLIPPED at every
+ * integer V and each piece re-based into [0,1). Clipping a triangle and
+ * interpolating the cut vertices along the cut edges is exact: attributes are
+ * affine inside a triangle, so the sub-triangles reproduce the same
+ * perspective-correct interpolation the unclipped triangle would have. */
+typedef struct { float p[3]; float u, v, c; } ErBeamV;
+
+static void er_beamv_lerp(const ErBeamV *a, const ErBeamV *b, float t,
+                          ErBeamV *o) {
+    for (int i = 0; i < 3; ++i) o->p[i] = a->p[i] + (b->p[i] - a->p[i]) * t;
+    o->u = a->u + (b->u - a->u) * t;
+    o->v = a->v + (b->v - a->v) * t;
+    o->c = a->c + (b->c - a->c) * t;
+}
+
+/* Sutherland-Hodgman clip of a convex polygon against v >= bound (keep_ge) or
+ * v <= bound. Returns the new vertex count (<= nin + 1). */
+static int er_beam_clip_v(const ErBeamV *in, int nin, float bound, int keep_ge,
+                          ErBeamV *out) {
+    int nout = 0;
+    for (int i = 0; i < nin; ++i) {
+        const ErBeamV *a = &in[i];
+        const ErBeamV *b = &in[(i + 1) % nin];
+        float da = keep_ge ? (a->v - bound) : (bound - a->v);
+        float db = keep_ge ? (b->v - bound) : (bound - b->v);
+        int ina = da >= 0.0f, inb = db >= 0.0f;
+        if (ina) out[nout++] = *a;
+        if (ina != inb) {
+            float t = da / (da - db);
+            er_beamv_lerp(a, b, t, &out[nout++]);
+        }
+    }
+    return nout;
+}
+
+typedef struct {
+    float lv, blk;            /* lightmap levels (CrVertex.light / .blk) */
+    float lmr, lmg, lmb;      /* folded lightmap multiplier (lm_lit == 2) */
+} ErBeamShade;
+
+static void er_beam_vertex(const ErBeamV *v, int band, const ErBeamShade *sh,
+                           CrVertex *out) {
+    const CrMobSprite *spr = &CR_MOB_SPRITES[CR_MOB_ENDERCRYSTAL_BEAM];
+    const float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+    out->pos.x = v->p[0]; out->pos.y = v->p[1]; out->pos.z = v->p[2];
+    out->uv.x = ((float)spr->x0 + v->u * (float)spr->w) / aw;
+    out->uv.y = ((float)spr->y0 + (v->v - (float)band) * (float)spr->h) / ah;
+    out->light = sh->lv;
+    out->blk = sh->blk;
+    float g = v->c * 255.0f;
+    out->tint.r = (u8)(g * sh->lmr + 0.5f);
+    out->tint.g = (u8)(g * sh->lmg + 0.5f);
+    out->tint.b = (u8)(g * sh->lmb + 0.5f);
+    out->tint.a = 255;
+    out->ao = 1.0f;
+}
+
+/* One strip triangle -> clipped, re-based, both windings. */
+static int er_beam_tri(const ErBeamV *a, const ErBeamV *b, const ErBeamV *c,
+                       const ErBeamShade *sh, CrVertex *out, int max) {
+    float vmin = fminf(a->v, fminf(b->v, c->v));
+    float vmax = fmaxf(a->v, fmaxf(b->v, c->v));
+    int k0 = (int)floorf(vmin), k1 = (int)floorf(vmax);
+    if (vmax == (float)k1 && k1 > k0) --k1;   /* upper edge sits on a boundary */
+    if (k1 - k0 > 256) return 0;              /* degenerate; never in practice */
+    int written = 0;
+    for (int k = k0; k <= k1; ++k) {
+        ErBeamV poly[8], tmp[8];
+        poly[0] = *a; poly[1] = *b; poly[2] = *c;
+        int np = er_beam_clip_v(poly, 3, (float)k, 1, tmp);
+        if (np < 3) continue;
+        np = er_beam_clip_v(tmp, np, (float)(k + 1), 0, poly);
+        if (np < 3) continue;
+        for (int i = 1; i + 1 < np; ++i) {
+            if (written + 6 > max) return written;
+            CrVertex t[3];
+            er_beam_vertex(&poly[0],     k, sh, &t[0]);
+            er_beam_vertex(&poly[i],     k, sh, &t[1]);
+            er_beam_vertex(&poly[i + 1], k, sh, &t[2]);
+            out[written++] = t[0]; out[written++] = t[1]; out[written++] = t[2];
+            /* GlStateManager.disableCull: same triangle, reversed winding. */
+            out[written++] = t[2]; out[written++] = t[1]; out[written++] = t[0];
+        }
+    }
+    return written;
+}
+
+/* Literal transcription of RenderDragon.renderCrystalBeams with
+ * partialTicks = 1.0 (magma renders on the tick boundary). ox/oy/oz is the
+ * caller's already-world-space translate origin (vanilla passes the camera
+ * relative x,y,z and adds 2.0 to y here). */
+static int er_crystal_beams(double ox, double oy, double oz,
+                            double fromx, double fromy, double fromz,
+                            int ticks,
+                            double tox, double toy, double toz,
+                            const ErBeamShade *sh, CrVertex *out, int max) {
+    float f  = (float)(tox - fromx);
+    float f1 = (float)(toy - 1.0 - fromy);
+    float f2 = (float)(toz - fromz);
+    float f3 = sqrtf(f * f + f2 * f2);
+    float f4 = sqrtf(f * f + f1 * f1 + f2 * f2);
+
+    ErAff a;
+    er_aff_identity(&a);
+    a.t[0] = (float)ox; a.t[1] = (float)oy + 2.0f; a.t[2] = (float)oz;
+    er_aff_rot_y(&a, (float)(-atan2((double)f2, (double)f)) * (180.0f / ER_PI)
+                     - 90.0f);
+    er_aff_rot_x(&a, (float)(-atan2((double)f3, (double)f1)) * (180.0f / ER_PI)
+                     - 90.0f);
+
+    float f5 = 0.0f - ((float)ticks + 1.0f) * 0.01f;
+    float f6 = f4 / 32.0f - ((float)ticks + 1.0f) * 0.01f;
+
+    ErBeamV strip[18];
+    for (int j = 0; j <= 8; ++j) {
+        float ang = (float)(j % 8) * (ER_PI * 2.0f) / 8.0f;
+        float f7 = sinf(ang) * 0.75f;
+        float f8 = cosf(ang) * 0.75f;
+        float f9 = (float)(j % 8) / 8.0f;
+        const float lp[2][3] = {
+            { f7 * 0.2f, f8 * 0.2f, 0.0f },
+            { f7,        f8,        f4   },
+        };
+        for (int k = 0; k < 2; ++k) {
+            ErBeamV *v = &strip[j * 2 + k];
+            for (int r = 0; r < 3; ++r)
+                v->p[r] = a.m[r][0] * lp[k][0] + a.m[r][1] * lp[k][1]
+                        + a.m[r][2] * lp[k][2] + a.t[r];
+            v->u = f9;
+            v->v = k ? f6 : f5;
+            v->c = k ? 1.0f : 0.0f;
+        }
+    }
+
+    /* GL_TRIANGLE_STRIP over the 18 vertices: triangle i is (i, i+1, i+2) with
+     * odd i reversed, so both triangles of a quad share the inner->outer
+     * diagonal exactly like the fixed-function pipeline. */
+    int written = 0;
+    for (int i = 0; i + 2 < 18; ++i) {
+        const ErBeamV *v0 = &strip[i], *v1 = &strip[i + 1], *v2 = &strip[i + 2];
+        if (i & 1) { const ErBeamV *t = v0; v0 = v1; v1 = (ErBeamV *)t; }
+        written += er_beam_tri(v0, v1, v2, sh, out + written, max - written);
+        if (written + 6 > max) break;
+    }
+    return written;
+}
+
+static void er_beam_shade_from(const GmEntityView *e, ErBeamShade *sh) {
+    sh->lv = 15.0f; sh->blk = 0.0f;
+    sh->lmr = sh->lmg = sh->lmb = 1.0f;
+    if (e->lm_lit == 1) {
+        sh->lv = e->lm_light; sh->blk = e->lm_blk;
+    } else if (e->lm_lit == 2) {
+        sh->lv = 1.0f; sh->blk = 0.0f;
+        sh->lmr = e->lm_mul_r; sh->lmg = e->lm_mul_g; sh->lmb = e->lm_mul_b;
+    }
+}
+
+/* EntityDragon.healingEnderCrystal (EntityDragon.updateDragonEnderCrystal).
+ *
+ * Vanilla runs this on BOTH sides (EntityLivingBase.onUpdate calls
+ * onLivingUpdate unconditionally), and the client's own `rand` decides WHEN it
+ * re-picks: `if (rand.nextInt(10) == 0)` then nearest crystal whose bounding
+ * box intersects the dragon's expanded by 32. The tape cannot carry that RNG,
+ * so magma re-picks every tick - the pick itself (nearest in range) is
+ * deterministic and only the ~10-tick latency after the nearest crystal
+ * CHANGES is approximated.
+ *
+ * The freeze is exact and matters more: `getHealth() <= 0` takes the
+ * explosion-particle branch of onLivingUpdate and never reaches
+ * updateDragonEnderCrystal, so the beam target latches at the moment the dragon
+ * dies and stays there for the whole 200-tick death animation. */
+static struct { int inited, dragon_id, crystal_id; } er_heal_latch;
+
+static const GmEntityView *er_heal_crystal(const GmEntityView *ents, int n,
+                                           const GmEntityView *d) {
+    if (!er_heal_latch.inited || er_heal_latch.dragon_id != d->ent_id) {
+        er_heal_latch.inited = 1;
+        er_heal_latch.dragon_id = d->ent_id;
+        er_heal_latch.crystal_id = -1;
+    }
+    if (d->health > 0.0f) {
+        /* getEntityBoundingBox().expandXyz(32): setSize(16, 8) -> half width 8,
+         * height 8 above posY. AABB intersect against the crystal's own
+         * setSize(2, 2) box. */
+        float x0 = d->x - 8.0f - 32.0f, x1 = d->x + 8.0f + 32.0f;
+        float y0 = d->y - 32.0f,        y1 = d->y + 8.0f + 32.0f;
+        float z0 = d->z - 8.0f - 32.0f, z1 = d->z + 8.0f + 32.0f;
+        int best = -1;
+        double bestd = 0.0;
+        for (int i = 0; i < n; ++i) {
+            const GmEntityView *c = &ents[i];
+            if (c->type != ER_TYPE_CRYSTAL) continue;
+            if (c->x + 1.0f <= x0 || c->x - 1.0f >= x1) continue;
+            if (c->y + 2.0f <= y0 || c->y >= y1) continue;
+            if (c->z + 1.0f <= z0 || c->z - 1.0f >= z1) continue;
+            double dx = (double)c->x - d->x, dy = (double)c->y - d->y,
+                   dz = (double)c->z - d->z;
+            double dd = dx * dx + dy * dy + dz * dz;
+            if (best < 0 || dd < bestd) { bestd = dd; best = c->ent_id; }
+        }
+        er_heal_latch.crystal_id = best;
+    }
+    if (er_heal_latch.crystal_id < 0) return NULL;
+    for (int i = 0; i < n; ++i)
+        if (ents[i].type == ER_TYPE_CRYSTAL
+            && ents[i].ent_id == er_heal_latch.crystal_id)
+            return &ents[i];
+    return NULL;   /* crystal destroyed: isDead clears healingEnderCrystal */
+}
+
+int gm_crystal_beams_emit(const GmEntityView *ents, int n, CrVertex *out,
+                          int max) {
+    if (!ents || !out || max < 6) return 0;
+    int written = 0;
+    for (int e = 0; e < n; ++e) {
+        if (ents[e].type != ER_TYPE_DRAGON) continue;
+        const GmEntityView *d = &ents[e];
+        const GmEntityView *c = er_heal_crystal(ents, n, d);
+        if (!c) continue;
+        /* RenderDragon.doRender: f = sin((crystal.ticksExisted + partial) *
+         * 0.2)/2 + 0.5; f = (f*f + f) * 0.2 raises the beam's crystal end. */
+        float f = sinf(((float)c->ticks_existed + 1.0f) * 0.2f) / 2.0f + 0.5f;
+        f = (f * f + f) * 0.2f;
+        ErBeamShade sh;
+        er_beam_shade_from(d, &sh);
+        written += er_crystal_beams(d->x, d->y, d->z,
+                                    d->x, d->y, d->z, d->ticks_existed,
+                                    c->x, (double)f + (double)c->y, c->z,
+                                    &sh, out + written, max - written);
+        if (written + 6 > max) return written;
+    }
+    /* RenderEnderCrystal's own BeamTarget (the respawn-ritual beam to the
+     * portal). Same tube, but anchored on the target block centre and scrolled
+     * by innerRotation. */
+    for (int e = 0; e < n; ++e) {
+        const GmEntityView *c = &ents[e];
+        if (c->type != ER_TYPE_CRYSTAL) continue;
+        if (c->beam_x < 0 && c->beam_y < 0 && c->beam_z < 0) continue;
+        float f1 = sinf((c->crystal_rot + 1.0f) * 0.2f) / 2.0f + 0.5f;
+        f1 = f1 * f1 + f1;
+        double f2 = (double)c->beam_x + 0.5;
+        double f3 = (double)c->beam_y + 0.5;
+        double f4 = (double)c->beam_z + 0.5;
+        ErBeamShade sh;
+        er_beam_shade_from(c, &sh);
+        written += er_crystal_beams(f2, (double)c->y - 0.3 + (double)(f1 * 0.4f)
+                                        + (f3 - (double)c->y), f4,
+                                    f2, f3, f4, (int)c->crystal_rot,
+                                    c->x, c->y, c->z,
+                                    &sh, out + written, max - written);
+        if (written + 6 > max) return written;
+    }
+    return written;
+}
+
 /* particles.png cell UV: setParticleTextureIndex uses 16x16 grid over the sheet. */
 static void er_particle_uv(int index, float *u0, float *v0, float *u1, float *v1) {
     const CrMobSprite *sp = &CR_MOB_SPRITES[CR_MOB_PARTICLES];
@@ -2442,7 +2760,15 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
             continue;
         }
 
-        if (ents[e].type == ER_TYPE_CRYSTAL && ents[e].health <= 0.0f) {
+        /* EntityEnderCrystal is not an EntityLivingBase: the recorder writes
+         * hp = -1 for every non-living entity and the live arena view writes a
+         * positive placeholder, so `health <= 0` fired the destruction burst on
+         * EVERY intact crystal of EVERY tick (a 28 px grey ball parked on each
+         * pillar top, mostly hidden behind the pillar and swallowed by the
+         * gate's `particles` class). A destroyed crystal is setDead() and drops
+         * out of the entity list entirely, so only an explicit health == 0
+         * (never the -1 "no health" sentinel) may burst. */
+        if (ents[e].type == ER_TYPE_CRYSTAL && ents[e].health == 0.0f) {
             /* Burst recon: several LARGE at crystal origin, progress 0. */
             unsigned seed = (unsigned)ents[e].ent_id * 1664525u + 99u;
             for (int i = 0; i < 8; ++i) {

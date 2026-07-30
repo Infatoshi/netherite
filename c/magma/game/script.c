@@ -635,8 +635,11 @@ int gm_script_run(const GmConfig *cfg) {
                     "hover","has_hover","crystal_rot","show_bottom","beam_x","beam_y","beam_z",
                     "anim_time","death_ticks","phase_id","stationary",
                     /* EntityXPOrb: item=xpValue, item_meta=xpColor, age=xpOrbAge */
-                    "xp_value","xp_color"};
-                if(!keys_only(&pending,keys,38,err,sizeof err)||
+                    "xp_value","xp_color",
+                    /* Entity.ticksExisted (client): crystal-beam UV scroll and
+                     * the beam-origin pulse (RenderDragon.renderCrystalBeams). */
+                    "ticks_existed"};
+                if(!keys_only(&pending,keys,39,err,sizeof err)||
                    !as_string(field(&pending,"ent"),&ent)||
                    !as_double(field(&pending,"x"),&x)||!as_double(field(&pending,"y"),&y)||
                    !as_double(field(&pending,"z"),&z)||!as_double(field(&pending,"yaw"),&yaw)||
@@ -679,6 +682,7 @@ int gm_script_run(const GmConfig *cfg) {
                 OPT_I64("beam_z",view.beam_z);
                 OPT_DBL("anim_time",view.anim_time);OPT_I64("death_ticks",view.death_ticks);
                 OPT_I64("phase_id",view.phase_id);OPT_I64("stationary",view.stationary);
+                OPT_I64("ticks_existed",view.ticks_existed);
 #undef OPT_I64
 #undef OPT_DBL
                 int vt=view.type;

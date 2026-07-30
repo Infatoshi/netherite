@@ -1,0 +1,50 @@
+# Rank 4 mechanic: an already-gliding 1.11.2 player keeps elytra flight through water and lava;
+# liquid contact does not clear the flag, while solid-ground contact does. The horizontal pose and
+# lack of a swim pose are part of the contract. Exact numeric expectation: the research supplies no
+# motion constant for this rank; it identifies the behavior in 1.11.2 and firework boosting in 1.11.1+.
+# Expected wrong-magma divergence class: physics/state if liquid clears gliding or changes the pose;
+# structural pixels if the water/lava intersection, elytra model, or camera renders differently.
+name: elytra_dense
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 0.5 -90 8
+  - /fill -2 23 -2 3 23 2 minecraft:stone
+  # 24..36, not ..40: with the settled water curtain's full drag the glide
+  # lands at x~40.7, and a 1-block lava sea ending at 40 makes that a
+  # stand-in-lava death + respawn (20260727T213715Z), which replay cannot
+  # follow. The mid-flight lava skim at x 24..36 still exercises the
+  # rank-4 keep-flight-through-lava contact.
+  - /fill 24 3 -4 36 3 4 minecraft:lava
+  - /replaceitem entity @p slot.armor.chest minecraft:elytra 1 0
+  - /tp @p 0.5 24 0.5 -90 8
+  - /fill 10 4 -3 10 22 3 minecraft:water
+# The water wall spreads sideways (x9/x11 curtain columns) and pools for
+# ~150 ticks after the fill. The 20260723T001355Z tape recorded mid-growth,
+# which no static snapshot patch can replay (OPEN_DIVERGENCES: elytra_dip
+# t=60); wait it out before recstart on the next record.
+setup_settle_ticks: 200
+duration_ticks: 300
+frames_every: 1
+input:
+  segments:
+    - seconds: 1.0
+    - seconds: 1.3
+      keys: [w]
+    - seconds: 0.15
+    - seconds: 0.2
+      keys: [space]
+    - seconds: 11.0
+      keys: [w]
+known_divergences: []

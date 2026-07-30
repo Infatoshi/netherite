@@ -14,42 +14,27 @@
   "fail_mean_abs": 3.32,
   "fail_low_pct_differing": 40.0
  },
- "frames_checked": 298,
+ "frames_checked": 198,
  "classes": {
-  "bossbar": {
-   "frames": 146,
-   "px": 154562,
-   "max_cluster": 1191
-  },
-  "hud": {
-   "frames": 20,
-   "px": 36490,
-   "max_cluster": 10142
-  },
   "viewmodel": {
-   "frames": 6,
-   "px": 24000,
-   "max_cluster": 11826
+   "frames": 2,
+   "px": 3346,
+   "max_cluster": 2362
   },
   "UNEXPLAINED": {
-   "frames": 53,
-   "px": 6818,
-   "max_cluster": 309
+   "frames": 86,
+   "px": 29134,
+   "max_cluster": 1139
+  },
+  "hud": {
+   "frames": 1,
+   "px": 593,
+   "max_cluster": 593
   },
   "particles": {
-   "frames": 165,
-   "px": 256321,
-   "max_cluster": 2445
-  },
-  "thinline": {
-   "frames": 2,
-   "px": 375,
-   "max_cluster": 195
-  },
-  "transit": {
-   "frames": 19,
-   "px": 88704,
-   "max_cluster": 1928
+   "frames": 107,
+   "px": 84250,
+   "max_cluster": 27075
   }
  },
  "failed_frames": [],
@@ -61,20 +46,20 @@
  "state": {
   "kind": "state",
   "coverage": {
-   "ticks_total": 1614,
-   "ticks_run": 596,
-   "truncated": true
+   "ticks_total": 565,
+   "ticks_run": 565,
+   "truncated": false
   },
   "inventory": {
-   "ticks_checked": 2,
-   "ticks_independent": 1,
+   "ticks_checked": 283,
+   "ticks_independent": 282,
    "seeded_only": false,
    "mismatches": [],
    "pass": true,
    "available": true
   },
   "entities": {
-   "ticks_checked": 30,
+   "ticks_checked": 29,
    "samples": [
     {
      "tick": 0,
@@ -168,9 +153,10 @@
     },
     {
      "tick": 180,
-     "tape_count": 11,
+     "tape_count": 12,
      "tape_types": [
       "EntityDragon",
+      "EntityDragonFireball",
       "EntityEnderCrystal"
      ],
      "magma_count": 0,
@@ -178,9 +164,10 @@
     },
     {
      "tick": 200,
-     "tape_count": 11,
+     "tape_count": 12,
      "tape_types": [
       "EntityDragon",
+      "EntityDragonFireball",
       "EntityEnderCrystal"
      ],
      "magma_count": 0,
@@ -190,8 +177,8 @@
      "tick": 220,
      "tape_count": 12,
      "tape_types": [
+      "EntityAreaEffectCloud",
       "EntityDragon",
-      "EntityDragonFireball",
       "EntityEnderCrystal"
      ],
      "magma_count": 0,
@@ -201,8 +188,8 @@
      "tick": 240,
      "tape_count": 12,
      "tape_types": [
+      "EntityAreaEffectCloud",
       "EntityDragon",
-      "EntityDragonFireball",
       "EntityEnderCrystal"
      ],
      "magma_count": 0,
@@ -246,32 +233,32 @@
    "available": true
   },
   "world": {
-   "ticks_checked": 30,
-   "hash_deltas": 5,
+   "ticks_checked": 29,
+   "hash_deltas": 0,
    "samples": [
     {
      "tick": 0,
-     "nearby_hash": "6241d508fa89120d"
+     "nearby_hash": "9a7b3bdddc1f0df9"
     },
     {
      "tick": 100,
-     "nearby_hash": "6241d508fa89120d"
+     "nearby_hash": "9a7b3bdddc1f0df9"
     },
     {
      "tick": 200,
-     "nearby_hash": "6241d508fa89120d"
+     "nearby_hash": "9a7b3bdddc1f0df9"
     },
     {
      "tick": 300,
-     "nearby_hash": "691908b0a1ece2b5"
+     "nearby_hash": "9a7b3bdddc1f0df9"
     },
     {
      "tick": 400,
-     "nearby_hash": "691908b0a1ece2b5"
+     "nearby_hash": "9a7b3bdddc1f0df9"
     },
     {
      "tick": 500,
-     "nearby_hash": "da6f8b66275d9f0d"
+     "nearby_hash": "9a7b3bdddc1f0df9"
     }
    ],
    "pass": true,
