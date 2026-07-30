@@ -548,7 +548,6 @@ MC_HD static inline void psv_elytra_travel(const Chunk *now, const McSinTable *s
         float damage = (float)((speed_h - speed_after) * 10.0 - 3.0);
         if (damage > 0.0f) pl->elytra_wall_damage = damage;
     }
-    if (e->onGround) pl->elytra_flying = 0;
     pl->jump_factor_sprint = act->sprint;
 }
 

@@ -547,9 +547,10 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
         # capture-consistent and the heuristics DELETE real water/lava the
         # goldens render (t=70 curtain interior, t=150 lava-dip fog on the
         # 20260727 re-record). Scope them to the legacy tapes.
-        elytra_tape = bool(ticks and len(ticks[0].get("inv", [])) > 38
-                           and ticks[0]["inv"][38] != 0
-                           and int(ticks[0]["inv"][38][0]) == 443
+        elytra_equipped = bool(ticks and len(ticks[0].get("inv", [])) > 38
+                               and ticks[0]["inv"][38] != 0
+                               and int(ticks[0]["inv"][38][0]) == 443)
+        elytra_tape = bool(elytra_equipped
                            and (tape_path is None
                                 or tape_fog_color1(tape_path) is None))
         source_x = None
@@ -675,8 +676,10 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
             move_now = bool(sgn(i["f"]) or sgn(i["s"]))
             look_changed = (float(row["yaw"]) != last_yaw
                             or float(row["pitch"]) != last_pitch)
-            look_type = ("set_look_pre" if move_now and not last_move
-                         and look_changed else "set_look")
+            look_type = ("set_look_pre" if
+                         (elytra_equipped and look_changed)
+                         or (move_now and not last_move and look_changed)
+                         else "set_look")
             f.write(json.dumps({"tick": t, "type": look_type,
                                 "yaw": row["yaw"], "pitch": row["pitch"]}) + "\n")
             # Authoritative SPacketEntityVelocity delivered to the local
