@@ -266,7 +266,8 @@ static int mc_use_neighbor_brightness_at(const CrLight *L, int wx, int wy, int w
         m->kind == BM_KIND_STAIRS || m->kind == BM_KIND_IRON_BARS ||
         m->kind == BM_KIND_GLASS_PANE ||
         m->kind == BM_KIND_TORCH || m->kind == BM_KIND_RAIL ||
-        m->kind == BM_KIND_TRAPDOOR || m->kind == BM_KIND_LADDER)
+        m->kind == BM_KIND_TRAPDOOR || m->kind == BM_KIND_LADDER ||
+        m->kind == BM_KIND_CACTUS)
         return 1;
     if (mc_translucent_at(L, wx, wy, wz)) return 1;
     return 0;
@@ -1826,7 +1827,8 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
          m->kind == BM_KIND_IRON_BARS ||
          m->kind == BM_KIND_GLASS_PANE ||
          m->kind == BM_KIND_TORCH ||
-         m->kind == BM_KIND_TRAPDOOR || m->kind == BM_KIND_LADDER)
+         m->kind == BM_KIND_TRAPDOOR || m->kind == BM_KIND_LADDER ||
+         m->kind == BM_KIND_CACTUS)
         ? neighbor_model_light01(L, wx, wy, wz,
                                  m->kind == BM_KIND_TORCH ? 14 : 0, &tint)
         : cell_light01(L, wx, wy, wz, &tint);
