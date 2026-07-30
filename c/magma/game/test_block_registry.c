@@ -100,6 +100,8 @@ static void test_collision_barrier(void) {
     }
     CHECK(gm_state_to_model_key(gm_pack_state(65, 2)) == GM_MODEL_LADDER,
           "ladder reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(98, 0)) == GM_MODEL_STONEBRICK,
+          "stonebrick reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(112, 0)) == 228, "nether brick reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(165, 0)) == 229, "slime reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(30, 0)) == 230, "web reverse map");
@@ -174,6 +176,10 @@ static void test_collision_barrier(void) {
               "ladder key supported");
         CHECK(gm_state_id(st) == 65 && gm_state_meta(st) == 2,
               "ladder key -> id 65, meta kept");
+        CHECK(gm_model_key_to_state(GM_MODEL_STONEBRICK, 0, &st) == GM_MAP_EXACT,
+              "stonebrick key supported");
+        CHECK(gm_state_id(st) == 98 && gm_state_meta(st) == 0,
+              "stonebrick key -> id 98");
     }
 }
 
