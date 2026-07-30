@@ -83,7 +83,9 @@ enum {
     /* rail_flat.json: two-sided cutout plane at y=1/16 block. */
     BM_KIND_RAIL,
     /* wooden_trapdoor_{bottom,top,open}: metadata selects a 3/16 panel box. */
-    BM_KIND_TRAPDOOR
+    BM_KIND_TRAPDOOR,
+    /* ladder.json: two-sided unshaded wall plane, rotated by facing metadata. */
+    BM_KIND_LADDER
 };
 
 typedef struct {

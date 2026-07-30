@@ -210,6 +210,8 @@ SPRITE_NAMES += [
 SPRITE_NAMES += ["glass_pane_top"]
 # BlockTrapDoor's wooden model uses the legacy blocks/trapdoor texture.
 SPRITE_NAMES += ["trapdoor"]
+# BlockLadder's two-sided cutout wall plane.
+SPRITE_NAMES += ["ladder"]
 SPECIAL_SPRITE_PATHS = {
     "end_portal": "assets/minecraft/textures/entity/end_portal.png",
 }

@@ -67,7 +67,8 @@ enum {
     CBX_GLASS_PANE = 253,
     CBX_COBBLESTONE_STAIRS = 254,
     CBX_TRAPDOOR = 255,
-    CBX_MAX = 256
+    CBX_LADDER = 256,
+    CBX_MAX = 257
 };
 
 /* Face order is BM_DOWN, BM_UP, BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST. */
@@ -174,8 +175,13 @@ static const BmBlock g_blocks[CBX_MAX] = {
                     FULL6(CR_SPRITE_TORCH_ON, BM_TINT_NONE) },
     [CBX_RAIL] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_RAIL,
                    FULL6(CR_SPRITE_RAIL_NORMAL, BM_TINT_NONE) },
+<<<<<<< HEAD
     [CBX_TRAPDOOR] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_TRAPDOOR,
                        FULL6(CR_SPRITE_TRAPDOOR, BM_TINT_NONE) },
+=======
+    [CBX_LADDER] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_LADDER,
+                     FULL6(CR_SPRITE_LADDER, BM_TINT_NONE) },
+>>>>>>> wt/ladderfix
     [CB_COARSE_DIRT] = CUBE6(CR_SPRITE_COARSE_DIRT, BM_TINT_NONE),
 
     /* ---- stone variants + ores + clay ---- */
@@ -454,7 +460,7 @@ static int bm_is_modeled(int id)
     case CBX_SLIME: case CBX_WEB: case CBX_PACKED_ICE:
     case CBX_NETHER_BRICK_FENCE: case CBX_COBBLESTONE_WALL:
     case CBX_END_PORTAL: case CBX_RAIL: case CBX_TNT:
-    case CBX_COBBLESTONE_STAIRS:
+    case CBX_COBBLESTONE_STAIRS: case CBX_LADDER:
         return 1;
     default:
         if (id >= CBX_STONE_SLAB_BOTTOM_BASE && id < CBX_MAX) return 1;

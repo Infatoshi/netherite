@@ -56,7 +56,8 @@ static float light_brightness_at(const GmWorld *w, int dim,
     int own = combined_light_at(w, x, y, z);
     int id = gm_world_block(w, x, y, z);
     int l = cr_k14_light_query(
-        is_lava(id) || is_stairs(id) || id == 44 || id == 126 || id == 182,
+        is_lava(id) || is_stairs(id) || id == 65 ||
+        id == 44 || id == 126 || id == 182,
         combined_light_at(w, x, y + 1, z),
         combined_light_at(w, x + 1, y, z),
         combined_light_at(w, x - 1, y, z),
