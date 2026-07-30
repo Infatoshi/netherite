@@ -200,12 +200,18 @@ def run_magma_script(script_path, ticks, frames_dir, state_out, w=854, h=480,
     bit-exact vs CPU per make test-raster-parity; sim stays host-side). It runs
     on GPU1 (the 3090) unless CUDA_VISIBLE_DEVICES is already set - GPU0 is the
     shared big card and stays free per the repo GPU policy.
+
+    backend="metal" uses the magma_game_metal binary (macOS / Apple silicon,
+    make -C magma game-metal). Same plumbing as cuda; parity status lives in
+    magma/VERIFY.md "Metal backend (macOS)" - UNVERIFIED until
+    scripts/mac_metal_verify.sh passes on the MacBook.
     """
     croot = magma_root()
-    binary = "magma_game_cuda" if backend == "cuda" else "magma_game"
+    binary = {"cuda": "magma_game_cuda",
+              "metal": "magma_game_metal"}.get(backend, "magma_game")
     game = os.path.join(croot, binary)
     if not os.path.exists(game):
-        target = "game-cuda" if backend == "cuda" else "game"
+        target = {"cuda": "game-cuda", "metal": "game-metal"}.get(backend, "game")
         r = subprocess.run(["make", "-C", croot, target], capture_output=True)
         if r.returncode != 0:
             sys.stderr.write(r.stderr.decode(errors="replace"))
@@ -218,8 +224,8 @@ def run_magma_script(script_path, ticks, frames_dir, state_out, w=854, h=480,
     cmd = [game, "--headless", "--world", world, "--seed", str(seed),
            "--ticks", str(ticks), "--width", str(w), "--height", str(h),
            "--script", script_path, "--state-out", state_out]
-    if backend == "cuda":
-        cmd += ["--backend", "cuda"]
+    if backend in ("cuda", "metal"):
+        cmd += ["--backend", backend]
     if not mobs:
         cmd += ["--mobs", "off"]
     if not daylight:
