@@ -418,7 +418,7 @@ static bool bm_render(MetalVec *v, int selected) {
 static void bm_reset_one(MetalVec *v, int i) {
     const CuSnapshot *s = &v->snaps[v->assign[i]];
     blaze_reset_from_snapshot(&v->envs[i], &s->head, s->items, s->cells,
-                              s->coal, (int)s->ncoal, s->xy_off,
+                              s->nactive, s->coal, (int)s->ncoal, s->xz_off,
                               s->cont, s->ncont, v->success_item);
 }
 
@@ -653,6 +653,7 @@ int blaze_capture(void *vh, int env, int slot) {
         return -1;
     src = &v->snaps[v->assign[env]];
     (void)blaze_capture_head(e, &next.head, next.items);
+    next.nactive = (unsigned)e->n_items;
     if (!bm_mul((size_t)v->rvol, sizeof *next.cells, &cell_bytes))
         goto fail;
     next.cells = (u16 *)malloc(cell_bytes);
@@ -669,14 +670,14 @@ int blaze_capture(void *vh, int env, int slot) {
         memcpy(next.coal, e->ore, coal_bytes);
     }
 
-    if (src->xy_off) {
-        if (!bm_mul((size_t)v->rnx, (size_t)v->rny, &xy_cells) ||
+    if (src->xz_off) {
+        if (!bm_mul((size_t)v->rnx, (size_t)v->rnz, &xy_cells) ||
             xy_cells == std::numeric_limits<size_t>::max() ||
-            !bm_mul(xy_cells + 1, sizeof *next.xy_off, &xy_bytes))
+            !bm_mul(xy_cells + 1, sizeof *next.xz_off, &xy_bytes))
             goto fail;
-        next.xy_off = (int *)malloc(xy_bytes);
-        if (!next.xy_off) goto fail;
-        memcpy(next.xy_off, src->xy_off, xy_bytes);
+        next.xz_off = (int *)malloc(xy_bytes);
+        if (!next.xz_off) goto fail;
+        memcpy(next.xz_off, src->xz_off, xy_bytes);
     }
 
     if (!bm_mul((size_t)BLAZE_SNAP_MAX_CONT, 3, &cont_elems) ||
@@ -699,8 +700,8 @@ int blaze_capture(void *vh, int env, int slot) {
             v->envs[i].ore = v->snaps[slot].coal;
             v->envs[i].nore = (int)v->snaps[slot].ncoal;
         }
-        if (old.xy_off && v->envs[i].ore_xy == old.xy_off)
-            v->envs[i].ore_xy = v->snaps[slot].xy_off;
+        if (old.xz_off && v->envs[i].ore_xz == old.xz_off)
+            v->envs[i].ore_xz = v->snaps[slot].xz_off;
     }
     blaze_snapshot_free(&old);
     return 0;
@@ -812,9 +813,9 @@ int blaze_get_backend_info(void *h, BlazeBackendInfo *out) {
         const CuSnapshot *s = &v->snaps[i];
         out->host_snapshot_bytes += (uint64_t)v->rvol * sizeof(u16);
         out->host_snapshot_bytes += (uint64_t)s->ncoal * 3 * sizeof(int);
-        if (s->xy_off)
+        if (s->xz_off)
             out->host_snapshot_bytes +=
-                ((uint64_t)v->rnx * v->rny + 1) * sizeof(int);
+                ((uint64_t)v->rnx * v->rnz + 1) * sizeof(int);
         if (s->cont)
             out->host_snapshot_bytes +=
                 (uint64_t)BLAZE_SNAP_MAX_CONT * 3 * sizeof(int);

@@ -121,23 +121,27 @@ bytes separately and benchmarks report peak RSS.
 
 `VecBlaze(..., backend="metal", output_device="host")` exposes NumPy views of
 the shared buffers. `output_device="mps"` retains those host views and performs
-explicit, synchronized copies into persistent MPS tensors after each step;
-MPS actions are explicitly copied to host float64 because PyTorch MPS has no
-float64 tensor support. `transfer_stats` records action and observation bytes
-and wall time. CPU, CUDA, and Metal selection is explicit through `backend` or
-`BLAZE_BACKEND`; Linux keeps its CUDA default in the evaluator scripts.
+explicit copies into persistent MPS tensors after each step. The safe default
+fences every copy. Trainers use `synchronize_mps=False` to keep the copies and
+policy forward pass queued until the sampled MPS action is copied to the host,
+which is already the required pre-step fence because PyTorch MPS has no float64
+tensor support. `host_outputs` exposes the same shared NumPy buffers for
+curriculum and reward bookkeeping without forcing MPS scalar synchronizations;
+`sync_outputs()` provides an explicit fence outside the normal action cadence.
+`transfer_stats` records action and observation bytes, wall time, and syncs.
+CPU, CUDA, and Metal selection is explicit through `backend` or `BLAZE_BACKEND`.
 
 The measured local M4 full gate on 2026-07-30 was byte-exact against CPU for
 default, the committed 2,058-tick torch chain, and mixed full-action streams, masked
 reset, snapshot capture, camera/depth/edge, rewards/status/pose, N=1, 31, 32,
 33, 127, and 129 tail cases, and repeated SHA-256 runs. A real-T0 N=256,
-100-decision benchmark measured 86,983.7 env-decisions/s, 347,934.6
-env-ticks/s, and 200.4M semantic rays/s, with 2,495.2 MiB shared buffers,
-4.2 MiB host snapshot storage, and 2,430.2 MiB peak RSS. These are diagnostic
-local measurements, not claims against the RTX throughput pins above. The MPS
-smoke completed a real Adam update, actual minibatching, checkpoint reload,
-evaluation forward pass, and masked reset over N=32 using the real
-`s10_t0.bsnp` snapshot.
+100-decision benchmark measured 98,013.4 env-decisions/s, 392,053.5
+env-ticks/s, and 225.8M semantic rays/s, with 2,495.2 MiB shared buffers,
+4.3 MiB host snapshot storage, and 2,432.6 MiB peak RSS. These are diagnostic
+local measurements, not claims against the RTX throughput pins above. With
+deferred MPS observation fences, the N=256, 64-decision training smoke rolled
+out 15,989 env-decisions/s (63,956 env-ticks/s), then completed its Adam update
+in 0.534 s, plus checkpoint reload, evaluation, and masked reset.
 
 The survival action protocol also exposes diamond pick, shovel, axe, hoe, and
 sword crafts as indices 8..12, and the status record is 23 columns with raw
@@ -145,8 +149,12 @@ diamond plus those five tool counts in columns 17..22. `DIAMOND=1
 rl/chain_probe.py 2` is the deterministic reference executive: it gathers
 wood, coal, six iron ore, smelts two iron picks, mines three natural diamonds,
 upgrades to a diamond pick, mines the remaining eight diamonds, and crafts the
-full tool set. Its 23,306-tick seed-2 tape passed CPU/Metal replay with exact
-simulation state, block IDs, depth, pose, inventory, and final tool counts.
+full tool set. Its 23,306-tick seed-2 tape passed real magma versus CPU with
+zero gated differences and passed CPU/Metal replay with exact simulation state,
+block IDs, depth, pose, inventory, and final tool counts. This long trace also
+gates the real 512-entry coal-scan truncation order and the 48-active plus
+32-overflow item FIFO, both of which matter only after thousands of mining
+ticks.
 Across 53.7 million edge-mask samples, three pixels on three frames landed on
 opposite sides of the 0.05 float32 border threshold; the long-run gate permits
 at most 32 total and two per frame, while the representative mc-sim camera
@@ -162,7 +170,7 @@ matrix remains byte-exact.
 | Dig tick counts (acquire tick, per-tick progress float accumulation, `>=1.0` break, blockHitDelay=5, airborne/underwater /5) | direct port of player_ctl.c:364-459 with per-env state; `pb_*` reused verbatim (MC_HD already). Progress is float accumulation — same source, same flags -> bit-exact. |
 | Dig/selection raycast target | port sel_box.c:250-292; underground blocks are full cubes, but port `gm_sel_box` defaults + ore/stone cases anyway. |
 | Drop identity/count, tool wear, pickup box and delay | player_ctl.c:188-239, live_sim.c:127-148 — deterministic integer/double math. |
-| Item drop physics | live_sim.c:71-108, deterministic. |
+| Item drop physics and overflow | live_sim.c:71-148, including the 48-active plus 32-entry recoverable FIFO. |
 | Coal list membership + ordering | static ore set within (+-16 xz, -24/+40 y window around player block) minus mined, sorted by d2 — semantically identical to the rl_mode scan for coal (the "always" rule means depth never hides coal). |
 | Inventory merge rules | `inventory_stack_rules.h` reused verbatim (MC_HD). |
 

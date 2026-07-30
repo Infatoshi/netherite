@@ -53,7 +53,8 @@ the recipe tonight: a 1.35-h from-scratch run's best checkpoint
 Apple Silicon portability does not replace this CUDA acceptance gate. The
 native Metal backend preserves the same snapshot/action/observation ABI, runs
 the FP64 tick/reset exactly on CPU, dispatches the semantic camera to Metal,
-and has an MPS one-update/checkpoint/evaluation smoke. Its measured status is
+and has an MPS one-update/checkpoint/evaluation smoke plus a deferred-sync
+training path. Its measured status is
 reported under Gate 3 and `docs/MACOS_METAL.md`.
 
 ### Gate 3 - perf pins
@@ -116,11 +117,12 @@ Metal moved the sky stage from 38.687 ms on CPU to 0.921 ms and the raster
 stage from 19.737 ms to 7.656 ms. An immediately preceding identical Metal run
 measured 18.068 ms / 55.35 FPS, so the 60 FPS pin is demonstrated but not yet
 repeatably held; CPU HUD/presentation and synchronization are now material
-costs. The real-T0 Blaze hybrid at N=256,
-repeat 4 measured 347,934.6 env-ticks/s and 200.4M semantic rays/s, using
-2,495.2 MiB of Metal shared buffers and 2,430.2 MiB peak RSS. The MPS smoke at
-N=32 completed a real Adam update, checkpoint reload, evaluation, and masked
-reset. Full context and transfer timings are in `docs/MACOS_METAL.md`.
+costs. The real-T0 Blaze hybrid at N=256, repeat 4 measured 392,053.5
+env-ticks/s and 225.8M semantic rays/s, using 2,495.2 MiB of Metal shared
+buffers and 2,432.6 MiB peak RSS. The deferred-sync MPS smoke at N=256 rolled
+out 63,956 env-ticks/s and completed a real Adam update, checkpoint reload,
+evaluation, and masked reset. Full context and transfer timings are in
+`docs/MACOS_METAL.md`.
 
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.

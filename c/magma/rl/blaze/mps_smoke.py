@@ -2,6 +2,7 @@
 """One real MPS policy update over the hybrid Metal Blaze backend."""
 import os
 import tempfile
+import time
 
 import numpy as np
 import torch
@@ -51,7 +52,9 @@ def main():
         else:
             snapshot = write_synthetic_snapshot(
                 os.path.join(td, "synthetic.bsnp"))
-        env = VecBlaze(n, backend="metal", output_device="mps")
+        defer_sync = os.environ.get("BLAZE_MPS_DEFER_SYNC", "1") != "0"
+        env = VecBlaze(n, backend="metal", output_device="mps",
+                       synchronize_mps=not defer_sync)
         try:
             env.load_snapshots([snapshot])
             env.assign(np.zeros(n, dtype=np.int32)); env.reset()
@@ -64,6 +67,7 @@ def main():
 
             optimizer.zero_grad(set_to_none=True)
             total_loss = torch.zeros((), device=device)
+            rollout_start = time.perf_counter()
             for _ in range(chunks):
                 logits, value = model(env.cam, env.depth, env.edge, env.scal)
                 dists = [torch.distributions.Categorical(logits=x)
@@ -84,10 +88,13 @@ def main():
                     total_loss = total_loss + weight * (
                         policy_loss + value_loss -
                         1e-3 * entropy[start:stop].mean())
+            rollout_seconds = time.perf_counter() - rollout_start
+            update_start = time.perf_counter()
             total_loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
             torch.mps.synchronize()
+            update_seconds = time.perf_counter() - update_start
 
             after = torch.cat([p.detach().flatten().cpu()
                                for p in model.parameters()])
@@ -113,6 +120,7 @@ def main():
             mask = torch.zeros(n, dtype=torch.uint8, device=device)
             mask[0] = 1
             env.reset(mask)
+            env.sync_outputs()
             stats = env.transfer_stats
             if stats["observation_bytes"] <= 0 or stats["steps"] < chunks + 1:
                 raise AssertionError(f"missing transfer accounting: {stats}")
@@ -120,6 +128,10 @@ def main():
             print(f"MPS smoke PASS: snapshot={os.path.basename(snapshot)}, "
                   f"n={n}, chunks={chunks}, MB={min(minibatch, n)}, "
                   f"loss={total_loss.item():.6f}, "
+                  f"defer_sync={int(defer_sync)}, "
+                  f"rollout={rollout_seconds:.3f}s "
+                  f"({n * chunks / rollout_seconds:.0f} decisions/s), "
+                  f"update={update_seconds:.3f}s, "
                   f"action_copy={stats['action_seconds'] * 1e3:.3f} ms, "
                   f"obs_copy={stats['observation_seconds'] * 1e3:.3f} ms, "
                   f"camera={info['last_camera_ms']:.3f} ms")

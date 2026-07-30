@@ -177,7 +177,7 @@ def fmt_field(rec, name):
         return struct.unpack("<i", raw)[0]
     if name == "coal":
         v = struct.unpack(f"<{(hi-lo)//4}i", raw)
-        return [v[i:i+3] for i in range(0, 24, 3)]
+        return [v[i:i+3] for i in range(0, len(v), 3)]
     if name in ("hotbar_ids", "hotbar_counts", "inv_counts"):
         return struct.unpack(f"<{(hi-lo)//4}i", raw)
     if name in ("cam", "depth", "edge"):
@@ -218,6 +218,8 @@ def run_seed(seed, snap, actions, label, show_final_inv=False):
                 print(f"    action: {act}")
                 print(f"    real:  {fmt_field(a_rec, f)}")
                 print(f"    blaze: {fmt_field(b_rec, f)}")
+                if f == "hotbar_counts":
+                    print(f"    ids:   {fmt_field(a_rec, 'hotbar_ids')}")
                 d = cu.debug()
                 print(f"    blaze state: pos=({d[0]:.17g},{d[1]:.17g},"
                       f"{d[2]:.17g}) mot=({d[3]:.17g},{d[4]:.17g},{d[5]:.17g})"
@@ -257,6 +259,10 @@ def main():
                          "+ furnace place/tick INCLUDED) from the inventory-"
                          "injected snapshot rl/out/snaps/s10_t0_iron.bsnp "
                          "(regenerate both with make_iron_actions.py)")
+    ap.add_argument("--diamond", action="store_true",
+                    help="full diamond-tool reference gate: replay "
+                         "rl/out/diamond_actions_s<seed>.json from the "
+                         "fresh-spawn snapshot")
     args = ap.parse_args()
     seeds = [int(s) for s in args.seeds.split(",")]
 
@@ -277,6 +283,23 @@ def main():
                           show_final_inv=True)
         print(f"\n{'PASS' if npass == total else 'FAIL'}: "
               f"{npass}/{total} iron stream zero-diff")
+        sys.exit(0 if npass == total else 1)
+    if args.diamond:
+        seed = args.chain_seed
+        snap = os.path.join(SNAPS, f"s{seed}_t0.bsnp")
+        acts_path = os.path.join(RL, "out",
+                                 f"diamond_actions_s{seed}.json")
+        if not os.path.exists(snap) or not os.path.exists(acts_path):
+            print(f"diamond gate: missing {snap} or {acts_path} "
+                  f"(run DIAMOND=1 chain_probe.py {seed})")
+            sys.exit(1)
+        acts = [{k: v for k, v in a.items() if k != "snapshot"}
+                for a in json.load(open(acts_path))]
+        total += 1
+        npass += run_seed(seed, snap, acts,
+                          f"diamond chain x{len(acts)}", show_final_inv=True)
+        print(f"\n{'PASS' if npass == total else 'FAIL'}: "
+              f"{npass}/{total} diamond stream zero-diff")
         sys.exit(0 if npass == total else 1)
     if args.chain:
         seed = args.chain_seed

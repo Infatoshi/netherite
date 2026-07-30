@@ -431,9 +431,11 @@ static int rl_snapshot_write(GmRuntime *r, const char *path, int radius) {
                       (size_t)h.rnx * h.rny * h.rnz, f) ==
                    (size_t)h.rnx * h.rny * h.rnz;
     ok = ok && fwrite(&ncoal, sizeof ncoal, 1, f) == 1;
+    /* Match rl_emit_obs scan order. The loader also normalizes legacy files
+     * written in x/y/z order, but new snapshots should be canonical. */
     for (x = 0; x < h.rnx && ok; ++x)
-        for (y = 0; y < h.rny && ok; ++y)
-            for (z = 0; z < h.rnz && ok; ++z)
+        for (z = 0; z < h.rnz && ok; ++z)
+            for (y = h.rny - 1; y >= 0 && ok; --y)
                 if (mc_state_id(cells[((long)x * h.rny + y) * h.rnz + z]) ==
                     RL_BLOCK_COAL) {
                     int c[3];

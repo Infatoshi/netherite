@@ -46,6 +46,22 @@ class RlSnapHead(ctypes.Structure):
 assert ctypes.sizeof(RlSnapHead) == 752
 
 
+class RlSnapItem(ctypes.Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("x", ctypes.c_double), ("y", ctypes.c_double),
+        ("z", ctypes.c_double), ("mx", ctypes.c_double),
+        ("my", ctypes.c_double), ("mz", ctypes.c_double),
+        ("item", ctypes.c_int), ("count", ctypes.c_int),
+        ("meta", ctypes.c_int), ("age", ctypes.c_int),
+        ("pickup_delay", ctypes.c_int), ("lifespan", ctypes.c_int),
+        ("on_ground", ctypes.c_int),
+    ]
+
+
+assert ctypes.sizeof(RlSnapItem) == 76
+
+
 def _idx(x, y, z, ny, nz):
     return (x * ny + y) * nz + z
 
@@ -94,6 +110,59 @@ def write_synthetic_snapshot(path, nx=16, ny=32, nz=16):
     with open(path, "wb") as f:
         f.write(bytes(h))
         f.write(cells.tobytes())
+        f.write(struct.pack("<I", len(coal)))
+        for xyz in coal:
+            f.write(struct.pack("<iii", *xyz))
+    return os.fspath(path)
+
+
+def write_dense_coal_snapshot(path):
+    """Legacy x/y/z ore order with enough candidates to hit the 512 cap."""
+    nx, ny, nz = 40, 65, 40
+    h = RlSnapHead()
+    h.magic = b"BSNP"; h.version = 1; h.seed = 7
+    h.px, h.py, h.pz = 20.5, 24.0, 20.5
+    h.box[:] = (20.2, 24.0, 20.2, 20.8, 25.8, 20.8)
+    h.health, h.food, h.saturation = 20.0, 20, 5.0
+    h.dig_hx = h.dig_hy = h.dig_hz = -(2 ** 31)
+    h.container_wx = h.container_wy = h.container_wz = -(2 ** 31)
+    h.rnx, h.rny, h.rnz = nx, ny, nz
+    cells = np.full(nx * ny * nz, 16 << 4, dtype="<u2")
+    coal = [(x, y, z) for x in range(nx) for y in range(ny)
+            for z in range(nz)]
+    with open(path, "wb") as f:
+        f.write(bytes(h)); f.write(cells.tobytes())
+        f.write(struct.pack("<I", len(coal)))
+        for xyz in coal:                 # intentionally legacy x/y/z order
+            f.write(struct.pack("<iii", *xyz))
+    return os.fspath(path)
+
+
+def write_overflow_snapshot(path):
+    """Full active table plus a nearby coal block for overflow/capture tests."""
+    base = write_synthetic_snapshot(path)
+    raw = open(base, "rb").read()
+    h = RlSnapHead.from_buffer_copy(raw[:ctypes.sizeof(RlSnapHead)])
+    cell_count = h.rnx * h.rny * h.rnz
+    cells = np.frombuffer(raw, dtype="<u2", count=cell_count,
+                          offset=ctypes.sizeof(RlSnapHead)).copy()
+    cells[_idx(8, 5, 10, h.rny, h.rnz)] = 16 << 4
+    h.n_items = 48
+    h.inv[0][:] = (278, 1, 0)       # diamond pick; break coal before expiry
+    h.hotbar_sel = 0
+    items = []
+    for i in range(48):
+        it = RlSnapItem()
+        it.x, it.y, it.z = 1.5, 4.0, 1.5
+        it.item, it.count = 3, 1
+        it.age, it.lifespan = 0, 20
+        items.append(bytes(it))
+    coal = []
+    ids = (cells >> 4).reshape(h.rnx, h.rny, h.rnz)
+    for x, y, z in zip(*np.nonzero(ids == 16)):
+        coal.append((int(x), int(y), int(z)))
+    with open(path, "wb") as f:
+        f.write(bytes(h)); f.write(b"".join(items)); f.write(cells.tobytes())
         f.write(struct.pack("<I", len(coal)))
         for xyz in coal:
             f.write(struct.pack("<iii", *xyz))

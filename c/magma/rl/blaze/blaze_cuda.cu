@@ -69,11 +69,12 @@ static_assert(CU_TICK_TPB % 32 == 0, "k_tick needs full warps");
 typedef struct {
     RlSnapHead head;
     RlSnapItem items[BLAZE_SNAP_MAX_ITEMS];
+    unsigned nactive;
     const u16 *cells;            /* device, head.rnx*rny*rnz packed states */
     const int *coal;             /* device, ncoal x 3 */
     int ncoal;
-    const int *xy_off;           /* device, rnx*rny+1 CSR (ix,iy)->coal-range
-                                  * offsets (blaze_build_ore_xy); NULL =
+    const int *xz_off;           /* device, rnx*rnz+1 CSR (ix,iz)->coal-range
+                                  * offsets (blaze_build_ore_xz); NULL =
                                   * full-scan candidate rebuild */
     const int *cont;             /* device, ncont x 3 container cells (58/61/
                                   * 62); interact-candidate seed */
@@ -176,8 +177,9 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
     if (gi >= nactive) return;
     int i = active[gi];
     const CuSnapDev *s = &snaps[assign[i]];
-    blaze_reset_scalar(&envs[i], &s->head, s->items, s->coal, s->ncoal,
-                       s->xy_off, s->cont, s->ncont, success_item);
+    blaze_reset_scalar(&envs[i], &s->head, s->items, s->nactive,
+                       s->coal, s->ncoal,
+                       s->xz_off, s->cont, s->ncont, success_item);
 }
 
 /* reset phase 2: one thread per bulk cell (region copy + window fill +
@@ -791,7 +793,7 @@ void blaze_destroy(void *vh) {
     for (i = 0; i < v->nsnaps; ++i) {
         cudaFree((void *)v->h_snaps[i].cells);
         cudaFree((void *)v->h_snaps[i].coal);
-        cudaFree((void *)v->h_snaps[i].xy_off);
+        cudaFree((void *)v->h_snaps[i].xz_off);
         cudaFree((void *)v->h_snaps[i].cont);
     }
     cudaFree(v->d_ops);
@@ -894,7 +896,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         {
         int *d_xy = NULL;
         int *d_cn = NULL;
-        size_t xy_nb = ((size_t)h->rnx * h->rny + 1) * sizeof(int);
+        size_t xy_nb = ((size_t)h->rnx * h->rnz + 1) * sizeof(int);
         if (cudaMalloc(&d_cells, (size_t)svol * sizeof(u16)) !=
                 cudaSuccess ||
             cudaMemcpy(d_cells, s.cells, (size_t)svol * sizeof(u16),
@@ -904,9 +906,9 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                   cudaSuccess ||
               cudaMemcpy(d_coal, s.coal, (size_t)s.ncoal * 3 * sizeof(int),
                          cudaMemcpyHostToDevice) != cudaSuccess)) ||
-            (s.xy_off &&
+            (s.xz_off &&
              (cudaMalloc(&d_xy, xy_nb) != cudaSuccess ||
-              cudaMemcpy(d_xy, s.xy_off, xy_nb,
+              cudaMemcpy(d_xy, s.xz_off, xy_nb,
                          cudaMemcpyHostToDevice) != cudaSuccess)) ||
             (s.ncont > 0 &&
              (cudaMalloc(&d_cn, (size_t)s.ncont * 3 * sizeof(int)) !=
@@ -926,10 +928,11 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         memset(d, 0, sizeof *d);
         d->head = s.head;
         memcpy(d->items, s.items, sizeof d->items);
+        d->nactive = s.nactive;
         d->cells = d_cells;
         d->coal = d_coal;
         d->ncoal = (int)s.ncoal;
-        d->xy_off = d_xy;
+        d->xz_off = d_xy;
         d->cont = d_cn;
         d->ncont = s.ncont;
         }
@@ -1097,6 +1100,7 @@ int blaze_capture(void *vh, int env, int slot) {
         v->nsnaps++;
     }
     (void)blaze_capture_head(&he, &d->head, d->items);
+    d->nactive = (unsigned)he.n_items;
     if (!d->cells) {
         u16 *cells = NULL;
         if (cu_ck(cudaMalloc(&cells, (size_t)v->rvol * sizeof(u16)),
@@ -1129,22 +1133,22 @@ int blaze_capture(void *vh, int env, int slot) {
     {   /* the captured ore list IS the assign-source snapshot's (he.ore was
          * bound at reset and never mutates), so its spatial index carries
          * over verbatim; all snapshots share the region dims. */
-        const int *src_xy = v->h_snaps[v->h_assign[env]].xy_off;
-        size_t xy_nb = ((size_t)v->rnx * v->rny + 1) * sizeof(int);
+        const int *src_xy = v->h_snaps[v->h_assign[env]].xz_off;
+        size_t xy_nb = ((size_t)v->rnx * v->rnz + 1) * sizeof(int);
         if (src_xy) {
-            if (!d->xy_off) {
+            if (!d->xz_off) {
                 int *xy = NULL;
-                if (cu_ck(cudaMalloc(&xy, xy_nb), "capture xy_off alloc"))
+                if (cu_ck(cudaMalloc(&xy, xy_nb), "capture xz_off alloc"))
                     return -1;
-                d->xy_off = xy;
+                d->xz_off = xy;
             }
-            if (cu_ck(cudaMemcpy((void *)d->xy_off, src_xy, xy_nb,
+            if (cu_ck(cudaMemcpy((void *)d->xz_off, src_xy, xy_nb,
                                  cudaMemcpyDeviceToDevice),
-                      "capture xy_off copy"))
+                      "capture xz_off copy"))
                 return -1;
         } else {
-            cudaFree((void *)d->xy_off);
-            d->xy_off = NULL;
+            cudaFree((void *)d->xz_off);
+            d->xz_off = NULL;
         }
     }
     {   /* container list: the env's LIVE device list is exactly the captured

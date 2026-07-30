@@ -20,7 +20,8 @@
 extern "C" {
 #endif
 
-#define BLAZE_SNAP_MAX_ITEMS 48   /* == GM_LIVE_MAX (game/live_sim.h) */
+#define BLAZE_FILE_MAX_ITEMS 48   /* v1 .bsnp stores live active entities */
+#define BLAZE_SNAP_MAX_ITEMS 80   /* internal capture: 48 active + 32 FIFO */
 #define BLAZE_SNAP_MAX_CONT  64   /* container-list cap (ids 58/61/62); more
                                    * than this in one region -> ncont = -1 and
                                    * consumers fall back to the full window
@@ -71,13 +72,13 @@ typedef struct {
 typedef struct {
     RlSnapHead     head;
     RlSnapItem     items[BLAZE_SNAP_MAX_ITEMS];
+    unsigned       nactive;       /* leading active items; remainder overflow */
     unsigned short *cells;         /* malloc'd rnx*rny*rnz packed states */
     int            *coal;          /* malloc'd ncoal x 3 (wx,wy,wz) */
     unsigned       ncoal;
-    int            *xy_off;        /* malloc'd rnx*rny+1 CSR offsets into coal
-                                    * by region (ix,iy) column; NULL when the
-                                    * list is not writer-ordered (full-scan
-                                    * fallback) */
+    int            *xz_off;        /* malloc'd rnx*rnz+1 CSR offsets into coal
+                                    * by region (ix,iz) column, with y descending
+                                    * inside each column to match rl_emit_obs */
     int            has_liquid;     /* any id 8..11 in the region */
     int            *cont;          /* malloc'd container cells (wx,wy,wz x
                                     * ncont; ids 58/61/62), derived from the
@@ -91,15 +92,11 @@ int  blaze_snapshot_load(const char *path, CuSnapshot *out,
                          char *err, int err_cap);
 void blaze_snapshot_free(CuSnapshot *s);
 
-/* Build the CSR (ix,iy)-column index over a static ore list: off[ix*rny+iy]
- * .. off[ix*rny+iy+1] spans the ores of region column (ix,iy) in ORIGINAL
- * list order. Valid ONLY when the list is strictly lex-ascending in region
- * coords (x,y,z) and fully in-region - exactly the order rl_snapshot_write
- * emits - so walking columns ascending reproduces the full scan's ore-index
- * accept order byte-for-byte. Returns 1 and fills off[rnx*rny+1] on success;
- * 0 when the list violates that order (consumer stays on the full scan).
- * Host-side, init-time only. */
-int  blaze_build_ore_xy(const int *ore, int nore,
+/* Normalize a static ore list to rl_emit_obs scan order (x ascending, z
+ * ascending, y descending), then build its (ix,iz)-column CSR. This preserves
+ * the real environment's 512-entry coal scratch truncation even for legacy
+ * snapshots whose trailing ore list was written in x/y/z order. */
+int  blaze_build_ore_xz(int *ore, int nore,
                         int rx0, int ry0, int rz0,
                         int rnx, int rny, int rnz, int *off);
 

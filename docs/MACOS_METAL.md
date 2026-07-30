@@ -123,13 +123,18 @@ from rl.blaze.blaze import VecBlaze
 env = VecBlaze(256, backend="metal", output_device="host")
 # output_device="host": NumPy views over persistent shared Metal storage
 # output_device="mps": persistent MPS tensors updated by an explicit copy
+# synchronize_mps=False: queue copies until the policy action's host fence
 ```
 
 PyTorch does not expose a stable public import of an arbitrary external
-`MTLBuffer`. The MPS option therefore performs a deliberate synchronized copy
-from the shared NumPy view into preallocated MPS tensors. It never presents a
-private MPS pointer to the C ABI. Transfer time is recorded by the verification
-and training smoke so the cost is visible.
+`MTLBuffer`. The MPS option therefore performs a deliberate copy from the
+shared NumPy view into preallocated MPS tensors. The default synchronizes each
+copy. A trainer can set `synchronize_mps=False`, use `env.host_outputs` for
+host-side control bookkeeping, and let the required sampled-action transfer to
+the host fence the queued observation copy and policy forward pass. It never
+presents a private MPS pointer to the C ABI. `sync_outputs()` is available when
+code needs a fence outside that cadence. Transfer time and sync count are
+recorded so the cost is visible.
 
 For a 24 GB machine, start full tick-zero batches at `N=256`; the one-update
 training smoke uses `N=32`. Creation sums the persistent Metal shared-buffer
@@ -201,14 +206,15 @@ measured 2.041 ms shared-buffer input, 0.529 ms output, 3.788 ms HUD, and 1.468
 ms presentation per frame. These numbers retain the measured tail and the
 observed run-to-run variance rather than smoothing either away.
 
-The real `s10_t0.bsnp` Blaze benchmark at `N=256`, repeat 4, and 100 decisions
-measured 86,983.7 env-decisions/s, 347,934.6 env-ticks/s, and 200.4 million
-semantic rays/s. It reported 2,495.2 MiB of Metal shared buffers, 4.2 MiB of
-host snapshot storage, and 2,430.2 MiB peak RSS. The separate real MPS smoke
-(`N=32`, two chunks, minibatch 16) completed an Adam update, checkpoint reload,
-evaluation, and masked reset. Across its three environment steps it reported
-1.591 ms cumulative action preparation/copy time and 6.894 ms cumulative
-observation copy time. These view-distance-1 M4 figures are not comparable to
+The real seed-2 T0 Blaze benchmark at `N=256`, repeat 4, and 100 decisions
+measured 98,013.4 env-decisions/s, 392,053.5 env-ticks/s, and 225.8 million
+semantic rays/s. It reported 2,495.2 MiB of Metal shared buffers, 4.3 MiB of
+host snapshot storage, and 2,432.6 MiB peak RSS. The deferred-sync MPS smoke
+(`N=256`, 64 chunks, minibatch 256) rolled out 15,989 env-decisions/s (63,956
+env-ticks/s), completed the Adam update in 0.534 s, and passed checkpoint reload,
+evaluation, and masked reset. Its cumulative observation enqueue time was
+11.605 ms; the sampled-action host fences totaled 53.244 ms. These
+view-distance-1 M4 figures are not comparable to
 the view-distance-8 RTX figures in the Linux/CUDA gate.
 
 ## Known limits
@@ -222,8 +228,8 @@ the view-distance-8 RTX figures in the Linux/CUDA gate.
   remain native CPU stages. Raster command buffers are synchronized per draw
   and frame-end copies shared color/depth back for CPU composition and SDL or
   headless output.
-- `output_device="mps"` has an explicit synchronized copy. Use `"host"` to
-  consume the shared NumPy views without that copy.
+- `output_device="mps"` requires an explicit copy. Its default is synchronized;
+  training can defer that fence to the action transfer as described above.
 - `magma_game_metal` supports interactive SDL, dummy-video frame loops, and
   script/RL headless `--frames-out` capture in PPM-directory and direct-NPY
   modes, including sparse original-tick numbering.

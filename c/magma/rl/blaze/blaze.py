@@ -22,6 +22,8 @@ Buffers:
   metal backend: persistent MTLStorageModeShared NumPy views. With
                  output_device="mps", step explicitly copies those views
                  into persistent MPS tensors and records transfer timings.
+                 synchronize_mps=False queues the copies; a policy action
+                 copied back to the host provides the normal step fence.
                  Shared NumPy views are valid only while the VecBlaze handle
                  remains open; do not retain or access them after close().
   cpu backend : numpy arrays (torch tensors are converted).
@@ -95,7 +97,7 @@ _METAL_OUTPUT = {
 
 class VecBlaze:
     def __init__(self, n, device=0, so_path=None, backend="auto",
-                 output_device=None):
+                 output_device=None, synchronize_mps=True):
         if int(n) <= 0:
             raise ValueError(f"n must be positive, got {n}")
         requested = (backend or "auto").lower()
@@ -124,6 +126,7 @@ class VecBlaze:
         self.device = device
         self.n_snaps = 0
         self.output_device = output_device or "host"
+        self.synchronize_mps = bool(synchronize_mps)
         if self.backend == "metal" and self.output_device not in ("host", "mps"):
             raise ValueError("Metal output_device must be 'host' or 'mps'")
         if self.backend != "metal" and self.output_device not in ("host", None):
@@ -131,7 +134,9 @@ class VecBlaze:
         self.transfer_stats = {
             "steps": 0, "action_seconds": 0.0, "action_bytes": 0,
             "observation_seconds": 0.0, "observation_bytes": 0,
+            "observation_syncs": 0,
         }
+        self._mps_pending = False
         self.lib = ctypes.CDLL(so_path)
         self.lib.blaze_create.restype = ctypes.c_void_p
         self.lib.blaze_create.argtypes = [ctypes.c_int, ctypes.c_int]
@@ -226,6 +231,12 @@ class VecBlaze:
                 "pose", ctypes.c_float, np.float32, (self.n, NPOSE))
             self._host_status = self._metal_array(
                 "status", ctypes.c_int32, np.int32, (self.n, NSTATUS))
+            self.host_outputs = {
+                "cam": self._host_cam, "depth": self._host_depth,
+                "edge": self._host_edge, "scal": self._host_scal,
+                "rew": self._host_rew, "done": self._host_done,
+                "pose": self._host_pose, "status": self._host_status,
+            }
             if self.output_device == "host":
                 self.cam, self.depth, self.edge = (
                     self._host_cam, self._host_depth, self._host_edge)
@@ -544,7 +555,10 @@ class VecBlaze:
             transfer_start = time.perf_counter()
             accelerator_input = hasattr(actions, "detach")
             if accelerator_input:
+                action_was_mps = getattr(actions.device, "type", None) == "mps"
                 actions = actions.detach().to("cpu").numpy()
+                if action_was_mps:
+                    self._mps_pending = False
             actions = self.np.asarray(actions)
             if actions.ndim != 2 or actions.shape[0] != self.n:
                 raise ValueError(
@@ -565,6 +579,10 @@ class VecBlaze:
             self._validate_host_actions(actions)
             act_ptr = ctypes.c_void_p(actions.ctypes.data)
             if self.backend == "metal":
+                if self._mps_pending:
+                    self.torch.mps.synchronize()
+                    self.transfer_stats["observation_syncs"] += 1
+                    self._mps_pending = False
                 self.transfer_stats["action_seconds"] += (
                     time.perf_counter() - transfer_start)
                 if accelerator_input:
@@ -590,8 +608,13 @@ class VecBlaze:
                 transfer_start = time.perf_counter()
                 with self.torch.no_grad():
                     for dst, src in self._mps_copies:
-                        dst.copy_(src, non_blocking=False)
-                self.torch.mps.synchronize()
+                        dst.copy_(src, non_blocking=not self.synchronize_mps)
+                if self.synchronize_mps:
+                    self.torch.mps.synchronize()
+                    self.transfer_stats["observation_syncs"] += 1
+                    self._mps_pending = False
+                else:
+                    self._mps_pending = True
                 self.transfer_stats["observation_seconds"] += (
                     time.perf_counter() - transfer_start)
                 self.transfer_stats["observation_bytes"] += (
@@ -599,6 +622,13 @@ class VecBlaze:
         self._act_keepalive = actions   # kernels read it until the sync
         return (self.cam, self.depth, self.edge, self.scal, self.rew,
                 self.done, self.pose)
+
+    def sync_outputs(self):
+        """Fence queued Metal-to-MPS observation copies, if any."""
+        if self.backend == "metal" and self.output_device == "mps":
+            self.torch.mps.synchronize()
+            self.transfer_stats["observation_syncs"] += 1
+            self._mps_pending = False
 
     def backend_info(self):
         """Metal allocation/timing metadata, or a small generic summary."""
@@ -624,6 +654,8 @@ class VecBlaze:
     def close(self):
         """Release native state; Metal shared NumPy views are invalid after this."""
         if getattr(self, "h", None):
+            if getattr(self, "_mps_pending", False):
+                self.sync_outputs()
             self.lib.blaze_destroy(self.h)
             self.h = None
 

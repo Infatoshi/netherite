@@ -14,7 +14,10 @@ import time
 import numpy as np
 
 from blaze import CPU_SO, METAL_DYLIB, VecBlaze
-from metal_test_utils import RlSnapHead, action_tape, write_synthetic_snapshot
+from metal_test_utils import (RlSnapHead, action_tape,
+                              write_dense_coal_snapshot,
+                              write_overflow_snapshot,
+                              write_synthetic_snapshot)
 
 
 FIELDS = ("cam", "depth", "edge", "scal", "rew", "done", "pose", "status")
@@ -237,6 +240,55 @@ def full_action_op_gate(snapshot, device=0):
             os.environ.pop("BLAZE_OP_TRACE", None)
         else:
             os.environ["BLAZE_OP_TRACE"] = old_trace
+
+
+def long_horizon_regression_gates(temp_dir, device=0):
+    dense = write_dense_coal_snapshot(os.path.join(temp_dir, "dense-coal.bsnp"))
+    cpu, metal = setup_pair(1, dense, device=device)
+    try:
+        configure_raw(cpu); configure_raw(metal)
+        size = cpu.lib.blaze_obs_size()
+        a = ctypes.create_string_buffer(size)
+        b = ctypes.create_string_buffer(size)
+        if cpu.lib.blaze_emit(cpu.h, 0, 0, a) or \
+                metal.lib.blaze_emit(metal.h, 0, 0, b):
+            raise RuntimeError("dense-coal emit failed")
+        if a.raw != b.raw:
+            raise AssertionError("dense-coal CPU/Metal mismatch")
+        coal_off = 5028
+        got = np.frombuffer(a.raw, dtype="<i4", count=32 * 3,
+                            offset=coal_off).reshape(32, 3)
+        scan = [(x, y, z) for x in range(4, 37)
+                for z in range(4, 37) for y in range(64, -1, -1)][:512]
+        scan.sort(key=lambda q: ((q[0] + 0.5 - 20.5) ** 2 +
+                                 (q[1] + 0.5 - 24.0) ** 2 +
+                                 (q[2] + 0.5 - 20.5) ** 2, *q))
+        expected = np.asarray(scan[:32], dtype=np.int32)
+        fail_mismatch("dense-coal/real-scan-order", expected, got)
+    finally:
+        cpu.close(); metal.close()
+
+    overflow = write_overflow_snapshot(
+        os.path.join(temp_dir, "item-overflow.bsnp"))
+    cpu, metal = setup_pair(1, overflow, device=device)
+    try:
+        action = np.zeros((1, 13), dtype=np.float64)
+        action[:, 9:11] = -1
+        action[:, 0] = 1
+        action[:, 7] = 1
+        for tick in range(40):
+            cpu.step(action, repeat=1); metal.step(action, repeat=1)
+            compare(cpu, metal, f"item-overflow/{tick}")
+            if tick == 14:
+                cpu.capture(0, 1); metal.capture(0, 1)
+                cpu.assign([1]); metal.assign([1])
+                cpu.reset(); metal.reset()
+        if int(cpu.status[0, 7]) != 1:
+            raise AssertionError(
+                "queued coal was not recovered across overflow capture/reset")
+    finally:
+        cpu.close(); metal.close()
+    print("long horizon: 512-coal scan order and 48+32 item overflow PASS")
 
 
 def digest_env(env):
@@ -552,6 +604,7 @@ def main():
             tail_gate(snapshot, (1, 33) if args.quick else
                       (1, 31, 32, 33, 127, 129), device=args.device)
         if not args.camera_only and not args.no_error_paths:
+            long_horizon_regression_gates(td, device=args.device)
             error_gate(snapshot, td, device=args.device)
         print(f"backend: {info['device_name']}, allocations={info['allocation_count']}, "
               f"budget={info['memory_budget'] / 2**20:.1f} MiB")

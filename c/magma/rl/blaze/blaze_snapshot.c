@@ -72,11 +72,12 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
         fclose(f);
         return snap_fail(err, err_cap, "bad .bsnp header", path);
     }
-    if (out->head.n_items > BLAZE_SNAP_MAX_ITEMS ||
+    if (out->head.n_items > BLAZE_FILE_MAX_ITEMS ||
         !snap_checked_volume(&out->head, &vol)) {
         fclose(f);
         return snap_fail(err, err_cap, "implausible .bsnp counts", path);
     }
+    out->nactive = out->head.n_items;
     if (!snap_coordinates_safe(&out->head)) {
         fclose(f);
         return snap_fail(err, err_cap, "implausible .bsnp coordinates", path);
@@ -124,24 +125,28 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
     }
     fclose(f);
 
-    /* spatial index over the static ore list (bucketed coal-candidate
-     * rebuild); a malloc failure or non-writer-ordered list just leaves
-     * xy_off NULL - consumers fall back to the full scan. BLAZE_NO_ORE_XY=1
-     * forces the fallback (legacy full-scan A/B; load-time only, no tick
-     * cost). */
-    out->xy_off = NULL;
-    if (out->ncoal && !(getenv("BLAZE_NO_ORE_XY") &&
-                        atoi(getenv("BLAZE_NO_ORE_XY")))) {
-        size_t ncell = (size_t)out->head.rnx * (size_t)out->head.rny;
-        out->xy_off = (int *)malloc((ncell + 1) * sizeof *out->xy_off);
-        if (out->xy_off &&
-            !blaze_build_ore_xy(out->coal, (int)out->ncoal,
+    /* Normalize legacy and current files to the real scan's x/z/y-desc order
+     * before building the spatial index. The order matters when a dense scan
+     * window hits rl_emit_obs's 512-coal scratch cap. */
+    out->xz_off = NULL;
+    if (out->ncoal && !((getenv("BLAZE_NO_ORE_XZ") &&
+                         atoi(getenv("BLAZE_NO_ORE_XZ"))) ||
+                        (getenv("BLAZE_NO_ORE_XY") &&
+                         atoi(getenv("BLAZE_NO_ORE_XY"))))) {
+        size_t ncell = (size_t)out->head.rnx * (size_t)out->head.rnz;
+        out->xz_off = (int *)malloc((ncell + 1) * sizeof *out->xz_off);
+        if (!blaze_build_ore_xz(out->coal, (int)out->ncoal,
                                 out->head.rx0, out->head.ry0, out->head.rz0,
                                 out->head.rnx, out->head.rny, out->head.rnz,
-                                out->xy_off)) {
-            free(out->xy_off);
-            out->xy_off = NULL;
+                                out->xz_off)) {
+            free(out->xz_off);
+            out->xz_off = NULL;
         }
+    } else if (out->ncoal) {
+        (void)blaze_build_ore_xz(out->coal, (int)out->ncoal,
+                                 out->head.rx0, out->head.ry0, out->head.rz0,
+                                 out->head.rnx, out->head.rny, out->head.rnz,
+                                 NULL);
     }
 
     out->has_liquid = 0;
@@ -168,7 +173,7 @@ void blaze_snapshot_free(CuSnapshot *s) {
     if (!s) return;
     free(s->cells);  s->cells = NULL;
     free(s->coal);   s->coal = NULL;
-    free(s->xy_off); s->xy_off = NULL;
+    free(s->xz_off); s->xz_off = NULL;
     free(s->cont);   s->cont = NULL;
 }
 
@@ -191,27 +196,37 @@ int blaze_build_containers(const unsigned short *cells,
     return n;
 }
 
-int blaze_build_ore_xy(const int *ore, int nore,
+static int ore_scan_cmp(const void *a_, const void *b_) {
+    const int *a = (const int *)a_, *b = (const int *)b_;
+    if (a[0] != b[0]) return a[0] < b[0] ? -1 : 1;
+    if (a[2] != b[2]) return a[2] < b[2] ? -1 : 1;
+    if (a[1] != b[1]) return a[1] > b[1] ? -1 : 1;
+    return 0;
+}
+
+int blaze_build_ore_xz(int *ore, int nore,
                        int rx0, int ry0, int rz0,
                        int rnx, int rny, int rnz, int *off) {
-    long ncell = (long)rnx * rny;
+    long ncell = (long)rnx * rnz;
     long prev = -1, cell;
     int i;
-    for (i = 0; i < nore; ++i) {   /* verify strict writer (lex x,y,z) order */
+    qsort(ore, (size_t)nore, 3 * sizeof *ore, ore_scan_cmp);
+    for (i = 0; i < nore; ++i) {
         long ix = (long)ore[i * 3 + 0] - (long)rx0;
         long iy = (long)ore[i * 3 + 1] - (long)ry0;
         long iz = (long)ore[i * 3 + 2] - (long)rz0;
         long key;
         if (ix < 0 || iy < 0 || iz < 0 || ix >= rnx || iy >= rny || iz >= rnz)
             return 0;
-        key = (ix * rny + iy) * rnz + iz;
+        key = (ix * rnz + iz) * rny + (rny - 1 - iy);
         if (key <= prev) return 0;
         prev = key;
     }
+    if (!off) return 1;
     for (cell = 0; cell <= ncell; ++cell) off[cell] = 0;
     for (i = 0; i < nore; ++i)
-        off[((long)ore[i * 3 + 0] - (long)rx0) * rny +
-            ((long)ore[i * 3 + 1] - (long)ry0) + 1]++;
+        off[((long)ore[i * 3 + 0] - (long)rx0) * rnz +
+            ((long)ore[i * 3 + 2] - (long)rz0) + 1]++;
     for (cell = 1; cell <= ncell; ++cell) off[cell] += off[cell - 1];
     return 1;
 }

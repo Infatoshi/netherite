@@ -76,6 +76,7 @@ extern "C" {
 #define CU_NBLOCKS  256         /* RL_NBLOCKS (emitted zeroed)   */
 #define CU_NLOGS    64          /* RL_NLOGS   (emitted zeroed)   */
 #define CU_MAX_ITEMS 48         /* GM_LIVE_MAX */
+#define CU_MAX_OVERFLOW 32      /* GM_LIVE_OVERFLOW_MAX */
 #define CU_MAX_EDITS 8          /* GM_RUNTIME_MAX_EDITS */
 #define CU_COAL_SCRATCH 512     /* rl_mode coalblk[512] cap */
 #define CU_COAL_CAND 1024       /* per-env geometric candidate cache cap */
@@ -141,6 +142,11 @@ typedef struct {
     int    on_ground, age, item, count, meta, pickup_delay, lifespan;
 } CuItem;
 
+typedef struct {
+    double x, y, z;
+    int item, count, meta, pickup_delay;
+} CuQueuedItem;
+
 /* ---- block edit (GmBlockEdit fields, game.h) ---- */
 typedef struct {
     int wx, wy, wz, id, meta, drop_id, drop_count, drop_meta;
@@ -190,8 +196,8 @@ typedef struct {
     u8    *dep, *edg;
     const int *ore;              /* snapshot static coal list, ncoal x 3    */
     int    nore;
-    const int *ore_xy;           /* snapshot CSR (ix,iy)->ore-range offsets
-                                  * (rnx*rny+1; blaze_build_ore_xy), NULL =
+    const int *ore_xz;           /* snapshot CSR (ix,iz)->ore-range offsets
+                                  * (rnx*rnz+1; blaze_build_ore_xz), NULL =
                                   * full-scan candidate rebuild             */
     struct CuCand *coal_cand;    /* pooled CU_COAL_CAND candidate cache     */
     int   *cont;                 /* pooled container list (wx,wy,wz x n_cont;
@@ -234,6 +240,9 @@ typedef struct {
 
     CuItem items[CU_MAX_ITEMS];
     int    n_items;
+    CuQueuedItem overflow[CU_MAX_OVERFLOW];
+    int    n_overflow;
+    int    spawn_fail_count;
 
     /* reward/done bookkeeping (driver-level; not part of the sim gate) */
     int    base_coal;
@@ -1376,12 +1385,10 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
 
 /* =================== live items (game/live_sim.c port) ==================== */
 
-/* verbatim gm_live_spawn_item (live_sim.c:43) */
-MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
-                                      int item, int count, int meta,
-                                      int pickup_delay) {
+MC_HD static inline int cu_try_active_item(Blaze *env, double x, double y,
+                                           double z, int item, int count,
+                                           int meta, int pickup_delay) {
     int i;
-    if (item <= 0 || count <= 0) return 0;
     for (i = 0; i < CU_MAX_ITEMS; ++i) {
         CuItem *e = &env->items[i];
         if (e->active) continue;
@@ -1398,6 +1405,41 @@ MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
     return 0;
 }
 
+/* live_sim.c live_drain_overflow: bounded FIFO, including the shift order. */
+MC_HD static inline void cu_drain_overflow(Blaze *env) {
+    int i = 0;
+    while (i < env->n_overflow) {
+        CuQueuedItem q = env->overflow[i];
+        int j;
+        if (!cu_try_active_item(env, q.x, q.y, q.z, q.item, q.count,
+                                q.meta, q.pickup_delay))
+            break;
+        for (j = i + 1; j < env->n_overflow; ++j)
+            env->overflow[j - 1] = env->overflow[j];
+        env->n_overflow--;
+    }
+}
+
+/* gm_live_spawn_item: drain first, then active table, then bounded FIFO. */
+MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
+                                      int item, int count, int meta,
+                                      int pickup_delay) {
+    CuQueuedItem *q;
+    if (item <= 0 || count <= 0) return 0;
+    cu_drain_overflow(env);
+    if (cu_try_active_item(env, x, y, z, item, count, meta, pickup_delay))
+        return 1;
+    if (env->n_overflow >= CU_MAX_OVERFLOW) {
+        env->spawn_fail_count++;
+        return 0;
+    }
+    q = &env->overflow[env->n_overflow++];
+    q->x = x; q->y = y; q->z = z;
+    q->item = item; q->count = count; q->meta = meta & 15;
+    q->pickup_delay = pickup_delay < 0 ? 0 : pickup_delay;
+    return 1;
+}
+
 /* verbatim solid_at (live_sim.c:61) - note: ANY non-air non-liquid id */
 MC_HD static inline int cu_item_solid_at(const Blaze *env, int x, int y, int z) {
     int id = cu_world_block(env, x, y, z);
@@ -1410,6 +1452,7 @@ MC_HD static inline int cu_item_solid_at(const Blaze *env, int x, int y, int z) 
 MC_HD static inline void cu_live_tick_player(Blaze *env) {
     int i;
     double px, py, pz;
+    cu_drain_overflow(env);
     for (i = 0; i < CU_MAX_ITEMS; ++i) {
         CuItem *e = &env->items[i];
         int by, bx, bz, under;
@@ -2025,44 +2068,44 @@ MC_HD static inline void blaze_coal_cache_sync(Blaze *env, int pwx, int pwy,
         env->cand_pwz != pwz) {
         int m = 0;
         CU_OP(env, CU_OP_COAL_REBUILD);
-        if (env->ore_xy) {
+        if (env->ore_xz) {
             /* spatially bucketed rebuild: the ore list is strictly writer-
-             * ordered (lex region x,y,z; verified by blaze_build_ore_xy), so
-             * each (ix, iy-range) is one CONTIGUOUS ore-array span in the
-             * original list order. Walking ix ascending over the window's
-             * clamped x/y ranges therefore reproduces the full scan's
-             * ascending ore-index accept sequence byte-for-byte - only the z
-             * test (and the ri guard) remains per entry. Ores outside the
-             * region cannot exist here (build rejects them -> ore_xy NULL). */
+             * ordered exactly like rl_emit_obs (x asc, z asc, y desc), so
+             * each (ix,iz) column is contiguous. Walking the clamped x/z
+             * window and filtering y reproduces both scan order and the
+             * 512-entry scratch truncation byte-for-byte. */
             long ix0 = (long)pwx - CU_OBS_R - (long)env->rx0;
             long ix1 = (long)pwx + CU_OBS_R - (long)env->rx0;
-            long iy0 = (long)y0 - (long)env->ry0;
-            long iy1 = (long)y1 - (long)env->ry0;
+            long iz0 = (long)pwz - CU_OBS_R - (long)env->rz0;
+            long iz1 = (long)pwz + CU_OBS_R - (long)env->rz0;
             int ix;
             if (ix0 < 0) ix0 = 0;
             if (ix1 > env->rnx - 1) ix1 = env->rnx - 1;
-            if (iy0 < 0) iy0 = 0;
-            if (iy1 > env->rny - 1) iy1 = env->rny - 1;
-            if (ix0 <= ix1 && iy0 <= iy1) {
+            if (iz0 < 0) iz0 = 0;
+            if (iz1 > env->rnz - 1) iz1 = env->rnz - 1;
+            if (ix0 <= ix1 && iz0 <= iz1) {
                 for (ix = (int)ix0; ix <= ix1 && m >= 0; ++ix) {
-                    int b1 = env->ore_xy[ix * env->rny + (int)iy1 + 1];
-                    for (i = env->ore_xy[ix * env->rny + (int)iy0]; i < b1; ++i) {
-                        int wx = env->ore[i * 3 + 0];
-                        int wy = env->ore[i * 3 + 1];
-                        int wz = env->ore[i * 3 + 2];
-                        long ri;
-                        if ((long)wz < (long)pwz - CU_OBS_R ||
-                            (long)wz > (long)pwz + CU_OBS_R) continue;
-                        ri = cu_region_idx(env, wx, wy, wz);
-                        if (ri < 0) continue;
-                        if (m >= CU_COAL_CAND) { m = -1; break; }
-                        env->coal_cand[m].x = wx;
-                        env->coal_cand[m].y = wy;
-                        env->coal_cand[m].z = wz;
-                        env->coal_cand[m].ri =
-                            mc_state_id(env->cells[ri]) == BLK_COAL_ORE
-                                ? (int)ri : ((int)ri | CU_CAND_MINED);
-                        ++m;
+                    int iz;
+                    for (iz = (int)iz0; iz <= iz1 && m >= 0; ++iz) {
+                        int b = env->ore_xz[ix * env->rnz + iz];
+                        int b1 = env->ore_xz[ix * env->rnz + iz + 1];
+                        for (i = b; i < b1; ++i) {
+                            int wx = env->ore[i * 3 + 0];
+                            int wy = env->ore[i * 3 + 1];
+                            int wz = env->ore[i * 3 + 2];
+                            long ri;
+                            if (wy < y0 || wy > y1) continue;
+                            ri = cu_region_idx(env, wx, wy, wz);
+                            if (ri < 0) continue;
+                            if (m >= CU_COAL_CAND) { m = -1; break; }
+                            env->coal_cand[m].x = wx;
+                            env->coal_cand[m].y = wy;
+                            env->coal_cand[m].z = wz;
+                            env->coal_cand[m].ri =
+                                mc_state_id(env->cells[ri]) == BLK_COAL_ORE
+                                    ? (int)ri : ((int)ri | CU_CAND_MINED);
+                            ++m;
+                        }
                     }
                 }
             }
@@ -2689,6 +2732,16 @@ MC_HD static inline int blaze_capture_head(const Blaze *e, RlSnapHead *h,
         items[n].on_ground = it->on_ground;
         ++n;
     }
+    for (i = 0; i < e->n_overflow && n < BLAZE_SNAP_MAX_ITEMS; ++i) {
+        const CuQueuedItem *it = &e->overflow[i];
+        items[n].x = it->x; items[n].y = it->y; items[n].z = it->z;
+        items[n].mx = items[n].my = items[n].mz = 0.0;
+        items[n].item = it->item; items[n].count = it->count;
+        items[n].meta = it->meta; items[n].age = 0;
+        items[n].pickup_delay = it->pickup_delay;
+        items[n].lifespan = 6000; items[n].on_ground = 0;
+        ++n;
+    }
     h->n_items = (unsigned)n;
     h->rx0 = e->rx0; h->ry0 = e->ry0; h->rz0 = e->rz0;
     h->rnx = e->rnx; h->rny = e->rny; h->rnz = e->rnz;
@@ -2779,8 +2832,9 @@ MC_HD static inline void blaze_reset_bulk(Blaze *env, const u16 *cells_src,
  * snapshot's static coal list. */
 MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                                             const RlSnapItem *items,
+                                            unsigned nactive,
                                             const int *ore, int nore,
-                                            const int *ore_xy,
+                                            const int *ore_xz,
                                             const int *cont, int ncont,
                                             int success_item) {
     int i, dx, dz;
@@ -2791,7 +2845,7 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->rvol = ((long)h->rnx * h->rny) * h->rnz;
     env->ore = ore;
     env->nore = nore;
-    env->ore_xy = ore_xy;
+    env->ore_xz = ore_xz;
     env->n_cont = ncont;
     if (ncont > 0)
         for (i = 0; i < ncont * 3; ++i) env->cont[i] = cont[i];
@@ -2862,7 +2916,9 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
 
     for (i = 0; i < CU_MAX_ITEMS; ++i) env->items[i].active = 0;
     env->n_items = 0;
-    for (u = 0; u < h->n_items && u < CU_MAX_ITEMS; ++u) {
+    env->n_overflow = 0;
+    env->spawn_fail_count = 0;
+    for (u = 0; u < nactive && u < h->n_items && u < CU_MAX_ITEMS; ++u) {
         CuItem *e = &env->items[u];
         e->active = 1;
         e->x = items[u].x; e->y = items[u].y; e->z = items[u].z;
@@ -2871,6 +2927,12 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         e->age = items[u].age; e->pickup_delay = items[u].pickup_delay;
         e->lifespan = items[u].lifespan; e->on_ground = items[u].on_ground;
         env->n_items++;
+    }
+    for (; u < h->n_items && env->n_overflow < CU_MAX_OVERFLOW; ++u) {
+        CuQueuedItem *q = &env->overflow[env->n_overflow++];
+        q->x = items[u].x; q->y = items[u].y; q->z = items[u].z;
+        q->item = items[u].item; q->count = items[u].count;
+        q->meta = items[u].meta; q->pickup_delay = items[u].pickup_delay;
     }
 
     /* window chunk coords; the block contents come from the bulk phase */
@@ -2907,12 +2969,13 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
 MC_HD static inline void blaze_reset_from_snapshot(Blaze *env, const RlSnapHead *h,
                                                    const RlSnapItem *items,
                                                    const u16 *cells_src,
+                                                   unsigned nactive,
                                                    const int *ore, int nore,
-                                                   const int *ore_xy,
+                                                   const int *ore_xz,
                                                    const int *cont, int ncont,
                                                    int success_item) {
     long i, nbulk;
-    blaze_reset_scalar(env, h, items, ore, nore, ore_xy, cont, ncont,
+    blaze_reset_scalar(env, h, items, nactive, ore, nore, ore_xz, cont, ncont,
                        success_item);
     nbulk = cu_reset_bulk_count(env);
     for (i = 0; i < nbulk; ++i) blaze_reset_bulk(env, cells_src, i);
