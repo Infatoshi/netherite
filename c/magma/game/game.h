@@ -156,6 +156,8 @@ typedef struct {
     int   use_remaining;
     int   use_max;
     float absorption;
+    int   riding_boat;
+    int   mount_message_ticks;
 } GmPlayerView;
 
 /* A mob/entity to draw this frame (from the entity store). */
@@ -232,6 +234,7 @@ typedef struct {
      * stand and no armor layers. */
     int   armor_feet, armor_legs, armor_chest, armor_head;
     int   stand_flags;
+    float boat_paddle[2];
 } GmEntityView;
 
 /* A block edit produced by the player tick, applied to the live world by app/main.c. */

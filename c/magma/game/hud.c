@@ -460,9 +460,9 @@ int gm_font_width(const char *s) {
 }
 
 static void font_draw_pass(CrFramebuffer *fb, const char *s, int dx, int dy,
-                           int scale, unsigned rgb) {
+                           int scale, unsigned rgb, int alpha) {
     const GuiSprite *fs = &GUI_SPRITES[GUI_FONT];
-    CrRgba c = { (u8)(rgb >> 16), (u8)(rgb >> 8), (u8)rgb, 255 };
+    CrRgba c = { (u8)(rgb >> 16), (u8)(rgb >> 8), (u8)rgb, (u8)alpha };
     int x = dx;
     for (; s && *s; s++) {
         int ch = (unsigned char)*s;
@@ -487,8 +487,22 @@ void gm_font_draw(CrFramebuffer *fb, const char *s, int dx, int dy, int scale,
     if (!g_font_ready) font_init();
     if (shadow)
         font_draw_pass(fb, s, dx + scale, dy + scale, scale,
-                       (rgb & 0xFCFCFCu) >> 2);
-    font_draw_pass(fb, s, dx, dy, scale, rgb);
+                       (rgb & 0xFCFCFCu) >> 2, 255);
+    font_draw_pass(fb, s, dx, dy, scale, rgb, 255);
+}
+
+static void hud_draw_mount_message(CrFramebuffer *fb,
+                                   const GmPlayerView *pv, int scale,
+                                   int sw_s, int sh_s) {
+    static const char text[] = "Press LSHIFT to dismount";
+    if (!pv->mount_message_ticks) return;
+    float remaining = (float)pv->mount_message_ticks - 1.0f;
+    int alpha = (int)(remaining * 255.0f / 20.0f);
+    if (alpha > 255) alpha = 255;
+    if (alpha <= 8) return;
+    font_draw_pass(fb, text,
+                   ((sw_s - gm_font_width(text)) / 2) * scale,
+                   (sh_s - 72) * scale, scale, 0xFFFFFFu, alpha);
 }
 
 /* --------------------------------------------------------------------- init */
@@ -876,6 +890,7 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
     if (pv->creative) {
         hud_draw_crosshair(fb);
         hud_draw_potion_effects(fb, pv, scale, sw_s);
+        hud_draw_mount_message(fb, pv, scale, sw_s, sh_s);
         return;
     }
 
@@ -1064,4 +1079,5 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv) {
 
     /* Vanilla draws the potion HUD after the XP bar and selected-item text. */
     hud_draw_potion_effects(fb, pv, scale, sw_s);
+    hud_draw_mount_message(fb, pv, scale, sw_s, sh_s);
 }

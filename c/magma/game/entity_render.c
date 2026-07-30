@@ -398,13 +398,19 @@ static const ErModel M_SILVERFISH = { .nparts = 3, .scale = 1.0f, .parts = {
     { CR_MOB_SILVERFISH,  2, 0, -0.5f,22, 2.5f, 1,1,1,  0,0,0, 0,0,0, 0,0 },
 } };
 
-/* ModelBoat simplified hull (minecart-like box stack). */
-static const ErModel M_BOAT = { .nparts = 5, .scale = 1.0f, .parts = {
-    { CR_MOB_BOAT, 0,  0, -7,23,-3, 14,2,6,  0,0,0, 0,0,0, 0,0 },
-    { CR_MOB_BOAT, 0, 10, -7,21,-3,  2,2,6,  0,0,0, 0,0,0, 0,0 },
-    { CR_MOB_BOAT, 0, 10,  5,21,-3,  2,2,6,  0,0,0, 0,0,0, 0,0 },
-    { CR_MOB_BOAT, 0,  8, -5,21,-3, 10,2,2,  0,0,0, 0,0,0, 0,0 },
-    { CR_MOB_BOAT, 0,  8, -5,21, 1, 10,2,2,  0,0,0, 0,0,0, 0,0 },
+/* ModelBoat has five hull boxes and two boxes in each paddle. It has a
+ * dedicated affine emitter below because RenderBoat is not a living renderer
+ * and its transform origin is unrelated to the shared y=24 model convention. */
+static const ErModel M_BOAT = { .nparts = 9, .scale = 1.0f, .parts = {
+    { CR_MOB_BOAT, 0,  0, -14,-9,-3, 28,16,3,  0,3, 1, ER_PI/2,0,0, 0,0 },
+    { CR_MOB_BOAT, 0, 19, -13,-7,-1, 18, 6,2, -15,4,4, 0,ER_PI*1.5f,0, 0,0 },
+    { CR_MOB_BOAT, 0, 27,  -8,-7,-1, 16, 6,2,  15,4,0, 0,ER_PI/2,0, 0,0 },
+    { CR_MOB_BOAT, 0, 35, -14,-7,-1, 28, 6,2,   0,4,-9,0,ER_PI,0, 0,0 },
+    { CR_MOB_BOAT, 0, 43, -14,-7,-1, 28, 6,2,   0,4, 9,0,0,0, 0,0 },
+    { CR_MOB_BOAT,62,  0,  -1, 0,-5,  2, 2,18,  3,-5, 9,0,0,0, 0,0 },
+    { CR_MOB_BOAT,62,  0,  -1,-3, 8,  1, 6, 7,  3,-5, 9,0,0,0, 0,0 },
+    { CR_MOB_BOAT,62, 20,  -1, 0,-5,  2, 2,18,  3,-5,-9,0,0,0, 0,0 },
+    { CR_MOB_BOAT,62, 20,   0,-3, 8,  1, 6, 7,  3,-5,-9,0,0,0, 0,0 },
 } };
 
 /* ModelMagmaCube (64x32): 8 stacked 8x1x8 segments + 4^3 core. Base scale 1;
@@ -1039,6 +1045,70 @@ static int er_aff_box_m(const ErAff *a, int sprite, int uvscale, int mirror,
         for (int k = 0; k < 6; ++k) out[written++] = quad[TRI[k]];
     }
     return written;
+}
+
+static void er_boat_part_affine(const ErAff *base, ErAff *part,
+                                float rx, float ry, float rz,
+                                float ax, float ay, float az) {
+    *part = *base;
+    er_aff_translate(part, rx * 0.0625f, ry * 0.0625f, rz * 0.0625f);
+    if (az != 0.0f) er_aff_rot_z(part, az);
+    if (ay != 0.0f) er_aff_rot_y(part, ay);
+    if (ax != 0.0f) er_aff_rot_x(part, ax);
+}
+
+/* RenderBoat + ModelBoat. ModelBoat's textureWidth/Height are 128x64, matching
+ * boat_oak.png, so UV texels map directly to the packed sprite. */
+static int emit_boat(const GmEntityView *ent, CrVertex *out) {
+    ErAff base, part;
+    er_aff_identity(&base);
+    er_aff_translate(&base, ent->x, ent->y + 0.375f, ent->z);
+    er_aff_rot_y(&base, 180.0f - ent->yaw);
+    er_aff_scale3(&base, -1.0f, -1.0f, 1.0f);
+    er_aff_rot_y(&base, 90.0f);
+
+    CrRgba tint = { 255, 255, 255, 255 };
+    float lv = 15.0f, blk = 0.0f;
+    if (ent->lm_lit == 1) {
+        lv = ent->lm_light;
+        blk = ent->lm_blk;
+    } else if (ent->lm_lit == 2) {
+        lv = 1.0f;
+        tint.r = (u8)(255.0f * ent->lm_mul_r + 0.5f);
+        tint.g = (u8)(255.0f * ent->lm_mul_g + 0.5f);
+        tint.b = (u8)(255.0f * ent->lm_mul_b + 0.5f);
+    }
+
+    int n = 0;
+#define BOAT_BOX(U,V,BX,BY,BZ,DX,DY,DZ) \
+    n += er_aff_box_m(&part, CR_MOB_BOAT, 1, 0, 1, (U), (V), \
+                      (BX), (BY), (BZ), (DX), (DY), (DZ), tint, lv, blk, out+n)
+    er_boat_part_affine(&base, &part, 0, 3, 1, 90, 0, 0);
+    BOAT_BOX(0, 0, -14, -9, -3, 28, 16, 3);
+    er_boat_part_affine(&base, &part, -15, 4, 4, 0, 270, 0);
+    BOAT_BOX(0, 19, -13, -7, -1, 18, 6, 2);
+    er_boat_part_affine(&base, &part, 15, 4, 0, 0, 90, 0);
+    BOAT_BOX(0, 27, -8, -7, -1, 16, 6, 2);
+    er_boat_part_affine(&base, &part, 0, 4, -9, 0, 180, 0);
+    BOAT_BOX(0, 35, -14, -7, -1, 28, 6, 2);
+    er_boat_part_affine(&base, &part, 0, 4, 9, 0, 0, 0);
+    BOAT_BOX(0, 43, -14, -7, -1, 28, 6, 2);
+
+    for (int p = 0; p < 2; ++p) {
+        float f = (ent->boat_paddle[p] - 0.01f) * 40.0f;
+        float lerp_x = (sinf(-f) + 1.0f) * 0.5f;
+        float lerp_y = (sinf(-f + 1.0f) + 1.0f) * 0.5f;
+        float ax = (-60.0f) + lerp_x * 45.0f;
+        float ay = -45.0f + lerp_y * 90.0f;
+        if (p == 1) ay = 180.0f - ay;
+        er_boat_part_affine(&base, &part, 3, -5, p ? -9 : 9,
+                            ax, ay, 11.25f);
+        BOAT_BOX(62, p ? 20 : 0, -1, 0, -5, 2, 2, 18);
+        BOAT_BOX(62, p ? 20 : 0, p ? 0.001f : -1.001f, -3, 8,
+                 1, 6, 7);
+    }
+#undef BOAT_BOX
+    return n;
 }
 
 static int emit_crystal(const GmEntityView *ent, CrVertex *out) {
@@ -1704,7 +1774,7 @@ float gm_entity_eye_y(int type) {
         case ER_TYPE_MAGMA:    return 0.51f * 0.85f;  /* size-1 base; caller * size */
         case ER_TYPE_SLIME:    return 0.51f * 0.85f;  /* size-1 base; caller * size */
         case ER_TYPE_SILVERFISH: return 0.3f * 0.85f;
-        case ER_TYPE_BOAT:     return 0.6f * 0.85f;
+        case ER_TYPE_BOAT:     return 0.5625f * 0.85f;
         case ER_TYPE_DRAGON:   return 8.0f * 0.85f;   /* setSize(16, 8) */
         case ER_TYPE_CRYSTAL:  return 2.0f * 0.85f;   /* setSize(2, 2) */
         case ER_TYPE_ARMOR_STAND: return 1.975f * 0.85f;
@@ -1832,6 +1902,11 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         }
         if (ents[e].type == ER_TYPE_DRAGON) {
             written += emit_dragon(&ents[e], out + written, max - written);
+            continue;
+        }
+        if (ents[e].type == ER_TYPE_BOAT) {
+            if (written + 9 * ER_VERTS_PER_BOX > max) break;
+            written += emit_boat(&ents[e], out + written);
             continue;
         }
         const ErModel *m = er_model_for_type(ents[e].type);

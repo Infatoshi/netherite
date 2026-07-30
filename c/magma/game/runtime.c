@@ -325,6 +325,8 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     r->mobs_enabled = cfg->mobs;
     r->active_furnace = -1;
     r->active_chest = -1;
+    r->tape_boat_ride_id = -1;
+    r->tape_boat_mount_pending = -1;
     r->chests_cap = GM_RUNTIME_CHESTS_INITIAL;
     r->chests = (GmRuntimeChest *)calloc((size_t)r->chests_cap, sizeof(GmRuntimeChest));
     if (!r->chests) {
@@ -383,6 +385,20 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         return;
     }
     recenter(r);
+    /* The recorded client sees the server's mount/dismount relationship on
+     * the tick after right-click/sneak. ent_view has already supplied this
+     * tick's authoritative boat pose before gm_runtime_tick is called. */
+    if (r->tape_boat_dismount_pending) {
+        r->tape_boat_ride_id = -1;
+        r->tape_boat_mount_pending = -1;
+        r->tape_boat_dismount_pending = 0;
+    } else if (r->tape_boat_mount_pending >= 0 &&
+               r->tape_boat.valid &&
+               r->tape_boat.ent_id == r->tape_boat_mount_pending) {
+        r->tape_boat_ride_id = r->tape_boat_mount_pending;
+        r->tape_boat_mount_pending = -1;
+        r->tape_boat_mount_message_ticks = 60;
+    }
     ICStack held_now=isr_get_stack(&r->player.inv,r->player.inv.current_item);
     if(held_now.item==261&&action.use){r->bow_drawing=1;++r->bow_ticks;}
     else if(r->bow_drawing){spawn_bow_arrow(r,r->bow_ticks);r->bow_drawing=0;r->bow_ticks=0;}
@@ -401,12 +417,25 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
             }
         }
     }
-    /* Mount nearby boat on use when not already placing a block. */
-    if(action.use&&!action.do_place&&gm_mobs_boat_mount(&r->mobs,
-            (struct PsvPlayer *)&r->player,r->ox,r->oz)){
+    /* Mount nearby boat on use when not already placing a block. A tape boat
+     * is the client entity actually clicked; live play keeps the mob store
+     * path. Defer the tape relationship by one tick for the server response. */
+    if (action.use && !action.do_place && r->tape_boat.valid &&
+        r->tape_boat_ride_id < 0 && r->tape_boat_mount_pending < 0) {
+        double dx = r->tape_boat.x -
+                    (r->player.ent.posX + (double)r->ox);
+        double dy = r->tape_boat.y - r->player.ent.posY;
+        double dz = r->tape_boat.z -
+                    (r->player.ent.posZ + (double)r->oz);
+        if (dx * dx + dy * dy + dz * dz < PSV_REACH * PSV_REACH)
+            r->tape_boat_mount_pending = r->tape_boat.ent_id;
+    } else if(action.use&&!action.do_place&&gm_mobs_boat_mount(&r->mobs,
+               (struct PsvPlayer *)&r->player,r->ox,r->oz)){
         action.use=0;
     }
     /* Sneak dismounts boat. */
+    if (action.sneak && r->tape_boat_ride_id >= 0)
+        r->tape_boat_dismount_pending = 1;
     if(action.sneak&&gm_mobs_boat_riding(&r->mobs))
         gm_mobs_boat_dismount(&r->mobs,(struct PsvPlayer *)&r->player,r->ox,r->oz);
     /* Mounted: WASD drives the boat (EntityBoat.controlBoat); player walk is
@@ -569,6 +598,68 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     tick_projectiles(r);
     gm_live_tick_player(&r->entities, r->world,
                         (struct PsvPlayer *)&r->player, r->ox, r->oz);
+    /* Entity.updateRidden runs the player's ordinary living update (which
+     * retains the recorded motion fields), then the boat updates the passenger
+     * position. The entity stream is authoritative for the client boat pose,
+     * avoiding a second, packet-incomplete boat simulation in tape replay. */
+    if (r->tape_boat_ride_id >= 0 && r->tape_boat.valid &&
+        r->tape_boat.ent_id == r->tape_boat_ride_id) {
+        int left = action.strafe < -0.01f;
+        int right = action.strafe > 0.01f;
+        int paddle_forward = action.forward > 0.01f;
+        int paddle[2] = { (right && !left) || paddle_forward,
+                          (left && !right) || paddle_forward };
+        for (int p = 0; p < 2; ++p)
+            r->tape_boat_paddle[p] =
+                paddle[p] ? r->tape_boat_paddle[p] + 0.01f : 0.0f;
+        for (int i = 0; i < r->nghost_views; ++i)
+            if (r->ghost_views[i].type == EW_TYPE_BOAT &&
+                r->ghost_views[i].ent_id == r->tape_boat_ride_id) {
+                r->ghost_views[i].boat_paddle[0] = r->tape_boat_paddle[0];
+                r->ghost_views[i].boat_paddle[1] = r->tape_boat_paddle[1];
+            }
+        r->player.ent.posX = r->tape_boat.x - (double)r->ox;
+        r->player.ent.posY =
+            r->tape_boat.y - 0.44999998807907104;
+        r->player.ent.posZ = r->tape_boat.z - (double)r->oz;
+        /* Entity.updateRidden zeroes passenger velocity, then
+         * EntityLivingBase.onLivingUpdate performs one unobstructed air
+         * travel step before EntityBoat.updatePassenger replaces position.
+         * Preserve that independently observable motion state. */
+        float forward = action.forward * 0.98f;
+        float strafe = -action.strafe * 0.98f;
+        float move = strafe * strafe + forward * forward;
+        if (move >= 1.0e-4f) {
+            move = sqrtf(move);
+            if (move < 1.0f) move = 1.0f;
+            move = 0.02f / move;
+            strafe *= move;
+            forward *= move;
+        } else {
+            strafe = forward = 0.0f;
+        }
+        /* Boat.updatePassenger applies deltaRotation after the passenger's
+         * living update, so the row's final player yaw is one boat-yaw step
+         * newer than the yaw which produced these motion fields. */
+        float motion_yaw = r->tape_boat_prev_yaw_valid
+            ? (float)r->tape_boat_prev_yaw : r->player.yaw;
+        float yaw = motion_yaw * 0.017453292f;
+        float sy = mc_sin(&r->sin_table, yaw);
+        float cy = mc_cos(&r->sin_table, yaw);
+        r->player.ent.motionX =
+            (double)(strafe * cy - forward * sy) * 0.9100000262260437;
+        r->player.ent.motionY =
+            -0.08 * 0.9800000190734863;
+        r->player.ent.motionZ =
+            (double)(forward * cy + strafe * sy) * 0.9100000262260437;
+        r->player.ent.onGround = 0;
+        r->player.ent.box = psv_player_box(r->player.ent.posX,
+                                           r->player.ent.posY,
+                                           r->player.ent.posZ);
+        r->te_x = r->tape_boat.x;
+        r->te_y = r->player.ent.posY;
+        r->te_z = r->tape_boat.z;
+    }
     for (int i = 0; i < GM_RUNTIME_FURNACES; ++i) if (r->furnaces[i].active) {
         GmRuntimeFurnace *f = &r->furnaces[i];
         int was_lit = f->state.burn_time > 0;
@@ -635,6 +726,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
             }
         }
     }else if(feet!=90&&head!=90)r->portal_time=0;
+    if (r->tape_boat_mount_message_ticks > 0)
+        r->tape_boat_mount_message_ticks--;
     r->tick++;
 }
 
@@ -662,6 +755,9 @@ void gm_runtime_view(const GmRuntime *r, GmPlayerView *out) {
     out->hurt_yaw = 0.0f;
     out->attack_cooldown = 1.0f;
     out->potion_count = 0;
+    out->riding_boat = r->tape_boat_ride_id >= 0 ||
+                       gm_mobs_boat_riding(&r->mobs);
+    out->mount_message_ticks = r->tape_boat_mount_message_ticks;
     int xp=r->mobs.xp_total, level=0;
     for (;;) {
         int cap=level>=30?9*level-158:(level>=15?5*level-38:2*level+7);
@@ -841,8 +937,40 @@ void gm_runtime_ent_view(GmRuntime *r, const GmEntityView *view) {
     }
 }
 
+void gm_runtime_tape_boat_view(GmRuntime *r, int ent_id, double x, double y,
+                               double z, double yaw) {
+    if (!r || ent_id < 0) return;
+    /* While riding, never switch to another nearby boat. On foot select the
+     * closest recorded boat so right-click resolves like the client ray hit. */
+    if (r->tape_boat.valid && r->tape_boat_ride_id != ent_id) {
+        if (r->tape_boat_ride_id >= 0) return;
+        double px = r->player.ent.posX + (double)r->ox;
+        double pz = r->player.ent.posZ + (double)r->oz;
+        double old_dx = r->tape_boat.x - px;
+        double old_dy = r->tape_boat.y - r->player.ent.posY;
+        double old_dz = r->tape_boat.z - pz;
+        double new_dx = x - px;
+        double new_dy = y - r->player.ent.posY;
+        double new_dz = z - pz;
+        if (old_dx * old_dx + old_dy * old_dy + old_dz * old_dz <=
+            new_dx * new_dx + new_dy * new_dy + new_dz * new_dz)
+            return;
+    }
+    r->tape_boat.valid = 1;
+    r->tape_boat.ent_id = ent_id;
+    r->tape_boat.x = x;
+    r->tape_boat.y = y;
+    r->tape_boat.z = z;
+    r->tape_boat.yaw = yaw;
+}
+
 void gm_runtime_ent_views_clear(GmRuntime *r) {
     if (!r) return;
+    if (r->tape_boat.valid) {
+        r->tape_boat_prev_yaw = r->tape_boat.yaw;
+        r->tape_boat_prev_yaw_valid = 1;
+    }
+    r->tape_boat.valid = 0;
 
     for (int i = 0; i < GM_RUNTIME_FIREBALL_TRACKS; ++i)
         if (r->tape_fireball_impacts[i].active &&

@@ -59,7 +59,7 @@ static const TypeSpec SPECS[] = {
     { 15, "pigman",   7  * 36, { CR_MOB_PIGMAN,   -1 } },
     { 35, "slime",    4  * 36, { CR_MOB_SLIME,    -1 } },
     { 36, "silverfish", 3 * 36, { CR_MOB_SILVERFISH, -1 } },
-    { 37, "boat",     5  * 36, { CR_MOB_BOAT,     -1 } },
+    { 37, "boat",     9  * 36, { CR_MOB_BOAT,     -1 } },
 };
 #define NSPECS ((int)(sizeof(SPECS) / sizeof(SPECS[0])))
 #define MAXV (65 * 36)
