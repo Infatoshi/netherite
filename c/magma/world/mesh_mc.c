@@ -262,7 +262,7 @@ static int mc_use_neighbor_brightness_at(const CrLight *L, int wx, int wy, int w
     if (m->is_air) return 0;
     if (m->kind == BM_KIND_SLAB_BOTTOM || m->kind == BM_KIND_SLAB_TOP ||
         m->kind == BM_KIND_STAIRS || m->kind == BM_KIND_IRON_BARS ||
-        m->kind == BM_KIND_TORCH)
+        m->kind == BM_KIND_TORCH || m->kind == BM_KIND_RAIL)
         return 1;
     if (mc_translucent_at(L, wx, wy, wz)) return 1;
     return 0;
@@ -871,6 +871,24 @@ static void emit_lily(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L,
         bake_face(wx, wy, wz, from, to, faces[i], 0, 3, 0.0f, NULL, 0,
                   sprite, vlight, 1.0f, tint, quad);
         if (qy) rotate_quad_y(quad, wx, wz, qy);
+        push_face(out, cap, layer, quad);
+    }
+}
+
+/* rail_flat.json: zero-thickness horizontal plane at model y=1, UP+DOWN only,
+ * ambient occlusion disabled. Legacy meta 0 is north/south and 1 east/west. */
+static void emit_rail(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L,
+                      int wx, int wy, int wz, int sprite, CrRgba tint,
+                      float base01) {
+    const float from[3] = { 0.0f, 1.0f, 0.0f };
+    const float to[3]   = { 16.0f, 1.0f, 16.0f };
+    const int faces[2] = { BM_DOWN, BM_UP };
+    int quarter_turns = (light_meta(L, wx, wy, wz) & 15) == 1;
+    for (int i = 0; i < 2; ++i) {
+        CrVertex quad[4];
+        bake_face(wx, wy, wz, from, to, faces[i], 0, 3, 0.0f, NULL, 0,
+                  sprite, base01, 1.0f, tint, quad);
+        if (quarter_turns) rotate_quad_y(quad, wx, wz, quarter_turns);
         push_face(out, cap, layer, quad);
     }
 }
@@ -1611,6 +1629,9 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
         }
         case BM_KIND_LILY:
             emit_lily(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);
+            break;
+        case BM_KIND_RAIL:
+            emit_rail(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);
             break;
         case BM_KIND_SNOW_LAYER:
             emit_snow_layer(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);

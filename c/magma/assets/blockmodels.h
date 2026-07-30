@@ -76,7 +76,9 @@ enum {
     BM_KIND_TORCH,
     /* Single chest: inset body 1..15 x 0..14 x 1..15 + front knob from meta
      * (2=N 3=S 4=W 5=E). Not a TESR; lid angle is not meshed. */
-    BM_KIND_CHEST
+    BM_KIND_CHEST,
+    /* rail_flat.json: two-sided cutout plane at y=1/16 block. */
+    BM_KIND_RAIL
 };
 
 typedef struct {

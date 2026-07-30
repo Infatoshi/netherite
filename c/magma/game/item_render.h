@@ -39,6 +39,10 @@ int gm_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
  * block model. */
 int gm_falling_blocks_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 
+/* RenderMinecart display tiles (chest/furnace/hopper/TNT), terrain atlas. */
+int gm_minecart_contents_emit(const GmEntityView *ents, int n,
+                              CrVertex *out, int max);
+
 /* Item-atlas pass: extruded 16x16 sprite boxes for non-block items (36 verts
  * each; 1/16 extrusion after GROUND scale 0.5). Returns vertex count written. */
 int gm_items_emit_flat(const GmEntityView *ents, int n, CrVertex *out, int max);

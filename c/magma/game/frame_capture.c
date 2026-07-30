@@ -20,6 +20,7 @@
 
 #include <errno.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -732,6 +733,11 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         set_error(err,err_cap,"cannot write frames-out image (deferred)");return 0;
     }
     GmPlayerView v=tick_v;
+    /* EntityPlayerSP.getEyeHeight lowers the first-person camera while
+     * sneaking. The simulation's eye height intentionally remains the
+     * standing interaction height, so apply the client-only 1.62 -> 1.54
+     * adjustment at camera construction. */
+    if(action&&action->sneak&&v.eye_height>1.0f)v.eye_height-=0.08f;
     CrCamera cam=camera_for(&v,c->fb.w,c->fb.h);float day=time_of_day(r);
     /* eye-in-fluid state (fog / FOV / overlay - game/underwater.h) */
     GmUnderwater uw;gm_uw_eval(r->world,r->dimension,&v,c->fog_c1,&uw);
@@ -888,6 +894,41 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         render_world(c,&cam,&mv,&atlas,clear,r->dimension,c->boss_latch,
                      lm,&uw);
     }
+    /* RenderMinecart reprojects the entity onto its rail with getPos(), then
+     * derives render yaw from getPosOffset(+/-0.3), rather than using the
+     * recorded Entity.rotationYaw. Reconstruct the two flat rail directions
+     * before both the cart and its display tile are emitted. */
+    for(int i=0;i<n;++i){
+        int mt=ents[i].type;
+        if(mt!=GM_VIEW_MINECART_EMPTY&&mt!=GM_VIEW_MINECART_CHEST&&
+           mt!=GM_VIEW_MINECART_FURNACE&&mt!=GM_VIEW_MINECART_HOPPER&&
+           mt!=GM_VIEW_MINECART_TNT)continue;
+        int rx=(int)floorf(ents[i].x),ry=(int)floorf(ents[i].y);
+        int rz=(int)floorf(ents[i].z);
+        if(gm_world_block(r->world,rx,ry,rz)!=66&&
+           gm_world_block(r->world,rx,ry-1,rz)==66)--ry;
+        if(gm_world_block(r->world,rx,ry,rz)==66){
+            int shape=gm_world_meta(r->world,rx,ry,rz)&15;
+            if(shape==0){
+                ents[i].x=(float)rx+0.5f;
+                ents[i].y=(float)ry+0.0625f;
+                ents[i].yaw=-90.0f;
+            }else if(shape==1){
+                ents[i].y=(float)ry+0.0625f;
+                ents[i].z=(float)rz+0.5f;
+                ents[i].yaw=0.0f;
+            }
+        }
+        /* RenderMinecart applies a stable entity-id jitter before the rail
+         * transform to prevent coplanar entities from z-fighting. Java long
+         * arithmetic wraps modulo 2^64; only the three masked bit fields are
+         * observed here, so unsigned shifts reproduce the signed result. */
+        uint64_t seed=(uint64_t)(int64_t)ents[i].ent_id*UINT64_C(493286711);
+        seed=seed*seed*UINT64_C(4392167121)+seed*UINT64_C(98761);
+        ents[i].x+=(((float)((seed>>16)&7)+0.5f)/8.0f-0.5f)*0.004f;
+        ents[i].y+=(((float)((seed>>20)&7)+0.5f)/8.0f-0.5f)*0.004f;
+        ents[i].z+=(((float)((seed>>24)&7)+0.5f)/8.0f-0.5f)*0.004f;
+    }
     /* world light at each entity's eye block (RenderLivingBase brightness):
      * lightmap mode passes the raw 0..15 levels through the LUT; the legacy /
      * Nether/End path (lm==NULL) folds the exact updateLightmap color into the
@@ -1022,6 +1063,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
          * atlas, then non-block items on the item atlas. */
         nv=gm_items_emit(ents,n,eb[1],c->max_entity_verts);
         nv+=gm_falling_blocks_emit(ents,n,eb[1]+nv,c->max_entity_verts-nv);
+        nv+=gm_minecart_contents_emit(ents,n,eb[1]+nv,c->max_entity_verts-nv);
         if(nv>0){
             CrShadeCtx ish={0};
             ish.atlas=&atlas; ish.fog_color=clear; ish.alpha_test=1;

@@ -117,9 +117,9 @@ int cr_k15_combine(int sky, int block, int override_val) {
 
 static int state_opacity(u16 state) {
     int id = gm_state_id(state);
-    /* Double plants are generated scenery but were deliberately omitted from
-     * the old KEEP table. They are non-solid and do not attenuate skylight. */
-    if (id == 175) return 0;
+    /* Rails and double plants were deliberately omitted from the old KEEP
+     * table. Both are non-opaque and do not attenuate skylight. */
+    if (id == 66 || id == 175) return 0;
     return mc_bpt_props(id).light_opacity;
 }
 static int state_emission(u16 state) {

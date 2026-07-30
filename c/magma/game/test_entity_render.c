@@ -367,8 +367,16 @@ static void test_name_map(void) {
     CHECK(gm_entity_type_for_name("EntityLlama") == 25, "EntityLlama -> 25");
     CHECK(gm_entity_type_for_name("EntityGhast") == 26, "EntityGhast -> 26");
     CHECK(gm_entity_type_for_name("EntityMagmaCube") == 27, "EntityMagmaCube -> 27");
-    CHECK(gm_entity_type_for_name("EntityMinecartChest") == 28,
-          "EntityMinecartChest -> 28");
+    CHECK(gm_entity_type_for_name("EntityMinecartEmpty") == 28,
+          "EntityMinecartEmpty -> 28");
+    CHECK(gm_entity_type_for_name("EntityMinecartChest") == 39,
+          "EntityMinecartChest -> 39");
+    CHECK(gm_entity_type_for_name("EntityMinecartFurnace") == 40,
+          "EntityMinecartFurnace -> 40");
+    CHECK(gm_entity_type_for_name("EntityMinecartHopper") == 41,
+          "EntityMinecartHopper -> 41");
+    CHECK(gm_entity_type_for_name("EntityMinecartTNT") == 42,
+          "EntityMinecartTNT -> 42");
     /* skin-variant sprite overrides */
     CHECK(gm_entity_skin_for_name("EntityPigZombie") == CR_MOB_PIGMAN + 1,
           "EntityPigZombie skin -> pigman sprite");
