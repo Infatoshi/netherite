@@ -23,62 +23,23 @@
   },
   "viewmodel": {
    "frames": 16,
-   "px": 51675,
-   "max_cluster": 6881
+   "px": 44433,
+   "max_cluster": 3758
   },
   "UNEXPLAINED": {
-   "frames": 12,
-   "px": 77758,
-   "max_cluster": 47937
-  },
-  "bossbar": {
-   "frames": 1,
-   "px": 13438,
-   "max_cluster": 13438
+   "frames": 10,
+   "px": 5176,
+   "max_cluster": 1539
   },
   "particles": {
-   "frames": 4,
-   "px": 12730,
-   "max_cluster": 3394
+   "frames": 10,
+   "px": 15265,
+   "max_cluster": 1818
   }
  },
- "failed_frames": [
-  {
-   "tick": 40,
-   "unexplained_px": 48017,
-   "clusters": [
-    {
-     "px": 47937,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      45,
-      252,
-      346,
-      542
-     ]
-    },
-    {
-     "px": 80,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      203,
-      316,
-      214,
-      340
-     ]
-    }
-   ],
-   "mild_shift": {
-    "mean_abs": 9.22266427610654,
-    "pct_differing": 61.886019480857385,
-    "low_thresh": 1,
-    "residual_px": 211387,
-    "low_differing_px": 130819
-   }
-  }
- ],
- "mild_shift_failures": 1,
- "pass": false,
+ "failed_frames": [],
+ "mild_shift_failures": 0,
+ "pass": true,
  "missing_models": {},
  "missing_model_row_threshold": 4,
  "missing_model_failures": {},

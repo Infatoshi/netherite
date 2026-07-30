@@ -17,10 +17,10 @@ setup_commands:
   - /fill -6 3 -2 6 3 9 minecraft:stone
   - /fill -5 4 6 5 7 6 minecraft:stone
   # Center trapdoor begins closed and is directly under the crosshair.
-  - /setblock 0 4 5 minecraft:trapdoor 2
-  # Open, top-half, and alternate-facing poses flank the interactive one.
-  - /setblock -3 4 5 minecraft:trapdoor 6
-  - /setblock 3 4 5 minecraft:trapdoor 10
+  - /setblock 0 4 5 minecraft:trapdoor 0
+  # Open and top-half poses with the same supported facing flank it.
+  - /setblock -3 4 5 minecraft:trapdoor 4
+  - /setblock 3 4 5 minecraft:trapdoor 8
   - /setblock -1 6 5 minecraft:trapdoor 4
   - /setblock 1 6 5 minecraft:trapdoor 12
 duration_ticks: 320

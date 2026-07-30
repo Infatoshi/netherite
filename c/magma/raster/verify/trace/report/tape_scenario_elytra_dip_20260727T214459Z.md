@@ -10,27 +10,23 @@
 - entities: checked=26 available=True
 - world nearby_hash: checked=26 deltas=7 available=True
 
-**Pixel gate: FAIL** over 48 frames.
+**Pixel gate: PASS** over 48 frames.
 
 | class | frames | px | max cluster |
 |---|---|---|---|
-| UNEXPLAINED | 2 | 3091 | 539 |
-| bossbar | 1 | 827 | 215 |
-| hud | 2 | 9605 | 4337 |
-| particles | 45 | 33710 | 6819 |
-| viewmodel | 46 | 27271 | 7540 |
-
-Failed frames (worst first, top 20):
-
-- t=60: 3010 unexplained px, clusters [{'px': 66, 'cls': 'UNEXPLAINED', 'bbox': [45, 198, 60, 203]}, {'px': 300, 'cls': 'UNEXPLAINED', 'bbox': [53, 156, 114, 168]}, {'px': 539, 'cls': 'UNEXPLAINED', 'bbox': [53, 683, 123, 696]}, {'px': 68, 'cls': 'UNEXPLAINED', 'bbox': [92, 31, 102, 39]}]
+| UNEXPLAINED | 1 | 1150 | 255 |
+| bossbar | 1 | 417 | 113 |
+| hud | 2 | 9204 | 4323 |
+| particles | 45 | 33635 | 6814 |
+| viewmodel | 46 | 26161 | 7535 |
 
 | tick | whole mean/ch | %diff | terrain mean/ch |
 |---|---|---|---|
-| 30 | 1.22 | 62.81% | 1.61 |
-| 40 | 1.78 | 64.56% | 2.46 |
-| 50 | 2.51 | 64.74% | 3.55 |
-| 60 | 3.23 | 90.83% | 3.44 |
-| 70 | 1.67 | 88.74% | 1.86 |
+| 30 | 1.20 | 62.62% | 1.58 |
+| 40 | 1.73 | 63.97% | 2.41 |
+| 50 | 2.51 | 64.29% | 3.57 |
+| 60 | 2.72 | 86.88% | 2.90 |
+| 70 | 0.49 | 83.42% | 0.53 |
 | 80 | 0.90 | 65.65% | 1.08 |
 | 90 | 0.89 | 66.62% | 1.03 |
 | 100 | 0.69 | 64.82% | 0.71 |

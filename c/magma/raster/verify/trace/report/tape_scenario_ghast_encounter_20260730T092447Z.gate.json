@@ -16,84 +16,33 @@
  },
  "frames_checked": 31,
  "classes": {
-  "particles": {
-   "frames": 15,
-   "px": 116026,
-   "max_cluster": 24949
-  },
-  "viewmodel": {
-   "frames": 6,
-   "px": 24265,
-   "max_cluster": 10441
-  },
   "UNEXPLAINED": {
-   "frames": 3,
-   "px": 102494,
-   "max_cluster": 58631
+   "frames": 8,
+   "px": 4345,
+   "max_cluster": 870
   },
   "hud": {
    "frames": 3,
-   "px": 39994,
-   "max_cluster": 27620
+   "px": 10069,
+   "max_cluster": 4774
   },
-  "bossbar": {
+  "viewmodel": {
    "frames": 3,
-   "px": 15530,
-   "max_cluster": 8736
-  }
- },
- "failed_frames": [
-  {
-   "tick": 560,
-   "unexplained_px": 58631,
-   "clusters": [
-    {
-     "px": 58631,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      190,
-      0,
-      383,
-      378
-     ],
-     "soak_from": "particles"
-    }
-   ],
-   "mild_shift": {
-    "mean_abs": 36.889610051706114,
-    "pct_differing": 45.794679899899236,
-    "low_thresh": 1,
-    "residual_px": 211387,
-    "low_differing_px": 96804
-   }
+   "px": 4346,
+   "max_cluster": 3101
   },
-  {
-   "tick": 500,
-   "unexplained_px": 43355,
-   "clusters": [
-    {
-     "px": 43355,
-     "cls": "UNEXPLAINED",
-     "bbox": [
-      45,
-      322,
-      282,
-      568
-     ],
-     "soak_from": "particles"
-    }
-   ]
+  "particles": {
+   "frames": 2,
+   "px": 27845,
+   "max_cluster": 17923
   }
- ],
- "mild_shift_failures": 1,
- "pass": false,
- "missing_models": {
-  "EntityLargeFireball": 256
  },
+ "failed_frames": [],
+ "mild_shift_failures": 0,
+ "pass": true,
+ "missing_models": {},
  "missing_model_row_threshold": 4,
- "missing_model_failures": {
-  "EntityLargeFireball": 256
- },
+ "missing_model_failures": {},
  "state": {
   "kind": "state",
   "coverage": {

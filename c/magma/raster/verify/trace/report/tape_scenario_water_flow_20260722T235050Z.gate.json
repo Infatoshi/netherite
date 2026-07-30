@@ -32,9 +32,9 @@
    "max_cluster": 3507
   },
   "UNEXPLAINED": {
-   "frames": 35,
-   "px": 2413,
-   "max_cluster": 261
+   "frames": 27,
+   "px": 1728,
+   "max_cluster": 64
   },
   "particles": {
    "frames": 34,

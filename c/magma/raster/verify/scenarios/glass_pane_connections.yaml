@@ -39,5 +39,5 @@ input:
     - seconds: 2.0
       look: [20.0, -4.0]
     - seconds: 3.0
-      keys: [d, Shift_L]
+      keys: [w]
 known_divergences: []

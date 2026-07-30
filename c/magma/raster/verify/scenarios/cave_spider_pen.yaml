@@ -10,12 +10,12 @@ setup_commands:
   - /gamerule doMobSpawning false
   - /gamerule randomTickSpeed 0
   - /gamerule naturalRegeneration false
-  - /time set 6000
+  - /time set 18000
   - /weather clear
   - /difficulty normal
   - /gamemode survival @p
   - /tp @p 0.5 4 2.5 0 12
-  - /fill -5 3 0 5 3 18 minecraft:hardened_clay
+  - /fill -5 3 0 5 3 18 minecraft:glowstone
   - /fill -5 4 5 -5 6 18 minecraft:stone
   - /fill 5 4 5 5 6 18 minecraft:stone
   - /fill -5 4 18 5 6 18 minecraft:stone
