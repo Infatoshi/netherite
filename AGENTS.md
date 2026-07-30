@@ -39,6 +39,7 @@ Product name: **netherite**. Trees:
 | First clone / no oracle-src | `docs/BOOTSTRAP.md` |
 | How to play, VNC, qrl, sweep | `docs/RUNBOOK.md` |
 | Ship criteria / gate status | `docs/GATES.md` |
+| Is X in the game? cut / pinned / open / unrecoverable | `docs/SCOPE.md` |
 | Fidelity procedure | `c/magma/VERIFY.md` |
 | Product contract / open bugs | `c/magma/PRODUCT.md`, `OPEN_DIVERGENCES.md` |
 | Architecture for a tree | that tree's `SPEC.md` |
