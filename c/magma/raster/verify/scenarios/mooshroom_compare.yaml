@@ -17,6 +17,13 @@ setup_commands:
   - /fill -7 3 -2 7 3 15 minecraft:hardened_clay
   - '/summon minecraft:mooshroom -2.5 4 8.5 {PersistenceRequired:1b}'
   - '/summon minecraft:cow 2.5 4 8.5 {PersistenceRequired:1b}'
+setup_qrl:
+  # Final render-settle: first recording's t=0-40 goldens were stale sky.
+  - cmd: runcmds
+    action:
+      cmds:
+        - time set 6000
+    settle_ticks: 120
 duration_ticks: 360
 frames_every: 10
 input:
