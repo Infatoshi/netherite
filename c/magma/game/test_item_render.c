@@ -59,6 +59,8 @@ int main(void) {
     /* ---- (A) block drop: dirt (id 3) ---- */
     {
         GmEntityView e = mk_item(3, 0, 0);
+        e.has_hover_start = 1;
+        e.hover_start = 0.0f;
         CHECK(gm_item_drop_uses_block_atlas(3, 0), "dirt classifies as block");
         int nb = gm_items_emit(&e, 1, out, 256);
         CHECK(nb == 36, "dirt cube emits 36 verts");
@@ -86,8 +88,12 @@ int main(void) {
         float hx = maxx - minx, hz = maxz - minz;
         CHECK(hx > 0.24f && hx < 0.36f, "cube x extent in [0.25, 0.25√2]");
         CHECK(hz > 0.24f && hz < 0.36f, "cube z extent in [0.25, 0.25√2]");
-        /* bob + 0.25*ground_sy centers the cube above the feet */
-        CHECK(miny > 64.0f - 0.05f && miny < 64.31f, "cube bobs near the feet");
+        /* At partialTicks=1: bob + RenderEntityItem centering + block.json's
+         * ground translation, less the cube half-height. */
+        float want_min_y = 64.0f + sinf(0.1f) * 0.1f + 0.1f
+                         + 0.25f * 0.25f + 3.0f / 16.0f - 0.125f;
+        CHECK(fabsf(miny - want_min_y) < eps,
+              "cube applies partial tick and block ground translation");
 
         /* winding: every face normal points away from the cube center */
         float cx = (minx + maxx) * 0.5f, cy = (miny + maxy) * 0.5f, cz = (minz + maxz) * 0.5f;
@@ -131,6 +137,8 @@ int main(void) {
     /* ---- (B) item drop: flint (id 318) - extruded thin box ---- */
     {
         GmEntityView e = mk_item(318, 0, 0);
+        e.has_hover_start = 1;
+        e.hover_start = 0.2f;
         CHECK(!gm_item_drop_uses_block_atlas(318, 0), "flint classifies as item");
         int nb = gm_items_emit(&e, 1, out, 256);
         CHECK(nb == 0, "flint not emitted in the terrain pass");
@@ -161,6 +169,10 @@ int main(void) {
          * volume is far below a 0.5 cube (0.125) because of the extrusion. */
         float dx = maxx - minx, dy = maxy - miny, dz = maxz - minz;
         CHECK(fabsf(dy - 0.5f) < 1e-3f, "flat item 0.5 tall (y)");
+        float want_min_y = 64.0f + sinf(0.3f) * 0.1f + 0.1f
+                         + 0.25f * 0.5f + 2.0f / 16.0f - 0.25f;
+        CHECK(fabsf(miny - want_min_y) < eps,
+              "flat item applies partial tick and generated ground translation");
         CHECK((dx > 0.45f || dz > 0.45f), "flat item has ~0.5 face extent");
         float vol = dx * dy * dz;
         CHECK(vol > 0.02f && vol < 0.08f, "extruded volume thinner than a 0.5 cube");

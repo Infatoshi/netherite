@@ -3,8 +3,9 @@
  * Vanilla 1.11.2 RenderEntityItem look: a dropped BLOCK is a miniature block
  * model at GROUND scale 0.25 with its real per-face terrain sprites; a dropped
  * ITEM (no block model) is a 16x16 sprite at GROUND scale 0.5 with 1/16
- * extrusion (ItemModelGenerator). Both bob
- * (sin(age/10 + hover)*0.1 + 0.1) and spin (age/20 + hover rad) with age.
+ * extrusion (ItemModelGenerator). Their model JSON ground translations
+ * (+3/16 Y for blocks, +2/16 Y for generated items) apply after bobbing.
+ * Both bob and spin with age + the frame's partialTicks=1.
  *
  * GUI block icons: software isometric mini-cube (gui display rot 30/225/0,
  * scale 0.625) with per-face shade factors - see gm_item_draw_block_icon.

@@ -5,8 +5,9 @@
  * display.gui + ItemModelGenerator):
  *
  * ENTITY DROP:
- *   bob y = sin(age/10 + hoverStart)*0.1 + 0.1
- *   spin  = age/20 + hoverStart (radians about Y)
+ *   bob y = sin((age+partialTicks)/10 + hoverStart)*0.1 + 0.1
+ *   spin  = (age+partialTicks)/20 + hoverStart (radians about Y)
+ *   model ground translation: block +3/16 Y; generated item +2/16 Y
  *   translate y += 0.25 * ground_scale.y  (block ground scale 0.25; item 0.5)
  *   block cubes: GROUND scale 0.25 of a full block
  *   flat items: GROUND scale 0.5 of a 16x16 sprite with 1/16 extrusion
@@ -41,6 +42,8 @@
 #define IR_FLAT_THICK 0.015625f  /* half of 0.5*(1/16) extrusion after GROUND scale */
 #define IR_CUBE_GROUND_SY 0.25f  /* block ground scale.y */
 #define IR_FLAT_GROUND_SY 0.50f  /* item  ground scale.y */
+#define IR_CUBE_GROUND_TY (3.0f / 16.0f) /* block/block.json ground translation.y */
+#define IR_FLAT_GROUND_TY (2.0f / 16.0f) /* item/generated.json ground translation.y */
 
 /* Fallback item sprite for stacks the atlas does not carry (index of iron
  * ingot: a neutral, recognizable slab). */
@@ -66,13 +69,12 @@ static float ir_hover(int item_id, int item_meta) {
     unsigned h = (unsigned)item_id * 374761393u + (unsigned)item_meta * 668265263u;
     return (float)(h & 0xFFFFu) * (6.2831855f / 65536.0f);
 }
-/* vanilla: sin((age + pt)/10 + hoverStart)*0.1 + 0.1 */
+/* Tape/world frame capture renders at partialTicks=1. */
 static float ir_bob(int age, float hover) {
-    return sinf((float)age / 10.0f + hover) * 0.1f + 0.1f;
+    return sinf(((float)age + 1.0f) / 10.0f + hover) * 0.1f + 0.1f;
 }
-/* vanilla: (age/20 + hoverStart) radians about Y */
 static float ir_spin(int age, float hover) {
-    return (float)age / 20.0f + hover;
+    return ((float)age + 1.0f) / 20.0f + hover;
 }
 
 /* Fixed plains-ish biome tint for tinted faces of dropped blocks (the entity
@@ -135,12 +137,13 @@ int gm_item_sprite_index(int item_id) {
     return 0;
 }
 
-/* Rotate (lx,lz) about Y by spin; place at feet + bob + 0.25*ground_sy + ly. */
+/* Rotate (lx,lz) about Y by spin; apply the JSON ground translation before
+ * placing the model at feet + bob + RenderEntityItem's centering offset. */
 static void ir_place(float fx, float fy, float fz, float bob, float ground_sy,
-                     float spin, float lx, float ly, float lz,
+                     float ground_ty, float spin, float lx, float ly, float lz,
                      float *ox, float *oy, float *oz) {
     float cs = cosf(spin), sn = sinf(spin);
-    float cy = fy + bob + 0.25f * ground_sy;
+    float cy = fy + bob + 0.25f * ground_sy + ground_ty;
     *ox = fx + lx * cs + lz * sn;
     *oy = cy + ly;
     *oz = fz - lx * sn + lz * cs;
@@ -162,7 +165,8 @@ static int ir_emit_cube(const BmBlock *m, const GmEntityView *ev,
             float ly = IR_FACES[f].c[c][1] ? IR_CUBE_HALF : -IR_CUBE_HALF;
             float lz = IR_FACES[f].c[c][2] ? IR_CUBE_HALF : -IR_CUBE_HALF;
             CrVertex vtx;
-            ir_place(fx, fy, fz, bob, IR_CUBE_GROUND_SY, spin, lx, ly, lz,
+            ir_place(fx, fy, fz, bob, IR_CUBE_GROUND_SY, IR_CUBE_GROUND_TY,
+                     spin, lx, ly, lz,
                      &vtx.pos.x, &vtx.pos.y, &vtx.pos.z);
             vtx.uv.x = u0 + IR_CUV[c][0] * (u1 - u0);
             vtx.uv.y = v0 + IR_CUV[c][1] * (v1 - v0);
@@ -195,7 +199,8 @@ static int ir_emit_flat(float fx, float fy, float fz, int age, float hover,
             float ly = IR_FACES[f].c[c][1] ? hy : -hy;
             float lz = IR_FACES[f].c[c][2] ? hz : -hz;
             CrVertex vtx;
-            ir_place(fx, fy, fz, bob, IR_FLAT_GROUND_SY, spin, lx, ly, lz,
+            ir_place(fx, fy, fz, bob, IR_FLAT_GROUND_SY, IR_FLAT_GROUND_TY,
+                     spin, lx, ly, lz,
                      &vtx.pos.x, &vtx.pos.y, &vtx.pos.z);
             /* UV: front/back (N/S, indices 2/3) use full sprite; other faces
              * sample a strip so rims are not a stretch of the full image. */
