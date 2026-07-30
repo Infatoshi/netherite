@@ -7,6 +7,8 @@
  * (D) DIRT block (3): emits 36 verts (unit cube); UV inside dirt sprite;
  *     extents after transform are finite and non-degenerate.
  * (E) CAP: max < 36 returns 0 and never overruns out (canary intact).
+ * (F) FLINT AND STEEL: generated rim lighting uses ItemLayerModel's opposite
+ *     vertex normal at the TNT tape's camera pitch.
  *
  * Build/run: bash game/test_hand.sh
  */
@@ -35,6 +37,18 @@ int main(void) {
     {
         int n = gm_hand_emit_held(0, 0, 0.0f, 0.0f, out, TEST_MAX);
         CHECK(n == 0, "empty item emits 0 verts");
+    }
+
+    /* ---- (F) flint-and-steel generated-rim normal ---- */
+    {
+        gm_hand_set_env(NULL, 15.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                        1.0f, 0.0f, 15.0f);
+        int n = gm_hand_emit_held(259, 0, 0.0f, 0.0f, out, TEST_MAX);
+        CHECK(n > 12, "flint and steel emits generated-item rims");
+        CHECK(fabsf(out[12].ao - 1.0f) < eps,
+              "first flint-and-steel rim uses ItemLayerModel opposite normal");
+        gm_hand_set_env(NULL, 15.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                        1.0f, 0.0f, 0.0f);
     }
 
     /* ---- (B) stick ---- */

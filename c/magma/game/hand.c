@@ -483,14 +483,24 @@ static int held_sprite_opaque(const CrTexture *tex,
 }
 
 static int emit_held_rim_quad(CrMat4 M, const float p[4][3], float u, float v,
-                              CrVertex *out, int max) {
+                              int invert_normal, CrVertex *out, int max) {
     if (max < 6) return 0;
     CrRgba white = {255, 255, 255, 255};
     CrVertex q[4];
     for (int c = 0; c < 4; ++c)
         vtx_init(&q[c], xform_pt01(M, p[c][0], p[c][1], p[c][2]),
                  u, v, 1.0f, white);
-    float d = hand_diffuse(quad_normal(q[0].pos, q[1].pos, q[2].pos));
+    CrVec3 n = quad_normal(q[0].pos, q[1].pos, q[2].pos);
+    /* Forge ItemLayerModel.buildSideQuad stores side.getOpposite() as the
+     * vertex normal. Its WEST/EAST labels match the geometric side and thus
+     * invert our outward normal; its UP/DOWN scan labels are already opposite
+     * the geometric side, so their resulting normal stays outward. */
+    if (invert_normal) {
+        n.x = -n.x;
+        n.y = -n.y;
+        n.z = -n.z;
+    }
+    float d = hand_diffuse(n);
     for (int c = 0; c < 4; ++c) hand_light_vtx(&q[c], d, white);
     for (int k = 0; k < 6; ++k) out[k] = q[HAND_TRI[k]];
     return 6;
@@ -546,19 +556,19 @@ static int emit_held_generated(CrMat4 M, float u0, float v0, float u1, float v1,
         float sv = v0 + (15.5f - (float)y) * (v1 - v0) / 16.0f;
         if (!held_sprite_opaque(tex, u0, v0, u1, v1, x - 1, y)) {
             const float p[4][3] = {{xa,ya,z0},{xa,ya,z1},{xa,yb,z1},{xa,yb,z0}};
-            w += emit_held_rim_quad(M, p, su, sv, out + w, max - w);
+            w += emit_held_rim_quad(M, p, su, sv, 1, out + w, max - w);
         }
         if (!held_sprite_opaque(tex, u0, v0, u1, v1, x + 1, y)) {
             const float p[4][3] = {{xb,ya,z1},{xb,ya,z0},{xb,yb,z0},{xb,yb,z1}};
-            w += emit_held_rim_quad(M, p, su, sv, out + w, max - w);
+            w += emit_held_rim_quad(M, p, su, sv, 1, out + w, max - w);
         }
         if (!held_sprite_opaque(tex, u0, v0, u1, v1, x, y - 1)) {
             const float p[4][3] = {{xa,ya,z0},{xb,ya,z0},{xb,ya,z1},{xa,ya,z1}};
-            w += emit_held_rim_quad(M, p, su, sv, out + w, max - w);
+            w += emit_held_rim_quad(M, p, su, sv, 0, out + w, max - w);
         }
         if (!held_sprite_opaque(tex, u0, v0, u1, v1, x, y + 1)) {
             const float p[4][3] = {{xa,yb,z1},{xb,yb,z1},{xb,yb,z0},{xa,yb,z0}};
-            w += emit_held_rim_quad(M, p, su, sv, out + w, max - w);
+            w += emit_held_rim_quad(M, p, su, sv, 0, out + w, max - w);
         }
     }
     return w;
