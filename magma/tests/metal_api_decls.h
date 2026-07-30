@@ -1,14 +1,11 @@
-/* metal_api_decls.h - TEMPORARY prototypes for the cr_raster_metal_* API.
- *
- * SUPERSEDED BY core/types.h AT MERGE. Agent 1 owns core/types.h and adds the
- * canonical cr_raster_metal_* prototypes there under the RASTER-METAL task.
- * This header exists only so tests/test_raster_parity_metal.c compiles in a
- * worktree that does not yet have those types.h edits. The declarations below
- * are exact mirrors of the extern "C" entry set of cuda/raster_cuda.cu lines
- * 595-1262 (the team contract's reference range) with cuda -> metal renamed.
- * If types.h already declares these, the duplicate compatible declarations are
- * harmless C; once types.h carries them this file can be deleted and the
- * #include below dropped from the test.
+/* metal_api_decls.h - full cr_raster_metal_* prototype surface for the
+ * parity test. core/types.h deliberately declares only the shared subset
+ * (cr_raster_metal + atlas_dirty, matching the cuda pattern); the remaining
+ * entry points are declared at their call sites (game_main.c strong,
+ * frame_capture.c weak). The parity test drives pre/into/sky/post directly,
+ * so it needs the full set - exact mirrors of the extern "C" entries of
+ * cuda/raster_cuda.cu with cuda -> metal renamed. Duplicate compatible
+ * declarations with types.h are harmless C.
  */
 #ifndef MAGMA_TESTS_METAL_API_DECLS_H
 #define MAGMA_TESTS_METAL_API_DECLS_H

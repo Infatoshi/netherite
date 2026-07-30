@@ -153,7 +153,7 @@ app/game_main_metal.o: app/game_main.c game/game.h game/runtime.h game/config.h 
 game/frame_capture_metal.o: game/frame_capture.c game/frame_capture.h core/types.h game/game.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
 metal/raster_metal_host.o: metal/raster_metal_host.m core/types.h
-	$(CC) -x objective-c $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
+	$(CC) -x objective-c -fobjc-arc $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
 metal/raster_kernels.air: metal/raster_kernels.metal core/types.h
 	$(METALC) -fno-fast-math -Icore -I. -o $@ -c $<
 metal/raster_kernels.metallib: metal/raster_kernels.air
@@ -401,3 +401,6 @@ clean:
 	      tests/test_fog_radial \
 	      tests/Golden.class renderkernels/test_rk *.ppm
 	rm -f game/test_config game/test_block_registry game/test_player_ctl game/test_world_live game/test_play_compose
+
+# Metal verification targets (Darwin-guarded; see make/metal.mk)
+-include make/metal.mk

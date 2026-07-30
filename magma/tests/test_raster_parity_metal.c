@@ -30,7 +30,7 @@
 #include <string.h>
 #include "core/types.h"
 #include "../verify/scene.h"
-/* TEMPORARY: cr_raster_metal_* prototypes until agent 1's types.h lands. */
+/* Full cr_raster_metal_* surface (types.h carries only the shared subset). */
 #include "metal_api_decls.h"
 
 static CrScreenVert to_screen(const ScnVert *v) {
