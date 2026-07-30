@@ -41,6 +41,8 @@ struct CrWorldMC {
  * overrides getPackedLightmapCoords with 15728880 (sky=15, block=15). */
 #define CR_CB_MAGMA 220
 #define CR_CB_IRON_BARS 221
+#define CR_CB_GLASS_PANE 237
+#define CR_CB_GLASS 200
 #define CR_CB_TEST_FENCE 203
 #define CR_CB_WEB 230
 #define CR_CB_COBBLESTONE_WALL 233
@@ -262,6 +264,7 @@ static int mc_use_neighbor_brightness_at(const CrLight *L, int wx, int wy, int w
     if (m->is_air) return 0;
     if (m->kind == BM_KIND_SLAB_BOTTOM || m->kind == BM_KIND_SLAB_TOP ||
         m->kind == BM_KIND_STAIRS || m->kind == BM_KIND_IRON_BARS ||
+        m->kind == BM_KIND_GLASS_PANE ||
         m->kind == BM_KIND_TORCH || m->kind == BM_KIND_RAIL)
         return 1;
     if (mc_translucent_at(L, wx, wy, wz)) return 1;
@@ -1131,6 +1134,126 @@ static void emit_iron_bars(CrChunkMeshMC *out, int *cap, const CrLight *L,
     }
 }
 
+static int glass_pane_connects(const CrLight *L, int wx, int wy, int wz) {
+    int cb = light_block(L, wx, wy, wz);
+    const BmBlock *m = bm_block(cb);
+    return cb == CR_CB_GLASS_PANE || cb == CR_CB_IRON_BARS ||
+           cb == CR_CB_GLASS || m->is_full_cube;
+}
+
+static int glass_pane_culls_edge(const CrLight *L, int wx, int wy, int wz) {
+    int cb = light_block(L, wx, wy, wz);
+    const BmBlock *m = bm_block(cb);
+    return cb == CR_CB_GLASS_PANE ||
+           (m->is_full_cube && m->layer == CR_LAYER_SOLID);
+}
+
+static void emit_glass_pane_post_ends(CrChunkMeshMC *out, int *cap,
+                                      int wx, int wy, int wz, int layer,
+                                      int edge_sprite, CrRgba tint,
+                                      float base01) {
+    const float from[3] = {7, 0, 7}, to[3] = {9, 16, 9};
+    const float uv[4] = {7, 7, 9, 9};
+    emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_DOWN, uv,
+                    0, 3, 0, NULL, 0, edge_sprite, tint, base01, 1, 0);
+    emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_UP, uv,
+                    0, 3, 0, NULL, 0, edge_sprite, tint, base01, 1, 0);
+}
+
+static void emit_glass_pane_side(CrChunkMeshMC *out, int *cap,
+                                 int wx, int wy, int wz, int layer,
+                                 int pane_sprite, int edge_sprite,
+                                 CrRgba tint, float base01, int alt,
+                                 int turns, int cull_edge) {
+    const float edge_uv[4] = {7, 0, 9, 16};
+    const float cap_uv[4] = {7, 0, 9, 7};
+    if (!alt) {
+        const float from[3] = {7, 0, 0}, to[3] = {9, 16, 7};
+        const float west_uv[4] = {16, 0, 9, 16};
+        const float east_uv[4] = {9, 0, 16, 16};
+        emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_DOWN,
+                        cap_uv, 0, 3, 0, NULL, 0, edge_sprite, tint,
+                        base01, 1, turns);
+        emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_UP,
+                        cap_uv, 0, 3, 0, NULL, 0, edge_sprite, tint,
+                        base01, 1, turns);
+        if (!cull_edge)
+            emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_NORTH,
+                            edge_uv, 0, 3, 0, NULL, 0, edge_sprite, tint,
+                            base01, 1, turns);
+        emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_WEST,
+                        west_uv, 0, 3, 0, NULL, 0, pane_sprite, tint,
+                        base01, 1, turns);
+        emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_EAST,
+                        east_uv, 0, 3, 0, NULL, 0, pane_sprite, tint,
+                        base01, 1, turns);
+    } else {
+        const float from[3] = {7, 0, 9}, to[3] = {9, 16, 16};
+        const float west_uv[4] = {7, 0, 0, 16};
+        const float east_uv[4] = {0, 0, 7, 16};
+        emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_DOWN,
+                        cap_uv, 0, 3, 0, NULL, 0, edge_sprite, tint,
+                        base01, 1, turns);
+        emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_UP,
+                        cap_uv, 0, 3, 0, NULL, 0, edge_sprite, tint,
+                        base01, 1, turns);
+        if (!cull_edge)
+            emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_SOUTH,
+                            edge_uv, 0, 3, 0, NULL, 0, edge_sprite, tint,
+                            base01, 1, turns);
+        emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_WEST,
+                        west_uv, 0, 3, 0, NULL, 0, pane_sprite, tint,
+                        base01, 1, turns);
+        emit_model_face(out, cap, layer, wx, wy, wz, from, to, BM_EAST,
+                        east_uv, 0, 3, 0, NULL, 0, pane_sprite, tint,
+                        base01, 1, turns);
+    }
+}
+
+static void emit_glass_pane_noside(CrChunkMeshMC *out, int *cap,
+                                   int wx, int wy, int wz, int layer,
+                                   int pane_sprite, CrRgba tint, float base01,
+                                   int alt, int turns) {
+    const float from[3] = {7, 0, 7}, to[3] = {9, 16, 9};
+    const float normal_uv[4] = {9, 0, 7, 16};
+    const float alt_uv[4] = {7, 0, 9, 16};
+    emit_model_face(out, cap, layer, wx, wy, wz, from, to,
+                    alt ? BM_EAST : BM_NORTH, alt ? alt_uv : normal_uv,
+                    0, 3, 0, NULL, 0, pane_sprite, tint, base01, 1, turns);
+}
+
+/* Exact 1.11.2 glass_pane multipart. Unlike iron bars, panes always emit one
+ * noside face for each absent connection and use a distinct edge texture. */
+static void emit_glass_pane(CrChunkMeshMC *out, int *cap, const CrLight *L,
+                            int wx, int wy, int wz, const BmBlock *m,
+                            CrRgba tint, float base01) {
+    int pane_sprite = m->face[BM_NORTH].sprite;
+    int edge_sprite = m->face[BM_UP].sprite;
+    const int dx[4] = {0, 1, 0, -1};
+    const int dz[4] = {-1, 0, 1, 0};
+    int connected[4];
+    emit_glass_pane_post_ends(out, cap, wx, wy, wz, m->layer, edge_sprite,
+                              tint, base01);
+    for (int i = 0; i < 4; ++i)
+        connected[i] = glass_pane_connects(L, wx + dx[i], wy, wz + dz[i]);
+    for (int i = 0; i < 4; ++i) {
+        if (connected[i]) {
+            int alt = i >= 2;
+            int turns = i & 1;
+            int cull_edge =
+                glass_pane_culls_edge(L, wx + dx[i], wy, wz + dz[i]);
+            emit_glass_pane_side(out, cap, wx, wy, wz, m->layer, pane_sprite,
+                                 edge_sprite, tint, base01, alt, turns,
+                                 cull_edge);
+        } else {
+            int alt = i == 1 || i == 2;
+            int turns = i == 2 ? 1 : i == 3 ? 3 : 0;
+            emit_glass_pane_noside(out, cap, wx, wy, wz, m->layer,
+                                   pane_sprite, tint, base01, alt, turns);
+        }
+    }
+}
+
 /* Exact torch.json / torch_wall.json planes, UVs, shade=false, -22.5 degree
  * wall tilt, and blockstate Y rotations. Legacy meta 1/2/3/4 = E/W/S/N. */
 static void emit_torch(CrChunkMeshMC *out, int *cap, const CrLight *L,
@@ -1489,6 +1612,7 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
     float base01 = m->kind == BM_KIND_FLUID ? 1.0f :
         ((m->kind == BM_KIND_CROSS && cb != CR_CB_WEB) ||
          m->kind == BM_KIND_IRON_BARS ||
+         m->kind == BM_KIND_GLASS_PANE ||
          m->kind == BM_KIND_TORCH)
         ? neighbor_model_light01(L, wx, wy, wz,
                                  m->kind == BM_KIND_TORCH ? 14 : 0, &tint)
@@ -1657,6 +1781,9 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
             break;
         case BM_KIND_IRON_BARS:
             emit_iron_bars(out, cap, L, wx, wy, wz, m, tint, base01);
+            break;
+        case BM_KIND_GLASS_PANE:
+            emit_glass_pane(out, cap, L, wx, wy, wz, m, tint, base01);
             break;
         case BM_KIND_TORCH:
             emit_torch(out, cap, L, wx, wy, wz, m, tint, base01);

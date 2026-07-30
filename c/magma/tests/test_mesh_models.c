@@ -26,7 +26,7 @@ enum {
     T_TALLGRASS = 39, T_LEAVES = 34, T_WATER = 2, T_LAVA = 11, T_LILY = 14,
     T_SNOW = 16, T_VINE = 71, T_CACTUS = 81, T_FIRE = 213,
     T_PORTAL = 211, T_END_FRAME = 216, T_MAGMA = 220,
-    T_IRON_BARS = 221, T_TORCH = 222,
+    T_IRON_BARS = 221, T_TORCH = 222, T_GLASS_PANE = 237,
     T_STONE = 1
 };
 
@@ -189,6 +189,10 @@ int main(void) {
           "iron bars: specialized model is not reachable");
     CHECK(bm_block(T_IRON_BARS)->layer == CR_LAYER_CUTOUT_MIPPED,
           "iron bars: wrong render layer");
+    CHECK(bm_block(T_GLASS_PANE)->kind == BM_KIND_GLASS_PANE,
+          "glass pane: specialized model is not reachable");
+    CHECK(bm_block(T_GLASS_PANE)->layer == CR_LAYER_CUTOUT_MIPPED,
+          "glass pane: wrong render layer");
     CHECK(bm_block(T_TORCH)->kind == BM_KIND_TORCH,
           "torch: specialized model is not reachable");
     CHECK(bm_block(T_TORCH)->layer == CR_LAYER_CUTOUT,
@@ -248,6 +252,7 @@ int main(void) {
     int xb   = BASE + 1,  zb  = BASE + 14;  /* isolated iron bars */
     int xb4  = BASE + 11, zb4 = BASE + 14;  /* four-way bars into full cubes */
     int xbp  = BASE + 5,  zbp = BASE + 9;   /* adjacent iron bars */
+    int xgp  = BASE + 1,  zgp = BASE + 11;  /* isolated glass pane */
     int xt   = BASE + 3,  zt  = BASE + 14;  /* standing torch */
     int xtw  = BASE + 8,  ztw = BASE + 14;  /* east-facing wall torch */
     int xlv  = BASE + 5,  ylv = TY + 20, zlv = BASE + 5; /* sloped lava */
@@ -276,6 +281,7 @@ int main(void) {
     light_debug_set_block(L, xb4 - 1, TY, zb4, T_STONE);
     light_debug_set_block(L, xbp, TY, zbp, T_IRON_BARS);
     light_debug_set_block(L, xbp + 1, TY, zbp, T_IRON_BARS);
+    light_debug_set_block(L, xgp, TY, zgp, T_GLASS_PANE);
     light_debug_set_block_meta(L, xt, TY, zt, T_TORCH, 5);
     light_debug_set_block_meta(L, xtw, TY, ztw, T_TORCH, 1);
     light_debug_set_block_meta(L, xtw, TY + 4, ztw, T_TORCH, 2);
@@ -445,6 +451,11 @@ int main(void) {
                           xbp-0.01f,xbp+2.01f,zbp-0.01f,zbp+1.01f,
                           ylo,yhi,got,512);
         CHECK(n==180,"iron bars adjacent panes: %d verts (want 180)",n);
+    }
+    /* pane_post down/up plus one noside face per cardinal = 6 quads. */
+    {
+        int n=collect(&m,CR_LAYER_CUTOUT_MIPPED,xgp,zgp,ylo,yhi,got,512);
+        CHECK(n==36,"glass pane isolated: %d verts (want 36)",n);
     }
     /* --- TORCH: exact six shade=false planes for standing and wall models. --- */
     {

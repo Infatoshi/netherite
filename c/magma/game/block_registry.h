@@ -142,6 +142,7 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         case 234: id = 119; break;                  /* end portal (active) */
         case 235: id = 66; meta = raw_meta; break;  /* rail */
         case 236: id = 46; break;                   /* TNT */
+        case 237: id = 102; break;                  /* glass pane */
         default: break;
     }
 
@@ -244,6 +245,7 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 99: return 79;
         case 100: return 80;
         case 101: return 221;
+        case 102: return 237;
         case 103: return 87;
         case 106:
             if (meta & 8) return 71;

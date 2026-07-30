@@ -194,6 +194,9 @@ SPRITE_NAMES += ["end_portal"]
 # Primed TNT is rendered through RenderTNTPrimed rather than the chunk mesh,
 # but it samples the same three block textures from TextureMap.
 SPRITE_NAMES += ["tnt_bottom", "tnt_side", "tnt_top"]
+# BlockPane uses the glass texture for its faces and a separate two-pixel edge
+# texture for the post and connected-arm caps.
+SPRITE_NAMES += ["glass_pane_top"]
 SPECIAL_SPRITE_PATHS = {
     "end_portal": "assets/minecraft/textures/entity/end_portal.png",
 }
