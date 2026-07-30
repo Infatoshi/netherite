@@ -293,6 +293,10 @@ int main(void) {
          * RenderManager gating on isBurning() and the ui_entities pin golden. */
         CHECK(gm_small_fireball_fire_emit(&small, 1, 0.0f, out, 256) == 0,
               "non-burning small fireball emits no fire layers");
+        small.ticks_existed = 1;
+        CHECK(gm_small_fireball_fire_emit(&small, 1, 0.0f, out, 256) == 12,
+              "updated legacy small fireball infers vanilla setFire state");
+        small.ticks_existed = 0;
         small.flags = 1; /* isBurning */
         n = gm_small_fireball_fire_emit(&small, 1, 0.0f, out, 256);
         CHECK(n == 12, "fiery small fireball emits two stacked fire quads");
