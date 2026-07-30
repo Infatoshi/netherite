@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import qrl.QuantizedRL;
+import qrl.Recorder;
 
 /** Records SPacketExplosion for human-tape replay: the packet carries the
  * authoritative affected-block list and the local player's knockback motion,
@@ -23,6 +23,6 @@ public abstract class MixinRecordExplosion {
         /* PacketThreadUtil invokes this handler first on Netty and then again
          * from the scheduled client task. Record only the applied invocation. */
         if (this.gameController.isCallingFromMinecraftThread())
-            QuantizedRL.recordExplosionPacket(packet);
+            Recorder.recordExplosionPacket(packet);
     }
 }

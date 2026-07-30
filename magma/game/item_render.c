@@ -953,7 +953,7 @@ int gm_small_fireball_fire_emit(const GmEntityView *ents, int n,
 /* Render.doRenderShadowAndFire -> renderEntityOnFire for LIVING entities that
  * are isBurning() (Render.java:344-348). The tape recorder writes bit 0 of the
  * per-entity flags field straight from EntityLivingBase.isBurning()
- * (QuantizedRL.java "flags bitfield: 1=burning"), so this is the RECORDED
+ * (Recorder.java "flags bitfield: 1=burning"), so this is the RECORDED
  * oracle state, never an inference. EntityBlaze overrides isBurning() to
  * return isCharged() - the ON_FIRE datamanager bit its EntityAIFireballAttack
  * sets for the whole volley (EntityBlaze.java:172-186, 281-291) - which is why

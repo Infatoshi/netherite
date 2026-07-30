@@ -87,7 +87,7 @@ rejected so the lock cannot be skipped accidentally.
 Explicit summon coordinates make the initial entity placement reproducible;
 `NoAI` is not set, so vanilla AI remains active. Its server-side RNG does not
 need to be reproduced by magma. At every client tick end,
-`QuantizedRL.recordTick` writes the nearby client entity stream into the tape's
+`Recorder.recordTick` writes the nearby client entity stream into the tape's
 `ents` field: stable id, class, position, yaw, health, and the model pose,
 flags, and variant fields used for rendering. The recorder emits up to 64
 nearby entities, and a scenario summon six blocks away is well inside that

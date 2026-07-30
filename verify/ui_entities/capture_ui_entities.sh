@@ -109,8 +109,8 @@ jar_has_schemas() {
   # entity_pin is required for this capture path
   local tmp
   tmp="$(mktemp -d)"
-  ( cd "$tmp" && jar xf "$j" qrl/QuantizedRL.class 2>/dev/null ) || { rm -rf "$tmp"; return 1; }
-  strings "$tmp/qrl/QuantizedRL.class" 2>/dev/null | grep -q 'entity_pin' || { rm -rf "$tmp"; return 1; }
+  ( cd "$tmp" && jar xf "$j" qrl/Recorder.class 2>/dev/null ) || { rm -rf "$tmp"; return 1; }
+  strings "$tmp/qrl/Recorder.class" 2>/dev/null | grep -q 'entity_pin' || { rm -rf "$tmp"; return 1; }
   rm -rf "$tmp"
   return 0
 }
@@ -118,7 +118,7 @@ jar_has_schemas() {
 if [ "${SKIP_JAR_BUILD:-0}" = 1 ] && jar_has_schemas "$MALMO_JAR"; then
   log "SKIP_JAR_BUILD=1 — reusing $MALMO_JAR (schemas + entity_pin present)"
 elif jar_has_schemas "$MALMO_JAR" \
-    && [ ! "$ENVDIR/Minecraft/src/main/java/qrl/QuantizedRL.java" -nt "$MALMO_JAR" ] \
+    && [ ! "$ENVDIR/Minecraft/src/main/java/qrl/Recorder.java" -nt "$MALMO_JAR" ] \
     && [ ! "$ENVDIR/Minecraft/src/main/resources/schemas.index" -nt "$MALMO_JAR" ]; then
   log "reusing up-to-date $MALMO_JAR (no source newer than jar)"
 else

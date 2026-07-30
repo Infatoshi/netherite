@@ -114,7 +114,7 @@ try:
 except Exception:
     sys.exit(1)
 # Newline-delimited JSON protocol (see java/qrl_client.py).
-# Probe that this is OUR QuantizedRL (hud_pin exists), not a stale bridge.
+# Probe that this is OUR Recorder (hud_pin exists), not a stale bridge.
 try:
     s.sendall((json.dumps({"cmd": "hud_pin", "action": {}}) + "\n").encode())
     buf = b""

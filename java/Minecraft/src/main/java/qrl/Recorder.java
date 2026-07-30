@@ -39,9 +39,9 @@ import java.util.concurrent.TimeUnit;
  * Observation = pose+motion, vitals, look target, nearby entities. No mouse, no continuous.
  * Requires being in a world (singleplayer). Sibling mod to qlook; touches no Malmo source.
  */
-@Mod(modid = QuantizedRL.MODID, name = "Quantized RL Bridge", version = "1.0",
+@Mod(modid = Recorder.MODID, name = "Recorder", version = "1.0",
      clientSideOnly = true, acceptableRemoteVersions = "*")
-public class QuantizedRL {
+public class Recorder {
     public static final String MODID = "qrl";
     static int PORT = 25575; // overridable: env QRL_PORT > qrl_launch.json "port" > default
     static final float QUANTUM = 15.0f;

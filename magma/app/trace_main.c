@@ -18,7 +18,7 @@
  * Action tape line (one per tick, whitespace-separated, '#' comment / blank ok):
  *   forward back left right jump sneak sprint attack use yaw pitch
  * forward/back/left/right/jump/sneak/sprint/attack/use in {0,1}; yaw/pitch in {-1,0,1}
- * (15-degree quantum steps, matching qrl_client.py / QuantizedRL.applyAction).
+ * (15-degree quantum steps, matching qrl_client.py / Recorder.applyAction).
  *
  * CSV columns (match trace_java.py):
  *   tick,x,y,z,yaw,pitch,vx,vy,vz,on_ground,health,food,air,frame_hash
@@ -74,7 +74,7 @@
 #define DEG2RAD   ((float)(M_PI / 180.0))
 #define MAX_TRIS  (4 * 1024 * 1024)
 #define MAX_EDITS 8
-#define AIM_QUANTUM 15.0f     /* qrl 15-degree aim step (QuantizedRL.QUANTUM) */
+#define AIM_QUANTUM 15.0f     /* qrl 15-degree aim step (Recorder.QUANTUM) */
 
 /* floor-division block coord -> chunk coord (handles negatives). */
 static int floordiv16(int a) { return (a >= 0) ? (a >> 4) : -(((-a) + 15) >> 4); }

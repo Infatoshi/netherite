@@ -204,7 +204,7 @@ def main() -> int:
             "yaw": obs.get("yaw"),
             "pitch": obs.get("pitch"),
             "fov_effective": 77.0,
-            "note": "fallback — rebuild QuantizedRL for full camera dump",
+            "note": "fallback — rebuild Recorder for full camera dump",
         }
         cam_path.write_text(json.dumps(cam, indent=2))
     else:

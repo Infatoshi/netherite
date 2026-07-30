@@ -23,8 +23,8 @@ Supporting vocabulary:
   physics fail.
 - **pin** - a tape in `scripts/regression_pins.txt` every merge must keep
   green.
-- **qrl** - the recorder mod inside `java/` (historical name "QuantizedRL";
-  rename to Recorder is a pending follow-up).
+- **qrl** - the recorder mod inside `java/` (main class `Recorder`, modid
+  `qrl`; historical class name "QuantizedRL").
 
 Name collision to know about: **blaze is also a vanilla mob** (nether
 fortress ranged mob, blaze rods). Both meanings live in this codebase -

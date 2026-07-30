@@ -189,7 +189,7 @@ Two tapes are ground truth; nothing else is a match target:
 
 ## Where things are
 
-- Tape recorder: qrl mod `recstart`/`recstop` (QuantizedRL.java), tape format
+- Tape recorder: qrl mod `recstart`/`recstop` (Recorder.java), tape format
   documented in `verify/trace/replay_tape.py` docstring.
 - Replay + first-divergence + pixel diff: `verify/trace/replay_tape.py`.
 - Pinned scenes / trajectory / spawns: `verify/trace/` (run_trace.sh,

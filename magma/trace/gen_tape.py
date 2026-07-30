@@ -6,7 +6,7 @@ One line per tick, whitespace-separated integer fields in the qrl action order:
     forward back left right jump sneak sprint attack use yaw pitch
 
 forward/back/left/right/jump/sneak/sprint/attack/use in {0,1}; yaw/pitch in {-1,0,1}
-(15-degree quantum steps, matching qrl_client.py / QuantizedRL.applyAction). Both the C
+(15-degree quantum steps, matching qrl_client.py / Recorder.applyAction). Both the C
 tracer (app/trace_main.c) and the Java tracer (trace_java.py) replay this exact tape.
 
 Default profile: a seeded pseudo-random walk - mostly forward, occasional turns

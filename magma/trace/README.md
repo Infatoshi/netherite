@@ -33,7 +33,7 @@ forward back left right jump sneak sprint attack use yaw pitch
 
 `forward/back/left/right/jump/sneak/sprint/attack/use` in `{0,1}`; `yaw/pitch` in
 `{-1,0,1}` = 15-degree quantum aim steps (matches `java/qrl_client.py` and
-`QuantizedRL.applyAction`). `#` comments and blank lines are ignored. Both tracers
+`Recorder.applyAction`). `#` comments and blank lines are ignored. Both tracers
 consume the exact same file, so the input is identical on both sides.
 
 ## Two artifacts per side

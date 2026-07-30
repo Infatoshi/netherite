@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * name, dimension, branch flags). Deduped with counts; flushed to a file periodically.
  *
  * This is the qrl-mod side of the hook. The actual sampling of MC render methods lives
- * in QuantizedRL.onClientTick (it calls read-only MC methods directly and infers the
+ * in Recorder.onClientTick (it calls read-only MC methods directly and infers the
  * mutating ones from world state, so goldens captured from REAL MC stay valid). Control
  * cmds come over the qrl TCP socket: coverage_reset / coverage_dump / coverage_enable.
  *

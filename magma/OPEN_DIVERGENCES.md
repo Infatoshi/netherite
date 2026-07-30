@@ -120,7 +120,7 @@ full-bright and engulfed in fire whenever the recorded entity flags say
 
 **Old tapes already carry this.** The recorder writes
 `(isBurning?1:0)|(isSneaking?2)|(isInvisible?4)|(isChild?8)` per living entity
-row (`QuantizedRL.java` "flags bitfield"), `replay_tape.py` forwards it as
+row (`Recorder.java` "flags bitfield"), `replay_tape.py` forwards it as
 `ent_view.flags`, and `script.c` stores it in `GmEntityView.flags`. Measured on
 the three 2026-07-22 blaze tapes: 388-603 burning blaze rows each, with exactly
 the vanilla 78-on/100-off duty cycle (`blaze_melee` transitions t=18, 93, 191,
@@ -289,7 +289,7 @@ same day**. Neither suspect in the original note was right: no filter dropped
 fire (51) or lava, and the patch never covered DIM-1 because **there was no
 DIM-1 to cover**.
 
-- The recorder snapshots the save at `recstart` (`QuantizedRL.java`, recstart
+- The recorder snapshots the save at `recstart` (`Recorder.java`, recstart
   handler). A dimension the player first enters DURING the recording has no
   region files on disk at that moment, so it can never be in that copy:
   `075228Z_world/DIM-1/` held only `data/` and `forcedchunks.dat`, and
@@ -311,7 +311,7 @@ DIM-1 to cover**.
   data the patch would only have been applied at tick 0, to a world the
   player was not in yet.
 
-Fixes: `snapshotSaveDir(mc, snapRoot, addOnly)` in `QuantizedRL.java` - the
+Fixes: `snapshotSaveDir(mc, snapRoot, addOnly)` in `Recorder.java` - the
 recstart pass is unchanged, and `recstop` runs a second ADD-ONLY pass that
 copies only paths the snapshot does not already have, so dimensions born
 during the recording are added while recstart truth for the start dimension,
@@ -461,7 +461,7 @@ command-block kill so the real onDeathUpdate plays; see the yaml):
   (`ItemStack.getAttributeModifiers`), so vanilla's generic.armor total
   is 0 and no icons are drawn. magma derived 3 from the item id, which
   is all the tape carries. **Fixed in code, needs a re-record**: the
-  recorder now writes the real total (`QuantizedRL.recordTick`,
+  recorder now writes the real total (`Recorder.recordTick`,
   `"armor":p.getTotalArmorValue()`), the replay emits `armor_view`, and
   `gm_runtime_tape_armor` overrides the item-derived guess.
 - **Phantom HUD icon**: **root-caused, fixed in code, needs a re-record**

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Per-mode launch + capture for the AO drop-in (render-opt kernel 13, getAoBrightness).
-# All three modes disable Forge's light pipeline (done in QuantizedRL.init from qao_mode.txt)
+# All three modes disable Forge's light pipeline (done in Recorder.init from qao_mode.txt)
 # so the VANILLA AmbientOcclusionFace.getAoBrightness path is live and the coremod hook
 # (OverclockingClassTransformer) drives it:
 #   vanilla  -> MODE 0, hook falls through to the untouched vanilla body (baseline)
