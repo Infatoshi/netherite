@@ -20,6 +20,8 @@ enum {
 /* Deliberately outside every current PB/CBX table. bm_block() renders it with
  * the explicit stone fallback; it can never alias a real generated model key. */
 #define GM_MODEL_FALLBACK 4095
+#define GM_MODEL_STONE_SLAB_BOTTOM_BASE 237
+#define GM_MODEL_STONE_SLAB_TOP_BASE 245
 
 static inline uint16_t gm_pack_state(int id, int meta) {
     return (uint16_t)(((id & 0x0fff) << 4) | (meta & 15));
@@ -145,6 +147,16 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         default: break;
     }
 
+    if (key >= GM_MODEL_STONE_SLAB_BOTTOM_BASE
+            && key < GM_MODEL_STONE_SLAB_TOP_BASE) {
+        id = 44;
+        meta = key - GM_MODEL_STONE_SLAB_BOTTOM_BASE;
+    } else if (key >= GM_MODEL_STONE_SLAB_TOP_BASE
+               && key < GM_MODEL_STONE_SLAB_TOP_BASE + 8) {
+        id = 44;
+        meta = 8 | (key - GM_MODEL_STONE_SLAB_TOP_BASE);
+    }
+
     if (key >= 51 && key <= 59) {
         id = 38; meta = key - 51; quality = GM_MAP_EXACT;
     } else if (key >= 60 && key <= 65) {
@@ -216,7 +228,9 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 38: return 51 + (meta > 8 ? 0 : meta);
         case 39: return 42;
         case 40: return 43;
-        case 44: return (meta & 7) == 1 ? 84 : 202;
+        case 44:
+            return ((meta & 8) ? GM_MODEL_STONE_SLAB_TOP_BASE
+                               : GM_MODEL_STONE_SLAB_BOTTOM_BASE) + (meta & 7);
         case 46: return 235;
         case 48: return 46;
         case 49: return 89;

@@ -733,6 +733,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         set_error(err,err_cap,"cannot write frames-out image (deferred)");return 0;
     }
     GmPlayerView v=tick_v;
+    /* gm_player_view already applies EntityPlayerSP's 1.62 -> 1.54 sneaking
+     * eye height through psv_player_eye_height(prev_sneak). Do not lower the
+     * camera a second time from the current action. */
     CrCamera cam=camera_for(&v,c->fb.w,c->fb.h);float day=time_of_day(r);
     /* eye-in-fluid state (fog / FOV / overlay - game/underwater.h) */
     GmUnderwater uw;gm_uw_eval(r->world,r->dimension,&v,c->fog_c1,&uw);
