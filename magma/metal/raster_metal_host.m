@@ -101,6 +101,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "core/types.h"
 #include "game/sky.h"
@@ -242,35 +243,56 @@ static void mg_err(const char *what, NSError *e) {
 }
 
 static id<MTLLibrary> mg_load_lib(id<MTLDevice> dev) {
-    char path[1024];
+    /* Candidates: $MAGMA_METALLIB wins outright; otherwise search relative to
+     * the executable. The Makefile leaves the build product at
+     * magma/metal/raster_kernels.metallib while the game binary sits in
+     * magma/ and the parity-test binary in magma/tests/, so "next to the
+     * executable" alone boot-fails BOTH real consumers - and a boot failure
+     * degrades to the CPU fallback, which once made the parity gate compare
+     * CPU with CPU and "pass" (caught on the first MacBook run, 2026-07-30). */
+    char cand[3][1024];
+    int ncand = 0;
     const char *env = getenv("MAGMA_METALLIB");
     if (env && *env) {
-        snprintf(path, sizeof path, "%s", env);
+        snprintf(cand[0], sizeof cand[0], "%s", env);
+        ncand = 1;
     } else {
-        uint32_t sz = (uint32_t)sizeof path;
-        if (_NSGetExecutablePath(path, &sz) != 0) {
+        char exedir[1024];
+        uint32_t sz = (uint32_t)sizeof exedir;
+        if (_NSGetExecutablePath(exedir, &sz) != 0) {
             fprintf(stderr, "magma Metal: executable path too long; set "
                             "MAGMA_METALLIB to the metallib path\n");
             return nil;
         }
-        char *slash = strrchr(path, '/');
+        char *slash = strrchr(exedir, '/');
         if (slash) *slash = 0;
-        size_t len = strlen(path);
-        snprintf(path + len, sizeof path - len, "/raster_kernels.metallib");
+        else snprintf(exedir, sizeof exedir, ".");
+        snprintf(cand[0], sizeof cand[0],
+                 "%s/raster_kernels.metallib", exedir);
+        snprintf(cand[1], sizeof cand[1],
+                 "%s/metal/raster_kernels.metallib", exedir);        /* magma/ */
+        snprintf(cand[2], sizeof cand[2],
+                 "%s/../metal/raster_kernels.metallib", exedir);     /* tests/ */
+        ncand = 3;
     }
+    id<MTLLibrary> lib = nil;
     NSError *e = nil;
-    id<MTLLibrary> lib =
-        [dev newLibraryWithURL:[NSURL fileURLWithPath:
-                                   [NSString stringWithUTF8String:path]]
-                         error:&e];
-    if (!lib)
+    for (int i = 0; i < ncand && !lib; ++i) {
+        if (access(cand[i], R_OK) != 0) continue;
+        lib = [dev newLibraryWithURL:[NSURL fileURLWithPath:
+                                         [NSString stringWithUTF8String:cand[i]]]
+                               error:&e];
+    }
+    if (!lib) {
+        fprintf(stderr, "magma Metal: cannot load raster_kernels.metallib "
+                        "(%s); tried:\n",
+                e ? e.localizedDescription.UTF8String : "no readable candidate");
+        for (int i = 0; i < ncand; ++i)
+            fprintf(stderr, "  %s\n", cand[i]);
         fprintf(stderr,
-                "magma Metal: cannot load metallib at %s (%s).\n"
-                "  Build it:  xcrun -sdk macosx metal -fno-fast-math "
-                "-ffp-contract=off raster_kernels.metal -o "
-                "raster_kernels.metallib\n"
-                "  Or set MAGMA_METALLIB to its path.\n",
-                path, e ? e.localizedDescription.UTF8String : "unknown error");
+                "  Build it:  make -C magma metal/raster_kernels.metallib\n"
+                "  Or set MAGMA_METALLIB to its path.\n");
+    }
     return lib;
 }
 
@@ -288,6 +310,20 @@ static id<MTLComputePipelineState> mg_pso(const char *name) {
     return p;
 }
 
+/* MAGMA_METAL_REQUIRE=1 turns any boot failure fatal instead of letting the
+ * caller degrade to cr_raster_cpu. The parity gate sets it so a metallib or
+ * device problem can never produce a vacuous CPU-vs-CPU "pass" again (the
+ * failure mode caught on the first MacBook run, 2026-07-30). */
+static int mg_boot_failed(void) {
+    const char *req = getenv("MAGMA_METAL_REQUIRE");
+    if (req && *req == '1') {
+        fprintf(stderr, "magma Metal: boot failed and MAGMA_METAL_REQUIRE=1; "
+                        "refusing CPU fallback\n");
+        exit(2);
+    }
+    return 0;
+}
+
 /* Device + library + PSOs; shared by _pre and the legacy cr_raster_metal.
  * Returns 1 on success. Idempotent; failures print once per call site. */
 static int mg_boot(void) {
@@ -299,10 +335,10 @@ static int mg_boot(void) {
     }
     if (!g_dev) {
         fprintf(stderr, "magma Metal: no Metal device\n");
-        return 0;
+        return mg_boot_failed();
     }
     g_lib = mg_load_lib(g_dev);
-    if (!g_lib) { g_dev = nil; return 0; }
+    if (!g_lib) { g_dev = nil; return mg_boot_failed(); }
     g_pso_tri    = mg_pso("cr_raster_tri_kernel");
     g_pso_bbox   = mg_pso("cr_raster_bbox_kernel");
     g_pso_tiled  = mg_pso("cr_raster_tiled_kernel");
@@ -312,7 +348,7 @@ static int mg_boot(void) {
     if (!g_pso_tri || !g_pso_bbox || !g_pso_tiled || !g_pso_sky ||
         !g_pso_xform || !g_pso_gather) {
         g_lib = nil; g_dev = nil;
-        return 0;
+        return mg_boot_failed();
     }
     if (g_pso_tiled.maxTotalThreadsPerThreadgroup < 256) {
         /* MEASURED-ON-MAC 4: tiled kernel NEEDS full 16x16 threadgroups. */
@@ -320,10 +356,10 @@ static int mg_boot(void) {
                         " = %lu < 256; tiled raster unusable on this device\n",
                 (unsigned long)g_pso_tiled.maxTotalThreadsPerThreadgroup);
         g_lib = nil; g_dev = nil;
-        return 0;
+        return mg_boot_failed();
     }
     g_queue = [g_dev newCommandQueue];
-    if (!g_queue) { g_lib = nil; g_dev = nil; return 0; }
+    if (!g_queue) { g_lib = nil; g_dev = nil; return mg_boot_failed(); }
     return 1;
 }
 

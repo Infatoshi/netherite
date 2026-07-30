@@ -56,6 +56,7 @@ make -C magma test-raster-parity-metal || fail "raster parity gate failed (CPU !
 # --- 4. tape replay smoke with --metal --------------------------------------
 echo "== [3/3] replay_tape.py --metal ${TAPE_NAME} =="
 ( cd verify/trace && \
+  MAGMA_METAL_REQUIRE=1 \
   uv run --no-project --with numpy --with scipy --with pillow --with nbt \
     python replay_tape.py "../tapes/${TAPE_NAME}.jsonl" --metal --report )
 replay_rc=$?

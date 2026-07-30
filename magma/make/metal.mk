@@ -37,7 +37,7 @@ test-raster-parity-metal:
 	    tests/test_raster_parity_metal.c \
 	    cpu/raster_cpu.c core/shade.c core/math.c metal/raster_metal_host.m \
 	    $(METAL_FRAMEWORKS) -o tests/test_raster_parity_metal
-	./tests/test_raster_parity_metal
+	MAGMA_METAL_REQUIRE=1 ./tests/test_raster_parity_metal
 else
 test-raster-parity-metal:
 	@echo "test-raster-parity-metal: requires macOS + Metal (uname -s = $(METAL_UNAME_S));" \
