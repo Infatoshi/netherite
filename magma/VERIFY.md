@@ -411,10 +411,19 @@ world setup and `mcwindow_script.py` segments for timed view/input.
 
 ## Metal backend (macOS)
 
-STATUS: UNVERIFIED. No Metal parity claim exists until
-`scripts/mac_metal_verify.sh` passes end to end on the MacBook (M4 Max). The
-harness below is written and Linux-side compile-checked only; nothing in this
-section is evidence of correctness yet.
+STATUS: VERIFIED - first green run 2026-07-30, master rev 0f80c50 (MacBook
+M4 Max, macOS 26.5.1, Apple clang 21.0.0, MetalToolchain 17.6.109).
+`scripts/mac_metal_verify.sh` passed end to end: game-metal builds, the
+rung-1 gate is bit-exact CPU==Metal on all 5 layers (color AND depth,
+maxdiff=0), and the smoke-zombie replay returned rc=0 with the structural
+pixel gate green (no unexplained clusters over 18 frames; one sub-threshold
+single-frame blip, 208 px, is recorded in the gate baseline json). Rev
+0f80c50 contains the two fixes that first run surfaced: metallib search
+paths in `mg_load_lib` (a missing metallib used to degrade to the CPU
+fallback, which made the parity gate vacuously compare CPU with CPU) and
+the full 19-symbol Darwin `CUDA_WEAK_LD` list (plain `magma_game` would not
+link on macOS, breaking the replay's world-dump build). The "would NOT
+prove" scope limits below still apply.
 
 The Metal backend mirrors the CUDA raster API: `cr_raster_metal_*` is a
 one-for-one rename of the `cr_raster_cuda_*` entry set
@@ -445,11 +454,11 @@ which runs, in order:
    its `_frames` goldens, and its `_world` snapshot must be rsynced from
    anvil first (exact command in the script header).
 
-What a full pass would prove: the Metal raster is bit-exact vs the CPU raster
+What the full pass proves: the Metal raster is bit-exact vs the CPU raster
 on the unit scene battery, and one canonical smoke tape replays through the
 frozen pixel gate on Apple silicon.
 
-What it would NOT prove (still open after a first green run):
+What it does NOT prove (still open after the first green run):
 
 - Parity on the other canonical tapes (physics 3,617-tick, 12k pixel tape) and
   the rest of the ladder (checkpoints, nightly sweep) with `--metal`.
@@ -460,6 +469,6 @@ What it would NOT prove (still open after a first green run):
 - Cross-machine bit-identity of CPU frames (x86 anvil vs arm64 mac) - the
   parity gate compares CPU vs Metal on the SAME machine.
 
-Until the mac run happens, treat every `--metal` code path as plumbing only.
-After the first green run, record date + git rev here and move remaining gaps
-to OPEN_DIVERGENCES.md if any gate disagrees.
+First green run recorded in STATUS above. No gate disagreed, so nothing moved
+to OPEN_DIVERGENCES.md; the "does NOT prove" list is the open ladder for
+`--metal`.
