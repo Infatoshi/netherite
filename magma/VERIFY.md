@@ -458,17 +458,40 @@ What the full pass proves: the Metal raster is bit-exact vs the CPU raster
 on the unit scene battery, and one canonical smoke tape replays through the
 frozen pixel gate on Apple silicon.
 
-What it does NOT prove (still open after the first green run):
+Second wave, 2026-07-30, master rev 9f2d72a (same machine/toolchain): the
+full regression pin set (`scripts/regression_pins.txt`) replayed on the Mac
+under `--metal` with `MAGMA_METAL_REQUIRE=1` - smoke_zombie, fence_collide,
+water_flow, cobweb_fall, water_dive, and dragon_kill_geared all rc=0 with
+the pixel gate green. The canonical 3,617-tick survival tape
+(`20260721T215812Z`) returned rc=3 with EXACTLY the failure signature filed
+on Linux (mild-shift frames t=3080/t=3540 with unexplained_px=0, inventory
+mismatches t=3257 slot 1 / t=3267 slot 2 - the recorded-crafting gap in
+OPEN_DIVERGENCES "Late-tape item acquisition"): a known-failing tape failing
+identically across backends is parity evidence, not a Metal gap.
+smoke_zombie was additionally re-replayed from a cleared frame cache in a
+separate session as an independent check (rc=0).
 
-- Parity on the other canonical tapes (physics 3,617-tick, 12k pixel tape) and
-  the rest of the ladder (checkpoints, nightly sweep) with `--metal`.
+Playable window: `MAGMA_METAL_REQUIRE=1 ./magma_game_metal --backend metal`
+boots on the Mac into the SDL window (`[config] render=window backend=metal`,
+metallib + AGXMetal loaded, strict mode, no fallback; verified over ssh
+2026-07-30). Arrow-key look rides the normal input map
+(`game/input_map.c`, held-arrow quantized steps, unit-tested by
+`test_input_map`). The window contents are the same frames the tape gates
+prove bit-exact; what ssh cannot verify is the composited screen and live
+keystrokes (macOS TCC blocks `screencapture`/osascript from a remote shell),
+so the hands-on look-around check is a manual step.
+
+What is still NOT proven for `--metal`:
+
+- The rest of the ladder (checkpoints, nightly sweep) beyond the pin set.
+  (The 12k human tape formerly listed here was retired; it no longer exists
+  in `verify/tapes/`.)
 - The frame-resident path (`frame_begin`/`sky`/`frame_end[_async]`), the slab
   pool, and `render_layer`/`render_gather`/`render_terrain` beyond what the
-  smoke tape happens to exercise; the unit gate only drives `into`.
+  pin tapes happen to exercise; the unit gate only drives `into`.
 - Any performance claim.
 - Cross-machine bit-identity of CPU frames (x86 anvil vs arm64 mac) - the
   parity gate compares CPU vs Metal on the SAME machine.
 
-First green run recorded in STATUS above. No gate disagreed, so nothing moved
-to OPEN_DIVERGENCES.md; the "does NOT prove" list is the open ladder for
-`--metal`.
+No gate disagreed in either wave, so nothing moved to OPEN_DIVERGENCES.md;
+the "NOT proven" list is the open ladder for `--metal`.
