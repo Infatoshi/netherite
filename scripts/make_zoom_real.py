@@ -113,6 +113,12 @@ def main():
         pad = len(block) - len(block_envs)
         block_envs = block_envs + spare[:pad]
         spare = spare[pad:]
+        # the zoom opens fullscreen on (cr, cc), so that slot must hold a
+        # native env; block_envs is consumed in row-major order
+        ci = block.index((cr, cc))
+        ni = next(i for i, e in enumerate(block_envs)
+                  if e < args.keep_native)
+        block_envs[ci], block_envs[ni] = block_envs[ni], block_envs[ci]
     others = [int(e) for e in rng.permutation(spare)]
     env_of = {}
     bi = oi = 0
