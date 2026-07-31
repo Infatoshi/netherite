@@ -234,14 +234,21 @@ static long long fc_texture_tick(long long total_time, int portal_frame) {
 }
 
 /* The frame's lightmap texture: exact updateLightmap texels for the current
- * sun brightness (torch flicker + gamma pinned 0, matching the light state). */
-static const CrRgba *build_lightmap_lut(GmFrameCapture *c, const GmRuntime *r) {
-    if (!c->lm_mode || r->dimension != 0) return NULL;
-    float sun = fc_sun_brightness(&r->sin_table, r->clock.world_time);
+ * sun brightness (torch flicker + gamma pinned 0, matching the light state).
+ * Shared with the interactive window loop (game_main.c), which must feed the
+ * SAME texels to its terrain shade ctxs or lightmap-mode meshes shade garbage. */
+void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
+                            CrRgba lut[256]) {
+    float sun = fc_sun_brightness(st, world_time);
     for (int sl = 0; sl < 16; ++sl)
         for (int bl = 0; bl < 16; ++bl)
-            c->lut[sl * 16 + bl] =
+            lut[sl * 16 + bl] =
                 cr_lightmap_rgba8(cr_lightmap_rgb(0, sl, bl, sun, 0.0f, 0.0f));
+}
+
+static const CrRgba *build_lightmap_lut(GmFrameCapture *c, const GmRuntime *r) {
+    if (!c->lm_mode || r->dimension != 0) return NULL;
+    gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time, c->lut);
     return c->lut;
 }
 

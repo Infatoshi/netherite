@@ -13,4 +13,10 @@ int gm_frame_capture_write(GmFrameCapture *capture, GmRuntime *runtime,
                            char *err, int err_cap);
 void gm_frame_capture_close(GmFrameCapture *capture);
 
+/* Fill the 16x16 EntityRenderer.updateLightmap LUT for the given world time
+ * (overworld texels; callers gate on lightmap mode + dimension 0). Shared by
+ * the capture path and the interactive window loop. */
+void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
+                            CrRgba lut[256]);
+
 #endif
