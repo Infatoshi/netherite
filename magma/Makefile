@@ -69,7 +69,15 @@ world/%.o: world/%.c core/types.h
 ifeq ($(shell uname -s),Darwin)
 CUDA_WEAK_LD = -Wl,-U,_cr_raster_cuda_pre -Wl,-U,_cr_raster_cuda_into \
                -Wl,-U,_cr_raster_cuda_frame_begin -Wl,-U,_cr_raster_cuda_frame_end \
-               -Wl,-U,_cr_raster_cuda_post -Wl,-U,_alloctrack_frame
+               -Wl,-U,_cr_raster_cuda_post -Wl,-U,_cr_raster_cuda_sky \
+               -Wl,-U,_cr_raster_cuda_atlas_dirty \
+               -Wl,-U,_cr_raster_cuda_pin -Wl,-U,_cr_raster_cuda_unpin \
+               -Wl,-U,_cr_raster_cuda_uploads_mark -Wl,-U,_cr_raster_cuda_uploads_wait \
+               -Wl,-U,_cr_raster_cuda_frame_end_async -Wl,-U,_cr_raster_cuda_frame_wait \
+               -Wl,-U,_cr_raster_cuda_render_layer -Wl,-U,_cr_raster_cuda_render_gather \
+               -Wl,-U,_cr_raster_cuda_render_terrain \
+               -Wl,-U,_cr_raster_cuda_slab_pool -Wl,-U,_cr_raster_cuda_slab_sync \
+               -Wl,-U,_cr_raster_cuda_slabs_reset -Wl,-U,_alloctrack_frame
 endif
 game: magma_game
 magma_game: app/game_main.o $(OBJ_GAME) $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) \
