@@ -29,6 +29,7 @@
 #include "game/screen.h"
 #include "game/script.h"
 #include "game/rl_mode.h"
+#include "game/frame_capture.h"  /* gm_frame_lightmap_fill: shared updateLightmap LUT */
 #include "game/view.h"
 #include "game/overlay.h"        /* selection outline + dig crack decal geometry */
 #include "game/sel_box.h"        /* vanilla per-block selection bounding boxes */
@@ -123,7 +124,7 @@ static int render_layer(CrFramebuffer *fb, const CrCamera *cam,
  * updateFogColor noon color; see game/sky.h) DEFAULT ON; MAGMA_FOG=0 disables. */
 static int render_world(CrFramebuffer *fb, const CrCamera *cam, const GmMeshView *mv,
                          const CrTexture *atlas, CrScreenTri *tris, float time_of_day,
-                         const GmUnderwater *uw) {
+                         const GmUnderwater *uw, const CrRgba *lm) {
     int    fon = gm_terrain_fog_enabled();
     CrRgba fog = gm_terrain_fog_color(time_of_day);
     const float fst = GM_TERRAIN_FOG_START, fen = GM_TERRAIN_FOG_END;
@@ -141,6 +142,13 @@ static int render_world(CrFramebuffer *fb, const CrCamera *cam, const GmMeshView
     CrShadeCtx sh_cut   = TSH(1, CR_LAYER_CUTOUT,        0);
     CrShadeCtx sh_trans = TSH(0, CR_LAYER_TRANSLUCENT,   1);
 #undef TSH
+    /* lightmap mode (worldmc): meshes carry raw sky/blk lightmap coords, so
+     * every terrain ctx must bind the frame's updateLightmap texels exactly
+     * like frame_capture.c terrain_shades(); a NULL binding shades garbage. */
+    sh_solid.lightmap = lm;
+    sh_cmip.lightmap  = lm;
+    sh_cut.lightmap   = lm;
+    sh_trans.lightmap = lm;
     if (uw && uw->fluid) {
         /* setupFog fluid branch: GL_EXP over every terrain layer. */
         CrShadeCtx *all[4] = { &sh_solid, &sh_cmip, &sh_cut, &sh_trans };
@@ -787,7 +795,15 @@ int main(int argc, char **argv) {
         bench_stamp(5);
         GmMeshView mv; gm_world_mesh_view(world, &cam, fb_w, fb_h, &mv);
         bench_stamp(6);
-        int ntris = render_world(&fb, &cam, &mv, &atlas, tris, day, &uw);
+        /* frame lightmap texels (overworld lightmap mode only, like
+         * build_lightmap_lut in frame_capture.c) */
+        static CrRgba lm_lut[256];
+        const CrRgba *lm = NULL;
+        if (worldmc_lightmap_mode() && runtime.dimension == 0) {
+            gm_frame_lightmap_fill(&st, g_clock.world_time, lm_lut);
+            lm = lm_lut;
+        }
+        int ntris = render_world(&fb, &cam, &mv, &atlas, tris, day, &uw, lm);
         bench_stamp(7);
 
         /* ---- targeted-block selection outline + dig crack decal (windowed) ----
@@ -1019,7 +1035,9 @@ int main(int argc, char **argv) {
         /* ---- first-person hand (over the world, before the 2D HUD) ---- */
         {
             float mv_mag = fabsf(act.forward) + fabsf(act.strafe);
-            if (mv_mag > 0.01f) hand_bob += 0.30f;   /* advance walk bob */
+            /* advance walk bob per SIM TICK (nticks==1 on the headless path,
+             * byte-identical): per-frame advance raced at window frame rate */
+            if (mv_mag > 0.01f) hand_bob += 0.30f * (float)nticks;
             /* EntityLivingBase.swingArm restart rule: the clickMouse press edge
              * and every tick sendClickBlockToController damages a block. Vanilla
              * restarts once swingProgressInt >= end/2, so a held dig loops over
@@ -1034,7 +1052,11 @@ int main(int argc, char **argv) {
             float swing = swing_ticks > 0
                 ? (float)(SWING_LEN - swing_ticks) / (float)SWING_LEN : 0.0f;
             gm_hand_set_swing(swing);
-            if (swing_ticks > 0) swing_ticks--;
+            /* swingProgressInt advances per SIM TICK (20 Hz), not per rendered
+             * frame: at uncapped window fps the old per-frame decrement ran
+             * the 6-tick swing in a few dozen ms. nticks==1 headless. */
+            swing_ticks -= nticks;
+            if (swing_ticks < 0) swing_ticks = 0;
             /* Viewmodel environment: eye-block combined light folded into the
              * tint (no frame lightmap texture on this path), the eye-in-water
              * 60/70 fov, and the item-light anchor rotation. */
@@ -1044,10 +1066,17 @@ int main(int argc, char **argv) {
                 int hz = (int)floorf(cpv.z);
                 int hsky = gm_world_sky_light(world, hx, hy, hz);
                 int hblk = gm_world_block_light(world, hx, hy, hz);
-                CrLightmapRgb hc3 = cr_lightmap_rgb(runtime.dimension, hsky, hblk,
-                    cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
-                gm_hand_set_env(0, 15.f, 0.f, hc3.r, hc3.g, hc3.b,
-                                uw.fov_scale, cpv.yaw, cpv.pitch);
+                if (lm) {
+                    /* lightmap mode: raw coords through the frame LUT, exactly
+                     * like the capture path (frame_capture.c hand env). */
+                    gm_hand_set_env(lm, (float)hsky, (float)hblk, 1.f, 1.f, 1.f,
+                                    uw.fov_scale, cpv.yaw, cpv.pitch);
+                } else {
+                    CrLightmapRgb hc3 = cr_lightmap_rgb(runtime.dimension, hsky, hblk,
+                        cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+                    gm_hand_set_env(0, 15.f, 0.f, hc3.r, hc3.g, hc3.b,
+                                    uw.fov_scale, cpv.yaw, cpv.pitch);
+                }
             }
             /* MAGMA_NO_HAND: measurement gate - skip the first-person arm (used
              * to pixel-diff hand vs no-hand against the MC golden). Default draws. */
