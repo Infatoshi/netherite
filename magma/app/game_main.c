@@ -25,6 +25,7 @@
 #include "game/timer.h"   /* Timer.java port: 20 TPS accumulator + renderPartialTicks */
 #include "game/live_sim.h" /* minimal live entities + plant plot */
 #include "game/player_ctl.h"
+#include "game/particles_live.h"
 #include "game/runtime.h"
 #include "game/screen.h"
 #include "game/script.h"
@@ -483,6 +484,10 @@ int main(int argc, char **argv) {
     }
 
     CrTexture atlas = gm_world_atlas(world);
+    GmParticlesLive live_particles;
+    gm_particles_live_init(&live_particles,
+        (uint64_t)seed ^ UINT64_C(0x7061727469636c65));
+    const int particle_demo = getenv("MAGMA_PARTICLE_DEMO") != NULL;
     gm_input_reset();
     gm_hud_init();
 
@@ -721,9 +726,97 @@ int main(int argc, char **argv) {
             else if (--use_repeat_delay <= 0) { tact.do_place = 1; use_repeat_delay = 4; }
         }
 
+        /* Retain the aimed block before gm_runtime_tick may replace it with
+         * air. Hit particles use the block's selected AABB, which is its
+         * ordinary state bounding box for the vanilla blocks in this port. */
+        int phit = 0, phx = 0, phy = 0, phz = 0, pface = -1;
+        int pworldx = 0, pworldz = 0;
+        int pblock = 0, pmeta = 0;
+        float pbounds[6] = {0};
+        if (tact.attack) {
+            PsvPlayer aim_pl = pl;
+            aim_pl.yaw += tact.dyaw;
+            aim_pl.pitch += tact.dpitch;
+            if (aim_pl.pitch > 89.0f) aim_pl.pitch = 89.0f;
+            if (aim_pl.pitch < -89.0f) aim_pl.pitch = -89.0f;
+            int pax, pay, paz;
+            if (gm_raycast_sel_reach(win, &st, &aim_pl, PSV_REACH,
+                                     &phx, &phy, &phz,
+                                     &pax, &pay, &paz) >= 0) {
+                phit = 1;
+                pworldx = phx + ox;
+                pworldz = phz + oz;
+                pblock = gm_world_block(world, pworldx, phy, pworldz);
+                pmeta = gm_world_meta(world, pworldx, phy, pworldz) & 15;
+                gm_sel_box_at(win, phx, phy, phz, pbounds);
+                if (pax < phx) pface = 4;
+                else if (pax > phx) pface = 5;
+                else if (pay < phy) pface = 0;
+                else if (pay > phy) pface = 1;
+                else if (paz < phz) pface = 2;
+                else pface = 3;
+            }
+        }
+
+        if (particle_demo && runtime.tick == 20) {
+            PsvPlayer demo_pl = pl;
+            demo_pl.pitch = 10.0f;
+            int hx, hy, hz, ax, ay, az;
+            int have_surface = gm_raycast_sel_reach(
+                win, &st, &demo_pl, 24.0,
+                &hx, &hy, &hz, &ax, &ay, &az) >= 0;
+            int pwx = have_surface ? hx + ox : (int)floor(pl.ent.posX + (double)ox);
+            int pwz = have_surface ? hz + oz : (int)floor(pl.ent.posZ + (double)oz) - 3;
+            int pwy = have_surface ? hy : gm_world_surface_y(world, pwx, pwz) - 1;
+            int id = gm_world_block(world, pwx, pwy, pwz);
+            int meta = gm_world_meta(world, pwx, pwy, pwz) & 15;
+            int model = gm_state_to_model_key(gm_pack_state(id, meta));
+            CrLightmapRgb plm = cr_lightmap_rgb(
+                runtime.dimension,
+                gm_world_sky_light(world, pwx, pwy + 1, pwz),
+                gm_world_block_light(world, pwx, pwy + 1, pwz),
+                cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+            gm_particles_live_seed(&live_particles,
+                UINT64_C(0x5041525449434c45));
+            int spawned = gm_particles_live_spawn_destroy(&live_particles,
+                pwx, pwy, pwz, model, plm.r, plm.g, plm.b);
+            fprintf(stderr, "[particle_demo] tick=%lld block=%d,%d,%d spawned=%d\n",
+                    runtime.tick, pwx, pwy, pwz, spawned);
+        }
+
         /* debug/test hook: force a lethal state at a chosen frame. */
         if (kill_frame >= 0 && frame == kill_frame) { vitals.health = 0.0f; pl.health = 0.0f; }
         gm_runtime_tick(&runtime, tact);
+        if (phit && pblock != 0) {
+            int pwx = pworldx, pwz = pworldz;
+            int model = gm_state_to_model_key(gm_pack_state(pblock, pmeta));
+            int block_now = gm_world_block(world, pwx, phy, pwz);
+            int meta_now = gm_world_meta(world, pwx, phy, pwz) & 15;
+            if (block_now != pblock || meta_now != pmeta) {
+                CrLightmapRgb plm = cr_lightmap_rgb(
+                    runtime.dimension,
+                    gm_world_sky_light(world, pwx, phy, pwz),
+                    gm_world_block_light(world, pwx, phy, pwz),
+                    cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+                gm_particles_live_spawn_destroy(&live_particles,
+                    pwx, phy, pwz, model, plm.r, plm.g, plm.b);
+            }
+            if (gm_player_dig_swing()) {
+                int lx = pwx, ly = phy, lz = pwz;
+                if (pface == 0) ly--; else if (pface == 1) ly++;
+                else if (pface == 2) lz--; else if (pface == 3) lz++;
+                else if (pface == 4) lx--; else if (pface == 5) lx++;
+                CrLightmapRgb plm = cr_lightmap_rgb(
+                    runtime.dimension,
+                    gm_world_sky_light(world, lx, ly, lz),
+                    gm_world_block_light(world, lx, ly, lz),
+                    cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+                gm_particles_live_spawn_hit(&live_particles,
+                    pwx, phy, pwz, model, pface, pbounds,
+                    plm.r, plm.g, plm.b);
+            }
+        }
+        gm_particles_live_tick(&live_particles, win, ox, oz);
         /* Episode ends on victory or Title Screen from GuiGameOver. Death
          * itself holds on the death screen (Respawn continues the run). */
         if (runtime.won || runtime.quit_to_title) running = 0;
@@ -942,45 +1035,6 @@ int main(int argc, char **argv) {
                     render_layer(&fb, &cam, ent_verts, nx, tris, &xp);
                 }
             }
-            /* Dig particles: ParticleDigging uses terrain-atlas particle icons.
-             * dig_state is window-local; convert with ox/oz like overlay. */
-            {
-                int dx, dy, dz, dface = -1; float dmg;
-                if (gm_player_dig_state_ex(&dx, &dy, &dz, &dmg, &dface) &&
-                    dmg > 0.0f) {
-                    int stage = (int)(dmg * 10.0f);
-                    if (stage < 1) stage = 1;
-                    if (stage > 10) stage = 10;
-                    int wx = dx + ox, wz = dz + oz;
-                    /* emit takes a MODEL KEY (CB_/PB_ space), not the vanilla
-                     * id gm_world_block returns: passing the vanilla id lands
-                     * grass on water_flow and sand on lava_flow. */
-                    int bid = gm_state_to_model_key(gm_pack_state(
-                        gm_world_block(world, wx, dy, wz),
-                        gm_world_meta(world, wx, dy, wz) & 15));
-                    int lx = wx, ly = dy, lz = wz;
-                    if (dface == 0) ly = dy - 1; else if (dface == 1) ly = dy + 1;
-                    else if (dface == 2) lz = wz - 1; else if (dface == 3) lz = wz + 1;
-                    else if (dface == 4) lx = wx - 1; else if (dface == 5) lx = wx + 1;
-                    int dsky = gm_world_sky_light(world, lx, ly, lz);
-                    int dblk = gm_world_block_light(world, lx, ly, lz);
-                    CrLightmapRgb dlm = cr_lightmap_rgb(
-                        runtime.dimension, dsky, dblk,
-                        cr_dimension_sun_brightness(runtime.dimension),
-                        0.f, 0.f);
-                    int nd = gm_block_break_particles_emit(
-                        wx, dy, wz, bid, stage, dface,
-                        gm_player_dig_particle_count(),
-                        pv.yaw, pv.pitch, dlm.r, dlm.g, dlm.b,
-                        ent_verts, ent_max_verts);
-                    if (nd > 0) {
-                        CrShadeCtx dig = {0};
-                        dig.atlas = &atlas; dig.fog_color = fog;
-                        dig.alpha_test = 1; dig.layer = CR_LAYER_CUTOUT;
-                        render_layer(&fb, &cam, ent_verts, nd, tris, &dig);
-                    }
-                }
-            }
             /* LayerSlimeGel: living alphaFunc(GL_GREATER, 0.1) + blend depth write. */
             nv = gm_slime_gel_emit(ents, nents, ent_verts, ent_max_verts);
             if (nv > 0) {
@@ -1043,6 +1097,19 @@ int main(int argc, char **argv) {
                 fire_sh.atlas = &atlas; fire_sh.fog_color = fog;
                 fire_sh.alpha_test = 1; fire_sh.layer = CR_LAYER_CUTOUT;
                 render_layer(&fb, &cam, ent_verts, nv, tris, &fire_sh);
+            }
+        }
+        {
+            int nv = gm_particles_live_emit(&live_particles, partial_ticks,
+                                             cpv.yaw, cpv.pitch,
+                                             ent_verts, ent_max_verts);
+            if (nv > 0) {
+                CrShadeCtx dig = {0};
+                dig.atlas = &atlas;
+                dig.fog_color = sky;
+                dig.alpha_test = 1;
+                dig.layer = CR_LAYER_CUTOUT;
+                render_layer(&fb, &cam, ent_verts, nv, tris, &dig);
             }
         }
 
