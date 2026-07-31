@@ -79,6 +79,22 @@ static int g_use_cuda = 0;   /* runtime switch: --backend cuda / legacy --cuda *
 static const int g_use_cuda __attribute__((unused)) = 0;  /* CPU build: referenced only under MAGMA_CUDA */
 #endif
 
+/* Metal raster wiring (only compiled into magma_game_metal, built by `make
+ * game-metal` with -DMAGMA_METAL and metal/raster_metal_host.o; macOS only).
+ * Mirrors the CUDA seam above 1:1: same signatures, s/cuda/metal/. The default
+ * `make game` leaves MAGMA_METAL undefined and references no metal symbol. */
+#ifdef MAGMA_METAL
+extern void cr_raster_metal_pre(int w, int h, int max_tris);
+extern void cr_raster_metal_into(CrFramebuffer *fb, const CrScreenTri *tris,
+                                 int ntris, const CrShadeCtx *sh);
+extern void cr_raster_metal_frame_begin(const CrFramebuffer *fb);
+extern void cr_raster_metal_frame_end(CrFramebuffer *fb);
+extern void cr_raster_metal_sky(const GmSkyCtx *sc, const float *basis,
+                                int W, int H);
+extern void cr_raster_metal_post(void);
+static int g_use_metal = 0;  /* runtime switch: --backend metal */
+#endif
+
 /* Raster one concatenated per-layer vertex buffer once (normal backface cull;
  * unlike the GL-parity candidate we do NOT double windings). The CUDA path
  * (cr_raster_cuda_into, alloc-once) is bit-identical to cr_raster_cpu. */
@@ -91,6 +107,9 @@ static int render_layer(CrFramebuffer *fb, const CrCamera *cam,
 #ifdef MAGMA_CUDA
         if (g_use_cuda) cr_raster_cuda_into(fb, tris, ntris, sh);
         else            cr_raster_cpu(fb, tris, ntris, sh);
+#elif defined(MAGMA_METAL)
+        if (g_use_metal) cr_raster_metal_into(fb, tris, ntris, sh);
+        else             cr_raster_cpu(fb, tris, ntris, sh);
 #else
         cr_raster_cpu(fb, tris, ntris, sh);
 #endif
@@ -331,7 +350,12 @@ int main(int argc, char **argv) {
 #else
     const int cuda_compiled = 0;
 #endif
-    if (gm_config_validate_runtime(&cfg, cuda_compiled, cfg_err, sizeof cfg_err) != 0) {
+#ifdef MAGMA_METAL
+    const int metal_compiled = 1;
+#else
+    const int metal_compiled = 0;
+#endif
+    if (gm_config_validate_runtime(&cfg, cuda_compiled, metal_compiled, cfg_err, sizeof cfg_err) != 0) {
         fprintf(stderr, "error: %s\n", cfg_err);
         return 2;
     }
@@ -346,6 +370,9 @@ int main(int argc, char **argv) {
 
 #ifdef MAGMA_CUDA
     g_use_cuda = cfg.backend == GM_BACKEND_CUDA;
+#endif
+#ifdef MAGMA_METAL
+    g_use_metal = cfg.backend == GM_BACKEND_METAL;
 #endif
 
     /* Transitional bridge until view distance is carried through GmWorldConfig.
@@ -388,6 +415,9 @@ int main(int argc, char **argv) {
      * ONCE here, sized from caps (fb w*h, max_tris). Every frame only memcpys
      * up/down and launches; no per-frame cudaMalloc. Freed at exit. */
     if (g_use_cuda) cr_raster_cuda_pre(fb_w, fb_h, caps->max_tris);
+#elif defined(MAGMA_METAL)
+    /* ALLOCATE-ONCE: same contract as the CUDA pre, on the Metal device. */
+    if (g_use_metal) cr_raster_metal_pre(fb_w, fb_h, caps->max_tris);
 #endif
 
     /* One owned simulation state and one authoritative transition. The macros keep
@@ -731,6 +761,8 @@ int main(int argc, char **argv) {
         int gpu_sky = 0;
 #ifdef MAGMA_CUDA
         gpu_sky = g_use_cuda && runtime.dimension == 0 && !getenv("MAGMA_CPU_SKY");
+#elif defined(MAGMA_METAL)
+        gpu_sky = g_use_metal && runtime.dimension == 0 && !getenv("MAGMA_CPU_SKY");
 #endif
         if (!gpu_sky) gm_sky_draw(&fb, &cam, day);
         bench_stamp(4);
@@ -743,6 +775,13 @@ int main(int argc, char **argv) {
             GmSkyCtx sc; float bas[11];
             gm_sky_frame_args(&cam, day, &sc, bas);
             cr_raster_cuda_sky(&sc, bas, fb_w, fb_h);
+        }
+#elif defined(MAGMA_METAL)
+        if (g_use_metal) cr_raster_metal_frame_begin(&fb);
+        if (gpu_sky) {
+            GmSkyCtx sc; float bas[11];
+            gm_sky_frame_args(&cam, day, &sc, bas);
+            cr_raster_metal_sky(&sc, bas, fb_w, fb_h);
         }
 #endif
         bench_stamp(5);
@@ -973,6 +1012,8 @@ int main(int argc, char **argv) {
         bench_stamp(9);
 #ifdef MAGMA_CUDA
         if (g_use_cuda) cr_raster_cuda_frame_end(&fb);   /* device fb -> host, once */
+#elif defined(MAGMA_METAL)
+        if (g_use_metal) cr_raster_metal_frame_end(&fb); /* device fb -> host, once */
 #endif
         bench_stamp(10);
         /* ---- first-person hand (over the world, before the 2D HUD) ---- */
@@ -1075,6 +1116,8 @@ int main(int argc, char **argv) {
 
 #ifdef MAGMA_CUDA
     if (g_use_cuda) cr_raster_cuda_post();
+#elif defined(MAGMA_METAL)
+    if (g_use_metal) cr_raster_metal_post();
 #endif
     free(tris); free(ent_verts);
     gm_runtime_destroy(&runtime);

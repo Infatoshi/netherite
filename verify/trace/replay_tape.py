@@ -1489,12 +1489,17 @@ def main():
                          " bit-exact vs CPU, GPU1 per repo policy)")
     ap.add_argument("--cpu", action="store_true",
                     help="force the CPU raster (parity checks / no-GPU boxes)")
+    ap.add_argument("--metal", action="store_true",
+                    help="render with the Metal backend (magma_game_metal;"
+                         " macOS only, see magma/VERIFY.md Metal section)")
     ap.add_argument("--no-gate", action="store_true",
                     help="skip the structural pixel gate (pixel_gate.py)")
     args = ap.parse_args()
     # CUDA raster is the flywheel default (12k tape: 9.2 s vs 43 s CPU,
-    # identical verdicts); --cpu forces the software path.
-    backend = "cpu" if args.cpu else "cuda"
+    # identical verdicts); --cpu forces the software path; --metal is the
+    # macOS backend (mac_metal_verify.sh). The gate consumes the produced
+    # frames identically regardless of backend.
+    backend = "cpu" if args.cpu else ("metal" if args.metal else "cuda")
 
     name = os.path.splitext(os.path.basename(args.tape))[0]
     out = args.out or os.path.join(here, "out", f"tape_{name}")

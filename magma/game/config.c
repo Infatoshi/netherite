@@ -201,6 +201,7 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
                 if (!(v = need_value(&i, argc, argv, err, err_cap))) return 2;
                 if (!strcmp(v, "cpu")) cfg->backend = GM_BACKEND_CPU;
                 else if (!strcmp(v, "cuda")) cfg->backend = GM_BACKEND_CUDA;
+                else if (!strcmp(v, "metal")) cfg->backend = GM_BACKEND_METAL;
                 else return fail(err, err_cap, "invalid backend: %s", v);
             }
         } else if (!strcmp(a, "--pace")) {
@@ -257,7 +258,7 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
 }
 
 int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,
-                               char *err, int err_cap) {
+                               int metal_compiled, char *err, int err_cap) {
     if (cfg->villages)
         return fail(err, err_cap, "--villages on is specified but the village bundle is not wired yet");
     if (cfg->enchanting)
@@ -276,6 +277,8 @@ int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,
         return fail(err, err_cap, "--snapshot-in requires --rl/--rl-bin");
     if (cfg->backend == GM_BACKEND_CUDA && !cuda_compiled)
         return fail(err, err_cap, "CUDA backend unavailable; rebuild with `make game-cuda`");
+    if (cfg->backend == GM_BACKEND_METAL && !metal_compiled)
+        return fail(err, err_cap, "Metal backend unavailable; rebuild with `make game-metal`");
     return 0;
 }
 
@@ -290,7 +293,8 @@ void gm_config_print(FILE *out, const GmConfig *c) {
         c->brewing ? "on" : "off", c->weather ? "on" : "off",
         c->mobs ? "on" : "off", c->daylight ? "on" : "off",
         c->render == GM_RENDER_WINDOW ? "window" : "off",
-        c->backend == GM_BACKEND_CPU ? "cpu" : "cuda",
+        c->backend == GM_BACKEND_CPU ? "cpu" :
+        c->backend == GM_BACKEND_CUDA ? "cuda" : "metal",
         c->pace == GM_PACE_REALTIME ? "realtime" : "unlimited",
         c->view_distance, c->width, c->height,
         c->headless ? "on" : "off", c->ticks,
@@ -311,7 +315,7 @@ void gm_config_print_usage(FILE *out, const char *argv0) {
         "  --daylight on|off            doDaylightCycle (off = frozen clock)\n"
         "  --mobs on|off                mob spawning + AI (default on)\n"
         "  --render window|off          presentation mode\n"
-        "  --backend cpu|cuda           raster backend\n"
+        "  --backend cpu|cuda|metal     raster backend\n"
         "  --pace realtime|unlimited    simulation pacing\n"
         "  --view-distance N            supported range 1..8\n"
         "  --width W --height H         framebuffer size\n"

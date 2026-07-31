@@ -408,3 +408,67 @@ world setup and `mcwindow_script.py` segments for timed view/input.
 10. **Active furnace and container UI:** qrl give ore/coal and place furnace;
     mcwindow open GUI, click input/fuel, `wait 220`, hover/carry/split output,
     then close and face the lit block for slots, flame, arrow, and block state.
+
+## Metal backend (macOS)
+
+STATUS: VERIFIED - first green run 2026-07-30, master rev 0f80c50 (MacBook
+M4 Max, macOS 26.5.1, Apple clang 21.0.0, MetalToolchain 17.6.109).
+`scripts/mac_metal_verify.sh` passed end to end: game-metal builds, the
+rung-1 gate is bit-exact CPU==Metal on all 5 layers (color AND depth,
+maxdiff=0), and the smoke-zombie replay returned rc=0 with the structural
+pixel gate green (no unexplained clusters over 18 frames; one sub-threshold
+single-frame blip, 208 px, is recorded in the gate baseline json). Rev
+0f80c50 contains the two fixes that first run surfaced: metallib search
+paths in `mg_load_lib` (a missing metallib used to degrade to the CPU
+fallback, which made the parity gate vacuously compare CPU with CPU) and
+the full 19-symbol Darwin `CUDA_WEAK_LD` list (plain `magma_game` would not
+link on macOS, breaking the replay's world-dump build). The "would NOT
+prove" scope limits below still apply.
+
+The Metal backend mirrors the CUDA raster API: `cr_raster_metal_*` is a
+one-for-one rename of the `cr_raster_cuda_*` entry set
+(`cuda/raster_cuda.cu` lines 595-1262), implemented in
+`metal/raster_kernels.metal` + `metal/raster_metal_host.m` and built by
+`make -C magma game-metal` (compiled with `-DMAGMA_METAL`, runtime switch
+`--backend metal`). Host C is compiled with `-ffp-contract=off`, the clang
+analog of the CUDA build's `--fmad=false`.
+
+How to build and prove parity (MacBook, repo root):
+
+    bash scripts/mac_metal_verify.sh
+
+which runs, in order:
+
+1. `make -C magma game-metal` - the binary builds.
+2. `make -C magma test-raster-parity-metal` (`make/metal.mk`) - the rung-1
+   gate: `tests/test_raster_parity_metal.c` renders the shared verify scene
+   battery (SOLID, CUTOUT, TRANSLUCENT, MIPPED, FOG_RADIAL) with
+   `cr_raster_cpu` and `cr_raster_metal_into` (alloc-once path via
+   `cr_raster_metal_pre`/`post`) and requires color AND depth bit-exact on
+   every layer - the same pass criteria as the CPU-vs-CUDA gate.
+3. Tape replay smoke: `replay_tape.py --metal` on
+   `verify/tapes/scenario_smoke_zombie_20260722T081735Z.jsonl` with the
+   structural pixel gate on. rc=0 required. `--metal` routes through the same
+   `oracle_lib.run_magma_script` plumbing as `--cuda`; `pixel_gate.py` is
+   frozen and consumes frames identically regardless of backend. The tape,
+   its `_frames` goldens, and its `_world` snapshot must be rsynced from
+   anvil first (exact command in the script header).
+
+What the full pass proves: the Metal raster is bit-exact vs the CPU raster
+on the unit scene battery, and one canonical smoke tape replays through the
+frozen pixel gate on Apple silicon.
+
+What it does NOT prove (still open after the first green run):
+
+- Parity on the other canonical tapes (physics 3,617-tick, 12k pixel tape) and
+  the rest of the ladder (checkpoints, nightly sweep) with `--metal`.
+- The frame-resident path (`frame_begin`/`sky`/`frame_end[_async]`), the slab
+  pool, and `render_layer`/`render_gather`/`render_terrain` beyond what the
+  smoke tape happens to exercise; the unit gate only drives `into`.
+- Any performance claim.
+- Cross-machine bit-identity of CPU frames (x86 anvil vs arm64 mac) - the
+  parity gate compares CPU vs Metal on the SAME machine.
+
+First green run recorded in STATUS above. No gate disagreed, so nothing moved
+to OPEN_DIVERGENCES.md; the "does NOT prove" list is the open ladder for
+`--metal`.

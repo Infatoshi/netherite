@@ -245,6 +245,10 @@ void cr_raster_cpu(CrFramebuffer *fb, const CrScreenTri *tris, int ntris, const 
 void cr_raster_cuda(CrFramebuffer *fb, const CrScreenTri *tris, int ntris, const CrShadeCtx *sh);
 /* Host mutated atlas texels (water_still animation): force device re-upload. */
 void cr_raster_cuda_atlas_dirty(void);
+/* Metal mirror of the CUDA raster API (macOS, metal/raster_metal_host.m):
+ * same signatures and contract, s/cuda/metal/ throughout. */
+void cr_raster_metal(CrFramebuffer *fb, const CrScreenTri *tris, int ntris, const CrShadeCtx *sh);
+void cr_raster_metal_atlas_dirty(void);
 
 /* --- shade.c : per-fragment color. Called by the rasterizer for each covered,
  * depth-passing pixel. Keep it pure (no globals) so CPU and CUDA share it. --- */

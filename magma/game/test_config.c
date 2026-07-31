@@ -46,7 +46,7 @@ int main(void) {
           "default render dimensions");
     CHECK(!c.headless && c.ticks == -1 && !c.script_path &&
           !c.state_out_path && !c.frames_out_dir, "default harness controls");
-    CHECK(gm_config_validate_runtime(&c, 0, err, sizeof err) == 0,
+    CHECK(gm_config_validate_runtime(&c, 0, 0, err, sizeof err) == 0,
           "current default is runnable");
 
     char *full[] = {
@@ -79,16 +79,16 @@ int main(void) {
     CHECK(strstr(printed, "--headless") && strstr(printed, "--ticks N") &&
           strstr(printed, "--script PATH") && strstr(printed, "--state-out PATH") &&
           strstr(printed, "--frames-out DIR"), "usage includes harness options");
-    CHECK(gm_config_validate_runtime(&c, 1, err, sizeof err) == 2 &&
+    CHECK(gm_config_validate_runtime(&c, 1, 0, err, sizeof err) == 2 &&
           strstr(err, "villages"), "first unwired bundle fails loudly at runtime");
 
     char *headless_ok[] = {"game", "--headless", "--ticks", "1",
                            "--render", "off", "--pace", "unlimited"};
     CHECK(parse(&c, (int)(sizeof headless_ok / sizeof headless_ok[0]), headless_ok, err) == 0 &&
-          gm_config_validate_runtime(&c, 0, err, sizeof err) == 0,
+          gm_config_validate_runtime(&c, 0, 0, err, sizeof err) == 0,
           "headless render-off unlimited profile is runnable");
     char *frames_wired[]={"game","--headless","--ticks","1","--frames-out","frames"};
-    CHECK(parse(&c,6,frames_wired,err)==0&&gm_config_validate_runtime(&c,0,err,sizeof err)==0,
+    CHECK(parse(&c,6,frames_wired,err)==0&&gm_config_validate_runtime(&c,0,0,err,sizeof err)==0,
           "scripted CPU frame capture is wired");
 
     c.villages = c.enchanting = c.brewing = c.weather = 0;
@@ -96,7 +96,7 @@ int main(void) {
     c.render = GM_RENDER_WINDOW;
     c.backend = GM_BACKEND_CPU;
     c.pace = GM_PACE_REALTIME;
-    CHECK(gm_config_validate_runtime(&c, 0, err, sizeof err) == 0,
+    CHECK(gm_config_validate_runtime(&c, 0, 0, err, sizeof err) == 0,
           "superflat arena is runnable with optional bundles off");
 
     char *dup[] = {"game", "--width", "640", "--w", "800"};
