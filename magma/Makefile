@@ -35,10 +35,10 @@ OBJ_RK     = renderkernels/rk_31_facebakery_make_quad.o
 OBJ_ASSETS = assets/blockmodels.o
 
 # seam: playable game (verified blaze player/world tick + magma render + HUD + mobs)
-OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/item_render.o \
+OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
            game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
 
-.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry clean cuda test-raster-parity test-fog-radial
+.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live clean cuda test-raster-parity test-fog-radial
 all: demo
 
 # --- CUDA raster for the game (RTX 3090 / sm_86 on anvil GPU1) ---
@@ -116,7 +116,7 @@ game/chest_live.o: game/chest_live.c game/chest_live.h \
 # an NVFLAGS_GAME change either - the recipe depends on sources only - so after
 # switching GPUs you must `rm cuda/*.o` or you silently link the wrong arch.
 game-cuda: magma_game_cuda
-app/game_main_cuda.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h
+app/game_main_cuda.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h game/particles_live.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_CUDA -I$(BLAZE)/core -c $< -o $@
 cuda/raster_cuda_game.o: cuda/raster_cuda.cu core/types.h core/shade.c
 	$(NVCC) $(NVFLAGS_GAME) -c $< -o $@
@@ -156,7 +156,7 @@ game-metal:
 	  exit 1; \
 	fi
 	$(MAKE) magma_game_metal
-app/game_main_metal.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h
+app/game_main_metal.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h game/particles_live.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
 game/frame_capture_metal.o: game/frame_capture.c game/frame_capture.h core/types.h game/game.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
@@ -178,7 +178,7 @@ magma_game_metal: app/game_main_metal.o metal/raster_metal_host.o $(OBJ_GAME_MET
 GAME_DBG_SRCS = app/game_main.c \
                 game/config.c game/input_map.c game/world_live.c game/player_ctl.c game/hud.c \
                 game/screen.c game/player_preview.c \
-                game/entity_render.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/script.c game/rl_mode.c \
+                game/entity_render.c game/particles_live.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/script.c game/rl_mode.c \
                 game/overlay.c game/overlay_live.c game/sel_box.c game/fluid_live.c game/underwater.c \
                 world/mesh_mc.c world/light.c world/populate_mc.c \
                 world/world.c world/mesh.c world/blocks.c \
@@ -189,7 +189,7 @@ game-dbg: magma_game_dbg
 magma_game_dbg: $(GAME_DBG_SRCS)
 	$(CC) $(CFLAGS) -g $(SDL_CFLAGS) -I$(BLAZE)/core $(GAME_DBG_SRCS) -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
 
-app/game_main.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h
+app/game_main.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/particles_live.h
 	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) -I$(BLAZE)/core -c $< -o $@
 
 # non-cube mesh unit test: build a synthetic chunk, assert facebakery geometry
@@ -281,6 +281,12 @@ test-fog-radial: core/math.o core/shade.o cpu/raster_cpu.o transform.o
 	$(CC) $(CFLAGS) tests/test_fog_radial.c core/math.o core/shade.o \
 	    cpu/raster_cpu.o transform.o -o tests/test_fog_radial $(LDLIBS)
 	./tests/test_fog_radial
+
+test-particles-live: game/particles_live.o assets/blockmodels.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core game/test_particles_live.c \
+	    game/particles_live.o assets/blockmodels.o \
+	    -o game/test_particles_live $(LDLIBS)
+	./game/test_particles_live
 
 test: magma_demo
 	@echo "run per-module tests in tests/ (see SPEC.md)"
@@ -408,7 +414,7 @@ clean:
 	      tests/test_mesh_models tests/test_model_oracle tests/test_light_brightness \
 	      tests/test_fog_radial \
 	      tests/Golden.class renderkernels/test_rk *.ppm
-	rm -f game/test_config game/test_block_registry game/test_player_ctl game/test_world_live game/test_play_compose
+	rm -f game/test_config game/test_block_registry game/test_player_ctl game/test_world_live game/test_play_compose game/test_particles_live
 
 # Metal verification targets (Darwin-guarded; see make/metal.mk)
 -include make/metal.mk
