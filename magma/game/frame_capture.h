@@ -2,6 +2,7 @@
 #define MAGMA_GAME_FRAME_CAPTURE_H
 
 #include "game/runtime.h"
+#include "game/entity_render.h"
 
 typedef struct GmFrameCapture GmFrameCapture;
 
@@ -18,5 +19,11 @@ void gm_frame_capture_close(GmFrameCapture *capture);
  * the capture path and the interactive window loop. */
 void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
                             CrRgba lut[256]);
+
+/* Fill per-entity light fields (lm_lit + coords/multiplier) from world light
+ * at each entity's eye block, LUT path when lm is non-NULL, legacy fold
+ * otherwise. Shared by the capture path and the interactive window loop. */
+void gm_frame_entities_light(GmEntityView *ents, int n, GmWorld *world,
+                             int dimension, const CrRgba *lm);
 
 #endif

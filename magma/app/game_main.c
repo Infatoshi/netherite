@@ -452,6 +452,20 @@ int main(int argc, char **argv) {
     int surface = gm_world_surface_y(world, 8, 8);
     if (getenv("MAGMA_FIXTURES")) gm_live_init(&live, seed, surface);
 
+    /* Deterministic mobs ringing spawn for windowed-path render checks (the
+     * gates never draw this loop; MAGMA_FIXTURES-style measurement hook). */
+    if (getenv("MAGMA_MOB_DEMO")) {
+        static const int demo_types[4] = { GM_MOB_COW, EW_TYPE_ZOMBIE,
+                                           GM_MOB_SHEEP, GM_MOB_PIG };
+        static const int demo_off[4][2] = { {6,0}, {0,6}, {-6,0}, {0,-6} };
+        for (int i = 0; i < 4; ++i) {
+            int mx = 8 + demo_off[i][0], mz = 8 + demo_off[i][1];
+            int my = gm_world_surface_y(world, mx, mz) + 1;
+            gm_mobs_spawn(&runtime.mobs, demo_types[i],
+                          (double)mx + 0.5, (double)my, (double)mz + 0.5);
+        }
+    }
+
     /* Headless inventory demo: seed stone stack and exercise slotClick via the
      * SAME gm_player_inv_click path the live input loop uses (Q / shift+hotbar). */
     if (getenv("MAGMA_INV_DEMO")) {
@@ -898,6 +912,9 @@ int main(int argc, char **argv) {
                 if (ents[i].type == GM_ENTITY_DRAGON && ents[i].death_ticks <= 0 && dt > 0)
                     ents[i].death_ticks = dt;
         }
+        /* per-entity light fields: without this every entity renders
+         * unlit-white (lm_lit==0), exactly like the capture path pre-fill. */
+        gm_frame_entities_light(ents, nents, world, runtime.dimension, lm);
         if (nents > 0) {
             int nv = gm_entities_emit(ents, nents, ent_verts, ent_max_verts);
             gm_particles_dragon_latch(runtime.tick, ents, nents);
@@ -909,6 +926,7 @@ int main(int argc, char **argv) {
             esh.atlas = &eatlas; esh.fog_color = fog;
             esh.alpha_test = 1; esh.layer = CR_LAYER_CUTOUT;
             esh.alpha_mask = 1;
+            esh.lightmap = lm;
             gm_entity_dissolve_mask(&esh.mask_u_off, &esh.mask_v_off);
             render_layer(&fb, &cam, ent_verts, nv, tris, &esh);
             /* RenderXPOrb: SRC_ALPHA + alpha 128 (not cutout thr 0.5). */
@@ -920,6 +938,7 @@ int main(int argc, char **argv) {
                     xp.atlas = &eatlas; xp.fog_color = fog;
                     xp.alpha_test = 1; xp.alpha_ref = 0.1f;
                     xp.layer = CR_LAYER_TRANSLUCENT; xp.blend = 1;
+                    xp.lightmap = lm;
                     render_layer(&fb, &cam, ent_verts, nx, tris, &xp);
                 }
             }
@@ -979,6 +998,7 @@ int main(int argc, char **argv) {
                 rays.atlas = &eatlas; rays.fog_color = fog;
                 rays.untextured = 1; rays.blend = 3;
                 rays.layer = CR_LAYER_TRANSLUCENT;
+                rays.lightmap = lm;
                 render_layer(&fb, &cam, ent_verts, nv, tris, &rays);
             }
             /* RenderDragon.renderCrystalBeams: end-crystal healing beam. */
@@ -988,6 +1008,7 @@ int main(int argc, char **argv) {
                 bm.atlas = &eatlas; bm.fog_color = fog;
                 bm.alpha_test = 1; bm.alpha_ref = 0.1f;
                 bm.layer = CR_LAYER_CUTOUT;
+                bm.lightmap = lm;
                 render_layer(&fb, &cam, ent_verts, nv, tris, &bm);
             }
             /* dropped items, second pass: block cubes/plants on the TERRAIN

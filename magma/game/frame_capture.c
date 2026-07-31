@@ -252,6 +252,43 @@ static const CrRgba *build_lightmap_lut(GmFrameCapture *c, const GmRuntime *r) {
     return c->lut;
 }
 
+/* World light at each entity's eye block (RenderLivingBase brightness):
+ * lightmap mode passes the raw 0..15 levels through the LUT; the legacy /
+ * Nether/End path (lm==NULL) folds the exact updateLightmap color into the
+ * tint since the shader then treats vtx.light as a plain scalar. Shared with
+ * the interactive window loop: unfilled fields render entities unlit-white. */
+void gm_frame_entities_light(GmEntityView *ents, int n, GmWorld *world,
+                             int dimension, const CrRgba *lm) {
+    for(int i=0;i<n;++i){
+        int ex=(int)floorf(ents[i].x);
+        int ey=(int)floorf(ents[i].y+gm_entity_eye_y(ents[i].type));
+        int ez=(int)floorf(ents[i].z);
+        int sky=gm_world_sky_light(world,ex,ey,ez);
+        int bl=gm_world_block_light(world,ex,ey,ez);
+        /* getBrightnessForRender overrides (EntityBlaze: 15728880) pin the
+         * lightmap coords at max, so the model is drawn glowing whatever the
+         * cell light is. Forcing sky/bl here keeps both the LUT and the folded
+         * (Nether/End) path exact for the dimension. */
+        if(gm_entity_fullbright(ents[i].type)){sky=15;bl=15;}
+        if(lm){
+            ents[i].lm_lit=1;
+            ents[i].lm_light=(float)sky;ents[i].lm_blk=(float)bl;
+            /* The held-item pass has no shade lightmap binding. Preserve the
+             * exact current LUT texel so it can fold the same night/day color
+             * into its tint instead of assuming full daylight. */
+            CrRgba lc=lm[sky*16+bl];
+            ents[i].lm_mul_r=(float)lc.r/255.0f;
+            ents[i].lm_mul_g=(float)lc.g/255.0f;
+            ents[i].lm_mul_b=(float)lc.b/255.0f;
+        }else{
+            CrLightmapRgb c3=cr_lightmap_rgb(dimension,sky,bl,
+                cr_dimension_sun_brightness(dimension),0.f,0.f);
+            ents[i].lm_lit=2;
+            ents[i].lm_mul_r=c3.r;ents[i].lm_mul_g=c3.g;ents[i].lm_mul_b=c3.b;
+        }
+    }
+}
+
 static float time_of_day(const GmRuntime *r) {
     long long t = r->clock.world_time % 24000LL;
     if (t < 0) t += 24000LL;
@@ -1001,38 +1038,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         ents[i].y+=(((float)((seed>>20)&7)+0.5f)/8.0f-0.5f)*0.004f;
         ents[i].z+=(((float)((seed>>24)&7)+0.5f)/8.0f-0.5f)*0.004f;
     }
-    /* world light at each entity's eye block (RenderLivingBase brightness):
-     * lightmap mode passes the raw 0..15 levels through the LUT; the legacy /
-     * Nether/End path (lm==NULL) folds the exact updateLightmap color into the
-     * tint since the shader then treats vtx.light as a plain scalar. */
-    for(int i=0;i<n;++i){
-        int ex=(int)floorf(ents[i].x);
-        int ey=(int)floorf(ents[i].y+gm_entity_eye_y(ents[i].type));
-        int ez=(int)floorf(ents[i].z);
-        int sky=gm_world_sky_light(r->world,ex,ey,ez);
-        int bl=gm_world_block_light(r->world,ex,ey,ez);
-        /* getBrightnessForRender overrides (EntityBlaze: 15728880) pin the
-         * lightmap coords at max, so the model is drawn glowing whatever the
-         * cell light is. Forcing sky/bl here keeps both the LUT and the folded
-         * (Nether/End) path exact for the dimension. */
-        if(gm_entity_fullbright(ents[i].type)){sky=15;bl=15;}
-        if(lm){
-            ents[i].lm_lit=1;
-            ents[i].lm_light=(float)sky;ents[i].lm_blk=(float)bl;
-            /* The held-item pass has no shade lightmap binding. Preserve the
-             * exact current LUT texel so it can fold the same night/day color
-             * into its tint instead of assuming full daylight. */
-            CrRgba lc=lm[sky*16+bl];
-            ents[i].lm_mul_r=(float)lc.r/255.0f;
-            ents[i].lm_mul_g=(float)lc.g/255.0f;
-            ents[i].lm_mul_b=(float)lc.b/255.0f;
-        }else{
-            CrLightmapRgb c3=cr_lightmap_rgb(r->dimension,sky,bl,
-                cr_dimension_sun_brightness(r->dimension),0.f,0.f);
-            ents[i].lm_lit=2;
-            ents[i].lm_mul_r=c3.r;ents[i].lm_mul_g=c3.g;ents[i].lm_mul_b=c3.b;
-        }
-    }
+    /* world light at each entity's eye block: shared with the window loop. */
+    gm_frame_entities_light(ents,n,r->world,r->dimension,lm);
     if(n>0){
         /* one rotating buffer per emit: async CUDA uploads may still be in
          * flight until frame_end, so same-frame emits must not alias.
