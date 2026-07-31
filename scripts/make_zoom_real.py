@@ -19,6 +19,7 @@ Run (after zoom_rollouts.py and zoom_hero_clip.py):
 import argparse
 import json
 import os
+import shutil
 import subprocess
 
 import numpy as np
@@ -106,6 +107,12 @@ def main():
     natives = [int(e) for e in rng.permutation(args.keep_native)]
     block_envs = natives[:len(block)]
     spare = natives[len(block):] + list(range(args.keep_native, N))
+    if len(block_envs) < len(block):
+        # fewer natives than the full-res block (e.g. --keep-native 1, hero
+        # only): pad from spare; those tiles upscale their 96 mip instead.
+        pad = len(block) - len(block_envs)
+        block_envs = block_envs + spare[:pad]
+        spare = spare[pad:]
     others = [int(e) for e in rng.permutation(spare)]
     env_of = {}
     bi = oi = 0
@@ -134,11 +141,19 @@ def main():
     w0, w1 = float(T), float(mw)
     font = load_font(96)
 
-    # no ffmpeg (e.g. the MacBook): write raw rgb24 and print the encode cmd
+    # ffmpeg from PATH, else imageio-ffmpeg's bundled static binary (mac),
+    # else write raw rgb24 and print the encode cmd
+    ffmpeg = "ffmpeg"
+    if shutil.which("ffmpeg") is None:
+        try:
+            import imageio_ffmpeg
+            ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        except ImportError:
+            pass
     raw = None
     try:
         enc = subprocess.Popen(
-            ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt",
+            [ffmpeg, "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt",
              "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v",
              "libx264", "-crf", "18", "-pix_fmt", "yuv420p", args.out],
             stdin=subprocess.PIPE)
