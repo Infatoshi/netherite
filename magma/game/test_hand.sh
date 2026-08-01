@@ -20,6 +20,7 @@ $CC $CFLAGS \
     game/test_hand.c \
     game/hand.c \
     game/item_render.c \
+    renderkernels/rk_31_facebakery_make_quad.c \
     assets/blockmodels.c \
     transform.c \
     core/math.c \

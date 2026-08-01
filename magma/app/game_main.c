@@ -110,6 +110,31 @@ static void init_anim_texture_demo(GmRuntime *r)
     gm_runtime_set_pose(r, 8.5, 8.0, 16.5, 180.0f, 35.0f);
 }
 
+/* Deterministic window-battery view for translucent-terrain entity ordering.
+ * Three zombies share one camera: left is behind a two-block-thick full-height
+ * water column, centre is in front of an identical column, and right is behind
+ * a two-block-thick one-block-high column (half-submerged in screen space).
+ * MAGMA_ENTITY_WATER_DRY keeps the geometry/poses but omits only the water. */
+static void init_entity_water_demo(GmRuntime *r)
+{
+    int dry = getenv("MAGMA_ENTITY_WATER_DRY") != NULL;
+    static const int x0[3] = {2, 7, 11};
+    static const int x1[3] = {5, 9, 14};
+    static const int ymax[3] = {6, 6, 4};
+    for (int group = 0; group < 3; ++group) {
+        for (int x = x0[group]; x <= x1[group]; ++x) {
+            for (int z = 10; z <= 11; ++z) {
+                for (int y = 4; y <= ymax[group]; ++y)
+                    gm_runtime_set_block(r, x, y, z, dry ? 0 : 9, 0);
+            }
+        }
+    }
+    gm_runtime_set_pose(r, 8.5, 4.2, 18.5, 180.0f, 0.0f);
+    gm_mobs_spawn(&r->mobs, EW_TYPE_ZOMBIE, 4.0, 4.0, 7.5);
+    gm_mobs_spawn(&r->mobs, EW_TYPE_ZOMBIE, 8.5, 4.0, 13.5);
+    gm_mobs_spawn(&r->mobs, EW_TYPE_ZOMBIE, 12.5, 4.0, 7.5);
+}
+
 
 static int write_ppm(const char *path, const CrFramebuffer *fb) {
     FILE *f = fopen(path, "wb");
@@ -360,6 +385,8 @@ int main(int argc, char **argv) {
 #define g_deaths (runtime.deaths)
     if (getenv("MAGMA_ANIM_TEXTURE_DEMO"))
         init_anim_texture_demo(&runtime);
+    if (getenv("MAGMA_ENTITY_WATER_DEMO"))
+        init_entity_water_demo(&runtime);
     int surface = gm_world_surface_y(world, 8, 8);
     if (getenv("MAGMA_FIXTURES")) gm_live_init(&live, seed, surface);
 

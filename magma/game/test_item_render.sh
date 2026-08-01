@@ -18,6 +18,7 @@ fi
 $CC $CFLAGS \
     game/test_item_render.c \
     game/item_render.c \
+    renderkernels/rk_31_facebakery_make_quad.c \
     assets/blockmodels.c \
     -lm -o "$OUT"
 

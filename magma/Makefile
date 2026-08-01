@@ -331,6 +331,7 @@ test-game: test-config test-block-registry test-launch assets/mob_atlas.h
 	bash game/test_overlay.sh
 	bash game/test_entity_render.sh
 	bash game/test_item_render.sh
+	bash game/test_item_uv_census.sh
 	bash game/test_hand.sh
 	bash game/test_player_ctl.sh
 	bash game/test_world_live.sh

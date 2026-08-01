@@ -127,6 +127,8 @@ ANIM_TEX_CHANGED_MIN = 1000
 ANIM_TEX_WATER_RECT = (154, 163, 383, 242)  # x0, y0, x1, y1 (exclusive)
 ANIM_TEX_LAVA_RECT = (471, 163, 700, 242)
 
+ENTITY_WATER_FRAMES = 3
+
 
 # ---------------------------------------------------------------------------
 # PPM / metrics
@@ -759,6 +761,38 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             )
         )
 
+    # Entity/translucent order. The dry twin is a same-pose raw-texel control;
+    # water is two blocks thick along the camera ray in the wet fixture.
+    entity_water_env = {
+        "MAGMA_ENTITY_WATER_DEMO": "1",
+        "MAGMA_STILL": "1",
+        "MAGMA_NO_HAND": "1",
+        "MAGMA_NO_OVERLAY": "1",
+    }
+    entity_water_cli = ["--world", "superflat", "--daylight", "off"]
+    jobs.append(
+        DumpJob(
+            "wr_entity_water",
+            "wet",
+            ENTITY_WATER_FRAMES,
+            env_extra=entity_water_env,
+            extra_cli=entity_water_cli,
+            backend="cpu",
+            label="wr_entity_water/wet",
+        )
+    )
+    jobs.append(
+        DumpJob(
+            "wr_entity_water",
+            "dry",
+            ENTITY_WATER_FRAMES,
+            env_extra={**entity_water_env, "MAGMA_ENTITY_WATER_DRY": "1"},
+            extra_cli=entity_water_cli,
+            backend="cpu",
+            label="wr_entity_water/dry",
+        )
+    )
+
     return jobs
 
 
@@ -777,6 +811,7 @@ SCENARIO_NAMES = [
     "WR-SUPERFLAT-SMOKE",
     "WR-RES-PACK",
     "WR-ANIM-TEX",
+    "WR-ENTITY-WATER-OCCLUSION",
 ]
 
 
@@ -802,6 +837,10 @@ def dumps_for_scenario(name: str, *, skip_gpu: bool) -> list[str]:
             "wr_anim_tex65/static",
             "wr_anim_tex65/cpu",
             "wr_anim_tex65/cuda",
+        ],
+        "WR-ENTITY-WATER-OCCLUSION": [
+            "wr_entity_water/wet",
+            "wr_entity_water/dry",
         ],
     }
     keys = m[name]
@@ -1200,6 +1239,66 @@ def check_anim_textures(
     return metrics
 
 
+def check_entity_water(wet_dir: Path, dry_dir: Path) -> dict[str, Any]:
+    require_frames(wet_dir, ENTITY_WATER_FRAMES, "WR-ENTITY-WATER wet")
+    require_frames(dry_dir, ENTITY_WATER_FRAMES, "WR-ENTITY-WATER dry")
+    names = ("behind", "front", "half_submerged")
+    # Fixed camera fixture ROIs, deliberately narrow enough that each contains
+    # only its one zombie even though perspective draws all three near centre.
+    xrois = ((235, 330), (350, 505), (510, 605))
+    totals = {name: 0 for name in names}
+    unchanged = {name: 0 for name in names}
+    for f in range(ENTITY_WATER_FRAMES):
+        wet = load_ppm(frame_path(wet_dir, f))
+        dry = load_ppm(frame_path(dry_dir, f))
+        teal = (
+            (dry[:, :, 2] >= dry[:, :, 1])
+            & (dry[:, :, 1].astype(np.int16) > dry[:, :, 0].astype(np.int16) + 10)
+            & (dry[:, :, 2] > 50)
+            & (dry[:, :, 2] < 180)
+            & (dry[:, :, 0] < 80)
+        )
+        same = np.all(wet == dry, axis=-1)
+        for i, name in enumerate(names):
+            region = np.zeros(teal.shape, dtype=bool)
+            region[:, xrois[i][0] : xrois[i][1]] = True
+            mask = teal & region
+            totals[name] += int(mask.sum())
+            unchanged[name] += int((mask & same).sum())
+    if min(totals.values()) < 50:
+        raise AssertionError(
+            f"WR-ENTITY-WATER: zombie raw-texel controls too sparse: {totals}"
+        )
+    behind_frac = unchanged["behind"] / totals["behind"]
+    front_frac = unchanged["front"] / totals["front"]
+    half_frac = unchanged["half_submerged"] / totals["half_submerged"]
+    if behind_frac > 0.10:
+        raise AssertionError(
+            "WR-ENTITY-WATER: behind-water raw texels remain unattenuated "
+            f"({unchanged['behind']}/{totals['behind']} = {behind_frac:.3f})"
+        )
+    if front_frac < 0.90:
+        raise AssertionError(
+            "WR-ENTITY-WATER: front entity was attenuated by water behind it "
+            f"({unchanged['front']}/{totals['front']} = {front_frac:.3f} raw)"
+        )
+    if not (0.10 < half_frac < 0.90):
+        raise AssertionError(
+            "WR-ENTITY-WATER: half-submerged entity lacks split attenuation "
+            f"({unchanged['half_submerged']}/{totals['half_submerged']} = "
+            f"{half_frac:.3f} raw)"
+        )
+    return {
+        "raw_texels": totals,
+        "unchanged_raw_texels": unchanged,
+        "unchanged_fraction": {
+            "behind": behind_frac,
+            "front": front_frac,
+            "half_submerged": half_frac,
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # Scenario runner
 # ---------------------------------------------------------------------------
@@ -1257,6 +1356,11 @@ def run_scenario_check(
             sc / "wr_anim_tex65" / "static",
             sc / "wr_anim_tex65" / "cpu",
             cuda_dir if cuda_dir.is_dir() else None,
+        )
+    if name == "WR-ENTITY-WATER-OCCLUSION":
+        return check_entity_water(
+            sc / "wr_entity_water" / "wet",
+            sc / "wr_entity_water" / "dry",
         )
     raise ValueError(f"unknown scenario {name}")
 

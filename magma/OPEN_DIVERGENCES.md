@@ -1196,10 +1196,11 @@ pixel gate renders - the windowed-path blindspot class):
     Open sub-case to verify: a falling sand ENTITY landing INTO a tall
     grass cell must replace the grass (EntityFallingBlock landing
     setBlockState); qrl-record if touched.
-15. Dropped-item block textures: 3D dropped blocks (logs observed) show
-    wrong per-face texture orientation/rotation at item scale. Path:
-    item_render.c mini-cube face UVs vs the block atlas (log side grain
-    direction, top/bottom ring placement).
+15. FIXED 2026-08-01: dropped block mini-cubes used one `IR_CUV` map for all
+    faces, bypassing the placed-block FaceBakery corner order and 0.999/0.001
+    inset. The EntityItem cube path now consumes `rk_facebakery_make_quad`
+    output directly. The registry census covers 49 cube item ids / 769 states /
+    4,614 faces; every dropped UV is bit-identical to a fresh placed-face bake.
 
 Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
 unexplained px (7 clusters, largest 1463) relative to its 2026-07-29

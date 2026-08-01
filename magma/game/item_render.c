@@ -29,6 +29,7 @@
 #include "assets/gui_atlas.h"
 #include "assets/mob_atlas.h"
 #include "game/block_registry.h"
+#include "renderkernels/rk.h"
 #include "world/lightmap.h"
 
 #include <math.h>
@@ -48,6 +49,21 @@
 /* Fallback item sprite for stacks the atlas does not carry (index of iron
  * ingot: a neutral, recognizable slab). */
 #define IR_FALLBACK_NAME "iron_ingot"
+
+/* Vanilla's furnace BlockItem has a 3D inventory/ground model even though the
+ * canonical state bridge deliberately leaves live furnace blocks unsupported.
+ * Keep that exception local to EntityItem rendering so held/GUI/world paths do
+ * not inherit a new model mapping. The item model's unrotated facing is north. */
+static const BmBlock IR_DROP_FURNACE = {
+    0, 1, CR_LAYER_SOLID, BM_KIND_CUBE, {
+        { CR_SPRITE_FURNACE_TOP,       BM_TINT_NONE }, /* DOWN  */
+        { CR_SPRITE_FURNACE_TOP,       BM_TINT_NONE }, /* UP    */
+        { CR_SPRITE_FURNACE_FRONT_OFF, BM_TINT_NONE }, /* NORTH */
+        { CR_SPRITE_FURNACE_SIDE,      BM_TINT_NONE }, /* SOUTH */
+        { CR_SPRITE_FURNACE_SIDE,      BM_TINT_NONE }, /* WEST  */
+        { CR_SPRITE_FURNACE_SIDE,      BM_TINT_NONE }, /* EAST  */
+    }
+};
 
 /* mesh_mc FACES template: axis-aligned unit-cube corners, CCW from outside,
  * with the MC directional face shade. Index order == BM_DOWN..BM_EAST. */
@@ -72,6 +88,12 @@ static const float IR_FACE_UV[6][4][2] = {
 };
 static const float IR_CUV[4][2] = { {0,1}, {1,1}, {1,0}, {0,0} };
 static const int   IR_TRI[6] = { 0, 1, 2, 0, 2, 3 };
+
+static float ir_bits_float(int32_t bits) {
+    float value;
+    memcpy(&value, &bits, sizeof value);
+    return value;
+}
 
 /* hoverStart stand-in: EntityItem stores a per-instance random in [0, 2π). We
  * have no instance id on GmEntityView, so hash item_id/meta for a stable phase
@@ -136,8 +158,14 @@ static const BmBlock *ir_block_model(int item_id, int item_meta) {
     return m;
 }
 
+static const BmBlock *ir_drop_block_model(int item_id, int item_meta) {
+    const BmBlock *m = ir_block_model(item_id, item_meta);
+    if (m) return m;
+    return item_id == 61 ? &IR_DROP_FURNACE : 0;
+}
+
 int gm_item_drop_uses_block_atlas(int item_id, int item_meta) {
-    return ir_block_model(item_id, item_meta) != 0;
+    return ir_drop_block_model(item_id, item_meta) != 0;
 }
 
 int gm_item_sprite_index(int item_id) {
@@ -165,22 +193,29 @@ static int ir_emit_cube(const BmBlock *m, const GmEntityView *ev,
                         float fx, float fy, float fz,
                         int age, float hover, CrVertex *out) {
     float bob = ir_bob(age, hover), spin = ir_spin(age, hover);
+    const float full_uv[4] = { 0.0f, 0.0f, 16.0f, 16.0f };
     int written = 0;
     for (int f = 0; f < 6; ++f) {
         float u0, v0, u1, v1;
         bm_sprite_uv(m->face[f].sprite, &u0, &v0, &u1, &v1);
+        int32_t baked[28];
+        rk_facebakery_make_quad(0.0f, 0.0f, 0.0f,
+                                16.0f, 16.0f, 16.0f,
+                                f, 0, full_uv, u0, u1, v0, v1,
+                                0, 3, 0.0f, NULL, 0, baked);
         CrRgba tint = ir_lm_fold(ev, ir_tint(m->face[f].tint));
         CrVertex quad[4];
         for (int c = 0; c < 4; ++c) {
-            float lx = IR_FACES[f].c[c][0] ? IR_CUBE_HALF : -IR_CUBE_HALF;
-            float ly = IR_FACES[f].c[c][1] ? IR_CUBE_HALF : -IR_CUBE_HALF;
-            float lz = IR_FACES[f].c[c][2] ? IR_CUBE_HALF : -IR_CUBE_HALF;
+            const int o = c * 7;
+            float lx = (ir_bits_float(baked[o])     - 0.5f) * 0.25f;
+            float ly = (ir_bits_float(baked[o + 1]) - 0.5f) * 0.25f;
+            float lz = (ir_bits_float(baked[o + 2]) - 0.5f) * 0.25f;
             CrVertex vtx;
             ir_place(fx, fy, fz, bob, IR_CUBE_GROUND_SY, IR_CUBE_GROUND_TY,
                      spin, lx, ly, lz,
                      &vtx.pos.x, &vtx.pos.y, &vtx.pos.z);
-            vtx.uv.x = u0 + IR_CUV[c][0] * (u1 - u0);
-            vtx.uv.y = v0 + IR_CUV[c][1] * (v1 - v0);
+            vtx.uv.x = ir_bits_float(baked[o + 4]);
+            vtx.uv.y = ir_bits_float(baked[o + 5]);
             vtx.light = IR_FACES[f].shade;
             vtx.tint = tint;
             vtx.ao = 1.0f;
@@ -242,7 +277,7 @@ int gm_items_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
     int written = 0;
     for (int e = 0; e < n; ++e) {
         if (ents[e].type != GM_VIEW_ITEM) continue;
-        const BmBlock *m = ir_block_model(ents[e].item_id, ents[e].item_meta);
+        const BmBlock *m = ir_drop_block_model(ents[e].item_id, ents[e].item_meta);
         if (!m) continue;                              /* item-atlas pass */
         float hover = ents[e].has_hover_start ? ents[e].hover_start
                                                : ir_hover(ents[e].item_id, ents[e].item_meta);
@@ -491,7 +526,7 @@ int gm_items_emit_flat(const GmEntityView *ents, int n, CrVertex *out, int max) 
     int written = 0;
     for (int e = 0; e < n; ++e) {
         if (ents[e].type != GM_VIEW_ITEM) continue;
-        if (ir_block_model(ents[e].item_id, ents[e].item_meta)) continue;
+        if (ir_drop_block_model(ents[e].item_id, ents[e].item_meta)) continue;
         if (written + IR_FLAT_VERTS > max) break;
         const CrItemSprite *s = &CR_ITEM_SPRITES[gm_item_sprite_index(ents[e].item_id)];
         float hover = ents[e].has_hover_start ? ents[e].hover_start

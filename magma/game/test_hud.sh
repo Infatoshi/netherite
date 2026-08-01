@@ -7,7 +7,8 @@ if [ ! -f assets/hud_atlas.h ] || [ assets/build_hud_atlas.py -nt assets/hud_atl
     uv run --no-project --with pillow python assets/build_hud_atlas.py
 fi
 gcc -O2 -ffp-contract=off -Wall -Wextra -I. -Icore \
-    game/hud.c game/item_render.c assets/blockmodels.c game/test_hud.c \
+    game/hud.c game/item_render.c renderkernels/rk_31_facebakery_make_quad.c \
+    assets/blockmodels.c game/test_hud.c \
     -o game/test_hud -lm
 ./game/test_hud
 

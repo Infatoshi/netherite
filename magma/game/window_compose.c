@@ -144,10 +144,11 @@ static int render_layer(GmWindowCompose *c, const CrCamera *cam,
     return ntris;
 }
 
-static int render_world(GmWindowCompose *c, const CrCamera *cam,
-                        const GmMeshView *mv, const CrTexture *atlas,
-                        CrRgba fog, int dimension, int boss_fog,
-                        const GmUnderwater *uw, const CrRgba *lm) {
+static int render_world_layers(GmWindowCompose *c, const CrCamera *cam,
+                               const GmMeshView *mv, const CrTexture *atlas,
+                               CrRgba fog, int dimension, int boss_fog,
+                               const GmUnderwater *uw, const CrRgba *lm,
+                               int first_layer, int end_layer) {
     int fon;
     float fst, fen;
     gm_frame_world_fog_params(dimension, boss_fog, &fon, &fst, &fen);
@@ -173,10 +174,10 @@ static int render_world(GmWindowCompose *c, const CrCamera *cam,
         }
     }
     int ntris = 0;
-    ntris += render_layer(c, cam, mv->verts[0], mv->nverts[0], &sh_solid);
-    ntris += render_layer(c, cam, mv->verts[1], mv->nverts[1], &sh_cmip);
-    ntris += render_layer(c, cam, mv->verts[2], mv->nverts[2], &sh_cut);
-    ntris += render_layer(c, cam, mv->verts[3], mv->nverts[3], &sh_trans);
+    CrShadeCtx *shade[4] = {&sh_solid, &sh_cmip, &sh_cut, &sh_trans};
+    for (int layer = first_layer; layer < end_layer; ++layer)
+        ntris += render_layer(c, cam, mv->verts[layer], mv->nverts[layer],
+                              shade[layer]);
     return ntris;
 }
 
@@ -608,8 +609,11 @@ int gm_window_compose_draw(GmWindowCompose *c,
         gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time, c->lm_lut);
         lm = c->lm_lut;
     }
-    int ntris = render_world(c, &cam, &mv, &c->atlas, clear, r->dimension,
-                             c->boss_latch, &uw, lm);
+    /* EntityRenderer.renderWorldPass: opaque terrain first; entities,
+     * overlays, and particles are interleaved before translucent terrain. */
+    int ntris = render_world_layers(c, &cam, &mv, &c->atlas, clear,
+                                    r->dimension, c->boss_latch, &uw, lm,
+                                    CR_LAYER_SOLID, CR_LAYER_TRANSLUCENT);
     stamp(frame, 7);
 
     stamp(frame, 8);
@@ -802,6 +806,10 @@ int gm_window_compose_draw(GmWindowCompose *c,
         }
     }
     if (overlay) render_crack(c, &cam, clear);
+    ntris += render_world_layers(c, &cam, &mv, &c->atlas, clear,
+                                 r->dimension, c->boss_latch, &uw, lm,
+                                 CR_LAYER_TRANSLUCENT,
+                                 CR_LAYER_TRANSLUCENT + 1);
     stamp(frame, 9);
     if (c->backend == GM_BACKEND_CUDA)
         cr_raster_cuda_frame_end(&c->fb);

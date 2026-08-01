@@ -437,40 +437,46 @@ static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
     }
 }
 
-static void render_world(GmFrameCapture *c, const CrCamera *cam,
-                         const GmMeshView *mv, const CrTexture *atlas,
-                         CrRgba fog, int dimension, int boss_fog,
-                         const CrRgba *lm, const GmUnderwater *uw) {
+static void render_world_layers(GmFrameCapture *c, const CrCamera *cam,
+                                const GmMeshView *mv, const CrTexture *atlas,
+                                CrRgba fog, int dimension, int boss_fog,
+                                const CrRgba *lm, const GmUnderwater *uw,
+                                int first_layer, int end_layer) {
     CrShadeCtx shade[4];
     terrain_shades(atlas, fog, dimension, boss_fog, lm, uw, shade);
-    for (int layer=0;layer<4;++layer)
+    for (int layer=first_layer;layer<end_layer;++layer)
         render_layer(c,cam,mv->verts[layer],mv->nverts[layer],&shade[layer]);
 }
 
 /* Device-resident terrain: upload rebuilt slabs, then per layer hand the
  * gather list (pool vert offsets, in the SAME chunk order mesh_view used to
  * concat) to the GPU. Byte-identical draw buffers, zero host vert memcpy. */
-static void render_world_dev(GmFrameCapture *c, const CrCamera *cam,
-                             int nch, const int nv[4], const CrTexture *atlas,
-                             CrRgba fog, int dimension, int boss_fog,
-                             const CrRgba *lm, const GmUnderwater *uw) {
+static void render_world_dev_layers(GmFrameCapture *c, const CrCamera *cam,
+                                    int nch, const int nv[4],
+                                    const CrTexture *atlas, CrRgba fog,
+                                    int dimension, int boss_fog,
+                                    const CrRgba *lm, const GmUnderwater *uw,
+                                    int first_layer, int end_layer) {
     CrShadeCtx shade[4];
     terrain_shades(atlas, fog, dimension, boss_fog, lm, uw, shade);
-    for (int i = 0; i < nch; ++i) {
-        const GmChunkDraw *d = &c->chunks[i];
-        cr_raster_cuda_slab_sync(d->slot, d->builds, d->slab,
-                                 d->off[3] + d->n[3]);
+    if (first_layer == CR_LAYER_SOLID) {
+        for (int i = 0; i < nch; ++i) {
+            const GmChunkDraw *d = &c->chunks[i];
+            cr_raster_cuda_slab_sync(d->slot, d->builds, d->slab,
+                                     d->off[3] + d->n[3]);
+        }
+        /* last host-buffer H2D of the frame that reads game-side memory (fb +
+         * slabs) is now enqueued: mark it so the NEXT frame's prep can wait on
+         * this instead of the whole frame. */
+        if (cr_raster_cuda_uploads_mark) cr_raster_cuda_uploads_mark();
     }
-    /* last host-buffer H2D of the frame that reads game-side memory (fb +
-     * slabs) is now enqueued: mark it so the NEXT frame's prep can wait on
-     * this instead of the whole frame. */
-    if (cr_raster_cuda_uploads_mark) cr_raster_cuda_uploads_mark();
-    if (c->merge_layers) {
-        /* One layer-major entry list -> single gather + raster chain. The
-         * tiled kernel selects each tri's shade ctx by layer boundary, and
-         * per-pixel tri order is unchanged: pixel-identical to 4 launches. */
+    if (c->merge_layers && first_layer == CR_LAYER_SOLID &&
+        end_layer == CR_LAYER_TRANSLUCENT) {
+        /* Merge only the three opaque terrain layers. Translucent must remain
+         * a later gather so entity/overlay/particle draws stay between them. */
         int ne = 0;
-        for (int layer = 0; layer < 4; ++layer) {
+        int opaque_nv[4] = {nv[0], nv[1], nv[2], 0};
+        for (int layer = first_layer; layer < end_layer; ++layer) {
             for (int i = 0; i < nch; ++i) {
                 const GmChunkDraw *d = &c->chunks[i];
                 if (d->n[layer] <= 0) continue;
@@ -480,11 +486,11 @@ static void render_world_dev(GmFrameCapture *c, const CrCamera *cam,
             }
         }
         if (ne > 0)
-            cr_raster_cuda_render_terrain(&c->fb, c->gsrc, c->gcnt, ne, nv,
-                                          cam, shade);
+            cr_raster_cuda_render_terrain(&c->fb, c->gsrc, c->gcnt, ne,
+                                          opaque_nv, cam, shade);
         return;
     }
-    for (int layer = 0; layer < 4; ++layer) {
+    for (int layer = first_layer; layer < end_layer; ++layer) {
         int ne = 0;
         for (int i = 0; i < nch; ++i) {
             const GmChunkDraw *d = &c->chunks[i];
@@ -1024,6 +1030,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     /* The fast oracle profile's MixinStripBossBar suppresses only HUD chrome;
      * BossInfo fog remains active. Replay passes the metadata-derived flag. */
     gm_hud_set_boss(c->boss_latch&&!getenv("MAGMA_STRIP_OVERLAYS"),c->boss_frac);
+    GmMeshView mv;
+    int dev_nv[4] = {0,0,0,0};
+    int dev_nch = 0;
     if(c->dev_mesh){
         /* Slot rebuild counters are per-world; after a dimension switch the
          * new world's counters can collide with the cached ones and skip
@@ -1032,15 +1041,16 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             if(cr_raster_cuda_slabs_reset)cr_raster_cuda_slabs_reset();
             c->slab_world=r->world;
         }
-        int nv[4];
-        int nch=gm_world_mesh_chunks(r->world,&cam,c->fb.w,c->fb.h,
-                                     c->chunks,c->mesh_slots,nv);
-        render_world_dev(c,&cam,nch,nv,&atlas,clear,r->dimension,
-                         c->boss_latch,lm,&uw);
+        dev_nch=gm_world_mesh_chunks(r->world,&cam,c->fb.w,c->fb.h,
+                                     c->chunks,c->mesh_slots,dev_nv);
+        render_world_dev_layers(c,&cam,dev_nch,dev_nv,&atlas,clear,
+                                r->dimension,c->boss_latch,lm,&uw,
+                                CR_LAYER_SOLID,CR_LAYER_TRANSLUCENT);
     }else{
-        GmMeshView mv;gm_world_mesh_view(r->world,&cam,c->fb.w,c->fb.h,&mv);
-        render_world(c,&cam,&mv,&atlas,clear,r->dimension,c->boss_latch,
-                     lm,&uw);
+        gm_world_mesh_view(r->world,&cam,c->fb.w,c->fb.h,&mv);
+        render_world_layers(c,&cam,&mv,&atlas,clear,r->dimension,
+                            c->boss_latch,lm,&uw,CR_LAYER_SOLID,
+                            CR_LAYER_TRANSLUCENT);
     }
     /* RenderMinecart reprojects the entity onto its rail with getPos(), then
      * derives render yaw from getPosOffset(+/-0.3), rather than using the
@@ -1332,6 +1342,17 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             }
         }
     }
+    /* EntityRenderer.renderWorldPass draws translucent terrain only after
+     * entity pass 0, selection/damage overlays, and both particle groups. */
+    if(c->dev_mesh)
+        render_world_dev_layers(c,&cam,dev_nch,dev_nv,&atlas,clear,
+                                r->dimension,c->boss_latch,lm,&uw,
+                                CR_LAYER_TRANSLUCENT,
+                                CR_LAYER_TRANSLUCENT+1);
+    else
+        render_world_layers(c,&cam,&mv,&atlas,clear,r->dimension,
+                            c->boss_latch,lm,&uw,CR_LAYER_TRANSLUCENT,
+                            CR_LAYER_TRANSLUCENT+1);
     /* Open GUI screen this tick (tape gui_view / divergence #9): force the
      * synchronous hand/hud/gui path so gm_screen_draw sees this tick's
      * inventory. Deferred readback would finish after later ticks mutate it. */
