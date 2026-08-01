@@ -565,7 +565,17 @@ int main(int argc, char **argv) {
              * scripted turn so a demo pans across the world. */
             if (getenv("MAGMA_JUMP")) act.jump = 1;
             { const char *yr = getenv("MAGMA_YAWRATE"); if (yr) act.dyaw = (float)atof(yr); }
+            /* MAGMA_ATTACK: hold left-click every tick (drives dig SM + live particles). */
+            if (getenv("MAGMA_ATTACK")) act.attack = 1;
+            /* MAGMA_HOTBAR=<0..8>: select that hotbar slot once at frame 0. */
             act.hotbar_sel = -1;
+            if (frame == 0) {
+                const char *hb = getenv("MAGMA_HOTBAR");
+                if (hb) {
+                    int slot = atoi(hb);
+                    if (slot >= 0 && slot <= 8) act.hotbar_sel = slot;
+                }
+            }
         } else {
             CrInput in; cr_window_poll(cwin, &in);
             if (in.quit) { running = 0; break; }
@@ -646,6 +656,22 @@ int main(int argc, char **argv) {
                 pl.ent.box = psv_player_box(pl.ent.posX, pl.ent.posY, pl.ent.posZ);
                 pl.ent.motionX = pl.ent.motionY = pl.ent.motionZ = 0.0;
                 pl.fall_distance = 0.0f;
+            }
+            /* MAGMA_PITCH=<deg>: set player pitch at frame 0 (clamped to look range). */
+            if (frame == 0) {
+                const char *pit = getenv("MAGMA_PITCH");
+                if (pit) {
+                    float p = (float)atof(pit);
+                    if (p > 89.0f) p = 89.0f;
+                    if (p < -89.0f) p = -89.0f;
+                    pl.pitch = p;
+                }
+            }
+            /* MAGMA_SET_TIME=<ticks>: pin world clock before the first tick so night
+             * lighting is reachable in a short dump (same as script set_time). */
+            if (frame == 0) {
+                const char *stime = getenv("MAGMA_SET_TIME");
+                if (stime) gm_runtime_set_time(&runtime, atoll(stime));
             }
             const char *tp = getenv("MAGMA_TP");
             if (tp) {
@@ -919,7 +945,9 @@ int main(int argc, char **argv) {
          * vanilla RenderGlobal draws them with different blend state
          * (drawSelectionBox vs preRenderDamagedBlocks). Combined
          * gm_overlay_emit is legacy-tests-only. */
-        if (want_frames < 0 && !screen_open && !g_dead
+        /* MAGMA_OVERLAY_DUMP: open the selection/crack passes on the headless dump
+         * path; unset keeps the interactive-only gate (byte-identical to today). */
+        if ((want_frames < 0 || getenv("MAGMA_OVERLAY_DUMP")) && !screen_open && !g_dead
             && !getenv("MAGMA_NO_OVERLAY")) {
             static CrVertex sel_ov[GM_OVERLAY_MAX_VERTS];
             static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
