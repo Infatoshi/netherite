@@ -5,8 +5,10 @@
 #include "game/entity_render.h"
 #include "game/frame_capture.h"
 #include "game/hand.h"
+#include "game/particles_live.h"
 #include "game/screen.h"
 #include "game/sel_box.h"
+#include "game/window_compose.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -357,6 +359,8 @@ int gm_script_run(const GmConfig *cfg) {
     GmRuntime r; char err[256];
     if (!gm_runtime_init(&r, cfg, err, sizeof err)) { fprintf(stderr,"runtime: %s\n",err); return 1; }
     GmFrameCapture *frames=NULL;
+    GmWindowCompose *window_frames=NULL;
+    GmParticlesLive window_particles;
     if(cfg->frames_out_dir){
         /* The oracle's frames carry the survival HUD (hearts/hunger/hotbar/
          * crosshair); headless frames must draw it too or every whole-frame
@@ -365,8 +369,16 @@ int gm_script_run(const GmConfig *cfg) {
          * path never did (that WAS the largest pixel cluster on the 12k-tape
          * poses: 2.1/ch of pose A's 3.42, 3.8/ch of pose B's 9.01). */
         gm_hud_init();
-        frames=gm_frame_capture_open(cfg,err,sizeof err);
-        if(!frames){fprintf(stderr,"frames-out: %s\n",err);gm_runtime_destroy(&r);if(in)fclose(in);if(out!=stdout)fclose(out);return 1;}
+        if(cfg->compose==GM_COMPOSE_WINDOW){
+            gm_particles_live_init(&window_particles,
+                (uint64_t)cfg->seed ^ UINT64_C(0x7061727469636c65));
+            window_frames=gm_window_compose_open(cfg,err,sizeof err);
+            if(window_frames)
+                gm_window_compose_bind(window_frames,&r,&window_particles);
+        }else{
+            frames=gm_frame_capture_open(cfg,err,sizeof err);
+        }
+        if(!frames&&!window_frames){fprintf(stderr,"frames-out: %s\n",err);gm_runtime_destroy(&r);if(in)fclose(in);if(out!=stdout)fclose(out);return 1;}
     }
     char line[2048] = {0}; long line_no = 0; JlObject pending; int have = 0;
     long long pending_tick = -1;
@@ -1233,7 +1245,26 @@ int gm_script_run(const GmConfig *cfg) {
             }
         }
         write_state(out,&r);
-        if(frames){
+        if(window_frames){
+            int render = tick >= cfg->frame_offset &&
+                         (tick - cfg->frame_offset) % cfg->frame_every == 0;
+            GmPlayerView view;
+            gm_runtime_view(&r,&view);
+            gm_runtime_apply_tape_view(&r,&view);
+            gm_window_compose_advance(window_frames,&view,&action,1);
+            gm_particles_live_tick(&window_particles,r.window,r.ox,r.oz);
+            if(render){
+                GmWindowComposeFrame wf={
+                    .view=&view,.camera_view=&view,.partial_ticks=1.0f,
+                    .interactive=1,.screen_open=0,
+                    .mouse_x=cfg->width/2,.mouse_y=cfg->height/2,.stamp=NULL
+                };
+                if(!gm_window_compose_draw(window_frames,&wf,NULL,err,sizeof err)||
+                   !gm_window_compose_emit_frame(window_frames,tick,err,sizeof err)){
+                    fprintf(stderr,"frames-out: %s\n",err);goto bad;
+                }
+            }
+        }else if(frames){
             int render = tick >= cfg->frame_offset &&
                          (tick - cfg->frame_offset) % cfg->frame_every == 0;
             if(!gm_frame_capture_write(frames,&r,&action,render,err,sizeof err)){
@@ -1251,7 +1282,7 @@ int gm_script_run(const GmConfig *cfg) {
                 prof_h[0], prof_h[1], prof_h[2], prof_h[3], prof_h[4]);
         prof_scan(&r);
     }
-    gm_frame_capture_close(frames);gm_runtime_destroy(&r); if(in)fclose(in); if(out!=stdout)fclose(out); return 0;
+    gm_frame_capture_close(frames);gm_window_compose_close(window_frames);gm_runtime_destroy(&r); if(in)fclose(in); if(out!=stdout)fclose(out); return 0;
 bad:
-    gm_frame_capture_close(frames);gm_runtime_destroy(&r); if(in)fclose(in); if(out!=stdout)fclose(out); return 2;
+    gm_frame_capture_close(frames);gm_window_compose_close(window_frames);gm_runtime_destroy(&r); if(in)fclose(in); if(out!=stdout)fclose(out); return 2;
 }

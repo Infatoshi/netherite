@@ -17,9 +17,11 @@
 #include "world/mesh_mc.h"
 
 #include <math.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 extern void cr_raster_cuda_pre(int, int, int) __attribute__((weak));
 extern void cr_raster_cuda_into(CrFramebuffer *, const CrScreenTri *, int,
@@ -48,6 +50,7 @@ struct GmWindowCompose {
     int max_tris;
     int max_entity_verts;
     GmBackend backend;
+    int backend_open;
     GmRuntime *runtime;
     GmParticlesLive *particles;
     CrTexture atlas;
@@ -56,6 +59,10 @@ struct GmWindowCompose {
     int swing_ticks;
     int prev_attack;
     GmHudState hud_state;
+    unsigned char *ppm_buf;
+    FILE *npy_f;
+    int npy_frames;
+    char frames_out[1024];
 };
 
 static void set_error(char *err, int cap, const char *msg) {
@@ -64,6 +71,37 @@ static void set_error(char *err, int cap, const char *msg) {
 
 static void stamp(const GmWindowComposeFrame *f, int slot) {
     if (f->stamp) f->stamp(slot);
+}
+
+static void npy_stamp_header(FILE *f, int n, int h, int w) {
+    char dict[119];
+    int len = snprintf(dict, sizeof dict,
+        "{'descr': '|u1', 'fortran_order': False, 'shape': (%8d, %d, %d, 3), }",
+        n, h, w);
+    memset(dict + len, ' ', 117 - (size_t)len);
+    dict[117] = '\n';
+    unsigned char pre[10] = {0x93, 'N', 'U', 'M', 'P', 'Y', 1, 0, 118, 0};
+    fseek(f, 0, SEEK_SET);
+    fwrite(pre, 1, 10, f);
+    fwrite(dict, 1, 118, f);
+}
+
+static int emit_ppm(GmWindowCompose *c, int tick) {
+    char path[1200];
+    int len = snprintf(path, sizeof path, "%s/frame_%06d.ppm",
+                       c->frames_out, tick);
+    if (len < 0 || len >= (int)sizeof path) return 0;
+    FILE *f = fopen(path, "wb");
+    if (!f) return 0;
+    int n = c->fb.w * c->fb.h;
+    for (int i = 0; i < n; ++i) {
+        c->ppm_buf[i * 3 + 0] = c->fb.color[i].r;
+        c->ppm_buf[i * 3 + 1] = c->fb.color[i].g;
+        c->ppm_buf[i * 3 + 2] = c->fb.color[i].b;
+    }
+    int ok = fprintf(f, "P6\n%d %d\n255\n", c->fb.w, c->fb.h) >= 0 &&
+             fwrite(c->ppm_buf, 3, (size_t)n, f) == (size_t)n;
+    return fclose(f) == 0 && ok;
 }
 
 static int render_layer(GmWindowCompose *c, const CrCamera *cam,
@@ -161,6 +199,43 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
         gm_window_compose_close(c);
         return NULL;
     }
+    if (cfg->frames_out_dir) {
+        size_t len = strlen(cfg->frames_out_dir);
+        if (len >= sizeof c->frames_out) {
+            set_error(err, err_cap, "frames-out path is too long");
+            gm_window_compose_close(c);
+            return NULL;
+        }
+        strcpy(c->frames_out, cfg->frames_out_dir);
+        c->ppm_buf = malloc((size_t)c->fb.w * (size_t)c->fb.h * 3);
+        if (!c->ppm_buf) {
+            set_error(err, err_cap, "window compose frame output allocation failed");
+            gm_window_compose_close(c);
+            return NULL;
+        }
+        int npy = len > 4 && !strcmp(c->frames_out + len - 4, ".npy");
+        if (npy) {
+            c->npy_f = fopen(c->frames_out, "wb");
+            if (!c->npy_f) {
+                set_error(err, err_cap, "cannot open frames-out npy");
+                gm_window_compose_close(c);
+                return NULL;
+            }
+            npy_stamp_header(c->npy_f, 0, c->fb.h, c->fb.w);
+        } else {
+            if (mkdir(c->frames_out, 0775) != 0 && errno != EEXIST) {
+                set_error(err, err_cap, "cannot create frames-out directory");
+                gm_window_compose_close(c);
+                return NULL;
+            }
+            struct stat st;
+            if (stat(c->frames_out, &st) != 0 || !S_ISDIR(st.st_mode)) {
+                set_error(err, err_cap, "frames-out path is not a directory");
+                gm_window_compose_close(c);
+                return NULL;
+            }
+        }
+    }
     if (c->backend == GM_BACKEND_CUDA) {
         if (!cr_raster_cuda_pre || !cr_raster_cuda_into ||
             !cr_raster_cuda_frame_begin || !cr_raster_cuda_frame_end ||
@@ -170,6 +245,7 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
             return NULL;
         }
         cr_raster_cuda_pre(c->fb.w, c->fb.h, c->max_tris);
+        c->backend_open = 1;
     }
 #ifdef MAGMA_METAL
     else if (c->backend == GM_BACKEND_METAL) {
@@ -181,6 +257,7 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
             return NULL;
         }
         cr_raster_metal_pre(c->fb.w, c->fb.h, c->max_tris);
+        c->backend_open = 1;
     }
 #endif
     return c;
@@ -527,16 +604,48 @@ CrFramebuffer *gm_window_compose_framebuffer(GmWindowCompose *c) {
     return c ? &c->fb : NULL;
 }
 
+int gm_window_compose_emit_frame(GmWindowCompose *c, int tick,
+                                 char *err, int err_cap) {
+    if (!c || !c->frames_out[0] || !c->ppm_buf) {
+        set_error(err, err_cap, "window compose frame output is not open");
+        return 0;
+    }
+    if (c->npy_f) {
+        int n = c->fb.w * c->fb.h;
+        for (int i = 0; i < n; ++i) {
+            c->ppm_buf[i * 3 + 0] = c->fb.color[i].r;
+            c->ppm_buf[i * 3 + 1] = c->fb.color[i].g;
+            c->ppm_buf[i * 3 + 2] = c->fb.color[i].b;
+        }
+        if (fwrite(c->ppm_buf, 3, (size_t)n, c->npy_f) != (size_t)n) {
+            set_error(err, err_cap, "cannot write frames-out npy");
+            return 0;
+        }
+        c->npy_frames++;
+        return 1;
+    }
+    if (!emit_ppm(c, tick)) {
+        set_error(err, err_cap, "cannot write frames-out image");
+        return 0;
+    }
+    return 1;
+}
+
 void gm_window_compose_close(GmWindowCompose *c) {
     if (!c) return;
-    if (c->backend == GM_BACKEND_CUDA && cr_raster_cuda_post)
+    if (c->backend_open && c->backend == GM_BACKEND_CUDA && cr_raster_cuda_post)
         cr_raster_cuda_post();
 #ifdef MAGMA_METAL
-    else if (c->backend == GM_BACKEND_METAL && cr_raster_metal_post)
+    else if (c->backend_open && c->backend == GM_BACKEND_METAL && cr_raster_metal_post)
         cr_raster_metal_post();
 #endif
+    if (c->npy_f) {
+        npy_stamp_header(c->npy_f, c->npy_frames, c->fb.h, c->fb.w);
+        fclose(c->npy_f);
+    }
     free(c->tris);
     free(c->entity_verts);
+    free(c->ppm_buf);
     cr_fb_free(&c->fb);
     free(c);
 }

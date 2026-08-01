@@ -193,7 +193,8 @@ def diff_frame_py():
 def run_magma_script(script_path, ticks, frames_dir, state_out, w=854, h=480,
                        seed=0, extra_env=None, timeout=600,
                        frame_every=1, frame_offset=0, mobs=True,
-                       backend="cpu", daylight=True, world="default"):
+                       backend="cpu", daylight=True, world="default",
+                       compose="capture"):
     """Run the magma game headlessly on a JSONL event script.
 
     backend="cuda" uses the magma_game_cuda binary (raster stage on the GPU,
@@ -224,6 +225,8 @@ def run_magma_script(script_path, ticks, frames_dir, state_out, w=854, h=480,
     cmd = [game, "--headless", "--world", world, "--seed", str(seed),
            "--ticks", str(ticks), "--width", str(w), "--height", str(h),
            "--script", script_path, "--state-out", state_out]
+    if compose != "capture":
+        cmd += ["--compose", compose]
     if backend in ("cuda", "metal"):
         cmd += ["--backend", backend]
     if not mobs:

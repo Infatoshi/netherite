@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "tape": "scenario_smoke_zombie_20260722T081735Z",
+  "metric": "pixel_gate connected-component pixels at DIFF_THRESH; total includes accepted semantic classes",
+  "capture": {
+    "frames_checked": 18,
+    "state_rows": 358,
+    "unexplained_frames": 1,
+    "unexplained_px": 208,
+    "total_residual_px": 1057,
+    "failed_frames": 0
+  },
+  "window": {
+    "frames_checked": 18,
+    "state_rows": 358,
+    "unexplained_frames": 0,
+    "unexplained_px": 0,
+    "total_residual_px": 12322,
+    "failed_frames": 0
+  }
+}

@@ -38,6 +38,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
                            const GmWindowComposeFrame *frame,
                            GmWindowComposeStats *stats,
                            char *err, int err_cap);
+int gm_window_compose_emit_frame(GmWindowCompose *c, int tick,
+                                 char *err, int err_cap);
 CrFramebuffer *gm_window_compose_framebuffer(GmWindowCompose *c);
 void gm_window_compose_close(GmWindowCompose *c);
 

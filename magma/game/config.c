@@ -33,7 +33,8 @@ enum {
     SEEN_FRAME_OFFSET = 1u << 22,
     SEEN_MOBS         = 1u << 23,
     SEEN_DAYLIGHT     = 1u << 24,
-    SEEN_SNAPSHOT_IN  = 1u << 25
+    SEEN_SNAPSHOT_IN  = 1u << 25,
+    SEEN_COMPOSE      = 1u << 26
 };
 
 static int fail(char *err, int cap, const char *fmt, ...) {
@@ -96,6 +97,7 @@ void gm_config_defaults(GmConfig *cfg) {
     cfg->seed = 0;
     cfg->world = GM_WORLD_DEFAULT;
     cfg->render = GM_RENDER_WINDOW;
+    cfg->compose = GM_COMPOSE_CAPTURE;
     cfg->backend = GM_BACKEND_CPU;
     cfg->pace = GM_PACE_REALTIME;
     cfg->view_distance = 8;
@@ -194,6 +196,12 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
             if (!strcmp(v, "window")) cfg->render = GM_RENDER_WINDOW;
             else if (!strcmp(v, "off")) cfg->render = GM_RENDER_OFF;
             else return fail(err, err_cap, "invalid render mode: %s", v);
+        } else if (!strcmp(a, "--compose")) {
+            if (mark_once(&seen, SEEN_COMPOSE, a, err, err_cap)) return 2;
+            if (!(v = need_value(&i, argc, argv, err, err_cap))) return 2;
+            if (!strcmp(v, "capture")) cfg->compose = GM_COMPOSE_CAPTURE;
+            else if (!strcmp(v, "window")) cfg->compose = GM_COMPOSE_WINDOW;
+            else return fail(err, err_cap, "invalid compose mode: %s", v);
         } else if (!strcmp(a, "--backend") || !strcmp(a, "--cuda")) {
             if (mark_once(&seen, SEEN_BACKEND, a, err, err_cap)) return 2;
             if (!strcmp(a, "--cuda")) cfg->backend = GM_BACKEND_CUDA;
@@ -286,13 +294,14 @@ void gm_config_print(FILE *out, const GmConfig *c) {
     fprintf(out,
         "seed=%lld world=%s villages=%s enchanting=%s brewing=%s weather=%s "
         "mobs=%s daylight=%s "
-        "render=%s backend=%s pace=%s view_distance=%d width=%d height=%d "
+        "render=%s compose=%s backend=%s pace=%s view_distance=%d width=%d height=%d "
         "headless=%s ticks=%d script=%s state_out=%s frames_out=%s\n",
         c->seed, c->world == GM_WORLD_DEFAULT ? "default" : "superflat",
         c->villages ? "on" : "off", c->enchanting ? "on" : "off",
         c->brewing ? "on" : "off", c->weather ? "on" : "off",
         c->mobs ? "on" : "off", c->daylight ? "on" : "off",
         c->render == GM_RENDER_WINDOW ? "window" : "off",
+        c->compose == GM_COMPOSE_CAPTURE ? "capture" : "window",
         c->backend == GM_BACKEND_CPU ? "cpu" :
         c->backend == GM_BACKEND_CUDA ? "cuda" : "metal",
         c->pace == GM_PACE_REALTIME ? "realtime" : "unlimited",
@@ -315,6 +324,7 @@ void gm_config_print_usage(FILE *out, const char *argv0) {
         "  --daylight on|off            doDaylightCycle (off = frozen clock)\n"
         "  --mobs on|off                mob spawning + AI (default on)\n"
         "  --render window|off          presentation mode\n"
+        "  --compose capture|window     headless frame compositor (default capture)\n"
         "  --backend cpu|cuda|metal     raster backend\n"
         "  --pace realtime|unlimited    simulation pacing\n"
         "  --view-distance N            supported range 1..8\n"
