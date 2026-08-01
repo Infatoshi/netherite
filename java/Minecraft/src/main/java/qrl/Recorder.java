@@ -5297,6 +5297,10 @@ sb.append("}");
             o.addProperty("max_tps_uncapped", meanMs > 0 ? 1000.0 / meanMs : 0);
         }
         o.addProperty("entities", mc.world != null ? mc.world.loadedEntityList.size() : 0);
+        /* RenderGlobal's F3 line, e.g. "C: 45/4356 D: 8, L: 0, ..." - rendered
+         * vs loaded render-sections, for renderer submission comparisons. */
+        if (mc.renderGlobal != null)
+            o.addProperty("renders", mc.renderGlobal.getDebugInfoRenders());
         o.addProperty("server_tick_length", TimeHelper.serverTickLength);
         o.addProperty("num_ticks", TimeHelper.SyncManager.numTicks);
         return o.toString();
