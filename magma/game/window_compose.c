@@ -159,6 +159,13 @@ static int render_world(GmWindowCompose *c, const CrCamera *cam,
     return ntris;
 }
 
+static void apply_fluid_fog(CrShadeCtx *shade, const GmUnderwater *uw) {
+    if (!uw->fluid) return;
+    shade->enable_fog = 1;
+    shade->fog_exp_density = uw->density;
+    shade->fog_color = uw->fog_rgba;
+}
+
 static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
     CrCamera c;
     c.pos.x = v->x;
@@ -438,8 +445,12 @@ int gm_window_compose_draw(GmWindowCompose *c,
         esh.alpha_test = 1;
         esh.layer = CR_LAYER_CUTOUT;
         esh.alpha_mask = 1;
+        esh.entity_brightness = 1;
         esh.lightmap = lm;
         gm_entity_dissolve_mask(&esh.mask_u_off, &esh.mask_v_off);
+        gm_frame_world_fog_params(r->dimension, 0, &esh.enable_fog,
+                                  &esh.fog_start, &esh.fog_end);
+        apply_fluid_fog(&esh, &uw);
         render_layer(c, &cam, c->entity_verts, nv, &esh);
         int nx = gm_xp_orbs_emit(ents, nents, pv->yaw, pv->pitch,
                                  c->entity_verts, c->max_entity_verts);
@@ -452,6 +463,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
             xp.layer = CR_LAYER_TRANSLUCENT;
             xp.blend = 1;
             xp.lightmap = lm;
+            apply_fluid_fog(&xp, &uw);
             render_layer(c, &cam, c->entity_verts, nx, &xp);
         }
         nv = gm_slime_gel_emit(ents, nents, c->entity_verts,
@@ -464,6 +476,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
             gel.alpha_ref = 0.1f;
             gel.layer = CR_LAYER_TRANSLUCENT;
             gel.blend = 4;
+            apply_fluid_fog(&gel, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &gel);
         }
         nv = gm_dragon_death_rays_emit(ents, nents, c->entity_verts,
@@ -476,6 +489,9 @@ int gm_window_compose_draw(GmWindowCompose *c,
             rays.blend = 3;
             rays.layer = CR_LAYER_TRANSLUCENT;
             rays.lightmap = lm;
+            gm_frame_world_fog_params(r->dimension, 0, &rays.enable_fog,
+                                      &rays.fog_start, &rays.fog_end);
+            apply_fluid_fog(&rays, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &rays);
         }
         nv = gm_crystal_beams_emit(ents, nents, c->entity_verts,
@@ -488,6 +504,9 @@ int gm_window_compose_draw(GmWindowCompose *c,
             beam.alpha_ref = 0.1f;
             beam.layer = CR_LAYER_CUTOUT;
             beam.lightmap = lm;
+            gm_frame_world_fog_params(r->dimension, 0, &beam.enable_fog,
+                                      &beam.fog_start, &beam.fog_end);
+            apply_fluid_fog(&beam, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &beam);
         }
         nv = gm_items_emit(ents, nents, c->entity_verts,
@@ -498,6 +517,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
             ish.fog_color = fog;
             ish.alpha_test = 1;
             ish.layer = CR_LAYER_CUTOUT;
+            apply_fluid_fog(&ish, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &ish);
         }
         nv = gm_items_emit_flat(ents, nents, c->entity_verts,
@@ -512,6 +532,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
             fsh.fog_color = fog;
             fsh.alpha_test = 1;
             fsh.layer = CR_LAYER_CUTOUT;
+            apply_fluid_fog(&fsh, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &fsh);
         }
         gm_entity_prep_large_fireball_fire(ents, nents);
@@ -528,6 +549,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
             fire_sh.fog_color = fog;
             fire_sh.alpha_test = 1;
             fire_sh.layer = CR_LAYER_CUTOUT;
+            apply_fluid_fog(&fire_sh, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &fire_sh);
         }
     }
@@ -548,6 +570,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
             dig.fog_color = sky;
             dig.alpha_test = 1;
             dig.layer = CR_LAYER_CUTOUT;
+            apply_fluid_fog(&dig, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &dig);
         }
     }

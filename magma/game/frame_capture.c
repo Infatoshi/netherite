@@ -336,8 +336,8 @@ static int render_layer(GmFrameCapture *c, const CrCamera *cam,
  * BossInfo createFog flag (GuiBossOverlay.shouldCreateFog) pull the linear
  * ramp in to [far*0.05, min(far,192)*0.5]. setupFog is scene-wide state, so
  * every pass drawn after it - terrain AND entity layers - is fogged. */
-static void world_fog_params(int dimension, int boss_fog, int *enabled,
-                             float *fog_start, float *fog_end) {
+void gm_frame_world_fog_params(int dimension, int boss_fog, int *enabled,
+                               float *fog_start, float *fog_end) {
     int dense = dimension == -1 || boss_fog;
     *enabled = gm_terrain_fog_enabled();
     *fog_start = dense ? GM_TERRAIN_FOG_FAR * 0.05f : GM_TERRAIN_FOG_START;
@@ -349,7 +349,8 @@ static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
                            const GmUnderwater *uw, CrShadeCtx shade[4]) {
     int enabled;
     float fog_start, fog_end;
-    world_fog_params(dimension, boss_fog, &enabled, &fog_start, &fog_end);
+    gm_frame_world_fog_params(dimension, boss_fog, &enabled,
+                              &fog_start, &fog_end);
     /* use_mips=0 on EVERY layer, including CUTOUT_MIPPED: both oracle launch
      * profiles (java/fast.yaml + java/vanilla.yaml) pin mipmapLevels:0, which
      * makes TextureMap.setBlurMipmap give the terrain atlas plain GL_NEAREST
@@ -1066,8 +1067,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
          * linear ramp as the terrain (dense in the Nether / during a boss
          * fight). Without it a dissolving dragon 45 blocks out kept its full
          * white instead of washing to the End fog color. */
-        world_fog_params(r->dimension,c->boss_latch,&sh.enable_fog,
-                         &sh.fog_start,&sh.fog_end);
+        gm_frame_world_fog_params(r->dimension,c->boss_latch,&sh.enable_fog,
+                                  &sh.fog_start,&sh.fog_end);
         if(uw.fluid){ sh.enable_fog=1; sh.fog_exp_density=uw.density; sh.fog_color=uw.fog_rgba; }
         render_layer(c,&cam,eb[0],nv,&sh);
         /* RenderXPOrb: SRC_ALPHA blend, alpha 128, no cutout thr 0.5 kill. */
@@ -1115,8 +1116,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                  * 39-54 blocks out over this tape, i.e. 57-83% fogged.
                  * Unfogged, the additive fans came out several times too
                  * bright and read as longer and wider than the oracle's. */
-                world_fog_params(r->dimension,c->boss_latch,&rays.enable_fog,
-                                 &rays.fog_start,&rays.fog_end);
+                gm_frame_world_fog_params(r->dimension,c->boss_latch,
+                                          &rays.enable_fog,
+                                          &rays.fog_start,&rays.fog_end);
                 if(uw.fluid){ rays.enable_fog=1; rays.fog_exp_density=uw.density;
                               rays.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,ray_ov,nr,&rays);
@@ -1132,8 +1134,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 bm.alpha_test=1; bm.alpha_ref=0.1f;
                 bm.layer=CR_LAYER_CUTOUT;
                 bm.lightmap=lm;
-                world_fog_params(r->dimension,c->boss_latch,&bm.enable_fog,
-                                 &bm.fog_start,&bm.fog_end);
+                gm_frame_world_fog_params(r->dimension,c->boss_latch,
+                                          &bm.enable_fog,
+                                          &bm.fog_start,&bm.fog_end);
                 if(uw.fluid){ bm.enable_fog=1; bm.fog_exp_density=uw.density;
                               bm.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,beam_ov,nb,&bm);

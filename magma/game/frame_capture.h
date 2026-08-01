@@ -26,4 +26,9 @@ void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
 void gm_frame_entities_light(GmEntityView *ents, int n, GmWorld *world,
                              int dimension, const CrRgba *lm);
 
+/* EntityRenderer.setupFog linear world ramp. Dense in the Nether or while
+ * BossInfo createFog is latched; shared by capture and window composition. */
+void gm_frame_world_fog_params(int dimension, int boss_fog, int *enabled,
+                               float *fog_start, float *fog_end);
+
 #endif

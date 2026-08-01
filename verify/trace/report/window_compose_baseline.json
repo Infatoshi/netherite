@@ -3,7 +3,8 @@
   "tape": "scenario_smoke_zombie_20260722T081735Z",
   "metric": "pixel_gate connected-component pixels at DIFF_THRESH; total includes accepted semantic classes",
   "window_fixes": [
-    "pass order and dig-particle gate"
+    "pass order and dig-particle gate",
+    "entity brightness and fog parity"
   ],
   "capture": {
     "frames_checked": 18,
