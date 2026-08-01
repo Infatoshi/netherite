@@ -26,6 +26,9 @@
 extern void cr_raster_cuda_pre(int, int, int) __attribute__((weak));
 extern void cr_raster_cuda_into(CrFramebuffer *, const CrScreenTri *, int,
                                 const CrShadeCtx *) __attribute__((weak));
+extern void cr_raster_cuda_render_layer(CrFramebuffer *, const CrVertex *, int,
+                                        const CrCamera *, const CrShadeCtx *)
+    __attribute__((weak));
 extern void cr_raster_cuda_frame_begin(const CrFramebuffer *) __attribute__((weak));
 extern void cr_raster_cuda_frame_end(CrFramebuffer *) __attribute__((weak));
 extern void cr_raster_cuda_sky(const GmSkyCtx *, const float *, int, int)
@@ -37,6 +40,9 @@ extern void cr_raster_cuda_post(void) __attribute__((weak));
 extern void cr_raster_metal_pre(int, int, int) __attribute__((weak));
 extern void cr_raster_metal_into(CrFramebuffer *, const CrScreenTri *, int,
                                  const CrShadeCtx *) __attribute__((weak));
+extern void cr_raster_metal_render_layer(CrFramebuffer *, const CrVertex *, int,
+                                         const CrCamera *, const CrShadeCtx *)
+    __attribute__((weak));
 extern void cr_raster_metal_frame_begin(const CrFramebuffer *) __attribute__((weak));
 extern void cr_raster_metal_frame_end(CrFramebuffer *) __attribute__((weak));
 extern void cr_raster_metal_sky(const GmSkyCtx *, const float *, int, int)
@@ -129,6 +135,16 @@ static int render_layer(GmWindowCompose *c, const CrCamera *cam,
                         const CrVertex *verts, int nv,
                         const CrShadeCtx *sh) {
     if (nv < 3) return 0;
+    if (c->backend == GM_BACKEND_CUDA && cr_raster_cuda_render_layer) {
+        cr_raster_cuda_render_layer(&c->fb, verts, nv, cam, sh);
+        return nv / 3;
+    }
+#ifdef MAGMA_METAL
+    if (c->backend == GM_BACKEND_METAL && cr_raster_metal_render_layer) {
+        cr_raster_metal_render_layer(&c->fb, verts, nv, cam, sh);
+        return nv / 3;
+    }
+#endif
     int ntris = cr_transform(verts, nv, NULL, 0, cam, c->fb.w, c->fb.h,
                              c->tris, c->max_tris);
     if (ntris > 0) {
