@@ -35,6 +35,7 @@ MC_HD static inline void owfl_run(World *w, CpScratch *sc, ChunkPrimer *primer, 
         blk[i] = 0;
     }
     w->bigtree_heightLimit = 0;
+    w_reset_loaded_chunks(w, seed, 0, 0);
 
     {
         GLNode nodes[GL_MAX_NODES];

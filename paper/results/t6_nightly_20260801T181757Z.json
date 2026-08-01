@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "measurement": "nightly_verify",
+  "measured_at_utc": "2026-08-01T18:17:57Z",
+  "pin_commit": "d55c7f01c1139299be3f7fa0b98ef11b82c3b473",
+  "host": "anvil",
+  "backend": "cuda",
+  "parallel_replays": 6,
+  "gpu": {
+    "index": 1,
+    "name": "NVIDIA GeForce RTX 3090",
+    "uuid": "GPU-ecbcfcc5-aaeb-e4c5-b343-a86d7e9a6e64",
+    "memory_mib": 24576,
+    "compute_capability": "8.6",
+    "compile_arch": "sm_86",
+    "driver": "610.43.02",
+    "nvcc": "13.3.73"
+  },
+  "suite": {
+    "tapes": 48,
+    "replay_rc_0": 42,
+    "replay_rc_3": 6,
+    "replay_rc_other": 0,
+    "physics_clean_tapes": 46,
+    "physics_diverged_tapes": 2,
+    "state_gate_failure_tapes": 2,
+    "result": "FAIL",
+    "rc_3_tapes": [
+      "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462",
+      "20260721T215812Z_fast_s0_survival_default_rd8_77b5b462",
+      "scenario_creeper_encounter_20260730T104537Z",
+      "scenario_nether_elytra_20260729T110024Z",
+      "scenario_slime_bounce_20260730T095754Z",
+      "scenario_tnt_explosion_20260730T104642Z"
+    ],
+    "physics_divergences": [
+      {
+        "tape": "scenario_creeper_encounter_20260730T104537Z",
+        "tick": 76,
+        "field": "y",
+        "absolute_error": 2.1e-9,
+        "tolerance": 1e-9
+      },
+      {
+        "tape": "scenario_nether_elytra_20260729T110024Z",
+        "tick": 37,
+        "field": "x",
+        "absolute_error": 0.02,
+        "tolerance": 1e-9
+      }
+    ],
+    "state_gate_failures": [
+      {
+        "tape": "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462",
+        "gate": "entities",
+        "mismatches": 20,
+        "entity_rows": 51512
+      },
+      {
+        "tape": "20260721T215812Z_fast_s0_survival_default_rd8_77b5b462",
+        "gate": "inventory",
+        "mismatches": 2,
+        "compared_ticks": 9
+      }
+    ],
+    "baseline_failures": [
+      {
+        "tape": "scenario_nether_elytra_20260729T110024Z",
+        "tick": 63,
+        "new_failed_frames": 1,
+        "unexplained_pixels": 2409,
+        "clusters": 7,
+        "measured_causes": {
+          "registration": 1975,
+          "cutout_sky_minus": 162,
+          "shading_offset": 147,
+          "not_classified_by_probe": 125
+        }
+      }
+    ]
+  },
+  "corpus": {
+    "files": 5384,
+    "bytes": 7059542868,
+    "sha256_tree": "f2863af2bebc11592ad5d107a3d70484738709c8beb21716c2902b9ab9d344d7",
+    "baseline_git_tree_sha256": "fe0e1779ce681efb1c79087bb1a41bb20a8ff64c0cf99040e39de35d34031277"
+  },
+  "source_report_sha256": "e6a424983e11f5112367db72d7d124e39d0f4cabc02a2b803335e94c89d17b60",
+  "scope_notes": [
+    "The run uses the 48-tape suite associated with the pinned baseline tree.",
+    "Ten recordings added to the shared tape directory after the pin were excluded from this pin measurement because no pinned baselines exist for them.",
+    "The legacy demo tape's stale absolute symlink was redirected to the byte-identical in-worktree verify/demo payload before the run.",
+    "The 2409-pixel regression remains deliberately unabsorbed; the suite result is FAIL."
+  ]
+}
