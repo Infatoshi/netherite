@@ -11,7 +11,8 @@
     "falling-block, minecart-content, and held-item emitters",
     "minecart rail snap and entity-id jitter",
     "hand equip, hurt transform, and boat gate",
-    "live portal overlay and atlas frame"
+    "live portal overlay and atlas frame",
+    "tick-rate fogColor1 smoother"
   ],
   "capture": {
     "frames_checked": 18,

@@ -68,6 +68,8 @@ struct GmWindowCompose {
     float boss_frac;
     int dragon_dying;
     int dragon_killed;
+    float fog_c1;
+    int fog_c1_init;
     unsigned char *ppm_buf;
     FILE *npy_f;
     int npy_frames;
@@ -327,6 +329,24 @@ static void advance_equip_state(GmWindowCompose *c,
     }
 }
 
+static void advance_fog_state(GmWindowCompose *c, int nticks) {
+    GmRuntime *r = c->runtime;
+    double x, y, z;
+    gm_runtime_tick_entry_feet(r, &x, &y, &z);
+    int steps = nticks;
+    if (!c->fog_c1_init) {
+        const char *initial = getenv("MAGMA_FOG_C1_INIT");
+        c->fog_c1 = initial && *initial
+            ? (float)atof(initial)
+            : gm_uw_fog_c1_seed(r->world, r->dimension, x, y, z);
+        c->fog_c1_init = 1;
+        if (steps > 0) --steps;
+    }
+    for (int i = 0; i < steps; ++i)
+        c->fog_c1 = gm_uw_fog_c1_step(c->fog_c1, r->world, r->dimension,
+                                      x, y, z);
+}
+
 GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
                                          char *err, int err_cap) {
     if (!cfg) {
@@ -426,6 +446,7 @@ void gm_window_compose_bind(GmWindowCompose *c, GmRuntime *runtime,
 void gm_window_compose_advance(GmWindowCompose *c, GmPlayerView *view,
                                const GmAction *action, int nticks) {
     if (!c || !c->runtime || !view || !action) return;
+    advance_fog_state(c, nticks);
     gm_hud_state_step(&c->hud_state, view, c->runtime->tick);
     float mv_mag = fabsf(action->forward) + fabsf(action->strafe);
     if (mv_mag > 0.01f) c->hand_bob += 0.30f * (float)nticks;
@@ -462,8 +483,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
     const GmPlayerView *pv = &mapped_view;
     const GmPlayerView *cpv = frame->camera_view;
     CrCamera cam = camera_for(cpv, c->fb.w, c->fb.h);
-    float fog_c1 = gm_uw_fog_c1_seed(r->world, r->dimension,
-                                      cpv->x, cpv->y, cpv->z);
+    if (!c->fog_c1_init) advance_fog_state(c, 0);
+    float fog_c1 = c->fog_c1;
     GmUnderwater uw;
     gm_uw_eval(r->world, r->dimension, cpv, fog_c1, &uw);
     cam.fov_deg *= uw.fov_scale;
