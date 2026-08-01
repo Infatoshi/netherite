@@ -165,6 +165,15 @@ public class Recorder {
      * a tick can carry several blasts (e.g. chained TNT). */
     private static final java.util.List<String> recExplosions =
         new java.util.ArrayList<String>();
+    /** Whitelisted client particle spawns since the last recorded tick
+     * (MixinRecordParticles -> ParticleManager.spawnEffectParticle). Each
+     * entry: [enumParticleId,x,y,z,vx,vy,vz]. Explosion classes only for
+     * now: their placement RNG (Entity.rand seeded from nanoTime) is the
+     * documented unrecoverable-from-tape class (SCOPE section 4); recording
+     * the actual spawns makes creeper/TNT clouds and dragon-death puffs
+     * deterministic for replay. Client thread only. */
+    private static final java.util.List<String> recParticles =
+        new java.util.ArrayList<String>();
     private volatile String recSnapRoot = null;   // <tape>_world, live while recording
     private int recLastPlayerTicksExisted = Integer.MIN_VALUE;
     private int recLastDimension = Integer.MIN_VALUE;
@@ -234,6 +243,18 @@ public class Recorder {
         }
         e.append("]]");
         recExplosions.add(e.toString());
+    }
+
+    /** Client-thread hook from MixinRecordParticles. Only whitelisted ids
+     * arrive here; serialized flat so recordTick can drain cheaply. */
+    public static void recordParticleSpawn(int id, double x, double y,
+            double z, double vx, double vy, double vz) {
+        StringBuilder p = new StringBuilder(96);
+        p.append('[').append(id)
+         .append(',').append(x).append(',').append(y).append(',').append(z)
+         .append(',').append(vx).append(',').append(vy).append(',').append(vz)
+         .append(']');
+        recParticles.add(p.toString());
     }
 
     /** Client-thread tail hook from MixinRecordPlayerPosition. Store the
@@ -5595,6 +5616,17 @@ sb.append("}");
             }
             b.append(']');
             recExplosions.clear();
+        }
+        // whitelisted particle spawns this tick (MixinRecordParticles);
+        // conditional like expl so quiet ticks stay byte-identical.
+        if (!recParticles.isEmpty()) {
+            b.append(",\"pcl\":[");
+            for (int i = 0; i < recParticles.size(); i++) {
+                if (i > 0) b.append(',');
+                b.append(recParticles.get(i));
+            }
+            b.append(']');
+            recParticles.clear();
         }
         if (recPositionPending) {
             b.append(",\"ppos\":[").append(recPositionX)

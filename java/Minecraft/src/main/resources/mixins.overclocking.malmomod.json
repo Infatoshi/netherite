@@ -28,6 +28,7 @@
     "MixinRecordPlayerVelocity",
     "MixinRecordPlayerPosition",
     "MixinRecordExplosion",
+    "MixinRecordParticles",
     "MixinModelRendererNoLists",
     "MixinFramebufferStatusTolerant"
   ],
