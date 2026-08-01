@@ -1310,8 +1310,19 @@ public class Recorder {
                 // active gamerules: scenario setup applies them via commands
                 // but nothing recorded the resulting truth (doMobSpawning /
                 // doDaylightCycle change what replay must simulate).
+                // Read the INTEGRATED SERVER world's rules: the client copy is
+                // only synced at join, except doDaylightCycle (inferred from
+                // SPacketTimeUpdate's negated worldTime), so /gamerule setup
+                // commands never reach mc.world.getGameRules() (caught on
+                // silverfish 172741Z: header said naturalRegeneration true
+                // while server-side it was false).
                 try {
-                    net.minecraft.world.GameRules gr = mc.world.getGameRules();
+                    net.minecraft.world.GameRules gr = null;
+                    net.minecraft.server.MinecraftServer srv = mc.getIntegratedServer();
+                    if (srv != null && srv.worlds != null && srv.worlds.length > 0
+                            && srv.worlds[0] != null)
+                        gr = srv.worlds[0].getGameRules();
+                    if (gr == null) gr = mc.world.getGameRules();
                     h.append(",\"gamerules\":{");
                     String[] grKeys = gr.getRules();
                     for (int gi = 0; gi < grKeys.length; ++gi) {

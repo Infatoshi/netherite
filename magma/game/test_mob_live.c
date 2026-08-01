@@ -251,9 +251,9 @@ int main(void) {
     gm_runtime_destroy(&r);
 
     /* A saturated runtime projectile pool must backpressure, not discard, a
-     * pending ghast shot. */
+     * pending ghast shot. fireball_pending stores type (5=large). */
     if(!init_flat(&r))return 1;
-    r.mobs.fireball_pending=1;
+    r.mobs.fireball_pending=5;
     r.mobs.fireball_x=8.5;r.mobs.fireball_y=8.0;r.mobs.fireball_z=12.5;
     r.mobs.fireball_vz=-0.5;
     for(int k=0;k<GM_RUNTIME_PROJECTILES;++k){
@@ -572,8 +572,7 @@ int main(void) {
     CHECK(acquired,"autonomy: hurt enderman acquires and chases the player");
     gm_runtime_destroy(&r);
 
-    /* Blaze burst: ranged AI reloads attack_time=40; spawn_hostile_projectiles
-     * emits a type-3 fireball on that exact cadence, then reloads. */
+    /* Blaze burst: AIFireballAttack charge 60 then 3-shot volley (type-3). */
     if(!init_flat(&r))return 1;
     r.dimension=-1;r.mobs.active_dimension=-1;
     CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_BLAZE,8.5,5.0,14.5)>=0,"autonomy: spawn blaze");
@@ -592,8 +591,8 @@ int main(void) {
     }
     fprintf(stderr,"mob_live: blaze fireballs=%d first_tick=%d\n",fireballs,first_age);
     CHECK(fireballs>=1,"autonomy: blaze fires at least one live fireball");
-    CHECK(first_age>=0&&first_age<=45,
-          "autonomy: first blaze burst is within the 40-tick attack_time window");
+    CHECK(first_age>=0&&first_age<=70,
+          "autonomy: first blaze shot is within the 60-tick charge window");
     gm_runtime_destroy(&r);
 
     /* Skeleton: type-specific keep-away + ranged (not shared melee stand). */
@@ -675,6 +674,62 @@ int main(void) {
     }
     fprintf(stderr,"mob_live: spawner blaze spawns=%d\n",spawns);
     CHECK(spawns>=1,"autonomy: real blaze spawner produces live mobs");
+    gm_runtime_destroy(&r);
+
+    /* EntityBlaze.AIFireballAttack schedule: fixed-seed blaze vs stationary
+     * player at mid range. Charge 60, then 3 shots at inter-shot 6, then
+     * post-volley recharge 100. A wall behind the player forces block impacts
+     * so missed spread shots do not free-fly forever. */
+    if(!init_flat(&r))return 1;
+    for(int x=0;x<=16;++x)for(int y=4;y<=10;++y)
+        gm_world_set_block(r.world,x,y,6,1);
+    gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,0.0f);
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_BLAZE,8.5,5.0,20.5)>=0,
+          "spawn ranged-schedule blaze");
+    {
+        int shot_ticks[8]; int nshot=0; int max_active=0; int charged_seen=0;
+        int active_late=0;
+        for(int t=0;t<280;++t){
+            int before=0;
+            for(int k=0;k<GM_RUNTIME_PROJECTILES;++k)
+                if(r.projectiles[k].active&&r.projectiles[k].type==3)++before;
+            gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,0.0f);
+            gm_runtime_tick(&r,idle);
+            int after=0;
+            for(int k=0;k<GM_RUNTIME_PROJECTILES;++k)
+                if(r.projectiles[k].active&&r.projectiles[k].type==3)++after;
+            if(after>max_active)max_active=after;
+            if(after>before && nshot<(int)(sizeof shot_ticks/sizeof shot_ticks[0]))
+                shot_ticks[nshot++]=t;
+            n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+            for(int k=0;k<n;++k)
+                if(v[k].type==GM_MOB_BLAZE && (v[k].flags & 1)) charged_seen=1;
+        }
+        /* Extra flight ticks after last schedule sample so impacts clear. */
+        for(int t=0;t<40;++t){
+            gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,0.0f);
+            gm_runtime_tick(&r,idle);
+        }
+        for(int k=0;k<GM_RUNTIME_PROJECTILES;++k)
+            if(r.projectiles[k].active&&r.projectiles[k].type==3)++active_late;
+        fprintf(stderr,
+                "mob_live: blaze AIFireballAttack shots=%d t=[%d,%d,%d,%d] "
+                "max_active=%d charged=%d active_late=%d\n",
+                nshot,
+                nshot>0?shot_ticks[0]:-1, nshot>1?shot_ticks[1]:-1,
+                nshot>2?shot_ticks[2]:-1, nshot>3?shot_ticks[3]:-1,
+                max_active, charged_seen, active_late);
+        CHECK(nshot>=3,"AIFireballAttack fires at least a 3-shot volley");
+        CHECK(shot_ticks[0]==60,"first volley shot after 60-tick charge");
+        CHECK(shot_ticks[1]==66,"second shot 6 ticks after first");
+        CHECK(shot_ticks[2]==72,"third shot 6 ticks after second");
+        if(nshot>=4)
+            CHECK(shot_ticks[3]==238,
+                  "second volley first shot after 100 recharge + 60 charge");
+        CHECK(charged_seen,"ON_FIRE/isCharged set during volley (view flags)");
+        CHECK(max_active<=3,"small fireballs impact; concurrent cap is one volley");
+        CHECK(active_late==0,"small fireballs despawn/impact; do not accumulate");
+    }
     gm_runtime_destroy(&r);
 
     if(fail)return 1;

@@ -164,7 +164,6 @@ struct GmFrameCapture {
     float pend_uwb;         /* ... with this Entity.getBrightness tint */
     float pend_uwfov;       /* ... through this hand-projection fov */
     float pend_fovscale;    /* ... and this eye-in-fluid fov scale (fire overlay) */
-    long long pend_texture_tick; /* animated atlas phase of deferred frame */
     long long pend_tick;         /* r->tick of the deferred frame (hand gate) */
     int pend_bih, pend_bih_id, pend_bih_meta; /* suffocate overlay, resolved at
                              * arm time: the live world has moved on by retire */
@@ -216,21 +215,6 @@ static float fc_sun_brightness(const McSinTable *st, long long wt) {
     if (g > 1.0f) g = 1.0f;
     g = 1.0f - g;
     return g * 0.8f + 0.2f;
-}
-
-/* TextureMap.tick is a client clock, independent of World.totalTime.  Replays
- * record portal.frameCounter every tick; all atlas sprites start together, so
- * choose the latest matching client tick not after the recorded total time.
- * Live magma has no recorded portal frame and uses its own total tick directly. */
-static long long fc_texture_tick(long long total_time, int portal_frame) {
-    long long rem;
-    int delta;
-    if (portal_frame < 0) return total_time;
-    portal_frame &= 31;
-    rem = total_time % 32;
-    if (rem < 0) rem += 32;
-    delta = ((int)rem - portal_frame + 32) & 31;
-    return total_time - delta;
 }
 
 /* The frame's lightmap texture: exact updateLightmap texels for the current
@@ -803,10 +787,10 @@ static int finish_pending(GmFrameCapture *c) {
         !getenv("MAGMA_NO_HAND") && !hand_hidden(c->pend_tick))
         gm_hand_draw(&pfb, &c->pend_v, c->pend_bob);
     /* ItemRenderer.renderOverlays: block, water, fire; then portal; then HUD. */
-    if (c->pend_v.texture_animations_pinned)
-        bm_atlas_set_animation_physical_zero();
-    else
-        bm_atlas_set_animation_tick(c->pend_texture_tick);
+    /* Capture goldens are recorded with MixinPinTextureAnimations. Keep this
+     * path on physical frame zero even when MAGMA_ANIM_TEXTURES is set. */
+    bm_atlas_set_animation_physical_zero();
+    bm_atlas_set_portal_frame(0);
     CrTexture atlas=bm_atlas();
     if (c->pend_bih)
         gm_overlay_block_in_hand_draw(&pfb, &atlas, c->pend_bih_id,
@@ -816,7 +800,6 @@ static int finish_pending(GmFrameCapture *c) {
     if (c->pend_v.fire && !c->pend_v.creative && !c->pend_v.dead)
         gm_hand_fire_overlay_draw(&pfb,&atlas,c->pend_fovscale);
     if (c->pend_v.portal > 0.0f && !hud_hidden()) {
-        bm_atlas_set_portal_frame(c->pend_v.portal_frame);
         gm_overlay_portal_screen(&pfb,&atlas,c->pend_v.portal);
     }
     /* No open GUI on this path (see the gui_view note below), so the vanilla
@@ -934,14 +917,10 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
         if(c->use_cuda)cr_raster_cuda_frame_begin(&c->fb);
     }
-    /* QRL's pin mixin cancels updateAnimation, leaving TextureMap's initially
-     * uploaded physical frame zero. Otherwise follow the recorded client tick. */
-    if (v.texture_animations_pinned)
-        bm_atlas_set_animation_physical_zero();
-    else
-        bm_atlas_set_animation_tick(fc_texture_tick(r->clock.total_time,
-                                                     v.portal_frame));
-    bm_atlas_set_portal_frame(v.portal_frame);
+    /* Tape capture is permanently pinned, independently of the window-only
+     * MAGMA_ANIM_TEXTURES flag and any legacy tape header value. */
+    bm_atlas_set_animation_physical_zero();
+    bm_atlas_set_portal_frame(0);
     if(c->use_cuda&&cr_raster_cuda_atlas_dirty)cr_raster_cuda_atlas_dirty();
     CrTexture atlas=gm_world_atlas(r->world);
     const CrRgba *lm=build_lightmap_lut(c,r);
@@ -1322,8 +1301,6 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                  * CPU-vs-CUDA divergence on fire+bow ticks. Snapshot both. */
                 c->pend_uwb=uw.brightness;c->pend_uwfov=cam.fov_deg;
                 c->pend_fovscale=uw.fov_scale;
-                c->pend_texture_tick=fc_texture_tick(r->clock.total_time,
-                                                     v.portal_frame);
                 c->pend_tick=r->tick;
                 /* Resolve now, while r->world is this frame's world. */
                 c->pend_bih=!v.dead&&gm_overlay_block_in_hand_pick(

@@ -26,6 +26,13 @@ void gm_player_tick(struct Chunk *window, const struct McSinTable *st,
                     struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
                     int ox, int oy, int oz,
                     GmBlockEdit *edits, int *nedits, int max_edits);
+/* Runtime variant with the tape/live world's active GameRules. The legacy
+ * entry point above remains the vanilla-default component-test API. */
+void gm_player_tick_gr(struct Chunk *window, const struct McSinTable *st,
+                       struct PsvPlayer *pl, struct PvStats *vitals,
+                       const struct McGameRules *gamerules, GmAction act,
+                       int ox, int oy, int oz,
+                       GmBlockEdit *edits, int *nedits, int max_edits);
 
 /* Fill a GmPlayerView (WORLD coords) from a PsvPlayer whose pos is in the LOCAL frame,
  * given the block offset (ox,oz) to convert local->world. */

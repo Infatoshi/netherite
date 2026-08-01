@@ -10,6 +10,7 @@
 #include "game/mob_live.h"
 #include "game/dragon_live.h"
 #include "game/container_live.h"
+#include "mc_gamerules.h"
 
 #define GM_RUNTIME_FURNACES 16
 /* Growable chest TE table: starts at this capacity, doubles when full.
@@ -38,6 +39,7 @@ typedef struct GmRuntime {
     McSinTable sin_table;
     PsvPlayer player;
     PvStats vitals;
+    McGameRules gamerules;
     GmWorldClock clock;
     GmLiveSim entities;
     GmMobLive mobs;
@@ -69,6 +71,11 @@ typedef struct GmRuntime {
     long long tick;
     int weather_enabled;
     int mobs_enabled; /* --mobs off skips gm_mobs_tick (tape-replay parity) */
+    /* Live/window random block ticks (game/randtick.c). Default ON for interactive
+     * play and unit tests; script/tape replay sets 0 so the unseedable oracle
+     * world RNG is not approximated here. */
+    int randtick_enabled;
+    int randtick_radius; /* Chebyshev chunk radius around player for the pass */
     int container; /* 0 player 2x2, 1 crafting table, 2 furnace, 3 chest */
     int container_wx, container_wy, container_wz;
     int active_furnace;
@@ -235,6 +242,10 @@ void gm_runtime_respawn(GmRuntime *r);
 int gm_runtime_set_dimension(GmRuntime *r, int dimension);
 void gm_runtime_set_time(GmRuntime *r, long long world_time);
 void gm_runtime_set_total_time(GmRuntime *r, long long total_time);
+/* Tape/live GameRules. Runtime mechanics currently honor naturalRegeneration,
+ * doDaylightCycle, and doWeatherCycle; script.c consumes other header entries
+ * without changing today's simulation. */
+void gm_runtime_set_gamerules(GmRuntime *r, const McGameRules *gamerules);
 int gm_runtime_set_block(GmRuntime *r, int x, int y, int z, int id, int meta);
 /* Snapshot initialization: canonical cell replacement with no fluid/plant
  * mutation side effects. Must run before the first replay tick. */

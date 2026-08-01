@@ -118,6 +118,15 @@ SUPERFLAT_WALL_MAX_S = 3.0
 # Res pack
 RES_MEAN_LO, RES_MEAN_HI = 5.0, 250.0
 
+# Animated texture fixture (854x480): measured source-fluid surface rectangles.
+# A working CPU run changes 12k+ pixels in each rectangle at the sampled ticks;
+# keep the gate well below that while still rejecting sparse/noise-only changes.
+ANIM_TEX_FRAMES = 65
+ANIM_TEX_SAMPLES = (0, 16, 32, 48, 64)
+ANIM_TEX_CHANGED_MIN = 1000
+ANIM_TEX_WATER_RECT = (154, 163, 383, 242)  # x0, y0, x1, y1 (exclusive)
+ANIM_TEX_LAVA_RECT = (471, 163, 700, 242)
+
 
 # ---------------------------------------------------------------------------
 # PPM / metrics
@@ -706,6 +715,50 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
         )
     )
 
+    # Animated atlas A/B plus a flagged CUDA twin. The fixture builds sealed
+    # source-water and source-lava basins, then fixes the camera and daylight.
+    anim_env = {
+        "MAGMA_ANIM_TEXTURE_DEMO": "1",
+        "MAGMA_STILL": "1",
+        "MAGMA_NO_HAND": "1",
+        "MAGMA_NO_OVERLAY": "1",
+    }
+    anim_cli = ["--world", "superflat", "--daylight", "off"]
+    jobs.append(
+        DumpJob(
+            "wr_anim_tex65",
+            "static",
+            ANIM_TEX_FRAMES,
+            env_extra=anim_env,
+            extra_cli=anim_cli,
+            backend="cpu",
+            label="wr_anim_tex65/static",
+        )
+    )
+    jobs.append(
+        DumpJob(
+            "wr_anim_tex65",
+            "cpu",
+            ANIM_TEX_FRAMES,
+            env_extra={**anim_env, "MAGMA_ANIM_TEXTURES": "1"},
+            extra_cli=anim_cli,
+            backend="cpu",
+            label="wr_anim_tex65/cpu",
+        )
+    )
+    if not skip_gpu:
+        jobs.append(
+            DumpJob(
+                "wr_anim_tex65",
+                "cuda",
+                ANIM_TEX_FRAMES,
+                env_extra={**anim_env, "MAGMA_ANIM_TEXTURES": "1"},
+                extra_cli=anim_cli,
+                backend="cuda",
+                label="wr_anim_tex65/cuda",
+            )
+        )
+
     return jobs
 
 
@@ -723,6 +776,7 @@ SCENARIO_NAMES = [
     "WR-HAND-AB",
     "WR-SUPERFLAT-SMOKE",
     "WR-RES-PACK",
+    "WR-ANIM-TEX",
 ]
 
 
@@ -744,6 +798,11 @@ def dumps_for_scenario(name: str, *, skip_gpu: bool) -> list[str]:
         "WR-HAND-AB": ["wr_hand30/hand", "wr_hand30/nohand"],
         "WR-SUPERFLAT-SMOKE": ["wr_superflat30/flat", "wr_superflat30/default"],
         "WR-RES-PACK": ["wr_res_pack/427x240", "wr_res_pack/1280x720"],
+        "WR-ANIM-TEX": [
+            "wr_anim_tex65/static",
+            "wr_anim_tex65/cpu",
+            "wr_anim_tex65/cuda",
+        ],
     }
     keys = m[name]
     if skip_gpu:
@@ -1066,6 +1125,81 @@ def check_xb_particle(cpu_demo: Path, cuda_dir: Path) -> dict[str, Any]:
     return {"worst": worst, "window": "f25..f35"}
 
 
+def check_anim_textures(
+    static_dir: Path, cpu_dir: Path, cuda_dir: Optional[Path]
+) -> dict[str, Any]:
+    require_frames(static_dir, ANIM_TEX_FRAMES, "WR-ANIM-TEX static")
+    require_frames(cpu_dir, ANIM_TEX_FRAMES, "WR-ANIM-TEX cpu")
+    base_static = load_ppm(frame_path(static_dir, ANIM_TEX_SAMPLES[0]))
+    if base_static.shape[:2] != (DEFAULT_HEIGHT, DEFAULT_WIDTH):
+        raise AssertionError(
+            f"WR-ANIM-TEX: fixture shape {base_static.shape} != "
+            f"{(DEFAULT_HEIGHT, DEFAULT_WIDTH, 3)}"
+        )
+
+    static_ndiff_max = 0
+    for f in ANIM_TEX_SAMPLES[1:]:
+        img = load_ppm(frame_path(static_dir, f))
+        static_ndiff_max = max(
+            static_ndiff_max, int(np.any(base_static != img, axis=-1).sum())
+        )
+    if static_ndiff_max != 0:
+        raise AssertionError(
+            f"WR-ANIM-TEX: unflagged run changed {static_ndiff_max} pixels"
+        )
+
+    region = np.zeros((DEFAULT_HEIGHT, DEFAULT_WIDTH), dtype=bool)
+    changed: dict[str, int] = {}
+    base_anim = load_ppm(frame_path(cpu_dir, ANIM_TEX_SAMPLES[0]))
+    for label, (x0, y0, x1, y1) in (
+        ("water", ANIM_TEX_WATER_RECT),
+        ("lava", ANIM_TEX_LAVA_RECT),
+    ):
+        region[y0:y1, x0:x1] = True
+        peak = 0
+        for f in ANIM_TEX_SAMPLES[1:]:
+            img = load_ppm(frame_path(cpu_dir, f))
+            peak = max(
+                peak,
+                int(
+                    np.any(
+                        base_anim[y0:y1, x0:x1] != img[y0:y1, x0:x1],
+                        axis=-1,
+                    ).sum()
+                ),
+            )
+        if peak < ANIM_TEX_CHANGED_MIN:
+            raise AssertionError(
+                f"WR-ANIM-TEX: {label} changed_px={peak} < "
+                f"{ANIM_TEX_CHANGED_MIN}"
+            )
+        changed[label] = peak
+
+    nonanim_ndiff_max = 0
+    for f in ANIM_TEX_SAMPLES:
+        static = load_ppm(frame_path(static_dir, f))
+        animated = load_ppm(frame_path(cpu_dir, f))
+        diff = np.any(static != animated, axis=-1)
+        nonanim_ndiff_max = max(nonanim_ndiff_max, int((diff & ~region).sum()))
+    if nonanim_ndiff_max != 0:
+        raise AssertionError(
+            f"WR-ANIM-TEX: flag changed {nonanim_ndiff_max} non-animated pixels"
+        )
+
+    metrics: dict[str, Any] = {
+        "samples": list(ANIM_TEX_SAMPLES),
+        "static_ndiff_max": static_ndiff_max,
+        "nonanim_ndiff_max": nonanim_ndiff_max,
+        "changed_px_max": changed,
+    }
+    if cuda_dir is not None and cuda_dir.is_dir():
+        require_frames(cuda_dir, ANIM_TEX_FRAMES, "WR-ANIM-TEX cuda")
+        metrics["cpu_cuda"] = check_xb_parity(
+            cpu_dir, cuda_dir, list(ANIM_TEX_SAMPLES), "WR-ANIM-TEX CPU/CUDA"
+        )
+    return metrics
+
+
 # ---------------------------------------------------------------------------
 # Scenario runner
 # ---------------------------------------------------------------------------
@@ -1117,6 +1251,13 @@ def run_scenario_check(
         )
     if name == "WR-RES-PACK":
         return check_res_pack(sc / "wr_res_pack" / "427x240", sc / "wr_res_pack" / "1280x720")
+    if name == "WR-ANIM-TEX":
+        cuda_dir = sc / "wr_anim_tex65" / "cuda"
+        return check_anim_textures(
+            sc / "wr_anim_tex65" / "static",
+            sc / "wr_anim_tex65" / "cpu",
+            cuda_dir if cuda_dir.is_dir() else None,
+        )
     raise ValueError(f"unknown scenario {name}")
 
 
@@ -1385,6 +1526,19 @@ def run_selftest(battery: Path, skip_gpu: bool) -> int:
             lambda: check_res_pack(r427, r1280),
         )
         _copy_tree(sc_src / "wr_res_pack" / "427x240", r427)
+
+    # --- animated textures: freeze every sampled flagged frame ---
+    if (sc_dst / "wr_anim_tex65" / "cpu").is_dir():
+        static = sc_dst / "wr_anim_tex65" / "static"
+        cpu = sc_dst / "wr_anim_tex65" / "cpu"
+        for i in ANIM_TEX_SAMPLES[1:]:
+            _copy_frame(cpu, ANIM_TEX_SAMPLES[0], i)
+        expect_fail(
+            "anim_textures",
+            "freeze_flagged_samples",
+            lambda: check_anim_textures(static, cpu, None),
+        )
+        _copy_tree(sc_src / "wr_anim_tex65" / "cpu", cpu)
 
     # --- xb particle shift ---
     if not skip_gpu and (sc_dst / "xb_particle60" / "cuda").is_dir():

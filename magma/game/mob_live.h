@@ -49,7 +49,8 @@ typedef struct {
     float squish_factor[EW_MAX_ENTITIES];        /* EntitySlime.squishFactor */
     unsigned char was_on_ground[EW_MAX_ENTITIES]; /* EntitySlime.wasOnGround */
     int jump_delay[EW_MAX_ENTITIES];             /* slime/magma jump cooldown */
-    int charge[EW_MAX_ENTITIES];                 /* ghast fireball charge (-40..20) */
+    int charge[EW_MAX_ENTITIES];                 /* ghast charge (-40..20); blaze AIFireballAttack.attackStep */
+    unsigned char blaze_on_fire[EW_MAX_ENTITIES]; /* EntityBlaze ON_FIRE / isCharged display bit */
     int boat_damage[EW_MAX_ENTITIES];            /* boat hit-to-break counter */
     int boat_ride;                               /* slot player rides, or -1 */
     GmSpawnerTE spawners[GM_SPAWNERS];
@@ -58,7 +59,7 @@ typedef struct {
     int player_wither_ticks;                      /* PotionEffect(WITHER, 200, 0) */
     int explosion_pending;
     double explosion_x, explosion_y, explosion_z;
-    /* Pending large fireball spawn (ghast) consumed by runtime. */
+    /* Pending fireball spawn consumed by runtime: 0=none, 3=small (blaze), 5=large (ghast). */
     int fireball_pending;
     double fireball_x, fireball_y, fireball_z;
     double fireball_vx, fireball_vy, fireball_vz;
@@ -109,6 +110,7 @@ int gm_mobs_living_count(const GmMobLive *m);
 int gm_mobs_damage_near(GmMobLive *m,double x,double y,double z,double radius,
                         float damage,GmLiveSim *drops);
 int gm_mobs_take_explosion(GmMobLive *m,double *x,double *y,double *z);
+/* Consume pending fireball. Returns kind 3 (small/blaze) or 5 (large/ghast), else 0. */
 int gm_mobs_take_fireball(GmMobLive *m,double *x,double *y,double *z,
                           double *vx,double *vy,double *vz);
 void gm_mobs_spawn_xp(GmMobLive *m,double x,double y,double z,int value);

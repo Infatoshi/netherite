@@ -1,4 +1,5 @@
 #include "game/runtime.h"
+#include "game/randtick.h"
 #include "game/sel_box.h"
 
 #include <math.h>
@@ -194,28 +195,27 @@ static void spawn_hostile_projectiles(GmRuntime *r) {
     GmPlayerView v;gm_runtime_view(r,&v);
     for(int j=1;j<EW_MAX_ENTITIES;++j){
         if (!s->alive[j]) continue;
-        /* Fire on the tick attack_time is reloaded (skeleton/blaze = 40). */
-        int reload = (s->type[j] == GM_MOB_BLAZE || s->type[j] == EW_TYPE_SKELETON)
-                     ? 40 : 0;
-        if (!reload || s->attack_time[j] != reload) continue;
+        /* Skeleton: fire on the tick attack_time is reloaded (40). Blaze small
+         * fireballs come from gm_mobs_take_fireball (AIFireballAttack pending). */
+        if (s->type[j] != EW_TYPE_SKELETON || s->attack_time[j] != 40) continue;
         for(int i=0;i<GM_RUNTIME_PROJECTILES;++i){
             GmRuntimeProjectile *p=&r->projectiles[i];if(p->active)continue;
             double sx=s->x[j],sy=s->y[j]+1.5,sz=s->z[j];
             double dx=v.x-sx,dy=(v.y+v.eye_height)-sy,dz=v.z-sz;
             double len=sqrt(dx*dx+dy*dy+dz*dz);if(len<0.001)break;
-            double speed=s->type[j]==GM_MOB_BLAZE?0.6:1.6;
-            p->active=1;p->type=s->type[j]==GM_MOB_BLAZE?3:2;p->age=0;
-            p->x=sx;p->y=sy;p->z=sz;p->vx=dx/len*speed;p->vy=dy/len*speed;p->vz=dz/len*speed;
+            p->active=1;p->type=2;p->age=0;
+            p->x=sx;p->y=sy;p->z=sz;p->vx=dx/len*1.6;p->vy=dy/len*1.6;p->vz=dz/len*1.6;
             break;
         }
     }
-    /* Ghast large fireball (EntityLargeFireball, explosionPower=1). */
+    /* Blaze small (type 3) or ghast large (type 5) fireball pending. */
     {
         for(int i=0;i<GM_RUNTIME_PROJECTILES;++i){
             GmRuntimeProjectile *p=&r->projectiles[i];if(p->active)continue;
             double x,y,z,vx,vy,vz;
-            if(gm_mobs_take_fireball(&r->mobs,&x,&y,&z,&vx,&vy,&vz)){
-                p->active=1;p->type=5;p->age=0;
+            int kind=gm_mobs_take_fireball(&r->mobs,&x,&y,&z,&vx,&vy,&vz);
+            if(kind){
+                p->active=1;p->type=kind;p->age=0;
                 p->x=x;p->y=y;p->z=z;p->vx=vx;p->vy=vy;p->vz=vz;
             }
             break;
@@ -316,13 +316,18 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     r->player.ent.onGround = 0;
     r->player.yaw = 180.0f; r->player.pitch = 0.0f;
     pv_init(&r->vitals);
+    r->gamerules = mc_gamerules_default();
+    r->gamerules.doDaylightCycle = cfg->daylight;
     gm_world_clock_init(&r->clock, cfg->seed);
     memset(&r->entities, 0, sizeof r->entities);
     gm_mobs_init(&r->mobs, cfg->seed);
     gm_fluid_init(&r->fluids);
     r->weather_enabled = cfg->weather;
-    r->clock.freeze_daylight = !cfg->daylight;
+    r->clock.freeze_daylight = !r->gamerules.doDaylightCycle;
     r->mobs_enabled = cfg->mobs;
+    /* Live random ticks on by default; script.c clears this for tape replay. */
+    r->randtick_enabled = 1;
+    r->randtick_radius = cfg->view_distance > 0 ? cfg->view_distance : 2;
     r->active_furnace = -1;
     r->active_chest = -1;
     r->tape_boat_ride_id = -1;
@@ -511,11 +516,11 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         action.attack=0;
     GmBlockEdit edits[GM_RUNTIME_MAX_EDITS];
     int n = 0;
-    gm_player_tick((struct Chunk *)r->window,
-                   (const struct McSinTable *)&r->sin_table,
-                   (struct PsvPlayer *)&r->player,
-                   (struct PvStats *)&r->vitals, action,
-                   r->ox, 0, r->oz, edits, &n, GM_RUNTIME_MAX_EDITS);
+    gm_player_tick_gr((struct Chunk *)r->window,
+                      (const struct McSinTable *)&r->sin_table,
+                      (struct PsvPlayer *)&r->player,
+                      (struct PvStats *)&r->vitals, &r->gamerules, action,
+                      r->ox, 0, r->oz, edits, &n, GM_RUNTIME_MAX_EDITS);
     /* Ghost pushers (tape replay): EntityLivingBase.collideWithNearbyEntities
      * runs right after travel, queries the UNGROWN player bb (strict
      * intersects), and each hit applies Entity.applyEntityCollision - a
@@ -581,6 +586,11 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     if (r->weather_enabled) gm_world_tick(&r->clock);
     else gm_world_tick_clear(&r->clock);
     gm_fluid_tick(&r->fluids, r->world, r->dimension, r->tick);
+    /* Random block ticks: LIVE/WINDOW only (r->randtick_enabled). Replay keeps
+     * this off; do not approximate Java's unseedable world RNG on tapes. */
+    if (r->randtick_enabled)
+        gm_randtick_pass(r->world, r->seed, r->tick, r->ccx, r->ccz,
+                         r->randtick_radius, &r->gamerules);
     if (r->mobs_enabled) {
         gm_mobs_tick(&r->mobs,r->world,(const struct McSinTable *)&r->sin_table,
                      (struct PsvPlayer *)&r->player,(struct PvStats *)&r->vitals,
@@ -1350,6 +1360,13 @@ void gm_runtime_set_time(GmRuntime *r, long long world_time) {
 void gm_runtime_set_total_time(GmRuntime *r, long long total_time) {
     if (!r) return;
     gm_world_clock_set_total_time(&r->clock, total_time);
+}
+
+void gm_runtime_set_gamerules(GmRuntime *r, const McGameRules *gamerules) {
+    if (!r || !gamerules) return;
+    r->gamerules = *gamerules;
+    r->clock.freeze_daylight = !gamerules->doDaylightCycle;
+    r->clock.freeze_weather = !gamerules->doWeatherCycle;
 }
 
 int gm_runtime_set_block(GmRuntime *r, int x, int y, int z, int id, int meta) {

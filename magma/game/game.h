@@ -303,9 +303,9 @@ typedef struct {
     i64 world_time;
     int rain_time, thunder_time;
     int raining, thundering;
-    /* doDaylightCycle off: world_time stays put while total_time (and the
-     * weather sim) keep ticking. 0 default = vanilla advance (back-compat). */
+    /* GameRules gates. Zero defaults retain the historical live-clock path. */
     int freeze_daylight;
+    int freeze_weather;
 } GmWorldClock;
 void      gm_world_clock_init(GmWorldClock *c, i64 seed);
 /* Advance one WorldServer-style weather+time tick (uses world_weather.h). */
@@ -380,10 +380,16 @@ int gm_world_mesh_chunks(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
  * pv is authoritative; init it with pv_init before the first tick. */
 struct PsvPlayer;  /* from player_survival.h */
 struct PvStats;    /* from player_vitals.h */
+struct McGameRules;/* from mc_gamerules.h */
 void gm_player_tick(struct Chunk *window, const struct McSinTable *st,
                     struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
                     int ox, int oy, int oz,
                     GmBlockEdit *edits, int *nedits, int max_edits);
+void gm_player_tick_gr(struct Chunk *window, const struct McSinTable *st,
+                       struct PsvPlayer *pl, struct PvStats *vitals,
+                       const struct McGameRules *gamerules, GmAction act,
+                       int ox, int oy, int oz,
+                       GmBlockEdit *edits, int *nedits, int max_edits);
 
 /* Fill a GmPlayerView (world coords) from a PsvPlayer whose pos is in the LOCAL frame,
  * given the block offset (ox,oz) to convert local->world. Convenience for app/main.c. */

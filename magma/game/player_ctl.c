@@ -70,7 +70,8 @@ static ICStack s_cursor;
 static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
                             int was_air, double prev_min_y,
                             double dx, double dy, double dz,
-                            int in_water_pre, int eye_water_post, int land_jump)
+                            int in_water_pre, int eye_water_post, int land_jump,
+                            const McGameRules *gamerules)
 {
     McEntity *e = &pl->ent;
 
@@ -109,7 +110,7 @@ static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
     }
     if (e->onGround) pl->fall_distance = 0.0f;
 
-    pv_on_update(vit);
+    pv_on_update_gr(vit, gamerules);
     pl->health = vit->health;
     pl->food   = (float)vit->foodLevel;
 }
@@ -290,10 +291,11 @@ static void dig_destroy(Chunk *window, PsvPlayer *pl, int hx, int hy, int hz,
               drop_id, drop_count, drop_meta);
 }
 
-void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
-                    struct PsvPlayer *pl_, struct PvStats *vitals_, GmAction act,
-                    int ox, int oy, int oz,
-                    GmBlockEdit *edits, int *nedits, int max_edits)
+void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
+                       struct PsvPlayer *pl_, struct PvStats *vitals_,
+                       const struct McGameRules *gamerules, GmAction act,
+                       int ox, int oy, int oz,
+                       GmBlockEdit *edits, int *nedits, int max_edits)
 {
     Chunk            *window = (Chunk *)window_;
     const McSinTable *st     = (const McSinTable *)st_;
@@ -806,7 +808,8 @@ use_done:
                dz = pl->ent.posZ - pre_z;
         float hp_before = vit->health;
         gm_vitals_apply(vit, pl, act, was_air, prev_min_y, dx, dy, dz,
-                        water_pre, eye_in_water(window, pl), land_jump);
+                        water_pre, eye_in_water(window, pl), land_jump,
+                        gamerules);
         if (vit->health < hp_before) {
             /* EntityTracker sends velocityChanged before the server's next
              * travel drag, so preserve this tick's shadow packet value. */
@@ -826,6 +829,16 @@ use_done:
     }
 
     *nedits = ne;
+}
+
+void gm_player_tick(struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits)
+{
+    McGameRules gamerules = mc_gamerules_default();
+    gm_player_tick_gr(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
+                      edits, nedits, max_edits);
 }
 
 /* Live inventory slotClick on the player's hotbar (slots 0..8) + cursor.

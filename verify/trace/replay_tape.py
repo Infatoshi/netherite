@@ -644,6 +644,12 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                             "value": int(header.get("total_time", 0))}) + "\n")
         f.write(json.dumps({"tick": 0, "type": "set_dimension",
                             "dimension": int(header.get("dim", 0))}) + "\n")
+        # New recorder headers carry every string-backed GameRules entry. Keep
+        # the complete object intact at the Python/C boundary: script.c honors
+        # the rules magma implements and deliberately consumes the rest.
+        if isinstance(header.get("gamerules"), dict):
+            f.write(json.dumps({"tick": 0, "type": "set_gamerules",
+                                **header["gamerules"]}) + "\n")
         if tape_has_respawn(header, ticks) and tape_is_fluid_episode(ticks):
             f.write(json.dumps({"tick": 0,
                                 "type": "continue_after_death"}) + "\n")

@@ -110,6 +110,13 @@ static int as_string(const JlField *f, const char **v) {
     return 1;
 }
 
+static int as_rule_bool(const JlField *f, int *v) {
+    if (!f) return 1;
+    if (!strcmp(f->value,"true")) { *v=1; return 1; }
+    if (!strcmp(f->value,"false")) { *v=0; return 1; }
+    return 0;
+}
+
 static int known_action_key(const char *k) {
     static const char *keys[] = {"tick","type","forward","strafe","dyaw","dpitch",
         "jump","sneak","sprint","attack","use","do_break","do_place","hotbar",
@@ -386,6 +393,9 @@ int gm_script_run(const GmConfig *cfg) {
     if (cfg->state_out_path) { out = fopen(cfg->state_out_path, "w"); if (!out) { perror("state-out"); if(in)fclose(in); return 1; } }
     GmRuntime r; char err[256];
     if (!gm_runtime_init(&r, cfg, err, sizeof err)) { fprintf(stderr,"runtime: %s\n",err); return 1; }
+    /* Tape replay: never run live random-tick engine (oracle world RNG is
+     * unseedable; terrain evolution is carried by snapshots, not re-simulated). */
+    r.randtick_enabled = 0;
     GmFrameCapture *frames=NULL;
     GmWindowCompose *window_frames=NULL;
     GmParticlesLive window_particles;
@@ -923,6 +933,28 @@ int gm_script_run(const GmConfig *cfg) {
                 }
                 gm_runtime_set_weather(&r,(int)raining,(int)thundering,
                                        (int)rain_time,(int)thunder_time);
+            } else if (!strcmp(type,"set_gamerules")) {
+                McGameRules gamerules=r.gamerules;
+                /* The recorder emits all string-backed rules. These three
+                 * currently have magma runtime mechanics; every other string
+                 * field is intentionally consumed without effect. */
+                for(int i=0;i<pending.n;++i){
+                    const JlField *rf=&pending.f[i];
+                    if(!strcmp(rf->key,"tick")||!strcmp(rf->key,"type"))continue;
+                    if(!rf->string){
+                        fprintf(stderr,"script:%ld: gamerule %s must be a string\n",
+                                line_no,rf->key);goto bad;
+                    }
+                }
+                if(!as_rule_bool(field(&pending,"naturalRegeneration"),
+                                 &gamerules.naturalRegeneration)||
+                   !as_rule_bool(field(&pending,"doDaylightCycle"),
+                                 &gamerules.doDaylightCycle)||
+                   !as_rule_bool(field(&pending,"doWeatherCycle"),
+                                 &gamerules.doWeatherCycle)){
+                    fprintf(stderr,"script:%ld: invalid honored gamerule\n",line_no);goto bad;
+                }
+                gm_runtime_set_gamerules(&r,&gamerules);
             } else if (!strcmp(type,"set_block")) {
                 long long x,y,z,id,meta;
                 static const char *const keys[]={"tick","type","x","y","z","id","meta"};
@@ -1140,7 +1172,7 @@ int gm_script_run(const GmConfig *cfg) {
             }
             gm_runtime_set_vitals(&r,(float)vitals_health,(int)vitals_food);
         }
-        if (have_regen_post) {
+        if (have_regen_post && r.gamerules.naturalRegeneration) {
             if (r.vitals.health + 1e-6f < (float)regen_health) {
                 float visible=(float)regen_health-r.vitals.health;
                 if (held_regen + 1e-6f >= visible) {

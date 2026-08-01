@@ -517,11 +517,21 @@ void gm_world_clock_init(GmWorldClock *c, i64 seed) {
     c->raining      = g_clock.ww.raining;
     c->thundering   = g_clock.ww.thundering;
     c->freeze_daylight = 0;
+    c->freeze_weather = 0;
 }
 
 void gm_world_tick(GmWorldClock *c) {
     if (!c) return;
     if (!g_clock.inited) gm_world_clock_init(c, 0);
+    /* WorldServer.updateWeather does no timer, toggle, or RNG work while
+     * doWeatherCycle is false. Time still advances under its separate rule. */
+    if (c->freeze_weather) {
+        ++c->total_time;
+        if (!c->freeze_daylight) ++c->world_time;
+        g_clock.ww.totalTime = c->total_time;
+        g_clock.ww.worldTime = c->world_time;
+        return;
+    }
     i64 wt_prev = g_clock.ww.worldTime;
     ww_tick(&g_clock.ww);
     if (c->freeze_daylight) g_clock.ww.worldTime = wt_prev;
@@ -537,10 +547,12 @@ void gm_world_tick_clear(GmWorldClock *c) {
     if (!c) return;
     ++c->total_time;
     if (!c->freeze_daylight) ++c->world_time;
-    c->rain_time = 0;
-    c->thunder_time = 0;
-    c->raining = 0;
-    c->thundering = 0;
+    if (!c->freeze_weather) {
+        c->rain_time = 0;
+        c->thunder_time = 0;
+        c->raining = 0;
+        c->thundering = 0;
+    }
 }
 
 void gm_world_clock_set_total_time(GmWorldClock *c, long long total_time) {

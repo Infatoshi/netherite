@@ -81,12 +81,14 @@ static float max_health(int type, int size) {
 }
 
 /* EntityZombie ATTACK_DAMAGE=3; pigman=5; wither skeleton base 4 + stone sword 4;
- * silverfish base 1; slime damages when size > 1 for size; magma is size + 2. */
+ * blaze=6 (EntityBlaze.applyEntityAttributes); silverfish base 1; slime damages
+ * when size > 1 for size; magma is size + 2. */
 static float melee_damage(int type, int size) {
     if (type == EW_TYPE_ENDERMAN) return 7.0f;
     if (type == EW_TYPE_ZOMBIE) return 3.0f;
     if (type == EW_TYPE_PIGMAN) return 5.0f;
     if (type == EW_TYPE_WITHER_SKELETON) return 8.0f;
+    if (type == EW_TYPE_BLAZE) return 6.0f;
     if (type == EW_TYPE_SILVERFISH) return 1.0f;
     if (type == EW_TYPE_MAGMA) {
         int s = size > 0 ? size : 1;
@@ -162,10 +164,10 @@ static double follow_range(int type) {
 
 /* EntityLiving.attackTime / AI attack cooldowns (ticks) after a landed hit
  * or ranged release. Route-roster values from 1.11.2 Entity* classes.
- * Ranged skeleton/blaze use 40 so spawn_hostile_projectiles (reload edge)
- * stays aligned with the existing fireball/arrow emit path. */
+ * Skeleton uses 40 so spawn_hostile_projectiles (reload edge) stays aligned
+ * with the arrow emit path. Blaze uses AIFireballAttack (60/6/100), not this. */
 static int attack_cooldown_ticks(int type) {
-    if (type == EW_TYPE_BLAZE) return 40;
+    if (type == EW_TYPE_BLAZE) return 20; /* AIFireballAttack melee branch */
     if (type == EW_TYPE_SKELETON) return 40;
     if (type == EW_TYPE_WITHER_SKELETON) return 20;
     if (type == EW_TYPE_GHAST) return 40;
@@ -191,6 +193,7 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->anger[slot] = 0;
     m->jump_delay[slot] = 0;
     m->charge[slot] = 0;
+    m->blaze_on_fire[slot] = 0;
     m->boat_damage[slot] = 0;
     s_boat_delta_rot[slot] = 0.0f;
     s_boat_glide[slot] = 0.8f;
@@ -552,6 +555,12 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
         s->on_ground[i] = 0;
         return;
     }
+    /* EntityBlaze.onLivingUpdate: slow fall (motionY *= 0.6 when falling).
+     * Full heightOffset hover from updateAITasks is not ported (needs its own
+     * randomized heightOffset timer); fall damping alone is the small half. */
+    if (s->type[i] == EW_TYPE_BLAZE && !liv.base.phys.onGround &&
+        liv.base.phys.motionY < 0.0)
+        liv.base.phys.motionY *= 0.6;
     float slip = 0.6f;
     if (liv.base.phys.onGround) {
         int id = gm_world_block(w, mc_floor(liv.base.phys.posX),
@@ -1142,7 +1151,11 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             }
         }
         int moving=0,jump=0,wandering=0;
-        int ranged=type==EW_TYPE_SKELETON||type==EW_TYPE_BLAZE||type==EW_TYPE_GHAST;
+        /* AIFireballAttack.resetTask: clear ON_FIRE when no target. */
+        if(!aggro&&type==EW_TYPE_BLAZE){
+            m->blaze_on_fire[i]=0;
+            m->charge[i]=0;
+        }
 
         /* Ghast AIFireballAttack: charge then fire large fireball. */
         if(aggro&&type==EW_TYPE_GHAST){
@@ -1154,21 +1167,100 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             /* Charge 20 ticks, then reset through a 40-tick cooldown. */
             if(m->charge[i]>=20 && !m->fireball_pending){
                 double len=d>0.01?d:1.0;
-                m->fireball_pending=1;
+                m->fireball_pending=5; /* EntityLargeFireball */
                 m->fireball_x=now->x[i];m->fireball_y=now->y[i]+1.5;m->fireball_z=now->z[i];
                 m->fireball_vx=dx/len*0.5;m->fireball_vy=dy/len*0.5;m->fireball_vz=dz/len*0.5;
                 m->charge[i]=-40;
             }
-        }else if(aggro&&ranged){
-            /* Skeleton/blaze: hold range. Skeleton backs off inside 6 blocks
-             * (EntityAIAttackRangedBow strafe-away); blaze holds mid range. */
+        }else if(aggro&&type==EW_TYPE_BLAZE){
+            /* EntityBlaze.AIFireballAttack.updateTask (EntityBlaze.java:252-317).
+             * attack_time = AI attackTime; charge[] = attackStep; blaze_on_fire = ON_FIRE. */
+            const double blaze_h = 1.8;
+            double d0 = d * d; /* getDistanceSqToEntity */
+            double attack_radius = follow_range(EW_TYPE_BLAZE); /* 48 */
             nx->yaw[i]=ehs_yaw_toward(dx,dz);
-            if(type==EW_TYPE_SKELETON&&xz<6.0&&xz>0.01){
+            nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
+            if(d0 < 4.0){
+                /* Melee fallback under dist 2. */
+                nx->ai_state[i]=EW_AI_ATTACK;moving=1;
+                if(nx->attack_time[i]<=0){
+                    (void)gm_mobs_attack_player(m,(struct PvStats *)v,&p->inv,
+                                                melee_damage(type,m->size[i]),0);
+                    p->health=v->health;
+                    nx->attack_time[i]=20;
+                }
+            }else if(d0 < attack_radius * attack_radius){
+                nx->ai_state[i]=EW_AI_ATTACK;
+                if(nx->attack_time[i]<=0){
+                    int step = m->charge[i] + 1;
+                    m->charge[i] = step;
+                    if(step == 1){
+                        nx->attack_time[i]=60;
+                        m->blaze_on_fire[i]=1;
+                    }else if(step <= 4){
+                        nx->attack_time[i]=6;
+                    }else{
+                        nx->attack_time[i]=100;
+                        m->charge[i]=0;
+                        m->blaze_on_fire[i]=0;
+                        step = 0;
+                    }
+                    if(step > 1){
+                        /* Aim + spread from AIFireballAttack + EntityFireball ctor. */
+                        double d1 = px - now->x[i];
+                        double d2 = (py + 0.9) - (now->y[i] + blaze_h * 0.5);
+                        double d3 = pz - now->z[i];
+                        float f = (float)(sqrt(sqrt(d0)) * 0.5);
+                        u64 h = mc_hash_seed((u64)m->seed, m->tick, i,
+                                             now->id[i], step, 0x424C415Au);
+                        /* Box-Muller pair for AIFireballAttack gaussians on d1/d3. */
+                        float u1 = mc_hash_f01(h); if(u1 < 1e-7f) u1 = 1e-7f;
+                        float u2 = mc_hash_f01(mc_hash64(h));
+                        double g1 = sqrt(-2.0 * (double)logf(u1)) *
+                                    cos(2.0 * 3.141592653589793 * (double)u2);
+                        u1 = mc_hash_f01(mc_hash64(h + 1)); if(u1 < 1e-7f) u1 = 1e-7f;
+                        u2 = mc_hash_f01(mc_hash64(h + 2));
+                        double g3 = sqrt(-2.0 * (double)logf(u1)) *
+                                    cos(2.0 * 3.141592653589793 * (double)u2);
+                        d1 += g1 * (double)f;
+                        d3 += g3 * (double)f;
+                        /* EntityFireball(shooter,...): + nextGaussian()*0.4 on each axis. */
+                        for(int k=0;k<3;++k){
+                            u1 = mc_hash_f01(mc_hash64(h + 3 + k)); if(u1 < 1e-7f) u1 = 1e-7f;
+                            u2 = mc_hash_f01(mc_hash64(h + 10 + k));
+                            double gk = sqrt(-2.0 * (double)logf(u1)) *
+                                        cos(2.0 * 3.141592653589793 * (double)u2);
+                            if(k==0) d1 += gk * 0.4;
+                            else if(k==1) d2 += gk * 0.4;
+                            else d3 += gk * 0.4;
+                        }
+                        double len = sqrt(d1*d1 + d2*d2 + d3*d3);
+                        if(len < 1e-6) len = 1.0;
+                        /* Magma projectile path uses constant velocity (not accel);
+                         * 0.6 matches prior blaze small-fireball live speed. */
+                        const double speed = 0.6;
+                        m->fireball_pending = 3; /* EntitySmallFireball */
+                        m->fireball_x = now->x[i];
+                        m->fireball_y = now->y[i] + blaze_h * 0.5 + 0.5;
+                        m->fireball_z = now->z[i];
+                        m->fireball_vx = d1 / len * speed;
+                        m->fireball_vy = d2 / len * speed;
+                        m->fireball_vz = d3 / len * speed;
+                    }
+                }
+            }else{
+                /* Beyond attack radius: close distance. */
+                nx->ai_state[i]=EW_AI_CHASE;moving=1;
+            }
+        }else if(aggro&&type==EW_TYPE_SKELETON){
+            /* EntityAIAttackRangedBow: hold range, strafe away inside 6. */
+            nx->yaw[i]=ehs_yaw_toward(dx,dz);
+            if(xz<6.0&&xz>0.01){
                 double ux=dx/xz, uz=dz/xz;
                 nx->path_tx[i]=now->x[i]-ux*4.0;nx->path_ty[i]=now->y[i];
                 nx->path_tz[i]=now->z[i]-uz*4.0;nx->path_len[i]=0;
                 nx->ai_state[i]=EW_AI_CHASE;moving=1;
-            }else if(type==EW_TYPE_SKELETON&&xz>14.0){
+            }else if(xz>14.0){
                 nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;
                 nx->path_len[i]=0;nx->ai_state[i]=EW_AI_CHASE;moving=1;
             }else{
@@ -1322,6 +1414,9 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
         out[n].item_meta=m->size[i]; /* slime/magma size for render scale */
         out[n].squish=m->squish_factor[i]; /* EntitySlime.squishFactor */
         out[n].creeper_fuse=m->creeper_fuse[i];
+        /* EntityBlaze.isBurning() == isCharged() (ON_FIRE bit during volley). */
+        if(s->type[i]==EW_TYPE_BLAZE && m->blaze_on_fire[i])
+            out[n].flags |= 1;
         ++n;
     }
     for(int i=0;i<GM_XP_ORBS&&n<max;++i){const McOrb *o=&m->xp_orbs[i];
@@ -1365,8 +1460,10 @@ int gm_mobs_take_explosion(GmMobLive *m,double *x,double *y,double *z){
 
 int gm_mobs_take_fireball(GmMobLive *m,double *x,double *y,double *z,
                           double *vx,double *vy,double *vz){
+    /* Returns pending kind: 0=none, 3=small fireball, 5=large fireball. */
     if(!m||!m->fireball_pending)return 0;
+    int kind=m->fireball_pending;
     if(x)*x=m->fireball_x;if(y)*y=m->fireball_y;if(z)*z=m->fireball_z;
     if(vx)*vx=m->fireball_vx;if(vy)*vy=m->fireball_vy;if(vz)*vz=m->fireball_vz;
-    m->fireball_pending=0;return 1;
+    m->fireball_pending=0;return kind;
 }

@@ -30,6 +30,7 @@ extern void cr_raster_cuda_frame_begin(const CrFramebuffer *) __attribute__((wea
 extern void cr_raster_cuda_frame_end(CrFramebuffer *) __attribute__((weak));
 extern void cr_raster_cuda_sky(const GmSkyCtx *, const float *, int, int)
     __attribute__((weak));
+extern void cr_raster_cuda_atlas_dirty(void) __attribute__((weak));
 extern void cr_raster_cuda_post(void) __attribute__((weak));
 
 #ifdef MAGMA_METAL
@@ -40,6 +41,7 @@ extern void cr_raster_metal_frame_begin(const CrFramebuffer *) __attribute__((we
 extern void cr_raster_metal_frame_end(CrFramebuffer *) __attribute__((weak));
 extern void cr_raster_metal_sky(const GmSkyCtx *, const float *, int, int)
     __attribute__((weak));
+extern void cr_raster_metal_atlas_dirty(void) __attribute__((weak));
 extern void cr_raster_metal_post(void) __attribute__((weak));
 #endif
 
@@ -51,6 +53,7 @@ struct GmWindowCompose {
     int max_entity_verts;
     GmBackend backend;
     int backend_open;
+    int anim_textures;
     GmRuntime *runtime;
     GmParticlesLive *particles;
     CrTexture atlas;
@@ -392,6 +395,10 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
     c->max_tris = caps->max_tris;
     c->max_entity_verts = caps->ent_max_verts;
     c->backend = cfg->backend;
+    {
+        const char *anim = getenv("MAGMA_ANIM_TEXTURES");
+        c->anim_textures = anim && !strcmp(anim, "1");
+    }
     cr_fb_alloc(&c->fb, cfg->width, cfg->height);
     c->tris = malloc((size_t)c->max_tris * sizeof *c->tris);
     c->entity_verts = malloc((size_t)c->max_entity_verts *
@@ -441,7 +448,8 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
     if (c->backend == GM_BACKEND_CUDA) {
         if (!cr_raster_cuda_pre || !cr_raster_cuda_into ||
             !cr_raster_cuda_frame_begin || !cr_raster_cuda_frame_end ||
-            !cr_raster_cuda_sky || !cr_raster_cuda_post) {
+            !cr_raster_cuda_sky || !cr_raster_cuda_atlas_dirty ||
+            !cr_raster_cuda_post) {
             set_error(err, err_cap, "CUDA window compose unavailable");
             gm_window_compose_close(c);
             return NULL;
@@ -453,7 +461,8 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
     else if (c->backend == GM_BACKEND_METAL) {
         if (!cr_raster_metal_pre || !cr_raster_metal_into ||
             !cr_raster_metal_frame_begin || !cr_raster_metal_frame_end ||
-            !cr_raster_metal_sky || !cr_raster_metal_post) {
+            !cr_raster_metal_sky || !cr_raster_metal_atlas_dirty ||
+            !cr_raster_metal_post) {
             set_error(err, err_cap, "Metal window compose unavailable");
             gm_window_compose_close(c);
             return NULL;
@@ -523,8 +532,22 @@ int gm_window_compose_draw(GmWindowCompose *c,
     GmUnderwater uw;
     gm_uw_eval(r->world, r->dimension, cpv, fog_c1, &uw);
     cam.fov_deg *= uw.fov_scale;
-    bm_atlas_set_animation_tick(r->clock.total_time);
-    bm_atlas_set_portal_frame(pv->portal_frame);
+    if (c->anim_textures) {
+        long long portal_frame = r->clock.total_time % 32;
+        if (portal_frame < 0) portal_frame += 32;
+        bm_atlas_set_animation_tick(r->clock.total_time);
+        bm_atlas_set_portal_frame((int)portal_frame);
+    } else {
+        bm_atlas_set_animation_physical_zero();
+        bm_atlas_set_portal_frame(0);
+    }
+    c->atlas = gm_world_atlas(r->world);
+    if (c->anim_textures && c->backend == GM_BACKEND_CUDA)
+        cr_raster_cuda_atlas_dirty();
+#ifdef MAGMA_METAL
+    else if (c->anim_textures && c->backend == GM_BACKEND_METAL)
+        cr_raster_metal_atlas_dirty();
+#endif
     gm_sky_set_fog_c1(fog_c1);
     gm_sky_set_eye_height(cpv->eye_height > 0.01f ? cpv->eye_height : 1.62f);
     gm_sky_set_fluid_fog(uw.fluid ? 1 : 0, uw.fog01, uw.density);

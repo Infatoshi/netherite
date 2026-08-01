@@ -533,6 +533,59 @@ int main(void) {
     }
     gm_runtime_destroy(&r);
 
+    {
+        float regen_off_health=0.0f,regen_off_saturation=0.0f;
+        cfg.mobs=0;
+        CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),
+              "gamerule-off runtime initializes");
+        if(r.world){
+            McGameRules gr=mc_gamerules_default();
+            gr.naturalRegeneration=0;
+            gr.doDaylightCycle=0;
+            gr.doWeatherCycle=0;
+            gm_runtime_set_time(&r,6000);
+            gm_runtime_set_total_time(&r,1000);
+            gm_runtime_set_weather(&r,1,1,100,200);
+            gm_runtime_set_gamerules(&r,&gr);
+            gm_runtime_set_vitals(&r,10.0f,20);
+            GmAction idle;memset(&idle,0,sizeof idle);idle.hotbar_sel=-1;
+            for(int t=0;t<11;++t)gm_runtime_tick(&r,idle);
+            regen_off_health=r.vitals.health;
+            regen_off_saturation=r.vitals.saturation;
+            CHECK(fabsf(regen_off_health-10.0f)<1e-6f&&
+                  fabsf(regen_off_saturation-5.0f)<1e-6f,
+                  "naturalRegeneration false suppresses saturated healing");
+            CHECK(r.clock.world_time==6000&&r.clock.total_time==1011,
+                  "doDaylightCycle false freezes world time only");
+            CHECK(r.clock.rain_time==100&&r.clock.thunder_time==200&&
+                  r.clock.raining&&r.clock.thundering,
+                  "doWeatherCycle false freezes weather state and timers");
+        }
+        gm_runtime_destroy(&r);
+
+        CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),
+              "gamerule-on runtime initializes");
+        if(r.world){
+            McGameRules gr=mc_gamerules_default();
+            gm_runtime_set_time(&r,6000);
+            gm_runtime_set_total_time(&r,1000);
+            gm_runtime_set_weather(&r,1,1,100,200);
+            gm_runtime_set_gamerules(&r,&gr);
+            gm_runtime_set_vitals(&r,10.0f,20);
+            GmAction idle;memset(&idle,0,sizeof idle);idle.hotbar_sel=-1;
+            for(int t=0;t<11;++t)gm_runtime_tick(&r,idle);
+            CHECK(r.vitals.health>regen_off_health+0.1f&&
+                  r.vitals.saturation<regen_off_saturation-0.1f,
+                  "naturalRegeneration true heals and consumes saturation");
+            CHECK(r.clock.world_time==6011&&r.clock.total_time==1011,
+                  "doDaylightCycle true advances world time");
+            CHECK(r.clock.rain_time!=100||r.clock.thunder_time!=200,
+                  "doWeatherCycle true advances weather timers");
+        }
+        gm_runtime_destroy(&r);
+        cfg.mobs=1;
+    }
+
     CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),"bed runtime initializes");
     if(r.world){
         isr_set_stack(&r.player.inv,0,ic_mk(355,1,0));gm_runtime_set_pose(&r,8.5,5,8.5,0,60);

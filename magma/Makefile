@@ -36,7 +36,7 @@ OBJ_ASSETS = assets/blockmodels.o
 
 # seam: playable game (verified blaze player/world tick + magma render + HUD + mobs)
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
-           game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
+           game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
 
 .PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live clean cuda test-raster-parity test-fog-radial
 all: demo
@@ -183,7 +183,7 @@ magma_game_metal: app/game_main_metal.o metal/raster_metal_host.o $(OBJ_GAME_MET
 GAME_DBG_SRCS = app/game_main.c \
                 game/config.c game/input_map.c game/world_live.c game/player_ctl.c game/hud.c \
                 game/screen.c game/player_preview.c \
-                game/entity_render.c game/particles_live.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/window_compose.c game/script.c game/rl_mode.c \
+                game/entity_render.c game/particles_live.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/randtick.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/window_compose.c game/script.c game/rl_mode.c \
                 game/overlay.c game/overlay_live.c game/sel_box.c game/fluid_live.c game/underwater.c \
                 world/mesh_mc.c world/light.c world/populate_mc.c \
                 world/world.c world/mesh.c world/blocks.c \
@@ -339,6 +339,7 @@ test-game: test-config test-block-registry test-launch assets/mob_atlas.h
 	bash game/test_script.sh
 	bash game/test_fluid_live.sh
 	bash game/test_plants_live.sh
+	bash game/test_randtick.sh
 	bash game/test_furnace_live.sh
 	bash game/test_container_live.sh
 	bash game/test_armor_live.sh

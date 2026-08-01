@@ -40,7 +40,6 @@ Simulation:
   leftover RNG, chunk-load-order dependent); replay carries it via world
   snapshots instead. This is why lava pools on Nether/elytra tapes are only
   as complete as the snapshot patch (`OPEN_DIVERGENCES.md` "Nether arrival").
-- Live blaze `AIFireballAttack` state machine not ported (replay path fixed).
 - Entity-driven world edits (crystal-explosion fire) do not replay.
 - Eating/drinking/shield use poses; absorption hearts; heart-flash blink.
 

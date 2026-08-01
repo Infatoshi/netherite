@@ -87,6 +87,29 @@ static void dig_particle_base_color(const GmWorld *world, int model_key,
     *bb = (float)(rgb & 255) / 255.0f;
 }
 
+/* Deterministic window-battery view of two sealed source-fluid basins. This
+ * is a measurement fixture only; normal worlds and the capture compositor do
+ * not enter it. */
+static void init_anim_texture_demo(GmRuntime *r)
+{
+    for (int side = 0; side < 2; ++side) {
+        int x0 = side ? 9 : 1;
+        int x1 = side ? 15 : 7;
+        int fluid = side ? 11 : 9;
+        for (int x = x0; x <= x1; ++x) {
+            for (int z = 4; z <= 10; ++z) {
+                int rim = x == x0 || x == x1 || z == 4 || z == 10;
+                gm_runtime_set_block(r, x, 3, z, 1, 0);
+                gm_runtime_set_block(r, x, 4, z, rim ? 1 : fluid, 0);
+                gm_runtime_set_block(r, x, 5, z, 0, 0);
+            }
+        }
+    }
+    for (int y = 4; y <= 7; ++y)
+        gm_runtime_set_block(r, 8, y, 16, 1, 0);
+    gm_runtime_set_pose(r, 8.5, 8.0, 16.5, 180.0f, 35.0f);
+}
+
 
 static int write_ppm(const char *path, const CrFramebuffer *fb) {
     FILE *f = fopen(path, "wb");
@@ -335,6 +358,8 @@ int main(int argc, char **argv) {
 #define oz      (runtime.oz)
 #define g_dead  (runtime.dead)
 #define g_deaths (runtime.deaths)
+    if (getenv("MAGMA_ANIM_TEXTURE_DEMO"))
+        init_anim_texture_demo(&runtime);
     int surface = gm_world_surface_y(world, 8, 8);
     if (getenv("MAGMA_FIXTURES")) gm_live_init(&live, seed, surface);
 
