@@ -1203,6 +1203,13 @@ pixel gate renders - the windowed-path blindspot class):
     output directly. The registry census covers 49 cube item ids / 769 states /
     4,614 faces; every dropped UV is bit-identical to a fresh placed-face bake.
 
+16. OPEN 2026-08-01: world spawn selection is not parity-verified. Seed 1000:
+    Java spawns the player at (159.5, 56, 242.5); magma's interactive default
+    starts at (8.5, 70, 0.3). Every pinned tape uses scripted set_pose, so no
+    gate exercises vanilla's WorldProvider spawn search (grass-block scan +
+    radius walk). Census cell; needs an oracle-vs-magma spawn-coordinate probe
+    across a seed sweep before any tape relies on unscripted spawn.
+
 Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
 unexplained px (7 clusters, largest 1463) relative to its 2026-07-29
 baseline after the night's renderer merges; physics still 351/351. Baseline
