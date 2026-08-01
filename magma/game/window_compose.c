@@ -58,6 +58,8 @@ struct GmWindowCompose {
     float hand_bob;
     int swing_ticks;
     int prev_attack;
+    float prev_attack_cooldown;
+    int attack_cooldown_initialized;
     float equip_progress;
     int equip_item;
     int equip_meta;
@@ -479,7 +481,12 @@ void gm_window_compose_advance(GmWindowCompose *c, GmPlayerView *view,
     float mv_mag = fabsf(action->forward) + fabsf(action->strafe);
     if (mv_mag > 0.01f) c->hand_bob += 0.30f * (float)nticks;
     int attack = action->attack || action->do_break;
-    int swing_arm = (attack && !c->prev_attack) || gm_player_dig_swing();
+    int cooldown_reset = c->attack_cooldown_initialized &&
+        view->attack_cooldown + 1e-6f < c->prev_attack_cooldown;
+    c->prev_attack_cooldown = view->attack_cooldown;
+    c->attack_cooldown_initialized = 1;
+    int swing_arm = (attack && !c->prev_attack) || cooldown_reset ||
+                    gm_player_dig_swing();
     c->prev_attack = attack;
     if (swing_arm && c->swing_ticks <= 3) c->swing_ticks = 6;
     float swing = c->swing_ticks > 0
