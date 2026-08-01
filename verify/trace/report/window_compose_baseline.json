@@ -6,7 +6,8 @@
     "pass order and dig-particle gate",
     "entity brightness and fog parity",
     "boss and Nether fog plus boss HUD",
-    "dimension clear colors and End sky"
+    "dimension clear colors and End sky",
+    "camera FOV multiplier"
   ],
   "capture": {
     "frames_checked": 18,

@@ -177,7 +177,7 @@ static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
     c.pos.z = v->z;
     c.yaw = gm_view_cam_yaw_rad(v->yaw);
     c.pitch = gm_view_cam_pitch_rad(v->pitch);
-    c.fov_deg = 70.0f;
+    c.fov_deg = 70.0f * (v->fov_mult > 0.01f ? v->fov_mult : 1.0f);
     c.aspect = (float)w / (float)h;
     c.znear = 0.05f;
     c.zfar = GM_TERRAIN_ZFAR;
