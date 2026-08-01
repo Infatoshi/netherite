@@ -1142,6 +1142,33 @@ and its held-creative removal in the same post-tick state; magma splits
 them across t46/t47). The 1-tick dig skew half of item 6 is absorbed by
 the same change (dig lands at Java's t20).
 
+Pixel triage 2026-08-01 (full report:
+/home/infatoshi/dev/nw/pxtriage_reports/pxtriage_20260801.md, covering the
+three state-clean rc=3 takes) yields four new tracked items:
+
+7. Dragon fireball billboard renders too bright/saturated vs the oracle's
+   muted purple (silhouette also differs). Path: entity_render.c
+   billboard for EntityDragonFireball -> item 9003 ->
+   emit_fireball_billboard() forcing light=1/blk=15/white tint. Confirmed
+   by eyeball on dragon_kill_geared 175614Z t=181..224 (17 frames, 1897
+   px). Needs an atlas-vs-lighting A/B to pick the exact fix.
+8. Recorder gap: entity rows lack prevPosX/Y/Z and limbSwing state, so
+   Java's interpolated render pose cannot be reconstructed for close-range
+   articulated mobs (silverfish 175112Z t=260, 15704 px across 10 frames;
+   ghost STATE matches exactly, only render pose diverges).
+9. Recorder gap: one-tick death-screen transition state (death timer,
+   HUD/hurt/game-over in-frame ordering) is not captured; water_dive
+   173755Z t=990 trips the global mild_shift detector with zero
+   unexplained clusters. Cosmetic-only.
+10. Oracle capture-loop artifact: dragon_kill_geared 175614Z golden frame
+    hashes REPEAT (t=14==t=32, t=16==t=34, one frame spans t=22..30 and
+    again t=40..50, recovering at t=52). Take-level recording artifact,
+    not a magma defect; re-record if this take is ever promoted.
+
+The dragon death-cloud unexplained px (17175 across t=266..474) are the
+pcl-consumption gap: the tape carries 1179 pcl spawns that replay does
+not yet consume (work in flight); take-variable until then.
+
 Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
 unexplained px (7 clusters, largest 1463) relative to its 2026-07-29
 baseline after the night's renderer merges; physics still 351/351. Baseline
