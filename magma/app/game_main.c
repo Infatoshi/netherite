@@ -58,6 +58,41 @@
 #define DEG2RAD   ((float)(M_PI / 180.0))
 #define MAX_EDITS 8
 
+/* ParticleDigging.multiplyColor: block colorMultiplier as RGB floats 0..1.
+ * Untinted and Blocks.GRASS (bm_particle_tint -> NONE) stay white so emit is
+ * byte-identical to the pre-tint 0.6*lightmap path. */
+static void dig_particle_base_color(const GmWorld *world, int model_key,
+                                    int wx, int wy, int wz,
+                                    float *br, float *bg, float *bb)
+{
+    *br = *bg = *bb = 1.0f;
+    int tint = bm_particle_tint(model_key);
+    int rgb = -1; /* vanilla: no handler -> -1 -> white when multiplied */
+    switch (tint) {
+        case BM_TINT_GRASS:
+            rgb = gm_world_grass_color(world, wx, wy, wz);
+            break;
+        case BM_TINT_FOLIAGE:
+            rgb = gm_world_foliage_color(world, wx, wy, wz);
+            break;
+        case BM_TINT_LILY:
+            rgb = 2129968; /* BlockColors WATERLILY in-world */
+            break;
+        case BM_TINT_FOLIAGE_PINE:
+            rgb = 6396257; /* ColorizerFoliage pine */
+            break;
+        case BM_TINT_FOLIAGE_BIRCH:
+            rgb = 8431445; /* ColorizerFoliage birch */
+            break;
+        default:
+            return;
+    }
+    if (rgb < 0) return;
+    *br = (float)((rgb >> 16) & 255) / 255.0f;
+    *bg = (float)((rgb >> 8) & 255) / 255.0f;
+    *bb = (float)(rgb & 255) / 255.0f;
+}
+
 /* ALLOCATE-ONCE: the screen-tri scratch cap comes from caps (magma.conf), resolved
  * once at startup into this file-static so render_layer/render_world can bound
  * cr_transform without threading it through every call. */
@@ -802,10 +837,12 @@ int main(int argc, char **argv) {
                 gm_world_sky_light(world, pwx, pwy + 1, pwz),
                 gm_world_block_light(world, pwx, pwy + 1, pwz),
                 cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+            float pbr, pbg, pbb;
+            dig_particle_base_color(world, model, pwx, pwy, pwz, &pbr, &pbg, &pbb);
             gm_particles_live_seed(&live_particles,
                 UINT64_C(0x5041525449434c45));
             int spawned = gm_particles_live_spawn_destroy(&live_particles,
-                pwx, pwy, pwz, model, plm.r, plm.g, plm.b);
+                pwx, pwy, pwz, model, plm.r, plm.g, plm.b, pbr, pbg, pbb);
             fprintf(stderr, "[particle_demo] tick=%lld block=%d,%d,%d spawned=%d\n",
                     runtime.tick, pwx, pwy, pwz, spawned);
         }
@@ -824,8 +861,11 @@ int main(int argc, char **argv) {
                     gm_world_sky_light(world, pwx, phy, pwz),
                     gm_world_block_light(world, pwx, phy, pwz),
                     cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+                float pbr, pbg, pbb;
+                dig_particle_base_color(world, model, pwx, phy, pwz,
+                                        &pbr, &pbg, &pbb);
                 gm_particles_live_spawn_destroy(&live_particles,
-                    pwx, phy, pwz, model, plm.r, plm.g, plm.b);
+                    pwx, phy, pwz, model, plm.r, plm.g, plm.b, pbr, pbg, pbb);
             }
             if (gm_player_dig_swing()) {
                 int lx = pwx, ly = phy, lz = pwz;
@@ -837,9 +877,12 @@ int main(int argc, char **argv) {
                     gm_world_sky_light(world, lx, ly, lz),
                     gm_world_block_light(world, lx, ly, lz),
                     cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+                float pbr, pbg, pbb;
+                dig_particle_base_color(world, model, pwx, phy, pwz,
+                                        &pbr, &pbg, &pbb);
                 gm_particles_live_spawn_hit(&live_particles,
                     pwx, phy, pwz, model, pface, pbounds,
-                    plm.r, plm.g, plm.b);
+                    plm.r, plm.g, plm.b, pbr, pbg, pbb);
             }
         }
         gm_particles_live_tick(&live_particles, win, ox, oz);

@@ -118,6 +118,11 @@ void bm_sprite_uv(int sprite, float *u0, float *v0, float *u1, float *v1);
  * texture). Used by ParticleDigging; not a face orientation. */
 int bm_particle_sprite(int cb_id);
 
+/* BM_TINT_* for ParticleDigging.multiplyColor (BlockColors.colorMultiplier
+ * tintIndex 0). Blocks.GRASS is forced to BM_TINT_NONE because ParticleDigging
+ * skips multiplyColor for grass (particles use the dirt icon, untinted). */
+int bm_particle_tint(int cb_id);
+
 /* Sprite index of grass_side_overlay (vanilla block/grass.json second element:
  * a biome-tinted overlay quad on each grass side face). */
 int bm_grass_side_overlay_sprite(void);

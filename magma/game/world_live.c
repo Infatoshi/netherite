@@ -246,6 +246,10 @@ int gm_world_grass_color(const GmWorld *w, int wx, int wy, int wz) {
     return w ? light_grass_color(w->light, wx, wy, wz) : 0;
 }
 
+int gm_world_foliage_color(const GmWorld *w, int wx, int wy, int wz) {
+    return w ? light_foliage_color(w->light, wx, wy, wz) : 0;
+}
+
 void gm_world_set_block(GmWorld *w, int wx, int wy, int wz, int id) {
     gm_world_set_block_meta(w, wx, wy, wz, id, 0);
 }

@@ -529,6 +529,20 @@ int bm_particle_sprite(int cb_id)
     return down;
 }
 
+/* ParticleDigging color class: any face's BM_TINT_* (block-level colorMultiplier
+ * is not face-specific), except Blocks.GRASS which never multiplies color. */
+int bm_particle_tint(int cb_id)
+{
+    if (cb_id == CB_GRASS)
+        return BM_TINT_NONE;
+    const BmBlock *m = bm_block(cb_id);
+    for (int f = 0; f < 6; ++f) {
+        if (m->face[f].tint != BM_TINT_NONE)
+            return m->face[f].tint;
+    }
+    return BM_TINT_NONE;
+}
+
 void bm_sprite_uv(int sprite, float *u0, float *v0, float *u1, float *v1)
 {
     CrAtlasSprite s;

@@ -89,7 +89,8 @@ static GmLiveParticle *pl_spawn(GmParticlesLive *live,
                                 double x, double y, double z,
                                 double speed_x, double speed_y, double speed_z,
                                 int model_key,
-                                float lm_r, float lm_g, float lm_b) {
+                                float lm_r, float lm_g, float lm_b,
+                                float base_r, float base_g, float base_b) {
     GmLiveParticle *p = pl_alloc(live);
     if (!p) return NULL;
 
@@ -121,12 +122,18 @@ static GmLiveParticle *pl_spawn(GmParticlesLive *live,
     p->lm_r = lm_r;
     p->lm_g = lm_g;
     p->lm_b = lm_b;
+    /* ParticleDigging: particleRed starts 0.6 then *= colorMultiplier/255.
+     * base_* is that multiplier (1,1,1 when untinted / Blocks.GRASS skip). */
+    p->base_r = base_r;
+    p->base_g = base_g;
+    p->base_b = base_b;
     return p;
 }
 
 int gm_particles_live_spawn_destroy(GmParticlesLive *live,
                                     int wx, int wy, int wz, int model_key,
-                                    float lm_r, float lm_g, float lm_b) {
+                                    float lm_r, float lm_g, float lm_b,
+                                    float base_r, float base_g, float base_b) {
     int spawned = 0;
     for (int ix = 0; ix < 4; ++ix) {
         for (int iy = 0; iy < 4; ++iy) {
@@ -136,7 +143,8 @@ int gm_particles_live_spawn_destroy(GmParticlesLive *live,
                 double dz = ((double)iz + 0.5) / 4.0;
                 if (pl_spawn(live, (double)wx + dx, (double)wy + dy,
                              (double)wz + dz, dx - 0.5, dy - 0.5, dz - 0.5,
-                             model_key, lm_r, lm_g, lm_b))
+                             model_key, lm_r, lm_g, lm_b,
+                             base_r, base_g, base_b))
                     spawned++;
             }
         }
@@ -147,7 +155,8 @@ int gm_particles_live_spawn_destroy(GmParticlesLive *live,
 int gm_particles_live_spawn_hit(GmParticlesLive *live,
                                 int wx, int wy, int wz, int model_key, int face,
                                 const float bounds[6],
-                                float lm_r, float lm_g, float lm_b) {
+                                float lm_r, float lm_g, float lm_b,
+                                float base_r, float base_g, float base_b) {
     static const float full[6] = { 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f };
     const float *b = bounds ? bounds : full;
     double x = (double)wx + pl_rng_double(live) *
@@ -168,7 +177,8 @@ int gm_particles_live_spawn_hit(GmParticlesLive *live,
     if (face == 5) x = (double)wx + (double)b[3] + 0.10000000149011612;
 
     GmLiveParticle *p = pl_spawn(live, x, y, z, 0.0, 0.0, 0.0,
-                                 model_key, lm_r, lm_g, lm_b);
+                                 model_key, lm_r, lm_g, lm_b,
+                                 base_r, base_g, base_b);
     if (!p) return 0;
     p->motion_x *= (double)0.2f;
     p->motion_y = (p->motion_y - 0.10000000149011612) * (double)0.2f +
@@ -313,10 +323,11 @@ int gm_particles_live_emit(const GmParticlesLive *live, float partial_ticks,
         double x = p->prev_x + (p->x - p->prev_x) * (double)partial_ticks;
         double y = p->prev_y + (p->y - p->prev_y) * (double)partial_ticks;
         double z = p->prev_z + (p->z - p->prev_z) * (double)partial_ticks;
+        /* particleRed = 0.6 * colorMul; VertexBuffer.color * lightmap. */
         CrRgba tint = {
-            (u8)(0.6f * 255.0f * pl_clamp01(p->lm_r) + 0.5f),
-            (u8)(0.6f * 255.0f * pl_clamp01(p->lm_g) + 0.5f),
-            (u8)(0.6f * 255.0f * pl_clamp01(p->lm_b) + 0.5f),
+            (u8)(0.6f * 255.0f * pl_clamp01(p->base_r) * pl_clamp01(p->lm_r) + 0.5f),
+            (u8)(0.6f * 255.0f * pl_clamp01(p->base_g) * pl_clamp01(p->lm_g) + 0.5f),
+            (u8)(0.6f * 255.0f * pl_clamp01(p->base_b) * pl_clamp01(p->lm_b) + 0.5f),
             255
         };
         written += pl_emit_billboard(x, y, z, 0.1f * p->scale,
