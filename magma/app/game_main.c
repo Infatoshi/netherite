@@ -189,9 +189,88 @@ static long long bench_now_ns(void) {
     return (long long)ts.tv_sec * 1000000000LL + (long long)ts.tv_nsec;
 }
 
-static void bench_init(int want_frames) {
+/* --- --stats on: live per-second timing stats on stderr. Piggybacks on the
+ * bench stamp slots (bench_init forces them on), so per-frame cost is the
+ * same 13 clock reads MAGMA_BENCH pays; aggregation is O(frames-per-second)
+ * once a second. gpu = the two GPU sync stages (frame_begin wait + frame_end
+ * readback: ts[4..5] + ts[9..10]); ~0 on the pure-CPU backend. cpu = frame
+ * total minus gpu. Window resets every printed second. */
+#define ST_CAP 4096
+static int       g_stats_on = 0;
+static int       g_stats_n = 0;
+static int       g_stats_dropped = 0;
+static long long g_stats_t0 = 0;
+static long long g_stats_frame_ns[ST_CAP];
+static long long g_stats_cpu_ns[ST_CAP];
+static long long g_stats_gpu_ns[ST_CAP];
+static long long g_stats_sort[ST_CAP];
+
+static void stats_init(int on) {
+    g_stats_on = on;
+    if (on) g_stats_t0 = bench_now_ns();
+}
+
+static int stats_cmp_ll(const void *a, const void *b) {
+    long long x = *(const long long *)a, y = *(const long long *)b;
+    return (x > y) - (x < y);
+}
+
+static void stats_print_line(const char *name, const long long *v, int n) {
+    long long mn = v[0], mx = v[0];
+    double sum = 0.0, sum2 = 0.0;
+    for (int i = 0; i < n; ++i) {
+        if (v[i] < mn) mn = v[i];
+        if (v[i] > mx) mx = v[i];
+        double ms = (double)v[i] / 1e6;
+        sum += ms;
+        sum2 += ms * ms;
+    }
+    memcpy(g_stats_sort, v, (size_t)n * sizeof(long long));
+    qsort(g_stats_sort, (size_t)n, sizeof(long long), stats_cmp_ll);
+    double med = (n & 1)
+        ? (double)g_stats_sort[n / 2] / 1e6
+        : ((double)g_stats_sort[n / 2 - 1] + (double)g_stats_sort[n / 2]) / 2e6;
+    double mean = sum / n;
+    double var = sum2 / n - mean * mean;
+    if (var < 0) var = 0;
+    fprintf(stderr,
+        "[stats] %-5s ms  min %7.3f  med %7.3f  mean %7.3f  max %7.3f  var %8.4f\n",
+        name, (double)mn / 1e6, med, mean, (double)mx / 1e6, var);
+}
+
+static void stats_frame_done(void) {
+    if (!g_stats_on) return;
+    long long total = g_bench_ts[BM_TS - 1] - g_bench_ts[0];
+    long long gpu = (g_bench_ts[5] - g_bench_ts[4]) +
+                    (g_bench_ts[10] - g_bench_ts[9]);
+    if (g_stats_n < ST_CAP) {
+        g_stats_frame_ns[g_stats_n] = total;
+        g_stats_gpu_ns[g_stats_n] = gpu;
+        g_stats_cpu_ns[g_stats_n] = total - gpu;
+        g_stats_n++;
+    } else {
+        g_stats_dropped++;
+    }
+    long long now = bench_now_ns();
+    double elapsed = (double)(now - g_stats_t0) / 1e9;
+    if (elapsed < 1.0) return;
+    int n = g_stats_n;
+    if (n > 0) {
+        fprintf(stderr, "[stats] fps %.2f  frames %d%s  window %.3fs\n",
+                (double)(n + g_stats_dropped) / elapsed, n + g_stats_dropped,
+                g_stats_dropped ? " (stats sampled)" : "", elapsed);
+        stats_print_line("frame", g_stats_frame_ns, n);
+        stats_print_line("cpu", g_stats_cpu_ns, n);
+        stats_print_line("gpu", g_stats_gpu_ns, n);
+    }
+    g_stats_n = 0;
+    g_stats_dropped = 0;
+    g_stats_t0 = now;
+}
+
+static void bench_init(int want_frames, int stats_on) {
     if (g_bench_on >= 0) return;
-    g_bench_on = getenv("MAGMA_BENCH") != NULL;
+    g_bench_on = getenv("MAGMA_BENCH") != NULL || stats_on;
     if (!g_bench_on) return;
     const char *wp = getenv("MAGMA_BENCH_WARMUP");
     if (wp) { long long w = atoll(wp); if (w >= 0) g_bench_warm = w; }
@@ -228,6 +307,7 @@ static void bench_record(int frame, int nticks, int ntris) {
     if (g_bench_totals && g_bench_frames_rec < g_bench_totals_cap)
         g_bench_totals[g_bench_frames_rec] = total;
     g_bench_frames_rec++;
+    stats_frame_done();
     if (g_bench_csv) {
         fprintf(g_bench_csv, "%d,%d,%d,%.3f", frame, nticks, ntris,
                 (double)total / 1000.0);
@@ -244,8 +324,10 @@ static int bench_cmp_ll(const void *a, const void *b) {
 }
 
 static void bench_report(void) {
-    if (g_bench_on <= 0) return;
+    if (g_bench_on <= 0 || !g_bench_totals) return;
     long long n = g_bench_frames_rec;
+    /* totals stop recording at the cap; never summarize past it */
+    if (n > g_bench_totals_cap) n = g_bench_totals_cap;
     long long m = g_bench_meas;   /* frames past warmup with full stats */
     if (n <= 0) return;
     long long warm = g_bench_warm;
@@ -323,7 +405,8 @@ int main(int argc, char **argv) {
     int         want_frames = cfg.frames;
     int         kill_frame  = cfg.kill_frame;
     const char *ppm_path = cfg.ppm_path;
-    bench_init(want_frames);
+    bench_init(want_frames, cfg.stats);
+    stats_init(cfg.stats);
 
     /* Transitional bridge until view distance is carried through GmWorldConfig.
      * It is still sourced from the strict argv config, never a hidden user setting. */

@@ -34,7 +34,8 @@ enum {
     SEEN_MOBS         = 1u << 23,
     SEEN_DAYLIGHT     = 1u << 24,
     SEEN_SNAPSHOT_IN  = 1u << 25,
-    SEEN_COMPOSE      = 1u << 26
+    SEEN_COMPOSE      = 1u << 26,
+    SEEN_STATS        = 1u << 27
 };
 
 static int fail(char *err, int cap, const char *fmt, ...) {
@@ -111,6 +112,7 @@ void gm_config_defaults(GmConfig *cfg) {
     cfg->frame_offset = 0;
     cfg->mobs = 1;
     cfg->daylight = 1;
+    cfg->stats = 0;
 }
 
 int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap) {
@@ -176,17 +178,20 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
             else return fail(err, err_cap, "invalid world: %s", v);
         } else if (!strcmp(a, "--villages") || !strcmp(a, "--enchanting") ||
                    !strcmp(a, "--brewing") || !strcmp(a, "--weather") ||
-                   !strcmp(a, "--mobs") || !strcmp(a, "--daylight")) {
+                   !strcmp(a, "--mobs") || !strcmp(a, "--daylight") ||
+                   !strcmp(a, "--stats")) {
             unsigned bit = !strcmp(a, "--villages") ? SEEN_VILLAGES :
                            !strcmp(a, "--enchanting") ? SEEN_ENCHANTING :
                            !strcmp(a, "--brewing") ? SEEN_BREWING :
                            !strcmp(a, "--weather") ? SEEN_WEATHER :
-                           !strcmp(a, "--daylight") ? SEEN_DAYLIGHT : SEEN_MOBS;
+                           !strcmp(a, "--daylight") ? SEEN_DAYLIGHT :
+                           !strcmp(a, "--stats") ? SEEN_STATS : SEEN_MOBS;
             int *dst = !strcmp(a, "--villages") ? &cfg->villages :
                        !strcmp(a, "--enchanting") ? &cfg->enchanting :
                        !strcmp(a, "--brewing") ? &cfg->brewing :
                        !strcmp(a, "--weather") ? &cfg->weather :
-                       !strcmp(a, "--daylight") ? &cfg->daylight : &cfg->mobs;
+                       !strcmp(a, "--daylight") ? &cfg->daylight :
+                       !strcmp(a, "--stats") ? &cfg->stats : &cfg->mobs;
             if (mark_once(&seen, bit, a, err, err_cap)) return 2;
             if (!(v = need_value(&i, argc, argv, err, err_cap))) return 2;
             if (!parse_on_off(v, dst)) return fail(err, err_cap, "%s expects on|off", a);
@@ -293,13 +298,14 @@ int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,
 void gm_config_print(FILE *out, const GmConfig *c) {
     fprintf(out,
         "seed=%lld world=%s villages=%s enchanting=%s brewing=%s weather=%s "
-        "mobs=%s daylight=%s "
+        "mobs=%s daylight=%s stats=%s "
         "render=%s compose=%s backend=%s pace=%s view_distance=%d width=%d height=%d "
         "headless=%s ticks=%d script=%s state_out=%s frames_out=%s\n",
         c->seed, c->world == GM_WORLD_DEFAULT ? "default" : "superflat",
         c->villages ? "on" : "off", c->enchanting ? "on" : "off",
         c->brewing ? "on" : "off", c->weather ? "on" : "off",
         c->mobs ? "on" : "off", c->daylight ? "on" : "off",
+        c->stats ? "on" : "off",
         c->render == GM_RENDER_WINDOW ? "window" : "off",
         c->compose == GM_COMPOSE_CAPTURE ? "capture" : "window",
         c->backend == GM_BACKEND_CPU ? "cpu" :
@@ -323,6 +329,7 @@ void gm_config_print_usage(FILE *out, const char *argv0) {
         "  --weather on|off             optional weather bundle\n"
         "  --daylight on|off            doDaylightCycle (off = frozen clock)\n"
         "  --mobs on|off                mob spawning + AI (default on)\n"
+        "  --stats on|off               per-second frame timing stats to stderr\n"
         "  --render window|off          presentation mode\n"
         "  --compose capture|window     headless frame compositor (default capture)\n"
         "  --backend cpu|cuda|metal     raster backend\n"

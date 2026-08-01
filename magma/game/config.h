@@ -25,6 +25,9 @@ typedef struct {
      * the recorded oracle session ran with doMobSpawning=false: magma's spawn
      * RNG cannot match the oracle's, and phantom mobs corrupt the replay. */
     int mobs;
+    /* Live per-second frame timing stats on stderr (--stats on). Window loop
+     * only; piggybacks on the MAGMA_BENCH stamp slots, no sim state touched. */
+    int stats;
     GmRenderMode render;
     GmComposeMode compose;
     GmBackend backend;
