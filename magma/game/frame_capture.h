@@ -3,6 +3,7 @@
 
 #include "game/runtime.h"
 #include "game/entity_render.h"
+#include "game/underwater.h"
 
 typedef struct GmFrameCapture GmFrameCapture;
 
@@ -30,5 +31,10 @@ void gm_frame_entities_light(GmEntityView *ents, int n, GmWorld *world,
  * BossInfo createFog is latched; shared by capture and window composition. */
 void gm_frame_world_fog_params(int dimension, int boss_fog, int *enabled,
                                float *fog_start, float *fog_end);
+
+/* EntityRenderer.updateFogColor clear/view-fog color, including Nether and
+ * End provider formulas and the eye-in-fluid override. */
+CrRgba gm_frame_clear_color(float time_of_day, int dimension, float fog_c1,
+                            const GmUnderwater *uw);
 
 #endif

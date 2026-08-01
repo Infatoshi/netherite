@@ -129,10 +129,9 @@ static int render_layer(GmWindowCompose *c, const CrCamera *cam,
 
 static int render_world(GmWindowCompose *c, const CrCamera *cam,
                         const GmMeshView *mv, const CrTexture *atlas,
-                        float time_of_day, int dimension, int boss_fog,
+                        CrRgba fog, int dimension, int boss_fog,
                         const GmUnderwater *uw, const CrRgba *lm) {
     int fon;
-    CrRgba fog = gm_terrain_fog_color(time_of_day);
     float fst, fen;
     gm_frame_world_fog_params(dimension, boss_fog, &fon, &fst, &fen);
 #define TSH(at, ly, bl) { .atlas = atlas, .fog_color = fog,                  \
@@ -420,26 +419,28 @@ int gm_window_compose_draw(GmWindowCompose *c,
     const GmPlayerView *pv = frame->view;
     const GmPlayerView *cpv = frame->camera_view;
     CrCamera cam = camera_for(cpv, c->fb.w, c->fb.h);
+    float fog_c1 = gm_uw_fog_c1_seed(r->world, r->dimension,
+                                      cpv->x, cpv->y, cpv->z);
     GmUnderwater uw;
-    {
-        float c1 = gm_uw_fog_c1_seed(r->world, r->dimension,
-                                     cpv->x, cpv->y, cpv->z);
-        gm_uw_eval(r->world, r->dimension, cpv, c1, &uw);
-    }
+    gm_uw_eval(r->world, r->dimension, cpv, fog_c1, &uw);
     cam.fov_deg *= uw.fov_scale;
     bm_atlas_set_animation_tick(r->clock.total_time);
+    gm_sky_set_fog_c1(fog_c1);
     gm_sky_set_eye_height(cpv->eye_height > 0.01f ? cpv->eye_height : 1.62f);
     gm_sky_set_fluid_fog(uw.fluid ? 1 : 0, uw.fog01, uw.density);
     stamp(frame, 3);
 
-    const CrRgba sky = {135, 206, 235, 255};
-    cr_fb_clear(&c->fb, uw.fluid ? uw.fog_rgba : sky);
     long long day_tick = r->clock.world_time % 24000LL;
     if (day_tick < 0) day_tick += 24000LL;
     float day = (float)day_tick / 24000.0f;
+    CrRgba clear = gm_frame_clear_color(day, r->dimension, fog_c1, &uw);
+    cr_fb_clear(&c->fb, clear);
     int gpu_sky = c->backend != GM_BACKEND_CPU && r->dimension == 0 &&
                   !getenv("MAGMA_CPU_SKY");
-    if (!gpu_sky) gm_sky_draw(&c->fb, &cam, day);
+    if (!gpu_sky) {
+        if (r->dimension == 0) gm_sky_draw(&c->fb, &cam, day);
+        else if (r->dimension == 1) gm_end_sky_draw(&c->fb, &cam);
+    }
     stamp(frame, 4);
     if (c->backend == GM_BACKEND_CUDA) {
         cr_raster_cuda_frame_begin(&c->fb);
@@ -473,7 +474,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
         gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time, c->lm_lut);
         lm = c->lm_lut;
     }
-    int ntris = render_world(c, &cam, &mv, &c->atlas, day, r->dimension,
+    int ntris = render_world(c, &cam, &mv, &c->atlas, clear, r->dimension,
                              c->boss_latch, &uw, lm);
     stamp(frame, 7);
 
@@ -488,7 +489,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
                                 c->entity_verts + nv,
                                 c->max_entity_verts - nv);
         CrTexture eatlas = gm_entity_atlas();
-        CrRgba fog = sky;
+        CrRgba fog = clear;
         CrShadeCtx esh = {0};
         esh.atlas = &eatlas;
         esh.fog_color = fog;
@@ -610,7 +611,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
     int overlay = (frame->interactive || getenv("MAGMA_OVERLAY_DUMP")) &&
                   !frame->screen_open && !r->dead &&
                   !getenv("MAGMA_NO_OVERLAY");
-    if (overlay) render_selection(c, &cam, sky);
+    if (overlay) render_selection(c, &cam, clear);
     {
         int nv = gm_particles_live_emit(c->particles, frame->partial_ticks,
                                         cpv->yaw, cpv->pitch,
@@ -619,14 +620,14 @@ int gm_window_compose_draw(GmWindowCompose *c,
         if (nv > 0) {
             CrShadeCtx dig = {0};
             dig.atlas = &c->atlas;
-            dig.fog_color = sky;
+            dig.fog_color = clear;
             dig.alpha_test = 1;
             dig.layer = CR_LAYER_CUTOUT;
             apply_fluid_fog(&dig, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &dig);
         }
     }
-    if (overlay) render_crack(c, &cam, sky);
+    if (overlay) render_crack(c, &cam, clear);
     stamp(frame, 9);
     if (c->backend == GM_BACKEND_CUDA)
         cr_raster_cuda_frame_end(&c->fb);

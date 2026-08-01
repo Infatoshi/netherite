@@ -344,6 +344,26 @@ void gm_frame_world_fog_params(int dimension, int boss_fog, int *enabled,
     *fog_end = dense ? GM_TERRAIN_FOG_FAR * 0.5f : GM_TERRAIN_FOG_END;
 }
 
+CrRgba gm_frame_clear_color(float time_of_day, int dimension, float fog_c1,
+                            const GmUnderwater *uw) {
+    CrRgba clear = gm_terrain_fog_color(time_of_day);
+    if (dimension == -1) {
+        clear.r = (u8)(0.20f * fog_c1 * 255.0f + 0.5f);
+        clear.g = (u8)(0.03f * fog_c1 * 255.0f + 0.5f);
+        clear.b = (u8)(0.03f * fog_c1 * 255.0f + 0.5f);
+        clear.a = 255;
+    } else if (dimension == 1) {
+        float blend = 1.0f - powf(
+            0.25f + 0.75f * (GM_TERRAIN_FOG_FAR / 16.0f) / 32.0f, 0.25f);
+        clear.r = (u8)(0.09411765f * (1.0f - blend) * fog_c1 * 255.0f + 0.5f);
+        clear.g = (u8)(0.07529412f * (1.0f - blend) * fog_c1 * 255.0f + 0.5f);
+        clear.b = (u8)(0.09411765f * (1.0f - blend) * fog_c1 * 255.0f + 0.5f);
+        clear.a = 255;
+    }
+    if (uw && uw->fluid) clear = uw->fog_rgba;
+    return clear;
+}
+
 static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
                            int boss_fog, const CrRgba *lm,
                            const GmUnderwater *uw, CrShadeCtx shade[4]) {
@@ -858,26 +878,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     gm_sky_set_fluid_fog(uw.fluid?1:0,uw.fog01,uw.density);
     /* clearColor = updateFogColor result (view fog * fogColor1). Fluid path
      * already bakes fog_c1 into uw.fog_rgba. */
-    CrRgba clear=gm_terrain_fog_color(day);
-    if(r->dimension==-1){
-        clear.r=(u8)(0.20f*c->fog_c1*255.0f+0.5f);
-        clear.g=(u8)(0.03f*c->fog_c1*255.0f+0.5f);
-        clear.b=(u8)(0.03f*c->fog_c1*255.0f+0.5f);
-        clear.a=255;
-    }else if(r->dimension==1){
-        /* updateFogColor, End: WorldProviderEnd.getFogColor is constant
-         * (0.627451,0.5019608,0.627451)*0.15 (its celestial-angle term
-         * clamps to 0 at the fixed angle 0.5), then blended
-         * f = 1 - pow(0.25 + 0.75*rd/32, 0.25) toward the sky color, which
-         * is BLACK in the End (getSkyColor's cos(angle*2pi)*2+0.5 clamps to
-         * 0), then scaled by fogColor1 like every dimension. */
-        float bf=1.0f-powf(0.25f+0.75f*(GM_TERRAIN_FOG_FAR/16.0f)/32.0f,0.25f);
-        clear.r=(u8)(0.09411765f*(1.0f-bf)*c->fog_c1*255.0f+0.5f);
-        clear.g=(u8)(0.07529412f*(1.0f-bf)*c->fog_c1*255.0f+0.5f);
-        clear.b=(u8)(0.09411765f*(1.0f-bf)*c->fog_c1*255.0f+0.5f);
-        clear.a=255;
-    }
-    if(uw.fluid)clear=uw.fog_rgba;
+    CrRgba clear=gm_frame_clear_color(day,r->dimension,c->fog_c1,&uw);
     cr_fb_clear(&c->fb,clear);
     if(r->dimension==0&&c->use_cuda&&cr_raster_cuda_sky&&!getenv("MAGMA_CPU_SKY")){
         /* sky on the GPU: upload the cleared fb, then the kernel fills every
