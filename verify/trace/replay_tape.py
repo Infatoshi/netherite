@@ -1494,6 +1494,8 @@ def main():
                          " macOS only, see magma/VERIFY.md Metal section)")
     ap.add_argument("--no-gate", action="store_true",
                     help="skip the structural pixel gate (pixel_gate.py)")
+    ap.add_argument("--window-compose", action="store_true",
+                    help="render frames through the interactive window compositor")
     args = ap.parse_args()
     # CUDA raster is the flywheel default (12k tape: 9.2 s vs 43 s CPU,
     # identical verdicts); --cpu forces the software path; --metal is the
@@ -1594,12 +1596,14 @@ def main():
                                   frame_every=every, frame_offset=offset,
                                   mobs=False, backend=backend, daylight=False,
                                   world=world,
+                                  compose="window" if args.window_compose else "capture",
                                   extra_env=replay_env or None)
         else:
             ol.run_magma_script(scr, len(ticks), None, state,
                                   w=args.w, h=args.h,
                                   seed=int(header["seed"]), mobs=False,
                                   daylight=False, world=world,
+                                  compose="window" if args.window_compose else "capture",
                                   extra_env=replay_env or None)
     except RuntimeError as e:
         # A dead magma player stops consuming script events and the run exits

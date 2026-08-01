@@ -31,6 +31,7 @@
 #include "game/script.h"
 #include "game/rl_mode.h"
 #include "game/frame_capture.h"  /* gm_frame_lightmap_fill: shared updateLightmap LUT */
+#include "game/window_compose.h"
 #include "game/view.h"
 #include "game/overlay.h"        /* selection outline + dig crack decal geometry */
 #include "game/sel_box.h"        /* vanilla per-block selection bounding boxes */
@@ -52,15 +53,8 @@
 #include "world/mesh_mc.h"
 #include "world/lightmap.h"
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-#define DEG2RAD   ((float)(M_PI / 180.0))
-#define MAX_EDITS 8
-
-/* ParticleDigging.multiplyColor: block colorMultiplier as RGB floats 0..1.
- * Untinted and Blocks.GRASS (bm_particle_tint -> NONE) stay white so emit is
- * byte-identical to the pre-tint 0.6*lightmap path. */
+/* ParticleDigging multiplyColor: block color multiplier for live dig
+ * particles (grass exception handled in bm_particle_tint). */
 static void dig_particle_base_color(const GmWorld *world, int model_key,
                                     int wx, int wy, int wz,
                                     float *br, float *bg, float *bb)
@@ -93,135 +87,6 @@ static void dig_particle_base_color(const GmWorld *world, int model_key,
     *bb = (float)(rgb & 255) / 255.0f;
 }
 
-/* ALLOCATE-ONCE: the screen-tri scratch cap comes from caps (magma.conf), resolved
- * once at startup into this file-static so render_layer/render_world can bound
- * cr_transform without threading it through every call. */
-static int g_max_tris = CR_DEF_MAX_TRIS;
-
-/* CUDA raster wiring (only compiled into magma_game_cuda, built by `make
- * game-cuda` with -DMAGMA_CUDA and cuda/raster_cuda.o + -lcudart). The default
- * `make game` is pure gcc: MAGMA_CUDA is undefined, g_use_cuda is a const 0,
- * and none of the cr_raster_cuda_* symbols are referenced, so nothing changes. */
-#ifdef MAGMA_CUDA
-extern void cr_raster_cuda_pre(int w, int h, int max_tris);
-extern void cr_raster_cuda_into(CrFramebuffer *fb, const CrScreenTri *tris,
-                                int ntris, const CrShadeCtx *sh);
-extern void cr_raster_cuda_frame_begin(const CrFramebuffer *fb);
-extern void cr_raster_cuda_frame_end(CrFramebuffer *fb);
-extern void cr_raster_cuda_sky(const GmSkyCtx *sc, const float *basis,
-                               int W, int H);
-extern void cr_raster_cuda_post(void);
-static int g_use_cuda = 0;   /* runtime switch: --backend cuda / legacy --cuda */
-#else
-static const int g_use_cuda __attribute__((unused)) = 0;  /* CPU build: referenced only under MAGMA_CUDA */
-#endif
-
-/* Metal raster wiring (only compiled into magma_game_metal, built by `make
- * game-metal` with -DMAGMA_METAL and metal/raster_metal_host.o; macOS only).
- * Mirrors the CUDA seam above 1:1: same signatures, s/cuda/metal/. The default
- * `make game` leaves MAGMA_METAL undefined and references no metal symbol. */
-#ifdef MAGMA_METAL
-extern void cr_raster_metal_pre(int w, int h, int max_tris);
-extern void cr_raster_metal_into(CrFramebuffer *fb, const CrScreenTri *tris,
-                                 int ntris, const CrShadeCtx *sh);
-extern void cr_raster_metal_frame_begin(const CrFramebuffer *fb);
-extern void cr_raster_metal_frame_end(CrFramebuffer *fb);
-extern void cr_raster_metal_sky(const GmSkyCtx *sc, const float *basis,
-                                int W, int H);
-extern void cr_raster_metal_post(void);
-static int g_use_metal = 0;  /* runtime switch: --backend metal */
-#endif
-
-/* Raster one concatenated per-layer vertex buffer once (normal backface cull;
- * unlike the GL-parity candidate we do NOT double windings). The CUDA path
- * (cr_raster_cuda_into, alloc-once) is bit-identical to cr_raster_cpu. */
-static int render_layer(CrFramebuffer *fb, const CrCamera *cam,
-                         const CrVertex *verts, int nv,
-                         CrScreenTri *tris, const CrShadeCtx *sh) {
-    if (nv < 3) return 0;
-    int ntris = cr_transform(verts, nv, NULL, 0, cam, fb->w, fb->h, tris, g_max_tris);
-    if (ntris > 0) {
-#ifdef MAGMA_CUDA
-        if (g_use_cuda) cr_raster_cuda_into(fb, tris, ntris, sh);
-        else            cr_raster_cpu(fb, tris, ntris, sh);
-#elif defined(MAGMA_METAL)
-        if (g_use_metal) cr_raster_metal_into(fb, tris, ntris, sh);
-        else             cr_raster_cpu(fb, tris, ntris, sh);
-#else
-        cr_raster_cpu(fb, tris, ntris, sh);
-#endif
-    }
-    return ntris;
-}
-
-/* Draw the 4 terrain layers in MC order with the state that produced the rung-3/4
- * match (see verify/chunk_candidate.c): alpha test on cutouts, mips on
- * CUTOUT_MIPPED, blend on TRANSLUCENT. MC terrain fog (setupFog(0): linear 96->128,
- * updateFogColor noon color; see game/sky.h) DEFAULT ON; MAGMA_FOG=0 disables. */
-static int render_world(CrFramebuffer *fb, const CrCamera *cam, const GmMeshView *mv,
-                         const CrTexture *atlas, CrScreenTri *tris, float time_of_day,
-                         const GmUnderwater *uw, const CrRgba *lm) {
-    int    fon = gm_terrain_fog_enabled();
-    CrRgba fog = gm_terrain_fog_color(time_of_day);
-    const float fst = GM_TERRAIN_FOG_START, fen = GM_TERRAIN_FOG_END;
-    /* Designated, NOT positional - see terrain_shades() in frame_capture.c:
-     * the old positional forms predate CrShadeCtx.alpha_ref and shifted the
-     * fog flag into alpha_ref, killing every CUTOUT texel. */
-#define TSH(at, ly, bl) { .atlas = atlas, .fog_color = fog,                  \
-                          .fog_start = fst, .fog_end = fen,                  \
-                          .alpha_test = (at), .enable_fog = fon,             \
-                          .layer = (ly), .blend = (bl) }
-    CrShadeCtx sh_solid = TSH(0, CR_LAYER_SOLID,         0);
-    /* mips off: oracle profiles pin mipmapLevels:0 */
-    CrShadeCtx sh_cmip  = TSH(1, CR_LAYER_CUTOUT_MIPPED, 0);
-    sh_cmip.depth_lequal = 1;  /* coplanar grass_side_overlay (GL_LEQUAL) */
-    CrShadeCtx sh_cut   = TSH(1, CR_LAYER_CUTOUT,        0);
-    CrShadeCtx sh_trans = TSH(0, CR_LAYER_TRANSLUCENT,   1);
-#undef TSH
-    /* lightmap mode (worldmc): meshes carry raw sky/blk lightmap coords, so
-     * every terrain ctx must bind the frame's updateLightmap texels exactly
-     * like frame_capture.c terrain_shades(); a NULL binding shades garbage. */
-    sh_solid.lightmap = lm;
-    sh_cmip.lightmap  = lm;
-    sh_cut.lightmap   = lm;
-    sh_trans.lightmap = lm;
-    if (uw && uw->fluid) {
-        /* setupFog fluid branch: GL_EXP over every terrain layer. */
-        CrShadeCtx *all[4] = { &sh_solid, &sh_cmip, &sh_cut, &sh_trans };
-        for (int i = 0; i < 4; ++i) {
-            all[i]->fog_color = uw->fog_rgba;
-            all[i]->fog_exp_density = uw->density;
-        }
-    }
-    int t = 0;
-    t += render_layer(fb, cam, mv->verts[0], mv->nverts[0], tris, &sh_solid);
-    t += render_layer(fb, cam, mv->verts[1], mv->nverts[1], tris, &sh_cmip);
-    t += render_layer(fb, cam, mv->verts[2], mv->nverts[2], tris, &sh_cut);
-    t += render_layer(fb, cam, mv->verts[3], mv->nverts[3], tris, &sh_trans);
-    return t;
-}
-
-/* Camera from the player view. player yaw/pitch are MC degrees; game/view.h owns
- * the pixel-verified conversion (magma_yaw = 180 - mc_yaw, magma_pitch =
- * -mc_pitch). The old (mc_yaw - 180) form agreed at spawn yaw 180 but X-mirrored
- * the view at every other yaw, so walking stopped tracking the look direction
- * once the player turned. */
-static CrCamera cam_from_view(const GmPlayerView *pv, int fb_w, int fb_h) {
-    CrCamera c;
-    c.pos.x = pv->x;
-    c.pos.y = pv->y + pv->eye_height;
-    c.pos.z = pv->z;
-    c.yaw   = gm_view_cam_yaw_rad(pv->yaw);
-    c.pitch = gm_view_cam_pitch_rad(pv->pitch);
-    c.fov_deg = 70.0f;
-    c.aspect  = (float)fb_w / (float)fb_h;
-    c.znear   = 0.05f;
-    /* EntityRenderer.setupCameraTransform: far = RD*16 * sqrt(2). */
-    c.zfar    = GM_TERRAIN_ZFAR;
-    c.hurt_yaw_deg = pv->hurt_yaw;
-    c.hurt_roll_deg = gm_view_hurt_roll_deg(pv->hurt_time, pv->max_hurt_time);
-    return c;
-}
 
 static int write_ppm(const char *path, const CrFramebuffer *fb) {
     FILE *f = fopen(path, "wb");
@@ -412,13 +277,6 @@ int main(int argc, char **argv) {
     const char *ppm_path = cfg.ppm_path;
     bench_init(want_frames);
 
-#ifdef MAGMA_CUDA
-    g_use_cuda = cfg.backend == GM_BACKEND_CUDA;
-#endif
-#ifdef MAGMA_METAL
-    g_use_metal = cfg.backend == GM_BACKEND_METAL;
-#endif
-
     /* Transitional bridge until view distance is carried through GmWorldConfig.
      * It is still sourced from the strict argv config, never a hidden user setting. */
     {
@@ -442,27 +300,18 @@ int main(int argc, char **argv) {
                 cfg.view_distance, caps->view_radius);
         return 2;
     }
-    g_max_tris = caps->max_tris;
-    const int ent_max_verts = caps->ent_max_verts;
-
     if (cfg.rl) return gm_rl_run(&cfg);
     if (cfg.headless) return gm_script_run(&cfg);
 
-    /* --- framebuffer + scratch (all sized from caps, allocated once here) --- */
-    CrFramebuffer fb; cr_fb_alloc(&fb, fb_w, fb_h);
-    CrScreenTri *tris = (CrScreenTri *)malloc((size_t)caps->max_tris * sizeof(CrScreenTri));
-    CrVertex    *ent_verts = (CrVertex *)malloc((size_t)ent_max_verts * sizeof(CrVertex));
-    if (!fb.color || !tris || !ent_verts) { fprintf(stderr, "alloc failed\n"); return 1; }
-
-#ifdef MAGMA_CUDA
-    /* ALLOCATE-ONCE: cudaMalloc the device framebuffer + tri buffer + shade-ctx
-     * ONCE here, sized from caps (fb w*h, max_tris). Every frame only memcpys
-     * up/down and launches; no per-frame cudaMalloc. Freed at exit. */
-    if (g_use_cuda) cr_raster_cuda_pre(fb_w, fb_h, caps->max_tris);
-#elif defined(MAGMA_METAL)
-    /* ALLOCATE-ONCE: same contract as the CUDA pre, on the Metal device. */
-    if (g_use_metal) cr_raster_metal_pre(fb_w, fb_h, caps->max_tris);
-#endif
+    /* --- persistent window compositor + framebuffer/scratch --- */
+    GmWindowCompose *compose = gm_window_compose_open(
+        &cfg, cfg_err, sizeof cfg_err);
+    if (!compose) {
+        fprintf(stderr, "window compose: %s\n", cfg_err);
+        return 1;
+    }
+    CrFramebuffer *window_fb = gm_window_compose_framebuffer(compose);
+#define fb (*window_fb)
 
     /* One owned simulation state and one authoritative transition. The macros keep
      * the rendering code readable while making every gameplay field part of runtime. */
@@ -470,6 +319,7 @@ int main(int argc, char **argv) {
     char runtime_err[256];
     if (!gm_runtime_init(&runtime, &cfg, runtime_err, sizeof runtime_err)) {
         fprintf(stderr, "error: %s\n", runtime_err);
+        gm_window_compose_close(compose);
         return 1;
     }
 #define world   (runtime.world)
@@ -518,18 +368,17 @@ int main(int argc, char **argv) {
                 s1.item, s1.count, (cur.item == 0 || cur.count <= 0));
     }
 
-    CrTexture atlas = gm_world_atlas(world);
     GmParticlesLive live_particles;
     gm_particles_live_init(&live_particles,
         (uint64_t)seed ^ UINT64_C(0x7061727469636c65));
     const int particle_demo = getenv("MAGMA_PARTICLE_DEMO") != NULL;
     gm_input_reset();
     gm_hud_init();
+    gm_window_compose_bind(compose, &runtime, &live_particles);
 
     CrWindow *cwin = cr_window_open(fb_w, fb_h, "magma - game");
     if (!cwin) { fprintf(stderr, "cr_window_open failed\n"); return 1; }
 
-    const CrRgba sky = {135, 206, 235, 255};
     int frame = 0, running = 1;
 
     /* ---- 20 TPS tick accumulator + render interpolation (Timer.java port) ----
@@ -565,15 +414,6 @@ int main(int argc, char **argv) {
      * a GmAction.inv_click through the SAME authoritative tick as headless play. */
     int screen_open = 0, prev_e = 0, prev_q_screen = 0;
     int mouse_x = fb_w / 2, mouse_y = fb_h / 2;
-
-    /* first-person hand animation state (game/hand.c). bob_phase advances while
-     * the player moves (subtle viewmodel bob); swing_prog runs 0->1 over a short
-     * window on a left-click attack, mirroring MC's swingProgress. */
-    float hand_bob = 0.0f;
-    int   swing_ticks = 0;            /* frames remaining in the current swing */
-    int   prev_atk = 0;               /* attack held last tick (clickMouse edge) */
-    GmHudState hud_state = {0};
-    const int SWING_LEN = 6;         /* MC swings the arm over ~6 ticks */
 
     /* MEASUREMENT hooks (env-gated, no effect on a normal run):
      *  - ALLOCTRACK: per-frame allocation tripwire via trace/alloctrack.so
@@ -900,7 +740,7 @@ int main(int argc, char **argv) {
         }
 
         GmPlayerView pv; gm_runtime_view(&runtime, &pv);
-        gm_hud_state_step(&hud_state, &pv, runtime.tick);
+        gm_window_compose_advance(compose, &pv, &act, nticks);
         /* camera view: headless keeps partial_ticks pinned at 1.0 and renders the
          * CURRENT state (byte-identical to the pre-timer loop); interactive lerps
          * prev->cur by renderPartialTicks, exactly Entity prevPos + (pos-prev)*pt
@@ -913,351 +753,42 @@ int main(int argc, char **argv) {
             cpv.yaw   = prev_yaw   + (pl.yaw   - prev_yaw)   * partial_ticks;
             cpv.pitch = prev_pitch + (pl.pitch - prev_pitch) * partial_ticks;
         }
-        CrCamera cam = cam_from_view(&cpv, fb_w, fb_h);
-        /* eye-in-fluid state (fog / FOV / overlay - game/underwater.h). The
-         * interactive path uses the steady-state fogColor1 (no per-tick
-         * smoother history; visual-only). */
-        GmUnderwater uw;
-        {
-            float c1 = gm_uw_fog_c1_seed(world, runtime.dimension,
-                                         cpv.x, cpv.y, cpv.z);
-            gm_uw_eval(world, runtime.dimension, &cpv, c1, &uw);
+        GmWindowComposeFrame compose_frame = {
+            .view = &pv,
+            .camera_view = &cpv,
+            .partial_ticks = partial_ticks,
+            .interactive = want_frames < 0,
+            .screen_open = screen_open,
+            .mouse_x = mouse_x,
+            .mouse_y = mouse_y,
+            .stamp = bench_stamp,
+        };
+        GmWindowComposeStats compose_stats;
+        if (!gm_window_compose_draw(compose, &compose_frame, &compose_stats,
+                                    cfg_err, sizeof cfg_err)) {
+            fprintf(stderr, "window compose: %s\n", cfg_err);
+            running = 0;
+            break;
         }
-        cam.fov_deg *= uw.fov_scale;   /* getFOVModifier: 60/70 in water */
-        bm_atlas_set_animation_tick(g_clock.total_time);
-        gm_sky_set_eye_height(cpv.eye_height > 0.01f ? cpv.eye_height : 1.62f);
-        gm_sky_set_fluid_fog(uw.fluid ? 1 : 0, uw.fog01, uw.density);
-        bench_stamp(3);
-
-        /* ---- render: real MC sky (gradient + sun/moon + clouds), terrain, mobs, HUD ----
-         * gm_sky_draw fills every far-depth pixel, replacing the flat cr_fb_clear; it also
-         * clears depth to far so the terrain z-tests correctly on top. time_of_day 0.25 = noon. */
-        cr_fb_clear(&fb, uw.fluid ? uw.fog_rgba : sky);  /* clears depth=far; color is overwritten by the sky */
-        long long day_tick=g_clock.world_time%24000LL;
-        if(day_tick<0)day_tick+=24000LL;
-        float day=(float)day_tick/24000.0f;
-        /* GPU sky (windowed CUDA, overworld): the host per-pixel gm_sky_draw is
-         * ~35 ms at 1080p - co-dominant with raster. Skip it and run k_sky on
-         * the uploaded cleared fb instead (same kernel+ctx the frame_capture
-         * path already uses; day frames bit-identical, night star pixels can
-         * differ by device sinf in hash21 <=0.012%/frame). MAGMA_CPU_SKY
-         * forces the host loop for A/B. */
-        int gpu_sky = 0;
-#ifdef MAGMA_CUDA
-        gpu_sky = g_use_cuda && runtime.dimension == 0 && !getenv("MAGMA_CPU_SKY");
-#elif defined(MAGMA_METAL)
-        gpu_sky = g_use_metal && runtime.dimension == 0 && !getenv("MAGMA_CPU_SKY");
-#endif
-        if (!gpu_sky) gm_sky_draw(&fb, &cam, day);
-        bench_stamp(4);
-        /* CUDA: upload the (sky- or clear-filled) fb ONCE, keep it device-resident
-         * across the 4 terrain layers + entities, download ONCE after (frame_end,
-         * before HUD). */
-#ifdef MAGMA_CUDA
-        if (g_use_cuda) cr_raster_cuda_frame_begin(&fb);
-        if (gpu_sky) {
-            GmSkyCtx sc; float bas[11];
-            gm_sky_frame_args(&cam, day, &sc, bas);
-            cr_raster_cuda_sky(&sc, bas, fb_w, fb_h);
-        }
-#elif defined(MAGMA_METAL)
-        if (g_use_metal) cr_raster_metal_frame_begin(&fb);
-        if (gpu_sky) {
-            GmSkyCtx sc; float bas[11];
-            gm_sky_frame_args(&cam, day, &sc, bas);
-            cr_raster_metal_sky(&sc, bas, fb_w, fb_h);
-        }
-#endif
-        bench_stamp(5);
-        GmMeshView mv; gm_world_mesh_view(world, &cam, fb_w, fb_h, &mv);
-        bench_stamp(6);
-        /* frame lightmap texels (overworld lightmap mode only, like
-         * build_lightmap_lut in frame_capture.c) */
-        static CrRgba lm_lut[256];
-        const CrRgba *lm = NULL;
-        if (worldmc_lightmap_mode() && runtime.dimension == 0) {
-            gm_frame_lightmap_fill(&st, g_clock.world_time, lm_lut);
-            lm = lm_lut;
-        }
-        int ntris = render_world(&fb, &cam, &mv, &atlas, tris, day, &uw, lm);
-        bench_stamp(7);
-
-        /* ---- targeted-block selection outline + dig crack decal (windowed) ----
-         * Selection: SRC_ALPHA/ONE_MINUS_SRC_ALPHA (blend=1). Crack:
-         * DST_COLOR/SRC_COLOR multiply-2x (blend=2). Separate passes -
-         * vanilla RenderGlobal draws them with different blend state
-         * (drawSelectionBox vs preRenderDamagedBlocks). Combined
-         * gm_overlay_emit is legacy-tests-only. */
-        /* MAGMA_OVERLAY_DUMP: open the selection/crack passes on the headless dump
-         * path; unset keeps the interactive-only gate (byte-identical to today). */
-        if ((want_frames < 0 || getenv("MAGMA_OVERLAY_DUMP")) && !screen_open && !g_dead
-            && !getenv("MAGMA_NO_OVERLAY")) {
-            static CrVertex sel_ov[GM_OVERLAY_MAX_VERTS];
-            static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
-            int hx = 0, hy = 0, hz = 0, ax, ay, az;
-            int have_sel = gm_raycast_sel(win, &st, &pl,
-                                          &hx, &hy, &hz, &ax, &ay, &az) >= 0;
-            float selb[6];
-            if (have_sel) gm_sel_box_at(win, hx, hy, hz, selb);
-            if (have_sel) {
-                int ns = gm_overlay_emit_sel(sel_ov, GM_OVERLAY_MAX_VERTS,
-                                             hx + ox, hy, hz + oz, selb,
-                                             cam.pos.x, cam.pos.y, cam.pos.z);
-                if (ns > 0) {
-                    CrShadeCtx osh = {0};
-                    osh.atlas = &atlas;
-                    osh.fog_color = sky;
-                    osh.alpha_test = 0;
-                    osh.enable_fog = 0;
-                    osh.layer = CR_LAYER_TRANSLUCENT;
-                    osh.blend = 1;
-                    osh.depth_lequal = 1;
-                    render_layer(&fb, &cam, sel_ov, ns, tris, &osh);
-                }
-            }
-            int dx = 0, dy2 = 0, dz = 0; float dmg = 0.0f;
-            int have_dig = gm_player_dig_state(&dx, &dy2, &dz, &dmg);
-            if (have_dig && dmg > 0.0f && !getenv("MAGMA_NO_CRACK")) {
-                /* BlockRendererDispatcher.renderBlockDamage re-renders the full
-                 * block model with the destroy sprite, not only the raycast face. */
-                int nc = gm_overlay_emit_crack(crack_ov, GM_OVERLAY_MAX_VERTS,
-                                               dx + ox, dy2, dz + oz, dmg, -1);
-                if (nc > 0) {
-                    CrShadeCtx csh = {0};
-                    csh.atlas = &atlas;
-                    csh.fog_color = sky;
-                    /* alphaFunc(GL_GREATER, 0.1F): discard a <= ~26. Our cutout
-                     * threshold is 128 - tighter than vanilla, keeps only solid
-                     * crack strokes (destroy_stage bg is a≈1 white). */
-                    csh.alpha_test = 1;
-                    csh.enable_fog = 0;
-                    csh.layer = CR_LAYER_CUTOUT;
-                    csh.blend = 2;           /* DST_COLOR, SRC_COLOR → 2*src*dst */
-                    csh.depth_lequal = 1;
-                    render_layer(&fb, &cam, crack_ov, nc, tris, &csh);
-                }
-            }
-        }
-
+        int ntris = compose_stats.ntris;
         if (caps_on) {
             int total = 0;
             for (int l = 0; l < 4; ++l) {
-                if (mv.nverts[l] > cap_max_layer[l]) cap_max_layer[l] = mv.nverts[l];
-                total += mv.nverts[l];
+                if (compose_stats.mesh_nverts[l] > cap_max_layer[l])
+                    cap_max_layer[l] = compose_stats.mesh_nverts[l];
+                total += compose_stats.mesh_nverts[l];
             }
-            if (total       > cap_max_total) cap_max_total = total;
-            if (mv.n_kept   > cap_max_kept)  cap_max_kept  = mv.n_kept;
-            if (ntris       > cap_max_tris)  cap_max_tris  = ntris;
+            if (total > cap_max_total) cap_max_total = total;
+            if (compose_stats.mesh_kept > cap_max_kept)
+                cap_max_kept = compose_stats.mesh_kept;
+            if (ntris > cap_max_tris) cap_max_tris = ntris;
             fprintf(stderr,
                 "[caps] frame %d kept=%d culled=%d drawverts[S/CM/C/T]=%d/%d/%d/%d total=%d screen_tris=%d\n",
-                frame, mv.n_kept, mv.n_culled, mv.nverts[0], mv.nverts[1],
-                mv.nverts[2], mv.nverts[3], total, ntris);
+                frame, compose_stats.mesh_kept, compose_stats.mesh_culled,
+                compose_stats.mesh_nverts[0], compose_stats.mesh_nverts[1],
+                compose_stats.mesh_nverts[2], compose_stats.mesh_nverts[3],
+                total, ntris);
         }
-        bench_stamp(8);
-
-        /* live entity store (items/hostiles markers) -> mesh pass */
-        GmEntityView ents[GM_LIVE_MAX];
-        int nents = gm_dragon_fill_views(&runtime.dragon, ents, GM_LIVE_MAX);
-        nents += gm_mobs_fill_views(&runtime.mobs, ents+nents, GM_LIVE_MAX-nents);
-        int n_proj0 = nents;
-        nents += gm_runtime_projectile_views(&runtime, ents+nents, GM_LIVE_MAX-nents);
-        {
-            int ptypes[GM_RUNTIME_PROJECTILES], npt = 0;
-            for (int i = 0; i < GM_RUNTIME_PROJECTILES; ++i)
-                if (runtime.projectiles[i].active)
-                    ptypes[npt++] = runtime.projectiles[i].type;
-            gm_entity_patch_large_fireballs(ptypes, npt, ents + n_proj0,
-                                            nents - n_proj0);
-        }
-        nents += gm_live_fill_views(&live, ents + nents, GM_LIVE_MAX - nents);
-        if (runtime.dragon.initialized) {
-            int dt = runtime.dragon.state.arena.dragon.death_ticks;
-            for (int i = 0; i < nents; ++i)
-                if (ents[i].type == GM_ENTITY_DRAGON && ents[i].death_ticks <= 0 && dt > 0)
-                    ents[i].death_ticks = dt;
-        }
-        /* per-entity light fields: without this every entity renders
-         * unlit-white (lm_lit==0), exactly like the capture path pre-fill. */
-        gm_frame_entities_light(ents, nents, world, runtime.dimension, lm);
-        if (nents > 0) {
-            int nv = gm_entities_emit(ents, nents, ent_verts, ent_max_verts);
-            gm_particles_dragon_latch(runtime.tick, ents, nents);
-            nv += gm_particles_emit(ents, nents, pv.yaw, pv.pitch,
-                                    ent_verts + nv, ent_max_verts - nv);
-            CrTexture eatlas = gm_entity_atlas();
-            CrRgba fog = sky;
-            CrShadeCtx esh = {0};
-            esh.atlas = &eatlas; esh.fog_color = fog;
-            esh.alpha_test = 1; esh.layer = CR_LAYER_CUTOUT;
-            esh.alpha_mask = 1;
-            esh.lightmap = lm;
-            gm_entity_dissolve_mask(&esh.mask_u_off, &esh.mask_v_off);
-            render_layer(&fb, &cam, ent_verts, nv, tris, &esh);
-            /* RenderXPOrb: SRC_ALPHA + alpha 128 (not cutout thr 0.5). */
-            {
-                int nx = gm_xp_orbs_emit(ents, nents, pv.yaw, pv.pitch,
-                                         ent_verts, ent_max_verts);
-                if (nx > 0) {
-                    CrShadeCtx xp = {0};
-                    xp.atlas = &eatlas; xp.fog_color = fog;
-                    xp.alpha_test = 1; xp.alpha_ref = 0.1f;
-                    xp.layer = CR_LAYER_TRANSLUCENT; xp.blend = 1;
-                    xp.lightmap = lm;
-                    render_layer(&fb, &cam, ent_verts, nx, tris, &xp);
-                }
-            }
-            /* LayerSlimeGel: living alphaFunc(GL_GREATER, 0.1) + blend depth write. */
-            nv = gm_slime_gel_emit(ents, nents, ent_verts, ent_max_verts);
-            if (nv > 0) {
-                CrShadeCtx gel = {0};
-                gel.atlas = &eatlas; gel.fog_color = fog;
-                gel.alpha_test = 1; gel.alpha_ref = 0.1f;
-                gel.layer = CR_LAYER_TRANSLUCENT;
-                gel.blend = 4;
-                render_layer(&fb, &cam, ent_verts, nv, tris, &gel);
-            }
-            /* LayerEnderDragonDeath: untextured additive smooth rays. */
-            nv = gm_dragon_death_rays_emit(ents, nents, ent_verts, ent_max_verts);
-            if (nv > 0) {
-                CrShadeCtx rays = {0};
-                rays.atlas = &eatlas; rays.fog_color = fog;
-                rays.untextured = 1; rays.blend = 3;
-                rays.layer = CR_LAYER_TRANSLUCENT;
-                rays.lightmap = lm;
-                render_layer(&fb, &cam, ent_verts, nv, tris, &rays);
-            }
-            /* RenderDragon.renderCrystalBeams: end-crystal healing beam. */
-            nv = gm_crystal_beams_emit(ents, nents, ent_verts, ent_max_verts);
-            if (nv > 0) {
-                CrShadeCtx bm = {0};
-                bm.atlas = &eatlas; bm.fog_color = fog;
-                bm.alpha_test = 1; bm.alpha_ref = 0.1f;
-                bm.layer = CR_LAYER_CUTOUT;
-                bm.lightmap = lm;
-                render_layer(&fb, &cam, ent_verts, nv, tris, &bm);
-            }
-            /* dropped items, second pass: block cubes/plants on the TERRAIN
-             * atlas, then non-block items on the item atlas. ent_verts is
-             * reusable: render_layer consumed the mob verts above. */
-            nv = gm_items_emit(ents, nents, ent_verts, ent_max_verts);
-            if (nv > 0) {
-                CrShadeCtx ish = {0};
-                ish.atlas = &atlas; ish.fog_color = fog;
-                ish.alpha_test = 1; ish.layer = CR_LAYER_CUTOUT;
-                render_layer(&fb, &cam, ent_verts, nv, tris, &ish);
-            }
-            nv = gm_items_emit_flat(ents, nents, ent_verts, ent_max_verts);
-            nv += gm_items_emit_billboard(ents, nents, pv.yaw, pv.pitch,
-                                          ent_verts + nv,
-                                          ent_max_verts - nv);
-            if (nv > 0) {
-                CrTexture iatlas = gm_item_atlas();
-                CrShadeCtx fsh = {0};
-                fsh.atlas = &iatlas; fsh.fog_color = fog;
-                fsh.alpha_test = 1; fsh.layer = CR_LAYER_CUTOUT;
-                render_layer(&fb, &cam, ent_verts, nv, tris, &fsh);
-            }
-            gm_entity_prep_large_fireball_fire(ents, nents);
-            nv = gm_small_fireball_fire_emit(ents, nents, pv.yaw,
-                                             ent_verts, ent_max_verts);
-            gm_entity_restore_large_fireball_types(ents, nents);
-            nv += gm_entity_fire_emit(ents, nents, pv.yaw,
-                                      ent_verts + nv, ent_max_verts - nv);
-            if (nv > 0) {
-                CrShadeCtx fire_sh = {0};
-                fire_sh.atlas = &atlas; fire_sh.fog_color = fog;
-                fire_sh.alpha_test = 1; fire_sh.layer = CR_LAYER_CUTOUT;
-                render_layer(&fb, &cam, ent_verts, nv, tris, &fire_sh);
-            }
-        }
-        {
-            int nv = gm_particles_live_emit(&live_particles, partial_ticks,
-                                             cpv.yaw, cpv.pitch,
-                                             ent_verts, ent_max_verts);
-            if (nv > 0) {
-                CrShadeCtx dig = {0};
-                dig.atlas = &atlas;
-                dig.fog_color = sky;
-                dig.alpha_test = 1;
-                dig.layer = CR_LAYER_CUTOUT;
-                render_layer(&fb, &cam, ent_verts, nv, tris, &dig);
-            }
-        }
-
-        bench_stamp(9);
-#ifdef MAGMA_CUDA
-        if (g_use_cuda) cr_raster_cuda_frame_end(&fb);   /* device fb -> host, once */
-#elif defined(MAGMA_METAL)
-        if (g_use_metal) cr_raster_metal_frame_end(&fb); /* device fb -> host, once */
-#endif
-        bench_stamp(10);
-        /* ---- first-person hand (over the world, before the 2D HUD) ---- */
-        {
-            float mv_mag = fabsf(act.forward) + fabsf(act.strafe);
-            /* advance walk bob per SIM TICK (nticks==1 on the headless path,
-             * byte-identical): per-frame advance raced at window frame rate */
-            if (mv_mag > 0.01f) hand_bob += 0.30f * (float)nticks;
-            /* EntityLivingBase.swingArm restart rule: the clickMouse press edge
-             * and every tick sendClickBlockToController damages a block. Vanilla
-             * restarts once swingProgressInt >= end/2, so a held dig loops over
-             * the first half rather than replaying all six ticks or freezing. */
-            {
-                int atk = act.attack || act.do_break;
-                int swing_arm = (atk && !prev_atk) || gm_player_dig_swing();
-                prev_atk = atk;
-                if (swing_arm && swing_ticks <= SWING_LEN / 2)
-                    swing_ticks = SWING_LEN;
-            }
-            float swing = swing_ticks > 0
-                ? (float)(SWING_LEN - swing_ticks) / (float)SWING_LEN : 0.0f;
-            gm_hand_set_swing(swing);
-            /* swingProgressInt advances per SIM TICK (20 Hz), not per rendered
-             * frame: at uncapped window fps the old per-frame decrement ran
-             * the 6-tick swing in a few dozen ms. nticks==1 headless. */
-            swing_ticks -= nticks;
-            if (swing_ticks < 0) swing_ticks = 0;
-            /* Viewmodel environment: eye-block combined light folded into the
-             * tint (no frame lightmap texture on this path), the eye-in-water
-             * 60/70 fov, and the item-light anchor rotation. */
-            {
-                int hx = (int)floorf(cpv.x);
-                int hy = (int)floorf(cpv.y + cpv.eye_height);
-                int hz = (int)floorf(cpv.z);
-                int hsky = gm_world_sky_light(world, hx, hy, hz);
-                int hblk = gm_world_block_light(world, hx, hy, hz);
-                if (lm) {
-                    /* lightmap mode: raw coords through the frame LUT, exactly
-                     * like the capture path (frame_capture.c hand env). */
-                    gm_hand_set_env(lm, (float)hsky, (float)hblk, 1.f, 1.f, 1.f,
-                                    uw.fov_scale, cpv.yaw, cpv.pitch);
-                } else {
-                    CrLightmapRgb hc3 = cr_lightmap_rgb(runtime.dimension, hsky, hblk,
-                        cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
-                    gm_hand_set_env(0, 15.f, 0.f, hc3.r, hc3.g, hc3.b,
-                                    uw.fov_scale, cpv.yaw, cpv.pitch);
-                }
-            }
-            /* MAGMA_NO_HAND: measurement gate - skip the first-person arm (used
-             * to pixel-diff hand vs no-hand against the MC golden). Default draws. */
-            if (!pv.dead && !getenv("MAGMA_NO_HAND"))
-                gm_hand_draw(&fb, &pv, hand_bob);
-            /* ItemRenderer.renderOverlays + GuiIngame portal: block, water,
-             * fire, then portal, then HUD. Use is filled on GmPlayerView. */
-            if (!pv.dead)
-                gm_overlay_block_in_hand_live(&fb, &atlas, world, &cpv);
-            if (uw.overlay && !pv.dead)
-                gm_uw_overlay_draw(&fb, &cpv, uw.brightness, cam.fov_deg);
-            if (pv.fire && !pv.creative && !pv.dead)
-                gm_hand_fire_overlay_draw(&fb, &atlas, uw.fov_scale);
-        }
-        if (pv.portal > 0.0f)
-            gm_overlay_portal_screen(&fb, &atlas, pv.portal);
-        if (pv.dead)
-            gm_hud_set_pointer(mouse_x, mouse_y);
-        gm_hud_draw(&fb, &pv);
-        if (screen_open && !pv.dead)
-            gm_screen_draw(&fb, &runtime, mouse_x, mouse_y);
-        bench_stamp(11);
         cr_window_present(cwin, &fb);
         bench_stamp(12);
         bench_record(frame, nticks, ntris);
@@ -1288,7 +819,7 @@ int main(int argc, char **argv) {
             "[caps] SUMMARY sizeof(CrVertex)=%zu sizeof(CrScreenTri)=%zu MAX_TRIS=%d\n"
             "[caps] SUMMARY max_kept=%d max_screen_tris=%d\n"
             "[caps] SUMMARY max_drawverts[S/CM/C/T]=%d/%d/%d/%d max_total=%d\n",
-            sizeof(CrVertex), sizeof(CrScreenTri), g_max_tris,
+            sizeof(CrVertex), sizeof(CrScreenTri), caps->max_tris,
             cap_max_kept, cap_max_tris,
             cap_max_layer[0], cap_max_layer[1], cap_max_layer[2], cap_max_layer[3],
             cap_max_total);
@@ -1302,14 +833,9 @@ int main(int argc, char **argv) {
             gm_live_entity_moved(&live),
             live.ents[0].age, live.ents[0].y);
 
-#ifdef MAGMA_CUDA
-    if (g_use_cuda) cr_raster_cuda_post();
-#elif defined(MAGMA_METAL)
-    if (g_use_metal) cr_raster_metal_post();
-#endif
-    free(tris); free(ent_verts);
+    gm_window_compose_close(compose);
     gm_runtime_destroy(&runtime);
     cr_window_close(cwin);
-    cr_fb_free(&fb);
+#undef fb
     return 0;
 }

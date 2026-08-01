@@ -40,7 +40,8 @@ int main(void) {
     CHECK(c.seed == 0 && c.world == GM_WORLD_DEFAULT, "default seed/world");
     CHECK(!c.villages && !c.enchanting && !c.brewing && !c.weather,
           "optional bundles default off");
-    CHECK(c.render == GM_RENDER_WINDOW && c.backend == GM_BACKEND_CPU &&
+    CHECK(c.render == GM_RENDER_WINDOW && c.compose == GM_COMPOSE_CAPTURE &&
+          c.backend == GM_BACKEND_CPU &&
           c.pace == GM_PACE_REALTIME, "default execution profile");
     CHECK(c.view_distance == 8 && c.width == 854 && c.height == 480,
           "default render dimensions");
@@ -52,7 +53,8 @@ int main(void) {
     char *full[] = {
         "game", "--seed", "-7", "--world", "superflat",
         "--villages", "on", "--enchanting", "on", "--brewing", "on",
-        "--weather", "on", "--render", "off", "--backend", "cuda",
+        "--weather", "on", "--render", "off", "--compose", "window",
+        "--backend", "cuda",
         "--pace", "unlimited", "--view-distance", "4", "--width", "640",
         "--height", "360", "--headless", "--ticks", "42",
         "--script", "events.jsonl", "--state-out", "state.jsonl",
@@ -62,7 +64,8 @@ int main(void) {
           "target product settings parse");
     CHECK(c.seed == -7 && c.world == GM_WORLD_SUPERFLAT && c.villages &&
           c.enchanting && c.brewing && c.weather, "target bundle values retained");
-    CHECK(c.render == GM_RENDER_OFF && c.backend == GM_BACKEND_CUDA &&
+    CHECK(c.render == GM_RENDER_OFF && c.compose == GM_COMPOSE_WINDOW &&
+          c.backend == GM_BACKEND_CUDA &&
           c.pace == GM_PACE_UNLIMITED && c.view_distance == 4,
           "target execution values retained");
     CHECK(c.headless && c.ticks == 42 && !strcmp(c.script_path, "events.jsonl") &&
@@ -72,13 +75,15 @@ int main(void) {
     char printed[4096];
     read_print(gm_config_print, &c, printed, sizeof printed);
     CHECK(strstr(printed, "headless=on") && strstr(printed, "ticks=42") &&
+          strstr(printed, "compose=window") &&
           strstr(printed, "script=events.jsonl") &&
           strstr(printed, "state_out=state.jsonl") &&
           strstr(printed, "frames_out=frames"), "canonical print includes harness values");
     read_usage(printed, sizeof printed);
     CHECK(strstr(printed, "--headless") && strstr(printed, "--ticks N") &&
           strstr(printed, "--script PATH") && strstr(printed, "--state-out PATH") &&
-          strstr(printed, "--frames-out DIR"), "usage includes harness options");
+          strstr(printed, "--frames-out DIR") && strstr(printed, "--compose"),
+          "usage includes harness options");
     CHECK(gm_config_validate_runtime(&c, 1, 0, err, sizeof err) == 2 &&
           strstr(err, "villages"), "first unwired bundle fails loudly at runtime");
 
@@ -117,6 +122,12 @@ int main(void) {
     char *dup_frames_out[] = {"game", "--frames-out", "a", "--frames-out", "b"};
     CHECK(parse(&c, 5, dup_frames_out, err) == 2 && strstr(err, "duplicate"),
           "duplicate frames output rejected");
+    char *dup_compose[] = {"game", "--compose", "capture", "--compose", "window"};
+    CHECK(parse(&c, 5, dup_compose, err) == 2 && strstr(err, "duplicate"),
+          "duplicate compose mode rejected");
+    char *bad_compose[] = {"game", "--compose", "shared"};
+    CHECK(parse(&c, 3, bad_compose, err) == 2 && strstr(err, "invalid"),
+          "invalid compose mode rejected");
     char *bad_bool[] = {"game", "--weather", "yes"};
     CHECK(parse(&c, 3, bad_bool, err) == 2, "noncanonical boolean rejected");
     char *missing[] = {"game", "--seed"};

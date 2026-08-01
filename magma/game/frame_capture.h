@@ -3,6 +3,7 @@
 
 #include "game/runtime.h"
 #include "game/entity_render.h"
+#include "game/underwater.h"
 
 typedef struct GmFrameCapture GmFrameCapture;
 
@@ -25,5 +26,18 @@ void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
  * otherwise. Shared by the capture path and the interactive window loop. */
 void gm_frame_entities_light(GmEntityView *ents, int n, GmWorld *world,
                              int dimension, const CrRgba *lm);
+
+/* RenderMinecart rail reprojection and stable entity-id anti-z-fight jitter. */
+void gm_frame_prepare_minecarts(GmEntityView *ents, int n, GmWorld *world);
+
+/* EntityRenderer.setupFog linear world ramp. Dense in the Nether or while
+ * BossInfo createFog is latched; shared by capture and window composition. */
+void gm_frame_world_fog_params(int dimension, int boss_fog, int *enabled,
+                               float *fog_start, float *fog_end);
+
+/* EntityRenderer.updateFogColor clear/view-fog color, including Nether and
+ * End provider formulas and the eye-in-fluid override. */
+CrRgba gm_frame_clear_color(float time_of_day, int dimension, float fog_c1,
+                            const GmUnderwater *uw);
 
 #endif

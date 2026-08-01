@@ -289,6 +289,45 @@ void gm_frame_entities_light(GmEntityView *ents, int n, GmWorld *world,
     }
 }
 
+void gm_frame_prepare_minecarts(GmEntityView *ents, int n, GmWorld *world) {
+    for (int i = 0; i < n; ++i) {
+        int type = ents[i].type;
+        if (type != GM_VIEW_MINECART_EMPTY &&
+            type != GM_VIEW_MINECART_CHEST &&
+            type != GM_VIEW_MINECART_FURNACE &&
+            type != GM_VIEW_MINECART_HOPPER &&
+            type != GM_VIEW_MINECART_TNT)
+            continue;
+        int rx = (int)floorf(ents[i].x);
+        int ry = (int)floorf(ents[i].y);
+        int rz = (int)floorf(ents[i].z);
+        if (gm_world_block(world, rx, ry, rz) != 66 &&
+            gm_world_block(world, rx, ry - 1, rz) == 66)
+            --ry;
+        if (gm_world_block(world, rx, ry, rz) == 66) {
+            int shape = gm_world_meta(world, rx, ry, rz) & 15;
+            if (shape == 0) {
+                ents[i].x = (float)rx + 0.5f;
+                ents[i].y = (float)ry + 0.0625f;
+                ents[i].yaw = -90.0f;
+            } else if (shape == 1) {
+                ents[i].y = (float)ry + 0.0625f;
+                ents[i].z = (float)rz + 0.5f;
+                ents[i].yaw = 0.0f;
+            }
+        }
+        uint64_t seed = (uint64_t)(int64_t)ents[i].ent_id *
+                        UINT64_C(493286711);
+        seed = seed * seed * UINT64_C(4392167121) + seed * UINT64_C(98761);
+        ents[i].x += (((float)((seed >> 16) & 7) + 0.5f) / 8.0f - 0.5f) *
+                     0.004f;
+        ents[i].y += (((float)((seed >> 20) & 7) + 0.5f) / 8.0f - 0.5f) *
+                     0.004f;
+        ents[i].z += (((float)((seed >> 24) & 7) + 0.5f) / 8.0f - 0.5f) *
+                     0.004f;
+    }
+}
+
 static float time_of_day(const GmRuntime *r) {
     long long t = r->clock.world_time % 24000LL;
     if (t < 0) t += 24000LL;
@@ -336,12 +375,32 @@ static int render_layer(GmFrameCapture *c, const CrCamera *cam,
  * BossInfo createFog flag (GuiBossOverlay.shouldCreateFog) pull the linear
  * ramp in to [far*0.05, min(far,192)*0.5]. setupFog is scene-wide state, so
  * every pass drawn after it - terrain AND entity layers - is fogged. */
-static void world_fog_params(int dimension, int boss_fog, int *enabled,
-                             float *fog_start, float *fog_end) {
+void gm_frame_world_fog_params(int dimension, int boss_fog, int *enabled,
+                               float *fog_start, float *fog_end) {
     int dense = dimension == -1 || boss_fog;
     *enabled = gm_terrain_fog_enabled();
     *fog_start = dense ? GM_TERRAIN_FOG_FAR * 0.05f : GM_TERRAIN_FOG_START;
     *fog_end = dense ? GM_TERRAIN_FOG_FAR * 0.5f : GM_TERRAIN_FOG_END;
+}
+
+CrRgba gm_frame_clear_color(float time_of_day, int dimension, float fog_c1,
+                            const GmUnderwater *uw) {
+    CrRgba clear = gm_terrain_fog_color(time_of_day);
+    if (dimension == -1) {
+        clear.r = (u8)(0.20f * fog_c1 * 255.0f + 0.5f);
+        clear.g = (u8)(0.03f * fog_c1 * 255.0f + 0.5f);
+        clear.b = (u8)(0.03f * fog_c1 * 255.0f + 0.5f);
+        clear.a = 255;
+    } else if (dimension == 1) {
+        float blend = 1.0f - powf(
+            0.25f + 0.75f * (GM_TERRAIN_FOG_FAR / 16.0f) / 32.0f, 0.25f);
+        clear.r = (u8)(0.09411765f * (1.0f - blend) * fog_c1 * 255.0f + 0.5f);
+        clear.g = (u8)(0.07529412f * (1.0f - blend) * fog_c1 * 255.0f + 0.5f);
+        clear.b = (u8)(0.09411765f * (1.0f - blend) * fog_c1 * 255.0f + 0.5f);
+        clear.a = 255;
+    }
+    if (uw && uw->fluid) clear = uw->fog_rgba;
+    return clear;
 }
 
 static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
@@ -349,7 +408,8 @@ static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
                            const GmUnderwater *uw, CrShadeCtx shade[4]) {
     int enabled;
     float fog_start, fog_end;
-    world_fog_params(dimension, boss_fog, &enabled, &fog_start, &fog_end);
+    gm_frame_world_fog_params(dimension, boss_fog, &enabled,
+                              &fog_start, &fog_end);
     /* use_mips=0 on EVERY layer, including CUTOUT_MIPPED: both oracle launch
      * profiles (java/fast.yaml + java/vanilla.yaml) pin mipmapLevels:0, which
      * makes TextureMap.setBlurMipmap give the terrain atlas plain GL_NEAREST
@@ -857,26 +917,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     gm_sky_set_fluid_fog(uw.fluid?1:0,uw.fog01,uw.density);
     /* clearColor = updateFogColor result (view fog * fogColor1). Fluid path
      * already bakes fog_c1 into uw.fog_rgba. */
-    CrRgba clear=gm_terrain_fog_color(day);
-    if(r->dimension==-1){
-        clear.r=(u8)(0.20f*c->fog_c1*255.0f+0.5f);
-        clear.g=(u8)(0.03f*c->fog_c1*255.0f+0.5f);
-        clear.b=(u8)(0.03f*c->fog_c1*255.0f+0.5f);
-        clear.a=255;
-    }else if(r->dimension==1){
-        /* updateFogColor, End: WorldProviderEnd.getFogColor is constant
-         * (0.627451,0.5019608,0.627451)*0.15 (its celestial-angle term
-         * clamps to 0 at the fixed angle 0.5), then blended
-         * f = 1 - pow(0.25 + 0.75*rd/32, 0.25) toward the sky color, which
-         * is BLACK in the End (getSkyColor's cos(angle*2pi)*2+0.5 clamps to
-         * 0), then scaled by fogColor1 like every dimension. */
-        float bf=1.0f-powf(0.25f+0.75f*(GM_TERRAIN_FOG_FAR/16.0f)/32.0f,0.25f);
-        clear.r=(u8)(0.09411765f*(1.0f-bf)*c->fog_c1*255.0f+0.5f);
-        clear.g=(u8)(0.07529412f*(1.0f-bf)*c->fog_c1*255.0f+0.5f);
-        clear.b=(u8)(0.09411765f*(1.0f-bf)*c->fog_c1*255.0f+0.5f);
-        clear.a=255;
-    }
-    if(uw.fluid)clear=uw.fog_rgba;
+    CrRgba clear=gm_frame_clear_color(day,r->dimension,c->fog_c1,&uw);
     cr_fb_clear(&c->fb,clear);
     if(r->dimension==0&&c->use_cuda&&cr_raster_cuda_sky&&!getenv("MAGMA_CPU_SKY")){
         /* sky on the GPU: upload the cleared fb, then the kernel fills every
@@ -1007,37 +1048,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * derives render yaw from getPosOffset(+/-0.3), rather than using the
      * recorded Entity.rotationYaw. Reconstruct the two flat rail directions
      * before both the cart and its display tile are emitted. */
-    for(int i=0;i<n;++i){
-        int mt=ents[i].type;
-        if(mt!=GM_VIEW_MINECART_EMPTY&&mt!=GM_VIEW_MINECART_CHEST&&
-           mt!=GM_VIEW_MINECART_FURNACE&&mt!=GM_VIEW_MINECART_HOPPER&&
-           mt!=GM_VIEW_MINECART_TNT)continue;
-        int rx=(int)floorf(ents[i].x),ry=(int)floorf(ents[i].y);
-        int rz=(int)floorf(ents[i].z);
-        if(gm_world_block(r->world,rx,ry,rz)!=66&&
-           gm_world_block(r->world,rx,ry-1,rz)==66)--ry;
-        if(gm_world_block(r->world,rx,ry,rz)==66){
-            int shape=gm_world_meta(r->world,rx,ry,rz)&15;
-            if(shape==0){
-                ents[i].x=(float)rx+0.5f;
-                ents[i].y=(float)ry+0.0625f;
-                ents[i].yaw=-90.0f;
-            }else if(shape==1){
-                ents[i].y=(float)ry+0.0625f;
-                ents[i].z=(float)rz+0.5f;
-                ents[i].yaw=0.0f;
-            }
-        }
-        /* RenderMinecart applies a stable entity-id jitter before the rail
-         * transform to prevent coplanar entities from z-fighting. Java long
-         * arithmetic wraps modulo 2^64; only the three masked bit fields are
-         * observed here, so unsigned shifts reproduce the signed result. */
-        uint64_t seed=(uint64_t)(int64_t)ents[i].ent_id*UINT64_C(493286711);
-        seed=seed*seed*UINT64_C(4392167121)+seed*UINT64_C(98761);
-        ents[i].x+=(((float)((seed>>16)&7)+0.5f)/8.0f-0.5f)*0.004f;
-        ents[i].y+=(((float)((seed>>20)&7)+0.5f)/8.0f-0.5f)*0.004f;
-        ents[i].z+=(((float)((seed>>24)&7)+0.5f)/8.0f-0.5f)*0.004f;
-    }
+    gm_frame_prepare_minecarts(ents,n,r->world);
     /* world light at each entity's eye block: shared with the window loop. */
     gm_frame_entities_light(ents,n,r->world,r->dimension,lm);
     if(n>0){
@@ -1066,8 +1077,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
          * linear ramp as the terrain (dense in the Nether / during a boss
          * fight). Without it a dissolving dragon 45 blocks out kept its full
          * white instead of washing to the End fog color. */
-        world_fog_params(r->dimension,c->boss_latch,&sh.enable_fog,
-                         &sh.fog_start,&sh.fog_end);
+        gm_frame_world_fog_params(r->dimension,c->boss_latch,&sh.enable_fog,
+                                  &sh.fog_start,&sh.fog_end);
         if(uw.fluid){ sh.enable_fog=1; sh.fog_exp_density=uw.density; sh.fog_color=uw.fog_rgba; }
         render_layer(c,&cam,eb[0],nv,&sh);
         /* RenderXPOrb: SRC_ALPHA blend, alpha 128, no cutout thr 0.5 kill. */
@@ -1115,8 +1126,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                  * 39-54 blocks out over this tape, i.e. 57-83% fogged.
                  * Unfogged, the additive fans came out several times too
                  * bright and read as longer and wider than the oracle's. */
-                world_fog_params(r->dimension,c->boss_latch,&rays.enable_fog,
-                                 &rays.fog_start,&rays.fog_end);
+                gm_frame_world_fog_params(r->dimension,c->boss_latch,
+                                          &rays.enable_fog,
+                                          &rays.fog_start,&rays.fog_end);
                 if(uw.fluid){ rays.enable_fog=1; rays.fog_exp_density=uw.density;
                               rays.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,ray_ov,nr,&rays);
@@ -1132,8 +1144,9 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 bm.alpha_test=1; bm.alpha_ref=0.1f;
                 bm.layer=CR_LAYER_CUTOUT;
                 bm.lightmap=lm;
-                world_fog_params(r->dimension,c->boss_latch,&bm.enable_fog,
-                                 &bm.fog_start,&bm.fog_end);
+                gm_frame_world_fog_params(r->dimension,c->boss_latch,
+                                          &bm.enable_fog,
+                                          &bm.fog_start,&bm.fog_end);
                 if(uw.fluid){ bm.enable_fog=1; bm.fog_exp_density=uw.density;
                               bm.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,beam_ov,nb,&bm);

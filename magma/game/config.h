@@ -5,6 +5,7 @@
 
 typedef enum { GM_WORLD_DEFAULT = 0, GM_WORLD_SUPERFLAT = 1 } GmWorldType;
 typedef enum { GM_RENDER_WINDOW = 0, GM_RENDER_OFF = 1 } GmRenderMode;
+typedef enum { GM_COMPOSE_CAPTURE = 0, GM_COMPOSE_WINDOW = 1 } GmComposeMode;
 typedef enum { GM_BACKEND_CPU = 0, GM_BACKEND_CUDA = 1, GM_BACKEND_METAL = 2 } GmBackend;
 typedef enum { GM_PACE_REALTIME = 0, GM_PACE_UNLIMITED = 1 } GmPace;
 
@@ -25,6 +26,7 @@ typedef struct {
      * RNG cannot match the oracle's, and phantom mobs corrupt the replay. */
     int mobs;
     GmRenderMode render;
+    GmComposeMode compose;
     GmBackend backend;
     GmPace pace;
     int view_distance;
