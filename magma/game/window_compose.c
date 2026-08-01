@@ -480,6 +480,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
 
     stamp(frame, 8);
 
+    gm_frame_prepare_minecarts(ents, nents, r->world);
     gm_frame_entities_light(ents, nents, r->world, r->dimension, lm);
     if (nents > 0) {
         int nv = gm_entities_emit(ents, nents, c->entity_verts,

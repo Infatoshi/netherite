@@ -289,6 +289,45 @@ void gm_frame_entities_light(GmEntityView *ents, int n, GmWorld *world,
     }
 }
 
+void gm_frame_prepare_minecarts(GmEntityView *ents, int n, GmWorld *world) {
+    for (int i = 0; i < n; ++i) {
+        int type = ents[i].type;
+        if (type != GM_VIEW_MINECART_EMPTY &&
+            type != GM_VIEW_MINECART_CHEST &&
+            type != GM_VIEW_MINECART_FURNACE &&
+            type != GM_VIEW_MINECART_HOPPER &&
+            type != GM_VIEW_MINECART_TNT)
+            continue;
+        int rx = (int)floorf(ents[i].x);
+        int ry = (int)floorf(ents[i].y);
+        int rz = (int)floorf(ents[i].z);
+        if (gm_world_block(world, rx, ry, rz) != 66 &&
+            gm_world_block(world, rx, ry - 1, rz) == 66)
+            --ry;
+        if (gm_world_block(world, rx, ry, rz) == 66) {
+            int shape = gm_world_meta(world, rx, ry, rz) & 15;
+            if (shape == 0) {
+                ents[i].x = (float)rx + 0.5f;
+                ents[i].y = (float)ry + 0.0625f;
+                ents[i].yaw = -90.0f;
+            } else if (shape == 1) {
+                ents[i].y = (float)ry + 0.0625f;
+                ents[i].z = (float)rz + 0.5f;
+                ents[i].yaw = 0.0f;
+            }
+        }
+        uint64_t seed = (uint64_t)(int64_t)ents[i].ent_id *
+                        UINT64_C(493286711);
+        seed = seed * seed * UINT64_C(4392167121) + seed * UINT64_C(98761);
+        ents[i].x += (((float)((seed >> 16) & 7) + 0.5f) / 8.0f - 0.5f) *
+                     0.004f;
+        ents[i].y += (((float)((seed >> 20) & 7) + 0.5f) / 8.0f - 0.5f) *
+                     0.004f;
+        ents[i].z += (((float)((seed >> 24) & 7) + 0.5f) / 8.0f - 0.5f) *
+                     0.004f;
+    }
+}
+
 static float time_of_day(const GmRuntime *r) {
     long long t = r->clock.world_time % 24000LL;
     if (t < 0) t += 24000LL;
@@ -1009,37 +1048,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * derives render yaw from getPosOffset(+/-0.3), rather than using the
      * recorded Entity.rotationYaw. Reconstruct the two flat rail directions
      * before both the cart and its display tile are emitted. */
-    for(int i=0;i<n;++i){
-        int mt=ents[i].type;
-        if(mt!=GM_VIEW_MINECART_EMPTY&&mt!=GM_VIEW_MINECART_CHEST&&
-           mt!=GM_VIEW_MINECART_FURNACE&&mt!=GM_VIEW_MINECART_HOPPER&&
-           mt!=GM_VIEW_MINECART_TNT)continue;
-        int rx=(int)floorf(ents[i].x),ry=(int)floorf(ents[i].y);
-        int rz=(int)floorf(ents[i].z);
-        if(gm_world_block(r->world,rx,ry,rz)!=66&&
-           gm_world_block(r->world,rx,ry-1,rz)==66)--ry;
-        if(gm_world_block(r->world,rx,ry,rz)==66){
-            int shape=gm_world_meta(r->world,rx,ry,rz)&15;
-            if(shape==0){
-                ents[i].x=(float)rx+0.5f;
-                ents[i].y=(float)ry+0.0625f;
-                ents[i].yaw=-90.0f;
-            }else if(shape==1){
-                ents[i].y=(float)ry+0.0625f;
-                ents[i].z=(float)rz+0.5f;
-                ents[i].yaw=0.0f;
-            }
-        }
-        /* RenderMinecart applies a stable entity-id jitter before the rail
-         * transform to prevent coplanar entities from z-fighting. Java long
-         * arithmetic wraps modulo 2^64; only the three masked bit fields are
-         * observed here, so unsigned shifts reproduce the signed result. */
-        uint64_t seed=(uint64_t)(int64_t)ents[i].ent_id*UINT64_C(493286711);
-        seed=seed*seed*UINT64_C(4392167121)+seed*UINT64_C(98761);
-        ents[i].x+=(((float)((seed>>16)&7)+0.5f)/8.0f-0.5f)*0.004f;
-        ents[i].y+=(((float)((seed>>20)&7)+0.5f)/8.0f-0.5f)*0.004f;
-        ents[i].z+=(((float)((seed>>24)&7)+0.5f)/8.0f-0.5f)*0.004f;
-    }
+    gm_frame_prepare_minecarts(ents,n,r->world);
     /* world light at each entity's eye block: shared with the window loop. */
     gm_frame_entities_light(ents,n,r->world,r->dimension,lm);
     if(n>0){

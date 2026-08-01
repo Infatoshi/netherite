@@ -8,7 +8,8 @@
     "boss and Nether fog plus boss HUD",
     "dimension clear colors and End sky",
     "camera FOV multiplier",
-    "falling-block, minecart-content, and held-item emitters"
+    "falling-block, minecart-content, and held-item emitters",
+    "minecart rail snap and entity-id jitter"
   ],
   "capture": {
     "frames_checked": 18,
