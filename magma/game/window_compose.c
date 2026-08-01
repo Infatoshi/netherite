@@ -564,6 +564,10 @@ int gm_window_compose_draw(GmWindowCompose *c,
         }
         nv = gm_items_emit(ents, nents, c->entity_verts,
                            c->max_entity_verts);
+        nv += gm_falling_blocks_emit(ents, nents, c->entity_verts + nv,
+                                     c->max_entity_verts - nv);
+        nv += gm_minecart_contents_emit(ents, nents, c->entity_verts + nv,
+                                        c->max_entity_verts - nv);
         if (nv > 0) {
             CrShadeCtx ish = {0};
             ish.atlas = &c->atlas;
@@ -575,6 +579,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
         }
         nv = gm_items_emit_flat(ents, nents, c->entity_verts,
                                 c->max_entity_verts);
+        nv += gm_held_items_emit(ents, nents, c->entity_verts + nv,
+                                 c->max_entity_verts - nv);
         nv += gm_items_emit_billboard(ents, nents, pv->yaw, pv->pitch,
                                       c->entity_verts + nv,
                                       c->max_entity_verts - nv);

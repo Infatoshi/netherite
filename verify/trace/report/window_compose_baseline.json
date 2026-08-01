@@ -7,7 +7,8 @@
     "entity brightness and fog parity",
     "boss and Nether fog plus boss HUD",
     "dimension clear colors and End sky",
-    "camera FOV multiplier"
+    "camera FOV multiplier",
+    "falling-block, minecart-content, and held-item emitters"
   ],
   "capture": {
     "frames_checked": 18,
