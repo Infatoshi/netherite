@@ -1675,8 +1675,8 @@ def main(argv: Optional[list] = None) -> int:
         # still attempt checks on what we have, but fail overall
         pass
 
-    # Clear summary if full run (append-only for --only)
-    if not args.only and not args.selftest:
+    # Clear summary for a full scenario set; --only appends a single line.
+    if not args.only:
         summary_path.write_text("")
 
     all_pass = True
