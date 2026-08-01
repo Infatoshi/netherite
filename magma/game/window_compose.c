@@ -58,6 +58,11 @@ struct GmWindowCompose {
     float hand_bob;
     int swing_ticks;
     int prev_attack;
+    float equip_progress;
+    int equip_item;
+    int equip_meta;
+    int equip_count;
+    int equip_slot;
     GmHudState hud_state;
     int boss_latch;
     float boss_frac;
@@ -293,6 +298,35 @@ static void update_boss_state(GmWindowCompose *c,
                     c->boss_frac);
 }
 
+static void advance_equip_state(GmWindowCompose *c,
+                                const GmPlayerView *view) {
+    GmRuntime *r = c->runtime;
+    int slot = r->player.inv.current_item;
+    if (slot < 0) slot = 0;
+    if (slot > 8) slot = 8;
+    const IsrInv *inv = r->tape_inv_active ? &r->tape_inv : &r->player.inv;
+    ICStack held = isr_get_stack(inv, slot);
+    int same = (held.item == 0 && c->equip_item == 0) ||
+               (slot == c->equip_slot && held.item == c->equip_item);
+    float cooldown = view->attack_cooldown;
+    if (cooldown < 0.0f) cooldown = 0.0f;
+    if (cooldown > 1.0f) cooldown = 1.0f;
+    float target = same ? cooldown * cooldown * cooldown : 0.0f;
+    float delta = target - c->equip_progress;
+    if (delta < -0.4f) delta = -0.4f;
+    if (delta > 0.4f) delta = 0.4f;
+    c->equip_progress += delta;
+    if (c->equip_progress < 0.1f) {
+        c->equip_item = held.item;
+        c->equip_meta = held.meta;
+        c->equip_count = held.count;
+        c->equip_slot = slot;
+    } else if (same) {
+        c->equip_meta = held.meta;
+        c->equip_count = held.count;
+    }
+}
+
 GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
                                          char *err, int err_cap) {
     if (!cfg) {
@@ -404,6 +438,7 @@ void gm_window_compose_advance(GmWindowCompose *c, GmPlayerView *view,
     gm_hand_set_swing(swing);
     c->swing_ticks -= nticks;
     if (c->swing_ticks < 0) c->swing_ticks = 0;
+    for (int i = 0; i < nticks; ++i) advance_equip_state(c, view);
 }
 
 int gm_window_compose_draw(GmWindowCompose *c,
@@ -661,7 +696,11 @@ int gm_window_compose_draw(GmWindowCompose *c,
             gm_hand_set_env(0, 15.f, 0.f, hc3.r, hc3.g, hc3.b,
                             uw.fov_scale, cpv->yaw, cpv->pitch);
         }
-        if (!pv->dead && !getenv("MAGMA_NO_HAND"))
+        gm_hand_set_equip(1.0f - c->equip_progress);
+        gm_hand_set_hurt(pv->hurt_time, pv->max_hurt_time, pv->hurt_yaw);
+        gm_hand_set_item_override(c->equip_item, c->equip_meta,
+                                  c->equip_count);
+        if (!pv->dead && !pv->riding_boat && !getenv("MAGMA_NO_HAND"))
             gm_hand_draw(&c->fb, pv, c->hand_bob);
         if (!pv->dead)
             gm_overlay_block_in_hand_live(&c->fb, &c->atlas, r->world, cpv);
