@@ -4,7 +4,8 @@
   "metric": "pixel_gate connected-component pixels at DIFF_THRESH; total includes accepted semantic classes",
   "window_fixes": [
     "pass order and dig-particle gate",
-    "entity brightness and fog parity"
+    "entity brightness and fog parity",
+    "boss and Nether fog plus boss HUD"
   ],
   "capture": {
     "frames_checked": 18,

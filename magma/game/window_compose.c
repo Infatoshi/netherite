@@ -59,6 +59,10 @@ struct GmWindowCompose {
     int swing_ticks;
     int prev_attack;
     GmHudState hud_state;
+    int boss_latch;
+    float boss_frac;
+    int dragon_dying;
+    int dragon_killed;
     unsigned char *ppm_buf;
     FILE *npy_f;
     int npy_frames;
@@ -125,11 +129,12 @@ static int render_layer(GmWindowCompose *c, const CrCamera *cam,
 
 static int render_world(GmWindowCompose *c, const CrCamera *cam,
                         const GmMeshView *mv, const CrTexture *atlas,
-                        float time_of_day, const GmUnderwater *uw,
-                        const CrRgba *lm) {
-    int fon = gm_terrain_fog_enabled();
+                        float time_of_day, int dimension, int boss_fog,
+                        const GmUnderwater *uw, const CrRgba *lm) {
+    int fon;
     CrRgba fog = gm_terrain_fog_color(time_of_day);
-    const float fst = GM_TERRAIN_FOG_START, fen = GM_TERRAIN_FOG_END;
+    float fst, fen;
+    gm_frame_world_fog_params(dimension, boss_fog, &fon, &fst, &fen);
 #define TSH(at, ly, bl) { .atlas = atlas, .fog_color = fog,                  \
                           .fog_start = fst, .fog_end = fen,                  \
                           .alpha_test = (at), .enable_fog = fon,             \
@@ -223,6 +228,70 @@ static void render_crack(GmWindowCompose *c, const CrCamera *cam, CrRgba fog) {
     shade.blend = 2;
     shade.depth_lequal = 1;
     render_layer(c, cam, verts, nv, &shade);
+}
+
+static int collect_entities(GmWindowCompose *c, GmEntityView *ents) {
+    GmRuntime *r = c->runtime;
+    int n = gm_dragon_fill_views(&r->dragon, ents, GM_LIVE_MAX);
+    n += gm_mobs_fill_views(&r->mobs, ents + n, GM_LIVE_MAX - n);
+    int projectile0 = n;
+    n += gm_runtime_projectile_views(r, ents + n, GM_LIVE_MAX - n);
+    {
+        int types[GM_RUNTIME_PROJECTILES], nt = 0;
+        for (int i = 0; i < GM_RUNTIME_PROJECTILES; ++i)
+            if (r->projectiles[i].active)
+                types[nt++] = r->projectiles[i].type;
+        gm_entity_patch_large_fireballs(types, nt, ents + projectile0,
+                                        n - projectile0);
+    }
+    n += gm_live_fill_views(&r->entities, ents + n, GM_LIVE_MAX - n);
+    if (r->dragon.initialized) {
+        int death_ticks = r->dragon.state.arena.dragon.death_ticks;
+        for (int i = 0; i < n; ++i)
+            if (ents[i].type == GM_ENTITY_DRAGON &&
+                ents[i].death_ticks <= 0 && death_ticks > 0)
+                ents[i].death_ticks = death_ticks;
+    }
+    return n;
+}
+
+static void update_boss_state(GmWindowCompose *c,
+                              const GmEntityView *ents, int n) {
+    GmRuntime *r = c->runtime;
+    if (r->dimension != 1) {
+        c->boss_latch = 0;
+        c->dragon_killed = 0;
+        c->dragon_dying = 0;
+    }
+    int dragon_seen = 0;
+    for (int i = 0; i < n; ++i) {
+        if (ents[i].type != GM_ENTITY_DRAGON) continue;
+        dragon_seen = 1;
+        if (ents[i].death_ticks >= 200) c->dragon_killed = 1;
+        if (ents[i].death_ticks > 0 && ents[i].health <= 0.0f)
+            c->dragon_dying = 1;
+        if (!c->boss_latch && !c->dragon_killed) {
+            c->boss_latch = 1;
+            c->boss_frac = 1.0f;
+        }
+        if (ents[i].health >= 0.0f) c->boss_frac = ents[i].health / 200.0f;
+        break;
+    }
+    if (!dragon_seen && c->dragon_dying) c->dragon_killed = 1;
+    if (c->dragon_killed) {
+        c->boss_latch = 0;
+        c->boss_frac = 0.0f;
+    } else if (!c->boss_latch) {
+        for (int i = 0; i < n; ++i) {
+            if (ents[i].type == GM_ENTITY_CRYSTAL || ents[i].type == 31) {
+                c->boss_latch = 1;
+                c->boss_frac = 1.0f;
+                break;
+            }
+        }
+    }
+    gm_hud_set_boss(c->boss_latch && !getenv("MAGMA_STRIP_OVERLAYS"),
+                    c->boss_frac);
 }
 
 GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
@@ -393,6 +462,9 @@ int gm_window_compose_draw(GmWindowCompose *c,
     }
 #endif
     stamp(frame, 5);
+    GmEntityView ents[GM_LIVE_MAX];
+    int nents = collect_entities(c, ents);
+    update_boss_state(c, ents, nents);
     GmMeshView mv;
     gm_world_mesh_view(r->world, &cam, c->fb.w, c->fb.h, &mv);
     stamp(frame, 6);
@@ -401,34 +473,12 @@ int gm_window_compose_draw(GmWindowCompose *c,
         gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time, c->lm_lut);
         lm = c->lm_lut;
     }
-    int ntris = render_world(c, &cam, &mv, &c->atlas, day, &uw, lm);
+    int ntris = render_world(c, &cam, &mv, &c->atlas, day, r->dimension,
+                             c->boss_latch, &uw, lm);
     stamp(frame, 7);
 
     stamp(frame, 8);
 
-    GmEntityView ents[GM_LIVE_MAX];
-    int nents = gm_dragon_fill_views(&r->dragon, ents, GM_LIVE_MAX);
-    nents += gm_mobs_fill_views(&r->mobs, ents + nents, GM_LIVE_MAX - nents);
-    int n_proj0 = nents;
-    nents += gm_runtime_projectile_views(r, ents + nents,
-                                         GM_LIVE_MAX - nents);
-    {
-        int ptypes[GM_RUNTIME_PROJECTILES], npt = 0;
-        for (int i = 0; i < GM_RUNTIME_PROJECTILES; ++i)
-            if (r->projectiles[i].active)
-                ptypes[npt++] = r->projectiles[i].type;
-        gm_entity_patch_large_fireballs(ptypes, npt, ents + n_proj0,
-                                        nents - n_proj0);
-    }
-    nents += gm_live_fill_views(&r->entities, ents + nents,
-                                GM_LIVE_MAX - nents);
-    if (r->dragon.initialized) {
-        int dt = r->dragon.state.arena.dragon.death_ticks;
-        for (int i = 0; i < nents; ++i)
-            if (ents[i].type == GM_ENTITY_DRAGON &&
-                ents[i].death_ticks <= 0 && dt > 0)
-                ents[i].death_ticks = dt;
-    }
     gm_frame_entities_light(ents, nents, r->world, r->dimension, lm);
     if (nents > 0) {
         int nv = gm_entities_emit(ents, nents, c->entity_verts,
@@ -448,7 +498,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
         esh.entity_brightness = 1;
         esh.lightmap = lm;
         gm_entity_dissolve_mask(&esh.mask_u_off, &esh.mask_v_off);
-        gm_frame_world_fog_params(r->dimension, 0, &esh.enable_fog,
+        gm_frame_world_fog_params(r->dimension, c->boss_latch, &esh.enable_fog,
                                   &esh.fog_start, &esh.fog_end);
         apply_fluid_fog(&esh, &uw);
         render_layer(c, &cam, c->entity_verts, nv, &esh);
@@ -489,7 +539,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
             rays.blend = 3;
             rays.layer = CR_LAYER_TRANSLUCENT;
             rays.lightmap = lm;
-            gm_frame_world_fog_params(r->dimension, 0, &rays.enable_fog,
+            gm_frame_world_fog_params(r->dimension, c->boss_latch,
+                                      &rays.enable_fog,
                                       &rays.fog_start, &rays.fog_end);
             apply_fluid_fog(&rays, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &rays);
@@ -504,7 +555,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
             beam.alpha_ref = 0.1f;
             beam.layer = CR_LAYER_CUTOUT;
             beam.lightmap = lm;
-            gm_frame_world_fog_params(r->dimension, 0, &beam.enable_fog,
+            gm_frame_world_fog_params(r->dimension, c->boss_latch,
+                                      &beam.enable_fog,
                                       &beam.fog_start, &beam.fog_end);
             apply_fluid_fog(&beam, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &beam);
