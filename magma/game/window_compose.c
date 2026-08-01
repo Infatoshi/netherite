@@ -175,6 +175,49 @@ static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
     return c;
 }
 
+static void render_selection(GmWindowCompose *c, const CrCamera *cam,
+                             CrRgba fog) {
+    GmRuntime *r = c->runtime;
+    static CrVertex verts[GM_OVERLAY_MAX_VERTS];
+    int hx = 0, hy = 0, hz = 0, ax, ay, az;
+    int have = gm_raycast_sel(r->window, &r->sin_table, &r->player,
+                              &hx, &hy, &hz, &ax, &ay, &az) >= 0;
+    float bounds[6];
+    if (have) gm_sel_box_at(r->window, hx, hy, hz, bounds);
+    if (!have) return;
+    int nv = gm_overlay_emit_sel(verts, GM_OVERLAY_MAX_VERTS,
+                                 hx + r->ox, hy, hz + r->oz, bounds,
+                                 cam->pos.x, cam->pos.y, cam->pos.z);
+    if (nv <= 0) return;
+    CrShadeCtx shade = {0};
+    shade.atlas = &c->atlas;
+    shade.fog_color = fog;
+    shade.layer = CR_LAYER_TRANSLUCENT;
+    shade.blend = 1;
+    shade.depth_lequal = 1;
+    render_layer(c, cam, verts, nv, &shade);
+}
+
+static void render_crack(GmWindowCompose *c, const CrCamera *cam, CrRgba fog) {
+    GmRuntime *r = c->runtime;
+    static CrVertex verts[GM_OVERLAY_MAX_VERTS];
+    int dx = 0, dy = 0, dz = 0;
+    float damage = 0.0f;
+    int have = gm_player_dig_state(&dx, &dy, &dz, &damage);
+    if (!have || damage <= 0.0f || getenv("MAGMA_NO_CRACK")) return;
+    int nv = gm_overlay_emit_crack(verts, GM_OVERLAY_MAX_VERTS,
+                                   dx + r->ox, dy, dz + r->oz, damage, -1);
+    if (nv <= 0) return;
+    CrShadeCtx shade = {0};
+    shade.atlas = &c->atlas;
+    shade.fog_color = fog;
+    shade.alpha_test = 1;
+    shade.layer = CR_LAYER_CUTOUT;
+    shade.blend = 2;
+    shade.depth_lequal = 1;
+    render_layer(c, cam, verts, nv, &shade);
+}
+
 GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
                                          char *err, int err_cap) {
     if (!cfg) {
@@ -354,52 +397,6 @@ int gm_window_compose_draw(GmWindowCompose *c,
     int ntris = render_world(c, &cam, &mv, &c->atlas, day, &uw, lm);
     stamp(frame, 7);
 
-    /* MAGMA_OVERLAY_DUMP: open the selection/crack passes on the headless dump
-     * path; unset keeps the interactive-only gate (byte-identical to today). */
-    if ((frame->interactive || getenv("MAGMA_OVERLAY_DUMP")) &&
-        !frame->screen_open && !r->dead && !getenv("MAGMA_NO_OVERLAY")) {
-        static CrVertex sel_ov[GM_OVERLAY_MAX_VERTS];
-        static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
-        int hx = 0, hy = 0, hz = 0, ax, ay, az;
-        int have_sel = gm_raycast_sel(r->window, &r->sin_table, &r->player,
-                                      &hx, &hy, &hz, &ax, &ay, &az) >= 0;
-        float selb[6];
-        if (have_sel) gm_sel_box_at(r->window, hx, hy, hz, selb);
-        if (have_sel) {
-            int ns = gm_overlay_emit_sel(sel_ov, GM_OVERLAY_MAX_VERTS,
-                                         hx + r->ox, hy, hz + r->oz, selb,
-                                         cam.pos.x, cam.pos.y, cam.pos.z);
-            if (ns > 0) {
-                CrShadeCtx osh = {0};
-                osh.atlas = &c->atlas;
-                osh.fog_color = sky;
-                osh.alpha_test = 0;
-                osh.enable_fog = 0;
-                osh.layer = CR_LAYER_TRANSLUCENT;
-                osh.blend = 1;
-                osh.depth_lequal = 1;
-                render_layer(c, &cam, sel_ov, ns, &osh);
-            }
-        }
-        int dx = 0, dy = 0, dz = 0;
-        float dmg = 0.0f;
-        int have_dig = gm_player_dig_state(&dx, &dy, &dz, &dmg);
-        if (have_dig && dmg > 0.0f && !getenv("MAGMA_NO_CRACK")) {
-            int nc = gm_overlay_emit_crack(crack_ov, GM_OVERLAY_MAX_VERTS,
-                                           dx + r->ox, dy, dz + r->oz, dmg, -1);
-            if (nc > 0) {
-                CrShadeCtx csh = {0};
-                csh.atlas = &c->atlas;
-                csh.fog_color = sky;
-                csh.alpha_test = 1;
-                csh.enable_fog = 0;
-                csh.layer = CR_LAYER_CUTOUT;
-                csh.blend = 2;
-                csh.depth_lequal = 1;
-                render_layer(c, &cam, crack_ov, nc, &csh);
-            }
-        }
-    }
     stamp(frame, 8);
 
     GmEntityView ents[GM_LIVE_MAX];
@@ -534,6 +531,12 @@ int gm_window_compose_draw(GmWindowCompose *c,
             render_layer(c, &cam, c->entity_verts, nv, &fire_sh);
         }
     }
+    /* MAGMA_OVERLAY_DUMP: open the selection/crack passes on the headless
+     * dump path; unset keeps the interactive-only gate. */
+    int overlay = (frame->interactive || getenv("MAGMA_OVERLAY_DUMP")) &&
+                  !frame->screen_open && !r->dead &&
+                  !getenv("MAGMA_NO_OVERLAY");
+    if (overlay) render_selection(c, &cam, sky);
     {
         int nv = gm_particles_live_emit(c->particles, frame->partial_ticks,
                                         cpv->yaw, cpv->pitch,
@@ -548,6 +551,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
             render_layer(c, &cam, c->entity_verts, nv, &dig);
         }
     }
+    if (overlay) render_crack(c, &cam, sky);
     stamp(frame, 9);
     if (c->backend == GM_BACKEND_CUDA)
         cr_raster_cuda_frame_end(&c->fb);
