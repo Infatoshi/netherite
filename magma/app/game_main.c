@@ -53,6 +53,41 @@
 #include "world/mesh_mc.h"
 #include "world/lightmap.h"
 
+/* ParticleDigging multiplyColor: block color multiplier for live dig
+ * particles (grass exception handled in bm_particle_tint). */
+static void dig_particle_base_color(const GmWorld *world, int model_key,
+                                    int wx, int wy, int wz,
+                                    float *br, float *bg, float *bb)
+{
+    *br = *bg = *bb = 1.0f;
+    int tint = bm_particle_tint(model_key);
+    int rgb = -1; /* vanilla: no handler -> -1 -> white when multiplied */
+    switch (tint) {
+        case BM_TINT_GRASS:
+            rgb = gm_world_grass_color(world, wx, wy, wz);
+            break;
+        case BM_TINT_FOLIAGE:
+            rgb = gm_world_foliage_color(world, wx, wy, wz);
+            break;
+        case BM_TINT_LILY:
+            rgb = 2129968; /* BlockColors WATERLILY in-world */
+            break;
+        case BM_TINT_FOLIAGE_PINE:
+            rgb = 6396257; /* ColorizerFoliage pine */
+            break;
+        case BM_TINT_FOLIAGE_BIRCH:
+            rgb = 8431445; /* ColorizerFoliage birch */
+            break;
+        default:
+            return;
+    }
+    if (rgb < 0) return;
+    *br = (float)((rgb >> 16) & 255) / 255.0f;
+    *bg = (float)((rgb >> 8) & 255) / 255.0f;
+    *bb = (float)(rgb & 255) / 255.0f;
+}
+
+
 static int write_ppm(const char *path, const CrFramebuffer *fb) {
     FILE *f = fopen(path, "wb");
     if (!f) return -1;
