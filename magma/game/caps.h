@@ -59,7 +59,7 @@ extern "C" {
  * old 128K cap was under real peaks -> 256K. */
 #define CR_DEF_DRAW_SOLID           4000000
 #define CR_DEF_DRAW_CUTMIP          3250000
-#define CR_DEF_DRAW_CUTOUT          262144
+#define CR_DEF_DRAW_CUTOUT          524288
 #define CR_DEF_DRAW_TRANS           1048576
 
 /* Screen-space triangle scratch. Measured peak 806120 screen-tris. 2.0M == 2.48x

@@ -49,7 +49,6 @@ Usage:
   uv run ... python pxdiff.py selftest
 """
 import argparse
-import glob
 import json
 import os
 import sys
@@ -442,7 +441,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["clusters", "zoom", "pixels", "probe",
-                                    "frames", "selftest"])
+                                    "frames", "survey", "selftest"])
     ap.add_argument("--tape")
     ap.add_argument("--tick", type=int)
     ap.add_argument("--a")
@@ -522,6 +521,46 @@ def main():
                   f"{r['gate_class']:<12} {r['cause']:<16} "
                   f"{r['texel_selection_frac']:.2f} "
                   f"{str(tuple(r['best_shift'])):>7} {r['mean_delta']}")
+        return 0
+
+    if args.cmd == "survey":
+        outdir = args.out
+        if outdir.endswith(".png"):
+            outdir = outdir[:-4] + "_survey"
+        os.makedirs(outdir, exist_ok=True)
+        k = min(len(clusters), args.top, 5)
+        top = clusters[:k]
+        from PIL import ImageDraw
+        over = Image.fromarray(c.astype(np.uint8))
+        draw = ImageDraw.Draw(over)
+        for i, r in enumerate(top):
+            y0, x0, y1, x1 = r["box"]
+            draw.rectangle([x0 - 1, y0 - 1, x1 + 1, y1 + 1],
+                           outline=(255, 0, 255))
+            draw.text((x0 + 2, max(0, y0 - 11)), str(i), fill=(255, 0, 255))
+        over_path = os.path.join(outdir, "overview.png")
+        over.save(over_path)
+        report = {"source": label, "clusters": []}
+        for i, r in enumerate(top):
+            y0, x0, y1, x1 = r["box"]
+            cw = (x1 - x0 + 1 + 2 * args.pad) * 3 + 4
+            scale = max(2, min(12, 1200 // max(1, cw)))
+            big, used = render_zoom(g, c, r["box"], scale,
+                                    not args.no_grid, args.pad)
+            zp = os.path.join(outdir, f"zoom_{i}.png")
+            Image.fromarray(big).save(zp)
+            report["clusters"].append({**r, "zoom": zp, "zoom_scale": scale,
+                                       "zoom_rect": list(used)})
+        with open(os.path.join(outdir, "survey.json"), "w") as f:
+            json.dump(report, f, indent=1)
+        print(f"{label}: top {k} of {len(clusters)} clusters -> {outdir}")
+        print(f"{'#':>3} {'px':>6}  {'bbox y0,x0,y1,x1':<22} {'gate':<12} "
+              f"{'cause':<16} zoom")
+        for i, r in enumerate(report["clusters"]):
+            y0, x0, y1, x1 = r["box"]
+            print(f"{i:3d} {r['px']:6d}  {f'{y0},{x0},{y1},{x1}':<22} "
+                  f"{r['gate_class']:<12} {r['cause']:<16} {r['zoom']}")
+        print(f"overview (numbered boxes): {over_path}")
         return 0
 
     if args.at:

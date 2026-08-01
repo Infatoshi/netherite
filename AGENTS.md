@@ -85,6 +85,9 @@ $U pxdiff.py clusters --tape <NAME> --tick N            # cluster table + CAUSE
 $U pxdiff.py zoom    --tape <NAME> --tick N --cluster 0 --scale 10 -o /tmp/z.png
 $U pxdiff.py probe   --tape <NAME> --tick N --cluster 0 # every discriminator
 $U pxdiff.py pixels  --tape <NAME> --tick N --cluster 0 # exact RGB pairs
+$U pxdiff.py survey  --tape <NAME> --tick N -o DIR      # one-shot triage: top<=5
+#   clusters as numbered boxes on overview.png + zoom_N.png triptychs +
+#   survey.json. Agents triaging a frame START here, then loop the crops.
 ```
 
 Causes: `texel-selection`, `shading-offset`, `registration`, `cutout-sky+/-`,

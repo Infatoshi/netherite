@@ -1169,6 +1169,38 @@ The dragon death-cloud unexplained px (17175 across t=266..474) are the
 pcl-consumption gap: the tape carries 1179 pcl spawns that replay does
 not yet consume (work in flight); take-variable until then.
 
+Interactive-play sweep 2026-08-01 (first human session on the Mac Metal
+windowed build; every item below is from the interactive path that no
+pixel gate renders - the windowed-path blindspot class):
+
+11. FIXED: cutout draw buffer overflow abort at seed-0 plains spawn, vd8
+    (262,932 verts > 262,144 cap; tall grass). Cap doubled to 524,288;
+    measured peak documented in magma.conf. Tape peaks never passed 33K
+    because no pinned tape renders a plains spawn at rd8.
+12. Passive mob AI is a stub: sheep lack the vanilla task set
+    (EntitySheep: swim, panic 1.25, mate, tempt-wheat 1.1, follow-parent,
+    eat-grass, wander-avoid-water 1.0, watch-closest player 6.0,
+    look-idle). Observed: no idle head look, wrong flee behavior, panic
+    speed off. Applies to sheep/pig/cow/chicken.
+13. Entities x-ray through translucent water: window compose draws all
+    four terrain layers (window_compose.c render order solid, cutmip,
+    cutout, trans) THEN entities, so entities paint over water. Vanilla
+    draws entities before the translucent pass. Check frame_capture's
+    order and match it; suspect capture path differs (water_dive pin is
+    rc=0) or its scenes never put an entity behind water.
+14. NOT A DIVERGENCE (source-verified): sand placed directly above tall
+    grass stays put in vanilla 1.11.2. BlockFalling.canFallThrough is
+    fire/air/water/lava materials only; tall grass is Material.VINE
+    (BlockTallGrass.java:34), so updateTick's fall condition fails. The
+    fall-through-replaceable-plants rule is a later-version behavior.
+    Open sub-case to verify: a falling sand ENTITY landing INTO a tall
+    grass cell must replace the grass (EntityFallingBlock landing
+    setBlockState); qrl-record if touched.
+15. Dropped-item block textures: 3D dropped blocks (logs observed) show
+    wrong per-face texture orientation/rotation at item scale. Path:
+    item_render.c mini-cube face UVs vs the block atlas (log side grain
+    direction, top/bottom ring placement).
+
 Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
 unexplained px (7 clusters, largest 1463) relative to its 2026-07-29
 baseline after the night's renderer merges; physics still 351/351. Baseline
