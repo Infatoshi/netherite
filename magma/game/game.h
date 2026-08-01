@@ -92,6 +92,11 @@ typedef struct {
      * death_click=1 and death_button 0=Respawn / 1=Title Screen. */
     int   death_click;
     int   death_button;
+    /* Current game mode, supplied by the runtime rather than inferred in the
+     * digger. Creative is a general PlayerControllerMP mode, not a block or
+     * tape special case. */
+    int   creative;
+    int   attack_entity; /* getMouseOver selected an entity, not a block */
 } GmAction;
 
 /* Player state the camera + HUD read. Positions in WORLD coords (doubles collapsed

@@ -1125,6 +1125,23 @@ still open. Item 4 no longer reproduces: the 2026-08-01 falling_blocks
 takes record real terrain goldens (chunk meshes present), so the scenario
 is recordable again - its gate now fails honestly on item 6 instead.
 
+Status updates 2026-08-01 (evening wave): item 3 is CLOSED end-to-end -
+replay consumes header gamerules (naturalRegeneration/doDaylightCycle/
+doWeatherCycle honored, rest deliberately inert), and the recorder now
+reads the INTEGRATED SERVER's rules instead of the join-time client copy
+(only doDaylightCycle ever synced client-side, via SPacketTimeUpdate's
+negated worldTime - which is why it alone recorded correctly). Verified:
+silverfish_encounter 175112Z records naturalRegeneration=false truthfully
+and replays physics-clean where 172741Z diverged at t101. Item 6 is
+LANDED: vanilla gravity-block cascade (BlockFalling delay-2 scheduling,
+EntityFallingBlock motion/landing, cascade notifications) plus creative
+GameType propagation into the dig controller; falling_blocks 151855Z world
+digest now matches 309/310 ticks. Residual: single-tick t46 mismatch from
+the blockHitDelay/packet-order boundary (client observes re-landed sand
+and its held-creative removal in the same post-tick state; magma splits
+them across t46/t47). The 1-tick dig skew half of item 6 is absorbed by
+the same change (dig lands at Java's t20).
+
 Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
 unexplained px (7 clusters, largest 1463) relative to its 2026-07-29
 baseline after the night's renderer merges; physics still 351/351. Baseline

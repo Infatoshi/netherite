@@ -94,6 +94,7 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
     for(int x=0;x<EX_DIM;++x)for(int y=0;y<EX_DIM;++y)for(int z=0;z<EX_DIM;++z)
         if(hit[ex_idx(x,y,z)]){
             gm_world_set_block(r->world,ox+x,oy+y,oz+z,0);
+            gm_live_block_changed(&r->entities, r->world, ox+x, oy+y, oz+z);
             gm_fluid_mark(&r->fluids,r->world,r->dimension,ox+x,oy+y,oz+z);
         }
     GmPlayerView v;gm_runtime_view(r,&v);
@@ -154,6 +155,59 @@ static void break_unsupported_plants(GmRuntime *r, int wx, int wy, int wz) {
             gm_live_spawn_item(&r->entities, wx + 0.5, y + 0.5, wz + 0.5,
                                drop, 1, 0, 10);
     }
+}
+
+static int ray_axis(double start, double dir, double lo, double hi,
+                    double *t0, double *t1) {
+    if (fabs(dir) < 1.0e-12)
+        return start >= lo && start <= hi;
+    double a = (lo - start) / dir;
+    double b = (hi - start) / dir;
+    if (a > b) { double tmp = a; a = b; b = tmp; }
+    if (a > *t0) *t0 = a;
+    if (b < *t1) *t1 = b;
+    return *t0 <= *t1;
+}
+
+/* Minecraft.getMouseOver resolves collidable entities before clickMouse.
+ * A falling block crossing the look ray therefore absorbs the held attack and
+ * resets block removing; without this, replay digs terrain through the live
+ * cascade while Java is harmlessly hitting EntityFallingBlock. */
+static int attack_hits_falling_block(const GmRuntime *r) {
+    const double border = 0.1; /* Entity.getCollisionBorderSize */
+    /* EntityRenderer.getMouseOver uses Entity.getVectorForRotation, whose
+     * MathHelper float trig is shared with the block ray. A libm double ray
+     * flips the grazing decision that controls blockHitDelay here. */
+    float f = mc_cos(&r->sin_table,
+                     -r->player.yaw * 0.017453292f - 3.1415927f);
+    float f1 = mc_sin(&r->sin_table,
+                      -r->player.yaw * 0.017453292f - 3.1415927f);
+    float f2 = -mc_cos(&r->sin_table, -r->player.pitch * 0.017453292f);
+    float f3 = mc_sin(&r->sin_table, -r->player.pitch * 0.017453292f);
+    double dx = (double)(f1 * f2);
+    double dy = (double)f3;
+    double dz = (double)(f * f2);
+    double sx = r->player.ent.posX + (double)r->ox;
+    double sy = r->player.ent.posY + PSV_EYE_HEIGHT;
+    double sz = r->player.ent.posZ + (double)r->oz;
+    for (int i = 0; i < GM_LIVE_MAX; ++i) {
+        const GmLiveEnt *e = &r->entities.ents[i];
+        if (!e->active || e->type != 2) continue;
+        /* The client spawn pose observed by getMouseOver is one constructor
+         * half-height offset above the integrated-server simulation pose.
+         * This is exactly (1 - EntityFallingBlock.height) / 2 for height .98;
+         * using the server y flips a grazing ray and advances blockHitDelay. */
+        double client_y = e->y + (double)((1.0f - 0.98f) / 2.0f);
+        double t0 = 0.0, t1 = PSV_REACH;
+        if (ray_axis(sx, dx, e->x - 0.49 - border,
+                     e->x + 0.49 + border, &t0, &t1) &&
+            ray_axis(sy, dy, client_y - border,
+                     client_y + 0.98 + border, &t0, &t1) &&
+            ray_axis(sz, dz, e->z - 0.49 - border,
+                     e->z + 0.49 + border, &t0, &t1))
+            return 1;
+    }
+    return 0;
 }
 
 static int take_arrow(PsvPlayer *p) {
@@ -473,6 +527,9 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         (void)gm_container_click(r, action.inv_slot, action.inv_button, action.inv_type);
         action.inv_click = 0;
     }
+    /* Apply integrated-server landing packets before the client snapshots its
+     * physics/raycast window for this tick. */
+    gm_live_pre_player_tick(&r->entities, r->world);
     /* refill the physics window only when its contents can have changed:
      * recenter, dimension/world switch, or any block mutation since the last
      * fill. The unconditional refill dominated tape replay (94% of a
@@ -514,8 +571,15 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     if (action.attack && gm_mobs_player_attack(&r->mobs,
             (const struct PsvPlayer *)&r->player,r->ox,r->oz,&r->entities))
         action.attack=0;
+    if (action.attack && attack_hits_falling_block(r))
+        action.attack_entity=1;
     GmBlockEdit edits[GM_RUNTIME_MAX_EDITS];
     int n = 0;
+    /* player_view lands before gm_runtime_tick for a tape row. Carry its
+     * GameType into the ordinary PlayerControllerMP dig calculation; action
+     * t is still consumed during row t, matching the recorder's post-tick
+     * semantics. This is mode propagation, not a block-specific shortcut. */
+    action.creative = r->tape_creative;
     gm_player_tick_gr((struct Chunk *)r->window,
                       (const struct McSinTable *)&r->sin_table,
                       (struct PsvPlayer *)&r->player,
@@ -562,6 +626,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
             runtime_break_chest_te(r, edits[i].wx, edits[i].wy, edits[i].wz);
         gm_world_set_block_meta(r->world, edits[i].wx, edits[i].wy, edits[i].wz,
                                 edits[i].id, edits[i].meta);
+        gm_live_block_changed(&r->entities, r->world,
+                              edits[i].wx, edits[i].wy, edits[i].wz);
         gm_fluid_mark(&r->fluids, r->world, r->dimension,
                       edits[i].wx, edits[i].wy, edits[i].wz);
         break_unsupported_plants(r, edits[i].wx, edits[i].wy, edits[i].wz);
@@ -1376,6 +1442,7 @@ int gm_runtime_set_block(GmRuntime *r, int x, int y, int z, int id, int meta) {
     if (old_id == 54 && id != 54)
         runtime_break_chest_te(r, x, y, z);
     gm_world_set_block_meta(r->world, x, y, z, id, meta);
+    gm_live_block_changed(&r->entities, r->world, x, y, z);
     gm_fluid_mark(&r->fluids, r->world, r->dimension, x, y, z);
     break_unsupported_plants(r, x, y, z);
     return 1;

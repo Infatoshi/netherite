@@ -248,10 +248,11 @@ static void render_crack(GmWindowCompose *c, const CrCamera *cam, CrRgba fog) {
 
 static int collect_entities(GmWindowCompose *c, GmEntityView *ents) {
     GmRuntime *r = c->runtime;
-    int n = gm_dragon_fill_views(&r->dragon, ents, GM_LIVE_MAX);
-    n += gm_mobs_fill_views(&r->mobs, ents + n, GM_LIVE_MAX - n);
+    enum { WC_ENTS = GM_LIVE_MAX + GM_RUNTIME_GHOST_VIEWS };
+    int n = gm_dragon_fill_views(&r->dragon, ents, WC_ENTS);
+    n += gm_mobs_fill_views(&r->mobs, ents + n, WC_ENTS - n);
     int projectile0 = n;
-    n += gm_runtime_projectile_views(r, ents + n, GM_LIVE_MAX - n);
+    n += gm_runtime_projectile_views(r, ents + n, WC_ENTS - n);
     {
         int types[GM_RUNTIME_PROJECTILES], nt = 0;
         for (int i = 0; i < GM_RUNTIME_PROJECTILES; ++i)
@@ -260,7 +261,17 @@ static int collect_entities(GmWindowCompose *c, GmEntityView *ents) {
         gm_entity_patch_large_fireballs(types, nt, ents + projectile0,
                                         n - projectile0);
     }
-    n += gm_live_fill_views(&r->entities, ents + n, GM_LIVE_MAX - n);
+    {
+        int tape_falling = 0;
+        for (int i = 0; i < r->nghost_views; ++i)
+            if (r->ghost_views[i].type == GM_VIEW_FALLING_BLOCK) {
+                tape_falling = 1;
+                break;
+            }
+        n += gm_live_fill_views_filtered(&r->entities, ents + n, WC_ENTS - n,
+                                         tape_falling);
+    }
+    n += gm_runtime_ghost_views(r, ents + n, WC_ENTS - n);
     if (r->dragon.initialized) {
         int death_ticks = r->dragon.state.arena.dragon.death_ticks;
         for (int i = 0; i < n; ++i)
@@ -586,7 +597,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
     }
 #endif
     stamp(frame, 5);
-    GmEntityView ents[GM_LIVE_MAX];
+    GmEntityView ents[GM_LIVE_MAX + GM_RUNTIME_GHOST_VIEWS];
     int nents = collect_entities(c, ents);
     update_boss_state(c, ents, nents);
     GmMeshView mv;
