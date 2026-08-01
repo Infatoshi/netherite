@@ -1285,8 +1285,22 @@ public class Recorder {
                  // recorded these, so magma has always replayed rain frames
                  // as clear sky.
                  .append(",\"rain_strength\":").append(mc.world.getRainStrength(1.0F))
-                 .append(",\"thunder_strength\":").append(mc.world.getThunderStrength(1.0F))
-                 .append(",\"velocity_packets\":1,\"position_packets\":1}");
+                 .append(",\"thunder_strength\":").append(mc.world.getThunderStrength(1.0F));
+                // active gamerules: scenario setup applies them via commands
+                // but nothing recorded the resulting truth (doMobSpawning /
+                // doDaylightCycle change what replay must simulate).
+                try {
+                    net.minecraft.world.GameRules gr = mc.world.getGameRules();
+                    h.append(",\"gamerules\":{");
+                    String[] grKeys = gr.getRules();
+                    for (int gi = 0; gi < grKeys.length; ++gi) {
+                        if (gi > 0) h.append(",");
+                        h.append("\"").append(grKeys[gi]).append("\":\"")
+                         .append(gr.getString(grKeys[gi])).append("\"");
+                    }
+                    h.append("}");
+                } catch (Throwable ig) {}
+                h.append(",\"velocity_packets\":1,\"position_packets\":1}");
                 recWriter.println(h.toString());
                 recWriter.flush();
                 // world snapshot: flush all dirty chunks to disk and copy the
@@ -5518,6 +5532,36 @@ sb.append("}");
          .append(",\"fall\":").append(p.fallDistance)
          .append(",\"dim\":").append(p.dimension)
          .append(",\"wt\":").append(mc.world.getWorldTime());
+        // Java-truth world digest: FNV-1a 64 over the 9x9x9 id/meta volume at
+        // floor(feet pos) - a bit-equal mirror of magma's nearby_hash
+        // (script.c: z outer, y, x inner; value id<<4|meta zero-extended).
+        // The anchor is emitted too so replay only compares digests when both
+        // sides agree on the volume; a shifted anchor is the physics gate's
+        // problem, not a world mismatch.
+        {
+            int cx = (int) Math.floor(p.posX), cy = (int) Math.floor(p.posY),
+                cz = (int) Math.floor(p.posZ);
+            // NOT the standard FNV-1a offset basis: magma's nearby_hash
+            // predates this mirror with the standard constant's last digit
+            // dropped (1469598103934665603 vs ...6037). Bit-equality with
+            // script.c matters, the constant itself does not.
+            long wh = 1469598103934665603L;
+            net.minecraft.util.math.BlockPos.MutableBlockPos wbp =
+                new net.minecraft.util.math.BlockPos.MutableBlockPos();
+            for (int z = cz - 4; z <= cz + 4; ++z)
+                for (int y = cy - 4; y <= cy + 4; ++y)
+                    for (int x = cx - 4; x <= cx + 4; ++x) {
+                        net.minecraft.block.state.IBlockState st =
+                            mc.world.getBlockState(wbp.setPos(x, y, z));
+                        int id = net.minecraft.block.Block.getIdFromBlock(st.getBlock());
+                        int meta = st.getBlock().getMetaFromState(st);
+                        wh ^= (long) ((id << 4) | meta) & 0xffffffffL;
+                        wh *= 0x100000001b3L;
+                    }
+            b.append(",\"wfnv\":\"").append(String.format("%016x", wh))
+             .append("\",\"wfa\":[").append(cx).append(",").append(cy)
+             .append(",").append(cz).append("]");
+        }
         // weather: rain/thunder strength drive vanilla sky/fog/light darkening
         // (World.getSkyColor 1-rain*5/16 etc.). Only emitted when active so
         // clear-weather tapes stay byte-identical to the old format.

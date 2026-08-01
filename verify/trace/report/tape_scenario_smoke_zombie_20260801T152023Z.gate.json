@@ -14,37 +14,27 @@
   "fail_mean_abs": 3.32,
   "fail_low_pct_differing": 40.0
  },
- "frames_checked": 61,
+ "frames_checked": 19,
  "classes": {
-  "hud": {
-   "frames": 10,
-   "px": 15094,
-   "max_cluster": 13196
-  },
   "viewmodel": {
-   "frames": 47,
-   "px": 15122,
-   "max_cluster": 3507
-  },
-  "particles": {
-   "frames": 40,
-   "px": 9993,
-   "max_cluster": 315
+   "frames": 2,
+   "px": 327,
+   "max_cluster": 219
   },
   "UNEXPLAINED": {
-   "frames": 9,
-   "px": 5631,
+   "frames": 1,
+   "px": 105,
+   "max_cluster": 105
+  },
+  "hud": {
+   "frames": 2,
+   "px": 1126,
    "max_cluster": 692
   },
-  "thinline": {
-   "frames": 7,
-   "px": 6249,
-   "max_cluster": 1145
-  },
-  "bossbar": {
-   "frames": 4,
-   "px": 2215,
-   "max_cluster": 1553
+  "transit": {
+   "frames": 1,
+   "px": 820,
+   "max_cluster": 660
   }
  },
  "failed_frames": [],
@@ -56,179 +46,199 @@
  "state": {
   "kind": "state",
   "coverage": {
-   "ticks_total": 605,
-   "ticks_run": 605,
-   "truncated": false
+   "ticks_total": 806,
+   "ticks_run": 373,
+   "truncated": true
   },
   "inventory": {
-   "ticks_checked": 1,
-   "ticks_independent": 0,
-   "seeded_only": true,
+   "ticks_checked": 20,
+   "ticks_independent": 19,
+   "seeded_only": false,
    "mismatches": [],
    "pass": true,
    "available": true
   },
   "entities": {
-   "ticks_checked": 31,
+   "ticks_checked": 19,
    "samples": [
     {
      "tick": 0,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 20,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 40,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 60,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 80,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 100,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 120,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 140,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 160,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 180,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 200,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 220,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 240,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 260,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 280,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     },
     {
      "tick": 300,
-     "tape_count": 0,
-     "tape_types": [],
+     "tape_count": 1,
+     "tape_types": [
+      "EntityZombie"
+     ],
      "magma_count": 0,
      "magma_types": []
     }
    ],
-   "ghost_ticks": 605,
-   "ghost_expected": 0,
+   "ghost_ticks": 373,
+   "ghost_expected": 374,
    "mismatches": [],
    "verified": true,
    "pass": true,
    "available": true
   },
   "world": {
-   "ticks_checked": 31,
-   "hash_deltas": 5,
+   "ticks_checked": 19,
+   "hash_deltas": 0,
    "samples": [
     {
      "tick": 0,
-     "nearby_hash": "64c6d2f74b3e2ef9"
+     "nearby_hash": "f63a2e55f4417889"
     },
     {
      "tick": 100,
-     "nearby_hash": "df5a9291b3a7d5c9"
+     "nearby_hash": "f63a2e55f4417889"
     },
     {
      "tick": 200,
-     "nearby_hash": "07fde7e2c136dc89"
+     "nearby_hash": "f63a2e55f4417889"
     },
     {
      "tick": 300,
-     "nearby_hash": "6fcf948d06c04509"
-    },
-    {
-     "tick": 400,
-     "nearby_hash": "f63a2e55f4417889"
-    },
-    {
-     "tick": 500,
-     "nearby_hash": "f63a2e55f4417889"
-    },
-    {
-     "tick": 600,
      "nearby_hash": "f63a2e55f4417889"
     }
    ],
-   "mode": "c_only",
-   "compared": 0,
+   "mode": "java",
+   "compared": 373,
    "anchor_skips": 0,
    "mismatches": [],
-   "verified": false,
+   "verified": true,
    "pass": true,
    "available": true
   }

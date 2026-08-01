@@ -1386,6 +1386,42 @@ def _compare_inv_tick(t, tape_row, magma_row, mismatches, max_mismatches=20):
             })
 
 
+def _ghost_match_tick(t, j_row, c_row, mismatches, max_mismatches=20):
+    """Every modeled tape entity must reappear in magma's ingested ghost
+    views at the taped position (float32 round-trip tolerance). One-way on
+    purpose: magma may emit extra synthetic views (fireball impact ghosts),
+    and unmodeled types are the missing_model gate's job, not this one.
+    Returns the expected count, or None when the state row predates
+    ghost_views emission (nothing verifiable)."""
+    ghosts = c_row.get("ghost_views")
+    if ghosts is None:
+        return None
+    expected = [e for e in (j_row.get("ents") or [])
+                if len(e) >= 5 and e[1] in MODELED_ENTITY_TYPES]
+    used = [False] * len(ghosts)
+    for e in expected:
+        ex, ey, ez = float(e[2]), float(e[3]), float(e[4])
+        best, best_d = -1, None
+        for gi, g in enumerate(ghosts):
+            if used[gi]:
+                continue
+            d = max(abs(float(g["x"]) - ex), abs(float(g["y"]) - ey),
+                    abs(float(g["z"]) - ez))
+            if best_d is None or d < best_d:
+                best, best_d = gi, d
+        # float32 storage of the taped double: eps ~1.2e-7 relative, with an
+        # absolute floor well under any real position corruption.
+        tol = max(1e-3, 2.4e-7 * max(abs(ex), abs(ey), abs(ez)))
+        if best < 0 or best_d > tol:
+            if len(mismatches) < max_mismatches:
+                mismatches.append({
+                    "tick": t, "type": e[1], "x": ex, "y": ey, "z": ez,
+                    "nearest": None if best_d is None else round(best_d, 6)})
+        else:
+            used[best] = True
+    return len(expected)
+
+
 def collect_state_assertions(ticks, c_rows, sample_every=20):
     """Build explicit non-player state assertions for scenario/gate output.
 
@@ -1396,6 +1432,17 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
     only the sample grid. Tick 0 is compared for seed correctness but is NOT
     counted as an independent verification - replay seeds live inventory from
     that same row, so a tick-0-only tape is reported as ``seeded_only``.
+
+    Entities: every tick with an ``ents`` row is matched against the ghost
+    views magma actually ingested (see _ghost_match_tick); presence samples
+    stay on the sample grid for the report.
+
+    World: rows carrying the recorder's ``wfnv`` digest are compared against
+    magma's ``nearby_hash`` whenever both sides agree on the anchor block
+    (``wfa`` vs ``nearby_anchor``); anchor disagreements are counted, not
+    failed - a position divergence is the physics gate's verdict. Tapes
+    without ``wfnv`` keep the legacy C-only delta accounting and are marked
+    verified=False: presence of a hash is not evidence.
     """
     n = min(len(ticks), len(c_rows))
     inv_checked = 0
@@ -1403,10 +1450,17 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
     inv_mismatches = []
     ent_checked = 0
     ent_presence = []
+    ent_ghost_ticks = 0
+    ent_expected = 0
+    ent_mismatches = []
     hash_checked = 0
     hash_samples = []
     prev_hash = None
     hash_deltas = 0
+    tape_has_wfnv = False
+    world_compared = 0
+    world_mismatches = []
+    world_anchor_skips = 0
     # Inventory: every inv-bearing tick (change dumps + keyframes). Sparse, so
     # full coverage is cheap and catches mid-tape evolution that misses the
     # sample grid (e.g. arrow consume at t=77 when sample_every=20).
@@ -1419,6 +1473,28 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             inv_independent += 1
         _compare_inv_tick(t, j, c_rows[t], inv_mismatches)
     seeded_only = inv_checked > 0 and inv_independent == 0
+    # Entity ghost match + Java/C world digest: every tick, exact first
+    # failing tick semantics (both compares are cheap).
+    for t in range(n):
+        j, c = ticks[t], c_rows[t]
+        if "ents" in j:
+            exp = _ghost_match_tick(t, j, c, ent_mismatches)
+            if exp is not None:
+                ent_ghost_ticks += 1
+                ent_expected += exp
+        wf = j.get("wfnv")
+        if wf is not None:
+            tape_has_wfnv = True
+            nh = c.get("nearby_hash")
+            if nh is not None:
+                if j.get("wfa") == c.get("nearby_anchor"):
+                    world_compared += 1
+                    if wf != nh and len(world_mismatches) < 20:
+                        world_mismatches.append({
+                            "tick": t, "java": wf, "magma": nh,
+                            "anchor": j.get("wfa")})
+                else:
+                    world_anchor_skips += 1
     for t in range(0, n, max(1, sample_every)):
         j, c = ticks[t], c_rows[t]
         if "ents" in j:
@@ -1462,15 +1538,33 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
         "entities": {
             "ticks_checked": ent_checked,
             "samples": ent_presence[:16],
-            "pass": True,  # presence is informational; types are recorded
+            # Ghost match: fails when a modeled tape entity never reached
+            # magma's ingested views at its taped position (dropped, capped,
+            # or corrupted). verified=False means the state rows predate
+            # ghost_views emission and nothing was actually checked.
+            "ghost_ticks": ent_ghost_ticks,
+            "ghost_expected": ent_expected,
+            "mismatches": ent_mismatches,
+            "verified": ent_ghost_ticks > 0,
+            "pass": ent_ghost_ticks == 0 or len(ent_mismatches) == 0,
             "available": ent_checked > 0,
         },
         "world": {
             "ticks_checked": hash_checked,
             "hash_deltas": hash_deltas,
             "samples": hash_samples,
-            "pass": hash_checked > 0,  # hash emitted = world gate available
-            "available": hash_checked > 0,
+            # mode "java": the recorder emitted its own wfnv digest and the
+            # comparison is real truth. mode "c_only": legacy tape, the C
+            # hash exists but verifies nothing (verified=False, informational
+            # pass kept so old pin verdicts do not shift).
+            "mode": "java" if tape_has_wfnv else "c_only",
+            "compared": world_compared,
+            "anchor_skips": world_anchor_skips,
+            "mismatches": world_mismatches,
+            "verified": world_compared > 0,
+            "pass": ((world_compared > 0 and len(world_mismatches) == 0)
+                     if tape_has_wfnv else hash_checked > 0),
+            "available": hash_checked > 0 or tape_has_wfnv,
         },
     }
 
@@ -1652,11 +1746,38 @@ def main():
         inv_detail = (f"{inv_s.get('ticks_independent', 0)} independent ticks, "
                       f"{inv_s['ticks_checked']} compared, "
                       f"{len(inv_s['mismatches'])} mismatches")
+    if not ent_s["available"]:
+        ent_status, ent_detail = "n/a", "0 ticks"
+    elif ent_s.get("verified"):
+        ent_status = "PASS" if ent_s["pass"] else "FAIL"
+        ent_detail = (f"{ent_s['ghost_expected']} ents over "
+                      f"{ent_s['ghost_ticks']} ticks vs ghost views, "
+                      f"{len(ent_s['mismatches'])} mismatches")
+    else:
+        ent_status, ent_detail = "recorded", f"{ent_s['ticks_checked']} ticks"
+    if world_s.get("mode") == "java":
+        world_status = "PASS" if world_s["pass"] else "FAIL"
+        world_detail = (f"java digest, {world_s['compared']} ticks compared, "
+                        f"{world_s['anchor_skips']} anchor skips, "
+                        f"{len(world_s['mismatches'])} mismatches")
+    elif not world_s["available"]:
+        world_status, world_detail = "n/a", "0 ticks"
+    else:
+        world_status = "recorded (c-only, unverified)"
+        world_detail = (f"{world_s['ticks_checked']} ticks, "
+                        f"{world_s['hash_deltas']} deltas")
     print(f"[tape] state: inventory {inv_status} ({inv_detail}); "
-          f"entities {'n/a' if not ent_s['available'] else 'recorded'} "
-          f"({ent_s['ticks_checked']} ticks); "
-          f"world_hash {'n/a' if not world_s['available'] else 'recorded'} "
-          f"({world_s['ticks_checked']} ticks, {world_s['hash_deltas']} deltas)")
+          f"entities {ent_status} ({ent_detail}); "
+          f"world_hash {world_status} ({world_detail})")
+    if ent_s.get("mismatches"):
+        m = ent_s["mismatches"][0]
+        print(f"[tape] entity FIRST MISMATCH tick {m['tick']}: {m['type']} at "
+              f"({m['x']:.3f},{m['y']:.3f},{m['z']:.3f}) nearest ghost "
+              f"{m['nearest']}")
+    if world_s.get("mismatches"):
+        m = world_s["mismatches"][0]
+        print(f"[tape] world FIRST MISMATCH tick {m['tick']}: "
+              f"java={m['java']} magma={m['magma']} anchor={m['anchor']}")
     cov = state_gate["coverage"]
     if cov["truncated"]:
         print(f"[tape] COVERAGE: only {cov['ticks_run']} of "
@@ -1847,10 +1968,18 @@ def main():
                     f"available={inv_s['available']} "
                     f"pass={inv_s['pass']}\n")
             f.write(f"- entities: checked={ent_s['ticks_checked']} "
-                    f"available={ent_s['available']}\n")
-            f.write(f"- world nearby_hash: checked={world_s['ticks_checked']} "
+                    f"ghost_ticks={ent_s.get('ghost_ticks', 0)} "
+                    f"mismatches={len(ent_s.get('mismatches', []))} "
+                    f"verified={ent_s.get('verified', False)} "
+                    f"available={ent_s['available']} pass={ent_s['pass']}\n")
+            f.write(f"- world hash: mode={world_s.get('mode', 'c_only')} "
+                    f"compared={world_s.get('compared', 0)} "
+                    f"anchor_skips={world_s.get('anchor_skips', 0)} "
+                    f"mismatches={len(world_s.get('mismatches', []))} "
                     f"deltas={world_s['hash_deltas']} "
-                    f"available={world_s['available']}\n\n")
+                    f"verified={world_s.get('verified', False)} "
+                    f"available={world_s['available']} "
+                    f"pass={world_s['pass']}\n\n")
             if gate:
                 f.write(f"**Pixel gate: {'PASS' if gate['pass'] else 'FAIL'}"
                         f"** over {gate['frames_checked']} frames.\n\n")
@@ -1904,12 +2033,13 @@ def main():
             # a tape can fail both, and returning 3 alone hid two real missing
             # items on the canonical tape (t=3257 slot 1, t=3267 slot 2) behind
             # its long-standing pixel FAIL. Say it out loud before returning.
-            if (state_gate["inventory"]["available"]
-                    and not state_gate["inventory"]["pass"]):
-                print("[gate] NOTE: inventory state ALSO failed "
-                      f"({len(state_gate['inventory']['mismatches'])} "
-                      "mismatches); rc=3 reports the pixel gate, the state "
-                      "failure is in the gate.json state block")
+            for k in ("inventory", "entities", "world"):
+                s_ = state_gate[k]
+                if s_.get("available") and not s_.get("pass", True):
+                    print(f"[gate] NOTE: {k} state ALSO failed "
+                          f"({len(s_.get('mismatches', []))} mismatches); "
+                          "rc=3 reports the pixel gate, the state failure is "
+                          "in the gate.json state block")
             return 3
     else:
         # No pixel frames: still emit a state-only gate sidecar for scenarios.
@@ -1921,8 +2051,13 @@ def main():
         print(f"[gate] state-only baseline -> {gj}")
     if first is not None:
         return 4  # physics divergence: exact replay is the primary contract
-    if state_gate["inventory"]["available"] and not state_gate["inventory"]["pass"]:
-        return 5  # non-player state divergence (not physics)
+    # Non-player state divergence (not physics): inventory, entity ghost
+    # match, or Java/C world digest. Only verified comparisons can fail -
+    # legacy tapes without wfnv / pre-ghost state rows keep their verdicts.
+    for k in ("inventory", "entities", "world"):
+        s = state_gate[k]
+        if s.get("available") and not s.get("pass", True):
+            return 5
     return 0
 
 

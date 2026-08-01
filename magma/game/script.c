@@ -181,9 +181,20 @@ static int parse_craft(const JlObject *o, int *width, int slots[9], char *err, i
     return 1;
 }
 
-static unsigned long long nearby_hash(const GmRuntime *r, const GmPlayerView *v) {
+/* FNV-1a over the 9x9x9 id/meta volume around the player. Anchored at the
+ * double-precision sim feet position (not the float render view): the Java
+ * recorder computes the identical digest from floor(posX/Y/Z), and a float
+ * round-trip can flip floor() at block boundaries. Java mirror:
+ * Recorder.recordTick "wfnv". Iteration order and value packing must stay
+ * bit-equal on both sides.
+ * The basis below is NOT standard FNV-1a (last digit of ...6037 dropped,
+ * historic); it only has to keep matching the Java mirror. */
+static unsigned long long nearby_hash(const GmRuntime *r, int anchor[3]) {
     unsigned long long h = 1469598103934665603ULL;
-    int cx = (int)floor(v->x), cy = (int)floor(v->y), cz = (int)floor(v->z);
+    int cx = (int)floor(r->player.ent.posX + (double)r->ox);
+    int cy = (int)floor(r->player.ent.posY);
+    int cz = (int)floor(r->player.ent.posZ + (double)r->oz);
+    anchor[0] = cx; anchor[1] = cy; anchor[2] = cz;
     for (int z = cz - 4; z <= cz + 4; ++z)
         for (int y = cy - 4; y <= cy + 4; ++y)
             for (int x = cx - 4; x <= cx + 4; ++x) {
@@ -294,8 +305,25 @@ static void write_state(FILE *out, const GmRuntime *r) {
                 f->output.item,f->output.count,f->output.meta,
                 f->burn_time,f->cook_time,f->total_cook);
     } else fprintf(out,"null");
+    /* Tape-driven render ghosts, exactly as ingested: the Java-truth entity
+     * rows come back out so replay can assert the tape->magma pipeline did
+     * not drop, cap, or corrupt them (positions are float32 of the taped
+     * doubles). */
+    fprintf(out, ",\"ghost_views\":[");
+    {
+        GmEntityView ghosts[GM_RUNTIME_GHOST_VIEWS];
+        int ng = gm_runtime_ghost_views(r, ghosts, GM_RUNTIME_GHOST_VIEWS);
+        for (int i = 0; i < ng; ++i)
+            fprintf(out, "%s{\"type\":%d,\"x\":%.9g,\"y\":%.9g,\"z\":%.9g}",
+                    i ? "," : "", ghosts[i].type, (double)ghosts[i].x,
+                    (double)ghosts[i].y, (double)ghosts[i].z);
+    }
+    fprintf(out, "]");
+    int anchor[3];
+    unsigned long long nh = nearby_hash(r, anchor);
+    fprintf(out, ",\"nearby_anchor\":[%d,%d,%d]", anchor[0],anchor[1],anchor[2]);
     fprintf(out, ",\"nearby_hash\":\"%016llx\",\"terminal\":%s}\n",
-            nearby_hash(r,&v), v.dead ? "\"death\"" : (r->won?"\"won\"":"null"));
+            nh, v.dead ? "\"death\"" : (r->won?"\"won\"":"null"));
 }
 
 /* MAGMA_STATE_PROF=1: batched-env sizing census, printed to stderr at run
