@@ -186,7 +186,9 @@ static int parse_craft(const JlObject *o, int *width, int slots[9], char *err, i
  * recorder computes the identical digest from floor(posX/Y/Z), and a float
  * round-trip can flip floor() at block boundaries. Java mirror:
  * Recorder.recordTick "wfnv". Iteration order and value packing must stay
- * bit-equal on both sides. */
+ * bit-equal on both sides.
+ * The basis below is NOT standard FNV-1a (last digit of ...6037 dropped,
+ * historic); it only has to keep matching the Java mirror. */
 static unsigned long long nearby_hash(const GmRuntime *r, int anchor[3]) {
     unsigned long long h = 1469598103934665603ULL;
     int cx = (int)floor(r->player.ent.posX + (double)r->ox);

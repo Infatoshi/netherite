@@ -1106,6 +1106,24 @@ capture as blocked. Do not fit C output to an unproven Oracle state.
 5. The nether_elytra world snapshot lacks transient lavafall cells
    (x=-123, z=-86, y=32..46); a counterfactual fill reproduces the golden.
    Needs dynamic-fluid snapshot capture; re-recording alone will not fix it.
+6. Magma has no gravity-block cascade: sand/gravel never convert to
+   FallingBlock entities on support removal, so the world blocks diverge
+   from the first conversion tick while render stays plausible (tape ghost
+   views draw Java's falling entities over magma's still-floating column).
+   Caught 2026-08-01 by the Java/C world digest gate on the first VALID
+   falling_blocks take (scenario_falling_blocks_20260801T151855Z): ticks
+   0-19 digest-identical, dig applies one tick late (Java t20, magma t21,
+   same digest value - separate small skew), first cascade divergence t22,
+   magma world frozen from t30 while Java evolves through t59. Fix needs a
+   real falling-block sim (convert on support removal + neighbor updates +
+   landing re-block); the 1-tick dig skew deserves its own look at the
+   attack-input replay alignment.
+
+Status updates 2026-08-01: item 3's recorder half is DONE (recstart now
+serializes all gamerules into the tape header); replay-side consumption is
+still open. Item 4 no longer reproduces: the 2026-08-01 falling_blocks
+takes record real terrain goldens (chunk meshes present), so the scenario
+is recordable again - its gate now fails honestly on item 6 instead.
 
 Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
 unexplained px (7 clusters, largest 1463) relative to its 2026-07-29

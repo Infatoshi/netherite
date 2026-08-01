@@ -1101,3 +1101,29 @@ full-course tapes improved, tnt + creeper priced at the filed particle gap,
 slime priced at the isolated shell contradiction) except nether_elytra, whose
 single-line "baseline regression" (t=63, 2409 px) is the one open item and is
 deliberately not absorbed. Suite RESULT: FAIL on that line alone.
+
+## 2026-08-01: Java tape state oracle upgrade (world digest + entity truth)
+
+The replay "state gate" stopped being decorative. Recorder.recordTick now
+emits a per-tick world digest (`wfnv`: FNV-1a 64 over the 9x9x9 id<<4|meta
+volume at floor(feet pos), bit-equal mirror of script.c nearby_hash - note
+that constant is a historic non-standard basis, last digit dropped, and both
+sides carry a comment saying bit-equality is the only requirement) plus its
+anchor (`wfa`), and serializes all gamerules into the recstart header
+(OPEN item 3's recorder half). script.c re-anchored nearby_hash at the
+double-precision feet position (the float view floor could flip at block
+boundaries), and write_state emits `nearby_anchor` + the ingested
+`ghost_views`. collect_state_assertions now fails: every modeled tape entity
+must reappear in magma's ghost views at its taped position (float32 tol),
+and Java-vs-C digests must match on every anchor-agreeing tick; verified
+failures exit rc=5. Legacy tapes keep informational verdicts - full pin set
+stays ACCEPT (dragon tape: 6150 entity rows matched, 0 mismatches).
+
+Proofs: smoke_zombie re-record = clean pass (373/373 digests, 374 ents,
+rc 0); wfnv flipped at t150 -> rc 5, exact tick; ghost shift/drop and
+anchor-only disagreement all behave (mutation harness). First valid
+falling_blocks take promptly caught a real divergence: magma has no
+gravity-block cascade (OPEN item 6 - digests identical t0-19, dig applies
+one tick late with the same digest value, cascade diverges from t22, magma
+world frozen from t30). OPEN item 4 (sky-only falling_blocks goldens) no
+longer reproduces.
