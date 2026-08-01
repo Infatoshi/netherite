@@ -36,7 +36,7 @@ OBJ_ASSETS = assets/blockmodels.o
 
 # seam: playable game (verified blaze player/world tick + magma render + HUD + mobs)
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
-           game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
+           game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
 
 .PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live clean cuda test-raster-parity test-fog-radial
 all: demo
@@ -146,7 +146,8 @@ METAL_WEAK_LD = $(foreach s,pre into frame_begin frame_end post atlas_dirty \
                   slab_pool slab_sync slabs_reset render_gather render_terrain \
                   uploads_mark uploads_wait,-Wl,-U,_cr_raster_metal_$(s)) \
                 -Wl,-U,_alloctrack_frame
-OBJ_GAME_METAL = $(patsubst game/frame_capture.o,game/frame_capture_metal.o,$(OBJ_GAME))
+OBJ_GAME_METAL = $(patsubst game/window_compose.o,game/window_compose_metal.o,\
+                 $(patsubst game/frame_capture.o,game/frame_capture_metal.o,$(OBJ_GAME)))
 # Fail fast off-macOS: everything below needs xcrun + the Metal frameworks.
 # The guard runs before any sub-make, so a Linux `make game-metal` dies with
 # one clear message instead of a wall of clang/xcrun errors.
@@ -159,6 +160,8 @@ game-metal:
 app/game_main_metal.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h game/particles_live.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
 game/frame_capture_metal.o: game/frame_capture.c game/frame_capture.h core/types.h game/game.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
+game/window_compose_metal.o: game/window_compose.c game/window_compose.h core/types.h game/game.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
 metal/raster_metal_host.o: metal/raster_metal_host.m core/types.h
 	$(CC) -x objective-c -fobjc-arc $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
@@ -178,7 +181,7 @@ magma_game_metal: app/game_main_metal.o metal/raster_metal_host.o $(OBJ_GAME_MET
 GAME_DBG_SRCS = app/game_main.c \
                 game/config.c game/input_map.c game/world_live.c game/player_ctl.c game/hud.c \
                 game/screen.c game/player_preview.c \
-                game/entity_render.c game/particles_live.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/script.c game/rl_mode.c \
+                game/entity_render.c game/particles_live.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/window_compose.c game/script.c game/rl_mode.c \
                 game/overlay.c game/overlay_live.c game/sel_box.c game/fluid_live.c game/underwater.c \
                 world/mesh_mc.c world/light.c world/populate_mc.c \
                 world/world.c world/mesh.c world/blocks.c \
