@@ -354,6 +354,10 @@ test-game: test-config test-block-registry test-launch assets/mob_atlas.h
 	bash game/test_dragon_live.sh
 	bash game/test_route_e2e.sh
 
+.PHONY: test-mob-live
+test-mob-live:
+	bash game/test_mob_live.sh
+
 # KernelBench-style rasterizer verification: rasterize one fixed clip-space scene
 # with real Mesa software GL (OSMesa golden) and with our cr_raster_cpu (candidate),
 # then tolerance-diff. GL triangle->pixel is hardware/driver-defined (subpixel fill

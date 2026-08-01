@@ -1982,7 +1982,8 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         float lsa = ents[e].limb_swing_amount;
         float ls  = ents[e].limb_swing;
         int t = ents[e].type;
-        if (ents[e].tape_pose && np > 0) {
+        if ((ents[e].tape_pose || t == ER_TYPE_SHEEP || t == ER_TYPE_PIG ||
+             t == ER_TYPE_COW || t == ER_TYPE_CHICKEN) && np > 0) {
             /* ModelLivingBase.setRotationAngles: head yaw is relative to the
              * renderYawOffset body rotation; pitch is absolute. Only applied
              * where part 0 IS a head sharing its pivot with any companions
@@ -2102,19 +2103,11 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
          *   head.ry = 6 + 1.0*9
          *   head.ax = PI/5 + (PI*7/100)*sin((20-4)/32 * 28.7)
          * Applied to skin head (0) and fur head (6). */
-        if (t == ER_TYPE_SHEEP && ents[e].tape_pose && np >= 7) {
+        if (t == ER_TYPE_SHEEP && np >= 7) {
             local[0].ry = 6.0f + ents[e].graze_y * 9.0f;
             local[0].ax = ents[e].graze_x;
             local[6].ry = local[0].ry;
             local[6].ax = local[0].ax;
-        } else if (t == ER_TYPE_SHEEP && lsa < 0.08f && np >= 7) {
-            float f = (20.0f - 4.0f) / 32.0f;
-            float head_ax = (ER_PI / 5.0f)
-                + (ER_PI * 7.0f / 100.0f) * sinf(f * 28.7f);
-            local[0].ry = 15.0f;
-            local[0].ax = head_ax;
-            local[6].ry = 15.0f;
-            local[6].ax = head_ax;
         }
 
         float death_roll = er_death_roll(&ents[e]);
@@ -2164,13 +2157,13 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
          * face snout (skin head, longer -Z) wins near-coplanar depth against the
          * expanded fur head (ModelSheep1 delta 0.6). Vanilla order is base then
          * LayerSheepWool; skin-last for the head only preserves face texels. */
-        if (t == ER_TYPE_SHEEP && ents[e].tape_pose && ents[e].sheared && np >= 12) {
+        if (t == ER_TYPE_SHEEP && ents[e].sheared && np >= 12) {
             for (int p = 0; p < 6; ++p)
                 written += emit_box(&local[p], cs, sn, scx, fx, fy, fz, tint,
                                     lv, blk, roll_c, roll_s, out + written);
         } else if (t == ER_TYPE_SHEEP && np >= 12) {
             static const int order[12] = { 7, 8, 9, 10, 11, 1, 2, 3, 4, 5, 6, 0 };
-            CrRgba wool = sheep_wool_tint(ents[e].tape_pose ? ents[e].fleece_color : 0,
+            CrRgba wool = sheep_wool_tint(ents[e].fleece_color,
                                           ents[e].hurt_time > 0);
             if (ents[e].lm_lit == 2) {
                 wool.r = (u8)(wool.r * ents[e].lm_mul_r + 0.5f);

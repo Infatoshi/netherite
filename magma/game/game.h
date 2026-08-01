@@ -186,7 +186,7 @@ typedef struct {
     int   item_id;    /* item/block id; billboard sprite id for view projectiles */
     int   item_meta;  /* GM_VIEW_ITEM: meta of the stack */
     int   age;        /* entity age in ticks (item bob/spin phase) */
-    /* render-pose animation (tape ghost path; live mobs leave 0) */
+    /* render-pose animation (tape ghosts; live passive AI also fills head/pitch) */
     float limb_swing;        /* EntityLivingBase.limbSwing */
     float limb_swing_amount; /* EntityLivingBase.limbSwingAmount */
     int   hurt_time;         /* EntityLivingBase.hurtTime countdown */

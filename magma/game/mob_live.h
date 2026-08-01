@@ -40,7 +40,21 @@ typedef struct {
     int next_orb_id;
     int creeper_fuse[EW_MAX_ENTITIES];
     unsigned char hurt_aggro[EW_MAX_ENTITIES];   /* revenge target set */
-    int panic_ticks[EW_MAX_ENTITIES];            /* passive flee timer after damage */
+    int panic_ticks[EW_MAX_ENTITIES];            /* passive revenge target lifetime (101 ticks) */
+    /* Vanilla EntityAITasks state for sheep/pig/cow/chicken. Task bits and
+     * hash-RNG details stay private to mob_live.c; these are per-entity goal,
+     * navigator, look-helper, and sheep eat-grass fields. */
+    unsigned int passive_tasks[EW_MAX_ENTITIES];
+    int passive_task_tick[EW_MAX_ENTITIES];
+    int passive_watch_time[EW_MAX_ENTITIES];
+    int passive_idle_time[EW_MAX_ENTITIES];
+    int passive_eat_time[EW_MAX_ENTITIES];
+    double passive_idle_x[EW_MAX_ENTITIES];
+    double passive_idle_z[EW_MAX_ENTITIES];
+    double passive_nav_speed[EW_MAX_ENTITIES];
+    float passive_head_yaw[EW_MAX_ENTITIES];
+    float passive_head_pitch[EW_MAX_ENTITIES];
+    unsigned char passive_sheared[EW_MAX_ENTITIES];
     int fire_ticks[EW_MAX_ENTITIES];             /* daylight burn */
     int despawn_ticks[EW_MAX_ENTITIES];          /* ticks spent >32 blocks from player */
     int anger[EW_MAX_ENTITIES];                  /* pigman angerLevel ticks */
@@ -103,7 +117,7 @@ void gm_mobs_player_hurt_tick(GmMobLive *m);
 void gm_mobs_tick(GmMobLive *m, GmWorld *world, const struct McSinTable *sin_table,
                   struct PsvPlayer *player, struct PvStats *vitals,
                   int ox, int oz, int dimension, long long world_time, GmLiveSim *drops,
-                  float boat_forward, float boat_strafe);
+                  float boat_forward, float boat_strafe, int mob_griefing);
 int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max);
 int gm_mobs_alive(const GmMobLive *m);
 int gm_mobs_living_count(const GmMobLive *m);

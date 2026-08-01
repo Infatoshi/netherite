@@ -1177,11 +1177,12 @@ pixel gate renders - the windowed-path blindspot class):
     (262,932 verts > 262,144 cap; tall grass). Cap doubled to 524,288;
     measured peak documented in magma.conf. Tape peaks never passed 33K
     because no pinned tape renders a plains spawn at rd8.
-12. Passive mob AI is a stub: sheep lack the vanilla task set
-    (EntitySheep: swim, panic 1.25, mate, tempt-wheat 1.1, follow-parent,
-    eat-grass, wander-avoid-water 1.0, watch-closest player 6.0,
-    look-idle). Observed: no idle head look, wrong flee behavior, panic
-    speed off. Applies to sheep/pig/cow/chicken.
+12. FIXED: live sheep/pig/cow/chicken now run their vanilla 1.11.2
+    priority/mutex task lists for swim, panic, eat-grass (sheep),
+    wander-avoid-water, watch-closest player, and look-idle. Movement and
+    look helpers carry the task outputs into motion and rendered head pose;
+    sheep panic uses 1.25 * the 0.23 movement attribute. Mate, tempt, and
+    follow-parent remain dormant because live play has no breeding state.
 13. Entities x-ray through translucent water: window compose draws all
     four terrain layers (window_compose.c render order solid, cutmip,
     cutout, trans) THEN entities, so entities paint over water. Vanilla

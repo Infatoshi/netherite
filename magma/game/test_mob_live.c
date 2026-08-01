@@ -7,12 +7,94 @@
 static int fail;
 #define CHECK(C, M) do { if (!(C)) { fprintf(stderr, "FAIL: %s\n", M); fail=1; } } while (0)
 
-static int init_flat(GmRuntime *r) {
+static int init_flat_seed(GmRuntime *r, long long seed) {
     GmConfig c; char err[256];
     gm_config_defaults(&c); c.world=GM_WORLD_SUPERFLAT; c.view_distance=1;
+    c.seed=seed;
     if(!gm_runtime_init(r,&c,err,sizeof err)){fprintf(stderr,"init: %s\n",err);return 0;}
     gm_runtime_set_pose(r,8.5,5.0,8.5,0.0f,10.0f);
     return 1;
+}
+
+static int init_flat(GmRuntime *r) { return init_flat_seed(r,0); }
+
+typedef struct {
+    float x, z, yaw, head_yaw, pitch;
+    int eat_time;
+} SheepSample;
+
+typedef struct {
+    SheepSample samples[512];
+    int nsamples;
+    int head_onsets[16];
+    int nhead_onsets;
+    int panic_tick;
+    double panic_step;
+} SheepTrace;
+
+static EwStore *test_mob_store(GmMobLive *m) {
+    return m->current ? &m->b : &m->a;
+}
+
+static int sheep_view(GmRuntime *r, GmEntityView *out) {
+    GmEntityView views[EW_MAX_ENTITIES];
+    int n=gm_mobs_fill_views(&r->mobs,views,EW_MAX_ENTITIES);
+    for(int i=0;i<n;++i)if(views[i].type==GM_MOB_SHEEP){*out=views[i];return 1;}
+    return 0;
+}
+
+static double oracle_sheep_panic_first_step(void) {
+    /* EntityAIPanic navigator speed 1.25; EntityMoveHelper multiplies the
+     * 0.23000000417232513 attribute and EntityLiving writes the resulting
+     * float to both landMovementFactor and moveForward. Ground travel damps
+     * forward by 0.98 and applies the 0.6*0.91 slipperiness factor. */
+    float ai=(float)(1.25*0.23000000417232513);
+    float friction=0.6f*0.91f;
+    float accel=0.16277136f/(friction*friction*friction);
+    return (double)((ai*0.98f)*(ai*accel));
+}
+
+static int run_sheep_trace(SheepTrace *trace) {
+    GmRuntime r;memset(trace,0,sizeof *trace);
+    trace->panic_tick=-1;
+    if(!init_flat_seed(&r,0))return 0;
+    gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,10.0f);
+    int slot=gm_mobs_spawn(&r.mobs,GM_MOB_SHEEP,8.5,5.0,16.5);
+    if(slot<0){gm_runtime_destroy(&r);return 0;}
+    GmAction idle;memset(&idle,0,sizeof idle);idle.hotbar_sel=-1;
+    int looking=0;
+    for(int tick=0;tick<400;++tick){
+        gm_runtime_tick(&r,idle);
+        GmEntityView v;if(!sheep_view(&r,&v)){gm_runtime_destroy(&r);return 0;}
+        SheepSample *s=&trace->samples[trace->nsamples++];
+        s->x=v.x;s->z=v.z;s->yaw=v.yaw;s->head_yaw=v.head_yaw;s->pitch=v.pitch;
+        s->eat_time=r.mobs.passive_eat_time[slot];
+        int now_looking=fabsf(v.head_yaw-v.yaw)>0.5f||fabsf(v.pitch)>0.5f;
+        if(now_looking&&!looking&&trace->nhead_onsets<16)
+            trace->head_onsets[trace->nhead_onsets++]=tick;
+        looking=now_looking;
+    }
+
+    /* Component reset isolates the first post-hit MOVE_TO acceleration from
+     * any residual wander momentum; the hit and AI path are still ordinary
+     * live-sim code. Keep both double buffers coherent. */
+    EwStore *cur=test_mob_store(&r.mobs),*other=r.mobs.current?&r.mobs.a:&r.mobs.b;
+    cur->vx[slot]=cur->vz[slot]=0.0;cur->path_len[slot]=0;
+    other->vx[slot]=other->vz[slot]=0.0;other->path_len[slot]=0;
+    r.mobs.passive_tasks[slot]=0;r.mobs.passive_task_tick[slot]=0;
+    GmEntityView before;if(!sheep_view(&r,&before)){gm_runtime_destroy(&r);return 0;}
+    if(!gm_mobs_damage_near(&r.mobs,before.x,before.y+0.5,before.z,1.0,1.0f,&r.entities)){
+        gm_runtime_destroy(&r);return 0;
+    }
+    for(int tick=0;tick<60;++tick){
+        GmEntityView prev;if(!sheep_view(&r,&prev)){gm_runtime_destroy(&r);return 0;}
+        gm_runtime_tick(&r,idle);
+        GmEntityView next;if(!sheep_view(&r,&next)){gm_runtime_destroy(&r);return 0;}
+        double dx=(double)next.x-prev.x,dz=(double)next.z-prev.z;
+        double step=sqrt(dx*dx+dz*dz);
+        if(step>1e-6){trace->panic_tick=tick;trace->panic_step=step;break;}
+    }
+    gm_runtime_destroy(&r);return 1;
 }
 
 int main(void) {
@@ -107,20 +189,49 @@ int main(void) {
     CHECK(rod,"blaze deterministic loot roll can produce a blaze rod");
     gm_runtime_destroy(&r);
 
+    SheepTrace sheep_a,sheep_b;
+    CHECK(run_sheep_trace(&sheep_a)&&run_sheep_trace(&sheep_b),
+          "deterministic sheep scenarios execute");
+    CHECK(!memcmp(&sheep_a,&sheep_b,sizeof sheep_a),
+          "same seed and world produce byte-identical passive AI traces");
+    fprintf(stderr,"mob_live: sheep head onsets=%d first=[%d,%d,%d] panic_tick=%d step=%.9f oracle=%.9f\n",
+            sheep_a.nhead_onsets,sheep_a.head_onsets[0],sheep_a.head_onsets[1],
+            sheep_a.head_onsets[2],sheep_a.panic_tick,sheep_a.panic_step,
+            oracle_sheep_panic_first_step());
+    CHECK(sheep_a.nhead_onsets>=2,"idle sheep produces hash-determined visible head-look events");
+    CHECK(sheep_a.head_onsets[0]==45&&sheep_a.head_onsets[1]==330,
+          "seed-0 sheep head-look onset ticks stay hash-determined");
+    CHECK(sheep_a.panic_tick>=0&&
+          fabs(sheep_a.panic_step-oracle_sheep_panic_first_step())<=1e-6,
+          "sheep panic path speed matches EntityMoveHelper/travel chain");
+
+    /* EntityAIEatGrass update edge: timer 5 -> 4 consumes grass, converts it
+     * to dirt under mobGriefing, and calls EntitySheep.eatGrassBonus. */
     if(!init_flat(&r))return 1;
-    isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
-    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_SHEEP,8.5,5.0,10.5)>=0,"spawn component sheep");
-    /* Sheep panic-flee when hurt now: chase it like kill_hook_mob does. */
-    double sheep_z0=10.5,sheep_run=0.0;
-    for(int i=0;i<80;++i){
-        n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);int mi=-1;
-        for(int k=0;k<n;++k)if(v[k].type==GM_MOB_SHEEP)mi=k;
-        if(mi<0)break;
-        if(v[mi].z-sheep_z0>sheep_run)sheep_run=v[mi].z-sheep_z0;
-        gm_runtime_set_pose(&r,v[mi].x,v[mi].y,v[mi].z-2.0,0.0f,10.0f);
-        gm_runtime_tick(&r,attack);
-    }
-    CHECK(sheep_run>0.5,"passive panics away from damage source when hurt");
+    int grazer=gm_mobs_spawn(&r.mobs,GM_MOB_SHEEP,8.5,5.0,10.5);
+    CHECK(grazer>=0,"spawn grass-eating sheep");
+    for(int i=0;i<4;++i)gm_runtime_tick(&r,idle);
+    GmEntityView graze_view;CHECK(sheep_view(&r,&graze_view),"grass-eating sheep is visible");
+    int gbx=(int)floor(graze_view.x),gby=(int)floor(graze_view.y),gbz=(int)floor(graze_view.z);
+    gm_world_set_block(r.world,gbx,gby-1,gbz,2);
+    r.mobs.passive_tasks[grazer]=1u<<2; /* PAI_EAT, private scheduler task 2 */
+    r.mobs.passive_task_tick[grazer]=1;
+    r.mobs.passive_eat_time[grazer]=5;
+    r.mobs.passive_sheared[grazer]=1;
+    test_mob_store(&r.mobs)->path_len[grazer]=0;
+    gm_runtime_tick(&r,idle);
+    CHECK(gm_world_block(r.world,gbx,gby-1,gbz)==3,
+          "eat-grass timer 4 converts grass block to dirt");
+    CHECK(r.mobs.passive_sheared[grazer]==0,
+          "eatGrassBonus regrows sheep wool");
+    CHECK(sheep_view(&r,&graze_view)&&graze_view.graze_y==1.0f,
+          "eat-grass timer reaches live sheep render pose");
+    gm_runtime_destroy(&r);
+
+    if(!init_flat(&r))return 1;
+    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_SHEEP,8.5,5.0,10.5)>=0,"spawn loot sheep");
+    CHECK(gm_mobs_damage_near(&r.mobs,8.5,5.5,10.5,1.0,100.0f,&r.entities),
+          "component lethal hit reaches sheep");
     int wool=0,mutton=0;for(int i=0;i<GM_LIVE_MAX;++i)if(r.entities.ents[i].active){
         wool|=r.entities.ents[i].item==35;mutton|=r.entities.ents[i].item==423;
     }

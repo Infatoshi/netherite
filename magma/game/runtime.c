@@ -661,7 +661,7 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         gm_mobs_tick(&r->mobs,r->world,(const struct McSinTable *)&r->sin_table,
                      (struct PsvPlayer *)&r->player,(struct PvStats *)&r->vitals,
                      r->ox,r->oz,r->dimension,r->clock.world_time,&r->entities,
-                     boat_fwd, boat_str);
+                     boat_fwd, boat_str, r->gamerules.mobGriefing);
         {double x,y,z;if(gm_mobs_take_explosion(&r->mobs,&x,&y,&z))runtime_explode(r,x,y,z,3.0f);}
         spawn_hostile_projectiles(r);
     }
