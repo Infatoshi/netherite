@@ -129,6 +129,11 @@ public class Recorder {
     // must keep running), validity-checked every tick like gm_runtime_tick.
     private final SemanticCamera semCam = new SemanticCamera();
     private boolean rlCamPending = false;   // last step action asked for "cam":1
+    // Monotone proof that policy steps reached applyAction() on the client
+    // thread.  The paper sim2real harness checks that seq advances exactly
+    // once per socket step and records the digest in its result artifact.
+    private long rlPolicyActionSeq = 0L;
+    private long rlPolicyActionFnv = 0xcbf29ce484222325L;
     private int rlContainer = 0;            // 0 none/2x2, 1 table, 2 furnace
     private BlockPos rlContainerPos = null;
     /** inv_counts item ids (rl_mode.c rl_inv_ids): log, planks, stick,
@@ -4578,6 +4583,8 @@ sb.append("}");
                     mc.loadWorld((net.minecraft.client.multiplayer.WorldClient) null);
                     mc.getSaveLoader().flushCache();
                     mc.getSaveLoader().deleteWorldDirectory(wantFolder);
+                    rlPolicyActionSeq = 0L;
+                    rlPolicyActionFnv = 0xcbf29ce484222325L;
                     launchWorld(mc, r.world);
                     launching = true;
                 } catch (Throwable ex) {
@@ -4603,7 +4610,14 @@ sb.append("}");
                 mc.player.motionX = mc.player.motionY = mc.player.motionZ = 0;
                 reply(r, obs(mc));
             } else {
-                if (!launching) { launchWorld(mc, r.world); launching = true; }
+                if (!launching) {
+                    if (fresh) {
+                        rlPolicyActionSeq = 0L;
+                        rlPolicyActionFnv = 0xcbf29ce484222325L;
+                    }
+                    launchWorld(mc, r.world);
+                    launching = true;
+                }
                 reply(r, loading());
             }
             return;
@@ -4737,6 +4751,12 @@ sb.append("}");
         // smelt: furnace load/collect primitive (rl_do_smelt semantics) -
         // needs the open furnace container, fires once, fails silently.
         if (a.has("smelt") && a.get("smelt").getAsInt() != 0) rlSmelt(mc);
+        byte[] actionBytes = a.toString().getBytes(StandardCharsets.UTF_8);
+        for (byte actionByte : actionBytes) {
+            rlPolicyActionFnv ^= (long) (actionByte & 0xff);
+            rlPolicyActionFnv *= 0x100000001b3L;
+        }
+        rlPolicyActionSeq++;
     }
 
     /** interact: nearest crafting table (58) / furnace (61/62) whose center is
@@ -6009,6 +6029,13 @@ sb.append("}");
         JsonObject o = new JsonObject();
         o.addProperty("ok", true);
         // ---- chain-RL protocol v2 fields (rl_mode.c obs parity) ----
+        o.addProperty("policy_action_seq", rlPolicyActionSeq);
+        o.addProperty("policy_action_fnv64",
+                      Long.toUnsignedString(rlPolicyActionFnv, 16));
+        try {
+            o.addProperty("world_seed", mc.getIntegratedServer().worlds[0].getSeed());
+            o.addProperty("save_folder", mc.getIntegratedServer().getFolderName());
+        } catch (Throwable ig) {}
         o.addProperty("container", rlContainer);
         JsonArray invc = new JsonArray();
         for (int i = 0; i < RL_INV_IDS.length; i++)

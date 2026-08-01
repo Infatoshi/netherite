@@ -2961,8 +2961,9 @@ void gm_particles_dragon_latch(long long tick, const GmEntityView *ents, int n) 
  * Portal: particles.png. EXPLOSION_LARGE/HUGE: explosion.png (FXLayer 3).
  * EntityDragon: LARGE every dead tick (onUpdate health<=0); HUGE in [180,200]
  * (onDeathUpdate) expands via ParticleExplosionHuge (6 LARGE/tick, maxTime=8). */
-int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
-                      float view_pitch, CrVertex *out, int max) {
+int gm_particles_emit_filtered(const GmEntityView *ents, int n, float view_yaw,
+                               float view_pitch, int suppress_explosion,
+                               CrVertex *out, int max) {
     if (!ents || !out || max < 6) return 0;
     float yr = (180.0f - view_yaw) * ER_DEG2RAD;
     float pr = -view_pitch * ER_DEG2RAD;
@@ -2971,6 +2972,7 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
     int written = 0;
     for (int e = 0; e < n; ++e) {
         if (ents[e].type == GM_VIEW_EXPLOSION_LARGE) {
+            if (suppress_explosion) continue;
             unsigned seed = (unsigned)ents[e].ent_id * 1664525u + 99u;
             int life = 6 + er_seed_i(&seed, 4);
             /* The recorder does not carry ParticleManager's global Random
@@ -3028,6 +3030,7 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
          * a multi-tick ParticleManager recon that Java never built. */
         if (ents[e].type == 9 /* dragon */ && ents[e].death_ticks > 0
             && ents[e].health <= 0.0f) {
+            if (suppress_explosion) continue;
             written += er_dragon_death_particles(
                 ents[e].x, ents[e].y, ents[e].z, ents[e].ent_id,
                 ents[e].death_ticks, cy, sy, cp, sp,
@@ -3044,6 +3047,7 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
          * out of the entity list entirely, so only an explicit health == 0
          * (never the -1 "no health" sentinel) may burst. */
         if (ents[e].type == ER_TYPE_CRYSTAL && ents[e].health == 0.0f) {
+            if (suppress_explosion) continue;
             /* Burst recon: several LARGE at crystal origin, progress 0. */
             unsigned seed = (unsigned)ents[e].ent_id * 1664525u + 99u;
             for (int i = 0; i < 8; ++i) {
@@ -3065,12 +3069,18 @@ int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
     }
     /* The dragon is gone but its cloud is not: keep drawing the latched burst
      * (see gm_particles_dragon_latch) until the last child LARGE expires. */
-    if (er_dragon_death.active && !er_dragon_death.present)
+    if (!suppress_explosion && er_dragon_death.active && !er_dragon_death.present)
         written += er_dragon_death_particles(
             er_dragon_death.x, er_dragon_death.y, er_dragon_death.z,
             er_dragon_death.ent_id, er_dragon_death.dt, cy, sy, cp, sp,
             out + written, max - written);
     return written;
+}
+
+int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
+                      float view_pitch, CrVertex *out, int max) {
+    return gm_particles_emit_filtered(ents, n, view_yaw, view_pitch, 0,
+                                      out, max);
 }
 
 /* Dig hit dust while progressive break: stage 1..10 is dig progress * 10.

@@ -141,6 +141,9 @@ int gm_crystal_beams_emit(const GmEntityView *ents, int n, CrVertex *out,
  * Oracle deathTicks pins keep health full so particles do not fire. */
 int gm_particles_emit(const GmEntityView *ents, int n, float view_yaw,
                       float view_pitch, CrVertex *out, int max);
+int gm_particles_emit_filtered(const GmEntityView *ents, int n, float view_yaw,
+                               float view_pitch, int suppress_explosion,
+                               CrVertex *out, int max);
 
 /* Vanilla removes EntityDragon at deathTicks 200 while its ParticleManager
  * cloud lives ~17 more ticks. Call once per simulated tick with that tick's

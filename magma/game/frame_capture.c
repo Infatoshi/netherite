@@ -129,6 +129,7 @@ struct GmFrameCapture {
     CrVertex *entity_verts[GM_FC_ENT_BUFS];
     unsigned char *ppm_buf; /* packed RGB scratch, one fwrite per frame */
     int max_tris, max_entity_verts;
+    GmParticlesLive *particles; /* replay-owned recorded particle pool */
     int use_cuda;           /* GPU raster on (CUDA; Metal under MAGMA_METAL) */
     int dev_mesh;           /* terrain layers gathered from the device slab pool */
     const void *slab_world; /* world whose slabs the GPU pool currently mirrors */
@@ -194,6 +195,11 @@ struct GmFrameCapture {
     int fog_c1_init;
     char dir[1024];
 };
+
+void gm_frame_capture_bind_particles(GmFrameCapture *c,
+                                     GmParticlesLive *particles) {
+    if (c) c->particles = particles;
+}
 
 static void set_error(char *err, int cap, const char *msg) {
     if (err && cap > 0) snprintf(err, (size_t)cap, "%s", msg);
@@ -1051,7 +1057,10 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         gm_entity_geom_tick(c->frame);
         int nv=gm_entities_emit(ents,n,eb[0],c->max_entity_verts);
         gm_particles_dragon_latch(r->tick,ents,n);
-        nv+=gm_particles_emit(ents,n,v.yaw,v.pitch,eb[0]+nv,c->max_entity_verts-nv);
+        nv+=gm_particles_emit_filtered(
+            ents,n,v.yaw,v.pitch,
+            gm_particles_live_suppresses_explosion(c->particles),
+            eb[0]+nv,c->max_entity_verts-nv);
         CrTexture ea=gm_entity_atlas();
         /* fog entities like terrain: underwater EXP fog so distant squid don't
          * punch through as bright unfogged blobs (vanilla setupFog applies to
@@ -1221,6 +1230,25 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             }
         }
     }
+    /* Recorded explosion particles use the real ParticleManager render
+     * classes and outlive the entity/event row that spawned them. */
+    if(c->particles){
+        /* Keep this host buffer alive until the asynchronous CUDA upload ends. */
+        static CrVertex pcl0_ov[GM_PARTICLES_LIVE_CAP*6];
+        CrTexture ea=gm_entity_atlas();
+        int nv=gm_particles_live_emit_recorded(
+            c->particles,0,1.0f,v.yaw,v.pitch,pcl0_ov,
+            GM_PARTICLES_LIVE_CAP*6);
+        if(nv>0){
+            CrShadeCtx ps={0};ps.atlas=&ea;ps.fog_color=clear;
+            ps.alpha_test=1;ps.alpha_ref=0.003921569f;
+            ps.layer=CR_LAYER_TRANSLUCENT;ps.blend=1;ps.lightmap=lm;
+            gm_frame_world_fog_params(r->dimension,c->boss_latch,
+                                      &ps.enable_fog,&ps.fog_start,&ps.fog_end);
+            if(uw.fluid){ps.enable_fog=1;ps.fog_exp_density=uw.density;ps.fog_color=uw.fog_rgba;}
+            render_layer(c,&cam,pcl0_ov,nv,&ps);
+        }
+    }
     /* Dig particles: terrain-atlas model particle icons (ParticleDigging).
      * dig_state is window-local; add r->ox/oz like the dig-crack overlay. */
     {
@@ -1257,6 +1285,22 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 if(uw.fluid){ dig.enable_fog=1; dig.fog_exp_density=uw.density; dig.fog_color=uw.fog_rgba; }
                 render_layer(c,&cam,dig_ov,nd,&dig);
             }
+        }
+    }
+    /* ParticleManager layer 3 follows terrain-atlas layer 1 particles. */
+    if(c->particles){
+        static CrVertex pcl3_ov[GM_PARTICLES_LIVE_CAP*6];
+        int nv=gm_particles_live_emit_recorded(
+            c->particles,3,1.0f,v.yaw,v.pitch,pcl3_ov,
+            GM_PARTICLES_LIVE_CAP*6);
+        if(nv>0){
+            CrTexture ea=gm_entity_atlas();
+            CrShadeCtx ps={0};ps.atlas=&ea;ps.fog_color=clear;
+            ps.alpha_test=1;ps.layer=CR_LAYER_CUTOUT;ps.entity_brightness=1;
+            gm_frame_world_fog_params(r->dimension,c->boss_latch,
+                                      &ps.enable_fog,&ps.fog_start,&ps.fog_end);
+            if(uw.fluid){ps.enable_fog=1;ps.fog_exp_density=uw.density;ps.fog_color=uw.fog_rgba;}
+            render_layer(c,&cam,pcl3_ov,nv,&ps);
         }
     }
     if(!getenv("MAGMA_NO_OVERLAY")&&!v.dead){

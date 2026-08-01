@@ -2,12 +2,10 @@ import json
 from pathlib import Path
 
 import numpy as np
-import pytest
-from PIL import Image
-
 import pixel_gate
+import pytest
 import replay_tape
-
+from PIL import Image
 
 TRACE_DIR = Path(__file__).resolve().parent
 CANONICAL_NAME = "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462"
@@ -1223,3 +1221,43 @@ def test_potion_show_particles_and_armor_rows(tmp_path):
     assert [(e["id"], e["show_particles"]) for e in pots] == [(11, 0), (20, 1)]
     armor = [e for e in events if e["type"] == "armor_view"]
     assert len(armor) == 1 and armor[0]["points"] == 0
+
+
+def test_recorded_explosion_particles_map_to_script_ops(tmp_path):
+    header = {
+        "header": 1, "seed": 0, "world": "qrl_0", "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20, "dim": 0,
+    }
+    base = {
+        "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0, "z": 0.5,
+        "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20,
+        "ents": [],
+    }
+    ticks = [
+        {
+            **base,
+            "t": 4,
+            "pcl": [
+                [0, 1.25, 2.5, 3.75, -0.125, 0.25, 0.5],
+                [1, 4.0, 5.0, 6.0, 0.75, 0.0, 0.0],
+                [2, 7.0, 8.0, 9.0, 0.0, 0.0, 0.0],
+            ],
+        },
+        {**base, "t": 5},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    particles = [event for event in events if event["type"] == "spawn_particle"]
+    assert particles == [
+        {"tick": 4, "type": "spawn_particle", "id": 0,
+         "x": 1.25, "y": 2.5, "z": 3.75,
+         "vx": -0.125, "vy": 0.25, "vz": 0.5},
+        {"tick": 4, "type": "spawn_particle", "id": 1,
+         "x": 4.0, "y": 5.0, "z": 6.0,
+         "vx": 0.75, "vy": 0.0, "vz": 0.0},
+        {"tick": 4, "type": "spawn_particle", "id": 2,
+         "x": 7.0, "y": 8.0, "z": 9.0,
+         "vx": 0.0, "vy": 0.0, "vz": 0.0},
+    ]

@@ -128,6 +128,95 @@ int main(void) {
               "white base yields legacy 0.6 gray tint");
     }
 
+    /* Recorder ids 0..2 preserve the three vanilla explosion constructors. */
+    gm_particles_live_init(&live, UINT64_C(0x70636c));
+    CHECK(gm_particles_live_spawn_recorded(&live, 0,
+          1.0, 2.0, 3.0, 0.125, 0.25, 0.5, 15, 7) == 1,
+          "recorded normal explosion spawns");
+    CHECK(gm_particles_live_spawn_recorded(&live, 1,
+          4.0, 5.0, 6.0, 0.5, 99.0, 99.0, 15, 15) == 1,
+          "recorded large explosion spawns");
+    CHECK(gm_particles_live_spawn_recorded(&live, 2,
+          7.0, 8.0, 9.0, 0.0, 0.0, 0.0, 0, 0) == 1,
+          "recorded huge explosion spawns");
+    CHECK(gm_particles_live_spawn_recorded(&live, 3,
+          0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0) == 0,
+          "recorded constructor rejects non-whitelisted ids");
+    CHECK(gm_particles_live_count(&live) == 3,
+          "recorded pool contains all three explosion types");
+    CHECK(gm_particles_live_suppresses_explosion(&live),
+          "recorded explosion suppresses RNG reconstruction");
+    {
+        GmLiveParticle *normal = &live.particles[0];
+        GmLiveParticle *large = &live.particles[1];
+        GmLiveParticle *huge = &live.particles[2];
+        CHECK(normal->kind == GM_LIVE_PARTICLE_EXPLOSION_NORMAL,
+              "id 0 maps to normal explosion");
+        CHECK(normal->max_age >= 18 && normal->max_age <= 82,
+              "normal explosion uses vanilla lifetime range");
+        CHECK(normal->scale >= 1.0f && normal->scale <= 7.0f,
+              "normal explosion uses vanilla scale range");
+        check_close("normal velocity x", normal->motion_x, 0.125);
+        check_close("normal velocity y", normal->motion_y, 0.25);
+        check_close("normal velocity z", normal->motion_z, 0.5);
+        CHECK(large->kind == GM_LIVE_PARTICLE_EXPLOSION_LARGE,
+              "id 1 maps to large explosion");
+        CHECK(large->max_age >= 6 && large->max_age <= 9,
+              "large explosion uses vanilla lifetime range");
+        check_close("large scale from speed x", large->scale, 0.75);
+        CHECK(huge->kind == GM_LIVE_PARTICLE_EXPLOSION_HUGE,
+              "id 2 maps to huge explosion");
+        CHECK(huge->max_age == 8, "huge explosion uses vanilla lifetime");
+    }
+    {
+        CrVertex verts[12];
+        CHECK(gm_particles_live_emit_recorded(
+                  &live, 0, 0.0f, 0.0f, 0.0f, verts, 12) == 6,
+              "normal explosion renders one layer-0 billboard");
+        CHECK(gm_particles_live_emit_recorded(
+                  &live, 3, 0.0f, 0.0f, 0.0f, verts, 12) == 6,
+              "large explosion renders one layer-3 billboard");
+    }
+    gm_particles_live_tick(&live, NULL, 0, 0);
+    CHECK(live.particles[0].age == 0 && live.particles[1].age == 0 &&
+          live.particles[2].age == 0,
+          "recorded particles render at constructor age on spawn tick");
+    gm_particles_live_tick(&live, NULL, 0, 0);
+    CHECK(live.particles[0].age == 1 && live.particles[1].age == 1 &&
+          live.particles[2].age == 1,
+          "recorded particles first update on following tick");
+
+    /* Recorded particles remain alive for suppression after render certainty. */
+    gm_particles_live_init(&live, UINT64_C(0x70636d));
+    gm_particles_live_spawn_recorded(&live, 0,
+        0.0, 64.0, 0.0, 0.0, 0.0, 0.0, 15, 15);
+    gm_particles_live_tick(&live, NULL, 0, 0); /* newborn */
+    for (int tick = 0; tick < 3; ++tick)
+        gm_particles_live_tick(&live, NULL, 0, 0);
+    {
+        CrVertex verts[6];
+        CHECK(gm_particles_live_count(&live) == 1,
+              "normal explosion remains alive past bounded render age");
+        CHECK(gm_particles_live_emit_recorded(
+                  &live, 0, 0.0f, 0.0f, 0.0f, verts, 6) == 0,
+              "normal explosion stops drawing after bounded render age");
+        CHECK(gm_particles_live_suppresses_explosion(&live),
+              "live recorded normal still suppresses RNG reconstruction");
+    }
+    gm_particles_live_init(&live, UINT64_C(0x70636e));
+    gm_particles_live_spawn_recorded(&live, 1,
+        0.0, 64.0, 0.0, 0.5, 0.0, 0.0, 15, 15);
+    live.particles[0].age = 6;
+    live.particles[0].max_age = 9;
+    {
+        CrVertex verts[6];
+        CHECK(gm_particles_live_emit_recorded(
+                  &live, 3, 0.0f, 0.0f, 0.0f, verts, 6) == 0,
+              "large explosion stops drawing after guaranteed lifetime");
+        CHECK(gm_particles_live_suppresses_explosion(&live),
+              "uncertain large lifetime still suppresses RNG reconstruction");
+    }
+
     if (failures) {
         fprintf(stderr, "%d particle test(s) failed\n", failures);
         return 1;

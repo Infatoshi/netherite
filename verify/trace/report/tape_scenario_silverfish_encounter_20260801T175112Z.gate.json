@@ -1,0 +1,283 @@
+{
+ "thresholds": {
+  "diff": 25,
+  "min_cluster": 50,
+  "fail_cluster": 4000,
+  "fail_total": 8000,
+  "class_pixel_budgets": {
+   "hud": 55000,
+   "particles": 40000,
+   "viewmodel": 40000,
+   "transit": 40000
+  },
+  "low_diff": 1,
+  "fail_mean_abs": 3.32,
+  "fail_low_pct_differing": 40.0
+ },
+ "frames_checked": 37,
+ "classes": {
+  "hud": {
+   "frames": 18,
+   "px": 74015,
+   "max_cluster": 13600
+  },
+  "viewmodel": {
+   "frames": 14,
+   "px": 24151,
+   "max_cluster": 7086
+  },
+  "UNEXPLAINED": {
+   "frames": 10,
+   "px": 15704,
+   "max_cluster": 5799
+  },
+  "particles": {
+   "frames": 14,
+   "px": 14821,
+   "max_cluster": 12448
+  }
+ },
+ "failed_frames": [
+  {
+   "tick": 260,
+   "unexplained_px": 7706,
+   "clusters": [
+    {
+     "px": 5799,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      289,
+      83,
+      372,
+      202
+     ]
+    },
+    {
+     "px": 1794,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      350,
+      0,
+      383,
+      141
+     ]
+    },
+    {
+     "px": 113,
+     "cls": "UNEXPLAINED",
+     "bbox": [
+      352,
+      92,
+      362,
+      106
+     ]
+    }
+   ]
+  }
+ ],
+ "mild_shift_failures": 0,
+ "pass": false,
+ "missing_models": {},
+ "missing_model_row_threshold": 4,
+ "missing_model_failures": {},
+ "state": {
+  "kind": "state",
+  "coverage": {
+   "ticks_total": 367,
+   "ticks_run": 367,
+   "truncated": false
+  },
+  "inventory": {
+   "ticks_checked": 37,
+   "ticks_independent": 36,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
+   "available": true
+  },
+  "entities": {
+   "ticks_checked": 19,
+   "samples": [
+    {
+     "tick": 0,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 20,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 40,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 60,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 80,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 100,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 120,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 140,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 160,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 180,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 200,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 220,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 240,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 260,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 280,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 300,
+     "tape_count": 3,
+     "tape_types": [
+      "EntitySilverfish"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    }
+   ],
+   "ghost_ticks": 367,
+   "ghost_expected": 1101,
+   "mismatches": [],
+   "verified": true,
+   "pass": true,
+   "available": true
+  },
+  "world": {
+   "ticks_checked": 19,
+   "hash_deltas": 6,
+   "samples": [
+    {
+     "tick": 0,
+     "nearby_hash": "7af3e6156e2e5e89"
+    },
+    {
+     "tick": 100,
+     "nearby_hash": "30d333e9a5245889"
+    },
+    {
+     "tick": 200,
+     "nearby_hash": "f63a2e55f4417889"
+    },
+    {
+     "tick": 300,
+     "nearby_hash": "f63a2e55f4417889"
+    }
+   ],
+   "mode": "java",
+   "compared": 367,
+   "anchor_skips": 0,
+   "mismatches": [],
+   "verified": true,
+   "pass": true,
+   "available": true
+  }
+ }
+}

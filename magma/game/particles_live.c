@@ -12,12 +12,25 @@
 #include "game/particles_live.h"
 
 #include "assets/blockmodels.h"
+#include "assets/mob_atlas.h"
 
 #include <math.h>
 #include <string.h>
 
 #define PL_DEG2RAD 0.017453292519943295769f
 #define PL_COLLISION_MAX 64
+/* pcl records ParticleManager.spawnEffectParticle arguments, but
+ * ParticleExplosion adds an unrecorded uniform +/-0.05 velocity. With 0.9
+ * drag, the worst missing displacement is 0.095 after two updates, still
+ * inside the minimum 0.1 billboard half-width; after three it is 0.1355 and
+ * the sprite location is no longer bounded. Keep the exact vanilla lifetime
+ * and suppression state, but only draw NORMAL while its taped kinematics
+ * still locate even the smallest possible sprite. */
+#define PL_RECORDED_NORMAL_MAX_RENDER_AGE 2
+/* LARGE has an unrecorded random maxAge in [6,9]. Ages 0..5 are the only
+ * frames guaranteed to exist for every captured spawn, so rendering later
+ * would invent survival for particles whose constructor RNG is unavailable. */
+#define PL_RECORDED_LARGE_MAX_RENDER_AGE 5
 
 static uint64_t pl_rng_u64(GmParticlesLive *live) {
     uint64_t x = live->rng;
@@ -189,6 +202,80 @@ int gm_particles_live_spawn_hit(GmParticlesLive *live,
     return 1;
 }
 
+int gm_particles_live_spawn_recorded(GmParticlesLive *live, int particle_id,
+                                     double x, double y, double z,
+                                     double speed_x, double speed_y,
+                                     double speed_z, int sky_light,
+                                     int block_light) {
+    if (particle_id < 0 || particle_id > 2) return 0;
+    GmLiveParticle *p = pl_alloc(live);
+    if (!p) return 0;
+
+    pl_set_position(p, x, y, z, 0.2f, 0.2f);
+    p->kind = particle_id == 0 ? GM_LIVE_PARTICLE_EXPLOSION_NORMAL :
+              particle_id == 1 ? GM_LIVE_PARTICLE_EXPLOSION_LARGE :
+                                 GM_LIVE_PARTICLE_EXPLOSION_HUGE;
+    /* World.spawnParticle queues the new Particle until updateEffects ends.
+     * It renders at constructor age on the spawn tick and first updates on the
+     * following client tick. */
+    p->newborn = 1;
+    p->lm_r = (float)sky_light;
+    p->lm_g = (float)block_light;
+
+    /* Particle's base constructor initializes these before each subclass.
+     * They are overwritten where vanilla overwrites them, but consuming the
+     * deterministic pool stream keeps constructor sequencing stable. */
+    p->jitter_x = pl_rng_float(live) * 3.0f;
+    p->jitter_y = pl_rng_float(live) * 3.0f;
+    p->scale = (pl_rng_float(live) * 0.5f + 0.5f) * 2.0f;
+    p->max_age = (int)(4.0f / (pl_rng_float(live) * 0.9f + 0.1f));
+    (void)pl_rng_double(live); (void)pl_rng_double(live);
+    (void)pl_rng_double(live); (void)pl_rng_double(live);
+    (void)pl_rng_double(live); (void)pl_rng_double(live);
+    (void)pl_rng_double(live);
+
+    if (particle_id == 0) {
+        /* Replay treats the captured velocity as authoritative kinematics.
+         * ParticleExplosion normally adds an unrecoverable Math.random
+         * +/-0.05 here; adding a second unrelated draw moves every recorded
+         * particle away from its taped trajectory. Consume the constructor
+         * draws to keep later deterministic attributes stable, then retain
+         * the recorded values themselves. */
+        (void)pl_rng_double(live); (void)pl_rng_double(live);
+        (void)pl_rng_double(live);
+        p->motion_x = speed_x;
+        p->motion_y = speed_y;
+        p->motion_z = speed_z;
+        p->gray = pl_rng_float(live) * 0.3f + 0.7f;
+        p->scale = pl_rng_float(live) * pl_rng_float(live) * 6.0f + 1.0f;
+        p->max_age = (int)(16.0 /
+            ((double)pl_rng_float(live) * 0.8 + 0.2)) + 2;
+    } else if (particle_id == 1) {
+        /* ParticleExplosionLarge ignores y/z speed and uses x speed only as
+         * animation progress, which fixes its size for its whole lifetime. */
+        p->motion_x = p->motion_y = p->motion_z = 0.0;
+        p->max_age = 6 + (int)(pl_rng_u64(live) % 4);
+        p->gray = pl_rng_float(live) * 0.6f + 0.4f;
+        p->scale = 1.0f - (float)speed_x * 0.5f;
+    } else {
+        /* ParticleExplosionHuge renders nothing. Its six LARGE children per
+         * update are captured as their own later pcl rows, so replay must not
+         * generate a second RNG-placed set here. */
+        p->motion_x = p->motion_y = p->motion_z = 0.0;
+        p->max_age = 8;
+    }
+    return 1;
+}
+
+int gm_particles_live_suppresses_explosion(const GmParticlesLive *live) {
+    if (!live) return 0;
+    for (int i = 0; i < GM_PARTICLES_LIVE_CAP; ++i)
+        if (live->particles[i].active &&
+            live->particles[i].kind != GM_LIVE_PARTICLE_BLOCK)
+            return 1;
+    return 0;
+}
+
 static void pl_offset_bb(GmLiveParticle *p, double x, double y, double z) {
     p->bb_min_x += x; p->bb_max_x += x;
     p->bb_min_y += y; p->bb_max_y += y;
@@ -238,9 +325,38 @@ void gm_particles_live_tick(GmParticlesLive *live, const Chunk *win,
     for (int i = 0; i < GM_PARTICLES_LIVE_CAP; ++i) {
         GmLiveParticle *p = &live->particles[i];
         if (!p->active) continue;
+        if (p->newborn) {
+            p->newborn = 0;
+            continue;
+        }
         p->prev_x = p->x;
         p->prev_y = p->y;
         p->prev_z = p->z;
+        if (p->kind == GM_LIVE_PARTICLE_EXPLOSION_LARGE ||
+            p->kind == GM_LIVE_PARTICLE_EXPLOSION_HUGE) {
+            if (++p->age == p->max_age) {
+                p->active = 0;
+                live->count--;
+            }
+            continue;
+        }
+        if (p->kind == GM_LIVE_PARTICLE_EXPLOSION_NORMAL) {
+            int expired = p->age++ >= p->max_age;
+            p->motion_y += 0.004;
+            pl_move(p, win, ox, oz, p->motion_x, p->motion_y, p->motion_z);
+            p->motion_x *= 0.8999999761581421;
+            p->motion_y *= 0.8999999761581421;
+            p->motion_z *= 0.8999999761581421;
+            if (p->on_ground) {
+                p->motion_x *= 0.699999988079071;
+                p->motion_z *= 0.699999988079071;
+            }
+            if (expired) {
+                p->active = 0;
+                live->count--;
+            }
+            continue;
+        }
         int expired = p->age++ >= p->max_age;
         p->motion_y -= 0.04 * (double)1.0f;
         pl_move(p, win, ox, oz, p->motion_x, p->motion_y, p->motion_z);
@@ -311,7 +427,8 @@ int gm_particles_live_emit(const GmParticlesLive *live, float partial_ticks,
     int written = 0;
     for (int i = 0; i < GM_PARTICLES_LIVE_CAP; ++i) {
         const GmLiveParticle *p = &live->particles[i];
-        if (!p->active || written + 6 > max) continue;
+        if (!p->active || p->kind != GM_LIVE_PARTICLE_BLOCK ||
+            written + 6 > max) continue;
         float bu0, bv0, bu1, bv1;
         bm_sprite_uv(bm_particle_sprite(p->model_key),
                      &bu0, &bv0, &bu1, &bv1);
@@ -334,6 +451,81 @@ int gm_particles_live_emit(const GmParticlesLive *live, float partial_ticks,
                                      u0, v0, u1, v1, tint,
                                      cy, sy, cp, sp,
                                      out + written, max - written);
+    }
+    return written;
+}
+
+static void pl_recorded_uv(int kind, int frame, float *u0, float *v0,
+                           float *u1, float *v1) {
+    const CrMobSprite *sp = &CR_MOB_SPRITES[
+        kind == GM_LIVE_PARTICLE_EXPLOSION_NORMAL ?
+        CR_MOB_PARTICLES : CR_MOB_EXPLOSION];
+    float aw = (float)CR_MOB_ATLAS_W, ah = (float)CR_MOB_ATLAS_H;
+    float bx = (float)sp->x0 / aw, by = (float)sp->y0 / ah;
+    float su = (float)sp->w / aw, sv = (float)sp->h / ah;
+    if (kind == GM_LIVE_PARTICLE_EXPLOSION_NORMAL) {
+        int ix = frame % 16, iy = frame / 16;
+        *u0 = bx + ((float)ix / 16.0f) * su;
+        *u1 = bx + ((float)ix / 16.0f + 0.0624375f) * su;
+        *v0 = by + ((float)iy / 16.0f) * sv;
+        *v1 = by + ((float)iy / 16.0f + 0.0624375f) * sv;
+    } else {
+        if (frame < 0) frame = 0;
+        if (frame > 15) frame = 15;
+        float fu = (float)(frame % 4) / 4.0f;
+        float fv = (float)(frame / 4) / 4.0f;
+        *u0 = bx + fu * su;
+        *u1 = bx + (fu + 0.24975f) * su;
+        *v0 = by + fv * sv;
+        *v1 = by + (fv + 0.24975f) * sv;
+    }
+}
+
+int gm_particles_live_emit_recorded(const GmParticlesLive *live, int fx_layer,
+                                    float partial_ticks, float view_yaw,
+                                    float view_pitch, CrVertex *out, int max) {
+    if (!live || !out || max < 6 || (fx_layer != 0 && fx_layer != 3)) return 0;
+    int wanted = fx_layer == 0 ? GM_LIVE_PARTICLE_EXPLOSION_NORMAL :
+                                 GM_LIVE_PARTICLE_EXPLOSION_LARGE;
+    float yr = (180.0f - view_yaw) * PL_DEG2RAD;
+    float pr = -view_pitch * PL_DEG2RAD;
+    float cy = cosf(yr), sy = sinf(yr);
+    float cp = cosf(pr), sp = sinf(pr);
+    int written = 0;
+    for (int i = 0; i < GM_PARTICLES_LIVE_CAP; ++i) {
+        const GmLiveParticle *p = &live->particles[i];
+        if (!p->active || p->kind != wanted || written + 6 > max) continue;
+        if (wanted == GM_LIVE_PARTICLE_EXPLOSION_NORMAL &&
+            p->age > PL_RECORDED_NORMAL_MAX_RENDER_AGE) continue;
+        if (wanted == GM_LIVE_PARTICLE_EXPLOSION_LARGE &&
+            p->age > PL_RECORDED_LARGE_MAX_RENDER_AGE) continue;
+        int frame;
+        float half;
+        if (wanted == GM_LIVE_PARTICLE_EXPLOSION_NORMAL) {
+            frame = p->age == 0 ? 0 : 7 - p->age * 8 / p->max_age;
+            if (frame < 0) frame = 0;
+            half = 0.1f * p->scale;
+        } else {
+            frame = (int)(((float)p->age + partial_ticks) * 15.0f /
+                          (float)p->max_age);
+            half = 2.0f * p->scale;
+        }
+        float u0, v0, u1, v1;
+        pl_recorded_uv(wanted, frame, &u0, &v0, &u1, &v1);
+        double x = p->prev_x + (p->x - p->prev_x) * (double)partial_ticks;
+        double y = p->prev_y + (p->y - p->prev_y) * (double)partial_ticks;
+        double z = p->prev_z + (p->z - p->prev_z) * (double)partial_ticks;
+        u8 g = (u8)(pl_clamp01(p->gray) * 255.0f + 0.5f);
+        CrRgba tint = { g, g, g, 255 };
+        int start = written;
+        written += pl_emit_billboard(x, y, z, half, u0, v0, u1, v1, tint,
+                                     cy, sy, cp, sp,
+                                     out + written, max - written);
+        if (wanted == GM_LIVE_PARTICLE_EXPLOSION_NORMAL)
+            for (int v = start; v < written; ++v) {
+                out[v].light = p->lm_r;
+                out[v].blk = p->lm_g;
+            }
     }
     return written;
 }

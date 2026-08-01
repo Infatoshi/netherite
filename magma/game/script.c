@@ -398,7 +398,10 @@ int gm_script_run(const GmConfig *cfg) {
     r.randtick_enabled = 0;
     GmFrameCapture *frames=NULL;
     GmWindowCompose *window_frames=NULL;
-    GmParticlesLive window_particles;
+    GmParticlesLive replay_particles;
+    uint64_t replay_particle_seed =
+        (uint64_t)cfg->seed ^ UINT64_C(0x7061727469636c65);
+    gm_particles_live_init(&replay_particles, replay_particle_seed);
     if(cfg->frames_out_dir){
         /* The oracle's frames carry the survival HUD (hearts/hunger/hotbar/
          * crosshair); headless frames must draw it too or every whole-frame
@@ -408,13 +411,12 @@ int gm_script_run(const GmConfig *cfg) {
          * poses: 2.1/ch of pose A's 3.42, 3.8/ch of pose B's 9.01). */
         gm_hud_init();
         if(cfg->compose==GM_COMPOSE_WINDOW){
-            gm_particles_live_init(&window_particles,
-                (uint64_t)cfg->seed ^ UINT64_C(0x7061727469636c65));
             window_frames=gm_window_compose_open(cfg,err,sizeof err);
             if(window_frames)
-                gm_window_compose_bind(window_frames,&r,&window_particles);
+                gm_window_compose_bind(window_frames,&r,&replay_particles);
         }else{
             frames=gm_frame_capture_open(cfg,err,sizeof err);
+            if(frames)gm_frame_capture_bind_particles(frames,&replay_particles);
         }
         if(!frames&&!window_frames){fprintf(stderr,"frames-out: %s\n",err);gm_runtime_destroy(&r);if(in)fclose(in);if(out!=stdout)fclose(out);return 1;}
     }
@@ -1100,6 +1102,26 @@ int gm_script_run(const GmConfig *cfg) {
                    gm_mobs_spawn(&r.mobs,(int)entity,x,y,z)<0){
                     fprintf(stderr,"script:%ld: invalid spawn_entity\n",line_no);goto bad;
                 }
+            } else if (!strcmp(type,"spawn_particle")) {
+                long long id;double x,y,z,vx,vy,vz;
+                static const char *const keys[]={"tick","type","id","x","y","z",
+                                                 "vx","vy","vz"};
+                if(!keys_only(&pending,keys,9,err,sizeof err)||
+                   !as_i64(field(&pending,"id"),&id)||id<0||id>2||
+                   !as_double(field(&pending,"x"),&x)||
+                   !as_double(field(&pending,"y"),&y)||
+                   !as_double(field(&pending,"z"),&z)||
+                   !as_double(field(&pending,"vx"),&vx)||
+                   !as_double(field(&pending,"vy"),&vy)||
+                   !as_double(field(&pending,"vz"),&vz)||
+                   !gm_particles_live_spawn_recorded(&replay_particles,(int)id,
+                       x,y,z,vx,vy,vz,
+                       gm_world_sky_light(r.world,(int)floor(x),(int)floor(y),
+                                          (int)floor(z)),
+                       gm_world_block_light(r.world,(int)floor(x),(int)floor(y),
+                                            (int)floor(z)))){
+                    fprintf(stderr,"script:%ld: invalid spawn_particle\n",line_no);goto bad;
+                }
             } else if (!strcmp(type,"craft")) {
                 int width, slots[9];
                 if (!parse_craft(&pending,&width,slots,err,sizeof err) ||
@@ -1305,6 +1327,7 @@ int gm_script_run(const GmConfig *cfg) {
             }
         }
         write_state(out,&r);
+        gm_particles_live_tick(&replay_particles,r.window,r.ox,r.oz);
         if(window_frames){
             int render = tick >= cfg->frame_offset &&
                          (tick - cfg->frame_offset) % cfg->frame_every == 0;
@@ -1312,7 +1335,6 @@ int gm_script_run(const GmConfig *cfg) {
             gm_runtime_view(&r,&view);
             gm_runtime_apply_tape_view(&r,&view);
             gm_window_compose_advance(window_frames,&view,&action,1);
-            gm_particles_live_tick(&window_particles,r.window,r.ox,r.oz);
             if(render){
                 GmWindowComposeFrame wf={
                     .view=&view,.camera_view=&view,.partial_ticks=1.0f,

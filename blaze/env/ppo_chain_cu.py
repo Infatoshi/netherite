@@ -28,22 +28,23 @@ Run (anvil, GPU0 - preflight nvidia-smi):
       python blaze/env/ppo_chain_cu.py
 """
 import os
-import sys
 import struct
+import sys
 import time
 from collections import deque
 
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RL = os.path.join(os.path.dirname(HERE), "rl")
 sys.path.insert(0, HERE)
 sys.path.insert(0, RL)
 
-from blaze import VecBlaze, CUDA_SO, CAM_H, CAM_W          # noqa: E402
-from reward_chain import ChainReward, ChainRewardSpec      # noqa: E402
+from reward_chain import ChainReward, ChainRewardSpec
+
+from blaze import CAM_H, CAM_W, CUDA_SO, VecBlaze
 
 OUT = os.path.join(RL, "out")
 SNAPS = os.path.join(OUT, "snaps")
@@ -51,34 +52,35 @@ SNAPS = os.path.join(OUT, "snaps")
 # ---- run config ----
 TRAIN_SEEDS = [int(s) for s in os.environ.get(
     "TRAIN_SEEDS", "2,3,10,14,16,20,27,29,32,44,46").split(",")]
-N_ENVS = int(os.environ.get("N_ENVS", 4096))
-DEVICE = int(os.environ.get("BLAZE_DEV", 0))       # 0 = PRO 6000
+N_ENVS = int(os.environ.get("N_ENVS", "4096"))
+DEVICE = int(os.environ.get("BLAZE_DEV", "0"))       # 0 = PRO 6000
 REPEAT = 4
 STACK = 2
-T_CHUNK = int(os.environ.get("T_CHUNK", 32))
-EP_DEC = int(os.environ.get("EP_DEC", 1500))       # decisions (x4 ticks)
-MAX_TICKS = float(os.environ.get("MAX_TICKS", 3e9))
-MAX_WALL = float(os.environ.get("MAX_WALL", 6.5 * 3600))
-GAMMA = float(os.environ.get("GAMMA", 0.995))
+T_CHUNK = int(os.environ.get("T_CHUNK", "32"))
+EP_DEC = int(os.environ.get("EP_DEC", "1500"))       # decisions (x4 ticks)
+MAX_TICKS = float(os.environ.get("MAX_TICKS", "3e9"))
+MAX_WALL = float(os.environ.get("MAX_WALL", str(6.5 * 3600)))
+GAMMA = float(os.environ.get("GAMMA", "0.995"))
 LAM, CLIP = 0.95, 0.2
-EPOCHS = int(os.environ.get("EPOCHS", 2))
-MB = int(os.environ.get("MB", 8192))
-LR = float(os.environ.get("LR", 3e-4))
-LR_FLOOR = float(os.environ.get("LR_FLOOR", 1e-4))
-LR_DECAY_TICKS = float(os.environ.get("LR_DECAY_TICKS", 1.5e9))
-ENT = float(os.environ.get("ENT", 0.01))
+EPOCHS = int(os.environ.get("EPOCHS", "2"))
+MB = int(os.environ.get("MB", "8192"))
+LR = float(os.environ.get("LR", "3e-4"))
+LR_FLOOR = float(os.environ.get("LR_FLOOR", "1e-4"))
+LR_DECAY_TICKS = float(os.environ.get("LR_DECAY_TICKS", "1.5e9"))
+ENT = float(os.environ.get("ENT", "0.01"))
 GRAD_CLIP = 0.5
 CKPT_TICKS = 2_000_000
 TRAIL = 200
-T0_SHARE = float(os.environ.get("T0_SHARE", 0.30))
-CAP_REFRESH = int(os.environ.get("CAP_REFRESH", 25))   # chunks between
+T0_SHARE = float(os.environ.get("T0_SHARE", "0.30"))
+CAP_REFRESH = int(os.environ.get("CAP_REFRESH", "25"))   # chunks between
                                                        # re-captures per cell
 WARM = os.environ.get("WARM")
 OUT_NAME = os.environ.get("OUT_NAME", "chain_net_cu")   # checkpoint stem
 CURVE_NAME = os.environ.get("CURVE_NAME", "chain_curve_cu")
+RNG_SEED = int(os.environ.get("RNG_SEED", "0"))
 # Episode success item id: 50=torch (default), 274=stone pick, 257=iron pick
 # (IRON_CHAIN=1 required for craft:6/7 + smelt head).
-SUCCESS_ITEM = int(os.environ.get("SUCCESS_ITEM", 50))
+SUCCESS_ITEM = int(os.environ.get("SUCCESS_ITEM", "50"))
 
 # reward spec (weights + v2 touchstones; REWARD_JSON / COAL_CHEW / HUNT_DESC)
 REWARD_SPEC = ChainRewardSpec.resolve()
@@ -296,8 +298,8 @@ class StageCurriculum:
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    torch.manual_seed(0)
-    rng = np.random.default_rng(0)
+    torch.manual_seed(RNG_SEED)
+    rng = np.random.default_rng(RNG_SEED)
     dev = torch.device(f"cuda:{DEVICE}")
     print(f"device cuda:{DEVICE} = {torch.cuda.get_device_name(DEVICE)}",
           flush=True)
@@ -356,7 +358,7 @@ def main():
     ep_dec = torch.randint(0, EP_DEC, (N_ENVS,), dtype=torch.int32,
                            device=dev,
                            generator=torch.Generator(device=dev)
-                           .manual_seed(1))
+                           .manual_seed(RNG_SEED + 1))
     ep_ret = torch.zeros(N_ENVS, dtype=torch.float32, device=dev)
     lane_seed_t = torch.as_tensor(lane_seed, device=dev)
 
@@ -425,6 +427,8 @@ def main():
 
     print(f"N={N_ENVS} lanes, {nseeds} seeds {TRAIN_SEEDS}, "
           f"chunk {T_CHUNK} decisions, EP_DEC {EP_DEC}, device cuda:{DEVICE}",
+          flush=True)
+    print(f"rng seed={RNG_SEED} (torch/numpy), episode seed={RNG_SEED + 1}",
           flush=True)
     print(f"reward spec: {REWARD_SPEC}", flush=True)
 

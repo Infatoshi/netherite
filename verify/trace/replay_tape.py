@@ -17,14 +17,15 @@ Usage:
     ... --out DIR (default out/tape_<name>)  --report (write report/tape_<name>.md)
 """
 import argparse
-from collections import Counter
 import json
 import math
 import os
 import sys
+from collections import Counter
+from itertools import pairwise
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import oracle_lib as ol  # noqa: E402
+import oracle_lib as ol
 
 # first-divergence tolerances per field: MC physics is double-exact, so any gap
 # beyond float noise is a real defect. on_ground/hp/food must match exactly.
@@ -484,6 +485,7 @@ def snapshot_armor_stands(tape_path, header, ticks):
         return {}
 
     from pathlib import Path
+
     from nbt.region import RegionFile
 
     root = Path(tape_path).with_suffix("")
@@ -563,7 +565,7 @@ def snapshot_armor_stands(tape_path, header, ticks):
                             | (4 if small else 0)
                         ),
                     }
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - optional corrupt NBT is nonfatal
             print(
                 f"[tape] WARNING: could not read armor-stand snapshot "
                 f"{region_path}: {exc}"
@@ -770,7 +772,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
         if elytra_tape and falling_snapshot:
             cells = {(int(e["x"]), int(e["y"]), int(e["z"]))
                      for e in falling_snapshot}
-            for prev, row in zip(ticks, ticks[1:]):
+            for prev, row in pairwise(ticks):
                 x, y, z = float(prev["x"]), float(prev["y"]), float(prev["z"])
                 if any(x - 0.3 < bx + 1 and x + 0.3 > bx
                        and y + 0.2 < by + 1 and y + 0.4 > by
@@ -807,8 +809,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                 f.write(json.dumps({"tick": t, "type": "set_elytra",
                                     "equipped": pending_elytra}) + "\n")
                 pending_elytra = None
-            for state in pending_inv:
-                f.write(json.dumps({"tick": t, "type": "set_inventory", **state}) + "\n")
+            f.writelines(json.dumps({"tick": t, "type": "set_inventory", **state}) + "\n" for state in pending_inv)
             pending_inv = []
             while patch and patch[0][0] <= t:
                 ln = patch.pop(0)[1]
@@ -866,12 +867,20 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                     f.write(json.dumps({"tick": t, "type": "add_velocity",
                                         "x": float(mx), "y": float(my),
                                         "z": float(mz)}) + "\n")
-                for bx, by, bz in blocks:
-                    f.write(json.dumps({"tick": t, "type": "snapshot_block",
+                f.writelines(json.dumps({"tick": t, "type": "snapshot_block",
                                         "dim": int(row.get("dim", 0)),
                                         "x": int(bx), "y": int(by),
                                         "z": int(bz), "id": 0, "meta": 0})
-                            + "\n")
+                            + "\n" for bx, by, bz in blocks)
+            # Exact client-side explosion-class World.spawnParticle calls.
+            # One primitive script event per captured spawn stays within the
+            # strict flat JSON parser while preserving tick order and doubles.
+            for particle in row.get("pcl", []):
+                particle_id, x, y, z, vx, vy, vz = particle
+                f.write(json.dumps({"tick": t, "type": "spawn_particle",
+                                    "id": int(particle_id),
+                                    "x": x, "y": y, "z": z,
+                                    "vx": vx, "vy": vy, "vz": vz}) + "\n")
             if "ppos" in row:
                 x, y, z, yaw, pitch, vx, vy, vz = row["ppos"]
                 f.write(json.dumps({"tick": t, "type": "set_pose",
@@ -1029,14 +1038,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                 last_hb = i["hb"]
             if len(ev) > 2:
                 f.write(json.dumps(ev) + "\n")
-            if pose_anchored:
-                f.write(json.dumps({"tick": t, "type": "set_pose_post",
-                                    "x": row["x"], "y": row["y"], "z": row["z"],
-                                    "yaw": row["yaw"], "pitch": row["pitch"],
-                                    "vx": row["vx"], "vy": row["vy"], "vz": row["vz"],
-                                    "on_ground": int(row["og"]),
-                                    "fall": float(row.get("fall", 0.0))}) + "\n")
-            elif t in loading_ticks:
+            if pose_anchored or t in loading_ticks:
                 f.write(json.dumps({"tick": t, "type": "set_pose_post",
                                     "x": row["x"], "y": row["y"], "z": row["z"],
                                     "yaw": row["yaw"], "pitch": row["pitch"],
@@ -1647,7 +1649,7 @@ def main():
         # render only the golden ticks: the tape's frames are a regular
         # cadence, and rendering every tick made 12k-tick replays ~20x slower
         fts = [t for t, _ in frame_ticks]
-        every = max(min((b - a for a, b in zip(fts, fts[1:])), default=1), 1)
+        every = max(min((b - a for a, b in pairwise(fts)), default=1), 1)
         offset = fts[0]
     # mobs=False: magma's spawn RNG cannot match the oracle session's, so a
     # mobs-on replay grows phantom mobs that hit the player and corrupt the
@@ -1712,7 +1714,8 @@ def main():
         died_early = True
         print(f"[tape] WARNING: magma run ended early ({e}); "
               f"diffing the partial state")
-    c_rows = [json.loads(ln) for ln in open(state)]
+    with open(state) as state_file:
+        c_rows = [json.loads(ln) for ln in state_file]
     if died_early:
         last = c_rows[-1] if c_rows else {}
         print(f"[tape] WARNING: magma stopped at tick {last.get('tick')} "
@@ -1799,8 +1802,9 @@ def main():
         # immutable); magma side: the run's npy, memory-mapped (no PPM/PNG
         # round trip at all). Frames not at the replay resolution (mid-session
         # window resize) are skipped by the cache, loudly, as before.
-        import numpy as np
         from concurrent.futures import ThreadPoolExecutor
+
+        import numpy as np
         oticks, oframes, skipped_res, missing_g = ol.oracle_frames_cache(
             frame_ticks, args.w, args.h, tape_path=args.tape)
         if missing_g:

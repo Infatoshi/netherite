@@ -27,14 +27,14 @@
    "max_cluster": 14675
   },
   "viewmodel": {
-   "frames": 7,
-   "px": 13098,
+   "frames": 8,
+   "px": 13119,
    "max_cluster": 9440
   },
   "particles": {
    "frames": 47,
-   "px": 196561,
-   "max_cluster": 20287
+   "px": 179187,
+   "max_cluster": 18375
   },
   "bossbar": {
    "frames": 14,

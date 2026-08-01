@@ -620,9 +620,10 @@ int gm_window_compose_draw(GmWindowCompose *c,
         int nv = gm_entities_emit(ents, nents, c->entity_verts,
                                   c->max_entity_verts);
         gm_particles_dragon_latch(r->tick, ents, nents);
-        nv += gm_particles_emit(ents, nents, pv->yaw, pv->pitch,
-                                c->entity_verts + nv,
-                                c->max_entity_verts - nv);
+        nv += gm_particles_emit_filtered(
+            ents, nents, pv->yaw, pv->pitch,
+            gm_particles_live_suppresses_explosion(c->particles),
+            c->entity_verts + nv, c->max_entity_verts - nv);
         CrTexture eatlas = gm_entity_atlas();
         CrRgba fog = clear;
         CrShadeCtx esh = {0};
@@ -754,6 +755,22 @@ int gm_window_compose_draw(GmWindowCompose *c,
                   !getenv("MAGMA_NO_OVERLAY");
     if (overlay) render_selection(c, &cam, clear);
     {
+        int nv = gm_particles_live_emit_recorded(
+            c->particles, 0, frame->partial_ticks, cpv->yaw, cpv->pitch,
+            c->entity_verts, c->max_entity_verts);
+        if (nv > 0) {
+            CrTexture eatlas = gm_entity_atlas();
+            CrShadeCtx ps = {0};
+            ps.atlas = &eatlas; ps.fog_color = clear;
+            ps.alpha_test = 1; ps.alpha_ref = 0.003921569f;
+            ps.layer = CR_LAYER_TRANSLUCENT; ps.blend = 1; ps.lightmap = lm;
+            gm_frame_world_fog_params(r->dimension, c->boss_latch,
+                                      &ps.enable_fog, &ps.fog_start, &ps.fog_end);
+            apply_fluid_fog(&ps, &uw);
+            render_layer(c, &cam, c->entity_verts, nv, &ps);
+        }
+    }
+    {
         int nv = gm_particles_live_emit(c->particles, frame->partial_ticks,
                                         cpv->yaw, cpv->pitch,
                                         c->entity_verts,
@@ -766,6 +783,22 @@ int gm_window_compose_draw(GmWindowCompose *c,
             dig.layer = CR_LAYER_CUTOUT;
             apply_fluid_fog(&dig, &uw);
             render_layer(c, &cam, c->entity_verts, nv, &dig);
+        }
+    }
+    {
+        int nv = gm_particles_live_emit_recorded(
+            c->particles, 3, frame->partial_ticks, cpv->yaw, cpv->pitch,
+            c->entity_verts, c->max_entity_verts);
+        if (nv > 0) {
+            CrTexture eatlas = gm_entity_atlas();
+            CrShadeCtx ps = {0};
+            ps.atlas = &eatlas; ps.fog_color = clear;
+            ps.alpha_test = 1; ps.layer = CR_LAYER_CUTOUT;
+            ps.entity_brightness = 1;
+            gm_frame_world_fog_params(r->dimension, c->boss_latch,
+                                      &ps.enable_fog, &ps.fog_start, &ps.fog_end);
+            apply_fluid_fog(&ps, &uw);
+            render_layer(c, &cam, c->entity_verts, nv, &ps);
         }
     }
     if (overlay) render_crack(c, &cam, clear);

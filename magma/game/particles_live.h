@@ -8,8 +8,17 @@
 
 #define GM_PARTICLES_LIVE_CAP 1024
 
+enum {
+    GM_LIVE_PARTICLE_BLOCK = 0,
+    GM_LIVE_PARTICLE_EXPLOSION_NORMAL = 1,
+    GM_LIVE_PARTICLE_EXPLOSION_LARGE = 2,
+    GM_LIVE_PARTICLE_EXPLOSION_HUGE = 3
+};
+
 typedef struct {
     int active;
+    int kind;
+    int newborn;
     int model_key;
     int age;
     int max_age;
@@ -21,6 +30,7 @@ typedef struct {
     double bb_max_x, bb_max_y, bb_max_z;
     float jitter_x, jitter_y;
     float scale;
+    float gray;
     float lm_r, lm_g, lm_b;
     /* ParticleDigging multiplyColor base (block colorMultiplier as 0..1).
      * White (1,1,1) for untinted blocks; emit multiplies into the 0.6 gray. */
@@ -47,6 +57,19 @@ int gm_particles_live_spawn_hit(GmParticlesLive *live,
                                 float lm_r, float lm_g, float lm_b,
                                 float base_r, float base_g, float base_b);
 
+/* Tape-replay constructor seam for 1.11.2 EnumParticleTypes ids 0..2.
+ * Positions and speed arguments are the recorded World.spawnParticle call;
+ * constructor-only random attributes remain on this pool's deterministic RNG. */
+int gm_particles_live_spawn_recorded(GmParticlesLive *live, int particle_id,
+                                     double x, double y, double z,
+                                     double speed_x, double speed_y,
+                                     double speed_z, int sky_light,
+                                     int block_light);
+
+/* True while a recorded explosion-class particle from a replay event is still
+ * alive. The renderer uses this to suppress its stateless RNG reconstruction. */
+int gm_particles_live_suppresses_explosion(const GmParticlesLive *live);
+
 /* One ParticleManager.updateEffects tick. win is the region-local collision
  * window; pass NULL in a test that deliberately exercises free motion. */
 void gm_particles_live_tick(GmParticlesLive *live, const Chunk *win,
@@ -55,5 +78,12 @@ void gm_particles_live_tick(GmParticlesLive *live, const Chunk *win,
 int gm_particles_live_emit(const GmParticlesLive *live, float partial_ticks,
                            float view_yaw, float view_pitch,
                            CrVertex *out, int max);
+
+/* Recorded explosion render layers: 0 = ParticleExplosion on particles.png,
+ * 3 = ParticleExplosionLarge on explosion.png. HUGE is an invisible emitter;
+ * its separately recorded LARGE children are spawned by later script rows. */
+int gm_particles_live_emit_recorded(const GmParticlesLive *live, int fx_layer,
+                                    float partial_ticks, float view_yaw,
+                                    float view_pitch, CrVertex *out, int max);
 
 #endif

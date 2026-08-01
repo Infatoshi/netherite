@@ -3,11 +3,14 @@
 
 #include "game/runtime.h"
 #include "game/entity_render.h"
+#include "game/particles_live.h"
 #include "game/underwater.h"
 
 typedef struct GmFrameCapture GmFrameCapture;
 
 GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_cap);
+void gm_frame_capture_bind_particles(GmFrameCapture *capture,
+                                     GmParticlesLive *particles);
 /* Call once per tick. Always advances hand-animation state; renders and
  * writes the tick-numbered PPM only when render is non-zero. */
 int gm_frame_capture_write(GmFrameCapture *capture, GmRuntime *runtime,

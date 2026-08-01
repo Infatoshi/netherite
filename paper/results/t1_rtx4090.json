@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "task": "T1 RTX 4090 blaze throughput",
+  "measurement_date_utc": "2026-08-01",
+  "measurement_window_utc": {
+    "start": "2026-08-01T18:20:25Z",
+    "end": "2026-08-01T18:21:00Z"
+  },
+  "commit": "d55c7f01c1139299be3f7fa0b98ef11b82c3b473",
+  "source_transfer": {
+    "method": "git bundle clone followed by detached checkout",
+    "bundle_sha256": "a3fdc488c0093c70c1a91fb970c490b8639ae0f5012a4a623f961cf09b4d1b26",
+    "remote_rev_parse_head": "d55c7f01c1139299be3f7fa0b98ef11b82c3b473"
+  },
+  "provider": {
+    "name": "Vast.ai",
+    "offer_id": 44364785,
+    "instance_id": 46525429,
+    "label": "netherite-paper-t1-4090-d55c7f0",
+    "verified_host": true,
+    "reliability": 0.9973073,
+    "gpu_fraction": 1.0,
+    "pcie_generation": 4,
+    "pcie_bandwidth_gbps": 22.8,
+    "image": "nvidia/cuda:13.1.1-devel-ubuntu24.04@sha256:9cf8694a27722418a1f175d90f85d5afb5a728fd4a9907d7f0565efecfa14d32"
+  },
+  "rental": {
+    "gpu_usd_per_hour": 0.37333333333333335,
+    "storage_usd_per_hour": 0.046296296296296294,
+    "total_usd_per_hour": 0.41962962962962963,
+    "start_epoch": 1785607734.1634643,
+    "destroy_epoch": 1785608513.380479453,
+    "runtime_seconds": 779.217,
+    "runtime_minutes": 12.98695,
+    "estimated_charge_usd": 0.090828,
+    "destroyed": true,
+    "post_destroy_active_instance_ids": [
+      46525444
+    ],
+    "post_destroy_note": "Only the separately labeled T2 RTX 5090 rental remained active."
+  },
+  "hardware": {
+    "container_hostname": "cb2200c19fa8",
+    "os": "Ubuntu 24.04.3 LTS",
+    "architecture": "x86_64",
+    "cpu": "13th Gen Intel(R) Core(TM) i9-13900",
+    "online_cpus": 32,
+    "provider_ram_mb": 128453,
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "gpu_uuid": "GPU-4e8a2797-6cde-3deb-7757-fb3feabca6ec",
+    "compute_capability": "8.9",
+    "gpu_memory_total_mib": 24564,
+    "gpu_memory_free_preflight_mib": 24083,
+    "gpu_memory_used_preflight_mib": 0,
+    "gpu_processes_preflight": 0,
+    "power_limit_w": 480.0
+  },
+  "software": {
+    "driver_version": "595.80",
+    "driver_supported_cuda": "13.2",
+    "nvcc_release": "13.1",
+    "nvcc_version": "13.1.115",
+    "uv_version": "0.12.1",
+    "numpy_version": "2.5.1",
+    "torch_version": "2.13.0+cu130",
+    "torch_cuda_version": "13.0"
+  },
+  "build": {
+    "commands": [
+      "export CUDA_HOME=/usr/local/cuda TORCH_CUDA_ARCH_LIST=8.9",
+      "make -C magma clean",
+      "make -C magma BLAZE_SM=sm_89 blaze_cuda_so"
+    ],
+    "nvcc_invocation": "nvcc -O2 --fmad=false -gencode arch=compute_89,code=sm_89 -I/root/netherite/blaze/core -I../blaze/env -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c -o ../blaze/env/blaze_cuda.so",
+    "cuobjdump": [
+      "ELF file    1: blaze_cuda.1.sm_89.cubin",
+      "ELF file    2: blaze_cuda.2.sm_89.cubin"
+    ],
+    "blaze_cuda_so_sha256": "a480369955b60f06c5aa8ecbb6a818ab0df78a0b99c51d7f3a125fb1ca20086d"
+  },
+  "benchmark": {
+    "config": {
+      "snapshots": "t0",
+      "full_action_decode": true,
+      "semantic_camera_every_decision": true,
+      "repeat": 4,
+      "timed_decisions": 1000,
+      "warmup_decisions": 10,
+      "device": 0,
+      "actions": "pre-generated on-device random actions",
+      "resets": "periodic masked resets"
+    },
+    "command_template": "CUDA_VISIBLE_DEVICES=0 uv run --no-project --with 'numpy==2.5.1' --with 'torch==2.13.0' python blaze/env/verify_cuda.py --bench --t0 --n N --decisions 1000 --repeat 4 --warmup 10 --device 0",
+    "n2048_command_sha256": "1a3eb7a5e0216ea11e14ce8037e13b7e92cca6132753dbd24d028cfb049280ad",
+    "source_hashes": {
+      "blaze/env/verify_cuda.py": "07f866f3dbb12eaf95de341ca44c62c535df522e2c24ce5051154a67d8daaa8e",
+      "blaze/env/blaze_cuda.cu": "fa1c6a440c90720d440b80c53471dbf1af4fd032ddecec323b258cd8377a5225",
+      "blaze/env/blaze_cuda.so": "a480369955b60f06c5aa8ecbb6a818ab0df78a0b99c51d7f3a125fb1ca20086d"
+    },
+    "selection_rule": "Three independent full commands at N=2048; report the exact emitted row from the median run by decisions/s. Attempt each deterministic OOM batch once.",
+    "launch_post_rows": [
+      {
+        "batch": 2048,
+        "env_ticks_per_second_display": "1.70M",
+        "decisions_per_second": 426108,
+        "status": "ok"
+      },
+      {
+        "batch": 8192,
+        "env_ticks_per_second_display": "OOM: 68.7 GB region pool > 24.8 GB free",
+        "decisions_per_second": null,
+        "status": "oom"
+      },
+      {
+        "batch": 16384,
+        "env_ticks_per_second_display": "OOM: 29.8 GB fixed pools > 24.8 GB free",
+        "decisions_per_second": null,
+        "status": "oom"
+      }
+    ],
+    "n2048_runs": [
+      {
+        "run": 1,
+        "env_ticks_per_second_display": "1.70M",
+        "decisions_per_second": 426083,
+        "elapsed_seconds_display": 4.81,
+        "done_at_end": 18,
+        "raw": "N=2048: 1.70M env-ticks/s  426083 decisions/s  (4.81s for 1000 decisions, 18/2048 done at end)"
+      },
+      {
+        "run": 2,
+        "env_ticks_per_second_display": "1.71M",
+        "decisions_per_second": 426476,
+        "elapsed_seconds_display": 4.80,
+        "done_at_end": 18,
+        "raw": "N=2048: 1.71M env-ticks/s  426476 decisions/s  (4.80s for 1000 decisions, 18/2048 done at end)"
+      },
+      {
+        "run": 3,
+        "env_ticks_per_second_display": "1.70M",
+        "decisions_per_second": 426108,
+        "elapsed_seconds_display": 4.81,
+        "done_at_end": 18,
+        "raw": "N=2048: 1.70M env-ticks/s  426108 decisions/s  (4.81s for 1000 decisions, 18/2048 done at end)"
+      }
+    ],
+    "n2048_selected_run": 3,
+    "n2048_derived_unrounded_env_ticks_per_second": 1704432,
+    "n2048_max_minus_min_decisions_per_second": 393,
+    "n2048_spread_percent_of_median": 0.09223,
+    "oom_attempts": [
+      {
+        "batch": 8192,
+        "exit_code": 1,
+        "failure_stage": "region_pool_allocation",
+        "free_gb_reported": 24.8,
+        "total_gb_reported": 25.3,
+        "required_gb": 68.7,
+        "raw_bench_header": "bench: N=8192, repeat 4, 1000 decisions (+10 warmup), device cuda:0, t0 (full action decode) snapshots, VRAM free 24.8/25.3 GB",
+        "raw_error": "RuntimeError: blaze_load_snapshots: region pool cudaMalloc failed (128x128x128 x 8192 envs = 68.7 GB)"
+      },
+      {
+        "batch": 16384,
+        "exit_code": 1,
+        "failure_stage": "fixed_pool_allocation",
+        "free_gb_reported": 24.8,
+        "total_gb_reported": 25.3,
+        "required_fixed_pool_gb": 29.8,
+        "required_later_region_pool_gb": 137.4,
+        "raw_bench_header": "bench: N=16384, repeat 4, 1000 decisions (+10 warmup), device cuda:0, t0 (full action decode) snapshots, VRAM free 24.8/25.3 GB",
+        "raw_allocator_error": "blaze_cuda: cudaMalloc failed for n=16384 fixed pools (~29.8 GB; region pools come later at snapshot load)",
+        "raw_error": "RuntimeError: blaze_create(device=0, n=16384) failed [/root/netherite/blaze/env/blaze_cuda.so]"
+      }
+    ],
+    "capacity_formula": "region_pool_bytes = 2 * N * 128 * 128 * 128 * sizeof(uint16_t)",
+    "isolation_note": "nvidia-smi preceded every attempt. Every preflight had zero allocated GPU memory and no GPU process. Later samples retained transient utilization and boosted clocks after the prior process exited; the three numeric rows agreed within 0.092230%.",
+    "timing_scope": {
+      "included": [
+        "k_tick, k_obs, and k_final for each decision",
+        "cudaStreamSynchronize at the end of every blaze_step_full call",
+        "40 periodic env.done device-to-host copies",
+        "conditional host-driven masked resets for completed environments"
+      ],
+      "excluded": [
+        "environment creation",
+        "snapshot loading and initial reset",
+        "10 warmup decisions",
+        "random action generation",
+        "action host-to-device copies because all 1000 action tensors were pre-generated on device before the timer"
+      ]
+    },
+    "telemetry": {
+      "pcie_bandwidth_gbps_provider_measurement": 22.8,
+      "prelaunch_samples": [
+        {
+          "run": 1,
+          "gpu_utilization_percent": 0,
+          "power_draw_w": 44.10,
+          "sm_clock_mhz": 210,
+          "memory_clock_mhz": 405,
+          "temperature_c": 48
+        },
+        {
+          "run": 2,
+          "gpu_utilization_percent": 44,
+          "power_draw_w": 136.72,
+          "sm_clock_mhz": 2730,
+          "memory_clock_mhz": 10501,
+          "temperature_c": 53
+        },
+        {
+          "run": 3,
+          "gpu_utilization_percent": 24,
+          "power_draw_w": 143.71,
+          "sm_clock_mhz": 2730,
+          "memory_clock_mhz": 10501,
+          "temperature_c": 50
+        }
+      ],
+      "prelaunch_caveat": "Run 2 and run 3 samples retained transient utilization and boosted clocks from the just-exited prior process. They are not sustained timed-loop measurements.",
+      "unavailable": [
+        "sustained timed-loop power draw",
+        "sustained timed-loop GPU utilization",
+        "sustained timed-loop SM clock",
+        "sustained timed-loop memory clock",
+        "sustained timed-loop temperature",
+        "clock-lock or application-clock state",
+        "nsys end-to-end profile",
+        "ncu kernel profile"
+      ]
+    },
+    "cross_gpu_inversion_audit": {
+      "observation": "The retained T1 result is higher than the initial T2 RTX 5090 result.",
+      "conclusion": "Cause unproven from T1 receipts.",
+      "prohibited_interpretation": "Do not attribute the inversion to architecture, clocks, power, PCIe, or host transfers without matched sustained telemetry or profiler evidence."
+    }
+  },
+  "setup": {
+    "required_command": "bash scripts/setup_and_verify.sh --quick",
+    "required_command_exit_code": 2,
+    "required_command_error": "ERROR: JDK 8 required. Set JAVA_HOME to a Java 8 install.",
+    "java_oracle_bootstrap_skipped": true,
+    "skip_reason": "The digest-pinned throughput image did not include JDK 8; Java/oracle is not required for the throughput benchmark.",
+    "asset_bootstrap": "All 13 untracked Mojang-derived headers were regenerated on Anvil by the final-pin generator scripts from the canonical owned Minecraft 1.11.2 jar, SHA-256 stamped, and copied to the rental.",
+    "additional_package": "libsdl2-dev",
+    "manual_commands": [
+      "make -C magma game",
+      "make -C magma blaze_so",
+      "T0=1 uv run --no-project --with 'numpy==2.5.1' --with 'torch==2.13.0' python blaze/env/make_snapshots.py",
+      "bash netherite_sweep.sh --quick"
+    ],
+    "t0_snapshots_written": 13,
+    "quick_sweep": {
+      "exit_code": 1,
+      "passed_steps": 11,
+      "failed_steps": [
+        {
+          "name": "magma-verify-harsh",
+          "reason": "oracle data absent after allowed Java bootstrap skip"
+        },
+        {
+          "name": "blaze-cpu-gate",
+          "reason": "0/0 streams zero-diff after allowed Java bootstrap skip"
+        }
+      ],
+      "passing_scope": [
+        "build-magma",
+        "build-blaze-cpu",
+        "blaze-oracle-smoke",
+        "blaze-cpu-trunk",
+        "magma-test-config",
+        "magma-block-registry",
+        "magma-test-launch",
+        "blaze-c-smoke",
+        "rl-vec-env-test",
+        "rl-reward-parity",
+        "verify-unit-gates"
+      ]
+    }
+  },
+  "artifacts": {
+    "archive_sha256": "e58fbf51ce0398624ab0d5001fba1487f683c5e7c89cfb118de6fddbc5b88837",
+    "manifest_files": 31,
+    "all_manifest_files_verified_after_copy_back": true,
+    "local_copy": "/home/infatoshi/dev/nw/.tmp/t1_rtx4090_46525429"
+  }
+}

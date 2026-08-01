@@ -1,0 +1,187 @@
+{
+  "schema": "netherite.paper.throughput-receipt.v1",
+  "task": "T2 RTX 5090 throughput benchmark",
+  "measurement_date_utc": "2026-08-01",
+  "source": {
+    "commit": "d55c7f01c1139299be3f7fa0b98ef11b82c3b473",
+    "bundle_sha256": "8480e3dcb3b4c2ea87cac76d0332fc594aea65a64a837ad0249e481f615e928d",
+    "verify_cuda_py_sha256": "07f866f3dbb12eaf95de341ca44c62c535df522e2c24ce5051154a67d8daaa8e",
+    "blaze_cuda_cu_sha256": "fa1c6a440c90720d440b80c53471dbf1af4fd032ddecec323b258cd8377a5225",
+    "git_status_before_measurement": "clean"
+  },
+  "rental": {
+    "provider": "Vast.ai",
+    "instance_id": 46525444,
+    "label": "netherite-paper-t2-5090-d55c7f0",
+    "hourly_cost_usd": 0.49977777777777777,
+    "physical_gpu_count": 1,
+    "gpu_fraction": 1.0,
+    "location": "Texas, US",
+    "first_runtime_stamp_utc": "2026-08-01T18:11:39Z",
+    "teardown": {
+      "requested_utc": "2026-08-01T18:26:46Z",
+      "verified_absent_utc": "2026-08-01T18:26:47Z",
+      "status": "destroyed_and_absent"
+    }
+  },
+  "host": {
+    "hostname": "e4cfb79d3ee2",
+    "os": "Ubuntu 24.04.3 LTS",
+    "kernel": "6.8.0-90-generic",
+    "architecture": "x86_64",
+    "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+    "cpu_cores": 8,
+    "cpu_threads": 16,
+    "container": "nvidia/cuda:13.1.1-devel-ubuntu24.04@sha256:9cf8694a27722418a1f175d90f85d5afb5a728fd4a9907d7f0565efecfa14d32"
+  },
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 5090",
+    "uuid": "GPU-efa51deb-b7da-8e46-eaaf-c14e654c7da3",
+    "compute_capability": "12.0",
+    "driver_version": "590.48.01",
+    "memory_total_mib": 32607,
+    "memory_free_preflight_mib": 32111,
+    "power_limit_w": 450.0,
+    "nvcc_release": "13.1",
+    "nvcc_version": "13.1.115"
+  },
+  "runtime": {
+    "numpy": "2.5.1",
+    "torch": "2.13.0+cu130",
+    "torch_cuda": "13.0",
+    "uv": "0.12.1"
+  },
+  "build": {
+    "command": "make -C magma BLAZE_SM=sm_120 blaze_cuda_so",
+    "clean_build": true,
+    "binary_sha256": "01f371ebf6f9972b9e6cc9f303d1c169fe3a6f029429d205469ddbd645f7449e",
+    "cuobjdump_elf": [
+      "blaze_cuda.1.sm_120.cubin",
+      "blaze_cuda.2.sm_120.cubin"
+    ]
+  },
+  "benchmark": {
+    "command_template": "CUDA_VISIBLE_DEVICES=0 uv run --no-project --with 'numpy==2.5.1' --with 'torch==2.13.0' python blaze/env/verify_cuda.py --bench --t0 --n BATCH --decisions 1000 --repeat 4 --warmup 10 --device 0",
+    "n2048_command_sha256": "1a3eb7a5e0216ea11e14ce8037e13b7e92cca6132753dbd24d028cfb049280ad",
+    "settings": {
+      "decisions": 1000,
+      "repeat": 4,
+      "warmup": 10,
+      "device": 0,
+      "snapshot_mode": "t0",
+      "action_decode": "full"
+    },
+    "selection_rule": "Median of three independent complete runs by decisions_per_second",
+    "runs_n2048": [
+      {
+        "run": 1,
+        "timestamp_utc": "2026-08-01T18:20:32Z",
+        "env_ticks_per_second": 1620000,
+        "env_ticks_display": "1.62M",
+        "decisions_per_second": 405998,
+        "elapsed_seconds": 5.04,
+        "done_at_end": 18,
+        "exit_code": 0,
+        "raw_row": "N=2048: 1.62M env-ticks/s  405998 decisions/s  (5.04s for 1000 decisions, 18/2048 done at end)"
+      },
+      {
+        "run": 2,
+        "timestamp_utc": "2026-08-01T18:20:45Z",
+        "env_ticks_per_second": 1620000,
+        "env_ticks_display": "1.62M",
+        "decisions_per_second": 406019,
+        "elapsed_seconds": 5.04,
+        "done_at_end": 18,
+        "exit_code": 0,
+        "raw_row": "N=2048: 1.62M env-ticks/s  406019 decisions/s  (5.04s for 1000 decisions, 18/2048 done at end)"
+      },
+      {
+        "run": 3,
+        "timestamp_utc": "2026-08-01T18:20:58Z",
+        "env_ticks_per_second": 1620000,
+        "env_ticks_display": "1.62M",
+        "decisions_per_second": 405678,
+        "elapsed_seconds": 5.05,
+        "done_at_end": 18,
+        "exit_code": 0,
+        "raw_row": "N=2048: 1.62M env-ticks/s  405678 decisions/s  (5.05s for 1000 decisions, 18/2048 done at end)"
+      }
+    ],
+    "selected_n2048": {
+      "run": 1,
+      "env_ticks_per_second": 1620000,
+      "env_ticks_display": "1.62M",
+      "decisions_per_second": 405998,
+      "raw_row": "N=2048: 1.62M env-ticks/s  405998 decisions/s  (5.04s for 1000 decisions, 18/2048 done at end)"
+    },
+    "requested_oversized_batches": [
+      {
+        "batch": 8192,
+        "timestamp_utc": "2026-08-01T18:21:13Z",
+        "status": "oom",
+        "exit_code": 1,
+        "required_region_pool_bytes": 68719476736,
+        "required_region_pool_gib": 64,
+        "error": "region pool cudaMalloc failed (128x128x128 x 8192 envs = 68.7 GB)"
+      },
+      {
+        "batch": 16384,
+        "timestamp_utc": "2026-08-01T18:21:20Z",
+        "status": "oom",
+        "exit_code": 1,
+        "required_region_pool_bytes": 137438953472,
+        "required_region_pool_gib": 128,
+        "error": "region pool cudaMalloc failed (128x128x128 x 16384 envs = 137.4 GB)"
+      }
+    ],
+    "region_pool_formula": "2 * batch * 128 * 128 * 128 * sizeof(uint16)"
+  },
+  "inversion_audit": {
+    "reason": "The matched RTX 5090 median is lower than the matched RTX 4090 median.",
+    "rtx4090_median_decisions_per_second": 426108,
+    "rtx5090_median_decisions_per_second": 405998,
+    "rtx5090_lower_percent": 4.719461,
+    "parity_checks": {
+      "same_commit": true,
+      "same_command_sha256": true,
+      "same_verify_cuda_py_sha256": true,
+      "same_blaze_cuda_cu_sha256": true,
+      "same_numpy": true,
+      "same_torch": true,
+      "same_torch_cuda": true,
+      "same_nvcc_version": true,
+      "architecture_specific_binary_only": true
+    },
+    "diagnostic_run": {
+      "raw_row": "N=2048: 1.63M env-ticks/s  406520 decisions/s  (5.04s for 1000 decisions, 18/2048 done at end)",
+      "telemetry_interval_ms": 100,
+      "p1_samples": 50,
+      "gpu_utilization_percent_min": 56,
+      "gpu_utilization_percent_max": 100,
+      "samples_at_100_percent_gpu_utilization": 49,
+      "graphics_clock_mhz_min": 2737,
+      "graphics_clock_mhz_max": 3052,
+      "power_draw_w_min": 80.8,
+      "power_draw_w_max": 200.02,
+      "temperature_c_min": 40,
+      "temperature_c_max": 43,
+      "pcie_generation": 5,
+      "pcie_width": 16,
+      "throttle_reason_bitmask": "0x0000000000000000",
+      "telemetry_sha256": "2673410ef25077075ccad2c56b1f3f91796585fd85264b8c3673bbec5125732c",
+      "run_log_sha256": "775b1b3b0ca6654203db7bc0a151fa41516b137e106ca317eea4f55f98e3a699"
+    },
+    "conclusion": "The inversion is measured and reproducible. No thermal, power-limit, PCIe-link, or reported clock-throttle condition was observed on the RTX 5090. The causal mechanism remains unproven because paired profiler traces were not collected."
+  },
+  "verification": {
+    "setup_command": "bash scripts/setup_and_verify.sh --quick",
+    "bootstrap_note": "The legacy Forge asset download stalled at 1194/1196 on upstream HTTP errors. Existing user-owned oracle-derived sources and assets were transferred, and setup continued with --skip-bootstrap. The transferred Minecraft jar was then linked into the cache path required by check_jar_models.py.",
+    "final_command": "bash netherite_sweep.sh --quick",
+    "final_result": "all 13 steps PASS, no SKIPs",
+    "final_log_sha256": "0b4d4de2655696329888113c8181bbb78c0dc56af3692a2b5ef14c514f4f5108"
+  },
+  "artifacts": {
+    "main_log_archive_sha256": "7a38141e99be24968e666dbb447743e9bc8c5cee34783a19e97ac20e57cda86f",
+    "copied_back_and_checksum_verified_before_teardown": true
+  }
+}
