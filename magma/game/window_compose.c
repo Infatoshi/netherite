@@ -70,6 +70,11 @@ struct GmWindowCompose {
     int dragon_killed;
     float fog_c1;
     int fog_c1_init;
+    int hud_cached;
+    int hud_health;
+    int hud_last_health;
+    int hud_flash;
+    int hud_state_valid;
     unsigned char *ppm_buf;
     FILE *npy_f;
     int npy_frames;
@@ -347,6 +352,29 @@ static void advance_fog_state(GmWindowCompose *c, int nticks) {
                                       x, y, z);
 }
 
+static void advance_hud_state(GmWindowCompose *c, GmPlayerView *view,
+                              int nticks) {
+    long long first = c->runtime->tick - nticks + 1;
+    if (nticks <= 0 && !c->hud_cached) {
+        gm_hud_state_step(&c->hud_state, view, c->runtime->tick);
+    } else {
+        for (int i = 0; i < nticks; ++i)
+            gm_hud_state_step(&c->hud_state, view, first + i);
+    }
+    if (nticks > 0 || !c->hud_cached) {
+        c->hud_health = view->hud_health;
+        c->hud_last_health = view->hud_last_health;
+        c->hud_flash = view->hud_flash;
+        c->hud_state_valid = view->hud_state_valid;
+        c->hud_cached = 1;
+    } else {
+        view->hud_health = c->hud_health;
+        view->hud_last_health = c->hud_last_health;
+        view->hud_flash = c->hud_flash;
+        view->hud_state_valid = c->hud_state_valid;
+    }
+}
+
 GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
                                          char *err, int err_cap) {
     if (!cfg) {
@@ -447,7 +475,7 @@ void gm_window_compose_advance(GmWindowCompose *c, GmPlayerView *view,
                                const GmAction *action, int nticks) {
     if (!c || !c->runtime || !view || !action) return;
     advance_fog_state(c, nticks);
-    gm_hud_state_step(&c->hud_state, view, c->runtime->tick);
+    advance_hud_state(c, view, nticks);
     float mv_mag = fabsf(action->forward) + fabsf(action->strafe);
     if (mv_mag > 0.01f) c->hand_bob += 0.30f * (float)nticks;
     int attack = action->attack || action->do_break;

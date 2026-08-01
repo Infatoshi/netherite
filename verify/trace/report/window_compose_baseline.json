@@ -12,7 +12,8 @@
     "minecart rail snap and entity-id jitter",
     "hand equip, hurt transform, and boat gate",
     "live portal overlay and atlas frame",
-    "tick-rate fogColor1 smoother"
+    "tick-rate fogColor1 smoother",
+    "tick-rate HUD state"
   ],
   "capture": {
     "frames_checked": 18,
