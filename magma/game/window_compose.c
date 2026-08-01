@@ -451,7 +451,15 @@ int gm_window_compose_draw(GmWindowCompose *c,
         return 0;
     }
     GmRuntime *r = c->runtime;
-    const GmPlayerView *pv = frame->view;
+    GmPlayerView mapped_view = *frame->view;
+    if (!r->tape_xp_active) {
+        mapped_view.portal = (float)r->portal_time / 80.0f;
+        if (mapped_view.portal > 1.0f) mapped_view.portal = 1.0f;
+        long long portal_frame = r->clock.total_time % 32;
+        if (portal_frame < 0) portal_frame += 32;
+        mapped_view.portal_frame = (int)portal_frame;
+    }
+    const GmPlayerView *pv = &mapped_view;
     const GmPlayerView *cpv = frame->camera_view;
     CrCamera cam = camera_for(cpv, c->fb.w, c->fb.h);
     float fog_c1 = gm_uw_fog_c1_seed(r->world, r->dimension,
@@ -460,6 +468,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
     gm_uw_eval(r->world, r->dimension, cpv, fog_c1, &uw);
     cam.fov_deg *= uw.fov_scale;
     bm_atlas_set_animation_tick(r->clock.total_time);
+    bm_atlas_set_portal_frame(pv->portal_frame);
     gm_sky_set_fog_c1(fog_c1);
     gm_sky_set_eye_height(cpv->eye_height > 0.01f ? cpv->eye_height : 1.62f);
     gm_sky_set_fluid_fog(uw.fluid ? 1 : 0, uw.fog01, uw.density);

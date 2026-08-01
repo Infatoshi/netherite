@@ -10,7 +10,8 @@
     "camera FOV multiplier",
     "falling-block, minecart-content, and held-item emitters",
     "minecart rail snap and entity-id jitter",
-    "hand equip, hurt transform, and boat gate"
+    "hand equip, hurt transform, and boat gate",
+    "live portal overlay and atlas frame"
   ],
   "capture": {
     "frames_checked": 18,
