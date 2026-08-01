@@ -1,0 +1,8 @@
+main.aux
+main.bbl
+main.blg
+main.log
+main.out
+main.pdf
+figures/rl_curve.png
+!data/chain_curve_pin1_1h.npy

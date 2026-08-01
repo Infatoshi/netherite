@@ -2500,7 +2500,7 @@ public class Golden {
         int below=wget(x,y-1,z);
         if(below==MYCELIUM) return true;
         if(below==PODZOL) return true;
-        return wLight(x,y,z)<13 && pbBlocksMovement(below) && !pbIsLeaves(below);
+        return wLight(x,y,z)<13 && pbBlocksMovement(below);
     }
     static void wgBush(Random rand,int x,int y,int z,int block){
         for(int i=0;i<64;++i){
