@@ -281,6 +281,8 @@ int       gm_world_block_light(const GmWorld *w, int wx, int wy, int wz);
  * tint the mesher would use — exposed for the script.c oracle-diff probes. */
 int       gm_world_biome(const GmWorld *w, int wx, int wz);
 int       gm_world_grass_color(const GmWorld *w, int wx, int wy, int wz);
+/* Blended 0xRRGGBB foliage tint (light_foliage_color); ParticleDigging leaves. */
+int       gm_world_foliage_color(const GmWorld *w, int wx, int wy, int wz);
 
 /* Edit a block: updates the store, re-lights locally, marks the touched chunk (and
  * any neighbour across a chunk border) dirty so the next mesh_view rebuilds it.

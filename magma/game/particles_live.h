@@ -22,6 +22,9 @@ typedef struct {
     float jitter_x, jitter_y;
     float scale;
     float lm_r, lm_g, lm_b;
+    /* ParticleDigging multiplyColor base (block colorMultiplier as 0..1).
+     * White (1,1,1) for untinted blocks; emit multiplies into the 0.6 gray. */
+    float base_r, base_g, base_b;
 } GmLiveParticle;
 
 typedef struct {
@@ -36,11 +39,13 @@ int gm_particles_live_count(const GmParticlesLive *live);
 
 int gm_particles_live_spawn_destroy(GmParticlesLive *live,
                                     int wx, int wy, int wz, int model_key,
-                                    float lm_r, float lm_g, float lm_b);
+                                    float lm_r, float lm_g, float lm_b,
+                                    float base_r, float base_g, float base_b);
 int gm_particles_live_spawn_hit(GmParticlesLive *live,
                                 int wx, int wy, int wz, int model_key, int face,
                                 const float bounds[6],
-                                float lm_r, float lm_g, float lm_b);
+                                float lm_r, float lm_g, float lm_b,
+                                float base_r, float base_g, float base_b);
 
 /* One ParticleManager.updateEffects tick. win is the region-local collision
  * window; pass NULL in a test that deliberately exercises free motion. */
