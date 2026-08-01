@@ -42,7 +42,11 @@ What each step reproduces:
   (2,666 files). This is the read-only reference the C reimplementation was
   verified against; `blaze/ref/mc-src` symlinks to it. The MCP mapping
   snapshot is pinned in `java/Minecraft/build.gradle`, so the decompiled
-  output is deterministic.
+  output is deterministic. It first runs `scripts/fetch_mc_assets.py` to
+  pre-seed the game-asset cache over https: the pinned ForgeGradle downloads
+  assets over plain http, which Mojang's CDN now rejects with HTTP 400
+  (`java.io.IOException: ... response code: 400`); pre-seeded objects are
+  hash-checked and skipped by ForgeGradle, so the http path is never hit.
 - `scripts/bootstrap_assets.sh` -> the 12 generated headers in
   `magma/assets/` (block/GUI/HUD/item/mob/sky atlases, colormaps, water
   animation frames). Each `build_*.py` extracts textures from the jar found

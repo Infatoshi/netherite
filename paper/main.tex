@@ -96,7 +96,7 @@ Both attempts failed on verification, not simulation. There is also an uncomfort
 netherite holds two different, mechanically checkable definitions of ``correct,'' and never conflates them:
 
 \begin{itemize}
-\item \textbf{Replay tier (\texttt{magma}): vanilla-exact on tape.} Given a recorded oracle session, the C engine must reproduce the recorded trajectory (positions and velocities to $10^{-9}$; health, food, and ground contact exactly), the recorded world edits and inventory, and---through its own software rasterizer---the recorded pixels, frame by frame, under frozen per-class budgets. Worldgen is seed-faithful: the Java 48-bit LCG is replicated exactly so a given seed yields the same terrain.
+\item \textbf{Replay tier (\texttt{magma}): vanilla-exact on tape.} Given a recorded oracle session, the C engine must reproduce the recorded trajectory (positions and velocities to $10^{-9}$; health to $10^{-4}$; food and ground contact exactly), the recorded world edits and inventory, and---through its own software rasterizer---the recorded pixels, frame by frame, under frozen per-class budgets. The Java 48-bit worldgen LCG is replicated exactly; population that depends on vanilla chunk-load order is carried by the recorded world snapshot rather than claimed seed-exact.
 \item \textbf{Batched tier (\texttt{blaze}): internal consistency.} The CPU scalar path and the CUDA batch path compile from the same \texttt{\_\_host\_\_ \_\_device\_\_} source and must agree \emph{bitwise} on every tick of every environment. This tier does not promise vanilla RNG call order or JVM float bit patterns---the three things (Java LCG call order, HashMap iteration order, \texttt{strictfp} bit patterns) whose pursuit killed the prior full-fidelity rewrites---but its behavior is anchored to the replay tier, which \emph{is} vanilla-checked, through shared physics code and shared gates.
 \end{itemize}
 
@@ -206,12 +206,12 @@ Every simulation op---movement, digging with real block hardness, item drops, cr
 
 The throughput-critical kernels were optimized \emph{behind} the unchanged parity gates: interaction metadata was restructured for contiguous access, observation rays moved to a float32 DDA with its accepted differences explicitly gated, the tick maps a warp to each environment, and chunk recentering uses all lanes cooperatively. Performance claims for these changes are reported only from the pinned end-to-end measurements below.
 
-Why the batch dimension fits the GPU is worth stating plainly: one Minecraft world is a terrible GPU workload---branchy, serial, latency-sensitive---but 8{,}192 worlds, each advanced one small step at a time, map one world (or one ray) to one thread. The batch supplies the parallelism a single world lacks.
+Why the batch dimension fits the GPU is worth stating plainly: one Minecraft world is a terrible GPU workload---branchy, serial, latency-sensitive---but 8{,}192 worlds, each advanced one small step at a time, supply independent world-warps and observation rays across the device. The batch supplies the parallelism a single world lacks.
 
 \subsection{The semantic camera: throw the renderer away}
 \label{sec:camera}
 
-Training mode does not render. A policy does not need the game's pixels; it needs a faithful observation of the game's \emph{state}. Each environment raycasts a $64\times36$ grid from the agent's eye; each ray returns the block id it hits, the distance, and an edge flag---three small planes, computed directly against the resident region tensor. At batch 8{,}192 that is $8{,}192 \times 2{,}304 \approx 19$M rays per observation batch, exactly the shape GPUs were built for. The rendered-pixel path still exists---it is the verified \texttt{magma} rasterizer---and any trained episode can be replayed through it for inspection or world-model data (Section~\ref{sec:worldmodel}).
+Training mode does not render. The policy receives a structured observation of simulator state. Each environment raycasts a $64\times36$ grid from the agent's eye; each ray returns the block id it hits, the distance, and an edge flag---three small planes, computed directly against the resident region tensor. At batch 8{,}192 that is $8{,}192 \times 2{,}304 \approx 19$M rays per observation batch, exactly the shape GPUs were built for. The rendered-pixel path still exists---it is the verified \texttt{magma} rasterizer---and any trained episode can be replayed through it for inspection or world-model data (Section~\ref{sec:worldmodel}).
 
 \begin{figure}[t]
 \centering
@@ -254,7 +254,7 @@ Figure~\ref{fig:oracle-magma} shows the actual oracle-left, \texttt{magma}-right
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/oracle_magma.png}
-\caption{Real Java oracle (left) and \texttt{magma} replay (right) on a hard-scene frame whose frozen pixel gate passes. The panes are rendered independently from the same recorded state; the comparison is not a duplicated image.}
+\caption{Illustrative Java-oracle (left) and \texttt{magma} (right) seed-0 hard-scene checkpoint from the verification workflow. The embedded label records the source artifact's PASS verdict; the panes were rendered independently, and this figure is not used as a pin-era aggregate measurement.}
 \label{fig:oracle-magma}
 \end{figure*}
 
@@ -282,7 +282,7 @@ The RTX~4090 receipt records driver 595.80 and \texttt{nvcc} 13.1.115; the RTX~5
 
 \subsection{RL proof of life and sim-to-real transfer}
 
-A PPO~\citep{schulman2017ppo} policy uses milestone rewards, stage-gated dense shaping, and a frontier curriculum drawn from the policy's own captured states. The registered recipe fixes the environment count, optimizer settings, training RNG seed, checkpoint rule, training-seed set, and a disjoint 13-seed evaluation set before training begins.
+A PPO~\citep{schulman2017ppo} policy uses milestone rewards, stage-gated dense shaping, and a frontier curriculum drawn from the policy's own captured states. The registered recipe fixes the environment count, optimizer settings, training RNG seed, checkpoint rule, 11 training seeds, and a 13-seed evaluation set that adds two held-out seeds before training begins.
 
 Transfer is a paired same-policy experiment, not an action replay. The checkpoint is frozen before evaluation; for every seed, both the simulator and the live Java client start from a cold world and sample up to five policy rollouts with the same observation and 13-action interface. Each Java rollout records the sampled action sequence, its FNV receipt, the live world seed and save, and inventory-based success evidence. A strict validator rejects missing pairs, seed drift, checkpoint drift, or receipts from a commit other than the measurement pin. Trained episodes can also be replayed through the exact renderer for inspection.
 
@@ -292,7 +292,7 @@ Verified fidelity is a statement about \emph{tested} paths, so the project maint
 
 \begin{table}[t]
 \centering
-\caption{Feature census vs.\ Minecraft 1.11.2 registries (per-row citations in-repo, 2026-07-30).}
+\caption{Feature census vs.\ Minecraft 1.11.2 registries at the measurement pin; every row carries an in-repository source citation.}
 \label{tab:census}
 \begin{tabular}{lrrrrr}
 \toprule

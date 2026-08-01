@@ -28,6 +28,12 @@ fi
     || { echo "ERROR: $JAVA_HOME is not a JDK 8"; exit 2; }
 
 if [ ! -d "$SRC/net/minecraft" ]; then
+    # ForgeGradle FG_2.2 downloads game assets over plain http, which Mojang's
+    # CDN now rejects with 400. Pre-seed the asset cache over https; FG skips
+    # every object that already exists with a matching SHA1.
+    echo "== pre-seeding MC asset cache (https; FG's http path is dead) =="
+    uv run --no-project python "$REPO/scripts/fetch_mc_assets.py" \
+        "$MCW/run/gradle/caches/minecraft/assets"
     echo "== ForgeGradle setupDecompWorkspace (downloads + decompiles MC 1.11.2) =="
     # JitPack is flaky (ForgeGradle FG_2.2_patched-SNAPSHOT). Retry a few times
     # with backoff before giving up. Offline gradle caches (if pre-seeded) skip
