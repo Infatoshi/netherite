@@ -145,7 +145,7 @@ METAL_WEAK_LD = $(foreach s,pre into frame_begin frame_end post atlas_dirty \
                   pin unpin render_layer sky frame_end_async frame_wait \
                   slab_pool slab_sync slabs_reset render_gather render_terrain \
                   uploads_mark uploads_wait,-Wl,-U,_cr_raster_metal_$(s)) \
-                $(foreach s,pre into frame_begin frame_end sky post,\
+                $(foreach s,pre into frame_begin frame_end sky post atlas_dirty,\
                   -Wl,-U,_cr_raster_cuda_$(s)) \
                 -Wl,-U,_alloctrack_frame
 OBJ_GAME_METAL = $(patsubst game/window_compose.o,game/window_compose_metal.o,\
