@@ -19,10 +19,11 @@ extern "C" {
 #define GM_LIVE_MAX 48
 #define GM_LIVE_OVERFLOW_MAX 32
 #define GM_LIVE_MAX_ENCHANTS 8  /* matches IC_MAX_ENCHANTS / StoredEnchantments cap */
+#define GM_LIVE_FALL_UPDATES 128
 
 typedef struct {
     int    active;
-    int    type;     /* 0 = ground item (EntityItem-like), 1 = hostile marker */
+    int    type;     /* 0 = EntityItem, 1 = hostile marker, 2 = falling block */
     double x, y, z;
     double mx, my, mz;
     int    on_ground;
@@ -37,6 +38,20 @@ typedef struct {
 } GmLiveEnt;
 
 typedef struct {
+    int active;
+    int x, y, z;
+    int block_id;
+    long long due_tick;
+} GmLiveFallUpdate;
+
+typedef struct {
+    int active;
+    int x, y, z;
+    int block_id, block_meta;
+    long long due_tick;
+} GmLiveFallLanding;
+
+typedef struct {
     GmLiveEnt ents[GM_LIVE_MAX];
     int       n_active;
     /* Recoverable hold when ents[] is full (chest break under pressure). */
@@ -47,6 +62,10 @@ typedef struct {
     int       overflow_delay[GM_LIVE_OVERFLOW_MAX];
     int       n_overflow;
     int       spawn_fail_count; /* times both table and overflow rejected */
+    /* BlockFalling scheduled updates. World.scheduleUpdate deduplicates an
+     * already-pending block/position pair; this bounded table does the same. */
+    GmLiveFallUpdate fall_updates[GM_LIVE_FALL_UPDATES];
+    GmLiveFallLanding fall_landings[GM_LIVE_MAX];
     /* wheat plot (world block coords) advanced with plant_growth-style rolls */
     int       plant_wx, plant_wy, plant_wz;
     int       plant_age;     /* 0..7 wheat meta */
@@ -63,6 +82,11 @@ int  gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
  * Returns 1 if active or held in overflow; 0 only if both caps are exhausted. */
 int  gm_live_spawn_stack(GmLiveSim *s, double x, double y, double z,
                          ICStack stack, int pickup_delay);
+/* BlockFalling.onBlockAdded / neighborChanged scheduling seam. Call after a
+ * world edit at (x,y,z); the edited block and the block above are notified. */
+void gm_live_block_changed(GmLiveSim *s, GmWorld *w,
+                           int x, int y, int z);
+void gm_live_pre_player_tick(GmLiveSim *s, GmWorld *w);
 /* One tick: gravity/friction for live ents (world collision via gm_world_*), wheat growth. */
 void gm_live_tick(GmLiveSim *s, GmWorld *w);
 /* Same world tick plus vanilla-style pickup into the supplied local-frame player. */
@@ -70,6 +94,10 @@ void gm_live_tick_player(GmLiveSim *s, GmWorld *w, struct PsvPlayer *pl,
                          int player_ox, int player_oz);
 /* Fill GmEntityView list for rendering; returns count. */
 int  gm_live_fill_views(const GmLiveSim *s, GmEntityView *out, int max);
+/* Replay variant: oracle EntityFallingBlock ghosts own render pose, while the
+ * local falling entities remain active as world-truth simulation. */
+int  gm_live_fill_views_filtered(const GmLiveSim *s, GmEntityView *out,
+                                 int max, int suppress_falling);
 /* Debug counters for harness / logs. */
 int  gm_live_entity_moved(const GmLiveSim *s); /* 1 if any ent pos changed last tick */
 int  gm_live_plant_age(const GmLiveSim *s);

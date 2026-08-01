@@ -265,13 +265,15 @@ static void harvest_drop(int block_id, int block_meta, int tool_id,int wx,int wy
 /* onPlayerDestroyBlock slice: drops + tool wear + window clear + world edit. */
 static void dig_destroy(Chunk *window, PsvPlayer *pl, int hx, int hy, int hz,
                         int bid, int bmeta, int ox, int oy, int oz,
-                        GmBlockEdit *edits, int *ne, int max_edits)
+                        GmBlockEdit *edits, int *ne, int max_edits,
+                        int creative)
 {
     ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
-    int drop_id, drop_count, drop_meta;
-    harvest_drop(bid, bmeta, held.item, hx + ox, hy + oy, hz + oz,
-                 &drop_id, &drop_count, &drop_meta);
-    if (!isr_is_empty(&held)) {
+    int drop_id = 0, drop_count = 0, drop_meta = 0;
+    if (!creative)
+        harvest_drop(bid, bmeta, held.item, hx + ox, hy + oy, hz + oz,
+                     &drop_id, &drop_count, &drop_meta);
+    if (!creative && !isr_is_empty(&held)) {
         ITAStack tool = ita_mk(held.item, held.meta);
         ita_on_block_destroyed(&tool, bid);
         int max_damage = ita_stack_max_damage(&tool);
@@ -451,7 +453,7 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
         sees it: after clickMouse (attack press) but BEFORE the damage phase /
         release reset (vanilla runTick order). */
     s_dig_swing = 0;
-    if (act.attack) {
+    if (act.attack && !act.attack_entity) {
         int press = !s_atk_prev;
         int hx, hy, hz, ax, ay, az;
         /* dig uses PSV_REACH (5.0); outline uses survival 4.5 via gm_raycast_sel */
@@ -475,14 +477,21 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
                 pin.in_water = eye_in_water(window, pl);
                 pin.aqua_affinity = 0;
                 pin.on_ground = pl->ent.onGround;
-                pin.creative = 0;
-                float rel = pb_relative_hardness(&pin);
+                pin.creative = act.creative;
+                float rel = pin.creative ? 1.0f : pb_relative_hardness(&pin);
                 if (press &&
                     (!s_dig_hitting || hx != s_dig_hx || hy != s_dig_hy || hz != s_dig_hz)) {
                     /* clickMouse -> clickBlock */
-                    if (rel >= 1.0f) {   /* instant break: no blockHitDelay */
+                    if (rel >= 1.0f) {
                         dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
-                                    ox, oy, oz, edits, &ne, max_edits);
+                                    ox, oy, oz, edits, &ne, max_edits,
+                                    pin.creative);
+                        /* clickMouse and sendClickBlockToController are folded
+                         * into this post-input tick. Creative clickBlock writes
+                         * 5, leaving four future held-input ticks after the
+                         * current controller pass; survival instant hardness
+                         * does not arm the delay. */
+                        if (pin.creative) s_dig_delay = 4;
                         bid = BLK_AIR;   /* sendClickBlockToController sees air, skips */
                     } else {
                         s_dig_hitting = 1;
@@ -504,16 +513,19 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
                         if (s_dig_progress >= 1.0f) {
                             s_dig_hitting = 0;
                             dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
-                                        ox, oy, oz, edits, &ne, max_edits);
+                                        ox, oy, oz, edits, &ne, max_edits,
+                                        pin.creative);
                             s_dig_progress = 0.0f;
                             s_dig_delay = 5;
                             s_dig_face = -1;
                         }
                     } else {
                         /* clickBlock: target changed mid-hold */
-                        if (rel >= 1.0f) {   /* instant break: no blockHitDelay */
+                        if (rel >= 1.0f) {
                             dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
-                                        ox, oy, oz, edits, &ne, max_edits);
+                                        ox, oy, oz, edits, &ne, max_edits,
+                                        pin.creative);
+                            if (pin.creative) s_dig_delay = 5;
                         } else {
                             s_dig_hitting = 1;
                             s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
@@ -536,7 +548,9 @@ void gm_player_tick(struct Chunk *window_, const struct McSinTable *st_,
             s_dig_progress = 0.0f;
         }
     } else {
-        /* attack released: resetBlockRemoving (blockHitDelay persists) */
+        /* Release or an entity hit: sendClickBlockToController calls
+         * resetBlockRemoving, but the physical attack key remains held so an
+         * entity crossing the ray must not manufacture a new press edge. */
         s_dig_hitting = 0;
         s_dig_hx = INT_MIN;
         s_dig_face = -1;

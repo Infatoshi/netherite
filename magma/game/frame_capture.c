@@ -977,7 +977,20 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 ptypes[npt++]=r->projectiles[i].type;
         gm_entity_patch_large_fireballs(ptypes,npt,ents+n_proj0,n-n_proj0);
     }
-    n+=gm_live_fill_views(&r->entities,ents+n,FC_ENTS-n);
+    {
+        int tape_falling = 0;
+        for (int i = 0; i < r->nghost_views; ++i)
+            if (r->ghost_views[i].type == GM_VIEW_FALLING_BLOCK) {
+                tape_falling = 1;
+                break;
+            }
+        /* EntityItem keeps the established coexistence path: independent
+         * local drops and tape ghosts are both appended. A falling block is
+         * the same server entity simulated locally for world truth, so its
+         * oracle ent_view owns replay pose and the live copy is sim-only. */
+        n+=gm_live_fill_views_filtered(&r->entities,ents+n,FC_ENTS-n,
+                                       tape_falling);
+    }
     n+=gm_runtime_ghost_views(r,ents+n,FC_ENTS-n);
     /* Live dragon fill omits death_ticks; copy from sim so dissolve/rays run. */
     if(r->dragon.initialized){
