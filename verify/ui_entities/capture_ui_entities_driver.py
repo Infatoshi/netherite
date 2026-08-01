@@ -440,7 +440,7 @@ def main():
     args = ap.parse_args()
     only = set(args.only) if args.only else None
 
-    e = qrl_client.QRLEnv(host=args.host, port=args.port)
+    e = qrl_client.NetheriteEnv(host=args.host, port=args.port)
     log("reset fresh flat seed=%d" % args.seed)
     o = e.reset(world={
         "seed": args.seed,

@@ -27,7 +27,7 @@ ORACLE_PORTS = (25575, 25580, 25581, 5900)
 
 sys.path.insert(0, str(JAVA))
 from mcwindow_script import load_script  # noqa: E402
-from qrl_client import QRLEnv  # noqa: E402
+from qrl_client import NetheriteEnv  # noqa: E402
 
 
 def load_spec(path: Path) -> dict:
@@ -199,7 +199,7 @@ def assert_clean_oracle() -> set[int]:
     return process_snapshot()
 
 
-def wait_for_qrl(timeout: float = 600.0) -> QRLEnv:
+def wait_for_qrl(timeout: float = 600.0) -> NetheriteEnv:
     deadline = time.monotonic() + timeout
     last_error: Exception | None = None
     while time.monotonic() < deadline:
@@ -210,7 +210,7 @@ def wait_for_qrl(timeout: float = 600.0) -> QRLEnv:
         # time to ride out a slow initial world load.
         env = None
         try:
-            env = QRLEnv()
+            env = NetheriteEnv()
             response = env.reset(timeout=30.0)
             if response.get("ok"):
                 return env
@@ -392,7 +392,7 @@ def record(spec_path: Path, result_file: Path) -> Path:
     spec = load_spec(spec_path)
     baseline = assert_clean_oracle()
     process_groups: list[int] = []
-    qrl: QRLEnv | None = None
+    qrl: NetheriteEnv | None = None
     recording = False
     source_tape: Path | None = None
     archived: Path | None = None

@@ -90,7 +90,7 @@ yaw   = float(sys.argv[2]); pitch = float(sys.argv[3])
 px    = float(sys.argv[4]); eye_y = float(sys.argv[5]); pz = float(sys.argv[6])
 eyeh  = float(sys.argv[7])
 feet_y = eye_y - eyeh   # tp sets FEET; we want the camera EYE at eye_y
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 # reset auto-launches the world if none is loaded; polls until ready (<=120s).
 o = e.reset({"seed": seed, "mode": "survival", "type": "default"})
 if not o.get("ok"):
@@ -163,7 +163,7 @@ import sys, json, shutil
 from pathlib import Path
 import qrl_client
 outdir = Path(sys.argv[1])
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 cam = e.camera(file=str(outdir / "camera.json"))
 print("[capture] camera:", json.dumps({k: cam.get(k) for k in
     ("ok","eye_x","eye_y","eye_z","yaw","pitch","fov_setting","fov_effective",

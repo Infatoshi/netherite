@@ -67,7 +67,7 @@ import sys
 import time
 
 sys.path.insert(0, "java")
-from qrl_client import QRLEnv
+from qrl_client import NetheriteEnv
 
 out = sys.argv[1]
 # The bridge socket listens before the client thread is in-world; a reset
@@ -75,7 +75,7 @@ out = sys.argv[1]
 o = None
 for _ in range(30):
     try:
-        e = QRLEnv()
+        e = NetheriteEnv()
         o = e.reset({"seed": 0, "mode": "survival", "type": "default",
                      "fresh": True}, timeout=300.0)
         if o.get("ok"):
@@ -160,9 +160,9 @@ echo "[anim-capture] recording wide animation burst and underwater pose"
 uv run --no-project python - <<'PY'
 import sys
 sys.path.insert(0, "java")
-from qrl_client import QRLEnv
+from qrl_client import NetheriteEnv
 
-e = QRLEnv()
+e = NetheriteEnv()
 poses = [
     (72, 203.5, 100.0, 216.5, 180.0, 12.0),
     (12, 194.5, 100.0, 202.5, 180.0, 8.0),

@@ -84,8 +84,8 @@ def git_rev():
 
 
 def bridge_cmd(obj):
-    from qrl_client import QRLEnv
-    e = QRLEnv()
+    from qrl_client import NetheriteEnv
+    e = NetheriteEnv()
     try:
         return e._cmd(obj)
     finally:

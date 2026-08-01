@@ -1109,7 +1109,7 @@ def main() -> int:
     ACTIVE_RESULTS = results
     write_results(results)
 
-    e = qrl_client.QRLEnv()
+    e = qrl_client.NetheriteEnv()
     if hasattr(e, "s"):
         e.s.settimeout(300)
     o = e.obs()

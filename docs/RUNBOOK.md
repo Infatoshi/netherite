@@ -40,7 +40,7 @@ bash java/start_vnc_client.sh   # Xvfb :1 + openbox + x11vnc + gradlew runClient
 ## Run C: RL bridge (discrete env, Python)
 
 - qrl TCP on `127.0.0.1:25575`, newline-JSON: `reset` / `step` / `obs`.
-- Client: `uv run --no-project python java/qrl_client.py` -> `QRLEnv()`.
+- Client: `uv run --no-project python java/qrl_client.py` -> `NetheriteEnv()`.
 - Needs a live client (Run A or B). World loads headlessly.
 - Human tape: `recstart` / `recstop` on the bridge; see `magma/VERIFY.md`.
 

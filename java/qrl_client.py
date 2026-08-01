@@ -12,7 +12,7 @@ import sys
 import time
 
 
-class QRLEnv:
+class NetheriteEnv:
     def __init__(self, host="127.0.0.1", port=25575):
         self.s = socket.create_connection((host, port), timeout=15)
         # a tp into ungenerated chunks can block the server thread on worldgen
@@ -104,7 +104,7 @@ class QRLEnv:
 
 
 def smoke():
-    e = QRLEnv()
+    e = NetheriteEnv()
     o = e.reset()
     print("reset:", json.dumps(o)[:200])
     if not o.get("ok"):
@@ -128,7 +128,7 @@ def smoke():
 
 def profile(seed=0, mode="survival", wtype="default", nsteps=100):
     import time
-    e = QRLEnv()
+    e = NetheriteEnv()
     print(f"launching world seed={seed} mode={mode} type={wtype} ...")
     t0 = time.time()
     o = e.reset({"seed": seed, "mode": mode, "type": wtype})
@@ -161,7 +161,7 @@ def load_test():
     overclock is only used briefly to report the uncapped TPS ceiling.
     """
     import time
-    e = QRLEnv()
+    e = NetheriteEnv()
     print("launching world (creative, cheats) ...")
     e.reset({"seed": 0, "mode": "creative"})
 

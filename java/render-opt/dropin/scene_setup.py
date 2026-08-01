@@ -3,9 +3,9 @@
 # runs land on an identical frame. Run with: uv run --no-project python scene_setup.py
 import sys, time
 sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
-from qrl_client import QRLEnv
+from qrl_client import NetheriteEnv
 
-e = QRLEnv()
+e = NetheriteEnv()
 print("reset:", e.reset({"seed": 0, "mode": "creative"}))
 # fixed sky + no daylight cycle + no weather, kill clouds-side animation drivers we can
 for c in ["/gamerule doDaylightCycle false", "/time set 6000",

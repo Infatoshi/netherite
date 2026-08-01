@@ -19,7 +19,7 @@ import struct
 import time
 from pathlib import Path
 
-from qrl_client import QRLEnv
+from qrl_client import NetheriteEnv
 
 FRAME_SETTLE = 0.20  # seconds of realtime to let the renderer produce a post-tick frame
 
@@ -71,7 +71,7 @@ def main():
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    e = QRLEnv()
+    e = NetheriteEnv()
     e.s.settimeout(180)  # world launch + chunk load can stall the game thread far past 15s
     # fresh=True: force a brand-new world at this seed (otherwise the bridge re-uses whatever
     # world is loaded - autolaunch seed, stale save with prior edits - and the tape records

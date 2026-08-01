@@ -993,7 +993,7 @@ def main():
         log("FATAL: pillow+numpy required for capture sanity checks")
         return 1
 
-    e = qrl_client.QRLEnv()
+    e = qrl_client.NetheriteEnv()
     log("reset seed=%d flat survival fresh..." % args.seed)
     o = e.reset({
         "seed": args.seed,

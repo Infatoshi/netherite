@@ -96,7 +96,7 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     feet_y = args.eye_y - args.eye_height
-    e = qrl_client.QRLEnv()
+    e = qrl_client.NetheriteEnv()
     if hasattr(e, "s"):
         e.s.settimeout(180)
 

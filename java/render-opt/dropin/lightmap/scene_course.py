@@ -5,12 +5,12 @@
 # SCENE_TIME picks noon (6000) or midnight (18000).
 import os, sys, time
 sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
-from qrl_client import QRLEnv
+from qrl_client import NetheriteEnv
 
 TIMEVAL = os.environ.get("SCENE_TIME", "6000")
 VIEW = "tp @p 533 5 22 180 28"   # south of the station row, looking north + down
 
-e = QRLEnv(); e.s.settimeout(150)
+e = NetheriteEnv(); e.s.settimeout(150)
 def safe(fn, *a):
     try: return fn(*a)
     except Exception as ex: return "ERR:" + str(ex)

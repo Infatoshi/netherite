@@ -153,7 +153,7 @@ def main():
     tape = load_tape(args.tape)
     print(f"loaded {len(tape)} ticks from {args.tape}")
 
-    env = qrl_client.QRLEnv(host=args.host, port=args.port)
+    env = qrl_client.NetheriteEnv(host=args.host, port=args.port)
     print(f"reset(seed={args.seed}) ...")
     o = env.reset({"seed": args.seed, "mode": "survival", "type": "default"})
     if not o.get("ok"):

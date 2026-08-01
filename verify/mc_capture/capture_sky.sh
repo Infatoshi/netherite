@@ -102,7 +102,7 @@ import qrl_client
 seed = int(sys.argv[1]); eyeh = float(sys.argv[2])
 poses = sys.argv[3].split()
 n = len(poses) // 5
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 o = e.reset({"seed": seed, "mode": "survival", "type": "default"})
 if not o.get("ok"):
     print("reset not ok:", o, file=sys.stderr); sys.exit(1)

@@ -5,13 +5,13 @@
 import sys, time
 
 sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
-from qrl_client import QRLEnv
+from qrl_client import NetheriteEnv
 
 # the client may still be booting; retry the bridge connection for up to ~5 min
 e = None
 for _ in range(60):
     try:
-        e = QRLEnv(); break
+        e = NetheriteEnv(); break
     except OSError:
         time.sleep(5)
 if e is None:

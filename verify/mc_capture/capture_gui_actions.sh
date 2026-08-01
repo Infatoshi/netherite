@@ -67,7 +67,7 @@ import json
 import sys
 import qrl_client
 
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 o = e.reset({"seed": 0, "mode": "survival", "type": "default"})
 if not o.get("ok"):
     raise SystemExit(f"reset failed: {o}")
@@ -148,7 +148,7 @@ capture() {
 import sys
 import qrl_client
 
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 r = e._cmd({"cmd": "frame", "action": {"file": sys.argv[1]}})
 if not r.get("ok") or (r.get("w"), r.get("h")) != (854, 480):
     raise SystemExit(f"frame capture failed or wrong size: {r}")
@@ -161,7 +161,7 @@ PY
 # capture_gui.sh) so action frames share one idle pose and 00 gets a real _b.
 uv run --no-project python - <<'PY'
 import qrl_client
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 r = e._cmd({"cmd": "pin_preview_anim",
             "action": {"enable": True, "ticks_existed": -1}})
 if not r.get("ok"):
@@ -211,7 +211,7 @@ capture 08_close
 
 uv run --no-project python - <<'PY'
 import qrl_client
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 e._cmd({"cmd": "pin_preview_anim", "action": {"enable": False}})
 e.close()
 print("[capture_gui_actions] pin_preview_anim disabled")
@@ -223,7 +223,7 @@ import sys
 import qrl_client
 
 path = sys.argv[1]
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 diag = e._cmd({"cmd": "focusdiag", "action": {}})
 e.close()
 data = json.load(open(path))

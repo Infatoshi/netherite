@@ -95,7 +95,7 @@ cd "$ENVDIR" || fail "cd $ENVDIR"
 uv run --no-project python - "$SEED" <<PY || fail "qrl scene setup failed"
 import sys, json
 import qrl_client
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 o = e.reset({"seed": int(sys.argv[1]), "mode": "survival", "type": "default"})
 if not o.get("ok"):
     print("reset not ok:", o, file=sys.stderr); sys.exit(1)
@@ -165,7 +165,7 @@ retp() { # re-assert a pose through qrl (tp + settle ticks)
     uv run --no-project python - "$1" <<'PY'
 import sys
 import qrl_client
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 e._cmd({"cmd": "runcmds", "action": {"cmds": ["tp @a " + sys.argv[1]]}})
 for _ in range(10):
     e.step({})
@@ -193,7 +193,7 @@ pin_preview() {
     uv run --no-project python - "$en" <<'PY'
 import sys
 import qrl_client
-e = qrl_client.QRLEnv()
+e = qrl_client.NetheriteEnv()
 enable = sys.argv[1] == "1"
 r = e._cmd({"cmd": "pin_preview_anim",
             "action": {"enable": enable, "ticks_existed": -1}})

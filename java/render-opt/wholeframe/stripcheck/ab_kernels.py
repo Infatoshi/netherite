@@ -12,12 +12,12 @@
 import subprocess, sys, time
 
 sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
-from qrl_client import QRLEnv
+from qrl_client import NetheriteEnv
 
 HERE = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/wholeframe/stripcheck"
 PREFIX = sys.argv[1] if len(sys.argv) > 1 else "ab"
 
-e = QRLEnv(); e.s.settimeout(120)
+e = NetheriteEnv(); e.s.settimeout(120)
 
 def safe(fn, *a):
     try: return fn(*a)

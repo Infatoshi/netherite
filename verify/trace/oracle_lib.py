@@ -54,7 +54,7 @@ def wait_bridge(max_s=420):
 
 
 def connect():
-    return qrl_client.QRLEnv()
+    return qrl_client.NetheriteEnv()
 
 
 def ensure_world(env, seed=0, mode="survival"):

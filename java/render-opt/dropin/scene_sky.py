@@ -4,8 +4,8 @@
 # sabotage (sin=0) effect is not diluted by static terrain.
 import sys
 sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
-from qrl_client import QRLEnv
-e = QRLEnv(); e.s.settimeout(120)
+from qrl_client import NetheriteEnv
+e = NetheriteEnv(); e.s.settimeout(120)
 def safe(fn, *a):
     try: return fn(*a)
     except Exception as ex: return "ERR:" + str(ex)

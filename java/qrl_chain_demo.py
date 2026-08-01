@@ -52,7 +52,7 @@ from ppo_chain_cu import (
     obs_float,
     stage_of_best,
 )
-from qrl_client import QRLEnv
+from qrl_client import NetheriteEnv
 
 OUT = os.path.join(RL, "out")
 EYE = 1.62
@@ -281,7 +281,7 @@ def main():
     print(f"net {net_file}, sampled, {TRIES} tries x {EP_TICKS} ticks, "
           f"seeds {seeds}", flush=True)
 
-    env = QRLEnv()
+    env = NetheriteEnv()
     results = {}
     attempts = []
     best_run = (-1, None)   # (milestone, frames_dir)
