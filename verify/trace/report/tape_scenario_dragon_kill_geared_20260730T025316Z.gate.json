@@ -234,6 +234,10 @@
      "magma_types": []
     }
    ],
+   "ghost_ticks": 565,
+   "ghost_expected": 6150,
+   "mismatches": [],
+   "verified": true,
    "pass": true,
    "available": true
   },
@@ -266,6 +270,11 @@
      "nearby_hash": "9a7b3bdddc1f0df9"
     }
    ],
+   "mode": "c_only",
+   "compared": 0,
+   "anchor_skips": 0,
+   "mismatches": [],
+   "verified": false,
    "pass": true,
    "available": true
   }
