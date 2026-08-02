@@ -14,6 +14,18 @@
  *   - gm_world_mesh_runs: the SAME walk (one shared implementation, wl_view_walk)
  *     recording the contiguous slab runs that concat would have copied instead of
  *     copying them, so a GPU backend can gather them from device-resident slabs.
+ *   - W19 occlusion culling: a vanilla-mirror visibility graph. Each meshed
+ *     chunk caches a 36-bit SetVisibility per 16-block section (which pairs of
+ *     the six faces connect through non-opaque cells, VisGraph.computeVisibility),
+ *     and each frame wl_view_walk floods RenderGlobal.setupTerrain's BFS out from
+ *     the camera's section; sections the flood never reaches are not submitted.
+ *     The filter sits INSIDE the shared walk, so the host-concat and the
+ *     device-gather sink see the identical section set by construction.
+ *     MAGMA_NO_OCCLUSION bypasses the BFS alone, MAGMA_NO_CULL bypasses
+ *     everything. Culling only ever REMOVES sections that no path of non-opaque
+ *     cells connects to the camera, so it is pixel-neutral: 480 still and 480
+ *     rotating frames over seeds 0/1000 are byte-identical with the BFS on and
+ *     off, on both backends and through both sinks.
  *   - gm_world_block / gm_world_fill_window read canonical vanilla states through CrLight,
  *   - gm_world_set_block edits the store, re-lights, marks the touched chunk (and any
  *     border neighbour) dirty.
@@ -28,6 +40,7 @@
 #include "world/mesh_mc.h"
 #include "world/light.h"
 #include "world/populate_mc.h"   /* popmc_window_builds (compute-once metric, debug) */
+#include "assets/blockmodels.h"  /* bm_block: the mesher's own opaque-cube predicate */
 
 /* raw blaze Chunk + mc_set/mc_state + PSV_DIM/PSV_R/PSV_NCHUNKS for fill_window. */
 #include "player_survival.h"
@@ -38,6 +51,8 @@
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <float.h>
 
 /* Not in mesh_mc.h, but a real (non-static) symbol: hands us the internal CrLight so
  * we can read/edit blocks and relight through world/light.h. */
@@ -57,6 +72,157 @@ CrLight *worldmc_light(CrWorldMC *w);
 /* floor-division of a block coord to its chunk coord (identical to scn__floordiv16). */
 static inline int wl_floordiv16(int a) { return a >> 4; }
 
+/* ======================= vanilla visibility graph (W19) ======================
+ * Mirror of net.minecraft.client.renderer.chunk.VisGraph + SetVisibility and of
+ * RenderGlobal.setupTerrain's BFS flood over render sections. Both are pure CPU
+ * bookkeeping over the sections world_live.c already partitions (W16); nothing
+ * about the mesh, the vertex order, or either rasterizer changes.
+ *
+ * EnumFacing ordinals, verbatim (util/EnumFacing.java): DOWN 0, UP 1, NORTH 2,
+ * SOUTH 3, WEST 4, EAST 5; getOpposite() == ordinal ^ 1 for all six.
+ * Cell index inside a section is VisGraph.getIndex(x,y,z) = x<<0 | y<<8 | z<<4. */
+enum { WL_F_DOWN = 0, WL_F_UP, WL_F_NORTH, WL_F_SOUTH, WL_F_WEST, WL_F_EAST };
+#define WL_F_OPP(f)  ((f) ^ 1)
+/* SetVisibility's BitSet(6*6): bit (a + b*6) means "face a connects to face b". */
+#define WL_VIS_BIT(a, b) ((uint64_t)1 << ((a) + (b) * 6))
+#define WL_VIS_ALL   (((uint64_t)1 << 36) - 1)   /* setAllVisible(true)  */
+#define WL_VIS_NONE  ((uint64_t)0)               /* setAllVisible(false) */
+
+/* VisGraph.INDEX_OF_EDGES: the 16^3 - 14^3 = 1352 boundary cells, in the static
+ * initializer's exact (x, y, z) nesting order. */
+#define WL_EDGE_N 1352
+static int wl_edge_idx[WL_EDGE_N];
+static int wl_edge_ready = 0;
+static void wl_edge_init(void) {
+    if (wl_edge_ready) return;
+    int k = 0;
+    for (int l = 0; l < 16; ++l)          /* x */
+        for (int i1 = 0; i1 < 16; ++i1)   /* y */
+            for (int j1 = 0; j1 < 16; ++j1) /* z */
+                if (l == 0 || l == 15 || i1 == 0 || i1 == 15 || j1 == 0 || j1 == 15)
+                    wl_edge_idx[k++] = l | (j1 << 4) | (i1 << 8);
+    assert(k == WL_EDGE_N);
+    wl_edge_ready = 1;
+}
+
+/* One reusable VisGraph scratch (VisGraph.bitSet + the flood queue). The flood
+ * SETS bits as it visits, exactly like vanilla, so `opaque` is consumed by a
+ * computeVisibility pass and must be refilled per section. */
+typedef struct {
+    unsigned char opaque[4096];
+    int           queue[4096];
+    int           empty;        /* VisGraph.empty */
+} WlVisGraph;
+
+/* Block.isOpaqueCube. Our mesher's own occluder predicate: a full cube drawn in
+ * the SOLID layer. It is exactly the test mesh_mc.c uses to delete a neighbour
+ * face (`nm->is_full_cube && nm->layer == CR_LAYER_SOLID`), so a cell that is
+ * "opaque" here provably has six opaque faces and nothing renders through it.
+ * Ice and slime are full cubes in the TRANSLUCENT layer -> not opaque, matching
+ * vanilla; leaves are SOLID full cubes here (assets/blockmodels.c LEAF, the Fast
+ * graphics BlockLeaves.isOpaqueCube==true branch) -> opaque, also matching. */
+static inline int wl_cell_opaque(const CrLight *L, int wx, int wy, int wz) {
+    const BmBlock *m = bm_block(light_block(L, wx, wy, wz));
+    return m->is_full_cube && m->layer == CR_LAYER_SOLID;
+}
+
+/* VisGraph.setOpaqueCube over one 16^3 section (RenderChunk.rebuildChunk's loop). */
+static void wl_vis_fill(WlVisGraph *g, const CrLight *L, int cx, int cz, int sec) {
+    const int bx = cx * 16, bz = cz * 16, by = sec * 16;
+    g->empty = 4096;
+    for (int y = 0; y < 16; ++y)
+        for (int z = 0; z < 16; ++z)
+            for (int x = 0; x < 16; ++x) {
+                int op = wl_cell_opaque(L, bx + x, by + y, bz + z);
+                g->opaque[x | (z << 4) | (y << 8)] = (unsigned char)op;
+                g->empty -= op;
+            }
+}
+
+/* VisGraph.floodFill: flood over non-opaque cells from `start`, returning the
+ * EnumFacing set VisGraph.addEdges accumulates (a bitmask over the six
+ * ordinals). Marks every visited cell, start included.
+ *
+ * DELIBERATE WIDENING of vanilla: vanilla walks the 6 axis neighbours, we walk
+ * all 26. A sight line is not restricted to axis steps - consecutive cells along
+ * a ray need only share a corner - so the 6-connected component set is not a
+ * superset of what a ray can pass through, and a face pair vanilla calls
+ * disconnected can still be seen through. 26-connectivity only MERGES
+ * components, so every pair vanilla marks connected stays connected and more are
+ * added: strictly more conservative, never less. Measured cost at the seed-1000
+ * jungle pose: 172 -> 171 sections occluded, +48 verts out of 1.53M. */
+static int wl_vis_flood(WlVisGraph *g, int start) {
+    int set = 0, head = 0, tail = 0;
+    g->queue[tail++] = start;
+    g->opaque[start] = 1;
+    while (head < tail) {
+        int i = g->queue[head++];
+        int x = i & 15, z = (i >> 4) & 15, y = (i >> 8) & 15;
+        /* addEdges */
+        if (x == 0)       set |= 1 << WL_F_WEST;
+        else if (x == 15) set |= 1 << WL_F_EAST;
+        if (y == 0)       set |= 1 << WL_F_DOWN;
+        else if (y == 15) set |= 1 << WL_F_UP;
+        if (z == 0)       set |= 1 << WL_F_NORTH;
+        else if (z == 15) set |= 1 << WL_F_SOUTH;
+        /* getNeighborIndexAtFace over all six facings, WIDENED to all 26
+         * neighbours (see wl_vis_flood's header comment). */
+        for (int dy = -1; dy <= 1; ++dy) {
+            if ((unsigned)(y + dy) > 15u) continue;
+            for (int dz = -1; dz <= 1; ++dz) {
+                if ((unsigned)(z + dz) > 15u) continue;
+                for (int dx = -1; dx <= 1; ++dx) {
+                    if ((unsigned)(x + dx) > 15u) continue;
+                    if (!dx && !dy && !dz) continue;
+                    int j = i + dx + (dz << 4) + (dy << 8);
+                    if (!g->opaque[j]) { g->opaque[j] = 1; g->queue[tail++] = j; }
+                }
+            }
+        }
+    }
+    return set;
+}
+
+/* SetVisibility.setManyVisible: the full cross product of one flood component. */
+static inline uint64_t wl_vis_many(int set) {
+    uint64_t v = 0;
+    for (int a = 0; a < 6; ++a) {
+        if (!(set & (1 << a))) continue;
+        for (int b = 0; b < 6; ++b)
+            if (set & (1 << b)) v |= WL_VIS_BIT(a, b) | WL_VIS_BIT(b, a);
+    }
+    return v;
+}
+
+/* VisGraph.computeVisibility, including both shortcuts: fewer than 256 opaque
+ * cells -> everything connects; zero non-opaque cells -> nothing connects. */
+static uint64_t wl_vis_compute(WlVisGraph *g) {
+    if (4096 - g->empty < 256) return WL_VIS_ALL;
+    if (g->empty == 0)         return WL_VIS_NONE;
+    uint64_t vis = 0;
+    wl_edge_init();
+    for (int k = 0; k < WL_EDGE_N; ++k) {
+        int i = wl_edge_idx[k];
+        if (!g->opaque[i]) vis |= wl_vis_many(wl_vis_flood(g, i));
+    }
+    return vis;
+}
+
+/* EnumFacing.getFacingFromVector: the axis facing with the largest dot product,
+ * seeded with NORTH / Float.MIN_VALUE exactly as vanilla does. */
+static int wl_facing_from_vector(float x, float y, float z) {
+    static const float dv[6][3] = {
+        {0,-1,0}, {0,1,0}, {0,0,-1}, {0,0,1}, {-1,0,0}, {1,0,0}
+    };
+    int best = WL_F_NORTH;
+    float f = FLT_MIN;
+    for (int i = 0; i < 6; ++i) {
+        float f1 = x * dv[i][0] + y * dv[i][1] + z * dv[i][2];
+        if (f1 > f) { f = f1; best = i; }
+    }
+    return best;
+}
+
 /* ---- toroidal mesh-slab pool (ALLOCATE-ONCE) ----
  * A fixed (2R+1)^2 pool of full-chunk mesh slabs indexed by (cx,cz) modulo mesh_D.
  * The needed region around the player is exactly mesh_D x mesh_D chunks, so each
@@ -74,6 +240,9 @@ typedef struct {
     int           off[4], n[4];
     int           sec_off[4][WL_SECTIONS];
     int           sec_n[4][WL_SECTIONS];
+    /* W19: per-section SetVisibility (36-bit face-pair set), recomputed with the
+     * geometry in wl_ensure_mesh and never touched per frame. */
+    uint64_t      sec_vis[WL_SECTIONS];
     CrChunkMeshMC view;     /* verts[l]=buf+off[l], nverts[l]=n[l]     */
 } WlSlot;
 
@@ -92,6 +261,18 @@ struct GmWorld {
     /* fixed concatenated per-layer draw buffers (returned by mesh_view). */
     CrVertex     *out_verts[4];
     int           out_nverts[4];
+
+    /* W19 occlusion: ALLOCATE-ONCE state for the setupTerrain BFS over the
+     * (2R+1)^2 x 16 section grid, sized for the max streaming radius. */
+    int            bfs_D;        /* 2*caps.view_radius + 1 */
+    int            bfs_nodes;    /* bfs_D * bfs_D * WL_SECTIONS */
+    WlSlot       **bfs_col;      /* [bfs_D*bfs_D] kept column slot, NULL if culled */
+    unsigned char *bfs_seen;     /* RenderChunk.setFrameIndex                      */
+    unsigned char *bfs_reached;  /* node made it into renderInfos                  */
+    unsigned char *bfs_setfac;   /* ContainerLocalRenderInformation.setFacing      */
+    signed char   *bfs_facing;   /* entry travel direction, -1 == null             */
+    int           *bfs_queue;    /* each node enqueued at most once                */
+    WlVisGraph     vg;           /* reusable VisGraph scratch                      */
 
     long long     block_gen; /* bumps on every set_block(_meta); window-refill memo */
 };
@@ -191,6 +372,13 @@ static WlSlot *wl_ensure_mesh(GmWorld *w, int cx, int cz) {
     }
     s->cx = cx; s->cz = cz; s->valid = 1; s->dirty = 0; s->builds++;
 
+    /* W19: RenderChunk.rebuildChunk builds the VisGraph in the same pass that
+     * builds the geometry. Same here - the flood is paid on (re)mesh only. */
+    for (int sec = 0; sec < WL_SECTIONS; ++sec) {
+        wl_vis_fill(&w->vg, w->light, cx, cz, sec);
+        s->sec_vis[sec] = wl_vis_compute(&w->vg);
+    }
+
     if (g_caps_on < 0) g_caps_on = getenv("MAGMA_DEBUG_CAPS") != NULL;
     if (g_caps_on) {
         int tot = 0;
@@ -253,6 +441,18 @@ GmWorld *gm_world_create_type(long long seed, int world_type) {
         w->out_nverts[l] = 0;
         if (!w->scratch.verts[l] || !w->out_verts[l]) { gm_world_destroy(w); return NULL; }
     }
+
+    /* W19 BFS grid, sized for the max streaming radius (never reallocated). */
+    w->bfs_D     = 2 * caps->view_radius + 1;
+    w->bfs_nodes = w->bfs_D * w->bfs_D * WL_SECTIONS;
+    w->bfs_col     = (WlSlot **)calloc((size_t)(w->bfs_D * w->bfs_D), sizeof(WlSlot *));
+    w->bfs_seen    = (unsigned char *)calloc((size_t)w->bfs_nodes, 1);
+    w->bfs_reached = (unsigned char *)calloc((size_t)w->bfs_nodes, 1);
+    w->bfs_setfac  = (unsigned char *)calloc((size_t)w->bfs_nodes, 1);
+    w->bfs_facing  = (signed char *)calloc((size_t)w->bfs_nodes, 1);
+    w->bfs_queue   = (int *)malloc((size_t)w->bfs_nodes * sizeof(int));
+    if (!w->bfs_col || !w->bfs_seen || !w->bfs_reached || !w->bfs_setfac ||
+        !w->bfs_facing || !w->bfs_queue) { gm_world_destroy(w); return NULL; }
     return w;
 }
 
@@ -266,6 +466,12 @@ void gm_world_destroy(GmWorld *w) {
         free(w->scratch.verts[l]);
         free(w->out_verts[l]);
     }
+    free(w->bfs_col);
+    free(w->bfs_seen);
+    free(w->bfs_reached);
+    free(w->bfs_setfac);
+    free(w->bfs_facing);
+    free(w->bfs_queue);
     if (w->wmc) worldmc_destroy(w->wmc);
     free(w);
 }
@@ -396,6 +602,143 @@ int gm_world__model_key(const GmWorld *w, int wx, int wy, int wz) {
     return light_block(w->light, wx, wy, wz);
 }
 
+/* RenderChunk.boundingBox test. ONE definition for both the BFS and the
+ * submission loop, so a section the submission pass would keep can never be
+ * refused entry by the traversal. */
+static inline int wl_section_in_frustum(const float planes[6][4],
+                                        int cx, int cz, int sec) {
+    double minx = (double)(cx * 16), maxx = (double)(cx * 16 + 16);
+    double minz = (double)(cz * 16), maxz = (double)(cz * 16 + 16);
+    double miny = (double)sec * WL_SECTION_HEIGHT - WL_SECTION_Y_PAD;
+    double maxy = (double)(sec + 1) * WL_SECTION_HEIGHT + WL_SECTION_Y_PAD;
+    return cr_aabb_in_frustum(planes, minx, miny, minz, maxx, maxy, maxz);
+}
+
+/* RenderGlobal.setupTerrain's "update" block: flood the section graph from the
+ * camera's section and mark every node that reaches renderInfos.
+ *
+ * Grid node id = ((ix * D) + iz) * 16 + sy, ix/iz the 0..2R offsets of the
+ * column from (ccx-R, ccz-R). Returns the number of reached nodes; the caller
+ * reads w->bfs_reached. `planes` is the same frustum the submission pass uses.
+ *
+ * Vanilla rules mirrored one for one (RenderGlobal.java:877-957):
+ *   - getVisibleFacings(eye) on the camera's own section; a one-facing result
+ *     drops the facing opposite the view vector; an empty result renders ONLY
+ *     the camera section (flag2, the sealed-pocket / inside-solid case),
+ *   - camera section enters the queue with facing == null and setFacing == 0,
+ *     so neither the main-direction nor the visibility test applies to it,
+ *   - a null camera section (eye above/below the world) seeds every column's
+ *     top (y>0) or bottom section that passes the frustum test,
+ *   - per edge: skip if the path already travelled the opposite way
+ *     (hasDirection), skip unless the current section's SetVisibility connects
+ *     the entry face to the exit face, then setFrameIndex (visit-once, side
+ *     effect BEFORE the frustum test, exactly as vanilla short-circuits) and
+ *     finally the frustum test.
+ * mc.renderChunksMany (flag1) is `true` in Minecraft.java:335, so both
+ * flag1-guarded tests are always on. playerSpectator is always false here. */
+static int wl_bfs_sections(GmWorld *w, const CrCamera *cam, const CrMat4 *view,
+                           const float planes[6][4], int ccx, int ccz, int R) {
+    const int D = 2 * R + 1;
+    const int nodes = D * D * WL_SECTIONS;
+    memset(w->bfs_seen,    0, (size_t)nodes);
+    memset(w->bfs_reached, 0, (size_t)nodes);
+    memset(w->bfs_setfac,  0, (size_t)nodes);
+    memset(w->bfs_facing, -1, (size_t)nodes);
+
+    int head = 0, tail = 0;
+    const int ccy = (int)floorf(cam->pos.y) >> 4;
+    const int in_world = (ccy >= 0 && ccy < WL_SECTIONS);
+    const int cam_cell = R * D + R;      /* the camera's own column */
+
+    if (in_world && w->bfs_col[cam_cell]) {
+        /* getVisibleFacings(blockpos1): a FRESH VisGraph flood from the eye cell
+         * (no computeVisibility shortcuts), inside the camera's own section. */
+        wl_vis_fill(&w->vg, w->light, ccx, ccz, ccy);
+        int ex = (int)floorf(cam->pos.x) & 15;
+        int ey = (int)floorf(cam->pos.y) & 15;
+        int ez = (int)floorf(cam->pos.z) & 15;
+        int set1 = wl_vis_flood(&w->vg, ex | (ez << 4) | (ey << 8));
+
+        int n1 = 0;
+        for (int f = 0; f < 6; ++f) n1 += (set1 >> f) & 1;
+        if (n1 == 1) {
+            /* view vector == -(row 2 of the view matrix), i.e. the same forward
+             * axis game/test_view.c reads out of cr_camera_view. */
+            int vf = wl_facing_from_vector(-view->m[2], -view->m[6], -view->m[10]);
+            set1 &= ~(1 << WL_F_OPP(vf));
+        }
+        int start = cam_cell * WL_SECTIONS + ccy;
+        w->bfs_seen[start] = 1;
+        if (set1 == 0) {
+            /* flag2: sealed pocket / inside solid. renderInfos == the camera
+             * section alone, with no frustum test and no traversal. */
+            w->bfs_reached[start] = 1;
+            return 1;
+        }
+        w->bfs_queue[tail++] = start;
+    } else {
+        /* renderchunk == null: seed the y=248 (or y=8) layer over the radius. */
+        int sy = (cam->pos.y > 0.0f) ? 15 : 0;
+        for (int ix = 0; ix < D; ++ix)
+            for (int iz = 0; iz < D; ++iz) {
+                int cell = ix * D + iz;
+                if (!w->bfs_col[cell]) continue;
+                int n = cell * WL_SECTIONS + sy;
+                w->bfs_seen[n] = 1;
+                if (!wl_section_in_frustum(planes, ccx - R + ix, ccz - R + iz, sy))
+                    continue;
+                w->bfs_queue[tail++] = n;
+            }
+    }
+
+    int reached = 0;
+    while (head < tail) {
+        int ni = w->bfs_queue[head++];
+        w->bfs_reached[ni] = 1;
+        reached++;
+
+        int sy   = ni & (WL_SECTIONS - 1);
+        int cell = ni / WL_SECTIONS;
+        int ix   = cell / D, iz = cell % D;
+        const WlSlot *c = w->bfs_col[cell];
+        /* A section whose column was frustum-culled is never enqueued, so `c`
+         * is always resident; the null guard keeps the traversal permissive. */
+        uint64_t vis = c ? c->sec_vis[sy] : WL_VIS_ALL;
+        int f_in     = w->bfs_facing[ni];
+        unsigned sf  = w->bfs_setfac[ni];
+
+        for (int f = 0; f < 6; ++f) {
+            if (sf & (1u << WL_F_OPP(f))) continue;            /* hasDirection  */
+            if (f_in >= 0 &&
+                !((vis >> (WL_F_OPP(f_in) + f * 6)) & 1)) continue; /* isVisible */
+
+            int nix = ix, niz = iz, nsy = sy;
+            switch (f) {
+                case WL_F_DOWN:  nsy--; break;
+                case WL_F_UP:    nsy++; break;
+                case WL_F_NORTH: niz--; break;
+                case WL_F_SOUTH: niz++; break;
+                case WL_F_WEST:  nix--; break;
+                default:         nix++; break;   /* WL_F_EAST */
+            }
+            /* getRenderChunkOffset: y in [0,256) and |dx|,|dz| <= R chunks. */
+            if (nsy < 0 || nsy >= WL_SECTIONS) continue;
+            if (nix < 0 || nix >= D || niz < 0 || niz >= D) continue;
+
+            int nj = (nix * D + niz) * WL_SECTIONS + nsy;
+            if (w->bfs_seen[nj]) continue;      /* setFrameIndex, side effect... */
+            w->bfs_seen[nj] = 1;
+            if (!wl_section_in_frustum(planes, ccx - R + nix, ccz - R + niz, nsy))
+                continue;                       /* ...then isBoundingBoxInFrustum */
+
+            w->bfs_facing[nj] = (signed char)f;
+            w->bfs_setfac[nj] = (unsigned char)(sf | (1u << f));
+            w->bfs_queue[tail++] = nj;
+        }
+    }
+    return reached;
+}
+
 /* Emit sink for the shared view walk. NULL `runs` selects the host concat into
  * w->out_verts; non-NULL records the equivalent slab runs instead. */
 typedef struct {
@@ -463,6 +806,9 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
     cr_frustum_extract(proj.m, view.m, planes);
 
     const int cull_off = getenv("MAGMA_NO_CULL") != NULL;
+    /* MAGMA_NO_OCCLUSION bypasses ONLY the W19 visibility-graph BFS; frustum
+     * column + section culling stay on. MAGMA_NO_CULL remains the full bypass. */
+    const int occl_off = cull_off || getenv("MAGMA_NO_OCCLUSION") != NULL;
     /* MAGMA_DEBUG_VERTS: prove far-chunk decoration reaches the mesh - tally the
      * leaf (CUTOUT_MIPPED=1) + solid (0, includes logs) verts contributed by chunks
      * OUTSIDE the origin 2x2 vs inside it. Before view-distance populate the far
@@ -475,7 +821,16 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
     for (int l = 0; l < 4; ++l) w->out_nverts[l] = 0;
     int n_kept = 0, n_culled = 0;
     int sections_kept = 0, sections_culled = 0;
+    int sections_reached = 0, sections_occluded = 0;
 
+    /* ---- pass 1: coarse column cull + mesh + chunk-draw record, in the frozen
+     * cx-outer/cz-inner order. Only kept columns are meshed, so only kept
+     * columns need a VisGraph - and the BFS only ever enters a column that
+     * passed here. The em->chunks list is recorded EXACTLY as before, occluded
+     * columns included: it is the device-residency list, and a run may only
+     * name a slot the sink was told to upload. ---- */
+    const int D = 2 * R + 1;
+    memset(w->bfs_col, 0, (size_t)(D * D) * sizeof(WlSlot *));
     for (int cx = ccx - R; cx <= ccx + R; ++cx) {
         for (int cz = ccz - R; cz <= ccz + R; ++cz) {
             double minx = (double)(cx * 16), maxx = (double)(cx * 16 + 16);
@@ -488,12 +843,12 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
 
             WlSlot *c = wl_ensure_mesh(w, cx, cz);
             if (!c) continue;
-            int slot = (int)(c - w->slots);
+            w->bfs_col[(cx - ccx + R) * D + (cz - ccz + R)] = c;
             if (em) {
                 if (em->nch >= em->max_chunks) { em->overflow = 1; }
                 else {
                     GmChunkDraw *d = &em->chunks[em->nch++];
-                    d->slot   = slot;
+                    d->slot   = (int)(c - w->slots);
                     d->builds = c->builds;
                     d->slab   = c->buf;
                     for (int l = 0; l < 4; ++l) {
@@ -502,6 +857,31 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
                     }
                 }
             }
+        }
+    }
+
+    /* ---- pass 2: the setupTerrain flood. Falls back to "submit everything the
+     * frustum kept" whenever the camera's own column is not resident. ---- */
+    int occl_on = !occl_off && w->bfs_col[R * D + R] != NULL;
+    if (occl_on)
+        sections_reached = wl_bfs_sections(w, cam, &view, planes, ccx, ccz, R);
+
+    /* ---- pass 3: submission. Identical iteration order and identical per-layer
+     * run concatenation as before; occlusion only REMOVES sections. Both emit
+     * sinks read the SAME reached set from the SAME loop, so the host concat and
+     * the device gather cannot disagree about which sections went out. ---- */
+    for (int cx = ccx - R; cx <= ccx + R; ++cx) {
+        for (int cz = ccz - R; cz <= ccz + R; ++cz) {
+            int cell = (cx - ccx + R) * D + (cz - ccz + R);
+            WlSlot *c = w->bfs_col[cell];
+            if (!c) continue;
+            int slot = (int)(c - w->slots);
+
+            int col_reached = !occl_on;
+            if (occl_on)
+                for (int sec = 0; sec < WL_SECTIONS; ++sec)
+                    col_reached |= w->bfs_reached[cell * WL_SECTIONS + sec];
+
             int added[4] = {0, 0, 0, 0};
             for (int sec = 0; sec < WL_SECTIONS; ++sec) {
                 int nonempty = 0;
@@ -509,13 +889,24 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
                     nonempty |= c->sec_n[l][sec] != 0;
                 if (!nonempty) continue;
 
-                double miny = (double)sec * WL_SECTION_HEIGHT - WL_SECTION_Y_PAD;
-                double maxy = (double)(sec + 1) * WL_SECTION_HEIGHT + WL_SECTION_Y_PAD;
-                int section_inside = cull_off ||
-                    cr_aabb_in_frustum(planes, minx, miny, minz,
-                                       maxx, maxy, maxz);
+                int section_inside =
+                    cull_off || wl_section_in_frustum(planes, cx, cz, sec);
                 if (!section_inside) {
                     sections_culled++;
+                    continue;
+                }
+                /* wl_quad_section buckets a quad by its MINIMUM vertex y, so the
+                 * flat top faces of the cells at y = 16*sec+15 land in bucket
+                 * sec+1 (that is also why the frustum AABB above carries a
+                 * 1-block pad). Bucket `sec` therefore holds geometry owned by
+                 * the CELLS of sections sec and sec-1, and may only be dropped
+                 * when the flood reached NEITHER. Without this, a reached floor
+                 * section loses its top surface whenever the section above it is
+                 * occluded - a cave ceiling/floor pixel bug. */
+                int sec_reached = w->bfs_reached[cell * WL_SECTIONS + sec] ||
+                    (sec > 0 && w->bfs_reached[cell * WL_SECTIONS + sec - 1]);
+                if (occl_on && !sec_reached) {
+                    sections_occluded++;
                     continue;
                 }
                 sections_kept++;
@@ -526,15 +917,21 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
                     added[l] += ns;
                 }
             }
-            if (em)
-                wl_emit_run(em, CR_LAYER_TRANSLUCENT, slot,
-                            c->off[CR_LAYER_TRANSLUCENT],
-                            c->n[CR_LAYER_TRANSLUCENT]);
-            else
-                wl_append(w, CR_LAYER_TRANSLUCENT,
-                          c->view.verts[CR_LAYER_TRANSLUCENT],
-                          c->view.nverts[CR_LAYER_TRANSLUCENT]);
-            added[CR_LAYER_TRANSLUCENT] = c->view.nverts[CR_LAYER_TRANSLUCENT];
+            /* W16 exempted TRANSLUCENT from vertical section culling to keep the
+             * mesher's blend order. W19 keeps that: the column is dropped only
+             * when the flood reached NO section of it (nothing in the column is
+             * visible at all); otherwise it goes out whole, in the same order. */
+            if (col_reached) {
+                if (em)
+                    wl_emit_run(em, CR_LAYER_TRANSLUCENT, slot,
+                                c->off[CR_LAYER_TRANSLUCENT],
+                                c->n[CR_LAYER_TRANSLUCENT]);
+                else
+                    wl_append(w, CR_LAYER_TRANSLUCENT,
+                              c->view.verts[CR_LAYER_TRANSLUCENT],
+                              c->view.nverts[CR_LAYER_TRANSLUCENT]);
+                added[CR_LAYER_TRANSLUCENT] = c->view.nverts[CR_LAYER_TRANSLUCENT];
+            }
             if (dbg_verts) {
                 int in2x2 = (cx >= 0 && cx < 2 && cz >= 0 && cz < 2);
                 if (in2x2) dbg_near_leaf += added[1];
@@ -563,10 +960,12 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
         fprintf(stderr,
             "[caps] R=%d kept=%d culled=%d mesh_slots=%d/%d light_chunks=%d owr_windows=%ld "
             "sections_kept=%d sections_culled=%d "
+            "sections_reached=%d sections_occluded=%d "
             "drawverts[S/CM/C/T]=%d/%d/%d/%d "
             "chunk_max[S/CM/C/T]=%d/%d/%d/%d chunk_max_total=%d\n",
             R, n_kept, n_culled, valid, w->mesh_slots, light_loaded_chunks(w->light),
             popmc_window_builds(), sections_kept, sections_culled,
+            sections_reached, sections_occluded,
             nverts_out[0], nverts_out[1], nverts_out[2], nverts_out[3],
             g_cap_chunk_layer[0], g_cap_chunk_layer[1], g_cap_chunk_layer[2],
             g_cap_chunk_layer[3], g_cap_chunk_total);
