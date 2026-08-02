@@ -1,0 +1,36 @@
+CGRAPH_INIT path=/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt
+CGRAPH_CAPTURE rollout graph=0x5f33fb9a0620
+cgraph PPO N=6144 T=32 EPOCHS=2 MB=8192 bf16=0 channels_last=0 bf16_scope=off update_bf16=0
+[W802 16:46:33.045042387 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+[W802 16:46:33.055989785 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+CGRAPH_CAPTURE update graph=0x5f33e864fec0
+SMOKE chunk=1 ticks=786432 reward_mean=-0.00785938 adv_absmean=0.317176 value_mean=0.0163538 ent=10.3092 kl=0.00538181 pnorm=11.6249
+SMOKE chunk=2 ticks=1572864 reward_mean=-0.00546679 adv_absmean=0.31766 value_mean=-0.0479739 ent=10.294 kl=0.00637081 pnorm=11.7898
+SMOKE chunk=3 ticks=2359296 reward_mean=-0.00571206 adv_absmean=0.324387 value_mean=-0.126315 ent=10.2708 kl=0.00694597 pnorm=11.9658
+SMOKE chunk=4 ticks=3145728 reward_mean=-0.00372113 adv_absmean=0.326991 value_mean=-0.178677 ent=10.2366 kl=0.00795503 pnorm=12.2057
+SMOKE chunk=5 ticks=3932160 reward_mean=-0.000732526 adv_absmean=0.323215 value_mean=-0.222708 ent=10.1918 kl=0.00894458 pnorm=12.4837
+SMOKE chunk=6 ticks=4718592 reward_mean=0.0020346 adv_absmean=0.305505 value_mean=-0.259128 ent=10.1309 kl=0.00980042 pnorm=12.7621
+SMOKE chunk=7 ticks=5505024 reward_mean=0.00555621 adv_absmean=0.291448 value_mean=-0.246433 ent=10.0451 kl=0.0101921 pnorm=13.0334
+SMOKE chunk=8 ticks=6291456 reward_mean=0.00686511 adv_absmean=0.26832 value_mean=-0.209676 ent=9.95701 kl=0.0108288 pnorm=13.2983
+SMOKE chunk=9 ticks=7077888 reward_mean=0.00881741 adv_absmean=0.22939 value_mean=-0.197048 ent=9.88335 kl=0.0112973 pnorm=13.5408
+SMOKE chunk=10 ticks=7864320 reward_mean=0.00987363 adv_absmean=0.214935 value_mean=-0.152434 ent=9.80209 kl=0.0111449 pnorm=13.7674
+SMOKE chunk=11 ticks=8650752 reward_mean=0.0123018 adv_absmean=0.202344 value_mean=-0.0902373 ent=9.71121 kl=0.0106295 pnorm=13.9658
+SMOKE chunk=12 ticks=9437184 reward_mean=0.0157075 adv_absmean=0.211476 value_mean=-0.00169849 ent=9.62014 kl=0.0108425 pnorm=14.1554
+SMOKE chunk=13 ticks=10223616 reward_mean=0.0174426 adv_absmean=0.217237 value_mean=0.103242 ent=9.54189 kl=0.0111943 pnorm=14.3279
+SMOKE chunk=14 ticks=11010048 reward_mean=0.0199942 adv_absmean=0.24438 value_mean=0.245997 ent=9.46061 kl=0.0107009 pnorm=14.4771
+SMOKE chunk=15 ticks=11796480 reward_mean=0.0235328 adv_absmean=0.286503 value_mean=0.461858 ent=9.3932 kl=0.0106228 pnorm=14.609
+SMOKE chunk=16 ticks=12582912 reward_mean=0.0253161 adv_absmean=0.312639 value_mean=0.630407 ent=9.35918 kl=0.00861615 pnorm=14.7436
+SMOKE chunk=17 ticks=13369344 reward_mean=0.0231551 adv_absmean=0.29906 value_mean=0.858346 ent=9.35101 kl=0.00805683 pnorm=14.88
+SMOKE chunk=18 ticks=14155776 reward_mean=0.0215244 adv_absmean=0.279608 value_mean=1.07492 ent=9.29655 kl=0.00876241 pnorm=15.0176
+SMOKE chunk=19 ticks=14942208 reward_mean=0.0186369 adv_absmean=0.247122 value_mean=1.2124 ent=9.26948 kl=0.00753962 pnorm=15.1332
+SMOKE chunk=20 ticks=15728640 reward_mean=0.0171847 adv_absmean=0.225125 value_mean=1.25682 ent=9.25052 kl=0.00642364 pnorm=15.2753
+SMOKE chunk=21 ticks=16515072 reward_mean=0.0169277 adv_absmean=0.214717 value_mean=1.35053 ent=9.23107 kl=0.00672156 pnorm=15.4022
+SMOKE chunk=22 ticks=17301504 reward_mean=0.0171032 adv_absmean=0.204129 value_mean=1.44368 ent=9.18913 kl=0.00776909 pnorm=15.5409
+SMOKE chunk=23 ticks=18087936 reward_mean=0.0166746 adv_absmean=0.203755 value_mean=1.53113 ent=9.13349 kl=0.00673605 pnorm=15.6368
+SMOKE chunk=24 ticks=18874368 reward_mean=0.0172598 adv_absmean=0.202816 value_mean=1.60367 ent=9.10646 kl=0.00709084 pnorm=15.7568
+SMOKE chunk=25 ticks=19660800 reward_mean=0.0173259 adv_absmean=0.207177 value_mean=1.71362 ent=9.09425 kl=0.00671131 pnorm=15.851
+SMOKE chunk=26 ticks=20447232 reward_mean=0.0171348 adv_absmean=0.206086 value_mean=1.80485 ent=9.09027 kl=0.00598293 pnorm=15.9181
+SMOKE chunk=27 ticks=21233664 reward_mean=0.0172831 adv_absmean=0.206854 value_mean=1.82174 ent=9.0678 kl=0.00587677 pnorm=15.9961
+SMOKE chunk=28 ticks=22020096 reward_mean=0.0178139 adv_absmean=0.221071 value_mean=1.86434 ent=9.02182 kl=0.00938263 pnorm=16.1119
+SMOKE chunk=29 ticks=22806528 reward_mean=0.021411 adv_absmean=0.262804 value_mean=1.91733 ent=8.9476 kl=0.0092984 pnorm=16.2252
+SMOKE chunk=30 ticks=23592960 reward_mean=0.0295927 adv_absmean=0.37894 value_mean=1.94947 ent=8.91284 kl=0.00903116 pnorm=16.3237

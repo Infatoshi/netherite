@@ -1,0 +1,19 @@
+{
+  "baseline_direct_launch_api_calls": 22736,
+  "baseline_launch_api_by_symbol": {
+    "cuLaunchKernel": 1770,
+    "cudaLaunchKernelExC_v11060": 478,
+    "cudaLaunchKernel_v7000": 20488
+  },
+  "baseline_nvtx_range": "cgraph_ceiling/chunk/2",
+  "candidate_direct_launch_api_calls": 11382,
+  "candidate_graph_launch_api_calls": 80,
+  "candidate_launch_api_by_symbol": {
+    "cuLaunchKernel": 11,
+    "cudaGraphLaunch_v10000": 80,
+    "cudaLaunchKernel_v7000": 11371
+  },
+  "candidate_rollout_graph_launches": 32,
+  "candidate_update_graph_launches": 48,
+  "schema": "netherite.cgraph-launch-proof.v1"
+}

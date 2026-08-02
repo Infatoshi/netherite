@@ -1,0 +1,33 @@
+{
+  "graph_reachable_idle_fraction": 0.0951736909500083,
+  "graph_reachable_idle_ms": 152.467545,
+  "keep_bar_fraction": 0.02,
+  "method": "third NVTX phase instance (two warmups, then measured chunk); GPU busy is the union of kernel/memop intervals from cuda_gpu_trace inside each CPU phase range",
+  "phases": {
+    "gae": {
+      "cpu_range_ms": 2.321357,
+      "gpu_busy_ms": 4.01792,
+      "gpu_operations": 4,
+      "idle_ms": 3.572999,
+      "projected_window_ms": 7.590919
+    },
+    "rollout": {
+      "cpu_range_ms": 626.372758,
+      "gpu_busy_ms": 551.797022,
+      "gpu_operations": 12800,
+      "idle_ms": 74.552641,
+      "projected_window_ms": 626.349663
+    },
+    "update": {
+      "cpu_range_ms": 892.905418,
+      "gpu_busy_ms": 890.137076,
+      "gpu_operations": 11448,
+      "idle_ms": 77.914904,
+      "projected_window_ms": 968.05198
+    }
+  },
+  "proceed": true,
+  "profiled_phase_window_ms": 1601.992562,
+  "schema": "netherite.cgraph-ceiling.v1",
+  "trace": "optloop_runs/cgraph-v1/PRESERVED/python_ceiling.nsys-rep"
+}

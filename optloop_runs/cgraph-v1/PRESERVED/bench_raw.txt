@@ -1,0 +1,17 @@
+lane=cgraph-v1  scoreboard=/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/scoreboard.jsonl
+waiting for gpu0 lock ...
+preflight ok: both GPUs idle
+[baseline] unmodified  x5
+    rep wall_ms=1577.195 (process 6.8s)
+    rep wall_ms=1579.407 (process 6.6s)
+    rep wall_ms=1579.544 (process 6.7s)
+    rep wall_ms=1581.601 (process 6.6s)
+    rep wall_ms=1586.046 (process 6.6s)
+  -> median 1579.54 ms  stderr 1.49  cv 0.0021
+[cgraph] {'CGRAPH_BIN': '/home/infatoshi/dev/nw/cgraph/blaze/rl/cgraph/build/cgraph_train', 'CGRAPH_INIT': '/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt'}  x5
+    rep wall_ms=1686.910 (process 6.1s)
+    rep wall_ms=1690.570 (process 6.1s)
+    rep wall_ms=1693.880 (process 6.1s)
+    rep wall_ms=1699.880 (process 6.1s)
+    rep wall_ms=1700.550 (process 6.1s)
+  -> median 1693.88 ms  rel=-0.0724 abs=-114.34ms mdd=2.99ms eps_abs=31.59ms correctness=pass  keep=False

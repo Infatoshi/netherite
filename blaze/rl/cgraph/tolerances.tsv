@@ -1,0 +1,12 @@
+# component	maximum absolute difference from the Python FP32 oracle
+logits	0.001
+values	0.001
+logprob	0.001
+entropy	0.001
+policy_loss	0.0001
+value_loss	0.0001
+entropy_loss	0.0001
+loss	0.0001
+gradients	0.00002
+grad_norm	0.00002
+update_delta	0.00002

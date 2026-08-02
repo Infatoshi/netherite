@@ -1,0 +1,9 @@
+CGRAPH_INIT path=/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt
+CGRAPH_CAPTURE rollout graph=0x585b6d4eda90
+cgraph PPO N=6144 T=32 EPOCHS=2 MB=8192 bf16=0 channels_last=0 bf16_scope=off update_bf16=0
+[W802 16:46:18.348605208 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+[W802 16:46:18.359632026 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+CGRAPH_CAPTURE update graph=0x585b5a19cc70
+SMOKE chunk=1 ticks=786432 reward_mean=-0.00785938 adv_absmean=0.317176 value_mean=0.0163538 ent=10.3092 kl=0.00537893 pnorm=11.625
+SMOKE chunk=2 ticks=1572864 reward_mean=-0.00554222 adv_absmean=0.317983 value_mean=-0.0477963 ent=10.2944 kl=0.0063259 pnorm=11.7911
+SMOKE chunk=3 ticks=2359296 reward_mean=-0.00571638 adv_absmean=0.323798 value_mean=-0.126884 ent=10.2719 kl=0.00711145 pnorm=11.9713

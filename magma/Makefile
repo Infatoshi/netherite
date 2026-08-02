@@ -432,6 +432,22 @@ cpolicy_so: ../blaze/rl/cpolicy/cpolicy_fwd.so
 	    -Xcompiler -fPIC --shared ../blaze/rl/cpolicy/cpolicy_fwd.cu \
 	    -lcublas -o $@
 
+# C++ FP32 trainer hot loop. LibTorch dispatches convolution/GEMM work to
+# cuDNN/cuBLAS; cgraph_kernels.cu supplies captured grad clipping and Adam.
+# CMake emits both sm_86 and sm_120 for the lane-owned CUDA translation unit.
+.PHONY: cgraph_bin
+cgraph_bin: ../blaze/rl/cgraph/build/cgraph_train
+../blaze/rl/cgraph/build/cgraph_train: \
+        ../blaze/rl/cgraph/cgraph_train.cpp \
+        ../blaze/rl/cgraph/cgraph_kernels.cu \
+        ../blaze/rl/cgraph/cgraph_kernels.h \
+        ../blaze/rl/cgraph/native_env.h \
+        ../blaze/rl/cgraph/native_reward.h \
+        ../blaze/rl/cgraph/ppo_model.h \
+        ../blaze/rl/cgraph/CMakeLists.txt \
+        ../blaze/rl/cgraph/build_cgraph.sh
+	BLAZE_SM="$(BLAZE_SM)" bash ../blaze/rl/cgraph/build_cgraph.sh
+
 clean:
 	rm -f magma_demo magma_world magma_game magma_game_dbg magma_game_cuda magma_game_metal
 	rm -f metal/raster_kernels.air metal/raster_kernels.metallib

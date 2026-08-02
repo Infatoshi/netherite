@@ -101,6 +101,7 @@ demos/*
 !demos/.gitkeep
 blaze/env/*.so
 blaze/env/blaze_verify
+*.nsys-rep
 
 # ---- regenerated from YOUR Minecraft install (never committed) ----
 # scripts/bootstrap_oracle.sh

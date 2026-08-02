@@ -115,7 +115,9 @@ def one_rep(env_over, warmup, log_path):
     env["BENCH_WARMUP_CHUNKS"] = str(warmup)
     env["BENCH_MEASURE_CHUNKS"] = "1"
     env.update(env_over)
-    cmd = UV + [os.path.join(REPO, "blaze", "env", "ppo_chain_cu.py")]
+    cgraph_bin = env.get("CGRAPH_BIN")
+    cmd = ([cgraph_bin] if cgraph_bin else
+           UV + [os.path.join(REPO, "blaze", "env", "ppo_chain_cu.py")])
     t0 = time.perf_counter()
     out = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True,
                          text=True, check=False)

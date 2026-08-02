@@ -1,0 +1,27 @@
+{
+  "batch": 6144,
+  "components_max_abs": {
+    "entropy": 1.90735e-06,
+    "entropy_loss": 0.0,
+    "grad_norm": 0.0,
+    "gradients": 2.09548e-09,
+    "logits": 0.0,
+    "logprob": 0.0,
+    "loss": 0.0,
+    "policy_loss": 0.0,
+    "update_delta": 1.28057e-06,
+    "value_loss": 0.0,
+    "values": 0.0
+  },
+  "cuda": "13.0",
+  "cudnn": 92000,
+  "eager_gradient_rel_l2_floor": 9.338931050706378e-08,
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "gradient_rel_l2": 9.36384e-08,
+  "gradient_rel_l2_budget": 1e-05,
+  "greedy_agreement": 1.0,
+  "passed": true,
+  "schema": "netherite.cgraph-equivalence.v1",
+  "seed": 1234,
+  "torch": "2.13.0+cu130"
+}
