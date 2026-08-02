@@ -1,3 +1,4 @@
+from pathlib import Path
 # Fast in-session kernel A/B: with the client ALREADY RUNNING and a scene set up
 # (any scene_*.py), flip all four kernels off->native via the NetheriteMod "kmode" op and
 # pixel-diff frames grabbed seconds apart on the SAME world state. Zero cross-launch
@@ -11,10 +12,10 @@
 # no animated textures in frame (the platform scenes satisfy this).
 import subprocess, sys, time
 
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 
-HERE = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/wholeframe/stripcheck"
+HERE = str(Path(__file__).resolve().parent)
 PREFIX = sys.argv[1] if len(sys.argv) > 1 else "ab"
 
 e = NetheriteEnv(); e.s.settimeout(120)

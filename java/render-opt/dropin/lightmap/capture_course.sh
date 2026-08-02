@@ -4,7 +4,7 @@
 # Usage: capture_course.sh <off|native|sabotage> [time]
 set -u
 MODE="$1"; TIMEVAL="${2:-6000}"
-ROOT=/home/infatoshi/dev/minecraft/mc-1.11.2-env
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 DROP="$ROOT/java/render-opt/dropin/lightmap"; OUT="$DROP/course"
 # authoritative sidecars: this drop-in native/sabotage, sin always off (isolate lightmap)
 echo "$MODE" > "$DROP/qlm_mode.txt"

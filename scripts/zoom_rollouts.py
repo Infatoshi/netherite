@@ -26,8 +26,8 @@ MAGMA = os.path.join(ROOT, "magma")
 # on the MacBook); default is the CPU binary as shipped in the 8192 demo.
 GAME = os.environ.get("ZOOM_GAME", os.path.join(MAGMA, "magma_game"))
 BACKEND = os.environ.get("ZOOM_BACKEND", "")
-CONF = os.environ.get("ZOOM_CONF", "/home/infatoshi/dev/nw/.tmp/zoom_video.conf")
-WORK = os.environ.get("ZOOM_WORK", "/home/infatoshi/dev/nw/.tmp/zoomrolls")
+CONF = os.environ.get("ZOOM_CONF", os.path.expanduser("~/dev/nw/.tmp/zoom_video.conf"))
+WORK = os.environ.get("ZOOM_WORK", os.path.expanduser("~/dev/nw/.tmp/zoomrolls"))
 TILE = 192                 # native square render size
 FRAMES = 348
 MIPS = (96, 48, 24)

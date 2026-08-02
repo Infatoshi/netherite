@@ -26,8 +26,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WORK = os.environ.get("ZOOM_WORK", "/home/infatoshi/dev/nw/.tmp/zoomrolls")
-HERO_DIR = "/home/infatoshi/dev/nw/.tmp/zoom_hero"
+WORK = os.environ.get("ZOOM_WORK", os.path.expanduser("~/dev/nw/.tmp/zoomrolls"))
+HERO_DIR = os.path.expanduser("~/dev/nw/.tmp/zoom_hero")
 W, H, FPS = 1920, 960, 30
 ZOOM_FRAMES, HOLD_FRAMES = 270, 74
 T = 192                    # square tile size (native rollout render)

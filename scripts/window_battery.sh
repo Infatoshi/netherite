@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # window_battery.sh - build magma_game{,_cuda} and run ranks 4-15 battery.
 #
-# Cache: /home/infatoshi/dev/nw/.tmp/window_battery_<UTCdate>/
+# Cache: $HOME/dev/nw/.tmp/window_battery_<UTCdate>/
 # GPU dumps: overnight-compute gpu1 + CUDA_VISIBLE_DEVICES=1 (never GPU0).
 #
 # Usage:
@@ -18,8 +18,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-export UV_CACHE_DIR="${UV_CACHE_DIR:-/home/infatoshi/.cache/uv}"
-export TMPDIR="${TMPDIR:-/home/infatoshi/dev/nw/.tmp}"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$HOME/.cache/uv}"
+export TMPDIR="${TMPDIR:-$HOME/dev/nw/.tmp}"
 mkdir -p "$TMPDIR" "$UV_CACHE_DIR"
 
 SKIP_BUILD="${SKIP_BUILD:-0}"

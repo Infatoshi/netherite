@@ -18,7 +18,7 @@ Usage (from this directory):
   uv run --no-project --with numpy,scipy,pillow python fogcurve_probe.py --scene seed7
   uv run --no-project --with numpy,scipy,pillow python fogcurve_probe.py --scene slime
 
-Scratch defaults under /home/infatoshi/dev/nw/.tmp/fogcurve/ (not /tmp).
+Scratch defaults under ~/dev/nw/.tmp/fogcurve/ (not /tmp).
 """
 from __future__ import annotations
 
@@ -40,16 +40,15 @@ MAGMA = HERE.parents[1] / "magma"
 MC_CAPTURE = MAGMA / "raster" / "verify" / "mc_capture"
 REPO = HERE.parents[1]  # netherite monorepo root
 
-SCRATCH = Path(os.environ.get("FOGCURVE_SCRATCH", "/home/infatoshi/dev/nw/.tmp/fogcurve"))
-DEFAULT_SLIME_FOG = Path("/home/infatoshi/dev/nw/.tmp/hfog_out/magma_frames.npy")
-DEFAULT_SLIME_NOFOG = Path("/home/infatoshi/dev/nw/.tmp/hfog_nofog/magma_frames.npy")
-DEFAULT_SLIME_TICKS_FOG = Path("/home/infatoshi/dev/nw/.tmp/hfog_out/magma_frames.ticks.npy")
+SCRATCH = Path(os.environ.get("FOGCURVE_SCRATCH", os.path.expanduser("~/dev/nw/.tmp/fogcurve")))
+DEFAULT_SLIME_FOG = Path(os.path.expanduser("~/dev/nw/.tmp/hfog_out/magma_frames.npy"))
+DEFAULT_SLIME_NOFOG = Path(os.path.expanduser("~/dev/nw/.tmp/hfog_nofog/magma_frames.npy"))
+DEFAULT_SLIME_TICKS_FOG = Path(os.path.expanduser("~/dev/nw/.tmp/hfog_out/magma_frames.ticks.npy"))
 DEFAULT_SLIME_TICKS_NOFOG = Path(
-    "/home/infatoshi/dev/nw/.tmp/hfog_nofog/magma_frames.ticks.npy"
+    os.path.expanduser("~/dev/nw/.tmp/hfog_nofog/magma_frames.ticks.npy")
 )
-DEFAULT_SLIME_GOLDEN_DIR = Path(
-    "/home/infatoshi/dev/netherite/verify/tapes/"
-    "scenario_slime_bounce_20260723T001527Z_frames"
+DEFAULT_SLIME_GOLDEN_DIR = (
+    REPO / "verify/tapes/scenario_slime_bounce_20260723T001527Z_frames"
 )
 # fogcurve worktree may only symlink the tape; resolve either home.
 _alt_frames = (

@@ -22,7 +22,7 @@ from nbt.region import InconceivedChunk, RegionFile, RegionFileFormatError
 
 HERE = Path(__file__).resolve().parent
 MAGMA = HERE.parents[1] / "magma"
-SCRATCH_ROOT = Path("/home/infatoshi/dev/nw/.tmp/skylight_diff")
+SCRATCH_ROOT = Path(os.path.expanduser("~/dev/nw/.tmp/skylight_diff"))
 WATER_IDS = (8, 9)
 SECTION_VOLUME = 16 * 16 * 16
 # gm_runtime_tick increments r.tick before script.c's diagnostic dump point.

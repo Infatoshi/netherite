@@ -13,7 +13,7 @@
 #   cd java && setsid nohup bash start_vnc_client.sh >/tmp/mc_launch.out 2>&1 &
 #   # wait for a TCP connect to 127.0.0.1:25575, then re-run this script.
 set -uo pipefail
-MAGMA=/home/infatoshi/dev/minecraft/mc-1.11.2-env/magma
+MAGMA="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$MAGMA"
 TICKS="${TICKS:-300}"
 SEED="${SEED:-0}"

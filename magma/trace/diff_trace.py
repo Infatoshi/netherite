@@ -25,6 +25,7 @@ Usage:
     python diff_trace.py --java trace/out/java_phys.csv  --c trace/out/c_phys.csv --materialize
 """
 import argparse
+from pathlib import Path
 import csv
 import json
 import os
@@ -365,7 +366,7 @@ def main():
     ap.add_argument("--tape", default="trace/out/tape.txt")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--tracer",
-                    default="/home/infatoshi/dev/minecraft/mc-1.11.2-env/magma/trace_game")
+                    default=str(Path(__file__).resolve().parent.parent / "trace_game"))
     ap.add_argument("--outdir", default="trace/out")
     args = ap.parse_args()
     if args.java.endswith(".jsonl") or args.c.endswith(".jsonl"):

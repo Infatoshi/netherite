@@ -3,7 +3,7 @@
 # and native (all-C kernels) frames and pixel-diff them; the End native run also does
 # the dragon-in-view coverage probe. Usage: run_verify_dims.sh [nether|end ...]
 set -u
-HERE=/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/wholeframe/stripcheck
+HERE="$(cd "$(dirname "$0")" && pwd)"
 SCENES=("${@:-nether}")
 [ $# -eq 0 ] && SCENES=(nether end)
 for sc in "${SCENES[@]}"; do

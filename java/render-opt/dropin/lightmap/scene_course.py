@@ -1,10 +1,11 @@
+from pathlib import Path
 # Real-scene variant: the user's superflat survival "course" world (seed 0, type flat).
 # fluid() is the proven way to push the headless client past GuiDownloadTerrain into a
 # real render; we then CLEAR the water (low animation noise) and settle at a FIXED
 # viewpoint so framing is byte-identical across off/native/sabotage.
 # SCENE_TIME picks noon (6000) or midnight (18000).
 import os, sys, time
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 
 TIMEVAL = os.environ.get("SCENE_TIME", "6000")

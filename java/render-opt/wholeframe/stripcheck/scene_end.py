@@ -1,3 +1,4 @@
+from pathlib import Path
 # End checkpoint scene: cross-dim teleport to the End (dim 1). The vanilla arrival
 # obsidian platform is at FIXED coords (100, 49, 0), so the End is naturally
 # capture-friendly. The pixel-diff platform is built far (+300x) from the main island:
@@ -8,7 +9,7 @@
 # RNG-driven and cannot be pinned across launches).
 import sys, time
 
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 
 e = None

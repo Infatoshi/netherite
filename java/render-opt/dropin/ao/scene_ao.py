@@ -1,3 +1,4 @@
+from pathlib import Path
 # Controlled AO scene for the getAoBrightness drop-in (kernel 13). All qao AO modes disable
 # Forge's light pipeline so the VANILLA smooth-AO path is live. We need (a) peaceful difficulty
 # so no mobs spawn/move (otherwise native-vs-vanilla shows motion noise, not parity), and (b)
@@ -5,7 +6,7 @@
 # grid of 3-tall stone pillars, viewed at an angle. native == vanilla; sabotage removes the AO
 # darkening around the pillar bases (and dims skylit faces).
 import sys, time
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 e = NetheriteEnv(); e.s.settimeout(150)
 def safe(fn, *a):

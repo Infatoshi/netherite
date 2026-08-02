@@ -1,9 +1,10 @@
+from pathlib import Path
 # Phase D: pixel-diff the three qsin_mode frames against the vanilla baseline.
 # Reports max abs per-channel diff and % of differing pixels.
 import numpy as np
 from PIL import Image
 
-D = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/"
+D = str(Path(__file__).resolve().parent) + "/"
 def load(n):
     return np.asarray(Image.open(D+n).convert("RGB")).astype(np.int16)
 

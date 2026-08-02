@@ -30,9 +30,10 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 
 # qrl_client.py lives in java/
-_JAVA = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java"
+_JAVA = str(Path(__file__).resolve().parents[2] / "java")
 if _JAVA not in sys.path:
     sys.path.insert(0, _JAVA)
 

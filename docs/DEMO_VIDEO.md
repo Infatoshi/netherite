@@ -113,7 +113,7 @@ scenic-walk tape recorded for an earlier cut is kept as the repro.
 cd ~/dev/netherite
 # 0. once: video-only caps file (bigger draw buffers for posed shots)
 sed 's/draw_cutout = 262144/draw_cutout = 1048576/' \
-    magma/magma.conf > /home/infatoshi/dev/nw/.tmp/zoom_video.conf
+    magma/magma.conf > ~/dev/nw/.tmp/zoom_video.conf
 
 # 1. hero: trained-chain POV, exact + semantic, motion-scored window
 (cd magma && uv run --no-project --with numpy python \

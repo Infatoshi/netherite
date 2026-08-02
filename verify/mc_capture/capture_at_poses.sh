@@ -36,8 +36,9 @@
 # runclient.log tail and exits non-zero rather than looping forever.
 set -u
 
-ENVDIR=/home/infatoshi/dev/minecraft/mc-1.11.2-env/java
-DEFOUT=/home/infatoshi/dev/minecraft/mc-1.11.2-env/magma/trace/out/frame_oracle
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ENVDIR="$ROOT/java"
+DEFOUT="$ROOT/magma/trace/out/frame_oracle"
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
 export DISPLAY=:1

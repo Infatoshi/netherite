@@ -49,7 +49,7 @@ Options of note
   --only NAME           run one scenario: lightmap-sanity | mob-lit | tick-rate
   --reuse-lm DIR        skip lightmap capture; use existing frame_*.ppm dir
   --reuse-legacy DIR    skip legacy capture; use existing frame_*.ppm dir
-  --tmpdir DIR          base temp dir (default under /home/infatoshi/dev/nw/.tmp)
+  --tmpdir DIR          base temp dir (default under ~/dev/nw/.tmp)
 """
 
 from __future__ import annotations
@@ -92,7 +92,7 @@ TICK_COMPARE_FRAME = 29
 DEFAULT_SEED = 0
 DEFAULT_WIDTH = 854
 DEFAULT_HEIGHT = 480
-DEFAULT_TMP_ROOT = Path("/home/infatoshi/dev/nw/.tmp")
+DEFAULT_TMP_ROOT = Path(os.path.expanduser("~/dev/nw/.tmp"))
 
 
 # ---------------------------------------------------------------------------

@@ -233,7 +233,7 @@ patch authoritative exactly where generation drifts instead of trusting
 `world_dump` to match. scenic_walk t=80 whole-frame 10.33 -> 3.39 /ch
 (terrain 12.55 -> 3.13), tape mean 4.86 -> 3.34, unexplained gate pixels
 4.03M -> 2.38M, failing frames 92 -> 39. Triptych:
-/home/infatoshi/dev/nw/.tmp/dp/scenic_t80_golden_before_after.png.
+~/dev/nw/.tmp/dp/scenic_t80_golden_before_after.png.
 
 **Closed 2026-07-29.** The band was a workaround for diffing against the
 wrong world; the patch now diffs against the right one. Census of the 169
@@ -1143,7 +1143,7 @@ them across t46/t47). The 1-tick dig skew half of item 6 is absorbed by
 the same change (dig lands at Java's t20).
 
 Pixel triage 2026-08-01 (full report:
-/home/infatoshi/dev/nw/pxtriage_reports/pxtriage_20260801.md, covering the
+~/dev/nw/pxtriage_reports/pxtriage_20260801.md, covering the
 three state-clean rc=3 takes) yields four new tracked items:
 
 7. Dragon fireball billboard renders too bright/saturated vs the oracle's

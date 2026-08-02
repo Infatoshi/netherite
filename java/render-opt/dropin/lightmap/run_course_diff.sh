@@ -3,7 +3,7 @@
 # Usage: run_course_diff.sh [time]
 set -u
 TIMEVAL="${1:-6000}"
-DROP=/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/lightmap
+DROP="$(cd "$(dirname "$0")" && pwd)"
 for m in off native sabotage; do
   echo "===== capture $m t=$TIMEVAL ====="
   bash "$DROP/capture_course.sh" "$m" "$TIMEVAL"

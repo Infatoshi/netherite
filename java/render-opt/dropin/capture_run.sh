@@ -4,7 +4,7 @@
 # Usage: capture_run.sh <off|native|sabotage>
 set -u
 MODE="$1"
-ROOT=/home/infatoshi/dev/minecraft/mc-1.11.2-env
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 DROP="$ROOT/java/render-opt/dropin"
 echo "$MODE" > "$DROP/qsin_mode.txt"   # sidecar is the only mode source
 

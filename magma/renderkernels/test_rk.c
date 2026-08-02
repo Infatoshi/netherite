@@ -16,8 +16,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define RO "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/"
-#define TD "/home/infatoshi/dev/minecraft/mc-1.11.2-env/magma/renderkernels/testdata/"
+#define RO "../../java/render-opt/kernels/"
+#define TD "testdata/"
 
 static float  f_of_i(int32_t b) { float f; memcpy(&f, &b, 4); return f; }
 static int32_t b_of_f(float f)  { int32_t b; memcpy(&b, &f, 4); return b; }

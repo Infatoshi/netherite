@@ -2,7 +2,7 @@
 # Per-mode launch + capture for the biome 3x3 blend drop-in. Isolates biome (sin+lightmap
 # forced off). Usage: capture_biome.sh <off|native|sabotage>
 set -u
-MODE="$1"; ROOT=/home/infatoshi/dev/minecraft/mc-1.11.2-env
+MODE="$1"; ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 DROP="$ROOT/java/render-opt/dropin/biome"
 echo "$MODE" > "$DROP/qbiome_mode.txt"
 echo "off"   > "$ROOT/java/render-opt/dropin/qsin_mode.txt"

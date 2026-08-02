@@ -3,7 +3,7 @@
 # grass scene. native == vanilla (all three bit-exact) is the multi-kernel composition
 # proof. Usage: capture_composed.sh <off|native>
 set -u
-MODE="$1"; ROOT=/home/infatoshi/dev/minecraft/mc-1.11.2-env
+MODE="$1"; ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 OUT="$ROOT/java/render-opt/dropin/composed"
 echo "$MODE" > "$ROOT/java/render-opt/dropin/qsin_mode.txt"
 echo "$MODE" > "$ROOT/java/render-opt/dropin/lightmap/qlm_mode.txt"

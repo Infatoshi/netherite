@@ -9,7 +9,7 @@
 # Other drop-ins (sin/lightmap/biome) forced off so this isolates AO.
 # Usage: capture_ao.sh <vanilla|native|sabotage>
 set -u
-MODE="$1"; ROOT=/home/infatoshi/dev/minecraft/mc-1.11.2-env
+MODE="$1"; ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 DROP="$ROOT/java/render-opt/dropin/ao"
 echo "$MODE" > "$DROP/qao_mode.txt"
 echo "off"   > "$ROOT/java/render-opt/dropin/qsin_mode.txt"

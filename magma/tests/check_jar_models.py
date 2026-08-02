@@ -23,8 +23,6 @@ JAR_CANDIDATES = [
     Path.home() / ".gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar",
     Path.home() / ".gradle/caches/minecraft/net/minecraft/minecraft_merged/1.11.2/minecraft_merged-1.11.2.jar",
     _HERE.parents[2] / "java/Minecraft/run/gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar",
-    Path("/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/Minecraft/run/gradle/caches/"
-         "minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar"),
 ]
 
 # name -> expectations derived once from jar; re-checked every run against jar.

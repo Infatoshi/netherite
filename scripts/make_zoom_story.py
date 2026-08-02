@@ -29,8 +29,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "c", "magma", "rl"))
 from make_videos import COLORS                          # noqa: E402
 
-OBS = "/home/infatoshi/dev/nw/.tmp/batchobs"
-HERO_DIR = "/home/infatoshi/dev/nw/.tmp/zoom_hero"
+OBS = os.path.expanduser("~/dev/nw/.tmp/batchobs")
+HERO_DIR = os.path.expanduser("~/dev/nw/.tmp/zoom_hero")
 W, H, FPS = 1920, 960, 30
 A_END, B_END, H_END, D_END, TOTAL = 60, 150, 170, 500, 530
 

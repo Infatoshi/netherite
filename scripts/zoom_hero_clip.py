@@ -17,7 +17,7 @@ import subprocess
 MAGMA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                      "c", "magma")
 OUT = os.path.join(MAGMA, "rl", "out")
-HERO_DIR = "/home/infatoshi/dev/nw/.tmp/zoom_hero"
+HERO_DIR = os.path.expanduser("~/dev/nw/.tmp/zoom_hero")
 SEED = 10
 HW, HH = 1152, 1152
 WINDOW = 540

@@ -1,10 +1,11 @@
+from pathlib import Path
 # Stripped-instance verification scene: auto-launched world (no menu), fixed platform,
 # then a FIXED quantized action course (move/turn/jump/attack) whose deterministic
 # physics put the camera at the same final pose in every launch. No trailing tp: the
 # actions themselves are the framing, proving action->pixels determinism end to end.
 import sys, time
 
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 
 # the client may still be booting; retry the bridge connection for up to ~5 min

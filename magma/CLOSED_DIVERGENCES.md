@@ -198,7 +198,7 @@ distance.
 **Addendum (2026-07-27, wt/fogcurve): t(d) probe — hypothesis A survives,
 B refuted.** Repro:
 `cd verify/trace && uv run --no-project --with numpy,scipy,pillow
-python fogcurve_probe.py --scene all --out /home/infatoshi/dev/nw/.tmp/fogcurve`
+python fogcurve_probe.py --scene all --out ~/dev/nw/.tmp/fogcurve`
 (uses existing slime_bounce fog/nofog magma frames under `.tmp/hfog_{out,nofog}`
 if present; seed7 re-rendered via `game_candidate --seed 7 --fov 77` with
 `--depth` dump).

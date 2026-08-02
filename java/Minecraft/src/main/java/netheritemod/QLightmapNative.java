@@ -19,7 +19,7 @@ public final class QLightmapNative {
     public static volatile int MODE;  // volatile: runtime-switchable via the NetheriteMod "kmode" op
     private static boolean libLoaded = false;
     private static final String DIR =
-        "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/lightmap";
+        "../../render-opt/dropin/lightmap";
 
     static {
         // Sidecar file is the ONLY source (freshly written per launch by capture_lm.sh).

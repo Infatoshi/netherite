@@ -1,3 +1,4 @@
+from pathlib import Path
 # Nether checkpoint scene: cross-dim teleport (NetheriteMod "dim" op), then the proven
 # lava-kick + built-platform recipe to get past GuiDownloadTerrain into a real nether
 # render. Nether = 100% blocklight, so this exercises the no-skylight lightmap branch
@@ -8,7 +9,7 @@
 # Teleporter builds at arrival is animated and stays far out of frame).
 import sys, time
 
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 
 e = None

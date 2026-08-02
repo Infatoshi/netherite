@@ -2,7 +2,7 @@
 # Full stripped-instance verification: off (Java oracle) vs native (C kernels), same
 # fixed action course, then whole-frame pixel diff + behavioral assertions.
 set -u
-HERE=/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/wholeframe/stripcheck
+HERE="$(cd "$(dirname "$0")" && pwd)"
 for m in off native; do
   echo "===== capture $m ====="
   bash "$HERE/capture_stripped.sh" "$m" || exit 1

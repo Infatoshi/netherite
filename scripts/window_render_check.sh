@@ -20,8 +20,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-export UV_CACHE_DIR="${UV_CACHE_DIR:-/home/infatoshi/.cache/uv}"
-export TMPDIR="${TMPDIR:-/home/infatoshi/dev/nw/.tmp}"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$HOME/.cache/uv}"
+export TMPDIR="${TMPDIR:-$HOME/dev/nw/.tmp}"
 mkdir -p "$TMPDIR" "$UV_CACHE_DIR"
 
 SKIP_BUILD="${SKIP_BUILD:-0}"

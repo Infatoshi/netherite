@@ -1,9 +1,10 @@
+from pathlib import Path
 # Pixel-diff the biome-blend drop-in frames vs the vanilla (off) baseline, over the
 # auto-detected rendered-window bbox. native-vs-off should be ~noise (kernel 18 is
 # bit-exact); sabotage-vs-off should be large (grass forced magenta).
 import numpy as np
 from PIL import Image
-D = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/biome/"
+D = str(Path(__file__).resolve().parent) + "/"
 def load(n): return np.asarray(Image.open(D + n).convert("RGB")).astype(np.int16)
 off = load("frame_off.png")
 mask = off.max(axis=2) > 8

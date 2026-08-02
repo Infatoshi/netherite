@@ -1,3 +1,4 @@
+from pathlib import Path
 # Pixel-diff the course-scene frames against the vanilla (off) baseline, for a given
 # time-of-day. Metrics computed over the auto-detected rendered-window bbox (the game
 # window is centered in a mostly-black 1280x720 desktop, which would otherwise dilute %).
@@ -6,7 +7,7 @@ import numpy as np
 from PIL import Image
 
 T = sys.argv[1] if len(sys.argv) > 1 else "6000"
-D = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/lightmap/course/"
+D = str(Path(__file__).resolve().parent / "course") + "/"
 
 def load(mode):
     return np.asarray(Image.open(f"{D}frame_{mode}_t{T}.png").convert("RGB")).astype(np.int16)

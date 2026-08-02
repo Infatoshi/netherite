@@ -114,8 +114,8 @@ Two things that make a pixel measurement lie, both paid for already:
   a uv cache or build tree there can fill it, kill its own run, and break every
   other shell on the box (a codex run wrote 15 GB of CUDA wheels to
   `/tmp/<name>-uv-cache` and died on "Disk quota exceeded"). When launching
-  delegates, pin `UV_CACHE_DIR=/home/infatoshi/.cache/uv` and
-  `TMPDIR=/home/infatoshi/dev/nw/.tmp` in their environment and say so in the
+  delegates, pin `UV_CACHE_DIR=$HOME/.cache/uv` and
+  `TMPDIR=$HOME/dev/nw/.tmp` in their environment and say so in the
   prompt.
 - **A retired tape used to measure as a silent PASS over zero frames.**
   The recorder bakes an ABSOLUTE golden path into every tick row, so moving

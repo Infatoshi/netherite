@@ -7,7 +7,7 @@ window invariants (particles, death HUD, walk/jump/stream, daylight, hand,
 superflat, resolution).
 
 Cache layout (recon section 4.2):
-  /home/infatoshi/dev/nw/.tmp/window_battery_<UTCdate>/
+  ~/dev/nw/.tmp/window_battery_<UTCdate>/
     meta.json
     scenarios/<name>/<variant>/frame_*.ppm + run.log
     results/summary.jsonl
@@ -55,7 +55,7 @@ from PIL import Image
 
 DEFAULT_WIDTH = 854
 DEFAULT_HEIGHT = 480
-DEFAULT_TMP_ROOT = Path("/home/infatoshi/dev/nw/.tmp")
+DEFAULT_TMP_ROOT = Path(os.path.expanduser("~/dev/nw/.tmp"))
 MAX_CPU_WORKERS = 8
 
 # Cross-backend gate (recon rank 4/5/15 + section 3.2):

@@ -12,14 +12,14 @@
 #     build fails outright.
 # Both are linked in here, so the worktree behaves like the main tree.
 #
-#   bash scripts/agent_worktree.sh leafcut          # -> /home/infatoshi/dev/nw/leafcut
+#   bash scripts/agent_worktree.sh leafcut          # -> $HOME/dev/nw/leafcut
 #   bash scripts/agent_worktree.sh leafcut HEAD~3
 set -euo pipefail
 
 NAME=${1:?usage: agent_worktree.sh NAME [BASE]}
 BASE=${2:-HEAD}
 ROOT=$(git rev-parse --show-toplevel)
-WT=/home/infatoshi/dev/nw/$NAME
+WT="$HOME/dev/nw/$NAME"
 
 [ -e "$WT" ] && { echo "exists: $WT" >&2; exit 1; }
 git -C "$ROOT" worktree add -b "wt/$NAME" "$WT" "$BASE" >/dev/null

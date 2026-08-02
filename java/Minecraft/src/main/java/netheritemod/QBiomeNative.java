@@ -18,7 +18,7 @@ public final class QBiomeNative {
     public static volatile int MODE;  // volatile: runtime-switchable via the NetheriteMod "kmode" op
     private static boolean libLoaded = false;
     private static final String DIR =
-        "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/biome";
+        "../../render-opt/dropin/biome";
 
     static {
         String m = null;

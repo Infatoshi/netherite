@@ -1,3 +1,4 @@
+from pathlib import Path
 # Pixel-diff the three qlm_mode frames against the vanilla (off) baseline.
 # native-vs-off should be SMALL (native lightmap is bit-identical to vanilla per kernel 11;
 # residual is cross-launch torchFlickerX/animation noise). sabotage-vs-off should be LARGE
@@ -5,7 +6,7 @@
 import numpy as np
 from PIL import Image
 
-D = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/lightmap/"
+D = str(Path(__file__).resolve().parent) + "/"
 def load(n):
     return np.asarray(Image.open(D + n).convert("RGB")).astype(np.int16)
 

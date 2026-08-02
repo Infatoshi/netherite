@@ -1,6 +1,7 @@
+from pathlib import Path
 import numpy as np
 from PIL import Image
-D="/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/composed/"
+D=str(Path(__file__).resolve().parent) + "/"
 def load(n): return np.asarray(Image.open(D+n).convert("RGB")).astype(np.int16)
 off=load("frame_off.png"); a=load("frame_native.png")
 mask=off.max(axis=2)>8; ys,xs=np.where(mask); y0,y1,x0,x1=ys.min(),ys.max()+1,xs.min(),xs.max()+1

@@ -10,7 +10,7 @@
 #
 # What this does:
 #   - Points ccache at the shared content-addressed cache:
-#       /home/infatoshi/dev/nw/.ccache
+#       $HOME/dev/nw/.ccache
 #   - Exports CC="ccache <underlying-cc>" so every recipe that already uses
 #     $(CC) goes through the cache. magma/Makefile already honors $(CC)
 #     (see `CC ?= gcc` and every link/compile recipe); no Makefile change
@@ -24,7 +24,7 @@
 #     few TUs that pass absolute worktree paths is weaker; same-worktree
 #     rebuilds still hit. Opt in to rewriting only if you accept a different
 #     binary hash:
-#       export CCACHE_BASEDIR=/home/infatoshi/dev/nw   # or this worktree root
+#       export CCACHE_BASEDIR=$HOME/dev/nw   # or this worktree root
 #       source scripts/ccache_env.sh
 #   - Sets CCACHE_NOHASHDIR=1 so the current working directory is not part of
 #     the cache key (helps when the same sources are built from the same
@@ -38,7 +38,7 @@
 #   - Do NOT copy a shared candidate binary between agents; each worktree
 #     keeps its own magma/magma_game.
 #
-# Stats: `CCACHE_DIR=/home/infatoshi/dev/nw/.ccache ccache -s`
+# Stats: `CCACHE_DIR=$HOME/dev/nw/.ccache ccache -s`
 #
 # Not sourced by the frozen scripts/delegate_gate.sh; opt-in only.
 
@@ -46,7 +46,7 @@
 _CCACHE_ENV_SRC="${BASH_SOURCE[0]:-$0}"
 _CCACHE_ENV_ROOT="$(cd "$(dirname "$_CCACHE_ENV_SRC")/.." && pwd)"
 
-export CCACHE_DIR="${CCACHE_DIR:-/home/infatoshi/dev/nw/.ccache}"
+export CCACHE_DIR="${CCACHE_DIR:-$HOME/dev/nw/.ccache}"
 # Default empty: see header. Honour a caller-provided CCACHE_BASEDIR.
 if [ -z "${CCACHE_BASEDIR+x}" ]; then
     # Unset means "not provided": leave empty (no rewrite).

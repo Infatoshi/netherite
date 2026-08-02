@@ -6,7 +6,7 @@
 set -u
 MODE="${1:?usage: capture_stripped.sh <off|native> [scene]}"
 SCENE="${2:-actions}"
-ROOT=/home/infatoshi/dev/minecraft/mc-1.11.2-env
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 HERE="$ROOT/java/render-opt/wholeframe/stripcheck"
 DROP="$ROOT/java/render-opt/dropin"
 

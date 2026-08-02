@@ -16,7 +16,7 @@ import java.nio.file.Paths;
 public final class QSinNative {
     public static volatile int MODE;  // volatile: runtime-switchable via the NetheriteMod "kmode" op
     private static boolean libLoaded = false;
-    private static final String DIR = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin";
+    private static final String DIR = "../../render-opt/dropin";
 
     static {
         String m = null;

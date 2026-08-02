@@ -22,7 +22,7 @@ public final class QAOHook {
     public static volatile int MODE;  // volatile: runtime-switchable via the NetheriteMod "kmode" op
     private static boolean libLoaded = false;
     private static final String DIR =
-        "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/ao";
+        "../../render-opt/dropin/ao";
 
     static {
         String m = null;

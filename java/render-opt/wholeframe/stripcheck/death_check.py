@@ -1,9 +1,10 @@
+from pathlib import Path
 # Post-capture behavioral check: death is an OBSERVATION, not a screen.
 # kill @p -> obs must report deaths incremented and the player alive again
 # (auto-respawn), and no GuiGameOver may have opened (strip.menus blocks it).
 import sys, time
 
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 
 e = None

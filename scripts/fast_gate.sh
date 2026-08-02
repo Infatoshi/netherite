@@ -23,7 +23,7 @@ set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERIFY="$ROOT/verify"
 PINS="$ROOT/scripts/regression_pins.txt"
-export UV_CACHE_DIR=/home/infatoshi/.cache/uv TMPDIR=/home/infatoshi/dev/nw/.tmp
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$HOME/.cache/uv}" TMPDIR="${TMPDIR:-$HOME/dev/nw/.tmp}"
 mkdir -p "$TMPDIR"
 [ $# -ge 1 ] || { echo "usage: fast_gate.sh TAPE_NAME..."; exit 2; }
 

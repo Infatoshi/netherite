@@ -1,9 +1,10 @@
+from pathlib import Path
 # Robust scene: long socket timeout + per-command try/except so a sabotage-induced
 # stall on one command does not abort the whole setup. Runs the FULL recipe (do +
 # fluid + ticks) -- that recipe is what clears the GuiDownloadTerrain screen so the
 # client actually renders the world -- then settles. Mirrors scene_setup.py.
 import sys
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from qrl_client import NetheriteEnv
 e = NetheriteEnv(); e.s.settimeout(120)
 print("reset ok:", e.reset({"seed": 0, "mode": "creative"}).get("ok"))

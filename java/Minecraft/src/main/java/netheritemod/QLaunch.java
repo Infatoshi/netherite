@@ -27,8 +27,7 @@ public final class QLaunch {
         boolean textureAnimations = false;
         // Frozen legacy filename: qrl_launch.json is the config sidecar name
         // (replay tooling + demo metadata reference it; do not rename).
-        String[] paths = { "qrl_launch.json",
-            "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/Minecraft/run/qrl_launch.json" };
+        String[] paths = { "qrl_launch.json" };
         for (String p : paths) {
             if (p == null || p.isEmpty()) continue;
             try {

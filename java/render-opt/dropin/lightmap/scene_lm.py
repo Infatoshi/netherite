@@ -1,10 +1,11 @@
+from pathlib import Path
 # Deterministic low-animation scene for the lightmap heavy-buffer drop-in.
 # The lightmap is a GLOBAL lighting table, so any view shows its effect. To keep the
 # native-vs-off noise floor low we look at STATIC terrain (not flowing water, not
 # cloud-animated sky): fluid() only pushes the client past GuiDownloadTerrain, then we
 # pitch DOWN at the ground and settle a fixed tick count. Fixed noon, no day/weather cycle.
 import sys
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 e = NetheriteEnv(); e.s.settimeout(120)
 def safe(fn, *a):

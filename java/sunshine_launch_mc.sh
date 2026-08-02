@@ -4,7 +4,9 @@
 # dies within seconds ("Could not create service ... GradleUserHomeScopeServices").
 # Logs to /tmp/mc_stream_launch.log so a silent sunshine exit is diagnosable.
 set -u
-export HOME="${HOME:-/home/infatoshi}"
+# Sunshine may strip HOME; recover from passwd if unset.
+: "${HOME:=$(getent passwd "$(id -un)" | cut -d: -f6)}"
+export HOME
 export PATH="/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin"
 export DISPLAY="${DISPLAY:-:0}"
 export XAUTHORITY="${XAUTHORITY:-/run/user/1002/gdm/Xauthority}"
@@ -43,12 +45,13 @@ fi
 # saves whose level.dat still carries old harness gamerules). The agent stack
 # writes fast.yaml over these via mc_cli.py when it launches - last writer
 # wins, and only one instance runs at a time by design.
-cd "$HOME/dev/minecraft/mc-1.11.2-env/java"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/java"
 uv run --no-project --with pyyaml python mc_cli.py --config vanilla.yaml --no-launch \
   >> /tmp/mc_stream_launch.log 2>&1 \
   || echo "WARN: vanilla.yaml config write failed; launching with on-disk config" \
        >> /tmp/mc_stream_launch.log
 
-cd "$HOME/dev/minecraft/mc-1.11.2-env/java/Minecraft"
+cd "$ROOT/java/Minecraft"
 exec ./gradlew -g run/gradle --offline -x getAssets runClient \
   >> /tmp/mc_stream_launch.log 2>&1

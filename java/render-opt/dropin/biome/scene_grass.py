@@ -1,10 +1,11 @@
+from pathlib import Path
 # Controlled grass scene for the biome grass-blend drop-in (kernel 18). The default
 # spawn is forest (foliage, not grass), and pitch-90 over flood-water shows no grass, so
 # we build a dedicated lit grass platform and look down at it: native == vanilla grass,
 # sabotage = magenta grass (unmistakable). Setup via runcmds (one tick) dodges the
 # per-/command bridge timeouts.
 import sys, time
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 e = NetheriteEnv(); e.s.settimeout(150)
 def safe(fn, *a):

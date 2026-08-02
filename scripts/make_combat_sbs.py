@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
-ROOT = Path("/home/infatoshi/dev/netherite")
+ROOT = Path(__file__).resolve().parents[1]
 TAPES = ROOT / "verify/tapes"
 OUT_TRACE = ROOT / "verify/trace/out"
 ARGV = sys.argv[1:]

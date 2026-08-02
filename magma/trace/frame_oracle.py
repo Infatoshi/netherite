@@ -51,7 +51,7 @@ import sys
 
 MAGMA = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 BLAZE_CORE = os.path.join(MAGMA, "..", "blaze", "core")
-DIFF = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/wholeframe/diff_frame.py"
+DIFF = os.path.abspath(os.path.join(MAGMA, "..", "java", "render-opt", "wholeframe", "diff_frame.py"))
 TRACE_GAME = os.path.join(MAGMA, "trace_game")
 GAME_CANDIDATE = "/tmp/game_candidate_oracle"
 CAPTURE_SH = os.path.join(MAGMA, "../verify/mc_capture/capture_at_poses.sh")

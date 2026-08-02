@@ -13,8 +13,9 @@
 # relevant log tail and exits non-zero rather than looping forever.
 set -u
 
-ENVDIR=/home/infatoshi/dev/minecraft/mc-1.11.2-env/java
-OUTDIR=/home/infatoshi/dev/minecraft/mc-1.11.2-env/verify/mc_capture
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ENVDIR="$ROOT/java"
+OUTDIR="$ROOT/verify/mc_capture"
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
 export DISPLAY=:1

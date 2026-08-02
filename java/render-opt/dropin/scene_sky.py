@@ -1,9 +1,10 @@
+from pathlib import Path
 # Sky-dominated low-noise scene. fluid() reliably pushes the client past the
 # terrain-download screen into a real render; /kill removes wandering-entity noise;
 # pitching up ~60deg makes the sin/cos-driven sky+sun dominate the frame so the
 # sabotage (sin=0) effect is not diluted by static terrain.
 import sys
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from qrl_client import NetheriteEnv
 e = NetheriteEnv(); e.s.settimeout(120)
 def safe(fn, *a):

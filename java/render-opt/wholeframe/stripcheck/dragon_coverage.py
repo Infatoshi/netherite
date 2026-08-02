@@ -1,3 +1,4 @@
+from pathlib import Path
 # Dragon-fight coverage probe (runs in-session after the End frame capture):
 # fly the camera to the main island with the ender dragon + crystals in view, let the
 # coverage hook sample the live render for a few hundred ticks, then assert that the
@@ -7,10 +8,10 @@
 # per-kernel bitwise verification (already PASS) + this fired-kernels coverage check.
 import sys, time
 
-sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from qrl_client import NetheriteEnv
 
-COVLOG = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/coverage.log"
+COVLOG = str(Path(__file__).resolve().parents[3] / "render-opt/coverage.log")
 
 e = None
 for _ in range(12):
