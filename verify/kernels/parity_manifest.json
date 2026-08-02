@@ -10,8 +10,8 @@
       "metal": "ed268c8043142c55"
     },
     "cr_raster_tiled_kernel": {
-      "cuda": "295cc419216394c4",
-      "metal": "da391131aa0160ae"
+      "cuda": "262f81876f8679da",
+      "metal": "0abadb653ee465ed"
     },
     "cr_raster_tri_kernel": {
       "cuda": "b563406347344512",

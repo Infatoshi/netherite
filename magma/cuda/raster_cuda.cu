@@ -389,9 +389,9 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
         int base, batch_n;
         if (nxblocks > 0) {
             int xb = batch >> 1;
-            int half = batch & 1;
-            base = xb * (2 * CR_TILE_N) + half * CR_TILE_N;
-            batch_n = xform_counts[xb] - half * CR_TILE_N;
+            int bhalf = batch & 1;
+            base = xb * (2 * CR_TILE_N) + bhalf * CR_TILE_N;
+            batch_n = xform_counts[xb] - bhalf * CR_TILE_N;
             if (batch_n < 0) batch_n = 0;
             if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
         } else {
