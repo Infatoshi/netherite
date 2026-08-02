@@ -6,11 +6,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.util.math.MathHelper;
-import qrl.QSinNative;
+import netheritemod.QSinNative;
 
 /**
  * Routes MathHelper.sin(float) through a native C kernel (or sabotages it) based on
- * the qsin_mode.txt sidecar, read once via qrl.QSinNative.MODE. HEAD inject + cancellable so MODE=0
+ * the qsin_mode.txt sidecar, read once via netheritemod.QSinNative.MODE. HEAD inject + cancellable so MODE=0
  * leaves the original Java table lookup untouched (one build, three modes).
  */
 @Mixin(MathHelper.class)

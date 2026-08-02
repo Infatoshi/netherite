@@ -29,7 +29,7 @@
  * The per-block DRIVER (this loop's own logic) IS portable; the kernels it composes
  * (21 occlusion, 22-24 quads, 25 visgraph, 28 vertex-pack) are verified in isolation.
  * But composing them to reproduce golden.txt requires a model+atlas+light capture that
- * inputs.txt does not contain. To actually port this kernel, the qrl hook must capture,
+ * inputs.txt does not contain. To actually port this kernel, the NetheriteMod hook must capture,
  * per rendered block: its baked quads, the atlas sprite UV rects, and the BLOCK/SKY light
  * at each vertex. With only stateIDs, the divergence from golden.txt is total.
  *
@@ -44,7 +44,7 @@ int main(void) {
     fprintf(stderr,
         "26_chunk_rebuild_loop: BLOCKED. inputs.txt has only 18^3 stateIDs; "
         "golden.txt embeds per-vertex skylight + atlas UVs + baked-model geometry "
-        "that are not captured. Needs an extended qrl capture (models/atlas/light) "
+        "that are not captured. Needs an extended NetheriteMod capture (models/atlas/light) "
         "before a C port can bitwise-match.\n");
     return 0;
 }

@@ -1,7 +1,7 @@
 """Record a minecraftbench trajectory tape through the real game (oracle side).
 
 Reads the PUBLIC tape format (minecraftbench.com benchmarks/rewrite/agent/SPEC.md), replays
-it tick-by-tick through the qrl bridge, and writes the same keyframe artifacts the candidate
+it tick-by-tick through the NetheriteMod bridge, and writes the same keyframe artifacts the candidate
 must produce: state_<t>.json, world_<t>.mcbd (raw body here; header wrapped by the caller or
 --mcbd), frame_<t>.png. Only DERIVED data (dumps, frames, state) ever leaves this repo.
 

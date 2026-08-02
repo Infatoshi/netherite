@@ -5,8 +5,8 @@
 
 Reads a profile yaml (single source of truth for one instance), then:
   1. patches Minecraft/run/options.txt with the [video]/[ui] settings,
-  2. writes Minecraft/run/qrl_launch.json ([world]/[ui]/[port]/[genprobe], read by the
-     qrl mod: main menu is skipped, world auto-launches, chat hidden, gamerules applied),
+  2. writes Minecraft/run/qrl_launch.json ([world]/[ui]/[port]/[genprobe], read by
+     NetheriteMod (mod id qrl): main menu is skipped, world auto-launches, chat hidden, gamerules applied),
   3. launches runClient (headless on DISPLAY, or --vnc for the Xvfb+x11vnc stack).
 
 No invented env vars: everything the mod reads arrives through qrl_launch.json or a
@@ -20,7 +20,7 @@ Options:
                      it automatically; full vanilla rules, sound, menus).
   --set K=V          dotted override, repeatable (e.g. --set world.seed=42)
   --instances N      batch: N clients, port/display auto-incremented per instance.
-                     NOTE: each instance needs a distinct world folder; the qrl mod
+                     NOTE: each instance needs a distinct world folder; NetheriteMod
                      names folders qrl_<seed>[_flat], so give each instance its own
                      seed (--set world.seed=...) or launches 2..N will fail the
                      world lock. Gradle builds are serialized before spawning.
@@ -170,7 +170,7 @@ def write_launch_json(cfg, port, dry, profile):
         "determinism": {k: bool(v) for k, v in cfg.get("determinism", {}).items()},
         "world": cfg.get("world", {}),
     }
-    # worldgen RNG-cursor probe (qrl.WorldGenProbe): absent key = probe off. The
+    # worldgen RNG-cursor probe (netheritemod.WorldGenProbe): absent key = probe off. The
     # run/qrl_genprobe.txt sidecar remains the no-config-edit way to turn it on.
     if cfg.get("genprobe"):
         j["genprobe"] = str(cfg["genprobe"])
@@ -211,7 +211,7 @@ def launch(cfg, args, port, display, idx):
         cmd = ["./gradlew", "runClient"] + props
         cwd = os.path.join(ROOT, "Minecraft")
     if args.dry_run:
-        print(f"-- would run (instance {idx}): qrl port {port} DISPLAY={display} "
+        print(f"-- would run (instance {idx}): NetheriteMod port {port} DISPLAY={display} "
               f"{shlex.join(cmd)}")
         return None
     # --vnc: start_vnc_client.sh writes runclient.log itself; keep our wrapper log separate
@@ -220,7 +220,7 @@ def launch(cfg, args, port, display, idx):
     lf = open(log, "ab")
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=lf, stderr=lf,
                          start_new_session=True)
-    print(f"instance {idx}: pid {p.pid}, qrl port {port}, display {display}, log {log}")
+    print(f"instance {idx}: pid {p.pid}, NetheriteMod port {port}, display {display}, log {log}")
     return p
 
 

@@ -1,4 +1,4 @@
-# Nether checkpoint scene: cross-dim teleport (qrl "dim" op), then the proven
+# Nether checkpoint scene: cross-dim teleport (NetheriteMod "dim" op), then the proven
 # lava-kick + built-platform recipe to get past GuiDownloadTerrain into a real nether
 # render. Nether = 100% blocklight, so this exercises the no-skylight lightmap branch
 # (kernel 11), nether light queries (14-16), and nether-block meshing (21-24) live.
@@ -18,7 +18,7 @@ for _ in range(60):
     except OSError:
         time.sleep(5)
 if e is None:
-    print("FATAL: qrl bridge never came up"); sys.exit(1)
+    print("FATAL: NetheriteMod bridge never came up"); sys.exit(1)
 e.s.settimeout(180)
 
 def safe(fn, *a):
@@ -55,7 +55,7 @@ for _ in range(30): safe(e.step, {})
 time.sleep(2)
 
 # (no fluid render-kick: it was a workaround for the GuiDownloadTerrain hang, whose
-# root cause - the Teleporter portal-vec NPE - is fixed in the qrl dim op; worse, the
+# root cause - the Teleporter portal-vec NPE - is fixed in the NetheriteMod dim op; worse, the
 # lava spawns at the player's feet and sets them ON FIRE, and the animated first-person
 # flame overlay + damaged hearts destroy the pixel diff)
 for _ in range(20): safe(e.step, {})

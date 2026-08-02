@@ -50,7 +50,7 @@ public abstract class MixinDoublePlantProbe {
     }
 
     /**
-     * @author qrl worldgen flywheel
+     * @author NetheriteMod worldgen flywheel
      * @reason verbatim vanilla body + per-candidate predicate logging (no RNG change)
      */
     @Overwrite

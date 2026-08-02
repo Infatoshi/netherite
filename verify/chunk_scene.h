@@ -26,6 +26,7 @@
 
 #include "core/types.h"
 #include "core/frustum.h"
+#include "core/config.h"   /* cr_cfg()->no_cull */
 #include "world/mesh_mc.h"
 
 /* VIEW-DISTANCE meshing. We mesh a square Chebyshev-radius neighbourhood of chunks
@@ -126,10 +127,10 @@ static inline void chunkscene_init(ChunkScene *s, int W, int H) {
     float planes[6][4];
     cr_frustum_extract(proj.m, view.m, planes);
 
-    /* MAGMA_NO_CULL=1 meshes EVERY chunk in the radius (frustum test disabled).
+    /* no_cull=1 meshes EVERY chunk in the radius (frustum test disabled).
      * Used by the cull-correctness test: a culled render must be pixel-identical
      * to the no-cull render over the visible region (culled chunks add no pixels). */
-    const int cull_off = getenv("MAGMA_NO_CULL") != NULL;
+    const int cull_off = cr_cfg()->no_cull;
 
     int cap[4] = {0, 0, 0, 0};
     for (int cx = ccx - R; cx <= ccx + R; ++cx) {

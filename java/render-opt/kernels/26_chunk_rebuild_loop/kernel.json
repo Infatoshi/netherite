@@ -3,7 +3,7 @@
   "tier": 2,
   "capture_mode": "live-hook",
   "source": "src/net/minecraft/client/renderer/chunk/RenderChunk.java:157 rebuildChunk",
-  "describe": "GROUP B: golden captured live (qrl 'capture_chunkrebuild' on client thread - sets COMPILING + RegionRenderCacheBuilder, invokes real rebuildChunk). inputs.txt = 18^3 block-state IDs; golden.txt = per-layer (SOLID/CUTOUT/CUTOUT_MIPPED/TRANSLUCENT) vertex ints. Composition of 21-28; no C port yet.",
+  "describe": "GROUP B: golden captured live (NetheriteMod 'capture_chunkrebuild' on client thread - sets COMPILING + RegionRenderCacheBuilder, invokes real rebuildChunk). inputs.txt = 18^3 block-state IDs; golden.txt = per-layer (SOLID/CUTOUT/CUTOUT_MIPPED/TRANSLUCENT) vertex ints. Composition of 21-28; no C port yet.",
   "candidate": {
     "lang": "c",
     "file": "candidate.c"

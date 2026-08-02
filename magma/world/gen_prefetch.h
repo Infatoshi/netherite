@@ -8,7 +8,7 @@
 
 /* Start (or re-seed) the worker. radius = prefetch ring radius in chunks;
  * the slot table is (2*radius+1)^2, sized to the light pool geometry.
- * No-op if MAGMA_NO_PREFETCH is set. */
+ * No-op if the registry key no_prefetch is set. */
 void genpf_start(long long seed, int radius);
 
 /* Main thread: the player's current chunk; the worker spirals outward from

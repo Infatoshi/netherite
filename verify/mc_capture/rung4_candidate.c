@@ -25,6 +25,7 @@
 #include <math.h>
 
 #include "core/types.h"
+#include "core/config.h"   /* --set key=value -> cr_cfg_set (e.g. no_cull) */
 #include "game/sky.h"
 #include "../verify/mc_capture/pose_scene.h"
 
@@ -75,7 +76,36 @@ static void render_layer(CrFramebuffer *fb, const PoseScene *s,
 }
 
 int main(int argc, char **argv) {
-    const char *out = argc > 1 ? argv[1] : "/tmp/rung4_candidate.ppm";
+    const char *out = "/tmp/rung4_candidate.ppm";
+    for (int i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "--set") && i + 1 < argc) {
+            const char *kv = argv[++i];
+            const char *eq = strchr(kv, '=');
+            if (!eq || eq == kv) {
+                fprintf(stderr, "bad --set %s (want key=value)\n", kv);
+                return 2;
+            }
+            char key[64];
+            size_t klen = (size_t)(eq - kv);
+            if (klen >= sizeof key) {
+                fprintf(stderr, "bad --set %s: key too long\n", kv);
+                return 2;
+            }
+            memcpy(key, kv, klen);
+            key[klen] = '\0';
+            int rc = cr_cfg_set(key, eq + 1);
+            if (rc != 0) {
+                fprintf(stderr, "error: --set %s: %s\n", kv,
+                        rc == -1 ? "unknown key" : "bad value for this key");
+                return 2;
+            }
+        } else if (argv[i][0] != '-') {
+            out = argv[i];
+        } else {
+            fprintf(stderr, "unknown arg %s\n", argv[i]);
+            return 2;
+        }
+    }
     const float pi = 3.14159265358979323846f;
 
     CrCamera cam;

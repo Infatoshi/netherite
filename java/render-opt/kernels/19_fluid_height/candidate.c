@@ -1,7 +1,7 @@
 /* CANDIDATE: pure-C port of MC 1.11.2 BlockFluidRenderer.getFluidHeight()
  *   (src/net/minecraft/client/renderer/BlockFluidRenderer.java:273).
  *
- * The golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): the qrl mod
+ * The golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): NetheriteMod
  * (command "capture_fluidheight") samples loaded fluid block positions around the player,
  * reflectively invokes the real (private) getFluidHeight(blockAccess, pos, blockMaterial),
  * and records, per query, the exact per-neighbor decisions the method makes plus the

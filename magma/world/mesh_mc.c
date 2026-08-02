@@ -15,6 +15,7 @@
 #include "world/light.h"
 #include "assets/blockmodels.h"
 #include "renderkernels/rk.h"   /* facebakery kernels 31-34 (bake non-cube quads) */
+#include "core/config.h"        /* cr_cfg()->ao (MAGMA_SMOOTH stays env; deferred) */
 
 #include <assert.h>
 #include <math.h>
@@ -105,14 +106,11 @@ static int smooth_light_enabled(void) {
 /* Java ao:0 flat quads: no ambient-occlusion darkening (vertex ao == 1).
  * Legacy magma always applied 3-neighbour ao_level even with smooth off,
  * which systematically darkened canopy corners vs Fast goldens.
- * MAGMA_AO=1 re-enables vertex AO without smooth light averaging. */
+ * ao=1 re-enables vertex AO without smooth light averaging. */
 static int vertex_ao_enabled(void) {
     if (smooth_light_enabled()) return 1;
     static int cached = -1;
-    if (cached < 0) {
-        const char *s = getenv("MAGMA_AO");
-        cached = (s && atoi(s) != 0) ? 1 : 0;
-    }
+    if (cached < 0) cached = cr_cfg()->ao ? 1 : 0;
     return cached;
 }
 

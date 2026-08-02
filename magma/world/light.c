@@ -38,6 +38,7 @@
 #include <string.h>
 
 #include <assert.h>
+#include "core/config.h"   /* cr_cfg()->no_decor / no_skyspread */
 #include <stdio.h>
 
 #include "chunk_provider.h"      /* cp_provide_chunk, ChunkPrimer, CB_*, CpScratch */
@@ -329,7 +330,7 @@ static LChunk *gen_chunk(CrLight *L, int cx, int cz) {
      * chunk (base chunks {cx-1,cx}x{cz-1,cz}), cached compute-once, and writes only
      * the DECORATION cells over the base terrain (see world/populate_mc.c). Base
      * terrain stays exactly what cp_provide_chunk produced. */
-    if (L->world_type == 0 && !getenv("MAGMA_NO_DECOR"))
+    if (L->world_type == 0 && !cr_cfg()->no_decor)
         popmc_decorate_chunk(L->seed, cx, cz, c->block);
 
     /* Freeze worldgen's compact PB model keys into authoritative vanilla states
@@ -539,10 +540,7 @@ static void compute_skylight_spread(CrLight *L) {
      * pixel diff is the horizontal flood over-brightening vs the real game. */
     {
         static int off = -1;
-        if (off < 0) {
-            const char *s = getenv("MAGMA_NO_SKYSPREAD");
-            off = (s && atoi(s) != 0) ? 1 : 0;
-        }
+        if (off < 0) off = cr_cfg()->no_skyspread ? 1 : 0;
         if (off) return;
     }
     if (!g_sky_lut_ready) sky_lut_init();

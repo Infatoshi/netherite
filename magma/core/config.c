@@ -152,7 +152,7 @@ void cr_cfg_load(const char *path) {
      * '=' is normalized to whitespace, so "key = value", "key=value" and
      * "key value" are all the same line. A value therefore may not contain '='
      * or whitespace; nothing in the registry needs to. */
-    char line[512];
+    char line[64 + CR_CFG_STR_MAX + 32];
     int lineno = 0;
     while (fgets(line, sizeof line, f)) {
         lineno++;
@@ -161,7 +161,8 @@ void cr_cfg_load(const char *path) {
         for (char *q = line; *q; ++q) if (*q == '=') *q = ' ';
 
         char key[64], val[CR_CFG_STR_MAX];
-        int got = sscanf(line, "%63s %255s", key, val);
+        /* Width must match CR_CFG_STR_MAX-1 (currently 1023). */
+        int got = sscanf(line, "%63s %1023s", key, val);
         if (got <= 0) continue;                    /* blank / comment-only */
         if (got == 1) cfg_die(p, lineno, "key '%s' has no value%s", key, "");
 

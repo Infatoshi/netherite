@@ -1,7 +1,7 @@
 /* CANDIDATE: pure-C port of MC 1.11.2 AmbientOcclusionFace.updateVertexBrightness()
  *   (src/net/minecraft/client/renderer/BlockModelRenderer.java:368) + getAoBrightness/getVertexBrightness.
  *
- * Golden CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook", qrl 'capture_ao'): the hook stages
+ * Golden CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook", NetheriteMod 'capture_ao'): the hook stages
  * representative blocks (stairs for the non-cubic-weight branch, plus grass/leaves/solids), and for
  * each BakedQuad it (1) replicates the method's world reads to snapshot the ~20 light/AO scalars it
  * consumes, and (2) invokes the REAL updateVertexBrightness reflectively to get the 4 vertexBrightness

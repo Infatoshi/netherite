@@ -21,6 +21,7 @@ import net.minecraft.client.shader.Framebuffer;
 @Mixin(Framebuffer.class)
 public abstract class MixinFramebufferStatusTolerant {
     private static final boolean STATUS0_OK = Boolean.parseBoolean(System.getProperty(
+            // Frozen legacy system property name.
             "qrl.fbostatus0ok",
             String.valueOf(System.getProperty("os.name", "").toLowerCase().contains("mac"))));
 

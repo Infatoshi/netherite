@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.renderer.EntityRenderer;
 
-import qrl.QLaunch;
+import netheritemod.QLaunch;
 
 /**
  * Determinism pin (qrl_launch.json determinism.pin_flicker): torch flicker is driven by

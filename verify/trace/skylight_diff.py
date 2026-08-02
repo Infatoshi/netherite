@@ -308,12 +308,7 @@ def _dump_batch(
     sky_seen = {key: np.zeros((16, 256, 16), dtype=bool) for key in covered}
 
     env = dict(os.environ)
-    env["MAGMA_DUMP"] = (
-        f"{DUMP_RUNTIME_TICK},{x0},{x1},{y0},{y1},{z0},{z1}"
-    )
-    env["MAGMA_DUMP_LIGHT"] = (
-        f"{DUMP_RUNTIME_TICK},{x0},{x1},{y0},{y1},{z0},{z1}"
-    )
+    dump_spec = f"{DUMP_RUNTIME_TICK},{x0},{x1},{y0},{y1},{z0},{z1}"
     world = "superflat" if str(header.get("world", "")).endswith("_flat") else "default"
     cmd = [
         str(game),
@@ -338,6 +333,10 @@ def _dump_batch(
         "off",
         "--frames-out",
         str(frames),
+        "--set",
+        f"dump={dump_spec}",
+        "--set",
+        f"dump_light={dump_spec}",
     ]
     block_line = re.compile(
         rf"^\[dump t{DUMP_RUNTIME_TICK} y=(\d+)\](.*)$"

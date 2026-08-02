@@ -194,7 +194,7 @@ def run_magma_script(script_path, ticks, frames_dir, state_out, w=854, h=480,
                        seed=0, extra_env=None, timeout=600,
                        frame_every=1, frame_offset=0, mobs=True,
                        backend="cpu", daylight=True, world="default",
-                       compose="capture"):
+                       compose="capture", set_kv=None):
     """Run the magma game headlessly on a JSONL event script.
 
     backend="cuda" uses the magma_game_cuda binary (raster stage on the GPU,
@@ -206,6 +206,10 @@ def run_magma_script(script_path, ticks, frames_dir, state_out, w=854, h=480,
     make -C magma game-metal). Same plumbing as cuda; parity status lives in
     magma/VERIFY.md "Metal backend (macOS)" - UNVERIFIED until
     scripts/mac_metal_verify.sh passes on the MacBook.
+
+    set_kv: list of "key=value" strings appended as repeated --set flags
+    (config registry overrides; applied after magma.conf). Prefer this over
+    extra_env for knobs that have left getenv.
     """
     croot = magma_root()
     binary = {"cuda": "magma_game_cuda",
@@ -238,6 +242,9 @@ def run_magma_script(script_path, ticks, frames_dir, state_out, w=854, h=480,
         if frame_every > 1:
             cmd += ["--frame-every", str(frame_every),
                     "--frame-offset", str(frame_offset)]
+    if set_kv:
+        for kv in set_kv:
+            cmd += ["--set", kv]
     r = subprocess.run(cmd, cwd=croot, env=env, capture_output=True, timeout=timeout)
     if r.returncode != 0:
         sys.stderr.write(r.stdout.decode(errors="replace"))

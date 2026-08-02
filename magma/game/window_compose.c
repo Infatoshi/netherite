@@ -1,6 +1,7 @@
 #include "game/window_compose.h"
 
 #include "assets/blockmodels.h"
+#include "core/config.h"
 #include "game/caps.h"
 #include "game/entity_render.h"
 #include "game/frame_capture.h"
@@ -382,7 +383,7 @@ static void render_crack(GmWindowCompose *c, const CrCamera *cam, CrRgba fog) {
     int dx = 0, dy = 0, dz = 0;
     float damage = 0.0f;
     int have = gm_player_dig_state(&dx, &dy, &dz, &damage);
-    if (!have || damage <= 0.0f || getenv("MAGMA_NO_CRACK")) return;
+    if (!have || damage <= 0.0f || cr_cfg()->no_crack) return;
     int nv = gm_overlay_emit_crack(verts, GM_OVERLAY_MAX_VERTS,
                                    dx + r->ox, dy, dz + r->oz, damage, -1);
     if (nv <= 0) return;
@@ -467,7 +468,7 @@ static void update_boss_state(GmWindowCompose *c,
             }
         }
     }
-    gm_hud_set_boss(c->boss_latch && !getenv("MAGMA_STRIP_OVERLAYS"),
+    gm_hud_set_boss(c->boss_latch && !cr_cfg()->strip_overlays,
                     c->boss_frac);
 }
 
@@ -506,7 +507,7 @@ static void advance_fog_state(GmWindowCompose *c, int nticks) {
     gm_runtime_tick_entry_feet(r, &x, &y, &z);
     int steps = nticks;
     if (!c->fog_c1_init) {
-        const char *initial = getenv("MAGMA_FOG_C1_INIT");
+        const char *initial = cr_cfg()->fog_c1_init;
         c->fog_c1 = initial && *initial
             ? (float)atof(initial)
             : gm_uw_fog_c1_seed(r->world, r->dimension, x, y, z);
@@ -556,10 +557,7 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
     c->max_tris = caps->max_tris;
     c->max_entity_verts = caps->ent_max_verts;
     c->backend = cfg->backend;
-    {
-        const char *anim = getenv("MAGMA_ANIM_TEXTURES");
-        c->anim_textures = anim && !strcmp(anim, "1");
-    }
+    c->anim_textures = cr_cfg()->anim_textures;
     cr_fb_alloc(&c->fb, cfg->width, cfg->height);
     c->tris = malloc((size_t)c->max_tris * sizeof *c->tris);
     c->entity_verts = malloc((size_t)c->max_entity_verts *
@@ -636,8 +634,8 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
      * GPU. runs_stride is the worst case (every kept chunk contributing a run
      * per section); the backend gather takes at most GM_GATHER_MAX_ENTRIES, so
      * an over-large configured view radius simply keeps the host-concat path.
-     * MAGMA_NO_DEVMESH forces that path too (same switch frame_capture uses). */
-    if (c->backend_open && wc_dev_backend(c) && !getenv("MAGMA_NO_DEVMESH")) {
+     * no_devmesh forces that path too (same switch frame_capture uses). */
+    if (c->backend_open && wc_dev_backend(c) && !cr_cfg()->no_devmesh) {
         int stride = caps->mesh_slots * GM_MESH_SECTIONS;
         if (stride <= GM_GATHER_MAX_ENTRIES &&
             wc_slab_pool(c, caps->mesh_slots, caps->max_verts_per_chunk)) {
@@ -739,7 +737,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
     CrRgba clear = gm_frame_clear_color(day, r->dimension, fog_c1, &uw);
     cr_fb_clear(&c->fb, clear);
     int gpu_sky = c->backend != GM_BACKEND_CPU && r->dimension == 0 &&
-                  !getenv("MAGMA_CPU_SKY");
+                  !cr_cfg()->cpu_sky;
     if (!gpu_sky) {
         if (r->dimension == 0) gm_sky_draw(&c->fb, &cam, day);
         else if (r->dimension == 1) gm_end_sky_draw(&c->fb, &cam);
@@ -948,11 +946,12 @@ int gm_window_compose_draw(GmWindowCompose *c,
             render_layer(c, &cam, c->entity_verts, nv, &fire_sh);
         }
     }
-    /* MAGMA_OVERLAY_DUMP: open the selection/crack passes on the headless
-     * dump path; unset keeps the interactive-only gate. */
-    int overlay = (frame->interactive || getenv("MAGMA_OVERLAY_DUMP")) &&
+    /* overlay_dump: open the selection/crack passes on the headless dump
+     * path; empty keeps the interactive-only gate. */
+    const CrConfig *knobs = cr_cfg();
+    int overlay = (frame->interactive || knobs->overlay_dump[0]) &&
                   !frame->screen_open && !r->dead &&
-                  !getenv("MAGMA_NO_OVERLAY");
+                  !knobs->no_overlay;
     if (overlay) render_selection(c, &cam, clear);
     {
         int nv = gm_particles_live_emit_recorded(
@@ -1047,7 +1046,7 @@ int gm_window_compose_draw(GmWindowCompose *c,
         gm_hand_set_hurt(pv->hurt_time, pv->max_hurt_time, pv->hurt_yaw);
         gm_hand_set_item_override(c->equip_item, c->equip_meta,
                                   c->equip_count);
-        if (!pv->dead && !pv->riding_boat && !getenv("MAGMA_NO_HAND"))
+        if (!pv->dead && !pv->riding_boat && !cr_cfg()->no_hand)
             gm_hand_draw(&c->fb, pv, c->hand_bob);
         if (!pv->dead)
             gm_overlay_block_in_hand_live(&c->fb, &c->atlas, r->world, cpv);

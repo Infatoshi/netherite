@@ -1,7 +1,7 @@
 /* CANDIDATE: pure-C port of MC 1.11.2 Particle.onUpdate()
  *   (src/net/minecraft/client/particle/Particle.java:156 onUpdate + :309 move + :359 resetPositionToBB).
  *
- * Golden CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook", qrl 'capture_particle'):
+ * Golden CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook", NetheriteMod 'capture_particle'):
  * particles are constructed in OPEN AIR (y~200, canCollide=false) so move() takes the no-collision
  * branch -- the kernel is the pure physics integration (the world-coupled collision part is excluded
  * by construction, and is the part NOT ported here).

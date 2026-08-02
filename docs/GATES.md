@@ -29,8 +29,8 @@ frontier curriculum from the policy's OWN captured states via blaze_capture). Re
 cold-spawn transfer, sampled best-of-5: full chain on 11/13 seeds INCLUDING both
 held-out seeds (11, 33); the 2 misses (2, 16) reach cobble with a self-crafted pick and
 fail at finding coal. ~1.92B env-ticks / ~7.9 h active train. Net: rl/out/chain_net_cu.pt
-(untracked). JVM demo SHIPPED (2026-07-15): a bit-matching Java SemanticCamera in the
-qrl mod (obs_camera.h geometry) + float look / craft:N / interact bridge extensions let
+(untracked). JVM demo SHIPPED (2026-07-15): a bit-matching Java SemanticCamera in
+NetheriteMod (mod id qrl; obs_camera.h geometry) + float look / craft:N / interact bridge extensions let
 the same net drive the real JVM game scriptlessly to cobble3 (log -> planks -> sticks
 -> table -> wooden pick -> 45 cobble at y=22); best-of-6 sampled, video delivered.
 Transfer is attenuated vs magma (biome/tree ids outside the trained cam vocabulary;

@@ -4,7 +4,7 @@
 #
 # Covers the windowed path that pixel gates never exercise:
 #   LIGHTMAP-SANITY  lightmap vs legacy noon-fold + terrain not washed white
-#   MOB-LIT          MAGMA_MOB_DEMO entities draw, zombie palette, not unlit-white
+#   MOB-LIT          --set mob_demo=1 entities draw, zombie palette, not unlit-white
 #   TICK-RATE        headless --frames dumps are byte-identical across runs
 #
 # Usage:

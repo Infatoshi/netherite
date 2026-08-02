@@ -52,7 +52,7 @@ public abstract class MixinBushProbe {
     }
 
     /**
-     * @author qrl worldgen flywheel
+     * @author NetheriteMod worldgen flywheel
      * @reason verbatim vanilla body + per-candidate light logging (no RNG change)
      */
     @Overwrite

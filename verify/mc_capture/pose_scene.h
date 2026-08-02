@@ -4,7 +4,7 @@
  * Chebyshev-radius neighbourhood, mesh the kept chunks into 4 per-layer CrVertex
  * arrays, expose the stitched atlas) GENERALIZED to a CALLER-SUPPLIED CrCamera
  * instead of chunk_scene.h's single FROZEN constant pose. Everything else (radius
- * 12, full-column AABB frustum test, MAGMA_NO_CULL escape hatch, znear/zfar) is
+ * 12, full-column AABB frustum test, no_cull escape hatch, znear/zfar) is
  * identical, so at the frozen pose posescene_init produces the exact same mesh and
  * camera as chunkscene_init -> the game-verify harness reproduces rung-4's numbers
  * for pose 0 (proving the arbitrary-pose path is wired correctly).
@@ -26,6 +26,7 @@
 
 #include "core/types.h"
 #include "core/frustum.h"
+#include "core/config.h"   /* cr_cfg()->no_cull */
 #include "world/mesh_mc.h"
 #include "world/populate_mc.h"
 #include "game/caps.h"
@@ -236,7 +237,7 @@ static inline void posescene_init_seed(PoseScene *s, const CrCamera *cam, int W,
     float planes[6][4];
     cr_frustum_extract(proj.m, view.m, planes);
 
-    const int cull_off = getenv("MAGMA_NO_CULL") != NULL;
+    const int cull_off = cr_cfg()->no_cull;
 
     int cap[4] = {0, 0, 0, 0};
     for (int cx = ccx - R; cx <= ccx + R; ++cx) {

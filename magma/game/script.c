@@ -2,6 +2,7 @@
 #include "game/runtime.h"
 /* after runtime.h: entity_render.h's guarded GmEntityView redecl must see
  * game.h's full definition (MAGMA_GAME_H) or the types conflict. */
+#include "core/config.h"
 #include "game/entity_render.h"
 #include "game/frame_capture.h"
 #include "game/hand.h"
@@ -1212,12 +1213,12 @@ int gm_script_run(const GmConfig *cfg) {
             r.vitals.saturation=(float)food_stats_saturation;
             r.vitals.exhaustion=(float)food_stats_exhaustion;
         }
-        /* Flywheel probe: MAGMA_DUMP="tick,x0,x1,y0,y1,z0,z1" dumps id/meta of
+        /* Flywheel probe: dump="tick,x0,x1,y0,y1,z0,z1" dumps id/meta of
          * a world region to stderr at that tick - the way to see magma's LIVE
          * world state mid-replay (fluid CA etc.), which no state-out field has. */
         {
-            const char *dbg = getenv("MAGMA_DUMP");
-            if (dbg) {
+            const char *dbg = cr_cfg()->dump;
+            if (dbg[0]) {
                 int dt,dx0,dx1,dy0,dy1,dz0,dz1;
                 if (sscanf(dbg,"%d,%d,%d,%d,%d,%d,%d",&dt,&dx0,&dx1,&dy0,&dy1,&dz0,&dz1)==7 &&
                     (long long)dt==r.tick) {
@@ -1235,7 +1236,7 @@ int gm_script_run(const GmConfig *cfg) {
                 }
             }
         }
-        /* Flywheel probe: MAGMA_WORLDDUMP="tick,cx0,cz0,ncx,ncz,path[;...]" writes
+        /* Flywheel probe: worlddump="tick,cx0,cz0,ncx,ncz,path[;...]" writes
          * the LIVE world's canonical vanilla states for a chunk range in exactly
          * the trace/world_dump --states "CRWS" layout, so snapshot_patch.py can
          * diff the save against THE GAME'S OWN generation instead of world_dump's.
@@ -1250,14 +1251,14 @@ int gm_script_run(const GmConfig *cfg) {
          * silent all-zero tile would read as "the game generated air here" and
          * would patch a whole real chunk away. */
         {
-            const char *dbg = getenv("MAGMA_WORLDDUMP");
+            const char *dbg = cr_cfg()->worlddump;
             for (const char *spec = dbg; spec && *spec; ) {
                 int dt,cx0,cz0,ncx,ncz; char path[512];
                 const char *next = strchr(spec, ';');
                 if (sscanf(spec,"%d,%d,%d,%d,%d,%511[^;]",&dt,&cx0,&cz0,&ncx,&ncz,path)==6 &&
                     (long long)dt==r.tick && ncx>0 && ncz>0) {
                     FILE *wf=fopen(path,"wb");
-                    if (!wf) { fprintf(stderr,"MAGMA_WORLDDUMP: cannot open %s\n",path); }
+                    if (!wf) { fprintf(stderr,"worlddump: cannot open %s\n",path); }
                     else {
                         long long zero=0; int32_t hdr[4]={cx0,cz0,ncx,ncz};
                         fwrite("CRWS",1,4,wf); fwrite(&zero,8,1,wf);
@@ -1289,12 +1290,12 @@ int gm_script_run(const GmConfig *cfg) {
                 spec = next ? next + 1 : NULL;
             }
         }
-        /* Same, for light: MAGMA_DUMP_LIGHT="tick,x0,x1,y0,y1,z0,z1" dumps
+        /* Same, for light: dump_light="tick,x0,x1,y0,y1,z0,z1" dumps
          * "wx wy wz sky blk" lines (matches the qrl sample_light CSV columns)
          * so live-game light can be diffed cell-for-cell against magma's. */
         {
-            const char *dbg = getenv("MAGMA_DUMP_LIGHT");
-            if (dbg) {
+            const char *dbg = cr_cfg()->dump_light;
+            if (dbg[0]) {
                 int dt,dx0,dx1,dy0,dy1,dz0,dz1;
                 if (sscanf(dbg,"%d,%d,%d,%d,%d,%d,%d",&dt,&dx0,&dx1,&dy0,&dy1,&dz0,&dz1)==7 &&
                     (long long)dt==r.tick) {

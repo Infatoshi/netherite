@@ -85,7 +85,7 @@ static int g_first = 1;
 
 /* In-game heavy-buffer entry: 16-float table IN via GetFloatArrayRegion, 256-int
  * buffer OUT via SetIntArrayRegion. Routed from MixinEntityRendererLightmap. */
-JNIEXPORT void JNICALL Java_qrl_QLightmapNative_nlightmap(
+JNIEXPORT void JNICALL Java_netheritemod_QLightmapNative_nlightmap(
         JNIEnv *env, jclass cls,
         jfloat f, jfloat gamma, jfloat torchFlickerX,
         jint lastLightning, jint dimId,

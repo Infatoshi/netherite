@@ -1,5 +1,6 @@
 #include "game/player_preview.h"
 #include "assets/hand_atlas.h"
+#include "core/config.h"   /* preview_dump_path / preview_diag / preview_color_mode */
 
 #include <math.h>
 #include <stdlib.h>
@@ -340,7 +341,7 @@ static int diag_top_left(float ax, float ay, float bx, float by)
     return (dy > 0.0f) || (dy == 0.0f && dx < 0.0f);
 }
 
-/* Preview-local color packing experiment (env PREVIEW_COLOR_MODE). Not a
+/* Preview-local color packing experiment (registry preview_color_mode). Not a
  * terrain default; only player_preview recolor uses it. */
 static int g_preview_color_mode;
 
@@ -523,13 +524,13 @@ static void preview_recolor_modulate(CrFramebuffer *local, const CrScreenTri *tr
     }
 }
 
-/* PREVIEW_DIAG=3: CSV of interior samples for formula identification. */
+/* preview_diag=3: CSV of interior samples for formula identification. */
 static void preview_dump_fragments(const CrScreenTri *tris, int n, const CrTexture *skin,
                                    const CrRgba *color, int w, int h)
 {
     (void)skin;
-    const char *path = getenv("PREVIEW_DUMP_PATH");
-    if (!path || !path[0]) path = "/tmp/preview_frags.csv";
+    const char *path = cr_cfg()->preview_dump_path;
+    if (!path[0]) path = "/tmp/preview_frags.csv";
     FILE *f = fopen(path, "w");
     if (!f) {
         fprintf(stderr, "PREVIEW_DIAG dump open failed: %s\n", path);
@@ -694,8 +695,7 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
     }
 
     {
-        const char *pd = getenv("PREVIEW_DIAG");
-        int mode = pd ? atoi(pd) : 0;
+        int mode = cr_cfg()->preview_diag;
         /* mode 1: hard-pixel attribute; 2: +AABB; 3: fragment dump only. */
         if (mode == 1 || mode == 2)
             preview_diag_attribute(tris, n, w, h);
@@ -772,18 +772,18 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
      * sample_mode=1: pure floor nearest (GL_NEAREST). Terrain keeps the
      * high-edge -1e-4 bias via sample_mode=0.
      *
-     * Color path (PREVIEW_COLOR_MODE):
+     * Color path (preview_color_mode):
      * Default 4 = Mesa unorm8 modulate after ubyte primary:
      *   L8 = trunc(primary*255);  out = (tex*L8 + 127) / 255
      * Interior traces (>=20 faces, both poses) identify this packing once the
      * unorm8 light*material primary is correct (see standard_item_light).
      * Mode 0 keeps historical float trunc via shade for A/B; modes 2-12 are
-     * experiment recolors (PREVIEW_DIAG=3). */
+     * experiment recolors (preview_diag=3). */
     shade.sample_mode = 1;
     {
-        const char *pcm = getenv("PREVIEW_COLOR_MODE");
+        const char *pcm = cr_cfg()->preview_color_mode;
         /* Default 4: trunc L8 + (tex*L8+127)/255 — identified packing. */
-        g_preview_color_mode = pcm ? atoi(pcm) : 4;
+        g_preview_color_mode = pcm[0] ? atoi(pcm) : 4;
         if (g_preview_color_mode == 1) shade.color_trunc = 0;
     }
     cr_raster_cpu(&local, tris, n, &shade);
@@ -793,10 +793,9 @@ void gm_player_preview_draw(CrFramebuffer *fb, int x, int y, int w, int h,
         preview_recolor_modulate(&local, tris, n, &skin, g_preview_color_mode);
     }
 
-    /* PREVIEW_DIAG=3: dump interior pixel (x,y,light,tex,out) for formula fit. */
+    /* preview_diag=3: dump interior pixel (x,y,light,tex,out) for formula fit. */
     {
-        const char *pd = getenv("PREVIEW_DIAG");
-        int mode = pd ? atoi(pd) : 0;
+        int mode = cr_cfg()->preview_diag;
         if (mode >= 3)
             preview_dump_fragments(tris, n, &skin, color, w, h);
     }

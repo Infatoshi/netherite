@@ -6,7 +6,7 @@ How-tos, product gates, and history. **Agents start at root `AGENTS.md`**, not h
 
 1. Root `AGENTS.md` - commands, gotchas, where code lives
 2. `BOOTSTRAP.md` - first clone: regenerate oracle + assets from your MC install
-3. `RUNBOOK.md` - play / VNC / qrl / sweep
+3. `RUNBOOK.md` - play / VNC / NetheriteMod (mod id qrl) / sweep
 4. Only when your task needs it:
    - `GATES.md` - what "shipped" means (four product gates)
    - `magma/VERIFY.md` - how we prove fidelity against real MC

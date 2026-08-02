@@ -29,6 +29,7 @@ import net.minecraft.client.renderer.Tessellator;
 @Mixin(ModelRenderer.class)
 public abstract class MixinModelRendererNoLists {
     private static final boolean NO_LISTS = Boolean.parseBoolean(System.getProperty(
+            // Frozen legacy system property name.
             "qrl.nolists",
             String.valueOf(System.getProperty("os.name", "").toLowerCase().contains("mac"))));
 

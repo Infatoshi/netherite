@@ -1,6 +1,7 @@
 #include "game/frame_capture.h"
 
 #include "assets/blockmodels.h"
+#include "core/config.h"
 #include "game/block_registry.h"   /* vanilla state -> particle model key */
 #include "game/caps.h"
 #include "game/dragon_live.h"
@@ -606,9 +607,10 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
         cr_raster_cuda_pre(c->fb.w,c->fb.h,c->max_tris);
         /* device-resident chunk meshes: mirror world_live's slab pool on the
          * GPU; falls back to the host-concat path if alloc fails or
-         * MAGMA_NO_DEVMESH is set. */
+         * no_devmesh is set. */
+        const CrConfig *knobs=cr_cfg();
         if(cr_raster_cuda_slab_pool&&cr_raster_cuda_slab_sync&&
-           cr_raster_cuda_render_gather&&!getenv("MAGMA_NO_DEVMESH")&&
+           cr_raster_cuda_render_gather&&!knobs->no_devmesh&&
            cr_raster_cuda_slab_pool(caps->mesh_slots,caps->max_verts_per_chunk)){
             c->mesh_slots=caps->mesh_slots;c->slab_cap=caps->max_verts_per_chunk;
             c->chunks=malloc((size_t)caps->mesh_slots*sizeof *c->chunks);
@@ -616,7 +618,7 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
             c->gcnt=malloc(4*(size_t)caps->mesh_slots*sizeof *c->gcnt);
             c->dev_mesh=c->chunks&&c->gsrc&&c->gcnt;
             c->merge_layers=c->dev_mesh&&cr_raster_cuda_render_terrain&&
-                            !getenv("MAGMA_NO_LAYERMERGE");
+                            !knobs->no_layermerge;
         }
         if(cr_raster_cuda_pin){
             /* page-lock the per-frame H2D/D2H buffers (see raster_cuda.cu) */
@@ -624,9 +626,9 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
             cr_raster_cuda_pin(c->fb.color,npix*sizeof *c->fb.color);
             cr_raster_cuda_pin(c->fb.depth,npix*sizeof *c->fb.depth);
             cr_raster_cuda_pin(c->tris,(size_t)c->max_tris*sizeof *c->tris);
-            /* deferred-frame readback target (MAGMA_NO_DEFER=1 disables) */
+            /* deferred-frame readback target (no_defer=1 disables) */
             if(cr_raster_cuda_frame_end_async&&cr_raster_cuda_frame_wait&&
-               !getenv("MAGMA_NO_DEFER")){
+               !knobs->no_defer){
                 c->pend_color=malloc(npix*sizeof *c->pend_color);
                 if(c->pend_color)
                     cr_raster_cuda_pin(c->pend_color,npix*sizeof *c->pend_color);
@@ -636,10 +638,10 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
              * buffered), the deferred readback, and the uploads event.
              * Overlay (selection+crack, default ON) draws from one static
              * vert buffer - torn-upload risk - so it forces serial order
-             * unless MAGMA_NO_OVERLAY is set. */
+             * unless no_overlay is set. */
             c->pipeline=c->dev_mesh&&c->pend_color&&
                         cr_raster_cuda_uploads_mark&&cr_raster_cuda_uploads_wait&&
-                        !getenv("MAGMA_NO_PIPELINE")&&getenv("MAGMA_NO_OVERLAY");
+                        !knobs->no_pipeline&&knobs->no_overlay;
             if(c->pipeline){
                 c->pend_depth=malloc(npix*sizeof *c->pend_depth);
                 if(!c->pend_depth)c->pipeline=0;
@@ -717,8 +719,8 @@ static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
     *equip = 1.0f - c->equip_progress;
 }
 
-/* MAGMA_HIDE_GUI means "the recorder did not draw the overlay pass", and the
- * name is a historical misnomer worth knowing about before you reason from it.
+/* hide_gui means "the recorder did not draw the overlay pass", and the name
+ * is a historical misnomer worth knowing about before you reason from it.
  * The goldens of 20260712T055346Z have no hearts, hotbar or crosshair on any of
  * their 157 frames, against all 181 of 20260721T215812Z which do, and that was
  * first read as Malmo's ClientStateMachine forcing gameSettings.hideGUI. It is
@@ -745,8 +747,7 @@ static void advance_hand_state(GmFrameCapture *c, const GmRuntime *r,
  * pixels frame after frame, which is what let a 60 degree yaw sweep prove the
  * corner object was a viewmodel and not terrain. */
 static int hud_hidden(void) {
-    const char *s = getenv("MAGMA_HIDE_GUI");
-    return s && *s && *s != '0';
+    return cr_cfg()->hide_gui;
 }
 
 /* Suppressing the hand is a WORKAROUND for a magma bug, and the only honest
@@ -755,8 +756,8 @@ static int hud_hidden(void) {
  * handed. magma has that path and puts it on the right pixels; it draws it far
  * too bright, so no hand currently scores better than our hand. That is the
  * whole justification, and it disappears when the arm's shading is fixed.
- * MAGMA_HAND_FROM_TICK is therefore NOT "the tick the oracle's hand comes
- * back" - the oracle has one throughout. It is the first golden at which OUR
+ * hand_from_tick is therefore NOT "the tick the oracle's hand comes back" -
+ * the oracle has one throughout. It is the first golden at which OUR
  * viewmodel is known to be right. Forcing it on for the whole tape moves 110
  * of 157 frames the wrong way on the gate-independent whole mean/ch and only
  * 10 the right way. The over-brightness is measured on rain-free frames where
@@ -767,14 +768,14 @@ static int hud_hidden(void) {
  * t=2320 wooden shovel slot 6) are why 2440 in particular: it is the first
  * golden after magma's inventory is re-anchored, so it is the first frame
  * where a HELD item, not just the arm, is known right. An explicit
- * MAGMA_HAND_FROM_TICK in the environment overrides the sidecar so the arm can
- * be investigated without editing demo/, which is shared across worktrees. */
+ * --set hand_from_tick=N overrides the sidecar so the arm can be investigated
+ * without editing demo/, which is shared across worktrees. Default -1 = unset
+ * (always hide while hide_gui). */
 static int hand_hidden(long long tick) {
-    const char *s;
     if (!hud_hidden()) return 0;
-    s = getenv("MAGMA_HAND_FROM_TICK");
-    if (!s || !*s) return 1;
-    return tick < atoll(s);
+    long long from = cr_cfg()->hand_from_tick;
+    if (from < 0) return 1;
+    return tick < from;
 }
 
 /* Retire the deferred frame: wait for its readback, then draw hand/hud and
@@ -796,11 +797,11 @@ static int finish_pending(GmFrameCapture *c) {
                      c->pend_v.hurt_yaw);
     gm_hand_set_item_override(c->pend_item, c->pend_meta, c->pend_count);
     if (!c->pend_v.dead && !c->pend_v.riding_boat &&
-        !getenv("MAGMA_NO_HAND") && !hand_hidden(c->pend_tick))
+        !cr_cfg()->no_hand && !hand_hidden(c->pend_tick))
         gm_hand_draw(&pfb, &c->pend_v, c->pend_bob);
     /* ItemRenderer.renderOverlays: block, water, fire; then portal; then HUD. */
     /* Capture goldens are recorded with MixinPinTextureAnimations. Keep this
-     * path on physical frame zero even when MAGMA_ANIM_TEXTURES is set. */
+     * path on physical frame zero even when anim_textures is set. */
     bm_atlas_set_animation_physical_zero();
     bm_atlas_set_portal_frame(0);
     CrTexture atlas=bm_atlas();
@@ -859,11 +860,11 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
              * running long enough before recstart for fogColor1 to converge.
              * On several scenario tapes it had NOT: the goldens ramp for the
              * first ~40 ticks at exactly the vanilla 0.1/tick rate while
-             * magma is flat from t=0. MAGMA_FOG_C1_INIT overrides the seed so
+             * magma is flat from t=0. fog_c1_init overrides the seed so
              * that ramp can be measured; the real fix is for the recorder to
              * write the client's fogColor1 into the tape header, since the
              * warmup depends on the session, not on anything in the tape. */
-            const char *s=getenv("MAGMA_FOG_C1_INIT");
+            const char *s=cr_cfg()->fog_c1_init;
             if(s&&*s)c->fog_c1=(float)atof(s);
             else c->fog_c1=gm_uw_fog_c1_seed(r->world,r->dimension,fx,fy,fz);
             c->fog_c1_init=1;
@@ -914,7 +915,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * already bakes fog_c1 into uw.fog_rgba. */
     CrRgba clear=gm_frame_clear_color(day,r->dimension,c->fog_c1,&uw);
     cr_fb_clear(&c->fb,clear);
-    if(r->dimension==0&&c->use_cuda&&cr_raster_cuda_sky&&!getenv("MAGMA_CPU_SKY")){
+    if(r->dimension==0&&c->use_cuda&&cr_raster_cuda_sky&&!cr_cfg()->cpu_sky){
         /* sky on the GPU: upload the cleared fb, then the kernel fills every
          * pixel (depth is still far everywhere - sky is the first draw).
          * Frame ctx + camera basis stay host/glibc (gm_sky_frame_args), so
@@ -930,7 +931,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         if(c->use_cuda)cr_raster_cuda_frame_begin(&c->fb);
     }
     /* Tape capture is permanently pinned, independently of the window-only
-     * MAGMA_ANIM_TEXTURES flag and any legacy tape header value. */
+     * anim_textures flag and any legacy tape header value. */
     bm_atlas_set_animation_physical_zero();
     bm_atlas_set_portal_frame(0);
     if(c->use_cuda&&cr_raster_cuda_atlas_dirty)cr_raster_cuda_atlas_dirty();
@@ -1029,7 +1030,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     }
     /* The fast oracle profile's MixinStripBossBar suppresses only HUD chrome;
      * BossInfo fog remains active. Replay passes the metadata-derived flag. */
-    gm_hud_set_boss(c->boss_latch&&!getenv("MAGMA_STRIP_OVERLAYS"),c->boss_frac);
+    gm_hud_set_boss(c->boss_latch&&!cr_cfg()->strip_overlays,c->boss_frac);
     GmMeshView mv;
     int dev_nv[4] = {0,0,0,0};
     int dev_nch = 0;
@@ -1210,7 +1211,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * overdraw the crack decal entirely (the decal emitted verts and changed
      * zero pixels on those ticks). Dig particles also sat inside the n>0
      * entity block, so digging with no entities in range drew none at all. */
-    if(!getenv("MAGMA_NO_OVERLAY")&&!v.dead){
+    if(!cr_cfg()->no_overlay&&!v.dead){
         /* GPU uploads are asynchronous until frame_end. Selection and crack
          * therefore need distinct pinned host buffers: reusing one here lets
          * the crack emit overwrite selection vertices still in flight. */
@@ -1313,11 +1314,11 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             render_layer(c,&cam,pcl3_ov,nv,&ps);
         }
     }
-    if(!getenv("MAGMA_NO_OVERLAY")&&!v.dead){
+    if(!cr_cfg()->no_overlay&&!v.dead){
         static CrVertex crack_ov[GM_OVERLAY_MAX_VERTS];
         int dx=0,dy=0,dz=0;float dmg=0.0f;
         int have_dig=gm_player_dig_state(&dx,&dy,&dz,&dmg);
-        if(have_dig && dmg>0.0f && !getenv("MAGMA_NO_CRACK")){
+        if(have_dig && dmg>0.0f && !cr_cfg()->no_crack){
             /* BlockRendererDispatcher.renderBlockDamage re-renders the full
              * block model with the destroy sprite, not only the raycast face. */
             int nc=gm_overlay_emit_crack(crack_ov,GM_OVERLAY_MAX_VERTS,
@@ -1396,7 +1397,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
         if(!hud_hidden()||have_gui)gm_hud_draw(&c->fb,&v);
     }else{
-        if(!v.dead&&!v.riding_boat&&!getenv("MAGMA_NO_HAND")&&!hand_hidden(r->tick))
+        if(!v.dead&&!v.riding_boat&&!cr_cfg()->no_hand&&!hand_hidden(r->tick))
             gm_hand_draw(&c->fb,&v,c->hand_bob);
         /* ItemRenderer.renderOverlays: block, water, fire; then portal; HUD. */
         if(!v.dead)gm_overlay_block_in_hand_live(&c->fb,&atlas,r->world,&v);

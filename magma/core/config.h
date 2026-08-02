@@ -37,8 +37,10 @@
 extern "C" {
 #endif
 
-/* Inline storage for every CFG_STR value (paths, mostly). No heap, ever. */
-#define CR_CFG_STR_MAX 256
+/* Inline storage for every CFG_STR value (paths, multi-spec dump lists).
+ * 1024: worlddump joins several "tick,cx,cz,ncx,ncz,/tmp/.../probe_N.bin"
+ * specs with ';'; 256 was too short under TMPDIR=.../.tmp paths. No heap. */
+#define CR_CFG_STR_MAX 1024
 
 typedef struct {
 #define CFG_BOOL(name, def, doc) int       name;

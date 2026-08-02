@@ -8,7 +8,7 @@
 # no mips, minimal particles. Goldens assume it - re-golden before changing.
 
 instance:
-  port: 25575        # qrl TCP bridge port (batch: +1 per extra instance)
+  port: 25575        # NetheriteMod TCP bridge port (batch: +1 per extra instance)
   display: ":1"      # X display for headless launch (batch: +1 per extra instance)
   username: Player0  # pinned player name (vanilla default is wall-clock random)
 

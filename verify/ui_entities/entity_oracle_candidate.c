@@ -7,6 +7,7 @@
  *       --ppm /tmp/c.ppm [--w 854 --h 480]
  */
 #include "core/types.h"
+#include "core/config.h"
 #include "game/config.h"
 #include "game/frame_capture.h"
 #include "game/game.h"
@@ -246,8 +247,10 @@ int main(int argc, char **argv) {
                                 1 /* texture_animations_pinned */,
                                 0, 1 /* creative */, 0, 0, 0.0f, 1.0f);
 
-    setenv("MAGMA_STRIP_OVERLAYS", "1", 0);
-    setenv("MAGMA_NO_HAND", "1", 0);
+    /* Shared frame_capture reads strip_overlays / no_hand from the registry
+     * (no longer getenv). Arm them here before open/write. */
+    cr_cfg_set("strip_overlays", "1");
+    cr_cfg_set("no_hand", "1");
 
     inject_from_meta(&rt, state, meta);
 

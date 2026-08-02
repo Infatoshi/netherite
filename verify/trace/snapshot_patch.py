@@ -214,7 +214,7 @@ def _game_states(tape: Path, header: dict, ticks: list[dict],
     decoration is populate-order dependent and world_dump sweeps while the game
     walks. So run the replay's own script once with the patch reduced to its
     `snapshot_region` ensures and no `snapshot_block`, and read the world back
-    out of the running game (`MAGMA_WORLDDUMP` in game/script.c).
+    out of the running game (`--set worlddump=...` / game/script.c).
 
     That probe pass generates the same world the real replay will, because the
     build order is fixed by the ensure sequence and the simulated walk, and
@@ -254,7 +254,7 @@ def _game_states(tape: Path, header: dict, ticks: list[dict],
             str(script), len(ticks), None, str(scratch / "probe_state.jsonl"),
             seed=int(header["seed"]), mobs=False, daylight=False,
             world=replay_tape.magma_world(header),
-            extra_env={"MAGMA_WORLDDUMP": ";".join(specs)}, timeout=3600)
+            set_kv=[f"worlddump={';'.join(specs)}"], timeout=3600)
     except RuntimeError:
         # rc=2 is "event lies beyond --ticks" / an early death; the dumps that
         # already fired are still the replay's own generation. Any that did not

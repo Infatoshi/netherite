@@ -21,11 +21,11 @@
  *     the camera's section; sections the flood never reaches are not submitted.
  *     The filter sits INSIDE the shared walk, so the host-concat and the
  *     device-gather sink see the identical section set by construction.
- *     MAGMA_NO_OCCLUSION bypasses the BFS alone, MAGMA_NO_CULL bypasses
- *     everything. Culling only ever REMOVES sections that no path of non-opaque
- *     cells connects to the camera, so it is pixel-neutral: 480 still and 480
- *     rotating frames over seeds 0/1000 are byte-identical with the BFS on and
- *     off, on both backends and through both sinks.
+ *     no_occlusion bypasses the BFS alone, no_cull bypasses everything.
+ *     Culling only ever REMOVES sections that no path of non-opaque cells
+ *     connects to the camera, so it is pixel-neutral: 480 still and 480 rotating
+ *     frames over seeds 0/1000 are byte-identical with the BFS on and off, on
+ *     both backends and through both sinks.
  *   - gm_world_block / gm_world_fill_window read canonical vanilla states through CrLight,
  *   - gm_world_set_block edits the store, re-lights, marks the touched chunk (and any
  *     border neighbour) dirty.
@@ -783,11 +783,12 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
                          WlEmit *em, int nverts_out[4],
                          int *out_kept, int *out_culled) {
     /* View radius: default SCN_VIEW_RADIUS (=12, keeps the byte-identical regression
-     * lock when the env is unset). MAGMA_VIEW_RADIUS lowers it at runtime for smooth
-     * interactive FPS (fewer chunks meshed/rasterized); clamped to [1, SCN_VIEW_RADIUS]. */
+     * lock when view_radius_active is 0/unset). view_radius_active lowers it at
+     * runtime for smooth interactive FPS (fewer chunks meshed/rasterized); clamped
+     * to [1, SCN_VIEW_RADIUS]. Distinct from the pool-cap key view_radius. */
     int R = SCN_VIEW_RADIUS;
-    { const char *e = getenv("MAGMA_VIEW_RADIUS");
-      if (e) { int r = atoi(e); if (r >= 1 && r <= SCN_VIEW_RADIUS) R = r; } }
+    { int r = cr_cfg()->view_radius_active;
+      if (r >= 1 && r <= SCN_VIEW_RADIUS) R = r; }
     /* ALLOCATE-ONCE clamp: pools are sized for caps.view_radius (the DECISION max=8),
      * so the streaming radius can never exceed it. Keeps every toroidal region within
      * its pool span (no in-pass slot collisions) and every draw buffer within cap. */
@@ -806,15 +807,15 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
     float planes[6][4];
     cr_frustum_extract(proj.m, view.m, planes);
 
-    const int cull_off = getenv("MAGMA_NO_CULL") != NULL;
-    /* MAGMA_NO_OCCLUSION bypasses ONLY the W19 visibility-graph BFS; frustum
-     * column + section culling stay on. MAGMA_NO_CULL remains the full bypass. */
-    const int occl_off = cull_off || getenv("MAGMA_NO_OCCLUSION") != NULL;
-    /* MAGMA_DEBUG_VERTS: prove far-chunk decoration reaches the mesh - tally the
+    const int cull_off = cr_cfg()->no_cull;
+    /* no_occlusion bypasses ONLY the W19 visibility-graph BFS; frustum
+     * column + section culling stay on. no_cull remains the full bypass. */
+    const int occl_off = cull_off || cr_cfg()->no_occlusion;
+    /* debug_verts: prove far-chunk decoration reaches the mesh - tally the
      * leaf (CUTOUT_MIPPED=1) + solid (0, includes logs) verts contributed by chunks
      * OUTSIDE the origin 2x2 vs inside it. Before view-distance populate the far
      * tally was 0 (only chunks 0..1 were decorated). */
-    const int dbg_verts = getenv("MAGMA_DEBUG_VERTS") != NULL;
+    const int dbg_verts = cr_cfg()->debug_verts;
     long dbg_far_leaf = 0, dbg_near_leaf = 0, dbg_far_solid = 0;
     int  dbg_far_chunks_with_leaf = 0;
 
@@ -1012,8 +1013,8 @@ int gm_world_mesh_chunks(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
      * window-path CPU submission only; it does not change the CUDA gather API or
      * its fixed one-entry-per-mesh-slot storage. */
     int R = SCN_VIEW_RADIUS;
-    { const char *e = getenv("MAGMA_VIEW_RADIUS");
-      if (e) { int r = atoi(e); if (r >= 1 && r <= SCN_VIEW_RADIUS) R = r; } }
+    { int r = cr_cfg()->view_radius_active;
+      if (r >= 1 && r <= SCN_VIEW_RADIUS) R = r; }
     if (R > w->caps->view_radius) R = w->caps->view_radius;
     const int ccx = wl_floordiv16((int)floorf(cam->pos.x));
     const int ccz = wl_floordiv16((int)floorf(cam->pos.z));
@@ -1024,7 +1025,7 @@ int gm_world_mesh_chunks(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
     CrMat4 view = cr_camera_view(cam);
     float planes[6][4];
     cr_frustum_extract(proj.m, view.m, planes);
-    const int cull_off = getenv("MAGMA_NO_CULL") != NULL;
+    const int cull_off = cr_cfg()->no_cull;
 
     int nout = 0;
     for (int l = 0; l < 4; ++l) nverts[l] = 0;

@@ -2,7 +2,7 @@
  *   (src/net/minecraft/client/renderer/BlockModelRenderer.java:238), per single quad, on the
  *   DefaultVertexFormats.BLOCK layout (7 ints/vertex: pos.xyz, color, u, v, lightmap; 28 ints/quad).
  *
- * Golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): qrl 'capture_quadsflat'
+ * Golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): NetheriteMod 'capture_quadsflat'
  * begins a fresh VertexBuffer, invokes the real private renderQuadsFlat with a one-quad list
  * (ownBrightness=false, brightnessIn precomputed), and dumps the 28 output ints. World-dependent
  * scalars the method reads (brightness, tint color) are snapshot as inputs.

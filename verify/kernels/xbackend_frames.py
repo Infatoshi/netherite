@@ -35,12 +35,13 @@ XB_NDIFF_MAX = 100
 XB_MAXCH_MAX = 3
 XB_MAXCH_SPARSE_NDIFF = 15
 
+# set_extra: registry key -> value (applied as repeated --set after fixed args).
 SCENES = [
-    ("still_spawn", {"MAGMA_STILL": "1"}, ["--seed", "0", "--view-distance", "8", "--frames", "30"]),
-    ("jungle", {"MAGMA_STILL": "1"}, ["--seed", "1000", "--view-distance", "8", "--frames", "30"]),
+    ("still_spawn", {"still": "1"}, ["--seed", "0", "--view-distance", "8", "--frames", "30"]),
+    ("jungle", {"still": "1"}, ["--seed", "1000", "--view-distance", "8", "--frames", "30"]),
     (
         "mob_yaw",
-        {"MAGMA_MOB_DEMO": "1", "MAGMA_STILL": "1", "MAGMA_YAWRATE": "3"},
+        {"mob_demo": "1", "still": "1", "yawrate": "3"},
         ["--seed", "0", "--view-distance", "8", "--frames", "60"],
     ),
 ]
@@ -58,12 +59,16 @@ def read_ppm(path):
     return np.frombuffer(raw, dtype=np.uint8).reshape(h, w, 3)
 
 
-def run_dump(game, backend, extra_env, args, outdir):
+def run_dump(game, backend, set_extra, args, outdir):
+    # Platform env only; drive/scenario knobs go through --set on argv.
     env = dict(os.environ)
-    env.update(extra_env)
-    env["MAGMA_DUMP_DIR"] = str(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     cmd = [str(game), "--backend", backend, *args]
+    sets = [f"dump_dir={outdir}"]
+    for k, v in sorted(set_extra.items()):
+        sets.append(f"{k}={v}")
+    for kv in sets:
+        cmd.extend(["--set", kv])
     r = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=900)
     frames = sorted(outdir.glob("frame_*.ppm"))
     if r.returncode != 0 or not frames:
@@ -86,9 +91,9 @@ def main():
 
     work = Path(tempfile.mkdtemp(prefix="xbackend_"))
     failed = False
-    for name, env_extra, args in SCENES:
-        cpu = run_dump(game, "cpu", env_extra, args, work / name / "cpu")
-        gpu = run_dump(game, a.backend, env_extra, args, work / name / a.backend)
+    for name, set_extra, args in SCENES:
+        cpu = run_dump(game, "cpu", set_extra, args, work / name / "cpu")
+        gpu = run_dump(game, a.backend, set_extra, args, work / name / a.backend)
         if len(cpu) != len(gpu):
             print(f"FAIL {name}: frame count cpu={len(cpu)} {a.backend}={len(gpu)}")
             failed = True

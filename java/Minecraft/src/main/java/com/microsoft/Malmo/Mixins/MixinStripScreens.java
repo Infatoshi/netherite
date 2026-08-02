@@ -11,12 +11,12 @@ import net.minecraft.client.gui.GuiIngameMenu;
 import net.minecraft.client.gui.GuiOptions;
 import net.minecraft.client.gui.GuiScreen;
 
-import qrl.QLaunch;
+import netheritemod.QLaunch;
 
 /**
  * CLI-instance GUI strip (qrl_launch.json strip.menus): block the pause menu, the
  * options screen, and the death screen from ever opening. Death is surfaced in the
- * qrl observation ("dead"/"deaths") and auto-respawned by the qrl tick handler, so
+ * NetheriteMod observation ("dead"/"deaths") and auto-respawned by the NetheriteMod tick handler, so
  * no screen is needed. Inventory/chest/crafting GUIs pass through untouched.
  * Flag off (or no qrl_launch.json) = pure vanilla, so oracle captures are unaffected.
  */

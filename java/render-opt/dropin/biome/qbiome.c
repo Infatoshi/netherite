@@ -4,7 +4,7 @@
  *     (i/9 & 255)<<16 | (j/9 & 255)<<8 | k/9 & 255
  * Integer arithmetic only -> bitwise identical to vanilla.
  * Dual JNI entry (one .so):
- *   Java_qrl_QBiomeNative_nblend   -> in the Minecraft client (qrl.QBiomeNative)
+ *   Java_netheritemod_QBiomeNative_nblend   -> in the Minecraft client (netheritemod.QBiomeNative)
  *   Java_TestJniBiome_nblend       -> standalone Phase-A bit-exactness test
  * Build: cc -O2 -ffp-contract=off -shared -fPIC -I$JAVA_HOME/include \
  *           -I$JAVA_HOME/include/linux qbiome.c -o libqbiome.so
@@ -30,7 +30,7 @@ static int blend9(const jint c[9]) {
 
 static int g_first = 1;
 
-JNIEXPORT jint JNICALL Java_qrl_QBiomeNative_nblend(JNIEnv *env, jclass cls, jintArray arr) {
+JNIEXPORT jint JNICALL Java_netheritemod_QBiomeNative_nblend(JNIEnv *env, jclass cls, jintArray arr) {
     jint c[9];
     (*env)->GetIntArrayRegion(env, arr, 0, 9, c);
     if (g_first) { g_first = 0;

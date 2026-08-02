@@ -5,7 +5,7 @@
 #      render-opt reference candidate and our port; assert byte-identical output.
 #      That transitively anchors our port to their MC goldens (Golden.java).
 #  (B) NO-HOLES cull correctness: render the rung-4 ChunkScene with frustum culling
-#      ON and with it fully OFF (MAGMA_NO_CULL=1, meshes every chunk in radius).
+#      ON and with it fully OFF (registry no_cull=1, meshes every chunk in radius).
 #      The two frames must be PIXEL-IDENTICAL: a chunk the conservative AABB test
 #      culls is fully outside the frustum, so it contributes zero pixels; and the
 #      test never culls a visible chunk (no false negatives). Any hole would show
@@ -41,21 +41,22 @@ echo "  aabb   : $(wc -l < "$T/out06_mine.txt") records bit-identical, $(grep -c
 
 echo "== (B) no-holes: culled render == cull-off render (pixel-identical) =="
 # Reuse the rung-4 candidate (it meshes the ChunkScene = view-distance + culling).
+# core/config.o is required: pose_scene + shade + mesh_mc + light read the registry.
 for u in world/mesh_mc world/light world/populate_mc assets/blockmodels \
-         renderkernels/rk_31_facebakery_make_quad \
-         core/math core/shade cpu/raster_cpu transform; do
+         renderkernels/rk_31_facebakery_make_quad game/sky game/caps \
+         core/math core/shade core/config cpu/raster_cpu transform; do
   gcc "${FLAGS[@]}" -c "$u.c" -o "$u.o"
 done
 gcc "${FLAGS[@]}" ../verify/mc_capture/rung4_candidate.c \
     world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
-    renderkernels/rk_31_facebakery_make_quad.o core/math.o \
-    core/shade.o cpu/raster_cpu.o transform.o \
+    renderkernels/rk_31_facebakery_make_quad.o game/sky.o game/caps.o \
+    core/math.o core/shade.o core/config.o cpu/raster_cpu.o transform.o \
     -o "$T/rung4" -lm
 
 echo "  -- culling ON --"
 "$T/rung4" "$T/cull_on.ppm"  | sed -n 's/^view-distance/  &/p'
-echo "  -- culling OFF (MAGMA_NO_CULL=1) --"
-MAGMA_NO_CULL=1 "$T/rung4" "$T/cull_off.ppm" | sed -n 's/^view-distance/  &/p'
+echo "  -- culling OFF (--set no_cull=1) --"
+"$T/rung4" --set no_cull=1 "$T/cull_off.ppm" | sed -n 's/^view-distance/  &/p'
 
 if ! cmp -s "$T/cull_on.ppm" "$T/cull_off.ppm"; then
   echo "FAIL: culled frame differs from cull-off frame (a visible chunk was dropped)"

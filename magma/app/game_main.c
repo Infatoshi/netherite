@@ -115,10 +115,10 @@ static void init_anim_texture_demo(GmRuntime *r)
  * Three zombies share one camera: left is behind a two-block-thick full-height
  * water column, centre is in front of an identical column, and right is behind
  * a two-block-thick one-block-high column (half-submerged in screen space).
- * MAGMA_ENTITY_WATER_DRY keeps the geometry/poses but omits only the water. */
+ * entity_water_dry keeps the geometry/poses but omits only the water. */
 static void init_entity_water_demo(GmRuntime *r)
 {
-    int dry = getenv("MAGMA_ENTITY_WATER_DRY") != NULL;
+    int dry = cr_cfg()->entity_water_dry;
     static const int x0[3] = {2, 7, 11};
     static const int x1[3] = {5, 9, 14};
     static const int ymax[3] = {6, 6, 4};
@@ -153,7 +153,7 @@ static int write_ppm(const char *path, const CrFramebuffer *fb) {
 }
 
 /* ---- bench: per-frame wall-clock decomposition (MEASUREMENT ONLY) ----
- * Env-gated, exactly like the MAGMA_STILL / MAGMA_TP measurement gates:
+ * Registry-gated, exactly like the still / tp measurement gates:
  *   --set bench=1            enable (off => zero clock reads, unchanged run)
  *   --set bench_csv=path     per-frame CSV rows (microseconds)
  *   --set bench_warmup=N     frames excluded from the summary stats (default 120)
@@ -443,11 +443,15 @@ int main(int argc, char **argv) {
     stats_init(cfg.stats);
 
     /* Transitional bridge until view distance is carried through GmWorldConfig.
-     * It is still sourced from the strict argv config, never a hidden user setting. */
+     * It is still sourced from the strict argv config, never a hidden user setting.
+     * Feeds the registry key view_radius_active (runtime lowering knob; 0 = unset). */
     {
         char view_distance[16];
         snprintf(view_distance, sizeof view_distance, "%d", cfg.view_distance);
-        setenv("MAGMA_VIEW_RADIUS", view_distance, 1);
+        if (cr_cfg_set("view_radius_active", view_distance) != 0) {
+            fprintf(stderr, "error: failed to set view_radius_active=%s\n", view_distance);
+            return 2;
+        }
     }
     fprintf(stderr, "[config] ");
     gm_config_print(stderr, &cfg);
@@ -457,9 +461,12 @@ int main(int argc, char **argv) {
      * gm_world_create's toroidal pools) is a pure function of the effective caps
      * computed before the window opens. Do NOT call cr_caps_load here: it would
      * re-read the conf file and discard the --set overrides. --- */
+    /* Drive / scenario knobs (still, demos, dump_dir, ...). Cache once: the
+     * registry is immutable after the --set pass at the top of main(). */
+    const CrConfig *knobs = cr_cfg();
     /* Shade-time lightmap (time-of-day terrain lighting). Game binaries opt
-     * in; MAGMA_LEGACY_LIGHTMAP=1 restores the noon-baked scalar path. */
-    worldmc_set_lightmap_mode(!getenv("MAGMA_LEGACY_LIGHTMAP"));
+     * in; legacy_lightmap=1 restores the noon-baked scalar path. */
+    worldmc_set_lightmap_mode(!knobs->legacy_lightmap);
     const CrCaps *caps = cr_caps();
     if (cfg.view_distance > caps->view_radius) {
         fprintf(stderr, "error: requested view distance %d exceeds configured pool cap %d\n",
@@ -501,16 +508,16 @@ int main(int argc, char **argv) {
 #define oz      (runtime.oz)
 #define g_dead  (runtime.dead)
 #define g_deaths (runtime.deaths)
-    if (getenv("MAGMA_ANIM_TEXTURE_DEMO"))
+    if (knobs->anim_texture_demo)
         init_anim_texture_demo(&runtime);
-    if (getenv("MAGMA_ENTITY_WATER_DEMO"))
+    if (knobs->entity_water_demo)
         init_entity_water_demo(&runtime);
     int surface = gm_world_surface_y(world, 8, 8);
-    if (getenv("MAGMA_FIXTURES")) gm_live_init(&live, seed, surface);
+    if (knobs->fixtures) gm_live_init(&live, seed, surface);
 
     /* Deterministic mobs ringing spawn for windowed-path render checks (the
-     * gates never draw this loop; MAGMA_FIXTURES-style measurement hook). */
-    if (getenv("MAGMA_MOB_DEMO")) {
+     * gates never draw this loop; fixtures-style measurement hook). */
+    if (knobs->mob_demo) {
         static const int demo_types[4] = { GM_MOB_COW, EW_TYPE_ZOMBIE,
                                            GM_MOB_SHEEP, GM_MOB_PIG };
         static const int demo_off[4][2] = { {6,0}, {0,6}, {-6,0}, {0,-6} };
@@ -524,7 +531,7 @@ int main(int argc, char **argv) {
 
     /* Headless inventory demo: seed stone stack and exercise slotClick via the
      * SAME gm_player_inv_click path the live input loop uses (Q / shift+hotbar). */
-    if (getenv("MAGMA_INV_DEMO")) {
+    if (knobs->inv_demo) {
         isr_set_stack(&pl.inv, 0, ic_mk(1, 10, 0));
         pl.inv.current_item = 0;
         gm_player_cursor_set(ic_empty());
@@ -541,7 +548,13 @@ int main(int argc, char **argv) {
     GmParticlesLive live_particles;
     gm_particles_live_init(&live_particles,
         (uint64_t)seed ^ UINT64_C(0x7061727469636c65));
-    const int particle_demo = getenv("MAGMA_PARTICLE_DEMO") != NULL;
+    const int particle_demo = knobs->particle_demo;
+    /* Cache the parse of value-carrying drive knobs once (config is immutable
+     * after the --set pass). Empty tp/pitch = unset; set_time -1 = unset. */
+    const int   drive_tp_on = knobs->tp[0] != '\0';
+    const double drive_tp_step = drive_tp_on ? atof(knobs->tp) : 0.0;
+    const int   drive_pitch_on = knobs->pitch[0] != '\0';
+    const float drive_pitch = drive_pitch_on ? (float)atof(knobs->pitch) : 0.0f;
     gm_input_reset();
     gm_hud_init();
     gm_window_compose_bind(compose, &runtime, &live_particles);
@@ -592,7 +605,6 @@ int main(int argc, char **argv) {
      *    exactly one home (the registry) even though the .so is loaded long
      *    before main() parses argv.
      *  - debug_caps: per-frame draw-buffer maxima for the fixed-pool sizing. */
-    const CrConfig *knobs = cr_cfg();
     const int at_on   = knobs->alloctrack;
     const int caps_on = knobs->debug_caps;
     extern void alloctrack_frame(int) __attribute__((weak));
@@ -608,24 +620,21 @@ int main(int argc, char **argv) {
         GmAction act;
         if (want_frames >= 0) {
             memset(&act, 0, sizeof(act));
-            /* MAGMA_STILL: measurement gate - stand still (no walk) so a run can
+            /* still: measurement gate - stand still (no walk) so a run can
              * hold steady-state without crossing chunk boundaries. Default walks. */
-            act.forward = getenv("MAGMA_STILL") ? 0.0f : 1.0f;
-            /* MAGMA_JUMP: hold jump every tick (demo runs hop over terrain instead
-             * of wedging against a 1-block step). MAGMA_YAWRATE=<deg/frame>: slow
+            act.forward = knobs->still ? 0.0f : 1.0f;
+            /* jump: hold jump every tick (demo runs hop over terrain instead
+             * of wedging against a 1-block step). yawrate=<deg/frame>: slow
              * scripted turn so a demo pans across the world. */
-            if (getenv("MAGMA_JUMP")) act.jump = 1;
-            { const char *yr = getenv("MAGMA_YAWRATE"); if (yr) act.dyaw = (float)atof(yr); }
-            /* MAGMA_ATTACK: hold left-click every tick (drives dig SM + live particles). */
-            if (getenv("MAGMA_ATTACK")) act.attack = 1;
-            /* MAGMA_HOTBAR=<0..8>: select that hotbar slot once at frame 0. */
+            if (knobs->jump) act.jump = 1;
+            act.dyaw = knobs->yawrate;
+            /* attack: hold left-click every tick (drives dig SM + live particles). */
+            if (knobs->attack) act.attack = 1;
+            /* hotbar=<0..8>: select that hotbar slot once at frame 0 (-1 = unset). */
             act.hotbar_sel = -1;
             if (frame == 0) {
-                const char *hb = getenv("MAGMA_HOTBAR");
-                if (hb) {
-                    int slot = atoi(hb);
-                    if (slot >= 0 && slot <= 8) act.hotbar_sel = slot;
-                }
+                int slot = knobs->hotbar;
+                if (slot >= 0 && slot <= 8) act.hotbar_sel = slot;
             }
         } else {
             CrInput in; cr_window_poll(cwin, &in);
@@ -693,14 +702,14 @@ int main(int argc, char **argv) {
             prev_q_screen = in.key_q;
         }
 
-        /* MEASUREMENT harness (env-gated, no effect on a normal run): MAGMA_TP=<step>
+        /* MEASUREMENT harness (registry-gated, no effect on a normal run): tp=<step>
          * teleports the player -Z by <step> blocks/frame, snapping Y to the surface, so a
          * scripted run traverses many chunks in a straight line without getting stuck on
          * terrain or dying. Used only to profile the streaming allocation path. */
         if (want_frames >= 0) {
-            /* MAGMA_SPAWN_SURFACE: snap the frame-0 spawn onto the terrain surface so a
+            /* spawn_surface: snap the frame-0 spawn onto the terrain surface so a
              * demo run does not open with a 47-block death drop from the fixed y=120 spawn. */
-            if (frame == 0 && getenv("MAGMA_SPAWN_SURFACE")) {
+            if (frame == 0 && knobs->spawn_surface) {
                 double twx = pl.ent.posX + ox, twz = pl.ent.posZ + oz;
                 int sy = gm_world_surface_y(world, (int)floor(twx), (int)floor(twz));
                 pl.ent.posY = (double)sy + 1.0;
@@ -708,25 +717,20 @@ int main(int argc, char **argv) {
                 pl.ent.motionX = pl.ent.motionY = pl.ent.motionZ = 0.0;
                 pl.fall_distance = 0.0f;
             }
-            /* MAGMA_PITCH=<deg>: set player pitch at frame 0 (clamped to look range). */
-            if (frame == 0) {
-                const char *pit = getenv("MAGMA_PITCH");
-                if (pit) {
-                    float p = (float)atof(pit);
-                    if (p > 89.0f) p = 89.0f;
-                    if (p < -89.0f) p = -89.0f;
-                    pl.pitch = p;
-                }
+            /* pitch=<deg>: set player pitch at frame 0 (clamped to look range). */
+            if (frame == 0 && drive_pitch_on) {
+                float p = drive_pitch;
+                if (p > 89.0f) p = 89.0f;
+                if (p < -89.0f) p = -89.0f;
+                pl.pitch = p;
             }
-            /* MAGMA_SET_TIME=<ticks>: pin world clock before the first tick so night
-             * lighting is reachable in a short dump (same as script set_time). */
-            if (frame == 0) {
-                const char *stime = getenv("MAGMA_SET_TIME");
-                if (stime) gm_runtime_set_time(&runtime, atoll(stime));
-            }
-            const char *tp = getenv("MAGMA_TP");
-            if (tp) {
-                double step = atof(tp);
+            /* set_time=<ticks>: pin world clock before the first tick so night
+             * lighting is reachable in a short dump (same as script set_time).
+             * -1 = unset; 0 is a real value. */
+            if (frame == 0 && knobs->set_time != -1)
+                gm_runtime_set_time(&runtime, knobs->set_time);
+            if (drive_tp_on) {
+                double step = drive_tp_step;
                 pl.ent.posZ -= step;
                 double twx = pl.ent.posX + ox, twz = pl.ent.posZ + oz;
                 int sy = gm_world_surface_y(world, (int)floor(twx), (int)floor(twz));
@@ -969,14 +973,11 @@ int main(int argc, char **argv) {
         bench_stamp(12);
         bench_record(frame, nticks, ntris);
 
-        /* MAGMA_DUMP_DIR: per-frame PPM dump for video encoding (headless demo). */
-        if (want_frames >= 0) {
-            const char *dd = getenv("MAGMA_DUMP_DIR");
-            if (dd) {
-                char fp[512];
-                snprintf(fp, sizeof fp, "%s/frame_%05d.ppm", dd, frame);
-                write_ppm(fp, &fb);
-            }
+        /* dump_dir: per-frame PPM dump for video encoding (headless demo). */
+        if (want_frames >= 0 && knobs->dump_dir[0]) {
+            char fp[512];
+            snprintf(fp, sizeof fp, "%s/frame_%05d.ppm", knobs->dump_dir, frame);
+            write_ppm(fp, &fb);
         }
         /* headless: emit the health/food + death arc so a scripted run can be verified. */
         if (want_frames >= 0)

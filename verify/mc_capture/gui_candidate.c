@@ -18,6 +18,7 @@
 #include "game/screen.h"
 #include "game/runtime.h"
 #include "game/hud.h"
+#include "core/config.h"   /* --set key=value -> cr_cfg_set (preview_* knobs) */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +48,29 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--mx") && i + 1 < argc) mx = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--my") && i + 1 < argc) my = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--ppm") && i + 1 < argc) out = argv[++i];
+        else if (!strcmp(argv[i], "--set") && i + 1 < argc) {
+            /* Same key=value grammar as magma_game --set (registry only). */
+            const char *kv = argv[++i];
+            const char *eq = strchr(kv, '=');
+            if (!eq || eq == kv) {
+                fprintf(stderr, "bad --set %s (want key=value)\n", kv);
+                return 2;
+            }
+            char key[64];
+            size_t klen = (size_t)(eq - kv);
+            if (klen >= sizeof key) {
+                fprintf(stderr, "bad --set %s: key too long\n", kv);
+                return 2;
+            }
+            memcpy(key, kv, klen);
+            key[klen] = '\0';
+            int rc = cr_cfg_set(key, eq + 1);
+            if (rc != 0) {
+                fprintf(stderr, "error: --set %s: %s\n", kv,
+                        rc == -1 ? "unknown key" : "bad value for this key");
+                return 2;
+            }
+        }
         else { fprintf(stderr, "unknown arg %s\n", argv[i]); return 2; }
     }
     if (container < 0 || container > 3 || W < 320 || H < 240) {

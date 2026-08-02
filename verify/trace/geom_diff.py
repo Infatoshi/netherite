@@ -6,7 +6,7 @@ re-render, i.e. post-setRotationAngles:
   {"t":123,"eid":45,"cls":"ModelDragon",
    "parts":{"head":[rpX,rpY,rpZ,raX,raY,raZ], ...}}
 
-Magma side (MAGMA_GEOM_DUMP=<path> on the replay binary): text lines
+Magma side (--set geom_dump=<path> on the replay binary): text lines
   D <tick> <label> rpx rpy rpz rx ry rz
 with the exact args magma passes to er_dragon_part (same units: rotation
 points in texels, angles in radians).
@@ -115,7 +115,7 @@ def compare(jv, cr, offset, warmup=WARMUP, verbose=False, max_report=40):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--java", required=True, help="<tape>.geom.jsonl")
-    ap.add_argument("--magma", required=True, help="MAGMA_GEOM_DUMP file")
+    ap.add_argument("--magma", required=True, help="geom_dump file from magma")
     ap.add_argument("--cls", default="EntityDragon")
     ap.add_argument("--offset", type=int, default=None)
     ap.add_argument("--warmup", type=int, default=WARMUP)

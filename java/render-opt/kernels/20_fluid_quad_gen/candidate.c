@@ -5,7 +5,7 @@
  * (7 ints/vertex: posX, posY, posZ, colorPacked, u, v, lightmap), one int per
  * line, BITWISE-matching golden/golden.txt.
  *
- * INPUT FORMAT (enriched live-hook capture, produced by qrl `capture_fluidquads`):
+ * INPUT FORMAT (enriched live-hook capture, produced by NetheriteMod `capture_fluidquads`):
  *   line 1 (sprite UV header), 20 ints (each is Float.floatToRawIntBits):
  *       wstill(minU maxU minV maxV) wflow(...) lstill(...) lflow(...) woverlay(...)
  *   then one line per fluid block, 27 ints:

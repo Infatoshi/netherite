@@ -7,7 +7,7 @@
  * Those per-vertex results are world state, so they are SNAPSHOT as inputs; this kernel ports the
  * buffer-write arithmetic the method performs given them.
  *
- * Golden CAPTURED FROM REAL MINECRAFT (qrl 'capture_quadssmooth'): begins a fresh VertexBuffer,
+ * Golden CAPTURED FROM REAL MINECRAFT (NetheriteMod 'capture_quadssmooth'): begins a fresh VertexBuffer,
  * invokes the real private renderQuadsSmooth with a one-quad list + a real AmbientOcclusionFace,
  * dumps the 28 output ints, and records the aoFace fields AFTER the call (vertexColorMultiplier is
  * already post-diffuse, since the in-place diffuse multiply happens before putColorMultiplier).

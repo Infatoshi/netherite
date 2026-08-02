@@ -3,7 +3,7 @@
  * Builds the 65536-entry SIN_TABLE = (float)sin((double)i*PI*2/65536) at dlopen,
  * then sin(value) = SIN_TABLE[(java_f2i(value*10430.378f)) & 65535].
  * Exposes TWO JNI entry points (one .so):
- *   Java_qrl_QSinNative_nsin  -> used inside the Minecraft client (qrl.QSinNative)
+ *   Java_netheritemod_QSinNative_nsin  -> used inside the Minecraft client (netheritemod.QSinNative)
  *   Java_TestJni_nsin         -> used by the standalone Phase-A test
  * Build: cc -O2 -ffp-contract=off -shared -fPIC -I$JAVA_HOME/include \
  *           -I$JAVA_HOME/include/linux qsin.c -o libqsin.so
@@ -43,7 +43,7 @@ static float sin_lut(float value) {
 
 static int g_first = 1;
 
-JNIEXPORT jfloat JNICALL Java_qrl_QSinNative_nsin(JNIEnv *env, jclass cls, jfloat value) {
+JNIEXPORT jfloat JNICALL Java_netheritemod_QSinNative_nsin(JNIEnv *env, jclass cls, jfloat value) {
     if (g_first) { g_first = 0; fprintf(stderr, "[qsin] native nsin() INVOKED in render path (proof)\n"); fflush(stderr); }
     return sin_lut(value);
 }

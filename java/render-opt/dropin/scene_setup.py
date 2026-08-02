@@ -1,4 +1,4 @@
-# Phase C: deterministic flowing-water + fixed-sky scene via the qrl bridge, then
+# Phase C: deterministic flowing-water + fixed-sky scene via the NetheriteMod bridge, then
 # settle a FIXED number of ticks (tick-synced, not wall-clock) so all three qsin_mode
 # runs land on an identical frame. Run with: uv run --no-project python scene_setup.py
 import sys, time

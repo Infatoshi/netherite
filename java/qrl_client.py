@@ -1,4 +1,4 @@
-"""Minimal client for the qrl socket bridge (stdlib only).
+"""Minimal client for the NetheriteMod socket bridge (stdlib only).
 
 Fully-discrete env: step(action_dict) -> obs_dict. Action keys (all optional, 0/1
 unless noted): forward, back, left, right, jump, sneak, sprint, attack, use,
@@ -91,7 +91,7 @@ class NetheriteEnv:
     def camera(self, file=None):
         """Dump render camera provenance (eye, effective FOV, options, world).
 
-        Requires rebuilt qrl mod with cmd \"camera\". Optional file path writes
+        Requires rebuilt NetheriteMod with cmd \"camera\". Optional file path writes
         the JSON on the game side as well as returning it.
         """
         action = {}

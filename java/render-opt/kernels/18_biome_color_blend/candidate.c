@@ -1,7 +1,7 @@
 /* CANDIDATE: pure-C port of MC 1.11.2 BiomeColorHelper.getColorAtPos()
  *   (src/net/minecraft/world/biome/BiomeColorHelper.java:33).
  *
- * The golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): the qrl mod
+ * The golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): NetheriteMod
  * (command "capture_biome") samples loaded positions around the player, records the 9
  * per-block biome GRASS colors that the 3x3 blend reads, and records the method's blended
  * int output.

@@ -5,7 +5,9 @@
 # Controls: WASD move, mouse look, space jump, shift sneak, left-click break,
 #   right-click place, 1-9 / wheel hotbar, ESC quits.
 #
-# Env: MAGMA_VIEW_RADIUS (default 6; higher = longer view, lower FPS. 12 = full/verified).
+# Registry: view_radius_active via --set (default 6; higher = longer view, lower FPS.
+# 8 = pool cap / verified). Accepts legacy MAGMA_VIEW_RADIUS env as the radius value
+# only for this launcher script (the game binary no longer reads that env).
 #      This REPLACES any Java game running on :1 (same display/port as start_vnc_client.sh).
 set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,4 +35,4 @@ sleep 1
 echo "STARTED display=:1 vncport=5900 pw=$VNCPW view_radius=$RADIUS"
 echo "  Mac: ssh -f -N -L 5901:localhost:5900 anvil ; open vnc://localhost:5901"
 echo "=== launching magma_game (ESC to quit) ==="
-exec env MAGMA_VIEW_RADIUS="$RADIUS" "$DIR/magma_game" --seed 0 --w "$W" --h "$H"
+exec "$DIR/magma_game" --seed 0 --w "$W" --h "$H" --view-distance "$RADIUS"

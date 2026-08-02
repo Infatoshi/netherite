@@ -191,11 +191,29 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def env_hash(env_extra: dict, cli: list[str]) -> str:
+def env_hash(set_extra: dict, env_extra: dict, cli: list[str]) -> str:
     payload = json.dumps(
-        {"env": env_extra, "cli": cli}, sort_keys=True, separators=(",", ":")
+        {"set": set_extra, "env": env_extra, "cli": cli},
+        sort_keys=True,
+        separators=(",", ":"),
     )
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+def append_sets(cmd: list[str], pairs: list[str]) -> None:
+    """Append repeated --set key=value flags (one flag per pair)."""
+    for kv in pairs:
+        cmd.extend(["--set", kv])
+
+
+def set_pairs(set_extra: dict, *, dump_dir: Optional[Path] = None) -> list[str]:
+    """Build 'key=value' strings for --set from a registry-knob dict."""
+    pairs: list[str] = []
+    if dump_dir is not None:
+        pairs.append(f"dump_dir={dump_dir}")
+    for k, v in sorted(set_extra.items()):
+        pairs.append(f"{k}={v}")
+    return pairs
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +273,7 @@ def zombie_teal_count(img: np.ndarray) -> int:
 
 @dataclass
 class DumpJob:
-    """One MAGMA_DUMP_DIR capture."""
+    """One dump_dir capture (registry --set dump_dir=...)."""
 
     scenario_key: str  # scenarios/ subdir name
     variant: str
@@ -263,6 +281,9 @@ class DumpJob:
     seed: int = 0
     width: int = DEFAULT_WIDTH
     height: int = DEFAULT_HEIGHT
+    # Registry knobs as short names (still, mob_demo, ...). Applied as --set.
+    set_extra: dict = field(default_factory=dict)
+    # Platform / not-yet-migrated env only (SDL_*, MAGMA_NO_HAND, MAGMA_ANIM_TEXTURES, ...).
     env_extra: dict = field(default_factory=dict)
     # extra CLI after common flags
     extra_cli: list[str] = field(default_factory=list)
@@ -275,7 +296,7 @@ class DumpJob:
     def stamp_path(self, battery: Path) -> Path:
         return self.out_dir(battery) / ".dump_stamp.json"
 
-    def cli_list(self, game: Path) -> list[str]:
+    def cli_list(self, game: Path, *, dump_dir: Optional[Path] = None) -> list[str]:
         cmd = [
             str(game),
             "--seed",
@@ -292,10 +313,18 @@ class DumpJob:
         if self.backend == "cuda":
             cmd.extend(["--backend", "cuda"])
         cmd.extend(self.extra_cli)
+        # dump_dir + scenario knobs as repeated --set immediately after fixed args
+        append_sets(cmd, set_pairs(self.set_extra, dump_dir=dump_dir))
         return cmd
 
     def compute_env_hash(self, game: Path) -> str:
-        return env_hash(self.env_extra, self.cli_list(game))
+        # Include dump_dir placeholder so cache keys stay stable across paths;
+        # actual path is always the job out_dir and is not part of the content hash.
+        return env_hash(
+            self.set_extra,
+            self.env_extra,
+            self.cli_list(game, dump_dir=Path("__dump_dir__")),
+        )
 
 
 def dump_is_fresh(
@@ -374,14 +403,39 @@ def _execute_dump(
     if stamp.is_file():
         stamp.unlink()
 
+    # Platform env only; registry knobs go through --set on argv. Legacy
+    # MAGMA_* entries still present in job env_extra are translated here.
+    _CFG_SET = {
+        "MAGMA_NO_HAND": "no_hand",
+        "MAGMA_NO_OVERLAY": "no_overlay",
+        "MAGMA_ANIM_TEXTURES": "anim_textures",
+        "MAGMA_HIDE_GUI": "hide_gui",
+        "MAGMA_STRIP_OVERLAYS": "strip_overlays",
+        "MAGMA_NO_CRACK": "no_crack",
+        "MAGMA_NO_DEFER": "no_defer",
+        "MAGMA_NO_PIPELINE": "no_pipeline",
+        "MAGMA_NO_LAYERMERGE": "no_layermerge",
+        "MAGMA_NO_DEVMESH": "no_devmesh",
+        "MAGMA_CPU_SKY": "cpu_sky",
+        "MAGMA_HAND_FROM_TICK": "hand_from_tick",
+        "MAGMA_FOG_C1_INIT": "fog_c1_init",
+        "MAGMA_OVERLAY_DUMP": "overlay_dump",
+    }
     env = os.environ.copy()
     env["SDL_VIDEODRIVER"] = "dummy"
-    env["MAGMA_DUMP_DIR"] = str(out_dir)
+    set_flags: list[str] = []
+    env_left: dict[str, str] = {}
     for k, v in job.env_extra.items():
-        env[k] = str(v)
+        vs = str(v)
+        if k in _CFG_SET:
+            set_flags.extend(["--set", f"{_CFG_SET[k]}={vs}"])
+        else:
+            env_left[k] = vs
+            env[k] = vs
 
-    cmd = job.cli_list(game)
+    cmd = job.cli_list(game, dump_dir=out_dir) + set_flags
     log_path = out_dir / "run.log"
+    sets = set_pairs(job.set_extra, dump_dir=out_dir)
 
     if gpu:
         # Strict serial GPU path: overnight-compute lease on gpu1.
@@ -409,13 +463,12 @@ def _execute_dump(
             "env",
             "CUDA_VISIBLE_DEVICES=1",
             "SDL_VIDEODRIVER=dummy",
-            f"MAGMA_DUMP_DIR={out_dir}",
         ]
-        for k, v in sorted(job.env_extra.items()):
+        for k, v in sorted(env_left.items()):
             wrap.append(f"{k}={v}")
         wrap.extend(cmd)
         full_cmd = wrap
-        # Pass through only the non-MAGMA dump env (wrapper sets the rest)
+        # Pass through only the platform env (wrapper sets CUDA/SDL)
         run_env = os.environ.copy()
         run_env["SDL_VIDEODRIVER"] = "dummy"
     else:
@@ -424,9 +477,12 @@ def _execute_dump(
 
     with open(log_path, "w") as log:
         log.write(f"+ backend={job.backend} gpu_wrap={gpu}\n")
-        log.write(f"+ MAGMA_DUMP_DIR={out_dir}\n")
-        for k, v in sorted(job.env_extra.items()):
+        for kv in sets:
+            log.write(f"+ --set {kv}\n")
+        for k, v in sorted(env_left.items()):
             log.write(f"+ env {k}={v}\n")
+        for i in range(0, len(set_flags), 2):
+            log.write(f"+ {set_flags[i]} {set_flags[i+1]}\n")
         log.write(f"+ {' '.join(full_cmd)}\n")
         log.flush()
         proc = subprocess.run(
@@ -465,7 +521,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "xb_still30",
             "cpu",
             30,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             backend="cpu",
             label="xb_still30/cpu",
         )
@@ -476,24 +532,24 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
                 "xb_still30",
                 "cuda",
                 30,
-                env_extra={"MAGMA_STILL": "1"},
+                set_extra={"still": "1"},
                 backend="cuda",
                 label="xb_still30/cuda",
             )
         )
 
     # XB-MOB
-    mob_env = {
-        "MAGMA_MOB_DEMO": "1",
-        "MAGMA_STILL": "1",
-        "MAGMA_YAWRATE": "3",
+    mob_set = {
+        "mob_demo": "1",
+        "still": "1",
+        "yawrate": "3",
     }
     jobs.append(
         DumpJob(
             "xb_mob120",
             "cpu",
             120,
-            env_extra=mob_env,
+            set_extra=mob_set,
             backend="cpu",
             label="xb_mob120/cpu",
         )
@@ -504,28 +560,28 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
                 "xb_mob120",
                 "cuda",
                 120,
-                env_extra=mob_env,
+                set_extra=mob_set,
                 backend="cuda",
                 label="xb_mob120/cuda",
             )
         )
 
     # Particle (WR + XB share CPU demo; control for WR; CUDA for XB)
-    part_env = {
-        "MAGMA_PARTICLE_DEMO": "1",
-        "MAGMA_STILL": "1",
-        "MAGMA_SPAWN_SURFACE": "1",
+    part_set = {
+        "particle_demo": "1",
+        "still": "1",
+        "spawn_surface": "1",
     }
     part_ctrl = {
-        "MAGMA_STILL": "1",
-        "MAGMA_SPAWN_SURFACE": "1",
+        "still": "1",
+        "spawn_surface": "1",
     }
     jobs.append(
         DumpJob(
             "wr_particle60",
             "demo",
             60,
-            env_extra=part_env,
+            set_extra=part_set,
             backend="cpu",
             label="wr_particle60/demo",
         )
@@ -535,7 +591,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_particle60",
             "control",
             60,
-            env_extra=part_ctrl,
+            set_extra=part_ctrl,
             backend="cpu",
             label="wr_particle60/control",
         )
@@ -546,7 +602,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
                 "xb_particle60",
                 "cuda",
                 60,
-                env_extra=part_env,
+                set_extra=part_set,
                 backend="cuda",
                 label="xb_particle60/cuda",
             )
@@ -561,7 +617,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_death40",
             "run",
             40,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             extra_cli=["--kill-frame", "10"],
             backend="cpu",
             label="wr_death40/run",
@@ -576,7 +632,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
                 f"seed{seed}",
                 200,
                 seed=seed,
-                env_extra={"MAGMA_SPAWN_SURFACE": "1"},
+                set_extra={"spawn_surface": "1"},
                 backend="cpu",
                 label=f"wr_walk200/seed{seed}",
             )
@@ -587,7 +643,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "seed0_run2",
             200,
             seed=0,
-            env_extra={"MAGMA_SPAWN_SURFACE": "1"},
+            set_extra={"spawn_surface": "1"},
             backend="cpu",
             label="wr_walk200/seed0_run2",
         )
@@ -599,7 +655,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_jump80",
             "run",
             80,
-            env_extra={"MAGMA_JUMP": "1", "MAGMA_SPAWN_SURFACE": "1"},
+            set_extra={"jump": "1", "spawn_surface": "1"},
             backend="cpu",
             label="wr_jump80/run",
         )
@@ -611,7 +667,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_daylight600",
             "on",
             600,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             extra_cli=["--daylight", "on"],
             backend="cpu",
             label="wr_daylight600/on",
@@ -622,7 +678,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_daylight600",
             "off",
             600,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             extra_cli=["--daylight", "off"],
             backend="cpu",
             label="wr_daylight600/off",
@@ -635,10 +691,10 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_tp60",
             "run",
             60,
-            env_extra={
-                "MAGMA_STILL": "1",
-                "MAGMA_TP": "4",
-                "MAGMA_SPAWN_SURFACE": "1",
+            set_extra={
+                "still": "1",
+                "tp": "4",
+                "spawn_surface": "1",
             },
             backend="cpu",
             label="wr_tp60/run",
@@ -651,7 +707,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_hand30",
             "hand",
             30,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             backend="cpu",
             label="wr_hand30/hand",
         )
@@ -661,7 +717,8 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_hand30",
             "nohand",
             30,
-            env_extra={"MAGMA_STILL": "1", "MAGMA_NO_HAND": "1"},
+            set_extra={"still": "1"},
+            env_extra={"MAGMA_NO_HAND": "1"},  # sibling lane; still env
             backend="cpu",
             label="wr_hand30/nohand",
         )
@@ -673,7 +730,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_superflat30",
             "flat",
             30,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             extra_cli=["--world", "superflat"],
             backend="cpu",
             label="wr_superflat30/flat",
@@ -684,7 +741,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_superflat30",
             "default",
             30,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             extra_cli=["--world", "default"],
             backend="cpu",
             label="wr_superflat30/default",
@@ -699,7 +756,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             20,
             width=427,
             height=240,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             backend="cpu",
             label="wr_res_pack/427x240",
         )
@@ -711,7 +768,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             20,
             width=1280,
             height=720,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             backend="cpu",
             label="wr_res_pack/1280x720",
         )
@@ -719,9 +776,12 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
 
     # Animated atlas A/B plus a flagged CUDA twin. The fixture builds sealed
     # source-water and source-lava basins, then fixes the camera and daylight.
+    anim_set = {
+        "anim_texture_demo": "1",
+        "still": "1",
+    }
+    # MAGMA_NO_HAND / MAGMA_NO_OVERLAY / MAGMA_ANIM_TEXTURES: sibling lanes.
     anim_env = {
-        "MAGMA_ANIM_TEXTURE_DEMO": "1",
-        "MAGMA_STILL": "1",
         "MAGMA_NO_HAND": "1",
         "MAGMA_NO_OVERLAY": "1",
     }
@@ -731,6 +791,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_anim_tex65",
             "static",
             ANIM_TEX_FRAMES,
+            set_extra=anim_set,
             env_extra=anim_env,
             extra_cli=anim_cli,
             backend="cpu",
@@ -742,6 +803,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_anim_tex65",
             "cpu",
             ANIM_TEX_FRAMES,
+            set_extra=anim_set,
             env_extra={**anim_env, "MAGMA_ANIM_TEXTURES": "1"},
             extra_cli=anim_cli,
             backend="cpu",
@@ -754,6 +816,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
                 "wr_anim_tex65",
                 "cuda",
                 ANIM_TEX_FRAMES,
+                set_extra=anim_set,
                 env_extra={**anim_env, "MAGMA_ANIM_TEXTURES": "1"},
                 extra_cli=anim_cli,
                 backend="cuda",
@@ -763,9 +826,11 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
 
     # Entity/translucent order. The dry twin is a same-pose raw-texel control;
     # water is two blocks thick along the camera ray in the wet fixture.
+    entity_water_set = {
+        "entity_water_demo": "1",
+        "still": "1",
+    }
     entity_water_env = {
-        "MAGMA_ENTITY_WATER_DEMO": "1",
-        "MAGMA_STILL": "1",
         "MAGMA_NO_HAND": "1",
         "MAGMA_NO_OVERLAY": "1",
     }
@@ -775,6 +840,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_entity_water",
             "wet",
             ENTITY_WATER_FRAMES,
+            set_extra=entity_water_set,
             env_extra=entity_water_env,
             extra_cli=entity_water_cli,
             backend="cpu",
@@ -786,7 +852,8 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_entity_water",
             "dry",
             ENTITY_WATER_FRAMES,
-            env_extra={**entity_water_env, "MAGMA_ENTITY_WATER_DRY": "1"},
+            set_extra={**entity_water_set, "entity_water_dry": "1"},
+            env_extra=entity_water_env,
             extra_cli=entity_water_cli,
             backend="cpu",
             label="wr_entity_water/dry",

@@ -15,7 +15,7 @@ for _ in range(60):
     except OSError:
         time.sleep(5)
 if e is None:
-    print("FATAL: qrl bridge never came up"); sys.exit(1)
+    print("FATAL: NetheriteMod bridge never came up"); sys.exit(1)
 e.s.settimeout(180)
 
 def safe(fn, *a):

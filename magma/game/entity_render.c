@@ -46,6 +46,7 @@
 #include "game/entity_render.h"
 #include "assets/mob_atlas.h"
 #include "assets/blockmodels.h"
+#include "core/config.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -1180,7 +1181,7 @@ typedef struct {
 } ErDragonRing;
 static ErDragonRing er_dragon_ring;   /* one dragon per fight */
 
-/* ---- geometry-oracle dump (MAGMA_GEOM_DUMP=path) ----------------------
+/* ---- geometry-oracle dump (geom_dump=path) ---------------------------
  * One line per dragon model part per rendered tick, mirroring vanilla
  * ModelRenderer state: "D <tick> <label> rpx rpy rpz rx ry rz" (rotation
  * points in texels, angles in radians - the exact er_dragon_part inputs,
@@ -1196,7 +1197,7 @@ static void geom_log(const char *lbl, float rpx, float rpy, float rpz,
                      float rx, float ry, float rz) {
     if (!er_geom_checked) {
         er_geom_checked = 1;
-        const char *p = getenv("MAGMA_GEOM_DUMP");
+        const char *p = cr_cfg()->geom_dump;
         if (p && *p) er_geom_fp = fopen(p, "w");
     }
     if (!er_geom_fp) return;

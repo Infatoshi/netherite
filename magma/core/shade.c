@@ -12,13 +12,14 @@
 #include "core/types.h"
 #include <math.h>
 #if !defined(__CUDA_ARCH__)
+#include "core/config.h"   /* texel_bias / sample_mode / flat_shade registry knobs */
 #include <stdlib.h>
 #endif
 
-/* Per-call sample mode from CrShadeCtx.sample_mode (0 = env/default path).
+/* Per-call sample mode from CrShadeCtx.sample_mode (0 = registry/default path).
  * cr_atlas_sample is shared with CUDA and has no shade ctx arg, so cr_shade
  * stashes the mode here for the duration of one fragment. Host-only override
- * MAGMA_SAMPLE_MODE still applies when this is 0. */
+ * sample_mode still applies when this is 0. */
 #if defined(__CUDA_ARCH__)
 static __device__ int g_cr_sample_mode_override = 0;
 #else
@@ -34,7 +35,7 @@ CR_HD CrRgba cr_atlas_sample(const CrTexture *tex, float u, float v) {
         return out;
     }
     /* Pull 1e-4 so exact high-edge UV (sprite x1/W) does not floor onto neighbor.
-     * Optional MAGMA_TEXEL_BIAS{,_U,_V} (host-only) shifts nearest phase in
+     * Optional texel_bias{,_u,_v} (host-only registry) shifts nearest phase in
      * texel units. Hard-scene leaf black-hole residual is sensitive to V phase. */
     float bu = 0.0f, bv = 0.0f;
 #if !defined(__CUDA_ARCH__)
@@ -42,12 +43,10 @@ CR_HD CrRgba cr_atlas_sample(const CrTexture *tex, float u, float v) {
         static int init = 0;
         static float sbu = 0.0f, sbv = 0.0f;
         if (!init) {
-            const char *s = getenv("MAGMA_TEXEL_BIAS");
-            if (s && *s) sbu = sbv = (float)atof(s);
-            s = getenv("MAGMA_TEXEL_BIAS_U");
-            if (s && *s) sbu = (float)atof(s);
-            s = getenv("MAGMA_TEXEL_BIAS_V");
-            if (s && *s) sbv = (float)atof(s);
+            const CrConfig *k = cr_cfg();
+            if (k->texel_bias[0]) sbu = sbv = (float)atof(k->texel_bias);
+            if (k->texel_bias_u[0]) sbu = (float)atof(k->texel_bias_u);
+            if (k->texel_bias_v[0]) sbv = (float)atof(k->texel_bias_v);
             init = 1;
         }
         bu = sbu; bv = sbv;
@@ -60,8 +59,8 @@ CR_HD CrRgba cr_atlas_sample(const CrTexture *tex, float u, float v) {
     if (mode == 0) {
         static int sm = -2;
         if (sm == -2) {
-            const char *s = getenv("MAGMA_SAMPLE_MODE");
-            sm = (s && *s) ? atoi(s) : 0;
+            const char *s = cr_cfg()->sample_mode;
+            sm = s[0] ? atoi(s) : 0;
         }
         mode = sm;
     }
@@ -246,10 +245,7 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
 #if !defined(__CUDA_ARCH__)
     {
         static int flat = -1;
-        if (flat < 0) {
-            const char *s = getenv("MAGMA_FLAT_SHADE");
-            flat = (s && atoi(s) != 0) ? 1 : 0;
-        }
+        if (flat < 0) flat = cr_cfg()->flat_shade ? 1 : 0;
         if (flat) { la = 1.f; tr = tg = tb = 1.f; lmr = lmg = lmb = 1.f; }
     }
 #endif

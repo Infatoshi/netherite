@@ -1,7 +1,7 @@
 /* CANDIDATE: pure-C port of MC 1.11.2 Block.shouldSideBeRendered()
  *   (src/net/minecraft/block/Block.java:471).
  *
- * The golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): the qrl mod
+ * The golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): NetheriteMod
  * (capture_shouldsiderender) samples loaded blocks that use the BASE Block implementation
  * (no override) plus staged partial-bb blocks (soul sand, cactus), and records per (pos,side)
  * the exact snapshot the method reads plus the method's boolean output.

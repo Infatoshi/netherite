@@ -5,8 +5,8 @@
  * Java int add wraps; do the sum in uint32_t then reinterpret as int32_t so the >>2
  * sign-extends exactly like the JVM. Two JNI entries (one .so):
  *   Java_TestJniAO_naoBrightness  -> standalone Phase-A bit-exactness test
- *   Java_qrl_QAOHook_naoBrightness -> live in-engine route. getAoBrightness is rewritten by a
- *     raw IClassTransformer coremod (OverclockingClassTransformer) to call qrl.QAOHook, which
+ *   Java_netheritemod_QAOHook_naoBrightness -> live in-engine route. getAoBrightness is rewritten by a
+ *     raw IClassTransformer coremod (OverclockingClassTransformer) to call netheritemod.QAOHook, which
  *     dispatches here in native mode - this bypasses Mixin entirely (Mixin cannot attach to the
  *     package-private inner class AmbientOcclusionFace in this Forge+FML-remapper dev setup).
  * Build: cc -O2 -ffp-contract=off -shared -fPIC -I$JAVA_HOME/include \
@@ -35,7 +35,7 @@ JNIEXPORT jint JNICALL Java_TestJniAO_naoBrightness(JNIEnv *env, jclass cls,
 
 static int g_first = 1;
 
-JNIEXPORT jint JNICALL Java_qrl_QAOHook_naoBrightness(JNIEnv *env, jclass cls,
+JNIEXPORT jint JNICALL Java_netheritemod_QAOHook_naoBrightness(JNIEnv *env, jclass cls,
                                                      jint br1, jint br2, jint br3, jint br4) {
     if (g_first) { g_first = 0;
         fprintf(stderr, "[qao] native naoBrightness() INVOKED in live render path (proof)\n"); fflush(stderr); }

@@ -27,7 +27,7 @@ From-scratch C/CUDA reimplementation of Minecraft 1.11.2 (magma + blaze),
 bit-verified against the real Java game, plus a batched CUDA RL env (blaze).
 Product name: **netherite**. Trees:
 
-- `java/` - the oracle: Forge+Malmo/qrl client, launch scripts, oracle-src
+- `java/` - the oracle: Forge+Malmo/NetheriteMod (mod id qrl) client, launch scripts, oracle-src
   (bootstrap), render-opt kernel lab (closed)
 - `blaze/` - the simulation: reference CPU + production CUDA tick (CPU == CUDA),
   batched RL env (`blaze/env/`) and trainers (`blaze/rl/`)
@@ -41,7 +41,7 @@ Glossary and naming rationale (incl. the blaze mob collision): `NAMES.md`.
 | Need | Open |
 |------|------|
 | First clone / no oracle-src | `docs/BOOTSTRAP.md` |
-| How to play, VNC, qrl, sweep | `docs/RUNBOOK.md` |
+| How to play, VNC, NetheriteMod, sweep | `docs/RUNBOOK.md` |
 | Ship criteria / gate status | `docs/GATES.md` |
 | Is X in the game? cut / pinned / open / unrecoverable | `docs/SCOPE.md` |
 | Fidelity procedure | `magma/VERIFY.md` |
@@ -164,7 +164,7 @@ Python: **UV only** (`uv run`, never bare `pip`/`python` for project work).
 - Demos (png/mp4): scp to Mac; do not assume local image display.
 - Human play: Moonlight/Sunshine `:0` or mcwindow (`docs/RUNBOOK.md`).
 - Agent/trace: Xvfb `:1` via `bash java/start_vnc_client.sh` (VNC 5900, pw `redstone`).
-- One client owns qrl port **25575** at a time.
+- One client owns NetheriteMod port **25575** at a time.
 
 ## Gotchas
 

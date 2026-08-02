@@ -103,7 +103,7 @@ def main():
             gpath = os.path.join(kdir, "golden", "golden.txt")
             ipath = os.path.join(kdir, "golden", "inputs.txt")
             if not os.path.exists(gpath) or not os.path.exists(ipath):
-                raise SystemExit("live-hook kernel needs captured golden/inputs.txt + golden/golden.txt (run the qrl capture first)")
+                raise SystemExit("live-hook kernel needs captured golden/inputs.txt + golden/golden.txt (run the NetheriteMod capture first)")
             stdin_data = open(ipath).read()
             golden, gt = open(gpath).read().splitlines(), 0.0
         else:

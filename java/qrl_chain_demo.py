@@ -1,5 +1,5 @@
 """JVM chain demo: the blaze-trained spawn-to-torch policy driving the REAL
-Java Minecraft 1.11.2 game over the qrl bridge, zero scripted actions.
+Java Minecraft 1.11.2 game over the NetheriteMod bridge, zero scripted actions.
 
 Feature pipeline mirrors blaze/rl/eval_chain_rl.py exactly, computed from
 the bridge's protocol-v2 obs (semantic camera cam/depth/edge, coal list,
@@ -9,7 +9,7 @@ interact, hotbar), REPEAT=4 game ticks per decision, camera only on the last
 repeat tick. Sampled policy (never greedy), best-of-TRIES fresh cold spawns.
 
 Prereq: the Run B headless client (start_vnc_client.sh / mc_cli.py --vnc)
-with the rebuilt qrl mod, nothing else on port 25575.
+with the rebuilt NetheriteMod, nothing else on port 25575.
 
 Run (anvil):
   cd ~/dev/minecraft/mc-1.11.2-env && uv run --no-project --with torch,numpy \
@@ -140,12 +140,12 @@ def run_episode(env, seed, net, rng_seed, frames_dir=None):
         os.makedirs(frames_dir, exist_ok=True)
     obs = env._cmd({"cmd": "obs", "action": {"cam": 1}})
     if "world_seed" not in obs:
-        raise RuntimeError("qrl bridge did not report the live world seed")
+        raise RuntimeError("NetheriteMod bridge did not report the live world seed")
     if int(obs["world_seed"]) != seed:
         raise RuntimeError(f"fresh reset requested seed {seed}, bridge reports "
                            f"world_seed={obs.get('world_seed')}")
     if "policy_action_seq" not in obs or "policy_action_fnv64" not in obs:
-        raise RuntimeError("qrl bridge lacks policy action acknowledgements; "
+        raise RuntimeError("NetheriteMod bridge lacks policy action acknowledgements; "
                            "rebuild the Java client from this commit")
     action_seq_start = int(obs["policy_action_seq"])
     if action_seq_start != 0:

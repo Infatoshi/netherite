@@ -1,7 +1,7 @@
 /* CANDIDATE: pure-C port of MC 1.11.2 Chunk.generateSkylightMap()
  *   (src/net/minecraft/world/chunk/Chunk.java:238 generateSkylightMap).
  *
- * Golden CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook", qrl 'capture_skylight'):
+ * Golden CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook", NetheriteMod 'capture_skylight'):
  * for the player's chunk, skylight in all non-null storages is zeroed, then the REAL
  * generateSkylightMap() runs, then heightMap + per-cell skylight nibbles are read back.
  * topFilledSegment (i) is per-chunk constant; nY = i + 16.

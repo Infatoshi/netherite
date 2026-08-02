@@ -1657,37 +1657,36 @@ def main():
     # judged against the tape's recorded ents, not magma's own spawner.
     died_early = False
     try:
-        replay_env = {}
+        # Config registry overrides (core/config.def capture/replay toggles).
+        # Passed as repeated --set key=value; MAGMA_* env for these is dead.
+        replay_set = []
         if tape_strip_overlays(args.tape):
-            replay_env["MAGMA_STRIP_OVERLAYS"] = "1"
+            replay_set.append("strip_overlays=1")
         if tape_hide_gui(args.tape):
-            replay_env["MAGMA_HIDE_GUI"] = "1"
+            replay_set.append("hide_gui=1")
             # An explicit MAGMA_HAND_FROM_TICK in the caller's environment wins
-            # over the sidecar. The sidecar value is not a property of the
-            # oracle (see the meta's hand_from_tick_source); investigating the
-            # viewmodel means replaying the same tape with the hand forced on,
-            # and the alternative is editing demo/, which is symlinked into
-            # every agent worktree and so shared with whoever else is running.
+            # over the sidecar (still accepted as a caller-side override so
+            # viewmodel investigation does not require editing shared demo/).
+            # It is converted to --set hand_from_tick=N for the binary.
             hand_from = os.environ.get("MAGMA_HAND_FROM_TICK")
             if hand_from is None:
                 v = tape_hand_from_tick(args.tape)
                 hand_from = None if v is None else str(v)
             if hand_from is not None:
-                replay_env["MAGMA_HAND_FROM_TICK"] = hand_from
+                replay_set.append(f"hand_from_tick={hand_from}")
         # EntityRenderer.fogColor1 had not converged when recording started, so
         # the first ~40 goldens of a tape ramp while magma is flat from t=0
         # (measured: suffocate_camera t=0 is 7.69 mean/ch against a 0.75 floor,
         # decaying 0.35 per 10 ticks, which is vanilla's 0.9^10). The starting
         # value is a property of the recording session and cannot be derived
         # from the tape, so magma uses it only when the recorder wrote it.
-        # An explicit MAGMA_FOG_C1_INIT still wins, for sweeping it on the
-        # tapes recorded before the header field existed.
+        # An explicit MAGMA_FOG_C1_INIT still wins (caller override -> --set).
         fog_c1 = os.environ.get("MAGMA_FOG_C1_INIT")
         if fog_c1 is None:
             v = tape_fog_color1(args.tape)
             fog_c1 = None if v is None else repr(v)
         if fog_c1 is not None:
-            replay_env["MAGMA_FOG_C1_INIT"] = fog_c1
+            replay_set.append(f"fog_c1_init={fog_c1}")
         if frames_npy:
             # daylight=False: the trace profile (fast.yaml) records with
             # doDaylightCycle=false, so the oracle session's world_time never
@@ -1699,14 +1698,14 @@ def main():
                                   mobs=False, backend=backend, daylight=False,
                                   world=world,
                                   compose="window" if args.window_compose else "capture",
-                                  extra_env=replay_env or None)
+                                  set_kv=replay_set or None)
         else:
             ol.run_magma_script(scr, len(ticks), None, state,
                                   w=args.w, h=args.h,
                                   seed=int(header["seed"]), mobs=False,
                                   daylight=False, world=world,
                                   compose="window" if args.window_compose else "capture",
-                                  extra_env=replay_env or None)
+                                  set_kv=replay_set or None)
     except RuntimeError as e:
         # A dead magma player stops consuming script events and the run exits
         # rc=2 ("event lies beyond --ticks"). The state written up to the death

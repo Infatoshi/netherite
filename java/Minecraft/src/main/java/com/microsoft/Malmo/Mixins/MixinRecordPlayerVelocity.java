@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import qrl.Recorder;
+import netheritemod.Recorder;
 
 /** Records authoritative player velocity packets for human-tape replay. */
 @Mixin(NetHandlerPlayClient.class)

@@ -7,11 +7,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.gui.GuiBossOverlay;
 
-import qrl.QLaunch;
+import netheritemod.QLaunch;
 
 /**
  * CLI-instance GUI strip (qrl_launch.json strip.overlays): never draw the boss health
- * bar (dragon/wither). Boss state stays in the world and is observable over the qrl
+ * bar (dragon/wither). Boss state stays in the world and is observable over the NetheriteMod
  * bridge; the overlay is pure HUD chrome that pollutes whole-frame pixel diffs.
  * Hotbar, health/hunger/xp bars, and crosshair are intentionally untouched.
  * (The vignette needs no mixin: fancyGraphics:false already skips it.)

@@ -25,6 +25,7 @@
 #include "chunk_provider.h"   /* ChunkPrimer, CpScratch, McSinTable, u16, i64 */
 #include "structures.h"       /* st_run_features */
 #include "gen_prefetch.h"
+#include "core/config.h"      /* cr_cfg()->no_prefetch */
 
 enum { PF_EMPTY = 0, PF_BUILDING, PF_READY, PF_CONSUMED };
 
@@ -92,7 +93,7 @@ rescan:
 }
 
 void genpf_start(long long seed, int radius) {
-    if (getenv("MAGMA_NO_PREFETCH")) return;
+    if (cr_cfg()->no_prefetch) return;
     if (radius < 1) return;
     if (g.on) {
         if (g.seed == seed && g.rad == radius) return;  /* already running */

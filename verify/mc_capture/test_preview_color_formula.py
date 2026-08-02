@@ -60,15 +60,20 @@ def ensure_candidate() -> None:
 
 
 def render(pose: str, dump: Path) -> tuple[np.ndarray, list[dict]]:
-    env = os.environ.copy()
-    env["PREVIEW_DIAG"] = "3"
-    env["PREVIEW_DUMP_PATH"] = str(dump)
-    env["PREVIEW_COLOR_MODE"] = "0"
     ppm = dump.with_suffix(".ppm")
-    cmd = [str(CAND), "--container", "0", "--w", "854", "--h", "480", "--ppm", str(ppm)]
+    cmd = [
+        str(CAND),
+        "--container", "0",
+        "--w", "854",
+        "--h", "480",
+        "--ppm", str(ppm),
+        "--set", "preview_diag=3",
+        "--set", f"preview_dump_path={dump}",
+        "--set", "preview_color_mode=0",
+    ]
     if pose == "pose2":
         cmd.extend(["--mx", "282", "--my", "258"])
-    subprocess.check_call(cmd, cwd=str(ROOT), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.check_call(cmd, cwd=str(ROOT), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     rows = list(csv.DictReader(dump.open()))
     return load_ppm(ppm), rows
 

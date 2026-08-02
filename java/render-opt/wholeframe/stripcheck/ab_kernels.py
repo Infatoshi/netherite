@@ -1,5 +1,5 @@
 # Fast in-session kernel A/B: with the client ALREADY RUNNING and a scene set up
-# (any scene_*.py), flip all four kernels off->native via the qrl "kmode" op and
+# (any scene_*.py), flip all four kernels off->native via the NetheriteMod "kmode" op and
 # pixel-diff frames grabbed seconds apart on the SAME world state. Zero cross-launch
 # noise by construction: same tick-frozen world, same entities, same chunks.
 # The two-launch run_verify*.sh remains the final independent-process proof; this is

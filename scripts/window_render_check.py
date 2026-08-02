@@ -4,19 +4,19 @@
 The window path (magma/app/game_main.c) is not covered by automated pixel gates.
 Garbage-terrain (missing lightmap LUT bind) and unlit-white entities (missing
 per-entity lightmap fill) shipped invisibly. This script exercises the same
-loop via headless --frames + MAGMA_DUMP_DIR and asserts image-level invariants.
+loop via headless --frames + --set dump_dir=... and asserts image-level invariants.
 
 Scenarios
 ---------
   LIGHTMAP-SANITY
-    30 frames default lightmap mode + 30 frames MAGMA_LEGACY_LIGHTMAP=1, same
+    30 frames default lightmap mode + 30 frames --set legacy_lightmap=1, same
     seed, --mobs off. Frame 29 mean abs pixel difference below threshold (noon-
     fold legacy and lightmap nearly agree early in the day), AND lightmap-mode
     frame has < 2% near-white pixels (r,g,b all > 245) in the bottom two-thirds
     (terrain region). The broken build produced ~40%+.
 
   MOB-LIT
-    120 frames, MAGMA_MOB_DEMO=1 MAGMA_STILL=1 MAGMA_YAWRATE=3 --mobs off.
+    120 frames, --set mob_demo=1 still=1 yawrate=3 --mobs off.
     Assert zombie palette pixels exist (teal shirt / olive skin RGB windows,
     lighting-tolerant) and are NOT near-white. Assert at least one frame differs
     from the corresponding no-demo run (entities actually drew).
@@ -31,7 +31,7 @@ Detection proof (pre-fix binary)
 ---------------------------------
   e49286e~1 builds with generated assets copied from a fixed tree and fails
   LIGHTMAP-SANITY: MAD ~70 and near-white ~39% in the terrain region (vs
-  MAD ~7.3 / ~0.02% post-fix). MAGMA_MOB_DEMO exists only from 12c865a;
+  MAD ~7.3 / ~0.02% post-fix). mob_demo exists only from 12c865a;
   pre-entity-light fix is covered by the entity near-white / teal asserts
   when run on a binary that has the demo hook but lacks entity light fill.
 
@@ -126,6 +126,12 @@ def require_frames(d: Path, n: int, label: str) -> None:
 # Game runner
 # ---------------------------------------------------------------------------
 
+def append_sets(cmd: list[str], pairs: list[str]) -> None:
+    """Append repeated --set key=value flags (one flag per pair)."""
+    for kv in pairs:
+        cmd.extend(["--set", kv])
+
+
 def run_game(
     game: Path,
     out_dir: Path,
@@ -134,6 +140,7 @@ def run_game(
     width: int,
     height: int,
     *,
+    set_extra: Optional[dict] = None,
     env_extra: Optional[dict] = None,
     mobs: str = "off",
     label: str = "game",
@@ -143,9 +150,9 @@ def run_game(
     for p in out_dir.glob("frame_*.ppm"):
         p.unlink()
 
+    # Platform env only; drive/scenario knobs go through --set on argv.
     env = os.environ.copy()
     env["SDL_VIDEODRIVER"] = "dummy"
-    env["MAGMA_DUMP_DIR"] = str(out_dir)
     if env_extra:
         env.update(env_extra)
 
@@ -157,9 +164,14 @@ def run_game(
         "--width", str(width),
         "--height", str(height),
     ]
+    sets = [f"dump_dir={out_dir}"]
+    for k, v in sorted((set_extra or {}).items()):
+        sets.append(f"{k}={v}")
+    append_sets(cmd, sets)
     log_path = out_dir / "run.log"
     with open(log_path, "w") as log:
-        log.write(f"+ env MAGMA_DUMP_DIR={out_dir}\n")
+        for kv in sets:
+            log.write(f"+ --set {kv}\n")
         for k, v in sorted((env_extra or {}).items()):
             log.write(f"+ env {k}={v}\n")
         log.write(f"+ {' '.join(cmd)}\n")
@@ -303,7 +315,7 @@ def check_mob_lit(mob_dir: Path, nomob_dir: Path) -> None:
         raise AssertionError(
             f"MOB-LIT: zombie teal-shirt pixels across {MOB_FRAMES} frames = "
             f"{total_teal} < min {MOB_ZOMBIE_TEAL_MIN} "
-            f"(MAGMA_MOB_DEMO zombie not visible or unlit-white)"
+            f"(mob_demo zombie not visible or unlit-white)"
         )
     if total_skin_on_diff < MOB_ZOMBIE_SKIN_MIN:
         raise AssertionError(
@@ -380,13 +392,13 @@ def scenario_lightmap(
     if not reuse_lm:
         run_game(
             game, lm_dir, LM_FRAMES, seed, width, height,
-            env_extra={"MAGMA_STILL": "1"},
+            set_extra={"still": "1"},
             label="LIGHTMAP-SANITY lightmap",
         )
     if not reuse_legacy:
         run_game(
             game, leg_dir, LM_FRAMES, seed, width, height,
-            env_extra={"MAGMA_STILL": "1", "MAGMA_LEGACY_LIGHTMAP": "1"},
+            set_extra={"still": "1", "legacy_lightmap": "1"},
             label="LIGHTMAP-SANITY legacy",
         )
     check_lightmap_sanity(lm_dir, leg_dir)
@@ -404,18 +416,18 @@ def scenario_mob(
     nomob_dir = work / "mob_nodemo"
     run_game(
         game, mob_dir, MOB_FRAMES, seed, width, height,
-        env_extra={
-            "MAGMA_MOB_DEMO": "1",
-            "MAGMA_STILL": "1",
-            "MAGMA_YAWRATE": "3",
+        set_extra={
+            "mob_demo": "1",
+            "still": "1",
+            "yawrate": "3",
         },
         label="MOB-LIT demo",
     )
     run_game(
         game, nomob_dir, MOB_FRAMES, seed, width, height,
-        env_extra={
-            "MAGMA_STILL": "1",
-            "MAGMA_YAWRATE": "3",
+        set_extra={
+            "still": "1",
+            "yawrate": "3",
         },
         label="MOB-LIT no-demo",
     )
@@ -434,12 +446,12 @@ def scenario_tick(
     b = work / "tick_b"
     run_game(
         game, a, TICK_FRAMES, seed, width, height,
-        env_extra={"MAGMA_STILL": "1"},
+        set_extra={"still": "1"},
         label="TICK-RATE A",
     )
     run_game(
         game, b, TICK_FRAMES, seed, width, height,
-        env_extra={"MAGMA_STILL": "1"},
+        set_extra={"still": "1"},
         label="TICK-RATE B",
     )
     check_tick_rate(a, b)

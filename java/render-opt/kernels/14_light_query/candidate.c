@@ -1,7 +1,7 @@
 /* CANDIDATE: pure-C port of MC 1.11.2 World.getLightFromNeighborsFor()
  *   (src/net/minecraft/world/World.java:852, with Chunk.getLightFor()).
  *
- * The golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): the qrl mod
+ * The golden is CAPTURED FROM REAL MINECRAFT (capture_mode "live-hook"): NetheriteMod
  * samples loaded block positions around the player and records, per (pos,type) query,
  * the exact light values the method reads plus the method's own output.
  *
