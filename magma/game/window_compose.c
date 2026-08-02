@@ -31,6 +31,7 @@ extern void cr_raster_cuda_render_layer(CrFramebuffer *, const CrVertex *, int,
     __attribute__((weak));
 extern void cr_raster_cuda_frame_begin(const CrFramebuffer *) __attribute__((weak));
 extern void cr_raster_cuda_frame_end(CrFramebuffer *) __attribute__((weak));
+extern int cr_raster_cuda_screen_tris(void) __attribute__((weak));
 extern void cr_raster_cuda_sky(const GmSkyCtx *, const float *, int, int)
     __attribute__((weak));
 extern void cr_raster_cuda_atlas_dirty(void) __attribute__((weak));
@@ -45,6 +46,7 @@ extern void cr_raster_metal_render_layer(CrFramebuffer *, const CrVertex *, int,
     __attribute__((weak));
 extern void cr_raster_metal_frame_begin(const CrFramebuffer *) __attribute__((weak));
 extern void cr_raster_metal_frame_end(CrFramebuffer *) __attribute__((weak));
+extern int cr_raster_metal_screen_tris(void) __attribute__((weak));
 extern void cr_raster_metal_sky(const GmSkyCtx *, const float *, int, int)
     __attribute__((weak));
 extern void cr_raster_metal_atlas_dirty(void) __attribute__((weak));
@@ -827,11 +829,17 @@ int gm_window_compose_draw(GmWindowCompose *c,
                                  CR_LAYER_TRANSLUCENT,
                                  CR_LAYER_TRANSLUCENT + 1);
     stamp(frame, 9);
-    if (c->backend == GM_BACKEND_CUDA)
+    if (c->backend == GM_BACKEND_CUDA) {
         cr_raster_cuda_frame_end(&c->fb);
+        if (cr_raster_cuda_screen_tris)
+            ntris = cr_raster_cuda_screen_tris();
+    }
 #ifdef MAGMA_METAL
-    else if (c->backend == GM_BACKEND_METAL)
+    else if (c->backend == GM_BACKEND_METAL) {
         cr_raster_metal_frame_end(&c->fb);
+        if (cr_raster_metal_screen_tris)
+            ntris = cr_raster_metal_screen_tris();
+    }
 #endif
     stamp(frame, 10);
 

@@ -123,6 +123,19 @@ static CR_HD CrScreenVert to_screen(const ClipVert *cv, int fb_w, int fb_h)
     return sv;
 }
 
+/* With the y-down viewport map above, front faces have negative signed area.
+ * Keep exact degenerates in the transform output so the rasterizer retains
+ * its existing zero-area handling. */
+#define CR_BACKFACE_EPSILON 0.0f
+static CR_HD int cr_screen_backface(const CrScreenTri *tri)
+{
+    float x0 = tri->v[0].spos.x, y0 = tri->v[0].spos.y;
+    float x1 = tri->v[1].spos.x, y1 = tri->v[1].spos.y;
+    float x2 = tri->v[2].spos.x, y2 = tri->v[2].spos.y;
+    float area = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0);
+    return area > CR_BACKFACE_EPSILON;
+}
+
 /* One input triangle (3 consecutive CrVertex) -> 0..2 screen tris (near clip
  * fan). Shared per-triangle worker for the CPU loop below AND the CUDA
  * transform kernel (cuda/raster_cuda.cu #includes this file). */
@@ -182,8 +195,11 @@ int cr_transform(const CrVertex *verts, int nverts,
 
         CrScreenTri pair[2];
         int n = cr_transform_tri(mvp, cam->pos, tri, fb_w, fb_h, pair);
-        for (int i = 0; i < n && count < max_out; ++i)
+        for (int i = 0; i < n && count < max_out; ++i) {
+            if (cr_screen_backface(&pair[i]))
+                continue;
             out[count++] = pair[i];
+        }
     }
 
     return count;

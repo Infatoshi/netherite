@@ -7,9 +7,10 @@
  *     verify/chunk_scene.h (cr_perspective + cr_look_yaw_pitch + cr_frustum_
  *     extract), iterate the Chebyshev radius SCN_VIEW_RADIUS with the same cx-outer /
  *     cz-inner order, frustum-test each chunk's full [0,256] column AABB, mesh kept
- *     chunks (rebuild only if dirty or not yet meshed) and concatenate their per-layer
- *     verts into world-owned buffers (grown with realloc like scn__append). This
- *     reproduces chunkscene_init byte-for-byte at the frozen pose over a fresh world.
+ *     chunks (rebuild only if dirty or not yet meshed), frustum-test their non-empty
+ *     16-block-high render sections, and concatenate the intersecting per-layer verts
+ *     into world-owned buffers. Translucent verts keep their original full-column
+ *     order because blending is order-sensitive.
  *   - gm_world_block / gm_world_fill_window read canonical vanilla states through CrLight,
  *   - gm_world_set_block edits the store, re-lights, marks the touched chunk (and any
  *     border neighbour) dirty.
@@ -46,6 +47,9 @@ CrLight *worldmc_light(CrWorldMC *w);
 #endif
 #define WL_AABB_Y_MIN 0.0
 #define WL_AABB_Y_MAX 256.0
+#define WL_SECTIONS 16
+#define WL_SECTION_HEIGHT 16.0
+#define WL_SECTION_Y_PAD 1.0
 
 /* floor-division of a block coord to its chunk coord (identical to scn__floordiv16). */
 static inline int wl_floordiv16(int a) { return a >> 4; }
@@ -65,6 +69,8 @@ typedef struct {
     int           builds;   /* rebuild count (test hook)               */
     CrVertex     *buf;      /* packed slab: layer0|layer1|layer2|layer3 */
     int           off[4], n[4];
+    int           sec_off[4][WL_SECTIONS];
+    int           sec_n[4][WL_SECTIONS];
     CrChunkMeshMC view;     /* verts[l]=buf+off[l], nverts[l]=n[l]     */
 } WlSlot;
 
@@ -107,6 +113,19 @@ static int g_caps_on = -1;
 static int g_cap_chunk_layer[4] = {0,0,0,0};
 static int g_cap_chunk_total = 0;
 
+/* Mesher output is a six-vertex triangle list per source quad. Stable-bucket a
+ * quad by its minimum vertex y so boundary-crossing geometry stays with the
+ * lower source section. The clamp covers the world's bottom/top boundary. */
+static int wl_quad_section(const CrVertex *quad) {
+    float miny = quad[0].pos.y;
+    for (int i = 1; i < 6; ++i)
+        if (quad[i].pos.y < miny) miny = quad[i].pos.y;
+    int y = (int)floorf(miny);
+    if (y < 0) y = 0;
+    if (y > 255) y = 255;
+    return y >> 4;
+}
+
 /* Ensure the toroidal slot for (cx,cz) holds a current packed mesh; (re)build if it
  * holds a different chunk, is empty, or is dirty. Alloc-free: meshes into the shared
  * scratch then packs into the slot's pre-allocated slab. */
@@ -129,7 +148,40 @@ static WlSlot *wl_ensure_mesh(GmWorld *w, int cx, int cz) {
         }
         s->off[l] = off;
         s->n[l]   = nl;
-        if (nl) memcpy(s->buf + off, w->scratch.verts[l], (size_t)nl * sizeof(CrVertex));
+        memset(s->sec_n[l], 0, sizeof(s->sec_n[l]));
+
+        if (l == CR_LAYER_TRANSLUCENT) {
+            /* Preserve the mesher's exact blend order. The window path submits
+             * this full layer whenever its column passes the coarse cull. */
+            if (nl)
+                memcpy(s->buf + off, w->scratch.verts[l],
+                       (size_t)nl * sizeof(CrVertex));
+            for (int sec = 0; sec < WL_SECTIONS; ++sec)
+                s->sec_off[l][sec] = off;
+            s->sec_n[l][0] = nl;
+        } else {
+            assert(nl % 6 == 0);
+            for (int i = 0; i < nl; i += 6)
+                s->sec_n[l][wl_quad_section(w->scratch.verts[l] + i)] += 6;
+
+            int cursor[WL_SECTIONS];
+            int next = off;
+            for (int sec = 0; sec < WL_SECTIONS; ++sec) {
+                s->sec_off[l][sec] = next;
+                cursor[sec] = next;
+                next += s->sec_n[l][sec];
+            }
+            assert(next == off + nl);
+
+            /* Stable partition: quad data and order within each section are
+             * unchanged; only the sixteen section runs are placed together. */
+            for (int i = 0; i < nl; i += 6) {
+                const CrVertex *quad = w->scratch.verts[l] + i;
+                int sec = wl_quad_section(quad);
+                memcpy(s->buf + cursor[sec], quad, 6 * sizeof(CrVertex));
+                cursor[sec] += 6;
+            }
+        }
         off += nl;
         s->view.verts[l]  = s->buf + s->off[l];
         s->view.nverts[l] = nl;
@@ -381,6 +433,7 @@ void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
     /* reset the world-owned output buffers (reuse allocations). */
     for (int l = 0; l < 4; ++l) w->out_nverts[l] = 0;
     int n_kept = 0, n_culled = 0;
+    int sections_kept = 0, sections_culled = 0;
 
     for (int cx = ccx - R; cx <= ccx + R; ++cx) {
         for (int cz = ccz - R; cz <= ccz + R; ++cz) {
@@ -394,15 +447,40 @@ void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
 
             WlSlot *c = wl_ensure_mesh(w, cx, cz);
             if (!c) continue;
-            for (int l = 0; l < 4; ++l)
-                wl_append(w, l, c->view.verts[l], c->view.nverts[l]);
+            int added[4] = {0, 0, 0, 0};
+            for (int sec = 0; sec < WL_SECTIONS; ++sec) {
+                int nonempty = 0;
+                for (int l = 0; l < CR_LAYER_TRANSLUCENT; ++l)
+                    nonempty |= c->sec_n[l][sec] != 0;
+                if (!nonempty) continue;
+
+                double miny = (double)sec * WL_SECTION_HEIGHT - WL_SECTION_Y_PAD;
+                double maxy = (double)(sec + 1) * WL_SECTION_HEIGHT + WL_SECTION_Y_PAD;
+                int section_inside = cull_off ||
+                    cr_aabb_in_frustum(planes, minx, miny, minz,
+                                       maxx, maxy, maxz);
+                if (!section_inside) {
+                    sections_culled++;
+                    continue;
+                }
+                sections_kept++;
+                for (int l = 0; l < CR_LAYER_TRANSLUCENT; ++l) {
+                    int ns = c->sec_n[l][sec];
+                    wl_append(w, l, c->buf + c->sec_off[l][sec], ns);
+                    added[l] += ns;
+                }
+            }
+            wl_append(w, CR_LAYER_TRANSLUCENT,
+                      c->view.verts[CR_LAYER_TRANSLUCENT],
+                      c->view.nverts[CR_LAYER_TRANSLUCENT]);
+            added[CR_LAYER_TRANSLUCENT] = c->view.nverts[CR_LAYER_TRANSLUCENT];
             if (dbg_verts) {
                 int in2x2 = (cx >= 0 && cx < 2 && cz >= 0 && cz < 2);
-                if (in2x2) dbg_near_leaf += c->view.nverts[1];
+                if (in2x2) dbg_near_leaf += added[1];
                 else {
-                    dbg_far_leaf  += c->view.nverts[1];
-                    dbg_far_solid += c->view.nverts[0];
-                    if (c->view.nverts[1] > 0) dbg_far_chunks_with_leaf++;
+                    dbg_far_leaf  += added[1];
+                    dbg_far_solid += added[0];
+                    if (added[1] > 0) dbg_far_chunks_with_leaf++;
                 }
             }
         }
@@ -420,10 +498,11 @@ void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
         for (int i = 0; i < w->mesh_slots; ++i) if (w->slots[i].valid) valid++;
         fprintf(stderr,
             "[caps] R=%d kept=%d culled=%d mesh_slots=%d/%d light_chunks=%d owr_windows=%ld "
+            "sections_kept=%d sections_culled=%d "
             "drawverts[S/CM/C/T]=%d/%d/%d/%d "
             "chunk_max[S/CM/C/T]=%d/%d/%d/%d chunk_max_total=%d\n",
             R, n_kept, n_culled, valid, w->mesh_slots, light_loaded_chunks(w->light),
-            popmc_window_builds(),
+            popmc_window_builds(), sections_kept, sections_culled,
             w->out_nverts[0], w->out_nverts[1], w->out_nverts[2], w->out_nverts[3],
             g_cap_chunk_layer[0], g_cap_chunk_layer[1], g_cap_chunk_layer[2],
             g_cap_chunk_layer[3], g_cap_chunk_total);
@@ -440,9 +519,9 @@ void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
 int gm_world_mesh_chunks(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
                          GmChunkDraw *out, int max_out, int nverts[4]) {
     if (!w || !cam || !out) return 0;
-    /* SAME radius / ensure / frustum / iteration order as gm_world_mesh_view:
-     * the device-side concat of these entries must be byte-identical to the
-     * wl_append concat, so any logic drift here is a pixel bug. */
+    /* Device-resident replay remains a full-column gather. W16 is deliberately
+     * window-path CPU submission only; it does not change the CUDA gather API or
+     * its fixed one-entry-per-mesh-slot storage. */
     int R = SCN_VIEW_RADIUS;
     { const char *e = getenv("MAGMA_VIEW_RADIUS");
       if (e) { int r = atoi(e); if (r >= 1 && r <= SCN_VIEW_RADIUS) R = r; } }

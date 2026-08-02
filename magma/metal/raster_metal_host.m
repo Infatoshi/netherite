@@ -133,14 +133,14 @@ typedef struct {
     CrScreenTri tri;
 } TriParams;
 typedef struct { int ntris, W, H; } BboxParams;
-typedef struct { int W, H, ntris, sb1, sb2, sb3, shbase; } TileParams;
+typedef struct { int W, H, ntris, sb1, sb2, sb3, shbase, nxblocks; } TileParams;
 typedef struct {
     int W, H;
     GmSkyCtx sc;
     float b[11];
 } SkyParams;
 typedef struct {
-    int ntris_in, W, H;
+    int ntris_in, W, H, compact;
     CrMat4 mvp;
     CrVec3 campos;
 } XformParams;
@@ -148,7 +148,7 @@ typedef struct { int nents, total_words, base; } GatherParams;
 
 _Static_assert(sizeof(TriParams) == 24 + sizeof(CrScreenTri), "TriParams");
 _Static_assert(sizeof(SkyParams) == 8 + sizeof(GmSkyCtx) + 44, "SkyParams");
-_Static_assert(sizeof(XformParams) == 12 + 64 + 12, "XformParams");
+_Static_assert(sizeof(XformParams) == 16 + 64 + 12, "XformParams");
 
 /* Must match cpu/raster_cpu.c / raster_cuda.cu. */
 #define CR_FRONT_SIGN -1.0f
@@ -165,6 +165,7 @@ void cr_raster_metal_unpin(void *p);
 void cr_raster_metal_frame_begin(const CrFramebuffer *fb);
 void cr_raster_metal_sky(const GmSkyCtx *sc, const float *b, int W, int H);
 void cr_raster_metal_frame_end(CrFramebuffer *fb);
+int  cr_raster_metal_screen_tris(void);
 int  cr_raster_metal_frame_end_async(CrFramebuffer *fb, CrRgba *dst_color);
 void cr_raster_metal_frame_wait(void);
 void cr_raster_metal_into(CrFramebuffer *fb, const CrScreenTri *tris,
@@ -204,6 +205,7 @@ static id<MTLCommandBuffer>        g_last;     /* last committed, not yet waited
 static id<MTLCommandBuffer>        g_end_cb;   /* frame_end_async's cb */
 
 static id<MTLBuffer> g_d_color, g_d_depth, g_d_tris, g_d_box, g_d_tminz,
+                     g_d_xcounts, g_d_screen_tris,
                      g_d_verts, g_d_sh, g_d_lm, g_d_pend;
 static id<MTLBuffer> g_vstage[CR_SH_RING];   /* render_layer vert staging ring */
 static id<MTLBuffer> g_into_tris;            /* cr_raster_metal_into tris staging */
@@ -226,6 +228,7 @@ static struct {
     int vs_idx;          /* vert-staging ring cursor */
     int gr_idx;          /* gather-table ring cursor */
     int frame_open;      /* 1 between frame_begin/frame_end: fb is resident */
+    int screen_tris;     /* compacted screen tris after frame_end */
     int end_pending;     /* frame_end_async armed, frame_wait not yet called */
     CrRgba *end_dst;     /* frame_end_async's caller-owned readback target */
     size_t  end_npix;
@@ -445,8 +448,9 @@ static void mg_encode_bbox(id<MTLComputeCommandEncoder> enc,
 
 static void mg_encode_tiled(id<MTLComputeCommandEncoder> enc,
                             id<MTLBuffer> trisBuf, int ntris, int W, int H,
-                            int shbase, int sb1, int sb2, int sb3) {
-    TileParams tp = { W, H, ntris, sb1, sb2, sb3, shbase };
+                            int shbase, int sb1, int sb2, int sb3,
+                            int nxblocks) {
+    TileParams tp = { W, H, ntris, sb1, sb2, sb3, shbase, nxblocks };
     [enc setComputePipelineState:g_pso_tiled];
     [enc setBuffer:g_d_color offset:0 atIndex:0];
     [enc setBuffer:g_d_depth offset:0 atIndex:1];
@@ -455,6 +459,7 @@ static void mg_encode_tiled(id<MTLComputeCommandEncoder> enc,
     [enc setBuffer:g_d_box offset:0 atIndex:4];
     [enc setBuffer:g_d_sh offset:0 atIndex:5];
     [enc setBuffer:g_d_tminz offset:0 atIndex:6];
+    [enc setBuffer:g_d_xcounts offset:0 atIndex:7];
     mg_use_indirect(enc);
     [enc dispatchThreadgroups:MTLSizeMake((NSUInteger)((W + 15) / 16),
                                           (NSUInteger)((H + 15) / 16), 1)
@@ -463,14 +468,17 @@ static void mg_encode_tiled(id<MTLComputeCommandEncoder> enc,
 
 static void mg_encode_xform(id<MTLComputeCommandEncoder> enc,
                             id<MTLBuffer> vertsBuf, int ntris_in,
-                            const CrMat4 *mvp, CrVec3 campos, int W, int H) {
+                            const CrMat4 *mvp, CrVec3 campos, int W, int H,
+                            int compact) {
     XformParams xp;
-    xp.ntris_in = ntris_in; xp.W = W; xp.H = H;
+    xp.ntris_in = ntris_in; xp.W = W; xp.H = H; xp.compact = compact;
     xp.mvp = *mvp; xp.campos = campos;
     [enc setComputePipelineState:g_pso_xform];
     [enc setBuffer:vertsBuf offset:0 atIndex:0];
     [enc setBytes:&xp length:sizeof xp atIndex:1];
     [enc setBuffer:g_d_tris offset:0 atIndex:2];
+    [enc setBuffer:g_d_xcounts offset:0 atIndex:3];
+    [enc setBuffer:g_d_screen_tris offset:0 atIndex:4];
     [enc dispatchThreadgroups:MTLSizeMake((NSUInteger)((ntris_in + 255) / 256), 1, 1)
         threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
 }
@@ -581,14 +589,19 @@ void cr_raster_metal_pre(int w, int h, int max_tris) {
     g_d_tris  = mg_newbuf(2 * (size_t)max_tris * sizeof(CrScreenTri), "d_tris");
     g_d_box   = mg_newbuf(2 * (size_t)max_tris * sizeof(uint32_t), "d_box");
     g_d_tminz = mg_newbuf(2 * (size_t)max_tris * sizeof(float), "d_tminz");
+    g_d_xcounts = mg_newbuf((size_t)((max_tris + 255) / 256) * sizeof(int),
+                            "d_xcounts");
+    g_d_screen_tris = mg_newbuf(sizeof(int), "d_screen_tris");
     g_d_verts = mg_newbuf(3 * (size_t)max_tris * sizeof(CrVertex), "d_verts");
     g_d_sh    = mg_newbuf(CR_SH_RING * sizeof(CrShadeCtx), "d_sh");
     g_d_lm    = mg_newbuf(CR_SH_RING * 256 * sizeof(CrRgba), "d_lm");
     g_d_pend  = mg_newbuf(npix * sizeof(CrRgba), "d_pend");
     if (!g_d_color || !g_d_depth || !g_d_tris || !g_d_box || !g_d_tminz ||
+        !g_d_xcounts || !g_d_screen_tris ||
         !g_d_verts || !g_d_sh || !g_d_lm || !g_d_pend) {
         fprintf(stderr, "magma Metal: cr_raster_metal_pre allocation failed\n");
         g_d_color = g_d_depth = g_d_tris = g_d_box = g_d_tminz = nil;
+        g_d_xcounts = g_d_screen_tris = nil;
         g_d_verts = g_d_sh = g_d_lm = g_d_pend = nil;
         return;
     }
@@ -618,6 +631,7 @@ void cr_raster_metal_frame_begin(const CrFramebuffer *fb) {
     size_t npix = (size_t)fb->w * (size_t)fb->h;
     memcpy(g_d_color.contents, fb->color, npix * sizeof(CrRgba));
     memcpy(g_d_depth.contents, fb->depth, npix * sizeof(float));
+    *(int *)g_d_screen_tris.contents = 0;
     g.frame_open = 1;
 }
 
@@ -651,11 +665,16 @@ void cr_raster_metal_frame_end(CrFramebuffer *fb) {
     /* THE frame barrier: commit + wait every enqueued layer, then bring the
      * fb home (shared memory: readback is a CPU memcpy after completion). */
     mg_sync();
+    g.screen_tris = *(int *)g_d_screen_tris.contents;
     memcpy(fb->color, g_d_color.contents, npix * sizeof(CrRgba));
     memcpy(fb->depth, g_d_depth.contents, npix * sizeof(float));
     g.sh_idx = 0;
     g.gr_idx = 0;
     g.frame_open = 0;
+}
+
+int cr_raster_metal_screen_tris(void) {
+    return g.screen_tris;
 }
 
 /* Deferred frame end: blit d_color into the dedicated pend buffer (the next
@@ -729,7 +748,7 @@ void cr_raster_metal_into(CrFramebuffer *fb, const CrScreenTri *tris,
     id<MTLComputeCommandEncoder> enc = [mg_cb() computeCommandEncoder];
     mg_encode_bbox(enc, g_into_tris, ntris, W, H);
     mg_encode_tiled(enc, g_into_tris, ntris, W, H, slot,
-                    0x7fffffff, 0x7fffffff, 0x7fffffff);
+                    0x7fffffff, 0x7fffffff, 0x7fffffff, 0);
     [enc endEncoding];
 
     /* Legacy path stays synchronous (mirrors cudaStreamSynchronize). */
@@ -770,10 +789,11 @@ static void mg_run_layer(CrFramebuffer *fb, int nverts, const CrCamera *cam,
 
     int ntris = 2 * ntris_in; /* slotted output, holes skip-marked via bbox */
     id<MTLComputeCommandEncoder> enc = [mg_cb() computeCommandEncoder];
-    mg_encode_xform(enc, vertsBuf, ntris_in, &mvp, cam->pos, W, H);
+    int nxblocks = (ntris_in + 255) / 256;
+    mg_encode_xform(enc, vertsBuf, ntris_in, &mvp, cam->pos, W, H, 1);
     mg_encode_bbox(enc, g_d_tris, ntris, W, H);
     mg_encode_tiled(enc, g_d_tris, ntris, W, H, slot,
-                    0x7fffffff, 0x7fffffff, 0x7fffffff);
+                    0x7fffffff, 0x7fffffff, 0x7fffffff, nxblocks);
     [enc endEncoding];
     /* No sync while the frame is open: layers queue back-to-back in the
      * frame's command buffer; frame_end is the barrier. */
@@ -947,9 +967,9 @@ void cr_raster_metal_render_terrain(CrFramebuffer *fb, const int *src_vert,
     int ntris = 2 * ntris_in;
     id<MTLComputeCommandEncoder> enc = [mg_cb() computeCommandEncoder];
     mg_encode_gather(enc, src_vert, nvert, nents, total_verts);
-    mg_encode_xform(enc, g_d_verts, ntris_in, &mvp, cam->pos, W, H);
+    mg_encode_xform(enc, g_d_verts, ntris_in, &mvp, cam->pos, W, H, 0);
     mg_encode_bbox(enc, g_d_tris, ntris, W, H);
-    mg_encode_tiled(enc, g_d_tris, ntris, W, H, si, sb1, sb2, sb3);
+    mg_encode_tiled(enc, g_d_tris, ntris, W, H, si, sb1, sb2, sb3, 0);
     [enc endEncoding];
 
     if (!g.frame_open) {
@@ -963,6 +983,7 @@ void cr_raster_metal_post(void) {
     if (!g.inited) return;
     mg_sync();
     g_d_color = g_d_depth = g_d_tris = g_d_box = g_d_tminz = nil;
+    g_d_xcounts = g_d_screen_tris = nil;
     g_d_verts = g_d_sh = g_d_lm = g_d_pend = nil;
     for (int i = 0; i < CR_SH_RING; ++i) g_vstage[i] = nil;
     g_into_tris = nil;

@@ -339,8 +339,10 @@ CrTexture gm_world_atlas(const GmWorld *w);
 void      gm_world_fill_window(GmWorld *w, int ccx, int ccz, struct Chunk *win);
 
 /* Re-mesh dirty/newly-visible chunks in the frustum-culled view radius around `cam`
- * and return the concatenated per-CrRenderLayer vertex buffers (world owns them; valid
- * until the next call; do NOT free). Cached: unchanged chunks are not re-meshed. */
+ * and return concatenated per-CrRenderLayer vertex buffers (world owns them; valid
+ * until the next call; do NOT free). Opaque/cutout layers are additionally culled in
+ * 16-block-high section runs; translucent keeps its original full-column blend order.
+ * Cached: unchanged chunks are not re-meshed. */
 typedef struct {
     CrVertex *verts[4];   /* per CrRenderLayer, concatenated over kept chunks */
     int       nverts[4];
@@ -349,8 +351,9 @@ typedef struct {
 void      gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
                              GmMeshView *out);
 
-/* Device-resident-mesh variant of mesh_view: same ensure + frustum + remesh
- * walk in the same chunk order, but instead of memcpy-concatenating every
+/* Device-resident-mesh variant: same ensure + column-frustum + remesh walk in
+ * the same chunk order, but intentionally no CPU-side vertical section cull.
+ * Instead of memcpy-concatenating every
  * visible chunk's verts into the per-layer draw buffers (~2ms/frame of pure
  * memmove), it returns one entry per kept chunk pointing INTO the chunk's
  * packed mesh slab. The CUDA backend mirrors the slabs on the device (upload

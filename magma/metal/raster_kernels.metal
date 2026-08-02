@@ -204,6 +204,7 @@ typedef struct {                 /* cr_raster_tiled_kernel, buffer(2) */
     int shbase;                  /* shade-ctx ring base slot (CUDA passed
                                     &d_sh[si]; an offset avoids setBuffer
                                     offset-alignment constraints) */
+    int nxblocks;                /* stable compacted transform blocks; 0=plain */
 } TileParamsM;
 
 typedef struct {                 /* k_sky, buffer(1) */
@@ -213,9 +214,9 @@ typedef struct {                 /* k_sky, buffer(1) */
 } SkyParamsM;
 
 typedef struct {                 /* cr_transform_kernel, buffer(1) */
-    int ntris_in, W, H;
-    CrMat4M mvp;                 /* offset 12 */
-    CrVec3M campos;              /* offset 76 */
+    int ntris_in, W, H, compact;
+    CrMat4M mvp;                 /* offset 16 */
+    CrVec3M campos;              /* offset 80 */
 } XformParamsM;
 
 typedef struct { int nents, total_words, base; } GatherParamsM; /* buffer(4) */
@@ -635,6 +636,7 @@ kernel void cr_raster_tiled_kernel(device CrRgbaM *color           [[buffer(0)]]
                                    device const CrTriBox *box      [[buffer(4)]],
                                    device const CrShadeCtxM *sh_ring [[buffer(5)]],
                                    device const float *tminz       [[buffer(6)]],
+                                   device const int *xform_counts  [[buffer(7)]],
                                    uint2 tgpig [[threadgroup_position_in_grid]],
                                    uint2 tpitg [[thread_position_in_threadgroup]]) {
     int W = p.W, H = p.H, ntris = p.ntris;
@@ -663,10 +665,26 @@ kernel void cr_raster_tiled_kernel(device CrRgbaM *color           [[buffer(0)]]
     threadgroup atomic_int s_any;       /* __syncthreads_or replacement */
     int lane = (int)(tpitg.y * CR_TILE + tpitg.x);   /* 0..255 */
 
-    for (int base = 0; base < ntris; base += CR_TILE_N) {
+    int nbatches = p.nxblocks > 0
+        ? p.nxblocks * 2
+        : (ntris + CR_TILE_N - 1) / CR_TILE_N;
+    for (int batch = 0; batch < nbatches; ++batch) {
+        int base, batch_n;
+        if (p.nxblocks > 0) {
+            int xb = batch >> 1;
+            int half = batch & 1;
+            base = xb * (2 * CR_TILE_N) + half * CR_TILE_N;
+            batch_n = xform_counts[xb] - half * CR_TILE_N;
+            if (batch_n < 0) batch_n = 0;
+            if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
+        } else {
+            base = batch * CR_TILE_N;
+            batch_n = ntris - base;
+            if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
+        }
         int t0 = base + lane;
         int pass = 0;
-        if (t0 < ntris) {
+        if (lane < batch_n) {
             CrTriBox b = box[t0];         /* 4-byte packed inclusive tile bounds */
             int tminx = (int)((b >> 24) & 0xFF), tminy = (int)((b >> 16) & 0xFF);
             int tmaxx = (int)((b >> 8)  & 0xFF), tmaxy = (int)( b        & 0xFF);
@@ -1130,6 +1148,18 @@ static CrScreenVertM to_screen(thread const ClipVertM *cv, int fb_w, int fb_h) {
     return sv;
 }
 
+/* With the y-down viewport map above, front faces have negative signed area.
+ * Keep exact degenerates in the transform output so the rasterizer retains
+ * its existing zero-area handling. */
+#define CR_BACKFACE_EPSILON 0.0f
+static int cr_screen_backface(thread const CrScreenTriM *tri) {
+    float x0 = tri->v[0].spos.x, y0 = tri->v[0].spos.y;
+    float x1 = tri->v[1].spos.x, y1 = tri->v[1].spos.y;
+    float x2 = tri->v[2].spos.x, y2 = tri->v[2].spos.y;
+    float area = (x1 - x0) * (y2 - y0) - (y1 - y0) * (x2 - x0);
+    return area > CR_BACKFACE_EPSILON;
+}
+
 static int cr_transform_tri(thread const CrMat4M &mvp, V3 campos,
                             thread const CrVertexM v3in[3],
                             int fb_w, int fb_h, thread CrScreenTriM out2[2]) {
@@ -1153,26 +1183,67 @@ static int cr_transform_tri(thread const CrMat4M &mvp, V3 campos,
     return n;
 }
 
-/* One thread per input triangle writes its 0..2 clipped tris to FIXED slots
- * 2t / 2t+1; empty slots become all-zero (degenerate) tris that the bbox
- * kernel marks CR_TBOX_SKIP. Identical slotting to the CUDA kernel. */
+/* One thread per input triangle emits 0..2 clipped front faces. Single-layer
+ * draws compact stably within each 256-input threadgroup; merged terrain keeps
+ * fixed 2t/2t+1 slots so its existing shade boundaries remain valid. */
 kernel void cr_transform_kernel(device const CrVertexM *verts [[buffer(0)]],
                                 constant XformParamsM &p      [[buffer(1)]],
                                 device CrScreenTriM *outb     [[buffer(2)]],
-                                uint tpig [[thread_position_in_grid]]) {
+                                device int *block_counts       [[buffer(3)]],
+                                device atomic_int *frame_count [[buffer(4)]],
+                                uint tpig [[thread_position_in_grid]],
+                                uint tpitg [[thread_position_in_threadgroup]],
+                                uint tgpos [[threadgroup_position_in_grid]]) {
     int t = (int)tpig;
-    if (t >= p.ntris_in) return;
     CrVertexM vin[3];
-    vin[0] = verts[t * 3];
-    vin[1] = verts[t * 3 + 1];
-    vin[2] = verts[t * 3 + 2];
-    CrMat4M mvp = p.mvp;
-    V3 campos = v3(p.campos.x, p.campos.y, p.campos.z);
     CrScreenTriM pair[2];
-    int n = cr_transform_tri(mvp, campos, vin, p.W, p.H, pair);
+    int n = 0;
+    if (t < p.ntris_in) {
+        vin[0] = verts[t * 3];
+        vin[1] = verts[t * 3 + 1];
+        vin[2] = verts[t * 3 + 2];
+        CrMat4M mvp = p.mvp;
+        V3 campos = v3(p.campos.x, p.campos.y, p.campos.z);
+        n = cr_transform_tri(mvp, campos, vin, p.W, p.H, pair);
+    }
+    int kept = 0;
+    for (int i = 0; i < n; ++i) {
+        if (!cr_screen_backface(&pair[i]))
+            pair[kept++] = pair[i];
+    }
+    n = kept;
     CrScreenTriM zero = {};          /* all-zero bytes, like CUDA's memset */
-    outb[2 * t]     = (n > 0) ? pair[0] : zero;
-    outb[2 * t + 1] = (n > 1) ? pair[1] : zero;
+    if (!p.compact) {
+        if (t < p.ntris_in) {
+            outb[2 * t]     = (n > 0) ? pair[0] : zero;
+            outb[2 * t + 1] = (n > 1) ? pair[1] : zero;
+        }
+        return;
+    }
+
+    threadgroup int scan[256];
+    int lane = (int)tpitg;
+    if (t < p.ntris_in) {
+        outb[2 * t] = zero;
+        outb[2 * t + 1] = zero;
+    }
+    scan[lane] = n;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (int off = 1; off < 256; off <<= 1) {
+        int v = lane >= off ? scan[lane - off] : 0;
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        scan[lane] += v;
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    int excl = scan[lane] - n;
+    int total = scan[255];
+    if (lane == 255) {
+        block_counts[tgpos] = total;
+        atomic_fetch_add_explicit(frame_count, total, memory_order_relaxed);
+    }
+    int base = (int)tgpos * 512 + excl;
+    if (n > 0) outb[base] = pair[0];
+    if (n > 1) outb[base + 1] = pair[1];
 }
 
 /* ==================== slab-pool gather ====================================
