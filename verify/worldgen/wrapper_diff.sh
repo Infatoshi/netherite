@@ -8,10 +8,15 @@
 # wrapper mechanics (donors, OOB spill, cascade, caps, multi-window apply, support
 # sweep, st_map_features, load order) - not mixed policy.
 #
-# Not a gate. Maintainer judgment stays out of band. Does not touch frozen files.
+# Diagnostic census (builds artifacts under verify/worldgen/out). The pinned gate
+# is verify/worldgen/wrapper_gate.sh, which compares this census to
+# verify/worldgen/known_divergences.json (blessed 2026-08-02: ore multi-window
+# apply + load-order residuals are KNOWN wrapper mechanics). Use the gate for
+# pass/fail; use this script for full reports and the load-order probe.
 #
 # Usage:
 #   bash verify/worldgen/wrapper_diff.sh [OUTDIR] [seeds...]
+#   bash verify/worldgen/wrapper_gate.sh              # pinned gate (rc=0/1)
 # Defaults: OUTDIR=verify/worldgen/out  seeds=0 7 9 19
 #
 # Region: origin 2x2 chunks (bcx=0,bcz=0) - the owr_run window at the origin.
@@ -200,19 +205,13 @@ done <"$TABLE_TMP"
 log ""
 if [[ "$TOTAL_DIFF" -eq 0 ]]; then
   log "VERDICT: zero residual under matched policy across seeds ${SEEDS[*]}."
-  log "         Tool is gate-ready (maintainer may wire a gate later)."
+  log "         If the blessed sidecar still expects nonzero, update it via"
+  log "         bash verify/worldgen/wrapper_gate.sh --update (maintainer only)."
 else
   log "VERDICT: nonzero residual (total diff_cells summed over seeds = $TOTAL_DIFF)."
-  log "         Not gate-ready without a known-divergences sidecar."
-  log ""
-  log "Proposed sidecar contents (DO NOT create the file - frozen class):"
-  log "  - per-seed allowed cell counts / patterns for fluid-class residuals"
-  log "    that survive fluid=OFF pinning (wrapper multi-window vs single owr_run)"
-  log "  - mushroom placement deltas attributable to donor/cascade seeding"
-  log "  - other: support-sweep plant culls in gen_chunk, st_map_features"
-  log "    (magma -1 stronghold-only vs blaze ST_MAP_FEATURES default 1),"
-  log "    OOB spill / bigtree carry / toroidal cache effects"
-  log "  - load-order note: prep-list raster vs rev delta on seed 9 = $LO_DIFF"
+  log "         Pinned gate: bash verify/worldgen/wrapper_gate.sh"
+  log "         Sidecar:     verify/worldgen/known_divergences.json"
+  log "         load-order note: prep-list raster vs rev delta on seed 9 = $LO_DIFF"
 fi
 
 log ""

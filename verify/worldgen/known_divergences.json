@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "comment": "Blessed 2026-08-02 on git ea46c1c4ca0b4f99faa16b4069a0d1dd1dfb2f34. Maintainer accepted the magma product wrapper vs blaze owr reference residuals under matched policy (fluid OFF, shroomlight stale) as KNOWN wrapper mechanics, not bugs: (1) ore-family multi-window apply (stone->granite/diorite/andesite and related 1->N transitions across the 2x2 origin window), (2) load-order raster-vs-reverse prep-list delta (seed 9: 81 cells). Gate fails on any drift from these per-seed counts, class breakdowns, and diff content hashes. OPEN policy (not pinned here): MAGMA_FLUID_CA=1 changes 279/10936/4885 cells at seeds 0/7/9 and no gate pins magma default-off vs blaze always-on.",
+  "blessed_at": "2026-08-02",
+  "blessed_git_sha": "ea46c1c4ca0b4f99faa16b4069a0d1dd1dfb2f34",
+  "policy": {
+    "fluid": "off",
+    "shroomlight": "stale",
+    "region": "origin 2x2 chunks (bcx=0, bcz=0) == owr_run window",
+    "seeds": [
+      0,
+      7,
+      9,
+      19
+    ]
+  },
+  "hash_recipe": "For each cell where blaze_state != magma_state (missing side treated as 0), emit one line 'x,y,z,blaze_state,magma_state\\n'. Sort lines lexicographically as UTF-8 text. diff_sha256 is the lowercase hex sha256 of the joined bytes.",
+  "open_policy_note": "MAGMA_FLUID_CA=1 changes 279/10936/4885 cells at seeds 0/7/9; no gate pins magma default-off vs blaze always-on. Out of scope for this census gate.",
+  "load_order_note": {
+    "seed": 9,
+    "raster_vs_rev_diff_cells": 81,
+    "comment": "Informational: magma-vs-magma prep-list raster vs reverse order delta on seed 9. Accepted as wrapper load-order mechanics; not a separate pin (the main seed census already embeds the product load order)."
+  },
+  "seeds": {
+    "0": {
+      "diff_cells": 9390,
+      "diff_sha256": "9cd3f2731e772dc8da4a5128faabb55ccf399179b4d46e89c176d0a23f5c68c2",
+      "blaze_cells": 69785,
+      "magma_cells": 71029,
+      "only_blaze": 0,
+      "only_magma": 1244,
+      "both_side": 8146,
+      "class": {
+        "fluid": 96,
+        "mushroom": 0,
+        "other": 9294
+      }
+    },
+    "7": {
+      "diff_cells": 7704,
+      "diff_sha256": "ce78a5d02948fd85d7ef7613315cddc3eb8543fc2cf5ab778328650b1da5d75c",
+      "blaze_cells": 61032,
+      "magma_cells": 61068,
+      "only_blaze": 0,
+      "only_magma": 36,
+      "both_side": 7668,
+      "class": {
+        "fluid": 44,
+        "mushroom": 0,
+        "other": 7660
+      }
+    },
+    "9": {
+      "diff_cells": 8656,
+      "diff_sha256": "fbd6f298265fa2d36373ed0ece8c387fde25d542037b47bf65a356f4bf2abd8c",
+      "blaze_cells": 63851,
+      "magma_cells": 64201,
+      "only_blaze": 0,
+      "only_magma": 350,
+      "both_side": 8306,
+      "class": {
+        "fluid": 24,
+        "mushroom": 2,
+        "other": 8630
+      }
+    },
+    "19": {
+      "diff_cells": 10438,
+      "diff_sha256": "2d3a5462c4caa263f39aef60ff1f7fbc06593869206e3ab5dbeb07a82c1f2429",
+      "blaze_cells": 70670,
+      "magma_cells": 71371,
+      "only_blaze": 311,
+      "only_magma": 1012,
+      "both_side": 9115,
+      "class": {
+        "fluid": 100,
+        "mushroom": 26,
+        "other": 10312
+      }
+    }
+  }
+}

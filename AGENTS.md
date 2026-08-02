@@ -76,6 +76,11 @@ uv run --no-project python blaze/oracle/runner.py <name>
 # The six kernels are hash-paired (verify/kernels/parity_manifest.json): edit
 # BOTH twins, then prove it on both machines and re-record the manifest:
 bash scripts/kernel_parity_gate.sh   # anvil: cpu==cuda; macbook: cpu==metal
+
+# wrapper-vs-owr worldgen census pin (CPU; blessed residuals in sidecar):
+bash verify/worldgen/wrapper_gate.sh              # rc=0 exact match vs known_divergences.json
+# bash verify/worldgen/wrapper_diff.sh            # diagnostic report + load-order probe
+# bash verify/worldgen/wrapper_gate.sh --update   # re-bless only with maintainer judgment
 ```
 
 ## Pixel investigation

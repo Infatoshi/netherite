@@ -122,6 +122,37 @@ reason. Deeper/slower layers of the pyramid stay where they live: the nightly al
 sweep is `verify/nightly_verify.sh`, per-kernel CPU==CUDA verifies are
 `make -C blaze verify-<kernel>`.
 
+## Pinned engineering gates (standalone)
+
+These are not the four ship gates above; they are locked harnesses that reject
+unintentional drift. Run them after touching the corresponding surfaces.
+
+| Gate | Invoke | What it pins |
+|------|--------|--------------|
+| Kernel pair parity | `bash scripts/kernel_parity_gate.sh` | CUDA/Metal kernel hashes + cpu==gpu frames |
+| Wrapper worldgen census | `bash verify/worldgen/wrapper_gate.sh` | magma product populate wrapper vs blaze `owr` reference under fluid=OFF + shroomlight=stale (seeds 0 7 9 19, origin 2x2) |
+
+### Wrapper worldgen census
+
+Sidecar: `verify/worldgen/known_divergences.json`. Per seed: `diff_cells`,
+class breakdown (`fluid` / `mushroom` / `other`), and `diff_sha256` (sha256 of
+sorted `x,y,z,blaze_state,magma_state` lines). Counts alone are not enough:
+opposite-sign cell changes can cancel.
+
+Blessed 2026-08-02 as KNOWN wrapper mechanics (not bugs): ore-family multi-window
+apply (stone -> granite/diorite/andesite) and load-order raster-vs-reverse delta.
+Any drift from the sidecar FAILS (rc=1) with a per-seed count/class/hash report.
+`--update` rewrites the sidecar; that is maintainer judgment only.
+
+Diagnostic (not the gate): `bash verify/worldgen/wrapper_diff.sh`.
+
+OPEN policy note (not pinned): `MAGMA_FLUID_CA=1` changes 279/10936/4885 cells at
+seeds 0/7/9; no gate pins magma default-off vs blaze always-on.
+
+Not wired into `scripts/delegate_gate.sh` / `scripts/regression_pins.txt` (those
+files are frozen). Invoke the wrapper gate standalone after populate/wrapper or
+owr-path changes.
+
 ## Out of scope
 
 - Dragon-fight RL (the sim supports the fight; no RL training on it)
