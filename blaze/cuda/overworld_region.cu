@@ -34,11 +34,11 @@ static void run_region(i64 seed, int bcx, int bcz, McSinTable *d_st, World *d_w,
 }
 
 int main(int argc, char **argv) {
-    i64 seed = 0;
+    /* Default (no argv): seeds 0/9/19 - mirrors cpu/overworld_region.c so the
+     * make verify-overworld_region target covers the liquid-stamp fail forever.
+     * Argv override keeps single-seed forensics (and optional bcx/bcz). */
+    static const i64 k_seeds[] = {0LL, 9LL, 19LL};
     int bcx = 0, bcz = 0;
-    if (argc > 1) seed = strtoll(argv[1], 0, 10);
-    if (argc > 2) bcx = (int)strtol(argv[2], 0, 10);
-    if (argc > 3) bcz = (int)strtol(argv[3], 0, 10);
 
     McSinTable *h_st = (McSinTable *)malloc(sizeof(McSinTable));
     mc_sin_table_init(h_st);
@@ -68,8 +68,17 @@ int main(int argc, char **argv) {
 
     cudaDeviceSetLimit(cudaLimitStackSize, (size_t)128 * 1024);
 
-    run_region(seed, bcx, bcz, d_st, d_w, d_blocks, d_sky, d_blk, d_tmp_sky, d_tmp_blk,
-               d_sc, d_primer, d_fol, d_mc_cur, d_mc_tmp, d_before);
+    if (argc > 1) {
+        i64 seed = strtoll(argv[1], 0, 10);
+        if (argc > 2) bcx = (int)strtol(argv[2], 0, 10);
+        if (argc > 3) bcz = (int)strtol(argv[3], 0, 10);
+        run_region(seed, bcx, bcz, d_st, d_w, d_blocks, d_sky, d_blk, d_tmp_sky, d_tmp_blk,
+                   d_sc, d_primer, d_fol, d_mc_cur, d_mc_tmp, d_before);
+    } else {
+        for (int i = 0; i < 3; ++i)
+            run_region(k_seeds[i], 0, 0, d_st, d_w, d_blocks, d_sky, d_blk, d_tmp_sky, d_tmp_blk,
+                       d_sc, d_primer, d_fol, d_mc_cur, d_mc_tmp, d_before);
+    }
 
     free(h_st);
     cudaFree(d_fol);

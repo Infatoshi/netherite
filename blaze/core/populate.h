@@ -1776,7 +1776,17 @@ typedef struct WgLiquidTick {
 
 #define WG_LIQ_STACK_MAX (W_N * 4)
 
-#ifndef __CUDA_ARCH__
+/* Liquid CA stamp/stack: MUST exist on both host and device. A host-only stub
+ * (device has_level always 0, drain no-op) made CUDA miss liquid-dependent
+ * placements while seed 0 still passed. Populate is serial on both sides
+ * (CPU single-threaded; CUDA drivers launch <<<1,1>>>), so one static buffer
+ * per TU/side is safe - same rationale as w_provider_surface_clobber scratch. */
+#if defined(__CUDA_ARCH__)
+static __device__ WgLiquidTick wg_liq_stack[WG_LIQ_STACK_MAX];
+static __device__ u8 wg_liq_level[W_N];
+static __device__ u32 wg_liq_stamp[W_N];
+static __device__ u32 wg_liq_cur_stamp;
+#else
 static WgLiquidTick wg_liq_stack[WG_LIQ_STACK_MAX];
 static u8 wg_liq_level[W_N];
 static u32 wg_liq_stamp[W_N];
@@ -1796,36 +1806,28 @@ MC_HD static inline int wg_liq_opposite_dir(int dir) {
 }
 
 MC_HD MC_NOINLINE static void wg_liq_begin(void) {
-#ifndef __CUDA_ARCH__
     ++wg_liq_cur_stamp;
     if (!wg_liq_cur_stamp) {
         for (int i = 0; i < W_N; ++i) wg_liq_stamp[i] = 0;
         wg_liq_cur_stamp = 1;
     }
-#endif
 }
 
 MC_HD MC_NOINLINE static void wg_liq_mark_level(int x, int y, int z, int level) {
-#ifndef __CUDA_ARCH__
     if (w_inb(x, y, z)) {
         int idx = w_index(x, y, z);
         wg_liq_stamp[idx] = wg_liq_cur_stamp;
         wg_liq_level[idx] = (u8)level;
     }
-#else
-    (void)x; (void)y; (void)z; (void)level;
-#endif
 }
 
 MC_HD MC_NOINLINE static int wg_liq_level_at(const World *w, int x, int y, int z, int flow) {
     int b = w_get(w, x, y, z);
     if (!wg_liq_same_material(b, flow)) return -1;
-#ifndef __CUDA_ARCH__
     if (w_inb(x, y, z)) {
         int idx = w_index(x, y, z);
         if (wg_liq_stamp[idx] == wg_liq_cur_stamp) return (int)wg_liq_level[idx];
     }
-#endif
     if (b == wg_liq_static_block(flow)) return 0;
     return 1;  /* dynamic liquid inherited from an older window: level metadata is unavailable. */
 }
@@ -1859,16 +1861,12 @@ MC_HD MC_NOINLINE static int wg_liq_can_flow_into(const World *w, int x, int y, 
 }
 
 MC_HD MC_NOINLINE static void wg_liq_push(int *sp, int x, int y, int z, int flow) {
-#ifndef __CUDA_ARCH__
     if (*sp >= WG_LIQ_STACK_MAX) return;
     wg_liq_stack[*sp].x = (i16)x;
     wg_liq_stack[*sp].y = (u8)y;
     wg_liq_stack[*sp].z = (i16)z;
     wg_liq_stack[*sp].flow = (u8)flow;
     ++(*sp);
-#else
-    (void)sp; (void)x; (void)y; (void)z; (void)flow;
-#endif
 }
 
 MC_HD MC_NOINLINE static void wg_liq_schedule_update(World *w, int x, int y, int z, int flow,
@@ -1928,18 +1926,15 @@ MC_HD MC_NOINLINE static void wg_fall_check(World *w, int x, int y, int z, int *
  * Statics inherited from older windows lost their level; reawakening them as level 0 (source)
  * over-spreads, so they stay asleep - java would reawaken with the true persisted level. */
 MC_HD MC_NOINLINE static int wg_liq_has_level(int x, int y, int z) {
-#ifndef __CUDA_ARCH__
     if (!w_inb(x, y, z)) return 0;
     return wg_liq_stamp[w_index(x, y, z)] == wg_liq_cur_stamp;
-#else
-    (void)x; (void)y; (void)z;
-    return 0;
-#endif
 }
 
 /* BlockStaticLiquid.updateLiquid: neighborChanged on a settled liquid converts it back to the
  * DYNAMIC block (flag 2, LEVEL kept) and schedules an update - immediate during populate. */
 MC_HD MC_NOINLINE static void wg_liq_reawaken(World *w, int x, int y, int z, int flow, int *sp) {
+    /* MAGMA_NOWAKE: host-only bisect switch (getenv). Default (unset) is identical
+     * on CPU and CUDA; set the env only for host-side forensics. */
 #ifndef __CUDA_ARCH__
     static int nowake = -1;
     if (nowake < 0) nowake = getenv("MAGMA_NOWAKE") != NULL;
@@ -1967,11 +1962,15 @@ MC_HD MC_NOINLINE static void wg_liq_neighbor_changed(World *w, int x, int y, in
     } else if (b == PB_WATER) {
         wg_liq_reawaken(w, x, y, z, PB_FLOWING_WATER, sp);
     } else if (b == PB_GRAVEL || b == PB_SAND) {
+        /* MAGMA_NOFALL: host-only bisect switch. Default (unset) runs fall on
+         * both sides; previously the whole call was #ifndef'd out on device. */
+        int do_fall = 1;
 #ifndef __CUDA_ARCH__
         static int nofall = -1;
         if (nofall < 0) nofall = getenv("MAGMA_NOFALL") != NULL;
-        if (!nofall) wg_fall_check(w, x, y, z, sp);
+        if (nofall) do_fall = 0;
 #endif
+        if (do_fall) wg_fall_check(w, x, y, z, sp);
     }
 }
 
@@ -2146,7 +2145,6 @@ MC_HD MC_NOINLINE static void wg_liq_update_tick(World *w, int x, int y, int z, 
 }
 
 MC_HD MC_NOINLINE static void wg_liq_drain(World *w, int *sp, int base) {
-#ifndef __CUDA_ARCH__
     if (base < 0) base = 0;
     while (*sp > base) {
         WgLiquidTick t = wg_liq_stack[--(*sp)];
@@ -2154,9 +2152,6 @@ MC_HD MC_NOINLINE static void wg_liq_drain(World *w, int *sp, int base) {
         if (w_get(w, (int)t.x, (int)t.y, (int)t.z) != flow) continue;
         wg_liq_update_tick(w, (int)t.x, (int)t.y, (int)t.z, flow, -1, sp);
     }
-#else
-    (void)w; (void)sp; (void)base;
-#endif
 }
 
 MC_HD MC_NOINLINE static void wg_liquids(World *w, int x, int y, int z, int block) {
@@ -2169,24 +2164,20 @@ MC_HD MC_NOINLINE static void wg_liquids(World *w, int x, int y, int z, int bloc
     if (pb_isStoneBlock(w_get(w, x + 1, y, z))) ++i;
     if (pb_isStoneBlock(w_get(w, x, y, z - 1))) ++i;
     if (pb_isStoneBlock(w_get(w, x, y, z + 1))) ++i;
-    int j = 0, ax = 0, az = 0;
-    if (w_isAir(w, x - 1, y, z)) { ++j; ax = -1; az = 0; }
-    if (w_isAir(w, x + 1, y, z)) { ++j; ax = 1; az = 0; }
-    if (w_isAir(w, x, y, z - 1)) { ++j; ax = 0; az = -1; }
-    if (w_isAir(w, x, y, z + 1)) { ++j; ax = 0; az = 1; }
+    int j = 0;
+    if (w_isAir(w, x - 1, y, z)) ++j;
+    if (w_isAir(w, x + 1, y, z)) ++j;
+    if (w_isAir(w, x, y, z - 1)) ++j;
+    if (w_isAir(w, x, y, z + 1)) ++j;
     if (i == 3 && j == 1) {
-#ifdef __CUDA_ARCH__
-        w_set(w, x, y, z, block);
-        w_set(w, x + ax, y, z + az, block);
-#else
-        (void)ax; (void)az;
+        /* Full spring cascade on BOTH host and device (was a two-block stub on
+         * CUDA that never ran the CA, so liquid levels/flow never stamped). */
         wg_liq_begin();
         w_set(w, x, y, z, block);
         wg_liq_mark_level(x, y, z, 0);
         int sp = 0;
         wg_liq_update_tick(w, x, y, z, block, 0, &sp);
         wg_liq_drain(w, &sp, 0);
-#endif
     }
 }
 
