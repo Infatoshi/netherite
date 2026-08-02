@@ -1127,3 +1127,24 @@ gravity-block cascade (OPEN item 6 - digests identical t0-19, dig applies
 one tick late with the same digest value, cascade diverges from t22, magma
 world frozen from t30). OPEN item 4 (sky-only falling_blocks goldens) no
 longer reproduces.
+
+## 2026-08-02: blaze k_tick profile + optimization null result (grok lane)
+
+First look inside the 99% "decision subtick" bucket (GPU0 Blackwell, sm_120,
+N=4096 curriculum, repeat 4, exclusive flock): k_tick is ~89% of kernel wall
+(5.01 ms/decision; k_obs 0.20, k_final 0.50), and inside it lane-0 serial
+phys (`blaze_subtick_phys`: dig raycast + psv_physics_tick + items +
+furnaces) is 51.4% of cycles, warp-cooperative coal sweep 45.8% (~381
+candidates/subtick), post/reward 1.7%. Baseline 2.83M env-ticks/s with a
+0.35% run-to-run spread over 3 runs.
+
+Six candidates, all reverted under a 3% keep bar (bitwise CPU==CUDA gate run
+per candidate): flat 1-env-per-thread tick loses 35% (warp tick stays ON);
+slimmer coal locator -4.6%; 2-envs-per-warp (16-lane coal) -6%; n_items
+early-out +0.7%; noinline+launch_bounds +1%; chunk-pointer cache in
+psv_collect_blocks +0%. Conclusion: phys is a true dependent chain on lane 0
+and coal is already warp-wide; nothing cheap moves it. The one lever left
+with real upside is a warp-cooperative psv_collect_blocks with emission
+order preserved (prefix-sum emit) - larger change, untried. ncu was blocked
+(ERR_NVGPUCTRPERM); enable GPU counters before the next pass. Do not chase
+obs/transfer/recenter; they are already <10% combined.
