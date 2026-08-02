@@ -79,9 +79,9 @@
  *     pattern (all-256-thread participation).
  *  5. serial dispatch ordering inside one compute encoder (legacy per-tri
  *     path) resolves overlapping triangles in CPU order.
- *  6. buffer sizing at max_tris=2,000,000: d_tris ~672 MB + d_verts ~216 MB
- *     shared allocations succeed ([device maxBufferLength], unified memory
- *     pressure on 36 GB M4 Max).
+ *  6. buffer sizing at max_tris=2,000,000: d_tris + d_dense are ~672 MB each,
+ *     plus d_verts ~216 MB; shared allocations succeed ([device
+ *     maxBufferLength], unified memory pressure on 36 GB M4 Max).
  *  7. Apple libm sinf/cosf/tanf (host mvp + sky ctx, via math.o/sky.o) differ
  *     from glibc in last ulps: Mac-CPU vs Mac-Metal parity is unaffected
  *     (both use the same libm), but cross-platform frame hashes vs anvil may
@@ -132,8 +132,10 @@ typedef struct {
     int W, H, minx, miny, bw, bh;
     CrScreenTri tri;
 } TriParams;
-typedef struct { int ntris, W, H; } BboxParams;
-typedef struct { int W, H, ntris, sb1, sb2, sb3, shbase, nxblocks; } TileParams;
+typedef struct { int ntris, W, H, use_device_count; } BboxParams;
+typedef struct {
+    int W, H, ntris, sb1, sb2, sb3, shbase, use_device_count;
+} TileParams;
 typedef struct {
     int W, H;
     GmSkyCtx sc;
@@ -199,13 +201,15 @@ static id<MTLDevice>               g_dev;
 static id<MTLLibrary>              g_lib;
 static id<MTLCommandQueue>         g_queue;
 static id<MTLComputePipelineState> g_pso_tri, g_pso_bbox, g_pso_tiled,
-                                   g_pso_sky, g_pso_xform, g_pso_gather;
+                                   g_pso_sky, g_pso_xform, g_pso_scan,
+                                   g_pso_scatter, g_pso_gather;
 static id<MTLCommandBuffer>        g_cmd;      /* current (uncommitted) frame cb */
 static id<MTLCommandBuffer>        g_last;     /* last committed, not yet waited */
 static id<MTLCommandBuffer>        g_end_cb;   /* frame_end_async's cb */
 
-static id<MTLBuffer> g_d_color, g_d_depth, g_d_tris, g_d_box, g_d_tminz,
-                     g_d_xcounts, g_d_screen_tris,
+static id<MTLBuffer> g_d_color, g_d_depth, g_d_tris, g_d_dense,
+                     g_d_box, g_d_tminz, g_d_xcounts, g_d_xoffsets,
+                     g_d_screen_tris,
                      g_d_verts, g_d_sh, g_d_lm, g_d_pend;
 static id<MTLBuffer> g_vstage[CR_SH_RING];   /* render_layer vert staging ring */
 static id<MTLBuffer> g_into_tris;            /* cr_raster_metal_into tris staging */
@@ -347,9 +351,11 @@ static int mg_boot(void) {
     g_pso_tiled  = mg_pso("cr_raster_tiled_kernel");
     g_pso_sky    = mg_pso("k_sky");
     g_pso_xform  = mg_pso("cr_transform_kernel");
+    g_pso_scan   = mg_pso("cr_compact_scan_kernel");
+    g_pso_scatter = mg_pso("cr_compact_scatter_kernel");
     g_pso_gather = mg_pso("cr_gather_kernel");
     if (!g_pso_tri || !g_pso_bbox || !g_pso_tiled || !g_pso_sky ||
-        !g_pso_xform || !g_pso_gather) {
+        !g_pso_xform || !g_pso_scan || !g_pso_scatter || !g_pso_gather) {
         g_lib = nil; g_dev = nil;
         return mg_boot_failed();
     }
@@ -435,13 +441,15 @@ static void mg_use_indirect(id<MTLComputeCommandEncoder> enc) {
 /* ---- encode helpers (dispatch geometry == CUDA launch geometry) --------- */
 
 static void mg_encode_bbox(id<MTLComputeCommandEncoder> enc,
-                           id<MTLBuffer> trisBuf, int ntris, int W, int H) {
-    BboxParams bp = { ntris, W, H };
+                           id<MTLBuffer> trisBuf, int ntris, int W, int H,
+                           int use_device_count) {
+    BboxParams bp = { ntris, W, H, use_device_count };
     [enc setComputePipelineState:g_pso_bbox];
     [enc setBuffer:trisBuf offset:0 atIndex:0];
     [enc setBytes:&bp length:sizeof bp atIndex:1];
     [enc setBuffer:g_d_box offset:0 atIndex:2];
     [enc setBuffer:g_d_tminz offset:0 atIndex:3];
+    [enc setBuffer:g_d_screen_tris offset:0 atIndex:4];
     [enc dispatchThreadgroups:MTLSizeMake((NSUInteger)((ntris + 255) / 256), 1, 1)
         threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
 }
@@ -449,8 +457,10 @@ static void mg_encode_bbox(id<MTLComputeCommandEncoder> enc,
 static void mg_encode_tiled(id<MTLComputeCommandEncoder> enc,
                             id<MTLBuffer> trisBuf, int ntris, int W, int H,
                             int shbase, int sb1, int sb2, int sb3,
-                            int nxblocks) {
-    TileParams tp = { W, H, ntris, sb1, sb2, sb3, shbase, nxblocks };
+                            int use_device_count) {
+    TileParams tp = {
+        W, H, ntris, sb1, sb2, sb3, shbase, use_device_count
+    };
     [enc setComputePipelineState:g_pso_tiled];
     [enc setBuffer:g_d_color offset:0 atIndex:0];
     [enc setBuffer:g_d_depth offset:0 atIndex:1];
@@ -459,7 +469,7 @@ static void mg_encode_tiled(id<MTLComputeCommandEncoder> enc,
     [enc setBuffer:g_d_box offset:0 atIndex:4];
     [enc setBuffer:g_d_sh offset:0 atIndex:5];
     [enc setBuffer:g_d_tminz offset:0 atIndex:6];
-    [enc setBuffer:g_d_xcounts offset:0 atIndex:7];
+    [enc setBuffer:g_d_screen_tris offset:0 atIndex:7];
     mg_use_indirect(enc);
     [enc dispatchThreadgroups:MTLSizeMake((NSUInteger)((W + 15) / 16),
                                           (NSUInteger)((H + 15) / 16), 1)
@@ -480,6 +490,25 @@ static void mg_encode_xform(id<MTLComputeCommandEncoder> enc,
     [enc setBuffer:g_d_xcounts offset:0 atIndex:3];
     [enc setBuffer:g_d_screen_tris offset:0 atIndex:4];
     [enc dispatchThreadgroups:MTLSizeMake((NSUInteger)((ntris_in + 255) / 256), 1, 1)
+        threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
+}
+
+static void mg_encode_compact(id<MTLComputeCommandEncoder> enc, int nxblocks) {
+    [enc setComputePipelineState:g_pso_scan];
+    [enc setBuffer:g_d_xcounts offset:0 atIndex:0];
+    [enc setBytes:&nxblocks length:sizeof nxblocks atIndex:1];
+    [enc setBuffer:g_d_xoffsets offset:0 atIndex:2];
+    [enc setBuffer:g_d_screen_tris offset:0 atIndex:3];
+    [enc dispatchThreadgroups:MTLSizeMake(1, 1, 1)
+        threadsPerThreadgroup:MTLSizeMake(1, 1, 1)];
+
+    [enc setComputePipelineState:g_pso_scatter];
+    [enc setBuffer:g_d_tris offset:0 atIndex:0];
+    [enc setBuffer:g_d_xcounts offset:0 atIndex:1];
+    [enc setBuffer:g_d_xoffsets offset:0 atIndex:2];
+    [enc setBytes:&nxblocks length:sizeof nxblocks atIndex:3];
+    [enc setBuffer:g_d_dense offset:0 atIndex:4];
+    [enc dispatchThreadgroups:MTLSizeMake((NSUInteger)(nxblocks * 2), 1, 1)
         threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
 }
 
@@ -587,21 +616,24 @@ void cr_raster_metal_pre(int w, int h, int max_tris) {
     g_d_color = mg_newbuf(npix * sizeof(CrRgba), "d_color");
     g_d_depth = mg_newbuf(npix * sizeof(float), "d_depth");
     g_d_tris  = mg_newbuf(2 * (size_t)max_tris * sizeof(CrScreenTri), "d_tris");
+    g_d_dense = mg_newbuf(2 * (size_t)max_tris * sizeof(CrScreenTri), "d_dense");
     g_d_box   = mg_newbuf(2 * (size_t)max_tris * sizeof(uint32_t), "d_box");
     g_d_tminz = mg_newbuf(2 * (size_t)max_tris * sizeof(float), "d_tminz");
     g_d_xcounts = mg_newbuf((size_t)((max_tris + 255) / 256) * sizeof(int),
                             "d_xcounts");
-    g_d_screen_tris = mg_newbuf(sizeof(int), "d_screen_tris");
+    g_d_xoffsets = mg_newbuf((size_t)((max_tris + 255) / 256) * sizeof(int),
+                             "d_xoffsets");
+    g_d_screen_tris = mg_newbuf(2 * sizeof(int), "d_screen_tris");
     g_d_verts = mg_newbuf(3 * (size_t)max_tris * sizeof(CrVertex), "d_verts");
     g_d_sh    = mg_newbuf(CR_SH_RING * sizeof(CrShadeCtx), "d_sh");
     g_d_lm    = mg_newbuf(CR_SH_RING * 256 * sizeof(CrRgba), "d_lm");
     g_d_pend  = mg_newbuf(npix * sizeof(CrRgba), "d_pend");
-    if (!g_d_color || !g_d_depth || !g_d_tris || !g_d_box || !g_d_tminz ||
-        !g_d_xcounts || !g_d_screen_tris ||
+    if (!g_d_color || !g_d_depth || !g_d_tris || !g_d_dense || !g_d_box ||
+        !g_d_tminz || !g_d_xcounts || !g_d_xoffsets || !g_d_screen_tris ||
         !g_d_verts || !g_d_sh || !g_d_lm || !g_d_pend) {
         fprintf(stderr, "magma Metal: cr_raster_metal_pre allocation failed\n");
-        g_d_color = g_d_depth = g_d_tris = g_d_box = g_d_tminz = nil;
-        g_d_xcounts = g_d_screen_tris = nil;
+        g_d_color = g_d_depth = g_d_tris = g_d_dense = g_d_box = nil;
+        g_d_tminz = g_d_xcounts = g_d_xoffsets = g_d_screen_tris = nil;
         g_d_verts = g_d_sh = g_d_lm = g_d_pend = nil;
         return;
     }
@@ -631,7 +663,7 @@ void cr_raster_metal_frame_begin(const CrFramebuffer *fb) {
     size_t npix = (size_t)fb->w * (size_t)fb->h;
     memcpy(g_d_color.contents, fb->color, npix * sizeof(CrRgba));
     memcpy(g_d_depth.contents, fb->depth, npix * sizeof(float));
-    *(int *)g_d_screen_tris.contents = 0;
+    memset(g_d_screen_tris.contents, 0, 2 * sizeof(int));
     g.frame_open = 1;
 }
 
@@ -746,7 +778,7 @@ void cr_raster_metal_into(CrFramebuffer *fb, const CrScreenTri *tris,
     memcpy(g_into_tris.contents, tris, tbytes);
 
     id<MTLComputeCommandEncoder> enc = [mg_cb() computeCommandEncoder];
-    mg_encode_bbox(enc, g_into_tris, ntris, W, H);
+    mg_encode_bbox(enc, g_into_tris, ntris, W, H, 0);
     mg_encode_tiled(enc, g_into_tris, ntris, W, H, slot,
                     0x7fffffff, 0x7fffffff, 0x7fffffff, 0);
     [enc endEncoding];
@@ -787,13 +819,14 @@ static void mg_run_layer(CrFramebuffer *fb, int nverts, const CrCamera *cam,
     h_sh->atlas = (const CrTexture *)(uintptr_t)d_tex;
     mg_patch_lightmap(h_sh, slot);
 
-    int ntris = 2 * ntris_in; /* slotted output, holes skip-marked via bbox */
+    int ntris = 2 * ntris_in; /* worst-case dense count; dispatch sizing only */
     id<MTLComputeCommandEncoder> enc = [mg_cb() computeCommandEncoder];
     int nxblocks = (ntris_in + 255) / 256;
     mg_encode_xform(enc, vertsBuf, ntris_in, &mvp, cam->pos, W, H, 1);
-    mg_encode_bbox(enc, g_d_tris, ntris, W, H);
-    mg_encode_tiled(enc, g_d_tris, ntris, W, H, slot,
-                    0x7fffffff, 0x7fffffff, 0x7fffffff, nxblocks);
+    mg_encode_compact(enc, nxblocks);
+    mg_encode_bbox(enc, g_d_dense, ntris, W, H, 1);
+    mg_encode_tiled(enc, g_d_dense, ntris, W, H, slot,
+                    0x7fffffff, 0x7fffffff, 0x7fffffff, 1);
     [enc endEncoding];
     /* No sync while the frame is open: layers queue back-to-back in the
      * frame's command buffer; frame_end is the barrier. */
@@ -968,7 +1001,7 @@ void cr_raster_metal_render_terrain(CrFramebuffer *fb, const int *src_vert,
     id<MTLComputeCommandEncoder> enc = [mg_cb() computeCommandEncoder];
     mg_encode_gather(enc, src_vert, nvert, nents, total_verts);
     mg_encode_xform(enc, g_d_verts, ntris_in, &mvp, cam->pos, W, H, 0);
-    mg_encode_bbox(enc, g_d_tris, ntris, W, H);
+    mg_encode_bbox(enc, g_d_tris, ntris, W, H, 0);
     mg_encode_tiled(enc, g_d_tris, ntris, W, H, si, sb1, sb2, sb3, 0);
     [enc endEncoding];
 
@@ -982,8 +1015,8 @@ void cr_raster_metal_render_terrain(CrFramebuffer *fb, const int *src_vert,
 void cr_raster_metal_post(void) {
     if (!g.inited) return;
     mg_sync();
-    g_d_color = g_d_depth = g_d_tris = g_d_box = g_d_tminz = nil;
-    g_d_xcounts = g_d_screen_tris = nil;
+    g_d_color = g_d_depth = g_d_tris = g_d_dense = g_d_box = nil;
+    g_d_tminz = g_d_xcounts = g_d_xoffsets = g_d_screen_tris = nil;
     g_d_verts = g_d_sh = g_d_lm = g_d_pend = nil;
     for (int i = 0; i < CR_SH_RING; ++i) g_vstage[i] = nil;
     g_into_tris = nil;

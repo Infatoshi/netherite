@@ -1,17 +1,25 @@
 {
   "comment": "Paired kernel-source hashes. Re-record ONLY after updating both backends and passing scripts/kernel_parity_gate.sh on both machines.",
   "pairs": {
+    "cr_compact_scan_kernel": {
+      "cuda": "fc5f39e2ddc95a96",
+      "metal": "7e67b2c7fdbdf39f"
+    },
+    "cr_compact_scatter_kernel": {
+      "cuda": "8ed8db79195cbd29",
+      "metal": "e852cefc27a22c9d"
+    },
     "cr_gather_kernel": {
       "cuda": "e947bf12ee71465f",
       "metal": "91fa20911edf5e43"
     },
     "cr_raster_bbox_kernel": {
-      "cuda": "390010a2f6bfd33c",
-      "metal": "ed268c8043142c55"
+      "cuda": "c0a4f4f246962955",
+      "metal": "352cb9fde3fa2e8b"
     },
     "cr_raster_tiled_kernel": {
-      "cuda": "262f81876f8679da",
-      "metal": "0abadb653ee465ed"
+      "cuda": "02f69f96c15f3061",
+      "metal": "d272573a958e7c5b"
     },
     "cr_raster_tri_kernel": {
       "cuda": "b563406347344512",
@@ -26,8 +34,8 @@
       "metal": "68e66b229b42941d"
     },
     "_helpers": {
-      "cuda": "09e18f18f7428035",
-      "metal": "b3de2a4c759e13a5"
+      "cuda": "d57782610d36f527",
+      "metal": "c4fdd6280aab799a"
     }
   }
 }

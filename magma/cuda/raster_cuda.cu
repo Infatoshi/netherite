@@ -304,9 +304,11 @@ __device__ __forceinline__ CrTriBox cr_tbox_pack(int tminx, int tminy,
  * degenerate/off-screen as skip. */
 __global__ void cr_raster_bbox_kernel(const CrScreenTri *tris, int ntris,
                                       int W, int H, CrTriBox *box,
-                                      float *tminz) {
+                                      float *tminz, const int *screen_tris,
+                                      int use_device_count) {
     int t = blockIdx.x * blockDim.x + threadIdx.x;
-    if (t >= ntris) return;
+    int raster_ntris = use_device_count ? screen_tris[1] : ntris;
+    if (t >= raster_ntris) return;
     const CrScreenVert *v0 = &tris[t].v[0];
     const CrScreenVert *v1 = &tris[t].v[1];
     const CrScreenVert *v2 = &tris[t].v[2];
@@ -352,7 +354,8 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
                                        const CrScreenTri *tris, int ntris,
                                        const CrTriBox *box, const CrShadeCtx *sh,
                                        const float *tminz,
-                                       const int *xform_counts, int nxblocks,
+                                       const int *screen_tris,
+                                       int use_device_count,
                                        int sb1, int sb2, int sb3) {
     int px = blockIdx.x * blockDim.x + threadIdx.x;
     int py = blockIdx.y * blockDim.y + threadIdx.y;
@@ -382,23 +385,12 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
     __shared__ float sred[CR_TILE_N];  /* tile max-depth reduction scratch */
     int lane = threadIdx.y * CR_TILE + threadIdx.x;   /* 0..255 */
 
-    int nbatches = nxblocks > 0
-        ? nxblocks * 2
-        : (ntris + CR_TILE_N - 1) / CR_TILE_N;
+    int raster_ntris = use_device_count ? screen_tris[1] : ntris;
+    int nbatches = (raster_ntris + CR_TILE_N - 1) / CR_TILE_N;
     for (int batch = 0; batch < nbatches; ++batch) {
-        int base, batch_n;
-        if (nxblocks > 0) {
-            int xb = batch >> 1;
-            int bhalf = batch & 1;
-            base = xb * (2 * CR_TILE_N) + bhalf * CR_TILE_N;
-            batch_n = xform_counts[xb] - bhalf * CR_TILE_N;
-            if (batch_n < 0) batch_n = 0;
-            if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
-        } else {
-            base = batch * CR_TILE_N;
-            batch_n = ntris - base;
-            if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
-        }
+        int base = batch * CR_TILE_N;
+        int batch_n = raster_ntris - base;
+        if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
         int t0 = base + lane;
         int pass = 0;
         if (lane < batch_n) {
@@ -578,10 +570,12 @@ static struct {
     CrRgba *d_color;
     float  *d_depth;
     CrScreenTri *d_tris;   /* 2*max_tris slots: transform emits 0..2 per input tri */
+    CrScreenTri *d_dense;  /* order-preserving global transform compaction */
     CrTriBox    *d_box;
     float       *d_tminz;  /* per-tri min vert z (hi-z reject), bbox-written */
     int         *d_xcounts;/* live output count per 256-input transform block */
-    int         *d_screen_tris; /* compacted screen tris in the current frame */
+    int         *d_xoffsets;/* exclusive prefix of d_xcounts */
+    int         *d_screen_tris; /* [0]=frame total; [1]=current dense layer */
     int          screen_tris;   /* host copy after frame_end */
     CrVertex    *d_verts;  /* input verts for the GPU transform path */
     CrShadeCtx  *d_sh;     /* CR_SH_RING slots */
@@ -620,12 +614,15 @@ extern "C" void cr_raster_cuda_pre(int w, int h, int max_tris) {
     cudaMalloc(&g_gpu.d_color, npix * sizeof(CrRgba));
     cudaMalloc(&g_gpu.d_depth, npix * sizeof(float));
     cudaMalloc(&g_gpu.d_tris,  2 * (size_t)max_tris * sizeof(CrScreenTri));
+    cudaMalloc(&g_gpu.d_dense, 2 * (size_t)max_tris * sizeof(CrScreenTri));
     cudaMalloc(&g_gpu.d_box,   2 * (size_t)max_tris * sizeof(CrTriBox));
     cudaMalloc(&g_gpu.d_tminz, 2 * (size_t)max_tris * sizeof(float));
     cudaMalloc(&g_gpu.d_xcounts,
                (size_t)((max_tris + 255) / 256) * sizeof(int));
-    cudaMalloc(&g_gpu.d_screen_tris, sizeof(int));
-    cudaMemset(g_gpu.d_screen_tris, 0, sizeof(int));
+    cudaMalloc(&g_gpu.d_xoffsets,
+               (size_t)((max_tris + 255) / 256) * sizeof(int));
+    cudaMalloc(&g_gpu.d_screen_tris, 2 * sizeof(int));
+    cudaMemset(g_gpu.d_screen_tris, 0, 2 * sizeof(int));
     cudaMalloc(&g_gpu.d_verts, 3 * (size_t)max_tris * sizeof(CrVertex));
     cudaMalloc(&g_gpu.d_sh,    CR_SH_RING * sizeof(CrShadeCtx));
     cudaMallocHost(&g_gpu.h_sh, CR_SH_RING * sizeof(CrShadeCtx));
@@ -798,7 +795,7 @@ extern "C" void cr_raster_cuda_frame_begin(const CrFramebuffer *fb) {
                     cudaMemcpyHostToDevice, g_gpu.stream);
     cudaMemcpyAsync(g_gpu.d_depth, fb->depth, npix * sizeof(float),
                     cudaMemcpyHostToDevice, g_gpu.stream);
-    cudaMemsetAsync(g_gpu.d_screen_tris, 0, sizeof(int), g_gpu.stream);
+    cudaMemsetAsync(g_gpu.d_screen_tris, 0, 2 * sizeof(int), g_gpu.stream);
     g_gpu.frame_open = 1;
 }
 
@@ -925,14 +922,15 @@ extern "C" void cr_raster_cuda_into(CrFramebuffer *fb, const CrScreenTri *tris,
     int bthr = 256, bblk = (ntris + bthr - 1) / bthr;
     cr_raster_bbox_kernel<<<bblk, bthr, 0, g_gpu.stream>>>(g_gpu.d_tris, ntris,
                                                            W, H, g_gpu.d_box,
-                                                           g_gpu.d_tminz);
+                                                           g_gpu.d_tminz,
+                                                           g_gpu.d_screen_tris, 0);
 
     /* pass 2: one 16x16 block per screen tile, streaming tris in order. */
     dim3 block(16, 16);
     dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
     cr_raster_tiled_kernel<<<grid, block, 0, g_gpu.stream>>>(
         g_gpu.d_color, g_gpu.d_depth, W, H, g_gpu.d_tris, ntris, g_gpu.d_box,
-        d_sh, g_gpu.d_tminz, NULL, 0,
+        d_sh, g_gpu.d_tminz, g_gpu.d_screen_tris, 0,
         0x7fffffff, 0x7fffffff, 0x7fffffff);
 
     /* Caller reuses its tris scratch per call, so this legacy path stays
@@ -1005,6 +1003,34 @@ __global__ void cr_transform_kernel(const CrVertex *verts, int ntris_in,
     if (n > 1) out[base + 1] = pair[1];
 }
 
+/* Serial exclusive scan over transform-block live counts. nxblocks is at most
+ * ~7820 at the configured cap, so one device thread is the simplest identical
+ * CUDA/MSL implementation. screen_tris[0] remains the frame accumulator from
+ * cr_transform_kernel; [1] is overwritten with this layer's dense count. */
+__global__ void cr_compact_scan_kernel(const int *block_counts, int nxblocks,
+                                       int *block_offsets, int *screen_tris) {
+    if (blockIdx.x != 0 || threadIdx.x != 0) return;
+    int total = 0;
+    for (int xb = 0; xb < nxblocks; ++xb) {
+        block_offsets[xb] = total;
+        total += block_counts[xb];
+    }
+    screen_tris[1] = total;
+}
+
+/* Stable global scatter: block-major order plus each block's stable live
+ * prefix is exactly the CPU transform output order. */
+__global__ void cr_compact_scatter_kernel(const CrScreenTri *slotted,
+                                          const int *block_counts,
+                                          const int *block_offsets,
+                                          int nxblocks, CrScreenTri *dense) {
+    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    int xb = t / 512;
+    int i = t % 512;
+    if (xb >= nxblocks || i >= block_counts[xb]) return;
+    dense[block_offsets[xb] + i] = slotted[xb * 512 + i];
+}
+
 /* Full GPU layer render: upload verts once, transform + bbox + raster on
  * device. Replaces the host cr_transform + tri upload in cr_raster_cuda_into
  * (~29% of the frames-run CPU profile lived in cr_transform/to_screen).
@@ -1037,22 +1063,30 @@ static void cr_cuda_run_layer(CrFramebuffer *fb, int nverts,
     cudaMemcpyAsync(d_sh, h_sh, sizeof(CrShadeCtx), cudaMemcpyHostToDevice,
                     g_gpu.stream);
 
-    int ntris = 2 * ntris_in; /* slotted output, holes skip-marked via bbox */
+    int ntris = 2 * ntris_in; /* worst-case dense count; launch sizing only */
     int tthr = 256, tblk = (ntris_in + tthr - 1) / tthr;
     cr_transform_kernel<<<tblk, tthr, 0, g_gpu.stream>>>(
         g_gpu.d_verts, ntris_in, mvp, cam->pos, W, H, g_gpu.d_tris,
         g_gpu.d_xcounts, g_gpu.d_screen_tris, 1);
 
+    cr_compact_scan_kernel<<<1, 1, 0, g_gpu.stream>>>(
+        g_gpu.d_xcounts, tblk, g_gpu.d_xoffsets, g_gpu.d_screen_tris);
+    int sthr = 256, nslots = tblk * 512;
+    int sblk = (nslots + sthr - 1) / sthr;
+    cr_compact_scatter_kernel<<<sblk, sthr, 0, g_gpu.stream>>>(
+        g_gpu.d_tris, g_gpu.d_xcounts, g_gpu.d_xoffsets, tblk, g_gpu.d_dense);
+
     int bthr = 256, bblk = (ntris + bthr - 1) / bthr;
-    cr_raster_bbox_kernel<<<bblk, bthr, 0, g_gpu.stream>>>(g_gpu.d_tris, ntris,
+    cr_raster_bbox_kernel<<<bblk, bthr, 0, g_gpu.stream>>>(g_gpu.d_dense, ntris,
                                                            W, H, g_gpu.d_box,
-                                                           g_gpu.d_tminz);
+                                                           g_gpu.d_tminz,
+                                                           g_gpu.d_screen_tris, 1);
 
     dim3 block(16, 16);
     dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
     cr_raster_tiled_kernel<<<grid, block, 0, g_gpu.stream>>>(
-        g_gpu.d_color, g_gpu.d_depth, W, H, g_gpu.d_tris, ntris, g_gpu.d_box,
-        d_sh, g_gpu.d_tminz, g_gpu.d_xcounts, tblk,
+        g_gpu.d_color, g_gpu.d_depth, W, H, g_gpu.d_dense, ntris, g_gpu.d_box,
+        d_sh, g_gpu.d_tminz, g_gpu.d_screen_tris, 1,
         0x7fffffff, 0x7fffffff, 0x7fffffff);
     /* No sync: layers queue back-to-back on the stream; frame_end (resident
      * fb) or the D2H below (standalone call) is the barrier. */
@@ -1284,12 +1318,14 @@ extern "C" void cr_raster_cuda_render_terrain(CrFramebuffer *fb,
     int bthr = 256, bblk = (ntris + bthr - 1) / bthr;
     cr_raster_bbox_kernel<<<bblk, bthr, 0, g_gpu.stream>>>(g_gpu.d_tris, ntris,
                                                            W, H, g_gpu.d_box,
-                                                           g_gpu.d_tminz);
+                                                           g_gpu.d_tminz,
+                                                           g_gpu.d_screen_tris, 0);
     dim3 block(16, 16);
     dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
     cr_raster_tiled_kernel<<<grid, block, 0, g_gpu.stream>>>(
         g_gpu.d_color, g_gpu.d_depth, W, H, g_gpu.d_tris, ntris, g_gpu.d_box,
-        &g_gpu.d_sh[si], g_gpu.d_tminz, NULL, 0, sb1, sb2, sb3);
+        &g_gpu.d_sh[si], g_gpu.d_tminz, g_gpu.d_screen_tris, 0,
+        sb1, sb2, sb3);
     cr_cuda_check("cuda_render_terrain");
 
     if (!g_gpu.frame_open) {
@@ -1307,9 +1343,11 @@ extern "C" void cr_raster_cuda_post(void) {
     if (g_gpu.d_color)  cudaFree(g_gpu.d_color);
     if (g_gpu.d_depth)  cudaFree(g_gpu.d_depth);
     if (g_gpu.d_tris)   cudaFree(g_gpu.d_tris);
+    if (g_gpu.d_dense)  cudaFree(g_gpu.d_dense);
     if (g_gpu.d_box)    cudaFree(g_gpu.d_box);
     if (g_gpu.d_tminz)  cudaFree(g_gpu.d_tminz);
     if (g_gpu.d_xcounts) cudaFree(g_gpu.d_xcounts);
+    if (g_gpu.d_xoffsets) cudaFree(g_gpu.d_xoffsets);
     if (g_gpu.d_screen_tris) cudaFree(g_gpu.d_screen_tris);
     if (g_gpu.d_verts)  cudaFree(g_gpu.d_verts);
     if (g_gpu.d_sh)     cudaFree(g_gpu.d_sh);

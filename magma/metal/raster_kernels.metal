@@ -196,7 +196,7 @@ typedef struct {                 /* cr_raster_tri_kernel, buffer(2) */
     CrScreenTriM tri;            /* offset 24, by value like the CUDA param */
 } TriParamsM;
 
-typedef struct { int ntris, W, H; } BboxParamsM;   /* buffer(1) */
+typedef struct { int ntris, W, H, use_device_count; } BboxParamsM; /* buffer(1) */
 
 typedef struct {                 /* cr_raster_tiled_kernel, buffer(2) */
     int W, H, ntris;
@@ -204,7 +204,7 @@ typedef struct {                 /* cr_raster_tiled_kernel, buffer(2) */
     int shbase;                  /* shade-ctx ring base slot (CUDA passed
                                     &d_sh[si]; an offset avoids setBuffer
                                     offset-alignment constraints) */
-    int nxblocks;                /* stable compacted transform blocks; 0=plain */
+    int use_device_count;        /* screen_tris[1] is current dense length */
 } TileParamsM;
 
 typedef struct {                 /* k_sky, buffer(1) */
@@ -590,9 +590,11 @@ kernel void cr_raster_bbox_kernel(device const CrScreenTriM *tris [[buffer(0)]],
                                   constant BboxParamsM &p         [[buffer(1)]],
                                   device CrTriBox *box            [[buffer(2)]],
                                   device float *tminz             [[buffer(3)]],
+                                  device const int *screen_tris   [[buffer(4)]],
                                   uint tpig [[thread_position_in_grid]]) {
     int t = (int)tpig;
-    if (t >= p.ntris) return;
+    int raster_ntris = p.use_device_count ? screen_tris[1] : p.ntris;
+    if (t >= raster_ntris) return;
     int W = p.W, H = p.H;
     CrScreenTriM tri = tris[t];
     thread const CrScreenVertM *v0 = &tri.v[0];
@@ -636,7 +638,7 @@ kernel void cr_raster_tiled_kernel(device CrRgbaM *color           [[buffer(0)]]
                                    device const CrTriBox *box      [[buffer(4)]],
                                    device const CrShadeCtxM *sh_ring [[buffer(5)]],
                                    device const float *tminz       [[buffer(6)]],
-                                   device const int *xform_counts  [[buffer(7)]],
+                                   device const int *screen_tris   [[buffer(7)]],
                                    uint2 tgpig [[threadgroup_position_in_grid]],
                                    uint2 tpitg [[thread_position_in_threadgroup]]) {
     int W = p.W, H = p.H, ntris = p.ntris;
@@ -665,23 +667,12 @@ kernel void cr_raster_tiled_kernel(device CrRgbaM *color           [[buffer(0)]]
     threadgroup atomic_int s_any;       /* __syncthreads_or replacement */
     int lane = (int)(tpitg.y * CR_TILE + tpitg.x);   /* 0..255 */
 
-    int nbatches = p.nxblocks > 0
-        ? p.nxblocks * 2
-        : (ntris + CR_TILE_N - 1) / CR_TILE_N;
+    int raster_ntris = p.use_device_count ? screen_tris[1] : ntris;
+    int nbatches = (raster_ntris + CR_TILE_N - 1) / CR_TILE_N;
     for (int batch = 0; batch < nbatches; ++batch) {
-        int base, batch_n;
-        if (p.nxblocks > 0) {
-            int xb = batch >> 1;
-            int bhalf = batch & 1;
-            base = xb * (2 * CR_TILE_N) + bhalf * CR_TILE_N;
-            batch_n = xform_counts[xb] - bhalf * CR_TILE_N;
-            if (batch_n < 0) batch_n = 0;
-            if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
-        } else {
-            base = batch * CR_TILE_N;
-            batch_n = ntris - base;
-            if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
-        }
+        int base = batch * CR_TILE_N;
+        int batch_n = raster_ntris - base;
+        if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
         int t0 = base + lane;
         int pass = 0;
         if (lane < batch_n) {
@@ -1244,6 +1235,41 @@ kernel void cr_transform_kernel(device const CrVertexM *verts [[buffer(0)]],
     int base = (int)tgpos * 512 + excl;
     if (n > 0) outb[base] = pair[0];
     if (n > 1) outb[base + 1] = pair[1];
+}
+
+/* Serial exclusive scan over transform-block live counts. nxblocks is at most
+ * ~7820 at the configured cap, so one device thread is the simplest identical
+ * CUDA/MSL implementation. screen_tris[0] remains the frame accumulator from
+ * cr_transform_kernel; [1] is overwritten with this layer's dense count. */
+kernel void cr_compact_scan_kernel(device const int *block_counts [[buffer(0)]],
+                                   constant int &nxblocks          [[buffer(1)]],
+                                   device int *block_offsets       [[buffer(2)]],
+                                   device int *screen_tris         [[buffer(3)]],
+                                   uint tpig [[thread_position_in_grid]]) {
+    if (tpig != 0) return;
+    int total = 0;
+    for (int xb = 0; xb < nxblocks; ++xb) {
+        block_offsets[xb] = total;
+        total += block_counts[xb];
+    }
+    screen_tris[1] = total;
+}
+
+/* Stable global scatter: block-major order plus each block's stable live
+ * prefix is exactly the CPU transform output order. */
+kernel void cr_compact_scatter_kernel(
+        device const CrScreenTriM *slotted [[buffer(0)]],
+        device const int *block_counts     [[buffer(1)]],
+        device const int *block_offsets    [[buffer(2)]],
+        constant int &nxblocks             [[buffer(3)]],
+        device CrScreenTriM *dense         [[buffer(4)]],
+        uint tpig [[thread_position_in_grid]]) {
+    int t = (int)tpig;
+    int xb = t / 512;
+    int i = t % 512;
+    if (xb >= nxblocks || i >= block_counts[xb]) return;
+    CrScreenTriM tri = slotted[xb * 512 + i];
+    dense[block_offsets[xb] + i] = tri;
 }
 
 /* ==================== slab-pool gather ====================================
