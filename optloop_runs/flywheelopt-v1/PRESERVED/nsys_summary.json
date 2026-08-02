@@ -1,0 +1,28 @@
+{
+ "tool": "nsys 2026.1.3, -t cuda",
+ "method": "union of CUDA_ACTIVITY_KIND_KERNEL intervals over the last measured chunk",
+ "note": "nsys inflates the chunk wall (1727->1850 baseline, 1594->1627 accepted), so idle here is an upper bound",
+ "baseline": {
+  "window_ms": 1850,
+  "kernels": 50032,
+  "gpu_busy_ms": 1540.1,
+  "gpu_idle_ms": 309.9,
+  "busy_frac": 0.832
+ },
+ "accepted_fused": {
+  "window_ms": 1627,
+  "kernels": 22736,
+  "gpu_busy_ms": 1534.4,
+  "gpu_idle_ms": 92.6,
+  "busy_frac": 0.943
+ },
+ "top_kernels_baseline_3chunks_ms": {
+  "implicit_convolve_sgemm_5x5": 842.4,
+  "k_tick_warp_env": 536.9,
+  "wgrad_alg0_engine": 525.3,
+  "nchwToNhwc": 324.5,
+  "nhwcToNchw": 150.6,
+  "cutlass_tf32_dgrad": 154.1,
+  "k_obs_env": 120.6
+ }
+}

@@ -1,0 +1,447 @@
+[
+ {
+  "hypothesis": "baseline",
+  "median_ms": 1715.62,
+  "env_ticks_per_s": 458394,
+  "samples": [
+   1712.05,
+   1713.36,
+   1715.62,
+   1721.1,
+   1717.05
+  ],
+  "stderr_ms": 1.58,
+  "cv": 0.00206,
+  "vs_baseline_ms": 0.0,
+  "vs_baseline_rel": 0.0,
+  "reference": null,
+  "increment_vs_reference_ms": null,
+  "verdict": "REFERENCE",
+  "why": "fresh 5-rep baseline on this worktree",
+  "env": {},
+  "ts": "2026-08-02T21:03:13Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "baseline_recheck",
+  "median_ms": 1717.09,
+  "env_ticks_per_s": 458002,
+  "samples": [
+   1713.01,
+   1699.52,
+   1717.09,
+   1718.32,
+   1721.26
+  ],
+  "stderr_ms": 3.82,
+  "cv": 0.00498,
+  "vs_baseline_ms": -1.47,
+  "vs_baseline_rel": -0.0009,
+  "reference": "baseline",
+  "increment_vs_reference_ms": -1.47,
+  "verdict": "DRIFT-CONTROL",
+  "why": "+1.5 ms vs baseline: no drift",
+  "env": {},
+  "ts": "2026-08-02T21:12:22Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "act_cache",
+  "median_ms": 1724.96,
+  "env_ticks_per_s": 455913,
+  "samples": [
+   1717.12,
+   1725.02,
+   1728.83,
+   1711.47,
+   1724.96
+  ],
+  "stderr_ms": 3.15,
+  "cv": 0.00409,
+  "vs_baseline_ms": -9.34,
+  "vs_baseline_rel": -0.0054,
+  "reference": "baseline_recheck",
+  "increment_vs_reference_ms": -7.87,
+  "verdict": "REVERT",
+  "why": "slower by 7.9 ms; reproduced in pair 2",
+  "env": {
+   "ACT_CACHE": "1"
+  },
+  "ts": "2026-08-02T21:12:58Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "novalidate",
+  "median_ms": 1610.2,
+  "env_ticks_per_s": 488408,
+  "samples": [
+   1608.56,
+   1608.36,
+   1610.2,
+   1610.36,
+   1610.51
+  ],
+  "stderr_ms": 0.47,
+  "cv": 0.00065,
+  "vs_baseline_ms": 105.43,
+  "vs_baseline_rel": 0.0615,
+  "reference": "baseline",
+  "increment_vs_reference_ms": 105.43,
+  "verdict": "SUBSUMED",
+  "why": "real +6.1%, but fused_sample removes Categorical entirely and beats it",
+  "env": {
+   "DIST_NOVALIDATE": "1"
+  },
+  "ts": "2026-08-02T21:13:32Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "fused_sample",
+  "median_ms": 1591.24,
+  "env_ticks_per_s": 494227,
+  "samples": [
+   1588.34,
+   1588.22,
+   1591.24,
+   1591.74,
+   1592.92
+  ],
+  "stderr_ms": 0.94,
+  "cv": 0.00133,
+  "vs_baseline_ms": 124.39,
+  "vs_baseline_rel": 0.0725,
+  "reference": "baseline",
+  "increment_vs_reference_ms": 124.39,
+  "verdict": "KEEP",
+  "why": "+7.25% vs baseline; +1.2% vs novalidate",
+  "env": {
+   "FUSED_SAMPLE": "1"
+  },
+  "ts": "2026-08-02T21:14:05Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "graph_rollout",
+  "median_ms": 1608.64,
+  "env_ticks_per_s": 488881,
+  "samples": [
+   1607.28,
+   1606.54,
+   1609.19,
+   1608.64,
+   1609.84
+  ],
+  "stderr_ms": 0.61,
+  "cv": 0.00085,
+  "vs_baseline_ms": 106.99,
+  "vs_baseline_rel": 0.0624,
+  "reference": "novalidate",
+  "increment_vs_reference_ms": 1.56,
+  "verdict": "REVERT",
+  "why": "+107 ms vs baseline is the novalidate effect it forces on; -1.6 ms increment over novalidate alone",
+  "env": {
+   "GRAPH_ROLLOUT": "1"
+  },
+  "ts": "2026-08-02T21:14:39Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "graph_update",
+  "median_ms": 1618.62,
+  "env_ticks_per_s": 485865,
+  "samples": [
+   1620.0,
+   1616.44,
+   1620.34,
+   1618.55,
+   1618.62
+  ],
+  "stderr_ms": 0.69,
+  "cv": 0.00095,
+  "vs_baseline_ms": 97.0,
+  "vs_baseline_rel": 0.0565,
+  "reference": "novalidate",
+  "increment_vs_reference_ms": -8.43,
+  "verdict": "REVERT",
+  "why": "SLOWER than novalidate alone by 8.4 ms",
+  "env": {
+   "GRAPH_UPDATE": "1"
+  },
+  "ts": "2026-08-02T21:15:14Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "graph_both",
+  "median_ms": 1614.2,
+  "env_ticks_per_s": 487196,
+  "samples": [
+   1610.8,
+   1615.66,
+   1614.55,
+   1614.04,
+   1614.2
+  ],
+  "stderr_ms": 0.81,
+  "cv": 0.00113,
+  "vs_baseline_ms": 101.43,
+  "vs_baseline_rel": 0.0591,
+  "reference": "novalidate",
+  "increment_vs_reference_ms": -4.0,
+  "verdict": "REVERT",
+  "why": "slower than novalidate alone by 4.0 ms",
+  "env": {
+   "GRAPH_ROLLOUT": "1",
+   "GRAPH_UPDATE": "1"
+  },
+  "ts": "2026-08-02T21:15:49Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "graph_both_fused",
+  "median_ms": 1590.44,
+  "env_ticks_per_s": 494473,
+  "samples": [
+   1591.3,
+   1590.44,
+   1590.33,
+   1591.87,
+   1588.95
+  ],
+  "stderr_ms": 0.5,
+  "cv": 0.0007,
+  "vs_baseline_ms": 125.18,
+  "vs_baseline_rel": 0.073,
+  "reference": "fused_sample",
+  "increment_vs_reference_ms": 0.79,
+  "verdict": "REVERT",
+  "why": "+0.8 ms over fused_sample: inside noise",
+  "env": {
+   "FUSED_SAMPLE": "1",
+   "GRAPH_ROLLOUT": "1",
+   "GRAPH_UPDATE": "1"
+  },
+  "ts": "2026-08-02T21:16:23Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "baseline_recheck2",
+  "median_ms": 1722.07,
+  "env_ticks_per_s": 456679,
+  "samples": [
+   1722.07,
+   1729.85,
+   1732.42,
+   1713.01,
+   1717.18
+  ],
+  "stderr_ms": 3.68,
+  "cv": 0.00477,
+  "vs_baseline_ms": -6.44,
+  "vs_baseline_rel": -0.0038,
+  "reference": "baseline",
+  "increment_vs_reference_ms": -6.44,
+  "verdict": "DRIFT-CONTROL",
+  "why": "+6.4 ms vs baseline after 40 min of runs",
+  "env": {},
+  "ts": "2026-08-02T21:17:39Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "act_cache_repair",
+  "median_ms": 1733.43,
+  "env_ticks_per_s": 453687,
+  "samples": [
+   1730.23,
+   1733.43,
+   1739.18,
+   1717.99,
+   1737.76
+  ],
+  "stderr_ms": 3.78,
+  "cv": 0.00488,
+  "vs_baseline_ms": -17.8,
+  "vs_baseline_rel": -0.0104,
+  "reference": "baseline_recheck2",
+  "increment_vs_reference_ms": -11.36,
+  "verdict": "REVERT",
+  "why": "slower by 11.4 ms; second independent pair",
+  "env": {
+   "ACT_CACHE": "1"
+  },
+  "ts": "2026-08-02T21:18:15Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "fused_ref",
+  "median_ms": 1590.39,
+  "env_ticks_per_s": 494491,
+  "samples": [
+   1589.76,
+   1590.39,
+   1590.38,
+   1597.04,
+   1592.68
+  ],
+  "stderr_ms": 1.34,
+  "cv": 0.00189,
+  "vs_baseline_ms": 125.24,
+  "vs_baseline_rel": 0.073,
+  "reference": "baseline",
+  "increment_vs_reference_ms": 125.24,
+  "verdict": "KEEP",
+  "why": "reproduces fused_sample to 0.9 ms",
+  "env": {
+   "FUSED_SAMPLE": "1"
+  },
+  "ts": "2026-08-02T21:18:48Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "fused_plus_graph_rollout",
+  "median_ms": 1589.04,
+  "env_ticks_per_s": 494911,
+  "samples": [
+   1586.21,
+   1589.04,
+   1585.62,
+   1589.8,
+   1589.64
+  ],
+  "stderr_ms": 0.89,
+  "cv": 0.00126,
+  "vs_baseline_ms": 126.59,
+  "vs_baseline_rel": 0.0738,
+  "reference": "fused_ref",
+  "increment_vs_reference_ms": 1.35,
+  "verdict": "REVERT",
+  "why": "+1.35 ms increment over fused_ref: noise",
+  "env": {
+   "FUSED_SAMPLE": "1",
+   "GRAPH_ROLLOUT": "1"
+  },
+  "ts": "2026-08-02T21:19:22Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "fused_plus_graph_update",
+  "median_ms": 1596.27,
+  "env_ticks_per_s": 492669,
+  "samples": [
+   1598.28,
+   1597.04,
+   1595.26,
+   1595.12,
+   1596.27
+  ],
+  "stderr_ms": 0.59,
+  "cv": 0.00082,
+  "vs_baseline_ms": 119.36,
+  "vs_baseline_rel": 0.0696,
+  "reference": "fused_ref",
+  "increment_vs_reference_ms": -5.88,
+  "verdict": "REVERT",
+  "why": "-5.9 ms increment over fused_ref: slower",
+  "env": {
+   "FUSED_SAMPLE": "1",
+   "GRAPH_UPDATE": "1"
+  },
+  "ts": "2026-08-02T21:19:56Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "prelane_path",
+  "median_ms": 1722.93,
+  "env_ticks_per_s": 456451,
+  "samples": [
+   1721.89,
+   1722.93,
+   1726.02,
+   1712.06,
+   1728.11
+  ],
+  "stderr_ms": 2.77,
+  "cv": 0.00359,
+  "vs_baseline_ms": -7.3,
+  "vs_baseline_rel": -0.0043,
+  "reference": "baseline",
+  "increment_vs_reference_ms": -7.3,
+  "verdict": "PAIRED-REFERENCE",
+  "why": "explicit FUSED_SAMPLE=0, paired with the accepted config",
+  "env": {
+   "FUSED_SAMPLE": "0"
+  },
+  "ts": "2026-08-02T21:26:04Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ },
+ {
+  "hypothesis": "ACCEPTED_fused_sample_default",
+  "median_ms": 1585.17,
+  "env_ticks_per_s": 496118,
+  "samples": [
+   1583.0,
+   1583.15,
+   1585.17,
+   1585.31,
+   1588.88
+  ],
+  "stderr_ms": 1.06,
+  "cv": 0.0015,
+  "vs_baseline_ms": 130.45,
+  "vs_baseline_rel": 0.076,
+  "reference": "prelane_path",
+  "increment_vs_reference_ms": 137.75,
+  "verdict": "ACCEPTED",
+  "why": "-137.76 ms / +8.00% vs its paired reference in the same lock hold",
+  "env": {},
+  "ts": "2026-08-02T21:26:38Z",
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "driver": "610.43.02",
+  "sm_mhz": "180",
+  "throttle": "0x0000000000000000"
+ }
+]

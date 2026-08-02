@@ -27,6 +27,8 @@ Run (anvil, GPU0 - preflight nvidia-smi):
   cd magma && uv run --no-project --with numpy,torch,matplotlib \
       python blaze/env/ppo_chain_cu.py
 """
+import contextlib
+import json
 import os
 import struct
 import sys
@@ -86,6 +88,56 @@ SUCCESS_ITEM = int(os.environ.get("SUCCESS_ITEM", "50"))
 REWARD_SPEC = ChainRewardSpec.resolve()
 COAL_CHEW = REWARD_SPEC.coal_chew      # kept for the launch line echo
 HUNT_DESC = REWARD_SPEC.hunt_desc
+
+# ---- benchmark / optimization knobs (blaze/rl/flywheel) ----
+# BENCH_MEASURE_CHUNKS>0 turns the trainer into a fixed-work benchmark: run
+# BENCH_WARMUP_CHUNKS chunks, then time BENCH_MEASURE_CHUNKS complete chunks
+# (rollout + GAE + PPO update) with a device sync on both ends, print one
+# BENCH line per sample and exit WITHOUT writing checkpoints or curves.
+MAX_CHUNKS = int(os.environ.get("MAX_CHUNKS", "0"))
+BENCH_WARMUP_CHUNKS = int(os.environ.get("BENCH_WARMUP_CHUNKS", "0"))
+BENCH_MEASURE_CHUNKS = int(os.environ.get("BENCH_MEASURE_CHUNKS", "0"))
+# BENCH_PHASES=1 adds per-phase CUDA-event timing inside the measured chunks.
+# It inserts extra events and one host sync per chunk, so it is DIAGNOSTIC
+# ONLY: never read chunk_wall_ms from a BENCH_PHASES run as the metric M.
+BENCH_PHASES = int(os.environ.get("BENCH_PHASES", "0")) != 0
+# SMOKE_TELEMETRY=1 prints a per-chunk reward/loss/grad line used by the
+# 30-chunk correctness smoke (compare_smoke.py).
+SMOKE_TELEMETRY = int(os.environ.get("SMOKE_TELEMETRY", "0")) != 0
+# ---- candidate switches (each is an A/B against the same source tree) ----
+# FUSED_SAMPLE : one fused Gumbel-argmax + gather over the concatenated head
+#   logits instead of 9 torch.distributions.Categorical objects (rollout
+#   sampling + logprob, and the update-side logprob/entropy).
+#   DEFAULT ON - this is the one kept candidate of the flywheelopt lane:
+#   1715.6 -> 1590.4 ms/chunk at the pinned M config (+7.3%, 458.4k ->
+#   494.5k env-ticks/s). It wins by deleting host synchronisation, not by
+#   doing less arithmetic: each Categorical's argument validation ends in a
+#   `.all()` read back to the host, 9 per forward x 81 forwards per chunk,
+#   and each one drains the pipeline. GPU busy time is unchanged (1540 ->
+#   1534 ms measured by nsys); the whole gain is recovered idle.
+#   Set FUSED_SAMPLE=0 for the pre-lane path. NOTE: the two paths consume
+#   different RNG streams, so a run is not replayable across the flag even
+#   at the same RNG_SEED - see blaze/rl/flywheel/RNG_PROTOCOL.md.
+FUSED_SAMPLE = int(os.environ.get("FUSED_SAMPLE", "1")) != 0
+# GRAPH_ROLLOUT=1 : capture the rollout inference step (obs float convert +
+#                   policy forward + sample + logprob + action-row decode)
+#                   into a CUDA graph replayed per decision.
+GRAPH_ROLLOUT = int(os.environ.get("GRAPH_ROLLOUT", "0")) != 0
+# GRAPH_UPDATE=1  : capture one PPO minibatch step (fwd + bwd + Adam) into a
+#                   CUDA graph. Requires a full-size (MB) minibatch; the
+#                   ragged tail minibatch runs eagerly.
+GRAPH_UPDATE = int(os.environ.get("GRAPH_UPDATE", "0")) != 0
+# ACT_CACHE=1     : cache the yaw/pitch/forward lookup tensors instead of
+#                   rebuilding them from Python tuples every decision.
+ACT_CACHE = int(os.environ.get("ACT_CACHE", "0")) != 0
+# DIST_NOVALIDATE=1: turn off torch.distributions argument validation (its
+#                   support check ends in a host-synchronizing .all()).
+DIST_NOVALIDATE = int(os.environ.get("DIST_NOVALIDATE", "0")) != 0
+# A CUDA graph cannot contain a pageable H2D copy and cannot contain a host
+# sync, so graph capture forces both of the above on.
+if GRAPH_ROLLOUT or GRAPH_UPDATE:
+    ACT_CACHE = True
+    DIST_NOVALIDATE = True
 
 # ---- action heads ----
 # dyaw{-15,0,15} dpitch{-10,0,10} fwd{-1,0,1} jump attack use
@@ -147,23 +199,354 @@ def build_scal(scal, status, pose, tfrac):
                       tfrac.unsqueeze(1)], dim=1)
 
 
+class PhaseTimer:
+    """CUDA-event phase accumulator (BENCH_PHASES only).
+
+    Records a start/end event pair per `range()` and sums elapsed_time per
+    name at the end of the chunk. Events are pooled so a 32-decision chunk
+    does not allocate 300 of them per chunk. DIAGNOSTIC ONLY: the extra
+    events perturb the chunk wall, so a BENCH_PHASES run's chunk_wall_ms is
+    never the scoreboard metric."""
+
+    def __init__(self, enabled):
+        self.enabled = enabled
+        self.pairs = []
+        self.pool = []
+        self._i = 0
+
+    def reset(self):
+        self.pairs = []
+        self._i = 0
+
+    def _ev(self):
+        if self._i >= len(self.pool):
+            self.pool.append(torch.cuda.Event(enable_timing=True))
+        e = self.pool[self._i]
+        self._i += 1
+        return e
+
+    @contextlib.contextmanager
+    def range(self, name):
+        if not self.enabled:
+            yield
+            return
+        a, b = self._ev(), self._ev()
+        a.record()
+        try:
+            yield
+        finally:
+            b.record()
+            self.pairs.append((name, a, b))
+
+    def report(self):
+        if not self.enabled or not self.pairs:
+            return {}
+        torch.cuda.synchronize()
+        acc = {}
+        for name, a, b in self.pairs:
+            acc[name] = acc.get(name, 0.0) + a.elapsed_time(b)
+        return acc
+
+
+# ---- fused multi-head categorical sampling (FUSED_SAMPLE) ----
+# The 9 heads have different widths, so "concatenate the logits" needs a
+# padded [N, NHEAD, WMAX] block with -inf in the pad columns. Once padded,
+# sampling all 9 heads is one Gumbel-argmax over the last dim and the joint
+# log-prob is one log_softmax + gather + sum: 3 kernels for the whole action
+# instead of ~9 Categorical objects x (validate, sample, log_prob, entropy).
+WMAX = max(HEADS)
+_HEAD_MASK = None                 # [NHEAD, WMAX] bool, True on real columns
+
+
+def head_mask(dev):
+    global _HEAD_MASK
+    if _HEAD_MASK is None or _HEAD_MASK.device != dev:
+        m = torch.zeros(NHEAD, WMAX, dtype=torch.bool, device=dev)
+        for h, w in enumerate(HEADS):
+            m[h, :w] = True
+        _HEAD_MASK = m
+    return _HEAD_MASK
+
+
+def pad_logits(logits):
+    """list of NHEAD [N,w_h] -> [N,NHEAD,WMAX] with -inf padding."""
+    n = logits[0].shape[0]
+    out = logits[0].new_full((n, NHEAD, WMAX), float("-inf"))
+    for h, lg in enumerate(logits):
+        out[:, h, :HEADS[h]] = lg
+    return out
+
+
+def fused_rollout(logits, burnin, noop9):
+    """Sample every head at once, force the burn-in lanes to the no-op row,
+    and return (acts [N,NHEAD] int64, logp [N]) for the FINAL acts.
+
+    Gumbel-argmax is exactly categorical sampling: argmax_i (logit_i + G_i)
+    with G_i iid Gumbel(0,1) has p_i proportional to exp(logit_i). Pad
+    columns are -inf so they can never win. Ordering matches the eager path
+    (sample -> burn-in override -> log_prob of the overwritten row); see
+    blaze/rl/flywheel/RNG_PROTOCOL.md."""
+    lp = pad_logits(logits)
+    u = torch.rand(lp.shape, device=lp.device, dtype=lp.dtype)
+    # Exp(1) = -log U, then Gumbel(0,1) = -log Exp(1). Both clamps guard the
+    # log's zero end; note the parentheses -- `-torch.log(u).clamp_min(e)`
+    # clamps the NEGATED value and hands log() a negative argument, which
+    # yields NaN everywhere and an argmax that always returns category 0.
+    e = (-torch.log(u.clamp_min(1e-20))).clamp_min(1e-20)
+    g = -torch.log(e)
+    acts = (lp + g).argmax(dim=2)
+    acts = torch.where(burnin.unsqueeze(1), noop9.unsqueeze(0), acts)
+    logp = torch.log_softmax(lp, dim=2).gather(
+        2, acts.unsqueeze(2)).squeeze(2).sum(dim=1)
+    return acts, logp
+
+
+def fused_logp_entropy(logits, acts):
+    """Joint log-prob of `acts` [N,NHEAD] and summed per-head entropy, in
+    3 kernels instead of 9 Categorical objects."""
+    lp = pad_logits(logits)
+    ls = torch.log_softmax(lp, dim=2)
+    logp = ls.gather(2, acts.unsqueeze(2)).squeeze(2).sum(dim=1)
+    p = ls.exp()
+    ent = -(p * torch.nan_to_num(ls, neginf=0.0)).sum(dim=2).sum(dim=1)
+    return logp, ent
+
+
+def eager_sample(logits, burnin, noop9, where=False):
+    """The unmodified 9-Categorical rollout sampler.
+
+    where=True swaps the boolean-mask burn-in write for the identical
+    torch.where form; masked assignment is a data-dependent shape and
+    therefore cannot be captured into a CUDA graph."""
+    dists = [torch.distributions.Categorical(logits=lg) for lg in logits]
+    acts = torch.stack([d.sample() for d in dists], dim=1)
+    if where:
+        acts = torch.where(burnin.unsqueeze(1), noop9.unsqueeze(0), acts)
+    else:
+        acts[burnin] = noop9
+    logp = sum(d.log_prob(acts[:, h]) for h, d in enumerate(dists))
+    return acts, logp
+
+
+class RolloutStep:
+    """One decision's inference: obs convert -> policy forward -> head
+    sampling -> action-row decode.
+
+    With graph=True the whole sequence is captured once into a CUDA graph and
+    replayed per decision. The shapes are static (N_ENVS never changes), so
+    the only per-decision inputs that must be staged are the scalars and the
+    burn-in mask; the observation stack is read in place (its storage is
+    allocated once and only ever mutated through slice writes, which is
+    checked against the captured pointer on every call)."""
+
+    def __init__(self, net, dev, noop9, graph=False):
+        self.net, self.dev, self.noop9 = net, dev, noop9
+        self.graph = graph
+        self.g = None
+
+    def _body(self):
+        logits, vals = self.net(obs_float(self.i_obs, self.f_obs),
+                                self.i_scal)
+        if FUSED_SAMPLE:
+            acts, logp = fused_rollout(logits, self.i_burnin, self.noop9)
+        else:
+            acts, logp = eager_sample(logits, self.i_burnin, self.noop9,
+                                      where=True)
+        return acts, logp, vals, acts_to_rows(acts, self.dev)
+
+    def _capture(self, stack_u8, scal, burnin):
+        self.i_obs = stack_u8
+        self._obs_ptr = stack_u8.data_ptr()
+        self.i_scal = scal.detach().clone()
+        self.i_burnin = burnin.detach().clone()
+        self.f_obs = torch.empty(stack_u8.shape, dtype=torch.float32,
+                                 device=self.dev)
+        s = torch.cuda.Stream(device=self.dev)
+        s.wait_stream(torch.cuda.current_stream(self.dev))
+        with torch.cuda.stream(s), torch.no_grad():
+            for _ in range(3):
+                self._body()
+        torch.cuda.current_stream(self.dev).wait_stream(s)
+        self.g = torch.cuda.CUDAGraph()
+        with torch.cuda.graph(self.g), torch.no_grad():
+            self.o = self._body()
+        print(f"GRAPH rollout captured (N={stack_u8.shape[0]}, "
+              f"fused={FUSED_SAMPLE})", flush=True)
+
+    def step(self, stack_u8, scal, burnin, pt):
+        if not self.graph:
+            with torch.no_grad():
+                with pt.range("rollout/obs_build"):
+                    obs = obs_float(stack_u8)
+                with pt.range("rollout/policy_fwd"):
+                    logits, vals = self.net(obs, scal)
+                with pt.range("rollout/sample"):
+                    if FUSED_SAMPLE:
+                        acts, logp = fused_rollout(logits, burnin, self.noop9)
+                    else:
+                        acts, logp = eager_sample(logits, burnin, self.noop9)
+                with pt.range("rollout/act_decode"):
+                    rows = acts_to_rows(acts, self.dev)
+                return acts, logp, vals, rows
+        if self.g is None:
+            self._capture(stack_u8, scal, burnin)
+        elif stack_u8.data_ptr() != self._obs_ptr:
+            raise RuntimeError(
+                "rollout graph captured a different obs allocation; the "
+                "observation stack must be mutated in place")
+        with pt.range("rollout/graph"):
+            self.i_scal.copy_(scal)
+            self.i_burnin.copy_(burnin)
+            self.g.replay()
+        return self.o
+
+
+class UpdateStep:
+    """One PPO minibatch (forward + backward + grad clip + Adam) captured
+    into a CUDA graph.
+
+    Only full-size (MB) minibatches go through the graph; the ragged tail
+    stays eager. The minibatch gather is done with index_select(out=) into
+    the graph's static input buffers, so it REPLACES the eager path's gather
+    rather than adding a copy on top of it.
+
+    Warm-up before capture runs three real optimizer steps (cuDNN/Adam state
+    has to exist and be laid out before the capture records its pointers), so
+    the parameters and the whole optimizer state are snapshotted first and
+    restored in place afterwards: capture itself records without executing,
+    so the net that comes out is bit-identical to the net that went in."""
+
+    def __init__(self, net, opt, dev, mb_size):
+        self.net, self.opt, self.dev, self.mb = net, opt, dev, mb_size
+        self.g = None
+        self.lr_t = None
+
+    def _alloc(self, fO, fS, fA):
+        m = self.mb
+        self.s_obs = torch.empty((m,) + fO.shape[1:], dtype=fO.dtype,
+                                 device=self.dev)
+        self.f_obs = torch.empty((m,) + fO.shape[1:], dtype=torch.float32,
+                                 device=self.dev)
+        self.s_scal = torch.empty((m, fS.shape[1]), dtype=fS.dtype,
+                                  device=self.dev)
+        self.s_act = torch.empty((m, fA.shape[1]), dtype=fA.dtype,
+                                 device=self.dev)
+        self.s_lp = torch.empty(m, dtype=torch.float32, device=self.dev)
+        self.s_adv = torch.empty(m, dtype=torch.float32, device=self.dev)
+        self.s_ret = torch.empty(m, dtype=torch.float32, device=self.dev)
+
+    def _stage(self, fO, fS, fA, fLP, fADV, fRET, mb, mo):
+        torch.index_select(fO, 0, mb, out=self.s_obs)
+        torch.index_select(fS, 0, mb, out=self.s_scal)
+        torch.index_select(fA, 0, mb, out=self.s_act)
+        torch.index_select(fLP, 0, mb, out=self.s_lp)
+        torch.index_select(fADV, 0, mo, out=self.s_adv)
+        torch.index_select(fRET, 0, mo, out=self.s_ret)
+
+    def _body(self):
+        logits, vals = self.net(obs_float(self.s_obs, self.f_obs),
+                                self.s_scal)
+        if FUSED_SAMPLE:
+            logp, entr = fused_logp_entropy(logits, self.s_act)
+        else:
+            dists = [torch.distributions.Categorical(logits=lg)
+                     for lg in logits]
+            logp = sum(d.log_prob(self.s_act[:, h])
+                       for h, d in enumerate(dists))
+            entr = sum(d.entropy() for d in dists)
+        ratio = torch.exp(logp - self.s_lp)
+        pg = -torch.min(ratio * self.s_adv,
+                        torch.clamp(ratio, 1 - CLIP, 1 + CLIP) * self.s_adv)
+        loss = pg.mean() + 0.5 * ((self.s_ret - vals) ** 2).mean() \
+            - ENT * entr.mean()
+        self.opt.zero_grad(set_to_none=False)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.net.parameters(), GRAD_CLIP)
+        self.opt.step()
+        return ratio.detach(), entr.mean().detach()
+
+    def _snapshot(self):
+        st = [p.detach().clone() for p in self.net.parameters()]
+        ost = []
+        for p in self.net.parameters():
+            s = self.opt.state.get(p, {})
+            ost.append({k: (v.detach().clone() if torch.is_tensor(v) else v)
+                        for k, v in s.items()})
+        return st, ost
+
+    def _restore(self, snap):
+        """Undo the warm-up. Keys the snapshot does NOT have are keys the
+        optimizer had not created yet, so they are zeroed rather than left
+        alone: leaving them is how a graphed update silently starts life with
+        three steps of momentum the eager path never took."""
+        st, ost = snap
+        with torch.no_grad():
+            for p, q in zip(self.net.parameters(), st):
+                p.copy_(q)
+            for p, s in zip(self.net.parameters(), ost):
+                cur = self.opt.state.get(p, {})
+                for k, v in cur.items():
+                    if k in s:
+                        if torch.is_tensor(v) and torch.is_tensor(s[k]):
+                            v.copy_(s[k])
+                        else:
+                            cur[k] = s[k]
+                    elif torch.is_tensor(v):
+                        v.zero_()
+                    else:
+                        cur[k] = 0
+
+    def capture(self, fO, fS, fA, fLP, fADV, fRET, mb, mo):
+        self._alloc(fO, fS, fA)
+        self._stage(fO, fS, fA, fLP, fADV, fRET, mb, mo)
+        snap = self._snapshot()
+        s = torch.cuda.Stream(device=self.dev)
+        s.wait_stream(torch.cuda.current_stream(self.dev))
+        with torch.cuda.stream(s):
+            for _ in range(3):
+                self._body()
+        torch.cuda.current_stream(self.dev).wait_stream(s)
+        self.g = torch.cuda.CUDAGraph()
+        with torch.cuda.graph(self.g):
+            self.o_ratio, self.o_ent = self._body()
+        self._restore(snap)
+        print(f"GRAPH update captured (MB={self.mb}, fused={FUSED_SAMPLE})",
+              flush=True)
+
+    def step(self, fO, fS, fA, fLP, fADV, fRET, mb, mo, lr_now):
+        if self.g is None:
+            self.capture(fO, fS, fA, fLP, fADV, fRET, mb, mo)
+        else:
+            self._stage(fO, fS, fA, fLP, fADV, fRET, mb, mo)
+        if self.lr_t is not None:
+            self.lr_t.fill_(lr_now)
+        self.g.replay()
+        return self.o_ratio, self.o_ent
+
+
 _OF_BUF = {}
 
 
-def obs_float(u8):
+def obs_float(u8, buf=None):
     """uint8 planes -> float32, depth scaled /255. ONE growable buffer per
     device (only dim0 varies across calls); a [:n] view is returned. A
     per-shape cache is a LEAK: ragged last-minibatch sizes mint a new
     multi-GB buffer per distinct n (v1 of this pinned ~10GB/25 chunks and
     OOMed the pin run). Safe because fwd consumes the view before the next
-    copy_ overwrites (in-order on one stream)."""
+    copy_ overwrites (in-order on one stream).
+
+    `buf` supplies a caller-owned destination. CUDA-graph capture NEEDS this:
+    the shared buffer is grown by the first MB-sized update call, and a grow
+    frees the storage a rollout graph captured at N_ENVS, which would leave
+    the graph replaying into freed memory with no error at all."""
     n = u8.shape[0]
-    key = (u8.device, u8.shape[1:])
-    buf = _OF_BUF.get(key)
-    if buf is None or buf.shape[0] < n:
-        buf = torch.empty((n,) + u8.shape[1:], dtype=torch.float32,
-                          device=u8.device)
-        _OF_BUF[key] = buf
+    if buf is None:
+        key = (u8.device, u8.shape[1:])
+        buf = _OF_BUF.get(key)
+        if buf is None or buf.shape[0] < n:
+            buf = torch.empty((n,) + u8.shape[1:], dtype=torch.float32,
+                              device=u8.device)
+            _OF_BUF[key] = buf
     out = buf[:n]
     out.copy_(u8, non_blocking=True)
     for k in range(STACK):
@@ -188,14 +571,37 @@ class ChainPolicy(nn.Module):
         return [head(h) for head in self.heads], self.value(h).squeeze(-1)
 
 
+_ROW_CONST = {}
+
+
+def row_consts(dev):
+    """Cached [3] float64 lookup tables for the yaw/pitch/forward heads.
+
+    The uncached path rebuilds three tensors from Python tuples on EVERY
+    decision, i.e. three pageable host-to-device copies per decision, and a
+    pageable H2D copy is a synchronizing copy. Also required for CUDA-graph
+    capture (a pageable copy cannot be captured)."""
+    c = _ROW_CONST.get(dev)
+    if c is None:
+        c = tuple(torch.tensor(v, dtype=torch.float64, device=dev)
+                  for v in (YAWS, PITCHES, FWD))
+        _ROW_CONST[dev] = c
+    return c
+
+
 def acts_to_rows(a, dev):
     """[N,NHEAD] int64 head samples -> [N,13] float64 raw action rows."""
     n = a.shape[0]
     rows = torch.zeros((n, 13), dtype=torch.float64, device=dev)
-    rows[:, 2] = torch.tensor(YAWS, dtype=torch.float64, device=dev)[a[:, 0]]
-    rows[:, 3] = torch.tensor(PITCHES, dtype=torch.float64,
-                              device=dev)[a[:, 1]]
-    rows[:, 0] = torch.tensor(FWD, dtype=torch.float64, device=dev)[a[:, 2]]
+    if ACT_CACHE:
+        t_yaw, t_pit, t_fwd = row_consts(dev)
+    else:
+        t_yaw = torch.tensor(YAWS, dtype=torch.float64, device=dev)
+        t_pit = torch.tensor(PITCHES, dtype=torch.float64, device=dev)
+        t_fwd = torch.tensor(FWD, dtype=torch.float64, device=dev)
+    rows[:, 2] = t_yaw[a[:, 0]]
+    rows[:, 3] = t_pit[a[:, 1]]
+    rows[:, 0] = t_fwd[a[:, 2]]
     rows[:, 4] = a[:, 3].double()                    # jump
     rows[:, 7] = a[:, 4].double()                    # attack
     rows[:, 8] = a[:, 5].double()                    # use
@@ -298,6 +704,8 @@ class StageCurriculum:
 
 def main():
     os.makedirs(OUT, exist_ok=True)
+    if DIST_NOVALIDATE:
+        torch.distributions.Distribution.set_default_validate_args(False)
     torch.manual_seed(RNG_SEED)
     rng = np.random.default_rng(RNG_SEED)
     dev = torch.device(f"cuda:{DEVICE}")
@@ -340,7 +748,16 @@ def main():
         net.load_state_dict(torch.load(os.path.join(OUT, WARM),
                                        weights_only=True, map_location=dev))
         print(f"warm start from {WARM}", flush=True)
-    opt = torch.optim.Adam(net.parameters(), lr=LR)
+    if GRAPH_UPDATE:
+        # capturable=True keeps Adam's step counter on the device (the CPU
+        # counter is a host read, which cannot be captured), and lr must be a
+        # device tensor so the per-chunk decay can be written without
+        # re-capturing the graph.
+        lr_t = torch.tensor(LR, dtype=torch.float32, device=dev)
+        opt = torch.optim.Adam(net.parameters(), lr=lr_t, capturable=True)
+    else:
+        lr_t = None
+        opt = torch.optim.Adam(net.parameters(), lr=LR)
 
     curr = StageCurriculum(nseeds, rng)
     lane_seed = np.array([i % nseeds for i in range(N_ENVS)])
@@ -436,16 +853,26 @@ def main():
     noop9[0] = noop9[1] = 1                  # dyaw 0, dpitch 0
     noop9[2] = 1                             # fwd 0
 
+    ptimer = PhaseTimer(BENCH_PHASES)
+    roll = RolloutStep(net, dev, noop9, graph=GRAPH_ROLLOUT)
+    upd = UpdateStep(net, opt, dev, MB) if GRAPH_UPDATE else None
+    if upd is not None:
+        upd.lr_t = lr_t
+    print(f"opt flags: fused_sample={FUSED_SAMPLE} act_cache={ACT_CACHE} "
+          f"novalidate={DIST_NOVALIDATE} graph_rollout={GRAPH_ROLLOUT} "
+          f"graph_update={GRAPH_UPDATE}", flush=True)
+
     while True:
+        bench_sample = BENCH_MEASURE_CHUNKS and \
+            BENCH_WARMUP_CHUNKS <= chunk < BENCH_WARMUP_CHUNKS + \
+            BENCH_MEASURE_CHUNKS
+        if bench_sample:
+            ptimer.reset()
+            torch.cuda.synchronize(dev)
+            bench_t0 = time.perf_counter()
         for t in range(T_CHUNK):
-            with torch.no_grad():
-                logits, vals = net(obs_float(stack_u8), scal_cur)
-                dists = [torch.distributions.Categorical(logits=lg)
-                         for lg in logits]
-                acts = torch.stack([d.sample() for d in dists], dim=1)
-                acts[burnin] = noop9
-                logp = sum(d.log_prob(acts[:, h])
-                           for h, d in enumerate(dists))
+            acts, logp, vals, rows = roll.step(stack_u8, scal_cur, burnin,
+                                               ptimer)
 
             obs_b[t] = stack_u8
             scal_b[t] = scal_cur
@@ -454,13 +881,15 @@ def main():
             val_b[t] = vals
             valid_b[t] = ~burnin
 
-            cam, depth, edge, scal, _env_rew, done, pose = env.step(
-                acts_to_rows(acts, dev), repeat=REPEAT)
+            with ptimer.range("env/step"):
+                cam, depth, edge, scal, _env_rew, done, pose = env.step(
+                    rows, repeat=REPEAT)
             status = env.status
 
             # ---- reward (reward_chain.ChainReward; see reward_chain.py) ----
-            r = rew.step(status, cam, acts, pose, scal, done, lane_seed_t,
-                         log_t)
+            with ptimer.range("reward"):
+                r = rew.step(status, cam, acts, pose, scal, done, lane_seed_t,
+                             log_t)
 
             term = done > 0
             success = done == 1
@@ -472,17 +901,20 @@ def main():
             cut_b[t] = ended
             ep_ret += r
 
-            frame = build_frame(cam, depth, edge)
-            stack_u8[:, :-NPLANES] = stack_u8[:, NPLANES:].clone()
-            stack_u8[:, -NPLANES:] = frame
-            if burnin.any():
-                bi = burnin
-                stack_u8[bi] = frame[bi].repeat(1, STACK, 1, 1)
-            tfrac = ep_dec.float() / EP_DEC
-            scal_cur = build_scal(scal, status, pose, tfrac)
-            burnin = torch.zeros_like(burnin)
+            with ptimer.range("stack_roll"):
+                frame = build_frame(cam, depth, edge)
+                stack_u8[:, :-NPLANES] = stack_u8[:, NPLANES:].clone()
+                stack_u8[:, -NPLANES:] = frame
+                if burnin.any():
+                    bi = burnin
+                    stack_u8[bi] = frame[bi].repeat(1, STACK, 1, 1)
+                tfrac = ep_dec.float() / EP_DEC
+                scal_cur = build_scal(scal, status, pose, tfrac)
+                burnin = torch.zeros_like(burnin)
 
             # ---- milestone captures (policy-generated start states) ----
+            ptimer_curr = ptimer.range("curriculum")
+            ptimer_curr.__enter__()
             stg_now = stage_of_best(
                 rew.best, getattr(rew, "best_iron", None))
             live = ~term
@@ -541,10 +973,11 @@ def main():
                 burnin[idx] = True
                 rew.reset(idx)
 
+            ptimer_curr.__exit__(None, None, None)
             ticks += N_ENVS * REPEAT
 
         # ---- GAE ----
-        with torch.no_grad():
+        with ptimer.range("gae"), torch.no_grad():
             _, next_val = net(obs_float(stack_u8), scal_cur)
             adv = torch.zeros_like(rew_b)
             gae = torch.zeros(N_ENVS, device=dev)
@@ -574,32 +1007,53 @@ def main():
             lr_now = max(LR_FLOOR,
                          LR * (1.0 - min(1.0, ticks / LR_DECAY_TICKS)
                                * (1.0 - LR_FLOOR / LR)))
-            for g in opt.param_groups:
-                g["lr"] = lr_now
+            if lr_t is not None:
+                lr_t.fill_(lr_now)          # graph-visible device lr
+            else:
+                for g in opt.param_groups:
+                    g["lr"] = lr_now
             for _ in range(EPOCHS):
                 perm = sel[torch.randperm(n_tr, device=dev)]
                 order = torch.searchsorted(sel, perm)
                 for k in range(0, n_tr, MB):
                     mb = perm[k:k + MB]
                     mo = order[k:k + MB]
-                    logits, vals = net(obs_float(fO[mb]), fS[mb])
-                    dists = [torch.distributions.Categorical(logits=lg)
-                             for lg in logits]
-                    logp = sum(d.log_prob(fA[mb][:, h])
-                               for h, d in enumerate(dists))
-                    ratio = torch.exp(logp - fLP[mb])
-                    a_mb = fADV[mo]
-                    pg = -torch.min(
-                        ratio * a_mb,
-                        torch.clamp(ratio, 1 - CLIP, 1 + CLIP) * a_mb)
-                    entr = sum(d.entropy() for d in dists)
-                    loss = pg.mean() + 0.5 * ((fRET[mo] - vals) ** 2).mean() \
-                        - ENT * entr.mean()
-                    opt.zero_grad()
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(net.parameters(),
-                                                   GRAD_CLIP)
-                    opt.step()
+                    if upd is not None and mb.numel() == MB:
+                        with ptimer.range("ppo/mb_graph"):
+                            ratio, entr = upd.step(
+                                fO, fS, fA, fLP, fADV, fRET, mb, mo, lr_now)
+                        ent_sum = ent_sum + entr
+                        kl_sum = kl_sum + \
+                            (ratio - 1.0 - torch.log(ratio)).mean().detach()
+                        clip_sum = clip_sum + \
+                            ((ratio - 1.0).abs() > CLIP).float().mean()
+                        upd_n += 1
+                        continue
+                    with ptimer.range("ppo/mb_fwd"):
+                        logits, vals = net(obs_float(fO[mb]), fS[mb])
+                        if FUSED_SAMPLE:
+                            logp, entr = fused_logp_entropy(logits, fA[mb])
+                        else:
+                            dists = [torch.distributions.Categorical(logits=lg)
+                                     for lg in logits]
+                            logp = sum(d.log_prob(fA[mb][:, h])
+                                       for h, d in enumerate(dists))
+                            entr = sum(d.entropy() for d in dists)
+                        ratio = torch.exp(logp - fLP[mb])
+                        a_mb = fADV[mo]
+                        pg = -torch.min(
+                            ratio * a_mb,
+                            torch.clamp(ratio, 1 - CLIP, 1 + CLIP) * a_mb)
+                        loss = pg.mean() \
+                            + 0.5 * ((fRET[mo] - vals) ** 2).mean() \
+                            - ENT * entr.mean()
+                    with ptimer.range("ppo/mb_bwd"):
+                        opt.zero_grad()
+                        loss.backward()
+                        torch.nn.utils.clip_grad_norm_(net.parameters(),
+                                                       GRAD_CLIP)
+                    with ptimer.range("ppo/mb_opt"):
+                        opt.step()
                     with torch.no_grad():
                         # collapse telemetry: policy entropy, approx KL
                         # (E[r-1-log r]), clip fraction; tensor sums, no
@@ -610,6 +1064,31 @@ def main():
                         clip_sum = clip_sum + \
                             ((ratio - 1.0).abs() > CLIP).float().mean()
                         upd_n += 1
+
+        if bench_sample:
+            torch.cuda.synchronize(dev)
+            bench_ms = (time.perf_counter() - bench_t0) * 1000.0
+            sample_i = chunk - BENCH_WARMUP_CHUNKS
+            sample_ticks = N_ENVS * T_CHUNK * REPEAT
+            print(f"BENCH chunk={sample_i} wall_ms={bench_ms:.6f} "
+                  f"env_ticks_per_s={sample_ticks / (bench_ms / 1000.0):.3f}",
+                  flush=True)
+            ph = ptimer.report()
+            if ph:
+                print("BENCH_PHASES " + json.dumps(
+                    {k: round(v, 4) for k, v in sorted(ph.items())}),
+                    flush=True)
+        if SMOKE_TELEMETRY:
+            pnorm = torch.linalg.vector_norm(torch.cat(
+                [p.detach().flatten() for p in net.parameters()])).item()
+            print(f"SMOKE chunk={chunk} ticks={ticks} "
+                  f"reward_mean={rew_b.mean().item():.9g} "
+                  f"adv_absmean={adv.abs().mean().item():.9g} "
+                  f"value_mean={val_b.mean().item():.9g} "
+                  f"ent={float(ent_sum) / max(upd_n, 1):.9g} "
+                  f"kl={float(kl_sum) / max(upd_n, 1):.9g} "
+                  f"pnorm={pnorm:.9g}",
+                  flush=True)
 
         chunk += 1
         wall = time.perf_counter() - t_start
@@ -651,21 +1130,27 @@ def main():
         if chunk % 25 == 0:
             print(f"  cells (per seed {TRAIN_SEEDS}, stages "
                   f"{MILE_NAMES}): {curr.matrix()}", flush=True)
-        if ticks >= next_ckpt:
+        if ticks >= next_ckpt and not BENCH_MEASURE_CHUNKS:
             save_all()
             next_ckpt = (ticks // CKPT_TICKS + 1) * CKPT_TICKS
-        if chunk % 20 == 0:
+        if chunk % 20 == 0 and not BENCH_MEASURE_CHUNKS:
             save_png()
 
-        if ticks >= MAX_TICKS:
+        if BENCH_MEASURE_CHUNKS and \
+                chunk >= BENCH_WARMUP_CHUNKS + BENCH_MEASURE_CHUNKS:
+            stop_reason = f"benchmark ({BENCH_MEASURE_CHUNKS} measured chunks)"
+        elif MAX_CHUNKS and chunk >= MAX_CHUNKS:
+            stop_reason = f"chunk budget ({chunk})"
+        elif ticks >= MAX_TICKS:
             stop_reason = f"tick budget ({ticks/1e6:.1f}M)"
         elif wall >= MAX_WALL:
             stop_reason = f"wall budget ({wall:.0f}s)"
         if stop_reason:
             break
 
-    save_all()
-    save_png()
+    if not BENCH_MEASURE_CHUNKS and not SMOKE_TELEMETRY:
+        save_all()
+        save_png()
     print(f"stop: {stop_reason}", flush=True)
     print(f"episodes {n_eps}; reached-milestone histogram "
           f"{list(mile_hist)}", flush=True)

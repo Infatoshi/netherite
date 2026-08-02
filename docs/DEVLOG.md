@@ -1148,3 +1148,45 @@ with real upside is a warp-cooperative psv_collect_blocks with emission
 order preserved (prefix-sum emit) - larger change, untried. ncu was blocked
 (ERR_NVGPUCTRPERM); enable GPU counters before the next pass. Do not chase
 obs/transfer/recenter; they are already <10% combined.
+
+## 2026-08-02: RL flywheel policy path +8% (flywheelopt lane)
+
+The trainer's bottleneck was never arithmetic. At the pinned M config
+(N_ENVS=6144, T_CHUNK=32, REPEAT=4, EPOCHS=2, MB=8192, GPU0 exclusive) the
+GPU was only 83.2% busy across a chunk: 50,032 kernel launches, 1540 ms busy,
+310 ms idle. The idle was host synchronisation from
+`torch.distributions.Categorical`, whose argument validation ends in a
+`.all()` read back to the host - nine per forward across 81 forwards per
+chunk (32 rollout + 1 GAE + 48 minibatches), 729 pipeline drains.
+
+Replacing the nine per-head Categoricals with one padded Gumbel-argmax plus a
+single `log_softmax`/gather (`FUSED_SAMPLE`, now the default) takes the chunk
+from 1722.93 to 1585.17 ms paired in one lock hold: +8.00%, 456k -> 496k
+env-ticks/s. Kernel launches drop to 22,736 and busy fraction rises to 94.3%
+while GPU busy TIME is unchanged (1540 -> 1534 ms) - the whole gain is
+recovered idle, not saved work. `rollout/sample` goes 40.28 -> 1.39 ms/chunk
+and the PPO update drops 111 ms because it built nine Categoricals per
+minibatch too.
+
+CUDA Graphs were the lane's top-ranked hypothesis and are a measured
+negative. Both are implemented and tested (`GRAPH_ROLLOUT`, `GRAPH_UPDATE`,
+off by default): on top of the fused sampler the rollout graph returns
++1.35 ms and the update graph -5.88 ms. Once the syncs are gone there are
+only ~93 ms of idle left in a 1585 ms chunk, so there is nothing for a graph
+to reclaim. Their apparent +6% in a naive vs-baseline column is entirely the
+validation-off that graph capture forces on. Also reverted, reproduced in two
+independent pairs: caching the action-decode constant tensors measured
+7.9-11.4 ms SLOWER.
+
+Largest remaining item, measured but NOT tested (channels-last is on the
+ppo-native-bf16 lane's rejected list): cuDNN NCHW<->NHWC transposes cost
+158 ms/chunk, 10% of the wall, bigger than everything this lane banked. That
+rejection was established in the native C++ BF16 trainer; whether it carries
+to the eager fp32 torch path is one flag and one A/B.
+
+Method note worth keeping: the correctness gate must judge GRADIENTS, not
+parameters after K Adam steps. Adam divides by sqrt(v), so a near-zero-
+gradient parameter turns 1e-7 of fp32 noise into an O(lr) position change;
+eager-vs-eager controls on identical inputs swung 3x run to run. On gradients
+the same comparison is stable to three digits (graph vs eager 5.7e-8 against
+a 5.7e-8 control). Receipts: `optloop_runs/flywheelopt-v1/PRESERVED/`.

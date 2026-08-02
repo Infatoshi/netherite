@@ -1,0 +1,11 @@
+check	quantity	bound	measured 2026-08-02 GPU0	rationale
+graph_fwd/value	value head, rollout graph replay vs eager forward	atol 1e-06 or rtol 1e-06	0.000e+00	same weights, same inputs, same kernels; only the launch mechanism differs, so any drift at all is a real bug. It came out exactly zero.
+graph_fwd/logits	head logits, via the log-prob of a fixed action set	atol 1e-06 or rtol 1e-06	0.000e+00	as above
+fused_logp	joint log-prob vs sum of 9 Categorical.log_prob	atol 2e-06 or rtol 2e-06	1.907e-06 abs	log_softmax over a -inf-padded row vs 9 separate rows; differs only in reduction order over <=10 elements
+fused_entropy	summed entropy vs sum of 9 Categorical.entropy	atol 2e-05 or rtol 2e-05	1.907e-06 abs	pad terms enter as p*log p with p=0, forced to exact zero; the gap is reduction order over <=10 terms
+fused_dist	per-category empirical frequency vs softmax probability	<= 5 binomial sigma over 200000 draws	2.71 sigma	distribution test, not a numeric one. This is the check that caught the NaN-Gumbel bug; see RNG_PROTOCOL.md.
+graph_grad_parity	relative L2 of the full gradient vector, one step from identical weights, graph vs eager	max(1e-05, 3x measured eager-vs-eager control)	5.72e-08 against a 5.68e-08 control	the graph is exactly as close to the eager path as the eager path is to itself
+sampler_grad_parity	relative L2 of the full gradient vector, fused vs 9-Categorical, both eager	max(1e-05, 3x measured eager-vs-eager control)	1.898e-06, stable to 3 digits over 3 runs	isolates the sampler change from the graph change; never judged as a compound
+update_adam_parity	Adam exp_avg / exp_avg_sq after 3 steps	atol 2e-05	1.0e-06 to 8.0e-06 abs	exp_avg is a running mean of gradients, so this is a second, multi-step read on gradient equality
+finite	every compared tensor	no NaN, no Inf	pass	hard gate regardless of tolerance
+NOT USED	parameter values after K optimizer steps	-	control swung 1.0e-05 to 3.1e-05, candidate 2.6e-05 to 1.6e-04	REJECTED as a gate. Adam divides by sqrt(v), so a near-zero-gradient parameter turns 1e-07 of fp32 noise into an O(lr) position change; the divergence is chaotic and the control itself moved 3x run to run. A gate whose control moves that much decides nothing. Gradient parity is the claim; the optimizer downstream is stock.
