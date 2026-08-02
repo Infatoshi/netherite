@@ -4,12 +4,7 @@
 #include <string.h>
 #include "../core/populate_light_shim.h"
 
-int main(int argc, char **argv) {
-    i64 seed = (argc > 1) ? strtoll(argv[1], 0, 10) : 12345LL;
-
-    McSinTable *st = (McSinTable *)malloc(sizeof(McSinTable));
-    mc_sin_table_init(st);
-
+static void run_seed(i64 seed, McSinTable *st) {
     u16 *blocks_a = (u16 *)malloc(sizeof(u16) * (size_t)W_N);
     u16 *blocks_b = (u16 *)malloc(sizeof(u16) * (size_t)W_N);
     u8 *sky = (u8 *)malloc(W_N);
@@ -46,6 +41,22 @@ int main(int argc, char **argv) {
     free(sky);
     free(blocks_b);
     free(blocks_a);
+}
+
+int main(int argc, char **argv) {
+    /* Seeds that place mushrooms under the stale light stub but not under the
+     * fixpoint CA (or vice versa). Default seed 12345 is vacuous (0 diffs). */
+    static const i64 k_seeds[] = {9LL, 19LL};
+    McSinTable *st = (McSinTable *)malloc(sizeof(McSinTable));
+    mc_sin_table_init(st);
+
+    if (argc > 1) {
+        run_seed(strtoll(argv[1], 0, 10), st);
+    } else {
+        int i;
+        for (i = 0; i < 2; ++i) run_seed(k_seeds[i], st);
+    }
+
     free(st);
     return 0;
 }

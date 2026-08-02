@@ -18,8 +18,42 @@ __global__ void run_populate_light_shim(i64 seed, McSinTable *st, u16 *blocks_a,
     *out_count = ob.n;
 }
 
+static int run_seed(i64 seed,
+                    McSinTable *d_st, u16 *d_blocks_a, u16 *d_blocks_b,
+                    u8 *d_sky, u8 *d_blk, u8 *d_tmp_sky, u8 *d_tmp_blk,
+                    CpScratch *d_sc, ChunkPrimer *d_primer, FoliageCoord *d_fol,
+                    JavaRandom *d_r, int *d_count, int *d_idx, u16 *d_out_blk) {
+    cudaMemset(d_count, 0, sizeof(int));
+    run_populate_light_shim<<<1, 1>>>(seed, d_st, d_blocks_a, d_blocks_b, d_sky, d_blk,
+                                      d_tmp_sky, d_tmp_blk, d_sc, d_primer, d_fol, d_r,
+                                      d_count, d_idx, d_out_blk);
+    cudaError_t err = cudaDeviceSynchronize();
+    if (err != cudaSuccess) {
+        fprintf(stderr, "cuda sync: %s\n", cudaGetErrorString(err));
+        return 1;
+    }
+
+    int count = 0;
+    cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
+    if (count > W_N) count = W_N;
+
+    if (count > 0) {
+        int *h_idx = (int *)malloc(sizeof(int) * (size_t)count);
+        u16 *h_blk = (u16 *)malloc(sizeof(u16) * (size_t)count);
+        cudaMemcpy(h_idx, d_idx, sizeof(int) * (size_t)count, cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_blk, d_out_blk, sizeof(u16) * (size_t)count, cudaMemcpyDeviceToHost);
+        for (int i = 0; i < count; ++i)
+            printf("%06x%04x\n", h_idx[i], (unsigned)h_blk[i]);
+        free(h_blk);
+        free(h_idx);
+    }
+    return 0;
+}
+
 int main(int argc, char **argv) {
-    i64 seed = (argc > 1) ? strtoll(argv[1], 0, 10) : 12345LL;
+    /* Seeds that place mushrooms under the stale light stub but not under the
+     * fixpoint CA (or vice versa). Default seed 12345 is vacuous (0 diffs). */
+    static const i64 k_seeds[] = {9LL, 19LL};
 
     McSinTable *h_st = (McSinTable *)malloc(sizeof(McSinTable));
     mc_sin_table_init(h_st);
@@ -53,33 +87,18 @@ int main(int argc, char **argv) {
     }
 
     cudaMemcpy(d_st, h_st, sizeof(McSinTable), cudaMemcpyHostToDevice);
-    cudaMemset(d_count, 0, sizeof(int));
-
     cudaDeviceSetLimit(cudaLimitStackSize, (size_t)128 * 1024);
 
-    run_populate_light_shim<<<1, 1>>>(seed, d_st, d_blocks_a, d_blocks_b, d_sky, d_blk,
-                                      d_tmp_sky, d_tmp_blk, d_sc, d_primer, d_fol, d_r,
-                                      d_count, d_idx, d_out_blk);
-    cudaError_t err = cudaDeviceSynchronize();
-    if (err != cudaSuccess) {
-        fprintf(stderr, "cuda sync: %s\n", cudaGetErrorString(err));
-        free(h_st);
-        return 1;
-    }
-
-    int count = 0;
-    cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
-    if (count > W_N) count = W_N;
-
-    if (count > 0) {
-        int *h_idx = (int *)malloc(sizeof(int) * (size_t)count);
-        u16 *h_blk = (u16 *)malloc(sizeof(u16) * (size_t)count);
-        cudaMemcpy(h_idx, d_idx, sizeof(int) * (size_t)count, cudaMemcpyDeviceToHost);
-        cudaMemcpy(h_blk, d_out_blk, sizeof(u16) * (size_t)count, cudaMemcpyDeviceToHost);
-        for (int i = 0; i < count; ++i)
-            printf("%06x%04x\n", h_idx[i], (unsigned)h_blk[i]);
-        free(h_blk);
-        free(h_idx);
+    int rc = 0;
+    if (argc > 1) {
+        rc = run_seed(strtoll(argv[1], 0, 10),
+                      d_st, d_blocks_a, d_blocks_b, d_sky, d_blk, d_tmp_sky, d_tmp_blk,
+                      d_sc, d_primer, d_fol, d_r, d_count, d_idx, d_out_blk);
+    } else {
+        for (int i = 0; i < 2 && rc == 0; ++i)
+            rc = run_seed(k_seeds[i],
+                          d_st, d_blocks_a, d_blocks_b, d_sky, d_blk, d_tmp_sky, d_tmp_blk,
+                          d_sc, d_primer, d_fol, d_r, d_count, d_idx, d_out_blk);
     }
 
     free(h_st);
@@ -97,5 +116,5 @@ int main(int argc, char **argv) {
     cudaFree(d_blocks_b);
     cudaFree(d_blocks_a);
     cudaFree(d_st);
-    return 0;
+    return rc;
 }
