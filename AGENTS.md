@@ -71,6 +71,11 @@ bash netherite_sweep.sh --quick
 
 cd java/Minecraft && ./gradlew -g run/gradle build
 uv run --no-project python blaze/oracle/runner.py <name>
+
+# touching magma/cuda/raster_cuda.cu or magma/metal/raster_kernels.metal?
+# The six kernels are hash-paired (verify/kernels/parity_manifest.json): edit
+# BOTH twins, then prove it on both machines and re-record the manifest:
+bash scripts/kernel_parity_gate.sh   # anvil: cpu==cuda; macbook: cpu==metal
 ```
 
 ## Pixel investigation
