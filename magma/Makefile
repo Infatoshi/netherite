@@ -406,7 +406,8 @@ blaze_so: ../blaze/env/blaze_cpu.so
 # CUDA .so (M2): same core under nvcc, blaze core determinism flags (--fmad=false,
 # NEVER fast-math). GPU0 (RTX PRO 6000) is sm_120; override BLAZE_SM for other
 # parts. BLAZE_SM accepts a space-separated arch list for a dual-arch fatbin
-# (e.g. BLAZE_SM="86 120" for one .so loadable on both anvil GPUs). Per-arch
+# (e.g. BLAZE_SM="sm_86 sm_120" for one .so loadable on both anvil GPUs;
+# bare numbers do not match the sm_% filter and fail nvcc). Per-arch
 # SASS is identical to two single-arch builds: same source, same flags, so the
 # CPU==CUDA bitwise contract holds per arch. Same C ABI as blaze_cpu.so -
 # Python picks the backend at load time.
