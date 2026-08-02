@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit;
      clientSideOnly = true, acceptableRemoteVersions = "*")
 public class Recorder {
     public static final String MODID = "qrl";
-    static int PORT = 25575; // overridable: env QRL_PORT > qrl_launch.json "port" > default
+    static int PORT = 25575; // overridable: -Dqrl.port (gradle -PqrlPort) > qrl_launch.json "port" > default
     static final float QUANTUM = 15.0f;
     static final int N_ENTITIES = 8;
     static final int N_ENTITIES_MAX = 64;  // tick-trace oracle: emit up to this many nearby entities
@@ -589,12 +589,15 @@ public class Recorder {
 
         launchCfg = loadLaunchCfg();
         try {
-            String pe = System.getenv("QRL_PORT");
+            // -Dqrl.port is the batch escape hatch (gradle -PqrlPort, set by mc_cli.py when
+            // it fans out N instances that all share one qrl_launch.json); the json's "port"
+            // is the normal single-instance source.
+            String pe = System.getProperty("qrl.port");
             if (pe != null && !pe.isEmpty()) PORT = Integer.parseInt(pe);
             else if (launchCfg != null && launchCfg.has("port")) PORT = launchCfg.get("port").getAsInt();
         } catch (Exception ex) { System.out.println("[qrl] bad port override: " + ex); }
 
-        WorldGenProbe.install();
+        WorldGenProbe.install(launchCfg);
         HumanStream.install();
         MinecraftForge.EVENT_BUS.register(this);
         Thread t = new Thread(this::serve, "qrl-socket");
@@ -5229,9 +5232,9 @@ sb.append("}");
     }
 
     // qrl_launch.json: written by mc_cli.py (repo root) from fast.yaml (agent) or vanilla.yaml (human play). Resolution order:
-    // env QRL_LAUNCH_JSON > ./qrl_launch.json (cwd = Minecraft/run under gradle) > absolute fallback.
+    // ./qrl_launch.json (cwd = Minecraft/run under gradle) > absolute fallback.
     private static JsonObject loadLaunchCfg() {
-        String[] paths = { System.getenv("QRL_LAUNCH_JSON"), "qrl_launch.json",
+        String[] paths = { "qrl_launch.json",
             "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/Minecraft/run/qrl_launch.json" };
         for (String p : paths) {
             if (p == null || p.isEmpty()) continue;

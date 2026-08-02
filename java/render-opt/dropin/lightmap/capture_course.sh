@@ -9,7 +9,7 @@ DROP="$ROOT/java/render-opt/dropin/lightmap"; OUT="$DROP/course"
 # authoritative sidecars: this drop-in native/sabotage, sin always off (isolate lightmap)
 echo "$MODE" > "$DROP/qlm_mode.txt"
 echo "off"   > "$ROOT/java/render-opt/dropin/qsin_mode.txt"
-export QLM_MODE="$MODE" QSIN_MODE="off" SCENE_TIME="$TIMEVAL"
+export SCENE_TIME="$TIMEVAL"
 pkill -9 -f "[G]radleStart" 2>/dev/null; sleep 6
 cd "$ROOT/java" || exit 1; rm -f runclient.log
 setsid bash start_vnc_client.sh >/tmp/launch_course_${MODE}_${TIMEVAL}.out 2>&1 </dev/null &

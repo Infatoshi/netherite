@@ -17,6 +17,7 @@
 #include "game/game.h"
 #include "game/entity_render.h"
 #include "game/config.h"
+#include "core/config.h"   /* cr_cfg(): the runtime knob registry (--conf/--set) */
 #include "game/sky.h"
 #include "game/underwater.h"
 #include "game/caps.h"
@@ -151,11 +152,11 @@ static int write_ppm(const char *path, const CrFramebuffer *fb) {
     return wrote == n ? 0 : -1;
 }
 
-/* ---- MAGMA_BENCH: per-frame wall-clock decomposition (MEASUREMENT ONLY) ----
+/* ---- bench: per-frame wall-clock decomposition (MEASUREMENT ONLY) ----
  * Env-gated, exactly like the MAGMA_STILL / MAGMA_TP measurement gates:
- *   MAGMA_BENCH=1            enable (off => zero clock reads, unchanged run)
- *   MAGMA_BENCH_CSV=path     per-frame CSV rows (microseconds)
- *   MAGMA_BENCH_WARMUP=N     frames excluded from the summary stats (default 120)
+ *   --set bench=1            enable (off => zero clock reads, unchanged run)
+ *   --set bench_csv=path     per-frame CSV rows (microseconds)
+ *   --set bench_warmup=N     frames excluded from the summary stats (default 120)
  * Every timestamp is guarded by bench_on; with the env unset the loop is
  * byte-for-byte the uninstrumented one (one extra predictable branch per stage
  * boundary). No simulation or rendering state is touched.
@@ -191,7 +192,7 @@ static long long bench_now_ns(void) {
 
 /* --- --stats on: live per-second timing stats on stderr. Piggybacks on the
  * bench stamp slots (bench_init forces them on), so per-frame cost is the
- * same 13 clock reads MAGMA_BENCH pays; aggregation is O(frames-per-second)
+ * same 13 clock reads bench pays; aggregation is O(frames-per-second)
  * once a second. gpu = the two GPU sync stages (frame_begin wait + frame_end
  * readback: ts[4..5] + ts[9..10]); ~0 on the pure-CPU backend. cpu = frame
  * total minus gpu. Window resets every printed second. */
@@ -270,16 +271,17 @@ static void stats_frame_done(void) {
 
 static void bench_init(int want_frames, int stats_on) {
     if (g_bench_on >= 0) return;
-    g_bench_on = getenv("MAGMA_BENCH") != NULL || stats_on;
+    /* Registry, not env: bench / bench_warmup / bench_csv. The config is loaded
+     * at the top of main(), before this runs. */
+    const CrConfig *k = cr_cfg();
+    g_bench_on = k->bench || stats_on;
     if (!g_bench_on) return;
-    const char *wp = getenv("MAGMA_BENCH_WARMUP");
-    if (wp) { long long w = atoll(wp); if (w >= 0) g_bench_warm = w; }
+    if (k->bench_warmup >= 0) g_bench_warm = k->bench_warmup;
     long long cap = want_frames > 0 ? want_frames : 65536;
     g_bench_totals = (long long *)malloc((size_t)cap * sizeof(long long));
     g_bench_totals_cap = g_bench_totals ? cap : 0;
-    const char *cp = getenv("MAGMA_BENCH_CSV");
-    if (cp) {
-        g_bench_csv = fopen(cp, "w");
+    if (k->bench_csv[0]) {
+        g_bench_csv = fopen(k->bench_csv, "w");
         if (g_bench_csv)
             fprintf(g_bench_csv,
                 "frame,nticks,ntris,total_us,input_us,sim_us,view_us,sky_us,"
@@ -384,6 +386,38 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    /* --- config registry (core/config.h): compiled defaults -> conf file ->
+     * --set overrides, last wins. This runs FIRST, before bench_init and before
+     * any pool is sized, because every cr_cfg() reader downstream (including the
+     * allocate-once caps in game/caps.c) must see the final values. --- */
+    cr_cfg_load(cfg.conf_path);
+    for (int i = 0; i < cfg.n_set; ++i) {
+        const char *kv = cfg.set_kv[i];
+        const char *eq = strchr(kv, '=');           /* argv parse guaranteed one */
+        char key[64];
+        size_t klen = (size_t)(eq - kv);
+        if (klen == 0 || klen >= sizeof key) {
+            fprintf(stderr, "error: --set %s: bad key\n", kv);
+            return 2;
+        }
+        memcpy(key, kv, klen);
+        key[klen] = '\0';
+        int rc = cr_cfg_set(key, eq + 1);
+        if (rc != 0) {
+            fprintf(stderr, "error: --set %s: %s\n", kv,
+                    rc == -1 ? "unknown key" : "bad value for this key");
+            fprintf(stderr, "config: run with --dump-config for the full key list\n");
+            return 2;
+        }
+    }
+    if (cfg.dump_config) {
+        cr_cfg_dump(stdout);
+        return 0;
+    }
+    /* Reproducibility breadcrumb: one line naming every non-default key, or
+     * nothing at all when the run is pure defaults. */
+    cr_cfg_log_overrides(stderr);
+
 #ifdef MAGMA_CUDA
     const int cuda_compiled = 1;
 #else
@@ -418,10 +452,11 @@ int main(int argc, char **argv) {
     fprintf(stderr, "[config] ");
     gm_config_print(stderr, &cfg);
 
-    /* --- ALLOCATE-ONCE caps: load magma.conf (env override) BEFORE any pool alloc,
-     * so the whole pre-allocation (here + gm_world_create's toroidal pools) is a pure
-     * function of the effective caps computed before the window opens. --- */
-    cr_caps_load(getenv("MAGMA_CONF"));
+    /* --- ALLOCATE-ONCE caps: derived from the registry loaded at the top of
+     * main(), BEFORE any pool alloc, so the whole pre-allocation (here +
+     * gm_world_create's toroidal pools) is a pure function of the effective caps
+     * computed before the window opens. Do NOT call cr_caps_load here: it would
+     * re-read the conf file and discard the --set overrides. --- */
     /* Shade-time lightmap (time-of-day terrain lighting). Game binaries opt
      * in; MAGMA_LEGACY_LIGHTMAP=1 restores the noon-baked scalar path. */
     worldmc_set_lightmap_mode(!getenv("MAGMA_LEGACY_LIGHTMAP"));
@@ -541,7 +576,7 @@ int main(int argc, char **argv) {
      * place/use action every 4 ticks after the initial click edge. */
     int   use_repeat_delay = 0;
     int   pend_inv_click = 0, pend_inv_slot = 0, pend_inv_button = 0, pend_inv_type = 0;
-    const int timer_dbg = getenv("MAGMA_TIMER_DEBUG") != NULL;
+    const int timer_dbg = cr_cfg()->timer_debug;
 
     /* ---- interactive container screen (game/screen.c) ----
      * E (or a table/furnace use) opens it; E/ESC closes it. While open the mouse
@@ -550,13 +585,19 @@ int main(int argc, char **argv) {
     int screen_open = 0, prev_e = 0, prev_q_screen = 0;
     int mouse_x = fb_w / 2, mouse_y = fb_h / 2;
 
-    /* MEASUREMENT hooks (env-gated, no effect on a normal run):
-     *  - ALLOCTRACK: per-frame allocation tripwire via trace/alloctrack.so
-     *    (weak symbol; NULL unless the .so is LD_PRELOADed).
-     *  - MAGMA_DEBUG_CAPS: per-frame draw-buffer maxima for the fixed-pool sizing. */
-    const int at_on   = getenv("ALLOCTRACK") != NULL;
-    const int caps_on = getenv("MAGMA_DEBUG_CAPS") != NULL;
+    /* MEASUREMENT hooks (registry-gated, no effect on a normal run):
+     *  - alloctrack: per-frame allocation tripwire via trace/alloctrack.so
+     *    (weak symbols; NULL unless the .so is LD_PRELOADed). The .so counts
+     *    unconditionally and only REPORTS when we arm it here, so the flag has
+     *    exactly one home (the registry) even though the .so is loaded long
+     *    before main() parses argv.
+     *  - debug_caps: per-frame draw-buffer maxima for the fixed-pool sizing. */
+    const CrConfig *knobs = cr_cfg();
+    const int at_on   = knobs->alloctrack;
+    const int caps_on = knobs->debug_caps;
     extern void alloctrack_frame(int) __attribute__((weak));
+    extern void alloctrack_arm(int) __attribute__((weak));
+    if (alloctrack_arm) alloctrack_arm(at_on);
     int cap_max_kept = 0, cap_max_tris = 0;
     int cap_max_layer[4] = {0,0,0,0}, cap_max_total = 0;
 

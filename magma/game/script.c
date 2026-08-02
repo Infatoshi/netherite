@@ -1308,24 +1308,6 @@ int gm_script_run(const GmConfig *cfg) {
                 }
             }
         }
-        /* Same, for grass tint: MAGMA_DUMP_GRASS="tick,x0,x1,y,z0,z1" dumps
-         * "wx wz biome grass" per column (grass = blended 0xRRGGBB as decimal,
-         * matching qrl capture_biome golden.txt) at Java BlockPos y. */
-        {
-            const char *dbg = getenv("MAGMA_DUMP_GRASS");
-            if (dbg) {
-                int dt,dx0,dx1,dy,dz0,dz1;
-                if (sscanf(dbg,"%d,%d,%d,%d,%d,%d",&dt,&dx0,&dx1,&dy,&dz0,&dz1)==6 &&
-                    (long long)dt==r.tick) {
-                    fprintf(stderr,"[dumpgrass t%d] wx wz biome grass\n",dt);
-                    for (int z=dz0;z<=dz1;++z)
-                        for (int x=dx0;x<=dx1;++x)
-                            fprintf(stderr,"%d %d %d %d\n",x,z,
-                                gm_world_biome(r.world,x,z),
-                                gm_world_grass_color(r.world,x,dy,z));
-                }
-            }
-        }
         write_state(out,&r);
         gm_particles_live_tick(&replay_particles,r.window,r.ox,r.oz);
         if(window_frames){

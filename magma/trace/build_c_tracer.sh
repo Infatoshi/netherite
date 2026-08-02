@@ -22,9 +22,9 @@ echo "[build] make game ..."
 make game
 
 # 2. object set == magma_game recipe (Makefile lines 45-46), world/*.o globbed.
-# Mirror the Makefile OBJ_GAME (kept in sync): includes game/sky.o + game/caps.o,
+# Mirror the Makefile OBJ_GAME (kept in sync): includes game/sky.o + game/caps.o core/config.o,
 # which world_live.c / light.c / populate_mc.c now derive their pools/config from.
-OBJ_GAME="game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/item_render.o game/entity_render.o game/sky.o game/caps.o"
+OBJ_GAME="game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/item_render.o game/entity_render.o game/sky.o game/caps.o core/config.o"
 OBJ_WORLD="$(ls world/*.o)"
 OBJ_RK="renderkernels/rk_31_facebakery_make_quad.o"
 OBJ_ASSETS="assets/blockmodels.o"

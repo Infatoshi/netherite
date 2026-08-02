@@ -102,7 +102,7 @@ scenic-walk tape recorded for an earlier cut is kept as the repro.
 | `scripts/zoom_hero_clip.py` | Replays `rl/out/chain_actions_s10.json` through `magma_game --rl`, scores every window for camera motion, captures the liveliest 540 ticks twice: exact frames at 1152x1152 and the semantic camera (`cam`/`depth`/`edge` from the same obs stream) into `hero_obs.npz`. |
 | `scripts/batch_obs_record.py` | Runs a real VecBlaze batch (90x80 envs, GPU0), gentle correlated walker, repeat=1, colorizes every env's 64x36 camera per tick into one mosaic memmap; prints a flat-tile report. |
 | `scripts/make_zoom_story.py` | Cuts the phases: exact POV -> slider wipe to the obs view -> hold -> fixed-anchor exponential zoom over the mosaic (hero pane overrides the center tile for continuity) -> title. Pipes raw frames to ffmpeg/libx264. |
-| `magma_game` script mode | `set_pose`/`set_time` JSONL scripts + `--frames-out` for posed captures; `MAGMA_HIDE_GUI=1`; `MAGMA_CONF` for a video-only caps file (never edit the repo's `magma.conf`). |
+| `magma_game` script mode | `set_pose`/`set_time` JSONL scripts + `--frames-out` for posed captures; `MAGMA_HIDE_GUI=1`; `--conf PATH` for a video-only caps file (never edit the repo's `magma.conf`). |
 | `run_scenario.sh` | Oracle-side recording (used for the scenic-walk tape; needs `wmctrl` on the box). |
 | PIL `Image.transform(EXTENT)` + `reduce` | Sub-pixel float-box sampling and mip prefiltering - the anti-jitter/anti-shimmer core. |
 | ffmpeg rawvideo pipe | `-f rawvideo -pix_fmt rgb24 -s 1920x960 -r 30 -i - -c:v libx264 -crf 18 -pix_fmt yuv420p`. |

@@ -35,7 +35,8 @@ enum {
     SEEN_DAYLIGHT     = 1u << 24,
     SEEN_SNAPSHOT_IN  = 1u << 25,
     SEEN_COMPOSE      = 1u << 26,
-    SEEN_STATS        = 1u << 27
+    SEEN_STATS        = 1u << 27,
+    SEEN_CONF         = 1u << 28
 };
 
 static int fail(char *err, int cap, const char *fmt, ...) {
@@ -113,6 +114,9 @@ void gm_config_defaults(GmConfig *cfg) {
     cfg->mobs = 1;
     cfg->daylight = 1;
     cfg->stats = 0;
+    cfg->conf_path = NULL;
+    cfg->n_set = 0;
+    cfg->dump_config = 0;
 }
 
 int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap) {
@@ -124,6 +128,7 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
         const char *a = argv[i], *v;
         if (!strcmp(a, "--help")) { cfg->show_help = 1; continue; }
         if (!strcmp(a, "--print-config")) { cfg->print_config = 1; continue; }
+        if (!strcmp(a, "--dump-config")) { cfg->dump_config = 1; continue; }
 
         if (!strcmp(a, "--headless")) {
             if (mark_once(&seen, SEEN_HEADLESS, a, err, err_cap)) return 2;
@@ -254,6 +259,20 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
             if (!(v = need_value(&i, argc, argv, err, err_cap)) ||
                 !parse_nonneg_int(v, &cfg->kill_frame))
                 return fail(err, err_cap, "kill-frame must be a non-negative integer");
+        } else if (!strcmp(a, "--conf")) {
+            if (mark_once(&seen, SEEN_CONF, a, err, err_cap)) return 2;
+            if (!(v = need_value(&i, argc, argv, err, err_cap))) return 2;
+            if (!*v) return fail(err, err_cap, "--conf path may not be empty");
+            cfg->conf_path = v;
+        } else if (!strcmp(a, "--set")) {
+            /* Repeatable on purpose (last wins), so no mark_once here. */
+            if (!(v = need_value(&i, argc, argv, err, err_cap))) return 2;
+            if (!strchr(v, '='))
+                return fail(err, err_cap, "--set expects key=value, got: %s", v);
+            if (cfg->n_set >= GM_CONFIG_MAX_SET)
+                return fail(err, err_cap, "too many --set overrides (max %d)",
+                            GM_CONFIG_MAX_SET);
+            cfg->set_kv[cfg->n_set++] = v;
         } else if (!strcmp(a, "--ppm")) {
             if (mark_once(&seen, SEEN_PPM, a, err, err_cap)) return 2;
             if (!(v = need_value(&i, argc, argv, err, err_cap)) || !*v)
@@ -347,6 +366,9 @@ void gm_config_print_usage(FILE *out, const char *argv0) {
         "  --frame-every N              render 1 in N ticks to frames-out (default 1)\n"
         "  --frame-offset K             first rendered tick for sparse capture (default 0)\n"
         "  --snapshot-in PATH           load a .bsnp state snapshot after init (rl mode)\n"
+        "  --conf PATH                  config registry file (default ./magma.conf)\n"
+        "  --set key=value              registry override, repeatable, applied after --conf\n"
+        "  --dump-config                print the effective config registry and exit\n"
         "  --print-config               print canonical effective settings and exit\n"
         "  --help                       show this help\n"
         "developer capture controls: --sens S --frames N --kill-frame N --ppm PATH\n",

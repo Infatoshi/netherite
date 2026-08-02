@@ -7,7 +7,6 @@ DROP="$ROOT/java/render-opt/dropin/biome"
 echo "$MODE" > "$DROP/qbiome_mode.txt"
 echo "off"   > "$ROOT/java/render-opt/dropin/qsin_mode.txt"
 echo "off"   > "$ROOT/java/render-opt/dropin/lightmap/qlm_mode.txt"
-export QBIOME_MODE="$MODE" QSIN_MODE="off" QLM_MODE="off"
 pkill -9 -f "[G]radleStart" 2>/dev/null; sleep 6
 cd "$ROOT/java" || exit 1; rm -f runclient.log
 setsid bash start_vnc_client.sh >/tmp/launch_biome_$MODE.out 2>&1 </dev/null &

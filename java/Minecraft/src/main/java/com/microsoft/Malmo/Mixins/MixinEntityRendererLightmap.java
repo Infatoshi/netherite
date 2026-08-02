@@ -16,7 +16,7 @@ import qrl.QLightmapNative;
 /**
  * Heavy-buffer drop-in spike: routes EntityRenderer.updateLightmap (which fills the
  * 256-int lightmapColors array) through a native C kernel, or sabotages it, based on
- * QLM_MODE (read once via qrl.QLightmapNative.MODE). @Inject HEAD + cancellable so
+ * the qlm_mode.txt sidecar (read once via qrl.QLightmapNative.MODE). @Inject HEAD + cancellable so
  * MODE=0 leaves the original Java loop untouched (one build, three modes).
  *
  * native (1):   gather the inputs updateLightmap reads (@Shadow access to mc/world/

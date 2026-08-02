@@ -21,7 +21,7 @@ LDLIBS  ?= -lm
 DEPFLAGS = -MMD -MP
 
 # module objects (each owned by one agent per SPEC.md)
-OBJ_CORE   = core/math.o core/shade.o
+OBJ_CORE   = core/math.o core/shade.o core/config.o
 OBJ_RASTER = cpu/raster_cpu.o
 OBJ_XFORM  = transform.o
 OBJ_PRESENT= present/present.o
@@ -78,7 +78,8 @@ CUDA_WEAK_LD = -Wl,-U,_cr_raster_cuda_pre -Wl,-U,_cr_raster_cuda_into \
                -Wl,-U,_cr_raster_cuda_render_gather \
                -Wl,-U,_cr_raster_cuda_render_terrain \
                -Wl,-U,_cr_raster_cuda_slab_pool -Wl,-U,_cr_raster_cuda_slab_sync \
-               -Wl,-U,_cr_raster_cuda_slabs_reset -Wl,-U,_alloctrack_frame
+               -Wl,-U,_cr_raster_cuda_slabs_reset \
+               -Wl,-U,_alloctrack_frame -Wl,-U,_alloctrack_arm
 endif
 game: magma_game
 magma_game: app/game_main.o $(OBJ_GAME) $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) \
@@ -117,7 +118,7 @@ game/chest_live.o: game/chest_live.c game/chest_live.h \
 # an NVFLAGS_GAME change either - the recipe depends on sources only - so after
 # switching GPUs you must `rm cuda/*.o` or you silently link the wrong arch.
 game-cuda: magma_game_cuda
-app/game_main_cuda.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h game/particles_live.h
+app/game_main_cuda.o: app/game_main.c game/game.h game/runtime.h game/config.h core/config.h core/types.h game/caps.h game/particles_live.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_CUDA -I$(BLAZE)/core -c $< -o $@
 cuda/raster_cuda_game.o: cuda/raster_cuda.cu core/types.h core/shade.c
 	$(NVCC) $(NVFLAGS_GAME) -c $< -o $@
@@ -149,7 +150,7 @@ METAL_WEAK_LD = $(foreach s,pre into frame_begin frame_end post atlas_dirty \
                 $(foreach s,pre into frame_begin frame_end sky post atlas_dirty \
                   render_layer screen_tris render_gather \
                   slab_pool slab_sync slabs_reset,-Wl,-U,_cr_raster_cuda_$(s)) \
-                -Wl,-U,_alloctrack_frame
+                -Wl,-U,_alloctrack_frame -Wl,-U,_alloctrack_arm
 OBJ_GAME_METAL = $(patsubst game/window_compose.o,game/window_compose_metal.o,\
                  $(patsubst game/frame_capture.o,game/frame_capture_metal.o,$(OBJ_GAME)))
 # Fail fast off-macOS: everything below needs xcrun + the Metal frameworks.
@@ -161,7 +162,7 @@ game-metal:
 	  exit 1; \
 	fi
 	$(MAKE) magma_game_metal
-app/game_main_metal.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/caps.h game/particles_live.h
+app/game_main_metal.o: app/game_main.c game/game.h game/runtime.h game/config.h core/config.h core/types.h game/caps.h game/particles_live.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
 game/frame_capture_metal.o: game/frame_capture.c game/frame_capture.h core/types.h game/game.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
@@ -190,21 +191,24 @@ GAME_DBG_SRCS = app/game_main.c \
                 world/mesh_mc.c world/light.c world/populate_mc.c \
                 world/world.c world/mesh.c world/blocks.c \
                 renderkernels/rk_31_facebakery_make_quad.c assets/blockmodels.c \
-                core/math.c core/shade.c cpu/raster_cpu.c transform.c present/present.c
+                core/math.c core/shade.c core/config.c cpu/raster_cpu.c transform.c present/present.c
 .PHONY: game-dbg
 game-dbg: magma_game_dbg
 magma_game_dbg: $(GAME_DBG_SRCS)
 	$(CC) $(CFLAGS) -g $(SDL_CFLAGS) -I$(BLAZE)/core $(GAME_DBG_SRCS) -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
 
-app/game_main.o: app/game_main.c game/game.h game/runtime.h game/config.h core/types.h game/particles_live.h
+core/config.o: core/config.c core/config.h core/config.def game/caps.h
+game/caps.o: game/caps.c game/caps.h core/config.h
+
+app/game_main.o: app/game_main.c game/game.h game/runtime.h game/config.h core/config.h core/types.h game/particles_live.h
 	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) -I$(BLAZE)/core -c $< -o $@
 
 # non-cube mesh unit test: build a synthetic chunk, assert facebakery geometry
 .PHONY: test-mesh
-test-mesh: $(OBJ_WORLD) $(OBJ_RK) core/math.o core/shade.o game/caps.o
+test-mesh: $(OBJ_WORLD) $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_mesh_models.c \
 	    world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
-	    $(OBJ_RK) core/math.o core/shade.o game/caps.o -o tests/test_mesh_models $(LDLIBS)
+	    $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o -o tests/test_mesh_models $(LDLIBS)
 	./tests/test_mesh_models
 
 # Structural model contracts (BmBlock table vs vanilla expectations). Catches

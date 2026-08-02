@@ -1,0 +1,42 @@
+/* core/config.def - THE registry. One line per knob; nothing else knows the list.
+ *
+ * This file is #included several times with different definitions of the five
+ * CFG_* macros (struct fields, defaults, parse dispatch, dump, breadcrumb). It
+ * has no include guard on purpose. Do not put anything but CFG_* lines and
+ * comments in here.
+ *
+ *   CFG_BOOL(name, default, "one-line doc")   int field, accepts 0 or 1 only
+ *   CFG_INT (name, default, "one-line doc")   int field
+ *   CFG_I64 (name, default, "one-line doc")   long long field
+ *   CFG_F32 (name, default, "one-line doc")   float field
+ *   CFG_STR (name, "default", "one-line doc") char[CR_CFG_STR_MAX], no heap
+ *
+ * KEY NAMING: lowercase snake_case, and for a knob that used to be an env var
+ * it is that name minus the MAGMA_ prefix (MAGMA_BENCH_CSV -> bench_csv). A
+ * non-MAGMA_ env var keeps its own name lowercased (ALLOCTRACK -> alloctrack).
+ *
+ * The doc string is user-facing: it is what --dump-config prints.
+ */
+
+/* ---- allocate-once pool caps (game/caps.h derives the pool geometry) ----
+ * The CR_DEF_* defaults and the MEASURED value each one derives from are
+ * documented at length in game/caps.h; do not restate the rationale here. */
+CFG_INT (view_radius,         CR_DEF_VIEW_RADIUS,         "max streaming view radius R in chunks; every toroidal pool is sized for it")
+CFG_INT (max_verts_per_chunk, CR_DEF_MAX_VERTS_PER_CHUNK, "per-chunk vertex slab, all 4 layers packed")
+CFG_INT (owr_cells_max,       CR_DEF_OWR_CELLS_MAX,       "decoration cells one owr_run populate window may produce")
+CFG_INT (draw_solid,          CR_DEF_DRAW_SOLID,          "SOLID layer draw-buffer cap, verts summed over the kept chunks of a frame")
+CFG_INT (draw_cutmip,         CR_DEF_DRAW_CUTMIP,         "CUTOUT_MIPPED layer draw-buffer cap, verts per frame")
+CFG_INT (draw_cutout,         CR_DEF_DRAW_CUTOUT,         "CUTOUT layer draw-buffer cap, verts per frame")
+CFG_INT (draw_trans,          CR_DEF_DRAW_TRANS,          "TRANSLUCENT layer draw-buffer cap, verts per frame")
+CFG_INT (max_tris,            CR_DEF_MAX_TRIS,            "screen-space triangle scratch capacity")
+CFG_INT (max_mobs,            CR_DEF_MAX_MOBS,            "live mob budget (reserved; no live entities streamed yet)")
+CFG_INT (ent_max_verts,       CR_DEF_ENT_MAX_VERTS,       "entity vertex scratch for one raster pass of the visible mob models")
+CFG_INT (owr_d_min,           0,                          "floor for the owr pool diameter, for offline tools sweeping a big region")
+
+/* ---- measurement / diagnostics ---- */
+CFG_BOOL(bench,        0,   "per-frame stage timing plus the end-of-run percentile report on stderr")
+CFG_INT (bench_warmup, 120, "frames dropped before the bench percentiles start accumulating")
+CFG_STR (bench_csv,    "",  "path for the per-frame bench CSV; empty writes no CSV")
+CFG_BOOL(timer_debug,  0,   "log the Timer.java tick accumulator (elapsed ticks, partial ticks) each frame")
+CFG_BOOL(alloctrack,   0,   "arm the trace/alloctrack.so allocation tripwire (the .so must also be LD_PRELOADed)")
+CFG_BOOL(debug_caps,   0,   "log the measured per-frame pool maxima ([caps] / [owrcaps]) used to size the caps above")

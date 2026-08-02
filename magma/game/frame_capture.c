@@ -1322,10 +1322,6 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
              * block model with the destroy sprite, not only the raycast face. */
             int nc=gm_overlay_emit_crack(crack_ov,GM_OVERLAY_MAX_VERTS,
                                          dx+r->ox,dy,dz+r->oz,dmg,-1);
-            if(getenv("MAGMA_LOG_DIG"))
-                fprintf(stderr,"CRK t%lld face=%d nc=%d at %d,%d,%d cam %.1f,%.1f,%.1f\n",
-                        r->tick,-1,nc,dx+r->ox,dy,dz+r->oz,
-                        cam.pos.x,cam.pos.y,cam.pos.z);
             if(nc>0){
                 CrShadeCtx csh = {0};
                 csh.atlas = &atlas;

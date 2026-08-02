@@ -3,13 +3,15 @@
  * magma_game is ALLOCATE-ONCE: after the first frame it performs ZERO heap
  * allocations, ever. All working memory is pre-allocated at init from the fixed
  * maxima below. Every maximum is documented with the MEASURED value it derives
- * from (via the MAGMA_DEBUG_CAPS instrumentation) and a headroom factor.
+ * from (via the `debug_caps` registry key's instrumentation) and a headroom factor.
  *
- * The defaults are compile-time constants (CR_DEF_*). At startup, cr_caps_load()
- * reads an optional `magma.conf` (simple key=value) and OVERRIDES them BEFORE
- * any pool is allocated, so the whole pre-allocation is a pure function of the
- * effective CrCaps computed before the window opens. Every pool size in
- * world_live.c / light.c / populate_mc.c / app/game_main.c derives from cr_caps().
+ * The defaults are compile-time constants (CR_DEF_*), referenced by the config
+ * registry (core/config.def) which owns all eleven cap KEYS. At startup the
+ * registry is loaded from an optional `magma.conf` (plus --conf / --set) and
+ * these caps are derived from it BEFORE any pool is allocated, so the whole
+ * pre-allocation is a pure function of the effective CrCaps computed before the
+ * window opens. Every pool size in world_live.c / light.c / populate_mc.c /
+ * app/game_main.c derives from cr_caps().
  *
  * Toroidal pools (see world_live.c / light.c / populate_mc.c): a chunk at (cx,cz)
  * maps to a UNIQUE slot in a fixed D x D region pool via
@@ -36,7 +38,7 @@
 extern "C" {
 #endif
 
-/* ---- compile-time DEFAULTS (overridable by magma.conf) ---- */
+/* ---- compile-time DEFAULTS (the registry's defaults for these keys) ---- */
 
 /* Max streaming view radius (Chebyshev, chunks). DECISION: 8. gm_world_mesh_view
  * clamps the runtime radius to this, so every pool below is sized for it. */
@@ -88,17 +90,23 @@ typedef struct {
     int owr_D,   owr_slots;    /* D = 2R+4 */
 } CrCaps;
 
-/* Singleton effective caps. On first use, lazily loads "magma.conf" from the cwd
- * (defaults if absent). Never NULL. */
+/* Singleton effective caps, derived from the config registry (core/config.h).
+ * On first use it lazily loads "magma.conf" from the cwd (defaults if absent),
+ * and it re-derives itself whenever the registry changes. Never NULL. */
 const CrCaps *cr_caps(void);
 
-/* Explicitly (re)load caps from `path` (NULL -> "magma.conf"). Must be called
- * BEFORE any pool is allocated (i.e. before gm_world_create) for overrides to take
- * effect. Missing/partial file -> defaults for the unset keys. */
+/* Explicitly (re)load the registry from `path` (NULL -> "magma.conf") and
+ * re-derive. Must be called BEFORE any pool is allocated (i.e. before
+ * gm_world_create) for overrides to take effect. Missing/partial file ->
+ * defaults for the unset keys; an unknown key in the file is fatal.
+ * NB: this RESETS every registry key, so a binary that also takes --set must
+ * load first and set second (app/game_main.c does exactly that and never calls
+ * cr_caps_load itself). */
 void cr_caps_load(const char *path);
 
-/* Programmatic single-key override (same keys as magma.conf) + derived recompute.
- * Must run BEFORE any pool is allocated. For offline tools (world_dump). */
+/* Programmatic single-key override (a registry key) + derived recompute.
+ * Must run BEFORE any pool is allocated. For offline tools (world_dump).
+ * An unknown key or unparseable value is fatal (exit 2). */
 void cr_caps_override(const char *key, long value);
 
 #ifdef __cplusplus

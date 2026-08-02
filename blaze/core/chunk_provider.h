@@ -837,32 +837,7 @@ typedef struct {
     const int *fullBiome;   /* 16x16, index x + z*16 = world(x,z) within chunk (0,0) */
     const int *curTop;
     const int *curFiller;
-    int dbgSrcX, dbgSrcZ, dbgTunnel;
 } CaveCtx;
-
-#ifndef __CUDA_ARCH__
-/* debug probe: MAGMA_CARVERDBG="wx wy wz" traces cave/ravine tests for one world cell */
-static int cp_carver_dbg_match(int wx, int wy, int wz) {
-    static int inited, on, tx, ty, tz;
-    if (!inited) {
-        const char *s = getenv("MAGMA_CARVERDBG");
-        inited = 1;
-        on = s && sscanf(s, "%d %d %d", &tx, &ty, &tz) == 3;
-    }
-    return on && wx == tx && wy == ty && wz == tz;
-}
-static int cp_carver_dbg_target(int *wx, int *wy, int *wz) {
-    static int inited, on, tx, ty, tz;
-    if (!inited) {
-        const char *s = getenv("MAGMA_CARVERDBG");
-        inited = 1;
-        on = s && sscanf(s, "%d %d %d", &tx, &ty, &tz) == 3;
-    }
-    if (!on) return 0;
-    *wx = tx; *wy = ty; *wz = tz;
-    return 1;
-}
-#endif
 
 MC_HD static inline int cp_is_water_mat(int id) { return id == CB_WATER || id == CB_FLOWING_WATER; }
 MC_HD MC_NOINLINE static int cp_cave_canReplace(int s, int up) {
@@ -956,11 +931,6 @@ MC_HD MC_NOINLINE static void cp_cave_addTunnel(CaveCtx *c, i64 p_1, int p_3, in
                 if (l > 248) l = 248;
                 if (i3 < 0) i3 = 0;
                 if (i1 > 16) i1 = 16;
-#ifndef __CUDA_ARCH__
-                int dbgSlice = 0, dbgY = 0, dbgWx = 0, dbgWz = 0;
-                if (cp_carver_dbg_target(&dbgWx, &dbgY, &dbgWz) && dbgY > l2 && dbgY <= l)
-                    dbgSlice = 1;
-#endif
                 int flag3 = 0;
                 for (int j1 = k2; !flag3 && j1 < k; ++j1)
                     for (int k1 = i3; !flag3 && k1 < i1; ++k1)
@@ -969,24 +939,6 @@ MC_HD MC_NOINLINE static void cp_cave_addTunnel(CaveCtx *c, i64 p_1, int p_3, in
                                 if (cp_cave_isOcean(c->primer, j1, l1, k1)) flag3 = 1;
                                 if (l1 != l2 - 1 && j1 != k2 && j1 != k - 1 && k1 != i3 && k1 != i1 - 1) l1 = l2;
                             }
-#ifndef __CUDA_ARCH__
-                if (dbgSlice) {
-                    int dx = dbgWx - p_3 * 16, dz = dbgWz - p_4 * 16;
-                    if (dx >= k2 && dx < k && dz >= i3 && dz < i1) {
-                        double td10 = ((double)(dx + p_3 * 16) + 0.5 - p_6) / d2;
-                        double td8 = ((double)(dz + p_4 * 16) + 0.5 - p_10) / d2;
-                        double td9 = ((double)(dbgY - 1) + 0.5 - p_8) / d3;
-                        fprintf(stderr,
-                                "CARVERDBG cave-slice src=(%d,%d) dst=(%d,%d) tunnel=%d seed=%lld step=%d "
-                                "bounds x[%d,%d) y(%d,%d] z[%d,%d) targetLocal=(%d,%d,%d) center=(%.17g,%.17g,%.17g) "
-                                "rad=(%.17g,%.17g) flag3=%d h=%.17g v=%.17g sum=%.17g state=%d\n",
-                                c->dbgSrcX, c->dbgSrcZ, p_3, p_4, c->dbgTunnel, (long long)p_1, p_15,
-                                k2, k, l2, l, i3, i1, dx, dbgY, dz, p_6, p_8, p_10, d2, d3, flag3,
-                                td10 * td10 + td8 * td8, td9, td10 * td10 + td9 * td9 + td8 * td8,
-                                cb_get(c->primer, dx, dbgY, dz));
-                    }
-                }
-#endif
                 if (!flag3) {
                     for (int j3 = k2; j3 < k; ++j3) {
                         double d10 = ((double)(j3 + p_3 * 16) + 0.5 - p_6) / d2;
@@ -999,14 +951,6 @@ MC_HD MC_NOINLINE static void cp_cave_addTunnel(CaveCtx *c, i64 p_1, int p_3, in
                                     if (d9 > -0.7 && d10 * d10 + d9 * d9 + d8 * d8 < 1.0) {
                                         int s = cb_get(c->primer, j3, j2, i2);
                                         int up = cb_get(c->primer, j3, j2 + 1, i2);
-#ifndef __CUDA_ARCH__
-                                        if (cp_carver_dbg_match(j3 + p_3 * 16, j2, i2 + p_4 * 16))
-                                            fprintf(stderr,
-                                                    "CARVERDBG cave src=(%d,%d) dst=(%d,%d) tunnel=%d seed=%lld step=%d "
-                                                    "local=(%d,%d,%d) d10=%.17g d9=%.17g d8=%.17g sum=%.17g state=%d up=%d\n",
-                                                    c->dbgSrcX, c->dbgSrcZ, p_3, p_4, c->dbgTunnel, (long long)p_1, p_15,
-                                                    j3, j2, i2, d10, d9, d8, d10 * d10 + d9 * d9 + d8 * d8, s, up);
-#endif
                                         if (cp_cave_isTop(c, j3, j2, i2)) flag1 = 1;
                                         cp_cave_digBlock(c, j3, j2, i2, flag1, s, up);
                                     }
@@ -1043,7 +987,6 @@ MC_HD MC_NOINLINE static void cp_cave_recursive(CaveCtx *c, JavaRandom *rand, in
         int k = 1;
         if (jrand_int_bound(rand, 4) == 0) {
             i64 roomSeed = jrand_long(rand);
-            c->dbgSrcX = chunkX; c->dbgSrcZ = chunkZ; c->dbgTunnel = -1;
             cp_cave_addRoom(c, rand, roomSeed, p_4, p_5, d0, d1, d2);
             k += jrand_int_bound(rand, 4);
         }
@@ -1059,7 +1002,6 @@ MC_HD MC_NOINLINE static void cp_cave_recursive(CaveCtx *c, JavaRandom *rand, in
                 f2 *= fc * fd * 3.0f + 1.0f;
             }
             i64 tunSeed = jrand_long(rand);
-            c->dbgSrcX = chunkX; c->dbgSrcZ = chunkZ; c->dbgTunnel = l;
             cp_cave_addTunnel(c, tunSeed, p_4, p_5, d0, d1, d2, f2, ff, f1, 0, 0, 1.0);
         }
     }
@@ -1090,7 +1032,6 @@ typedef struct {
     float rs[1024];
     JavaRandom rand;
     i64 worldSeed;
-    int dbgSrcX, dbgSrcZ, dbgTunnel;
 } RavineCtx;
 
 MC_HD MC_NOINLINE static int cp_rav_isOcean(const ChunkPrimer *p, int x, int y, int z) {
@@ -1180,11 +1121,6 @@ MC_HD MC_NOINLINE static void cp_rav_addTunnel(RavineCtx *c, i64 p1, int p3, int
                 if (l > 248) l = 248;
                 if (i3 < 0) i3 = 0;
                 if (i1 > 16) i1 = 16;
-#ifndef __CUDA_ARCH__
-                int dbgSlice = 0, dbgY = 0, dbgWx = 0, dbgWz = 0;
-                if (cp_carver_dbg_target(&dbgWx, &dbgY, &dbgWz) && dbgY > l2 && dbgY <= l)
-                    dbgSlice = 1;
-#endif
                 int flag2 = 0;
                 for (int j1 = k2; !flag2 && j1 < k; ++j1)
                     for (int k1 = i3; !flag2 && k1 < i1; ++k1)
@@ -1193,25 +1129,6 @@ MC_HD MC_NOINLINE static void cp_rav_addTunnel(RavineCtx *c, i64 p1, int p3, int
                                 if (cp_rav_isOcean(c->primer, j1, l1, k1)) flag2 = 1;
                                 if (l1 != l2 - 1 && j1 != k2 && j1 != k - 1 && k1 != i3 && k1 != i1 - 1) l1 = l2;
                             }
-#ifndef __CUDA_ARCH__
-                if (dbgSlice) {
-                    int dx = dbgWx - p3 * 16, dz = dbgWz - p4 * 16;
-                    if (dx >= k2 && dx < k && dz >= i3 && dz < i1) {
-                        double td10 = ((double)(dx + p3 * 16) + 0.5 - p6) / d9;
-                        double td7 = ((double)(dz + p4 * 16) + 0.5 - p10) / d9;
-                        double td8 = ((double)(dbgY - 1) + 0.5 - p8) / d2;
-                        double sum = (td10 * td10 + td7 * td7) * (double)c->rs[dbgY - 1] + td8 * td8 / 6.0;
-                        fprintf(stderr,
-                                "CARVERDBG ravine-slice src=(%d,%d) dst=(%d,%d) tunnel=%d seed=%lld step=%d "
-                                "bounds x[%d,%d) y(%d,%d] z[%d,%d) targetLocal=(%d,%d,%d) center=(%.17g,%.17g,%.17g) "
-                                "rad=(%.17g,%.17g) flag2=%d h=%.17g v=%.17g rs=%.17g sum=%.17g state=%d\n",
-                                c->dbgSrcX, c->dbgSrcZ, p3, p4, c->dbgTunnel, (long long)p1, p15,
-                                k2, k, l2, l, i3, i1, dx, dbgY, dz, p6, p8, p10, d9, d2, flag2,
-                                td10 * td10 + td7 * td7, td8, (double)c->rs[dbgY - 1], sum,
-                                cb_get(c->primer, dx, dbgY, dz));
-                    }
-                }
-#endif
                 if (!flag2) {
                     for (int j3 = k2; j3 < k; ++j3) {
                         double d10 = ((double)(j3 + p3 * 16) + 0.5 - p6) / d9;
@@ -1222,17 +1139,6 @@ MC_HD MC_NOINLINE static void cp_rav_addTunnel(RavineCtx *c, i64 p1, int p3, int
                                 for (int j2 = l; j2 > l2; --j2) {
                                     double d8 = ((double)(j2 - 1) + 0.5 - p8) / d2;
                                     if ((d10 * d10 + d7 * d7) * (double)c->rs[j2 - 1] + d8 * d8 / 6.0 < 1.0) {
-#ifndef __CUDA_ARCH__
-                                        if (cp_carver_dbg_match(j3 + p3 * 16, j2, i2 + p4 * 16)) {
-                                            double sum = (d10 * d10 + d7 * d7) * (double)c->rs[j2 - 1] + d8 * d8 / 6.0;
-                                            fprintf(stderr,
-                                                    "CARVERDBG ravine src=(%d,%d) dst=(%d,%d) tunnel=%d seed=%lld step=%d "
-                                                    "local=(%d,%d,%d) d10=%.17g d8=%.17g d7=%.17g rs=%.17g sum=%.17g state=%d\n",
-                                                    c->dbgSrcX, c->dbgSrcZ, p3, p4, c->dbgTunnel, (long long)p1, p15,
-                                                    j3, j2, i2, d10, d8, d7, (double)c->rs[j2 - 1], sum,
-                                                    cb_get(c->primer, j3, j2, i2));
-                                        }
-#endif
                                         if (cp_rav_isTop(c, j3, j2, i2)) flag = 1;
                                         cp_rav_digBlock(c, j3, j2, i2, flag);
                                     }
@@ -1260,7 +1166,6 @@ MC_HD MC_NOINLINE static void cp_rav_recursive(RavineCtx *c, int chunkX, int chu
             float b = jrand_float(&c->rand);
             float f2 = (a * 2.0f + b) * 2.0f;
             i64 tunnelSeed = jrand_long(&c->rand);
-            c->dbgSrcX = chunkX; c->dbgSrcZ = chunkZ; c->dbgTunnel = j;
             cp_rav_addTunnel(c, tunnelSeed, p4, p5, d0, d1, d2, f2, ff, f1, 0, 0, 3.0);
         }
     }

@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# One QSIN_MODE run: set mode -> launch client -> wait for qrl -> deterministic scene
+# One qsin_mode run: set mode -> launch client -> wait for qrl -> deterministic scene
 # -> settle fixed ticks -> grab one frame -> record proof line -> kill client.
 # Usage: capture_run.sh <off|native|sabotage>
 set -u
 MODE="$1"
 ROOT=/home/infatoshi/dev/minecraft/mc-1.11.2-env
 DROP="$ROOT/java/render-opt/dropin"
-export QSIN_MODE="$MODE"
-echo "$MODE" > "$DROP/qsin_mode.txt"
+echo "$MODE" > "$DROP/qsin_mode.txt"   # sidecar is the only mode source
 
 pkill -9 -f "[G]radleStart" 2>/dev/null; sleep 3
 cd "$ROOT/java" || exit 1

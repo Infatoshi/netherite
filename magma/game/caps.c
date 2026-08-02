@@ -1,30 +1,25 @@
-/* game/caps.c - effective-caps singleton + magma.conf loader (see game/caps.h).
+/* game/caps.c - effective-caps singleton + derived pool geometry (see game/caps.h).
  *
- * Zero heap use: the CrCaps is a file-static struct. Loading only parses a small
- * key=value text file and fills scalars, then computes the derived toroidal pool
- * geometry. All of it runs before the first pool is allocated. */
+ * The SCALARS no longer live here: all eleven of them are registry keys
+ * (core/config.def), so magma.conf is parsed by exactly one parser
+ * (core/config.c) instead of two. What is left in this file is what only caps
+ * knows: the derived toroidal pool geometry (mesh_D / light_D / owr_D and their
+ * slot counts) and the public CrCaps view onto it.
+ *
+ * Zero heap: the CrCaps is a file-static struct rebuilt from cr_cfg() whenever
+ * the config generation moves, so a cr_cfg_set() after the caps were first read
+ * cannot leave stale geometry behind. It is all still resolved before the first
+ * pool is allocated.
+ */
 #include "game/caps.h"
+#include "core/config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-static CrCaps g_caps;
-static int    g_loaded;
-
-static void set_defaults(CrCaps *c) {
-    c->view_radius         = CR_DEF_VIEW_RADIUS;
-    c->max_verts_per_chunk = CR_DEF_MAX_VERTS_PER_CHUNK;
-    c->owr_cells_max       = CR_DEF_OWR_CELLS_MAX;
-    c->draw_max[0]         = CR_DEF_DRAW_SOLID;
-    c->draw_max[1]         = CR_DEF_DRAW_CUTMIP;
-    c->draw_max[2]         = CR_DEF_DRAW_CUTOUT;
-    c->draw_max[3]         = CR_DEF_DRAW_TRANS;
-    c->max_tris            = CR_DEF_MAX_TRIS;
-    c->max_mobs            = CR_DEF_MAX_MOBS;
-    c->ent_max_verts       = CR_DEF_ENT_MAX_VERTS;
-    c->owr_D_min           = 0;
-}
+static CrCaps   g_caps;
+static int      g_built;
+static unsigned g_built_gen;   /* cr_cfg generation g_caps was built from */
 
 /* D = 2R + pad; slots = D*D. */
 static void compute_derived(CrCaps *c) {
@@ -38,49 +33,45 @@ static void compute_derived(CrCaps *c) {
     c->owr_slots = c->owr_D * c->owr_D;
 }
 
-/* one "key = value" assignment; whitespace-tolerant, '#' comments handled by caller. */
-static void apply_kv(CrCaps *c, const char *key, long v) {
-    if      (!strcmp(key, "view_radius"))         c->view_radius         = (int)v;
-    else if (!strcmp(key, "max_verts_per_chunk")) c->max_verts_per_chunk = (int)v;
-    else if (!strcmp(key, "owr_cells_max"))       c->owr_cells_max       = (int)v;
-    else if (!strcmp(key, "draw_solid"))          c->draw_max[0]         = (int)v;
-    else if (!strcmp(key, "draw_cutmip"))         c->draw_max[1]         = (int)v;
-    else if (!strcmp(key, "draw_cutout"))         c->draw_max[2]         = (int)v;
-    else if (!strcmp(key, "draw_trans"))          c->draw_max[3]         = (int)v;
-    else if (!strcmp(key, "max_tris"))            c->max_tris            = (int)v;
-    else if (!strcmp(key, "max_mobs"))            c->max_mobs            = (int)v;
-    else if (!strcmp(key, "ent_max_verts"))       c->ent_max_verts       = (int)v;
-    else if (!strcmp(key, "owr_d_min"))           c->owr_D_min           = (int)v;
-    /* unknown keys are ignored (forward-compatible config) */
+static void caps_build(void) {
+    const CrConfig *k = cr_cfg();
+    g_caps.view_radius         = k->view_radius;
+    g_caps.max_verts_per_chunk = k->max_verts_per_chunk;
+    g_caps.owr_cells_max       = k->owr_cells_max;
+    g_caps.draw_max[0]         = k->draw_solid;
+    g_caps.draw_max[1]         = k->draw_cutmip;
+    g_caps.draw_max[2]         = k->draw_cutout;
+    g_caps.draw_max[3]         = k->draw_trans;
+    g_caps.max_tris            = k->max_tris;
+    g_caps.max_mobs            = k->max_mobs;
+    g_caps.ent_max_verts       = k->ent_max_verts;
+    g_caps.owr_D_min           = k->owr_d_min;
+    compute_derived(&g_caps);
+    g_built_gen = cr_cfg_generation();
+    g_built     = 1;
 }
 
 void cr_caps_load(const char *path) {
-    set_defaults(&g_caps);
-    const char *p = path ? path : "magma.conf";
-    FILE *f = fopen(p, "r");
-    if (f) {
-        char line[256];
-        while (fgets(line, sizeof line, f)) {
-            char *hash = strchr(line, '#'); if (hash) *hash = '\0';
-            char key[64]; long val;
-            /* "key = value" or "key value"; %63s stops at '=' only if surrounded by
-             * spaces, so also accept "key=value". Normalize '=' to space first. */
-            for (char *q = line; *q; ++q) if (*q == '=') *q = ' ';
-            if (sscanf(line, "%63s %ld", key, &val) == 2) apply_kv(&g_caps, key, val);
-        }
-        fclose(f);
-    }
-    compute_derived(&g_caps);
-    g_loaded = 1;
+    cr_cfg_load(path);
+    caps_build();
 }
 
 void cr_caps_override(const char *key, long value) {
-    if (!g_loaded) cr_caps_load(NULL);
-    apply_kv(&g_caps, key, value);
-    compute_derived(&g_caps);
+    char val[32];
+    snprintf(val, sizeof val, "%ld", value);
+    int rc = cr_cfg_set(key, val);
+    if (rc != 0) {
+        fprintf(stderr, "config: cr_caps_override(\"%s\", %ld): %s\n", key, value,
+                rc == -1 ? "unknown key" : "bad value");
+        exit(2);
+    }
+    caps_build();
 }
 
 const CrCaps *cr_caps(void) {
-    if (!g_loaded) cr_caps_load(NULL);
+    /* Rebuild on ANY config movement, not just on cr_caps_load: --set and
+     * cr_cfg_load can both run after some other module already took a CrCaps
+     * pointer, and the geometry must follow. */
+    if (!g_built || g_built_gen != cr_cfg_generation()) caps_build();
     return &g_caps;
 }

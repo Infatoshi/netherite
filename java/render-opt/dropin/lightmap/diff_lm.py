@@ -1,4 +1,4 @@
-# Pixel-diff the three QLM_MODE frames against the vanilla (off) baseline.
+# Pixel-diff the three qlm_mode frames against the vanilla (off) baseline.
 # native-vs-off should be SMALL (native lightmap is bit-identical to vanilla per kernel 11;
 # residual is cross-launch torchFlickerX/animation noise). sabotage-vs-off should be LARGE
 # (lightmapColors forced to 0xFF000000 -> global darkening, visibly wrong).

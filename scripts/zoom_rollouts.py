@@ -67,8 +67,9 @@ def render_env(job):
     fdir = os.path.join(outdir, "ppm")
     shutil.rmtree(fdir, ignore_errors=True)
     os.makedirs(fdir)
-    env = dict(os.environ, MAGMA_HIDE_GUI="1", MAGMA_CONF=CONF)
+    env = dict(os.environ, MAGMA_HIDE_GUI="1")
     argv = [GAME, "--rl", "--render", "off", "--pace", "unlimited",
+            "--conf", CONF,
             "--seed", str(seed), "--mobs", "off",
             "--width", str(TILE), "--height", str(TILE),
             "--frames-out", fdir, "--frame-offset", "0", "--frame-every", "1"]

@@ -1,4 +1,4 @@
-# Phase D: pixel-diff the three QSIN_MODE frames against the vanilla baseline.
+# Phase D: pixel-diff the three qsin_mode frames against the vanilla baseline.
 # Reports max abs per-channel diff and % of differing pixels.
 import numpy as np
 from PIL import Image

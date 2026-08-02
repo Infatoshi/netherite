@@ -9,6 +9,9 @@ typedef enum { GM_COMPOSE_CAPTURE = 0, GM_COMPOSE_WINDOW = 1 } GmComposeMode;
 typedef enum { GM_BACKEND_CPU = 0, GM_BACKEND_CUDA = 1, GM_BACKEND_METAL = 2 } GmBackend;
 typedef enum { GM_PACE_REALTIME = 0, GM_PACE_UNLIMITED = 1 } GmPace;
 
+/* Max repeats of --set key=value on one command line (fixed storage, no heap). */
+#define GM_CONFIG_MAX_SET 32
+
 typedef struct {
     long long seed;
     GmWorldType world;
@@ -26,7 +29,7 @@ typedef struct {
      * RNG cannot match the oracle's, and phantom mobs corrupt the replay. */
     int mobs;
     /* Live per-second frame timing stats on stderr (--stats on). Window loop
-     * only; piggybacks on the MAGMA_BENCH stamp slots, no sim state touched. */
+     * only; piggybacks on the bench stamp slots, no sim state touched. */
     int stats;
     GmRenderMode render;
     GmComposeMode compose;
@@ -66,6 +69,17 @@ typedef struct {
 
     int show_help;
     int print_config;
+
+    /* ---- config registry front end (core/config.h) ----
+     * conf_path: --conf PATH, the file the registry loads (NULL -> magma.conf
+     * in the cwd). This replaced the MAGMA_CONF env var.
+     * set_kv / n_set: --set key=value, repeatable, applied AFTER the file in
+     * argv order so the last one wins. Fixed array, no heap; the strings point
+     * straight into argv. */
+    const char *conf_path;
+    const char *set_kv[GM_CONFIG_MAX_SET];
+    int n_set;
+    int dump_config;
 } GmConfig;
 
 void gm_config_defaults(GmConfig *cfg);

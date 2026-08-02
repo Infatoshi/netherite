@@ -10,7 +10,7 @@ import qrl.QSinNative;
 
 /**
  * Routes MathHelper.sin(float) through a native C kernel (or sabotages it) based on
- * QSIN_MODE, read once via qrl.QSinNative.MODE. HEAD inject + cancellable so MODE=0
+ * the qsin_mode.txt sidecar, read once via qrl.QSinNative.MODE. HEAD inject + cancellable so MODE=0
  * leaves the original Java table lookup untouched (one build, three modes).
  */
 @Mixin(MathHelper.class)

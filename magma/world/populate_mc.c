@@ -7,6 +7,7 @@
  * world/light.c lean. */
 #include "world/populate_mc.h"
 #include "game/caps.h"          /* CrCaps: toroidal owr-pool geometry + cell cap */
+#include "core/config.h"       /* cr_cfg()->debug_caps */
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -148,6 +149,14 @@ typedef struct {
  * for a recycled window is deterministic. No malloc/free after init. */
 static Window      *g_slots;
 static const CrCaps *g_caps;
+
+/* `debug_caps` registry key, read once. Same shape as the getenv it replaced:
+ * a cached flag, never a per-window config read. */
+static int popmc_debug_caps(void) {
+    static int on = -1;
+    if (on < 0) on = cr_cfg()->debug_caps;
+    return on;
+}
 static int          g_owr_D, g_owr_slots;
 static long         g_builds;   /* number of owr_run executions (compute-once metric) */
 static int          g_bigtree_carry;   /* WorldGenBigTree.heightLimit session carry (see build_window) */
@@ -585,9 +594,6 @@ static Window *build_window(long long seed, int bcx, int bcz) {
         if (armed)
             fprintf(stderr, "[populate_mc] cascade (%d,%d): %d/%d clobber jumps fired\n",
                     bcx, bcz, mc_jr_watch_fired, armed);
-        if (g_oob_n && getenv("MAGMA_DEBUG_TREES"))
-            fprintf(stderr, "[populate_mc] oob_spill (%d,%d): %d cells%s\n",
-                    bcx, bcz, g_oob_n, g_oob_dropped ? " (cap hit)" : "");
         mc_jr_watch_n = 0;
     }
     mc_redirect_pending = 0;   /* armed but never polled: populate ended first */
@@ -625,7 +631,7 @@ static Window *build_window(long long seed, int bcx, int bcz) {
         for (int i = 0; i < W_N; ++i) if (g_owr[i] != g_stb[i] || g_seeded[i]) npop++;
         npop += g_oob_n;
         { static int g_maxpop = 0;
-          if (getenv("MAGMA_DEBUG_CAPS") && npop > g_maxpop) {
+          if (popmc_debug_caps() && npop > g_maxpop) {
               g_maxpop = npop;
               fprintf(stderr, "[owrcaps] max_pre_fluid_cells=%d\n", npop);
           } }
@@ -669,18 +675,7 @@ static Window *build_window(long long seed, int bcx, int bcz) {
     int ndec = 0;
     for (int i = 0; i < W_N; ++i) if (g_owr[i] != g_stb[i] || g_seeded[i]) ndec++;
     ndec += g_oob_n;
-    if (getenv("MAGMA_DEBUG_TREES")) {
-        int nlog = 0, nleaf = 0, ndecdiff = 0;
-        for (int i = 0; i < W_N; ++i) {
-            if (pb_isLog((int)g_owr[i])) nlog++;
-            if (pb_isLeaves((int)g_owr[i])) nleaf++;
-            if (g_owr[i] != g_stb[i]) ndecdiff++;
-        }
-        int biome_center = (int)w.fullBiome[16 * W_Z + 16];
-        fprintf(stderr, "[trees] window base(%d,%d) biome_center=%d logs=%d leaves=%d dec=%d oob=%d\n",
-                bcx, bcz, biome_center, nlog, nleaf, ndecdiff, g_oob_n);
-    }
-    { static int g_maxdec = 0; if (getenv("MAGMA_DEBUG_CAPS") && ndec > g_maxdec) {
+    { static int g_maxdec = 0; if (popmc_debug_caps() && ndec > g_maxdec) {
         g_maxdec = ndec; fprintf(stderr, "[owrcaps] max_window_cells=%d\n", ndec); } }
 
     if (ndec > g_caps->owr_cells_max) {

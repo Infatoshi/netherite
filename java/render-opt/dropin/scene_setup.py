@@ -1,5 +1,5 @@
 # Phase C: deterministic flowing-water + fixed-sky scene via the qrl bridge, then
-# settle a FIXED number of ticks (tick-synced, not wall-clock) so all three QSIN_MODE
+# settle a FIXED number of ticks (tick-synced, not wall-clock) so all three qsin_mode
 # runs land on an identical frame. Run with: uv run --no-project python scene_setup.py
 import sys, time
 sys.path.insert(0, "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java")

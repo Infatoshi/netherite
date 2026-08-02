@@ -53,7 +53,7 @@ echo "== build + render candidate (854x480, hard-scene pose) =="
 echo "    prepare: spawn=($MAGMA_SPAWN_CX,$MAGMA_SPAWN_CZ) prep_list=${MAGMA_PREP_LIST:-derived}"
 gcc "${FLAGS[@]}" ../verify/mc_capture/rung4_candidate.c \
     world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
-    renderkernels/rk_31_facebakery_make_quad.o game/sky.o game/caps.o core/math.o \
+    renderkernels/rk_31_facebakery_make_quad.o game/sky.o game/caps.o core/config.o core/math.o \
     core/shade.o cpu/raster_cpu.o transform.o \
     -o /tmp/rung4_candidate -lm
 /tmp/rung4_candidate "$CAND_PPM"

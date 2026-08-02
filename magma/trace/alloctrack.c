@@ -3,20 +3,29 @@
  * Purpose (MEASUREMENT ONLY): quantify how much the game allocates after the
  * first frame, and attribute allocations to call sites, so a future
  * allocate-once (fixed-pool) conversion can be sized with concrete numbers.
- * Does NOT change game behaviour: only active when env ALLOCTRACK=1, and even
- * then it only counts + (optionally) prints. Build:
+ * Does NOT change game behaviour: it only counts + (optionally) prints. Build:
  *
  *   gcc -O2 -fPIC -shared -o trace/alloctrack.so trace/alloctrack.c -ldl
  *
  * Run:
- *   ALLOCTRACK=1 LD_PRELOAD=$PWD/trace/alloctrack.so SDL_VIDEODRIVER=dummy \
- *     MAGMA_VIEW_RADIUS=8 ./magma_game --seed 19 --frames 60
+ *   LD_PRELOAD=$PWD/trace/alloctrack.so SDL_VIDEODRIVER=dummy \
+ *     ./magma_game --set alloctrack=1 --seed 19 --frames 60
  *
- * The game calls the weak symbol alloctrack_frame(frame) at the top of every
- * frame (guarded by getenv("ALLOCTRACK") in app/game_main.c); if the .so is not
- * preloaded the weak symbol is NULL and nothing happens. Each such call prints a
- * per-frame delta line. atexit prints cumulative totals and the top call sites
- * (by count and by bytes) as executable offsets, resolvable with addr2line.
+ * ARMING. The flag lives in the config registry (core/config.def key
+ * `alloctrack`), not in this file. That flag is only known once main() has
+ * parsed argv, and this .so is loaded and interposing malloc long before that,
+ * so the two halves split cleanly:
+ *   - counting is UNCONDITIONAL (a preloaded tripwire is already an opt-in, and
+ *     counting from process start is what makes the cumulative totals honest);
+ *   - REPORTING is armed by the game through the weak symbol alloctrack_arm(on),
+ *     which app/game_main.c calls with cr_cfg()->alloctrack before the frame loop.
+ * Nothing arms it -> nothing is printed, exactly like the old unset env var.
+ *
+ * The game also calls the weak symbol alloctrack_frame(frame) at the top of
+ * every frame; if the .so is not preloaded both weak symbols are NULL and
+ * nothing happens. Each such call prints a per-frame delta line. The destructor
+ * prints cumulative totals and the top call sites (by count and by bytes) as
+ * executable offsets, resolvable with addr2line.
  */
 #define _GNU_SOURCE
 #include <dlfcn.h>
@@ -35,7 +44,7 @@ static calloc_fn  real_calloc;
 static realloc_fn real_realloc;
 static free_fn    real_free;
 
-static int   g_on;          /* ALLOCTRACK=1 */
+static int   g_report;      /* armed by the game from the `alloctrack` registry key */
 static int   g_init;
 static void *g_fbase;       /* executable load base (dladdr dli_fbase) */
 
@@ -63,13 +72,11 @@ static void resolve(void) {
     real_calloc  = (calloc_fn) dlsym(RTLD_NEXT, "calloc");
     real_realloc = (realloc_fn)dlsym(RTLD_NEXT, "realloc");
     real_free    = (free_fn)   dlsym(RTLD_NEXT, "free");
-    g_on = getenv("ALLOCTRACK") && atoi(getenv("ALLOCTRACK")) != 0;
     Dl_info di;
     if (dladdr((void *)&resolve, &di)) g_fbase = di.dli_fbase;
 }
 
 static void record(uintptr_t pc, size_t bytes) {
-    if (!g_on) return;
     for (int i = 0; i < nsites; ++i)
         if (sites[i].pc == pc) { sites[i].n++; sites[i].bytes += bytes; return; }
     if (nsites < NSITE) {
@@ -81,8 +88,8 @@ static void record(uintptr_t pc, size_t bytes) {
 void *malloc(size_t n) {
     if (!g_init) resolve();
     void *p = real_malloc(n);
-    if (g_on) { c_malloc++; b_malloc += n;
-        record((uintptr_t)__builtin_return_address(0), n); }
+    c_malloc++; b_malloc += n;
+    record((uintptr_t)__builtin_return_address(0), n);
     return p;
 }
 
@@ -99,29 +106,33 @@ void *calloc(size_t nm, size_t sz) {
         resolve();
     }
     void *p = real_calloc(nm, sz);
-    if (g_on) { c_calloc++; b_calloc += nm * sz;
-        record((uintptr_t)__builtin_return_address(0), nm * sz); }
+    c_calloc++; b_calloc += nm * sz;
+    record((uintptr_t)__builtin_return_address(0), nm * sz);
     return p;
 }
 
 void *realloc(void *q, size_t n) {
     if (!g_init) resolve();
     void *p = real_realloc(q, n);
-    if (g_on) { c_realloc++; b_realloc += n;
-        record((uintptr_t)__builtin_return_address(0), n); }
+    c_realloc++; b_realloc += n;
+    record((uintptr_t)__builtin_return_address(0), n);
     return p;
 }
 
 void free(void *q) {
     if (q >= (void *)boot && q < (void *)(boot + sizeof boot)) return; /* bootstrap */
     if (!g_init) resolve();
-    if (g_on) c_free++;
+    c_free++;
     real_free(q);
 }
 
-/* called by the game (weak) at the top of every frame when ALLOCTRACK set. */
+/* Armed by the game (weak) from the `alloctrack` registry key, once, before the
+ * frame loop. Until then nothing is printed; the counters run regardless. */
+void alloctrack_arm(int on) { g_report = on ? 1 : 0; }
+
+/* called by the game (weak) at the top of every frame while armed. */
 void alloctrack_frame(int frame) {
-    if (!g_on) return;
+    if (!g_report) return;
     unsigned long long allocs = c_malloc + c_calloc + c_realloc;
     unsigned long long bytes  = b_malloc + b_calloc + b_realloc;
     fprintf(stderr,
@@ -159,7 +170,7 @@ static void at_print(const Site *s) {
 
 __attribute__((destructor))
 static void summary(void) {
-    if (!g_on) return;
+    if (!g_report) return;
     fprintf(stderr, "\n[alloctrack] ===== SUMMARY =====\n");
     fprintf(stderr, "[alloctrack] malloc=%llu (%llu B)  calloc=%llu (%llu B)  "
                     "realloc=%llu (%llu B)  free=%llu\n",

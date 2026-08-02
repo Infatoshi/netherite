@@ -3,7 +3,7 @@
 # Usage: capture_lm.sh <off|native|sabotage>
 set -u
 MODE="$1"; ROOT=/home/infatoshi/dev/minecraft/mc-1.11.2-env; DROP="$ROOT/java/render-opt/dropin/lightmap"
-export QLM_MODE="$MODE"; echo "$MODE" > "$DROP/qlm_mode.txt"
+echo "$MODE" > "$DROP/qlm_mode.txt"   # sidecar is the only mode source
 pkill -9 -f "[G]radleStart" 2>/dev/null; sleep 6
 cd "$ROOT/java" || exit 1; rm -f runclient.log
 setsid bash start_vnc_client.sh >/tmp/launch_lm_$MODE.out 2>&1 </dev/null &

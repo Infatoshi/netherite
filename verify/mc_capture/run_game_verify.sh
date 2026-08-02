@@ -57,7 +57,7 @@ done
 echo "== build game_candidate (arbitrary-pose renderer) =="
 gcc "${FLAGS[@]}" ../verify/mc_capture/game_candidate.c \
     world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
-    renderkernels/rk_31_facebakery_make_quad.o game/sky.o game/caps.o core/math.o \
+    renderkernels/rk_31_facebakery_make_quad.o game/sky.o game/caps.o core/config.o core/math.o \
     core/shade.o cpu/raster_cpu.o transform.o \
     -o /tmp/game_candidate -lm
 

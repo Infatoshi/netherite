@@ -8,7 +8,6 @@ OUT="$ROOT/java/render-opt/dropin/composed"
 echo "$MODE" > "$ROOT/java/render-opt/dropin/qsin_mode.txt"
 echo "$MODE" > "$ROOT/java/render-opt/dropin/lightmap/qlm_mode.txt"
 echo "$MODE" > "$ROOT/java/render-opt/dropin/biome/qbiome_mode.txt"
-export QSIN_MODE="$MODE" QLM_MODE="$MODE" QBIOME_MODE="$MODE"
 pkill -9 -f "[G]radleStart" 2>/dev/null; sleep 6
 cd "$ROOT/java" || exit 1; rm -f runclient.log
 setsid bash start_vnc_client.sh >/tmp/launch_composed_$MODE.out 2>&1 </dev/null &

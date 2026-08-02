@@ -65,7 +65,8 @@ FOV = 70               # MC "Normal" default == magma fov_deg
 GC_UNITS = [
     "world/mesh_mc", "world/light", "world/populate_mc", "assets/blockmodels",
     "renderkernels/rk_31_facebakery_make_quad",
-    "core/math", "core/shade", "cpu/raster_cpu", "transform", "game/caps",
+    "core/math", "core/shade", "core/config", "cpu/raster_cpu", "transform",
+    "game/caps",
 ]
 GC_FLAGS = ["-O2", "-ffp-contract=off", "-Wall", "-Icore", "-I.", "-I" + BLAZE_CORE]
 

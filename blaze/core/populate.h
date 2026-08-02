@@ -356,21 +356,6 @@ MC_HD MC_NOINLINE static void w_pop_sky_after_set(World *w, int x, int y, int z,
 }
 MC_HD MC_NOINLINE static void w_set(World *w, int x, int y, int z, int v) {
     POP_OOB_CHECK(x, z);
-#ifndef __CUDA_ARCH__
-    /* debug probe: MAGMA_CELLDBG="wx wy wz" traces every write to one world cell */
-    {
-        static int dbg_init, dbg_wx, dbg_wy, dbg_wz;
-        if (!dbg_init) {
-            const char *s = getenv("MAGMA_CELLDBG");
-            dbg_init = s ? (sscanf(s, "%d %d %d", &dbg_wx, &dbg_wy, &dbg_wz) == 3 ? 1 : -1) : -1;
-        }
-        if (dbg_init == 1 && w->baseCx * 16 + x == dbg_wx && y == dbg_wy &&
-            w->baseCz * 16 + z == dbg_wz)
-            fprintf(stderr, "CELLDBG base=(%d,%d) local=(%d,%d,%d) old=%d new=%d\n",
-                    w->baseCx, w->baseCz, x, y, z,
-                    w_inb(x, y, z) ? (int)w->blocks[w_index(x, y, z)] : -1, v);
-    }
-#endif
     w_touch_chunk(w, x, z);
     if (w->activeRand) {
         if (x == 0) w_touch_chunk(w, -1, z);
@@ -946,16 +931,8 @@ MC_HD MC_NOINLINE static int wg_huge_space_at(World *w, int x, int y, int z, int
         else if (i >= 1 + height - 2) j = 2;
         for (int k = -j; k <= j; ++k)
             for (int l = -j; l <= j; ++l)
-                if (y + i < 0 || y + i >= W_Y || !wg_isReplaceableTree(w, x + k, y + i, z + l)) {
-#ifndef __CUDA_ARCH__
-                    /* debug probe: MAGMA_HUGEDBG=1 names the first isSpaceAt veto cell */
-                    if (getenv("MAGMA_HUGEDBG"))
-                        fprintf(stderr, "HUGEDBG base=(%d,%d) veto local=(%d,%d,%d) world_y=%d state=%d h=%d\n",
-                                w->baseCx, w->baseCz, x + k, y + i, z + l, y + i,
-                                (y + i >= 0 && y + i < W_Y) ? w_get(w, x + k, y + i, z + l) : -1, height);
-#endif
+                if (y + i < 0 || y + i >= W_Y || !wg_isReplaceableTree(w, x + k, y + i, z + l))
                     return 0;
-                }
     }
     return 1;
 }
@@ -1487,16 +1464,6 @@ MC_HD MC_NOINLINE static int wg_bigtree(World *w, JavaRandom *mainr, int posX, i
             }
         }
     }
-#ifndef __CUDA_ARCH__
-    /* debug probe: MAGMA_BTDBG=1 dumps bigtree geometry (hl, node candidates) */
-    if (getenv("MAGMA_BTDBG")) {
-        fprintf(stderr, "BTDBG base=(%d,%d) pos=(%d,%d,%d) hl=%d chk=%d nf=%d nodes=",
-                w->baseCx, w->baseCz, posX, posY, posZ, heightLimit, chk, nf);
-        for (int n = 0; n < nf; ++n)
-            fprintf(stderr, "(%d,%d,%d;%d)", fol[n].x, fol[n].y, fol[n].z, fol[n].branchBase);
-        fprintf(stderr, "\n");
-    }
-#endif
     /* generateLeaves */
     for (int n = 0; n < nf; ++n)
         for (int i = 0; i < leafDistanceLimit; ++i)
@@ -1522,36 +1489,12 @@ MC_HD MC_NOINLINE static int pb_canSustainBushPos(const World *w, int x, int y, 
 }
 /* WorldGenTallGrass: scan down past air/leaves, then 128 attempts; tallGrassState passed. */
 MC_HD MC_NOINLINE static void wg_tallgrass(World *w, JavaRandom *r, int x, int y, int z, int state) {
-#ifndef __CUDA_ARCH__
-    /* debug probe: MAGMA_GRASSDBG="cx cz" prints tallgrass descent + writes for that populate */
-    int gdbg = 0;
-    {
-        static int dbg_cx = -99999, dbg_cz;
-        if (dbg_cx == -99999) {
-            const char *s = getenv("MAGMA_GRASSDBG");
-            dbg_cx = -99998;
-            if (s) sscanf(s, "%d %d", &dbg_cx, &dbg_cz);
-        }
-        gdbg = (mc_probe_fn && mc_probe_cx == dbg_cx && mc_probe_cz == dbg_cz);
-    }
-    int y0dbg = y;
-#endif
     while ((pb_isAir(w_get(w, x, y, z)) || pb_isLeaves(w_get(w, x, y, z))) && y > 0) --y;
-#ifndef __CUDA_ARCH__
-    if (gdbg) fprintf(stderr, "GRASSDBG center loc=(%d,%d) world=(%d,%d) y0=%d land=%d landblk=%d cur=%llu\n",
-                      x, z, w->baseCx * 16 + x, w->baseCz * 16 + z, y0dbg, y, w_get(w, x, y, z),
-                      (unsigned long long)r->seed);
-#endif
     for (int i = 0; i < 128; ++i) {
         int dx = wg_off(r, 8), dy = wg_off(r, 4), dz = wg_off(r, 8);
         int bx = x + dx, by = y + dy, bz = z + dz;
-        if (w_isAir(w, bx, by, bz) && pb_canSustainBushPos(w, bx, by, bz)) {
-#ifndef __CUDA_ARCH__
-            if (gdbg) fprintf(stderr, "GRASSDBG   write i=%d world=(%d,%d,%d)\n",
-                              i, w->baseCx * 16 + bx, by, w->baseCz * 16 + bz);
-#endif
+        if (w_isAir(w, bx, by, bz) && pb_canSustainBushPos(w, bx, by, bz))
             w_set(w, bx, by, bz, state);
-        }
     }
 }
 /* WorldGenFlowers: 64 attempts; state passed. */
@@ -1725,28 +1668,8 @@ MC_HD MC_NOINLINE static int wg_cactus_canStay(const World *w, int x, int y, int
 }
 /* WorldGenCactus: 10 attempts, with the nested height draw only for air candidates. */
 MC_HD MC_NOINLINE static void wg_cactus(World *w, JavaRandom *r, int x, int y, int z) {
-#ifndef __CUDA_ARCH__
-    /* debug probe: MAGMA_CACTDBG="cx cz" prints every candidate read for that populate */
-    int cdbg = 0;
-    {
-        static int dbg_cx = -99999, dbg_cz;
-        if (dbg_cx == -99999) {
-            const char *s = getenv("MAGMA_CACTDBG");
-            dbg_cx = -99998;
-            if (s) sscanf(s, "%d %d", &dbg_cx, &dbg_cz);
-        }
-        cdbg = (mc_probe_fn && mc_probe_cx == dbg_cx && mc_probe_cz == dbg_cz);
-    }
-    if (cdbg) fprintf(stderr, "CACTDBG gen center world=(%d,%d,%d) cur=%llu\n",
-                      w->baseCx * 16 + x, y, w->baseCz * 16 + z, (unsigned long long)r->seed);
-#endif
     for (int i = 0; i < 10; ++i) {
         int bx = x + wg_off(r, 8), by = y + wg_off(r, 4), bz = z + wg_off(r, 8);
-#ifndef __CUDA_ARCH__
-        if (cdbg) fprintf(stderr, "CACTDBG   i=%d cand world=(%d,%d,%d) blk=%d\n",
-                          i, w->baseCx * 16 + bx, by, w->baseCz * 16 + bz,
-                          w_get(w, bx, by, bz));
-#endif
         if (w_isAir(w, bx, by, bz)) {
             int inner = jrand_int_bound(r, 3) + 1;
             int j = 1 + jrand_int_bound(r, inner);
@@ -2280,14 +2203,6 @@ MC_HD MC_NOINLINE static int wg_doubleplant(World *w, JavaRandom *r, int x, int 
     for (int i = 0; i < 64; ++i) {
         int bx = x + wg_off(r, 8), by = y + wg_off(r, 4), bz = z + wg_off(r, 8);
         int ok = w_isAir(w, bx, by, bz) && wg_dplant_canPlace(w, bx, by, bz);
-#ifndef __CUDA_ARCH__
-        /* debug probe: MAGMA_DPLANTDBG=1 mirrors the java MixinDoublePlantProbe DPL line
-         * (world coords need the caller's window base added; local coords logged here). */
-        if (getenv("MAGMA_DPLANTDBG"))
-            fprintf(stderr, "DPLC base=(%d,%d) local=(%d,%d,%d) pos=%d up=%d down=%d placed=%d\n",
-                    w->baseCx, w->baseCz, bx, by, bz, w_get(w, bx, by, bz),
-                    w_get(w, bx, by + 1, bz), w_get(w, bx, by - 1, bz), ok);
-#endif
         if (ok) {
             w_set(w, bx, by, bz, PB_DPLANT_LOWER_BASE + type);
             w_set(w, bx, by + 1, bz, PB_DPLANT_UPPER);
@@ -2304,22 +2219,10 @@ MC_HD MC_NOINLINE static void wg_dungeons(World *w, JavaRandom *r, int posX, int
     int k1 = jrand_int_bound(r, 2) + 2;
     int l1 = -k1 - 1, i2 = k1 + 1;
     int j2 = 0;
-#ifndef __CUDA_ARCH__
-    if (getenv("MAGMA_DUNGDBG"))
-        fprintf(stderr, "DUNG base=(%d,%d) local=(%d,%d,%d) j=%d k1=%d cur=%lld\n",
-                w->baseCx, w->baseCz, posX, posY, posZ, j, k1,
-                (unsigned long long)r->seed);
-#endif
     for (int k2 = k; k2 <= l; ++k2)
         for (int l2 = -1; l2 <= 4; ++l2)
             for (int i3 = l1; i3 <= i2; ++i3) {
                 int flag = pb_isSolid(w_get(w, posX + k2, posY + l2, posZ + i3));
-#ifndef __CUDA_ARCH__
-                if ((l2 == -1 || l2 == 4) && !flag && getenv("MAGMA_DUNGDBG"))
-                    fprintf(stderr, "DUNGVETO local=(%d,%d,%d) scan=(%d,%d,%d) b=%d\n",
-                            posX, posY, posZ, posX + k2, posY + l2, posZ + i3,
-                            w_get(w, posX + k2, posY + l2, posZ + i3));
-#endif
                 if (l2 == -1 && !flag) return;
                 if (l2 == 4 && !flag) return;
                 if ((k2 == k || k2 == l || i3 == l1 || i3 == i2) && l2 == 0 &&
@@ -2419,16 +2322,8 @@ MC_HD MC_NOINLINE static int wg_lakes(World *w, JavaRandom *r, int posX, int pos
                 if (flag) {
                     int state = w_get(w, px + k1, py + kk, pz + l2);
                     if ((kk >= 4 && pb_isLiquid(state)) ||
-                        (kk < 4 && !lake_isSolidW(state) && state != liquid)) {
-#ifndef __CUDA_ARCH__
-                        /* debug probe: MAGMA_LAKEDBG=1 names the shell cell that vetoes a lake */
-                        if (getenv("MAGMA_LAKEDBG"))
-                            fprintf(stderr, "LAKEDBG base=(%d,%d) veto world=(%d,%d,%d) kk=%d state=%d liquid=%d\n",
-                                    w->baseCx, w->baseCz, w->baseCx * 16 + px + k1, py + kk,
-                                    w->baseCz * 16 + pz + l2, kk, state, liquid);
-#endif
+                        (kk < 4 && !lake_isSolidW(state) && state != liquid))
                         return 0;
-                    }
                 }
             }
     for (int l1 = 0; l1 < 16; ++l1)

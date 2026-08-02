@@ -118,8 +118,15 @@ exec.jvmArgs(["-Xmx2G", "-Xdebug", "-Dmixin.debug=true"])
 
 // Pin the player name (default is "Player" + wall-clock millis % 1000 -> nondeterministic
 // across launches; it leaks into chat text and F3/tab and pollutes pixel diffs).
-// Override per instance: MC_USERNAME env (set by mc_cli.py for batch launches).
-exec.args(["--username", System.getenv("MC_USERNAME") ?: "Player0"])
+// Override per instance: gradle property -PmcUsername=... (set by mc_cli.py for batch launches).
+exec.args(["--username", project.hasProperty("mcUsername") ? project.getProperty("mcUsername") : "Player0"])
+
+// qrl TCP bridge port override for batch launches, where N instances share one
+// run/qrl_launch.json and only its "port" key would otherwise be visible:
+// -PqrlPort=25576 -> -Dqrl.port=25576, read once by qrl.Recorder.
+if (project.hasProperty("qrlPort")) {
+    exec.jvmArgs(["-Dqrl.port=" + project.getProperty("qrlPort")])
+}
 
 // macOS (incl. Apple Silicon under Rosetta): LWJGL2 must create its window/event
 // loop on the main thread, else AppKit throws. Harmless/absent on Linux.

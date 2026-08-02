@@ -58,16 +58,8 @@ MC_HD static inline int pll_wg_lakes(World *w, JavaRandom *r, int posX, int posY
                 if (flag) {
                     int state = w_get(w, px + k1, py + kk, pz + l2);
                     if ((kk >= 4 && pb_isLiquid(state)) ||
-                        (kk < 4 && !lake_isSolidW(state) && state != liquid)) {
-#ifndef __CUDA_ARCH__
-                        /* debug probe: MAGMA_LAKEDBG=1 names the shell cell that vetoes a lake */
-                        if (getenv("MAGMA_LAKEDBG"))
-                            fprintf(stderr, "LAKEDBG base=(%d,%d) veto world=(%d,%d,%d) kk=%d state=%d liquid=%d\n",
-                                    w->baseCx, w->baseCz, w->baseCx * 16 + px + k1, py + kk,
-                                    w->baseCz * 16 + pz + l2, kk, state, liquid);
-#endif
+                        (kk < 4 && !lake_isSolidW(state) && state != liquid))
                         return 0;
-                    }
                 }
             }
     for (int l1 = 0; l1 < 16; ++l1)

@@ -180,16 +180,6 @@ MC_HD static inline void pls_wg_bush(World *w, JavaRandom *r, int x, int y, int 
         int by = y + wg_off(r, 4);
         int bz = z + wg_off(r, 8);
         int ok = w_isAir(w, bx, by, bz) && pls_mushroom_canStay(w, bx, by, bz, use_pls, sky);
-#ifndef __CUDA_ARCH__
-        /* debug probe: MAGMA_BUSHDBG=1 mirrors the java MixinBushProbe BSH line format
-         * (vanilla block id + world coords + the light value the gate saw) for diffing */
-        if (getenv("MAGMA_BUSHDBG"))
-            fprintf(stderr, "BSH %d %d %d %d light=%d pos=%d down=%d placed=%d\n",
-                    block == PB_BROWN_MUSHROOM ? 39 : 40,
-                    w->baseCx * 16 + bx, by, w->baseCz * 16 + bz,
-                    pls_mushroom_light(w, bx, by, bz, use_pls, sky),
-                    w_get(w, bx, by, bz), w_get(w, bx, by - 1, bz), ok);
-#endif
         if (ok) w_set(w, bx, by, bz, block);
     }
 }
@@ -878,24 +868,6 @@ MC_HD MC_NOINLINE static void pls_bd_gen_full(World *w, JavaRandom *r, int biome
             MC_REDIRECT_POLL(w);   /* a cascading tree corrupts the NEXT attempt's frame */
             int k6 = jrand_int_bound(r, 16) + 8;
             int l = jrand_int_bound(r, 16) + 8;
-#ifndef __CUDA_ARCH__
-            /* debug probe: MAGMA_TREEDBG="cx cz" prints per-attempt tree pos/height/column for that populate */
-            {
-                static int dbg_cx = -99999, dbg_cz;
-                if (dbg_cx == -99999) {
-                    const char *s = getenv("MAGMA_TREEDBG");
-                    dbg_cx = -99998;
-                    if (s) sscanf(s, "%d %d", &dbg_cx, &dbg_cz);
-                }
-                if (mc_probe_fn && mc_probe_cx == dbg_cx && mc_probe_cz == dbg_cz) {
-                    fprintf(stderr, "TREEDBG i=%d pos=(%d,%d) h=%d cur=%llu col=",
-                            j2, k6, l, w_gen_height(w, k6, l), (unsigned long long)r->seed);
-                    for (int yy = w_gen_height(w, k6, l); yy >= w_gen_height(w, k6, l) - 12 && yy > 0; --yy)
-                        fprintf(stderr, "%d:%d,", yy, w_get(w, k6, yy, l));
-                    fprintf(stderr, "\n");
-                }
-            }
-#endif
             /* Java: worldIn.getHeight(chunkPos.add(k6,0,l)) — LIVE heightMap after
              * prior setBlockState. Leaves opacity=1 raises the map, so later tree
              * attempts on canopy columns plant higher and often fail canSustainPlant.

@@ -551,17 +551,14 @@ static void compute_skylight_spread(CrLight *L) {
     size_t qcap = L->sqcap;
     if (!q) return;
     size_t head = 0, tail = 0;
-    size_t peak = 0, total_enq = 0;
 #define SPUSH(X, Y, Z) do { q[tail].wx = (X); q[tail].wy = (Y); q[tail].wz = (Z); \
-                            tail = (tail + 1) & (qcap - 1); ++total_enq;           \
+                            tail = (tail + 1) & (qcap - 1);                        \
                             if (tail == head) {                                    \
                                 fprintf(stderr, "[skyspread] FATAL: frontier "     \
                                     "overran queue cap %zu\n", qcap);              \
                                 assert(0 && "skylight spread queue overflow");     \
                                 abort();                                           \
-                            }                                                      \
-                            { size_t used = (tail - head) & (qcap - 1);            \
-                              if (used > peak) peak = used; } } while (0)
+                            } } while (0)
 
     static const int dx[6] = { 0, 0, -1, 1, 0, 0 };
     static const int dy[6] = { -1, 1, 0, 0, 0, 0 };
@@ -638,9 +635,6 @@ static void compute_skylight_spread(CrLight *L) {
         }
     }
 #undef SPUSH
-    if (getenv("MAGMA_SKY_STATS"))
-        fprintf(stderr, "[skyspread] enq=%zu peak_frontier=%zu qcap=%zu\n",
-                total_enq, peak, qcap);
 }
 
 /* =============================== public API ============================== */

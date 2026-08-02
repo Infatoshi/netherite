@@ -35,6 +35,7 @@
  */
 #include "game/game.h"
 #include "game/caps.h"
+#include "core/config.h"   /* cr_cfg()->debug_caps */
 #include "core/types.h"
 #include "core/frustum.h"
 #include "world/mesh_mc.h"
@@ -292,7 +293,7 @@ static void wl_mark_dirty(GmWorld *w, int cx, int cz) {
     if (s->valid && s->cx == cx && s->cz == cz) s->dirty = 1;
 }
 
-/* MAGMA_DEBUG_CAPS: worst-case single-chunk mesh maxima, for fixed-pool sizing. */
+/* debug_caps: worst-case single-chunk mesh maxima, for fixed-pool sizing. */
 static int g_caps_on = -1;
 static int g_cap_chunk_layer[4] = {0,0,0,0};
 static int g_cap_chunk_total = 0;
@@ -379,7 +380,7 @@ static WlSlot *wl_ensure_mesh(GmWorld *w, int cx, int cz) {
         s->sec_vis[sec] = wl_vis_compute(&w->vg);
     }
 
-    if (g_caps_on < 0) g_caps_on = getenv("MAGMA_DEBUG_CAPS") != NULL;
+    if (g_caps_on < 0) g_caps_on = cr_cfg()->debug_caps;
     if (g_caps_on) {
         int tot = 0;
         for (int l = 0; l < 4; ++l) {
@@ -953,7 +954,7 @@ static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
     for (int l = 0; l < 4; ++l)
         nverts_out[l] = em ? em->nverts[l] : w->out_nverts[l];
 
-    if (g_caps_on < 0) g_caps_on = getenv("MAGMA_DEBUG_CAPS") != NULL;
+    if (g_caps_on < 0) g_caps_on = cr_cfg()->debug_caps;
     if (g_caps_on) {
         int valid = 0;
         for (int i = 0; i < w->mesh_slots; ++i) if (w->slots[i].valid) valid++;
