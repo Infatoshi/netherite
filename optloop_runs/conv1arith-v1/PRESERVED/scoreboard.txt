@@ -1,0 +1,22 @@
+conv1arith-v1 scoreboard (paired A/B, 5 reps, pinned M config)
+
+CUDNN_BENCH=1
+  baseline  median 1573.07 ms  samples=[1572.10, 1571.06, 1576.54, 1573.07, 1574.95]
+  candidate median 1922.94 ms  samples=[1918.45, 1922.25, 1922.94, 1930.06, 1943.67]
+  rel=-0.2224 abs=-349.87 ms  mdd=1.97  eps_abs=31.46
+  correctness=PASS  keep=False  REVERT (regression)
+
+FOLD_SCALE=1
+  baseline  median 1594.94 ms  samples=[1598.04, 1594.94, 1594.57, 1593.05, 1596.10]
+  candidate median 1581.03 ms  samples=[1581.03, 1579.91, 1581.05, 1588.42, 1580.37]
+  rel=+0.0087 abs=+13.91 ms  mdd=1.67  eps_abs=31.90
+  correctness=PASS  keep=False  REVERT (below eps)
+
+TF32_CONV=1
+  baseline  median 1610.16 ms  samples=[1610.37, 1610.16, 1607.06, 1613.20, 1607.99]
+  candidate median 1573.53 ms  samples=[1574.10, 1574.59, 1572.27, 1573.53, 1573.06]
+  rel=+0.0227 abs=+36.62 ms  mdd=2.13  eps_abs=32.20
+  correctness=FAIL sampler_grad_parity  keep=False  REPORT-ONLY
+
+keepers: none
+combined-keepers: n/a

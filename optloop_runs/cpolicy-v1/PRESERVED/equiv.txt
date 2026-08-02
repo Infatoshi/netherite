@@ -1,0 +1,11 @@
+PASS  finite                  nonfinite=[]
+PASS  logits                  max_abs=7.036e-05 mean_abs=1.235e-05 tol=0.001
+PASS  value                   max_abs=6.126e-05 mean_abs=1.254e-05 tol=0.001
+PASS  logp_vs_torch_recompute  max_abs=1.402e-04 mean_abs=2.853e-05 tol=0.009 (C logp vs torch logp of SAME acts)
+PASS  greedy_agree            agree=0.999946 (55293/55296) per_head=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.999837, 0.999674] need>=0.999
+PASS  greedy_tie_margins      max_top1_top2_gap_at_disagree=1.803e-05 (need <5e-3); h7: n=1 gap_min=1.803e-05 med=1.803e-05 max=1.803e-05; h8: n=2 gap_min=5.744e-06 med=5.744e-06 max=1.716e-05
+PASS  entropy_info            max_abs_vs_torch=7.629e-06 mean_abs=1.367e-06 (info only)
+
+N=6144 LOGIT_ATOL=0.001 VALUE_ATOL=0.001
+
+EQUIV PASS (7 checks)

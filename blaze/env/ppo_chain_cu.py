@@ -37,6 +37,7 @@ from collections import deque
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -137,11 +138,38 @@ DIST_NOVALIDATE = int(os.environ.get("DIST_NOVALIDATE", "0")) != 0
 #                   (NHWC). Default OFF until the chanlast A/B keeps it.
 #                   CHANNELS_LAST=0 is the current NCHW path, bit-identical.
 CHANNELS_LAST = int(os.environ.get("CHANNELS_LAST", "0")) != 0
+# CPOLICY=1: rollout policy forward + sample via the C/CUDA path in
+#   blaze/rl/cpolicy/ (uint8 obs -> conv -> fc -> heads -> Gumbel/greedy).
+#   Update stays torch. Weights uploaded from the torch net once per chunk.
+#   DEFAULT OFF. Sampling RNG is independent of torch (see
+#   blaze/rl/cpolicy/RNG_PROTOCOL.md). Incompatible with GRAPH_ROLLOUT.
+CPOLICY = int(os.environ.get("CPOLICY", "0")) != 0
+# CUDNN_BENCH=1   : torch.backends.cudnn.benchmark = True. Static shapes at
+#                   the pinned config, so algo autotune amortizes over warmup.
+CUDNN_BENCH = int(os.environ.get("CUDNN_BENCH", "0")) != 0
+if CUDNN_BENCH:
+    torch.backends.cudnn.benchmark = True
+# FOLD_SCALE=1    : skip the obs_float depth-plane /=255 elementwise and fold
+#                   that scale into a view of conv1's weights (depth input
+#                   channels pre-multiplied by 1/255; bias unchanged). The
+#                   effective weight is `W * scale_mask` so autograd maps
+#                   gradients back onto the canonical unscaled parameters
+#                   and Adam still steps the stored weights correctly.
+FOLD_SCALE = int(os.environ.get("FOLD_SCALE", "0")) != 0
+# TF32_CONV=1     : enable cuDNN + matmul TF32. CHANGES NUMERICS: keep only
+#                   if check_correctness.sh still PASSes at existing
+#                   tolerances (never loosen them). Default 0.
+TF32_CONV = int(os.environ.get("TF32_CONV", "0")) != 0
+if TF32_CONV:
+    torch.backends.cudnn.allow_tf32 = True
+    torch.backends.cuda.matmul.allow_tf32 = True
 # A CUDA graph cannot contain a pageable H2D copy and cannot contain a host
 # sync, so graph capture forces both of the above on.
 if GRAPH_ROLLOUT or GRAPH_UPDATE:
     ACT_CACHE = True
     DIST_NOVALIDATE = True
+if CPOLICY and GRAPH_ROLLOUT:
+    raise RuntimeError("CPOLICY=1 is incompatible with GRAPH_ROLLOUT=1")
 
 # ---- action heads ----
 # dyaw{-15,0,15} dpitch{-10,0,10} fwd{-1,0,1} jump attack use
@@ -341,12 +369,22 @@ class RolloutStep:
     the only per-decision inputs that must be staged are the scalars and the
     burn-in mask; the observation stack is read in place (its storage is
     allocated once and only ever mutated through slice writes, which is
-    checked against the captured pointer on every call)."""
+    checked against the captured pointer on every call).
 
-    def __init__(self, net, dev, noop9, graph=False):
+    With cpolicy set (CPOLICY=1) the torch path is replaced by the C/CUDA
+    fused forward in blaze/rl/cpolicy/. Weights must be re-uploaded after
+    every optimizer step via upload_weights(); the trainer does this once
+    per chunk before the rollout loop."""
+
+    def __init__(self, net, dev, noop9, graph=False, cpolicy=None):
         self.net, self.dev, self.noop9 = net, dev, noop9
         self.graph = graph
+        self.cpolicy = cpolicy
         self.g = None
+
+    def upload_weights(self):
+        if self.cpolicy is not None:
+            self.cpolicy.upload_from_net(self.net)
 
     def _body(self):
         logits, vals = self.net(obs_float(self.i_obs, self.f_obs),
@@ -383,6 +421,14 @@ class RolloutStep:
               f"fused={FUSED_SAMPLE})", flush=True)
 
     def step(self, stack_u8, scal, burnin, pt):
+        if self.cpolicy is not None:
+            with torch.no_grad():
+                with pt.range("rollout/cpolicy"):
+                    acts, logp, vals, _ent = self.cpolicy.forward_sample(
+                        stack_u8, scal, burnin, self.noop9, mode=0)
+                with pt.range("rollout/act_decode"):
+                    rows = acts_to_rows(acts, self.dev)
+                return acts, logp, vals, rows
         if not self.graph:
             with torch.no_grad():
                 with pt.range("rollout/obs_build"):
@@ -558,7 +604,10 @@ def obs_float(u8, buf=None):
     torch.channels_last so the conv stack sees NHWC activations without a
     per-call transpose tax. Callers that own `buf` (CUDA-graph static
     inputs) must pre-allocate it channels_last too, so capture does not
-    allocate on the hot path."""
+    allocate on the hot path.
+
+    FOLD_SCALE=1: skip the depth /=255 here; ChainPolicy folds that factor
+    into conv1's depth input channels instead (mathematically equivalent)."""
     n = u8.shape[0]
     if buf is None:
         key = (u8.device, u8.shape[1:], CHANNELS_LAST)
@@ -574,12 +623,26 @@ def obs_float(u8, buf=None):
             _OF_BUF[key] = buf
     out = buf[:n]
     out.copy_(u8, non_blocking=True)
-    for k in range(STACK):
-        out[:, NPLANES * k + 7] /= 255.0      # depth plane
+    if not FOLD_SCALE:
+        for k in range(STACK):
+            out[:, NPLANES * k + 7] /= 255.0      # depth plane
     if CHANNELS_LAST and not out.is_contiguous(
             memory_format=torch.channels_last):
         out = out.contiguous(memory_format=torch.channels_last)
     return out
+
+
+def _depth_wscale(device=None, dtype=torch.float32):
+    """[1, NCH, 1, 1] multiplier: 1/255 on depth input channels, 1 elsewhere.
+
+    Multiplying conv1.weight by this and feeding unscaled float(obs) is
+    algebraically identical to the unscaled-weight / scaled-obs path, and
+    because the scale is a constant graph edge autograd writes the correct
+    gradient onto the stored (canonical) weight."""
+    s = torch.ones(NCH, device=device, dtype=dtype)
+    for k in range(STACK):
+        s[NPLANES * k + 7] = 1.0 / 255.0
+    return s.view(1, -1, 1, 1)
 
 
 class ChainPolicy(nn.Module):
@@ -596,15 +659,30 @@ class ChainPolicy(nn.Module):
         self.fc = nn.Sequential(nn.Linear(nflat + NSCAL, 256), nn.ReLU())
         self.heads = nn.ModuleList([nn.Linear(256, n) for n in HEADS])
         self.value = nn.Linear(256, 1)
+        # Non-persistent: not part of the checkpoint; rebuilt on load.
+        self.register_buffer("_depth_wscale", _depth_wscale(),
+                             persistent=False)
         if CHANNELS_LAST:
             # Conv weights in NHWC; .to(device) preserves this format.
             self.to(memory_format=torch.channels_last)
+
+    def _conv_fwd(self, p):
+        if not FOLD_SCALE:
+            return self.conv(p)
+        c1 = self.conv[0]
+        # buffer tracks .to(device) with the module; multiply is a tiny
+        # [32,NCH,5,5] elementwise vs the obs depth-plane scale it replaces.
+        w = c1.weight * self._depth_wscale
+        h = F.conv2d(p, w, c1.bias, stride=c1.stride, padding=c1.padding,
+                     dilation=c1.dilation, groups=c1.groups)
+        # conv Sequential tail: ReLU, Conv2d, ReLU, Flatten
+        return self.conv[1:](h)
 
     def forward(self, p, s):
         if CHANNELS_LAST and not p.is_contiguous(
                 memory_format=torch.channels_last):
             p = p.contiguous(memory_format=torch.channels_last)
-        h = self.fc(torch.cat([self.conv(p), s], dim=1))
+        h = self.fc(torch.cat([self._conv_fwd(p), s], dim=1))
         return [head(h) for head in self.heads], self.value(h).squeeze(-1)
 
 
@@ -895,14 +973,25 @@ def main():
     noop9[2] = 1                             # fwd 0
 
     ptimer = PhaseTimer(BENCH_PHASES)
-    roll = RolloutStep(net, dev, noop9, graph=GRAPH_ROLLOUT)
+    cpolicy_fwd = None
+    if CPOLICY:
+        sys.path.insert(0, os.path.join(RL, "cpolicy"))
+        from wrapper import CPolicyFwd  # noqa: E402
+        cpolicy_fwd = CPolicyFwd(DEVICE, N_ENVS)
+        print(f"CPOLICY=1: cpolicy_fwd.so max_n={N_ENVS} device={DEVICE}",
+              flush=True)
+    roll = RolloutStep(net, dev, noop9, graph=GRAPH_ROLLOUT,
+                       cpolicy=cpolicy_fwd)
+    if cpolicy_fwd is not None:
+        roll.upload_weights()
     upd = UpdateStep(net, opt, dev, MB) if GRAPH_UPDATE else None
     if upd is not None:
         upd.lr_t = lr_t
     print(f"opt flags: fused_sample={FUSED_SAMPLE} act_cache={ACT_CACHE} "
           f"novalidate={DIST_NOVALIDATE} channels_last={CHANNELS_LAST} "
-          f"graph_rollout={GRAPH_ROLLOUT} graph_update={GRAPH_UPDATE}",
-          flush=True)
+          f"graph_rollout={GRAPH_ROLLOUT} graph_update={GRAPH_UPDATE} "
+          f"cpolicy={CPOLICY} cudnn_bench={CUDNN_BENCH} "
+          f"fold_scale={FOLD_SCALE} tf32_conv={TF32_CONV}", flush=True)
 
     while True:
         bench_sample = BENCH_MEASURE_CHUNKS and \
@@ -912,6 +1001,9 @@ def main():
             ptimer.reset()
             torch.cuda.synchronize(dev)
             bench_t0 = time.perf_counter()
+        # weights may have changed in the previous chunk's PPO update
+        if cpolicy_fwd is not None:
+            roll.upload_weights()
         for t in range(T_CHUNK):
             acts, logp, vals, rows = roll.step(stack_u8, scal_cur, burnin,
                                                ptimer)

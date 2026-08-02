@@ -421,10 +421,22 @@ blaze_cuda_so: ../blaze/env/blaze_cuda.so
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
 	    ../blaze/env/blaze_snapshot.c -o $@
 
+# cpolicy: fused C/CUDA rollout policy forward (.so, dual-arch via BLAZE_SM).
+# Not part of the sim-fidelity contract -- O3 + default fmad is fine; the
+# equivalence gate bounds logits to 1e-3 abs against torch fp32.
+.PHONY: cpolicy_so
+cpolicy_so: ../blaze/rl/cpolicy/cpolicy_fwd.so
+../blaze/rl/cpolicy/cpolicy_fwd.so: ../blaze/rl/cpolicy/cpolicy_fwd.cu \
+                                    ../blaze/rl/cpolicy/cpolicy_fwd.h
+	$(NVCC) -O3 $(BLAZE_NVCODE) -I../blaze/rl/cpolicy \
+	    -Xcompiler -fPIC --shared ../blaze/rl/cpolicy/cpolicy_fwd.cu \
+	    -lcublas -o $@
+
 clean:
 	rm -f magma_demo magma_world magma_game magma_game_dbg magma_game_cuda magma_game_metal
 	rm -f metal/raster_kernels.air metal/raster_kernels.metallib
 	rm -f ../blaze/env/blaze_verify ../blaze/env/blaze_cpu.so ../blaze/env/blaze_cuda.so
+	rm -f ../blaze/rl/cpolicy/cpolicy_fwd.so
 	find . -name '*.o' -delete
 	find . -name '*.d' -delete
 	rm -f tests/test_transform tests/test_present tests/test_scene tests/test_world \
