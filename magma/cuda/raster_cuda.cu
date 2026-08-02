@@ -299,25 +299,58 @@ __device__ __forceinline__ CrTriBox cr_tbox_pack(int tminx, int tminy,
            ((u32)(tmaxx & 0xFF) << 8)  |  (u32)(tmaxy & 0xFF);
 }
 
+/* Tile geometry, needed by BOTH raster kernels: the tiled kernel streams
+ * triangles in CR_TILE_N-sized batches, and the bbox kernel is launched with
+ * exactly CR_TILE_N threads per block, so bbox block b covers tiled batch b. */
+#define CR_TILE 16
+#define CR_TILE_N (CR_TILE * CR_TILE)   /* 256 threads / triangles per batch */
+#define CR_BBOX_THREADS CR_TILE_N       /* launch config: must equal CR_TILE_N */
+
 /* One thread per triangle: compute the same clamped pixel bbox the CPU inner
  * loop uses, reduce it to inclusive tile bounds, and pre-mark backface/
- * degenerate/off-screen as skip. */
+ * degenerate/off-screen as skip. Also reduces the block's min tminz into
+ * batchz[blockIdx.x] for the tiled kernel's batch-level hi-z reject. */
 __global__ void cr_raster_bbox_kernel(const CrScreenTri *tris, int ntris,
                                       int W, int H, CrTriBox *box,
-                                      float *tminz, const int *screen_tris,
+                                      float *tminz, float *batchz,
+                                      const int *screen_tris,
                                       int use_device_count) {
     int t = blockIdx.x * blockDim.x + threadIdx.x;
     int raster_ntris = use_device_count ? screen_tris[1] : ntris;
-    if (t >= raster_ntris) return;
+    int live = (t < raster_ntris);
+
+    /* hi-z reject input: interpolated z is barycentric over the vert z's, so
+     * min vert z lower-bounds the tri's depth anywhere on screen. Written for
+     * every live slot, including ones this kernel marks SKIP (a skipped tri's
+     * z only pulls the batch bound DOWN, i.e. stays conservative). */
+    float mz = 3.402823466e38f;
+    if (live) {
+        mz = fminf(tris[t].v[0].spos.z,
+                   fminf(tris[t].v[1].spos.z, tris[t].v[2].spos.z));
+        tminz[t] = mz;
+    }
+    /* BATCH HI-Z: min tminz over this block's CR_TILE_N triangles. Dead lanes
+     * (t >= raster_ntris) feed +inf so a partial tail batch bounds only its
+     * live triangles. Tree reduction over shared memory: no atomics, so the
+     * value is bit-deterministic run to run. Every lane must reach these
+     * barriers, hence no early return above. */
+    __shared__ float sbz[CR_BBOX_THREADS];
+    int blane = threadIdx.x;
+    sbz[blane] = mz;
+    __syncthreads();
+    for (int off = CR_BBOX_THREADS / 2; off > 0; off >>= 1) {
+        if (blane < off) sbz[blane] = fminf(sbz[blane], sbz[blane + off]);
+        __syncthreads();
+    }
+    if (blane == 0) batchz[blockIdx.x] = sbz[0];
+
+    if (!live) return;
     const CrScreenVert *v0 = &tris[t].v[0];
     const CrScreenVert *v1 = &tris[t].v[1];
     const CrScreenVert *v2 = &tris[t].v[2];
     float x0 = v0->spos.x, y0 = v0->spos.y;
     float x1 = v1->spos.x, y1 = v1->spos.y;
     float x2 = v2->spos.x, y2 = v2->spos.y;
-    /* hi-z reject input: interpolated z is barycentric over the vert z's, so
-     * min vert z lower-bounds the tri's depth anywhere on screen. */
-    tminz[t] = fminf(v0->spos.z, fminf(v1->spos.z, v2->spos.z));
 
     float area = cr_edge(x0, y0, x1, y1, x2, y2);
     if (area * CR_FRONT_SIGN <= 0.0f) { box[t] = CR_TBOX_SKIP; return; }
@@ -344,8 +377,6 @@ __global__ void cr_raster_bbox_kernel(const CrScreenTri *tris, int ntris,
  * thus the exact CPU order, so output is bit-identical to cr_raster_cpu; the
  * coverage/shade/blend body mirrors it expression-for-expression. Work is
  * proportional to real per-tile coverage (like the CPU), not W*H*N. */
-#define CR_TILE 16
-#define CR_TILE_N (CR_TILE * CR_TILE)   /* 256 threads / triangles per batch */
 
 /* sb1..sb3: tri-slot boundaries for merged multi-layer draws - tri slot t
  * shades with sh[(t>=sb1)+(t>=sb2)+(t>=sb3)]. Single-layer callers pass
@@ -353,7 +384,7 @@ __global__ void cr_raster_bbox_kernel(const CrScreenTri *tris, int ntris,
 __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H,
                                        const CrScreenTri *tris, int ntris,
                                        const CrTriBox *box, const CrShadeCtx *sh,
-                                       const float *tminz,
+                                       const float *tminz, const float *batchz,
                                        const int *screen_tris,
                                        int use_device_count,
                                        int sb1, int sb2, int sb3) {
@@ -387,7 +418,34 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
 
     int raster_ntris = use_device_count ? screen_tris[1] : ntris;
     int nbatches = (raster_ntris + CR_TILE_N - 1) / CR_TILE_N;
+
+    /* HI-Z: the tile's worst (largest) pixel depth. A triangle whose min vert
+     * z is >= this bound fails z<curz at EVERY pixel in the tile (opaque and
+     * blend draws alike), so skipping it changes no output - the walk stays
+     * exact, it just touches 4 bytes (tminz) instead of the 120-byte tri.
+     * curz only ever shrinks, so a bound carried forward from an earlier point
+     * in the stream is conservative (too large -> rejects less). It is
+     * therefore refreshed only after a batch that actually ran the shade loop:
+     * batches skipped by the batch/overlap tests cannot touch curz, so the
+     * carried value is exactly what a per-batch recompute would produce. */
+    sred[lane] = valid ? curz : -3.402823466e38f;
+    __syncthreads();
+    for (int off = CR_TILE_N / 2; off > 0; off >>= 1) {
+        if (lane < off) sred[lane] = fmaxf(sred[lane], sred[lane + off]);
+        __syncthreads();
+    }
+    float tile_maxz = sred[0];
+
     for (int batch = 0; batch < nbatches; ++batch) {
+        /* BATCH HI-Z: batchz[batch] is the min tminz over the batch's 256
+         * triangles (bbox kernel). If even the nearest of them is behind the
+         * tile's worst depth, every one of them would be rejected by the
+         * per-triangle test below, so the whole batch is skipped - no box
+         * loads, no scan, no barrier. The branch is threadgroup-uniform
+         * (batchz[batch] and tile_maxz are both uniform), so no lane is left
+         * behind at a barrier. Strict > keeps it valid for LEQUAL contexts
+         * too, whose per-tri test is the strict one. */
+        if (batchz[batch] > tile_maxz) continue;
         int base = batch * CR_TILE_N;
         int batch_n = raster_ntris - base;
         if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
@@ -415,22 +473,7 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
         int total = sflag[CR_TILE_N - 1];
         int excl  = sflag[lane] - pass;      /* exclusive prefix = my slot */
         if (pass) slist[excl] = t0;
-        /* HI-Z: the tile's worst (largest) pixel depth, refreshed once per
-         * batch. A triangle whose min vert z is >= this bound fails z<curz at
-         * EVERY pixel in the tile (opaque and blend draws alike), so skipping
-         * it changes no output - the walk stays exact, it just touches 4
-         * bytes (tminz) instead of the 120-byte tri. curz only shrinks during
-         * the batch, so the stale bound is conservative. Measured -4% kernel
-         * time on the 12k tape; deeper (warp-level, per-draw refresh) pruning
-         * measured no better - the walk is coverage-math-bound, not
-         * occluded-load-bound. */
-        sred[lane] = valid ? curz : -3.402823466e38f;
-        __syncthreads();
-        for (int off = CR_TILE_N / 2; off > 0; off >>= 1) {
-            if (lane < off) sred[lane] = fmaxf(sred[lane], sred[lane + off]);
-            __syncthreads();
-        }
-        float tile_maxz = sred[0];
+        __syncthreads();   /* publish slist before the coverage walk reads it */
 
         for (int k = 0; k < total; k++) {
             if (!valid) break;               /* whole tile off-screen: nothing to do */
@@ -529,7 +572,19 @@ __global__ void cr_raster_tiled_kernel(CrRgba *color, float *depth, int W, int H
             curz = z;
         }
         }  /* end for k (compacted triangles overlapping this tile) */
-        __syncthreads();   /* all threads done reading slist before next batch */
+
+        /* Refresh the hi-z bound with the depths this batch just wrote. The
+         * store also acts as the "done reading slist" fence for the next
+         * batch (sred and slist are distinct, and the barrier below orders
+         * both). Only reached by batches that ran the walk, which are the only
+         * ones that can have changed curz. */
+        sred[lane] = valid ? curz : -3.402823466e38f;
+        __syncthreads();
+        for (int off = CR_TILE_N / 2; off > 0; off >>= 1) {
+            if (lane < off) sred[lane] = fmaxf(sred[lane], sred[lane + off]);
+            __syncthreads();
+        }
+        tile_maxz = sred[0];
     }  /* end for batch */
 
     if (valid) { color[idx] = cur; depth[idx] = curz; }
@@ -573,6 +628,7 @@ static struct {
     CrScreenTri *d_dense;  /* order-preserving global transform compaction */
     CrTriBox    *d_box;
     float       *d_tminz;  /* per-tri min vert z (hi-z reject), bbox-written */
+    float       *d_batchz; /* per-256-tri-batch min tminz (batch hi-z reject) */
     int         *d_xcounts;/* live output count per 256-input transform block */
     int         *d_xoffsets;/* exclusive prefix of d_xcounts */
     int         *d_screen_tris; /* [0]=frame total; [1]=current dense layer */
@@ -617,6 +673,11 @@ extern "C" void cr_raster_cuda_pre(int w, int h, int max_tris) {
     cudaMalloc(&g_gpu.d_dense, 2 * (size_t)max_tris * sizeof(CrScreenTri));
     cudaMalloc(&g_gpu.d_box,   2 * (size_t)max_tris * sizeof(CrTriBox));
     cudaMalloc(&g_gpu.d_tminz, 2 * (size_t)max_tris * sizeof(float));
+    /* one slot per bbox block; bbox is launched CR_BBOX_THREADS wide over the
+     * same 2*max_tris slot space the tiled kernel batches over. */
+    cudaMalloc(&g_gpu.d_batchz,
+               ((2 * (size_t)max_tris + CR_BBOX_THREADS - 1) / CR_BBOX_THREADS + 1)
+               * sizeof(float));
     cudaMalloc(&g_gpu.d_xcounts,
                (size_t)((max_tris + 255) / 256) * sizeof(int));
     cudaMalloc(&g_gpu.d_xoffsets,
@@ -919,10 +980,11 @@ extern "C" void cr_raster_cuda_into(CrFramebuffer *fb, const CrScreenTri *tris,
                     cudaMemcpyHostToDevice, g_gpu.stream);
 
     /* pass 1: per-triangle clamped bbox + backface skip mark. */
-    int bthr = 256, bblk = (ntris + bthr - 1) / bthr;
+    int bthr = CR_BBOX_THREADS, bblk = (ntris + bthr - 1) / bthr;
     cr_raster_bbox_kernel<<<bblk, bthr, 0, g_gpu.stream>>>(g_gpu.d_tris, ntris,
                                                            W, H, g_gpu.d_box,
                                                            g_gpu.d_tminz,
+                                                           g_gpu.d_batchz,
                                                            g_gpu.d_screen_tris, 0);
 
     /* pass 2: one 16x16 block per screen tile, streaming tris in order. */
@@ -930,7 +992,7 @@ extern "C" void cr_raster_cuda_into(CrFramebuffer *fb, const CrScreenTri *tris,
     dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
     cr_raster_tiled_kernel<<<grid, block, 0, g_gpu.stream>>>(
         g_gpu.d_color, g_gpu.d_depth, W, H, g_gpu.d_tris, ntris, g_gpu.d_box,
-        d_sh, g_gpu.d_tminz, g_gpu.d_screen_tris, 0,
+        d_sh, g_gpu.d_tminz, g_gpu.d_batchz, g_gpu.d_screen_tris, 0,
         0x7fffffff, 0x7fffffff, 0x7fffffff);
 
     /* Caller reuses its tris scratch per call, so this legacy path stays
@@ -1076,17 +1138,18 @@ static void cr_cuda_run_layer(CrFramebuffer *fb, int nverts,
     cr_compact_scatter_kernel<<<sblk, sthr, 0, g_gpu.stream>>>(
         g_gpu.d_tris, g_gpu.d_xcounts, g_gpu.d_xoffsets, tblk, g_gpu.d_dense);
 
-    int bthr = 256, bblk = (ntris + bthr - 1) / bthr;
+    int bthr = CR_BBOX_THREADS, bblk = (ntris + bthr - 1) / bthr;
     cr_raster_bbox_kernel<<<bblk, bthr, 0, g_gpu.stream>>>(g_gpu.d_dense, ntris,
                                                            W, H, g_gpu.d_box,
                                                            g_gpu.d_tminz,
+                                                           g_gpu.d_batchz,
                                                            g_gpu.d_screen_tris, 1);
 
     dim3 block(16, 16);
     dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
     cr_raster_tiled_kernel<<<grid, block, 0, g_gpu.stream>>>(
         g_gpu.d_color, g_gpu.d_depth, W, H, g_gpu.d_dense, ntris, g_gpu.d_box,
-        d_sh, g_gpu.d_tminz, g_gpu.d_screen_tris, 1,
+        d_sh, g_gpu.d_tminz, g_gpu.d_batchz, g_gpu.d_screen_tris, 1,
         0x7fffffff, 0x7fffffff, 0x7fffffff);
     /* No sync: layers queue back-to-back on the stream; frame_end (resident
      * fb) or the D2H below (standalone call) is the barrier. */
@@ -1315,16 +1378,17 @@ extern "C" void cr_raster_cuda_render_terrain(CrFramebuffer *fb,
     cr_transform_kernel<<<tblk, tthr, 0, g_gpu.stream>>>(
         g_gpu.d_verts, ntris_in, mvp, cam->pos, W, H, g_gpu.d_tris,
         g_gpu.d_xcounts, g_gpu.d_screen_tris, 0);
-    int bthr = 256, bblk = (ntris + bthr - 1) / bthr;
+    int bthr = CR_BBOX_THREADS, bblk = (ntris + bthr - 1) / bthr;
     cr_raster_bbox_kernel<<<bblk, bthr, 0, g_gpu.stream>>>(g_gpu.d_tris, ntris,
                                                            W, H, g_gpu.d_box,
                                                            g_gpu.d_tminz,
+                                                           g_gpu.d_batchz,
                                                            g_gpu.d_screen_tris, 0);
     dim3 block(16, 16);
     dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
     cr_raster_tiled_kernel<<<grid, block, 0, g_gpu.stream>>>(
         g_gpu.d_color, g_gpu.d_depth, W, H, g_gpu.d_tris, ntris, g_gpu.d_box,
-        &g_gpu.d_sh[si], g_gpu.d_tminz, g_gpu.d_screen_tris, 0,
+        &g_gpu.d_sh[si], g_gpu.d_tminz, g_gpu.d_batchz, g_gpu.d_screen_tris, 0,
         sb1, sb2, sb3);
     cr_cuda_check("cuda_render_terrain");
 
@@ -1346,6 +1410,7 @@ extern "C" void cr_raster_cuda_post(void) {
     if (g_gpu.d_dense)  cudaFree(g_gpu.d_dense);
     if (g_gpu.d_box)    cudaFree(g_gpu.d_box);
     if (g_gpu.d_tminz)  cudaFree(g_gpu.d_tminz);
+    if (g_gpu.d_batchz) cudaFree(g_gpu.d_batchz);
     if (g_gpu.d_xcounts) cudaFree(g_gpu.d_xcounts);
     if (g_gpu.d_xoffsets) cudaFree(g_gpu.d_xoffsets);
     if (g_gpu.d_screen_tris) cudaFree(g_gpu.d_screen_tris);

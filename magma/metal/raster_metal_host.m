@@ -208,7 +208,7 @@ static id<MTLCommandBuffer>        g_last;     /* last committed, not yet waited
 static id<MTLCommandBuffer>        g_end_cb;   /* frame_end_async's cb */
 
 static id<MTLBuffer> g_d_color, g_d_depth, g_d_tris, g_d_dense,
-                     g_d_box, g_d_tminz, g_d_xcounts, g_d_xoffsets,
+                     g_d_box, g_d_tminz, g_d_batchz, g_d_xcounts, g_d_xoffsets,
                      g_d_screen_tris,
                      g_d_verts, g_d_sh, g_d_lm, g_d_pend;
 static id<MTLBuffer> g_vstage[CR_SH_RING];   /* render_layer vert staging ring */
@@ -450,6 +450,8 @@ static void mg_encode_bbox(id<MTLComputeCommandEncoder> enc,
     [enc setBuffer:g_d_box offset:0 atIndex:2];
     [enc setBuffer:g_d_tminz offset:0 atIndex:3];
     [enc setBuffer:g_d_screen_tris offset:0 atIndex:4];
+    [enc setBuffer:g_d_batchz offset:0 atIndex:5];
+    /* 256 == CR_BBOX_THREADS == CR_TILE_N: threadgroup b owns tiled batch b. */
     [enc dispatchThreadgroups:MTLSizeMake((NSUInteger)((ntris + 255) / 256), 1, 1)
         threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
 }
@@ -470,6 +472,7 @@ static void mg_encode_tiled(id<MTLComputeCommandEncoder> enc,
     [enc setBuffer:g_d_sh offset:0 atIndex:5];
     [enc setBuffer:g_d_tminz offset:0 atIndex:6];
     [enc setBuffer:g_d_screen_tris offset:0 atIndex:7];
+    [enc setBuffer:g_d_batchz offset:0 atIndex:8];
     mg_use_indirect(enc);
     [enc dispatchThreadgroups:MTLSizeMake((NSUInteger)((W + 15) / 16),
                                           (NSUInteger)((H + 15) / 16), 1)
@@ -619,6 +622,9 @@ void cr_raster_metal_pre(int w, int h, int max_tris) {
     g_d_dense = mg_newbuf(2 * (size_t)max_tris * sizeof(CrScreenTri), "d_dense");
     g_d_box   = mg_newbuf(2 * (size_t)max_tris * sizeof(uint32_t), "d_box");
     g_d_tminz = mg_newbuf(2 * (size_t)max_tris * sizeof(float), "d_tminz");
+    /* one slot per bbox threadgroup over the same 2*max_tris slot space. */
+    g_d_batchz = mg_newbuf((size_t)((2 * max_tris + 255) / 256 + 1) * sizeof(float),
+                           "d_batchz");
     g_d_xcounts = mg_newbuf((size_t)((max_tris + 255) / 256) * sizeof(int),
                             "d_xcounts");
     g_d_xoffsets = mg_newbuf((size_t)((max_tris + 255) / 256) * sizeof(int),
@@ -629,11 +635,13 @@ void cr_raster_metal_pre(int w, int h, int max_tris) {
     g_d_lm    = mg_newbuf(CR_SH_RING * 256 * sizeof(CrRgba), "d_lm");
     g_d_pend  = mg_newbuf(npix * sizeof(CrRgba), "d_pend");
     if (!g_d_color || !g_d_depth || !g_d_tris || !g_d_dense || !g_d_box ||
-        !g_d_tminz || !g_d_xcounts || !g_d_xoffsets || !g_d_screen_tris ||
+        !g_d_tminz || !g_d_batchz || !g_d_xcounts || !g_d_xoffsets ||
+        !g_d_screen_tris ||
         !g_d_verts || !g_d_sh || !g_d_lm || !g_d_pend) {
         fprintf(stderr, "magma Metal: cr_raster_metal_pre allocation failed\n");
         g_d_color = g_d_depth = g_d_tris = g_d_dense = g_d_box = nil;
-        g_d_tminz = g_d_xcounts = g_d_xoffsets = g_d_screen_tris = nil;
+        g_d_tminz = g_d_batchz = g_d_xcounts = g_d_xoffsets = nil;
+        g_d_screen_tris = nil;
         g_d_verts = g_d_sh = g_d_lm = g_d_pend = nil;
         return;
     }
@@ -1016,7 +1024,8 @@ void cr_raster_metal_post(void) {
     if (!g.inited) return;
     mg_sync();
     g_d_color = g_d_depth = g_d_tris = g_d_dense = g_d_box = nil;
-    g_d_tminz = g_d_xcounts = g_d_xoffsets = g_d_screen_tris = nil;
+    g_d_tminz = g_d_batchz = g_d_xcounts = g_d_xoffsets = nil;
+    g_d_screen_tris = nil;
     g_d_verts = g_d_sh = g_d_lm = g_d_pend = nil;
     for (int i = 0; i < CR_SH_RING; ++i) g_vstage[i] = nil;
     g_into_tris = nil;

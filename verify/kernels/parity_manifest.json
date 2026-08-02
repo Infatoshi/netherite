@@ -14,12 +14,12 @@
       "metal": "91fa20911edf5e43"
     },
     "cr_raster_bbox_kernel": {
-      "cuda": "c0a4f4f246962955",
-      "metal": "352cb9fde3fa2e8b"
+      "cuda": "eba928f38b640049",
+      "metal": "326d6662d492fc12"
     },
     "cr_raster_tiled_kernel": {
-      "cuda": "02f69f96c15f3061",
-      "metal": "d272573a958e7c5b"
+      "cuda": "7385165933c40854",
+      "metal": "5ba5e59d775142fd"
     },
     "cr_raster_tri_kernel": {
       "cuda": "b563406347344512",
@@ -34,8 +34,8 @@
       "metal": "68e66b229b42941d"
     },
     "_helpers": {
-      "cuda": "d57782610d36f527",
-      "metal": "c4fdd6280aab799a"
+      "cuda": "52008e925e1f4c36",
+      "metal": "18ebf238cce39814"
     }
   }
 }

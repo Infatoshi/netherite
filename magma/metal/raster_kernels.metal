@@ -581,6 +581,14 @@ kernel void cr_raster_tri_kernel(device CrRgbaM *color        [[buffer(0)]],
 typedef u32 CrTriBox;
 #define CR_TBOX_SKIP 0xFF000000u   /* tminx=255, never matches a real tile */
 
+/* Tile geometry, needed by BOTH raster kernels: the tiled kernel streams
+ * triangles in CR_TILE_N-sized batches, and the bbox kernel is dispatched with
+ * exactly CR_TILE_N threads per threadgroup, so bbox threadgroup b covers
+ * tiled batch b. */
+#define CR_TILE 16
+#define CR_TILE_N (CR_TILE * CR_TILE)   /* 256 threads / triangles per batch */
+#define CR_BBOX_THREADS CR_TILE_N       /* dispatch config: must equal CR_TILE_N */
+
 static inline CrTriBox cr_tbox_pack(int tminx, int tminy, int tmaxx, int tmaxy) {
     return ((u32)(tminx & 0xFF) << 24) | ((u32)(tminy & 0xFF) << 16) |
            ((u32)(tmaxx & 0xFF) << 8)  |  (u32)(tmaxy & 0xFF);
@@ -591,11 +599,41 @@ kernel void cr_raster_bbox_kernel(device const CrScreenTriM *tris [[buffer(0)]],
                                   device CrTriBox *box            [[buffer(2)]],
                                   device float *tminz             [[buffer(3)]],
                                   device const int *screen_tris   [[buffer(4)]],
-                                  uint tpig [[thread_position_in_grid]]) {
+                                  device float *batchz            [[buffer(5)]],
+                                  uint tpig  [[thread_position_in_grid]],
+                                  uint tpitg [[thread_position_in_threadgroup]],
+                                  uint tgpig [[threadgroup_position_in_grid]]) {
     int t = (int)tpig;
     int raster_ntris = p.use_device_count ? screen_tris[1] : p.ntris;
-    if (t >= raster_ntris) return;
+    int live = (t < raster_ntris);
     int W = p.W, H = p.H;
+
+    /* hi-z reject input: interpolated z is barycentric over the vert z's, so
+     * min vert z lower-bounds the tri's depth anywhere on screen. Written for
+     * every live slot, including ones this kernel marks SKIP (a skipped tri's
+     * z only pulls the batch bound DOWN, i.e. stays conservative). */
+    float mz = 3.402823466e38f;
+    if (live) {
+        mz = fmin(tris[t].v[0].spos.z,
+                  fmin(tris[t].v[1].spos.z, tris[t].v[2].spos.z));
+        tminz[t] = mz;
+    }
+    /* BATCH HI-Z: min tminz over this threadgroup's CR_TILE_N triangles. Dead
+     * lanes (t >= raster_ntris) feed +inf so a partial tail batch bounds only
+     * its live triangles. Tree reduction over threadgroup memory: no atomics,
+     * so the value is bit-deterministic run to run. Every thread must reach
+     * these barriers, hence no early return above. */
+    threadgroup float sbz[CR_BBOX_THREADS];
+    int blane = (int)tpitg;
+    sbz[blane] = mz;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (int off = CR_BBOX_THREADS / 2; off > 0; off >>= 1) {
+        if (blane < off) sbz[blane] = fmin(sbz[blane], sbz[blane + off]);
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    if (blane == 0) batchz[tgpig] = sbz[0];
+
+    if (!live) return;
     CrScreenTriM tri = tris[t];
     thread const CrScreenVertM *v0 = &tri.v[0];
     thread const CrScreenVertM *v1 = &tri.v[1];
@@ -603,7 +641,6 @@ kernel void cr_raster_bbox_kernel(device const CrScreenTriM *tris [[buffer(0)]],
     float x0 = v0->spos.x, y0 = v0->spos.y;
     float x1 = v1->spos.x, y1 = v1->spos.y;
     float x2 = v2->spos.x, y2 = v2->spos.y;
-    tminz[t] = fmin(v0->spos.z, fmin(v1->spos.z, v2->spos.z));
 
     float area = cr_edge(x0, y0, x1, y1, x2, y2);
     if (area * CR_FRONT_SIGN <= 0.0f) { box[t] = CR_TBOX_SKIP; return; }
@@ -628,9 +665,6 @@ kernel void cr_raster_bbox_kernel(device const CrScreenTriM *tris [[buffer(0)]],
  * changes no ordering or values.
  * MEASURED-ON-MAC: verify the barrier/atomic pattern on-device (no hang, all
  * 256 threads participate; the any-flag branch is threadgroup-uniform). */
-#define CR_TILE 16
-#define CR_TILE_N (CR_TILE * CR_TILE)   /* 256 threads / triangles per batch */
-
 kernel void cr_raster_tiled_kernel(device CrRgbaM *color           [[buffer(0)]],
                                    device float   *depth           [[buffer(1)]],
                                    constant TileParamsM &p         [[buffer(2)]],
@@ -639,6 +673,7 @@ kernel void cr_raster_tiled_kernel(device CrRgbaM *color           [[buffer(0)]]
                                    device const CrShadeCtxM *sh_ring [[buffer(5)]],
                                    device const float *tminz       [[buffer(6)]],
                                    device const int *screen_tris   [[buffer(7)]],
+                                   device const float *batchz      [[buffer(8)]],
                                    uint2 tgpig [[threadgroup_position_in_grid]],
                                    uint2 tpitg [[thread_position_in_threadgroup]]) {
     int W = p.W, H = p.H, ntris = p.ntris;
@@ -669,7 +704,29 @@ kernel void cr_raster_tiled_kernel(device CrRgbaM *color           [[buffer(0)]]
 
     int raster_ntris = p.use_device_count ? screen_tris[1] : ntris;
     int nbatches = (raster_ntris + CR_TILE_N - 1) / CR_TILE_N;
+
+    /* HI-Z bound: the tile's worst (largest) pixel depth (see raster_cuda.cu).
+     * curz only ever shrinks, so a bound carried forward from an earlier point
+     * in the stream is conservative; it is refreshed only after a batch that
+     * actually ran the walk, which are the only ones that can change curz. */
+    sred[lane] = valid ? curz : -3.402823466e38f;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (int off = CR_TILE_N / 2; off > 0; off >>= 1) {
+        if (lane < off) sred[lane] = fmax(sred[lane], sred[lane + off]);
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    float tile_maxz = sred[0];
+
     for (int batch = 0; batch < nbatches; ++batch) {
+        /* BATCH HI-Z: batchz[batch] is the min tminz over the batch's 256
+         * triangles (bbox kernel). If even the nearest of them is behind the
+         * tile's worst depth, every one would be rejected by the per-triangle
+         * test below, so the whole batch is skipped - no box loads, no scan,
+         * no barrier. The branch is threadgroup-uniform (batchz[batch] and
+         * tile_maxz are both uniform), so no thread is left behind at a
+         * barrier. Strict > keeps it valid for LEQUAL contexts too, whose
+         * per-tri test is the strict one. */
+        if (batchz[batch] > tile_maxz) continue;
         int base = batch * CR_TILE_N;
         int batch_n = raster_ntris - base;
         if (batch_n > CR_TILE_N) batch_n = CR_TILE_N;
@@ -700,14 +757,8 @@ kernel void cr_raster_tiled_kernel(device CrRgbaM *color           [[buffer(0)]]
         int total = sflag[CR_TILE_N - 1];
         int excl  = sflag[lane] - pass;      /* exclusive prefix = my slot */
         if (pass) slist[excl] = t0;
-        /* HI-Z bound: tile's worst pixel depth (see raster_cuda.cu). */
-        sred[lane] = valid ? curz : -3.402823466e38f;
+        /* publish slist before the coverage walk reads it */
         threadgroup_barrier(mem_flags::mem_threadgroup);
-        for (int off = CR_TILE_N / 2; off > 0; off >>= 1) {
-            if (lane < off) sred[lane] = fmax(sred[lane], sred[lane + off]);
-            threadgroup_barrier(mem_flags::mem_threadgroup);
-        }
-        float tile_maxz = sred[0];
 
         for (int k = 0; k < total; k++) {
             if (!valid) break;               /* whole tile off-screen: nothing to do */
@@ -805,7 +856,17 @@ kernel void cr_raster_tiled_kernel(device CrRgbaM *color           [[buffer(0)]]
                 curz = z;
             }
         }  /* end for k (compacted triangles overlapping this tile) */
-        threadgroup_barrier(mem_flags::mem_threadgroup); /* slist reads done */
+
+        /* Refresh the hi-z bound with the depths this batch just wrote. The
+         * barrier below is also the "slist reads done" fence for the next
+         * batch (sred and slist are distinct arrays). */
+        sred[lane] = valid ? curz : -3.402823466e38f;
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        for (int off = CR_TILE_N / 2; off > 0; off >>= 1) {
+            if (lane < off) sred[lane] = fmax(sred[lane], sred[lane + off]);
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+        }
+        tile_maxz = sred[0];
     }  /* end for base (batch) */
 
     if (valid) { color[idx] = cur; depth[idx] = curz; }
