@@ -193,7 +193,11 @@ void cr_raster_metal_post(void);
 #define CR_ATLAS_CACHE 6
 #define CR_SH_RING 16
 #define CR_GR_RING 8      /* gather calls per frame (terrain merges into 1) */
-#define CR_GR_MAX  2048   /* entries per call >= 4 layers * mesh_slots (289) */
+/* Entries per call. Replay needs 4 layers * mesh_slots (289). The window path
+ * submits per-16-block-SECTION runs to keep W16's vertical cull, so its worst
+ * case is mesh_slots * GM_MESH_SECTIONS = 4624; 8192 covers it with headroom.
+ * Must stay >= game/game.h GM_GATHER_MAX_ENTRIES (and its CUDA twin). */
+#define CR_GR_MAX  8192
 #define CR_VERT_WORDS ((int)(sizeof(CrVertex) / sizeof(uint32_t)))
 
 /* ---- global Metal objects (statics, not struct fields: ARC-safe) -------- */

@@ -371,6 +371,38 @@ typedef struct {
 int gm_world_mesh_chunks(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
                          GmChunkDraw *out, int max_out, int nverts[4]);
 
+/* 16-block-high render sections per chunk column (world_live's WL_SECTIONS). */
+#define GM_MESH_SECTIONS 16
+/* Upper bound on gather entries one backend render_gather call accepts
+ * (CR_GR_MAX in cuda/raster_cuda.cu and metal/raster_metal_host.m; keep the
+ * three in step). A caller whose worst-case entry count exceeds this must not
+ * take the device-mesh path. */
+#define GM_GATHER_MAX_ENTRIES 8192
+
+/* Window-path device-resident variant. Same walk and SAME SUBMISSION ORDER as
+ * gm_world_mesh_view - column frustum cull, remesh, per-16-block-section
+ * frustum cull, translucent as a full column - but instead of memcpy-concat it
+ * records, per layer, the contiguous (slot, off, n) slab runs that concat would
+ * have copied, in the identical order. Adjacent kept sections share one run, so
+ * a layer emits at most GM_MESH_SECTIONS runs per kept chunk (1 for
+ * TRANSLUCENT). Feeding these to the backend gather reproduces the host
+ * concatenation byte-for-byte with no per-frame vertex upload. */
+typedef struct {
+    int slot;   /* toroidal mesh-pool slot of the owning chunk */
+    int off;    /* first vert of the run, offset inside that chunk's slab */
+    int n;      /* vert count */
+} GmMeshRun;
+/* runs[] is four layer-major banks of `runs_stride` entries each: layer l's
+ * i-th run is runs[l * runs_stride + i], nruns[l] of them. runs_stride must be
+ * >= max_chunks * GM_MESH_SECTIONS. `chunks` receives one entry per kept chunk
+ * (for slab upload). Returns the kept-chunk count, or -1 if a capacity was too
+ * small (nothing usable is emitted; fall back to gm_world_mesh_view). */
+int gm_world_mesh_runs(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
+                       GmChunkDraw *chunks, int max_chunks,
+                       GmMeshRun *runs, int runs_stride,
+                       int nruns[4], int nverts[4],
+                       int *n_kept, int *n_culled);
+
 /* ============================ game/player_ctl.c (owner: PLAYER-CTL agent) ============================
  * One player tick over a region-centered raw-Chunk window using the VERIFIED
  * player_survival.h kernels (psv_physics_tick / psv_raycast / break / place / vitals).

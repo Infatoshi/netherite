@@ -11,6 +11,9 @@
  *     16-block-high render sections, and concatenate the intersecting per-layer verts
  *     into world-owned buffers. Translucent verts keep their original full-column
  *     order because blending is order-sensitive.
+ *   - gm_world_mesh_runs: the SAME walk (one shared implementation, wl_view_walk)
+ *     recording the contiguous slab runs that concat would have copied instead of
+ *     copying them, so a GPU backend can gather them from device-resident slabs.
  *   - gm_world_block / gm_world_fill_window read canonical vanilla states through CrLight,
  *   - gm_world_set_block edits the store, re-lights, marks the touched chunk (and any
  *     border neighbour) dirty.
@@ -47,7 +50,7 @@ CrLight *worldmc_light(CrWorldMC *w);
 #endif
 #define WL_AABB_Y_MIN 0.0
 #define WL_AABB_Y_MAX 256.0
-#define WL_SECTIONS 16
+#define WL_SECTIONS GM_MESH_SECTIONS
 #define WL_SECTION_HEIGHT 16.0
 #define WL_SECTION_Y_PAD 1.0
 
@@ -393,10 +396,48 @@ int gm_world__model_key(const GmWorld *w, int wx, int wy, int wz) {
     return light_block(w->light, wx, wy, wz);
 }
 
-void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
-                        GmMeshView *out) {
-    if (!w || !cam || !out) return;
+/* Emit sink for the shared view walk. NULL `runs` selects the host concat into
+ * w->out_verts; non-NULL records the equivalent slab runs instead. */
+typedef struct {
+    GmChunkDraw *chunks;
+    int          max_chunks;
+    int          nch;
+    GmMeshRun   *runs;        /* four layer-major banks of runs_stride entries */
+    int          runs_stride;
+    int          nruns[4];
+    int          nverts[4];
+    int          overflow;
+} WlEmit;
 
+/* Record one contiguous slab range for layer `l`. Sections placed back-to-back
+ * in the slab (kept neighbours, and any zero-vert section between them) fold
+ * into the run already open, so a layer costs at most one entry per maximal
+ * kept run - never more than WL_SECTIONS per chunk. */
+static void wl_emit_run(WlEmit *em, int l, int slot, int off, int n) {
+    if (n <= 0) return;
+    GmMeshRun *bank = em->runs + (size_t)l * (size_t)em->runs_stride;
+    int i = em->nruns[l];
+    if (i > 0 && bank[i - 1].slot == slot &&
+        bank[i - 1].off + bank[i - 1].n == off) {
+        bank[i - 1].n += n;
+    } else if (i < em->runs_stride) {
+        bank[i].slot = slot;
+        bank[i].off  = off;
+        bank[i].n    = n;
+        em->nruns[l] = i + 1;
+    } else {
+        em->overflow = 1;
+        return;
+    }
+    em->nverts[l] += n;
+}
+
+/* THE view walk, shared by gm_world_mesh_view (host concat) and
+ * gm_world_mesh_runs (device gather) so the two can never drift in chunk
+ * order, section order, or in-section order. */
+static void wl_view_walk(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
+                         WlEmit *em, int nverts_out[4],
+                         int *out_kept, int *out_culled) {
     /* View radius: default SCN_VIEW_RADIUS (=12, keeps the byte-identical regression
      * lock when the env is unset). MAGMA_VIEW_RADIUS lowers it at runtime for smooth
      * interactive FPS (fewer chunks meshed/rasterized); clamped to [1, SCN_VIEW_RADIUS]. */
@@ -447,6 +488,20 @@ void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
 
             WlSlot *c = wl_ensure_mesh(w, cx, cz);
             if (!c) continue;
+            int slot = (int)(c - w->slots);
+            if (em) {
+                if (em->nch >= em->max_chunks) { em->overflow = 1; }
+                else {
+                    GmChunkDraw *d = &em->chunks[em->nch++];
+                    d->slot   = slot;
+                    d->builds = c->builds;
+                    d->slab   = c->buf;
+                    for (int l = 0; l < 4; ++l) {
+                        d->off[l] = c->off[l];
+                        d->n[l]   = c->n[l];
+                    }
+                }
+            }
             int added[4] = {0, 0, 0, 0};
             for (int sec = 0; sec < WL_SECTIONS; ++sec) {
                 int nonempty = 0;
@@ -466,13 +521,19 @@ void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
                 sections_kept++;
                 for (int l = 0; l < CR_LAYER_TRANSLUCENT; ++l) {
                     int ns = c->sec_n[l][sec];
-                    wl_append(w, l, c->buf + c->sec_off[l][sec], ns);
+                    if (em) wl_emit_run(em, l, slot, c->sec_off[l][sec], ns);
+                    else    wl_append(w, l, c->buf + c->sec_off[l][sec], ns);
                     added[l] += ns;
                 }
             }
-            wl_append(w, CR_LAYER_TRANSLUCENT,
-                      c->view.verts[CR_LAYER_TRANSLUCENT],
-                      c->view.nverts[CR_LAYER_TRANSLUCENT]);
+            if (em)
+                wl_emit_run(em, CR_LAYER_TRANSLUCENT, slot,
+                            c->off[CR_LAYER_TRANSLUCENT],
+                            c->n[CR_LAYER_TRANSLUCENT]);
+            else
+                wl_append(w, CR_LAYER_TRANSLUCENT,
+                          c->view.verts[CR_LAYER_TRANSLUCENT],
+                          c->view.nverts[CR_LAYER_TRANSLUCENT]);
             added[CR_LAYER_TRANSLUCENT] = c->view.nverts[CR_LAYER_TRANSLUCENT];
             if (dbg_verts) {
                 int in2x2 = (cx >= 0 && cx < 2 && cz >= 0 && cz < 2);
@@ -492,6 +553,9 @@ void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
             n_kept, dbg_near_leaf, dbg_far_leaf, dbg_far_solid, dbg_far_chunks_with_leaf,
             popmc_window_builds());
 
+    for (int l = 0; l < 4; ++l)
+        nverts_out[l] = em ? em->nverts[l] : w->out_nverts[l];
+
     if (g_caps_on < 0) g_caps_on = getenv("MAGMA_DEBUG_CAPS") != NULL;
     if (g_caps_on) {
         int valid = 0;
@@ -503,17 +567,42 @@ void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
             "chunk_max[S/CM/C/T]=%d/%d/%d/%d chunk_max_total=%d\n",
             R, n_kept, n_culled, valid, w->mesh_slots, light_loaded_chunks(w->light),
             popmc_window_builds(), sections_kept, sections_culled,
-            w->out_nverts[0], w->out_nverts[1], w->out_nverts[2], w->out_nverts[3],
+            nverts_out[0], nverts_out[1], nverts_out[2], nverts_out[3],
             g_cap_chunk_layer[0], g_cap_chunk_layer[1], g_cap_chunk_layer[2],
             g_cap_chunk_layer[3], g_cap_chunk_total);
+        if (em)
+            fprintf(stderr, "[caps] gather runs[S/CM/C/T]=%d/%d/%d/%d cap=%d\n",
+                    em->nruns[0], em->nruns[1], em->nruns[2], em->nruns[3],
+                    em->runs_stride);
     }
 
-    for (int l = 0; l < 4; ++l) {
-        out->verts[l]  = w->out_verts[l];
-        out->nverts[l] = w->out_nverts[l];
-    }
-    out->n_kept   = n_kept;
-    out->n_culled = n_culled;
+    if (out_kept)   *out_kept   = n_kept;
+    if (out_culled) *out_culled = n_culled;
+}
+
+void gm_world_mesh_view(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
+                        GmMeshView *out) {
+    if (!w || !cam || !out) return;
+    wl_view_walk(w, cam, fb_w, fb_h, NULL, out->nverts,
+                 &out->n_kept, &out->n_culled);
+    for (int l = 0; l < 4; ++l) out->verts[l] = w->out_verts[l];
+}
+
+int gm_world_mesh_runs(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,
+                       GmChunkDraw *chunks, int max_chunks,
+                       GmMeshRun *runs, int runs_stride,
+                       int nruns[4], int nverts[4],
+                       int *n_kept, int *n_culled) {
+    if (!w || !cam || !chunks || !runs || runs_stride <= 0) return -1;
+    WlEmit em;
+    memset(&em, 0, sizeof em);
+    em.chunks = chunks;
+    em.max_chunks = max_chunks;
+    em.runs = runs;
+    em.runs_stride = runs_stride;
+    wl_view_walk(w, cam, fb_w, fb_h, &em, nverts, n_kept, n_culled);
+    for (int l = 0; l < 4; ++l) nruns[l] = em.nruns[l];
+    return em.overflow ? -1 : em.nch;
 }
 
 int gm_world_mesh_chunks(GmWorld *w, const CrCamera *cam, int fb_w, int fb_h,

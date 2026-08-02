@@ -36,6 +36,14 @@ extern void cr_raster_cuda_sky(const GmSkyCtx *, const float *, int, int)
     __attribute__((weak));
 extern void cr_raster_cuda_atlas_dirty(void) __attribute__((weak));
 extern void cr_raster_cuda_post(void) __attribute__((weak));
+extern int cr_raster_cuda_slab_pool(int, int) __attribute__((weak));
+extern void cr_raster_cuda_slab_sync(int, int, const void *, int)
+    __attribute__((weak));
+extern void cr_raster_cuda_slabs_reset(void) __attribute__((weak));
+extern void cr_raster_cuda_render_gather(CrFramebuffer *, const int *,
+                                         const int *, int, int,
+                                         const CrCamera *, const CrShadeCtx *)
+    __attribute__((weak));
 
 #ifdef MAGMA_METAL
 extern void cr_raster_metal_pre(int, int, int) __attribute__((weak));
@@ -51,6 +59,14 @@ extern void cr_raster_metal_sky(const GmSkyCtx *, const float *, int, int)
     __attribute__((weak));
 extern void cr_raster_metal_atlas_dirty(void) __attribute__((weak));
 extern void cr_raster_metal_post(void) __attribute__((weak));
+extern int cr_raster_metal_slab_pool(int, int) __attribute__((weak));
+extern void cr_raster_metal_slab_sync(int, int, const void *, int)
+    __attribute__((weak));
+extern void cr_raster_metal_slabs_reset(void) __attribute__((weak));
+extern void cr_raster_metal_render_gather(CrFramebuffer *, const int *,
+                                          const int *, int, int,
+                                          const CrCamera *, const CrShadeCtx *)
+    __attribute__((weak));
 #endif
 
 struct GmWindowCompose {
@@ -92,7 +108,75 @@ struct GmWindowCompose {
     FILE *npy_f;
     int npy_frames;
     char frames_out[1024];
+    /* W18 device-resident world layers: mirror world_live's toroidal mesh-slab
+     * pool on the GPU and concatenate each layer's vert stream there, so a
+     * frame's H2D traffic is proportional to REMESHED chunks instead of the
+     * whole visible view (~65 MB/frame at vd8 854x480). Entities, particles,
+     * overlays and the HUD keep the render_layer upload path. */
+    int dev_mesh;
+    int mesh_slots, slab_cap, runs_stride;
+    GmChunkDraw *chunks;
+    GmMeshRun *runs;
+    int *gsrc, *gcnt;          /* gather table scratch, runs_stride entries */
+    const GmWorld *slab_world; /* pool holds this world's slabs */
 };
+
+/* ---- backend dispatch for the slab-pool / gather entry points ---------- */
+
+static int wc_dev_backend(const GmWindowCompose *c) {
+    if (c->backend == GM_BACKEND_CUDA)
+        return cr_raster_cuda_slab_pool && cr_raster_cuda_slab_sync &&
+               cr_raster_cuda_render_gather;
+#ifdef MAGMA_METAL
+    if (c->backend == GM_BACKEND_METAL)
+        return cr_raster_metal_slab_pool && cr_raster_metal_slab_sync &&
+               cr_raster_metal_render_gather;
+#endif
+    return 0;
+}
+
+static int wc_slab_pool(const GmWindowCompose *c, int nslots, int slab_verts) {
+    if (c->backend == GM_BACKEND_CUDA)
+        return cr_raster_cuda_slab_pool(nslots, slab_verts);
+#ifdef MAGMA_METAL
+    if (c->backend == GM_BACKEND_METAL)
+        return cr_raster_metal_slab_pool(nslots, slab_verts);
+#endif
+    return 0;
+}
+
+static void wc_slab_sync(const GmWindowCompose *c, int slot, int builds,
+                         const void *host, int used_verts) {
+    if (c->backend == GM_BACKEND_CUDA)
+        cr_raster_cuda_slab_sync(slot, builds, host, used_verts);
+#ifdef MAGMA_METAL
+    else if (c->backend == GM_BACKEND_METAL)
+        cr_raster_metal_slab_sync(slot, builds, host, used_verts);
+#endif
+}
+
+static void wc_slabs_reset(const GmWindowCompose *c) {
+    if (c->backend == GM_BACKEND_CUDA) {
+        if (cr_raster_cuda_slabs_reset) cr_raster_cuda_slabs_reset();
+    }
+#ifdef MAGMA_METAL
+    else if (c->backend == GM_BACKEND_METAL) {
+        if (cr_raster_metal_slabs_reset) cr_raster_metal_slabs_reset();
+    }
+#endif
+}
+
+static void wc_render_gather(GmWindowCompose *c, const CrCamera *cam,
+                             int nents, int nverts, const CrShadeCtx *sh) {
+    if (c->backend == GM_BACKEND_CUDA)
+        cr_raster_cuda_render_gather(&c->fb, c->gsrc, c->gcnt, nents, nverts,
+                                     cam, sh);
+#ifdef MAGMA_METAL
+    else if (c->backend == GM_BACKEND_METAL)
+        cr_raster_metal_render_gather(&c->fb, c->gsrc, c->gcnt, nents, nverts,
+                                      cam, sh);
+#endif
+}
 
 static void set_error(char *err, int cap, const char *msg) {
     if (err && cap > 0) snprintf(err, (size_t)cap, "%s", msg);
@@ -162,11 +246,9 @@ static int render_layer(GmWindowCompose *c, const CrCamera *cam,
     return ntris;
 }
 
-static int render_world_layers(GmWindowCompose *c, const CrCamera *cam,
-                               const GmMeshView *mv, const CrTexture *atlas,
-                               CrRgba fog, int dimension, int boss_fog,
-                               const GmUnderwater *uw, const CrRgba *lm,
-                               int first_layer, int end_layer) {
+static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
+                           int boss_fog, const GmUnderwater *uw,
+                           const CrRgba *lm, CrShadeCtx out[4]) {
     int fon;
     float fst, fen;
     gm_frame_world_fog_params(dimension, boss_fog, &fon, &fst, &fen);
@@ -191,11 +273,60 @@ static int render_world_layers(GmWindowCompose *c, const CrCamera *cam,
             all[i]->fog_exp_density = uw->density;
         }
     }
+    out[0] = sh_solid;
+    out[1] = sh_cmip;
+    out[2] = sh_cut;
+    out[3] = sh_trans;
+}
+
+static int render_world_layers(GmWindowCompose *c, const CrCamera *cam,
+                               const GmMeshView *mv, const CrTexture *atlas,
+                               CrRgba fog, int dimension, int boss_fog,
+                               const GmUnderwater *uw, const CrRgba *lm,
+                               int first_layer, int end_layer) {
+    CrShadeCtx shade[4];
+    terrain_shades(atlas, fog, dimension, boss_fog, uw, lm, shade);
     int ntris = 0;
-    CrShadeCtx *shade[4] = {&sh_solid, &sh_cmip, &sh_cut, &sh_trans};
     for (int layer = first_layer; layer < end_layer; ++layer)
         ntris += render_layer(c, cam, mv->verts[layer], mv->nverts[layer],
-                              shade[layer]);
+                              &shade[layer]);
+    return ntris;
+}
+
+/* Device-resident twin of render_world_layers. The slab runs recorded by
+ * gm_world_mesh_runs are exactly the ranges the host concat would have copied,
+ * in the identical order, so the gathered device stream is byte-identical to
+ * mv->verts[layer] and the pipeline behind it (transform compact -> scan ->
+ * scatter -> bbox -> tiled) is the same one render_layer runs. */
+static int render_world_dev_layers(GmWindowCompose *c, const CrCamera *cam,
+                                   const int nruns[4], const int nverts[4],
+                                   int nch, const CrTexture *atlas,
+                                   CrRgba fog, int dimension, int boss_fog,
+                                   const GmUnderwater *uw, const CrRgba *lm,
+                                   int first_layer, int end_layer) {
+    CrShadeCtx shade[4];
+    terrain_shades(atlas, fog, dimension, boss_fog, uw, lm, shade);
+    if (first_layer == CR_LAYER_SOLID) {
+        /* Upload only the chunks whose mesh was rebuilt since their last sync
+         * (slab_sync no-ops on an unchanged `builds`). This is the ENTIRE
+         * per-frame world H2D: a static camera over a static world moves
+         * nothing at all. */
+        for (int i = 0; i < nch; ++i) {
+            const GmChunkDraw *d = &c->chunks[i];
+            wc_slab_sync(c, d->slot, d->builds, d->slab, d->off[3] + d->n[3]);
+        }
+    }
+    int ntris = 0;
+    for (int layer = first_layer; layer < end_layer; ++layer) {
+        if (nruns[layer] <= 0 || nverts[layer] < 3) continue;
+        const GmMeshRun *bank = c->runs + (size_t)layer * (size_t)c->runs_stride;
+        for (int i = 0; i < nruns[layer]; ++i) {
+            c->gsrc[i] = bank[i].slot * c->slab_cap + bank[i].off;
+            c->gcnt[i] = bank[i].n;
+        }
+        wc_render_gather(c, cam, nruns[layer], nverts[layer], &shade[layer]);
+        ntris += nverts[layer] / 3;
+    }
     return ntris;
 }
 
@@ -501,6 +632,25 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
         c->backend_open = 1;
     }
 #endif
+    /* Device-resident world layers: mirror world_live's mesh-slab pool on the
+     * GPU. runs_stride is the worst case (every kept chunk contributing a run
+     * per section); the backend gather takes at most GM_GATHER_MAX_ENTRIES, so
+     * an over-large configured view radius simply keeps the host-concat path.
+     * MAGMA_NO_DEVMESH forces that path too (same switch frame_capture uses). */
+    if (c->backend_open && wc_dev_backend(c) && !getenv("MAGMA_NO_DEVMESH")) {
+        int stride = caps->mesh_slots * GM_MESH_SECTIONS;
+        if (stride <= GM_GATHER_MAX_ENTRIES &&
+            wc_slab_pool(c, caps->mesh_slots, caps->max_verts_per_chunk)) {
+            c->mesh_slots  = caps->mesh_slots;
+            c->slab_cap    = caps->max_verts_per_chunk;
+            c->runs_stride = stride;
+            c->chunks = malloc((size_t)caps->mesh_slots * sizeof *c->chunks);
+            c->runs   = malloc(4 * (size_t)stride * sizeof *c->runs);
+            c->gsrc   = malloc((size_t)stride * sizeof *c->gsrc);
+            c->gcnt   = malloc((size_t)stride * sizeof *c->gcnt);
+            c->dev_mesh = c->chunks && c->runs && c->gsrc && c->gcnt;
+        }
+    }
     return c;
 }
 
@@ -620,7 +770,31 @@ int gm_window_compose_draw(GmWindowCompose *c,
     int nents = collect_entities(c, ents);
     update_boss_state(c, ents, nents);
     GmMeshView mv;
-    gm_world_mesh_view(r->world, &cam, c->fb.w, c->fb.h, &mv);
+    int dev_nruns[4] = {0, 0, 0, 0}, dev_nv[4] = {0, 0, 0, 0};
+    int dev_nch = -1;
+    if (c->dev_mesh) {
+        /* Slot rebuild counters restart per world, so a dimension switch must
+         * invalidate the pool or the new world's chunks look already-uploaded
+         * (see frame_capture.c). */
+        if (r->world != c->slab_world) {
+            wc_slabs_reset(c);
+            c->slab_world = r->world;
+        }
+        dev_nch = gm_world_mesh_runs(r->world, &cam, c->fb.w, c->fb.h,
+                                     c->chunks, c->mesh_slots,
+                                     c->runs, c->runs_stride,
+                                     dev_nruns, dev_nv,
+                                     &mv.n_kept, &mv.n_culled);
+    }
+    if (dev_nch < 0) {
+        gm_world_mesh_view(r->world, &cam, c->fb.w, c->fb.h, &mv);
+        for (int l = 0; l < 4; ++l) dev_nv[l] = mv.nverts[l];
+    } else {
+        for (int l = 0; l < 4; ++l) {
+            mv.verts[l] = NULL;
+            mv.nverts[l] = dev_nv[l];
+        }
+    }
     stamp(frame, 6);
     const CrRgba *lm = NULL;
     if (worldmc_lightmap_mode() && r->dimension == 0) {
@@ -629,9 +803,13 @@ int gm_window_compose_draw(GmWindowCompose *c,
     }
     /* EntityRenderer.renderWorldPass: opaque terrain first; entities,
      * overlays, and particles are interleaved before translucent terrain. */
-    int ntris = render_world_layers(c, &cam, &mv, &c->atlas, clear,
-                                    r->dimension, c->boss_latch, &uw, lm,
-                                    CR_LAYER_SOLID, CR_LAYER_TRANSLUCENT);
+    int ntris = dev_nch >= 0
+        ? render_world_dev_layers(c, &cam, dev_nruns, dev_nv, dev_nch,
+                                  &c->atlas, clear, r->dimension, c->boss_latch,
+                                  &uw, lm, CR_LAYER_SOLID, CR_LAYER_TRANSLUCENT)
+        : render_world_layers(c, &cam, &mv, &c->atlas, clear,
+                              r->dimension, c->boss_latch, &uw, lm,
+                              CR_LAYER_SOLID, CR_LAYER_TRANSLUCENT);
     stamp(frame, 7);
 
     stamp(frame, 8);
@@ -824,10 +1002,15 @@ int gm_window_compose_draw(GmWindowCompose *c,
         }
     }
     if (overlay) render_crack(c, &cam, clear);
-    ntris += render_world_layers(c, &cam, &mv, &c->atlas, clear,
-                                 r->dimension, c->boss_latch, &uw, lm,
-                                 CR_LAYER_TRANSLUCENT,
-                                 CR_LAYER_TRANSLUCENT + 1);
+    ntris += dev_nch >= 0
+        ? render_world_dev_layers(c, &cam, dev_nruns, dev_nv, dev_nch,
+                                  &c->atlas, clear, r->dimension, c->boss_latch,
+                                  &uw, lm, CR_LAYER_TRANSLUCENT,
+                                  CR_LAYER_TRANSLUCENT + 1)
+        : render_world_layers(c, &cam, &mv, &c->atlas, clear,
+                              r->dimension, c->boss_latch, &uw, lm,
+                              CR_LAYER_TRANSLUCENT,
+                              CR_LAYER_TRANSLUCENT + 1);
     stamp(frame, 9);
     if (c->backend == GM_BACKEND_CUDA) {
         cr_raster_cuda_frame_end(&c->fb);
@@ -936,6 +1119,10 @@ void gm_window_compose_close(GmWindowCompose *c) {
     free(c->tris);
     free(c->entity_verts);
     free(c->ppm_buf);
+    free(c->chunks);
+    free(c->runs);
+    free(c->gsrc);
+    free(c->gcnt);
     cr_fb_free(&c->fb);
     free(c);
 }
