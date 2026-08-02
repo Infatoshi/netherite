@@ -133,6 +133,10 @@ ACT_CACHE = int(os.environ.get("ACT_CACHE", "0")) != 0
 # DIST_NOVALIDATE=1: turn off torch.distributions argument validation (its
 #                   support check ends in a host-synchronizing .all()).
 DIST_NOVALIDATE = int(os.environ.get("DIST_NOVALIDATE", "0")) != 0
+# CHANNELS_LAST=1 : policy net + conv-path activations in torch.channels_last
+#                   (NHWC). Default OFF until the chanlast A/B keeps it.
+#                   CHANNELS_LAST=0 is the current NCHW path, bit-identical.
+CHANNELS_LAST = int(os.environ.get("CHANNELS_LAST", "0")) != 0
 # A CUDA graph cannot contain a pageable H2D copy and cannot contain a host
 # sync, so graph capture forces both of the above on.
 if GRAPH_ROLLOUT or GRAPH_UPDATE:
@@ -359,8 +363,13 @@ class RolloutStep:
         self._obs_ptr = stack_u8.data_ptr()
         self.i_scal = scal.detach().clone()
         self.i_burnin = burnin.detach().clone()
-        self.f_obs = torch.empty(stack_u8.shape, dtype=torch.float32,
-                                 device=self.dev)
+        if CHANNELS_LAST:
+            self.f_obs = torch.empty(
+                stack_u8.shape, dtype=torch.float32, device=self.dev,
+                memory_format=torch.channels_last)
+        else:
+            self.f_obs = torch.empty(stack_u8.shape, dtype=torch.float32,
+                                     device=self.dev)
         s = torch.cuda.Stream(device=self.dev)
         s.wait_stream(torch.cuda.current_stream(self.dev))
         with torch.cuda.stream(s), torch.no_grad():
@@ -425,8 +434,13 @@ class UpdateStep:
         m = self.mb
         self.s_obs = torch.empty((m,) + fO.shape[1:], dtype=fO.dtype,
                                  device=self.dev)
-        self.f_obs = torch.empty((m,) + fO.shape[1:], dtype=torch.float32,
-                                 device=self.dev)
+        if CHANNELS_LAST:
+            self.f_obs = torch.empty(
+                (m,) + fO.shape[1:], dtype=torch.float32, device=self.dev,
+                memory_format=torch.channels_last)
+        else:
+            self.f_obs = torch.empty((m,) + fO.shape[1:], dtype=torch.float32,
+                                     device=self.dev)
         self.s_scal = torch.empty((m, fS.shape[1]), dtype=fS.dtype,
                                   device=self.dev)
         self.s_act = torch.empty((m, fA.shape[1]), dtype=fA.dtype,
@@ -538,19 +552,33 @@ def obs_float(u8, buf=None):
     `buf` supplies a caller-owned destination. CUDA-graph capture NEEDS this:
     the shared buffer is grown by the first MB-sized update call, and a grow
     frees the storage a rollout graph captured at N_ENVS, which would leave
-    the graph replaying into freed memory with no error at all."""
+    the graph replaying into freed memory with no error at all.
+
+    CHANNELS_LAST=1: the float buffer is allocated (or converted) in
+    torch.channels_last so the conv stack sees NHWC activations without a
+    per-call transpose tax. Callers that own `buf` (CUDA-graph static
+    inputs) must pre-allocate it channels_last too, so capture does not
+    allocate on the hot path."""
     n = u8.shape[0]
     if buf is None:
-        key = (u8.device, u8.shape[1:])
+        key = (u8.device, u8.shape[1:], CHANNELS_LAST)
         buf = _OF_BUF.get(key)
         if buf is None or buf.shape[0] < n:
-            buf = torch.empty((n,) + u8.shape[1:], dtype=torch.float32,
-                              device=u8.device)
+            if CHANNELS_LAST:
+                buf = torch.empty(
+                    (n,) + u8.shape[1:], dtype=torch.float32,
+                    device=u8.device, memory_format=torch.channels_last)
+            else:
+                buf = torch.empty((n,) + u8.shape[1:], dtype=torch.float32,
+                                  device=u8.device)
             _OF_BUF[key] = buf
     out = buf[:n]
     out.copy_(u8, non_blocking=True)
     for k in range(STACK):
         out[:, NPLANES * k + 7] /= 255.0      # depth plane
+    if CHANNELS_LAST and not out.is_contiguous(
+            memory_format=torch.channels_last):
+        out = out.contiguous(memory_format=torch.channels_last)
     return out
 
 
@@ -561,12 +589,21 @@ class ChainPolicy(nn.Module):
             nn.Conv2d(NCH, 32, 5, stride=2), nn.ReLU(),
             nn.Conv2d(32, 64, 3, stride=2), nn.ReLU(), nn.Flatten())
         with torch.no_grad():
-            nflat = self.conv(torch.zeros(1, NCH, CAM_H, CAM_W)).shape[1]
+            z = torch.zeros(1, NCH, CAM_H, CAM_W)
+            if CHANNELS_LAST:
+                z = z.contiguous(memory_format=torch.channels_last)
+            nflat = self.conv(z).shape[1]
         self.fc = nn.Sequential(nn.Linear(nflat + NSCAL, 256), nn.ReLU())
         self.heads = nn.ModuleList([nn.Linear(256, n) for n in HEADS])
         self.value = nn.Linear(256, 1)
+        if CHANNELS_LAST:
+            # Conv weights in NHWC; .to(device) preserves this format.
+            self.to(memory_format=torch.channels_last)
 
     def forward(self, p, s):
+        if CHANNELS_LAST and not p.is_contiguous(
+                memory_format=torch.channels_last):
+            p = p.contiguous(memory_format=torch.channels_last)
         h = self.fc(torch.cat([self.conv(p), s], dim=1))
         return [head(h) for head in self.heads], self.value(h).squeeze(-1)
 
@@ -748,6 +785,10 @@ def main():
         net.load_state_dict(torch.load(os.path.join(OUT, WARM),
                                        weights_only=True, map_location=dev))
         print(f"warm start from {WARM}", flush=True)
+    if CHANNELS_LAST:
+        # Re-assert after .to(dev) / load_state_dict (both preserve format
+        # for conv weights in current torch, but make the intent explicit).
+        net.to(memory_format=torch.channels_last)
     if GRAPH_UPDATE:
         # capturable=True keeps Adam's step counter on the device (the CPU
         # counter is a host read, which cannot be captured), and lr must be a
@@ -859,8 +900,9 @@ def main():
     if upd is not None:
         upd.lr_t = lr_t
     print(f"opt flags: fused_sample={FUSED_SAMPLE} act_cache={ACT_CACHE} "
-          f"novalidate={DIST_NOVALIDATE} graph_rollout={GRAPH_ROLLOUT} "
-          f"graph_update={GRAPH_UPDATE}", flush=True)
+          f"novalidate={DIST_NOVALIDATE} channels_last={CHANNELS_LAST} "
+          f"graph_rollout={GRAPH_ROLLOUT} graph_update={GRAPH_UPDATE}",
+          flush=True)
 
     while True:
         bench_sample = BENCH_MEASURE_CHUNKS and \

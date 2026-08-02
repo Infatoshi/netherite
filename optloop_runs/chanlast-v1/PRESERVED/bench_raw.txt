@@ -1,0 +1,25 @@
+lane=chanlast-v1  scoreboard=/home/infatoshi/dev/nw/chanlast/optloop_runs/chanlast-v1/scoreboard.jsonl
+waiting for gpu0 lock ...
+PREFLIGHT ABORT: gpu0 util 7%; gpu1 mem 1336 MiB; gpu1 util 98%; compute apps running: [['GPU-ecbcfcc5-aaeb-e4c5-b343-a86d7e9a6e64', '1159470', '1326']]
+=== wait-for-idle start 2026-08-02T22:06:40Z ===
+(eval):9: command not found: mapfile
+22:06:40 gpus=[] apps=[] lock=free bad=0
+IDLE at 2026-08-02T22:06:40Z, launching bench
+lane=chanlast-v1  scoreboard=/home/infatoshi/dev/nw/chanlast/optloop_runs/chanlast-v1/scoreboard.jsonl
+waiting for gpu0 lock ...
+preflight ok: both GPUs idle
+[baseline] unmodified  x5
+    rep wall_ms=1583.719 (process 6.8s)
+    rep wall_ms=1582.628 (process 6.7s)
+    rep wall_ms=1633.136 (process 6.7s)
+    rep wall_ms=1590.158 (process 6.7s)
+    rep wall_ms=1586.905 (process 6.7s)
+  -> median 1586.91 ms  stderr 9.55  cv 0.0134
+[chanlast] {'CHANNELS_LAST': '1'}  x5
+    rep wall_ms=1869.071 (process 7.5s)
+    rep wall_ms=1866.711 (process 7.6s)
+    rep wall_ms=1869.312 (process 7.6s)
+    rep wall_ms=1872.878 (process 7.5s)
+    rep wall_ms=1871.263 (process 7.5s)
+  -> median 1869.31 ms  rel=-0.1780 abs=-282.41ms mdd=19.10ms eps_abs=31.74ms correctness=pass  keep=False
+=== bench exit rc=0 at 2026-08-02T22:07:51Z ===

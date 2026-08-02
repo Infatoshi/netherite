@@ -33,8 +33,9 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-LANE = os.path.join(REPO, "optloop_runs", "flywheelopt-v1")
-SCOREBOARD = os.path.join(LANE, "scoreboard.jsonl")
+# Lane directory under optloop_runs/. Default unchanged (flywheelopt-v1);
+# override via --lane or OPTLOOP_LANE for sibling A/B lanes (e.g. chanlast-v1).
+DEFAULT_LANE = os.environ.get("OPTLOOP_LANE", "flywheelopt-v1")
 LOCK = "/home/infatoshi/dev/nw/.tmp/gpu0.lock"
 
 EPS = 0.02
@@ -141,11 +142,11 @@ def stats(samples):
             "stderr": (std / (n ** 0.5)) if n else 0.0}
 
 
-def load_baseline():
-    if not os.path.exists(SCOREBOARD):
+def load_baseline(scoreboard):
+    if not os.path.exists(scoreboard):
         return None
     base = None
-    with open(SCOREBOARD) as f:
+    with open(scoreboard) as f:
         for ln in f:
             r = json.loads(ln)
             if r.get("phase") == "baseline":
@@ -165,17 +166,23 @@ def main():
     ap.add_argument("--correctness", default="unrun",
                     choices=["unrun", "pass", "fail"])
     ap.add_argument("--no-record", action="store_true")
+    ap.add_argument("--lane", default=DEFAULT_LANE,
+                    help="optloop_runs/<lane> directory name "
+                         "(default: flywheelopt-v1 or $OPTLOOP_LANE)")
     args = ap.parse_args()
 
-    os.makedirs(LANE, exist_ok=True)
-    log_path = os.path.join(LANE, "bench.log")
+    lane = os.path.join(REPO, "optloop_runs", args.lane)
+    scoreboard = os.path.join(lane, "scoreboard.jsonl")
+    os.makedirs(lane, exist_ok=True)
+    log_path = os.path.join(lane, "bench.log")
+    print(f"lane={args.lane}  scoreboard={scoreboard}", flush=True)
     print("waiting for gpu0 lock ...", flush=True)
     with open(LOCK, "a+") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         try:
             preflight()
             hw = hw_stamp()
-            base = load_baseline()
+            base = load_baseline(scoreboard)
             results = []
             for spec in args.cfg:
                 name, env_over = parse_cfg(spec)
@@ -205,8 +212,14 @@ def main():
                         check=False).stdout.strip(),
                     "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 }
-                ref = base if args.phase != "baseline" else None
-                if ref:
+                # In a multi-cfg A/B under one lock hold, the first cfg named
+                # "baseline" becomes the in-run reference for later cfgs when
+                # no prior scoreboard baseline exists (or phase=baseline).
+                if name == "baseline" and base is None:
+                    base = rec
+                ref = base if (args.phase != "baseline" or
+                               name != "baseline") else None
+                if ref and name != "baseline":
                     mdd = NOISE_K * ref["stats"]["stderr"]
                     gain = ref["metric"] - st["median"]
                     rec["baseline_metric"] = ref["metric"]
@@ -232,7 +245,7 @@ def main():
                           flush=True)
                 results.append(rec)
                 if not args.no_record:
-                    with open(SCOREBOARD, "a") as f:
+                    with open(scoreboard, "a") as f:
                         f.write(json.dumps(rec, sort_keys=True) + "\n")
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
