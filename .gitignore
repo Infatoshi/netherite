@@ -13,6 +13,10 @@ blaze/**/*.o
 blaze/**/*.d
 magma/magma_demo
 magma/magma_game
+magma/magma_game_metal
+magma/metal/*.air
+magma/metal/*.metallib
+magma/tests/test_raster_parity_metal
 # craster test binaries + previews (sources test_*.c / test_*.sh ARE tracked)
 magma/game/test_input_map
 magma/game/test_world_live

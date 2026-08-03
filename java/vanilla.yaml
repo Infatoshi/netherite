@@ -15,7 +15,7 @@ instance:
   username: Player0
 
 world:
-  seed: 0
+  seed: 80302   # fresh throwaway world for tonight's human tape (fresh-world replay rule)
   mode: survival
   type: default
   structures: true
