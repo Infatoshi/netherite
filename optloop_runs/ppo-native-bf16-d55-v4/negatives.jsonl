@@ -1,0 +1,4 @@
+{"hyp": "channels_last", "keep": false, "reason": "NCHW wins; CL adds pad convert overhead"}
+{"hyp": "always_on_burnin", "keep": false, "reason": "regressed vs selective burnin"}
+{"hyp": "bf16_scope_conv_only", "samples": [1382.47, 1383.06, 1384.39], "median": 1383.06, "rel_vs_best": -0.02457, "abs": -33.17, "keep": false, "reason": "slower than full BF16 scope; abs gain below MDD"}
+{"hyp": "preconvert_selected_obs_once_per_ppo_phase", "samples_ms": [1397.18, 1398.41, 1399.23, 1399.98, 1400.69], "median_ms": 1399.23, "rel_vs_best": -0.03655, "abs_vs_best_ms": -49.34, "keep": false, "reason": "correctness pass but slower; full-tensor preconvert OOMed earlier; per-mb convert cheaper"}

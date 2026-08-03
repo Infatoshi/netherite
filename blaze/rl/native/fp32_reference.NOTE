@@ -1,0 +1,7 @@
+Measurement base commit: d55c7f01c1139299be3f7fa0b98ef11b82c3b473
+ppo_chain_cu.py worktree hash differs from d55 pure tree only by optional
+BENCH_*/PROFILE_NVTX/SMOKE_TELEMETRY instrumentation (all default 0/off).
+Algorithm, reward, env SO, and training hyperparams are unchanged when those
+knobs are left at defaults.
+Original d55 ppo_chain_cu.py sha256:
+  dca895ee7c7280043a7435069b858fe62ae658c3ffb1de1fdd00931d11cc4ae2

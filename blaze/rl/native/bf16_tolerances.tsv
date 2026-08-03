@@ -1,0 +1,14 @@
+# Measured at production MB=8192 over seeds 7,19,41 on GPU0.
+# Candidate native-BF16 absolute error versus Python-BF16 must not exceed the
+# corresponding FP32-versus-BF16 baseline ceiling. Sampling actions are exact.
+logits	0.001068364828824997
+values	0.0007998049259185791
+logprob	0.002079010009765625
+entropy	0.0000629425048828125
+policy_loss	0.000010157003998756409
+value_loss	0.0000013113021850585938
+entropy_loss	0.0000000521540641784668
+loss	0.000010319054126739502
+gradients	0.0005318783223628998
+grad_norm	0.0022415220737457275
+update_delta	0.0005999691784381866

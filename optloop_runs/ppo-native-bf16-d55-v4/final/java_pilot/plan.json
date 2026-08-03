@@ -1,0 +1,23 @@
+{
+  "checkpoint": "/home/infatoshi/dev/nw/ppo-native-bf16/optloop_runs/ppo-native-bf16-d55-v4/final/native_1p92b.pt",
+  "checkpoint_sha256": "ecd7aa73709fa9485364fda768559a7cbc45e43352ed703f5c2ead8a373266f0",
+  "displays": [
+    ":11"
+  ],
+  "ep_ticks": 6000,
+  "frame_every": 0,
+  "output": "/home/infatoshi/dev/nw/ppo-native-bf16/optloop_runs/ppo-native-bf16-d55-v4/final/java_pilot/java.json",
+  "pin": "d55c7f01c1139299be3f7fa0b98ef11b82c3b473",
+  "ports": [
+    25610
+  ],
+  "seeds": [
+    2,
+    3,
+    10
+  ],
+  "state": "/home/infatoshi/dev/nw/ppo-native-bf16/optloop_runs/ppo-native-bf16-d55-v4/final/java_pilot",
+  "tracked_clean": true,
+  "tries": 5,
+  "workers": 1
+}

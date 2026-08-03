@@ -1,0 +1,46 @@
+{
+  "schema": "netherite.native-smoke.v1",
+  "chunks": 10,
+  "finite_all": true,
+  "memory_stable": true,
+  "bench_walls_ms": [
+    1611.95,
+    1330.59,
+    1348.91,
+    1355.3,
+    1358.06,
+    1353.71,
+    1359.62,
+    1351.87,
+    1360.31,
+    1354.0
+  ],
+  "steady_median_ms": 1354.0,
+  "checkpoint_conversion": {
+    "dtype": "float32",
+    "native": "optloop_runs/ppo-native-bf16-d55-v4/smoke/native_10chunks.nckpt",
+    "native_sha256": "12b1f26a3e821f17bb7d6f55d986ae31e603ecc488f912feafc548db85ef71eb",
+    "output": "optloop_runs/ppo-native-bf16-d55-v4/smoke/native_10chunks.pt",
+    "output_sha256": "ca11c90666f72041179af61ef35ffb7f7e4c069ff2b2f41a623d4741df24454c",
+    "parameter_keys": 26,
+    "parameter_values": 1654723,
+    "schema": "netherite.native-checkpoint-conversion.v1",
+    "strict_key_shape_value_roundtrip": true
+  },
+  "sim_sanity_finite_and_non_degenerate": false,
+  "sim_sanity_value_range": [
+    -437.5011901855469,
+    -2.449260711669922
+  ],
+  "sim_active_heads": [
+    3,
+    2,
+    2,
+    1,
+    2,
+    1,
+    2,
+    2,
+    3
+  ]
+}

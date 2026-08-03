@@ -1,0 +1,96 @@
+{
+  "action_counts": [
+    [
+      16256,
+      128,
+      0
+    ],
+    [
+      16256,
+      128,
+      0
+    ],
+    [
+      16256,
+      128,
+      0
+    ],
+    [
+      16384,
+      0
+    ],
+    [
+      15008,
+      1376
+    ],
+    [
+      128,
+      16256
+    ],
+    [
+      128,
+      0,
+      0,
+      0,
+      0,
+      0,
+      16256
+    ],
+    [
+      16384,
+      0
+    ],
+    [
+      128,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      16256,
+      0,
+      0
+    ]
+  ],
+  "active_categories_per_head": [
+    2,
+    2,
+    2,
+    1,
+    2,
+    2,
+    2,
+    1,
+    2
+  ],
+  "backend": "/home/infatoshi/dev/nw/ppo-native-bf16/blaze/env/blaze_cuda.so",
+  "checkpoint": "optloop_runs/ppo-native-bf16-d55-v4/final/native_1p92b.pt",
+  "checkpoint_sha256": "ecd7aa73709fa9485364fda768559a7cbc45e43352ed703f5c2ead8a373266f0",
+  "decisions": 128,
+  "deepest_stage_histogram": [
+    128,
+    0,
+    0,
+    0,
+    0
+  ],
+  "episodes_ended": 0,
+  "finite_and_non_degenerate": false,
+  "lanes": 128,
+  "multi_category_heads_diverse": true,
+  "policy_rng_seed": 20260801,
+  "repeat": 4,
+  "sampling": "torch.distributions.Categorical",
+  "schema": "netherite.native-sim-sanity.v1",
+  "torch_successes": 0,
+  "value_max": -159881.5,
+  "value_min": -23213760.0,
+  "values_within_sane_range": false,
+  "world_seeds": [
+    2,
+    3,
+    10,
+    14
+  ]
+}

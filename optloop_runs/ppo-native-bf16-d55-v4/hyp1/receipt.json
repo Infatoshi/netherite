@@ -1,0 +1,19 @@
+{
+  "schema": "netherite.optloop.candidate.v1",
+  "name": "hyp1-fused-cat-branchless-reward-obsbuf",
+  "correctness": "pass",
+  "samples_ms": [
+    1494.59,
+    1494.8,
+    1497.36
+  ],
+  "median_ms": 1494.8,
+  "baseline_median_ms": 1513.78,
+  "rel_gain": 0.01254,
+  "abs_gain_ms": 18.98,
+  "eps": 0.02,
+  "mdd_abs_ms": 34.45,
+  "keep_metric": false,
+  "reason": "Below 2% epsilon and MDD; retained as correctness-preserving hygiene (Python-matched single categorical, no reward host any()).",
+  "contract_metric": "median chunk_wall_ms"
+}
