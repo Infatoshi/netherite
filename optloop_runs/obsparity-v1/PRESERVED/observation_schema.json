@@ -1,0 +1,365 @@
+{
+  "frame": {
+    "channels": [
+      {
+        "channel": 0,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "log",
+        "resize_or_crop": "none",
+        "stack_position": "previous",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 1,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "leaves",
+        "resize_or_crop": "none",
+        "stack_position": "previous",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 2,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "coal_ore",
+        "resize_or_crop": "none",
+        "stack_position": "previous",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 3,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "stone_or_cobble",
+        "resize_or_crop": "none",
+        "stack_position": "previous",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 4,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "grass_or_dirt",
+        "resize_or_crop": "none",
+        "stack_position": "previous",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 5,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "crafting_table",
+        "resize_or_crop": "none",
+        "stack_position": "previous",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 6,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "solid",
+        "resize_or_crop": "none",
+        "stack_position": "previous",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 7,
+        "network_dtype": "float32",
+        "network_scale": "1/255",
+        "plane": "depth",
+        "resize_or_crop": "none",
+        "stack_position": "previous",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 8,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "edge",
+        "resize_or_crop": "none",
+        "stack_position": "previous",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 9,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "log",
+        "resize_or_crop": "none",
+        "stack_position": "current",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 10,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "leaves",
+        "resize_or_crop": "none",
+        "stack_position": "current",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 11,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "coal_ore",
+        "resize_or_crop": "none",
+        "stack_position": "current",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 12,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "stone_or_cobble",
+        "resize_or_crop": "none",
+        "stack_position": "current",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 13,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "grass_or_dirt",
+        "resize_or_crop": "none",
+        "stack_position": "current",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 14,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "crafting_table",
+        "resize_or_crop": "none",
+        "stack_position": "current",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 15,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "solid",
+        "resize_or_crop": "none",
+        "stack_position": "current",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 16,
+        "network_dtype": "float32",
+        "network_scale": "1/255",
+        "plane": "depth",
+        "resize_or_crop": "none",
+        "stack_position": "current",
+        "storage_dtype": "uint8"
+      },
+      {
+        "channel": 17,
+        "network_dtype": "float32",
+        "network_scale": "1",
+        "plane": "edge",
+        "resize_or_crop": "none",
+        "stack_position": "current",
+        "storage_dtype": "uint8"
+      }
+    ],
+    "planes_per_frame": 9,
+    "resolution": [
+      36,
+      64
+    ],
+    "stack": 2
+  },
+  "scalars": [
+    {
+      "dtype": "float32",
+      "index": 0,
+      "name": "coal_rel_yaw_sin",
+      "scaling": "none",
+      "source": "sin(relative yaw radians)"
+    },
+    {
+      "dtype": "float32",
+      "index": 1,
+      "name": "coal_rel_yaw_cos",
+      "scaling": "none",
+      "source": "cos(relative yaw radians)"
+    },
+    {
+      "dtype": "float32",
+      "index": 2,
+      "name": "coal_rel_pitch",
+      "scaling": "divide 90",
+      "source": "relative pitch degrees / 90"
+    },
+    {
+      "dtype": "float32",
+      "index": 3,
+      "name": "coal_distance",
+      "scaling": "clip 24, divide 24",
+      "source": "min(distance,24) / 24; 1 if none"
+    },
+    {
+      "dtype": "float32",
+      "index": 4,
+      "name": "pitch_sin",
+      "scaling": "none",
+      "source": "sin(player pitch radians)"
+    },
+    {
+      "dtype": "float32",
+      "index": 5,
+      "name": "pitch_cos",
+      "scaling": "none",
+      "source": "cos(player pitch radians)"
+    },
+    {
+      "dtype": "float32",
+      "index": 6,
+      "name": "inv_log",
+      "scaling": "clip 10, divide 10",
+      "source": "inventory count for log"
+    },
+    {
+      "dtype": "float32",
+      "index": 7,
+      "name": "inv_planks",
+      "scaling": "clip 10, divide 10",
+      "source": "inventory count for planks"
+    },
+    {
+      "dtype": "float32",
+      "index": 8,
+      "name": "inv_stick",
+      "scaling": "clip 10, divide 10",
+      "source": "inventory count for stick"
+    },
+    {
+      "dtype": "float32",
+      "index": 9,
+      "name": "inv_cobble",
+      "scaling": "clip 10, divide 10",
+      "source": "inventory count for cobble"
+    },
+    {
+      "dtype": "float32",
+      "index": 10,
+      "name": "inv_table",
+      "scaling": "clip 10, divide 10",
+      "source": "inventory count for table"
+    },
+    {
+      "dtype": "float32",
+      "index": 11,
+      "name": "inv_wood_pick",
+      "scaling": "clip 10, divide 10",
+      "source": "inventory count for wood_pick"
+    },
+    {
+      "dtype": "float32",
+      "index": 12,
+      "name": "inv_stone_pick",
+      "scaling": "clip 10, divide 10",
+      "source": "inventory count for stone_pick"
+    },
+    {
+      "dtype": "float32",
+      "index": 13,
+      "name": "inv_coal",
+      "scaling": "clip 10, divide 10",
+      "source": "inventory count for coal"
+    },
+    {
+      "dtype": "float32",
+      "index": 14,
+      "name": "inv_torch",
+      "scaling": "clip 10, divide 10",
+      "source": "inventory count for torch"
+    },
+    {
+      "dtype": "float32",
+      "index": 15,
+      "name": "container_open",
+      "scaling": "boolean 0/1",
+      "source": "container > 0"
+    },
+    {
+      "dtype": "float32",
+      "index": 16,
+      "name": "held_log",
+      "scaling": "one-hot 0/1",
+      "source": "held item is log"
+    },
+    {
+      "dtype": "float32",
+      "index": 17,
+      "name": "held_planks",
+      "scaling": "one-hot 0/1",
+      "source": "held item is planks"
+    },
+    {
+      "dtype": "float32",
+      "index": 18,
+      "name": "held_stick",
+      "scaling": "one-hot 0/1",
+      "source": "held item is stick"
+    },
+    {
+      "dtype": "float32",
+      "index": 19,
+      "name": "held_cobble",
+      "scaling": "one-hot 0/1",
+      "source": "held item is cobble"
+    },
+    {
+      "dtype": "float32",
+      "index": 20,
+      "name": "held_table",
+      "scaling": "one-hot 0/1",
+      "source": "held item is table"
+    },
+    {
+      "dtype": "float32",
+      "index": 21,
+      "name": "held_wood_pick",
+      "scaling": "one-hot 0/1",
+      "source": "held item is wood_pick"
+    },
+    {
+      "dtype": "float32",
+      "index": 22,
+      "name": "held_stone_pick",
+      "scaling": "one-hot 0/1",
+      "source": "held item is stone_pick"
+    },
+    {
+      "dtype": "float32",
+      "index": 23,
+      "name": "held_coal",
+      "scaling": "one-hot 0/1",
+      "source": "held item is coal"
+    },
+    {
+      "dtype": "float32",
+      "index": 24,
+      "name": "held_torch",
+      "scaling": "one-hot 0/1",
+      "source": "held item is torch"
+    },
+    {
+      "dtype": "float32",
+      "index": 25,
+      "name": "player_y",
+      "scaling": "divide 64, no clip",
+      "source": "feet y / 64"
+    },
+    {
+      "dtype": "float32",
+      "index": 26,
+      "name": "episode_fraction",
+      "scaling": "divide 1500",
+      "source": "decision index / 1500"
+    }
+  ]
+}
