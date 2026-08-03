@@ -183,6 +183,21 @@ public class Recorder {
      * deterministic for replay. Client thread only. */
     private static final java.util.List<String> recParticles =
         new java.util.ArrayList<String>();
+    /** Player entity flag-7 values delivered by SPacketEntityMetadata since
+     * the last recorded tick. The mixin records the packet's base-flags data
+     * entry itself, so these are observed integrated-server round trips rather
+     * than states inferred from jump input or local EntityLivingBase updates. */
+    private static final java.util.List<Integer> recFlag7Metadata =
+        new java.util.ArrayList<Integer>();
+    /** Rotation sampled at ClientTickEvent.START, i.e. exactly what this
+     * tick's travel() will use. The post-tick yaw/pitch in the row can differ
+     * when the driver lands a turn between END and the next START (mouse look,
+     * scenario turns), and WHICH side of travel a turn lands on varies per
+     * recording - so replay must not infer the physics rotation from post-tick
+     * values (measured: nether_elytra t=43 arm tick used the NEW pitch 6.8
+     * while the fresh-world t371 walking turn used the OLD yaw). */
+    private static float recPreYaw = 0.0F, recPrePitch = 0.0F;
+    private static boolean recPreLookValid = false;
     private volatile String recSnapRoot = null;   // <tape>_world, live while recording
     private int recLastPlayerTicksExisted = Integer.MIN_VALUE;
     private int recLastDimension = Integer.MIN_VALUE;
@@ -280,6 +295,25 @@ public class Recorder {
         recPositionVy = mc.player.motionY;
         recPositionVz = mc.player.motionZ;
         recPositionPending = true;
+    }
+
+    /** Client-thread hook from MixinRecordPlayerMetadata. Capture every
+     * occurrence because a tape can arm, clear, and arm again. Data parameter
+     * 0 is Entity.FLAGS; bit 7 is fall-flying in MC 1.11.2. */
+    public static void recordPlayerFlag7Metadata(
+            net.minecraft.network.play.server.SPacketEntityMetadata packet) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.player == null ||
+                packet.getEntityId() != mc.player.getEntityId()) return;
+        java.util.List<net.minecraft.network.datasync.EntityDataManager.DataEntry<?>> entries =
+            packet.getDataManagerEntries();
+        if (entries == null) return;
+        for (net.minecraft.network.datasync.EntityDataManager.DataEntry<?> entry : entries) {
+            if (entry.getKey().getId() != 0 || !(entry.getValue() instanceof Byte))
+                continue;
+            int flags = ((Byte) entry.getValue()).byteValue() & 0xff;
+            recFlag7Metadata.add(Integer.valueOf((flags & (1 << 7)) != 0 ? 1 : 0));
+        }
     }
 
     private void applyPinnedPortalPhase(Minecraft mc) {
@@ -1145,6 +1179,15 @@ public class Recorder {
 
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent e) {
+        if (e.phase == TickEvent.Phase.START) {
+            Minecraft mcs = Minecraft.getMinecraft();
+            if (recWriter != null && mcs.player != null) {
+                recPreYaw = mcs.player.rotationYaw;
+                recPrePitch = mcs.player.rotationPitch;
+                recPreLookValid = true;
+            }
+            return;
+        }
         if (e.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getMinecraft();
         mc.gameSettings.pauseOnLostFocus = false; // headless window never has focus; keep the server ticking
@@ -1264,6 +1307,8 @@ public class Recorder {
                 recLastInv = null;  // force a full inventory dump on tick 0
                 recVelocityPending = false;
                 recPositionPending = false;
+                recFlag7Metadata.clear();
+                recPreLookValid = false;
                 recLastPlayerTicksExisted = mc.player.ticksExisted;
                 recLastDimension = mc.player.dimension;
                 recPlayerLoading = false;
@@ -1300,6 +1345,15 @@ public class Recorder {
                  .append(",\"hp\":").append(mc.player.getHealth())
                  .append(",\"food\":").append(mc.player.getFoodStats().getFoodLevel())
                  .append(",\"dim\":").append(mc.player.dimension)
+                 // Presence of flag7_metadata opts replay into recorded
+                 // metadata timing. Legacy tapes omit it and retain the
+                 // historical one-tick prediction byte-for-byte.
+                 .append(",\"flag7_metadata\":1,\"flag7_initial\":")
+                 .append(mc.player.isElytraFlying() ? 1 : 0)
+                 // Presence of look_phase opts replay into per-tick pre-travel
+                 // rotation rows (ry/rp); legacy tapes keep the deferred
+                 // post-tick set_look semantics unchanged.
+                 .append(",\"look_phase\":1")
                  .append(",\"gamemode\":\"").append(mc.playerController.getCurrentGameType().getName())
                  .append("\",\"difficulty\":\"").append(mc.world.getDifficulty().name())
                  // "default" (steve arm) or "slim" (alex) - offline UUID hash
@@ -5590,6 +5644,11 @@ sb.append("}");
         b.append(",\"x\":").append(p.posX).append(",\"y\":").append(p.posY)
          .append(",\"z\":").append(p.posZ)
          .append(",\"yaw\":").append(p.rotationYaw).append(",\"pitch\":").append(p.rotationPitch)
+         // pre-travel rotation for THIS tick's physics (see recPreYaw docs);
+         // falls back to post-tick rotation on the first row if START never
+         // fired between recstart and this record (same-tick recstart).
+         .append(",\"ry\":").append(recPreLookValid ? recPreYaw : p.rotationYaw)
+         .append(",\"rp\":").append(recPreLookValid ? recPrePitch : p.rotationPitch)
          .append(",\"vx\":").append(p.motionX).append(",\"vy\":").append(p.motionY)
          .append(",\"vz\":").append(p.motionZ)
          .append(",\"og\":").append(p.onGround ? 1 : 0)
@@ -5683,6 +5742,15 @@ sb.append("}");
              .append(",").append(recPositionVy)
              .append(",").append(recPositionVz).append("]");
             recPositionPending = false;
+        }
+        if (!recFlag7Metadata.isEmpty()) {
+            b.append(",\"f7\":[");
+            for (int i = 0; i < recFlag7Metadata.size(); ++i) {
+                if (i > 0) b.append(',');
+                b.append(recFlag7Metadata.get(i).intValue());
+            }
+            b.append(']');
+            recFlag7Metadata.clear();
         }
         /* During cross-dimension terrain download the client player exists but
          * is not yet in a loaded chunk, so WorldClient deliberately does not

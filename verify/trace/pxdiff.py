@@ -12,6 +12,8 @@ Sources (any subcommand takes one of these):
   --a A.png --b B.png     any pair (mc_capture / ui_hud / ui_entities gates)
 
 Subcommands:
+  survey     one-shot triage: overview.png with numbered boxes + a zoom
+             triptych per top cluster + survey.json. Agents START here.
   clusters   labeled cluster table + a cause verdict per cluster
   zoom       write a golden|candidate|heat triptych PNG, zoomed to a cluster
              or an explicit rect, nearest-neighbour with a texel grid
@@ -20,6 +22,19 @@ Subcommands:
   frames     rank a whole tape's frames by unexplained cluster pixels
   selftest   synthetic mutations with known causes; verifies the verdicts
 
+Reading the output:
+  px counts  survey/clusters count connected-component MEMBERS; probe and
+             pixels count every differing pixel inside the (padded) rect, so
+             probe's count is >= the cluster's px. Both are correct.
+  gate class mirrors pixel_gate's masking (positional accept masks, then the
+             tape's known-divergence sidecar classes): it says which budget
+             absorbed the pixels, NOT which renderer subsystem is at fault. A
+             report's soak_from marks spill from an over-budget class.
+  unresolved big unresolved clusters are auto-refined into tile verdicts
+             (refined: line / children field); frame-level notes flag the two
+             whole-frame patterns no single cluster can name (global shift,
+             camera/pose error). Never report unresolved as a diagnosis.
+
 Verdicts (what the discriminators mean):
   texel-selection  candidate values are golden values from the local
                    neighbourhood, reshuffled: nearest-neighbour minification
@@ -27,8 +42,10 @@ Verdicts (what the discriminators mean):
                    high sigma, or a LOCAL one-texel slip (bands of screen rows
                    sampling the neighbouring texture row) - the latter shows up
                    as best_shift (-1,0)/(0,-1) with a high texel_selection_tol4.
-  shading-offset   uniform signed bias, low sigma: a lighting / fog / tint
-                   scalar is wrong, the geometry and texture are right.
+  shading-offset   uniform signed bias, low sigma, structure_corr high: a
+                   lighting / fog / tint scalar is wrong, the geometry and
+                   texture are right. If the bias is uniform but the golden
+                   structure is gone (structure_corr <= 0.5), it is content.
   registration     an integer pixel shift beats dx=dy=0 by a wide margin: the
                    content is right and placed wrong.
   content          one side has structure the other lacks: missing or extra
@@ -224,6 +241,24 @@ def sky_alignment(g, c, ys, xs):
     return float(np.dot(axis / na, d / nd))
 
 
+def structure_corr(g, c, ys, xs):
+    """Pearson correlation of golden vs candidate luminance over the cluster.
+
+    A shading / fog / tint error shifts every pixel by the same scalar, so the
+    two sides stay perfectly correlated; replacing the content destroys the
+    correlation. One side flat while the other is textured is the content case
+    caught red-handed (a solid slab drawn over real texture); both sides flat
+    means there is no structure to disagree on and the bias alone decides."""
+    gl = g[ys, xs].astype(np.float64).mean(axis=1)
+    cl = c[ys, xs].astype(np.float64).mean(axis=1)
+    gs, cs = float(gl.std()), float(cl.std())
+    if gs < 2 and cs < 2:
+        return 1.0, gs, cs
+    if gs < 2 or cs < 2:
+        return 0.0, gs, cs
+    return float(np.corrcoef(gl, cl)[0, 1]), gs, cs
+
+
 def sky_coverage(g, c, ys, xs):
     """Count pixels where one side actually shows background and the other does
     not. Direction alone is not enough: on a minified canopy the delta is
@@ -242,8 +277,18 @@ def sky_coverage(g, c, ys, xs):
 
 def verdict(g, c, ys, xs, box):
     d = (c[ys, xs].astype(np.int32) - g[ys, xs])
-    mean = d.mean(axis=0)
-    sigma = d.std(axis=0)
+    # Saturated channels lie about the offset: +40 of fog on a bright surface
+    # clips at 255, drags the channel mean down and inflates sigma until a
+    # clean shading-offset reads as unresolved. Mask them out of the moments;
+    # a channel that is clipped everywhere falls back to the raw stats.
+    clip = ((g[ys, xs] <= 0) | (g[ys, xs] >= 255) |
+            (c[ys, xs] <= 0) | (c[ys, xs] >= 255))
+    dm = np.ma.array(d, mask=clip)
+    mean = np.where(dm.count(axis=0) > 0,
+                    np.ma.filled(dm.mean(axis=0), 0.0), d.mean(axis=0))
+    sigma = np.where(dm.count(axis=0) > 1,
+                     np.ma.filled(dm.std(axis=0), 0.0), d.std(axis=0))
+    clip_frac = float(clip.any(axis=1).mean()) if len(ys) else 0.0
     sel = texel_selection_frac(g, c, ys, xs)
     sel_tol = texel_selection_frac(g, c, ys, xs, tol=4)
     (bdy, bdx, bmean), zero = best_shift(g, c, box)
@@ -251,6 +296,7 @@ def verdict(g, c, ys, xs, box):
     bias, spread = content_frac(g, c, ys, xs)
     sky = sky_alignment(g, c, ys, xs)
     hole, fill = sky_coverage(g, c, ys, xs)
+    corr, g_std, c_std = structure_corr(g, c, ys, xs)
     facts = {
         "mean_delta": [round(float(v), 2) for v in mean],
         "sigma": [round(float(v), 1) for v in sigma],
@@ -265,6 +311,9 @@ def verdict(g, c, ys, xs, box):
         "sky_align": round(sky, 3),
         "sky_hole_frac": round(hole, 3),
         "sky_fill_frac": round(fill, 3),
+        "structure_corr": round(corr, 3),
+        "lum_std": [round(g_std, 1), round(c_std, 1)],
+        "clip_frac": round(clip_frac, 3),
     }
     biased = np.abs(mean).max() > 0.6 * sigma.max() and np.abs(mean).max() > 3
     local = (box[2] - box[0] + 1) * (box[3] - box[1] + 1) < 0.05 * g.shape[0] * g.shape[1]
@@ -278,12 +327,20 @@ def verdict(g, c, ys, xs, box):
         # small per-row light/fog difference on top, so exact equality misses it.
         cause = "texel-selection"
     elif biased and sigma.max() < 12:
-        cause = "shading-offset"
+        # A uniform bias with the structure intact is a wrong scalar; a uniform
+        # bias that also flattened or replaced the structure is new content
+        # wearing a low sigma (a solid slab over near-flat golden ground reads
+        # mean_delta 175 sigma 8 - measured on the validation set 2026-08-02).
+        cause = "shading-offset" if corr > 0.5 else "content"
     elif max(hole, fill) > 0.15 and abs(sky) > 0.9:
         # Ahead of "content" on purpose: a cutout leak IS a content difference,
         # and naming the surface type is the more useful answer.
         cause = "cutout-sky+" if hole >= fill else "cutout-sky-"
-    elif abs(bias) > 40 and spread > 25:
+    elif (abs(bias) > 40 and spread > 25) or (
+            np.abs(mean).max() > 40 and corr <= 0.5):
+        # Second arm: a recolor can cancel in the grey bias (+104 red, -15
+        # green) while any single channel screams; low structure_corr says the
+        # golden texture is gone, which grey-mean arithmetic cannot hide.
         cause = "content"
     elif ef > 0.6:
         cause = "edge"
@@ -394,6 +451,13 @@ def selftest():
     # content: a solid block only one side draws
     con = base.copy()
     con[40:80, 40:90] = 250
+    # content over NEAR-FLAT golden: delta sigma is small, so before the
+    # structure_corr discriminator this family read as shading-offset. A mildly
+    # textured floor replaced by a solid slab must still say content.
+    flat = base.copy()
+    flat[40:80, 40:90] = 100 + rng.integers(-8, 9, size=(40, 50, 3))
+    conf = flat.copy()
+    conf[40:80, 40:90] = 180
     # texel swap PLUS a small light difference on top: exact match fails, the
     # tolerant one must still catch it. This is the shape of every real
     # minified surface in the tapes.
@@ -409,13 +473,12 @@ def selftest():
     cut[hy[sel_h], hx[sel_h]] = [140, 180, 255]
     basec = base.copy()
     basec[:8] = [140, 180, 255]
-    cases = [("texel-selection", tex), ("texel-selection", texn),
-             ("shading-offset", sha), ("registration", reg),
-             ("content", con)]
+    cases = [("texel-selection", tex, base), ("texel-selection", texn, base),
+             ("shading-offset", sha, base), ("registration", reg, base),
+             ("content", con, base), ("content", conf, flat),
+             ("cutout-sky+", cut, basec)]
     ok = True
-    for want, cand in cases + [("cutout-sky+", None)]:
-        ref = base if cand is not None else basec
-        cand = cut if cand is None else cand
+    for want, cand, ref in cases:
         cl = cluster_list(ref, cand, pg.DIFF_THRESH, pg.MIN_CLUSTER)
         got = cl[0]["cause"] if cl else "no-cluster"
         flag = "ok " if got == want else "FAIL"
@@ -433,6 +496,73 @@ def selftest():
         print("  ok  identical            -> no clusters")
     print("selftest:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
+
+
+def frame_shift_note(clusters):
+    """A global 1px misregistration fragments into small clusters that each
+    read as texel-selection locally; the tell is every cluster preferring the
+    SAME nonzero shift. Say so, because no single cluster can."""
+    from collections import Counter
+    shifts = [tuple(r["best_shift"]) for r in clusters
+              if tuple(r["best_shift"]) != (0, 0)
+              and r["shift_mean"] < 0.6 * r["zero_shift_mean"]]
+    if len(clusters) >= 3 and shifts:
+        (s, n), = Counter(shifts).most_common(1)
+        if n >= 3 and n >= 0.6 * len(clusters):
+            return (f"frame-level: {n}/{len(clusters)} clusters prefer shift "
+                    f"{s} - a whole-frame registration error fragments into "
+                    "local texel-selection verdicts; suspect camera/projection "
+                    "before texture sampling")
+    return None
+
+
+def refine_unresolved(g, c, r, thresh):
+    """Tile a big unresolved cluster and verdict each tile: a cluster that
+    mixes families (or hides one family under another's pixels) often refuses
+    a whole-cluster verdict while its tiles resolve cleanly. Returns
+    {cause: fraction_of_differing_px} over resolving tiles, or None."""
+    y0, x0, y1, x1 = r["box"]
+    hh, ww = y1 - y0 + 1, x1 - x0 + 1
+    ny, nx = min(4, max(1, hh // 40)), min(4, max(1, ww // 40))
+    if ny * nx < 2:
+        return None
+    d = np.abs(c - g).max(axis=2)
+    counts = {}
+    for iy in range(ny):
+        for ix in range(nx):
+            ty0, ty1 = y0 + iy * hh // ny, y0 + (iy + 1) * hh // ny - 1
+            tx0, tx1 = x0 + ix * ww // nx, x0 + (ix + 1) * ww // nx - 1
+            m = np.zeros(d.shape, dtype=bool)
+            m[ty0:ty1 + 1, tx0:tx1 + 1] = True
+            m &= d >= thresh
+            ys, xs = np.nonzero(m)
+            if len(ys) < 30:
+                continue
+            cause, _ = verdict(g, c, ys, xs, (ty0, tx0, ty1, tx1))
+            counts[cause] = counts.get(cause, 0) + len(ys)
+    if not counts:
+        return None
+    total = sum(counts.values())
+    return {k: round(v / total, 2) for k, v in
+            sorted(counts.items(), key=lambda kv: -kv[1])}
+
+
+def frame_pose_note(clusters, frame_px):
+    """A sub-block camera/pose error remaps most of the scene: huge cluster,
+    no family fits, structure gone, no integer shift wins. The next probe is
+    the PLAYER STATE, not more pixels - measured on nether_elytra t=176 where
+    a 0.93-block landing-lag Y offset produced exactly this signature."""
+    big = [r for r in clusters
+           if r["px"] > 0.15 * frame_px and r["cause"] == "unresolved"
+           and r.get("structure_corr", 1.0) <= 0
+           and tuple(r["best_shift"]) == (0, 0)]
+    if big:
+        return (f"frame-level: {len(big)} unresolved cluster(s) span >15% of "
+                "the frame with structure_corr<=0 and no shift win - the "
+                "scene itself moved. Diff the pose first: tape jsonl "
+                "x/y/z/on_ground vs out/tape_<NAME>/magma_state.jsonl for "
+                "this tick, then re-triage.")
+    return None
 
 
 # ------------------------------------------------------------------ main
@@ -506,21 +636,40 @@ def main():
                             hide_hand=_hg and (_hf is None
                                                or (args.tick or 0) < _hf))
 
+    if args.cmd in ("clusters", "survey"):
+        for r in clusters:
+            if r["cause"] == "unresolved" and r["px"] >= 4 * args.min_px:
+                ch = refine_unresolved(g, c, r, args.thresh)
+                if ch:
+                    r["children"] = ch
+
+    notes = [n for n in (frame_shift_note(clusters),
+                         frame_pose_note(clusters, g.shape[0] * g.shape[1]))
+             if n]
+
     if args.cmd == "clusters":
         if args.json:
-            print(json.dumps({"source": label, "clusters": clusters}, indent=1))
+            print(json.dumps({"source": label, "clusters": clusters,
+                              "frame_notes": notes}, indent=1))
             return 0
         print(f"{label}: {len(clusters)} clusters >= {args.min_px}px "
               f"at thresh {args.thresh}, whole frame mean "
               f"{float(np.abs(c - g).mean()):.3f}/ch")
         print(f"{'#':>3} {'px':>6}  {'bbox y0,x0,y1,x1':<22} {'gate':<12} "
-              f"{'cause':<16} sel  shift  mean_delta")
+              f"{'cause':<16} sel  tol4  shift  mean_delta")
         for i, r in enumerate(clusters):
             y0, x0, y1, x1 = r["box"]
             print(f"{i:3d} {r['px']:6d}  {f'{y0},{x0},{y1},{x1}':<22} "
                   f"{r['gate_class']:<12} {r['cause']:<16} "
                   f"{r['texel_selection_frac']:.2f} "
+                  f"{r['texel_selection_tol4']:.2f} "
                   f"{str(tuple(r['best_shift'])):>7} {r['mean_delta']}")
+            if "children" in r:
+                kids = ", ".join(f"{k} {v:.0%}" for k, v in
+                                 r["children"].items())
+                print(f"           refined (tile majority): {kids}")
+        for n in notes:
+            print(n)
         return 0
 
     if args.cmd == "survey":
@@ -540,7 +689,7 @@ def main():
             draw.text((x0 + 2, max(0, y0 - 11)), str(i), fill=(255, 0, 255))
         over_path = os.path.join(outdir, "overview.png")
         over.save(over_path)
-        report = {"source": label, "clusters": []}
+        report = {"source": label, "frame_notes": notes, "clusters": []}
         for i, r in enumerate(top):
             y0, x0, y1, x1 = r["box"]
             cw = (x1 - x0 + 1 + 2 * args.pad) * 3 + 4
@@ -560,6 +709,12 @@ def main():
             y0, x0, y1, x1 = r["box"]
             print(f"{i:3d} {r['px']:6d}  {f'{y0},{x0},{y1},{x1}':<22} "
                   f"{r['gate_class']:<12} {r['cause']:<16} {r['zoom']}")
+            if "children" in r:
+                kids = ", ".join(f"{k} {v:.0%}" for k, v in
+                                 r["children"].items())
+                print(f"           refined (tile majority): {kids}")
+        for n in notes:
+            print(n)
         print(f"overview (numbered boxes): {over_path}")
         return 0
 
@@ -611,7 +766,9 @@ def main():
             print("no differing pixels in rect")
             return 0
         cause, facts = verdict(g, c, ys, xs, box)
-        print(f"{label}  rect y[{y0},{y1}] x[{x0},{x1}]  {len(ys)} differing px")
+        print(f"{label}  rect y[{y0},{y1}] x[{x0},{x1}]  {len(ys)} differing px"
+              " (every differing px in the rect; cluster px counts are"
+              " connected-component members, so this can be larger)")
         print(f"  cause: {cause}")
         for k, v in facts.items():
             print(f"    {k:22s} {v}")

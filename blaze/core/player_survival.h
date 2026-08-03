@@ -100,6 +100,7 @@ typedef struct {
     int      elytra_equipped;
     int      elytra_flying;       /* Entity flag 7 (client-visible) */
     int      elytra_flying_pending; /* server set it; metadata lands next tick */
+    int      elytra_flag7_recorded; /* replay consumes recorded metadata timing */
     int      elytra_pose;
     int      ticks_elytra_flying;
     float    elytra_wall_damage;  /* FLY_INTO_WALL damage emitted this tick */
@@ -635,7 +636,7 @@ MC_HD static inline void psv_elytra_travel(const Chunk *now, const McSinTable *s
         float damage = (float)((speed_h - speed_after) * 10.0 - 3.0);
         if (damage > 0.0f) pl->elytra_wall_damage = damage;
     }
-    if (e->onGround) pl->elytra_flying = 0;
+    if (e->onGround && !pl->elytra_flag7_recorded) pl->elytra_flying = 0;
     pl->jump_factor_sprint = act->sprint;
 }
 
@@ -1086,6 +1087,7 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
     pl->prev_jump = 0;
     pl->elytra_equipped = pl->elytra_flying = pl->elytra_pose = 0;
     pl->elytra_flying_pending = 0;
+    pl->elytra_flag7_recorded = 0;
     pl->ticks_elytra_flying = 0;
     pl->elytra_wall_damage = 0.0f;
     pl->break_events = pl->place_events = pl->swing_events = 0;

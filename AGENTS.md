@@ -85,19 +85,22 @@ bash verify/worldgen/wrapper_gate.sh              # rc=0 exact match vs known_di
 
 ## Pixel investigation
 
-When a tape frame is wrong, do not hand-roll numpy. `verify/trace`:
+When a tape frame is wrong, do not hand-roll numpy. The tool lives at
+`verify/trace/pxdiff.py` and `--tape` resolves replay output from
+`verify/trace/out/tape_<NAME>/`, so run it from `verify/trace`:
 
 ```bash
-U="uv run --no-project --with numpy,scipy,pillow python"
-$U pxdiff.py selftest                                   # trust the tool first
-$U pxdiff.py frames  --tape <NAME>                      # rank ticks by unexplained px
-$U pxdiff.py clusters --tape <NAME> --tick N            # cluster table + CAUSE
-$U pxdiff.py zoom    --tape <NAME> --tick N --cluster 0 --scale 10 -o /tmp/z.png
-$U pxdiff.py probe   --tape <NAME> --tick N --cluster 0 # every discriminator
-$U pxdiff.py pixels  --tape <NAME> --tick N --cluster 0 # exact RGB pairs
-$U pxdiff.py survey  --tape <NAME> --tick N -o DIR      # one-shot triage: top<=5
+cd verify/trace
+U() { uv run --no-project --with numpy,scipy,pillow python "$@"; }  # bash+zsh
+U pxdiff.py selftest                                   # trust the tool first
+U pxdiff.py frames  --tape <NAME>                      # rank ticks by unexplained px
+U pxdiff.py survey  --tape <NAME> --tick N -o DIR      # START HERE: top<=5
 #   clusters as numbered boxes on overview.png + zoom_N.png triptychs +
-#   survey.json. Agents triaging a frame START here, then loop the crops.
+#   survey.json; big unresolved clusters get tile-refined causes.
+U pxdiff.py clusters --tape <NAME> --tick N            # cluster table + CAUSE
+U pxdiff.py zoom    --tape <NAME> --tick N --cluster 0 --scale 10 -o /tmp/z.png
+U pxdiff.py probe   --tape <NAME> --tick N --cluster 0 # every discriminator
+U pxdiff.py pixels  --tape <NAME> --tick N --cluster 0 # exact RGB pairs
 ```
 
 Causes: `texel-selection`, `shading-offset`, `registration`, `cutout-sky+/-`,
@@ -105,6 +108,23 @@ Causes: `texel-selection`, `shading-offset`, `registration`, `cutout-sky+/-`,
 drives the mc_capture / ui_hud / ui_entities gates. `grind.py` ranks a whole
 tape by mean/ch; `pixel_gate.py` decides pass/fail. Never report `unresolved`
 as a diagnosis, and never claim a cause the tool did not measure.
+
+Reading it right (each of these cost a cold agent real time):
+
+- The `gate` column is pixel_gate's mask label (which budget absorbed the
+  pixels), not the faulty subsystem: a world-sized cluster classed `particles`
+  is NOT a particle bug, and `soak_from` in reports means spill from an
+  over-budget class. The `cause` column is the diagnosis.
+- `sel` is exact-match texel selection; real minified surfaces usually carry a
+  small light delta on top, so trust the `tol4` column / probe field.
+- Heed the frame-level notes. Many small clusters agreeing on one shift =
+  whole-frame registration. A giant `unresolved` cluster with
+  `structure_corr<=0` and `best_shift (0,0)` = the CAMERA moved: stop pixel
+  probing and diff the pose (tape jsonl `x/y/z/on_ground` vs
+  `out/tape_<NAME>/magma_state.jsonl` at that tick) - a sub-block Y error
+  remaps the whole scene (nether_elytra t=176: 0.93-block landing lag).
+- px counts: survey/clusters count connected-component members; probe/pixels
+  count every differing pixel in the padded rect. Both are correct.
 
 Two things that make a pixel measurement lie, both paid for already:
 

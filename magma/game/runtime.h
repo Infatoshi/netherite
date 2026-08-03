@@ -173,6 +173,9 @@ void gm_runtime_set_packet_velocity(GmRuntime *r, double x, double y, double z);
 void gm_runtime_add_velocity(GmRuntime *r, double x, double y, double z);
 /* Tape/live equipment bridge for EntityEquipmentSlot.CHEST == Items.ELYTRA. */
 void gm_runtime_set_elytra(GmRuntime *r, int equipped);
+/* Enable tape-authoritative flag-7 metadata timing and apply an observed
+ * player metadata value before the current tick. */
+void gm_runtime_set_elytra_flag7(GmRuntime *r, int flying);
 /* Absolute camera rotation only (tape replay of recorded mouse look). */
 void gm_runtime_set_look(GmRuntime *r, float yaw, float pitch);
 /* Tape replay: register a recorded oracle entity box (world coords, feet y,

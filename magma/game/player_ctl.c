@@ -307,10 +307,11 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
     McAABB blocks[PSV_MAX_BLOCKS];
     int ne = 0;
 
-    /* Entity flag 7 set by the server last tick arrives as metadata at the top
-     * of this client tick, before EntityPlayerSP.onUpdate. See
-     * PsvPlayer.elytra_flying_pending. */
-    if (pl->elytra_flying_pending) {
+    /* Legacy tapes predict the metadata return one tick after the request.
+     * New tapes set elytra_flag7_recorded and apply each observed metadata
+     * value through set_elytra_flag7 before this tick, so prediction is both
+     * unnecessary and wrong when the integrated-server delay varies. */
+    if (!pl->elytra_flag7_recorded && pl->elytra_flying_pending) {
         pl->elytra_flying = 1;
         pl->elytra_flying_pending = 0;
     }
@@ -735,7 +736,8 @@ use_done:
     int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
     psv_physics_tick(window, st, pl, &a, blocks);
 
-    if (elytra_press && !elytra_was && pl->elytra_equipped && !water_pre &&
+    if (!pl->elytra_flag7_recorded && elytra_press && !elytra_was &&
+        pl->elytra_equipped && !water_pre &&
         elytra_can_start)
         pl->elytra_flying_pending = 1;
     pl->prev_jump = act.jump;

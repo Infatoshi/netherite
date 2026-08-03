@@ -946,6 +946,102 @@ def test_elytra_inventory_change_applies_on_next_tick(tmp_path: Path):
     assert {"tick": 2, "type": "set_elytra", "equipped": 0} in events
 
 
+def test_recorded_flag7_metadata_events_are_forwarded_at_observed_ticks(
+        tmp_path: Path):
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "hp": 20.0, "food": 20,
+        "flag7_metadata": 1, "flag7_initial": 0,
+    }
+    base = {"in": {"f": 0, "s": 0}, "x": 0.5, "y": 24.0, "z": 0.5,
+            "yaw": -90.0, "pitch": 8.0, "hp": 20.0, "food": 20,
+            "ents": []}
+    ticks = [
+        {**base, "t": 0},
+        {**base, "t": 1, "f7": [1]},
+        {**base, "t": 2},
+        {**base, "t": 3, "f7": [0, 1]},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    flag7 = [json.loads(line) for line in script.read_text().splitlines()
+             if json.loads(line)["type"] == "set_elytra_flag7"]
+    assert flag7 == [
+        {"tick": 0, "type": "set_elytra_flag7", "flying": 0},
+        {"tick": 1, "type": "set_elytra_flag7", "flying": 1},
+        {"tick": 3, "type": "set_elytra_flag7", "flying": 0},
+        {"tick": 3, "type": "set_elytra_flag7", "flying": 1},
+    ]
+
+
+def test_legacy_tape_does_not_enable_recorded_flag7_mode(tmp_path: Path):
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "hp": 20.0, "food": 20,
+    }
+    ticks = [{
+        "t": 0, "in": {"f": 0, "s": 0, "jump": 1},
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "hp": 20.0, "food": 20, "ents": [],
+    }]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    assert not any(json.loads(line)["type"] == "set_elytra_flag7"
+                   for line in script.read_text().splitlines())
+
+
+def test_look_phase_tape_emits_recorded_pre_look(tmp_path: Path):
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "hp": 20.0, "food": 20,
+        "look_phase": 1,
+    }
+    base = {"in": {"f": 1.0, "s": 0}, "x": 0.5, "y": 24.0, "z": 0.5,
+            "hp": 20.0, "food": 20, "ents": []}
+    ticks = [
+        # turn landed between ticks: physics of t=1 uses the NEW pitch
+        {**base, "t": 0, "yaw": -90.0, "pitch": 8.0, "ry": -90.0, "rp": 8.0},
+        {**base, "t": 1, "yaw": -90.0, "pitch": 6.8, "ry": -90.0, "rp": 6.8},
+        # turn landed post-travel: physics of t=2 still used the OLD pitch
+        {**base, "t": 2, "yaw": -90.0, "pitch": 5.0, "ry": -90.0, "rp": 6.8},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    looks = [e for e in events if e["type"] in ("set_look", "set_look_pre")]
+    assert looks == [
+        {"tick": 0, "type": "set_look_pre", "yaw": -90.0, "pitch": 8.0},
+        {"tick": 0, "type": "set_look", "yaw": -90.0, "pitch": 8.0},
+        {"tick": 1, "type": "set_look_pre", "yaw": -90.0, "pitch": 6.8},
+        {"tick": 1, "type": "set_look", "yaw": -90.0, "pitch": 6.8},
+        {"tick": 2, "type": "set_look_pre", "yaw": -90.0, "pitch": 6.8},
+        {"tick": 2, "type": "set_look", "yaw": -90.0, "pitch": 5.0},
+    ]
+
+
+def test_legacy_tape_keeps_heuristic_look_emission(tmp_path: Path):
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "hp": 20.0, "food": 20,
+    }
+    ticks = [{
+        "t": 0, "in": {"f": 0, "s": 0},
+        "x": 0.5, "y": 24.0, "z": 0.5, "yaw": -90.0, "pitch": 8.0,
+        "hp": 20.0, "food": 20, "ents": [],
+    }]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    looks = [e for e in events if e["type"] in ("set_look", "set_look_pre")]
+    assert looks == [
+        {"tick": 0, "type": "set_look", "yaw": -90.0, "pitch": 8.0},
+    ]
+
+
 def test_state_assertions_report_inventory_entities_and_world_hash():
     """Non-player state gate is separate from physics and is not silent."""
     inv = [[17, 0, 3]] + [0] * 40

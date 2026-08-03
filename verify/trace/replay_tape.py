@@ -652,6 +652,22 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
         if isinstance(header.get("gamerules"), dict):
             f.write(json.dumps({"tick": 0, "type": "set_gamerules",
                                 **header["gamerules"]}) + "\n")
+        # Recorder-aware tapes carry the initial player entity flag 7 plus an
+        # f7 array on each tick where SPacketEntityMetadata delivered it. This
+        # event enables authoritative mode in C; legacy headers omit it and
+        # retain the historical one-tick predictor unchanged.
+        flag7_metadata = (header.get("flag7_metadata") == 1
+                          and "flag7_initial" in header)
+        # look_phase tapes record the pre-travel rotation per tick (ry/rp,
+        # sampled at ClientTickEvent.START), so the physics rotation is
+        # observed rather than inferred: which side of travel a turn lands on
+        # varies per recording (nether_elytra t=43 armed with the NEW pitch;
+        # the fresh-world t371 walking turn used the OLD yaw). Legacy tapes
+        # keep the movement_uses_new_look heuristic byte-for-byte.
+        look_phase = header.get("look_phase") == 1
+        if flag7_metadata:
+            f.write(json.dumps({"tick": 0, "type": "set_elytra_flag7",
+                                "flying": int(header["flag7_initial"])}) + "\n")
         if tape_has_respawn(header, ticks) and tape_is_fluid_episode(ticks):
             f.write(json.dumps({"tick": 0,
                                 "type": "continue_after_death"}) + "\n")
@@ -805,6 +821,10 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                           for r in ticks if "portal_frame" in r), None)
         for row_index, row in enumerate(ticks):
             t = row["t"]
+            if flag7_metadata:
+                f.writelines(json.dumps({"tick": t,
+                                        "type": "set_elytra_flag7",
+                                        "flying": int(flying)}) + "\n" for flying in row.get("f7", []))
             if pending_elytra is not None:
                 f.write(json.dumps({"tick": t, "type": "set_elytra",
                                     "equipped": pending_elytra}) + "\n")
@@ -840,13 +860,22 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
             look_changed = (float(row["yaw"]) != last_yaw
                             or float(row["pitch"]) != last_pitch)
             prev_row = ticks[row_index - 1] if row_index else None
-            look_before_move = (
-                move_now and look_changed and
-                (not last_move or
-                 movement_uses_new_look(row, prev_row, last_yaw)))
-            look_type = "set_look_pre" if look_before_move else "set_look"
-            f.write(json.dumps({"tick": t, "type": look_type,
-                                "yaw": row["yaw"], "pitch": row["pitch"]}) + "\n")
+            if look_phase and "ry" in row:
+                # Recorded pre-travel rotation drives this tick's physics; the
+                # deferred post-tick set_look keeps state/frame capture on the
+                # recorded end-of-tick rotation.
+                f.write(json.dumps({"tick": t, "type": "set_look_pre",
+                                    "yaw": row["ry"], "pitch": row["rp"]}) + "\n")
+                f.write(json.dumps({"tick": t, "type": "set_look",
+                                    "yaw": row["yaw"], "pitch": row["pitch"]}) + "\n")
+            else:
+                look_before_move = (
+                    move_now and look_changed and
+                    (not last_move or
+                     movement_uses_new_look(row, prev_row, last_yaw)))
+                look_type = "set_look_pre" if look_before_move else "set_look"
+                f.write(json.dumps({"tick": t, "type": look_type,
+                                    "yaw": row["yaw"], "pitch": row["pitch"]}) + "\n")
             # Authoritative SPacketEntityVelocity delivered to the local
             # player before this client tick. New tapes record raw packet
             # shorts, preserving vanilla's exact 1/8000 quantization.
@@ -1715,6 +1744,16 @@ def main():
               f"diffing the partial state")
     with open(state) as state_file:
         c_rows = [json.loads(ln) for ln in state_file]
+    if not c_rows:
+        # A run that produced ZERO state rows never simulated anything: the
+        # binary failed at startup (stale build missing a new script event,
+        # bad script). Every downstream gate would then pass vacuously over
+        # nothing - the goldens-side twin of the 2026-07-29 "PASS over 0
+        # frames" hole. Caught live 2026-08-02: a stale magma_game rejected
+        # set_elytra_flag7 and the scenario gate reported rc=0.
+        sys.exit(f"[tape] FATAL: magma produced no state rows (0 of "
+                 f"{len(ticks)} ticks) - harness failure (stale binary? "
+                 f"script error?), not a clean tape")
     if died_early:
         last = c_rows[-1] if c_rows else {}
         print(f"[tape] WARNING: magma stopped at tick {last.get('tick')} "
@@ -1839,8 +1878,9 @@ def main():
         gate_on = not args.no_gate
         if gate_on:
             try:
-                import pixel_gate as pg
                 from scipy import ndimage as _nd  # noqa: F401
+
+                import pixel_gate as pg
                 known_divergences = pg.load_known_divergences(args.tape)
                 # No overlay was drawn on either side, so the bottom rows are
                 # scene pixels and must not be accepted positionally. The

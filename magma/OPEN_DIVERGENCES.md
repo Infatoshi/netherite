@@ -1082,14 +1082,24 @@ capture as blocked. Do not fit C output to an unproven Oracle state.
    dragon-death white puffs deterministic. Affected today: tnt_explosion
    (t=30 blast cloud, partly classed UNEXPLAINED because the particles
    brightness heuristic misses cloud edges), creeper_encounter.
-2. Elytra flag-7 arming round-trip varies per recording. A 2-tick
-   `elytra_flying_pending` model makes scenario_nether_elytra_20260729T110024Z
-   physics-exact (351/351) but breaks scenario_elytra_dip_20260727T214459Z at
-   tick 59 (x |d|=0.069, exactly one missing elytra travel tick); the 1-tick
-   model does the reverse. The CPacketEntityAction -> metadata round trip on
-   the integrated server is not a constant, so replay must consume the
-   recorded flag-7 arrival tick instead of predicting it. Candidate C diff
-   preserved on branch wt/netherelytra; merge reverted in ce6aa39.
+2. FIXED 2026-08-02 (recorder opt-in): elytra flag-7 arming round-trip varies
+   per recording - a 2-tick `elytra_flying_pending` model makes
+   scenario_nether_elytra_20260729T110024Z physics-exact (351/351) but breaks
+   scenario_elytra_dip_20260727T214459Z at tick 59, and the 1-tick model does
+   the reverse, because the CPacketEntityAction -> metadata round trip on the
+   integrated server is not a constant. Fix: MixinRecordPlayerMetadata records
+   the observed SPacketEntityMetadata flag-7 arrivals (`flag7_metadata`/`f7`),
+   replay forwards them as `set_elytra_flag7`, and the same recording round
+   also captures the pre-travel rotation (`look_phase`/`ry`/`rp` at
+   ClientTickEvent.START -> `set_look_pre`) since WHICH side of travel a look
+   change lands on also varies per recording (nether_elytra armed with the
+   new pitch; the fresh-world t371 walking turn used the old yaw).
+   scenario_elytra_dip_20260803T032614Z: physics-exact 520/520 at 1e-9, all
+   state gates pass, pixel rc=0. scenario_nether_elytra_20260803T033526Z:
+   physics fully clean (incl. hp) through terminal death at t=110, java-mode
+   world hash 0 mismatches; its pixel FAIL is items 5/9 debt, and takes that
+   wall-crash earlier instead hit item 17. Legacy tapes byte-identical
+   (sha-proof on both old elytra tapes).
 3. Tape headers record no gamerule state. silverfish_encounter runs
    `naturalRegeneration false`, replay simulates the vanilla default, and hp
    diverges 0.4 at t49 (= 1.0 silverfish damage x Resistance III 40%
@@ -1209,6 +1219,21 @@ pixel gate renders - the windowed-path blindspot class):
     gate exercises vanilla's WorldProvider spawn search (grass-block scan +
     radius walk). Census cell; needs an oracle-vs-magma spawn-coordinate probe
     across a seed sweep before any tape relies on unscripted spawn.
+
+17. OPEN 2026-08-02: elytra fly-into-wall kinetic damage is server-
+    authoritative in both tick and amount, so magma's locally computed hit
+    diverges. scenario_nether_elytra_20260803T032911Z: client collision at
+    tick 70 (vx -1.2091 -> 0), magma applies speed*10-3 = 9.091 immediately;
+    the oracle's recorded hp drop lands at row 72 (SPacketUpdateHealth round
+    trip) and is 10.21 - implying the SERVER's own tracked speed (~1.321),
+    not the client's. The 1.12-hp gap decided a death: magma hit 0 at t=101
+    while the oracle died a tick earlier at t=100 with a different total.
+    Fix shape is the flag-7 pattern again: record health-update packet
+    arrivals (tick + value) and let replay apply recorded server damage
+    instead of local kinetic computation - but hp is a gated physics field,
+    so the design must keep the hp gate meaningful for locally simulated
+    damage classes (fire, fall) while pinning only server-computed events.
+    Filed, not implemented.
 
 Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
 unexplained px (7 clusters, largest 1463) relative to its 2026-07-29

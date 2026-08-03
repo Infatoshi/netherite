@@ -7,8 +7,8 @@
 **State gate** (inventory / entities / world hash; not physics):
 
 - inventory: checked=351 independent=350 seeded_only=False mismatches=0 available=True pass=True
-- entities: checked=18 available=True
-- world nearby_hash: checked=18 deltas=7 available=True
+- entities: checked=18 ghost_ticks=351 mismatches=0 verified=True available=True pass=True
+- world hash: mode=c_only compared=0 anchor_skips=0 mismatches=0 deltas=7 verified=False available=True pass=True
 
 **Pixel gate: FAIL** over 351 frames.
 

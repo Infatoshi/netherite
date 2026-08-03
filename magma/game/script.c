@@ -909,6 +909,15 @@ int gm_script_run(const GmConfig *cfg) {
                     fprintf(stderr,"script:%ld: invalid set_elytra\n",line_no);goto bad;
                 }
                 gm_runtime_set_elytra(&r,(int)equipped);
+            } else if (!strcmp(type,"set_elytra_flag7")) {
+                long long flying;
+                static const char *const keys[]={"tick","type","flying"};
+                if(!keys_only(&pending,keys,3,err,sizeof err)||
+                   !as_i64(field(&pending,"flying"),&flying)||
+                   (flying!=0&&flying!=1)){
+                    fprintf(stderr,"script:%ld: invalid set_elytra_flag7\n",line_no);goto bad;
+                }
+                gm_runtime_set_elytra_flag7(&r,(int)flying);
             } else if (!strcmp(type,"set_skin")) {
                 /* first-person arm variant: offline players get steve or alex
                  * by username-UUID hash; the tape header records which. */

@@ -898,6 +898,13 @@ void gm_runtime_set_elytra(GmRuntime *r, int equipped) {
     r->player.elytra_equipped = equipped ? 1 : 0;
 }
 
+void gm_runtime_set_elytra_flag7(GmRuntime *r, int flying) {
+    if (!r) return;
+    r->player.elytra_flag7_recorded = 1;
+    r->player.elytra_flying = flying ? 1 : 0;
+    r->player.elytra_flying_pending = 0;
+}
+
 void gm_runtime_ent_box(GmRuntime *r, double x, double y, double z,
                         double w, double h) {
     if (!r || r->nghosts >= GM_RUNTIME_GHOSTS) return;

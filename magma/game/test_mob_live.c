@@ -97,7 +97,158 @@ static int run_sheep_trace(SheepTrace *trace) {
     gm_runtime_destroy(&r);return 1;
 }
 
-int main(void) {
+typedef struct {
+    int charged_on, charged_off;
+    int transitions[8], transition_state[8], ntransitions;
+    int shots[16], nshots;
+    int first_100_shots;
+} BlazeSchedule;
+
+static int run_blaze_ticks(int ticks, FILE *receipt, BlazeSchedule *schedule) {
+    GmRuntime r;
+    if(!init_flat(&r))return 0;
+    int slot=gm_mobs_spawn(&r.mobs,GM_MOB_BLAZE,8.5,5.0,20.5);
+    if(slot<0){gm_runtime_destroy(&r);return 0;}
+    memset(schedule,0,sizeof *schedule);
+    if(receipt)
+        fprintf(receipt,"tick\tattackStep\tattackTime\tcharged\tfireball_spawn\n");
+    int previous=-1;
+    for(int tick=0;tick<ticks;++tick){
+        gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,0.0f);
+        gm_mobs_tick(&r.mobs,r.world,(const struct McSinTable *)&r.sin_table,
+                     (struct PsvPlayer *)&r.player,(struct PvStats *)&r.vitals,
+                     r.ox,r.oz,r.dimension,r.clock.world_time,&r.entities,
+                     0.0f,0.0f,1);
+        double x,y,z,vx,vy,vz;
+        int fireball=gm_mobs_take_fireball(&r.mobs,&x,&y,&z,&vx,&vy,&vz)==3;
+        EwStore *store=test_mob_store(&r.mobs);
+        GmEntityView views[EW_MAX_ENTITIES];
+        int nviews=gm_mobs_fill_views(&r.mobs,views,EW_MAX_ENTITIES),charged=0;
+        for(int i=0;i<nviews;++i)
+            if(views[i].type==GM_MOB_BLAZE){charged=(views[i].flags&1)!=0;break;}
+        if(charged)schedule->charged_on++;
+        else schedule->charged_off++;
+        if(charged!=previous){
+            if(schedule->ntransitions<(int)(sizeof schedule->transitions/sizeof schedule->transitions[0])){
+                schedule->transitions[schedule->ntransitions]=tick;
+                schedule->transition_state[schedule->ntransitions]=charged;
+            }
+            schedule->ntransitions++;
+            previous=charged;
+        }
+        if(fireball){
+            if(schedule->nshots<(int)(sizeof schedule->shots/sizeof schedule->shots[0]))
+                schedule->shots[schedule->nshots]=tick;
+            schedule->nshots++;
+            if(tick<100)schedule->first_100_shots++;
+        }
+        if(receipt)
+            fprintf(receipt,"%d\t%d\t%d\t%d\t%d\n",tick,r.mobs.charge[slot],
+                    store->attack_time[slot],charged,fireball);
+    }
+    gm_runtime_destroy(&r);
+    return 1;
+}
+
+static int legacy_flat_shots(int ticks, int *first_100) {
+    /* Baseline 99007ad^: mob_live reloaded attack_time=40 whenever <=0,
+     * then runtime spawned a blaze fireball on each reload edge. */
+    int attack_time=0,shots=0;
+    *first_100=0;
+    for(int tick=0;tick<ticks;++tick){
+        if(attack_time>0)--attack_time;
+        if(attack_time<=0)attack_time=40;
+        if(attack_time==40){++shots;if(tick<100)++*first_100;}
+    }
+    return shots;
+}
+
+static int blaze_task_reset_test(void) {
+    GmRuntime r;
+    if(!init_flat(&r))return 0;
+    int slot=gm_mobs_spawn(&r.mobs,GM_MOB_BLAZE,8.5,5.0,20.5);
+    if(slot<0){gm_runtime_destroy(&r);return 0;}
+    for(int tick=0;tick<10;++tick){
+        gm_mobs_tick(&r.mobs,r.world,(const struct McSinTable *)&r.sin_table,
+                     (struct PsvPlayer *)&r.player,(struct PvStats *)&r.vitals,
+                     r.ox,r.oz,r.dimension,r.clock.world_time,&r.entities,
+                     0.0f,0.0f,1);
+        (void)gm_mobs_take_fireball(&r.mobs,NULL,NULL,NULL,NULL,NULL,NULL);
+    }
+    int attack_time=test_mob_store(&r.mobs)->attack_time[slot];
+    gm_runtime_set_pose(&r,8.5,5.0,70.5,0.0f,0.0f); /* outside follow range */
+    gm_mobs_tick(&r.mobs,r.world,(const struct McSinTable *)&r.sin_table,
+                 (struct PsvPlayer *)&r.player,(struct PvStats *)&r.vitals,
+                 r.ox,r.oz,r.dimension,r.clock.world_time,&r.entities,
+                 0.0f,0.0f,1);
+    int paused=test_mob_store(&r.mobs)->attack_time[slot];
+    int reset=!r.mobs.blaze_on_fire[slot]&&r.mobs.charge[slot]==0;
+    gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,0.0f);
+    gm_mobs_tick(&r.mobs,r.world,(const struct McSinTable *)&r.sin_table,
+                 (struct PsvPlayer *)&r.player,(struct PvStats *)&r.vitals,
+                 r.ox,r.oz,r.dimension,r.clock.world_time,&r.entities,
+                 0.0f,0.0f,1);
+    int resumed=test_mob_store(&r.mobs)->attack_time[slot];
+    gm_runtime_destroy(&r);
+    return attack_time==51&&paused==51&&reset&&resumed==50;
+}
+
+static int blaze_schedule_receipt(FILE *receipt) {
+    BlazeSchedule two_cycles,long_run;
+    CHECK(run_blaze_ticks(356,receipt,&two_cycles),
+          "deterministic blaze schedule executes");
+    if(fail)return 0;
+    CHECK(two_cycles.charged_on==156&&two_cycles.charged_off==200,
+          "two blaze cycles reproduce 78 charged / 100 uncharged ticks each");
+    CHECK(two_cycles.ntransitions==4&&
+          two_cycles.transitions[0]==0&&two_cycles.transition_state[0]==1&&
+          two_cycles.transitions[1]==78&&two_cycles.transition_state[1]==0&&
+          two_cycles.transitions[2]==178&&two_cycles.transition_state[2]==1&&
+          two_cycles.transitions[3]==256&&two_cycles.transition_state[3]==0,
+          "blaze charged transitions reproduce the 178-tick vanilla cycle");
+    CHECK(two_cycles.nshots==6&&
+          two_cycles.shots[0]==60&&two_cycles.shots[1]==66&&two_cycles.shots[2]==72&&
+          two_cycles.shots[3]==238&&two_cycles.shots[4]==244&&two_cycles.shots[5]==250,
+          "blaze fires three-shot volleys after charge at six-tick spacing");
+    CHECK(blaze_task_reset_test(),
+          "resetTask clears charge while inactive attackTime stays paused");
+    CHECK(run_blaze_ticks(3560,NULL,&long_run),
+          "long-run live blaze cadence executes");
+    int old_first_100=0,old_shots=legacy_flat_shots(3560,&old_first_100);
+    CHECK(old_shots==89&&long_run.nshots==60,
+          "old and vanilla live cadence counts match exact common horizon");
+    CHECK(old_first_100==3&&long_run.first_100_shots==3,
+          "both schedules spawn three fireballs in the first 100 aggro ticks");
+    if(receipt){
+        fprintf(receipt,"# charged_on=%d charged_off=%d cycles=2 duty=78_on/100_off\n",
+                two_cycles.charged_on,two_cycles.charged_off);
+        fprintf(receipt,"# transitions=0:on,78:off,178:on,256:off\n");
+        fprintf(receipt,"# fireballs=60,66,72,238,244,250\n");
+        fprintf(receipt,"# cadence_horizon_ticks=3560 old_flat_shots=%d "
+                        "new_vanilla_shots=%d old_per_100=%.9f new_per_100=%.9f\n",
+                old_shots,long_run.nshots,old_shots*100.0/3560.0,
+                long_run.nshots*100.0/3560.0);
+        fprintf(receipt,"# first_100 old_flat_shots=%d new_vanilla_shots=%d\n",
+                old_first_100,long_run.first_100_shots);
+    }
+    fprintf(stderr,"mob_live: blaze duty on=%d off=%d shots=[%d,%d,%d,%d,%d,%d] "
+                   "cadence/100 old=%.9f new=%.9f\n",
+            two_cycles.charged_on,two_cycles.charged_off,
+            two_cycles.shots[0],two_cycles.shots[1],two_cycles.shots[2],
+            two_cycles.shots[3],two_cycles.shots[4],two_cycles.shots[5],
+            old_shots*100.0/3560.0,long_run.nshots*100.0/3560.0);
+    return !fail;
+}
+
+int main(int argc, char **argv) {
+    if(argc==3&&!strcmp(argv[1],"--blaze-receipt")){
+        FILE *receipt=fopen(argv[2],"w");
+        if(!receipt){perror(argv[2]);return 1;}
+        int ok=blaze_schedule_receipt(receipt);
+        if(fclose(receipt)!=0){perror(argv[2]);return 1;}
+        return ok?0:1;
+    }
+    if(argc!=1){fprintf(stderr,"usage: %s [--blaze-receipt PATH]\n",argv[0]);return 2;}
     GmRuntime r;
     if(!init_flat(&r))return 1;
     CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5,5.0,14.5)>=0,"spawn component zombie");
@@ -277,6 +428,19 @@ int main(void) {
     int burn_flesh=0;
     for(int i=0;i<GM_LIVE_MAX;++i)if(r.entities.ents[i].active&&r.entities.ents[i].item==367)burn_flesh=1;
     CHECK(burn_flesh,"daylight burn death still drops loot");
+    gm_runtime_destroy(&r);
+
+    /* Recorder flags bit 0 follows generic Entity.isBurning for living mobs. */
+    if(!init_flat(&r))return 1;
+    int burning_zombie=gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5,5.0,10.5);
+    CHECK(burning_zombie>=0,"spawn daylight-burning view zombie");
+    gm_runtime_tick(&r,idle);
+    n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+    int burning_view=0;
+    for(int k=0;k<n;++k)
+        if(v[k].type==EW_TYPE_ZOMBIE&&(v[k].flags&1))burning_view=1;
+    CHECK(r.mobs.fire_ticks[burning_zombie]>0&&burning_view,
+          "generic live fire_ticks populate recorder-compatible flags bit 0");
     gm_runtime_destroy(&r);
 
     /* (d) zombie under a stone roof does NOT burn in daytime. */
@@ -787,61 +951,8 @@ int main(void) {
     CHECK(spawns>=1,"autonomy: real blaze spawner produces live mobs");
     gm_runtime_destroy(&r);
 
-    /* EntityBlaze.AIFireballAttack schedule: fixed-seed blaze vs stationary
-     * player at mid range. Charge 60, then 3 shots at inter-shot 6, then
-     * post-volley recharge 100. A wall behind the player forces block impacts
-     * so missed spread shots do not free-fly forever. */
-    if(!init_flat(&r))return 1;
-    for(int x=0;x<=16;++x)for(int y=4;y<=10;++y)
-        gm_world_set_block(r.world,x,y,6,1);
-    gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,0.0f);
-    CHECK(gm_mobs_spawn(&r.mobs,GM_MOB_BLAZE,8.5,5.0,20.5)>=0,
-          "spawn ranged-schedule blaze");
-    {
-        int shot_ticks[8]; int nshot=0; int max_active=0; int charged_seen=0;
-        int active_late=0;
-        for(int t=0;t<280;++t){
-            int before=0;
-            for(int k=0;k<GM_RUNTIME_PROJECTILES;++k)
-                if(r.projectiles[k].active&&r.projectiles[k].type==3)++before;
-            gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,0.0f);
-            gm_runtime_tick(&r,idle);
-            int after=0;
-            for(int k=0;k<GM_RUNTIME_PROJECTILES;++k)
-                if(r.projectiles[k].active&&r.projectiles[k].type==3)++after;
-            if(after>max_active)max_active=after;
-            if(after>before && nshot<(int)(sizeof shot_ticks/sizeof shot_ticks[0]))
-                shot_ticks[nshot++]=t;
-            n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
-            for(int k=0;k<n;++k)
-                if(v[k].type==GM_MOB_BLAZE && (v[k].flags & 1)) charged_seen=1;
-        }
-        /* Extra flight ticks after last schedule sample so impacts clear. */
-        for(int t=0;t<40;++t){
-            gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,0.0f);
-            gm_runtime_tick(&r,idle);
-        }
-        for(int k=0;k<GM_RUNTIME_PROJECTILES;++k)
-            if(r.projectiles[k].active&&r.projectiles[k].type==3)++active_late;
-        fprintf(stderr,
-                "mob_live: blaze AIFireballAttack shots=%d t=[%d,%d,%d,%d] "
-                "max_active=%d charged=%d active_late=%d\n",
-                nshot,
-                nshot>0?shot_ticks[0]:-1, nshot>1?shot_ticks[1]:-1,
-                nshot>2?shot_ticks[2]:-1, nshot>3?shot_ticks[3]:-1,
-                max_active, charged_seen, active_late);
-        CHECK(nshot>=3,"AIFireballAttack fires at least a 3-shot volley");
-        CHECK(shot_ticks[0]==60,"first volley shot after 60-tick charge");
-        CHECK(shot_ticks[1]==66,"second shot 6 ticks after first");
-        CHECK(shot_ticks[2]==72,"third shot 6 ticks after second");
-        if(nshot>=4)
-            CHECK(shot_ticks[3]==238,
-                  "second volley first shot after 100 recharge + 60 charge");
-        CHECK(charged_seen,"ON_FIRE/isCharged set during volley (view flags)");
-        CHECK(max_active<=3,"small fireballs impact; concurrent cap is one volley");
-        CHECK(active_late==0,"small fireballs despawn/impact; do not accumulate");
-    }
-    gm_runtime_destroy(&r);
+    CHECK(blaze_schedule_receipt(NULL),
+          "AIFireballAttack exact duty cycle and fireball cadence receipt");
 
     if(fail)return 1;
     fprintf(stderr,"mob_live: PASS\n");

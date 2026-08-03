@@ -1190,3 +1190,33 @@ gradient parameter turns 1e-7 of fp32 noise into an O(lr) position change;
 eager-vs-eager controls on identical inputs swung 3x run to run. On gradients
 the same comparison is stable to three digits (graph vs eager 5.7e-8 against
 a 5.7e-8 control). Receipts: `optloop_runs/flywheelopt-v1/PRESERVED/`.
+
+## 2026-08-02/03: nether divergence campaign (pxdiff validation + three lanes)
+
+pxdiff hardened then validated cold: 4 blinded mutation pairs from real
+goldens, codex and grok each 4/4 from docs alone, both independently reached
+the elytra pose story; their friction became the survey/refinement/pose-note
+round (2500c77, 185f68b). Nether tape census: 7/8 rc=0; only nether_elytra
+fails, decomposed exactly.
+
+- nethertick (d3efae3): Nether+End terrain zero-diff across blaze CPU, blaze
+  CUDA, magma at 7 seeds (origin, per-seed fortress, End island box);
+  injected-divergence harness proof; live nether tick probe evidenced-skip
+  (blaze env is overworld-only by design).
+- flag7rec (1e09743): the arming round trip AND the look-application phase
+  both vary per recording - recorder now captures observed flag-7 metadata
+  (f7) and pre-travel rotation (ry/rp at ClientTickEvent.START); replay
+  forwards set_elytra_flag7/set_look_pre on header opt-in; legacy scripts
+  sha-identical. elytra_dip re-record: physics-exact 520/520 at 1e-9, rc=0.
+  nether_elytra re-record: physics clean incl. hp through terminal death.
+  Vacuous-pass hole closed (FATAL when magma replays 0 ticks).
+  OPEN_DIVERGENCES 2 fixed; NEW item 17: elytra fly-into-wall damage is
+  server-authoritative in tick and amount (SPacketUpdateHealth round trip;
+  client-speed formula gives 9.09 where the server charged 10.21).
+- blazefire (4b4d5cc): Blaze AIFireballAttack attackTime is task-owned (pauses
+  while the AI task is inactive); live burning flags now feed the recorder
+  bit; 78-on/100-off duty cycle receipt + eyeballed frames in
+  artifacts/blazefire/.
+- Scenario truth: every nether_elytra take dies (fire landing or wall crash
+  by arm-tick luck); rc=0 for it is gated on items 5 (lavafall snapshot) and
+  17, not on more takes.

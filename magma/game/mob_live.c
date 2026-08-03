@@ -1591,7 +1591,9 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             continue;
         }
         int hostile=gm_hostile(type), passive=gm_passive(type);
-        if(nx->attack_time[i]>0)--nx->attack_time[i];
+        /* AIFireballAttack owns its attackTime countdown only while its task
+         * executes. Other mobs keep the EntityLiving-style global cooldown. */
+        if(type!=EW_TYPE_BLAZE&&nx->attack_time[i]>0)--nx->attack_time[i];
         if (type == EW_TYPE_PIGMAN && m->anger[i] > 0) --m->anger[i];
         double dx=px-now->x[i],dy=py-now->y[i],dz=pz-now->z[i];
         double d=sqrt(dx*dx+dy*dy+dz*dz), xz=sqrt(dx*dx+dz*dz);
@@ -1666,6 +1668,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             const double blaze_h = 1.8;
             double d0 = d * d; /* getDistanceSqToEntity */
             double attack_radius = follow_range(EW_TYPE_BLAZE); /* 48 */
+            --nx->attack_time[i];
             nx->yaw[i]=ehs_yaw_toward(dx,dz);
             nx->path_tx[i]=px;nx->path_ty[i]=py;nx->path_tz[i]=pz;nx->path_len[i]=0;
             if(d0 < 4.0){
@@ -1916,8 +1919,10 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
         out[n].item_meta=m->size[i]; /* slime/magma size for render scale */
         out[n].squish=m->squish_factor[i]; /* EntitySlime.squishFactor */
         out[n].creeper_fuse=m->creeper_fuse[i];
-        /* EntityBlaze.isBurning() == isCharged() (ON_FIRE bit during volley). */
-        if(s->type[i]==EW_TYPE_BLAZE && m->blaze_on_fire[i])
+        /* Recorder flags bit 0 is EntityLivingBase.isBurning(). Live state
+         * tracks only generic fire ticks and EntityBlaze's charged override. */
+        if(m->fire_ticks[i]>0 ||
+           (s->type[i]==EW_TYPE_BLAZE && m->blaze_on_fire[i]))
             out[n].flags |= 1;
         ++n;
     }

@@ -53,6 +53,14 @@ int main(void) {
           "set_elytra arms EntityEquipmentSlot.CHEST == Items.ELYTRA for travel");
     gm_runtime_set_elytra(&r, 0);
     CHECK(r.player.elytra_equipped == 0, "set_elytra clears chest equipment flag");
+    r.player.elytra_flying_pending = 1;
+    gm_runtime_set_elytra_flag7(&r, 1);
+    CHECK(r.player.elytra_flag7_recorded == 1 && r.player.elytra_flying == 1 &&
+          r.player.elytra_flying_pending == 0,
+          "recorded flag-7 event enables authoritative mode and clears prediction");
+    gm_runtime_set_elytra_flag7(&r, 0);
+    CHECK(r.player.elytra_flying == 0,
+          "recorded flag-7 clear applies the metadata value");
     CHECK(gm_runtime_set_inventory(&r,38,443,1,0),"live set_inventory places elytra in chest");
     CHECK(r.player.elytra_equipped==1,"chest elytra arms flight eligibility");
     CHECK(gm_runtime_set_inventory(&r,38,0,0,0),"clear chest");

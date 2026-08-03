@@ -22,8 +22,8 @@
    "max_cluster": 348
   },
   "hud": {
-   "frames": 3,
-   "px": 13092,
+   "frames": 2,
+   "px": 13031,
    "max_cluster": 12904
   },
   "viewmodel": {
