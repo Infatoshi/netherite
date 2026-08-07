@@ -6,8 +6,8 @@
 //                                   fall -> ceil(dist-3-jumpBoost)*mult FALL damage (1389-1402).
 //   entity/player/EntityPlayer.java shouldHeal = health>0 && health<max (2244-2246).
 //   util/math/MathHelper.java       ceil (107-111).
-// Starve floor on NORMAL = 1.0F (FoodStats.java:90-92). maxHealth = 20. No jump-boost/feather-fall
-// (damageMultiplier=1.0F), so fall damage = ceil(distance - 3.0F).
+// Starve floor on NORMAL = 1.0F (FoodStats.java:90-92). maxHealth = 20.
+// No feather-fall and damageMultiplier=1.0F; amplifier -1 means no Jump Boost.
 import java.util.Locale;
 
 public class Golden {
@@ -53,9 +53,11 @@ public class Golden {
         return value > (float) i ? i + 1 : i;
     }
 
-    // EntityLivingBase.fall (1389-1402), no jump-boost/feather-fall, damageMultiplier=1.0F
-    static void fallDamage(float distance) {
-        int i = ceil(distance - 3.0F);
+    // EntityLivingBase.fall (1389-1402), no feather-fall, damageMultiplier=1.0F
+    static void fallDamage(float distance, int jumpBoostAmplifier) {
+        float boost = jumpBoostAmplifier < 0
+                ? 0.0F : (float) (jumpBoostAmplifier + 1);
+        int i = ceil(distance - 3.0F - boost);
         if (i > 0) attack((float) i);
     }
 
@@ -118,12 +120,12 @@ public class Golden {
         }
     }
 
-    static void tapeTick(long seed, int tick) {
+    static void tapeTick(long seed, int tick, int jumpBoostAmplifier) {
         long h = hash(seed * 0x100000001b3L + (tick & 0xffffffffL));
         addExhaustion(tapeExhaustion(h));
         if (((h >>> 8) & 255L) == 0L) {                          // ~1/256 ticks
             float distance = (float) (4L + ((h >>> 12) % 4L));   // 4..7 -> 1..4 dmg
-            fallDamage(distance);
+            fallDamage(distance, jumpBoostAmplifier);
         }
         onUpdate();
     }
@@ -131,9 +133,10 @@ public class Golden {
     public static void main(String[] args) {
         long seed  = args.length > 0 ? Long.parseLong(args[0]) : 1L;
         int  ticks = args.length > 1 ? Integer.parseInt(args[1]) : 400;
+        int jumpBoostAmplifier = args.length > 2 ? Integer.parseInt(args[2]) : -1;
         StringBuilder sb = new StringBuilder();
         for (int t = 0; t < ticks; ++t) {
-            tapeTick(seed, t);
+            tapeTick(seed, t, jumpBoostAmplifier);
             sb.append(String.format(Locale.ROOT, "%d %.6f %.6f %d %.6f%n",
                     foodLevel, saturation, exhaustion, foodTimer, health));
         }

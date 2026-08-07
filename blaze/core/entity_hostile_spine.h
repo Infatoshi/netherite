@@ -36,7 +36,9 @@ enum {
     EW_TYPE_WITHER_SKELETON = 32,
     EW_TYPE_SLIME    = 35,
     EW_TYPE_SILVERFISH = 36,
-    EW_TYPE_BOAT     = 37
+    EW_TYPE_BOAT     = 37,
+    EW_TYPE_CAVE_SPIDER = 39,
+    EW_TYPE_VILLAGER = 40
 };
 
 /* AI phase tags already in ew_entity_store (IDLE/CHASE/ATTACK). Skeleton "ranged hold" and
@@ -55,7 +57,7 @@ MC_HD static inline int ehs_is_hostile(u8 type) {
         || type == EW_TYPE_WITHER_SKELETON || type == EW_TYPE_BLAZE
         || type == EW_TYPE_PIGMAN || type == EW_TYPE_GHAST
         || type == EW_TYPE_MAGMA || type == EW_TYPE_SLIME
-        || type == EW_TYPE_SILVERFISH;
+        || type == EW_TYPE_SILVERFISH || type == EW_TYPE_CAVE_SPIDER;
 }
 
 /* SharedMonsterAttributes.MOVEMENT_SPEED base from oracle applyEntityAttributes. */
@@ -67,11 +69,13 @@ MC_HD static inline float ehs_land_speed(u8 type) {
     case EW_TYPE_WITHER_SKELETON: return 0.25f;
     case EW_TYPE_CREEPER:  return 0.25f;
     case EW_TYPE_SPIDER:   return 0.30000001192092896f;
+    case EW_TYPE_CAVE_SPIDER: return 0.30000001192092896f;
     case EW_TYPE_ENDERMAN: return 0.30000001192092896f;
     case EW_TYPE_BLAZE:    return 0.23000000417232513f;
     case EW_TYPE_MAGMA:    return 0.20000000298023224f;
     case EW_TYPE_SILVERFISH: return 0.25f;
     case EW_TYPE_SLIME:    return 0.2f;
+    case EW_TYPE_VILLAGER: return 0.5f;
     default:               return 0.23000000417232513f;
     }
 }
@@ -82,6 +86,9 @@ MC_HD static inline void ehs_size(u8 type, float *width, float *height) {
     switch (type) {
     case EW_TYPE_SPIDER:
         *width = 1.4f; *height = 0.9f;
+        break;
+    case EW_TYPE_CAVE_SPIDER:
+        *width = 0.7f; *height = 0.5f;
         break;
     case EW_TYPE_ENDERMAN:
         *width = 0.6f; *height = 2.9f;
@@ -106,13 +113,20 @@ MC_HD static inline void ehs_size(u8 type, float *width, float *height) {
     case EW_TYPE_BOAT:
         *width = 1.375f; *height = 0.5625f;
         break;
-    case EW_TYPE_SHEEP:
     case EW_TYPE_PIG:
+        *width = 0.9f; *height = 0.9f;
+        break;
+    case EW_TYPE_SHEEP:
+        *width = 0.9f; *height = 1.3f;
+        break;
     case EW_TYPE_COW:
         *width = 0.9f; *height = 1.4f;
         break;
     case EW_TYPE_CHICKEN:
         *width = 0.4f; *height = 0.7f;
+        break;
+    case EW_TYPE_VILLAGER:
+        *width = 0.6f; *height = 1.95f;
         break;
     default: /* zombie / skeleton / creeper / pigman */
         *width = 0.6f; *height = 1.95f;

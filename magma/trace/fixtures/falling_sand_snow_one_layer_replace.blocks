@@ -1,0 +1,6 @@
+# x y z id meta
+# One-layer snow has no collision and is replaceable. Stone keeps it valid.
+# Sand lands at y=77, replaces the snow, and queues its stability callback.
+12 76 8 1 0
+12 77 8 78 0
+12 80 8 12 0

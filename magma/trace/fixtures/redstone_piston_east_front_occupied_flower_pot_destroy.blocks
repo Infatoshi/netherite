@@ -1,0 +1,7 @@
+# EAST-facing normal piston targets a flower pot. The parked tile payload is
+# overwritten to allium 38:2 after block staging, so the raw block metadata is
+# insufficient to reproduce the save state. Forge drops flower-pot item 390:0
+# followed by contained allium 38:2, then retires the tile during extension.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 140 0

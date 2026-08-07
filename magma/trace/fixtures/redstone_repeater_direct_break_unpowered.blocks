@@ -1,0 +1,6 @@
+# The same supported SOUTH-facing output topology without input power. Direct
+# removal still runs breakBlock, but no consumer callback or RNG work follows.
+12 77 8 1 0
+12 78 8 93 0
+12 78 7 1 0
+13 78 7 123 0

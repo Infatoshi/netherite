@@ -1,0 +1,6 @@
+# Extended WEST sticky piston with a movable unextended EAST normal piston at
+# the pull origin.
+12 79 8 29 12
+11 79 8 34 12
+10 79 8 33 5
+12 79 9 152 0

@@ -1,0 +1,21 @@
+name: end_crystal_beam
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /summon minecraft:ender_crystal ~ ~1 ~8 {BeamTarget:{X:526,Y:10,Z:15},ShowBottom:1b}
+setup_settle_ticks: 10
+duration_ticks: 40
+frames_every: 1
+input:
+  segments:
+    - seconds: 2.0
+known_divergences: []

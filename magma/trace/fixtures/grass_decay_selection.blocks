@@ -1,0 +1,5 @@
+# One random-ticking grass block under an opaque stone cap. Its selected
+# BlockGrass callback deterministically decays to dirt without consuming rand.
+12 77 8 1 0
+12 78 8 2 0
+12 79 8 1 0

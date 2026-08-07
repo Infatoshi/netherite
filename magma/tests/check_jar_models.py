@@ -22,7 +22,7 @@ _HERE = Path(__file__).resolve().parent
 JAR_CANDIDATES = [
     Path.home() / ".gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar",
     Path.home() / ".gradle/caches/minecraft/net/minecraft/minecraft_merged/1.11.2/minecraft_merged-1.11.2.jar",
-    _HERE.parents[2] / "java/Minecraft/run/gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar",
+    _HERE.parents[1] / "java/Minecraft/run/gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar",
 ]
 
 # name -> expectations derived once from jar; re-checked every run against jar.
@@ -139,6 +139,54 @@ def main() -> int:
                     fails += 1
                     continue
             print(f"ok {name}: cross plant")
+
+        # --- double plants: six lower/upper species, with contextual upper type ---
+        double_plants = {
+            "sunflower": ("double_sunflower_bottom", "double_sunflower_top", False),
+            "syringa": ("double_syringa_bottom", "double_syringa_top", False),
+            "double_grass": ("double_grass_bottom", "double_grass_top", True),
+            "double_fern": ("double_fern_bottom", "double_fern_top", True),
+            "double_rose": ("double_rose_bottom", "double_rose_top", False),
+            "paeonia": ("double_paeonia_bottom", "double_paeonia_top", False),
+        }
+        for state_name, (lower_name, upper_name, tinted) in double_plants.items():
+            state = load_json(z, f"assets/minecraft/blockstates/{state_name}.json")
+            variants = state.get("variants") or {}
+            if variants.get("half=lower", {}).get("model") != lower_name \
+                    or variants.get("half=upper", {}).get("model") != upper_name:
+                print(f"FAIL: {state_name}: lower/upper models {variants}")
+                fails += 1
+                continue
+            for half_name in (lower_name, upper_name):
+                model = load_model(z, half_name)
+                if half_name == "double_sunflower_top":
+                    continue
+                want_parent = "block/tinted_cross" if tinted else "block/cross"
+                if model.get("parent") != want_parent:
+                    print(f"FAIL: {half_name}: parent={model.get('parent')!r} want {want_parent!r}")
+                    fails += 1
+                    continue
+            print(f"ok {state_name}: distinct lower/upper {'tinted ' if tinted else ''}models")
+
+        sunflower = load_model(z, "double_sunflower_top")
+        sunflower_els = sunflower.get("elements") or []
+        sunflower_ok = (
+            sunflower.get("ambientocclusion") is False
+            and len(sunflower_els) == 3
+            and sunflower_els[0].get("from") == [0.8, 0, 8]
+            and sunflower_els[0].get("to") == [15.2, 8, 8]
+            and sunflower_els[1].get("from") == [8, 0, 0.8]
+            and sunflower_els[1].get("to") == [8, 8, 15.2]
+            and sunflower_els[2].get("from") == [9.6, -1, 1]
+            and sunflower_els[2].get("to") == [9.6, 15, 15]
+            and sunflower_els[2].get("rotation", {}).get("angle") == 22.5
+            and set(sunflower_els[2].get("faces") or {}) == {"west", "east"}
+        )
+        if not sunflower_ok:
+            print("FAIL: double_sunflower_top: stem/head geometry contract")
+            fails += 1
+        else:
+            print("ok double_sunflower_top: half-height stem + tilted two-sided head")
 
         # --- fire: supported-from-below multipart + dual animated layers ---
         fire_state = load_json(z, "assets/minecraft/blockstates/fire.json")

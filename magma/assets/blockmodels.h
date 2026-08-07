@@ -46,7 +46,7 @@ enum {
     BM_KIND_CROSS,        /* two diagonal billboards (flowers/tall grass/saplings) */
     BM_KIND_SLAB_BOTTOM,  /* bottom half box (y 0..8) */
     BM_KIND_SLAB_TOP,     /* top half box (y 8..16) */
-    BM_KIND_STAIRS,       /* metadata-facing half slab + half-height step box */
+    BM_KIND_STAIRS,       /* metadata-oriented straight stair, bottom or top */
     BM_KIND_FENCE,        /* centre post + N/S/E/W connector bars */
     BM_KIND_WALL,         /* connection-state cobblestone-wall post + arms */
     BM_KIND_FLUID,        /* water/lava: top surface lowered to 14/16 when no fluid above */
@@ -56,6 +56,7 @@ enum {
     BM_KIND_LILY,
     /* snow_height2.json: box y 0..2 (1/8 block), all faces. */
     BM_KIND_SNOW_LAYER,
+    BM_KIND_PRESSURE_PLATE,
     /* vine_*.json: thin cutout plane on one side face (south z=15.2 representative). */
     BM_KIND_VINE,
     /* cactus.json: inset side faces (approx: full cube cutout; sides inset 1px). */
@@ -77,6 +78,15 @@ enum {
     BM_KIND_GLASS_PANE,
     /* Standing/wall torch; legacy metadata selects its attachment side. */
     BM_KIND_TORCH,
+    /* End rod: exact two-box dimensions; legacy metadata selects all six axes. */
+    BM_KIND_END_ROD,
+    /* Chorus plant multipart: central 8px cube plus neighbor-derived arms. */
+    BM_KIND_CHORUS_PLANT,
+    /* Chorus flower's six outer lobes and 12px central body. */
+    BM_KIND_CHORUS_FLOWER,
+    /* double_sunflower_top.json: two short diagonal stem planes plus a tilted,
+     * two-sided flower head with distinct front/back sprites. */
+    BM_KIND_DPLANT_SUNFLOWER_TOP,
     /* Single chest: inset body 1..15 x 0..14 x 1..15 + front knob from meta
      * (2=N 3=S 4=W 5=E). Not a TESR; lid angle is not meshed. */
     BM_KIND_CHEST,

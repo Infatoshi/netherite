@@ -12,6 +12,7 @@ make verify-harsh           # structural + hard-scene + multi-scene
 make test-mesh test-model-oracle test-jar-models
 make hard-scene-verify      # seed-0 canopy vs mc_frame.png
 make rung4-verify multi-verify
+bash ../../scripts/test_parity_60.sh # focused gameplay/audio promotion suite
 ```
 
 Kernel unit tests alone miss wrong models fed into correct math; use the composed
@@ -253,6 +254,9 @@ unit coverage.
 | Skeleton arrows and blaze fireballs | `game/runtime.c:spawn_hostile_projectiles`; `game/runtime.c:tick_projectiles` | `game/test_runtime.sh` | **No** | High | Summon skeleton and blaze across a marked lane and strafe through several volleys. |
 | Bow launch, flight, hit, and arrow consumption | `game/runtime.c:spawn_bow_arrow`; `game/runtime.c:tick_projectiles` | `game/test_runtime.sh` (release and inventory consumption) | **No** | High | Give bow/arrows, draw for 20 ticks, release into a zombie and inspect the hotbar count. |
 | Passive panic and deterministic wander | `game/mob_live.c:gm_mobs_tick` | `game/test_mob_live.sh` (sheep panic and wander) | **No** | Medium | Hit a penned sheep, pig, cow, and chicken once and watch their movement. |
+| Player shearing of sheep | `game/runtime.c:gm_runtime_tick`; `game/mob_live.c:gm_mobs_shear_sheep` | `trace/test_shearing.py` (7 strict Java cases, exact wool entities/RNG/tool/sound); `game/test_shearing_runtime.c` | **No** | Medium | Shear adult/child/already-sheared colored sheep with main/offhand and nearly broken enchanted shears. |
+| Sheep grazing, wool regrowth, and child growth | `game/mob_live.c:gm_mobs_tick`; `game/mob_live.c:gm_mobs_sheep_graze_begin`; `game/mob_live.c:gm_mobs_sheep_graze_update` | `trace/test_grazing.py` (11 strict Java cases, exact RNG/timer/block/status/event/age); `game/test_grazing_runtime.c` | **No** | Medium | Pen sheared adult and child sheep on grass/tallgrass, toggle mobGriefing, and capture the full 40-tick head motion and regrowth. |
+| Natural sheep fleece color | `game/mob_live.c:gm_mobs_random_sheep_color`; ordinary passive-spawn branch in `game/mob_live.c` | `trace/test_sheep_color.py` (13 strict Java selector/onInitialSpawn cases, exact World.rand); `game/test_sheep_color_runtime.c` | **Partial**: state tint path passes, but no real-Java six-color pixel matrix | Low | Spawn the six natural colors in a lit pen, then compare unsheared and sheared layers. |
 | Hostile soft and hard despawn | `game/mob_live.c:gm_mobs_tick` | `game/test_mob_live.sh` covers hard >128; soft-delay path lacks a focused assertion | **No** | Low | Keep a named reference mob at 33 blocks, then teleport beyond 128 blocks. |
 | Mob death, loot, and durability damage | `game/mob_live.c:gm_mobs_player_attack`; `game/mob_live.c:mob_drop` | `game/test_mob_live.sh` (zombie, blaze, sheep loot/XP) | **No** | High | Kill one hostile and one passive with a damaged sword and hold on the drops. |
 | XP orb split, bob, attraction, pickup | `game/mob_live.c:gm_mobs_spawn_xp`; `game/mob_live.c:tick_xp_orbs` | `game/test_mob_live.sh`; `game/test_dragon_live.sh` | **No** | High | Kill a zombie at five blocks and stand still as its orbs approach and are collected. |
@@ -275,7 +279,7 @@ unit coverage.
 | Stronghold locate and portal-room materialization | `game/structures_live.c:gm_stronghold_locate`; `game/structures_live.c:gm_stronghold_portal_room` | `game/test_stronghold_live.sh`; `game/test_route_e2e.sh` | **No** | Medium | Teleport to the located portal room and orbit its frames, lava, and silverfish area. |
 | Nether fortress locate and blaze-spawner room | `game/structures_live.c:gm_fortress_locate`; `game/structures_live.c:gm_fortress_spawner_room` | `game/test_dimensions_live.sh`; `game/test_route_e2e.sh` | **No** | Medium | Teleport to the generated fortress room, orbit the spawner, then fight a blaze. |
 | World clock and clear-weather interpolation | `game/world_live.c:gm_world_tick`; `game/world_live.c:gm_world_tick_clear` | `game/test_play_compose.sh` | **Partial**: clear noon and one coarse night checkpoint only | Medium | Hold one horizon view from sunset through night, moon, dawn, and full daylight. |
-| Rain/thunder state | `game/world_live.c:gm_world_clock_set_weather`; `game/config.c:gm_config_validate_runtime` | `game/test_play_compose.sh` tests clock state | **No**: renderer is explicitly rejected as not wired | High | Set rain then thunder in an exposed field and record sky, fog, ground streaks, and sound-free visuals. |
+| Rain/thunder state and precipitation render | `game/world_live.c:gm_world_clock_set_weather`; `game/sky.c:gm_sky_set_weather`; `game/weather_render.h:gm_weather_render` | Java/CPU/CUDA timer/strength gate; `game/test_weather_render.sh`; `game/test_weather_runtime.sh` | **Partial**: source/vertex exact and non-vacuous native render probe; real-Java weather pixel tape remains open | High | Set rain then thunder in an exposed field and record sky, fog, ground streaks, and sound-free visuals. |
 
 ### Entity and model rendering
 
@@ -296,7 +300,7 @@ bounds, but they are not oracle pixels.
 | Cave-spider skin variant | `game/entity_render.c:gm_entity_skin_for_name` | Name/skin map in `game/test_entity_render.sh` | **No** | High | Summon cave spider beside spider in a lit mineshaft and orbit both. |
 | Enderman model, held block, hurt/teleport effects | `game/entity_render.c:gm_entities_emit` | Geometry and revenge AI tests | **No**; teleport particles are unimplemented (#40) | High | Summon enderman holding a block, hit it, and track hurt/teleport frames. |
 | Blaze rods and ranged attack | `game/entity_render.c:gm_entities_emit` | Geometry test; live fight in `game/test_mob_live.sh` | **No** | High | Summon blaze in fortress room and record idle rods, attack charge, fireball, and death. |
-| Sheep fleece/color/sheared/graze animation | `game/entity_render.c:gm_entities_emit` | Recorded-state checks in `game/test_entity_render.sh` | **Partial**: nearby sheep/graze appears in canonical tape; no color/shear matrix | Medium | Pen colored sheep, shear one, feed one, and hold close on grazing head motion. |
+| Sheep fleece/color/sheared/graze animation | `game/entity_render.c:gm_entities_emit`; `game/mob_live.c:gm_mobs_fill_views` | Recorded/live-state checks in `game/test_entity_render.sh`; exact timer pose values in `game/test_grazing_runtime.c` | **Partial**: color/sheared and timer-derived tick-boundary poses pass; no real-Java color/shear/graze pixel matrix or partial-tick pose gate | Medium | Pen colored sheep, shear one, feed one, and hold close on grazing head motion. |
 | Pig model and gait | `game/entity_render.c:gm_entities_emit` | `game/test_entity_render.sh` | **No** | Medium | Summon pig at four blocks and record idle, walk, hurt, and death. |
 | Cow model and gait | `game/entity_render.c:gm_entities_emit` | `game/test_entity_render.sh` | **No** | Medium | Summon cow at four blocks and record idle, walk, hurt, and death. |
 | Mooshroom skin/model variant | `game/entity_render.c:gm_entity_skin_for_name` | Name/skin map in `game/test_entity_render.sh` | **No** | High | Summon mooshroom beside cow and orbit the head, body, and mushroom silhouette. |

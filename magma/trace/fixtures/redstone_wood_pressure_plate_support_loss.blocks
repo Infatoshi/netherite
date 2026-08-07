@@ -1,0 +1,5 @@
+# Wooden pressure plates share the binary powered state but
+# drop their own block item when the floor support disappears.
+12 77 8 1 0
+12 78 8 72 1
+13 78 8 124 0

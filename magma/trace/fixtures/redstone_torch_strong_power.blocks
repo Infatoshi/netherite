@@ -1,0 +1,6 @@
+# A lit floor torch strongly powers the stone immediately above it. The
+# tick-0 lamp is adjacent to the stone and diagonal from the torch.
+12 77 8 1 0
+12 78 8 76 5
+12 79 8 1 0
+13 79 8 0 0

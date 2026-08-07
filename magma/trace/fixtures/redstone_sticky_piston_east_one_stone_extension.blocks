@@ -1,0 +1,5 @@
+# An unextended EAST-facing sticky piston has one stone directly in front.
+# Adding a south-side redstone block at tick zero must create a sticky moving
+# head in x=13 and a distinct ordinary moving-stone tile in x=14.
+12 78 8 29 5
+13 78 8 1 0

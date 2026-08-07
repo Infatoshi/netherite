@@ -1,0 +1,4 @@
+# A redstone block above an oak-plank normal cube is diagonal from the tick-0
+# lamp. The lamp can light only through the plank's indirect strong-power path.
+12 78 8 5 0
+12 79 8 152 0

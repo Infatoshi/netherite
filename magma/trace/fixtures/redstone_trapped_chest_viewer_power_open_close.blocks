@@ -1,0 +1,10 @@
+# x y z id meta
+# The player spawns at (8.5,78,8.5), facing north at this unblocked trapped
+# chest. Opening must weak-power the east lamp directly. It must also
+# strong-power only upward: the stone below carries that strong input to the
+# lower east lamp after TileEntityChest notifies pos.down(). Escape at tape
+# tick 7 closes the container; both lamps then use their ordinary +4 off delay.
+8 78 6 1 0
+8 79 6 146 2
+9 79 6 123 0
+9 78 6 123 0

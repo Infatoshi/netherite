@@ -1,0 +1,7 @@
+# x y z id meta
+# Unpowered compare-mode comparator facing WEST (metadata 1). Tick zero adds a
+# full-strength rear input at x=11; output is the lamp east at x=13.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 149 1
+13 78 8 123 0

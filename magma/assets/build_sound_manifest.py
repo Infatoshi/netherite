@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Build a compact hash manifest for the represented 1.11 sound events."""
+
+import json
+import os
+from pathlib import Path
+import sys
+
+
+EVENTS = [
+    None,
+    "entity.chicken.hurt", "entity.chicken.death",
+    "entity.pig.hurt", "entity.pig.death",
+    "entity.cow.hurt", "entity.cow.death",
+    "entity.sheep.hurt", "entity.sheep.death", "entity.sheep.shear",
+    "entity.chicken.egg", "item.bucket.fill", "item.armor.equip_generic",
+    "entity.pig.saddle", "entity.lightning.thunder",
+    "entity.lightning.impact", "entity.firework.launch",
+    "entity.bobber.splash", "block.dispenser.dispense",
+    "block.dispenser.fail", "block.dispenser.launch",
+    "entity.endereye.launch", "entity.firework.shoot",
+    "block.iron_door.open", "block.wooden_door.open",
+    "block.wooden_trapdoor.open", "block.fence_gate.open",
+    "block.fire.extinguish", "block.iron_door.close",
+    "block.wooden_door.close", "block.wooden_trapdoor.close",
+    "block.fence_gate.close", "entity.ghast.warn", "entity.ghast.shoot",
+    "entity.enderdragon.shoot", "entity.blaze.shoot",
+    "entity.zombie.attack_door_wood", "entity.zombie.attack_iron_door",
+    "entity.zombie.break_door_wood", "entity.wither.break_block",
+    "entity.wither.shoot", "entity.bat.takeoff", "entity.zombie.infect",
+    "entity.zombie_villager.converted", "block.anvil.destroy",
+    "block.anvil.use", "block.anvil.land", "block.portal.travel",
+    "block.chorus_flower.grow", "block.chorus_flower.death",
+    "block.brewing_stand.brew", "block.iron_trapdoor.close",
+    "block.iron_trapdoor.open", "entity.splash_potion.break",
+    "entity.enderdragon_fireball.explode", "block.end_gateway.spawn",
+    "entity.enderdragon.growl", "entity.villager.yes", "entity.villager.no",
+]
+
+
+def find_index() -> Path:
+    override = os.environ.get("MC_ASSET_INDEX")
+    candidates = []
+    if override:
+        candidates.append(Path(override))
+    root = Path(__file__).resolve().parents[2]
+    candidates.extend([
+        root / "java/Minecraft/run/gradle/caches/minecraft/assets/indexes/1.11.json",
+        root / "java/Minecraft/.gradle/minecraft/assets/indexes/1.11.json",
+    ])
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise SystemExit("Minecraft 1.11 asset index not found; run bootstrap_oracle.sh")
+
+
+def resolve(entries, name, volume=1.0, pitch=1.0, seen=()):
+    if name in seen:
+        raise ValueError(f"recursive sound event: {name}")
+    entry = entries.get(name)
+    if not entry:
+        raise KeyError(f"missing sound event: {name}")
+    result = []
+    for value in entry.get("sounds", []):
+        if isinstance(value, str):
+            value = {"name": value}
+        child = value["name"]
+        child_volume = volume * float(value.get("volume", 1.0))
+        child_pitch = pitch * float(value.get("pitch", 1.0))
+        weight = int(value.get("weight", 1))
+        if value.get("type") == "event":
+            for row in resolve(
+                    entries, child, child_volume, child_pitch, seen + (name,)):
+                result.append((row[0], row[1], row[2], row[3] * weight))
+        else:
+            result.append((child, child_volume, child_pitch, weight))
+    return result
+
+
+def main():
+    index_path = find_index()
+    asset_root = index_path.parent.parent
+    index = json.loads(index_path.read_text())
+    objects = index["objects"]
+    sounds_hash = objects["minecraft/sounds.json"]["hash"]
+    sounds_path = asset_root / "objects" / sounds_hash[:2] / sounds_hash
+    entries = json.loads(sounds_path.read_text())
+    variants = []
+    spans = [(0, 0, 0)]
+    for event in EVENTS[1:]:
+        start = len(variants)
+        total = 0
+        for logical, volume, pitch, weight in resolve(entries, event):
+            key = f"minecraft/sounds/{logical}.ogg"
+            digest = objects.get(key, {}).get("hash")
+            if not digest:
+                raise KeyError(f"missing indexed asset: {key}")
+            variants.append((digest, volume, pitch, weight))
+            total += weight
+        spans.append((start, len(variants) - start, total))
+    if len(spans) != len(EVENTS):
+        raise AssertionError("sound enum and manifest lengths differ")
+
+    output = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
+        "assets/sound_manifest.h")
+    lines = [
+        "/* Generated from the owned Minecraft 1.11 asset index. Do not commit. */",
+        "#ifndef MAGMA_ASSETS_SOUND_MANIFEST_H",
+        "#define MAGMA_ASSETS_SOUND_MANIFEST_H",
+        "typedef struct {",
+        "    const char *hash; float volume, pitch; int weight;",
+        "} GmSoundAssetVariant;",
+        "typedef struct { int start, count, total_weight; } GmSoundAssetSpan;",
+        f"#define GM_SOUND_ASSET_VARIANT_COUNT {len(variants)}",
+        "static const GmSoundAssetVariant gm_sound_asset_variants[] = {",
+    ]
+    def c_float(value):
+        text = f"{value:.9g}"
+        if "." not in text and "e" not in text.lower():
+            text += ".0"
+        return text + "F"
+
+    lines.extend(
+        f'    {{"{digest}", {c_float(volume)}, {c_float(pitch)}, {weight}}},'
+        for digest, volume, pitch, weight in variants
+    )
+    lines.extend([
+        "};",
+        "static const GmSoundAssetSpan gm_sound_asset_spans[GM_SOUND_COUNT] = {",
+    ])
+    lines.extend(f"    {{{start}, {count}, {total}}}," for start, count, total in spans)
+    lines.extend(["};", "#endif", ""])
+    output.write_text("\n".join(lines))
+    print(f"sound manifest: {len(EVENTS)-1} events, {len(variants)} variants")
+
+
+if __name__ == "__main__":
+    main()

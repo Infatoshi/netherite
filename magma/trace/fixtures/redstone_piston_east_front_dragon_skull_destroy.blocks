@@ -1,0 +1,6 @@
+# EAST-facing normal piston targets an ownerless dragon head. The parked tile
+# payload is overwritten to skull type 5, rotation 11 after block staging.
+# Piston teardown must drop ItemSkull 397:5 and retire the tile state.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 144 1

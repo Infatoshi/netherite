@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while canonical double fern occupies the front
+# cell. Neither lower 175:3 nor upper 175:10 emits an item.
+12 78 9 152 0
+13 77 8 3 0
+13 78 8 175 3
+13 79 8 175 10

@@ -1,0 +1,5 @@
+# BlockSlab.isFullyOpaque accepts a top-half single slab. A tick-zero source
+# at (11,78,8) must power this dust and the endpoint lamp immediately.
+12 77 8 44 8
+12 78 8 55 0
+13 78 8 123 0

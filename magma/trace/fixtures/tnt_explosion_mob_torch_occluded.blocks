@@ -1,0 +1,5 @@
+# A standing torch has a NULL entity collision box but a non-empty outline.
+# World.getBlockDensity ray-traces that outline. Obsidian below supports it
+# without entering rays above the pig fixture's feet.
+13 82 8 49 0
+13 83 8 50 5

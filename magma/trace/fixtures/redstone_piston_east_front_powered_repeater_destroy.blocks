@@ -1,0 +1,7 @@
+# Supported SOUTH-facing, delay-one powered repeater 94:0 in front of an
+# EAST-facing piston. Its south redstone block keeps the saved state stable;
+# the piston itself is powered by the separate source at 12,78,9.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 94 0
+13 78 9 152 0

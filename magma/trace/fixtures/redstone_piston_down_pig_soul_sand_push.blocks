@@ -1,0 +1,5 @@
+# DOWN-facing normal piston is placed at tick zero above a locked NoAI pig at
+# (12.5,80,8.5). Soul sand below has a 0.875-high collision box, leaving the
+# exact 0.125 downward displacement that a full-cube approximation erases.
+12 81 9 152 0
+12 79 8 88 0

@@ -1,0 +1,6 @@
+# EAST-facing empty normal piston. A stable redstone block is west of the
+# future WEST-facing powered repeater. Tick zero places repeater 94:1 south of
+# the piston, but that repeater outputs east rather than north and must not
+# extend the piston.
+12 78 8 33 5
+11 78 9 152 0

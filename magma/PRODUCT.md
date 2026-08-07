@@ -53,7 +53,53 @@ block-items draw as flat texture tiles where vanilla renders mini 3D blocks, and
 item ids outside the atlas table fall back to colored pips; world chest blocks
 still use a static inset mesh without the animated lid/TESR texture, and several
 exact type-specific entity animations/particles remain simplified;
-optional villages/enchanting/brewing/weather bundles deliberately reject `on`; and
+the `--villages on` development path now enables exact recursive village
+pieces, roads, farms/crops, houses/doors, blacksmith loot, and retained
+resident spawn sites/professions. Ordinary residents now materialize into the
+live mob store, render profession-specific nine-part models, and expose 22
+Java-locked initial ordinary offers across 11 tested career selections. It is
+not yet a complete product bundle: villager AI, reputation/door state,
+breeding, golems, later trade tiers/restocking, enchanted/map offers, merchant
+UI, persistence, and pixel promotion remain open. Enchanting `on` now
+enables exact bookshelf scanning, offer generation/reseeding, item/lapis slots,
+XP/lapis costs, application, and book conversion in a playable table UI, while
+anvils, complete enchanted-book paths, glint, and pixel promotion remain open.
+Weather `on` now enables exact timers/strength interpolation, rain/thunder sky,
+fog, lightmap, celestial attenuation, Java-locked rain/snow geometry, and
+open-sky rain extinguishing. It also enables lightning lifecycle/events/fire,
+represented strikes and mob conversion, plus ice/snow/cauldron precipitation
+callbacks. Lightning thunder/impact events feed the live audio stream;
+precipitation loops/particles, lightning pixel fidelity, broader precipitation
+edges, and Java pixel-tape promotion remain open. Brewing
+`on` now enables live stands, recipes, drinkable effects, GUI, persistence, and
+comparator state plus splash and lingering effects for players and mobs. Mobs
+now retain, combine, age, and expose bounded status effects; regeneration,
+poison, fire resistance, Speed, Slowness, Strength, Weakness, and Jump Boost
+execute live, Resistance reduces represented incoming damage after hurt
+immunity, Wither pulses through the ordinary death/drop path, Health Boost
+changes the live cap, Absorption shields represented damage, and Levitation
+uses the exact living travel transform. Represented living mobs also carry
+reloadable air state: eye-in-water decrements it, Water Breathing holds it,
+dry eyes reset it, and the exact 320-tick drown pulse consumes the vanilla
+bubble RNG before represented damage/death. Invisibility suppresses the live
+mob model and slime gel layer for the product's survival viewer, clears on
+effect expiry, and leaves the independently rendered fire overlay intact. The
+player's Night Vision now uses the exact duration/partial-tick warning
+flicker, post-provider 256-entry lightmap normalization, and post-fogColor1
+clear, terrain, water, and lava fog normalization in both headless capture and
+the interactive product. Player Blindness now uses the exact duration fade,
+void darkening, and linear sky/terrain fog ranges in both render paths; it also
+blocks Ctrl and double-tap sprint starts without cancelling an already active
+sprint. The represented direct player attack also applies the exact weapon-specific
+cooldown period, base/enchantment/critical ordering, Blindness and movement
+predicate, target armor, sword/tool/hoe durability wear, ordinary target
+knockback, sprint and Knockback-enchantment impulses, attacker slowdown, and
+sprint cancellation. Fire Aspect preignition, accepted extension, rejection
+rollback, and cooked lethal loot are exact. Its remaining sound, particle,
+sweep, Thorns,
+player-target velocity acknowledgement, and statistics side effects are still
+open. The remaining mob effect behaviors, cloud particles, and
+potion-entity persistence remain open; and
 the Java-pixel suite does not yet cover every required HUD/entity/particle state. The
 instrumented seed-0 and seed-7 terrain gates and the Java Nether/End portal suite pass.
 
@@ -77,8 +123,13 @@ is compared numerically against pinned Java scenes; it is never approved by a su
 - Single-player only. There is no networking, LAN, server split, or multiplayer state.
 - No disk saves or NBT persistence. Deterministic reset and in-memory test snapshots may
   exist as harness operations, not as player-facing saves.
-- No redstone power or automation, rails, minecarts, audio, achievements, statistics,
-  scoreboards, resource packs, skins, or broad graphics-options menu.
+- Redstone power, automation, rails, and minecarts are full-parity expansion
+  systems. Their implemented subsets are available behind their live paths and
+  their remaining coverage is tracked in `PARITY_PROJECT.md`; the fast base
+  profile does not pay for inactive systems. Interactive play now has optional
+  OpenAL playback for the represented ordered event stream. Music, ambient
+  loops, records, category controls, achievements, statistics, scoreboards,
+  resource packs, skins, and a broad graphics-options menu remain absent.
 - Difficulty is fixed to Normal. Day/night, mob spawning, drops, fire required for
   portals, random ticks required by the route, and the mandatory structures stay on.
 - Death terminates the RL episode. Reset creates a fresh deterministic world.
@@ -127,7 +178,27 @@ must never silently do nothing.
   villagers, golems, and trading. Disabling it must not disable strongholds or fortresses.
 - `enchanting`: XP/lapis costs, tables, bookshelves, enchant application/effects, and
   the required inventory UI and render glint.
-- `brewing`: Nether wart, stands/fuel, route-relevant recipes, potion effects, and UI.
+- `brewing`: Nether wart, five-slot stands/fuel, all 1.11.2 recipes, bottle
+  filling, drinkable potion effects and milk cure, persistence, comparator
+  state, UI, exact seeded splash/lingering launch, player impact scaling,
+  instant player/mob effects, water-fire extinguishing, water damage to
+  blazes/endermen, and per-target lingering-cloud timing. Test-only cold
+  fixtures can resume an in-flight potion or the complete represented scalar
+  lifecycle of a lingering cloud at a pre-tick boundary. Represented mobs
+  retain exact bounded effect duration/amplifier state with vanilla combine
+  rules; regeneration, poison, undead applicability, same-tick fire
+  resistance, Speed/Slowness movement, Strength/Weakness melee, and Jump Boost
+  are live. Resistance reduces represented incoming damage after hurt
+  immunity and Wither uses exact cadence plus ordinary death/drop. Health
+  Boost, Absorption, and Levitation are also live, including effect replacement
+  and removal side effects. Water Breathing holds the represented mob air
+  counter underwater; dry reset, drown cadence, bubble RNG, damage, and raw
+  save-state exposure are live. Invisibility drives the live mob render flag,
+  suppresses base and slime-gel geometry, expires before the next rendered
+  state, and does not suppress the separate fire overlay. Remaining
+  mob world/render and non-brewing effect behaviors, cloud
+  particles, automatic capsule translation, and full potion-entity NBT
+  persistence remain under active parity work.
   Blaze rods and blaze powder remain mandatory even when brewing is off.
 - `weather`: rain/thunder timers, mechanics, lightning, wet/fire interactions, and
   rendering. Off means permanently clear with no weather tick or render cost; day/night
@@ -199,7 +270,12 @@ activation, combat, dragon death, and victory must occur through survival action
 
 ## Explicit side-content cuts
 
-Mineshafts, dungeons, temples, monuments, woodland mansions, End cities, pets, breeding,
-fishing, maps, fireworks, decorative block behavior, and outer-End gateway/resummoning are
-cut until promoted by an RL task or supported speedrun route. Static scenery emitted by a
-supported generator still needs correct model, texture, collision, and light behavior.
+Mineshafts and dungeons are promoted. The represented breeding path, fishing
+gameplay core, fireworks/elytra gameplay, outer-End population, gateways,
+cities/ships, village generation, and temples are also live under their
+parity-project limits. Ordinary village residents and their initial trade slice
+are live, while villager AI, later economy state, and golems remain cut.
+Monuments, woodland mansions, taming/pets, maps, shulkers, dragon resummoning,
+broader decorative behavior, and the documented residual edges of those
+promoted bundles also remain cut. Static scenery emitted by a supported
+generator still needs correct model, texture, collision, and light behavior.

@@ -1,0 +1,7 @@
+# A supported SOUTH-facing unpowered comparator 149:0 occupies the front cell
+# of a future EAST piston. Tick zero places the piston; the stable south-side
+# redstone block powers only the piston, so Java destroys the comparator,
+# retires its output-zero tile, and emits one comparator item.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 149 0

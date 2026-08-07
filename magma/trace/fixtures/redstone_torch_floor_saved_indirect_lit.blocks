@@ -1,0 +1,7 @@
+# A stable powered repeater strongly powers the normal stone support under a
+# lit floor torch. The saved torch callback must turn the torch off at +2.
+12 77 8 1 0
+13 76 8 1 0
+14 77 8 152 0
+13 77 8 94 3
+12 78 8 76 5

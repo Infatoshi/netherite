@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "game/potion_render.h"
 #include "world/lightmap.h"
 
 static int f2bits(float f) { int b; memcpy(&b, &f, sizeof b); return b; }
@@ -13,7 +14,10 @@ int main(void) {
     if (!fg) { fg = fopen("golden_light.txt", "r"); path = "golden_light.txt"; }
     if (!fg) { printf("FAIL: cannot open golden_light.txt\n"); return 2; }
 
-    int fails = 0, ntable = 0, nrgb = 0;
+    int fails = 0, ntable = 0, nrgb = 0, nnvrgb = 0, nvamount = 0;
+    int nblindfar = 0, nblindrgb = 0;
+    McSinTable sin_table;
+    mc_sin_table_init(&sin_table);
     char kind[16];
     while (fscanf(fg, "%15s", kind) == 1) {
         if (strcmp(kind, "TABLE") == 0) {
@@ -46,14 +50,87 @@ int main(void) {
                 fails++;
             }
             nrgb++;
+        } else if (strcmp(kind, "NVRGB") == 0) {
+            int dim, sky, block, rb, gb, bb, argb;
+            if (fscanf(fg, "%d %d %d %d %d %d %d",
+                       &dim, &sky, &block, &rb, &gb, &bb, &argb) != 7) {
+                printf("FAIL: parse NVRGB\n"); fails++; break;
+            }
+            CrLightmapRgb c = cr_lightmap_rgb_night_vision(
+                dim, sky, block, cr_dimension_sun_brightness(dim),
+                0.0f, 0.0f, 1.0f);
+            CrRgba q = cr_lightmap_rgba8(c);
+            int32_t got_argb = (int32_t)(UINT32_C(0xff000000)
+                | (uint32_t)q.r << 16 | (uint32_t)q.g << 8 | q.b);
+            if (f2bits(c.r) != rb || f2bits(c.g) != gb || f2bits(c.b) != bb
+                    || got_argb != (int32_t)argb) {
+                printf("FAIL: NVRGB dim=%d sky=%d block=%d bits/argb diverged\n",
+                       dim, sky, block);
+                fails++;
+            }
+            nnvrgb++;
+        } else if (strcmp(kind, "NVAMOUNT") == 0) {
+            int duration, bits;
+            if (fscanf(fg, "%d %d", &duration, &bits) != 2) {
+                printf("FAIL: parse NVAMOUNT\n"); fails++; break;
+            }
+            float got = gm_night_vision_brightness_duration(
+                &sin_table, duration, 1.0f);
+            if (f2bits(got) != bits) {
+                printf("FAIL: NVAMOUNT duration=%d java=%d c=%d\n",
+                       duration, bits, f2bits(got));
+                fails++;
+            }
+            nvamount++;
+        } else if (strcmp(kind, "BLINDFAR") == 0) {
+            int duration, bits;
+            if (fscanf(fg, "%d %d", &duration, &bits) != 2) {
+                printf("FAIL: parse BLINDFAR\n"); fails++; break;
+            }
+            float got = gm_blindness_fog_end(duration, 128.0f);
+            if (f2bits(got) != bits) {
+                printf("FAIL: BLINDFAR duration=%d java=%d c=%d\n",
+                       duration, bits, f2bits(got));
+                fails++;
+            }
+            nblindfar++;
+        } else if (strcmp(kind, "BLINDRGB") == 0) {
+            static const float bases[3][3] = {
+                {0.2f, 0.03f, 0.03f},
+                {0.02f, 0.02f, 0.2f},
+                {0.6f, 0.1f, 0.0f}
+            };
+            static const double feet_y[7] = {
+                -4.0, 0.0, 4.0, 16.0, 31.5, 32.0, 64.0
+            };
+            static const double factors[2] = {1.0, 0.03125};
+            int base, yi, factor, duration, rb, gb, bb;
+            if (fscanf(fg, "%d %d %d %d %d %d %d",
+                       &base, &yi, &factor, &duration, &rb, &gb, &bb) != 7
+                    || base < 0 || base >= 3 || yi < 0 || yi >= 7
+                    || factor < 0 || factor >= 2) {
+                printf("FAIL: parse BLINDRGB\n"); fails++; break;
+            }
+            float r = bases[base][0], g = bases[base][1], b = bases[base][2];
+            gm_void_blindness_rgb(
+                &r, &g, &b, duration, feet_y[yi], factors[factor]);
+            if (f2bits(r) != rb || f2bits(g) != gb || f2bits(b) != bb) {
+                printf("FAIL: BLINDRGB base=%d y=%d factor=%d duration=%d\n",
+                       base, yi, factor, duration);
+                fails++;
+            }
+            nblindrgb++;
         } else {
             printf("FAIL: unknown token %s\n", kind); fails++; break;
         }
     }
     fclose(fg);
 
-    if (ntable != 48 || nrgb != 768) {
-        printf("FAIL: expected 48 TABLE + 768 RGB, got %d + %d\n", ntable, nrgb);
+    if (ntable != 48 || nrgb != 768 || nnvrgb != 768 || nvamount != 10
+            || nblindfar != 7 || nblindrgb != 210) {
+        printf("FAIL: expected 48 TABLE + 768 RGB + 768 NVRGB + 10 NVAMOUNT "
+               "+ 7 BLINDFAR + 210 BLINDRGB, got %d + %d + %d + %d + %d + %d\n",
+               ntable, nrgb, nnvrgb, nvamount, nblindfar, nblindrgb);
         fails++;
     }
     /* High-value sentinels: dark Nether ambient and dark End ambient. */
@@ -79,7 +156,9 @@ int main(void) {
                night15.r, night15.g, night15.b);
         fails++;
     }
-    printf("checked %d table + %d RGB values against %s\n", ntable, nrgb, path);
+    printf("checked %d table + %d RGB + %d NVRGB + %d NVAMOUNT + "
+           "%d BLINDFAR + %d BLINDRGB values against %s\n",
+           ntable, nrgb, nnvrgb, nvamount, nblindfar, nblindrgb, path);
     printf(fails ? "RESULT: FAIL (%d)\n" : "RESULT: PASS (0 LSB divergence)\n", fails);
     return fails ? 1 : 0;
 }

@@ -5,6 +5,7 @@
 #include "game/runtime.h"
 #include "game/structures_live.h"
 #include "game/chest_live.h"
+#include "world/populate_mc.h"
 #include "container_click.h"
 
 #pragma GCC diagnostic push
@@ -70,6 +71,58 @@ static int chest_has_allowed_loot(const ChestLive *c)
     return any;
 }
 
+static int dungeon_chest_has_allowed_loot(const ChestLive *c)
+{
+    static const int ok[] = {
+        329, 322, 2256, 2257, 421, 418, 417, 419, 403,
+        265, 266, 297, 296, 325, 331, 263, 362, 361, 435,
+        352, 289, 367, 287, 0
+    };
+    int any = 0;
+    for (int i = 0; i < CHEST_LIVE_SLOTS; ++i) {
+        ICStack s = chest_live_get(c, i);
+        if (s.item <= 0 || s.count <= 0) continue;
+        any = 1;
+        int found = 0;
+        for (int k = 0; ok[k]; ++k)
+            if (ok[k] == s.item) { found = 1; break; }
+        if (!found) return 0;
+        if (s.item == 322 && s.meta != 0 && s.meta != 1) return 0;
+        if (s.item == 403 && s.n_enchants != 1) return 0;
+    }
+    return any;
+}
+
+static int find_dungeon_sites(GmRuntime *r,
+                              int *chest_x, int *chest_y, int *chest_z,
+                              int *spawner_x, int *spawner_y, int *spawner_z)
+{
+    int have_chest = 0, have_spawner = 0;
+    /* WorldGenDungeons in base chunk (0,0) may write into chunks 0 or 1.
+     * Keep the full contributing populate neighborhood resident while both
+     * block data and captured tile metadata are inspected. */
+    gm_world_ensure(r->world, 0, 0, 2);
+    for (int x = -16; x < 48; ++x)
+        for (int z = -16; z < 48; ++z)
+            for (int y = 1; y < 100; ++y) {
+                int id = gm_world_block(r->world, x, y, z);
+                if (!have_chest && id == 54 &&
+                        popmc_dungeon_chest_info(
+                            r->seed, x, y, z, NULL, NULL)) {
+                    *chest_x = x; *chest_y = y; *chest_z = z;
+                    have_chest = 1;
+                }
+                if (!have_spawner && id == 52 &&
+                        popmc_dungeon_spawner_info(
+                            r->seed, x, y, z, NULL)) {
+                    *spawner_x = x; *spawner_y = y; *spawner_z = z;
+                    have_spawner = 1;
+                }
+                if (have_chest && have_spawner) return 1;
+            }
+    return 0;
+}
+
 int main(void)
 {
     GmConfig cfg;
@@ -81,6 +134,17 @@ int main(void)
     char err[256];
     CHECK(gm_runtime_init(&r, &cfg, err, sizeof err), "runtime init");
     if (fail) return 1;
+
+    CHECK(tec_max_stack_size(325) == 16 &&
+          isr_max_stack_size(325, 0) == 16 &&
+          cc_max_stack_size(325, 0) == 16,
+          "empty bucket stack limit is 16 across chest/player/container paths");
+    CHECK(tec_max_stack_size(329) == 1 &&
+          isr_max_stack_size(329, 0) == 1 &&
+          cc_max_stack_size(329, 0) == 1 &&
+          tec_max_stack_size(418) == 1 &&
+          tec_max_stack_size(2256) == 1,
+          "dungeon saddle/horse-armor/record loot stays unstackable");
 
     /* Placement-stream seed oracle fixtures (real sh_capture_chest_sites). */
     {
@@ -475,6 +539,142 @@ int main(void)
                       "unopened break: enchanted books retain StoredEnchantments on drops");
             }
         }
+    }
+
+    /* Natural dungeon: generation metadata reaches live chest/spawner systems. */
+    {
+        GmConfig dungeon_cfg;
+        GmRuntime dungeon;
+        int dx = 0, dy = 0, dz = 0, sx = 0, sy = 0, sz = 0;
+        int facing = 0, mob_kind = 0, expected_entity = 0;
+        long long loot_seed = 0;
+        gm_config_defaults(&dungeon_cfg);
+        dungeon_cfg.world = GM_WORLD_DEFAULT;
+        dungeon_cfg.view_distance = 2;
+        dungeon_cfg.seed = 88;
+        CHECK(gm_runtime_init(&dungeon, &dungeon_cfg, err, sizeof err),
+              "dungeon runtime init");
+        if (!fail) {
+            CHECK(find_dungeon_sites(&dungeon, &dx, &dy, &dz,
+                                     &sx, &sy, &sz),
+                  "seed 88 has a natural dungeon chest and spawner");
+        }
+        if (!fail) {
+            CHECK(popmc_dungeon_chest_info(
+                      dungeon.seed, dx, dy, dz, &loot_seed, &facing),
+                  "natural dungeon chest retains placement loot seed and facing");
+            CHECK(facing >= 2 && facing <= 5,
+                  "natural dungeon chest facing is a legacy horizontal meta");
+            CHECK(gm_world_meta(dungeon.world, dx, dy, dz) == facing,
+                  "natural dungeon chest facing is applied to live block metadata");
+
+            gm_runtime_set_pose(&dungeon, dx + 0.5, dy, dz + 0.5, 0.0f, 0.0f);
+            CHECK(gm_runtime_use_block(&dungeon, dx, dy, dz),
+                  "open natural dungeon chest");
+            CHECK(dungeon.container == 3 && dungeon.active_chest >= 0,
+                  "natural dungeon chest opens live container");
+            if (dungeon.active_chest >= 0) {
+                ChestLive *ch = &dungeon.chests[dungeon.active_chest].state;
+                ChestLive repeat;
+                CHECK(ch->loot_table == CHEST_LOOT_SIMPLE_DUNGEON,
+                      "natural dungeon chest selects simple_dungeon loot table");
+                CHECK(ch->loot_seed == loot_seed,
+                      "natural dungeon chest uses captured nextLong loot seed");
+                CHECK(ch->loot_filled && chest_live_total_items(ch) > 0,
+                      "opening natural dungeon chest materializes deferred loot");
+                CHECK(dungeon_chest_has_allowed_loot(ch),
+                      "natural dungeon chest contains only simple_dungeon loot");
+                chest_live_init(&repeat);
+                chest_live_set_loot(
+                    &repeat, CHEST_LOOT_SIMPLE_DUNGEON, loot_seed);
+                chest_live_ensure_loot(&repeat);
+                CHECK(chest_fingerprint(&repeat) == chest_fingerprint(ch),
+                      "natural dungeon loot is deterministic from placement seed");
+            }
+
+            CHECK(popmc_dungeon_spawner_info(
+                      dungeon.seed, sx, sy, sz, &mob_kind),
+                  "natural dungeon spawner retains weighted mob selection");
+            expected_entity = mob_kind == POPMC_DUNGEON_MOB_SKELETON
+                ? EW_TYPE_SKELETON
+                : mob_kind == POPMC_DUNGEON_MOB_SPIDER
+                    ? EW_TYPE_SPIDER : EW_TYPE_ZOMBIE;
+            gm_runtime_set_pose(
+                &dungeon, sx + 0.5, sy + 0.5, sz + 0.5, 0.0f, 0.0f);
+            {
+                GmAction idle;
+                memset(&idle, 0, sizeof idle);
+                idle.hotbar_sel = -1;
+                gm_runtime_tick(&dungeon, idle);
+            }
+            {
+                int found = 0;
+                for (int i = 0; i < GM_SPAWNERS; ++i) {
+                    const GmSpawnerTE *sp = &dungeon.mobs.spawners[i];
+                    if (sp->active && sp->x == sx && sp->y == sy && sp->z == sz) {
+                        found = sp->entity_type == expected_entity;
+                        break;
+                    }
+                }
+                CHECK(found,
+                      "natural dungeon spawner registers captured skeleton/zombie/spider type");
+            }
+            fprintf(stderr,
+                    "chest_loot: dungeon chest=%d,%d,%d facing=%d seed=%lld "
+                    "spawner=%d,%d,%d mob=%d\n",
+                    dx, dy, dz, facing, loot_seed, sx, sy, sz, mob_kind);
+        }
+        gm_runtime_destroy(&dungeon);
+    }
+
+    /* Natural mineshaft: population events retain the cart loot seed and the
+     * cave-spider identity of the generated spawner tile. */
+    {
+        GmConfig mine_cfg;
+        GmRuntime mine;
+        long long cart_seed = 0;
+        gm_config_defaults(&mine_cfg);
+        mine_cfg.world = GM_WORLD_DEFAULT;
+        mine_cfg.view_distance = 2;
+        mine_cfg.seed = 143;
+        CHECK(gm_runtime_init(&mine, &mine_cfg, err, sizeof err),
+              "mineshaft runtime init");
+        if (!fail) {
+            gm_world_ensure(mine.world, -6, -7, 1);
+            CHECK(popmc_mineshaft_cart_info(
+                      mine.seed, -90, 29, -97, &cart_seed),
+                  "natural mineshaft retains chest-minecart event");
+            CHECK(cart_seed == 7230402065820649518LL,
+                  "natural mineshaft retains exact chest-minecart loot seed");
+            CHECK(gm_world_block(mine.world, -90, 29, -97) == 66,
+                  "natural chest minecart is placed on its generated rail");
+
+            gm_world_ensure(mine.world, -6, -2, 1);
+            CHECK(popmc_mineshaft_spawner_info(mine.seed, -90, 33, -28),
+                  "natural mineshaft retains cave-spider spawner event");
+            CHECK(gm_world_block(mine.world, -90, 33, -28) == 52,
+                  "natural mineshaft spawner block is live");
+            gm_runtime_set_pose(&mine, -89.5, 33.5, -27.5, 0.0f, 0.0f);
+            {
+                GmAction idle;
+                memset(&idle, 0, sizeof idle);
+                idle.hotbar_sel = -1;
+                gm_runtime_tick(&mine, idle);
+            }
+            {
+                int found = 0;
+                for (int i = 0; i < GM_SPAWNERS; ++i) {
+                    const GmSpawnerTE *sp = &mine.mobs.spawners[i];
+                    if (sp->active && sp->x == -90 && sp->y == 33 && sp->z == -28) {
+                        found = sp->entity_type == EW_TYPE_CAVE_SPIDER;
+                        break;
+                    }
+                }
+                CHECK(found,
+                      "natural mineshaft spawner registers cave-spider identity");
+            }
+        }
+        gm_runtime_destroy(&mine);
     }
 
     /* Growable TE: opening many unique chests retains live TEs (no eviction). */

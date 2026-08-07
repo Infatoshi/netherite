@@ -65,6 +65,11 @@ void     light_set_state(CrLight *, int wx, int wy, int wz, uint16_t state);
  * nibble arrays. The next light_ensure rebuilds Chunk.generateSkylightMap for
  * all resident chunks once, then runs the normal horizontal spread. */
 void     light_load_state(CrLight *, int wx, int wy, int wz, uint16_t state);
+/* Exact cold restore of vanilla Chunk SkyLight storage. The caller must first
+ * finish its block snapshot and light_ensure once, then write every carried
+ * nibble and call light_finalize_sky_snapshot before the first replay tick. */
+int      light_load_sky_snapshot(CrLight *, int wx, int wy, int wz, int value);
+void     light_finalize_sky_snapshot(CrLight *);
 /* Apply the saved-skylight part of vanilla's deferred Chunk.recheckGaps after
  * a surface block is removed. The caller remeshes the affected chunk. */
 void     light_recheck_break_surfaces(CrLight *, int wx, int wy, int wz);
@@ -95,6 +100,9 @@ void     light_zero_sky_and_relight(CrLight *);
 int      light_grass_color  (const CrLight *, int wx, int wy, int wz);
 int      light_foliage_color(const CrLight *, int wx, int wy, int wz);
 int      light_water_color  (const CrLight *, int wx, int wz);
+/* Biome.getFloatTemperature at an exact block position, including the
+ * y>64 TEMPERATURE_NOISE/elevation adjustment used by weather ice and snow. */
+float    light_biome_temperature(const CrLight *, int wx, int wy, int wz);
 
 /* Per-biome (pre-blend) tint colours, 0xRRGGBB, exactly as Minecraft's Biome
  * subclasses compute them: getFloatTemperature(pos)+rainfall -> grass/foliage

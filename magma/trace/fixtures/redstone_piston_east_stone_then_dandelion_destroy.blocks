@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. One pushable stone is
+# followed by a dandelion. Java destroys the terminal flower, moves the stone
+# into that cell, and starts the moving head in the original stone cell.
+12 78 9 152 0
+13 78 8 1 0
+14 78 8 37 0

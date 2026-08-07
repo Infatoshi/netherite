@@ -40,6 +40,7 @@ typedef struct {
     CrVec3 sun_h;          /* unit horizontal dir toward the sun */
     float  starB;
     float  cA, sA;         /* cos/sin of celestial angle * 2pi (sun/moon basis) */
+    float  celestial_alpha;/* RenderGlobal: 1 - rainStrength */
     /* Eye-in-fluid override (EntityRenderer.setupFog(-1) fluid branch, which
      * ignores startCoords): uw != 0 replaces the linear sky-plane fog with
      * GL_EXP(uw_density) toward uw_fog and drops sunset/stars/sun/moon (all
@@ -48,6 +49,9 @@ typedef struct {
     int    uw;
     CrVec3 uw_fog;
     float  uw_density;
+    /* setupFog(-1) linear fog end. Ordinary sky uses farPlaneDistance;
+     * Blindness uses 0.8 * its duration-dependent five-block range. */
+    float  linear_fog_end;
     /* RenderGlobal glSkyList is authored at y=+16 in feet-relative space.
      * EntityRenderer.orientCamera then glTranslate(0, -eyeHeight, 0) before
      * the sky draw, so the plane sits at y = 16 - eyeHeight in eye space
@@ -115,6 +119,23 @@ void gm_sky_set_fluid_fog(int on, CrVec3 fog01, float density);
  * the clear/view-fog colour. Call each frame before gm_sky_draw /
  * gm_sky_frame_args / gm_terrain_fog_color. Host state; default 1.0. */
 void gm_sky_set_fog_c1(float fog_c1);
+
+/* World rain/thunder strengths at this render partial tick. */
+void gm_sky_set_weather(float rain_strength, float thunder_strength);
+
+/* Real environment/rain.png and snow.png for renderRainSnow geometry. */
+CrTexture gm_weather_rain_texture(void);
+CrTexture gm_weather_snow_texture(void);
+
+/* EntityRenderer.getNightVisionBrightness for this frame. updateFogColor
+ * applies it after fogColor1 and before clear/fog submission. */
+void gm_sky_set_night_vision(float amount);
+
+/* EntityRenderer updateFogColor + setupFog Blindness/void inputs. feet_y is
+ * the interpolated entity feet position; void_fog_y_factor is 1 for FLAT and
+ * 0.03125 otherwise. */
+void gm_sky_set_void_blindness(
+    int blindness_duration, double feet_y, double void_fog_y_factor);
 
 /* Entity.getEyeHeight for orientCamera's glTranslate(0,-eyeHeight,0). Sets the
  * sky-plane eye-space height to 16 - eh (see GmSkyCtx.plane_y). Call each

@@ -28,6 +28,12 @@ void gm_sel_box(const GmSelIn *in, float b[6]);
 /* Convenience: fill GmSelIn from the psv chunk window at local (x,y,z). */
 void gm_sel_box_at(const Chunk *win, int x, int y, int z, float b[6]);
 
+/* EntityRenderer.getMouseOver and block selection must use the same
+ * float-rounded 1.11.2 look vector. */
+void gm_player_look_ray(const McSinTable *st, const PsvPlayer *pl,
+                        double *ex, double *ey, double *ez,
+                        double *dx, double *dy, double *dz);
+
 /* Selection-box raycast: like psv_raycast but vanilla-correct - the ray hits
  * ANY targetable block (torch, plants, crops, slabs...) whose selection box
  * it enters, not just full-cube solids; air/liquids/fire pass through.
@@ -46,6 +52,10 @@ int gm_raycast_sel(const Chunk *win, const McSinTable *st,
 int gm_raycast_sel_reach(const Chunk *win, const McSinTable *st,
                          const PsvPlayer *pl, double reach,
                          int *hx, int *hy, int *hz, int *ax, int *ay, int *az);
+int gm_raycast_sel_reach_distance(
+    const Chunk *win, const McSinTable *st, const PsvPlayer *pl, double reach,
+    int *hx, int *hy, int *hz, int *ax, int *ay, int *az,
+    double *distance);
 
 #ifdef __cplusplus
 }

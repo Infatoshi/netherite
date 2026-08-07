@@ -1,0 +1,8 @@
+# x y z id meta
+# Powered delay-1 repeater facing WEST (metadata 1), with a redstone-block
+# input west and a lit lamp east. Tick zero removes the input.
+11 78 8 152 0
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 94 1
+13 78 8 124 0

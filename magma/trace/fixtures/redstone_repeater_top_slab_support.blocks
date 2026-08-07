@@ -1,0 +1,6 @@
+# BlockRedstoneDiode accepts a state whose captured isFullyOpaque result is
+# true even when it is not a normal cube. Removing the unrelated output stone
+# must leave this delay-1 WEST-facing repeater on its top slab.
+12 77 8 44 8
+12 78 8 93 1
+13 78 8 1 0

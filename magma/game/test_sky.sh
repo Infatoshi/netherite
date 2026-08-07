@@ -3,8 +3,8 @@
 # Run from anywhere: bash game/test_sky.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-gcc -O2 -ffp-contract=off -Wall -Wextra -I. -Icore \
-    game/sky.c game/test_sky.c -o game/test_sky -lm
+gcc -O2 -ffp-contract=off -Wall -Wextra -I. -Icore -I../blaze/core \
+    game/sky.c game/test_sky.c core/math.c -o game/test_sky -lm
 ./game/test_sky
 rc=$?
 

@@ -1,0 +1,4 @@
+# Start the observer, then remove it while powered and while its release tick
+# is still pending.
+0 3 0 0 1 0
+2 4 0 0 0 0

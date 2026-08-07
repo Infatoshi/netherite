@@ -5,13 +5,13 @@
  *   net/minecraft/entity/EntityLivingBase.java applyArmorCalculations + applyPotionDamageCalculations
  *   net/minecraft/enchantment/EnchantmentDamage.java calcDamageByCreature (Sharpness, type 0)
  *   net/minecraft/enchantment/EnchantmentProtection.java calcModifierDamage (Protection ALL)
- *   net/minecraft/entity/SharedMonsterAttributes.java (ARMOR / ARMOR_TOUGHNESS / ATTACK_DAMAGE defaults)
+ *   net/minecraft/entity/player/EntityPlayer.java (ATTACK_DAMAGE base 1.0)
  *   net/minecraft/item/ItemSword.java + Item.java ToolMaterial (weapon base damage)
  *   net/minecraft/item/ItemArmor.java ArmorMaterial (armor points + toughness)
  *
  * Matrix: weapon (7) x armor set (6) = 42 deterministic scenarios. Each cell emits one float: final
  * damage after armor absorb + Protection enchant (generic melee, not unblockable/absolute, no
- * resistance potion, no absorption/shields/i-frames). Weapon column uses player ATTACK_DAMAGE=2.0
+ * resistance potion, no absorption/shields/i-frames). Weapon column uses player ATTACK_DAMAGE=1.0
  * + sword modifier at full attack cooldown; Sharpness adds calcDamageByCreature bonus.
  *
  * block_props_table.h is a READ-ONLY dep (not included here; armor values are baked from ItemArmor).
@@ -49,12 +49,12 @@ MC_HD static inline int mc_combat_prot_modifier(int prot_level) {
     return prot_level; /* Type.ALL: level per piece; caller sums across armor slots */
 }
 
-/* Player sword attack at full cooldown: ATTACK_DAMAGE(2) + (3 + toolDamage) + sharpness. */
+/* Player sword attack at full cooldown: ATTACK_DAMAGE(1) + (3 + toolDamage) + sharpness. */
 MC_HD static inline float mc_combat_weapon_raw(int weapon_idx) {
     static const float tool_dmg[] = { 0.0F, 0.0F, 1.0F, 2.0F, 3.0F, 3.0F, 3.0F };
     static const int   sharp[]    = { 0,     0,     0,     0,     0,     1,     5     };
     /* idx 0 fist (no sword), 1 wood, 2 stone, 3 iron, 4 diamond, 5 diamond+sharp1, 6 diamond+sharp5 */
-    float base = 2.0F; /* SharedMonsterAttributes.ATTACK_DAMAGE default */
+    float base = 1.0F; /* EntityPlayer.applyEntityAttributes override */
     float sword = (weapon_idx == 0) ? 0.0F : (3.0F + tool_dmg[weapon_idx]);
     return base + sword + mc_combat_sharpness_bonus(sharp[weapon_idx]);
 }

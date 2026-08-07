@@ -1,0 +1,8 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while a canonical double rose occupies the front
+# cell. Piston destruction of lower 175:4 must emit item 175:4 and its ordered
+# notification must remove the upper 175:10 without a second item.
+12 78 9 152 0
+13 77 8 3 0
+13 78 8 175 4
+13 79 8 175 10

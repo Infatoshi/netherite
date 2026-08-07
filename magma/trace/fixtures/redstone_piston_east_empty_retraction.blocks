@@ -1,0 +1,6 @@
+# A settled EAST-facing normal piston begins extended beside a redstone block.
+# Removing the south-side source at tick zero must retract the base, erase the
+# head, and settle back to unextended metadata without pulling any block.
+12 78 8 33 13
+13 78 8 34 5
+12 78 9 152 0

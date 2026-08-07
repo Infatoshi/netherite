@@ -1,0 +1,6 @@
+# A pressed stone button below its ceiling support. Its outward DOWN side
+# directly powers the lamp below. The saved +3 callback must release metadata
+# 8 to 0, notify the support above, and hand the lamp an independent +4 delay.
+12 80 8 1 0
+12 79 8 77 8
+12 78 8 124 0

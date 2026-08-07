@@ -7,14 +7,20 @@
 #include "../core/player_survival.h"
 
 __global__ void run_psv(i64 seed, int nticks, const McSinTable *st, ChunkPrimer *primer,
-                        CpScratch *sc, Chunk *a, Chunk *b, u64 *out) {
+                        CpScratch *sc, Chunk *a, Chunk *b,
+                        int levitation_amplifier,
+                        int jump_boost_amplifier, u64 *out) {
     if (threadIdx.x || blockIdx.x) return;
-    psv_run(a, b, primer, sc, st, seed, nticks, out);
+    psv_run_effect(
+        a, b, primer, sc, st, seed, nticks,
+        levitation_amplifier, jump_boost_amplifier, out);
 }
 
 int main(int argc, char **argv) {
     i64 seed = (argc > 1) ? strtoll(argv[1], 0, 10) : 12345LL;
     int nticks = (argc > 2) ? atoi(argv[2]) : PSV_NTICKS;
+    int levitation_amplifier = (argc > 3) ? atoi(argv[3]) : -1;
+    int jump_boost_amplifier = (argc > 4) ? atoi(argv[4]) : -1;
 
     McSinTable *h_st = (McSinTable *)malloc(sizeof(McSinTable));
     mc_sin_table_init(h_st);
@@ -34,7 +40,8 @@ int main(int argc, char **argv) {
 
     cudaDeviceSetLimit(cudaLimitStackSize, (size_t)128 * 1024);
 
-    run_psv<<<1, 1>>>(seed, nticks, d_st, d_primer, d_sc, d_a, d_b, d_out);
+    run_psv<<<1, 1>>>(seed, nticks, d_st, d_primer, d_sc, d_a, d_b,
+                      levitation_amplifier, jump_boost_amplifier, d_out);
     cudaDeviceSynchronize();
 
     u64 *h_out = (u64 *)malloc(sizeof(u64) * (size_t)nticks * PSV_FIELDS);

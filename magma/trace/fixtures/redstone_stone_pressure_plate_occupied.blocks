@@ -1,0 +1,7 @@
+# The parked player begins at (8.5,78,8.5), inside this plate's trigger AABB.
+# Idle server collision activates it immediately; remaining in place through
+# the +20 callback must keep metadata 1 and enqueue the next +20 check.
+8 76 8 1 0
+8 77 8 1 0
+8 78 8 70 0
+9 78 8 123 0

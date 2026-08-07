@@ -47,7 +47,9 @@ enum {
     LT_FN_SET_COUNT       = 1,
     LT_FN_LOOTING         = 2,
     /* EnchantWithLevels: levels in count min/max; limit=1 means treasure. */
-    LT_FN_ENCHANT_LEVELS  = 3
+    LT_FN_ENCHANT_LEVELS  = 3,
+    /* EnchantRandomly with an empty explicit list: registry-order choice. */
+    LT_FN_ENCHANT_RANDOMLY = 4
 };
 
 #define LT_MAX_FUNCS   2
@@ -195,7 +197,10 @@ MC_HD static inline LtStack lt_apply_func(LtStack stack, const LtFunc *fn, JavaR
             i32 level = lt_rvr_generate_int(r, fn->count);
             i32 allow_treasure = fn->limit != 0 ? 1 : 0;
             EtData list[ET_MAX_LIST];
-            int n = et_build_list(r, ET_ITEM_BOOK, (int)level, allow_treasure,
+            int item_kind = et_item_kind_from_id(stack.item);
+            int n = et_build_list(r,
+                                  item_kind >= 0 ? item_kind : ET_ITEM_BOOK,
+                                  (int)level, allow_treasure,
                                   list, ET_MAX_LIST);
             int i;
             if (stack.item == LT_BOOK || stack.item == 0)
@@ -208,6 +213,25 @@ MC_HD static inline LtStack lt_apply_func(LtStack stack, const LtFunc *fn, JavaR
                 stack.ench_lvl[stack.n_enchants] = (i16)list[i].level;
                 stack.n_enchants++;
             }
+        }
+        return stack;
+    }
+    if (fn->kind == LT_FN_ENCHANT_RANDOMLY) {
+        /* EnchantRandomly.apply: a book accepts every registered vanilla
+         * enchantment, including treasure entries. Choose in registry order,
+         * then choose uniformly between that enchantment's min/max levels. */
+        int n_defs = 0;
+        const EtDef *defs = et_defs(&n_defs);
+        if (n_defs > 0) {
+            const EtDef *d = &defs[jrand_int_bound(r, n_defs)];
+            int level = lt_math_get_int(r, 1, d->max_level);
+            if (stack.item == LT_BOOK || stack.item == 0)
+                stack.item = LT_ENCHANTED_BOOK;
+            stack.count = 1;
+            stack.meta = 0;
+            stack.n_enchants = 1;
+            stack.ench_id[0] = (i16)d->id;
+            stack.ench_lvl[0] = (i16)level;
         }
         return stack;
     }

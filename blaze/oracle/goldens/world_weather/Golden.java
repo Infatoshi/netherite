@@ -13,8 +13,8 @@
 // Re-roll ranges (Random.nextInt):
 //   thundering:  nextInt(12000)+3600 ; clear thunder: nextInt(168000)+12000
 //   raining:     nextInt(12000)+12000; clear rain:    nextInt(168000)+12000
-// Output: nticks * 6 lines of %016x (totalTime, worldTime, rainTime, thunderTime,
-// raining, thundering) matching cpu/world_weather.c.
+// Output: nticks * 10 lines. The final four are raw float bits for previous/current
+// rain and thunder strengths.
 import java.util.Random;
 
 public class Golden {
@@ -30,6 +30,10 @@ public class Golden {
     static int thunderTime;
     static boolean raining;
     static boolean thundering;
+    static float prevRainingStrength;
+    static float rainingStrength;
+    static float prevThunderingStrength;
+    static float thunderingStrength;
     static Random rand;
 
     // World.updateWeatherBody timer body: doWeatherCycle=true, cleanWeatherTime=0.
@@ -63,6 +67,15 @@ public class Golden {
                 raining = !raining;
             }
         }
+
+        prevThunderingStrength = thunderingStrength;
+        if (thundering) thunderingStrength = (float)((double)thunderingStrength + 0.01D);
+        else thunderingStrength = (float)((double)thunderingStrength - 0.01D);
+        thunderingStrength = Math.max(0.0F, Math.min(1.0F, thunderingStrength));
+        prevRainingStrength = rainingStrength;
+        if (raining) rainingStrength = (float)((double)rainingStrength + 0.01D);
+        else rainingStrength = (float)((double)rainingStrength - 0.01D);
+        rainingStrength = Math.max(0.0F, Math.min(1.0F, rainingStrength));
     }
 
     // WorldServer.tick slice: weather then time advance (doDaylightCycle true).
@@ -87,6 +100,9 @@ public class Golden {
         thunderTime = INIT_THUNDER_TIME;
         raining = INIT_RAINING;
         thundering = INIT_THUNDERING;
+        rainingStrength = prevRainingStrength = raining ? 1.0F : 0.0F;
+        thunderingStrength = prevThunderingStrength =
+            raining && thundering ? 1.0F : 0.0F;
         rand = new Random(seed);
 
         StringBuilder sb = new StringBuilder();
@@ -98,6 +114,10 @@ public class Golden {
             emit(sb, ((long) thunderTime) & 0xffffffffL);
             emit(sb, raining ? 1L : 0L);
             emit(sb, thundering ? 1L : 0L);
+            emit(sb, ((long) Float.floatToRawIntBits(prevRainingStrength)) & 0xffffffffL);
+            emit(sb, ((long) Float.floatToRawIntBits(rainingStrength)) & 0xffffffffL);
+            emit(sb, ((long) Float.floatToRawIntBits(prevThunderingStrength)) & 0xffffffffL);
+            emit(sb, ((long) Float.floatToRawIntBits(thunderingStrength)) & 0xffffffffL);
         }
         System.out.print(sb);
     }

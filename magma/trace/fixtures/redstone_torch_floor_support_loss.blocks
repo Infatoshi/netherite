@@ -1,0 +1,6 @@
+# A lit floor redstone torch has a stone support below and an unrelated stone
+# to its east. Removing the support must drop the lit torch item and remove the
+# torch; removing the east stone is the neighbor-notification negative control.
+12 77 8 1 0
+12 78 8 76 5
+13 78 8 1 0

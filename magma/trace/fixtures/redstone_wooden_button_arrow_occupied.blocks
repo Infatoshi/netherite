@@ -1,0 +1,8 @@
+# x y z id meta
+# A floor-mounted unpowered wooden button. A locked gravity-free arrow
+# intersects the unpressed/pressed UP AABB, so vanilla activates metadata
+# 5->13 and retains the +30 callback while the arrow remains.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 143 5
+13 78 8 123 0

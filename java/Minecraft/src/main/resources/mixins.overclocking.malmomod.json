@@ -15,7 +15,16 @@
     "MixinBiomeColorBlend",
     "MixinPlayerChunkMapCMEFix",
     "MixinDoublePlantProbe",
-    "MixinBushProbe"
+    "MixinBushProbe",
+    "MixinFireScheduledCursor",
+    "MixinTntArrowCollisionCursor",
+    "MixinTntDetonationCursor",
+    "MixinOracleEntityStatus",
+    "MixinOracleEntitySoundContext",
+    "MixinOracleServerSound",
+    "MixinOracleShearsRandom",
+    "MixinOracleMateSpawn",
+    "MixinOracleWorldEntityUpdate"
   ],
   "server": [],
   "client": [

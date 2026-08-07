@@ -1,0 +1,5 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while an east-facing, unattached tripwire hook uses
+# the piston output face as its valid west support. It drops hook item 131:0.
+12 78 9 152 0
+13 78 8 131 3

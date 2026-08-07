@@ -1,0 +1,5 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while an isolated unpowered tripwire occupies the
+# front cell. It drops registered string item 287:0.
+12 78 9 152 0
+13 78 8 132 0

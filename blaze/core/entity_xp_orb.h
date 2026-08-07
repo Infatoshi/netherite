@@ -44,7 +44,9 @@ typedef struct {
     int xpColor;
     int xpTargetColor;
     int xpValue;
+    int health;
     int eid;
+    float yaw;
     int has_closest;   /* closestPlayer != null */
     int dead;
 } McOrb;

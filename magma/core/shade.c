@@ -162,11 +162,16 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
     if (sh->untextured) {
         texel.r = 255; texel.g = 255; texel.b = 255; texel.a = 255;
     } else {
+        float su = frag->uv.x, sv = frag->uv.y;
+        if (sh->repeat_uv) {
+            su -= floorf(su);
+            sv -= floorf(sv);
+        }
         g_cr_sample_mode_override = sh->sample_mode;
         texel = sh->use_mips
-            ? cr_atlas_sample_lod(sh->atlas, frag->uv.x, frag->uv.y,
+            ? cr_atlas_sample_lod(sh->atlas, su, sv,
                                   frag->lod + sh->mip_bias)
-            : cr_atlas_sample(sh->atlas, frag->uv.x, frag->uv.y);
+            : cr_atlas_sample(sh->atlas, su, sv);
         g_cr_sample_mode_override = 0;
     }
 

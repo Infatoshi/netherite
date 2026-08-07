@@ -1,0 +1,6 @@
+# x y z id meta
+# Rain-aware direct-target proof. Tall grass is both flammable and rain-
+# transparent. Random(5) burns this exposed target to air.
+12 77 8 87 0
+12 78 8 51 0
+13 78 8 31 1

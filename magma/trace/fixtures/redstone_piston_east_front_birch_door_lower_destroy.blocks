@@ -1,0 +1,5 @@
+# EAST piston targets lower birch door 194:3; upper 194:11 is paired vertically.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 194 3
+13 79 8 194 11

@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while support-independent cobweb block 30 occupies
+# the front/output cell. Java destroys the cobweb, drops string item 287:0,
+# and starts the moving head in the same cell.
+12 78 9 152 0
+13 78 8 30 0

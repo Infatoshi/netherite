@@ -10,6 +10,10 @@ skin's atlas rect (x0,y0,x1,y1) AND its native (w,h), so entity_render.c can
 compute UVs in skin-texel space exactly like the vanilla ModelBox net.
 Also dumps /tmp/magma_mob_atlas.png for eyeballing.
 
+The end-crystal beam uses GL_REPEAT over a narrow 16x256 texture, so it cannot
+share atlas UV semantics. The same generated header therefore also carries that
+jar image as a standalone, contiguous RGBA array.
+
 Does NOT touch build_atlas.py / atlas_gen.h (block atlas).
 """
 import os
@@ -25,6 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_H = os.path.join(HERE, "mob_atlas.h")
 DUMP_PNG = os.path.join(os.environ.get("TMPDIR", "/tmp"),
                         "magma_mob_atlas.png")
+BEAM_MEMBER = ENTITY + "endercrystal/endercrystal_beam.png"
 
 # (symbolic name, jar member relative to ENTITY). Sorted by name for a
 # deterministic sprite-index order (the CR_MOB_* defines).
@@ -93,6 +98,16 @@ MOB_SPRITES += [
     ("diamond_layer_1", "../models/armor/diamond_layer_1.png"),
     ("diamond_layer_2", "../models/armor/diamond_layer_2.png"),
 ]
+# Generated-village resident skins. Append only: runtime and recorded-entity
+# skin ids rely on every earlier CR_MOB_* value remaining stable.
+MOB_SPRITES += [
+    ("villager", "villager/villager.png"),
+    ("villager_farmer", "villager/farmer.png"),
+    ("villager_librarian", "villager/librarian.png"),
+    ("villager_priest", "villager/priest.png"),
+    ("villager_smith", "villager/smith.png"),
+    ("villager_butcher", "villager/butcher.png"),
+]
 
 
 def next_pow2(n):
@@ -136,6 +151,9 @@ def main():
             data = zf.read(path)
             img = Image.open(io.BytesIO(data)).convert("RGBA")
             imgs.append((name, img))
+        beam = Image.open(io.BytesIO(zf.read(BEAM_MEMBER))).convert("RGBA")
+    if beam.size != (16, 256):
+        raise SystemExit("unexpected end-crystal beam size: %dx%d" % beam.size)
 
     # shelf-pack at native size onto a pow2 canvas
     # The first 36 sprites predate the armor layers and their packed positions
@@ -195,6 +213,16 @@ def main():
         f.write("static const unsigned char CR_MOB_ATLAS_RGBA[%d] = {\n" % len(px))
         for i in range(0, len(px), 16):
             chunk = px[i:i + 16]
+            f.write("    " + ",".join("%d" % b for b in chunk) + ",\n")
+        f.write("};\n\n")
+
+        beam_px = beam.tobytes()
+        f.write("#define CR_ENDERCRYSTAL_BEAM_W %d\n" % beam.width)
+        f.write("#define CR_ENDERCRYSTAL_BEAM_H %d\n" % beam.height)
+        f.write("static const unsigned char CR_ENDERCRYSTAL_BEAM_RGBA[%d] = {\n"
+                % len(beam_px))
+        for i in range(0, len(beam_px), 16):
+            chunk = beam_px[i:i + 16]
             f.write("    " + ",".join("%d" % b for b in chunk) + ",\n")
         f.write("};\n\n")
         f.write("#endif /* MAGMA_MOB_ATLAS_H */\n")

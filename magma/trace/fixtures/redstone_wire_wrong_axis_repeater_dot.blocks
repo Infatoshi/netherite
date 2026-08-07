@@ -1,0 +1,7 @@
+# Dust powered through its support has an unpowered north/south repeater to
+# the east.  That diode axis does not connect to the wire, so Java gives the
+# otherwise isolated dust its dot shape and horizontal output on every side.
+12 77 8 152 0
+12 78 8 55 15
+13 77 8 1 0
+13 78 8 93 0

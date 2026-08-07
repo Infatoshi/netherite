@@ -1,0 +1,3 @@
+# Dark-oak leaves2 161:13 have CHECK_DECAY set but DECAYABLE clear. Their
+# random-tick callback must return without scanning, mutation, drops, or RNG.
+12 78 8 161 13

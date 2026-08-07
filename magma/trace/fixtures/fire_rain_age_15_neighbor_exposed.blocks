@@ -1,0 +1,5 @@
+# x y z id meta
+# The source column is roofed, so isRainingAt(source) is false. Adjacent air
+# remains sky-exposed, making BlockFire.canDie true through its neighbor OR.
+12 79 8 1 0
+12 78 8 51 15

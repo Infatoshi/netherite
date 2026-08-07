@@ -37,7 +37,8 @@ public class Golden {
     static float weaponRaw(int weaponIdx) {
         float[] toolDmg = { 0.0F, 0.0F, 1.0F, 2.0F, 3.0F, 3.0F, 3.0F };
         int[] sharp = { 0, 0, 0, 0, 0, 1, 5 };
-        float base = 2.0F;
+        // EntityPlayer.applyEntityAttributes overrides ATTACK_DAMAGE to 1.0.
+        float base = 1.0F;
         float sword = (weaponIdx == 0) ? 0.0F : (3.0F + toolDmg[weaponIdx]);
         return base + sword + calcSharpnessBonus(sharp[weaponIdx]);
     }

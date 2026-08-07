@@ -29,7 +29,8 @@
  *     with (0.02, 0.02, 0.2) (+ respiration/water-breathing, none here);
  *     lava (0.6, 0.1, 0.0); then EVERY branch multiplies by f13 =
  *     lerp(fogColor2, fogColor1, partialTicks) (== fogColor1 at the tick
- *     boundary), the light-at-feet brightness smoother from updateRenderer.
+ *     boundary), the light-at-feet brightness smoother from updateRenderer;
+ *     Night Vision then normalizes the three channels toward max == 1.
  *   EntityRenderer.setupFog - water: GL_EXP density 0.1 (respiration -0.03/
  *     level, water breathing 0.01; none here); lava: GL_EXP density 2.0.
  *   EntityRenderer.getFOVModifier - eye in water scales fov by 60/70.
@@ -44,6 +45,7 @@
 
 #include "core/types.h"
 #include "game/game.h"
+#include "mc_math.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,10 +53,13 @@ extern "C" {
 
 typedef struct {
     int   fluid;         /* eye viewpoint material: 0 none, 1 water, 2 lava */
+    int   blindness;     /* active Blindness overrides every fluid fog mode */
     int   overlay;       /* ForgeHooks isInsideOfMaterial(WATER): draw overlay */
     CrVec3 fog01;        /* setupFog fluid color * fogColor1, linear 0..1 */
     CrRgba fog_rgba;     /* same, quantized for CrShadeCtx.fog_color */
     float density;       /* GL_EXP density (water 0.1, lava 2.0) */
+    float fog_start;     /* setupFog(0) Blindness GL_LINEAR range */
+    float fog_end;
     float fov_scale;     /* getFOVModifier: 60/70 in water, else 1.0 */
     float brightness;    /* Entity.getBrightness at the eye block (overlay) */
 } GmUnderwater;
@@ -72,10 +77,45 @@ float gm_uw_fog_c1_step(float c1, const GmWorld *w, int dim,
 float gm_uw_fog_c1_seed(const GmWorld *w, int dim,
                         double feet_x, double feet_y, double feet_z);
 
+/* Entity.isInsideOfMaterial(WATER) through ForgeHooks. The eye block must be
+ * water; Forge's positive BlockLiquid filled-height branch is then always
+ * true for an eye inside that same integer cell. */
+static inline int gm_uw_eye_inside_water(
+        const GmWorld *w, double feet_x, double feet_y, double feet_z,
+        float eye_height) {
+    int x = mc_floor(feet_x);
+    int y = mc_floor(feet_y + (double)eye_height);
+    int z = mc_floor(feet_z);
+    int id = gm_world_block(w, x, y, z);
+    return id == 8 || id == 9;
+}
+
 /* Evaluate the frame's eye-in-fluid state from the live world + player view.
- * fog_c1 is the smoothed brightness state (f13 at partialTicks 1.0). */
+ * fog_c1 is the smoothed brightness state (f13 at partialTicks 1.0);
+ * night_vision is EntityRenderer.getNightVisionBrightness. Blindness and the
+ * world's void-fog factor feed both updateFogColor and setupFog. */
 void gm_uw_eval(const GmWorld *w, int dim, const GmPlayerView *pv,
-                float fog_c1, GmUnderwater *out);
+                float fog_c1, float night_vision, int blindness_duration,
+                double void_fog_y_factor, GmUnderwater *out);
+
+/* Apply setupFog(0) to any world-scene pass. Blindness wins over water/lava,
+ * matching EntityRenderer's branch order. clear_color is updateFogColor's
+ * final value for the frame. */
+static inline void gm_view_fog_apply(
+        CrShadeCtx *shade, const GmUnderwater *view, CrRgba clear_color) {
+    if (!shade || !view) return;
+    if (view->blindness) {
+        shade->enable_fog = 1;
+        shade->fog_color = clear_color;
+        shade->fog_start = view->fog_start;
+        shade->fog_end = view->fog_end;
+        shade->fog_exp_density = 0.0f;
+    } else if (view->fluid) {
+        shade->enable_fog = 1;
+        shade->fog_color = view->fog_rgba;
+        shade->fog_exp_density = view->density;
+    }
+}
 
 /* ItemRenderer.renderWaterOverlayTexture: full-screen underwater.png quad,
  * NEAREST + REPEAT, modulated by (brightness, brightness, brightness, 0.5),

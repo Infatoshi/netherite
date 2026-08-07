@@ -1,0 +1,3 @@
+# Tick zero places a WEST-facing observer at x=12. The pre-existing output
+# lamp at x=13 proves BlockObserver.onBlockAdded creates its startup pulse.
+13 78 8 123 0

@@ -1,0 +1,8 @@
+# x y z id meta
+# Compare-mode comparator facing WEST (metadata 1). Tick zero fills the rear
+# cauldron from level 0 to level 3; vanilla's comparator override outputs 3.
+11 77 8 1 0
+12 77 8 1 0
+11 78 8 118 0
+12 78 8 149 1
+13 78 8 123 0

@@ -1,0 +1,6 @@
+# x y z id meta
+# Seed 7 places the origin platform at y=62 and biome id 6 (swamp) at the
+# controlled fire column. This is the y-adjusted twin of fire_tnt_ignite.
+12 62 8 1 0
+12 63 8 51 0
+13 63 8 46 0

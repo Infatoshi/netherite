@@ -1,0 +1,3 @@
+# Normal piston facing SOUTH (metadata 3), with air in front. Tick zero powers
+# it from the north side so the source is not on the output face.
+12 79 8 33 3

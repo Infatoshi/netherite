@@ -1,0 +1,9 @@
+# The lower wire's only horizontal shape connection is EAST, climbing onto
+# the stone step.  Its upper neighbor is powered directly from the east, so
+# the settled lower/upper strengths are 14/15.  Tick-zero lamp placement can
+# probe the connected face and a perpendicular face without changing shape.
+12 77 8 1 0
+12 78 8 55 14
+13 78 8 1 0
+13 79 8 55 15
+14 79 8 152 0

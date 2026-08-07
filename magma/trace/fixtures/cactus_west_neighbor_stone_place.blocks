@@ -1,0 +1,6 @@
+# Cactus 81:9 starts valid on supported sand with air on every horizontal
+# side. Placing stone immediately west at tick zero invokes the real ordered
+# neighbor callback, destroys the cactus, and emits one cactus item 81:0.
+15 76 8 1 0
+15 77 8 12 0
+15 78 8 81 9

@@ -1,0 +1,7 @@
+# The same stable indirect-power source with an already-unlit torch. A saved
+# stale unlit callback must drain without relighting it.
+12 77 8 1 0
+13 76 8 1 0
+14 77 8 152 0
+13 77 8 94 3
+12 78 8 75 5

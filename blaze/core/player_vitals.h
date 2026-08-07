@@ -15,10 +15,13 @@
  *   - Starve floor on NORMAL: damage only if `health > 10 || HARD || (health > 1 && NORMAL)`,
  *     i.e. on NORMAL starvation stops at 1.0 HP (FoodStats.java:90-92). Floor = 1.0F.
  *
- * Simplifications (documented, faithful within scope): no jump-boost potion and no feather-fall
- * (damageMultiplier=1.0F, jumpBoost=0), so fall damage = ceil(distance - 3.0F) (EntityLivingBase:
- * 1396-1397). Damage (STARVE/FALL) is applied directly to health with the setHealth clamp; armor,
- * absorption, and hurt-resistance cooldown are out of scope for a vitals oracle. maxHealth = 20.
+ * Simplifications (documented, faithful within scope): no feather-fall and
+ * damageMultiplier=1.0F. The effect-aware fall path accepts the active Jump
+ * Boost amplifier, while the legacy wrapper uses no effect. Damage
+ * (STARVE/FALL) is applied directly to health with the setHealth clamp; armor,
+ * absorption, and hurt-resistance cooldown are out of scope for a vitals
+ * oracle. maxHealth defaults to 20 and may be replaced by the runtime's
+ * active attribute value.
  *
  * All arithmetic is int/float exactly as Java, left-to-right, -ffp-contract=off / --fmad=false. */
 #ifndef MC_PLAYER_VITALS_H
@@ -37,6 +40,7 @@ typedef struct {
     float exhaustion;   /* FoodStats.foodExhaustionLevel, start 0.0 */
     i32   foodTimer;    /* FoodStats.foodTimer,           start 0  */
     float health;       /* EntityLivingBase HEALTH,       start 20.0 */
+    float maxHealth;    /* MAX_HEALTH attribute,           start 20.0 */
 } PvStats;
 
 MC_HD static inline void pv_init(PvStats *s) {
@@ -45,6 +49,7 @@ MC_HD static inline void pv_init(PvStats *s) {
     s->exhaustion = 0.0f;
     s->foodTimer  = 0;
     s->health     = PV_MAX_HEALTH;
+    s->maxHealth  = PV_MAX_HEALTH;
 }
 
 /* FoodStats.addExhaustion (148-151): min(exhaustion + in, 40.0F). */
@@ -55,12 +60,12 @@ MC_HD static inline void pv_add_exhaustion(PvStats *s, float exhaustion) {
 
 /* EntityPlayer.shouldHeal (2244-2246). */
 MC_HD static inline int pv_should_heal(const PvStats *s) {
-    return s->health > 0.0f && s->health < PV_MAX_HEALTH;
+    return s->health > 0.0f && s->health < s->maxHealth;
 }
 
 /* EntityLivingBase.setHealth (927-929): clamp(h, 0, maxHealth). */
 MC_HD static inline void pv_set_health(PvStats *s, float h) {
-    float c = h < 0.0f ? 0.0f : (h > PV_MAX_HEALTH ? PV_MAX_HEALTH : h);
+    float c = h < 0.0f ? 0.0f : (h > s->maxHealth ? s->maxHealth : h);
     s->health = c;
 }
 
@@ -83,12 +88,19 @@ MC_HD static inline i32 pv_ceil(float value) {
     return value > (float)i ? i + 1 : i;
 }
 
-/* EntityLivingBase.fall (1389-1402), no jump-boost / feather-fall, damageMultiplier=1.0F:
- * i = ceil(distance - 3.0F); if (i > 0) attackEntityFrom(FALL, (float)i). */
-MC_HD static inline void pv_fall_damage(PvStats *s, float distance) {
-    i32 i = pv_ceil(distance - 3.0f);
+/* EntityLivingBase.fall (1389-1402), no feather-fall and
+ * damageMultiplier=1.0F. amplifier < 0 means no Jump Boost. */
+MC_HD static inline void pv_fall_damage_effect(
+        PvStats *s, float distance, i32 jump_boost_amplifier) {
+    float boost = jump_boost_amplifier < 0
+        ? 0.0f : (float)(jump_boost_amplifier + 1);
+    i32 i = pv_ceil(distance - 3.0f - boost);
     if (i > 0)
         pv_attack(s, (float)i);
+}
+
+MC_HD static inline void pv_fall_damage(PvStats *s, float distance) {
+    pv_fall_damage_effect(s, distance, -1);
 }
 
 /* FoodStats.onUpdate (40-102) at difficulty NORMAL, gamerule-driven naturalRegeneration.
@@ -164,14 +176,19 @@ MC_HD static inline float pv_tape_exhaustion(u64 h) {
 }
 
 /* One deterministic tick of the tape: derive exhaustion + occasional fall, then run vitals. */
-MC_HD static inline void pv_tape_tick(PvStats *s, i64 seed, i32 tick) {
+MC_HD static inline void pv_tape_tick_effect(
+        PvStats *s, i64 seed, i32 tick, i32 jump_boost_amplifier) {
     u64 h = pv_hash((u64)seed * 0x100000001b3ULL + (u64)(u32)tick);
     pv_add_exhaustion(s, pv_tape_exhaustion(h));
     if (((h >> 8) & 255u) == 0u) {                       /* ~1/256 ticks: take a survivable fall */
         float distance = (float)(4u + (u32)((h >> 12) % 4u));   /* 4..7 blocks -> 1..4 dmg */
-        pv_fall_damage(s, distance);
+        pv_fall_damage_effect(s, distance, jump_boost_amplifier);
     }
     pv_on_update(s);
+}
+
+MC_HD static inline void pv_tape_tick(PvStats *s, i64 seed, i32 tick) {
+    pv_tape_tick_effect(s, seed, tick, -1);
 }
 
 #endif /* MC_PLAYER_VITALS_H */

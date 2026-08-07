@@ -57,6 +57,7 @@ int main(void)
         check_container(1, sizes[z][0], sizes[z][1], 46); /* 36 + 3x3 grid + result */
         check_container(2, sizes[z][0], sizes[z][1], 39); /* 36 + furnace 3 */
         check_container(3, sizes[z][0], sizes[z][1], 63); /* 36 + chest 27 */
+        check_container(4, sizes[z][0], sizes[z][1], 41); /* 36 + brewing 5 */
     }
 
     /* tape "gui" class name -> container kind (OPEN_DIVERGENCES #9) */
@@ -64,6 +65,8 @@ int main(void)
     CHECK(gm_screen_kind_for_gui("GuiCrafting") == 1, "GuiCrafting -> workbench");
     CHECK(gm_screen_kind_for_gui("GuiFurnace") == 2, "GuiFurnace -> furnace");
     CHECK(gm_screen_kind_for_gui("GuiChest") == 3, "GuiChest -> chest");
+    CHECK(gm_screen_kind_for_gui("GuiBrewingStand") == 4,
+          "GuiBrewingStand -> brewing stand");
     CHECK(gm_screen_kind_for_gui("GuiIngameMenu") == -1, "GuiIngameMenu skipped");
     CHECK(gm_screen_kind_for_gui("GuiChat") == -1, "GuiChat skipped");
     CHECK(gm_screen_kind_for_gui("GuiUnknown") == -1, "unknown skipped");

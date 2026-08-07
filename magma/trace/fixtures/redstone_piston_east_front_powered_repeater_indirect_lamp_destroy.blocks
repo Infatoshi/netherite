@@ -1,0 +1,9 @@
+# SOUTH-facing powered repeater 94:0 reads the redstone block to its south and
+# strongly powers the stone to its north. The adjacent lamp is lit indirectly.
+# Destroying the repeater must run its output-neighborhood break notification.
+12 78 9 152 0
+12 78 7 124 0
+13 77 8 1 0
+13 78 7 1 0
+13 78 8 94 0
+13 78 9 152 0

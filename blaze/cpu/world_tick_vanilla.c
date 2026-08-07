@@ -46,6 +46,25 @@ static void test_lcg(void) {
     }
 }
 
+static void test_fire_tables(void) {
+    assert(wt_fire_flammability(47) == 20);
+    assert(wt_fire_encouragement(47) == 30);
+    assert(wt_fire_flammability(173) == 5);
+    assert(wt_fire_encouragement(173) == 5);
+    assert(wt_fire_flammability(170) == 20);
+    assert(wt_fire_encouragement(170) == 60);
+    assert(wt_fire_flammability(171) == 20);
+    assert(wt_fire_encouragement(171) == 60);
+    emit(((u64)wt_fire_flammability(47) << 32)
+        | (u64)wt_fire_encouragement(47));
+    emit(((u64)wt_fire_flammability(173) << 32)
+        | (u64)wt_fire_encouragement(173));
+    emit(((u64)wt_fire_flammability(170) << 48)
+        | ((u64)wt_fire_encouragement(170) << 32)
+        | ((u64)wt_fire_flammability(171) << 16)
+        | (u64)wt_fire_encouragement(171));
+}
+
 static void test_order_dedup_cap(McScheduledTicks *q) {
     /* ordering: time first, then priority, then insertion id */
     stq_init(q);
@@ -174,6 +193,7 @@ int main(void) {
 
     g_nlines = 0;
     test_lcg();
+    test_fire_tables();
     test_order_dedup_cap(&s->stq);
     test_end_to_end(w, s);
 

@@ -96,11 +96,16 @@ MC_HD static inline float ita_damage_after_magic_absorb(float damage, float prot
 
 MC_HD static inline int ita_tool_material(i32 item_id) {
     switch (item_id) {
-        case 270: case 271: case 272: case 269: return ITA_MAT_WOOD;
-        case 274: case 275: case 273: return ITA_MAT_STONE;
-        case 257: case 258: case 256: return ITA_MAT_IRON;
-        case 278: case 279: case 277: return ITA_MAT_DIAMOND;
-        case 285: case 286: case 284: return ITA_MAT_GOLD;
+        case 268: case 269: case 270: case 271: case 290:
+            return ITA_MAT_WOOD;
+        case 272: case 273: case 274: case 275: case 291:
+            return ITA_MAT_STONE;
+        case 256: case 257: case 258: case 267: case 292:
+            return ITA_MAT_IRON;
+        case 276: case 277: case 278: case 279: case 293:
+            return ITA_MAT_DIAMOND;
+        case 283: case 284: case 285: case 286: case 294:
+            return ITA_MAT_GOLD;
         default: return -1;
     }
 }
@@ -318,6 +323,9 @@ MC_HD static inline int ita_stack_max_damage(const ITAStack *s) {
     if (mat >= 0) return ita_tool_max_uses(mat);
     int am = ita_armor_material(s->item);
     if (am >= 0) return ita_arm_max_damage(am, ita_armor_slot(s->item));
+    if (s->item == 359) return 238; /* Items.SHEARS maxDamage */
+    if (s->item == 346) return 64;  /* Items.FISHING_ROD maxDamage */
+    if (s->item == 398) return 25;  /* Items.CARROT_ON_A_STICK maxDamage */
     if (s->item == 443) return 432; /* Items.ELYTRA maxDamage */
     return 0;
 }
@@ -349,7 +357,7 @@ MC_HD static inline int ita_attempt_damage(ITAStack *s, int amount, JavaRandom *
 
 MC_HD static inline void ita_on_block_destroyed(ITAStack *s, int block_id) {
     BptProps p = mc_bpt_props(block_id);
-    if (p.hardness != 0.0f)
+    if (s->item == 359 || p.hardness != 0.0f)
         s->damage += 1;
 }
 

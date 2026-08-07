@@ -1,0 +1,4 @@
+# Replace the takeoff floor with a supported lily pad after the player leaves.
+# The water source is enclosed by the staged platform, so it cannot flow.
+1 0 -1 0 9 0
+2 0 0 0 111 0

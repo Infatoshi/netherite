@@ -1,7 +1,7 @@
 /* crafting_recipes_full: MC 1.11.2 CraftingManager KEEP-scope recipe set (generated + hand header).
  * Matcher = verbatim ShapedRecipes/ShapelessRecipes/findMatchingRecipe (same as crafting_recipes.h).
  * Registry = RecipesTools/Weapons/Ingots/Food + RecipesCrafting(chest,furnace,table) + RecipesArmor +
- * inline planks/sticks/torch/flint_and_steel, vanilla registration order. 95 recipes.
+ * inline planks/sticks/torch/flint_and_steel plus route-critical End/brewing recipes. 99 recipes.
  * CUT: RecipesDyes, special IRecipes, CraftingManager decorative/redstone inline rows. */
 #ifndef MC_CRAFTING_RECIPES_FULL_H
 #define MC_CRAFTING_RECIPES_FULL_H
@@ -64,8 +64,8 @@ MC_HD static inline CRStack crf_findMatching(const CRRecipe *recipes, int n, con
     return crf_mk((i32)0xffffffff, 0, 0);
 }
 
-#define CRF_NRECIPES 95
-#define CRF_NTESTS 49
+#define CRF_NRECIPES 99
+#define CRF_NTESTS 54
 MC_HD static inline int crf_build(CRRecipe *R) {
     int n = 0;
     R[n].shaped=1; R[n].width=3; R[n].height=3; R[n].nIng=9;
@@ -934,6 +934,52 @@ MC_HD static inline int crf_build(CRRecipe *R) {
     R[n].ing[0]=crf_it(368);
     R[n].ing[1]=crf_it(377);
     ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=2; R[n].nIng=6;
+    R[n].output=crf_mk(374,3,0);
+    { CRStack a[6]={
+        crf_blk(20),
+        crf_empty(),
+        crf_blk(20),
+        crf_empty(),
+        crf_blk(20),
+        crf_empty()
+    }; for(int q=0;q<6;++q)R[n].ing[q]=a[q]; } ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=2; R[n].nIng=6;
+    R[n].output=crf_mk(379,1,0);
+    { CRStack a[6]={
+        crf_empty(),
+        crf_it(369),
+        crf_empty(),
+        crf_blk(4),
+        crf_blk(4),
+        crf_blk(4)
+    }; for(int q=0;q<6;++q)R[n].ing[q]=a[q]; } ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=3; R[n].nIng=9;
+    R[n].output=crf_mk(396,1,0);
+    { CRStack a[9]={
+        crf_it(371),
+        crf_it(371),
+        crf_it(371),
+        crf_it(371),
+        crf_it(391),
+        crf_it(371),
+        crf_it(371),
+        crf_it(371),
+        crf_it(371)
+    }; for(int q=0;q<9;++q)R[n].ing[q]=a[q]; } ++n;
+    R[n].shaped=1; R[n].width=3; R[n].height=3; R[n].nIng=9;
+    R[n].output=crf_mk(382,1,0);
+    { CRStack a[9]={
+        crf_it(371),
+        crf_it(371),
+        crf_it(371),
+        crf_it(371),
+        crf_it(360),
+        crf_it(371),
+        crf_it(371),
+        crf_it(371),
+        crf_it(371)
+    }; for(int q=0;q<9;++q)R[n].ing[q]=a[q]; } ++n;
     return n;
 }
 MC_HD static inline void crf_battery(CRStack out[CRF_NTESTS][9]) {
@@ -987,6 +1033,11 @@ MC_HD static inline void crf_battery(CRStack out[CRF_NTESTS][9]) {
         /* bucket */ { crf_mk(265,1,0), crf_empty(), crf_mk(265,1,0), crf_empty(), crf_mk(265,1,0), crf_empty(), crf_empty(), crf_empty(), crf_empty() },
         /* bed_wool_meta14 */ { crf_mk(35,1,14), crf_mk(35,1,14), crf_mk(35,1,14), crf_mk(5,1,0), crf_mk(5,1,0), crf_mk(5,1,0), crf_empty(), crf_empty(), crf_empty() },
         /* ender_eye_scrambled */ { crf_empty(), crf_empty(), crf_mk(368,1,0), crf_empty(), crf_empty(), crf_empty(), crf_mk(377,1,0), crf_empty(), crf_empty() },
+        /* glass_bottles */ { crf_mk(20,1,0), crf_empty(), crf_mk(20,1,0), crf_empty(), crf_mk(20,1,0), crf_empty(), crf_empty(), crf_empty(), crf_empty() },
+        /* glass_bottles_nonmatch */ { crf_mk(20,1,0), crf_empty(), crf_mk(20,1,0), crf_empty(), crf_empty(), crf_empty(), crf_empty(), crf_empty(), crf_empty() },
+        /* brewing_stand */ { crf_empty(), crf_mk(369,1,0), crf_empty(), crf_mk(4,1,0), crf_mk(4,1,0), crf_mk(4,1,0), crf_empty(), crf_empty(), crf_empty() },
+        /* golden_carrot */ { crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(391,1,0), crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(371,1,0) },
+        /* speckled_melon */ { crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(360,1,0), crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(371,1,0), crf_mk(371,1,0) },
     };
     for (int t = 0; t < CRF_NTESTS; ++t) for (int q = 0; q < 9; ++q) out[t][q] = b[t][q];
 }

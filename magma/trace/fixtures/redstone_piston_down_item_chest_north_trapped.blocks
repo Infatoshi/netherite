@@ -1,0 +1,5 @@
+# Ordinary and trapped chests do not connect; the item still overlaps the
+# neighboring trapped chest's own isolated 7/8-high box.
+12 81 9 152 0
+12 79 8 54 0
+12 79 7 146 0

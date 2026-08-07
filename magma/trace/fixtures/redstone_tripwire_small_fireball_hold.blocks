@@ -1,0 +1,6 @@
+# A zero-motion EntitySmallFireball intersects this already-powered lone wire.
+# It never invokes block collision itself, but the due wire callback must count
+# it through Entity's default pressure-trigger predicate and retain power.
+8 77 8 1 0
+12 77 8 1 0
+12 78 8 132 1

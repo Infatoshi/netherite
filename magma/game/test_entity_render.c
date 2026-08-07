@@ -60,6 +60,8 @@ static const TypeSpec SPECS[] = {
     { 35, "slime",    4  * 36, { CR_MOB_SLIME,    -1 } },
     { 36, "silverfish", 3 * 36, { CR_MOB_SILVERFISH, -1 } },
     { 37, "boat",     9  * 36, { CR_MOB_BOAT,     -1 } },
+    { 39, "cave spider", 11 * 36, { CR_MOB_CAVE_SPIDER, -1 } },
+    { 40, "villager farmer", 9 * 36, { CR_MOB_VILLAGER_FARMER, -1 } },
 };
 #define NSPECS ((int)(sizeof(SPECS) / sizeof(SPECS[0])))
 #define MAXV (65 * 36)
@@ -237,6 +239,22 @@ static void test_geometry(void) {
           out[10 * 36].uv.x <=
               (float)CR_MOB_SPRITES[CR_MOB_IRON_LAYER_1].x1 / CR_MOB_ATLAS_W,
           "armor stand chest samples iron layer-1 texture");
+
+    /* RenderCaveSpider.preRenderCallback scales the shared spider model 0.7. */
+    {
+        GmEntityView spider, cave;
+        float smn[3], smx[3], cmn[3], cmx[3];
+        memset(&spider, 0, sizeof spider);
+        memset(&cave, 0, sizeof cave);
+        spider.type = 5; spider.y = 64.0f; spider.health = 16.0f;
+        cave.type = 39; cave.y = 64.0f; cave.health = 12.0f;
+        n = gm_entities_emit(&spider, 1, out, MAXV);
+        bounds(out, n, smn, smx);
+        n = gm_entities_emit(&cave, 1, out, MAXV);
+        bounds(out, n, cmn, cmx);
+        CHECK(approx((cmx[0] - cmn[0]) / (smx[0] - smn[0]), 0.7f, E),
+              "cave spider model is 0.7x ordinary spider");
+    }
 }
 
 static void test_uvs(void) {
@@ -262,6 +280,31 @@ static void test_uvs(void) {
         snprintf(msg, sizeof msg, "%s: all %d UVs inside its skin rect(s)",
                  SPECS[s].name, n);
         CHECK(bad == 0, msg);
+    }
+    {
+        static const int skins[6] = {
+            CR_MOB_VILLAGER_FARMER, CR_MOB_VILLAGER_LIBRARIAN,
+            CR_MOB_VILLAGER_PRIEST, CR_MOB_VILLAGER_SMITH,
+            CR_MOB_VILLAGER_BUTCHER, CR_MOB_VILLAGER
+        };
+        for (int profession = 0; profession < 6; ++profession) {
+            GmEntityView e = {0};
+            e.type = 40; e.y = 64; e.health = 20;
+            e.item_id = profession;
+            int n = gm_entities_emit(&e, 1, out, MAXV);
+            const CrMobSprite *sp = &CR_MOB_SPRITES[skins[profession]];
+            int bad = n != 9 * 36;
+            for (int i = 0; i < n; ++i) {
+                float px = out[i].uv.x * aw, py = out[i].uv.y * ah;
+                if (px < sp->x0 - 1e-3f || px > sp->x1 + 1e-3f
+                        || py < sp->y0 - 1e-3f || py > sp->y1 + 1e-3f)
+                    ++bad;
+            }
+            snprintf(msg, sizeof msg,
+                     "villager profession %d uses its exact jar skin",
+                     profession);
+            CHECK(bad == 0, msg);
+        }
     }
 }
 
@@ -420,9 +463,10 @@ static void test_name_map(void) {
         /* skin variants fold to the base silhouette */
         { "EntityHusk", 2 }, { "EntityZombieVillager", 2 },
         { "EntityPigZombie", 15 }, { "EntityStray", 3 },
-        { "EntityCaveSpider", 5 }, { "EntityMooshroom", 12 },
+        { "EntityCaveSpider", 39 }, { "EntityMooshroom", 12 },
         { "EntitySlime", 35 }, { "EntitySilverfish", 36 },
         { "EntityBoat", 37 },
+        { "EntityVillager", 40 },
     };
     for (unsigned i = 0; i < sizeof POS / sizeof POS[0]; ++i) {
         char msg[96];
@@ -440,14 +484,16 @@ static void test_name_map(void) {
     CHECK(gm_entity_type_for_name("EntityMagmaCube") == 27, "EntityMagmaCube -> 27");
     CHECK(gm_entity_type_for_name("EntityMinecartEmpty") == 28,
           "EntityMinecartEmpty -> 28");
-    CHECK(gm_entity_type_for_name("EntityMinecartChest") == 40,
-          "EntityMinecartChest -> 40");
-    CHECK(gm_entity_type_for_name("EntityMinecartFurnace") == 41,
-          "EntityMinecartFurnace -> 41");
-    CHECK(gm_entity_type_for_name("EntityMinecartHopper") == 42,
-          "EntityMinecartHopper -> 42");
-    CHECK(gm_entity_type_for_name("EntityMinecartTNT") == 43,
-          "EntityMinecartTNT -> 43");
+    CHECK(gm_entity_type_for_name("EntityMinecartChest") == 46,
+          "EntityMinecartChest -> 46");
+    CHECK(gm_entity_type_for_name("EntityMinecartFurnace") == 47,
+          "EntityMinecartFurnace -> 47");
+    CHECK(gm_entity_type_for_name("EntityMinecartHopper") == 48,
+          "EntityMinecartHopper -> 48");
+    CHECK(gm_entity_type_for_name("EntityMinecartTNT") == 49,
+          "EntityMinecartTNT -> 49");
+    CHECK(approx(gm_entity_eye_y(40), 1.62f, 1e-6f),
+          "EntityVillager eye height is 1.62");
     /* skin-variant sprite overrides */
     CHECK(gm_entity_skin_for_name("EntityPigZombie") == CR_MOB_PIGMAN + 1,
           "EntityPigZombie skin -> pigman sprite");
@@ -486,9 +532,20 @@ static void test_recorded_state(void) {
     sheep.sheared=1;
     CHECK(gm_entities_emit(&sheep,1,out,MAXV)==6*36,
           "recorded sheared sheep omits all six wool boxes");
+    sheep.tape_pose=0;sheep.sheared=0;
+    wool_n=gm_entities_emit(&sheep,1,out,MAXV);red_wool=0;
+    for(int i=0;i<wool_n;++i)if(out[i].tint.r>out[i].tint.g*2)red_wool++;
+    CHECK(red_wool>0,"live red fleece tints wool vertices");
+    sheep.sheared=1;
+    CHECK(gm_entities_emit(&sheep,1,out,MAXV)==6*36,
+          "live sheared sheep omits all six wool boxes");
+    sheep.tape_pose=1;
     sheep.flags=4;
     CHECK(gm_entities_emit(&sheep,1,out,MAXV)==0,
           "recorded invisible entity emits no geometry");
+    sheep.tape_pose=0;
+    CHECK(gm_entities_emit(&sheep,1,out,MAXV)==0,
+          "live invisible entity emits no geometry");
 }
 
 /* (I) slime/magma size scale from item_meta (RenderSlime/RenderMagmaCube). */
@@ -516,6 +573,11 @@ static void test_slime_magma_size(void) {
     /* ModelSlime body bottom at model y=23 -> world (24-23)/16 = 0.0625 above feet. */
     CHECK(approx(min_y1, 64.0f + 0.0625f, 0.05f),
           "slime size 1 rests near ground (model y=23 floor)");
+    CHECK(gm_slime_gel_emit(&s1, 1, out, MAXV) == 36,
+          "visible slime emits its gel layer");
+    s1.flags = 4;
+    CHECK(gm_slime_gel_emit(&s1, 1, out, MAXV) == 0,
+          "invisible slime omits its gel layer");
 
     GmEntityView m2; memset(&m2, 0, sizeof m2);
     m2.type = 27; m2.y = 64; m2.health = 4; m2.item_meta = 2;
@@ -940,6 +1002,130 @@ static void test_death_and_spawner(void) {
           "miniature emit respects the vertex budget");
 }
 
+static int add_unique_pos(CrVec3 *p, int n, CrVec3 v) {
+    for (int i = 0; i < n; ++i)
+        if (fabsf(p[i].x-v.x)<1e-5f && fabsf(p[i].y-v.y)<1e-5f
+                && fabsf(p[i].z-v.z)<1e-5f)
+            return n;
+    p[n] = v;
+    return n + 1;
+}
+
+static void test_crystal_beam(void) {
+    printf("\n== ENDER-CRYSTAL BEAM ==\n");
+    GmEntityView e;
+    memset(&e, 0, sizeof e);
+    e.type = 31;
+    e.x = 2.5f; e.y = 9.0f; e.z = -3.5f;
+    e.crystal_rot = 19.0f;
+    e.beam_x = -6; e.beam_y = 4; e.beam_z = 7;
+    CrVertex out[96];
+    CHECK(gm_crystal_beams_emit(&e, 1, out, 96) == 0,
+          "crystal without has_beam emits no beam");
+    e.has_beam = 1;
+    CHECK(gm_crystal_beams_emit(&e, 1, out, 95) == 0,
+          "beam capacity is atomic (95 cannot hold its two-sided strip)");
+    int n = gm_crystal_beams_emit(&e, 1, out, 96);
+    CHECK(n == 96, "8-sided cull-disabled beam emits 16 tris in both windings");
+
+    CrVec3 lo[8], hi[8]; int nlo = 0, nhi = 0;
+    int tint_ok = 1, uv_ok = 1;
+    float dx=e.x-((float)e.beam_x+0.5f);
+    float dy=e.y-1.0f-((float)e.beam_y+0.5f);
+    float dz=e.z-((float)e.beam_z+0.5f);
+    float length=sqrtf(dx*dx+dy*dy+dz*dz);
+    float v0=-(e.crystal_rot+1.0f)*0.01f;
+    float v1=length/32.0f+v0;
+    for (int i = 0; i < n; ++i) {
+        if (out[i].tint.r == 0 && out[i].tint.g == 0 && out[i].tint.b == 0) {
+            nlo=add_unique_pos(lo,nlo,out[i].pos);
+            if (!approx(out[i].uv.y,v0,1e-6f)) uv_ok=0;
+        } else if (out[i].tint.r == 255 && out[i].tint.g == 255
+                   && out[i].tint.b == 255) {
+            nhi=add_unique_pos(hi,nhi,out[i].pos);
+            if (!approx(out[i].uv.y,v1,1e-6f)) uv_ok=0;
+        } else tint_ok=0;
+    }
+    CHECK(nlo == 8 && nhi == 8, "strip closes over eight unique vertices per ring");
+    CHECK(tint_ok, "smooth-shade endpoints are black at target and white at crystal");
+    CHECK(uv_ok && v0 < 0.0f, "scrolling beam V is unclamped geometry input");
+    CrVec3 lc={0}, hc={0};
+    for (int i=0;i<nlo;++i){lc.x+=lo[i].x;lc.y+=lo[i].y;lc.z+=lo[i].z;}
+    for (int i=0;i<nhi;++i){hc.x+=hi[i].x;hc.y+=hi[i].y;hc.z+=hi[i].z;}
+    lc.x/=nlo;lc.y/=nlo;lc.z/=nlo;hc.x/=nhi;hc.y/=nhi;hc.z/=nhi;
+    float phase=e.crystal_rot+1.0f;
+    float bob=sinf(phase*0.2f)/2.0f+0.5f;bob=bob*bob+bob;
+    CHECK(approx(lc.x,(float)e.beam_x+0.5f,1e-4f)
+          && approx(lc.y,(float)e.beam_y+2.2f+bob*0.4f,1e-4f)
+          && approx(lc.z,(float)e.beam_z+0.5f,1e-4f),
+          "target ring center matches RenderEnderCrystal translation");
+    CHECK(approx(hc.x,e.x,1e-4f)
+          && approx(hc.y,e.y+0.7f+bob*0.4f,1e-4f)
+          && approx(hc.z,e.z,1e-4f),
+          "far ring center lands on the bobbing crystal endpoint");
+
+    CrTexture bt=gm_crystal_beam_texture();
+    CHECK(bt.w==16 && bt.h==256 && bt.texels,
+          "beam texture is the standalone 16x256 jar image");
+    int opaque=0,transparent=0;
+    for(int i=0;i<bt.w*bt.h;++i){opaque+=bt.texels[i].a==255;transparent+=bt.texels[i].a==0;}
+    CHECK(opaque==838 && transparent==3258,
+          "beam alpha histogram matches the real 1.11.2 texture");
+
+    GmEntityView d;memset(&d,0,sizeof d);
+    d.type=9;d.x=3.0f;d.y=80.0f;d.z=-2.0f;
+    d.ticks_existed=39;d.has_heal_beam=1;
+    d.heal_x=18.5f;d.heal_y=91.0f;d.heal_z=7.5f;
+    d.heal_crystal_ticks=29;d.lm_lit=1;d.lm_light=3.0f;d.lm_blk=2.0f;
+    CrVertex dragon_out[96];
+    int dn=gm_crystal_beams_emit(&d,1,dragon_out,96);
+    CHECK(dn==96,"dragon healing crystal emits one two-sided beam strip");
+    CrVec3 db={0},dw={0},dbp[8],dwp[8];
+    int ndb=0,ndw=0;float dv0=-0.4f;int duv=1;
+    for(int i=0;i<dn;++i){
+        if(dragon_out[i].tint.r==0){
+            ndb=add_unique_pos(dbp,ndb,dragon_out[i].pos);
+            if(!approx(dragon_out[i].uv.y,dv0,1e-6f))duv=0;}
+        else if(dragon_out[i].tint.r==255)
+            ndw=add_unique_pos(dwp,ndw,dragon_out[i].pos);
+    }
+    for(int i=0;i<ndb;++i){db.x+=dbp[i].x;db.y+=dbp[i].y;db.z+=dbp[i].z;}
+    for(int i=0;i<ndw;++i){dw.x+=dwp[i].x;dw.y+=dwp[i].y;dw.z+=dwp[i].z;}
+    db.x/=ndb;db.y/=ndb;db.z/=ndb;dw.x/=ndw;dw.y/=ndw;dw.z/=ndw;
+    float hphase=(float)d.heal_crystal_ticks+1.0f;
+    float hb=sinf(hphase*0.2f)/2.0f+0.5f;hb=(hb*hb+hb)*0.2f;
+    CHECK(ndb>0&&approx(db.x,d.x,1e-4f)&&approx(db.y,d.y+2.0f,1e-4f)
+          &&approx(db.z,d.z,1e-4f),
+          "dragon beam black ring is centered at dragon render Y+2");
+    CHECK(ndw>0&&approx(dw.x,d.heal_x,1e-4f)
+          &&approx(dw.y,d.heal_y+hb+1.0f,1e-4f)
+          &&approx(dw.z,d.heal_z,1e-4f),
+          "dragon beam white ring lands on the bobbing healing crystal");
+    CHECK(duv,"dragon ticksExisted drives exact scrolling V origin");
+    int dlm=1;
+    for(int i=0;i<dn;++i)
+        if(dragon_out[i].light!=3.0f||dragon_out[i].blk!=2.0f)dlm=0;
+    CHECK(dlm,"dragon healing beam retains owning entity lightmap levels");
+    d.has_heal_beam=0;
+    CHECK(gm_crystal_beams_emit(&d,1,dragon_out,96)==0,
+          "dragon without healing crystal emits no beam");
+    d.has_heal_beam=1;
+    GmEntityView both[2]={e,d};CrVertex both_out[192];
+    CHECK(gm_crystal_beams_emit(both,2,both_out,191)==96
+          &&gm_crystal_beams_emit(both,2,both_out,192)==192,
+          "mixed crystal-target and dragon-heal beams retain atomic capacity");
+    {
+        CrShadeCtx sh={0};sh.atlas=&bt;sh.alpha_test=1;sh.alpha_ref=0.1f;
+        sh.sample_mode=1;sh.repeat_uv=1;
+        CrFragment a={0},b={0};
+        a.uv=(CrVec2){0.5f/16.0f,0.5f/256.0f};a.light=1;a.ao=1;
+        a.tint=(CrRgba){255,255,255,255};b=a;
+        b.uv.x+=2.0f;b.uv.y-=3.0f;
+        CrRgba ca=cr_shade(&sh,&a),cb=cr_shade(&sh,&b);
+        CHECK(!memcmp(&ca,&cb,sizeof ca),"beam shade repeats integer-shifted UVs");
+    }
+}
+
 int main(void) {
     test_part_counts();
     test_geometry();
@@ -952,6 +1138,7 @@ int main(void) {
     test_slime_magma_size();
     test_fireball_rays_particles();
     test_death_and_spawner();
+    test_crystal_beam();
     printf("\n%s\n", g_fail ? "*** SOME TESTS FAILED ***" : "ALL TESTS PASSED");
     return g_fail;
 }

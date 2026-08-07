@@ -1,0 +1,8 @@
+# x y z id meta
+# A saved powered floor wooden button with no EntityArrow in its selection
+# AABB. The imminent +3 callback releases metadata 13->5 and hands the lit
+# lamp to its independent +4 delayed-off callback.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 143 13
+13 78 8 124 0

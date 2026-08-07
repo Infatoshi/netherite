@@ -1,0 +1,3 @@
+# UP-facing normal piston is placed at tick zero below a locked NoAI pig at
+# (12.5,79,8.5). A stable south-side redstone block powers it.
+12 78 9 152 0

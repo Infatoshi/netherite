@@ -1,0 +1,5 @@
+# The powered plate at x=12 strongly powers its stone support downward. The
+# lit lamp is adjacent only to that support, so direct plate removal must run
+# BlockBasePressurePlate.breakBlock's second notification center.
+12 77 8 1 0
+13 77 8 124 0

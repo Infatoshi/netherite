@@ -32,6 +32,12 @@ static u64 double_bits(double value)
     return bits;
 }
 
+static int aabb_exact(McAABB a, McAABB b)
+{
+    return a.minX == b.minX && a.minY == b.minY && a.minZ == b.minZ
+        && a.maxX == b.maxX && a.maxY == b.maxY && a.maxZ == b.maxZ;
+}
+
 /* Fill a 9-Chunk window with a flat stone floor: solid stone for y in [0,64], air above. */
 static void fill_flat(Chunk *win)
 {
@@ -76,6 +82,13 @@ static void spawn_at(PsvPlayer *pl, double x, double y, double z)
     pl->ent.motionX = pl->ent.motionY = pl->ent.motionZ = 0.0;
     pl->ent.onGround = 0;
     pl->ent.collidedHorizontally = pl->ent.collidedVertically = pl->ent.isCollided = 0;
+}
+
+static void set_test_state(Chunk *win,int x,int y,int z,int id,int meta)
+{
+    int lx,lz,ci=psv_chunk_index(x,z,&lx,&lz);
+    if(ci>=0&&y>=0&&y<=255)
+        mc_set(&win[ci],lx,y,lz,mc_state(id,meta));
 }
 
 int main(void)
@@ -144,6 +157,7 @@ int main(void)
     plb.inv.current_item = 0;
     int   before_total = isr_hotbar_total(&plb.inv) + isr_main_total(&plb.inv);
     u32   before_break = plb.break_events;
+    float before_exhaustion = tvb.exhaustion;
     int   lxi = (int)floor(plb.ent.posX);
     int   lzi = (int)floor(plb.ent.posZ);
     gm_player_dig_reset();
@@ -185,6 +199,8 @@ int main(void)
           "break does not teleport its drop into inventory");
     CHECK(last_edit.drop_id == 4 && last_edit.drop_count == 1,
           "stone harvest emits one cobblestone item entity request");
+    CHECK(fabsf(tvb.exhaustion - (before_exhaustion + 0.005f)) < 1e-7f,
+          "harvestable block charges 0.005 exhaustion");
 
     /* ---------------- (C) UNDERWATER DIG PENALTY ---------------- */
     /* EntityPlayer.getDigSpeed: eye inside water without aqua affinity divides
@@ -287,7 +303,7 @@ int main(void)
     }
 
     /* ---------------- (F) BLOCK CALLBACK/COLLISION EDGE CASES ------------ */
-    printf("case F: cactus, slabs, trapdoors, slime, web, soul sand, fence vanilla mechanics\n");
+    printf("case F: shaped blocks, slime, web, soul sand, fence, diode, brewing mechanics\n");
     {
         McAABB blocks[PSV_MAX_BLOCKS];
         PsvAction idle; memset(&idle, 0, sizeof idle);
@@ -493,6 +509,1024 @@ int main(void)
             CHECK(sneak_hold.ent.posY == 3.5,
                   "sneaking on a ladder holds downward movement");
         }
+
+        {
+            static const int diode_ids[] = {93, 94, 149, 150};
+            int lx, lz;
+            int ci = psv_chunk_index(24, 24, &lx, &lz);
+            int diode_exact = 1;
+            for (int id_index = 0; id_index < 4; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    fill_mechanics_floor(win);
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(diode_ids[id_index], meta));
+                    PsvPlayer diode;
+                    spawn_at(&diode, 24.5, 3.125, 24.5);
+                    diode.ent.motionY = -0.0784000015258789;
+                    psv_physics_tick(win, &st, &diode, &idle, blocks);
+                    if (diode.ent.posY != 3.125 || !diode.ent.onGround)
+                        diode_exact = 0;
+                }
+            }
+            CHECK(diode_exact,
+                  "all repeater/comparator states collide at y + 0.125");
+
+            fill_mechanics_floor(win);
+            mc_set(&win[ci], lx, 3, lz, mc_state(55, 0));
+            PsvPlayer wire;
+            spawn_at(&wire, 24.5, 3.125, 24.5);
+            wire.ent.motionY = -0.0784000015258789;
+            psv_physics_tick(win, &st, &wire, &idle, blocks);
+            CHECK(wire.ent.posY < 3.125 && !wire.ent.onGround,
+                  "redstone wire remains collision-free");
+
+            int brewing_exact = 1;
+            for (int meta = 0; meta < 8; ++meta) {
+                fill_mechanics_floor(win);
+                mc_set(&win[ci], lx, 3, lz, mc_state(117, meta));
+                PsvPlayer stem;
+                spawn_at(&stem, 24.5, 3.875, 24.5);
+                stem.ent.motionY = -0.0784000015258789;
+                psv_physics_tick(win, &st, &stem, &idle, blocks);
+                if (stem.ent.posY != 3.875 || !stem.ent.onGround)
+                    brewing_exact = 0;
+
+                PsvPlayer base;
+                spawn_at(&base, 24.9, 3.125, 24.5);
+                base.ent.motionY = -0.0784000015258789;
+                psv_physics_tick(win, &st, &base, &idle, blocks);
+                if (base.ent.posY != 3.125 || !base.ent.onGround)
+                    brewing_exact = 0;
+            }
+            CHECK(brewing_exact,
+                  "all brewing states collide on exact stem and base boxes");
+
+            int enchanting_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                fill_mechanics_floor(win);
+                mc_set(&win[ci], lx, 3, lz, mc_state(116, meta));
+                PsvPlayer enchanting;
+                spawn_at(&enchanting, 24.5, 3.75, 24.5);
+                enchanting.ent.motionY = -0.0784000015258789;
+                psv_physics_tick(win, &st, &enchanting, &idle, blocks);
+                if (enchanting.ent.posY != 3.75 || !enchanting.ent.onGround)
+                    enchanting_exact = 0;
+            }
+            CHECK(enchanting_exact,
+                  "all enchanting-table states collide at y + 0.75");
+
+            static const int low_full_ids[] = {60, 208};
+            int low_full_exact = 1;
+            for (int id_index = 0; id_index < 2; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    fill_mechanics_floor(win);
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(low_full_ids[id_index], meta));
+                    PsvPlayer low_full;
+                    spawn_at(&low_full, 24.5, 3.9375, 24.5);
+                    low_full.ent.motionY = -0.0784000015258789;
+                    psv_physics_tick(win, &st, &low_full, &idle, blocks);
+                    if (low_full.ent.posY != 3.9375 || !low_full.ent.onGround)
+                        low_full_exact = 0;
+                }
+            }
+            CHECK(low_full_exact,
+                  "farmland/grass-path states collide at y + 0.9375");
+
+            static const int slab_ids[] = {44, 126, 182, 205};
+            int slab_exact = 1;
+            for (int id_index = 0; id_index < 4; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(slab_ids[id_index], meta));
+                    McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                    int count = psv_collect_blocks(
+                        win, &query, blocks, PSV_MAX_BLOCKS);
+                    double expected_min = (meta & 8) ? 3.5 : 3.0;
+                    double expected_max = (meta & 8) ? 4.0 : 3.5;
+                    if (count != 1 || blocks[0].minY != expected_min
+                            || blocks[0].maxY != expected_max)
+                        slab_exact = 0;
+                }
+            }
+            CHECK(slab_exact,
+                  "all single-slab states retain exact top/bottom half boxes");
+
+            int carpet_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(171, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                if (count != 1 || blocks[0].minX != 24.0
+                        || blocks[0].maxX != 25.0
+                        || blocks[0].minY != 3.0
+                        || blocks[0].maxY != 3.0625
+                        || blocks[0].minZ != 24.0
+                        || blocks[0].maxZ != 25.0)
+                    carpet_exact = 0;
+            }
+            CHECK(carpet_exact,
+                  "all carpet states retain the exact 1/16 collision box");
+
+            int snow_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(78, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                int layers = meta & 7;
+                if (layers == 0) {
+                    if (count != 0) snow_exact = 0;
+                } else if (count != 1 || blocks[0].minY != 3.0
+                           || blocks[0].maxY != 3.0 + layers * 0.125) {
+                    snow_exact = 0;
+                }
+            }
+            CHECK(snow_exact,
+                  "all snow-layer states retain exact metadata height");
+
+            int cake_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(92, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                int bites = meta > 6 ? 6 : meta;
+                double min_x = 24.0 + (1 + bites * 2) * 0.0625;
+                if (count != 1 || blocks[0].minX != min_x
+                        || blocks[0].maxX != 24.9375
+                        || blocks[0].minY != 3.0
+                        || blocks[0].maxY != 3.5
+                        || blocks[0].minZ != 24.0625
+                        || blocks[0].maxZ != 24.9375)
+                    cake_exact = 0;
+            }
+            CHECK(cake_exact,
+                  "all cake states retain exact bitten inset collision box");
+
+            int bed_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(26, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                if (count != 1 || blocks[0].minX != 24.0
+                        || blocks[0].maxX != 25.0
+                        || blocks[0].minY != 3.0
+                        || blocks[0].maxY != 3.5625
+                        || blocks[0].minZ != 24.0
+                        || blocks[0].maxZ != 25.0)
+                    bed_exact = 0;
+            }
+            CHECK(bed_exact,
+                  "all bed parts and facings retain the exact 9/16 box");
+
+            static const int daylight_ids[] = {151, 178};
+            int daylight_exact = 1;
+            for (int id_index = 0; id_index < 2; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(daylight_ids[id_index], meta));
+                    McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                    int count = psv_collect_blocks(
+                        win, &query, blocks, PSV_MAX_BLOCKS);
+                    if (count != 1 || blocks[0].minY != 3.0
+                            || blocks[0].maxY != 3.375)
+                        daylight_exact = 0;
+                }
+            }
+            CHECK(daylight_exact,
+                  "both daylight detectors retain the exact 3/8 box");
+
+            int frame_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(120, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                int expected_count = (meta & 4) ? 2 : 1;
+                if (count != expected_count || blocks[0].minY != 3.0
+                        || blocks[0].maxY != 3.8125)
+                    frame_exact = 0;
+                if ((meta & 4) && (blocks[1].minX != 24.3125
+                        || blocks[1].maxX != 24.6875
+                        || blocks[1].minY != 3.8125
+                        || blocks[1].maxY != 4.0
+                        || blocks[1].minZ != 24.3125
+                        || blocks[1].maxZ != 24.6875))
+                    frame_exact = 0;
+            }
+            CHECK(frame_exact,
+                  "end portal frames retain exact base and optional eye boxes");
+
+            int ender_chest_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(130, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                if (count != 1 || blocks[0].minX != 24.0625
+                        || blocks[0].maxX != 24.9375
+                        || blocks[0].minY != 3.0
+                        || blocks[0].maxY != 3.875
+                        || blocks[0].minZ != 24.0625
+                        || blocks[0].maxZ != 24.9375)
+                    ender_chest_exact = 0;
+            }
+            CHECK(ender_chest_exact,
+                  "all ender-chest states retain the exact inset 7/8 box");
+
+            static const int trapdoor_ids[] = {96, 167};
+            int trapdoor_exact = 1;
+            for (int id_index = 0; id_index < 2; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(trapdoor_ids[id_index], meta));
+                    McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                    int count = psv_collect_blocks(
+                        win, &query, blocks, PSV_MAX_BLOCKS);
+                    double x0 = 24.0, x1 = 25.0;
+                    double y0 = 3.0, y1 = 4.0;
+                    double z0 = 24.0, z1 = 25.0;
+                    if (meta & 4) {
+                        if ((meta & 3) == 0) z0 = 24.8125;
+                        else if ((meta & 3) == 1) z1 = 24.1875;
+                        else if ((meta & 3) == 2) x0 = 24.8125;
+                        else x1 = 24.1875;
+                    } else if (meta & 8) {
+                        y0 = 3.8125;
+                    } else {
+                        y1 = 3.1875;
+                    }
+                    if (count != 1 || !aabb_exact(
+                            blocks[0], mc_aabb_make(x0, y0, z0, x1, y1, z1)))
+                        trapdoor_exact = 0;
+                }
+            }
+            CHECK(trapdoor_exact,
+                  "both trapdoors retain all exact open/top/bottom panels");
+
+            memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+            for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+            }
+            mc_set(&win[ci], lx, 3, lz, mc_state(199, 0));
+            mc_set(&win[ci], lx - 1, 3, lz, mc_state(199, 0));
+            mc_set(&win[ci], lx + 1, 3, lz, mc_state(200, 0));
+            mc_set(&win[ci], lx, 4, lz, mc_state(199, 0));
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(200, 0));
+            mc_set(&win[ci], lx, 3, lz + 1, mc_state(199, 0));
+            McAABB chorus_query = mc_aabb_make(
+                24.1, 3.1, 24.1, 24.9, 3.9, 24.9);
+            int chorus_count = psv_collect_blocks(
+                win, &chorus_query, blocks, PSV_MAX_BLOCKS);
+            static const McAABB chorus_expected[] = {
+                {24.1875, 3.1875, 24.1875, 24.8125, 3.8125, 24.8125},
+                {24.0,    3.1875, 24.1875, 24.1875, 3.8125, 24.8125},
+                {24.8125, 3.1875, 24.1875, 25.0,    3.8125, 24.8125},
+                {24.1875, 3.8125, 24.1875, 24.8125, 4.0,    24.8125},
+                {24.1875, 3.1875, 24.0,    24.8125, 3.8125, 24.1875},
+                {24.1875, 3.1875, 24.8125, 24.8125, 3.8125, 25.0},
+            };
+            int chorus_exact = chorus_count == 6;
+            for (int shape = 0; shape < 6 && chorus_exact; ++shape)
+                chorus_exact = aabb_exact(blocks[shape], chorus_expected[shape]);
+
+            memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+            for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+            }
+            mc_set(&win[ci], lx, 2, lz, mc_state(121, 0));
+            mc_set(&win[ci], lx, 3, lz, mc_state(199, 0));
+            chorus_count = psv_collect_blocks(
+                win, &chorus_query, blocks, PSV_MAX_BLOCKS);
+            chorus_exact = chorus_exact && chorus_count == 3
+                && aabb_exact(blocks[1], chorus_expected[0])
+                && aabb_exact(blocks[2], mc_aabb_make(
+                    24.1875, 3.0, 24.1875, 24.8125, 3.1875, 24.8125));
+            CHECK(chorus_exact,
+                  "chorus plant retains center and all six connection arms");
+
+            static const int basin_ids[] = {118, 154};
+            int basin_exact = 1;
+            for (int id_index = 0; id_index < 2; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(basin_ids[id_index], meta));
+                    McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                    int count = psv_collect_blocks(
+                        win, &query, blocks, PSV_MAX_BLOCKS);
+                    double base_max = basin_ids[id_index] == 118
+                        ? 3.3125 : 3.625;
+                    McAABB expected[] = {
+                        mc_aabb_make(24, 3, 24, 25, base_max, 25),
+                        mc_aabb_make(24, 3, 24, 24.125, 4, 25),
+                        mc_aabb_make(24.875, 3, 24, 25, 4, 25),
+                        mc_aabb_make(24, 3, 24, 25, 4, 24.125),
+                        mc_aabb_make(24, 3, 24.875, 25, 4, 25),
+                    };
+                    if (count != 5) basin_exact = 0;
+                    for (int shape = 0; shape < 5 && basin_exact; ++shape)
+                        basin_exact = aabb_exact(blocks[shape], expected[shape]);
+                }
+            }
+            CHECK(basin_exact,
+                  "cauldron and hopper retain exact basin plus four rims");
+
+            int flower_pot_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(140, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                if (count != 1 || !aabb_exact(blocks[0], mc_aabb_make(
+                        24.3125, 3.0, 24.3125,
+                        24.6875, 3.375, 24.6875)))
+                    flower_pot_exact = 0;
+            }
+            CHECK(flower_pot_exact,
+                  "all flower-pot states retain the exact inset 3/8 box");
+
+            int cactus_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(81, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                if (count != 1 || !aabb_exact(blocks[0], mc_aabb_make(
+                        24.0625, 3.0, 24.0625,
+                        24.9375, 3.9375, 24.9375)))
+                    cactus_exact = 0;
+
+                PsvPlayer cactus;
+                spawn_at(&cactus, 24.5, 3.9375, 24.5);
+                cactus.ent.motionY = -0.0784000015258789;
+                psv_physics_tick(win, &st, &cactus, &idle, blocks);
+                if (cactus.ent.posY != 3.9375 || !cactus.ent.onGround
+                        || !cactus.cactus_contact)
+                    cactus_exact = 0;
+            }
+            CHECK(cactus_exact,
+                  "all cactus states retain exact inset 15/16 collision and contact callback");
+
+            int end_rod_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(198, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                int rod_meta = (meta & 7);
+                int axis = rod_meta < 2 ? 1 : rod_meta < 4 ? 2 : 0;
+                McAABB expected = mc_aabb_make(
+                    axis == 0 ? 24.0 : 24.375,
+                    axis == 1 ? 3.0 : 3.375,
+                    axis == 2 ? 24.0 : 24.375,
+                    axis == 0 ? 25.0 : 24.625,
+                    axis == 1 ? 4.0 : 3.625,
+                    axis == 2 ? 25.0 : 24.625);
+                if (count != 1 || !aabb_exact(blocks[0], expected))
+                    end_rod_exact = 0;
+            }
+            CHECK(end_rod_exact,
+                  "all end-rod states retain exact metadata-derived axis boxes");
+
+            int skull_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(144, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                int facing = (meta & 7) % 6;
+                double x0 = 24.25, x1 = 24.75;
+                double y0 = 3.25, y1 = 3.75;
+                double z0 = 24.25, z1 = 24.75;
+                if (facing == 0 || facing == 1) {
+                    y0 = 3.0; y1 = 3.5;
+                } else if (facing == 2) {
+                    z0 = 24.5; z1 = 25.0;
+                } else if (facing == 3) {
+                    z0 = 24.0; z1 = 24.5;
+                } else if (facing == 4) {
+                    x0 = 24.5; x1 = 25.0;
+                } else {
+                    x0 = 24.0; x1 = 24.5;
+                }
+                if (count != 1 || !aabb_exact(blocks[0],
+                        mc_aabb_make(x0, y0, z0, x1, y1, z1)))
+                    skull_exact = 0;
+            }
+            CHECK(skull_exact,
+                  "all skull states retain exact six-facing half-block boxes");
+
+            int lily_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(111, meta));
+                McAABB query = mc_aabb_make(24, 3, 24, 25, 4, 25);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                if (count != 1 || !aabb_exact(blocks[0], mc_aabb_make(
+                        24.0625, 3.0, 24.0625,
+                        24.9375, 3.09375, 24.9375)))
+                    lily_exact = 0;
+            }
+            CHECK(lily_exact,
+                  "all lily-pad states retain the exact inset 3/32 box");
+
+            static const int chest_ids[] = {54, 146};
+            int chest_exact = 1;
+            for (int id_index = 0; id_index < 2; ++id_index) {
+                for (int neighbor = -1; neighbor < 4; ++neighbor) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    int id = chest_ids[id_index];
+                    mc_set(&win[ci], lx, 3, lz, mc_state(id, 2));
+                    if (neighbor >= 0) {
+                        static const int dx[] = {0, 0, -1, 1};
+                        static const int dz[] = {-1, 1, 0, 0};
+                        mc_set(&win[ci], lx + dx[neighbor], 3,
+                               lz + dz[neighbor], mc_state(id, 3));
+                    }
+                    McAABB query = mc_aabb_make(
+                        24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+                    int count = psv_collect_blocks(
+                        win, &query, blocks, PSV_MAX_BLOCKS);
+                    double min_x = neighbor == 2 ? 24.0 : 24.0625;
+                    double max_x = neighbor == 3 ? 25.0 : 24.9375;
+                    double min_z = neighbor == 0 ? 24.0 : 24.0625;
+                    double max_z = neighbor == 1 ? 25.0 : 24.9375;
+                    if (count != 1 || !aabb_exact(blocks[0], mc_aabb_make(
+                            min_x, 3.0, min_z,
+                            max_x, 3.875, max_z)))
+                        chest_exact = 0;
+                }
+            }
+            memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+            for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+            }
+            mc_set(&win[ci], lx, 3, lz, mc_state(54, 2));
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(146, 3));
+            McAABB chest_query = mc_aabb_make(
+                24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+            int chest_count = psv_collect_blocks(
+                win, &chest_query, blocks, PSV_MAX_BLOCKS);
+            if (chest_count != 1 || !aabb_exact(blocks[0], mc_aabb_make(
+                    24.0625, 3.0, 24.0625,
+                    24.9375, 3.875, 24.9375)))
+                chest_exact = 0;
+            CHECK(chest_exact,
+                  "ordinary and trapped chests retain exact joined 7/8 boxes");
+
+            static const int stair_ids[] = {
+                53, 67, 108, 109, 114, 128, 134,
+                135, 136, 156, 163, 164, 180, 203,
+            };
+            int stair_exact = 1;
+            for (int id_index = 0; id_index < 14; ++id_index) {
+                for (int meta = 0; meta < 8; ++meta) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(stair_ids[id_index], meta));
+                    McAABB query = mc_aabb_make(
+                        24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+                    int count = psv_collect_blocks(
+                        win, &query, blocks, PSV_MAX_BLOCKS);
+                    int facing = 5 - (meta & 3);
+                    int top = (meta & 4) != 0;
+                    double x0 = 24.0, x1 = 25.0;
+                    double z0 = 24.0, z1 = 25.0;
+                    if (facing == 2) z1 = 24.5;
+                    else if (facing == 3) z0 = 24.5;
+                    else if (facing == 4) x1 = 24.5;
+                    else x0 = 24.5;
+                    McAABB base = mc_aabb_make(
+                        24.0, top ? 3.5 : 3.0, 24.0,
+                        25.0, top ? 4.0 : 3.5, 25.0);
+                    McAABB step = mc_aabb_make(
+                        x0, top ? 3.0 : 3.5, z0,
+                        x1, top ? 3.5 : 4.0, z1);
+                    if (count != 2 || !aabb_exact(blocks[0], base)
+                            || !aabb_exact(blocks[1], step))
+                        stair_exact = 0;
+                }
+            }
+            static const int corner_neighbor_z[] = {-1, -1, 1, 1};
+            static const int corner_neighbor_meta[] = {1, 0, 1, 0};
+            static const PsvStairShape corner_shape[] = {
+                PSV_STAIR_OUTER_LEFT, PSV_STAIR_OUTER_RIGHT,
+                PSV_STAIR_INNER_LEFT, PSV_STAIR_INNER_RIGHT,
+            };
+            static const double corner_x0[] = {24.0, 24.5, 24.0, 24.5};
+            static const double corner_z0[] = {24.0, 24.0, 24.5, 24.5};
+            for (int top = 0; top < 2; ++top) {
+                for (int corner = 0; corner < 4; ++corner) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    int top_bit = top ? 4 : 0;
+                    mc_set(&win[ci], lx, 3, lz, mc_state(53, 3 | top_bit));
+                    mc_set(&win[ci], lx, 3,
+                           lz + corner_neighbor_z[corner],
+                           mc_state(53, corner_neighbor_meta[corner] | top_bit));
+                    McAABB shapes[3];
+                    int count = psv_stair_collision_shapes(
+                        win, 24, 3, 24, 3 | top_bit, shapes);
+                    McAABB expected_corner = mc_aabb_make(
+                        corner_x0[corner], top ? 3.0 : 3.5,
+                        corner_z0[corner], corner_x0[corner] + 0.5,
+                        top ? 3.5 : 4.0, corner_z0[corner] + 0.5);
+                    int expected_count = corner < 2 ? 2 : 3;
+                    if (psv_stair_shape(
+                            win, 24, 3, 24, 3 | top_bit)
+                                != corner_shape[corner]
+                            || count != expected_count
+                            || !aabb_exact(shapes[count - 1], expected_corner))
+                        stair_exact = 0;
+                }
+            }
+            CHECK(stair_exact,
+                  "all stair IDs retain exact straight and corner boxes");
+
+            static const int pane_ids[] = {101, 102, 160};
+            int pane_exact = 1;
+            for (int id_index = 0; id_index < 3; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(pane_ids[id_index], meta));
+                    McAABB shapes[5];
+                    int count = psv_pane_collision_shapes(
+                        win, 24, 3, 24, shapes);
+                    if (count != 1 || !aabb_exact(shapes[0], mc_aabb_make(
+                            24.4375, 3.0, 24.4375,
+                            24.5625, 4.0, 24.5625)))
+                        pane_exact = 0;
+                }
+            }
+
+            memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+            for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+            }
+            mc_set(&win[ci], lx, 3, lz, mc_state(102, 0));
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(101, 0));
+            mc_set(&win[ci], lx + 1, 3, lz, mc_state(20, 0));
+            mc_set(&win[ci], lx, 3, lz + 1, mc_state(95, 5));
+            mc_set(&win[ci], lx - 1, 3, lz, mc_state(1, 0));
+            McAABB pane_shapes[5];
+            int pane_count = psv_pane_collision_shapes(
+                win, 24, 3, 24, pane_shapes);
+            static const McAABB pane_expected[] = {
+                {24.4375, 3.0, 24.4375, 24.5625, 4.0, 24.5625},
+                {24.4375, 3.0, 24.0,    24.5625, 4.0, 24.4375},
+                {24.5625, 3.0, 24.4375, 25.0,    4.0, 24.5625},
+                {24.4375, 3.0, 24.5625, 24.5625, 4.0, 25.0},
+                {24.0,    3.0, 24.4375, 24.4375, 4.0, 24.5625},
+            };
+            if (pane_count != 5) pane_exact = 0;
+            for (int shape = 0; shape < 5 && pane_exact; ++shape)
+                pane_exact = aabb_exact(pane_shapes[shape], pane_expected[shape]);
+
+            /* Forge side-solid exceptions and actual-state stair sides. */
+            memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+            for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+            }
+            mc_set(&win[ci], lx, 3, lz, mc_state(102, 0));
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(60, 0));
+            if (!psv_pane_connects(win, 24, 3, 24, 2)) pane_exact = 0;
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(78, 6));
+            if (psv_pane_connects(win, 24, 3, 24, 2)) pane_exact = 0;
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(78, 7));
+            if (!psv_pane_connects(win, 24, 3, 24, 2)) pane_exact = 0;
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(53, 2));
+            if (!psv_pane_connects(win, 24, 3, 24, 2)) pane_exact = 0;
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(53, 3));
+            if (psv_pane_connects(win, 24, 3, 24, 2)) pane_exact = 0;
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(152, 0));
+            if (!psv_pane_connects(win, 24, 3, 24, 2)) pane_exact = 0;
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(54, 0));
+            if (psv_pane_connects(win, 24, 3, 24, 2)) pane_exact = 0;
+            CHECK(pane_exact,
+                  "all pane IDs retain exact connected post/arm collision boxes");
+
+            static const int piston_base_ids[] = {29, 33};
+            int piston_base_exact = 1;
+            for (int id_index = 0; id_index < 2; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(piston_base_ids[id_index], meta));
+                    McAABB query = mc_aabb_make(
+                        24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+                    int count = psv_collect_blocks(
+                        win, &query, blocks, PSV_MAX_BLOCKS);
+                    int facing = meta & 7;
+                    double x0 = 24.0, x1 = 25.0;
+                    double y0 = 3.0, y1 = 4.0;
+                    double z0 = 24.0, z1 = 25.0;
+                    if ((meta & 8) && facing <= 5) {
+                        if (facing == 0) y0 = 3.25;
+                        else if (facing == 1) y1 = 3.75;
+                        else if (facing == 2) z0 = 24.25;
+                        else if (facing == 3) z1 = 24.75;
+                        else if (facing == 4) x0 = 24.25;
+                        else x1 = 24.75;
+                    }
+                    if (count != 1 || !aabb_exact(blocks[0],
+                            mc_aabb_make(x0, y0, z0, x1, y1, z1)))
+                        piston_base_exact = 0;
+                }
+            }
+            CHECK(piston_base_exact,
+                  "both piston bases retain exact retracted/extended bodies");
+
+            int anvil_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(145, meta));
+                McAABB query = mc_aabb_make(
+                    24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                McAABB expected = (meta & 1)
+                    ? mc_aabb_make(24.0, 3.0, 24.125,
+                                   25.0, 4.0, 24.875)
+                    : mc_aabb_make(24.125, 3.0, 24.0,
+                                   24.875, 4.0, 25.0);
+                if (count != 1 || !aabb_exact(blocks[0], expected))
+                    anvil_exact = 0;
+            }
+            CHECK(anvil_exact,
+                  "all anvil damage/facing states retain exact inset axes");
+
+            int dragon_egg_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(122, meta));
+                McAABB query = mc_aabb_make(
+                    24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                if (count != 1 || !aabb_exact(blocks[0], mc_aabb_make(
+                        24.0625, 3.0, 24.0625,
+                        24.9375, 4.0, 24.9375)))
+                    dragon_egg_exact = 0;
+            }
+            CHECK(dragon_egg_exact,
+                  "all dragon-egg states retain exact horizontal inset");
+
+            static const int fence_ids[] = {
+                85, 113, 188, 189, 190, 191, 192,
+            };
+            int fence_exact = 1;
+            for (int id_index = 0; id_index < 7; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(fence_ids[id_index], meta));
+                    McAABB query = mc_aabb_make(
+                        24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+                    int count = psv_collect_blocks(
+                        win, &query, blocks, PSV_MAX_BLOCKS);
+                    if (count != 1 || !aabb_exact(blocks[0], mc_aabb_make(
+                            24.375, 3.0, 24.375,
+                            24.625, 4.5, 24.625)))
+                        fence_exact = 0;
+                }
+            }
+
+            memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+            for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+            }
+            mc_set(&win[ci], lx, 3, lz, mc_state(188, 0));
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(189, 0));
+            mc_set(&win[ci], lx + 1, 3, lz, mc_state(107, 0));
+            mc_set(&win[ci], lx, 3, lz + 1, mc_state(152, 0));
+            mc_set(&win[ci], lx - 1, 3, lz, mc_state(218, 0));
+            McAABB fence_query = mc_aabb_make(
+                24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+            int fence_count = psv_collect_blocks(
+                win, &fence_query, blocks, PSV_MAX_BLOCKS);
+            static const McAABB fence_expected[] = {
+                {24.375, 3.0, 24.375, 24.625, 4.5, 24.625},
+                {24.375, 3.0, 24.0,   24.625, 4.5, 24.375},
+                {24.625, 3.0, 24.375, 25.0,   4.5, 24.625},
+                {24.375, 3.0, 24.625, 24.625, 4.5, 25.0},
+                {24.0,   3.0, 24.375, 24.375, 4.5, 24.625},
+            };
+            if (fence_count != 5) fence_exact = 0;
+            for (int shape = 0; shape < 5 && fence_exact; ++shape)
+                fence_exact = aabb_exact(blocks[shape], fence_expected[shape]);
+
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(113, 0));
+            mc_set(&win[ci], lx + 1, 3, lz, mc_state(86, 0));
+            mc_set(&win[ci], lx, 3, lz + 1, mc_state(166, 0));
+            mc_set(&win[ci], lx - 1, 3, lz, mc_state(79, 0));
+            if (psv_fence_connects(win, 188, 24, 3, 23)
+                    || psv_fence_connects(win, 188, 25, 3, 24)
+                    || psv_fence_connects(win, 188, 24, 3, 25)
+                    || psv_fence_connects(win, 188, 23, 3, 24))
+                fence_exact = 0;
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(113, 0));
+            if (!psv_fence_connects(win, 113, 24, 3, 23))
+                fence_exact = 0;
+            CHECK(fence_exact,
+                  "all fence IDs retain exact posts, arms, and connections");
+
+            static const int gate_ids[] = {107, 183, 184, 185, 186, 187};
+            int gate_exact = 1;
+            for (int id_index = 0; id_index < 6; ++id_index) {
+                for (int meta = 0; meta < 16; ++meta) {
+                    memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                    for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                        win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                        win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                    }
+                    mc_set(&win[ci], lx, 3, lz,
+                           mc_state(gate_ids[id_index], meta));
+                    McAABB query = mc_aabb_make(
+                        24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+                    int count = psv_collect_blocks(
+                        win, &query, blocks, PSV_MAX_BLOCKS);
+                    if (meta & 4) {
+                        if (count != 0) gate_exact = 0;
+                    } else {
+                        McAABB expected = (meta & 1)
+                            ? mc_aabb_make(24.375, 3.0, 24.0,
+                                           24.625, 4.5, 25.0)
+                            : mc_aabb_make(24.0, 3.0, 24.375,
+                                           25.0, 4.5, 24.625);
+                        if (count != 1 || !aabb_exact(blocks[0], expected))
+                            gate_exact = 0;
+                    }
+                }
+            }
+            CHECK(gate_exact,
+                  "all fence gates retain exact open and closed-axis collision");
+
+            static const int door_ids[] = {64, 71, 193, 194, 195, 196, 197};
+            static const unsigned char door_closed_panel[] = {0, 2, 1, 3};
+            static const unsigned char door_open_panel[4][2] = {
+                {2, 3}, {1, 0}, {3, 2}, {0, 1},
+            };
+            int door_exact = 1;
+            for (int id_index = 0; id_index < 7; ++id_index) {
+                for (int lower_meta = 0; lower_meta < 8; ++lower_meta) {
+                    for (int upper_bits = 0; upper_bits < 4; ++upper_bits) {
+                        memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                        for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                            win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                            win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                        }
+                        int id = door_ids[id_index];
+                        int upper_meta = 8 | upper_bits;
+                        mc_set(&win[ci], lx, 3, lz,
+                               mc_state(id, lower_meta));
+                        mc_set(&win[ci], lx, 4, lz,
+                               mc_state(id, upper_meta));
+                        int panel = (lower_meta & 4)
+                            ? door_open_panel[lower_meta & 3][upper_bits & 1]
+                            : door_closed_panel[lower_meta & 3];
+                        double x0 = 24.0, x1 = 25.0;
+                        double z0 = 24.0, z1 = 25.0;
+                        if (panel == 0) x1 = 24.1875;
+                        else if (panel == 1) x0 = 24.8125;
+                        else if (panel == 2) z1 = 24.1875;
+                        else z0 = 24.8125;
+                        McAABB lower = psv_door_collision_shape(
+                            win, 24, 3, 24, id, lower_meta);
+                        McAABB upper = psv_door_collision_shape(
+                            win, 24, 4, 24, id, upper_meta);
+                        if (!aabb_exact(lower, mc_aabb_make(
+                                x0, 3.0, z0, x1, 4.0, z1))
+                                || !aabb_exact(upper, mc_aabb_make(
+                                    x0, 4.0, z0, x1, 5.0, z1)))
+                            door_exact = 0;
+                    }
+                }
+            }
+            CHECK(door_exact,
+                  "all paired door IDs retain exact facing/open/hinge panels");
+
+            int ladder_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(65, meta));
+                McAABB query = mc_aabb_make(
+                    24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                int facing = meta % 6;
+                double x0 = 24.0, x1 = 25.0;
+                double z0 = 24.0, z1 = 25.0;
+                if (facing <= 2) z0 = 24.8125;
+                else if (facing == 3) z1 = 24.1875;
+                else if (facing == 4) x0 = 24.8125;
+                else x1 = 24.1875;
+                if (count != 1 || !aabb_exact(blocks[0],
+                        mc_aabb_make(x0, 3.0, z0, x1, 4.0, z1)))
+                    ladder_exact = 0;
+            }
+            CHECK(ladder_exact,
+                  "all ladder metadata retains exact six-facing panels");
+
+            fill_mechanics_floor(win);
+            mc_set(&win[ci], lx, 3, lz - 2, mc_state(BLK_STONE, 0));
+            mc_set(&win[ci], lx, 3, lz - 1, mc_state(65, 3));
+            PsvPlayer ladder;
+            spawn_at(&ladder, 24.5, 3.0, 24.5);
+            ladder.ent.onGround = 1;
+            ladder.ent.motionY = -0.0784000015258789;
+            ladder.yaw = -180.0f;
+            PsvAction ladder_move;
+            memset(&ladder_move, 0, sizeof ladder_move);
+            ladder_move.forward = 1.0f;
+            ladder_move.yaw = -180.0f;
+            double ladder_contact_z = 0.0;
+            double ladder_climb_y = 0.0;
+            for (int tick = 0; tick < 20; ++tick) {
+                psv_physics_tick(
+                    win, &st, &ladder, &ladder_move, blocks);
+                if (tick == 6) ladder_contact_z = ladder.ent.posZ;
+                if (tick == 15) ladder_climb_y = ladder.ent.posY;
+            }
+            CHECK(ladder_contact_z == 23.487500011920929
+                      && ladder_climb_y == 4.0584000205993656
+                      && ladder.ent.posY == 4.0
+                      && ladder.ent.posZ == 23.148083054549105,
+                  "ladder travel retains exact clamp, climb, and release path");
+
+            fill_mechanics_floor(win);
+            PsvPlayer ladder_probe;
+            spawn_at(&ladder_probe, 24.5, 3.0, 24.5);
+            mc_set(&win[ci], lx, 3, lz, mc_state(106, 0));
+            int ladder_identity_exact = psv_is_on_ladder(
+                win, &ladder_probe.ent);
+            mc_set(&win[ci], lx, 3, lz, mc_state(65, 3));
+            ladder_probe.ent.posY = 4.0;
+            ladder_probe.ent.box = psv_player_box(24.5, 4.0, 24.5);
+            mc_set(&win[ci], lx, 4, lz, mc_state(96, 5));
+            ladder_identity_exact = ladder_identity_exact
+                && psv_is_on_ladder(win, &ladder_probe.ent);
+            mc_set(&win[ci], lx, 4, lz, mc_state(96, 4));
+            ladder_identity_exact = ladder_identity_exact
+                && !psv_is_on_ladder(win, &ladder_probe.ent);
+            CHECK(ladder_identity_exact,
+                  "vine and matching open trapdoor retain ladder identity");
+
+            int cocoa_exact = 1;
+            for (int meta = 0; meta < 16; ++meta) {
+                memset(win, 0, sizeof(Chunk) * PSV_NCHUNKS);
+                for (int init_ci = 0; init_ci < PSV_NCHUNKS; ++init_ci) {
+                    win[init_ci].cx = (init_ci % PSV_DIM) - PSV_R;
+                    win[init_ci].cz = (init_ci / PSV_DIM) - PSV_R;
+                }
+                mc_set(&win[ci], lx, 3, lz, mc_state(127, meta));
+                McAABB query = mc_aabb_make(
+                    24.1, 3.0, 24.1, 24.9, 4.0, 24.9);
+                int count = psv_collect_blocks(
+                    win, &query, blocks, PSV_MAX_BLOCKS);
+                int facing = meta & 3;
+                int age = (meta >> 2) & 3;
+                if (age > 2) age = 2;
+                double width = (age + 2) / 8.0;
+                double half = width * 0.5;
+                double x0 = 24.5 - half, x1 = 24.5 + half;
+                double z0 = 24.5 - half, z1 = 24.5 + half;
+                if (facing == 0) {
+                    z0 = 24.9375 - width; z1 = 24.9375;
+                } else if (facing == 1) {
+                    x0 = 24.0625; x1 = x0 + width;
+                } else if (facing == 2) {
+                    z0 = 24.0625; z1 = z0 + width;
+                } else {
+                    x0 = 24.9375 - width; x1 = 24.9375;
+                }
+                if (count != 1 || !aabb_exact(blocks[0], mc_aabb_make(
+                        x0, 3.4375 - age * 0.125, z0,
+                        x1, 3.75, z1)))
+                    cocoa_exact = 0;
+            }
+            CHECK(cocoa_exact,
+                  "all cocoa ages/facings retain exact attached pod boxes");
+        }
     }
 
     /* ---------------- (G) ELYTRA TRAVEL BITWISE FIXTURE ------------------ */
@@ -687,6 +1721,111 @@ int main(void)
                        rise_jump, 0, 0, 0, edits, &nedits, 4);
         CHECK(!rise.elytra_flying && !rise.elytra_flying_pending,
               "MC-111444: jump while motionY>=0 does not start fall-flying");
+    }
+
+    /* ---- ItemGlassBottle: water ray + exact InventoryPlayer transform ---- */
+    printf("case glass-bottle: source/flowing water + stack/full inventory\n");
+    {
+        GmAction fill;memset(&fill,0,sizeof fill);fill.do_place=1;
+        GmBlockEdit edits[4];int nedits=0;
+        PvStats bv;pv_init(&bv);
+        PsvPlayer bottle;
+
+        fill_flat(win);
+        set_test_state(win,24,66,27,9,0);
+        spawn_at(&bottle,24.5,65.0,24.5);
+        isr_set_stack(&bottle.inv,0,ic_mk(374,1,0));
+        bottle.inv.current_item=0;
+        gm_player_tick((struct Chunk *)win,(struct McSinTable *)&st,
+                       (struct PsvPlayer *)&bottle,(struct PvStats *)&bv,
+                       fill,0,0,0,edits,&nedits,4);
+        ICStack held=isr_get_stack(&bottle.inv,0);
+        CHECK(held.item==373&&held.count==1&&held.meta==1,
+              "one glass bottle becomes one water potion");
+        CHECK(psv_get_block(win,24,66,27)==9,
+              "bottle fill does not consume water block");
+        CHECK(nedits==0,"bottle fill emits no block edit");
+
+        fill_flat(win);
+        set_test_state(win,24,66,27,8,3);
+        spawn_at(&bottle,24.5,65.0,24.5);
+        isr_set_stack(&bottle.inv,0,ic_mk(374,3,0));
+        bottle.inv.current_item=0;nedits=0;
+        gm_player_tick((struct Chunk *)win,(struct McSinTable *)&st,
+                       (struct PsvPlayer *)&bottle,(struct PvStats *)&bv,
+                       fill,0,0,0,edits,&nedits,4);
+        held=isr_get_stack(&bottle.inv,0);
+        ICStack water=isr_get_stack(&bottle.inv,1);
+        CHECK(held.item==374&&held.count==2,
+              "bottle stack shrinks by one");
+        CHECK(water.item==373&&water.count==1&&water.meta==1,
+              "flowing water fills a potion into first empty inventory slot");
+
+        fill_flat(win);
+        set_test_state(win,24,66,27,9,0);
+        spawn_at(&bottle,24.5,65.0,24.5);
+        for(int q=0;q<ISR_MAIN_SLOTS;++q)
+            isr_set_stack(&bottle.inv,q,ic_mk(1,64,0));
+        isr_set_stack(&bottle.inv,0,ic_mk(374,2,0));
+        bottle.inv.current_item=0;nedits=0;
+        gm_player_tick((struct Chunk *)win,(struct McSinTable *)&st,
+                       (struct PsvPlayer *)&bottle,(struct PvStats *)&bv,
+                       fill,0,0,0,edits,&nedits,4);
+        held=isr_get_stack(&bottle.inv,0);
+        water=gm_player_take_item_use_drop();
+        CHECK(held.item==374&&held.count==1,
+              "full inventory still consumes exactly one bottle");
+        CHECK(water.item==373&&water.count==1&&water.meta==1,
+              "full inventory exposes one water-potion ground drop");
+
+        fill_flat(win);
+        set_test_state(win,24,66,26,8,3);
+        set_test_state(win,24,66,27,9,0);
+        spawn_at(&bottle,24.5,65.0,24.5);
+        isr_set_stack(&bottle.inv,0,ic_mk(325,1,0));
+        bottle.inv.current_item=0;nedits=0;
+        gm_player_tick((struct Chunk *)win,(struct McSinTable *)&st,
+                       (struct PsvPlayer *)&bottle,(struct PvStats *)&bv,
+                       fill,0,0,0,edits,&nedits,4);
+        held=isr_get_stack(&bottle.inv,0);
+        CHECK(held.item==325&&held.count==1,
+              "flowing water stops bucket ray before source behind it");
+
+        fill_flat(win);
+        spawn_at(&bottle,24.5,65.0,24.5);
+        isr_set_stack(&bottle.inv,0,ic_mk(373,1,15));
+        bottle.inv.current_item=0;
+        GmAction drink;memset(&drink,0,sizeof drink);drink.use=1;
+        gm_player_dig_reset();
+        for(int t=0;t<32;++t) {
+            nedits=0;
+            gm_player_tick((struct Chunk *)win,(struct McSinTable *)&st,
+                           (struct PsvPlayer *)&bottle,(struct PvStats *)&bv,
+                           drink,0,0,0,edits,&nedits,4);
+        }
+        held=isr_get_stack(&bottle.inv,0);
+        ICStack finished=gm_player_take_finished_drink();
+        CHECK(held.item==374&&held.count==1&&held.meta==0,
+              "finished potion returns one glass bottle");
+        CHECK(finished.item==373&&finished.count==1&&finished.meta==15,
+              "finished drink preserves potion-type identity for runtime effect");
+
+        spawn_at(&bottle,24.5,65.0,24.5);
+        isr_set_stack(&bottle.inv,0,ic_mk(335,1,0));
+        bottle.inv.current_item=0;
+        gm_player_dig_reset();
+        for(int t=0;t<32;++t) {
+            nedits=0;
+            gm_player_tick((struct Chunk *)win,(struct McSinTable *)&st,
+                           (struct PsvPlayer *)&bottle,(struct PvStats *)&bv,
+                           drink,0,0,0,edits,&nedits,4);
+        }
+        held=isr_get_stack(&bottle.inv,0);
+        finished=gm_player_take_finished_drink();
+        CHECK(held.item==325&&held.count==1&&held.meta==0,
+              "finished milk returns one empty bucket");
+        CHECK(finished.item==335&&finished.count==1,
+              "finished milk exposes cure event to runtime");
     }
 
     /* ---- MC 1.11.2 item use: swords NONE, shield BLOCK; absorption not faked ---- */

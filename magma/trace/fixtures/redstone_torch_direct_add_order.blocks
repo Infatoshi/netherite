@@ -1,0 +1,11 @@
+# The center at 12,79,8 is empty over a valid floor support. Repeater A is
+# diagonal to the prospective torch and is reached by the lit torch's DOWN-
+# centered onBlockAdded traversal. Repeater B is directly SOUTH and is reached
+# only by the outer placement notification. A is stale powered with no input;
+# B is stale unpowered and takes the prospective torch as input. A lit add must
+# schedule A then B, while an unlit add leaves both queue-free.
+12 78 8 1 0
+13 77 8 1 0
+12 78 9 1 0
+13 78 8 94 3
+12 79 9 93 2

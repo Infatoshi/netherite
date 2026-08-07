@@ -1,0 +1,4 @@
+# Negative control for direct plate replacement: an unpowered plate has no
+# support-neighborhood break notification and leaves this lamp unlit.
+12 77 8 1 0
+13 77 8 123 0

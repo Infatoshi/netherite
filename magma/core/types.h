@@ -164,6 +164,10 @@ typedef struct {
     /* Entity-only RenderLivingBase brightness combiner. A negative fragment
      * blk packs the original block-light level plus a white-overlay mix. */
     int    entity_brightness;
+    /* GL_REPEAT on both axes before sampling. Used by the standalone
+     * endercrystal_beam texture whose scrolling V coordinates leave [0,1].
+     * Zero preserves clamp-to-edge for every atlas pass. */
+    int    repeat_uv;
 } CrShadeCtx;
 
 /* per-fragment inputs handed to the shader (perspective-corrected already) */

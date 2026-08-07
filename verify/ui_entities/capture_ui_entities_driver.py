@@ -201,7 +201,7 @@ def base_scene(e, outdir=None):
 
 
 def capture_pair(e, outdir, state_id, pin_fn, meta_extra=None, cam=None,
-                 stable_ab=False):
+                 stable_ab=True):
     """pin_fn(e) -> pin reply dict; dumps A then (optionally re-pin and) dump B.
 
     Re-pin after settle so client has the server entity before frame{} readback.
@@ -228,8 +228,9 @@ def capture_pair(e, outdir, state_id, pin_fn, meta_extra=None, cam=None,
     set_pose(e, pose)
     path_a = os.path.join(outdir, "%s_a.png" % state_id)
     path_b = os.path.join(outdir, "%s_b.png" % state_id)
-    # Atomic frame_pair for same-state A/B (xp and any stable_ab). Dig particles
-    # intentionally re-pin for a second spray sample.
+    # Atomic frame_pair is the only valid hard-pixel A/B: re-spawning or
+    # advancing between captures changes entity pose, lighting, and particle
+    # samples, so it measures two scenes rather than renderer noise.
     if stable_ab:
         r2 = r1
         pair = grab_pair(e, path_a, path_b)
@@ -460,7 +461,7 @@ def main():
     base_scene(e, outdir=out)
     states = []
 
-    def maybe_capture(sid, pin_fn, meta_extra=None, cam=None, stable_ab=False):
+    def maybe_capture(sid, pin_fn, meta_extra=None, cam=None, stable_ab=True):
         if not _state_wanted(only, sid):
             log("not in --only, skip %s" % sid)
             return

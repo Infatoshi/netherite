@@ -199,6 +199,13 @@ def gui_slot_id(gui, index):
             return index - 27 + 9
         if 54 <= index <= 62:
             return index - 54
+    elif gui == "GuiBrewingStand":
+        if 0 <= index <= 4:
+            return 80 + index
+        if 5 <= index <= 31:
+            return index + 4
+        if 32 <= index <= 40:
+            return index - 32
     return None
 
 
@@ -1188,13 +1195,24 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                     # recorder: xpValue, xpColor, xpOrbAge after the base 7.
                     view.update(item=int(e[7]), item_meta=int(e[8]),
                                 age=int(e[9]))
-                elif e[1] == "EntityEnderCrystal" and len(e) >= 12:
-                    # recorder appends innerRotation, shouldShowBottom, beam
-                    # target block (-1,-1,-1 = no beam), then ticksExisted.
+                elif e[1] == "EntityEnderCrystal" and len(e) >= 14:
+                    # Current recorder: innerRotation, shouldShowBottom,
+                    # explicit beam presence, signed target, ticksExisted.
                     view.update(crystal_rot=e[7], show_bottom=e[8],
-                                beam_x=e[9], beam_y=e[10], beam_z=e[11])
-                    if len(e) >= 13:
-                        view["ticks_existed"] = int(e[12])
+                                has_beam=int(e[9]), beam_x=e[10],
+                                beam_y=e[11], beam_z=e[12],
+                                ticks_existed=int(e[13]))
+                elif e[1] == "EntityEnderCrystal" and len(e) >= 13:
+                    # Earlier explicit-presence rows predate ticksExisted.
+                    view.update(crystal_rot=e[7], show_bottom=e[8],
+                                has_beam=int(e[9]), beam_x=e[10],
+                                beam_y=e[11], beam_z=e[12])
+                elif e[1] == "EntityEnderCrystal" and len(e) >= 12:
+                    # Legacy tapes used the ambiguous (-1,-1,-1) sentinel.
+                    view.update(crystal_rot=e[7], show_bottom=e[8],
+                                beam_x=e[9], beam_y=e[10], beam_z=e[11],
+                                has_beam=int(not (e[9] == -1 and e[10] == -1
+                                                 and e[11] == -1)))
                 elif len(e) >= 14:
                     view.update(tape_pose=1, head_yaw=e[7], pitch=e[8],
                                 swing=e[9], hurt=e[10], death=e[11],
@@ -1209,7 +1227,13 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                         if len(e) >= 18:
                             # AI phase id + stationary (getHeadPartYOffset)
                             view.update(phase_id=e[16], stationary=e[17])
-                        if len(e) >= 19:
+                        if len(e) >= 24:
+                            view.update(ticks_existed=e[18],
+                                        has_heal_beam=int(e[19]),
+                                        heal_x=e[20], heal_y=e[21],
+                                        heal_z=e[22],
+                                        heal_crystal_ticks=e[23])
+                        elif len(e) >= 19:
                             view["ticks_existed"] = int(e[18])
                 if "ticks_existed" not in view:
                     view["ticks_existed"] = (t - first_seen[int(e[0])]) + ticks0
@@ -1248,10 +1272,18 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                                         "current_burn": int(current),
                                         "cook": int(cook),
                                         "total_cook": int(total)}) + "\n")
-        if pending_inv and ticks:
-            for state in pending_inv:
-                f.write(json.dumps({"tick": ticks[-1]["t"] + 1,
-                                    "type": "set_inventory", **state}) + "\n")
+                if gui == "GuiBrewingStand" and "gprop" in row:
+                    brew, fuel = row["gprop"]
+                    f.write(json.dumps({
+                        "tick": t,
+                        "type": "gui_brewing_view",
+                        "brew": int(brew),
+                        "fuel": int(fuel),
+                    }) + "\n")
+        # pending_inv after the final row has no consumer: inv_view already
+        # supplies that row's render truth, and there is no following action
+        # to re-anchor. Emitting it at t+1 makes an otherwise complete replay
+        # fail with "event lies beyond --ticks".
 
 
 def tape_has_respawn(header, ticks):
@@ -1378,13 +1410,21 @@ def _tape_inv_slot(stack):
 
 def _magma_inv_map(row):
     out = {}
+    errors = []
     for slot in row.get("inventory") or []:
+        slot_id = int(slot.get("slot", -1))
+        if slot_id < 0 or slot_id >= 41:
+            errors.append({"kind": "slot_range", "slot": slot_id})
+            continue
+        if slot_id in out:
+            errors.append({"kind": "duplicate_slot", "slot": slot_id})
+            continue
         item = int(slot.get("item", 0))
         if item <= 0:
             continue
-        out[int(slot["slot"])] = (item, int(slot.get("count", 1)),
-                                  int(slot.get("meta", 0)))
-    return out
+        out[slot_id] = (item, int(slot.get("count", 1)),
+                        int(slot.get("meta", 0)))
+    return out, errors
 
 
 def _tape_entity_types(row):
@@ -1395,32 +1435,276 @@ def _tape_entity_types(row):
     return types
 
 
+MAGMA_MOB_CLASS = {
+    2: "EntityZombie",
+    3: "EntitySkeleton",
+    4: "EntityCreeper",
+    5: "EntitySpider",
+    6: "EntityEnderman",
+    7: "EntityBlaze",
+    10: "EntitySheep",
+    11: "EntityPig",
+    12: "EntityCow",
+    13: "EntityChicken",
+    15: "EntityPigZombie",
+    26: "EntityGhast",
+    27: "EntityMagmaCube",
+    32: "EntityWitherSkeleton",
+    35: "EntitySlime",
+    36: "EntitySilverfish",
+    37: "EntityBoat",
+    39: "EntityCaveSpider",
+    40: "EntityVillager",
+}
+
+
+def _magma_entity_class(ent):
+    kind = ent.get("kind")
+    if kind == "item":
+        return "EntityItem"
+    if kind == "xp_orb":
+        return "EntityXPOrb"
+    if kind == "falling_block":
+        return "EntityFallingBlock"
+    if kind == "primed_tnt":
+        return "EntityTNTPrimed"
+    if kind == "end_crystal":
+        return "EntityEnderCrystal"
+    if kind == "area_effect_cloud":
+        return "EntityAreaEffectCloud"
+    if kind == "fish_hook":
+        return "EntityFishHook"
+    if kind == "minecart":
+        return {
+            0: "EntityMinecartEmpty",
+            1: "EntityMinecartChest",
+            2: "EntityMinecartFurnace",
+            3: "EntityMinecartTNT",
+            4: "EntityMinecartMobSpawner",
+            5: "EntityMinecartHopper",
+            6: "EntityMinecartCommandBlock",
+        }.get(int(ent.get("minecart_kind", 0)), "EntityMinecartEmpty")
+    if kind == "projectile":
+        return {
+            1: "EntityTippedArrow",
+            2: "EntityTippedArrow",
+            3: "EntitySmallFireball",
+            4: "EntityEnderEye",
+            5: "EntityLargeFireball",
+            6: "EntityPotion",
+        }.get(int(ent.get("type", -1)), f"MagmaProjectile{ent.get('type')}")
+    if kind == "boss":
+        return {8: "EntityEnderCrystal", 9: "EntityDragon"}.get(
+            int(ent.get("type", -1)), f"MagmaBoss{ent.get('type')}")
+    return MAGMA_MOB_CLASS.get(int(ent.get("type", -1)),
+                               f"MagmaEntity{ent.get('type')}")
+
+
 def _magma_entity_types(row):
-    """Magma emits numeric type ids; keep them as 'type:<id>' for presence."""
+    """Map magma's kind/type pair to Java 1.11.2 simple class names."""
     types = []
     for ent in row.get("entities") or []:
         if isinstance(ent, dict) and "type" in ent:
-            types.append(f"type:{int(ent['type'])}")
+            types.append(_magma_entity_class(ent))
     return types
 
 
+LIVING_ENTITY_CLASSES = set(MAGMA_MOB_CLASS.values()) | {"EntityDragon"}
+ENTITY_FLOAT_TOL = {
+    "x": 1e-9,
+    "y": 1e-9,
+    "z": 1e-9,
+    "yaw": 1e-6,
+    "pitch": 1e-6,
+    "health": 1e-6,
+}
+
+
+def _tape_entity_state(ent):
+    if not isinstance(ent, (list, tuple)) or len(ent) < 7:
+        return None
+    typ = str(ent[1])
+    state = {
+        "eid": int(ent[0]),
+        "type": typ,
+        "x": float(ent[2]),
+        "y": float(ent[3]),
+        "z": float(ent[4]),
+        "yaw": float(ent[5]),
+        "health": float(ent[6]),
+    }
+    if typ in LIVING_ENTITY_CLASSES and len(ent) >= 14:
+        state.update({
+            "pitch": float(ent[8]),
+            "hurt_time": int(ent[10]),
+            "death_time": int(ent[11]),
+        })
+    elif typ in {"EntityArrow", "EntityTippedArrow", "EntitySpectralArrow"} \
+            and len(ent) >= 8:
+        state["pitch"] = float(ent[7])
+    elif typ == "EntityItem" and len(ent) >= 12:
+        state.update({
+            "item": int(ent[7]),
+            "meta": int(ent[8]),
+            "count": int(ent[9]),
+            "age": int(ent[10]),
+        })
+    elif typ == "EntityXPOrb" and len(ent) >= 10:
+        state.update({
+            "value": int(ent[7]),
+            "color": int(ent[8]),
+            "age": int(ent[9]),
+        })
+    elif typ == "EntityEnderCrystal" and len(ent) >= 13:
+        state.update({
+            "inner_rotation": int(ent[7]),
+            "show_bottom": int(ent[8]),
+            "has_beam": int(ent[9]),
+            "beam_x": int(ent[10]),
+            "beam_y": int(ent[11]),
+            "beam_z": int(ent[12]),
+        })
+    elif typ == "EntityFallingBlock" and len(ent) >= 9:
+        state.update({"block": int(ent[7]), "meta": int(ent[8])})
+    return state
+
+
+def _magma_entity_state(ent):
+    state = {"eid": int(ent.get("eid", -1)),
+             "type": _magma_entity_class(ent)}
+    for field in ("x", "y", "z", "yaw", "pitch", "health", "hurt_time",
+                  "death_time", "item", "meta", "count", "age", "value",
+                  "color", "inner_rotation", "show_bottom", "has_beam",
+                  "beam_x", "beam_y", "beam_z", "block"):
+        if field in ent and ent[field] is not None:
+            state[field] = ent[field]
+    return state
+
+
+def _compare_entity_tick(t, tape_row, magma_row, mismatches,
+                         max_mismatches=20):
+    """Compare a complete nearby entity set and all mutually represented state."""
+    tape_entities = []
+    malformed = 0
+    for ent in tape_row.get("ents") or []:
+        state = _tape_entity_state(ent)
+        if state is None:
+            malformed += 1
+        else:
+            tape_entities.append(state)
+    magma_entities = [_magma_entity_state(ent)
+                      for ent in magma_row.get("entities") or []
+                      if isinstance(ent, dict)]
+    total = 0
+
+    def record(payload):
+        nonlocal total
+        total += 1
+        if len(mismatches) < max_mismatches:
+            mismatches.append({"tick": t, **payload})
+
+    if malformed:
+        record({"field": "schema", "tape_malformed": malformed})
+    tape_types = {}
+    magma_types = {}
+    for ent in tape_entities:
+        tape_types.setdefault(ent["type"], []).append(ent)
+    for ent in magma_entities:
+        magma_types.setdefault(ent["type"], []).append(ent)
+    for typ in sorted(set(tape_types) | set(magma_types)):
+        java_group = sorted(tape_types.get(typ, []), key=lambda ent: ent["eid"])
+        native_group = list(magma_types.get(typ, []))
+        if len(java_group) != len(native_group):
+            record({"field": "count", "type": typ,
+                    "tape_count": len(java_group),
+                    "magma_count": len(native_group)})
+        # Entity ids are process-local. Pair equal types by nearest post-tick
+        # position, then compare the state fields the recorder actually carries.
+        for java_ent in java_group:
+            if not native_group:
+                break
+            best_i = min(
+                range(len(native_group)),
+                key=lambda i: (
+                    sum((float(java_ent[field])
+                         - float(native_group[i].get(field, float("inf")))) ** 2
+                        for field in ("x", "y", "z")),
+                    native_group[i]["eid"],
+                ),
+            )
+            native_ent = native_group.pop(best_i)
+            for field, java_value in java_ent.items():
+                if field in {"eid", "type"}:
+                    continue
+                if field not in native_ent:
+                    record({"field": field, "type": typ,
+                            "tape_eid": java_ent["eid"],
+                            "magma_eid": native_ent["eid"],
+                            "tape": java_value, "magma": None})
+                    continue
+                native_value = native_ent[field]
+                tolerance = ENTITY_FLOAT_TOL.get(field, 0.0)
+                if abs(float(java_value) - float(native_value)) > tolerance:
+                    record({"field": field, "type": typ,
+                            "tape_eid": java_ent["eid"],
+                            "magma_eid": native_ent["eid"],
+                            "tape": java_value, "magma": native_value,
+                            "abs_diff": abs(float(java_value)
+                                            - float(native_value)),
+                            "tolerance": tolerance})
+    return total
+
+
+def _nearby_blocks_schedule(ticks):
+    """Return (every, offset) for raw block checkpoints, or None."""
+    checkpoints = [int(row.get("t", i)) for i, row in enumerate(ticks)
+                   if "nearby_blocks" in row]
+    if not checkpoints:
+        return None
+    if len(checkpoints) == 1:
+        return (len(ticks) + 1, checkpoints[0])
+    differences = [b - a for a, b in zip(checkpoints, checkpoints[1:])]
+    every = differences[0]
+    if every <= 0 or any(diff != every for diff in differences):
+        # Irregular legacy checkpoints need every row from C; comparison still
+        # consumes only the Java-bearing rows.
+        return (1, 0)
+    return (every, checkpoints[0])
+
+
 def _compare_inv_tick(t, tape_row, magma_row, mismatches, max_mismatches=20):
-    """Compare one tape inv snapshot to magma state; append mismatch dicts."""
+    """Compare all 41 slots by exact item id, count, and metadata."""
     tape_map = {}
     for slot, stack in enumerate(tape_row["inv"]):
         norm = _tape_inv_slot(stack)
         if norm is not None and slot < 41:
             tape_map[slot] = norm
-    magma_map = _magma_inv_map(magma_row)
-    # Presence of non-empty tape slots in magma (counts may lag one tick on
-    # GUI interactions; compare item id identity only).
-    for slot, (item, _count, _meta) in tape_map.items():
-        m = magma_map.get(slot)
-        if (m is None or m[0] != item) and len(mismatches) < max_mismatches:
-            mismatches.append({
-                "tick": t, "slot": slot, "tape_item": item,
-                "magma_item": None if m is None else m[0],
-            })
+    magma_map, schema_errors = _magma_inv_map(magma_row)
+    for error in schema_errors:
+        if len(mismatches) >= max_mismatches:
+            return
+        mismatches.append({"tick": t, **error})
+    empty = (0, 0, 0)
+    fields = ("item", "count", "meta")
+    for slot in range(41):
+        j = tape_map.get(slot, empty)
+        c = magma_map.get(slot, empty)
+        if j == c:
+            continue
+        if len(mismatches) >= max_mismatches:
+            return
+        field = next(name for name, jv, cv in zip(fields, j, c) if jv != cv)
+        mismatches.append({
+            "tick": t,
+            "slot": slot,
+            "field": field,
+            "tape": {name: value for name, value in zip(fields, j)},
+            "magma": {name: value for name, value in zip(fields, c)},
+            # Keep the old diagnostic keys so archived report consumers remain
+            # readable while the exact stack payload carries count and meta.
+            "tape_item": None if j[0] == 0 else j[0],
+            "magma_item": None if c[0] == 0 else c[0],
+        })
 
 
 def _ghost_match_tick(t, j_row, c_row, mismatches, max_mismatches=20):
@@ -1489,14 +1773,18 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
     ent_presence = []
     ent_ghost_ticks = 0
     ent_expected = 0
+    ghost_mismatches = []
     ent_mismatches = []
+    ent_mismatch_count = 0
     hash_checked = 0
+    raw_blocks_checked = 0
+    world_mismatches = []
+    world_mismatch_count = 0
     hash_samples = []
     prev_hash = None
     hash_deltas = 0
     tape_has_wfnv = False
     world_compared = 0
-    world_mismatches = []
     world_anchor_skips = 0
     # Inventory: every inv-bearing tick (change dumps + keyframes). Sparse, so
     # full coverage is cheap and catches mid-tape evolution that misses the
@@ -1515,7 +1803,7 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
     for t in range(n):
         j, c = ticks[t], c_rows[t]
         if "ents" in j:
-            exp = _ghost_match_tick(t, j, c, ent_mismatches)
+            exp = _ghost_match_tick(t, j, c, ghost_mismatches)
             if exp is not None:
                 ent_ghost_ticks += 1
                 ent_expected += exp
@@ -1526,34 +1814,87 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             if nh is not None:
                 if j.get("wfa") == c.get("nearby_anchor"):
                     world_compared += 1
-                    if wf != nh and len(world_mismatches) < 20:
-                        world_mismatches.append({
-                            "tick": t, "java": wf, "magma": nh,
-                            "anchor": j.get("wfa")})
+                    if wf != nh:
+                        world_mismatch_count += 1
+                        if len(world_mismatches) < 20:
+                            world_mismatches.append({
+                                "tick": t, "field": "wfnv",
+                                "tape": wf, "magma": nh,
+                                "anchor": j.get("wfa")})
                 else:
                     world_anchor_skips += 1
-    for t in range(0, n, max(1, sample_every)):
+    # Entity rows are complete post-tick snapshots, not sparse deltas. Compare
+    # every one; sample_every only controls how many diagnostics are retained.
+    for t in range(n):
         j, c = ticks[t], c_rows[t]
         if "ents" in j:
             ent_checked += 1
             tape_types = _tape_entity_types(j)
             magma_types = _magma_entity_types(c)
-            ent_presence.append({
-                "tick": t,
-                "tape_count": len(tape_types),
-                "tape_types": sorted(set(tape_types))[:12],
-                "magma_count": len(magma_types),
-                "magma_types": sorted(set(magma_types))[:12],
-            })
-        nh = c.get("nearby_hash")
-        if nh is not None:
+            ent_mismatch_count += _compare_entity_tick(
+                t, j, c, ent_mismatches)
+            if t % max(1, sample_every) == 0 and len(ent_presence) < 16:
+                ent_presence.append({
+                    "tick": t,
+                    "tape_count": len(tape_types),
+                    "tape_types": sorted(set(tape_types))[:12],
+                    "magma_count": len(magma_types),
+                    "magma_types": sorted(set(magma_types))[:12],
+                })
+        tape_hash = j.get("nearby_hash")
+        magma_hash = c.get("nearby_hash")
+        if tape_hash is not None:
             hash_checked += 1
-            if prev_hash is not None and nh != prev_hash:
+            if magma_hash != tape_hash:
+                world_mismatch_count += 1
+                if len(world_mismatches) < 20:
+                    world_mismatches.append({
+                        "tick": t, "field": "nearby_hash",
+                        "tape": tape_hash, "magma": magma_hash,
+                    })
+            if "nearby_blocks" in j:
+                raw_blocks_checked += 1
+                tape_blocks = j.get("nearby_blocks")
+                magma_blocks = c.get("nearby_blocks")
+                raw_schema_valid = (
+                    isinstance(tape_blocks, list)
+                    and isinstance(magma_blocks, list)
+                    and len(tape_blocks) == 729
+                    and len(magma_blocks) == 729)
+                if not raw_schema_valid or tape_blocks != magma_blocks:
+                    world_mismatch_count += 1
+                    first_block = None
+                    if isinstance(tape_blocks, list) and isinstance(magma_blocks, list):
+                        limit = min(len(tape_blocks), len(magma_blocks))
+                        first_block = next(
+                            (i for i in range(limit)
+                             if tape_blocks[i] != magma_blocks[i]),
+                            limit if len(tape_blocks) != len(magma_blocks) else None)
+                    if len(world_mismatches) < 20:
+                        world_mismatches.append({
+                            "tick": t, "field": "nearby_blocks",
+                            "schema_valid": raw_schema_valid,
+                            "first_index": first_block,
+                            "tape_len": (len(tape_blocks)
+                                         if isinstance(tape_blocks, list) else None),
+                            "magma_len": (len(magma_blocks)
+                                          if isinstance(magma_blocks, list) else None),
+                            "tape": (tape_blocks[first_block]
+                                     if first_block is not None
+                                     and isinstance(tape_blocks, list)
+                                     and first_block < len(tape_blocks) else None),
+                            "magma": (magma_blocks[first_block]
+                                      if first_block is not None
+                                      and isinstance(magma_blocks, list)
+                                      and first_block < len(magma_blocks) else None),
+                        })
+            if prev_hash is not None and magma_hash != prev_hash:
                 hash_deltas += 1
             if t % max(sample_every * 5, 1) == 0 and len(hash_samples) < 32:
-                hash_samples.append({"tick": t, "nearby_hash": nh})
-            prev_hash = nh
-    return {
+                hash_samples.append({"tick": t, "tape_hash": tape_hash,
+                                     "nearby_hash": magma_hash})
+            prev_hash = magma_hash
+    result = {
         "kind": "state",  # not "physics"
         # How much of the tape was actually simulated. A run that stops at a
         # terminal death verifies only its prefix; without this the gate.json
@@ -1565,6 +1906,7 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             "truncated": len(c_rows) < len(ticks),
         },
         "inventory": {
+            "comparison": "exact_item_count_meta_all_41_slots",
             "ticks_checked": inv_checked,
             "ticks_independent": inv_independent,
             "seeded_only": seeded_only,
@@ -1573,6 +1915,7 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             "available": inv_checked > 0,
         },
         "entities": {
+            "comparison": "exact_type_count_and_recorded_state_nearest_pair",
             "ticks_checked": ent_checked,
             "samples": ent_presence[:16],
             # Ghost match: fails when a modeled tape entity never reached
@@ -1581,13 +1924,18 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             # ghost_views emission and nothing was actually checked.
             "ghost_ticks": ent_ghost_ticks,
             "ghost_expected": ent_expected,
-            "mismatches": ent_mismatches,
+            "ghost_mismatches": ghost_mismatches,
             "verified": ent_ghost_ticks > 0,
-            "pass": ent_ghost_ticks == 0 or len(ent_mismatches) == 0,
-            "available": ent_checked > 0,
+            "mismatches": ent_mismatches,
+            "mismatch_count": ent_mismatch_count + len(ghost_mismatches),
+            "pass": ((ent_checked == 0 or ent_mismatch_count == 0)
+                     and (ent_ghost_ticks == 0 or not ghost_mismatches)),
+            "available": ent_checked > 0 or ent_ghost_ticks > 0,
         },
         "world": {
+            "comparison": "exact_fnv64_each_tick_raw_9x9x9_checkpoints",
             "ticks_checked": hash_checked,
+            "raw_blocks_checked": raw_blocks_checked,
             "hash_deltas": hash_deltas,
             "samples": hash_samples,
             # mode "java": the recorder emitted its own wfnv digest and the
@@ -1597,13 +1945,26 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             "mode": "java" if tape_has_wfnv else "c_only",
             "compared": world_compared,
             "anchor_skips": world_anchor_skips,
-            "mismatches": world_mismatches,
             "verified": world_compared > 0,
-            "pass": ((world_compared > 0 and len(world_mismatches) == 0)
-                     if tape_has_wfnv else hash_checked > 0),
-            "available": hash_checked > 0 or tape_has_wfnv,
+            "mismatches": world_mismatches,
+            "mismatch_count": world_mismatch_count,
+            "pass": world_mismatch_count == 0,
+            "available": hash_checked > 0 or world_compared > 0,
         },
     }
+    result["pass"] = (
+        not result["coverage"]["truncated"]
+        and all(not result[name]["available"] or result[name]["pass"]
+                for name in ("inventory", "entities", "world")))
+    result["complete"] = (
+        not result["coverage"]["truncated"]
+        and result["inventory"]["available"]
+        and result["inventory"]["ticks_independent"] > 0
+        and result["entities"]["available"]
+        and result["world"]["available"]
+        and result["world"]["raw_blocks_checked"] > 0)
+    result["strict_pass"] = result["pass"] and result["complete"]
+    return result
 
 
 def main():
@@ -1627,6 +1988,9 @@ def main():
                     help="skip the structural pixel gate (pixel_gate.py)")
     ap.add_argument("--window-compose", action="store_true",
                     help="render frames through the interactive window compositor")
+    ap.add_argument("--strict-state", action="store_true",
+                    help="require complete inventory/entity/world truth, not only"
+                         " absence of detected state divergences")
     args = ap.parse_args()
     # CUDA raster is the flywheel default (12k tape: 9.2 s vs 43 s CPU,
     # identical verdicts); --cpu forces the software path; --metal is the
@@ -1635,7 +1999,9 @@ def main():
     backend = "cpu" if args.cpu else ("metal" if args.metal else "cuda")
 
     name = os.path.splitext(os.path.basename(args.tape))[0]
-    out = args.out or os.path.join(here, "out", f"tape_{name}")
+    out = os.path.abspath(
+        args.out or os.path.join(here, "out", f"tape_{name}")
+    )
     os.makedirs(out, exist_ok=True)
     header, ticks = load_tape(args.tape)
     skipped_renderables = skipped_renderable_counts(ticks)
@@ -1689,6 +2055,7 @@ def main():
         # Config registry overrides (core/config.def capture/replay toggles).
         # Passed as repeated --set key=value; MAGMA_* env for these is dead.
         replay_set = []
+        replay_env = {}
         if tape_strip_overlays(args.tape):
             replay_set.append("strip_overlays=1")
         if tape_hide_gui(args.tape):
@@ -1716,6 +2083,13 @@ def main():
             fog_c1 = None if v is None else repr(v)
         if fog_c1 is not None:
             replay_set.append(f"fog_c1_init={fog_c1}")
+        block_schedule = _nearby_blocks_schedule(ticks)
+        if block_schedule is not None:
+            block_every, block_offset = block_schedule
+            replay_env["MAGMA_STATE_NEARBY_BLOCKS_EVERY"] = str(block_every)
+            # write_state runs after the step and labels the first tape row as
+            # runtime tick 1, so C's emission schedule is one-based.
+            replay_env["MAGMA_STATE_NEARBY_BLOCKS_OFFSET"] = str(block_offset + 1)
         if frames_npy:
             # daylight=False: the trace profile (fast.yaml) records with
             # doDaylightCycle=false, so the oracle session's world_time never
@@ -1727,6 +2101,7 @@ def main():
                                   mobs=False, backend=backend, daylight=False,
                                   world=world,
                                   compose="window" if args.window_compose else "capture",
+                                  extra_env=replay_env or None,
                                   set_kv=replay_set or None)
         else:
             ol.run_magma_script(scr, len(ticks), None, state,
@@ -1734,11 +2109,16 @@ def main():
                                   seed=int(header["seed"]), mobs=False,
                                   daylight=False, world=world,
                                   compose="window" if args.window_compose else "capture",
+                                  extra_env=replay_env or None,
                                   set_kv=replay_set or None)
     except RuntimeError as e:
         # A dead magma player stops consuming script events and the run exits
         # rc=2 ("event lies beyond --ticks"). The state written up to the death
         # is still the divergence evidence we want; report it loudly.
+        if not os.path.exists(state) or os.path.getsize(state) == 0:
+            raise SystemExit(
+                f"[tape] magma run failed before writing state: {e}"
+            ) from e
         died_early = True
         print(f"[tape] WARNING: magma run ended early ({e}); "
               f"diffing the partial state")
@@ -1793,38 +2173,18 @@ def main():
         inv_detail = (f"{inv_s.get('ticks_independent', 0)} independent ticks, "
                       f"{inv_s['ticks_checked']} compared, "
                       f"{len(inv_s['mismatches'])} mismatches")
-    if not ent_s["available"]:
-        ent_status, ent_detail = "n/a", "0 ticks"
-    elif ent_s.get("verified"):
-        ent_status = "PASS" if ent_s["pass"] else "FAIL"
-        ent_detail = (f"{ent_s['ghost_expected']} ents over "
-                      f"{ent_s['ghost_ticks']} ticks vs ghost views, "
-                      f"{len(ent_s['mismatches'])} mismatches")
-    else:
-        ent_status, ent_detail = "recorded", f"{ent_s['ticks_checked']} ticks"
-    if world_s.get("mode") == "java":
-        world_status = "PASS" if world_s["pass"] else "FAIL"
-        world_detail = (f"java digest, {world_s['compared']} ticks compared, "
-                        f"{world_s['anchor_skips']} anchor skips, "
-                        f"{len(world_s['mismatches'])} mismatches")
-    elif not world_s["available"]:
-        world_status, world_detail = "n/a", "0 ticks"
-    else:
-        world_status = "recorded (c-only, unverified)"
-        world_detail = (f"{world_s['ticks_checked']} ticks, "
-                        f"{world_s['hash_deltas']} deltas")
+    ent_status = ("n/a" if not ent_s["available"] else
+                  "PASS" if ent_s["pass"] else "FAIL")
+    world_status = ("n/a" if not world_s["available"] else
+                    "PASS" if world_s["pass"] else "FAIL")
     print(f"[tape] state: inventory {inv_status} ({inv_detail}); "
-          f"entities {ent_status} ({ent_detail}); "
-          f"world_hash {world_status} ({world_detail})")
-    if ent_s.get("mismatches"):
-        m = ent_s["mismatches"][0]
-        print(f"[tape] entity FIRST MISMATCH tick {m['tick']}: {m['type']} at "
-              f"({m['x']:.3f},{m['y']:.3f},{m['z']:.3f}) nearest ghost "
-              f"{m['nearest']}")
-    if world_s.get("mismatches"):
-        m = world_s["mismatches"][0]
-        print(f"[tape] world FIRST MISMATCH tick {m['tick']}: "
-              f"java={m['java']} magma={m['magma']} anchor={m['anchor']}")
+          f"entities {ent_status} "
+          f"({ent_s['ticks_checked']} ticks, "
+          f"{ent_s.get('mismatch_count', 0)} mismatches); "
+          f"world {world_status} "
+          f"({world_s['ticks_checked']} hashes, "
+          f"{world_s.get('raw_blocks_checked', 0)} raw checkpoints, "
+          f"{world_s.get('mismatch_count', 0)} mismatches)")
     cov = state_gate["coverage"]
     if cov["truncated"]:
         print(f"[tape] COVERAGE: only {cov['ticks_run']} of "
@@ -2072,41 +2432,53 @@ def main():
             for typ, rows in skipped_renderables.items():
                 print(f"[gate] skipped renderable {typ}: {rows} rows")
     if gate is not None:
+        pixel_pass = bool(gate["pass"])
+        required_state_pass = (state_gate["strict_pass"] if args.strict_state
+                               else state_gate["pass"])
+        gate["pixel_pass"] = pixel_pass
+        gate["state_pass"] = state_gate["pass"]
+        gate["strict_state_pass"] = state_gate["strict_pass"]
+        gate["strict_state_required"] = args.strict_state
+        gate["pass"] = pixel_pass and required_state_pass
         gate["state"] = state_gate
         gj = os.path.join(here, "report", f"tape_{name}.gate.json")
         with open(gj, "w") as f:
             json.dump(gate, f, indent=1)
         print(f"[gate] baseline -> {gj}")
-        if not gate["pass"]:
+        if not pixel_pass:
             # An inventory divergence must not be swallowed by a pixel failure:
             # a tape can fail both, and returning 3 alone hid two real missing
             # items on the canonical tape (t=3257 slot 1, t=3267 slot 2) behind
             # its long-standing pixel FAIL. Say it out loud before returning.
-            for k in ("inventory", "entities", "world"):
-                s_ = state_gate[k]
-                if s_.get("available") and not s_.get("pass", True):
-                    print(f"[gate] NOTE: {k} state ALSO failed "
-                          f"({len(s_.get('mismatches', []))} mismatches); "
-                          "rc=3 reports the pixel gate, the state failure is "
-                          "in the gate.json state block")
+            failed_state = [
+                name for name in ("inventory", "entities", "world")
+                if state_gate[name]["available"]
+                and not state_gate[name]["pass"]
+            ]
+            if failed_state:
+                print("[gate] NOTE: state ALSO failed: "
+                      f"{', '.join(failed_state)}; rc=3 reports the pixel "
+                      "gate, the state failure is in the gate.json state block")
             return 3
     else:
         # No pixel frames: still emit a state-only gate sidecar for scenarios.
         gj = os.path.join(here, "report", f"tape_{name}.gate.json")
         os.makedirs(os.path.dirname(gj), exist_ok=True)
+        required_state_pass = (state_gate["strict_pass"] if args.strict_state
+                               else state_gate["pass"])
         with open(gj, "w") as f:
-            json.dump({"pass": True, "frames_checked": 0, "classes": {},
+            json.dump({"pass": required_state_pass, "pixel_pass": True,
+                       "state_pass": state_gate["pass"],
+                       "strict_state_pass": state_gate["strict_pass"],
+                       "strict_state_required": args.strict_state,
+                       "frames_checked": 0, "classes": {},
                        "failed_frames": [], "state": state_gate}, f, indent=1)
         print(f"[gate] state-only baseline -> {gj}")
     if first is not None:
         return 4  # physics divergence: exact replay is the primary contract
-    # Non-player state divergence (not physics): inventory, entity ghost
-    # match, or Java/C world digest. Only verified comparisons can fail -
-    # legacy tapes without wfnv / pre-ghost state rows keep their verdicts.
-    for k in ("inventory", "entities", "world"):
-        s = state_gate[k]
-        if s.get("available") and not s.get("pass", True):
-            return 5
+    if not (state_gate["strict_pass"] if args.strict_state
+            else state_gate["pass"]):
+        return 5  # non-player state divergence (not physics)
     return 0
 
 

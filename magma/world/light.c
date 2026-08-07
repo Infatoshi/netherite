@@ -118,13 +118,25 @@ int cr_k15_combine(int sky, int block, int override_val) {
 
 static int state_opacity(u16 state) {
     int id = gm_state_id(state);
-    /* Rails and double plants were deliberately omitted from the old KEEP
-     * table. Both are non-opaque and do not attenuate skylight. */
-    if (id == 66 || id == 175) return 0;
+    /* Promoted dynamic blocks omitted from the old KEEP table retain their
+     * registered vanilla opacity here. Double plants and redstone controls do
+     * not attenuate light; BlockHopper's constructor likewise records zero. */
+    if (id == 29 || id == 33 || id == 34 || id == 36 || id == 66
+            || id == 55 || id == 69 || id == 75 || id == 76 || id == 77
+            || id == 131 || id == 132 || id == 151 || id == 154
+            || id == 178
+            || id == 175)
+        return 0;
     return mc_bpt_props(id).light_opacity;
 }
 static int state_emission(u16 state) {
-    return mc_bpt_props(gm_state_id(state)).light_emit;
+    int id = gm_state_id(state);
+    /* Lit redstone lamp is the first promoted redstone block; the legacy KEEP
+     * property table intentionally omitted the whole redstone ID range. */
+    if (id == 76) return 7;
+    if (id == 124) return 15;
+    if (id == 150) return 9;
+    return mc_bpt_props(id).light_emit;
 }
 
 /* =============================== chunk store ============================== */
@@ -145,6 +157,7 @@ typedef struct {
     u8  meta[65536];  /* legacy meta 0..15 (doors/facing); gen leaves 0 */
     u8  sky[65536];   /* 0..15 */
     u8  blk[65536];   /* 0..15 */
+    u16 height[256];   /* Chunk.heightMap, indexed x + z*16, range 0..256 */
     int biome[256];   /* full-res biome id, index x + z*16 */
 } LChunk;
 
@@ -290,7 +303,8 @@ static void compute_skylight(const CrLight *L, LChunk *c) {
             for (int y = 0; y < WY; ++y)
                 op[y] = state_opacity(c->state[CB_INDEX(x, y, z)]);
             /* topSeg 240 -> nY 256; provider controls whether sky storage exists. */
-            cr_k17_skylight_column(240, L->has_sky, op, nn, sky);
+            c->height[x + z * 16] =
+                (u16)cr_k17_skylight_column(240, L->has_sky, op, nn, sky);
             for (int y = 0; y < WY; ++y)
                 c->sky[CB_INDEX(x, y, z)] = (u8)sky[y];
         }
@@ -331,14 +345,15 @@ static LChunk *gen_chunk(CrLight *L, int cx, int cz) {
      * the DECORATION cells over the base terrain (see world/populate_mc.c). Base
      * terrain stays exactly what cp_provide_chunk produced. */
     if (L->world_type == 0 && !cr_cfg()->no_decor)
-        popmc_decorate_chunk(L->seed, cx, cz, c->block);
+        popmc_decorate_chunk_meta(L->seed, cx, cz, c->block, c->meta);
 
     /* Freeze worldgen's compact PB model keys into authoritative vanilla states
      * before gameplay can observe the chunk. Never guess an unknown key: doing so
      * would recreate the exact namespace collision this bridge exists to prevent. */
     for (int i = 0; i < 65536; ++i) {
         uint16_t state = 0;
-        if (gm_model_key_to_state((int)c->block[i], 0, &state) == GM_MAP_UNSUPPORTED) {
+        if (gm_model_key_to_state(
+                (int)c->block[i], (int)c->meta[i], &state) == GM_MAP_UNSUPPORTED) {
             fprintf(stderr, "[light] FATAL: unsupported worldgen model key %u in chunk (%d,%d)\n",
                     (unsigned)c->block[i], cx, cz);
             abort();
@@ -347,7 +362,7 @@ static LChunk *gen_chunk(CrLight *L, int cx, int cz) {
         /* Raw-id passthrough keys (0x8000|id, Nether/End terrain) are a state
          * encoding, not a render key: bm_block() would fall back to stone for
          * every block. Re-derive the canonical render model key from state. */
-        if (c->block[i] & 0x8000u)
+        if (c->block[i] & (0x8000u | 0x4000u))
             c->block[i] = (u16)gm_state_to_model_key((uint16_t)state);
     }
 
@@ -718,6 +733,176 @@ void light_debug_set_block_meta(CrLight *L, int wx, int wy, int wz, int id, int 
     c->sky[i] = L->has_sky ? 15 : 0;
 }
 
+static int sky_stored(const CrLight *L, int wx, int wy, int wz) {
+    if (wy < 0) wy = 0;
+    if (wy >= WY) return 15;
+    LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
+    return c ? c->sky[CB_INDEX(wx & 15, wy, wz & 15)] : 15;
+}
+
+static void sky_store(CrLight *L, int wx, int wy, int wz, int value) {
+    if (wy < 0 || wy >= WY) return;
+    LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
+    if (c) c->sky[CB_INDEX(wx & 15, wy, wz & 15)] = (u8)value;
+}
+
+static int sky_can_see(const CrLight *L, int wx, int wy, int wz) {
+    LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
+    return c && wy >= (int)c->height[(wx & 15) + (wz & 15) * 16];
+}
+
+static int sky_raw(CrLight *L, int wx, int wy, int wz) {
+    if (sky_can_see(L, wx, wy, wz)) return 15;
+    if (wy < 0 || wy >= WY) return 15;
+    LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
+    if (!c) return 15;
+    u16 state = c->state[CB_INDEX(wx & 15, wy, wz & 15)];
+    int emission = state_emission(state);
+    int opacity = state_opacity(state);
+    if (opacity >= 15 && emission > 0) opacity = 1;
+    if (opacity < 1) opacity = 1;
+    if (opacity >= 15) return 0;
+    int value = 0;
+    static const int dx[6] = { -1, 1, 0, 0, 0, 0 };
+    static const int dy[6] = { 0, 0, -1, 1, 0, 0 };
+    static const int dz[6] = { 0, 0, 0, 0, -1, 1 };
+    for (int face = 0; face < 6; ++face) {
+        int candidate =
+            sky_stored(L, wx + dx[face], wy + dy[face], wz + dz[face])
+            - opacity;
+        if (candidate > value) value = candidate;
+        if (value >= 14) return value;
+    }
+    return value;
+}
+
+static int sky_area_loaded(const CrLight *L, int wx, int wz, int radius) {
+    int cx0 = (wx - radius) >> 4, cx1 = (wx + radius) >> 4;
+    int cz0 = (wz - radius) >> 4, cz1 = (wz + radius) >> 4;
+    for (int cx = cx0; cx <= cx1; ++cx)
+        for (int cz = cz0; cz <= cz1; ++cz)
+            if (!find_chunk(L, cx, cz)) return 0;
+    return 1;
+}
+
+/* Exact World.checkLightFor(EnumSkyBlock.SKY) two-phase queue. This is the
+ * bounded live-edit path Minecraft uses, including the radius-17 darkening
+ * dependency walk. It intentionally operates on the current saved nibble
+ * field rather than converging an entire chunk to a new global fixed point. */
+static void sky_check_light_for(CrLight *L, int ox, int oy, int oz) {
+    if (!L || !L->has_sky || !sky_area_loaded(L, ox, oz, 17)) return;
+    enum { UPDATE_CAP = 32768 };
+    u32 *updates = (u32 *)(void *)L->q;
+    int read = 0, count = 0;
+    int stored = sky_stored(L, ox, oy, oz);
+    int raw = sky_raw(L, ox, oy, oz);
+    if (raw > stored) {
+        updates[count++] = 133152u;
+    } else if (raw < stored) {
+        updates[count++] = 133152u | (u32)stored << 18;
+        while (read < count) {
+            u32 packed = updates[read++];
+            int wx = (int)(packed & 63u) - 32 + ox;
+            int wy = (int)(packed >> 6 & 63u) - 32 + oy;
+            int wz = (int)(packed >> 12 & 63u) - 32 + oz;
+            int expected = (int)(packed >> 18 & 15u);
+            int current = sky_stored(L, wx, wy, wz);
+            if (current != expected) continue;
+            sky_store(L, wx, wy, wz, 0);
+            if (expected <= 0 ||
+                abs(wx - ox) + abs(wy - oy) + abs(wz - oz) >= 17)
+                continue;
+            static const int dx[6] = { -1, 1, 0, 0, 0, 0 };
+            static const int dy[6] = { 0, 0, -1, 1, 0, 0 };
+            static const int dz[6] = { 0, 0, 0, 0, -1, 1 };
+            for (int face = 0; face < 6 && count < UPDATE_CAP; ++face) {
+                int nx = wx + dx[face], ny = wy + dy[face], nz = wz + dz[face];
+                LChunk *nc = find_chunk(L, nx >> 4, nz >> 4);
+                if (!nc || ny < 0 || ny >= WY) continue;
+                int opacity = state_opacity(
+                    nc->state[CB_INDEX(nx & 15, ny, nz & 15)]);
+                if (opacity < 1) opacity = 1;
+                int neighbor = sky_stored(L, nx, ny, nz);
+                if (neighbor == expected - opacity) {
+                    updates[count++] =
+                        (u32)(nx - ox + 32)
+                        | (u32)(ny - oy + 32) << 6
+                        | (u32)(nz - oz + 32) << 12
+                        | (u32)(expected - opacity) << 18;
+                }
+            }
+        }
+        read = 0;
+    }
+    while (read < count) {
+        u32 packed = updates[read++];
+        int wx = (int)(packed & 63u) - 32 + ox;
+        int wy = (int)(packed >> 6 & 63u) - 32 + oy;
+        int wz = (int)(packed >> 12 & 63u) - 32 + oz;
+        int before = sky_stored(L, wx, wy, wz);
+        int after = sky_raw(L, wx, wy, wz);
+        if (after == before) continue;
+        sky_store(L, wx, wy, wz, after);
+        if (after <= before ||
+            abs(wx - ox) + abs(wy - oy) + abs(wz - oz) >= 17 ||
+            count >= UPDATE_CAP - 6)
+            continue;
+        if (sky_stored(L, wx - 1, wy, wz) < after)
+            updates[count++] = (u32)(wx - 1 - ox + 32)
+                | (u32)(wy - oy + 32) << 6 | (u32)(wz - oz + 32) << 12;
+        if (sky_stored(L, wx + 1, wy, wz) < after)
+            updates[count++] = (u32)(wx + 1 - ox + 32)
+                | (u32)(wy - oy + 32) << 6 | (u32)(wz - oz + 32) << 12;
+        if (sky_stored(L, wx, wy - 1, wz) < after)
+            updates[count++] = (u32)(wx - ox + 32)
+                | (u32)(wy - 1 - oy + 32) << 6 | (u32)(wz - oz + 32) << 12;
+        if (sky_stored(L, wx, wy + 1, wz) < after)
+            updates[count++] = (u32)(wx - ox + 32)
+                | (u32)(wy + 1 - oy + 32) << 6 | (u32)(wz - oz + 32) << 12;
+        if (sky_stored(L, wx, wy, wz - 1) < after)
+            updates[count++] = (u32)(wx - ox + 32)
+                | (u32)(wy - oy + 32) << 6 | (u32)(wz - 1 - oz + 32) << 12;
+        if (sky_stored(L, wx, wy, wz + 1) < after)
+            updates[count++] = (u32)(wx - ox + 32)
+                | (u32)(wy - oy + 32) << 6 | (u32)(wz + 1 - oz + 32) << 12;
+    }
+}
+
+static int sky_column_height(const LChunk *c, int lx, int lz) {
+    for (int y = WY - 1; y >= 0; --y)
+        if (state_opacity(c->state[CB_INDEX(lx, y, lz)]) != 0) return y + 1;
+    return 0;
+}
+
+static void sky_relight_column(
+    CrLight *L, LChunk *c, int wx, int wz, int old_height, int new_height
+) {
+    int lx = wx & 15, lz = wz & 15;
+    if (new_height < old_height) {
+        for (int y = new_height; y < old_height; ++y)
+            c->sky[CB_INDEX(lx, y, lz)] = 15;
+    } else {
+        for (int y = old_height; y < new_height; ++y)
+            c->sky[CB_INDEX(lx, y, lz)] = 0;
+    }
+    int value = 15;
+    for (int y = new_height; y > 0 && value > 0;) {
+        --y;
+        int opacity = state_opacity(c->state[CB_INDEX(lx, y, lz)]);
+        if (opacity == 0) opacity = 1;
+        value -= opacity;
+        if (value < 0) value = 0;
+        c->sky[CB_INDEX(lx, y, lz)] = (u8)value;
+    }
+    int start = old_height < new_height ? old_height : new_height;
+    int end = old_height > new_height ? old_height : new_height;
+    static const int dx[5] = { -1, 1, 0, 0, 0 };
+    static const int dz[5] = { 0, 0, -1, 1, 0 };
+    for (int column = 0; column < 5; ++column)
+        for (int y = start; y < end; ++y)
+            sky_check_light_for(L, wx + dx[column], y, wz + dz[column]);
+}
+
 void light_set_state(CrLight *L, int wx, int wy, int wz, uint16_t state) {
     if (!L || wy < 0 || wy >= WY) return;
     LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
@@ -725,33 +910,53 @@ void light_set_state(CrLight *L, int wx, int wy, int wz, uint16_t state) {
     int i = CB_INDEX(wx & 15, wy, wz & 15);
     int old_opacity = state_opacity(c->state[i]);
     int new_opacity = state_opacity(state);
+    int old_emission = state_emission(c->state[i]);
+    int new_emission = state_emission(state);
+    int old_height = c->height[(wx & 15) + (wz & 15) * 16];
     c->state[i] = state;
     c->block[i] = (u16)gm_state_to_model_key((uint16_t)state);
     c->meta[i] = (u8)gm_state_meta((uint16_t)state);
-    c->sky_dirty = 1;
     L->blocklight_dirty = 1;
-    L->skylight_dirty = 1;
-    /* World.checkLightFor rebuilds an opacity-changing cell from getRawLight;
-     * metadata-only loads keep the already-generated stored skylight. Direct
-     * sky is 15 only when Chunk.canSeeSky is true; otherwise the flood derives
-     * the value from neighbouring cells. */
     if (!L->has_sky) {
         c->sky[i] = 0;
-    } else if (new_opacity != old_opacity) {
-        c->sky[i] = 0;
-        if (new_opacity == 0) {
-            int y;
-            for (y = wy + 1; y < WY; ++y)
-                if (state_opacity(c->state[CB_INDEX(wx & 15, y, wz & 15)]) != 0)
-                    break;
-            if (y == WY) c->sky[i] = 15;
-        }
+    } else if (new_opacity != old_opacity || new_emission != old_emission) {
+        int new_height = sky_column_height(c, wx & 15, wz & 15);
+        c->height[(wx & 15) + (wz & 15) * 16] = (u16)new_height;
+        if (new_height != old_height)
+            sky_relight_column(L, c, wx, wz, old_height, new_height);
+        sky_check_light_for(L, wx, wy, wz);
     }
 }
 
 void light_load_state(CrLight *L, int wx, int wy, int wz, uint16_t state) {
-    light_set_state(L, wx, wy, wz, state);
-    if (L) L->column_relight_dirty = 1;
+    if (!L || wy < 0 || wy >= WY) return;
+    LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
+    if (!c) return;
+    int i = CB_INDEX(wx & 15, wy, wz & 15);
+    c->state[i] = state;
+    c->block[i] = (u16)gm_state_to_model_key(state);
+    c->meta[i] = (u8)gm_state_meta(state);
+    L->blocklight_dirty = 1;
+    L->column_relight_dirty = 1;
+}
+
+int light_load_sky_snapshot(CrLight *L, int wx, int wy, int wz, int value) {
+    if (!L || wy < 0 || wy >= WY || value < 0 || value > 15) return 0;
+    LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
+    if (!c) return 0;
+    c->sky[CB_INDEX(wx & 15, wy, wz & 15)] = (u8)value;
+    return 1;
+}
+
+void light_finalize_sky_snapshot(CrLight *L) {
+    if (!L) return;
+    /* A saved nibble array is already a concrete World/Chunk boundary, not a
+     * request to derive a new fixed point. Prevent the next ordinary ensure
+     * from overwriting it with the block-only reconstruction. */
+    L->column_relight_dirty = 0;
+    L->skylight_dirty = 0;
+    for (int i = 0; i < L->light_slots; ++i)
+        if (L->slots[i]) L->slots[i]->sky_dirty = 0;
 }
 
 /* A grass/dirt removal queues Chunk.recheckGaps in vanilla. Its checkLightFor
@@ -926,6 +1131,12 @@ static float get_float_temperature(int biome, int wx, int wy, int wz) {
         return temp - (f + (float)wy - 64.0f) * 0.05f / 30.0f;
     }
     return temp;
+}
+
+float light_biome_temperature(
+        const CrLight *l, int wx, int wy, int wz) {
+    if (!l) return 0.5f;
+    return get_float_temperature(light_biome(l, wx, wz), wx, wy, wz);
 }
 
 /* ColorizerGrass/ColorizerFoliage index math, verbatim (getGrassColor):

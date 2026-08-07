@@ -1,0 +1,8 @@
+# Decayable/checking oak leaves 18:8 are four face-connected steps from an
+# old log. The path crosses both old and new leaf classes. A controlled random
+# tick must clear only the target's CHECK_DECAY bit without consuming RNG.
+12 78 8 18 8
+13 78 8 18 8
+14 78 8 161 8
+15 78 8 18 8
+16 78 8 17 0

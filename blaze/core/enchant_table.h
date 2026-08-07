@@ -11,13 +11,15 @@
  *   util/math/MathHelper.clamp + Java Math.round(float)
  *
  * INPUTS (battery): xpSeed, bookshelves power (0/5/15), item kind
- *   (book / diamond sword / iron pickaxe).
+ *   (book / diamond sword / iron pickaxe). The live path additionally maps
+ *   every vanilla sword, tool, bow, fishing rod, and armor item to the same
+ *   capability/enchantability representation.
  * OUTPUT: for each case, 3 slot levels + per-slot enchant list + clue id/level.
  *
  * CUT: world bookshelf scan (power is an input), Forge onEnchantmentLevelSet /
  * getEnchantPower hooks (vanilla passthrough), treasure enchants (allowTreasure
- * false), applying enchantments to the item / lapis spend / xp seed reseed after
- * enchant. PURE: __host__ __device__ MC_HD. CPU==CUDA bitwise.
+ * false), and container/player mutation. PURE: __host__ __device__ MC_HD.
+ * CPU==CUDA bitwise.
  * Build -ffp-contract=off / --fmad=false. */
 #ifndef MC_ENCHANT_TABLE_H
 #define MC_ENCHANT_TABLE_H
@@ -33,6 +35,13 @@ enum {
     ET_ITEM_IRON_PICK     = 2,
     ET_N_ITEMS            = 3
 };
+
+/* Live-only compact item description. The low byte is Item enchantability;
+ * capability bits occupy the upper bytes. Values 0..2 remain the stable
+ * oracle battery kinds above. */
+#define ET_ITEM_GENERIC_BASE 0x10000000
+#define ET_ITEM_GENERIC(ench, caps) \
+    (ET_ITEM_GENERIC_BASE | ((ench) & 255) | ((caps) << 8))
 
 /* ---- type bits (EnumEnchantmentType applicability) ---- */
 enum {
@@ -53,7 +62,13 @@ enum {
 /* item capability masks */
 enum {
     ET_CAP_SWORD = ET_T_WEAPON | ET_T_BREAKABLE,
-    ET_CAP_PICK  = ET_T_DIGGER | ET_T_BREAKABLE
+    ET_CAP_PICK  = ET_T_DIGGER | ET_T_BREAKABLE,
+    ET_CAP_BOW   = ET_T_BOW | ET_T_BREAKABLE,
+    ET_CAP_FISH  = ET_T_FISHING | ET_T_BREAKABLE,
+    ET_CAP_HEAD  = ET_T_ARMOR | ET_T_ARMOR_HEAD | ET_T_WEARABLE | ET_T_BREAKABLE,
+    ET_CAP_CHEST = ET_T_ARMOR | ET_T_ARMOR_CHEST | ET_T_WEARABLE | ET_T_BREAKABLE,
+    ET_CAP_LEGS  = ET_T_ARMOR | ET_T_ARMOR_LEGS | ET_T_WEARABLE | ET_T_BREAKABLE,
+    ET_CAP_FEET  = ET_T_ARMOR | ET_T_ARMOR_FEET | ET_T_WEARABLE | ET_T_BREAKABLE
     /* book: special-cased via isAllowedOnBooks */
 };
 
@@ -227,13 +242,65 @@ MC_HD static inline int et_item_enchantability(int item_kind) {
     if (item_kind == ET_ITEM_BOOK) return 1;
     if (item_kind == ET_ITEM_DIAMOND_SWORD) return 10;
     if (item_kind == ET_ITEM_IRON_PICK) return 14;
+    if ((item_kind & 0xff000000) == ET_ITEM_GENERIC_BASE)
+        return item_kind & 255;
     return 0;
 }
 
 MC_HD static inline int et_item_caps(int item_kind) {
     if (item_kind == ET_ITEM_DIAMOND_SWORD) return ET_CAP_SWORD;
     if (item_kind == ET_ITEM_IRON_PICK) return ET_CAP_PICK;
+    if ((item_kind & 0xff000000) == ET_ITEM_GENERIC_BASE)
+        return (item_kind >> 8) & 0xffff;
     return 0; /* book handled separately */
+}
+
+MC_HD static inline int et_item_is_book(int item_kind) {
+    return item_kind == ET_ITEM_BOOK;
+}
+
+/* Numeric item ids are stable for 1.11.2. Returns -1 when the item cannot
+ * receive any table offer. ItemHoe has no enchantability override in 1.11.2
+ * and therefore correctly remains unsupported here. */
+MC_HD static inline int et_item_kind_from_id(int item_id) {
+    int ench = 0, caps = 0;
+    if (item_id == 340) return ET_ITEM_BOOK;
+    if (item_id == 261) return ET_ITEM_GENERIC(1, ET_CAP_BOW);
+    if (item_id == 346) return ET_ITEM_GENERIC(1, ET_CAP_FISH);
+    if (item_id == 267 || item_id == 256 || item_id == 257 || item_id == 258
+            || item_id == 292) ench = 14; /* iron tools; hoe maps to no caps below */
+    if (item_id == 268 || item_id == 269 || item_id == 270 || item_id == 271)
+        ench = 15;
+    if (item_id == 272 || item_id == 273 || item_id == 274 || item_id == 275)
+        ench = 5;
+    if (item_id == 276 || item_id == 277 || item_id == 278 || item_id == 279)
+        ench = 10;
+    if (item_id == 283 || item_id == 284 || item_id == 285 || item_id == 286)
+        ench = 22;
+    if (item_id == 267 || item_id == 268 || item_id == 272
+            || item_id == 276 || item_id == 283)
+        caps = ET_CAP_SWORD;
+    else if ((item_id >= 256 && item_id <= 258)
+            || (item_id >= 269 && item_id <= 271)
+            || (item_id >= 273 && item_id <= 275)
+            || (item_id >= 277 && item_id <= 279)
+            || (item_id >= 284 && item_id <= 286))
+        caps = ET_CAP_PICK;
+    if (caps && ench) return ET_ITEM_GENERIC(ench, caps);
+
+    /* Armor ids are four consecutive head/chest/legs/feet pieces. */
+    if (item_id >= 298 && item_id <= 317) {
+        int material = (item_id - 298) / 4;
+        int slot = (item_id - 298) & 3;
+        static const int armor_ench[5] = {15, 12, 9, 10, 25};
+        /* Registry order is leather, chain, iron, diamond, gold. */
+        ench = armor_ench[material];
+        caps = slot == 0 ? ET_CAP_HEAD
+             : slot == 1 ? ET_CAP_CHEST
+             : slot == 2 ? ET_CAP_LEGS : ET_CAP_FEET;
+        return ET_ITEM_GENERIC(ench, caps);
+    }
+    return -1;
 }
 
 /* EnumEnchantmentType.canEnchantItem for our item subset */
@@ -247,7 +314,7 @@ MC_HD static inline int et_type_matches(int type_bits, int item_caps) {
 }
 
 MC_HD static inline int et_can_apply_at_table(const EtDef *d, int item_kind) {
-    if (item_kind == ET_ITEM_BOOK)
+    if (et_item_is_book(item_kind))
         return 1; /* isAllowedOnBooks default true for all vanilla */
     return et_type_matches(d->type_bits, et_item_caps(item_kind));
 }
@@ -414,7 +481,7 @@ MC_HD static inline int et_get_enchantment_list(JavaRandom *rand, i32 xp_seed, i
     int n;
     jrand_set(rand, (i64)(xp_seed + slot));
     n = et_build_list(rand, item_kind, level, 0, out, out_cap);
-    if (item_kind == ET_ITEM_BOOK && n > 1) {
+    if (et_item_is_book(item_kind) && n > 1) {
         int rem = jrand_int_bound(rand, n);
         int i;
         for (i = rem; i < n - 1; ++i) out[i] = out[i + 1];

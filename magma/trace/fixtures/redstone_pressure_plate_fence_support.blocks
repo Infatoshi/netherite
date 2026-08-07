@@ -1,0 +1,6 @@
+# BlockBasePressurePlate explicitly accepts any BlockFence even though it is
+# not fully opaque. Removing the unrelated east stone notifies the plate but
+# must leave the oak-fence support and unpowered stone plate intact.
+12 77 8 85 0
+12 78 8 70 0
+13 78 8 1 0

@@ -142,7 +142,7 @@ typedef struct {
 
 /* ---- block edit (GmBlockEdit fields, game.h) ---- */
 typedef struct {
-    int wx, wy, wz, id, meta, drop_id, drop_count, drop_meta;
+    int wx, wy, wz, id, meta, drop_id, drop_count, drop_meta, harvest_tool;
 } CuEdit;
 
 /* ---- live furnace (GmRuntimeFurnace + FurnaceLive fields, runtime.h /
@@ -513,6 +513,19 @@ MC_HD static inline void cu_sel_box(const CuSelIn *in, float b[6]) {
     int id = in->id, meta = in->meta;
     cu_set6(b, 0.f, 0.f, 0.f, 1.f, 1.f, 1.f);
     switch (id) {
+    case 29: case 33:
+        if (meta & 8) {
+            switch (meta & 7) {
+            case 0: cu_set6(b, 0.f, 0.25f, 0.f, 1.f, 1.f, 1.f); break;
+            case 1: cu_set6(b, 0.f, 0.f, 0.f, 1.f, 0.75f, 1.f); break;
+            case 2: cu_set6(b, 0.f, 0.f, 0.25f, 1.f, 1.f, 1.f); break;
+            case 3: cu_set6(b, 0.f, 0.f, 0.f, 1.f, 1.f, 0.75f); break;
+            case 4: cu_set6(b, 0.25f, 0.f, 0.f, 1.f, 1.f, 1.f); break;
+            case 5: cu_set6(b, 0.f, 0.f, 0.f, 0.75f, 1.f, 1.f); break;
+            default: break;
+            }
+        }
+        break;
     case 6:  case 31: case 32:
         cu_set6(b, 0.1f, 0.f, 0.1f, 0.9f, 0.8f, 0.9f); break;
     case 37: case 38:
@@ -543,11 +556,19 @@ MC_HD static inline void cu_sel_box(const CuSelIn *in, float b[6]) {
     case 26:  cu_set6(b, 0.f, 0.f, 0.f, 1.f, 0.5625f, 1.f); break;
     case 116: cu_set6(b, 0.f, 0.f, 0.f, 1.f, 0.75f, 1.f); break;
     case 151: case 178: cu_set6(b, 0.f, 0.f, 0.f, 1.f, 0.375f, 1.f); break;
+    case 93: case 94: case 149: case 150:
+        cu_set6(b, 0.f, 0.f, 0.f, 1.f, 0.125f, 1.f); break;
+    case 117:
+        cu_set6(b, 0.f, 0.f, 0.f, 1.f, 0.125f, 1.f); break;
     case 120: cu_set6(b, 0.f, 0.f, 0.f, 1.f, 0.8125f, 1.f); break;
     case 27: case 28: case 66: case 157:
         cu_set6(b, 0.f, 0.f, 0.f, 1.f, 0.125f, 1.f); break;
     case 70: case 72: case 147: case 148:
         cu_set6(b, 0.0625f, 0.f, 0.0625f, 0.9375f, meta ? 0.03125f : 0.0625f, 0.9375f); break;
+    case 132:
+        if (meta & 4) cu_set6(b, 0.f, 0.0625f, 0.f, 1.f, 0.15625f, 1.f);
+        else          cu_set6(b, 0.f, 0.f, 0.f, 1.f, 0.5f, 1.f);
+        break;
     case 92:
         cu_set6(b, 0.0625f + (float)(meta & 7) * 0.125f, 0.f, 0.0625f,
                 0.9375f, 0.5f, 0.9375f); break;
@@ -935,6 +956,7 @@ MC_HD static inline void cu_harvest_drop(int block_id, int block_meta, int tool_
         case 17: *item = 17; *count = 1; *meta = block_meta & 3; break;
         case 49: *item = 49; *count = 1; break;
         case 56: *item = 264; *count = 1; break;
+        case 132: *item = 287; *count = 1; break;
         default: break;
     }
 }
@@ -952,11 +974,12 @@ MC_HD static inline void cu_emit_edit(CuEdit *edits, int *ne, int max_edits,
     edits[*ne].drop_id = drop_id;
     edits[*ne].drop_count = drop_count;
     edits[*ne].drop_meta = drop_meta & 15;
+    edits[*ne].harvest_tool = 0;
     (*ne)++;
 }
 
 /* verbatim dig_destroy (player_ctl.c:214) */
-MC_HD static inline void cu_dig_destroy(Chunk *window, PsvPlayer *pl,
+MC_HD static inline void cu_dig_destroy(Chunk *window, PsvPlayer *pl, PvStats *vit,
                                         int hx, int hy, int hz,
                                         int bid, int bmeta, int ox, int oy, int oz,
                                         CuEdit *edits, int *ne, int max_edits) {
@@ -964,6 +987,8 @@ MC_HD static inline void cu_dig_destroy(Chunk *window, PsvPlayer *pl,
     int drop_id, drop_count, drop_meta;
     cu_harvest_drop(bid, bmeta, held.item, hx + ox, hy + oy, hz + oz,
                     &drop_id, &drop_count, &drop_meta);
+    if (pb_can_harvest(held.item, bid))
+        pv_add_exhaustion(vit, 0.005f);
     if (!isr_is_empty(&held)) {
         ITAStack tool = ita_mk(held.item, held.meta);
         int max_damage;
@@ -980,8 +1005,13 @@ MC_HD static inline void cu_dig_destroy(Chunk *window, PsvPlayer *pl,
     }
     cu_win_set_state(window, hx, hy, hz, BLK_AIR, 0);
     pl->break_events++;
-    cu_emit_edit(edits, ne, max_edits, ox, oy, oz, hx, hy, hz, 0, 0,
-                 drop_id, drop_count, drop_meta);
+    {
+        int edit_index = *ne;
+        cu_emit_edit(edits, ne, max_edits, ox, oy, oz, hx, hy, hz, 0, 0,
+                     drop_id, drop_count, drop_meta);
+        if (*ne > edit_index)
+            edits[edit_index].harvest_tool = held.item;
+    }
 }
 
 /* gm_player_tick (player_ctl.c:241) for the learned-stage action subset.
@@ -1095,7 +1125,7 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                      hz != env->dig_hz)) {
                     if (rel >= 1.0f) {
                         CU_OP(env, CU_OP_DIG_BREAK);
-                        cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                        cu_dig_destroy(window, pl, vit, hx, hy, hz, bid, pin.block_meta,
                                        ox, oy, oz, edits, &ne, max_edits);
                         bid = BLK_AIR;
                     } else {
@@ -1115,7 +1145,7 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                         if (env->dig_progress >= 1.0f) {
                             env->dig_hitting = 0;
                             CU_OP(env, CU_OP_DIG_BREAK);
-                            cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                            cu_dig_destroy(window, pl, vit, hx, hy, hz, bid, pin.block_meta,
                                            ox, oy, oz, edits, &ne, max_edits);
                             env->dig_progress = 0.0f;
                             env->dig_delay = 5;
@@ -1123,7 +1153,7 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
                     } else {
                         if (rel >= 1.0f) {
                             CU_OP(env, CU_OP_DIG_BREAK);
-                            cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                            cu_dig_destroy(window, pl, vit, hx, hy, hz, bid, pin.block_meta,
                                            ox, oy, oz, edits, &ne, max_edits);
                         } else {
                             env->dig_hitting = 1;
@@ -2773,6 +2803,11 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->vit.health = h->health; env->vit.foodLevel = h->food;
     env->vit.saturation = h->saturation; env->vit.exhaustion = h->exhaustion;
     env->vit.foodTimer = h->food_timer;
+    /* .bsnp predates effect-aware max-health state. Blaze snapshots are
+     * quiescent/default-attribute by contract, so restore the 1.11.2 player
+     * base instead of retaining calloc's zero (which makes the first
+     * pv_set_health clamp lethal and forces expensive masked resets). */
+    env->vit.maxHealth = PV_MAX_HEALTH;
     env->pl.health = h->health; env->pl.food = (float)h->food;
 
     env->dig_progress = h->dig_progress;

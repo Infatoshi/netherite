@@ -33,6 +33,27 @@ void gm_player_tick_gr(struct Chunk *window, const struct McSinTable *st,
                        const struct McGameRules *gamerules, GmAction act,
                        int ox, int oy, int oz,
                        GmBlockEdit *edits, int *nedits, int max_edits);
+/* Runtime composition variant: performs movement and movement-derived vitals,
+ * but leaves FoodStats.onUpdate to the caller so Entity.move contact damage
+ * and exhaustion can be applied first, matching EntityPlayer.onLivingUpdate. */
+void gm_player_tick_defer_food(
+                    struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits);
+/* Integrated-client composition: client physics advances immediately, while
+ * movement/jump exhaustion is charged by the delayed CPacketPlayer path. */
+void gm_player_tick_network_client(
+                    struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits);
+void gm_player_tick_network_client_effects(
+                    struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits,
+                    int haste_amplifier, int fatigue_amplifier);
 
 /* Fill a GmPlayerView (WORLD coords) from a PsvPlayer whose pos is in the LOCAL frame,
  * given the block offset (ox,oz) to convert local->world. */
@@ -43,6 +64,12 @@ void gm_player_view(const struct PsvPlayer *pl, int ox, int oz, GmPlayerView *ou
 void gm_player_inv_click(struct PsvPlayer *pl, int slot_id, int button, int click_type);
 ICStack gm_player_cursor(void);
 void gm_player_cursor_set(ICStack s);
+/* Consume an item transform result that vanilla drops when InventoryPlayer is
+ * full (currently ItemGlassBottle -> one water potion). */
+ICStack gm_player_take_item_use_drop(void);
+/* Consume one ItemPotion/ItemBucketMilk stack that finished its 32-tick DRINK
+ * action; its container item has already replaced the selected stack. */
+ICStack gm_player_take_finished_drink(void);
 void gm_player_dig_reset(void);
 /* Apply an authoritative SPacketEntityVelocity and supersede any locally
  * inferred damage-packet reset queued for this tick. */

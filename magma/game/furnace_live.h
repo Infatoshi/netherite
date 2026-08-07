@@ -32,4 +32,7 @@ SRStack furnace_live_extract(FurnaceLive *furnace, int slot, int amount);
 /* Advances exactly one TileEntityFurnace server tick. */
 void furnace_live_tick(FurnaceLive *furnace);
 
+/* Container.calcRedstoneFromInventory for the three furnace slots. */
+int furnace_live_comparator_strength(const FurnaceLive *furnace);
+
 #endif /* MAGMA_GAME_FURNACE_LIVE_H */

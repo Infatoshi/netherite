@@ -1,0 +1,11 @@
+# x y z id meta
+# Valid north-facing ordinary double chest at x=10..11. The comparator reads
+# the east half. Four full stone stacks in that half occupy 4/54 of the large
+# inventory and must emit floor((4/54)*14)+1 = 2, not the single-chest value 3.
+10 77 8 1 0
+11 77 8 1 0
+12 77 8 1 0
+10 78 8 54 2
+11 78 8 54 2
+12 78 8 149 1
+13 78 8 123 0

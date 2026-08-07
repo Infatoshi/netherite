@@ -1,0 +1,8 @@
+# The lit floor torch 76:5 strongly powers the stone above it and that stone's
+# adjacent lamp. Its six-center breakBlock notification must reach the
+# indirect lamp when the tick-zero piston destroys the torch.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 76 5
+13 79 8 1 0
+14 79 8 124 0

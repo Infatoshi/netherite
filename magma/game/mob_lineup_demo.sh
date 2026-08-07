@@ -17,6 +17,7 @@ fi
 $CC $CFLAGS \
     game/mob_lineup_demo.c \
     game/entity_render.c \
+    assets/blockmodels.c \
     transform.c \
     core/math.c \
     core/shade.c \

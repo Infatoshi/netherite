@@ -94,6 +94,14 @@ __global__ void run_wtv(WtvCudaBox *b) {
     if (threadIdx.x || blockIdx.x) return;
     b->n_lines = 0;
     d_test_lcg(b);
+    d_emit(b, ((u64)wt_fire_flammability(47) << 32)
+        | (u64)wt_fire_encouragement(47));
+    d_emit(b, ((u64)wt_fire_flammability(173) << 32)
+        | (u64)wt_fire_encouragement(173));
+    d_emit(b, ((u64)wt_fire_flammability(170) << 48)
+        | ((u64)wt_fire_encouragement(170) << 32)
+        | ((u64)wt_fire_flammability(171) << 16)
+        | (u64)wt_fire_encouragement(171));
     d_test_order_dedup_cap(b);
 
     {

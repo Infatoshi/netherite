@@ -34,11 +34,20 @@ magma/trace/out/
 # regenerable render candidates (the mc_pose_*.png goldens ARE tracked)
 verify/mc_capture/magma_pose_*.png
 verify/mc_capture/magma_frame.png
+# locally captured oracle pairs and generated tape reports
+verify/ui_entities/goldens/*.png
+verify/trace/report/tape_*.md
+verify/trace/report/tape_*.gate.json
 
 # logs + run artifacts
 *.log
 frame*.png
 *.npy
+/.tmp/
+/run/
+magma/.tmp/
+# accidental nested trace/build output
+magma/c/
 
 # python
 .venv/

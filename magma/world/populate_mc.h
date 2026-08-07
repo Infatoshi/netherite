@@ -34,6 +34,59 @@ extern "C" {
  * the process lifetime and reused by all four chunks it decorates. */
 void popmc_decorate_chunk(long long seed, int cx, int cz, unsigned short *chunk_block);
 
+/* Same overlay, also writing legacy block metadata for generated tiles whose
+ * state is not encoded in PB_* (currently dungeon chest facing). `chunk_meta`
+ * uses the same y-fastest 65536-cell layout as chunk_block. */
+void popmc_decorate_chunk_meta(long long seed, int cx, int cz,
+                               unsigned short *chunk_block,
+                               unsigned char *chunk_meta);
+
+/* Enable the optional village stage before any chunks are built. Toggling the
+ * mode invalidates cached populate windows; leaving it off adds no live-tick work. */
+void popmc_set_villages(int enabled);
+
+enum {
+    POPMC_DUNGEON_MOB_SKELETON = 1,
+    POPMC_DUNGEON_MOB_ZOMBIE = 2,
+    POPMC_DUNGEON_MOB_SPIDER = 3
+};
+
+/* Exact tile metadata captured from WorldGenDungeons' live placement stream.
+ * Lookups are fixed-pool scans and do not generate chunks or allocate. */
+int popmc_dungeon_chest_info(long long seed, int x, int y, int z,
+                             long long *loot_seed, int *facing_meta);
+int popmc_desert_chest_info(long long seed, int x, int y, int z,
+                            long long *loot_seed, int *facing_meta);
+int popmc_jungle_chest_info(long long seed, int x, int y, int z,
+                            long long *loot_seed, int *facing_meta);
+int popmc_village_chest_info(long long seed, int x, int y, int z,
+                             long long *loot_seed, int *facing_meta);
+typedef struct {
+    int x, y, z;
+    int profession;
+    int zombie_infested;
+} PopmcVillageResident;
+/* Copy the unique generated village residents inside the inclusive X/Z bounds.
+ * Returns the number copied (at most `capacity`); cached metadata only, so this
+ * does not generate chunks or allocate. */
+int popmc_village_residents(long long seed,
+                            int min_x, int min_z, int max_x, int max_z,
+                            PopmcVillageResident *out, int capacity);
+int popmc_jungle_dispenser_info(long long seed, int x, int y, int z,
+                                long long *loot_seed, int *facing_meta);
+int popmc_swamp_witch_info(long long seed, int x, int y, int z);
+int popmc_swamp_pot_info(long long seed, int x, int y, int z,
+                         int *item, int *meta);
+int popmc_dungeon_spawner_info(long long seed, int x, int y, int z,
+                               int *mob_kind);
+
+/* Exact deferred structure data produced by MapGenMineshaft placement. A cart
+ * site is an EntityMinecartChest using the abandoned-mineshaft loot table;
+ * its inventory remains unmaterialized until first access, as in vanilla. */
+int popmc_mineshaft_cart_info(long long seed, int x, int y, int z,
+                              long long *loot_seed);
+int popmc_mineshaft_spawner_info(long long seed, int x, int y, int z);
+
 /* CUMULATIVE region prepare: build populate windows for `nbases` base chunks (flat
  * [x0,z0, x1,z1, ...] pairs) in the given order, which MUST be vanilla populate
  * order (spawn-square raster, then later player-loaded chunks). Each window seeds

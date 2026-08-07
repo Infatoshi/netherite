@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while mature beetroot crop 207:3 occupies the front
+# cell. BlockBeetroot inherits BlockCrops drops with max age 3: one beetroot
+# plus every successful one of three World.rand nextInt(6) seed trials.
+12 78 9 152 0
+13 77 8 60 0
+13 78 8 207 3

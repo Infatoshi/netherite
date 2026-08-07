@@ -80,7 +80,7 @@ MC_HD static inline void eb_update_fall_state(EntBody *e, double y) {
     if (e->phys.onGround) {
         e->fallDistance = 0.0F;
     } else if (y < 0.0) {
-        e->fallDistance -= (float)y;
+        e->fallDistance = (float)((double)e->fallDistance - y);
     }
 }
 
@@ -91,6 +91,49 @@ MC_HD static inline void eb_move(EntBody *e, double x, double y, double z,
     double beforeY = e->phys.posY;
     pcf_entity_move(&e->phys, x, y, z, blocks, nblocks);
     eb_update_fall_state(e, e->phys.posY - beforeY);
+}
+
+/* Same Entity.move spine over already-resolved world collision AABBs. This
+ * keeps state-aware block geometry out of the legacy baked PcfBlock path. */
+MC_HD static inline void eb_move_aabb(
+        EntBody *e, double x, double y, double z,
+        const McAABB *blocks, int nblocks) {
+    if (e->phys.isInWeb) {
+        e->phys.isInWeb = 0;
+        x *= 0.25;
+        y *= 0.05000000074505806;
+        z *= 0.25;
+        e->phys.motionX = 0.0;
+        e->phys.motionY = 0.0;
+        e->phys.motionZ = 0.0;
+    }
+    McEntity exact;
+    exact.box = e->phys.box;
+    exact.posX = e->phys.posX;
+    exact.posY = e->phys.posY;
+    exact.posZ = e->phys.posZ;
+    exact.motionX = e->phys.motionX;
+    exact.motionY = e->phys.motionY;
+    exact.motionZ = e->phys.motionZ;
+    exact.onGround = e->phys.onGround;
+    exact.collidedHorizontally = e->phys.collidedHorizontally;
+    exact.collidedVertically = e->phys.collidedVertically;
+    exact.isCollided = e->phys.isCollided;
+    double beforeY = exact.posY;
+    mc_entity_move_step(
+        &exact, x, y, z, blocks, nblocks, e->phys.stepHeight);
+    e->phys.box = exact.box;
+    e->phys.posX = exact.posX;
+    e->phys.posY = exact.posY;
+    e->phys.posZ = exact.posZ;
+    e->phys.motionX = exact.motionX;
+    e->phys.motionY = exact.motionY;
+    e->phys.motionZ = exact.motionZ;
+    e->phys.onGround = exact.onGround;
+    e->phys.collidedHorizontally = exact.collidedHorizontally;
+    e->phys.collidedVertically = exact.collidedVertically;
+    e->phys.isCollided = exact.isCollided;
+    eb_update_fall_state(e, exact.posY - beforeY);
 }
 
 /* Entity.onEntityUpdate (460-...): snapshot prev-pos at the start of the tick. handleWater /

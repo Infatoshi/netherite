@@ -21,6 +21,9 @@ static int is_grid(int s)    { return s >= GMC_GRID0 && s < GMC_RESULT; }
 static int is_furnace(int s) { return s >= GMC_FURNACE0 && s < GMC_ARMOR0; }
 static int is_armor(int s)   { return s >= GMC_ARMOR0 && s < GMC_ARMOR0 + ISR_ARMOR_SLOTS; }
 static int is_chest(int s)   { return s >= GMC_CHEST0 && s < GMC_CHEST0 + GMC_CHEST_SLOTS; }
+static int is_brewing(int s) { return s >= GMC_BREWING0 && s < GMC_BREWING0 + GMC_BREWING_SLOTS; }
+static int is_enchant(int s)  { return s >= GMC_ENCHANT0 && s < GMC_ENCHANT0 + GMC_ENCHANT_SLOTS; }
+static int is_enchant_button(int s) { return s >= GMC_ENCHANT_BUTTON0 && s < GMC_ENCHANT_BUTTON0 + 3; }
 
 /* GMC armor id -> IsrInv index (36..39). */
 static int armor_isr(int s) { return ISR_ARMOR0 + (s - GMC_ARMOR0); }
@@ -39,7 +42,8 @@ static int armor_item_valid(int item, int armor_idx)
 static int grid_cell_usable(const GmRuntime *r, int cell)
 {
     if (r->container == 1) return 1;
-    if (r->container == 2 || r->container == 3) return 0;
+    if (r->container == 2 || r->container == 3 || r->container == 4
+            || r->container == 5) return 0;
     return cell == 0 || cell == 1 || cell == 3 || cell == 4;
 }
 
@@ -47,11 +51,17 @@ static int slot_usable(const GmRuntime *r, int s)
 {
     if (is_inv(s)) return 1;
     if (is_grid(s)) return grid_cell_usable(r, s - GMC_GRID0);
-    if (s == GMC_RESULT) return r->container != 2 && r->container != 3;
+    if (s == GMC_RESULT)
+        return r->container != 2 && r->container != 3 && r->container != 4
+            && r->container != 5;
     if (is_furnace(s)) return r->container == 2 && r->active_furnace >= 0;
     /* Armor only on the player inventory screen (ContainerPlayer). */
     if (is_armor(s)) return r->container == 0;
     if (is_chest(s)) return r->container == 3 && r->active_chest >= 0;
+    if (is_brewing(s))
+        return r->container == 4 && r->active_static_container >= 0;
+    if (is_enchant(s))
+        return r->container == 5 && r->enchanting.open;
     return 0;
 }
 
@@ -68,6 +78,28 @@ static ICStack ct_chest_get(const GmRuntime *r, int s)
     return chest_live_get(c, s - GMC_CHEST0);
 }
 
+static GmRuntimeStaticContainer *ct_brewing(GmRuntime *r)
+{
+    if (!r || r->container != 4 || r->active_static_container < 0
+            || r->active_static_container >= r->static_containers_cap)
+        return NULL;
+    GmRuntimeStaticContainer *stand =
+        &r->static_containers[r->active_static_container];
+    return stand->active && stand->block == 117 ? stand : NULL;
+}
+
+static ICStack ct_brewing_get(const GmRuntime *r, int s)
+{
+    if (!r || !is_brewing(s) || r->container != 4
+            || r->active_static_container < 0
+            || r->active_static_container >= r->static_containers_cap)
+        return ic_empty();
+    const GmRuntimeStaticContainer *stand =
+        &r->static_containers[r->active_static_container];
+    if (!stand->active || stand->block != 117) return ic_empty();
+    return stand->slots[s - GMC_BREWING0];
+}
+
 /* ---- direct stack access (inventory + grid + armor) --------------------- */
 
 static ICStack ct_get(const GmRuntime *r, int s)
@@ -75,6 +107,7 @@ static ICStack ct_get(const GmRuntime *r, int s)
     if (is_inv(s))   return isr_get_stack(&r->player.inv, s);
     if (is_armor(s)) return isr_get_stack(&r->player.inv, armor_isr(s));
     if (is_grid(s))  return r->craft_grid[s - GMC_GRID0];
+    if (is_enchant(s)) return r->enchanting.slots[s - GMC_ENCHANT0];
     return ic_empty();
 }
 
@@ -84,6 +117,9 @@ static void ct_set(GmRuntime *r, int s, ICStack v)
     if (is_inv(s))        isr_set_stack(&r->player.inv, s, v);
     else if (is_armor(s)) isr_set_stack(&r->player.inv, armor_isr(s), v);
     else if (is_grid(s))  r->craft_grid[s - GMC_GRID0] = v;
+    else if (is_enchant(s))
+        enchanting_live_set_slot(
+            &r->enchanting, r->world, s - GMC_ENCHANT0, v);
     if (is_armor(s) && armor_isr(s) == ISR_ARMOR_CHEST) {
         ICStack chest = isr_get_stack(&r->player.inv, ISR_ARMOR_CHEST);
         r->player.elytra_equipped = isr_elytra_usable(&chest);
@@ -143,7 +179,8 @@ static ICStack grid_match(const GmRuntime *r)
 
 ICStack gm_container_result(const struct GmRuntime *r)
 {
-    if (!r || r->container == 2 || r->container == 3) return ic_empty();
+    if (!r || r->container == 2 || r->container == 3 || r->container == 4)
+        return ic_empty();
     return grid_match(r);
 }
 
@@ -243,6 +280,35 @@ static ICStack ct_transfer(GmRuntime *r, int slot_id)
         return original;
     }
 
+    /* ContainerBrewingStand tile slots merge reverse into player inventory. */
+    if (is_brewing(slot_id)) {
+        GmRuntimeStaticContainer *stand = ct_brewing(r);
+        ICStack v = ct_brewing_get(r, slot_id);
+        if (!stand || cc_is_empty(&v)) return ic_empty();
+        ICStack original = v;
+        order_reverse_all(order);
+        int before = v.count;
+        ct_merge_order(r, &v, order, 36);
+        if (v.count == before) return ic_empty();
+        (void)brewing_live_extract(
+            stand->slots, slot_id - GMC_BREWING0, before - v.count);
+        gm_runtime_brewing_changed(r);
+        return original;
+    }
+
+    /* ContainerEnchantment table slots merge reverse into player inventory. */
+    if (is_enchant(slot_id)) {
+        ICStack v = ct_get(r, slot_id);
+        if (cc_is_empty(&v)) return ic_empty();
+        ICStack original = v;
+        order_reverse_all(order);
+        int before = v.count;
+        ct_merge_order(r, &v, order, 36);
+        if (v.count == before) return ic_empty();
+        ct_set(r, slot_id, v);
+        return original;
+    }
+
     if (slot_id == GMC_RESULT) {
         ICStack res = grid_match(r);
         if (cc_is_empty(&res)) return ic_empty();
@@ -338,6 +404,64 @@ static ICStack ct_transfer(GmRuntime *r, int slot_id)
             ct_set(r, slot_id, rem);
             return original;
         }
+    }
+
+    /* ContainerBrewingStand checks ingredient, potion, then fuel. Blaze
+     * powder is therefore routed to ingredient before its fuel role. */
+    if (r->container == 4 && is_inv(slot_id)) {
+        GmRuntimeStaticContainer *stand = ct_brewing(r);
+        int target = -1;
+        int moved = 0;
+        if (stand) {
+            if (brewing_live_slot_valid(BREWING_LIVE_INGREDIENT, &v)) {
+                target = BREWING_LIVE_INGREDIENT;
+            } else if (brewing_live_slot_valid(BREWING_LIVE_POTION0, &v)
+                    && v.count == 1) {
+                for (int s = 0; s < 3; ++s)
+                    if (isr_is_empty(&stand->slots[s])) {
+                        target = s;
+                        break;
+                    }
+            } else if (brewing_live_slot_valid(BREWING_LIVE_FUEL, &v)) {
+                target = BREWING_LIVE_FUEL;
+            }
+            if (target >= 0)
+                moved = brewing_live_insert(stand->slots, target, v);
+        }
+        if (moved > 0) {
+            cc_shrink(&v, moved);
+            ct_set(r, slot_id, v);
+            gm_runtime_brewing_changed(r);
+            return original;
+        }
+        if (target >= 0) return ic_empty();
+    }
+
+    /* ContainerEnchantment: lapis routes to slot 1; every other item routes
+     * one stack member to the single-item table slot. */
+    if (r->container == 5 && is_inv(slot_id)) {
+        int target = v.item == 351 && v.meta == 4 ? 1 : 0;
+        ICStack current = r->enchanting.slots[target];
+        if (!enchanting_live_slot_valid(target, &v))
+            return ic_empty();
+        if (cc_is_empty(&current)) {
+            int amount = target == 0 ? 1 : v.count;
+            ICStack moved = cc_split_stack(&v, amount);
+            ct_set(r, GMC_ENCHANT0 + target, moved);
+            ct_set(r, slot_id, v);
+            return original;
+        }
+        if (target == 1 && cc_stack_match(&current, &v)
+                && current.count < 64) {
+            int amount = v.count < 64 - current.count
+                ? v.count : 64 - current.count;
+            current.count += amount;
+            cc_shrink(&v, amount);
+            ct_set(r, GMC_ENCHANT0 + target, current);
+            ct_set(r, slot_id, v);
+            return original;
+        }
+        return ic_empty();
     }
 
     if (slot_id < 9) order_main(order);
@@ -448,18 +572,61 @@ static void click_pickup_chest(GmRuntime *r, int slot_id, int button)
     gm_player_cursor_set(cur);
 }
 
+static void click_pickup_brewing(GmRuntime *r, int slot_id, int button)
+{
+    GmRuntimeStaticContainer *stand = ct_brewing(r);
+    int bslot = slot_id - GMC_BREWING0;
+    ICStack cur = gm_player_cursor();
+    ICStack v = ct_brewing_get(r, slot_id);
+    int changed = 0;
+    if (!stand) return;
+    if (cc_is_empty(&v)) {
+        if (cc_is_empty(&cur)) return;
+        int amount = button == 0 ? cur.count : 1;
+        int moved = brewing_live_insert(
+            stand->slots, bslot, ic_with_count(&cur, amount));
+        if (moved > 0) { cc_shrink(&cur, moved); changed = 1; }
+    } else if (cc_is_empty(&cur)) {
+        int take = button == 0 ? v.count : (v.count + 1) / 2;
+        cur = brewing_live_extract(stand->slots, bslot, take);
+        changed = !cc_is_empty(&cur);
+    } else if (cc_stack_match(&v, &cur)) {
+        int amount = button == 0 ? cur.count : 1;
+        int moved = brewing_live_insert(
+            stand->slots, bslot, ic_with_count(&cur, amount));
+        if (moved > 0) { cc_shrink(&cur, moved); changed = 1; }
+    } else if (brewing_live_slot_valid(bslot, &cur)) {
+        ICStack taken = brewing_live_extract(stand->slots, bslot, v.count);
+        int moved = brewing_live_insert(stand->slots, bslot, cur);
+        if (moved == cur.count) {
+            cur = taken;
+            changed = 1;
+        } else {
+            if (moved > 0)
+                (void)brewing_live_extract(stand->slots, bslot, moved);
+            (void)brewing_live_insert(stand->slots, bslot, taken);
+        }
+    }
+    gm_player_cursor_set(cur);
+    if (changed) gm_runtime_brewing_changed(r);
+}
+
 static void click_pickup(GmRuntime *r, int slot_id, int button)
 {
     ICStack cur = gm_player_cursor();
     ICStack v = ct_get(r, slot_id);
     int armor = is_armor(slot_id);
+    int enchant = is_enchant(slot_id);
     int armor_idx = armor ? (slot_id - GMC_ARMOR0) : -1;
     /* Slot.getSlotStackLimit: armor slots accept exactly one item. */
-    i32 slot_lim = armor ? 1 : cc_slot_stack_limit();
+    i32 slot_lim = armor || (enchant && slot_id == GMC_ENCHANT0)
+        ? 1 : cc_slot_stack_limit();
 
     if (cc_is_empty(&v)) {
         if (!cc_is_empty(&cur)) {
             if (armor && !armor_item_valid(cur.item, armor_idx)) return;
+            if (enchant && !enchanting_live_slot_valid(
+                    slot_id - GMC_ENCHANT0, &cur)) return;
             int l2 = button == 0 ? cur.count : 1;
             if (l2 > slot_lim) l2 = (int)slot_lim;
             i32 lim = cc_item_stack_limit(&cur);
@@ -470,7 +637,7 @@ static void click_pickup(GmRuntime *r, int slot_id, int button)
         int k2 = button == 0 ? v.count : (v.count + 1) / 2;
         cur = cc_decr_slot(&v, k2);
     } else if (cc_stack_match(&v, &cur)) {
-        if (armor) return; /* stack limit 1: cannot merge into occupied armor */
+        if (armor || (enchant && slot_id == GMC_ENCHANT0)) return;
         int j2 = button == 0 ? cur.count : 1;
         i32 lim = cc_item_stack_limit(&cur);
         i32 maxs = cc_max_stack_size(cur.item, cur.meta);
@@ -482,6 +649,8 @@ static void click_pickup(GmRuntime *r, int slot_id, int button)
         }
     } else {
         if (armor && !armor_item_valid(cur.item, armor_idx)) return;
+        if (enchant && !enchanting_live_slot_valid(
+                slot_id - GMC_ENCHANT0, &cur)) return;
         if (armor && cur.count > 1) return; /* swap only whole single pieces */
         i32 lim = armor ? 1 : cc_item_stack_limit(&cur);
         if (cur.count <= lim) {
@@ -524,6 +693,19 @@ static void click_throw(GmRuntime *r, int slot_id, int button)
         if (!cc_is_empty(&got)) ct_drop(r, got);
         return;
     }
+    if (is_brewing(slot_id)) {
+        GmRuntimeStaticContainer *stand = ct_brewing(r);
+        ICStack v = ct_brewing_get(r, slot_id);
+        if (!stand || cc_is_empty(&v)) return;
+        int amount = button == 0 ? 1 : v.count;
+        ICStack got = brewing_live_extract(
+            stand->slots, slot_id - GMC_BREWING0, amount);
+        if (!cc_is_empty(&got)) {
+            ct_drop(r, got);
+            gm_runtime_brewing_changed(r);
+        }
+        return;
+    }
     ICStack v = ct_get(r, slot_id);
     if (cc_is_empty(&v)) return;
     int amount = button == 0 ? 1 : v.count;
@@ -536,6 +718,15 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
 {
     if (!r) return 0;
     if (button != 0 && button != 1) return 0;
+
+    if (is_enchant_button(slot_id)) {
+        if (r->container != 5 || click_type != CC_CLICK_PICKUP
+                || button != 0)
+            return 0;
+        (void)gm_runtime_enchant_click(
+            r, slot_id - GMC_ENCHANT_BUTTON0);
+        return 1;
+    }
 
     if (slot_id == GMC_OUTSIDE) {
         if (click_type != CC_CLICK_PICKUP) return 0;
@@ -559,6 +750,7 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
         if (slot_id == GMC_RESULT)      click_pickup_result(r, button);
         else if (is_furnace(slot_id))   click_pickup_furnace(r, slot_id, button);
         else if (is_chest(slot_id))     click_pickup_chest(r, slot_id, button);
+        else if (is_brewing(slot_id))   click_pickup_brewing(r, slot_id, button);
         else                            click_pickup(r, slot_id, button);
         return 1;
     case CC_CLICK_QUICK_MOVE: {
@@ -569,6 +761,7 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
             ICStack now = slot_id == GMC_RESULT ? grid_match(r)
                         : is_furnace(slot_id)   ? ct_furnace_get(r, slot_id)
                         : is_chest(slot_id)     ? ct_chest_get(r, slot_id)
+                        : is_brewing(slot_id)   ? ct_brewing_get(r, slot_id)
                                                 : ct_get(r, slot_id);
             if (cc_is_empty(&now) || now.item != moved.item) break;
         }
@@ -585,6 +778,15 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
 void gm_container_close(struct GmRuntime *r)
 {
     if (!r) return;
+    if (r->container == 5) {
+        for (int i = 0; i < 2; ++i) {
+            ICStack v = r->enchanting.slots[i];
+            r->enchanting.slots[i] = ic_empty();
+            if (cc_is_empty(&v)) continue;
+            (void)isr_add_item_stack_to_inventory(&r->player.inv, &v);
+            if (!cc_is_empty(&v)) ct_drop(r, v);
+        }
+    }
     for (int i = 0; i < 9; ++i) {
         ICStack v = r->craft_grid[i];
         r->craft_grid[i] = ic_empty();

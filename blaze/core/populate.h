@@ -89,7 +89,13 @@ enum {
     PB_BROWN_SHROOM_BLOCK = 79, PB_RED_SHROOM_BLOCK = 80,
     PB_CACTUS = 81, PB_LOG_ACACIA = 82, PB_LEAVES_ACACIA = 83,
     PB_SANDSTONE_SLAB = 84, PB_LOG_JUNGLE = 85, PB_LEAVES_JUNGLE = 86,
-    PB_MELON = 87, PB_COCOA = 88, PB_OBSIDIAN = 89
+    PB_MELON = 87, PB_COCOA = 88, PB_OBSIDIAN = 89,
+    /* Desert-pyramid states whose legacy metadata affects rendering/gameplay. */
+    PB_SANDSTONE_SMOOTH = 90, PB_SANDSTONE_CHISELED = 91,
+    PB_SANDSTONE_STAIRS_E = 92, PB_SANDSTONE_STAIRS_W = 93,
+    PB_SANDSTONE_STAIRS_S = 94, PB_SANDSTONE_STAIRS_N = 95,
+    PB_STAINED_CLAY_ORANGE = 96, PB_STAINED_CLAY_BLUE = 97,
+    PB_STONE_PRESSURE_PLATE = 98, PB_TNT = 99
 };
 
 /* tree kinds (log/leaf code pairs) */
@@ -124,6 +130,27 @@ typedef struct World {
  * populate_mc translation unit can install a recorder without cross-TU deps. */
 #if !defined(__CUDA_ARCH__)
 static void (*g_w_oob_write)(int baseCx, int baseCz, int lx, int y, int lz, int v) = 0;
+/* WorldGenDungeons tile metadata is not part of the block volume. The live
+ * host bridge installs this bounded event sink while it builds one populate
+ * window so the exact placement-stream loot seed and spawner roll survive
+ * into gameplay. Device callers keep the verified block-only path. */
+enum {
+    MC_DUNGEON_EVENT_CHEST = 1,
+    MC_DUNGEON_EVENT_SPAWNER = 2,
+    MC_DUNGEON_EVENT_DESERT_CHEST = 3,
+    MC_DUNGEON_EVENT_JUNGLE_CHEST = 4,
+    MC_DUNGEON_EVENT_JUNGLE_DISPENSER = 5,
+    MC_DUNGEON_EVENT_SWAMP_WITCH = 6,
+    MC_DUNGEON_EVENT_SWAMP_POT = 7
+};
+static void (*g_w_dungeon_event)(int baseCx, int baseCz, int kind,
+                                  int lx, int y, int lz, i64 value,
+                                  int meta) = 0;
+/* Feature.horizontalPos is initialized by the first intersecting populate
+ * chunk and then serialized with the structure. The live bridge supplies the
+ * persistent lookup; block-only/device callers use the current-quadrant value. */
+static int (*g_w_scattered_hpos)(i64 seed, int startCx, int startCz,
+                                 int fallback) = 0;
 #endif
 
 MC_HD static inline int w_index(int x, int y, int z) { return (x * W_Z + z) * W_Y + y; }
@@ -382,8 +409,19 @@ MC_HD MC_NOINLINE static void w_set(World *w, int x, int y, int z, int v) {
 }
 
 /* ===== block attribute tables (faithful integer reductions of MC Block/Material) ===== */
+MC_HD static inline int pb_tag_id(int c){ return (c&0x4000)?((c>>4)&0x3ff):-1; }
 /* light opacity: 0 air/plants/vine/snow/lava; 1 leaves; 3 water/ice; 255 full solids. */
 MC_HD MC_NOINLINE static int pb_opacity(int c) {
+    int tagged=pb_tag_id(c);
+    if(tagged>=0){
+        if(tagged==0||tagged==30||tagged==50||tagged==52||tagged==55
+                ||tagged==66||tagged==69||tagged==85||tagged==93
+                ||tagged==94||tagged==106||tagged==131||tagged==132)
+            return 0;
+        if(tagged==8||tagged==9) return 3;
+        if(tagged==10||tagged==11) return 0;
+        return 255;
+    }
     switch (c) {
         case PB_AIR: case PB_TALLGRASS: case PB_FERN: case PB_DEADBUSH:
         case PB_BROWN_MUSHROOM: case PB_RED_MUSHROOM: case PB_REEDS: case PB_WATER_LILY:
@@ -393,6 +431,7 @@ MC_HD MC_NOINLINE static int pb_opacity(int c) {
          * decorator y-bounds (nextInt(getHeight*2)) read. Half slabs stay 255 (explicit
          * setLightOpacity(255) in BlockSlab). */
         case PB_CACTUS: case PB_CHEST: case PB_MOB_SPAWNER:
+        case PB_STONE_PRESSURE_PLATE:
         /* lava too: BlockLiquid isOpaqueCube=false and the lava registration has no
          * setLightOpacity (water gets an explicit .n(3)) -> vanilla heightMap scans
          * straight through lava columns. */
@@ -408,9 +447,9 @@ MC_HD MC_NOINLINE static int pb_opacity(int c) {
             return 255;
     }
 }
-MC_HD static inline int pb_isAir(int c) { return c == PB_AIR; }
-MC_HD static inline int pb_isWater(int c) { return c == PB_WATER || c == PB_FLOWING_WATER; }
-MC_HD static inline int pb_isLava(int c) { return c == PB_LAVA || c == PB_FLOWING_LAVA; }
+MC_HD static inline int pb_isAir(int c) { return c == PB_AIR || pb_tag_id(c)==0; }
+MC_HD static inline int pb_isWater(int c) { int id=pb_tag_id(c); return c==PB_WATER||c==PB_FLOWING_WATER||id==8||id==9; }
+MC_HD static inline int pb_isLava(int c) { int id=pb_tag_id(c); return c==PB_LAVA||c==PB_FLOWING_LAVA||id==10||id==11; }
 MC_HD static inline int pb_isLiquid(int c) { return pb_isWater(c) || pb_isLava(c); }
 MC_HD MC_NOINLINE static int pb_isLeaves(int c) {
     return c == PB_LEAVES_OAK || c == PB_LEAVES_BIRCH || c == PB_LEAVES_SPRUCE ||
@@ -437,6 +476,11 @@ MC_HD MC_NOINLINE static int pb_isPlant(int c) {
 }
 /* Material.blocksMovement(): false for air/liquid/plants/vine/snow_layer; true for leaves+solids. */
 MC_HD MC_NOINLINE static int pb_blocksMovement(int c) {
+    int tagged=pb_tag_id(c);
+    if(tagged>=0)
+        return tagged!=0&&tagged!=8&&tagged!=9&&tagged!=10&&tagged!=11&&
+               tagged!=30&&tagged!=50&&tagged!=55&&tagged!=66&&tagged!=69&&
+               tagged!=93&&tagged!=94&&tagged!=106&&tagged!=131&&tagged!=132;
     if (pb_isAir(c) || pb_isLiquid(c) || pb_isPlant(c) || pb_isVine(c) || c == PB_SNOW_LAYER)
         return 0;
     return 1;
@@ -2247,13 +2291,37 @@ MC_HD MC_NOINLINE static void wg_dungeons(World *w, JavaRandom *r, int posX, int
                     if (pb_isSolid(w_get(w, l4, i5, j5 - 1))) ++j3;
                     if (j3 == 1) {
                         w_set(w, l4, i5, j5, PB_CHEST);
-                        jrand_long(r);   /* setLootTable(rand.nextLong()) */
+                        {
+                            i64 loot_seed = jrand_long(r);
+#ifndef __CUDA_ARCH__
+                            if (g_w_dungeon_event) {
+                                /* Chest default is NORTH. With exactly one
+                                 * solid horizontal neighbor, correctFacing
+                                 * points away from it (legacy facing meta). */
+                                int meta = pb_isSolid(w_get(w, l4 + 1, i5, j5)) ? 4
+                                         : pb_isSolid(w_get(w, l4 - 1, i5, j5)) ? 5
+                                         : pb_isSolid(w_get(w, l4, i5, j5 + 1)) ? 2
+                                         : 3;
+                                g_w_dungeon_event(w->baseCx, w->baseCz,
+                                    MC_DUNGEON_EVENT_CHEST,
+                                    l4, i5, j5, loot_seed, meta);
+                            }
+#endif
+                        }
                         break;
                     }
                 }
             }
         w_set(w, posX, posY, posZ, PB_MOB_SPAWNER);
-        jrand_int_bound(r, 400);   /* pickMobSpawner: DungeonHooks.getRandomDungeonMob total weight 400 */
+        {
+            int roll = jrand_int_bound(r, 400);
+#ifndef __CUDA_ARCH__
+            if (g_w_dungeon_event)
+                g_w_dungeon_event(w->baseCx, w->baseCz,
+                    MC_DUNGEON_EVENT_SPAWNER,
+                    posX, posY, posZ, (i64)roll, 0);
+#endif
+        }
     }
 }
 

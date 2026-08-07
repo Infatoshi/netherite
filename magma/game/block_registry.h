@@ -38,6 +38,12 @@ static inline int gm_state_meta(uint16_t state) { return (int)(state & 15); }
 static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
     int id = -1, meta = 0, quality = GM_MAP_EXACT;
 
+    if (key & 0x4000) {
+        uint16_t state = (uint16_t)(key & 0x3fff);
+        id = gm_state_id(state);
+        if (out) *out = state;
+        return id >= 0 && id <= 1023 ? GM_MAP_EXACT : GM_MAP_UNSUPPORTED;
+    }
     if (key & 0x8000) {
         id = key & 0x0fff;
         if (out) *out = gm_pack_state(id, raw_meta);
@@ -95,7 +101,9 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         case 46: id = 48; break;                  /* mossy cobble */
         case 47: id = 52; break;                  /* mob spawner */
         case 48: id = 216; quality = GM_MAP_LOSSY; break; /* bone axis lost */
-        case 49: id = 54; meta = 2; break;        /* chest, north default */
+        case 49: id = 54;
+                 meta = raw_meta >= 2 && raw_meta <= 5 ? raw_meta : 2;
+                 break;                           /* chest horizontal facing */
         case 50: id = 37; break;                  /* dandelion */
 
         case 66: id = 175; meta = 10; break;      /* double-plant upper */
@@ -114,6 +122,16 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
         case 87: id = 103; break;                 /* melon */
         case 88: id = 127; quality = GM_MAP_LOSSY; break; /* cocoa age/facing lost */
         case 89: id = 49; break;                  /* obsidian */
+        case 90: id = 24; meta = 2; break;        /* smooth sandstone */
+        case 91: id = 24; meta = 1; break;        /* chiseled sandstone */
+        case 92: id = 128; meta = 0; break;       /* sandstone stairs east */
+        case 93: id = 128; meta = 1; break;       /* sandstone stairs west */
+        case 94: id = 128; meta = 2; break;       /* sandstone stairs south */
+        case 95: id = 128; meta = 3; break;       /* sandstone stairs north */
+        case 96: id = 159; meta = 1; break;       /* orange stained clay */
+        case 97: id = 159; meta = 11; break;      /* blue stained clay */
+        case 98: id = 70; break;                  /* stone pressure plate */
+        case 99: id = 46; break;                  /* TNT */
 
         /* Synthetic/model-test keys and dimension-dump keys. */
         case 200: id = 20; break;                 /* glass */
@@ -153,6 +171,19 @@ static inline int gm_model_key_to_state(int key, int raw_meta, uint16_t *out) {
             id = 96; meta = raw_meta; break;        /* oak trapdoor */
         case GM_MODEL_LADDER: id = 65; meta = raw_meta; break;
         case GM_MODEL_STONEBRICK: id = 98; meta = raw_meta; break;
+        case 263: id = 201; break;                  /* purpur block */
+        case 264: id = 202; break;                  /* purpur pillar Y */
+        case 265: id = 202; meta = 4; break;        /* purpur pillar X */
+        case 266: id = 202; meta = 8; break;        /* purpur pillar Z */
+        case 267: id = 203; meta = raw_meta; break; /* purpur stairs */
+        case 268: id = 205; break;                  /* purpur slab bottom */
+        case 269: id = 205; meta = 8; break;        /* purpur slab top */
+        case 270: id = 206; break;                  /* End stone bricks */
+        case 271: id = 198; meta = raw_meta; break; /* End rod */
+        case 272: id = 95; meta = 2; break;         /* magenta stained glass */
+        case 273: id = 199; break;                  /* chorus plant */
+        case 274: id = 200; break;                  /* living chorus flower */
+        case 275: id = 200; meta = 5; break;        /* dead chorus flower */
         default: break;
     }
 
@@ -230,7 +261,7 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 20: return 200;
         case 30: return 230;
         case 21: return 29;
-        case 24: return 8;
+        case 24: return meta == 1 ? 91 : meta == 2 ? 90 : 8;
         case 31: return (meta & 3) == 2 ? 40 : 39;
         case 32: return 41;
         case 37: return 50;
@@ -240,7 +271,7 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 44:
             return ((meta & 8) ? GM_MODEL_STONE_SLAB_TOP_BASE
                                : GM_MODEL_STONE_SLAB_BOTTOM_BASE) + (meta & 7);
-        case 46: return 235;
+        case 46: return 236;
         case 48: return 46;
         case 49: return 89;
         case 50: return 222;
@@ -253,6 +284,7 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 65: return GM_MODEL_LADDER;
         case 66: return 235;                      /* rail */
         case 67: return 254;                      /* cobblestone stairs */
+        case 70: return 98;
         case 73: return 27;
         case 78: return 16;
         case 79: return 10;
@@ -265,6 +297,7 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 88: return 215;
         case 89: return 214;
         case 90: return 211;
+        case 95: return (meta & 15) == 2 ? 272 : 200;
         case 96: return GM_MODEL_TRAPDOOR;
         case 97: return 76;
         case 98: return GM_MODEL_STONEBRICK;
@@ -287,10 +320,11 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 120: return 216;
         case 121: return 212;
         case 127: return 88;
+        case 128: return 92 + (meta & 3);
         case 129: return 75;
         case 139: return 233;
         case 153: return 217;
-        case 159: return 120 + (meta & 15);
+        case 159: return meta == 1 ? 96 : meta == 11 ? 97 : 120 + (meta & 15);
         case 161: return (meta & 1) ? 78 : 83;
         case 162: return (meta & 1) ? 77 : 82;
         case 165: return 229;
@@ -298,6 +332,14 @@ static inline int gm_state_to_model_key(uint16_t state) {
         case 174: return 231;
         case 175: return (meta & 8) ? 66 : 60 + (meta & 7);
         case 179: return 9;
+        case 198: return 271;
+        case 199: return 273;
+        case 200: return (meta & 7) == 5 ? 275 : 274;
+        case 201: return 263;
+        case 202: return (meta & 12) == 4 ? 265 : (meta & 12) == 8 ? 266 : 264;
+        case 203: return 267;
+        case 205: return (meta & 8) ? 269 : 268;
+        case 206: return 270;
         case 213: return 220;
         case 216: return 48;
         default: return GM_MODEL_FALLBACK;

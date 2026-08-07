@@ -1,0 +1,4 @@
+# DOWN-facing piston above an isolated oak-fence post. The collision post is
+# 1.5 blocks high despite the one-block selection outline.
+12 81 9 152 0
+12 79 8 85 0

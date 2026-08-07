@@ -37,6 +37,7 @@
 #include "game/overlay.h"        /* selection outline + dig crack decal geometry */
 #include "game/sel_box.h"        /* vanilla per-block selection bounding boxes */
 #include "game/item_render.h"    /* dropped-item mini blocks + flat sprites */
+#include "game/audio_live.h"
 #include "container_click.h"
 #include "items_core.h"
 #include "assets/blockmodels.h"
@@ -562,6 +563,13 @@ int main(int argc, char **argv) {
     CrWindow *cwin = cr_window_open(fb_w, fb_h, "magma - game");
     if (!cwin) { fprintf(stderr, "cr_window_open failed\n"); return 1; }
 
+    GmAudioLive audio;
+    {
+        char audio_err[256];
+        if (!gm_audio_live_init(&audio, audio_err, sizeof audio_err))
+            fprintf(stderr, "warning: audio disabled: %s\n", audio_err);
+    }
+
     int frame = 0, running = 1;
 
     /* ---- 20 TPS tick accumulator + render interpolation (Timer.java port) ----
@@ -933,6 +941,9 @@ int main(int argc, char **argv) {
             cpv.yaw   = prev_yaw   + (pl.yaw   - prev_yaw)   * partial_ticks;
             cpv.pitch = prev_pitch + (pl.pitch - prev_pitch) * partial_ticks;
         }
+        gm_audio_live_update(
+            &audio, &runtime,
+            cpv.x, cpv.y + cpv.eye_height, cpv.z, cpv.yaw, cpv.pitch);
         GmWindowComposeFrame compose_frame = {
             .view = &pv,
             .camera_view = &cpv,
@@ -1011,6 +1022,7 @@ int main(int argc, char **argv) {
             live.ents[0].age, live.ents[0].y);
 
     gm_window_compose_close(compose);
+    gm_audio_live_destroy(&audio);
     gm_runtime_destroy(&runtime);
     cr_window_close(cwin);
 #undef fb

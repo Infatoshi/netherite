@@ -91,7 +91,7 @@ run_step() {
 
 # gpu_busy IDX -> 0 (busy/unknown reason echoed) or 1 (idle)
 gpu_busy() {
-	local idx="$1" util
+	local idx="$1" util used
 	if ! command -v nvidia-smi >/dev/null 2>&1; then
 		echo "nvidia-smi not found"
 		return 0
@@ -100,6 +100,13 @@ gpu_busy() {
 		--format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ' ')
 	if [ -z "$util" ]; then
 		echo "GPU $idx not visible to nvidia-smi"
+		return 0
+	fi
+	used=$(nvidia-smi --id="$idx" --query-compute-apps=used_memory \
+		--format=csv,noheader,nounits 2>/dev/null | \
+		awk '{sum += $1} END {print sum + 0}')
+	if [ "$used" -gt 4096 ]; then
+		echo "GPU $idx shared (${used}MiB held by compute processes)"
 		return 0
 	fi
 	if [ "$util" -gt 50 ]; then
@@ -149,6 +156,7 @@ run_step magma-verify-harsh 600 "$MAGMA" make verify-harsh
 run_step magma-test-config 300 "$MAGMA" bash game/test_config.sh
 run_step magma-block-registry 300 "$MAGMA" make test-block-registry
 run_step magma-test-launch 300 "$MAGMA" make test-launch
+run_step magma-parity-60 900 "$ROOT" bash scripts/test_parity_60.sh
 
 # ---- blaze: batched env gates (CPU) -----------------------------------------
 FIRST_SNAP=$(find "$SNAPS_DIR" -maxdepth 1 -name '*.bsnp' 2>/dev/null | sort | head -1)
@@ -181,6 +189,8 @@ run_step rl-reward-parity 300 "$ROOT" \
 
 # focused scenario + tape unit gates (no Java/GPU): pixel mild-shift, state
 # assertions, scenario materialize/archive, missing-model completeness
+run_step state-capsule-selftest 60 "$MAGMA" \
+	uv run --no-project python trace/state_capsule.py selftest
 run_step verify-unit-gates 600 "$ROOT" \
 	uv run --no-project --with pytest --with numpy --with scipy --with pillow \
 	--with pyyaml \
@@ -282,6 +292,17 @@ if [ "$MODE" = full ]; then
 	# canonical tape replay + raster parity are pinned to GPU1 by design
 	# (magma_game_cuda is built sm_86; replay_tape.py defaults to GPU1)
 	BUSY1=$(gpu_busy 1) || BUSY1=""
+	# NVML utilization is a trailing sample. When the Blaze benchmark above ran
+	# on GPU1, its process can be gone while one 99% sample remains and makes the
+	# sweep skip its own raster gates. Give that sample a short chance to clear;
+	# a genuinely shared workload remains busy and is still left untouched.
+	if [ -n "$BUSY1" ] && [ "$GPU_IDX" = 1 ]; then
+		for _attempt in 1 2 3 4 5; do
+			sleep 2
+			BUSY1=$(gpu_busy 1) || BUSY1=""
+			[ -z "$BUSY1" ] && break
+		done
+	fi
 	if [ -n "$BUSY1" ]; then
 		skip build-magma-cuda "$BUSY1 (GPU1 pinned)"
 		skip raster-parity "$BUSY1 (GPU1 pinned)"

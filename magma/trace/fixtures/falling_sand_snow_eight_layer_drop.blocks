@@ -1,0 +1,6 @@
+# x y z id meta
+# Eight-layer snow collides at 7/8 height and is not replaceable.
+# Sand clips to y=77.875 and drops as an item; stone keeps the snow valid.
+12 76 8 1 0
+12 77 8 78 7
+12 80 8 12 0

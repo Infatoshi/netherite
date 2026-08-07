@@ -1,0 +1,7 @@
+# x y z id meta
+# Controlled BlockFire callback proof: age-0 fire on stone with one
+# east-adjacent TNT. Random(4) burns the TNT to air and must still invoke
+# BlockTNT's EXPLODE destruction path, creating one primed TNT entity.
+12 77 8 1 0
+12 78 8 51 0
+13 78 8 46 0

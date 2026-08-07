@@ -1,8 +1,8 @@
-/* mc_rng.h - two RNGs, both header-only and __host__ __device__.
+/* mc_rng.h - two RNG families, both header-only and __host__ __device__.
  *
- *  1) JavaRandom: exact java.util.Random (48-bit LCG). Used ONLY for world generation, so a
- *     seed yields recognizable terrain. Stateful, call-order-dependent (that is intrinsic to
- *     worldgen and fine - worldgen is per-chunk sequential).
+ *  1) JavaRandom: exact java.util.Random (48-bit LCG). World generation uses
+ *     the base cursor. Entity-local users opt into JavaGaussianRandom, which
+ *     also preserves Random.nextGaussian's cached second sample.
  *
  *  2) mc_hash_*: stateless hash RNG keyed on (tick, x, y, z, purpose). Used for ALL runtime
  *     sim randomness (mob spawn, drops, random ticks, AI). Order-independent => identical on
@@ -12,6 +12,7 @@
 #ifndef MC_RNG_H
 #define MC_RNG_H
 
+#include <math.h>
 #include "mc.h"
 
 /* ---------- java.util.Random ---------- */
@@ -21,8 +22,19 @@
 
 typedef struct { u64 seed; } JavaRandom;
 
+typedef struct {
+    JavaRandom random;
+    double next_next_gaussian;
+    int have_next_next_gaussian;
+} JavaGaussianRandom;
+
+#include "fdlibm_log.h"
+
 MC_HD static inline void jrand_set(JavaRandom *r, i64 seed) {
     r->seed = ((u64)seed ^ MC_JR_MULT) & MC_JR_MASK;
+}
+MC_HD static inline void jrand_set_seed48(JavaRandom *r, u64 seed48) {
+    r->seed = seed48 & MC_JR_MASK;
 }
 /* ---- population-cascade RNG-clobber watch (host-only replay instrumentation) ----
  * Vanilla's provideChunk reseeds the SHARED provider Random mid-populate when a
@@ -71,10 +83,13 @@ MC_HD static inline i32 jrand_int_bound(JavaRandom *r, i32 bound) {
     return val;
 }
 MC_HD static inline i64 jrand_long(JavaRandom *r) {
-    /* C does not sequence + operands; Java is strictly left-to-right. Use ordered temporaries. */
-    i64 hi = (i64)jrand_next(r, 32);
-    i64 lo = (i64)jrand_next(r, 32);
-    return (hi << 32) + lo;
+    /* C does not sequence + operands; Java is strictly left-to-right.  Compose
+     * modulo 2^64 so a negative high word is never left-shifted in signed C.
+     * The low int remains sign-extended, as Random.nextLong specifies. */
+    i32 hi = jrand_next(r, 32);
+    i32 lo = jrand_next(r, 32);
+    u64 bits = ((u64)(u32)hi << 32) + (u64)(i64)lo;
+    return (i64)bits;
 }
 MC_HD static inline float jrand_float(JavaRandom *r) {
     return jrand_next(r, 24) / (float)(1 << 24);
@@ -83,6 +98,39 @@ MC_HD static inline double jrand_double(JavaRandom *r) {
     i64 hi = (i64)jrand_next(r, 26);
     i64 lo = (i64)jrand_next(r, 27);
     return ((hi << 27) + lo) * (1.0 / (double)(1LL << 53));
+}
+
+MC_HD static inline void jrand_gaussian_set(JavaGaussianRandom *r, i64 seed) {
+    jrand_set(&r->random, seed);
+    r->next_next_gaussian = 0.0;
+    r->have_next_next_gaussian = 0;
+}
+
+MC_HD static inline void jrand_gaussian_set_state(
+        JavaGaussianRandom *r, u64 seed48, int have_next, double next) {
+    jrand_set_seed48(&r->random, seed48);
+    r->next_next_gaussian = next;
+    r->have_next_next_gaussian = have_next ? 1 : 0;
+}
+
+/* java.util.Random.nextGaussian. Java specifies StrictMath.log/sqrt here.
+ * The narrow entity_random Java/CPU/CUDA oracle locks the host/device libm
+ * result for the seeds used by the live fixtures. */
+MC_HD static inline double jrand_gaussian_next(JavaGaussianRandom *r) {
+    if (r->have_next_next_gaussian) {
+        r->have_next_next_gaussian = 0;
+        return r->next_next_gaussian;
+    }
+    for (;;) {
+        double v1 = 2.0 * jrand_double(&r->random) - 1.0;
+        double v2 = 2.0 * jrand_double(&r->random) - 1.0;
+        double s = v1 * v1 + v2 * v2;
+        if (s >= 1.0 || s == 0.0) continue;
+        double multiplier = sqrt(-2.0 * mc_strict_log(s) / s);
+        r->next_next_gaussian = v2 * multiplier;
+        r->have_next_next_gaussian = 1;
+        return v1 * multiplier;
+    }
 }
 
 /* ---------- stateless hash RNG (runtime) ---------- */

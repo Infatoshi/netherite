@@ -1,0 +1,4 @@
+# EAST-facing normal piston is placed at tick zero directly west of the
+# parked player. A stable south-side redstone block powers it. The moving
+# source head sweeps the player's collision box during both half steps.
+7 78 9 152 0

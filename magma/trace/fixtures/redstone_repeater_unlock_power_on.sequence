@@ -1,0 +1,5 @@
+# tick dx dy dz id meta
+# Power the main input while locked, then remove the north-side powered
+# repeater so its neighbor notification starts the delayed transition.
+0 3 0 0 152 0
+1 4 0 -1 0 0

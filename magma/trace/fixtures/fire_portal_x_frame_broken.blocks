@@ -1,0 +1,16 @@
+# x y z id meta
+# Valid-frame negative: the top-right interior obsidian at (12,81,8) is
+# absent, so tick-0 fire must remain fire and schedule normally.
+10 77 8 49 0
+11 77 8 49 0
+12 77 8 49 0
+13 77 8 49 0
+10 78 8 49 0
+13 78 8 49 0
+10 79 8 49 0
+13 79 8 49 0
+10 80 8 49 0
+13 80 8 49 0
+10 81 8 49 0
+11 81 8 49 0
+13 81 8 49 0

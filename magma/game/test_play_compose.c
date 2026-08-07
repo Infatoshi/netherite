@@ -176,6 +176,80 @@ static void test_torch_click_uses_aabb_face(void) {
           "follow-up click places no upper-wall torch and consumes nothing");
 }
 
+static void test_tripwire_selection_box(void) {
+    GmSelIn in;
+    float box[6];
+    memset(&in,0,sizeof in);
+    in.id=132;
+    in.meta=4;
+    gm_sel_box(&in,box);
+    CHECK(box[0]==0.0f && box[1]==0.0625f && box[2]==0.0f &&
+          box[3]==1.0f && box[4]==0.15625f && box[5]==1.0f,
+          "attached tripwire uses exact thin selection box");
+    in.meta=0;
+    gm_sel_box(&in,box);
+    CHECK(box[0]==0.0f && box[1]==0.0f && box[2]==0.0f &&
+          box[3]==1.0f && box[4]==0.5f && box[5]==1.0f,
+          "detached tripwire uses exact half-block selection box");
+}
+
+static void test_redstone_diode_selection_box(void) {
+    static const int ids[4]={93,94,149,150};
+    GmSelIn in;
+    float box[6];
+    memset(&in,0,sizeof in);
+    for(int i=0;i<4;++i){
+        in.id=ids[i];
+        in.meta=i*5;
+        gm_sel_box(&in,box);
+        CHECK(box[0]==0.0f && box[1]==0.0f && box[2]==0.0f &&
+              box[3]==1.0f && box[4]==0.125f && box[5]==1.0f,
+              "repeater/comparator selection is full-footprint and 1/8 high");
+    }
+}
+
+static void test_brewing_stand_selection_box(void) {
+    GmSelIn in;
+    float box[6];
+    memset(&in,0,sizeof in);
+    in.id=117;
+    for(int meta=0;meta<8;++meta){
+        in.meta=meta;
+        gm_sel_box(&in,box);
+        CHECK(box[0]==0.0f && box[1]==0.0f && box[2]==0.0f &&
+              box[3]==1.0f && box[4]==0.125f && box[5]==1.0f,
+              "brewing-stand selection uses its base, not its collision stem");
+    }
+}
+
+static void test_piston_base_selection_boxes(void) {
+    static const int ids[2]={29,33};
+    static const float extended[6][6]={
+        {0.f,0.25f,0.f,1.f,1.f,1.f},
+        {0.f,0.f,0.f,1.f,0.75f,1.f},
+        {0.f,0.f,0.25f,1.f,1.f,1.f},
+        {0.f,0.f,0.f,1.f,1.f,0.75f},
+        {0.25f,0.f,0.f,1.f,1.f,1.f},
+        {0.f,0.f,0.f,0.75f,1.f,1.f},
+    };
+    GmSelIn in;
+    float box[6];
+    memset(&in,0,sizeof in);
+    for(int block=0;block<2;++block)
+        for(int facing=0;facing<6;++facing){
+            in.id=ids[block];
+            in.meta=facing;
+            gm_sel_box(&in,box);
+            CHECK(box[0]==0.f && box[1]==0.f && box[2]==0.f &&
+                  box[3]==1.f && box[4]==1.f && box[5]==1.f,
+                  "retracted normal/sticky piston base selects a full cube");
+            in.meta=facing|8;
+            gm_sel_box(&in,box);
+            CHECK(memcmp(box,extended[facing],sizeof box)==0,
+                  "extended normal/sticky piston base selects its facing 3/4 body");
+        }
+}
+
 /* Interact: wooden door at eye height; live gm_player_tick must emit open meta.
  * Door at y=66 (eye ~66.62); look slightly down so ray hits the door block. */
 static void test_interact_door(void) {
@@ -213,6 +287,21 @@ static void test_interact_door(void) {
         u16 stt = mc_get(&win[4], 8, 66, 10);
         CHECK((stt & 15) & 4, "window door meta OPEN after live tick");
     }
+}
+
+static void test_closed_shulker_selection_boxes(void) {
+    GmSelIn in;
+    float box[6];
+    memset(&in,0,sizeof in);
+    for(int id=219;id<=234;++id)
+        for(int facing=0;facing<6;++facing){
+            in.id=id;
+            in.meta=facing;
+            gm_sel_box(&in,box);
+            CHECK(box[0]==0.f && box[1]==0.f && box[2]==0.f &&
+                  box[3]==1.f && box[4]==1.f && box[5]==1.f,
+                  "every closed shulker color/facing selects a full cube");
+        }
 }
 
 /* Inventory slotClick: PICKUP + QUICK_MOVE + THROW via gm_player_inv_click (live API). */
@@ -360,6 +449,15 @@ static void test_live_item_pickup(void) {
     CHECK(got.item == 17 && got.count == 1 && got.meta == 2,
           "eligible item entity enters inventory with metadata");
     CHECK(live.n_active == 0, "collected item entity is removed");
+
+    /* Entity.nextEntityID is post-incremented from its zero initializer. */
+    memset(&live, 0, sizeof live);
+    CHECK(gm_live_spawn_item_exact(
+              &live, 0, 8.5, 4.0, 8.5,
+              0.0, 0.0, 0.0, 0.0f, 17, 1, 0, 0, 10, 1),
+          "exact item spawn accepts Java entity ID zero");
+    CHECK(live.ents[0].active && live.ents[0].eid == 0,
+          "exact item retains Java entity ID zero");
     gm_world_destroy(w);
 }
 
@@ -368,6 +466,11 @@ int main(void) {
     test_progressive_dig();
     test_place_meta();
     test_torch_click_uses_aabb_face();
+    test_tripwire_selection_box();
+    test_redstone_diode_selection_box();
+    test_brewing_stand_selection_box();
+    test_piston_base_selection_boxes();
+    test_closed_shulker_selection_boxes();
     test_interact_door();
     test_inventory_click();
     test_live_inv_action();

@@ -73,12 +73,18 @@ typedef struct {
     /* vanilla sprint state (EntityPlayerSP.onLivingUpdate; game layer runs the rules) */
     int      sprinting;           /* Entity flag 3: sprint speed/jump boosts active */
     int      sprint_toggle_timer; /* double-tap-W window, set to 7 on a fresh press edge */
+    int      blindness;           /* active MobEffects.BLINDNESS blocks sprint starts */
     int      jump_factor_sprint;  /* sprint folded into jumpMovementFactor: EntityPlayer.
                                    * onLivingUpdate updates the factor AFTER super's
                                    * movement, so air accel lags the flag by one tick */
     int      jump_ticks;          /* EntityLivingBase.jumpTicks: 10-tick hold-jump
                                    * cooldown, decremented every tick */
+    double   movement_speed_multiplier; /* active attribute op-2 product;
+                                         * 1.0 without speed/slowness */
+    int      levitation_amplifier; /* active MobEffects.LEVITATION amp, or -1 */
+    int      jump_boost_amplifier; /* active MobEffects.JUMP_BOOST amp, or -1 */
     int      is_in_web;           /* Entity.isInWeb: set after move, consumed by next move */
+    int      cactus_contact;      /* BlockCactus callback observed in this move */
     int      reset_fall_distance; /* setInWeb/onFallenUpon result for the game vitals pass */
     float    prev_move_forward;   /* last tick's movementInput.moveForward (pre-update flag2) */
     int      prev_sneak;          /* last tick's movementInput.sneak (pre-update flag1) */
@@ -183,23 +189,336 @@ MC_HD static inline float psv_slipperiness(int id) {
     return 0.6f;
 }
 
+MC_HD static inline int psv_is_default_full_cube_1_11_2(int id);
+
+MC_HD static inline int psv_is_fence_id(int id) {
+    switch (id) {
+    case 85: case 113: case 188: case 189: case 190: case 191: case 192:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+MC_HD static inline int psv_is_fence_gate_id(int id) {
+    return id == 107 || (id >= 183 && id <= 187);
+}
+
+MC_HD static inline int psv_is_gourd_id(int id) {
+    return id == 86 || id == 91 || id == 103;
+}
+
+/* Exact 1.11.2 opaque-full-cube projection used by fence/wall actual state.
+ * The default-full-cube switch below supplies the broad set; these are the
+ * registry differences from the normal-cube table plus log2's axis mask. */
+MC_HD static inline int psv_is_opaque_full_cube_1_11_2(int id, int meta) {
+    if (id == 152 || id == 218) return 1;
+    if (!psv_is_default_full_cube_1_11_2(id)) return 0;
+    if (id == 18 || id == 46 || id == 79 || id == 89
+            || id == 161 || id == 169 || id == 212)
+        return 0;
+    if (id == 162) return (meta & 2) == 0;
+    return 1;
+}
+
 MC_HD static inline int psv_fence_connects(const Chunk *chunks, int id,
                                             int x, int y, int z) {
     int neighbor = psv_get_block(chunks, x, y, z);
-    if (id == BLK_NETHER_BRICK_FENCE && neighbor == BLK_NETHER_BRICK_FENCE) return 1;
-    if (id == BLK_FENCE && neighbor == BLK_FENCE) return 1;
-    /* BlockFenceGate plus an opaque full cube. The exact tape only exercises
-     * same-material fence runs, but these are the vanilla remaining cases. */
-    if (neighbor == 107) return 1;
-    return psv_solid(neighbor) && neighbor != BLK_FENCE &&
-           neighbor != BLK_NETHER_BRICK_FENCE && neighbor != BLK_COBBLESTONE_WALL;
+    int meta = psv_get_meta(chunks, x, y, z);
+    if (psv_is_fence_gate_id(neighbor)) return 1;
+    if (psv_is_fence_id(neighbor))
+        return (neighbor == 113) == (id == 113);
+    return neighbor != 166 && !psv_is_gourd_id(neighbor)
+        && psv_is_opaque_full_cube_1_11_2(neighbor, meta);
 }
 
 MC_HD static inline int psv_wall_connects(const Chunk *chunks, int x, int y, int z) {
     int neighbor = psv_get_block(chunks, x, y, z);
-    if (neighbor == BLK_COBBLESTONE_WALL || neighbor == 107) return 1;
-    return psv_solid(neighbor) && neighbor != BLK_FENCE &&
-           neighbor != BLK_NETHER_BRICK_FENCE;
+    int meta = psv_get_meta(chunks, x, y, z);
+    if (neighbor == BLK_COBBLESTONE_WALL
+            || psv_is_fence_gate_id(neighbor))
+        return 1;
+    return neighbor != 166 && !psv_is_gourd_id(neighbor)
+        && psv_is_opaque_full_cube_1_11_2(neighbor, meta);
+}
+
+typedef enum PsvStairShape {
+    PSV_STAIR_STRAIGHT,
+    PSV_STAIR_INNER_LEFT,
+    PSV_STAIR_INNER_RIGHT,
+    PSV_STAIR_OUTER_LEFT,
+    PSV_STAIR_OUTER_RIGHT
+} PsvStairShape;
+
+MC_HD static inline int psv_is_stair_id(int id) {
+    switch (id) {
+    case 53: case 67: case 108: case 109: case 114: case 128:
+    case 134: case 135: case 136: case 156: case 163: case 164:
+    case 180: case 203:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+MC_HD static inline int psv_stair_rotate_y(int facing) {
+    static const int rotated[6] = {0, 1, 5, 4, 2, 3};
+    return facing >= 2 && facing <= 5 ? rotated[facing] : facing;
+}
+
+MC_HD static inline int psv_stair_rotate_y_ccw(int facing) {
+    static const int rotated[6] = {0, 1, 4, 5, 3, 2};
+    return facing >= 2 && facing <= 5 ? rotated[facing] : facing;
+}
+
+MC_HD static inline int psv_stair_is_different(
+        const Chunk *chunks, int x, int y, int z, int direction,
+        int facing, int top) {
+    static const int dx[6] = {0, 0, 0, 0, -1, 1};
+    static const int dz[6] = {0, 0, -1, 1, 0, 0};
+    int id = psv_get_block(
+        chunks, x + dx[direction], y, z + dz[direction]);
+    int meta = psv_get_meta(
+        chunks, x + dx[direction], y, z + dz[direction]);
+    return !psv_is_stair_id(id)
+        || 5 - (meta & 3) != facing
+        || ((meta & 4) != 0) != top;
+}
+
+MC_HD static inline PsvStairShape psv_stair_shape(
+        const Chunk *chunks, int x, int y, int z, int meta) {
+    static const int dx[6] = {0, 0, 0, 0, -1, 1};
+    static const int dz[6] = {0, 0, -1, 1, 0, 0};
+    PsvStairShape shape = PSV_STAIR_STRAIGHT;
+    int facing = 5 - (meta & 3);
+    int top = (meta & 4) != 0;
+    int neighbor_id, neighbor_meta, neighbor_facing;
+
+    neighbor_id = psv_get_block(
+        chunks, x + dx[facing], y, z + dz[facing]);
+    neighbor_meta = psv_get_meta(
+        chunks, x + dx[facing], y, z + dz[facing]);
+    if (psv_is_stair_id(neighbor_id)
+            && ((neighbor_meta & 4) != 0) == top) {
+        neighbor_facing = 5 - (neighbor_meta & 3);
+        if ((neighbor_facing < 4) != (facing < 4)
+                && psv_stair_is_different(
+                    chunks, x, y, z, neighbor_facing ^ 1,
+                    facing, top))
+            shape = neighbor_facing == psv_stair_rotate_y_ccw(facing)
+                ? PSV_STAIR_OUTER_LEFT : PSV_STAIR_OUTER_RIGHT;
+    }
+    if (shape == PSV_STAIR_STRAIGHT) {
+        int opposite = facing ^ 1;
+        neighbor_id = psv_get_block(
+            chunks, x + dx[opposite], y, z + dz[opposite]);
+        neighbor_meta = psv_get_meta(
+            chunks, x + dx[opposite], y, z + dz[opposite]);
+        if (psv_is_stair_id(neighbor_id)
+                && ((neighbor_meta & 4) != 0) == top) {
+            neighbor_facing = 5 - (neighbor_meta & 3);
+            if ((neighbor_facing < 4) != (facing < 4)
+                    && psv_stair_is_different(
+                        chunks, x, y, z, neighbor_facing,
+                        facing, top))
+                shape = neighbor_facing == psv_stair_rotate_y_ccw(facing)
+                    ? PSV_STAIR_INNER_LEFT : PSV_STAIR_INNER_RIGHT;
+        }
+    }
+    return shape;
+}
+
+MC_HD static inline int psv_stair_collision_shapes(
+        const Chunk *chunks, int x, int y, int z, int meta,
+        McAABB shapes[3]) {
+    PsvStairShape shape = psv_stair_shape(chunks, x, y, z, meta);
+    int facing = 5 - (meta & 3);
+    int top = (meta & 4) != 0;
+    int count = 0;
+    double part_y0 = top ? 0.0 : 0.5;
+    double part_y1 = top ? 0.5 : 1.0;
+
+    shapes[count++] = mc_aabb_make(
+        x, y + (top ? 0.5 : 0.0), z,
+        x + 1.0, y + (top ? 1.0 : 0.5), z + 1.0);
+    if (shape == PSV_STAIR_STRAIGHT
+            || shape == PSV_STAIR_INNER_LEFT
+            || shape == PSV_STAIR_INNER_RIGHT) {
+        double x0 = 0.0, x1 = 1.0, z0 = 0.0, z1 = 1.0;
+        if (facing == 2) z1 = 0.5;
+        else if (facing == 3) z0 = 0.5;
+        else if (facing == 4) x1 = 0.5;
+        else x0 = 0.5;
+        shapes[count++] = mc_aabb_make(
+            x + x0, y + part_y0, z + z0,
+            x + x1, y + part_y1, z + z1);
+    }
+    if (shape != PSV_STAIR_STRAIGHT) {
+        int corner_facing;
+        double x0, z0;
+        if (shape == PSV_STAIR_OUTER_RIGHT)
+            corner_facing = psv_stair_rotate_y(facing);
+        else if (shape == PSV_STAIR_INNER_RIGHT)
+            corner_facing = facing ^ 1;
+        else if (shape == PSV_STAIR_INNER_LEFT)
+            corner_facing = psv_stair_rotate_y_ccw(facing);
+        else
+            corner_facing = facing;
+        x0 = corner_facing == 2 || corner_facing == 4 ? 0.0 : 0.5;
+        z0 = corner_facing == 2 || corner_facing == 5 ? 0.0 : 0.5;
+        shapes[count++] = mc_aabb_make(
+            x + x0, y + part_y0, z + z0,
+            x + x0 + 0.5, y + part_y1, z + z0 + 0.5);
+    }
+    return count;
+}
+
+MC_HD static inline int psv_is_pane_id(int id) {
+    return id == 101 || id == 102 || id == 160;
+}
+
+/* BlockPane.canPaneConnectToBlock first asks Block.isFullCube on the
+ * registry block's default state. This switch is the exact meta-0 projection
+ * of the generated 1.11.2 full-cube registry table used by magma. Keeping the
+ * projection as code avoids a device-global lookup table in this shared
+ * CPU/CUDA header. */
+MC_HD static inline int psv_is_default_full_cube_1_11_2(int id) {
+    switch (id) {
+    case 1: case 2: case 3: case 4: case 5: case 7:
+    case 12: case 13: case 14: case 15: case 16: case 17: case 18: case 19:
+    case 21: case 22: case 23: case 24: case 25: case 35:
+    case 41: case 42: case 43: case 45: case 46: case 47: case 48: case 49:
+    case 52: case 56: case 57: case 58: case 61: case 62:
+    case 73: case 74: case 79: case 80: case 82: case 84: case 86: case 87:
+    case 88: case 89: case 91: case 97: case 98: case 99: case 100: case 103:
+    case 110: case 112: case 121: case 123: case 124: case 125: case 129:
+    case 133: case 137: case 152: case 153: case 155: case 158: case 159:
+    case 161: case 162: case 165: case 166: case 168: case 169: case 170:
+    case 172: case 173: case 174: case 179: case 181:
+    case 201: case 202: case 204: case 206: case 210: case 211: case 212:
+    case 213: case 214: case 215: case 216: case 218: case 255:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+MC_HD static inline int psv_stair_side_solid(
+        const Chunk *chunks, int x, int y, int z, int meta, int side) {
+    PsvStairShape shape = psv_stair_shape(chunks, x, y, z, meta);
+    int facing = 5 - (meta & 3);
+    int top = (meta & 4) != 0;
+    if (facing == side) return 1;
+    if (shape == PSV_STAIR_INNER_LEFT)
+        return side == (top
+            ? psv_stair_rotate_y_ccw(facing)
+            : psv_stair_rotate_y(facing));
+    if (shape == PSV_STAIR_INNER_RIGHT)
+        return side == (top
+            ? psv_stair_rotate_y(facing)
+            : psv_stair_rotate_y_ccw(facing));
+    return 0;
+}
+
+MC_HD static inline int psv_pane_connects(
+        const Chunk *chunks, int x, int y, int z, int direction) {
+    static const int dx[6] = {0, 0, 0, 0, -1, 1};
+    static const int dz[6] = {0, 0, -1, 1, 0, 0};
+    int nx = x + dx[direction];
+    int nz = z + dz[direction];
+    int id = psv_get_block(chunks, nx, y, nz);
+    int meta = psv_get_meta(chunks, nx, y, nz);
+    if (psv_is_pane_id(id) || id == 20 || id == 95
+            || psv_is_default_full_cube_1_11_2(id))
+        return 1;
+    if (id == 60 || id == 152) return 1;
+    if (id == 78) return (meta & 7) == 7;
+    if (psv_is_stair_id(id))
+        return psv_stair_side_solid(
+            chunks, nx, y, nz, meta, direction ^ 1);
+    return 0;
+}
+
+MC_HD static inline int psv_pane_collision_shapes(
+        const Chunk *chunks, int x, int y, int z, McAABB shapes[5]) {
+    int count = 0;
+    shapes[count++] = mc_aabb_make(
+        x + 0.4375, y, z + 0.4375,
+        x + 0.5625, y + 1.0, z + 0.5625);
+    if (psv_pane_connects(chunks, x, y, z, 2))
+        shapes[count++] = mc_aabb_make(
+            x + 0.4375, y, z, x + 0.5625, y + 1.0, z + 0.4375);
+    if (psv_pane_connects(chunks, x, y, z, 5))
+        shapes[count++] = mc_aabb_make(
+            x + 0.5625, y, z + 0.4375, x + 1.0, y + 1.0, z + 0.5625);
+    if (psv_pane_connects(chunks, x, y, z, 3))
+        shapes[count++] = mc_aabb_make(
+            x + 0.4375, y, z + 0.5625, x + 0.5625, y + 1.0, z + 1.0);
+    if (psv_pane_connects(chunks, x, y, z, 4))
+        shapes[count++] = mc_aabb_make(
+            x, y, z + 0.4375, x + 0.4375, y + 1.0, z + 0.5625);
+    return count;
+}
+
+MC_HD static inline int psv_is_door_id(int id) {
+    return id == 64 || id == 71 || (id >= 193 && id <= 197);
+}
+
+/* EntityLivingBase.isOnLadder with Forge's default
+ * fullBoundingBoxLadders=false: inspect the block at floor(posX),
+ * floor(box.minY), floor(posZ). BlockLadder and BlockVine are ladders;
+ * an open trapdoor is one only when the ladder immediately below faces the
+ * same direction. */
+MC_HD static inline int psv_is_on_ladder(
+        const Chunk *chunks, const McEntity *entity) {
+    int x = mc_floor(entity->posX);
+    int y = mc_floor(entity->box.minY);
+    int z = mc_floor(entity->posZ);
+    int id = psv_get_block(chunks, x, y, z);
+    int meta = psv_get_meta(chunks, x, y, z);
+    if (id == 65 || id == 106) return 1;
+    if ((id == 96 || id == 167) && (meta & 4) != 0
+            && psv_get_block(chunks, x, y - 1, z) == 65) {
+        int ladder_meta = psv_get_meta(chunks, x, y - 1, z);
+        int ladder_facing = ladder_meta == 3 ? 1
+            : ladder_meta == 4 ? 2
+            : ladder_meta == 5 ? 3 : 0;
+        return (meta & 3) == ladder_facing;
+    }
+    return 0;
+}
+
+MC_HD static inline McAABB psv_door_collision_shape(
+        const Chunk *chunks, int x, int y, int z, int id, int meta) {
+    static const unsigned char closed_panel[4] = {0, 2, 1, 3};
+    static const unsigned char open_panel[4][2] = {
+        {2, 3}, {1, 0}, {3, 2}, {0, 1}
+    };
+    int upper = (meta & 8) != 0;
+    int lower_meta = upper ? 3 : meta;
+    int hinge_right = upper ? (meta & 1) != 0 : 0;
+    int pair_id = psv_get_block(chunks, x, y + (upper ? -1 : 1), z);
+    int pair_meta = psv_get_meta(chunks, x, y + (upper ? -1 : 1), z);
+    int panel;
+    if (pair_id == id) {
+        if (upper && (pair_meta & 8) == 0)
+            lower_meta = pair_meta;
+        else if (!upper && (pair_meta & 8) != 0)
+            hinge_right = (pair_meta & 1) != 0;
+    }
+    lower_meta &= 7;
+    panel = (lower_meta & 4)
+        ? open_panel[lower_meta & 3][hinge_right]
+        : closed_panel[lower_meta & 3];
+    if (panel == 0)
+        return mc_aabb_make(x, y, z, x + 0.1875, y + 1.0, z + 1.0);
+    if (panel == 1)
+        return mc_aabb_make(
+            x + 0.8125, y, z, x + 1.0, y + 1.0, z + 1.0);
+    if (panel == 2)
+        return mc_aabb_make(x, y, z, x + 1.0, y + 1.0, z + 0.1875);
+    return mc_aabb_make(
+        x, y, z + 0.8125, x + 1.0, y + 1.0, z + 1.0);
 }
 
 MC_HD static inline void psv_add_collision_box(McAABB *blocks, int *n,
@@ -209,12 +528,6 @@ MC_HD static inline void psv_add_collision_box(McAABB *blocks, int *n,
 
 MC_HD static inline int psv_is_stairs(int id) {
     return id == BLK_OAK_STAIRS || id == BLK_STONE_STAIRS;
-}
-
-MC_HD static inline int psv_is_on_ladder(const Chunk *chunks,
-                                          const McEntity *e) {
-    return psv_get_block(chunks, mc_floor(e->posX), mc_floor(e->box.minY),
-                        mc_floor(e->posZ)) == BLK_LADDER;
 }
 
 /* BlockStairs straight collision shape. Legacy metadata 0..3 is
@@ -243,11 +556,14 @@ MC_HD static inline void psv_add_stairs_collision(int x, int y, int z, int meta,
 }
 
 /* Collect vanilla block collision AABBs over the motion broadphase. Web is
- * pass-through, cactus is inset 1/16 on X/Z and at the top, slabs preserve
- * their metadata half, stairs use their metadata-oriented two-box straight
- * shape, trapdoors use their 3/16 panel pose, soul sand is 7/8 tall, fences
- * are multipart and 1.5 tall, and walls use the connection-state union box
- * with collision maxY 1.5. */
+ * pass-through, cactus is inset 1/16 on X/Z and at the top, redstone diodes
+ * are 1/8 tall, brewing stands have stem/base
+ * boxes, thin surfaces retain their metadata-dependent height/footprint,
+ * lily pads and joined chests retain their inset shapes, panes use their
+ * connected center-post/arm geometry, slabs and stairs preserve their
+ * metadata-oriented shapes, trapdoors use their 3/16 panel pose, soul sand is
+ * 7/8 tall, fences are multipart and 1.5 tall, and walls use the connection-
+ * state union box with collision maxY 1.5. */
 MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *query,
                                            McAABB *blocks, int maxblocks) {
     int n = 0;
@@ -262,6 +578,383 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
         for (int y = y0; y <= y1; ++y)
             for (int z = z0; z <= z1; ++z) {
                 int id = psv_get_block(chunks, x, y, z);
+                if (psv_is_stair_id(id)) {
+                    McAABB stair_shapes[3];
+                    int shape_count = psv_stair_collision_shapes(
+                        chunks, x, y, z,
+                        psv_get_meta(chunks, x, y, z), stair_shapes);
+                    for (int shape = 0; shape < shape_count; ++shape)
+                        psv_add_collision_box(
+                            blocks, &n, maxblocks, stair_shapes[shape]);
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (psv_is_pane_id(id)) {
+                    McAABB pane_shapes[5];
+                    int shape_count = psv_pane_collision_shapes(
+                        chunks, x, y, z, pane_shapes);
+                    for (int shape = 0; shape < shape_count; ++shape)
+                        psv_add_collision_box(
+                            blocks, &n, maxblocks, pane_shapes[shape]);
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (psv_is_door_id(id)) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        psv_door_collision_shape(
+                            chunks, x, y, z, id,
+                            psv_get_meta(chunks, x, y, z)));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 65) {
+                    int facing = psv_get_meta(chunks, x, y, z) % 6;
+                    double min_x = x, max_x = x + 1.0;
+                    double min_z = z, max_z = z + 1.0;
+                    if (facing <= 2) min_z = z + 0.8125;
+                    else if (facing == 3) max_z = z + 0.1875;
+                    else if (facing == 4) min_x = x + 0.8125;
+                    else max_x = x + 0.1875;
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(min_x, y, min_z,
+                                     max_x, y + 1.0, max_z));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 127) {
+                    int cocoa_meta = psv_get_meta(chunks, x, y, z);
+                    int facing = cocoa_meta & 3;
+                    int age = (cocoa_meta >> 2) & 3;
+                    double width, half, min_x, max_x, min_z, max_z;
+                    if (age > 2) age = 2;
+                    width = (age + 2) / 8.0;
+                    half = width * 0.5;
+                    min_x = x + 0.5 - half;
+                    max_x = x + 0.5 + half;
+                    min_z = z + 0.5 - half;
+                    max_z = z + 0.5 + half;
+                    if (facing == 0) {
+                        min_z = z + 0.9375 - width;
+                        max_z = z + 0.9375;
+                    } else if (facing == 1) {
+                        min_x = x + 0.0625;
+                        max_x = min_x + width;
+                    } else if (facing == 2) {
+                        min_z = z + 0.0625;
+                        max_z = min_z + width;
+                    } else {
+                        min_x = x + 0.9375 - width;
+                        max_x = x + 0.9375;
+                    }
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(min_x, y + 0.4375 - age * 0.125,
+                                     min_z, max_x, y + 0.75, max_z));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 29 || id == 33) {
+                    int piston_meta = psv_get_meta(chunks, x, y, z);
+                    int facing = piston_meta & 7;
+                    double min_x = x, max_x = x + 1.0;
+                    double min_y = y, max_y = y + 1.0;
+                    double min_z = z, max_z = z + 1.0;
+                    if ((piston_meta & 8) && facing <= 5) {
+                        if (facing == 0) min_y = y + 0.25;
+                        else if (facing == 1) max_y = y + 0.75;
+                        else if (facing == 2) min_z = z + 0.25;
+                        else if (facing == 3) max_z = z + 0.75;
+                        else if (facing == 4) min_x = x + 0.25;
+                        else max_x = x + 0.75;
+                    }
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(min_x, min_y, min_z,
+                                     max_x, max_y, max_z));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 145) {
+                    int anvil_meta = psv_get_meta(chunks, x, y, z);
+                    double min_x = (anvil_meta & 1) ? x : x + 0.125;
+                    double max_x = (anvil_meta & 1) ? x + 1.0 : x + 0.875;
+                    double min_z = (anvil_meta & 1) ? z + 0.125 : z;
+                    double max_z = (anvil_meta & 1) ? z + 0.875 : z + 1.0;
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(min_x, y, min_z,
+                                     max_x, y + 1.0, max_z));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 122) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.0625, y, z + 0.0625,
+                                     x + 0.9375, y + 1.0, z + 0.9375));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if ((unsigned)(id - 93) <= 1u ||
+                    (unsigned)(id - 149) <= 1u) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z, x + 1.0, y + 0.125, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 117) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.4375, y, z + 0.4375,
+                                     x + 0.5625, y + 0.875, z + 0.5625));
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 1.0, y + 0.125, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 116) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 1.0, y + 0.75, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 60 || id == 208) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 1.0, y + 0.9375, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 44 || id == 126 || id == 182 || id == 205) {
+                    int slab_meta = psv_get_meta(chunks, x, y, z);
+                    double min_y = (slab_meta & 8) ? y + 0.5 : (double)y;
+                    double max_y = (slab_meta & 8) ? y + 1.0 : y + 0.5;
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, min_y, z, x + 1.0, max_y, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 171) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 1.0, y + 0.0625, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 78) {
+                    int snow_meta = psv_get_meta(chunks, x, y, z) & 7;
+                    if (snow_meta != 0) {
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x, y, z, x + 1.0,
+                                         y + snow_meta * 0.125, z + 1.0));
+                        if (n >= maxblocks) return n;
+                    }
+                    continue;
+                }
+                if (id == 92) {
+                    int bites = psv_get_meta(chunks, x, y, z);
+                    if (bites > 6) bites = 6;
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + (1 + bites * 2) * 0.0625, y,
+                                     z + 0.0625, x + 0.9375, y + 0.5,
+                                     z + 0.9375));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 26) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 1.0, y + 0.5625, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 151 || id == 178) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 1.0, y + 0.375, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 120) {
+                    int frame_meta = psv_get_meta(chunks, x, y, z);
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 1.0, y + 0.8125, z + 1.0));
+                    if (frame_meta & 4) {
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x + 0.3125, y + 0.8125,
+                                         z + 0.3125, x + 0.6875, y + 1.0,
+                                         z + 0.6875));
+                    }
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 130) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.0625, y, z + 0.0625,
+                                     x + 0.9375, y + 0.875,
+                                     z + 0.9375));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 96 || id == 167) {
+                    int trap_meta = psv_get_meta(chunks, x, y, z);
+                    double min_x = x, max_x = x + 1.0;
+                    double min_y = y, max_y = y + 1.0;
+                    double min_z = z, max_z = z + 1.0;
+                    if (trap_meta & 4) {
+                        if ((trap_meta & 3) == 0) min_z = z + 0.8125;
+                        else if ((trap_meta & 3) == 1) max_z = z + 0.1875;
+                        else if ((trap_meta & 3) == 2) min_x = x + 0.8125;
+                        else max_x = x + 0.1875;
+                    } else if (trap_meta & 8) {
+                        min_y = y + 0.8125;
+                    } else {
+                        max_y = y + 0.1875;
+                    }
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(min_x, min_y, min_z,
+                                     max_x, max_y, max_z));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 199) {
+                    int west = psv_get_block(chunks, x - 1, y, z);
+                    int east = psv_get_block(chunks, x + 1, y, z);
+                    int up = psv_get_block(chunks, x, y + 1, z);
+                    int down = psv_get_block(chunks, x, y - 1, z);
+                    int north = psv_get_block(chunks, x, y, z - 1);
+                    int south = psv_get_block(chunks, x, y, z + 1);
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.1875, y + 0.1875, z + 0.1875,
+                                     x + 0.8125, y + 0.8125, z + 0.8125));
+                    if (west == 199 || west == 200)
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x, y + 0.1875, z + 0.1875,
+                                         x + 0.1875, y + 0.8125, z + 0.8125));
+                    if (east == 199 || east == 200)
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x + 0.8125, y + 0.1875, z + 0.1875,
+                                         x + 1.0, y + 0.8125, z + 0.8125));
+                    if (up == 199 || up == 200)
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x + 0.1875, y + 0.8125, z + 0.1875,
+                                         x + 0.8125, y + 1.0, z + 0.8125));
+                    if (down == 199 || down == 200 || down == 121)
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x + 0.1875, y, z + 0.1875,
+                                         x + 0.8125, y + 0.1875, z + 0.8125));
+                    if (north == 199 || north == 200)
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x + 0.1875, y + 0.1875, z,
+                                         x + 0.8125, y + 0.8125, z + 0.1875));
+                    if (south == 199 || south == 200)
+                        psv_add_collision_box(blocks, &n, maxblocks,
+                            mc_aabb_make(x + 0.1875, y + 0.1875, z + 0.8125,
+                                         x + 0.8125, y + 0.8125, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 118 || id == 154) {
+                    double base_height = id == 118 ? 0.3125 : 0.625;
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 1.0, y + base_height, z + 1.0));
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 0.125, y + 1.0, z + 1.0));
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.875, y, z,
+                                     x + 1.0, y + 1.0, z + 1.0));
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z,
+                                     x + 1.0, y + 1.0, z + 0.125));
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x, y, z + 0.875,
+                                     x + 1.0, y + 1.0, z + 1.0));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 140) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.3125, y, z + 0.3125,
+                                     x + 0.6875, y + 0.375,
+                                     z + 0.6875));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 81) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.0625, y, z + 0.0625,
+                                     x + 0.9375, y + 0.9375,
+                                     z + 0.9375));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 198) {
+                    int rod_meta = psv_get_meta(chunks, x, y, z) & 7;
+                    int axis = rod_meta < 2 ? 1 : rod_meta < 4 ? 2 : 0;
+                    double min_x = axis == 0 ? x : x + 0.375;
+                    double max_x = axis == 0 ? x + 1.0 : x + 0.625;
+                    double min_y = axis == 1 ? y : y + 0.375;
+                    double max_y = axis == 1 ? y + 1.0 : y + 0.625;
+                    double min_z = axis == 2 ? z : z + 0.375;
+                    double max_z = axis == 2 ? z + 1.0 : z + 0.625;
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(min_x, min_y, min_z,
+                                     max_x, max_y, max_z));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 144) {
+                    int facing = (psv_get_meta(chunks, x, y, z) & 7) % 6;
+                    double min_x = x + 0.25, max_x = x + 0.75;
+                    double min_y = y + 0.25, max_y = y + 0.75;
+                    double min_z = z + 0.25, max_z = z + 0.75;
+                    if (facing == 0 || facing == 1) {
+                        min_y = y;
+                        max_y = y + 0.5;
+                    } else if (facing == 2) {
+                        min_z = z + 0.5;
+                        max_z = z + 1.0;
+                    } else if (facing == 3) {
+                        min_z = z;
+                        max_z = z + 0.5;
+                    } else if (facing == 4) {
+                        min_x = x + 0.5;
+                        max_x = x + 1.0;
+                    } else {
+                        min_x = x;
+                        max_x = x + 0.5;
+                    }
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(min_x, min_y, min_z,
+                                     max_x, max_y, max_z));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 111) {
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + 0.0625, y, z + 0.0625,
+                                     x + 0.9375, y + 0.09375,
+                                     z + 0.9375));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
+                if (id == 54 || id == 146) {
+                    double min_x = x + 0.0625, max_x = x + 0.9375;
+                    double min_z = z + 0.0625, max_z = z + 0.9375;
+                    if (psv_get_block(chunks, x, y, z - 1) == id)
+                        min_z = z;
+                    else if (psv_get_block(chunks, x, y, z + 1) == id)
+                        max_z = z + 1.0;
+                    else if (psv_get_block(chunks, x - 1, y, z) == id)
+                        min_x = x;
+                    else if (psv_get_block(chunks, x + 1, y, z) == id)
+                        max_x = x + 1.0;
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(min_x, y, min_z,
+                                     max_x, y + 0.875, max_z));
+                    if (n >= maxblocks) return n;
+                    continue;
+                }
                 if (id == BLK_WEB || !psv_solid(id)) continue;
                 if (id == BLK_CACTUS) {
                     psv_add_collision_box(blocks, &n, maxblocks,
@@ -311,7 +1004,7 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
                 } else if (id == BLK_SOUL_SAND) {
                     psv_add_collision_box(blocks, &n, maxblocks,
                         mc_aabb_make(x, y, z, x + 1.0, y + 0.875, z + 1.0));
-                } else if (id == BLK_FENCE || id == BLK_NETHER_BRICK_FENCE) {
+                } else if (psv_is_fence_id(id)) {
                     psv_add_collision_box(blocks, &n, maxblocks,
                         mc_aabb_make(x + 0.375, y, z + 0.375,
                                      x + 0.625, y + 1.5, z + 0.625));
@@ -343,6 +1036,18 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
                     psv_add_collision_box(blocks, &n, maxblocks,
                         mc_aabb_make(x + x0, y, z + z0,
                                      x + x1, y + 1.5, z + z1));
+                } else if (psv_is_fence_gate_id(id)) {
+                    int gate_meta = psv_get_meta(chunks, x, y, z);
+                    if ((gate_meta & 4) == 0) {
+                        if ((gate_meta & 1) == 0)
+                            psv_add_collision_box(blocks, &n, maxblocks,
+                                mc_aabb_make(x, y, z + 0.375,
+                                             x + 1.0, y + 1.5, z + 0.625));
+                        else
+                            psv_add_collision_box(blocks, &n, maxblocks,
+                                mc_aabb_make(x + 0.375, y, z,
+                                             x + 0.625, y + 1.5, z + 1.0));
+                    }
                 } else {
                     psv_add_collision_box(blocks, &n, maxblocks,
                         mc_aabb_make(x, y, z, x + 1.0, y + 1.0, z + 1.0));
@@ -354,7 +1059,8 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
 
 /* Entity.doBlockCollisions after move(): callbacks use the contracted player
  * box, in x/y/z loop order. Web sets the next-move latch and resets falling;
- * every overlapping soul-sand cell compounds the 0.4 horizontal multiplier. */
+ * every overlapping soul-sand cell compounds the 0.4 horizontal multiplier,
+ * and cactus records a damage callback for the authoritative game layer. */
 MC_HD static inline void psv_do_block_collisions(const Chunk *now, PsvPlayer *pl) {
     McAABB *bb = &pl->ent.box;
     int x0 = mc_floor(bb->minX + 0.001), x1 = mc_floor(bb->maxX - 0.001);
@@ -371,6 +1077,8 @@ MC_HD static inline void psv_do_block_collisions(const Chunk *now, PsvPlayer *pl
                 } else if (id == BLK_SOUL_SAND) {
                     pl->ent.motionX *= 0.4;
                     pl->ent.motionZ *= 0.4;
+                } else if (id == 81) {
+                    pl->cactus_contact = 1;
                 }
             }
 }
@@ -629,6 +1337,12 @@ MC_HD static inline void psv_elytra_travel(const Chunk *now, const McSinTable *s
     if (e->box.maxY + 0.6 > query.maxY) query.maxY = e->box.maxY + 0.6;
     int nblocks = psv_collect_blocks(now, &query, blocks, PSV_MAX_BLOCKS);
     mc_entity_move_step(e, mvx, mvy, mvz, blocks, nblocks, 0.6f);
+    /* EntityLivingBase.updateFallState runs inside Entity.move. When the
+     * pre-move onEntityUpdate water probe was false, it probes again at the
+     * post-move box, resets fallDistance, and applies the water current before
+     * travel's drag. */
+    if (psv_handle_water(now, e))
+        pl->fall_distance = 0.0f;
     psv_do_block_collisions(now, pl);
 
     if (e->collidedHorizontally) {
@@ -674,6 +1388,7 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
                                           const PsvAction *act, McAABB *blocks) {
     McEntity *e = &pl->ent;
     pl->reset_fall_distance = 0;
+    pl->cactus_contact = 0;
     pl->elytra_wall_damage = 0.0f;
     float strafing = act->strafe * 0.98f;
     float forward  = act->forward * 0.98f;
@@ -707,6 +1422,9 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
     } else if (act->jump && e->onGround && pl->jump_ticks == 0) {
         pl->jump_ticks = 10;
         e->motionY = 0.41999998688697815;
+        if (pl->jump_boost_amplifier >= 0)
+            e->motionY += (double)(
+                (float)(pl->jump_boost_amplifier + 1) * 0.1f);
         if (act->sprint) {
             /* EntityLivingBase.jump(): sprinting adds a horizontal kick along the look yaw */
             float fj = pl->yaw * 0.017453292f;
@@ -728,6 +1446,8 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
         if (e->box.maxY + 0.6 > wquery.maxY) wquery.maxY = e->box.maxY + 0.6;
         int wnblocks = psv_collect_blocks(now, &wquery, blocks, PSV_MAX_BLOCKS);
         mc_entity_move_step(e, e->motionX, e->motionY, e->motionZ, blocks, wnblocks, 0.6f);
+        if (!in_water && psv_handle_water(now, e))
+            pl->fall_distance = 0.0f;
         double drag = in_water ? 0.800000011920929 : 0.5;
         e->motionX *= drag;
         e->motionY *= drag;
@@ -763,8 +1483,11 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
         /* getAIMoveSpeed(): MOVEMENT_SPEED attribute, base 0.10000000149011612D
          * (EntityPlayer.applyEntityAttributes), sprint modifier +0.30000001192092896D
          * op MULTIPLY_TOTAL (EntityLivingBase.SPRINTING_SPEED_BOOST), cast to float. */
-        float ai = act->sprint ? (float)(0.10000000149011612 * (1.0 + 0.30000001192092896))
-                               : PPW_AI_MOVE_SPEED;
+        double ai_value = 0.10000000149011612
+            * pl->movement_speed_multiplier;
+        if (act->sprint)
+            ai_value *= 1.0 + 0.30000001192092896;
+        float ai = (float)ai_value;
         accel = ai * f3;
     } else {
         /* EntityPlayer.onLivingUpdate: jumpMovementFactor = speedInAir(0.02F), sprinting
@@ -777,15 +1500,18 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
 
     ppw_move_flying(st, e, act->yaw, strafing, forward, accel);
 
-    /* EntityLivingBase.moveEntityWithHeading ladder branch. The block test
-     * uses floor(posX, box.minY, posZ), not an AABB overlap query. */
+    /* EntityLivingBase.moveEntityWithHeading ladder branch. The clamp is on
+     * stored motion before Entity.move consumes its arguments; colliding into
+     * the ladder after that move supplies the 0.2 upward climb impulse. The
+     * block test uses floor(posX, box.minY, posZ), not an AABB overlap query. */
     if (psv_is_on_ladder(now, e)) {
-        const double limit = 0.15000000596046448;
-        if (e->motionX < -limit) e->motionX = -limit;
-        if (e->motionX >  limit) e->motionX =  limit;
-        if (e->motionZ < -limit) e->motionZ = -limit;
-        if (e->motionZ >  limit) e->motionZ =  limit;
+        const double ladder_speed = 0.15000000596046448;
+        if (e->motionX < -ladder_speed) e->motionX = -ladder_speed;
+        if (e->motionX >  ladder_speed) e->motionX =  ladder_speed;
+        if (e->motionZ < -ladder_speed) e->motionZ = -ladder_speed;
+        if (e->motionZ >  ladder_speed) e->motionZ =  ladder_speed;
         pl->fall_distance = 0.0f;
+        pl->reset_fall_distance = 1;
         if (e->motionY < -0.15) e->motionY = -0.15;
         if (act->sneak && e->motionY < 0.0) e->motionY = 0.0;
     }
@@ -847,6 +1573,8 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
     if (e->box.maxY + 0.6 > query.maxY) query.maxY = e->box.maxY + 0.6;
     int nblocks = psv_collect_blocks(now, &query, blocks, PSV_MAX_BLOCKS);
     mc_entity_move_step(e, mvx, mvy, mvz, blocks, nblocks, 0.6f);
+    if (psv_handle_water(now, e))
+        pl->fall_distance = 0.0f;
 
     if (e->collidedHorizontally && psv_is_on_ladder(now, e))
         e->motionY = 0.2;
@@ -874,7 +1602,15 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
 
     psv_do_block_collisions(now, pl);
 
-    e->motionY -= 0.08;
+    if (e->collidedHorizontally && psv_is_on_ladder(now, e))
+        e->motionY = 0.2;
+
+    if (pl->levitation_amplifier >= 0) {
+        double target = 0.05 * (double)(pl->levitation_amplifier + 1);
+        e->motionY += (target - e->motionY) * 0.2;
+    } else {
+        e->motionY -= 0.08;
+    }
     e->motionY *= 0.9800000190734863;
     e->motionX *= (double)f2;
     e->motionZ *= (double)f2;
@@ -930,8 +1666,15 @@ MC_HD static inline void psv_vitals_tick(PsvPlayer *pl, int was_air, double prev
         double dropped = prev_min_y - e->box.minY;
         if (dropped > 0.0) pl->fall_distance += (float)dropped;
     } else if (was_air && pl->fall_distance > PSV_FALL_SAFE) {
-        pl->health -= (pl->fall_distance - PSV_FALL_SAFE);   /* damage lowers health */
-        if (pl->health < 0.0f) pl->health = 0.0f;
+        float boost = pl->jump_boost_amplifier < 0
+            ? 0.0f : (float)(pl->jump_boost_amplifier + 1);
+        float raw_damage = pl->fall_distance - PSV_FALL_SAFE - boost;
+        int damage = (int)raw_damage;
+        if (raw_damage > (float)damage) ++damage;
+        if (damage > 0) {
+            pl->health -= (float)damage;
+            if (pl->health < 0.0f) pl->health = 0.0f;
+        }
     }
     if (e->onGround) pl->fall_distance = 0.0f;
 
@@ -1080,9 +1823,14 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
     pl->food = PSV_MAX_FOOD;
     pl->fall_distance = 0.0f;
     pl->is_in_web = 0;
+    pl->cactus_contact = 0;
     pl->reset_fall_distance = 0;
-    pl->sprinting = 0; pl->sprint_toggle_timer = 0; pl->jump_factor_sprint = 0;
+    pl->sprinting = 0; pl->sprint_toggle_timer = 0; pl->blindness = 0;
+    pl->jump_factor_sprint = 0;
     pl->jump_ticks = 0;
+    pl->movement_speed_multiplier = 1.0;
+    pl->levitation_amplifier = -1;
+    pl->jump_boost_amplifier = -1;
     pl->prev_move_forward = 0.0f; pl->prev_sneak = 0;
     pl->prev_jump = 0;
     pl->elytra_equipped = pl->elytra_flying = pl->elytra_pose = 0;
@@ -1098,15 +1846,20 @@ MC_HD static inline void psv_player_init(PsvPlayer *pl) {
 
 /* Full run under explicit GameRules; returns the final player state via *out_pl (may be NULL).
  * out (may be NULL) receives PSV_FIELDS u64 per tick as in psv_run. */
-MC_HD static inline void psv_run_gr(Chunk *a, Chunk *b, ChunkPrimer *primer, CpScratch *sc,
-                                    const McSinTable *st, i64 seed, int nticks,
-                                    const McGameRules *gr, PsvPlayer *out_pl, u64 *out) {
+MC_HD static inline void psv_run_gr_effect(
+        Chunk *a, Chunk *b, ChunkPrimer *primer, CpScratch *sc,
+        const McSinTable *st, i64 seed, int nticks,
+        const McGameRules *gr, int levitation_amplifier,
+        int jump_boost_amplifier,
+        PsvPlayer *out_pl, u64 *out) {
     PsvPlayer pl;
     McAABB blocks[PSV_MAX_BLOCKS];
     int cur = 0, t;
 
     psv_gen(a, b, primer, sc, st, seed);
     psv_player_init(&pl);
+    pl.levitation_amplifier = levitation_amplifier;
+    pl.jump_boost_amplifier = jump_boost_amplifier;
 
     for (t = 0; t < nticks; ++t) {
         Chunk *now = cur ? b : a;
@@ -1121,12 +1874,30 @@ MC_HD static inline void psv_run_gr(Chunk *a, Chunk *b, ChunkPrimer *primer, CpS
     if (out_pl) *out_pl = pl;
 }
 
+MC_HD static inline void psv_run_gr(Chunk *a, Chunk *b, ChunkPrimer *primer,
+                                    CpScratch *sc, const McSinTable *st,
+                                    i64 seed, int nticks, const McGameRules *gr,
+                                    PsvPlayer *out_pl, u64 *out) {
+    psv_run_gr_effect(
+        a, b, primer, sc, st, seed, nticks, gr, -1, -1, out_pl, out);
+}
+
+MC_HD static inline void psv_run_effect(
+        Chunk *a, Chunk *b, ChunkPrimer *primer, CpScratch *sc,
+        const McSinTable *st, i64 seed, int nticks,
+        int levitation_amplifier, int jump_boost_amplifier, u64 *out) {
+    McGameRules gr = mc_gamerules_default();
+    psv_run_gr_effect(a, b, primer, sc, st, seed, nticks, &gr,
+                      levitation_amplifier, jump_boost_amplifier, 0, out);
+}
+
 /* Full run: gen region, spawn player, tick PSV_NTICKS, emit PSV_FIELDS u64 per tick.
  * Default rules (doTileDrops=1): bit-identical to the prior psv_run. */
 MC_HD static inline void psv_run(Chunk *a, Chunk *b, ChunkPrimer *primer, CpScratch *sc,
                                  const McSinTable *st, i64 seed, int nticks, u64 *out) {
     McGameRules gr = mc_gamerules_default();
-    psv_run_gr(a, b, primer, sc, st, seed, nticks, &gr, 0, out);
+    psv_run_gr_effect(
+        a, b, primer, sc, st, seed, nticks, &gr, -1, -1, 0, out);
 }
 
 #endif /* MC_PLAYER_SURVIVAL_H */

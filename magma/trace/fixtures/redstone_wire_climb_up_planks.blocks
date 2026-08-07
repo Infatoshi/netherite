@@ -1,0 +1,10 @@
+# The same one-block dust climb as redstone_wire_climb_up.blocks, with every
+# represented normal-cube support changed from stone to oak planks.
+12 77 8 5 0
+12 78 8 55 0
+13 78 8 5 0
+13 79 8 55 0
+14 78 8 5 0
+14 79 8 55 0
+15 78 8 5 0
+15 79 8 123 0

@@ -63,6 +63,7 @@ int main(void)
     CHECK(gm_runtime_set_block(&r, X + 2, Y, Z, 3, 0), "dirt base");
     CHECK(gm_runtime_set_block(&r, X + 2, Y + 1, Z, 31, 1), "tallgrass on dirt");
     CHECK(gm_runtime_set_block(&r, X + 3, Y, Z, 12, 0), "sand base");
+    CHECK(gm_runtime_set_block(&r, X + 4, Y, Z, 9, 0), "water beside reeds");
     CHECK(gm_runtime_set_block(&r, X + 3, Y + 1, Z, 83, 0), "reed 1");
     CHECK(gm_runtime_set_block(&r, X + 3, Y + 2, Z, 83, 0), "reed 2");
     CHECK(gm_runtime_set_block(&r, X + 3, Y + 3, Z, 83, 0), "reed 3");

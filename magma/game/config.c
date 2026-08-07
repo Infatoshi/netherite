@@ -36,7 +36,8 @@ enum {
     SEEN_SNAPSHOT_IN  = 1u << 25,
     SEEN_COMPOSE      = 1u << 26,
     SEEN_STATS        = 1u << 27,
-    SEEN_CONF         = 1u << 28
+    SEEN_CONF         = 1u << 28,
+    SEEN_MOB_GRIEFING = 1u << 29
 };
 
 static int fail(char *err, int cap, const char *fmt, ...) {
@@ -117,6 +118,7 @@ void gm_config_defaults(GmConfig *cfg) {
     cfg->conf_path = NULL;
     cfg->n_set = 0;
     cfg->dump_config = 0;
+    cfg->mob_griefing = 1;
 }
 
 int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap) {
@@ -184,19 +186,23 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
         } else if (!strcmp(a, "--villages") || !strcmp(a, "--enchanting") ||
                    !strcmp(a, "--brewing") || !strcmp(a, "--weather") ||
                    !strcmp(a, "--mobs") || !strcmp(a, "--daylight") ||
-                   !strcmp(a, "--stats")) {
+                   !strcmp(a, "--stats") || !strcmp(a, "--mob-griefing")) {
             unsigned bit = !strcmp(a, "--villages") ? SEEN_VILLAGES :
                            !strcmp(a, "--enchanting") ? SEEN_ENCHANTING :
                            !strcmp(a, "--brewing") ? SEEN_BREWING :
                            !strcmp(a, "--weather") ? SEEN_WEATHER :
                            !strcmp(a, "--daylight") ? SEEN_DAYLIGHT :
-                           !strcmp(a, "--stats") ? SEEN_STATS : SEEN_MOBS;
+                           !strcmp(a, "--stats") ? SEEN_STATS :
+                           !strcmp(a, "--mob-griefing") ? SEEN_MOB_GRIEFING :
+                           SEEN_MOBS;
             int *dst = !strcmp(a, "--villages") ? &cfg->villages :
                        !strcmp(a, "--enchanting") ? &cfg->enchanting :
                        !strcmp(a, "--brewing") ? &cfg->brewing :
                        !strcmp(a, "--weather") ? &cfg->weather :
                        !strcmp(a, "--daylight") ? &cfg->daylight :
-                       !strcmp(a, "--stats") ? &cfg->stats : &cfg->mobs;
+                       !strcmp(a, "--stats") ? &cfg->stats :
+                       !strcmp(a, "--mob-griefing") ? &cfg->mob_griefing :
+                       &cfg->mobs;
             if (mark_once(&seen, bit, a, err, err_cap)) return 2;
             if (!(v = need_value(&i, argc, argv, err, err_cap))) return 2;
             if (!parse_on_off(v, dst)) return fail(err, err_cap, "%s expects on|off", a);
@@ -291,14 +297,8 @@ int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap
 
 int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,
                                int metal_compiled, char *err, int err_cap) {
-    if (cfg->villages)
-        return fail(err, err_cap, "--villages on is specified but the village bundle is not wired yet");
-    if (cfg->enchanting)
-        return fail(err, err_cap, "--enchanting on is specified but the enchanting bundle is not wired yet");
-    if (cfg->brewing)
-        return fail(err, err_cap, "--brewing on is specified but the brewing bundle is not wired yet");
-    if (cfg->weather)
-        return fail(err, err_cap, "--weather on is specified but weather rendering is not wired yet");
+    if (cfg->villages && cfg->world != GM_WORLD_DEFAULT)
+        return fail(err, err_cap, "--villages on currently requires --world default");
     if (cfg->render == GM_RENDER_OFF && !cfg->headless)
         return fail(err, err_cap, "--render off requires the shared headless runner, not wired yet");
     if (cfg->pace == GM_PACE_UNLIMITED && !cfg->headless)
@@ -317,7 +317,7 @@ int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,
 void gm_config_print(FILE *out, const GmConfig *c) {
     fprintf(out,
         "seed=%lld world=%s villages=%s enchanting=%s brewing=%s weather=%s "
-        "mobs=%s daylight=%s stats=%s "
+        "mobs=%s daylight=%s stats=%s mob_griefing=%s "
         "render=%s compose=%s backend=%s pace=%s view_distance=%d width=%d height=%d "
         "headless=%s ticks=%d script=%s state_out=%s frames_out=%s\n",
         c->seed, c->world == GM_WORLD_DEFAULT ? "default" : "superflat",
@@ -325,6 +325,7 @@ void gm_config_print(FILE *out, const GmConfig *c) {
         c->brewing ? "on" : "off", c->weather ? "on" : "off",
         c->mobs ? "on" : "off", c->daylight ? "on" : "off",
         c->stats ? "on" : "off",
+        c->mob_griefing ? "on" : "off",
         c->render == GM_RENDER_WINDOW ? "window" : "off",
         c->compose == GM_COMPOSE_CAPTURE ? "capture" : "window",
         c->backend == GM_BACKEND_CPU ? "cpu" :
@@ -349,6 +350,7 @@ void gm_config_print_usage(FILE *out, const char *argv0) {
         "  --daylight on|off            doDaylightCycle (off = frozen clock)\n"
         "  --mobs on|off                mob spawning + AI (default on)\n"
         "  --stats on|off               per-second frame timing stats to stderr\n"
+        "  --mob-griefing on|off        mobGriefing gamerule (default on)\n"
         "  --render window|off          presentation mode\n"
         "  --compose capture|window     headless frame compositor (default capture)\n"
         "  --backend cpu|cuda|metal     raster backend\n"

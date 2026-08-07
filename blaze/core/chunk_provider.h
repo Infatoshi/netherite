@@ -80,8 +80,10 @@ typedef struct { CpSimplex levels[4]; int n; } CpPerlin;
  * structures.h st_run / structures_placement.h stp_run. Kept opaque (not the real types) so this
  * widely-included header need NOT pull in map_gen_mineshaft.h, whose ms_ symbols clash with
  * mob_spawning.h. Cast to the MSGen / SHGen pointers at the use site (size checked there).
- * Replaces the two per-chunk device mallocs. sizeof(MSGen)+sizeof(SHGen) measured 81352 bytes. */
-#define CP_STGEN_BYTES 98304
+ * Replaces the two per-chunk device mallocs. The exact 160-piece mineshaft tree
+ * plus the stronghold generator and deferred structure events require less
+ * than this fixed aligned capacity. */
+#define CP_STGEN_BYTES 196608
 
 /* off-stack scratch for the heightmap noise (kept out of the device thread stack). Also holds the
  * GenLayer bump arena + the per-chunk noise structs that used to be device-malloc'd inside

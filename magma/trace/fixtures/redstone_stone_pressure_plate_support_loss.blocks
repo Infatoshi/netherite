@@ -1,0 +1,6 @@
+# A powered stone plate directly powers the lit lamp to its east. Removing
+# the stored floor support must drop the plate while its saved imminent callback
+# remains stale and the lamp receives its independent +4 off callback.
+12 77 8 1 0
+12 78 8 70 1
+13 78 8 124 0

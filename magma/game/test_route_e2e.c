@@ -1,4 +1,5 @@
 #include "game/runtime.h"
+#include "game/sel_box.h"
 #include "game/structures_live.h"
 #include "container_click.h"
 
@@ -34,6 +35,23 @@ static void idle(GmRuntime *r,int ticks){GmAction a;memset(&a,0,sizeof a);a.hotb
 static void idle_hover(GmRuntime *r,int ticks){GmAction a;memset(&a,0,sizeof a);a.hotbar_sel=-1;
     for(int i=0;i<ticks&&!r->dead&&!r->won;++i){gm_runtime_set_velocity(r,0,0,0);gm_runtime_tick(r,a);}
 }
+static int recover_health(GmRuntime *r){
+    for(int pass=0;pass<20&&r->vitals.health<19.5f&&!r->dead;++pass){
+        if(r->vitals.foodLevel<18){int food=slot_item(r,423,1);
+            if(food<0)food=slot_item(r,424,1);
+            if(food<0)food=slot_item(r,365,1);
+            food=selectable_slot(r,food);if(food<0)return 0;
+            GmAction eat;memset(&eat,0,sizeof eat);eat.use=1;eat.hotbar_sel=food;
+            for(int t=0;t<33&&!r->dead;++t)gm_runtime_tick(r,eat);}
+        idle_hover(r,200);
+    }
+    int ok=!r->dead&&r->vitals.health>=19.0f;
+    if(!ok)fprintf(stderr,
+        "recover_health: dead=%d hp=%.1f food=%d saturation=%.1f raw_mutton=%d cooked_mutton=%d chicken=%d\n",
+        r->dead,r->vitals.health,r->vitals.foodLevel,r->vitals.saturation,
+        total_item(r,423),total_item(r,424),total_item(r,365));
+    return ok;
+}
 static void collect_drops(GmRuntime *r){
     for(int pass=0;pass<GM_LIVE_MAX;++pass)for(int i=0;i<GM_LIVE_MAX;++i){
         GmLiveEnt *e=&r->entities.ents[i];if(!e->active)continue;
@@ -43,6 +61,41 @@ static void collect_drops(GmRuntime *r){
 static int flint_coord(int x,int y,int z){
     u32 h=(u32)x*73428767u^(u32)y*912931u^(u32)z*19349663u;
     h^=h>>13;h*=0x85ebca6bu;h^=h>>16;return h%10u==0u;
+}
+/* Match ItemBucket.rayTrace(..., true), including the rule that a flowing
+ * liquid in front of a source blocks pickup.  The route must choose a source
+ * the player can actually see; skipping the nearer flow made this test rely
+ * on behavior the Java game does not have. */
+static int visible_liquid_source(GmRuntime *r,int tx,int ty,int tz){
+    const PsvPlayer *pl=&r->player;
+    float f=mc_cos(&r->sin_table,-pl->yaw*0.017453292f-3.1415927f);
+    float f1=mc_sin(&r->sin_table,-pl->yaw*0.017453292f-3.1415927f);
+    float f2=-mc_cos(&r->sin_table,-pl->pitch*0.017453292f);
+    float f3=mc_sin(&r->sin_table,-pl->pitch*0.017453292f);
+    double dx=(double)(f1*f2),dy=(double)f3,dz=(double)(f*f2);
+    double ex=pl->ent.posX,ey=pl->ent.posY+psv_player_eye_height(pl),ez=pl->ent.posZ;
+    int lx=mc_floor(ex),ly=mc_floor(ey),lz=mc_floor(ez);
+    gm_world_fill_window(r->world,r->ccx,r->ccz,(struct Chunk *)r->window);
+    for(double t=PSV_RAY_DT;t<=PSV_REACH;t+=PSV_RAY_DT){
+        int x=mc_floor(ex+dx*t),y=mc_floor(ey+dy*t),z=mc_floor(ez+dz*t);
+        if(x==lx&&y==ly&&z==lz)continue;
+        lx=x;ly=y;lz=z;
+        int id=psv_get_block(r->window,x,y,z);
+        if(id==8||id==9||id==10||id==11){
+            int eid,type;double entity_distance;
+            double rex,rey,rez,rdx,rdy,rdz;
+            gm_player_look_ray(&r->sin_table,pl,&rex,&rey,&rez,&rdx,&rdy,&rdz);
+            if(gm_mobs_raycast_entity(&r->mobs,r->dimension,
+                    rex+r->ox,rey,rez+r->oz,rdx,rdy,rdz,3.0,
+                    &eid,&type,&entity_distance)&&
+               (type==EW_TYPE_SHEEP||type==EW_TYPE_COW||
+                type==EW_TYPE_PIG||type==EW_TYPE_CHICKEN))return 0;
+            return psv_get_meta(r->window,x,y,z)==0&&
+                   x+r->ox==tx&&y==ty&&z+r->oz==tz;
+        }
+        if(psv_solid(id))return 0;
+    }
+    return 0;
 }
 static int find_mine_pose(GmRuntime *r,int id,int require_flint,int *tx,int *ty,int *tz,
                           double *px,double *py,double *pz,float *yaw,float *pitch){
@@ -58,9 +111,12 @@ static int find_mine_pose(GmRuntime *r,int id,int require_flint,int *tx,int *ty,
         if(gm_world_block(r->world,x,y,z)==id&&
            (id!=1||gm_world_meta(r->world,x,y,z)==0)&&
            (id!=17||gm_world_meta(r->world,x,y,z)==0)&&
+           ((id!=9&&id!=11)||gm_world_meta(r->world,x,y,z)==0)&&
            (!require_flint||flint_coord(x,y,z))){
             if((id==9||id==11)&&gm_world_block(r->world,x,y+1,z)==0&&
                gm_world_block(r->world,x,y+2,z)==0){
+                gm_runtime_set_pose(r,x+0.5,y+2.0,z+0.5,0,89.0f);
+                if(!visible_liquid_source(r,x,y,z))continue;
                 *tx=x;*ty=y;*tz=z;*px=x+0.5;*py=y+2.0;*pz=z+0.5;*yaw=0;*pitch=89;
                 cursor[id]=at+1;return 1;
             }
@@ -71,7 +127,9 @@ static int find_mine_pose(GmRuntime *r,int id,int require_flint,int *tx,int *ty,
                        gm_world_block(r->world,sx,fy,sz)!=0||gm_world_block(r->world,sx,fy+1,sz)!=0)continue;
                     float candidate_pitch=(float)(atan2((fy+PSV_EYE_HEIGHT)-(y+0.5),1.0)*180.0/MC_PI);
                     gm_runtime_set_pose(r,sx+0.5,fy,sz+0.5,ya[d],candidate_pitch);
-                    if(id!=9&&id!=11){
+                    if(id==9||id==11){
+                        if(!visible_liquid_source(r,x,y,z))continue;
+                    }else{
                         gm_world_fill_window(r->world,r->ccx,r->ccz,(struct Chunk *)r->window);
                         int hx,hy,hz,ax,ay,az;
                         if(psv_raycast(r->window,&r->sin_table,&r->player,&hx,&hy,&hz,&ax,&ay,&az)<0||
@@ -175,10 +233,10 @@ static int kill_hook_mob(GmRuntime *r,int type,double x,double y,double z){
     for(int hit=0;hit<max_hits;++hit){const EwStore *s=r->mobs.current?&r->mobs.b:&r->mobs.a;int alive=0;
         double mx=x,my=y,mz=z;if(s->alive[slot]&&s->type[slot]==type){
             alive=1;mx=s->x[slot];my=s->y[slot];mz=s->z[slot];}
-        if(!alive){collect_drops(r);return 1;}
+        if(!alive){collect_drops(r);return !r->dead;}
         float mob_w,mob_h;ehs_size((u8)type,&mob_w,&mob_h);(void)mob_w;
         int low_target=passive||type==EW_TYPE_SPIDER;
-        double reach=low_target?2.6:2.5;
+        double reach=low_target?2.6:2.9;
         double target_y=low_target?mob_h*0.5:0.975;
         float pitch=(float)(atan2(PSV_EYE_HEIGHT-target_y,reach)*180.0/MC_PI);
         gm_runtime_set_pose(r,mx,my,mz-reach,0,pitch);
@@ -190,14 +248,23 @@ static int kill_hook_mob(GmRuntime *r,int type,double x,double y,double z){
         if(weapon_slot<0)weapon_slot=0;
         weapon_slot=selectable_slot(r,weapon_slot);
         if(weapon_slot<0)return 0;
-        a.attack=1;a.hotbar_sel=weapon_slot;gm_runtime_tick(r,a);
-        if(!passive){gm_runtime_set_pose(r,mx+40,my+4,mz,0,0);idle_hover(r,10);}
-        else idle(r,1);
+        a.attack=1;a.do_break=1;a.hotbar_sel=weapon_slot;
+        gm_runtime_tick(r,a);
+        /* The integrated server consumes CPacketUseEntity one locked tick
+         * after the client click edge, while the target is still in reach. */
+        idle(r,1);
+        /* Sword attack speed is 1.6 in Java 1.11.2, so the full-strength
+         * period is 12.5 ticks. Recharge after the server-side swing reset;
+         * the old ten-tick empty-hand cadence wastes both damage and tools. */
+        if(!passive){double retreat_y=my+120;if(retreat_y>250)retreat_y=250;
+            gm_runtime_set_pose(r,mx,retreat_y,mz,0,0);idle_hover(r,13);}
+        else idle(r,13);
     }
     {
         const EwStore *s=r->mobs.current?&r->mobs.b:&r->mobs.a;
-        fprintf(stderr,"kill_hook_mob: type=%d slot=%d survived hit budget hp=%.1f alive=%d current=%d\n",
-                type,slot,s->health[slot],s->alive[slot],r->mobs.current);
+        fprintf(stderr,"kill_hook_mob: type=%d slot=%d survived hit budget hp=%.1f alive=%d current=%d dead=%d player_hp=%.1f\n",
+                type,slot,s->health[slot],s->alive[slot],r->mobs.current,
+                r->dead,r->vitals.health);
     }
     return 0;
 }
@@ -457,6 +524,8 @@ int main(void){
     for(int x=stronghold.min_x;x<=stronghold.max_x;++x)for(int y=stronghold.min_y;y<=stronghold.max_y;++y)
         for(int z=stronghold.min_z;z<=stronghold.max_z;++z)if(gm_world_block(r.world,x,y,z)==119){ex=x;ey=y;ez=z;++active;}
     CHECK(active==9,"twelve legal eye inserts activate the 3x3 End portal");STOP_IF_FAILED(&r);
+    CHECK(recover_health(&r),"natural food regeneration restores health before End entry");
+    STOP_IF_FAILED(&r);
     gm_runtime_set_pose(&r,ex+0.5,ey,ez+0.5,0,0);idle(&r,1);
     CHECK(r.dimension==1&&r.dragon.initialized,"active portal enters generated End arena");STOP_IF_FAILED(&r);
 
@@ -464,9 +533,14 @@ int main(void){
      * a survival attack with the legally crafted sword, bow projectile, or bed
      * explosion - never injected dragon health or victory. */
     for(int i=0;i<ED_NUM_CRYSTALS;++i){EdCrystal *c=&r.dragon.state.arena.crystals[i];
-        gm_runtime_set_pose(&r,c->x,c->y-PSV_EYE_HEIGHT,c->z-2.5,0,0);GmAction attack;memset(&attack,0,sizeof attack);
+        /* Stand in air beside the pillar with its bedrock cap between the
+         * player's body and the crystal explosion. The upward melee ray is
+         * still within the four-block entity reach. */
+        gm_runtime_set_pose(&r,c->x,c->y-3.0-PSV_EYE_HEIGHT,c->z-1.2,
+                            0,-68.19859f);GmAction attack;memset(&attack,0,sizeof attack);
         int weapon=slot_item(&r,267,1);if(weapon<0)weapon=slot_item(&r,272,1);
-        attack.attack=1;attack.hotbar_sel=selectable_slot(&r,weapon);gm_runtime_tick(&r,attack);idle_hover(&r,10);
+        attack.attack=1;attack.do_break=1;
+        attack.hotbar_sel=selectable_slot(&r,weapon);gm_runtime_tick(&r,attack);idle_hover(&r,10);
         CHECK(!c->alive,"destroy End crystal through survival melee attack");}
 
     /* Projectile: draw the crafted bow at the live dragon and release. */
@@ -502,7 +576,11 @@ int main(void){
             if(gm_world_block(r.world,x,y,z)==121&&
                gm_world_block(r.world,x,y+1,z)==0&&
                gm_world_block(r.world,x,y+1,z+1)==0){
-                pad_x=x;pad_y=y;pad_z=z;pad=1;}
+                pad=1;
+                for(int dx=-2;dx<=2&&pad;++dx)for(int dz=-2;dz<=2&&pad;++dz)
+                    if(gm_world_block(r.world,x+dx,y,z+dz)!=121||
+                       gm_world_block(r.world,x+dx,y+1,z+dz)!=0)pad=0;
+                if(pad){pad_x=x;pad_y=y;pad_z=z;}}
         CHECK(pad,"locate generated End-stone pad for bed placement");
         gm_runtime_set_pose(&r,pad_x+0.5,pad_y+1.0,pad_z+0.5,0,60);
         GmAction place;memset(&place,0,sizeof place);place.do_place=1;place.use=1;place.hotbar_sel=bed;
@@ -512,35 +590,40 @@ int main(void){
             for(int z=pad_z-2;z<=pad_z+3;++z)
                 if(gm_world_block(r.world,x,y,z)==26){bed_x=x;bed_y=y;bed_z=z;++bedparts;}
         CHECK(bedparts>=1,"bed places on generated End stone for explosion combat");
-        /* Use from the edge of block reach; the legally crafted iron boots
-         * keep the route alive without any health/death state injection. */
-        gm_runtime_set_pose(&r,bed_x+0.5,bed_y,bed_z+6.39,180,10);
-        for(int recovery=0;recovery<20&&r.vitals.health<19.5f;++recovery){
-            if(r.vitals.foodLevel<18){
-                int food=slot_item(&r,423,1);
-                if(food<0)food=slot_item(&r,424,1);
-                if(food<0)food=slot_item(&r,365,1);
-                food=selectable_slot(&r,food);
-                CHECK(food>=0,"route retains harvested food for End recovery");
-                if(food<0)break;
-                GmAction eat;memset(&eat,0,sizeof eat);eat.use=1;eat.hotbar_sel=food;
-                for(int t=0;t<33;++t)gm_runtime_tick(&r,eat);
-            }
-            idle_hover(&r,200);
-        }
-        CHECK(r.vitals.health>=19.0f,
+        int cover_x=0,cover_z=0,cover_dx=0,cover_dz=0,cover=0;
+        static const int cover_dirs[4][2]={{1,0},{-1,0},{0,1},{0,-1}};
+        for(int i=0;i<4&&!cover;++i){int cx=bed_x+cover_dirs[i][0];
+            int cz=bed_z+cover_dirs[i][1];
+            if(gm_world_block(r.world,cx,bed_y,cz)==0&&
+               gm_world_block(r.world,cx,bed_y-1,cz)==121){
+                cover_x=cx;cover_z=cz;cover_dx=cover_dirs[i][0];
+                cover_dz=cover_dirs[i][1];cover=1;}}
+        int cover_slot=slot_item(&r,4,1);
+        if(cover_slot<0)cover_slot=slot_item(&r,5,1);
+        int cover_placed=cover&&place_above(&r,cover_slot,cover_x,bed_y,cover_z);
+        CHECK(cover_placed,"place carried blast cover beside the bed");
+        double safe_x=cover_x+0.5+cover_dx*1.2;
+        double safe_z=cover_z+0.5+cover_dz*1.2;
+        float safe_yaw=cover_dx?cover_dx*90.0f:(cover_dz>0?180.0f:0.0f);
+        gm_runtime_set_pose(&r,safe_x,bed_y,safe_z,safe_yaw,28.0f);
+        CHECK(recover_health(&r),
               "natural food regeneration restores health before End bed combat");
-        for(int hits=0;hits<80&&d->health>0&&!r.dead;++hits){
-            gm_runtime_set_pose(&r,d->x,d->y+2-PSV_EYE_HEIGHT,d->z-2.5,0,0);
+        for(int hits=0;hits<240&&d->health>0&&!r.dead;++hits){
+            gm_runtime_set_pose(&r,d->x,d->y+2-PSV_EYE_HEIGHT,d->z-3.8,0,0);
             GmAction attack;memset(&attack,0,sizeof attack);
             int weapon=slot_item(&r,267,1);if(weapon<0)weapon=slot_item(&r,272,1);
             if(weapon<0)weapon=slot_item(&r,268,1);
             if(weapon<0)weapon=slot_item(&r,274,1);
-            attack.attack=1;attack.hotbar_sel=selectable_slot(&r,weapon);
-            gm_runtime_tick(&r,attack);idle_hover(&r,10);
+            attack.attack=1;attack.do_break=1;
+            attack.hotbar_sel=selectable_slot(&r,weapon);
+            gm_runtime_tick(&r,attack);idle(&r,1);
+            double retreat_y=d->y+120;if(retreat_y>250)retreat_y=250;
+            gm_runtime_set_pose(&r,d->x,retreat_y,d->z,0,0);idle_hover(&r,10);
         }
         CHECK(d->health<=0,"legal repeated attacks defeat the live dragon");
-        gm_runtime_set_pose(&r,bed_x+0.5,bed_y,bed_z+6.39,180,10);
+        gm_runtime_set_pose(&r,safe_x,bed_y,safe_z,safe_yaw,28.0f);
+        CHECK(recover_health(&r),
+              "natural food regeneration restores health after dragon melee");
         float player_hp=r.vitals.health;
         float dragon_hp=d->health;
         CHECK(gm_runtime_use_block(&r,bed_x,bed_y,bed_z),

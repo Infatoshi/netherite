@@ -10,10 +10,13 @@
 #include "game/hud.h"
 #include "game/item_render.h"
 #include "game/overlay.h"
+#include "game/potion_render.h"
 #include "game/screen.h"
 #include "game/sel_box.h"
 #include "game/sky.h"
 #include "game/underwater.h"
+#include "game/weather_render.h"
+#include "game/fishing_render.h"
 #include "game/view.h"
 #include "world/mesh_mc.h"
 #include "world/lightmap.h"
@@ -128,6 +131,7 @@ struct GmFrameCapture {
     CrFramebuffer fb;
     CrScreenTri *tris;
     CrVertex *entity_verts[GM_FC_ENT_BUFS];
+    CrVertex *weather_verts[4]; /* rain/snow x pipeline parity */
     unsigned char *ppm_buf; /* packed RGB scratch, one fwrite per frame */
     int max_tris, max_entity_verts;
     GmParticlesLive *particles; /* replay-owned recorded particle pool */
@@ -230,16 +234,35 @@ static float fc_sun_brightness(const McSinTable *st, long long wt) {
  * SAME texels to its terrain shade ctxs or lightmap-mode meshes shade garbage. */
 void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
                             CrRgba lut[256]) {
+    gm_frame_lightmap_fill_view(st, world_time, 0.0f, 0.0f, 0.0f, lut);
+}
+
+void gm_frame_lightmap_fill_view(
+        const McSinTable *st, long long world_time, float rain_strength,
+        float thunder_strength, float night_vision, CrRgba lut[256]) {
     float sun = fc_sun_brightness(st, world_time);
+    sun = (float)((double)sun * (1.0 - (double)rain_strength * 5.0 / 16.0));
+    sun = (float)((double)sun * (1.0 - (double)thunder_strength * 5.0 / 16.0));
     for (int sl = 0; sl < 16; ++sl)
         for (int bl = 0; bl < 16; ++bl)
             lut[sl * 16 + bl] =
-                cr_lightmap_rgba8(cr_lightmap_rgb(0, sl, bl, sun, 0.0f, 0.0f));
+                cr_lightmap_rgba8(cr_lightmap_rgb_night_vision(
+                    0, sl, bl, sun, 0.0f, 0.0f, night_vision));
 }
 
-static const CrRgba *build_lightmap_lut(GmFrameCapture *c, const GmRuntime *r) {
+static const CrRgba *build_lightmap_lut(
+        GmFrameCapture *c, const GmRuntime *r, float night_vision) {
     if (!c->lm_mode || r->dimension != 0) return NULL;
-    gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time, c->lut);
+    float sun = fc_sun_brightness(&r->sin_table, r->clock.world_time);
+    sun = (float)((double)sun * (1.0 - (double)(
+        gm_world_rain_strength(&r->clock, 1.0f) * 5.0f) / 16.0));
+    sun = (float)((double)sun * (1.0 - (double)(
+        gm_world_thunder_strength(&r->clock, 1.0f) * 5.0f) / 16.0));
+    for (int sl = 0; sl < 16; ++sl)
+        for (int bl = 0; bl < 16; ++bl)
+            c->lut[sl * 16 + bl] =
+                cr_lightmap_rgba8(cr_lightmap_rgb_night_vision(
+                    0, sl, bl, sun, 0.0f, 0.0f, night_vision));
     return c->lut;
 }
 
@@ -427,15 +450,9 @@ static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
     for (int i = 0; i < 4; ++i) { shade[i] = s[i]; shade[i].lightmap = lm; }
     /* grass_side_overlay quads are coplanar with their SOLID base faces. */
     shade[CR_LAYER_CUTOUT_MIPPED].depth_lequal = 1;
-    if (uw && uw->fluid) {
-        /* EntityRenderer.setupFog fluid branch: GL_EXP replaces the linear
-         * ramp on every terrain layer, colored by updateFogColor's fluid
-         * color * fogColor1 (game/underwater.h). */
-        for (int i = 0; i < 4; ++i) {
-            shade[i].fog_color = uw->fog_rgba;
-            shade[i].fog_exp_density = uw->density;
-        }
-    }
+    if (uw && enabled)
+        for (int i = 0; i < 4; ++i)
+            gm_view_fog_apply(&shade[i], uw, fog);
 }
 
 static void render_world_layers(GmFrameCapture *c, const CrCamera *cam,
@@ -578,10 +595,15 @@ GmFrameCapture *gm_frame_capture_open(const GmConfig *cfg, char *err, int err_ca
     c->tris=malloc((size_t)c->max_tris*sizeof *c->tris);
     for(int i=0;i<GM_FC_ENT_BUFS;++i)
         c->entity_verts[i]=malloc((size_t)c->max_entity_verts*sizeof *c->entity_verts[i]);
+    for(int i=0;i<4;++i)
+        c->weather_verts[i]=malloc((size_t)GM_WEATHER_MAX_VERTS_PER_KIND
+                                   *sizeof *c->weather_verts[i]);
     c->ppm_buf=malloc((size_t)cfg->width*(size_t)cfg->height*3);
     c->post_scratch=malloc((size_t)cfg->width*(size_t)cfg->height*sizeof *c->post_scratch);
     if(!c->fb.color||!c->tris||!c->entity_verts[0]||!c->entity_verts[1]||
-       !c->entity_verts[2]||!c->entity_verts[3]||!c->ppm_buf||!c->post_scratch){set_error(err,err_cap,"frame capture allocation failed");gm_frame_capture_close(c);return NULL;}
+       !c->entity_verts[2]||!c->entity_verts[3]||!c->weather_verts[0]||
+       !c->weather_verts[1]||!c->weather_verts[2]||!c->weather_verts[3]||
+       !c->ppm_buf||!c->post_scratch){set_error(err,err_cap,"frame capture allocation failed");gm_frame_capture_close(c);return NULL;}
     if(npy){
         c->npy_f=fopen(c->dir,"wb");
         if(!c->npy_f){
@@ -904,16 +926,57 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * eye height through psv_player_eye_height(prev_sneak). Do not lower the
      * camera a second time from the current action. */
     CrCamera cam=camera_for(&v,c->fb.w,c->fb.h);float day=time_of_day(r);
+    float night_vision=gm_night_vision_brightness(
+        &v,&r->sin_table,1.0f);
+    int blindness=gm_potion_view_duration(&v,15);
+    double void_fog_y_factor=r->world_type==GM_WORLD_SUPERFLAT
+        ? 1.0 : 0.03125;
     /* eye-in-fluid state (fog / FOV / overlay - game/underwater.h) */
-    GmUnderwater uw;gm_uw_eval(r->world,r->dimension,&v,c->fog_c1,&uw);
+    GmUnderwater uw;gm_uw_eval(
+        r->world,r->dimension,&v,c->fog_c1,night_vision,blindness,
+        void_fog_y_factor,&uw);
     cam.fov_deg*=uw.fov_scale;   /* getFOVModifier: 60/70 with the eye in water */
     gm_sky_set_fog_c1(c->fog_c1);  /* updateFogColor f13 on clear/view fog */
+    gm_sky_set_weather(gm_world_rain_strength(&r->clock,1.0f),
+                       gm_world_thunder_strength(&r->clock,1.0f));
+    gm_sky_set_night_vision(night_vision);
+    gm_sky_set_void_blindness(
+        blindness,(double)v.y,void_fog_y_factor);
     /* orientCamera glTranslate(0,-eyeHeight,0): sky plane at 16-eyeH. */
     gm_sky_set_eye_height(v.eye_height > 0.01f ? v.eye_height : 1.62f);
     gm_sky_set_fluid_fog(uw.fluid?1:0,uw.fog01,uw.density);
     /* clearColor = updateFogColor result (view fog * fogColor1). Fluid path
      * already bakes fog_c1 into uw.fog_rgba. */
-    CrRgba clear=gm_frame_clear_color(day,r->dimension,c->fog_c1,&uw);
+    CrRgba clear=gm_terrain_fog_color(day);
+    if(r->dimension==-1){
+        float fr=0.20f*c->fog_c1,fg=0.03f*c->fog_c1,fb=0.03f*c->fog_c1;
+        gm_void_blindness_rgb(
+            &fr,&fg,&fb,blindness,(double)v.y,void_fog_y_factor);
+        CrLightmapRgb nv=cr_night_vision_rgb(fr,fg,fb,night_vision);
+        clear.r=(u8)(nv.r*255.0f+0.5f);
+        clear.g=(u8)(nv.g*255.0f+0.5f);
+        clear.b=(u8)(nv.b*255.0f+0.5f);
+        clear.a=255;
+    }else if(r->dimension==1){
+        /* updateFogColor, End: WorldProviderEnd.getFogColor is constant
+         * (0.627451,0.5019608,0.627451)*0.15 (its celestial-angle term
+         * clamps to 0 at the fixed angle 0.5), then blended
+         * f = 1 - pow(0.25 + 0.75*rd/32, 0.25) toward the sky color, which
+         * is BLACK in the End (getSkyColor's cos(angle*2pi)*2+0.5 clamps to
+         * 0), then scaled by fogColor1 like every dimension. */
+        float bf=1.0f-powf(0.25f+0.75f*(GM_TERRAIN_FOG_FAR/16.0f)/32.0f,0.25f);
+        float fr=0.09411765f*(1.0f-bf)*c->fog_c1;
+        float fg=0.07529412f*(1.0f-bf)*c->fog_c1;
+        float fb=0.09411765f*(1.0f-bf)*c->fog_c1;
+        gm_void_blindness_rgb(
+            &fr,&fg,&fb,blindness,(double)v.y,void_fog_y_factor);
+        CrLightmapRgb nv=cr_night_vision_rgb(fr,fg,fb,night_vision);
+        clear.r=(u8)(nv.r*255.0f+0.5f);
+        clear.g=(u8)(nv.g*255.0f+0.5f);
+        clear.b=(u8)(nv.b*255.0f+0.5f);
+        clear.a=255;
+    }
+    if(uw.fluid)clear=uw.fog_rgba;
     cr_fb_clear(&c->fb,clear);
     if(r->dimension==0&&c->use_cuda&&cr_raster_cuda_sky&&!cr_cfg()->cpu_sky){
         /* sky on the GPU: upload the cleared fb, then the kernel fills every
@@ -936,7 +999,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     bm_atlas_set_portal_frame(0);
     if(c->use_cuda&&cr_raster_cuda_atlas_dirty)cr_raster_cuda_atlas_dirty();
     CrTexture atlas=gm_world_atlas(r->world);
-    const CrRgba *lm=build_lightmap_lut(c,r);
+    const CrRgba *lm=build_lightmap_lut(c,r,night_vision);
     /* Viewmodel environment: renderHand fov (70 * eye-in-water 60/70), the
      * eye-block combined light (ItemRenderer.setLightmap), and the player
      * rotation the RenderHelper item lights are anchored under. */
@@ -948,16 +1011,20 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             gm_hand_set_env(lm,(float)hsky,(float)hblk,1.f,1.f,1.f,
                             uw.fov_scale,v.yaw,v.pitch);
         }else{
-            CrLightmapRgb hc3=cr_lightmap_rgb(r->dimension,hsky,hblk,
-                cr_dimension_sun_brightness(r->dimension),0.f,0.f);
+            CrLightmapRgb hc3=cr_lightmap_rgb_night_vision(
+                r->dimension,hsky,hblk,
+                cr_dimension_sun_brightness(r->dimension),0.f,0.f,
+                night_vision);
             gm_hand_set_env(0,15.f,0.f,hc3.r,hc3.g,hc3.b,
                             uw.fov_scale,v.yaw,v.pitch);
         }
     }
     /* live-sim entities + tape-replay renderable ghosts (divergence #10:
      * replayed oracle entities render through the same model path). */
-    enum { FC_ENTS = GM_LIVE_MAX + GM_RUNTIME_GHOST_VIEWS };
+    enum { FC_ENTS = GM_LIVE_MAX + GM_RUNTIME_GHOST_VIEWS
+        + GM_RUNTIME_END_CRYSTALS + GM_RUNTIME_FALLING_BLOCKS };
     GmEntityView ents[FC_ENTS];int n=gm_dragon_fill_views(&r->dragon,ents,FC_ENTS);
+    n+=gm_runtime_end_crystal_views(r,ents+n,FC_ENTS-n);
     n+=gm_mobs_fill_views(&r->mobs,ents+n,FC_ENTS-n);
     int n_proj0=n;
     n+=gm_runtime_projectile_views(r,ents+n,FC_ENTS-n);
@@ -969,6 +1036,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 ptypes[npt++]=r->projectiles[i].type;
         gm_entity_patch_large_fireballs(ptypes,npt,ents+n_proj0,n-n_proj0);
     }
+    n+=gm_runtime_falling_block_views(r,ents+n,FC_ENTS-n);
     {
         int tape_falling = 0;
         for (int i = 0; i < r->nghost_views; ++i)
@@ -998,8 +1066,8 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
      * setupFog then pulls the linear ramp to [far*0.05, min(far,192)*0.5]
      * (EntityRenderer.java:2044-2047) - independent of dragon proximity.
      * Magma has no BossInfo packets: latch createFog on a live dragon OR any
-     * ender crystal (tape ghosts map EntityEnderCrystal -> type 31, live fill
-     * uses GM_ENTITY_CRYSTAL=8). The nearest-8 window drops a far dragon for
+     * ender crystal (both tape ghosts and live fill use GM_ENTITY_CRYSTAL=31).
+     * The nearest-8 window drops a far dragon for
      * most of this fight; crystals stay in the list and keep fog armed. */
     /* ... and it goes away for good the moment the dragon dies:
      * processDragonDeath does bossInfo.setVisible(false) at deathTicks 200
@@ -1022,8 +1090,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     if(c->dragon_killed){c->boss_latch=0;c->boss_frac=0.0f;}
     else if(!c->boss_latch){
         for(int i=0;i<n;++i){
-            /* 31 = ER_TYPE_CRYSTAL (tape/name map); 8 = GM_ENTITY_CRYSTAL. */
-            if(ents[i].type==GM_ENTITY_CRYSTAL || ents[i].type==31){
+            if(ents[i].type==GM_ENTITY_CRYSTAL){
                 c->boss_latch=1;c->boss_frac=1.0f;break;
             }
         }
@@ -1091,8 +1158,42 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
          * white instead of washing to the End fog color. */
         gm_frame_world_fog_params(r->dimension,c->boss_latch,&sh.enable_fog,
                                   &sh.fog_start,&sh.fog_end);
-        if(uw.fluid){ sh.enable_fog=1; sh.fog_exp_density=uw.density; sh.fog_color=uw.fog_rgba; }
+        gm_view_fog_apply(&sh,&uw,clear);
         render_layer(c,&cam,eb[0],nv,&sh);
+        {
+            int nl=gm_fishing_line_emit(
+                r,1.0f,swing,70.0f,
+                cam.pos.x,cam.pos.y,cam.pos.z,
+                cam.fov_deg,c->fb.h,
+                eb[0]+nv,c->max_entity_verts-nv);
+            if(nl>0){
+                CrShadeCtx line={0};
+                line.fog_color=clear;
+                line.untextured=1;
+                line.layer=CR_LAYER_CUTOUT;
+                gm_view_fog_apply(&line,&uw,clear);
+                render_layer(c,&cam,eb[0]+nv,nl,&line);
+            }
+        }
+        /* RenderEnderCrystal/RenderDragon heal beams rebind a standalone
+         * repeating texture, disable standard item lighting and culling, but
+         * retain RenderManager's owning-entity lightmap coordinates. The
+         * emitter supplies both windings because magma culls globally. */
+        {
+            static CrVertex beam_ov[FC_ENTS * 96];
+            int nb=gm_crystal_beams_emit(ents,n,beam_ov,FC_ENTS*96);
+            if(nb>0){
+                CrTexture bt=gm_crystal_beam_texture();
+                CrShadeCtx beam={0};
+                beam.atlas=&bt;beam.fog_color=clear;
+                beam.alpha_test=1;beam.alpha_ref=0.1f;
+                beam.layer=CR_LAYER_CUTOUT;
+                beam.sample_mode=1;beam.repeat_uv=1;
+                beam.lightmap=lm;
+                gm_view_fog_apply(&beam,&uw,clear);
+                render_layer(c,&cam,beam_ov,nb,&beam);
+            }
+        }
         /* RenderXPOrb: SRC_ALPHA blend, alpha 128, no cutout thr 0.5 kill. */
         {
             static CrVertex xp_ov[512];
@@ -1103,7 +1204,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 xp.alpha_test=1; xp.alpha_ref=0.1f;
                 xp.layer=CR_LAYER_TRANSLUCENT; xp.blend=1;
                 xp.lightmap=lm;
-                if(uw.fluid){ xp.enable_fog=1; xp.fog_exp_density=uw.density; xp.fog_color=uw.fog_rgba; }
+                gm_view_fog_apply(&xp,&uw,clear);
                 render_layer(c,&cam,xp_ov,nx,&xp);
             }
         }
@@ -1118,7 +1219,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 gel.atlas=&ea; gel.fog_color=clear;
                 gel.alpha_test=1; gel.alpha_ref=0.1f; /* living GL_GREATER 0.1 */
                 gel.layer=CR_LAYER_TRANSLUCENT; gel.blend=4; /* depth write */
-                if(uw.fluid){ gel.enable_fog=1; gel.fog_exp_density=uw.density; gel.fog_color=uw.fog_rgba; }
+                gm_view_fog_apply(&gel,&uw,clear);
                 render_layer(c,&cam,gel_ov,ng,&gel);
             }
             int nr=gm_dragon_death_rays_emit(ents,n,ray_ov,8192);
@@ -1141,8 +1242,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 gm_frame_world_fog_params(r->dimension,c->boss_latch,
                                           &rays.enable_fog,
                                           &rays.fog_start,&rays.fog_end);
-                if(uw.fluid){ rays.enable_fog=1; rays.fog_exp_density=uw.density;
-                              rays.fog_color=uw.fog_rgba; }
+                gm_view_fog_apply(&rays,&uw,clear);
                 render_layer(c,&cam,ray_ov,nr,&rays);
             }
             /* RenderDragon.renderCrystalBeams. Own pass, not appended to the
@@ -1173,7 +1273,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             CrShadeCtx ish={0};
             ish.atlas=&atlas; ish.fog_color=clear; ish.alpha_test=1;
             ish.layer=CR_LAYER_CUTOUT;
-            if(uw.fluid){ ish.enable_fog=1; ish.fog_exp_density=uw.density; ish.fog_color=uw.fog_rgba; }
+            gm_view_fog_apply(&ish,&uw,clear);
             render_layer(c,&cam,eb[1],nv,&ish);
         }
         nv=gm_items_emit_flat(ents,n,eb[2],c->max_entity_verts);
@@ -1185,7 +1285,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             CrShadeCtx fsh={0};
             fsh.atlas=&ia; fsh.fog_color=clear; fsh.alpha_test=1;
             fsh.layer=CR_LAYER_CUTOUT;
-            if(uw.fluid){ fsh.enable_fog=1; fsh.fog_exp_density=uw.density; fsh.fog_color=uw.fog_rgba; }
+            gm_view_fog_apply(&fsh,&uw,clear);
             render_layer(c,&cam,eb[2],nv,&fsh);
         }
         /* Render.doRenderShadowAndFire: small width.3125 / large width 1.0. */
@@ -1201,7 +1301,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             CrShadeCtx fire_sh={0};
             fire_sh.atlas=&atlas; fire_sh.fog_color=clear;
             fire_sh.alpha_test=1; fire_sh.layer=CR_LAYER_CUTOUT;
-            if(uw.fluid){ fire_sh.enable_fog=1; fire_sh.fog_exp_density=uw.density; fire_sh.fog_color=uw.fog_rgba; }
+            gm_view_fog_apply(&fire_sh,&uw,clear);
             render_layer(c,&cam,eb[3],nv,&fire_sh);
         }
     }
@@ -1237,6 +1337,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 osh.layer = CR_LAYER_TRANSLUCENT;
                 osh.blend = 1;
                 osh.depth_lequal = 1;
+                gm_view_fog_apply(&osh,&uw,clear);
                 render_layer(c,&cam,sel_ov,ns,&osh);
             }
         }
@@ -1282,8 +1383,10 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
             else if (dface==4) lx=wx-1; else if (dface==5) lx=wx+1;
             int dsky=gm_world_sky_light(r->world,lx,ly,lz);
             int dblk=gm_world_block_light(r->world,lx,ly,lz);
-            CrLightmapRgb dlm=cr_lightmap_rgb(r->dimension,dsky,dblk,
-                cr_dimension_sun_brightness(r->dimension),0.f,0.f);
+            CrLightmapRgb dlm=cr_lightmap_rgb_night_vision(
+                r->dimension,dsky,dblk,
+                cr_dimension_sun_brightness(r->dimension),0.f,0.f,
+                night_vision);
             int nd=gm_block_break_particles_emit(
                 wx,dy,wz,bid,stage,dface,
                 gm_player_dig_particle_count(),
@@ -1293,7 +1396,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 CrShadeCtx dig={0};
                 dig.atlas=&ta; dig.fog_color=clear;
                 dig.alpha_test=1; dig.layer=CR_LAYER_CUTOUT;
-                if(uw.fluid){ dig.enable_fog=1; dig.fog_exp_density=uw.density; dig.fog_color=uw.fog_rgba; }
+                gm_view_fog_apply(&dig,&uw,clear);
                 render_layer(c,&cam,dig_ov,nd,&dig);
             }
         }
@@ -1335,6 +1438,7 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
                 csh.layer = CR_LAYER_CUTOUT;
                 csh.blend = 2;           /* DST_COLOR, SRC_COLOR → 2*src*dst */
                 csh.depth_lequal = 1;
+                gm_view_fog_apply(&csh,&uw,clear);
                 render_layer(c,&cam,crack_ov,nc,&csh);
             }
         }
@@ -1350,6 +1454,48 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         render_world_layers(c,&cam,&mv,&atlas,clear,r->dimension,
                             c->boss_latch,lm,&uw,CR_LAYER_TRANSLUCENT,
                             CR_LAYER_TRANSLUCENT+1);
+    if(r->dimension==0&&r->weather_enabled){
+        float rs=gm_world_rain_strength(&r->clock,1.0f);
+        CrVertex *wr=c->weather_verts[c->ent_set*2];
+        CrVertex *ws=c->weather_verts[c->ent_set*2+1];
+        GmWeatherGeom wg=gm_weather_emit(
+            r->world,v.x,v.y,v.z,(int)r->tick,1.0f,rs,
+            wr,GM_WEATHER_MAX_VERTS_PER_KIND,
+            ws,GM_WEATHER_MAX_VERTS_PER_KIND);
+        CrShadeCtx wsh={0};
+        wsh.fog_color=clear;wsh.fog_start=GM_TERRAIN_FOG_START;
+        wsh.fog_end=GM_TERRAIN_FOG_END;
+        wsh.enable_fog=gm_terrain_fog_enabled();
+        wsh.alpha_test=1;wsh.alpha_ref=0.1f;
+        wsh.layer=CR_LAYER_TRANSLUCENT;wsh.blend=1;
+        wsh.lightmap=lm;wsh.sample_mode=1;wsh.repeat_uv=1;
+        gm_view_fog_apply(&wsh,&uw,clear);
+        if(wg.rain_verts>0){
+            CrTexture wt=gm_weather_rain_texture();wsh.atlas=&wt;
+            render_layer(c,&cam,wr,wg.rain_verts,&wsh);
+        }
+        if(wg.snow_verts>0){
+            CrTexture wt=gm_weather_snow_texture();wsh.atlas=&wt;
+            render_layer(c,&cam,ws,wg.snow_verts,&wsh);
+        }
+    }
+    {
+        GmLightningView bolts[GM_RUNTIME_LIGHTNING];
+        int bolt_count=gm_runtime_lightning_views(
+            r,bolts,GM_RUNTIME_LIGHTNING);
+        CrVertex *lv=c->entity_verts[c->ent_set];
+        int nv=gm_lightning_emit(
+            bolts,bolt_count,lv,c->max_entity_verts);
+        if(nv>0){
+            CrShadeCtx lsh={0};
+            lsh.fog_color=clear;lsh.fog_start=GM_TERRAIN_FOG_START;
+            lsh.fog_end=GM_TERRAIN_FOG_END;
+            lsh.enable_fog=gm_terrain_fog_enabled();
+            lsh.untextured=1;lsh.layer=CR_LAYER_TRANSLUCENT;lsh.blend=3;
+            gm_view_fog_apply(&lsh,&uw,clear);
+            render_layer(c,&cam,lv,nv,&lsh);
+        }
+    }
     /* Open GUI screen this tick (tape gui_view / divergence #9): force the
      * synchronous hand/hud/gui path so gm_screen_draw sees this tick's
      * inventory. Deferred readback would finish after later ticks mutate it. */
@@ -1444,6 +1590,7 @@ void gm_frame_capture_close(GmFrameCapture *c) {
     if(c->use_cuda&&cr_raster_cuda_post)cr_raster_cuda_post();
     free(c->tris);
     for(int i=0;i<GM_FC_ENT_BUFS;++i)free(c->entity_verts[i]);
+    for(int i=0;i<4;++i)free(c->weather_verts[i]);
     free(c->chunks);free(c->gsrc);free(c->gcnt);free(c->pend_color);
     free(c->pend_depth);free(c->post_scratch);
     free(c->ppm_buf);cr_fb_free(&c->fb);free(c);

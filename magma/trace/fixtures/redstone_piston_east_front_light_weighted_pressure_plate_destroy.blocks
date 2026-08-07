@@ -1,0 +1,5 @@
+# Supported, zero-strength light-weighted plate 147:0 in front of an
+# EAST-facing piston placed at tick zero. No entity intersects the plate.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 147 0

@@ -1,0 +1,5 @@
+# Dragon egg: full height with a 1/16 inset on every horizontal side.
+# Stone prevents the falling block from dropping during fixture setup.
+12 81 9 152 0
+12 79 8 122 0
+12 78 8 1 0

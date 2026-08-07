@@ -10,10 +10,10 @@
  *   java.util.Random                 nextInt bounds used for re-rolls
  *
  * SCOPE (this kernel):
- *   - Struct: totalTime, worldTime, rainTime, thunderTime, raining, thundering + JavaRandom
+ *   - Struct: timers/flags, exact rain/thunder fade strengths + JavaRandom
  *   - Per tick: weather timers then time advance (doWeatherCycle + doDaylightCycle true)
  *   - cleanWeatherTime forced 0 (the "clear weather" hold path is out of scope)
- *   - rainingStrength / thunderingStrength fades, sky-light, lightning draws: out of scope
+ *   - sky-light attenuation, precipitation, lightning draws: out of scope
  *   - Re-roll ranges (when timer already <= 0 at top of tick):
  *       thundering:  nextInt(12000) + 3600
  *       clear thunder: nextInt(168000) + 12000
@@ -24,7 +24,7 @@
  * Fixed initial WorldInfo (chosen so both flip + re-roll fire inside WW_NTICKS):
  *   totalTime=0, worldTime=0,
  *   raining=1 rainTime=50, thundering=0 thunderTime=100.
- * Tape emits 6 u64s per tick as %016llx. */
+ * Tape emits 10 u64s per tick as %016llx; strengths are raw float bits. */
 #ifndef MC_WORLD_WEATHER_H
 #define MC_WORLD_WEATHER_H
 
@@ -34,7 +34,7 @@
 #ifndef WW_NTICKS
 #define WW_NTICKS 256
 #endif
-#define WW_FIELDS 6
+#define WW_FIELDS 10
 
 /* Fixed harness initial WorldInfo values (not taken from seed). */
 #define WW_INIT_RAIN_TIME    50
@@ -49,6 +49,10 @@ typedef struct {
     i32 thunderTime;   /* WorldInfo.thunderTime */
     i32 raining;       /* WorldInfo.raining  (0/1) */
     i32 thundering;    /* WorldInfo.thundering (0/1) */
+    float prevRainingStrength;
+    float rainingStrength;
+    float prevThunderingStrength;
+    float thunderingStrength;
     JavaRandom rand;   /* World.rand (java.util.Random) */
 } WwState;
 
@@ -60,11 +64,16 @@ MC_HD static inline void ww_init(WwState *s, i64 seed) {
     s->thunderTime = WW_INIT_THUNDER_TIME;
     s->raining = WW_INIT_RAINING;
     s->thundering = WW_INIT_THUNDERING;
+    /* World.calculateInitialWeatherBody. Thunder starts at one only while
+     * both world flags are true. */
+    s->prevRainingStrength = s->rainingStrength = s->raining ? 1.0f : 0.0f;
+    s->prevThunderingStrength = s->thunderingStrength =
+        (s->raining && s->thundering) ? 1.0f : 0.0f;
     jrand_set(&s->rand, seed);
 }
 
-/* World.updateWeatherBody rain/thunder timer body with doWeatherCycle=true,
- * cleanWeatherTime=0, hasSkyLight, !isRemote. Strength fades omitted. */
+/* World.updateWeatherBody timers and strength tail with doWeatherCycle=true,
+ * cleanWeatherTime=0, hasSkyLight, !isRemote. */
 MC_HD static inline void ww_update_weather(WwState *s) {
     i32 j = s->thunderTime;
     if (j <= 0) {
@@ -93,6 +102,36 @@ MC_HD static inline void ww_update_weather(WwState *s) {
                 s->raining = s->raining ? 0 : 1;
         }
     }
+
+    /* World.updateWeatherBody strength tail. Java promotes each addition to
+     * double, then narrows back to float before MathHelper.clamp. */
+    s->prevThunderingStrength = s->thunderingStrength;
+    s->thunderingStrength = (float)((double)s->thunderingStrength
+        + (s->thundering ? 0.01 : -0.01));
+    if (s->thunderingStrength < 0.0f) s->thunderingStrength = 0.0f;
+    if (s->thunderingStrength > 1.0f) s->thunderingStrength = 1.0f;
+    s->prevRainingStrength = s->rainingStrength;
+    s->rainingStrength = (float)((double)s->rainingStrength
+        + (s->raining ? 0.01 : -0.01));
+    if (s->rainingStrength < 0.0f) s->rainingStrength = 0.0f;
+    if (s->rainingStrength > 1.0f) s->rainingStrength = 1.0f;
+}
+
+MC_HD static inline float ww_rain_strength(const WwState *s, float delta) {
+    return s->prevRainingStrength
+        + (s->rainingStrength - s->prevRainingStrength) * delta;
+}
+
+MC_HD static inline float ww_thunder_strength(const WwState *s, float delta) {
+    return (s->prevThunderingStrength
+        + (s->thunderingStrength - s->prevThunderingStrength) * delta)
+        * ww_rain_strength(s, delta);
+}
+
+MC_HD static inline u32 ww_float_bits(float v) {
+    union { float f; u32 u; } x;
+    x.f = v;
+    return x.u;
 }
 
 /* One WorldServer-style tick slice: weather then totalTime/worldTime advance
@@ -110,6 +149,10 @@ MC_HD static inline void ww_dump(const WwState *s, u64 *out) {
     out[3] = (u64)(u32)s->thunderTime;
     out[4] = (u64)(u32)s->raining;
     out[5] = (u64)(u32)s->thundering;
+    out[6] = (u64)ww_float_bits(s->prevRainingStrength);
+    out[7] = (u64)ww_float_bits(s->rainingStrength);
+    out[8] = (u64)ww_float_bits(s->prevThunderingStrength);
+    out[9] = (u64)ww_float_bits(s->thunderingStrength);
 }
 
 /* Full tape: init from seed, tick nticks times, dump WW_FIELDS u64s after each tick. */

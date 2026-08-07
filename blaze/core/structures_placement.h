@@ -55,6 +55,7 @@ MC_HD MC_NOINLINE static void stp_run(ChunkPrimer *primer, CpScratch *sc, const 
     sh_generate_map(shg, seed, cx, cz);
 
     MSWorld mw;
+    memset(&mw, 0, sizeof(mw));
     mw.primer = primer;
     mw.chunkX = cx;
     mw.chunkZ = cz;

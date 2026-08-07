@@ -1,0 +1,7 @@
+# A powered saved EAST extended piston head is the WEST comparator's
+# zero-strength rear input. Tick zero adds a separate redstone block on the
+# comparator's south side.
+9 78 9 152 0
+9 78 8 33 13
+10 78 8 34 5
+11 78 8 149 9

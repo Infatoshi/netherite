@@ -74,6 +74,7 @@ int main(int argc, char **argv) {
     char path[512];
 
     GmEntityView ents[NMOBS];
+    memset(ents, 0, sizeof ents);
     float x0 = 0.0f;
     for (int i = 0; i < NMOBS; ++i) {
         ents[i].type = TYPES[i];

@@ -1,0 +1,5 @@
+# WEST-facing observer powers the stone at x=13 strongly; the lamp at x=14
+# therefore depends on BlockObserver.breakBlock's second-ring notification.
+12 78 8 218 4
+13 78 8 1 0
+14 78 8 123 0

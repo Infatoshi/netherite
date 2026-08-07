@@ -1,0 +1,12 @@
+# EAST-facing normal piston is placed at tick zero near the raw-block box's
+# southeast edge. A stable south-side redstone block powers it and moves the
+# front stone east. The cactus starts valid because its west neighbor is air,
+# sand sustains it, and stone supports that sand. When block 36 settles to
+# real stone on tick three, Java's tile update notifies and destroys 81:9.
+# The drop is deliberately outside the state comparator's 16-block entity
+# radius; the nearby controlled cactus fixture proves its exact entity state.
+17 78 20 152 0
+18 78 19 1 0
+20 76 19 1 0
+20 77 19 12 0
+20 78 19 81 9

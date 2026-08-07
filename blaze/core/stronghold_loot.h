@@ -22,7 +22,14 @@ enum {
     SHL_CORRIDOR = 0,
     SHL_LIBRARY  = 1,
     SHL_CROSSING = 2,
-    SHL_NUM_TABLES = 3,
+    SHL_SIMPLE_DUNGEON = 3,
+    SHL_ABANDONED_MINESHAFT = 4,
+    SHL_END_CITY_TREASURE = 5,
+    SHL_DESERT_PYRAMID = 6,
+    SHL_JUNGLE_TEMPLE = 7,
+    SHL_JUNGLE_TEMPLE_DISPENSER = 8,
+    SHL_VILLAGE_BLACKSMITH = 9,
+    SHL_NUM_TABLES = 10,
     SHL_MAX_STACKS = 64
 };
 
@@ -46,6 +53,14 @@ enum {
     SHL_IRON_HORSE_ARMOR = 417,
     SHL_GOLD_HORSE_ARMOR = 418,
     SHL_DIAMOND_HORSE_ARMOR = 419,
+    SHL_EMERALD          = 388,
+    SHL_DIAMOND_SWORD    = 276,
+    SHL_DIAMOND_BOOTS    = 313,
+    SHL_DIAMOND_CHESTPLATE = 311,
+    SHL_DIAMOND_LEGGINGS = 312,
+    SHL_DIAMOND_HELMET   = 310,
+    SHL_DIAMOND_SHOVEL   = 277,
+    SHL_IRON_SHOVEL      = 256,
     SHL_BOOK             = 340,
     SHL_ENCHANTED_BOOK   = 403,
     SHL_PAPER            = 339,
@@ -56,7 +71,36 @@ enum {
     SHL_BROWN_MUSHROOM   = 39,
     SHL_IRON_AXE         = 258,
     SHL_GOLDEN_PICKAXE   = 285,
-    SHL_DIAMOND_PICKAXE  = 278
+    SHL_DIAMOND_PICKAXE  = 278,
+    SHL_RECORD_13        = 2256,
+    SHL_RECORD_CAT       = 2257,
+    SHL_NAME_TAG         = 421,
+    SHL_BUCKET           = 325,
+    SHL_WHEAT            = 296,
+    SHL_MELON_SEEDS      = 362,
+    SHL_PUMPKIN_SEEDS    = 361,
+    SHL_BEETROOT_SEEDS   = 435,
+    SHL_GUNPOWDER        = 289,
+    SHL_STRING           = 287,
+    SHL_BONE             = 352,
+    SHL_ROTTEN_FLESH     = 367,
+    SHL_SPIDER_EYE       = 375,
+    SHL_SAND             = 12,
+    SHL_ARROW            = 262
+};
+
+enum {
+    SHL_DYE              = 351,
+    SHL_RAIL             = 66,
+    SHL_POWERED_RAIL     = 27,
+    SHL_DETECTOR_RAIL    = 28,
+    SHL_ACTIVATOR_RAIL   = 157,
+    SHL_TORCH            = 50
+};
+
+enum {
+    SHL_OBSIDIAN         = 49,
+    SHL_SAPLING          = 6
 };
 
 MC_HD static inline void shl_entry_count(LtEntry *e, i32 item, i32 weight,
@@ -73,6 +117,27 @@ MC_HD static inline void shl_entry_one(LtEntry *e, i32 item, i32 weight) {
     e->n_funcs = 0;
 }
 
+MC_HD static inline void shl_entry_one_meta(LtEntry *e, i32 item, i32 meta,
+                                            i32 weight) {
+    e->item = item; e->meta = meta; e->weight = weight; e->quality = 0;
+    e->n_funcs = 0;
+}
+
+MC_HD static inline void shl_entry_count_meta(LtEntry *e, i32 item, i32 meta,
+                                              i32 weight, float cmin, float cmax) {
+    shl_entry_count(e, item, weight, cmin, cmax);
+    e->meta = meta;
+}
+
+MC_HD static inline void shl_entry_enchant_random_book(LtEntry *e, i32 weight) {
+    e->item = SHL_BOOK; e->meta = 0; e->weight = weight; e->quality = 0;
+    e->n_funcs = 1;
+    e->funcs[0].kind = LT_FN_ENCHANT_RANDOMLY;
+    e->funcs[0].count.min = 0.0f;
+    e->funcs[0].count.max = 0.0f;
+    e->funcs[0].limit = 0;
+}
+
 /* enchant_with_levels: levels fixed range, treasure flag. Starts as book;
  * LT_FN_ENCHANT_LEVELS converts to enchanted_book (403) + StoredEnchantments list. */
 MC_HD static inline void shl_entry_enchant_book(LtEntry *e, i32 weight,
@@ -86,9 +151,20 @@ MC_HD static inline void shl_entry_enchant_book(LtEntry *e, i32 weight,
     e->funcs[0].limit = treasure ? 1 : 0;
 }
 
+MC_HD static inline void shl_entry_enchant_item(LtEntry *e, i32 item,
+                                                i32 weight, float level_min,
+                                                float level_max, int treasure) {
+    e->item = item; e->meta = 0; e->weight = weight; e->quality = 0;
+    e->n_funcs = 1;
+    e->funcs[0].kind = LT_FN_ENCHANT_LEVELS;
+    e->funcs[0].count.min = level_min;
+    e->funcs[0].count.max = level_max;
+    e->funcs[0].limit = treasure ? 1 : 0;
+}
+
 /* Expand LT_MAX_ENTRIES for stronghold tables (corridor has 19 entries). */
 #define SHL_MAX_ENTRIES 24
-#define SHL_MAX_POOLS   2
+#define SHL_MAX_POOLS   3
 
 typedef struct {
     LtRange rolls;
@@ -173,6 +249,200 @@ MC_HD static inline void shl_table_get(int table_id, ShlTable *t) {
         shl_entry_count(&p->entries[5], SHL_APPLE, 15, 1, 3);
         shl_entry_one(&p->entries[6], SHL_IRON_PICKAXE, 1);
         shl_entry_enchant_book(&p->entries[7], 1, 30.0f, 30.0f, 1);
+    } else if (table_id == SHL_SIMPLE_DUNGEON) {
+        /* assets/minecraft/loot_tables/chests/simple_dungeon.json */
+        ShlPool *rare = &t->pools[0];
+        ShlPool *common = &t->pools[1];
+        ShlPool *mob = &t->pools[2];
+        t->n_pools = 3;
+
+        rare->rolls.min = 1.0f; rare->rolls.max = 3.0f;
+        rare->bonus_rolls.min = 0.0f; rare->bonus_rolls.max = 0.0f;
+        rare->n_entries = 10;
+        shl_entry_one(&rare->entries[0], SHL_SADDLE, 20);
+        shl_entry_one(&rare->entries[1], SHL_GOLDEN_APPLE, 15);
+        shl_entry_one_meta(&rare->entries[2], SHL_GOLDEN_APPLE, 1, 2);
+        shl_entry_one(&rare->entries[3], SHL_RECORD_13, 15);
+        shl_entry_one(&rare->entries[4], SHL_RECORD_CAT, 15);
+        shl_entry_one(&rare->entries[5], SHL_NAME_TAG, 20);
+        shl_entry_one(&rare->entries[6], SHL_GOLD_HORSE_ARMOR, 10);
+        shl_entry_one(&rare->entries[7], SHL_IRON_HORSE_ARMOR, 15);
+        shl_entry_one(&rare->entries[8], SHL_DIAMOND_HORSE_ARMOR, 5);
+        shl_entry_enchant_random_book(&rare->entries[9], 10);
+
+        common->rolls.min = 1.0f; common->rolls.max = 4.0f;
+        common->bonus_rolls.min = 0.0f; common->bonus_rolls.max = 0.0f;
+        common->n_entries = 10;
+        shl_entry_count(&common->entries[0], SHL_IRON_INGOT, 10, 1, 4);
+        shl_entry_count(&common->entries[1], SHL_GOLD_INGOT, 5, 1, 4);
+        shl_entry_one(&common->entries[2], SHL_BREAD, 20);
+        shl_entry_count(&common->entries[3], SHL_WHEAT, 20, 1, 4);
+        shl_entry_one(&common->entries[4], SHL_BUCKET, 10);
+        shl_entry_count(&common->entries[5], SHL_REDSTONE, 15, 1, 4);
+        shl_entry_count(&common->entries[6], SHL_COAL, 15, 1, 4);
+        shl_entry_count(&common->entries[7], SHL_MELON_SEEDS, 10, 2, 4);
+        shl_entry_count(&common->entries[8], SHL_PUMPKIN_SEEDS, 10, 2, 4);
+        shl_entry_count(&common->entries[9], SHL_BEETROOT_SEEDS, 10, 2, 4);
+
+        mob->rolls.min = 3.0f; mob->rolls.max = 3.0f;
+        mob->bonus_rolls.min = 0.0f; mob->bonus_rolls.max = 0.0f;
+        mob->n_entries = 4;
+        shl_entry_count(&mob->entries[0], SHL_BONE, 10, 1, 8);
+        shl_entry_count(&mob->entries[1], SHL_GUNPOWDER, 10, 1, 8);
+        shl_entry_count(&mob->entries[2], SHL_ROTTEN_FLESH, 10, 1, 8);
+        shl_entry_count(&mob->entries[3], SHL_STRING, 10, 1, 8);
+    } else if (table_id == SHL_ABANDONED_MINESHAFT) {
+        /* assets/minecraft/loot_tables/chests/abandoned_mineshaft.json */
+        ShlPool *rare = &t->pools[0];
+        ShlPool *common = &t->pools[1];
+        ShlPool *rails = &t->pools[2];
+        t->n_pools = 3;
+
+        rare->rolls.min = 1.0f; rare->rolls.max = 1.0f;
+        rare->bonus_rolls.min = 0.0f; rare->bonus_rolls.max = 0.0f;
+        rare->n_entries = 6;
+        shl_entry_one(&rare->entries[0], SHL_GOLDEN_APPLE, 20);
+        shl_entry_one_meta(&rare->entries[1], SHL_GOLDEN_APPLE, 1, 1);
+        shl_entry_one(&rare->entries[2], SHL_NAME_TAG, 30);
+        shl_entry_enchant_random_book(&rare->entries[3], 10);
+        shl_entry_one(&rare->entries[4], SHL_IRON_PICKAXE, 5);
+        shl_entry_one(&rare->entries[5], LT_AIR, 5);
+
+        common->rolls.min = 2.0f; common->rolls.max = 4.0f;
+        common->bonus_rolls.min = 0.0f; common->bonus_rolls.max = 0.0f;
+        common->n_entries = 10;
+        shl_entry_count(&common->entries[0], SHL_IRON_INGOT, 10, 1, 5);
+        shl_entry_count(&common->entries[1], SHL_GOLD_INGOT, 5, 1, 3);
+        shl_entry_count(&common->entries[2], SHL_REDSTONE, 5, 4, 9);
+        shl_entry_count_meta(&common->entries[3], SHL_DYE, 4, 5, 4, 9);
+        shl_entry_count(&common->entries[4], SHL_DIAMOND, 3, 1, 2);
+        shl_entry_count(&common->entries[5], SHL_COAL, 10, 3, 8);
+        shl_entry_count(&common->entries[6], SHL_BREAD, 15, 1, 3);
+        shl_entry_count(&common->entries[7], SHL_MELON_SEEDS, 10, 2, 4);
+        shl_entry_count(&common->entries[8], SHL_PUMPKIN_SEEDS, 10, 2, 4);
+        shl_entry_count(&common->entries[9], SHL_BEETROOT_SEEDS, 10, 2, 4);
+
+        rails->rolls.min = 3.0f; rails->rolls.max = 3.0f;
+        rails->bonus_rolls.min = 0.0f; rails->bonus_rolls.max = 0.0f;
+        rails->n_entries = 5;
+        shl_entry_count(&rails->entries[0], SHL_RAIL, 20, 4, 8);
+        shl_entry_count(&rails->entries[1], SHL_POWERED_RAIL, 5, 1, 4);
+        shl_entry_count(&rails->entries[2], SHL_DETECTOR_RAIL, 5, 1, 4);
+        shl_entry_count(&rails->entries[3], SHL_ACTIVATOR_RAIL, 5, 1, 4);
+        shl_entry_count(&rails->entries[4], SHL_TORCH, 15, 1, 16);
+    } else if (table_id == SHL_END_CITY_TREASURE) {
+        /* assets/minecraft/loot_tables/chests/end_city_treasure.json */
+        ShlPool *p = &t->pools[0];
+        t->n_pools = 1;
+        p->rolls.min = 2.0f; p->rolls.max = 6.0f;
+        p->bonus_rolls.min = 0.0f; p->bonus_rolls.max = 0.0f;
+        p->n_entries = 23;
+        shl_entry_count(&p->entries[0], SHL_DIAMOND, 5, 2, 7);
+        shl_entry_count(&p->entries[1], SHL_IRON_INGOT, 10, 4, 8);
+        shl_entry_count(&p->entries[2], SHL_GOLD_INGOT, 15, 2, 7);
+        shl_entry_count(&p->entries[3], SHL_EMERALD, 2, 2, 6);
+        shl_entry_count(&p->entries[4], SHL_BEETROOT_SEEDS, 5, 1, 10);
+        shl_entry_one(&p->entries[5], SHL_SADDLE, 3);
+        shl_entry_one(&p->entries[6], SHL_IRON_HORSE_ARMOR, 1);
+        shl_entry_one(&p->entries[7], SHL_GOLD_HORSE_ARMOR, 1);
+        shl_entry_one(&p->entries[8], SHL_DIAMOND_HORSE_ARMOR, 1);
+        shl_entry_enchant_item(&p->entries[9], SHL_DIAMOND_SWORD, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[10], SHL_DIAMOND_BOOTS, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[11], SHL_DIAMOND_CHESTPLATE, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[12], SHL_DIAMOND_LEGGINGS, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[13], SHL_DIAMOND_HELMET, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[14], SHL_DIAMOND_PICKAXE, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[15], SHL_DIAMOND_SHOVEL, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[16], SHL_IRON_SWORD, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[17], SHL_IRON_BOOTS, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[18], SHL_IRON_CHESTPLATE, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[19], SHL_IRON_LEGGINGS, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[20], SHL_IRON_HELMET, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[21], SHL_IRON_PICKAXE, 3, 20, 39, 1);
+        shl_entry_enchant_item(&p->entries[22], SHL_IRON_SHOVEL, 3, 20, 39, 1);
+    } else if (table_id == SHL_DESERT_PYRAMID) {
+        /* assets/minecraft/loot_tables/chests/desert_pyramid.json */
+        ShlPool *treasure = &t->pools[0];
+        ShlPool *bones = &t->pools[1];
+        t->n_pools = 2;
+
+        treasure->rolls.min = 2.0f; treasure->rolls.max = 4.0f;
+        treasure->bonus_rolls.min = 0.0f; treasure->bonus_rolls.max = 0.0f;
+        treasure->n_entries = 15;
+        shl_entry_count(&treasure->entries[0], SHL_DIAMOND, 5, 1, 3);
+        shl_entry_count(&treasure->entries[1], SHL_IRON_INGOT, 15, 1, 5);
+        shl_entry_count(&treasure->entries[2], SHL_GOLD_INGOT, 15, 2, 7);
+        shl_entry_count(&treasure->entries[3], SHL_EMERALD, 15, 1, 3);
+        shl_entry_count(&treasure->entries[4], SHL_BONE, 25, 4, 6);
+        shl_entry_count(&treasure->entries[5], SHL_SPIDER_EYE, 25, 1, 3);
+        shl_entry_count(&treasure->entries[6], SHL_ROTTEN_FLESH, 25, 3, 7);
+        shl_entry_one(&treasure->entries[7], SHL_SADDLE, 20);
+        shl_entry_one(&treasure->entries[8], SHL_IRON_HORSE_ARMOR, 15);
+        shl_entry_one(&treasure->entries[9], SHL_GOLD_HORSE_ARMOR, 10);
+        shl_entry_one(&treasure->entries[10], SHL_DIAMOND_HORSE_ARMOR, 5);
+        shl_entry_enchant_random_book(&treasure->entries[11], 20);
+        shl_entry_one(&treasure->entries[12], SHL_GOLDEN_APPLE, 20);
+        shl_entry_one_meta(&treasure->entries[13], SHL_GOLDEN_APPLE, 1, 2);
+        shl_entry_one(&treasure->entries[14], LT_AIR, 15);
+
+        bones->rolls.min = 4.0f; bones->rolls.max = 4.0f;
+        bones->bonus_rolls.min = 0.0f; bones->bonus_rolls.max = 0.0f;
+        bones->n_entries = 5;
+        shl_entry_count(&bones->entries[0], SHL_BONE, 10, 1, 8);
+        shl_entry_count(&bones->entries[1], SHL_GUNPOWDER, 10, 1, 8);
+        shl_entry_count(&bones->entries[2], SHL_ROTTEN_FLESH, 10, 1, 8);
+        shl_entry_count(&bones->entries[3], SHL_STRING, 10, 1, 8);
+        shl_entry_count(&bones->entries[4], SHL_SAND, 10, 1, 8);
+    } else if (table_id == SHL_JUNGLE_TEMPLE) {
+        /* assets/minecraft/loot_tables/chests/jungle_temple.json */
+        ShlPool *p = &t->pools[0];
+        t->n_pools = 1;
+        p->rolls.min = 2.0f; p->rolls.max = 6.0f;
+        p->bonus_rolls.min = 0.0f; p->bonus_rolls.max = 0.0f;
+        p->n_entries = 11;
+        shl_entry_count(&p->entries[0], SHL_DIAMOND, 3, 1, 3);
+        shl_entry_count(&p->entries[1], SHL_IRON_INGOT, 10, 1, 5);
+        shl_entry_count(&p->entries[2], SHL_GOLD_INGOT, 15, 2, 7);
+        shl_entry_count(&p->entries[3], SHL_EMERALD, 2, 1, 3);
+        shl_entry_count(&p->entries[4], SHL_BONE, 20, 4, 6);
+        shl_entry_count(&p->entries[5], SHL_ROTTEN_FLESH, 16, 3, 7);
+        shl_entry_one(&p->entries[6], SHL_SADDLE, 3);
+        shl_entry_one(&p->entries[7], SHL_IRON_HORSE_ARMOR, 1);
+        shl_entry_one(&p->entries[8], SHL_GOLD_HORSE_ARMOR, 1);
+        shl_entry_one(&p->entries[9], SHL_DIAMOND_HORSE_ARMOR, 1);
+        shl_entry_enchant_book(&p->entries[10], 1, 30.0f, 30.0f, 1);
+    } else if (table_id == SHL_JUNGLE_TEMPLE_DISPENSER) {
+        /* assets/minecraft/loot_tables/chests/jungle_temple_dispenser.json */
+        ShlPool *p = &t->pools[0];
+        t->n_pools = 1;
+        p->rolls.min = 1.0f; p->rolls.max = 2.0f;
+        p->bonus_rolls.min = 0.0f; p->bonus_rolls.max = 0.0f;
+        p->n_entries = 1;
+        shl_entry_count(&p->entries[0], SHL_ARROW, 30, 2, 7);
+    } else if (table_id == SHL_VILLAGE_BLACKSMITH) {
+        /* assets/minecraft/loot_tables/chests/village_blacksmith.json */
+        ShlPool *p = &t->pools[0];
+        t->n_pools = 1;
+        p->rolls.min = 3.0f; p->rolls.max = 8.0f;
+        p->bonus_rolls.min = 0.0f; p->bonus_rolls.max = 0.0f;
+        p->n_entries = 17;
+        shl_entry_count(&p->entries[0], SHL_DIAMOND, 3, 1, 3);
+        shl_entry_count(&p->entries[1], SHL_IRON_INGOT, 10, 1, 5);
+        shl_entry_count(&p->entries[2], SHL_GOLD_INGOT, 5, 1, 3);
+        shl_entry_count(&p->entries[3], SHL_BREAD, 15, 1, 3);
+        shl_entry_count(&p->entries[4], SHL_APPLE, 15, 1, 3);
+        shl_entry_one(&p->entries[5], SHL_IRON_PICKAXE, 5);
+        shl_entry_one(&p->entries[6], SHL_IRON_SWORD, 5);
+        shl_entry_one(&p->entries[7], SHL_IRON_CHESTPLATE, 5);
+        shl_entry_one(&p->entries[8], SHL_IRON_HELMET, 5);
+        shl_entry_one(&p->entries[9], SHL_IRON_LEGGINGS, 5);
+        shl_entry_one(&p->entries[10], SHL_IRON_BOOTS, 5);
+        shl_entry_count(&p->entries[11], SHL_OBSIDIAN, 5, 3, 7);
+        shl_entry_count(&p->entries[12], SHL_SAPLING, 5, 3, 7);
+        shl_entry_one(&p->entries[13], SHL_SADDLE, 3);
+        shl_entry_one(&p->entries[14], SHL_IRON_HORSE_ARMOR, 1);
+        shl_entry_one(&p->entries[15], SHL_GOLD_HORSE_ARMOR, 1);
+        shl_entry_one(&p->entries[16], SHL_DIAMOND_HORSE_ARMOR, 1);
     }
 }
 
@@ -310,9 +580,10 @@ MC_HD static inline i32 shl_shuffle_items(LtStack *stacks, i32 n, i32 empty_slot
     return n_kept;
 }
 
-/* LootTable.fillInventory into a 27-slot TeChest.
- * Vanilla order: getEmptySlotsRandomized (shuffle empties) THEN shuffleItems. */
-MC_HD static inline void shl_fill_chest(TeChest *chest, int table_id, i64 loot_seed) {
+/* LootTable.fillInventory into an arbitrary vanilla inventory size. Vanilla
+ * order: getEmptySlotsRandomized (shuffle empties) THEN shuffleItems. */
+MC_HD static inline void shl_fill_inventory(TecStack *slots, int slot_count,
+                                            int table_id, i64 loot_seed) {
     ShlTable table;
     LtContext ctx;
     JavaRandom rng;
@@ -321,7 +592,8 @@ MC_HD static inline void shl_fill_chest(TeChest *chest, int table_id, i64 loot_s
     i32 empty[TEC_SLOTS];
     i32 n_empty = 0, n, i;
 
-    if (!chest || table_id < 0 || table_id >= SHL_NUM_TABLES) return;
+    if (!slots || slot_count <= 0 || slot_count > TEC_SLOTS
+            || table_id < 0 || table_id >= SHL_NUM_TABLES) return;
 
     shl_table_get(table_id, &table);
     ctx.luck = 0.0f;
@@ -330,8 +602,8 @@ MC_HD static inline void shl_fill_chest(TeChest *chest, int table_id, i64 loot_s
     jrand_set(&rng, loot_seed);
     n = shl_generate(&table, &rng, &ctx, stacks, SHL_MAX_STACKS);
 
-    for (i = 0; i < TEC_SLOTS; ++i) {
-        if (tec_is_empty(&chest->slots[i])) empty[n_empty++] = i;
+    for (i = 0; i < slot_count; ++i) {
+        if (tec_is_empty(&slots[i])) empty[n_empty++] = i;
     }
     if (n_empty <= 0) return;
 
@@ -355,8 +627,93 @@ MC_HD static inline void shl_fill_chest(TeChest *chest, int table_id, i64 loot_s
                     ts.enchants[e].level = stacks[i].ench_lvl[e];
                 }
             }
-            tec_set_slot(chest, slot, ts);
+            slots[slot] = ts;
         }
+    }
+}
+
+MC_HD static inline void shl_fill_chest(TeChest *chest, int table_id,
+                                        i64 loot_seed) {
+    if (!chest) return;
+    shl_fill_inventory(chest->slots, TEC_SLOTS, table_id, loot_seed);
+}
+
+/* Direct simple_dungeon.json -> 27-slot chest oracle battery. This separately
+ * locks the generated table (including EnchantRandomly) rather than relying on
+ * the fixed pre-rolled fillInventory battery below. */
+enum {
+    SHL_DUNGEON_BAT_SEEDS = 4,
+    SHL_DUNGEON_BAT_SLOT_F = 8,
+    SHL_DUNGEON_BAT_PER = TEC_SLOTS * SHL_DUNGEON_BAT_SLOT_F + 1,
+    SHL_DUNGEON_BAT_OUT = SHL_DUNGEON_BAT_SEEDS * SHL_DUNGEON_BAT_PER
+};
+
+MC_HD static inline i64 shl_dungeon_bat_seed(int i) {
+    static const i64 seeds[SHL_DUNGEON_BAT_SEEDS] = {
+        0, 42, 12345, -6024556974586992056LL
+    };
+    return i >= 0 && i < SHL_DUNGEON_BAT_SEEDS ? seeds[i] : 0;
+}
+
+MC_HD static inline void shl_run_dungeon_battery(u32 *out) {
+    int oi = 0;
+    for (int si = 0; si < SHL_DUNGEON_BAT_SEEDS; ++si) {
+        TeChest chest;
+        int nonempty = 0;
+        tec_init(&chest);
+        shl_fill_chest(
+            &chest, SHL_SIMPLE_DUNGEON, shl_dungeon_bat_seed(si));
+        for (int slot = 0; slot < TEC_SLOTS; ++slot) {
+            const TecStack *s = &chest.slots[slot];
+            out[oi++] = (u32)s->item;
+            out[oi++] = (u32)s->count;
+            out[oi++] = (u32)s->meta;
+            out[oi++] = (u32)s->n_enchants;
+            out[oi++] = (u32)(s->n_enchants > 0 ? s->enchants[0].id : 0);
+            out[oi++] = (u32)(s->n_enchants > 0 ? s->enchants[0].level : 0);
+            out[oi++] = (u32)(s->n_enchants > 1 ? s->enchants[1].id : 0);
+            out[oi++] = (u32)(s->n_enchants > 1 ? s->enchants[1].level : 0);
+            if (!tec_is_empty(s)) ++nonempty;
+        }
+        out[oi++] = (u32)nonempty;
+    }
+}
+
+enum {
+    SHL_MINESHAFT_BAT_SEEDS = 4,
+    SHL_MINESHAFT_BAT_SLOT_F = 8,
+    SHL_MINESHAFT_BAT_PER = TEC_SLOTS * SHL_MINESHAFT_BAT_SLOT_F + 1,
+    SHL_MINESHAFT_BAT_OUT = SHL_MINESHAFT_BAT_SEEDS * SHL_MINESHAFT_BAT_PER
+};
+
+MC_HD static inline i64 shl_mineshaft_bat_seed(int i) {
+    static const i64 seeds[SHL_MINESHAFT_BAT_SEEDS] = {
+        0, 42, 7230402065820649518LL, -7074434463822813898LL
+    };
+    return i >= 0 && i < SHL_MINESHAFT_BAT_SEEDS ? seeds[i] : 0;
+}
+
+MC_HD static inline void shl_run_mineshaft_battery(u32 *out) {
+    int oi = 0;
+    for (int si = 0; si < SHL_MINESHAFT_BAT_SEEDS; ++si) {
+        TeChest chest;
+        int nonempty = 0;
+        tec_init(&chest);
+        shl_fill_chest(
+            &chest, SHL_ABANDONED_MINESHAFT, shl_mineshaft_bat_seed(si));
+        for (int slot = 0; slot < TEC_SLOTS; ++slot) {
+            const TecStack *s = &chest.slots[slot];
+            out[oi++] = (u32)s->item;
+            out[oi++] = (u32)s->count;
+            out[oi++] = (u32)s->meta;
+            out[oi++] = (u32)s->n_enchants;
+            out[oi++] = (u32)(s->n_enchants > 0 ? s->enchants[0].id : 0);
+            out[oi++] = (u32)(s->n_enchants > 0 ? s->enchants[0].level : 0);
+            out[oi++] = (u32)(s->n_enchants > 1 ? s->enchants[1].id : 0);
+            out[oi++] = (u32)(s->n_enchants > 1 ? s->enchants[1].level : 0);
+            if (!tec_is_empty(s)) ++nonempty;
+        }
+        out[oi++] = (u32)nonempty;
     }
 }
 

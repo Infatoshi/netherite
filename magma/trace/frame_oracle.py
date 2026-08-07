@@ -20,7 +20,7 @@ PIPELINE (one command, --run-java to include the live Java half):
   2. pick checkpoints (every --cadence ticks) and read magma's pose at each
   3. magma frame: build + run game_candidate at each checkpoint pose  -> PNG
   4. Java frame (--run-java): write a poses file and call capture_at_poses.sh,
-     which teleports the live game to each pose on :1 and x11grabs the window
+     which teleports the selected live game to each pose and x11grabs the window
   5. diff each pair with render-opt/wholeframe/diff_frame.py over THREE regions:
        whole | terrain-crop (isolates lighting/geometry) | HUD-region (hand/hotbar)
   6. emit a per-checkpoint table + aggregate + ranked worst offenders, and
@@ -38,7 +38,7 @@ Usage:
   uv run --no-project --with numpy --with pillow python trace/frame_oracle.py \
       --ticks 300 --cadence 60
 
-  # full pose-forced oracle including the live Java game on :1:
+  # full pose-forced oracle including a live Java game:
   uv run --no-project --with numpy --with pillow python trace/frame_oracle.py \
       --ticks 1200 --cadence 60 --run-java
 """
@@ -66,7 +66,7 @@ GC_UNITS = [
     "world/mesh_mc", "world/light", "world/populate_mc", "assets/blockmodels",
     "renderkernels/rk_31_facebakery_make_quad",
     "core/math", "core/shade", "core/config", "cpu/raster_cpu", "transform",
-    "game/caps",
+    "game/config", "game/caps", "game/sky",
 ]
 GC_FLAGS = ["-O2", "-ffp-contract=off", "-Wall", "-Icore", "-I.", "-I" + BLAZE_CORE]
 
@@ -205,7 +205,14 @@ def main():
     ap.add_argument("--csv", default=os.path.join(MAGMA, "trace/out/c_phys.csv"))
     ap.add_argument("--outdir", default=os.path.join(MAGMA, "trace/out/frame_oracle"))
     ap.add_argument("--run-java", action="store_true",
-                    help="also drive the live Java game on :1 (teleport + x11grab)")
+                    help="also drive a live Java game (teleport + x11grab)")
+    ap.add_argument("--java-host", default="127.0.0.1")
+    ap.add_argument("--java-port", type=int, default=25575)
+    ap.add_argument("--java-display", default=":1")
+    ap.add_argument("--fresh-java", action="store_true",
+                    help="delete/recreate the Java qrl_<seed> save before capture")
+    ap.add_argument("--reuse-java", action="store_true",
+                    help="reuse existing mc_ck_<tick>.png files instead of recapturing")
     ap.add_argument("--gamemode", default="survival",
                     choices=["survival", "spectator"],
                     help="survival draws hand+HUD (the point); spectator = clean")
@@ -219,6 +226,9 @@ def main():
     ap.add_argument("--no-build", action="store_true", help="skip the C builds")
     args = ap.parse_args()
 
+    args.tape = os.path.abspath(args.tape)
+    args.csv = os.path.abspath(args.csv)
+    args.outdir = os.path.abspath(args.outdir)
     os.makedirs(args.outdir, exist_ok=True)
     magma_dir = os.path.join(args.outdir, "magma")
     os.makedirs(magma_dir, exist_ok=True)
@@ -258,17 +268,26 @@ def main():
             for ck in cks:
                 f.write(f"{ck['tick']} {ck['x']:.6f} {ck['y']:.6f} {ck['z']:.6f} "
                         f"{ck['mc_yaw']:.6f} {ck['mc_pitch']:.6f}\n")
-        cmd = ["bash", CAPTURE_SH, "--poses", poses_file, "--out", args.outdir,
-               "--seed", str(args.seed), "--fov", str(FOV),
-               "--gamemode", args.gamemode]
-        if args.no_launch:
-            cmd.append("--no-launch")
-        print("[oracle] capturing Java frames via capture_at_poses.sh ...")
-        print("  " + " ".join(cmd))
-        r = subprocess.run(cmd)
-        if r.returncode != 0:
-            print("[oracle] WARN: capture_at_poses.sh returned nonzero; "
-                  "some MC frames may be missing.", file=sys.stderr)
+        expected_mc = [os.path.join(args.outdir, f"mc_ck_{ck['tick']}.png")
+                       for ck in cks]
+        if args.reuse_java and all(os.path.exists(path) for path in expected_mc):
+            print(f"[oracle] reusing {len(expected_mc)} existing Java checkpoint frames")
+        else:
+            cmd = ["bash", CAPTURE_SH, "--poses", poses_file, "--out", args.outdir,
+                   "--seed", str(args.seed), "--fov", str(FOV),
+                   "--gamemode", args.gamemode,
+                   "--host", args.java_host, "--port", str(args.java_port),
+                   "--display", args.java_display]
+            if args.fresh_java:
+                cmd.append("--fresh")
+            if args.no_launch:
+                cmd.append("--no-launch")
+            print("[oracle] capturing Java frames via capture_at_poses.sh ...")
+            print("  " + " ".join(cmd))
+            r = subprocess.run(cmd)
+            if r.returncode != 0:
+                print("[oracle] WARN: capture_at_poses.sh returned nonzero; "
+                      "some MC frames may be missing.", file=sys.stderr)
         have_java = True
         for ck in cks:
             mc = os.path.join(args.outdir, f"mc_ck_{ck['tick']}.png")
@@ -336,14 +355,39 @@ def main():
         scored.append((ck, stats, where))
 
     print("-" * 112)
+    aggregate = None
     if scored:
         n = len(scored)
         agg_w = sum(s["whole"]["mean_abs"] for _, s, _ in scored) / n
         agg_t = sum(s["terrain"]["mean_abs"] for _, s, _ in scored) / n
         agg_h = sum(s["hud"]["mean_abs"] for _, s, _ in scored) / n
+        aggregate = {"whole_mean_abs": agg_w, "terrain_mean_abs": agg_t,
+                     "hud_mean_abs": agg_h, "checkpoints": n}
         print("%-6s %-22s %8.2f %8s | %8.2f %8s | %8.2f %8s | (mean over %d)" %
               ("AGG", "", agg_w, "", agg_t, "", agg_h, "", n))
     print("=" * 112)
+
+    summary_path = os.path.join(args.outdir, "frame_summary.json")
+    summary = {
+        "mode": "live-java" if have_java else "aerial-golden",
+        "width": args.w, "height": args.h, "fov": FOV,
+        "gamemode": args.gamemode,
+        "java": ({"host": args.java_host, "port": args.java_port,
+                  "display": args.java_display, "fresh": args.fresh_java}
+                 if have_java else None),
+        "crops": crops,
+        "aggregate": aggregate,
+        "results": [{
+            "tick": ck["tick"],
+            "pose": {key: ck[key] for key in ("x", "y", "z", "mc_yaw", "mc_pitch")},
+            "regions": stats,
+            "where": where,
+        } for ck, stats, where in scored],
+    }
+    with open(summary_path, "w") as f:
+        json.dump(summary, f, indent=2, sort_keys=True)
+        f.write("\n")
+    print(f"[oracle] machine-readable summary -> {summary_path}")
 
     # ranked worst offenders (by whole mean_abs), materialize their frames + heatmap
     if scored:

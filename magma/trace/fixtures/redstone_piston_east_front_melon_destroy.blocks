@@ -1,0 +1,4 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while melon block 103:0 occupies the front cell.
+12 78 9 152 0
+13 78 8 103 0

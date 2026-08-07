@@ -62,6 +62,29 @@ struct CrWorldMC {
 #define CR_CB_DPLANT_LOWER_BASE 60
 #define CR_CB_DPLANT_UPPER 66
 #define CR_CB_DPLANT_LAST 66
+#define CR_CB_DPLANT_UPPER_CONTEXT_BASE 234
+#define CR_CB_DPLANT_UPPER_CONTEXT_LAST 239
+
+/* BlockDoublePlant.getActualState copies VARIANT from the lower half into an
+ * upper half. Legacy upper metadata contains only HALF/FACING, so choose the
+ * upper render model from the canonical state below at mesh time. */
+static int contextual_model_key(const CrLight *L, int cb,
+                                int wx, int wy, int wz) {
+    if (cb != CR_CB_DPLANT_LAST || wy <= 0) return cb;
+    uint16_t state = light_state(L, wx, wy, wz);
+    if ((state >> 4) != 175 || !(state & 8)) return cb;
+    uint16_t below = light_state(L, wx, wy - 1, wz);
+    if ((below >> 4) != 175 || (below & 8)) return cb;
+    int variant = below & 7;
+    return variant >= 1 && variant <= 5
+        ? CR_CB_DPLANT_UPPER_CONTEXT_BASE + variant : cb;
+}
+
+static int is_double_plant_model(int cb) {
+    return (cb >= 60 && cb <= CR_CB_DPLANT_LAST) ||
+           (cb > CR_CB_DPLANT_UPPER_CONTEXT_BASE &&
+            cb <= CR_CB_DPLANT_UPPER_CONTEXT_LAST);
+}
 
 /* One cube face template, indexed by EnumFacing (0=DOWN 1=UP 2=NORTH 3=SOUTH
  * 4=WEST 5=EAST, matching BM_DOWN..BM_EAST). Holds the outward normal, the MC
@@ -145,6 +168,7 @@ static float mc_ao_light_value_at(const CrLight *L, int wx, int wy, int wz) {
 static int mc_translucent_at(const CrLight *L, int wx, int wy, int wz) {
     const BmBlock *m = bm_block(light_block(L, wx, wy, wz));
     return m->is_air || m->kind == BM_KIND_CROSS ||
+           m->kind == BM_KIND_DPLANT_SUNFLOWER_TOP ||
            (m->kind == BM_KIND_CUBE && !m->is_full_cube && m->layer == CR_LAYER_SOLID);
 }
 
@@ -265,7 +289,8 @@ static int mc_use_neighbor_brightness_at(const CrLight *L, int wx, int wy, int w
         m->kind == BM_KIND_GLASS_PANE ||
         m->kind == BM_KIND_TORCH || m->kind == BM_KIND_RAIL ||
         m->kind == BM_KIND_TRAPDOOR || m->kind == BM_KIND_LADDER ||
-        m->kind == BM_KIND_CACTUS)
+        m->kind == BM_KIND_CACTUS || m->kind == BM_KIND_CHORUS_PLANT ||
+        m->kind == BM_KIND_CHORUS_FLOWER)
         return 1;
     if (mc_translucent_at(L, wx, wy, wz)) return 1;
     return 0;
@@ -1438,7 +1463,8 @@ static void emit_cross(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L
      * and cocoa inherit NONE. Block.getOffset hashes y=0, so double-plant
      * halves share one translation. */
     int offset_type = (cb >= CR_CB_TALLGRASS && cb <= CR_CB_FERN) ? 2
-        : (cb >= CR_CB_YELLOW_FLOWER && cb <= CR_CB_DPLANT_LAST) ? 1 : 0;
+        : ((cb >= CR_CB_YELLOW_FLOWER && cb <= CR_CB_DPLANT_LAST) ||
+           is_double_plant_model(cb)) ? 1 : 0;
     float offx = 0.0f, offy = 0.0f, offz = 0.0f;
     if (offset_type) {
         uint64_t r = mc_position_random(wx, 0, wz);
@@ -1463,6 +1489,49 @@ static void emit_cross(CrChunkMeshMC *out, int *cap, int layer, const CrLight *L
             quad[i].pos.z += offz;
         }
         push_face(out, cap, layer, quad);
+    }
+}
+
+/* Exact double_sunflower_top.json: four half-height stem quads using the top
+ * texture, then a tilted two-sided head with distinct back/front textures. */
+static void emit_double_sunflower_top(CrChunkMeshMC *out, int *cap,
+                                      const CrLight *L, int wx, int wy, int wz,
+                                      const BmBlock *m, CrRgba tint,
+                                      float base01) {
+    const float stem_a0[3] = {0.8f, 0.0f, 8.0f};
+    const float stem_a1[3] = {15.2f, 8.0f, 8.0f};
+    const float stem_b0[3] = {8.0f, 0.0f, 0.8f};
+    const float stem_b1[3] = {8.0f, 8.0f, 15.2f};
+    const float head0[3] = {9.6f, -1.0f, 1.0f};
+    const float head1[3] = {9.6f, 15.0f, 15.0f};
+    const float origin[3] = {0.5f, 0.5f, 0.5f};
+    const float stem_uv[4] = {0.0f, 8.0f, 16.0f, 16.0f};
+    const float head_uv[4] = {0.0f, 0.0f, 16.0f, 16.0f};
+    const float *from[6] = {stem_a0, stem_a0, stem_b0, stem_b0, head0, head0};
+    const float *to[6] = {stem_a1, stem_a1, stem_b1, stem_b1, head1, head1};
+    const int face[6] = {BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST, BM_WEST, BM_EAST};
+    const int axis[6] = {1, 1, 1, 1, 2, 2};
+    const float angle[6] = {45.0f, 45.0f, 45.0f, 45.0f, 22.5f, 22.5f};
+    const int sprite[6] = {
+        m->face[BM_NORTH].sprite, m->face[BM_NORTH].sprite,
+        m->face[BM_NORTH].sprite, m->face[BM_NORTH].sprite,
+        m->face[BM_WEST].sprite, m->face[BM_EAST].sprite,
+    };
+    uint64_t r = mc_position_random(wx, 0, wz);
+    float offx = (((float)((r >> 16) & 15u) / 15.0f) - 0.5f) * 0.5f;
+    float offz = (((float)((r >> 24) & 15u) / 15.0f) - 0.5f) * 0.5f;
+    (void)L;
+    for (int q = 0; q < 6; ++q) {
+        CrVertex quad[4];
+        bake_face_custom(wx, wy, wz, from[q], to[q], face[q],
+                         q < 4 ? stem_uv : head_uv, 0,
+                         1, axis[q], angle[q], origin, 1,
+                         sprite[q], base01, 1.0f, tint, quad);
+        for (int i = 0; i < 4; ++i) {
+            quad[i].pos.x += offx;
+            quad[i].pos.z += offz;
+        }
+        push_face(out, cap, m->layer, quad);
     }
 }
 
@@ -1819,7 +1888,8 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
      * brightness, then applies the per-face 1/.8/.6/.5 multiplier below. Feeding
      * the scalar lightmap again here darkened surface water by almost exactly 2x. */
     float base01 = m->kind == BM_KIND_FLUID ? 1.0f :
-        ((m->kind == BM_KIND_CROSS && cb != CR_CB_WEB) ||
+        (((m->kind == BM_KIND_CROSS && cb != CR_CB_WEB) ||
+          m->kind == BM_KIND_DPLANT_SUNFLOWER_TOP) ||
          m->kind == BM_KIND_SLAB_BOTTOM || m->kind == BM_KIND_SLAB_TOP ||
          m->kind == BM_KIND_STAIRS ||
          m->kind == BM_KIND_IRON_BARS ||
@@ -1883,6 +1953,9 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
                 emit_cross(out, cap, m->layer, L, cb, wx, wy, wz, side_spr, tint,
                            base01);
             }
+            break;
+        case BM_KIND_DPLANT_SUNFLOWER_TOP:
+            emit_double_sunflower_top(out, cap, L, wx, wy, wz, m, tint, base01);
             break;
         case BM_KIND_SLAB_BOTTOM: {
             emit_slab(out, cap, L, m, wx, wy, wz, tint, base01);
@@ -1975,6 +2048,12 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
         case BM_KIND_SNOW_LAYER:
             emit_snow_layer(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);
             break;
+        case BM_KIND_PRESSURE_PLATE: {
+            const float from[3] = {1,0,1}, to[3] = {15,1,15};
+            emit_box(out, cap, m->layer, L, wx, wy, wz, from, to,
+                     side_spr, tint, base01, -1);
+            break;
+        }
         case BM_KIND_VINE:
             emit_vine(out, cap, m->layer, L, wx, wy, wz, side_spr, tint, base01);
             break;
@@ -2003,6 +2082,90 @@ static void emit_noncube(CrChunkMeshMC *out, int *cap, const CrLight *L,
         case BM_KIND_TORCH:
             emit_torch(out, cap, L, wx, wy, wz, m, tint, base01);
             break;
+        case BM_KIND_END_ROD: {
+            int facing = light_meta(L, wx, wy, wz) & 7;
+            float bf[3] = {6,0,6}, bt[3] = {10,1,10};
+            float sf[3] = {7,1,7}, st[3] = {9,16,9};
+            if (facing == 0) { /* down */
+                bf[1] = 15; bt[1] = 16; sf[1] = 0; st[1] = 15;
+            } else if (facing == 2 || facing == 3) { /* north/south */
+                bf[0] = 6; bt[0] = 10; bf[1] = 6; bt[1] = 10;
+                sf[0] = 7; st[0] = 9; sf[1] = 7; st[1] = 9;
+                if (facing == 2) {
+                    bf[2] = 15; bt[2] = 16; sf[2] = 0; st[2] = 15;
+                } else {
+                    bf[2] = 0; bt[2] = 1; sf[2] = 1; st[2] = 16;
+                }
+            } else if (facing == 4 || facing == 5) { /* west/east */
+                bf[1] = 6; bt[1] = 10; bf[2] = 6; bt[2] = 10;
+                sf[1] = 7; st[1] = 9; sf[2] = 7; st[2] = 9;
+                if (facing == 4) {
+                    bf[0] = 15; bt[0] = 16; sf[0] = 0; st[0] = 15;
+                } else {
+                    bf[0] = 0; bt[0] = 1; sf[0] = 1; st[0] = 16;
+                }
+            }
+            emit_box(out, cap, m->layer, L, wx, wy, wz, bf, bt,
+                     side_spr, tint, base01, -1);
+            emit_box(out, cap, m->layer, L, wx, wy, wz, sf, st,
+                     side_spr, tint, base01, -1);
+            break;
+        }
+        case BM_KIND_CHORUS_PLANT: {
+            const float center0[3] = {4,4,4}, center1[3] = {12,12,12};
+            emit_box(out, cap, m->layer, L, wx, wy, wz,
+                     center0, center1, side_spr, tint, base01, -1);
+            /* BlockChorusPlant.getActualState: horizontal/up connect to plant
+             * or flower; down additionally connects to End stone. */
+            int connected[6] = {
+                light_block(L, wx, wy - 1, wz) == 250
+                    || light_block(L, wx, wy - 1, wz) == 251
+                    || light_block(L, wx, wy - 1, wz) == 252
+                    || light_block(L, wx, wy - 1, wz) == 212,
+                light_block(L, wx, wy + 1, wz) == 250
+                    || light_block(L, wx, wy + 1, wz) == 251
+                    || light_block(L, wx, wy + 1, wz) == 252,
+                light_block(L, wx, wy, wz - 1) == 250
+                    || light_block(L, wx, wy, wz - 1) == 251
+                    || light_block(L, wx, wy, wz - 1) == 252,
+                light_block(L, wx, wy, wz + 1) == 250
+                    || light_block(L, wx, wy, wz + 1) == 251
+                    || light_block(L, wx, wy, wz + 1) == 252,
+                light_block(L, wx - 1, wy, wz) == 250
+                    || light_block(L, wx - 1, wy, wz) == 251
+                    || light_block(L, wx - 1, wy, wz) == 252,
+                light_block(L, wx + 1, wy, wz) == 250
+                    || light_block(L, wx + 1, wy, wz) == 251
+                    || light_block(L, wx + 1, wy, wz) == 252
+            };
+            static const float arm0[6][3] = {
+                {4,0,4},{4,12,4},{4,4,0},{4,4,12},{0,4,4},{12,4,4}
+            };
+            static const float arm1[6][3] = {
+                {12,4,12},{12,16,12},{12,12,4},{12,12,16},{4,12,12},{16,12,12}
+            };
+            for (int i = 0; i < 6; ++i)
+                if (connected[i])
+                    emit_box(out, cap, m->layer, L, wx, wy, wz,
+                             arm0[i], arm1[i], side_spr, tint, base01, -1);
+            break;
+        }
+        case BM_KIND_CHORUS_FLOWER: {
+            static const float part0[6][3] = {
+                {2,14,2},{0,2,2},{2,2,0},{2,2,14},{14,2,2},{2,0,2}
+            };
+            static const float part1[6][3] = {
+                {14,16,14},{2,14,14},{14,14,2},{14,14,16},
+                {16,14,14},{14,14,14}
+            };
+            for (int i = 0; i < 6; ++i) {
+                int sprite = i == 5 ? m->face[BM_DOWN].sprite
+                                    : m->face[BM_UP].sprite;
+                emit_box(out, cap, m->layer, L, wx, wy, wz,
+                         part0[i], part1[i], sprite, tint, base01, -1);
+            }
+            break;
+        }
         case BM_KIND_CHEST: {
             /* ModelChest (TileEntityChestRenderer), closed lid pose:
              *   chestBelow: box(0,0,0, 14,10,14) at rp (1,6,1)  -> y 6..16
@@ -2085,7 +2248,8 @@ static int mesh_body(CrWorldMC *w, int ccx, int ccz, CrChunkMeshMC *out, int *ca
         for (int lz = 0; lz < 16; ++lz) {
             const int wx = baseX + lx, wz = baseZ + lz;
             for (int wy = 0; wy < 256; ++wy) {
-                int cb = light_block(L, wx, wy, wz);
+                int cb = contextual_model_key(L, light_block(L, wx, wy, wz),
+                                              wx, wy, wz);
                 const BmBlock *m = bm_block(cb);
                 if (m->is_air) continue;
 

@@ -1,0 +1,11 @@
+# EAST-facing normal piston is placed at tick zero. The front stone moves
+# east into the west neighbor of a valid side-supported chorus flower. Block
+# 36 does not notify the flower at extension start. When it settles to stone
+# on tick three, the flower schedules its +1 survival callback and disappears
+# on tick four without an item drop.
+12 78 11 152 0
+13 78 10 1 0
+15 77 10 0 0
+15 78 10 200 3
+16 77 10 121 0
+16 78 10 199 0

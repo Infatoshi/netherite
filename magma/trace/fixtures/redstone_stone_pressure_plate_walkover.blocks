@@ -1,0 +1,6 @@
+# The parked player faces north from (8.5,78,8.5). Holding forward crosses
+# this unpowered stone plate; Java should activate it from entity collision,
+# light the adjacent east lamp, and enqueue the plate's +20 recheck.
+8 77 7 1 0
+8 78 7 70 0
+9 78 7 123 0

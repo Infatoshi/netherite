@@ -1,0 +1,8 @@
+# x y z id meta
+# A lit floor torch strongly powers the stone above it. The lamp is adjacent
+# only to that stone. Tick 0 removes the torch and must create the lamp's
+# separate four-tick delayed-off callback via torch break notifications.
+12 77 8 1 0
+12 78 8 76 5
+12 79 8 1 0
+13 79 8 124 0

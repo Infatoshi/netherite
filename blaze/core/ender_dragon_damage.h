@@ -216,8 +216,9 @@ MC_HD static inline void edd_run(EddWorld *w, const McSinTable *st, u64 seed, in
 
     for (int t = 0; t < nticks; ++t) {
         w->tick = t;
-        if (t == destroy_tick)
-            w->arena.crystals[destroy_idx].alive = 0;
+        if (t == destroy_tick
+                && ed_mark_crystal_destroyed(&w->arena, destroy_idx))
+            ed_on_crystal_destroyed(&w->arena, destroy_idx, 1, 1);
         ed_tick_dragon(&w->arena, st);
         float dmg = edd_apply_contact(w);
         u32 broken = edd_destroy_blocks(w);

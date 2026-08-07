@@ -9,6 +9,7 @@ Golden source: minecraft-1.11.2.jar assets/minecraft/textures/entity/*.png
 Also asserts the type->skin routing contract: every skin-variant entity the
 tape recorder can emit (pigman/husk/stray/cave spider/mooshroom) has its own
 sprite in the atlas (guards a rebuilt atlas that silently drops one).
+The standalone repeating end-crystal beam texture is checked byte-for-byte too.
 
 Requires assets/mob_atlas.h (generated). Clean trees must run:
   uv run --no-project --with pillow python assets/build_mob_atlas.py
@@ -31,7 +32,7 @@ _HERE = Path(__file__).resolve().parent
 _MAGMA = _HERE.parent
 ATLAS_H = _MAGMA / "assets" / "mob_atlas.h"
 BUILDER = _MAGMA / "assets" / "build_mob_atlas.py"
-_REPO = _MAGMA.parent.parent  # magma -> c -> repo root
+_REPO = _MAGMA.parent
 
 # Same discovery order as assets/mc_jar.py (MC_JAR + gradle + launchers),
 # plus common fleet checkouts when this is a /tmp worktree without gradle cache.
@@ -76,6 +77,8 @@ REQUIRED_SPRITES = {
     "zombie", "skeleton", "spider", "cow", "sheep", "sheep_fur",
     # interactive pixel path (4bc712e+ / explosion.png LARGE)
     "slime", "dragon", "dragon_exploding", "particles", "explosion",
+    "villager", "villager_farmer", "villager_librarian",
+    "villager_priest", "villager_smith", "villager_butcher",
 }
 
 
@@ -92,7 +95,14 @@ def parse_atlas_header(text: str):
     ).group(1)
     px = bytes(int(t) for t in re.findall(r"\d+", body))
     assert len(px) == w * h * 4, f"pixel blob {len(px)} != {w}x{h}x4"
-    return w, h, sprites, px
+    bw = int(re.search(r"#define CR_ENDERCRYSTAL_BEAM_W (\d+)", text).group(1))
+    bh = int(re.search(r"#define CR_ENDERCRYSTAL_BEAM_H (\d+)", text).group(1))
+    beam_body = re.search(
+        r"CR_ENDERCRYSTAL_BEAM_RGBA\[\d+\] = \{(.*?)\};", text, re.S
+    ).group(1)
+    beam_px = bytes(int(t) for t in re.findall(r"\d+", beam_body))
+    assert len(beam_px) == bw * bh * 4, f"beam blob {len(beam_px)} != {bw}x{bh}x4"
+    return w, h, sprites, px, bw, bh, beam_px
 
 
 def jar_member_map(builder_text: str) -> dict[str, str]:
@@ -135,7 +145,7 @@ def main() -> int:
         )
         return 0
 
-    w, h, sprites, px = parse_atlas_header(ATLAS_H.read_text())
+    w, h, sprites, px, bw, bh, beam_px = parse_atlas_header(ATLAS_H.read_text())
     members = jar_member_map(BUILDER.read_text())
 
     names = {s[0] for s in sprites}
@@ -180,6 +190,11 @@ def main() -> int:
                           f"({path}) at row {row}")
                     bad += 1
                     break
+        beam_path = ENTITY + "endercrystal/endercrystal_beam.png"
+        beam = Image.open(io.BytesIO(zf.read(beam_path))).convert("RGBA")
+        if beam.size != (bw, bh) or beam.tobytes() != beam_px:
+            print(f"FAIL: standalone end-crystal beam differs from jar ({beam_path})")
+            bad += 1
 
     if bad:
         print(f"check_mob_atlas: {bad} FAILURES")

@@ -1,0 +1,27 @@
+name: dragon_healing_beam
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode creative @p
+  - /execute @p ~ ~ ~ summon minecraft:ender_dragon ~ ~4 ~33 {NoAI:1b,Silent:1b,Health:100.0f}
+  - /execute @p ~ ~ ~ summon minecraft:ender_crystal ~12 ~4 ~51 {ShowBottom:1b}
+# NoAI freezes the dragon but still runs updateDragonEnderCrystal. A long
+# settle gives its one-in-ten reselection gate ample time to bind the only
+# crystal before the first captured real-Java frame.
+setup_settle_ticks: 100
+duration_ticks: 40
+frames_every: 1
+input:
+  segments:
+    - seconds: 2.0
+known_divergences: []

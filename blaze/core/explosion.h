@@ -2,12 +2,14 @@
  *
  * PORT TARGET: net/minecraft/world/Explosion.java doExplosionA (block rays + entity damage).
  * Synthetic cubic grid (EX_DIM^3 packed states). Resistance = mc_bpt_props hardness
- * (air = 0 / Material.AIR skips the resistance subtract). No particles/sound/drops/fire.
+ * (air = 0 / Material.AIR skips the resistance subtract). The synthetic
+ * battery has no particles, sound, drops, or fire.
  *
- * RAND-FREE density: vanilla uses world.rand.nextFloat() for the per-ray size scale
- *   f = size * (0.7F + rand * 0.6F). We fix rand = 0.5F so
- *   f = size * (0.7F + 0.5F * 0.6F)  (no JavaRandom, deterministic rays).
- * Drop/flame RNG paths CUT (doExplosionB not ported).
+ * The synthetic battery keeps its historical rand=0.5F density and
+ * hardness-only resistance table. Live callers use World.rand for all 1,352
+ * face-ray draws and a separately promoted resistance table. Live callers can
+ * retain the complete affected-position set for the bounded flaming path.
+ * Drops and broad doExplosionB ordering remain CUT.
  *
  * Output: sorted destroyed non-air block coords + entity damage floats (open exposure=1).
  * READ-ONLY deps: block_props_table.h (hardness), mc_math.h (floor).
@@ -16,10 +18,12 @@
 #define MC_EXPLOSION_H
 
 #include <math.h>
+#include <stddef.h>
 #include "mc.h"
 #include "mc_blocks.h"
 #include "mc_world.h"
 #include "mc_math.h"
+#include "mc_rng.h"
 #include "block_props_table.h"
 
 #define EX_DIM 16
@@ -72,6 +76,14 @@ MC_HD static inline float ex_resistance(u16 st) {
     return mc_bpt_props(id).hardness;
 }
 
+/* Live Block#getExplosionResistance values promoted by strict runtime cases.
+ * The synthetic battery above intentionally retains its hardness-only table. */
+MC_HD static inline float ex_live_resistance(u16 st) {
+    int id = mc_state_id(st);
+    if (id == BLK_STONE) return 6.0F;
+    return ex_resistance(st);
+}
+
 MC_HD static inline int ex_is_air(u16 st) {
     return mc_state_id(st) <= 0;
 }
@@ -88,13 +100,13 @@ MC_HD static inline float ex_density_scale(void) {
 
 /* doExplosionA block-destroy rays on synthetic grid. Marks bitset[vol] for non-air
  * in-bounds positions that would be added to affectedBlockPositions. */
-MC_HD static inline void ex_do_explosion_blocks(const u16 *grid,
-                                                double ex, double ey, double ez,
-                                                float size,
-                                                u8 *bitset) {
+MC_HD static inline void ex_do_explosion_blocks_impl(
+        const u16 *grid, double ex, double ey, double ez, float size,
+        u8 *bitset, u8 *affected, JavaRandom *random, int live_resistance) {
     for (int i = 0; i < EX_VOL; ++i) bitset[i] = 0;
+    if (affected)
+        for (int i = 0; i < EX_VOL; ++i) affected[i] = 0;
 
-    float dens = ex_density_scale();
     /* step decrement and advance match oracle float/double literals exactly */
     const float step_dec = 0.22500001F;
     const double step_adv = 0.30000001192092896;
@@ -110,6 +122,9 @@ MC_HD static inline void ex_do_explosion_blocks(const u16 *grid,
                     d0 = d0 / d3;
                     d1 = d1 / d3;
                     d2 = d2 / d3;
+                    float dens = random
+                        ? 0.7F + jrand_float(random) * 0.6F
+                        : ex_density_scale();
                     float f = size * dens;
                     double d4 = ex;
                     double d6 = ey;
@@ -123,12 +138,16 @@ MC_HD static inline void ex_do_explosion_blocks(const u16 *grid,
                         u16 st = ex_get(grid, bx, by, bz);
 
                         if (!ex_is_air(st)) {
-                            float f2 = ex_resistance(st);
+                            float f2 = live_resistance
+                                ? ex_live_resistance(st)
+                                : ex_resistance(st);
                             f -= (f2 + 0.3F) * 0.3F;
                         }
 
-                        if (f > 0.0F && ex_in(bx, by, bz) && !ex_is_air(st)) {
-                            bitset[ex_idx(bx, by, bz)] = 1;
+                        if (f > 0.0F && ex_in(bx, by, bz)) {
+                            int index = ex_idx(bx, by, bz);
+                            if (affected) affected[index] = 1;
+                            if (!ex_is_air(st)) bitset[index] = 1;
                         }
 
                         d4 += d0 * step_adv;
@@ -139,6 +158,39 @@ MC_HD static inline void ex_do_explosion_blocks(const u16 *grid,
             }
         }
     }
+}
+
+MC_HD static inline void ex_do_explosion_blocks(const u16 *grid,
+                                                double ex, double ey, double ez,
+                                                float size,
+                                                u8 *bitset) {
+    ex_do_explosion_blocks_impl(
+        grid, ex, ey, ez, size, bitset, NULL, NULL, 0);
+}
+
+/* Live World.rand counterpart used by exact saved-state explosion fixtures. */
+MC_HD static inline void ex_do_explosion_blocks_random(
+        const u16 *grid, double ex, double ey, double ez, float size,
+        u8 *bitset, JavaRandom *random) {
+    ex_do_explosion_blocks_impl(
+        grid, ex, ey, ez, size, bitset, NULL, random, 1);
+}
+
+/* Live flaming explosions revisit every affected position, including cells
+ * that were air during doExplosionA. Destruction remains a separate non-air
+ * bitset because doExplosionB's fire pass runs after block removal. */
+MC_HD static inline void ex_do_explosion_blocks_random_affected(
+        const u16 *grid, double ex, double ey, double ez, float size,
+        u8 *bitset, u8 *affected, JavaRandom *random) {
+    ex_do_explosion_blocks_impl(
+        grid, ex, ey, ez, size, bitset, affected, random, 1);
+}
+
+MC_HD static inline void ex_do_explosion_blocks_affected(
+        const u16 *grid, double ex, double ey, double ez, float size,
+        u8 *bitset, u8 *affected) {
+    ex_do_explosion_blocks_impl(
+        grid, ex, ey, ez, size, bitset, affected, NULL, 0);
 }
 
 /* Entity damage from Explosion.doExplosionA (no blast-prot, no immune, exposure open=1).

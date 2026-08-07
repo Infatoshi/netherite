@@ -1,0 +1,5 @@
+# Negative control: unpowered wire removal still performs notification work,
+# but no consumer changes and no scheduled callback is created.
+12 77 8 1 0
+12 78 8 55 0
+13 77 8 123 0

@@ -1,0 +1,5 @@
+# x y z id meta
+# Enabled scheduled BlockFire callback proof: age-4 fire on the shared stone
+# platform with no flammable neighbor. Seed 36 takes the self-reschedule path,
+# then the original age and isolated support make the fire burn out.
+12 78 8 51 4

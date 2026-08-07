@@ -1,0 +1,5 @@
+# A south-facing hook retains an alternate west support, so canPlaceBlockAt
+# remains true after its stored north attachment is removed.
+11 78 8 1 0
+12 78 7 1 0
+12 78 8 131 0

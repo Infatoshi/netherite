@@ -1,0 +1,7 @@
+# x y z id meta
+# Matched rain control: the source remains exposed, but a roof over the east
+# tall grass makes isRainingAt(east) false, so Random(5) creates fire.
+12 77 8 87 0
+12 78 8 51 0
+13 78 8 31 1
+13 80 8 1 0

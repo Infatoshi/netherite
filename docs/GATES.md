@@ -100,11 +100,23 @@ needs a ~1.6x raster kernel (bit-parity-constrained) plus hud caching and
 io/present overlap. The 3090's 11.74 (07-17, host-rendered sky) was not
 re-measured - it has a co-tenant. CPU backend is not on the 60 fps path.
 
+2026-08-07 full-parity 70% checkpoint: the clean regression guard remains
+above all frozen floors at 5,094 CPU scalar steps/s, 2.87M Blaze environment
+ticks/s, and 31.05 CUDA fps. This confirms no checkpoint regression; it does
+not close the separate 60 fps ship pin. Evidence:
+`c/magma/trace/out/perf_guard_70pct_checkpoint.json`.
+
+2026-08-07 strict-equivalence checkpoint: the full native runtime aggregate
+passes in 6:45.71 with 431,540 KiB peak RSS and zero swap. The fresh CPU guard
+passes at 4,204 scalar steps/s against the frozen 3,858.9 floor. GPU 1 had a
+co-tenant, so no new GPU number was taken for this checkpoint.
+
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.
-Status: SHIPPED as `netherite_sweep.sh` (repo root). `--quick` is green today except
-steps listed as SKIP (known-broken `make test-config` at HEAD; artifact-gated steps).
-A FAIL exits nonzero; SKIPs never do.
+Status: SHIPPED as `netherite_sweep.sh` (repo root). At the 2026-08-07 70%
+checkpoint, `--quick` passes 15/15 with no skips. `--full` passes all 26
+available steps with zero failures and skips only the undistributed local
+canonical tape. A FAIL exits nonzero; SKIPs never do.
 
 ## Running the sweep
 

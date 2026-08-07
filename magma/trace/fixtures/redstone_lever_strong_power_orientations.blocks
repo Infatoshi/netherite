@@ -1,0 +1,21 @@
+# Six isolated powered levers, one for each strong-power output direction.
+# Each lever faces from its stone support toward the lever.
+0 82 0 1 0
+0 81 0 69 8
+4 78 0 1 0
+4 79 0 69 13
+8 79 0 1 0
+8 79 -1 69 12
+12 79 0 1 0
+12 79 1 69 11
+16 79 0 1 0
+15 79 0 69 10
+19 79 4 1 0
+20 79 4 69 9
+# Deterministic lamp targets; the first coordinate can intersect a seed-0 tree.
+1 82 0 0 0
+5 78 0 0 0
+9 79 0 0 0
+13 79 0 0 0
+16 79 1 0 0
+19 79 5 0 0

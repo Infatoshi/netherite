@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while canonical tall grass 31:1 occupies the front
+# cell. Dirt support keeps the bush valid. Its piston drop is controlled by
+# process-global Block.RANDOM rather than World.rand.
+12 78 9 152 0
+13 77 8 3 0
+13 78 8 31 1

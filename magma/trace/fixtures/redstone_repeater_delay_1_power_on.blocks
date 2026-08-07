@@ -1,0 +1,8 @@
+# x y z id meta
+# Unpowered delay-1 repeater facing WEST (metadata 1): input is west at x=11,
+# output is east at x=13. Tick zero places the redstone-block input, so Java
+# schedules the repeater's two-game-tick transition before powering the lamp.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 93 1
+13 78 8 123 0

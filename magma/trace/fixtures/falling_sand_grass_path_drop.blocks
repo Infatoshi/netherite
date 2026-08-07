@@ -1,0 +1,5 @@
+# x y z id meta
+# Sand falls onto the full-footprint 15/16-high grass-path collision surface.
+# Placement into the occupied support cell fails and drops one sand item.
+12 77 8 208 0
+12 80 8 12 0

@@ -88,15 +88,24 @@ ITEM_SPRITES = [
     (9001, "bow_pulling_1.png"),
     (9002, "bow_pulling_2.png"),
     (9003, "dragon_fireball.png"),
+    # RenderFish samples particle atlas cell (1,2), UV 1/16..2/16 by
+    # 2/16..3/16. Crop that exact 16x16 cell into the shared billboard atlas.
+    (9004, "fishing_bobber.png"),
     # shield (442): ModelShield uses entity/shield_base_nopattern (64x64);
     # inventory GUI also paints a downscaled face. Hand path samples the atlas.
     (442, "empty_armor_slot_shield.png"),  # placeholder path; SPECIAL_PATHS overrides
+    (443, "elytra.png"),
 ]
 ITEM_SPRITES.sort(key=lambda t: t[0])
 
 SPECIAL_PATHS = {
     9003: "assets/minecraft/textures/entity/enderdragon/dragon_fireball.png",
+    9004: "assets/minecraft/textures/particle/particles.png",
     442: "assets/minecraft/textures/entity/shield_base_nopattern.png",
+}
+
+SPECIAL_CROPS = {
+    9004: (16, 32, 32, 48),
 }
 
 
@@ -116,6 +125,8 @@ def main():
         for item_id, member in ITEM_SPRITES:
             data = zf.read(SPECIAL_PATHS.get(item_id, ITEMS + member))
             img = Image.open(io.BytesIO(data)).convert("RGBA")
+            if item_id in SPECIAL_CROPS:
+                img = img.crop(SPECIAL_CROPS[item_id])
             name = member[:-4] if member.endswith(".png") else member
             # ModelShield samples entity/shield_base_nopattern at native 64x64
             # (box-net UVs in texels). Keep full res; do not downscale to 16.

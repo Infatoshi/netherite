@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while acacia leaves2 161:0 occupy the front cell.
+# World.rand internal seed zero succeeds the 1/20 sapling roll. The drop must
+# be sapling item 6 with wood metadata 4, not leaves2's raw metadata zero.
+12 78 9 152 0
+13 78 8 161 0

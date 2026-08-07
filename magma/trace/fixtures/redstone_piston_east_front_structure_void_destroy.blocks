@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while support-independent structure void block
+# 217:0 occupies the front/output cell. Its empty drop override means Java
+# destroys it and starts moving head 36:5 without any item or drop RNG.
+12 78 9 152 0
+13 78 8 217 0

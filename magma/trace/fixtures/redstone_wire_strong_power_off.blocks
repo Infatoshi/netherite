@@ -1,0 +1,6 @@
+# Removing the wire's source must notify around the formerly powered stone and
+# start the indirectly powered lamp's +4 off delay.
+11 79 8 152 0
+12 78 8 1 0
+12 79 8 55 15
+13 78 8 124 0

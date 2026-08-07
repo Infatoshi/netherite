@@ -34,7 +34,7 @@ import qrl_client  # noqa: E402
 OUT = Path(os.environ.get("PORTAL_E2E_OUT", "/tmp/portal_e2e"))
 MAGMA = REPO / "magma"
 BLAZE = REPO / "blaze" / "core"
-DIFF = REPO / "c" / "render-opt" / "wholeframe" / "diff_frame.py"
+DIFF = REPO / "java" / "render-opt" / "wholeframe" / "diff_frame.py"
 W, H = 854, 480
 EYE_H = 1.62
 ACTIVE_RESULTS = None

@@ -68,21 +68,26 @@ def main():
     # could ride along under a pixel-gate FAIL and still be reported green.
     bs = base.get("state", {})
     cs = cur.get("state", {})
-    b_inv = bs.get("inventory", {})
-    c_inv = cs.get("inventory", {})
-    if c_inv.get("available"):
-        b_ind = b_inv.get("ticks_independent", 0)
-        c_ind = c_inv.get("ticks_independent", 0)
+    for component in ("inventory", "entities", "world"):
+        b_component = bs.get(component, {})
+        c_component = cs.get(component, {})
+        if not c_component.get("available"):
+            continue
+        coverage_field = ("ticks_independent" if component == "inventory"
+                          else "ticks_checked")
+        b_checked = b_component.get(coverage_field, 0)
+        c_checked = c_component.get(coverage_field, 0)
         mark = ""
-        if b_inv.get("pass", True) and not c_inv.get("pass", True):
+        if b_component.get("pass", True) and not c_component.get("pass", True):
             mark = "  <-- REGRESSION"
             bad = True
-        elif c_ind < b_ind:
+        elif c_checked < b_checked:
             # Losing verified ticks is a coverage regression even if it passes.
             mark = "  <-- COVERAGE REGRESSION"
             bad = True
-        print(f"  inventory    base pass={b_inv.get('pass')} ind={b_ind} "
-              f"now pass={c_inv.get('pass')} ind={c_ind}{mark}")
+        print(f"  {component:<12} base pass={b_component.get('pass')} "
+              f"checked={b_checked} now pass={c_component.get('pass')} "
+              f"checked={c_checked}{mark}")
     b_cov = bs.get("coverage", {})
     c_cov = cs.get("coverage", {})
     if c_cov:

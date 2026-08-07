@@ -1,0 +1,3 @@
+# Noon normal detector. A pitched-down click must invert and recompute 15 to 0.
+8 77 6 1 0
+8 78 6 151 15

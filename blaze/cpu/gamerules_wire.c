@@ -96,8 +96,8 @@ static void test_natural_regen(void) {
     McGameRules off = mc_gamerules_default(); off.naturalRegeneration = 0;
 
     /* health<max, food=20, saturation=6, foodTimer=9 -> flag=1 heals on this tick. */
-    PvStats son  = { 20, 6.0f, 0.0f, 9, 10.0f };
-    PvStats soff = { 20, 6.0f, 0.0f, 9, 10.0f };
+    PvStats son  = { 20, 6.0f, 0.0f, 9, 10.0f, 20.0f };
+    PvStats soff = { 20, 6.0f, 0.0f, 9, 10.0f, 20.0f };
     pv_on_update_gr(&son,  &on);
     pv_on_update_gr(&soff, &off);
 

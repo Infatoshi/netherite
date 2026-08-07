@@ -1,0 +1,7 @@
+# An EntityXPOrb is spawned at (12.5,78.2,8.5), overlapping this unpowered
+# stone plate's trigger AABB. Stone uses MOBS sensitivity, so the orb must not
+# activate it.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 70 0
+13 78 8 123 0

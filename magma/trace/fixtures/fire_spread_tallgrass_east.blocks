@@ -1,0 +1,6 @@
+# x y z id meta
+# Controlled dry BlockFire destruction proof: age-0 fire on stone with one
+# east-adjacent grass target. Random(4) reaches the 100 burn chance, then the
+# failed age/fate roll removes the grass instead of creating child fire.
+12 78 8 51 0
+13 78 8 31 1

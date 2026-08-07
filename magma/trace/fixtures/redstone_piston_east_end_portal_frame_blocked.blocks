@@ -1,0 +1,4 @@
+# Normal piston facing EAST with an unbreakable End portal frame in front.
+# Tick zero adds a redstone block on the piston's south side.
+12 78 8 33 5
+13 78 8 120 0

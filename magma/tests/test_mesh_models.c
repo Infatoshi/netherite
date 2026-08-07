@@ -184,6 +184,17 @@ static int multiset_eq(const GVert *got, int ng, const GList *golden, int with_u
     free(used); return 1;
 }
 
+static int count_sprite_uv(const GVert *v, int n, int sprite) {
+    float u0, v0, u1, v1;
+    int count = 0;
+    bm_sprite_uv(sprite, &u0, &v0, &u1, &v1);
+    for (int i = 0; i < n; ++i)
+        if (v[i].u >= u0 - 1e-6f && v[i].u <= u1 + 1e-6f &&
+            v[i].v >= v0 - 1e-6f && v[i].v <= v1 + 1e-6f)
+            ++count;
+    return count;
+}
+
 int main(void) {
     CHECK(bm_block(T_IRON_BARS)->kind == BM_KIND_IRON_BARS,
           "iron bars: specialized model is not reachable");
@@ -256,6 +267,7 @@ int main(void) {
     int xt   = BASE + 3,  zt  = BASE + 14;  /* standing torch */
     int xtw  = BASE + 8,  ztw = BASE + 14;  /* east-facing wall torch */
     int xlv  = BASE + 5,  ylv = TY + 20, zlv = BASE + 5; /* sloped lava */
+    int xdp  = BASE + 14, zdp = BASE + 8, ydp = TY + 40; /* six double plants */
     light_debug_set_block(L, xs,  TY, zs,  T_STAIRS);
     light_debug_set_block(L, xsl, TY, zsl, T_SLAB);
     light_debug_set_block(L, xf,  TY, zf,  T_FENCE);
@@ -292,6 +304,11 @@ int main(void) {
     light_debug_set_block_meta(L, xlv - 1, ylv, zlv + 1, T_LAVA, 5);
     light_debug_set_block_meta(L, xlv + 1, ylv, zlv + 1, T_LAVA, 6);
     light_debug_set_block_meta(L, xlv + 1, ylv, zlv - 1, T_LAVA, 7);
+    for (int variant = 0; variant < 6; ++variant) {
+        int y = ydp + variant * 4;
+        light_set_state(L, xdp, y, zdp, (uint16_t)((175 << 4) | variant));
+        light_set_state(L, xdp, y + 1, zdp, (uint16_t)((175 << 4) | 8));
+    }
     light_set_render_state(L, -1, 0.0f, 0.0f);
 
     CrChunkMeshMC m;
@@ -428,6 +445,60 @@ int main(void) {
               "fire: floor/side quads=%d/%d want 4/8", floor_quads, side_quads);
         CHECK(bad_attrs == 0, "fire: AO or shade/light attribute mismatch (%d)", bad_attrs);
         CHECK(bad_uv == 0, "fire: variant0 UV escaped fire_layer_0 (%d)", bad_uv);
+    }
+    /* --- DOUBLE PLANTS: upper actual state inherits the lower species. --- */
+    {
+        const int lower_sprites[6] = {
+            CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_SYRINGA_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_GRASS_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_FERN_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_ROSE_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_PAEONIA_BOTTOM,
+        };
+        const int upper_sprites[6] = {
+            CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP,
+            CR_SPRITE_DOUBLE_PLANT_SYRINGA_TOP,
+            CR_SPRITE_DOUBLE_PLANT_GRASS_TOP,
+            CR_SPRITE_DOUBLE_PLANT_FERN_TOP,
+            CR_SPRITE_DOUBLE_PLANT_ROSE_TOP,
+            CR_SPRITE_DOUBLE_PLANT_PAEONIA_TOP,
+        };
+        for (int variant = 0; variant < 6; ++variant) {
+            int y = ydp + variant * 4;
+            int lower_n = collect_cell_quads(&m, CR_LAYER_CUTOUT,
+                                             xdp, y, zdp, got, 512);
+            CHECK(lower_n == 24, "double plant %d lower: %d verts (want 24)",
+                  variant, lower_n);
+            CHECK(count_sprite_uv(got, lower_n, lower_sprites[variant]) == lower_n,
+                  "double plant %d lower: wrong sprite", variant);
+
+            int upper_n = collect_cell_quads(&m, CR_LAYER_CUTOUT,
+                                             xdp, y + 1, zdp, got, 512);
+            int want_upper = variant == 0 ? 36 : 24;
+            CHECK(upper_n == want_upper,
+                  "double plant %d upper: %d verts (want %d)",
+                  variant, upper_n, want_upper);
+            if (variant == 0) {
+                CHECK(count_sprite_uv(got, upper_n,
+                                      CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP) == 24,
+                      "sunflower upper: top sprite vertex count");
+                CHECK(count_sprite_uv(got, upper_n,
+                                      CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_BACK) == 6,
+                      "sunflower upper: back sprite vertex count");
+                CHECK(count_sprite_uv(got, upper_n,
+                                      CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_FRONT) == 6,
+                      "sunflower upper: front sprite vertex count");
+            } else {
+                CHECK(count_sprite_uv(got, upper_n, upper_sprites[variant]) == upper_n,
+                      "double plant %d upper: contextual sprite", variant);
+            }
+            CHECK(collect_cell_quads(&m, CR_LAYER_SOLID,
+                                      xdp, y, zdp, got, 512) == 0 &&
+                  collect_cell_quads(&m, CR_LAYER_SOLID,
+                                      xdp, y + 1, zdp, got, 512) == 0,
+                  "double plant %d leaked onto SOLID", variant);
+        }
     }
     /* --- IRON BARS: exact isolated post planes on CUTOUT_MIPPED. --- */
     {

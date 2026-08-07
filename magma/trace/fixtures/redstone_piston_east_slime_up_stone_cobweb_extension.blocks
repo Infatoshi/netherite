@@ -1,0 +1,7 @@
+# Elevated EAST-facing normal piston with a slime block, an attached UP stone,
+# and a cobweb in that side line's destination. Java destroys the cobweb before
+# moving the stone into its cell, then moves the slime and creates the head.
+12 79 8 33 5
+13 79 8 165 0
+13 80 8 1 0
+14 80 8 30 0
