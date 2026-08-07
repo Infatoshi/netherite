@@ -931,6 +931,17 @@ int main(void) {
                   sound.x==8.5 && sound.y==6.5 && sound.z==10.5 &&
                   sound.volume==1.0F && sound.pitch==0.8F,
                   "runtime emits exact placed material, center, and scalars");
+            isr_set_stack(&r.player.inv,0,ic_empty());
+            gm_runtime_set_pose(&r,8.5,5.0,8.5,0,0);
+            memset(&place,0,sizeof place);place.attack=1;
+            gm_runtime_tick(&r,place);
+            CHECK(gm_runtime_sound_event_count(&r)==2 &&
+                  gm_runtime_sound_event_get(&r,1,&sound) &&
+                  sound.sound==GM_SOUND_BLOCK_GRAVEL_HIT &&
+                  sound.category==GM_SOUND_CATEGORY_NEUTRAL &&
+                  sound.x==8.5 && sound.y==6.5 && sound.z==10.5 &&
+                  sound.volume==0.25F && sound.pitch==0.5F,
+                  "runtime emits exact progressive-mining hit audio");
         }
         gm_runtime_destroy(&r);
         cfg.mobs = saved_mobs;

@@ -11573,3 +11573,24 @@ fails, decomposed exactly.
   aggregate passes in 6:39.86 at 437,400 KiB peak RSS with zero major faults.
   CPU throughput is 4,142 steps/s against the frozen 3,858.9 floor. GPU 1 was
   untouched.
+
+## 2026-08-07 (complete progressive-mining hit audio)
+
+- Extended the complete real-Java block-sound registry oracle with
+  `SoundType.getHitSound`, using the cadence/category/scalar semantics locked
+  from `PlayerControllerMP.onPlayerDamageBlock`. Java and native agree for all
+  235 registered non-air IDs, every valid metadata state, twelve hit families,
+  and the raw `(volume + 1) / 8` and `pitch * 0.5` float bits. Independent
+  break, place, and hit family substitutions are all rejected.
+- The player controller now emits a bounded transient on damage update zero
+  and every fourth damage update thereafter. Runtime playback preserves the
+  exact NEUTRAL category and centered block position. The integration gate
+  also exposed and fixed stale post-break delay and attack-edge latches across
+  explicit controller resets. The manifest is now 112 events/307 variants;
+  fixed playback pools and audio-free headless/RL behavior are unchanged.
+- The exhaustive comparator, cadence, runtime, OpenAL, focused parity, clean
+  native product, and clean JDK 8 builds pass. The exact-current aggregate
+  passes in 6:22.74 at 448,576 KiB peak RSS with zero major faults or swap.
+  CPU throughput is 4,197 steps/s against the frozen 3,858.9 floor. GPU 1 was
+  untouched. Every locally available quick-sweep step passes; the two
+  snapshot-backed Blaze stages skip because their `.bsnp` inputs are absent.

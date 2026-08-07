@@ -112,6 +112,9 @@ int  gm_player_dig_particle_count(void);
  * Minecraft.sendClickBlockToController (onPlayerDamageBlock returned true).
  * Valid only between gm_player_tick and the next tick's dig phase. */
 int  gm_player_dig_swing(void);
+/* Consume this tick's PlayerControllerMP progressive-mining hit sound.
+ * Coordinates are world-space and state_id is legacy id|(meta<<12). */
+int  gm_player_take_dig_sound(int *wx, int *wy, int *wz, int *state_id);
 
 #ifdef __cplusplus
 }

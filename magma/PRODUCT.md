@@ -130,7 +130,8 @@ is compared numerically against pinned Java scenes; it is never approved by a su
   OpenAL playback for the represented ordered event stream, including bounded
   streaming for all 12 jukebox records and exact distance-delayed firework
   blast/twinkle playback plus material-exact player/grazing block-break and
-  successful ItemBlock placement sounds.
+  successful ItemBlock placement sounds. Progressive mining emits the exact
+  material hit family and Java cadence, category, position, volume, and pitch.
   Music, ambient loops, category controls,
   achievements, statistics, scoreboards,
   resource packs, skins, and a broad graphics-options menu remain absent.

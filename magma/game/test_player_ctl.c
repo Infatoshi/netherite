@@ -169,12 +169,24 @@ int main(void)
 
     GmBlockEdit last_edit = {0};
     int saw_break = 0, last_nedits = 0;
+    int hit_count = 0, hit_ticks[4] = {0};
     for (int t = 0; t < 40; ++t) {
         GmBlockEdit edits[8];
         int nedits = 0;
         if (t > 0) look_break.dpitch = 0.0f; /* already looking down */
         gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&plb,
                        (struct PvStats *)&tvb, look_break, ox, oy, oz, edits, &nedits, 8);
+        {
+            int sx, sy, sz, state_id;
+            if (gm_player_take_dig_sound(&sx, &sy, &sz, &state_id)) {
+                CHECK(hit_count < 4, "bounded progressive-dig sound cadence");
+                hit_ticks[hit_count++] = t;
+                CHECK(sx == ox + lxi && sy == oy + 64 && sz == oz + lzi,
+                      "dig sound keeps exact world-space block center source");
+                CHECK(state_id == BLK_STONE,
+                      "dig sound keeps the target's exact legacy state");
+            }
+        }
         last_nedits = nedits;
         if (nedits == 1 && edits[0].id == 0) {
             last_edit = edits[0];
@@ -197,6 +209,8 @@ int main(void)
               "player destruction requests world event 2001");
     }
     CHECK(plb.break_events == before_break + 1, "break_events incremented");
+    CHECK(hit_count == 2 && hit_ticks[0] == 0 && hit_ticks[1] == 4,
+          "iron-pick stone emits hit audio on damage updates 0 and 4 only");
     CHECK(isr_hotbar_total(&plb.inv) + isr_main_total(&plb.inv) == before_total,
           "break does not teleport its drop into inventory");
     CHECK(last_edit.drop_id == 4 && last_edit.drop_count == 1,

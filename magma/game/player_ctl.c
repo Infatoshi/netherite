@@ -28,6 +28,10 @@
  * break), s_atk_prev = attack key edge (press tick = clickMouse -> clickBlock). */
 static float s_dig_progress;
 static int   s_dig_particle_count; /* entity_pin dig_hit count; 0 = stage proxy */
+static int   s_dig_sound_tick_counter;
+static int   s_dig_sound_pending;
+static int   s_dig_sound_wx, s_dig_sound_wy, s_dig_sound_wz;
+static int   s_dig_sound_state;
 
 /* EntityRenderer.fovModifierHand (client render state, not physics). */
 static float s_fov_hand = 1.0f;
@@ -363,6 +367,7 @@ static void gm_player_tick_impl(
     int ne = 0;
     s_item_use_drop=ic_empty();
     s_finished_drink=ic_empty();
+    s_dig_sound_pending=0;
 
     /* Legacy tapes predict the metadata return one tick after the request.
      * New tapes set elytra_flag7_recorded and apply each observed metadata
@@ -565,6 +570,7 @@ static void gm_player_tick_impl(
                         s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
                         s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                         s_dig_progress = 0.0f;
+                        s_dig_sound_tick_counter = 0;
                         use_gate_hitting = 1;
                     }
                 }
@@ -577,12 +583,22 @@ static void gm_player_tick_impl(
                         /* isHittingPosition: accrue curBlockDamageMP */
                         s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                         s_dig_progress += rel;
+                        if ((s_dig_sound_tick_counter & 3) == 0) {
+                            s_dig_sound_pending = 1;
+                            s_dig_sound_wx = ox + hx;
+                            s_dig_sound_wy = oy + hy;
+                            s_dig_sound_wz = oz + hz;
+                            s_dig_sound_state = bid
+                                | ((pin.block_meta & 255) << 12);
+                        }
+                        ++s_dig_sound_tick_counter;
                         if (s_dig_progress >= 1.0f) {
                             s_dig_hitting = 0;
                             dig_destroy(window, pl, vit, hx, hy, hz, bid, pin.block_meta,
                                         ox, oy, oz, edits, &ne, max_edits,
                                         pin.creative);
                             s_dig_progress = 0.0f;
+                            s_dig_sound_tick_counter = 0;
                             s_dig_delay = 5;
                             s_dig_face = -1;
                         }
@@ -598,6 +614,7 @@ static void gm_player_tick_impl(
                             s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
                             s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                             s_dig_progress = 0.0f;
+                            s_dig_sound_tick_counter = 0;
                         }
                     }
                 }
@@ -1014,7 +1031,13 @@ void gm_player_dig_reset(void) {
     s_dig_progress = 0.0f;
     s_dig_hx = INT_MIN;
     s_dig_face = -1;
+    s_dig_hitting = 0;
+    s_dig_delay = 0;
+    s_atk_prev = 0;
+    s_dig_swing = 0;
     s_dig_particle_count = 0;
+    s_dig_sound_tick_counter=0;
+    s_dig_sound_pending=0;
     s_eat_ticks=0;s_eat_item=0;
     s_use_action=0;s_use_remaining=0;s_use_max=0;
     s_hurt_vel_reset=0;s_server_motion_x=0.0;s_server_motion_z=0.0;
@@ -1061,6 +1084,9 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
     s_dig_hitting    = in->dig_hitting;
     s_dig_delay      = in->dig_delay;
     s_dig_particle_count = in->dig_particle_count;
+    /* The RL snapshot format explicitly excludes audio/render-only counters. */
+    s_dig_sound_tick_counter=0;
+    s_dig_sound_pending=0;
     s_atk_prev       = in->atk_prev;
     s_rc_delay       = in->rc_delay;
     s_use_prev       = in->use_prev;
@@ -1075,6 +1101,17 @@ int gm_player_dig_particle_count(void) {
 
 int gm_player_dig_swing(void) {
     return s_dig_swing;
+}
+
+int gm_player_take_dig_sound(
+        int *wx, int *wy, int *wz, int *state_id) {
+    if (!s_dig_sound_pending) return 0;
+    s_dig_sound_pending = 0;
+    if (wx) *wx = s_dig_sound_wx;
+    if (wy) *wy = s_dig_sound_wy;
+    if (wz) *wz = s_dig_sound_wz;
+    if (state_id) *state_id = s_dig_sound_state;
+    return 1;
 }
 
 /* Current progressive-dig target + damage 0..1 (RenderGlobal drawBlockDamageTexture

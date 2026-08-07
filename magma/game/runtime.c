@@ -12109,27 +12109,38 @@ static int runtime_block_sound_family(int state_id) {
 
 static int runtime_block_sound(
         int state_id, int first_sound,
+        float volume_divisor, float pitch_multiplier,
         int *sound, float *volume, float *pitch) {
     int family = runtime_block_sound_family(state_id);
+    float type_volume, type_pitch;
     if (family < 0) return 0;
     if (sound) *sound = first_sound + family;
-    if (volume) *volume = family == RUNTIME_BLOCK_SOUND_ANVIL
-        ? (0.3F + 1.0F) / 2.0F : 1.0F;
-    if (pitch) *pitch = family == RUNTIME_BLOCK_SOUND_METAL
-        ? 1.5F * 0.8F : 0.8F;
+    type_volume = family == RUNTIME_BLOCK_SOUND_ANVIL ? 0.3F : 1.0F;
+    type_pitch = family == RUNTIME_BLOCK_SOUND_METAL ? 1.5F : 1.0F;
+    if (volume) *volume = (type_volume + 1.0F) / volume_divisor;
+    if (pitch) *pitch = type_pitch * pitch_multiplier;
     return 1;
 }
 
 int gm_runtime_block_break_sound(
         int state_id, int *sound, float *volume, float *pitch) {
     return runtime_block_sound(
-        state_id, GM_SOUND_BLOCK_WOOD_BREAK, sound, volume, pitch);
+        state_id, GM_SOUND_BLOCK_WOOD_BREAK, 2.0F, 0.8F,
+        sound, volume, pitch);
 }
 
 int gm_runtime_block_place_sound(
         int state_id, int *sound, float *volume, float *pitch) {
     return runtime_block_sound(
-        state_id, GM_SOUND_BLOCK_WOOD_PLACE, sound, volume, pitch);
+        state_id, GM_SOUND_BLOCK_WOOD_PLACE, 2.0F, 0.8F,
+        sound, volume, pitch);
+}
+
+int gm_runtime_block_hit_sound(
+        int state_id, int *sound, float *volume, float *pitch) {
+    return runtime_block_sound(
+        state_id, GM_SOUND_BLOCK_WOOD_HIT, 8.0F, 0.5F,
+        sound, volume, pitch);
 }
 
 static int runtime_block_place_audio_append(
@@ -16014,6 +16025,17 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                                   r->ox, 0, r->oz,
                                   edits, &n, GM_RUNTIME_MAX_EDITS,
                                   r->haste_amplifier, r->fatigue_amplifier);
+    {
+        int x, y, z, state_id, sound;
+        float volume, pitch;
+        if (gm_player_take_dig_sound(&x, &y, &z, &state_id)
+                && gm_runtime_block_hit_sound(
+                    state_id, &sound, &volume, &pitch))
+            runtime_sound_event_append(
+                r, sound, GM_SOUND_CATEGORY_NEUTRAL, 0, 0,
+                (double)x + 0.5, (double)y + 0.5, (double)z + 0.5,
+                volume, pitch);
+    }
     {
         ICStack item_use_drop=gm_player_take_item_use_drop();
         if (!isr_is_empty(&item_use_drop))

@@ -140,6 +140,18 @@ focused seven-family parity gates pass. Every locally available quick-sweep
 step passes; the two snapshot stages skip because their `.bsnp` inputs are
 absent. GPU 1 was not executed.
 
+2026-08-07 block-hit-audio checkpoint: the exact-current full native runtime
+aggregate passes in 6:22.74 with 448,576 KiB peak RSS, zero major faults, and
+zero swap. The CPU guard passes at 4,197 scalar steps/s against the frozen
+3,858.9 floor. The exhaustive real-Java/native comparator matches all 235
+registered non-air block IDs, twelve break, placement, and progressive-hit
+families, every valid metadata state, and raw volume/pitch bits, while
+rejecting independent per-action material negative controls. The controller
+gate pins damage-update cadence at zero and every fourth update; clean native,
+JDK 8, OpenAL, and focused parity gates pass. Every locally available quick
+sweep step passes; the two snapshot stages skip because their `.bsnp` inputs
+are absent. GPU 1 was not executed.
+
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.
 Status: SHIPPED as `netherite_sweep.sh` (repo root). At the 2026-08-07 70%

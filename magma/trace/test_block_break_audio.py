@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare complete real-Java and native block break/place sound maps."""
+"""Compare complete real-Java and native block break/place/hit sound maps."""
 
 import argparse
 import os
@@ -26,7 +26,7 @@ def main():
     native = subprocess.run(
         [str(args.native.resolve())], check=True,
         capture_output=True, text=True)
-    for prefix, action in (("B", "break"), ("P", "place")):
+    for prefix, action in (("B", "break"), ("P", "place"), ("H", "hit")):
         expected = rows(java.stdout, prefix)
         actual = rows(native.stdout, prefix)
         if len(expected) != 235 or len(actual) != 235:
@@ -53,7 +53,7 @@ def main():
             raise AssertionError(
                 f"{action} material-family sabotage escaped the comparator")
     print("PASS real Java/native: all 235 registered non-air block ids, "
-          "12 break and 12 place families, raw volume/pitch bits, metadata "
+          "12 break/place/hit families, raw volume/pitch bits, metadata "
           "invariance, and per-action material-negative controls")
 
 
