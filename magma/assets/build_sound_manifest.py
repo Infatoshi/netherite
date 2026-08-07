@@ -35,6 +35,10 @@ EVENTS = [
     "block.iron_trapdoor.open", "entity.splash_potion.break",
     "entity.enderdragon_fireball.explode", "block.end_gateway.spawn",
     "entity.enderdragon.growl", "entity.villager.yes", "entity.villager.no",
+    None,
+    "record.13", "record.cat", "record.blocks", "record.chirp",
+    "record.far", "record.mall", "record.mellohi", "record.stal",
+    "record.strad", "record.ward", "record.11", "record.wait",
 ]
 
 
@@ -54,7 +58,7 @@ def find_index() -> Path:
     raise SystemExit("Minecraft 1.11 asset index not found; run bootstrap_oracle.sh")
 
 
-def resolve(entries, name, volume=1.0, pitch=1.0, seen=()):
+def resolve(entries, name, volume=1.0, pitch=1.0, stream=False, seen=()):
     if name in seen:
         raise ValueError(f"recursive sound event: {name}")
     entry = entries.get(name)
@@ -67,13 +71,17 @@ def resolve(entries, name, volume=1.0, pitch=1.0, seen=()):
         child = value["name"]
         child_volume = volume * float(value.get("volume", 1.0))
         child_pitch = pitch * float(value.get("pitch", 1.0))
+        child_stream = stream or bool(value.get("stream", False))
         weight = int(value.get("weight", 1))
         if value.get("type") == "event":
             for row in resolve(
-                    entries, child, child_volume, child_pitch, seen + (name,)):
-                result.append((row[0], row[1], row[2], row[3] * weight))
+                    entries, child, child_volume, child_pitch,
+                    child_stream, seen + (name,)):
+                result.append(
+                    (row[0], row[1], row[2], row[3] * weight, row[4]))
         else:
-            result.append((child, child_volume, child_pitch, weight))
+            result.append(
+                (child, child_volume, child_pitch, weight, child_stream))
     return result
 
 
@@ -90,12 +98,15 @@ def main():
     for event in EVENTS[1:]:
         start = len(variants)
         total = 0
-        for logical, volume, pitch, weight in resolve(entries, event):
+        if event is None:
+            spans.append((start, 0, 0))
+            continue
+        for logical, volume, pitch, weight, stream in resolve(entries, event):
             key = f"minecraft/sounds/{logical}.ogg"
             digest = objects.get(key, {}).get("hash")
             if not digest:
                 raise KeyError(f"missing indexed asset: {key}")
-            variants.append((digest, volume, pitch, weight))
+            variants.append((digest, volume, pitch, weight, stream))
             total += weight
         spans.append((start, len(variants) - start, total))
     if len(spans) != len(EVENTS):
@@ -108,7 +119,7 @@ def main():
         "#ifndef MAGMA_ASSETS_SOUND_MANIFEST_H",
         "#define MAGMA_ASSETS_SOUND_MANIFEST_H",
         "typedef struct {",
-        "    const char *hash; float volume, pitch; int weight;",
+        "    const char *hash; float volume, pitch; int weight, stream;",
         "} GmSoundAssetVariant;",
         "typedef struct { int start, count, total_weight; } GmSoundAssetSpan;",
         f"#define GM_SOUND_ASSET_VARIANT_COUNT {len(variants)}",
@@ -121,8 +132,9 @@ def main():
         return text + "F"
 
     lines.extend(
-        f'    {{"{digest}", {c_float(volume)}, {c_float(pitch)}, {weight}}},'
-        for digest, volume, pitch, weight in variants
+        f'    {{"{digest}", {c_float(volume)}, {c_float(pitch)}, '
+        f'{weight}, {int(stream)}}},'
+        for digest, volume, pitch, weight, stream in variants
     )
     lines.extend([
         "};",
@@ -131,7 +143,8 @@ def main():
     lines.extend(f"    {{{start}, {count}, {total}}}," for start, count, total in spans)
     lines.extend(["};", "#endif", ""])
     output.write_text("\n".join(lines))
-    print(f"sound manifest: {len(EVENTS)-1} events, {len(variants)} variants")
+    event_count = sum(event is not None for event in EVENTS[1:])
+    print(f"sound manifest: {event_count} events, {len(variants)} variants")
 
 
 if __name__ == "__main__":

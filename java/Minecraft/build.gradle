@@ -207,7 +207,7 @@ exec.args(["--username", project.hasProperty("mcUsername") ? project.getProperty
 
 // NetheriteMod TCP bridge port override for batch launches, where N instances share one
 // run/qrl_launch.json and only its "port" key would otherwise be visible:
-// -PqrlPort=25576 -> -Dqrl.port=25576, read once by netheritemod.Recorder.
+// -PqrlPort=25576 -> -Dqrl.port=25576, read once by qrl.Recorder.
 if (project.hasProperty("qrlPort")) {
     exec.jvmArgs(["-Dqrl.port=" + project.getProperty("qrlPort")])
 }

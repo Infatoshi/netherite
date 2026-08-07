@@ -127,8 +127,9 @@ is compared numerically against pinned Java scenes; it is never approved by a su
   systems. Their implemented subsets are available behind their live paths and
   their remaining coverage is tracked in `PARITY_PROJECT.md`; the fast base
   profile does not pay for inactive systems. Interactive play now has optional
-  OpenAL playback for the represented ordered event stream. Music, ambient
-  loops, records, category controls, achievements, statistics, scoreboards,
+  OpenAL playback for the represented ordered event stream, including bounded
+  streaming for all 12 jukebox records. Music, ambient loops, category controls,
+  achievements, statistics, scoreboards,
   resource packs, skins, and a broad graphics-options menu remain absent.
 - Difficulty is fixed to Normal. Day/night, mob spawning, drops, fire required for
   portals, random ticks required by the route, and the mandatory structures stay on.

@@ -252,7 +252,11 @@ int main(void)
         gm_runtime_set_entity_id_cursor(&r, 8000);
         for (int record = 2256; record <= 2267; ++record) {
             GmRuntimeStaticContainer jukebox;
+            GmRuntimeWorldEvent world_event;
+            GmRuntimeSoundEvent sound_event;
             int before_entities = r.entities.n_active;
+            uint64_t before_world_seq = r.world_event_next_seq;
+            uint64_t before_sound_seq = r.sound_event_next_seq;
             stage_control(&r, y, 0);
             if (!gm_runtime_set_block(&r, 10, y, 8, 84, 0)
                     || !gm_runtime_static_container_set_slot(
@@ -265,13 +269,51 @@ int main(void)
                     || !gm_runtime_static_container_get(&r, 0, &jukebox)
                     || jukebox.slots[0].item != record
                     || jukebox.slots[0].count != 1
-                    || isr_get_stack(&r.player.inv, 0).count != 0)
+                    || isr_get_stack(&r.player.inv, 0).count != 0
+                    || r.world_event_next_seq != before_world_seq + 1
+                    || !gm_runtime_world_event_get(
+                        &r, gm_runtime_world_event_count(&r) - 1,
+                        &world_event)
+                    || world_event.seq != before_world_seq
+                    || world_event.id != 1010
+                    || world_event.data != record
+                    || world_event.x != 10 || world_event.y != y
+                    || world_event.z != 8
+                    || r.sound_event_next_seq != before_sound_seq + 1
+                    || !gm_runtime_sound_event_get(
+                        &r, gm_runtime_sound_event_count(&r) - 1,
+                        &sound_event)
+                    || sound_event.seq != before_sound_seq
+                    || sound_event.sound
+                        != GM_SOUND_RECORD_13 + record - 2256
+                    || sound_event.category != GM_SOUND_CATEGORY_RECORDS
+                    || sound_event.x != 10.0 || sound_event.y != (double)y
+                    || sound_event.z != 8.0
+                    || sound_event.volume != 4.0F
+                    || sound_event.pitch != 1.0F)
                 exact = 0;
             if (!gm_runtime_use_block(&r, 10, y, 8)
                     || gm_world_meta(r.world, 10, y, 8) != 0
                     || !gm_runtime_static_container_get(&r, 0, &jukebox)
                     || !isr_is_empty(&jukebox.slots[0])
-                    || r.entities.n_active != before_entities + 1)
+                    || r.entities.n_active != before_entities + 1
+                    || r.world_event_next_seq != before_world_seq + 2
+                    || !gm_runtime_world_event_get(
+                        &r, gm_runtime_world_event_count(&r) - 1,
+                        &world_event)
+                    || world_event.seq != before_world_seq + 1
+                    || world_event.id != 1010 || world_event.data != 0
+                    || r.sound_event_next_seq != before_sound_seq + 2
+                    || !gm_runtime_sound_event_get(
+                        &r, gm_runtime_sound_event_count(&r) - 1,
+                        &sound_event)
+                    || sound_event.seq != before_sound_seq + 1
+                    || sound_event.sound != GM_SOUND_RECORD_STOP
+                    || sound_event.category != GM_SOUND_CATEGORY_RECORDS
+                    || sound_event.x != 10.0 || sound_event.y != (double)y
+                    || sound_event.z != 8.0
+                    || sound_event.volume != 4.0F
+                    || sound_event.pitch != 1.0F)
                 exact = 0;
             else {
                 int found = 0;
@@ -284,7 +326,7 @@ int main(void)
             }
         }
         CHECK(exact,
-              "all 12 vanilla records insert and eject from a jukebox");
+              "all 12 records insert/eject with exact 1010 and audio events");
     }
 
     {

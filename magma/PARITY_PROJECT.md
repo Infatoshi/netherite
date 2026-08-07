@@ -631,8 +631,9 @@ comparator controls pass 7/7 at
 `trace/out/matrix_ordinary_player_eject_record_affected_1/summary.md`. Native
 coverage ejects all 12 records and proves a full item pool rejects ejection
 without changing tile state, RNG, or the entity cursor. Record sound event
-1010 and audio playback remain A-01 work. Performance remains deferred while
-GPU 1 is shared.
+1010 and bounded playback are now covered by A-01 for all 12 records. Broader
+music, ambient, mixer-option, and output-comparison work remains open.
+Performance remains deferred while GPU 1 is shared.
 
 Three further strict R-02 candidates add redstone-powered TNT ignition and the
 complete 79-tick pre-explosion fuse trajectory. The neighbor-power old-C probe
@@ -2843,7 +2844,7 @@ Effort is implementation plus oracle/test work for one experienced engineer.
 | 27 | E-02 | DONE | Elytra acquisition and fireworks: ship elytra, route recipes, exact rocket constructor/first motion, boost, explosion damage, and durability are implemented | focused Java/native acquisition, motion, boost, explosion, and durability gates pass; cosmetic particles and custom-NBT rendering remain V-01 work | 3-6 wk |
 | 28 | L-01 | ACTIVE | Fishing cast/bobber state, water/block/item/living collision, bite timing, open-water/weather/luck/lure modifiers, reeling, rod damage, XP/item emission, hook event state, a complete cold hook-state restore boundary, the real nested junk/treasure/fish loot table with damage/enchantments, and Java's exact 17-point first-person line centerline are implemented | partial-tick hook endpoint interpolation, exhaustive hooked-entity/collision and owner-removal edges, automatic full-capsule/NBT translation, custom loot NBT, and fishing-line pixel promotion | 3-6 wk |
 | 29 | L-02 | ACTIVE | Remaining pets and animal life cycles; exact sheep shearing, grazing/regrowth, natural fleece selection, and child genetics are promoted; cow milking, pig saddle application, mount association, bounded carrot-stick steering/boost, persistent step/wall/gap/slab ridden travel, continuous water travel plus bounded level, flowing, and falling dry-to-water entry, discriminating water/lava edge climb, still-lava travel and dry-to-lava entry, water/lava overlap precedence, authoritative sustained lava damage/fire/timer/RNG contact, exact vehicle-packet cactus/fire/lava including combined ordering and wet burning cleanup plus automatic represented zero-delta contact dispatch, bounded dry horizontal/vertical direct packet acceptance and wall/floor/ceiling/speed rollback, full-payload independent-server runtime acceptance/correction observation, bounded dry post-packet authoritative base state, resolved first-packet moving cactus/fire/lava plus asymmetric water entry/exit contact state, same-epoch horizontal/vertical two-packet and four-packet accept/collision/speed/accept tracker sequencing, per-server-tick tracker reseed, later/pre-ticked water-entry resetHeight RNG, real client correction pose/AABB application with immediate acknowledgement, and a bounded runtime correction/prediction two-entry FIFO, ridden-server Fire Resistance rejection/expiry across packet fire, ON_FIRE, and lava, soul-sand/web contact, bounded north-ladder contact/climb, bounded slime landing/bounce plus low-speed walking damping, and full-stone/water plus isolated stone/slab/snow/water explicit dismount placement, ordinary player-melee hit/death/drop construction, retained moving ridden deathTime progression and exact terminal relocation, breeding-item feeding/growth/love, direct and live mating/birth, newborn private-state transport, same-boundary newborn continuation, and the first unobstructed grounded mating step are exact for represented sheep, cows, pigs, and chickens, including chicken flap/fall/timer state, the isolated adult egg-lay sound/item threshold, the pig's fixed nine-candidate dismount scan, state-aware collision and lower-support rules, exact knockback/sound/status/item state, pork-before-saddle death ordering independent of `doMobLoot`, and the terminal pig-then-passenger update order | tame/sit/follow/teleport, ownership, broader shaped/dynamic pig dismount layouts, non-player-source pig hit/loot construction, broader authoritative pig base ticks including divergent dual-pose water/lava and full bookkeeping, long mixed-axis and repeated-correction packet bursts, broader correction scheduling, general mob potion/effect storage, contact death/drop, emitted effects, and remaining ridden movement-media/contact callbacks, slime sneaking/nonliving/mixed-contact variants, and ladder variants, client boost notification, enchanted-stick NBT, saddle visuals, multi-animal and global entity-list ordering, obstacle/multi-tick navigation, full passive spawn-pack ordering, and conflicts with unrepresented swim/tempt/follow tasks remain | 4-8 wk |
-| 30 | A-01 | ACTIVE | One ordered fixed-size sound-event stream now unifies represented mob/item sounds, world events, lightning, firework launch, fishing bite, and villager trade. An owned-asset generator resolves 58 Minecraft sound events into 134 weighted OGG variants. Interactive play predecodes them once and consumes the stream through a fixed 32-source OpenAL pool with position, attenuation, volume, and pitch; headless/RL paths initialize no audio and do no playback work | exact Java variant-selection cursor and category sliders, music and ambient loops, records, subtitles/options, remaining gameplay emitters, block-break material resolution, particle-coupled RNG events, firework blast/distance/reverb behavior, device hotplug, and audio output comparison | 4-10 wk |
+| 30 | A-01 | ACTIVE | One ordered fixed-size sound-event stream now unifies represented mob/item sounds, world events, lightning, firework launch, fishing bite, villager trade, and all 12 jukebox records. An owned-asset generator resolves 70 Minecraft sound events into 146 weighted OGG variants. Interactive play predecodes ordinary effects and consumes the stream through a fixed 32-source OpenAL pool; four reserved voices stream record OGGs in bounded 64 KiB chunks with exact 1010 start/stop position semantics. Headless/RL paths initialize no audio and do no playback work | exact Java variant-selection cursor and category sliders, music and ambient loops, subtitles/options, remaining gameplay emitters, block-break material resolution, particle-coupled RNG events, firework blast/distance/reverb behavior, device hotplug, and audio output comparison | 4-10 wk |
 | 31 | V-01 | QUEUED | Pixel-exact residual queue | hand poses, preview LSBs, entities/particles, portal/water, fog/lightmap, remaining canonical tape clusters | ongoing |
 
 The order is intentional. Harness and observability come before new behavior so
@@ -2866,7 +2867,7 @@ from hiding distinct state, entity, and automation dependencies.
 | 2 | ordinary/trapped chest 54/146 | 27/54-slot fullness; trapped viewers are a separate power producer | DONE in R-03 |
 | 3 | furnace 61/62 | three-slot fullness | DONE in R-03 |
 | 4 | dispenser/dropper 23/158 | nine-slot fullness | DONE in R-03; reusable bounded inventory-tile pool established |
-| 5 | jukebox 84 | inserted record index 1..12 | DONE in R-03; sound playback remains A-01 |
+| 5 | jukebox 84 | inserted record index 1..12 | DONE in R-03; exact 1010 start/stop and bounded record playback DONE in A-01 |
 | 6 | command blocks 137/210/211 | last command success count | DONE in R-03 for the exact inert saved subset; command execution remains separate |
 | 7 | item frame behind one normal cube | displayed-item rotation 1..8; empty is zero; exactly one matching frame | DONE in R-03 for exact empty/plain-stone saved comparator state; damage, drops, maps/tags, rendering, and broader lifecycle remain separate |
 | 8 | brewing stand 117 | five-slot fullness | DONE in active F-03; live five-slot state, save/capsule restore, and comparator updates share one bounded tile |
@@ -4264,7 +4265,8 @@ from hiding distinct state, entity, and automation dependencies.
   record 13 -> 1 and record wait -> 12, while native controls prove empty -> 0
   and reject non-record state. The pre-fix record-13 fixture retained exact
   tile and queue state and first diverged only at observation-1 comparator
-  output. Record playback and sound emission are intentionally still A-01.
+  output. All 12 record start/stop events and bounded streamed playback are now
+  covered by A-01; broader audio remains open.
   Command blocks 137/210/211 now have a deliberately narrower exact saved
   subset. Oracle capture requires empty command text, name `@`, tracking on,
   no last output or command-result stats, `powered=false`,
@@ -6432,3 +6434,22 @@ its hidden AI/path state, scheduled/random-tick queues, unrepresented world
 metadata, and global pixel equivalence. Passing bounded capsule gates does not
 make unsupported state silently exact: capabilities are versioned and
 unrepresented fields remain explicit.
+
+## 2026-08-07 jukebox record-audio slice
+
+All 12 vanilla records now cross the same verified gameplay-to-audio seam.
+The locked Java fixture invokes real `ItemRecord.onItemUse` and
+`BlockJukebox.onBlockActivated`, proving each `(1010,item)` insertion event and
+the matching `(1010,0)` ejection event while restoring world and RNG state.
+Native insertion/ejection emits the same ordered world events, maps them to
+RECORDS-category sound events at the exact integer block position, and covers
+the full item-ID range in `game/test_redstone_use.c`.
+
+The generated asset manifest now owns 70 playable events and 146 weighted OGG
+variants. Ordinary effects retain the fixed predecoded source pool. Records
+use four reserved voices with four 64 KiB PCM buffers each and incremental
+Vorbis decode, so no full record is resident and concurrency stays bounded.
+`trace/test_jukebox_audio.py`, `game/test_audio_live.sh`, and the full native
+runtime gate pass. The clean product build passes, and CPU throughput is 4,228
+steps/s against the frozen 3,858.9 floor. The runtime aggregate takes 6:06.97
+at 448,576 KiB peak RSS with zero swap. GPU 1 was not executed.

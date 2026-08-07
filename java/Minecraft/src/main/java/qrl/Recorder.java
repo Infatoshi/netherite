@@ -210,6 +210,7 @@ public class Recorder {
             new java.util.ArrayList<ParticleRecord>();
         boolean captureParticles;
         boolean captureBlockBreakEvents;
+        boolean captureJukeboxEvents;
 
         OracleWorldEventCapture(
                 int minXIn, int minYIn, int minZIn,
@@ -225,6 +226,7 @@ public class Recorder {
         public void playEvent(net.minecraft.entity.player.EntityPlayer player,
                 int type, BlockPos pos, int data) {
             if ((type == 1029 || type == 1031
+                    || (captureJukeboxEvents && type == 1010)
                     || (captureBlockBreakEvents && type == 2001))
                     && pos.getX() >= minX && pos.getX() <= maxX
                     && pos.getY() >= minY && pos.getY() <= maxY
@@ -694,6 +696,13 @@ public class Recorder {
      * deterministic for replay. Client thread only. */
     private static final java.util.List<String> recParticles =
         new java.util.ArrayList<String>();
+    /** Player entity flag-7 values delivered by SPacketEntityMetadata since
+     * the last recorded tick. */
+    private static final java.util.List<Integer> recFlag7Metadata =
+        new java.util.ArrayList<Integer>();
+    /** Rotation sampled at ClientTickEvent.START for this tick's travel. */
+    private static float recPreYaw = 0.0F, recPrePitch = 0.0F;
+    private static boolean recPreLookValid = false;
     private volatile String recSnapRoot = null;   // <tape>_world, live while recording
     private int recLastPlayerTicksExisted = Integer.MIN_VALUE;
     private int recLastDimension = Integer.MIN_VALUE;
@@ -791,6 +800,24 @@ public class Recorder {
         recPositionVy = mc.player.motionY;
         recPositionVz = mc.player.motionZ;
         recPositionPending = true;
+    }
+
+    /** Capture the integrated-server round trip for player fall-flying flag 7. */
+    public static void recordPlayerFlag7Metadata(
+            net.minecraft.network.play.server.SPacketEntityMetadata packet) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.player == null
+                || packet.getEntityId() != mc.player.getEntityId()) return;
+        java.util.List<net.minecraft.network.datasync.EntityDataManager.DataEntry<?>> entries =
+            packet.getDataManagerEntries();
+        if (entries == null) return;
+        for (net.minecraft.network.datasync.EntityDataManager.DataEntry<?> entry : entries) {
+            if (entry.getKey().getId() != 0
+                    || !(entry.getValue() instanceof Byte)) continue;
+            int flags = ((Byte) entry.getValue()).byteValue() & 0xff;
+            recFlag7Metadata.add(
+                Integer.valueOf((flags & (1 << 7)) != 0 ? 1 : 0));
+        }
     }
 
     private void applyPinnedPortalPhase(Minecraft mc) {
@@ -1096,7 +1123,7 @@ public class Recorder {
         // vanilla path; "off"/absent leaves normal Forge rendering untouched.
         try {
             String m = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(
-                "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/ao/qao_mode.txt"))).trim();
+                "../../render-opt/dropin/ao/qao_mode.txt"))).trim();
             if ("native".equals(m) || "sabotage".equals(m) || "vanilla".equals(m)) {
                 net.minecraftforge.common.ForgeModContainer.forgeLightPipelineEnabled = false;
                 System.err.println("[qao] Forge light pipeline DISABLED (vanilla getAoBrightness live) for qao_mode=" + m);
@@ -1218,6 +1245,7 @@ public class Recorder {
             case "mate_animal_tick_locked":
             case "schedule_locked": case "set_comparator_output_locked":
             case "set_container_slot_locked": case "set_command_success_locked":
+            case "jukebox_record_locked":
             case "set_shulker_nbt_locked":
             case "set_flower_pot_locked":
             case "set_skull_locked":
@@ -1362,6 +1390,9 @@ public class Recorder {
         }
         if (cmd.equals("set_container_slot_locked")) {
             return oracleSetContainerSlotLocked(action);
+        }
+        if (cmd.equals("jukebox_record_locked")) {
+            return oracleJukeboxRecordLocked(action);
         }
         if (cmd.equals("set_shulker_nbt_locked")) {
             return oracleSetShulkerNbtLocked(action);
@@ -12018,6 +12049,154 @@ public class Recorder {
         }
     }
 
+    /** Exercise ItemRecord and BlockJukebox at a parked server boundary. */
+    private String oracleJukeboxRecordLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "jukebox_record_locked requires a parked oracle server");
+            }
+            net.minecraft.world.WorldServer world = null;
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            BlockPos pos = null;
+            net.minecraft.block.state.IBlockState oldState = null;
+            net.minecraft.item.ItemStack oldMain = null;
+            net.minecraft.item.ItemStack oldOffhand = null;
+            int oldCurrentItem = 0;
+            long oldWorldSeed = -1L;
+            long oldMathSeed = -1L;
+            int oldNextEntityId = -1;
+            OracleWorldEventCapture events = null;
+            java.util.Set<net.minecraft.entity.Entity> priorEntities = null;
+            try {
+                int itemId = action.get("item").getAsInt();
+                if (itemId < 2256 || itemId > 2267)
+                    return err("jukebox fixture requires a vanilla record");
+                MinecraftServer server =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                player = players.get(0);
+                world = player.getServerWorld();
+                int x = net.minecraft.util.math.MathHelper.floor(player.posX)
+                    + 8;
+                int z = net.minecraft.util.math.MathHelper.floor(player.posZ);
+                pos = new BlockPos(x, 220, z);
+                world.getChunkFromBlockCoords(pos);
+                oldState = world.getBlockState(pos);
+                if (!world.isAirBlock(pos))
+                    return err("jukebox fixture position is not air");
+
+                oldMain = player.getHeldItemMainhand().copy();
+                oldOffhand = player.getHeldItemOffhand().copy();
+                oldCurrentItem = player.inventory.currentItem;
+                oldWorldSeed = javaRandomSeed48(world.rand);
+                oldMathSeed = mathRandomSeed48();
+                oldNextEntityId = nextEntityId();
+                priorEntities =
+                    new java.util.HashSet<net.minecraft.entity.Entity>(
+                        world.loadedEntityList);
+
+                events = new OracleWorldEventCapture(
+                    x, 220, z, x, 220, z);
+                events.captureJukeboxEvents = true;
+                world.addEventListener(events);
+                if (!world.setBlockState(
+                        pos, net.minecraft.init.Blocks.JUKEBOX
+                            .getDefaultState(), 2))
+                    return err("jukebox fixture placement failed");
+
+                net.minecraft.item.Item record =
+                    net.minecraft.item.Item.getItemById(itemId);
+                net.minecraft.item.ItemStack stack =
+                    new net.minecraft.item.ItemStack(record, 1, 0);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND, stack);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND,
+                    net.minecraft.item.ItemStack.EMPTY);
+                net.minecraft.util.EnumActionResult insertResult =
+                    record.onItemUse(
+                        player, world, pos,
+                        net.minecraft.util.EnumHand.MAIN_HAND,
+                        net.minecraft.util.EnumFacing.UP,
+                        0.5F, 0.5F, 0.5F);
+                net.minecraft.block.state.IBlockState insertedState =
+                    world.getBlockState(pos);
+                net.minecraft.block.BlockJukebox.TileEntityJukebox tile =
+                    (net.minecraft.block.BlockJukebox.TileEntityJukebox)
+                        world.getTileEntity(pos);
+                int insertedRecord = tile.getRecord().isEmpty() ? 0
+                    : net.minecraft.item.Item.getIdFromItem(
+                        tile.getRecord().getItem());
+                boolean ejected = net.minecraft.init.Blocks.JUKEBOX
+                    .onBlockActivated(
+                        world, pos, insertedState, player,
+                        net.minecraft.util.EnumHand.MAIN_HAND,
+                        net.minecraft.util.EnumFacing.UP,
+                        0.5F, 0.5F, 0.5F);
+                tile = (net.minecraft.block.BlockJukebox.TileEntityJukebox)
+                    world.getTileEntity(pos);
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("item", itemId);
+                out.addProperty("insert_result", insertResult.name());
+                out.addProperty("insert_meta",
+                    net.minecraft.block.Block.getIdFromBlock(
+                        insertedState.getBlock()) == 84
+                        ? insertedState.getBlock().getMetaFromState(
+                            insertedState) : -1);
+                out.addProperty("insert_record", insertedRecord);
+                out.addProperty("held_after_insert", stack.getCount());
+                out.addProperty("ejected", ejected);
+                out.addProperty("eject_meta",
+                    world.getBlockState(pos).getBlock().getMetaFromState(
+                        world.getBlockState(pos)));
+                out.addProperty("eject_empty",
+                    tile == null || tile.getRecord().isEmpty());
+                out.add("world_events", events.toJson());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("jukebox_record_locked: " + t);
+            } finally {
+                if (world != null && events != null) try {
+                    world.removeEventListener(events);
+                } catch (Throwable ignored) { }
+                if (world != null && priorEntities != null) try {
+                    for (net.minecraft.entity.Entity entity :
+                            new java.util.ArrayList<
+                                net.minecraft.entity.Entity>(
+                                    world.loadedEntityList))
+                        if (!priorEntities.contains(entity))
+                            world.removeEntityDangerously(entity);
+                } catch (Throwable ignored) { }
+                if (player != null && oldMain != null && oldOffhand != null)
+                    try {
+                        player.inventory.currentItem = oldCurrentItem;
+                        player.setHeldItem(
+                            net.minecraft.util.EnumHand.MAIN_HAND, oldMain);
+                        player.setHeldItem(
+                            net.minecraft.util.EnumHand.OFF_HAND, oldOffhand);
+                    } catch (Throwable ignored) { }
+                if (world != null && pos != null && oldState != null) try {
+                    world.setBlockState(pos, oldState, 2);
+                } catch (Throwable ignored) { }
+                try {
+                    if (world != null && oldWorldSeed >= 0L)
+                        setJavaRandomSeed48(world.rand, oldWorldSeed);
+                    if (oldMathSeed >= 0L)
+                        setMathRandomSeed48(oldMathSeed);
+                    if (oldNextEntityId > 0)
+                        setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
     /**
      * Restore one supported container slot at the parked save boundary.
      * Ordinary/trapped single/double chests, furnaces, nine-slot
@@ -13473,6 +13652,12 @@ public class Recorder {
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent e) {
         if (e.phase == TickEvent.Phase.START) {
+            Minecraft mcs = Minecraft.getMinecraft();
+            if (recWriter != null && mcs.player != null) {
+                recPreYaw = mcs.player.rotationYaw;
+                recPrePitch = mcs.player.rotationPitch;
+                recPreLookValid = true;
+            }
             /* Minecraft.runGameLoop drains scheduled packet tasks before
              * ClientTickEvent.START. Reasserting here closes the last window
              * in which a delayed property packet could overwrite the parked
@@ -13611,6 +13796,8 @@ public class Recorder {
                 recLastInv = null;  // force a full inventory dump on tick 0
                 recVelocityPending = false;
                 recPositionPending = false;
+                recFlag7Metadata.clear();
+                recPreLookValid = false;
                 recLastPlayerTicksExisted = mc.player.ticksExisted;
                 recLastDimension = mc.player.dimension;
                 recPlayerLoading = false;
@@ -13647,6 +13834,9 @@ public class Recorder {
                  .append(",\"hp\":").append(mc.player.getHealth())
                  .append(",\"food\":").append(mc.player.getFoodStats().getFoodLevel())
                  .append(",\"dim\":").append(mc.player.dimension)
+                 .append(",\"flag7_metadata\":1,\"flag7_initial\":")
+                 .append(mc.player.isElytraFlying() ? 1 : 0)
+                 .append(",\"look_phase\":1")
                  .append(",\"gamemode\":\"").append(mc.playerController.getCurrentGameType().getName())
                  .append("\",\"difficulty\":\"").append(mc.world.getDifficulty().name())
                  // "default" (steve arm) or "slim" (alex) - offline UUID hash
@@ -14108,7 +14298,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 5000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 16;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/14_light_query/golden";
+                : "../../render-opt/kernels/14_light_query/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -14204,7 +14394,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 2000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 10;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/19_fluid_height/golden";
+                : "../../render-opt/kernels/19_fluid_height/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -14284,7 +14474,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 1000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 48;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/18_biome_color_blend/golden";
+                : "../../render-opt/kernels/18_biome_color_blend/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -14340,7 +14530,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 5000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 12;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/21_should_side_render/golden";
+                : "../../render-opt/kernels/21_should_side_render/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -14434,7 +14624,7 @@ public class Recorder {
             final int py = (int) Math.floor(mc.player.posY);
             final int pz = (int) Math.floor(mc.player.posZ);
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : ("/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/"
+                : ("../../render-opt/kernels/"
                    + (smooth ? "24_render_quads_smooth" : "23_render_quads_flat") + "/golden");
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
@@ -14585,7 +14775,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 200;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 10;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/20_fluid_quad_gen/golden";
+                : "../../render-opt/kernels/20_fluid_quad_gen/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -14757,7 +14947,7 @@ public class Recorder {
             final int py = (int) Math.floor(mc.player.posY);
             final int pz = (int) Math.floor(mc.player.posZ);
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/12_ao_vertex_brightness/golden";
+                : "../../render-opt/kernels/12_ao_vertex_brightness/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -14917,7 +15107,7 @@ public class Recorder {
             if (s == null || mc.player == null) { r.resp.offer(err("no world")); return; }
             final double px = mc.player.posX, pz = mc.player.posZ;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/29_particle_update/golden";
+                : "../../render-opt/kernels/29_particle_update/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -15005,7 +15195,7 @@ public class Recorder {
             final int px = (int) Math.floor(mc.player.posX);
             final int pz = (int) Math.floor(mc.player.posZ);
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/17_skylight_gen/golden";
+                : "../../render-opt/kernels/17_skylight_gen/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -15081,7 +15271,7 @@ public class Recorder {
         // ---- 37_entity_limb_anim: ModelQuadruped(ModelCow).setRotationAngles (per-limb trig) ----
         if (r.cmd.equals("capture_limbanim")) {
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/37_entity_limb_anim/golden";
+                : "../../render-opt/kernels/37_entity_limb_anim/golden";
             final Req fr = r;
             final MinecraftServer s = mc.getIntegratedServer();
             if (s == null) { r.resp.offer(err("no world")); return; }
@@ -15140,7 +15330,7 @@ public class Recorder {
             final int pz = (int) Math.floor(mc.player.posZ);
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 14;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/16_light_propagation/golden";
+                : "../../render-opt/kernels/16_light_propagation/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -15214,7 +15404,7 @@ public class Recorder {
         if (r.cmd.equals("capture_lightmap")) {
             if (mc.world == null || mc.player == null) { r.resp.offer(err("no world")); return; }
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/11_lightmap/golden";
+                : "../../render-opt/kernels/11_lightmap/golden";
             try {
                 net.minecraft.client.renderer.EntityRenderer er = mc.entityRenderer;
                 Class<?> ec = net.minecraft.client.renderer.EntityRenderer.class;
@@ -15274,7 +15464,7 @@ public class Recorder {
         if (r.cmd.equals("capture_chunkrebuild")) {
             if (mc.world == null || mc.player == null) { r.resp.offer(err("no world")); return; }
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/26_chunk_rebuild_loop/golden";
+                : "../../render-opt/kernels/26_chunk_rebuild_loop/golden";
             try {
                 int px = (int) Math.floor(mc.player.posX);
                 int py = (int) Math.floor(mc.player.posY);
@@ -17694,8 +17884,7 @@ sb.append("}");
     // qrl_launch.json: written by mc_cli.py (repo root) from fast.yaml (agent) or vanilla.yaml (human play). Resolution order:
     // ./qrl_launch.json (cwd = Minecraft/run under gradle) > absolute fallback.
     private static JsonObject loadLaunchCfg() {
-        String[] paths = { "qrl_launch.json",
-            "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/Minecraft/run/qrl_launch.json" };
+        String[] paths = { "qrl_launch.json" };
         for (String p : paths) {
             if (p == null || p.isEmpty()) continue;
             try {
@@ -18083,6 +18272,8 @@ sb.append("}");
         b.append(",\"x\":").append(p.posX).append(",\"y\":").append(p.posY)
          .append(",\"z\":").append(p.posZ)
          .append(",\"yaw\":").append(p.rotationYaw).append(",\"pitch\":").append(p.rotationPitch)
+         .append(",\"ry\":").append(recPreLookValid ? recPreYaw : p.rotationYaw)
+         .append(",\"rp\":").append(recPreLookValid ? recPrePitch : p.rotationPitch)
          .append(",\"vx\":").append(p.motionX).append(",\"vy\":").append(p.motionY)
          .append(",\"vz\":").append(p.motionZ)
          .append(",\"og\":").append(p.onGround ? 1 : 0)
@@ -18176,6 +18367,15 @@ sb.append("}");
              .append(",").append(recPositionVy)
              .append(",").append(recPositionVz).append("]");
             recPositionPending = false;
+        }
+        if (!recFlag7Metadata.isEmpty()) {
+            b.append(",\"f7\":[");
+            for (int i = 0; i < recFlag7Metadata.size(); ++i) {
+                if (i > 0) b.append(',');
+                b.append(recFlag7Metadata.get(i).intValue());
+            }
+            b.append(']');
+            recFlag7Metadata.clear();
         }
         /* During cross-dimension terrain download the client player exists but
          * is not yet in a loaded chunk, so WorldClient deliberately does not

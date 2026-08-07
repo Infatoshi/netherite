@@ -57,18 +57,37 @@ int main(void) {
               && event.eid == 7001,
               "mob ring drains into global sound order");
     }
+    CHECK(gm_runtime_set_block(&runtime, x + 2, y, z, 84, 0)
+          && gm_runtime_static_container_set_slot(
+              &runtime, 0, x + 2, y, z, 0, 0, 0, 0),
+          "stage empty jukebox for streamed record");
+    gm_runtime_set_pose(
+        &runtime, (double)x + 2.5, (double)y, (double)z + 0.5,
+        0.0F, 0.0F);
+    isr_set_stack(&runtime.player.inv, 0, ic_mk(2257, 1, 0));
+    runtime.player.inv.current_item = 0;
+    CHECK(gm_runtime_use_block(&runtime, x + 2, y, z),
+          "insert record cat into jukebox");
     CHECK(gm_audio_live_init(&audio, err, sizeof err), err);
     CHECK(audio.enabled, "OpenAL/Vorbis consumer is enabled");
     gm_audio_live_update(
         &audio, &runtime, 8.5, 80.0, 8.5, 180.0F, 0.0F);
-    CHECK(audio.next_seq == 2 && audio.dropped == 0,
-          "audio consumer advances exact stream cursor");
+    CHECK(audio.next_seq == 3 && audio.dropped == 0
+          && audio.active_records == 1,
+          "audio consumer starts one bounded record stream");
     gm_audio_live_update(
         &audio, &runtime, 8.5, 80.0, 8.5, 180.0F, 0.0F);
-    CHECK(audio.next_seq == 2,
+    CHECK(audio.next_seq == 3 && audio.active_records == 1,
           "audio consumer does not replay retained ring entries");
+    CHECK(gm_runtime_set_entity_id_cursor(&runtime, 7100)
+          && gm_runtime_use_block(&runtime, x + 2, y, z),
+          "eject record cat from jukebox");
+    gm_audio_live_update(
+        &audio, &runtime, 8.5, 80.0, 8.5, 180.0F, 0.0F);
+    CHECK(audio.next_seq == 4 && audio.active_records == 0,
+          "1010/0 stops the record stream at its block position");
     gm_audio_live_destroy(&audio);
     gm_runtime_destroy(&runtime);
-    puts("audio_live: PASS (58 events, 134 owned variants, decode, consume)");
+    puts("audio_live: PASS (70 events, 146 variants, bounded record stream)");
     return 0;
 }

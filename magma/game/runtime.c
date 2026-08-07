@@ -4969,6 +4969,8 @@ static int runtime_jukebox_insert_record(
         gm_world_set_block_meta(r->world, x, y, z, 84, 0);
         return 0;
     }
+    if (decrement_held)
+        runtime_world_event_append(r, 1010, x, y, z, item);
     if (decrement_held
             && isr_decr_stack_size(
                 &r->player.inv, r->player.inv.current_item, 1).count <= 0)
@@ -5002,6 +5004,8 @@ static int runtime_jukebox_eject_record(
         }
     if (!free_entity)
         return 0;
+
+    runtime_world_event_append(r, 1010, x, y, z, 0);
 
     /* BlockJukebox.dropRecord uses three World.rand float offsets, then the
      * four Math.random values consumed by EntityItem's constructor. */
@@ -12029,8 +12033,11 @@ static float runtime_sound_random_diff(
 }
 
 static void runtime_sound_from_world_event(
-        GmRuntime *r, int id, int x, int y, int z) {
+        GmRuntime *r, int id, int x, int y, int z, int data) {
     int sound = 0, category = GM_SOUND_CATEGORY_BLOCKS, relative = 0;
+    double sound_x = (double)x + 0.5;
+    double sound_y = (double)y + 0.5;
+    double sound_z = (double)z + 0.5;
     float volume = 1.0F, pitch = 1.0F;
     switch (id) {
     case 1000: sound = GM_SOUND_DISPENSER_DISPENSE; break;
@@ -12052,6 +12059,16 @@ static void runtime_sound_from_world_event(
         pitch = runtime_sound_random_one(r); break;
     case 1009: sound = GM_SOUND_FIRE_EXTINGUISH; volume = 0.5F;
         pitch = runtime_sound_random_diff(r, 2.6F, 0.8F); break;
+    case 1010:
+        sound = data >= 2256 && data <= 2267
+            ? GM_SOUND_RECORD_13 + data - 2256
+            : GM_SOUND_RECORD_STOP;
+        category = GM_SOUND_CATEGORY_RECORDS;
+        volume = 4.0F;
+        sound_x = (double)x;
+        sound_y = (double)y;
+        sound_z = (double)z;
+        break;
     case 1011: sound = GM_SOUND_IRON_DOOR_CLOSE;
         pitch = runtime_sound_random_one(r); break;
     case 1012: sound = GM_SOUND_WOODEN_DOOR_CLOSE;
@@ -12123,7 +12140,7 @@ static void runtime_sound_from_world_event(
     }
     runtime_sound_event_append(
         r, sound, category, 0, relative,
-        (double)x + 0.5, (double)y + 0.5, (double)z + 0.5,
+        sound_x, sound_y, sound_z,
         volume, pitch);
 }
 
@@ -12254,7 +12271,7 @@ static void runtime_world_event_append(
     r->world_events[index] = (GmRuntimeWorldEvent){
         r->world_event_next_seq++, id, r->dimension, x, y, z, data
     };
-    runtime_sound_from_world_event(r, id, x, y, z);
+    runtime_sound_from_world_event(r, id, x, y, z, data);
 }
 
 int gm_runtime_world_event_count(const GmRuntime *r) {

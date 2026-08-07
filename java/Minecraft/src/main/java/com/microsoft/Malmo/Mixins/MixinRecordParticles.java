@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import netheritemod.Recorder;
+import qrl.Recorder;
 
 /** Records whitelisted client particle spawns for human-tape replay.
  * Placement RNG (Entity.rand / Particle.rand, seeded from system time) is

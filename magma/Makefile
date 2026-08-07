@@ -232,6 +232,9 @@ game/test_hopper_live: game/test_hopper_live.c $(OBJ_RUNTIME_TEST)
 game/test_audio_live: game/test_audio_live.c game/audio_live.o $(OBJ_RUNTIME_TEST)
 	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(AUDIO_LIBS) $(LDLIBS)
 
+game/test_redstone_use: game/test_redstone_use.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
 game/test_minecart_live: game/test_minecart_live.c $(OBJ_RUNTIME_TEST)
 	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
 

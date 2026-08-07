@@ -11496,3 +11496,16 @@ fails, decomposed exactly.
   particles, sweeping, Thorns, player-target velocity acknowledgement,
   statistics, and criteria remain open. Global effort remains approximately
   16%.
+
+## 2026-08-07 (jukebox record audio and recorder consolidation)
+
+- Locked all 12 real-Java jukebox insertion/ejection event pairs and matched
+  them in the native world and sound rings.
+- Expanded the owned manifest to 70 events/146 variants. Four fixed record
+  voices stream OGG data through bounded 64 KiB chunks; ordinary effects keep
+  the existing predecoded pool, and headless/RL paths remain audio-free.
+- Removed the duplicate stale Java `Recorder` mod after merging its unique
+  elytra flag-7 and pre-travel-look tape fields into canonical `qrl.Recorder`.
+- Java, focused parity/audio, full runtime, and clean product builds pass. The
+  runtime aggregate is 6:06.97 at 448,576 KiB RSS with zero swap; CPU throughput
+  is 4,228 steps/s against the 3,858.9 floor. GPU 1 was not executed.
