@@ -12043,12 +12043,26 @@ static float runtime_sound_random_diff(
     return base + (first - second) * scale;
 }
 
-int gm_runtime_block_break_sound(
-        int state_id, int *sound, float *volume, float *pitch) {
-    int id, selected = GM_SOUND_BLOCK_STONE_BREAK;
-    if (state_id < 0) return 0;
+enum {
+    RUNTIME_BLOCK_SOUND_WOOD,
+    RUNTIME_BLOCK_SOUND_GRAVEL,
+    RUNTIME_BLOCK_SOUND_GRASS,
+    RUNTIME_BLOCK_SOUND_STONE,
+    RUNTIME_BLOCK_SOUND_METAL,
+    RUNTIME_BLOCK_SOUND_GLASS,
+    RUNTIME_BLOCK_SOUND_CLOTH,
+    RUNTIME_BLOCK_SOUND_SAND,
+    RUNTIME_BLOCK_SOUND_SNOW,
+    RUNTIME_BLOCK_SOUND_LADDER,
+    RUNTIME_BLOCK_SOUND_ANVIL,
+    RUNTIME_BLOCK_SOUND_SLIME
+};
+
+static int runtime_block_sound_family(int state_id) {
+    int id, family = RUNTIME_BLOCK_SOUND_STONE;
+    if (state_id < 0) return -1;
     id = state_id & 4095;
-    if (id < 1 || (id > 234 && id != 255)) return 0;
+    if (id < 1 || (id > 234 && id != 255)) return -1;
     switch (id) {
     case 5: case 17: case 25: case 26: case 47: case 50: case 53:
     case 54: case 58: case 63: case 64: case 68: case 69: case 72:
@@ -12061,40 +12075,74 @@ int gm_runtime_block_break_sound(
     case 188: case 189: case 190: case 191: case 192: case 193:
     case 194: case 195: case 196: case 197: case 198: case 199:
     case 200: case 214:
-        selected = GM_SOUND_BLOCK_WOOD_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_WOOD; break;
     case 3: case 13: case 60: case 82:
-        selected = GM_SOUND_BLOCK_GRAVEL_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_GRAVEL; break;
     case 2: case 6: case 18: case 19: case 31: case 32: case 37:
     case 38: case 39: case 40: case 46: case 59: case 83: case 106:
     case 110: case 111: case 141: case 142: case 161: case 170:
     case 175: case 207: case 208:
-        selected = GM_SOUND_BLOCK_GRASS_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_GRASS; break;
     case 27: case 28: case 41: case 42: case 52: case 57: case 66:
     case 71: case 101: case 133: case 152: case 154: case 157:
     case 167:
-        selected = GM_SOUND_BLOCK_METAL_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_METAL; break;
     case 20: case 79: case 89: case 90: case 95: case 102: case 120:
     case 123: case 124: case 160: case 169: case 174: case 212:
-        selected = GM_SOUND_BLOCK_GLASS_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_GLASS; break;
     case 35: case 51: case 81: case 92: case 171:
-        selected = GM_SOUND_BLOCK_CLOTH_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_CLOTH; break;
     case 12: case 88:
-        selected = GM_SOUND_BLOCK_SAND_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_SAND; break;
     case 78: case 80:
-        selected = GM_SOUND_BLOCK_SNOW_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_SNOW; break;
     case 65:
-        selected = GM_SOUND_BLOCK_LADDER_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_LADDER; break;
     case 145:
-        selected = GM_SOUND_BLOCK_ANVIL_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_ANVIL; break;
     case 165:
-        selected = GM_SOUND_BLOCK_SLIME_BREAK; break;
+        family = RUNTIME_BLOCK_SOUND_SLIME; break;
     default: break;
     }
-    if (sound) *sound = selected;
-    if (volume) *volume = selected == GM_SOUND_BLOCK_ANVIL_BREAK
+    return family;
+}
+
+static int runtime_block_sound(
+        int state_id, int first_sound,
+        int *sound, float *volume, float *pitch) {
+    int family = runtime_block_sound_family(state_id);
+    if (family < 0) return 0;
+    if (sound) *sound = first_sound + family;
+    if (volume) *volume = family == RUNTIME_BLOCK_SOUND_ANVIL
         ? (0.3F + 1.0F) / 2.0F : 1.0F;
-    if (pitch) *pitch = selected == GM_SOUND_BLOCK_METAL_BREAK
+    if (pitch) *pitch = family == RUNTIME_BLOCK_SOUND_METAL
         ? 1.5F * 0.8F : 0.8F;
+    return 1;
+}
+
+int gm_runtime_block_break_sound(
+        int state_id, int *sound, float *volume, float *pitch) {
+    return runtime_block_sound(
+        state_id, GM_SOUND_BLOCK_WOOD_BREAK, sound, volume, pitch);
+}
+
+int gm_runtime_block_place_sound(
+        int state_id, int *sound, float *volume, float *pitch) {
+    return runtime_block_sound(
+        state_id, GM_SOUND_BLOCK_WOOD_PLACE, sound, volume, pitch);
+}
+
+static int runtime_block_place_audio_append(
+        GmRuntime *r, int x, int y, int z, int state_id) {
+    int sound;
+    float volume, pitch;
+    if (!r || !gm_runtime_block_place_sound(
+                  state_id, &sound, &volume, &pitch))
+        return 0;
+    runtime_sound_event_append(
+        r, sound, GM_SOUND_CATEGORY_BLOCKS, 0, 0,
+        (double)x + 0.5, (double)y + 0.5, (double)z + 0.5,
+        volume, pitch);
     return 1;
 }
 
@@ -12352,6 +12400,11 @@ int gm_runtime_block_break_audio_fixture(
         return 0;
     runtime_world_event_append(r, 2001, x, y, z, state_id);
     return 1;
+}
+
+int gm_runtime_block_place_audio_fixture(
+        GmRuntime *r, int x, int y, int z, int state_id) {
+    return runtime_block_place_audio_append(r, x, y, z, state_id);
 }
 
 int gm_runtime_world_event_count(const GmRuntime *r) {
@@ -16069,6 +16122,10 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                 old_id | ((old_meta & 255) << 12));
         gm_world_set_block_meta(r->world, edits[i].wx, edits[i].wy, edits[i].wz,
                                 edits[i].id, edits[i].meta);
+        if (edits[i].place_effect && edits[i].id != 0)
+            (void)runtime_block_place_audio_append(
+                r, edits[i].wx, edits[i].wy, edits[i].wz,
+                edits[i].id | ((edits[i].meta & 255) << 12));
         gm_live_block_changed(&r->entities, r->world,
                               edits[i].wx, edits[i].wy, edits[i].wz);
         if (old_id != 122 && edits[i].id == 122)

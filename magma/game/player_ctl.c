@@ -264,6 +264,7 @@ static void emit_edit(GmBlockEdit *edits, int *ne, int max_edits,
     edits[*ne].drop_meta = drop_meta & 15;
     edits[*ne].harvest_tool = 0;
     edits[*ne].break_effect = 0;
+    edits[*ne].place_effect = 0;
     (*ne)++;
 }
 
@@ -747,12 +748,15 @@ static void gm_player_tick_impl(
                             : ibp_placed_meta(place_id, face, yq, sneaked, held.meta) & 15;
                         if (pmeta < 0) place_id = 0;
                         if (place_id) {
+                            int edit_index = ne;
                             ICStack used = isr_decr_stack_size(&pl->inv, pl->inv.current_item, 1);
                             if (isr_is_empty(&used)) goto use_done;
                             psv_set_state(window, ax, ay, az, place_id, pmeta);
                             pl->place_events++;
                             emit_edit(edits, &ne, max_edits, ox, oy, oz, ax, ay, az,
                                       place_id, pmeta, 0, 0, 0);
+                            if (ne > edit_index)
+                                edits[edit_index].place_effect = 1;
                         }
                     }
                 }

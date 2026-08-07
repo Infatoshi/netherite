@@ -266,6 +266,7 @@ typedef struct {
     int drop_meta;
     int harvest_tool; /* held item id for removal callbacks (0 = hand/non-break) */
     int break_effect; /* PlayerControllerMP emitted world event 2001 */
+    int place_effect; /* successful ItemBlock placement emitted its SoundType */
 } GmBlockEdit;
 
 /* ============================ game/input_map.c (owner: INPUT agent) ============================

@@ -908,6 +908,35 @@ int main(void) {
     gm_runtime_destroy(&r);
 
     cfg.world=GM_WORLD_SUPERFLAT;
+    {
+        int saved_mobs = cfg.mobs, saved_weather = cfg.weather;
+        cfg.mobs = 0;
+        cfg.weather = 0;
+        CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),
+              "block-place audio runtime initializes");
+        if(r.world){
+            GmRuntimeSoundEvent sound;
+            GmAction place;memset(&place,0,sizeof place);
+            gm_world_set_block_meta(r.world,8,6,11,1,0);
+            isr_set_stack(&r.player.inv,0,ic_mk(3,1,0));
+            gm_runtime_set_pose(&r,8.5,5.0,8.5,0,0);
+            place.do_place=1;place.hotbar_sel=0;
+            gm_runtime_tick(&r,place);
+            CHECK(gm_world_block(r.world,8,6,10)==3,
+                  "runtime applies the successful ItemBlock edit");
+            CHECK(gm_runtime_sound_event_count(&r)==1 &&
+                  gm_runtime_sound_event_get(&r,0,&sound) &&
+                  sound.sound==GM_SOUND_BLOCK_GRAVEL_PLACE &&
+                  sound.category==GM_SOUND_CATEGORY_BLOCKS &&
+                  sound.x==8.5 && sound.y==6.5 && sound.z==10.5 &&
+                  sound.volume==1.0F && sound.pitch==0.8F,
+                  "runtime emits exact placed material, center, and scalars");
+        }
+        gm_runtime_destroy(&r);
+        cfg.mobs = saved_mobs;
+        cfg.weather = saved_weather;
+    }
+
     CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),"portal runtime initializes");
     if(r.world){
         for(int x=6;x<10;++x){gm_world_set_block(r.world,x,4,8,49);gm_world_set_block(r.world,x,8,8,49);}

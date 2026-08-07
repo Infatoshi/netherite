@@ -11552,3 +11552,24 @@ fails, decomposed exactly.
   runtime aggregate passes in 6:44.47 at 446,676 KiB peak RSS with zero major
   faults and zero swap. CPU throughput is 4,085 steps/s against the 3,858.9
   floor. GPU 1 was untouched.
+
+## 2026-08-07 (complete block-placement material audio)
+
+- Extended the real 1.11.2 block-sound oracle through `ItemBlock.onItemUse`'s
+  post-placement `SoundType`. Java and native now agree for every one of the
+  235 registered non-air block IDs, all valid metadata states, twelve distinct
+  placement families, and raw volume/pitch bits. Independent break and place
+  metal-to-stone negative controls both fail as intended.
+- Successful ordinary block placement carries an explicit placement-effect
+  bit through `GmBlockEdit`. The runtime emits the placed block's sound at the
+  exact centered position after applying the world edit, without fabricating
+  a world event. Break and place share one constant-time material classifier.
+  The manifest is now 100 events/244 variants; fixed playback pools, bounded
+  record streaming, and audio-free headless/RL behavior are unchanged.
+- The exhaustive Java/native comparator, player-control, direct runtime,
+  OpenAL, seven-family parity, clean native product, and clean JDK 8 builds
+  pass. Every locally available quick-sweep step passes; the two snapshot
+  stages skip because their `.bsnp` inputs are absent. The exact-current
+  aggregate passes in 6:39.86 at 437,400 KiB peak RSS with zero major faults.
+  CPU throughput is 4,142 steps/s against the frozen 3,858.9 floor. GPU 1 was
+  untouched.

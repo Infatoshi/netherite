@@ -8,7 +8,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.SoundEvent;
 import net.minecraft.util.math.BlockPos;
 
-/** Complete 1.11.2 block-id to world-event-2001 break-sound oracle. */
+/** Complete 1.11.2 block-id to break/place SoundType oracle. */
 public final class BlockBreakSoundGolden {
     private BlockBreakSoundGolden() { }
 
@@ -25,6 +25,8 @@ public final class BlockBreakSoundGolden {
             SoundEvent sound = type.getBreakSound();
             ResourceLocation name =
                 SoundEvent.REGISTRY.getNameForObject(sound);
+            ResourceLocation placeName =
+                SoundEvent.REGISTRY.getNameForObject(type.getPlaceSound());
             float volume = (type.getVolume() + 1.0F) / 2.0F;
             float pitch = type.getPitch() * 0.8F;
             for (IBlockState candidate
@@ -34,10 +36,14 @@ public final class BlockBreakSoundGolden {
                 ResourceLocation candidateName =
                     SoundEvent.REGISTRY.getNameForObject(
                         candidateType.getBreakSound());
+                ResourceLocation candidatePlaceName =
+                    SoundEvent.REGISTRY.getNameForObject(
+                        candidateType.getPlaceSound());
                 float candidateVolume =
                     (candidateType.getVolume() + 1.0F) / 2.0F;
                 float candidatePitch = candidateType.getPitch() * 0.8F;
                 if (!name.equals(candidateName)
+                        || !placeName.equals(candidatePlaceName)
                         || Float.floatToRawIntBits(volume)
                             != Float.floatToRawIntBits(candidateVolume)
                         || Float.floatToRawIntBits(pitch)
@@ -48,6 +54,10 @@ public final class BlockBreakSoundGolden {
             }
             System.out.printf("B %d %s %08x %08x%n", id,
                 name == null ? "" : name.toString(),
+                Float.floatToRawIntBits(volume),
+                Float.floatToRawIntBits(pitch));
+            System.out.printf("P %d %s %08x %08x%n", id,
+                placeName == null ? "" : placeName.toString(),
                 Float.floatToRawIntBits(volume),
                 Float.floatToRawIntBits(pitch));
         }

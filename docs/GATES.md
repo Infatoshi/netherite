@@ -129,6 +129,17 @@ control. Every locally available quick-sweep stage passes; the same two
 snapshot-backed Blaze stages skip because their `.bsnp` inputs are absent.
 GPU 1 was not executed.
 
+2026-08-07 block-placement-audio checkpoint: the exact-current full native
+runtime aggregate passes in 6:39.86 with 437,400 KiB peak RSS and zero major
+faults. The CPU guard passes at 4,142 scalar steps/s against the frozen
+3,858.9 floor. The exhaustive real-Java/native comparator matches all 235
+registered non-air block IDs, twelve break and twelve placement families,
+every valid metadata state, and raw volume/pitch bits, while rejecting
+independent material negative controls. The clean product, JDK 8, OpenAL, and
+focused seven-family parity gates pass. Every locally available quick-sweep
+step passes; the two snapshot stages skip because their `.bsnp` inputs are
+absent. GPU 1 was not executed.
+
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.
 Status: SHIPPED as `netherite_sweep.sh` (repo root). At the 2026-08-07 70%

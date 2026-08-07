@@ -204,6 +204,42 @@ int main(void)
     CHECK(fabsf(tvb.exhaustion - (before_exhaustion + 0.005f)) < 1e-7f,
           "harvestable block charges 0.005 exhaustion");
 
+    /* ---------------- (B2) ITEMBLOCK PLACEMENT EFFECT ---------------- */
+    printf("case B2: successful ItemBlock placement requests its sound\n");
+    {
+        PsvPlayer place;
+        PvStats place_vitals;
+        GmAction place_action;
+        GmBlockEdit edits[4];
+        int nedits = 0;
+        fill_flat(win);
+        set_test_state(win, 24, 66, 27, BLK_STONE, 0);
+        spawn_at(&place, 24.5, 65.0, 24.5);
+        place.yaw = 0.0f;
+        place.pitch = 0.0f;
+        isr_set_stack(&place.inv, 0, ic_mk(3 /* dirt */, 1, 0));
+        place.inv.current_item = 0;
+        pv_init(&place_vitals);
+        memset(&place_action, 0, sizeof place_action);
+        place_action.do_place = 1;
+        gm_player_dig_reset();
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&place,
+                       (struct PvStats *)&place_vitals,
+                       place_action, ox, oy, oz, edits, &nedits, 4);
+        CHECK(nedits == 1 && edits[0].id == 3,
+              "successful dirt placement emits one block edit");
+        if (nedits == 1) {
+            CHECK(edits[0].wx == ox + 24 && edits[0].wy == oy + 66
+                  && edits[0].wz == oz + 26,
+                  "placement edit keeps exact world coordinates");
+            CHECK(edits[0].place_effect == 1,
+                  "successful ItemBlock edit requests placement SoundType");
+            CHECK(edits[0].break_effect == 0,
+                  "placement does not fabricate world event 2001");
+        }
+    }
+
     /* ---------------- (C) UNDERWATER DIG PENALTY ---------------- */
     /* EntityPlayer.getDigSpeed: eye inside water without aqua affinity divides
      * dig speed by 5 (again by 5 if airborne). Iron pick vs stone is ~8 ticks

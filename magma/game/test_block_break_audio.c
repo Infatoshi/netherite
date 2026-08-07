@@ -25,6 +25,18 @@ static const char *sound_name(int sound) {
     case GM_SOUND_BLOCK_LADDER_BREAK: return "minecraft:block.ladder.break";
     case GM_SOUND_BLOCK_ANVIL_BREAK: return "minecraft:block.anvil.break";
     case GM_SOUND_BLOCK_SLIME_BREAK: return "minecraft:block.slime.break";
+    case GM_SOUND_BLOCK_WOOD_PLACE: return "minecraft:block.wood.place";
+    case GM_SOUND_BLOCK_GRAVEL_PLACE: return "minecraft:block.gravel.place";
+    case GM_SOUND_BLOCK_GRASS_PLACE: return "minecraft:block.grass.place";
+    case GM_SOUND_BLOCK_STONE_PLACE: return "minecraft:block.stone.place";
+    case GM_SOUND_BLOCK_METAL_PLACE: return "minecraft:block.metal.place";
+    case GM_SOUND_BLOCK_GLASS_PLACE: return "minecraft:block.glass.place";
+    case GM_SOUND_BLOCK_CLOTH_PLACE: return "minecraft:block.cloth.place";
+    case GM_SOUND_BLOCK_SAND_PLACE: return "minecraft:block.sand.place";
+    case GM_SOUND_BLOCK_SNOW_PLACE: return "minecraft:block.snow.place";
+    case GM_SOUND_BLOCK_LADDER_PLACE: return "minecraft:block.ladder.place";
+    case GM_SOUND_BLOCK_ANVIL_PLACE: return "minecraft:block.anvil.place";
+    case GM_SOUND_BLOCK_SLIME_PLACE: return "minecraft:block.slime.place";
     default: return "";
     }
 }
@@ -38,8 +50,9 @@ static unsigned float_bits(float value) {
 int main(void) {
     int rows = 0;
     for (int id = 0; id <= 255; ++id) {
-        int sound, meta_sound;
+        int sound, meta_sound, place_sound, meta_place_sound;
         float volume, pitch, meta_volume, meta_pitch;
+        float place_volume, place_pitch, meta_place_volume, meta_place_pitch;
         if (!gm_runtime_block_break_sound(id, &sound, &volume, &pitch))
             continue;
         CHECK(gm_runtime_block_break_sound(
@@ -48,8 +61,19 @@ int main(void) {
               && float_bits(meta_volume) == float_bits(volume)
               && float_bits(meta_pitch) == float_bits(pitch),
               "legacy metadata does not alter a 1.11.2 block sound type");
+        CHECK(gm_runtime_block_place_sound(
+                  id, &place_sound, &place_volume, &place_pitch)
+              && gm_runtime_block_place_sound(
+                  id | (15 << 12), &meta_place_sound,
+                  &meta_place_volume, &meta_place_pitch)
+              && meta_place_sound == place_sound
+              && float_bits(meta_place_volume) == float_bits(place_volume)
+              && float_bits(meta_place_pitch) == float_bits(place_pitch),
+              "legacy metadata does not alter a 1.11.2 placement sound type");
         printf("B %d %s %08x %08x\n", id, sound_name(sound),
                float_bits(volume), float_bits(pitch));
+        printf("P %d %s %08x %08x\n", id, sound_name(place_sound),
+               float_bits(place_volume), float_bits(place_pitch));
         ++rows;
     }
     CHECK(rows == 235, "all registered non-air block ids are represented");
@@ -64,6 +88,11 @@ int main(void) {
             GM_SOUND_BLOCK_STONE_BREAK, GM_SOUND_BLOCK_GRASS_BREAK,
             GM_SOUND_BLOCK_METAL_BREAK, GM_SOUND_BLOCK_ANVIL_BREAK,
             GM_SOUND_BLOCK_SLIME_BREAK
+        };
+        const int place_sounds[] = {
+            GM_SOUND_BLOCK_STONE_PLACE, GM_SOUND_BLOCK_GRASS_PLACE,
+            GM_SOUND_BLOCK_METAL_PLACE, GM_SOUND_BLOCK_ANVIL_PLACE,
+            GM_SOUND_BLOCK_SLIME_PLACE
         };
         gm_config_defaults(&config);
         config.world = GM_WORLD_SUPERFLAT;
@@ -91,8 +120,27 @@ int main(void) {
                   && event.delay_ticks == 0,
                   "break event keeps exact family, category, center, and delay");
         }
+        for (int i = 0; i < 5; ++i)
+            CHECK(gm_runtime_block_place_audio_fixture(
+                      &runtime, 30 + i, 65, 21, states[i]),
+                  "successful placement resolves a represented sound");
+        CHECK(!gm_runtime_block_place_audio_fixture(
+                  &runtime, 0, 65, 0, 235),
+              "unregistered placement emits no fabricated sound");
+        CHECK(gm_runtime_world_event_count(&runtime) == 5
+              && gm_runtime_sound_event_count(&runtime) == 10,
+              "placement adds sound without fabricating a world event");
+        for (int i = 0; i < 5; ++i) {
+            CHECK(gm_runtime_sound_event_get(&runtime, 5 + i, &event)
+                  && event.sound == place_sounds[i]
+                  && event.category == GM_SOUND_CATEGORY_BLOCKS
+                  && event.x == 30.5 + (double)i
+                  && event.y == 65.5 && event.z == 21.5
+                  && event.delay_ticks == 0,
+                  "place event keeps exact family, category, center, and delay");
+        }
         gm_runtime_destroy(&runtime);
     }
-    fputs("block-break audio runtime fixture: PASS\n", stderr);
+    fputs("block break/place audio runtime fixture: PASS\n", stderr);
     return 0;
 }

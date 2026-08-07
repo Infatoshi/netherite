@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the complete real-Java and native world-event-2001 sound maps."""
+"""Compare complete real-Java and native block break/place sound maps."""
 
 import argparse
 import os
@@ -7,8 +7,9 @@ from pathlib import Path
 import subprocess
 
 
-def rows(output):
-    return [line for line in output.splitlines() if line.startswith("B ")]
+def rows(output, prefix):
+    return [line for line in output.splitlines()
+            if line.startswith(prefix + " ")]
 
 
 def main():
@@ -25,30 +26,35 @@ def main():
     native = subprocess.run(
         [str(args.native.resolve())], check=True,
         capture_output=True, text=True)
-    expected = rows(java.stdout)
-    actual = rows(native.stdout)
-    if len(expected) != 235 or len(actual) != 235:
-        raise AssertionError(
-            f"expected 235 registered non-air ids, got "
-            f"Java={len(expected)} native={len(actual)}")
-    if expected != actual:
-        for left, right in zip(expected, actual):
-            if left != right:
-                raise AssertionError(f"first mismatch:\nJava   {left}\nnative {right}")
-        raise AssertionError("block-break maps differ in length")
-    families = {line.split()[2] for line in expected}
-    if len(families) != 12:
-        raise AssertionError(f"expected 12 sound families, got {families}")
-    sabotaged = list(actual)
-    index = next(i for i, line in enumerate(sabotaged)
-                 if line.startswith("B 41 "))
-    sabotaged[index] = sabotaged[index].replace(
-        "minecraft:block.metal.break", "minecraft:block.stone.break")
-    if expected == sabotaged:
-        raise AssertionError("material-family sabotage escaped the comparator")
+    for prefix, action in (("B", "break"), ("P", "place")):
+        expected = rows(java.stdout, prefix)
+        actual = rows(native.stdout, prefix)
+        if len(expected) != 235 or len(actual) != 235:
+            raise AssertionError(
+                f"expected 235 registered non-air {action} ids, got "
+                f"Java={len(expected)} native={len(actual)}")
+        if expected != actual:
+            for left, right in zip(expected, actual):
+                if left != right:
+                    raise AssertionError(
+                        f"first {action} mismatch:\nJava   {left}\nnative {right}")
+            raise AssertionError(f"block-{action} maps differ in length")
+        families = {line.split()[2] for line in expected}
+        if len(families) != 12:
+            raise AssertionError(
+                f"expected 12 {action} sound families, got {families}")
+        sabotaged = list(actual)
+        index = next(i for i, line in enumerate(sabotaged)
+                     if line.startswith(f"{prefix} 41 "))
+        sabotaged[index] = sabotaged[index].replace(
+            f"minecraft:block.metal.{action}",
+            f"minecraft:block.stone.{action}")
+        if expected == sabotaged:
+            raise AssertionError(
+                f"{action} material-family sabotage escaped the comparator")
     print("PASS real Java/native: all 235 registered non-air block ids, "
-          "12 break-sound families, raw volume/pitch bits, metadata invariance, "
-          "and material-negative control")
+          "12 break and 12 place families, raw volume/pitch bits, metadata "
+          "invariance, and per-action material-negative controls")
 
 
 if __name__ == "__main__":

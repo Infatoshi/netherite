@@ -54,7 +54,7 @@ OBJ_RUNTIME_TEST = game/runtime.o game/nbt_blob.o game/fluid_live.o game/config.
                    world/populate_mc.o world/blocks.o world/mesh.o world/world.o \
                    $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE)
 
-.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live test-firework-audio-oracle test-block-break-audio-oracle clean cuda test-raster-parity test-fog-radial
+.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live test-firework-audio-oracle test-block-audio-oracle test-block-break-audio-oracle clean cuda test-raster-parity test-fog-radial
 all: demo
 
 # --- CUDA raster for the game (RTX PRO 6000 Blackwell / sm_120) ---
@@ -176,9 +176,11 @@ test-firework-audio-oracle: game/test_firework_audio
 game/test_block_break_audio: game/test_block_break_audio.c $(OBJ_RUNTIME_TEST)
 	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
 
-test-block-break-audio-oracle: game/test_block_break_audio
+test-block-audio-oracle: game/test_block_break_audio
 	uv run --no-project python trace/test_block_break_audio.py \
 		--native game/test_block_break_audio
+
+test-block-break-audio-oracle: test-block-audio-oracle
 
 game/test_fishing: game/test_fishing.c $(OBJ_RUNTIME_TEST)
 	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
