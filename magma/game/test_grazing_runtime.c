@@ -73,6 +73,7 @@ int main(void) {
         gm_runtime_tick(&r, idle);
     slot = mob_slot(&r, 650000);
     GmRuntimeWorldEvent event;
+    GmRuntimeSoundEvent sound;
     CHECK(slot >= 0 && r.mobs.sheep_eat_timer[slot] == 4
               && !(r.mobs.sheep_data[slot] & 16)
               && gm_world_block(r.world, x, y - 1, z) == 3
@@ -81,6 +82,14 @@ int main(void) {
               && event.id == 2001 && event.dimension == r.dimension
               && event.x == x && event.y == y - 1 && event.z == z
               && event.data == 2
+              && gm_runtime_sound_event_count(&r) == 1
+              && gm_runtime_sound_event_get(&r, 0, &sound)
+              && sound.sound == GM_SOUND_BLOCK_GRASS_BREAK
+              && sound.category == GM_SOUND_CATEGORY_BLOCKS
+              && sound.x == (double)x + 0.5
+              && sound.y == (double)(y - 1) + 0.5
+              && sound.z == (double)z + 0.5
+              && sound.volume == 1.0F && sound.pitch == 0.8F
               && gm_mobs_fill_views(&r.mobs, &view, 1) >= 1
               && view.graze_y == 1.0F
               && view.graze_x == (float)(MC_PI / 5.0),

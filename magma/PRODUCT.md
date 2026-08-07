@@ -129,7 +129,8 @@ is compared numerically against pinned Java scenes; it is never approved by a su
   profile does not pay for inactive systems. Interactive play now has optional
   OpenAL playback for the represented ordered event stream, including bounded
   streaming for all 12 jukebox records and exact distance-delayed firework
-  blast/twinkle playback. Music, ambient loops, category controls,
+  blast/twinkle playback plus material-exact player/grazing block-break sounds.
+  Music, ambient loops, category controls,
   achievements, statistics, scoreboards,
   resource packs, skins, and a broad graphics-options menu remain absent.
 - Difficulty is fixed to Normal. Day/night, mob spawning, drops, fire required for

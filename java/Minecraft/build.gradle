@@ -198,6 +198,12 @@ task villagerTradeGolden(type: JavaExec) {
     main = 'qrl.VillagerTradeGolden'
 }
 
+task blockBreakSoundGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.BlockBreakSoundGolden'
+}
+
 exec.jvmArgs(["-Xmx2G", "-Xdebug", "-Dmixin.debug=true"])
 
 // Pin the player name (default is "Player" + wall-clock millis % 1000 -> nondeterministic

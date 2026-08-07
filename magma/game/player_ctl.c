@@ -263,6 +263,7 @@ static void emit_edit(GmBlockEdit *edits, int *ne, int max_edits,
     edits[*ne].drop_count = drop_count;
     edits[*ne].drop_meta = drop_meta & 15;
     edits[*ne].harvest_tool = 0;
+    edits[*ne].break_effect = 0;
     (*ne)++;
 }
 
@@ -336,8 +337,10 @@ static void dig_destroy(Chunk *window, PsvPlayer *pl, PvStats *vit,
         int edit_index = *ne;
         emit_edit(edits, ne, max_edits, ox, oy, oz, hx, hy, hz, 0, 0,
                   drop_id, drop_count, drop_meta);
-        if (*ne > edit_index)
+        if (*ne > edit_index) {
             edits[edit_index].harvest_tool = held.item;
+            edits[edit_index].break_effect = 1;
+        }
     }
 }
 

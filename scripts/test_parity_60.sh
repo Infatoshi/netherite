@@ -13,4 +13,5 @@ bash "$ROOT/magma/game/test_weather_lightning.sh"
 bash "$ROOT/magma/game/test_firework.sh"
 bash "$ROOT/magma/game/test_fishing.sh"
 bash "$ROOT/magma/game/test_village.sh"
+make -C "$ROOT/magma" test-block-break-audio-oracle
 bash "$ROOT/magma/game/test_audio_live.sh"

@@ -193,6 +193,8 @@ int main(void)
         CHECK(last_edit.wz == oz + lzi, "edit wz == oz + floor(localZ)");
         CHECK(last_edit.wy == oy + 64,  "edit wy == oy + 64 (top floor block)");
         CHECK(last_edit.id == 0,        "break edit id == 0 (air)");
+        CHECK(last_edit.break_effect == 1,
+              "player destruction requests world event 2001");
     }
     CHECK(plb.break_events == before_break + 1, "break_events incremented");
     CHECK(isr_hotbar_total(&plb.inv) + isr_main_total(&plb.inv) == before_total,

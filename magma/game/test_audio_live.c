@@ -108,6 +108,6 @@ int main(void) {
           "far blast starts on its exact due tick");
     gm_audio_live_destroy(&audio);
     gm_runtime_destroy(&runtime);
-    puts("audio_live: PASS (76 events, 152 variants, bounded streams/delay)");
+    puts("audio_live: PASS (88 events, 199 variants, bounded streams/delay)");
     return 0;
 }

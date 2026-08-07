@@ -18,7 +18,7 @@ RUNTIME_OBJECTS=(
 make "${RUNTIME_OBJECTS[@]}"
 for test in player_effects redstone_use tnt_explosion shearing_runtime \
 		grazing_runtime sheep_color_runtime sheep_feed_runtime \
-		sheep_mating_runtime runtime; do
+		sheep_mating_runtime block_break_audio runtime; do
 	${CC:-gcc} -O2 -ffp-contract=off -Wall -Wextra \
 		-I. -Icore -I"$BLAZE/core" \
 		"game/test_${test}.c" "${RUNTIME_OBJECTS[@]}" -lm \
@@ -35,4 +35,5 @@ ${CC:-gcc} -O2 -Wall -Wextra -I. \
 ./game/test_sheep_color_runtime
 ./game/test_sheep_feed_runtime
 ./game/test_sheep_mating_runtime
+./game/test_block_break_audio >/dev/null
 ./game/test_runtime

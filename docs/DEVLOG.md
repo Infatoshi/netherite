@@ -11532,3 +11532,23 @@ fails, decomposed exactly.
   plants and glass panes plus a stale TNT reverse-map assertion. Their product
   IDs and gates are synchronized again. The village oracle gate now uses the
   canonical repository Gradle cache, avoiding a second wedged daemon/cache.
+
+## 2026-08-07 (complete block-break material audio)
+
+- Added a real 1.11.2 Java oracle that enumerates every registered block and
+  the exact `RenderGlobal` world-event-2001 break sound. Native matches all 235
+  non-air IDs across wood, gravel, grass, stone, metal, glass, cloth, sand,
+  snow, ladder, anvil, and slime, including raw volume/pitch bits and legacy
+  metadata invariance. A deliberate metal-to-stone substitution is rejected.
+- Progressive player destruction now carries an explicit break-effect bit
+  through `GmBlockEdit`, preserving bare-hand breaks without confusing them
+  with non-break air edits. Player mining and sheep grazing both enter the
+  same fixed world/sound rings. The asset manifest is now 88 events/199
+  variants, while headless paths still perform no playback work.
+- The exhaustive comparator, material negative control, player-control,
+  grazing, OpenAL, clean product, and expanded seven-family parity gates pass.
+  Every locally available quick-sweep stage passes; the two snapshot-backed
+  Blaze stages skip because their `.bsnp` inputs are absent. The exact-current
+  runtime aggregate passes in 6:44.47 at 446,676 KiB peak RSS with zero major
+  faults and zero swap. CPU throughput is 4,085 steps/s against the 3,858.9
+  floor. GPU 1 was untouched.

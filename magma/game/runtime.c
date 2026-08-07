@@ -12043,6 +12043,61 @@ static float runtime_sound_random_diff(
     return base + (first - second) * scale;
 }
 
+int gm_runtime_block_break_sound(
+        int state_id, int *sound, float *volume, float *pitch) {
+    int id, selected = GM_SOUND_BLOCK_STONE_BREAK;
+    if (state_id < 0) return 0;
+    id = state_id & 4095;
+    if (id < 1 || (id > 234 && id != 255)) return 0;
+    switch (id) {
+    case 5: case 17: case 25: case 26: case 47: case 50: case 53:
+    case 54: case 58: case 63: case 64: case 68: case 69: case 72:
+    case 75: case 76: case 85: case 86: case 91: case 93: case 94:
+    case 96: case 99: case 100: case 103: case 104: case 105: case 107:
+    case 125: case 126: case 127: case 134: case 135: case 136:
+    case 143: case 146: case 147: case 148: case 149: case 150:
+    case 151: case 162: case 163: case 164: case 176: case 177:
+    case 178: case 183: case 184: case 185: case 186: case 187:
+    case 188: case 189: case 190: case 191: case 192: case 193:
+    case 194: case 195: case 196: case 197: case 198: case 199:
+    case 200: case 214:
+        selected = GM_SOUND_BLOCK_WOOD_BREAK; break;
+    case 3: case 13: case 60: case 82:
+        selected = GM_SOUND_BLOCK_GRAVEL_BREAK; break;
+    case 2: case 6: case 18: case 19: case 31: case 32: case 37:
+    case 38: case 39: case 40: case 46: case 59: case 83: case 106:
+    case 110: case 111: case 141: case 142: case 161: case 170:
+    case 175: case 207: case 208:
+        selected = GM_SOUND_BLOCK_GRASS_BREAK; break;
+    case 27: case 28: case 41: case 42: case 52: case 57: case 66:
+    case 71: case 101: case 133: case 152: case 154: case 157:
+    case 167:
+        selected = GM_SOUND_BLOCK_METAL_BREAK; break;
+    case 20: case 79: case 89: case 90: case 95: case 102: case 120:
+    case 123: case 124: case 160: case 169: case 174: case 212:
+        selected = GM_SOUND_BLOCK_GLASS_BREAK; break;
+    case 35: case 51: case 81: case 92: case 171:
+        selected = GM_SOUND_BLOCK_CLOTH_BREAK; break;
+    case 12: case 88:
+        selected = GM_SOUND_BLOCK_SAND_BREAK; break;
+    case 78: case 80:
+        selected = GM_SOUND_BLOCK_SNOW_BREAK; break;
+    case 65:
+        selected = GM_SOUND_BLOCK_LADDER_BREAK; break;
+    case 145:
+        selected = GM_SOUND_BLOCK_ANVIL_BREAK; break;
+    case 165:
+        selected = GM_SOUND_BLOCK_SLIME_BREAK; break;
+    default: break;
+    }
+    if (sound) *sound = selected;
+    if (volume) *volume = selected == GM_SOUND_BLOCK_ANVIL_BREAK
+        ? (0.3F + 1.0F) / 2.0F : 1.0F;
+    if (pitch) *pitch = selected == GM_SOUND_BLOCK_METAL_BREAK
+        ? 1.5F * 0.8F : 0.8F;
+    return 1;
+}
+
 static void runtime_sound_from_world_event(
         GmRuntime *r, int id, int x, int y, int z, int data) {
     int sound = 0, category = GM_SOUND_CATEGORY_BLOCKS, relative = 0;
@@ -12141,6 +12196,10 @@ static void runtime_sound_from_world_event(
         pitch = runtime_sound_random_one(r); break;
     case 1037: sound = GM_SOUND_IRON_TRAPDOOR_OPEN;
         pitch = runtime_sound_random_one(r); break;
+    case 2001:
+        if (!gm_runtime_block_break_sound(data, &sound, &volume, &pitch))
+            return;
+        break;
     case 3000: sound = GM_SOUND_END_GATEWAY_SPAWN; volume = 10.0F;
         pitch = runtime_sound_random_diff(r, 1.0F, 0.2F) * 0.7F; break;
     case 3001: sound = GM_SOUND_ENDERDRAGON_GROWL;
@@ -12283,6 +12342,16 @@ static void runtime_world_event_append(
         r->world_event_next_seq++, id, r->dimension, x, y, z, data
     };
     runtime_sound_from_world_event(r, id, x, y, z, data);
+}
+
+int gm_runtime_block_break_audio_fixture(
+        GmRuntime *r, int x, int y, int z, int state_id) {
+    int sound;
+    if (!r || !gm_runtime_block_break_sound(
+            state_id, &sound, NULL, NULL))
+        return 0;
+    runtime_world_event_append(r, 2001, x, y, z, state_id);
+    return 1;
 }
 
 int gm_runtime_world_event_count(const GmRuntime *r) {
@@ -15994,6 +16063,10 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         if (old_id != edits[i].id || old_meta != edits[i].meta)
             runtime_break_item_frames_for_block(
                 r, edits[i].wx, edits[i].wy, edits[i].wz);
+        if (edits[i].break_effect && old_id != 0)
+            runtime_world_event_append(
+                r, 2001, edits[i].wx, edits[i].wy, edits[i].wz,
+                old_id | ((old_meta & 255) << 12));
         gm_world_set_block_meta(r->world, edits[i].wx, edits[i].wy, edits[i].wz,
                                 edits[i].id, edits[i].meta);
         gm_live_block_changed(&r->entities, r->world,
