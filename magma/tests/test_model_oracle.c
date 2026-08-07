@@ -39,11 +39,11 @@ enum {
     CBX_IRON_BARS = 221, CBX_TORCH = 222,
     CBX_GRANITE_SMOOTH = 225, CBX_DIORITE_SMOOTH = 226,
     CBX_ANDESITE_SMOOTH = 227,
-    CBX_DPLANT_UPPER_SYRINGA = 235,
-    CBX_DPLANT_UPPER_GRASS = 236,
-    CBX_DPLANT_UPPER_FERN = 237,
-    CBX_DPLANT_UPPER_ROSE = 238,
-    CBX_DPLANT_UPPER_PAEONIA = 239
+    CBX_DPLANT_UPPER_SYRINGA = 258,
+    CBX_DPLANT_UPPER_GRASS = 259,
+    CBX_DPLANT_UPPER_FERN = 260,
+    CBX_DPLANT_UPPER_ROSE = 261,
+    CBX_DPLANT_UPPER_PAEONIA = 262
 };
 
 enum { L_SOLID = 0, L_MIPPED = 1, L_CUTOUT = 2, L_TRANSLUCENT = 3 };
@@ -246,7 +246,7 @@ int main(void) {
      * Grass/fern alone receive BlockColors' grass tint. */
     {
         const int lower_keys[6] = {60, 61, 62, 63, 64, 65};
-        const int upper_keys[6] = {66, 235, 236, 237, 238, 239};
+        const int upper_keys[6] = {66, 258, 259, 260, 261, 262};
         const int lower_sprites[6] = {
             CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_BOTTOM,
             CR_SPRITE_DOUBLE_PLANT_SYRINGA_BOTTOM,

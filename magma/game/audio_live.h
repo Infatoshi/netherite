@@ -9,6 +9,7 @@ typedef struct {
     uint64_t dropped;
     int enabled;
     int active_records;
+    int pending_delayed;
 } GmAudioLive;
 
 /* Interactive-only consumer. Failure leaves audio disabled and does not

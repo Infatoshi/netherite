@@ -139,6 +139,49 @@ public class Recorder {
         }
     }
 
+    private static final class OracleClientSoundCapture {
+        final String sound, category;
+        final int tick;
+        final double x, y, z, distanceSq;
+        final float volume, pitch;
+        final boolean distanceDelay;
+        final int delayTicks;
+
+        OracleClientSoundCapture(int tickIn, String soundIn, String categoryIn,
+                double xIn, double yIn, double zIn,
+                float volumeIn, float pitchIn, boolean distanceDelayIn,
+                double distanceSqIn, int delayTicksIn) {
+            tick = tickIn;
+            sound = soundIn;
+            category = categoryIn;
+            x = xIn;
+            y = yIn;
+            z = zIn;
+            volume = volumeIn;
+            pitch = pitchIn;
+            distanceDelay = distanceDelayIn;
+            distanceSq = distanceSqIn;
+            delayTicks = delayTicksIn;
+        }
+
+        JsonObject toJson() {
+            JsonObject out = new JsonObject();
+            out.addProperty("tick", tick);
+            out.addProperty("sound", sound);
+            out.addProperty("category", category);
+            out.addProperty("x", x);
+            out.addProperty("y", y);
+            out.addProperty("z", z);
+            out.addProperty("volume", volume);
+            out.addProperty("pitch", pitch);
+            out.addProperty("pitch_bits", oracleFloatBits(pitch));
+            out.addProperty("distance_delay", distanceDelay);
+            out.addProperty("distance_sq", distanceSq);
+            out.addProperty("delay_ticks", delayTicks);
+            return out;
+        }
+    }
+
     private static final class OracleWorldEventCapture
             implements net.minecraft.world.IWorldEventListener {
         private static final class Record {
@@ -380,6 +423,11 @@ public class Recorder {
     private final java.util.ArrayList<OracleMobEventCapture>
         oracleMobEventCapture =
             new java.util.ArrayList<OracleMobEventCapture>();
+    private final java.util.ArrayList<OracleClientSoundCapture>
+        oracleClientSoundCapture =
+            new java.util.ArrayList<OracleClientSoundCapture>();
+    private volatile boolean oracleClientSoundActive = false;
+    private int oracleClientSoundTick = 0;
     private volatile boolean oracleServerGate = false;
     private boolean oracleServerWaiting = false;
     private boolean oracleServerTickInFlight = false;
@@ -1246,6 +1294,7 @@ public class Recorder {
             case "schedule_locked": case "set_comparator_output_locked":
             case "set_container_slot_locked": case "set_command_success_locked":
             case "jukebox_record_locked":
+            case "firework_audio_locked":
             case "set_shulker_nbt_locked":
             case "set_flower_pot_locked":
             case "set_skull_locked":
@@ -1393,6 +1442,9 @@ public class Recorder {
         }
         if (cmd.equals("jukebox_record_locked")) {
             return oracleJukeboxRecordLocked(action);
+        }
+        if (cmd.equals("firework_audio_locked")) {
+            return oracleFireworkAudioLocked(action);
         }
         if (cmd.equals("set_shulker_nbt_locked")) {
             return oracleSetShulkerNbtLocked(action);
@@ -5988,6 +6040,35 @@ public class Recorder {
             bridge.oracleMobEventCapture.add(new OracleMobEventCapture(
                 eid.intValue(), name == null ? "" : name.toString(),
                 category.getName(), x, y, z, volume, pitch));
+        }
+    }
+
+    /** Raw WorldClient call before its distance-delay scheduler. */
+    public static void oracleCaptureClientSound(
+            net.minecraft.client.multiplayer.WorldClient world,
+            net.minecraft.util.SoundEvent sound,
+            net.minecraft.util.SoundCategory category,
+            double x, double y, double z, float volume, float pitch,
+            boolean distanceDelay) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null || !bridge.oracleClientSoundActive) return;
+        synchronized (bridge.oracleServerMonitor) {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (!bridge.oracleClientSoundActive || mc.world != world) return;
+            net.minecraft.entity.Entity camera = mc.getRenderViewEntity();
+            double distanceSq = camera == null
+                ? Double.POSITIVE_INFINITY
+                : camera.getDistanceSq(x, y, z);
+            int delayTicks = distanceDelay && distanceSq > 100.0D
+                ? (int)(Math.sqrt(distanceSq) / 40.0D * 20.0D) : 0;
+            net.minecraft.util.ResourceLocation name =
+                net.minecraft.util.SoundEvent.REGISTRY.getNameForObject(sound);
+            bridge.oracleClientSoundCapture.add(
+                new OracleClientSoundCapture(
+                    bridge.oracleClientSoundTick,
+                    name == null ? "" : name.toString(), category.getName(),
+                    x, y, z, volume, pitch, distanceDelay,
+                    distanceSq, delayTicks));
         }
     }
 
@@ -12192,6 +12273,114 @@ public class Recorder {
                         setMathRandomSeed48(oldMathSeed);
                     if (oldNextEntityId > 0)
                         setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /** Exercise ParticleFirework.Starter and WorldClient's delay boundary. */
+    private String oracleFireworkAudioLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "firework_audio_locked requires a parked oracle server");
+            }
+            long oldMathSeed = -1L;
+            try {
+                Minecraft mc = Minecraft.getMinecraft();
+                if (mc.world == null || mc.getRenderViewEntity() == null)
+                    return err("no client world or camera");
+                JsonArray types = action.has("types")
+                    ? action.getAsJsonArray("types") : new JsonArray();
+                if (types.size() < 1 || types.size() > 8)
+                    return err("types must contain 1..8 firework shapes");
+                boolean flicker = action.has("flicker")
+                    && action.get("flicker").getAsBoolean();
+                double distance = action.has("distance")
+                    ? action.get("distance").getAsDouble() : 0.0D;
+                long blastSeed = action.has("blast_seed48")
+                    ? action.get("blast_seed48").getAsLong()
+                    : 0x123456789abcL;
+                long twinkleSeed = action.has("twinkle_seed48")
+                    ? action.get("twinkle_seed48").getAsLong()
+                    : 0x0fedcba98765L;
+                if (!Double.isFinite(distance) || distance < 0.0D
+                        || distance > 10000.0D
+                        || blastSeed < 0L || blastSeed >= (1L << 48)
+                        || twinkleSeed < 0L || twinkleSeed >= (1L << 48))
+                    return err("invalid firework audio fixture");
+
+                net.minecraft.nbt.NBTTagList explosions =
+                    new net.minecraft.nbt.NBTTagList();
+                boolean large = types.size() >= 3;
+                for (int i = 0; i < types.size(); ++i) {
+                    int type = types.get(i).getAsInt();
+                    if (type < 0 || type > 4)
+                        return err("firework type must be in 0..4");
+                    net.minecraft.nbt.NBTTagCompound explosion =
+                        new net.minecraft.nbt.NBTTagCompound();
+                    explosion.setByte("Type", (byte)type);
+                    explosion.setBoolean("Flicker", flicker && i == 0);
+                    explosion.setIntArray("Colors", new int[] {0x00ff0000});
+                    explosions.appendTag(explosion);
+                    large |= type == 1;
+                }
+                net.minecraft.nbt.NBTTagCompound fireworks =
+                    new net.minecraft.nbt.NBTTagCompound();
+                fireworks.setTag("Explosions", explosions);
+                net.minecraft.entity.Entity camera = mc.getRenderViewEntity();
+                double x = camera.posX + distance;
+                double y = camera.posY;
+                double z = camera.posZ;
+                oldMathSeed = mathRandomSeed48();
+                net.minecraft.client.particle.ParticleManager quiet =
+                    new net.minecraft.client.particle.ParticleManager(
+                        mc.world, mc.getTextureManager()) {
+                        @Override public void addEffect(
+                                net.minecraft.client.particle.Particle effect) {
+                        }
+                    };
+                net.minecraft.client.particle.ParticleFirework.Starter starter =
+                    new net.minecraft.client.particle.ParticleFirework.Starter(
+                        mc.world, x, y, z, 0.0D, 0.0D, 0.0D,
+                        quiet, fireworks);
+                java.lang.reflect.Field randomField =
+                    net.minecraft.client.particle.Particle.class
+                        .getDeclaredField("rand");
+                randomField.setAccessible(true);
+                java.util.Random random =
+                    (java.util.Random)randomField.get(starter);
+                oracleClientSoundCapture.clear();
+                oracleClientSoundActive = true;
+                int maxAge = flicker ? types.size() * 2 + 14 : 0;
+                for (int tick = 0; tick <= maxAge; ++tick) {
+                    oracleClientSoundTick = tick;
+                    if (tick == 0) setJavaRandomSeed48(random, blastSeed);
+                    if (flicker && tick == maxAge)
+                        setJavaRandomSeed48(random, twinkleSeed);
+                    starter.onUpdate();
+                }
+                oracleClientSoundActive = false;
+                JsonArray events = new JsonArray();
+                for (OracleClientSoundCapture event : oracleClientSoundCapture)
+                    events.add(event.toJson());
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("explosion_count", types.size());
+                out.addProperty("large", large);
+                out.addProperty("flicker", flicker);
+                out.addProperty("max_age", flicker
+                    ? types.size() * 2 + 14 : types.size() * 2 - 1);
+                out.add("events", events);
+                return out.toString();
+            } catch (Throwable t) {
+                return err("firework_audio_locked: " + t);
+            } finally {
+                oracleClientSoundActive = false;
+                oracleClientSoundCapture.clear();
+                if (oldMathSeed >= 0L) try {
+                    setMathRandomSeed48(oldMathSeed);
                 } catch (Throwable ignored) { }
             }
         }

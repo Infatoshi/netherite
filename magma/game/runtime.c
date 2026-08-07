@@ -5929,12 +5929,14 @@ static void runtime_tick_dispenser(GmRuntime *r, int x, int y, int z) {
     }
     if (behavior == RUNTIME_DISPENSE_FIREWORK) {
         ICStack stack = source.container->slots[slot];
-        if (gm_runtime_spawn_firework(
+        if (gm_runtime_spawn_firework_payload(
                 r, (double)x + 0.5 + dx[facing],
                 (double)((float)y + 0.2F),
                 (double)z + 0.5 + dz[facing],
                 ic_firework_flight(&stack),
-                ic_firework_explosions(&stack), 0) < 0)
+                ic_firework_explosions(&stack),
+                ic_firework_large(&stack),
+                ic_firework_flicker(&stack), 0) < 0)
             return;
         if (--source.container->slots[slot].count <= 0)
             source.container->slots[slot] = ic_empty();
@@ -11997,9 +11999,10 @@ static void runtime_falling_damage_player(
     r->server_player.health = r->vitals.health;
 }
 
-static void runtime_sound_event_append(
+static void runtime_sound_event_append_delayed(
         GmRuntime *r, int sound, int category, int eid, int relative,
-        double x, double y, double z, float volume, float pitch) {
+        double x, double y, double z, float volume, float pitch,
+        int delay_ticks) {
     int index;
     if (!r || sound <= 0 || sound >= GM_SOUND_COUNT) return;
     if (r->sound_event_count < GM_RUNTIME_SOUND_EVENTS) {
@@ -12014,8 +12017,16 @@ static void runtime_sound_event_append(
     }
     r->sound_events[index] = (GmRuntimeSoundEvent){
         r->sound_event_next_seq++, sound, category, eid, r->dimension,
-        relative, x, y, z, volume, pitch
+        relative, delay_ticks, x, y, z, volume, pitch
     };
+}
+
+static void runtime_sound_event_append(
+        GmRuntime *r, int sound, int category, int eid, int relative,
+        double x, double y, double z, float volume, float pitch) {
+    runtime_sound_event_append_delayed(
+        r, sound, category, eid, relative,
+        x, y, z, volume, pitch, 0);
 }
 
 static float runtime_sound_random_one(GmRuntime *r) {
@@ -12804,6 +12815,109 @@ static void runtime_firework_event_append(
             rocket->eid, 0, rocket->x, rocket->y, rocket->z, 3.0F, 1.0F);
 }
 
+static int runtime_firework_sound_delay(
+        const GmRuntime *r, double x, double y, double z, int *far) {
+    double px = r->player.ent.posX + (double)r->ox;
+    double py = r->player.ent.posY;
+    double pz = r->player.ent.posZ + (double)r->oz;
+    double dx = px - x, dy = py - y, dz = pz - z;
+    double distance_sq = dx * dx + dy * dy + dz * dz;
+    if (far) *far = distance_sq >= 256.0;
+    return distance_sq > 100.0 ? (int)(sqrt(distance_sq) / 2.0) : 0;
+}
+
+static void runtime_firework_schedule_twinkle(
+        GmRuntime *r, const GmRuntimeFirework *rocket) {
+    GmRuntimeFireworkTwinkle *pending = NULL;
+    if (!rocket->twinkle) return;
+    for (int i = 0; i < GM_RUNTIME_FIREWORK_TWINKLES; ++i)
+        if (!r->firework_twinkles[i].active) {
+            pending = &r->firework_twinkles[i];
+            break;
+        }
+    if (!pending) return;
+    *pending = (GmRuntimeFireworkTwinkle){
+        1, rocket->dimension, rocket->eid,
+        rocket->explosion_count * 2 + 14,
+        rocket->twinkle_random_seed48,
+        rocket->x, rocket->y, rocket->z
+    };
+    ++r->firework_twinkle_count;
+}
+
+static void runtime_firework_explosion_audio(
+        GmRuntime *r, GmRuntimeFirework *rocket) {
+    int far, sound, delay_ticks;
+    float pitch;
+    if (rocket->explosion_count <= 0) return;
+    delay_ticks = runtime_firework_sound_delay(
+        r, rocket->x, rocket->y, rocket->z, &far);
+    sound = rocket->large_blast
+        ? (far ? GM_SOUND_FIREWORK_LARGE_BLAST_FAR
+               : GM_SOUND_FIREWORK_LARGE_BLAST)
+        : (far ? GM_SOUND_FIREWORK_BLAST_FAR : GM_SOUND_FIREWORK_BLAST);
+    pitch = 0.95F + runtime_java_random_seed_next_float(
+        &rocket->blast_random_seed48) * 0.1F;
+    runtime_sound_event_append_delayed(
+        r, sound, GM_SOUND_CATEGORY_AMBIENT, rocket->eid, 0,
+        rocket->x, rocket->y, rocket->z, 20.0F, pitch, delay_ticks);
+    runtime_firework_schedule_twinkle(r, rocket);
+}
+
+int gm_runtime_firework_audio_fixture(
+        GmRuntime *r, int eid, double x, double y, double z,
+        int explosion_count, int large_blast, int twinkle,
+        uint64_t blast_seed48, uint64_t twinkle_seed48) {
+    GmRuntimeFirework rocket;
+    if (!r || eid <= 0 || explosion_count < 1 || explosion_count > 8
+            || (large_blast != 0 && large_blast != 1)
+            || (twinkle != 0 && twinkle != 1)
+            || blast_seed48 > GM_JAVA_RANDOM_MASK
+            || twinkle_seed48 > GM_JAVA_RANDOM_MASK)
+        return 0;
+    memset(&rocket, 0, sizeof rocket);
+    rocket.dimension = r->dimension;
+    rocket.eid = eid;
+    rocket.explosion_count = explosion_count;
+    rocket.large_blast = large_blast || explosion_count >= 3;
+    rocket.twinkle = twinkle;
+    rocket.blast_random_seed48 = blast_seed48;
+    rocket.twinkle_random_seed48 = twinkle_seed48;
+    rocket.x = x;
+    rocket.y = y;
+    rocket.z = z;
+    runtime_firework_explosion_audio(r, &rocket);
+    return 1;
+}
+
+static void runtime_tick_firework_twinkles(GmRuntime *r) {
+    if (r->firework_twinkle_count == 0) return;
+    for (int i = 0; i < GM_RUNTIME_FIREWORK_TWINKLES; ++i) {
+        GmRuntimeFireworkTwinkle *pending = &r->firework_twinkles[i];
+        int far, sound, delay_ticks;
+        float pitch;
+        if (!pending->active) continue;
+        if (pending->dimension != r->dimension) {
+            pending->active = 0;
+            --r->firework_twinkle_count;
+            continue;
+        }
+        if (--pending->ticks_left > 0) continue;
+        delay_ticks = runtime_firework_sound_delay(
+            r, pending->x, pending->y, pending->z, &far);
+        sound = far
+            ? GM_SOUND_FIREWORK_TWINKLE_FAR : GM_SOUND_FIREWORK_TWINKLE;
+        pitch = 0.9F + runtime_java_random_seed_next_float(
+            &pending->random_seed48) * 0.15F;
+        runtime_sound_event_append_delayed(
+            r, sound, GM_SOUND_CATEGORY_AMBIENT, pending->eid, 0,
+            pending->x, pending->y, pending->z,
+            20.0F, pitch, delay_ticks);
+        pending->active = 0;
+        --r->firework_twinkle_count;
+    }
+}
+
 int gm_runtime_firework_event_count(const GmRuntime *r) {
     return r ? r->firework_event_count : 0;
 }
@@ -12831,13 +12945,27 @@ int gm_runtime_set_next_firework_random_state(
     return 1;
 }
 
-int gm_runtime_spawn_firework(
+int gm_runtime_set_next_firework_audio_random_seeds(
+        GmRuntime *r, uint64_t blast_seed48, uint64_t twinkle_seed48) {
+    if (!r || blast_seed48 > GM_JAVA_RANDOM_MASK
+            || twinkle_seed48 > GM_JAVA_RANDOM_MASK)
+        return 0;
+    r->next_firework_audio_random_valid = 1;
+    r->next_firework_blast_seed48 = blast_seed48;
+    r->next_firework_twinkle_seed48 = twinkle_seed48;
+    return 1;
+}
+
+int gm_runtime_spawn_firework_payload(
         GmRuntime *r, double x, double y, double z,
-        int flight, int explosion_count, int attached_player) {
+        int flight, int explosion_count, int large_blast, int twinkle,
+        int attached_player) {
     GmRuntimeFirework *rocket = NULL;
     JavaGaussianRandom random;
     if (!r || !r->world || flight < 0 || flight > 3
             || explosion_count < 0 || explosion_count > 8
+            || (large_blast != 0 && large_blast != 1)
+            || (twinkle != 0 && twinkle != 1)
             || (attached_player != 0 && attached_player != 1)
             || r->firework_count >= GM_RUNTIME_FIREWORKS)
         return -1;
@@ -12867,6 +12995,19 @@ int gm_runtime_spawn_firework(
     rocket->attached_player = attached_player;
     rocket->flight = flight;
     rocket->explosion_count = explosion_count;
+    rocket->large_blast = large_blast || explosion_count >= 3;
+    rocket->twinkle = twinkle;
+    rocket->blast_random_seed48 = r->next_firework_audio_random_valid
+        ? r->next_firework_blast_seed48
+        : mc_hash_seed(
+            (uint64_t)r->seed, r->tick, (int)floor(x), (int)floor(z),
+            rocket->eid, UINT32_C(0x424c5354)) & GM_JAVA_RANDOM_MASK;
+    rocket->twinkle_random_seed48 = r->next_firework_audio_random_valid
+        ? r->next_firework_twinkle_seed48
+        : mc_hash_seed(
+            (uint64_t)r->seed, r->tick, (int)floor(x), (int)floor(z),
+            rocket->eid, UINT32_C(0x54574e4b)) & GM_JAVA_RANDOM_MASK;
+    r->next_firework_audio_random_valid = 0;
     rocket->x = x; rocket->y = y; rocket->z = z;
     rocket->vx = jrand_gaussian_next(&random) * 0.001;
     rocket->vz = jrand_gaussian_next(&random) * 0.001;
@@ -12879,6 +13020,13 @@ int gm_runtime_spawn_firework(
     rocket->random_gaussian = random.next_next_gaussian;
     ++r->firework_count;
     return rocket->eid;
+}
+
+int gm_runtime_spawn_firework(
+        GmRuntime *r, double x, double y, double z,
+        int flight, int explosion_count, int attached_player) {
+    return gm_runtime_spawn_firework_payload(
+        r, x, y, z, flight, explosion_count, 0, 0, attached_player);
 }
 
 static int runtime_firework_line_clear(
@@ -12947,6 +13095,7 @@ static void runtime_firework_damage(GmRuntime *r, GmRuntimeFirework *rocket) {
 }
 
 void gm_runtime_tick_fireworks(GmRuntime *r) {
+    runtime_tick_firework_twinkles(r);
     if (r->firework_count == 0) return;
     for (int i = 0; i < GM_RUNTIME_FIREWORKS; ++i) {
         GmRuntimeFirework *rocket = &r->fireworks[i];
@@ -12997,6 +13146,7 @@ void gm_runtime_tick_fireworks(GmRuntime *r) {
         if (rocket->age > rocket->lifetime) {
             runtime_firework_event_append(
                 r, GM_FIREWORK_EVENT_EXPLODE, rocket);
+            runtime_firework_explosion_audio(r, rocket);
             runtime_firework_damage(r, rocket);
             rocket->active = 0;
             --r->firework_count;
@@ -15211,12 +15361,14 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         int spawned = -1;
         int flight = ic_firework_flight(&held_now);
         int explosions = ic_firework_explosions(&held_now);
+        int large = ic_firework_large(&held_now);
+        int flicker = ic_firework_flicker(&held_now);
         if (r->player.elytra_flying) {
-            spawned = gm_runtime_spawn_firework(
+            spawned = gm_runtime_spawn_firework_payload(
                 r, r->player.ent.posX + (double)r->ox,
                 r->player.ent.posY,
                 r->player.ent.posZ + (double)r->oz,
-                flight, explosions, 1);
+                flight, explosions, large, flicker, 1);
         } else {
             int hx, hy, hz, ax, ay, az;
             if (gm_raycast_sel_reach(
@@ -15225,8 +15377,9 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                 double x = hx + (ax > hx ? 1.0 : ax < hx ? 0.0 : 0.5);
                 double y = hy + (ay > hy ? 1.0 : ay < hy ? 0.0 : 0.5);
                 double z = hz + (az > hz ? 1.0 : az < hz ? 0.0 : 0.5);
-                spawned = gm_runtime_spawn_firework(
-                    r, x, y, z, flight, explosions, 0);
+                spawned = gm_runtime_spawn_firework_payload(
+                    r, x, y, z,
+                    flight, explosions, large, flicker, 0);
             }
         }
         if (spawned >= 0) {
@@ -19323,6 +19476,8 @@ int gm_runtime_craft(GmRuntime *r, int grid_width, const int inv_slots[9]) {
     {
         int paper = 0, gunpowder = 0, stars = 0, tagged_stars = 0;
         int dyes = 0, glow_or_diamond = 0, shape = 0, other = 0;
+        int rocket_large = 0, rocket_flicker = 0;
+        int star_large = 0, star_flicker = 0;
         int first_star_meta = 0;
         for (int i = 0; i < 9; ++i) {
             if (crf_isEmpty(grid[i])) continue;
@@ -19331,26 +19486,34 @@ int gm_runtime_craft(GmRuntime *r, int grid_width, const int inv_slots[9]) {
             case 289: ++gunpowder; break;
             case 402:
                 ++stars;
-                if (((grid[i].meta >> 8) & 0xff) > 0)
+                if (((grid[i].meta >> 8) & 0x1f) > 0) {
                     ++tagged_stars;
+                    rocket_large |= (grid[i].meta >> 13) & 1;
+                    rocket_flicker |= (grid[i].meta >> 14) & 1;
+                }
                 first_star_meta = grid[i].meta;
                 break;
             case 351: ++dyes; break;
-            case 348: case 264: ++glow_or_diamond; break;
-            case 385: case 288: case 371: case 397: ++shape; break;
+            case 348:
+                ++glow_or_diamond; star_flicker = 1; break;
+            case 264: ++glow_or_diamond; break;
+            case 385: ++shape; star_large = 1; break;
+            case 288: case 371: case 397: ++shape; break;
             default: ++other; break;
             }
         }
         if (!other && paper == 1 && gunpowder >= 1 && gunpowder <= 3
                 && dyes == 0 && glow_or_diamond == 0 && shape == 0) {
-            special = ic_mk(
-                401, 3, ic_firework_meta(gunpowder, tagged_stars));
+            special = ic_mk(401, 3, ic_firework_meta_payload(
+                gunpowder, tagged_stars,
+                tagged_stars >= 3 || rocket_large, rocket_flicker));
         } else if (!other && paper == 0 && gunpowder == 1 && stars == 0
                 && dyes > 0 && shape <= 1) {
-            special = ic_mk(402, 1, ic_firework_meta(0, 1));
+            special = ic_mk(402, 1, ic_firework_meta_payload(
+                0, 1, star_large, star_flicker));
         } else if (!other && paper == 0 && gunpowder == 0 && stars == 1
                 && dyes > 0 && glow_or_diamond == 0 && shape == 0
-                && ((first_star_meta >> 8) & 0xff) > 0) {
+                && ((first_star_meta >> 8) & 0x1f) > 0) {
             special = ic_mk(402, 1, first_star_meta);
         }
     }

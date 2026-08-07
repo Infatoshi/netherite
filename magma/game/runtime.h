@@ -56,6 +56,7 @@
 #define GM_RUNTIME_WEATHER_EVENTS 32
 #define GM_RUNTIME_FIREWORKS 16
 #define GM_RUNTIME_FIREWORK_EVENTS 32
+#define GM_RUNTIME_FIREWORK_TWINKLES 32
 #define GM_RUNTIME_FISH_EVENTS 32
 #define GM_RUNTIME_SOUND_EVENTS 256
 #define GM_RUNTIME_MINECARTS 32
@@ -166,6 +167,8 @@ typedef struct {
     int age, lifetime;
     int attached_player;
     int flight, explosion_count;
+    int large_blast, twinkle;
+    uint64_t blast_random_seed48, twinkle_random_seed48;
     uint64_t random_seed48;
     int random_have_gaussian;
     double random_gaussian;
@@ -182,6 +185,11 @@ typedef struct {
     double x, y, z;
     float volume, pitch;
 } GmRuntimeFireworkEvent;
+typedef struct {
+    int active, dimension, eid, ticks_left;
+    uint64_t random_seed48;
+    double x, y, z;
+} GmRuntimeFireworkTwinkle;
 enum {
     GM_FISH_STATE_FLYING = 0,
     GM_FISH_STATE_BOBBING = 1,
@@ -235,6 +243,12 @@ enum {
     GM_SOUND_LIGHTNING_THUNDER,
     GM_SOUND_LIGHTNING_IMPACT,
     GM_SOUND_FIREWORK_LAUNCH,
+    GM_SOUND_FIREWORK_BLAST,
+    GM_SOUND_FIREWORK_BLAST_FAR,
+    GM_SOUND_FIREWORK_LARGE_BLAST,
+    GM_SOUND_FIREWORK_LARGE_BLAST_FAR,
+    GM_SOUND_FIREWORK_TWINKLE,
+    GM_SOUND_FIREWORK_TWINKLE_FAR,
     GM_SOUND_BOBBER_SPLASH,
     GM_SOUND_DISPENSER_DISPENSE,
     GM_SOUND_DISPENSER_FAIL,
@@ -295,7 +309,7 @@ enum {
 typedef struct {
     uint64_t seq;
     int sound, category, eid, dimension;
-    int relative;
+    int relative, delay_ticks;
     double x, y, z;
     float volume, pitch;
 } GmRuntimeSoundEvent;
@@ -517,6 +531,9 @@ typedef struct GmRuntime {
     GmRuntimeFireworkEvent firework_events[GM_RUNTIME_FIREWORK_EVENTS];
     int firework_event_head, firework_event_count;
     uint64_t firework_event_next_seq, firework_event_dropped;
+    GmRuntimeFireworkTwinkle
+        firework_twinkles[GM_RUNTIME_FIREWORK_TWINKLES];
+    int firework_twinkle_count;
     GmRuntimeFishHook fish_hook;
     GmRuntimeFishEvent fish_events[GM_RUNTIME_FISH_EVENTS];
     int fish_event_head, fish_event_count;
@@ -610,6 +627,9 @@ typedef struct GmRuntime {
     uint64_t next_firework_random_seed48;
     int next_firework_random_have_gaussian;
     double next_firework_random_gaussian;
+    int next_firework_audio_random_valid;
+    uint64_t next_firework_blast_seed48;
+    uint64_t next_firework_twinkle_seed48;
     int next_fishing_random_valid;
     uint64_t next_fishing_random_seed48;
     int next_fishing_random_have_gaussian;
@@ -1186,6 +1206,16 @@ int gm_runtime_lightning_views(
 int gm_runtime_set_next_firework_random_state(
     GmRuntime *r, uint64_t seed48, int have_next_gaussian,
     double next_gaussian);
+int gm_runtime_set_next_firework_audio_random_seeds(
+    GmRuntime *r, uint64_t blast_seed48, uint64_t twinkle_seed48);
+int gm_runtime_spawn_firework_payload(
+    GmRuntime *r, double x, double y, double z,
+    int flight, int explosion_count, int large_blast, int twinkle,
+    int attached_player);
+int gm_runtime_firework_audio_fixture(
+    GmRuntime *r, int eid, double x, double y, double z,
+    int explosion_count, int large_blast, int twinkle,
+    uint64_t blast_seed48, uint64_t twinkle_seed48);
 int gm_runtime_spawn_firework(
     GmRuntime *r, double x, double y, double z,
     int flight, int explosion_count, int attached_player);

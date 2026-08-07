@@ -42,7 +42,7 @@ struct CrWorldMC {
  * overrides getPackedLightmapCoords with 15728880 (sky=15, block=15). */
 #define CR_CB_MAGMA 220
 #define CR_CB_IRON_BARS 221
-#define CR_CB_GLASS_PANE 237
+#define CR_CB_GLASS_PANE 253
 #define CR_CB_GLASS 200
 #define CR_CB_TEST_FENCE 203
 #define CR_CB_WEB 230
@@ -62,8 +62,8 @@ struct CrWorldMC {
 #define CR_CB_DPLANT_LOWER_BASE 60
 #define CR_CB_DPLANT_UPPER 66
 #define CR_CB_DPLANT_LAST 66
-#define CR_CB_DPLANT_UPPER_CONTEXT_BASE 234
-#define CR_CB_DPLANT_UPPER_CONTEXT_LAST 239
+#define CR_CB_DPLANT_UPPER_CONTEXT_BASE 257
+#define CR_CB_DPLANT_UPPER_CONTEXT_LAST 262
 
 /* BlockDoublePlant.getActualState copies VARIANT from the lower half into an
  * upper half. Legacy upper metadata contains only HALF/FACING, so choose the

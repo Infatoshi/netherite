@@ -11509,3 +11509,26 @@ fails, decomposed exactly.
 - Java, focused parity/audio, full runtime, and clean product builds pass. The
   runtime aggregate is 6:06.97 at 448,576 KiB RSS with zero swap; CPU throughput
   is 4,228 steps/s against the 3,858.9 floor. GPU 1 was not executed.
+
+## 2026-08-07 (firework blast and twinkle audio)
+
+- Added a locked client oracle around the real `ParticleFirework.Starter` and
+  `WorldClient.playSound` path. Eight direct Java/native cases cover small and
+  large blasts, the 16-block far threshold, the greater-than-10-block delay,
+  exact seeded pitch bits, and flicker twinkles at `2 * explosions + 14` ticks.
+- Firework item metadata now retains the aggregate large-ball and flicker bits
+  across star/rocket crafting without growing `ICStack`. Native playback owns
+  all six blast/twinkle events, schedules far sounds at Java's exact due tick,
+  and keeps twinkles in a fixed active-only store. The manifest is now 76
+  events/152 variants; headless paths still initialize no audio.
+- The direct comparator passes all eight cases plus a deliberate delay
+  negative control. Java and clean native product builds pass, as do the
+  focused six-family parity gate and every locally available quick-sweep
+  stage. The two snapshot-backed Blaze stages skip because their `.bsnp`
+  inputs are not present. The exact-current full runtime aggregate passes in
+  6:40.65 at 448,124 KiB peak RSS with zero major faults and zero swap; CPU
+  throughput is 4,132 steps/s against the 3,858.9 floor. GPU 1 was untouched.
+- The sweep exposed numeric model-table drift in contextual upper double
+  plants and glass panes plus a stale TNT reverse-map assertion. Their product
+  IDs and gates are synchronized again. The village oracle gate now uses the
+  canonical repository Gradle cache, avoiding a second wedged daemon/cache.

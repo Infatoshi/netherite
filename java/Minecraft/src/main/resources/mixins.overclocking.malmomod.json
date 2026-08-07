@@ -28,6 +28,7 @@
   ],
   "server": [],
   "client": [
+    "MixinOracleClientSound",
     "MixinUpdateChunksNoTimeout",
     "MixinStripScreens",
     "MixinStripBossBar",

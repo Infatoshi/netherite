@@ -111,6 +111,14 @@ passes in 6:45.71 with 431,540 KiB peak RSS and zero swap. The fresh CPU guard
 passes at 4,204 scalar steps/s against the frozen 3,858.9 floor. GPU 1 had a
 co-tenant, so no new GPU number was taken for this checkpoint.
 
+2026-08-07 firework-audio checkpoint: the exact-current full native runtime
+aggregate passes in 6:40.65 with 448,124 KiB peak RSS, zero major faults, and
+zero swap. The CPU guard passes at 4,132 scalar steps/s against the frozen
+3,858.9 floor. The direct real-Java/native audio comparator passes eight
+boundary cases and its delay negative control. Every locally available quick
+sweep stage passes; the two snapshot-backed Blaze stages skip because their
+`.bsnp` inputs are absent. GPU 1 was not executed.
+
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.
 Status: SHIPPED as `netherite_sweep.sh` (repo root). At the 2026-08-07 70%

@@ -86,6 +86,8 @@ int main(void) {
           && gm_runtime_firework_event_get(&r, 1, &event)
           && event.kind == GM_FIREWORK_EVENT_EXPLODE,
           "rocket dies after Life exceeds LifeTime and emits status event");
+    CHECK(gm_runtime_sound_event_count(&r) == 1,
+          "rocket without explosion payload has no client blast sound");
     gm_runtime_destroy(&r);
 
     CHECK(init_flat(&r), "initialize firework craft fixture");
@@ -93,7 +95,8 @@ int main(void) {
           && gm_runtime_set_inventory(&r, 1, 289, 1, 0)
           && gm_runtime_set_inventory(&r, 2, 289, 1, 0)
           && gm_runtime_set_inventory(
-              &r, 3, 402, 1, ic_firework_meta(0, 1)),
+              &r, 3, 402, 1,
+              ic_firework_meta_payload(0, 1, 1, 1)),
           "load paper, two gunpowder, and tagged star");
     {
         int grid[9] = {0, 1, -1, 2, 3, -1, -1, -1, -1};
@@ -103,8 +106,28 @@ int main(void) {
         CHECK(find_item(&r, 401, &output)
               && output.count == 3
               && ic_firework_flight(&output) == 2
-              && ic_firework_explosions(&output) == 1,
-              "rocket craft preserves Flight and explosion-list count");
+              && ic_firework_explosions(&output) == 1
+              && ic_firework_large(&output)
+              && ic_firework_flicker(&output),
+              "rocket craft preserves sound-relevant explosion payload");
+    }
+    gm_runtime_destroy(&r);
+
+    CHECK(init_flat(&r), "initialize firework star craft fixture");
+    CHECK(gm_runtime_set_inventory(&r, 0, 289, 1, 0)
+          && gm_runtime_set_inventory(&r, 1, 351, 1, 1)
+          && gm_runtime_set_inventory(&r, 2, 385, 1, 0)
+          && gm_runtime_set_inventory(&r, 3, 348, 1, 0),
+          "load gunpowder, dye, fire charge, and glowstone");
+    {
+        int grid[9] = {0, 1, -1, 2, 3, -1, -1, -1, -1};
+        ICStack output;
+        CHECK(gm_runtime_craft(&r, 2, grid)
+              && find_item(&r, 402, &output)
+              && ic_firework_explosions(&output) == 1
+              && ic_firework_large(&output)
+              && ic_firework_flicker(&output),
+              "fire charge and glowstone become large/flicker payload bits");
     }
     gm_runtime_destroy(&r);
 

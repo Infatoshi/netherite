@@ -86,8 +86,28 @@ int main(void) {
         &audio, &runtime, 8.5, 80.0, 8.5, 180.0F, 0.0F);
     CHECK(audio.next_seq == 4 && audio.active_records == 0,
           "1010/0 stops the record stream at its block position");
+    gm_runtime_set_pose(&runtime, 8.5, 30.0, 8.5, 0.0F, 0.0F);
+    CHECK(gm_runtime_firework_audio_fixture(
+              &runtime, 7200, 24.5, 30.0, 8.5,
+              1, 0, 0,
+              UINT64_C(0x123456789abc), UINT64_C(0x0fedcba98765)),
+          "emit far firework blast with Java distance delay");
+    gm_audio_live_update(
+        &audio, &runtime, 8.5, 30.0, 8.5, 0.0F, 0.0F);
+    CHECK(audio.next_seq == 5 && audio.pending_delayed == 1,
+          "audio consumer queues the eight-tick far blast delay");
+    runtime.tick += 7;
+    gm_audio_live_update(
+        &audio, &runtime, 8.5, 30.0, 8.5, 0.0F, 0.0F);
+    CHECK(audio.pending_delayed == 1,
+          "far blast remains pending before its exact due tick");
+    ++runtime.tick;
+    gm_audio_live_update(
+        &audio, &runtime, 8.5, 30.0, 8.5, 0.0F, 0.0F);
+    CHECK(audio.pending_delayed == 0,
+          "far blast starts on its exact due tick");
     gm_audio_live_destroy(&audio);
     gm_runtime_destroy(&runtime);
-    puts("audio_live: PASS (70 events, 146 variants, bounded record stream)");
+    puts("audio_live: PASS (76 events, 152 variants, bounded streams/delay)");
     return 0;
 }

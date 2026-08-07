@@ -89,7 +89,7 @@ static void test_collision_barrier(void) {
     CHECK(gm_state_to_model_key(gm_pack_state(159, 1)) == 96, "orange clay reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(159, 11)) == 97, "blue clay reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(70, 0)) == 98, "stone pressure plate reverse map");
-    CHECK(gm_state_to_model_key(gm_pack_state(46, 0)) == 99, "TNT reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(46, 0)) == 236, "TNT reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(58, 0)) == 223, "crafting table reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(66, 0)) == 235, "rail reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(102, 0)) == 253,

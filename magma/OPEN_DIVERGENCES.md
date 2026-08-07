@@ -122,9 +122,11 @@ Saved jukebox comparator state is exact for empty/record metadata agreement,
 the bounded untagged vanilla-record set, and analog outputs 1 through 12.
 Insertion and ejection now emit the exact Java 1010 item/zero event pairs for
 all 12 records. A-01 supplies an ordered represented-event stream and optional
-OpenAL playback for 70 events/146 owned OGG variants, including four bounded
-streamed record voices. Music, ambient loops, category controls, exact Java
-variant cursor, remaining emitters, and output comparison remain open.
+OpenAL playback for 76 events/152 owned OGG variants, including four bounded
+streamed record voices. Firework blast/large/far and twinkle selection, exact
+twinkle age, seeded pitch, and distance-delayed playback are promoted. Music,
+ambient loops, category controls, exact Java asset-variant cursor, remaining
+emitters, and output comparison remain open.
 
 Command-block comparator output is exact for IDs 137/210/211 inside a strict
 inert saved subset: empty command, default name/output tracking and per-ID
@@ -2576,7 +2578,8 @@ rejection is atomic across tile state, RNG, and entity ID. A locked Java
 fixture proves insertion/ejection emits `(1010,item)` then `(1010,0)` for every
 record. Native world and sound rings match those pairs, and interactive audio
 starts/stops the corresponding bounded OGG stream at the exact block position.
-Broader music, ambient, category, and output-comparison work remains A-01. The final
+Firework blast/twinkle audio is separately promoted in A-01. Broader music,
+ambient, category, and output-comparison work remains A-01. The final
 exact-source aggregate passes in 5:15.70 with a 296,108 KB peak and zero swap
 at
 `c/magma/trace/out/test_runtime_daylight_periodic_cake_flower_pot_jukebox_ejection_final.log`.

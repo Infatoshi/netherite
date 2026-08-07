@@ -18,6 +18,7 @@
 #define GM_AUDIO_RECORD_STREAMS 4
 #define GM_AUDIO_RECORD_BUFFERS 4
 #define GM_AUDIO_RECORD_PCM_BYTES 65536
+#define GM_AUDIO_DELAYED 256
 
 static void audio_error(char *err, int cap, const char *message) {
     if (err && cap > 0) snprintf(err, (size_t)cap, "%s", message);
@@ -34,11 +35,19 @@ typedef struct {
 } GmAudioRecord;
 
 typedef struct {
+    int active;
+    int64_t due_tick;
+    GmRuntimeSoundEvent event;
+} GmAudioDelayed;
+
+typedef struct {
     ALCdevice *device;
     ALCcontext *context;
     ALuint buffers[GM_SOUND_ASSET_VARIANT_COUNT];
     ALuint sources[GM_AUDIO_SOURCES];
     GmAudioRecord records[GM_AUDIO_RECORD_STREAMS];
+    GmAudioDelayed delayed[GM_AUDIO_DELAYED];
+    int delayed_count;
     unsigned int source_cursor;
     uint64_t record_serial;
     char objects[512];
@@ -327,6 +336,34 @@ static void play_event(
     }
     alSourcePlay(source);
 }
+
+static int queue_delayed(
+        GmAudioImpl *impl, const GmRuntimeSoundEvent *event,
+        int64_t tick) {
+    for (int i = 0; i < GM_AUDIO_DELAYED; ++i) {
+        GmAudioDelayed *delayed = &impl->delayed[i];
+        if (delayed->active) continue;
+        delayed->active = 1;
+        delayed->due_tick = tick + event->delay_ticks;
+        delayed->event = *event;
+        ++impl->delayed_count;
+        return 1;
+    }
+    return 0;
+}
+
+static void play_due_delayed(
+        GmAudioImpl *impl, int64_t tick, int dimension) {
+    if (impl->delayed_count == 0) return;
+    for (int i = 0; i < GM_AUDIO_DELAYED; ++i) {
+        GmAudioDelayed *delayed = &impl->delayed[i];
+        if (!delayed->active || delayed->due_tick > tick) continue;
+        if (delayed->event.dimension == dimension)
+            play_event(impl, &delayed->event);
+        delayed->active = 0;
+        --impl->delayed_count;
+    }
+}
 #endif
 
 int gm_audio_live_init(GmAudioLive *audio, char *err, int err_cap) {
@@ -411,6 +448,7 @@ void gm_audio_live_update(
     alListener3f(AL_POSITION, (float)x, (float)y, (float)z);
     alListenerfv(AL_ORIENTATION, orientation);
     update_records(impl, runtime->dimension);
+    play_due_delayed(impl, runtime->tick, runtime->dimension);
     for (int i = 0; i < gm_runtime_sound_event_count(runtime); ++i) {
         GmRuntimeSoundEvent event;
         if (!gm_runtime_sound_event_get(runtime, i, &event)
@@ -418,9 +456,16 @@ void gm_audio_live_update(
         if (event.seq > audio->next_seq)
             audio->dropped += event.seq - audio->next_seq;
         audio->next_seq = event.seq + 1;
-        if (event.dimension == runtime->dimension) play_event(impl, &event);
+        if (event.dimension != runtime->dimension) continue;
+        if (event.delay_ticks > 0) {
+            if (!queue_delayed(impl, &event, runtime->tick))
+                ++audio->dropped;
+        } else {
+            play_event(impl, &event);
+        }
     }
     audio->active_records = active_record_count(impl);
+    audio->pending_delayed = impl->delayed_count;
 #else
     (void)x; (void)y; (void)z; (void)yaw; (void)pitch;
 #endif
