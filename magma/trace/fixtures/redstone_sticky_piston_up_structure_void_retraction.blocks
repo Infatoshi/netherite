@@ -1,0 +1,6 @@
+# Extended UP sticky piston with a DESTROY-reaction structure void at the
+# pull origin. Retraction must leave the target in place.
+12 79 8 29 9
+12 80 8 34 9
+12 81 8 217 0
+12 79 9 152 0

@@ -1,0 +1,4 @@
+# Two snow layers render 1/4 high but collide at 1/8 high.
+12 81 9 152 0
+12 78 8 1 0
+12 79 8 78 1

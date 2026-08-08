@@ -1,0 +1,6 @@
+# Player at (8.5,78,8.5) faces the south-facing wall lever at eye height.
+# Two physical use edges must toggle metadata 3->11->3 and hand the east lamp
+# to its ordinary +4 delayed-off callback after the second edge.
+8 79 5 1 0
+8 79 6 69 3
+9 79 6 123 0

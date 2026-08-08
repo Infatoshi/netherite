@@ -1,0 +1,11 @@
+{
+  "dtype": "float32",
+  "native": "optloop_runs/ppo-native-bf16-d55-v4/quality_proxy/proxy.nckpt",
+  "native_sha256": "6f8fb52e882066293f1330ed1fb5c831540c6a73ae5d2362049acdc7157d4579",
+  "output": "optloop_runs/ppo-native-bf16-d55-v4/quality_proxy/proxy.pt",
+  "output_sha256": "22c8eb05b384a6bc0b4f021a317cf05b33cec254a001989f9c69832e9529b6e2",
+  "parameter_keys": 26,
+  "parameter_values": 1654723,
+  "schema": "netherite.native-checkpoint-conversion.v1",
+  "strict_key_shape_value_roundtrip": true
+}

@@ -1,0 +1,6 @@
+# x y z id meta
+# Controlled BlockFire callback proof: age-0 fire on the shared stone platform
+# with one east-adjacent oak plank. RANDOM_TICK_FIXTURE seeds World.rand after
+# staging, immediately before the real callback runs.
+12 78 8 51 0
+13 78 8 5 0

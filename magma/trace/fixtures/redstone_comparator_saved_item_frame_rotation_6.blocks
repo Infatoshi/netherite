@@ -1,0 +1,9 @@
+# Saved mid-transition state: a WEST-facing comparator looks through the
+# ordinary stone at x=11 to the air cell at x=10. An exact WEST-facing item
+# frame hangs in that air cell, displays one plain stone item at rotation 6,
+# and therefore supplies analog output 7. The comparator tile begins at zero.
+11 77 8 1 0
+12 77 8 1 0
+11 78 8 1 0
+12 78 8 149 1
+13 78 8 123 0

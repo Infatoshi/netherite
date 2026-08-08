@@ -1,0 +1,4 @@
+# DOWN-facing normal piston above a locked NoAI pig. The bottom red-sandstone
+# slab below ends at y=79.5 and exercises the second stone-slab registry class.
+12 81 9 152 0
+12 79 8 182 0

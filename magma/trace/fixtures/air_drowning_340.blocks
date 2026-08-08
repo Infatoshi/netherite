@@ -1,0 +1,30 @@
+# x y z id meta
+# A sealed 1x3 water column around the aligned seed-0/platform player.
+# Platform y=77 is the floor; the 3-high stone ring prevents water escape.
+7 78 7 1 0
+8 78 7 1 0
+9 78 7 1 0
+7 78 8 1 0
+9 78 8 1 0
+7 78 9 1 0
+8 78 9 1 0
+9 78 9 1 0
+7 79 7 1 0
+8 79 7 1 0
+9 79 7 1 0
+7 79 8 1 0
+9 79 8 1 0
+7 79 9 1 0
+8 79 9 1 0
+9 79 9 1 0
+7 80 7 1 0
+8 80 7 1 0
+9 80 7 1 0
+7 80 8 1 0
+9 80 8 1 0
+7 80 9 1 0
+8 80 9 1 0
+9 80 9 1 0
+8 78 8 9 0
+8 79 8 9 0
+8 80 8 9 0

@@ -1,0 +1,447 @@
+{
+  "id": "horse_breeding_heart",
+  "pin_reply_a": {
+    "ok": true,
+    "kind": "horse",
+    "difficulty": "EASY",
+    "variant": 258,
+    "armor": 0,
+    "saddled": false,
+    "chested": false,
+    "child": false,
+    "head_lean": 0.0,
+    "rearing": 0.0,
+    "mouth": 0.0,
+    "limb_swing": 0.0,
+    "limb_amount": 0.0,
+    "tail": 0,
+    "ticks_existed": 40,
+    "eid": 109090,
+    "uuid": "453c9abd-49f7-4e7c-8487-46950324fcf8",
+    "x": 8.5,
+    "y": 5.0,
+    "z": 12.5,
+    "render_pin_armed": true,
+    "render_pin_squish": 0.0,
+    "render_pin_death_ticks": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "kind": "horse",
+    "difficulty": "EASY",
+    "variant": 258,
+    "armor": 0,
+    "saddled": false,
+    "chested": false,
+    "child": false,
+    "head_lean": 0.0,
+    "rearing": 0.0,
+    "mouth": 0.0,
+    "limb_swing": 0.0,
+    "limb_amount": 0.0,
+    "tail": 0,
+    "ticks_existed": 40,
+    "eid": 109090,
+    "uuid": "453c9abd-49f7-4e7c-8487-46950324fcf8",
+    "x": 8.5,
+    "y": 5.0,
+    "z": 12.5,
+    "render_pin_armed": true,
+    "render_pin_squish": 0.0,
+    "render_pin_death_ticks": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/horse_breeding_heart_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/horse_breeding_heart_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_eid": 109090,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 859,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/horse_breeding_heart_a.png"
+  },
+  "frame_b": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/horse_breeding_heart_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/horse_breeding_heart_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_eid": 109090,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 859,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/horse_breeding_heart_b.png"
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 25.0,
+    "no_gravity": true
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "stable_ab": true,
+  "notes": "A/B from qrl frame{} at partialTicks=1; client render pin applied immediately before renderWorld for squish/deathTicks/xp_orb",
+  "entity": {
+    "variant": 258,
+    "ticks_existed": 40,
+    "type": "horse",
+    "subject": {
+      "x": 8.5,
+      "y": 5.0,
+      "z": 12.5,
+      "yaw": 180.0,
+      "pitch": 0.0
+    },
+    "particle_status": 7
+  },
+  "particle_state": [
+    [
+      34,
+      8.906454920768738,
+      7.024033308029175,
+      11.824553728103638,
+      -0.018031551058926776,
+      -0.023973301716338706,
+      0.009594377433204923,
+      {
+        "v": 1,
+        "prev": [
+          8.906454920768738,
+          7.024033308029175,
+          11.824553728103638
+        ],
+        "pos": [
+          8.906454920768738,
+          7.024033308029175,
+          11.824553728103638
+        ],
+        "motion": [
+          -0.0008917287233710397,
+          0.10089716001944986,
+          -0.0007928811149831139
+        ],
+        "age": 0,
+        "max_age": 16,
+        "ground": false,
+        "collide": true,
+        "scale": 2.9152684,
+        "gravity": 0.0,
+        "rgba": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "tex": [
+          0,
+          5
+        ],
+        "jitter": [
+          2.0575037,
+          2.2670207
+        ]
+      }
+    ],
+    [
+      34,
+      9.364118337631226,
+      6.134667873382568,
+      12.339350700378418,
+      0.012363952359556648,
+      0.018145842433723497,
+      0.00422470817393457,
+      {
+        "v": 1,
+        "prev": [
+          9.364118337631226,
+          6.134667873382568,
+          12.339350700378418
+        ],
+        "pos": [
+          9.364118337631226,
+          6.134667873382568,
+          12.339350700378418
+        ],
+        "motion": [
+          0.0005562543199278285,
+          0.10025502851156211,
+          0.0006382638002086007
+        ],
+        "age": 0,
+        "max_age": 16,
+        "ground": false,
+        "collide": true,
+        "scale": 2.915868,
+        "gravity": 0.0,
+        "rgba": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "tex": [
+          0,
+          5
+        ],
+        "jitter": [
+          0.12484771,
+          1.052148
+        ]
+      }
+    ],
+    [
+      34,
+      7.732644021511078,
+      5.912176221609116,
+      13.691550731658936,
+      -0.05013341496253073,
+      -0.006221550633936107,
+      0.0024746252873558542,
+      {
+        "v": 1,
+        "prev": [
+          7.732644021511078,
+          5.912176221609116,
+          13.691550731658936
+        ],
+        "pos": [
+          7.732644021511078,
+          5.912176221609116,
+          13.691550731658936
+        ],
+        "motion": [
+          0.0005592521735188382,
+          0.10165040071328017,
+          -0.0003155382288289138
+        ],
+        "age": 0,
+        "max_age": 16,
+        "ground": false,
+        "collide": true,
+        "scale": 2.7438998,
+        "gravity": 0.0,
+        "rgba": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "tex": [
+          0,
+          5
+        ],
+        "jitter": [
+          2.3844013,
+          1.6947117
+        ]
+      }
+    ],
+    [
+      34,
+      8.313580393791199,
+      6.323776841163635,
+      13.386596202850342,
+      0.0073631187850263435,
+      0.017171788425426812,
+      0.018743255185329846,
+      {
+        "v": 1,
+        "prev": [
+          8.313580393791199,
+          6.323776841163635,
+          13.386596202850342
+        ],
+        "pos": [
+          8.313580393791199,
+          6.323776841163635,
+          13.386596202850342
+        ],
+        "motion": [
+          -0.0009295500201673101,
+          0.10098417298946721,
+          -0.0005789849453995975
+        ],
+        "age": 0,
+        "max_age": 16,
+        "ground": false,
+        "collide": true,
+        "scale": 1.5715032,
+        "gravity": 0.0,
+        "rgba": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "tex": [
+          0,
+          5
+        ],
+        "jitter": [
+          0.0026147962,
+          0.015448809
+        ]
+      }
+    ],
+    [
+      34,
+      8.562028288841248,
+      6.174842357635498,
+      12.282366037368774,
+      -0.010554564287568804,
+      0.0013969260032780978,
+      0.004985138174633865,
+      {
+        "v": 1,
+        "prev": [
+          8.562028288841248,
+          6.174842357635498,
+          12.282366037368774
+        ],
+        "pos": [
+          8.562028288841248,
+          6.174842357635498,
+          12.282366037368774
+        ],
+        "motion": [
+          -4.03561031148897e-05,
+          0.10030442155388836,
+          -0.0014268036137569944
+        ],
+        "age": 0,
+        "max_age": 16,
+        "ground": false,
+        "collide": true,
+        "scale": 1.6695274,
+        "gravity": 0.0,
+        "rgba": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "tex": [
+          0,
+          5
+        ],
+        "jitter": [
+          0.82330924,
+          0.71365017
+        ]
+      }
+    ],
+    [
+      34,
+      8.198802709579468,
+      5.840109646320343,
+      11.125120775774121,
+      -0.014597905536310017,
+      -0.015885763097720888,
+      -0.02337961146340223,
+      {
+        "v": 1,
+        "prev": [
+          8.198802709579468,
+          5.840109646320343,
+          11.125120775774121
+        ],
+        "pos": [
+          8.198802709579468,
+          5.840109646320343,
+          11.125120775774121
+        ],
+        "motion": [
+          0.0002704083942905323,
+          0.10173361783581643,
+          -0.000619131235843732
+        ],
+        "age": 0,
+        "max_age": 16,
+        "ground": false,
+        "collide": true,
+        "scale": 1.7322721,
+        "gravity": 0.0,
+        "rgba": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "tex": [
+          0,
+          5
+        ],
+        "jitter": [
+          0.2933936,
+          2.8855822
+        ]
+      }
+    ],
+    [
+      34,
+      8.900069236755371,
+      6.634560585021973,
+      11.522468358278275,
+      -0.040370752675461356,
+      0.012871974907969114,
+      0.007316890315511832,
+      {
+        "v": 1,
+        "prev": [
+          8.900069236755371,
+          6.634560585021973,
+          11.522468358278275
+        ],
+        "pos": [
+          8.900069236755371,
+          6.634560585021973,
+          11.522468358278275
+        ],
+        "motion": [
+          0.000917114370937406,
+          0.10112224570327777,
+          0.0011749790284532832
+        ],
+        "age": 0,
+        "max_age": 16,
+        "ground": false,
+        "collide": true,
+        "scale": 2.3155613,
+        "gravity": 0.0,
+        "rgba": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "tex": [
+          0,
+          5
+        ],
+        "jitter": [
+          0.7723174,
+          2.495844
+        ]
+      }
+    ]
+  ]
+}

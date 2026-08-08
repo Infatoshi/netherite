@@ -1,0 +1,6 @@
+# Normal piston (ID 33) facing EAST (metadata 5), initially unpowered with
+# empty space in front. A stone pressure plate on its south side begins at
+# strength 0; tick zero changes it to strength 1. This setter-edge fixture
+# isolates the plate's direct weak output from entity collision/rescheduling.
+12 78 8 33 5
+12 78 9 70 0

@@ -6,33 +6,48 @@ java/Minecraft/.minecraft/
 java/Minecraft/.minecraftserver/
 
 # C/CUDA build artifacts (each c/ project also has its own .gitignore)
-c/*/build/
-c/**/*.o
-c/**/*.d
-c/magma/magma_demo
-c/magma/magma_game
+build/
+magma/**/*.o
+magma/**/*.d
+blaze/**/*.o
+blaze/**/*.d
+magma/magma_demo
+magma/magma_game
+magma/magma_game_metal
+magma/metal/*.air
+magma/metal/*.metallib
+magma/tests/test_raster_parity_metal
 # craster test binaries + previews (sources test_*.c / test_*.sh ARE tracked)
-c/magma/game/test_input_map
-c/magma/game/test_world_live
-c/magma/game/test_player_ctl
-c/magma/game/test_hud
-c/magma/game/test_entity_render
-c/magma/game/test_sky
-c/magma/tests/test_mesh_models
-c/magma/game/*_preview.ppm
-c/magma/game/*_preview.png
+magma/game/test_input_map
+magma/game/test_world_live
+magma/game/test_player_ctl
+magma/game/test_hud
+magma/game/test_entity_render
+magma/game/test_sky
+magma/tests/test_mesh_models
+magma/game/*_preview.ppm
+magma/game/*_preview.png
 # craster trace harness: binary + regenerable per-run output (sources under trace/ ARE tracked)
-c/magma/trace_game
-c/magma/trace/world_dump
-c/magma/trace/out/
+magma/trace_game
+magma/trace/world_dump
+magma/trace/out/
 # regenerable render candidates (the mc_pose_*.png goldens ARE tracked)
-c/magma/raster/verify/mc_capture/magma_pose_*.png
-c/magma/raster/verify/mc_capture/magma_frame.png
+verify/mc_capture/magma_pose_*.png
+verify/mc_capture/magma_frame.png
+# locally captured oracle pairs and generated tape reports
+verify/ui_entities/goldens/*.png
+verify/trace/report/tape_*.md
+verify/trace/report/tape_*.gate.json
 
 # logs + run artifacts
 *.log
 frame*.png
 *.npy
+/.tmp/
+/run/
+magma/.tmp/
+# accidental nested trace/build output
+magma/c/
 
 # python
 .venv/
@@ -43,77 +58,78 @@ __pycache__/
 
 # stray gradle daemon if a build ever runs from repo root
 /Minecraft/
-c/magma/trace/alloctrack.so
-c/magma/magma_game_dbg
-c/magma/game/sky_pose_*.png
-c/magma/game/sky_pose_*.ppm
-c/magma/trace/uvfix/
-c/magma/trace/out/
-c/magma/game/test_biome_color
-c/magma/game/Golden.class
-c/magma/tests/test_light_brightness
-c/magma/tests/test_fog_radial
-c/magma/tests/test_model_oracle
-c/magma/tests/*.class
-c/magma/trace/trees_viewdistance_*.png
-c/magma/trace/biome_scan
-c/magma/game/test_play_compose
-c/magma/game/test_tick_timer
-c/magma/game/test_route_e2e
+magma/trace/alloctrack.so
+magma/magma_game_dbg
+magma/game/sky_pose_*.png
+magma/game/sky_pose_*.ppm
+magma/trace/uvfix/
+magma/trace/out/
+magma/game/test_biome_color
+magma/game/Golden.class
+magma/tests/test_light_brightness
+magma/tests/test_fog_radial
+magma/tests/test_model_oracle
+magma/tests/*.class
+magma/trace/trees_viewdistance_*.png
+magma/trace/biome_scan
+magma/game/test_play_compose
+magma/game/test_tick_timer
+magma/game/test_route_e2e
 # game test binaries have no extension; test_*.c / test_*.sh sources ARE tracked
-c/magma/game/test_*
-!c/magma/game/test_*.*
-c/magma/magma_game_cuda
-c/magma/raster/verify/mc_capture/*.bak_*
+magma/game/test_*
+!magma/game/test_*.*
+magma/magma_game_cuda
+verify/mc_capture/*.bak_*
 java/Minecraft/qrl/
-c/magma/raster/verify/mc_capture/gui_candidate
-c/magma/raster/verify/tapes/*
+verify/mc_capture/gui_candidate
+verify/tapes/*
 # per-tape accepted-divergence sidecars ARE tracked
-!c/magma/raster/verify/tapes/*.known_divergences.json
-c/magma/rl/out/*
+!verify/tapes/*.known_divergences.json
+blaze/rl/out/*
 # canonical gate reference data (verify_cpu.py --chain / make_snapshots T0=1)
-!c/magma/rl/out/chain_actions_s10.json
-!c/magma/rl/out/coal_prefixes.json
+!blaze/rl/out/chain_actions_s10.json
+!blaze/rl/out/coal_prefixes.json
 
 # ---- regenerated from YOUR Minecraft install (never committed) ----
 # scripts/bootstrap_oracle.sh
 java/oracle-src/
 # scripts/bootstrap_assets.sh
-c/magma/assets/atlas_gen.h
-c/magma/assets/colormap_gen.h
-c/magma/assets/gui_atlas.h
-c/magma/assets/hand_atlas.h
-c/magma/assets/inventory_ui_atlas.h
-c/magma/assets/hud_atlas.h
-c/magma/assets/item_atlas.h
-c/magma/assets/loading_bg.h
-c/magma/assets/mob_atlas.h
-c/magma/assets/portal_tex.h
-c/magma/assets/sky_atlas.h
-c/magma/assets/underwater_tex.h
-c/magma/assets/water_frames.h
+magma/assets/atlas_gen.h
+magma/assets/colormap_gen.h
+magma/assets/gui_atlas.h
+magma/assets/hand_atlas.h
+magma/assets/inventory_ui_atlas.h
+magma/assets/hud_atlas.h
+magma/assets/item_atlas.h
+magma/assets/loading_bg.h
+magma/assets/mob_atlas.h
+magma/assets/portal_tex.h
+magma/assets/sky_atlas.h
+magma/assets/underwater_tex.h
+magma/assets/water_frames.h
 
 
-# generated demo outputs (pack lives under c/magma/raster/verify/demo/)
+# generated demo outputs (pack lives under verify/demo/)
 demos/*
 !demos/.gitkeep
-c/magma/rl/blaze/*.so
-c/magma/rl/blaze/blaze_verify
+blaze/env/*.so
+blaze/env/blaze_verify
+*.nsys-rep
 
 # ---- regenerated from YOUR Minecraft install (never committed) ----
 # scripts/bootstrap_oracle.sh
 java/oracle-src/
 # scripts/bootstrap_assets.sh
-c/magma/assets/atlas_gen.h
-c/magma/assets/colormap_gen.h
-c/magma/assets/gui_atlas.h
-c/magma/assets/hand_atlas.h
-c/magma/assets/inventory_ui_atlas.h
-c/magma/assets/hud_atlas.h
-c/magma/assets/item_atlas.h
-c/magma/assets/loading_bg.h
-c/magma/assets/mob_atlas.h
-c/magma/assets/portal_tex.h
-c/magma/assets/sky_atlas.h
-c/magma/assets/underwater_tex.h
-c/magma/assets/water_frames.h
+magma/assets/atlas_gen.h
+magma/assets/colormap_gen.h
+magma/assets/gui_atlas.h
+magma/assets/hand_atlas.h
+magma/assets/inventory_ui_atlas.h
+magma/assets/hud_atlas.h
+magma/assets/item_atlas.h
+magma/assets/loading_bg.h
+magma/assets/mob_atlas.h
+magma/assets/portal_tex.h
+magma/assets/sky_atlas.h
+magma/assets/underwater_tex.h
+magma/assets/water_frames.h

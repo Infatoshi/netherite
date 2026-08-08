@@ -8,7 +8,7 @@ camera per tick into one mosaic frame. Snapshot assignment is SHUFFLED so
 repeated worlds do not form diagonal stripes, and a content report counts
 near-constant (sky/ocean-stare) tiles at the end.
 
-Output: /home/infatoshi/dev/nw/.tmp/batchobs/mosaic.npy [F, 2880, 5760, 3]
+Output: ~/dev/nw/.tmp/batchobs/mosaic.npy [F, 2880, 5760, 3]
         + meta.json.
 
 Run (GPU0): cd netherite && CUDA_VISIBLE_DEVICES=0 uv run --no-project \
@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.join(MAGMA, "rl"))
 from blaze import VecBlaze, CUDA_SO                     # noqa: E402
 from make_videos import COLORS, CAM_W, CAM_H            # noqa: E402
 
-OUT = "/home/infatoshi/dev/nw/.tmp/batchobs"
+OUT = os.path.expanduser("~/dev/nw/.tmp/batchobs")
 GCOLS, GROWS = 90, 80
 N = GCOLS * GROWS
 FRAMES = 470

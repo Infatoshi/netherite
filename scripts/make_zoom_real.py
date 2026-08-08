@@ -19,20 +19,31 @@ Run (after zoom_rollouts.py and zoom_hero_clip.py):
 import argparse
 import json
 import os
+import shutil
 import subprocess
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WORK = "/home/infatoshi/dev/nw/.tmp/zoomrolls"
-HERO_DIR = "/home/infatoshi/dev/nw/.tmp/zoom_hero"
+WORK = os.environ.get("ZOOM_WORK", os.path.expanduser("~/dev/nw/.tmp/zoomrolls"))
+HERO_DIR = os.path.expanduser("~/dev/nw/.tmp/zoom_hero")
 W, H, FPS = 1920, 960, 30
 ZOOM_FRAMES, HOLD_FRAMES = 270, 74
 T = 192                    # square tile size (native rollout render)
 MIPS = (96, 48, 24)
-COLS, ROWS = 128, 64
-N = COLS * ROWS
+
+FONTS = ("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+         "/System/Library/Fonts/Menlo.ttc")
+
+
+def load_font(size):
+    for p in FONTS:
+        try:
+            return ImageFont.truetype(p, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
 
 
 class Clips:
@@ -68,9 +79,18 @@ class Clips:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--keep-native", type=int, default=256)
+    ap.add_argument("--cols", type=int, default=128)
+    ap.add_argument("--rows", type=int, default=64)
+    ap.add_argument("--no-hero", action="store_true",
+                    help="hero slot plays its own native rollout instead of "
+                         "a zoom_hero_clip.py policy clip")
+    ap.add_argument("--title", default="netherite")
     ap.add_argument("--out",
                     default=os.path.join(ROOT, "demos", "zoom_8192_real.mp4"))
     args = ap.parse_args()
+    global COLS, ROWS, N
+    COLS, ROWS = args.cols, args.rows
+    N = COLS * ROWS
     total = ZOOM_FRAMES + HOLD_FRAMES
 
     missing = [e for e in range(N)
@@ -87,6 +107,18 @@ def main():
     natives = [int(e) for e in rng.permutation(args.keep_native)]
     block_envs = natives[:len(block)]
     spare = natives[len(block):] + list(range(args.keep_native, N))
+    if len(block_envs) < len(block):
+        # fewer natives than the full-res block (e.g. --keep-native 1, hero
+        # only): pad from spare; those tiles upscale their 96 mip instead.
+        pad = len(block) - len(block_envs)
+        block_envs = block_envs + spare[:pad]
+        spare = spare[pad:]
+        # the zoom opens fullscreen on (cr, cc), so that slot must hold a
+        # native env; block_envs is consumed in row-major order
+        ci = block.index((cr, cc))
+        ni = next(i for i, e in enumerate(block_envs)
+                  if e < args.keep_native)
+        block_envs[ci], block_envs[ni] = block_envs[ni], block_envs[ci]
     others = [int(e) for e in rng.permutation(spare)]
     env_of = {}
     bi = oi = 0
@@ -101,22 +133,44 @@ def main():
                 oi += 1
     clips = Clips(WORK)
 
-    meta = json.load(open(os.path.join(HERO_DIR, "META.json")))
-    hero_frames_dir = os.path.join(HERO_DIR, "frames")
-    hero_files = sorted(f for f in os.listdir(hero_frames_dir)
-                        if f.endswith(".ppm"))
-    assert len(hero_files) >= 200
+    hero_files = []
+    meta = {"start": "n/a"}
+    if not args.no_hero:
+        meta = json.load(open(os.path.join(HERO_DIR, "META.json")))
+        hero_frames_dir = os.path.join(HERO_DIR, "frames")
+        hero_files = sorted(f for f in os.listdir(hero_frames_dir)
+                            if f.endswith(".ppm"))
+        assert len(hero_files) >= 200
 
-    mw, mh = COLS * T, ROWS * T          # 24576 x 12288 - exactly 2:1
+    mw, mh = COLS * T, ROWS * T          # 128x64: 24576 x 12288, exactly 2:1
     ax, ay = (cc + 0.5) * T, (cr + 0.5) * T
     w0, w1 = float(T), float(mw)
-    font = ImageFont.truetype(
-        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 96)
+    font = load_font(96)
 
-    enc = subprocess.Popen(
-        ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
-         "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v", "libx264",
-         "-crf", "18", "-pix_fmt", "yuv420p", args.out], stdin=subprocess.PIPE)
+    # ffmpeg from PATH, else imageio-ffmpeg's bundled static binary (mac),
+    # else write raw rgb24 and print the encode cmd
+    ffmpeg = "ffmpeg"
+    if shutil.which("ffmpeg") is None:
+        try:
+            import imageio_ffmpeg
+            ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        except ImportError:
+            pass
+    raw = None
+    try:
+        enc = subprocess.Popen(
+            [ffmpeg, "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt",
+             "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-", "-c:v",
+             "libx264", "-crf", "18", "-pix_fmt", "yuv420p", args.out],
+            stdin=subprocess.PIPE)
+    except FileNotFoundError:
+        raw = args.out + ".rgb24"
+        enc = None
+        rawf = open(raw, "wb")
+        print(f"ffmpeg not found: writing {raw}; encode with\n"
+              f"  ffmpeg -f rawvideo -pix_fmt rgb24 -s {W}x{H} -r {FPS} "
+              f"-i {os.path.basename(raw)} -c:v libx264 -crf 18 "
+              f"-pix_fmt yuv420p {os.path.basename(args.out)}")
     for f in range(total):
         t = min(f / (ZOOM_FRAMES - 1), 1.0)
         s = t * t * (3 - 2 * t)
@@ -153,7 +207,7 @@ def main():
         # hero overlay from its native square render
         scale = W / vw
         hsw = T * scale
-        if hsw >= 3:
+        if hero_files and hsw >= 3:
             hf = min(f, len(hero_files) - 1)
             hero = Image.open(os.path.join(hero_frames_dir, hero_files[hf]))
             hx, hy = (cc * T - x0) * scale, (cr * T - y0) * scale
@@ -164,19 +218,25 @@ def main():
         if f >= ZOOM_FRAMES - 10:
             a = min((f - (ZOOM_FRAMES - 10)) / 20.0, 1.0)
             dr = ImageDraw.Draw(frame, "RGBA")
-            tw_ = dr.textlength("netherite", font=font)
+            tw_ = dr.textlength(args.title, font=font)
             bx, by = (W - tw_) / 2, H / 2 - 64
             dr.rounded_rectangle([bx - 40, by - 24, bx + tw_ + 40, by + 120],
                                  radius=24, fill=(18, 16, 14, int(230 * a)))
-            dr.text((bx, by), "netherite", font=font,
+            dr.text((bx, by), args.title, font=font,
                     fill=(245, 240, 235, int(255 * a)))
-        enc.stdin.write(np.asarray(frame.convert("RGB")).tobytes())
+        buf = np.asarray(frame.convert("RGB")).tobytes()
+        (rawf if enc is None else enc.stdin).write(buf)
         if (f + 1) % 60 == 0:
             print(f"composed {f + 1}/{total}", flush=True)
-    enc.stdin.close()
-    enc.wait()
-    assert enc.returncode == 0
-    print(f"wrote {args.out} ({total} frames, {COLS}x{ROWS} live worlds, "
+    if enc is None:
+        rawf.close()
+        print(f"wrote {raw} ({total} frames raw)")
+    else:
+        enc.stdin.close()
+        enc.wait()
+        assert enc.returncode == 0
+    print(f"wrote {args.out if enc is not None else raw} "
+          f"({total} frames, {COLS}x{ROWS} live worlds, "
           f"hero window from t={meta['start']})")
 
 

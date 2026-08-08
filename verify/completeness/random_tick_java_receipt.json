@@ -1,0 +1,238 @@
+{
+  "active_cases": [
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 74,
+      "case": "lit_redstone_ore",
+      "meta": 0,
+      "raw_y_y1": [
+        144,
+        4,
+        16,
+        0
+      ]
+    },
+    {
+      "after_world_rng48": 15386904305625,
+      "before_world_rng48": 25214903879,
+      "block": 213,
+      "case": "magma_static_water",
+      "meta": 0,
+      "raw_y_y1": [
+        80,
+        13,
+        0,
+        0
+      ]
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 37,
+      "case": "supported_flower",
+      "meta": 0,
+      "raw_y_y1": [
+        80,
+        2,
+        16,
+        0
+      ]
+    },
+    {
+      "after_world_rng48": 13493716152507,
+      "before_world_rng48": 25214903879,
+      "block": 37,
+      "case": "unsupported_flower",
+      "meta": 0,
+      "raw_y_y1": [
+        0,
+        0,
+        16,
+        0
+      ]
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 8,
+      "case": "dynamic_water_flat",
+      "meta": 0,
+      "raw_plane_3x3": [
+        0,
+        129,
+        0,
+        129,
+        128,
+        129,
+        0,
+        129,
+        0
+      ]
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 10,
+      "case": "dynamic_lava_flat",
+      "meta": 0,
+      "raw_plane_3x3": [
+        0,
+        162,
+        0,
+        162,
+        160,
+        162,
+        0,
+        162,
+        0
+      ]
+    },
+    {
+      "after_world_rng48": 13493716152507,
+      "before_world_rng48": 25214903879,
+      "block": 8,
+      "case": "water_replaces_flower",
+      "meta": 0,
+      "raw_source_target": [
+        128,
+        129
+      ]
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 8,
+      "case": "water_replaces_snow",
+      "meta": 0,
+      "raw_source_target": [
+        128,
+        129
+      ]
+    },
+    {
+      "after_world_rng48": 15386904305625,
+      "before_world_rng48": 25214903879,
+      "block": 10,
+      "case": "lava_replaces_flower",
+      "meta": 0,
+      "raw_source_target": [
+        160,
+        162
+      ]
+    },
+    {
+      "after_world_rng48": 15386904305625,
+      "before_world_rng48": 25214903879,
+      "block": 10,
+      "case": "lava_down_into_water",
+      "meta": 0,
+      "raw_below_source": [
+        16,
+        160
+      ]
+    }
+  ],
+  "no_op_cases": [
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 28,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 50,
+      "meta": 5
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 70,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 72,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 75,
+      "meta": 5
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 76,
+      "meta": 5
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 77,
+      "meta": 5
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 86,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 91,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 92,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 131,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 132,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 143,
+      "meta": 5
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 147,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 148,
+      "meta": 0
+    },
+    {
+      "after_world_rng48": 25214903879,
+      "before_world_rng48": 25214903879,
+      "block": 171,
+      "meta": 0
+    }
+  ],
+  "public_seed": 42,
+  "schema": "netherite.random_tick_java_receipt",
+  "source": "real Minecraft Java 1.11.2 WorldServer Block.randomTick",
+  "version": 1
+}

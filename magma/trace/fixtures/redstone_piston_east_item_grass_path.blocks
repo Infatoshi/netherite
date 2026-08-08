@@ -1,0 +1,5 @@
+# EAST piston pushes a stationary item into the side of a grass path. Air
+# above the path prevents its solid-above conversion to dirt.
+11 78 9 152 0
+13 77 8 1 0
+13 78 8 208 0

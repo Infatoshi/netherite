@@ -1,0 +1,2575 @@
+{
+  "margin": 2.0,
+  "fail": 0,
+  "residual": 5,
+  "blocked": [],
+  "residuals": [
+    {
+      "id": "hand_bow_pull20",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 27.16547071664112,
+      "gate": 0.0,
+      "hard_px": 24020,
+      "hard_thr": 0,
+      "max_diff": 100.0,
+      "verdict": "RESIDUAL",
+      "reason": "hard_residual",
+      "residual_bbox": [
+        569,
+        320,
+        845,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 580,
+          "y": 320,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 833,
+          "y": 327,
+          "maxch": 2,
+          "c": [
+            70,
+            52,
+            20
+          ],
+          "j": [
+            68,
+            51,
+            19
+          ]
+        },
+        {
+          "x": 598,
+          "y": 336,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 652,
+          "y": 344,
+          "maxch": 1,
+          "c": [
+            43,
+            43,
+            43
+          ],
+          "j": [
+            42,
+            42,
+            42
+          ]
+        },
+        {
+          "x": 575,
+          "y": 353,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 731,
+          "y": 362,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 690,
+          "y": 373,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 699,
+          "y": 384,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 646,
+          "y": 393,
+          "maxch": 1,
+          "c": [
+            20,
+            15,
+            6
+          ],
+          "j": [
+            20,
+            15,
+            5
+          ]
+        },
+        {
+          "x": 806,
+          "y": 401,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 699,
+          "y": 411,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 823,
+          "y": 420,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        }
+      ],
+      "n_owned": 28708,
+      "n_painted": 14713,
+      "c_paint_nz": 10025,
+      "c_paint_maxch": 97,
+      "c_paint_mean": 0.5005097532794127,
+      "n_only_j": 13995,
+      "n_only_c": 748,
+      "rule": "hand_java_union_c_subject_exact"
+    },
+    {
+      "id": "hand_eat_mid",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 13.873573713721433,
+      "gate": 0.0,
+      "hard_px": 40916,
+      "hard_thr": 0,
+      "max_diff": 215.0,
+      "verdict": "RESIDUAL",
+      "reason": "hard_residual",
+      "residual_bbox": [
+        299,
+        240,
+        753,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 418,
+          "y": 240,
+          "maxch": 61,
+          "c": [
+            215,
+            215,
+            215
+          ],
+          "j": [
+            154,
+            154,
+            154
+          ]
+        },
+        {
+          "x": 374,
+          "y": 277,
+          "maxch": 2,
+          "c": [
+            117,
+            87,
+            27
+          ],
+          "j": [
+            115,
+            85,
+            26
+          ]
+        },
+        {
+          "x": 500,
+          "y": 294,
+          "maxch": 1,
+          "c": [
+            47,
+            35,
+            11
+          ],
+          "j": [
+            46,
+            34,
+            10
+          ]
+        },
+        {
+          "x": 424,
+          "y": 312,
+          "maxch": 2,
+          "c": [
+            67,
+            50,
+            16
+          ],
+          "j": [
+            65,
+            49,
+            15
+          ]
+        },
+        {
+          "x": 414,
+          "y": 329,
+          "maxch": 1,
+          "c": [
+            47,
+            35,
+            11
+          ],
+          "j": [
+            46,
+            34,
+            10
+          ]
+        },
+        {
+          "x": 664,
+          "y": 344,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 669,
+          "y": 357,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 434,
+          "y": 369,
+          "maxch": 2,
+          "c": [
+            67,
+            50,
+            16
+          ],
+          "j": [
+            65,
+            49,
+            15
+          ]
+        },
+        {
+          "x": 714,
+          "y": 379,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 347,
+          "y": 390,
+          "maxch": 1,
+          "c": [
+            47,
+            35,
+            11
+          ],
+          "j": [
+            46,
+            34,
+            10
+          ]
+        },
+        {
+          "x": 688,
+          "y": 400,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 731,
+          "y": 414,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        }
+      ],
+      "n_owned": 49283,
+      "n_painted": 38972,
+      "c_paint_nz": 30605,
+      "c_paint_maxch": 215,
+      "c_paint_mean": 1.536222587156591,
+      "n_only_j": 10311,
+      "n_only_c": 5933,
+      "rule": "hand_java_union_c_subject_exact"
+    },
+    {
+      "id": "hand_block_shield",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 5.549589527401818,
+      "gate": 0.0,
+      "hard_px": 17280,
+      "hard_thr": 0,
+      "max_diff": 74.0,
+      "verdict": "RESIDUAL",
+      "reason": "hard_residual",
+      "residual_bbox": [
+        569,
+        320,
+        753,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 569,
+          "y": 320,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 704,
+          "y": 329,
+          "maxch": 2,
+          "c": [
+            89,
+            89,
+            95
+          ],
+          "j": [
+            87,
+            88,
+            93
+          ]
+        },
+        {
+          "x": 684,
+          "y": 339,
+          "maxch": 2,
+          "c": [
+            89,
+            89,
+            95
+          ],
+          "j": [
+            87,
+            88,
+            93
+          ]
+        },
+        {
+          "x": 656,
+          "y": 349,
+          "maxch": 2,
+          "c": [
+            67,
+            53,
+            33
+          ],
+          "j": [
+            65,
+            51,
+            32
+          ]
+        },
+        {
+          "x": 619,
+          "y": 359,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 574,
+          "y": 369,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 633,
+          "y": 378,
+          "maxch": 2,
+          "c": [
+            84,
+            68,
+            45
+          ],
+          "j": [
+            82,
+            67,
+            44
+          ]
+        },
+        {
+          "x": 575,
+          "y": 387,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 652,
+          "y": 395,
+          "maxch": 2,
+          "c": [
+            84,
+            68,
+            45
+          ],
+          "j": [
+            82,
+            67,
+            44
+          ]
+        },
+        {
+          "x": 722,
+          "y": 403,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 641,
+          "y": 413,
+          "maxch": 2,
+          "c": [
+            84,
+            68,
+            45
+          ],
+          "j": [
+            82,
+            67,
+            44
+          ]
+        },
+        {
+          "x": 619,
+          "y": 422,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        }
+      ],
+      "n_owned": 18028,
+      "n_painted": 16737,
+      "c_paint_nz": 15989,
+      "c_paint_maxch": 60,
+      "c_paint_mean": 1.5632431140586724,
+      "n_only_j": 1291,
+      "n_only_c": 1146,
+      "rule": "hand_java_union_c_subject_exact"
+    },
+    {
+      "id": "overlay_portal_050",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 46.88731833910035,
+      "gate": 0.0,
+      "hard_px": 391116,
+      "hard_thr": 0,
+      "max_diff": 173.0,
+      "verdict": "RESIDUAL",
+      "reason": "hard_residual",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 169,
+          "c": [
+            46,
+            33,
+            67
+          ],
+          "j": [
+            127,
+            145,
+            236
+          ]
+        },
+        {
+          "x": 295,
+          "y": 40,
+          "maxch": 51,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            94,
+            84,
+            112
+          ]
+        },
+        {
+          "x": 588,
+          "y": 78,
+          "maxch": 41,
+          "c": [
+            54,
+            36,
+            74
+          ],
+          "j": [
+            95,
+            77,
+            115
+          ]
+        },
+        {
+          "x": 31,
+          "y": 117,
+          "maxch": 168,
+          "c": [
+            47,
+            33,
+            67
+          ],
+          "j": [
+            135,
+            150,
+            235
+          ]
+        },
+        {
+          "x": 324,
+          "y": 155,
+          "maxch": 44,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            87,
+            77,
+            105
+          ]
+        },
+        {
+          "x": 617,
+          "y": 193,
+          "maxch": 61,
+          "c": [
+            44,
+            33,
+            63
+          ],
+          "j": [
+            105,
+            94,
+            124
+          ]
+        },
+        {
+          "x": 60,
+          "y": 232,
+          "maxch": 61,
+          "c": [
+            45,
+            33,
+            65
+          ],
+          "j": [
+            106,
+            93,
+            126
+          ]
+        },
+        {
+          "x": 353,
+          "y": 270,
+          "maxch": 51,
+          "c": [
+            43,
+            33,
+            62
+          ],
+          "j": [
+            94,
+            84,
+            113
+          ]
+        },
+        {
+          "x": 646,
+          "y": 308,
+          "maxch": 43,
+          "c": [
+            45,
+            33,
+            64
+          ],
+          "j": [
+            87,
+            76,
+            107
+          ]
+        },
+        {
+          "x": 89,
+          "y": 347,
+          "maxch": 59,
+          "c": [
+            55,
+            36,
+            74
+          ],
+          "j": [
+            114,
+            95,
+            133
+          ]
+        },
+        {
+          "x": 382,
+          "y": 385,
+          "maxch": 48,
+          "c": [
+            55,
+            36,
+            75
+          ],
+          "j": [
+            103,
+            84,
+            123
+          ]
+        },
+        {
+          "x": 341,
+          "y": 432,
+          "maxch": 62,
+          "c": [
+            44,
+            33,
+            63
+          ],
+          "j": [
+            105,
+            95,
+            124
+          ]
+        }
+      ]
+    },
+    {
+      "id": "overlay_underwater",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 6.082920579996705,
+      "gate": 0.0,
+      "hard_px": 388619,
+      "hard_thr": 0,
+      "max_diff": 55.0,
+      "verdict": "RESIDUAL",
+      "reason": "hard_residual",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 8,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            66,
+            70,
+            86
+          ]
+        },
+        {
+          "x": 86,
+          "y": 40,
+          "maxch": 5,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            62,
+            66,
+            85
+          ]
+        },
+        {
+          "x": 170,
+          "y": 78,
+          "maxch": 11,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            49,
+            53,
+            70
+          ]
+        },
+        {
+          "x": 254,
+          "y": 116,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            49,
+            62,
+            80
+          ]
+        },
+        {
+          "x": 338,
+          "y": 154,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 422,
+          "y": 192,
+          "maxch": 4,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            56,
+            60,
+            77
+          ]
+        },
+        {
+          "x": 506,
+          "y": 230,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            53,
+            71,
+            89
+          ]
+        },
+        {
+          "x": 590,
+          "y": 268,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 674,
+          "y": 306,
+          "maxch": 1,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            59,
+            63,
+            81
+          ]
+        },
+        {
+          "x": 758,
+          "y": 344,
+          "maxch": 3,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            56,
+            60,
+            79
+          ]
+        },
+        {
+          "x": 34,
+          "y": 383,
+          "maxch": 9,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            50,
+            54,
+            74
+          ]
+        },
+        {
+          "x": 42,
+          "y": 430,
+          "maxch": 9,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            67,
+            71,
+            87
+          ]
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "hud_armor_iron",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        382,
+        404,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 4436,
+      "n_compare": 4436,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_absorption_armor",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        362,
+        404,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 6476,
+      "n_compare": 6476,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_hurt_flash_on",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        402,
+        404,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 2040,
+      "n_compare": 2040,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 3.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_hurt_flash_off",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        402,
+        404,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 2040,
+      "n_compare": 2040,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 3.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_hunger_poison",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        430,
+        402,
+        608,
+        420
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 1640,
+      "n_compare": 1640,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_air_partial",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        430,
+        382,
+        608,
+        400
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 676,
+      "n_compare": 676,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_xp_half",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        398,
+        608,
+        432
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 7444,
+      "n_compare": 7444,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_durability_half",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        250,
+        442,
+        282,
+        474
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 356,
+      "n_compare": 356,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "colored_fill": true
+    },
+    {
+      "id": "hud_boss_half",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        0,
+        608,
+        36
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 4736,
+      "n_compare": 4736,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_wither_half",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        244,
+        0,
+        608,
+        36
+      ],
+      "hard": true,
+      "core_hard": true,
+      "n_painted": 4132,
+      "n_compare": 4132,
+      "n_mismatch": 0,
+      "n_hard_px": 0,
+      "hard_px": 0,
+      "hard_thr": 2,
+      "residual_bbox": null,
+      "residual_locs": [],
+      "noise_limit": 2.0,
+      "reason": "hard_parity"
+    },
+    {
+      "id": "hud_death",
+      "noise": 1.0864685514346715,
+      "c_vs_j": 33.19080185436187,
+      "gate": 3.0864685514346712,
+      "verdict": "CAPTURE_OK",
+      "roi": [
+        0,
+        0,
+        854,
+        480
+      ],
+      "hard": false,
+      "n_painted": 382712,
+      "noise_limit": 5.0,
+      "reason": "soft_capture"
+    },
+    {
+      "id": "hud_death_title",
+      "noise": 0.32827057073514443,
+      "c_vs_j": 0.0,
+      "gate": 2.3282705707351443,
+      "verdict": "PASS",
+      "roi": [
+        200,
+        118,
+        660,
+        150
+      ],
+      "hard": true,
+      "n_painted": 2544,
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "n_mismatch": 0
+    },
+    {
+      "id": "hud_death_score",
+      "noise": 0.07523510971786834,
+      "c_vs_j": 0.0,
+      "gate": 2.0752351097178683,
+      "verdict": "PASS",
+      "roi": [
+        280,
+        198,
+        580,
+        216
+      ],
+      "hard": true,
+      "n_painted": 616,
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "n_mismatch": 0
+    },
+    {
+      "id": "hud_death_btn_respawn",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        226,
+        264,
+        626,
+        304
+      ],
+      "hard": true,
+      "n_painted": 16000,
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "n_mismatch": 0
+    },
+    {
+      "id": "hud_death_btn_title",
+      "noise": 0.0,
+      "c_vs_j": 0.0,
+      "gate": 2.0,
+      "verdict": "PASS",
+      "roi": [
+        226,
+        312,
+        626,
+        352
+      ],
+      "hard": true,
+      "n_painted": 16000,
+      "noise_limit": 2.0,
+      "reason": "hard_parity",
+      "n_mismatch": 0
+    },
+    {
+      "id": "hud_death_tint_pair",
+      "noise": 2.8117610531544956,
+      "c_vs_j": 32.16201830955929,
+      "gate": 4.811761053154496,
+      "verdict": "PASS",
+      "roi": [
+        0,
+        0,
+        854,
+        480
+      ],
+      "hard": true,
+      "n_painted": 187880,
+      "noise_limit": 5.0,
+      "reason": "paired_background_source_model",
+      "n_mismatch": 0,
+      "c_vs_model": 0.0,
+      "full_frame_c_vs_j": 31.058669984387198,
+      "full_frame_ab_noise": 2.616809784022899,
+      "pure_zone_c_vs_j": 32.16201830955929,
+      "pure_zone_ab_noise": 2.8117610531544956,
+      "java_model_identity_mean": 0.9794017457951885,
+      "java_model_identity_max": 1,
+      "world_parity": "BLOCKED",
+      "blocker": "Same-scene full-frame death parity needs a world underlay companion (no survival HUD) at the death pose/partialTicks. C isolation uses GRAY=40; Java death is gradient over the live stone pad. Existing living HUD goldens include survival chrome and are not a valid pre-death underlay. qrl frame{} always runs renderGameOverlay; no safe world-only companion via the current capture driver without new frame flags. Pure-band C-vs-J is world composition residual, not gradient math (c_vs_model=0 when PASS)."
+    },
+    {
+      "id": "hand_bow_pull20",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 27.16547071664112,
+      "max_diff": 100.0,
+      "hard_px": 24020,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        569,
+        320,
+        846,
+        432
+      ],
+      "hard": true,
+      "hand_exact": true,
+      "n_painted": 14713,
+      "n_owned": 28708,
+      "n_j_subj": 27960,
+      "n_c_subj": 14713,
+      "n_only_j": 13995,
+      "n_only_c": 748,
+      "c_paint_nz": 10025,
+      "c_paint_maxch": 97,
+      "c_paint_mean": 0.5005097532794127,
+      "noise_limit": 3.0,
+      "reason": "hard_residual",
+      "java_subject": "empty_hand_differential",
+      "rule": "hand_java_union_c_subject_exact",
+      "residual_bbox": [
+        569,
+        320,
+        845,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 580,
+          "y": 320,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 833,
+          "y": 327,
+          "maxch": 2,
+          "c": [
+            70,
+            52,
+            20
+          ],
+          "j": [
+            68,
+            51,
+            19
+          ]
+        },
+        {
+          "x": 598,
+          "y": 336,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 652,
+          "y": 344,
+          "maxch": 1,
+          "c": [
+            43,
+            43,
+            43
+          ],
+          "j": [
+            42,
+            42,
+            42
+          ]
+        },
+        {
+          "x": 575,
+          "y": 353,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 731,
+          "y": 362,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 690,
+          "y": 373,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 699,
+          "y": 384,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 646,
+          "y": 393,
+          "maxch": 1,
+          "c": [
+            20,
+            15,
+            6
+          ],
+          "j": [
+            20,
+            15,
+            5
+          ]
+        },
+        {
+          "x": 806,
+          "y": 401,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 699,
+          "y": 411,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 823,
+          "y": 420,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hand_eat_mid",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 13.873573713721433,
+      "max_diff": 215.0,
+      "hard_px": 40916,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        284,
+        240,
+        846,
+        432
+      ],
+      "hard": true,
+      "hand_exact": true,
+      "n_painted": 38972,
+      "n_owned": 49283,
+      "n_j_subj": 43350,
+      "n_c_subj": 38972,
+      "n_only_j": 10311,
+      "n_only_c": 5933,
+      "c_paint_nz": 30605,
+      "c_paint_maxch": 215,
+      "c_paint_mean": 1.536222587156591,
+      "noise_limit": 2.0,
+      "reason": "hard_residual",
+      "java_subject": "empty_hand_differential",
+      "rule": "hand_java_union_c_subject_exact",
+      "residual_bbox": [
+        299,
+        240,
+        753,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 418,
+          "y": 240,
+          "maxch": 61,
+          "c": [
+            215,
+            215,
+            215
+          ],
+          "j": [
+            154,
+            154,
+            154
+          ]
+        },
+        {
+          "x": 374,
+          "y": 277,
+          "maxch": 2,
+          "c": [
+            117,
+            87,
+            27
+          ],
+          "j": [
+            115,
+            85,
+            26
+          ]
+        },
+        {
+          "x": 500,
+          "y": 294,
+          "maxch": 1,
+          "c": [
+            47,
+            35,
+            11
+          ],
+          "j": [
+            46,
+            34,
+            10
+          ]
+        },
+        {
+          "x": 424,
+          "y": 312,
+          "maxch": 2,
+          "c": [
+            67,
+            50,
+            16
+          ],
+          "j": [
+            65,
+            49,
+            15
+          ]
+        },
+        {
+          "x": 414,
+          "y": 329,
+          "maxch": 1,
+          "c": [
+            47,
+            35,
+            11
+          ],
+          "j": [
+            46,
+            34,
+            10
+          ]
+        },
+        {
+          "x": 664,
+          "y": 344,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 669,
+          "y": 357,
+          "maxch": 52,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            92,
+            92,
+            92
+          ]
+        },
+        {
+          "x": 434,
+          "y": 369,
+          "maxch": 2,
+          "c": [
+            67,
+            50,
+            16
+          ],
+          "j": [
+            65,
+            49,
+            15
+          ]
+        },
+        {
+          "x": 714,
+          "y": 379,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 347,
+          "y": 390,
+          "maxch": 1,
+          "c": [
+            47,
+            35,
+            11
+          ],
+          "j": [
+            46,
+            34,
+            10
+          ]
+        },
+        {
+          "x": 688,
+          "y": 400,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        },
+        {
+          "x": 731,
+          "y": 414,
+          "maxch": 74,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            114,
+            114,
+            114
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hand_block_shield",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 5.549589527401818,
+      "max_diff": 74.0,
+      "hard_px": 17280,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        569,
+        320,
+        846,
+        432
+      ],
+      "hard": true,
+      "hand_exact": true,
+      "n_painted": 16737,
+      "n_owned": 18028,
+      "n_j_subj": 16882,
+      "n_c_subj": 16737,
+      "n_only_j": 1291,
+      "n_only_c": 1146,
+      "c_paint_nz": 15989,
+      "c_paint_maxch": 60,
+      "c_paint_mean": 1.5632431140586724,
+      "noise_limit": 2.0,
+      "reason": "hard_residual",
+      "java_subject": "empty_hand_differential",
+      "rule": "hand_java_union_c_subject_exact",
+      "residual_bbox": [
+        569,
+        320,
+        753,
+        431
+      ],
+      "residual_locs": [
+        {
+          "x": 569,
+          "y": 320,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 704,
+          "y": 329,
+          "maxch": 2,
+          "c": [
+            89,
+            89,
+            95
+          ],
+          "j": [
+            87,
+            88,
+            93
+          ]
+        },
+        {
+          "x": 684,
+          "y": 339,
+          "maxch": 2,
+          "c": [
+            89,
+            89,
+            95
+          ],
+          "j": [
+            87,
+            88,
+            93
+          ]
+        },
+        {
+          "x": 656,
+          "y": 349,
+          "maxch": 2,
+          "c": [
+            67,
+            53,
+            33
+          ],
+          "j": [
+            65,
+            51,
+            32
+          ]
+        },
+        {
+          "x": 619,
+          "y": 359,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 574,
+          "y": 369,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 633,
+          "y": 378,
+          "maxch": 2,
+          "c": [
+            84,
+            68,
+            45
+          ],
+          "j": [
+            82,
+            67,
+            44
+          ]
+        },
+        {
+          "x": 575,
+          "y": 387,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        },
+        {
+          "x": 652,
+          "y": 395,
+          "maxch": 2,
+          "c": [
+            84,
+            68,
+            45
+          ],
+          "j": [
+            82,
+            67,
+            44
+          ]
+        },
+        {
+          "x": 722,
+          "y": 403,
+          "maxch": 61,
+          "c": [
+            40,
+            40,
+            40
+          ],
+          "j": [
+            101,
+            101,
+            101
+          ]
+        },
+        {
+          "x": 641,
+          "y": 413,
+          "maxch": 2,
+          "c": [
+            84,
+            68,
+            45
+          ],
+          "j": [
+            82,
+            67,
+            44
+          ]
+        },
+        {
+          "x": 619,
+          "y": 422,
+          "maxch": 2,
+          "c": [
+            63,
+            50,
+            30
+          ],
+          "j": [
+            61,
+            48,
+            29
+          ]
+        }
+      ]
+    },
+    {
+      "id": "overlay_inside_stone",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 0.0,
+      "max_diff": 0.0,
+      "hard_px": 0,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404364,
+      "n_stable": 404600,
+      "stable_frac": 1.0,
+      "n_roi": 404600,
+      "noise_limit": 3.0,
+      "reason": "fullscreen_exact",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": null,
+      "residual_locs": []
+    },
+    {
+      "id": "overlay_inside_grass",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 0.0,
+      "max_diff": 0.0,
+      "hard_px": 0,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "PASS",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404364,
+      "n_stable": 404600,
+      "stable_frac": 1.0,
+      "n_roi": 404600,
+      "noise_limit": 3.0,
+      "reason": "fullscreen_exact",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": null,
+      "residual_locs": []
+    },
+    {
+      "id": "overlay_portal_050",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 46.88731833910035,
+      "max_diff": 173.0,
+      "hard_px": 391116,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404364,
+      "n_stable": 404600,
+      "stable_frac": 1.0,
+      "n_roi": 404600,
+      "noise_limit": 3.0,
+      "reason": "hard_residual",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 169,
+          "c": [
+            46,
+            33,
+            67
+          ],
+          "j": [
+            127,
+            145,
+            236
+          ]
+        },
+        {
+          "x": 295,
+          "y": 40,
+          "maxch": 51,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            94,
+            84,
+            112
+          ]
+        },
+        {
+          "x": 588,
+          "y": 78,
+          "maxch": 41,
+          "c": [
+            54,
+            36,
+            74
+          ],
+          "j": [
+            95,
+            77,
+            115
+          ]
+        },
+        {
+          "x": 31,
+          "y": 117,
+          "maxch": 168,
+          "c": [
+            47,
+            33,
+            67
+          ],
+          "j": [
+            135,
+            150,
+            235
+          ]
+        },
+        {
+          "x": 324,
+          "y": 155,
+          "maxch": 44,
+          "c": [
+            43,
+            33,
+            61
+          ],
+          "j": [
+            87,
+            77,
+            105
+          ]
+        },
+        {
+          "x": 617,
+          "y": 193,
+          "maxch": 61,
+          "c": [
+            44,
+            33,
+            63
+          ],
+          "j": [
+            105,
+            94,
+            124
+          ]
+        },
+        {
+          "x": 60,
+          "y": 232,
+          "maxch": 61,
+          "c": [
+            45,
+            33,
+            65
+          ],
+          "j": [
+            106,
+            93,
+            126
+          ]
+        },
+        {
+          "x": 353,
+          "y": 270,
+          "maxch": 51,
+          "c": [
+            43,
+            33,
+            62
+          ],
+          "j": [
+            94,
+            84,
+            113
+          ]
+        },
+        {
+          "x": 646,
+          "y": 308,
+          "maxch": 43,
+          "c": [
+            45,
+            33,
+            64
+          ],
+          "j": [
+            87,
+            76,
+            107
+          ]
+        },
+        {
+          "x": 89,
+          "y": 347,
+          "maxch": 59,
+          "c": [
+            55,
+            36,
+            74
+          ],
+          "j": [
+            114,
+            95,
+            133
+          ]
+        },
+        {
+          "x": 382,
+          "y": 385,
+          "maxch": 48,
+          "c": [
+            55,
+            36,
+            75
+          ],
+          "j": [
+            103,
+            84,
+            123
+          ]
+        },
+        {
+          "x": 341,
+          "y": 432,
+          "maxch": 62,
+          "c": [
+            44,
+            33,
+            63
+          ],
+          "j": [
+            105,
+            95,
+            124
+          ]
+        }
+      ]
+    },
+    {
+      "id": "overlay_fire",
+      "noise": 0.0,
+      "c_vs_j": 5.691539494506262,
+      "gate": 2.0,
+      "verdict": "CAPTURE_OK",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": false,
+      "n_painted": 133546,
+      "noise_limit": 35.0,
+      "reason": "soft_capture"
+    },
+    {
+      "id": "overlay_underwater",
+      "noise": 0.0,
+      "noise_max": 0.0,
+      "n_ab_maxch_ge1": 0,
+      "c_vs_j": 6.082920579996705,
+      "max_diff": 55.0,
+      "hard_px": 388619,
+      "hard_thr": 0,
+      "gate": 0.0,
+      "verdict": "RESIDUAL",
+      "roi": [
+        2,
+        2,
+        852,
+        478
+      ],
+      "hard": true,
+      "fullscreen": true,
+      "n_painted": 404364,
+      "n_stable": 404600,
+      "stable_frac": 1.0,
+      "n_roi": 404600,
+      "noise_limit": 3.0,
+      "reason": "hard_residual",
+      "rule": "fullscreen_replace_exact",
+      "residual_bbox": [
+        2,
+        2,
+        851,
+        477
+      ],
+      "residual_locs": [
+        {
+          "x": 2,
+          "y": 2,
+          "maxch": 8,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            66,
+            70,
+            86
+          ]
+        },
+        {
+          "x": 86,
+          "y": 40,
+          "maxch": 5,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            62,
+            66,
+            85
+          ]
+        },
+        {
+          "x": 170,
+          "y": 78,
+          "maxch": 11,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            49,
+            53,
+            70
+          ]
+        },
+        {
+          "x": 254,
+          "y": 116,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            49,
+            62,
+            80
+          ]
+        },
+        {
+          "x": 338,
+          "y": 154,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 422,
+          "y": 192,
+          "maxch": 4,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            56,
+            60,
+            77
+          ]
+        },
+        {
+          "x": 506,
+          "y": 230,
+          "maxch": 8,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            53,
+            71,
+            89
+          ]
+        },
+        {
+          "x": 590,
+          "y": 268,
+          "maxch": 2,
+          "c": [
+            59,
+            64,
+            81
+          ],
+          "j": [
+            61,
+            65,
+            81
+          ]
+        },
+        {
+          "x": 674,
+          "y": 306,
+          "maxch": 1,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            59,
+            63,
+            81
+          ]
+        },
+        {
+          "x": 758,
+          "y": 344,
+          "maxch": 3,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            56,
+            60,
+            79
+          ]
+        },
+        {
+          "x": 34,
+          "y": 383,
+          "maxch": 9,
+          "c": [
+            57,
+            63,
+            81
+          ],
+          "j": [
+            50,
+            54,
+            74
+          ]
+        },
+        {
+          "x": 42,
+          "y": 430,
+          "maxch": 9,
+          "c": [
+            58,
+            63,
+            81
+          ],
+          "j": [
+            67,
+            71,
+            87
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": "PASS = hard parity only when noise_max==0 and hard_px==0 (bit-exact C vs Java_a on A/B-stable full ROI). Fullscreen inside-block + portal + underwater never use ceil(noise_max) as PASS tolerance. CAPTURE_BLOCKED = A/B stable maxch residual > 0 (no C may PASS, including C=Java_a / Java_b / midpoint / Java_a+1). RESIDUAL = A/B bit-exact but C residual (nonzero exit). CAPTURE_OK = soft capture integrity only (fire/full-frame death). Underwater is hard full-ROI residual. FAIL = missing/noise/empty/unstable. Core HUD: oracle\u222aC masks, hard_px==0 at A/B noise. hud_durability_half uses atlas-alpha\u222astrip\u222aC-extra ownership (C-extra = unowned icon pixels not equal to exact HUD_HOTBAR-over-GRAY isolation underlay; not threshold holes, not Java world). Hands: Java\u222aC subject ownership, hard_thr=0, A/B exact for PASS; no mean-budget hard_parity. Sticky-pin shield golden is exact capture; C residual with hard_px>0 stays RESIDUAL (not pixel-perfect). Portal: GuiIngame.renderPortal over gray C isolation; outdoor Java underlay is a same-scene product residual (not a fitted black cell). Real portal A/B has maxch=1 residuals -> CAPTURE_BLOCKED. GuiGameOver: hard = opaque chrome (title/score body+shadow, full button rects) + hud_death_tint_pair (source gradient blend over known underlay); full-frame tint/world composition is soft and does not claim same-scene parity."
+}

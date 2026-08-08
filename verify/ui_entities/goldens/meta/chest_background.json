@@ -1,0 +1,72 @@
+{
+  "id": "chest_background",
+  "pin_reply_a": {
+    "ok": true,
+    "set": 16,
+    "num_ticks": 2402
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "set": 16,
+    "num_ticks": 2402
+  },
+  "frame_a": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/chest_background_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/chest_background_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 0,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 894,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/chest_background_a.png"
+  },
+  "frame_b": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/chest_background_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/chest_background_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 0,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 894,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/chest_background_b.png"
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 18.0,
+    "no_gravity": true
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "stable_ab": true,
+  "notes": "A/B from qrl frame{} at partialTicks=1; client render pin applied immediately before renderWorld for squish/deathTicks/xp_orb",
+  "tiles": [],
+  "present": false,
+  "clean_world_render": true
+}

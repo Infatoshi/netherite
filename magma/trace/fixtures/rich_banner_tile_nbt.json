@@ -1,0 +1,30 @@
+{
+  "name": "",
+  "tag": {
+    "type": "compound",
+    "value": {
+      "Base": {"type": "int", "value": 7},
+      "Patterns": {
+        "type": "list",
+        "element_type": "compound",
+        "value": [
+          {
+            "type": "compound",
+            "value": {
+              "Pattern": {"type": "string", "value": "bs"},
+              "Color": {"type": "int", "value": 14}
+            }
+          },
+          {
+            "type": "compound",
+            "value": {
+              "Pattern": {"type": "string", "value": "cre"},
+              "Color": {"type": "int", "value": 5}
+            }
+          }
+        ]
+      },
+      "CustomName": {"type": "string", "value": "Parity Banner"}
+    }
+  }
+}

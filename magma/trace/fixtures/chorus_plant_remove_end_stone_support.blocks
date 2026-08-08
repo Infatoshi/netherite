@@ -1,0 +1,6 @@
+# A chorus plant starts valid directly above end stone. Removing its only
+# support schedules the one-tick survival callback. Internal World.rand seed
+# zero makes quantityDropped(nextInt(2)) return zero, isolating destruction
+# and the single quantity draw without an EntityItem.
+15 77 8 121 0
+15 78 8 199 0

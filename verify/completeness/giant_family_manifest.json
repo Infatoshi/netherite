@@ -1,0 +1,54 @@
+{
+  "schema": "netherite.giant_family_gate",
+  "version": 1,
+  "todo": "AI-01",
+  "java_contract": {
+    "width": 3.6,
+    "height": 11.7,
+    "eye_height": 10.440001,
+    "max_health": 100.0,
+    "movement_speed": 0.5,
+    "attack_damage": 50.0,
+    "installed_tasks": 0,
+    "installed_target_tasks": 0
+  },
+  "death_loot_oracle": {
+    "giant_death_rows": 9,
+    "aggregate_death_rows": 261,
+    "giant_loot_rows": 15,
+    "aggregate_hostile_loot_rows": 375,
+    "empty_table_and_rng": "bit_exact",
+    "terminal_xp": 5
+  },
+  "state_continuation": {
+    "java_native_no_ai_ticks": 20,
+    "shared_plain_entity_classes": 34,
+    "native_active_ticks": 40,
+    "save_boundary_tick": 20,
+    "goal_less_state": "exact"
+  },
+  "render_contract": {
+    "model": "zombie",
+    "uniform_scale": 6.0,
+    "texture": "zombie_jar_exact",
+    "eye_height": 10.440001
+  },
+  "implemented": [
+    "live_giant_type",
+    "exact_dimensions_eye_height_and_attributes",
+    "zero_task_and_zero_target_task_active_behavior",
+    "shared_living_gravity_collision_despawn_and_damage",
+    "exact_empty_loot_table",
+    "exact_five_xp_terminal_death",
+    "java_nbt_capsule_native_continuation",
+    "native_active_save_continuation",
+    "zombie_model_at_uniform_scale_six",
+    "jar_exact_zombie_skin"
+  ],
+  "remaining": [
+    "arbitrary_multiplayer_despawn_and_loaded_entity_order",
+    "full_environment_damage_matrix",
+    "command_spawner_and_cross_dimension_integration",
+    "bounded_same_scene_java_native_model_pixels"
+  ]
+}

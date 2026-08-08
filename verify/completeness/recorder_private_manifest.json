@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "todo": "HAR-08",
+  "required_cases": [
+    "explosion",
+    "cloud",
+    "weather",
+    "hand",
+    "gui"
+  ],
+  "requirements": {
+    "java_ab_diff_pixels": 0,
+    "minimum_signal_pixels": 1,
+    "particle_ids": [
+      0,
+      1,
+      2,
+      11,
+      15,
+      34,
+      48
+    ],
+    "live_particle_ids": [
+      0,
+      1,
+      2,
+      15
+    ],
+    "gui_events": [
+      "screen",
+      "mouse",
+      "window_click"
+    ],
+    "row_clocks": [
+      "client_total_time",
+      "player_ticks",
+      "server_tick",
+      "server_total_time",
+      "server_player_ticks",
+      "portal_phase"
+    ],
+    "render_partial_ticks": 1.0
+  },
+  "last_live": {
+    "seed": 88008,
+    "cases": {
+      "hand": {
+        "java_ab_diff_pixels": 0,
+        "signal_pixels": 32921
+      },
+      "weather": {
+        "java_ab_diff_pixels": 0,
+        "signal_pixels": 385645
+      },
+      "cloud": {
+        "java_ab_diff_pixels": 0,
+        "signal_pixels": 46677
+      },
+      "explosion": {
+        "java_ab_diff_pixels": 0,
+        "signal_pixels": 357911
+      },
+      "gui": {
+        "java_ab_diff_pixels": 0,
+        "signal_pixels": 409412
+      }
+    },
+    "particle_counts": {
+      "0": 535,
+      "1": 48,
+      "2": 1,
+      "15": 130
+    },
+    "gui_event_counts": {
+      "mouse": 4,
+      "screen": 1,
+      "window_click": 1
+    },
+    "clock_rows": 1117,
+    "tape_ticks": 1117
+  }
+}

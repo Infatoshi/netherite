@@ -1,16 +1,20 @@
 package com.microsoft.Malmo.Mixins;
 
+import java.util.Random;
+import java.util.UUID;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.util.math.MathHelper;
-import qrl.QSinNative;
+import netheritemod.QSinNative;
+import qrl.Recorder;
 
 /**
  * Routes MathHelper.sin(float) through a native C kernel (or sabotages it) based on
- * QSIN_MODE, read once via qrl.QSinNative.MODE. HEAD inject + cancellable so MODE=0
+ * the qsin_mode.txt sidecar, read once via netheritemod.QSinNative.MODE. HEAD inject + cancellable so MODE=0
  * leaves the original Java table lookup untouched (one build, three modes).
  */
 @Mixin(MathHelper.class)
@@ -23,5 +27,13 @@ public abstract class MixinMathHelper {
         } else if (mode == 2) {
             cir.setReturnValue(0.0f);
         }
+    }
+
+    @Inject(method = "getRandomUUID(Ljava/util/Random;)Ljava/util/UUID;",
+            at = @At("HEAD"), cancellable = true)
+    private static void qrl$serverUuid(
+            Random fallback, CallbackInfoReturnable<UUID> cir) {
+        UUID value = Recorder.oracleServerUuid(fallback);
+        if (value != null) cir.setReturnValue(value);
     }
 }

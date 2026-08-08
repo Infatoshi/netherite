@@ -12,8 +12,9 @@ auto-load has a project file; it does not duplicate the full map.
 | First-clone bootstrap | `docs/BOOTSTRAP.md` |
 | Play / VNC / qrl / sweep | `docs/RUNBOOK.md` |
 | Product gates | `docs/GATES.md` |
+| What's cut / pinned / open | `docs/SCOPE.md` |
 | History | `docs/DEVLOG.md` |
-| Fidelity | `c/magma/VERIFY.md` |
+| Fidelity | `magma/VERIFY.md` |
 | Why a pixel differs | `pxdiff.py` (AGENTS.md "Pixel investigation") |
 | Isolated worktree for a delegate | `scripts/agent_worktree.sh NAME` |
 

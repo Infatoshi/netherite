@@ -1,0 +1,40 @@
+name: tnt_explosion
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule doTileDrops true
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode creative @p
+  - /tp @p 0.5 4 0.5 0 15
+  - /fill -3 3 3 3 3 9 minecraft:stone
+  - /fill -2 4 7 2 6 7 minecraft:dirt
+  - /setblock 0 4 4 minecraft:tnt
+  - /replaceitem entity @p slot.hotbar.0 minecraft:flint_and_steel 1
+setup_qrl:
+  # Final render-settle: first recording caught unloaded-chunk sky in the
+  # first 16 goldens; wait for the client to render the arena before recstart.
+  - cmd: runcmds
+    action:
+      cmds:
+        - time set 6000
+    settle_ticks: 120
+duration_ticks: 300
+frames_every: 2
+input:
+  segments:
+    - seconds: 1.0
+    - seconds: 0.2
+      buttons: [3]
+    - seconds: 2.5
+      keys: [s]
+    - seconds: 11.3
+known_divergences: []

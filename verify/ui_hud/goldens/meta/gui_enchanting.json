@@ -1,0 +1,442 @@
+{
+  "id": "gui_enchanting",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "xp_level": 30,
+    "xp_frac": 0.0,
+    "armor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "hotbar": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "use_action": 0,
+    "fire": 0,
+    "portal": 0.0,
+    "boss": {
+      "show": false
+    },
+    "clear_effects": true,
+    "enchanting_gui": {},
+    "hud_flash": false,
+    "hud_health": 20,
+    "hud_last_health": 20,
+    "hud_update_counter": 1000
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 30,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 1131,
+    "dead": false,
+    "screen": "GuiEnchantment",
+    "enchanting_state": {
+      "xp_seed": 0,
+      "levels": [
+        8,
+        13,
+        30
+      ],
+      "clue_id": [
+        34,
+        17,
+        21
+      ],
+      "clue_level": [
+        1,
+        2,
+        2
+      ],
+      "names": [
+        "ignite enchant dry self",
+        "enchant fiddle imbue",
+        "snuff embiggen shorten earth"
+      ],
+      "name_layout": [
+        {
+          "width": 80,
+          "string_width": 108,
+          "lines": [
+            "ignite enchant",
+            "dry self"
+          ]
+        },
+        {
+          "width": 74,
+          "string_width": 101,
+          "lines": [
+            "enchant fiddle",
+            "imbue"
+          ]
+        },
+        {
+          "width": 74,
+          "string_width": 142,
+          "lines": [
+            "snuff embiggen",
+            "shorten earth"
+          ]
+        }
+      ],
+      "slots": [
+        [
+          276,
+          1,
+          0
+        ],
+        [
+          351,
+          12,
+          4
+        ]
+      ]
+    },
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 30,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 1131,
+    "dead": false,
+    "screen": "GuiEnchantment",
+    "enchanting_state": {
+      "xp_seed": 0,
+      "levels": [
+        8,
+        13,
+        30
+      ],
+      "clue_id": [
+        34,
+        17,
+        21
+      ],
+      "clue_level": [
+        1,
+        2,
+        2
+      ],
+      "names": [
+        "ignite enchant dry self",
+        "enchant fiddle imbue",
+        "snuff embiggen shorten earth"
+      ],
+      "name_layout": [
+        {
+          "width": 80,
+          "string_width": 108,
+          "lines": [
+            "ignite enchant",
+            "dry self"
+          ]
+        },
+        {
+          "width": 74,
+          "string_width": 101,
+          "lines": [
+            "enchant fiddle",
+            "imbue"
+          ]
+        },
+        {
+          "width": 74,
+          "string_width": 142,
+          "lines": [
+            "snuff embiggen",
+            "shorten earth"
+          ]
+        }
+      ],
+      "slots": [
+        [
+          276,
+          1,
+          0
+        ],
+        [
+          351,
+          12,
+          4
+        ]
+      ]
+    },
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 30,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 1127,
+    "dead": false,
+    "screen": "GuiEnchantment",
+    "enchanting_state": {
+      "xp_seed": 0,
+      "levels": [
+        8,
+        13,
+        30
+      ],
+      "clue_id": [
+        34,
+        17,
+        21
+      ],
+      "clue_level": [
+        1,
+        2,
+        2
+      ],
+      "names": [
+        "ignite enchant dry self",
+        "enchant fiddle imbue",
+        "snuff embiggen shorten earth"
+      ],
+      "name_layout": [
+        {
+          "width": 80,
+          "string_width": 108,
+          "lines": [
+            "ignite enchant",
+            "dry self"
+          ]
+        },
+        {
+          "width": 74,
+          "string_width": 101,
+          "lines": [
+            "enchant fiddle",
+            "imbue"
+          ]
+        },
+        {
+          "width": 74,
+          "string_width": 142,
+          "lines": [
+            "snuff embiggen",
+            "shorten earth"
+          ]
+        }
+      ],
+      "slots": [
+        [
+          276,
+          1,
+          0
+        ],
+        [
+          351,
+          12,
+          4
+        ]
+      ]
+    },
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_enchanting_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_enchanting_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "render_pin_lightmap_packed": -1,
+    "render_pin_lightmap_rgb": -1,
+    "boss_fog": 0,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "shulker_box_tile_pin_count": 0,
+    "beacon_tile_pin_count": 0,
+    "spawner_tile_pin_count": 0,
+    "structure_off_on": 0,
+    "enchant_book_pin": 1,
+    "enchant_book_open": 1.0,
+    "enchant_book_flip": 0.0,
+    "total_time": 68,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 1132,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_enchanting_a.png"
+  },
+  "frame_b": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_enchanting_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_enchanting_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "render_pin_lightmap_packed": -1,
+    "render_pin_lightmap_rgb": -1,
+    "boss_fog": 0,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "shulker_box_tile_pin_count": 0,
+    "beacon_tile_pin_count": 0,
+    "spawner_tile_pin_count": 0,
+    "structure_off_on": 0,
+    "enchant_book_pin": 1,
+    "enchant_book_open": 1.0,
+    "enchant_book_flip": 0.0,
+    "total_time": 68,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 1132,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_enchanting_b.png"
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 0.0,
+  "noise_limit": 2.0,
+  "presence": {
+    "mean_rgb": [
+      156.07309351040524,
+      153.77299253833516,
+      146.02099021084337
+    ],
+    "std": 55.15541395173319,
+    "warm_frac": 0.057203844652615146,
+    "bot_warm_frac": 0.0,
+    "lr_std": 32.26733251740605,
+    "vm_std": 38.441153280842975,
+    "vm_dev": 14.527325630187988,
+    "dark_frac": 0.031592278203723984,
+    "purple_bias": -7.752002327491795
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "full populated Enchant panel with verified offers",
+  "gmx": 110,
+  "gmy": 100
+}

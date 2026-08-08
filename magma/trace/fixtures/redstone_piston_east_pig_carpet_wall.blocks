@@ -1,0 +1,5 @@
+# EAST-facing piston pushes a locked NoAI pig into a supported carpet. The
+# pig's feet intersect the carpet's 1/16-high box, so its west face clips the
+# horizontal sweep exactly like a full-height wall.
+11 78 9 152 0
+13 78 8 171 0

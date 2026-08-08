@@ -1,0 +1,3 @@
+{"tick":0,"type":"continue_after_death"}
+{"tick":0,"type":"set_vitals","health":0,"food":20}
+{"tick":20,"type":"action","death_click":1,"death_button":0}

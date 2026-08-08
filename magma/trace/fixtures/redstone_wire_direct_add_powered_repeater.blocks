@@ -1,0 +1,5 @@
+# The powered repeater is a valid queue-free loaded state with no rear input.
+# Placing zero-power wire above the neighboring stone makes vanilla's
+# onBlockAdded DOWN-centered notification reach it and queue its +2 release.
+12 78 8 1 0
+13 78 8 94 1

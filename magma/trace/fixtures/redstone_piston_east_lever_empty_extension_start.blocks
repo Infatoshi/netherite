@@ -1,0 +1,5 @@
+# Normal piston (ID 33) facing EAST (metadata 5), initially unpowered with
+# empty space in front. A floor lever on its south side begins off (metadata
+# 5); tick zero flips the same lever to powered metadata 13.
+12 78 8 33 5
+12 78 9 69 5

@@ -1,0 +1,18 @@
+{
+  "schema": "netherite.block_callback_material_use_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "selected_cases": 2,
+  "pass": 2,
+  "fail": 0,
+  "state_divergences": 0,
+  "source_summaries": [
+    "32f23c6fd586ce64bd6ea806fc1023a9f497ac97df8bef8543a7b1f6bc132005",
+    "666d1c7df99ef10eba6d816a4833b4a8ab1b657b9f63a020bd2c07a66840adad"
+  ],
+  "families": [
+    ["BlockCauldron", "onBlockActivated"],
+    ["BlockRedstoneOre", "onBlockActivated"]
+  ]
+}

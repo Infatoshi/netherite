@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.audio.SoundManager;
 
-import qrl.QLaunch;
+import netheritemod.QLaunch;
 
 /**
  * CLI-instance strip (qrl_launch.json strip.sound): never boot the paulscode

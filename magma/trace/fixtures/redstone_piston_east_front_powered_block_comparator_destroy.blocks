@@ -1,0 +1,7 @@
+# A directly restored powered-comparator block 150:0 occupies the future EAST
+# piston front. Its zero-input self-correction is already pending when tick
+# zero destroys it; Java retains that block-150 callback until its due boundary
+# while retiring the comparator tile and emitting one item 404.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 150 0

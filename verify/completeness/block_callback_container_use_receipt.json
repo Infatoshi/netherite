@@ -1,0 +1,27 @@
+{
+  "schema": "netherite.block_callback_container_use_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "selected_cases": 10,
+  "pass": 10,
+  "fail": 0,
+  "state_divergences": 0,
+  "source_summaries": [
+    "a8bda277216ebdb56b22853b33454719b4f7acdb305a70151b78564ff159b832",
+    "2103a232e0231d8653a70da65db1ecb5416becd00d6dc3f974ba369be733c020"
+  ],
+  "excluded": ["ordinary_player_use_beacon_seed_0"],
+  "families": [
+    ["BlockAnvil", "onBlockActivated"],
+    ["BlockBed", "onBlockActivated"],
+    ["BlockBrewingStand", "onBlockActivated"],
+    ["BlockChest", "onBlockActivated"],
+    ["BlockDispenser", "onBlockActivated"],
+    ["BlockEnchantmentTable", "onBlockActivated"],
+    ["BlockFurnace", "onBlockActivated"],
+    ["BlockHopper", "onBlockActivated"],
+    ["BlockShulkerBox", "onBlockActivated"],
+    ["BlockWorkbench", "onBlockActivated"]
+  ]
+}

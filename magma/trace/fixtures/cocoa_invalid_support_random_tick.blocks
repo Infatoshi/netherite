@@ -1,0 +1,3 @@
+# Mature south-facing cocoa with no jungle-log support. Its controlled random
+# tick must remove the pod before constructing three brown-dye EntityItems.
+12 78 8 127 8

@@ -1,0 +1,29 @@
+name: xp_orbs
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule doMobLoot true
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 0.5 0 10
+  # Instant damage heals undead in 1.11.2. Stage one HP directly, then use a
+  # real player hit so recentlyHit is set and the zombie emits XP orbs.
+  - /summon zombie 0.5 4 3.0 {Health:1.0f,PersistenceRequired:1b,NoAI:1b}
+duration_ticks: 300
+frames_every: 20
+input:
+  segments:
+    - seconds: 1.0
+    - seconds: 0.2
+      buttons: [1]
+    - seconds: 13.8
+known_divergences: []

@@ -1,0 +1,3 @@
+# A tick-zero redstone block at (11,78,8) directly powers this TNT. Vanilla
+# removes the block and creates one 80-fuse EntityTNTPrimed immediately.
+12 78 8 46 0

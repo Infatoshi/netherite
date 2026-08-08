@@ -1,0 +1,260 @@
+{
+ "thresholds": {
+  "diff": 25,
+  "min_cluster": 50,
+  "fail_cluster": 4000,
+  "fail_total": 8000,
+  "class_pixel_budgets": {
+   "hud": 55000,
+   "particles": 40000,
+   "viewmodel": 40000,
+   "transit": 40000
+  },
+  "low_diff": 1,
+  "fail_mean_abs": 3.32,
+  "fail_low_pct_differing": 40.0
+ },
+ "frames_checked": 101,
+ "classes": {
+  "hud": {
+   "frames": 6,
+   "px": 17131,
+   "max_cluster": 11599
+  },
+  "viewmodel": {
+   "frames": 2,
+   "px": 1433,
+   "max_cluster": 1024
+  },
+  "UNEXPLAINED": {
+   "frames": 9,
+   "px": 1068,
+   "max_cluster": 445
+  },
+  "particles": {
+   "frames": 11,
+   "px": 3547,
+   "max_cluster": 477
+  },
+  "transit": {
+   "frames": 5,
+   "px": 8048,
+   "max_cluster": 4360
+  }
+ },
+ "failed_frames": [
+  {
+   "tick": 990,
+   "unexplained_px": 0,
+   "clusters": [],
+   "mild_shift": {
+    "mean_abs": 3.5960521066416886,
+    "pct_differing": 90.20942631287639,
+    "low_thresh": 1,
+    "residual_px": 211387,
+    "low_differing_px": 190691
+   }
+  }
+ ],
+ "mild_shift_failures": 1,
+ "pass": false,
+ "missing_models": {},
+ "missing_model_row_threshold": 4,
+ "missing_model_failures": {},
+ "state": {
+  "kind": "state",
+  "coverage": {
+   "ticks_total": 1003,
+   "ticks_run": 1003,
+   "truncated": false
+  },
+  "inventory": {
+   "ticks_checked": 101,
+   "ticks_independent": 100,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
+   "available": true
+  },
+  "entities": {
+   "ticks_checked": 51,
+   "samples": [
+    {
+     "tick": 0,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 20,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 40,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 60,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 80,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 100,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 120,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 140,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 160,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 180,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 200,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 220,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 240,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 260,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 280,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 300,
+     "tape_count": 0,
+     "tape_types": [],
+     "magma_count": 0,
+     "magma_types": []
+    }
+   ],
+   "ghost_ticks": 1003,
+   "ghost_expected": 0,
+   "mismatches": [],
+   "verified": true,
+   "pass": true,
+   "available": true
+  },
+  "world": {
+   "ticks_checked": 51,
+   "hash_deltas": 11,
+   "samples": [
+    {
+     "tick": 0,
+     "nearby_hash": "f63a2e55f4417889"
+    },
+    {
+     "tick": 100,
+     "nearby_hash": "d15c783eac883449"
+    },
+    {
+     "tick": 200,
+     "nearby_hash": "f069cc6afe478349"
+    },
+    {
+     "tick": 300,
+     "nearby_hash": "692ce76345344bd9"
+    },
+    {
+     "tick": 400,
+     "nearby_hash": "692ce76345344bd9"
+    },
+    {
+     "tick": 500,
+     "nearby_hash": "692ce76345344bd9"
+    },
+    {
+     "tick": 600,
+     "nearby_hash": "7d29f0af8eada619"
+    },
+    {
+     "tick": 700,
+     "nearby_hash": "692ce76345344bd9"
+    },
+    {
+     "tick": 800,
+     "nearby_hash": "692ce76345344bd9"
+    },
+    {
+     "tick": 900,
+     "nearby_hash": "692ce76345344bd9"
+    },
+    {
+     "tick": 1000,
+     "nearby_hash": "f63a2e55f4417889"
+    }
+   ],
+   "mode": "java",
+   "compared": 1003,
+   "anchor_skips": 0,
+   "mismatches": [],
+   "verified": true,
+   "pass": true,
+   "available": true
+  }
+ }
+}

@@ -1,0 +1,64 @@
+{
+  "schema": "netherite.snowman_family_gate",
+  "version": 1,
+  "todo": "AI-04",
+  "interaction_oracle": {
+    "java_version": "1.11.2",
+    "shear_cases": 3,
+    "pumpkin_tool_rng_and_sound": "bit_exact",
+    "child_and_unbreaking_branches": "exact"
+  },
+  "ranged_oracle": {
+    "launch_cases": 3,
+    "owned_impact_cases": 5,
+    "position_motion_rotation": "bit_exact",
+    "owner_rng_uuid_eid_and_sound": "bit_exact",
+    "zero_and_blaze_damage_branches": "exact",
+    "revenge_owner_identity": "exact"
+  },
+  "loot_oracle": {
+    "snowman_rows": 15,
+    "aggregate_hostile_rows": 375,
+    "world_rng_and_stack_count": "bit_exact"
+  },
+  "state_continuation": {
+    "first_active_shot_tick": 21,
+    "native_save_boundaries": [
+      "pending_server_shear_packet",
+      "snowball_in_flight"
+    ],
+    "interaction_and_projectile_state": "bit_exact"
+  },
+  "implemented": [
+    "adult_snow_golem_live_type",
+    "exact_dimensions_eye_height_and_base_attributes",
+    "pumpkin_data_parameter_and_shear_state",
+    "forge_shears_handled_noop_and_success_paths",
+    "unbreaking_and_tool_damage_rng_order",
+    "active_hostile_target_acquisition",
+    "sixty_tick_unseen_target_memory",
+    "ranged_stop_range_and_cooldown",
+    "exact_snowball_launch_geometry",
+    "snowball_owner_rng_uuid_and_entity_id",
+    "owned_snowball_runtime_collision",
+    "zero_damage_and_blaze_damage_impact",
+    "nonplayer_revenge_owner_identity",
+    "wet_and_hot_biome_damage",
+    "mobgriefing_guarded_snow_trail",
+    "zero_to_fifteen_snowball_loot",
+    "ambient_hurt_death_and_shoot_audio",
+    "five_box_snow_golem_model",
+    "conditional_baked_pumpkin_layer",
+    "jar_exact_skin_and_generated_pumpkin_atlas",
+    "delayed_main_world_interaction_dispatch",
+    "native_pending_interaction_continuation",
+    "native_in_flight_projectile_continuation"
+  ],
+  "remaining": [
+    "exact_snow_block_and_pumpkin_construction_spawn",
+    "real_java_multitick_target_scheduler_path_wander_watch_and_look",
+    "represented_hostile_retaliation_ai_consumes_nonplayer_revenge_target",
+    "wet_hot_and_snow_trail_cross_stack_tick_oracle",
+    "bounded_same_scene_pumpkin_and_bare_pixel_capture"
+  ]
+}

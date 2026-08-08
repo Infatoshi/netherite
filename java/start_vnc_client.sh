@@ -53,6 +53,8 @@ cd "$MCDIR" || exit 1
 # URLs and --offline does NOT stop getAssets (raw HTTP in the task), so exclude
 # it. Set MC_GRADLE_ONLINE=1 to force a real resolve + asset pass (new deps only).
 GRADLE_NET_FLAG="--offline -x getAssets"; [ "${MC_GRADLE_ONLINE:-0}" = 1 ] && GRADLE_NET_FLAG=""
-nohup ./gradlew -g run/gradle $GRADLE_NET_FLAG runClient --stacktrace > "$DIR/runclient.log" 2>&1 &
+# Any args to this script are forwarded verbatim to gradle (mc_cli.py passes
+# -PmcUsername=... / -PqrlPort=...; the JVM gets no invented env vars).
+nohup ./gradlew -g run/gradle $GRADLE_NET_FLAG runClient --stacktrace "$@" > "$DIR/runclient.log" 2>&1 &
 echo "RUNCLIENT_PID $!"
 echo "STARTED display=:1 vncport=5900 pw=$VNCPW  (Mac: ssh -f -N -L 5901:localhost:5900 anvil; open vnc://localhost:5901)"

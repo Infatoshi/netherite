@@ -1,0 +1,5 @@
+# DOWN-facing piston above one snow layer. Metadata zero has a zero-height
+# collision box in 1.11.2 and must not stop the pig.
+12 81 9 152 0
+12 78 8 1 0
+12 79 8 78 0

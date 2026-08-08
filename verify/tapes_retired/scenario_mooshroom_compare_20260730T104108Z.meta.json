@@ -1,0 +1,74 @@
+{
+  "name": "scenario_mooshroom_compare_20260730T104108Z",
+  "created_utc": "20260730T104108Z",
+  "git_rev": "d20056f3c00acedd5ece4ad1dbdaba40054273b6",
+  "profile": "fast",
+  "qrl_launch": {
+    "port": 25575,
+    "profile": "fast",
+    "chat": false,
+    "hide_gui": false,
+    "strip": {
+      "menus": true,
+      "overlays": true,
+      "sound": true
+    },
+    "determinism": {
+      "pin_flicker": true,
+      "pin_skin": true,
+      "pin_texture_animations": true
+    },
+    "world": {
+      "seed": 0,
+      "mode": "creative",
+      "type": "flat",
+      "structures": false,
+      "time": 6000,
+      "weather": "clear",
+      "gamerules": {
+        "sendCommandFeedback": "false",
+        "showDeathMessages": "false",
+        "doDaylightCycle": "false",
+        "doWeatherCycle": "false",
+        "doMobSpawning": "true",
+        "doFireTick": "true",
+        "doMobLoot": "true",
+        "doEntityDrops": "true",
+        "doTileDrops": "true",
+        "mobGriefing": "true",
+        "randomTickSpeed": "3",
+        "keepInventory": "false"
+      }
+    }
+  },
+  "options": {
+    "fov": "0.0",
+    "gamma": "0.0",
+    "renderDistance": "8",
+    "guiScale": "2",
+    "particles": "2",
+    "bobView": "false",
+    "anaglyph3d": "false",
+    "maxFps": "260",
+    "fboEnable": "true",
+    "fancyGraphics": "false",
+    "ao": "0",
+    "renderClouds": "false",
+    "chatVisibility": "2",
+    "enableVsync": "false",
+    "useVbo": "true",
+    "mipmapLevels": "0",
+    "entityShadows": "false",
+    "soundCategory_master": "0.0"
+  },
+  "frames_every": 10,
+  "tape_jsonl": "/home/infatoshi/dev/netherite/verify/tapes/scenario_mooshroom_compare_20260730T104108Z.jsonl",
+  "frames_dir": "/home/infatoshi/dev/netherite/verify/tapes/scenario_mooshroom_compare_20260730T104108Z_frames",
+  "ticks": 366,
+  "parquet": "/home/infatoshi/dev/netherite/verify/tapes/scenario_mooshroom_compare_20260730T104108Z.parquet",
+  "parquet_rows": 366,
+  "frames": 37,
+  "scenario": "mooshroom_compare",
+  "scenario_spec": "/home/infatoshi/dev/netherite/verify/scenarios/mooshroom_compare.yaml",
+  "duration_ticks": 360
+}

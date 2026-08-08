@@ -1,0 +1,5 @@
+# WEST-facing observer (metadata 4) watches x=11 and outputs east into the
+# unlit lamp at x=13. Early staging lets the observer's placement pulse drain
+# before the shared pre-tick boundary. Tick zero adds stone at x=11.
+12 78 8 218 4
+13 78 8 123 0

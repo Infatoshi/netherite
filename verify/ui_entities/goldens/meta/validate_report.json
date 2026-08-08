@@ -1,0 +1,3696 @@
+{
+  "results": [
+    {
+      "id": "slime_size1",
+      "status": "PASS",
+      "ok": true,
+      "presence": 32.68422916666667,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        122.9645,
+        130.52595535714286,
+        128.5569642857143
+      ],
+      "yspan": 51,
+      "xspan": 43,
+      "subject_n": 1113,
+      "subject_frac": 0.0099375,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53278,
+      "bytes_b": 53278
+    },
+    {
+      "id": "slime_size2",
+      "status": "PASS",
+      "ok": true,
+      "presence": 32.1479880952381,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        120.43641964285715,
+        131.26183928571427,
+        125.37454464285715
+      ],
+      "yspan": 105,
+      "xspan": 101,
+      "subject_n": 4587,
+      "subject_frac": 0.04095535714285714,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55052,
+      "bytes_b": 55052
+    },
+    {
+      "id": "slime_size4",
+      "status": "PASS",
+      "ok": true,
+      "presence": 42.811279761904764,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        101.85458928571428,
+        124.34821428571429,
+        97.48660714285714
+      ],
+      "yspan": 219,
+      "xspan": 265,
+      "subject_n": 17689,
+      "subject_frac": 0.1579375,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54255,
+      "bytes_b": 54255
+    },
+    {
+      "id": "slime_squish",
+      "status": "PASS",
+      "ok": true,
+      "presence": 31.770815476190478,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        121.43015178571429,
+        131.16278571428572,
+        127.19824107142857
+      ],
+      "yspan": 142,
+      "xspan": 67,
+      "subject_n": 3398,
+      "subject_frac": 0.030339285714285714,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55630,
+      "bytes_b": 55630
+    },
+    {
+      "id": "slime_size2_glowing",
+      "status": "PASS",
+      "ok": true,
+      "presence": 32.718113095238095,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        120.22739285714286,
+        130.25933035714286,
+        125.43958035714286
+      ],
+      "yspan": 99,
+      "xspan": 93,
+      "subject_n": 3062,
+      "subject_frac": 0.027339285714285715,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 60640,
+      "bytes_b": 60640
+    },
+    {
+      "id": "entity_gallery_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 54.63547619047619,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.73368131868132,
+        121.73368131868132,
+        121.73368131868132
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52139,
+      "bytes_b": 52139
+    },
+    {
+      "id": "magma_size1",
+      "status": "PASS",
+      "ok": true,
+      "presence": 33.948255952380954,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        121.91757142857143,
+        127.91069642857143,
+        127.00317857142858
+      ],
+      "yspan": 260,
+      "xspan": 279,
+      "subject_n": 2568,
+      "subject_frac": 0.02292857142857143,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52585,
+      "bytes_b": 52585
+    },
+    {
+      "id": "magma_size2",
+      "status": "PASS",
+      "ok": true,
+      "presence": 37.211107142857145,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        116.40959821428571,
+        120.2303125,
+        118.96669642857142
+      ],
+      "yspan": 304,
+      "xspan": 279,
+      "subject_n": 9260,
+      "subject_frac": 0.08267857142857143,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52299,
+      "bytes_b": 52299
+    },
+    {
+      "id": "magma_size4",
+      "status": "PASS",
+      "ok": true,
+      "presence": 73.51669345238095,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        84.43526785714286,
+        70.55641964285714,
+        65.23682142857143
+      ],
+      "yspan": 397,
+      "xspan": 279,
+      "subject_n": 44686,
+      "subject_frac": 0.39898214285714284,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48557,
+      "bytes_b": 48557
+    },
+    {
+      "id": "magma_squish",
+      "status": "PASS",
+      "ok": true,
+      "presence": 38.0061755952381,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        119.94744642857142,
+        122.50966071428572,
+        120.42524107142857
+      ],
+      "yspan": 376,
+      "xspan": 279,
+      "subject_n": 7260,
+      "subject_frac": 0.06482142857142857,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52741,
+      "bytes_b": 52741
+    },
+    {
+      "id": "magma_size2_glowing",
+      "status": "PASS",
+      "ok": true,
+      "presence": 37.774526785714286,
+      "noise": 0.0,
+      "pmin": 15.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        40,
+        567,
+        440
+      ],
+      "roi_mean_rgb": [
+        117.63569642857144,
+        121.59652678571429,
+        120.52514285714285
+      ],
+      "yspan": 307,
+      "xspan": 279,
+      "subject_n": 8588,
+      "subject_frac": 0.07667857142857143,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54221,
+      "bytes_b": 54221
+    },
+    {
+      "id": "dragon_death_50",
+      "status": "PASS",
+      "ok": true,
+      "presence": 14.29496344327036,
+      "noise": 0.0,
+      "pmin": 8.0,
+      "nmax": 5.0,
+      "roi": [
+        80,
+        40,
+        774,
+        400
+      ],
+      "roi_mean_rgb": [
+        182.38899695805316,
+        204.21641450528338,
+        232.56125120076848
+      ],
+      "yspan": 359,
+      "xspan": 515,
+      "subject_n": 17669,
+      "subject_frac": 0.07072126160742875,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 73280,
+      "bytes_b": 73280
+    },
+    {
+      "id": "dragon_death_100",
+      "status": "PASS",
+      "ok": true,
+      "presence": 15.298935318603906,
+      "noise": 0.0,
+      "pmin": 8.0,
+      "nmax": 5.0,
+      "roi": [
+        80,
+        40,
+        774,
+        400
+      ],
+      "roi_mean_rgb": [
+        184.9577529618956,
+        205.53298911303233,
+        232.74763848863273
+      ],
+      "yspan": 359,
+      "xspan": 515,
+      "subject_n": 18536,
+      "subject_frac": 0.07419148254883125,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 80175,
+      "bytes_b": 80175
+    },
+    {
+      "id": "dragon_death_190",
+      "status": "PASS",
+      "ok": true,
+      "presence": 15.194700608389368,
+      "noise": 0.0,
+      "pmin": 8.0,
+      "nmax": 5.0,
+      "roi": [
+        80,
+        40,
+        774,
+        400
+      ],
+      "roi_mean_rgb": [
+        190.91632244636568,
+        208.4725944604547,
+        233.3202129362792
+      ],
+      "yspan": 356,
+      "xspan": 515,
+      "subject_n": 16770,
+      "subject_frac": 0.06712295869356388,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 114628,
+      "bytes_b": 114628
+    },
+    {
+      "id": "dragon_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 36.99655677655678,
+      "noise": 0.0,
+      "pmin": 8.0,
+      "nmax": 5.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        202.4567857142857,
+        213.44796703296703,
+        192.5838324175824
+      ],
+      "yspan": 210,
+      "xspan": 279,
+      "subject_n": 11268,
+      "subject_frac": 0.15478021978021977,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 65291,
+      "bytes_b": 65291
+    },
+    {
+      "id": "dig_stone",
+      "status": "PASS",
+      "ok": true,
+      "presence": 64.159375,
+      "noise": 0.0,
+      "pmin": 20.0,
+      "nmax": 8.0,
+      "roi": [
+        307,
+        160,
+        547,
+        340
+      ],
+      "roi_mean_rgb": [
+        104.55074074074074,
+        104.39321759259259,
+        101.10958333333333
+      ],
+      "yspan": 179,
+      "xspan": 239,
+      "subject_n": 43200,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 56692,
+      "bytes_b": 56692
+    },
+    {
+      "id": "dig_grass",
+      "status": "PASS",
+      "ok": true,
+      "presence": 63.551319444444445,
+      "noise": 0.0,
+      "pmin": 20.0,
+      "nmax": 8.0,
+      "roi": [
+        307,
+        160,
+        547,
+        340
+      ],
+      "roi_mean_rgb": [
+        105.20101851851852,
+        104.9675925925926,
+        101.7473611111111
+      ],
+      "yspan": 179,
+      "xspan": 239,
+      "subject_n": 43200,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 56752,
+      "bytes_b": 56752
+    },
+    {
+      "id": "dig_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 63.50118055555556,
+      "noise": 0.0,
+      "pmin": 20.0,
+      "nmax": 8.0,
+      "roi": [
+        307,
+        160,
+        547,
+        340
+      ],
+      "roi_mean_rgb": [
+        105.20893518518518,
+        105.05141203703704,
+        101.76777777777778
+      ],
+      "yspan": 179,
+      "xspan": 239,
+      "subject_n": 43200,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 56597,
+      "bytes_b": 56597
+    },
+    {
+      "id": "fireball_small",
+      "status": "PASS",
+      "ok": true,
+      "presence": 63.54013888888889,
+      "noise": 0.0,
+      "pmin": 20.0,
+      "nmax": 4.0,
+      "roi": [
+        327,
+        140,
+        527,
+        320
+      ],
+      "roi_mean_rgb": [
+        121.30069444444445,
+        121.30069444444445,
+        121.30069444444445
+      ],
+      "yspan": 179,
+      "xspan": 199,
+      "subject_n": 36000,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52675,
+      "bytes_b": 52675
+    },
+    {
+      "id": "fireball_dragon",
+      "status": "PASS",
+      "ok": true,
+      "presence": 68.08663888888888,
+      "noise": 0.0,
+      "pmin": 20.0,
+      "nmax": 4.0,
+      "roi": [
+        327,
+        140,
+        527,
+        320
+      ],
+      "roi_mean_rgb": [
+        116.75419444444445,
+        116.75419444444445,
+        116.75419444444445
+      ],
+      "yspan": 179,
+      "xspan": 199,
+      "subject_n": 36000,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 51695,
+      "bytes_b": 51695
+    },
+    {
+      "id": "xp_orb",
+      "status": "PASS",
+      "ok": true,
+      "presence": 84.10569444444444,
+      "noise": 0.0,
+      "pmin": 20.0,
+      "nmax": 3.0,
+      "roi": [
+        367,
+        180,
+        487,
+        280
+      ],
+      "roi_mean_rgb": [
+        121.60075,
+        121.60075,
+        121.23075
+      ],
+      "yspan": 99,
+      "xspan": 119,
+      "subject_n": 12000,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52571,
+      "bytes_b": 52571
+    },
+    {
+      "id": "projectile_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 54.63547619047619,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.73368131868132,
+        121.73368131868132,
+        121.73368131868132
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52461,
+      "bytes_b": 52461
+    },
+    {
+      "id": "bat_flying",
+      "status": "PASS",
+      "ok": true,
+      "presence": 66.24079212454212,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        130.9776923076923,
+        145.06818681318683,
+        154.03777472527472
+      ],
+      "yspan": 191,
+      "xspan": 279,
+      "subject_n": 48178,
+      "subject_frac": 0.6617857142857143,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47769,
+      "bytes_b": 47769
+    },
+    {
+      "id": "bat_hanging",
+      "status": "PASS",
+      "ok": true,
+      "presence": 66.53571886446886,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        130.69201923076923,
+        144.83688186813185,
+        153.19478021978023
+      ],
+      "yspan": 204,
+      "xspan": 279,
+      "subject_n": 48498,
+      "subject_frac": 0.6661813186813187,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47631,
+      "bytes_b": 47631
+    },
+    {
+      "id": "bat_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 65.07097985347986,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        132.06611263736264,
+        146.62756868131868,
+        155.31748626373627
+      ],
+      "yspan": 170,
+      "xspan": 279,
+      "subject_n": 47880,
+      "subject_frac": 0.6576923076923077,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 46979,
+      "bytes_b": 46979
+    },
+    {
+      "id": "squid_swim_pose",
+      "status": "PASS",
+      "ok": true,
+      "presence": 85.2882097069597,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        107.95326923076924,
+        124.15177197802198,
+        137.1936675824176
+      ],
+      "yspan": 217,
+      "xspan": 279,
+      "subject_n": 50872,
+      "subject_frac": 0.6987912087912088,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48896,
+      "bytes_b": 48896
+    },
+    {
+      "id": "squid_dry_pose",
+      "status": "PASS",
+      "ok": true,
+      "presence": 72.16918956043956,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        123.3264423076923,
+        137.35137362637363,
+        147.98718406593406
+      ],
+      "yspan": 215,
+      "xspan": 279,
+      "subject_n": 50618,
+      "subject_frac": 0.6953021978021978,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47635,
+      "bytes_b": 47635
+    },
+    {
+      "id": "squid_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 65.07385989010989,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        132.06050824175824,
+        146.62173076923077,
+        155.30600274725273
+      ],
+      "yspan": 171,
+      "xspan": 279,
+      "subject_n": 47889,
+      "subject_frac": 0.6578159340659341,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47141,
+      "bytes_b": 47141
+    },
+    {
+      "id": "mooshroom_adult_idle",
+      "status": "PASS",
+      "ok": true,
+      "presence": 79.44375457875458,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        116.43858516483516,
+        112.42835164835165,
+        107.72412087912087
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 69353,
+      "subject_frac": 0.9526510989010989,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47841,
+      "bytes_b": 47841
+    },
+    {
+      "id": "mooshroom_adult_head_pose",
+      "status": "PASS",
+      "ok": true,
+      "presence": 79.27271062271062,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        117.36653846153847,
+        112.14822802197803,
+        107.66766483516483
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 69413,
+      "subject_frac": 0.9534752747252747,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48662,
+      "bytes_b": 48662
+    },
+    {
+      "id": "mooshroom_child",
+      "status": "PASS",
+      "ok": true,
+      "presence": 74.90039835164835,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        117.31995879120879,
+        120.46054945054945,
+        113.93592032967032
+      ],
+      "yspan": 243,
+      "xspan": 279,
+      "subject_n": 68247,
+      "subject_frac": 0.9374587912087912,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48376,
+      "bytes_b": 48376
+    },
+    {
+      "id": "mooshroom_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 71.7806456043956,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        118.58832417582417,
+        124.49537087912088,
+        117.94550824175825
+      ],
+      "yspan": 243,
+      "xspan": 279,
+      "subject_n": 68247,
+      "subject_frac": 0.9374587912087912,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47451,
+      "bytes_b": 47451
+    },
+    {
+      "id": "ender_chest_closed",
+      "status": "PASS",
+      "ok": true,
+      "presence": 76.05902014652014,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        109.81350274725274,
+        113.21618131868132,
+        107.76108516483517
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48744,
+      "bytes_b": 48744
+    },
+    {
+      "id": "ender_chest_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 78.63064102564103,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        106.98417582417582,
+        109.91116758241758,
+        106.15976648351648
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48077,
+      "bytes_b": 48077
+    },
+    {
+      "id": "ender_chest_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 67.23464743589743,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        118.55956043956044,
+        120.8123901098901,
+        115.642760989011
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47371,
+      "bytes_b": 47371
+    },
+    {
+      "id": "chest_normal_closed",
+      "status": "PASS",
+      "ok": true,
+      "presence": 75.04420787545787,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        115.39266483516484,
+        115.32497252747253,
+        106.55039835164835
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48763,
+      "bytes_b": 48763
+    },
+    {
+      "id": "chest_normal_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 77.5233195970696,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        112.8592032967033,
+        112.22519230769231,
+        104.71245879120879
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48518,
+      "bytes_b": 48518
+    },
+    {
+      "id": "chest_trapped_closed",
+      "status": "PASS",
+      "ok": true,
+      "presence": 75.04665293040293,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        115.44524725274725,
+        115.28302197802198,
+        106.53243131868132
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48777,
+      "bytes_b": 48777
+    },
+    {
+      "id": "chest_trapped_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 77.42996794871794,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        113.0134065934066,
+        112.25527472527473,
+        104.80822802197802
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48580,
+      "bytes_b": 48580
+    },
+    {
+      "id": "chest_normal_double_x_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 87.34143315018315,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        106.37451923076924,
+        102.26162087912088,
+        91.70637362637363
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47774,
+      "bytes_b": 47774
+    },
+    {
+      "id": "chest_trapped_double_z_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 78.03513736263736,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        112.39835164835165,
+        111.90696428571428,
+        103.95608516483516
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 49419,
+      "bytes_b": 49419
+    },
+    {
+      "id": "chest_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 69.07019688644688,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        118.60673076923077,
+        120.85956043956044,
+        115.68993131868132
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48083,
+      "bytes_b": 48083
+    },
+    {
+      "id": "shulker_box_white_up_closed",
+      "status": "PASS",
+      "ok": true,
+      "presence": 65.14484432234433,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.52179945054945,
+        123.18243131868132,
+        118.39381868131868
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47979,
+      "bytes_b": 47979
+    },
+    {
+      "id": "shulker_box_white_up_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 65.63884157509158,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.44480769230769,
+        121.46181318681319,
+        118.15083791208791
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47887,
+      "bytes_b": 47887
+    },
+    {
+      "id": "shulker_box_orange_down_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 72.32910714285714,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        118.7715521978022,
+        114.873489010989,
+        106.08629120879121
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48277,
+      "bytes_b": 48277
+    },
+    {
+      "id": "shulker_box_purple_north_half",
+      "status": "PASS",
+      "ok": true,
+      "presence": 71.48783424908424,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        115.9067445054945,
+        113.07877747252748,
+        113.26921703296703
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 50852,
+      "bytes_b": 50852
+    },
+    {
+      "id": "shulker_box_blue_south_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 73.6008836996337,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        108.2501510989011,
+        111.4979532967033,
+        116.16789835164835
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47628,
+      "bytes_b": 47628
+    },
+    {
+      "id": "shulker_box_red_west_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 74.30644688644689,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.10730769230769,
+        109.66803571428571,
+        104.5834478021978
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48912,
+      "bytes_b": 48912
+    },
+    {
+      "id": "shulker_box_black_east_open",
+      "status": "PASS",
+      "ok": true,
+      "presence": 81.93996794871795,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        103.998489010989,
+        105.81482142857143,
+        101.08543956043955
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48838,
+      "bytes_b": 48838
+    },
+    {
+      "id": "shulker_box_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 67.23464743589743,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        118.55956043956044,
+        120.8123901098901,
+        115.642760989011
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47205,
+      "bytes_b": 47205
+    },
+    {
+      "id": "beacon_world_colored",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.63995879120879,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        142.97387362637363,
+        157.8029120879121,
+        173.34054945054945
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 47612,
+      "subject_frac": 0.654010989010989,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 88750,
+      "bytes_b": 88750
+    },
+    {
+      "id": "beacon_world_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 61.71407967032967,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        133.3687087912088,
+        151.690260989011,
+        166.75778846153847
+      ],
+      "yspan": 146,
+      "xspan": 279,
+      "subject_n": 40945,
+      "subject_frac": 0.5624313186813187,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 79886,
+      "bytes_b": 79886
+    },
+    {
+      "id": "spawner_pig_saved",
+      "status": "PASS",
+      "ok": true,
+      "presence": 74.65056776556777,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        111.54826923076924,
+        113.3959478021978,
+        109.11009615384616
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 50095,
+      "bytes_b": 50095
+    },
+    {
+      "id": "spawner_zombie_noai_saved",
+      "status": "PASS",
+      "ok": true,
+      "presence": 74.83311813186813,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        109.99964285714286,
+        113.25951923076923,
+        108.96013736263737
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 49258,
+      "bytes_b": 49258
+    },
+    {
+      "id": "spawner_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 67.23464743589743,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        118.55956043956044,
+        120.8123901098901,
+        115.642760989011
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47371,
+      "bytes_b": 47371
+    },
+    {
+      "id": "minecart_tnt_fuse80_flash",
+      "status": "PASS",
+      "ok": true,
+      "presence": 54.73714285714286,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        122.24997252747252,
+        122.57708791208792,
+        123.17994505494505
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47389,
+      "bytes_b": 47389
+    },
+    {
+      "id": "minecart_tnt_fuse79_dark",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.16972527472527,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.07570054945054,
+        121.40342032967033,
+        122.00634615384615
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47579,
+      "bytes_b": 47579
+    },
+    {
+      "id": "minecart_tnt_fuse4_flash",
+      "status": "PASS",
+      "ok": true,
+      "presence": 54.449574175824175,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        122.65490384615384,
+        122.9784478021978,
+        123.57243131868132
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47319,
+      "bytes_b": 47319
+    },
+    {
+      "id": "minecart_tnt_fuse5_dark",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.11378205128205,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.13152472527473,
+        121.45604395604396,
+        122.05388736263737
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47570,
+      "bytes_b": 47570
+    },
+    {
+      "id": "minecart_tnt_unprimed",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.16633241758242,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.07967032967034,
+        121.40712912087912,
+        122.0107967032967
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47565,
+      "bytes_b": 47565
+    },
+    {
+      "id": "minecart_tnt_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 54.65516941391942,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.99053571428571,
+        121.99053571428571,
+        121.99053571428571
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 46367,
+      "bytes_b": 46367
+    },
+    {
+      "id": "minecart_empty_model",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.60971153846154,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.5957554945055,
+        120.93957417582418,
+        121.5748489010989
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47593,
+      "bytes_b": 47593
+    },
+    {
+      "id": "minecart_chest_model",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.66896978021978,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.79118131868132,
+        120.91287087912087,
+        121.22835164835165
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47903,
+      "bytes_b": 47903
+    },
+    {
+      "id": "minecart_furnace_model",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.442582417582415,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.78528846153846,
+        121.11211538461538,
+        121.71531593406593
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47988,
+      "bytes_b": 47988
+    },
+    {
+      "id": "minecart_hopper_model",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.719249084249086,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.50755494505495,
+        120.83561813186813,
+        121.43853021978022
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47888,
+      "bytes_b": 47888
+    },
+    {
+      "id": "minecart_spawner_model",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.8153021978022,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.35064560439561,
+        120.74196428571429,
+        121.40087912087913
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 48285,
+      "bytes_b": 48285
+    },
+    {
+      "id": "minecart_command_model",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.16523351648352,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.24898351648352,
+        121.35215659340659,
+        121.84964285714285
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 47832,
+      "bytes_b": 47832
+    },
+    {
+      "id": "wither_normal",
+      "status": "PASS",
+      "ok": true,
+      "presence": 13.33997113997114,
+      "noise": 0.0,
+      "pmin": 10.0,
+      "nmax": 2.0,
+      "roi": [
+        207,
+        20,
+        647,
+        440
+      ],
+      "roi_mean_rgb": [
+        100.74489177489177,
+        107.83648268398268,
+        132.4761471861472
+      ],
+      "yspan": 419,
+      "xspan": 439,
+      "subject_n": 184800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 68214,
+      "bytes_b": 68214
+    },
+    {
+      "id": "wither_invul",
+      "status": "PASS",
+      "ok": true,
+      "presence": 10.925135281385282,
+      "noise": 0.0,
+      "pmin": 10.0,
+      "nmax": 2.0,
+      "roi": [
+        207,
+        20,
+        647,
+        440
+      ],
+      "roi_mean_rgb": [
+        102.41872294372294,
+        109.80902056277056,
+        135.41729437229438
+      ],
+      "yspan": 419,
+      "xspan": 439,
+      "subject_n": 184800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 68183,
+      "bytes_b": 68183
+    },
+    {
+      "id": "wither_armored",
+      "status": "PASS",
+      "ok": true,
+      "presence": 13.366116522366521,
+      "noise": 0.0,
+      "pmin": 10.0,
+      "nmax": 2.0,
+      "roi": [
+        207,
+        20,
+        647,
+        440
+      ],
+      "roi_mean_rgb": [
+        101.50978896103896,
+        108.64027056277057,
+        133.09733225108226
+      ],
+      "yspan": 419,
+      "xspan": 439,
+      "subject_n": 184800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 69634,
+      "bytes_b": 69634
+    },
+    {
+      "id": "wither_skull_normal",
+      "status": "PASS",
+      "ok": true,
+      "presence": 60.183638888888886,
+      "noise": 0.0,
+      "pmin": 10.0,
+      "nmax": 2.0,
+      "roi": [
+        327,
+        80,
+        527,
+        380
+      ],
+      "roi_mean_rgb": [
+        119.49288333333334,
+        144.3944,
+        172.42946666666666
+      ],
+      "yspan": 299,
+      "xspan": 199,
+      "subject_n": 39493,
+      "subject_frac": 0.6582166666666667,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55011,
+      "bytes_b": 55011
+    },
+    {
+      "id": "wither_skull_invulnerable",
+      "status": "PASS",
+      "ok": true,
+      "presence": 54.803622222222224,
+      "noise": 0.0,
+      "pmin": 10.0,
+      "nmax": 2.0,
+      "roi": [
+        327,
+        80,
+        527,
+        380
+      ],
+      "roi_mean_rgb": [
+        122.26148333333333,
+        150.04528333333334,
+        182.1931
+      ],
+      "yspan": 299,
+      "xspan": 199,
+      "subject_n": 39421,
+      "subject_frac": 0.6570166666666667,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54934,
+      "bytes_b": 54934
+    },
+    {
+      "id": "horse_marked_armor",
+      "status": "PASS",
+      "ok": true,
+      "presence": 58.3606684981685,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        117.56864010989011,
+        118.74321428571429,
+        118.54375
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53367,
+      "bytes_b": 53367
+    },
+    {
+      "id": "horse_iron_idle",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.611978021978025,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.37479395604396,
+        120.9407967032967,
+        120.78608516483517
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53327,
+      "bytes_b": 53327
+    },
+    {
+      "id": "horse_saddled_idle",
+      "status": "PASS",
+      "ok": true,
+      "presence": 56.8832554945055,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.7276510989011,
+        119.47527472527473,
+        119.08491758241759
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53562,
+      "bytes_b": 53562
+    },
+    {
+      "id": "horse_eating",
+      "status": "PASS",
+      "ok": true,
+      "presence": 57.681227106227105,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.3434065934066,
+        118.55092032967033,
+        117.99960164835164
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53022,
+      "bytes_b": 53022
+    },
+    {
+      "id": "horse_rearing",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.25932692307693,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.87373626373626,
+        121.39798076923077,
+        121.12813186813187
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53244,
+      "bytes_b": 53244
+    },
+    {
+      "id": "horse_mouth",
+      "status": "PASS",
+      "ok": true,
+      "presence": 56.8832554945055,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.7276510989011,
+        119.47527472527473,
+        119.08491758241759
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53471,
+      "bytes_b": 53471
+    },
+    {
+      "id": "horse_gait",
+      "status": "PASS",
+      "ok": true,
+      "presence": 56.90549908424909,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.69854395604396,
+        119.44152472527473,
+        119.0470054945055
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53623,
+      "bytes_b": 53623
+    },
+    {
+      "id": "horse_tail",
+      "status": "PASS",
+      "ok": true,
+      "presence": 56.8832554945055,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.7276510989011,
+        119.47527472527473,
+        119.08491758241759
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53503,
+      "bytes_b": 53503
+    },
+    {
+      "id": "horse_saddled_pose",
+      "status": "PASS",
+      "ok": true,
+      "presence": 56.33436813186813,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.605,
+        120.27616758241759,
+        120.11836538461539
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52903,
+      "bytes_b": 52903
+    },
+    {
+      "id": "horse_child",
+      "status": "PASS",
+      "ok": true,
+      "presence": 56.91864468864469,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        119.42403846153846,
+        119.43847527472528,
+        119.48902472527473
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53789,
+      "bytes_b": 53789
+    },
+    {
+      "id": "horse_particle_control",
+      "status": "PASS",
+      "ok": true,
+      "presence": 56.8832554945055,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.7276510989011,
+        119.47527472527473,
+        119.08491758241759
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53436,
+      "bytes_b": 53436
+    },
+    {
+      "id": "horse_taming_smoke",
+      "status": "PASS",
+      "ok": true,
+      "presence": 56.887376373626374,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.7276510989011,
+        119.47527472527473,
+        119.08491758241759
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53493,
+      "bytes_b": 53493
+    },
+    {
+      "id": "horse_breeding_heart",
+      "status": "PASS",
+      "ok": true,
+      "presence": 57.66985347985348,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.56870879120879,
+        118.08923076923077,
+        117.73936813186813
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53576,
+      "bytes_b": 53576
+    },
+    {
+      "id": "donkey_chested_saddled",
+      "status": "PASS",
+      "ok": true,
+      "presence": 57.725064102564104,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        119.32223901098901,
+        118.91619505494505,
+        118.52587912087913
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54532,
+      "bytes_b": 54532
+    },
+    {
+      "id": "mule_base",
+      "status": "PASS",
+      "ok": true,
+      "presence": 60.187399267399265,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        117.04207417582417,
+        116.35938186813186,
+        115.97585164835165
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54403,
+      "bytes_b": 54403
+    },
+    {
+      "id": "skeleton_horse",
+      "status": "PASS",
+      "ok": true,
+      "presence": 55.023218864468866,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.92107142857142,
+        121.8589423076923,
+        121.09351648351648
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53459,
+      "bytes_b": 53459
+    },
+    {
+      "id": "zombie_horse",
+      "status": "PASS",
+      "ok": true,
+      "presence": 58.14635989010989,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        117.82045329670329,
+        119.64793956043955,
+        118.03013736263736
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54316,
+      "bytes_b": 54316
+    },
+    {
+      "id": "skeleton_trap_rider",
+      "status": "PASS",
+      "ok": true,
+      "presence": 54.896483516483514,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.48164835164835,
+        121.47434065934065,
+        121.46203296703297
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 53429,
+      "bytes_b": 53429
+    },
+    {
+      "id": "skeleton_trap_group",
+      "status": "PASS",
+      "ok": true,
+      "presence": 67.95024267399268,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        123.12026098901099,
+        127.41968406593406,
+        127.85800824175824
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 64191,
+      "subject_frac": 0.8817445054945054,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 63087,
+      "bytes_b": 63087
+    },
+    {
+      "id": "skeleton_trap_group_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 66.56370421245421,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        124.96037087912087,
+        131.89888736263737,
+        133.4262912087912
+      ],
+      "yspan": 219,
+      "xspan": 279,
+      "subject_n": 61600,
+      "subject_frac": 0.8461538461538461,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52583,
+      "bytes_b": 52583
+    },
+    {
+      "id": "llama_creamy_idle",
+      "status": "PASS",
+      "ok": true,
+      "presence": 51.989734432234435,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.20994505494505,
+        124.04778846153846,
+        121.69773351648351
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54701,
+      "bytes_b": 54701
+    },
+    {
+      "id": "llama_white_idle",
+      "status": "PASS",
+      "ok": true,
+      "presence": 51.66572344322344,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        124.47880494505495,
+        124.25842032967033,
+        123.31199175824176
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54219,
+      "bytes_b": 54219
+    },
+    {
+      "id": "llama_brown_idle",
+      "status": "PASS",
+      "ok": true,
+      "presence": 57.691923076923075,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.38811813186813,
+        118.1589010989011,
+        115.4390934065934
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54591,
+      "bytes_b": 54591
+    },
+    {
+      "id": "llama_gray_idle",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.19325549450549,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        123.85189560439561,
+        123.67351648351648,
+        122.89440934065934
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55652,
+      "bytes_b": 55652
+    },
+    {
+      "id": "llama_decor_white",
+      "status": "PASS",
+      "ok": true,
+      "presence": 51.97282967032967,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.13925824175824,
+        123.99486263736264,
+        121.68337912087912
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55169,
+      "bytes_b": 55169
+    },
+    {
+      "id": "llama_decor_orange",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.07142399267399,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.21306318681319,
+        123.96174450549451,
+        121.5637087912088
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55176,
+      "bytes_b": 55176
+    },
+    {
+      "id": "llama_decor_magenta",
+      "status": "PASS",
+      "ok": true,
+      "presence": 51.96407967032967,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.20994505494505,
+        124.04778846153846,
+        121.69773351648351
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55132,
+      "bytes_b": 55132
+    },
+    {
+      "id": "llama_decor_light_blue",
+      "status": "PASS",
+      "ok": true,
+      "presence": 51.96288003663004,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.1307554945055,
+        124.04134615384615,
+        121.75718406593407
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55123,
+      "bytes_b": 55123
+    },
+    {
+      "id": "llama_decor_yellow",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.03146978021978,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.20137362637362,
+        124.0035576923077,
+        121.58256868131868
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55307,
+      "bytes_b": 55307
+    },
+    {
+      "id": "llama_decor_lime",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.016941391941394,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.11634615384615,
+        124.0190521978022,
+        121.62354395604396
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55139,
+      "bytes_b": 55139
+    },
+    {
+      "id": "llama_decor_pink",
+      "status": "PASS",
+      "ok": true,
+      "presence": 51.958731684981686,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.20895604395605,
+        123.99145604395605,
+        121.73956043956044
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55214,
+      "bytes_b": 55214
+    },
+    {
+      "id": "llama_decor_gray",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.178649267399265,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.20994505494505,
+        124.04778846153846,
+        121.69773351648351
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54736,
+      "bytes_b": 54736
+    },
+    {
+      "id": "llama_decor_silver",
+      "status": "PASS",
+      "ok": true,
+      "presence": 53.374322344322344,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        124.05127747252747,
+        122.4538598901099,
+        120.58291208791209
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55126,
+      "bytes_b": 55126
+    },
+    {
+      "id": "llama_decor_cyan",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.07600732600733,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.03804945054945,
+        124.02114010989011,
+        121.7042445054945
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55134,
+      "bytes_b": 55134
+    },
+    {
+      "id": "llama_decor_purple",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.319404761904764,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.01134615384615,
+        123.83978021978022,
+        121.5575412087912
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55065,
+      "bytes_b": 55065
+    },
+    {
+      "id": "llama_decor_blue",
+      "status": "PASS",
+      "ok": true,
+      "presence": 51.976240842490846,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.20994505494505,
+        124.04778846153846,
+        121.69773351648351
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55073,
+      "bytes_b": 55073
+    },
+    {
+      "id": "llama_decor_brown",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.15894230769231,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.10429945054945,
+        123.90320054945055,
+        121.55604395604395
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55159,
+      "bytes_b": 55159
+    },
+    {
+      "id": "llama_decor_green",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.2521336996337,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        124.9979945054945,
+        123.93748626373626,
+        121.55298076923077
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55059,
+      "bytes_b": 55059
+    },
+    {
+      "id": "llama_decor_red",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.14947802197802,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.16228021978021,
+        123.86313186813187,
+        121.57585164835164
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55222,
+      "bytes_b": 55222
+    },
+    {
+      "id": "llama_decor_black",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.26889652014652,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        125.01318681318682,
+        123.83956043956044,
+        121.59925824175824
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55128,
+      "bytes_b": 55128
+    },
+    {
+      "id": "llama_gait",
+      "status": "PASS",
+      "ok": true,
+      "presence": 57.48966117216117,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        120.35383241758242,
+        118.35395604395605,
+        115.93258241758242
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54628,
+      "bytes_b": 54628
+    },
+    {
+      "id": "llama_gray_decor_chest",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.473173076923075,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        123.6848901098901,
+        123.47762362637363,
+        122.78043956043956
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55900,
+      "bytes_b": 55900
+    },
+    {
+      "id": "llama_child_decor",
+      "status": "PASS",
+      "ok": true,
+      "presence": 53.75429945054945,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        122.28196428571428,
+        122.84543956043956,
+        122.831510989011
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72764,
+      "subject_frac": 0.9995054945054945,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 54239,
+      "bytes_b": 54239
+    },
+    {
+      "id": "llama_spit",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.4531456043956,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.73368131868132,
+        121.73368131868132,
+        121.73368131868132
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52818,
+      "bytes_b": 52818
+    },
+    {
+      "id": "llama_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 54.63547619047619,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        121.73368131868132,
+        121.73368131868132,
+        121.73368131868132
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 52461,
+      "bytes_b": 52461
+    },
+    {
+      "id": "hanging_painting_kebab",
+      "status": "PASS",
+      "ok": true,
+      "presence": 96.64766483516483,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        100.36877747252747,
+        99.73321428571428,
+        97.8915934065934
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 41641,
+      "bytes_b": 41641
+    },
+    {
+      "id": "hanging_painting_pointer",
+      "status": "PASS",
+      "ok": true,
+      "presence": 88.44717032967033,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        113.96714285714286,
+        110.75482142857143,
+        107.80796703296703
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 55967,
+      "bytes_b": 55967
+    },
+    {
+      "id": "hanging_frame_empty",
+      "status": "PASS",
+      "ok": true,
+      "presence": 95.92793498168498,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        101.36906593406593,
+        99.87537087912088,
+        98.34721153846154
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 40647,
+      "bytes_b": 40647
+    },
+    {
+      "id": "hanging_frame_stick",
+      "status": "PASS",
+      "ok": true,
+      "presence": 96.04873168498169,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        101.15230769230769,
+        99.79975274725275,
+        98.2771978021978
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 40988,
+      "bytes_b": 40988
+    },
+    {
+      "id": "hanging_frame_dirt",
+      "status": "PASS",
+      "ok": true,
+      "presence": 95.96951007326007,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        101.17248626373626,
+        99.8879945054945,
+        98.4064423076923
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 41161,
+      "bytes_b": 41161
+    },
+    {
+      "id": "hanging_frame_map",
+      "status": "PASS",
+      "ok": true,
+      "presence": 95.72959706959708,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        101.23785714285714,
+        101.07195054945055,
+        99.85907967032966
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 42754,
+      "bytes_b": 42754
+    },
+    {
+      "id": "hanging_leash_knot",
+      "status": "PASS",
+      "ok": true,
+      "presence": 53.833745421245425,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        133.60559065934066,
+        155.67972527472529,
+        176.48895604395605
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 34583,
+      "subject_frac": 0.4750412087912088,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 49965,
+      "bytes_b": 49965
+    },
+    {
+      "id": "hanging_leashed_llama",
+      "status": "PASS",
+      "ok": true,
+      "presence": 53.463667582417585,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        143.2719642857143,
+        152.86383241758242,
+        157.66126373626375
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 47787,
+      "subject_frac": 0.6564148351648351,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 49402,
+      "bytes_b": 49402
+    },
+    {
+      "id": "hanging_wall_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 95.07906593406594,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        100.64086538461538,
+        100.77570054945055,
+        100.46635989010989
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 72800,
+      "subject_frac": 1.0,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 40128,
+      "bytes_b": 40128
+    },
+    {
+      "id": "hanging_fence_background",
+      "status": "PASS",
+      "ok": true,
+      "presence": 52.9714652014652,
+      "noise": 0.0,
+      "pmin": 12.0,
+      "nmax": 3.0,
+      "roi": [
+        287,
+        160,
+        567,
+        420
+      ],
+      "roi_mean_rgb": [
+        134.4476510989011,
+        156.64906593406593,
+        177.56664835164835
+      ],
+      "yspan": 259,
+      "xspan": 279,
+      "subject_n": 34297,
+      "subject_frac": 0.47111263736263737,
+      "meta": true,
+      "detail": "",
+      "bytes_a": 49829,
+      "bytes_b": 49829
+    },
+    {
+      "id": "slime_sizes_distinct",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "size pairs distinct",
+      "1_vs_2": 2.816717261904762,
+      "2_vs_4": 21.490738095238097,
+      "1_vs_4": 23.23403869047619
+    },
+    {
+      "id": "magma_sizes_distinct",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "size pairs distinct",
+      "1_vs_2": 7.988595238095238,
+      "2_vs_4": 51.147044642857146,
+      "1_vs_4": 56.78722916666667
+    },
+    {
+      "id": "slime_squish_vs_size2",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "squish differs from size2",
+      "mean_abs": 2.5097916666666666,
+      "size2_yspan": 105,
+      "size2_xspan": 101,
+      "size2_n": 4587,
+      "squish_yspan": 142,
+      "squish_xspan": 67,
+      "squish_n": 3398,
+      "yspan_ratio": 1.3523809523809525,
+      "xspan_ratio": 0.6633663366336634,
+      "aspect_size2": 1.0396039603960396,
+      "aspect_squish": 2.1194029850746268,
+      "aspect_gain": 2.0386638237384505
+    },
+    {
+      "id": "magma_squish_vs_size2",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "squish differs from size2",
+      "mean_abs": 9.871556547619047,
+      "size2_yspan": 304,
+      "size2_xspan": 198,
+      "size2_n": 9094,
+      "squish_yspan": 376,
+      "squish_xspan": 198,
+      "squish_n": 7094,
+      "yspan_ratio": 1.236842105263158,
+      "xspan_ratio": 1.0,
+      "aspect_size2": 1.5353535353535352,
+      "aspect_squish": 1.898989898989899,
+      "aspect_gain": 1.236842105263158
+    },
+    {
+      "id": "dragon_stages_distinct",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "stages pairwise distinct + body/rays",
+      "50_vs_100": 2.1009125840537943,
+      "100_vs_190": 4.184117835414665,
+      "50_vs_190": 4.914766784075141,
+      "dragon_death_50_subject_frac": 0.07072126160742875,
+      "dragon_death_100_subject_frac": 0.07419148254883125,
+      "dragon_death_190_subject_frac": 0.06712295869356388
+    }
+  ],
+  "inter_state": [
+    {
+      "id": "slime_sizes_distinct",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "size pairs distinct",
+      "1_vs_2": 2.816717261904762,
+      "2_vs_4": 21.490738095238097,
+      "1_vs_4": 23.23403869047619
+    },
+    {
+      "id": "magma_sizes_distinct",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "size pairs distinct",
+      "1_vs_2": 7.988595238095238,
+      "2_vs_4": 51.147044642857146,
+      "1_vs_4": 56.78722916666667
+    },
+    {
+      "id": "slime_squish_vs_size2",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "squish differs from size2",
+      "mean_abs": 2.5097916666666666,
+      "size2_yspan": 105,
+      "size2_xspan": 101,
+      "size2_n": 4587,
+      "squish_yspan": 142,
+      "squish_xspan": 67,
+      "squish_n": 3398,
+      "yspan_ratio": 1.3523809523809525,
+      "xspan_ratio": 0.6633663366336634,
+      "aspect_size2": 1.0396039603960396,
+      "aspect_squish": 2.1194029850746268,
+      "aspect_gain": 2.0386638237384505
+    },
+    {
+      "id": "magma_squish_vs_size2",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "squish differs from size2",
+      "mean_abs": 9.871556547619047,
+      "size2_yspan": 304,
+      "size2_xspan": 198,
+      "size2_n": 9094,
+      "squish_yspan": 376,
+      "squish_xspan": 198,
+      "squish_n": 7094,
+      "yspan_ratio": 1.236842105263158,
+      "xspan_ratio": 1.0,
+      "aspect_size2": 1.5353535353535352,
+      "aspect_squish": 1.898989898989899,
+      "aspect_gain": 1.236842105263158
+    },
+    {
+      "id": "dragon_stages_distinct",
+      "status": "PASS_INTER",
+      "ok": true,
+      "detail": "stages pairwise distinct + body/rays",
+      "50_vs_100": 2.1009125840537943,
+      "100_vs_190": 4.184117835414665,
+      "50_vs_190": 4.914766784075141,
+      "dragon_death_50_subject_frac": 0.07072126160742875,
+      "dragon_death_100_subject_frac": 0.07419148254883125,
+      "dragon_death_190_subject_frac": 0.06712295869356388
+    }
+  ],
+  "failed": 0,
+  "total": 132
+}

@@ -1,0 +1,8 @@
+# x y z id meta
+# WEST-facing repeater strongly powers its EAST output stone; the lamp one
+# block farther east proves the normal-cube indirect-power path.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 93 1
+13 78 8 1 0
+14 78 8 123 0

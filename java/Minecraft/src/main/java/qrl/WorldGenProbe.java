@@ -1,10 +1,13 @@
 package qrl;
 
 // Worldgen RNG-cursor probe: logs the populate Random's raw 48-bit LCG state at every
-// Forge terrain-gen stage boundary, per chunk. Ground truth for the magma/mc-sim
-// worldgen flywheel (c/magma/trace/genprobe_diff.py): the first checkpoint whose
+// Forge terrain-gen stage boundary, per chunk. Ground truth for the magma/blaze
+// worldgen flywheel (magma/trace/genprobe_diff.py): the first checkpoint whose
 // cursor differs from the C side pinpoints the exact stage where the streams diverge.
-// Enabled only when the env var QRL_GENPROBE is set (path of the log file).
+// Enabled only when a log path is configured: qrl_launch.json "genprobe", else the
+// run/qrl_genprobe.txt sidecar (its content = the log path).
+
+import com.google.gson.JsonObject;
 
 import java.io.FileWriter;
 import java.lang.reflect.Field;
@@ -22,11 +25,15 @@ public class WorldGenProbe {
     private static FileWriter out;
     private static Field seedField;
 
-    public static void install() {
-        String path = System.getenv("QRL_GENPROBE");
+    public static void install(JsonObject launchCfg) {
+        String path = null;
+        try {
+            if (launchCfg != null && launchCfg.has("genprobe"))
+                path = launchCfg.get("genprobe").getAsString();
+        } catch (Exception e) { path = null; }
         if (path == null || path.isEmpty()) {
-            // gradle-daemon launches drop the shell env; sidecar file fallback:
-            // run/qrl_genprobe.txt containing the log path enables the probe.
+            // sidecar fallback: run/qrl_genprobe.txt containing the log path enables
+            // the probe without touching the profile yaml / qrl_launch.json.
             try {
                 java.io.File f = new java.io.File("qrl_genprobe.txt");
                 if (f.isFile()) {
@@ -58,7 +65,7 @@ public class WorldGenProbe {
         try { out.write(s); out.write('\n'); out.flush(); } catch (Exception e) { }
     }
 
-    // Elapsed-ticks feed for the fluid-CA-timing replay (see c/magma SPEC / DEVLOG): the
+    // Elapsed-ticks feed for the fluid-CA-timing replay (see magma SPEC / DEVLOG): the
     // between-populate fluid evolution class needs the world's total tick count at every
     // probe line, so the C replay driver can compute how many tickRate-multiples (5 water /
     // 30-10 lava) have had real time to fire between an originating placement and a later

@@ -1,0 +1,246 @@
+{
+  "schema": "netherite.horse_family_gate",
+  "version": 1,
+  "source_version": "Minecraft Java 1.11.2",
+  "todo": "ENT-02",
+  "classification": "live_bounded",
+  "case": {
+    "id": "ent02-horse-family-save",
+    "classes": [
+      "EntityHorse",
+      "EntityDonkey",
+      "EntityMule",
+      "EntitySkeletonHorse",
+      "EntityZombieHorse"
+    ],
+    "horizons": [0, 1, 2, 3, 4, 8, 20],
+    "java_repeat": "exact",
+    "native": "exact",
+    "represented_t0": "exact",
+    "owner_uuid": "exact_nonzero",
+    "rejected_fields": 0,
+    "state_ticks_compared": 21,
+    "raw_horizons": "exact"
+  },
+  "breeding": {
+    "parent_rng_seed48": 38780996791245,
+    "rows": [
+      {
+        "parents": ["horse", "horse"],
+        "child": "horse",
+        "genetics_seed48": 160092359067293,
+        "final_seed48": 156360562369922,
+        "max_health_bits": "4038000000000000",
+        "jump_strength_bits": "3fe66b729b7922eb",
+        "movement_speed_bits": "3fcc6b881390fcb3",
+        "variant": 258,
+        "xp": 4
+      },
+      {
+        "parents": ["horse", "donkey"],
+        "child": "mule",
+        "genetics_seed48": 30191428589163,
+        "final_seed48": 14448659193736,
+        "max_health_bits": "4037aaaaaaaaaaab",
+        "jump_strength_bits": "3fe5a0ca3a888378",
+        "movement_speed_bits": "3fcf4013612bce21",
+        "variant": 0,
+        "xp": 6
+      },
+      {
+        "parents": ["donkey", "horse"],
+        "child": "mule",
+        "genetics_seed48": 30191428589163,
+        "final_seed48": 14448659193736,
+        "max_health_bits": "4037aaaaaaaaaaab",
+        "jump_strength_bits": "3fe5a0ca3a888378",
+        "movement_speed_bits": "3fcf4013612bce21",
+        "variant": 0,
+        "xp": 6
+      },
+      {
+        "parents": ["donkey", "donkey"],
+        "child": "donkey",
+        "genetics_seed48": 30191428589163,
+        "final_seed48": 14448659193736,
+        "max_health_bits": "4037aaaaaaaaaaab",
+        "jump_strength_bits": "3fe5a0ca3a888378",
+        "movement_speed_bits": "3fcf4013612bce21",
+        "variant": 0,
+        "xp": 6
+      }
+    ],
+    "birth_update": 60,
+    "heart_particles": 7,
+    "heart_runtime_pipeline": {
+      "payload_order": "bit_exact",
+      "factory": "ParticleHeart_1_11_2",
+      "lifecycle_and_render": "source_exact_native_gate",
+      "constructor_state_replay": "exact_observed"
+    },
+    "id_order": ["child", "xp"],
+    "full_world_tick": {
+      "oracle_command": "mate_animal_tick_locked",
+      "cases": [
+        "horse_horse_live_birth",
+        "horse_donkey_live_birth",
+        "donkey_horse_live_birth",
+        "donkey_donkey_live_birth"
+      ],
+      "java_native": "exact",
+      "first_update": "exact",
+      "state": "exact",
+      "events": "exact",
+      "rng": "exact",
+      "physics": "exact",
+      "loaded_and_update_order": "exact"
+    }
+  },
+  "taming": {
+    "kinds": ["horse", "donkey", "mule"],
+    "full_world_tick": {
+      "oracle_command": "horse_tame_tick_locked",
+      "cases": [
+        "horse_success",
+        "donkey_success",
+        "mule_success",
+        "horse_failure",
+        "donkey_temper_cap_failure",
+        "mule_failure",
+        "horse_no_trigger",
+        "donkey_no_trigger",
+        "mule_no_trigger"
+      ],
+      "java_native": "exact",
+      "task_and_rng": "exact",
+      "state_and_owner": "exact",
+      "motion": "exact",
+      "passenger_pose_and_dismount": "exact",
+      "events": "exact"
+    },
+    "client_status_particles": {
+      "statuses": [6, 7],
+      "particles_each": 7,
+      "ids": [11, 34],
+      "positions": "bit_exact_java_oracle",
+      "entity_rng_cursor": "bit_exact_java_oracle",
+      "server_entity_rng_unchanged": true,
+      "factory_lifecycle_and_render": "source_exact_native_gate",
+      "constructor_state_replay": "exact_observed"
+    },
+    "cases": [
+      {
+        "id": "no_trigger",
+        "temper": 0,
+        "seed48": 1,
+        "final_seed48": 25214903928,
+        "ridden": true,
+        "events": []
+      },
+      {
+        "id": "temper_99_equality_failure",
+        "temper": 99,
+        "seed48": 1000,
+        "final_seed48": 23098218260332,
+        "final_temper": 100,
+        "ridden": false,
+        "rearing": false,
+        "angry_pitch_bits": "3f8aa0e1",
+        "event_order": ["angry_sound", "status_6"]
+      },
+      {
+        "id": "temper_100_success",
+        "temper": 100,
+        "seed48": 0,
+        "final_seed48": 277363943098,
+        "ridden": true,
+        "owner_most": 5077202253465992214,
+        "owner_least": -4639709590604183656,
+        "events": ["status_7"]
+      }
+    ]
+  },
+  "skeleton_trap": {
+    "fixture_horse_eid": 8399,
+    "spawned_eids": [8400, 8401, 8402, 8403, 8404, 8405, 8406],
+    "living_entities_after_tick": 8,
+    "loaded_update_order": [8399, 8400, 8401, 8402, 8403, 8404, 8405, 8406],
+    "entity_seed_generator_seed48": 224432795029324,
+    "server_uuid_seed48": 278761879117434,
+    "next_entity_id": 8407,
+    "construction_rng_uuid_equipment": "exact",
+    "same_tick_rng_gaussian_cache": "exact",
+    "same_tick_position_motion": "translated_java_exact_5e-13",
+    "ticks_compared": 120,
+    "tick20_rng_cursors": "exact",
+    "tick20_position_motion": "translated_java_exact_5e-13",
+    "tick20_bow_strafe_transition": "exact",
+    "tick120_rng_cursors": "exact",
+    "tick120_positions": "translated_java_exact_1e-12",
+    "tick120_motion": "translated_java_within_1e-6",
+    "post20_target_revenge_bow_wander": "exact",
+    "projectile_rows": 26,
+    "projectile_eids": [8407, 8408, 8409, 8410],
+    "projectile_state": "translated_java_exact_1e-12",
+    "mount_edges_and_pose": "exact",
+    "effect_only_lightning": "exact"
+  },
+  "passenger_edges": {
+    "explicit_dismount_oracle_command": "horse_dismount_locked",
+    "explicit_dismount_case_count": 54,
+    "explicit_dismount_layouts": ["open", "first_blocked", "twice_blocked"],
+    "explicit_dismount_yaws": [-90, -45, 0, 30, 45, 89, 90, 135, 180],
+    "explicit_dismount_primary_hands": ["right", "left"],
+    "explicit_dismount_java_native": "bit_exact",
+    "live_runtime_primary_hand": "configurable",
+    "attach_and_vehicle_replacement": "source_exact",
+    "mounted_pose_and_fall_damage": "source_exact"
+  },
+  "particle_pixels": {
+    "gate": "verify/ui_entities/measure_horse_particles.py",
+    "java_control_ab_diff_pixels": 0,
+    "negative_control": "PASS",
+    "cases": [
+      {
+        "id": "horse_taming_smoke",
+        "particle_id": 11,
+        "signal_pixels": 50,
+        "java_ab_diff_pixels": 0,
+        "ownership": "exact",
+        "rgb": "exact"
+      },
+      {
+        "id": "horse_breeding_heart",
+        "particle_id": 34,
+        "signal_pixels": 9270,
+        "java_ab_diff_pixels": 0,
+        "ownership": "exact",
+        "rgb": "exact"
+      }
+    ]
+  },
+  "horse_inventory_gui": {
+    "gameplay_gate": "magma/game/test_container_live.sh",
+    "pixel_gate": "verify/ui_entities/measure_horse_gui.py",
+    "java_ab_diff_pixels": 0,
+    "ordinary_horse_hard_pixels": 0,
+    "chested_donkey_hard_pixels": 22,
+    "negative_control": "PASS",
+    "status": "live_bounded_fixed_function_edges"
+  },
+  "model_pixels": {
+    "gate": "verify/ui_entities/measure_horse_subject.py",
+    "java_ab_diff_pixels": 0,
+    "atomic_group_render_pins": 8,
+    "skeleton_trap_rider_hard_pixels": 538,
+    "skeleton_trap_group_hard_pixels": 3574,
+    "skeleton_trap_group_common_hard_pixels": 1672,
+    "negative_control": "PASS",
+    "status": "live_bounded_fixed_function_edges"
+  },
+  "remaining": [
+    "skeleton_trap_pixels",
+    "horse_inventory_fixed_function_edges",
+    "model_fixed_function_edges"
+  ]
+}

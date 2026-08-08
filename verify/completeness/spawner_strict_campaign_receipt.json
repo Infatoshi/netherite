@@ -1,0 +1,14 @@
+{
+  "schema": "netherite.spawner_strict_campaign",
+  "version": 1,
+  "todo": "WORLD-06",
+  "ticks": 600,
+  "entity_families": 13,
+  "block_spawners": 12,
+  "minecart_spawners": 1,
+  "custom_nbt": "class_specific_and_common_living_fields",
+  "weighted_potentials": "two_rows_per_block_family",
+  "dimension_unload_ticks": [200, 220],
+  "reload_after_ticks": [1, 7, 20, 199, 200, 220, 599],
+  "continuation": "final_native_checkpoint_byte_exact"
+}

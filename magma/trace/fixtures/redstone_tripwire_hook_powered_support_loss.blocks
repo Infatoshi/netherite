@@ -1,0 +1,12 @@
+# A powered attached east-west line. Removing the west hook's stored support
+# must drop that hook, detach the opposite hook and all three wire cells, and
+# release both north lamps.
+9 78 8 1 0
+15 78 8 1 0
+10 78 8 131 15
+14 78 8 131 13
+11 78 8 132 4
+12 78 8 132 5
+13 78 8 132 4
+10 78 7 124 0
+14 78 7 124 0

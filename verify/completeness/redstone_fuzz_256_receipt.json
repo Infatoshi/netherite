@@ -1,0 +1,18 @@
+{
+  "schema": "netherite.redstone_topology_receipt",
+  "version": 1,
+  "date_utc": "2026-08-22",
+  "generator": "magma/trace/run_oracle_matrix.py",
+  "seed_first": 2000000000,
+  "case_count": 256,
+  "ticks_per_case": 6,
+  "instances": 8,
+  "elapsed_seconds": 649.348,
+  "pass": 256,
+  "fail": 0,
+  "retry_count": 0,
+  "state_divergences": 0,
+  "unrepresented_state_fields": 0,
+  "summary_sha256": "92679e57458f21be18430b2c3ee26622dd7854bab54e94324707f4398fe4b384",
+  "command": "uv run --no-project python magma/trace/run_oracle_matrix.py --instances 8 --port-base 25700 --out magma/trace/out/redstone_fuzz_256_v2 --only-redstone-fuzz --redstone-fuzz-count 256 --redstone-fuzz-seed 2000000000 --platform 21 --block-box '-24 -6 -24 40 10 40' --skip-random --skip-mining --skip-survival --skip-fire --skip-combat --case-timeout 300"
+}

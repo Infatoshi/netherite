@@ -1,0 +1,44 @@
+# Exact EntityRenderer Night Vision gate. The sealed 130-block tunnel has no
+# sky or block light, so terrain and the first-person arm depend strongly on
+# the frame lightmap, while its far end crosses the 96..128 linear fog ramp.
+# The persistent pixel gate stays above 200 ticks, where the effect
+# is full strength and independent of the render partial tick. The warning
+# flicker is covered bit-for-bit by tests/Golden.java because tapes do not yet
+# record EntityRenderer's renderPartialTicks for each captured framebuffer.
+name: night_vision_dark
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  # Stay at the natural fresh-world spawn. A large post-reset /tp can race a
+  # late spawn-position packet and make the client camera disagree with its
+  # recorded server position during recstart.
+  - /fill ~-6 ~-1 ~-4 ~6 ~4 ~130 minecraft:stone
+  - /fill ~-5 ~ ~-3 ~5 ~3 ~129 minecraft:air
+  - /effect @p minecraft:night_vision 60 0 true
+setup_settle_ticks: 40
+duration_ticks: 40
+frames_every: 10
+input:
+  segments:
+    # Move the view once per captured interval. A completely static scene
+    # makes replay's stale-frame detector discard every identical golden.
+    - seconds: 0.5
+      look: [2, 0]
+    - seconds: 0.5
+      look: [2, 0]
+    - seconds: 0.5
+      look: [2, 0]
+    - seconds: 0.5
+      look: [2, 0]
+known_divergences: []

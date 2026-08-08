@@ -1,0 +1,4 @@
+# EAST-facing empty normal piston. Tick zero places a lit floor redstone torch
+# on the stone platform immediately south; the torch's weak output toward the
+# piston must start extension in the same server tick.
+12 78 8 33 5

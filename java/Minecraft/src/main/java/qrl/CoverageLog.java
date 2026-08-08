@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * name, dimension, branch flags). Deduped with counts; flushed to a file periodically.
  *
  * This is the qrl-mod side of the hook. The actual sampling of MC render methods lives
- * in QuantizedRL.onClientTick (it calls read-only MC methods directly and infers the
+ * in Recorder.onClientTick (it calls read-only MC methods directly and infers the
  * mutating ones from world state, so goldens captured from REAL MC stay valid). Control
  * cmds come over the qrl TCP socket: coverage_reset / coverage_dump / coverage_enable.
  *
@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class CoverageLog
 {
     public static final String DEFAULT_FILE =
-        System.getProperty("user.home") + "/dev/minecraft/mc-1.11.2-env/c/render-opt/coverage.log";
+        System.getProperty("user.home") + "/dev/minecraft/mc-1.11.2-env/java/render-opt/coverage.log";
 
     // Branch-flag bits (orthogonal; call sites OR them; dim bits added by hit()).
     public static final int F_WATER        = 1 << 0;

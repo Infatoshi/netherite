@@ -1,0 +1,106 @@
+/* core/config.def - THE registry. One line per knob; nothing else knows the list.
+ *
+ * This file is #included several times with different definitions of the five
+ * CFG_* macros (struct fields, defaults, parse dispatch, dump, breadcrumb). It
+ * has no include guard on purpose. Do not put anything but CFG_* lines and
+ * comments in here.
+ *
+ *   CFG_BOOL(name, default, "one-line doc")   int field, accepts 0 or 1 only
+ *   CFG_INT (name, default, "one-line doc")   int field
+ *   CFG_I64 (name, default, "one-line doc")   long long field
+ *   CFG_F32 (name, default, "one-line doc")   float field
+ *   CFG_STR (name, "default", "one-line doc") char[CR_CFG_STR_MAX], no heap
+ *
+ * KEY NAMING: lowercase snake_case, and for a knob that used to be an env var
+ * it is that name minus the MAGMA_ prefix (MAGMA_BENCH_CSV -> bench_csv). A
+ * non-MAGMA_ env var keeps its own name lowercased (ALLOCTRACK -> alloctrack).
+ *
+ * The doc string is user-facing: it is what --dump-config prints.
+ */
+
+/* ---- allocate-once pool caps (game/caps.h derives the pool geometry) ----
+ * The CR_DEF_* defaults and the MEASURED value each one derives from are
+ * documented at length in game/caps.h; do not restate the rationale here. */
+CFG_INT (view_radius,         CR_DEF_VIEW_RADIUS,         "max streaming view radius R in chunks; every toroidal pool is sized for it")
+CFG_INT (max_verts_per_chunk, CR_DEF_MAX_VERTS_PER_CHUNK, "per-chunk vertex slab, all 4 layers packed")
+CFG_INT (owr_cells_max,       CR_DEF_OWR_CELLS_MAX,       "decoration cells one owr_run populate window may produce")
+CFG_INT (draw_solid,          CR_DEF_DRAW_SOLID,          "SOLID layer draw-buffer cap, verts summed over the kept chunks of a frame")
+CFG_INT (draw_cutmip,         CR_DEF_DRAW_CUTMIP,         "CUTOUT_MIPPED layer draw-buffer cap, verts per frame")
+CFG_INT (draw_cutout,         CR_DEF_DRAW_CUTOUT,         "CUTOUT layer draw-buffer cap, verts per frame")
+CFG_INT (draw_trans,          CR_DEF_DRAW_TRANS,          "TRANSLUCENT layer draw-buffer cap, verts per frame")
+CFG_INT (max_tris,            CR_DEF_MAX_TRIS,            "screen-space triangle scratch capacity")
+CFG_INT (max_mobs,            CR_DEF_MAX_MOBS,            "live mob budget (reserved; no live entities streamed yet)")
+CFG_INT (ent_max_verts,       CR_DEF_ENT_MAX_VERTS,       "entity vertex scratch for one raster pass of the visible mob models")
+CFG_INT (owr_d_min,           0,                          "floor for the owr pool diameter, for offline tools sweeping a big region")
+
+/* ---- measurement / diagnostics ---- */
+CFG_BOOL(bench,        0,   "per-frame stage timing plus the end-of-run percentile report on stderr")
+CFG_INT (bench_warmup, 120, "frames dropped before the bench percentiles start accumulating")
+CFG_STR (bench_csv,    "",  "path for the per-frame bench CSV; empty writes no CSV")
+CFG_BOOL(timer_debug,  0,   "log the Timer.java tick accumulator (elapsed ticks, partial ticks) each frame")
+CFG_BOOL(alloctrack,   0,   "arm the trace/alloctrack.so allocation tripwire (the .so must also be LD_PRELOADed)")
+CFG_BOOL(debug_caps,   0,   "log the measured per-frame pool maxima ([caps] / [owrcaps]) used to size the caps above")
+
+/* ---- drive / scenario (autopilot, demo fixtures, frame dumps) ---- */
+CFG_BOOL(still,              0,   "headless autopilot: stand still (forward=0) instead of walking forward")
+CFG_BOOL(jump,               0,   "headless autopilot: hold jump every tick")
+CFG_BOOL(attack,             0,   "headless autopilot: hold left-click every tick (dig SM + live particles)")
+CFG_F32 (yawrate,            0.0f,"headless autopilot: scripted yaw change in degrees per frame")
+CFG_INT (hotbar,             -1,  "headless: select hotbar slot 0..8 once at frame 0; -1 = leave default")
+CFG_STR (tp,                 "",  "headless: teleport step blocks/frame along -Z (surface snap); empty disables")
+CFG_STR (pitch,              "",  "headless: set player pitch (deg) at frame 0; empty leaves the default pose")
+CFG_I64 (set_time,           -1,  "headless: pin world clock (ticks) before first tick; -1 = unset (0 is a real value)")
+CFG_BOOL(vanilla_spawn,      0,   "select the 1.11.2 world spawn from eligible biomes; preserves legacy fixed-spawn fixtures when off")
+CFG_INT (spawn_offset_x,     0,   "player offset from vanilla world spawn; video recovery searches vanilla's run-specific fuzz range")
+CFG_INT (spawn_offset_z,     0,   "player offset from vanilla world spawn; video recovery searches vanilla's run-specific fuzz range")
+CFG_BOOL(spawn_surface,      0,   "headless: snap frame-0 spawn onto the terrain surface (no death drop)")
+CFG_F32 (fov_setting,     70.0f,  "vanilla GameSettings.fovSetting for the world camera; hand projection remains fixed at 70")
+CFG_BOOL(third_person_camera, 0,  "render-only third-person rear camera for video-conditioned observation search")
+CFG_BOOL(fancy_leaves,        0,   "vanilla fancyGraphics leaf path: cutout-mipped non-opaque cubes")
+CFG_BOOL(terrain_mips,        0,   "sample the terrain atlas mip chain; oracle profiles pin this off, ordinary clients commonly enable it")
+CFG_BOOL(fixtures,           0,   "seed the live-entity fixtures plot at spawn")
+CFG_BOOL(mob_demo,           0,   "spawn four deterministic demo mobs ringing spawn (window render checks)")
+CFG_BOOL(inv_demo,           0,   "headless inventory demo: exercise gm_player_inv_click and log the result")
+CFG_BOOL(particle_demo,      0,   "headless: spawn dig-break particles on a fixed schedule")
+CFG_BOOL(entity_water_demo,  0,   "build the translucent-terrain entity-order fixture (three zombies + water columns)")
+CFG_BOOL(entity_water_dry,   0,   "entity_water_demo twin: same poses/geometry but omit the water blocks")
+CFG_BOOL(anim_texture_demo,  0,   "build the animated-atlas fixture (sealed water/lava basins + fixed camera)")
+CFG_STR (dump_dir,           "",  "directory for per-frame PPM dumps (frame_NNNNN.ppm); empty writes none")
+CFG_BOOL(legacy_lightmap,    0,   "restore the noon-baked scalar lightmap path (default is shade-time lightmap)")
+/* ---- world / render pipeline knobs (culling, shading, preview) ---- */
+CFG_BOOL(no_cull,            0,  "bypass frustum + occlusion culling; mesh every chunk in the view radius")
+CFG_BOOL(no_occlusion,       0,  "bypass only the W19 visibility-graph BFS; frustum column/section cull stays on")
+CFG_BOOL(debug_verts,        0,  "tally near/far leaf+solid verts to prove far-chunk decoration reached the mesh")
+CFG_INT (view_radius_active, 0,  "runtime view-radius LOWERING knob in chunks (0 = unset = SCN_VIEW_RADIUS, then pool-cap clamp); distinct from the pool-cap key view_radius")
+CFG_STR (texel_bias,         "", "nearest-sample phase shift in texel units applied to both U and V; empty = 0")
+CFG_STR (texel_bias_u,       "", "nearest-sample phase shift in texel units for U only; empty keeps texel_bias")
+CFG_STR (texel_bias_v,       "", "nearest-sample phase shift in texel units for V only; empty keeps texel_bias")
+CFG_STR (sample_mode,        "", "atlas sample grammar: empty/0 floor-eps, 1 floor, 2 round, 3 floor+eps; empty = 0")
+CFG_BOOL(flat_shade,         0,  "force light/AO/tint to 1 (flat unlit shade) for A/B diagnostics")
+CFG_BOOL(ao,                 0,  "re-enable vertex AO without smooth light averaging (smooth_light still forces AO on)")
+CFG_BOOL(no_skyspread,       0,  "skip the horizontal skylight BFS flood (diagnostic A/B vs vanilla stale skylight)")
+CFG_BOOL(no_decor,           0,  "skip overworld populate decoration overlay (trees/leaves/foliage/lakes)")
+CFG_BOOL(no_prefetch,        0,  "disable the background base-terrain gen_prefetch worker")
+CFG_STR (preview_dump_path,  "", "CSV path for preview_diag=3 fragment dump; empty defaults to /tmp/preview_frags.csv")
+CFG_INT (preview_diag,       0,  "inventory preview diagnostics: 0 off, 1 hard-pixel attribute, 2 +AABB, 3 fragment dump")
+CFG_STR (preview_color_mode, "", "inventory preview color packing mode; empty = 4 (Mesa unorm8 modulate)")
+CFG_STR (raster_probe,       "", "CPU entity fragment probe x,y or all; logs triangle, UV, texel, light and output")
+/* ---- capture / replay-compat / render toggles ---- */
+CFG_BOOL(hide_gui,        0,  "hide HUD overlay (hearts/hotbar/crosshair); also gates the first-person hand workaround")
+CFG_BOOL(strip_overlays,  0,  "suppress boss-bar overlay (tape strip.overlays / recorder skip)")
+CFG_BOOL(no_overlay,      0,  "skip selection box + dig crack passes")
+CFG_BOOL(no_hand,         0,  "skip first-person hand / viewmodel draw")
+CFG_BOOL(no_crack,        0,  "skip dig-crack overlay only")
+CFG_BOOL(no_defer,        0,  "disable deferred CUDA frame readback")
+CFG_BOOL(no_pipeline,     0,  "disable depth-1 CUDA prep/enqueue pipeline")
+CFG_BOOL(no_layermerge,   0,  "disable CUDA terrain layer-merge path")
+CFG_BOOL(no_devmesh,      0,  "force host-concat meshes (no device-resident slab pool)")
+CFG_BOOL(cpu_sky,         0,  "force CPU sky draw even when a GPU backend is open")
+CFG_I64 (hand_from_tick,  -1, "first tick to draw the hand under hide_gui; -1 = always hide while hide_gui")
+CFG_STR (fog_c1_init,     "", "seed for EntityRenderer.fogColor1 smoother; empty = steady-state seed")
+CFG_BOOL(anim_textures,   0,  "window path: advance atlas texture animations (tape capture stays pinned)")
+CFG_STR (overlay_dump,    "", "non-empty opens selection/crack on the headless dump path (changes rendered bytes)")
+CFG_STR (dump,            "", "flywheel: tick,x0,x1,y0,y1,z0,z1 dump of live id/meta to stderr")
+CFG_STR (worlddump,       "", "flywheel: tick,cx0,cz0,ncx,ncz,path[;...] write live CRWS chunk dumps")
+CFG_STR (dump_light,      "", "flywheel: tick,x0,x1,y0,y1,z0,z1 dump of sky/block light to stderr")
+CFG_STR (geom_dump,       "", "geometry oracle: path for per-part dragon pose lines; empty = off")

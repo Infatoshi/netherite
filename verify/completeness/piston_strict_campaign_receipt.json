@@ -1,0 +1,19 @@
+{
+  "schema": "netherite.piston_strict_campaign",
+  "version": 1,
+  "todo": "RED-04",
+  "generated_topologies": 144,
+  "move_sizes": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "facings": [0, 1, 2, 3, 4, 5],
+  "piston_types": ["normal", "sticky"],
+  "transitions": ["extension", "sticky_pull", "entity_collision"],
+  "reload_boundaries": ["extension_progress_0.5", "pull_progress_0.5"],
+  "continuation": "final_native_checkpoint_byte_exact",
+  "java_state_evidence": {
+    "generated_topology_cases": 256,
+    "named_family_cases_minimum": 500,
+    "state_divergences": 0,
+    "unrepresented_state_fields": 0
+  },
+  "pixel_residual_owner": "VIS-07"
+}

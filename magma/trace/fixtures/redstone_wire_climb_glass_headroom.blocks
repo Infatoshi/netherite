@@ -1,0 +1,11 @@
+# Glass above the lower wire is not a Java normal cube, so it does not block
+# the one-block climb over the adjacent stone step.
+12 77 8 1 0
+12 78 8 55 0
+12 79 8 20 0
+13 78 8 1 0
+13 79 8 55 0
+14 78 8 1 0
+14 79 8 55 0
+15 78 8 1 0
+15 79 8 123 0

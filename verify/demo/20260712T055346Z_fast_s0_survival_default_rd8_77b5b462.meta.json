@@ -1,0 +1,77 @@
+{
+ "name": "20260712T055346Z_fast_s0_survival_default_rd8_77b5b462",
+ "created_utc": "20260712T055346Z",
+ "git_rev": "fd847f349b0f7df586ba5be778c337df2f60fc59",
+ "profile": "fast",
+ "qrl_launch": {
+  "port": 25575,
+  "profile": "fast",
+  "chat": false,
+  "hide_gui": false,
+  "strip": {
+   "menus": true,
+   "overlays": true,
+   "sound": true
+  },
+  "determinism": {
+   "pin_flicker": true,
+   "pin_skin": true,
+   "pin_texture_animations": true
+  },
+  "world": {
+   "seed": 0,
+   "mode": "survival",
+   "type": "default",
+   "structures": true,
+   "time": 6000,
+   "weather": "clear",
+   "gamerules": {
+    "sendCommandFeedback": "false",
+    "showDeathMessages": "false",
+    "doDaylightCycle": "false",
+    "doWeatherCycle": "false",
+    "doMobSpawning": "true",
+    "doFireTick": "true",
+    "doMobLoot": "true",
+    "doEntityDrops": "true",
+    "doTileDrops": "true",
+    "mobGriefing": "true",
+    "randomTickSpeed": "3",
+    "keepInventory": "false"
+   }
+  }
+ },
+ "options": {
+  "fov": "0.0",
+  "gamma": "0.0",
+  "renderDistance": "8",
+  "guiScale": "2",
+  "particles": "2",
+  "bobView": "false",
+  "anaglyph3d": "false",
+  "maxFps": "260",
+  "fboEnable": "true",
+  "fancyGraphics": "false",
+  "ao": "0",
+  "renderClouds": "false",
+  "chatVisibility": "2",
+  "enableVsync": "false",
+  "useVbo": "true",
+  "mipmapLevels": "0",
+  "entityShadows": "false",
+  "soundCategory_master": "0.0"
+ },
+ "frames_every": 20,
+ "tape_jsonl": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.jsonl",
+ "frames_dir": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462_frames",
+ "ticks": 3121,
+ "parquet": "/home/infatoshi/dev/minecraft/mc-1.11.2-env/verify/tapes/20260712T055346Z_fast_s0_survival_default_rd8_77b5b462.parquet",
+ "parquet_rows": 3121,
+ "frames": 157,
+ "capture": {
+  "hide_gui": true,
+  "hide_gui_source": "the recorder skipped the OVERLAY pass, which is not vanilla hideGUI: this tape's own qrl_launch says hide_gui false with strip.overlays true. All 157 goldens have no hearts, hotbar or crosshair, and they DO draw a first-person viewmodel on nearly every frame - a bare arm on most of them, a held item on a few - so only the overlay was stripped. GuiIngame.renderPortal is drawn inside that pass and is correctly tied to this flag; the hand is not, and hiding it is the workaround described in hand_from_tick_source. Note options.bobView is false here, so the oracle's viewmodel does not bob and sits on identical screen pixels frame to frame",
+  "hand_from_tick": 2440,
+  "hand_from_tick_source": "first golden at which MAGMA's viewmodel is right, not the tick the oracle's hand returns - the oracle draws one throughout and is EMPTY HANDED on most frames, so what it draws is the bare arm (verified by eye at t=0, 900, 1140, 1800, 2400, 2800, 3100). magma has that path and lands it on the right pixels but draws it far too bright: at t=900, a rain-free frame whose terrain and sky agree to 1/255, the arm is golden (139,103,84) against magma (192,173,148), per-channel 0.72/0.60/0.58. Forcing the hand on for the whole tape moves 110 of 157 frames the wrong way on whole mean/ch and only 10 the right way, which is why it is still off. This tick is 2440 because the worldpatch sidecar's two set_inventory rows, t=2274 (item 58) and t=2320 (item 269, slot 6), make 2440 the first golden where a HELD item is also known right. Fix the arm shading and this suppression goes away; see OPEN_DIVERGENCES"
+ }
+}

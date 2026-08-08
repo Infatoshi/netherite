@@ -1,0 +1,4 @@
+# A redstone block occupies the EAST-facing piston's output/front cell before
+# the piston is placed at tick zero. BlockPistonBase excludes its facing from
+# the direct-power loop, so this source must not power or move the piston.
+13 78 8 152 0

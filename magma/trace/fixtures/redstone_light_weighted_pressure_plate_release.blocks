@@ -1,0 +1,9 @@
+# A saved gold weighted plate at strength 2, matching dust strength 2, and a
+# lit lamp. With no entity in the trigger AABB, a +3 callback drains plate and
+# dust to zero and hands the lamp its independent +4 delayed-off callback.
+12 76 8 1 0
+12 77 8 1 0
+13 77 8 1 0
+12 78 8 147 2
+13 78 8 55 2
+14 78 8 124 0

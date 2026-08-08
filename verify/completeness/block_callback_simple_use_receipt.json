@@ -1,0 +1,20 @@
+{
+  "schema": "netherite.block_callback_simple_use_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "selected_cases": 4,
+  "pass": 4,
+  "fail": 0,
+  "state_divergences": 0,
+  "source_summaries": [
+    "9986ea3a9180c525ba1650d7ccca3ee067aad817f3c14ef251d07f6f08f3bbe6",
+    "81d9e7ea97eea656ebe3c015afeb5e8dd2dd20027ab83394f6b5c6b3efaf6d06"
+  ],
+  "families": [
+    ["BlockCommandBlock", "onBlockActivated"],
+    ["BlockFence", "onBlockActivated"],
+    ["BlockSign", "onBlockActivated"],
+    ["BlockStructure", "onBlockActivated"]
+  ]
+}

@@ -12,8 +12,8 @@ import java.nio.file.Paths;
  * deobfuscating remapper unmaps the inner-class target name to its notch form).
  *
  * MODE is resolved ONCE at class-init (getAoBrightness runs per smooth-lit vertex, so no
- * per-call IO). Sidecar render-opt/dropin/ao/qao_mode.txt is authoritative (env QAO_MODE
- * fallback):
+ * per-call IO). Single source: sidecar render-opt/dropin/ao/qao_mode.txt (a file, not an
+ * env var: the gradle daemon serves a STALE env to runClient):
  *   "native"   -> MODE=1, load libqao.so, route the AO average through the C kernel
  *   "sabotage" -> MODE=2, AO brightness forced to 0 (smooth-lit geometry goes dark)
  *   else/unset -> MODE=0, transformer's MODE check falls through to the vanilla body
@@ -22,18 +22,16 @@ public final class QAOHook {
     public static volatile int MODE;  // volatile: runtime-switchable via the qrl "kmode" op
     private static boolean libLoaded = false;
     private static final String DIR =
-        "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/dropin/ao";
+        "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/ao";
 
     static {
         String m = null;
         try { m = new String(Files.readAllBytes(Paths.get(DIR, "qao_mode.txt"))).trim(); }
         catch (Exception e) { m = null; }
-        if (m == null || m.isEmpty()) m = System.getenv("QAO_MODE");
         int mode = 0;
         if ("native".equals(m)) {
             mode = 1;
-            String lib = System.getenv("QAO_LIB");
-            if (lib == null) lib = DIR + "/libqao.so";
+            String lib = DIR + "/libqao.so";
             System.load(lib);
             libLoaded = true;
             System.err.println("[qao] QAOHook: loaded native lib " + lib);

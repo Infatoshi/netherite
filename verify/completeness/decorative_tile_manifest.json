@@ -1,0 +1,26 @@
+{
+  "schema": "netherite.decorative_tile_gate",
+  "version": 1,
+  "todo": "WORLD-05",
+  "classification": "live_bounded",
+  "state": {
+    "sign_text_component_nbt": "exact",
+    "banner_base_patterns_custom_name_nbt": "exact",
+    "loaded_tile_positions": "exact"
+  },
+  "behavior": {
+    "support_loss_retirement": "direct_java_native_exact",
+    "sign_drop": "exact_untagged",
+    "banner_drop_metadata_and_nbt": "exact"
+  },
+  "continuation": {
+    "state_capsule": "exact",
+    "native_checkpoint": "exact",
+    "mixed_command_sign_loaded_order": "direct_java_native_exact"
+  },
+  "remaining": [
+    "sign_editor_and_command_click_network_interaction",
+    "world_sign_and_banner_pixel_oracle_cases",
+    "arbitrary_concurrent_tile_and_entity_ordering_beyond_command_sign"
+  ]
+}

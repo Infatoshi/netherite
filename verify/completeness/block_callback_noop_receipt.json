@@ -1,0 +1,24 @@
+{
+  "schema": "netherite.block_callback_noop_receipt",
+  "source": "real Minecraft Java 1.11.2 callback execution",
+  "version": 1,
+  "effective_delegate_rows": [
+    ["BlockStairs", "breakBlock", [53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203]],
+    ["BlockStairs", "onBlockActivated", [53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203]],
+    ["BlockStairs", "updateTick", [53, 67, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180, 203]]
+  ],
+  "rows": [
+    ["BlockAir", "dropBlockAsItemWithChance", 0],
+    ["BlockBarrier", "dropBlockAsItemWithChance", 166],
+    ["BlockBasePressurePlate", "randomTick", 70],
+    ["BlockButton", "randomTick", 77],
+    ["BlockObserver", "neighborChanged", 218],
+    ["BlockRailDetector", "randomTick", 28],
+    ["BlockRedstoneDiode", "randomTick", 93],
+    ["BlockRedstoneTorch", "randomTick", 76],
+    ["BlockShulkerBox", "dropBlockAsItemWithChance", 219],
+    ["BlockStructureVoid", "dropBlockAsItemWithChance", 217],
+    ["BlockTripWire", "randomTick", 132],
+    ["BlockTripWireHook", "randomTick", 131]
+  ]
+}

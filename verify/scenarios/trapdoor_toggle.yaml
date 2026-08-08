@@ -1,0 +1,40 @@
+name: trapdoor_toggle
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 0.5 4 1.5 0 22
+  - /fill -6 3 -2 6 3 9 minecraft:stone
+  - /fill -5 4 6 5 7 6 minecraft:stone
+  # Center trapdoor begins closed and is directly under the crosshair.
+  - /setblock 0 4 5 minecraft:trapdoor 0
+  # Open and top-half poses with the same supported facing flank it.
+  - /setblock -3 4 5 minecraft:trapdoor 4
+  - /setblock 3 4 5 minecraft:trapdoor 8
+  - /setblock -1 6 5 minecraft:trapdoor 4
+  - /setblock 1 6 5 minecraft:trapdoor 12
+duration_ticks: 320
+frames_every: 20
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 1.0
+      buttons: [3]
+    - seconds: 4.0
+      keys: [w]
+    - seconds: 3.0
+      keys: [a]
+    - seconds: 3.0
+      keys: [d]
+    - seconds: 3.0
+known_divergences: []

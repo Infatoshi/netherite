@@ -1,0 +1,14 @@
+{
+  "schema": "netherite.block_callback_plant_root_receipt",
+  "version": 1,
+  "source": "99-row live real Minecraft Java/native plant support campaign",
+  "captured_utc": "2026-08-23",
+  "campaign_rows": 99,
+  "pass": 99,
+  "fail": 0,
+  "families": [
+    ["BlockBush", "neighborChanged", [0, 15]],
+    ["BlockCactus", "neighborChanged", [17]],
+    ["BlockReed", "neighborChanged", [16]]
+  ]
+}

@@ -1,0 +1,50 @@
+name: glass_pane_connections
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode creative @p
+  - /tp @p -7.5 4 0.5 0 4
+  - /fill -9 3 -3 9 3 14 minecraft:stone
+  # Isolated pane and a straight run.
+  - /setblock -6 4 8 minecraft:glass_pane
+  - /fill -4 4 7 -4 4 9 minecraft:glass_pane
+  # Corner, T, and cross connections.
+  - /setblock -1 4 8 minecraft:glass_pane
+  - /setblock 0 4 8 minecraft:glass_pane
+  - /setblock 0 4 9 minecraft:glass_pane
+  - /fill 2 4 8 4 4 8 minecraft:glass_pane
+  - /setblock 3 4 9 minecraft:glass_pane
+  - /fill 5 4 8 7 4 8 minecraft:glass_pane
+  - /fill 6 4 7 6 4 9 minecraft:glass_pane
+  # Solid-glass endpoints expose pane-to-block joins.
+  - /setblock 2 4 8 minecraft:glass
+  - /setblock 7 4 8 minecraft:glass
+setup_qrl:
+  # Final render-settle: first recording's ticks 0-40 goldens were stale sky.
+  - cmd: runcmds
+    action:
+      cmds:
+        - time set 6000
+    settle_ticks: 120
+duration_ticks: 300
+frames_every: 20
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 8.0
+      keys: [a, Shift_L]
+    - seconds: 2.0
+      look: [20.0, -4.0]
+    - seconds: 3.0
+      keys: [w]
+known_divergences: []

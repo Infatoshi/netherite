@@ -1,0 +1,16 @@
+{
+  "schema": "netherite.block_callback_drop_tail_receipt",
+  "version": 1,
+  "source": "real Minecraft Java 1.11.2 callback execution versus native RNG model",
+  "captured_utc": "2026-08-23",
+  "game_rule": "doTileDrops=false",
+  "case_count": 4,
+  "pass": 4,
+  "fail": 0,
+  "families": [
+    ["BlockJukebox", "dropBlockAsItemWithChance"],
+    ["BlockMobSpawner", "dropBlockAsItemWithChance"],
+    ["BlockPistonMoving", "dropBlockAsItemWithChance"],
+    ["BlockSilverfish", "dropBlockAsItemWithChance"]
+  ]
+}

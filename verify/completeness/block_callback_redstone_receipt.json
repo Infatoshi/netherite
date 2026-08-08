@@ -1,0 +1,39 @@
+{
+  "schema": "netherite.block_callback_redstone_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "elapsed_seconds": 266.899,
+  "case_count": 10,
+  "pass": 10,
+  "fail": 0,
+  "retries": 0,
+  "state_divergences": 0,
+  "summary_sha256": "adafd8a91666f693b945659f7f62e82a1f796ad0b7a7023d09322c21c905d542",
+  "cases": [
+    "redstone_button_lamp_release_seed_0",
+    "redstone_comparator_analog_7_seed_0",
+    "redstone_comparator_saved_command_block_success_7_seed_0",
+    "redstone_lamp_off_seed_0",
+    "redstone_observer_east_pulse_on_seed_0",
+    "redstone_repeater_delay_1_power_on_seed_0",
+    "redstone_stone_pressure_plate_release_seed_0",
+    "redstone_torch_floor_burnout_recovery_seed_0",
+    "redstone_tripwire_complete_line_on_add_seed_0",
+    "redstone_tripwire_hook_powered_support_remove_seed_0"
+  ],
+  "families": [
+    ["BlockBasePressurePlate", "updateTick"],
+    ["BlockButton", "updateTick"],
+    ["BlockObserver", "updateTick"],
+    ["BlockRedstoneComparator", "updateTick"],
+    ["BlockRedstoneDiode", "neighborChanged"],
+    ["BlockRedstoneDiode", "updateTick"],
+    ["BlockRedstoneLight", "neighborChanged"],
+    ["BlockRedstoneLight", "updateTick"],
+    ["BlockRedstoneTorch", "neighborChanged"],
+    ["BlockRedstoneTorch", "updateTick"],
+    ["BlockTripWireHook", "neighborChanged"],
+    ["BlockTripWireHook", "updateTick"]
+  ]
+}

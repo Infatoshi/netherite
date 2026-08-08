@@ -1,0 +1,11 @@
+# The saved comparator/command-block edge plus one isolated cactus random-tick
+# target. random_selection_locked removes every other loaded random-tick block
+# and promotes this chunk before the command changes randomTickSpeed to 17.
+11 77 8 1 0
+12 77 8 1 0
+11 78 8 137 2
+12 78 8 149 1
+13 78 8 123 0
+-4 76 8 1 0
+-4 77 8 12 0
+-4 78 8 81 0

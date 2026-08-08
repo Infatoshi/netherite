@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import qrl.QuantizedRL;
+import qrl.Recorder;
 
 /** Records authoritative local-player position packets for tape replay. */
 @Mixin(NetHandlerPlayClient.class)
@@ -21,6 +21,6 @@ public abstract class MixinRecordPlayerPosition {
         /* PacketThreadUtil aborts the Netty-thread invocation before TAIL, but
          * keep the same explicit client-thread guard as the velocity hook. */
         if (this.gameController.isCallingFromMinecraftThread())
-            QuantizedRL.recordPlayerPositionPacket();
+            Recorder.recordPlayerPositionPacket();
     }
 }

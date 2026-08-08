@@ -1,0 +1,11 @@
+# EAST normal piston with a NORTH slime attachment. The side stone begins
+# diagonal to a valid three-high cactus column. Settlement beside its middle
+# cell leaves the lower cactus and collapses the middle and top cells.
+12 79 8 33 5
+13 79 8 165 0
+13 79 7 1 0
+14 76 6 1 0
+14 77 6 12 0
+14 78 6 81 3
+14 79 6 81 7
+14 80 6 81 12

@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while stage-1 dark-oak sapling 6:13 occupies the
+# front cell. Dirt support keeps it valid. Java strips stage bit 8 and drops
+# item 6:5, preserving only the wood type.
+12 78 9 152 0
+13 77 8 3 0
+13 78 8 6 13

@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while a soul-sand-supported mature nether wart is
+# in the front cell.
+12 78 9 152 0
+13 77 8 88 0
+13 78 8 115 3

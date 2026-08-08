@@ -1,0 +1,35 @@
+name: ladder_climb
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 0.5 4 2.5 0 0
+  - /fill -4 3 0 4 3 9 minecraft:stone
+  - /fill -2 4 6 2 11 6 minecraft:stone
+  - /fill 0 4 5 0 10 5 minecraft:ladder 2
+  - /fill -2 11 4 2 11 6 minecraft:stone
+duration_ticks: 300
+frames_every: 10
+input:
+  segments:
+    - seconds: 2.0
+      keys: [w]
+    - seconds: 4.0
+      keys: [w]
+    - seconds: 2.0
+    - seconds: 2.0
+      keys: [Shift_L]
+    - seconds: 2.0
+      keys: [s]
+    - seconds: 3.0
+known_divergences: []

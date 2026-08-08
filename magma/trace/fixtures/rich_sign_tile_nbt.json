@@ -1,0 +1,12 @@
+{
+  "name": "",
+  "tag": {
+    "type": "compound",
+    "value": {
+      "Text1": {"type": "string", "value": "{\"text\":\"Parity\"}"},
+      "Text2": {"type": "string", "value": "{\"text\":\"Sign\"}"},
+      "Text3": {"type": "string", "value": "{\"text\":\"Line 3\"}"},
+      "Text4": {"type": "string", "value": "{\"text\":\"Done\"}"}
+    }
+  }
+}

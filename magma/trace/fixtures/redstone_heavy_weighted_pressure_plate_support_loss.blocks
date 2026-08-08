@@ -1,0 +1,5 @@
+# An iron weighted plate at strength 1 uses the same stale-callback and
+# powered-neighbor teardown boundary as the gold plate.
+12 77 8 1 0
+12 78 8 148 1
+13 78 8 124 0

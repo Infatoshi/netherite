@@ -1,0 +1,15 @@
+{
+  "schema": "netherite.block_callback_tnt_neighbor_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "selected_cases": 1,
+  "pass": 1,
+  "fail": 0,
+  "state_divergences": 0,
+  "campaign_summary_sha256": "312388559f9103ca4b8423112bfb27da08bc7fae212516e25799d160596b2ae6",
+  "neighbor_summary_sha256": "8a549fd58ab5416fb3202577a5d60e9c96630f8517297e923691aa9357e6c15f",
+  "families": [
+    ["BlockTNT", "neighborChanged"]
+  ]
+}

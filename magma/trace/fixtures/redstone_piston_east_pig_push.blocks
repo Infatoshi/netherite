@@ -1,0 +1,3 @@
+# EAST-facing normal piston is placed at tick zero directly west of a locked
+# NoAI pig centered at (12.5,78,8.5). A south-side redstone block powers it.
+11 78 9 152 0

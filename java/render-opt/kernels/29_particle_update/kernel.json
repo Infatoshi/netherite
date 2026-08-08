@@ -1,0 +1,11 @@
+{
+  "name": "particle_update",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "live-hook",
+  "source": "src/net/minecraft/client/particle/Particle.java:156 onUpdate + :309 move + :359 resetPositionToBB",
+  "describe": "Per-particle physics integration in OPEN AIR (no collision): age++, motionY -= 0.04*gravity, bounding-box offset+recenter, motion *= 0.98. Snapshot (pos,motion,age,gravity,width,height) -> (new pos,motion,age,onGround). Collision is the world-coupled part excluded by construction. Golden captured live via NetheriteMod 'capture_particle' (real onUpdate, canCollide=false at y~200).",
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

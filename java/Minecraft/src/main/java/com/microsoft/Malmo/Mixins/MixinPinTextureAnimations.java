@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 
-import qrl.QLaunch;
+import netheritemod.QLaunch;
 
 /**
  * Freeze animated block-atlas sprites on the physical frame zero that

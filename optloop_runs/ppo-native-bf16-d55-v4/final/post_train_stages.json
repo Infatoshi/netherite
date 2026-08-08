@@ -1,0 +1,66 @@
+{
+  "accepted_opt_stack": {
+    "env_ticks_per_s": 582589.6924934625,
+    "median_chunk_ms": 1349.89,
+    "rel_vs_native": 0.10826540184174707,
+    "rel_vs_python": 0.21707439133934134
+  },
+  "schema": "netherite.native-post-train-stages.v1",
+  "stages": {
+    "convert_checkpoint": {
+      "native_sha256": "e47948277d0ad5013f43783ea6f4c2d7001e234eb9f96b2a61c33a7636a4f16e",
+      "pt_sha256": "ecd7aa73709fa9485364fda768559a7cbc45e43352ed703f5c2ead8a373266f0",
+      "status": "pass",
+      "strict_key_shape_value_roundtrip": true
+    },
+    "full_train": {
+      "all_finite": true,
+      "available_cells_last": 53,
+      "chunks": 2442,
+      "episodes": 339150,
+      "reward_first": -0.0088597,
+      "reward_last": 0.0681732,
+      "status": "pass",
+      "ticks": 1920466944,
+      "wall_s": 3745.8
+    },
+    "java_pilot": {
+      "ep_ticks": 6000,
+      "fragments": "final/java_pilot/fragments/seed_{2,3,10}.json",
+      "merge_note": "merged result did not preserve pinned clean provenance (tracked_clean likely flipped mid-run)",
+      "n_attempts": 15,
+      "non_noop_steps_mean": 4464.533333333334,
+      "per_seed_reached": {
+        "10": 0,
+        "2": 0,
+        "3": 0
+      },
+      "seeds": [
+        2,
+        3,
+        10
+      ],
+      "status": "complete_zero_success",
+      "successes": 0,
+      "tries": 5
+    },
+    "sim_sanity": {
+      "deepest_stage_histogram": [
+        128,
+        0,
+        0,
+        0,
+        0
+      ],
+      "finite_and_non_degenerate": false,
+      "multi_category_heads_diverse": true,
+      "note": "exit 2: |V|>>50 known BF16 debt; multi-head diversity true",
+      "status": "fail_value_gate",
+      "torch_successes": 0,
+      "value_max": -159881.5,
+      "value_min": -23213760.0,
+      "values_within_sane_range": false
+    }
+  },
+  "ts": "2026-08-01T23:46:45Z"
+}

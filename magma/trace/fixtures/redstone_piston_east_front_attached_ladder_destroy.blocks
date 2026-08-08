@@ -1,0 +1,6 @@
+# EAST-facing normal piston is staged before tick zero with ladder 65:5 on
+# its output face. Metadata 5 faces EAST and therefore uses the piston base
+# immediately WEST as its valid support. Adding the south-side redstone block
+# powers the piston; Java destroys the attached ladder and drops item 65:0.
+12 78 8 33 5
+13 78 8 65 5

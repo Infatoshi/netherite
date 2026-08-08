@@ -1,0 +1,10 @@
+{
+  "dtype": "float32",
+  "output": "optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt",
+  "parameters": 26,
+  "schema": "netherite.cgraph-weights.v1",
+  "sha256": "76913e1d30249283b14c299930383fcd319b5806fdd86d06f912c0ce30633a97",
+  "source_pt": null,
+  "torch_seed": 0,
+  "values": 1654723
+}

@@ -1,0 +1,3 @@
+# DOWN-facing observer watches y=79 and outputs upward into the lamp at y=81.
+12 80 8 218 0
+12 81 8 123 0

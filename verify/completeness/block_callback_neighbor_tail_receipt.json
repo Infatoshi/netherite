@@ -1,0 +1,24 @@
+{
+  "schema": "netherite.block_callback_neighbor_tail_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "selected_cases": 8,
+  "pass": 8,
+  "fail": 0,
+  "state_divergences": 0,
+  "source_summaries": [
+    "1cba7c46db633ae8e06d136873cc56902298233f439df75e7063e743208ea3e1",
+    "2f78662a169afe063a1d7faed1121ee33bf01207a5b363595e2d8afcd950c92c"
+  ],
+  "families": [
+    ["BlockChest", "neighborChanged"],
+    ["BlockCommandBlock", "neighborChanged"],
+    ["BlockDispenser", "neighborChanged"],
+    ["BlockFarmland", "neighborChanged"],
+    ["BlockHopper", "neighborChanged"],
+    ["BlockPistonExtension", "neighborChanged"],
+    ["BlockPistonMoving", "neighborChanged"],
+    ["BlockRailBase", "neighborChanged"]
+  ]
+}

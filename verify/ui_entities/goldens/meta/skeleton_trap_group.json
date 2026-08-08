@@ -1,0 +1,248 @@
+{
+  "id": "skeleton_trap_group",
+  "pin_reply_a": {
+    "ok": true,
+    "kind": "skeleton",
+    "difficulty": "EASY",
+    "ticks_existed": 40,
+    "limb_swing": 0.0,
+    "limb_amount": 0.0,
+    "swinging_arms": true,
+    "vehicle_eid": 21841,
+    "riding": true,
+    "eid": 21843,
+    "uuid": "1a1078db-847d-4175-869f-823b4a1050c8",
+    "x": 11.2,
+    "y": 6.2,
+    "z": 10.0,
+    "render_pin_armed": true,
+    "render_pin_group": true,
+    "render_pin_group_count": 8,
+    "render_pin_squish": 0.0,
+    "render_pin_death_ticks": 0,
+    "group_eids": [
+      21829,
+      21831,
+      21833,
+      21835,
+      21837,
+      21839,
+      21841,
+      21843
+    ],
+    "group_count": 8
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "kind": "skeleton",
+    "difficulty": "EASY",
+    "ticks_existed": 40,
+    "limb_swing": 0.0,
+    "limb_amount": 0.0,
+    "swinging_arms": true,
+    "vehicle_eid": 21841,
+    "riding": true,
+    "eid": 21843,
+    "uuid": "1a1078db-847d-4175-869f-823b4a1050c8",
+    "x": 11.2,
+    "y": 6.2,
+    "z": 10.0,
+    "render_pin_armed": true,
+    "render_pin_group": true,
+    "render_pin_group_count": 8,
+    "render_pin_squish": 0.0,
+    "render_pin_death_ticks": 0,
+    "group_eids": [
+      21829,
+      21831,
+      21833,
+      21835,
+      21837,
+      21839,
+      21841,
+      21843
+    ],
+    "group_count": 8
+  },
+  "frame_a": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/skeleton_trap_group_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/skeleton_trap_group_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_count": 8,
+    "render_pin_eid": 21843,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 278,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/skeleton_trap_group_a.png"
+  },
+  "frame_b": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/skeleton_trap_group_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/skeleton_trap_group_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 1,
+    "render_pin_count": 8,
+    "render_pin_eid": 21843,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 278,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/skeleton_trap_group_b.png"
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 3.5,
+    "yaw": 0.0,
+    "pitch": 8.0,
+    "no_gravity": true
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "stable_ab": true,
+  "notes": "A/B from qrl frame{} at partialTicks=1; client render pin applied immediately before renderWorld for squish/deathTicks/xp_orb",
+  "entity": {
+    "type": "skeleton_trap_group"
+  },
+  "entities": [
+    {
+      "type": "skeleton_horse",
+      "ticks_existed": 40,
+      "saddled": true,
+      "ridden": true,
+      "subject": {
+        "x": 5.8,
+        "y": 5.0,
+        "z": 10.0,
+        "yaw": 180.0,
+        "pitch": 0.0
+      }
+    },
+    {
+      "type": "skeleton",
+      "ticks_existed": 40,
+      "limb_swing": 0.0,
+      "limb_amount": 0.0,
+      "swinging_arms": true,
+      "held_item": 261,
+      "armor_head": 306,
+      "vehicle": "previous",
+      "mounted_y_offset": 1.2,
+      "subject": {
+        "x": 5.8,
+        "y": 6.2,
+        "z": 10.0,
+        "yaw": 180.0,
+        "pitch": 0.0
+      }
+    },
+    {
+      "type": "skeleton_horse",
+      "ticks_existed": 40,
+      "saddled": true,
+      "ridden": true,
+      "subject": {
+        "x": 7.6,
+        "y": 5.0,
+        "z": 10.0,
+        "yaw": 180.0,
+        "pitch": 0.0
+      }
+    },
+    {
+      "type": "skeleton",
+      "ticks_existed": 40,
+      "limb_swing": 0.0,
+      "limb_amount": 0.0,
+      "swinging_arms": true,
+      "held_item": 261,
+      "armor_head": 306,
+      "vehicle": "previous",
+      "mounted_y_offset": 1.2,
+      "subject": {
+        "x": 7.6,
+        "y": 6.2,
+        "z": 10.0,
+        "yaw": 180.0,
+        "pitch": 0.0
+      }
+    },
+    {
+      "type": "skeleton_horse",
+      "ticks_existed": 40,
+      "saddled": true,
+      "ridden": true,
+      "subject": {
+        "x": 9.4,
+        "y": 5.0,
+        "z": 10.0,
+        "yaw": 180.0,
+        "pitch": 0.0
+      }
+    },
+    {
+      "type": "skeleton",
+      "ticks_existed": 40,
+      "limb_swing": 0.0,
+      "limb_amount": 0.0,
+      "swinging_arms": true,
+      "held_item": 261,
+      "armor_head": 306,
+      "vehicle": "previous",
+      "mounted_y_offset": 1.2,
+      "subject": {
+        "x": 9.4,
+        "y": 6.2,
+        "z": 10.0,
+        "yaw": 180.0,
+        "pitch": 0.0
+      }
+    },
+    {
+      "type": "skeleton_horse",
+      "ticks_existed": 40,
+      "saddled": true,
+      "ridden": true,
+      "subject": {
+        "x": 11.2,
+        "y": 5.0,
+        "z": 10.0,
+        "yaw": 180.0,
+        "pitch": 0.0
+      }
+    },
+    {
+      "type": "skeleton",
+      "ticks_existed": 40,
+      "limb_swing": 0.0,
+      "limb_amount": 0.0,
+      "swinging_arms": true,
+      "held_item": 261,
+      "armor_head": 306,
+      "vehicle": "previous",
+      "mounted_y_offset": 1.2,
+      "subject": {
+        "x": 11.2,
+        "y": 6.2,
+        "z": 10.0,
+        "yaw": 180.0,
+        "pitch": 0.0
+      }
+    }
+  ]
+}

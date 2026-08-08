@@ -1,0 +1,31 @@
+{
+  "schema": "netherite.block_callback_actions_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "case_count": 16,
+  "pass": 16,
+  "fail": 0,
+  "retries": 0,
+  "state_divergences": 0,
+  "summary_sha256": "c509ba0fc8070c38e786f79c0d04acb514769c8bceaa0a5338132cec2e7aa115",
+  "excluded_case": "redstone_player_use_daylight_detector_seed_0",
+  "families": [
+    ["BlockButton", "onBlockActivated"],
+    ["BlockCake", "onBlockActivated"],
+    ["BlockDoor", "neighborChanged"],
+    ["BlockDoor", "onBlockActivated"],
+    ["BlockFenceGate", "neighborChanged"],
+    ["BlockFenceGate", "onBlockActivated"],
+    ["BlockFlowerPot", "onBlockActivated"],
+    ["BlockLever", "onBlockActivated"],
+    ["BlockObserver", "breakBlock"],
+    ["BlockPistonBase", "neighborChanged"],
+    ["BlockRedstoneComparator", "onBlockActivated"],
+    ["BlockRedstoneRepeater", "onBlockActivated"],
+    ["BlockTNT", "onBlockActivated"],
+    ["BlockTrapDoor", "neighborChanged"],
+    ["BlockTrapDoor", "onBlockActivated"],
+    ["BlockTripWireHook", "breakBlock"]
+  ]
+}

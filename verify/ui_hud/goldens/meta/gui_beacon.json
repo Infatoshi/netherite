@@ -1,0 +1,242 @@
+{
+  "id": "gui_beacon",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "armor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "hotbar": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "use_action": 0,
+    "fire": 0,
+    "portal": 0.0,
+    "boss": {
+      "show": false
+    },
+    "clear_effects": true,
+    "beacon_gui": {
+      "levels": 4,
+      "primary": 5,
+      "secondary": 5,
+      "payment": 264
+    },
+    "hud_flash": false,
+    "hud_health": 20,
+    "hud_last_health": 20,
+    "hud_update_counter": 1000
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 4508,
+    "dead": false,
+    "screen": "GuiBeacon",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 4508,
+    "dead": false,
+    "screen": "GuiBeacon",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 4504,
+    "dead": false,
+    "screen": "GuiBeacon",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_beacon_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_beacon_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "shulker_box_tile_pin_count": 0,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 4509,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_beacon_a.png"
+  },
+  "frame_b": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_beacon_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_beacon_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "shulker_box_tile_pin_count": 0,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 4509,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_beacon_b.png"
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 0.0,
+  "noise_limit": 2.0,
+  "presence": {
+    "mean_rgb": [
+      118.92232479650586,
+      119.46653762160015,
+      118.09671431407584
+    ],
+    "std": 76.63001546610943,
+    "warm_frac": 0.004117876658860265,
+    "bot_warm_frac": 0.003161592505854801,
+    "lr_std": 67.75451691310356,
+    "vm_std": 72.50831945770403,
+    "vm_dev": 48.746185302734375,
+    "dark_frac": 0.331705380186619,
+    "purple_bias": -1.3698233075243138
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "full Beacon panel and controls",
+  "gmx": 110,
+  "gmy": 100
+}

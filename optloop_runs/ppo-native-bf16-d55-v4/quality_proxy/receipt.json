@@ -1,0 +1,15 @@
+{
+  "chunks": 100,
+  "finite_all": true,
+  "updates_nonzero": true,
+  "reward_first": -0.0088597,
+  "reward_last": 0.00947395,
+  "reward_improved": true,
+  "loss_first": -0.0212748,
+  "loss_last": 0.0607894,
+  "alloc_min": 8.65344,
+  "alloc_max": 8.65396,
+  "alloc_stable": true,
+  "steady_wall_median_ms": 1338.0,
+  "healthy": true
+}

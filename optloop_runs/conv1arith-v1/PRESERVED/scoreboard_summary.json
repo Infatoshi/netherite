@@ -1,0 +1,112 @@
+{
+  "combined": null,
+  "eps": 0.02,
+  "keepers": [],
+  "lane": "conv1arith-v1",
+  "levers": [
+    {
+      "baseline_median_ms": 1573.068931,
+      "baseline_samples": [
+        1572.096287,
+        1571.058902,
+        1576.539464,
+        1573.068931,
+        1574.949788
+      ],
+      "candidate_median_ms": 1922.935939,
+      "candidate_samples": [
+        1918.446361,
+        1922.254326,
+        1922.935939,
+        1930.055447,
+        1943.67063
+      ],
+      "correctness": "pass",
+      "env_overrides": {
+        "CUDNN_BENCH": "1"
+      },
+      "eps_abs": 31.46137862,
+      "gain_abs_ms": -349.86700799999994,
+      "gain_rel": -0.22241047490372176,
+      "hypothesis": "cudnn_bench",
+      "keep": false,
+      "keep_reason": "rel=-0.2224 abs=-349.87ms mdd=1.97ms eps_abs=31.46ms correctness=pass",
+      "mdd_abs": 1.972121256155232,
+      "note": "CUDNN_BENCH=1 vs default"
+    },
+    {
+      "baseline_median_ms": 1594.942197,
+      "baseline_samples": [
+        1598.040029,
+        1594.942197,
+        1594.566185,
+        1593.047528,
+        1596.10385
+      ],
+      "candidate_median_ms": 1581.027672,
+      "candidate_samples": [
+        1581.027672,
+        1579.908317,
+        1581.049632,
+        1588.41551,
+        1580.368459
+      ],
+      "correctness": "pass",
+      "env_overrides": {
+        "FOLD_SCALE": "1"
+      },
+      "eps_abs": 31.898843940000003,
+      "gain_abs_ms": 13.91452500000014,
+      "gain_rel": 0.00872415628990982,
+      "hypothesis": "fold_scale",
+      "keep": false,
+      "keep_reason": "rel=+0.0087 abs=+13.91ms mdd=1.67ms eps_abs=31.90ms correctness=pass",
+      "mdd_abs": 1.6664986148361838,
+      "note": "FOLD_SCALE=1 vs default"
+    },
+    {
+      "baseline_median_ms": 1610.157155,
+      "baseline_samples": [
+        1610.369376,
+        1610.157155,
+        1607.064008,
+        1613.195828,
+        1607.986672
+      ],
+      "candidate_median_ms": 1573.533735,
+      "candidate_samples": [
+        1574.098047,
+        1574.591067,
+        1572.272961,
+        1573.533735,
+        1573.061093
+      ],
+      "correctness": "fail",
+      "env_overrides": {
+        "TF32_CONV": "1"
+      },
+      "eps_abs": 32.203143100000005,
+      "gain_abs_ms": 36.623420000000124,
+      "gain_rel": 0.02274524563411335,
+      "hypothesis": "tf32_conv",
+      "keep": false,
+      "keep_reason": "rel=+0.0227 abs=+36.62ms mdd=2.13ms eps_abs=32.20ms correctness=fail",
+      "mdd_abs": 2.132927796692985,
+      "note": "TF32_CONV=1 report-only (sampler_grad_parity fail)"
+    }
+  ],
+  "noise_k": 2.0,
+  "pinned": {
+    "CUDA_VISIBLE_DEVICES": "0",
+    "EPOCHS": "2",
+    "MAX_TICKS": "1e12",
+    "MAX_WALL": "3600",
+    "MB": "8192",
+    "N_ENVS": "6144",
+    "PYTHONHASHSEED": "0",
+    "RNG_SEED": "0",
+    "TMPDIR": "/home/infatoshi/dev/nw/.tmp",
+    "T_CHUNK": "32",
+    "UV_CACHE_DIR": "/home/infatoshi/.cache/uv"
+  }
+}

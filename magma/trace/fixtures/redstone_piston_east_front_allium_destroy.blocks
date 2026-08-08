@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while an allium (red flower ID 38, metadata 2)
+# occupies the front cell. Java destroys the flower, preserves metadata 2 in
+# the dropped item, and starts the moving head in the same cell.
+12 78 9 152 0
+13 78 8 38 2

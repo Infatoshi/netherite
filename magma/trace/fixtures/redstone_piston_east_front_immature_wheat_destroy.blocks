@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while age-3 wheat 59:3 occupies the front cell.
+# Farmland support keeps the crop valid. Immature BlockCrops emits exactly one
+# wheat-seed stack and performs no mature nextInt(14) trials.
+12 78 9 152 0
+13 77 8 60 0
+13 78 8 59 3

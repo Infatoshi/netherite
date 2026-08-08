@@ -1,0 +1,18 @@
+{
+  "schema": "netherite.block_callback_ui_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma",
+  "captured_utc": "2026-08-23",
+  "campaigns": [
+    {
+      "name": "ender_chest",
+      "cases": 3,
+      "families": [["BlockEnderChest", "onBlockActivated"]]
+    },
+    {
+      "name": "structure_block",
+      "cases": 1,
+      "families": [["BlockStructure", "neighborChanged"]]
+    }
+  ]
+}

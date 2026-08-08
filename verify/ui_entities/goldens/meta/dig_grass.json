@@ -1,0 +1,290 @@
+{
+  "id": "dig_grass",
+  "pin_reply_a": {
+    "ok": true,
+    "kind": "dig_hit",
+    "bx": 11,
+    "by": 5,
+    "bz": 11,
+    "face": 1,
+    "count": 8
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "kind": "dig_hit",
+    "bx": 11,
+    "by": 5,
+    "bz": 11,
+    "face": 1,
+    "count": 8
+  },
+  "frame_a": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/dig_grass_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/dig_grass_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "shulker_box_tile_pin_count": 0,
+    "beacon_tile_pin_count": 0,
+    "spawner_tile_pin_count": 0,
+    "structure_off_on": 0,
+    "total_time": 2921,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 614,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/dig_grass_a.png"
+  },
+  "frame_b": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/dig_grass_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/dig_grass_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "shulker_box_tile_pin_count": 0,
+    "beacon_tile_pin_count": 0,
+    "spawner_tile_pin_count": 0,
+    "structure_off_on": 0,
+    "total_time": 2921,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 614,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_entities/goldens/dig_grass_b.png"
+  },
+  "pose": {
+    "x": 10.5,
+    "y": 5.0,
+    "z": 9.5,
+    "yaw": 0.0,
+    "pitch": 25.0,
+    "no_gravity": true
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "stable_ab": true,
+  "notes": "A/B from qrl frame{} at partialTicks=1; client render pin applied immediately before renderWorld for squish/deathTicks/xp_orb",
+  "dig": {
+    "bx": 11,
+    "by": 5,
+    "bz": 11,
+    "face": 1,
+    "block_id": 2,
+    "stage": 4,
+    "count": 8
+  },
+  "particle_state": [
+    [
+      9004,
+      11.731931553879276,
+      6.0,
+      11.510573448299581,
+      0.0009045039244296638,
+      -0.19613987069736452,
+      -0.001663096752952503,
+      {
+        "v": 1,
+        "prev": [
+          11.730613035042207,
+          6.0,
+          11.512997787583702
+        ],
+        "pos": [
+          11.731931553879276,
+          6.0,
+          11.510573448299581
+        ],
+        "motion": [
+          0.0009045039244296638,
+          -0.19613987069736452,
+          -0.001663096752952503
+        ],
+        "age": 7,
+        "max_age": 17,
+        "ground": true,
+        "collide": true,
+        "scale": 0.38302663,
+        "gravity": 1.0,
+        "rgba": [
+          0.6,
+          0.6,
+          0.6,
+          1.0
+        ],
+        "tex": [
+          0,
+          0
+        ],
+        "jitter": [
+          1.3608809,
+          0.57757634
+        ],
+        "lightmap": 15728640
+      }
+    ],
+    [
+      9004,
+      11.174307344548223,
+      6.0,
+      11.744018221660584,
+      0.003547476900677863,
+      -0.17238916159776901,
+      0.008687648015742918,
+      {
+        "v": 1,
+        "prev": [
+          11.169136095434451,
+          6.0,
+          11.731354011755908
+        ],
+        "pos": [
+          11.174307344548223,
+          6.0,
+          11.744018221660584
+        ],
+        "motion": [
+          0.003547476900677863,
+          -0.17238916159776901,
+          0.008687648015742918
+        ],
+        "age": 7,
+        "max_age": 15,
+        "ground": true,
+        "collide": true,
+        "scale": 0.41698948,
+        "gravity": 1.0,
+        "rgba": [
+          0.6,
+          0.6,
+          0.6,
+          1.0
+        ],
+        "tex": [
+          0,
+          0
+        ],
+        "jitter": [
+          1.8745975,
+          2.0153093
+        ],
+        "lightmap": 15728640
+      }
+    ],
+    [
+      9004,
+      11.322887255741547,
+      6.0,
+      11.45540358451116,
+      -0.005424998819562502,
+      -0.187266746292323,
+      -0.002263974977702175,
+      {
+        "v": 1,
+        "prev": [
+          11.33079541726686,
+          6.0,
+          11.458703839572667
+        ],
+        "pos": [
+          11.322887255741547,
+          6.0,
+          11.45540358451116
+        ],
+        "motion": [
+          -0.005424998819562502,
+          -0.187266746292323,
+          -0.002263974977702175
+        ],
+        "age": 7,
+        "max_age": 19,
+        "ground": true,
+        "collide": true,
+        "scale": 0.4230216,
+        "gravity": 1.0,
+        "rgba": [
+          0.6,
+          0.6,
+          0.6,
+          1.0
+        ],
+        "tex": [
+          0,
+          0
+        ],
+        "jitter": [
+          0.4578588,
+          0.020549476
+        ],
+        "lightmap": 15728640
+      }
+    ],
+    [
+      9004,
+      11.598345718607803,
+      6.0,
+      11.241228879122165,
+      0.008312675440211935,
+      -0.15002102936494133,
+      0.0019562531862320487,
+      {
+        "v": 1,
+        "prev": [
+          11.586228115954759,
+          6.000519152676034,
+          11.23837719809961
+        ],
+        "pos": [
+          11.598345718607803,
+          6.0,
+          11.241228879122165
+        ],
+        "motion": [
+          0.008312675440211935,
+          -0.15002102936494133,
+          0.0019562531862320487
+        ],
+        "age": 7,
+        "max_age": 9,
+        "ground": true,
+        "collide": true,
+        "scale": 0.43574354,
+        "gravity": 1.0,
+        "rgba": [
+          0.6,
+          0.6,
+          0.6,
+          1.0
+        ],
+        "tex": [
+          0,
+          0
+        ],
+        "jitter": [
+          1.4450473,
+          2.6800337
+        ],
+        "lightmap": 15728640
+      }
+    ]
+  ]
+}

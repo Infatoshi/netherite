@@ -1,0 +1,26 @@
+name: blaze_attack_cycle
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /effect @p resistance 9999 4 true
+  - /fill ~-4 ~-1 ~-4 ~4 ~-1 ~12 minecraft:netherrack
+  - /summon blaze ~ ~ ~8 {PersistenceRequired:1b,Silent:1b}
+setup_settle_ticks: 0
+duration_ticks: 400
+frames_every: 10
+input:
+  segments:
+    - seconds: 20.0
+known_divergences: []

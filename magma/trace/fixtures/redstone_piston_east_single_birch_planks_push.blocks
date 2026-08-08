@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it, one birch-planks state occupies the front cell,
+# and the next cell is air. This proves NORMAL-reaction movement is not
+# hard-coded to stone and preserves the moved state's metadata on settlement.
+12 78 9 152 0
+13 78 8 5 2

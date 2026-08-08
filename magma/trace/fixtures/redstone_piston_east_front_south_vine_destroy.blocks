@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while vine 106:1 is attached to a separate south
+# support block in the front cell.
+12 78 9 152 0
+13 78 9 1 0
+13 78 8 106 1

@@ -1,0 +1,14 @@
+{
+  "schema": "netherite.block_callback_nested_receipt",
+  "version": 1,
+  "source": "exact live Java/native campaigns whose public mutation paths invoke nested callbacks",
+  "captured_utc": "2026-08-23",
+  "families": [
+    ["BlockBanner", "dropBlockAsItemWithChance", "plant-support cases 93-96"],
+    ["BlockChorusPlant", "neighborChanged", "chorus support-removal trajectory"],
+    ["BlockCocoa", "dropBlockAsItemWithChance", "plant-support cases 43-54"],
+    ["BlockFlowerPot", "breakBlock", "plant-support cases 97-98"],
+    ["BlockLiquid", "neighborChanged", "58-row static-lava lifecycle"],
+    ["BlockLog", "breakBlock", "leaf-decay case 11"]
+  ]
+}

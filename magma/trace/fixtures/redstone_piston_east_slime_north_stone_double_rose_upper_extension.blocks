@@ -1,0 +1,9 @@
+# EAST normal piston with a NORTH slime attachment. The side stone terminates
+# at the upper half of a supported double rose; the upper emits nothing
+# directly and its lower half owns the one deferred item 175:4.
+12 79 8 33 5
+13 79 8 165 0
+13 79 7 1 0
+14 77 7 3 0
+14 78 7 175 4
+14 79 7 175 10

@@ -23,7 +23,7 @@ public abstract class MixinRandomSkinTexture {
         // determinism.pin_skin (qrl_launch.json): SeedHelper's seed is per-launch
         // random, so the slim/classic arm flips between launches and pollutes
         // cross-launch pixel diffs. Pin to the classic (Steve) model.
-        if (qrl.QLaunch.PIN_SKIN) {
+        if (netheritemod.QLaunch.PIN_SKIN) {
             cir.setReturnValue(false);
             cir.cancel();
             return;

@@ -1,0 +1,5 @@
+# A downward piston pushes a stationary pig onto an unpowered repeater.
+# BlockRedstoneDiode uses a full-footprint 1/8-high collision box.
+12 81 9 152 0
+12 78 8 1 0
+12 79 8 93 0

@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "source": "docs/COMPLETENESS.md",
+  "policy": "An entry leaves this run queue only after fail-closed bounded evidence passes. Strict DONE remains a separate master-ledger status, and every residual tail stays named.",
+  "run_total": 62,
+  "completed_this_run": ["RED-01", "ITEM-01", "AUD-04", "ENT-08", "WORLD-02", "ITEM-08", "ENT-09", "AI-05", "WORLD-01", "ENT-06", "AI-01", "AI-02", "AI-03", "RED-02", "RED-03", "RED-04", "RED-05", "RED-06", "RED-07", "RED-08", "WORLD-03", "WORLD-04", "WORLD-05", "WORLD-07", "WORLD-08", "WORLD-09", "WORLD-10", "WORLD-11", "DIM-01", "DIM-02", "DIM-03", "DIM-04", "ITEM-03", "ITEM-05", "ITEM-07", "MODE-01", "MODE-03", "MODE-04", "UI-01", "UI-02", "UI-03", "UI-04", "UI-05", "VIS-01", "VIS-02", "VIS-03", "VIS-04", "VIS-05", "VIS-06", "VIS-07", "VIS-08", "VIS-09", "VIS-10", "VIS-11", "AUD-01", "AUD-02", "AUD-03", "PERF-01", "PERF-02", "PERF-03", "PERF-04", "PERF-05"],
+  "queue": []
+}

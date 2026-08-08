@@ -1,0 +1,13 @@
+{
+  "schema": "netherite.block_callback_harvest_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 block_harvest_drops_locked versus native harvest dispatcher",
+  "captured_utc": "2026-08-23",
+  "case_count": 390,
+  "pass": 390,
+  "fail": 0,
+  "families": [
+    ["BlockOre", "dropBlockAsItemWithChance"],
+    ["BlockRedstoneOre", "dropBlockAsItemWithChance"]
+  ]
+}

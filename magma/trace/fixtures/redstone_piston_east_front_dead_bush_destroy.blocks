@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while dead bush 32:0 occupies the front cell.
+# Sand support keeps the dead bush valid. Captured 1.11.2 BlockDeadBush
+# chooses 0..2 separate stick stacks with World.rand.nextInt(3).
+12 78 9 152 0
+13 77 8 12 0
+13 78 8 32 0

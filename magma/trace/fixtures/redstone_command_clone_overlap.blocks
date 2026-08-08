@@ -1,0 +1,9 @@
+# Saved command/comparator fixture with adjacent distinct source blocks for
+# force-overlap snapshotting and move-source clearing.
+11 77 8 1 0
+12 77 8 1 0
+11 78 8 137 2
+12 78 8 149 1
+13 78 8 123 0
+14 78 8 1 0
+15 78 8 41 0

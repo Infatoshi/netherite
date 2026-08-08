@@ -1,0 +1,5 @@
+# A gold weighted plate at strength 2 powers the adjacent lamp. Its restored
+# imminent callback must survive as stale work after support destruction.
+12 77 8 1 0
+12 78 8 147 2
+13 78 8 124 0

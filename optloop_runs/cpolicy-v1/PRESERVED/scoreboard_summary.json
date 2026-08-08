@@ -1,0 +1,22 @@
+{
+  "lane": "cpolicy-v1",
+  "decision": "revert",
+  "keep": false,
+  "baseline_median_ms": 1606.184651,
+  "candidate_median_ms": 1834.250531,
+  "gain_rel": -0.14199231692197256,
+  "gain_abs_ms": -228.06588,
+  "mdd_ms": 1.69,
+  "eps": 0.02,
+  "eps_abs_ms": 32.12,
+  "equiv": {
+    "logits_max_abs": 7.036e-05,
+    "value_max_abs": 6.126e-05,
+    "logp_max_abs": 1.402e-04,
+    "greedy_agree": 0.999946,
+    "tie_gap_max": 1.803e-05
+  },
+  "correctness_cpolicy0": "PASS",
+  "smoke": "PASS",
+  "ceiling_note": "2x rollout forward would be ~90ms ~5.7% e2e; measured was -228ms"
+}

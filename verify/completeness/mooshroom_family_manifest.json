@@ -1,0 +1,62 @@
+{
+  "schema": "netherite.mooshroom_family_gate",
+  "version": 1,
+  "todo": "AI-04",
+  "interaction_oracle": {
+    "java_version": "1.11.2",
+    "bowl_cases": 4,
+    "shear_cases": 3,
+    "mushroom_entities": 10,
+    "inventory_rng_eid_and_item_state": "bit_exact",
+    "cow_pose_health_and_age": "bit_exact",
+    "sound_event": "bit_exact",
+    "child_and_unbreaking_branches": "exact",
+    "cow_milk_and_sheep_shear_regressions": "exact"
+  },
+  "state_continuation": {
+    "native_save_boundary": "pending_server_shear_packet",
+    "conversion_rng_items_sound_and_particle": "bit_exact",
+    "loaded_entity_replacement_order": "exact"
+  },
+  "render_oracle": {
+    "java_ab_states": 3,
+    "java_ab_noise_pixels": 0,
+    "adult_idle_owned_pixels": 10023,
+    "adult_idle_hard_pixels": 41,
+    "adult_idle_hard_budget": 41,
+    "adult_head_owned_pixels": 10210,
+    "adult_head_hard_pixels": 80,
+    "adult_head_hard_budget": 80,
+    "child_owned_pixels": 3220,
+    "child_hard_pixels": 49,
+    "child_hard_budget": 49,
+    "negative_control": "exact"
+  },
+  "implemented": [
+    "cow_inherited_active_ai_dimensions_and_eye_height",
+    "cow_inherited_wheat_breeding_and_child_type",
+    "cow_inherited_hurt_death_fall_audio_and_loot",
+    "cow_inherited_bucket_milking",
+    "mycelium_spawn_surface_eligibility",
+    "bowl_to_stew_replace_insert_and_player_drop",
+    "forge_shears_child_handled_noop",
+    "adult_shear_to_cow_conversion",
+    "replacement_cow_pose_health_age_and_loaded_order",
+    "five_red_mushroom_entity_drops",
+    "constructor_math_shear_and_tool_rng_order",
+    "shear_sound_and_explosion_particle_packet",
+    "delayed_main_world_interaction_dispatch",
+    "native_save_pending_interaction_continuation",
+    "adult_and_child_cow_model",
+    "three_exact_baked_red_mushroom_crosses",
+    "head_relative_mushroom_transform",
+    "adult_child_visibility_boundary",
+    "bounded_same_scene_model_pixels"
+  ],
+  "remaining": [
+    "exact_natural_mushroom_island_pack_selection",
+    "generic_living_custom_name_and_shear_copy",
+    "fresh_replacement_cow_private_rng_injection",
+    "multitick_transition_particle_pixel_tape"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "schema": "netherite.ai05_mixed_order_receipt",
+  "version": 1,
+  "todo": "AI-05",
+  "entity_count": 103,
+  "store_count": 5,
+  "actions": 1200,
+  "horizons": [0, 1, 20, 200, 1200],
+  "forward": {
+    "first_eid": 62000,
+    "last_eid": 62102,
+    "java_a_sha256": "1b8fb9c55968fdece645b760fda41a86915990261314d3e523b9c365da6fb725",
+    "java_b_sha256": "1b8fb9c55968fdece645b760fda41a86915990261314d3e523b9c365da6fb725",
+    "native_sha256": "9bbfa437e893068ee3a06f9ae9b72f46f870f0b2e81021e08fbc865b13e0c641"
+  },
+  "reverse": {
+    "first_eid": 62102,
+    "last_eid": 62000,
+    "java_a_sha256": "cd2e794ebd146babeeeb70cb34eb85867273a4aeda13663edd6dfd54080fcbd5",
+    "java_b_sha256": "cd2e794ebd146babeeeb70cb34eb85867273a4aeda13663edd6dfd54080fcbd5",
+    "native_sha256": "20a3fae1fdbb7ef3fc12b7fdbf07598d5d852870c57039d36667b87a34d43f05"
+  },
+  "requirements": {
+    "java_repeat": "exact",
+    "native": "exact",
+    "represented_t0": "exact",
+    "state_ticks_compared": 1201,
+    "raw_horizons": "exact",
+    "rejected_fields": 0,
+    "world_cells": 17918,
+    "persisted_do_mob_loot": false
+  }
+}

@@ -1,0 +1,19 @@
+WARNING: The version of the system or its configuration does not allow enabling CPU profiling:
+- CPU IP/backtrace sampling will be disabled.
+- CPU context switch tracing will be disabled.
+Try the 'nsys status --environment' command to learn more.
+
+CGRAPH_INIT path=/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt
+CGRAPH_CAPTURE rollout graph=0x596dce9619a0
+cgraph PPO N=6144 T=32 EPOCHS=2 MB=8192 bf16=0 channels_last=0 bf16_scope=off update_bf16=0
+[W802 16:47:44.685123313 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2257715200, total: 102014189568).
+[W802 16:47:44.696291402 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2257715200, total: 102014189568).
+CGRAPH_CAPTURE update graph=0x596db652a100
+BENCH chunk=0 wall_ms=2290.01 env_ticks_per_s=343418
+Capture range started in the application.
+Capture range ended in the application.
+Generating '/tmp/nsys-report-b59f.qdstrm'
+[1/1] [0%                          ] cgraph_chunk.nsys-repProcessing events...
+[1/1] [0%                          ] cgraph_chunk.nsys-rep[1/1] [===23%                      ] cgraph_chunk.nsys-rep[1/1] [=========43%                ] cgraph_chunk.nsys-rep[1/1] [===========51%              ] cgraph_chunk.nsys-rep[1/1] [========================100%] cgraph_chunk.nsys-rep[1/1] [========================100%] cgraph_chunk.nsys-rep
+Generated:
+	/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/cgraph_chunk.nsys-rep

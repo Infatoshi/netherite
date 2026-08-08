@@ -1,0 +1,287 @@
+{
+ "thresholds": {
+  "diff": 25,
+  "min_cluster": 50,
+  "fail_cluster": 4000,
+  "fail_total": 8000,
+  "class_pixel_budgets": {
+   "hud": 55000,
+   "particles": 40000,
+   "viewmodel": 40000,
+   "transit": 40000
+  },
+  "low_diff": 1,
+  "fail_mean_abs": 3.32,
+  "fail_low_pct_differing": 40.0
+ },
+ "frames_checked": 31,
+ "classes": {
+  "hud": {
+   "frames": 1,
+   "px": 10142,
+   "max_cluster": 10142
+  },
+  "viewmodel": {
+   "frames": 2,
+   "px": 20418,
+   "max_cluster": 11826
+  },
+  "UNEXPLAINED": {
+   "frames": 1,
+   "px": 204,
+   "max_cluster": 204
+  },
+  "bossbar": {
+   "frames": 21,
+   "px": 30771,
+   "max_cluster": 1242
+  },
+  "particles": {
+   "frames": 21,
+   "px": 56934,
+   "max_cluster": 3989
+  }
+ },
+ "failed_frames": [],
+ "mild_shift_failures": 0,
+ "pass": true,
+ "missing_models": {},
+ "missing_model_row_threshold": 4,
+ "missing_model_failures": {},
+ "state": {
+  "kind": "state",
+  "coverage": {
+   "ticks_total": 1610,
+   "ticks_run": 607,
+   "truncated": true
+  },
+  "inventory": {
+   "ticks_checked": 1,
+   "ticks_independent": 0,
+   "seeded_only": true,
+   "mismatches": [],
+   "pass": true,
+   "available": true
+  },
+  "entities": {
+   "ticks_checked": 31,
+   "samples": [
+    {
+     "tick": 0,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityDragon",
+      "EntityDragonFireball",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 20,
+     "tape_count": 13,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityDragonFireball",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 40,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 60,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 80,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 100,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 120,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 140,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 160,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 180,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 200,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 220,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 240,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 260,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 280,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 300,
+     "tape_count": 12,
+     "tape_types": [
+      "EntityAreaEffectCloud",
+      "EntityDragon",
+      "EntityEnderCrystal"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    }
+   ],
+   "pass": true,
+   "available": true
+  },
+  "world": {
+   "ticks_checked": 31,
+   "hash_deltas": 7,
+   "samples": [
+    {
+     "tick": 0,
+     "nearby_hash": "6241d508fa89120d"
+    },
+    {
+     "tick": 100,
+     "nearby_hash": "691908b0a1ece2b5"
+    },
+    {
+     "tick": 200,
+     "nearby_hash": "691908b0a1ece2b5"
+    },
+    {
+     "tick": 300,
+     "nearby_hash": "691908b0a1ece2b5"
+    },
+    {
+     "tick": 400,
+     "nearby_hash": "691908b0a1ece2b5"
+    },
+    {
+     "tick": 500,
+     "nearby_hash": "f6053a2087ce2349"
+    },
+    {
+     "tick": 600,
+     "nearby_hash": "e777815a1c1f73c9"
+    }
+   ],
+   "pass": true,
+   "available": true
+  }
+ }
+}

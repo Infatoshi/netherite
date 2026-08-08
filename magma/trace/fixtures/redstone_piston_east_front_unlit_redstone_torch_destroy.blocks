@@ -1,0 +1,5 @@
+# Stable unlit floor redstone torch 75:5 in the front cell. Its redstone-block
+# support keeps it off; a separate south source powers the tick-zero piston.
+12 78 9 152 0
+13 77 8 152 0
+13 78 8 75 5

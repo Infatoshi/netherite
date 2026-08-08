@@ -1,0 +1,43 @@
+name: stone_slab_halves
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 0.5 4 -1.5 0 12
+  - /fill -6 3 -3 6 3 14 minecraft:stone
+  # Alternating lower and upper stone slabs form the collision lane.
+  - /setblock 0 4 3 minecraft:stone_slab 0
+  - /setblock 0 4 4 minecraft:stone_slab 8
+  - /setblock 0 4 5 minecraft:stone_slab 0
+  - /setblock 0 4 6 minecraft:stone_slab 8
+  - /setblock 0 4 7 minecraft:stone_slab 0
+  - /setblock 0 4 8 minecraft:stone_slab 8
+  # Metadata variants show whether their distinct materials survive.
+  - /setblock -5 4 11 minecraft:stone_slab 1
+  - /setblock -3 4 11 minecraft:stone_slab 2
+  - /setblock -1 4 11 minecraft:stone_slab 3
+  - /setblock 1 4 11 minecraft:stone_slab 4
+  - /setblock 3 4 11 minecraft:stone_slab 5
+  - /setblock 5 4 11 minecraft:stone_slab 6
+duration_ticks: 320
+frames_every: 20
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 8.0
+      keys: [w]
+    - seconds: 3.0
+      keys: [a, Shift_L]
+    - seconds: 3.0
+      keys: [d, Shift_L]
+known_divergences: []

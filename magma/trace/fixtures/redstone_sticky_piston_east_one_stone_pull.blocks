@@ -1,0 +1,7 @@
+# A settled EAST-facing sticky piston begins extended with one stone beyond
+# its sticky head. Removing the south-side source at tick zero must retract
+# the base and pull that stone from x=14 back into the head cell at x=13.
+12 78 8 29 13
+13 78 8 34 13
+14 78 8 1 0
+12 78 9 152 0

@@ -1,0 +1,37 @@
+{
+  "name": "paper_chain_1p92b_v2",
+  "basis": "The historical v1 claim reports 1.92B env ticks over about 7.9 active hours, but that artifact was produced by warm resumes across changing revisions and GPUs. This single-run recipe preserves the reported tick budget and uses the later checked-in v2 reward recipe.",
+  "env": {
+    "BLAZE_DEV": "0",
+    "CAP_REFRESH": "25",
+    "COAL_CHEW": "0.006",
+    "CURVE_NAME": "paper_chain_1p92b_curve",
+    "ENT": "0.01",
+    "EP_DEC": "1500",
+    "EPOCHS": "2",
+    "GAMMA": "0.995",
+    "HUNT_DESC": "0.25",
+    "IRON_CHAIN": "0",
+    "LR": "0.0003",
+    "LR_DECAY_TICKS": "1500000000",
+    "LR_FLOOR": "0.0001",
+    "MAX_TICKS": "1920000000",
+    "MAX_WALL": "28440",
+    "MB": "8192",
+    "N_ENVS": "6144",
+    "OUT_NAME": "paper_chain_1p92b",
+    "PYTHONHASHSEED": "0",
+    "RNG_SEED": "0",
+    "SUCCESS_ITEM": "50",
+    "T0_SHARE": "0.30",
+    "TRAIN_SEEDS": "2,3,10,14,16,20,27,29,32,44,46",
+    "T_CHUNK": "32"
+  },
+  "eval": {
+    "ep_ticks": 6000,
+    "policy_rng": "seed*100+attempt",
+    "sampling": "categorical",
+    "seeds": [2, 3, 10, 11, 14, 16, 20, 27, 29, 32, 33, 44, 46],
+    "tries": 5
+  }
+}

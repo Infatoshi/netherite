@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while lit pumpkin block 91 with EAST
+# horizontal-facing metadata 3 occupies the front cell. Java destroys it,
+# drops lit-pumpkin item 91:0, starts moving head 36:5, and drains its light.
+12 78 9 152 0
+13 78 8 91 3

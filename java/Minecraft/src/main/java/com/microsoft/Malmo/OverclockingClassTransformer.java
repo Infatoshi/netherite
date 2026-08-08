@@ -84,8 +84,8 @@ public class OverclockingClassTransformer implements IClassTransformer
     }
 
     // AO drop-in (render-opt kernel 13): rewrite BlockModelRenderer$AmbientOcclusionFace
-    // .getAoBrightness so that, when qrl.QAOHook.MODE != 0, it returns
-    // qrl.QAOHook.aoBrightness(br1,br2,br3,br4) (native C kernel, or 0 for sabotage) instead of
+    // .getAoBrightness so that, when netheritemod.QAOHook.MODE != 0, it returns
+    // netheritemod.QAOHook.aoBrightness(br1,br2,br3,br4) (native C kernel, or 0 for sabotage) instead of
     // the vanilla body. MODE == 0 falls through to the untouched original (a true vanilla
     // baseline). Done with a raw IClassTransformer because Mixin cannot attach to this
     // package-private inner class in this dev setup (FML remapper unmaps the inner target to
@@ -106,13 +106,13 @@ public class OverclockingClassTransformer implements IClassTransformer
                 {
                     InsnList pre = new InsnList();
                     LabelNode orig = new LabelNode();
-                    pre.add(new FieldInsnNode(Opcodes.GETSTATIC, "qrl/QAOHook", "MODE", "I"));
+                    pre.add(new FieldInsnNode(Opcodes.GETSTATIC, "netheritemod/QAOHook", "MODE", "I"));
                     pre.add(new JumpInsnNode(Opcodes.IFEQ, orig));   // MODE == 0 -> vanilla body
                     pre.add(new VarInsnNode(Opcodes.ILOAD, 1));
                     pre.add(new VarInsnNode(Opcodes.ILOAD, 2));
                     pre.add(new VarInsnNode(Opcodes.ILOAD, 3));
                     pre.add(new VarInsnNode(Opcodes.ILOAD, 4));
-                    pre.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "qrl/QAOHook", "aoBrightness", "(IIII)I", false));
+                    pre.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "netheritemod/QAOHook", "aoBrightness", "(IIII)I", false));
                     pre.add(new InsnNode(Opcodes.IRETURN));
                     pre.add(orig);
                     method.instructions.insert(pre);

@@ -1,0 +1,6 @@
+# x y z id meta
+# Delay-1 repeater facing EAST (metadata 3): input east, output west.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 93 3
+11 78 8 123 0

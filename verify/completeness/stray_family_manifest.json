@@ -1,0 +1,49 @@
+{
+  "schema": "netherite.stray_family_gate",
+  "version": 1,
+  "todo": "AI-01",
+  "ranged_oracle": {
+    "projectile": "EntityTippedArrow",
+    "custom_effect_id": 2,
+    "custom_effect_amplifier": 0,
+    "custom_effect_duration": 600,
+    "custom_effect_ambient": false,
+    "custom_effect_show_particles": true
+  },
+  "death_loot_oracle": {
+    "stray_death_rows": 9,
+    "aggregate_death_rows": 261,
+    "stray_loot_rows": 15,
+    "aggregate_hostile_loot_rows": 375,
+    "terminal_xp": 5,
+    "native_terminal_cases": 25
+  },
+  "state_continuation": {
+    "native_save_boundaries": ["arrow_in_flight", "tipped_arrow_loot_nbt"],
+    "continuation": "exact"
+  },
+  "render_audio_contract": {
+    "model": "skeleton",
+    "texture": "stray_jar_exact",
+    "sounds": ["ambient", "hurt", "death", "step"]
+  },
+  "implemented": [
+    "live_stray_type_and_skeleton_inherited_ranged_ai",
+    "daylight_burning",
+    "exact_custom_slowness_arrow_payload",
+    "custom_effect_application_on_player_impact",
+    "exact_arrow_bone_and_player_tipped_arrow_loot",
+    "canonical_slowness_loot_nbt",
+    "exact_death_xp_and_terminal_particles",
+    "native_projectile_and_loot_save_continuation",
+    "skeleton_model_and_stray_skin",
+    "four_owned_stray_sound_assets"
+  ],
+  "remaining": [
+    "snowy_biome_natural_spawn_replacement_and_pack_data",
+    "difficulty_scaled_equipment_and_enchantment_full_matrix",
+    "type_specific_step_event_emission",
+    "arbitrary_multi_entity_projectile_collision_ordering",
+    "bounded_same_scene_java_native_model_pixels"
+  ]
+}

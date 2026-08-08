@@ -1,0 +1,21 @@
+{
+  "schema": "netherite.optloop.finalist.v1",
+  "hypothesis": "uint8_to_bf16_obs_direct + fused_categorical + branchless_reward + obs_buffer",
+  "samples_ms": [
+    1348.44,
+    1349.07,
+    1349.89,
+    1350.21,
+    1350.95
+  ],
+  "median_ms": 1349.89,
+  "mean_ms": 1349.712,
+  "contract_metric": "median",
+  "baseline_native_median_ms": 1513.78,
+  "baseline_python_contract_median_ms": 1724.161255,
+  "rel_vs_native": 0.10826540184174707,
+  "rel_vs_python": 0.21707439133934134,
+  "env_ticks_per_s": 582589.6924934625,
+  "correctness": "pass",
+  "keep": true
+}

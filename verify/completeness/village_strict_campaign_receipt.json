@@ -1,0 +1,16 @@
+{
+  "schema": "netherite.village_strict_campaign",
+  "version": 1,
+  "todo": "AI-02",
+  "ticks": 1200,
+  "professions": [0, 1, 2, 3, 4, 5],
+  "required_transitions": [
+    "mating_birth",
+    "iron_golem_village_context",
+    "player_reputation",
+    "zombie_villager_cure",
+    "door_collection"
+  ],
+  "reload_after_ticks": [1, 40, 299, 300, 599, 600, 1199],
+  "continuation": "final_native_checkpoint_byte_exact"
+}

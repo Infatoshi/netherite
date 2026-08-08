@@ -1,0 +1,10 @@
+# One stone-supported dust step rises from y=78 to y=79. The lower wire has
+# clear headroom, so vanilla connects it up the west face of the stone step.
+12 77 8 1 0
+12 78 8 55 0
+13 78 8 1 0
+13 79 8 55 0
+14 78 8 1 0
+14 79 8 55 0
+15 78 8 1 0
+15 79 8 123 0

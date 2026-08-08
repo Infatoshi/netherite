@@ -1,0 +1,26 @@
+{
+  "schema": "netherite.special_mob_strict_campaign",
+  "version": 1,
+  "todo": "AI-03",
+  "ticks": 1200,
+  "registry_rows": [
+    "elder_guardian",
+    "guardian",
+    "shulker",
+    "shulker_bullet",
+    "witch",
+    "evocation_illager",
+    "evocation_fangs",
+    "vex",
+    "vindication_illager"
+  ],
+  "required_transitions": [
+    "two_player_target_moves",
+    "evoker_fang_lifecycle",
+    "shulker_bullet_lifecycle",
+    "vex_owner_lifecycle"
+  ],
+  "reload_after_ticks": [1, 20, 40, 100, 300, 600, 1199],
+  "continuation": "future_driving_checkpoint_bytes_exact",
+  "output_history_boundary": "player movement audio is reset by Java-style reload and remains owned by AUD-02"
+}

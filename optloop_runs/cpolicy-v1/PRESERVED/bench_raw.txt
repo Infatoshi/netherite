@@ -1,0 +1,17 @@
+lane=/home/infatoshi/dev/nw/cpolicy/optloop_runs/cpolicy-v1
+waiting for gpu0 lock ...
+preflight ok: both GPUs idle
+[baseline] unmodified  x5
+    rep wall_ms=1605.313 (process 6.9s)
+    rep wall_ms=1607.732 (process 6.8s)
+    rep wall_ms=1606.185 (process 6.8s)
+    rep wall_ms=1609.235 (process 6.8s)
+    rep wall_ms=1604.536 (process 6.8s)
+  -> median 1606.18 ms  stderr 0.85  cv 0.0012
+[cpolicy] {'CPOLICY': '1'}  x5
+    rep wall_ms=1835.038 (process 7.4s)
+    rep wall_ms=1831.675 (process 7.4s)
+    rep wall_ms=1834.251 (process 7.4s)
+    rep wall_ms=1833.433 (process 7.5s)
+    rep wall_ms=1834.762 (process 7.6s)
+  -> median 1834.25 ms  rel=-0.1420 abs=-228.07ms mdd=1.69ms eps_abs=32.12ms correctness=pass  keep=False

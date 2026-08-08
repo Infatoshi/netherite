@@ -1,0 +1,11 @@
+# A stable east-west line with its middle string absent. Placing 132:0 at
+# x=12 must find the west hook, validate the opposite-facing east hook, attach
+# both hooks and all three strings, and schedule the west hook at +10.
+9 78 8 1 0
+15 78 8 1 0
+10 78 8 131 3
+14 78 8 131 1
+11 78 8 132 0
+13 78 8 132 0
+10 78 7 123 0
+14 78 7 123 0

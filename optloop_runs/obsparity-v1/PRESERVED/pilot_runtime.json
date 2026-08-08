@@ -1,0 +1,159 @@
+{
+  "artifact": {
+    "actions_total": 66968,
+    "attempts_action_digest_exact": 15,
+    "attempts_action_sequence_exact": 15,
+    "attempts_world_seed_exact": 15,
+    "checkpoint_sha256": "ecd7aa73709fa9485364fda768559a7cbc45e43352ed703f5c2ead8a373266f0",
+    "commit": "d55c7f01c1139299be3f7fa0b98ef11b82c3b473",
+    "n_attempts": 15,
+    "non_noop_total": 66968,
+    "per_head_action_histograms_available": false,
+    "receipt_merge_tool_error": "merged result did not preserve pinned clean provenance (tracked_clean likely flipped mid-run)",
+    "sim_stub_note": "stub sim for java pilot pairing scaffolding only; not a real magma eval of this ckpt",
+    "successes": 0,
+    "tracked_clean": false
+  },
+  "bridge_action_rate_full_episodes_per_second": {
+    "max": 15.4,
+    "median": 9.9,
+    "min": 9.8,
+    "samples_dec1400": [
+      9.8,
+      15.2,
+      15.3,
+      15.2,
+      15.4,
+      15.4,
+      9.8,
+      9.8,
+      9.8,
+      9.8,
+      9.9
+    ]
+  },
+  "by_seed": {
+    "10": {
+      "actions_sent": [
+        188,
+        6000,
+        372,
+        196,
+        212
+      ],
+      "attempts": 5,
+      "best_inventory_max": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "deaths_inferred_from_short_episode": 4,
+      "non_noop_steps": [
+        188,
+        6000,
+        372,
+        196,
+        212
+      ]
+    },
+    "2": {
+      "actions_sent": [
+        6000,
+        6000,
+        6000,
+        6000,
+        6000
+      ],
+      "attempts": 5,
+      "best_inventory_max": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "deaths_inferred_from_short_episode": 0,
+      "non_noop_steps": [
+        6000,
+        6000,
+        6000,
+        6000,
+        6000
+      ]
+    },
+    "3": {
+      "actions_sent": [
+        6000,
+        6000,
+        6000,
+        6000,
+        6000
+      ],
+      "attempts": 5,
+      "best_inventory_max": [
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "deaths_inferred_from_short_episode": 0,
+      "non_noop_steps": [
+        6000,
+        6000,
+        6000,
+        6000,
+        6000
+      ]
+    }
+  },
+  "client_log": {
+    "fatal_clusters": {
+      "16:06:54": 8,
+      "16:13:32": 2,
+      "16:20:10": 21,
+      "16:28:43": 4,
+      "16:37:17": 2,
+      "16:47:31": 22,
+      "16:57:48": 4,
+      "17:08:07": 3,
+      "17:18:23": 16,
+      "17:28:38": 11,
+      "17:29:02": 233,
+      "17:29:03": 598,
+      "17:39:17": 22,
+      "17:40:00": 313,
+      "17:40:26": 285
+    },
+    "fatal_error_executing_task": 1544,
+    "fatal_npe_handle_statistics": 38,
+    "fresh_world_launches": 16,
+    "heartbeat_lines": 4990,
+    "launch_settings_applied": 1,
+    "moved_wrongly_warnings": 13
+  },
+  "server_heartbeat_ticks_per_second": {
+    "max": 1085.7142857142858,
+    "median": 1003.6801605888256,
+    "min": 996.4601769911504,
+    "n_contiguous_segments": 12
+  },
+  "server_ticks_per_bridge_action": {
+    "server_ticks_per_bridge_action_at_fastest_full_episode": 65.17403640187179,
+    "server_ticks_per_bridge_action_at_slowest_full_episode": 102.4163429172271
+  }
+}

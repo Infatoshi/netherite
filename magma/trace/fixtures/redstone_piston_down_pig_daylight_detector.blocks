@@ -1,0 +1,5 @@
+# Daylight detector has a full-footprint 3/8-high collision box.
+12 81 9 152 0
+# Frozen noon computes power 15. Starting there makes the collision probe
+# independent of whether its two ticks cross WorldServer's 20-tick update.
+12 79 8 151 15

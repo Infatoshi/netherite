@@ -1,0 +1,15 @@
+{
+  "schema": "netherite.block_callback_detector_receipt",
+  "version": 1,
+  "source": "real Minecraft Java 1.11.2 MinecartGolden versus native minecart runtime",
+  "captured_utc": "2026-08-23",
+  "java_rows": 66,
+  "native_rows": 66,
+  "exact": true,
+  "output_sha256": "ba1fa3374e0605258846bf9429fe31d95b1cc5401cbda30ddb78888a7657f6d9",
+  "detector_activation": "D 9 1",
+  "detector_update_tick": "D2 1 0",
+  "families": [
+    ["BlockRailDetector", "updateTick"]
+  ]
+}

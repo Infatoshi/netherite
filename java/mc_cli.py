@@ -5,9 +5,12 @@
 
 Reads a profile yaml (single source of truth for one instance), then:
   1. patches Minecraft/run/options.txt with the [video]/[ui] settings,
-  2. writes Minecraft/run/qrl_launch.json ([world]/[ui], read by the qrl mod:
-     main menu is skipped, world auto-launches, chat hidden, gamerules applied),
+  2. writes Minecraft/run/qrl_launch.json ([world]/[ui]/[port]/[genprobe], read by
+     NetheriteMod (mod id qrl): main menu is skipped, world auto-launches, chat hidden, gamerules applied),
   3. launches runClient (headless on DISPLAY, or --vnc for the Xvfb+x11vnc stack).
+
+No invented env vars: everything the mod reads arrives through qrl_launch.json or a
+gradle property (-PmcUsername, -PqrlPort).
 
 Options:
   --config PATH      profile yaml (default: fast.yaml next to this script).
@@ -17,7 +20,7 @@ Options:
                      it automatically; full vanilla rules, sound, menus).
   --set K=V          dotted override, repeatable (e.g. --set world.seed=42)
   --instances N      batch: N clients, port/display auto-incremented per instance.
-                     NOTE: each instance needs a distinct world folder; the qrl mod
+                     NOTE: each instance needs a distinct world folder; NetheriteMod
                      names folders qrl_<seed>[_flat], so give each instance its own
                      seed (--set world.seed=...) or launches 2..N will fail the
                      world lock. Gradle builds are serialized before spawning.
@@ -167,6 +170,10 @@ def write_launch_json(cfg, port, dry, profile):
         "determinism": {k: bool(v) for k, v in cfg.get("determinism", {}).items()},
         "world": cfg.get("world", {}),
     }
+    # worldgen RNG-cursor probe (netheritemod.WorldGenProbe): absent key = probe off. The
+    # run/qrl_genprobe.txt sidecar remains the no-config-edit way to turn it on.
+    if cfg.get("genprobe"):
+        j["genprobe"] = str(cfg["genprobe"])
     # gamerule values must be strings for the command line
     gr = j["world"].get("gamerules")
     if gr:
@@ -185,21 +192,27 @@ def write_launch_json(cfg, port, dry, profile):
 
 def launch(cfg, args, port, display, idx):
     env = os.environ.copy()
-    env["QRL_PORT"] = str(port)
-    env["MC_USERNAME"] = str(cfg.get("instance", {}).get("username", "Player0")) + (
+    username = str(cfg.get("instance", {}).get("username", "Player0")) + (
         str(idx) if idx else "")
+    # Config reaches the JVM as gradle properties, never env vars: -PmcUsername pins the
+    # player name (build.gradle -> --username), -PqrlPort becomes -Dqrl.port for batch
+    # instances 1..N-1 that share instance 0's run/qrl_launch.json "port".
+    props = [f"-PmcUsername={username}"]
+    if idx:
+        props.append(f"-PqrlPort={port}")
     if args.vnc:
-        cmd = ["bash", os.path.join(ROOT, "start_vnc_client.sh")]
+        # start_vnc_client.sh forwards its extra args verbatim to ./gradlew runClient
+        cmd = ["bash", os.path.join(ROOT, "start_vnc_client.sh")] + props
         cwd = ROOT
     else:
         env["DISPLAY"] = display
         env.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
         env.setdefault("MESA_GL_VERSION_OVERRIDE", "2.1")
-        cmd = ["./gradlew", "runClient"]
+        cmd = ["./gradlew", "runClient"] + props
         cwd = os.path.join(ROOT, "Minecraft")
     if args.dry_run:
-        print(f"-- would run (instance {idx}): QRL_PORT={port} DISPLAY={display} "
-              f"MC_USERNAME={env['MC_USERNAME']} {shlex.join(cmd)}")
+        print(f"-- would run (instance {idx}): NetheriteMod port {port} DISPLAY={display} "
+              f"{shlex.join(cmd)}")
         return None
     # --vnc: start_vnc_client.sh writes runclient.log itself; keep our wrapper log separate
     name = "vnc_launch.log" if args.vnc else f"runclient{'' if idx == 0 else '_' + str(idx)}.log"
@@ -207,7 +220,7 @@ def launch(cfg, args, port, display, idx):
     lf = open(log, "ab")
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=lf, stderr=lf,
                          start_new_session=True)
-    print(f"instance {idx}: pid {p.pid}, qrl port {port}, display {display}, log {log}")
+    print(f"instance {idx}: pid {p.pid}, NetheriteMod port {port}, display {display}, log {log}")
     return p
 
 
@@ -246,7 +259,7 @@ def main():
     for i in range(args.instances):
         if args.instances > 1:
             # per-instance port/display; qrl_launch.json holds instance 0's port,
-            # QRL_PORT env overrides it for the rest (env wins in the mod)
+            # -PqrlPort (-> -Dqrl.port) overrides it for the rest (property wins in the mod)
             launch(cfg, args, base_port + i, f":{disp_num + i}", i)
         else:
             launch(cfg, args, base_port, base_disp, 0)

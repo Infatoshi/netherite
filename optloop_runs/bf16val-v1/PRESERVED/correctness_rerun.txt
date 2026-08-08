@@ -1,0 +1,13 @@
+ORACLE sample_actions_exact=1
+ORACLE component=loss max_abs=1.49012e-08 ceiling=1.03191e-05 pass=1
+ORACLE component=update_delta max_abs=0.000599304 ceiling=0.000599969 pass=1
+ORACLE component=gradients max_abs=0.000244141 ceiling=0.000531878 pass=1
+ORACLE component=entropy_loss max_abs=1.49012e-08 ceiling=5.21541e-08 pass=1
+ORACLE component=value_loss max_abs=0 ceiling=1.3113e-06 pass=1
+ORACLE component=policy_loss max_abs=0 ceiling=1.0157e-05 pass=1
+ORACLE component=entropy max_abs=1.90735e-06 ceiling=6.29425e-05 pass=1
+ORACLE component=grad_norm max_abs=0.0002774 ceiling=0.00224152 pass=1
+ORACLE component=values max_abs=0 ceiling=0.000799805 pass=1
+ORACLE component=logprob max_abs=0 ceiling=0.00207901 pass=1
+ORACLE component=logits max_abs=0 ceiling=0.00106836 pass=1
+ORACLE_RESULT pass=1

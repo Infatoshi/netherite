@@ -1,0 +1,9 @@
+# EAST normal piston with a NORTH slime attachment. The side stone terminates
+# at the lower half of a supported oak door; the upper half must disappear in
+# the later ordered notification pass after item 324 is emitted by the lower.
+12 79 8 33 5
+13 79 8 165 0
+13 79 7 1 0
+14 78 7 1 0
+14 79 7 64 3
+14 80 7 64 11

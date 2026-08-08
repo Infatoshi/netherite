@@ -1,0 +1,24 @@
+{
+  "schema": "netherite.block_callback_note_liquid_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma",
+  "captured_utc": "2026-08-23",
+  "campaigns": [
+    {
+      "name": "note_block",
+      "rows": 12,
+      "families": [
+        ["BlockNote", "neighborChanged"],
+        ["BlockNote", "onBlockActivated"]
+      ]
+    },
+    {
+      "name": "static_lava_neighbor",
+      "rows": 58,
+      "families": [
+        ["BlockStaticLiquid", "neighborChanged"],
+        ["BlockDynamicLiquid", "updateTick"]
+      ]
+    }
+  ]
+}

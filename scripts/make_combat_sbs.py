@@ -6,9 +6,9 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
-ROOT = Path("/home/infatoshi/dev/netherite")
-TAPES = ROOT / "c/magma/raster/verify/tapes"
-OUT_TRACE = ROOT / "c/magma/raster/verify/trace/out"
+ROOT = Path(__file__).resolve().parents[1]
+TAPES = ROOT / "verify/tapes"
+OUT_TRACE = ROOT / "verify/trace/out"
 ARGV = sys.argv[1:]
 FPS = 10.0
 if "--fps" in ARGV:

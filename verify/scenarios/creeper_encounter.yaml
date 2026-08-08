@@ -1,0 +1,29 @@
+name: creeper_encounter
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing true
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 0.5 0 0
+  - /fill 2 4 0 2 6 7 minecraft:dirt
+  - /effect @p minecraft:resistance 1000000 4 true
+  # The explicit armor modifier is required because AttributeModifiers
+  # replaces the diamond chestplate's defaults.
+  - '/replaceitem entity @p slot.armor.chest minecraft:diamond_chestplate 1 0 {AttributeModifiers:[{AttributeName:"generic.knockbackResistance",Name:"kb",Amount:1.0,Operation:0,UUIDMost:51,UUIDLeast:17,Slot:"chest"},{AttributeName:"generic.armor",Name:"armor",Amount:8.0,Operation:0,UUIDMost:52,UUIDLeast:18,Slot:"chest"}]}'
+  - /summon creeper 0.5 4 10.5 {PersistenceRequired:1b}
+duration_ticks: 400
+frames_every: 2
+input:
+  segments:
+    - seconds: 20.0
+known_divergences: []

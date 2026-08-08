@@ -1,0 +1,3 @@
+# Insert an isolated glass pane one block north of the walking player. Its
+# centered 1/8-thick post lets Java approach farther than a full-cube fallback.
+1 0 0 -1 102 0

@@ -1,0 +1,5 @@
+# A chorus flower 200:4 starts valid directly above end stone. Removing its
+# sole support at tick zero must enqueue the flower's one-tick survival check;
+# the scheduled callback then destroys it without an item drop.
+15 77 8 121 0
+15 78 8 200 4

@@ -1,0 +1,5 @@
+# An unpowered EAST-watching observer sits south of the future EAST-facing
+# piston. Its placement pulse is drained before the tape. The edit sequence
+# places the piston, then changes the watched east cell; the observer's +2
+# activation outputs west rather than north, so the piston remains unextended.
+12 78 9 218 5

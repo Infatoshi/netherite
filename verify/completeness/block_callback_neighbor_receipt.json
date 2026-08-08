@@ -1,0 +1,27 @@
+{
+  "schema": "netherite.block_callback_neighbor_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma",
+  "captured_utc": "2026-08-23",
+  "campaign_rows": 99,
+  "vine_campaign_rows": 8,
+  "paired_families": [
+    ["BlockBanner$BlockBannerHanging", "neighborChanged", [95, 96]],
+    ["BlockBanner$BlockBannerStanding", "neighborChanged", [93, 94]],
+    ["BlockCake", "neighborChanged", [83, 84]],
+    ["BlockCarpet", "neighborChanged", [27, 42, 62]],
+    ["BlockCocoa", "neighborChanged", [43, 54, 63, 64]],
+    ["BlockFire", "neighborChanged", [81, 82]],
+    ["BlockFlowerPot", "neighborChanged", [97, 98]],
+    ["BlockFrostedIce", "neighborChanged", [68, 70]],
+    ["BlockGrassPath", "neighborChanged", [65, 67]],
+    ["BlockLadder", "neighborChanged", [87, 88]],
+    ["BlockPortal", "neighborChanged", [76, 80]],
+    ["BlockSnow", "neighborChanged", [19, 26, 55, 61]],
+    ["BlockSponge", "neighborChanged", [71, 75]],
+    ["BlockStandingSign", "neighborChanged", [89, 90]],
+    ["BlockTorch", "neighborChanged", [85, 86]],
+    ["BlockVine", "neighborChanged", [0, 7]],
+    ["BlockWallSign", "neighborChanged", [91, 92]]
+  ]
+}

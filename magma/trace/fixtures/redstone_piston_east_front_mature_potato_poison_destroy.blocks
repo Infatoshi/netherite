@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while mature potato crop 142:7 occupies the front
+# cell. World.rand seed zero selects two extra potatoes; Block.RANDOM seed zero
+# selects the independent one-in-50 poisonous-potato stack.
+12 78 9 152 0
+13 77 8 60 0
+13 78 8 142 7

@@ -1,0 +1,4 @@
+# DOWN-facing normal piston above a locked NoAI pig. The top purpur slab below
+# reaches y=80 exactly and exercises the fourth 1.11.2 half-slab registry ID.
+12 81 9 152 0
+12 79 8 205 8

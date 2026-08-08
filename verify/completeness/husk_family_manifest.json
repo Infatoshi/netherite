@@ -1,0 +1,47 @@
+{
+  "schema": "netherite.husk_family_gate",
+  "version": 1,
+  "todo": "AI-01",
+  "behavior_oracle": {
+    "difficulty": "normal",
+    "fresh_world_hunger_ticks": 140,
+    "aged_world_hunger_ticks": 280,
+    "exhaustion_per_tick": 0.005,
+    "burns_in_daylight": false
+  },
+  "death_loot_oracle": {
+    "husk_death_rows": 9,
+    "aggregate_death_rows": 261,
+    "husk_loot_rows": 15,
+    "aggregate_hostile_loot_rows": 375,
+    "terminal_xp": 5,
+    "native_terminal_cases": 25
+  },
+  "state_continuation": {
+    "native_save_boundary": "hunger_active",
+    "duration_and_exhaustion": "exact"
+  },
+  "render_audio_contract": {
+    "model": "zombie",
+    "texture": "husk_jar_exact",
+    "sounds": ["ambient", "hurt", "death", "step"]
+  },
+  "implemented": [
+    "live_husk_type_and_zombie_inherited_ai",
+    "daylight_burn_immunity",
+    "empty_hand_hunger_melee",
+    "normal_local_difficulty_world_age_and_moon_cast",
+    "per_tick_hunger_exhaustion",
+    "exact_loot_death_xp_and_terminal_particles",
+    "native_hunger_save_continuation",
+    "zombie_model_and_husk_skin",
+    "four_owned_husk_sound_assets"
+  ],
+  "remaining": [
+    "chunk_inhabited_time_local_difficulty_term",
+    "desert_natural_spawn_pack_and_group_data",
+    "zombie_reinforcement_door_and_equipment_full_matrix",
+    "type_specific_step_event_emission",
+    "bounded_same_scene_java_native_model_pixels"
+  ]
+}

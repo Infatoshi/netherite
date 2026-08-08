@@ -114,12 +114,391 @@ jar {
 // And add to the jvm args so that it is also loaded when running using gradle runClient:
 JavaExec exec = project.getTasks().getByName("runClient") as JavaExec
 
+task strongholdLocateGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.StrongholdLocateGolden'
+}
+
+task endCityGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.EndCityGolden'
+}
+
+task endCityLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.EndCityLootGolden'
+}
+
+task desertLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.DesertLootGolden'
+}
+
+task jungleLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.JungleLootGolden'
+}
+
+task fishingLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.FishingLootGolden'
+}
+
+task luckLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.LuckLootGolden'
+}
+
+task spawnPositionGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.SpawnPositionGolden'
+    args project.findProperty('spawnSeed') ?: '0'
+}
+
+task worldgenAnimalsGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.WorldgenAnimalsGolden'
+    args project.findProperty('animalSeed') ?: '0',
+         project.findProperty('animalCx') ?: '0',
+         project.findProperty('animalCz') ?: '0',
+         project.findProperty('animalWorldSeed') ?: '0'
+}
+
+task endPopulationGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.EndPopulationGolden'
+}
+
+task hopperGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.HopperGolden'
+}
+
+task minecartGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.MinecartGolden'
+}
+
+task boatGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.BoatGolden'
+}
+
+task soundSelectorGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.SoundSelectorGolden'
+    args project.findProperty('soundSelectorSpec') ?: '',
+         project.findProperty('soundSelectorSeed') ?: ''
+}
+
+task soundSourceGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.SoundSourceGolden'
+    args project.findProperty('soundSelectorSpec') ?: '',
+         project.findProperty('soundSelectorSeed') ?: ''
+}
+
+task foodGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.FoodGolden'
+}
+
+task itemBlockGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ItemBlockGolden'
+}
+
+task toolCallbackGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ToolCallbackGolden'
+}
+
+task blockCallbackNoopGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.BlockCallbackNoopGolden'
+}
+
+task blockCallbackDropGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.BlockCallbackDropGolden'
+}
+
+task blockCallbackActivationGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.BlockCallbackActivationGolden'
+}
+
+task specialItemUseGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.SpecialItemUseGolden'
+}
+
+task mapColorGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.MapColorGolden'
+}
+
+task mapUpdateGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.MapUpdateGolden'
+}
+
+task craftingRegistryGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.CraftingRegistryGolden'
+}
+
+task spawnerGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.SpawnerGolden'
+}
+
+task scatteredGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ScatteredGolden'
+}
+
+task scatteredJungleGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ScatteredJungleGolden'
+}
+
+task scatteredSwampGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ScatteredSwampGolden'
+}
+
+task villageGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillageGolden'
+}
+
+task villageStateGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillageStateGolden'
+}
+
+task ironGolemGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.IronGolemGolden'
+}
+
+task villagerMateGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillagerMateGolden'
+}
+
+task villageSiegeGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillageSiegeGolden'
+}
+
+task villagerFollowGolemGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillagerFollowGolemGolden'
+}
+
+task villagerDoorTaskGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillagerDoorTaskGolden'
+}
+
+task villagerSocialGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillagerSocialGolden'
+}
+
+task villageTemplateGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillageTemplateGolden'
+}
+
+task villagerTradeGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillagerTradeGolden'
+}
+
+task merchantContainerGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.MerchantContainerGolden'
+}
+
+task staticContainerGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.StaticContainerGolden'
+}
+
+task inventoryHelperGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.InventoryHelperGolden'
+}
+
+task furnaceOutputGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.FurnaceOutputGolden'
+}
+
+task furnaceBoundaryGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.FurnaceBoundaryGolden'
+}
+
+task containerClickGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ContainerClickGolden'
+}
+
+task tameableGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.TameableGolden'
+}
+
+task horseParticleGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.HorseParticleGolden'
+}
+
+task dragonRespawnGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.DragonRespawnGolden'
+}
+
+task shulkerGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ShulkerGolden'
+}
+
+task noAiMobGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.NoAiMobGolden'
+}
+
+task woodlandMansionGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.WoodlandMansionGolden'
+}
+
+task mansionTemplateDump(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.MansionTemplateDump'
+    args project.hasProperty('mansionTemplateOut')
+        ? project.getProperty('mansionTemplateOut')
+        : '../../magma/assets/mansion_templates.h'
+}
+
+task mansionLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.MansionLootGolden'
+}
+
+task illagerLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.IllagerLootGolden'
+}
+
+task evokerSpellGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.EvokerSpellGolden'
+}
+
+task guardianGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.GuardianGolden'
+}
+
+task guardianLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.GuardianLootGolden'
+}
+
+task oceanMonumentGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.OceanMonumentGolden'
+}
+
+task blockBreakSoundGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.BlockBreakSoundGolden'
+}
+
+task playerMovementSoundGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.PlayerMovementSoundGolden'
+}
+
 exec.jvmArgs(["-Xmx2G", "-Xdebug", "-Dmixin.debug=true"])
 
 // Pin the player name (default is "Player" + wall-clock millis % 1000 -> nondeterministic
 // across launches; it leaks into chat text and F3/tab and pollutes pixel diffs).
-// Override per instance: MC_USERNAME env (set by mc_cli.py for batch launches).
-exec.args(["--username", System.getenv("MC_USERNAME") ?: "Player0"])
+// Override per instance: gradle property -PmcUsername=... (set by mc_cli.py for batch launches).
+exec.args(["--username", project.hasProperty("mcUsername") ? project.getProperty("mcUsername") : "Player0"])
+
+// NetheriteMod TCP bridge port override for batch launches, where N instances share one
+// run/qrl_launch.json and only its "port" key would otherwise be visible:
+// -PqrlPort=25576 -> -Dqrl.port=25576, read once by qrl.Recorder.
+if (project.hasProperty("qrlPort")) {
+    exec.jvmArgs(["-Dqrl.port=" + project.getProperty("qrlPort")])
+}
 
 // macOS (incl. Apple Silicon under Rosetta): LWJGL2 must create its window/event
 // loop on the main thread, else AppKit throws. Harmless/absent on Linux.
@@ -317,12 +696,14 @@ task jaxb() {
 
     // Create an index file listing all the schemas:
     def schemaIndexFile = new File('src/main/resources/schemas.index')
-    def contents = ""
-    def tree = copySchemas.source
-    tree.visit { fileDetails ->
-        contents += "${fileDetails.relativePath}" + "\n"
-    }
-    schemaIndexFile.write contents
+    def schemaOrder = [
+        'MissionHandlers.xsd',
+        'Mission.xsd',
+        'MissionInit.xsd',
+        'Types.xsd',
+        'MissionEnded.xsd'
+    ]
+    schemaIndexFile.write schemaOrder.join('\n') + '\n'
 
     inputs.files fileTree( dir: 'src/main/resources', include:'*.xsd' )
     outputs.dir 'src/main/java/com/microsoft/Malmo/Schemas'

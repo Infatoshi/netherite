@@ -1,0 +1,5 @@
+# A powered floor lever strongly powers an oak-plank normal cube. The tick-0
+# lamp is adjacent only to that support, proving that indirect power is driven
+# by Java's block-state predicate rather than a stone-ID special case.
+12 78 8 5 0
+12 79 8 69 13

@@ -1,0 +1,9 @@
+# EAST normal piston with a NORTH slime attachment. The side stone terminates
+# at lower double grass. World.rand seed zero selects one wheat-seed item, and
+# the upper half disappears during the ordered notification pass.
+12 79 8 33 5
+13 79 8 165 0
+13 79 7 1 0
+14 78 7 3 0
+14 79 7 175 2
+14 80 7 175 10

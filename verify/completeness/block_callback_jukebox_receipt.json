@@ -1,0 +1,14 @@
+{
+  "schema": "netherite.block_callback_jukebox_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "case": "ordinary_player_insert_record_13_seed_0",
+  "pass": 1,
+  "state_divergences": 0,
+  "campaign_summary_sha256": "337443ef2dd7aaad7b8e444f8772c068e41749178ff4c7ecc6b3ab4a41b3a282",
+  "excluded": "ordinary_player_eject_record_13_seed_0",
+  "families": [
+    ["BlockJukebox", "onBlockActivated"]
+  ]
+}

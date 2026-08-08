@@ -1,0 +1,14 @@
+{
+  "schema": "netherite.block_callback_beacon_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus native Beacon oracle",
+  "captured_utc": "2026-08-23",
+  "case_count": 12,
+  "pass": 12,
+  "fail": 0,
+  "negative_controls": 1,
+  "families": [
+    ["BlockBeacon", "neighborChanged"],
+    ["BlockBeacon", "onBlockActivated"]
+  ]
+}

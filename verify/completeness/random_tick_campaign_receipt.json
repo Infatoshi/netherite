@@ -1,0 +1,41 @@
+{
+  "schema": "netherite.random_tick_campaign_receipt",
+  "version": 1,
+  "todo": "WORLD-01",
+  "horizons": [0, 1, 20, 200, 1200],
+  "comparison_box": [960, 0, -128, 1007, 63, -83],
+  "cells_checked": 141312,
+  "active_chunks": 289,
+  "persisted_chunks": 1183,
+  "campaign_active_chunks": 5,
+  "placed_blocks": 428,
+  "branches": {
+    "forward": {
+      "java_repeat": "exact",
+      "native": "exact",
+      "rejected_fields": 0,
+      "changed_block_bytes": 61,
+      "changed_sky_light_bytes": 1857,
+      "final_blocks_sha256": "2938c4a939f8d0bdec089d3a678f01f965550d8a0a7af1035be4cd8ca9930a84",
+      "final_sky_light_sha256": "a3dc00a510bb96b503a775a8dfee42c13f49f48a9035d9b4aa4a59261d04933b"
+    },
+    "reverse": {
+      "java_repeat": "exact",
+      "native": "exact",
+      "rejected_fields": 0,
+      "changed_block_bytes": 65,
+      "changed_sky_light_bytes": 1961,
+      "final_blocks_sha256": "8adad746d4d307a1945bce2c33970bcc3ace19c5597bcc16aedcdc3b31ccdf1b",
+      "final_sky_light_sha256": "293f13718a0df8038aa29ae8802d1aee5175d18dabed317a03e69ec06cc9e554"
+    }
+  },
+  "negative_control": {
+    "final_block_bytes": 101,
+    "final_sky_light_bytes": 1722
+  },
+  "fixed_first_divergences": [
+    "farmland missing BF_TICK_RANDOM at forward tick 20",
+    "farmland missing BF_TICK_RANDOM at reverse tick 20",
+    "sapling missing BF_TICK_RANDOM"
+  ]
+}

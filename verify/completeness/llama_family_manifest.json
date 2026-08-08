@@ -1,0 +1,118 @@
+{
+  "schema": "netherite.llama_family_gate",
+  "version": 1,
+  "source_version": "Minecraft Java 1.11.2",
+  "todo": "ENT-03",
+  "classification": "live_bounded",
+  "state_continuation": {
+    "ticks": 4,
+    "java_native": "bit_exact",
+    "llamas": 3,
+    "spits": 1,
+    "item_targets": 1,
+    "leash_break_drop": "exact",
+    "reciprocal_caravan_graph": "exact",
+    "loaded_and_mob_update_order": "exact"
+  },
+  "genetics": {
+    "java_c_rows": 64,
+    "health_jump_speed": "bit_exact",
+    "strength_variant": "exact"
+  },
+  "loot": {
+    "java_c_rows": 96,
+    "looting_levels": [0, 1, 2, 3],
+    "leather_and_rng_cursor": "exact"
+  },
+  "caravan_task": {
+    "real_java_native_rows": 16,
+    "private_clock_rows": 5,
+    "in_range_grace_aging": "exact",
+    "acceleration_and_expiry": "exact",
+    "reset_counter_retention": "exact",
+    "terrain_obstacle_ticks": 20,
+    "terrain_motion": "bit_exact",
+    "materialized_paths": "exact",
+    "java_current_path_null_ticks": [1],
+    "dynamic_obstacle_ticks": 8,
+    "distant_collision_edit_path": "unchanged",
+    "near_wall_open_replan": "exact",
+    "dynamic_motion": "bit_exact",
+    "task_conflict_rows": 4,
+    "task_conflicts": [
+      "caravan_suppresses_ranged",
+      "caravan_suppresses_mate",
+      "swim_concurrent",
+      "follow_parent_concurrent"
+    ],
+    "follow_parent_ticks": 16,
+    "follow_parent_path_and_motion": "bit_exact",
+    "follow_parent_rng_cursor": "exact",
+    "lower_task_rows": 3,
+    "wander_watch_idle_rng_and_motion": "bit_exact",
+    "panic_scenarios": 2,
+    "panic_ticks": 24,
+    "panic_water_and_random_path_motion_rng": "bit_exact",
+    "mating_scenarios": 1,
+    "mating_ticks": 16,
+    "mating_path_motion_rng": "bit_exact",
+    "ranged_scenarios": 1,
+    "ranged_ticks": 41,
+    "ranged_path_clocks_motion_rng": "bit_exact",
+    "ranged_wolf_target_retention": "exact",
+    "real_java_oracle": "magma/trace/test_llama_caravan.py"
+  },
+  "spit": {
+    "launch_particles": 7,
+    "particle_id": 48,
+    "client_factory": "ParticleExplosion_1_11_2",
+    "motion_gravity_water_and_block_ray": "source_exact",
+    "nearest_and_loaded_order_ties": "exact",
+    "native_target_kinds": 19,
+    "real_java_target_classes": 11,
+    "real_java_oracle": "magma/trace/test_llama_spit_targets.py"
+  },
+  "inventory_gui": {
+    "java_ab_diff_pixels": 0,
+    "native_diff_pixels": 622,
+    "native_over_1_pixels": 4,
+    "native_hard_pixels": 0,
+    "native_max_channel": 10,
+    "negative_control": "PASS"
+  },
+  "model_pixels": {
+    "subject_states": 24,
+    "java_ab_diff_pixels": 0,
+    "hard_threshold": 25,
+    "maximum_hard_pixels_per_state": 4,
+    "spit_hard_pixels": 0,
+    "negative_control": "PASS",
+    "status": "live_bounded_fixed_function_edges"
+  },
+  "implemented": [
+    "taming_feeding_and_mounting",
+    "reciprocal_caravan_and_leash_lifecycle",
+    "chest_decor_strength_inventory_and_container",
+    "breeding_genetics_and_birth",
+    "damage_death_inventory_and_loot",
+    "audio_and_client_particles",
+    "spit_motion_collision_damage_and_persistence",
+    "ordinary_ranged_and_wolf_defense_ai",
+    "real_java_caravan_private_task_boundaries",
+    "real_java_terrain_caravan_path_and_motion",
+    "real_java_dynamic_obstacle_replanning",
+    "real_java_task_priority_conflicts",
+    "real_java_follow_parent_path_motion_and_rng",
+    "real_java_wander_watch_idle_task_rng",
+    "real_java_panic_water_random_path_motion_and_rng",
+    "real_java_mating_path_motion_and_rng",
+    "real_java_ranged_path_clocks_motion_and_rng",
+    "models_four_coats_sixteen_decor_chest_child_gait_and_spit",
+    "real_java_capsule_native_continuation",
+    "real_java_inventory_and_subject_pixel_gates"
+  ],
+  "remaining": [
+    "foreign_target_terminal_state_owned_by_ent05_ent06_ai04",
+    "llama_world_model_fixed_function_edges"
+  ]
+}

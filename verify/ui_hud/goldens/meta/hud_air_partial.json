@@ -1,0 +1,213 @@
+{
+  "id": "hud_air_partial",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 121,
+    "absorption": 0.0,
+    "armor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "hotbar": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "use_action": 0,
+    "fire": 0,
+    "portal": 0.0,
+    "boss": {
+      "show": false
+    },
+    "clear_effects": true
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 121,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 96,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 121,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 99,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 121,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 92,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file": "verify/ui_hud/goldens/hud_air_partial_a.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_eid": -1,
+    "air": 121,
+    "portal_phase": 97,
+    "pin_use_active": false
+  },
+  "frame_b": {
+    "ok": true,
+    "file": "verify/ui_hud/goldens/hud_air_partial_b.png",
+    "w": 854,
+    "h": 480,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_eid": -1,
+    "air": 121,
+    "portal_phase": 100,
+    "pin_use_active": false
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 0.11839367457344985,
+  "noise_limit": 2.0,
+  "presence": {
+    "mean_rgb": [
+      53.51685393258427,
+      70.02996254681648,
+      92.90137328339576
+    ],
+    "std": 49.52929021824898,
+    "warm_frac": 0.005357142857142857,
+    "bot_warm_frac": 0.010792349726775957,
+    "lr_std": 22.920139890413626,
+    "vm_std": 22.716511913186896,
+    "vm_dev": 16.806276321411133,
+    "dark_frac": 0.10112359550561797,
+    "purple_bias": 22.87141073657928
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "air bubbles sh-49 right"
+}

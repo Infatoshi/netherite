@@ -1,0 +1,28 @@
+{
+  "schema": "netherite.structure_block_gate",
+  "version": 1,
+  "todo": "MODE-02",
+  "classification": "live_bounded",
+  "oracle": {
+    "modes": 4,
+    "all_block_state_transforms": "exact",
+    "tile_payloads": "exact",
+    "represented_entity_classes": 8,
+    "minecart_subtypes": 7,
+    "constructor_rng_and_order": "exact",
+    "redstone_edges": "exact"
+  },
+  "continuation": {
+    "native_checkpoint": "exact",
+    "hostile_template_metadata": "fail_closed"
+  },
+  "performance": {
+    "idle_tick_scan": false,
+    "allocation": "first_use_only"
+  },
+  "remaining": [
+    "structure_block_editor_screen",
+    "persistent_disk_template_manager",
+    "general_command_permission_and_feedback_shell"
+  ]
+}

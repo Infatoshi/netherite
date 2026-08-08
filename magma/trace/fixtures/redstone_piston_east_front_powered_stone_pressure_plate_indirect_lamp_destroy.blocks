@@ -1,0 +1,7 @@
+# A saved powered stone plate 70:1 strongly powers its support and adjacent
+# lamp. It is destroyed at tick zero before any occupancy callback; the
+# breakBlock support notification must begin the lamp's exact +4 release.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 70 1
+14 77 8 124 0

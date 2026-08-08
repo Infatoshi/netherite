@@ -1,0 +1,30 @@
+name: use_poses_eat
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule naturalRegeneration false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /tp @p 0.5 4 0.5 0 0
+  - /replaceitem entity @p slot.hotbar.0 minecraft:cooked_beef 3
+  # A short high-amplifier pulse drains both the initial saturation and enough
+  # food to permit eating before the fixed-camera use pose.
+  - /effect @p minecraft:hunger 2 255 true
+duration_ticks: 300
+frames_every: 2
+input:
+  segments:
+    - seconds: 3.0
+    - seconds: 2.0
+      buttons: [3]
+    - seconds: 10.0
+known_divergences: []

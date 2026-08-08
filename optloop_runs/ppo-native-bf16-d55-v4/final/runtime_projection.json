@@ -1,0 +1,12 @@
+{
+  "schema": "netherite.native-runtime-projection.v1",
+  "accepted_median_chunk_ms": 1349.89,
+  "env_ticks_per_chunk": 786432,
+  "env_ticks_per_s": 582589.6924934625,
+  "full_train_ticks": 1920000000.0,
+  "projected_wall_s": 3295.6298828125,
+  "projected_wall_min": 54.927164713541664,
+  "projected_wall_h": 0.9154527452256944,
+  "vs_python_median_ms": 1724.161255,
+  "speedup_vs_python": 1.2772605582677106
+}

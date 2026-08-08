@@ -1,0 +1,9 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while decayable oak leaves 18:0 occupy the front
+# cell. World.rand internal seed 90 makes both the 1/20 sapling roll and the
+# subsequent 1/200 apple roll succeed. Removing the front leaf must also set
+# CHECK_DECAY on both adjacent, player-placed leaves, including leaves2.
+12 78 9 152 0
+13 78 8 18 0
+13 79 8 18 4
+14 78 9 161 4

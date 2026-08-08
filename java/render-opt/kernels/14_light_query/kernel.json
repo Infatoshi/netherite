@@ -1,0 +1,11 @@
+{
+  "name": "light_query",
+  "tier": 1,
+  "compute": "low",
+  "capture_mode": "live-hook",
+  "source": "src/net/minecraft/world/World.java:852 getLightFromNeighborsFor + chunk/Chunk.java getLightFor",
+  "describe": "Block light query (0-15): for useNeighborBrightness blocks, max of 5 neighbor light values (up/east/west/south/north) per EnumSkyBlock {BLOCK,SKY}; otherwise own stored light. Golden captured live from real Minecraft via NetheriteMod 'capture_light'.",
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

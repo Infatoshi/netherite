@@ -1,0 +1,6 @@
+# The identical zero-motion EntitySmallFireball overlaps an unpowered wire.
+# EntityFireball.onUpdate assigns its position directly and never calls
+# doBlockCollisions, so the wire must remain off and unscheduled.
+8 77 8 1 0
+12 77 8 1 0
+12 78 8 132 0

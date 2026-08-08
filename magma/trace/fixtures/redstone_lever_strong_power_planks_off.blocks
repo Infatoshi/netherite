@@ -1,0 +1,5 @@
+# Removing this powered lever must notify through its oak-plank normal-cube
+# support and start the indirectly powered lamp's independent +4 off delay.
+12 78 8 5 0
+12 79 8 69 13
+13 78 8 124 0

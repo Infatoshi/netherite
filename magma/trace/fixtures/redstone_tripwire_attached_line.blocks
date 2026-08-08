@@ -1,0 +1,12 @@
+# A complete, attached, unpowered east-west tripwire line. Direct removal of
+# the middle string must pulse both hooks before the scheduled +10 release;
+# direct removal of the west hook must detach the remaining line immediately.
+9 78 8 1 0
+15 78 8 1 0
+10 78 8 131 7
+14 78 8 131 5
+11 78 8 132 4
+12 78 8 132 4
+13 78 8 132 4
+10 78 7 123 0
+14 78 7 123 0

@@ -1,0 +1,1682 @@
+# magma build. See SPEC.md. C reference + CUDA raster, SDL2 present.
+# Parallel by default (clean serial build ~12s, -j ~3s). An explicit -j on the
+# command line still wins over this.
+MAKEFLAGS += -j$(shell nproc 2>/dev/null || sysctl -n hw.ncpu)
+CC      ?= gcc
+CXX     ?= g++
+# CUDA is installed outside PATH on the parity/performance host.  Prefer the
+# conventional toolkit location when present while retaining PATH lookup on
+# other machines and command-line override support.
+NVCC    ?= $(if $(wildcard /usr/local/cuda/bin/nvcc),/usr/local/cuda/bin/nvcc,nvcc)
+CFLAGS  ?= -O2 -ffp-contract=off -Wall -Wextra -Icore -I.
+CXXFLAGS ?= $(CFLAGS) -std=c++11
+NVFLAGS ?= -O2 --fmad=false -arch=sm_120 -Icore -I.
+# SDL2 discovery: pkg-config, then sdl2-config (Homebrew path included for
+# non-interactive mac shells that lack /opt/homebrew/bin in PATH), then -lSDL2.
+SDL2_CONFIG := $(shell command -v sdl2-config 2>/dev/null || \
+                       ls /opt/homebrew/bin/sdl2-config 2>/dev/null)
+SDL_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null || \
+                      $(SDL2_CONFIG) --cflags 2>/dev/null)
+SDL_LIBS   := $(shell pkg-config --libs sdl2 2>/dev/null || \
+                      $(SDL2_CONFIG) --libs 2>/dev/null || echo -lSDL2)
+# present.c includes <SDL2/SDL.h>; sdl2-config points at .../include/SDL2, so
+# also search its parent (no-op on Linux where /usr/include is a default path).
+SDL_CFLAGS += $(patsubst -I%/SDL2,-I%,$(filter -I%/SDL2,$(SDL_CFLAGS)))
+AUDIO_OK := $(shell pkg-config --exists openal vorbisfile 2>/dev/null && echo 1)
+ifeq ($(AUDIO_OK),1)
+AUDIO_CFLAGS := $(shell pkg-config --cflags openal vorbisfile) -DMAGMA_AUDIO_OPENAL
+AUDIO_LIBS := $(shell pkg-config --libs openal vorbisfile)
+endif
+LDLIBS  ?= -lm $(if $(filter Darwin,$(shell uname -s)),-lc++,-lstdc++)
+QRL_PORT ?= 25575
+DEPFLAGS = -MMD -MP
+
+# module objects (each owned by one agent per SPEC.md)
+OBJ_CORE   = core/math.o core/shade.o core/config.o
+OBJ_RASTER = cpu/raster_cpu.o
+OBJ_XFORM  = transform.o
+OBJ_PRESENT= present/present.o
+
+# wave 2: world mesh feed (consumes blaze core worldgen headers)
+BLAZE     ?= $(abspath ../blaze)
+OBJ_WORLD  = $(patsubst %.c,%.o,$(wildcard world/*.c))
+# wave 6: facebakery kernel that bakes non-cube block models (world/mesh_mc.c)
+OBJ_RK     = renderkernels/rk_31_facebakery_make_quad.o
+# block-model / atlas table (world/mesh_mc.c consumes it)
+OBJ_ASSETS = assets/blockmodels.o
+
+# seam: playable game (verified blaze player/world tick + magma render + HUD + mobs)
+OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
+           game/audio_live.o game/nbt_blob.o game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/village_live.o game/villager_trade.o game/fishing_render.o game/end_city_live.o game/end_population_live.o game/mansion_live.o game/ocean_monument_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/brewing_live.o game/enchanting_live.o game/container_live.o game/runtime.o game/native_save.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/structure_render.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
+
+OBJ_RUNTIME_TEST = game/runtime.o game/native_save.o game/nbt_blob.o game/fluid_live.o game/config.o \
+                   game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o \
+                   game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/village_live.o game/villager_trade.o game/end_city_live.o game/end_population_live.o game/mansion_live.o game/ocean_monument_live.o \
+                   game/portal_live.o game/furnace_live.o game/chest_live.o game/brewing_live.o game/enchanting_live.o \
+                   game/container_live.o game/caps.o core/config.o world/light.o world/mesh_mc.o \
+                   world/populate_mc.o world/blocks.o world/mesh.o world/world.o \
+                   $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE)
+
+.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-spawn-position test-worldgen-animals test-block-registry test-particles-live test-firework-audio-oracle test-firework-capsule-oracle test-block-audio-oracle test-block-break-audio-oracle test-player-movement-audio-oracle test-player-attack-oracle test-potion-player-return-oracle test-potion-capsule-oracle test-no-ai-mob-capsule test-area-effect-cloud-particles-oracle clean cuda test-raster-parity test-fog-radial
+all: demo
+
+# --- CUDA raster for the game (RTX PRO 6000 Blackwell / sm_120) ---
+# All GPUs on the parity/performance host are sm_120.  Keep this overridable
+# for other machines and link cudart from the selected nvcc installation.
+NVFLAGS_GAME ?= -O2 --fmad=false -arch=sm_120 -Icore -I.
+CUDA_LIBDIR  ?= $(patsubst %/bin/nvcc,%/lib64,$(shell command -v $(NVCC) 2>/dev/null))
+CUDA_LIBS    ?= $(if $(CUDA_LIBDIR),-L$(CUDA_LIBDIR)) -lcudart -lstdc++
+
+# CPU spine demo (spinning textured cube)
+demo: magma_demo
+magma_demo: demo/demo_cube.o demo/scene.o $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS)
+
+# playable world app
+# NB: the world objects (world/light.o, world/populate_mc.o) now derive their fixed
+# pools from game/caps.o, so it is linked into every binary that pulls them in.
+world: magma_world
+magma_world: app/main.o $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT) game/caps.o
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS)
+
+world/%.o: world/%.c core/types.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) -I$(BLAZE)/core -c $< -o $@
+
+# playable game binary: seam-wires the verified sim tick to the magma renderer.
+# The CPU binary references cr_raster_cuda_* only as weak symbols (frame_capture,
+# game_main check them for NULL). ELF resolves absent weak refs to NULL; Mach-O's
+# ld needs them explicitly allowed, so Darwin gets -Wl,-U per symbol.
+ifeq ($(shell uname -s),Darwin)
+CUDA_WEAK_LD = -Wl,-U,_cr_raster_cuda_pre -Wl,-U,_cr_raster_cuda_into \
+               -Wl,-U,_cr_raster_cuda_frame_begin -Wl,-U,_cr_raster_cuda_frame_end \
+               -Wl,-U,_cr_raster_cuda_post -Wl,-U,_cr_raster_cuda_sky \
+               -Wl,-U,_cr_raster_cuda_atlas_dirty \
+               -Wl,-U,_cr_raster_cuda_pin -Wl,-U,_cr_raster_cuda_unpin \
+               -Wl,-U,_cr_raster_cuda_uploads_mark -Wl,-U,_cr_raster_cuda_uploads_wait \
+               -Wl,-U,_cr_raster_cuda_frame_end_async -Wl,-U,_cr_raster_cuda_frame_wait \
+               -Wl,-U,_cr_raster_cuda_render_layer -Wl,-U,_cr_raster_cuda_screen_tris \
+               -Wl,-U,_cr_raster_cuda_render_gather \
+               -Wl,-U,_cr_raster_cuda_render_terrain \
+               -Wl,-U,_cr_raster_cuda_slab_pool -Wl,-U,_cr_raster_cuda_slab_sync \
+               -Wl,-U,_cr_raster_cuda_slabs_reset \
+               -Wl,-U,_alloctrack_frame -Wl,-U,_alloctrack_arm
+endif
+game: magma_game
+magma_game: app/game_main.o $(OBJ_GAME) $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) \
+              $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(AUDIO_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
+
+game/test_falling_drop_oracle: game/test_falling_drop_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_living_cold_slot: game/test_living_cold_slot.c \
+		game/living_cold_slot.generated.h $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< $(filter %.o,$^) -o $@ $(LDLIBS)
+
+game/test_falling_timeout_oracle: game/test_falling_timeout_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_falling_lateral_oracle: game/test_falling_lateral_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_falling_dragon_egg_oracle: game/test_falling_dragon_egg_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_falling_anvil_oracle: game/test_falling_anvil_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_block_callback_noop: game/test_block_callback_noop.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_block_callback_drop: game/test_block_callback_drop.c $(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_block_callback_activation: game/test_block_callback_activation.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_piston_reentrant: game/test_piston_reentrant.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_ender_eye_oracle: game/test_ender_eye_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_egg_impact_oracle: game/test_egg_impact_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_egg_client_status_oracle: \
+		game/test_egg_client_status_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_snowball_impact_oracle: \
+		game/test_snowball_impact_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_potion_owner_damage_oracle: \
+		game/test_potion_owner_damage_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_nausea_portal_oracle: \
+		game/test_nausea_portal_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_ender_pearl_impact_oracle: \
+		game/test_ender_pearl_impact_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_ender_pearl_gateway_oracle: \
+		game/test_ender_pearl_gateway_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_igloo_oracle: game/test_igloo_oracle.c \
+	$(BLAZE)/core/scattered_igloo.h \
+	$(BLAZE)/core/igloo_templates.h \
+	$(BLAZE)/core/stronghold_loot.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_swamp_witch_oracle: game/test_swamp_witch_oracle.c \
+	$(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_self_potion_oracle: game/test_witch_self_potion_oracle.c \
+	$(BLAZE)/core/entity_witch.h $(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_ranged_oracle: game/test_witch_ranged_oracle.c \
+	$(BLAZE)/core/entity_witch.h \
+	$(BLAZE)/core/entity_blaze_fireball.h $(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_loot_oracle: game/test_witch_loot_oracle.c \
+	$(BLAZE)/core/entity_witch.h $(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_terminal_xp_oracle: game/test_witch_terminal_xp_oracle.c \
+	$(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_equipped_death_oracle: \
+	game/test_witch_equipped_death_oracle.c \
+	$(BLAZE)/core/entity_witch.h $(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_drowning_death_oracle: \
+	game/test_witch_drowning_death_oracle.c \
+	$(BLAZE)/core/entity_witch.h $(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_source_death_oracle: \
+	game/test_witch_source_death_oracle.c \
+	$(BLAZE)/core/entity_witch.h $(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_landing_oracle: game/test_witch_landing_oracle.c \
+	$(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_living_slime_oracle: game/test_living_slime_oracle.c \
+	$(BLAZE)/core/living_base.h $(BLAZE)/core/entity_base.h \
+	$(BLAZE)/core/physics_collision_full.h $(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_water_entry_oracle: \
+	game/test_witch_water_entry_oracle.c game/player_movement_audio.h \
+	$(BLAZE)/core/mc_rng.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_witch_self_potion_cuda.o: game/test_witch_self_potion_cuda.cu \
+	$(BLAZE)/core/entity_witch.h $(BLAZE)/core/mc_rng.h
+	$(NVCC) $(NVFLAGS) -I$(BLAZE)/core -c $< -o $@
+
+game/test_igloo_runtime: game/test_igloo_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_swamp_witch_runtime: game/test_swamp_witch_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_witch_self_potion_live: game/test_witch_self_potion_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_witch_ranged_live: game/test_witch_ranged_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_witch_loot_live: game/test_witch_loot_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_witch_terminal_xp_live: game/test_witch_terminal_xp_live.c \
+	$(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_witch_equipped_death_live: game/test_witch_equipped_death_live.c \
+	$(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_witch_drowning_death_live: game/test_witch_drowning_death_live.c \
+	$(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_witch_anvil_death_live: game/test_witch_anvil_death_live.c \
+	$(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_witch_burning_death_live: game/test_witch_burning_death_live.c \
+	$(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_shearing_oracle: game/test_shearing_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_mooshroom_runtime: game/test_mooshroom_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_snowman_runtime: game/test_snowman_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_snowman_ranged_oracle: \
+		game/test_snowman_ranged_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_endermite_runtime: game/test_endermite_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_giant_runtime: game/test_giant_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_husk_runtime: game/test_husk_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_stray_runtime: game/test_stray_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_polar_bear_runtime: game/test_polar_bear_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_rabbit_runtime: game/test_rabbit_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_grazing_oracle: game/test_grazing_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_grazing_runtime: game/test_grazing_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_color_oracle: game/test_sheep_color_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_color_runtime: game/test_sheep_color_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_feed_runtime: game/test_sheep_feed_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_feed_oracle: game/test_sheep_feed_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_zombie_villager_cure_oracle: game/test_zombie_villager_cure_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_hostile_loot_oracle: game/test_hostile_loot_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_hostile_death_live: game/test_hostile_death_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_hostile_environment_death_live: \
+	game/test_hostile_environment_death_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_passive_environment_death_live: \
+	game/test_passive_environment_death_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_hostile_player_death_oracle: game/test_hostile_player_death_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_slime_terminal_oracle: game/test_slime_terminal_oracle.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_zombie_villager_cure_runtime: game/test_zombie_villager_cure_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_pig_ride_oracle: game/test_pig_ride_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_pig_death_oracle: game/test_pig_death_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_pig_lethal_oracle: game/test_pig_lethal_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_cow_milking_oracle: game/test_cow_milking_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_dispenser_bonemeal_oracle: \
+		game/test_dispenser_bonemeal_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-dispenser-bonemeal-oracle: game/test_dispenser_bonemeal_oracle
+	uv run --no-project python trace/test_dispenser_bonemeal.py \
+		--port $(QRL_PORT) --native game/test_dispenser_bonemeal_oracle
+
+game/test_vine_neighbor_oracle: \
+		game/test_vine_neighbor_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-vine-neighbor-oracle: game/test_vine_neighbor_oracle
+	uv run --no-project python trace/test_vine_neighbor.py \
+		--port $(QRL_PORT) --native game/test_vine_neighbor_oracle
+
+game/test_leaf_decay_oracle: \
+		game/test_leaf_decay_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-leaf-decay-oracle: game/test_leaf_decay_oracle
+	uv run --no-project python trace/test_leaf_decay.py \
+		--port $(QRL_PORT) --native game/test_leaf_decay_oracle
+
+game/test_plant_support_neighbor_oracle: \
+		game/test_plant_support_neighbor_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-plant-support-neighbor-oracle: game/test_plant_support_neighbor_oracle
+	uv run --no-project python trace/test_plant_support_neighbor.py \
+		--port $(QRL_PORT) --native game/test_plant_support_neighbor_oracle
+
+test-plant-support-neighbor-native: game/test_plant_support_neighbor_oracle
+	uv run --no-project python trace/test_plant_support_neighbor.py \
+		--native game/test_plant_support_neighbor_oracle --native-only
+
+game/test_note_block_oracle: \
+		game/test_note_block_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-note-block-oracle: game/test_note_block_oracle
+	uv run --no-project python trace/test_note_block.py \
+		--port $(QRL_PORT) --native game/test_note_block_oracle
+
+test-note-block-native: game/test_note_block_oracle
+	uv run --no-project python trace/test_note_block.py \
+		--native game/test_note_block_oracle --native-only
+
+game/test_sky_light_column_oracle: \
+		game/test_sky_light_column_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_static_water_neighbor: \
+		game/test_static_water_neighbor.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_static_lava_neighbor_oracle: \
+		game/test_static_lava_neighbor_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-sky-light-column-oracle: game/test_sky_light_column_oracle
+	uv run --no-project python trace/test_sky_light_column.py \
+		--port $(QRL_PORT) --native game/test_sky_light_column_oracle
+
+test-static-lava-neighbor-oracle: game/test_static_lava_neighbor_oracle
+	uv run --no-project python trace/test_static_lava_neighbor.py \
+		--port $(QRL_PORT) --native game/test_static_lava_neighbor_oracle
+
+test-static-lava-neighbor-native: game/test_static_lava_neighbor_oracle
+	uv run --no-project python trace/test_static_lava_neighbor.py \
+		--native game/test_static_lava_neighbor_oracle --native-only
+
+game/test_brewing_live: game/test_brewing_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_enchanting_live: game/test_enchanting_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_anvil_oracle: game/test_anvil_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_anvil_live: game/test_anvil_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_mending_oracle: game/test_mending_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_mending_live: game/test_mending_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_equipment_enchantment_oracle: \
+		game/test_equipment_enchantment_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_equipment_enchantment_live: \
+		game/test_equipment_enchantment_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_player_death_inventory_oracle: \
+		game/test_player_death_inventory_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_block_harvest_oracle: \
+		game/test_block_harvest_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_block_harvest_tool_oracle: game/test_block_harvest_tool_oracle.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_block_harvest_live: \
+		game/test_block_harvest_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_block_harvest_xp_oracle: \
+		game/test_block_harvest_xp_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_bow_release_oracle: \
+		game/test_bow_release_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_arrow_impact_oracle: \
+		game/test_arrow_impact_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_arrow_block_impact_oracle: \
+		game/test_arrow_block_impact_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_arrow_pickup_oracle: \
+		game/test_arrow_pickup_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_arrow_payload_oracle: \
+		game/test_arrow_payload_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_item_merge_oracle: \
+		game/test_item_merge_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_item_environment_oracle: \
+		game/test_item_environment_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_item_pickup_oracle: \
+		game/test_item_pickup_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_item_registry_oracle: game/test_item_registry_oracle.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_xp_bottle_impact_oracle: \
+		game/test_xp_bottle_impact_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_elytra_wall_damage_oracle: \
+		game/test_elytra_wall_damage_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_xp_bottle_live: game/test_xp_bottle_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_bow_live: game/test_bow_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_arrow_payload_live: \
+		game/test_arrow_payload_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+.PHONY: test-arrow-payload-native
+test-arrow-payload-native: game/test_arrow_payload_live
+	./game/test_arrow_payload_live
+
+test-anvil-oracle: game/test_anvil_oracle
+	uv run --no-project python trace/test_anvil.py --port $(QRL_PORT)
+
+test-mending-oracle: game/test_mending_oracle
+	uv run --no-project python trace/test_mending_xp.py --port $(QRL_PORT)
+
+test-equipment-enchantment-oracle: game/test_equipment_enchantment_oracle
+	uv run --no-project python trace/test_equipment_enchantments.py \
+		--port $(QRL_PORT)
+
+test-player-death-inventory-oracle: game/test_player_death_inventory_oracle
+	uv run --no-project python trace/test_player_death_inventory.py \
+		--port $(QRL_PORT)
+
+test-block-harvest-oracle: game/test_block_harvest_oracle
+	uv run --no-project python trace/test_block_harvest.py \
+		--port $(QRL_PORT)
+
+test-block-harvest-tool-oracle: game/test_block_harvest_tool_oracle
+	uv run --no-project python trace/test_block_harvest_tool.py \
+		--port $(QRL_PORT)
+
+test-block-harvest-xp-oracle: game/test_block_harvest_xp_oracle
+	uv run --no-project python trace/test_block_harvest_xp.py \
+		--port $(QRL_PORT)
+
+test-bow-release-oracle: game/test_bow_release_oracle
+	uv run --no-project python trace/test_bow_release.py \
+		--port $(QRL_PORT)
+
+test-arrow-impact-oracle: game/test_arrow_impact_oracle
+	uv run --no-project python trace/test_arrow_impact.py \
+		--port $(QRL_PORT)
+
+test-arrow-block-impact-oracle: game/test_arrow_block_impact_oracle
+	uv run --no-project python trace/test_arrow_block_impact.py \
+		--port $(QRL_PORT)
+
+test-arrow-pickup-oracle: game/test_arrow_pickup_oracle
+	uv run --no-project python trace/test_arrow_pickup.py \
+		--port $(QRL_PORT)
+
+test-arrow-payload-oracle: game/test_arrow_payload_oracle
+	uv run --no-project python trace/test_arrow_payload.py \
+		--port $(QRL_PORT)
+
+test-item-merge-oracle: game/test_item_merge_oracle
+	uv run --no-project python trace/test_item_merge.py \
+		--port $(QRL_PORT)
+
+test-item-environment-oracle: game/test_item_environment_oracle
+	uv run --no-project python trace/test_item_environment.py \
+		--port $(QRL_PORT)
+
+test-item-pickup-oracle: game/test_item_pickup_oracle
+	uv run --no-project python trace/test_item_pickup.py \
+		--port $(QRL_PORT)
+
+test-item-registry-oracle: game/test_item_registry_oracle
+	uv run --no-project python trace/test_item_registry.py \
+		--port $(QRL_PORT)
+
+test-arrow-capsule:
+	uv run --no-project python trace/test_arrow_capsule.py \
+		--port $(QRL_PORT)
+
+test-item-capsule:
+	uv run --no-project python trace/test_item_capsule.py \
+		--port $(QRL_PORT)
+
+test-no-ai-mob-capsule:
+	uv run --no-project python trace/test_no_ai_mob_capsule.py \
+		--port $(QRL_PORT)
+
+test-xp-bottle-impact-oracle: game/test_xp_bottle_impact_oracle
+	uv run --no-project python trace/test_xp_bottle_impact.py \
+		--port $(QRL_PORT)
+
+test-egg-impact-oracle: game/test_egg_impact_oracle
+	uv run --no-project python trace/test_egg_impact.py \
+		--port $(QRL_PORT)
+
+test-egg-client-status-oracle: game/test_egg_client_status_oracle
+	uv run --no-project python trace/test_egg_client_status.py \
+		--port $(QRL_PORT) --native game/test_egg_client_status_oracle
+
+test-snowball-impact-oracle: game/test_snowball_impact_oracle
+	uv run --no-project python trace/test_snowball_impact.py \
+		--port $(QRL_PORT) --native game/test_snowball_impact_oracle
+
+test-potion-owner-damage-oracle: game/test_potion_owner_damage_oracle
+	uv run --no-project python trace/test_potion_owner_damage.py \
+		--port $(QRL_PORT) --native game/test_potion_owner_damage_oracle
+
+test-nausea-portal-oracle: game/test_nausea_portal_oracle
+	uv run --no-project python trace/test_nausea_portal.py \
+		--port $(QRL_PORT) --native game/test_nausea_portal_oracle
+
+test-ender-pearl-impact-oracle: game/test_ender_pearl_impact_oracle
+	uv run --no-project python trace/test_ender_pearl_impact.py \
+		--port $(QRL_PORT) --native game/test_ender_pearl_impact_oracle
+
+test-ender-pearl-gateway-oracle: game/test_ender_pearl_gateway_oracle
+	uv run --no-project python trace/test_ender_pearl_gateway.py \
+		--port $(QRL_PORT) --native game/test_ender_pearl_gateway_oracle
+
+game/test_throwable_launch_oracle: \
+		game/test_throwable_launch_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_throwable_foreign_dimension_oracle: \
+		game/test_throwable_foreign_dimension_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_throwable_portal_oracle: \
+		game/test_throwable_portal_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_portal_make_oracle: \
+		game/test_portal_make_oracle.c game/portal_live.o game/world_live.o \
+		game/village_live.o game/caps.o core/config.o world/light.o \
+		world/mesh_mc.o world/populate_mc.o world/blocks.o world/mesh.o \
+		world/world.o renderkernels/rk_31_facebakery_make_quad.o \
+		assets/blockmodels.o core/math.o core/shade.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_portal_player_oracle: \
+		game/test_portal_player_oracle.c game/portal_live.o game/world_live.o \
+		game/village_live.o game/caps.o core/config.o world/light.o \
+		world/mesh_mc.o world/populate_mc.o world/blocks.o world/mesh.o \
+		world/world.o renderkernels/rk_31_facebakery_make_quad.o \
+		assets/blockmodels.o core/math.o core/shade.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_portal_random_tick_oracle: \
+		game/test_portal_random_tick_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-throwable-launch-oracle: game/test_throwable_launch_oracle
+	uv run --no-project python trace/test_throwable_launch.py \
+		--port $(QRL_PORT) --native game/test_throwable_launch_oracle
+
+test-throwable-foreign-dimension-oracle: \
+		game/test_throwable_foreign_dimension_oracle
+	uv run --no-project python trace/test_throwable_foreign_dimension.py \
+		--port $(QRL_PORT) \
+		--native game/test_throwable_foreign_dimension_oracle
+
+test-throwable-portal-oracle: game/test_throwable_portal_oracle
+	uv run --no-project python trace/test_throwable_portal.py \
+		--port $(QRL_PORT) --native game/test_throwable_portal_oracle
+
+test-portal-make-oracle: game/test_portal_make_oracle
+	uv run --no-project python trace/test_portal_make.py \
+		--port $(QRL_PORT) --native game/test_portal_make_oracle
+
+test-portal-player-oracle: game/test_portal_player_oracle
+	uv run --no-project python trace/test_portal_player.py \
+		--port $(QRL_PORT) --native game/test_portal_player_oracle
+
+test-portal-random-tick-oracle: game/test_portal_random_tick_oracle
+	uv run --no-project python trace/test_portal_random_tick.py \
+		--port $(QRL_PORT) --native game/test_portal_random_tick_oracle
+
+game/test_throwable_save: game/test_throwable_save.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-throwable-save: game/test_throwable_save
+	mkdir -p ../.tmp
+	./game/test_throwable_save ../.tmp/throwable_checkpoint.bin
+
+test-throwable-capsule: game
+	uv run --no-project python trace/test_throwable_capsule.py \
+		--port $(QRL_PORT) --native magma_game
+
+test-elytra-wall-damage-oracle: game/test_elytra_wall_damage_oracle
+	uv run --no-project python trace/test_elytra_wall_damage.py \
+		--port $(QRL_PORT)
+
+game/test_weather_world: game/test_weather_world.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_weather_lightning: game/test_weather_lightning.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_firework: game/test_firework.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_firework_audio: game/test_firework_audio.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_tnt_explosion: game/test_tnt_explosion.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_ender_chest_runtime: \
+		game/test_ender_chest_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_shulker_box_runtime: \
+		game/test_shulker_box_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_beacon_runtime: game/test_beacon_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_beacon_oracle: game/test_beacon_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_structure_block_runtime: \
+		game/test_structure_block_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_stack_tag_capacity: \
+		game/test_stack_tag_capacity.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_structure_block_oracle: \
+		game/test_structure_block_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_ender_chest_oracle: \
+		game/test_ender_chest_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+.PHONY: test-ender-chest-native
+test-ender-chest-native: game/test_ender_chest_runtime
+	./game/test_ender_chest_runtime
+
+.PHONY: test-shulker-box-native
+test-shulker-box-native: game/test_shulker_box_runtime
+	./game/test_shulker_box_runtime
+
+test-beacon-native: game/test_beacon_runtime
+	./game/test_beacon_runtime
+
+.PHONY: test-structure-block-native
+test-structure-block-native: game/test_structure_block_runtime
+	mkdir -p ../.tmp
+	./game/test_structure_block_runtime \
+		../.tmp/structure_block_checkpoint.bin
+
+.PHONY: test-structure-block-oracle
+test-structure-block-oracle: game/test_structure_block_oracle
+	uv run --no-project python trace/test_structure_block.py \
+		--port $(QRL_PORT) --native game/test_structure_block_oracle
+
+game/structure_gui_candidate: ../verify/ui_hud/structure_gui_candidate.c \
+		$(OBJ_RUNTIME_TEST) game/screen.o game/hud.o game/player_preview.o \
+		game/entity_render.o game/item_render.o cpu/raster_cpu.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS) -lstdc++
+
+game/structure_world_candidate: ../verify/ui_hud/structure_world_candidate.c \
+		game/overlay.o assets/blockmodels.o core/math.o core/shade.o \
+		core/config.o cpu/raster_cpu.o transform.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+.PHONY: test-structure-gui
+test-structure-gui:
+	bash ../verify/ui_hud/test_structure_gui.sh
+
+.PHONY: test-structure-world
+test-structure-world:
+	bash ../verify/ui_hud/test_structure_world.sh
+
+.PHONY: test-ender-chest-oracle
+test-ender-chest-oracle: game/test_ender_chest_oracle
+	uv run --no-project python trace/test_ender_chest.py \
+		--port $(QRL_PORT) --native game/test_ender_chest_oracle
+
+test-firework-audio-oracle: game/test_firework_audio
+	uv run --no-project python trace/test_firework_audio.py \
+		--port $(QRL_PORT) --native game/test_firework_audio
+
+test-firework-capsule-oracle: game
+	uv run --no-project python trace/test_firework_capsule.py \
+		--port $(QRL_PORT) --native magma_game
+
+game/test_block_break_audio: game/test_block_break_audio.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-block-audio-oracle: game/test_block_break_audio
+	uv run --no-project python trace/test_block_break_audio.py \
+		--native game/test_block_break_audio
+
+test-block-break-audio-oracle: test-block-audio-oracle
+
+game/test_player_movement_audio: game/test_player_movement_audio.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-player-movement-audio-oracle: game/test_player_movement_audio
+	uv run --no-project python trace/test_player_movement_audio.py \
+		--native game/test_player_movement_audio
+
+test-player-attack-oracle:
+	uv run --no-project python trace/test_player_critical.py
+
+game/test_potion_player_return_oracle: \
+		game/test_potion_player_return_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-potion-player-return-oracle: game/test_potion_player_return_oracle
+	uv run --no-project python trace/test_potion_player_return.py \
+		--native game/test_potion_player_return_oracle
+
+test-potion-capsule-oracle: game
+	uv run --no-project python trace/test_potion_capsule.py \
+		--native magma_game
+
+test-area-effect-cloud-particles-oracle: game
+	uv run --no-project python trace/test_area_effect_cloud_particles.py \
+		--native magma_game
+
+game/test_player_movement_audio_runtime: \
+		game/test_player_movement_audio_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_player_attack_audio_runtime: \
+		game/test_player_attack_audio_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_player_attack_particles_runtime: \
+		game/test_player_attack_particles_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_fishing: game/test_fishing.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_fishing_render: game/test_fishing_render.c game/fishing_render.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_fishing_loot: game/test_fishing_loot.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_end_gateway: game/test_end_gateway.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_loaded_order_capacity: game/test_loaded_order_capacity.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_tile_capacity: game/test_tile_capacity.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_dragon_respawn: game/test_dragon_respawn.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_shulker_live: game/test_shulker_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_shulker_runtime: game/test_shulker_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_wither_runtime: game/test_wither_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_horse_runtime: game/test_horse_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_llama_runtime: game/test_llama_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_bat_runtime: game/test_bat_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_squid_runtime: game/test_squid_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+.PHONY: test-bat-ai-oracle test-bat-capsule test-squid-ai-oracle test-squid-capsule
+test-bat-ai-oracle: game/test_bat_runtime
+	uv run --no-project python trace/test_bat_ai.py --port $(QRL_PORT)
+
+test-bat-capsule: game
+	uv run --no-project python trace/test_bat_capsule.py --port $(QRL_PORT)
+
+test-squid-ai-oracle: game/test_squid_runtime
+	uv run --no-project python trace/test_squid_ai.py --port $(QRL_PORT)
+
+test-squid-capsule: game
+	uv run --no-project python trace/test_squid_capsule.py --port $(QRL_PORT)
+
+game/test_hanging_runtime: game/test_hanging_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_horse_tame_tick_oracle: \
+		game/test_horse_tame_tick_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_horse_dismount_oracle: \
+		game/test_horse_dismount_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_armor_stand_runtime: \
+		game/test_armor_stand_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_dragon_spike_oracle: game/test_dragon_spike_oracle.c \
+		game/dragon_live.o game/world_live.o game/village_live.o game/caps.o \
+		core/config.o world/light.o world/mesh_mc.o world/populate_mc.o \
+		world/blocks.o world/mesh.o world/world.o \
+		renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o \
+		core/math.o core/shade.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_end_city: game/test_end_city.c game/end_city_live.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_mansion: game/test_mansion.c game/mansion_live.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_mansion_runtime: game/test_mansion_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_structure_registry_capacity: game/test_structure_registry_capacity.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_specialized_mob_capacity: game/test_specialized_mob_capacity.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_mansion_loot: game/test_mansion_loot.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_illager_loot: game/test_illager_loot.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_evoker_spell: game/test_evoker_spell.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_guardian: game/test_guardian.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/ocean_monument_live.o: game/ocean_monument_live.cpp \
+		game/ocean_monument_live.h $(BLAZE)/core/mc_rng.h
+	$(CXX) $(CXXFLAGS) -Wno-unused-parameter -Wno-unused-function \
+		-Wno-unused-variable -I$(BLAZE)/core -c $< -o $@
+
+game/test_ocean_monument: game/test_ocean_monument.c \
+		game/ocean_monument_live.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_ocean_monument_runtime: game/test_ocean_monument_runtime.c \
+		$(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_scattered_desert: game/test_scattered_desert.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_scattered_jungle: game/test_scattered_jungle.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_scattered_swamp: game/test_scattered_swamp.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_scattered_live: game/test_scattered_live.c world/populate_mc.o game/village_live.o game/caps.o core/config.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village: game/test_village.c game/village_live.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_state: game/test_village_state.c game/village_live.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_iron_golem: game/test_iron_golem.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_golem_runtime: game/test_village_golem_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_siege_runtime: game/test_village_siege_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_villager_ai_runtime: game/test_villager_ai_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_strict_campaign: game/test_village_strict_campaign.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_special_mob_strict_campaign: game/test_special_mob_strict_campaign.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_villager_mate_oracle: game/test_villager_mate_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_villager_follow_golem_oracle: game/test_villager_follow_golem_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_villager_door_oracle: game/test_villager_door_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_villager_social_oracle: game/test_villager_social_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_live: game/test_village_live.c world/populate_mc.o game/village_live.o game/caps.o core/config.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_residents: game/test_village_residents.c game/village_live.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_runtime: game/test_village_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_villager_trade: game/test_villager_trade.c game/villager_trade.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_merchant_container_oracle: game/test_merchant_container_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_static_container_oracle: game/test_static_container_oracle.c \
+		$(OBJ_RUNTIME_TEST) game/screen.o game/player_preview.o \
+		game/entity_render.o game/hud.o game/item_render.o cpu/raster_cpu.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_inventory_helper_oracle: \
+		game/test_inventory_helper_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_furnace_output_oracle: \
+		game/test_furnace_output_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_container_click_oracle: \
+		game/test_container_click_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_end_city_runtime: game/test_end_city_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_end_city_loot: game/test_end_city_loot.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_desert_loot: game/test_desert_loot.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_jungle_loot: game/test_jungle_loot.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_end_population: game/test_end_population.c game/end_population_live.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_end_population_runtime: game/test_end_population_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_hopper_live: game/test_hopper_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_audio_live: game/test_audio_live.c game/audio_live.o $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(AUDIO_LIBS) $(LDLIBS)
+
+game/test_audio_selector_oracle: game/test_audio_selector_oracle.c game/audio_live.o $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(AUDIO_LIBS) $(LDLIBS)
+
+game/test_audio_source_oracle: game/test_audio_source_oracle.c game/audio_live.o $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(AUDIO_LIBS) $(LDLIBS)
+
+game/test_redstone_use: game/test_redstone_use.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_minecart_live: game/test_minecart_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_boat_oracle: game/test_boat_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_food_oracle: game/test_food_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_item_block_oracle: game/test_item_block_oracle.c $(BLAZE)/core/item_block_place.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_tool_callback_oracle: game/test_tool_callback_oracle.c $(BLAZE)/core/items_tools_armor.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_special_item_use_oracle: game/test_special_item_use_oracle.c $(BLAZE)/core/item_special_place.h
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_map_update_oracle: game/test_map_update_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_piston_capacity: game/test_piston_capacity.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_piston_strict_campaign: game/test_piston_strict_campaign.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_spawner_live: game/test_spawner_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_spawner_strict_campaign: game/test_spawner_strict_campaign.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_tameable_oracle: game/test_tameable_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_horse_particle_oracle: game/test_horse_particle_oracle.c \
+		game/particles_live.o assets/blockmodels.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_no_ai_mob_oracle: game/test_no_ai_mob_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_genetics_oracle: game/test_sheep_genetics_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_mating_oracle: game/test_sheep_mating_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_mating_tick_oracle: game/test_sheep_mating_tick_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_mating_runtime: game/test_sheep_mating_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+# game/ modules include game/game.h + (world_live/player_ctl) player_survival.h.
+game/%.o: game/%.c core/types.h game/game.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) -I$(BLAZE)/core -c $< -o $@
+
+# Generated texture headers: rebuild when the Python generator changes so
+# assets/hud_atlas.h cannot stay stale after build_hud_atlas.py edits.
+# Requires a MC 1.11.2 jar (MC_JAR or bootstrap_oracle / launcher cache).
+UV_ATLAS = uv run --no-project --with pillow python
+assets/hud_atlas.h: assets/build_hud_atlas.py
+	$(UV_ATLAS) assets/build_hud_atlas.py
+assets/gui_atlas.h: assets/build_gui_atlas.py
+	$(UV_ATLAS) assets/build_gui_atlas.py
+game/hud.o: assets/hud_atlas.h assets/gui_atlas.h
+assets/sound_manifest.h: assets/build_sound_manifest.py
+	uv run --no-project python assets/build_sound_manifest.py
+game/audio_live.o: game/audio_live.c game/audio_live.h assets/sound_manifest.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) $(AUDIO_CFLAGS) -I$(BLAZE)/core -c $< -o $@
+
+game/runtime.o: game/runtime.c game/runtime.h game/mob_live.h game/dragon_live.h \
+                game/nbt_blob.h game/brewing_live.h game/portal_live.h \
+                game/container_live.h game/villager_trade.h $(BLAZE)/core/crafting_recipes_full.h \
+                $(BLAZE)/core/map_color_registry.h
+game/container_live.o: game/container_live.c game/container_live.h game/runtime.h \
+                game/chest_live.h game/brewing_live.h \
+                $(BLAZE)/core/container_click.h $(BLAZE)/core/crafting_recipes_full.h \
+                $(BLAZE)/core/smelting_recipes.h
+game/chest_live.o: game/chest_live.c game/chest_live.h \
+                $(BLAZE)/core/tile_entity_chest.h $(BLAZE)/core/stronghold_loot.h
+
+# CUDA-accelerated game binary: same sources as magma_game but game_main.c is
+# compiled with -DMAGMA_CUDA (adds the --cuda / MAGMA_CUDA=1 switch that
+# routes render_layer through the alloc-once cr_raster_cuda_into) and links the
+# raster object + cudart. `make game` (pure CPU) is unaffected.
+#
+# The object name is arch-NEUTRAL on purpose. It used to be raster_cuda_sm86.o
+# while NVFLAGS_GAME is overridable, so the same file
+# held whichever arch was built last and the name lied. Nothing rebuilds it on
+# an NVFLAGS_GAME change either - the recipe depends on sources only - so after
+# switching target architecture you must force this object to rebuild or you
+# silently link the old architecture.
+game-cuda: magma_game_cuda
+app/game_main_cuda.o: app/game_main.c game/game.h game/runtime.h game/config.h core/config.h core/types.h game/caps.h game/particles_live.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_CUDA -I$(BLAZE)/core -c $< -o $@
+cuda/raster_cuda_game.o: cuda/raster_cuda.cu core/types.h core/shade.c
+	$(NVCC) $(NVFLAGS_GAME) -I$(BLAZE)/core -c $< -o $@
+magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_game.o $(OBJ_GAME) $(OBJ_WORLD) \
+              $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(AUDIO_LIBS) $(LDLIBS) $(CUDA_LIBS)
+
+# Metal-accelerated game binary (macOS / Apple silicon only). Same seam shape
+# as game-cuda: game_main.c AND frame_capture.c recompile with -DMAGMA_METAL
+# (adds --backend metal and maps the frame-capture GPU calls onto the
+# cr_raster_metal_* mirrors), linked against the ObjC Metal host
+# (metal/raster_metal_host.m) plus the MSL kernel library
+# metal/raster_kernels.metallib (built via xcrun metal/metallib; loaded at
+# runtime by the host). Determinism: C objects keep -ffp-contract=off via
+# CFLAGS; the MSL compile pins -fno-fast-math -ffp-contract=off (float discipline is documented
+# with the kernels). SDL2 comes from the sdl2-config/pkg-config discovery at
+# the top of this file (Homebrew path included).
+METALC   ?= xcrun -sdk macosx metal
+METALLIB ?= xcrun -sdk macosx metallib
+METAL_FRAMEWORKS = -framework Metal -framework Foundation -framework QuartzCore
+# Mach-O ld does not resolve absent weak refs to NULL on its own (see
+# CUDA_WEAK_LD above): allow every cr_raster_metal_* weak ref from
+# game/frame_capture_metal.o to stay undefined. Defined symbols make the
+# corresponding -U a no-op, so a full host implementation is unaffected.
+METAL_WEAK_LD = $(foreach s,pre into frame_begin frame_end post atlas_dirty \
+                  pin unpin render_layer sky frame_end_async frame_wait \
+                  slab_pool slab_sync slabs_reset render_gather render_terrain \
+                  uploads_mark uploads_wait,-Wl,-U,_cr_raster_metal_$(s)) \
+                $(foreach s,pre into frame_begin frame_end sky post atlas_dirty \
+                  render_layer screen_tris render_gather \
+                  slab_pool slab_sync slabs_reset,-Wl,-U,_cr_raster_cuda_$(s)) \
+                -Wl,-U,_alloctrack_frame -Wl,-U,_alloctrack_arm
+OBJ_GAME_METAL = $(patsubst game/window_compose.o,game/window_compose_metal.o,\
+                 $(patsubst game/frame_capture.o,game/frame_capture_metal.o,$(OBJ_GAME)))
+# Fail fast off-macOS: everything below needs xcrun + the Metal frameworks.
+# The guard runs before any sub-make, so a Linux `make game-metal` dies with
+# one clear message instead of a wall of clang/xcrun errors.
+game-metal:
+	@if [ "$$(uname -s)" != "Darwin" ]; then \
+	  echo "error: game-metal builds only on macOS (needs xcrun + Metal frameworks); this host is $$(uname -s)" >&2; \
+	  exit 1; \
+	fi
+	$(MAKE) magma_game_metal
+app/game_main_metal.o: app/game_main.c game/game.h game/runtime.h game/config.h core/config.h core/types.h game/caps.h game/particles_live.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
+game/frame_capture_metal.o: game/frame_capture.c game/frame_capture.h core/types.h game/game.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
+game/window_compose_metal.o: game/window_compose.c game/window_compose.h core/types.h game/game.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
+metal/raster_metal_host.o: metal/raster_metal_host.m core/types.h
+	$(CC) -x objective-c -fobjc-arc $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
+metal/raster_kernels.air: metal/raster_kernels.metal core/types.h
+	$(METALC) -fno-fast-math -ffp-contract=off -Icore -I. -o $@ -c $<
+metal/raster_kernels.metallib: metal/raster_kernels.air
+	$(METALLIB) -o $@ $<
+magma_game_metal: app/game_main_metal.o metal/raster_metal_host.o $(OBJ_GAME_METAL) \
+              $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) \
+              $(OBJ_XFORM) $(OBJ_PRESENT) metal/raster_kernels.metallib
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(filter %.o,$^) -o $@ $(SDL_LIBS) $(LDLIBS) $(METAL_FRAMEWORKS) $(METAL_WEAK_LD)
+
+# ALLOCATE-ONCE alloc-tripwire build: magma_game with debug symbols (so the
+# trace/alloctrack.so summary offsets resolve via addr2line -e magma_game_dbg).
+# Same sources as magma_game, one -g compile. See trace/alloctrack.c + caps.h.
+# Same game sources as OBJ_GAME (plus app/game_main + world/assets/core/present).
+GAME_DBG_SRCS = app/game_main.c \
+                game/config.c game/input_map.c game/world_live.c game/player_ctl.c game/hud.c \
+                game/screen.c game/player_preview.c \
+                game/entity_render.c game/particles_live.c game/item_render.c game/audio_live.c game/nbt_blob.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/randtick.c game/mob_live.c game/dragon_live.c game/structures_live.c game/village_live.c game/villager_trade.c game/fishing_render.c game/end_city_live.c game/end_population_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/brewing_live.c game/enchanting_live.c game/container_live.c game/runtime.c game/native_save.c game/frame_capture.c game/window_compose.c game/script.c game/rl_mode.c \
+                game/overlay.c game/overlay_live.c game/sel_box.c game/fluid_live.c game/underwater.c \
+                world/mesh_mc.c world/light.c world/populate_mc.c \
+                world/world.c world/mesh.c world/blocks.c \
+                renderkernels/rk_31_facebakery_make_quad.c assets/blockmodels.c \
+                core/math.c core/shade.c core/config.c cpu/raster_cpu.c transform.c present/present.c
+.PHONY: game-dbg
+game-dbg: magma_game_dbg
+magma_game_dbg: $(GAME_DBG_SRCS)
+	$(CC) $(CFLAGS) -g $(SDL_CFLAGS) -I$(BLAZE)/core $(GAME_DBG_SRCS) -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
+
+core/config.o: core/config.c core/config.h core/config.def game/caps.h
+game/caps.o: game/caps.c game/caps.h core/config.h
+
+app/game_main.o: app/game_main.c game/game.h game/runtime.h game/config.h core/config.h core/types.h game/particles_live.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) -I$(BLAZE)/core -c $< -o $@
+
+# non-cube mesh unit test: build a synthetic chunk, assert facebakery geometry
+.PHONY: test-mesh
+test-mesh: $(OBJ_WORLD) $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_mesh_models.c \
+	    world/mesh_mc.o world/light.o world/populate_mc.o game/village_live.o assets/blockmodels.o \
+	    $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o -o tests/test_mesh_models $(LDLIBS)
+	./tests/test_mesh_models
+
+# Structural model contracts (BmBlock table vs vanilla expectations). Catches
+# full-cube lily pads etc. that pixel-diff seed-0 cannot see. See VERIFY.md.
+.PHONY: test-model-oracle
+test-model-oracle: assets/blockmodels.o
+	$(CC) $(CFLAGS) tests/test_model_oracle.c assets/blockmodels.o -o tests/test_model_oracle $(LDLIBS)
+	./tests/test_model_oracle
+
+# Parse vanilla 1.11.2 jar block models; assert waterlily plane + cross parents.
+.PHONY: test-jar-models
+test-jar-models:
+	uv run --no-project python tests/check_jar_models.py
+
+# Harsh visual-parity suite: jar models + model oracle + mesh + multi-scene pixels.
+# See VERIFY.md. Multi-scene requires mc_frame.png (+ optional mc_seed7.png).
+# hard-scene-verify: seed0 leaf-canopy scene golden + render ablations (the hard case).
+.PHONY: verify-harsh multi-verify hard-scene-verify
+multi-verify:
+	bash ../verify/mc_capture/run_multi_verify.sh
+hard-scene-verify:
+	bash ../verify/mc_capture/run_hard_scene.sh
+verify-harsh: test-jar-models test-model-oracle test-mesh
+	@echo "== verify-harsh: structural PASS; hard-scene + multi-scene pixel gates =="
+	@if [ -s ../verify/mc_capture/mc_frame.png ]; then \
+	  $(MAKE) hard-scene-verify; \
+	  $(MAKE) multi-verify; \
+	else \
+	  echo "note: no mc_frame.png, skipping pixel gates (structural gates still PASS)"; \
+	fi
+# light->brightness curve test: assert the MC lightBrightnessTable + sky/block
+# combine that world/mesh_mc.c bakes match the JAVA ground truth (tests/Golden.java)
+# bit-for-bit. Regenerates the golden with JDK8 if java is on PATH; otherwise reuses
+# the committed tests/golden_light.txt. Standalone (no game objects).
+JAVA_HOME ?= /usr/lib/jvm/java-8-openjdk-amd64
+.PHONY: test-light-brightness
+test-light-brightness:
+	@if [ -x "$(JAVA_HOME)/bin/javac" ]; then \
+	  cd tests && "$(JAVA_HOME)/bin/javac" Golden.java && "$(JAVA_HOME)/bin/java" Golden > golden_light.txt && rm -f Golden.class; \
+	else echo "note: JDK8 not found, reusing committed tests/golden_light.txt"; fi
+	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_light_brightness.c -o tests/test_light_brightness $(LDLIBS)
+	./tests/test_light_brightness
+
+# frustum cull test: bit-match render-opt kernels 05/06 + no-holes cull==no-cull
+.PHONY: test-frustum
+test-frustum:
+	bash tests/test_frustum.sh
+
+app/main.o: app/main.c world/world.h core/types.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
+
+present/present.o: present/present.c core/types.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
+demo/demo_cube.o: demo/demo_cube.c core/types.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
+
+%.o: %.c core/types.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
+
+-include $(OBJ_CORE:.o=.d) $(OBJ_RASTER:.o=.d) $(OBJ_XFORM:.o=.d) \
+         $(OBJ_PRESENT:.o=.d) $(OBJ_WORLD:.o=.d) $(OBJ_RK:.o=.d) \
+         $(OBJ_ASSETS:.o=.d) $(OBJ_GAME:.o=.d) app/game_main.d
+
+# CUDA raster backend
+cuda: cuda/raster_cuda.o
+cuda/raster_cuda.o: cuda/raster_cuda.cu core/types.h core/shade.c
+	$(NVCC) $(NVFLAGS) -c $< -o $@
+
+# Rung 1: cr_raster_cpu == cr_raster_cuda, bit-exact (tests/test_raster_parity.c).
+# Built for NVFLAGS_GAME's selected architecture. nvcc compiles the whole TU
+# (C sources included) so the verified cr_raster_cuda + the CPU path agree.
+test-raster-parity:
+	$(NVCC) $(NVFLAGS_GAME) -I../verify tests/test_raster_parity.c \
+	    cpu/raster_cpu.c core/shade.c core/math.c core/config.c cuda/raster_cuda.cu \
+	    -o tests/test_raster_parity
+	CUDA_VISIBLE_DEVICES=1 ./tests/test_raster_parity
+
+# Minecraft selects GL_EYE_RADIAL_NV on the live llvmpipe renderer. Keep fog
+# distance radial through transform, clipping, and perspective interpolation.
+test-fog-radial: core/math.o core/shade.o cpu/raster_cpu.o transform.o
+	$(CC) $(CFLAGS) tests/test_fog_radial.c core/math.o core/shade.o \
+	    cpu/raster_cpu.o transform.o -o tests/test_fog_radial $(LDLIBS)
+	./tests/test_fog_radial
+
+test-particles-live: game/particles_live.o assets/blockmodels.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core game/test_particles_live.c \
+	    game/particles_live.o assets/blockmodels.o \
+	    -o game/test_particles_live $(LDLIBS)
+	./game/test_particles_live
+
+test: magma_demo
+	@echo "run per-module tests in tests/ (see SPEC.md)"
+
+# Standalone-game semantic gates. These deliberately exercise the real streamed
+# world boundary, not only synthetic vanilla-id chunks.
+test-block-registry:
+	bash game/test_block_registry.sh
+
+test-config:
+	bash game/test_config.sh
+
+test-spawn-position: magma_game
+	$(CC) $(CFLAGS) -I$(BLAZE)/core game/test_spawn_position.c \
+		-o game/test_spawn_position $(LDLIBS)
+	./game/test_spawn_position
+	bash game/test_spawn_position.sh
+
+test-worldgen-animals: magma_game
+	bash game/test_worldgen_animals.sh
+
+test-launch: game
+	SDL_VIDEODRIVER=dummy ./magma_game --world superflat --view-distance 1 \
+		--width 160 --height 90 --frames 1 >/tmp/magma-test-launch.log 2>&1
+	grep -q 'world=superflat' /tmp/magma-test-launch.log
+	grep -q 'slot0=0' /tmp/magma-test-launch.log
+	grep -q 'pos 8\.5,5\.0,8\.5' /tmp/magma-test-launch.log
+	SDL_VIDEODRIVER=dummy ./magma_game --world superflat --view-distance 1 \
+		--width 160 --height 90 --frames 100 --kill-frame 0 \
+		>/tmp/magma-test-death.log 2>&1
+	grep -q 'frame 0 .* dead 1 deaths 1' /tmp/magma-test-death.log
+	# GuiGameOver holds the interactive/headless run after death (Respawn /
+	# Title Screen only end it). Regression: stop-on-death would omit frame 1;
+	# auto-respawn would clear dead before the requested frame budget.
+	grep -q 'frame 1 .* dead 1 deaths 1' /tmp/magma-test-death.log
+	grep -q 'frame 99 .* dead 1 deaths 1' /tmp/magma-test-death.log
+
+# Ensure mob atlas exists with pixel-path sprites before atlas-dependent gates.
+assets/mob_atlas.h: assets/build_mob_atlas.py
+	uv run --no-project --with pillow python assets/build_mob_atlas.py
+
+test-game: test-config test-block-registry test-launch assets/mob_atlas.h
+	uv run --no-project --with pillow python tests/check_mob_atlas.py
+	bash game/test_input_map.sh
+	bash game/test_view.sh
+	bash game/test_overlay.sh
+	bash game/test_entity_render.sh
+	bash game/test_item_render.sh
+	bash game/test_item_uv_census.sh
+	bash game/test_hand.sh
+	bash game/test_player_ctl.sh
+	bash game/test_world_live.sh
+	bash game/test_play_compose.sh
+	bash game/test_runtime.sh
+	bash game/test_hanging_script.sh
+	bash game/test_armor_stand_script.sh
+	bash game/test_script.sh
+	bash game/test_fluid_live.sh
+	$(MAKE) test-static-lava-neighbor-native
+	$(MAKE) test-plant-support-neighbor-native
+	$(MAKE) test-note-block-native
+	bash game/test_plants_live.sh
+	bash game/test_randtick.sh
+	bash game/test_furnace_live.sh
+	bash game/test_brewing_live.sh
+	bash game/test_container_live.sh
+	bash game/test_merchant_container_oracle.sh
+	bash game/test_static_container_oracle.sh
+	bash game/test_inventory_helper_oracle.sh
+	bash game/test_furnace_output_oracle.sh
+	bash game/test_furnace_boundary_oracle.sh
+	bash game/test_container_click_oracle.sh
+	bash game/test_armor_live.sh
+	bash game/test_screen.sh
+	bash game/test_player_preview.sh
+	bash game/test_chest_loot.sh
+	bash game/test_luck_loot.sh
+	$(MAKE) test-ender-chest-native
+	bash game/test_mob_live.sh
+	bash game/test_scattered_live.sh
+	bash game/test_mansion.sh
+	bash game/test_evoker_spell.sh
+	bash game/test_guardian.sh
+	bash game/test_iron_golem.sh
+	$(MAKE) game/test_village_golem_runtime
+	./game/test_village_golem_runtime
+	$(MAKE) game/test_village_siege_runtime
+	./game/test_village_siege_runtime
+	bash game/test_villager_ai.sh
+	bash game/test_ocean_monument.sh
+	$(MAKE) game/test_ocean_monument_runtime
+	./game/test_ocean_monument_runtime
+	bash game/test_stronghold_live.sh
+	bash game/test_portal_live.sh
+	bash game/test_dimensions_live.sh
+	$(MAKE) game/test_end_city_runtime game/test_shulker_runtime \
+		game/test_wither_runtime game/test_horse_runtime \
+		game/test_llama_runtime game/test_bat_runtime \
+		game/test_squid_runtime \
+		game/test_endermite_runtime \
+		game/test_giant_runtime \
+		game/test_husk_runtime \
+		game/test_stray_runtime \
+		game/test_polar_bear_runtime \
+		game/test_rabbit_runtime \
+		game/test_hanging_runtime \
+		game/test_armor_stand_runtime
+	./game/test_end_city_runtime
+	./game/test_shulker_runtime
+	./game/test_wither_runtime
+	./game/test_horse_runtime
+	./game/test_llama_runtime
+	./game/test_bat_runtime
+	./game/test_squid_runtime
+	./game/test_endermite_runtime
+	./game/test_giant_runtime
+	./game/test_husk_runtime
+	./game/test_stray_runtime
+	./game/test_polar_bear_runtime
+	./game/test_rabbit_runtime
+	./game/test_hanging_runtime
+	bash game/test_horse_particle_oracle.sh
+	./game/test_armor_stand_runtime
+	bash game/test_shulker_oracle.sh
+	bash game/test_no_ai_mob_oracle.sh
+	bash game/test_dragon_respawn_oracle.sh
+	bash game/test_dragon_live.sh
+	bash game/test_route_e2e.sh
+
+.PHONY: test-mob-live
+test-mob-live:
+	bash game/test_mob_live.sh
+
+# KernelBench-style rasterizer verification: rasterize one fixed clip-space scene
+# with real Mesa software GL (OSMesa golden) and with our cr_raster_cpu (candidate),
+# then tolerance-diff. GL triangle->pixel is hardware/driver-defined (subpixel fill
+# rule, interpolation, filtering) so the metric is pixel diff, not bitwise.
+DIFF ?= $(abspath ../render-opt/wholeframe/diff_frame.py)
+.PHONY: raster-verify
+raster-verify: cpu/raster_cpu.o core/shade.o
+	$(CC) $(CFLAGS) -I../verify ../verify/gl_golden.c -o /tmp/cr_gl_golden -lOSMesa -lGL $(LDLIBS)
+	$(CC) $(CFLAGS) -I. ../verify/c_candidate.c cpu/raster_cpu.o core/shade.o -o /tmp/cr_candidate $(LDLIBS)
+	/tmp/cr_gl_golden /tmp/raster_golden.ppm
+	/tmp/cr_candidate /tmp/raster_candidate.ppm
+	uv run --no-project --with numpy --with pillow python $(DIFF) \
+	    /tmp/raster_golden.ppm /tmp/raster_candidate.ppm --crop none --out /tmp/raster_diff
+
+# Rung 4 (live game, COARSE): render the seed-0 ChunkScene through magma at the
+# MC client resolution/pose and whole-frame pixel-diff vs a captured REAL MC frame
+# (../verify/mc_capture/mc_frame.png). Capture the golden first with
+# `bash ../verify/mc_capture/capture.sh` (needs the live game on display :1);
+# this target only renders the candidate + diffs against whatever golden is present.
+.PHONY: rung4-verify
+rung4-verify:
+	bash ../verify/mc_capture/run_rung4.sh
+
+# ---- batched env (../blaze/env): CPU reference build. CC-only, same float
+# discipline as everything else (-ffp-contract=off); the CUDA .so (M2) will
+# compile the same blaze_core.h under nvcc --fmad=false with the same ABI.
+# OpenMP parallelizes the env loop in blaze_step (per-env AABB scratch).
+BLAZE_SRCS = ../blaze/env/blaze_cpu.c ../blaze/env/blaze_snapshot.c
+BLAZE_OMP ?= -fopenmp
+.PHONY: blaze_verify blaze_so
+blaze_verify: ../blaze/env/blaze_verify
+../blaze/env/blaze_verify: ../blaze/env/blaze_verify.c $(BLAZE_SRCS) \
+                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h
+	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env ../blaze/env/blaze_verify.c \
+	    $(BLAZE_SRCS) -o $@ $(LDLIBS) $(BLAZE_OMP)
+blaze_so: ../blaze/env/blaze_cpu.so
+../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h
+	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env -shared -fPIC $(BLAZE_SRCS) \
+	    -o $@ $(LDLIBS) $(BLAZE_OMP)
+# CUDA .so (M2): same core under nvcc, blaze core determinism flags (--fmad=false,
+# NEVER fast-math). GPU0 (RTX PRO 6000) is sm_120; override BLAZE_SM for other
+# parts. BLAZE_SM accepts a space-separated arch list for a dual-arch fatbin
+# (e.g. BLAZE_SM="sm_86 sm_120" for one .so loadable on both anvil GPUs;
+# bare numbers do not match the sm_% filter and fail nvcc). Per-arch
+# SASS is identical to two single-arch builds: same source, same flags, so the
+# CPU==CUDA bitwise contract holds per arch. Same C ABI as blaze_cpu.so -
+# Python picks the backend at load time.
+BLAZE_SM ?= sm_120
+BLAZE_NVCODE := $(if $(filter sm_%,$(BLAZE_SM)),$(foreach a,$(patsubst sm_%,%,$(BLAZE_SM)),-gencode arch=compute_$(a),code=sm_$(a)),-arch=$(BLAZE_SM))
+.PHONY: blaze_cuda_so
+blaze_cuda_so: ../blaze/env/blaze_cuda.so
+../blaze/env/blaze_cuda.so: ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c \
+                        ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h
+	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
+	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
+	    ../blaze/env/blaze_snapshot.c -o $@
+
+# cpolicy: fused C/CUDA rollout policy forward (.so, dual-arch via BLAZE_SM).
+# Not part of the sim-fidelity contract -- O3 + default fmad is fine; the
+# equivalence gate bounds logits to 1e-3 abs against torch fp32.
+.PHONY: cpolicy_so
+cpolicy_so: ../blaze/rl/cpolicy/cpolicy_fwd.so
+../blaze/rl/cpolicy/cpolicy_fwd.so: ../blaze/rl/cpolicy/cpolicy_fwd.cu \
+                                    ../blaze/rl/cpolicy/cpolicy_fwd.h
+	$(NVCC) -O3 $(BLAZE_NVCODE) -I../blaze/rl/cpolicy \
+	    -Xcompiler -fPIC --shared ../blaze/rl/cpolicy/cpolicy_fwd.cu \
+	    -lcublas -o $@
+
+# C++ FP32 trainer hot loop. LibTorch dispatches convolution/GEMM work to
+# cuDNN/cuBLAS; cgraph_kernels.cu supplies captured grad clipping and Adam.
+# CMake emits both sm_86 and sm_120 for the lane-owned CUDA translation unit.
+.PHONY: cgraph_bin
+cgraph_bin: ../blaze/rl/cgraph/build/cgraph_train
+../blaze/rl/cgraph/build/cgraph_train: \
+        ../blaze/rl/cgraph/cgraph_train.cpp \
+        ../blaze/rl/cgraph/cgraph_kernels.cu \
+        ../blaze/rl/cgraph/cgraph_kernels.h \
+        ../blaze/rl/cgraph/native_env.h \
+        ../blaze/rl/cgraph/native_reward.h \
+        ../blaze/rl/cgraph/ppo_model.h \
+        ../blaze/rl/cgraph/CMakeLists.txt \
+        ../blaze/rl/cgraph/build_cgraph.sh
+	BLAZE_SM="$(BLAZE_SM)" bash ../blaze/rl/cgraph/build_cgraph.sh
+
+clean:
+	rm -f magma_demo magma_world magma_game magma_game_dbg magma_game_cuda magma_game_metal
+	rm -f metal/raster_kernels.air metal/raster_kernels.metallib
+	rm -f ../blaze/env/blaze_verify ../blaze/env/blaze_cpu.so ../blaze/env/blaze_cuda.so
+	rm -f ../blaze/rl/cpolicy/cpolicy_fwd.so
+	find . -name '*.o' -delete
+	find . -name '*.d' -delete
+	rm -f tests/test_transform tests/test_present tests/test_scene tests/test_world \
+	      tests/test_raster_parity tests/test_assets tests/test_light tests/test_mesh_mc \
+	      tests/test_mesh_models tests/test_model_oracle tests/test_light_brightness \
+	      tests/test_fog_radial \
+	      tests/Golden.class renderkernels/test_rk *.ppm
+	rm -f game/test_config game/test_block_registry game/test_player_ctl game/test_world_live game/test_play_compose game/test_particles_live \
+	      game/test_falling_drop_oracle game/test_falling_timeout_oracle \
+	      game/test_falling_lateral_oracle game/test_shearing_oracle \
+	      game/test_shearing_runtime game/test_mooshroom_runtime \
+	      game/test_snowman_runtime game/test_snowman_ranged_oracle \
+	      game/test_endermite_runtime \
+	      game/test_giant_runtime \
+	      game/test_grazing_oracle \
+	      game/test_grazing_runtime game/test_sheep_color_oracle \
+	      game/test_sheep_color_runtime game/test_sheep_feed_runtime \
+	      game/test_sheep_feed_oracle game/test_zombie_villager_cure_oracle \
+	      game/test_hostile_loot_oracle game/test_hostile_death_live \
+	      game/test_mansion game/test_mansion_runtime \
+	      game/test_mansion_loot game/test_illager_loot \
+	      game/test_evoker_spell game/test_guardian \
+	      game/test_village_state game/test_iron_golem \
+	      game/test_village_golem_runtime game/test_village_siege_runtime \
+	      game/test_villager_ai_runtime \
+	      game/test_villager_mate_oracle \
+	      game/test_villager_social_oracle \
+	      game/test_ocean_monument game/test_ocean_monument_runtime \
+	      game/test_hostile_environment_death_live \
+	      game/test_passive_environment_death_live \
+	      game/test_hostile_player_death_oracle \
+	      game/test_slime_terminal_oracle \
+	      game/test_anvil_oracle game/test_anvil_live \
+	      game/test_mending_oracle game/test_mending_live \
+	      game/test_equipment_enchantment_oracle \
+	      game/test_equipment_enchantment_live \
+	      game/test_player_death_inventory_oracle \
+	      game/test_block_harvest_oracle \
+	      game/test_block_harvest_tool_oracle \
+	      game/test_block_harvest_live \
+	      game/test_block_harvest_xp_oracle \
+	      game/test_bow_release_oracle \
+	      game/test_arrow_impact_oracle \
+	      game/test_arrow_block_impact_oracle \
+	      game/test_arrow_pickup_oracle \
+	      game/test_arrow_payload_oracle \
+	      game/test_item_merge_oracle \
+	      game/test_item_environment_oracle \
+	      game/test_item_pickup_oracle \
+	      game/test_item_registry_oracle \
+	      game/test_xp_bottle_impact_oracle \
+	      game/test_egg_impact_oracle \
+	      game/test_egg_client_status_oracle \
+	      game/test_snowball_impact_oracle \
+	      game/test_potion_owner_damage_oracle \
+	      game/test_ender_pearl_impact_oracle \
+	      game/test_ender_pearl_gateway_oracle \
+	      game/test_throwable_foreign_dimension_oracle \
+	      game/test_throwable_portal_oracle \
+	      game/test_elytra_wall_damage_oracle \
+	      game/test_xp_bottle_live \
+	      game/test_bow_live game/test_arrow_payload_live \
+	      game/test_zombie_villager_cure_runtime \
+	      game/test_pig_ride_oracle \
+	      game/test_pig_lethal_oracle game/test_pig_death_oracle \
+	      game/test_cow_milking_oracle game/test_sheep_genetics_oracle \
+	      game/test_note_block_oracle \
+	      game/test_vine_neighbor_oracle \
+	      game/test_leaf_decay_oracle \
+	      game/test_sky_light_column_oracle \
+	      game/test_static_water_neighbor \
+	      game/test_static_lava_neighbor_oracle \
+	      game/test_sheep_mating_oracle game/test_sheep_mating_tick_oracle \
+	      game/test_sheep_mating_runtime game/test_firework_audio \
+	      game/test_ender_chest_runtime game/test_ender_chest_oracle \
+	      game/test_block_break_audio game/test_player_movement_audio \
+	      game/test_player_movement_audio_runtime game/test_player_attack_audio_runtime \
+	      game/test_player_attack_particles_runtime game/test_witch_loot_oracle \
+	      game/test_witch_terminal_xp_oracle \
+	      game/test_witch_equipped_death_oracle \
+	      game/test_witch_drowning_death_oracle \
+	      game/test_witch_source_death_oracle \
+	      game/test_witch_landing_oracle \
+	      game/test_living_slime_oracle \
+	      game/test_witch_water_entry_oracle \
+	      game/test_witch_loot_live game/test_witch_terminal_xp_live \
+	      game/test_witch_equipped_death_live \
+	      game/test_witch_drowning_death_live \
+	      game/test_witch_anvil_death_live \
+	      game/test_witch_burning_death_live
+	rm -f game/test_dragon_respawn game/test_dragon_spike_oracle \
+	      game/test_shulker_live game/test_shulker_runtime \
+	      game/test_shulker_box_runtime \
+	      game/test_wither_runtime game/test_horse_runtime \
+	      game/test_llama_runtime game/test_bat_runtime \
+	      game/test_squid_runtime \
+	      game/test_hanging_runtime \
+	      game/test_horse_particle_oracle \
+	      game/test_horse_tame_tick_oracle game/test_horse_dismount_oracle \
+	      game/test_armor_stand_runtime \
+	      game/test_end_city_runtime game/test_no_ai_mob_oracle
+
+# Metal verification targets (Darwin-guarded; see make/metal.mk)
+-include make/metal.mk

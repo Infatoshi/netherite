@@ -1,0 +1,65 @@
+{
+  "schema": "netherite.bat_family_gate",
+  "version": 1,
+  "todo": "AI-04",
+  "active_ai_oracle": {
+    "java_version": "1.11.2",
+    "scenarios": 11,
+    "ticks": 101,
+    "position_motion_and_aabb": "bit_exact",
+    "rotation_and_body_helper": "bit_exact",
+    "entity_rng_cursor": "exact",
+    "hanging_ceiling_and_takeoff_event": "exact",
+    "survival_and_creative_player_wake": "exact",
+    "flight_retarget_and_invalid_target": "exact",
+    "age_reset_soft_and_hard_despawn": "exact",
+    "persistence_override": "exact"
+  },
+  "state_continuation": {
+    "native_checkpoint_ticks": 12,
+    "native_checkpoint_after_tick": 6,
+    "java_capsule_warmup_ticks": 9,
+    "java_native_continuation_ticks": 16,
+    "private_flight_state_and_rng": "bit_exact",
+    "loaded_and_mob_update_order": "exact"
+  },
+  "render_oracle": {
+    "java_ab_states": 3,
+    "java_ab_noise_pixels": 0,
+    "flying_owned_pixels": 1064,
+    "flying_hard_pixels": 0,
+    "flying_max_channel_delta": 1,
+    "hanging_owned_pixels": 852,
+    "hanging_hard_pixels": 1,
+    "hanging_hard_budget": 1,
+    "hanging_max_channel_delta": 33,
+    "ownership_xor_pixels": 0,
+    "negative_control": "exact"
+  },
+  "implemented": [
+    "active_hanging_and_flight_state_machine",
+    "normal_cube_ceiling_support",
+    "survival_player_wake_and_creative_exclusion",
+    "takeoff_world_event_1025",
+    "private_spawn_position_validation_and_retarget",
+    "java_random_call_order",
+    "flight_motion_yaw_look_and_body_helpers",
+    "hanging_anchor_and_flight_vertical_damping",
+    "no_push_fall_walking_or_pressure_contact",
+    "damage_wakes_before_hurt_rejection",
+    "ambient_hurt_death_audio",
+    "entity_age_and_persistence",
+    "soft_despawn_rng_and_distance_threshold",
+    "hard_despawn_distance_threshold",
+    "native_checkpoint_continuation",
+    "real_java_state_capsule_continuation",
+    "live_model_and_animation",
+    "live_render_hanging_bit_and_client_age",
+    "exact_modelrenderer_parent_child_hierarchy",
+    "flying_and_hanging_render_poses",
+    "bounded_same_scene_model_pixels"
+  ],
+  "remaining": [
+    "exact_world_entity_spawner_pack_and_spawn_eligibility"
+  ]
+}

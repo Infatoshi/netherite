@@ -1,0 +1,6 @@
+# EAST-facing empty normal piston. A stable redstone block is already behind
+# the future SOUTH-facing powered repeater. Tick zero places repeater 94:0
+# immediately south of the piston; its north output must start extension in
+# that same server tick.
+12 78 8 33 5
+12 78 10 152 0

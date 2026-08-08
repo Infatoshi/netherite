@@ -1,0 +1,6 @@
+# Two valid plants join across their 3/16 NORTH/SOUTH arms. A north-edge item
+# lane intersects those arms without reaching either centered collision body.
+11 78 9 152 0
+13 77 8 121 0
+13 78 8 199 0
+13 78 7 199 0

@@ -1,0 +1,38 @@
+{
+  "schema": "netherite.structure_request_order",
+  "version": 1,
+  "todo": "DIM-04",
+  "seed": 9,
+  "permutations": 24,
+  "families": [
+    "dungeon", "mineshaft", "village", "desert_temple", "jungle_temple",
+    "witch_hut", "igloo", "ocean_monument", "woodland_mansion",
+    "nether_fortress", "stronghold", "end_city", "end_ship"
+  ],
+  "sha256_by_lexicographic_permutation": [
+    "fc928b71e8ab9270824bf296b9b7a738b8168d503915ac866cb5b7c0ff212357",
+    "167c1581087e5bd76c7bf344ccd0abb090b79ccfe5873aa1c4dffb6faee318d1",
+    "4c335a234603c6f5a87927b7e697af58ef374dc6bf29128a9658bafaceab65cb",
+    "e96f764d41deb5cd326f10ed80ef7bf0d8d871f10ab90bd093fdfdc4eb44e535",
+    "afeda61d20569a8277c500b323b1cfca060749cb8ebe9856809dc2a170a1faa8",
+    "afeda61d20569a8277c500b323b1cfca060749cb8ebe9856809dc2a170a1faa8",
+    "3697d9c5b1303133b8a9cefa41f32cd205b72f86e9f3686acb7b7ce0dee01cb8",
+    "73a2d5465f9b234db4c75b4bcc37411b736eb5f382c11e9bda49cfdbd7a43e0c",
+    "3697d9c5b1303133b8a9cefa41f32cd205b72f86e9f3686acb7b7ce0dee01cb8",
+    "a38572559ce3be95f14b7b53bf2765f25a16e0f797fb551e82a0231f6b06c3bb",
+    "1a004fa50b1e02568d860ef7908a55eebcda0a2e09235fd9df40614da7b6d9ce",
+    "1a004fa50b1e02568d860ef7908a55eebcda0a2e09235fd9df40614da7b6d9ce",
+    "4c335a234603c6f5a87927b7e697af58ef374dc6bf29128a9658bafaceab65cb",
+    "e96f764d41deb5cd326f10ed80ef7bf0d8d871f10ab90bd093fdfdc4eb44e535",
+    "1399c21d3b40e9414f6992e0b19f80b03bf1bcab9f33f6207d8946f57a7d70e7",
+    "386a2989732288bd7f23e0bb390a53e352e83a47774052979feef02a3ee6eb7d",
+    "f1375a88edd1d9cd30b5714524f8d627c6f6757d64b69b548e68873227559a7a",
+    "5c0fafa915e19c158ce92ee9343d46d8a1beeab08d00d93a9c64b248dc43eac1",
+    "76c483a597516d0111a1b9cdfb4eee1f4d7ae69d862360c19b7760969f846f41",
+    "fc86dd73898fddc21896c14878e8106c6be8da4e84764fbb4d4a1ca3404460db",
+    "60fc292a1b7c9320898d7d3fc2daa1226df31859b124fca8a7be8350bc9afa46",
+    "5d601a1a08bbd38008ea3b82619539dd1f65726c8afc49db9631a6ddab0b9017",
+    "76c483a597516d0111a1b9cdfb4eee1f4d7ae69d862360c19b7760969f846f41",
+    "5d601a1a08bbd38008ea3b82619539dd1f65726c8afc49db9631a6ddab0b9017"
+  ]
+}

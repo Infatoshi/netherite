@@ -1,0 +1,47 @@
+name: stone_stairs_profile
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 0.5 4 -1.5 0 8
+  - /fill -6 3 -3 6 3 15 minecraft:stone
+  # Three-step walkable profile facing the approach.
+  - /setblock 0 4 4 minecraft:stone_stairs 2
+  - /setblock 0 4 5 minecraft:stone
+  - /setblock 0 5 5 minecraft:stone_stairs 2
+  - /fill 0 4 6 0 5 6 minecraft:stone
+  - /setblock 0 6 6 minecraft:stone_stairs 2
+  - /fill -1 4 7 1 6 9 minecraft:stone
+  # All facing and upside-down metadata remain visible beyond the landing.
+  - /setblock -4 4 12 minecraft:stone_stairs 0
+  - /setblock -2 4 12 minecraft:stone_stairs 1
+  - /setblock 0 4 12 minecraft:stone_stairs 2
+  - /setblock 2 4 12 minecraft:stone_stairs 3
+  - /setblock -3 5 14 minecraft:stone_stairs 4
+  - /setblock -1 5 14 minecraft:stone_stairs 5
+  - /setblock 1 5 14 minecraft:stone_stairs 6
+  - /setblock 3 5 14 minecraft:stone_stairs 7
+duration_ticks: 360
+frames_every: 20
+input:
+  segments:
+    - seconds: 2.0
+    - seconds: 4.0
+      keys: [w]
+    - seconds: 4.0
+      keys: [w, space]
+    - seconds: 4.0
+      keys: [a, Shift_L]
+    - seconds: 4.0
+      keys: [d, Shift_L]
+known_divergences: []

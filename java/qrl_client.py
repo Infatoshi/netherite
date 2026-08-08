@@ -1,4 +1,4 @@
-"""Minimal client for the qrl socket bridge (stdlib only).
+"""Minimal client for the NetheriteMod socket bridge (stdlib only).
 
 Fully-discrete env: step(action_dict) -> obs_dict. Action keys (all optional, 0/1
 unless noted): forward, back, left, right, jump, sneak, sprint, attack, use,
@@ -12,7 +12,7 @@ import sys
 import time
 
 
-class QRLEnv:
+class NetheriteEnv:
     def __init__(self, host="127.0.0.1", port=25575):
         self.s = socket.create_connection((host, port), timeout=15)
         # a tp into ungenerated chunks can block the server thread on worldgen
@@ -91,7 +91,7 @@ class QRLEnv:
     def camera(self, file=None):
         """Dump render camera provenance (eye, effective FOV, options, world).
 
-        Requires rebuilt qrl mod with cmd \"camera\". Optional file path writes
+        Requires rebuilt NetheriteMod with cmd \"camera\". Optional file path writes
         the JSON on the game side as well as returning it.
         """
         action = {}
@@ -104,7 +104,7 @@ class QRLEnv:
 
 
 def smoke():
-    e = QRLEnv()
+    e = NetheriteEnv()
     o = e.reset()
     print("reset:", json.dumps(o)[:200])
     if not o.get("ok"):
@@ -128,7 +128,7 @@ def smoke():
 
 def profile(seed=0, mode="survival", wtype="default", nsteps=100):
     import time
-    e = QRLEnv()
+    e = NetheriteEnv()
     print(f"launching world seed={seed} mode={mode} type={wtype} ...")
     t0 = time.time()
     o = e.reset({"seed": seed, "mode": mode, "type": wtype})
@@ -161,7 +161,7 @@ def load_test():
     overclock is only used briefly to report the uncapped TPS ceiling.
     """
     import time
-    e = QRLEnv()
+    e = NetheriteEnv()
     print("launching world (creative, cheats) ...")
     e.reset({"seed": 0, "mode": "creative"})
 

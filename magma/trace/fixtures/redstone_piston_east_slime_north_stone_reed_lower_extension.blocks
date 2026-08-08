@@ -1,0 +1,11 @@
+# EAST normal piston with a NORTH slime attachment. The side stone destroys
+# the bottom of a valid three-high reed column. All three cells drop in
+# bottom-up callback order during the same piston boundary.
+12 79 8 33 5
+13 79 8 165 0
+13 79 7 1 0
+14 78 7 3 0
+14 78 6 9 0
+14 79 7 83 3
+14 80 7 83 7
+14 81 7 83 12

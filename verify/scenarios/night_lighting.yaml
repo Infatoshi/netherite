@@ -1,0 +1,73 @@
+name: night_lighting
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 0.5 4 -8.5 0 4
+  # Stone guarantees a changed, torch-supporting lit half; the untouched
+  # grass to the east remains the moonlit comparison field.
+  - /fill -12 3 -2 -1 3 12 minecraft:stone
+  - /setblock -10 4 0 minecraft:torch
+  - /setblock -6 4 0 minecraft:torch
+  - /setblock -2 4 0 minecraft:torch
+  - /setblock -10 4 5 minecraft:torch
+  - /setblock -6 4 5 minecraft:torch
+  - /setblock -2 4 5 minecraft:torch
+  - /setblock -10 4 10 minecraft:torch
+  - /setblock -6 4 10 minecraft:torch
+  - /setblock -2 4 10 minecraft:torch
+duration_ticks: 400
+frames_every: 2
+input:
+  segments:
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [20.0, 0.0]
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+    - seconds: 1.0
+      look: [-20.0, 0.0]
+known_divergences: []

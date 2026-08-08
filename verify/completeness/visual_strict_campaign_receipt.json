@@ -1,0 +1,26 @@
+{
+  "schema": "netherite.visual_strict_campaign",
+  "version": 1,
+  "date_utc": "2026-08-26",
+  "todos": ["VIS-05", "VIS-07"],
+  "entity_registry_identities": 81,
+  "tile_registry_identities": 24,
+  "block_registry_identities": 236,
+  "item_registry_identities": 392,
+  "java_entity_tile_ab_pairs": 134,
+  "java_validation_states": 132,
+  "focused_pixel_lanes": [
+    "ender_chest_gui", "large_chest_gui", "static_container_gui",
+    "processing_container_gui", "standard_container_gui", "beacon_gui",
+    "beacon_world", "spawner_world", "slime_magma", "visual_tail",
+    "bat", "squid", "mooshroom", "minecart_tnt", "minecart_variants",
+    "boat", "shulker_box_gui", "ender_chest_world", "chest_world",
+    "shulker_box_world", "horse_gui", "horse_particles", "horse_model",
+    "llama", "hanging", "glowing", "wither"
+  ],
+  "focused_pixel_pass": 27,
+  "model_oracle_contracts": 98,
+  "source_bundle_sha256": "3b49f9ec1b9fa7d625f57cb51f844ea7cbcc81685f1296713d12abb724bbb5de",
+  "campaign_command": "TMPDIR=$PWD/.tmp UV_CACHE_DIR=$HOME/.cache/uv bash verify/ui_entities/run_strict_focused_suite.sh",
+  "result": "pass"
+}

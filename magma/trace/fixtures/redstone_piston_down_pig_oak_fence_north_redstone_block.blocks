@@ -1,0 +1,5 @@
+# Redstone block is opaque-material plus full-cube despite isNormalCube=false,
+# so it creates the oak fence's north arm.
+12 81 9 152 0
+12 79 8 85 0
+12 79 7 152 0

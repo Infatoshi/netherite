@@ -28,6 +28,14 @@ Open **[`AGENTS.md`](AGENTS.md)** (Claude also loads [`CLAUDE.md`](CLAUDE.md)). 
 Read AGENTS.md in this repo and follow it. Task: <what you want done>
 ```
 
+Full Minecraft 1.11.2 parity work is ordered and gated in
+[`magma/PARITY_PROJECT.md`](magma/PARITY_PROJECT.md). Active evidence and
+one-command reproductions live in
+[`magma/OPEN_DIVERGENCES.md`](magma/OPEN_DIVERGENCES.md).
+The current effort-weighted checkpoint is approximately 70%; its measured
+scope, regression results, performance evidence, and open limits are recorded
+in the parity project rather than inferred from raw test or feature counts.
+
 ## Clean Linux box (one command)
 
 ```bash
@@ -37,4 +45,4 @@ bash scripts/setup_and_verify.sh --demo   # + physics/pixel tape replay + SBS MP
 ```
 
 Prism is optional. Bootstrap uses ForgeGradle; details in [`docs/BOOTSTRAP.md`](docs/BOOTSTRAP.md).
-Pixel demo uses the shipped canonical tape under `c/magma/raster/verify/demo/`.
+Pixel demo uses the shipped canonical tape under `verify/demo/`.

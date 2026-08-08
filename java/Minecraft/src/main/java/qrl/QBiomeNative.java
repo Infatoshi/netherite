@@ -7,9 +7,9 @@ import java.nio.file.Paths;
  * JNI bridge to the native BiomeColorHelper 3x3 color blend
  * (render-opt/dropin/biome/libqbiome.so), reused from the verified kernel 18 port.
  *
- * Mode resolved ONCE at class-init. Source order: sidecar file
- * render-opt/dropin/biome/qbiome_mode.txt (authoritative; gradle daemon serves stale
- * env), else env QBIOME_MODE:
+ * Mode resolved ONCE at class-init. Single source: sidecar file
+ * render-opt/dropin/biome/qbiome_mode.txt (a file, not an env var: the gradle daemon
+ * serves a STALE env to runClient):
  *   "native"   -> MODE=1, load libqbiome.so, route the grass-color blend through C
  *   "sabotage" -> MODE=2, grass color forced to magenta (0xFF00FF) - visibly wrong
  *   else/unset -> MODE=0, original Java loop runs (vanilla baseline)
@@ -18,18 +18,16 @@ public final class QBiomeNative {
     public static volatile int MODE;  // volatile: runtime-switchable via the qrl "kmode" op
     private static boolean libLoaded = false;
     private static final String DIR =
-        "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/dropin/biome";
+        "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/biome";
 
     static {
         String m = null;
         try { m = new String(Files.readAllBytes(Paths.get(DIR, "qbiome_mode.txt"))).trim(); }
         catch (Exception e) { m = null; }
-        if (m == null || m.isEmpty()) m = System.getenv("QBIOME_MODE");
         int mode = 0;
         if ("native".equals(m)) {
             mode = 1;
-            String lib = System.getenv("QBIOME_LIB");
-            if (lib == null) lib = DIR + "/libqbiome.so";
+            String lib = DIR + "/libqbiome.so";
             System.load(lib);
             libLoaded = true;
             System.err.println("[qbiome] QBiomeNative: loaded native lib " + lib);
@@ -37,7 +35,7 @@ public final class QBiomeNative {
             mode = 2;
         }
         MODE = mode;
-        System.err.println("[qbiome] QBiomeNative MODE=" + mode + " (resolved QBIOME_MODE=" + m + ")");
+        System.err.println("[qbiome] QBiomeNative MODE=" + mode + " (resolved qbiome_mode=" + m + ")");
     }
 
     /** native 3x3 blend: 9 packed 0xRRGGBB colors in, blended color out. */

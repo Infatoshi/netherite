@@ -10,12 +10,12 @@
 # without re-goldening.
 
 instance:
-  port: 25575        # qrl bridge stays up so recstart/recstop taping works
+  port: 25575        # NetheriteMod bridge stays up so recstart/recstop taping works
   display: ":0"      # Moonlight streams X :0 (AMD iGPU hardware GL)
   username: Player0
 
 world:
-  seed: 0
+  seed: 80302   # fresh throwaway world for tonight's human tape (fresh-world replay rule)
   mode: survival
   type: default
   structures: true

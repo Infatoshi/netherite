@@ -1,0 +1,26 @@
+{
+  "schema": "netherite.spawner_tile_gate",
+  "version": 1,
+  "todo": "WORLD-06",
+  "classification": "live_bounded",
+  "oracle": {
+    "default_horizons": [1, 19, 20, 21],
+    "custom_horizons": [1, 2, 3],
+    "scalar_and_rng_order": "bit_exact",
+    "typed_spawn_data_and_weighted_potentials": "exact"
+  },
+  "continuation": {
+    "anvil_to_capsule": "exact",
+    "native_checkpoint": "exact",
+    "loaded_and_tickable_tile_order": "exact"
+  },
+  "render": {
+    "saved_pig_and_custom_zombie": "bounded_same_scene",
+    "client_rotation": "checkpointed"
+  },
+  "remaining": [
+    "unsupported_arbitrary_entity_tag_families",
+    "broader_light_collision_and_chunk_unload_cases",
+    "general_mixed_spawner_ordering"
+  ]
+}

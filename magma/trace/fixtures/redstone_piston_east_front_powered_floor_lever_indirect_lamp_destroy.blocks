@@ -1,0 +1,7 @@
+# A powered floor lever 69:13 strongly powers its stone support and therefore
+# the adjacent lit lamp. Piston destruction must run BlockLever.breakBlock's
+# attachment notification so the lamp queues and completes its +4 off edge.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 69 13
+14 77 8 124 0

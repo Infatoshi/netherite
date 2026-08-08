@@ -1,0 +1,12 @@
+# Settled EAST sticky piston with a NORTH slime attachment. The side stone
+# begins diagonal to a valid three-high cactus column. Retraction settles it
+# west beside the lower cactus and collapses all three cells.
+12 79 8 29 13
+13 79 8 34 13
+14 79 8 165 0
+14 79 7 1 0
+13 78 6 12 0
+13 79 6 81 3
+13 80 6 81 7
+13 81 6 81 12
+12 79 9 152 0

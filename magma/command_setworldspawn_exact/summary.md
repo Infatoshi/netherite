@@ -1,0 +1,9 @@
+# Oracle matrix
+
+Elapsed: 25.930s
+
+| Case | Port | Attempts | Overall | State gate | Behavior gate | Block gate | State features | Block transition |
+|---|---:|---:|---|---|---|---|---|---|
+| redstone_comparator_saved_command_block_setworldspawn_seed_0 | 25600 | 1 | pass | pass | pass | pass | 32 match, 0 diverge, 0 UNSIMULATED-on-C (of 32 features) | EXACT ON SHARED BASELINE |
+
+Each case directory contains the complete trace, snapshots, mismatch CSV, and run.log.

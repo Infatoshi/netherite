@@ -1,0 +1,8 @@
+# Saved command/comparator fixture plus a non-air center discriminator for
+# outline (preserve) versus hollow (clear) on the 3x3x3 fill volume.
+11 77 8 1 0
+12 77 8 1 0
+11 78 8 137 2
+12 78 8 149 1
+13 78 8 123 0
+15 79 9 1 0

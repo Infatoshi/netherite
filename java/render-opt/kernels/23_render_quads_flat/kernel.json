@@ -1,0 +1,11 @@
+{
+  "name": "render_quads_flat",
+  "tier": 2,
+  "compute": "low",
+  "capture_mode": "live-hook",
+  "source": "src/net/minecraft/client/renderer/BlockModelRenderer.java:238 renderQuadsFlat + VertexBuffer add/putBrightness4/putColorMultiplier/putPosition",
+  "describe": "Per-quad flat-lighting vertex emit to a DefaultVertexFormats.BLOCK buffer (28 ints/quad): addVertexData, putBrightness4(brightnessIn x4), optional putColorMultiplier (tint color and/or diffuse), putPosition(d0,d1,d2). World-dependent brightness+tint snapshot as inputs. Golden captured live via NetheriteMod 'capture_quadsflat'.",
+  "candidate": { "lang": "c", "file": "candidate.c" },
+  "compare": { "mode": "bitwise" },
+  "status": "verified"
+}

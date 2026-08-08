@@ -1,0 +1,251 @@
+name: dragon_kill_geared
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  # No dragon-death XP orbs: 500 xp would blow past the recorder's 32-entity
+  # cap and desync which entities magma gets to draw.
+  - /gamerule doMobLoot false
+  # Battle-worn HP has to SURVIVE setup and the whole take. At food 20
+  # with saturation left the vanilla fast-regen path heals 1 HP every
+  # 10 ticks, which would restore all 20 hearts long before recstart.
+  - /gamerule naturalRegeneration false
+  - /gamerule commandBlockOutput false
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  - /replaceitem entity @p slot.hotbar.0 minecraft:diamond_sword 1
+  - /replaceitem entity @p slot.hotbar.1 minecraft:bow 1
+  # Battle-worn kit. Cooked steak stacks to 10 and the diamond pickaxe
+  # carries damage 780 of its 1561 max, so the hotbar shows a stack
+  # count and a half-drained green/yellow durability bar.
+  - /replaceitem entity @p slot.hotbar.2 minecraft:cooked_beef 10
+  - /replaceitem entity @p slot.hotbar.3 minecraft:diamond_pickaxe 1 780
+  - /replaceitem entity @p slot.inventory.0 minecraft:arrow 64
+  # Iron head/legs/feet are plain, so they contribute their vanilla
+  # 2 + 5 + 2 armor points. The chest slot is staged in setup_qrl
+  # because it also carries the knockbackResistance modifier.
+  - /replaceitem entity @p slot.armor.head minecraft:iron_helmet 1
+  - /replaceitem entity @p slot.armor.legs minecraft:iron_leggings 1
+  - /replaceitem entity @p slot.armor.feet minecraft:iron_boots 1
+# Cross into the End via the raw bridge transfer (vanilla 1.11.2 has no
+# dimension command); the fresh End init spawns the dragon fight.
+#
+# KILL ROUTE. A scripted-input scenario cannot aim a bow at an AI-driven
+# dragon, so the kill is time-triggered, not aim-triggered: two buried
+# repeating command blocks (y=55, inside the island, never on screen) watch
+# the CAMERA PITCH and fire when the scripted look deltas tilt it up.
+#   entitydata @e[type=ender_dragon] {Health:0.0f}
+# is the kill - not /kill, which setDead()s the dragon with no animation.
+# Health 0 makes vanilla run the real EntityDragon.onDeathUpdate: 200 ticks
+# of +0.1/tick rise, +20 deg/tick yaw spin, dissolve and beams. That is the
+# gated death state, on camera, at a tick we choose.
+# Pitch is the arm because the setup tp pins it to exactly -15 and nothing in
+# the world can move it - only a scripted look delta. (A stat.jump arm was
+# tried and self-armed during setup: the stat is cumulative and a
+# dragon-breath knockback hop counts as a jump. A pressure plate was tried
+# too and the same knockback walked the player off it.) EntitySelector floors
+# pitch and clamps it into 0..359, so -15 -> 345, -27 -> 333, -35 -> 325.
+# The camera tilts TWICE and the two blocks are gated on different pitch
+# windows, which sequences them:
+#   PULL (pitch in [-33,-25], dragon more than 24 blocks from the anchor)
+#        /tp's the dragon to the framed anchor 0.5,86,-72 and keeps it there;
+#   KILL (pitch <= -33, dragon within 25 blocks of the anchor) sets Health 0.
+# The 1.5s between the two tilts is what makes this work: teleporting and
+# killing in the SAME tick leaves the client rendering a ghost at the old
+# spot (takes 3 and 4 - a dying EntityDragon stops applying server position
+# updates and just runs its local rise), so the dragon must arrive, sync and
+# fly for a moment before it dies. The second tilt also closes the PULL
+# window for good, so the corpse - which drifts up to 25 + 20 blocks of rise
+# from the anchor - is never yanked back mid-animation.
+#
+# The camera itself does not move: the first take had a dragon-breath cloud
+# park on the player and knock them 9 blocks sideways, so the player wears a
+# knockbackResistance chestplate (invisible in first person) and Resistance V.
+#
+# BATTLE-WORN VARIANT of dragon_kill. Same arena, same kill route, same input
+# script; only the player state differs, for an article cover frame:
+#   full iron armor (15 armor points -> 7.5 armor icons on the HUD),
+#   10 cooked steak and a diamond pickaxe at damage 780/1561 in the hotbar,
+#   4 hearts of health.
+# Three things make the HP land and stay:
+#   1. `naturalRegeneration false` (setup_commands), or fast regen refills it;
+#   2. 1.11.2 CommandEffect treats the duration argument of an INSTANT potion
+#      as TICKS, not seconds, so `instant_damage 1 1` is exactly one 12-damage
+#      application (6 << amplifier) and never the repeat-every-10-ticks train
+#      a multi-tick duration would produce;
+#   3. instant_damage is DamageSource.MAGIC, which ignores armor but NOT
+#      Resistance V - amplifier 4 is 100% reduction and would swallow it
+#      whole. So the setup drops resistance, damages, and puts resistance back
+#      one phase later; the unprotected window is 5 ticks with the dragon
+#      still parked 50+ blocks north.
+# The chestplate now has to declare generic.armor explicitly: an
+# AttributeModifiers tag REPLACES an armor item's default modifiers, which is
+# why the leather one in dragon_kill records `armor: 0`.
+setup_qrl:
+  - cmd: dim
+    action: { id: 1 }
+    settle_ticks: 100
+  # Flat end stone (top y=63) runs x -2..2, z -24..-8 on seed 0; the exit
+  # fountain is at 0,0, i.e. BEHIND this camera, so the podium/egg that
+  # generates at deathTicks 200 never enters frame (magma replays a tick-0
+  # world snapshot and would not have those blocks).
+  - cmd: runcmds
+    action: { cmds: ["tp @p 0.5 64 -20.5 180 -15"] }
+    settle_ticks: 60
+  - cmd: runcmds
+    action:
+      cmds:
+        - effect @p minecraft:resistance 1000000 4 true
+        - 'replaceitem entity @p slot.armor.chest minecraft:iron_chestplate 1 0 {AttributeModifiers:[{AttributeName:"generic.knockbackResistance",Name:"kb",Amount:1.0,Operation:0,UUIDMost:41,UUIDLeast:17,Slot:"chest"},{AttributeName:"generic.armor",Name:"armor",Amount:6,Operation:0,UUIDMost:42,UUIDLeast:18,Slot:"chest"}]}'
+    settle_ticks: 10
+  # Drop Resistance V and take one 12-damage magic hit in the same tick:
+  # 20 -> 8 HP, i.e. 4 hearts. `effect <sel> <potion> 0` is the vanilla remove
+  # form and returns success because the effect IS present, so qrl's
+  # failure-on-no-op check stays honest.
+  - cmd: runcmds
+    action:
+      cmds:
+        - effect @p minecraft:resistance 0
+        - effect @p minecraft:instant_damage 1 1
+    settle_ticks: 5
+  - cmd: runcmds
+    action:
+      cmds:
+        - effect @p minecraft:resistance 1000000 4 true
+    settle_ticks: 5
+  - cmd: runcmds
+    action:
+      cmds:
+        - 'setblock 0 55 -14 minecraft:repeating_command_block 0 replace {Command:"execute @p[rxm=-90,rx=-33] ~ ~ ~ execute @e[type=ender_dragon,x=0,y=86,z=-72,r=25] ~ ~ ~ entitydata @e[type=ender_dragon] {Health:0.0f}",TrackOutput:0b,auto:1b}'
+        - 'setblock 0 55 -13 minecraft:repeating_command_block 0 replace {Command:"execute @p[rxm=-33,rx=-25] ~ ~ ~ execute @e[type=ender_dragon,x=0,y=86,z=-72,rm=24] ~ ~ ~ tp @e[type=ender_dragon] 0.5 86.0 -72.0 180 0",TrackOutput:0b,auto:1b}'
+    settle_ticks: 10
+  # Re-pin the exact camera pose, then park the dragon north and high so the
+  # opening seconds have it flying inside the frame before its AI takes over.
+  - cmd: runcmds
+    action: { cmds: ["tp @p 0.5 64 -20.5 180 -15"] }
+    settle_ticks: 5
+  - cmd: runcmds
+    action: { cmds: ["tp @e[type=ender_dragon] 0.5 86 -72 180 0"] }
+    settle_ticks: 10
+# frames_every 2, not 1: with a frame captured every tick the headless client
+# falls to ~10.5 TPS while the integrated server keeps ticking at 20, so the
+# CLIENT deathTicks counter (what the renderer dissolves on, and what the
+# recorder writes) only reaches ~85 before the server hits 200 and removes
+# the dragon - the beam-out never renders. At every second tick the client
+# holds 20 TPS and the full 200-tick animation is captured.
+duration_ticks: 570
+frames_every: 2
+input:
+  segments:
+    # 0-8.5s: free flight, camera parked at pitch -15 (trigger disarmed).
+    # The opening pitch flick is not cosmetic. The headless client builds no
+    # chunk meshes while it is merely stepped over the bridge - not even for
+    # forced `frame` re-renders - so takes 6/7 opened on an EMPTY oracle pane
+    # for ~7s while magma drew the full island. A large pitch change is what
+    # made it compile (observed mid-take), so the take starts with +12 deg
+    # and immediately -12 deg back to exactly -15: net zero, both ends
+    # outside the trigger windows. Measured cost either way: the island,
+    # pillars and crystals only finish compiling ~7s of wall time after frame
+    # capture starts (tick 71 of a 10.5 TPS take, tick 142 of a 20 TPS one),
+    # so the whole kill sequence is pushed past 11s and the clip drops the
+    # warm-up.
+    - seconds: 0.1
+      look: [0.0, 80.0]
+    - seconds: 0.9
+      look: [0.0, -80.0]
+    - seconds: 1.5
+    - seconds: 0.1
+      look: [1.0, 0.0]
+    - seconds: 1.9
+      look: [-1.0, 0.0]
+    - seconds: 0.1
+      look: [1.0, 0.0]
+    - seconds: 1.9
+      look: [-1.0, 0.0]
+    - seconds: 0.1
+      look: [1.0, 0.0]
+    - seconds: 1.9
+      look: [-1.0, 0.0]
+    # 8.5s: tilt up 12 deg onto the dragon. look is a one-shot mouse delta per segment and
+    # degrees = 0.15 * delta at sensitivity 0.5, so -80 is exactly -12 deg:
+    # pitch -15 -> -27, inside the PULL window, and the dragon is teleported
+    # into frame (alive) if it had wandered off - and held there, since the
+    # PULL block re-fires whenever it strays past 24 blocks. That is what
+    # buys the ~4s of on-camera flight before the kill.
+    - seconds: 4.0
+      look: [0.0, -80.0]
+    # 12.5s: tilt up 8 more deg to pitch -35: PULL closes, KILL opens, the dragon dies on camera.
+    - seconds: 1.0
+      look: [0.0, -53.3333]
+    # 13.5-23.5s: creep up 8 deg to follow the 0.1 blocks/tick death rise.
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    - seconds: 0.5
+      look: [0.0, -2.67]
+    # 23.5-28.5s: hold on the beam-out and the removal at deathTicks 200,
+    # still twitching the yaw so the oracle keeps rendering.
+    - seconds: 0.5
+      look: [1.0, 0.0]
+    - seconds: 0.5
+      look: [-1.0, 0.0]
+    - seconds: 0.5
+      look: [1.0, 0.0]
+    - seconds: 0.5
+      look: [-1.0, 0.0]
+    - seconds: 0.5
+      look: [1.0, 0.0]
+    - seconds: 0.5
+      look: [-1.0, 0.0]
+    - seconds: 0.5
+      look: [1.0, 0.0]
+    - seconds: 0.5
+      look: [-1.0, 0.0]
+    - seconds: 0.5
+      look: [1.0, 0.0]
+    - seconds: 0.5
+      look: [-1.0, 0.0]
+known_divergences: []

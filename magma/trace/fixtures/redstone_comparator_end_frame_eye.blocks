@@ -1,0 +1,7 @@
+# x y z id meta
+# Compare-mode comparator facing WEST (metadata 1). Tick zero changes the
+# rear End portal frame from no eye (meta 1) to eye present (meta 5).
+12 77 8 1 0
+11 78 8 120 1
+12 78 8 149 1
+13 78 8 123 0

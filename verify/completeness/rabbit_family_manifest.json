@@ -1,0 +1,54 @@
+{
+  "schema": "netherite.rabbit_family_gate",
+  "version": 1,
+  "todo": "AI-04",
+  "classification": "live_bounded",
+  "combat_oracle": {
+    "ordinary_attack_damage": 3,
+    "killer_attack_damage": 8,
+    "killer_armor": 8,
+    "reach_squared": 4.6
+  },
+  "jump_oracle": {
+    "slow_impulse": 0.2,
+    "fast_impulse": 0.3,
+    "elevated_impulse": 0.5,
+    "jump_duration": 10
+  },
+  "death_loot_oracle": {
+    "rabbit_death_rows": 9,
+    "aggregate_death_rows": 261,
+    "rabbit_loot_rows": 15,
+    "aggregate_hostile_loot_rows": 375,
+    "native_terminal_cases": 25,
+    "native_terminal_particles": 500
+  },
+  "farm_oracle": {
+    "mature_carrot_age": 7,
+    "consumed_carrot_age": 6,
+    "raid_cooldown": 40
+  },
+  "render_audio_contract": {
+    "model_boxes": 12,
+    "coat_textures": 8,
+    "sounds": 5
+  },
+  "implemented": [
+    "ordinary_and_killer_combat",
+    "killer_armor_and_player_targeting",
+    "three_jump_impulses_and_ten_tick_pose",
+    "mature_carrot_farm_raid",
+    "exact_hide_meat_foot_loot_and_cooked_variant",
+    "exact_composed_player_death_rows",
+    "breeding_food_and_normal_biome_child_type",
+    "native_checkpoint_continuation",
+    "all_coats_child_pose_and_killer_model",
+    "five_owned_sound_assets"
+  ],
+  "remaining": [
+    "snowy_and_desert_natural_pack_and_child_biome_selection",
+    "arbitrary_pathfinder_search_cadence_and_crop_break_particles",
+    "wolf_avoidance_and_full_task_arbitration",
+    "bounded_same_scene_java_native_model_pixels"
+  ]
+}

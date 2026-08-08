@@ -1,0 +1,48 @@
+0, NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 100 %, 76476 MiB
+1, NVIDIA GeForce RTX 3090, 0 %, 1 MiB
+so=/home/infatoshi/dev/nw/cpolicy/blaze/env/blaze_cuda.so arches_wanted=['sm_86', 'sm_120']
+pose_xz_delta_max=2.879237  cam_nonzero=123138
+SO_SANITY PASS
+GRAPH rollout captured (N=4096, fused=True)
+GRAPH update captured (MB=2048, fused=True)
+GRAPH update captured (MB=2048, fused=True)
+PASS  finite/eager_fwd  10 tensors, nonfinite=[]
+PASS  finite/graph_replay  4 tensors, nonfinite=[]
+PASS  graph_fwd/value   max_abs=0.000e+00 max_rel=0.000e+00 tol=1e-06
+PASS  graph_fwd/logits  max_abs=0.000e+00 max_rel=0.000e+00 tol=1e-06
+PASS  finite/fused      4 tensors, nonfinite=[]
+PASS  fused_logp        max_abs=1.907e-06 max_rel=1.946e-07 tol=2e-06
+PASS  fused_entropy     max_abs=1.907e-06 max_rel=1.854e-07 tol=2e-05
+PASS  fused_dist        max_sigma=2.71 at head 8 over 200000 draws (limit 5.0)
+PASS  finite/grads      2 tensors, nonfinite=[]
+PASS  graph_grad_parity  rel_l2=5.627e-08 budget=1.000e-05 (max(1e-05, 3x eager-vs-eager control 5.682e-08))
+PASS  sampler_grad_parity  rel_l2=1.897e-06 budget=1.000e-05 (fused vs 9-Categorical, both eager)
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  finite/update_params  2 tensors, nonfinite=[]
+PASS  update_adam_parity  max_abs=7.967e-06 max_rel=5.875e+02 tol=2e-05
+
+CORRECTNESS PASS (38 checks)

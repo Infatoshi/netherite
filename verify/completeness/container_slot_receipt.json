@@ -1,0 +1,35 @@
+{
+  "click_types": [
+    "CC_CLICK_PICKUP",
+    "CC_CLICK_QUICK_MOVE",
+    "CC_CLICK_SWAP",
+    "CC_CLICK_CLONE",
+    "CC_CLICK_THROW",
+    "CC_CLICK_QUICK_CRAFT",
+    "CC_CLICK_PICKUP_ALL"
+  ],
+  "java_slot_semantics": [
+    "anvil_output",
+    "beacon_payment",
+    "brewing_fuel",
+    "brewing_ingredient",
+    "brewing_potion",
+    "crafting_result",
+    "enchant_item",
+    "enchant_lapis",
+    "furnace_fuel",
+    "furnace_output",
+    "horse_armor_storage",
+    "horse_saddle",
+    "merchant_result",
+    "ordinary",
+    "player_armor",
+    "player_offhand",
+    "shulker"
+  ],
+  "mutation_control": "furnace_output_java_owner_removed",
+  "oracle_rows": 2840,
+  "schema": "netherite.container_slot_coverage",
+  "stack_partitions": 17,
+  "version": 1
+}

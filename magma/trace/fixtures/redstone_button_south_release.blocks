@@ -1,0 +1,5 @@
+# A pressed stone button on the south face of its support. The saved +3
+# callback must release metadata 11 to 3 and turn off the outward lamp at +7.
+12 78 8 1 0
+12 78 9 77 11
+12 78 10 124 0

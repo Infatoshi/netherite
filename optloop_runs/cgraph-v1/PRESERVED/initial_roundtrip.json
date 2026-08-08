@@ -1,0 +1,11 @@
+{
+  "dtype": "float32",
+  "native": "optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt",
+  "native_sha256": "76913e1d30249283b14c299930383fcd319b5806fdd86d06f912c0ce30633a97",
+  "output": "/home/infatoshi/dev/nw/.tmp/cgraph-initial-roundtrip.pt",
+  "output_sha256": "ceac49a5c23c57f1e866eb669ae0f81a835333aa680c732a206dbe49f1886350",
+  "parameter_keys": 26,
+  "parameter_values": 1654723,
+  "schema": "netherite.native-checkpoint-conversion.v1",
+  "strict_key_shape_value_roundtrip": true
+}

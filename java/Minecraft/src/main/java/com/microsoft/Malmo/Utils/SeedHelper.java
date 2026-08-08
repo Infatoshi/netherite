@@ -85,11 +85,10 @@ public class SeedHelper implements IMalmoMessageListener
     static synchronized public  Random getRandom(String key){
         Random gen = specificSeedGenerators.get(key);
 
-        if(gen == null && currentSeed != null){
-            gen = new Random(currentSeed);
+        if(gen == null){
+            gen = currentSeed != null
+                ? new Random(currentSeed) : new Random();
             specificSeedGenerators.put(key, gen);
-        } else if(currentSeed == null){
-            gen = new Random();
         }
         Long seed_inst = (gen.nextLong());
         return new Random(seed_inst);

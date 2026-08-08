@@ -1,0 +1,27 @@
+{
+  "schema": "netherite.skull_tile_gate",
+  "version": 1,
+  "todo": "WORLD-05",
+  "classification": "live_bounded",
+  "state": {
+    "types": [0, 1, 2, 3, 4, 5],
+    "rotations": 16,
+    "signed_player_profile_nbt": "exact",
+    "loaded_tile_order": "exact"
+  },
+  "behavior": {
+    "placement_and_retirement": "exact",
+    "piston_drop_and_rng": "direct_java_native_exact",
+    "wither_summoning": "live"
+  },
+  "continuation": {
+    "state_capsule": "exact",
+    "native_checkpoint": "exact",
+    "structure_transform": "exact"
+  },
+  "remaining": [
+    "world_skull_tile_pixels",
+    "skin_service_and_profile_cache_network_behavior",
+    "arbitrary_concurrent_tile_and_entity_ordering"
+  ]
+}

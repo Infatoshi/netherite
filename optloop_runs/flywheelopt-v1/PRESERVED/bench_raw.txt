@@ -1,0 +1,1336 @@
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.394M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1707.128715 env_ticks_per_s=460675.281
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.392M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1712.051148 env_ticks_per_s=459350.762
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.393M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1713.355501 env_ticks_per_s=459001.065
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.392M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1715.624497 env_ticks_per_s=458394.014
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.390M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1721.103410 env_ticks_per_s=456934.775
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.391M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1717.046491 env_ticks_per_s=458014.389
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.393M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1713.007402 env_ticks_per_s=459094.338
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.393M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1699.517328 env_ticks_per_s=462738.442
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.390M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1717.091803 env_ticks_per_s=458002.303
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.392M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1718.317995 env_ticks_per_s=457675.472
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.391M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1721.262623 env_ticks_per_s=456892.510
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.390M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1717.120853 env_ticks_per_s=457994.554
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.391M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1725.021282 env_ticks_per_s=455896.984
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.390M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1728.828662 env_ticks_per_s=454892.967
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.389M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1711.465288 env_ticks_per_s=459508.005
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.389M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1724.961863 env_ticks_per_s=455912.688
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'DIST_NOVALIDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=True graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.9s  0.418M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1608.562588 env_ticks_per_s=488903.575
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'DIST_NOVALIDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=True graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.9s  0.419M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1608.359968 env_ticks_per_s=488965.167
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'DIST_NOVALIDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=True graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.9s  0.419M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1610.195003 env_ticks_per_s=488407.925
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'DIST_NOVALIDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=True graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.9s  0.416M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1610.362493 env_ticks_per_s=488357.127
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'DIST_NOVALIDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=True graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.9s  0.416M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1610.512723 env_ticks_per_s=488311.572
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.436M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1588.344728 env_ticks_per_s=495126.773
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.437M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1588.216708 env_ticks_per_s=495166.684
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.436M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1591.235885 env_ticks_per_s=494227.165
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.436M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1591.737276 env_ticks_per_s=494071.485
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.436M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1592.921859 env_ticks_per_s=493704.067
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=False)
+chunk    1  ticks    0.79M  wall     1.9s  0.410M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1607.281336 env_ticks_per_s=489293.307
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=False)
+chunk    1  ticks    0.79M  wall     1.9s  0.411M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1606.535913 env_ticks_per_s=489520.336
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=False)
+chunk    1  ticks    0.79M  wall     1.9s  0.411M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1609.186740 env_ticks_per_s=488713.945
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=False)
+chunk    1  ticks    0.79M  wall     1.9s  0.411M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1608.638259 env_ticks_per_s=488880.577
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=False)
+chunk    1  ticks    0.79M  wall     1.9s  0.411M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1609.843152 env_ticks_per_s=488514.672
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.467M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 11.60
+BENCH chunk=0 wall_ms=1619.998148 env_ticks_per_s=485452.407
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.469M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 11.60
+BENCH chunk=0 wall_ms=1616.441988 env_ticks_per_s=486520.398
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.469M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 11.60
+BENCH chunk=0 wall_ms=1620.343489 env_ticks_per_s=485348.943
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.469M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 11.60
+BENCH chunk=0 wall_ms=1618.545974 env_ticks_per_s=485887.959
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.469M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 11.60
+BENCH chunk=0 wall_ms=1618.620904 env_ticks_per_s=485865.466
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=False)
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.461M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1610.802424 env_ticks_per_s=488223.750
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=False)
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.461M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1615.659236 env_ticks_per_s=486756.107
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=False)
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.461M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1614.547714 env_ticks_per_s=487091.210
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=False)
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.458M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1614.036233 env_ticks_per_s=487245.567
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=False)
+GRAPH update captured (MB=8192, fused=False)
+chunk    1  ticks    0.79M  wall     1.7s  0.462M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.309 kl 0.0056 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1614.199433 env_ticks_per_s=487196.305
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1', 'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=True)
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.524M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1591.304075 env_ticks_per_s=494205.986
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1', 'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=True)
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.528M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1590.444892 env_ticks_per_s=494472.964
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1', 'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=True)
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.528M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1590.326162 env_ticks_per_s=494509.880
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1', 'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=True)
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.526M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1591.871797 env_ticks_per_s=494029.734
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'GRAPH_ROLLOUT': '1', 'GRAPH_UPDATE': '1', 'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=True
+GRAPH rollout captured (N=6144, fused=True)
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.528M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 12.65
+BENCH chunk=0 wall_ms=1588.951939 env_ticks_per_s=494937.563
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.389M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1722.067555 env_ticks_per_s=456678.948
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.389M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1729.849774 env_ticks_per_s=454624.449
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.388M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1732.424791 env_ticks_per_s=453948.711
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.388M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1713.008052 env_ticks_per_s=459094.164
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.389M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1717.184283 env_ticks_per_s=457977.637
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.387M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1730.234355 env_ticks_per_s=454523.399
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.388M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1733.425873 env_ticks_per_s=453686.548
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.387M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1739.176248 env_ticks_per_s=452186.488
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.388M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1717.985285 env_ticks_per_s=457764.107
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'ACT_CACHE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=True novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.388M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1737.755754 env_ticks_per_s=452556.119
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.434M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1589.758822 env_ticks_per_s=494686.357
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.436M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1590.385783 env_ticks_per_s=494491.342
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.435M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1590.380613 env_ticks_per_s=494492.949
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.434M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1597.044229 env_ticks_per_s=492429.693
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.435M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1592.679809 env_ticks_per_s=493779.098
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=True)
+chunk    1  ticks    0.79M  wall     1.8s  0.431M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1586.206632 env_ticks_per_s=495794.170
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=True)
+chunk    1  ticks    0.79M  wall     1.8s  0.431M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1589.038409 env_ticks_per_s=494910.630
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=True)
+chunk    1  ticks    0.79M  wall     1.8s  0.431M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1585.617081 env_ticks_per_s=495978.512
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=True)
+chunk    1  ticks    0.79M  wall     1.8s  0.429M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1589.803931 env_ticks_per_s=494672.321
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_ROLLOUT': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=True graph_update=False
+GRAPH rollout captured (N=6144, fused=True)
+chunk    1  ticks    0.79M  wall     1.8s  0.431M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 11.19
+BENCH chunk=0 wall_ms=1589.638921 env_ticks_per_s=494723.669
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.533M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 11.59
+BENCH chunk=0 wall_ms=1598.281812 env_ticks_per_s=492048.395
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.530M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 11.59
+BENCH chunk=0 wall_ms=1597.039809 env_ticks_per_s=492431.056
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.534M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 11.59
+BENCH chunk=0 wall_ms=1595.262175 env_ticks_per_s=492979.782
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.534M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 11.59
+BENCH chunk=0 wall_ms=1595.115835 env_ticks_per_s=493025.010
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '1', 'GRAPH_UPDATE': '1'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=True novalidate=True graph_rollout=False graph_update=True
+GRAPH update captured (MB=8192, fused=True)
+chunk    1  ticks    0.79M  wall     1.5s  0.534M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 11.59
+BENCH chunk=0 wall_ms=1596.268147 env_ticks_per_s=492669.105
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '0'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.389M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1721.887951 env_ticks_per_s=456726.583
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '0'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.390M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1722.925863 env_ticks_per_s=456451.445
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '0'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.389M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0054 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1726.022242 env_ticks_per_s=455632.599
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '0'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.389M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1712.061954 env_ticks_per_s=459347.863
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'FUSED_SAMPLE': '0'}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=False act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     2.0s  0.388M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0055 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1728.111618 env_ticks_per_s=455081.716
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.437M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1582.998903 env_ticks_per_s=496798.828
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.438M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1583.153964 env_ticks_per_s=496750.170
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.438M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1585.172149 env_ticks_per_s=496117.725
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.437M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1585.305829 env_ticks_per_s=496075.890
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False graph_rollout=False graph_update=False
+chunk    1  ticks    0.79M  wall     1.8s  0.437M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1588.881160 env_ticks_per_s=494959.610
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+

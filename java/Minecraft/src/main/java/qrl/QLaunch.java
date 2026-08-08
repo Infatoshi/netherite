@@ -25,7 +25,7 @@ public final class QLaunch {
     static {
         boolean menus = false, overlays = false, sound = false, flicker = false, skin = false;
         boolean textureAnimations = false;
-        String[] paths = { System.getenv("QRL_LAUNCH_JSON"), "qrl_launch.json",
+        String[] paths = { "qrl_launch.json",
             "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/Minecraft/run/qrl_launch.json" };
         for (String p : paths) {
             if (p == null || p.isEmpty()) continue;

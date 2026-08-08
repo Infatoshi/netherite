@@ -1,0 +1,6 @@
+# Base oak stair at (12,79,8) ascends EAST. The NORTH-facing stair immediately
+# east makes the base an OUTER_LEFT shape: only its northeast upper eighth
+# remains, while the southeast upper eighth is removed.
+12 81 9 152 0
+12 79 8 53 0
+13 79 8 53 3

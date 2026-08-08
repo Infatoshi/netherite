@@ -1,0 +1,4 @@
+# EAST-facing empty normal piston beside an unpowered heavy-weighted (iron)
+# pressure plate. Tick zero changes analog strength 0 to 1.
+12 78 8 33 5
+12 78 9 148 0

@@ -1,0 +1,7 @@
+# EAST piston destroys a three-bite cake read by a WEST comparator. Early
+# fixture drain lets the cake power the comparator and its east lamp before
+# tick zero adds the redstone block on the piston's south side.
+9 78 8 33 5
+10 78 8 92 3
+11 78 8 149 1
+12 78 8 123 0

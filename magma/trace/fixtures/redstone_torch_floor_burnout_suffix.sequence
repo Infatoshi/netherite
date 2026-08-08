@@ -1,0 +1,5 @@
+# Continue from the checkpoint after seven complete off/on cycles.
+# The next powered callback is toggle eight; release support two ticks later.
+# TICK DX DY DZ BLOCK META
+0 4 -1 0 152 0
+2 4 -1 0 1 0

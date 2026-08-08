@@ -1,0 +1,28 @@
+{
+  "schema": "netherite.block_callback_placement_receipt",
+  "version": 1,
+  "source": "real Minecraft 1.11.2 exhaustive ItemBlock.onItemUse oracle versus native placement model",
+  "captured_utc": "2026-08-23",
+  "rows": 52635,
+  "positive": 50256,
+  "negative": 2379,
+  "fail": 0,
+  "families": [
+    ["BlockBeacon", "onBlockPlacedBy"],
+    ["BlockBrewingStand", "onBlockPlacedBy"],
+    ["BlockChest", "onBlockPlacedBy"],
+    ["BlockCocoa", "onBlockPlacedBy"],
+    ["BlockCommandBlock", "onBlockPlacedBy"],
+    ["BlockDispenser", "onBlockPlacedBy"],
+    ["BlockDoublePlant", "onBlockPlacedBy"],
+    ["BlockEnchantmentTable", "onBlockPlacedBy"],
+    ["BlockEnderChest", "onBlockPlacedBy"],
+    ["BlockFurnace", "onBlockPlacedBy"],
+    ["BlockHopper", "onBlockPlacedBy"],
+    ["BlockPistonBase", "onBlockPlacedBy"],
+    ["BlockRedstoneDiode", "onBlockPlacedBy"],
+    ["BlockShulkerBox", "onBlockPlacedBy"],
+    ["BlockStructure", "onBlockPlacedBy"],
+    ["BlockTripWireHook", "onBlockPlacedBy"]
+  ]
+}

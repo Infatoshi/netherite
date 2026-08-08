@@ -1,0 +1,8 @@
+# Saved mid-transition state: a WEST-facing comparator still has tile output
+# zero while an inert impulse command block carries SuccessCount=7. Restoring
+# that field queues the comparator callback without executing any command.
+11 77 8 1 0
+12 77 8 1 0
+11 78 8 137 2
+12 78 8 149 1
+13 78 8 123 0

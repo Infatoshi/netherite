@@ -1,0 +1,7 @@
+reward_mean last-third: base=0.014993 cand=0.0188527 drop=-0.00385968 allowed<=0.0177386 (base chunk sigma 0.0088693)  OK
+final entropy: base=9.11866 cand=8.91284 (need >= 4.55933)  OK
+mean approx-KL: base=0.00778358 cand=0.0085617 (need <= 0.0311343)  OK
+base param-norm travel over 30 chunks: 4.4794
+cand param-norm travel over 30 chunks: 4.6988
+
+SMOKE PASS over 30 chunks

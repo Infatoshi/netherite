@@ -1,0 +1,6 @@
+# A powered wire on top of the stone south of the future EAST-facing piston.
+# Dust strongly powers its support; the normal cube must relay that indirect
+# power to the piston placed at tick zero.
+12 78 9 1 0
+12 79 9 55 15
+11 79 9 152 0

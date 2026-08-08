@@ -1,0 +1,11 @@
+{
+  "schema": "netherite.item_strict_campaign",
+  "version": 1,
+  "todo": "ITEM-07",
+  "vanilla_loot_table_identities": 81,
+  "custom_resource_pack_policy": "rejected_outside_vanilla_1_11_2_product_scope",
+  "fishing": ["block_collision", "living_collision", "dimension_unload", "rng", "loot", "xp", "events", "checkpoint"],
+  "explorer_maps": ["monument", "mansion"],
+  "explorer_map_state": ["scale_2", "tracking", "unlimited_tracking", "target_decoration", "display_name", "stack_nbt"],
+  "continuation": "pre_restock_final_native_checkpoint_byte_exact"
+}

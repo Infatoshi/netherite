@@ -1,0 +1,5537 @@
+{
+  "callback_rows": 770,
+  "families": [
+    {
+      "blocks": [
+        {
+          "id": 0,
+          "name": "minecraft:air"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockAir",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 145,
+          "name": "minecraft:anvil"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockAnvil",
+      "source_sha256": "303e65bdff5fe267ef5ba810aa122bdcfd706e1c7cb7918dcd2b23a2784a70fe"
+    },
+    {
+      "blocks": [
+        {
+          "id": 176,
+          "name": "minecraft:standing_banner"
+        },
+        {
+          "id": 177,
+          "name": "minecraft:wall_banner"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockBanner",
+      "source_sha256": "a3153ed2155a6247ebf586fd28c6560256be79000db5131551a5e7261f72f6b8"
+    },
+    {
+      "blocks": [
+        {
+          "id": 177,
+          "name": "minecraft:wall_banner"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBanner$BlockBannerHanging",
+      "source_sha256": "8deb31d5256b888f992f7a49de8a7f5ac366dacc2150813ecadde886bc90ac74"
+    },
+    {
+      "blocks": [
+        {
+          "id": 176,
+          "name": "minecraft:standing_banner"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBanner$BlockBannerStanding",
+      "source_sha256": "8deb31d5256b888f992f7a49de8a7f5ac366dacc2150813ecadde886bc90ac74"
+    },
+    {
+      "blocks": [
+        {
+          "id": 166,
+          "name": "minecraft:barrier"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockBarrier",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 70,
+          "name": "minecraft:stone_pressure_plate"
+        },
+        {
+          "id": 72,
+          "name": "minecraft:wooden_pressure_plate"
+        },
+        {
+          "id": 147,
+          "name": "minecraft:light_weighted_pressure_plate"
+        },
+        {
+          "id": 148,
+          "name": "minecraft:heavy_weighted_pressure_plate"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockBasePressurePlate",
+      "source_sha256": "e4ba55c01bc2844ca8eadf9c1f7f406fcb626d15f9b889ce274ad64b4cab760d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 70,
+          "name": "minecraft:stone_pressure_plate"
+        },
+        {
+          "id": 72,
+          "name": "minecraft:wooden_pressure_plate"
+        },
+        {
+          "id": 147,
+          "name": "minecraft:light_weighted_pressure_plate"
+        },
+        {
+          "id": 148,
+          "name": "minecraft:heavy_weighted_pressure_plate"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBasePressurePlate",
+      "source_sha256": "1ad45cf733fb52e0d29a080ddad6a877420b26caf0276d0f149839982b28f487"
+    },
+    {
+      "blocks": [
+        {
+          "id": 70,
+          "name": "minecraft:stone_pressure_plate"
+        },
+        {
+          "id": 72,
+          "name": "minecraft:wooden_pressure_plate"
+        },
+        {
+          "id": 147,
+          "name": "minecraft:light_weighted_pressure_plate"
+        },
+        {
+          "id": 148,
+          "name": "minecraft:heavy_weighted_pressure_plate"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBasePressurePlate",
+      "source_sha256": "04132e1ad673e56947b06570d3b67342f8dcd5de1ad8c5f250a552a38911688d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 70,
+          "name": "minecraft:stone_pressure_plate"
+        },
+        {
+          "id": 72,
+          "name": "minecraft:wooden_pressure_plate"
+        },
+        {
+          "id": 147,
+          "name": "minecraft:light_weighted_pressure_plate"
+        },
+        {
+          "id": 148,
+          "name": "minecraft:heavy_weighted_pressure_plate"
+        }
+      ],
+      "callback": "randomTick",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockBasePressurePlate",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 70,
+          "name": "minecraft:stone_pressure_plate"
+        },
+        {
+          "id": 72,
+          "name": "minecraft:wooden_pressure_plate"
+        },
+        {
+          "id": 147,
+          "name": "minecraft:light_weighted_pressure_plate"
+        },
+        {
+          "id": 148,
+          "name": "minecraft:heavy_weighted_pressure_plate"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBasePressurePlate",
+      "source_sha256": "e2fe6a696da84bd3e4be80e5c64519dca389c010fc571e9f185b3f302b3a57df"
+    },
+    {
+      "blocks": [
+        {
+          "id": 138,
+          "name": "minecraft:beacon"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBeacon",
+      "source_sha256": "24e09b526be232aec364ca0dbdfc39f12ed7ded3df8d983115c6854dd4cc7b00"
+    },
+    {
+      "blocks": [
+        {
+          "id": 138,
+          "name": "minecraft:beacon"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBeacon",
+      "source_sha256": "9e0c53b760560b396f8bb688a7327a16603e2a976ce23f47d4c99afe5e6cf57c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 138,
+          "name": "minecraft:beacon"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBeacon",
+      "source_sha256": "fd2a3e057bf07f28efc7d1446dd3f79b823b7224a087adda87c30cbfb561339d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 26,
+          "name": "minecraft:bed"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockBed",
+      "source_sha256": "58c20f51f304dc8cfca295570c727a353ba607bc9bbfbe4688c3be76ded93633"
+    },
+    {
+      "blocks": [
+        {
+          "id": 26,
+          "name": "minecraft:bed"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBed",
+      "source_sha256": "b0b1bdff603344a473970147c8e13b1ba273f6753d41e454fd1c945f6dd51ce8"
+    },
+    {
+      "blocks": [
+        {
+          "id": 26,
+          "name": "minecraft:bed"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBed",
+      "source_sha256": "ddf77a92de0ca2c5fa14fa04b5eca120e06fd45b85604a22453e04036803c0be"
+    },
+    {
+      "blocks": [
+        {
+          "id": 26,
+          "name": "minecraft:bed"
+        }
+      ],
+      "callback": "onBlockHarvested",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBed",
+      "source_sha256": "f35a8f27430298e061a673677ebd9e8a5b7c505b2849bc701440e251814fd52c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 207,
+          "name": "minecraft:beetroots"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBeetroot",
+      "source_sha256": "bc89f7244b607246b13ff67ae8dd9ab4e3c09ff05a1fb5f1d8ddd09000407637"
+    },
+    {
+      "blocks": [
+        {
+          "id": 117,
+          "name": "minecraft:brewing_stand"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBrewingStand",
+      "source_sha256": "87d88ebcefd008b90306ccdeab28eee15548862d3dbe66f330abc340ee2fc79a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 117,
+          "name": "minecraft:brewing_stand"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBrewingStand",
+      "source_sha256": "d651a85f5f9fa891dbfabe81a8894ff7de642765360cddfeb72c72f5fed50001"
+    },
+    {
+      "blocks": [
+        {
+          "id": 117,
+          "name": "minecraft:brewing_stand"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockBrewingStand",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 117,
+          "name": "minecraft:brewing_stand"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBrewingStand",
+      "source_sha256": "e9bdf331fbe650879370b7c69f5414e68738136513152b8ddfa38df253cf38bd"
+    },
+    {
+      "blocks": [
+        {
+          "id": 117,
+          "name": "minecraft:brewing_stand"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBrewingStand",
+      "source_sha256": "49c56e1a8ace11631e5811332230f6f786b675c13e351d4e7bf6f1a100fa7fd4"
+    },
+    {
+      "blocks": [
+        {
+          "id": 117,
+          "name": "minecraft:brewing_stand"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBrewingStand",
+      "source_sha256": "199a40e7667132daaf31c4c0a0c068db3484fe9fa164b97cc6030ecaf81d6899"
+    },
+    {
+      "blocks": [
+        {
+          "id": 6,
+          "name": "minecraft:sapling"
+        },
+        {
+          "id": 31,
+          "name": "minecraft:tallgrass"
+        },
+        {
+          "id": 32,
+          "name": "minecraft:deadbush"
+        },
+        {
+          "id": 37,
+          "name": "minecraft:yellow_flower"
+        },
+        {
+          "id": 38,
+          "name": "minecraft:red_flower"
+        },
+        {
+          "id": 39,
+          "name": "minecraft:brown_mushroom"
+        },
+        {
+          "id": 40,
+          "name": "minecraft:red_mushroom"
+        },
+        {
+          "id": 59,
+          "name": "minecraft:wheat"
+        },
+        {
+          "id": 104,
+          "name": "minecraft:pumpkin_stem"
+        },
+        {
+          "id": 105,
+          "name": "minecraft:melon_stem"
+        },
+        {
+          "id": 111,
+          "name": "minecraft:waterlily"
+        },
+        {
+          "id": 115,
+          "name": "minecraft:nether_wart"
+        },
+        {
+          "id": 141,
+          "name": "minecraft:carrots"
+        },
+        {
+          "id": 142,
+          "name": "minecraft:potatoes"
+        },
+        {
+          "id": 175,
+          "name": "minecraft:double_plant"
+        },
+        {
+          "id": 207,
+          "name": "minecraft:beetroots"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockBush",
+      "source_sha256": "8d3ba53d392d382491f6e6f133a427f39da475c3090569e74021faeacdccfc82"
+    },
+    {
+      "blocks": [
+        {
+          "id": 31,
+          "name": "minecraft:tallgrass"
+        },
+        {
+          "id": 32,
+          "name": "minecraft:deadbush"
+        },
+        {
+          "id": 37,
+          "name": "minecraft:yellow_flower"
+        },
+        {
+          "id": 38,
+          "name": "minecraft:red_flower"
+        },
+        {
+          "id": 111,
+          "name": "minecraft:waterlily"
+        },
+        {
+          "id": 175,
+          "name": "minecraft:double_plant"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockBush",
+      "source_sha256": "1ef4c7cc6ad1156c3354fa565bf3ac65b5584e32ffa0b85a6f83eae8c472b238"
+    },
+    {
+      "blocks": [
+        {
+          "id": 77,
+          "name": "minecraft:stone_button"
+        },
+        {
+          "id": 143,
+          "name": "minecraft:wooden_button"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockButton",
+      "source_sha256": "36f4d0610cd8f1c829c1a4fca3f5e2c7d8bc234cc42b340f9c372c97a365aa87"
+    },
+    {
+      "blocks": [
+        {
+          "id": 77,
+          "name": "minecraft:stone_button"
+        },
+        {
+          "id": 143,
+          "name": "minecraft:wooden_button"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockButton",
+      "source_sha256": "7212827f05088b469aaf0826569d6b9744f97b03259a9b186cc9a54bbcc72eb9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 77,
+          "name": "minecraft:stone_button"
+        },
+        {
+          "id": 143,
+          "name": "minecraft:wooden_button"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockButton",
+      "source_sha256": "c4c818f3aa9e4cf3c1426e32e02eec92f7358fc63e2fec9af54e78332c55838c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 77,
+          "name": "minecraft:stone_button"
+        },
+        {
+          "id": 143,
+          "name": "minecraft:wooden_button"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockButton",
+      "source_sha256": "05187bcf212fb20cd4b8502de5fb9424ce76a5c870633818ba7f20cee84e05d0"
+    },
+    {
+      "blocks": [
+        {
+          "id": 77,
+          "name": "minecraft:stone_button"
+        },
+        {
+          "id": 143,
+          "name": "minecraft:wooden_button"
+        }
+      ],
+      "callback": "randomTick",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockButton",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 77,
+          "name": "minecraft:stone_button"
+        },
+        {
+          "id": 143,
+          "name": "minecraft:wooden_button"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockButton",
+      "source_sha256": "e59585babb6d4d69a317b4b10014f6b875e902fa79d52554d50c727ab4f5eda8"
+    },
+    {
+      "blocks": [
+        {
+          "id": 81,
+          "name": "minecraft:cactus"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCactus",
+      "source_sha256": "004e12983c1fac5f7fdc404b99b146578ab55c08c0571cb4543c95910f496229"
+    },
+    {
+      "blocks": [
+        {
+          "id": 81,
+          "name": "minecraft:cactus"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCactus",
+      "source_sha256": "f9f0eb429f34736ad30dae2dd252cfb93bca1d81021b49be18bdafbd167be05b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 81,
+          "name": "minecraft:cactus"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCactus",
+      "source_sha256": "da10212dda84187016cdec97a3c35a4749ffc052c3d552929f99781beec55060"
+    },
+    {
+      "blocks": [
+        {
+          "id": 92,
+          "name": "minecraft:cake"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCake",
+      "source_sha256": "bf0288500ec8cc51128952972a14aa847db14ec453ff7eb333563ab74ff904ac"
+    },
+    {
+      "blocks": [
+        {
+          "id": 92,
+          "name": "minecraft:cake"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockCake",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 92,
+          "name": "minecraft:cake"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCake",
+      "source_sha256": "3de9f0973df5c87029475145bd0881c9570546740b46a2a26f5caceffbd4bec4"
+    },
+    {
+      "blocks": [
+        {
+          "id": 92,
+          "name": "minecraft:cake"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCake",
+      "source_sha256": "78822d3109b0db8654c30e729f2d2e7b102bc93b0ae1cc3b9b2d159d28b83c9d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 171,
+          "name": "minecraft:carpet"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCarpet",
+      "source_sha256": "8978b72bef5b196b3ebe256fbda3a4cd63456ad0b4699dad002f55663a01e6e2"
+    },
+    {
+      "blocks": [
+        {
+          "id": 118,
+          "name": "minecraft:cauldron"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCauldron",
+      "source_sha256": "87bff32511bb507fa471f0ea522dffe1c08e84052d5c816c5c7ae1b5e719386d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 118,
+          "name": "minecraft:cauldron"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockCauldron",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 118,
+          "name": "minecraft:cauldron"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCauldron",
+      "source_sha256": "7ae5dbfa75ffffd6e4ca1c28b1a1743e518f160dc8c85e79c5b36690bc9b5b65"
+    },
+    {
+      "blocks": [
+        {
+          "id": 118,
+          "name": "minecraft:cauldron"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCauldron",
+      "source_sha256": "a2022178a292ce6da4e3e91be7dce65fee4554da5536740a2b298feb181f3d32"
+    },
+    {
+      "blocks": [
+        {
+          "id": 54,
+          "name": "minecraft:chest"
+        },
+        {
+          "id": 146,
+          "name": "minecraft:trapped_chest"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChest",
+      "source_sha256": "bb77a7a5e96a972d7196a5e92b225fd152169bc5a1604feffb5b4548fcf7b001"
+    },
+    {
+      "blocks": [
+        {
+          "id": 54,
+          "name": "minecraft:chest"
+        },
+        {
+          "id": 146,
+          "name": "minecraft:trapped_chest"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChest",
+      "source_sha256": "6dd38123c5a54181f6a47e3b6a2f583cfac906d2eabdabcd0587e208bdc4c53d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 54,
+          "name": "minecraft:chest"
+        },
+        {
+          "id": 146,
+          "name": "minecraft:trapped_chest"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockChest",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 54,
+          "name": "minecraft:chest"
+        },
+        {
+          "id": 146,
+          "name": "minecraft:trapped_chest"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChest",
+      "source_sha256": "459203776760946c5e43958fa08f9759615ec09c9e1abb6422972b125462b363"
+    },
+    {
+      "blocks": [
+        {
+          "id": 54,
+          "name": "minecraft:chest"
+        },
+        {
+          "id": 146,
+          "name": "minecraft:trapped_chest"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChest",
+      "source_sha256": "3d05082cba11acf556af3d03a48b1c7c45ba148eea5b44bc60c3c362c126262f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 54,
+          "name": "minecraft:chest"
+        },
+        {
+          "id": 146,
+          "name": "minecraft:trapped_chest"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChest",
+      "source_sha256": "4384c4adbd9b6eab5d923d6f5706c94fdd76a342020abf3ed821b70dc5f9eb88"
+    },
+    {
+      "blocks": [
+        {
+          "id": 54,
+          "name": "minecraft:chest"
+        },
+        {
+          "id": 146,
+          "name": "minecraft:trapped_chest"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChest",
+      "source_sha256": "0cfcd6f247ccb70d976ea052194dd9a893e20e2929e4b764837e682a23d31f8e"
+    },
+    {
+      "blocks": [
+        {
+          "id": 200,
+          "name": "minecraft:chorus_flower"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChorusFlower",
+      "source_sha256": "eab74e921df43b60fcd453b39e5ff89438648cc6e3978d1f3b089ccd5be6541f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 200,
+          "name": "minecraft:chorus_flower"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChorusFlower",
+      "source_sha256": "1dc550d596bc43fea292f54c0e95349c5d78773e3d627070b054cdaf5f31f6a8"
+    },
+    {
+      "blocks": [
+        {
+          "id": 199,
+          "name": "minecraft:chorus_plant"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChorusPlant",
+      "source_sha256": "1250195182395959b6c860e10e0c06419727333f687ed3e8b0f272d69d182697"
+    },
+    {
+      "blocks": [
+        {
+          "id": 199,
+          "name": "minecraft:chorus_plant"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockChorusPlant",
+      "source_sha256": "cd34b631c2203244eacad10a4b434cce42c12a10dc03c79be2668ba0d8d1d809"
+    },
+    {
+      "blocks": [
+        {
+          "id": 127,
+          "name": "minecraft:cocoa"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockCocoa",
+      "source_sha256": "f61764eae0369c2c9bec3ab07dd7f8a47d87650e2d92661f1ae04dd524324bd6"
+    },
+    {
+      "blocks": [
+        {
+          "id": 127,
+          "name": "minecraft:cocoa"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCocoa",
+      "source_sha256": "49526e95f4988a71e36f74e320c00ff7741ba2520455dd5cc4cede89d3b87568"
+    },
+    {
+      "blocks": [
+        {
+          "id": 127,
+          "name": "minecraft:cocoa"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCocoa",
+      "source_sha256": "39103d8735191d0267d822c702c6d88127412134401c4f2439b057b51ec654b1"
+    },
+    {
+      "blocks": [
+        {
+          "id": 127,
+          "name": "minecraft:cocoa"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCocoa",
+      "source_sha256": "c6b7cd868308ec1ac33b05d03697342be5d9eab6247b130361ba097a4f888a92"
+    },
+    {
+      "blocks": [
+        {
+          "id": 137,
+          "name": "minecraft:command_block"
+        },
+        {
+          "id": 210,
+          "name": "minecraft:repeating_command_block"
+        },
+        {
+          "id": 211,
+          "name": "minecraft:chain_command_block"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCommandBlock",
+      "source_sha256": "328df823cdc8eb1f7e05d759e5c16753182bb51cbf2e44885f4a1ba88841b9b3"
+    },
+    {
+      "blocks": [
+        {
+          "id": 137,
+          "name": "minecraft:command_block"
+        },
+        {
+          "id": 210,
+          "name": "minecraft:repeating_command_block"
+        },
+        {
+          "id": 211,
+          "name": "minecraft:chain_command_block"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockCommandBlock",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 137,
+          "name": "minecraft:command_block"
+        },
+        {
+          "id": 210,
+          "name": "minecraft:repeating_command_block"
+        },
+        {
+          "id": 211,
+          "name": "minecraft:chain_command_block"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCommandBlock",
+      "source_sha256": "f6c90edb6da4edde2eefee10e93646ffe7c3d96b538d01d47056e0f45ad3eac1"
+    },
+    {
+      "blocks": [
+        {
+          "id": 137,
+          "name": "minecraft:command_block"
+        },
+        {
+          "id": 210,
+          "name": "minecraft:repeating_command_block"
+        },
+        {
+          "id": 211,
+          "name": "minecraft:chain_command_block"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCommandBlock",
+      "source_sha256": "d06e273f79cb940a7b7793fdb98c39a4df650b8db705eb84a0543c521160f6a0"
+    },
+    {
+      "blocks": [
+        {
+          "id": 137,
+          "name": "minecraft:command_block"
+        },
+        {
+          "id": 210,
+          "name": "minecraft:repeating_command_block"
+        },
+        {
+          "id": 211,
+          "name": "minecraft:chain_command_block"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCommandBlock",
+      "source_sha256": "3f903b1862af395fc1e91bb57ace8687e77205a0ab1fb1c6bd0162edb8e9bdf7"
+    },
+    {
+      "blocks": [
+        {
+          "id": 137,
+          "name": "minecraft:command_block"
+        },
+        {
+          "id": 210,
+          "name": "minecraft:repeating_command_block"
+        },
+        {
+          "id": 211,
+          "name": "minecraft:chain_command_block"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCommandBlock",
+      "source_sha256": "2daaafbd0d487d74f7b03925ccdceba59c560d5275295ac3e4abc42eaf6ccd0d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 25,
+          "name": "minecraft:noteblock"
+        },
+        {
+          "id": 52,
+          "name": "minecraft:mob_spawner"
+        },
+        {
+          "id": 63,
+          "name": "minecraft:standing_sign"
+        },
+        {
+          "id": 68,
+          "name": "minecraft:wall_sign"
+        },
+        {
+          "id": 116,
+          "name": "minecraft:enchanting_table"
+        },
+        {
+          "id": 119,
+          "name": "minecraft:end_portal"
+        },
+        {
+          "id": 130,
+          "name": "minecraft:ender_chest"
+        },
+        {
+          "id": 137,
+          "name": "minecraft:command_block"
+        },
+        {
+          "id": 138,
+          "name": "minecraft:beacon"
+        },
+        {
+          "id": 151,
+          "name": "minecraft:daylight_detector"
+        },
+        {
+          "id": 176,
+          "name": "minecraft:standing_banner"
+        },
+        {
+          "id": 177,
+          "name": "minecraft:wall_banner"
+        },
+        {
+          "id": 178,
+          "name": "minecraft:daylight_detector_inverted"
+        },
+        {
+          "id": 209,
+          "name": "minecraft:end_gateway"
+        },
+        {
+          "id": 210,
+          "name": "minecraft:repeating_command_block"
+        },
+        {
+          "id": 211,
+          "name": "minecraft:chain_command_block"
+        },
+        {
+          "id": 255,
+          "name": "minecraft:structure_block"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockContainer",
+      "source_sha256": "ee076e3e34c0ccb7e96a6d792818c07c1e17e411d1c0d4001d3edbe8121b09bc"
+    },
+    {
+      "blocks": [
+        {
+          "id": 23,
+          "name": "minecraft:dispenser"
+        },
+        {
+          "id": 36,
+          "name": "minecraft:piston_extension"
+        },
+        {
+          "id": 52,
+          "name": "minecraft:mob_spawner"
+        },
+        {
+          "id": 54,
+          "name": "minecraft:chest"
+        },
+        {
+          "id": 61,
+          "name": "minecraft:furnace"
+        },
+        {
+          "id": 62,
+          "name": "minecraft:lit_furnace"
+        },
+        {
+          "id": 63,
+          "name": "minecraft:standing_sign"
+        },
+        {
+          "id": 68,
+          "name": "minecraft:wall_sign"
+        },
+        {
+          "id": 84,
+          "name": "minecraft:jukebox"
+        },
+        {
+          "id": 116,
+          "name": "minecraft:enchanting_table"
+        },
+        {
+          "id": 117,
+          "name": "minecraft:brewing_stand"
+        },
+        {
+          "id": 119,
+          "name": "minecraft:end_portal"
+        },
+        {
+          "id": 130,
+          "name": "minecraft:ender_chest"
+        },
+        {
+          "id": 137,
+          "name": "minecraft:command_block"
+        },
+        {
+          "id": 138,
+          "name": "minecraft:beacon"
+        },
+        {
+          "id": 140,
+          "name": "minecraft:flower_pot"
+        },
+        {
+          "id": 144,
+          "name": "minecraft:skull"
+        },
+        {
+          "id": 146,
+          "name": "minecraft:trapped_chest"
+        },
+        {
+          "id": 151,
+          "name": "minecraft:daylight_detector"
+        },
+        {
+          "id": 154,
+          "name": "minecraft:hopper"
+        },
+        {
+          "id": 158,
+          "name": "minecraft:dropper"
+        },
+        {
+          "id": 176,
+          "name": "minecraft:standing_banner"
+        },
+        {
+          "id": 177,
+          "name": "minecraft:wall_banner"
+        },
+        {
+          "id": 178,
+          "name": "minecraft:daylight_detector_inverted"
+        },
+        {
+          "id": 209,
+          "name": "minecraft:end_gateway"
+        },
+        {
+          "id": 210,
+          "name": "minecraft:repeating_command_block"
+        },
+        {
+          "id": 211,
+          "name": "minecraft:chain_command_block"
+        },
+        {
+          "id": 219,
+          "name": "minecraft:white_shulker_box"
+        },
+        {
+          "id": 220,
+          "name": "minecraft:orange_shulker_box"
+        },
+        {
+          "id": 221,
+          "name": "minecraft:magenta_shulker_box"
+        },
+        {
+          "id": 222,
+          "name": "minecraft:light_blue_shulker_box"
+        },
+        {
+          "id": 223,
+          "name": "minecraft:yellow_shulker_box"
+        },
+        {
+          "id": 224,
+          "name": "minecraft:lime_shulker_box"
+        },
+        {
+          "id": 225,
+          "name": "minecraft:pink_shulker_box"
+        },
+        {
+          "id": 226,
+          "name": "minecraft:gray_shulker_box"
+        },
+        {
+          "id": 227,
+          "name": "minecraft:silver_shulker_box"
+        },
+        {
+          "id": 228,
+          "name": "minecraft:cyan_shulker_box"
+        },
+        {
+          "id": 229,
+          "name": "minecraft:purple_shulker_box"
+        },
+        {
+          "id": 230,
+          "name": "minecraft:blue_shulker_box"
+        },
+        {
+          "id": 231,
+          "name": "minecraft:brown_shulker_box"
+        },
+        {
+          "id": 232,
+          "name": "minecraft:green_shulker_box"
+        },
+        {
+          "id": 233,
+          "name": "minecraft:red_shulker_box"
+        },
+        {
+          "id": 234,
+          "name": "minecraft:black_shulker_box"
+        },
+        {
+          "id": 255,
+          "name": "minecraft:structure_block"
+        }
+      ],
+      "callback": "eventReceived",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockContainer",
+      "source_sha256": "7ccc5e21d358897358eb766bae802e3c31d07c509c741097131e985ee810f127"
+    },
+    {
+      "blocks": [
+        {
+          "id": 59,
+          "name": "minecraft:wheat"
+        },
+        {
+          "id": 141,
+          "name": "minecraft:carrots"
+        },
+        {
+          "id": 207,
+          "name": "minecraft:beetroots"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCrops",
+      "source_sha256": "5dd29987423650a205ceca412656c6e74cc637ba0524bef938dda01f8018cb1d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 59,
+          "name": "minecraft:wheat"
+        },
+        {
+          "id": 141,
+          "name": "minecraft:carrots"
+        },
+        {
+          "id": 142,
+          "name": "minecraft:potatoes"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockCrops",
+      "source_sha256": "99e758bf70849a00ad9b3f2a2cd70b356032342560bb3364c7a68633e3f7a331"
+    },
+    {
+      "blocks": [
+        {
+          "id": 151,
+          "name": "minecraft:daylight_detector"
+        },
+        {
+          "id": 178,
+          "name": "minecraft:daylight_detector_inverted"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDaylightDetector",
+      "source_sha256": "0530b4edb709e2d43b970095d8bb7bcf9467185c132e10f600064c01fbcc4471"
+    },
+    {
+      "blocks": [
+        {
+          "id": 23,
+          "name": "minecraft:dispenser"
+        },
+        {
+          "id": 158,
+          "name": "minecraft:dropper"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDispenser",
+      "source_sha256": "1ac9fd5e0f92537c321f622a12d0c143c21e54479c62dfbfc94abf5d17b6403b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 23,
+          "name": "minecraft:dispenser"
+        },
+        {
+          "id": 158,
+          "name": "minecraft:dropper"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDispenser",
+      "source_sha256": "d651a85f5f9fa891dbfabe81a8894ff7de642765360cddfeb72c72f5fed50001"
+    },
+    {
+      "blocks": [
+        {
+          "id": 23,
+          "name": "minecraft:dispenser"
+        },
+        {
+          "id": 158,
+          "name": "minecraft:dropper"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockDispenser",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 23,
+          "name": "minecraft:dispenser"
+        },
+        {
+          "id": 158,
+          "name": "minecraft:dropper"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDispenser",
+      "source_sha256": "bf7f6369b2bb7f07ce5faec8805799d64b120910c20c2c85d6c1c08081000e64"
+    },
+    {
+      "blocks": [
+        {
+          "id": 23,
+          "name": "minecraft:dispenser"
+        },
+        {
+          "id": 158,
+          "name": "minecraft:dropper"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDispenser",
+      "source_sha256": "63235696e18a6a3ef400785c673d6f76458a8ee3bda6be5bada9d7b7ec471a6a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 23,
+          "name": "minecraft:dispenser"
+        },
+        {
+          "id": 158,
+          "name": "minecraft:dropper"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockDispenser",
+      "source_sha256": "4e91cf072d012d23131be074aedc5fb9d0d80cc1a36afabd4b24117a710244e4"
+    },
+    {
+      "blocks": [
+        {
+          "id": 23,
+          "name": "minecraft:dispenser"
+        },
+        {
+          "id": 158,
+          "name": "minecraft:dropper"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDispenser",
+      "source_sha256": "d43a7e64da2f92b145d325f34149d7ebadea20d59ba132ee477a38000a5512ec"
+    },
+    {
+      "blocks": [
+        {
+          "id": 23,
+          "name": "minecraft:dispenser"
+        },
+        {
+          "id": 158,
+          "name": "minecraft:dropper"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDispenser",
+      "source_sha256": "022bed271a0bb1adb48449b5041fd740db7da61fb6f6fd7f0cff21a426aeadc2"
+    },
+    {
+      "blocks": [
+        {
+          "id": 64,
+          "name": "minecraft:wooden_door"
+        },
+        {
+          "id": 71,
+          "name": "minecraft:iron_door"
+        },
+        {
+          "id": 193,
+          "name": "minecraft:spruce_door"
+        },
+        {
+          "id": 194,
+          "name": "minecraft:birch_door"
+        },
+        {
+          "id": 195,
+          "name": "minecraft:jungle_door"
+        },
+        {
+          "id": 196,
+          "name": "minecraft:acacia_door"
+        },
+        {
+          "id": 197,
+          "name": "minecraft:dark_oak_door"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDoor",
+      "source_sha256": "8d485c5a6b0cb08b44bcdc3a95f8bda0661ccf6e9821f90957645a90e453d416"
+    },
+    {
+      "blocks": [
+        {
+          "id": 64,
+          "name": "minecraft:wooden_door"
+        },
+        {
+          "id": 71,
+          "name": "minecraft:iron_door"
+        },
+        {
+          "id": 193,
+          "name": "minecraft:spruce_door"
+        },
+        {
+          "id": 194,
+          "name": "minecraft:birch_door"
+        },
+        {
+          "id": 195,
+          "name": "minecraft:jungle_door"
+        },
+        {
+          "id": 196,
+          "name": "minecraft:acacia_door"
+        },
+        {
+          "id": 197,
+          "name": "minecraft:dark_oak_door"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDoor",
+      "source_sha256": "3fd3f758449921772d6dbdf78b4a464ef30f8128333184b9265943da7692d0a2"
+    },
+    {
+      "blocks": [
+        {
+          "id": 64,
+          "name": "minecraft:wooden_door"
+        },
+        {
+          "id": 71,
+          "name": "minecraft:iron_door"
+        },
+        {
+          "id": 193,
+          "name": "minecraft:spruce_door"
+        },
+        {
+          "id": 194,
+          "name": "minecraft:birch_door"
+        },
+        {
+          "id": 195,
+          "name": "minecraft:jungle_door"
+        },
+        {
+          "id": 196,
+          "name": "minecraft:acacia_door"
+        },
+        {
+          "id": 197,
+          "name": "minecraft:dark_oak_door"
+        }
+      ],
+      "callback": "onBlockHarvested",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDoor",
+      "source_sha256": "58a6623c516a032e1bdff60448b8e9e69125f552e0ee3d072edd55fe74e6efe5"
+    },
+    {
+      "blocks": [
+        {
+          "id": 175,
+          "name": "minecraft:double_plant"
+        }
+      ],
+      "callback": "onBlockHarvested",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDoublePlant",
+      "source_sha256": "badc81989f0945bffb50865f80b864c46f5f44d32fe30151f9810d827ef83523"
+    },
+    {
+      "blocks": [
+        {
+          "id": 175,
+          "name": "minecraft:double_plant"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDoublePlant",
+      "source_sha256": "83480d266f7f67fe0cc6fd17aedd2adb84f8057d6c0ea74db82b01100b72a485"
+    },
+    {
+      "blocks": [
+        {
+          "id": 122,
+          "name": "minecraft:dragon_egg"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDragonEgg",
+      "source_sha256": "28a06b0467c5a499d40b21d71d69ed1f830ccdcb5b3ae5b24e0ce335972329d9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 122,
+          "name": "minecraft:dragon_egg"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDragonEgg",
+      "source_sha256": "45de94b456ab06d8533834f7f8595c92f65577ab2129723118b784cdf618e163"
+    },
+    {
+      "blocks": [
+        {
+          "id": 122,
+          "name": "minecraft:dragon_egg"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDragonEgg",
+      "source_sha256": "28a06b0467c5a499d40b21d71d69ed1f830ccdcb5b3ae5b24e0ce335972329d9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 122,
+          "name": "minecraft:dragon_egg"
+        }
+      ],
+      "callback": "onBlockClicked",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDragonEgg",
+      "source_sha256": "02871f79c70019f62a0aea8d77add5fe533a7ad25c7fbc660c328e501c37183f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 122,
+          "name": "minecraft:dragon_egg"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDragonEgg",
+      "source_sha256": "8f1f731384297dedc32f70c522add63f6d7fe36b95e4d95f24a2d29122b6cc0f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 8,
+          "name": "minecraft:flowing_water"
+        },
+        {
+          "id": 10,
+          "name": "minecraft:flowing_lava"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDynamicLiquid",
+      "source_sha256": "f9177251c25ff85e4542be74c148bc9bab53eb44c20ab4a28d67d5283de94836"
+    },
+    {
+      "blocks": [
+        {
+          "id": 8,
+          "name": "minecraft:flowing_water"
+        },
+        {
+          "id": 10,
+          "name": "minecraft:flowing_lava"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockDynamicLiquid",
+      "source_sha256": "9880ff2a0c68b6a146776b0f4fb95fb3d81b2630f180430d409d375f4c657096"
+    },
+    {
+      "blocks": [
+        {
+          "id": 116,
+          "name": "minecraft:enchanting_table"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEnchantmentTable",
+      "source_sha256": "8592d534cddcb603a4c03756d79c1edb7c7f054dba241aa2b93f3b1db1acad7d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 116,
+          "name": "minecraft:enchanting_table"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEnchantmentTable",
+      "source_sha256": "3fe099df8637540bc2456aac71c334cb3a2b743e177400aaf3e660699845589b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 116,
+          "name": "minecraft:enchanting_table"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEnchantmentTable",
+      "source_sha256": "b501f199fde4d123499f0c9afbc78c76f2b10c8091e0a3b90fbae9c5e285dae8"
+    },
+    {
+      "blocks": [
+        {
+          "id": 209,
+          "name": "minecraft:end_gateway"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEndGateway",
+      "source_sha256": "efab4c9757d3beba57c9b4bd46383e5f4a7da5580db2b1f57171ce549988af41"
+    },
+    {
+      "blocks": [
+        {
+          "id": 119,
+          "name": "minecraft:end_portal"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEndPortal",
+      "source_sha256": "18bd79f06fac443428e854f82fc3733e504b7ad9ebaf7613968035abccf83448"
+    },
+    {
+      "blocks": [
+        {
+          "id": 119,
+          "name": "minecraft:end_portal"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEndPortal",
+      "source_sha256": "28231e59cb147c480101eb9027d7ca9ed68f517343d19bdf2de33cfd5a7d385e"
+    },
+    {
+      "blocks": [
+        {
+          "id": 120,
+          "name": "minecraft:end_portal_frame"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEndPortalFrame",
+      "source_sha256": "19e6bb223fb7cdeae93df073e612c29581751092dd44a4245e0ad13bc3c78ef4"
+    },
+    {
+      "blocks": [
+        {
+          "id": 120,
+          "name": "minecraft:end_portal_frame"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockEndPortalFrame",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 198,
+          "name": "minecraft:end_rod"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEndRod",
+      "source_sha256": "29b0efbf6524be2868d0f44b1e790d72b6eeb2abab5ef2c71b44f5f31f438699"
+    },
+    {
+      "blocks": [
+        {
+          "id": 130,
+          "name": "minecraft:ender_chest"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEnderChest",
+      "source_sha256": "42c546ded9a6c9b7432c27e2b0751efccefad651bc210220fa88fc634b40bb33"
+    },
+    {
+      "blocks": [
+        {
+          "id": 130,
+          "name": "minecraft:ender_chest"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEnderChest",
+      "source_sha256": "a4a09d5b975b5330e2e15a5263d9fe6979292de6dab4a263651f122e1c68c59d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 130,
+          "name": "minecraft:ender_chest"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockEnderChest",
+      "source_sha256": "37d694fe44ca065b61b82035add5c098594ab3fe2608f4972d7e397ccb31643c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 12,
+          "name": "minecraft:sand"
+        },
+        {
+          "id": 13,
+          "name": "minecraft:gravel"
+        },
+        {
+          "id": 145,
+          "name": "minecraft:anvil"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFalling",
+      "source_sha256": "28a06b0467c5a499d40b21d71d69ed1f830ccdcb5b3ae5b24e0ce335972329d9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 12,
+          "name": "minecraft:sand"
+        },
+        {
+          "id": 13,
+          "name": "minecraft:gravel"
+        },
+        {
+          "id": 145,
+          "name": "minecraft:anvil"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFalling",
+      "source_sha256": "28a06b0467c5a499d40b21d71d69ed1f830ccdcb5b3ae5b24e0ce335972329d9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 12,
+          "name": "minecraft:sand"
+        },
+        {
+          "id": 13,
+          "name": "minecraft:gravel"
+        },
+        {
+          "id": 145,
+          "name": "minecraft:anvil"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFalling",
+      "source_sha256": "8d1b7de4af0b5a1b1c19e54f17254ded4e0eecc9f0c665a0d4bb01d73bfabc8b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 12,
+          "name": "minecraft:sand"
+        },
+        {
+          "id": 13,
+          "name": "minecraft:gravel"
+        },
+        {
+          "id": 145,
+          "name": "minecraft:anvil"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFalling",
+      "source_sha256": "380112827063f2cbb0c17a35292d8f832fb63aa233120468e398971d0ddc32f2"
+    },
+    {
+      "blocks": [
+        {
+          "id": 60,
+          "name": "minecraft:farmland"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFarmland",
+      "source_sha256": "f72551246448b07e02d574988bb9bf6627658feab8f5d8222bb8b0333eac8dfc"
+    },
+    {
+      "blocks": [
+        {
+          "id": 60,
+          "name": "minecraft:farmland"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFarmland",
+      "source_sha256": "420e7a3748ef4a4a1e886f7be317f86752ae3cc460ffc8e2483903a6408d9ce3"
+    },
+    {
+      "blocks": [
+        {
+          "id": 60,
+          "name": "minecraft:farmland"
+        }
+      ],
+      "callback": "onFallenUpon",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockFarmland",
+      "source_sha256": "89cc78001bf3907ccd2f226209701e59a325c7f9069461b8833cd678439f1fd8"
+    },
+    {
+      "blocks": [
+        {
+          "id": 60,
+          "name": "minecraft:farmland"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFarmland",
+      "source_sha256": "93aeac79520536827421bb309cfbf1c10ba83f48ff4b6c6b128c4f64862c8b20"
+    },
+    {
+      "blocks": [
+        {
+          "id": 85,
+          "name": "minecraft:fence"
+        },
+        {
+          "id": 113,
+          "name": "minecraft:nether_brick_fence"
+        },
+        {
+          "id": 188,
+          "name": "minecraft:spruce_fence"
+        },
+        {
+          "id": 189,
+          "name": "minecraft:birch_fence"
+        },
+        {
+          "id": 190,
+          "name": "minecraft:jungle_fence"
+        },
+        {
+          "id": 191,
+          "name": "minecraft:dark_oak_fence"
+        },
+        {
+          "id": 192,
+          "name": "minecraft:acacia_fence"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFence",
+      "source_sha256": "f8d25267f0b17b54692dc7db26637344ba57b29086e96055b7cd78ff7aa6f342"
+    },
+    {
+      "blocks": [
+        {
+          "id": 107,
+          "name": "minecraft:fence_gate"
+        },
+        {
+          "id": 183,
+          "name": "minecraft:spruce_fence_gate"
+        },
+        {
+          "id": 184,
+          "name": "minecraft:birch_fence_gate"
+        },
+        {
+          "id": 185,
+          "name": "minecraft:jungle_fence_gate"
+        },
+        {
+          "id": 186,
+          "name": "minecraft:dark_oak_fence_gate"
+        },
+        {
+          "id": 187,
+          "name": "minecraft:acacia_fence_gate"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFenceGate",
+      "source_sha256": "c944a225f48bf01e4c812ad99bd18fbb6265411bdab0ee2f202f5de289334e9c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 107,
+          "name": "minecraft:fence_gate"
+        },
+        {
+          "id": 183,
+          "name": "minecraft:spruce_fence_gate"
+        },
+        {
+          "id": 184,
+          "name": "minecraft:birch_fence_gate"
+        },
+        {
+          "id": 185,
+          "name": "minecraft:jungle_fence_gate"
+        },
+        {
+          "id": 186,
+          "name": "minecraft:dark_oak_fence_gate"
+        },
+        {
+          "id": 187,
+          "name": "minecraft:acacia_fence_gate"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFenceGate",
+      "source_sha256": "aba6a521a90e9d7311de4b92bd3b1484b5e26da93b5385fb99c5df1eaf400976"
+    },
+    {
+      "blocks": [
+        {
+          "id": 51,
+          "name": "minecraft:fire"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFire",
+      "source_sha256": "b60d2e579ed1fa55f6afa17ff3e6e35620763d6ad63d92b431822d9dfdd2c0ef"
+    },
+    {
+      "blocks": [
+        {
+          "id": 51,
+          "name": "minecraft:fire"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFire",
+      "source_sha256": "d30cd290f7755f5ed194baca888177479b55eab1e54b8f2271499c603bc9b59b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 51,
+          "name": "minecraft:fire"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFire",
+      "source_sha256": "e7ec226ae780dd9241ffe642f05b1b8016319487f203fbdadf1c543cc5edaf33"
+    },
+    {
+      "blocks": [
+        {
+          "id": 51,
+          "name": "minecraft:fire"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFire",
+      "source_sha256": "2c92c440455a0d7cdcdf5cd5591edd1f1cfbb74842bdf8ef6e132e6d1ea538f5"
+    },
+    {
+      "blocks": [
+        {
+          "id": 140,
+          "name": "minecraft:flower_pot"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockFlowerPot",
+      "source_sha256": "24ef0f19ffa6b0994961babe3e9643767fdec4037106372ad9b94a3f2072ac76"
+    },
+    {
+      "blocks": [
+        {
+          "id": 140,
+          "name": "minecraft:flower_pot"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFlowerPot",
+      "source_sha256": "35ffdd7e8574c76fb6464a6c298f0811a395c7e46d11e533c88e91dbe6c61919"
+    },
+    {
+      "blocks": [
+        {
+          "id": 140,
+          "name": "minecraft:flower_pot"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFlowerPot",
+      "source_sha256": "7b00724d5a69c1538fd3db3b7a17aaf6c48f08d0198480068befeda52a55c57c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 140,
+          "name": "minecraft:flower_pot"
+        }
+      ],
+      "callback": "onBlockHarvested",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFlowerPot",
+      "source_sha256": "e7b5c483b1a5564662251d18f3d56a99ffe6adc584d361fe751326613bf490b4"
+    },
+    {
+      "blocks": [
+        {
+          "id": 212,
+          "name": "minecraft:frosted_ice"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFrostedIce",
+      "source_sha256": "f3cfaea3defa651f9965fb62770d777baa22db253b7077cb7ccc7723990d8c9d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 212,
+          "name": "minecraft:frosted_ice"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFrostedIce",
+      "source_sha256": "a7285cc6617af30e7207871d12df8ec66c18fbfc3085b2ec16fed92fdec6e7cd"
+    },
+    {
+      "blocks": [
+        {
+          "id": 61,
+          "name": "minecraft:furnace"
+        },
+        {
+          "id": 62,
+          "name": "minecraft:lit_furnace"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFurnace",
+      "source_sha256": "ba8585baf66106628b5e50dabb37ef19fd4be3e38a38d2ae7c9ed784a0e9800b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 61,
+          "name": "minecraft:furnace"
+        },
+        {
+          "id": 62,
+          "name": "minecraft:lit_furnace"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFurnace",
+      "source_sha256": "d651a85f5f9fa891dbfabe81a8894ff7de642765360cddfeb72c72f5fed50001"
+    },
+    {
+      "blocks": [
+        {
+          "id": 61,
+          "name": "minecraft:furnace"
+        },
+        {
+          "id": 62,
+          "name": "minecraft:lit_furnace"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockFurnace",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 61,
+          "name": "minecraft:furnace"
+        },
+        {
+          "id": 62,
+          "name": "minecraft:lit_furnace"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFurnace",
+      "source_sha256": "122ba98d2296f02bb1e177f8c5fe2b57a538e8ac2dcb75639a6b227bca529173"
+    },
+    {
+      "blocks": [
+        {
+          "id": 61,
+          "name": "minecraft:furnace"
+        },
+        {
+          "id": 62,
+          "name": "minecraft:lit_furnace"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFurnace",
+      "source_sha256": "c3ce113a3f7047686121473ac45acdbc8706ad1d1ffbbb40be1a51dbb68b2a80"
+    },
+    {
+      "blocks": [
+        {
+          "id": 61,
+          "name": "minecraft:furnace"
+        },
+        {
+          "id": 62,
+          "name": "minecraft:lit_furnace"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFurnace",
+      "source_sha256": "69a002c5de761b2d54fa624800d6846fc8a8cc7c0f285b19e7c9d397eece4ff0"
+    },
+    {
+      "blocks": [
+        {
+          "id": 61,
+          "name": "minecraft:furnace"
+        },
+        {
+          "id": 62,
+          "name": "minecraft:lit_furnace"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockFurnace",
+      "source_sha256": "05a08f690aab98388087684cb78434f221eec8e9e9b3818f7d5bab31858495fd"
+    },
+    {
+      "blocks": [
+        {
+          "id": 2,
+          "name": "minecraft:grass"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockGrass",
+      "source_sha256": "576c1c3d58dc2be05234975b21764a6ecd8d01fa01696211ac4162de23ee92a5"
+    },
+    {
+      "blocks": [
+        {
+          "id": 208,
+          "name": "minecraft:grass_path"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockGrassPath",
+      "source_sha256": "e56652a797895b50ab0f7c755556d70fc8d6ba30caacc0fd9386d22a3b6ce790"
+    },
+    {
+      "blocks": [
+        {
+          "id": 208,
+          "name": "minecraft:grass_path"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockGrassPath",
+      "source_sha256": "f4a648bcb606ffdf376f60afe80fcfb8e13e8070ac1b2d11482ff8ae62c7c9ee"
+    },
+    {
+      "blocks": [
+        {
+          "id": 170,
+          "name": "minecraft:hay_block"
+        }
+      ],
+      "callback": "onFallenUpon",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockHay",
+      "source_sha256": "e3a09f0eb07105b2f00b8c5b4e51f8cd6f8e251cc1beae011584dc47bc90555a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 154,
+          "name": "minecraft:hopper"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockHopper",
+      "source_sha256": "a2d11fb7b4ca05ea60bacdef2435794dc7b9f14aaba9400909744f88c5b1d673"
+    },
+    {
+      "blocks": [
+        {
+          "id": 154,
+          "name": "minecraft:hopper"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockHopper",
+      "source_sha256": "d651a85f5f9fa891dbfabe81a8894ff7de642765360cddfeb72c72f5fed50001"
+    },
+    {
+      "blocks": [
+        {
+          "id": 154,
+          "name": "minecraft:hopper"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockHopper",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 154,
+          "name": "minecraft:hopper"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockHopper",
+      "source_sha256": "bde7896ab5302cc0c65f9ed53d9c621e65118f453256045cbbfec05c2fc2a96b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 154,
+          "name": "minecraft:hopper"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockHopper",
+      "source_sha256": "0a56dfbf266820121b8723c6a851640b8c3e9d51e7b99494e152f7f6f12c6a86"
+    },
+    {
+      "blocks": [
+        {
+          "id": 154,
+          "name": "minecraft:hopper"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockHopper",
+      "source_sha256": "bde7896ab5302cc0c65f9ed53d9c621e65118f453256045cbbfec05c2fc2a96b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 154,
+          "name": "minecraft:hopper"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockHopper",
+      "source_sha256": "56b3e76c4a4a173a37bbed4ad253fba85ea397cdc344ef92aa27bf09861d1276"
+    },
+    {
+      "blocks": [
+        {
+          "id": 79,
+          "name": "minecraft:ice"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockIce",
+      "source_sha256": "3e7a47039f7d726239cf0513c2a69eff17e259c34c395196df82ac6ac1700417"
+    },
+    {
+      "blocks": [
+        {
+          "id": 84,
+          "name": "minecraft:jukebox"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockJukebox",
+      "source_sha256": "d1206ff9c66c97b1c77fe1763febd6bff201db7dc0ec3d04af5a02a6953ca46d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 84,
+          "name": "minecraft:jukebox"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockJukebox",
+      "source_sha256": "4f1a2224d683a2c14315da809ba4acdc35cdb37453a5ce720cf587c9c6545cf9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 84,
+          "name": "minecraft:jukebox"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockJukebox",
+      "source_sha256": "c58637ff2178976c632a9c7e1fcc111b6ec6fca073a7b26dd942f5d4dd6b75b5"
+    },
+    {
+      "blocks": [
+        {
+          "id": 84,
+          "name": "minecraft:jukebox"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockJukebox",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 84,
+          "name": "minecraft:jukebox"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockJukebox",
+      "source_sha256": "bc785c3d1b422de91c440c090061db4230c41b62aa473c9fc2aec7c99c4c10b4"
+    },
+    {
+      "blocks": [
+        {
+          "id": 65,
+          "name": "minecraft:ladder"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLadder",
+      "source_sha256": "0ebbec8cb0a44dc2efce72488cda9c457472404b689bc712d4d278b1e350d9ec"
+    },
+    {
+      "blocks": [
+        {
+          "id": 18,
+          "name": "minecraft:leaves"
+        },
+        {
+          "id": 161,
+          "name": "minecraft:leaves2"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLeaves",
+      "source_sha256": "888c01725841d2f3bd6f528f7bcbef28f0f84bc7b9ff257250ff8196fe3c2f30"
+    },
+    {
+      "blocks": [
+        {
+          "id": 18,
+          "name": "minecraft:leaves"
+        },
+        {
+          "id": 161,
+          "name": "minecraft:leaves2"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockLeaves",
+      "source_sha256": "f61764eae0369c2c9bec3ab07dd7f8a47d87650e2d92661f1ae04dd524324bd6"
+    },
+    {
+      "blocks": [
+        {
+          "id": 18,
+          "name": "minecraft:leaves"
+        },
+        {
+          "id": 161,
+          "name": "minecraft:leaves2"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLeaves",
+      "source_sha256": "145958d20f982328d1bdba0f130d718a7ec3d5b86e5e65a5bebe41e6c79b84be"
+    },
+    {
+      "blocks": [
+        {
+          "id": 18,
+          "name": "minecraft:leaves"
+        },
+        {
+          "id": 161,
+          "name": "minecraft:leaves2"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLeaves",
+      "source_sha256": "9a4dd7ef890d938aaa7cc5ef48475d4fc2ab3f1c83eb92e3f0c3ed9f2b915a1a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 69,
+          "name": "minecraft:lever"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLever",
+      "source_sha256": "b9dd3501760dd228e954f0e4ce2359ed950d8ab2b4ff99c976b952bb6d135645"
+    },
+    {
+      "blocks": [
+        {
+          "id": 69,
+          "name": "minecraft:lever"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLever",
+      "source_sha256": "c8659e19e53d363c853af45f07b94d6de54cedef53c814459c1cefac8ef4e026"
+    },
+    {
+      "blocks": [
+        {
+          "id": 69,
+          "name": "minecraft:lever"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLever",
+      "source_sha256": "f7fb2b66c909d89a1287ed1742825d5c03a87341013237319ec0d7cb3e612f8a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 111,
+          "name": "minecraft:waterlily"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLilyPad",
+      "source_sha256": "38aeb4532351cf4f171cc8c2435d81af2392ec45785e46daefd399652c37405f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 8,
+          "name": "minecraft:flowing_water"
+        },
+        {
+          "id": 10,
+          "name": "minecraft:flowing_lava"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLiquid",
+      "source_sha256": "fa4d6d6dc2f7e6d5f9c69882a20a73cbe8c55701e73b5d536635016b6cd6524c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 9,
+          "name": "minecraft:water"
+        },
+        {
+          "id": 11,
+          "name": "minecraft:lava"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLiquid",
+      "source_sha256": "fa4d6d6dc2f7e6d5f9c69882a20a73cbe8c55701e73b5d536635016b6cd6524c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 8,
+          "name": "minecraft:flowing_water"
+        },
+        {
+          "id": 9,
+          "name": "minecraft:water"
+        },
+        {
+          "id": 10,
+          "name": "minecraft:flowing_lava"
+        },
+        {
+          "id": 11,
+          "name": "minecraft:lava"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLiquid",
+      "source_sha256": "68eea92264d32f3a20e2235ea501ac6ea548540a26b5dffbf2f44d3dcea7ed68"
+    },
+    {
+      "blocks": [
+        {
+          "id": 17,
+          "name": "minecraft:log"
+        },
+        {
+          "id": 162,
+          "name": "minecraft:log2"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockLog",
+      "source_sha256": "c35fa1e95ed2f309607e4242fea18b94c68efc4dc7274a11c022a4599a036267"
+    },
+    {
+      "blocks": [
+        {
+          "id": 213,
+          "name": "minecraft:magma"
+        }
+      ],
+      "callback": "onEntityWalk",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockMagma",
+      "source_sha256": "889281ed003137ae37b096bcb830ce6f688a3602d837877827f2c231a9b17dca"
+    },
+    {
+      "blocks": [
+        {
+          "id": 213,
+          "name": "minecraft:magma"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockMagma",
+      "source_sha256": "4ebcee1c39a9c91191636df12d25b1394dac52ab403035a529672d9b8c4523a3"
+    },
+    {
+      "blocks": [
+        {
+          "id": 52,
+          "name": "minecraft:mob_spawner"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockMobSpawner",
+      "source_sha256": "f61764eae0369c2c9bec3ab07dd7f8a47d87650e2d92661f1ae04dd524324bd6"
+    },
+    {
+      "blocks": [
+        {
+          "id": 39,
+          "name": "minecraft:brown_mushroom"
+        },
+        {
+          "id": 40,
+          "name": "minecraft:red_mushroom"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockMushroom",
+      "source_sha256": "a02af532962043fb17db9d05e8024e8b07430c3c0a95adea18a95b01bde47eb9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 110,
+          "name": "minecraft:mycelium"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockMycelium",
+      "source_sha256": "c2964bcfdadb874fca4c93d57aaa1da8e3341445ab73e163b9012c1e6ae3a6da"
+    },
+    {
+      "blocks": [
+        {
+          "id": 110,
+          "name": "minecraft:mycelium"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockMycelium",
+      "source_sha256": "f382b53faf2ff13e574dc9159f448f20bc9af24b983c2f23d091d5705318f299"
+    },
+    {
+      "blocks": [
+        {
+          "id": 115,
+          "name": "minecraft:nether_wart"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockNetherWart",
+      "source_sha256": "b561595beba5a9648c4783ab1692730729aa33cd95c140437bc45313439d8304"
+    },
+    {
+      "blocks": [
+        {
+          "id": 115,
+          "name": "minecraft:nether_wart"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockNetherWart",
+      "source_sha256": "3386440db1b7b6cee635387bb2e6d686ed3c16a043a89c3a406628a53cba53aa"
+    },
+    {
+      "blocks": [
+        {
+          "id": 25,
+          "name": "minecraft:noteblock"
+        }
+      ],
+      "callback": "eventReceived",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockNote",
+      "source_sha256": "bb1dc4933e5702f7db186978e0fd793c13e599ffc5c998939ccb3d7e4fa64d7a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 25,
+          "name": "minecraft:noteblock"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockNote",
+      "source_sha256": "2173dab9e5a59790cb3763a5038a3aa30de48ae7f7b19fcc3986eecd27d39dae"
+    },
+    {
+      "blocks": [
+        {
+          "id": 25,
+          "name": "minecraft:noteblock"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockNote",
+      "source_sha256": "09c2d2fe94ce971e0fc812746961863b45e101e7480e1f5f88291474883f4880"
+    },
+    {
+      "blocks": [
+        {
+          "id": 25,
+          "name": "minecraft:noteblock"
+        }
+      ],
+      "callback": "onBlockClicked",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockNote",
+      "source_sha256": "9701ce8397757b3b73d83cac61f1aa96e0ae66ab4c8a38421c5887859309f964"
+    },
+    {
+      "blocks": [
+        {
+          "id": 218,
+          "name": "minecraft:observer"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockObserver",
+      "source_sha256": "84581eca6cd92569b8130a2a834ec41d2c9619c4af51edf981dd861c53afb431"
+    },
+    {
+      "blocks": [
+        {
+          "id": 218,
+          "name": "minecraft:observer"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockObserver",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 218,
+          "name": "minecraft:observer"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockObserver",
+      "source_sha256": "ad58889bcfe9081a08f4a33f5f2c99b0ac40332715c8882d53907527128ded8e"
+    },
+    {
+      "blocks": [
+        {
+          "id": 218,
+          "name": "minecraft:observer"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockObserver",
+      "source_sha256": "bb11be1d735314df09bb8ce132536543295ad929d3c2d15a0bcf02a342cf15ca"
+    },
+    {
+      "blocks": [
+        {
+          "id": 14,
+          "name": "minecraft:gold_ore"
+        },
+        {
+          "id": 15,
+          "name": "minecraft:iron_ore"
+        },
+        {
+          "id": 16,
+          "name": "minecraft:coal_ore"
+        },
+        {
+          "id": 21,
+          "name": "minecraft:lapis_ore"
+        },
+        {
+          "id": 56,
+          "name": "minecraft:diamond_ore"
+        },
+        {
+          "id": 129,
+          "name": "minecraft:emerald_ore"
+        },
+        {
+          "id": 153,
+          "name": "minecraft:quartz_ore"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockOre",
+      "source_sha256": "f61764eae0369c2c9bec3ab07dd7f8a47d87650e2d92661f1ae04dd524324bd6"
+    },
+    {
+      "blocks": [
+        {
+          "id": 29,
+          "name": "minecraft:sticky_piston"
+        },
+        {
+          "id": 33,
+          "name": "minecraft:piston"
+        }
+      ],
+      "callback": "eventReceived",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonBase",
+      "source_sha256": "be60ecd002f80bbc47fd8ec6bce25395be7b0c687f806b43efcf577a04530f7f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 29,
+          "name": "minecraft:sticky_piston"
+        },
+        {
+          "id": 33,
+          "name": "minecraft:piston"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonBase",
+      "source_sha256": "f227a94db263fee3c3c5d9e50b2bb83968719f90cbccd29e5bf0fd83ed720ea9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 29,
+          "name": "minecraft:sticky_piston"
+        },
+        {
+          "id": 33,
+          "name": "minecraft:piston"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonBase",
+      "source_sha256": "ebc33654c4402e8842e56d8a16262127fc18a8c1922a6987fa75201eb0e061c3"
+    },
+    {
+      "blocks": [
+        {
+          "id": 29,
+          "name": "minecraft:sticky_piston"
+        },
+        {
+          "id": 33,
+          "name": "minecraft:piston"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonBase",
+      "source_sha256": "6610f9abe9ef1805a139813b55da2cdaf8cf3cb46d639166efd883a2d30fbe5a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 34,
+          "name": "minecraft:piston_head"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonExtension",
+      "source_sha256": "e8d00769ee729c4c5f67da29ed47104a1c6696fe4fad644e509ca8d00e37727d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 34,
+          "name": "minecraft:piston_head"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonExtension",
+      "source_sha256": "786416f01f955a9c3b42a127ed53bfe2c3a66325bbb7ac48c956f7e6dd0bcef2"
+    },
+    {
+      "blocks": [
+        {
+          "id": 34,
+          "name": "minecraft:piston_head"
+        }
+      ],
+      "callback": "onBlockHarvested",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonExtension",
+      "source_sha256": "e468e6f9a3013ff40efddabbb709ae03680cd9339b879cf86fd515eccad9fa93"
+    },
+    {
+      "blocks": [
+        {
+          "id": 36,
+          "name": "minecraft:piston_extension"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonMoving",
+      "source_sha256": "d99f2447b0b7c5fd9133af1dd5f72b7eae5ec9c4a97fc0c757b56854bea1081a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 36,
+          "name": "minecraft:piston_extension"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonMoving",
+      "source_sha256": "527920ce748ca7ac78d409304447a48da393369601b914bf7a7bf3d3e817fbb7"
+    },
+    {
+      "blocks": [
+        {
+          "id": 36,
+          "name": "minecraft:piston_extension"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonMoving",
+      "source_sha256": "677298df45e62523fc5e8aecc94c1d7df697916918d50a643efaf4df815167e6"
+    },
+    {
+      "blocks": [
+        {
+          "id": 36,
+          "name": "minecraft:piston_extension"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPistonMoving",
+      "source_sha256": "056694ab6bd5a7c1e402aeb1f977bcb413ac4c8a4c064c8e7907437c8a4862a9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 90,
+          "name": "minecraft:portal"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPortal",
+      "source_sha256": "53e5348a0be4c4b9992bbf80050e6429e67e39d9ca9dd0c56487de7535361cd0"
+    },
+    {
+      "blocks": [
+        {
+          "id": 90,
+          "name": "minecraft:portal"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPortal",
+      "source_sha256": "8a6e77ddbaa622b49406ad3d9638ca255aa4b1c2e13f82f8273425c670cca342"
+    },
+    {
+      "blocks": [
+        {
+          "id": 90,
+          "name": "minecraft:portal"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPortal",
+      "source_sha256": "879df49bffe9de13e5bcd68ede0e2393dbb8955a01e9995120c71e2bb1fdb8c3"
+    },
+    {
+      "blocks": [
+        {
+          "id": 90,
+          "name": "minecraft:portal"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPortal",
+      "source_sha256": "7ffb05ae51041ff2bb7191f4a442cca819c6430736c83a2eaf72b574a5c9a13b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 142,
+          "name": "minecraft:potatoes"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockPotato",
+      "source_sha256": "acb0b92124dda8f3df485120b4cabd4a577758c7b4d99c19b3933f0e29342051"
+    },
+    {
+      "blocks": [
+        {
+          "id": 86,
+          "name": "minecraft:pumpkin"
+        },
+        {
+          "id": 91,
+          "name": "minecraft:lit_pumpkin"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockPumpkin",
+      "source_sha256": "5a4ebcb125a38889be868948d7cd73b2b11c3017c077559f13e6af726ffb2b75"
+    },
+    {
+      "blocks": [
+        {
+          "id": 27,
+          "name": "minecraft:golden_rail"
+        },
+        {
+          "id": 28,
+          "name": "minecraft:detector_rail"
+        },
+        {
+          "id": 66,
+          "name": "minecraft:rail"
+        },
+        {
+          "id": 157,
+          "name": "minecraft:activator_rail"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRailBase",
+      "source_sha256": "083083fa72978b0e3c8c2fd17789fb88d0e4b1446aea21de90e85fbdb7b3f3dc"
+    },
+    {
+      "blocks": [
+        {
+          "id": 27,
+          "name": "minecraft:golden_rail"
+        },
+        {
+          "id": 28,
+          "name": "minecraft:detector_rail"
+        },
+        {
+          "id": 66,
+          "name": "minecraft:rail"
+        },
+        {
+          "id": 157,
+          "name": "minecraft:activator_rail"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRailBase",
+      "source_sha256": "0d05e2920ac77ffe941d51ae4638124d9ef766501ec2bacafb813fdedb9dbdf0"
+    },
+    {
+      "blocks": [
+        {
+          "id": 27,
+          "name": "minecraft:golden_rail"
+        },
+        {
+          "id": 66,
+          "name": "minecraft:rail"
+        },
+        {
+          "id": 157,
+          "name": "minecraft:activator_rail"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRailBase",
+      "source_sha256": "c86235dd38d2e58c06b4a4e9560c668e51ecac811cfe2267d89bd62053732863"
+    },
+    {
+      "blocks": [
+        {
+          "id": 28,
+          "name": "minecraft:detector_rail"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRailDetector",
+      "source_sha256": "79e9048b6cdfa9ff60af817d220f14a9433dbb600c4be66f15be51155b262ce0"
+    },
+    {
+      "blocks": [
+        {
+          "id": 28,
+          "name": "minecraft:detector_rail"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockRailDetector",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 28,
+          "name": "minecraft:detector_rail"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockRailDetector",
+      "source_sha256": "d0f356eb549d5028d61e629cfc983b1912ba2c534fc8a3973d9748e891c1a690"
+    },
+    {
+      "blocks": [
+        {
+          "id": 28,
+          "name": "minecraft:detector_rail"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRailDetector",
+      "source_sha256": "6bd5d0952f4c044f83f1592c5599ac6d730049cf7e5ecef2ee4f36a48cb07cdf"
+    },
+    {
+      "blocks": [
+        {
+          "id": 28,
+          "name": "minecraft:detector_rail"
+        }
+      ],
+      "callback": "randomTick",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockRailDetector",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 28,
+          "name": "minecraft:detector_rail"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRailDetector",
+      "source_sha256": "68ae53af78ac7ffbadf380e0a2bad42605e0ef45f8146757a09659e7bc28e44a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 149,
+          "name": "minecraft:unpowered_comparator"
+        },
+        {
+          "id": 150,
+          "name": "minecraft:powered_comparator"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneComparator",
+      "source_sha256": "5bac577cc2491d40782d0cf96cdfecc889ed3698eb1d289ae82aa34c3d7f0b4c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 149,
+          "name": "minecraft:unpowered_comparator"
+        },
+        {
+          "id": 150,
+          "name": "minecraft:powered_comparator"
+        }
+      ],
+      "callback": "eventReceived",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneComparator",
+      "source_sha256": "7ccc5e21d358897358eb766bae802e3c31d07c509c741097131e985ee810f127"
+    },
+    {
+      "blocks": [
+        {
+          "id": 149,
+          "name": "minecraft:unpowered_comparator"
+        },
+        {
+          "id": 150,
+          "name": "minecraft:powered_comparator"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneComparator",
+      "source_sha256": "27d56347b012599cbc56381bd90c0b09d442abab32b9454059dfa0669bc71dc5"
+    },
+    {
+      "blocks": [
+        {
+          "id": 149,
+          "name": "minecraft:unpowered_comparator"
+        },
+        {
+          "id": 150,
+          "name": "minecraft:powered_comparator"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockRedstoneComparator",
+      "source_sha256": "9292a9cad18de402ee617ce803d363211b6010f09c965f6269cf3be10cf79eea"
+    },
+    {
+      "blocks": [
+        {
+          "id": 149,
+          "name": "minecraft:unpowered_comparator"
+        },
+        {
+          "id": 150,
+          "name": "minecraft:powered_comparator"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneComparator",
+      "source_sha256": "c0adc0e79a20300156c95cf22888dc462124b86ab487ca88d2714bde9664d8cb"
+    },
+    {
+      "blocks": [
+        {
+          "id": 93,
+          "name": "minecraft:unpowered_repeater"
+        },
+        {
+          "id": 94,
+          "name": "minecraft:powered_repeater"
+        },
+        {
+          "id": 149,
+          "name": "minecraft:unpowered_comparator"
+        },
+        {
+          "id": 150,
+          "name": "minecraft:powered_comparator"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneDiode",
+      "source_sha256": "fc0d84e38baae905d26bfa9f17cbd6aaf20f81b8d9fb9af5697e38a0ebfe82a7"
+    },
+    {
+      "blocks": [
+        {
+          "id": 93,
+          "name": "minecraft:unpowered_repeater"
+        },
+        {
+          "id": 94,
+          "name": "minecraft:powered_repeater"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneDiode",
+      "source_sha256": "718f43ff88e968459ae94e7a04fb819d14b98912586c315f66a0d1a5e0a1e6c8"
+    },
+    {
+      "blocks": [
+        {
+          "id": 93,
+          "name": "minecraft:unpowered_repeater"
+        },
+        {
+          "id": 94,
+          "name": "minecraft:powered_repeater"
+        },
+        {
+          "id": 149,
+          "name": "minecraft:unpowered_comparator"
+        },
+        {
+          "id": 150,
+          "name": "minecraft:powered_comparator"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneDiode",
+      "source_sha256": "515f636a7a68d5df6e593ffc8a33db5c3c4bda0a107fa62fab9745f206f86787"
+    },
+    {
+      "blocks": [
+        {
+          "id": 93,
+          "name": "minecraft:unpowered_repeater"
+        },
+        {
+          "id": 94,
+          "name": "minecraft:powered_repeater"
+        },
+        {
+          "id": 149,
+          "name": "minecraft:unpowered_comparator"
+        },
+        {
+          "id": 150,
+          "name": "minecraft:powered_comparator"
+        }
+      ],
+      "callback": "randomTick",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockRedstoneDiode",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 93,
+          "name": "minecraft:unpowered_repeater"
+        },
+        {
+          "id": 94,
+          "name": "minecraft:powered_repeater"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneDiode",
+      "source_sha256": "c5e687a216c59c6f2dffd70c708905353d553c1347767b5e1f203002740d8eab"
+    },
+    {
+      "blocks": [
+        {
+          "id": 123,
+          "name": "minecraft:redstone_lamp"
+        },
+        {
+          "id": 124,
+          "name": "minecraft:lit_redstone_lamp"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneLight",
+      "source_sha256": "b80321002fa09d527a0173227559f04bfe5dd1af5689d1c179d93b14fdbe8abb"
+    },
+    {
+      "blocks": [
+        {
+          "id": 123,
+          "name": "minecraft:redstone_lamp"
+        },
+        {
+          "id": 124,
+          "name": "minecraft:lit_redstone_lamp"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneLight",
+      "source_sha256": "63073f4cf2ea4ee0ee2e5f7a4f90fa7fc6f689edc7446d7ce40dbcf13b01cfb3"
+    },
+    {
+      "blocks": [
+        {
+          "id": 123,
+          "name": "minecraft:redstone_lamp"
+        },
+        {
+          "id": 124,
+          "name": "minecraft:lit_redstone_lamp"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneLight",
+      "source_sha256": "b327c7dfcf0fb321defe2afaf37254fc396d447ba28410a62021c56d648bb65f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 73,
+          "name": "minecraft:redstone_ore"
+        },
+        {
+          "id": 74,
+          "name": "minecraft:lit_redstone_ore"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockRedstoneOre",
+      "source_sha256": "f61764eae0369c2c9bec3ab07dd7f8a47d87650e2d92661f1ae04dd524324bd6"
+    },
+    {
+      "blocks": [
+        {
+          "id": 73,
+          "name": "minecraft:redstone_ore"
+        },
+        {
+          "id": 74,
+          "name": "minecraft:lit_redstone_ore"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockRedstoneOre",
+      "source_sha256": "1fbf15712526babf3073e5490fb0f3bc1ff1749f7c29499207e5df7a54484a9b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 73,
+          "name": "minecraft:redstone_ore"
+        },
+        {
+          "id": 74,
+          "name": "minecraft:lit_redstone_ore"
+        }
+      ],
+      "callback": "onBlockClicked",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockRedstoneOre",
+      "source_sha256": "41768d54c6a147928f3dd9e8e2f9a6718d8ae4f1f7cd040f1493d3e74b5b79e5"
+    },
+    {
+      "blocks": [
+        {
+          "id": 73,
+          "name": "minecraft:redstone_ore"
+        },
+        {
+          "id": 74,
+          "name": "minecraft:lit_redstone_ore"
+        }
+      ],
+      "callback": "onEntityWalk",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockRedstoneOre",
+      "source_sha256": "df7a752b57666cdd92c636169304089543ffa06551c522627b13acc7e31297e0"
+    },
+    {
+      "blocks": [
+        {
+          "id": 73,
+          "name": "minecraft:redstone_ore"
+        },
+        {
+          "id": 74,
+          "name": "minecraft:lit_redstone_ore"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneOre",
+      "source_sha256": "576937df9b62633d2855ecc6d9565a9f9793734bb91d93e227f1110a9ef657a5"
+    },
+    {
+      "blocks": [
+        {
+          "id": 73,
+          "name": "minecraft:redstone_ore"
+        },
+        {
+          "id": 74,
+          "name": "minecraft:lit_redstone_ore"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneOre",
+      "source_sha256": "7afe9f0e64a791a69db614d44641dd2776d00ea71c360f361716514ed098b0e3"
+    },
+    {
+      "blocks": [
+        {
+          "id": 93,
+          "name": "minecraft:unpowered_repeater"
+        },
+        {
+          "id": 94,
+          "name": "minecraft:powered_repeater"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockRedstoneRepeater",
+      "source_sha256": "acfbbbf00c20a61bd6c4a9aee02d8126055fcda086f99b23d9bdc98c08318f5b"
+    },
+    {
+      "blocks": [
+        {
+          "id": 93,
+          "name": "minecraft:unpowered_repeater"
+        },
+        {
+          "id": 94,
+          "name": "minecraft:powered_repeater"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneRepeater",
+      "source_sha256": "8956d4b791f98c11adfb08693d8e189236bc5c11f5d381a0352ae852ee4c1804"
+    },
+    {
+      "blocks": [
+        {
+          "id": 93,
+          "name": "minecraft:unpowered_repeater"
+        },
+        {
+          "id": 94,
+          "name": "minecraft:powered_repeater"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneRepeater",
+      "source_sha256": "619d93b4369075b06162f5544ed04092f0c10f64e74639992b5856fbcafb6be1"
+    },
+    {
+      "blocks": [
+        {
+          "id": 75,
+          "name": "minecraft:unlit_redstone_torch"
+        },
+        {
+          "id": 76,
+          "name": "minecraft:redstone_torch"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneTorch",
+      "source_sha256": "b0c4939fa022cd9c4f247ba90c153bf5ff1a4a464ac41bad817be9599ba9b4aa"
+    },
+    {
+      "blocks": [
+        {
+          "id": 75,
+          "name": "minecraft:unlit_redstone_torch"
+        },
+        {
+          "id": 76,
+          "name": "minecraft:redstone_torch"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneTorch",
+      "source_sha256": "dab6f7bf2b7a1382ed1f1967972479084c9fa9673a925531c4d27d648bcd81c5"
+    },
+    {
+      "blocks": [
+        {
+          "id": 75,
+          "name": "minecraft:unlit_redstone_torch"
+        },
+        {
+          "id": 76,
+          "name": "minecraft:redstone_torch"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneTorch",
+      "source_sha256": "b0c4939fa022cd9c4f247ba90c153bf5ff1a4a464ac41bad817be9599ba9b4aa"
+    },
+    {
+      "blocks": [
+        {
+          "id": 75,
+          "name": "minecraft:unlit_redstone_torch"
+        },
+        {
+          "id": 76,
+          "name": "minecraft:redstone_torch"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneTorch",
+      "source_sha256": "b93693c61b0070c839a8a58143e1933ef24b931802ec6459d615edf9dbb2a53c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 75,
+          "name": "minecraft:unlit_redstone_torch"
+        },
+        {
+          "id": 76,
+          "name": "minecraft:redstone_torch"
+        }
+      ],
+      "callback": "randomTick",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockRedstoneTorch",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 75,
+          "name": "minecraft:unlit_redstone_torch"
+        },
+        {
+          "id": 76,
+          "name": "minecraft:redstone_torch"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneTorch",
+      "source_sha256": "6e9e82b6182cf0186968fa4a5b68ef09059fd7bcf8ab2a0df6ff238d058b3498"
+    },
+    {
+      "blocks": [
+        {
+          "id": 55,
+          "name": "minecraft:redstone_wire"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneWire",
+      "source_sha256": "64950332d5ad43ef189095cfa5a17d0d6588c7ce7b8824c7de75e1f22bacddff"
+    },
+    {
+      "blocks": [
+        {
+          "id": 55,
+          "name": "minecraft:redstone_wire"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneWire",
+      "source_sha256": "ae568ed954e4dc586b149fc9f4e6a380258eade57c057c7ab3d24a8d484bf126"
+    },
+    {
+      "blocks": [
+        {
+          "id": 55,
+          "name": "minecraft:redstone_wire"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneWire",
+      "source_sha256": "aefe4563cdce0146a7da89631ed1a70921701daa258dbc5f6234f4818cbf1488"
+    },
+    {
+      "blocks": [
+        {
+          "id": 55,
+          "name": "minecraft:redstone_wire"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockRedstoneWire",
+      "source_sha256": "d63be07a7e49df5f2ec73a13434c9eda4c432a4543456436c048093895fdf362"
+    },
+    {
+      "blocks": [
+        {
+          "id": 83,
+          "name": "minecraft:reeds"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockReed",
+      "source_sha256": "8978b72bef5b196b3ebe256fbda3a4cd63456ad0b4699dad002f55663a01e6e2"
+    },
+    {
+      "blocks": [
+        {
+          "id": 83,
+          "name": "minecraft:reeds"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockReed",
+      "source_sha256": "d019bb432f27c03f1669c273e03b0c248580110dd73d86179bea91e3ef2932fe"
+    },
+    {
+      "blocks": [
+        {
+          "id": 6,
+          "name": "minecraft:sapling"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSapling",
+      "source_sha256": "f559dc5f881382158d5dbcafe5d24e456bce39c60eade23b21a7685394bf510f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 219,
+          "name": "minecraft:white_shulker_box"
+        },
+        {
+          "id": 220,
+          "name": "minecraft:orange_shulker_box"
+        },
+        {
+          "id": 221,
+          "name": "minecraft:magenta_shulker_box"
+        },
+        {
+          "id": 222,
+          "name": "minecraft:light_blue_shulker_box"
+        },
+        {
+          "id": 223,
+          "name": "minecraft:yellow_shulker_box"
+        },
+        {
+          "id": 224,
+          "name": "minecraft:lime_shulker_box"
+        },
+        {
+          "id": 225,
+          "name": "minecraft:pink_shulker_box"
+        },
+        {
+          "id": 226,
+          "name": "minecraft:gray_shulker_box"
+        },
+        {
+          "id": 227,
+          "name": "minecraft:silver_shulker_box"
+        },
+        {
+          "id": 228,
+          "name": "minecraft:cyan_shulker_box"
+        },
+        {
+          "id": 229,
+          "name": "minecraft:purple_shulker_box"
+        },
+        {
+          "id": 230,
+          "name": "minecraft:blue_shulker_box"
+        },
+        {
+          "id": 231,
+          "name": "minecraft:brown_shulker_box"
+        },
+        {
+          "id": 232,
+          "name": "minecraft:green_shulker_box"
+        },
+        {
+          "id": 233,
+          "name": "minecraft:red_shulker_box"
+        },
+        {
+          "id": 234,
+          "name": "minecraft:black_shulker_box"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockShulkerBox",
+      "source_sha256": "bc8e18ec522416188b8961d2199397cb5c3eee18d2383c34f2f3a7dac7c6d439"
+    },
+    {
+      "blocks": [
+        {
+          "id": 219,
+          "name": "minecraft:white_shulker_box"
+        },
+        {
+          "id": 220,
+          "name": "minecraft:orange_shulker_box"
+        },
+        {
+          "id": 221,
+          "name": "minecraft:magenta_shulker_box"
+        },
+        {
+          "id": 222,
+          "name": "minecraft:light_blue_shulker_box"
+        },
+        {
+          "id": 223,
+          "name": "minecraft:yellow_shulker_box"
+        },
+        {
+          "id": 224,
+          "name": "minecraft:lime_shulker_box"
+        },
+        {
+          "id": 225,
+          "name": "minecraft:pink_shulker_box"
+        },
+        {
+          "id": 226,
+          "name": "minecraft:gray_shulker_box"
+        },
+        {
+          "id": 227,
+          "name": "minecraft:silver_shulker_box"
+        },
+        {
+          "id": 228,
+          "name": "minecraft:cyan_shulker_box"
+        },
+        {
+          "id": 229,
+          "name": "minecraft:purple_shulker_box"
+        },
+        {
+          "id": 230,
+          "name": "minecraft:blue_shulker_box"
+        },
+        {
+          "id": 231,
+          "name": "minecraft:brown_shulker_box"
+        },
+        {
+          "id": 232,
+          "name": "minecraft:green_shulker_box"
+        },
+        {
+          "id": 233,
+          "name": "minecraft:red_shulker_box"
+        },
+        {
+          "id": 234,
+          "name": "minecraft:black_shulker_box"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockShulkerBox",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 219,
+          "name": "minecraft:white_shulker_box"
+        },
+        {
+          "id": 220,
+          "name": "minecraft:orange_shulker_box"
+        },
+        {
+          "id": 221,
+          "name": "minecraft:magenta_shulker_box"
+        },
+        {
+          "id": 222,
+          "name": "minecraft:light_blue_shulker_box"
+        },
+        {
+          "id": 223,
+          "name": "minecraft:yellow_shulker_box"
+        },
+        {
+          "id": 224,
+          "name": "minecraft:lime_shulker_box"
+        },
+        {
+          "id": 225,
+          "name": "minecraft:pink_shulker_box"
+        },
+        {
+          "id": 226,
+          "name": "minecraft:gray_shulker_box"
+        },
+        {
+          "id": 227,
+          "name": "minecraft:silver_shulker_box"
+        },
+        {
+          "id": 228,
+          "name": "minecraft:cyan_shulker_box"
+        },
+        {
+          "id": 229,
+          "name": "minecraft:purple_shulker_box"
+        },
+        {
+          "id": 230,
+          "name": "minecraft:blue_shulker_box"
+        },
+        {
+          "id": 231,
+          "name": "minecraft:brown_shulker_box"
+        },
+        {
+          "id": 232,
+          "name": "minecraft:green_shulker_box"
+        },
+        {
+          "id": 233,
+          "name": "minecraft:red_shulker_box"
+        },
+        {
+          "id": 234,
+          "name": "minecraft:black_shulker_box"
+        }
+      ],
+      "callback": "getComparatorInputOverride",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockShulkerBox",
+      "source_sha256": "146940f288dd81212edcd5606d9473b7d8f0e312acd399cbaabb1cdce73ab998"
+    },
+    {
+      "blocks": [
+        {
+          "id": 219,
+          "name": "minecraft:white_shulker_box"
+        },
+        {
+          "id": 220,
+          "name": "minecraft:orange_shulker_box"
+        },
+        {
+          "id": 221,
+          "name": "minecraft:magenta_shulker_box"
+        },
+        {
+          "id": 222,
+          "name": "minecraft:light_blue_shulker_box"
+        },
+        {
+          "id": 223,
+          "name": "minecraft:yellow_shulker_box"
+        },
+        {
+          "id": 224,
+          "name": "minecraft:lime_shulker_box"
+        },
+        {
+          "id": 225,
+          "name": "minecraft:pink_shulker_box"
+        },
+        {
+          "id": 226,
+          "name": "minecraft:gray_shulker_box"
+        },
+        {
+          "id": 227,
+          "name": "minecraft:silver_shulker_box"
+        },
+        {
+          "id": 228,
+          "name": "minecraft:cyan_shulker_box"
+        },
+        {
+          "id": 229,
+          "name": "minecraft:purple_shulker_box"
+        },
+        {
+          "id": 230,
+          "name": "minecraft:blue_shulker_box"
+        },
+        {
+          "id": 231,
+          "name": "minecraft:brown_shulker_box"
+        },
+        {
+          "id": 232,
+          "name": "minecraft:green_shulker_box"
+        },
+        {
+          "id": 233,
+          "name": "minecraft:red_shulker_box"
+        },
+        {
+          "id": 234,
+          "name": "minecraft:black_shulker_box"
+        }
+      ],
+      "callback": "hasComparatorInputOverride",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockShulkerBox",
+      "source_sha256": "10e0fa08a73f0cd151617165a96e7df8c8d14ecfc63d6f1f343559f16198939f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 219,
+          "name": "minecraft:white_shulker_box"
+        },
+        {
+          "id": 220,
+          "name": "minecraft:orange_shulker_box"
+        },
+        {
+          "id": 221,
+          "name": "minecraft:magenta_shulker_box"
+        },
+        {
+          "id": 222,
+          "name": "minecraft:light_blue_shulker_box"
+        },
+        {
+          "id": 223,
+          "name": "minecraft:yellow_shulker_box"
+        },
+        {
+          "id": 224,
+          "name": "minecraft:lime_shulker_box"
+        },
+        {
+          "id": 225,
+          "name": "minecraft:pink_shulker_box"
+        },
+        {
+          "id": 226,
+          "name": "minecraft:gray_shulker_box"
+        },
+        {
+          "id": 227,
+          "name": "minecraft:silver_shulker_box"
+        },
+        {
+          "id": 228,
+          "name": "minecraft:cyan_shulker_box"
+        },
+        {
+          "id": 229,
+          "name": "minecraft:purple_shulker_box"
+        },
+        {
+          "id": 230,
+          "name": "minecraft:blue_shulker_box"
+        },
+        {
+          "id": 231,
+          "name": "minecraft:brown_shulker_box"
+        },
+        {
+          "id": 232,
+          "name": "minecraft:green_shulker_box"
+        },
+        {
+          "id": 233,
+          "name": "minecraft:red_shulker_box"
+        },
+        {
+          "id": 234,
+          "name": "minecraft:black_shulker_box"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockShulkerBox",
+      "source_sha256": "ed999197cc4e93a743208ae79ae09258415ea9e4af65f28797dd0647f183f247"
+    },
+    {
+      "blocks": [
+        {
+          "id": 219,
+          "name": "minecraft:white_shulker_box"
+        },
+        {
+          "id": 220,
+          "name": "minecraft:orange_shulker_box"
+        },
+        {
+          "id": 221,
+          "name": "minecraft:magenta_shulker_box"
+        },
+        {
+          "id": 222,
+          "name": "minecraft:light_blue_shulker_box"
+        },
+        {
+          "id": 223,
+          "name": "minecraft:yellow_shulker_box"
+        },
+        {
+          "id": 224,
+          "name": "minecraft:lime_shulker_box"
+        },
+        {
+          "id": 225,
+          "name": "minecraft:pink_shulker_box"
+        },
+        {
+          "id": 226,
+          "name": "minecraft:gray_shulker_box"
+        },
+        {
+          "id": 227,
+          "name": "minecraft:silver_shulker_box"
+        },
+        {
+          "id": 228,
+          "name": "minecraft:cyan_shulker_box"
+        },
+        {
+          "id": 229,
+          "name": "minecraft:purple_shulker_box"
+        },
+        {
+          "id": 230,
+          "name": "minecraft:blue_shulker_box"
+        },
+        {
+          "id": 231,
+          "name": "minecraft:brown_shulker_box"
+        },
+        {
+          "id": 232,
+          "name": "minecraft:green_shulker_box"
+        },
+        {
+          "id": 233,
+          "name": "minecraft:red_shulker_box"
+        },
+        {
+          "id": 234,
+          "name": "minecraft:black_shulker_box"
+        }
+      ],
+      "callback": "onBlockHarvested",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockShulkerBox",
+      "source_sha256": "ae79b7ccefd227c5a498d6a1beb9e4f2a08627e6d4fa1ba27347dc90827d6ed3"
+    },
+    {
+      "blocks": [
+        {
+          "id": 219,
+          "name": "minecraft:white_shulker_box"
+        },
+        {
+          "id": 220,
+          "name": "minecraft:orange_shulker_box"
+        },
+        {
+          "id": 221,
+          "name": "minecraft:magenta_shulker_box"
+        },
+        {
+          "id": 222,
+          "name": "minecraft:light_blue_shulker_box"
+        },
+        {
+          "id": 223,
+          "name": "minecraft:yellow_shulker_box"
+        },
+        {
+          "id": 224,
+          "name": "minecraft:lime_shulker_box"
+        },
+        {
+          "id": 225,
+          "name": "minecraft:pink_shulker_box"
+        },
+        {
+          "id": 226,
+          "name": "minecraft:gray_shulker_box"
+        },
+        {
+          "id": 227,
+          "name": "minecraft:silver_shulker_box"
+        },
+        {
+          "id": 228,
+          "name": "minecraft:cyan_shulker_box"
+        },
+        {
+          "id": 229,
+          "name": "minecraft:purple_shulker_box"
+        },
+        {
+          "id": 230,
+          "name": "minecraft:blue_shulker_box"
+        },
+        {
+          "id": 231,
+          "name": "minecraft:brown_shulker_box"
+        },
+        {
+          "id": 232,
+          "name": "minecraft:green_shulker_box"
+        },
+        {
+          "id": 233,
+          "name": "minecraft:red_shulker_box"
+        },
+        {
+          "id": 234,
+          "name": "minecraft:black_shulker_box"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockShulkerBox",
+      "source_sha256": "9a56e4ba1e2b789c77c8550458fdb8a3785c3a3112ba72629660328749f57c00"
+    },
+    {
+      "blocks": [
+        {
+          "id": 63,
+          "name": "minecraft:standing_sign"
+        },
+        {
+          "id": 68,
+          "name": "minecraft:wall_sign"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSign",
+      "source_sha256": "4b141d4e2a479ada47ab7ded6fef5030b453094eae5fae7e59e5f2fb00cb783d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 97,
+          "name": "minecraft:monster_egg"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSilverfish",
+      "source_sha256": "d1c58c28b21b123b2104016ca99d2097ab9ec90e5d10895046b87d1dda578433"
+    },
+    {
+      "blocks": [
+        {
+          "id": 144,
+          "name": "minecraft:skull"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockSkull",
+      "source_sha256": "24ef0f19ffa6b0994961babe3e9643767fdec4037106372ad9b94a3f2072ac76"
+    },
+    {
+      "blocks": [
+        {
+          "id": 144,
+          "name": "minecraft:skull"
+        }
+      ],
+      "callback": "onBlockHarvested",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSkull",
+      "source_sha256": "605272bda2fa5e5a0b75c7a76f98b7e927d13fb21f78fce24b0cc8eeee03f5d7"
+    },
+    {
+      "blocks": [
+        {
+          "id": 165,
+          "name": "minecraft:slime"
+        }
+      ],
+      "callback": "onEntityWalk",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSlime",
+      "source_sha256": "e581a6042236ebdd9cb771b961a5ed1ef41a7ffa749bc47d48623a5cc1a1c2bf"
+    },
+    {
+      "blocks": [
+        {
+          "id": 165,
+          "name": "minecraft:slime"
+        }
+      ],
+      "callback": "onFallenUpon",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSlime",
+      "source_sha256": "d60c04f6d77c226ebee9a9ee1e800576d7eeacf3e422ef6b920b96a0f348970e"
+    },
+    {
+      "blocks": [
+        {
+          "id": 78,
+          "name": "minecraft:snow_layer"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSnow",
+      "source_sha256": "1ef4c7cc6ad1156c3354fa565bf3ac65b5584e32ffa0b85a6f83eae8c472b238"
+    },
+    {
+      "blocks": [
+        {
+          "id": 78,
+          "name": "minecraft:snow_layer"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSnow",
+      "source_sha256": "bb566a1742a82c8546dea3fc1ca60ec78ee4c84f1bbc048b27dbee83203e7f8f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 80,
+          "name": "minecraft:snow"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSnowBlock",
+      "source_sha256": "8dca2708b3f846ad477e4e5c37c544c4f29a390098219c299604139fb64613cd"
+    },
+    {
+      "blocks": [
+        {
+          "id": 88,
+          "name": "minecraft:soul_sand"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSoulSand",
+      "source_sha256": "ffbdbba12882708ab7865797c02809530909461143ff97c1d94128dee9ce2d7c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 19,
+          "name": "minecraft:sponge"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockSponge",
+      "source_sha256": "c791345f213bcf624a7124e3696a46983016aeb2bfa3aa6bb743c9e975724629"
+    },
+    {
+      "blocks": [
+        {
+          "id": 19,
+          "name": "minecraft:sponge"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSponge",
+      "source_sha256": "c18a0e71ffcc4d93c90b267d99a4a855ec2f14c7c98ee2b9cd901b477fdc4602"
+    },
+    {
+      "blocks": [
+        {
+          "id": 19,
+          "name": "minecraft:sponge"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockSponge",
+      "source_sha256": "2a4083a2b08559f3c8f9d65bd7df6ecef80c3d279f7c7f0075c9587e0bafa4c4"
+    },
+    {
+      "blocks": [
+        {
+          "id": 95,
+          "name": "minecraft:stained_glass"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStainedGlass",
+      "source_sha256": "48158440ced548c3305bd2db8e00ffb246872c24c35f098e8b74c898ee30973e"
+    },
+    {
+      "blocks": [
+        {
+          "id": 95,
+          "name": "minecraft:stained_glass"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStainedGlass",
+      "source_sha256": "48158440ced548c3305bd2db8e00ffb246872c24c35f098e8b74c898ee30973e"
+    },
+    {
+      "blocks": [
+        {
+          "id": 160,
+          "name": "minecraft:stained_glass_pane"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStainedGlassPane",
+      "source_sha256": "48158440ced548c3305bd2db8e00ffb246872c24c35f098e8b74c898ee30973e"
+    },
+    {
+      "blocks": [
+        {
+          "id": 160,
+          "name": "minecraft:stained_glass_pane"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStainedGlassPane",
+      "source_sha256": "48158440ced548c3305bd2db8e00ffb246872c24c35f098e8b74c898ee30973e"
+    },
+    {
+      "blocks": [
+        {
+          "id": 53,
+          "name": "minecraft:oak_stairs"
+        },
+        {
+          "id": 67,
+          "name": "minecraft:stone_stairs"
+        },
+        {
+          "id": 108,
+          "name": "minecraft:brick_stairs"
+        },
+        {
+          "id": 109,
+          "name": "minecraft:stone_brick_stairs"
+        },
+        {
+          "id": 114,
+          "name": "minecraft:nether_brick_stairs"
+        },
+        {
+          "id": 128,
+          "name": "minecraft:sandstone_stairs"
+        },
+        {
+          "id": 134,
+          "name": "minecraft:spruce_stairs"
+        },
+        {
+          "id": 135,
+          "name": "minecraft:birch_stairs"
+        },
+        {
+          "id": 136,
+          "name": "minecraft:jungle_stairs"
+        },
+        {
+          "id": 156,
+          "name": "minecraft:quartz_stairs"
+        },
+        {
+          "id": 163,
+          "name": "minecraft:acacia_stairs"
+        },
+        {
+          "id": 164,
+          "name": "minecraft:dark_oak_stairs"
+        },
+        {
+          "id": 180,
+          "name": "minecraft:red_sandstone_stairs"
+        },
+        {
+          "id": 203,
+          "name": "minecraft:purpur_stairs"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockStairs",
+      "source_sha256": "391dbfcd80536f70ce81da0cf6544d05f6d54286f3c6fdc12a21fd43f434e96d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 53,
+          "name": "minecraft:oak_stairs"
+        },
+        {
+          "id": 67,
+          "name": "minecraft:stone_stairs"
+        },
+        {
+          "id": 108,
+          "name": "minecraft:brick_stairs"
+        },
+        {
+          "id": 109,
+          "name": "minecraft:stone_brick_stairs"
+        },
+        {
+          "id": 114,
+          "name": "minecraft:nether_brick_stairs"
+        },
+        {
+          "id": 128,
+          "name": "minecraft:sandstone_stairs"
+        },
+        {
+          "id": 134,
+          "name": "minecraft:spruce_stairs"
+        },
+        {
+          "id": 135,
+          "name": "minecraft:birch_stairs"
+        },
+        {
+          "id": 136,
+          "name": "minecraft:jungle_stairs"
+        },
+        {
+          "id": 156,
+          "name": "minecraft:quartz_stairs"
+        },
+        {
+          "id": 163,
+          "name": "minecraft:acacia_stairs"
+        },
+        {
+          "id": 164,
+          "name": "minecraft:dark_oak_stairs"
+        },
+        {
+          "id": 180,
+          "name": "minecraft:red_sandstone_stairs"
+        },
+        {
+          "id": 203,
+          "name": "minecraft:purpur_stairs"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockStairs",
+      "source_sha256": "04f95182f425b407eabccf51a418468335aae122ab85743f6052106e7f0b1d57"
+    },
+    {
+      "blocks": [
+        {
+          "id": 53,
+          "name": "minecraft:oak_stairs"
+        },
+        {
+          "id": 67,
+          "name": "minecraft:stone_stairs"
+        },
+        {
+          "id": 108,
+          "name": "minecraft:brick_stairs"
+        },
+        {
+          "id": 109,
+          "name": "minecraft:stone_brick_stairs"
+        },
+        {
+          "id": 114,
+          "name": "minecraft:nether_brick_stairs"
+        },
+        {
+          "id": 128,
+          "name": "minecraft:sandstone_stairs"
+        },
+        {
+          "id": 134,
+          "name": "minecraft:spruce_stairs"
+        },
+        {
+          "id": 135,
+          "name": "minecraft:birch_stairs"
+        },
+        {
+          "id": 136,
+          "name": "minecraft:jungle_stairs"
+        },
+        {
+          "id": 156,
+          "name": "minecraft:quartz_stairs"
+        },
+        {
+          "id": 163,
+          "name": "minecraft:acacia_stairs"
+        },
+        {
+          "id": 164,
+          "name": "minecraft:dark_oak_stairs"
+        },
+        {
+          "id": 180,
+          "name": "minecraft:red_sandstone_stairs"
+        },
+        {
+          "id": 203,
+          "name": "minecraft:purpur_stairs"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockStairs",
+      "source_sha256": "0d2b8572f04dccc3468ef15b2c45449c52125dd8ba152306b8b7cfbd4d033590"
+    },
+    {
+      "blocks": [
+        {
+          "id": 53,
+          "name": "minecraft:oak_stairs"
+        },
+        {
+          "id": 67,
+          "name": "minecraft:stone_stairs"
+        },
+        {
+          "id": 108,
+          "name": "minecraft:brick_stairs"
+        },
+        {
+          "id": 109,
+          "name": "minecraft:stone_brick_stairs"
+        },
+        {
+          "id": 114,
+          "name": "minecraft:nether_brick_stairs"
+        },
+        {
+          "id": 128,
+          "name": "minecraft:sandstone_stairs"
+        },
+        {
+          "id": 134,
+          "name": "minecraft:spruce_stairs"
+        },
+        {
+          "id": 135,
+          "name": "minecraft:birch_stairs"
+        },
+        {
+          "id": 136,
+          "name": "minecraft:jungle_stairs"
+        },
+        {
+          "id": 156,
+          "name": "minecraft:quartz_stairs"
+        },
+        {
+          "id": 163,
+          "name": "minecraft:acacia_stairs"
+        },
+        {
+          "id": 164,
+          "name": "minecraft:dark_oak_stairs"
+        },
+        {
+          "id": 180,
+          "name": "minecraft:red_sandstone_stairs"
+        },
+        {
+          "id": 203,
+          "name": "minecraft:purpur_stairs"
+        }
+      ],
+      "callback": "onBlockClicked",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockStairs",
+      "source_sha256": "fb89e96a7749bc2e63f5227d70a2bc37d20989bd5ccc4420edcef127460b3635"
+    },
+    {
+      "blocks": [
+        {
+          "id": 53,
+          "name": "minecraft:oak_stairs"
+        },
+        {
+          "id": 67,
+          "name": "minecraft:stone_stairs"
+        },
+        {
+          "id": 108,
+          "name": "minecraft:brick_stairs"
+        },
+        {
+          "id": 109,
+          "name": "minecraft:stone_brick_stairs"
+        },
+        {
+          "id": 114,
+          "name": "minecraft:nether_brick_stairs"
+        },
+        {
+          "id": 128,
+          "name": "minecraft:sandstone_stairs"
+        },
+        {
+          "id": 134,
+          "name": "minecraft:spruce_stairs"
+        },
+        {
+          "id": 135,
+          "name": "minecraft:birch_stairs"
+        },
+        {
+          "id": 136,
+          "name": "minecraft:jungle_stairs"
+        },
+        {
+          "id": 156,
+          "name": "minecraft:quartz_stairs"
+        },
+        {
+          "id": 163,
+          "name": "minecraft:acacia_stairs"
+        },
+        {
+          "id": 164,
+          "name": "minecraft:dark_oak_stairs"
+        },
+        {
+          "id": 180,
+          "name": "minecraft:red_sandstone_stairs"
+        },
+        {
+          "id": 203,
+          "name": "minecraft:purpur_stairs"
+        }
+      ],
+      "callback": "onBlockDestroyedByExplosion",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockStairs",
+      "source_sha256": "e44887a5974dc0bf37e92e5bbe3a0d8c33551e49e3013ec3d6b762f094da9309"
+    },
+    {
+      "blocks": [
+        {
+          "id": 53,
+          "name": "minecraft:oak_stairs"
+        },
+        {
+          "id": 67,
+          "name": "minecraft:stone_stairs"
+        },
+        {
+          "id": 108,
+          "name": "minecraft:brick_stairs"
+        },
+        {
+          "id": 109,
+          "name": "minecraft:stone_brick_stairs"
+        },
+        {
+          "id": 114,
+          "name": "minecraft:nether_brick_stairs"
+        },
+        {
+          "id": 128,
+          "name": "minecraft:sandstone_stairs"
+        },
+        {
+          "id": 134,
+          "name": "minecraft:spruce_stairs"
+        },
+        {
+          "id": 135,
+          "name": "minecraft:birch_stairs"
+        },
+        {
+          "id": 136,
+          "name": "minecraft:jungle_stairs"
+        },
+        {
+          "id": 156,
+          "name": "minecraft:quartz_stairs"
+        },
+        {
+          "id": 163,
+          "name": "minecraft:acacia_stairs"
+        },
+        {
+          "id": 164,
+          "name": "minecraft:dark_oak_stairs"
+        },
+        {
+          "id": 180,
+          "name": "minecraft:red_sandstone_stairs"
+        },
+        {
+          "id": 203,
+          "name": "minecraft:purpur_stairs"
+        }
+      ],
+      "callback": "onEntityWalk",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockStairs",
+      "source_sha256": "917aa9b6ac44a6b19b4b5d51c170d26fc4f8b098e9b4ac6226dfe43b5ce3d184"
+    },
+    {
+      "blocks": [
+        {
+          "id": 53,
+          "name": "minecraft:oak_stairs"
+        },
+        {
+          "id": 67,
+          "name": "minecraft:stone_stairs"
+        },
+        {
+          "id": 108,
+          "name": "minecraft:brick_stairs"
+        },
+        {
+          "id": 109,
+          "name": "minecraft:stone_brick_stairs"
+        },
+        {
+          "id": 114,
+          "name": "minecraft:nether_brick_stairs"
+        },
+        {
+          "id": 128,
+          "name": "minecraft:sandstone_stairs"
+        },
+        {
+          "id": 134,
+          "name": "minecraft:spruce_stairs"
+        },
+        {
+          "id": 135,
+          "name": "minecraft:birch_stairs"
+        },
+        {
+          "id": 136,
+          "name": "minecraft:jungle_stairs"
+        },
+        {
+          "id": 156,
+          "name": "minecraft:quartz_stairs"
+        },
+        {
+          "id": 163,
+          "name": "minecraft:acacia_stairs"
+        },
+        {
+          "id": 164,
+          "name": "minecraft:dark_oak_stairs"
+        },
+        {
+          "id": 180,
+          "name": "minecraft:red_sandstone_stairs"
+        },
+        {
+          "id": 203,
+          "name": "minecraft:purpur_stairs"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockStairs",
+      "source_sha256": "b517bff2f4c0f718a4d573ecb213a1404f75f1681eb8002f3728737f59b67b63"
+    },
+    {
+      "blocks": [
+        {
+          "id": 53,
+          "name": "minecraft:oak_stairs"
+        },
+        {
+          "id": 67,
+          "name": "minecraft:stone_stairs"
+        },
+        {
+          "id": 108,
+          "name": "minecraft:brick_stairs"
+        },
+        {
+          "id": 109,
+          "name": "minecraft:stone_brick_stairs"
+        },
+        {
+          "id": 114,
+          "name": "minecraft:nether_brick_stairs"
+        },
+        {
+          "id": 128,
+          "name": "minecraft:sandstone_stairs"
+        },
+        {
+          "id": 134,
+          "name": "minecraft:spruce_stairs"
+        },
+        {
+          "id": 135,
+          "name": "minecraft:birch_stairs"
+        },
+        {
+          "id": 136,
+          "name": "minecraft:jungle_stairs"
+        },
+        {
+          "id": 156,
+          "name": "minecraft:quartz_stairs"
+        },
+        {
+          "id": 163,
+          "name": "minecraft:acacia_stairs"
+        },
+        {
+          "id": 164,
+          "name": "minecraft:dark_oak_stairs"
+        },
+        {
+          "id": 180,
+          "name": "minecraft:red_sandstone_stairs"
+        },
+        {
+          "id": 203,
+          "name": "minecraft:purpur_stairs"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockStairs",
+      "source_sha256": "1099320874ebcc06ad5965dd6f4075978f30b8fa1803f52c994b60dca6876853"
+    },
+    {
+      "blocks": [
+        {
+          "id": 63,
+          "name": "minecraft:standing_sign"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStandingSign",
+      "source_sha256": "90b67bfbcb98f0d41dcfb008c4bf1c165acb5b558a70613537ea20771bb606ab"
+    },
+    {
+      "blocks": [
+        {
+          "id": 9,
+          "name": "minecraft:water"
+        },
+        {
+          "id": 11,
+          "name": "minecraft:lava"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStaticLiquid",
+      "source_sha256": "1a1442283ce77c9eb47ee86e4238252e5281b223785e334c3a55788a68ed6442"
+    },
+    {
+      "blocks": [
+        {
+          "id": 9,
+          "name": "minecraft:water"
+        },
+        {
+          "id": 11,
+          "name": "minecraft:lava"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStaticLiquid",
+      "source_sha256": "c7c81a06b9446ee528ecf03f33fad5ad567d434213957acba9b2b35ce1cc7bb7"
+    },
+    {
+      "blocks": [
+        {
+          "id": 104,
+          "name": "minecraft:pumpkin_stem"
+        },
+        {
+          "id": 105,
+          "name": "minecraft:melon_stem"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "delegate",
+      "owner": "net.minecraft.block.BlockStem",
+      "source_sha256": "f61764eae0369c2c9bec3ab07dd7f8a47d87650e2d92661f1ae04dd524324bd6"
+    },
+    {
+      "blocks": [
+        {
+          "id": 104,
+          "name": "minecraft:pumpkin_stem"
+        },
+        {
+          "id": 105,
+          "name": "minecraft:melon_stem"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStem",
+      "source_sha256": "6054e02d7bda73d21b06e8baeeae2ba23850dba4073726db91dc94e83cb02dbf"
+    },
+    {
+      "blocks": [
+        {
+          "id": 255,
+          "name": "minecraft:structure_block"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStructure",
+      "source_sha256": "6a9088c88b85d5c11e608f3e8e721235c9b3c7e6b473047c6ed870cca4896592"
+    },
+    {
+      "blocks": [
+        {
+          "id": 255,
+          "name": "minecraft:structure_block"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStructure",
+      "source_sha256": "abcc366d1a5199250b558ca8e8ec44b3cb8fbd163b8fd9370384b44b20ded201"
+    },
+    {
+      "blocks": [
+        {
+          "id": 255,
+          "name": "minecraft:structure_block"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockStructure",
+      "source_sha256": "8022d54e5d7350ee3d3fe065990d0a5e0f3d84f43e0692a6b013196887290a28"
+    },
+    {
+      "blocks": [
+        {
+          "id": 217,
+          "name": "minecraft:structure_void"
+        }
+      ],
+      "callback": "dropBlockAsItemWithChance",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockStructureVoid",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 46,
+          "name": "minecraft:tnt"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTNT",
+      "source_sha256": "4d3ca75b42a8e887225d652213dc5519508d963f510d31daf44d1d878555154c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 46,
+          "name": "minecraft:tnt"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTNT",
+      "source_sha256": "e57f37b5d954da3497d2fdc632d748e9c65bdbedd10b1f93c4b81b22f89325e7"
+    },
+    {
+      "blocks": [
+        {
+          "id": 46,
+          "name": "minecraft:tnt"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTNT",
+      "source_sha256": "f8db2d9f75a61c1ee556120dea2023b2281ddd51c024a81f96a5991dafd32730"
+    },
+    {
+      "blocks": [
+        {
+          "id": 46,
+          "name": "minecraft:tnt"
+        }
+      ],
+      "callback": "onBlockDestroyedByExplosion",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTNT",
+      "source_sha256": "465f8bfe5ca2fbd1b33a353d412e474aa0ac6c274aeb35b5d5087f362e4ce53f"
+    },
+    {
+      "blocks": [
+        {
+          "id": 46,
+          "name": "minecraft:tnt"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTNT",
+      "source_sha256": "0e5473a715f99bb344c05e59e01e3b4fd181451b59f7f7f148a01bf92d4ff3c6"
+    },
+    {
+      "blocks": [
+        {
+          "id": 50,
+          "name": "minecraft:torch"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTorch",
+      "source_sha256": "558ed01e6d648cb824ef44e2d5dd59318448619705fb3b21dadaf061e47b0213"
+    },
+    {
+      "blocks": [
+        {
+          "id": 50,
+          "name": "minecraft:torch"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTorch",
+      "source_sha256": "8978b72bef5b196b3ebe256fbda3a4cd63456ad0b4699dad002f55663a01e6e2"
+    },
+    {
+      "blocks": [
+        {
+          "id": 50,
+          "name": "minecraft:torch"
+        }
+      ],
+      "callback": "randomDisplayTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTorch",
+      "source_sha256": "1b3e8570762a62de2899842087a264063bb04debe27b87c48a3380e747c30839"
+    },
+    {
+      "blocks": [
+        {
+          "id": 96,
+          "name": "minecraft:trapdoor"
+        },
+        {
+          "id": 167,
+          "name": "minecraft:iron_trapdoor"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTrapDoor",
+      "source_sha256": "ac66cc6162abbde3a4a0b8362c49aeaa6695322623fb035cc476f279710c3ca9"
+    },
+    {
+      "blocks": [
+        {
+          "id": 96,
+          "name": "minecraft:trapdoor"
+        },
+        {
+          "id": 167,
+          "name": "minecraft:iron_trapdoor"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTrapDoor",
+      "source_sha256": "1736eff532264f1a362e3621555cbdced3cfe3b062956d020f68f7a1dee8688c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 132,
+          "name": "minecraft:tripwire"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTripWire",
+      "source_sha256": "bb848a635d6d4db71a2c6669d034c8c4ee411ef183d5e98fad8d33971c4dc00d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 132,
+          "name": "minecraft:tripwire"
+        }
+      ],
+      "callback": "onBlockAdded",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTripWire",
+      "source_sha256": "346df009a957861a66f0cdf2ecd9f252d166795a3901e9d64ea5f9a6401de9bd"
+    },
+    {
+      "blocks": [
+        {
+          "id": 132,
+          "name": "minecraft:tripwire"
+        }
+      ],
+      "callback": "onBlockHarvested",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTripWire",
+      "source_sha256": "a069c7c7e4dd4333274e78be599b9713131753e040ccfc98e61882918f6f7f5d"
+    },
+    {
+      "blocks": [
+        {
+          "id": 132,
+          "name": "minecraft:tripwire"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTripWire",
+      "source_sha256": "afb3f946b9f90d9776d477c940270387144609eb65bfc42975f8da80cdb319c7"
+    },
+    {
+      "blocks": [
+        {
+          "id": 132,
+          "name": "minecraft:tripwire"
+        }
+      ],
+      "callback": "randomTick",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockTripWire",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 132,
+          "name": "minecraft:tripwire"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTripWire",
+      "source_sha256": "96b97e8a4702998f004ab85672cd3148b09c04482a2460701fc18a96c13edeec"
+    },
+    {
+      "blocks": [
+        {
+          "id": 131,
+          "name": "minecraft:tripwire_hook"
+        }
+      ],
+      "callback": "breakBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTripWireHook",
+      "source_sha256": "6729545c15f37e4a215fa633c3611538f3b97c35f92e489bed10a63c8d50cdf7"
+    },
+    {
+      "blocks": [
+        {
+          "id": 131,
+          "name": "minecraft:tripwire_hook"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTripWireHook",
+      "source_sha256": "80cc00dd8cbc0d0b20a2d3fb0170a59b8cdf02d7b89dfb209a5acc6ab4abca8a"
+    },
+    {
+      "blocks": [
+        {
+          "id": 131,
+          "name": "minecraft:tripwire_hook"
+        }
+      ],
+      "callback": "onBlockPlacedBy",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTripWireHook",
+      "source_sha256": "41268e89010733ed4c7e94441ca570122650b8b30dfef41a249cfcb5e8d1a13c"
+    },
+    {
+      "blocks": [
+        {
+          "id": 131,
+          "name": "minecraft:tripwire_hook"
+        }
+      ],
+      "callback": "randomTick",
+      "kind": "constant",
+      "owner": "net.minecraft.block.BlockTripWireHook",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "blocks": [
+        {
+          "id": 131,
+          "name": "minecraft:tripwire_hook"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockTripWireHook",
+      "source_sha256": "3354130816bf64273b7995c7687e7f35e9d56c2b18645135722fd78aa3f762fb"
+    },
+    {
+      "blocks": [
+        {
+          "id": 106,
+          "name": "minecraft:vine"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockVine",
+      "source_sha256": "d0ae1190824fdbd3330b7f6ac5597de9d50c9a31fa6432fedae124bba5473fa1"
+    },
+    {
+      "blocks": [
+        {
+          "id": 106,
+          "name": "minecraft:vine"
+        }
+      ],
+      "callback": "updateTick",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockVine",
+      "source_sha256": "d40c01a0c2d8066107a94ffccb5318de12173fcf5510a196c0c716875abb19be"
+    },
+    {
+      "blocks": [
+        {
+          "id": 68,
+          "name": "minecraft:wall_sign"
+        }
+      ],
+      "callback": "neighborChanged",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockWallSign",
+      "source_sha256": "5236e1258aa39f9678c43945e886e6581927cb8eb15b8d37bc81b4d18d859f02"
+    },
+    {
+      "blocks": [
+        {
+          "id": 30,
+          "name": "minecraft:web"
+        }
+      ],
+      "callback": "onEntityCollidedWithBlock",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockWeb",
+      "source_sha256": "784c2e56b50dc7af27f3b1cf9aa581414e837fc6af19ba76b4431db1262527c1"
+    },
+    {
+      "blocks": [
+        {
+          "id": 58,
+          "name": "minecraft:crafting_table"
+        }
+      ],
+      "callback": "onBlockActivated",
+      "kind": "direct",
+      "owner": "net.minecraft.block.BlockWorkbench",
+      "source_sha256": "fe048d5e92ef3a315a9ce36ba754950a540c5a020377442a0a52dc5071f13d6d"
+    }
+  ],
+  "implementation_families": 306,
+  "registry_blocks": 236,
+  "schema": "netherite.block_callback_census",
+  "version": 1
+}

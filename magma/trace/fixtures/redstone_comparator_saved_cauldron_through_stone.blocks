@@ -1,0 +1,11 @@
+# x y z id meta
+# Saved mid-transition state: a WEST-facing comparator still has tile output
+# zero while a level-3 cauldron sits behind one stone input block. The capsule
+# restores the pending comparator callback that must commit output 3.
+10 77 8 1 0
+11 77 8 1 0
+12 77 8 1 0
+10 78 8 118 3
+11 78 8 1 0
+12 78 8 149 1
+13 78 8 123 0

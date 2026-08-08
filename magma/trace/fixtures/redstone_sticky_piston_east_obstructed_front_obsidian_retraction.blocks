@@ -1,0 +1,7 @@
+# Serialized extended sticky base whose head is absent, with an unrelated
+# stone in the front cell and immovable obsidian at the pull origin. Java
+# retracts only the base and preserves both unrelated blocks.
+12 79 8 29 13
+13 79 8 1 0
+14 79 8 49 0
+12 79 9 152 0

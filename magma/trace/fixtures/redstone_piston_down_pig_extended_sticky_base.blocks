@@ -1,0 +1,6 @@
+# A west-side source preserves a headless extended-UP sticky piston. Its
+# valid extended body ends at Y=3/4 rather than occupying the full cell.
+12 81 9 152 0
+12 78 8 1 0
+12 79 8 29 9
+11 79 8 152 0

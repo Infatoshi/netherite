@@ -1,0 +1,55 @@
+{
+  "schema": "netherite.endermite_family_gate",
+  "version": 1,
+  "todo": "AI-01",
+  "pearl_spawn_oracle": {
+    "impact_cases": 5,
+    "spawn_cases": 1,
+    "spawn_roll_rng_uuid_eid_and_state": "bit_exact"
+  },
+  "death_loot_oracle": {
+    "composed_endermite_death_rows": 9,
+    "aggregate_death_rows": 261,
+    "endermite_loot_rows": 15,
+    "aggregate_hostile_loot_rows": 375,
+    "empty_table_and_rng": "bit_exact",
+    "terminal_xp": 3
+  },
+  "state_continuation": {
+    "java_native_ticks": 20,
+    "shared_plain_entity_classes": 34,
+    "native_save_boundary": 2399,
+    "expiry_tick": 2400,
+    "lifetime_player_spawned_and_persistence": "bit_exact"
+  },
+  "render_contract": {
+    "model_boxes": 4,
+    "texture": "jar_exact",
+    "animation": "exact_formula",
+    "death_rotation_degrees": 180
+  },
+  "implemented": [
+    "live_endermite_type",
+    "exact_dimensions_eye_height_health_and_arthropod_classification",
+    "ender_pearl_five_percent_spawn_branch",
+    "player_spawned_lifetime_and_persistence_nbt",
+    "exact_lifetime_2400_retirement",
+    "active_generic_hostile_target_melee_and_despawn_path",
+    "exact_empty_loot_table",
+    "exact_three_xp_terminal_death",
+    "hostile_fall_damage_and_audio_path",
+    "ambient_hurt_death_and_step_resources",
+    "four_box_animated_model",
+    "jar_exact_skin_and_atlas",
+    "native_save_continuation",
+    "java_nbt_capsule_native_continuation"
+  ],
+  "remaining": [
+    "real_java_multitick_active_target_melee_swim_wander_watch_and_look",
+    "natural_spawn_nearest_player_exclusion_and_pack_order",
+    "enderman_targets_player_spawned_endermite_integration",
+    "type_specific_step_event_from_live_locomotion",
+    "client_portal_particle_rng_lifecycle_and_pixels",
+    "bounded_same_scene_java_native_model_pixels"
+  ]
+}

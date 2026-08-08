@@ -1,0 +1,27 @@
+{
+  "schema": "netherite.redstone_strict_topology",
+  "version": 1,
+  "date_utc": "2026-08-26",
+  "todo": ["RED-02", "RED-03"],
+  "seed_first": 2100000000,
+  "sizes": [
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+    17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+    33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+    49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
+    96, 128, 160, 192, 224, 256, 257, 384, 512
+  ],
+  "case_count": 73,
+  "pass": 73,
+  "fail": 0,
+  "retry_count": 0,
+  "ticks_per_case": 6,
+  "state_features_per_case": 34,
+  "state_divergences": 0,
+  "unrepresented_state_fields": 0,
+  "cross_chunk_cases": 61,
+  "maximum_chunks_in_one_case": 7,
+  "maximum_component_size": 512,
+  "summary_sha256": "0639f93c4874cb0d402fdf7328fc5eb8e90b1607e44d6d6fbbc2450ae58dc03a",
+  "command": "uv run --no-project python magma/trace/run_oracle_matrix.py --instances 8 --port-base 25700 --start-pool --only-redstone-fuzz --redstone-fuzz-sizes 1..64,96..256/32,257,384,512 --redstone-fuzz-seed 2100000000 --platform 21 --block-box '-48 -6 -48 64 10 64'"
+}

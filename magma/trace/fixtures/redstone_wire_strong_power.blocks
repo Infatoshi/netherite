@@ -1,0 +1,6 @@
+# A powered wire strongly powers the stone below it. The tick-0 lamp touches
+# only that stone, so it must resolve wire strong power through the support.
+11 79 8 152 0
+12 78 8 1 0
+12 79 8 55 15
+13 78 8 0 0

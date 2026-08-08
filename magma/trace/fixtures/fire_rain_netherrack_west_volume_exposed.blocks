@@ -1,0 +1,6 @@
+# x y z id meta
+# The carpet is two cells west of source fire. It encourages only the
+# intervening west volume candidate, whose five rain probes are exposed.
+12 77 8 87 0
+12 78 8 51 0
+10 78 8 171 0

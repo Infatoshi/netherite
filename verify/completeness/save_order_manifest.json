@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "todo": "SAVE-03",
+  "observed_at": "2026-08-12",
+  "requirements": {
+    "java_repeat": "exact",
+    "native": "exact",
+    "rejected_fields": 0,
+    "raw_horizons": "exact",
+    "active_chunks": 289,
+    "raw_cells": 3757
+  },
+  "cases": {
+    "entity_chunk_cycle_forward": {
+      "boundary": "captured_hidden_resume",
+      "horizons": [0, 1],
+      "java_repeat": "exact",
+      "native": "exact",
+      "rejected_fields": 0,
+      "raw_horizons": {"0": "exact", "1": "exact"},
+      "active_chunks": 289,
+      "raw_cells": 3757,
+      "unloaded_after_ticks": 1,
+      "reloaded_after_ticks": 1,
+      "uuid_order": [20737, 20738],
+      "survivor_eid": 5102,
+      "survivor_count": 2
+    },
+    "entity_chunk_cycle_reverse": {
+      "boundary": "captured_hidden_resume",
+      "horizons": [0, 1],
+      "java_repeat": "exact",
+      "native": "exact",
+      "rejected_fields": 0,
+      "raw_horizons": {"0": "exact", "1": "exact"},
+      "active_chunks": 289,
+      "raw_cells": 3757,
+      "unloaded_after_ticks": 1,
+      "reloaded_after_ticks": 1,
+      "uuid_order": [20738, 20737],
+      "survivor_eid": 5101,
+      "survivor_count": 2
+    },
+    "hopper_forward": {
+      "boundary": "captured_hidden_resume",
+      "horizons": [0, 1],
+      "java_repeat": "exact",
+      "native": "exact",
+      "rejected_fields": 0,
+      "raw_horizons": {"0": "exact", "1": "exact"},
+      "active_chunks": 289,
+      "raw_cells": 3757,
+      "tile_order": [[986, 4, -98], [985, 4, -98], [987, 4, -98]],
+      "tickable_order": [[986, 4, -98], [985, 4, -98], [987, 4, -98]],
+      "chest_slots": [1, 4]
+    },
+    "hopper_reverse": {
+      "boundary": "captured_hidden_resume",
+      "horizons": [0, 1],
+      "java_repeat": "exact",
+      "native": "exact",
+      "rejected_fields": 0,
+      "raw_horizons": {"0": "exact", "1": "exact"},
+      "active_chunks": 289,
+      "raw_cells": 3757,
+      "tile_order": [[986, 4, -98], [987, 4, -98], [985, 4, -98]],
+      "tickable_order": [[986, 4, -98], [987, 4, -98], [985, 4, -98]],
+      "chest_slots": [4, 1]
+    },
+    "player_minecart": {
+      "boundary": "captured_hidden_resume",
+      "horizons": [0, 1, 20],
+      "java_repeat": "exact",
+      "native": "exact",
+      "rejected_fields": 0,
+      "raw_horizons": {"0": "exact", "1": "exact", "20": "exact"},
+      "active_chunks": 289,
+      "raw_cells": 3757,
+      "riding_eid_t0": 5201,
+      "riding_eid_t20": 5201,
+      "loaded_entity_order_t20": [5201]
+    }
+  }
+}

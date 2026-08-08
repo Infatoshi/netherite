@@ -1,0 +1,8 @@
+# A powered floor lever strongly powers its stone support and the adjacent
+# lamp. The east stone is an alternate valid wall support: removing the stored
+# floor support must still drop the lever, while removing the east stone must
+# leave the floor-attached lever intact.
+12 78 8 1 0
+12 79 8 69 13
+13 78 8 124 0
+13 79 8 1 0

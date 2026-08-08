@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while waterlily 111:0 occupies the front cell over
+# a still-water source.
+12 78 9 152 0
+13 77 8 9 0
+13 78 8 111 0

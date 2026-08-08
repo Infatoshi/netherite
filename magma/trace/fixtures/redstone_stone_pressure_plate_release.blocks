@@ -1,0 +1,6 @@
+# A powered stone pressure plate with no entity in its trigger box directly
+# powers the lit lamp to its east. A saved +3 callback releases metadata 1 to
+# 0 and hands off to the lamp's independent +4 delayed-off callback.
+12 77 8 1 0
+12 78 8 70 1
+13 78 8 124 0

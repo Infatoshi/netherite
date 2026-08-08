@@ -1,0 +1,13 @@
+{
+  "schema": "netherite.block_callback_daylight_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "case": "redstone_player_use_daylight_detector_seed_0",
+  "pass": 1,
+  "state_divergences": 0,
+  "summary_sha256": "c9d7a785c892deac115f98b9647a9a00cf3302ec0c773daabefa3bf69fc17948",
+  "families": [
+    ["BlockDaylightDetector", "onBlockActivated"]
+  ]
+}

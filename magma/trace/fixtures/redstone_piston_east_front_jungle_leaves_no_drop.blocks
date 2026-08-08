@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while jungle leaves 18:3 occupy the front cell.
+# World.rand internal seed 18 produces 20: it would pass a 1/20 roll but must
+# fail jungle leaves' distinct 1/40 sapling roll. Jungle leaves never roll an
+# apple, so the only remaining World.rand draw is piston pitch.
+12 78 9 152 0
+13 78 8 18 3

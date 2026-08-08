@@ -1,0 +1,14 @@
+{"tick":0,"type":"snapshot_region","dim":0,"cx":-13,"cz":-5,"radius":4}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":-13,"cz":3,"radius":4}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":-13,"cz":11,"radius":4}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":-5,"cz":-5,"radius":4}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":-5,"cz":3,"radius":4}
+{"tick":0,"type":"snapshot_block","dim":0,"x":-3,"y":3,"z":7,"id":1,"meta":0}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":-5,"cz":11,"radius":4}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":3,"cz":-5,"radius":4}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":3,"cz":3,"radius":4}
+{"tick":0,"type":"snapshot_block","dim":0,"x":0,"y":3,"z":7,"id":1,"meta":0}
+{"tick":0,"type":"snapshot_block","dim":0,"x":3,"y":3,"z":7,"id":1,"meta":0}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":3,"cz":11,"radius":4}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":11,"cz":-5,"radius":4}
+{"tick":0,"type":"snapshot_region","dim":0,"cx":11,"cz":3,"radius":4}

@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while supported unpowered wire block 55 occupies
+# the front/output cell. Java destroys the wire, drops redstone item 331:0,
+# and starts the moving head in the same cell.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 55 0

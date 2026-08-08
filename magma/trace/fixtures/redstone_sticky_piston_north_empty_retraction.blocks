@@ -1,0 +1,5 @@
+# Settled NORTH sticky piston with no block beyond its head. Removing the
+# south-side source must retract only the base/head.
+12 79 8 29 10
+12 79 7 34 10
+12 79 9 152 0

@@ -1,0 +1,17 @@
+hypothesis                    median_ms  ticks/s  vs_base vs_base%   vs_ref  verdict
+baseline                        1715.62   458394    +0.00   +0.00%           REFERENCE
+baseline_recheck                1717.09   458002    -1.47   -0.09%    -1.47  DRIFT-CONTROL
+act_cache                       1724.96   455913    -9.34   -0.54%    -7.87  REVERT
+novalidate                      1610.20   488408  +105.43   +6.15%  +105.43  SUBSUMED
+fused_sample                    1591.24   494227  +124.39   +7.25%  +124.39  KEEP
+graph_rollout                   1608.64   488881  +106.99   +6.24%    +1.56  REVERT
+graph_update                    1618.62   485865   +97.00   +5.65%    -8.43  REVERT
+graph_both                      1614.20   487196  +101.43   +5.91%    -4.00  REVERT
+graph_both_fused                1590.44   494473  +125.18   +7.30%    +0.79  REVERT
+baseline_recheck2               1722.07   456679    -6.44   -0.38%    -6.44  DRIFT-CONTROL
+act_cache_repair                1733.43   453687   -17.80   -1.04%   -11.36  REVERT
+fused_ref                       1590.39   494491  +125.24   +7.30%  +125.24  KEEP
+fused_plus_graph_rollout        1589.04   494911  +126.59   +7.38%    +1.35  REVERT
+fused_plus_graph_update         1596.27   492669  +119.36   +6.96%    -5.88  REVERT
+prelane_path                    1722.93   456451    -7.30   -0.43%    -7.30  PAIRED-REFERENCE
+ACCEPTED_fused_sample_default   1585.17   496118  +130.45   +7.60%  +137.75  ACCEPTED

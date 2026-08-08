@@ -1,0 +1,5 @@
+# Repower during retraction, then remove that power while the automatically
+# restarted extension is still moving.
+0 4 1 1 0 0
+1 4 1 -1 152 0
+4 4 1 -1 0 0

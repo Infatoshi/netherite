@@ -1,0 +1,1546 @@
+/* app/game_main.c - magma_game: PLAY the verified blaze simulation inside the
+ * magma software rasterizer. Keyboard/mouse -> the verified player_survival.h
+ * physics/break/place/vitals kernels -> a live view-distance blaze world meshed by
+ * the MC-faithful mesher (pixel-matched to real MC ~39/ch) -> our C rasterizer ->
+ * window. HUD + mobs on top. NO OpenGL in the render path.
+ *
+ * Seam design (see game/game.h): the verified psv_* kernels address an ORIGIN-CENTERED
+ * PSV_DIM x PSV_DIM chunk window, so the player is ticked in a FLOATING-ORIGIN local
+ * frame. Each frame we keep the player inside the CENTER chunk of the window: offset
+ * (ox,oz) = playerChunk*16, local pos = worldpos - offset, refill the window from the
+ * live world, tick, apply block edits back to the world, derive the camera + HUD.
+ *
+ * The deliberately narrow launch surface is parsed by game/config.c and specified
+ * in PRODUCT.md. `--help` and `--print-config` require no SDL/display initialization.
+ */
+#include "core/types.h"
+#include "game/game.h"
+#include "game/entity_render.h"
+#include "game/config.h"
+#include "core/config.h"   /* cr_cfg(): the runtime knob registry (--conf/--set) */
+#include "game/sky.h"
+#include "game/underwater.h"
+#include "game/caps.h"
+#include "game/hand.h"
+#include "game/hud.h"
+#include "game/timer.h"   /* Timer.java port: 20 TPS accumulator + renderPartialTicks */
+#include "game/live_sim.h" /* minimal live entities + plant plot */
+#include "game/player_ctl.h"
+#include "game/particles_live.h"
+#include "game/runtime.h"
+#include "game/native_save.h"
+#include "game/screen.h"
+#include "game/script.h"
+#include "game/rl_mode.h"
+#include "game/frame_capture.h"  /* gm_frame_lightmap_fill: shared updateLightmap LUT */
+#include "game/window_compose.h"
+#include "game/view.h"
+#include "game/overlay.h"        /* selection outline + dig crack decal geometry */
+#include "game/sel_box.h"        /* vanilla per-block selection bounding boxes */
+#include "game/item_render.h"    /* dropped-item mini blocks + flat sprites */
+#include "game/audio_live.h"
+#include "container_click.h"
+#include "items_core.h"
+#include "assets/blockmodels.h"
+#include "game/block_registry.h"   /* vanilla state -> particle model key */
+
+/* blaze: PsvPlayer / Chunk / McSinTable + the verified init helpers. */
+#include "player_survival.h"
+#include "player_vitals.h"   /* verified vanilla vitals (PvStats, pv_init) */
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include "world/mesh_mc.h"
+#include "world/lightmap.h"
+
+/* ParticleDigging multiplyColor: block color multiplier for live dig
+ * particles (grass exception handled in bm_particle_tint). */
+static void dig_particle_base_color(const GmWorld *world, int model_key,
+                                    int wx, int wy, int wz,
+                                    float *br, float *bg, float *bb)
+{
+    *br = *bg = *bb = 1.0f;
+    int tint = bm_particle_tint(model_key);
+    int rgb = -1; /* vanilla: no handler -> -1 -> white when multiplied */
+    switch (tint) {
+        case BM_TINT_GRASS:
+            rgb = gm_world_grass_color(world, wx, wy, wz);
+            break;
+        case BM_TINT_FOLIAGE:
+            rgb = gm_world_foliage_color(world, wx, wy, wz);
+            break;
+        case BM_TINT_LILY:
+            rgb = 2129968; /* BlockColors WATERLILY in-world */
+            break;
+        case BM_TINT_FOLIAGE_PINE:
+            rgb = 6396257; /* ColorizerFoliage pine */
+            break;
+        case BM_TINT_FOLIAGE_BIRCH:
+            rgb = 8431445; /* ColorizerFoliage birch */
+            break;
+        default:
+            return;
+    }
+    if (rgb < 0) return;
+    *br = (float)((rgb >> 16) & 255) / 255.0f;
+    *bg = (float)((rgb >> 8) & 255) / 255.0f;
+    *bb = (float)(rgb & 255) / 255.0f;
+}
+
+/* Deterministic window-battery view of two sealed source-fluid basins. This
+ * is a measurement fixture only; normal worlds and the capture compositor do
+ * not enter it. */
+static void init_anim_texture_demo(GmRuntime *r)
+{
+    for (int side = 0; side < 2; ++side) {
+        int x0 = side ? 9 : 1;
+        int x1 = side ? 15 : 7;
+        int fluid = side ? 11 : 9;
+        for (int x = x0; x <= x1; ++x) {
+            for (int z = 4; z <= 10; ++z) {
+                int rim = x == x0 || x == x1 || z == 4 || z == 10;
+                gm_runtime_set_block(r, x, 3, z, 1, 0);
+                gm_runtime_set_block(r, x, 4, z, rim ? 1 : fluid, 0);
+                gm_runtime_set_block(r, x, 5, z, 0, 0);
+            }
+        }
+    }
+    for (int y = 4; y <= 7; ++y)
+        gm_runtime_set_block(r, 8, y, 16, 1, 0);
+    gm_runtime_set_pose(r, 8.5, 8.0, 16.5, 180.0f, 35.0f);
+}
+
+/* Deterministic window-battery view for translucent-terrain entity ordering.
+ * Three zombies share one camera: left is behind a two-block-thick full-height
+ * water column, centre is in front of an identical column, and right is behind
+ * a two-block-thick one-block-high column (half-submerged in screen space).
+ * entity_water_dry keeps the geometry/poses but omits only the water. */
+static void init_entity_water_demo(GmRuntime *r)
+{
+    int dry = cr_cfg()->entity_water_dry;
+    static const int x0[3] = {2, 7, 11};
+    static const int x1[3] = {5, 9, 14};
+    static const int ymax[3] = {6, 6, 4};
+    for (int group = 0; group < 3; ++group) {
+        for (int x = x0[group]; x <= x1[group]; ++x) {
+            for (int z = 10; z <= 11; ++z) {
+                for (int y = 4; y <= ymax[group]; ++y)
+                    gm_runtime_set_block(r, x, y, z, dry ? 0 : 9, 0);
+            }
+        }
+    }
+    gm_runtime_set_pose(r, 8.5, 4.2, 18.5, 180.0f, 0.0f);
+    gm_mobs_spawn(&r->mobs, EW_TYPE_ZOMBIE, 4.0, 4.0, 7.5);
+    gm_mobs_spawn(&r->mobs, EW_TYPE_ZOMBIE, 8.5, 4.0, 13.5);
+    gm_mobs_spawn(&r->mobs, EW_TYPE_ZOMBIE, 12.5, 4.0, 7.5);
+}
+
+
+static int write_ppm(const char *path, const CrFramebuffer *fb) {
+    FILE *f = fopen(path, "wb");
+    if (!f) return -1;
+    fprintf(f, "P6\n%d %d\n255\n", fb->w, fb->h);
+    size_t n = (size_t)fb->w * fb->h;
+    unsigned char *rgb = (unsigned char *)malloc(n * 3);
+    if (!rgb) { fclose(f); return -1; }
+    for (size_t i = 0; i < n; ++i) {
+        rgb[i*3+0] = fb->color[i].r; rgb[i*3+1] = fb->color[i].g; rgb[i*3+2] = fb->color[i].b;
+    }
+    size_t wrote = fwrite(rgb, 3, n, f);
+    free(rgb); fclose(f);
+    return wrote == n ? 0 : -1;
+}
+
+static int refresh_native_worlds(
+        const char *root, GmNativeSaveInfo *worlds, int max,
+        const char *selected_slot, int *selected,
+        char *error, size_t error_cap) {
+    int count = gm_native_save_list(root, worlds, max, error, error_cap);
+    if (count < 0) {
+        *selected = -1;
+        return -1;
+    }
+    *selected = count > 0 ? 0 : -1;
+    if (selected_slot && *selected_slot) {
+        for (int index = 0; index < count; ++index) {
+            if (strcmp(worlds[index].slot, selected_slot) == 0) {
+                *selected = index;
+                break;
+            }
+        }
+    }
+    return count;
+}
+
+/* ---- bench: per-frame wall-clock decomposition (MEASUREMENT ONLY) ----
+ * Registry-gated, exactly like the still / tp measurement gates:
+ *   --set bench=1            enable (off => zero clock reads, unchanged run)
+ *   --set bench_csv=path     per-frame CSV rows (microseconds)
+ *   --set bench_warmup=N     frames excluded from the summary stats (default 120)
+ * Every timestamp is guarded by bench_on; with the env unset the loop is
+ * byte-for-byte the uninstrumented one (one extra predictable branch per stage
+ * boundary). No simulation or rendering state is touched.
+ *
+ * Timestamp slots (stage = difference to the previous slot):
+ *   0 frame start | 1 input done | 2 sim ticks done | 3 camera/uw done |
+ *   4 sky done (clear+sky draw) | 5 cuda frame_begin done | 6 mesh_view done |
+ *   7 terrain raster done | 8 overlay done | 9 entities done |
+ *   10 cuda frame_end done | 11 hand+hud done | 12 present done
+ * cuda_in/cuda_out are ~0 on the pure-CPU build. */
+#define BM_TS 13
+#define BM_STAGES 12
+static int       g_bench_on = -1;
+static long long g_bench_warm = 120;
+static long long g_bench_ts[BM_TS];
+static long long g_bench_sum[BM_STAGES];   /* post-warmup frames only */
+static long long g_bench_max[BM_STAGES];   /* post-warmup frames only */
+static long long g_bench_frames_rec = 0;
+static long long g_bench_meas = 0;         /* recorded frames past warmup */
+static long long *g_bench_totals = NULL;   /* allocate-once at startup */
+static long long  g_bench_totals_cap = 0;
+static FILE      *g_bench_csv = NULL;
+static const char *const g_bench_names[BM_STAGES] = {
+    "input", "sim", "view", "sky", "cuda_in", "mesh", "raster", "overlay",
+    "ents", "cuda_out", "hud", "present"
+};
+
+static long long bench_now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)ts.tv_sec * 1000000000LL + (long long)ts.tv_nsec;
+}
+
+/* --- --stats on: live per-second timing stats on stderr. Piggybacks on the
+ * bench stamp slots (bench_init forces them on), so per-frame cost is the
+ * same 13 clock reads bench pays; aggregation is O(frames-per-second)
+ * once a second. gpu = the two GPU sync stages (frame_begin wait + frame_end
+ * readback: ts[4..5] + ts[9..10]); ~0 on the pure-CPU backend. cpu = frame
+ * total minus gpu. Window resets every printed second. */
+#define ST_CAP 4096
+static int       g_stats_on = 0;
+static int       g_stats_n = 0;
+static int       g_stats_dropped = 0;
+static long long g_stats_t0 = 0;
+static long long g_stats_frame_ns[ST_CAP];
+static long long g_stats_cpu_ns[ST_CAP];
+static long long g_stats_gpu_ns[ST_CAP];
+static long long g_stats_sort[ST_CAP];
+
+static void stats_init(int on) {
+    g_stats_on = on;
+    if (on) g_stats_t0 = bench_now_ns();
+}
+
+static int stats_cmp_ll(const void *a, const void *b) {
+    long long x = *(const long long *)a, y = *(const long long *)b;
+    return (x > y) - (x < y);
+}
+
+static void stats_print_line(const char *name, const long long *v, int n) {
+    long long mn = v[0], mx = v[0];
+    double sum = 0.0, sum2 = 0.0;
+    for (int i = 0; i < n; ++i) {
+        if (v[i] < mn) mn = v[i];
+        if (v[i] > mx) mx = v[i];
+        double ms = (double)v[i] / 1e6;
+        sum += ms;
+        sum2 += ms * ms;
+    }
+    memcpy(g_stats_sort, v, (size_t)n * sizeof(long long));
+    qsort(g_stats_sort, (size_t)n, sizeof(long long), stats_cmp_ll);
+    double med = (n & 1)
+        ? (double)g_stats_sort[n / 2] / 1e6
+        : ((double)g_stats_sort[n / 2 - 1] + (double)g_stats_sort[n / 2]) / 2e6;
+    double mean = sum / n;
+    double var = sum2 / n - mean * mean;
+    if (var < 0) var = 0;
+    fprintf(stderr,
+        "[stats] %-5s ms  min %7.3f  med %7.3f  mean %7.3f  max %7.3f  var %8.4f\n",
+        name, (double)mn / 1e6, med, mean, (double)mx / 1e6, var);
+}
+
+static void stats_frame_done(void) {
+    if (!g_stats_on) return;
+    long long total = g_bench_ts[BM_TS - 1] - g_bench_ts[0];
+    long long gpu = (g_bench_ts[5] - g_bench_ts[4]) +
+                    (g_bench_ts[10] - g_bench_ts[9]);
+    if (g_stats_n < ST_CAP) {
+        g_stats_frame_ns[g_stats_n] = total;
+        g_stats_gpu_ns[g_stats_n] = gpu;
+        g_stats_cpu_ns[g_stats_n] = total - gpu;
+        g_stats_n++;
+    } else {
+        g_stats_dropped++;
+    }
+    long long now = bench_now_ns();
+    double elapsed = (double)(now - g_stats_t0) / 1e9;
+    if (elapsed < 1.0) return;
+    int n = g_stats_n;
+    if (n > 0) {
+        fprintf(stderr, "[stats] fps %.2f  frames %d%s  window %.3fs\n",
+                (double)(n + g_stats_dropped) / elapsed, n + g_stats_dropped,
+                g_stats_dropped ? " (stats sampled)" : "", elapsed);
+        stats_print_line("frame", g_stats_frame_ns, n);
+        stats_print_line("cpu", g_stats_cpu_ns, n);
+        stats_print_line("gpu", g_stats_gpu_ns, n);
+    }
+    g_stats_n = 0;
+    g_stats_dropped = 0;
+    g_stats_t0 = now;
+}
+
+static void bench_init(int want_frames, int stats_on) {
+    if (g_bench_on >= 0) return;
+    /* Registry, not env: bench / bench_warmup / bench_csv. The config is loaded
+     * at the top of main(), before this runs. */
+    const CrConfig *k = cr_cfg();
+    g_bench_on = k->bench || stats_on;
+    if (!g_bench_on) return;
+    if (k->bench_warmup >= 0) g_bench_warm = k->bench_warmup;
+    long long cap = want_frames > 0 ? want_frames : 65536;
+    g_bench_totals = (long long *)malloc((size_t)cap * sizeof(long long));
+    g_bench_totals_cap = g_bench_totals ? cap : 0;
+    if (k->bench_csv[0]) {
+        g_bench_csv = fopen(k->bench_csv, "w");
+        if (g_bench_csv)
+            fprintf(g_bench_csv,
+                "frame,nticks,ntris,total_us,input_us,sim_us,view_us,sky_us,"
+                "cuda_in_us,mesh_us,raster_us,overlay_us,ents_us,cuda_out_us,"
+                "hud_us,present_us\n");
+    }
+}
+
+static void bench_stamp(int slot) {
+    if (g_bench_on > 0) g_bench_ts[slot] = bench_now_ns();
+}
+
+static void bench_record(int frame, int nticks, int ntris) {
+    if (g_bench_on <= 0) return;
+    long long total = g_bench_ts[BM_TS - 1] - g_bench_ts[0];
+    int meas = g_bench_frames_rec >= g_bench_warm;
+    for (int s = 0; s < BM_STAGES; ++s) {
+        long long d = g_bench_ts[s + 1] - g_bench_ts[s];
+        if (meas) {
+            g_bench_sum[s] += d;
+            if (d > g_bench_max[s]) g_bench_max[s] = d;
+        }
+    }
+    if (meas) g_bench_meas++;
+    if (g_bench_totals && g_bench_frames_rec < g_bench_totals_cap)
+        g_bench_totals[g_bench_frames_rec] = total;
+    g_bench_frames_rec++;
+    stats_frame_done();
+    if (g_bench_csv) {
+        fprintf(g_bench_csv, "%d,%d,%d,%.3f", frame, nticks, ntris,
+                (double)total / 1000.0);
+        for (int s = 0; s < BM_STAGES; ++s)
+            fprintf(g_bench_csv, ",%.3f",
+                    (double)(g_bench_ts[s + 1] - g_bench_ts[s]) / 1000.0);
+        fputc('\n', g_bench_csv);
+    }
+}
+
+static int bench_cmp_ll(const void *a, const void *b) {
+    long long x = *(const long long *)a, y = *(const long long *)b;
+    return (x > y) - (x < y);
+}
+
+static void bench_report(void) {
+    if (g_bench_on <= 0 || !g_bench_totals) return;
+    long long n = g_bench_frames_rec;
+    /* totals stop recording at the cap; never summarize past it */
+    if (n > g_bench_totals_cap) n = g_bench_totals_cap;
+    long long m = g_bench_meas;   /* frames past warmup with full stats */
+    if (n <= 0) return;
+    long long warm = g_bench_warm;
+    if (warm >= n) warm = 0;
+    if (m <= 0) { m = n; warm = 0; }
+
+    long long sum_all = 0;
+    for (long long i = warm; i < n; ++i) sum_all += g_bench_totals[i];
+    double mean_ms = (double)sum_all / (double)m / 1e6;
+
+    /* percentiles over a sorted COPY (CSV order stays chronological). */
+    long long *sorted = (long long *)malloc((size_t)m * sizeof(long long));
+    double p50 = 0, p95 = 0, p99 = 0;
+    if (sorted) {
+        memcpy(sorted, g_bench_totals + warm, (size_t)m * sizeof(long long));
+        qsort(sorted, (size_t)m, sizeof(long long), bench_cmp_ll);
+        p50 = (double)sorted[m / 2] / 1e6;
+        p95 = (double)sorted[(m * 95) / 100] / 1e6;
+        p99 = (double)sorted[(m * 99) / 100] / 1e6;
+    }
+    fprintf(stderr,
+        "[bench] frames=%lld warmup=%lld measured=%lld\n"
+        "[bench] frame ms: mean %.3f p50 %.3f p95 %.3f p99 %.3f\n"
+        "[bench] fps: mean %.2f p50 %.2f p95 %.2f p99 %.2f\n",
+        n, warm, m,
+        mean_ms, p50, p95, p99,
+        1000.0 / mean_ms, 1000.0 / p50, 1000.0 / p95, 1000.0 / p99);
+    for (int s = 0; s < BM_STAGES; ++s)
+        fprintf(stderr, "[bench] stage %-8s mean %.3f ms  max %.3f ms (measured frames)\n",
+                g_bench_names[s],
+                (double)g_bench_sum[s] / (double)m / 1e6,
+                (double)g_bench_max[s] / 1e6);
+    free(sorted);
+    if (g_bench_csv) fclose(g_bench_csv);
+    free(g_bench_totals);
+    g_bench_totals = NULL;
+    g_bench_on = 0;
+}
+
+int main(int argc, char **argv) {
+    GmConfig cfg;
+    char cfg_err[256];
+    if (gm_config_parse(&cfg, argc, argv, cfg_err, sizeof cfg_err) != 0) {
+        fprintf(stderr, "error: %s\n", cfg_err);
+        gm_config_print_usage(stderr, argv[0]);
+        return 2;
+    }
+    if (cfg.show_help) {
+        gm_config_print_usage(stdout, argv[0]);
+        return 0;
+    }
+    if (cfg.print_config) {
+        gm_config_print(stdout, &cfg);
+        return 0;
+    }
+
+    /* --- config registry (core/config.h): compiled defaults -> conf file ->
+     * --set overrides, last wins. This runs FIRST, before bench_init and before
+     * any pool is sized, because every cr_cfg() reader downstream (including the
+     * allocate-once caps in game/caps.c) must see the final values. --- */
+    cr_cfg_load(cfg.conf_path);
+    for (int i = 0; i < cfg.n_set; ++i) {
+        const char *kv = cfg.set_kv[i];
+        const char *eq = strchr(kv, '=');           /* argv parse guaranteed one */
+        char key[64];
+        size_t klen = (size_t)(eq - kv);
+        if (klen == 0 || klen >= sizeof key) {
+            fprintf(stderr, "error: --set %s: bad key\n", kv);
+            return 2;
+        }
+        memcpy(key, kv, klen);
+        key[klen] = '\0';
+        int rc = cr_cfg_set(key, eq + 1);
+        if (rc != 0) {
+            fprintf(stderr, "error: --set %s: %s\n", kv,
+                    rc == -1 ? "unknown key" : "bad value for this key");
+            fprintf(stderr, "config: run with --dump-config for the full key list\n");
+            return 2;
+        }
+    }
+    if (cfg.dump_config) {
+        cr_cfg_dump(stdout);
+        return 0;
+    }
+    /* Reproducibility breadcrumb: one line naming every non-default key, or
+     * nothing at all when the run is pure defaults. */
+    cr_cfg_log_overrides(stderr);
+
+#ifdef MAGMA_CUDA
+    const int cuda_compiled = 1;
+#else
+    const int cuda_compiled = 0;
+#endif
+#ifdef MAGMA_METAL
+    const int metal_compiled = 1;
+#else
+    const int metal_compiled = 0;
+#endif
+    if (gm_config_validate_runtime(&cfg, cuda_compiled, metal_compiled, cfg_err, sizeof cfg_err) != 0) {
+        fprintf(stderr, "error: %s\n", cfg_err);
+        return 2;
+    }
+
+    int         fb_w = cfg.width, fb_h = cfg.height;
+    float       sens = cfg.sensitivity;
+    int         want_frames = cfg.frames;
+    int         kill_frame  = cfg.kill_frame;
+    const char *ppm_path = cfg.ppm_path;
+    bench_init(want_frames, cfg.stats);
+    stats_init(cfg.stats);
+
+    /* Transitional bridge until view distance is carried through GmWorldConfig.
+     * It is still sourced from the strict argv config, never a hidden user setting.
+     * Feeds the registry key view_radius_active (runtime lowering knob; 0 = unset). */
+    {
+        char view_distance[16];
+        snprintf(view_distance, sizeof view_distance, "%d", cfg.view_distance);
+        if (cr_cfg_set("view_radius_active", view_distance) != 0) {
+            fprintf(stderr, "error: failed to set view_radius_active=%s\n", view_distance);
+            return 2;
+        }
+    }
+    fprintf(stderr, "[config] ");
+    gm_config_print(stderr, &cfg);
+
+    /* --- ALLOCATE-ONCE caps: derived from the registry loaded at the top of
+     * main(), BEFORE any pool alloc, so the whole pre-allocation (here +
+     * gm_world_create's toroidal pools) is a pure function of the effective caps
+     * computed before the window opens. Do NOT call cr_caps_load here: it would
+     * re-read the conf file and discard the --set overrides. --- */
+    /* Drive / scenario knobs (still, demos, dump_dir, ...). Cache once: the
+     * registry is immutable after the --set pass at the top of main(). */
+    const CrConfig *knobs = cr_cfg();
+    /* Shade-time lightmap (time-of-day terrain lighting). Game binaries opt
+     * in; legacy_lightmap=1 restores the noon-baked scalar path. */
+    worldmc_set_lightmap_mode(!knobs->legacy_lightmap);
+    const CrCaps *caps = cr_caps();
+    if (cfg.view_distance > caps->view_radius) {
+        fprintf(stderr, "error: requested view distance %d exceeds configured pool cap %d\n",
+                cfg.view_distance, caps->view_radius);
+        return 2;
+    }
+    if (cfg.rl) return gm_rl_run(&cfg);
+    if (cfg.headless) return gm_script_run(&cfg);
+
+    /* --- persistent window compositor + framebuffer/scratch --- */
+    GmWindowCompose *compose = gm_window_compose_open(
+        &cfg, cfg_err, sizeof cfg_err);
+    if (!compose) {
+        fprintf(stderr, "window compose: %s\n", cfg_err);
+        return 1;
+    }
+    CrFramebuffer *window_fb = gm_window_compose_framebuffer(compose);
+#define fb (*window_fb)
+
+    /* One owned simulation state and one authoritative transition. The macros keep
+     * the rendering code readable while making every gameplay field part of runtime. */
+    /* GmRuntime is several MiB and keeps growing as fidelity state is added.
+     * Owning it on main's stack also consumed that space on the headless path,
+     * where main calls gm_script_run and nested two complete runtime frames.
+     * Allocate once here: no tick-time allocation, and both interactive and
+     * headless entry paths retain ample stack for collision scratch. */
+    GmRuntime *runtime_storage = malloc(sizeof *runtime_storage);
+    if (!runtime_storage) {
+        fprintf(stderr, "error: could not allocate simulation runtime\n");
+        gm_window_compose_close(compose);
+        return 1;
+    }
+#define runtime (*runtime_storage)
+    char runtime_err[256];
+    if (!gm_runtime_init(&runtime, &cfg, runtime_err, sizeof runtime_err)) {
+        fprintf(stderr, "error: %s\n", runtime_err);
+        free(runtime_storage);
+        gm_window_compose_close(compose);
+        return 1;
+    }
+    const char *native_save_root_env = getenv("MAGMA_NATIVE_WORLD_ROOT");
+    const char *native_load_slot = getenv("MAGMA_LOAD_SLOT");
+    const char *native_slot_env = getenv("MAGMA_WORLD_SLOT");
+    const char *native_save_root = native_save_root_env && *native_save_root_env
+        ? native_save_root_env : "saves";
+    char active_save_slot[GM_NATIVE_SAVE_SLOT_MAX + 1] = "World1";
+    int loaded_native_save = 0;
+    if (native_slot_env && *native_slot_env) {
+        if (strlen(native_slot_env) > GM_NATIVE_SAVE_SLOT_MAX) {
+            fprintf(stderr, "error: MAGMA_WORLD_SLOT is too long\n");
+            gm_runtime_destroy(&runtime);
+            free(runtime_storage);
+            gm_window_compose_close(compose);
+            return 2;
+        }
+        snprintf(active_save_slot, sizeof active_save_slot, "%s", native_slot_env);
+    }
+    if (native_load_slot && *native_load_slot) {
+        if (strlen(native_load_slot) > GM_NATIVE_SAVE_SLOT_MAX
+                || !gm_native_save_load(
+                    &runtime, &cfg, native_save_root, native_load_slot,
+                    runtime_err, sizeof runtime_err)) {
+            fprintf(stderr, "error: could not load native world '%s': %s\n",
+                    native_load_slot,
+                    strlen(native_load_slot) > GM_NATIVE_SAVE_SLOT_MAX
+                        ? "slot name is too long" : runtime_err);
+            gm_runtime_destroy(&runtime);
+            free(runtime_storage);
+            gm_window_compose_close(compose);
+            return 1;
+        }
+        snprintf(active_save_slot, sizeof active_save_slot, "%s", native_load_slot);
+        loaded_native_save = 1;
+    }
+#define world   (runtime.world)
+#define win     (runtime.window)
+#define st      (runtime.sin_table)
+#define pl      (runtime.player)
+#define vitals  (runtime.vitals)
+#define g_clock (runtime.clock)
+#define live    (runtime.entities)
+#define ccx     (runtime.ccx)
+#define ccz     (runtime.ccz)
+#define ox      (runtime.ox)
+#define oz      (runtime.oz)
+#define g_dead  (runtime.dead)
+#define g_deaths (runtime.deaths)
+    if (!loaded_native_save && knobs->anim_texture_demo)
+        init_anim_texture_demo(&runtime);
+    if (!loaded_native_save && knobs->entity_water_demo)
+        init_entity_water_demo(&runtime);
+    int surface = gm_world_surface_y(world, 8, 8);
+    if (!loaded_native_save && knobs->fixtures)
+        gm_live_init(&live, runtime.seed, surface);
+
+    /* Deterministic mobs ringing spawn for windowed-path render checks (the
+     * gates never draw this loop; fixtures-style measurement hook). */
+    if (!loaded_native_save && knobs->mob_demo) {
+        static const int demo_types[4] = { GM_MOB_COW, EW_TYPE_ZOMBIE,
+                                           GM_MOB_SHEEP, GM_MOB_PIG };
+        static const int demo_off[4][2] = { {6,0}, {0,6}, {-6,0}, {0,-6} };
+        for (int i = 0; i < 4; ++i) {
+            int mx = 8 + demo_off[i][0], mz = 8 + demo_off[i][1];
+            int my = gm_world_surface_y(world, mx, mz) + 1;
+            gm_mobs_spawn(&runtime.mobs, demo_types[i],
+                          (double)mx + 0.5, (double)my, (double)mz + 0.5);
+        }
+    }
+
+    /* Headless inventory demo: seed stone stack and exercise slotClick via the
+     * SAME gm_player_inv_click path the live input loop uses (Q / shift+hotbar). */
+    if (knobs->inv_demo) {
+        isr_set_stack(&pl.inv, 0, ic_mk(1, 10, 0));
+        pl.inv.current_item = 0;
+        gm_player_cursor_set(ic_empty());
+        /* PICKUP slot 0 (left) -> cursor 10 stone, slot empty */
+        gm_player_inv_click((struct PsvPlayer *)&pl, 0, 0, CC_CLICK_PICKUP);
+        /* PICKUP slot 1 (left) -> place into slot 1 */
+        gm_player_inv_click((struct PsvPlayer *)&pl, 1, 0, CC_CLICK_PICKUP);
+        ICStack s1 = isr_get_stack(&pl.inv, 1);
+        ICStack cur = gm_player_cursor();
+        fprintf(stderr, "[inv_demo] slot1 item=%d count=%d cursor_empty=%d\n",
+                s1.item, s1.count, (cur.item == 0 || cur.count <= 0));
+    }
+
+    GmParticlesLive live_particles;
+    gm_particles_live_init(&live_particles,
+        (uint64_t)runtime.seed ^ UINT64_C(0x7061727469636c65));
+    const int particle_demo = knobs->particle_demo;
+    /* Cache the parse of value-carrying drive knobs once (config is immutable
+     * after the --set pass). Empty tp/pitch = unset; set_time -1 = unset. */
+    const int   drive_tp_on = knobs->tp[0] != '\0';
+    const double drive_tp_step = drive_tp_on ? atof(knobs->tp) : 0.0;
+    const int   drive_pitch_on = knobs->pitch[0] != '\0';
+    const float drive_pitch = drive_pitch_on ? (float)atof(knobs->pitch) : 0.0f;
+    gm_input_reset();
+    gm_hud_init();
+    gm_window_compose_bind(compose, &runtime, &live_particles);
+
+    CrWindow *cwin = cr_window_open(fb_w, fb_h, "magma - game");
+    if (!cwin) {
+        fprintf(stderr, "cr_window_open failed\n");
+        gm_runtime_destroy(&runtime);
+        free(runtime_storage);
+        gm_window_compose_close(compose);
+        return 1;
+    }
+
+    GmAudioLive audio;
+    int64_t audio_client_tick = runtime.tick;
+    {
+        char audio_err[256];
+        if (!gm_audio_live_init(&audio, audio_err, sizeof audio_err))
+            fprintf(stderr, "warning: audio disabled: %s\n", audio_err);
+    }
+
+    int frame = 0, running = 1;
+
+    /* ---- 20 TPS tick accumulator + render interpolation (Timer.java port) ----
+     * INTERACTIVE path only: each frame gm_timer_update turns wall time into
+     * elapsed_ticks whole sim ticks (cap 10) + render_partial_ticks, so game time
+     * runs at real speed regardless of frame rate. The HEADLESS --frames path keeps
+     * the exact original semantics: 1 loop iteration == 1 tick, no wall clock,
+     * partial_ticks pinned to 1.0 (render the CURRENT state, byte-identical to HEAD).
+     *
+     * prev_* is the Entity.prevPosX/prevRotationYaw analogue: the player state
+     * BEFORE the last executed tick, snapshotted in WORLD coords (immune to the
+     * floating-origin recenter) right before each gm_player_tick. The camera lerps
+     * prev->cur by partial_ticks. */
+    GmTimer timer; gm_timer_init(&timer, 20.0f);
+    double prev_x = pl.ent.posX + ox, prev_y = pl.ent.posY, prev_z = pl.ent.posZ + oz;
+    float  prev_yaw = pl.yaw, prev_pitch = pl.pitch;
+    /* Delta/edge inputs (mouse look, click edges, hotbar) must apply EXACTLY once
+     * per poll, not once per tick of a catch-up batch, and must not be lost on a
+     * 0-tick frame: accumulate them here, consume on the first tick executed.
+     * (Matches MC: mouse turn + click handling are per-frame/per-event, while held
+     * movement keys feed movementInput every tick.) */
+    float pend_dyaw = 0.0f, pend_dpitch = 0.0f;
+    int   pend_break = 0, pend_place = 0, pend_hotbar = -1;
+    /* vanilla Minecraft.rightClickDelayTimer: a held right button re-fires the
+     * place/use action every 4 ticks after the initial click edge. */
+    int   use_repeat_delay = 0;
+    int   pend_inv_click = 0, pend_inv_slot = 0, pend_inv_button = 0, pend_inv_type = 0;
+    const int timer_dbg = cr_cfg()->timer_debug;
+
+    /* ---- interactive container screen (game/screen.c) ----
+     * E (or a table/furnace use) opens it; E/ESC closes it. While open the mouse
+     * owns a cursor and movement/look/attack are suppressed. Ordinary and
+     * multi-packet drag clicks call the same authoritative gm_container_click
+     * state machine used by headless GmAction input. */
+    int screen_open = 0, pause_open = 0, prev_e = 0, prev_q_screen = 0;
+    int prev_structure_tab = 0;
+    int gui_drag_button = -1, gui_drag_count = 0;
+    int gui_double_click = 0, gui_ignore_release = 0;
+    int gui_last_click_slot = -1000, gui_last_click_button = -1;
+    uint32_t gui_last_click_time = 0;
+    ICStack gui_shift_clicked_stack = {0};
+    int gui_drag_slots[GMC_SLOT_COUNT];
+    int world_list_open = 0;
+    GmNativeSaveInfo native_worlds[5];
+    int native_world_count = 0, native_world_selected = -1;
+    char native_menu_error[256] = {0};
+    int mouse_x = fb_w / 2, mouse_y = fb_h / 2;
+    /* GuiRepair's edit field is independently capped at 35 characters. The
+     * runtime registry still preserves the full NBT TAG_String byte range. */
+    char anvil_name[36] = {0};
+    int anvil_name_loaded = 0;
+
+    const char *start_world_list = getenv("MAGMA_START_WORLD_LIST");
+    if (start_world_list && strcmp(start_world_list, "1") == 0) {
+        world_list_open = 1;
+        native_world_count = refresh_native_worlds(
+            native_save_root, native_worlds, 5, active_save_slot,
+            &native_world_selected, native_menu_error,
+            sizeof native_menu_error);
+        if (native_world_count < 0) native_world_count = 0;
+        cr_window_capture_enable(cwin, 0);
+    }
+
+    /* MEASUREMENT hooks (registry-gated, no effect on a normal run):
+     *  - alloctrack: per-frame allocation tripwire via trace/alloctrack.so
+     *    (weak symbols; NULL unless the .so is LD_PRELOADed). The .so counts
+     *    unconditionally and only REPORTS when we arm it here, so the flag has
+     *    exactly one home (the registry) even though the .so is loaded long
+     *    before main() parses argv.
+     *  - debug_caps: per-frame draw-buffer maxima for the fixed-pool sizing. */
+    const int at_on   = knobs->alloctrack;
+    const int caps_on = knobs->debug_caps;
+    extern void alloctrack_frame(int) __attribute__((weak));
+    extern void alloctrack_arm(int) __attribute__((weak));
+    if (alloctrack_arm) alloctrack_arm(at_on);
+    int cap_max_kept = 0, cap_max_tris = 0;
+    int cap_max_layer[4] = {0,0,0,0}, cap_max_total = 0;
+
+    while (running) {
+        bench_stamp(0);
+        if (at_on && alloctrack_frame) alloctrack_frame(frame);
+        /* ---- input -> action ---- */
+        GmAction act;
+        if (want_frames >= 0) {
+            memset(&act, 0, sizeof(act));
+            /* still: measurement gate - stand still (no walk) so a run can
+             * hold steady-state without crossing chunk boundaries. Default walks. */
+            act.forward = knobs->still ? 0.0f : 1.0f;
+            /* jump: hold jump every tick (demo runs hop over terrain instead
+             * of wedging against a 1-block step). yawrate=<deg/frame>: slow
+             * scripted turn so a demo pans across the world. */
+            if (knobs->jump) act.jump = 1;
+            act.dyaw = knobs->yawrate;
+            /* attack: hold left-click every tick (drives dig SM + live particles). */
+            if (knobs->attack) act.attack = 1;
+            /* hotbar=<0..8>: select that hotbar slot once at frame 0 (-1 = unset). */
+            act.hotbar_sel = -1;
+            if (frame == 0) {
+                int slot = knobs->hotbar;
+                if (slot >= 0 && slot <= 8) act.hotbar_sel = slot;
+            }
+        } else {
+            CrInput in; cr_window_poll(cwin, &in);
+            if (in.quit) { running = 0; break; }
+            act = gm_input_map(&in, sens);
+            mouse_x = in.mouse_x; mouse_y = in.mouse_y;
+
+            if (world_list_open) {
+                GmAction menu_action;
+                memset(&menu_action, 0, sizeof menu_action);
+                menu_action.hotbar_sel = -1;
+                act = menu_action;
+                if (in.click_left) {
+                    int row = gm_screen_world_row_at(
+                        fb_w, fb_h, mouse_x, mouse_y, native_world_count);
+                    if (row >= 0) native_world_selected = row;
+                    int button = gm_screen_world_button_at(
+                        fb_w, fb_h, mouse_x, mouse_y);
+                    if (button == 0 && native_world_selected >= 0
+                            && native_world_selected < native_world_count) {
+                        const char *slot =
+                            native_worlds[native_world_selected].slot;
+                        if (gm_native_save_load(
+                                &runtime, &cfg, native_save_root, slot,
+                                native_menu_error, sizeof native_menu_error)) {
+                            snprintf(active_save_slot, sizeof active_save_slot,
+                                     "%s", slot);
+                            world_list_open = 0;
+                            screen_open = pause_open = 0;
+                            gui_drag_button = -1;
+                            gui_drag_count = 0;
+                            gui_double_click = gui_ignore_release = 0;
+                            runtime.quit_to_title = 0;
+                            anvil_name_loaded = 0;
+                            pend_dyaw = pend_dpitch = 0.0f;
+                            pend_break = pend_place = 0;
+                            pend_hotbar = -1; pend_inv_click = 0;
+                            use_repeat_delay = 0;
+                            prev_x = pl.ent.posX + ox;
+                            prev_y = pl.ent.posY;
+                            prev_z = pl.ent.posZ + oz;
+                            prev_yaw = pl.yaw;
+                            prev_pitch = pl.pitch;
+                            gm_timer_init(&timer, 20.0f);
+                            gm_particles_live_init(
+                                &live_particles,
+                                (uint64_t)runtime.seed
+                                    ^ UINT64_C(0x7061727469636c65));
+                            gm_window_compose_bind(
+                                compose, &runtime, &live_particles);
+                            native_menu_error[0] = '\0';
+                            cr_window_capture_enable(cwin, 1);
+                        }
+                    } else if (button == 1) {
+                        running = 0;
+                    }
+                }
+                if (in.key_esc) running = 0;
+            } else if (pause_open) {
+                GmAction menu_action;
+                memset(&menu_action, 0, sizeof menu_action);
+                menu_action.hotbar_sel = -1;
+                act = menu_action;
+                int button = in.click_left
+                    ? gm_screen_pause_button_at(
+                        fb_w, fb_h, mouse_x, mouse_y)
+                    : -1;
+                if (in.key_esc || button == 0) {
+                    pause_open = 0;
+                    native_menu_error[0] = '\0';
+                    cr_window_capture_enable(cwin, 1);
+                } else if (button == 1) {
+                    if (gm_native_save_write(
+                            &runtime, native_save_root, active_save_slot,
+                            native_menu_error, sizeof native_menu_error)) {
+                        native_menu_error[0] = '\0';
+                        native_world_count = refresh_native_worlds(
+                            native_save_root, native_worlds, 5,
+                            active_save_slot, &native_world_selected,
+                            native_menu_error, sizeof native_menu_error);
+                        if (native_world_count < 0) native_world_count = 0;
+                        pause_open = 0;
+                        world_list_open = 1;
+                    }
+                }
+            } else {
+
+            /* E edge toggles the container screen; ESC closes it. Closing is a
+             * real container close: grid/cursor return to the inventory. */
+            int e_edge = in.key_e && !prev_e;
+            prev_e = in.key_e;
+            if (screen_open && (e_edge || in.key_esc)) {
+                screen_open = 0;
+                gui_drag_button = -1;
+                gui_drag_count = 0;
+                gui_double_click = gui_ignore_release = 0;
+                gm_runtime_close_open_container(&runtime);
+                anvil_name_loaded = 0;
+                cr_window_capture_enable(cwin, 1);
+            } else if (!screen_open && e_edge) {
+                screen_open = 1;
+                gui_drag_button = -1;
+                gui_drag_count = 0;
+                gui_double_click = gui_ignore_release = 0;
+                gui_last_click_slot = -1000;
+                gui_last_click_button = -1;
+                gui_last_click_time = 0;
+                cr_window_capture_enable(cwin, 0);
+            }
+            if (!screen_open && !runtime.dead && in.key_esc) {
+                GmAction menu_action;
+                memset(&menu_action, 0, sizeof menu_action);
+                menu_action.hotbar_sel = -1;
+                act = menu_action;
+                pause_open = 1;
+                native_menu_error[0] = '\0';
+                cr_window_capture_enable(cwin, 0);
+            }
+
+            if (pause_open) {
+                /* The frame that opens the menu must not leak gameplay input. */
+            } else if (runtime.dead) {
+                /* GuiGameOver: freeze survival input; left-click hits Respawn /
+                 * Title Screen after enableButtonsTimer (20 ticks). */
+                GmAction dact; memset(&dact, 0, sizeof dact);
+                dact.hotbar_sel = -1;
+                if (in.click_left) {
+                    int btn = gm_hud_death_button_at(
+                        fb_w, fb_h, mouse_x, mouse_y,
+                        gm_hud_death_buttons_enabled(runtime.death_screen_ticks));
+                    if (btn >= 0) {
+                        dact.death_click = 1;
+                        dact.death_button = btn;
+                    }
+                }
+                act = dact;
+            } else if (screen_open) {
+                /* GUI mode: suppress movement/look/attack/use; mouse/key events
+                 * map to Container.slotClick ids via the vanilla-layout hit test. */
+                GmAction gui; memset(&gui, 0, sizeof gui);
+                int was_structure = runtime.container == 12
+                    && runtime.structure_gui.active;
+                gui.hotbar_sel = -1;
+                if (was_structure) {
+                    int tab_edge = in.key_tab && !prev_structure_tab;
+                    if (in.click_left) {
+                        int button = gm_screen_structure_button_at(
+                            &runtime, fb_w, fb_h, mouse_x, mouse_y);
+                        if (button >= 0) {
+                            (void)gm_runtime_structure_gui_button(
+                                &runtime, button);
+                        } else {
+                            int field = gm_screen_structure_field_at(
+                                &runtime, fb_w, fb_h, mouse_x, mouse_y);
+                            if (field >= 0)
+                                (void)gm_runtime_structure_gui_focus(
+                                    &runtime, field);
+                        }
+                    }
+                    if (runtime.container == 12 && in.key_enter)
+                        (void)gm_runtime_structure_gui_button(&runtime, 0);
+                    if (runtime.container == 12)
+                        (void)gm_runtime_structure_gui_text(
+                            &runtime, in.text, in.text_len,
+                            in.key_backspace, tab_edge);
+                    if (runtime.container != 12) {
+                        screen_open = 0;
+                        cr_window_capture_enable(cwin, 1);
+                    }
+                } else if (runtime.container == 6 && runtime.anvil.open) {
+                    if (!anvil_name_loaded) {
+                        const char *name = gm_runtime_item_name(
+                            &runtime, runtime.anvil.repaired_name);
+                        snprintf(anvil_name, sizeof anvil_name, "%s",
+                                 name ? name : "");
+                        anvil_name_loaded = 1;
+                    }
+                    if (in.key_backspace && anvil_name[0]) {
+                        size_t n = strlen(anvil_name);
+                        do { --n; }
+                        while (n > 0
+                               && ((unsigned char)anvil_name[n] & 0xc0) == 0x80);
+                        anvil_name[n] = '\0';
+                        (void)gm_runtime_anvil_set_name(&runtime, anvil_name);
+                    }
+                    if (in.text_len > 0) {
+                        size_t n = strlen(anvil_name);
+                        size_t add = (size_t)in.text_len;
+                        if (add > sizeof anvil_name - 1 - n)
+                            add = sizeof anvil_name - 1 - n;
+                        memcpy(anvil_name + n, in.text, add);
+                        anvil_name[n + add] = '\0';
+                        (void)gm_runtime_anvil_set_name(&runtime, anvil_name);
+                    }
+                } else {
+                    anvil_name_loaded = 0;
+                }
+                if (!was_structure) {
+                    int slot = gm_screen_slot_at(runtime.container, fb_w, fb_h,
+                                                 mouse_x, mouse_y);
+                    int q_edge = in.key_q && !prev_q_screen;
+                    ICStack cursor = gm_player_cursor();
+                    if (q_edge && slot >= 0)
+                        (void)gm_container_click(
+                            &runtime, slot, in.key_ctrl ? 1 : 0,
+                            CC_CLICK_THROW);
+                    if (in.key_num >= 1 && in.key_num <= 9
+                            && slot >= 0 && cc_is_empty(&cursor))
+                        (void)gm_container_click(
+                            &runtime, slot, in.key_num - 1,
+                            CC_CLICK_SWAP);
+
+                    {
+                        int pressed = in.click_left ? 0
+                            : in.click_right ? 1
+                            : in.click_middle ? 2 : -1;
+                        if (pressed >= 0 && (slot >= 0
+                                || slot == GMC_OUTSIDE)) {
+                            gui_double_click = slot == gui_last_click_slot
+                                && pressed == gui_last_click_button
+                                && in.time_ms - gui_last_click_time < 250u;
+                            gui_last_click_slot = slot;
+                            gui_last_click_button = pressed;
+                            gui_last_click_time = in.time_ms;
+                            cursor = gm_player_cursor();
+                            if (pressed == 2 && cc_is_empty(&cursor)) {
+                                if (slot >= 0)
+                                    (void)gm_container_click(
+                                        &runtime, slot, pressed,
+                                        CC_CLICK_CLONE);
+                                gui_ignore_release = 1;
+                            } else if (cc_is_empty(&cursor)) {
+                                int type = in.key_shift && slot >= 0
+                                    ? CC_CLICK_QUICK_MOVE : CC_CLICK_PICKUP;
+                                if (type == CC_CLICK_QUICK_MOVE
+                                        && (!gm_container_slot_stack(
+                                                &runtime, slot,
+                                                &gui_shift_clicked_stack)
+                                            || cc_is_empty(
+                                                &gui_shift_clicked_stack)))
+                                    gui_shift_clicked_stack = ic_empty();
+                                (void)gm_container_click(
+                                    &runtime, slot, pressed == 1, type);
+                                gui_ignore_release = 1;
+                            } else {
+                                gui_drag_button = pressed;
+                                gui_drag_count = 0;
+                                gui_ignore_release = 0;
+                            }
+                        }
+                    }
+
+                    if (gui_drag_button >= 0 && in.mouse_moved
+                            && ((gui_drag_button == 0 && in.mouse_left)
+                                || (gui_drag_button == 1 && in.mouse_right)
+                                || (gui_drag_button == 2
+                                    && in.mouse_middle))
+                            && slot >= 0) {
+                        int found = 0;
+                        for (int index = 0; index < gui_drag_count; ++index)
+                            found |= gui_drag_slots[index] == slot;
+                        if (!found && gui_drag_count < GMC_SLOT_COUNT)
+                            gui_drag_slots[gui_drag_count++] = slot;
+                    }
+
+                    {
+                        int released = in.release_left ? 0
+                            : in.release_right ? 1
+                            : in.release_middle ? 2 : -1;
+                        if (released >= 0) {
+                            /* Java checks doubleClick before ignoreMouseUp.  The
+                             * second press has already QUICK_MOVEd the clicked
+                             * stack and set ignoreMouseUp. */
+                            if (gui_double_click && released == 0
+                                    && slot >= 0
+                                    && !((runtime.container == 0
+                                            || runtime.container == 1)
+                                        && slot == GMC_RESULT)) {
+                                if (in.key_shift) {
+                                    (void)gm_container_shift_double_click(
+                                        &runtime, slot,
+                                        gui_shift_clicked_stack);
+                                } else {
+                                    (void)gm_container_click(
+                                        &runtime, slot, 0,
+                                        CC_CLICK_PICKUP_ALL);
+                                }
+                                gui_ignore_release = 0;
+                            } else if (gui_ignore_release) {
+                                gui_ignore_release = 0;
+                            } else if (gui_drag_button == released) {
+                                if (gui_drag_count > 0) {
+                                    int mode = released == 0 ? 0
+                                        : released == 1 ? 1 : 2;
+                                    (void)gm_container_click(
+                                        &runtime, GMC_OUTSIDE, mode << 2,
+                                        CC_CLICK_QUICK_CRAFT);
+                                    for (int index = 0;
+                                            index < gui_drag_count; ++index)
+                                        (void)gm_container_click(
+                                            &runtime, gui_drag_slots[index],
+                                            1 | (mode << 2),
+                                            CC_CLICK_QUICK_CRAFT);
+                                    (void)gm_container_click(
+                                        &runtime, GMC_OUTSIDE,
+                                        2 | (mode << 2),
+                                        CC_CLICK_QUICK_CRAFT);
+                                } else if (slot >= 0
+                                        || slot == GMC_OUTSIDE) {
+                                    int type = in.key_shift && slot >= 0
+                                        ? CC_CLICK_QUICK_MOVE
+                                        : CC_CLICK_PICKUP;
+                                    if (type == CC_CLICK_QUICK_MOVE
+                                            && (!gm_container_slot_stack(
+                                                    &runtime, slot,
+                                                    &gui_shift_clicked_stack)
+                                                || cc_is_empty(
+                                                    &gui_shift_clicked_stack)))
+                                        gui_shift_clicked_stack = ic_empty();
+                                    (void)gm_container_click(
+                                        &runtime, slot,
+                                        released == 1, type);
+                                }
+                            }
+                            gui_drag_button = -1;
+                            gui_drag_count = 0;
+                            gui_double_click = 0;
+                            cursor = gm_player_cursor();
+                            if (cc_is_empty(&cursor))
+                                gui_last_click_time = 0;
+                        }
+                    }
+                }
+                act = gui;
+            }
+            }
+            prev_q_screen = in.key_q;
+            prev_structure_tab = in.key_tab;
+        }
+
+        /* MEASUREMENT harness (registry-gated, no effect on a normal run): tp=<step>
+         * teleports the player -Z by <step> blocks/frame, snapping Y to the surface, so a
+         * scripted run traverses many chunks in a straight line without getting stuck on
+         * terrain or dying. Used only to profile the streaming allocation path. */
+        if (want_frames >= 0) {
+            /* spawn_surface: snap the frame-0 spawn onto the terrain surface so a
+             * demo run does not open with a 47-block death drop from the fixed y=120 spawn. */
+            if (frame == 0 && knobs->spawn_surface) {
+                double twx = pl.ent.posX + ox, twz = pl.ent.posZ + oz;
+                int sy = gm_world_surface_y(world, (int)floor(twx), (int)floor(twz));
+                pl.ent.posY = (double)sy + 1.0;
+                pl.ent.box = psv_player_box(pl.ent.posX, pl.ent.posY, pl.ent.posZ);
+                pl.ent.motionX = pl.ent.motionY = pl.ent.motionZ = 0.0;
+                pl.fall_distance = 0.0f;
+            }
+            /* pitch=<deg>: set player pitch at frame 0 (clamped to look range). */
+            if (frame == 0 && drive_pitch_on) {
+                float p = drive_pitch;
+                if (p > 89.0f) p = 89.0f;
+                if (p < -89.0f) p = -89.0f;
+                pl.pitch = p;
+            }
+            /* set_time=<ticks>: pin world clock before the first tick so night
+             * lighting is reachable in a short dump (same as script set_time).
+             * -1 = unset; 0 is a real value. */
+            if (frame == 0 && knobs->set_time != -1)
+                gm_runtime_set_time(&runtime, knobs->set_time);
+            if (drive_tp_on) {
+                double step = drive_tp_step;
+                pl.ent.posZ -= step;
+                double twx = pl.ent.posX + ox, twz = pl.ent.posZ + oz;
+                int sy = gm_world_surface_y(world, (int)floor(twx), (int)floor(twz));
+                pl.ent.posY = (double)sy + 1.0;
+                pl.ent.box = psv_player_box(pl.ent.posX, pl.ent.posY, pl.ent.posZ);
+                pl.ent.motionX = pl.ent.motionY = pl.ent.motionZ = 0.0;
+                pl.fall_distance = 0.0f;
+            }
+        }
+
+        /* ---- how many sim ticks this frame: wall-clock accumulator (interactive)
+         * or exactly 1 (headless --frames, no wall clock, deterministic) ---- */
+        bench_stamp(1);
+        int   nticks = 1;
+        int   audio_elapsed_ticks = 1;
+        float partial_ticks = 1.0f;
+        if (want_frames < 0) {
+            long long dbg_prev_ms = timer.last_sync_sys_clock;
+            gm_timer_update(&timer);
+            audio_elapsed_ticks = timer.elapsed_ticks;
+            int menu_frozen = pause_open || world_list_open;
+            nticks        = menu_frozen ? 0 : timer.elapsed_ticks;
+            partial_ticks = menu_frozen ? 1.0f : timer.render_partial_ticks;
+            /* bank this frame's delta/edge inputs; the first tick below consumes
+             * them (and a 0-tick frame carries them to the next frame's ticks). */
+            if (!menu_frozen) {
+                pend_dyaw   += act.dyaw;
+                pend_dpitch += act.dpitch;
+                pend_break  |= act.do_break;
+                pend_place  |= act.do_place;
+                if (act.hotbar_sel >= 0) pend_hotbar = act.hotbar_sel;
+                if (act.inv_click) {
+                    pend_inv_click  = 1;
+                    pend_inv_slot   = act.inv_slot;
+                    pend_inv_button = act.inv_button;
+                    pend_inv_type   = act.inv_type;
+                }
+            }
+            if (timer_dbg)
+                fprintf(stderr, "[timer] frame %d elapsed_ticks %d partial %.3f dt_ms %lld\n",
+                        frame, nticks, partial_ticks,
+                        timer.last_sync_sys_clock - dbg_prev_ms);
+        }
+
+        for (int t = 0; t < nticks; ++t) {
+
+        /* Entity prev* snapshot: player state BEFORE this tick, in WORLD coords so
+         * the floating-origin recenter below cannot skew it. After the batch this
+         * holds the state before the LAST tick (Entity.prevPosX semantics). */
+        prev_x = pl.ent.posX + ox; prev_y = pl.ent.posY; prev_z = pl.ent.posZ + oz;
+        prev_yaw = pl.yaw; prev_pitch = pl.pitch;
+
+        /* per-tick action: held movement repeats every tick of a catch-up batch;
+         * banked deltas/edges fire exactly once, on the first tick. Headless uses
+         * the frame action verbatim (1 frame == 1 tick, unchanged semantics). */
+        GmAction tact = act;
+        if (want_frames < 0) {
+            if (t == 0) {
+                tact.dyaw = pend_dyaw;      tact.dpitch = pend_dpitch;
+                tact.do_break = pend_break; tact.do_place = pend_place;
+                tact.hotbar_sel = pend_hotbar;
+                tact.inv_click = pend_inv_click; tact.inv_slot = pend_inv_slot;
+                tact.inv_button = pend_inv_button; tact.inv_type = pend_inv_type;
+                pend_dyaw = pend_dpitch = 0.0f;
+                pend_break = pend_place = 0; pend_hotbar = -1;
+                pend_inv_click = 0;
+            } else {
+                tact.dyaw = tact.dpitch = 0.0f;
+                tact.do_break = tact.do_place = 0;
+                tact.hotbar_sel = -1;
+                tact.inv_click = 0;
+                tact.death_click = 0;
+            }
+            /* held-use repeat (Minecraft.rightClickDelayTimer semantics): the
+             * click edge fires immediately and arms the 4-tick timer; while the
+             * button stays held each expiry fires another place/use. */
+            if (!tact.use) use_repeat_delay = 0;
+            else if (tact.do_place) use_repeat_delay = 4;
+            else if (--use_repeat_delay <= 0) { tact.do_place = 1; use_repeat_delay = 4; }
+        }
+
+        /* Retain the aimed block before gm_runtime_tick may replace it with
+         * air. Hit particles use the block's selected AABB, which is its
+         * ordinary state bounding box for the vanilla blocks in this port. */
+        int phit = 0, phx = 0, phy = 0, phz = 0, pface = -1;
+        int pworldx = 0, pworldz = 0;
+        int pblock = 0, pmeta = 0;
+        float pbounds[6] = {0};
+        if (tact.attack) {
+            PsvPlayer aim_pl = pl;
+            aim_pl.yaw += tact.dyaw;
+            aim_pl.pitch += tact.dpitch;
+            if (aim_pl.pitch > 89.0f) aim_pl.pitch = 89.0f;
+            if (aim_pl.pitch < -89.0f) aim_pl.pitch = -89.0f;
+            int pax, pay, paz;
+            if (gm_raycast_sel_reach(win, &st, &aim_pl, PSV_REACH,
+                                     &phx, &phy, &phz,
+                                     &pax, &pay, &paz) >= 0) {
+                phit = 1;
+                pworldx = phx + ox;
+                pworldz = phz + oz;
+                pblock = gm_world_block(world, pworldx, phy, pworldz);
+                pmeta = gm_world_meta(world, pworldx, phy, pworldz) & 15;
+                gm_sel_box_at(win, phx, phy, phz, pbounds);
+                if (pax < phx) pface = 4;
+                else if (pax > phx) pface = 5;
+                else if (pay < phy) pface = 0;
+                else if (pay > phy) pface = 1;
+                else if (paz < phz) pface = 2;
+                else pface = 3;
+            }
+        }
+
+        if (particle_demo && runtime.tick == 20) {
+            PsvPlayer demo_pl = pl;
+            demo_pl.pitch = 10.0f;
+            int hx, hy, hz, ax, ay, az;
+            int have_surface = gm_raycast_sel_reach(
+                win, &st, &demo_pl, 24.0,
+                &hx, &hy, &hz, &ax, &ay, &az) >= 0;
+            int pwx = have_surface ? hx + ox : (int)floor(pl.ent.posX + (double)ox);
+            int pwz = have_surface ? hz + oz : (int)floor(pl.ent.posZ + (double)oz) - 3;
+            int pwy = have_surface ? hy : gm_world_surface_y(world, pwx, pwz) - 1;
+            int id = gm_world_block(world, pwx, pwy, pwz);
+            int meta = gm_world_meta(world, pwx, pwy, pwz) & 15;
+            int model = gm_state_to_model_key(gm_pack_state(id, meta));
+            CrLightmapRgb plm = cr_lightmap_rgb(
+                runtime.dimension,
+                gm_world_sky_light(world, pwx, pwy + 1, pwz),
+                gm_world_block_light(world, pwx, pwy + 1, pwz),
+                cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+            float pbr, pbg, pbb;
+            dig_particle_base_color(world, model, pwx, pwy, pwz, &pbr, &pbg, &pbb);
+            gm_particles_live_seed(&live_particles,
+                UINT64_C(0x5041525449434c45));
+            int spawned = gm_particles_live_spawn_destroy(&live_particles,
+                pwx, pwy, pwz, model, plm.r, plm.g, plm.b, pbr, pbg, pbb);
+            fprintf(stderr, "[particle_demo] tick=%lld block=%d,%d,%d spawned=%d\n",
+                    runtime.tick, pwx, pwy, pwz, spawned);
+        }
+
+        /* debug/test hook: force a lethal state at a chosen frame. */
+        if (kill_frame >= 0 && frame == kill_frame) { vitals.health = 0.0f; pl.health = 0.0f; }
+        gm_runtime_tick(&runtime, tact);
+        for (int i = 0; i < gm_runtime_particle_event_count(&runtime); ++i) {
+            GmRuntimeParticleEvent event;
+            if (!gm_runtime_particle_event_get(&runtime, i, &event)
+                    || event.dimension != runtime.dimension)
+                continue;
+            int px = (int)floor(event.x);
+            int py = (int)floor(event.y);
+            int pz = (int)floor(event.z);
+            int sky = gm_world_sky_light(world, px, py, pz);
+            int block = gm_world_block_light(world, px, py, pz);
+            if (event.kind == GM_PARTICLE_WATER_BUBBLE
+                    || event.kind == GM_PARTICLE_WATER_SPLASH)
+                gm_particles_live_spawn_water(
+                    &live_particles, event.kind,
+                    event.x, event.y, event.z,
+                    event.motion_x, event.motion_y, event.motion_z,
+                    sky, block);
+            else if (event.kind == GM_PARTICLE_BLOCK_CRACK
+                    && event.parameter_count > 0) {
+                int state = event.parameters[0];
+                int id = state & 4095;
+                int meta = (state >> 12) & 15;
+                int model = gm_state_to_model_key(gm_pack_state(id, meta));
+                CrLightmapRgb light = cr_lightmap_rgb(
+                    runtime.dimension, sky, block,
+                    cr_dimension_sun_brightness(runtime.dimension),
+                    0.0F, 0.0F);
+                float base_r, base_g, base_b;
+                dig_particle_base_color(
+                    world, model, px, py, pz,
+                    &base_r, &base_g, &base_b);
+                gm_particles_live_spawn_block(
+                    &live_particles,
+                    event.x, event.y, event.z,
+                    event.motion_x, event.motion_y, event.motion_z,
+                    model, light.r, light.g, light.b,
+                    base_r, base_g, base_b);
+            }
+            else if (event.kind == GM_PARTICLE_SPELL_MOB)
+                gm_particles_live_spawn_spell(
+                    &live_particles, event.kind,
+                    event.x, event.y, event.z,
+                    event.motion_x, event.motion_y, event.motion_z,
+                    sky, block);
+            else if ((event.kind == GM_PARTICLE_SMOKE_NORMAL
+                        || event.kind == GM_PARTICLE_HEART)
+                    && event.count == 7
+                    && event.entity_width > 0.0F
+                    && event.entity_height > 0.0F)
+                gm_particles_live_spawn_tame_effect(
+                    &live_particles, event.kind,
+                    event.x, event.y, event.z,
+                    event.entity_width, event.entity_height,
+                    sky, block);
+            else if (event.kind == GM_PARTICLE_SMOKE_NORMAL
+                    || event.kind == GM_PARTICLE_SMOKE_LARGE)
+                gm_particles_live_spawn_smoke(
+                    &live_particles, event.kind,
+                    event.x, event.y, event.z,
+                    event.motion_x, event.motion_y, event.motion_z,
+                    sky, block);
+            else if (event.kind == GM_PARTICLE_HEART)
+                gm_particles_live_spawn_heart(
+                    &live_particles, event.kind,
+                    event.x, event.y, event.z, sky, block);
+            else if (event.kind == GM_PARTICLE_NOTE)
+                gm_particles_live_spawn_note(
+                    &live_particles, event.kind,
+                    event.x, event.y, event.z, event.motion_x,
+                    sky, block);
+            else if (event.kind == GM_PARTICLE_PORTAL)
+                gm_particles_live_spawn_portal(
+                    &live_particles, event.kind,
+                    event.x, event.y, event.z,
+                    event.motion_x, event.motion_y, event.motion_z,
+                    sky, block);
+            else
+                gm_particles_live_spawn_combat(
+                    &live_particles, event.kind, event.count,
+                    event.x, event.y, event.z,
+                    event.motion_x, event.motion_y, event.motion_z,
+                    event.offset_x, event.offset_y, event.offset_z,
+                    event.speed, event.entity_width, event.entity_height,
+                    sky, block);
+        }
+        if (phit && pblock != 0) {
+            int pwx = pworldx, pwz = pworldz;
+            int model = gm_state_to_model_key(gm_pack_state(pblock, pmeta));
+            int block_now = gm_world_block(world, pwx, phy, pwz);
+            int meta_now = gm_world_meta(world, pwx, phy, pwz) & 15;
+            if (block_now != pblock || meta_now != pmeta) {
+                CrLightmapRgb plm = cr_lightmap_rgb(
+                    runtime.dimension,
+                    gm_world_sky_light(world, pwx, phy, pwz),
+                    gm_world_block_light(world, pwx, phy, pwz),
+                    cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+                float pbr, pbg, pbb;
+                dig_particle_base_color(world, model, pwx, phy, pwz,
+                                        &pbr, &pbg, &pbb);
+                gm_particles_live_spawn_destroy(&live_particles,
+                    pwx, phy, pwz, model, plm.r, plm.g, plm.b, pbr, pbg, pbb);
+            }
+            if (gm_player_dig_swing()) {
+                int lx = pwx, ly = phy, lz = pwz;
+                if (pface == 0) ly--; else if (pface == 1) ly++;
+                else if (pface == 2) lz--; else if (pface == 3) lz++;
+                else if (pface == 4) lx--; else if (pface == 5) lx++;
+                CrLightmapRgb plm = cr_lightmap_rgb(
+                    runtime.dimension,
+                    gm_world_sky_light(world, lx, ly, lz),
+                    gm_world_block_light(world, lx, ly, lz),
+                    cr_dimension_sun_brightness(runtime.dimension), 0.f, 0.f);
+                float pbr, pbg, pbb;
+                dig_particle_base_color(world, model, pwx, phy, pwz,
+                                        &pbr, &pbg, &pbb);
+                gm_particles_live_spawn_hit(&live_particles,
+                    pwx, phy, pwz, model, pface, pbounds,
+                    plm.r, plm.g, plm.b, pbr, pbg, pbb);
+            }
+        }
+        gm_particles_live_tick(&live_particles, win, ox, oz);
+        /* Death itself holds on GuiGameOver. Title Screen takes the same atomic
+         * save path as the pause menu before returning to world selection. */
+        if (runtime.quit_to_title) {
+            if (want_frames >= 0) {
+                running = 0;
+            } else {
+                runtime.quit_to_title = 0;
+                if (gm_native_save_write(
+                        &runtime, native_save_root, active_save_slot,
+                        native_menu_error, sizeof native_menu_error)) {
+                    native_menu_error[0] = '\0';
+                    native_world_count = refresh_native_worlds(
+                        native_save_root, native_worlds, 5,
+                        active_save_slot, &native_world_selected,
+                        native_menu_error, sizeof native_menu_error);
+                    if (native_world_count < 0) native_world_count = 0;
+                    world_list_open = 1;
+                } else {
+                    pause_open = 1;
+                }
+                screen_open = 0;
+                cr_window_capture_enable(cwin, 0);
+            }
+            nticks = t + 1;
+            break;
+        }
+        if (runtime.won) {
+            running = 0;
+            nticks = t + 1;
+            break;
+        }
+
+        }   /* end tick batch (for t < nticks) */
+        bench_stamp(2);
+
+        /* Using a crafting table / furnace opened a runtime container: show it. */
+        if (want_frames < 0 && !pause_open && !world_list_open
+                && runtime.container != 0 && !screen_open) {
+            screen_open = 1;
+            gui_drag_button = -1;
+            gui_drag_count = 0;
+            gui_double_click = gui_ignore_release = 0;
+            gui_last_click_slot = -1000;
+            gui_last_click_button = -1;
+            gui_last_click_time = 0;
+            anvil_name_loaded = 0;
+            cr_window_capture_enable(cwin, 0);
+        }
+
+        GmPlayerView pv; gm_runtime_view(&runtime, &pv);
+        gm_window_compose_advance(compose, &pv, &act, nticks);
+        /* camera view: headless keeps partial_ticks pinned at 1.0 and renders the
+         * CURRENT state (byte-identical to the pre-timer loop); interactive lerps
+         * prev->cur by renderPartialTicks, exactly Entity prevPos + (pos-prev)*pt
+         * as the EntityRenderer camera setup does. HUD still reads the live pv. */
+        GmPlayerView cpv = pv;
+        if (want_frames < 0) {
+            cpv.x     = (float)(prev_x + ((pl.ent.posX + (double)ox) - prev_x) * (double)partial_ticks);
+            cpv.y     = (float)(prev_y + ( pl.ent.posY               - prev_y) * (double)partial_ticks);
+            cpv.z     = (float)(prev_z + ((pl.ent.posZ + (double)oz) - prev_z) * (double)partial_ticks);
+            cpv.yaw   = prev_yaw   + (pl.yaw   - prev_yaw)   * partial_ticks;
+            cpv.pitch = prev_pitch + (pl.pitch - prev_pitch) * partial_ticks;
+        }
+        if (world_list_open)
+            audio_client_tick += audio_elapsed_ticks;
+        else
+            audio_client_tick = runtime.tick;
+        gm_audio_live_update_at(
+            &audio, world_list_open ? NULL : &runtime,
+            world_list_open ? GM_MUSIC_MENU : -1, audio_client_tick,
+            cpv.x, cpv.y + cpv.eye_height, cpv.z, cpv.yaw, cpv.pitch);
+        GmWindowComposeFrame compose_frame = {
+            .view = &pv,
+            .camera_view = &cpv,
+            .partial_ticks = partial_ticks,
+            .interactive = want_frames < 0,
+            .screen_open = screen_open,
+            .mouse_x = mouse_x,
+            .mouse_y = mouse_y,
+            .stamp = bench_stamp,
+        };
+        GmWindowComposeStats compose_stats;
+        if (!gm_window_compose_draw(compose, &compose_frame, &compose_stats,
+                                    cfg_err, sizeof cfg_err)) {
+            fprintf(stderr, "window compose: %s\n", cfg_err);
+            running = 0;
+            break;
+        }
+        if (pause_open)
+            gm_screen_pause_draw(
+                &fb, mouse_x, mouse_y, native_menu_error);
+        if (world_list_open)
+            gm_screen_world_list_draw(
+                &fb, native_worlds, native_world_count,
+                native_world_selected, mouse_x, mouse_y,
+                native_menu_error);
+        int ntris = compose_stats.ntris;
+        if (caps_on) {
+            int total = 0;
+            for (int l = 0; l < 4; ++l) {
+                if (compose_stats.mesh_nverts[l] > cap_max_layer[l])
+                    cap_max_layer[l] = compose_stats.mesh_nverts[l];
+                total += compose_stats.mesh_nverts[l];
+            }
+            if (total > cap_max_total) cap_max_total = total;
+            if (compose_stats.mesh_kept > cap_max_kept)
+                cap_max_kept = compose_stats.mesh_kept;
+            if (ntris > cap_max_tris) cap_max_tris = ntris;
+            fprintf(stderr,
+                "[caps] frame %d kept=%d culled=%d drawverts[S/CM/C/T]=%d/%d/%d/%d total=%d screen_tris=%d\n",
+                frame, compose_stats.mesh_kept, compose_stats.mesh_culled,
+                compose_stats.mesh_nverts[0], compose_stats.mesh_nverts[1],
+                compose_stats.mesh_nverts[2], compose_stats.mesh_nverts[3],
+                total, ntris);
+        }
+        cr_window_present(cwin, &fb);
+        bench_stamp(12);
+        bench_record(frame, nticks, ntris);
+
+        /* dump_dir: per-frame PPM dump for video encoding (headless demo). */
+        if (want_frames >= 0 && knobs->dump_dir[0]) {
+            char fp[512];
+            snprintf(fp, sizeof fp, "%s/frame_%05d.ppm", knobs->dump_dir, frame);
+            write_ppm(fp, &fb);
+        }
+        /* headless: emit the health/food + death arc so a scripted run can be verified. */
+        if (want_frames >= 0)
+            fprintf(stderr,
+                    "frame %d health %.2f food %.0f dead %d deaths %d slot0=%d pos %.1f,%.1f,%.1f\n",
+                    frame, pv.health, pv.food, pv.dead, pv.deaths, pv.hotbar_counts[0],
+                    pv.x, pv.y, pv.z);
+
+        if (want_frames >= 0 && ++frame >= want_frames) running = 0;
+    }
+
+    bench_report();
+
+    if (caps_on)
+        fprintf(stderr,
+            "[caps] SUMMARY sizeof(CrVertex)=%zu sizeof(CrScreenTri)=%zu MAX_TRIS=%d\n"
+            "[caps] SUMMARY max_kept=%d max_screen_tris=%d\n"
+            "[caps] SUMMARY max_drawverts[S/CM/C/T]=%d/%d/%d/%d max_total=%d\n",
+            sizeof(CrVertex), sizeof(CrScreenTri), caps->max_tris,
+            cap_max_kept, cap_max_tris,
+            cap_max_layer[0], cap_max_layer[1], cap_max_layer[2], cap_max_layer[3],
+            cap_max_total);
+
+    if (ppm_path) write_ppm(ppm_path, &fb);
+
+    /* Live composition side-effect summary (entity motion + plant age + worldTime). */
+    fprintf(stderr,
+            "[live] ticks=%d worldTime=%lld plant_age=%d ent_moved=%d ent0_age=%d ent0_y=%.3f\n",
+            live.ticks, (long long)g_clock.world_time, gm_live_plant_age(&live),
+            gm_live_entity_moved(&live),
+            live.ents[0].age, live.ents[0].y);
+
+    gm_window_compose_close(compose);
+    gm_audio_live_destroy(&audio);
+    gm_runtime_destroy(&runtime);
+    free(runtime_storage);
+    cr_window_close(cwin);
+#undef runtime
+#undef fb
+    return 0;
+}

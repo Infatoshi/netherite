@@ -1,0 +1,20 @@
+{
+  "schema": "netherite.block_callback_drops_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "case_count": 7,
+  "pass": 7,
+  "fail": 0,
+  "retries": 0,
+  "state_divergences": 0,
+  "summary_sha256": "dd9fb6e5f5f96c7c45ff9271c7a60325aa16055e2615af5f0f448ae0469322e5",
+  "families": [
+    ["BlockBed", "dropBlockAsItemWithChance"],
+    ["BlockBed", "neighborChanged"],
+    ["BlockCrops", "dropBlockAsItemWithChance"],
+    ["BlockNetherWart", "dropBlockAsItemWithChance"],
+    ["BlockPotato", "dropBlockAsItemWithChance"],
+    ["BlockStem", "dropBlockAsItemWithChance"]
+  ]
+}

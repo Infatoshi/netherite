@@ -1,0 +1,4 @@
+# Saved boundary immediately after placing a WEST-facing observer. Vanilla's
+# onBlockAdded callback is pending at +2; the lamp is still unlit.
+12 78 8 218 4
+13 78 8 123 0

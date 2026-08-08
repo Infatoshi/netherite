@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.biome.BiomeColorHelper;
-import qrl.QBiomeNative;
+import netheritemod.QBiomeNative;
 
 /**
  * Routes BiomeColorHelper.getGrassColorAtPos (the 3x3 biome grass-color blend, kernel 18)

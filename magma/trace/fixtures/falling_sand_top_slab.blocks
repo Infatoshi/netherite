@@ -1,0 +1,5 @@
+# x y z id meta
+# Top-half stone slab has a full-height top face. Sand lands in the air cell
+# above it, unlike the bottom-slab failed-placement/drop path.
+12 77 8 44 8
+12 80 8 12 0

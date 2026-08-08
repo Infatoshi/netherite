@@ -1,0 +1,250 @@
+{
+  "id": "gui_shulker_box",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "armor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "hotbar": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "use_action": 0,
+    "fire": 0,
+    "portal": 0.0,
+    "boss": {
+      "show": false
+    },
+    "clear_effects": true,
+    "shulker_box_gui": {
+      "storage": [
+        [
+          264,
+          5,
+          0
+        ],
+        [
+          297,
+          2,
+          0
+        ]
+      ]
+    },
+    "hud_flash": false,
+    "hud_health": 20,
+    "hud_last_health": 20,
+    "hud_update_counter": 1000
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 107,
+    "dead": false,
+    "screen": "GuiShulkerBox",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 107,
+    "dead": false,
+    "screen": "GuiShulkerBox",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 103,
+    "dead": false,
+    "screen": "GuiShulkerBox",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_shulker_box_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_shulker_box_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "shulker_box_tile_pin_count": 0,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 108,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_shulker_box_a.png"
+  },
+  "frame_b": {
+    "ok": true,
+    "file_a": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_shulker_box_a.png",
+    "file_b": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_shulker_box_b.png",
+    "pair": 1,
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_count": 0,
+    "render_pin_eid": -1,
+    "ender_chest_tile_pin": 0,
+    "chest_tile_pin_count": 0,
+    "shulker_box_tile_pin_count": 0,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 108,
+    "pin_use_active": false,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/verify/ui_hud/goldens/gui_shulker_box_b.png"
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 0.0,
+  "noise_limit": 2.0,
+  "presence": {
+    "mean_rgb": [
+      151.64962404735982,
+      151.75803790146978,
+      151.4623451959717
+    ],
+    "std": 55.69010983544371,
+    "warm_frac": 0.0009562841530054645,
+    "bot_warm_frac": 0.0,
+    "lr_std": 31.945779852421666,
+    "vm_std": 38.06590822331832,
+    "vm_dev": 14.296716690063477,
+    "dark_frac": 0.030892759934676103,
+    "purple_bias": -0.2956927054980838
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "full populated Shulker Box container panel",
+  "gmx": 176,
+  "gmy": 62
+}

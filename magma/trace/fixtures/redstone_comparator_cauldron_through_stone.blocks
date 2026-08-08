@@ -1,0 +1,11 @@
+# x y z id meta
+# A WEST-facing comparator sees a cauldron through one ordinary stone block.
+# Tick zero changes cauldron level 0 to 3; vanilla's one-solid look-through
+# path reads the second block's comparator override.
+10 77 8 1 0
+11 77 8 1 0
+12 77 8 1 0
+10 78 8 118 0
+11 78 8 1 0
+12 78 8 149 1
+13 78 8 123 0

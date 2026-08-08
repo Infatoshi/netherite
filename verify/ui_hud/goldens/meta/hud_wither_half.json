@@ -1,0 +1,223 @@
+{
+  "id": "hud_wither_half",
+  "pin": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0,
+    "no_gravity": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "armor": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "hotbar": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "use_action": 0,
+    "fire": 0,
+    "portal": 0.0,
+    "boss": {
+      "show": true,
+      "frac": 0.5,
+      "name": "Wither"
+    },
+    "clear_effects": true,
+    "hud_flash": false,
+    "hud_health": 20,
+    "hud_last_health": 20,
+    "hud_update_counter": 1000
+  },
+  "pin_reply_a": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 74,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_b": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 77,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "pin_reply_pre": {
+    "ok": true,
+    "health": 20.0,
+    "food": 20,
+    "air": 300,
+    "absorption": 0.0,
+    "xp_level": 0,
+    "xp_frac": 0.0,
+    "armor": 0,
+    "hold_death": false,
+    "hand_active": false,
+    "burning": false,
+    "fire_ticks": -1,
+    "portal": 0.0,
+    "portal_time_pin_active": false,
+    "portal_phase": 70,
+    "dead": false,
+    "screen": "null",
+    "potion_count": 0,
+    "hide_gui": false,
+    "third_person": 0,
+    "equip_progress": 1.0,
+    "equip_pinned": 1,
+    "held_id": 0,
+    "pin_use_active": false,
+    "pin_use_remaining": 0
+  },
+  "frame_a": {
+    "ok": true,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/.tmp/ui_hud_wither_goldens/hud_wither_half_a.png",
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_eid": -1,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 75,
+    "pin_use_active": false
+  },
+  "frame_b": {
+    "ok": true,
+    "file": "/home/jawaugh/minecraft-3d-env-fast/.tmp/ui_hud_wither_goldens/hud_wither_half_b.png",
+    "w": 854,
+    "h": 480,
+    "render_partial": 1.0,
+    "tb": 1,
+    "hud": 1,
+    "render_pin": 0,
+    "render_pin_eid": -1,
+    "air": 300,
+    "health": 20.0,
+    "portal_phase": 78,
+    "pin_use_active": false
+  },
+  "pose": {
+    "x": 8.5,
+    "y": 5.0,
+    "z": 8.5,
+    "yaw": 0.0,
+    "pitch": 0.0
+  },
+  "width": 854,
+  "height": 480,
+  "gui_scale": 2,
+  "partial_ticks": 1.0,
+  "ab_noise": 0.0,
+  "noise_limit": 2.0,
+  "presence": {
+    "mean_rgb": [
+      101.87955013736264,
+      71.34486607142857,
+      95.17384958791209
+    ],
+    "std": 47.91053606316012,
+    "warm_frac": 0.06440281030444965,
+    "bot_warm_frac": 0.15635245901639344,
+    "lr_std": 29.21589993100965,
+    "vm_std": 27.19343210782901,
+    "vm_dev": 19.628679275512695,
+    "dark_frac": 0.21771978021978022,
+    "purple_bias": 23.828983516483518
+  },
+  "verdict": "CAPTURE_OK",
+  "notes": "A/B from qrl frame{rerender:true} at partialTicks=1 with hud_pin freeze; capture integrity enforced (noise + feature presence).",
+  "roi": "Wither boss bar top center"
+}

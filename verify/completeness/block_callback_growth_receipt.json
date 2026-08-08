@@ -1,0 +1,30 @@
+{
+  "schema": "netherite.block_callback_growth_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma",
+  "captured_utc": "2026-08-23",
+  "rows": 388,
+  "families": [
+    ["BlockBeetroot", "updateTick"],
+    ["BlockBush", "updateTick"],
+    ["BlockCactus", "updateTick"],
+    ["BlockChorusFlower", "updateTick"],
+    ["BlockCocoa", "updateTick"],
+    ["BlockCrops", "updateTick"],
+    ["BlockDispenser", "updateTick"],
+    ["BlockFarmland", "updateTick"],
+    ["BlockFrostedIce", "updateTick"],
+    ["BlockGrass", "updateTick"],
+    ["BlockIce", "updateTick"],
+    ["BlockMushroom", "updateTick"],
+    ["BlockMycelium", "updateTick"],
+    ["BlockNetherWart", "updateTick"],
+    ["BlockReed", "updateTick"],
+    ["BlockSapling", "updateTick"],
+    ["BlockSnow", "updateTick"],
+    ["BlockSnowBlock", "updateTick"],
+    ["BlockStaticLiquid", "updateTick"],
+    ["BlockStem", "updateTick"],
+    ["BlockVine", "updateTick"]
+  ]
+}

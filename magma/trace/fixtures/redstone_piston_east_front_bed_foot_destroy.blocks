@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero and targets the foot of an
+# east-facing bed. Foot 26:3 emits item 355:0; its ordered notification removes
+# head 26:11 without a second item.
+12 78 9 152 0
+13 78 8 26 3
+14 78 8 26 11

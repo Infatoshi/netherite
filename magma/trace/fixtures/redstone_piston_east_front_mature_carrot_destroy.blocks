@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while mature carrot crop 141:7 occupies the front
+# cell. Captured 1.11.2 BlockCrops emits one carrot plus every successful one
+# of three World.rand nextInt(14) mature-crop trials.
+12 78 9 152 0
+13 77 8 60 0
+13 78 8 141 7

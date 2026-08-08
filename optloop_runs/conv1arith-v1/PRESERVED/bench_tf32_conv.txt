@@ -1,0 +1,17 @@
+lane=/home/infatoshi/dev/nw/conv1arith/optloop_runs/conv1arith-v1
+waiting for gpu0 lock ...
+preflight ok: both GPUs idle
+[baseline] unmodified  x5
+    rep wall_ms=1610.369 (process 6.8s)
+    rep wall_ms=1610.157 (process 6.8s)
+    rep wall_ms=1607.064 (process 6.8s)
+    rep wall_ms=1613.196 (process 6.8s)
+    rep wall_ms=1607.987 (process 6.8s)
+  -> median 1610.16 ms  stderr 1.07  cv 0.0015
+[tf32_conv] {'TF32_CONV': '1'}  x5
+    rep wall_ms=1574.098 (process 6.7s)
+    rep wall_ms=1574.591 (process 6.7s)
+    rep wall_ms=1572.273 (process 6.7s)
+    rep wall_ms=1573.534 (process 6.7s)
+    rep wall_ms=1573.061 (process 6.7s)
+  -> median 1573.53 ms  rel=+0.0227 abs=+36.62ms mdd=2.13ms eps_abs=32.20ms correctness=fail  keep=False

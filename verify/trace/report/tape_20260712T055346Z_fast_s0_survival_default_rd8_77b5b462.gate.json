@@ -1,0 +1,552 @@
+{
+ "pass": false,
+ "pixel_pass": true,
+ "state_pass": false,
+ "strict_state_pass": false,
+ "strict_state_required": false,
+ "frames_checked": 0,
+ "classes": {},
+ "failed_frames": [],
+ "state": {
+  "kind": "state",
+  "coverage": {
+   "ticks_total": 3121,
+   "ticks_run": 3121,
+   "truncated": false
+  },
+  "inventory": {
+   "comparison": "exact_item_count_meta_all_41_slots",
+   "ticks_checked": 0,
+   "ticks_independent": 0,
+   "seeded_only": false,
+   "mismatches": [],
+   "pass": true,
+   "available": false
+  },
+  "entities": {
+   "comparison": "exact_type_count_and_recorded_state_nearest_pair",
+   "ticks_checked": 3121,
+   "samples": [
+    {
+     "tick": 0,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 20,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 40,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 60,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 80,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 100,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 120,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 140,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 160,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 180,
+     "tape_count": 9,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 200,
+     "tape_count": 9,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 220,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 240,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 260,
+     "tape_count": 9,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 280,
+     "tape_count": 9,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep",
+      "EntityZombie"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    },
+    {
+     "tick": 300,
+     "tape_count": 8,
+     "tape_types": [
+      "EntityBat",
+      "EntityCreeper",
+      "EntitySheep"
+     ],
+     "magma_count": 0,
+     "magma_types": []
+    }
+   ],
+   "ghost_ticks": 3121,
+   "ghost_expected": 51512,
+   "ghost_mismatches": [
+    {
+     "tick": 429,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 430,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 431,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 432,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 433,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 434,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 158.125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 434,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 435,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 158.125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 435,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 436,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 158.125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 436,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 436,
+     "type": "EntityItem",
+     "x": 81.705322265625,
+     "y": 42.0,
+     "z": 168.875,
+     "nearest": 46.205322
+    },
+    {
+     "tick": 437,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 158.125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 437,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 437,
+     "type": "EntityItem",
+     "x": 81.705322265625,
+     "y": 42.0,
+     "z": 168.875,
+     "nearest": 46.205322
+    },
+    {
+     "tick": 438,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 158.125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 438,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 438,
+     "type": "EntityItem",
+     "x": 81.705322265625,
+     "y": 42.0,
+     "z": 168.875,
+     "nearest": 46.205322
+    },
+    {
+     "tick": 439,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 158.125,
+     "nearest": 44.625
+    },
+    {
+     "tick": 439,
+     "type": "EntityItem",
+     "x": 80.125,
+     "y": 42.0,
+     "z": 166.891845703125,
+     "nearest": 44.625
+    }
+   ],
+   "verified": true,
+   "mismatches": [
+    {
+     "tick": 0,
+     "field": "count",
+     "type": "EntityBat",
+     "tape_count": 1,
+     "magma_count": 0
+    },
+    {
+     "tick": 0,
+     "field": "count",
+     "type": "EntityCreeper",
+     "tape_count": 2,
+     "magma_count": 0
+    },
+    {
+     "tick": 0,
+     "field": "count",
+     "type": "EntitySheep",
+     "tape_count": 4,
+     "magma_count": 0
+    },
+    {
+     "tick": 0,
+     "field": "count",
+     "type": "EntityZombie",
+     "tape_count": 1,
+     "magma_count": 0
+    },
+    {
+     "tick": 1,
+     "field": "count",
+     "type": "EntityBat",
+     "tape_count": 1,
+     "magma_count": 0
+    },
+    {
+     "tick": 1,
+     "field": "count",
+     "type": "EntityCreeper",
+     "tape_count": 2,
+     "magma_count": 0
+    },
+    {
+     "tick": 1,
+     "field": "count",
+     "type": "EntitySheep",
+     "tape_count": 4,
+     "magma_count": 0
+    },
+    {
+     "tick": 1,
+     "field": "count",
+     "type": "EntityZombie",
+     "tape_count": 1,
+     "magma_count": 0
+    },
+    {
+     "tick": 2,
+     "field": "count",
+     "type": "EntityBat",
+     "tape_count": 1,
+     "magma_count": 0
+    },
+    {
+     "tick": 2,
+     "field": "count",
+     "type": "EntityCreeper",
+     "tape_count": 2,
+     "magma_count": 0
+    },
+    {
+     "tick": 2,
+     "field": "count",
+     "type": "EntitySheep",
+     "tape_count": 4,
+     "magma_count": 0
+    },
+    {
+     "tick": 2,
+     "field": "count",
+     "type": "EntityZombie",
+     "tape_count": 1,
+     "magma_count": 0
+    },
+    {
+     "tick": 3,
+     "field": "count",
+     "type": "EntityBat",
+     "tape_count": 1,
+     "magma_count": 0
+    },
+    {
+     "tick": 3,
+     "field": "count",
+     "type": "EntityCreeper",
+     "tape_count": 2,
+     "magma_count": 0
+    },
+    {
+     "tick": 3,
+     "field": "count",
+     "type": "EntitySheep",
+     "tape_count": 4,
+     "magma_count": 0
+    },
+    {
+     "tick": 3,
+     "field": "count",
+     "type": "EntityZombie",
+     "tape_count": 1,
+     "magma_count": 0
+    },
+    {
+     "tick": 4,
+     "field": "count",
+     "type": "EntityBat",
+     "tape_count": 1,
+     "magma_count": 0
+    },
+    {
+     "tick": 4,
+     "field": "count",
+     "type": "EntityCreeper",
+     "tape_count": 2,
+     "magma_count": 0
+    },
+    {
+     "tick": 4,
+     "field": "count",
+     "type": "EntitySheep",
+     "tape_count": 4,
+     "magma_count": 0
+    },
+    {
+     "tick": 4,
+     "field": "count",
+     "type": "EntityZombie",
+     "tape_count": 1,
+     "magma_count": 0
+    }
+   ],
+   "mismatch_count": 19394,
+   "pass": false,
+   "available": true
+  },
+  "world": {
+   "comparison": "exact_fnv64_each_tick_raw_9x9x9_checkpoints",
+   "ticks_checked": 0,
+   "raw_blocks_checked": 0,
+   "hash_deltas": 0,
+   "samples": [],
+   "mode": "c_only",
+   "compared": 0,
+   "anchor_skips": 0,
+   "verified": false,
+   "mismatches": [],
+   "mismatch_count": 0,
+   "pass": true,
+   "available": false
+  },
+  "pass": false,
+  "complete": false,
+  "strict_pass": false
+ }
+}

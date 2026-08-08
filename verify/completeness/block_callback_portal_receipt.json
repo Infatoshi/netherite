@@ -1,0 +1,8 @@
+{
+  "schema": "netherite.block_callback_portal_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma",
+  "captured_utc": "2026-08-23",
+  "cases": 9,
+  "family": ["BlockPortal", "updateTick"]
+}

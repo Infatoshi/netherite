@@ -1,0 +1,35 @@
+{
+  "schema": "netherite.spectral_arrow_family_gate",
+  "version": 1,
+  "todo": "ENT-06",
+  "payload_oracle": {
+    "java_version": "1.11.2",
+    "aggregate_cases": 8,
+    "spectral_duration_case": 1,
+    "glowing_effect_and_duration": "exact"
+  },
+  "state_continuation": {
+    "joint_arrow_classes": 3,
+    "native_ticks": 1,
+    "motion_collision_payload_uuid_rng_and_nbt": "bit_exact"
+  },
+  "implemented": [
+    "live_spectral_arrow_subclass",
+    "bow_launch_and_ammunition_selection",
+    "infinity_consumes_spectral_ammunition",
+    "exact_configurable_glowing_duration",
+    "mob_and_player_payload_delivery",
+    "glowing_render_flag_handoff",
+    "spectral_item_pickup_and_status",
+    "block_impact_and_embedded_state",
+    "checkpoint_subclass_payload_continuation",
+    "java_capsule_native_motion_continuation",
+    "uuid_entity_rng_and_semantic_nbt_continuation",
+    "shared_arrow_model_and_texture_path"
+  ],
+  "remaining": [
+    "arbitrary_multi_entity_projectile_collision_order",
+    "foreign_dimension_terminal_event_delivery",
+    "strict_same_scene_spectral_arrow_pixels"
+  ]
+}

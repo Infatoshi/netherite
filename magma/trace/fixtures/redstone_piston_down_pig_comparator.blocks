@@ -1,0 +1,5 @@
+# A downward piston pushes a stationary pig onto an unpowered comparator.
+# Repeater and comparator states inherit the same diode collision box.
+12 81 9 152 0
+12 78 8 1 0
+12 79 8 149 0

@@ -1,0 +1,78 @@
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False channels_last=False graph_rollout=False graph_update=False cpolicy=False cudnn_bench=False fold_scale=False tf32_conv=False
+BENCH chunk=0 wall_ms=1822.283481 env_ticks_per_s=431564.028
+SMOKE chunk=0 ticks=786432 reward_mean=-0.00793577544 adv_absmean=0.315591604 value_mean=0.0163815599 ent=10.3095423 kl=0.00533558739 pnorm=11.61971
+chunk    1  ticks    0.79M  wall     1.8s  0.430M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=1 wall_ms=1555.834934 env_ticks_per_s=505472.645
+SMOKE chunk=1 ticks=1572864 reward_mean=-0.00646072207 adv_absmean=0.318314195 value_mean=-0.0376682803 ent=10.2940165 kl=0.00634993985 pnorm=11.7667637
+BENCH chunk=2 wall_ms=1566.796032 env_ticks_per_s=501936.426
+SMOKE chunk=2 ticks=2359296 reward_mean=-0.00545052253 adv_absmean=0.331457704 value_mean=-0.103593349 ent=10.2685642 kl=0.00685789188 pnorm=11.9375219
+BENCH chunk=3 wall_ms=1576.636386 env_ticks_per_s=498803.660
+SMOKE chunk=3 ticks=3145728 reward_mean=-0.00434196554 adv_absmean=0.333441585 value_mean=-0.154242843 ent=10.2406851 kl=0.00721658456 pnorm=12.1436481
+BENCH chunk=4 wall_ms=1571.109097 env_ticks_per_s=500558.492
+SMOKE chunk=4 ticks=3932160 reward_mean=-0.0013304078 adv_absmean=0.342309833 value_mean=-0.196923584 ent=10.1926352 kl=0.0083757254 pnorm=12.4056139
+chunk    5  ticks    3.93M  wall     8.1s  0.486M t/s  t0 0.00 (n 200)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 644  reached 644/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.193 kl 0.0084 clip 0.11  memg 10.10
+BENCH chunk=5 wall_ms=1577.871500 env_ticks_per_s=498413.210
+SMOKE chunk=5 ticks=4718592 reward_mean=0.00166367064 adv_absmean=0.332595348 value_mean=-0.2280747 ent=10.123462 kl=0.00912755293 pnorm=12.6699762
+BENCH chunk=6 wall_ms=1576.464215 env_ticks_per_s=498858.136
+SMOKE chunk=6 ticks=5505024 reward_mean=0.00353063457 adv_absmean=0.305416763 value_mean=-0.228347749 ent=10.0483691 kl=0.0101398391 pnorm=12.9405069
+BENCH chunk=7 wall_ms=1564.942096 env_ticks_per_s=502531.053
+SMOKE chunk=7 ticks=6291456 reward_mean=0.00565681607 adv_absmean=0.282428741 value_mean=-0.216032386 ent=9.97293409 kl=0.00986675856 pnorm=13.1811771
+BENCH chunk=8 wall_ms=1557.130869 env_ticks_per_s=505051.962
+SMOKE chunk=8 ticks=7077888 reward_mean=0.00693330169 adv_absmean=0.247495502 value_mean=-0.218732774 ent=9.87738482 kl=0.00971670759 pnorm=13.4045563
+BENCH chunk=9 wall_ms=1550.189265 env_ticks_per_s=507313.538
+SMOKE chunk=9 ticks=7864320 reward_mean=0.00829449855 adv_absmean=0.232037634 value_mean=-0.161203474 ent=9.76877912 kl=0.0111205243 pnorm=13.6060667
+chunk   10  ticks    7.86M  wall    15.9s  0.494M t/s  t0 0.00 (n 200)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 1308  reached 1307/1/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 9.769 kl 0.0111 clip 0.17  memg 10.10
+BENCH chunk=10 wall_ms=1545.313368 env_ticks_per_s=508914.254
+SMOKE chunk=10 ticks=8650752 reward_mean=0.010846613 adv_absmean=0.22632876 value_mean=-0.0973810777 ent=9.65413284 kl=0.0118927906 pnorm=13.751298
+BENCH chunk=11 wall_ms=1542.969980 env_ticks_per_s=509687.168
+SMOKE chunk=11 ticks=9437184 reward_mean=0.0135001969 adv_absmean=0.230286568 value_mean=0.0112896673 ent=9.55722173 kl=0.0112643838 pnorm=13.8987799
+BENCH chunk=12 wall_ms=1531.574301 env_ticks_per_s=513479.496
+SMOKE chunk=12 ticks=10223616 reward_mean=0.0171127729 adv_absmean=0.262848556 value_mean=0.133403033 ent=9.47923915 kl=0.0111253659 pnorm=14.0296946
+BENCH chunk=13 wall_ms=1525.025508 env_ticks_per_s=515684.489
+SMOKE chunk=13 ticks=11010048 reward_mean=0.0226970501 adv_absmean=0.305877447 value_mean=0.318296731 ent=9.42633375 kl=0.0107046577 pnorm=14.1783381
+BENCH chunk=14 wall_ms=1533.462597 env_ticks_per_s=512847.201
+SMOKE chunk=14 ticks=11796480 reward_mean=0.0235278662 adv_absmean=0.331267655 value_mean=0.499866843 ent=9.36840757 kl=0.00923748004 pnorm=14.34764
+chunk   15  ticks   11.80M  wall    23.6s  0.500M t/s  t0 0.00 (n 200)  stage-succ 0.04 0.00 0.00 0.00 0.00  eps 1976  reached 1949/27/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 9.368 kl 0.0092 clip 0.13  memg 10.10
+BENCH chunk=15 wall_ms=1530.158466 env_ticks_per_s=513954.612
+SMOKE chunk=15 ticks=12582912 reward_mean=0.0220404472 adv_absmean=0.316518366 value_mean=0.723820567 ent=9.35708173 kl=0.00790949414 pnorm=14.4992943
+BENCH chunk=16 wall_ms=1527.110555 env_ticks_per_s=514980.397
+SMOKE chunk=16 ticks=13369344 reward_mean=0.0186636634 adv_absmean=0.282257736 value_mean=0.902513504 ent=9.34773509 kl=0.0079548123 pnorm=14.654377
+BENCH chunk=17 wall_ms=1528.910872 env_ticks_per_s=514373.999
+SMOKE chunk=17 ticks=14155776 reward_mean=0.0174565762 adv_absmean=0.25939545 value_mean=1.03378808 ent=9.33012136 kl=0.00735941964 pnorm=14.7967892
+BENCH chunk=18 wall_ms=1525.045748 env_ticks_per_s=515677.645
+SMOKE chunk=18 ticks=14942208 reward_mean=0.0162318796 adv_absmean=0.243515491 value_mean=1.13014925 ent=9.28440158 kl=0.00706867563 pnorm=14.9550409
+BENCH chunk=19 wall_ms=1525.664711 env_ticks_per_s=515468.434
+SMOKE chunk=19 ticks=15728640 reward_mean=0.015018343 adv_absmean=0.223914072 value_mean=1.21654546 ent=9.26219749 kl=0.00709580754 pnorm=15.1070948
+chunk   20  ticks   15.73M  wall    31.3s  0.503M t/s  t0 0.00 (n 200)  stage-succ 0.22 0.00 0.00 0.00 0.00  eps 2625  reached 2445/180/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 9.262 kl 0.0071 clip 0.09  memg 10.10
+BENCH chunk=20 wall_ms=1524.744838 env_ticks_per_s=515779.415
+SMOKE chunk=20 ticks=16515072 reward_mean=0.0147666736 adv_absmean=0.212880999 value_mean=1.27304637 ent=9.24647013 kl=0.00636307336 pnorm=15.23244
+BENCH chunk=21 wall_ms=1526.916185 env_ticks_per_s=515045.952
+SMOKE chunk=21 ticks=17301504 reward_mean=0.0146342572 adv_absmean=0.205109477 value_mean=1.31917048 ent=9.234677 kl=0.00656846166 pnorm=15.3444843
+BENCH chunk=22 wall_ms=1526.358803 env_ticks_per_s=515234.032
+SMOKE chunk=22 ticks=18087936 reward_mean=0.0147638097 adv_absmean=0.200980842 value_mean=1.42412376 ent=9.2120444 kl=0.00741337674 pnorm=15.476614
+BENCH chunk=23 wall_ms=1524.607318 env_ticks_per_s=515825.938
+SMOKE chunk=23 ticks=18874368 reward_mean=0.0153299188 adv_absmean=0.201755807 value_mean=1.49672365 ent=9.16258876 kl=0.00604532162 pnorm=15.5680103
+BENCH chunk=24 wall_ms=1522.401729 env_ticks_per_s=516573.244
+SMOKE chunk=24 ticks=19660800 reward_mean=0.0151868984 adv_absmean=0.194800675 value_mean=1.51078928 ent=9.14252408 kl=0.00529026054 pnorm=15.6474333
+chunk   25  ticks   19.66M  wall    38.9s  0.505M t/s  t0 0.00 (n 200)  stage-succ 0.28 0.00 0.00 0.00 0.00  eps 3269  reached 2905/364/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 9.143 kl 0.0053 clip 0.05  memg 10.10
+  cells (per seed [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], stages ('t0', 'logs3', 'pick', 'cobble3', 'coal')): 0.40 0.00 0.00  --   --   | 0.52 0.00 0.00  --   --   | 0.12 0.00  --   --   --   | 0.08 0.00  --   --   --   | 0.00 0.00  --   --   --   | 0.35 0.00 0.00  --   --   | 0.20 0.00  --   --   --   | 0.37 0.00 0.00  --   --   | 0.53 0.00  --   --   --   | 0.27 0.00 0.00  --   --   | 0.25 0.00  --   --   --
+BENCH chunk=25 wall_ms=1517.446862 env_ticks_per_s=518259.993
+SMOKE chunk=25 ticks=20447232 reward_mean=0.0149088306 adv_absmean=0.188346267 value_mean=1.53975177 ent=9.14638774 kl=0.00505056853 pnorm=15.7305984
+BENCH chunk=26 wall_ms=1527.187226 env_ticks_per_s=514954.543
+SMOKE chunk=26 ticks=21233664 reward_mean=0.0153195215 adv_absmean=0.185466871 value_mean=1.56369817 ent=9.13970757 kl=0.00618515785 pnorm=15.8470154
+BENCH chunk=27 wall_ms=1528.128999 env_ticks_per_s=514637.181
+SMOKE chunk=27 ticks=22020096 reward_mean=0.015613392 adv_absmean=0.182682365 value_mean=1.56067121 ent=9.12545904 kl=0.00533814418 pnorm=15.926837
+BENCH chunk=28 wall_ms=1522.249638 env_ticks_per_s=516624.856
+SMOKE chunk=28 ticks=22806528 reward_mean=0.015371263 adv_absmean=0.176198512 value_mean=1.54254842 ent=9.1153005 kl=0.00471396962 pnorm=16.0085487
+BENCH chunk=29 wall_ms=1517.563613 env_ticks_per_s=518220.122
+SMOKE chunk=29 ticks=23592960 reward_mean=0.0140353814 adv_absmean=0.169007778 value_mean=1.5196259 ent=9.11866442 kl=0.0048190852 pnorm=16.0991058
+chunk   30  ticks   23.59M  wall    46.5s  0.507M t/s  t0 0.00 (n 200)  stage-succ 0.29 0.00 0.00 0.00 0.00  eps 3895  reached 3356/537/2/0/0/0  live log3=0.00 wpick=0.01 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 9.119 kl 0.0048 clip 0.04  memg 10.10
+stop: benchmark (30 measured chunks)
+episodes 3895; reached-milestone histogram [np.int64(3356), np.int64(537), np.int64(2), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M

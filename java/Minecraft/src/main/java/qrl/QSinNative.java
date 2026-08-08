@@ -6,8 +6,9 @@ import java.nio.file.Paths;
 /**
  * JNI bridge to the native MathHelper.sin() table lookup (render-opt/dropin/libqsin.so).
  * Mode is resolved ONCE at class-init (MathHelper.sin runs thousands of times/frame, so
- * we must not getenv per call). Source order: env QSIN_MODE, else sidecar file
- * render-opt/dropin/qsin_mode.txt (file fallback dodges gradle-daemon env staleness):
+ * we must not do IO per call). Single source: sidecar file
+ * render-opt/dropin/qsin_mode.txt, written by the capture_*.sh drivers (a file, not an
+ * env var: the gradle daemon serves a STALE env to runClient):
  *   "native"   -> MODE=1, load libqsin.so, route sin() through native nsin()
  *   "sabotage" -> MODE=2, sin() returns 0.0f (proves the inject has visible global effect)
  *   else/unset -> MODE=0, original Java SIN_TABLE runs (vanilla baseline)
@@ -15,19 +16,16 @@ import java.nio.file.Paths;
 public final class QSinNative {
     public static volatile int MODE;  // volatile: runtime-switchable via the qrl "kmode" op
     private static boolean libLoaded = false;
-    private static final String DIR = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/c/render-opt/dropin";
+    private static final String DIR = "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin";
 
     static {
-        String m = System.getenv("QSIN_MODE");
-        if (m == null || m.isEmpty()) {
-            try { m = new String(Files.readAllBytes(Paths.get(DIR, "qsin_mode.txt"))).trim(); }
-            catch (Exception e) { m = null; }
-        }
+        String m = null;
+        try { m = new String(Files.readAllBytes(Paths.get(DIR, "qsin_mode.txt"))).trim(); }
+        catch (Exception e) { m = null; }
         int mode = 0;
         if ("native".equals(m)) {
             mode = 1;
-            String lib = System.getenv("QSIN_LIB");
-            if (lib == null) lib = DIR + "/libqsin.so";
+            String lib = DIR + "/libqsin.so";
             System.load(lib);
             libLoaded = true;
             System.err.println("[qsin] QSinNative: loaded native lib " + lib);
@@ -35,7 +33,7 @@ public final class QSinNative {
             mode = 2;
         }
         MODE = mode;
-        System.err.println("[qsin] QSinNative MODE=" + mode + " (resolved QSIN_MODE=" + m + ")");
+        System.err.println("[qsin] QSinNative MODE=" + mode + " (resolved qsin_mode=" + m + ")");
     }
 
     public static native float nsin(float value);

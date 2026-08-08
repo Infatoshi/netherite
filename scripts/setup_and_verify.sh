@@ -100,18 +100,15 @@ if [ "$MODE" = bootstrap_only ]; then
 fi
 
 echo "== build magma =="
-make -C c/magma game
+make -C magma game
 
 # RL gate artifacts: snapshots for blaze CPU/CUDA steps (committed refs alone
 # are not enough; .bsnp files are regenerable and gitignored).
-if [ ! -d c/magma/rl/out/snaps ] || [ -z "$(find c/magma/rl/out/snaps -name '*.bsnp' 2>/dev/null | head -1)" ]; then
+if [ ! -d blaze/rl/out/snaps ] || [ -z "$(find blaze/rl/out/snaps -name '*.bsnp' 2>/dev/null | head -1)" ]; then
   echo "== make blaze snapshots (t0 + curriculum) =="
-  make -C c/magma blaze_so || make -C c/magma game
-  (
-    cd c/magma
-    T0=1 uv run --no-project --with numpy,torch python rl/blaze/make_snapshots.py
-    uv run --no-project --with numpy,torch python rl/blaze/make_snapshots.py
-  )
+  make -C magma blaze_so || make -C magma game
+  T0=1 uv run --no-project --with numpy,torch python blaze/env/make_snapshots.py
+  uv run --no-project --with numpy,torch python blaze/env/make_snapshots.py
 else
   echo "== blaze snapshots already present =="
 fi

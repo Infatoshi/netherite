@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while a south-facing age-0 cocoa pod occupies the
+# front cell and remains attached to a jungle log on its south side.
+12 78 9 152 0
+13 78 9 17 3
+13 78 8 127 0

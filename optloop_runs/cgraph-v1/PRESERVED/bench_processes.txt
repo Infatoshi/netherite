@@ -1,0 +1,134 @@
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False channels_last=False graph_rollout=False graph_update=False cpolicy=False cudnn_bench=False fold_scale=False tf32_conv=False
+chunk    1  ticks    0.79M  wall     1.8s  0.444M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1577.194829 env_ticks_per_s=498627.047
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False channels_last=False graph_rollout=False graph_update=False cpolicy=False cudnn_bench=False fold_scale=False tf32_conv=False
+chunk    1  ticks    0.79M  wall     1.8s  0.444M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1579.407317 env_ticks_per_s=497928.553
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False channels_last=False graph_rollout=False graph_update=False cpolicy=False cudnn_bench=False fold_scale=False tf32_conv=False
+chunk    1  ticks    0.79M  wall     1.8s  0.443M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1579.544158 env_ticks_per_s=497885.416
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False channels_last=False graph_rollout=False graph_update=False cpolicy=False cudnn_bench=False fold_scale=False tf32_conv=False
+chunk    1  ticks    0.79M  wall     1.8s  0.442M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1581.600895 env_ticks_per_s=497237.958
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {}
+device cuda:0 = NVIDIA RTX PRO 6000 Blackwell Workstation Edition
+success_item=50  REWARD_JSON=None
+log oracle: [2214, 434, 1971, 1230, 6, 778, 809, 2055, 1392, 755, 917] logs/seed
+N=6144 lanes, 11 seeds [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46], chunk 32 decisions, EP_DEC 1500, device cuda:0
+rng seed=0 (torch/numpy), episode seed=1
+reward spec: ChainRewardSpec(time_cost=0.01, death_penalty=5.0, w_log_per=1.0, log_clamp=5.0, w_plank_first=2.0, w_stick_first=2.0, w_table_first=3.0, w_container_open=4.0, w_wpick_first=6.0, w_cobble_per=1.0, cobble_clamp=4.0, w_spick_first=0.0, w_coal_first=6.0, w_torch_first=12.0, chop_dist_coef=0.5, chop_dist_clamp=1.0, chop_crosshair=0.03, dig_descend_coef=0.25, dig_stone_atk=0.02, dig_hold_pick=0.005, digprog_coef=0.0015, coal_dist_coef=0.5, coal_dist_clamp=1.0, coal_crosshair=0.03, coal_crosshair_maxd=3.5, coal_hold_pick=0.005, coal_chew=0.0, hunt_desc=0.0, w_furnace_first=0.0, w_furnace_open=0.0, w_ironore_per=0.0, ironore_clamp=3.0, w_ingot_first=0.0, w_ipick_first=0.0)
+opt flags: fused_sample=True act_cache=False novalidate=False channels_last=False graph_rollout=False graph_update=False cpolicy=False cudnn_bench=False fold_scale=False tf32_conv=False
+chunk    1  ticks    0.79M  wall     1.8s  0.443M t/s  t0 0.00 (n 133)  stage-succ 0.00 0.00 0.00 0.00 0.00  eps 133  reached 133/0/0/0/0/0  live log3=0.00 wpick=0.00 cob3=0.00 spick=0.00 coal=0.00 torch=0.00  ent 10.310 kl 0.0053 clip 0.06  memg 10.10
+BENCH chunk=0 wall_ms=1586.045630 env_ticks_per_s=495844.498
+stop: benchmark (1 measured chunks)
+episodes 389; reached-milestone histogram [np.int64(389), np.int64(0), np.int64(0), np.int64(0), np.int64(0), np.int64(0)]
+trailing t0 full-chain: 0.000  best -1.000 at 0.0M
+
+--- stderr ---
+
+$ {'CGRAPH_BIN': '/home/infatoshi/dev/nw/cgraph/blaze/rl/cgraph/build/cgraph_train', 'CGRAPH_INIT': '/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt'}
+CGRAPH_INIT path=/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt
+CGRAPH_CAPTURE rollout graph=0x5a9923b66770
+cgraph PPO N=6144 T=32 EPOCHS=2 MB=8192 bf16=0 channels_last=0 bf16_scope=off update_bf16=0
+CGRAPH_CAPTURE update graph=0x5a9910815d50
+BENCH chunk=0 wall_ms=1686.91 env_ticks_per_s=466197
+
+--- stderr ---
+[W802 16:50:07.734381499 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+[W802 16:50:07.745666308 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+
+$ {'CGRAPH_BIN': '/home/infatoshi/dev/nw/cgraph/blaze/rl/cgraph/build/cgraph_train', 'CGRAPH_INIT': '/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt'}
+CGRAPH_INIT path=/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt
+CGRAPH_CAPTURE rollout graph=0x57ef7167abc0
+cgraph PPO N=6144 T=32 EPOCHS=2 MB=8192 bf16=0 channels_last=0 bf16_scope=off update_bf16=0
+CGRAPH_CAPTURE update graph=0x57ef5e329c60
+BENCH chunk=0 wall_ms=1690.57 env_ticks_per_s=465188
+
+--- stderr ---
+[W802 16:50:13.821937540 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+[W802 16:50:13.832834307 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+
+$ {'CGRAPH_BIN': '/home/infatoshi/dev/nw/cgraph/blaze/rl/cgraph/build/cgraph_train', 'CGRAPH_INIT': '/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt'}
+CGRAPH_INIT path=/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt
+CGRAPH_CAPTURE rollout graph=0x5655eb292c60
+cgraph PPO N=6144 T=32 EPOCHS=2 MB=8192 bf16=0 channels_last=0 bf16_scope=off update_bf16=0
+CGRAPH_CAPTURE update graph=0x5655d7f42090
+BENCH chunk=0 wall_ms=1693.88 env_ticks_per_s=464278
+
+--- stderr ---
+[W802 16:50:19.945536718 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+[W802 16:50:19.956613706 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+
+$ {'CGRAPH_BIN': '/home/infatoshi/dev/nw/cgraph/blaze/rl/cgraph/build/cgraph_train', 'CGRAPH_INIT': '/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt'}
+CGRAPH_INIT path=/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt
+CGRAPH_CAPTURE rollout graph=0x62314880e5a0
+cgraph PPO N=6144 T=32 EPOCHS=2 MB=8192 bf16=0 channels_last=0 bf16_scope=off update_bf16=0
+CGRAPH_CAPTURE update graph=0x6231354bdd20
+BENCH chunk=0 wall_ms=1699.88 env_ticks_per_s=462640
+
+--- stderr ---
+[W802 16:50:25.072142120 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+[W802 16:50:25.083237298 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+
+$ {'CGRAPH_BIN': '/home/infatoshi/dev/nw/cgraph/blaze/rl/cgraph/build/cgraph_train', 'CGRAPH_INIT': '/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt'}
+CGRAPH_INIT path=/home/infatoshi/dev/nw/cgraph/optloop_runs/cgraph-v1/PRESERVED/initial_seed0.nckpt
+CGRAPH_CAPTURE rollout graph=0x59154f1f3730
+cgraph PPO N=6144 T=32 EPOCHS=2 MB=8192 bf16=0 channels_last=0 bf16_scope=off update_bf16=0
+CGRAPH_CAPTURE update graph=0x59153bea2cf0
+BENCH chunk=0 wall_ms=1700.55 env_ticks_per_s=462457
+
+--- stderr ---
+[W802 16:50:31.213213736 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).
+[W802 16:50:31.224368495 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 3433037824 bytes (free: 2270298112, total: 102014189568).

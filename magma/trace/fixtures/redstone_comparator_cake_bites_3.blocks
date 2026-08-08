@@ -1,0 +1,7 @@
+# x y z id meta
+# Compare-mode comparator facing WEST (metadata 1). Tick zero places a
+# three-bite cake at its rear; vanilla outputs (7 - bites) * 2 = 8.
+11 77 8 1 0
+12 77 8 1 0
+12 78 8 149 1
+13 78 8 123 0

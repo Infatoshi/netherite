@@ -21,10 +21,13 @@ import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAGMA = os.path.join(ROOT, "c", "magma")
-GAME = os.path.join(MAGMA, "magma_game")
-CONF = "/home/infatoshi/dev/nw/.tmp/zoom_video.conf"
-WORK = "/home/infatoshi/dev/nw/.tmp/zoomrolls"
+MAGMA = os.path.join(ROOT, "magma")
+# ZOOM_GAME/ZOOM_BACKEND select the renderer (e.g. magma_game_metal + metal
+# on the MacBook); default is the CPU binary as shipped in the 8192 demo.
+GAME = os.environ.get("ZOOM_GAME", os.path.join(MAGMA, "magma_game"))
+BACKEND = os.environ.get("ZOOM_BACKEND", "")
+CONF = os.environ.get("ZOOM_CONF", os.path.expanduser("~/dev/nw/.tmp/zoom_video.conf"))
+WORK = os.environ.get("ZOOM_WORK", os.path.expanduser("~/dev/nw/.tmp/zoomrolls"))
 TILE = 192                 # native square render size
 FRAMES = 348
 MIPS = (96, 48, 24)
@@ -64,12 +67,17 @@ def render_env(job):
     fdir = os.path.join(outdir, "ppm")
     shutil.rmtree(fdir, ignore_errors=True)
     os.makedirs(fdir)
-    env = dict(os.environ, MAGMA_HIDE_GUI="1", MAGMA_CONF=CONF)
+    env = dict(os.environ)
+    argv = [GAME, "--rl", "--render", "off", "--pace", "unlimited",
+            "--conf", CONF,
+            "--seed", str(seed), "--mobs", "off",
+            "--width", str(TILE), "--height", str(TILE),
+            "--frames-out", fdir, "--frame-offset", "0", "--frame-every", "1",
+            "--set", "hide_gui=1"]
+    if BACKEND:
+        argv += ["--backend", BACKEND]
     proc = subprocess.Popen(
-        [GAME, "--rl", "--render", "off", "--pace", "unlimited",
-         "--seed", str(seed), "--mobs", "off",
-         "--width", str(TILE), "--height", str(TILE),
-         "--frames-out", fdir, "--frame-offset", "0", "--frame-every", "1"],
+        argv,
         stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL, text=True, bufsize=1, cwd=MAGMA, env=env)
     for a in rand_actions(seed, FRAMES + 4):

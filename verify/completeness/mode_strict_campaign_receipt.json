@@ -1,0 +1,12 @@
+{
+  "schema": "netherite.mode_strict_campaign",
+  "version": 1,
+  "todos": ["MODE-01", "MODE-02"],
+  "game_modes": ["survival", "creative", "adventure", "spectator"],
+  "mode_boundaries": ["launch_profile", "command_transition", "checkpoint", "capabilities", "damage", "targeting", "break", "place", "container_inspection", "spectator_flight"],
+  "integrated_server_commands": 47,
+  "simulation_commands": 45,
+  "host_control_exclusions": ["CommandDebug", "CommandPublishLocalServer"],
+  "command_registry_open": 0,
+  "failure_policy": "unsupported_forms_reject_without_mutation"
+}

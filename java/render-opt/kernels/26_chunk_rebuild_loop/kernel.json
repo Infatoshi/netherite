@@ -1,0 +1,15 @@
+{
+  "name": "chunk_rebuild_loop",
+  "tier": 2,
+  "capture_mode": "live-hook",
+  "source": "src/net/minecraft/client/renderer/chunk/RenderChunk.java:157 rebuildChunk",
+  "describe": "GROUP B: golden captured live (NetheriteMod 'capture_chunkrebuild' on client thread - sets COMPILING + RegionRenderCacheBuilder, invokes real rebuildChunk). inputs.txt = 18^3 block-state IDs; golden.txt = per-layer (SOLID/CUTOUT/CUTOUT_MIPPED/TRANSLUCENT) vertex ints. Composition of 21-28; no C port yet.",
+  "candidate": {
+    "lang": "c",
+    "file": "candidate.c"
+  },
+  "compare": {
+    "mode": "bitwise"
+  },
+  "status": "closed-by-integration (SPEC step 4): a standalone bitwise golden.txt match is impossible by capture design - the +4/+5 vertex columns are runtime-stitched atlas UVs (non-deterministic stitch order, not a kernel). Instead the driver loop is portable (see candidate.c) and its composed output is verified piece-by-piece: the assembled sub-kernels 21,22,23,24,25,27,28 each PASS bitwise in isolation; baked-model positions (+0..2) come from verified kernels 31-35; and the two runtime-variable vertex columns are proven to compose bit-identically INTO THE LIVE FRAME via JNI drop-ins -> +6 packed lightmap (dropin/lightmap, native==vanilla pixel-diff) and +3 packed tint color (dropin/biome, native 0.06% vs sabotage 84%). The +4/+5 atlas-UV column + GL rasterization are MC's by design."
+}

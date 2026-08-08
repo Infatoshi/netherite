@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while a valid chorus plant occupies the front cell
+# above end stone. Its drop count is World.rand.nextInt(2).
+12 78 9 152 0
+13 77 8 121 0
+13 78 8 199 0

@@ -1,0 +1,31 @@
+{
+  "schema": "netherite.block_callback_support_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "selected_cases": 9,
+  "pass": 9,
+  "fail": 0,
+  "retries": 0,
+  "state_divergences": 0,
+  "campaign_summary_sha256": "53e20bdc08597f5c924679757ba647f30c4402e9310082d6ce031b6405249df4",
+  "excluded": [
+    "falling_sand_farmland_dry_drop_seed_0",
+    "redstone_piston_east_stone_settlement_invalidates_cactus_seed_0",
+    "redstone_tnt_direct_add_powered_seed_0"
+  ],
+  "families": [
+    ["BlockBasePressurePlate", "breakBlock"],
+    ["BlockBasePressurePlate", "neighborChanged"],
+    ["BlockButton", "breakBlock"],
+    ["BlockButton", "neighborChanged"],
+    ["BlockChorusFlower", "neighborChanged"],
+    ["BlockLever", "breakBlock"],
+    ["BlockLever", "neighborChanged"],
+    ["BlockRedstoneComparator", "breakBlock"],
+    ["BlockRedstoneRepeater", "breakBlock"],
+    ["BlockRedstoneTorch", "breakBlock"],
+    ["BlockRedstoneWire", "breakBlock"],
+    ["BlockRedstoneWire", "neighborChanged"]
+  ]
+}

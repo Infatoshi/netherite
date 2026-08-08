@@ -1,0 +1,5 @@
+# Player-facing wall wooden button at eye height. With no arrow in its AABB,
+# one physical use edge powers metadata 3->11 and releases at its +30 poll.
+8 79 5 1 0
+8 79 6 143 3
+9 79 6 123 0

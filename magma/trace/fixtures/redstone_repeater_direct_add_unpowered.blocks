@@ -1,0 +1,5 @@
+# Matching unpowered placement control. The output notification is harmless:
+# the indirect lamp, queues, items, and RNG state all remain unchanged.
+12 77 8 1 0
+12 78 7 1 0
+13 78 7 123 0

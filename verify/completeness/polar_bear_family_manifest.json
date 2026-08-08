@@ -1,0 +1,57 @@
+{
+  "schema": "netherite.polar_bear_family_gate",
+  "version": 1,
+  "todo": "AI-04",
+  "classification": "live_bounded",
+  "melee_oracle": {
+    "attack_damage": 6,
+    "attack_ticks": 20,
+    "reach_squared": 4.6,
+    "warning_distance_multiplier": 2.0,
+    "warning_ticks": 40,
+    "standing_animation_ticks": 6
+  },
+  "death_loot_oracle": {
+    "polar_bear_death_rows": 9,
+    "aggregate_death_rows": 261,
+    "polar_bear_loot_rows": 15,
+    "aggregate_hostile_loot_rows": 375,
+    "adult_xp_range": [1, 3],
+    "native_terminal_cases": 25,
+    "native_terminal_particles": 500
+  },
+  "state_continuation": {
+    "native_save_boundaries": [
+      "player_defense_target",
+      "attack_cooldown",
+      "warning_cooldown",
+      "standing_animation"
+    ],
+    "continuation": "exact"
+  },
+  "render_audio_contract": {
+    "model": "ModelPolarBear",
+    "texture": "bear/polarbear.png",
+    "sounds": ["ambient", "baby_ambient", "hurt", "death", "step", "warning"]
+  },
+  "implemented": [
+    "adult_child_defense_targeting",
+    "child_hurt_alerts_nearby_adults",
+    "private_melee_reach_and_warning_state_machine",
+    "six_damage_attack_and_twenty_tick_cooldown",
+    "standing_animation_and_save_continuation",
+    "exact_raw_and_salmon_weighted_loot",
+    "exact_composed_player_death_rows",
+    "adult_random_experience_orb",
+    "adult_and_child_model_scaling",
+    "standing_model_pose",
+    "six_owned_sound_assets"
+  ],
+  "remaining": [
+    "snowy_biome_natural_pack_spawn_group_data",
+    "arbitrary_pathfinder_repath_and_target_unseen_cadence",
+    "burning_and_child_panic_full_task_arbitration",
+    "type_specific_step_event_emission",
+    "bounded_same_scene_java_native_model_pixels"
+  ]
+}

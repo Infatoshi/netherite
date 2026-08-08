@@ -1,0 +1,80 @@
+{
+  "archive_observation_capture": {
+    "consequence": "Live Java per-plane and scalar distributions cannot be reconstructed from this archive.",
+    "frame_every": 0,
+    "raw_policy_observation_files_found": 0
+  },
+  "inputs": {
+    "archived_client_log": {
+      "bytes": 10430358,
+      "path": "/home/infatoshi/dev/netherite-artifacts/branch-archive/ppo-native-bf16-20260802/optloop_runs/ppo-native-bf16-d55-v4/final/java_pilot/client0.log",
+      "sha256": "350b950535a82cb6b896d6b67636bd235f0357623b1c853ea1f885f4db28e2e3"
+    },
+    "archived_java": {
+      "bytes": 11396,
+      "path": "/home/infatoshi/dev/netherite-artifacts/branch-archive/ppo-native-bf16-20260802/optloop_runs/ppo-native-bf16-d55-v4/final/java_pilot/java.json",
+      "sha256": "64866c767fb2491173d49ffce3053c467595c5d93705262723d000571bef16da"
+    },
+    "archived_receipt": {
+      "bytes": 782,
+      "path": "/home/infatoshi/dev/netherite-artifacts/branch-archive/ppo-native-bf16-20260802/optloop_runs/ppo-native-bf16-d55-v4/final/java_pilot/receipt.json",
+      "sha256": "a5821d083ce4b7b7a86163f09b44ed9603a1898300483c776a851ab50c87851a"
+    },
+    "archived_sim_stub": {
+      "bytes": 8527,
+      "path": "/home/infatoshi/dev/netherite-artifacts/branch-archive/ppo-native-bf16-20260802/optloop_runs/ppo-native-bf16-d55-v4/final/java_pilot/sim_stub.json",
+      "sha256": "6ffa0ee11cee8da0c5cf7013d8d93ac32912e3d59f171b4c1b168b3f2fccbf29"
+    },
+    "blaze_core": {
+      "bytes": 130175,
+      "path": "/home/infatoshi/dev/nw/paper-t3/blaze/env/blaze_core.h",
+      "sha256": "13189e57d1627209f73d3778080435b26645d7848c4104028339a0a6405676f1"
+    },
+    "driver": {
+      "bytes": 19436,
+      "path": "/home/infatoshi/dev/nw/.tmp/parallel_java_eval.py",
+      "sha256": "525f9bf94841fe565f5f699bb153e61e30c7bed2c9fb87a15c9c75295b85d5e9"
+    },
+    "java_client": {
+      "bytes": 7579,
+      "path": "/home/infatoshi/dev/nw/paper-t3/java/qrl_client.py",
+      "sha256": "8052f54255ec5d3ae379bd1b9a7dddcb02394f460b9cf8e1ae561b4547d27aae"
+    },
+    "java_evaluator": {
+      "bytes": 14143,
+      "path": "/home/infatoshi/dev/nw/paper-t3/java/qrl_chain_demo.py",
+      "sha256": "be2c4d1f9305d8154f67f8fc78d857ab2377f171ec6b99535c9c48c11b5dbccb"
+    },
+    "magma_runtime": {
+      "bytes": 73945,
+      "path": "/home/infatoshi/dev/nw/paper-t3/magma/game/runtime.c",
+      "sha256": "69165e81b92a78db9720377e6cad6581dc1091faf52982f6b042bef281b3b82d"
+    },
+    "pair_validator": {
+      "bytes": 7868,
+      "path": "/home/infatoshi/dev/nw/paper-t3/paper/tools/pair_sim2real.py",
+      "sha256": "fcd9671b8de5563a2485218d3716d0af9e43af20f9a844206477a9959dbb0e26"
+    },
+    "ppo_chain": {
+      "bytes": 29342,
+      "path": "/home/infatoshi/dev/nw/paper-t3/blaze/env/ppo_chain_cu.py",
+      "sha256": "fd17d9787e09f6be4ab0386ea379c85b034b76628624b6284f3c82932acec0bb"
+    },
+    "recorder": {
+      "bytes": 379117,
+      "path": "/home/infatoshi/dev/nw/paper-t3/java/Minecraft/src/main/java/qrl/Recorder.java",
+      "sha256": "88525816e402a280cc0d8615b0c0579d7c26eaac3bfbffdeafaaf00b4b83c5b5"
+    },
+    "semantic_camera": {
+      "bytes": 5054,
+      "path": "/home/infatoshi/dev/nw/paper-t3/java/Minecraft/src/main/java/qrl/SemanticCamera.java",
+      "sha256": "71cb596a4eaad3013b3a1b2032169117df3c1a1db824fa7f916831e0a32aab21"
+    },
+    "snapshot_baker": {
+      "bytes": 7453,
+      "path": "/home/infatoshi/dev/nw/paper-t3/blaze/env/make_snapshots.py",
+      "sha256": "39de0492d003324efd306002a0e24de6a485a074d72594f2ddf6b991f8b53147"
+    }
+  },
+  "pinned_commit": "d55c7f01c1139299be3f7fa0b98ef11b82c3b473"
+}

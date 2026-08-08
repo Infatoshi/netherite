@@ -1,0 +1,60 @@
+{
+  "schema": "netherite.squid_family_gate",
+  "version": 1,
+  "todo": "AI-04",
+  "active_ai_oracle": {
+    "java_version": "1.11.2",
+    "scenarios": 5,
+    "ticks": 76,
+    "position_motion_and_aabb": "bit_exact",
+    "animation_and_render_rotation": "bit_exact",
+    "entity_rng_cursor": "exact",
+    "water_and_dry_branches": "exact",
+    "random_motion_refresh": "exact",
+    "age_stop_boundary": "exact",
+    "persistence_state": "exact"
+  },
+  "state_continuation": {
+    "native_checkpoint_ticks": 12,
+    "native_checkpoint_after_tick": 6,
+    "java_capsule_warmup_ticks": 9,
+    "java_native_continuation_ticks": 16,
+    "private_animation_motion_and_rng": "bit_exact",
+    "loaded_and_mob_update_order": "exact"
+  },
+  "render_oracle": {
+    "java_ab_states": 3,
+    "java_ab_noise_pixels": 0,
+    "swim_owned_pixels": 18642,
+    "swim_hard_pixels": 1,
+    "swim_hard_budget": 1,
+    "swim_max_channel_delta": 32,
+    "dry_owned_pixels": 6889,
+    "dry_hard_pixels": 0,
+    "dry_max_channel_delta": 1,
+    "ownership_xor_pixels": 28,
+    "negative_control": "exact"
+  },
+  "implemented": [
+    "active_random_swim_vector_task",
+    "java_random_call_order",
+    "water_motion_and_rotation",
+    "dry_gravity_rotation_and_tentacle",
+    "cycle_boundary_motion_refresh",
+    "entity_age_motion_stop",
+    "persistence_state",
+    "exact_mathhelper_atan2_bias",
+    "base_living_tick_and_aabb",
+    "native_checkpoint_continuation",
+    "real_java_state_capsule_continuation",
+    "private_animation_and_motion_restore",
+    "live_render_pose_handoff",
+    "exact_rendersquid_transform_chain",
+    "live_tentacle_angle_model",
+    "swimming_and_dry_render_poses",
+    "bounded_same_scene_model_pixels"
+  ],
+  "remaining": [
+    "exact_world_entity_spawner_pack_and_spawn_eligibility"
+  ]
+}

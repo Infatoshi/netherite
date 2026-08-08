@@ -1,0 +1,3 @@
+# The existing redstone block powers the air target at (12,78,8). Direct TNT
+# placement there must run BlockTNT.onBlockAdded and leave the target air.
+11 78 8 152 0

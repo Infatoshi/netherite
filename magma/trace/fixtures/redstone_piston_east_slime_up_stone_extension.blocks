@@ -1,0 +1,6 @@
+# Elevated EAST-facing normal piston with a slime block in front and one stone
+# attached to the slime's UP face. Air surrounds the other non-axis faces, so
+# the slime branch must move exactly that side stone without floor attachment.
+12 79 8 33 5
+13 79 8 165 0
+13 80 8 1 0

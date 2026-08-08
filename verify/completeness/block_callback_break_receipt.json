@@ -1,0 +1,28 @@
+{
+  "schema": "netherite.block_callback_break_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "case_count": 15,
+  "pass": 15,
+  "fail": 0,
+  "state_divergences": 0,
+  "summary_sha256": "6c7f915c4d9903ca26f83292949b39ee4b3eb35da3a8569f85586be6c2bbb102",
+  "families": [
+    ["BlockBrewingStand", "breakBlock"],
+    ["BlockChest", "breakBlock"],
+    ["BlockContainer", "breakBlock"],
+    ["BlockDispenser", "breakBlock"],
+    ["BlockFurnace", "breakBlock"],
+    ["BlockHopper", "breakBlock"],
+    ["BlockJukebox", "breakBlock"],
+    ["BlockPistonExtension", "breakBlock"],
+    ["BlockPistonMoving", "breakBlock"],
+    ["BlockRailBase", "breakBlock"],
+    ["BlockShulkerBox", "breakBlock"],
+    ["BlockSkull", "breakBlock"],
+    ["BlockStainedGlass", "breakBlock"],
+    ["BlockStainedGlassPane", "breakBlock"],
+    ["BlockTripWire", "breakBlock"]
+  ]
+}

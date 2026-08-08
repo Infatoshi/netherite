@@ -1,0 +1,12 @@
+# A south-facing normal piston is placed at tick zero behind the middle wire
+# of a complete east-west attached line. Destroying the armed segment passes
+# a virtual powered state to the west hook, powering both hooks immediately
+# and scheduling the west hook's vanilla +10 recheck.
+11 78 7 152 0
+9 78 8 1 0
+10 78 8 131 3
+14 78 8 131 1
+15 78 8 1 0
+11 78 8 132 0
+12 78 8 132 0
+13 78 8 132 0

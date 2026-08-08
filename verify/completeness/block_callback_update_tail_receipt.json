@@ -1,0 +1,33 @@
+{
+  "schema": "netherite.block_callback_update_tail_receipt",
+  "version": 1,
+  "source": "live real Minecraft Java 1.11.2 versus magma oracle matrix",
+  "captured_utc": "2026-08-23",
+  "case_count": 4,
+  "pass": 4,
+  "fail": 0,
+  "retries": 0,
+  "state_divergences": 0,
+  "cases": [
+    "chorus_plant_remove_end_stone_support_seed_0",
+    "fire_spread_scheduled_seed_0",
+    "redstone_comparator_saved_repeating_command_block_success_7_seed_0",
+    "redstone_tripwire_player_cross_release_seed_0"
+  ],
+  "families": [
+    ["BlockChorusPlant", "updateTick"],
+    ["BlockCommandBlock", "updateTick"],
+    ["BlockFire", "updateTick"],
+    ["BlockTripWire", "updateTick"]
+  ],
+  "source_summaries": [
+    {
+      "case_count": 3,
+      "sha256": "21b66001e4bf870d827e7485d0eb65aa2e320b4219e565e7e22d66bc5169d514"
+    },
+    {
+      "case_count": 1,
+      "sha256": "29fc6abb54c51fc17e185874af36c1997c3bc921e9e56a5869eaf21fc14629b4"
+    }
+  ]
+}

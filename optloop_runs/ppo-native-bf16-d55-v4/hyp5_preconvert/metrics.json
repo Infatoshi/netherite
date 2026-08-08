@@ -1,0 +1,26 @@
+{
+  "schema": "netherite.optloop.candidate.v1",
+  "hypothesis": "preconvert_selected_obs_once_per_ppo_phase",
+  "implementation": "gather selected u8, free rollout obs_buffer, convert once to bf16/float, reuse across epochs, recreate obs_buffer",
+  "correctness": "pass",
+  "samples_ms": [
+    1397.18,
+    1398.41,
+    1399.23,
+    1399.98,
+    1400.69
+  ],
+  "n": 5,
+  "median_ms": 1399.23,
+  "mean_ms": 1399.098,
+  "contract_metric": "median",
+  "baseline_best_median_ms": 1349.89,
+  "baseline_python_contract_median_ms": 1724.161255,
+  "rel_vs_best": -0.036551126388076005,
+  "abs_vs_best_ms": -49.33999999999992,
+  "rel_vs_python": 0.18845757846472427,
+  "env_ticks_per_s": 562046.2683047105,
+  "eps": 0.02,
+  "mdd_abs_ms": 34.45,
+  "keep": false
+}
