@@ -14997,6 +14997,16 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     int surface = gm_world_surface_y(r->world, 8, 8);
     psv_player_init(&r->player);
     gm_player_dig_reset();
+    gm_player_movement_audio_reset();
+    {
+        JavaRandom client_random;
+        jrand_set(&client_random, (i64)((uint64_t)cfg->seed
+            ^ UINT64_C(0x434C49454E54504C)));
+        /* Entity's constructor creates its UUID from two nextLong calls
+         * before player movement can observe the cursor. */
+        for (int i = 0; i < 4; ++i) (void)jrand_int(&client_random);
+        r->client_player_random_seed48 = client_random.seed;
+    }
     isr_init(&r->player.inv);
     r->player.inv.current_item = 0;
     gm_player_cursor_set(ic_empty());
@@ -16091,6 +16101,24 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                 r->player.ent.posY,
                 r->player.ent.posZ + (double)r->oz,
                 volume, pitch);
+    }
+    {
+        int kind;
+        double x, y, z;
+        float volume;
+        while (gm_player_take_movement_sound(
+                &kind, &x, &y, &z, &volume)) {
+            JavaRandom random;
+            int sound = kind == GM_PLAYER_MOVEMENT_AUDIO_SPLASH
+                ? GM_SOUND_PLAYER_SPLASH : GM_SOUND_PLAYER_SWIM;
+            jrand_set_seed48(&random, r->client_player_random_seed48);
+            float pitch = gm_player_movement_audio_pitch(kind, &random);
+            r->client_player_random_seed48 = random.seed;
+            runtime_sound_event_append(
+                r, sound, GM_SOUND_CATEGORY_PLAYERS, 0, 0,
+                x + (double)r->ox, y, z + (double)r->oz,
+                volume, pitch);
+        }
     }
     {
         ICStack item_use_drop=gm_player_take_item_use_drop();
@@ -17759,6 +17787,13 @@ int gm_runtime_set_math_random_seed48(GmRuntime *r, uint64_t seed48) {
 int gm_runtime_set_player_random_seed48(GmRuntime *r, uint64_t seed48) {
     if (!r || seed48 >= (UINT64_C(1) << 48)) return 0;
     jrand_set_seed48(&r->mobs.player_random, seed48);
+    return 1;
+}
+
+int gm_runtime_set_client_player_random_seed48(
+        GmRuntime *r, uint64_t seed48) {
+    if (!r || seed48 >= (UINT64_C(1) << 48)) return 0;
+    r->client_player_random_seed48 = seed48;
     return 1;
 }
 

@@ -54,7 +54,7 @@ OBJ_RUNTIME_TEST = game/runtime.o game/nbt_blob.o game/fluid_live.o game/config.
                    world/populate_mc.o world/blocks.o world/mesh.o world/world.o \
                    $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE)
 
-.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live test-firework-audio-oracle test-block-audio-oracle test-block-break-audio-oracle clean cuda test-raster-parity test-fog-radial
+.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live test-firework-audio-oracle test-block-audio-oracle test-block-break-audio-oracle test-player-movement-audio-oracle clean cuda test-raster-parity test-fog-radial
 all: demo
 
 # --- CUDA raster for the game (RTX PRO 6000 Blackwell / sm_120) ---
@@ -181,6 +181,13 @@ test-block-audio-oracle: game/test_block_break_audio
 		--native game/test_block_break_audio
 
 test-block-break-audio-oracle: test-block-audio-oracle
+
+game/test_player_movement_audio: game/test_player_movement_audio.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-player-movement-audio-oracle: game/test_player_movement_audio
+	uv run --no-project python trace/test_player_movement_audio.py \
+		--native game/test_player_movement_audio
 
 game/test_fishing: game/test_fishing.c $(OBJ_RUNTIME_TEST)
 	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
@@ -658,7 +665,8 @@ clean:
 	      game/test_cow_milking_oracle game/test_sheep_genetics_oracle \
 	      game/test_sheep_mating_oracle game/test_sheep_mating_tick_oracle \
 	      game/test_sheep_mating_runtime game/test_firework_audio \
-	      game/test_block_break_audio
+	      game/test_block_break_audio game/test_player_movement_audio \
+	      game/test_player_movement_audio_runtime
 
 # Metal verification targets (Darwin-guarded; see make/metal.mk)
 -include make/metal.mk

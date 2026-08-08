@@ -39,6 +39,16 @@ static float s_step_distance;
 static int   s_step_next_distance = 1;
 static int   s_step_sound_pending;
 static int   s_step_sound_state;
+typedef struct {
+    int kind;
+    double x, y, z;
+    float volume;
+} GmPlayerMovementSound;
+static GmPlayerMovementSound s_movement_sounds[2];
+static int   s_movement_sound_count;
+static int   s_movement_sound_read;
+static int   s_water_initialized;
+static int   s_player_in_water;
 
 /* EntityRenderer.fovModifierHand (client render state, not physics). */
 static float s_fov_hand = 1.0f;
@@ -381,6 +391,8 @@ static void gm_player_tick_impl(
     s_dig_sound_pending=0;
     s_fall_sound_pending=0;
     s_step_sound_pending=0;
+    s_movement_sound_count=0;
+    s_movement_sound_read=0;
 
     /* Legacy tapes predict the metadata return one tick after the request.
      * New tapes set elytra_flag7_recorded and apply each observed metadata
@@ -805,6 +817,23 @@ use_done:
      * (vz zeroed at t1289). */
     int water_pre = psv_in_liquid(window, &pl->ent, 1);
     int lava_pre  = water_pre ? 0 : psv_in_liquid(window, &pl->ent, 0);
+    if (!s_water_initialized) {
+        s_water_initialized = 1;
+        s_player_in_water = water_pre;
+    } else {
+        if (water_pre && !s_player_in_water) {
+            GmPlayerMovementSound *sound =
+                &s_movement_sounds[s_movement_sound_count++];
+            sound->kind = GM_PLAYER_MOVEMENT_AUDIO_SPLASH;
+            sound->x = pre_x;
+            sound->y = pre_y;
+            sound->z = pre_z;
+            sound->volume = gm_player_movement_audio_volume(
+                sound->kind, pl->ent.motionX,
+                pl->ent.motionY, pl->ent.motionZ);
+        }
+        s_player_in_water = water_pre;
+    }
     if (water_pre) pl->fall_distance = 0.0f;
     /* actual land jump this tick (psv branch order: liquid swim-up first) */
     int land_jump = act.jump && !was_air && !water_pre && !lava_pre;
@@ -841,7 +870,9 @@ use_done:
     int elytra_press = act.jump && !pl->prev_jump;
     int elytra_was = pl->elytra_flying;
     int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
-    psv_physics_tick(window, st, pl, &a, blocks);
+    PsvMoveEffects move_effects;
+    move_effects.water_move = 0;
+    psv_physics_tick_effects(window, st, pl, &a, blocks, &move_effects);
 
     if (!pl->elytra_flag7_recorded && elytra_press && !elytra_was &&
         pl->elytra_equipped && !water_pre &&
@@ -958,11 +989,17 @@ use_done:
             if (s_step_distance > (float)s_step_next_distance
                     && block != BLK_AIR) {
                 s_step_next_distance = (int)s_step_distance + 1;
-                /* Water uses EntityPlayer.getSwimSound and its private RNG;
-                 * retain Java's shared distance threshold but leave that
-                 * distinct producer to the swimming-audio slice. */
-                if (!water_pre && block != 8 && block != 9
-                        && block != 10 && block != 11) {
+                if (water_pre && move_effects.water_move) {
+                    GmPlayerMovementSound *sound =
+                        &s_movement_sounds[s_movement_sound_count++];
+                    sound->kind = GM_PLAYER_MOVEMENT_AUDIO_SWIM;
+                    sound->x = pl->ent.posX;
+                    sound->y = pl->ent.posY;
+                    sound->z = pl->ent.posZ;
+                    sound->volume = gm_player_movement_audio_volume(
+                        sound->kind, move_effects.motion_x,
+                        move_effects.motion_y, move_effects.motion_z);
+                } else if (!water_pre) {
                     int above = psv_get_block(window, bx, by + 1, bz);
                     if (above == 78) {
                         block = above;
@@ -1122,6 +1159,13 @@ void gm_player_dig_reset(void) {
     s_finished_drink=ic_empty();
 }
 
+void gm_player_movement_audio_reset(void) {
+    s_movement_sound_count=0;
+    s_movement_sound_read=0;
+    s_water_initialized=0;
+    s_player_in_water=0;
+}
+
 void gm_player_set_packet_velocity(struct PsvPlayer *opaque,
                                    double x, double y, double z) {
     PsvPlayer *pl = (PsvPlayer *)opaque;
@@ -1168,6 +1212,7 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
     s_step_distance=0.0f;
     s_step_next_distance=1;
     s_step_sound_pending=0;
+    gm_player_movement_audio_reset();
     s_atk_prev       = in->atk_prev;
     s_rc_delay       = in->rc_delay;
     s_use_prev       = in->use_prev;
@@ -1207,6 +1252,19 @@ int gm_player_take_step_sound(int *state_id) {
     if (!s_step_sound_pending) return 0;
     s_step_sound_pending = 0;
     if (state_id) *state_id = s_step_sound_state;
+    return 1;
+}
+
+int gm_player_take_movement_sound(
+        int *kind, double *x, double *y, double *z, float *volume) {
+    GmPlayerMovementSound *sound;
+    if (s_movement_sound_read >= s_movement_sound_count) return 0;
+    sound = &s_movement_sounds[s_movement_sound_read++];
+    if (kind) *kind = sound->kind;
+    if (x) *x = sound->x;
+    if (y) *y = sound->y;
+    if (z) *z = sound->z;
+    if (volume) *volume = sound->volume;
     return 1;
 }
 

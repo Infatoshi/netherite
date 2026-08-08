@@ -11634,3 +11634,19 @@ fails, decomposed exactly.
   floor and within 0.2% of the 4,062 baseline. Every locally available
   quick-sweep stage passes; the two snapshot-backed Blaze stages skip because
   their `.bsnp` inputs are absent. GPU 1 was untouched.
+
+## 2026-08-08 (player swim and splash audio)
+
+- Added exact client-player water-entry splash and distance-threshold swim
+  events. Splash records the pre-move source; swim records the post-collision
+  source and pre-water-drag motion. Both retain Java's weighted volume and cap.
+- Added the separate client Entity.rand cursor. Real Java and native match raw
+  volume/pitch bits, and splash advances its two pitch plus 65 unrendered
+  particle draws before a chained swim. The negative control catches a
+  one-bit post-splash cursor error. The manifest is now 140 events/441 variants.
+- Focused oracle/runtime/player/OpenAL and clean Java gates pass. The native
+  aggregate passes in 6:06.00 at 450,080 KiB peak RSS with zero major faults or
+  swap. CPU throughput is 4,312 steps/s against the 3,858.9 floor and above the
+  4,062 baseline. The batched player layout and GPU path are unchanged; GPU 1
+  was untouched. Every locally available quick-sweep stage passes; the two
+  snapshot-backed Blaze stages skip because their `.bsnp` inputs are absent.

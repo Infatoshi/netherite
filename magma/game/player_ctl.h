@@ -12,6 +12,7 @@
 #include "player_survival.h"   /* Chunk, McSinTable, PsvPlayer, PsvAction + verified kernels */
 #include "player_vitals.h"     /* PvStats + verified vanilla vitals */
 #include "game/game.h"         /* GmAction, GmBlockEdit, GmPlayerView */
+#include "player_movement_audio.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,6 +120,11 @@ int  gm_player_take_dig_sound(int *wx, int *wy, int *wz, int *state_id);
 int  gm_player_take_fall_sound(int *damage, int *state_id);
 /* Consume this tick's distance-threshold player footstep. */
 int  gm_player_take_step_sound(int *state_id);
+/* Consume one ordered Entity.resetHeight/Entity.move water sound. */
+int  gm_player_take_movement_sound(
+    int *kind, double *x, double *y, double *z, float *volume);
+/* Reset Entity.inWater/firstUpdate tracking for a newly constructed player. */
+void gm_player_movement_audio_reset(void);
 
 #ifdef __cplusplus
 }

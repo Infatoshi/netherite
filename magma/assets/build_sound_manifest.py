@@ -40,6 +40,7 @@ EVENTS = [
     "block.stone.step", "block.metal.step", "block.glass.step",
     "block.cloth.step", "block.sand.step", "block.snow.step",
     "block.ladder.step", "block.anvil.step", "block.slime.step",
+    "entity.player.swim", "entity.player.splash",
     "entity.bobber.splash", "block.dispenser.dispense",
     "block.dispenser.fail", "block.dispenser.launch",
     "entity.endereye.launch", "entity.firework.shoot",

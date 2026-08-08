@@ -16,7 +16,7 @@ RUNTIME_OBJECTS=(
 	assets/blockmodels.o core/math.o core/shade.o
 )
 make "${RUNTIME_OBJECTS[@]}"
-for test in player_effects redstone_use tnt_explosion shearing_runtime \
+for test in player_effects player_movement_audio_runtime redstone_use tnt_explosion shearing_runtime \
 		grazing_runtime sheep_color_runtime sheep_feed_runtime \
 		sheep_mating_runtime block_break_audio runtime; do
 	${CC:-gcc} -O2 -ffp-contract=off -Wall -Wextra \
@@ -28,6 +28,7 @@ ${CC:-gcc} -O2 -Wall -Wextra -I. \
 	game/test_nbt_blob.c game/nbt_blob.o -o game/test_nbt_blob
 ./game/test_nbt_blob
 ./game/test_player_effects
+./game/test_player_movement_audio_runtime
 ./game/test_redstone_use
 ./game/test_tnt_explosion
 ./game/test_shearing_runtime

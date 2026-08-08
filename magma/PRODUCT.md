@@ -136,6 +136,8 @@ is compared numerically against pinned Java scenes; it is never approved by a su
   block material sound, including hay's reduced damage threshold.
   Walking emits distance-gated material footsteps with the exact snow-layer,
   ground-sneak, and riding rules.
+  Water entry and swimming emit exact player splash/swim events, including
+  motion-scaled volume and the particle-coupled client RNG cursor.
   Music, ambient loops, category controls,
   achievements, statistics, scoreboards,
   resource packs, skins, and a broad graphics-options menu remain absent.

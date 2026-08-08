@@ -311,6 +311,8 @@ enum {
     GM_SOUND_BLOCK_LADDER_STEP,
     GM_SOUND_BLOCK_ANVIL_STEP,
     GM_SOUND_BLOCK_SLIME_STEP,
+    GM_SOUND_PLAYER_SWIM,
+    GM_SOUND_PLAYER_SPLASH,
     GM_SOUND_BOBBER_SPLASH,
     GM_SOUND_DISPENSER_DISPENSE,
     GM_SOUND_DISPENSER_FAIL,
@@ -608,6 +610,9 @@ typedef struct GmRuntime {
     uint64_t sound_event_next_seq, sound_event_dropped;
     uint64_t sound_random_seed48;
     uint64_t sound_mob_next_seq;
+    /* EntityPlayerSP's client-side Entity.rand cursor. Swimming pitch and
+     * splash particles consume it independently of EntityPlayerMP. */
+    uint64_t client_player_random_seed48;
     /* Rail entities are a fixed active set. With no minecarts the base tick
      * pays one count branch; rail path work scales only with live carts. */
     GmRuntimeMinecart minecarts[GM_RUNTIME_MINECARTS];
@@ -1106,6 +1111,8 @@ int gm_runtime_set_world_random_gaussian(
     GmRuntime *r, int have_next_gaussian, double next_gaussian);
 int gm_runtime_set_math_random_seed48(GmRuntime *r, uint64_t seed48);
 int gm_runtime_set_player_random_seed48(GmRuntime *r, uint64_t seed48);
+int gm_runtime_set_client_player_random_seed48(
+    GmRuntime *r, uint64_t seed48);
 int gm_runtime_set_next_explosion_random_seed48(
     GmRuntime *r, uint64_t seed48);
 int gm_runtime_set_next_fireball_random_state(

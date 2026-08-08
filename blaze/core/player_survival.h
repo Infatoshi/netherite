@@ -129,6 +129,15 @@ typedef struct {
     int   attack;
 } PsvAction;
 
+/* Optional host-side observation of the stored motion at Entity.move's
+ * swimming sound site, after collision response and before water drag. The
+ * ordinary wrapper passes NULL, so batched CPU/CUDA environments retain the
+ * same player layout and hot path. */
+typedef struct {
+    int water_move;
+    double motion_x, motion_y, motion_z;
+} PsvMoveEffects;
+
 /* EntityPlayer.getEyeHeight: sneaking subtracts 0.08F from the standing
  * 1.62F eye before the elytra/0.6F-pose branch; otherwise fall flight uses
  * 0.4F. Keep the subtraction in float, as in Java. */
@@ -1384,8 +1393,9 @@ MC_HD static inline void psv_update_elytra_size(const Chunk *now, PsvPlayer *pl,
 }
 
 /* ---- one physics tick (verified ppw math over the multi-chunk region) ---- */
-MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st, PsvPlayer *pl,
-                                          const PsvAction *act, McAABB *blocks) {
+MC_HD static inline void psv_physics_tick_effects(
+        const Chunk *now, const McSinTable *st, PsvPlayer *pl,
+        const PsvAction *act, McAABB *blocks, PsvMoveEffects *move_effects) {
     McEntity *e = &pl->ent;
     pl->reset_fall_distance = 0;
     pl->cactus_contact = 0;
@@ -1448,6 +1458,12 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
         mc_entity_move_step(e, e->motionX, e->motionY, e->motionZ, blocks, wnblocks, 0.6f);
         if (!in_water && psv_handle_water(now, e))
             pl->fall_distance = 0.0f;
+        if (move_effects && in_water) {
+            move_effects->water_move = 1;
+            move_effects->motion_x = e->motionX;
+            move_effects->motion_y = e->motionY;
+            move_effects->motion_z = e->motionZ;
+        }
         double drag = in_water ? 0.800000011920929 : 0.5;
         e->motionX *= drag;
         e->motionY *= drag;
@@ -1618,6 +1634,12 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
     /* EntityPlayer.onLivingUpdate refreshes jumpMovementFactor AFTER the
      * super.onLivingUpdate() movement above; next tick's air accel sees it. */
     pl->jump_factor_sprint = act->sprint;
+}
+
+MC_HD static inline void psv_physics_tick(
+        const Chunk *now, const McSinTable *st, PsvPlayer *pl,
+        const PsvAction *act, McAABB *blocks) {
+    psv_physics_tick_effects(now, st, pl, act, blocks, NULL);
 }
 
 /* ---- crosshair raycast (fixed-step DDA over 'now') ---- *

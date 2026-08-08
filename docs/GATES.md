@@ -173,6 +173,17 @@ and live event position/category/scalars. Every locally available quick-sweep
 stage passes; the two snapshot-backed Blaze stages skip because their `.bsnp`
 inputs are absent. GPU 1 was not executed.
 
+2026-08-08 player-swim/splash-audio checkpoint: the exact-current full native
+runtime aggregate passes in 6:06.00 with 450,080 KiB peak RSS, zero major
+faults, and zero swap. The CPU guard passes at 4,312 scalar steps/s against the
+frozen 3,858.9 floor and exceeds the 4,062 baseline. The real-Java/native
+comparator matches raw swim/splash volume and pitch bits, the volume cap,
+splash's 67 total RNG draws, and the chained next-swim pitch. Focused runtime
+tests pin first-entry detection, ordered pre-move splash/post-move swim sources,
+category, scalars, and the final client Entity.rand cursor. Every locally
+available quick-sweep stage passes; the two snapshot-backed Blaze stages skip
+because their `.bsnp` inputs are absent. GPU 1 was not executed.
+
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.
 Status: SHIPPED as `netherite_sweep.sh` (repo root). At the 2026-08-07 70%

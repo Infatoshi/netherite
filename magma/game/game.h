@@ -493,6 +493,9 @@ void gm_player_tick_network_client_effects(
                     int ox, int oy, int oz,
                     GmBlockEdit *edits, int *nedits, int max_edits,
                     int haste_amplifier, int fatigue_amplifier, int riding);
+int gm_player_take_movement_sound(
+                    int *kind, double *x, double *y, double *z, float *volume);
+void gm_player_movement_audio_reset(void);
 
 /* Fill a GmPlayerView (world coords) from a PsvPlayer whose pos is in the LOCAL frame,
  * given the block offset (ox,oz) to convert local->world. Convenience for app/main.c. */

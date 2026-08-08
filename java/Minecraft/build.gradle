@@ -204,6 +204,12 @@ task blockBreakSoundGolden(type: JavaExec) {
     main = 'qrl.BlockBreakSoundGolden'
 }
 
+task playerMovementSoundGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.PlayerMovementSoundGolden'
+}
+
 exec.jvmArgs(["-Xmx2G", "-Xdebug", "-Dmixin.debug=true"])
 
 // Pin the player name (default is "Player" + wall-clock millis % 1000 -> nondeterministic
