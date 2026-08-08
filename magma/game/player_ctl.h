@@ -53,7 +53,7 @@ void gm_player_tick_network_client_effects(
                     struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
                     int ox, int oy, int oz,
                     GmBlockEdit *edits, int *nedits, int max_edits,
-                    int haste_amplifier, int fatigue_amplifier);
+                    int haste_amplifier, int fatigue_amplifier, int riding);
 
 /* Fill a GmPlayerView (WORLD coords) from a PsvPlayer whose pos is in the LOCAL frame,
  * given the block offset (ox,oz) to convert local->world. */
@@ -117,6 +117,8 @@ int  gm_player_dig_swing(void);
 int  gm_player_take_dig_sound(int *wx, int *wy, int *wz, int *state_id);
 /* Consume this tick's damage-causing player landing. */
 int  gm_player_take_fall_sound(int *damage, int *state_id);
+/* Consume this tick's distance-threshold player footstep. */
+int  gm_player_take_step_sound(int *state_id);
 
 #ifdef __cplusplus
 }

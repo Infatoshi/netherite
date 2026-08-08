@@ -184,6 +184,84 @@ int main(void)
 
     double landed_local_y = pl.ent.posY;
 
+    /* Entity.move accumulates actual displacement * 0.6F and emits only
+     * after crossing the next integer distance threshold. */
+    fill_flat(win);
+    spawn_at(&pl, 24.0, 65.0, 24.0);
+    pv_init(&tv);
+    gm_player_dig_reset();
+    GmAction walk = neutral;
+    walk.forward = 1.0F;
+    int step_count = 0, step_state = 0, step_tick = -1;
+    for (int t = 0; t < 80 && step_count == 0; ++t) {
+        GmBlockEdit edits[8];
+        int nedits = -1;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&pl, (struct PvStats *)&tv,
+                       walk, 0, 0, 0, edits, &nedits, 8);
+        if (gm_player_take_step_sound(&step_state)) {
+            ++step_count;
+            step_tick = t;
+        }
+    }
+    printf("  first stone step tick = %d\n", step_tick);
+    CHECK(step_count == 1 && step_state == BLK_STONE && step_tick == 10,
+          "walking crosses the first stone distance threshold at tick 10");
+
+    fill_flat(win);
+    for (int x = 20; x <= 30; ++x)
+        for (int z = 20; z <= 30; ++z)
+            set_test_state(win, x, 65, z, 78, 0);
+    spawn_at(&pl, 24.0, 65.125, 24.0);
+    pv_init(&tv);
+    gm_player_dig_reset();
+    step_count = step_state = 0;
+    for (int t = 0; t < 80 && step_count == 0; ++t) {
+        GmBlockEdit edits[8];
+        int nedits = -1;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&pl, (struct PvStats *)&tv,
+                       walk, 0, 0, 0, edits, &nedits, 8);
+        if (gm_player_take_step_sound(&step_state)) ++step_count;
+    }
+    CHECK(step_count == 1 && (step_state & 4095) == 78,
+          "snow layer above support overrides the footstep material");
+
+    fill_flat(win);
+    spawn_at(&pl, 24.0, 65.0, 24.0);
+    pv_init(&tv);
+    gm_player_dig_reset();
+    walk.sneak = 1;
+    step_count = step_state = 0;
+    for (int t = 0; t < 80; ++t) {
+        GmBlockEdit edits[8];
+        int nedits = -1;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&pl, (struct PvStats *)&tv,
+                       walk, 0, 0, 0, edits, &nedits, 8);
+        if (gm_player_take_step_sound(&step_state)) ++step_count;
+    }
+    CHECK(step_count == 0,
+          "ground sneaking suppresses distance accumulation and footsteps");
+
+    fill_flat(win);
+    spawn_at(&pl, 24.0, 65.0, 24.0);
+    pv_init(&tv);
+    gm_player_dig_reset();
+    walk.sneak = 0;
+    step_count = step_state = 0;
+    for (int t = 0; t < 80; ++t) {
+        GmBlockEdit edits[8];
+        int nedits = -1;
+        gm_player_tick_network_client_effects(
+            (struct Chunk *)win, (struct McSinTable *)&st,
+            (struct PsvPlayer *)&pl, (struct PvStats *)&tv,
+            walk, 0, 0, 0, edits, &nedits, 8, -1, -1, 1);
+        if (gm_player_take_step_sound(&step_state)) ++step_count;
+    }
+    CHECK(step_count == 0,
+          "riding suppresses distance accumulation and footsteps");
+
     /* ---------------- (B) FLOATING-ORIGIN INVARIANCE ---------------- */
     printf("case B: floating-origin invariance + world-coord break edit\n");
     fill_flat(win);   /* identical flat floor; imagined centered at chunk (100,100) */

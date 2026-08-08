@@ -959,6 +959,23 @@ int main(void) {
                   sound.volume==1.0F && sound.pitch==1.0F &&
                   landing.volume==0.5F && landing.pitch==0.75F,
                   "runtime emits ordered player and material landing audio");
+            for(int x=7;x<=9;++x)
+                for(int z=7;z<=24;++z)
+                    gm_world_set_block_meta(r.world,x,6,z,1,0);
+            gm_runtime_set_pose(&r,8.5,7.0,8.5,0,0);
+            GmAction walk;memset(&walk,0,sizeof walk);
+            walk.forward=1.0F;walk.hotbar_sel=-1;
+            for(int t=0;t<120 && gm_runtime_sound_event_count(&r)<5;++t)
+                gm_runtime_tick(&r,walk);
+            CHECK(gm_runtime_sound_event_count(&r)==5 &&
+                  gm_runtime_sound_event_get(&r,4,&sound) &&
+                  sound.sound==GM_SOUND_BLOCK_STONE_STEP &&
+                  sound.category==GM_SOUND_CATEGORY_PLAYERS &&
+                  sound.x==r.player.ent.posX+(double)r.ox &&
+                  sound.y==r.player.ent.posY &&
+                  sound.z==r.player.ent.posZ+(double)r.oz &&
+                  sound.volume==0.15F && sound.pitch==1.0F,
+                  "runtime emits distance-gated material footstep audio");
         }
         gm_runtime_destroy(&r);
         cfg.mobs = saved_mobs;

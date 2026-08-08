@@ -492,7 +492,7 @@ void gm_player_tick_network_client_effects(
                     struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
                     int ox, int oy, int oz,
                     GmBlockEdit *edits, int *nedits, int max_edits,
-                    int haste_amplifier, int fatigue_amplifier);
+                    int haste_amplifier, int fatigue_amplifier, int riding);
 
 /* Fill a GmPlayerView (world coords) from a PsvPlayer whose pos is in the LOCAL frame,
  * given the block offset (ox,oz) to convert local->world. Convenience for app/main.c. */

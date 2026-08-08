@@ -12150,6 +12150,19 @@ int gm_runtime_block_fall_sound(
         sound, volume, pitch);
 }
 
+int gm_runtime_block_step_sound(
+        int state_id, int *sound, float *volume, float *pitch) {
+    int family = runtime_block_sound_family(state_id);
+    float type_volume, type_pitch;
+    if (family < 0) return 0;
+    if (sound) *sound = GM_SOUND_BLOCK_WOOD_STEP + family;
+    type_volume = family == RUNTIME_BLOCK_SOUND_ANVIL ? 0.3F : 1.0F;
+    type_pitch = family == RUNTIME_BLOCK_SOUND_METAL ? 1.5F : 1.0F;
+    if (volume) *volume = type_volume * 0.15F;
+    if (pitch) *pitch = type_pitch;
+    return 1;
+}
+
 static int runtime_block_place_audio_append(
         GmRuntime *r, int x, int y, int z, int state_id) {
     int sound;
@@ -14983,6 +14996,7 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     gm_world_ensure(r->world, 0, 0, 2);
     int surface = gm_world_surface_y(r->world, 8, 8);
     psv_player_init(&r->player);
+    gm_player_dig_reset();
     isr_init(&r->player.inv);
     r->player.inv.current_item = 0;
     gm_player_cursor_set(ic_empty());
@@ -16031,7 +16045,10 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                                   (struct PvStats *)&r->vitals, action,
                                   r->ox, 0, r->oz,
                                   edits, &n, GM_RUNTIME_MAX_EDITS,
-                                  r->haste_amplifier, r->fatigue_amplifier);
+                                  r->haste_amplifier, r->fatigue_amplifier,
+                                  r->tape_boat_ride_id >= 0
+                                      || gm_mobs_boat_riding(&r->mobs)
+                                      || gm_mobs_pig_riding(&r->mobs, NULL));
     {
         int x, y, z, state_id, sound;
         float volume, pitch;
@@ -16061,6 +16078,19 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                     r, sound, GM_SOUND_CATEGORY_PLAYERS, 0, 0,
                     x, y, z, volume, pitch);
         }
+    }
+    {
+        int state_id, sound;
+        float volume, pitch;
+        if (gm_player_take_step_sound(&state_id)
+                && gm_runtime_block_step_sound(
+                    state_id, &sound, &volume, &pitch))
+            runtime_sound_event_append(
+                r, sound, GM_SOUND_CATEGORY_PLAYERS, 0, 0,
+                r->player.ent.posX + (double)r->ox,
+                r->player.ent.posY,
+                r->player.ent.posZ + (double)r->oz,
+                volume, pitch);
     }
     {
         ICStack item_use_drop=gm_player_take_item_use_drop();

@@ -162,6 +162,17 @@ state, and raw volume/pitch bits. Focused tests pin small/big selection, hay's
 available quick-sweep stage passes; the two snapshot-backed Blaze stages skip
 because their `.bsnp` inputs are absent. GPU 1 was not executed.
 
+2026-08-08 player-footstep-audio checkpoint: the exact-current full native
+runtime aggregate passes in 6:24.97 with 450,656 KiB peak RSS, zero major
+faults, and zero swap. The CPU guard passes at 4,055 scalar steps/s against the
+frozen 3,858.9 floor and is within 0.2% of the 4,062 baseline. The exhaustive
+real-Java/native comparator matches all 235 registered non-air block IDs,
+twelve step families, every valid metadata state, and raw volume/pitch bits.
+Focused tests pin tick-10 cadence, snow override, sneak/riding suppression,
+and live event position/category/scalars. Every locally available quick-sweep
+stage passes; the two snapshot-backed Blaze stages skip because their `.bsnp`
+inputs are absent. GPU 1 was not executed.
+
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.
 Status: SHIPPED as `netherite_sweep.sh` (repo root). At the 2026-08-07 70%

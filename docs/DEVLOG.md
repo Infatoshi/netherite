@@ -11614,3 +11614,23 @@ fails, decomposed exactly.
   3,858.9 floor. Every locally available quick-sweep step passes; the two
   snapshot-backed Blaze stages skip because their `.bsnp` inputs are absent.
   GPU 1 was untouched.
+
+## 2026-08-08 (distance-gated player footstep audio)
+
+- Extended the real-Java block-sound oracle through
+  `SoundType.getStepSound`. Java and native agree for all 235 registered
+  non-air IDs, every valid metadata state, twelve step families, and exact
+  `volume * 0.15F` and pitch bits. All five action-specific material sabotage
+  controls are rejected.
+- Player movement now accumulates actual post-collision displacement with
+  Java's float/double order and emits on the first tick-10 integer threshold.
+  Supporting fence/wall/gate fallback, snow-layer override, ladder vertical
+  distance, ground-sneak suppression, and riding suppression are retained.
+  Idle ticks skip the lookup and square root. The manifest is now 138 events
+  and 435 variants.
+- Focused registry, cadence, snow, sneak, runtime, and OpenAL gates pass. The
+  exact-current aggregate passes in 6:24.97 at 450,656 KiB peak RSS with zero
+  major faults or swap. CPU throughput is 4,055 steps/s against the 3,858.9
+  floor and within 0.2% of the 4,062 baseline. Every locally available
+  quick-sweep stage passes; the two snapshot-backed Blaze stages skip because
+  their `.bsnp` inputs are absent. GPU 1 was untouched.

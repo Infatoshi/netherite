@@ -35,6 +35,10 @@ static int   s_dig_sound_state;
 static int   s_fall_sound_pending;
 static int   s_fall_sound_damage;
 static int   s_fall_sound_state;
+static float s_step_distance;
+static int   s_step_next_distance = 1;
+static int   s_step_sound_pending;
+static int   s_step_sound_state;
 
 /* EntityRenderer.fovModifierHand (client render state, not physics). */
 static float s_fov_hand = 1.0f;
@@ -363,7 +367,7 @@ static void gm_player_tick_impl(
                     int ox, int oy, int oz,
                     GmBlockEdit *edits, int *nedits, int max_edits,
                     int defer_food_update, int defer_movement_stats,
-                    int haste_amplifier, int fatigue_amplifier)
+                    int haste_amplifier, int fatigue_amplifier, int riding)
 {
     Chunk            *window = (Chunk *)window_;
     const McSinTable *st     = (const McSinTable *)st_;
@@ -376,6 +380,7 @@ static void gm_player_tick_impl(
     s_finished_drink=ic_empty();
     s_dig_sound_pending=0;
     s_fall_sound_pending=0;
+    s_step_sound_pending=0;
 
     /* Legacy tapes predict the metadata return one tick after the request.
      * New tapes set elytra_flag7_recorded and apply each observed metadata
@@ -928,6 +933,46 @@ use_done:
         double dx = pl->ent.posX - pre_x, dy = pl->ent.posY - pre_y,
                dz = pl->ent.posZ - pre_z;
         float fall_damage_multiplier = 1.0f;
+        /* Entity.move: accumulate actual post-collision displacement. Sneaking
+         * on the ground and riding suppress walking entirely. */
+        if (!riding && (!pl->ent.onGround || !act.sneak)
+                && (dx != 0.0 || dy != 0.0 || dz != 0.0)) {
+            int bx = mc_floor(pl->ent.posX);
+            int by = mc_floor(pl->ent.posY - 0.20000000298023224);
+            int bz = mc_floor(pl->ent.posZ);
+            int block = psv_get_block(window, bx, by, bz);
+            int meta = psv_get_meta(window, bx, by, bz);
+            if (block == BLK_AIR) {
+                int below = psv_get_block(window, bx, by - 1, bz);
+                if (below == 85 || below == 107 || below == 113
+                        || below == 139 || (below >= 183 && below <= 192)) {
+                    --by;
+                    block = below;
+                    meta = psv_get_meta(window, bx, by, bz);
+                }
+            }
+            double step_dy = block == 65 ? dy : 0.0;
+            float moved = (float)sqrt(dx * dx + step_dy * step_dy + dz * dz);
+            s_step_distance = (float)((double)s_step_distance
+                                      + (double)moved * 0.6);
+            if (s_step_distance > (float)s_step_next_distance
+                    && block != BLK_AIR) {
+                s_step_next_distance = (int)s_step_distance + 1;
+                /* Water uses EntityPlayer.getSwimSound and its private RNG;
+                 * retain Java's shared distance threshold but leave that
+                 * distinct producer to the swimming-audio slice. */
+                if (!water_pre && block != 8 && block != 9
+                        && block != 10 && block != 11) {
+                    int above = psv_get_block(window, bx, by + 1, bz);
+                    if (above == 78) {
+                        block = above;
+                        meta = psv_get_meta(window, bx, by + 1, bz);
+                    }
+                    s_step_sound_pending = 1;
+                    s_step_sound_state = block | ((meta & 255) << 12);
+                }
+            }
+        }
         if (pl->ent.onGround && was_air && pl->fall_distance > 0.0f) {
             int bx = mc_floor(pl->ent.posX);
             int by = mc_floor(pl->ent.posY - 0.20000000298023224);
@@ -979,7 +1024,7 @@ void gm_player_tick(struct Chunk *window, const struct McSinTable *st,
 {
     McGameRules gamerules = mc_gamerules_default();
     gm_player_tick_impl(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
-                        edits, nedits, max_edits, 0, 0, -1, -1);
+                        edits, nedits, max_edits, 0, 0, -1, -1, 0);
 }
 
 void gm_player_tick_gr(struct Chunk *window, const struct McSinTable *st,
@@ -989,7 +1034,7 @@ void gm_player_tick_gr(struct Chunk *window, const struct McSinTable *st,
                        GmBlockEdit *edits, int *nedits, int max_edits)
 {
     gm_player_tick_impl(window, st, pl, vitals, gamerules, act, ox, oy, oz,
-                        edits, nedits, max_edits, 0, 0, -1, -1);
+                        edits, nedits, max_edits, 0, 0, -1, -1, 0);
 }
 
 void gm_player_tick_defer_food(
@@ -1000,7 +1045,7 @@ void gm_player_tick_defer_food(
 {
     McGameRules gamerules = mc_gamerules_default();
     gm_player_tick_impl(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
-                        edits, nedits, max_edits, 1, 0, -1, -1);
+                        edits, nedits, max_edits, 1, 0, -1, -1, 0);
 }
 
 void gm_player_tick_network_client(
@@ -1011,7 +1056,7 @@ void gm_player_tick_network_client(
 {
     McGameRules gamerules = mc_gamerules_default();
     gm_player_tick_impl(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
-                        edits, nedits, max_edits, 1, 1, -1, -1);
+                        edits, nedits, max_edits, 1, 1, -1, -1, 0);
 }
 
 void gm_player_tick_network_client_effects(
@@ -1019,12 +1064,12 @@ void gm_player_tick_network_client_effects(
                     struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
                     int ox, int oy, int oz,
                     GmBlockEdit *edits, int *nedits, int max_edits,
-                    int haste_amplifier, int fatigue_amplifier)
+                    int haste_amplifier, int fatigue_amplifier, int riding)
 {
     McGameRules gamerules = mc_gamerules_default();
     gm_player_tick_impl(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
                         edits, nedits, max_edits, 1, 1,
-                        haste_amplifier, fatigue_amplifier);
+                        haste_amplifier, fatigue_amplifier, riding);
 }
 
 /* Live inventory slotClick on the player's hotbar (slots 0..8) + cursor.
@@ -1067,6 +1112,9 @@ void gm_player_dig_reset(void) {
     s_dig_sound_tick_counter=0;
     s_dig_sound_pending=0;
     s_fall_sound_pending=0;
+    s_step_distance=0.0f;
+    s_step_next_distance=1;
+    s_step_sound_pending=0;
     s_eat_ticks=0;s_eat_item=0;
     s_use_action=0;s_use_remaining=0;s_use_max=0;
     s_hurt_vel_reset=0;s_server_motion_x=0.0;s_server_motion_z=0.0;
@@ -1117,6 +1165,9 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
     s_dig_sound_tick_counter=0;
     s_dig_sound_pending=0;
     s_fall_sound_pending=0;
+    s_step_distance=0.0f;
+    s_step_next_distance=1;
+    s_step_sound_pending=0;
     s_atk_prev       = in->atk_prev;
     s_rc_delay       = in->rc_delay;
     s_use_prev       = in->use_prev;
@@ -1149,6 +1200,13 @@ int gm_player_take_fall_sound(int *damage, int *state_id) {
     s_fall_sound_pending = 0;
     if (damage) *damage = s_fall_sound_damage;
     if (state_id) *state_id = s_fall_sound_state;
+    return 1;
+}
+
+int gm_player_take_step_sound(int *state_id) {
+    if (!s_step_sound_pending) return 0;
+    s_step_sound_pending = 0;
+    if (state_id) *state_id = s_step_sound_state;
     return 1;
 }
 

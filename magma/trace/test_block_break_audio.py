@@ -27,7 +27,8 @@ def main():
         [str(args.native.resolve())], check=True,
         capture_output=True, text=True)
     for prefix, action in (
-            ("B", "break"), ("P", "place"), ("H", "hit"), ("F", "fall")):
+            ("B", "break"), ("P", "place"), ("H", "hit"), ("F", "fall"),
+            ("S", "step")):
         expected = rows(java.stdout, prefix)
         actual = rows(native.stdout, prefix)
         if len(expected) != 235 or len(actual) != 235:
@@ -54,7 +55,7 @@ def main():
             raise AssertionError(
                 f"{action} material-family sabotage escaped the comparator")
     print("PASS real Java/native: all 235 registered non-air block ids, "
-          "12 break/place/hit/fall families, raw volume/pitch bits, metadata "
+          "12 break/place/hit/fall/step families, raw volume/pitch bits, metadata "
           "invariance, and per-action material-negative controls")
 
 

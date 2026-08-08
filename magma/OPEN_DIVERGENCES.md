@@ -122,7 +122,7 @@ Saved jukebox comparator state is exact for empty/record metadata agreement,
 the bounded untagged vanilla-record set, and analog outputs 1 through 12.
 Insertion and ejection now emit the exact Java 1010 item/zero event pairs for
 all 12 records. A-01 supplies an ordered represented-event stream and optional
-OpenAL playback for 126 events/372 owned OGG variants, including four bounded
+OpenAL playback for 138 events/435 owned OGG variants, including four bounded
 streamed record voices. Firework blast/large/far and twinkle selection, exact
 twinkle age, seeded pitch, and distance-delayed playback are promoted. World
 event 2001 resolves all 235 registered non-air block IDs through Java's twelve
@@ -134,8 +134,10 @@ and every fourth update thereafter, using Java's NEUTRAL category and exact
 source/scalars. Damage landings emit the ordered player small/big-fall event
 followed by the supporting block's exact fall family; hay applies its 0.2
 damage multiplier before the sound threshold. Music, ambient loops, category
-controls, the exact Java asset-variant cursor, footsteps/swimming emitters, and
-output comparison remain open.
+controls, the exact Java asset-variant cursor, swimming/splash emitters, and
+output comparison remain open. Player footsteps are distance-gated from exact
+post-collision displacement, suppress on ground sneak/riding, apply the snow
+layer override, and resolve the same twelve material families.
 
 Command-block comparator output is exact for IDs 137/210/211 inside a strict
 inert saved subset: empty command, default name/output tracking and per-ID
