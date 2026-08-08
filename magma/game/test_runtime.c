@@ -915,7 +915,7 @@ int main(void) {
         CHECK(gm_runtime_init(&r,&cfg,err,sizeof err),
               "block-place audio runtime initializes");
         if(r.world){
-            GmRuntimeSoundEvent sound;
+            GmRuntimeSoundEvent sound, landing;
             GmAction place;memset(&place,0,sizeof place);
             gm_world_set_block_meta(r.world,8,6,11,1,0);
             isr_set_stack(&r.player.inv,0,ic_mk(3,1,0));
@@ -942,6 +942,23 @@ int main(void) {
                   sound.x==8.5 && sound.y==6.5 && sound.z==10.5 &&
                   sound.volume==0.25F && sound.pitch==0.5F,
                   "runtime emits exact progressive-mining hit audio");
+            gm_world_set_block_meta(r.world,8,6,8,1,0);
+            gm_runtime_set_pose(&r,8.5,15.0,8.5,0,0);
+            memset(&place,0,sizeof place);
+            for(int t=0;t<80 && gm_runtime_sound_event_count(&r)<4;++t)
+                gm_runtime_tick(&r,place);
+            CHECK(gm_runtime_sound_event_count(&r)==4 &&
+                  gm_runtime_sound_event_get(&r,2,&sound) &&
+                  gm_runtime_sound_event_get(&r,3,&landing) &&
+                  sound.sound==GM_SOUND_PLAYER_BIG_FALL &&
+                  landing.sound==GM_SOUND_BLOCK_STONE_FALL &&
+                  sound.category==GM_SOUND_CATEGORY_PLAYERS &&
+                  landing.category==GM_SOUND_CATEGORY_PLAYERS &&
+                  sound.x==8.5 && sound.y==7.0 && sound.z==8.5 &&
+                  landing.x==8.5 && landing.y==7.0 && landing.z==8.5 &&
+                  sound.volume==1.0F && sound.pitch==1.0F &&
+                  landing.volume==0.5F && landing.pitch==0.75F,
+                  "runtime emits ordered player and material landing audio");
         }
         gm_runtime_destroy(&r);
         cfg.mobs = saved_mobs;

@@ -285,6 +285,20 @@ enum {
     GM_SOUND_BLOCK_LADDER_HIT,
     GM_SOUND_BLOCK_ANVIL_HIT,
     GM_SOUND_BLOCK_SLIME_HIT,
+    GM_SOUND_PLAYER_SMALL_FALL,
+    GM_SOUND_PLAYER_BIG_FALL,
+    GM_SOUND_BLOCK_WOOD_FALL,
+    GM_SOUND_BLOCK_GRAVEL_FALL,
+    GM_SOUND_BLOCK_GRASS_FALL,
+    GM_SOUND_BLOCK_STONE_FALL,
+    GM_SOUND_BLOCK_METAL_FALL,
+    GM_SOUND_BLOCK_GLASS_FALL,
+    GM_SOUND_BLOCK_CLOTH_FALL,
+    GM_SOUND_BLOCK_SAND_FALL,
+    GM_SOUND_BLOCK_SNOW_FALL,
+    GM_SOUND_BLOCK_LADDER_FALL,
+    GM_SOUND_BLOCK_ANVIL_FALL,
+    GM_SOUND_BLOCK_SLIME_FALL,
     GM_SOUND_BOBBER_SPLASH,
     GM_SOUND_DISPENSER_DISPENSE,
     GM_SOUND_DISPENSER_FAIL,
@@ -1289,6 +1303,8 @@ int gm_runtime_block_place_sound(
 int gm_runtime_block_place_audio_fixture(
     GmRuntime *r, int x, int y, int z, int state_id);
 int gm_runtime_block_hit_sound(
+    int state_id, int *sound, float *volume, float *pitch);
+int gm_runtime_block_fall_sound(
     int state_id, int *sound, float *volume, float *pitch);
 int gm_runtime_villager_offer_count(GmRuntime *r, int eid);
 int gm_runtime_villager_offer_get(

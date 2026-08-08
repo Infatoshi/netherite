@@ -113,12 +113,15 @@ int main(void)
     memset(&zero, 0, sizeof zero);   /* forward=strafe=yaw=pitch=jump=break=place=attack=0 */
 
     int parity_ok = 1;
+    int fall_sound_count = 0, fall_damage = 0, fall_state = 0;
     PvStats tv; pv_init(&tv);
     for (int t = 0; t < 120; ++t) {
         GmBlockEdit edits[8];
         int nedits = -1;
         gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st, (struct PsvPlayer *)&pl, (struct PvStats *)&tv, neutral, 0, 0, 0, edits, &nedits, 8);
         CHECK(nedits == 0, "neutral action emitted no edits");
+        if (gm_player_take_fall_sound(&fall_damage, &fall_state))
+            ++fall_sound_count;
 
         /* raw verified physics reference over the same window + zeroed action */
         McAABB blocks[PSV_MAX_BLOCKS];
@@ -130,6 +133,54 @@ int main(void)
     printf("  landed feet y = %.10f  on_ground = %d\n", pl.ent.posY, pl.ent.onGround);
     CHECK(fabs(pl.ent.posY - 65.0) < 1e-6, "player rests at feet y == 65.0");
     CHECK(pl.ent.onGround == 1, "player on_ground == 1 at rest");
+    CHECK(fall_sound_count == 1 && fall_damage == 12
+          && fall_state == BLK_STONE,
+          "damage landing emits one exact big-fall material transient");
+
+    /* EntityPlayer selects small/big from the computed damage, not distance. */
+    fill_flat(win);
+    spawn_at(&pl, 24.0, 69.0, 24.0);
+    pv_init(&tv);
+    gm_player_dig_reset();
+    fall_sound_count = fall_damage = fall_state = 0;
+    float fall_health = 0.0F;
+    for (int t = 0; t < 60; ++t) {
+        GmBlockEdit edits[8];
+        int nedits = -1;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&pl, (struct PvStats *)&tv,
+                       neutral, 0, 0, 0, edits, &nedits, 8);
+        if (gm_player_take_fall_sound(&fall_damage, &fall_state)) {
+            ++fall_sound_count;
+            fall_health = tv.health;
+        }
+    }
+    CHECK(fall_sound_count == 1 && fall_damage == 1
+          && fall_state == BLK_STONE && fall_health == 19.0F,
+          "short damage landing emits one exact small-fall transient");
+
+    /* BlockHay invokes Entity.fall with damageMultiplier=0.2F. */
+    fill_flat(win);
+    set_test_state(win, 24, 64, 24, 170, 0);
+    spawn_at(&pl, 24.0, 80.0, 24.0);
+    pv_init(&tv);
+    gm_player_dig_reset();
+    fall_sound_count = fall_damage = fall_state = 0;
+    fall_health = 0.0F;
+    for (int t = 0; t < 120; ++t) {
+        GmBlockEdit edits[8];
+        int nedits = -1;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&pl, (struct PvStats *)&tv,
+                       neutral, 0, 0, 0, edits, &nedits, 8);
+        if (gm_player_take_fall_sound(&fall_damage, &fall_state)) {
+            ++fall_sound_count;
+            fall_health = tv.health;
+        }
+    }
+    CHECK(fall_sound_count == 1 && fall_damage == 3
+          && fall_state == 170 && fall_health == 17.0F,
+          "hay landing applies 0.2 multiplier before sound selection");
 
     double landed_local_y = pl.ent.posY;
 

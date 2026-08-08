@@ -12109,7 +12109,7 @@ static int runtime_block_sound_family(int state_id) {
 
 static int runtime_block_sound(
         int state_id, int first_sound,
-        float volume_divisor, float pitch_multiplier,
+        float volume_offset, float volume_divisor, float pitch_multiplier,
         int *sound, float *volume, float *pitch) {
     int family = runtime_block_sound_family(state_id);
     float type_volume, type_pitch;
@@ -12117,7 +12117,7 @@ static int runtime_block_sound(
     if (sound) *sound = first_sound + family;
     type_volume = family == RUNTIME_BLOCK_SOUND_ANVIL ? 0.3F : 1.0F;
     type_pitch = family == RUNTIME_BLOCK_SOUND_METAL ? 1.5F : 1.0F;
-    if (volume) *volume = (type_volume + 1.0F) / volume_divisor;
+    if (volume) *volume = (type_volume + volume_offset) / volume_divisor;
     if (pitch) *pitch = type_pitch * pitch_multiplier;
     return 1;
 }
@@ -12125,21 +12125,28 @@ static int runtime_block_sound(
 int gm_runtime_block_break_sound(
         int state_id, int *sound, float *volume, float *pitch) {
     return runtime_block_sound(
-        state_id, GM_SOUND_BLOCK_WOOD_BREAK, 2.0F, 0.8F,
+        state_id, GM_SOUND_BLOCK_WOOD_BREAK, 1.0F, 2.0F, 0.8F,
         sound, volume, pitch);
 }
 
 int gm_runtime_block_place_sound(
         int state_id, int *sound, float *volume, float *pitch) {
     return runtime_block_sound(
-        state_id, GM_SOUND_BLOCK_WOOD_PLACE, 2.0F, 0.8F,
+        state_id, GM_SOUND_BLOCK_WOOD_PLACE, 1.0F, 2.0F, 0.8F,
         sound, volume, pitch);
 }
 
 int gm_runtime_block_hit_sound(
         int state_id, int *sound, float *volume, float *pitch) {
     return runtime_block_sound(
-        state_id, GM_SOUND_BLOCK_WOOD_HIT, 8.0F, 0.5F,
+        state_id, GM_SOUND_BLOCK_WOOD_HIT, 1.0F, 8.0F, 0.5F,
+        sound, volume, pitch);
+}
+
+int gm_runtime_block_fall_sound(
+        int state_id, int *sound, float *volume, float *pitch) {
+    return runtime_block_sound(
+        state_id, GM_SOUND_BLOCK_WOOD_FALL, 0.0F, 2.0F, 0.75F,
         sound, volume, pitch);
 }
 
@@ -16035,6 +16042,25 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                 r, sound, GM_SOUND_CATEGORY_NEUTRAL, 0, 0,
                 (double)x + 0.5, (double)y + 0.5, (double)z + 0.5,
                 volume, pitch);
+    }
+    {
+        int damage, state_id, sound;
+        float volume, pitch;
+        if (gm_player_take_fall_sound(&damage, &state_id)) {
+            double x = r->player.ent.posX + (double)r->ox;
+            double y = r->player.ent.posY;
+            double z = r->player.ent.posZ + (double)r->oz;
+            runtime_sound_event_append(
+                r, damage > 4 ? GM_SOUND_PLAYER_BIG_FALL
+                              : GM_SOUND_PLAYER_SMALL_FALL,
+                GM_SOUND_CATEGORY_PLAYERS, 0, 0,
+                x, y, z, 1.0F, 1.0F);
+            if (gm_runtime_block_fall_sound(
+                    state_id, &sound, &volume, &pitch))
+                runtime_sound_event_append(
+                    r, sound, GM_SOUND_CATEGORY_PLAYERS, 0, 0,
+                    x, y, z, volume, pitch);
+        }
     }
     {
         ICStack item_use_drop=gm_player_take_item_use_drop();

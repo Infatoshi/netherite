@@ -49,6 +49,18 @@ static const char *sound_name(int sound) {
     case GM_SOUND_BLOCK_LADDER_HIT: return "minecraft:block.ladder.hit";
     case GM_SOUND_BLOCK_ANVIL_HIT: return "minecraft:block.anvil.hit";
     case GM_SOUND_BLOCK_SLIME_HIT: return "minecraft:block.slime.hit";
+    case GM_SOUND_BLOCK_WOOD_FALL: return "minecraft:block.wood.fall";
+    case GM_SOUND_BLOCK_GRAVEL_FALL: return "minecraft:block.gravel.fall";
+    case GM_SOUND_BLOCK_GRASS_FALL: return "minecraft:block.grass.fall";
+    case GM_SOUND_BLOCK_STONE_FALL: return "minecraft:block.stone.fall";
+    case GM_SOUND_BLOCK_METAL_FALL: return "minecraft:block.metal.fall";
+    case GM_SOUND_BLOCK_GLASS_FALL: return "minecraft:block.glass.fall";
+    case GM_SOUND_BLOCK_CLOTH_FALL: return "minecraft:block.cloth.fall";
+    case GM_SOUND_BLOCK_SAND_FALL: return "minecraft:block.sand.fall";
+    case GM_SOUND_BLOCK_SNOW_FALL: return "minecraft:block.snow.fall";
+    case GM_SOUND_BLOCK_LADDER_FALL: return "minecraft:block.ladder.fall";
+    case GM_SOUND_BLOCK_ANVIL_FALL: return "minecraft:block.anvil.fall";
+    case GM_SOUND_BLOCK_SLIME_FALL: return "minecraft:block.slime.fall";
     default: return "";
     }
 }
@@ -64,9 +76,11 @@ int main(void) {
     for (int id = 0; id <= 255; ++id) {
         int sound, meta_sound, place_sound, meta_place_sound;
         int hit_sound, meta_hit_sound;
+        int fall_sound, meta_fall_sound;
         float volume, pitch, meta_volume, meta_pitch;
         float place_volume, place_pitch, meta_place_volume, meta_place_pitch;
         float hit_volume, hit_pitch, meta_hit_volume, meta_hit_pitch;
+        float fall_volume, fall_pitch, meta_fall_volume, meta_fall_pitch;
         if (!gm_runtime_block_break_sound(id, &sound, &volume, &pitch))
             continue;
         CHECK(gm_runtime_block_break_sound(
@@ -93,12 +107,23 @@ int main(void) {
               && float_bits(meta_hit_volume) == float_bits(hit_volume)
               && float_bits(meta_hit_pitch) == float_bits(hit_pitch),
               "legacy metadata does not alter a 1.11.2 hit sound type");
+        CHECK(gm_runtime_block_fall_sound(
+                  id, &fall_sound, &fall_volume, &fall_pitch)
+              && gm_runtime_block_fall_sound(
+                  id | (15 << 12), &meta_fall_sound,
+                  &meta_fall_volume, &meta_fall_pitch)
+              && meta_fall_sound == fall_sound
+              && float_bits(meta_fall_volume) == float_bits(fall_volume)
+              && float_bits(meta_fall_pitch) == float_bits(fall_pitch),
+              "legacy metadata does not alter a 1.11.2 fall sound type");
         printf("B %d %s %08x %08x\n", id, sound_name(sound),
                float_bits(volume), float_bits(pitch));
         printf("P %d %s %08x %08x\n", id, sound_name(place_sound),
                float_bits(place_volume), float_bits(place_pitch));
         printf("H %d %s %08x %08x\n", id, sound_name(hit_sound),
                float_bits(hit_volume), float_bits(hit_pitch));
+        printf("F %d %s %08x %08x\n", id, sound_name(fall_sound),
+               float_bits(fall_volume), float_bits(fall_pitch));
         ++rows;
     }
     CHECK(rows == 235, "all registered non-air block ids are represented");
@@ -166,6 +191,6 @@ int main(void) {
         }
         gm_runtime_destroy(&runtime);
     }
-    fputs("block break/place/hit audio runtime fixture: PASS\n", stderr);
+    fputs("block break/place/hit/fall audio runtime fixture: PASS\n", stderr);
     return 0;
 }

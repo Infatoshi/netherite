@@ -29,10 +29,14 @@ public final class BlockBreakSoundGolden {
                 SoundEvent.REGISTRY.getNameForObject(type.getPlaceSound());
             ResourceLocation hitName =
                 SoundEvent.REGISTRY.getNameForObject(type.getHitSound());
+            ResourceLocation fallName =
+                SoundEvent.REGISTRY.getNameForObject(type.getFallSound());
             float volume = (type.getVolume() + 1.0F) / 2.0F;
             float pitch = type.getPitch() * 0.8F;
             float hitVolume = (type.getVolume() + 1.0F) / 8.0F;
             float hitPitch = type.getPitch() * 0.5F;
+            float fallVolume = type.getVolume() * 0.5F;
+            float fallPitch = type.getPitch() * 0.75F;
             for (IBlockState candidate
                     : block.getBlockState().getValidStates()) {
                 SoundType candidateType = block.getSoundType(
@@ -46,15 +50,21 @@ public final class BlockBreakSoundGolden {
                 ResourceLocation candidateHitName =
                     SoundEvent.REGISTRY.getNameForObject(
                         candidateType.getHitSound());
+                ResourceLocation candidateFallName =
+                    SoundEvent.REGISTRY.getNameForObject(
+                        candidateType.getFallSound());
                 float candidateVolume =
                     (candidateType.getVolume() + 1.0F) / 2.0F;
                 float candidatePitch = candidateType.getPitch() * 0.8F;
                 float candidateHitVolume =
                     (candidateType.getVolume() + 1.0F) / 8.0F;
                 float candidateHitPitch = candidateType.getPitch() * 0.5F;
+                float candidateFallVolume = candidateType.getVolume() * 0.5F;
+                float candidateFallPitch = candidateType.getPitch() * 0.75F;
                 if (!name.equals(candidateName)
                         || !placeName.equals(candidatePlaceName)
                         || !hitName.equals(candidateHitName)
+                        || !fallName.equals(candidateFallName)
                         || Float.floatToRawIntBits(volume)
                             != Float.floatToRawIntBits(candidateVolume)
                         || Float.floatToRawIntBits(pitch)
@@ -62,7 +72,11 @@ public final class BlockBreakSoundGolden {
                         || Float.floatToRawIntBits(hitVolume)
                             != Float.floatToRawIntBits(candidateHitVolume)
                         || Float.floatToRawIntBits(hitPitch)
-                            != Float.floatToRawIntBits(candidateHitPitch)) {
+                            != Float.floatToRawIntBits(candidateHitPitch)
+                        || Float.floatToRawIntBits(fallVolume)
+                            != Float.floatToRawIntBits(candidateFallVolume)
+                        || Float.floatToRawIntBits(fallPitch)
+                            != Float.floatToRawIntBits(candidateFallPitch)) {
                     throw new AssertionError(
                         "state-specific block sound for block " + id);
                 }
@@ -79,6 +93,10 @@ public final class BlockBreakSoundGolden {
                 hitName == null ? "" : hitName.toString(),
                 Float.floatToRawIntBits(hitVolume),
                 Float.floatToRawIntBits(hitPitch));
+            System.out.printf("F %d %s %08x %08x%n", id,
+                fallName == null ? "" : fallName.toString(),
+                Float.floatToRawIntBits(fallVolume),
+                Float.floatToRawIntBits(fallPitch));
         }
     }
 }

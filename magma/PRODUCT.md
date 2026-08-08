@@ -132,6 +132,8 @@ is compared numerically against pinned Java scenes; it is never approved by a su
   blast/twinkle playback plus material-exact player/grazing block-break and
   successful ItemBlock placement sounds. Progressive mining emits the exact
   material hit family and Java cadence, category, position, volume, and pitch.
+  Damage landings emit the ordered player small/big-fall sound and supporting
+  block material sound, including hay's reduced damage threshold.
   Music, ambient loops, category controls,
   achievements, statistics, scoreboards,
   resource packs, skins, and a broad graphics-options menu remain absent.

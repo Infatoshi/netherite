@@ -32,6 +32,9 @@ static int   s_dig_sound_tick_counter;
 static int   s_dig_sound_pending;
 static int   s_dig_sound_wx, s_dig_sound_wy, s_dig_sound_wz;
 static int   s_dig_sound_state;
+static int   s_fall_sound_pending;
+static int   s_fall_sound_damage;
+static int   s_fall_sound_state;
 
 /* EntityRenderer.fovModifierHand (client render state, not physics). */
 static float s_fov_hand = 1.0f;
@@ -81,6 +84,7 @@ static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
                             int was_air, double prev_min_y,
                             double dx, double dy, double dz,
                             int in_water_pre, int eye_water_post, int land_jump,
+                            float fall_damage_multiplier,
                             const McGameRules *gamerules,
                             int defer_food_update,
                             int defer_movement_stats)
@@ -127,8 +131,11 @@ static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
         if (dropped > 0.0 && !pl->reset_fall_distance)
             pl->fall_distance += (float)dropped;
     } else if (was_air && pl->fall_distance > 0.0f) {
-        pv_fall_damage_effect(
-            vit, pl->fall_distance, pl->jump_boost_amplifier);
+        float boost = pl->jump_boost_amplifier < 0
+            ? 0.0f : (float)(pl->jump_boost_amplifier + 1);
+        int damage = pv_ceil(
+            (pl->fall_distance - 3.0f - boost) * fall_damage_multiplier);
+        if (damage > 0) pv_attack(vit, (float)damage);
     }
     if (e->onGround) pl->fall_distance = 0.0f;
 
@@ -368,6 +375,7 @@ static void gm_player_tick_impl(
     s_item_use_drop=ic_empty();
     s_finished_drink=ic_empty();
     s_dig_sound_pending=0;
+    s_fall_sound_pending=0;
 
     /* Legacy tapes predict the metadata return one tick after the request.
      * New tapes set elytra_flag7_recorded and apply each observed metadata
@@ -919,9 +927,29 @@ use_done:
     {
         double dx = pl->ent.posX - pre_x, dy = pl->ent.posY - pre_y,
                dz = pl->ent.posZ - pre_z;
+        float fall_damage_multiplier = 1.0f;
+        if (pl->ent.onGround && was_air && pl->fall_distance > 0.0f) {
+            int bx = mc_floor(pl->ent.posX);
+            int by = mc_floor(pl->ent.posY - 0.20000000298023224);
+            int bz = mc_floor(pl->ent.posZ);
+            int block = psv_get_block(window, bx, by, bz);
+            float boost = pl->jump_boost_amplifier < 0
+                ? 0.0f : (float)(pl->jump_boost_amplifier + 1);
+            int damage;
+            if (block == 170) fall_damage_multiplier = 0.2f;
+            damage = pv_ceil((pl->fall_distance - 3.0f - boost)
+                             * fall_damage_multiplier);
+            if (damage > 0) {
+                s_fall_sound_pending = 1;
+                s_fall_sound_damage = damage;
+                s_fall_sound_state = block
+                    | ((psv_get_meta(window, bx, by, bz) & 255) << 12);
+            }
+        }
         float hp_before = vit->health;
         gm_vitals_apply(vit, pl, act, was_air, prev_min_y, dx, dy, dz,
                         water_pre, eye_in_water(window, pl), land_jump,
+                        fall_damage_multiplier,
                         gamerules, defer_food_update, defer_movement_stats);
         if (vit->health < hp_before) {
             /* EntityTracker sends velocityChanged before the server's next
@@ -1038,6 +1066,7 @@ void gm_player_dig_reset(void) {
     s_dig_particle_count = 0;
     s_dig_sound_tick_counter=0;
     s_dig_sound_pending=0;
+    s_fall_sound_pending=0;
     s_eat_ticks=0;s_eat_item=0;
     s_use_action=0;s_use_remaining=0;s_use_max=0;
     s_hurt_vel_reset=0;s_server_motion_x=0.0;s_server_motion_z=0.0;
@@ -1087,6 +1116,7 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
     /* The RL snapshot format explicitly excludes audio/render-only counters. */
     s_dig_sound_tick_counter=0;
     s_dig_sound_pending=0;
+    s_fall_sound_pending=0;
     s_atk_prev       = in->atk_prev;
     s_rc_delay       = in->rc_delay;
     s_use_prev       = in->use_prev;
@@ -1111,6 +1141,14 @@ int gm_player_take_dig_sound(
     if (wy) *wy = s_dig_sound_wy;
     if (wz) *wz = s_dig_sound_wz;
     if (state_id) *state_id = s_dig_sound_state;
+    return 1;
+}
+
+int gm_player_take_fall_sound(int *damage, int *state_id) {
+    if (!s_fall_sound_pending) return 0;
+    s_fall_sound_pending = 0;
+    if (damage) *damage = s_fall_sound_damage;
+    if (state_id) *state_id = s_fall_sound_state;
     return 1;
 }
 

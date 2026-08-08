@@ -11594,3 +11594,23 @@ fails, decomposed exactly.
   CPU throughput is 4,197 steps/s against the frozen 3,858.9 floor. GPU 1 was
   untouched. Every locally available quick-sweep step passes; the two
   snapshot-backed Blaze stages skip because their `.bsnp` inputs are absent.
+
+## 2026-08-08 (player landing and block-material audio)
+
+- Extended the real-Java block-sound oracle through
+  `SoundType.getFallSound`. Java and native agree for all 235 registered
+  non-air IDs, every valid metadata state, twelve fall families, and the raw
+  `volume * 0.5F` and `pitch * 0.75F` bits. Independent break, place, hit, and
+  fall material substitutions are rejected.
+- Damage-producing player landings append the exact ordered pair at the
+  player's position: player small/big fall followed by the supporting block's
+  fall family, both in the PLAYERS category. The damage threshold is pinned on
+  both sides of four, and hay applies its 0.2 multiplier before selection. The
+  manifest is now 126 events/372 variants; playback pools and audio-free
+  headless/RL behavior remain unchanged.
+- Focused registry, player-control, runtime-order, and OpenAL gates pass. The
+  exact-current aggregate passes in 6:30.95 at 449,568 KiB peak RSS with zero
+  major faults or swap. CPU throughput is 4,353 steps/s against the frozen
+  3,858.9 floor. Every locally available quick-sweep step passes; the two
+  snapshot-backed Blaze stages skip because their `.bsnp` inputs are absent.
+  GPU 1 was untouched.

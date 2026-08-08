@@ -115,6 +115,8 @@ int  gm_player_dig_swing(void);
 /* Consume this tick's PlayerControllerMP progressive-mining hit sound.
  * Coordinates are world-space and state_id is legacy id|(meta<<12). */
 int  gm_player_take_dig_sound(int *wx, int *wy, int *wz, int *state_id);
+/* Consume this tick's damage-causing player landing. */
+int  gm_player_take_fall_sound(int *damage, int *state_id);
 
 #ifdef __cplusplus
 }
