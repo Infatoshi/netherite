@@ -1,0 +1,13 @@
+# Settled EAST sticky piston with a NORTH slime attachment. Retraction moves
+# the side stone west through the bottom of a valid three-high reed column;
+# all three cells drop in bottom-up callback order.
+12 79 8 29 13
+13 79 8 34 13
+14 79 8 165 0
+14 79 7 1 0
+13 78 7 3 0
+13 78 6 9 0
+13 79 7 83 3
+13 80 7 83 7
+13 81 7 83 12
+12 79 9 152 0

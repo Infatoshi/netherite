@@ -1,0 +1,4 @@
+# A redstone block one block above and south of the future EAST-facing piston.
+# It is not adjacent to the piston, but lies in BlockPistonBase's pos.up()
+# quasi-connectivity neighborhood and must start empty extension at tick zero.
+12 79 9 152 0

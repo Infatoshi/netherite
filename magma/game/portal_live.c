@@ -6,10 +6,53 @@
 #include <string.h>
 #include <stdlib.h>
 
+static int gm_portal_empty(int id) {
+    return id==NP_BLK_AIR||id==NP_BLK_FIRE||id==NP_BLK_PORTAL;
+}
+
+/* Match BlockPortal.Size.getDistanceUntilEdge on the resolved bottom
+ * interior row. Returning the obsidian distance, rather than merely finding
+ * a side block, keeps the staging origin faithful to the floor predicate. */
+static int gm_portal_edge_distance(
+        GmWorld *world,int x,int y,int z,int dx,int dz) {
+    int distance;
+    for(distance=0;distance<22;++distance){
+        int cx=x+dx*distance,cz=z+dz*distance;
+        int id=gm_world_block(world,cx,y,cz);
+        if(!gm_portal_empty(id))return id==NP_BLK_OBSIDIAN?distance:0;
+        if(gm_world_block(world,cx,y-1,cz)!=NP_BLK_OBSIDIAN)return 0;
+    }
+    return gm_world_block(world,x+dx*distance,y,z+dz*distance)==
+        NP_BLK_OBSIDIAN?distance:0;
+}
+
+static int gm_portal_axis_origin(
+        GmWorld *world,int x,int y,int z,int dx,int dz,int centered,
+        int *valid) {
+    int negative=gm_portal_edge_distance(world,x,y,z,-dx,-dz);
+    int positive=gm_portal_edge_distance(world,x,y,z,dx,dz);
+    int width=negative+positive-1;
+    *valid=negative>=1&&positive>=1&&width>=2&&width<=21;
+    if(*valid)
+        return (dx?x:z)-negative;
+    return centered;
+}
+
 int gm_portal_ignite(GmWorld *world, int fire_x, int fire_y, int fire_z) {
     if(!world)return 0;
     NpWorld local;memset(&local,0,sizeof local);
-    int ox=fire_x-NP_DIM/2,oy=fire_y-NP_DIM/2,oz=fire_z-NP_DIM/2;
+    int bottom_y=fire_y;
+    while(bottom_y>0&&gm_portal_empty(
+              gm_world_block(world,fire_x,bottom_y-1,fire_z)))
+        --bottom_y;
+    int centered_x=fire_x-NP_DIM/2,centered_z=fire_z-NP_DIM/2;
+    int valid_x=0,valid_z=0;
+    int ox=gm_portal_axis_origin(
+        world,fire_x,bottom_y,fire_z,1,0,centered_x,&valid_x);
+    int oz=gm_portal_axis_origin(
+        world,fire_x,bottom_y,fire_z,0,1,centered_z,&valid_z);
+    int aligned=valid_x||valid_z;
+    int oy=aligned?bottom_y-1:fire_y-NP_DIM/2;
     for(int x=0;x<NP_DIM;++x)for(int y=0;y<NP_DIM;++y)for(int z=0;z<NP_DIM;++z)
         np_set(&local,x,y,z,mc_state(gm_world_block(world,ox+x,oy+y,oz+z),
                                      gm_world_meta(world,ox+x,oy+y,oz+z)));

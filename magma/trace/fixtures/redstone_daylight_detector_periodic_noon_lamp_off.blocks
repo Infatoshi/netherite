@@ -1,0 +1,4 @@
+# Stale noon inverted detector. Update removes power; lamp turns off at +4.
+12 77 8 1 0
+12 78 8 178 15
+13 78 8 124 0

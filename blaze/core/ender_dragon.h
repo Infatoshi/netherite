@@ -18,7 +18,6 @@
 #define ED_NUM_TICKS       200
 #define ED_NUM_CRYSTALS    10
 #define ED_DRAGON_MAX_HP   200.0f
-#define ED_HEAL_RANGE_SQ   (32.0 * 32.0)
 #define ED_STRAFE_RANGE_SQ (40.0 * 40.0)
 #define ED_DUMP_FIELDS     10
 
@@ -48,8 +47,10 @@ typedef struct {
     float  yaw;
     i32    phase;
     i32    phase_ticks;
+    i32    ticks_existed;
     i32    death_ticks;
     i32    heal_crystal_idx;
+    JavaRandom rand;
     u8     alive;
 } EdDragon;
 
@@ -79,22 +80,88 @@ MC_HD static inline double ed_closest_player_dist_sq(const EdArena *a, double x,
     return dx * dx + dy * dy + dz * dz;
 }
 
-MC_HD static inline int ed_find_nearest_crystal(const EdArena *a, double dx, double dy, double dz) {
-    int best = -1;
-    double best_d2 = 1.0e18;
-    for (int i = 0; i < ED_NUM_CRYSTALS; ++i) {
-        const EdCrystal *c = &a->crystals[i];
-        if (!c->alive) continue;
-        double cx = c->x - dx;
-        double cy = c->y - dy;
-        double cz = c->z - dz;
-        double d2 = cx * cx + cy * cy + cz * cz;
-        if (d2 < best_d2) {
-            best_d2 = d2;
-            best = i;
-        }
+/* World.getEntitiesWithinAABB(EntityEnderCrystal.class,
+ * dragonBB.expandXyz(32)). EntityDragon is 16x8 and EntityEnderCrystal is
+ * 2x2, so intersecting center bounds are x/z strictly within +/-41 and y
+ * strictly within (-34,+40). Index order is arena/spawn order; Java keeps the
+ * first crystal on an exact distance tie. */
+MC_HD static inline int ed_crystal_in_heal_query(
+        const EdDragon *d, const EdCrystal *c) {
+    double x=c->x-d->x,y=c->y-d->y,z=c->z-d->z;
+    return x>-41.0&&x<41.0&&y>-34.0&&y<40.0&&z>-41.0&&z<41.0;
+}
+
+MC_HD static inline int ed_find_nearest_healing_crystal(const EdArena *a) {
+    const EdDragon *d=&a->dragon;int best=-1;double best_d2=1.0e18;
+    for(int i=0;i<ED_NUM_CRYSTALS;++i){
+        const EdCrystal *c=&a->crystals[i];
+        if(!c->alive||!ed_crystal_in_heal_query(d,c))continue;
+        double x=c->x-d->x,y=c->y-d->y,z=c->z-d->z;
+        double d2=x*x+y*y+z*z;
+        if(d2<best_d2){best=i;best_d2=d2;}
     }
     return best;
+}
+
+/* Exact bounded EntityDragon.updateDragonEnderCrystal transition. The
+ * current reference heals before the one-in-ten reselection draw; it is not
+ * range-cleared between draws, only death-cleared. The caller owns the shared
+ * Entity rand ordering around this transition. */
+MC_HD static inline void ed_update_healing_crystal(EdArena *a) {
+    EdDragon *d=&a->dragon;int i=d->heal_crystal_idx;
+    if(i>=0&&i<ED_NUM_CRYSTALS){
+        if(!a->crystals[i].alive)d->heal_crystal_idx=-1;
+        else if(d->ticks_existed%10==0&&d->health<d->max_health){
+            d->health+=1.0f;
+            if(d->health>d->max_health)d->health=d->max_health;
+        }
+    }else d->heal_crystal_idx=-1;
+    if(jrand_int_bound(&d->rand,10)==0)
+        d->heal_crystal_idx=ed_find_nearest_healing_crystal(a);
+}
+
+/* EntityEnderCrystal.attackEntityFrom marks the crystal dead and runs its
+ * size-six explosion before DragonFightManager.onCrystalDestroyed reaches
+ * EntityDragon. Keep the two operations separate so product callers can
+ * preserve that synchronous ordering around their world explosion.
+ *
+ * The represented player is either the attacking player itself or the
+ * nearest attackable-player result used for a non-player damage source.
+ * Creative/spectator filtering is supplied by the product caller. */
+MC_HD static inline int ed_mark_crystal_destroyed(EdArena *a, int index) {
+    if (!a || index < 0 || index >= ED_NUM_CRYSTALS
+            || !a->crystals[index].alive)
+        return 0;
+    a->crystals[index].alive = 0;
+    return 1;
+}
+
+MC_HD static inline void ed_on_crystal_destroyed(
+        EdArena *a, int index, int source_is_player,
+        int player_can_be_targeted) {
+    if (!a || index < 0 || index >= ED_NUM_CRYSTALS) return;
+    EdDragon *d = &a->dragon;
+    const EdCrystal *c = &a->crystals[index];
+    if (d->alive && d->death_ticks == 0 && d->heal_crystal_idx == index) {
+        d->health -= 10.0f;
+        if (d->health < 0.0f) d->health = 0.0f;
+    }
+    if (d->alive && d->death_ticks == 0 && d->phase == ED_PHASE_CIRCLE
+            && a->player.alive && player_can_be_targeted) {
+        double dx = a->player.x - c->x;
+        double dy = a->player.y - c->y;
+        double dz = a->player.z - c->z;
+        /* A player damage source is used directly. Otherwise vanilla asks
+         * for the nearest attackable player within 64 horizontal/vertical. */
+        if (source_is_player
+                || (dx * dx + dz * dz <= 64.0 * 64.0 && fabs(dy) <= 64.0)) {
+            d->phase = ED_PHASE_STRAFE;
+            d->phase_ticks = 0;
+            d->target_x = a->player.x;
+            d->target_y = a->player.y + 10.0;
+            d->target_z = a->player.z;
+        }
+    }
 }
 
 MC_HD static inline void ed_tick_dragon(EdArena *a, const McSinTable *st) {
@@ -113,28 +180,13 @@ MC_HD static inline void ed_tick_dragon(EdArena *a, const McSinTable *st) {
         return;
     }
 
+    d->ticks_existed++;
     d->phase_ticks++;
-
-    int crystal_idx = ed_find_nearest_crystal(a, d->x, d->y, d->z);
-    EdCrystal *crystal = (crystal_idx >= 0) ? &a->crystals[crystal_idx] : NULL;
-    if (crystal) {
-        double cdx = crystal->x - d->x;
-        double cdy = crystal->y - d->y;
-        double cdz = crystal->z - d->z;
-        double d2 = cdx * cdx + cdy * cdy + cdz * cdz;
-        if (d2 < ED_HEAL_RANGE_SQ) {
-            d->heal_crystal_idx = crystal_idx;
-            if (d->phase_ticks % 10 == 0 && d->health < d->max_health) {
-                d->health += 1.0f;
-                if (d->health > d->max_health)
-                    d->health = d->max_health;
-            }
-        } else {
-            d->heal_crystal_idx = -1;
-        }
-    } else {
-        d->heal_crystal_idx = -1;
-    }
+    ed_update_healing_crystal(a);
+    int crystal_idx=d->heal_crystal_idx;
+    EdCrystal *crystal=(crystal_idx>=0&&crystal_idx<ED_NUM_CRYSTALS
+                        &&a->crystals[crystal_idx].alive)
+                       ?&a->crystals[crystal_idx]:NULL;
 
     switch (d->phase) {
     case ED_PHASE_CIRCLE:
@@ -220,8 +272,10 @@ MC_HD static inline void ed_init(EdArena *a, u64 seed) {
     d->yaw = 0.0f;
     d->phase = ED_PHASE_CIRCLE;
     d->phase_ticks = (i32)(seed % 180u);
+    d->ticks_existed = 0;
     d->death_ticks = 0;
     d->heal_crystal_idx = -1;
+    jrand_set(&d->rand,(i64)seed);
     d->alive = 1;
 
     for (int i = 0; i < ED_NUM_CRYSTALS; ++i) {
@@ -261,8 +315,8 @@ MC_HD static inline void ed_run(EdArena *a, const McSinTable *st, u64 seed, int 
 
     for (int t = 0; t < nticks; ++t) {
         a->tick = t;
-        if (t == destroy_tick)
-            a->crystals[destroy_idx].alive = 0;
+        if (t == destroy_tick && ed_mark_crystal_destroyed(a, destroy_idx))
+            ed_on_crystal_destroyed(a, destroy_idx, 1, 1);
         ed_tick_dragon(a, st);
         ed_pack_tick(&a->dragon, out + (size_t)t * ED_DUMP_FIELDS);
     }

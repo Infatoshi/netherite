@@ -66,17 +66,22 @@ MC_HD static inline i32 isr_max_stack_size(i32 item, i32 meta) {
     if (item == IC_WOODEN_PICKAXE || item == IC_STONE_PICKAXE ||
         item == 257 || item == 278 || /* iron/diamond pickaxe */
         item == 268 || item == 272 || item == 267 || item == 276 || /* swords */
-        item == 261 || item == 259 || item == 359 || item == 442 || item == 355) return 1;
+        item == 261 || item == 259 || item == 359 || item == 398 ||
+        item == 442 || item == 355) return 1;
     if (item == IC_ENCHANTED_BOOK) return 1; /* ItemEnchantedBook 1.11.2 */
     if (isr_is_armor_or_elytra(item)) return 1;
-    if (item == IC_BUCKET || item == IC_WATER_BUCKET || item == IC_LAVA_BUCKET) return 1;
+    if (item == IC_BUCKET) return 16;
+    if (item == IC_WATER_BUCKET || item == IC_LAVA_BUCKET || item == 329 ||
+        item == 373 || item == 438 || item == 441 ||
+        (item >= 417 && item <= 419) ||
+        (item >= 2256 && item <= 2267)) return 1;
     return ISR_INV_LIMIT;
 }
 
 MC_HD static inline int isr_is_damageable(i32 item) {
     return item == IC_WOODEN_PICKAXE || item == IC_STONE_PICKAXE || item == 257 ||
         item == 278 || item == 268 || item == 272 || item == 267 || item == 276 ||
-        item == 261 || item == 259 || item == 359 || item == 442 ||
+        item == 261 || item == 259 || item == 359 || item == 398 || item == 442 ||
         isr_is_armor_or_elytra(item);
 }
 

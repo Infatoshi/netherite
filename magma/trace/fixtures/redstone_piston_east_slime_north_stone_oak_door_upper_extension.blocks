@@ -1,0 +1,9 @@
+# EAST normal piston with a NORTH slime attachment. The side stone terminates
+# at the upper half of a supported oak door; the upper emits nothing directly
+# and its lower half owns the one deferred oak-door item.
+12 79 8 33 5
+13 79 8 165 0
+13 79 7 1 0
+14 77 7 1 0
+14 78 7 64 3
+14 79 7 64 11

@@ -1,0 +1,9 @@
+# An EAST-facing normal piston and one stone are staged before tick zero.
+# Adding the south-side redstone block powers the piston, which pushes the
+# stone and destroys supported fire at the terminal cell. Fire has DESTROY
+# mobility but quantityDropped=0; its already-scheduled future block-51
+# callback must remain queued after the moving block replaces it.
+12 78 8 33 5
+13 78 8 1 0
+14 77 8 1 0
+14 78 8 51 0

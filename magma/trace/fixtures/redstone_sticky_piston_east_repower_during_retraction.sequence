@@ -1,0 +1,4 @@
+# Begin retraction, then restore power while the source base is still block 36.
+# Rows are TICK DX DY DZ BLOCK META.
+0 4 1 1 0 0
+1 4 1 -1 152 0

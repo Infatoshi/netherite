@@ -1,0 +1,12 @@
+# The player starts at (8.5,78,8.5), faces north, and walks through the
+# attached east-west line. Both lamps expose hook power through activation and
+# the delayed release after the player has cleared the wire.
+5 78 7 1 0
+6 78 7 131 3
+7 78 7 132 0
+8 78 7 132 0
+9 78 7 132 0
+10 78 7 131 1
+11 78 7 1 0
+6 78 6 123 0
+10 78 6 123 0

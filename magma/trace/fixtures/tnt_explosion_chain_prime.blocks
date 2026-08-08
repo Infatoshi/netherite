@@ -1,0 +1,8 @@
+# One adjacent TNT replaces the west glass cell in the isolated crater.
+# Vanilla removes it and constructs a randomized short-fuse primed entity.
+15 83 8 46 0
+17 83 8 20 0
+16 83 7 20 0
+16 83 9 20 0
+16 82 8 20 0
+16 84 8 20 0

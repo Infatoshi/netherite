@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed one block above the player's feet at
+# tick zero and targets upper 175:10. The upper half drops nothing, but its
+# ordered notification destroys lower rose 175:4 and emits item 175:4 there.
+12 79 9 152 0
+13 77 8 3 0
+13 78 8 175 4
+13 79 8 175 10

@@ -1,0 +1,5 @@
+# Player-facing wall stone button at eye height. One physical use edge powers
+# metadata 3->11, schedules the +20 release, then hands the east lamp to +4.
+8 79 5 1 0
+8 79 6 77 3
+9 79 6 123 0

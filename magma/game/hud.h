@@ -80,7 +80,12 @@ enum {
     GM_GUI_FURNACE_FLAME,
     GM_GUI_FURNACE_ARROW,
     GM_GUI_FONT,
-    GM_GUI_CHEST_PANEL
+    GM_GUI_CHEST_PANEL,
+    GM_GUI_BREWING_PANEL,
+    GM_GUI_BREWING_PROGRESS,
+    GM_GUI_BREWING_FUEL,
+    GM_GUI_BREWING_BUBBLES,
+    GM_GUI_ENCHANTING_PANEL
 };
 
 /* Container-GUI art (assets/gui_atlas.h: real MC panels, font, item icons).

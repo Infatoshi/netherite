@@ -50,7 +50,7 @@ extern "C" {
 
 /* ============================ shared POD types ============================ */
 
-#define GM_MAX_POTION_EFFECTS 8
+#define GM_MAX_POTION_EFFECTS 32
 
 typedef struct {
     int id;        /* vanilla Potion registry id */
@@ -80,6 +80,7 @@ typedef struct {
     int   use;        /* right mouse held (place / use)          */
     int   do_break;   /* attack edge this tick -> break target   */
     int   do_place;   /* use edge this tick    -> place target   */
+    int   close_container; /* Escape/close current GUI edge      */
     int   hotbar_sel; /* 0..8 selected slot, or -1 = unchanged   */
     /* Container.slotClick applied this tick by gm_runtime_tick -> gm_container_click
      * (game/container_live.h): full inventory + open-container slot ids. */
@@ -171,12 +172,13 @@ typedef struct {
 #define GM_VIEW_BILLBOARD 30 /* thrown pearl/eye: camera-facing item sprite */
 #define GM_VIEW_DRAGON_FIREBALL 33 /* RenderDragonFireball direct 2x quad */
 #define GM_VIEW_FALLING_BLOCK 38 /* EntityFallingBlock full-size block model */
-#define GM_VIEW_EXPLOSION_LARGE 39 /* replay-only ParticleExplosionLarge */
-#define GM_VIEW_MINECART_CHEST 40
-#define GM_VIEW_MINECART_FURNACE 41
-#define GM_VIEW_MINECART_HOPPER 42
-#define GM_VIEW_MINECART_TNT 43
+#define GM_VIEW_EXPLOSION_LARGE 50 /* replay-only ParticleExplosionLarge */
+#define GM_VIEW_MINECART_CHEST 46
+#define GM_VIEW_MINECART_FURNACE 47
+#define GM_VIEW_MINECART_HOPPER 48
+#define GM_VIEW_MINECART_TNT 49
 #define GM_VIEW_TNT_PRIMED 44 /* EntityTNTPrimed lifted/scaled TNT block */
+#define GM_VIEW_FIREWORK 45 /* unattached EntityFireworkRocket item billboard */
 typedef struct {
     int   type;       /* EW_TYPE_* (zombie/skeleton/...) or GM_VIEW_ITEM */
     float x, y, z;    /* FEET position, world coords */
@@ -209,12 +211,16 @@ typedef struct {
     /* EntityEnderCrystal render state (RenderEnderCrystal) */
     float crystal_rot;       /* innerRotation (random-init spin/bob phase) */
     int   show_bottom;       /* bedrock base plate rendered */
-    int   beam_x, beam_y, beam_z; /* heal-beam target block, -1 = none */
+    int   beam_x, beam_y, beam_z; /* heal-beam target block */
+    int   has_beam;          /* target presence; avoids (-1,-1,-1) ambiguity */
     /* EntityDragon render state */
     float anim_time;         /* wing-flap phase */
     int   death_ticks;       /* 0..200 death collapse/beam animation */
     int   phase_id;          /* PhaseList id (3 LANDING, 4 TAKEOFF, 9 DYING) */
     int   stationary;        /* IPhase.getIsStationary (sitting phases) */
+    int   has_heal_beam;     /* current healingEnderCrystal is present */
+    float heal_x, heal_y, heal_z; /* exact healing-crystal position */
+    int   heal_crystal_ticks; /* healing crystal ticksExisted bob phase */
     /* Skin-variant override: 0 = model default, else CR_MOB_*+1 (pigman,
      * husk, stray, cave spider, mooshroom share their base mob's layout). */
     int   skin;
@@ -242,6 +248,12 @@ typedef struct {
     float boat_paddle[2];
 } GmEntityView;
 
+typedef struct {
+    int eid;
+    long long bolt_vertex;
+    float x, y, z;
+} GmLightningView;
+
 /* A block edit produced by the player tick, applied to the live world by app/main.c. */
 typedef struct {
     int wx, wy, wz;   /* WORLD coords */
@@ -252,6 +264,9 @@ typedef struct {
     int drop_id;      /* item id, or 0 when the block yields nothing */
     int drop_count;
     int drop_meta;
+    int harvest_tool; /* held item id for removal callbacks (0 = hand/non-break) */
+    int break_effect; /* PlayerControllerMP emitted world event 2001 */
+    int place_effect; /* successful ItemBlock placement emitted its SoundType */
 } GmBlockEdit;
 
 /* ============================ game/input_map.c (owner: INPUT agent) ============================
@@ -297,6 +312,9 @@ void      gm_world_set_block_meta(GmWorld *w, int wx, int wy, int wz, int id, in
 /* Snapshot bulk-load primitive: target chunk must already be ensured. Updates
  * canonical state + dirty mesh/light flags without recomputing light per cell. */
 void      gm_world_load_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int meta);
+int       gm_world_load_sky_light(
+              GmWorld *w, int wx, int wy, int wz, int value);
+void      gm_world_finalize_sky_light_snapshot(GmWorld *w);
 /* Monotonic block-mutation counter; bumps on every set_block(_meta). Callers
  * holding a copied window (runtime physics window) refill when it changes. */
 long long gm_world_block_gen(const GmWorld *w);
@@ -309,6 +327,12 @@ typedef struct {
     int rain_time, thunder_time;
     int raining, thundering;
     /* GameRules gates. Zero defaults retain the historical live-clock path. */
+    float prev_rain_strength, rain_strength;
+    float prev_thunder_strength, thunder_strength;
+    int clean_weather_time;
+    int weather_cycle;
+    /* doDaylightCycle off: world_time stays put while total_time (and the
+     * weather sim) keep ticking. 0 default = vanilla advance (back-compat). */
     int freeze_daylight;
     int freeze_weather;
 } GmWorldClock;
@@ -323,9 +347,32 @@ void      gm_world_clock_set_total_time(GmWorldClock *c, long long total_time);
  * kernel synchronized so the following tick continues from the injected state. */
 void      gm_world_clock_set_weather(GmWorldClock *c, int raining, int thundering,
                                      int rain_time, int thunder_time);
+void      gm_world_clock_set_weather_full(
+              GmWorldClock *c, int raining, int thundering,
+              int rain_time, int thunder_time, int clean_weather_time,
+              int weather_cycle, float prev_rain_strength,
+              float rain_strength, float prev_thunder_strength,
+              float thunder_strength);
+void      gm_world_clock_set_random_seed48(
+              GmWorldClock *c, unsigned long long seed48);
+unsigned long long gm_world_clock_random_seed48(const GmWorldClock *c);
+float     gm_world_rain_strength(const GmWorldClock *c, float partial_ticks);
+float     gm_world_thunder_strength(const GmWorldClock *c, float partial_ticks);
 
 /* Stand-on y (highest non-air + 1) at column (wx,wz); sensible default if ungenerated. */
 int       gm_world_surface_y(const GmWorld *w, int wx, int wz);
+/* Chunk.getPrecipitationHeight and the biome's precipitation kind:
+ * 0 disabled, 1 rain, 2 snow. */
+int       gm_world_precipitation_y(const GmWorld *w, int wx, int wz);
+int       gm_world_precipitation_kind(const GmWorld *w, int wx, int wy, int wz);
+float     gm_world_temperature(const GmWorld *w, int wx, int wy, int wz);
+int       gm_world_can_freeze(
+              const GmWorld *w, int wx, int wy, int wz, int no_water_adjacent);
+int       gm_world_can_snow(
+              const GmWorld *w, int wx, int wy, int wz, int check_light);
+int       gm_world_is_raining_at(
+              const GmWorld *w, const GmWorldClock *clock,
+              int wx, int wy, int wz);
 
 /* Atlas to bind as CrShadeCtx.atlas for the terrain passes (== bm_atlas()). */
 CrTexture gm_world_atlas(const GmWorld *w);
@@ -430,6 +477,25 @@ void gm_player_tick_gr(struct Chunk *window, const struct McSinTable *st,
                        const struct McGameRules *gamerules, GmAction act,
                        int ox, int oy, int oz,
                        GmBlockEdit *edits, int *nedits, int max_edits);
+void gm_player_tick_defer_food(
+                    struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits);
+void gm_player_tick_network_client(
+                    struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits);
+void gm_player_tick_network_client_effects(
+                    struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits,
+                    int haste_amplifier, int fatigue_amplifier, int riding);
+int gm_player_take_movement_sound(
+                    int *kind, double *x, double *y, double *z, float *volume);
+void gm_player_movement_audio_reset(void);
 
 /* Fill a GmPlayerView (world coords) from a PsvPlayer whose pos is in the LOCAL frame,
  * given the block offset (ox,oz) to convert local->world. Convenience for app/main.c. */
@@ -449,9 +515,14 @@ void gm_hud_draw(CrFramebuffer *fb, const GmPlayerView *pv);
 int       gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max);
 int       gm_minecart_contents_emit(const GmEntityView *ents, int n,
                                     CrVertex *out, int max);
+/* RenderDragon.renderCrystalBeams for crystal targets and dragon healing.
+ * Dedicated 96-vertex two-sided pass, entity lightmap, repeating beam texture. */
+int       gm_crystal_beams_emit(const GmEntityView *ents, int n,
+                                CrVertex *out, int max);
 int       gm_xp_orbs_emit(const GmEntityView *ents, int n, float view_yaw,
                           float view_pitch, CrVertex *out, int max);
 CrTexture gm_entity_atlas(void);
+CrTexture gm_crystal_beam_texture(void);
 /* Advance the dragon trail ring on a tick whose frame is not rendered
  * (sparse --frame-every capture); rendered ticks push inside the emit. */
 void      gm_dragon_pose_tick(int ent_id, float yaw, float y, float health);

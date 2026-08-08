@@ -2,6 +2,9 @@
  * references in game/underwater.h. */
 #include "game/underwater.h"
 
+#define MAGMA_POTION_RENDER_FOG_ONLY
+#include "game/potion_render.h"
+#undef MAGMA_POTION_RENDER_FOG_ONLY
 #include "game/sky.h"           /* GM_TERRAIN_FOG_FAR (pinned render distance) */
 #include "assets/underwater_tex.h"
 #include "world/light.h"        /* cr_k14_light_query */
@@ -105,17 +108,22 @@ static void viewpoint_offset(float yaw, float pitch, double *dx, double *dy,
 }
 
 void gm_uw_eval(const GmWorld *w, int dim, const GmPlayerView *pv,
-                float fog_c1, GmUnderwater *out) {
+                float fog_c1, float night_vision, int blindness_duration,
+                double void_fog_y_factor, GmUnderwater *out) {
     double ex = (double)pv->x;
     double ey = (double)pv->y + (double)pv->eye_height;
     double ez = (double)pv->z;
     double vdx, vdy, vdz;
     viewpoint_offset(pv->yaw, pv->pitch, &vdx, &vdy, &vdz);
     out->fluid = viewpoint_fluid(w, ex + vdx, ey + vdy, ez + vdz);
+    out->blindness = blindness_duration > 0;
     out->overlay = 0;
     out->fog01 = (CrVec3){0.0f, 0.0f, 0.0f};
     out->fog_rgba = (CrRgba){0, 0, 0, 255};
     out->density = 0.0f;
+    out->fog_end = gm_blindness_fog_end(
+        blindness_duration, GM_TERRAIN_FOG_FAR);
+    out->fog_start = out->fog_end * 0.25f;
     out->fov_scale = 1.0f;
     out->brightness = 0.0f;
 
@@ -127,8 +135,8 @@ void gm_uw_eval(const GmWorld *w, int dim, const GmPlayerView *pv,
      * look-ahead at a surface crossing. */
     {
         int x = mc_floor(ex), y = mc_floor(ey), z = mc_floor(ez);
-        int id = gm_world_block(w, x, y, z);
-        if (is_water(id)) {
+        if (gm_uw_eye_inside_water(w, ex, (double)pv->y, ez,
+                                   pv->eye_height)) {
             float filled = liquid_height_percent(gm_world_meta(w, x, y, z));
             out->overlay = ey < (double)(y + 1) + (double)filled;
             /* Entity.getBrightness: light brightness at the eye BlockPos. */
@@ -138,9 +146,8 @@ void gm_uw_eval(const GmWorld *w, int dim, const GmPlayerView *pv,
 
     if (out->fluid == 0) return;
 
-    /* updateFogColor fluid branches (no respiration / water breathing /
-     * blindness / night vision in the tapes), then * f13 (== fogColor1 at
-     * partialTicks 1.0). */
+    /* updateFogColor fluid branches (no respiration / water breathing), then
+     * f13, void/Blindness darkening, and Night Vision normalization. */
     float r, g, b;
     if (out->fluid == 1) {
         r = 0.02f; g = 0.02f; b = 0.2f;
@@ -151,6 +158,14 @@ void gm_uw_eval(const GmWorld *w, int dim, const GmPlayerView *pv,
         out->density = 2.0f;              /* setupFog lava */
     }
     out->fog01 = (CrVec3){r * fog_c1, g * fog_c1, b * fog_c1};
+    gm_void_blindness_rgb(
+        &out->fog01.x, &out->fog01.y, &out->fog01.z,
+        blindness_duration, (double)pv->y, void_fog_y_factor);
+    {
+        CrLightmapRgb nv = cr_night_vision_rgb(
+            out->fog01.x, out->fog01.y, out->fog01.z, night_vision);
+        out->fog01 = (CrVec3){nv.r, nv.g, nv.b};
+    }
     float cr = out->fog01.x, cg = out->fog01.y, cb = out->fog01.z;
     cr = cr < 0.0f ? 0.0f : (cr > 1.0f ? 1.0f : cr);
     cg = cg < 0.0f ? 0.0f : (cg > 1.0f ? 1.0f : cg);

@@ -1,0 +1,41 @@
+name: double_plant_gallery
+world:
+  seed: 0
+  mode: creative
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /gamemode creative @p
+  - /fill ~-8 ~ ~10 ~8 ~3 ~10 minecraft:stone
+setup_settle_ticks: 0
+setup_qrl:
+  # Both halves must be placed in one server tick. Settle afterward so the
+  # recorder starts outside the player's reset/on-ground boundary.
+  - cmd: runcmds
+    action:
+      cmds:
+        - setblock ~-5 ~ ~8 minecraft:double_plant 0
+        - setblock ~-5 ~1 ~8 minecraft:double_plant 8
+        - setblock ~-3 ~ ~8 minecraft:double_plant 1
+        - setblock ~-3 ~1 ~8 minecraft:double_plant 8
+        - setblock ~-1 ~ ~8 minecraft:double_plant 2
+        - setblock ~-1 ~1 ~8 minecraft:double_plant 8
+        - setblock ~1 ~ ~8 minecraft:double_plant 3
+        - setblock ~1 ~1 ~8 minecraft:double_plant 8
+        - setblock ~3 ~ ~8 minecraft:double_plant 4
+        - setblock ~3 ~1 ~8 minecraft:double_plant 8
+        - setblock ~5 ~ ~8 minecraft:double_plant 5
+        - setblock ~5 ~1 ~8 minecraft:double_plant 8
+    settle_ticks: 10
+duration_ticks: 60
+frames_every: 10
+input:
+  segments:
+    - seconds: 3.0
+known_divergences: []

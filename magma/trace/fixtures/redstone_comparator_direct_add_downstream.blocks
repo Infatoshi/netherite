@@ -1,0 +1,9 @@
+# The center at 12,78,8 is empty. A stone at the prospective comparator's
+# east output separates it from a stale powered EAST-output repeater. Aligned
+# comparator onBlockAdded propagates through the stone and schedules the
+# downstream repeater off; the wrong-direction placement is the control.
+12 77 8 1 0
+13 78 8 1 0
+14 77 8 1 0
+15 78 8 124 0
+14 78 8 94 1

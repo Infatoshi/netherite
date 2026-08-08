@@ -1,0 +1,4 @@
+# A lit wall redstone torch faces east (metadata 1) and is attached to the
+# stone immediately west of it. Removing that stone must drop the torch.
+11 78 8 1 0
+12 78 8 76 1

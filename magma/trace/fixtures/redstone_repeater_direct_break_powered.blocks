@@ -1,0 +1,8 @@
+# A supported SOUTH-facing powered repeater strongly powers the stone to its
+# north. The lamp sees only that indirect output and must receive the removed
+# repeater's output-neighborhood notification when tick zero replaces it.
+12 77 8 1 0
+12 78 9 152 0
+12 78 8 94 0
+12 78 7 1 0
+13 78 7 124 0

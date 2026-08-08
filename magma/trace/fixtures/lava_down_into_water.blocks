@@ -1,0 +1,9 @@
+# x y z id meta
+# One-cell water basin below a raised dynamic-lava source. The horizontal
+# stone ring keeps water quiescent until lava's scheduled downward flow.
+12 78 7 1 0
+11 78 8 1 0
+13 78 8 1 0
+12 78 9 1 0
+12 78 8 8 0
+12 79 8 10 0

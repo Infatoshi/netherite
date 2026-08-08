@@ -1,0 +1,5 @@
+# An open gate north of the oak fence creates its north collision arm without
+# contributing a collision box of its own.
+12 81 9 152 0
+12 79 8 85 0
+12 79 7 107 4

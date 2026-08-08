@@ -1,8 +1,10 @@
 package qrl;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import com.microsoft.Malmo.Utils.TimeHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityPlayerSP;
@@ -43,21 +45,584 @@ import java.util.concurrent.TimeUnit;
      clientSideOnly = true, acceptableRemoteVersions = "*")
 public class Recorder {
     public static final String MODID = "qrl";
+    private static volatile Recorder oracleInstance = null;
     static int PORT = 25575; // overridable: -Dqrl.port (gradle -PqrlPort) > qrl_launch.json "port" > default
     static final float QUANTUM = 15.0f;
     static final int N_ENTITIES = 8;
     static final int N_ENTITIES_MAX = 64;  // tick-trace oracle: emit up to this many nearby entities
+    static final int N_SCHEDULED_TICKS_MAX = 4096;
+    static final int N_ITEM_FRAMES_MAX = 256;
+    static final int N_MOVING_PISTONS_MAX = 64;
 
     private static final class Req {
         final String cmd; final JsonObject action; final JsonObject world;
-        final SynchronousQueue<String> resp = new SynchronousQueue<String>();
+        // A capacity-one mailbox keeps fast server tasks from dropping their
+        // answer before the socket thread reaches poll(). SynchronousQueue
+        // made bare resp.offer() handlers intermittently time out for 120 s.
+        final java.util.concurrent.ArrayBlockingQueue<String> resp =
+            new java.util.concurrent.ArrayBlockingQueue<String>(1);
         boolean applied = false;
         Req(String cmd, JsonObject action, JsonObject world) { this.cmd = cmd; this.action = action; this.world = world; }
+    }
+
+    /* Prevent the integrated client's mirror EntityItem constructors from
+     * racing java.lang.Math's process-global RNG during the server oracle
+     * boundary. The captured real server items are spawned manually after
+     * the causal cursor has been snapshotted. */
+    private static final class OracleLivingDropsCapture {
+        final net.minecraft.entity.EntityLivingBase target;
+        boolean fired;
+
+        OracleLivingDropsCapture(
+                net.minecraft.entity.EntityLivingBase targetIn) {
+            target = targetIn;
+        }
+
+        @SubscribeEvent
+        public void onLivingDrops(
+                net.minecraftforge.event.entity.living.LivingDropsEvent event) {
+            if (event.getEntityLiving() == target) {
+                fired = true;
+                event.setCanceled(true);
+                /* EntityLivingBase turns captureDrops off before posting this
+                 * event. Re-arm it so subclass tails such as EntityPig's
+                 * saddle drop remain server-local too. */
+                target.captureDrops = true;
+            }
+        }
+    }
+
+    private static final class OracleMobEventCapture {
+        final int eid, status;
+        final String sound, category;
+        final double x, y, z;
+        final float volume, pitch;
+
+        OracleMobEventCapture(int eidIn, int statusIn) {
+            eid = eidIn;
+            status = statusIn;
+            sound = category = null;
+            x = y = z = 0.0D;
+            volume = pitch = 0.0F;
+        }
+
+        OracleMobEventCapture(int eidIn, String soundIn, String categoryIn,
+                double xIn, double yIn, double zIn,
+                float volumeIn, float pitchIn) {
+            eid = eidIn;
+            status = -1;
+            sound = soundIn;
+            category = categoryIn;
+            x = xIn;
+            y = yIn;
+            z = zIn;
+            volume = volumeIn;
+            pitch = pitchIn;
+        }
+
+        JsonObject toJson() {
+            JsonObject out = new JsonObject();
+            out.addProperty("kind", status >= 0 ? "status" : "sound");
+            out.addProperty("eid", eid);
+            if (status >= 0) {
+                out.addProperty("status", status);
+            } else {
+                out.addProperty("sound", sound);
+                out.addProperty("category", category);
+                out.addProperty("x", x);
+                out.addProperty("y", y);
+                out.addProperty("z", z);
+                out.addProperty("volume", volume);
+                out.addProperty("pitch", pitch);
+            }
+            return out;
+        }
+    }
+
+    private static final class OracleClientSoundCapture {
+        final String sound, category;
+        final int tick;
+        final double x, y, z, distanceSq;
+        final float volume, pitch;
+        final boolean distanceDelay;
+        final int delayTicks;
+
+        OracleClientSoundCapture(int tickIn, String soundIn, String categoryIn,
+                double xIn, double yIn, double zIn,
+                float volumeIn, float pitchIn, boolean distanceDelayIn,
+                double distanceSqIn, int delayTicksIn) {
+            tick = tickIn;
+            sound = soundIn;
+            category = categoryIn;
+            x = xIn;
+            y = yIn;
+            z = zIn;
+            volume = volumeIn;
+            pitch = pitchIn;
+            distanceDelay = distanceDelayIn;
+            distanceSq = distanceSqIn;
+            delayTicks = delayTicksIn;
+        }
+
+        JsonObject toJson() {
+            JsonObject out = new JsonObject();
+            out.addProperty("tick", tick);
+            out.addProperty("sound", sound);
+            out.addProperty("category", category);
+            out.addProperty("x", x);
+            out.addProperty("y", y);
+            out.addProperty("z", z);
+            out.addProperty("volume", volume);
+            out.addProperty("pitch", pitch);
+            out.addProperty("pitch_bits", oracleFloatBits(pitch));
+            out.addProperty("distance_delay", distanceDelay);
+            out.addProperty("distance_sq", distanceSq);
+            out.addProperty("delay_ticks", delayTicks);
+            return out;
+        }
+    }
+
+    private static final class OracleWorldEventCapture
+            implements net.minecraft.world.IWorldEventListener {
+        private static final class Record {
+            final int id, x, y, z, data;
+
+            Record(int idIn, BlockPos pos, int dataIn) {
+                id = idIn;
+                x = pos.getX();
+                y = pos.getY();
+                z = pos.getZ();
+                data = dataIn;
+            }
+
+            JsonObject toJson(int seq) {
+                JsonObject out = new JsonObject();
+                out.addProperty("seq", seq);
+                out.addProperty("id", id);
+                out.addProperty("x", x);
+                out.addProperty("y", y);
+                out.addProperty("z", z);
+                out.addProperty("data", data);
+                return out;
+            }
+        }
+
+        private static final class ParticleRecord {
+            final int id;
+            final boolean ignoreRange;
+            final double x, y, z, vx, vy, vz;
+            final int[] parameters;
+
+            ParticleRecord(int idIn, boolean ignoreRangeIn,
+                    double xIn, double yIn, double zIn,
+                    double vxIn, double vyIn, double vzIn,
+                    int[] parametersIn) {
+                id = idIn;
+                ignoreRange = ignoreRangeIn;
+                x = xIn;
+                y = yIn;
+                z = zIn;
+                vx = vxIn;
+                vy = vyIn;
+                vz = vzIn;
+                parameters = parametersIn.clone();
+            }
+
+            private static String bits(double value) {
+                String hex = Long.toHexString(Double.doubleToLongBits(value));
+                if (hex.length() >= 16) return hex;
+                return "0000000000000000".substring(hex.length()) + hex;
+            }
+
+            JsonArray payloadBits() {
+                JsonArray out = new JsonArray();
+                out.add(new JsonPrimitive(bits(x)));
+                out.add(new JsonPrimitive(bits(y)));
+                out.add(new JsonPrimitive(bits(z)));
+                out.add(new JsonPrimitive(bits(vx)));
+                out.add(new JsonPrimitive(bits(vy)));
+                out.add(new JsonPrimitive(bits(vz)));
+                return out;
+            }
+        }
+
+        final int minX, minY, minZ, maxX, maxY, maxZ;
+        final java.util.ArrayList<Record> records =
+            new java.util.ArrayList<Record>();
+        final java.util.ArrayList<ParticleRecord> particles =
+            new java.util.ArrayList<ParticleRecord>();
+        boolean captureParticles;
+        boolean captureBlockBreakEvents;
+        boolean captureJukeboxEvents;
+
+        OracleWorldEventCapture(
+                int minXIn, int minYIn, int minZIn,
+                int maxXIn, int maxYIn, int maxZIn) {
+            minX = minXIn;
+            minY = minYIn;
+            minZ = minZIn;
+            maxX = maxXIn;
+            maxY = maxYIn;
+            maxZ = maxZIn;
+        }
+
+        public void playEvent(net.minecraft.entity.player.EntityPlayer player,
+                int type, BlockPos pos, int data) {
+            if ((type == 1029 || type == 1031
+                    || (captureJukeboxEvents && type == 1010)
+                    || (captureBlockBreakEvents && type == 2001))
+                    && pos.getX() >= minX && pos.getX() <= maxX
+                    && pos.getY() >= minY && pos.getY() <= maxY
+                    && pos.getZ() >= minZ && pos.getZ() <= maxZ)
+                records.add(new Record(type, pos, data));
+        }
+
+        JsonArray toJson() {
+            JsonArray out = new JsonArray();
+            for (int i = 0; i < records.size(); ++i)
+                out.add(records.get(i).toJson(i));
+            return out;
+        }
+
+        JsonArray terminalParticlesToJson(int eid, int dimension) {
+            JsonArray out = new JsonArray();
+            if (particles.isEmpty()) return out;
+            ParticleRecord first = particles.get(0);
+            JsonObject batch = new JsonObject();
+            batch.addProperty("seq", 0);
+            batch.addProperty("eid", eid);
+            batch.addProperty("dimension", dimension);
+            batch.addProperty("particle_id", first.id);
+            batch.addProperty("ignore_range", first.ignoreRange);
+            JsonArray parameters = new JsonArray();
+            for (int value : first.parameters)
+                parameters.add(new JsonPrimitive(value));
+            batch.add("parameters", parameters);
+            JsonArray payloads = new JsonArray();
+            for (ParticleRecord particle : particles)
+                payloads.add(particle.payloadBits());
+            batch.add("particles", payloads);
+            out.add(batch);
+            return out;
+        }
+
+        JsonArray particlesToJson() {
+            JsonArray out = new JsonArray();
+            for (int i = 0; i < particles.size(); ++i) {
+                ParticleRecord particle = particles.get(i);
+                JsonObject row = new JsonObject();
+                row.addProperty("seq", i);
+                row.addProperty("id", particle.id);
+                row.addProperty("ignore_range", particle.ignoreRange);
+                JsonArray parameters = new JsonArray();
+                for (int value : particle.parameters)
+                    parameters.add(new JsonPrimitive(value));
+                row.add("parameters", parameters);
+                row.add("payload_bits", particle.payloadBits());
+                out.add(row);
+            }
+            return out;
+        }
+
+        public void notifyBlockUpdate(net.minecraft.world.World world,
+                BlockPos pos,
+                net.minecraft.block.state.IBlockState oldState,
+                net.minecraft.block.state.IBlockState newState, int flags) { }
+        public void notifyLightSet(BlockPos pos) { }
+        public void markBlockRangeForRenderUpdate(
+                int x1, int y1, int z1, int x2, int y2, int z2) { }
+        public void playSoundToAllNearExcept(
+                net.minecraft.entity.player.EntityPlayer player,
+                net.minecraft.util.SoundEvent sound,
+                net.minecraft.util.SoundCategory category,
+                double x, double y, double z, float volume, float pitch) { }
+        public void playRecord(
+                net.minecraft.util.SoundEvent sound, BlockPos pos) { }
+        public void spawnParticle(int id, boolean ignoreRange,
+                double x, double y, double z,
+                double vx, double vy, double vz, int... parameters) {
+            if (captureParticles
+                    && x >= minX && x <= maxX + 1
+                    && y >= minY && y <= maxY + 1
+                    && z >= minZ && z <= maxZ + 1)
+                particles.add(new ParticleRecord(
+                    id, ignoreRange, x, y, z, vx, vy, vz, parameters));
+        }
+        public void spawnParticle(int id, boolean ignoreRange,
+                boolean minimumParticles, double x, double y, double z,
+                double vx, double vy, double vz, int... parameters) {
+            spawnParticle(id, ignoreRange, x, y, z, vx, vy, vz, parameters);
+        }
+        public void onEntityAdded(net.minecraft.entity.Entity entity) { }
+        public void onEntityRemoved(net.minecraft.entity.Entity entity) { }
+        public void broadcastSound(int id, BlockPos pos, int data) { }
+        public void sendBlockBreakProgress(
+                int breakerId, BlockPos pos, int progress) { }
+    }
+
+    private static String oracleFloatBits(float value) {
+        String hex = Integer.toHexString(Float.floatToRawIntBits(value));
+        if (hex.length() >= 8) return hex;
+        return "00000000".substring(hex.length()) + hex;
     }
 
     // game thread <-> socket thread handoff (one in-flight request)
     private final SynchronousQueue<Req> incoming = new SynchronousQueue<Req>();
     private Req inFlight = null;
+    // The ordinary bridge stays responsive to interactive play by waiting only
+    // 20 ms for the next action. Tick-trace oracles opt into a longer bounded
+    // wait so host scheduling cannot insert an unobserved client physics tick.
+    private volatile int stepLockstepWaitMs = 20;
+
+    // Tick-trace oracle: the integrated server normally runs on its own thread,
+    // so one client step can straddle zero, one, or two authoritative ticks.
+    // Keep this gate entirely local to qrl (Malmo's global sync gate also stalls
+    // the client). Setup runs freely; server_step_lock parks the server at the
+    // next ServerTickEvent.START, and each subsequent qrl step grants one tick.
+    private final Object oracleServerMonitor = new Object();
+    private net.minecraft.world.WorldServer oracleMobEventWorld = null;
+    private net.minecraft.world.WorldServer oracleMateUntrackedWorld = null;
+    private net.minecraft.entity.passive.EntityAnimal
+        oracleMateDirectChildPinInitiator = null;
+    private long oracleMateDirectChildSeed48 = -1L;
+    private boolean oracleMateDirectChildHaveNextGaussian = false;
+    private double oracleMateDirectChildNextGaussian = 0.0D;
+    private int oracleMateDirectChildPinCount = 0;
+    private net.minecraft.entity.passive.EntityAnimal oracleMateTickFirst = null;
+    private net.minecraft.entity.passive.EntityAnimal oracleMateTickSecond = null;
+    private net.minecraft.entity.passive.EntityAnimal oracleMateTickThird = null;
+    private net.minecraft.entity.passive.EntityAnimal oracleMateTickFourth = null;
+    private long oracleMateTickChildSeed48 = -1L;
+    private long oracleMateTickSecondChildSeed48 = -1L;
+    private long oracleMateTickMathSeed48 = -1L;
+    private int oracleMateTickNextEntityId = -1;
+    private int oracleMateTickPairCount = 1;
+    private int oracleMateTickDelayHookCount = 0;
+    private int oracleMateTickBirthPinCount = 0;
+    private int oracleMateTickChildPinCount = 0;
+    private boolean oracleMateTickTargetValid = false;
+    private final java.util.ArrayList<Integer> oracleMateTickUpdateOrder =
+        new java.util.ArrayList<Integer>();
+    /* Kept separate from mate's list because this fixture observes the
+     * player prepass plus the terminal passenger recursion. */
+    private net.minecraft.world.WorldServer oraclePigDeathDismountWorld = null;
+    private net.minecraft.entity.passive.EntityPig oraclePigDeathDismountPig = null;
+    private final java.util.ArrayList<JsonObject> oraclePigDeathDismountOrder =
+        new java.util.ArrayList<JsonObject>();
+    private final java.util.IdentityHashMap<net.minecraft.entity.Entity, Integer>
+        oracleMobEventTargets =
+            new java.util.IdentityHashMap<net.minecraft.entity.Entity, Integer>();
+    private final ThreadLocal<java.util.ArrayDeque<net.minecraft.entity.Entity>>
+        oracleMobEventSoundSources =
+            new ThreadLocal<java.util.ArrayDeque<net.minecraft.entity.Entity>>() {
+                @Override protected java.util.ArrayDeque<net.minecraft.entity.Entity>
+                        initialValue() {
+                    return new java.util.ArrayDeque<net.minecraft.entity.Entity>();
+                }
+            };
+    private final java.util.ArrayList<OracleMobEventCapture>
+        oracleMobEventCapture =
+            new java.util.ArrayList<OracleMobEventCapture>();
+    private final java.util.ArrayList<OracleClientSoundCapture>
+        oracleClientSoundCapture =
+            new java.util.ArrayList<OracleClientSoundCapture>();
+    private volatile boolean oracleClientSoundActive = false;
+    private int oracleClientSoundTick = 0;
+    private volatile boolean oracleServerGate = false;
+    private boolean oracleServerWaiting = false;
+    private boolean oracleServerTickInFlight = false;
+    private long oracleServerPermits = 0;
+    private long oracleServerCompleted = 0;
+    private boolean oracleAuthoritativeValid = false;
+    private int oracleAuthPlayerTicks = 0;
+    private double oracleAuthY = 0.0D;
+    private double oracleAuthBbMinY = 0.0D;
+    private double oracleAuthBbMaxY = 0.0D;
+    private boolean oracleAuthOnGround = false;
+    private boolean oracleAuthInWater = false;
+    private int oracleAuthAir = 300;
+    private float oracleAuthHealth = 20.0F;
+    private float oracleAuthMaxHealth = 20.0F;
+    private float oracleAuthAbsorption = 0.0F;
+    private float oracleAuthFallDistance = 0.0F;
+    private int oracleAuthFood = 20;
+    private float oracleAuthSaturation = 5.0F;
+    private float oracleAuthFoodExhaustion = 0.0F;
+    private int oracleAuthFoodTimer = 0;
+    private int oracleAuthFire = 0;
+    private int oracleAuthHurtTime = 0;
+    private int oracleAuthHurtResistantTime = 0;
+    private int oracleAuthDeathTime = 0;
+    private float oracleAuthAttackCooldown = 1.0F;
+    private int oracleAuthAttackTicks = 0;
+    private int oracleAuthXp = 0;
+    private float oracleAuthXpFrac = 0.0F;
+    private int oracleAuthXpTotal = 0;
+    private double oracleAuthMovementSpeed = 0.10000000149011612D;
+    private int oracleAuthDim = 0;
+    private boolean oracleAuthDoEntityDrops = true;
+    private boolean oracleAuthMovePacketCursorValid = false;
+    private int oracleAuthPositionUpdateTicks = 0;
+    private boolean oracleAuthPositionPacketPending = false;
+    private double oracleAuthX = 0.0D;
+    private double oracleAuthZ = 0.0D;
+    private double oracleAuthMotionX = 0.0D;
+    private double oracleAuthMotionY = 0.0D;
+    private double oracleAuthMotionZ = 0.0D;
+    private boolean oracleAuthSprinting = false;
+    private double oracleAuthNetLastGoodX = 0.0D;
+    private double oracleAuthNetLastGoodY = 0.0D;
+    private double oracleAuthNetLastGoodZ = 0.0D;
+    private int oracleAuthNetMovePackets = 0;
+    private int oracleAuthNextEntityId = 0;
+    private JsonArray oracleAuthEntities = new JsonArray();
+    private JsonArray oracleAuthPotions = new JsonArray();
+    private JsonArray oracleAuthInventory = new JsonArray();
+    private JsonArray oracleAuthArmor = new JsonArray();
+    private int oracleAuthHeldSlot = 0;
+    private int oracleAuthHeldId = 0;
+    private int oracleAuthHeldCount = 0;
+    private int oracleAuthHeldMeta = 0;
+    private JsonArray oracleAuthScheduledTicks = new JsonArray();
+    private boolean oracleAuthScheduledTicksComplete = false;
+    private String oracleAuthScheduledTicksError = "";
+    private JsonArray oracleAuthComparators = new JsonArray();
+    private boolean oracleAuthComparatorsComplete = false;
+    private String oracleAuthComparatorsError = "";
+    private JsonArray oracleAuthContainers = new JsonArray();
+    private boolean oracleAuthContainersComplete = false;
+    private String oracleAuthContainersError = "";
+    private JsonArray oracleAuthFlowerPots = new JsonArray();
+    private boolean oracleAuthFlowerPotsComplete = false;
+    private String oracleAuthFlowerPotsError = "";
+    private JsonArray oracleAuthSkulls = new JsonArray();
+    private boolean oracleAuthSkullsComplete = false;
+    private String oracleAuthSkullsError = "";
+    private JsonArray oracleAuthMovingPistons = new JsonArray();
+    private boolean oracleAuthMovingPistonsComplete = false;
+    private String oracleAuthMovingPistonsError = "";
+    private JsonArray oracleAuthItemFrames = new JsonArray();
+    private boolean oracleAuthItemFramesComplete = false;
+    private String oracleAuthItemFramesError = "";
+    private JsonArray oracleAuthRedstoneTorchToggles = new JsonArray();
+    private boolean oracleAuthRedstoneTorchTogglesComplete = false;
+    private String oracleAuthRedstoneTorchTogglesError = "";
+    private long oracleAuthWorldTime = 0L;
+    private long oracleAuthTotalTime = 0L;
+    private int oracleAuthRainTime = 0;
+    private int oracleAuthThunderTime = 0;
+    private boolean oracleAuthRaining = false;
+    private boolean oracleAuthThundering = false;
+    private int oracleAuthCleanWeatherTime = 0;
+    private boolean oracleAuthDoWeatherCycle = true;
+    private boolean oracleAuthDoDaylightCycle = true;
+    private float oracleAuthPrevRainStrength = 0.0F;
+    private float oracleAuthRainStrength = 0.0F;
+    private float oracleAuthPrevThunderStrength = 0.0F;
+    private float oracleAuthThunderStrength = 0.0F;
+    private long oracleAuthWorldRandSeed48 = 0L;
+    private boolean oracleAuthWorldRandHaveGaussian = false;
+    private double oracleAuthWorldRandGaussian = 0.0D;
+    private long oracleAuthMathRandSeed48 = 0L;
+    private long oracleAuthBlockRandSeed48 = -1L;
+    private int oracleAuthWorldUpdateLCG = 0;
+    /*
+     * Cursor checkpoints immediately before and after a controlled
+     * tick-boundary block edit and its synchronously flushed BlockEvents. The
+     * ordinary end-of-server-tick cursors include unrelated loaded-chunk and
+     * integrated-client work. A before/after pair preserves the exact edit's
+     * causal transition even when that ambient work changes the absolute
+     * cursor used to begin a later edit in the same trace.
+     */
+    private boolean oracleControlledInputValid = false;
+    private long oracleControlledBeforeWorldRandSeed48 = -1L;
+    private long oracleControlledBeforeMathRandSeed48 = -1L;
+    private long oracleControlledBeforeBlockRandSeed48 = -1L;
+    private int oracleControlledBeforeWorldUpdateLCG = 0;
+    private int oracleControlledBeforeNextEntityId = -1;
+    private long oracleControlledWorldRandSeed48 = -1L;
+    private long oracleControlledMathRandSeed48 = -1L;
+    private long oracleControlledBlockRandSeed48 = -1L;
+    private int oracleControlledWorldUpdateLCG = 0;
+    private int oracleControlledNextEntityId = -1;
+    private boolean oracleAuthControlledInputValid = false;
+    private long oracleAuthControlledBeforeWorldRandSeed48 = -1L;
+    private long oracleAuthControlledBeforeMathRandSeed48 = -1L;
+    private long oracleAuthControlledBeforeBlockRandSeed48 = -1L;
+    private int oracleAuthControlledBeforeWorldUpdateLCG = 0;
+    private int oracleAuthControlledBeforeNextEntityId = -1;
+    private long oracleAuthControlledWorldRandSeed48 = -1L;
+    private long oracleAuthControlledMathRandSeed48 = -1L;
+    private long oracleAuthControlledBlockRandSeed48 = -1L;
+    private int oracleAuthControlledWorldUpdateLCG = 0;
+    private int oracleAuthControlledNextEntityId = -1;
+    /*
+     * Controlled random-tick oracle input. The socket thread may only queue it
+     * while the server is parked at START; the next granted server tick invokes
+     * the real Block.randomTick callback on the server thread before the
+     * ordinary MinecraftServer tick body.
+     */
+    private boolean oracleRandomTickPending = false;
+    private int oracleRandomTickX = 0;
+    private int oracleRandomTickY = 0;
+    private int oracleRandomTickZ = 0;
+    private int oracleRandomTickBlock = 0;
+    /* Optional scheduled-callback RNG fixture. A BlockFire mixin restores and
+     * records World.rand at the callback boundary itself, after the scheduler
+     * has selected the exact armed world/position/due entry. */
+    private boolean oracleScheduledRandomSeedPending = false;
+    private long oracleScheduledRandomPublicSeed = 0L;
+    private long oracleScheduledRandomDueTime = 0L;
+    private net.minecraft.world.WorldServer oracleScheduledRandomWorld = null;
+    private int oracleScheduledRandomX = 0;
+    private int oracleScheduledRandomY = 0;
+    private int oracleScheduledRandomZ = 0;
+    private int oracleScheduledRandomBlock = 0;
+    private java.util.Random oracleScheduledCallbackRandom = null;
+    private boolean oracleScheduledCallbackActive = false;
+    private boolean oracleScheduledCallbackValid = false;
+    private long oracleScheduledCallbackBeforeSeed48 = -1L;
+    private long oracleScheduledCallbackAfterSeed48 = -1L;
+    private long oracleScheduledCallbackTotalTime = -1L;
+    private boolean oracleBlockMutationPending = false;
+    private int oracleBlockMutationX = 0;
+    private int oracleBlockMutationY = 0;
+    private int oracleBlockMutationZ = 0;
+    private int oracleBlockMutationId = 0;
+    private int oracleBlockMutationMeta = 0;
+    private boolean oracleBlockMutationHarvest = false;
+    private boolean oraclePlayerUseCursorRestorePending = false;
+    private long oraclePlayerUseWorldRandSeed48 = -1L;
+    private long oraclePlayerUseMathRandSeed48 = -1L;
+    private long oraclePlayerUseBlockRandSeed48 = -1L;
+    private int oraclePlayerUseNextEntityId = -1;
+    private boolean oraclePlayerUseItemRandomPending = false;
+    private boolean oracleTntArrowCursorRestorePending = false;
+    private long oracleTntArrowWorldRandSeed48 = -1L;
+    private long oracleTntArrowMathRandSeed48 = -1L;
+    private long oracleTntArrowBlockRandSeed48 = -1L;
+    private int oracleTntArrowNextEntityId = -1;
+    private boolean oracleTntDetonationCursorRestorePending = false;
+    private long oracleTntDetonationWorldRandSeed48 = -1L;
+    private long oracleTntDetonationMathRandSeed48 = -1L;
+    private int oracleTntDetonationNextEntityId = -1;
+    private boolean oracleTntDetonationDiagnosticValid = false;
+    private double oracleTntDetonationX = 0.0D;
+    private double oracleTntDetonationY = 0.0D;
+    private double oracleTntDetonationZ = 0.0D;
+    private float oracleTntDetonationDensity = 0.0F;
+    private double oracleTntDetonationRange = 0.0D;
+    private double oracleTntDetonationStrength = 0.0D;
+    private float oracleTntDetonationPacketX = 0.0F;
+    private float oracleTntDetonationPacketY = 0.0F;
+    private float oracleTntDetonationPacketZ = 0.0F;
+    private int oracleTntDetonationDamage = 0;
+    /** Cold potion fixtures mirror the parked server's post-tick effect state
+     * onto the client before its next movement tick. This removes Netty
+     * delivery jitter while preserving the integrated server-first ordering. */
+    private volatile boolean oracleMirrorPotionFixture = false;
+    private volatile JsonObject oraclePotionClientSnapshot = null;
+
     private boolean launching = false;
     private long initStartNanos = 0;  // set when launchWorld fires
     private double lastInitMs = 0;     // measured world-gen/init duration
@@ -179,6 +744,13 @@ public class Recorder {
      * deterministic for replay. Client thread only. */
     private static final java.util.List<String> recParticles =
         new java.util.ArrayList<String>();
+    /** Player entity flag-7 values delivered by SPacketEntityMetadata since
+     * the last recorded tick. */
+    private static final java.util.List<Integer> recFlag7Metadata =
+        new java.util.ArrayList<Integer>();
+    /** Rotation sampled at ClientTickEvent.START for this tick's travel. */
+    private static float recPreYaw = 0.0F, recPrePitch = 0.0F;
+    private static boolean recPreLookValid = false;
     private volatile String recSnapRoot = null;   // <tape>_world, live while recording
     private int recLastPlayerTicksExisted = Integer.MIN_VALUE;
     private int recLastDimension = Integer.MIN_VALUE;
@@ -276,6 +848,24 @@ public class Recorder {
         recPositionVy = mc.player.motionY;
         recPositionVz = mc.player.motionZ;
         recPositionPending = true;
+    }
+
+    /** Capture the integrated-server round trip for player fall-flying flag 7. */
+    public static void recordPlayerFlag7Metadata(
+            net.minecraft.network.play.server.SPacketEntityMetadata packet) {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.player == null
+                || packet.getEntityId() != mc.player.getEntityId()) return;
+        java.util.List<net.minecraft.network.datasync.EntityDataManager.DataEntry<?>> entries =
+            packet.getDataManagerEntries();
+        if (entries == null) return;
+        for (net.minecraft.network.datasync.EntityDataManager.DataEntry<?> entry : entries) {
+            if (entry.getKey().getId() != 0
+                    || !(entry.getValue() instanceof Byte)) continue;
+            int flags = ((Byte) entry.getValue()).byteValue() & 0xff;
+            recFlag7Metadata.add(
+                Integer.valueOf((flags & (1 << 7)) != 0 ? 1 : 0));
+        }
     }
 
     private void applyPinnedPortalPhase(Minecraft mc) {
@@ -572,6 +1162,7 @@ public class Recorder {
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent e) {
+        oracleInstance = this;
         // AO drop-in (render-opt kernel 13): when a qao AO mode is active, disable Forge's
         // smooth-lighting pipeline so the VANILLA AmbientOcclusionFace.getAoBrightness path (the
         // kernel we verified) becomes the live AO path that the coremod hook rewrites. Forge's
@@ -580,7 +1171,7 @@ public class Recorder {
         // vanilla path; "off"/absent leaves normal Forge rendering untouched.
         try {
             String m = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(
-                "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/dropin/ao/qao_mode.txt"))).trim();
+                "../../render-opt/dropin/ao/qao_mode.txt"))).trim();
             if ("native".equals(m) || "sabotage".equals(m) || "vanilla".equals(m)) {
                 net.minecraftforge.common.ForgeModContainer.forgeLightPipelineEnabled = false;
                 System.err.println("[qao] Forge light pipeline DISABLED (vanilla getAoBrightness live) for qao_mode=" + m);
@@ -672,7 +1263,53 @@ public class Recorder {
         JsonObject action = msg.has("action") ? msg.getAsJsonObject("action") : new JsonObject();
         JsonObject world = msg.has("world") ? msg.getAsJsonObject("world") : new JsonObject();
         switch (cmd) {
-            case "step": case "reset": case "obs": case "stats": case "close":
+            case "step": case "step_lock": case "reset": case "obs": case "stats": case "close":
+            case "server_step_lock": case "server_step_unlock": case "getblocks_locked":
+            case "getblocklight_locked": case "getskylight_locked":
+            case "setblock_tick_locked": case "harvestblock_tick_locked":
+            case "setblocks_locked": case "setplayer_locked": case "summon_locked":
+            case "dragon_crystal_notify_locked": case "dragon_crystal_tick_locked":
+            case "explosion_fire_locked": case "falling_drop_locked":
+            case "falling_timeout_locked":
+            case "falling_lateral_free_locked": case "falling_lateral_wall_locked":
+            case "falling_dragon_egg_locked":
+            case "falling_anvil_locked":
+            case "shear_sheep_locked":
+            case "graze_sheep_locked":
+            case "sheep_color_locked":
+            case "sheep_child_color_locked":
+            case "feed_sheep_locked":
+            case "feed_animal_locked":
+            case "pig_ride_locked":
+            case "pig_death_locked":
+            case "pig_dismount_locked":
+            case "pig_death_dismount_tick_locked":
+            case "pig_death_lethal_tick_locked":
+            case "player_critical_locked":
+            case "milk_cow_locked":
+            case "mate_sheep_locked":
+            case "mate_animal_locked":
+            case "mate_sheep_tick_locked":
+            case "mate_animal_tick_locked":
+            case "schedule_locked": case "set_comparator_output_locked":
+            case "set_container_slot_locked": case "set_command_success_locked":
+            case "jukebox_record_locked":
+            case "firework_audio_locked":
+            case "set_shulker_nbt_locked":
+            case "set_flower_pot_locked":
+            case "set_skull_locked":
+            case "spawn_item_frame_locked":
+            case "arm_player_use_cursors_locked":
+            case "arm_tnt_arrow_collision_cursors_locked":
+            case "arm_tnt_detonation_cursors_locked":
+            case "set_world_random_seed_locked":
+            case "set_falling_instant_locked":
+            case "set_block_random_seed_locked":
+            case "random_tick_locked":
+            case "random_selection_locked":
+            case "mineshaft_topology_locked": case "mineshaft_placement_locked":
+            case "mineshaft_loot_locked":
+            case "enchanting_locked":
             case "overclock": case "cmd": case "spawn": case "fluid": case "capture_light":
             case "capture_fluidheight": case "capture_biome":
             case "capture_shouldsiderender": case "capture_quadsflat":
@@ -687,15 +1324,12016 @@ public class Recorder {
             case "recstart": case "recstop":
             case "getblocks": case "setblocks":
             case "summon": case "getentities": case "killentities":
-            case "pin_preview_anim": break;
+            case "set_falling_instant":
+            case "pin_preview_anim": case "blockstate_props": break;
             case "coverage_reset": case "coverage_dump":
             case "coverage_setfile": case "coverage_enable": return handleCoverage(cmd, action);
             default: return err("unknown cmd");
         }
+        if (cmd.equals("blockstate_props")) {
+            return blockStateProperties();
+        }
+        if (cmd.equals("server_step_lock") || cmd.equals("server_step_unlock")) {
+            return handleOracleServerControl(cmd);
+        }
+        if (cmd.equals("getblocks_locked")) {
+            return oracleDumpBlocksLocked(action);
+        }
+        if (cmd.equals("getblocklight_locked")) {
+            return oracleDumpBlockLightLocked(action);
+        }
+        if (cmd.equals("getskylight_locked")) {
+            return oracleDumpSkyLightLocked(action);
+        }
+        if (cmd.equals("setblock_tick_locked")) {
+            return oracleQueueBlockMutationLocked(action, false);
+        }
+        if (cmd.equals("harvestblock_tick_locked")) {
+            return oracleQueueBlockMutationLocked(action, true);
+        }
+        if (cmd.equals("setblocks_locked")) {
+            return oracleSetBlocksLocked(action);
+        }
+        if (cmd.equals("setplayer_locked")) {
+            return oracleSetPlayerLocked(action);
+        }
+        if (cmd.equals("summon_locked")) {
+            return oracleSummonLocked(action);
+        }
+        if (cmd.equals("dragon_crystal_notify_locked")) {
+            return oracleDragonCrystalNotifyLocked(action);
+        }
+        if (cmd.equals("dragon_crystal_tick_locked")) {
+            return oracleDragonCrystalTickLocked(action);
+        }
+        if (cmd.equals("explosion_fire_locked")) {
+            return oracleExplosionFireLocked(action);
+        }
+        if (cmd.equals("falling_drop_locked")) {
+            return oracleFallingDropLocked(action);
+        }
+        if (cmd.equals("falling_timeout_locked")) {
+            return oracleFallingTimeoutLocked(action);
+        }
+        if (cmd.equals("falling_lateral_free_locked")) {
+            return oracleFallingLateralLocked(action, false);
+        }
+        if (cmd.equals("falling_lateral_wall_locked")) {
+            return oracleFallingLateralLocked(action, true);
+        }
+        if (cmd.equals("falling_dragon_egg_locked")) {
+            return oracleFallingDragonEggLocked(action);
+        }
+        if (cmd.equals("falling_anvil_locked")) {
+            return oracleFallingAnvilLocked(action);
+        }
+        if (cmd.equals("shear_sheep_locked")) {
+            return oracleShearSheepLocked(action);
+        }
+        if (cmd.equals("graze_sheep_locked")) {
+            return oracleGrazeSheepLocked(action);
+        }
+        if (cmd.equals("sheep_color_locked")) {
+            return oracleSheepColorLocked(action);
+        }
+        if (cmd.equals("sheep_child_color_locked")) {
+            return oracleSheepChildColorLocked(action);
+        }
+        if (cmd.equals("feed_sheep_locked") || cmd.equals("feed_animal_locked")) {
+            return oracleFeedAnimalLocked(action);
+        }
+        if (cmd.equals("pig_ride_locked")) {
+            return oraclePigRideLocked(action);
+        }
+        if (cmd.equals("pig_death_locked")) {
+            return oraclePigDeathLocked(action);
+        }
+        if (cmd.equals("pig_dismount_locked")) {
+            return oraclePigDismountLocked(action);
+        }
+        if (cmd.equals("pig_death_dismount_tick_locked")) {
+            return oraclePigDeathDismountTickLocked(action);
+        }
+        if (cmd.equals("pig_death_lethal_tick_locked")) {
+            return oraclePigDeathLethalTickLocked(action);
+        }
+        if (cmd.equals("player_critical_locked")) {
+            return oraclePlayerCriticalLocked(action);
+        }
+        if (cmd.equals("milk_cow_locked")) {
+            return oracleMilkCowLocked(action);
+        }
+        if (cmd.equals("mate_sheep_locked") || cmd.equals("mate_animal_locked")) {
+            return oracleMateAnimalLocked(action);
+        }
+        if (cmd.equals("mate_sheep_tick_locked")
+                || cmd.equals("mate_animal_tick_locked")) {
+            return oracleMateAnimalTickLocked(action,
+                cmd.equals("mate_sheep_tick_locked"));
+        }
+        if (cmd.equals("schedule_locked")) {
+            return oracleScheduleLocked(action);
+        }
+        if (cmd.equals("set_comparator_output_locked")) {
+            return oracleSetComparatorOutputLocked(action);
+        }
+        if (cmd.equals("set_container_slot_locked")) {
+            return oracleSetContainerSlotLocked(action);
+        }
+        if (cmd.equals("jukebox_record_locked")) {
+            return oracleJukeboxRecordLocked(action);
+        }
+        if (cmd.equals("firework_audio_locked")) {
+            return oracleFireworkAudioLocked(action);
+        }
+        if (cmd.equals("set_shulker_nbt_locked")) {
+            return oracleSetShulkerNbtLocked(action);
+        }
+        if (cmd.equals("set_command_success_locked")) {
+            return oracleSetCommandSuccessLocked(action);
+        }
+        if (cmd.equals("set_flower_pot_locked")) {
+            return oracleSetFlowerPotLocked(action);
+        }
+        if (cmd.equals("set_skull_locked")) {
+            return oracleSetSkullLocked(action);
+        }
+        if (cmd.equals("spawn_item_frame_locked")) {
+            return oracleSpawnItemFrameLocked(action);
+        }
+        if (cmd.equals("arm_player_use_cursors_locked")) {
+            return oracleArmPlayerUseCursorsLocked();
+        }
+        if (cmd.equals("arm_tnt_arrow_collision_cursors_locked")) {
+            return oracleArmTntArrowCollisionCursorsLocked();
+        }
+        if (cmd.equals("arm_tnt_detonation_cursors_locked")) {
+            return oracleArmTntDetonationCursorsLocked();
+        }
+        if (cmd.equals("set_world_random_seed_locked")) {
+            return oracleSetWorldRandomSeedLocked(action);
+        }
+        if (cmd.equals("set_falling_instant_locked")) {
+            return oracleSetFallingInstantLocked(action);
+        }
+        if (cmd.equals("set_block_random_seed_locked")) {
+            return oracleSetBlockRandomSeedLocked(action);
+        }
+        if (cmd.equals("random_tick_locked")) {
+            return oracleQueueRandomTickLocked(action);
+        }
+        if (cmd.equals("random_selection_locked")) {
+            return oraclePrepareRandomSelectionLocked(action);
+        }
+        if (cmd.equals("mineshaft_topology_locked")) {
+            long seed = action.has("seed") ? action.get("seed").getAsLong() : 0L;
+            int cx = action.has("cx") ? action.get("cx").getAsInt() : 0;
+            int cz = action.has("cz") ? action.get("cz").getAsInt() : 0;
+            int mineType = action.has("mine_type")
+                ? action.get("mine_type").getAsInt() : 0;
+            return MineshaftOracle.map(seed, cx, cz, mineType).toString();
+        }
+        if (cmd.equals("mineshaft_placement_locked")) {
+            synchronized (oracleServerMonitor) {
+                if (!oracleServerGate || !oracleServerWaiting
+                        || oracleServerTickInFlight || oracleServerPermits != 0)
+                    return err("mineshaft_placement_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                net.minecraft.world.WorldServer oracleWorld = server.worlds[0];
+                long seed = action.has("seed") ? action.get("seed").getAsLong() : 0L;
+                int cx = action.has("cx") ? action.get("cx").getAsInt() : 0;
+                int cz = action.has("cz") ? action.get("cz").getAsInt() : 0;
+                int selected = action.has("start") ? action.get("start").getAsInt() : 0;
+                long placementSeed = action.has("placement_seed")
+                    ? action.get("placement_seed").getAsLong() : 0L;
+                int clipDx = action.has("clip_dx") ? action.get("clip_dx").getAsInt() : 0;
+                int clipDz = action.has("clip_dz") ? action.get("clip_dz").getAsInt() : 0;
+                int mineType = action.has("mine_type")
+                    ? action.get("mine_type").getAsInt() : 0;
+                String file = action.get("file").getAsString();
+                return MineshaftOracle.placement(oracleWorld, seed, cx, cz, selected,
+                    placementSeed, clipDx, clipDz, file, mineType).toString();
+            } catch (Throwable t) {
+                return err("mineshaft_placement_locked: " + t);
+            }
+        }
+        if (cmd.equals("mineshaft_loot_locked")) {
+            synchronized (oracleServerMonitor) {
+                if (!oracleServerGate || !oracleServerWaiting
+                        || oracleServerTickInFlight || oracleServerPermits != 0)
+                    return err("mineshaft_loot_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                long seed = action.has("seed") ? action.get("seed").getAsLong() : 0L;
+                return MineshaftOracle.loot(server.worlds[0], seed).toString();
+            } catch (Throwable t) {
+                return err("mineshaft_loot_locked: " + t);
+            }
+        }
+        if (cmd.equals("enchanting_locked")) {
+            synchronized (oracleServerMonitor) {
+                if (!oracleServerGate || !oracleServerWaiting
+                        || oracleServerTickInFlight || oracleServerPermits != 0)
+                    return err("enchanting_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null || server.getPlayerList().getPlayers().isEmpty())
+                    return err("no server player");
+                return EnchantingOracle.run(
+                    server.worlds[0], server.getPlayerList().getPlayers().get(0),
+                    action.get("item").getAsInt(),
+                    action.get("xp_seed").getAsInt(),
+                    action.get("power").getAsInt(),
+                    action.get("button").getAsInt(),
+                    action.get("level").getAsInt(),
+                    action.get("lapis").getAsInt(),
+                    action.get("player_seed").getAsLong()).toString();
+            } catch (Throwable t) {
+                return err("enchanting_locked: " + t);
+            }
+        }
+        long oracleTarget = -1;
+        if (cmd.equals("step")) {
+            synchronized (oracleServerMonitor) {
+                if (oracleServerGate) oracleTarget = oracleServerCompleted + 1;
+            }
+        }
         Req r = new Req(cmd, action, world);
         incoming.put(r);
         String result = r.resp.poll(120, TimeUnit.SECONDS); // world-gen can be slow
-        return result == null ? err("timeout") : result;
+        if (result == null) return err("timeout");
+        if (oracleTarget < 0) return result;
+        try {
+            JsonObject parsed = new JsonParser().parse(result).getAsJsonObject();
+            if (parsed.has("ok") && !parsed.get("ok").getAsBoolean()) return result;
+            JsonObject authoritative = oracleWaitForStep(oracleTarget, 120000L);
+            if (authoritative == null) {
+                return err("authoritative server step timeout at permit " + oracleTarget);
+            }
+            parsed.add("authoritative", authoritative);
+            return parsed.toString();
+        } catch (RuntimeException ex) {
+            return err("authoritative server step response: " + ex);
+        }
+    }
+
+    /* Direct EntityPlayer.attackTargetEntityWithCurrentItem fixture for the
+     * critical-hit predicate and its base/enchantment damage ordering. */
+    private String oraclePlayerCriticalLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("player_critical_locked requires a parked oracle server");
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            net.minecraft.nbt.NBTTagCompound saved = null;
+            net.minecraft.entity.Entity oldRide = null;
+            java.lang.reflect.Field swingField = null;
+            java.lang.reflect.Field waterField = null;
+            net.minecraft.item.ItemStack fixtureHeld = null;
+            net.minecraft.item.ItemStack oldHeld = null;
+            int oldSwing = 0;
+            boolean oldWater = false;
+            try {
+                int swingTicks = action.has("cooldown_ticks")
+                    ? action.get("cooldown_ticks").getAsInt() : 5;
+                float fall = action.has("fall_distance")
+                    ? action.get("fall_distance").getAsFloat() : 1.0F;
+                boolean onGround = action.has("on_ground")
+                    && action.get("on_ground").getAsBoolean();
+                boolean sprinting = action.has("sprinting")
+                    && action.get("sprinting").getAsBoolean();
+                boolean blindness = action.has("blindness")
+                    && action.get("blindness").getAsBoolean();
+                boolean riding = action.has("riding")
+                    && action.get("riding").getAsBoolean();
+                boolean inWater = action.has("in_water")
+                    && action.get("in_water").getAsBoolean();
+                boolean targetOnGround = action.has("target_on_ground")
+                    && action.get("target_on_ground").getAsBoolean();
+                double targetMotionX = action.has("target_motion_x")
+                    ? action.get("target_motion_x").getAsDouble() : 0.0D;
+                double targetMotionY = action.has("target_motion_y")
+                    ? action.get("target_motion_y").getAsDouble() : 0.0D;
+                double targetMotionZ = action.has("target_motion_z")
+                    ? action.get("target_motion_z").getAsDouble() : 0.0D;
+                double playerMotionX = action.has("player_motion_x")
+                    ? action.get("player_motion_x").getAsDouble() : 0.0D;
+                double playerMotionZ = action.has("player_motion_z")
+                    ? action.get("player_motion_z").getAsDouble() : 0.0D;
+                int targetFireTicks = action.has("target_fire_ticks")
+                    ? action.get("target_fire_ticks").getAsInt() : 0;
+                int targetHurtResistant = action.has("target_hurt_resistant")
+                    ? action.get("target_hurt_resistant").getAsInt() : 0;
+                float targetLastDamage = action.has("target_last_damage")
+                    ? action.get("target_last_damage").getAsFloat() : 0.0F;
+                float targetHealth = action.has("target_health")
+                    ? action.get("target_health").getAsFloat() : -1.0F;
+                int enchantId = action.has("enchant_id")
+                    ? action.get("enchant_id").getAsInt() : 0;
+                int enchantLevel = action.has("enchant_level")
+                    ? action.get("enchant_level").getAsInt() : 0;
+                int heldItem = action.has("held_item")
+                    ? action.get("held_item").getAsInt() : 0;
+                String targetName = action.has("target")
+                    ? action.get("target").getAsString() : "pig";
+                if (swingTicks < 0 || swingTicks > 100 || !Float.isFinite(fall)
+                        || fall < 0.0F || heldItem < 0 || heldItem > 4095
+                        || !Double.isFinite(targetMotionX)
+                        || !Double.isFinite(targetMotionY)
+                        || !Double.isFinite(targetMotionZ)
+                        || !Double.isFinite(playerMotionX)
+                        || !Double.isFinite(playerMotionZ)
+                        || targetFireTicks < -20 || targetFireTicks > 32767
+                        || targetHurtResistant < 0 || targetHurtResistant > 20
+                        || !Float.isFinite(targetLastDamage)
+                        || targetLastDamage < 0.0F
+                        || !Float.isFinite(targetHealth)
+                        || enchantId < 0 || enchantId > 255
+                        || enchantLevel < 0 || enchantLevel > 255
+                        || (!targetName.equals("pig")
+                            && !targetName.equals("zombie")))
+                    return err("invalid player critical fixture");
+                MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null || server.getPlayerList().getPlayers().isEmpty())
+                    return err("no server player");
+                player = server.getPlayerList().getPlayers().get(0);
+                net.minecraft.world.WorldServer world = player.getServerWorld();
+                saved = player.writeToNBT(new net.minecraft.nbt.NBTTagCompound());
+                oldRide = player.getRidingEntity();
+                if (oldRide != null) player.dismountRidingEntity();
+                swingField = net.minecraft.entity.EntityLivingBase.class
+                    .getDeclaredField("ticksSinceLastSwing");
+                swingField.setAccessible(true);
+                oldSwing = swingField.getInt(player);
+                waterField = net.minecraft.entity.Entity.class
+                    .getDeclaredField("inWater");
+                waterField.setAccessible(true);
+                oldWater = waterField.getBoolean(player);
+
+                net.minecraft.entity.EntityLivingBase target =
+                    targetName.equals("zombie")
+                    ? new net.minecraft.entity.monster.EntityZombie(world)
+                    : new net.minecraft.entity.passive.EntityPig(world);
+                target.setLocationAndAngles(
+                    player.posX, 220.0D, player.posZ - 2.0D, 0.0F, 0.0F);
+                if (targetHealth < 0.0F) targetHealth = target.getMaxHealth();
+                if (targetHealth <= 0.0F || targetHealth > target.getMaxHealth())
+                    return err("invalid target health");
+                target.setHealth(targetHealth);
+                target.motionX = targetMotionX;
+                target.motionY = targetMotionY;
+                target.motionZ = targetMotionZ;
+                target.onGround = targetOnGround;
+                java.lang.reflect.Field targetFireField =
+                    net.minecraft.entity.Entity.class.getDeclaredField("fire");
+                targetFireField.setAccessible(true);
+                targetFireField.setInt(target, targetFireTicks);
+                target.hurtResistantTime = targetHurtResistant;
+                java.lang.reflect.Field targetLastDamageField =
+                    net.minecraft.entity.EntityLivingBase.class
+                        .getDeclaredField("lastDamage");
+                targetLastDamageField.setAccessible(true);
+                targetLastDamageField.setFloat(target, targetLastDamage);
+                player.setPositionAndRotation(
+                    player.posX, 220.0D, player.posZ, 180.0F, 0.0F);
+                player.motionX = playerMotionX;
+                player.motionY = 0.0D;
+                player.motionZ = playerMotionZ;
+                player.onGround = onGround;
+                player.fallDistance = fall;
+                player.setSprinting(sprinting);
+                waterField.setBoolean(player, inWater);
+                player.clearActivePotions();
+                if (blindness)
+                    player.addPotionEffect(new net.minecraft.potion.PotionEffect(
+                        net.minecraft.init.MobEffects.BLINDNESS, 100, 0));
+                player.inventory.currentItem = 0;
+                oldHeld = player.getHeldItemMainhand().copy();
+                net.minecraft.item.Item heldType = heldItem > 0
+                    ? net.minecraft.item.Item.getItemById(heldItem)
+                    : enchantId > 0 ? net.minecraft.init.Items.STICK : null;
+                if ((heldItem > 0 || enchantId > 0) && heldType == null)
+                    return err("unknown held attack item");
+                net.minecraft.item.ItemStack held = heldType == null
+                    ? net.minecraft.item.ItemStack.EMPTY
+                    : new net.minecraft.item.ItemStack(heldType);
+                if (enchantId > 0 && enchantLevel > 0) {
+                    net.minecraft.enchantment.Enchantment enchant =
+                        net.minecraft.enchantment.Enchantment.getEnchantmentByID(enchantId);
+                    if (enchant == null) return err("unknown attack enchantment");
+                    held.addEnchantment(enchant, enchantLevel);
+                }
+                if (!oldHeld.isEmpty())
+                    player.getAttributeMap().removeAttributeModifiers(
+                        oldHeld.getAttributeModifiers(
+                            net.minecraft.inventory.EntityEquipmentSlot.MAINHAND));
+                player.inventory.mainInventory.set(0, held);
+                fixtureHeld = held;
+                if (!fixtureHeld.isEmpty())
+                    player.getAttributeMap().applyAttributeModifiers(
+                        fixtureHeld.getAttributeModifiers(
+                            net.minecraft.inventory.EntityEquipmentSlot.MAINHAND));
+                swingField.setInt(player, swingTicks);
+                if (riding && !player.startRiding(target, true))
+                    return err("failed to seed riding state");
+
+                float before = target.getHealth();
+                player.attackTargetEntityWithCurrentItem(target);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("target", targetName);
+                out.addProperty("before_bits", oracleFloatBits(before));
+                out.addProperty("after_bits", oracleFloatBits(target.getHealth()));
+                out.addProperty("after", target.getHealth());
+                out.addProperty("cooldown", player.getCooledAttackStrength(0.0F));
+                out.addProperty("hurt_time", target.hurtTime);
+                out.addProperty("target_fire_ticks",
+                    targetFireField.getInt(target));
+                out.add("target_motion_bits", oracleEntityDoubleBits(
+                    target.motionX, target.motionY, target.motionZ));
+                out.add("player_motion_bits", oracleEntityDoubleBits(
+                    player.motionX, player.motionY, player.motionZ));
+                out.addProperty("player_sprinting", player.isSprinting());
+                net.minecraft.item.ItemStack afterHeld =
+                    player.inventory.mainInventory.get(0);
+                out.addProperty("held_count", afterHeld.isEmpty()
+                    ? 0 : afterHeld.getCount());
+                out.addProperty("held_damage", afterHeld.isEmpty()
+                    ? 0 : afterHeld.getItemDamage());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("player_critical_locked: " + t);
+            } finally {
+                if (player != null) try {
+                    if (player.isRiding()) player.dismountRidingEntity();
+                    if (fixtureHeld != null && !fixtureHeld.isEmpty())
+                        player.getAttributeMap().removeAttributeModifiers(
+                            fixtureHeld.getAttributeModifiers(
+                                net.minecraft.inventory.EntityEquipmentSlot.MAINHAND));
+                    if (saved != null) player.readFromNBT(saved);
+                    if (oldHeld != null && !oldHeld.isEmpty())
+                        player.getAttributeMap().applyAttributeModifiers(
+                            oldHeld.getAttributeModifiers(
+                                net.minecraft.inventory.EntityEquipmentSlot.MAINHAND));
+                    if (oldRide != null) player.startRiding(oldRide, true);
+                    if (swingField != null) swingField.setInt(player, oldSwing);
+                    if (waterField != null) waterField.setBoolean(player, oldWater);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Export immutable legacy block-state predicates directly from the
+     * initialized 1.11.2 registry. The socket thread may read these objects:
+     * registration has completed before the bridge starts and the states are
+     * immutable. Masks use raw metadata bits 0..15; canonical_meta records the
+     * state mapping applied by each Block.getStateFromMeta implementation.
+     */
+    private String blockStateProperties() {
+        JsonObject out = new JsonObject();
+        JsonArray blocks = new JsonArray();
+        int errors = 0;
+        for (int id = 0; id < 256; ++id) {
+            net.minecraft.block.Block block =
+                net.minecraft.block.Block.getBlockById(id);
+            if (block == null) continue;
+            int normalMask = 0;
+            int fullMask = 0;
+            int fullyOpaqueMask = 0;
+            int opaqueMask = 0;
+            int solidMask = 0;
+            int powerMask = 0;
+            int pistonDestroyMask = 0;
+            int pistonBlockMask = 0;
+            int pistonUnbreakableMask = 0;
+            int tileEntityMask = 0;
+            JsonArray canonicalMeta = new JsonArray();
+            for (int meta = 0; meta < 16; ++meta) {
+                try {
+                    net.minecraft.block.state.IBlockState state =
+                        block.getStateFromMeta(meta);
+                    canonicalMeta.add(
+                        new JsonPrimitive(block.getMetaFromState(state)));
+                    if (state.isNormalCube())
+                        normalMask |= 1 << meta;
+                    if (state.isFullCube())
+                        fullMask |= 1 << meta;
+                    if (state.isFullyOpaque())
+                        fullyOpaqueMask |= 1 << meta;
+                    if (state.getMaterial().isOpaque())
+                        opaqueMask |= 1 << meta;
+                    if (state.getMaterial().isSolid())
+                        solidMask |= 1 << meta;
+                    if (state.canProvidePower())
+                        powerMask |= 1 << meta;
+                    if (state.getMobilityFlag()
+                            == net.minecraft.block.material.EnumPushReaction
+                                .DESTROY)
+                        pistonDestroyMask |= 1 << meta;
+                    if (state.getMobilityFlag()
+                            == net.minecraft.block.material.EnumPushReaction
+                                .BLOCK)
+                        pistonBlockMask |= 1 << meta;
+                    if (Float.floatToRawIntBits(
+                            state.getBlockHardness(null, null))
+                            == Float.floatToRawIntBits(-1.0F))
+                        pistonUnbreakableMask |= 1 << meta;
+                    if (block.hasTileEntity(state))
+                        tileEntityMask |= 1 << meta;
+                } catch (Throwable t) {
+                    canonicalMeta.add(new JsonPrimitive(-1));
+                    ++errors;
+                }
+            }
+            JsonObject row = new JsonObject();
+            row.addProperty("id", id);
+            net.minecraft.util.ResourceLocation name =
+                net.minecraft.block.Block.REGISTRY.getNameForObject(block);
+            row.addProperty("name", name == null ? "" : name.toString());
+            row.addProperty("normal_cube_mask", normalMask);
+            row.addProperty("full_cube_mask", fullMask);
+            row.addProperty("fully_opaque_mask", fullyOpaqueMask);
+            row.addProperty("opaque_material_mask", opaqueMask);
+            row.addProperty("solid_material_mask", solidMask);
+            row.addProperty("can_provide_power_mask", powerMask);
+            row.addProperty("piston_destroy_mask", pistonDestroyMask);
+            row.addProperty("piston_block_mask", pistonBlockMask);
+            row.addProperty(
+                "piston_unbreakable_mask", pistonUnbreakableMask);
+            row.addProperty("tile_entity_mask", tileEntityMask);
+            row.add("canonical_meta", canonicalMeta);
+            blocks.add(row);
+        }
+        out.addProperty("ok", true);
+        out.addProperty("schema", "qrl.blockstate_props.v2");
+        out.addProperty("minecraft", "1.11.2");
+        out.addProperty("error_count", errors);
+        out.add("blocks", blocks);
+        return out.toString();
+    }
+
+    /** Arm/disarm the server-only oracle gate directly from the socket thread. */
+    private String handleOracleServerControl(String cmd) throws InterruptedException {
+        synchronized (oracleServerMonitor) {
+            if (cmd.equals("server_step_unlock")) {
+                oracleServerGate = false;
+                oracleServerPermits = 0;
+                oracleRandomTickPending = false;
+                oracleBlockMutationPending = false;
+                oraclePlayerUseCursorRestorePending = false;
+                oracleTntArrowCursorRestorePending = false;
+                oracleTntDetonationCursorRestorePending = false;
+                oracleServerMonitor.notifyAll();
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("completed", oracleServerCompleted);
+                return out.toString();
+            }
+
+            if (oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("cannot arm server gate with a permitted tick in flight");
+            }
+            oracleServerGate = true;
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (!oracleServerWaiting) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) {
+                    oracleServerGate = false;
+                    oracleServerMonitor.notifyAll();
+                    return err("server did not reach oracle tick boundary");
+                }
+                TimeUnit.NANOSECONDS.timedWait(oracleServerMonitor, remaining);
+            }
+            JsonObject out = new JsonObject();
+            out.addProperty("ok", true);
+            out.addProperty("waiting", true);
+            out.addProperty("completed", oracleServerCompleted);
+            JsonObject authoritative = oracleAuthoritativeJsonLocked();
+            if (authoritative == null) {
+                oracleServerGate = false;
+                oracleServerMonitor.notifyAll();
+                return err("server gate armed without an authoritative player snapshot");
+            }
+            out.add("authoritative", authoritative);
+            return out.toString();
+        }
+    }
+
+    /**
+     * Wait for the permitted server tick and for the server to park again at
+     * the following START boundary. The second condition makes a subsequent
+     * read-only world dump race-free without granting an extra simulation tick.
+     */
+    private JsonObject oracleWaitForStep(long target, long timeoutMs)
+            throws InterruptedException {
+        synchronized (oracleServerMonitor) {
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
+            while (oracleServerGate
+                    && (oracleServerCompleted < target || !oracleServerWaiting)) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) return null;
+                TimeUnit.NANOSECONDS.timedWait(oracleServerMonitor, remaining);
+            }
+            if (!oracleServerGate || oracleServerCompleted != target
+                    || !oracleServerWaiting) {
+                return null;
+            }
+            return oracleAuthoritativeJsonLocked();
+        }
+    }
+
+    private void oracleMirrorPotionsToClient(JsonObject authoritative) {
+        if (!oracleMirrorPotionFixture || authoritative == null
+                || !authoritative.has("potions")) return;
+        oraclePotionClientSnapshot = authoritative;
+        net.minecraft.client.entity.EntityPlayerSP cp =
+            Minecraft.getMinecraft().player;
+        if (cp == null) return;
+        /* A late SPacketEntityProperties can leave a potion attribute modifier
+         * after the corresponding client PotionEffect has already vanished.
+         * Remove every potion-owned attribute UUID first, then rebuild the
+         * exact authoritative set below. The fixture replaces all effects, so
+         * this is both complete and independent of packet delivery order. */
+        for (net.minecraft.potion.Potion potion :
+                net.minecraft.potion.Potion.REGISTRY) {
+            potion.removeAttributesModifiersFromEntity(
+                cp, cp.getAttributeMap(), 0);
+        }
+        ArrayList<net.minecraft.potion.PotionEffect> active =
+            new ArrayList<net.minecraft.potion.PotionEffect>(
+                cp.getActivePotionEffects());
+        for (net.minecraft.potion.PotionEffect effect : active) {
+            effect.getPotion().removeAttributesModifiersFromEntity(
+                cp, cp.getAttributeMap(), effect.getAmplifier());
+            cp.removePotionEffect(effect.getPotion());
+        }
+        for (com.google.gson.JsonElement el :
+                authoritative.getAsJsonArray("potions")) {
+            JsonObject effect = el.getAsJsonObject();
+            net.minecraft.potion.Potion potion =
+                net.minecraft.potion.Potion.getPotionById(
+                    effect.get("id").getAsInt());
+            if (potion == null) continue;
+            int duration = effect.get("dur").getAsInt();
+            int amplifier = effect.get("amp").getAsInt();
+            cp.addPotionEffect(new net.minecraft.potion.PotionEffect(
+                potion, duration, amplifier, false, false));
+            potion.applyAttributesModifiersToEntity(
+                cp, cp.getAttributeMap(), amplifier);
+        }
+    }
+
+    /** Called on the client tick immediately after an action is installed. */
+    private boolean oracleGrantServerTick() {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate) return true;
+            if (oracleServerPermits != 0 || oracleServerTickInFlight) return false;
+            oracleServerPermits = 1;
+            oracleServerMonitor.notifyAll();
+            return true;
+        }
+    }
+
+    /** ServerTickEvent.START: consume exactly one permit or park the server. */
+    private void oracleAwaitServerPermit() {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate) {
+                oracleServerWaiting = false;
+                oracleServerTickInFlight = false;
+                return;
+            }
+            oracleServerWaiting = true;
+            oracleServerMonitor.notifyAll();
+            while (oracleServerGate && oracleServerPermits == 0) {
+                try {
+                    oracleServerMonitor.wait();
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    oracleServerGate = false;
+                    oracleServerWaiting = false;
+                    oracleServerMonitor.notifyAll();
+                    return;
+                }
+            }
+            oracleServerWaiting = false;
+            if (oracleServerGate) {
+                oracleServerPermits--;
+                oracleServerTickInFlight = true;
+            } else {
+                oracleServerTickInFlight = false;
+            }
+        }
+    }
+
+    /** ServerTickEvent.END: publish one atomic authoritative checkpoint. */
+    private void oracleFinishServerTick() {
+        net.minecraft.entity.player.EntityPlayerMP p = null;
+        try {
+            MinecraftServer srv =
+                net.minecraftforge.fml.common.FMLCommonHandler.instance()
+                    .getMinecraftServerInstance();
+            java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                srv == null ? null : srv.getPlayerList().getPlayers();
+            if (players != null && !players.isEmpty()) p = players.get(0);
+        } catch (Throwable ig) {}
+        synchronized (oracleServerMonitor) {
+            if (p != null) {
+                oracleCaptureAuthoritativePlayerLocked(p);
+                if (oracleControlledInputValid) {
+                    oracleAuthControlledInputValid = true;
+                    oracleAuthControlledBeforeWorldRandSeed48 =
+                        oracleControlledBeforeWorldRandSeed48;
+                    oracleAuthControlledBeforeMathRandSeed48 =
+                        oracleControlledBeforeMathRandSeed48;
+                    oracleAuthControlledBeforeBlockRandSeed48 =
+                        oracleControlledBeforeBlockRandSeed48;
+                    oracleAuthControlledBeforeWorldUpdateLCG =
+                        oracleControlledBeforeWorldUpdateLCG;
+                    oracleAuthControlledBeforeNextEntityId =
+                        oracleControlledBeforeNextEntityId;
+                    oracleAuthControlledWorldRandSeed48 =
+                        oracleControlledWorldRandSeed48;
+                    oracleAuthControlledMathRandSeed48 =
+                        oracleControlledMathRandSeed48;
+                    oracleAuthControlledBlockRandSeed48 =
+                        oracleControlledBlockRandSeed48;
+                    oracleAuthControlledWorldUpdateLCG =
+                        oracleControlledWorldUpdateLCG;
+                    oracleAuthControlledNextEntityId =
+                        oracleControlledNextEntityId;
+                }
+                oraclePlayerUseItemRandomPending = false;
+            }
+            oracleAuthMovePacketCursorValid = false;
+            if (oracleServerTickInFlight) {
+                oracleServerCompleted++;
+                oracleServerTickInFlight = false;
+            }
+            oracleServerMonitor.notifyAll();
+        }
+    }
+
+    /** Must be called with oracleServerMonitor held. */
+    /**
+     * Exact bounded command-block save-state admitted by the comparator slice.
+     * The command itself and every execution-bearing flag remain at their
+     * inert vanilla defaults; only SuccessCount may be restored.
+     */
+    private boolean oracleInertCommandBlockExact(
+            net.minecraft.tileentity.TileEntityCommandBlock tile,
+            int blockId) {
+        if (tile == null
+                || (blockId != 137 && blockId != 210 && blockId != 211))
+            return false;
+        net.minecraft.tileentity.CommandBlockBaseLogic logic =
+            tile.getCommandBlockLogic();
+        if (logic == null
+                || !logic.getCommand().isEmpty()
+                || !"@".equals(logic.getName())
+                || !logic.shouldTrackOutput()
+                || logic.getSuccessCount() < 0
+                || logic.getSuccessCount() > 15
+                || tile.isPowered()
+                || tile.isConditionMet()
+                || tile.isAuto() != (blockId == 211))
+            return false;
+        net.minecraft.nbt.NBTTagCompound nbt =
+            tile.writeToNBT(new net.minecraft.nbt.NBTTagCompound());
+        if (nbt.hasKey("LastOutput") || nbt.hasKey("CommandStats"))
+            return false;
+        java.util.Set<String> expected =
+            new java.util.HashSet<String>(java.util.Arrays.asList(
+                "id", "x", "y", "z", "Command", "SuccessCount",
+                "CustomName", "TrackOutput", "powered",
+                "conditionMet", "auto"));
+        return nbt.getKeySet().equals(expected);
+    }
+
+    /**
+     * Exact, stationary item-frame state admitted by the first comparator
+     * source slice. It intentionally accepts only an empty frame or one plain
+     * stone item; map data, tags, drops, damage, and lifecycle are separate
+     * features.
+     */
+    private boolean oracleItemFrameComparatorSourceExact(
+            net.minecraft.entity.item.EntityItemFrame frame) {
+        if (frame == null || frame.isDead
+                || frame.getHangingPosition() == null
+                || frame.getHorizontalFacing() == null
+                || !frame.getHorizontalFacing().getAxis().isHorizontal()
+                || !frame.onValidSurface()
+                || frame.motionX != 0.0D || frame.motionY != 0.0D
+                || frame.motionZ != 0.0D
+                || frame.getRotation() < 0 || frame.getRotation() > 7)
+            return false;
+        BlockPos pos = frame.getHangingPosition();
+        net.minecraft.util.EnumFacing facing =
+            frame.getHorizontalFacing();
+        double expectedX =
+            (double)pos.getX() + 0.5D
+            - (double)facing.getFrontOffsetX() * 0.46875D;
+        double expectedY = (double)pos.getY() + 0.5D;
+        double expectedZ =
+            (double)pos.getZ() + 0.5D
+            - (double)facing.getFrontOffsetZ() * 0.46875D;
+        if (Double.doubleToRawLongBits(frame.posX)
+                    != Double.doubleToRawLongBits(expectedX)
+                || Double.doubleToRawLongBits(frame.posY)
+                    != Double.doubleToRawLongBits(expectedY)
+                || Double.doubleToRawLongBits(frame.posZ)
+                    != Double.doubleToRawLongBits(expectedZ))
+            return false;
+        net.minecraft.item.ItemStack stack = frame.getDisplayedItem();
+        if (stack.isEmpty()) {
+            if (frame.getRotation() != 0)
+                return false;
+        } else if (net.minecraft.item.Item.getIdFromItem(stack.getItem()) != 1
+                || stack.getCount() != 1 || stack.getMetadata() != 0
+                || stack.hasTagCompound()) {
+            return false;
+        }
+        net.minecraft.nbt.NBTTagCompound nbt =
+            new net.minecraft.nbt.NBTTagCompound();
+        frame.writeEntityToNBT(nbt);
+        java.util.Set<String> expected =
+            new java.util.HashSet<String>(java.util.Arrays.asList(
+                "Facing", "TileX", "TileY", "TileZ"));
+        if (!stack.isEmpty()) {
+            expected.add("Item");
+            expected.add("ItemRotation");
+            expected.add("ItemDropChance");
+            if (Float.floatToRawIntBits(
+                    nbt.getFloat("ItemDropChance"))
+                    != Float.floatToRawIntBits(1.0F))
+                return false;
+        }
+        return nbt.getKeySet().equals(expected);
+    }
+
+    /** Serialize the exact uncompressed binary form used by level.dat NBT. */
+    private String oracleNbtHex(net.minecraft.nbt.NBTTagCompound compound) {
+        try {
+            java.io.ByteArrayOutputStream bytes =
+                new java.io.ByteArrayOutputStream();
+            java.io.DataOutputStream output =
+                new java.io.DataOutputStream(bytes);
+            net.minecraft.nbt.CompressedStreamTools.write(compound, output);
+            output.flush();
+            byte[] raw = bytes.toByteArray();
+            StringBuilder hex = new StringBuilder(raw.length * 2);
+            final char[] digits = "0123456789abcdef".toCharArray();
+            for (byte value : raw) {
+                int unsigned = value & 255;
+                hex.append(digits[unsigned >>> 4]);
+                hex.append(digits[unsigned & 15]);
+            }
+            return hex.toString();
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException("cannot serialize NBT", e);
+        }
+    }
+
+    /** Decode one complete bounded uncompressed root-compound fixture. */
+    private net.minecraft.nbt.NBTTagCompound oracleNbtFromHex(String value)
+            throws java.io.IOException {
+        if (value == null || (value.length() & 1) != 0
+                || value.length() > 2 * 1024 * 1024)
+            throw new java.io.IOException("invalid bounded NBT hex length");
+        byte[] raw = new byte[value.length() / 2];
+        for (int i = 0; i < raw.length; ++i) {
+            int high = Character.digit(value.charAt(i * 2), 16);
+            int low = Character.digit(value.charAt(i * 2 + 1), 16);
+            if (high < 0 || low < 0)
+                throw new java.io.IOException("non-hexadecimal NBT fixture");
+            raw[i] = (byte)((high << 4) | low);
+        }
+        java.io.DataInputStream input = new java.io.DataInputStream(
+            new java.io.ByteArrayInputStream(raw));
+        net.minecraft.nbt.NBTTagCompound result =
+            net.minecraft.nbt.CompressedStreamTools.read(input);
+        if (input.available() != 0)
+            throw new java.io.IOException("trailing bytes after NBT fixture");
+        return result;
+    }
+
+    /** Exact persistent-state subset for one closed shulker box. */
+    private boolean oracleShulkerExact(
+            net.minecraft.tileentity.TileEntityShulkerBox tile,
+            int blockId) {
+        if (tile == null || blockId < 219 || blockId > 234
+                || tile.isCleared()
+                || tile.isDestroyedByCreativePlayer()
+                || tile.getAnimationStatus()
+                    != net.minecraft.tileentity.TileEntityShulkerBox
+                        .AnimationStatus.CLOSED
+                || Float.floatToRawIntBits(tile.getProgress(1.0F)) != 0)
+            return false;
+        if (tile.getLootTable() != null)
+            return tile.getSizeInventory() == 27;
+        for (int slot = 0; slot < tile.getSizeInventory(); ++slot) {
+            net.minecraft.item.ItemStack stack = tile.getStackInSlot(slot);
+            if (stack.isEmpty()) continue;
+            int itemId = net.minecraft.item.Item.getIdFromItem(
+                stack.getItem());
+            if (itemId < 1 || itemId > 4095
+                    || stack.getCount() < 1
+                    || stack.getCount() > stack.getMaxStackSize()
+                    || stack.getMetadata() < 0
+                    || stack.getMetadata() > 32767)
+                return false;
+        }
+        return tile.getSizeInventory() == 27;
+    }
+
+    /** Canonical trace metadata: potion type is NBT-backed in Java, while
+     * magma stores the same vanilla PotionType registry id in stack meta. */
+    private static int oracleStackMeta(net.minecraft.item.ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return 0;
+        int itemId = net.minecraft.item.Item.getIdFromItem(stack.getItem());
+        if (itemId == 373 || itemId == 438 || itemId == 441) {
+            return net.minecraft.potion.PotionType.REGISTRY.getIDForObject(
+                net.minecraft.potion.PotionUtils.getPotionFromItem(stack));
+        }
+        return stack.getMetadata();
+    }
+
+    /** Exact normal-play state represented by the compact brewing schema. */
+    private boolean oracleBrewingStandExact(
+            net.minecraft.tileentity.TileEntityBrewingStand tile,
+            int blockId,
+            net.minecraft.block.state.IBlockState blockState) {
+        if (tile == null || blockId != 117 || tile.hasCustomName()
+                || tile.getSizeInventory() != 5
+                || tile.getField(0) < 0 || tile.getField(0) > 400
+                || tile.getField(1) < 0 || tile.getField(1) > 20)
+            return false;
+        int bottleBits = 0;
+        for (int slot = 0; slot < 5; ++slot) {
+            net.minecraft.item.ItemStack stack = tile.getStackInSlot(slot);
+            if (stack.isEmpty()) continue;
+            int itemId = net.minecraft.item.Item.getIdFromItem(stack.getItem());
+            if (stack.getCount() < 1
+                    || stack.getCount() > stack.getMaxStackSize())
+                return false;
+            if (slot < 3) {
+                int potionType = oracleStackMeta(stack);
+                if (!net.minecraftforge.common.brewing.BrewingRecipeRegistry
+                        .isValidInput(stack)
+                        || potionType < 0 || potionType > 36)
+                    return false;
+                net.minecraft.item.ItemStack expected =
+                    new net.minecraft.item.ItemStack(
+                        stack.getItem(), stack.getCount());
+                net.minecraft.potion.PotionUtils.addPotionToItemStack(
+                    expected,
+                    net.minecraft.potion.PotionUtils.getPotionFromItem(stack));
+                if (!net.minecraft.item.ItemStack.areItemStackTagsEqual(
+                        stack, expected))
+                    return false;
+                bottleBits |= 1 << slot;
+            } else if (stack.hasTagCompound()) {
+                return false;
+            } else if (slot == 3) {
+                if (!net.minecraftforge.common.brewing.BrewingRecipeRegistry
+                        .isValidIngredient(stack)
+                        && itemId != 374)
+                    return false;
+            } else if (itemId != 377) {
+                return false;
+            }
+        }
+        return blockState.getBlock().getMetaFromState(blockState) == bottleBits;
+    }
+
+    /** Reproduce BlockShulkerBox.breakBlock's exact dropped stack tag. */
+    private net.minecraft.nbt.NBTTagCompound oracleShulkerItemTag(
+            net.minecraft.tileentity.TileEntityShulkerBox tile,
+            net.minecraft.block.Block block) {
+        net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(
+            net.minecraft.item.Item.getItemFromBlock(block));
+        net.minecraft.nbt.NBTTagCompound outer =
+            new net.minecraft.nbt.NBTTagCompound();
+        outer.setTag(
+            "BlockEntityTag",
+            tile.saveToNbt(new net.minecraft.nbt.NBTTagCompound()));
+        stack.setTagCompound(outer);
+        if (tile.hasCustomName())
+            stack.setStackDisplayName(tile.getName());
+        return stack.getTagCompound();
+    }
+
+    /**
+     * Canonical lossless payload for tagged EntityItem stacks.
+     */
+    private JsonObject oracleTaggedItemPayload(
+            net.minecraft.item.ItemStack stack) {
+        if (stack == null || stack.isEmpty() || !stack.hasTagCompound())
+            return null;
+        JsonObject generic = new JsonObject();
+        generic.addProperty("kind", "item_tag");
+        generic.addProperty("nbt", oracleNbtHex(stack.getTagCompound()));
+        return generic;
+    }
+
+    /** Supported lossless player-stack subset shared by main/armor/offhand. */
+    private JsonObject oraclePlayerInventoryStack(
+            int slot, net.minecraft.item.ItemStack stack) {
+        JsonObject value = new JsonObject();
+        value.addProperty("slot", slot);
+        value.addProperty("id", stackId(stack));
+        value.addProperty("count", stack.getCount());
+        value.addProperty("meta", oracleStackMeta(stack));
+        JsonArray enchantments = new JsonArray();
+        net.minecraft.nbt.NBTTagList tags = stack.getEnchantmentTagList();
+        if (tags != null) {
+            for (int j = 0; j < tags.tagCount(); ++j) {
+                net.minecraft.nbt.NBTTagCompound tag =
+                    tags.getCompoundTagAt(j);
+                JsonArray enchantment = new JsonArray();
+                enchantment.add(new com.google.gson.JsonPrimitive(
+                    tag.getShort("id")));
+                enchantment.add(new com.google.gson.JsonPrimitive(
+                    tag.getShort("lvl")));
+                enchantments.add(enchantment);
+            }
+        }
+        value.add("enchants", enchantments);
+        return value;
+    }
+
+    private void oracleCaptureAuthoritativePlayerLocked(
+            net.minecraft.entity.player.EntityPlayerMP p) {
+        oracleAuthControlledInputValid = false;
+        oracleAuthPlayerTicks = p.ticksExisted;
+        oracleAuthX = p.posX;
+        oracleAuthY = p.posY;
+        oracleAuthZ = p.posZ;
+        oracleAuthMotionX = p.motionX;
+        oracleAuthMotionY = p.motionY;
+        oracleAuthMotionZ = p.motionZ;
+        oracleAuthSprinting = p.isSprinting();
+        oracleAuthBbMinY = p.getEntityBoundingBox().minY;
+        oracleAuthBbMaxY = p.getEntityBoundingBox().maxY;
+        oracleAuthOnGround = p.onGround;
+        oracleAuthInWater = p.isInWater();
+        oracleAuthAir = p.getAir();
+        oracleAuthHealth = p.getHealth();
+        oracleAuthMaxHealth = p.getMaxHealth();
+        oracleAuthAbsorption = p.getAbsorptionAmount();
+        oracleAuthFallDistance = p.fallDistance;
+        oracleAuthFood = p.getFoodStats().getFoodLevel();
+        oracleAuthSaturation = p.getFoodStats().getSaturationLevel();
+        oracleAuthFoodExhaustion = foodExhaustion(p.getFoodStats());
+        oracleAuthFoodTimer = foodTimer(p.getFoodStats());
+        oracleAuthFire = fireTicks(p);
+        oracleAuthHurtTime = p.hurtTime;
+        oracleAuthHurtResistantTime = p.hurtResistantTime;
+        oracleAuthDeathTime = p.deathTime;
+        oracleAuthAttackCooldown = p.getCooledAttackStrength(0.0F);
+        oracleAuthAttackTicks = playerAttackTicks(p);
+        oracleAuthXp = p.experienceLevel;
+        oracleAuthXpFrac = p.experience;
+        oracleAuthXpTotal = p.experienceTotal;
+        oracleAuthMovementSpeed = p.getEntityAttribute(
+            net.minecraft.entity.SharedMonsterAttributes.MOVEMENT_SPEED)
+            .getAttributeValue();
+        oracleAuthDim = p.dimension;
+        net.minecraft.world.WorldServer authWorld = p.getServerWorld();
+        oracleAuthDoEntityDrops = authWorld.getGameRules()
+            .getBoolean("doEntityDrops");
+        oracleAuthWorldTime = authWorld.getWorldTime();
+        oracleAuthTotalTime = authWorld.getTotalWorldTime();
+        oracleAuthRainTime = authWorld.getWorldInfo().getRainTime();
+        oracleAuthThunderTime = authWorld.getWorldInfo().getThunderTime();
+        oracleAuthRaining = authWorld.isRaining();
+        oracleAuthThundering = authWorld.isThundering();
+        oracleAuthCleanWeatherTime =
+            authWorld.getWorldInfo().getCleanWeatherTime();
+        oracleAuthDoWeatherCycle = authWorld.getGameRules()
+            .getBoolean("doWeatherCycle");
+        oracleAuthDoDaylightCycle = authWorld.getGameRules()
+            .getBoolean("doDaylightCycle");
+        oracleAuthPrevRainStrength = authWorld.prevRainingStrength;
+        oracleAuthRainStrength = authWorld.rainingStrength;
+        oracleAuthPrevThunderStrength = authWorld.prevThunderingStrength;
+        oracleAuthThunderStrength = authWorld.thunderingStrength;
+        oracleAuthWorldRandSeed48 =
+            javaRandomSeed48(authWorld.rand);
+        try {
+            oracleAuthWorldRandHaveGaussian =
+                javaRandomHaveNextGaussian(authWorld.rand);
+            oracleAuthWorldRandGaussian =
+                javaRandomNextGaussian(authWorld.rand);
+        } catch (Throwable ignored) {
+            oracleAuthWorldRandHaveGaussian = false;
+            oracleAuthWorldRandGaussian = 0.0D;
+        }
+        oracleAuthMathRandSeed48 = mathRandomSeed48();
+        oracleAuthBlockRandSeed48 = blockRandomSeed48();
+        oracleAuthWorldUpdateLCG =
+            worldUpdateLCG(authWorld);
+        oracleAuthNextEntityId = nextEntityId();
+        JsonArray potions = new JsonArray();
+        try {
+            ArrayList<net.minecraft.potion.PotionEffect> active =
+                new ArrayList<net.minecraft.potion.PotionEffect>(
+                    p.getActivePotionEffects());
+            active.sort((a, b) -> Integer.compare(
+                net.minecraft.potion.Potion.getIdFromPotion(a.getPotion()),
+                net.minecraft.potion.Potion.getIdFromPotion(b.getPotion())));
+            for (net.minecraft.potion.PotionEffect effect : active) {
+                JsonObject value = new JsonObject();
+                value.addProperty("id",
+                    net.minecraft.potion.Potion.getIdFromPotion(
+                        effect.getPotion()));
+                value.addProperty("amp", effect.getAmplifier());
+                value.addProperty("dur", effect.getDuration());
+                potions.add(value);
+            }
+        } catch (Throwable ig) {}
+        oracleAuthPotions = potions;
+        JsonArray authoritativeInventory = new JsonArray();
+        for (int i = 0; i < p.inventory.mainInventory.size(); ++i) {
+            net.minecraft.item.ItemStack stack =
+                p.inventory.mainInventory.get(i);
+            if (stack == null || stack.isEmpty()) continue;
+            authoritativeInventory.add(oraclePlayerInventoryStack(i, stack));
+        }
+        JsonArray authoritativeArmor = new JsonArray();
+        for (int i = 0; i < p.inventory.armorInventory.size(); ++i) {
+            net.minecraft.item.ItemStack stack =
+                p.inventory.armorInventory.get(i);
+            if (stack == null || stack.isEmpty()) continue;
+            JsonObject value = oraclePlayerInventoryStack(36 + i, stack);
+            authoritativeArmor.add(value);
+            authoritativeInventory.add(value);
+        }
+        for (int i = 0; i < p.inventory.offHandInventory.size(); ++i) {
+            net.minecraft.item.ItemStack stack =
+                p.inventory.offHandInventory.get(i);
+            if (stack == null || stack.isEmpty()) continue;
+            authoritativeInventory.add(
+                oraclePlayerInventoryStack(40 + i, stack));
+        }
+        oracleAuthInventory = authoritativeInventory;
+        oracleAuthArmor = authoritativeArmor;
+        oracleAuthHeldSlot = p.inventory.currentItem;
+        net.minecraft.item.ItemStack held =
+            p.inventory.getStackInSlot(oracleAuthHeldSlot);
+        oracleAuthHeldId = stackId(held);
+        oracleAuthHeldCount = stackCount(held);
+        oracleAuthHeldMeta = stackMeta(held);
+        try {
+            net.minecraft.network.NetHandlerPlayServer nh = p.connection;
+            Class<?> cls = net.minecraft.network.NetHandlerPlayServer.class;
+            java.lang.reflect.Field lastX = cls.getDeclaredField("lastGoodX");
+            java.lang.reflect.Field lastY = cls.getDeclaredField("lastGoodY");
+            java.lang.reflect.Field lastZ = cls.getDeclaredField("lastGoodZ");
+            java.lang.reflect.Field packets =
+                cls.getDeclaredField("movePacketCounter");
+            lastX.setAccessible(true);
+            lastY.setAccessible(true);
+            lastZ.setAccessible(true);
+            packets.setAccessible(true);
+            oracleAuthNetLastGoodX = lastX.getDouble(nh);
+            oracleAuthNetLastGoodY = lastY.getDouble(nh);
+            oracleAuthNetLastGoodZ = lastZ.getDouble(nh);
+            oracleAuthNetMovePackets = packets.getInt(nh);
+        } catch (Throwable ig) {}
+        JsonArray entities = new JsonArray();
+        try {
+            ArrayList<Entity> loaded =
+                new ArrayList<Entity>(p.getServerWorld().loadedEntityList);
+            loaded.removeIf(e -> e.isDead
+                || e instanceof net.minecraft.entity.player.EntityPlayer
+                || e instanceof
+                    net.minecraft.entity.item.EntityItemFrame);
+            java.util.IdentityHashMap<Entity, Integer> loadedOrder =
+                new java.util.IdentityHashMap<Entity, Integer>();
+            for (int i = 0; i < loaded.size(); ++i)
+                loadedOrder.put(loaded.get(i), Integer.valueOf(i));
+            loaded.sort((a, b) ->
+                Double.compare(p.getDistanceSqToEntity(a), p.getDistanceSqToEntity(b)));
+            int count = Math.min(N_ENTITIES_MAX, loaded.size());
+            for (int i = 0; i < count; i++) {
+                Entity entity = loaded.get(i);
+                JsonObject value = new JsonObject();
+                value.addProperty("eid", entity.getEntityId());
+                value.addProperty("type", entity.getClass().getSimpleName());
+                value.addProperty(
+                    "loaded_order", loadedOrder.get(entity).intValue());
+                value.addProperty("x", entity.posX);
+                value.addProperty("y", entity.posY);
+                value.addProperty("z", entity.posZ);
+                value.addProperty("dx", entity.posX - p.posX);
+                value.addProperty("dy", entity.posY - p.posY);
+                value.addProperty("dz", entity.posZ - p.posZ);
+                value.addProperty("vx", entity.motionX);
+                value.addProperty("vy", entity.motionY);
+                value.addProperty("vz", entity.motionZ);
+                value.addProperty("yaw", entity.rotationYaw);
+                value.addProperty("pitch", entity.rotationPitch);
+                value.addProperty("health", -1.0F);
+                if (entity instanceof
+                        net.minecraft.entity.projectile.EntityFireball) {
+                    net.minecraft.entity.projectile.EntityFireball fireball =
+                        (net.minecraft.entity.projectile.EntityFireball)entity;
+                    value.addProperty("ax", fireball.accelerationX);
+                    value.addProperty("ay", fireball.accelerationY);
+                    value.addProperty("az", fireball.accelerationZ);
+                }
+                if (entity instanceof net.minecraft.entity.EntityLivingBase) {
+                    net.minecraft.entity.EntityLivingBase living =
+                        (net.minecraft.entity.EntityLivingBase)entity;
+                    value.addProperty(
+                        "health", living.getHealth());
+                    value.addProperty("hurt_time", living.hurtTime);
+                    value.addProperty("death_time", living.deathTime);
+                    value.addProperty(
+                        "hurt_resistant_time", living.hurtResistantTime);
+                }
+                if (entity instanceof net.minecraft.entity.EntityLiving) {
+                    value.addProperty(
+                        "no_ai",
+                        ((net.minecraft.entity.EntityLiving)entity)
+                            .isAIDisabled());
+                }
+                if (entity instanceof
+                        net.minecraft.entity.passive.EntityVillager) {
+                    net.minecraft.entity.passive.EntityVillager villager =
+                        (net.minecraft.entity.passive.EntityVillager)entity;
+                    net.minecraft.nbt.NBTTagCompound nbt =
+                        new net.minecraft.nbt.NBTTagCompound();
+                    villager.writeToNBT(nbt);
+                    java.util.Random random = entityRandom(villager);
+                    value.addProperty(
+                        "profession", villager.getProfession());
+                    value.addProperty(
+                        "growing_age", villager.getGrowingAge());
+                    value.addProperty(
+                        "career", nbt.getInteger("Career"));
+                    value.addProperty(
+                        "career_level", nbt.getInteger("CareerLevel"));
+                    value.addProperty(
+                        "living_sound_time", villager.livingSoundTime);
+                    value.addProperty(
+                        "offers_initialized", nbt.hasKey("Offers", 10));
+                    value.addProperty(
+                        "entity_seed48", javaRandomSeed48(random));
+                    value.addProperty(
+                        "entity_have_gaussian",
+                        javaRandomHaveNextGaussian(random));
+                    value.addProperty(
+                        "entity_gaussian", javaRandomNextGaussian(random));
+                }
+                if (entity instanceof net.minecraft.entity.item.EntityItem) {
+                    net.minecraft.entity.item.EntityItem item =
+                        (net.minecraft.entity.item.EntityItem)entity;
+                    net.minecraft.item.ItemStack stack =
+                        item.getEntityItem();
+                    value.addProperty(
+                        "item",
+                        net.minecraft.item.Item.getIdFromItem(
+                            stack.getItem()));
+                    value.addProperty("count", stack.getCount());
+                    value.addProperty("meta", oracleStackMeta(stack));
+                    value.addProperty("age", item.getAge());
+                    value.addProperty("health", itemField(item, "health"));
+                    value.addProperty(
+                        "pickup_delay",
+                        itemField(item, "delayBeforeCanPickup"));
+                    JsonObject payload = oracleTaggedItemPayload(stack);
+                    if (payload != null)
+                        value.add("stack_payload", payload);
+                }
+                if (entity instanceof net.minecraft.entity.item.EntityXPOrb) {
+                    net.minecraft.entity.item.EntityXPOrb orb =
+                        (net.minecraft.entity.item.EntityXPOrb)entity;
+                    value.addProperty("health", xpOrbField(orb, "xpOrbHealth"));
+                    value.addProperty("value", orb.xpValue);
+                    value.addProperty("age", orb.xpOrbAge);
+                    value.addProperty(
+                        "pickup_delay", orb.delayBeforeCanPickup);
+                    value.addProperty("color", orb.xpColor);
+                    try {
+                        java.lang.reflect.Field target =
+                            net.minecraft.entity.item.EntityXPOrb.class
+                                .getDeclaredField("xpTargetColor");
+                        target.setAccessible(true);
+                        value.addProperty(
+                            "target_color", target.getInt(orb));
+                    } catch (Throwable ig) {}
+                }
+                if (entity instanceof
+                        net.minecraft.entity.item.EntityFallingBlock) {
+                    net.minecraft.entity.item.EntityFallingBlock falling =
+                        (net.minecraft.entity.item.EntityFallingBlock)entity;
+                    net.minecraft.block.state.IBlockState state =
+                        falling.getBlock();
+                    int blockId = 12;
+                    int blockMeta = 0;
+                    if (state != null) {
+                        blockId =
+                            net.minecraft.block.Block.getIdFromBlock(
+                                state.getBlock());
+                        blockMeta =
+                            state.getBlock().getMetaFromState(state);
+                    }
+                    value.addProperty("block", blockId);
+                    value.addProperty("meta", blockMeta);
+                    value.addProperty("fall_time", falling.fallTime);
+                    BlockPos origin = falling.getOrigin();
+                    value.addProperty("origin_x", origin.getX());
+                    value.addProperty("origin_y", origin.getY());
+                    value.addProperty("origin_z", origin.getZ());
+                }
+                if (entity instanceof
+                        net.minecraft.entity.item.EntityTNTPrimed) {
+                    value.addProperty(
+                        "fuse",
+                        ((net.minecraft.entity.item.EntityTNTPrimed)entity)
+                            .getFuse());
+                }
+                if (entity instanceof
+                        net.minecraft.entity.projectile.EntityFishHook) {
+                    net.minecraft.entity.projectile.EntityFishHook hook =
+                        (net.minecraft.entity.projectile.EntityFishHook)entity;
+                    Object state = fishHookField(hook, "currentState");
+                    java.util.Random random = entityRandom(hook);
+                    value.addProperty("fish_state",
+                        state instanceof Enum<?> ? ((Enum<?>)state).ordinal() : -1);
+                    value.addProperty("in_ground",
+                        ((Boolean)fishHookField(hook, "inGround")).booleanValue());
+                    value.addProperty("ticks_in_ground",
+                        ((Integer)fishHookField(hook, "ticksInGround")).intValue());
+                    value.addProperty("ticks_in_air",
+                        ((Integer)fishHookField(hook, "ticksInAir")).intValue());
+                    value.addProperty("ticks_catchable",
+                        ((Integer)fishHookField(hook, "ticksCatchable")).intValue());
+                    value.addProperty("ticks_caught_delay",
+                        ((Integer)fishHookField(hook, "ticksCaughtDelay")).intValue());
+                    value.addProperty("ticks_catchable_delay",
+                        ((Integer)fishHookField(
+                            hook, "ticksCatchableDelay")).intValue());
+                    value.addProperty("fish_approach_angle",
+                        ((Float)fishHookField(
+                            hook, "fishApproachAngle")).floatValue());
+                    value.addProperty("luck",
+                        ((Integer)fishHookField(
+                            hook, "field_191518_aw")).intValue());
+                    value.addProperty("lure",
+                        ((Integer)fishHookField(
+                            hook, "field_191519_ax")).intValue());
+                    value.addProperty("caught_eid",
+                        hook.caughtEntity == null
+                            ? 0 : hook.caughtEntity.getEntityId());
+                    value.addProperty(
+                        "entity_seed48", javaRandomSeed48(random));
+                    value.addProperty("entity_have_gaussian",
+                        javaRandomHaveNextGaussian(random));
+                    value.addProperty("entity_gaussian",
+                        javaRandomNextGaussian(random));
+                }
+                if (entity instanceof
+                        net.minecraft.entity.item.EntityEnderCrystal) {
+                    net.minecraft.entity.item.EntityEnderCrystal crystal =
+                        (net.minecraft.entity.item.EntityEnderCrystal)entity;
+                    BlockPos beamTarget = crystal.getBeamTarget();
+                    value.addProperty(
+                        "inner_rotation", crystal.innerRotation);
+                    value.addProperty(
+                        "show_bottom", crystal.shouldShowBottom() ? 1 : 0);
+                    value.addProperty("has_beam", beamTarget == null ? 0 : 1);
+                    value.addProperty(
+                        "beam_x", beamTarget == null ? 0 : beamTarget.getX());
+                    value.addProperty(
+                        "beam_y", beamTarget == null ? 0 : beamTarget.getY());
+                    value.addProperty(
+                        "beam_z", beamTarget == null ? 0 : beamTarget.getZ());
+                }
+                if (entity instanceof
+                        net.minecraft.entity.item.EntityMinecart) {
+                    net.minecraft.entity.item.EntityMinecart cart =
+                        (net.minecraft.entity.item.EntityMinecart)entity;
+                    net.minecraft.nbt.NBTTagCompound nbt =
+                        new net.minecraft.nbt.NBTTagCompound();
+                    cart.writeToNBT(nbt);
+                    value.addProperty(
+                        "minecart_kind", cart.getType().getId());
+                    value.addProperty(
+                        "rolling_amplitude", cart.getRollingAmplitude());
+                    value.addProperty(
+                        "rolling_direction", cart.getRollingDirection());
+                    value.addProperty("damage", cart.getDamage());
+                    try {
+                        java.lang.reflect.Field reverse =
+                            net.minecraft.entity.item.EntityMinecart.class
+                                .getDeclaredField("isInReverse");
+                        reverse.setAccessible(true);
+                        value.addProperty("reverse", reverse.getBoolean(cart));
+                    } catch (Throwable ig) {}
+                    java.util.Random random = entityRandom(cart);
+                    value.addProperty(
+                        "entity_seed48", javaRandomSeed48(random));
+                    value.addProperty(
+                        "entity_have_gaussian",
+                        javaRandomHaveNextGaussian(random));
+                    value.addProperty(
+                        "entity_gaussian", javaRandomNextGaussian(random));
+                    value.addProperty("fuel", nbt.getShort("Fuel"));
+                    value.addProperty("push_x", nbt.getDouble("PushX"));
+                    value.addProperty("push_z", nbt.getDouble("PushZ"));
+                    value.addProperty("tnt_fuse",
+                        nbt.hasKey("TNTFuse", 99)
+                            ? nbt.getInteger("TNTFuse") : -1);
+                    value.addProperty("hopper_enabled",
+                        nbt.hasKey("Enabled")
+                            ? nbt.getBoolean("Enabled") : true);
+                    value.addProperty("transfer_cooldown",
+                        nbt.hasKey("TransferCooldown", 99)
+                            ? nbt.getInteger("TransferCooldown") : -1);
+                    JsonArray items = new JsonArray();
+                    if (cart instanceof net.minecraft.inventory.IInventory) {
+                        net.minecraft.inventory.IInventory inventory =
+                            (net.minecraft.inventory.IInventory)cart;
+                        for (int slot = 0;
+                                slot < inventory.getSizeInventory(); ++slot) {
+                            net.minecraft.item.ItemStack stack =
+                                inventory.getStackInSlot(slot);
+                            if (stack == null || stack.isEmpty()) continue;
+                            JsonObject item = new JsonObject();
+                            item.addProperty("slot", slot);
+                            item.addProperty("id", stackId(stack));
+                            item.addProperty("count", stack.getCount());
+                            item.addProperty("meta", oracleStackMeta(stack));
+                            items.add(item);
+                        }
+                    }
+                    value.add("items", items);
+                }
+                entities.add(value);
+            }
+        } catch (Throwable ig) {}
+        oracleAuthEntities = entities;
+        JsonArray itemFrames = new JsonArray();
+        oracleAuthItemFramesComplete = false;
+        oracleAuthItemFramesError = "";
+        try {
+            ArrayList<net.minecraft.entity.item.EntityItemFrame> loaded =
+                new ArrayList<net.minecraft.entity.item.EntityItemFrame>();
+            int centerX = (int)Math.floor(p.posX);
+            int centerZ = (int)Math.floor(p.posZ);
+            boolean exact = true;
+            for (Entity entity : p.getServerWorld().loadedEntityList) {
+                if (!(entity instanceof
+                        net.minecraft.entity.item.EntityItemFrame))
+                    continue;
+                net.minecraft.entity.item.EntityItemFrame frame =
+                    (net.minecraft.entity.item.EntityItemFrame)entity;
+                BlockPos pos = frame.getHangingPosition();
+                if (pos == null
+                        || Math.abs(pos.getX() - centerX) > 32
+                        || Math.abs(pos.getZ() - centerZ) > 32)
+                    continue;
+                if (!oracleItemFrameComparatorSourceExact(frame)) {
+                    exact = false;
+                    break;
+                }
+                loaded.add(frame);
+            }
+            loaded.sort((a, b) -> {
+                BlockPos ap = a.getHangingPosition();
+                BlockPos bp = b.getHangingPosition();
+                int cmp = Integer.compare(ap.getX(), bp.getX());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getY(), bp.getY());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getZ(), bp.getZ());
+                if (cmp == 0)
+                    cmp = Integer.compare(
+                        a.getEntityId(), b.getEntityId());
+                return cmp;
+            });
+            if (exact && loaded.size() <= N_ITEM_FRAMES_MAX) {
+                for (net.minecraft.entity.item.EntityItemFrame frame :
+                        loaded) {
+                    BlockPos pos = frame.getHangingPosition();
+                    net.minecraft.item.ItemStack stack =
+                        frame.getDisplayedItem();
+                    JsonObject value = new JsonObject();
+                    value.addProperty("eid", frame.getEntityId());
+                    value.addProperty("x", frame.posX);
+                    value.addProperty("y", frame.posY);
+                    value.addProperty("z", frame.posZ);
+                    value.addProperty("hanging_x", pos.getX());
+                    value.addProperty("hanging_y", pos.getY());
+                    value.addProperty("hanging_z", pos.getZ());
+                    value.addProperty(
+                        "facing",
+                        frame.getHorizontalFacing().getIndex());
+                    value.addProperty(
+                        "item",
+                        stack.isEmpty() ? 0
+                            : net.minecraft.item.Item.getIdFromItem(
+                                stack.getItem()));
+                    value.addProperty(
+                        "count", stack.isEmpty() ? 0 : stack.getCount());
+                    value.addProperty(
+                        "meta", stack.isEmpty() ? 0 : stack.getMetadata());
+                    value.addProperty(
+                        "rotation", frame.getRotation());
+                    itemFrames.add(value);
+                }
+                oracleAuthItemFramesComplete = true;
+            }
+        } catch (Throwable ig) {
+            oracleAuthItemFramesError = ig.toString();
+        }
+        oracleAuthItemFrames = itemFrames;
+        JsonArray comparators = new JsonArray();
+        oracleAuthComparatorsComplete = false;
+        oracleAuthComparatorsError = "";
+        try {
+            ArrayList<net.minecraft.tileentity.TileEntityComparator> loaded =
+                new ArrayList<net.minecraft.tileentity.TileEntityComparator>();
+            int centerX = (int)Math.floor(p.posX);
+            int centerZ = (int)Math.floor(p.posZ);
+            for (net.minecraft.tileentity.TileEntity tile :
+                    p.getServerWorld().loadedTileEntityList) {
+                if (!(tile instanceof
+                        net.minecraft.tileentity.TileEntityComparator))
+                    continue;
+                BlockPos pos = tile.getPos();
+                if (Math.abs(pos.getX() - centerX) > 32
+                        || Math.abs(pos.getZ() - centerZ) > 32)
+                    continue;
+                loaded.add(
+                    (net.minecraft.tileentity.TileEntityComparator)tile);
+            }
+            loaded.sort((a, b) -> {
+                BlockPos ap = a.getPos();
+                BlockPos bp = b.getPos();
+                int cmp = Integer.compare(ap.getX(), bp.getX());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getY(), bp.getY());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getZ(), bp.getZ());
+                return cmp;
+            });
+            if (loaded.size() <= N_SCHEDULED_TICKS_MAX) {
+                for (net.minecraft.tileentity.TileEntityComparator tile :
+                        loaded) {
+                    BlockPos pos = tile.getPos();
+                    JsonObject value = new JsonObject();
+                    value.addProperty("x", pos.getX());
+                    value.addProperty("y", pos.getY());
+                    value.addProperty("z", pos.getZ());
+                    value.addProperty(
+                        "output_signal", tile.getOutputSignal());
+                    comparators.add(value);
+                }
+                oracleAuthComparatorsComplete = true;
+            }
+        } catch (Throwable ig) {
+            oracleAuthComparatorsError = ig.toString();
+        }
+        oracleAuthComparators = comparators;
+        JsonArray containers = new JsonArray();
+        oracleAuthContainersComplete = false;
+        oracleAuthContainersError = "";
+        try {
+            ArrayList<net.minecraft.tileentity.TileEntity> loaded =
+                new ArrayList<net.minecraft.tileentity.TileEntity>();
+            int centerX = (int)Math.floor(p.posX);
+            int centerZ = (int)Math.floor(p.posZ);
+            boolean exact = true;
+            for (net.minecraft.tileentity.TileEntity tile :
+                    p.getServerWorld().loadedTileEntityList) {
+                BlockPos pos = tile.getPos();
+                if (Math.abs(pos.getX() - centerX) > 32
+                        || Math.abs(pos.getZ() - centerZ) > 32)
+                    continue;
+                int blockId = net.minecraft.block.Block.getIdFromBlock(
+                    p.getServerWorld().getBlockState(pos).getBlock());
+                if (tile instanceof
+                        net.minecraft.tileentity.TileEntityChest) {
+                    net.minecraft.tileentity.TileEntityChest chest =
+                        (net.minecraft.tileentity.TileEntityChest)tile;
+                    boolean basicChest =
+                        blockId == 54
+                        && chest.getChestType()
+                            == net.minecraft.block.BlockChest.Type.BASIC;
+                    boolean trappedChest =
+                        blockId == 146
+                        && chest.getChestType()
+                            == net.minecraft.block.BlockChest.Type.TRAP;
+                    if ((!basicChest && !trappedChest)
+                            || chest.getLootTable() != null
+                            || !(
+                                p.getServerWorld().getBlockState(pos)
+                                    .getBlock()
+                                instanceof net.minecraft.block.BlockChest)
+                            || ((net.minecraft.block.BlockChest)
+                                p.getServerWorld().getBlockState(pos)
+                                    .getBlock())
+                                .getLockableContainer(
+                                    p.getServerWorld(), pos) == null) {
+                        exact = false;
+                        break;
+                    }
+                    int adjacentCount = 0;
+                    for (net.minecraft.util.EnumFacing facing :
+                            net.minecraft.util.EnumFacing.HORIZONTALS) {
+                        int adjacentId =
+                            net.minecraft.block.Block.getIdFromBlock(
+                                p.getServerWorld().getBlockState(
+                                    pos.offset(facing)).getBlock());
+                        if (adjacentId == blockId) {
+                            adjacentCount++;
+                            net.minecraft.tileentity.TileEntity adjacentTile =
+                                p.getServerWorld().getTileEntity(
+                                    pos.offset(facing));
+                            if (!(adjacentTile instanceof
+                                    net.minecraft.tileentity.TileEntityChest)) {
+                                exact = false;
+                                break;
+                            }
+                            net.minecraft.tileentity.TileEntityChest
+                                adjacentChest =
+                                (net.minecraft.tileentity.TileEntityChest)
+                                    adjacentTile;
+                            if (adjacentChest.getChestType()
+                                    != chest.getChestType()
+                                    || adjacentChest.getLootTable() != null) {
+                                exact = false;
+                                break;
+                            }
+                        }
+                    }
+                    // Ordinary and trapped pairs use the same large-inventory
+                    // formula, but retain distinct captured schemas.
+                    if (!exact || adjacentCount > 1) {
+                        exact = false;
+                        break;
+                    }
+                    loaded.add(tile);
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityFurnace) {
+                    if (blockId != 61 && blockId != 62) {
+                        exact = false;
+                        break;
+                    }
+                    loaded.add(tile);
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityBrewingStand) {
+                    if (!oracleBrewingStandExact(
+                            (net.minecraft.tileentity.TileEntityBrewingStand)
+                                tile,
+                            blockId,
+                            p.getServerWorld().getBlockState(pos))) {
+                        exact = false;
+                        break;
+                    }
+                    loaded.add(tile);
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityDispenser) {
+                    boolean dispenser =
+                        blockId == 23
+                        && !(tile instanceof
+                            net.minecraft.tileentity.TileEntityDropper);
+                    boolean dropper =
+                        blockId == 158
+                        && tile instanceof
+                            net.minecraft.tileentity.TileEntityDropper;
+                    if ((!dispenser && !dropper)
+                            || ((net.minecraft.tileentity.TileEntityDispenser)
+                                tile).getLootTable() != null) {
+                        exact = false;
+                        break;
+                    }
+                    loaded.add(tile);
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityHopper) {
+                    net.minecraft.tileentity.TileEntityHopper hopper =
+                        (net.minecraft.tileentity.TileEntityHopper)tile;
+                    if (blockId != 154 || hopper.getLootTable() != null) {
+                        exact = false;
+                        break;
+                    }
+                    loaded.add(tile);
+                } else if (tile instanceof
+                        net.minecraft.block.BlockJukebox.TileEntityJukebox) {
+                    net.minecraft.block.BlockJukebox.TileEntityJukebox
+                        jukebox =
+                            (net.minecraft.block.BlockJukebox.TileEntityJukebox)
+                                tile;
+                    net.minecraft.item.ItemStack record =
+                        jukebox.getRecord();
+                    int recordId = record.isEmpty() ? 0
+                        : net.minecraft.item.Item.getIdFromItem(
+                            record.getItem());
+                    int blockMeta =
+                        p.getServerWorld().getBlockState(pos).getBlock()
+                            .getMetaFromState(
+                                p.getServerWorld().getBlockState(pos));
+                    if (blockId != 84
+                            || (record.isEmpty()) != (blockMeta == 0)
+                            || (!record.isEmpty()
+                                && (recordId < 2256 || recordId > 2267
+                                    || record.getCount() != 1
+                                    || record.getMetadata() != 0
+                                    || record.hasTagCompound()))) {
+                        exact = false;
+                        break;
+                    }
+                    loaded.add(tile);
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityCommandBlock) {
+                    if (!oracleInertCommandBlockExact(
+                            (net.minecraft.tileentity.TileEntityCommandBlock)
+                                tile,
+                            blockId)) {
+                        exact = false;
+                        break;
+                    }
+                    loaded.add(tile);
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityShulkerBox) {
+                    if (!oracleShulkerExact(
+                            (net.minecraft.tileentity.TileEntityShulkerBox)
+                                tile,
+                            blockId)) {
+                        exact = false;
+                        break;
+                    }
+                    loaded.add(tile);
+                } else if (tile instanceof net.minecraft.inventory.IInventory) {
+                    // Do not call a partial list complete when another
+                    // inventory tile exists inside the captured neighborhood.
+                    exact = false;
+                    break;
+                }
+            }
+            loaded.sort((a, b) -> {
+                BlockPos ap = a.getPos();
+                BlockPos bp = b.getPos();
+                int cmp = Integer.compare(ap.getX(), bp.getX());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getY(), bp.getY());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getZ(), bp.getZ());
+                return cmp;
+            });
+            int represented = loaded.size();
+            if (exact && represented <= N_SCHEDULED_TICKS_MAX) {
+                for (net.minecraft.tileentity.TileEntity tile : loaded) {
+                    BlockPos pos = tile.getPos();
+                    JsonObject value = new JsonObject();
+                    value.addProperty("x", pos.getX());
+                    value.addProperty("y", pos.getY());
+                    value.addProperty("z", pos.getZ());
+                    if (tile instanceof
+                            net.minecraft.tileentity.TileEntityCommandBlock) {
+                        int commandBlockId =
+                            net.minecraft.block.Block.getIdFromBlock(
+                                p.getServerWorld().getBlockState(pos)
+                                    .getBlock());
+                        value.addProperty(
+                            "type",
+                            commandBlockId == 210
+                                ? "repeating_command_block"
+                                : commandBlockId == 211
+                                    ? "chain_command_block"
+                                    : "command_block");
+                        value.addProperty("size", 0);
+                        value.addProperty(
+                            "success_count",
+                            ((net.minecraft.tileentity.TileEntityCommandBlock)
+                                tile).getCommandBlockLogic()
+                                    .getSuccessCount());
+                        value.add("items", new JsonArray());
+                        containers.add(value);
+                        continue;
+                    }
+                    if (tile instanceof
+                            net.minecraft.block.BlockJukebox.TileEntityJukebox) {
+                        net.minecraft.item.ItemStack record =
+                            ((net.minecraft.block.BlockJukebox.TileEntityJukebox)
+                                tile).getRecord();
+                        value.addProperty("type", "jukebox");
+                        value.addProperty("size", 1);
+                        JsonArray items = new JsonArray();
+                        if (!record.isEmpty()) {
+                            JsonObject item = new JsonObject();
+                            item.addProperty("slot", 0);
+                            item.addProperty(
+                                "id",
+                                net.minecraft.item.Item.getIdFromItem(
+                                    record.getItem()));
+                            item.addProperty("count", record.getCount());
+                            item.addProperty(
+                                "meta", record.getMetadata());
+                            items.add(item);
+                            represented++;
+                        }
+                        value.add("items", items);
+                        containers.add(value);
+                        continue;
+                    }
+                    if (tile instanceof
+                            net.minecraft.tileentity.TileEntityShulkerBox) {
+                        net.minecraft.block.state.IBlockState state =
+                            p.getServerWorld().getBlockState(pos);
+                        value.addProperty("type", "shulker_box");
+                        value.addProperty(
+                            "block",
+                            net.minecraft.block.Block.getIdFromBlock(
+                                state.getBlock()));
+                        value.addProperty(
+                            "facing",
+                            state.getBlock().getMetaFromState(state));
+                        value.addProperty(
+                            "item_tag_nbt",
+                            oracleNbtHex(oracleShulkerItemTag(
+                                (net.minecraft.tileentity.TileEntityShulkerBox)
+                                    tile,
+                                state.getBlock())));
+                    }
+                    net.minecraft.inventory.IInventory inventory =
+                        (net.minecraft.inventory.IInventory)tile;
+                    if (tile instanceof
+                            net.minecraft.tileentity.TileEntityChest) {
+                        int chestBlockId =
+                            net.minecraft.block.Block.getIdFromBlock(
+                                p.getServerWorld().getBlockState(pos)
+                                    .getBlock());
+                        BlockPos pairPos = null;
+                        for (net.minecraft.util.EnumFacing facing :
+                                net.minecraft.util.EnumFacing.HORIZONTALS) {
+                            BlockPos adjacentPos = pos.offset(facing);
+                            if (net.minecraft.block.Block.getIdFromBlock(
+                                    p.getServerWorld().getBlockState(
+                                        adjacentPos).getBlock())
+                                    == chestBlockId) {
+                                pairPos = adjacentPos;
+                                break;
+                            }
+                        }
+                        if (chestBlockId == 146 && pairPos == null) {
+                            value.addProperty(
+                                "type", "single_trapped_chest");
+                        } else if (chestBlockId == 146) {
+                            value.addProperty(
+                                "type", "double_trapped_chest_half");
+                            value.addProperty(
+                                "pair_x", pairPos.getX());
+                            value.addProperty(
+                                "pair_y", pairPos.getY());
+                            value.addProperty(
+                                "pair_z", pairPos.getZ());
+                        } else if (pairPos == null) {
+                            value.addProperty("type", "single_chest");
+                        } else {
+                            value.addProperty(
+                                "type", "double_chest_half");
+                            value.addProperty(
+                                "pair_x", pairPos.getX());
+                            value.addProperty(
+                                "pair_y", pairPos.getY());
+                            value.addProperty(
+                                "pair_z", pairPos.getZ());
+                        }
+                        net.minecraft.tileentity.TileEntityChest chest =
+                            (net.minecraft.tileentity.TileEntityChest)tile;
+                        value.addProperty(
+                            "num_players_using", chest.numPlayersUsing);
+                        value.addProperty(
+                            "lid_angle_bits",
+                            Float.floatToRawIntBits(chest.lidAngle));
+                        value.addProperty(
+                            "prev_lid_angle_bits",
+                            Float.floatToRawIntBits(chest.prevLidAngle));
+                    } else if (tile instanceof
+                            net.minecraft.tileentity.TileEntityShulkerBox) {
+                        // Type, block, and facing were recorded above. The
+                        // remaining common path records its 27 plain slots.
+                    } else if (tile instanceof
+                            net.minecraft.tileentity.TileEntityFurnace) {
+                        net.minecraft.tileentity.TileEntityFurnace furnace =
+                            (net.minecraft.tileentity.TileEntityFurnace)tile;
+                        value.addProperty("type", "furnace");
+                        value.addProperty(
+                            "burn_time", furnace.getField(0));
+                        value.addProperty(
+                            "current_burn_time", furnace.getField(1));
+                        value.addProperty(
+                            "cook_time", furnace.getField(2));
+                        value.addProperty(
+                            "total_cook_time", furnace.getField(3));
+                    } else if (tile instanceof
+                            net.minecraft.tileentity.TileEntityBrewingStand) {
+                        net.minecraft.tileentity.TileEntityBrewingStand stand =
+                            (net.minecraft.tileentity.TileEntityBrewingStand)
+                                tile;
+                        value.addProperty("type", "brewing_stand");
+                        value.addProperty("brew_time", stand.getField(0));
+                        value.addProperty("fuel", stand.getField(1));
+                    } else if (tile instanceof
+                            net.minecraft.tileentity.TileEntityHopper) {
+                        value.addProperty("type", "hopper");
+                        net.minecraft.tileentity.TileEntityHopper hopper =
+                            (net.minecraft.tileentity.TileEntityHopper)tile;
+                        net.minecraft.nbt.NBTTagCompound hopperNbt =
+                            hopper.writeToNBT(
+                                new net.minecraft.nbt.NBTTagCompound());
+                        value.addProperty(
+                            "transfer_cooldown",
+                            hopperNbt.getInteger("TransferCooldown"));
+                        value.addProperty(
+                            "ticked_game_time", hopper.getLastUpdateTime());
+                    } else {
+                        value.addProperty(
+                            "type",
+                            tile instanceof
+                                net.minecraft.tileentity.TileEntityDropper
+                            ? "dropper" : "dispenser");
+                    }
+                    value.addProperty(
+                        "size", inventory.getSizeInventory());
+                    JsonArray items = new JsonArray();
+                    boolean deferredShulkerLoot = tile instanceof
+                            net.minecraft.tileentity.TileEntityShulkerBox
+                        && ((net.minecraft.tileentity.TileEntityShulkerBox)
+                                tile).getLootTable() != null;
+                    if (!deferredShulkerLoot) {
+                        for (int slot = 0;
+                                slot < inventory.getSizeInventory(); slot++) {
+                            net.minecraft.item.ItemStack stack =
+                                inventory.getStackInSlot(slot);
+                            if (stack.isEmpty()) continue;
+                            JsonObject item = new JsonObject();
+                            item.addProperty("slot", slot);
+                            item.addProperty(
+                                "id",
+                                net.minecraft.item.Item.getIdFromItem(
+                                    stack.getItem()));
+                            item.addProperty("count", stack.getCount());
+                            item.addProperty("meta", oracleStackMeta(stack));
+                            items.add(item);
+                            represented++;
+                        }
+                    }
+                    value.add("items", items);
+                    containers.add(value);
+                }
+                if (represented <= N_SCHEDULED_TICKS_MAX)
+                    oracleAuthContainersComplete = true;
+            }
+        } catch (Throwable ig) {
+            oracleAuthContainersError = ig.toString();
+        }
+        oracleAuthContainers = containers;
+        JsonArray flowerPots = new JsonArray();
+        oracleAuthFlowerPotsComplete = false;
+        oracleAuthFlowerPotsError = "";
+        try {
+            ArrayList<net.minecraft.tileentity.TileEntityFlowerPot> loaded =
+                new ArrayList<net.minecraft.tileentity.TileEntityFlowerPot>();
+            int centerX = (int)Math.floor(p.posX);
+            int centerZ = (int)Math.floor(p.posZ);
+            for (net.minecraft.tileentity.TileEntity tile :
+                    p.getServerWorld().loadedTileEntityList) {
+                if (!(tile instanceof
+                        net.minecraft.tileentity.TileEntityFlowerPot))
+                    continue;
+                BlockPos pos = tile.getPos();
+                if (Math.abs(pos.getX() - centerX) > 32
+                        || Math.abs(pos.getZ() - centerZ) > 32)
+                    continue;
+                if (net.minecraft.block.Block.getIdFromBlock(
+                        p.getServerWorld().getBlockState(pos).getBlock())
+                        != 140) {
+                    throw new IllegalStateException(
+                        "flower-pot tile has no flower-pot block");
+                }
+                loaded.add(
+                    (net.minecraft.tileentity.TileEntityFlowerPot)tile);
+            }
+            loaded.sort((a, b) -> {
+                BlockPos ap = a.getPos();
+                BlockPos bp = b.getPos();
+                int cmp = Integer.compare(ap.getX(), bp.getX());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getY(), bp.getY());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getZ(), bp.getZ());
+                return cmp;
+            });
+            if (loaded.size() <= N_SCHEDULED_TICKS_MAX) {
+                for (net.minecraft.tileentity.TileEntityFlowerPot tile :
+                        loaded) {
+                    BlockPos pos = tile.getPos();
+                    net.minecraft.item.Item item = tile.getFlowerPotItem();
+                    JsonObject value = new JsonObject();
+                    value.addProperty("x", pos.getX());
+                    value.addProperty("y", pos.getY());
+                    value.addProperty("z", pos.getZ());
+                    value.addProperty(
+                        "item", item == null ? 0
+                            : net.minecraft.item.Item.getIdFromItem(item));
+                    value.addProperty(
+                        "meta", item == null ? 0
+                            : tile.getFlowerPotData());
+                    flowerPots.add(value);
+                }
+                oracleAuthFlowerPotsComplete = true;
+            }
+        } catch (Throwable ig) {
+            oracleAuthFlowerPotsError = ig.toString();
+        }
+        oracleAuthFlowerPots = flowerPots;
+        JsonArray skulls = new JsonArray();
+        oracleAuthSkullsComplete = false;
+        oracleAuthSkullsError = "";
+        try {
+            ArrayList<net.minecraft.tileentity.TileEntitySkull> loaded =
+                new ArrayList<net.minecraft.tileentity.TileEntitySkull>();
+            int centerX = (int)Math.floor(p.posX);
+            int centerZ = (int)Math.floor(p.posZ);
+            for (net.minecraft.tileentity.TileEntity tile :
+                    p.getServerWorld().loadedTileEntityList) {
+                if (!(tile instanceof
+                        net.minecraft.tileentity.TileEntitySkull))
+                    continue;
+                BlockPos pos = tile.getPos();
+                if (Math.abs(pos.getX() - centerX) > 32
+                        || Math.abs(pos.getZ() - centerZ) > 32)
+                    continue;
+                if (net.minecraft.block.Block.getIdFromBlock(
+                        p.getServerWorld().getBlockState(pos).getBlock())
+                        != 144) {
+                    throw new IllegalStateException(
+                        "skull tile has no skull block");
+                }
+                loaded.add((net.minecraft.tileentity.TileEntitySkull)tile);
+            }
+            loaded.sort((a, b) -> {
+                BlockPos ap = a.getPos();
+                BlockPos bp = b.getPos();
+                int cmp = Integer.compare(ap.getX(), bp.getX());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getY(), bp.getY());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getZ(), bp.getZ());
+                return cmp;
+            });
+            if (loaded.size() <= N_SCHEDULED_TICKS_MAX) {
+                for (net.minecraft.tileentity.TileEntitySkull tile : loaded) {
+                    BlockPos pos = tile.getPos();
+                    JsonObject value = new JsonObject();
+                    value.addProperty("x", pos.getX());
+                    value.addProperty("y", pos.getY());
+                    value.addProperty("z", pos.getZ());
+                    value.addProperty("type", tile.getSkullType());
+                    value.addProperty("rotation", tile.getSkullRotation());
+                    value.addProperty(
+                        "has_owner", tile.getPlayerProfile() != null);
+                    if (tile.getPlayerProfile() != null) {
+                        net.minecraft.nbt.NBTTagCompound owner =
+                            new net.minecraft.nbt.NBTTagCompound();
+                        net.minecraft.nbt.NBTUtil.writeGameProfile(
+                            owner, tile.getPlayerProfile());
+                        value.addProperty("owner_nbt", oracleNbtHex(owner));
+                    }
+                    skulls.add(value);
+                }
+                oracleAuthSkullsComplete = true;
+            }
+        } catch (Throwable ig) {
+            oracleAuthSkullsError = ig.toString();
+        }
+        oracleAuthSkulls = skulls;
+        JsonArray movingPistons = new JsonArray();
+        oracleAuthMovingPistonsComplete = false;
+        oracleAuthMovingPistonsError = "";
+        try {
+            ArrayList<net.minecraft.tileentity.TileEntityPiston> loaded =
+                new ArrayList<net.minecraft.tileentity.TileEntityPiston>();
+            int centerX = (int)Math.floor(p.posX);
+            int centerZ = (int)Math.floor(p.posZ);
+            for (net.minecraft.tileentity.TileEntity tile :
+                    p.getServerWorld().loadedTileEntityList) {
+                if (!(tile instanceof
+                        net.minecraft.tileentity.TileEntityPiston))
+                    continue;
+                BlockPos pos = tile.getPos();
+                if (Math.abs(pos.getX() - centerX) > 32
+                        || Math.abs(pos.getZ() - centerZ) > 32)
+                    continue;
+                if (net.minecraft.block.Block.getIdFromBlock(
+                        p.getServerWorld().getBlockState(pos).getBlock())
+                        != 36)
+                    throw new IllegalStateException(
+                        "moving-piston tile has no piston-extension block");
+                loaded.add(
+                    (net.minecraft.tileentity.TileEntityPiston)tile);
+            }
+            loaded.sort((a, b) -> {
+                BlockPos ap = a.getPos();
+                BlockPos bp = b.getPos();
+                int cmp = Integer.compare(ap.getX(), bp.getX());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getY(), bp.getY());
+                if (cmp == 0)
+                    cmp = Integer.compare(ap.getZ(), bp.getZ());
+                return cmp;
+            });
+            if (loaded.size() <= N_MOVING_PISTONS_MAX) {
+                for (net.minecraft.tileentity.TileEntityPiston tile : loaded) {
+                    BlockPos pos = tile.getPos();
+                    net.minecraft.block.state.IBlockState moved =
+                        tile.getPistonState();
+                    JsonObject value = new JsonObject();
+                    value.addProperty("x", pos.getX());
+                    value.addProperty("y", pos.getY());
+                    value.addProperty("z", pos.getZ());
+                    value.addProperty(
+                        "moved_block",
+                        net.minecraft.block.Block.getIdFromBlock(
+                            moved.getBlock()));
+                    value.addProperty(
+                        "moved_meta",
+                        moved.getBlock().getMetaFromState(moved));
+                    value.addProperty("facing", tile.getFacing().getIndex());
+                    value.addProperty("extending", tile.isExtending());
+                    value.addProperty(
+                        "source", tile.shouldPistonHeadBeRendered());
+                    value.addProperty(
+                        "progress_bits",
+                        Float.floatToRawIntBits(tile.getProgress(1.0F)));
+                    value.addProperty(
+                        "last_progress_bits",
+                        Float.floatToRawIntBits(tile.getProgress(0.0F)));
+                    movingPistons.add(value);
+                }
+                oracleAuthMovingPistonsComplete = true;
+            }
+        } catch (Throwable ig) {
+            oracleAuthMovingPistonsError = ig.toString();
+        }
+        oracleAuthMovingPistons = movingPistons;
+        JsonArray scheduled = new JsonArray();
+        oracleAuthScheduledTicksComplete = false;
+        oracleAuthScheduledTicksError = "";
+        try {
+            net.minecraft.world.WorldServer world = p.getServerWorld();
+            int centerX = (int)Math.floor(p.posX);
+            int centerZ = (int)Math.floor(p.posZ);
+            java.util.List<net.minecraft.world.NextTickListEntry> entries =
+                world.getPendingBlockUpdates(
+                    new net.minecraft.world.gen.structure.StructureBoundingBox(
+                        centerX - 32, 0, centerZ - 32,
+                        centerX + 33, 256, centerZ + 33),
+                    false);
+            int count = entries == null ? 0 : entries.size();
+            if (count <= N_SCHEDULED_TICKS_MAX) {
+                for (int rank = 0; rank < count; rank++) {
+                    net.minecraft.world.NextTickListEntry entry =
+                        entries.get(rank);
+                    JsonObject value = new JsonObject();
+                    value.addProperty("x", entry.position.getX());
+                    value.addProperty("y", entry.position.getY());
+                    value.addProperty("z", entry.position.getZ());
+                    int pendingBlockId =
+                        net.minecraft.block.Block.getIdFromBlock(
+                            entry.getBlock());
+                    value.addProperty("block", pendingBlockId);
+                    value.addProperty("time", entry.scheduledTime);
+                    value.addProperty("priority", entry.priority);
+                    /* The private numeric tickEntryID is only a final
+                     * compareTo tie-break. Persist its exact TreeSet rank
+                     * instead: that is sufficient to reproduce every future
+                     * dispatch order and survives save/reload renumbering. */
+                    value.addProperty("order", rank);
+                    if (pendingBlockId == 51) {
+                        net.minecraft.util.math.BlockPos firePos =
+                            entry.position;
+                        net.minecraft.world.storage.WorldInfo fireInfo =
+                            world.getWorldInfo();
+                        value.addProperty(
+                            "fire_high_humidity",
+                            world.isBlockinHighHumidity(firePos));
+                        value.addProperty(
+                            "fire_difficulty",
+                            world.getDifficulty().getDifficultyId());
+                        value.addProperty(
+                            "fire_tick_enabled",
+                            world.getGameRules().getBoolean("doFireTick"));
+                        value.addProperty(
+                            "fire_raining", world.isRaining());
+                        value.addProperty(
+                            "fire_rain_time", fireInfo.getRainTime());
+                        value.addProperty(
+                            "fire_thunder_time", fireInfo.getThunderTime());
+                        value.addProperty(
+                            "fire_raining_at", world.isRainingAt(firePos));
+                        value.addProperty(
+                            "fire_raining_at_west",
+                            world.isRainingAt(firePos.west()));
+                        value.addProperty(
+                            "fire_raining_at_east",
+                            world.isRainingAt(firePos.east()));
+                        value.addProperty(
+                            "fire_raining_at_north",
+                            world.isRainingAt(firePos.north()));
+                        value.addProperty(
+                            "fire_raining_at_south",
+                            world.isRainingAt(firePos.south()));
+                        net.minecraft.util.math.BlockPos westCandidate =
+                            firePos.west();
+                        value.addProperty(
+                            "fire_rain_can_die_west_candidate",
+                            world.isRainingAt(westCandidate)
+                            || world.isRainingAt(westCandidate.west())
+                            || world.isRainingAt(westCandidate.east())
+                            || world.isRainingAt(westCandidate.north())
+                            || world.isRainingAt(westCandidate.south()));
+                    }
+                    scheduled.add(value);
+                }
+                oracleAuthScheduledTicksComplete = true;
+            }
+        } catch (Throwable ig) {
+            oracleAuthScheduledTicksError = ig.toString();
+        }
+        oracleAuthScheduledTicks = scheduled;
+        JsonArray torchToggles = new JsonArray();
+        oracleAuthRedstoneTorchTogglesComplete = false;
+        oracleAuthRedstoneTorchTogglesError = "";
+        try {
+            net.minecraft.world.WorldServer world = p.getServerWorld();
+            java.lang.reflect.Field mapField =
+                net.minecraft.block.BlockRedstoneTorch.class
+                    .getDeclaredField("toggles");
+            mapField.setAccessible(true);
+            java.util.Map<?, ?> byWorld =
+                (java.util.Map<?, ?>)mapField.get(null);
+            Object rawList = byWorld.get(world);
+            java.util.List<?> entries =
+                rawList instanceof java.util.List<?>
+                    ? (java.util.List<?>)rawList : null;
+            int count = entries == null ? 0 : entries.size();
+            if (count <= N_SCHEDULED_TICKS_MAX) {
+                if (entries != null) {
+                    for (Object entry : entries) {
+                        java.lang.reflect.Field posField =
+                            entry.getClass().getDeclaredField("pos");
+                        java.lang.reflect.Field timeField =
+                            entry.getClass().getDeclaredField("time");
+                        posField.setAccessible(true);
+                        timeField.setAccessible(true);
+                        BlockPos pos = (BlockPos)posField.get(entry);
+                        JsonObject value = new JsonObject();
+                        value.addProperty("x", pos.getX());
+                        value.addProperty("y", pos.getY());
+                        value.addProperty("z", pos.getZ());
+                        value.addProperty(
+                            "time", timeField.getLong(entry));
+                        torchToggles.add(value);
+                    }
+                }
+                oracleAuthRedstoneTorchTogglesComplete = true;
+            }
+        } catch (Throwable ig) {
+            oracleAuthRedstoneTorchTogglesError = ig.toString();
+        }
+        oracleAuthRedstoneTorchToggles = torchToggles;
+        oracleAuthoritativeValid = true;
+    }
+
+    /** Must be called with oracleServerMonitor held. */
+    private JsonObject oracleAuthoritativeJsonLocked() {
+        if (!oracleAuthoritativeValid) return null;
+        JsonObject authoritative = new JsonObject();
+        authoritative.addProperty("player_ticks_existed", oracleAuthPlayerTicks);
+        authoritative.addProperty("x", oracleAuthX);
+        authoritative.addProperty("y", oracleAuthY);
+        authoritative.addProperty("z", oracleAuthZ);
+        authoritative.addProperty("vx", oracleAuthMotionX);
+        authoritative.addProperty("vy", oracleAuthMotionY);
+        authoritative.addProperty("vz", oracleAuthMotionZ);
+        authoritative.addProperty("sprinting", oracleAuthSprinting);
+        authoritative.addProperty("bb_min_y", oracleAuthBbMinY);
+        authoritative.addProperty("bb_max_y", oracleAuthBbMaxY);
+        authoritative.addProperty("on_ground", oracleAuthOnGround);
+        authoritative.addProperty("in_water", oracleAuthInWater);
+        authoritative.addProperty("air", oracleAuthAir);
+        authoritative.addProperty("health", oracleAuthHealth);
+        authoritative.addProperty("max_health", oracleAuthMaxHealth);
+        authoritative.addProperty("absorption", oracleAuthAbsorption);
+        authoritative.addProperty("fall_distance", oracleAuthFallDistance);
+        authoritative.addProperty("food", oracleAuthFood);
+        authoritative.addProperty("saturation", oracleAuthSaturation);
+        authoritative.addProperty("food_exhaustion", oracleAuthFoodExhaustion);
+        authoritative.addProperty("food_timer", oracleAuthFoodTimer);
+        authoritative.addProperty("fire", oracleAuthFire);
+        authoritative.addProperty("hurt_time", oracleAuthHurtTime);
+        authoritative.addProperty(
+            "hurt_resistant_time", oracleAuthHurtResistantTime);
+        authoritative.addProperty("death_time", oracleAuthDeathTime);
+        authoritative.addProperty(
+            "attack_cooldown", oracleAuthAttackCooldown);
+        authoritative.addProperty("attack_ticks", oracleAuthAttackTicks);
+        authoritative.addProperty("held_slot", oracleAuthHeldSlot);
+        authoritative.addProperty("held_id", oracleAuthHeldId);
+        authoritative.addProperty("held_count", oracleAuthHeldCount);
+        authoritative.addProperty("held_meta", oracleAuthHeldMeta);
+        authoritative.add("inventory", oracleAuthInventory);
+        authoritative.add("armor", oracleAuthArmor);
+        authoritative.addProperty("xp", oracleAuthXp);
+        authoritative.addProperty("xp_frac", oracleAuthXpFrac);
+        authoritative.addProperty("xp_total", oracleAuthXpTotal);
+        authoritative.addProperty(
+            "movement_speed_attr", oracleAuthMovementSpeed);
+        authoritative.addProperty("dim", oracleAuthDim);
+        authoritative.addProperty(
+            "do_entity_drops", oracleAuthDoEntityDrops);
+        authoritative.addProperty("world_time", oracleAuthWorldTime);
+        authoritative.addProperty("total_time", oracleAuthTotalTime);
+        authoritative.addProperty("rain_time", oracleAuthRainTime);
+        authoritative.addProperty("thunder_time", oracleAuthThunderTime);
+        authoritative.addProperty("raining", oracleAuthRaining);
+        authoritative.addProperty("thundering", oracleAuthThundering);
+        authoritative.addProperty(
+            "clean_weather_time", oracleAuthCleanWeatherTime);
+        authoritative.addProperty(
+            "do_weather_cycle", oracleAuthDoWeatherCycle);
+        authoritative.addProperty(
+            "do_daylight_cycle", oracleAuthDoDaylightCycle);
+        authoritative.addProperty(
+            "prev_rain_strength", oracleAuthPrevRainStrength);
+        authoritative.addProperty(
+            "rain_strength", oracleAuthRainStrength);
+        authoritative.addProperty(
+            "prev_thunder_strength", oracleAuthPrevThunderStrength);
+        authoritative.addProperty(
+            "thunder_strength", oracleAuthThunderStrength);
+        authoritative.addProperty(
+            "world_rand_seed48", oracleAuthWorldRandSeed48);
+        authoritative.addProperty(
+            "world_rand_have_gaussian",
+            oracleAuthWorldRandHaveGaussian);
+        authoritative.addProperty(
+            "world_rand_gaussian", oracleAuthWorldRandGaussian);
+        authoritative.addProperty(
+            "math_rand_seed48", oracleAuthMathRandSeed48);
+        authoritative.addProperty(
+            "block_rand_seed48", oracleAuthBlockRandSeed48);
+        authoritative.addProperty(
+            "world_update_lcg", oracleAuthWorldUpdateLCG);
+        if (oracleScheduledCallbackValid) {
+            JsonObject scheduledCallback = new JsonObject();
+            scheduledCallback.addProperty("x", oracleScheduledRandomX);
+            scheduledCallback.addProperty("y", oracleScheduledRandomY);
+            scheduledCallback.addProperty("z", oracleScheduledRandomZ);
+            scheduledCallback.addProperty(
+                "block", oracleScheduledRandomBlock);
+            scheduledCallback.addProperty(
+                "public_seed", oracleScheduledRandomPublicSeed);
+            scheduledCallback.addProperty(
+                "due_time", oracleScheduledRandomDueTime);
+            scheduledCallback.addProperty(
+                "total_time", oracleScheduledCallbackTotalTime);
+            scheduledCallback.addProperty(
+                "before_seed48", oracleScheduledCallbackBeforeSeed48);
+            scheduledCallback.addProperty(
+                "after_seed48", oracleScheduledCallbackAfterSeed48);
+            authoritative.add("scheduled_callback", scheduledCallback);
+        }
+        if (oracleTntDetonationDiagnosticValid) {
+            JsonObject detonation = new JsonObject();
+            detonation.addProperty("x", oracleTntDetonationX);
+            detonation.addProperty("y", oracleTntDetonationY);
+            detonation.addProperty("z", oracleTntDetonationZ);
+            detonation.addProperty("density", oracleTntDetonationDensity);
+            detonation.addProperty("range", oracleTntDetonationRange);
+            detonation.addProperty("strength", oracleTntDetonationStrength);
+            detonation.addProperty("packet_x", oracleTntDetonationPacketX);
+            detonation.addProperty("packet_y", oracleTntDetonationPacketY);
+            detonation.addProperty("packet_z", oracleTntDetonationPacketZ);
+            detonation.addProperty("damage", oracleTntDetonationDamage);
+            authoritative.add("tnt_detonation", detonation);
+        }
+        if (oracleAuthControlledInputValid) {
+            JsonObject controlled = new JsonObject();
+            JsonObject before = new JsonObject();
+            before.addProperty(
+                "world_rand_seed48",
+                oracleAuthControlledBeforeWorldRandSeed48);
+            before.addProperty(
+                "math_rand_seed48",
+                oracleAuthControlledBeforeMathRandSeed48);
+            before.addProperty(
+                "block_rand_seed48",
+                oracleAuthControlledBeforeBlockRandSeed48);
+            before.addProperty(
+                "world_update_lcg",
+                oracleAuthControlledBeforeWorldUpdateLCG);
+            before.addProperty(
+                "next_entity_id",
+                oracleAuthControlledBeforeNextEntityId);
+            controlled.add("before", before);
+            controlled.addProperty(
+                "world_rand_seed48",
+                oracleAuthControlledWorldRandSeed48);
+            controlled.addProperty(
+                "math_rand_seed48",
+                oracleAuthControlledMathRandSeed48);
+            controlled.addProperty(
+                "block_rand_seed48",
+                oracleAuthControlledBlockRandSeed48);
+            controlled.addProperty(
+                "world_update_lcg",
+                oracleAuthControlledWorldUpdateLCG);
+            controlled.addProperty(
+                "next_entity_id",
+                oracleAuthControlledNextEntityId);
+            authoritative.add("controlled_input", controlled);
+        }
+        authoritative.add("potions", oracleAuthPotions);
+        authoritative.addProperty("net_last_good_x", oracleAuthNetLastGoodX);
+        authoritative.addProperty("net_last_good_y", oracleAuthNetLastGoodY);
+        authoritative.addProperty("net_last_good_z", oracleAuthNetLastGoodZ);
+        authoritative.addProperty(
+            "net_move_packet_counter", oracleAuthNetMovePackets);
+        authoritative.addProperty(
+            "next_entity_id", oracleAuthNextEntityId);
+        authoritative.add("entities", oracleAuthEntities);
+        authoritative.add(
+            "scheduled_ticks", oracleAuthScheduledTicks);
+        authoritative.addProperty(
+            "scheduled_ticks_complete", oracleAuthScheduledTicksComplete);
+        if (!oracleAuthScheduledTicksError.isEmpty())
+            authoritative.addProperty(
+                "scheduled_ticks_error", oracleAuthScheduledTicksError);
+        authoritative.add("comparators", oracleAuthComparators);
+        authoritative.addProperty(
+            "comparators_complete", oracleAuthComparatorsComplete);
+        if (!oracleAuthComparatorsError.isEmpty())
+            authoritative.addProperty(
+                "comparators_error", oracleAuthComparatorsError);
+        authoritative.add("containers", oracleAuthContainers);
+        authoritative.addProperty(
+            "containers_complete", oracleAuthContainersComplete);
+        if (!oracleAuthContainersError.isEmpty())
+            authoritative.addProperty(
+                "containers_error", oracleAuthContainersError);
+        authoritative.add("flower_pots", oracleAuthFlowerPots);
+        authoritative.addProperty(
+            "flower_pots_complete", oracleAuthFlowerPotsComplete);
+        if (!oracleAuthFlowerPotsError.isEmpty())
+            authoritative.addProperty(
+                "flower_pots_error", oracleAuthFlowerPotsError);
+        authoritative.add("skulls", oracleAuthSkulls);
+        authoritative.addProperty(
+            "skulls_complete", oracleAuthSkullsComplete);
+        if (!oracleAuthSkullsError.isEmpty())
+            authoritative.addProperty(
+                "skulls_error", oracleAuthSkullsError);
+        authoritative.add("moving_pistons", oracleAuthMovingPistons);
+        authoritative.addProperty(
+            "moving_pistons_complete", oracleAuthMovingPistonsComplete);
+        if (!oracleAuthMovingPistonsError.isEmpty())
+            authoritative.addProperty(
+                "moving_pistons_error", oracleAuthMovingPistonsError);
+        authoritative.add("item_frames", oracleAuthItemFrames);
+        authoritative.addProperty(
+            "item_frames_complete", oracleAuthItemFramesComplete);
+        if (!oracleAuthItemFramesError.isEmpty())
+            authoritative.addProperty(
+                "item_frames_error", oracleAuthItemFramesError);
+        authoritative.add(
+            "redstone_torch_toggles", oracleAuthRedstoneTorchToggles);
+        authoritative.addProperty(
+            "redstone_torch_toggles_complete",
+            oracleAuthRedstoneTorchTogglesComplete);
+        if (!oracleAuthRedstoneTorchTogglesError.isEmpty())
+            authoritative.addProperty(
+                "redstone_torch_toggles_error",
+                oracleAuthRedstoneTorchTogglesError);
+        if (oracleAuthMovePacketCursorValid)
+            authoritative.addProperty(
+                "position_update_ticks", oracleAuthPositionUpdateTicks);
+        if (oracleAuthMovePacketCursorValid)
+            authoritative.addProperty(
+                "position_packet_pending", oracleAuthPositionPacketPending);
+        return authoritative;
+    }
+
+    /**
+     * The server is parked inside ServerTickEvent.START, so this socket-thread
+     * read sees an immutable WorldServer without advancing scheduled/random
+     * ticks. Used only for the post-tape oracle snapshot.
+     */
+    private String oracleDumpBlocksLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("getblocks_locked requires a parked oracle server");
+            }
+        }
+        try {
+            MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+            if (s == null) return err("no server");
+            net.minecraft.world.WorldServer w = s.worlds[0];
+            java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                s.getPlayerList().getPlayers();
+            if (!players.isEmpty()) w = players.get(0).getServerWorld();
+            int x0 = action.get("x0").getAsInt();
+            int y0 = action.get("y0").getAsInt();
+            int z0 = action.get("z0").getAsInt();
+            int x1 = action.get("x1").getAsInt();
+            int y1 = action.get("y1").getAsInt();
+            int z1 = action.get("z1").getAsInt();
+            if (x1 < x0 || y1 < y0 || z1 < z0) return err("invalid block box");
+            long cells = (long)(x1 - x0 + 1) * (long)(y1 - y0 + 1)
+                * (long)(z1 - z0 + 1);
+            if (cells > Integer.MAX_VALUE / 2) return err("block box too large");
+            String file = action.get("file").getAsString();
+            byte[] buf = new byte[(int)cells * 2];
+            net.minecraft.util.math.BlockPos.MutableBlockPos pos =
+                new net.minecraft.util.math.BlockPos.MutableBlockPos();
+            int k = 0;
+            for (int y = y0; y <= y1; y++)
+                for (int z = z0; z <= z1; z++)
+                    for (int x = x0; x <= x1; x++) {
+                        net.minecraft.block.state.IBlockState st =
+                            w.getBlockState(pos.setPos(x, y, z));
+                        net.minecraft.block.Block b = st.getBlock();
+                        int v = (net.minecraft.block.Block.getIdFromBlock(b) << 4)
+                            | b.getMetaFromState(st);
+                        buf[k++] = (byte)(v & 0xff);
+                        buf[k++] = (byte)((v >> 8) & 0xff);
+                    }
+            java.io.DataOutputStream out = new java.io.DataOutputStream(
+                new java.io.BufferedOutputStream(
+                    new java.io.FileOutputStream(file), 1 << 20));
+            out.write(buf, 0, k);
+            out.close();
+            JsonObject result = new JsonObject();
+            result.addProperty("ok", true);
+            result.addProperty("file", file);
+            result.addProperty("nx", x1 - x0 + 1);
+            result.addProperty("ny", y1 - y0 + 1);
+            result.addProperty("nz", z1 - z0 + 1);
+            synchronized (oracleServerMonitor) {
+                result.addProperty("gate_completed", oracleServerCompleted);
+                JsonObject authoritative = oracleAuthoritativeJsonLocked();
+                if (authoritative != null) {
+                    result.addProperty("player_ticks_existed",
+                        authoritative.get("player_ticks_existed").getAsInt());
+                }
+            }
+            return result.toString();
+        } catch (Throwable t) {
+            return err("getblocks_locked: " + t);
+        }
+    }
+
+    /**
+     * Dump only EnumSkyBlock.BLOCK while the authoritative server is parked.
+     * One byte per cell, in the same y/z/x order as getblocks_locked, keeps
+     * block-light parity independent of skylight and rendering.
+     */
+    private String oracleDumpBlockLightLocked(JsonObject action) {
+        return oracleDumpLightLocked(
+            action, net.minecraft.world.EnumSkyBlock.BLOCK,
+            "getblocklight_locked", "block-light");
+    }
+
+    /** Parked raw skylight counterpart to oracleDumpBlockLightLocked. */
+    private String oracleDumpSkyLightLocked(JsonObject action) {
+        return oracleDumpLightLocked(
+            action, net.minecraft.world.EnumSkyBlock.SKY,
+            "getskylight_locked", "sky-light");
+    }
+
+    private String oracleDumpLightLocked(
+            JsonObject action, net.minecraft.world.EnumSkyBlock kind,
+            String command, String label) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(command + " requires a parked oracle server");
+            }
+        }
+        try {
+            MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+            if (s == null) return err("no server");
+            net.minecraft.world.WorldServer w = s.worlds[0];
+            java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                s.getPlayerList().getPlayers();
+            if (!players.isEmpty()) w = players.get(0).getServerWorld();
+            int x0 = action.get("x0").getAsInt();
+            int y0 = action.get("y0").getAsInt();
+            int z0 = action.get("z0").getAsInt();
+            int x1 = action.get("x1").getAsInt();
+            int y1 = action.get("y1").getAsInt();
+            int z1 = action.get("z1").getAsInt();
+            if (x1 < x0 || y0 < 0 || y1 < y0 || y1 > 255 || z1 < z0)
+                return err("invalid " + label + " box");
+            long cells = (long)(x1 - x0 + 1) * (long)(y1 - y0 + 1)
+                * (long)(z1 - z0 + 1);
+            if (cells > Integer.MAX_VALUE)
+                return err(label + " box too large");
+            String file = action.get("file").getAsString();
+            byte[] buf = new byte[(int)cells];
+            net.minecraft.util.math.BlockPos.MutableBlockPos pos =
+                new net.minecraft.util.math.BlockPos.MutableBlockPos();
+            int k = 0;
+            for (int y = y0; y <= y1; y++)
+                for (int z = z0; z <= z1; z++)
+                    for (int x = x0; x <= x1; x++)
+                        buf[k++] = (byte)w.getLightFor(
+                            kind, pos.setPos(x, y, z));
+            java.io.DataOutputStream out = new java.io.DataOutputStream(
+                new java.io.BufferedOutputStream(
+                    new java.io.FileOutputStream(file), 1 << 20));
+            out.write(buf, 0, k);
+            out.close();
+            JsonObject result = new JsonObject();
+            result.addProperty("ok", true);
+            result.addProperty("file", file);
+            result.addProperty("nx", x1 - x0 + 1);
+            result.addProperty("ny", y1 - y0 + 1);
+            result.addProperty("nz", z1 - z0 + 1);
+            synchronized (oracleServerMonitor) {
+                result.addProperty("gate_completed", oracleServerCompleted);
+            }
+            return result.toString();
+        } catch (Throwable t) {
+            return err(command + ": " + t);
+        }
+    }
+
+    /**
+     * Queue one real setBlockState for the next permitted server tick. The
+     * pre-tick capsule and light dump therefore remain uncontaminated, while
+     * the mutation executes on the server thread at tape tick 0.
+     */
+    private String oracleQueueBlockMutationLocked(
+            JsonObject action, boolean harvest) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("setblock_tick_locked requires a parked oracle server");
+            }
+            try {
+                if (oracleBlockMutationPending)
+                    return err("a tick-boundary block mutation is already queued");
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int id = harvest ? 0 : action.get("block").getAsInt();
+                int meta = harvest ? 0 : action.get("meta").getAsInt();
+                if (y < 0 || y > 255 || id < 0 || id > 4095
+                        || meta < 0 || meta > 15) {
+                    return err("invalid tick-boundary block mutation");
+                }
+                if (!harvest) {
+                    net.minecraft.block.Block block =
+                        net.minecraft.block.Block.getBlockById(id);
+                    if (block == null)
+                        return err("unknown block id " + id);
+                    block.getStateFromMeta(meta);
+                }
+                oracleBlockMutationX = x;
+                oracleBlockMutationY = y;
+                oracleBlockMutationZ = z;
+                oracleBlockMutationId = id;
+                oracleBlockMutationMeta = meta;
+                oracleBlockMutationHarvest = harvest;
+                oracleBlockMutationPending = true;
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("queued", true);
+                out.addProperty("x", x);
+                out.addProperty("y", y);
+                out.addProperty("z", z);
+                out.addProperty("block", id);
+                out.addProperty("meta", meta);
+                out.addProperty("harvest", harvest);
+                return out.toString();
+            } catch (Throwable t) {
+                oracleBlockMutationPending = false;
+                return err("setblock_tick_locked: " + t);
+            }
+        }
+    }
+
+    /** Server-thread half of oracleQueueBlockMutationLocked. */
+    private void oracleApplyBlockMutationFixture() {
+        int x, y, z, id, meta;
+        boolean harvest;
+        synchronized (oracleServerMonitor) {
+            oracleControlledInputValid = false;
+            if (!oracleBlockMutationPending) return;
+            x = oracleBlockMutationX;
+            y = oracleBlockMutationY;
+            z = oracleBlockMutationZ;
+            id = oracleBlockMutationId;
+            meta = oracleBlockMutationMeta;
+            harvest = oracleBlockMutationHarvest;
+            oracleBlockMutationPending = false;
+        }
+        try {
+            MinecraftServer s =
+                net.minecraftforge.fml.common.FMLCommonHandler.instance()
+                    .getMinecraftServerInstance();
+            if (s == null) return;
+            java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                s.getPlayerList().getPlayers();
+            if (players.isEmpty()) return;
+            net.minecraft.entity.player.EntityPlayerMP player = players.get(0);
+            net.minecraft.world.WorldServer w = player.getServerWorld();
+            net.minecraft.block.Block block = harvest ? null
+                : net.minecraft.block.Block.getBlockById(id);
+            if (!harvest && block == null) return;
+            /* The parked authoritative snapshot is the save-state boundary.
+             * The integrated client shares Math.random and Entity.nextEntityID
+             * with the server process, so client work between capture and the
+             * granted tick must not advance those server-visible cursors.
+             * Block.RANDOM is another process-global cursor used by drop
+             * algorithms such as tall grass. Restore all four exact cursors
+             * immediately before applying the controlled input. */
+            if (oracleAuthWorldRandSeed48 >= 0L)
+                setJavaRandomSeed48(w.rand, oracleAuthWorldRandSeed48);
+            if (oracleAuthMathRandSeed48 >= 0L)
+                setMathRandomSeed48(oracleAuthMathRandSeed48);
+            if (oracleAuthBlockRandSeed48 >= 0L)
+                setBlockRandomSeed48(oracleAuthBlockRandSeed48);
+            if (oracleAuthNextEntityId > 0)
+                setNextEntityId(oracleAuthNextEntityId);
+            long beforeWorldRandSeed48 = javaRandomSeed48(w.rand);
+            long beforeMathRandSeed48 = mathRandomSeed48();
+            long beforeBlockRandSeed48 = blockRandomSeed48();
+            int beforeWorldUpdateLCG = worldUpdateLCG(w);
+            int beforeNextEntityId = nextEntityId();
+            if (harvest)
+                player.interactionManager.tryHarvestBlock(
+                    new BlockPos(x, y, z));
+            else
+                w.setBlockState(
+                    new BlockPos(x, y, z), block.getStateFromMeta(meta), 3);
+            /* A controlled edit can queue a piston BlockEvent indirectly:
+             * for example, placing a redstone block beside an already-staged
+             * piston. WorldServer would otherwise send that event only after
+             * unrelated scheduled/random work and integrated-client activity
+             * have advanced process-global Entity.nextEntityID/Math.random.
+             * The controlled capsule excludes that distant work, so flush
+             * every BlockEvent queued by this edit at the input boundary.
+             * An empty queue is a no-op. This preserves the ordinary ordering
+             * in which the event precedes EntityItem and TileEntityPiston
+             * updates, whether the edited block is the piston or its power
+             * source. */
+            sendQueuedBlockEvents(w);
+            synchronized (oracleServerMonitor) {
+                oracleControlledBeforeWorldRandSeed48 =
+                    beforeWorldRandSeed48;
+                oracleControlledBeforeMathRandSeed48 =
+                    beforeMathRandSeed48;
+                oracleControlledBeforeBlockRandSeed48 =
+                    beforeBlockRandSeed48;
+                oracleControlledBeforeWorldUpdateLCG =
+                    beforeWorldUpdateLCG;
+                oracleControlledBeforeNextEntityId = beforeNextEntityId;
+                oracleControlledWorldRandSeed48 =
+                    javaRandomSeed48(w.rand);
+                oracleControlledMathRandSeed48 = mathRandomSeed48();
+                oracleControlledBlockRandSeed48 = blockRandomSeed48();
+                oracleControlledWorldUpdateLCG = worldUpdateLCG(w);
+                oracleControlledNextEntityId = nextEntityId();
+                oracleControlledInputValid = true;
+            }
+        } catch (Throwable t) {
+            System.out.println("[qrl] tick-boundary block mutation failed: " + t);
+        }
+    }
+
+    /**
+     * Stage an explicit numeric block fixture while the server is parked at
+     * the final pre-tick START boundary. Unlike ordinary setblocks, no setup
+     * tick can expose the player to the fixture before tape tick 0.
+     */
+    private String oracleSetBlocksLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("setblocks_locked requires a parked oracle server");
+            }
+        }
+        try {
+            MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+            if (s == null) return err("no server");
+            net.minecraft.world.WorldServer w = s.worlds[0];
+            java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                s.getPlayerList().getPlayers();
+            if (!players.isEmpty()) w = players.get(0).getServerWorld();
+            com.google.gson.JsonArray blocks = action.has("blocks")
+                ? action.getAsJsonArray("blocks") : new com.google.gson.JsonArray();
+            if (blocks.size() > 1000000) return err("too many locked fixture blocks");
+            int n = 0;
+            for (com.google.gson.JsonElement el : blocks) {
+                com.google.gson.JsonArray a = el.getAsJsonArray();
+                if (a.size() != 5) return err("locked fixture block needs 5 integers");
+                int x = a.get(0).getAsInt();
+                int y = a.get(1).getAsInt();
+                int z = a.get(2).getAsInt();
+                int id = a.get(3).getAsInt();
+                int meta = a.get(4).getAsInt();
+                net.minecraft.block.Block b = net.minecraft.block.Block.getBlockById(id);
+                if (b == null) return err("unknown block id " + id);
+                net.minecraft.block.state.IBlockState bs = b.getStateFromMeta(meta);
+                w.setBlockState(new BlockPos(x, y, z), bs, 3);
+                n++;
+            }
+            JsonObject result = new JsonObject();
+            result.addProperty("ok", true);
+            result.addProperty("set", n);
+            synchronized (oracleServerMonitor) {
+                result.addProperty("gate_completed", oracleServerCompleted);
+                if (!players.isEmpty())
+                    oracleCaptureAuthoritativePlayerLocked(players.get(0));
+                JsonObject authoritative = oracleAuthoritativeJsonLocked();
+                if (authoritative != null) result.add("authoritative", authoritative);
+            }
+            return result.toString();
+        } catch (Throwable t) {
+            return err("setblocks_locked: " + t);
+        }
+    }
+
+    /**
+     * Mutate explicitly named player fields while the integrated server is
+     * parked at an oracle START boundary. This is a cold fixture hook: no
+     * player or world tick occurs between the write and returned authoritative
+     * state, so short counters are not consumed during scenario setup.
+     */
+    private String oracleSetPlayerLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("setplayer_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                boolean hasMotion =
+                    action.has("vx") || action.has("vy")
+                    || action.has("vz") || action.has("on_ground")
+                    || action.has("fall_distance");
+                if (hasMotion) {
+                    if (!action.has("vx") || !action.has("vy")
+                            || !action.has("vz")
+                            || !action.has("on_ground")
+                            || !action.has("fall_distance")) {
+                        return err(
+                            "locked player motion requires vx/vy/vz/"
+                            + "on_ground/fall_distance");
+                    }
+                    double vx = action.get("vx").getAsDouble();
+                    double vy = action.get("vy").getAsDouble();
+                    double vz = action.get("vz").getAsDouble();
+                    float fallDistance =
+                        action.get("fall_distance").getAsFloat();
+                    boolean onGround =
+                        action.get("on_ground").getAsBoolean();
+                    if (!Double.isFinite(vx) || !Double.isFinite(vy)
+                            || !Double.isFinite(vz)
+                            || !Float.isFinite(fallDistance)
+                            || fallDistance < 0.0F) {
+                        return err("invalid locked player motion");
+                    }
+                    p.motionX = vx;
+                    p.motionY = vy;
+                    p.motionZ = vz;
+                    p.onGround = onGround;
+                    p.fallDistance = fallDistance;
+                    net.minecraft.client.entity.EntityPlayerSP cp =
+                        Minecraft.getMinecraft().player;
+                    if (cp == null) return err("no client player");
+                    cp.motionX = vx;
+                    cp.motionY = vy;
+                    cp.motionZ = vz;
+                    cp.onGround = onGround;
+                    cp.fallDistance = fallDistance;
+                }
+                if (action.has("fire")) {
+                    int fire = action.get("fire").getAsInt();
+                    if (fire < -20 || fire > 32767)
+                        return err("fire must be in -20..32767");
+                    if (FIRE_F == null) {
+                        FIRE_F = Entity.class.getDeclaredField("fire");
+                        FIRE_F.setAccessible(true);
+                    }
+                    FIRE_F.setInt(p, fire);
+                }
+                if (action.has("food")) {
+                    int food = action.get("food").getAsInt();
+                    if (food < 0 || food > 20)
+                        return err("food must be in 0..20");
+                    p.getFoodStats().setFoodLevel(food);
+                    net.minecraft.client.entity.EntityPlayerSP cp =
+                        Minecraft.getMinecraft().player;
+                    if (cp == null) return err("no client player");
+                    cp.getFoodStats().setFoodLevel(food);
+                }
+                boolean hasXpFixture = action.has("xp_level")
+                    || action.has("xp_frac") || action.has("xp_total");
+                if (hasXpFixture) {
+                    if (!action.has("xp_level") || !action.has("xp_frac")
+                            || !action.has("xp_total"))
+                        return err("locked XP requires level/fraction/total");
+                    int level = action.get("xp_level").getAsInt();
+                    float fraction = action.get("xp_frac").getAsFloat();
+                    int total = action.get("xp_total").getAsInt();
+                    if (level < 0 || level > 21863
+                            || !Float.isFinite(fraction)
+                            || fraction < 0.0F || fraction >= 1.0F
+                            || total < 0)
+                        return err("invalid locked XP state");
+                    p.experienceLevel = level;
+                    p.experience = fraction;
+                    p.experienceTotal = total;
+                    net.minecraft.client.entity.EntityPlayerSP cp =
+                        Minecraft.getMinecraft().player;
+                    if (cp == null) return err("no client player");
+                    cp.experienceLevel = level;
+                    cp.experience = fraction;
+                    cp.experienceTotal = total;
+                }
+                boolean hasCombatFixture = action.has("attack_ticks")
+                    || action.has("hurt_time")
+                    || action.has("hurt_resistant_time")
+                    || action.has("death_time");
+                if (hasCombatFixture) {
+                    if (!action.has("attack_ticks")
+                            || !action.has("hurt_time")
+                            || !action.has("hurt_resistant_time")
+                            || !action.has("death_time"))
+                        return err("locked combat requires all timer fields");
+                    int attackTicks = action.get("attack_ticks").getAsInt();
+                    int hurtTime = action.get("hurt_time").getAsInt();
+                    int hurtResistant =
+                        action.get("hurt_resistant_time").getAsInt();
+                    int deathTime = action.get("death_time").getAsInt();
+                    if (attackTicks < 0 || attackTicks > 1000000000
+                            || hurtTime < 0 || hurtTime > 20
+                            || hurtResistant < 0 || hurtResistant > 20
+                            || deathTime < 0 || deathTime > 20)
+                        return err("invalid locked combat state");
+                    setPlayerAttackTicks(p, attackTicks);
+                    p.hurtTime = hurtTime;
+                    p.hurtResistantTime = hurtResistant;
+                    p.deathTime = deathTime;
+                    net.minecraft.client.entity.EntityPlayerSP cp =
+                        Minecraft.getMinecraft().player;
+                    if (cp == null) return err("no client player");
+                    setPlayerAttackTicks(cp, attackTicks);
+                    cp.hurtTime = hurtTime;
+                    cp.hurtResistantTime = hurtResistant;
+                    cp.deathTime = deathTime;
+                }
+                if (action.has("clear_hurt")
+                        && action.get("clear_hurt").getAsBoolean()) {
+                    if (!hasCombatFixture) {
+                        p.hurtResistantTime = 0;
+                        p.hurtTime = 0;
+                    }
+                    java.lang.reflect.Field rif =
+                        net.minecraft.entity.player.EntityPlayerMP.class
+                            .getDeclaredField("respawnInvulnerabilityTicks");
+                    rif.setAccessible(true);
+                    rif.setInt(p, 0);
+                }
+                if (action.has("clear_effects")
+                        && action.get("clear_effects").getAsBoolean()) {
+                    p.clearActivePotions();
+                    net.minecraft.client.entity.EntityPlayerSP cp =
+                        Minecraft.getMinecraft().player;
+                    if (cp != null) {
+                        ArrayList<net.minecraft.potion.PotionEffect> active =
+                            new ArrayList<net.minecraft.potion.PotionEffect>(
+                                cp.getActivePotionEffects());
+                        for (net.minecraft.potion.PotionEffect effect : active) {
+                            /* EntityLivingBase.onFinishedPotionEffect skips
+                             * attribute removal in a remote world; normally an
+                             * SPacketEntityProperties does it. This locked cold
+                             * fixture must leave no stale modifier while the
+                             * packet queue is drained below. */
+                            effect.getPotion().removeAttributesModifiersFromEntity(
+                                cp, cp.getAttributeMap(),
+                                effect.getAmplifier());
+                            cp.removePotionEffect(effect.getPotion());
+                        }
+                    }
+                }
+                if (action.has("effects")
+                        && action.get("effects").isJsonArray()) {
+                    oracleMirrorPotionFixture = true;
+                    net.minecraft.client.entity.EntityPlayerSP cp =
+                        Minecraft.getMinecraft().player;
+                    for (com.google.gson.JsonElement el :
+                            action.getAsJsonArray("effects")) {
+                        JsonObject effect = el.getAsJsonObject();
+                        int id = effect.get("id").getAsInt();
+                        int duration = effect.get("duration").getAsInt();
+                        int amplifier = effect.get("amplifier").getAsInt();
+                        net.minecraft.potion.Potion potion =
+                            net.minecraft.potion.Potion.getPotionById(id);
+                        if (potion == null || duration <= 0
+                                || amplifier < 0 || amplifier > 255)
+                            return err("invalid locked potion effect");
+                        p.addPotionEffect(
+                            new net.minecraft.potion.PotionEffect(
+                                potion, duration, amplifier, false, false));
+                        if (cp != null) {
+                            cp.addPotionEffect(
+                                new net.minecraft.potion.PotionEffect(
+                                    potion, duration, amplifier, false, false));
+                            /* addPotionEffect deliberately skips modifiers in
+                             * a remote world; seed the exact property value a
+                             * loaded/synchronized client has at tick zero. */
+                            potion.applyAttributesModifiersToEntity(
+                                cp, cp.getAttributeMap(), amplifier);
+                        }
+                    }
+                }
+                if (action.has("normalize_move_packets")
+                        && action.get("normalize_move_packets").getAsBoolean()) {
+                    Minecraft mc = Minecraft.getMinecraft();
+                    net.minecraft.client.entity.EntityPlayerSP cp = mc.player;
+                    if (cp == null) return err("no client player");
+                    /* A save reload starts with no held/queued physical input
+                     * and no partially-mined block. The oracle reuses one
+                     * client process across cases, so clear KeyBinding's
+                     * private pressTime counters as well as its held bits;
+                     * setKeyBindState(false) alone leaves queued click edges
+                     * that can fire in a later case. */
+                    KeyBinding.unPressAllKeys();
+                    clearKeys(mc);
+                    if (mc.playerController != null)
+                        mc.playerController.resetBlockRemoving();
+                    if (cp.movementInput != null) {
+                        cp.movementInput.moveForward = 0.0F;
+                        cp.movementInput.moveStrafe = 0.0F;
+                        cp.movementInput.jump = false;
+                        cp.movementInput.sneak = false;
+                    }
+                    cp.moveForward = 0.0F;
+                    cp.moveStrafing = 0.0F;
+                    cp.setSprinting(false);
+                    p.setSprinting(false);
+                    cp.sprintingTicksLeft = 0;
+                    /* These unsaved client cursors survive a world reset in a
+                     * reused process but are constructor-zero after a true
+                     * load. Normalize them at the same parked boundary. */
+                    String[] zeroIntFields = {
+                        "sprintToggleTimer", "flyToggleTimer",
+                        "horseJumpPowerCounter", "autoJumpTime"
+                    };
+                    for (String name : zeroIntFields) {
+                        Class<?> owner = cp.getClass();
+                        while (owner != null) {
+                            try {
+                                java.lang.reflect.Field f =
+                                    owner.getDeclaredField(name);
+                                f.setAccessible(true);
+                                f.setInt(cp, 0);
+                                break;
+                            } catch (NoSuchFieldException ex) {
+                                owner = owner.getSuperclass();
+                            }
+                        }
+                    }
+                    Class<?> cls = net.minecraft.client.entity.EntityPlayerSP.class;
+                    java.lang.reflect.Field ticks =
+                        cls.getDeclaredField("positionUpdateTicks");
+                    java.lang.reflect.Field lastX =
+                        cls.getDeclaredField("lastReportedPosX");
+                    java.lang.reflect.Field lastY =
+                        cls.getDeclaredField("lastReportedPosY");
+                    java.lang.reflect.Field lastZ =
+                        cls.getDeclaredField("lastReportedPosZ");
+                    java.lang.reflect.Field lastYaw =
+                        cls.getDeclaredField("lastReportedYaw");
+                    java.lang.reflect.Field lastPitch =
+                        cls.getDeclaredField("lastReportedPitch");
+                    java.lang.reflect.Field prevGround =
+                        cls.getDeclaredField("prevOnGround");
+                    java.lang.reflect.Field[] fields = {
+                        ticks, lastX, lastY, lastZ, lastYaw, lastPitch, prevGround
+                    };
+                    for (java.lang.reflect.Field field : fields)
+                        field.setAccessible(true);
+                    ticks.setInt(cp, 0);
+                    lastX.setDouble(cp, cp.posX);
+                    lastY.setDouble(cp, cp.getEntityBoundingBox().minY);
+                    lastZ.setDouble(cp, cp.posZ);
+                    lastYaw.setFloat(cp, cp.rotationYaw);
+                    lastPitch.setFloat(cp, cp.rotationPitch);
+                    prevGround.setBoolean(cp, cp.onGround);
+                    /* The client has already settled on the staged support
+                     * platform. A final setup packet can otherwise leave the
+                     * parked EntityPlayerMP onGround bit launch-timing
+                     * dependent even though both copies have the same pose. */
+                    p.onGround = cp.onGround;
+                    oracleAuthPositionUpdateTicks = 0;
+                    oracleAuthPositionPacketPending = false;
+                    oracleAuthMovePacketCursorValid = true;
+                }
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                JsonObject authoritative = oracleAuthoritativeJsonLocked();
+                if (authoritative != null)
+                    out.add("authoritative", authoritative);
+                return out.toString();
+            } catch (Throwable t) {
+                return err("setplayer_locked: " + t);
+            }
+        }
+    }
+
+    /**
+     * Spawn one deterministic XP orb, pig, boat, dropped item, arrow, primed
+     * TNT, End crystal, or small fireball while the server is parked at the
+     * final pre-tick boundary. This fixture hook bypasses constructor RNG by
+     * writing state explicitly and returns the real entity id used by the
+     * authoritative trace.
+     */
+    private String oracleSummonLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("summon_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                String type = opt(action, "type");
+                if (!"xporb".equalsIgnoreCase(type)
+                        && !"pig".equalsIgnoreCase(type)
+                        && !"villager".equalsIgnoreCase(type)
+                        && !"boat".equalsIgnoreCase(type)
+                        && !"item".equalsIgnoreCase(type)
+                        && !"arrow".equalsIgnoreCase(type)
+                        && !"primed_tnt".equalsIgnoreCase(type)
+                        && !"end_crystal".equalsIgnoreCase(type)
+                        && !"small_fireball".equalsIgnoreCase(type))
+                    return err(
+                        "summon_locked only supports xporb, pig, villager, "
+                        + "boat, item, arrow, primed_tnt, end_crystal, or "
+                        + "small_fireball");
+                double x = action.get("x").getAsDouble();
+                double y = action.get("y").getAsDouble();
+                double z = action.get("z").getAsDouble();
+                double mx = action.has("mx")
+                    ? action.get("mx").getAsDouble() : 0.0D;
+                double my = action.has("my")
+                    ? action.get("my").getAsDouble() : 0.0D;
+                double mz = action.has("mz")
+                    ? action.get("mz").getAsDouble() : 0.0D;
+                double ax = action.has("ax")
+                    ? action.get("ax").getAsDouble() : 0.0D;
+                double ay = action.has("ay")
+                    ? action.get("ay").getAsDouble() : 0.0D;
+                double az = action.has("az")
+                    ? action.get("az").getAsDouble() : 0.0D;
+                if (!Double.isFinite(x) || !Double.isFinite(y)
+                        || !Double.isFinite(z) || !Double.isFinite(mx)
+                        || !Double.isFinite(my) || !Double.isFinite(mz)
+                        || !Double.isFinite(ax) || !Double.isFinite(ay)
+                        || !Double.isFinite(az)) {
+                    return err("invalid locked entity fixture");
+                }
+                Entity entity;
+                if ("xporb".equalsIgnoreCase(type)) {
+                    int value = action.has("value")
+                        ? action.get("value").getAsInt() : 1;
+                    int delay = action.has("pickup_delay")
+                        ? action.get("pickup_delay").getAsInt() : 0;
+                    int targetColor = action.has("target_color")
+                        ? action.get("target_color").getAsInt() : 0;
+                    if (value <= 0 || value > 32767
+                            || delay < 0 || delay > 32767)
+                        return err("invalid locked XP orb fixture");
+                    net.minecraft.entity.item.EntityXPOrb orb =
+                        new net.minecraft.entity.item.EntityXPOrb(
+                            p.getServerWorld(), x, y, z, value);
+                    orb.delayBeforeCanPickup = delay;
+                    java.lang.reflect.Field targetColorField =
+                        net.minecraft.entity.item.EntityXPOrb.class
+                            .getDeclaredField("xpTargetColor");
+                    targetColorField.setAccessible(true);
+                    targetColorField.setInt(orb, targetColor);
+                    entity = orb;
+                } else if ("pig".equalsIgnoreCase(type)) {
+                    float health = action.has("health")
+                        ? action.get("health").getAsFloat() : 10.0F;
+                    if (!Float.isFinite(health) || health <= 0.0F
+                            || health > 10.0F)
+                        return err("invalid locked pig fixture");
+                    net.minecraft.entity.passive.EntityPig pig =
+                        new net.minecraft.entity.passive.EntityPig(
+                            p.getServerWorld());
+                    boolean noAI = !action.has("no_ai")
+                        || action.get("no_ai").getAsInt() != 0;
+                    boolean tasklessCollision =
+                        action.has("taskless_collision")
+                        && action.get("taskless_collision").getAsBoolean();
+                    pig.setNoAI(noAI);
+                    if (tasklessCollision) {
+                        if (noAI)
+                            return err(
+                                "taskless_collision requires no_ai=false");
+                        /*
+                         * Deterministic ordinary-entity collision fixture:
+                         * retain EntityLiving's server travel/move path (and
+                         * therefore doBlockCollisions), but remove AI motion
+                         * and gravity without calling the target block.
+                         */
+                        pig.tasks.taskEntries.clear();
+                        pig.targetTasks.taskEntries.clear();
+                        pig.setNoGravity(true);
+                        pig.getEntityAttribute(
+                            net.minecraft.entity.SharedMonsterAttributes
+                                .MOVEMENT_SPEED).setBaseValue(0.0D);
+                    }
+                    pig.getEntityAttribute(
+                        net.minecraft.entity.SharedMonsterAttributes
+                            .KNOCKBACK_RESISTANCE).setBaseValue(1.0D);
+                    pig.setHealth(health);
+                    p.getServerWorld().getGameRules().setOrCreateGameRule(
+                        "doMobLoot", "false");
+                    entity = pig;
+                } else if ("villager".equalsIgnoreCase(type)) {
+                    int profession = action.has("profession")
+                        ? action.get("profession").getAsInt() : 0;
+                    if (profession < 0 || profession > 5)
+                        return err("invalid locked villager profession");
+                    net.minecraft.entity.passive.EntityVillager villager =
+                        new net.minecraft.entity.passive.EntityVillager(
+                            p.getServerWorld());
+                    villager.setProfession(profession);
+                    villager.setNoAI(true);
+                    villager.setHealth(20.0F);
+                    if (action.has("entity_seed48")) {
+                        long seed48 = action.get("entity_seed48").getAsLong();
+                        if (seed48 < 0L || seed48 >= (1L << 48))
+                            return err("invalid locked villager random seed");
+                        setJavaRandomSeed48(entityRandom(villager), seed48);
+                        setJavaRandomGaussianState(
+                            entityRandom(villager), false, 0.0D);
+                    }
+                    entity = villager;
+                } else if ("boat".equalsIgnoreCase(type)) {
+                    net.minecraft.entity.item.EntityBoat boat =
+                        new net.minecraft.entity.item.EntityBoat(
+                            p.getServerWorld(), x, y, z);
+                    boat.setNoGravity(true);
+                    entity = boat;
+                } else if ("arrow".equalsIgnoreCase(type)) {
+                    net.minecraft.entity.projectile.EntityTippedArrow arrow =
+                        new net.minecraft.entity.projectile.EntityTippedArrow(
+                            p.getServerWorld(), x, y, z);
+                    arrow.setNoGravity(true);
+                    entity = arrow;
+                } else if ("primed_tnt".equalsIgnoreCase(type)) {
+                    int fuse = action.has("fuse")
+                        ? action.get("fuse").getAsInt() : 80;
+                    if (fuse <= 0 || fuse > 32767)
+                        return err("invalid locked primed-TNT fuse");
+                    net.minecraft.entity.item.EntityTNTPrimed tnt =
+                        new net.minecraft.entity.item.EntityTNTPrimed(
+                            p.getServerWorld(), x, y, z, null);
+                    tnt.setFuse(fuse);
+                    entity = tnt;
+                } else if ("end_crystal".equalsIgnoreCase(type)) {
+                    int innerRotation = action.has("inner_rotation")
+                        ? action.get("inner_rotation").getAsInt() : 0;
+                    int showBottom = action.has("show_bottom")
+                        ? action.get("show_bottom").getAsInt() : 1;
+                    int hasBeam = action.has("has_beam")
+                        ? action.get("has_beam").getAsInt() : 0;
+                    if (innerRotation < 0
+                            || (showBottom != 0 && showBottom != 1)
+                            || (hasBeam != 0 && hasBeam != 1))
+                        return err("invalid locked End-crystal fixture");
+                    net.minecraft.entity.item.EntityEnderCrystal crystal =
+                        new net.minecraft.entity.item.EntityEnderCrystal(
+                            p.getServerWorld(), x, y, z);
+                    crystal.innerRotation = innerRotation;
+                    crystal.setShowBottom(showBottom != 0);
+                    if (hasBeam != 0) {
+                        if (!action.has("beam_x") || !action.has("beam_y")
+                                || !action.has("beam_z"))
+                            return err("missing locked End-crystal beam target");
+                        crystal.setBeamTarget(new BlockPos(
+                            action.get("beam_x").getAsInt(),
+                            action.get("beam_y").getAsInt(),
+                            action.get("beam_z").getAsInt()));
+                    }
+                    entity = crystal;
+                } else if ("small_fireball".equalsIgnoreCase(type)) {
+                    net.minecraft.entity.projectile.EntitySmallFireball fireball =
+                        new net.minecraft.entity.projectile.EntitySmallFireball(
+                            p.getServerWorld());
+                    fireball.accelerationX = ax;
+                    fireball.accelerationY = ay;
+                    fireball.accelerationZ = az;
+                    entity = fireball;
+                } else {
+                    int itemId = action.has("item")
+                        ? action.get("item").getAsInt() : 1;
+                    int count = action.has("count")
+                        ? action.get("count").getAsInt() : 1;
+                    int meta = action.has("meta")
+                        ? action.get("meta").getAsInt() : 0;
+                    int delay = action.has("pickup_delay")
+                        ? action.get("pickup_delay").getAsInt() : 32767;
+                    net.minecraft.item.Item item =
+                        net.minecraft.item.Item.getItemById(itemId);
+                    if (item == null || itemId <= 0 || count <= 0
+                            || count > 64 || meta < 0 || meta > 32767
+                            || delay < 0 || delay > 32767)
+                        return err("invalid locked item fixture");
+                    net.minecraft.entity.item.EntityItem dropped =
+                        new net.minecraft.entity.item.EntityItem(
+                            p.getServerWorld(), x, y, z,
+                            new net.minecraft.item.ItemStack(
+                                item, count, meta));
+                    dropped.setPickupDelay(delay);
+                    dropped.setNoGravity(true);
+                    dropped.lifespan = 6000;
+                    entity = dropped;
+                }
+                entity.setLocationAndAngles(x, y, z, 0.0F, 0.0F);
+                entity.motionX = mx;
+                entity.motionY = my;
+                entity.motionZ = mz;
+                if (action.has("fire_seconds")) {
+                    int fireSeconds = action.get("fire_seconds").getAsInt();
+                    if (fireSeconds < 0 || fireSeconds > 1638)
+                        return err("invalid locked entity fire duration");
+                    if (fireSeconds > 0)
+                        entity.setFire(fireSeconds);
+                }
+                if (!p.getServerWorld().spawnEntity(entity))
+                    return err("locked entity spawn rejected");
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("eid", entity.getEntityId());
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("summon_locked: " + t);
+            }
+        }
+    }
+
+    /**
+     * Minimal real-1.11.2 oracle for EntityDragon.onCrystalDestroyed. It runs
+     * while the integrated server is parked, does not spawn either temporary
+     * entity, and exposes only the two state transitions shared with blaze.
+     */
+    private String oracleDragonCrystalNotifyLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "dragon_crystal_notify_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                net.minecraft.world.WorldServer w = p.getServerWorld();
+                boolean healing = !action.has("healing")
+                    || action.get("healing").getAsBoolean();
+                boolean playerSource = !action.has("player_source")
+                    || action.get("player_source").getAsBoolean();
+                net.minecraft.entity.boss.EntityDragon dragon =
+                    new net.minecraft.entity.boss.EntityDragon(w);
+                net.minecraft.entity.item.EntityEnderCrystal crystal =
+                    new net.minecraft.entity.item.EntityEnderCrystal(w);
+                dragon.setLocationAndAngles(
+                    p.posX, p.posY + 20.0D, p.posZ, 0.0F, 0.0F);
+                crystal.setPosition(
+                    playerSource ? p.posX : p.posX + 1000.0D,
+                    playerSource ? p.posY + 20.0D : p.posY + 1000.0D,
+                    playerSource ? p.posZ : p.posZ + 1000.0D);
+                dragon.setHealth(100.0F);
+                dragon.getPhaseManager().setPhase(
+                    net.minecraft.entity.boss.dragon.phase.PhaseList
+                        .HOLDING_PATTERN);
+                dragon.healingEnderCrystal = healing ? crystal : null;
+                net.minecraft.util.DamageSource source = playerSource
+                    ? net.minecraft.util.DamageSource.causePlayerDamage(p)
+                    : net.minecraft.util.DamageSource.GENERIC;
+                boolean oldDisableDamage = p.capabilities.disableDamage;
+                p.capabilities.disableDamage = false;
+                try {
+                    dragon.onCrystalDestroyed(
+                        crystal, new BlockPos(crystal), source);
+                } finally {
+                    p.capabilities.disableDamage = oldDisableDamage;
+                }
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("health", dragon.getHealth());
+                out.addProperty("strafe",
+                    dragon.getPhaseManager().getCurrentPhase().getPhaseList()
+                        == net.minecraft.entity.boss.dragon.phase.PhaseList
+                            .STRAFE_PLAYER);
+                return out.toString();
+            } catch (Throwable t) {
+                return err("dragon_crystal_notify_locked: " + t);
+            }
+        }
+    }
+
+    /** Direct real-1.11.2 oracle for the private healer update, isolated from
+     * the still-open dragon phase graph while retaining WorldServer's actual
+     * expanded-AABB query and Entity java.util.Random stream. */
+    private String oracleDragonCrystalTickLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("dragon_crystal_tick_locked requires a parked oracle server");
+            }
+            java.util.ArrayList<net.minecraft.entity.item.EntityEnderCrystal> spawned =
+                new java.util.ArrayList<net.minecraft.entity.item.EntityEnderCrystal>();
+            net.minecraft.world.WorldServer w = null;
+            try {
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                w = p.getServerWorld();
+                double bx=p.posX,by=p.posY+20.0D,bz=p.posZ;
+                net.minecraft.entity.boss.EntityDragon dragon =
+                    new net.minecraft.entity.boss.EntityDragon(w);
+                dragon.setPosition(bx,by,bz);
+                dragon.setHealth(action.has("health")
+                    ? action.get("health").getAsFloat() : 100.0F);
+                dragon.ticksExisted=action.has("ticks_existed")
+                    ? action.get("ticks_existed").getAsInt() : 0;
+                dragon.getRNG().setSeed(action.has("seed")
+                    ? action.get("seed").getAsLong() : 0L);
+
+                JsonArray specs=action.getAsJsonArray("crystals");
+                java.util.ArrayList<net.minecraft.entity.item.EntityEnderCrystal> crystals =
+                    new java.util.ArrayList<net.minecraft.entity.item.EntityEnderCrystal>();
+                for(int i=0;i<specs.size();++i){
+                    JsonArray q=specs.get(i).getAsJsonArray();
+                    net.minecraft.entity.item.EntityEnderCrystal c=
+                        new net.minecraft.entity.item.EntityEnderCrystal(w);
+                    c.setPosition(bx+q.get(0).getAsDouble(),
+                                  by+q.get(1).getAsDouble(),
+                                  bz+q.get(2).getAsDouble());
+                    boolean alive=q.size()<4||q.get(3).getAsBoolean();
+                    if(alive){
+                        if(!w.spawnEntity(c))return err("crystal spawn failed");
+                        spawned.add(c);
+                    }else c.setDead();
+                    crystals.add(c);
+                }
+                int healing=action.has("healing")
+                    ? action.get("healing").getAsInt() : -1;
+                dragon.healingEnderCrystal=healing>=0&&healing<crystals.size()
+                    ?crystals.get(healing):null;
+                java.lang.reflect.Method update=
+                    net.minecraft.entity.boss.EntityDragon.class
+                        .getDeclaredMethod("updateDragonEnderCrystal");
+                update.setAccessible(true);
+                int steps=action.has("steps")?action.get("steps").getAsInt():1;
+                JsonArray rows=new JsonArray();
+                for(int step=0;step<steps;++step){
+                    ++dragon.ticksExisted;
+                    update.invoke(dragon);
+                    int selected=-1;
+                    for(int i=0;i<crystals.size();++i)
+                        if(dragon.healingEnderCrystal==crystals.get(i)){selected=i;break;}
+                    JsonArray row=new JsonArray();
+                    row.add(new JsonPrimitive(dragon.ticksExisted));
+                    row.add(new JsonPrimitive(dragon.getHealth()));
+                    row.add(new JsonPrimitive(selected));rows.add(row);
+                }
+                JsonObject out=new JsonObject();out.addProperty("ok",true);
+                out.add("rows",rows);return out.toString();
+            } catch (Throwable t) {
+                return err("dragon_crystal_tick_locked: " + t);
+            } finally {
+                if(w!=null)for(net.minecraft.entity.item.EntityEnderCrystal c:spawned)
+                    w.removeEntityDangerously(c);
+            }
+        }
+    }
+
+    /** Real 1.11.2 doExplosionB flaming discriminator. Explosion owns a
+     * clock-seeded Random separate from World.rand, so the locked oracle
+     * restores both private cursors before running the actual implementation. */
+    private String oracleExplosionFireLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("explosion_fire_locked requires a parked oracle server");
+            }
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.block.state.IBlockState[] prior = null;
+            long oldWorldSeed = -1L;
+            int cx = 0, cz = 0;
+            final int baseY = 220;
+            try {
+                long worldSeed = action.get("world_seed48").getAsLong();
+                long explosionSeed = action.get("explosion_seed48").getAsLong();
+                boolean flaming = action.get("flaming").getAsBoolean();
+                if (worldSeed < 0L || worldSeed >= (1L << 48)
+                        || explosionSeed < 0L
+                        || explosionSeed >= (1L << 48))
+                    return err("invalid explosion random cursor");
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                w = p.getServerWorld();
+                cx = net.minecraft.util.math.MathHelper.floor(p.posX);
+                cz = net.minecraft.util.math.MathHelper.floor(p.posZ);
+                prior = new net.minecraft.block.state.IBlockState[17 * 17 * 17];
+                int index = 0;
+                for (int y = baseY - 8; y <= baseY + 8; ++y)
+                    for (int z = cz - 8; z <= cz + 8; ++z)
+                        for (int x = cx - 8; x <= cx + 8; ++x) {
+                            BlockPos pos = new BlockPos(x, y, z);
+                            prior[index++] = w.getBlockState(pos);
+                            w.setBlockState(pos,
+                                net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                        }
+                BlockPos support = new BlockPos(cx, baseY, cz);
+                BlockPos firePos = support.up();
+                w.setBlockState(support,
+                    net.minecraft.init.Blocks.OBSIDIAN.getDefaultState(), 2);
+                oldWorldSeed = javaRandomSeed48(w.rand);
+                setJavaRandomSeed48(w.rand, worldSeed);
+                net.minecraft.world.Explosion explosion =
+                    new net.minecraft.world.Explosion(
+                        w, null, cx + 0.5D, baseY + 1.5D, cz + 0.5D,
+                        5.0F, flaming, true);
+                java.lang.reflect.Field rngField =
+                    net.minecraft.world.Explosion.class
+                        .getDeclaredField("explosionRNG");
+                rngField.setAccessible(true);
+                java.util.Random explosionRandom =
+                    (java.util.Random)rngField.get(explosion);
+                setJavaRandomSeed48(explosionRandom, explosionSeed);
+                explosion.doExplosionA();
+                boolean affectedCenter =
+                    explosion.getAffectedBlockPositions().contains(firePos);
+                explosion.doExplosionB(false);
+                int fireCount = 0;
+                for (int y = baseY - 8; y <= baseY + 8; ++y)
+                    for (int z = cz - 8; z <= cz + 8; ++z)
+                        for (int x = cx - 8; x <= cx + 8; ++x)
+                            if (w.getBlockState(new BlockPos(x, y, z)).getBlock()
+                                    == net.minecraft.init.Blocks.FIRE)
+                                ++fireCount;
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("affected_center", affectedCenter);
+                out.addProperty("center_block",
+                    net.minecraft.block.Block.getIdFromBlock(
+                        w.getBlockState(firePos).getBlock()));
+                out.addProperty("fire_count", fireCount);
+                out.addProperty("world_seed48", javaRandomSeed48(w.rand));
+                out.addProperty("explosion_seed48",
+                    javaRandomSeed48(explosionRandom));
+                return out.toString();
+            } catch (Throwable t) {
+                return err("explosion_fire_locked: " + t);
+            } finally {
+                if (w != null && prior != null) {
+                    int index = 0;
+                    for (int y = baseY - 8; y <= baseY + 8; ++y)
+                        for (int z = cz - 8; z <= cz + 8; ++z)
+                            for (int x = cx - 8; x <= cx + 8; ++x)
+                                w.setBlockState(
+                                    new BlockPos(x, y, z), prior[index++], 2);
+                }
+                if (w != null && oldWorldSeed >= 0L) {
+                    try { setJavaRandomSeed48(w.rand, oldWorldSeed); }
+                    catch (Throwable ignored) { }
+                }
+            }
+        }
+    }
+
+    private static JsonObject oracleFallingDropItemJson(
+            net.minecraft.entity.item.EntityItem item) {
+        JsonObject value = new JsonObject();
+        net.minecraft.item.ItemStack stack = item.getEntityItem();
+        value.addProperty("eid", item.getEntityId());
+        value.addProperty("x", item.posX);
+        value.addProperty("y", item.posY);
+        value.addProperty("z", item.posZ);
+        value.addProperty("vx", item.motionX);
+        value.addProperty("vy", item.motionY);
+        value.addProperty("vz", item.motionZ);
+        value.addProperty("yaw", item.rotationYaw);
+        value.addProperty("item",
+            net.minecraft.item.Item.getIdFromItem(stack.getItem()));
+        value.addProperty("count", stack.getCount());
+        value.addProperty("meta", oracleStackMeta(stack));
+        value.addProperty("age", item.getAge());
+        value.addProperty("pickup_delay",
+            itemField(item, "delayBeforeCanPickup"));
+        value.addProperty("health", itemField(item, "health"));
+        value.addProperty("lifespan", item.lifespan);
+        value.addProperty("hover_start", item.hoverStart);
+        value.addProperty("on_ground", item.onGround);
+        value.addProperty("is_dead", item.isDead);
+        return value;
+    }
+
+    private static boolean oracleAddUntrackedEntity(
+            net.minecraft.world.WorldServer world,
+            net.minecraft.entity.Entity entity) {
+        int chunkX = net.minecraft.util.math.MathHelper.floor(
+            entity.posX / 16.0D);
+        int chunkZ = net.minecraft.util.math.MathHelper.floor(
+            entity.posZ / 16.0D);
+        world.getChunkFromChunkCoords(chunkX, chunkZ).addEntity(entity);
+        return world.loadedEntityList.add(entity);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> java.util.List<T> oracleWorldList(
+            net.minecraft.world.World world, String name) throws Exception {
+        java.lang.reflect.Field field = net.minecraft.world.World.class
+            .getDeclaredField(name);
+        field.setAccessible(true);
+        return (java.util.List<T>)field.get(world);
+    }
+
+    private static <T> void oracleReplaceList(
+            java.util.List<T> target, java.util.List<T> values) {
+        target.clear();
+        target.addAll(values);
+    }
+
+    /** Mixin redirect for the two EntityAIMate spawnEntity calls. Integrated
+     * client mirrors share Entity.nextEntityID and Math.random with the server;
+     * keeping this parked fixture untracked removes that non-causal race. */
+    public static int oracleMateSpawnEntity(
+            net.minecraft.world.World world,
+            net.minecraft.entity.Entity entity,
+            net.minecraft.entity.passive.EntityAnimal initiator) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null) return -1;
+        synchronized (bridge.oracleServerMonitor) {
+            if (bridge.oracleMateUntrackedWorld != world) return -1;
+            boolean directPin = initiator
+                == bridge.oracleMateDirectChildPinInitiator;
+            long childSeed = directPin
+                ? bridge.oracleMateDirectChildSeed48
+                : initiator == bridge.oracleMateTickFirst
+                    ? bridge.oracleMateTickChildSeed48
+                    : initiator == bridge.oracleMateTickThird
+                        ? bridge.oracleMateTickSecondChildSeed48 : -1L;
+            if (childSeed >= 0L && entity instanceof
+                    net.minecraft.entity.passive.EntityAnimal) {
+                try {
+                    java.util.Random random = entityRandom(entity);
+                    setJavaRandomSeed48(random, childSeed);
+                    setJavaRandomGaussianState(random,
+                        directPin
+                            && bridge.oracleMateDirectChildHaveNextGaussian,
+                        directPin
+                            ? bridge.oracleMateDirectChildNextGaussian : 0.0D);
+                    if (directPin) ++bridge.oracleMateDirectChildPinCount;
+                    else ++bridge.oracleMateTickChildPinCount;
+                } catch (Throwable t) {
+                    return 0;
+                }
+            }
+            return oracleAddUntrackedEntity(
+                bridge.oracleMateUntrackedWorld, entity) ? 1 : 0;
+        }
+    }
+
+    /** Mixin callback at the real World entity-dispatch boundary. */
+    public static void oracleMateTickEntityUpdate(
+            net.minecraft.world.World world,
+            net.minecraft.entity.Entity entity) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null) return;
+        synchronized (bridge.oracleServerMonitor) {
+            if (world == bridge.oracleMateUntrackedWorld)
+                bridge.oracleMateTickUpdateOrder.add(entity.getEntityId());
+            if (world == bridge.oraclePigDeathDismountWorld) {
+                JsonObject row = new JsonObject();
+                row.addProperty("eid", entity.getEntityId());
+                row.addProperty("riding_eid", entity.isRiding()
+                    ? entity.getRidingEntity().getEntityId() : -1);
+                row.addProperty("pig_death_time",
+                    bridge.oraclePigDeathDismountPig == null ? -1
+                    : bridge.oraclePigDeathDismountPig.deathTime);
+                row.addProperty("pig_entity_is_dead",
+                    bridge.oraclePigDeathDismountPig != null
+                    && bridge.oraclePigDeathDismountPig.isDead);
+                row.addProperty("pig_passenger_count",
+                    bridge.oraclePigDeathDismountPig == null ? -1
+                    : bridge.oraclePigDeathDismountPig.getPassengers().size());
+                bridge.oraclePigDeathDismountOrder.add(row);
+            }
+        }
+    }
+
+    /** Mixin callback at EntityAIMate.updateTask HEAD.  The full-tick oracle
+     * starts the real task normally, then restores the valid save-state delay
+     * immediately before its authoritative update-60 callback. */
+    public static int oracleMateTickDelay(
+            net.minecraft.entity.passive.EntityAnimal animal,
+            net.minecraft.entity.passive.EntityAnimal target) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null) return -1;
+        synchronized (bridge.oracleServerMonitor) {
+            boolean firstPair = animal == bridge.oracleMateTickFirst
+                && target == bridge.oracleMateTickSecond;
+            boolean secondPair = bridge.oracleMateTickPairCount == 2
+                && animal == bridge.oracleMateTickThird
+                && target == bridge.oracleMateTickFourth;
+            if (animal != bridge.oracleMateTickFirst
+                    && animal != bridge.oracleMateTickThird)
+                return -1;
+            ++bridge.oracleMateTickDelayHookCount;
+            boolean valid = firstPair || secondPair;
+            bridge.oracleMateTickTargetValid &= valid;
+            return valid ? 59 : -1;
+        }
+    }
+
+    /** Pin shared JVM cursors at the causal server boundary immediately before
+     * createChild. The integrated client uses the same Entity.nextEntityID and
+     * Math.random statics, but its unrelated render-side entity construction is
+     * not part of this isolated authoritative save state. */
+    public static void oracleMateTickBirthStart(
+            net.minecraft.entity.passive.EntityAnimal animal,
+            net.minecraft.entity.passive.EntityAnimal target) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null) return;
+        synchronized (bridge.oracleServerMonitor) {
+            boolean firstPair = animal == bridge.oracleMateTickFirst
+                && target == bridge.oracleMateTickSecond;
+            boolean secondPair = bridge.oracleMateTickPairCount == 2
+                && animal == bridge.oracleMateTickThird
+                && target == bridge.oracleMateTickFourth;
+            if (!firstPair && !secondPair) return;
+            try {
+                /* Pair A establishes the causal cursor. Pair B must inherit
+                 * exactly what pair A's child and optional XP construction
+                 * left behind, which is the ordering under test. */
+                if (firstPair) {
+                    setNextEntityId(bridge.oracleMateTickNextEntityId);
+                    setMathRandomSeed48(bridge.oracleMateTickMathSeed48);
+                }
+                ++bridge.oracleMateTickBirthPinCount;
+            } catch (Throwable t) {
+                bridge.oracleMateTickBirthPinCount = Integer.MIN_VALUE;
+            }
+        }
+    }
+
+    /** Deterministic real-EntityFallingBlock failed-placement oracle. Shaped
+     * supports stop the entity in their nonreplaceable cell. The zero-height
+     * snow layer is replaceable, so it is replaced by the falling block instead
+     * of creating an EntityItem. The isolated high column and event-local
+     * Math.random/EID cursors avoid loaded-world noise. */
+    private String oracleFallingDropLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("falling_drop_locked requires a parked oracle server");
+            }
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.block.state.IBlockState[] prior = null;
+            net.minecraft.entity.item.EntityItem dropped = null;
+            long oldMathSeed = -1L;
+            int oldNextEntityId = -1;
+            int fixtureItemId = -1;
+            String oldDoEntityDrops = null;
+            int cx = 0, cz = 0;
+            final int baseY = 220;
+            try {
+                int blockId = action.get("block").getAsInt();
+                int supportId = action.has("support")
+                    ? action.get("support").getAsInt() : 44;
+                int supportMeta = action.has("support_meta")
+                    ? action.get("support_meta").getAsInt() : 0;
+                boolean entityDrops = !action.has("entity_drops")
+                    || action.get("entity_drops").getAsBoolean();
+                long mathSeed = action.get("math_seed48").getAsLong();
+                int nextId = action.get("next_entity_id").getAsInt();
+                fixtureItemId = nextId + 1;
+                if ((blockId != 12 && blockId != 13)
+                        || (supportId != 44 && supportId != 60 && supportId != 70
+                            && supportId != 72 && supportId != 78
+                            && supportId != 88 && supportId != 92
+                            && supportId != 116 && supportId != 147
+                            && supportId != 148 && supportId != 171
+                            && supportId != 208)
+                        || supportMeta < 0 || supportMeta > 7
+                        || (supportId != 60 && supportId != 78 && supportMeta != 0)
+                        || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483646)
+                    return err("invalid falling-drop fixture");
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                w = p.getServerWorld();
+                oldDoEntityDrops = w.getGameRules().getString("doEntityDrops");
+                w.getGameRules().setOrCreateGameRule("doEntityDrops",
+                    entityDrops ? "true" : "false");
+                cx = net.minecraft.util.math.MathHelper.floor(p.posX);
+                cz = net.minecraft.util.math.MathHelper.floor(p.posZ);
+                prior = new net.minecraft.block.state.IBlockState[54];
+                int index = 0;
+                for (int y = baseY - 1; y <= baseY + 4; ++y)
+                    for (int z = cz - 1; z <= cz + 1; ++z)
+                        for (int x = cx - 1; x <= cx + 1; ++x) {
+                            BlockPos pos = new BlockPos(x, y, z);
+                            prior[index++] = w.getBlockState(pos);
+                            w.setBlockState(pos,
+                                net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                        }
+                BlockPos slabPos = new BlockPos(cx, baseY, cz);
+                BlockPos sourcePos = new BlockPos(cx, baseY + 3, cz);
+                if (supportId == 60 || supportId == 70 || supportId == 72
+                        || supportId == 78 || supportId == 92
+                        || supportId == 147 || supportId == 148
+                        || supportId == 171)
+                    w.setBlockState(new BlockPos(cx, baseY - 1, cz),
+                        net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                net.minecraft.block.Block support =
+                    net.minecraft.block.Block.getBlockById(supportId);
+                w.setBlockState(slabPos, support.getStateFromMeta(supportMeta), 2);
+                net.minecraft.block.Block block =
+                    net.minecraft.block.Block.getBlockById(blockId);
+                net.minecraft.block.state.IBlockState fallingState =
+                    block.getStateFromMeta(0);
+                w.setBlockState(sourcePos, fallingState, 2);
+
+                oldMathSeed = mathRandomSeed48();
+                oldNextEntityId = nextEntityId();
+                setNextEntityId(nextId);
+                net.minecraft.entity.item.EntityFallingBlock falling =
+                    new net.minecraft.entity.item.EntityFallingBlock(
+                        w, cx + 0.5D, baseY + 3.0D, cz + 0.5D,
+                        fallingState);
+                JsonArray rows = new JsonArray();
+                int dropStep = supportId == 60 || supportId == 208 ? 10
+                    : supportId == 88 || supportId == 116 ? 11
+                    : supportId == 171 ? 13
+                    : supportId == 70 || supportId == 72
+                        || supportId == 147 || supportId == 148 ? 13
+                    : supportId == 78 ? (supportMeta == 0 ? 13
+                        : supportMeta <= 4 ? 12 : 11) : 12;
+                for (int step = 1; step <= dropStep; ++step) {
+                    if (step == dropStep) {
+                        setMathRandomSeed48(mathSeed);
+                        setNextEntityId(nextId + 1);
+                    }
+                    falling.onUpdate();
+                    JsonArray row = new JsonArray();
+                    row.add(new JsonPrimitive(step));
+                    row.add(new JsonPrimitive(falling.fallTime));
+                    row.add(new JsonPrimitive(falling.isDead));
+                    row.add(new JsonPrimitive(falling.posX));
+                    row.add(new JsonPrimitive(falling.posY));
+                    row.add(new JsonPrimitive(falling.posZ));
+                    row.add(new JsonPrimitive(falling.motionX));
+                    row.add(new JsonPrimitive(falling.motionY));
+                    row.add(new JsonPrimitive(falling.motionZ));
+                    rows.add(row);
+                }
+                java.util.List<net.minecraft.entity.item.EntityItem> items =
+                    w.getEntitiesWithinAABB(
+                        net.minecraft.entity.item.EntityItem.class,
+                        new net.minecraft.util.math.AxisAlignedBB(
+                            cx - 2, baseY - 1, cz - 2,
+                            cx + 3, baseY + 5, cz + 3));
+                boolean replacesSnow = supportId == 78 && supportMeta == 0;
+                if (items.size() != (replacesSnow || !entityDrops ? 0 : 1))
+                    return err("falling drop item count mismatch");
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.add("rows", rows);
+                if (replacesSnow || !entityDrops) {
+                    out.add("constructor_item", com.google.gson.JsonNull.INSTANCE);
+                    out.add("ticked_item", com.google.gson.JsonNull.INSTANCE);
+                } else {
+                    dropped = items.get(0);
+                    JsonObject constructorItem =
+                        oracleFallingDropItemJson(dropped);
+                    dropped.onUpdate();
+                    JsonObject tickedItem = oracleFallingDropItemJson(dropped);
+                    out.add("constructor_item", constructorItem);
+                    out.add("ticked_item", tickedItem);
+                }
+                out.addProperty("source_block",
+                    net.minecraft.block.Block.getIdFromBlock(
+                        w.getBlockState(sourcePos).getBlock()));
+                out.addProperty("source_meta",
+                    w.getBlockState(sourcePos).getBlock().getMetaFromState(
+                        w.getBlockState(sourcePos)));
+                out.addProperty("support_block",
+                    net.minecraft.block.Block.getIdFromBlock(
+                        w.getBlockState(slabPos).getBlock()));
+                out.addProperty("support_meta",
+                    w.getBlockState(slabPos).getBlock().getMetaFromState(
+                        w.getBlockState(slabPos)));
+                out.addProperty("math_seed48", mathRandomSeed48());
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("falling_drop_locked: " + t);
+            } finally {
+                if (w != null && fixtureItemId > 0)
+                    for (net.minecraft.entity.Entity e :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList))
+                        if (e.getEntityId() == fixtureItemId)
+                            w.removeEntityDangerously(e);
+                if (w != null && oldDoEntityDrops != null)
+                    w.getGameRules().setOrCreateGameRule("doEntityDrops",
+                        oldDoEntityDrops);
+                if (w != null && prior != null) {
+                    int index = 0;
+                    for (int y = baseY - 1; y <= baseY + 4; ++y)
+                        for (int z = cz - 1; z <= cz + 1; ++z)
+                            for (int x = cx - 1; x <= cx + 1; ++x)
+                                w.setBlockState(
+                                    new BlockPos(x, y, z), prior[index++], 2);
+                }
+                try {
+                    if (oldMathSeed >= 0L)
+                        setMathRandomSeed48(oldMathSeed);
+                    if (oldNextEntityId > 0)
+                        setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Direct EntityFallingBlock timeout oracle.  Unlike the landing fixture,
+     * this deliberately creates no source block and never inserts the falling
+     * entity into WorldServer.  It isolates the two vanilla timeout branches:
+     * fallTime > 100 outside world height, and fallTime > 600.
+     */
+    private String oracleFallingTimeoutLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("falling_timeout_locked requires a parked oracle server");
+            }
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.item.EntityItem dropped = null;
+            long oldMathSeed = -1L;
+            int oldNextEntityId = -1;
+            String oldDoEntityDrops = null;
+            int spawnedItemId = -1;
+            int fixtureX = 0;
+            int fixtureZ = 0;
+            net.minecraft.block.state.IBlockState[] lowPrior = null;
+            try {
+                String mode = action.has("mode") ? action.get("mode").getAsString()
+                    : "height";
+                boolean height = mode.equals("height");
+                boolean low = mode.equals("low");
+                boolean age = mode.equals("age");
+                boolean entityDrops = !action.has("entity_drops")
+                    || action.get("entity_drops").getAsBoolean();
+                long mathSeed = action.get("math_seed48").getAsLong();
+                int nextId = action.get("next_entity_id").getAsInt();
+                if ((!height && !low && !age)
+                        || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483646)
+                    return err("invalid falling-timeout fixture");
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                w = p.getServerWorld();
+                oldDoEntityDrops = w.getGameRules().getString("doEntityDrops");
+                w.getGameRules().setOrCreateGameRule("doEntityDrops",
+                    entityDrops ? "true" : "false");
+                int cx = net.minecraft.util.math.MathHelper.floor(p.posX);
+                int cz = net.minecraft.util.math.MathHelper.floor(p.posZ);
+                fixtureX = cx;
+                fixtureZ = cz;
+                double y = height ? 258.0D : (low ? 1.0D : 128.0D);
+                int snapshotY = height ? 250 : (low ? 1 : 128);
+                if (low) {
+                    lowPrior = new net.minecraft.block.state.IBlockState[3];
+                    for (int clearY = 0; clearY <= 2; ++clearY) {
+                        BlockPos clearPos = new BlockPos(cx, clearY, cz);
+                        lowPrior[clearY] = w.getBlockState(clearPos);
+                        w.setBlockToAir(clearPos);
+                    }
+                }
+                JsonArray before = new JsonArray();
+                for (int dy = -1; dy <= 1; ++dy)
+                    for (int dz = -1; dz <= 1; ++dz)
+                        for (int dx = -1; dx <= 1; ++dx) {
+                            net.minecraft.block.state.IBlockState state =
+                                w.getBlockState(new BlockPos(cx + dx, snapshotY + dy,
+                                    cz + dz));
+                            JsonArray cell = new JsonArray();
+                            cell.add(new JsonPrimitive(net.minecraft.block.Block
+                                .getIdFromBlock(state.getBlock())));
+                            cell.add(new JsonPrimitive(state.getBlock()
+                                .getMetaFromState(state)));
+                            before.add(cell);
+                        }
+                oldMathSeed = mathRandomSeed48();
+                oldNextEntityId = nextEntityId();
+                setNextEntityId(nextId);
+                net.minecraft.block.state.IBlockState sand =
+                    net.minecraft.init.Blocks.SAND.getDefaultState();
+                net.minecraft.entity.item.EntityFallingBlock falling =
+                    new net.minecraft.entity.item.EntityFallingBlock(
+                        w, cx + 0.5D, y, cz + 0.5D, sand);
+                falling.fallTime = age ? 600 : 100;
+                if (age) falling.setNoGravity(true);
+                setMathRandomSeed48(mathSeed);
+                setNextEntityId(nextId + 1);
+                spawnedItemId = nextId + 1;
+                falling.onUpdate();
+                JsonArray row = new JsonArray();
+                row.add(new JsonPrimitive(1));
+                row.add(new JsonPrimitive(falling.fallTime));
+                row.add(new JsonPrimitive(falling.isDead));
+                row.add(new JsonPrimitive(falling.posX));
+                row.add(new JsonPrimitive(falling.posY));
+                row.add(new JsonPrimitive(falling.posZ));
+                row.add(new JsonPrimitive(falling.motionX));
+                row.add(new JsonPrimitive(falling.motionY));
+                row.add(new JsonPrimitive(falling.motionZ));
+                java.util.List<net.minecraft.entity.item.EntityItem> nearbyItems =
+                    w.getEntitiesWithinAABB(net.minecraft.entity.item.EntityItem.class,
+                        new net.minecraft.util.math.AxisAlignedBB(cx - 2, y - 2,
+                            cz - 2, cx + 3, y + 3, cz + 3));
+                java.util.List<net.minecraft.entity.item.EntityItem> items =
+                    new java.util.ArrayList<net.minecraft.entity.item.EntityItem>();
+                for (net.minecraft.entity.item.EntityItem item : nearbyItems)
+                    if (item.getEntityId() == nextId + 1)
+                        items.add(item);
+                if (items.size() != (entityDrops ? 1 : 0))
+                    return err("falling timeout item count mismatch");
+                JsonArray after = new JsonArray();
+                for (int dy = -1; dy <= 1; ++dy)
+                    for (int dz = -1; dz <= 1; ++dz)
+                        for (int dx = -1; dx <= 1; ++dx) {
+                            net.minecraft.block.state.IBlockState state =
+                                w.getBlockState(new BlockPos(cx + dx, snapshotY + dy,
+                                    cz + dz));
+                            JsonArray cell = new JsonArray();
+                            cell.add(new JsonPrimitive(net.minecraft.block.Block
+                                .getIdFromBlock(state.getBlock())));
+                            cell.add(new JsonPrimitive(state.getBlock()
+                                .getMetaFromState(state)));
+                            after.add(cell);
+                        }
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("mode", mode);
+                out.addProperty("initial_fall_time", age ? 600 : 100);
+                out.addProperty("no_gravity", age);
+                out.add("rows", new JsonArray());
+                out.getAsJsonArray("rows").add(row);
+                if (entityDrops) {
+                    dropped = items.get(0);
+                    out.add("constructor_item", oracleFallingDropItemJson(dropped));
+                    dropped.onUpdate();
+                    out.add("ticked_item", oracleFallingDropItemJson(dropped));
+                } else {
+                    out.add("constructor_item", com.google.gson.JsonNull.INSTANCE);
+                    out.add("ticked_item", com.google.gson.JsonNull.INSTANCE);
+                }
+                out.add("blocks_before", before);
+                out.add("blocks_after", after);
+                out.addProperty("blocks_unchanged", before.equals(after));
+                out.addProperty("math_seed48", mathRandomSeed48());
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("falling_timeout_locked: " + t);
+            } finally {
+                if (w != null && spawnedItemId > 0) {
+                    net.minecraft.entity.Entity spawned =
+                        w.getEntityByID(spawnedItemId);
+                    if (spawned != null)
+                        w.removeEntityDangerously(spawned);
+                    else if (dropped != null)
+                        w.removeEntityDangerously(dropped);
+                }
+                if (w != null && lowPrior != null)
+                    for (int restoreY = 0; restoreY <= 2; ++restoreY)
+                        w.setBlockState(
+                            new BlockPos(fixtureX, restoreY, fixtureZ),
+                            lowPrior[restoreY], 2);
+                if (w != null && oldDoEntityDrops != null)
+                    w.getGameRules().setOrCreateGameRule("doEntityDrops",
+                        oldDoEntityDrops);
+                try {
+                    if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed);
+                    if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /** Parked real-entity trajectories for the lateral-motion collision seam. */
+    private String oracleFallingLateralLocked(JsonObject action, boolean wall) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("falling lateral oracle requires a parked oracle server");
+            }
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.block.state.IBlockState[] prior = null;
+            net.minecraft.entity.item.EntityFallingBlock falling = null;
+            boolean fixtureActive = false;
+            long oldMathSeed = -1L, oldWorldSeed = -1L;
+            int oldNextEntityId = -1, fixtureId = -1;
+            int cx = 0, cz = 0;
+            final int baseY = 220, minY = baseY - 5, maxY = baseY + 1;
+            final int minDx = -2, maxDx = 9;
+            final int minDz = -2, maxDz = 2;
+            try {
+                long mathSeed = action.get("math_seed48").getAsLong();
+                long worldSeed = action.get("world_seed48").getAsLong();
+                int nextId = action.get("next_entity_id").getAsInt();
+                if (mathSeed < 0L || mathSeed >= (1L << 48)
+                        || worldSeed < 0L || worldSeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483645)
+                    return err("invalid falling-lateral fixture");
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                w = p.getServerWorld();
+                cx = net.minecraft.util.math.MathHelper.floor(p.posX);
+                cz = net.minecraft.util.math.MathHelper.floor(p.posZ);
+                net.minecraft.world.gen.structure.StructureBoundingBox fixtureBox =
+                    new net.minecraft.world.gen.structure.StructureBoundingBox(
+                        cx + minDx, minY, cz + minDz,
+                        cx + maxDx + 1, maxY + 1, cz + maxDz + 1);
+                java.util.List<net.minecraft.world.NextTickListEntry> existing =
+                    w.getPendingBlockUpdates(fixtureBox, false);
+                if (existing != null && !existing.isEmpty())
+                    return err("falling lateral fixture has pending work");
+                fixtureActive = true;
+                int width = maxDx - minDx + 1;
+                int depth = maxDz - minDz + 1;
+                prior = new net.minecraft.block.state.IBlockState[
+                    width * depth * (maxY - minY + 1)];
+                int index = 0;
+                for (int y = minY; y <= maxY; ++y)
+                    for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                        for (int x = cx + minDx; x <= cx + maxDx; ++x) {
+                            BlockPos pos = new BlockPos(x, y, z);
+                            prior[index++] = w.getBlockState(pos);
+                            w.setBlockState(pos,
+                                net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                        }
+                for (int x = cx + minDx; x <= cx + maxDx; ++x)
+                    for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                        w.setBlockState(new BlockPos(x, baseY - 4, z),
+                            net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                if (wall)
+                    for (int y = baseY - 1; y <= baseY + 1; ++y)
+                        w.setBlockState(new BlockPos(cx + 1, y, cz),
+                            net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                BlockPos source = new BlockPos(cx, baseY, cz);
+                w.setBlockState(source,
+                    net.minecraft.init.Blocks.SAND.getDefaultState(), 2);
+                /* Direct entity stepping models the state after the source's
+                 * scheduled callback has fired, so discard setup callbacks. */
+                w.getPendingBlockUpdates(fixtureBox, true);
+                /* Give the landing callback an exact same-time predecessor.
+                 * The serialized TreeSet rank is the stable ordering contract
+                 * used by state capsules after save/reload renumbering. */
+                w.updateBlockTick(
+                    new BlockPos(cx + maxDx, baseY - 4, cz + maxDz),
+                    net.minecraft.init.Blocks.STONE, 2, 0);
+                oldMathSeed = mathRandomSeed48();
+                oldWorldSeed = javaRandomSeed48(w.rand);
+                oldNextEntityId = nextEntityId();
+                setMathRandomSeed48(mathSeed);
+                setJavaRandomSeed48(w.rand, worldSeed);
+                setNextEntityId(nextId);
+                fixtureId = nextId;
+                falling = new net.minecraft.entity.item.EntityFallingBlock(
+                    w, cx + 0.5D, (double)baseY, cz + 0.5D,
+                    net.minecraft.init.Blocks.SAND.getDefaultState());
+                falling.motionX = wall ? 0.75D : 0.35D;
+                falling.motionZ = wall ? 0.0D : 0.15D;
+                JsonArray rows = new JsonArray();
+                int updates = 20;
+                for (int step = 1; step <= updates; ++step) {
+                    falling.onUpdate();
+                    JsonArray row = new JsonArray();
+                    row.add(new JsonPrimitive(step));
+                    row.add(new JsonPrimitive(falling.fallTime));
+                    row.add(new JsonPrimitive(falling.isDead));
+                    row.add(new JsonPrimitive(falling.posX));
+                    row.add(new JsonPrimitive(falling.posY));
+                    row.add(new JsonPrimitive(falling.posZ));
+                    row.add(new JsonPrimitive(falling.motionX));
+                    row.add(new JsonPrimitive(falling.motionY));
+                    row.add(new JsonPrimitive(falling.motionZ));
+                    row.add(new JsonPrimitive(falling.onGround));
+                    row.add(new JsonPrimitive(falling.isCollidedHorizontally));
+                    row.add(new JsonPrimitive(falling.isCollidedVertically));
+                    row.add(new JsonPrimitive(falling.fallDistance));
+                    rows.add(row);
+                    if (falling.isDead) break;
+                }
+                JsonArray blocks = new JsonArray();
+                for (int y = minY; y <= maxY; ++y)
+                    for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                        for (int x = cx + minDx; x <= cx + maxDx; ++x) {
+                            net.minecraft.block.state.IBlockState state =
+                                w.getBlockState(new BlockPos(x, y, z));
+                            int id = net.minecraft.block.Block.getIdFromBlock(
+                                state.getBlock());
+                            if (id == 0) continue;
+                            JsonArray cell = new JsonArray();
+                            cell.add(new JsonPrimitive(x));
+                            cell.add(new JsonPrimitive(y));
+                            cell.add(new JsonPrimitive(z));
+                            cell.add(new JsonPrimitive(id));
+                            cell.add(new JsonPrimitive(state.getBlock()
+                                .getMetaFromState(state)));
+                            blocks.add(cell);
+                        }
+                JsonArray scheduled = new JsonArray();
+                java.util.List<net.minecraft.world.NextTickListEntry> pending =
+                    w.getPendingBlockUpdates(fixtureBox, false);
+                int pendingRank = 0;
+                if (pending != null) for (net.minecraft.world.NextTickListEntry e : pending) {
+                    JsonArray entry = new JsonArray();
+                    entry.add(new JsonPrimitive(e.position.getX()));
+                    entry.add(new JsonPrimitive(e.position.getY()));
+                    entry.add(new JsonPrimitive(e.position.getZ()));
+                    entry.add(new JsonPrimitive(net.minecraft.block.Block
+                        .getIdFromBlock(e.getBlock())));
+                    entry.add(new JsonPrimitive(
+                        e.scheduledTime - w.getTotalWorldTime()));
+                    entry.add(new JsonPrimitive(e.priority));
+                    entry.add(new JsonPrimitive(pendingRank++));
+                    scheduled.add(entry);
+                }
+                JsonArray fixtureEntities = new JsonArray();
+                for (net.minecraft.entity.Entity e :
+                        new java.util.ArrayList<net.minecraft.entity.Entity>(
+                            w.loadedEntityList)) {
+                    if (e.getEntityId() != fixtureId) continue;
+                    JsonArray entity = new JsonArray();
+                    entity.add(new JsonPrimitive(e.getEntityId()));
+                    entity.add(new JsonPrimitive(e.isDead));
+                    entity.add(new JsonPrimitive(e.posX));
+                    entity.add(new JsonPrimitive(e.posY));
+                    entity.add(new JsonPrimitive(e.posZ));
+                    fixtureEntities.add(entity);
+                }
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("fixture", wall ? "wall" : "free");
+                out.addProperty("origin_x", cx);
+                out.addProperty("origin_z", cz);
+                out.addProperty("base_y", baseY);
+                out.addProperty("initial_vx", wall ? 0.75D : 0.35D);
+                out.addProperty("initial_vz", wall ? 0.0D : 0.15D);
+                out.add("rows", rows);
+                out.add("final_blocks", blocks);
+                out.add("scheduled", scheduled);
+                out.add("fixture_entities", fixtureEntities);
+                out.addProperty("source_block", net.minecraft.block.Block
+                    .getIdFromBlock(w.getBlockState(source).getBlock()));
+                out.addProperty("math_seed48", mathRandomSeed48());
+                out.addProperty("world_seed48", javaRandomSeed48(w.rand));
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("falling_lateral_locked: " + t);
+            } finally {
+                if (w != null && fixtureId > 0) {
+                    for (net.minecraft.entity.Entity e :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList))
+                        if (e.getEntityId() == fixtureId
+                                || e.getEntityId() == fixtureId + 1)
+                            w.removeEntityDangerously(e);
+                }
+                if (w != null && fixtureActive) {
+                    net.minecraft.world.gen.structure.StructureBoundingBox box =
+                        new net.minecraft.world.gen.structure.StructureBoundingBox(
+                            cx + minDx, minY, cz + minDz,
+                            cx + maxDx + 1, maxY + 1, cz + maxDz + 1);
+                    w.getPendingBlockUpdates(box, true);
+                }
+                if (w != null && fixtureActive && prior != null) {
+                    int index = 0;
+                    for (int y = minY; y <= maxY; ++y)
+                        for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                            for (int x = cx + minDx; x <= cx + maxDx; ++x)
+                                w.setBlockState(new BlockPos(x, y, z),
+                                    prior[index++], 2);
+                    w.getPendingBlockUpdates(
+                        new net.minecraft.world.gen.structure.StructureBoundingBox(
+                            cx + minDx, minY, cz + minDz,
+                            cx + maxDx + 1, maxY + 1, cz + maxDz + 1), true);
+                }
+                try {
+                    if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed);
+                    if (oldWorldSeed >= 0L) setJavaRandomSeed48(w.rand, oldWorldSeed);
+                    if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Parked BlockDragonEgg scheduled-fall contract.  The server tick itself
+     * is not released: removing the pending entry immediately before calling
+     * updateTick models scheduler dispatch without admitting unrelated world
+     * work.  "supported" proves the no-fall branch; "fall" proves that an
+     * on-added +5 entry survives a neighbor duplicate, then captures the real
+     * EntityFallingBlock trajectory and the landing egg's fresh +5 entry.
+     */
+    private String oracleFallingDragonEggLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("falling_dragon_egg_locked requires a parked oracle server");
+            }
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.block.state.IBlockState[] prior = null;
+            net.minecraft.entity.item.EntityFallingBlock falling = null;
+            boolean fixtureActive = false;
+            long oldMathSeed = -1L, oldWorldSeed = -1L;
+            int oldNextEntityId = -1, fixtureId = -1;
+            int cx = 0, cz = 0;
+            final int baseY = 220, minY = baseY - 5, maxY = baseY + 1;
+            final int minDx = -2, maxDx = 2, minDz = -2, maxDz = 2;
+            try {
+                String mode = action.has("mode") ? action.get("mode").getAsString()
+                    : "fall";
+                boolean supported = mode.equals("supported");
+                boolean fall = mode.equals("fall");
+                long mathSeed = action.get("math_seed48").getAsLong();
+                long worldSeed = action.get("world_seed48").getAsLong();
+                int nextId = action.get("next_entity_id").getAsInt();
+                if ((!supported && !fall) || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || worldSeed < 0L || worldSeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483645)
+                    return err("invalid falling-dragon-egg fixture");
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                w = players.get(0).getServerWorld();
+                cx = net.minecraft.util.math.MathHelper.floor(players.get(0).posX);
+                cz = net.minecraft.util.math.MathHelper.floor(players.get(0).posZ);
+                net.minecraft.world.gen.structure.StructureBoundingBox fixtureBox =
+                    new net.minecraft.world.gen.structure.StructureBoundingBox(
+                        cx + minDx, minY, cz + minDz,
+                        cx + maxDx + 1, maxY + 1, cz + maxDz + 1);
+                java.util.List<net.minecraft.world.NextTickListEntry> existing =
+                    w.getPendingBlockUpdates(fixtureBox, false);
+                if (existing != null && !existing.isEmpty())
+                    return err("falling dragon egg fixture has pending work");
+                fixtureActive = true;
+                int width = maxDx - minDx + 1, depth = maxDz - minDz + 1;
+                prior = new net.minecraft.block.state.IBlockState[
+                    width * depth * (maxY - minY + 1)];
+                int index = 0;
+                for (int y = minY; y <= maxY; ++y)
+                    for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                        for (int x = cx + minDx; x <= cx + maxDx; ++x) {
+                            BlockPos pos = new BlockPos(x, y, z);
+                            prior[index++] = w.getBlockState(pos);
+                            w.setBlockState(pos,
+                                net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                        }
+                for (int x = cx + minDx; x <= cx + maxDx; ++x)
+                    for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                        w.setBlockState(new BlockPos(x, baseY - 4, z),
+                            net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                BlockPos source = new BlockPos(cx, baseY, cz);
+                BlockPos support = source.down();
+                net.minecraft.block.state.IBlockState egg =
+                    net.minecraft.init.Blocks.DRAGON_EGG.getDefaultState();
+                w.setBlockState(support, net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                w.setBlockState(source, egg, 3);
+                JsonArray onAdded = new JsonArray();
+                java.util.List<net.minecraft.world.NextTickListEntry> pending =
+                    w.getPendingBlockUpdates(fixtureBox, false);
+                int rank = 0;
+                if (pending != null) for (net.minecraft.world.NextTickListEntry e : pending) {
+                    JsonArray entry = new JsonArray();
+                    entry.add(new JsonPrimitive(e.position.getX()));
+                    entry.add(new JsonPrimitive(e.position.getY()));
+                    entry.add(new JsonPrimitive(e.position.getZ()));
+                    entry.add(new JsonPrimitive(net.minecraft.block.Block.getIdFromBlock(e.getBlock())));
+                    entry.add(new JsonPrimitive(e.scheduledTime - w.getTotalWorldTime()));
+                    entry.add(new JsonPrimitive(e.priority));
+                    entry.add(new JsonPrimitive(rank++));
+                    onAdded.add(entry);
+                }
+                if (onAdded.size() != 1) return err("dragon egg placement schedule mismatch");
+                JsonArray afterSupportLoss = new JsonArray();
+                if (fall) {
+                    /* Flag 3 is intentional: it reaches BlockDragonEgg.neighborChanged.
+                     * The TreeSet de-duplicates the same position/block entry, preserving
+                     * the original on-added due time. */
+                    w.setBlockState(support, net.minecraft.init.Blocks.AIR.getDefaultState(), 3);
+                    pending = w.getPendingBlockUpdates(fixtureBox, false);
+                    rank = 0;
+                    if (pending != null) for (net.minecraft.world.NextTickListEntry e : pending) {
+                        JsonArray entry = new JsonArray();
+                        entry.add(new JsonPrimitive(e.position.getX()));
+                        entry.add(new JsonPrimitive(e.position.getY()));
+                        entry.add(new JsonPrimitive(e.position.getZ()));
+                        entry.add(new JsonPrimitive(net.minecraft.block.Block.getIdFromBlock(e.getBlock())));
+                        entry.add(new JsonPrimitive(e.scheduledTime - w.getTotalWorldTime()));
+                        entry.add(new JsonPrimitive(e.priority));
+                        entry.add(new JsonPrimitive(rank++));
+                        afterSupportLoss.add(entry);
+                    }
+                    if (!onAdded.equals(afterSupportLoss))
+                        return err("dragon egg duplicate schedule changed due entry");
+                }
+                oldMathSeed = mathRandomSeed48();
+                oldWorldSeed = javaRandomSeed48(w.rand);
+                oldNextEntityId = nextEntityId();
+                setMathRandomSeed48(mathSeed);
+                setJavaRandomSeed48(w.rand, worldSeed);
+                setNextEntityId(nextId);
+                /* Consume exactly the callback being dispatched, then invoke its
+                 * Block.updateTick body while the server remains parked. */
+                w.getPendingBlockUpdates(fixtureBox, true);
+                ((net.minecraft.block.BlockDragonEgg) net.minecraft.init.Blocks.DRAGON_EGG)
+                    .updateTick(w, source, egg, w.rand);
+                JsonArray rows = new JsonArray();
+                if (fall) {
+                    for (net.minecraft.entity.Entity e :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList))
+                        if (e instanceof net.minecraft.entity.item.EntityFallingBlock
+                                && e.getEntityId() == nextId) {
+                            falling = (net.minecraft.entity.item.EntityFallingBlock)e;
+                            fixtureId = e.getEntityId();
+                            break;
+                        }
+                    if (falling == null) return err("dragon egg callback did not spawn entity");
+                    for (int step = 1; step <= 20; ++step) {
+                        falling.onUpdate();
+                        JsonArray row = new JsonArray();
+                        row.add(new JsonPrimitive(step));
+                        row.add(new JsonPrimitive(falling.fallTime));
+                        row.add(new JsonPrimitive(falling.isDead));
+                        row.add(new JsonPrimitive(falling.posX));
+                        row.add(new JsonPrimitive(falling.posY));
+                        row.add(new JsonPrimitive(falling.posZ));
+                        row.add(new JsonPrimitive(falling.motionX));
+                        row.add(new JsonPrimitive(falling.motionY));
+                        row.add(new JsonPrimitive(falling.motionZ));
+                        row.add(new JsonPrimitive(falling.onGround));
+                        row.add(new JsonPrimitive(falling.isCollidedHorizontally));
+                        row.add(new JsonPrimitive(falling.isCollidedVertically));
+                        row.add(new JsonPrimitive(falling.fallDistance));
+                        rows.add(row);
+                        if (falling.isDead) break;
+                    }
+                    if (!falling.isDead) return err("dragon egg did not land");
+                }
+                JsonArray finalBlocks = new JsonArray();
+                for (int y = minY; y <= maxY; ++y)
+                    for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                        for (int x = cx + minDx; x <= cx + maxDx; ++x) {
+                            net.minecraft.block.state.IBlockState state =
+                                w.getBlockState(new BlockPos(x, y, z));
+                            int id = net.minecraft.block.Block.getIdFromBlock(state.getBlock());
+                            if (id == 0) continue;
+                            JsonArray cell = new JsonArray();
+                            cell.add(new JsonPrimitive(x)); cell.add(new JsonPrimitive(y));
+                            cell.add(new JsonPrimitive(z)); cell.add(new JsonPrimitive(id));
+                            cell.add(new JsonPrimitive(state.getBlock().getMetaFromState(state)));
+                            finalBlocks.add(cell);
+                        }
+                JsonArray scheduled = new JsonArray();
+                pending = w.getPendingBlockUpdates(fixtureBox, false);
+                rank = 0;
+                if (pending != null) for (net.minecraft.world.NextTickListEntry e : pending) {
+                    JsonArray entry = new JsonArray();
+                    entry.add(new JsonPrimitive(e.position.getX()));
+                    entry.add(new JsonPrimitive(e.position.getY()));
+                    entry.add(new JsonPrimitive(e.position.getZ()));
+                    entry.add(new JsonPrimitive(net.minecraft.block.Block.getIdFromBlock(e.getBlock())));
+                    entry.add(new JsonPrimitive(e.scheduledTime - w.getTotalWorldTime()));
+                    entry.add(new JsonPrimitive(e.priority));
+                    entry.add(new JsonPrimitive(rank++));
+                    scheduled.add(entry);
+                }
+                JsonArray fixtureEntities = new JsonArray();
+                for (net.minecraft.entity.Entity e :
+                        new java.util.ArrayList<net.minecraft.entity.Entity>(
+                            w.loadedEntityList))
+                    if (e.getEntityId() == fixtureId) {
+                        JsonArray entity = new JsonArray();
+                        entity.add(new JsonPrimitive(e.getEntityId()));
+                        entity.add(new JsonPrimitive(e.isDead));
+                        entity.add(new JsonPrimitive(e.posX));
+                        entity.add(new JsonPrimitive(e.posY));
+                        entity.add(new JsonPrimitive(e.posZ));
+                        fixtureEntities.add(entity);
+                    }
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true); out.addProperty("mode", mode);
+                out.addProperty("origin_x", cx); out.addProperty("origin_z", cz);
+                out.addProperty("base_y", baseY);
+                out.add("on_added_scheduled", onAdded);
+                out.add("after_support_loss_scheduled", afterSupportLoss);
+                out.add("rows", rows); out.add("final_blocks", finalBlocks);
+                out.add("scheduled", scheduled);
+                out.add("fixture_entities", fixtureEntities);
+                out.addProperty("source_block", net.minecraft.block.Block.getIdFromBlock(
+                    w.getBlockState(source).getBlock()));
+                out.addProperty("source_meta", w.getBlockState(source).getBlock()
+                    .getMetaFromState(w.getBlockState(source)));
+                out.addProperty("math_seed48", mathRandomSeed48());
+                out.addProperty("world_seed48", javaRandomSeed48(w.rand));
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("falling_dragon_egg_locked: " + t);
+            } finally {
+                if (w != null && fixtureId > 0)
+                    for (net.minecraft.entity.Entity e :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                        if (e.getEntityId() == fixtureId)
+                            w.removeEntityDangerously(e);
+                if (w != null && fixtureActive) {
+                    net.minecraft.world.gen.structure.StructureBoundingBox box =
+                        new net.minecraft.world.gen.structure.StructureBoundingBox(
+                            cx + minDx, minY, cz + minDz,
+                            cx + maxDx + 1, maxY + 1, cz + maxDz + 1);
+                    w.getPendingBlockUpdates(box, true);
+                    if (prior != null) {
+                        int index = 0;
+                        for (int y = minY; y <= maxY; ++y)
+                            for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                                for (int x = cx + minDx; x <= cx + maxDx; ++x)
+                                    w.setBlockState(new BlockPos(x, y, z), prior[index++], 2);
+                        w.getPendingBlockUpdates(box, true);
+                    }
+                }
+                try {
+                    if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed);
+                    if (oldWorldSeed >= 0L && w != null) setJavaRandomSeed48(w.rand, oldWorldSeed);
+                    if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    private JsonArray pendingEntries(net.minecraft.world.WorldServer w,
+            net.minecraft.world.gen.structure.StructureBoundingBox box) {
+        JsonArray out = new JsonArray();
+        java.util.List<net.minecraft.world.NextTickListEntry> pending =
+            w.getPendingBlockUpdates(box, false);
+        int rank = 0;
+        if (pending != null) for (net.minecraft.world.NextTickListEntry e : pending) {
+            JsonArray entry = new JsonArray();
+            entry.add(new JsonPrimitive(e.position.getX()));
+            entry.add(new JsonPrimitive(e.position.getY()));
+            entry.add(new JsonPrimitive(e.position.getZ()));
+            entry.add(new JsonPrimitive(net.minecraft.block.Block.getIdFromBlock(e.getBlock())));
+            entry.add(new JsonPrimitive(e.scheduledTime - w.getTotalWorldTime()));
+            entry.add(new JsonPrimitive(e.priority));
+            entry.add(new JsonPrimitive(rank++));
+            out.add(entry);
+        }
+        return out;
+    }
+
+    /** Synchronous server-side status boundary used by the parked mob oracle. */
+    public static void oracleCaptureEntityStatus(
+            net.minecraft.world.WorldServer world,
+            net.minecraft.entity.Entity entity, byte state) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null) return;
+        synchronized (bridge.oracleServerMonitor) {
+            Integer eid = bridge.oracleMobEventTargets.get(entity);
+            if (bridge.oracleMobEventWorld == world && eid != null) {
+                bridge.oracleMobEventCapture.add(
+                    new OracleMobEventCapture(
+                        eid.intValue(), state & 255));
+            }
+        }
+    }
+
+    /** Retain source identity while World/Forge resolves the final sound. */
+    public static void oracleBeginEntitySound(net.minecraft.entity.Entity entity) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null) return;
+        synchronized (bridge.oracleServerMonitor) {
+            if (bridge.oracleMobEventWorld != null
+                    && !bridge.oracleMobEventTargets.isEmpty()) {
+                bridge.oracleMobEventSoundSources.get().push(entity);
+            }
+        }
+    }
+
+    public static void oracleEndEntitySound(net.minecraft.entity.Entity entity) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null) return;
+        synchronized (bridge.oracleServerMonitor) {
+            if (bridge.oracleMobEventWorld == null
+                    || bridge.oracleMobEventTargets.isEmpty()) return;
+            java.util.ArrayDeque<net.minecraft.entity.Entity> sources =
+                bridge.oracleMobEventSoundSources.get();
+            if (!sources.isEmpty() && sources.peek() == entity)
+                sources.pop();
+            if (sources.isEmpty())
+                bridge.oracleMobEventSoundSources.remove();
+        }
+    }
+
+    /** Final server sound packet payload after Forge sound substitution. */
+    public static void oracleCaptureServerSound(
+            net.minecraft.world.WorldServer world,
+            net.minecraft.util.SoundEvent sound,
+            net.minecraft.util.SoundCategory category,
+            double x, double y, double z, float volume, float pitch) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null) return;
+        synchronized (bridge.oracleServerMonitor) {
+            if (bridge.oracleMobEventWorld != world
+                    || bridge.oracleMobEventTargets.isEmpty()) return;
+            java.util.ArrayDeque<net.minecraft.entity.Entity> sources =
+                bridge.oracleMobEventSoundSources.get();
+            net.minecraft.entity.Entity source =
+                sources.isEmpty() ? null : sources.peek();
+            Integer eid = source == null ? null
+                : bridge.oracleMobEventTargets.get(source);
+            if (eid == null) {
+                return;
+            }
+            net.minecraft.util.ResourceLocation name =
+                net.minecraft.util.SoundEvent.REGISTRY.getNameForObject(sound);
+            bridge.oracleMobEventCapture.add(new OracleMobEventCapture(
+                eid.intValue(), name == null ? "" : name.toString(),
+                category.getName(), x, y, z, volume, pitch));
+        }
+    }
+
+    /** Raw WorldClient call before its distance-delay scheduler. */
+    public static void oracleCaptureClientSound(
+            net.minecraft.client.multiplayer.WorldClient world,
+            net.minecraft.util.SoundEvent sound,
+            net.minecraft.util.SoundCategory category,
+            double x, double y, double z, float volume, float pitch,
+            boolean distanceDelay) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null || !bridge.oracleClientSoundActive) return;
+        synchronized (bridge.oracleServerMonitor) {
+            Minecraft mc = Minecraft.getMinecraft();
+            if (!bridge.oracleClientSoundActive || mc.world != world) return;
+            net.minecraft.entity.Entity camera = mc.getRenderViewEntity();
+            double distanceSq = camera == null
+                ? Double.POSITIVE_INFINITY
+                : camera.getDistanceSq(x, y, z);
+            int delayTicks = distanceDelay && distanceSq > 100.0D
+                ? (int)(Math.sqrt(distanceSq) / 40.0D * 20.0D) : 0;
+            net.minecraft.util.ResourceLocation name =
+                net.minecraft.util.SoundEvent.REGISTRY.getNameForObject(sound);
+            bridge.oracleClientSoundCapture.add(
+                new OracleClientSoundCapture(
+                    bridge.oracleClientSoundTick,
+                    name == null ? "" : name.toString(), category.getName(),
+                    x, y, z, volume, pitch, distanceDelay,
+                    distanceSq, delayTicks));
+        }
+    }
+
+    /** Exact sheep color selector and onInitialSpawn World.rand binding. */
+    private String oracleSheepColorLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("sheep_color_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            long oldWorldSeed = -1L;
+            int oldNextEntityId = -1;
+            try {
+                String mode = action.has("mode")
+                    ? action.get("mode").getAsString() : "direct";
+                long seed = action.get("world_seed48").getAsLong();
+                boolean sheared = action.has("sheared")
+                    && action.get("sheared").getAsBoolean();
+                if ((!mode.equals("direct") && !mode.equals("initial_spawn"))
+                        || seed < 0L || seed >= (1L << 48))
+                    return err("invalid sheep-color fixture");
+
+                int fleece;
+                long finalSeed;
+                boolean finalSheared = false;
+                if (mode.equals("direct")) {
+                    java.util.Random random = new java.util.Random(0L);
+                    setJavaRandomSeed48(random, seed);
+                    fleece = net.minecraft.entity.passive.EntitySheep
+                        .getRandomSheepColor(random).getMetadata();
+                    finalSeed = javaRandomSeed48(random);
+                } else {
+                    MinecraftServer server =
+                        Minecraft.getMinecraft().getIntegratedServer();
+                    if (server == null) return err("no server");
+                    java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                        players = server.getPlayerList().getPlayers();
+                    if (players.isEmpty()) return err("no server player");
+                    net.minecraft.entity.player.EntityPlayerMP player =
+                        players.get(0);
+                    w = player.getServerWorld();
+                    oldWorldSeed = javaRandomSeed48(w.rand);
+                    oldNextEntityId = nextEntityId();
+                    setJavaRandomSeed48(w.rand, seed);
+                    net.minecraft.entity.passive.EntitySheep sheep =
+                        new net.minecraft.entity.passive.EntitySheep(w);
+                    sheep.setPosition(player.posX, player.posY, player.posZ);
+                    sheep.setSheared(sheared);
+                    sheep.onInitialSpawn(w.getDifficultyForLocation(
+                        new BlockPos(sheep)), null);
+                    fleece = sheep.getFleeceColor().getMetadata();
+                    finalSheared = sheep.getSheared();
+                    finalSeed = javaRandomSeed48(w.rand);
+                }
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("mode", mode);
+                out.addProperty("fleece", fleece);
+                out.addProperty("sheared", finalSheared);
+                out.addProperty("world_seed48", finalSeed);
+                return out.toString();
+            } catch (Throwable t) {
+                return err("sheep_color_locked: " + t);
+            } finally {
+                try {
+                    if (w != null && oldWorldSeed >= 0L)
+                        setJavaRandomSeed48(w.rand, oldWorldSeed);
+                    if (oldNextEntityId > 0)
+                        setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Full 16x16 sheep breeding-color matrix against the real crafting recipe.
+     * Each row starts from the supplied raw World.rand cursor so recipe and
+     * fallback-RNG consumption are observable independently of row order.
+     */
+    private String oracleSheepChildColorLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("sheep_child_color_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            long oldWorldSeed = -1L;
+            int oldNextEntityId = -1;
+            try {
+                MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                w = players.get(0).getServerWorld();
+                oldWorldSeed = javaRandomSeed48(w.rand);
+                oldNextEntityId = nextEntityId();
+
+                JsonArray seeds = new JsonArray();
+                if (action.has("world_seed48s")) {
+                    JsonArray supplied = action.getAsJsonArray("world_seed48s");
+                    if (supplied.size() != 2)
+                        return err("sheep child-color fixture needs two seeds");
+                    for (JsonElement element : supplied) {
+                        long seed = element.getAsLong();
+                        if (seed < 0L || seed >= (1L << 48))
+                            return err("invalid sheep child-color seed");
+                        seeds.add(new JsonPrimitive(seed));
+                    }
+                } else {
+                    seeds.add(new JsonPrimitive(0L));
+                    /* Raw 2^47 makes Random.nextBoolean() true; zero is false. */
+                    seeds.add(new JsonPrimitive(1L << 47));
+                }
+
+                JsonArray rows = new JsonArray();
+                for (JsonElement seedElement : seeds) {
+                    long seed = seedElement.getAsLong();
+                    for (int first = 0; first < 16; ++first) {
+                        for (int second = 0; second < 16; ++second) {
+                            setJavaRandomSeed48(w.rand, seed);
+                            setNextEntityId(oldNextEntityId);
+                            net.minecraft.entity.passive.EntitySheep parentA =
+                                new net.minecraft.entity.passive.EntitySheep(w);
+                            net.minecraft.entity.passive.EntitySheep parentB =
+                                new net.minecraft.entity.passive.EntitySheep(w);
+                            parentA.setFleeceColor(
+                                net.minecraft.item.EnumDyeColor.byMetadata(first));
+                            parentB.setFleeceColor(
+                                net.minecraft.item.EnumDyeColor.byMetadata(second));
+                            net.minecraft.entity.EntityAgeable child =
+                                parentA.createChild(parentB);
+                            JsonObject row = new JsonObject();
+                            row.addProperty("seed48", seed);
+                            row.addProperty("first", first);
+                            row.addProperty("second", second);
+                            row.addProperty("fleece",
+                                ((net.minecraft.entity.passive.EntitySheep)child)
+                                    .getFleeceColor().getMetadata());
+                            row.addProperty("world_seed48", javaRandomSeed48(w.rand));
+                            rows.add(row);
+                        }
+                    }
+                }
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.add("seeds", seeds);
+                out.add("rows", rows);
+                return out.toString();
+            } catch (Throwable t) {
+                return err("sheep_child_color_locked: " + t);
+            } finally {
+                try {
+                    if (w != null && oldWorldSeed >= 0L)
+                        setJavaRandomSeed48(w.rand, oldWorldSeed);
+                    if (oldNextEntityId > 0)
+                        setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Parked vanilla EntityPlayer.interactOn feeding fixture.  This deliberately
+     * uses the real player/entity interaction route instead of calling setInLove
+     * or ageUp directly, so inventory consumption and entity-status 18 are part
+     * of the oracle result.
+     */
+    private String oracleFeedAnimalLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("feed_animal_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            net.minecraft.entity.passive.EntityAnimal animal = null;
+            net.minecraft.item.ItemStack oldMain = null, oldOffhand = null;
+            int oldNextEntityId = -1;
+            int oldCurrentItem = -1;
+            boolean oldCreativeMode = false;
+            boolean oldSneaking = false;
+            boolean playerCapabilitiesCaptured = false;
+            boolean playerPoseCaptured = false;
+            net.minecraft.entity.Entity oldRidingEntity = null;
+            double oldPlayerX = 0.0D, oldPlayerY = 0.0D, oldPlayerZ = 0.0D;
+            double oldPlayerPrevX = 0.0D, oldPlayerPrevY = 0.0D;
+            double oldPlayerPrevZ = 0.0D;
+            double oldPlayerMotionX = 0.0D, oldPlayerMotionY = 0.0D;
+            double oldPlayerMotionZ = 0.0D;
+            float oldPlayerYaw = 0.0F, oldPlayerPitch = 0.0F;
+            float oldPlayerPrevYaw = 0.0F, oldPlayerPrevPitch = 0.0F;
+            boolean oldPlayerOnGround = false;
+            try {
+                String hands = action.has("hands")
+                    ? action.get("hands").getAsString() : "main";
+                String species = action.has("species")
+                    ? action.get("species").getAsString() : "sheep";
+                if (!hands.equals("main") && !hands.equals("offhand")
+                        && !hands.equals("client_order"))
+                    return err("invalid animal-feed hands");
+                int growingAge = action.has("growing_age")
+                    ? action.get("growing_age").getAsInt() : 0;
+                int inLove = action.has("in_love")
+                    ? action.get("in_love").getAsInt() : 0;
+                int mainItem = action.has("main_item")
+                    ? action.get("main_item").getAsInt() : 296;
+                int mainCount = action.has("main_count")
+                    ? action.get("main_count").getAsInt() : 1;
+                int offItem = action.has("off_item")
+                    ? action.get("off_item").getAsInt() : 0;
+                int offCount = action.has("off_count")
+                    ? action.get("off_count").getAsInt() : 0;
+                int nextId = action.has("next_entity_id")
+                    ? action.get("next_entity_id").getAsInt() : 1000;
+                boolean creative = action.has("creative")
+                    && action.get("creative").getAsBoolean();
+                boolean saddled = action.has("saddled")
+                    && action.get("saddled").getAsBoolean();
+                boolean sneaking = action.has("sneaking")
+                    && action.get("sneaking").getAsBoolean();
+                if (mainItem < 0 || mainItem > 32767 || mainCount < 0
+                        || mainCount > 64 || offItem < 0 || offItem > 32767
+                        || offCount < 0 || offCount > 64 || nextId <= 0
+                        || nextId >= 2147483643)
+                    return err("invalid animal-feed fixture");
+
+                MinecraftServer server =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                player = players.get(0);
+                w = player.getServerWorld();
+                oldMain = player.getHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND).copy();
+                oldOffhand = player.getHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND).copy();
+                oldCurrentItem = player.inventory.currentItem;
+                oldCreativeMode = player.capabilities.isCreativeMode;
+                oldSneaking = player.isSneaking();
+                oldRidingEntity = player.getRidingEntity();
+                playerCapabilitiesCaptured = true;
+                oldPlayerX = player.posX;
+                oldPlayerY = player.posY;
+                oldPlayerZ = player.posZ;
+                oldPlayerPrevX = player.prevPosX;
+                oldPlayerPrevY = player.prevPosY;
+                oldPlayerPrevZ = player.prevPosZ;
+                oldPlayerMotionX = player.motionX;
+                oldPlayerMotionY = player.motionY;
+                oldPlayerMotionZ = player.motionZ;
+                oldPlayerYaw = player.rotationYaw;
+                oldPlayerPitch = player.rotationPitch;
+                oldPlayerPrevYaw = player.prevRotationYaw;
+                oldPlayerPrevPitch = player.prevRotationPitch;
+                oldPlayerOnGround = player.onGround;
+                playerPoseCaptured = true;
+                if ((species.equals("cow")
+                            && ((mainItem == 325 && mainCount > 0)
+                                || (offItem == 325 && offCount > 0)))
+                        || (species.equals("pig")
+                            && ((mainItem == 329 && mainCount > 0)
+                                || (offItem == 329 && offCount > 0)))) {
+                    player.setPositionAndRotation(
+                        0.5D, 220.0D, 0.5D, 0.0F, 0.0F);
+                    player.motionX = player.motionY = player.motionZ = 0.0D;
+                    player.onGround = false;
+                }
+                oldNextEntityId = nextEntityId();
+                setNextEntityId(nextId);
+                if (species.equals("sheep"))
+                    animal = new net.minecraft.entity.passive.EntitySheep(w);
+                else if (species.equals("cow"))
+                    animal = new net.minecraft.entity.passive.EntityCow(w);
+                else if (species.equals("pig"))
+                    animal = new net.minecraft.entity.passive.EntityPig(w);
+                else if (species.equals("chicken"))
+                    animal = new net.minecraft.entity.passive.EntityChicken(w);
+                else
+                    return err("invalid animal-feed species");
+                animal.setPosition(player.posX + 2.0D, player.posY, player.posZ);
+                animal.setNoAI(true);
+                animal.setGrowingAge(growingAge);
+                setAnimalInt(animal, "inLove", inLove);
+                if (animal instanceof net.minecraft.entity.passive.EntityPig)
+                    ((net.minecraft.entity.passive.EntityPig)animal)
+                        .setSaddled(saddled);
+                player.capabilities.isCreativeMode = creative;
+                player.setSneaking(sneaking);
+                player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND,
+                    animalFeedStack(mainItem, mainCount));
+                player.setHeldItem(net.minecraft.util.EnumHand.OFF_HAND,
+                    animalFeedStack(offItem, offCount));
+
+                oracleMobEventWorld = w;
+                oracleMobEventTargets.clear();
+                oracleMobEventTargets.put(animal, Integer.valueOf(nextId));
+                oracleMobEventTargets.put(player, Integer.valueOf(0));
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                JsonArray results = new JsonArray();
+                if (hands.equals("main") || hands.equals("client_order"))
+                    results.add(new JsonPrimitive(oracleInteractAnimal(
+                        player, animal, net.minecraft.util.EnumHand.MAIN_HAND)
+                            .name().toLowerCase()));
+                if (hands.equals("offhand") || (hands.equals("client_order")
+                        && results.size() == 1
+                        && results.get(0).getAsString().equals("pass")))
+                    results.add(new JsonPrimitive(oracleInteractAnimal(
+                        player, animal, net.minecraft.util.EnumHand.OFF_HAND)
+                            .name().toLowerCase()));
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("species", species);
+                out.add("results", results);
+                out.addProperty("eid", nextId);
+                out.addProperty("growing_age", animal.getGrowingAge());
+                out.addProperty("in_love", animalInt(animal, "inLove"));
+                out.addProperty("forced_age", ageableInt(animal, "forcedAge"));
+                out.addProperty("forced_age_timer",
+                    ageableInt(animal, "forcedAgeTimer"));
+                out.addProperty("bred_by_player",
+                    animal.getPlayerInLove() == player);
+                out.addProperty("saddled",
+                    animal instanceof net.minecraft.entity.passive.EntityPig
+                        && ((net.minecraft.entity.passive.EntityPig)animal)
+                            .getSaddled());
+                out.addProperty("pig_being_ridden",
+                    animal instanceof net.minecraft.entity.passive.EntityPig
+                        && animal.isBeingRidden());
+                out.addProperty("player_riding_eid",
+                    player.getRidingEntity() == animal ? nextId : 0);
+                addFeedStack(out, "main", player.getHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND));
+                addFeedStack(out, "off", player.getHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND));
+                JsonArray events = new JsonArray();
+                for (OracleMobEventCapture event : oracleMobEventCapture)
+                    events.add(event.toJson());
+                out.add("events", events);
+                return out.toString();
+            } catch (Throwable t) {
+                return err("feed_animal_locked: " + t);
+            } finally {
+                oracleMobEventWorld = null;
+                oracleMobEventTargets.clear();
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                if (player != null && oldMain != null && oldOffhand != null) try {
+                    if (playerCapabilitiesCaptured)
+                        player.capabilities.isCreativeMode = oldCreativeMode;
+                    if (player.getRidingEntity() != oldRidingEntity) {
+                        if (player.isRiding()) player.dismountRidingEntity();
+                        if (oldRidingEntity != null)
+                            player.startRiding(oldRidingEntity);
+                    }
+                    player.setSneaking(oldSneaking);
+                    player.inventory.currentItem = oldCurrentItem;
+                    player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND, oldMain);
+                    player.setHeldItem(net.minecraft.util.EnumHand.OFF_HAND, oldOffhand);
+                    if (playerPoseCaptured) {
+                        player.setPositionAndRotation(
+                            oldPlayerX, oldPlayerY, oldPlayerZ,
+                            oldPlayerYaw, oldPlayerPitch);
+                        player.motionX = oldPlayerMotionX;
+                        player.motionY = oldPlayerMotionY;
+                        player.motionZ = oldPlayerMotionZ;
+                        player.onGround = oldPlayerOnGround;
+                        player.prevPosX = oldPlayerPrevX;
+                        player.prevPosY = oldPlayerPrevY;
+                        player.prevPosZ = oldPlayerPrevZ;
+                        player.prevRotationYaw = oldPlayerPrevYaw;
+                        player.prevRotationPitch = oldPlayerPrevPitch;
+                    }
+                } catch (Throwable ignored) { }
+                try {
+                    if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    private static net.minecraft.item.ItemStack animalFeedStack(int item, int count) {
+        if (item == 0 || count == 0) return net.minecraft.item.ItemStack.EMPTY;
+        return new net.minecraft.item.ItemStack(
+            net.minecraft.item.Item.getItemById(item), count, 0);
+    }
+
+    private static net.minecraft.item.ItemStack oracleItemStack(
+            int item, int count, int meta) {
+        if (item == 0 || count == 0) return net.minecraft.item.ItemStack.EMPTY;
+        return new net.minecraft.item.ItemStack(
+            net.minecraft.item.Item.getItemById(item), count, meta);
+    }
+
+    private static java.lang.reflect.Field oraclePigField(String name)
+            throws Exception {
+        java.lang.reflect.Field field =
+            net.minecraft.entity.passive.EntityPig.class
+                .getDeclaredField(name);
+        field.setAccessible(true);
+        return field;
+    }
+
+    private static boolean oracleEntityInWeb(
+            net.minecraft.entity.Entity entity) throws Exception {
+        java.lang.reflect.Field field = net.minecraft.entity.Entity.class
+            .getDeclaredField("isInWeb");
+        field.setAccessible(true);
+        return field.getBoolean(entity);
+    }
+
+    private static void oracleSetPigBoost(
+            net.minecraft.entity.passive.EntityPig pig,
+            boolean boosting, int time, int total) throws Exception {
+        oraclePigField("boosting").setBoolean(pig, boosting);
+        oraclePigField("boostTime").setInt(pig, time);
+        oraclePigField("totalBoostTime").setInt(pig, total);
+    }
+
+    private static void oracleAddPigBoost(JsonObject out,
+            net.minecraft.entity.passive.EntityPig pig) throws Exception {
+        out.addProperty("boosting",
+            oraclePigField("boosting").getBoolean(pig));
+        out.addProperty("boost_time",
+            oraclePigField("boostTime").getInt(pig));
+        out.addProperty("boost_total",
+            oraclePigField("totalBoostTime").getInt(pig));
+    }
+
+    private static void oracleAddPigTickState(JsonObject out,
+            net.minecraft.entity.passive.EntityPig pig,
+            net.minecraft.entity.player.EntityPlayer player) throws Exception {
+        out.add("position_bits", oracleEntityDoubleBits(
+            pig.posX, pig.posY, pig.posZ));
+        out.add("motion_bits", oracleEntityDoubleBits(
+            pig.motionX, pig.motionY, pig.motionZ));
+        out.addProperty("on_ground", pig.onGround);
+        out.addProperty("yaw_bits", oracleFloatBits(pig.rotationYaw));
+        out.addProperty("prev_yaw_bits", oracleFloatBits(pig.prevRotationYaw));
+        out.addProperty("pitch_bits", oracleFloatBits(pig.rotationPitch));
+        out.addProperty("render_yaw_bits",
+            oracleFloatBits(pig.renderYawOffset));
+        out.addProperty("head_yaw_bits",
+            oracleFloatBits(pig.rotationYawHead));
+        out.addProperty("step_height_bits", oracleFloatBits(pig.stepHeight));
+        out.addProperty("jump_factor_bits",
+            oracleFloatBits(pig.jumpMovementFactor));
+        out.addProperty("ai_speed_bits",
+            oracleFloatBits(pig.getAIMoveSpeed()));
+        out.addProperty("prev_limb_amount_bits",
+            oracleFloatBits(pig.prevLimbSwingAmount));
+        out.addProperty("limb_amount_bits",
+            oracleFloatBits(pig.limbSwingAmount));
+        out.addProperty("limb_swing_bits",
+            oracleFloatBits(pig.limbSwing));
+        out.addProperty("riding", player.getRidingEntity() == pig);
+        out.add("player_position_bits", oracleEntityDoubleBits(
+            player.posX, player.posY, player.posZ));
+        oracleAddPigBoost(out, pig);
+        out.addProperty("entity_seed48",
+            javaRandomSeed48(entityRandom(pig)));
+    }
+
+    private static void oracleAddPigTravelTraceState(JsonObject out, int tick,
+            net.minecraft.entity.passive.EntityPig pig,
+            net.minecraft.entity.player.EntityPlayer player) throws Exception {
+        oracleAddPigTickState(out, pig, player);
+        out.addProperty("tick", tick);
+        out.add("aabb_min_bits", oracleEntityDoubleBits(
+            pig.getEntityBoundingBox().minX,
+            pig.getEntityBoundingBox().minY,
+            pig.getEntityBoundingBox().minZ));
+        out.add("aabb_max_bits", oracleEntityDoubleBits(
+            pig.getEntityBoundingBox().maxX,
+            pig.getEntityBoundingBox().maxY,
+            pig.getEntityBoundingBox().maxZ));
+        out.addProperty("fall_distance_bits",
+            oracleFloatBits(pig.fallDistance));
+        out.addProperty("collided_horizontal", pig.isCollidedHorizontally);
+        out.addProperty("collided_vertical", pig.isCollidedVertically);
+        out.addProperty("is_in_water", pig.isInWater());
+        out.addProperty("is_in_lava", pig.isInLava());
+        out.addProperty("is_in_web", oracleEntityInWeb(pig));
+        out.addProperty("is_on_ladder", pig.isOnLadder());
+        out.addProperty("alive", !pig.isDead);
+        out.add("player_motion_bits", oracleEntityDoubleBits(
+            player.motionX, player.motionY, player.motionZ));
+        out.addProperty("player_on_ground", player.onGround);
+        out.addProperty("player_riding_eid",
+            player.getRidingEntity() == null
+                ? -1 : player.getRidingEntity().getEntityId());
+    }
+
+    /** Direct server-side EntityPig.onDeath slice. Calling onDeath outside a
+     * world tick keeps every captured EntityItem at constructor state and
+     * exposes the superclass pork-before-saddle insertion order. */
+    private String oraclePigDeathLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("pig_death_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.passive.EntityPig pig = null;
+            java.util.HashSet<net.minecraft.entity.Entity> prior = null;
+            OracleLivingDropsCapture dropCapture = null;
+            long oldMathSeed = -1L;
+            int oldNextId = -1;
+            String oldDoMobLoot = null;
+            try {
+                boolean saddled = action.has("saddled")
+                    && action.get("saddled").getAsBoolean();
+                boolean doMobLoot = !action.has("do_mob_loot")
+                    || action.get("do_mob_loot").getAsBoolean();
+                boolean burning = action.has("burning")
+                    && action.get("burning").getAsBoolean();
+                long entitySeed = action.has("entity_seed48")
+                    ? action.get("entity_seed48").getAsLong()
+                    : 0x3456789abcdeL;
+                long mathSeed = action.has("math_seed48")
+                    ? action.get("math_seed48").getAsLong()
+                    : 0x123456789abcL;
+                int nextId = action.has("next_entity_id")
+                    ? action.get("next_entity_id").getAsInt() : 680000;
+                if (entitySeed < 0L || entitySeed >= (1L << 48)
+                        || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483644)
+                    return err("invalid pig-death fixture");
+
+                MinecraftServer server =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                w = players.get(0).getServerWorld();
+                oldMathSeed = mathRandomSeed48();
+                oldNextId = nextEntityId();
+                oldDoMobLoot = w.getGameRules().getString("doMobLoot");
+                prior = new java.util.HashSet<net.minecraft.entity.Entity>(
+                    w.loadedEntityList);
+
+                setNextEntityId(nextId);
+                pig = new net.minecraft.entity.passive.EntityPig(w);
+                double x = Math.floor(players.get(0).posX / 16.0D)
+                    * 16.0D + 0.5D;
+                double z = Math.floor(players.get(0).posZ / 16.0D)
+                    * 16.0D + 0.5D;
+                pig.setPosition(x, 220.0D, z);
+                pig.setNoAI(true);
+                pig.setGrowingAge(0);
+                pig.setSaddled(saddled);
+                pig.setHealth(0.0F);
+                if (burning) pig.setFire(5);
+                setJavaRandomSeed48(entityRandom(pig), entitySeed);
+                w.getGameRules().setOrCreateGameRule(
+                    "doMobLoot", doMobLoot ? "true" : "false");
+                if (!oracleAddUntrackedEntity(w, pig))
+                    return err("pig-death fixture failed to spawn");
+
+                dropCapture = new OracleLivingDropsCapture(pig);
+                MinecraftForge.EVENT_BUS.register(dropCapture);
+                setNextEntityId(nextId + 1);
+                setMathRandomSeed48(mathSeed);
+                pig.onDeath(net.minecraft.util.DamageSource.GENERIC);
+                if (!dropCapture.fired)
+                    return err("pig-death fixture missed LivingDropsEvent");
+                java.lang.reflect.Field livingDeadField =
+                    net.minecraft.entity.EntityLivingBase.class
+                        .getDeclaredField("dead");
+                livingDeadField.setAccessible(true);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("saddled", saddled);
+                out.addProperty("do_mob_loot", doMobLoot);
+                out.addProperty("burning", burning);
+                out.addProperty("pig_eid", pig.getEntityId());
+                out.addProperty("pig_x", pig.posX);
+                out.addProperty("pig_y", pig.posY);
+                out.addProperty("pig_z", pig.posZ);
+                out.addProperty("health", pig.getHealth());
+                out.addProperty("living_dead",
+                    livingDeadField.getBoolean(pig));
+                out.addProperty("entity_is_dead", pig.isDead);
+                out.addProperty("entity_seed48",
+                    javaRandomSeed48(entityRandom(pig)));
+                JsonArray drops = new JsonArray();
+                for (net.minecraft.entity.item.EntityItem item :
+                        pig.capturedDrops)
+                    drops.add(oracleFallingDropItemJson(item));
+                out.add("drops", drops);
+                out.addProperty("math_seed48", mathRandomSeed48());
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("pig_death_locked: " + t);
+            } finally {
+                if (dropCapture != null) try {
+                    MinecraftForge.EVENT_BUS.unregister(dropCapture);
+                } catch (Throwable ignored) { }
+                if (w != null && prior != null)
+                    for (net.minecraft.entity.Entity entity :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList))
+                        if (!prior.contains(entity))
+                            w.removeEntityDangerously(entity);
+                try {
+                    if (w != null && oldDoMobLoot != null)
+                        w.getGameRules().setOrCreateGameRule(
+                            "doMobLoot", oldDoMobLoot);
+                    if (oldMathSeed >= 0L)
+                        setMathRandomSeed48(oldMathSeed);
+                    if (oldNextId > 0) setNextEntityId(oldNextId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /** Direct server-side player/pig dismount.  The arena is deliberately
+     * synthetic: it exposes the vanilla candidate scan without allowing the
+     * live world to choose a support block. */
+    private String oraclePigDismountLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("pig_dismount_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            net.minecraft.entity.passive.EntityPig pig = null;
+            net.minecraft.entity.Entity oldRide = null;
+            java.util.ArrayList<net.minecraft.util.math.BlockPos> positions =
+                new java.util.ArrayList<net.minecraft.util.math.BlockPos>();
+            java.util.ArrayList<net.minecraft.block.state.IBlockState> states =
+                new java.util.ArrayList<net.minecraft.block.state.IBlockState>();
+            int oldNextId = -1;
+            double oldX = 0.0D, oldY = 0.0D, oldZ = 0.0D;
+            double oldMx = 0.0D, oldMy = 0.0D, oldMz = 0.0D;
+            float oldYaw = 0.0F, oldPitch = 0.0F, oldFall = 0.0F;
+            boolean oldGround = false, oldSneaking = false;
+            try {
+                String layout = action.has("layout")
+                    ? action.get("layout").getAsString() : "flat";
+                float yaw = action.has("yaw") ? action.get("yaw").getAsFloat()
+                    : 0.0F;
+                long entitySeed = action.has("entity_seed48")
+                    ? action.get("entity_seed48").getAsLong()
+                    : 0x123456789ABCL;
+                int nextId = action.has("next_entity_id")
+                    ? action.get("next_entity_id").getAsInt() : 681000;
+                if ((!layout.equals("flat") && !layout.equals("first_blocked")
+                        && !layout.equals("water")
+                        && !layout.equals("all_blocked")
+                        && !layout.equals("support_stone")
+                        && !layout.equals("support_top_slab")
+                        && !layout.equals("support_bottom_slab")
+                        && !layout.equals("support_snow8")
+                        && !layout.equals("support_snow7")
+                        && !layout.equals("support_water"))
+                        || (yaw != 0.0F && yaw != 90.0F)
+                        || entitySeed < 0L || entitySeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483644)
+                    return err("invalid pig-dismount fixture");
+                MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null || server.getPlayerList().getPlayers().isEmpty())
+                    return err("no server player");
+                player = server.getPlayerList().getPlayers().get(0);
+                w = player.getServerWorld();
+                int baseX = net.minecraft.util.math.MathHelper.floor(player.posX / 16.0D)
+                    * 16 + 8;
+                int baseZ = net.minecraft.util.math.MathHelper.floor(player.posZ / 16.0D)
+                    * 16 + 8;
+                final int baseY = 220;
+                if (!w.isBlockLoaded(new net.minecraft.util.math.BlockPos(
+                        baseX, baseY, baseZ)))
+                    return err("pig-dismount fixture chunk is not loaded");
+
+                oldRide = player.getRidingEntity();
+                oldX = player.posX; oldY = player.posY; oldZ = player.posZ;
+                oldMx = player.motionX; oldMy = player.motionY; oldMz = player.motionZ;
+                oldYaw = player.rotationYaw; oldPitch = player.rotationPitch;
+                oldFall = player.fallDistance; oldGround = player.onGround;
+                oldSneaking = player.isSneaking();
+                oldNextId = nextEntityId();
+
+                for (int bx = baseX - 4; bx <= baseX + 4; ++bx)
+                    for (int bz = baseZ - 4; bz <= baseZ + 4; ++bz)
+                        for (int by = baseY - 1; by <= baseY + 4; ++by) {
+                            net.minecraft.util.math.BlockPos pos =
+                                new net.minecraft.util.math.BlockPos(bx, by, bz);
+                            positions.add(pos);
+                            states.add(w.getBlockState(pos));
+                            net.minecraft.block.state.IBlockState state =
+                                net.minecraft.init.Blocks.AIR.getDefaultState();
+                            if (by == baseY - 1) {
+                                boolean isolated = layout.startsWith("support_");
+                                if (!isolated || (bx == baseX && bz == baseZ))
+                                    state = layout.equals("water")
+                                        ? net.minecraft.init.Blocks.WATER.getDefaultState()
+                                        : net.minecraft.init.Blocks.STONE.getDefaultState();
+                            }
+                            w.setBlockState(pos, state, 2);
+                        }
+
+                /* The source scan starts from floor(player X/Z)+.5.  Its first
+                 * offset is mountFacing.rotateY(): yaw 0 (SOUTH) -> WEST, yaw
+                 * 90 (WEST) -> NORTH. */
+                int firstX = baseX - 1;
+                int firstZ = baseZ;
+                if (yaw == 90.0F) { firstX = baseX; firstZ = baseZ - 1; }
+                net.minecraft.util.math.BlockPos firstLower =
+                    new net.minecraft.util.math.BlockPos(
+                        firstX, baseY - 1, firstZ);
+                if (layout.equals("support_stone"))
+                    w.setBlockState(firstLower,
+                        net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                else if (layout.equals("support_top_slab"))
+                    w.setBlockState(firstLower,
+                        net.minecraft.init.Blocks.STONE_SLAB.getStateFromMeta(8), 2);
+                else if (layout.equals("support_bottom_slab"))
+                    w.setBlockState(firstLower,
+                        net.minecraft.init.Blocks.STONE_SLAB.getStateFromMeta(0), 2);
+                else if (layout.equals("support_snow8"))
+                    w.setBlockState(firstLower,
+                        net.minecraft.init.Blocks.SNOW_LAYER.getStateFromMeta(7), 2);
+                else if (layout.equals("support_snow7"))
+                    w.setBlockState(firstLower,
+                        net.minecraft.init.Blocks.SNOW_LAYER.getStateFromMeta(6), 2);
+                else if (layout.equals("support_water"))
+                    w.setBlockState(firstLower,
+                        net.minecraft.init.Blocks.WATER.getDefaultState(), 2);
+                if (layout.equals("first_blocked") || layout.equals("all_blocked"))
+                    w.setBlockState(new net.minecraft.util.math.BlockPos(
+                        firstX, baseY, firstZ),
+                        net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                if (layout.equals("all_blocked"))
+                    for (int bx = baseX - 1; bx <= baseX + 1; ++bx)
+                        for (int bz = baseZ - 1; bz <= baseZ + 1; ++bz)
+                            if (bx != baseX || bz != baseZ)
+                                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                                    bx, baseY, bz),
+                                    net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+
+                setNextEntityId(nextId);
+                pig = new net.minecraft.entity.passive.EntityPig(w);
+                setJavaRandomSeed48(entityRandom(pig), entitySeed);
+                setJavaRandomGaussianState(entityRandom(pig), false, 0.0D);
+                pig.setLocationAndAngles((double)baseX + 0.5D, (double)baseY,
+                    (double)baseZ + 0.5D, yaw, 0.0F);
+                pig.setNoAI(true);
+                pig.setSaddled(true);
+                player.setPositionAndRotation(pig.posX,
+                    pig.posY + (double)pig.height * 0.75D + player.getYOffset(),
+                    pig.posZ, yaw, 0.0F);
+                player.motionX = player.motionY = player.motionZ = 0.0D;
+                player.fallDistance = 0.0F;
+                player.onGround = false;
+                player.setSneaking(false);
+                long playerSeedBefore = javaRandomSeed48(entityRandom(player));
+                long worldSeedBefore = javaRandomSeed48(w.rand);
+                long mathSeedBefore = mathRandomSeed48();
+                if (!player.startRiding(pig, true))
+                    return err("failed to mount pig-dismount fixture");
+                player.dismountRidingEntity();
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("layout", layout);
+                out.addProperty("pig_eid", pig.getEntityId());
+                out.addProperty("player_eid", player.getEntityId());
+                out.add("player_position_bits", oracleEntityDoubleBits(
+                    player.posX, player.posY, player.posZ));
+                out.add("player_motion_bits", oracleEntityDoubleBits(
+                    player.motionX, player.motionY, player.motionZ));
+                out.addProperty("player_yaw_bits", oracleFloatBits(player.rotationYaw));
+                out.addProperty("player_pitch_bits", oracleFloatBits(player.rotationPitch));
+                out.addProperty("player_on_ground", player.onGround);
+                out.addProperty("player_fall_distance_bits",
+                    oracleFloatBits(player.fallDistance));
+                java.lang.reflect.Field rideCooldown = net.minecraft.entity.Entity.class
+                    .getDeclaredField("rideCooldown");
+                rideCooldown.setAccessible(true);
+                out.addProperty("player_ride_cooldown", rideCooldown.getInt(player));
+                out.addProperty("player_riding_eid", player.isRiding()
+                    ? player.getRidingEntity().getEntityId() : -1);
+                out.add("player_aabb_min_bits", oracleEntityDoubleBits(
+                    player.getEntityBoundingBox().minX,
+                    player.getEntityBoundingBox().minY,
+                    player.getEntityBoundingBox().minZ));
+                out.add("player_aabb_max_bits", oracleEntityDoubleBits(
+                    player.getEntityBoundingBox().maxX,
+                    player.getEntityBoundingBox().maxY,
+                    player.getEntityBoundingBox().maxZ));
+                out.add("pig_position_bits", oracleEntityDoubleBits(
+                    pig.posX, pig.posY, pig.posZ));
+                out.addProperty("pig_yaw_bits", oracleFloatBits(pig.rotationYaw));
+                out.add("pig_aabb_min_bits", oracleEntityDoubleBits(
+                    pig.getEntityBoundingBox().minX, pig.getEntityBoundingBox().minY,
+                    pig.getEntityBoundingBox().minZ));
+                out.add("pig_aabb_max_bits", oracleEntityDoubleBits(
+                    pig.getEntityBoundingBox().maxX, pig.getEntityBoundingBox().maxY,
+                    pig.getEntityBoundingBox().maxZ));
+                JsonArray passengers = new JsonArray();
+                for (net.minecraft.entity.Entity passenger : pig.getPassengers())
+                    passengers.add(new JsonPrimitive(passenger.getEntityId()));
+                out.add("pig_passenger_eids", passengers);
+                out.addProperty("pig_entity_seed48",
+                    javaRandomSeed48(entityRandom(pig)));
+                out.addProperty("player_rng_unchanged", playerSeedBefore
+                    == javaRandomSeed48(entityRandom(player)));
+                out.addProperty("world_rng_unchanged", worldSeedBefore
+                    == javaRandomSeed48(w.rand));
+                out.addProperty("math_rng_unchanged", mathSeedBefore
+                    == mathRandomSeed48());
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("pig_dismount_locked: " + t);
+            } finally {
+                if (player != null) try {
+                    if (player.isRiding()) player.dismountRidingEntity();
+                    if (oldRide != null) player.startRiding(oldRide, true);
+                    player.setPositionAndRotation(oldX, oldY, oldZ, oldYaw, oldPitch);
+                    player.motionX = oldMx; player.motionY = oldMy; player.motionZ = oldMz;
+                    player.fallDistance = oldFall; player.onGround = oldGround;
+                    player.setSneaking(oldSneaking);
+                } catch (Throwable ignored) { }
+                if (w != null) try {
+                    for (int i = 0; i < positions.size(); ++i)
+                        w.setBlockState(positions.get(i), states.get(i), 2);
+                } catch (Throwable ignored) { }
+                try { if (oldNextId > 0) setNextEntityId(oldNextId); }
+                catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * One real World.updateEntities boundary from the valid terminal saved
+     * state of a ridden pig: health 0, deathTime 19, and Entity.isDead false.
+     * This deliberately does not call onDeathUpdate directly, since the
+     * player prepass and World passenger recursion are the behavior under
+     * test.  The synthetic arena contains only the server player and pig.
+     */
+    private String oraclePigDeathDismountTickLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("pig_death_dismount_tick_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            net.minecraft.entity.passive.EntityPig pig = null;
+            net.minecraft.entity.Entity oldRide = null;
+            java.util.List<net.minecraft.entity.Entity> savedLoaded = null;
+            java.util.List<net.minecraft.entity.Entity> savedUnloaded = null;
+            java.util.List<net.minecraft.entity.Entity> savedWeather = null;
+            java.util.List<net.minecraft.entity.player.EntityPlayer> savedPlayers = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> savedLoadedTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> savedTickableTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> savedAddedTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> savedRemovedTiles = null;
+            java.util.List<net.minecraft.entity.Entity> unloaded = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> addedTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> removedTiles = null;
+            java.util.ArrayList<net.minecraft.util.math.BlockPos> positions =
+                new java.util.ArrayList<net.minecraft.util.math.BlockPos>();
+            java.util.ArrayList<net.minecraft.block.state.IBlockState> states =
+                new java.util.ArrayList<net.minecraft.block.state.IBlockState>();
+            net.minecraft.nbt.NBTTagCompound oldPlayerNbt = null;
+            int oldNextId = -1;
+            double oldX = 0.0D, oldY = 0.0D, oldZ = 0.0D;
+            double oldMx = 0.0D, oldMy = 0.0D, oldMz = 0.0D;
+            float oldYaw = 0.0F, oldPitch = 0.0F, oldFall = 0.0F;
+            boolean oldGround = false;
+            try {
+                String layout = action.has("layout")
+                    ? action.get("layout").getAsString() : "flat";
+                float yaw = action.has("yaw") ? action.get("yaw").getAsFloat()
+                    : 0.0F;
+                long entitySeed = action.has("entity_seed48")
+                    ? action.get("entity_seed48").getAsLong()
+                    : 0x23456789ABCDL;
+                int nextId = action.has("next_entity_id")
+                    ? action.get("next_entity_id").getAsInt() : 682000;
+                if ((!layout.equals("flat") && !layout.equals("all_blocked"))
+                        || (yaw != 0.0F && yaw != 90.0F)
+                        || entitySeed < 0L || entitySeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483644)
+                    return err("invalid pig-death-dismount tick fixture");
+                MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null || server.getPlayerList().getPlayers().isEmpty())
+                    return err("no server player");
+                player = server.getPlayerList().getPlayers().get(0);
+                w = player.getServerWorld();
+                int baseX = net.minecraft.util.math.MathHelper.floor(player.posX / 16.0D)
+                    * 16 + 8;
+                int baseZ = net.minecraft.util.math.MathHelper.floor(player.posZ / 16.0D)
+                    * 16 + 8;
+                final int baseY = 220;
+                if (!w.isBlockLoaded(new net.minecraft.util.math.BlockPos(
+                        baseX, baseY, baseZ)))
+                    return err("pig-death-dismount fixture chunk is not loaded");
+
+                oldRide = player.getRidingEntity();
+                oldX = player.posX; oldY = player.posY; oldZ = player.posZ;
+                oldMx = player.motionX; oldMy = player.motionY; oldMz = player.motionZ;
+                oldYaw = player.rotationYaw; oldPitch = player.rotationPitch;
+                oldFall = player.fallDistance; oldGround = player.onGround;
+                oldPlayerNbt = player.writeToNBT(new net.minecraft.nbt.NBTTagCompound());
+                oldNextId = nextEntityId();
+                savedLoaded = new java.util.ArrayList<net.minecraft.entity.Entity>(
+                    w.loadedEntityList);
+                unloaded = oracleWorldList(w, "unloadedEntityList");
+                savedUnloaded = new java.util.ArrayList<net.minecraft.entity.Entity>(unloaded);
+                savedWeather = new java.util.ArrayList<net.minecraft.entity.Entity>(w.weatherEffects);
+                savedPlayers = new java.util.ArrayList<net.minecraft.entity.player.EntityPlayer>(
+                    w.playerEntities);
+                savedLoadedTiles = new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(
+                    w.loadedTileEntityList);
+                savedTickableTiles = new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(
+                    w.tickableTileEntities);
+                addedTiles = oracleWorldList(w, "addedTileEntityList");
+                removedTiles = oracleWorldList(w, "tileEntitiesToBeRemoved");
+                savedAddedTiles = new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(addedTiles);
+                savedRemovedTiles = new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(removedTiles);
+
+                for (int bx = baseX - 4; bx <= baseX + 4; ++bx)
+                    for (int bz = baseZ - 4; bz <= baseZ + 4; ++bz)
+                        for (int by = baseY - 1; by <= baseY + 4; ++by) {
+                            net.minecraft.util.math.BlockPos pos =
+                                new net.minecraft.util.math.BlockPos(bx, by, bz);
+                            positions.add(pos);
+                            states.add(w.getBlockState(pos));
+                            w.setBlockState(pos, by == baseY - 1
+                                ? net.minecraft.init.Blocks.STONE.getDefaultState()
+                                : net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                        }
+                if (layout.equals("all_blocked"))
+                    for (int bx = baseX - 1; bx <= baseX + 1; ++bx)
+                        for (int bz = baseZ - 1; bz <= baseZ + 1; ++bz)
+                            if (bx != baseX || bz != baseZ)
+                                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                                    bx, baseY, bz), net.minecraft.init.Blocks.STONE
+                                        .getDefaultState(), 2);
+
+                w.loadedEntityList.clear(); unloaded.clear(); w.weatherEffects.clear();
+                w.playerEntities.clear(); w.loadedTileEntityList.clear();
+                w.tickableTileEntities.clear(); addedTiles.clear(); removedTiles.clear();
+                setNextEntityId(nextId);
+                pig = new net.minecraft.entity.passive.EntityPig(w);
+                setJavaRandomSeed48(entityRandom(pig), entitySeed);
+                setJavaRandomGaussianState(entityRandom(pig), false, 0.0D);
+                pig.setLocationAndAngles((double)baseX + 0.5D, (double)baseY,
+                    (double)baseZ + 0.5D, yaw, 0.0F);
+                pig.setNoAI(true); pig.setSaddled(true); pig.setHealth(0.0F);
+                pig.deathTime = 19;
+                java.lang.reflect.Field livingDead =
+                    net.minecraft.entity.EntityLivingBase.class.getDeclaredField("dead");
+                livingDead.setAccessible(true);
+                livingDead.setBoolean(pig, true);
+                player.setPositionAndRotation(pig.posX,
+                    pig.posY + (double)pig.height * 0.75D + player.getYOffset(),
+                    pig.posZ, yaw, 0.0F);
+                player.motionX = 0.125D; player.motionY = -0.25D;
+                player.motionZ = 0.375D; player.fallDistance = 2.5F;
+                player.onGround = false;
+                player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND,
+                    net.minecraft.item.ItemStack.EMPTY);
+                player.setHeldItem(net.minecraft.util.EnumHand.OFF_HAND,
+                    net.minecraft.item.ItemStack.EMPTY);
+                if (!player.startRiding(pig, true)) return err("failed to mount pig");
+                w.loadedEntityList.add(player);
+                w.playerEntities.add(player);
+                if (!oracleAddUntrackedEntity(w, pig)) return err("failed to add pig");
+                long playerSeedBefore = javaRandomSeed48(entityRandom(player));
+                long worldSeedBefore = javaRandomSeed48(w.rand);
+                long mathSeedBefore = mathRandomSeed48();
+                JsonObject before = new JsonObject();
+                before.addProperty("death_time", pig.deathTime);
+                before.addProperty("living_dead", livingDead.getBoolean(pig));
+                before.addProperty("entity_is_dead", pig.isDead);
+                before.addProperty("health_bits", oracleFloatBits(pig.getHealth()));
+                before.addProperty("saddled", pig.getSaddled());
+                before.addProperty("player_riding_eid", player.getRidingEntity().getEntityId());
+                before.addProperty("pig_passenger_count", pig.getPassengers().size());
+                oraclePigDeathDismountWorld = w;
+                oraclePigDeathDismountPig = pig;
+                oraclePigDeathDismountOrder.clear();
+                w.updateEntities();
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true); out.addProperty("layout", layout);
+                out.addProperty("pig_eid", pig.getEntityId());
+                out.addProperty("player_eid", player.getEntityId());
+                out.add("before", before);
+                JsonArray updateOrder = new JsonArray();
+                for (JsonObject row : oraclePigDeathDismountOrder) updateOrder.add(row);
+                out.add("update_order", updateOrder);
+                out.add("player_position_bits", oracleEntityDoubleBits(player.posX, player.posY, player.posZ));
+                out.add("player_motion_bits", oracleEntityDoubleBits(player.motionX, player.motionY, player.motionZ));
+                out.addProperty("player_yaw_bits", oracleFloatBits(player.rotationYaw));
+                out.addProperty("player_pitch_bits", oracleFloatBits(player.rotationPitch));
+                out.addProperty("player_on_ground", player.onGround);
+                out.addProperty("player_fall_distance_bits", oracleFloatBits(player.fallDistance));
+                out.add("player_aabb_min_bits", oracleEntityDoubleBits(player.getEntityBoundingBox().minX, player.getEntityBoundingBox().minY, player.getEntityBoundingBox().minZ));
+                out.add("player_aabb_max_bits", oracleEntityDoubleBits(player.getEntityBoundingBox().maxX, player.getEntityBoundingBox().maxY, player.getEntityBoundingBox().maxZ));
+                out.addProperty("player_riding_eid", player.isRiding() ? player.getRidingEntity().getEntityId() : -1);
+                out.addProperty("pig_death_time", pig.deathTime);
+                out.addProperty("pig_living_dead", livingDead.getBoolean(pig));
+                out.addProperty("pig_entity_is_dead", pig.isDead);
+                out.addProperty("pig_loaded", w.loadedEntityList.contains(pig));
+                out.addProperty("pig_health_bits", oracleFloatBits(pig.getHealth()));
+                out.addProperty("pig_saddled", pig.getSaddled());
+                out.addProperty("pig_passenger_count", pig.getPassengers().size());
+                out.add("pig_position_bits", oracleEntityDoubleBits(pig.posX, pig.posY, pig.posZ));
+                out.add("pig_aabb_min_bits", oracleEntityDoubleBits(pig.getEntityBoundingBox().minX, pig.getEntityBoundingBox().minY, pig.getEntityBoundingBox().minZ));
+                out.add("pig_aabb_max_bits", oracleEntityDoubleBits(pig.getEntityBoundingBox().maxX, pig.getEntityBoundingBox().maxY, pig.getEntityBoundingBox().maxZ));
+                out.addProperty("pig_entity_seed48", javaRandomSeed48(entityRandom(pig)));
+                out.addProperty("player_rng_unchanged", playerSeedBefore == javaRandomSeed48(entityRandom(player)));
+                out.addProperty("world_rng_unchanged", worldSeedBefore == javaRandomSeed48(w.rand));
+                out.addProperty("math_rng_unchanged", mathSeedBefore == mathRandomSeed48());
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("pig_death_dismount_tick_locked: " + t);
+            } finally {
+                oraclePigDeathDismountWorld = null;
+                oraclePigDeathDismountPig = null;
+                oraclePigDeathDismountOrder.clear();
+                if (player != null) try {
+                    if (player.isRiding()) player.dismountRidingEntity();
+                    if (oldPlayerNbt != null) player.readFromNBT(oldPlayerNbt);
+                    if (oldRide != null) player.startRiding(oldRide, true);
+                    player.setPositionAndRotation(oldX, oldY, oldZ, oldYaw, oldPitch);
+                    player.motionX = oldMx; player.motionY = oldMy; player.motionZ = oldMz;
+                    player.fallDistance = oldFall; player.onGround = oldGround;
+                } catch (Throwable ignored) { }
+                if (w != null && positions.size() == states.size()) try {
+                    for (int i = 0; i < positions.size(); ++i)
+                        w.setBlockState(positions.get(i), states.get(i), 2);
+                } catch (Throwable ignored) { }
+                if (w != null && savedLoaded != null) try {
+                    if (pig != null) w.removeEntityDangerously(pig);
+                    oracleReplaceList(w.loadedEntityList, savedLoaded);
+                    oracleReplaceList(unloaded, savedUnloaded);
+                    oracleReplaceList(w.weatherEffects, savedWeather);
+                    oracleReplaceList(w.playerEntities, savedPlayers);
+                    oracleReplaceList(w.loadedTileEntityList, savedLoadedTiles);
+                    oracleReplaceList(w.tickableTileEntities, savedTickableTiles);
+                    oracleReplaceList(addedTiles, savedAddedTiles);
+                    oracleReplaceList(removedTiles, savedRemovedTiles);
+                } catch (Throwable ignored) { }
+                try { if (oldNextId > 0) setNextEntityId(oldNextId); }
+                catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /* Real lethal-hit companion to pig_death_dismount_tick_locked.  It keeps
+     * the death/drop tick and the later World removal boundary in one trace. */
+    private String oraclePigDeathLethalTickLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("pig_death_lethal_tick_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            net.minecraft.entity.passive.EntityPig pig = null;
+            net.minecraft.entity.Entity oldRide = null;
+            java.util.List<net.minecraft.entity.Entity> loaded = null, unloaded = null;
+            java.util.List<net.minecraft.entity.Entity> weather = null;
+            java.util.List<net.minecraft.entity.player.EntityPlayer> players = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> loadedTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> tickableTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> addedTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> removedTiles = null;
+            java.util.ArrayList<net.minecraft.util.math.BlockPos> positions = new java.util.ArrayList<net.minecraft.util.math.BlockPos>();
+            java.util.ArrayList<net.minecraft.block.state.IBlockState> states = new java.util.ArrayList<net.minecraft.block.state.IBlockState>();
+            net.minecraft.nbt.NBTTagCompound playerNbt = null;
+            int oldNextId = -1;
+            long oldWorldSeed = -1L, oldMathSeed = -1L, oldPlayerSeed = -1L;
+            String oldLoot = null;
+            OracleWorldEventCapture particles = null;
+            OracleLivingDropsCapture dropCapture = null;
+            try {
+                boolean loot = !action.has("do_mob_loot") || action.get("do_mob_loot").getAsBoolean();
+                boolean burning = action.has("burning") && action.get("burning").getAsBoolean();
+                float yaw = action.has("yaw") ? action.get("yaw").getAsFloat() : 0.0F;
+                long pigSeed = action.has("pig_entity_seed48") ? action.get("pig_entity_seed48").getAsLong() : 0x23456789ABCDL;
+                long worldSeed = action.has("world_seed48") ? action.get("world_seed48").getAsLong() : 0x3456789ABCDEL;
+                long mathSeed = action.has("math_seed48") ? action.get("math_seed48").getAsLong() : 0x456789ABCDEFL;
+                int nextId = action.has("next_entity_id") ? action.get("next_entity_id").getAsInt() : 683000;
+                if ((yaw != 0.0F && yaw != 90.0F) || pigSeed < 0L || pigSeed >= (1L << 48)
+                        || worldSeed < 0L || worldSeed >= (1L << 48) || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483644) return err("invalid pig lethal tick fixture");
+                MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null || server.getPlayerList().getPlayers().isEmpty()) return err("no server player");
+                player = server.getPlayerList().getPlayers().get(0); w = player.getServerWorld();
+                int bx = net.minecraft.util.math.MathHelper.floor(player.posX / 16.0D) * 16 + 8;
+                int bz = net.minecraft.util.math.MathHelper.floor(player.posZ / 16.0D) * 16 + 8;
+                final int by = 220;
+                if (!w.isBlockLoaded(new net.minecraft.util.math.BlockPos(bx, by, bz))) return err("pig lethal fixture chunk is not loaded");
+                oldRide = player.getRidingEntity(); playerNbt = player.writeToNBT(new net.minecraft.nbt.NBTTagCompound());
+                oldNextId = nextEntityId(); oldWorldSeed = javaRandomSeed48(w.rand); oldMathSeed = mathRandomSeed48();
+                oldPlayerSeed = javaRandomSeed48(entityRandom(player));
+                oldLoot = w.getGameRules().getString("doMobLoot");
+                loaded = new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList);
+                unloaded = new java.util.ArrayList<net.minecraft.entity.Entity>(oracleWorldList(w, "unloadedEntityList"));
+                weather = new java.util.ArrayList<net.minecraft.entity.Entity>(w.weatherEffects);
+                players = new java.util.ArrayList<net.minecraft.entity.player.EntityPlayer>(w.playerEntities);
+                loadedTiles = new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(w.loadedTileEntityList);
+                tickableTiles = new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(w.tickableTileEntities);
+                addedTiles = new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(oracleWorldList(w, "addedTileEntityList"));
+                removedTiles = new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(oracleWorldList(w, "tileEntitiesToBeRemoved"));
+                for (int x = bx - 4; x <= bx + 4; ++x) for (int z = bz - 4; z <= bz + 4; ++z)
+                    for (int y = by - 1; y <= by + 4; ++y) {
+                        net.minecraft.util.math.BlockPos p = new net.minecraft.util.math.BlockPos(x, y, z);
+                        positions.add(p); states.add(w.getBlockState(p));
+                        w.setBlockState(p, y == by - 1 ? net.minecraft.init.Blocks.STONE.getDefaultState() : net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                    }
+                java.util.List<net.minecraft.entity.Entity> worldUnloaded = oracleWorldList(w, "unloadedEntityList");
+                java.util.List<net.minecraft.tileentity.TileEntity> worldAdded = oracleWorldList(w, "addedTileEntityList");
+                java.util.List<net.minecraft.tileentity.TileEntity> worldRemoved = oracleWorldList(w, "tileEntitiesToBeRemoved");
+                w.loadedEntityList.clear(); worldUnloaded.clear(); w.weatherEffects.clear(); w.playerEntities.clear();
+                w.loadedTileEntityList.clear(); w.tickableTileEntities.clear(); worldAdded.clear(); worldRemoved.clear();
+                setNextEntityId(nextId); setJavaRandomSeed48(w.rand, worldSeed);
+                w.getGameRules().setOrCreateGameRule("doMobLoot", loot ? "true" : "false");
+                pig = new net.minecraft.entity.passive.EntityPig(w); pig.setNoAI(false); pig.setSaddled(true);
+                pig.setLocationAndAngles(bx + .5D, by, bz + .5D, yaw, 0.0F); setJavaRandomSeed48(entityRandom(pig), pigSeed);
+                pig.motionX = .125D; pig.motionY = -.25D; pig.motionZ = .375D;
+                pig.onGround = false;
+                if (burning) pig.setFire(5);
+                /* A saved mounted passenger may be off its vehicle until the
+                 * next passenger update.  Keep this attacker one block east
+                 * so attackEntityFrom does not take its coincident-position
+                 * Math.random fallback. */
+                player.setPositionAndRotation(pig.posX + 1.0D, pig.posY + (double)pig.height * .75D + player.getYOffset(), pig.posZ, yaw, 0.0F);
+                /* Keep the immediate drops alive through tick 19 without
+                 * inheriting the real save's inventory contents. Stone does
+                 * not steer a pig and every main slot is intentionally full. */
+                for (int i = 0; i < player.inventory.mainInventory.size(); ++i)
+                    player.inventory.mainInventory.set(i,
+                        new net.minecraft.item.ItemStack(
+                            net.minecraft.init.Blocks.STONE, 64));
+                player.setHeldItem(net.minecraft.util.EnumHand.OFF_HAND,
+                    new net.minecraft.item.ItemStack(
+                        net.minecraft.init.Blocks.STONE, 64));
+                player.stopActiveHand();
+                player.motionX = .125D; player.motionY = -.25D; player.motionZ = .375D; player.fallDistance = 2.5F; player.onGround = false;
+                if (!player.startRiding(pig, true)) return err("failed to mount lethal pig");
+                w.loadedEntityList.add(player); w.playerEntities.add(player); if (!oracleAddUntrackedEntity(w, pig)) return err("failed to add lethal pig");
+                long playerSeedBefore = javaRandomSeed48(entityRandom(player));
+                particles = new OracleWorldEventCapture(bx - 5, by - 3, bz - 5, bx + 5, by + 5, bz + 5);
+                particles.captureParticles = true; w.addEventListener(particles);
+                oraclePigDeathDismountWorld = w; oraclePigDeathDismountPig = pig;
+                oraclePigDeathDismountOrder.clear();
+                oracleMobEventWorld = w; oracleMobEventTargets.clear();
+                oracleMobEventTargets.put(pig, Integer.valueOf(pig.getEntityId()));
+                oracleMobEventSoundSources.remove(); oracleMobEventCapture.clear();
+                /* Cancel normal server item spawning, then reinsert the real
+                 * captured items without integrated-client mirror packets. */
+                dropCapture = new OracleLivingDropsCapture(pig);
+                MinecraftForge.EVENT_BUS.register(dropCapture);
+                /* The fixture represents a loaded entity immediately before
+                 * damage. Exclude constructor draws and any earlier client
+                 * work from the causal attack cursors. */
+                setNextEntityId(nextId + 1);
+                setMathRandomSeed48(mathSeed);
+                pig.attackEntityFrom(net.minecraft.util.DamageSource.causePlayerDamage(player), 1000.0F);
+                if (!dropCapture.fired)
+                    return err("lethal pig fixture missed LivingDropsEvent");
+                java.util.ArrayList<net.minecraft.entity.item.EntityItem>
+                    capturedDrops = new java.util.ArrayList<net.minecraft.entity.item.EntityItem>(
+                        pig.capturedDrops);
+                pig.captureDrops = false;
+                pig.capturedDrops.clear();
+                for (net.minecraft.entity.item.EntityItem item : capturedDrops)
+                    if (!oracleAddUntrackedEntity(w, item))
+                        return err("failed to add lethal pig drop");
+                JsonObject out = new JsonObject(); out.addProperty("ok", true); out.addProperty("do_mob_loot", loot); out.addProperty("burning", burning);
+                out.addProperty("pig_eid", pig.getEntityId()); out.addProperty("player_eid", player.getEntityId());
+                JsonArray snaps = new JsonArray(); snaps.add(oraclePigDeathLethalSnapshot(w, player, pig, 0, oraclePigDeathDismountOrder));
+                for (int tick = 1; tick <= 21; ++tick) { oraclePigDeathDismountOrder.clear(); w.updateEntities();
+                    if (tick == 1 || tick == 19 || tick == 20 || tick == 21) snaps.add(oraclePigDeathLethalSnapshot(w, player, pig, tick, oraclePigDeathDismountOrder)); }
+                out.add("ticks", snaps); out.add("particles", particles.particlesToJson());
+                JsonArray events = new JsonArray();
+                for (OracleMobEventCapture event : oracleMobEventCapture)
+                    events.add(event.toJson());
+                out.add("events", events);
+                out.addProperty("pig_rng_seed48", javaRandomSeed48(entityRandom(pig)));
+                out.addProperty("player_rng_unchanged", playerSeedBefore == javaRandomSeed48(entityRandom(player)));
+                out.addProperty("world_seed48", javaRandomSeed48(w.rand)); out.addProperty("math_seed48", mathRandomSeed48()); out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) { return err("pig_death_lethal_tick_locked: " + t); }
+            finally {
+                oraclePigDeathDismountWorld = null; oraclePigDeathDismountPig = null; oraclePigDeathDismountOrder.clear();
+                oracleMobEventWorld = null; oracleMobEventTargets.clear();
+                oracleMobEventSoundSources.remove(); oracleMobEventCapture.clear();
+                if (dropCapture != null) try {
+                    MinecraftForge.EVENT_BUS.unregister(dropCapture);
+                } catch (Throwable ignored) { }
+                if (w != null && particles != null) try { w.removeEventListener(particles); } catch (Throwable ignored) { }
+                if (player != null) try { if (player.isRiding()) player.dismountRidingEntity(); if (playerNbt != null) player.readFromNBT(playerNbt); if (oldRide != null) player.startRiding(oldRide, true); } catch (Throwable ignored) { }
+                if (w != null) try { for (int i = 0; i < positions.size(); ++i) w.setBlockState(positions.get(i), states.get(i), 2); } catch (Throwable ignored) { }
+                if (w != null && loaded != null) try {
+                    for (net.minecraft.entity.Entity entity :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                        if (!loaded.contains(entity)) w.removeEntityDangerously(entity);
+                    oracleReplaceList(w.loadedEntityList, loaded); oracleReplaceList(oracleWorldList(w, "unloadedEntityList"), unloaded);
+                    oracleReplaceList(w.weatherEffects, weather); oracleReplaceList(w.playerEntities, players); oracleReplaceList(w.loadedTileEntityList, loadedTiles);
+                    oracleReplaceList(w.tickableTileEntities, tickableTiles); oracleReplaceList(oracleWorldList(w, "addedTileEntityList"), addedTiles); oracleReplaceList(oracleWorldList(w, "tileEntitiesToBeRemoved"), removedTiles);
+                    w.getGameRules().setOrCreateGameRule("doMobLoot", oldLoot); setJavaRandomSeed48(w.rand, oldWorldSeed); setMathRandomSeed48(oldMathSeed); setNextEntityId(oldNextId);
+                } catch (Throwable ignored) { }
+                if (player != null && oldPlayerSeed >= 0L) try {
+                    setJavaRandomSeed48(entityRandom(player), oldPlayerSeed);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    private static JsonObject oraclePigDeathLethalSnapshot(net.minecraft.world.WorldServer w,
+            net.minecraft.entity.player.EntityPlayerMP player, net.minecraft.entity.passive.EntityPig pig,
+            int tick, java.util.List<JsonObject> order) throws Exception {
+        JsonObject out = new JsonObject(); out.addProperty("tick", tick);
+        out.add("update_order", new JsonArray()); for (JsonObject row : order) out.getAsJsonArray("update_order").add(row);
+        out.add("player_position_bits", oracleEntityDoubleBits(player.posX, player.posY, player.posZ));
+        out.add("player_motion_bits", oracleEntityDoubleBits(player.motionX, player.motionY, player.motionZ));
+        out.addProperty("player_yaw_bits", oracleFloatBits(player.rotationYaw)); out.addProperty("player_pitch_bits", oracleFloatBits(player.rotationPitch));
+        out.addProperty("player_on_ground", player.onGround); out.addProperty("player_fall_distance_bits", oracleFloatBits(player.fallDistance));
+        out.addProperty("player_riding_eid", player.isRiding() ? player.getRidingEntity().getEntityId() : -1);
+        out.add("player_aabb_min_bits", oracleEntityDoubleBits(player.getEntityBoundingBox().minX, player.getEntityBoundingBox().minY, player.getEntityBoundingBox().minZ));
+        out.add("player_aabb_max_bits", oracleEntityDoubleBits(player.getEntityBoundingBox().maxX, player.getEntityBoundingBox().maxY, player.getEntityBoundingBox().maxZ));
+        java.lang.reflect.Field livingDead = net.minecraft.entity.EntityLivingBase.class.getDeclaredField("dead");
+        livingDead.setAccessible(true);
+        out.addProperty("pig_death_time", pig.deathTime); out.addProperty("pig_living_dead", livingDead.getBoolean(pig));
+        out.addProperty("pig_entity_is_dead", pig.isDead); out.addProperty("pig_loaded", w.loadedEntityList.contains(pig));
+        out.addProperty("pig_health_bits", oracleFloatBits(pig.getHealth()));
+        out.addProperty("pig_hurt_time", pig.hurtTime);
+        out.addProperty("pig_hurt_resistant_time", pig.hurtResistantTime);
+        java.lang.reflect.Field recentlyHit = net.minecraft.entity.EntityLivingBase.class.getDeclaredField("recentlyHit");
+        java.lang.reflect.Field attackingPlayer = net.minecraft.entity.EntityLivingBase.class.getDeclaredField("attackingPlayer");
+        recentlyHit.setAccessible(true); attackingPlayer.setAccessible(true);
+        out.addProperty("pig_recently_hit", recentlyHit.getInt(pig));
+        Object attacker = attackingPlayer.get(pig);
+        out.addProperty("pig_attacking_player_eid", attacker instanceof net.minecraft.entity.Entity
+            ? ((net.minecraft.entity.Entity)attacker).getEntityId() : -1);
+        out.addProperty("pig_saddled", pig.getSaddled()); out.addProperty("pig_on_ground", pig.onGround);
+        out.addProperty("pig_yaw_bits", oracleFloatBits(pig.rotationYaw)); out.addProperty("pig_pitch_bits", oracleFloatBits(pig.rotationPitch));
+        JsonArray passengers = new JsonArray(); for (net.minecraft.entity.Entity passenger : pig.getPassengers()) passengers.add(new JsonPrimitive(passenger.getEntityId())); out.add("pig_passenger_eids", passengers);
+        out.add("pig_position_bits", oracleEntityDoubleBits(pig.posX, pig.posY, pig.posZ)); out.add("pig_motion_bits", oracleEntityDoubleBits(pig.motionX, pig.motionY, pig.motionZ));
+        out.add("pig_aabb_min_bits", oracleEntityDoubleBits(pig.getEntityBoundingBox().minX, pig.getEntityBoundingBox().minY, pig.getEntityBoundingBox().minZ));
+        out.add("pig_aabb_max_bits", oracleEntityDoubleBits(pig.getEntityBoundingBox().maxX, pig.getEntityBoundingBox().maxY, pig.getEntityBoundingBox().maxZ));
+        JsonArray items = new JsonArray(); for (net.minecraft.entity.Entity e : w.loadedEntityList) if (e instanceof net.minecraft.entity.item.EntityItem) { net.minecraft.entity.item.EntityItem item = (net.minecraft.entity.item.EntityItem)e; JsonObject row = oracleFallingDropItemJson(item); row.add("position_bits", oracleEntityDoubleBits(item.posX, item.posY, item.posZ)); row.add("motion_bits", oracleEntityDoubleBits(item.motionX, item.motionY, item.motionZ)); row.addProperty("yaw_bits", oracleFloatBits(item.rotationYaw)); row.addProperty("hover_start_bits", oracleFloatBits(item.hoverStart)); items.add(row); } out.add("items", items);
+        JsonArray xp = new JsonArray(); for (net.minecraft.entity.Entity e : w.loadedEntityList) if (e instanceof net.minecraft.entity.item.EntityXPOrb) { net.minecraft.entity.item.EntityXPOrb o = (net.minecraft.entity.item.EntityXPOrb)e; JsonObject x = new JsonObject(); x.addProperty("eid", o.getEntityId()); x.addProperty("value", o.xpValue); x.add("position_bits", oracleEntityDoubleBits(o.posX,o.posY,o.posZ)); x.add("motion_bits", oracleEntityDoubleBits(o.motionX,o.motionY,o.motionZ)); xp.add(x); } out.add("xp_orbs", xp);
+        out.addProperty("pig_rng_seed48", javaRandomSeed48(entityRandom(pig)));
+        out.addProperty("world_seed48", javaRandomSeed48(w.rand));
+        out.addProperty("math_seed48", mathRandomSeed48());
+        out.addProperty("next_entity_id", nextEntityId());
+        return out;
+    }
+
+    /** Exact server boost-start and client-authoritative ridden travel slices.
+     * The two modes stay separate because 1.11.2 chooses boost duration and
+     * item damage on EntityPlayerMP, while EntityPlayerSP is the passenger for
+     * canPassengerSteer and sends the resulting vehicle position to server. */
+    private String oraclePigRideLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("pig_ride_locked requires a parked oracle server");
+        }
+        String mode = action.has("mode")
+            ? action.get("mode").getAsString() : "boost";
+        if (!mode.equals("boost") && !mode.equals("tick")
+                && !mode.equals("trace") && !mode.equals("lava_contact")
+                && !mode.equals("packet_contact")
+                && !mode.equals("packet_move")
+                && !mode.equals("packet_chain")
+                && !mode.equals("client_vehicle_correction"))
+            return err("invalid pig-ride mode");
+        if (mode.equals("client_vehicle_correction")) {
+            final JsonObject clientAction = action;
+            try {
+                return Minecraft.getMinecraft().addScheduledTask(
+                    new java.util.concurrent.Callable<String>() {
+                        public String call() {
+                            return oraclePigClientVehicleCorrectionLocked(
+                                clientAction);
+                        }
+                    }).get(30L, TimeUnit.SECONDS);
+            } catch (Throwable t) {
+                return err("pig client vehicle correction task: " + t);
+            }
+        }
+        if (mode.equals("boost")) return oraclePigBoostLocked(action);
+        if (mode.equals("lava_contact"))
+            return oraclePigLavaContactLocked(action);
+        if (mode.equals("packet_contact") || mode.equals("packet_move")
+                || mode.equals("packet_chain"))
+            return oraclePigPacketContactLocked(action);
+        final JsonObject tickAction = action;
+        try {
+            return Minecraft.getMinecraft().addScheduledTask(
+                new java.util.concurrent.Callable<String>() {
+                    public String call() {
+                        return oraclePigTickLocked(tickAction);
+                    }
+                }).get(30L, TimeUnit.SECONDS);
+        } catch (Throwable t) {
+            return err("pig_ride_locked client task: " + t);
+        }
+    }
+
+    private static JsonObject oraclePigLavaContactState(
+            net.minecraft.entity.passive.EntityPig pig, int tick)
+            throws Exception {
+        java.lang.reflect.Field lastDamage =
+            net.minecraft.entity.EntityLivingBase.class
+                .getDeclaredField("lastDamage");
+        lastDamage.setAccessible(true);
+        JsonObject out = new JsonObject();
+        out.addProperty("tick", tick);
+        out.add("position_bits", oracleEntityDoubleBits(
+            pig.posX, pig.posY, pig.posZ));
+        out.add("aabb_min_bits", oracleEntityDoubleBits(
+            pig.getEntityBoundingBox().minX,
+            pig.getEntityBoundingBox().minY,
+            pig.getEntityBoundingBox().minZ));
+        out.add("aabb_max_bits", oracleEntityDoubleBits(
+            pig.getEntityBoundingBox().maxX,
+            pig.getEntityBoundingBox().maxY,
+            pig.getEntityBoundingBox().maxZ));
+        out.addProperty("fall_distance_bits",
+            oracleFloatBits(pig.fallDistance));
+        out.addProperty("is_in_water", pig.isInWater());
+        out.addProperty("is_in_lava", pig.isInLava());
+        out.addProperty("health_bits", oracleFloatBits(pig.getHealth()));
+        out.addProperty("fire_ticks", fireTicks(pig));
+        out.addProperty("hurt_time", pig.hurtTime);
+        out.addProperty("hurt_resistant_time", pig.hurtResistantTime);
+        out.addProperty("last_damage_bits",
+            oracleFloatBits(lastDamage.getFloat(pig)));
+        net.minecraft.potion.PotionEffect fireResistance =
+            pig.getActivePotionEffect(
+                net.minecraft.init.MobEffects.FIRE_RESISTANCE);
+        out.addProperty("fire_resistance_ticks", fireResistance == null
+            ? 0 : fireResistance.getDuration());
+        out.addProperty("alive", !pig.isDead);
+        out.addProperty("entity_seed48",
+            javaRandomSeed48(entityRandom(pig)));
+        out.addProperty("math_seed48", mathRandomSeed48());
+        return out;
+    }
+
+    private static net.minecraft.network.play.client.CPacketVehicleMove
+            oracleVehicleMovePacket(double x, double y, double z,
+                    float yaw, float pitch) throws Exception {
+        net.minecraft.network.play.client.CPacketVehicleMove packet =
+            new net.minecraft.network.play.client.CPacketVehicleMove();
+        Class<?> type = packet.getClass();
+        String[] names = new String[] {"x", "y", "z", "yaw", "pitch"};
+        double[] doubles = new double[] {x, y, z};
+        for (int i = 0; i < names.length; ++i) {
+            java.lang.reflect.Field field = type.getDeclaredField(names[i]);
+            field.setAccessible(true);
+            if (i < 3) field.setDouble(packet, doubles[i]);
+            else field.setFloat(packet, i == 3 ? yaw : pitch);
+        }
+        return packet;
+    }
+
+    private static net.minecraft.network.play.server.SPacketMoveVehicle
+            oracleServerVehicleMovePacket(double x, double y, double z,
+                    float yaw, float pitch) throws Exception {
+        net.minecraft.network.play.server.SPacketMoveVehicle packet =
+            new net.minecraft.network.play.server.SPacketMoveVehicle();
+        Class<?> type = packet.getClass();
+        String[] names = new String[] {"x", "y", "z", "yaw", "pitch"};
+        double[] doubles = new double[] {x, y, z};
+        for (int i = 0; i < names.length; ++i) {
+            java.lang.reflect.Field field = type.getDeclaredField(names[i]);
+            field.setAccessible(true);
+            if (i < 3) field.setDouble(packet, doubles[i]);
+            else field.setFloat(packet, i == 3 ? yaw : pitch);
+        }
+        return packet;
+    }
+
+    private static JsonObject oraclePigClientVehicleCorrectionState(
+            net.minecraft.entity.passive.EntityPig pig,
+            net.minecraft.client.entity.EntityPlayerSP player) {
+        JsonObject out = new JsonObject();
+        out.add("vehicle_position_bits", oracleEntityDoubleBits(
+            pig.posX, pig.posY, pig.posZ));
+        out.add("vehicle_aabb_min_bits", oracleEntityDoubleBits(
+            pig.getEntityBoundingBox().minX,
+            pig.getEntityBoundingBox().minY,
+            pig.getEntityBoundingBox().minZ));
+        out.add("vehicle_aabb_max_bits", oracleEntityDoubleBits(
+            pig.getEntityBoundingBox().maxX,
+            pig.getEntityBoundingBox().maxY,
+            pig.getEntityBoundingBox().maxZ));
+        out.add("vehicle_motion_bits", oracleEntityDoubleBits(
+            pig.motionX, pig.motionY, pig.motionZ));
+        out.addProperty("vehicle_yaw_bits", oracleFloatBits(pig.rotationYaw));
+        out.addProperty(
+            "vehicle_pitch_bits", oracleFloatBits(pig.rotationPitch));
+        out.addProperty("vehicle_on_ground", pig.onGround);
+        out.add("player_position_bits", oracleEntityDoubleBits(
+            player.posX, player.posY, player.posZ));
+        return out;
+    }
+
+    /** Real NetHandlerPlayClient correction callback. The temporary outbound
+     * handler captures and swallows only its immediate CPacketVehicleMove so
+     * this fixture observes the real acknowledgement without perturbing the
+     * parked integrated server. */
+    private String oraclePigClientVehicleCorrectionLocked(JsonObject action) {
+        Minecraft mc = Minecraft.getMinecraft();
+        net.minecraft.client.entity.EntityPlayerSP player = mc.player;
+        net.minecraft.entity.Entity oldRide = null;
+        net.minecraft.item.ItemStack oldMain = null, oldOff = null;
+        net.minecraft.entity.passive.EntityPig pig = null;
+        io.netty.channel.Channel channel = null;
+        String handlerName = "qrl_vehicle_correction_capture";
+        double oldX = 0.0D, oldY = 0.0D, oldZ = 0.0D;
+        double oldMx = 0.0D, oldMy = 0.0D, oldMz = 0.0D;
+        float oldYaw = 0.0F, oldPitch = 0.0F, oldFall = 0.0F;
+        boolean oldOnGround = false;
+        boolean playerSaved = false;
+        int oldCurrent = -1;
+        try {
+            if (player == null || mc.world == null
+                    || player.connection == null)
+                return err("pig client correction requires a live client");
+            double predictedX = action.get("predicted_x").getAsDouble();
+            double predictedY = action.get("predicted_y").getAsDouble();
+            double predictedZ = action.get("predicted_z").getAsDouble();
+            double correctionX = action.get("correction_x").getAsDouble();
+            double correctionY = action.get("correction_y").getAsDouble();
+            double correctionZ = action.get("correction_z").getAsDouble();
+            double motionX = action.get("motion_x").getAsDouble();
+            double motionY = action.get("motion_y").getAsDouble();
+            double motionZ = action.get("motion_z").getAsDouble();
+            float predictedYaw = action.get("predicted_yaw").getAsFloat();
+            float predictedPitch = action.get("predicted_pitch").getAsFloat();
+            float correctionYaw = action.get("correction_yaw").getAsFloat();
+            float correctionPitch = action.get("correction_pitch").getAsFloat();
+            boolean onGround = action.get("on_ground").getAsBoolean();
+
+            oldRide = player.getRidingEntity();
+            oldMain = player.getHeldItem(
+                net.minecraft.util.EnumHand.MAIN_HAND).copy();
+            oldOff = player.getHeldItem(
+                net.minecraft.util.EnumHand.OFF_HAND).copy();
+            oldCurrent = player.inventory.currentItem;
+            oldX = player.posX; oldY = player.posY; oldZ = player.posZ;
+            oldMx = player.motionX; oldMy = player.motionY;
+            oldMz = player.motionZ;
+            oldYaw = player.rotationYaw; oldPitch = player.rotationPitch;
+            oldOnGround = player.onGround; oldFall = player.fallDistance;
+            playerSaved = true;
+            if (oldRide != null) player.dismountRidingEntity();
+
+            pig = new net.minecraft.entity.passive.EntityPig(mc.world);
+            pig.setEntityId(action.get("eid").getAsInt());
+            pig.setSaddled(true);
+            pig.setPositionAndRotation(
+                predictedX, predictedY, predictedZ,
+                predictedYaw, predictedPitch);
+            pig.motionX = motionX; pig.motionY = motionY; pig.motionZ = motionZ;
+            pig.onGround = onGround;
+            player.inventory.currentItem = 0;
+            player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND,
+                oracleItemStack(398, 1, 0));
+            player.setHeldItem(net.minecraft.util.EnumHand.OFF_HAND,
+                net.minecraft.item.ItemStack.EMPTY);
+            player.setPositionAndRotation(
+                predictedX, predictedY + 0.325D, predictedZ,
+                predictedYaw, predictedPitch);
+            if (!player.startRiding(pig, true))
+                return err("failed to mount client correction pig");
+
+            final java.util.concurrent.ArrayBlockingQueue<
+                net.minecraft.network.play.client.CPacketVehicleMove> acks =
+                new java.util.concurrent.ArrayBlockingQueue<
+                    net.minecraft.network.play.client.CPacketVehicleMove>(1);
+            channel = player.connection.getNetworkManager().channel();
+            if (channel == null || !channel.isOpen())
+                return err("pig client correction channel is not open");
+            if (channel.pipeline().get(handlerName) != null)
+                channel.pipeline().remove(handlerName);
+            channel.pipeline().addBefore("packet_handler", handlerName,
+                new io.netty.channel.ChannelOutboundHandlerAdapter() {
+                    @Override
+                    public void write(io.netty.channel.ChannelHandlerContext ctx,
+                            Object msg,
+                            io.netty.channel.ChannelPromise promise)
+                            throws Exception {
+                        if (msg instanceof net.minecraft.network.play.client
+                                .CPacketVehicleMove) {
+                            acks.offer((net.minecraft.network.play.client
+                                .CPacketVehicleMove)msg);
+                            promise.setSuccess();
+                            return;
+                        }
+                        ctx.write(msg, promise);
+                    }
+                });
+
+            JsonObject out = new JsonObject();
+            out.addProperty("ok", true);
+            out.addProperty("mode", "client_vehicle_correction");
+            out.add("before",
+                oraclePigClientVehicleCorrectionState(pig, player));
+            player.connection.handleMoveVehicle(
+                oracleServerVehicleMovePacket(
+                    correctionX, correctionY, correctionZ,
+                    correctionYaw, correctionPitch));
+            net.minecraft.network.play.client.CPacketVehicleMove ack =
+                acks.poll(5L, TimeUnit.SECONDS);
+            if (ack == null)
+                return err("pig client correction missed vehicle ack");
+            out.add("after",
+                oraclePigClientVehicleCorrectionState(pig, player));
+            JsonObject ackJson = new JsonObject();
+            ackJson.add("position_bits", oracleEntityDoubleBits(
+                ack.getX(), ack.getY(), ack.getZ()));
+            ackJson.addProperty("yaw_bits", oracleFloatBits(ack.getYaw()));
+            ackJson.addProperty(
+                "pitch_bits", oracleFloatBits(ack.getPitch()));
+            out.add("ack", ackJson);
+            return out.toString();
+        } catch (Throwable t) {
+            return err("pig client vehicle correction fixture: " + t);
+        } finally {
+            if (channel != null && channel.pipeline().get(handlerName) != null)
+                try { channel.pipeline().remove(handlerName); }
+                catch (Throwable ignored) { }
+            if (playerSaved) try {
+                if (player.isRiding()) player.dismountRidingEntity();
+                player.inventory.currentItem = oldCurrent;
+                if (oldMain != null) player.setHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND, oldMain);
+                if (oldOff != null) player.setHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND, oldOff);
+                player.setPositionAndRotation(
+                    oldX, oldY, oldZ, oldYaw, oldPitch);
+                player.motionX = oldMx; player.motionY = oldMy;
+                player.motionZ = oldMz;
+                player.onGround = oldOnGround;
+                player.fallDistance = oldFall;
+                if (oldRide != null) player.startRiding(oldRide, true);
+            } catch (Throwable ignored) { }
+        }
+    }
+
+    private static JsonObject oraclePigVehicleMoveState(
+            net.minecraft.entity.passive.EntityPig pig,
+            java.lang.reflect.Field[] networkFields,
+            net.minecraft.entity.player.EntityPlayerMP player,
+            double targetX, double targetY, double targetZ,
+            float targetYaw, float targetPitch, int tick) throws Exception {
+        JsonObject out = oraclePigLavaContactState(pig, tick);
+        out.add("motion_bits", oracleEntityDoubleBits(
+            pig.motionX, pig.motionY, pig.motionZ));
+        out.addProperty("yaw_bits", oracleFloatBits(pig.rotationYaw));
+        out.addProperty("pitch_bits", oracleFloatBits(pig.rotationPitch));
+        out.addProperty("on_ground", pig.onGround);
+        out.add("lowest_ridden_bits", oracleEntityDoubleBits(
+            networkFields[1].getDouble(player.connection),
+            networkFields[2].getDouble(player.connection),
+            networkFields[3].getDouble(player.connection)));
+        out.add("lowest_ridden1_bits", oracleEntityDoubleBits(
+            networkFields[4].getDouble(player.connection),
+            networkFields[5].getDouble(player.connection),
+            networkFields[6].getDouble(player.connection)));
+        boolean accepted = Double.doubleToRawLongBits(pig.posX)
+                == Double.doubleToRawLongBits(targetX)
+            && Double.doubleToRawLongBits(pig.posY)
+                == Double.doubleToRawLongBits(targetY)
+            && Double.doubleToRawLongBits(pig.posZ)
+                == Double.doubleToRawLongBits(targetZ);
+        boolean packetRotation = Float.floatToRawIntBits(pig.rotationYaw)
+                == Float.floatToRawIntBits(targetYaw)
+            && Float.floatToRawIntBits(pig.rotationPitch)
+                == Float.floatToRawIntBits(targetPitch);
+        out.addProperty("result", accepted ? "accepted"
+            : packetRotation ? "corrected_collision" : "corrected_speed");
+        return out;
+    }
+
+    /** Authoritative server half of a ridden lava tick. The client fixture
+     * above owns vehicle movement; this companion exposes damage, fire, hurt
+     * resistance, fall distance, and the distinct server RNG cursor. */
+    private String oraclePigLavaContactLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            net.minecraft.entity.passive.EntityPig pig = null;
+            net.minecraft.item.ItemStack oldMain = null, oldOff = null;
+            net.minecraft.entity.Entity oldRide = null;
+            java.util.ArrayList<net.minecraft.util.math.BlockPos> positions =
+                new java.util.ArrayList<net.minecraft.util.math.BlockPos>();
+            java.util.ArrayList<net.minecraft.block.state.IBlockState> states =
+                new java.util.ArrayList<net.minecraft.block.state.IBlockState>();
+            int oldCurrent = -1, oldNextId = -1;
+            long oldMathSeed = -1L;
+            boolean oldSneaking = false, oldOnGround = false;
+            double oldX = 0.0D, oldY = 0.0D, oldZ = 0.0D;
+            double oldMx = 0.0D, oldMy = 0.0D, oldMz = 0.0D;
+            float oldYaw = 0.0F, oldPitch = 0.0F, oldFall = 0.0F;
+            try {
+                String layout = action.has("layout")
+                    ? action.get("layout").getAsString() : "lava";
+                int ticks = action.has("ticks")
+                    ? action.get("ticks").getAsInt() : 12;
+                long entitySeed = action.has("entity_seed48")
+                    ? action.get("entity_seed48").getAsLong()
+                    : 0x123456789abcl;
+                long mathSeed = action.has("math_seed48")
+                    ? action.get("math_seed48").getAsLong()
+                    : 0x23456789abcdl;
+                int eid = action.has("eid")
+                    ? action.get("eid").getAsInt() : 674000;
+                int fireResistanceTicks = action.has("fire_resistance_ticks")
+                    ? action.get("fire_resistance_ticks").getAsInt() : 0;
+                if ((!layout.equals("lava") && !layout.equals("dry"))
+                        || ticks < 1 || ticks > 20 || entitySeed < 0L
+                        || entitySeed >= (1L << 48) || mathSeed < 0L
+                        || mathSeed >= (1L << 48) || eid <= 0
+                        || fireResistanceTicks < 0
+                        || fireResistanceTicks > 32767)
+                    return err("invalid pig lava-contact fixture");
+                MinecraftServer server =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null
+                        || server.getPlayerList().getPlayers().isEmpty())
+                    return err("no server player");
+                player = server.getPlayerList().getPlayers().get(0);
+                w = player.getServerWorld();
+                int baseX = net.minecraft.util.math.MathHelper.floor(
+                    player.posX / 16.0D) * 16 + 8;
+                int baseZ = net.minecraft.util.math.MathHelper.floor(
+                    player.posZ / 16.0D) * 16 + 8;
+                int baseY = 220;
+                if (!w.isBlockLoaded(new net.minecraft.util.math.BlockPos(
+                        baseX, baseY, baseZ)))
+                    return err("pig lava-contact chunk is not loaded");
+
+                oldMain = player.getHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND).copy();
+                oldOff = player.getHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND).copy();
+                oldCurrent = player.inventory.currentItem;
+                oldSneaking = player.isSneaking();
+                oldRide = player.getRidingEntity();
+                oldX = player.posX; oldY = player.posY; oldZ = player.posZ;
+                oldMx = player.motionX; oldMy = player.motionY;
+                oldMz = player.motionZ;
+                oldYaw = player.rotationYaw;
+                oldPitch = player.rotationPitch;
+                oldOnGround = player.onGround;
+                oldFall = player.fallDistance;
+                oldNextId = nextEntityId();
+                oldMathSeed = mathRandomSeed48();
+
+                for (int x = baseX - 3; x <= baseX + 3; ++x)
+                    for (int z = baseZ - 3; z <= baseZ + 3; ++z)
+                        for (int y = baseY - 1; y <= baseY + 2; ++y) {
+                            net.minecraft.util.math.BlockPos pos =
+                                new net.minecraft.util.math.BlockPos(x, y, z);
+                            positions.add(pos);
+                            states.add(w.getBlockState(pos));
+                            w.setBlockState(pos, y == baseY - 1
+                                ? net.minecraft.init.Blocks.STONE
+                                    .getDefaultState()
+                                : net.minecraft.init.Blocks.AIR
+                                    .getDefaultState(), 2);
+                        }
+                if (layout.equals("lava"))
+                    w.setBlockState(new net.minecraft.util.math.BlockPos(
+                        baseX, baseY, baseZ),
+                        net.minecraft.init.Blocks.LAVA.getDefaultState(), 2);
+
+                setNextEntityId(eid);
+                pig = new net.minecraft.entity.passive.EntityPig(w);
+                pig.setLocationAndAngles(
+                    baseX + 0.5D, baseY, baseZ + 0.5D, 0.0F, 0.0F);
+                pig.setNoAI(true);
+                pig.setSaddled(true);
+                pig.setAIMoveSpeed(0.0F);
+                pig.motionX = pig.motionY = pig.motionZ = 0.0D;
+                pig.onGround = true;
+                pig.fallDistance = 2.5F;
+                pig.livingSoundTime = -80;
+                pig.hurtTime = 0;
+                pig.hurtResistantTime = 0;
+                setJavaRandomSeed48(entityRandom(pig), entitySeed);
+                setJavaRandomGaussianState(entityRandom(pig), false, 0.0D);
+                if (FIRE_F == null) {
+                    FIRE_F = net.minecraft.entity.Entity.class
+                        .getDeclaredField("fire");
+                    FIRE_F.setAccessible(true);
+                }
+                FIRE_F.setInt(pig, -1);
+                if (fireResistanceTicks > 0)
+                    pig.addPotionEffect(new net.minecraft.potion.PotionEffect(
+                        net.minecraft.init.MobEffects.FIRE_RESISTANCE,
+                        fireResistanceTicks, 0, false, false));
+                player.setPositionAndRotation(
+                    pig.posX, pig.posY + 0.325D, pig.posZ, 0.0F, 0.0F);
+                player.motionX = player.motionY = player.motionZ = 0.0D;
+                player.onGround = true;
+                player.fallDistance = 0.0F;
+                player.setSneaking(false);
+                player.inventory.currentItem = 0;
+                player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND,
+                    oracleItemStack(398, 1, 0));
+                player.setHeldItem(net.minecraft.util.EnumHand.OFF_HAND,
+                    net.minecraft.item.ItemStack.EMPTY);
+                if (!player.startRiding(pig, true))
+                    return err("failed to mount pig lava-contact fixture");
+                setNextEntityId(eid + 1);
+                setMathRandomSeed48(mathSeed);
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("mode", "lava_contact");
+                out.addProperty("layout", layout);
+                out.add("start_position_bits", oracleEntityDoubleBits(
+                    pig.posX, pig.posY, pig.posZ));
+                JsonArray trace = new JsonArray();
+                for (int tick = 0; tick < ticks; ++tick) {
+                    pig.onUpdate();
+                    pig.updatePassenger(player);
+                    trace.add(oraclePigLavaContactState(pig, tick));
+                }
+                out.add("trace", trace);
+                return out.toString();
+            } catch (Throwable t) {
+                return err("pig lava-contact fixture: " + t);
+            } finally {
+                if (player != null && oldMain != null && oldOff != null) try {
+                    if (player.isRiding()) player.dismountRidingEntity();
+                    if (oldRide != null) player.startRiding(oldRide, true);
+                    player.setPositionAndRotation(
+                        oldX, oldY, oldZ, oldYaw, oldPitch);
+                    player.motionX = oldMx;
+                    player.motionY = oldMy;
+                    player.motionZ = oldMz;
+                    player.onGround = oldOnGround;
+                    player.fallDistance = oldFall;
+                    player.inventory.currentItem = oldCurrent;
+                    player.setSneaking(oldSneaking);
+                    player.setHeldItem(
+                        net.minecraft.util.EnumHand.MAIN_HAND, oldMain);
+                    player.setHeldItem(
+                        net.minecraft.util.EnumHand.OFF_HAND, oldOff);
+                } catch (Throwable ignored) { }
+                if (w != null) try {
+                    for (int i = 0; i < positions.size(); ++i)
+                        w.setBlockState(positions.get(i), states.get(i), 2);
+                } catch (Throwable ignored) { }
+                try {
+                    if (oldMathSeed >= 0L)
+                        setMathRandomSeed48(oldMathSeed);
+                    if (oldNextId > 0) setNextEntityId(oldNextId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /** Real NetHandlerPlayServer vehicle packets followed by the ordinary
+     * server pig tick. This is the authoritative callback boundary for a
+     * ridden pig: the parked EntityPlayerMP cannot steer through
+     * EntityPig.moveEntityWithHeading, but each client vehicle packet invokes
+     * Entity.move before the server entity base tick. */
+    private String oraclePigPacketContactLocked(JsonObject action) {
+        net.minecraft.world.WorldServer w = null;
+        net.minecraft.entity.player.EntityPlayerMP player = null;
+        net.minecraft.entity.passive.EntityPig pig = null;
+        net.minecraft.item.ItemStack oldMain = null, oldOff = null;
+        net.minecraft.entity.Entity oldRide = null;
+        java.util.ArrayList<net.minecraft.util.math.BlockPos> positions =
+            new java.util.ArrayList<net.minecraft.util.math.BlockPos>();
+        java.util.ArrayList<net.minecraft.block.state.IBlockState> states =
+            new java.util.ArrayList<net.minecraft.block.state.IBlockState>();
+        java.util.ArrayList<net.minecraft.entity.Entity> loaded = null;
+        java.util.ArrayList<net.minecraft.entity.Entity> unloaded = null;
+        java.util.ArrayList<net.minecraft.entity.Entity> weather = null;
+        java.lang.reflect.Field[] networkFields = null;
+        Object[] oldNetworkValues = null;
+        String oldMobSpawning = null;
+        int oldCurrent = -1, oldNextId = -1;
+        long oldMathSeed = -1L;
+        boolean oldSneaking = false, oldOnGround = false;
+        double oldX = 0.0D, oldY = 0.0D, oldZ = 0.0D;
+        double oldMx = 0.0D, oldMy = 0.0D, oldMz = 0.0D;
+        float oldYaw = 0.0F, oldPitch = 0.0F, oldFall = 0.0F;
+        try {
+            synchronized (oracleServerMonitor) {
+                if (!oracleServerGate || !oracleServerWaiting
+                        || oracleServerTickInFlight
+                        || oracleServerPermits != 0)
+                    return err("pig packet-contact requires a parked server");
+            }
+            String packetMode = action.has("mode")
+                ? action.get("mode").getAsString() : "packet_contact";
+            boolean packetChain = packetMode.equals("packet_chain");
+            boolean movingPacket = packetMode.equals("packet_move")
+                || packetChain;
+            String layout = action.has("layout")
+                ? action.get("layout").getAsString() : "cactus";
+            int ticks = action.has("ticks")
+                ? action.get("ticks").getAsInt() : 12;
+            long entitySeed = action.has("entity_seed48")
+                ? action.get("entity_seed48").getAsLong()
+                : 0x123456789abcl;
+            long mathSeed = action.has("math_seed48")
+                ? action.get("math_seed48").getAsLong()
+                : 0x23456789abcdl;
+            int eid = action.has("eid")
+                ? action.get("eid").getAsInt() : 674100;
+            int fireResistanceTicks = action.has("fire_resistance_ticks")
+                ? action.get("fire_resistance_ticks").getAsInt() : 0;
+            double packetDx = action.has("packet_dx")
+                ? action.get("packet_dx").getAsDouble() : 0.0D;
+            double packetDy = action.has("packet_dy")
+                ? action.get("packet_dy").getAsDouble() : 0.0D;
+            double packetDz = action.has("packet_dz")
+                ? action.get("packet_dz").getAsDouble() : 0.0D;
+            float packetYaw = action.has("packet_yaw")
+                ? action.get("packet_yaw").getAsFloat() : 0.0F;
+            float packetPitch = action.has("packet_pitch")
+                ? action.get("packet_pitch").getAsFloat() : 0.0F;
+            if ((!layout.equals("dry") && !layout.equals("wall")
+                    && !layout.equals("ceiling")
+                    && !layout.equals("move_cactus")
+                    && !layout.equals("move_fire")
+                    && !layout.equals("move_lava")
+                    && !layout.equals("wall_beyond_fire")
+                    && !layout.equals("wall_beyond_cactus")
+                    && !layout.equals("dry_to_water")
+                    && !layout.equals("water_to_fire")
+                    && !layout.equals("chain_same_epoch")
+                    && !layout.equals("chain_vertical_epoch")
+                    && !layout.equals("chain_mixed_rejections")
+                    && !layout.equals("chain_epoch_reseed")
+                    && !layout.equals("chain_later_water")
+                    && !layout.equals("chain_preticked_water")
+                    && !layout.equals("cactus")
+                    && !layout.equals("fire")
+                    && !layout.equals("cactus_fire")
+                    && !layout.equals("water")
+                    && !layout.equals("lava"))
+                    || ticks < 1 || ticks > 20
+                    || (movingPacket && !packetChain && ticks != 1)
+                    || (packetChain
+                        && ticks != (layout.equals(
+                            "chain_mixed_rejections") ? 4 : 2))
+                    || !com.google.common.primitives.Doubles.isFinite(packetDx)
+                    || !com.google.common.primitives.Doubles.isFinite(packetDy)
+                    || !com.google.common.primitives.Doubles.isFinite(packetDz)
+                    || !com.google.common.primitives.Floats.isFinite(packetYaw)
+                    || !com.google.common.primitives.Floats.isFinite(packetPitch)
+                    || entitySeed < 0L
+                    || entitySeed >= (1L << 48) || mathSeed < 0L
+                    || mathSeed >= (1L << 48) || eid <= 0
+                    || fireResistanceTicks < 0
+                    || fireResistanceTicks > 32767)
+                return err("invalid pig packet-contact fixture");
+
+            MinecraftServer server =
+                Minecraft.getMinecraft().getIntegratedServer();
+            if (server == null
+                    || server.getPlayerList().getPlayers().isEmpty())
+                return err("no server player");
+            player = server.getPlayerList().getPlayers().get(0);
+            if (player.connection == null)
+                return err("server player has no connection");
+            w = player.getServerWorld();
+            loaded = new java.util.ArrayList<net.minecraft.entity.Entity>(
+                w.loadedEntityList);
+            unloaded = new java.util.ArrayList<net.minecraft.entity.Entity>(
+                oracleWorldList(w, "unloadedEntityList"));
+            weather = new java.util.ArrayList<net.minecraft.entity.Entity>(
+                w.weatherEffects);
+            oldMobSpawning = w.getGameRules().getString("doMobSpawning");
+            int baseX = net.minecraft.util.math.MathHelper.floor(
+                player.posX / 16.0D) * 16 + 8;
+            int baseZ = net.minecraft.util.math.MathHelper.floor(
+                player.posZ / 16.0D) * 16 + 8;
+            int baseY = 220;
+            if (!w.isBlockLoaded(new net.minecraft.util.math.BlockPos(
+                    baseX, baseY, baseZ)))
+                return err("pig packet-contact chunk is not loaded");
+
+            oldMain = player.getHeldItem(
+                net.minecraft.util.EnumHand.MAIN_HAND).copy();
+            oldOff = player.getHeldItem(
+                net.minecraft.util.EnumHand.OFF_HAND).copy();
+            oldCurrent = player.inventory.currentItem;
+            oldSneaking = player.isSneaking();
+            oldRide = player.getRidingEntity();
+            oldX = player.posX; oldY = player.posY; oldZ = player.posZ;
+            oldMx = player.motionX; oldMy = player.motionY;
+            oldMz = player.motionZ;
+            oldYaw = player.rotationYaw;
+            oldPitch = player.rotationPitch;
+            oldOnGround = player.onGround;
+            oldFall = player.fallDistance;
+            oldNextId = nextEntityId();
+            oldMathSeed = mathRandomSeed48();
+
+            String[] networkNames = new String[] {
+                "lowestRiddenEnt", "lowestRiddenX", "lowestRiddenY",
+                "lowestRiddenZ", "lowestRiddenX1", "lowestRiddenY1",
+                "lowestRiddenZ1"
+            };
+            networkFields = new java.lang.reflect.Field[networkNames.length];
+            oldNetworkValues = new Object[networkNames.length];
+            Class<?> networkClass =
+                net.minecraft.network.NetHandlerPlayServer.class;
+            for (int i = 0; i < networkNames.length; ++i) {
+                networkFields[i] = networkClass.getDeclaredField(
+                    networkNames[i]);
+                networkFields[i].setAccessible(true);
+                oldNetworkValues[i] = networkFields[i].get(
+                    player.connection);
+            }
+            final java.lang.reflect.Field entityFirstUpdateField =
+                net.minecraft.entity.Entity.class.getDeclaredField(
+                    "firstUpdate");
+            entityFirstUpdateField.setAccessible(true);
+
+            int arenaMaxX = layout.equals("chain_epoch_reseed")
+                ? baseX + 12 : baseX + 3;
+            for (int x = baseX - 3; x <= arenaMaxX; ++x)
+                for (int z = baseZ - 3; z <= baseZ + 3; ++z)
+                    for (int y = baseY - 1; y <= baseY + 2; ++y) {
+                        net.minecraft.util.math.BlockPos pos =
+                            new net.minecraft.util.math.BlockPos(x, y, z);
+                        positions.add(pos);
+                        states.add(w.getBlockState(pos));
+                        w.setBlockState(pos, y == baseY - 1
+                            ? net.minecraft.init.Blocks.STONE.getDefaultState()
+                            : net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                    }
+            if (layout.equals("cactus") || layout.equals("cactus_fire"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX, baseY, baseZ),
+                    net.minecraft.init.Blocks.CACTUS.getDefaultState(), 2);
+            if (layout.equals("water"))
+                for (int dx = -1; dx <= 1; ++dx)
+                    for (int dz = -1; dz <= 1; ++dz)
+                        w.setBlockState(new net.minecraft.util.math.BlockPos(
+                            baseX + dx, baseY, baseZ + dz),
+                            net.minecraft.init.Blocks.WATER.getDefaultState(),
+                            2);
+            if (layout.equals("lava"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX, baseY, baseZ),
+                    net.minecraft.init.Blocks.LAVA.getDefaultState(), 2);
+            if (layout.equals("wall")
+                    || layout.equals("wall_beyond_fire")
+                    || layout.equals("wall_beyond_cactus"))
+                for (int wallY = baseY; wallY <= baseY + 1; ++wallY)
+                    w.setBlockState(new net.minecraft.util.math.BlockPos(
+                        baseX + 1, wallY, baseZ),
+                        net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+            if (layout.equals("chain_mixed_rejections"))
+                for (int wallY = baseY; wallY <= baseY + 1; ++wallY)
+                    w.setBlockState(new net.minecraft.util.math.BlockPos(
+                        baseX + 2, wallY, baseZ),
+                        net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+            if (layout.equals("ceiling"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX, baseY + 1, baseZ),
+                    net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+            if (layout.equals("move_cactus"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX + 1, baseY, baseZ),
+                    net.minecraft.init.Blocks.CACTUS.getDefaultState(), 2);
+            if (layout.equals("move_fire"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX + 1, baseY, baseZ),
+                    net.minecraft.init.Blocks.FIRE.getDefaultState(), 2);
+            if (layout.equals("move_lava"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX + 1, baseY, baseZ),
+                    net.minecraft.init.Blocks.LAVA.getDefaultState(), 2);
+            if (layout.equals("wall_beyond_fire"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX + 2, baseY, baseZ),
+                    net.minecraft.init.Blocks.FIRE.getDefaultState(), 2);
+            if (layout.equals("wall_beyond_cactus"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX + 2, baseY, baseZ),
+                    net.minecraft.init.Blocks.CACTUS.getDefaultState(), 2);
+            if (layout.equals("dry_to_water")
+                    || layout.equals("chain_later_water")
+                    || layout.equals("chain_preticked_water"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX + 1, baseY, baseZ),
+                    net.minecraft.init.Blocks.WATER.getDefaultState(), 2);
+            if (layout.equals("water_to_fire")) {
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX, baseY, baseZ),
+                    net.minecraft.init.Blocks.WATER.getDefaultState(), 2);
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX + 1, baseY, baseZ),
+                    net.minecraft.init.Blocks.FIRE.getDefaultState(), 2);
+            }
+            if (layout.equals("fire"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX, baseY, baseZ),
+                    net.minecraft.init.Blocks.FIRE.getDefaultState(), 2);
+            else if (layout.equals("cactus_fire"))
+                w.setBlockState(new net.minecraft.util.math.BlockPos(
+                    baseX + 1, baseY, baseZ),
+                    net.minecraft.init.Blocks.FIRE.getDefaultState(), 2);
+
+            setNextEntityId(eid);
+            pig = new net.minecraft.entity.passive.EntityPig(w);
+            double pigY = (layout.equals("cactus")
+                    ? baseY + 0.9375D : baseY);
+            double pigX = layout.equals("cactus_fire")
+                ? baseX + 1.0D : baseX + 0.5D;
+            pig.setLocationAndAngles(
+                pigX, pigY, baseZ + 0.5D, 0.0F, 0.0F);
+            pig.setNoAI(true);
+            pig.setSaddled(true);
+            pig.setAIMoveSpeed(0.0F);
+            pig.motionX = pig.motionY = pig.motionZ = 0.0D;
+            pig.onGround = true;
+            pig.fallDistance = 2.5F;
+            pig.livingSoundTime = -80;
+            pig.hurtTime = 0;
+            pig.hurtResistantTime = 0;
+            setJavaRandomSeed48(entityRandom(pig), entitySeed);
+            setJavaRandomGaussianState(entityRandom(pig), false, 0.0D);
+            if (FIRE_F == null) {
+                FIRE_F = net.minecraft.entity.Entity.class
+                    .getDeclaredField("fire");
+                FIRE_F.setAccessible(true);
+            }
+            FIRE_F.setInt(pig, -1);
+            if (fireResistanceTicks > 0)
+                pig.addPotionEffect(new net.minecraft.potion.PotionEffect(
+                    net.minecraft.init.MobEffects.FIRE_RESISTANCE,
+                    fireResistanceTicks, 0, false, false));
+            player.setPositionAndRotation(
+                pig.posX, pig.posY + 0.325D, pig.posZ, 0.0F, 0.0F);
+            player.motionX = player.motionY = player.motionZ = 0.0D;
+            player.onGround = true;
+            player.fallDistance = 0.0F;
+            player.setSneaking(false);
+            player.inventory.currentItem = 0;
+            player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND,
+                oracleItemStack(398, 1, 0));
+            player.setHeldItem(net.minecraft.util.EnumHand.OFF_HAND,
+                net.minecraft.item.ItemStack.EMPTY);
+            if (layout.equals("chain_preticked_water")) {
+                pig.ticksExisted = 1;
+                entityFirstUpdateField.setBoolean(pig, false);
+            }
+            if (!player.startRiding(pig, true))
+                return err("failed to mount pig packet-contact fixture");
+            if (layout.equals("water") || layout.equals("water_to_fire")) {
+                if (!pig.handleWaterMovement())
+                    return err("pig packet-contact water setup stayed dry");
+                if (layout.equals("water")) FIRE_F.setInt(pig, 100);
+            }
+            java.util.ArrayList<net.minecraft.entity.Entity> isolated =
+                new java.util.ArrayList<net.minecraft.entity.Entity>();
+            isolated.add(player);
+            oracleReplaceList(w.loadedEntityList, isolated);
+            oracleReplaceList(oracleWorldList(w, "unloadedEntityList"),
+                new java.util.ArrayList<net.minecraft.entity.Entity>());
+            oracleReplaceList(w.weatherEffects,
+                new java.util.ArrayList<net.minecraft.entity.Entity>());
+            w.getGameRules().setOrCreateGameRule("doMobSpawning", "false");
+            setNextEntityId(eid + 1);
+            setMathRandomSeed48(mathSeed);
+            final long[] packetMathSeed = new long[] { mathSeed };
+
+            final double[] packetTargetXs = new double[ticks];
+            final double[] packetTargetYs = new double[ticks];
+            final double[] packetTargetZs = new double[ticks];
+            for (int packetIndex = 0; packetIndex < ticks; ++packetIndex) {
+                packetTargetXs[packetIndex] = pig.posX + packetDx;
+                packetTargetYs[packetIndex] = pig.posY + packetDy;
+                packetTargetZs[packetIndex] = pig.posZ + packetDz;
+            }
+            if (packetChain) {
+                if (layout.equals("chain_same_epoch")) {
+                    packetTargetXs[0] = pig.posX + 0.25D;
+                    packetTargetXs[1] = pig.posX + 0.5D;
+                } else if (layout.equals("chain_vertical_epoch")) {
+                    packetTargetYs[0] = pig.posY + 0.25D;
+                    packetTargetYs[1] = pig.posY + 0.5D;
+                } else if (layout.equals("chain_mixed_rejections")) {
+                    packetTargetXs[0] = pig.posX + 0.25D;
+                    packetTargetXs[1] = pig.posX + 2.0D;
+                    packetTargetXs[2] = pig.posX + 10.1D;
+                    packetTargetXs[3] = pig.posX + 0.5D;
+                } else if (layout.equals("chain_epoch_reseed")) {
+                    packetTargetXs[0] = pig.posX + 0.25D;
+                    packetTargetXs[1] = pig.posX + 10.1D;
+                } else if (layout.equals("chain_later_water")) {
+                    packetTargetZs[0] = pig.posZ + 0.125D;
+                    packetTargetXs[1] = pig.posX + 0.75D;
+                    packetTargetZs[1] = pig.posZ + 0.125D;
+                } else {
+                    packetTargetXs[0] = pig.posX + 0.75D;
+                    packetTargetXs[1] = pig.posX + 0.875D;
+                }
+            }
+
+            JsonObject out = new JsonObject();
+            out.addProperty("ok", true);
+            out.addProperty("mode", packetChain ? "packet_chain"
+                : movingPacket ? "packet_move" : "packet_contact");
+            out.addProperty("layout", layout);
+            out.add("start_position_bits", oracleEntityDoubleBits(
+                pig.posX, pig.posY, pig.posZ));
+            if (packetChain) {
+                JsonArray targets = new JsonArray();
+                for (int packetIndex = 0; packetIndex < ticks;
+                        ++packetIndex)
+                    targets.add(oracleEntityDoubleBits(
+                        packetTargetXs[packetIndex],
+                        packetTargetYs[packetIndex],
+                        packetTargetZs[packetIndex]));
+                out.add("target_positions_bits", targets);
+                out.addProperty("target_yaw_bits",
+                    oracleFloatBits(packetYaw));
+                out.addProperty("target_pitch_bits",
+                    oracleFloatBits(packetPitch));
+            } else if (movingPacket) {
+                out.add("target_position_bits", oracleEntityDoubleBits(
+                    packetTargetXs[0], packetTargetYs[0],
+                    packetTargetZs[0]));
+                out.addProperty("target_yaw_bits",
+                    oracleFloatBits(packetYaw));
+                out.addProperty("target_pitch_bits",
+                    oracleFloatBits(packetPitch));
+            }
+            JsonArray trace = new JsonArray();
+            boolean sameEpoch = packetChain
+                && (layout.equals("chain_same_epoch")
+                    || layout.equals("chain_vertical_epoch")
+                    || layout.equals("chain_mixed_rejections"));
+            int serverSteps = sameEpoch ? 1 : ticks;
+            for (int step = 0; step < serverSteps; ++step) {
+                final net.minecraft.entity.player.EntityPlayerMP packetPlayer =
+                    player;
+                final net.minecraft.entity.passive.EntityPig packetPig = pig;
+                final MinecraftServer packetServer = server;
+                final java.lang.reflect.Field[] packetFields = networkFields;
+                final int firstPacket = sameEpoch ? 0 : step;
+                final int packetsThisStep = sameEpoch ? ticks : 1;
+                final JsonObject[] packetStates =
+                    new JsonObject[packetsThisStep];
+                final JsonObject[] packetRows =
+                    new JsonObject[packetsThisStep];
+                final String[] packetResults =
+                    new String[packetsThisStep];
+                final boolean packetMoves = movingPacket;
+                final float targetYaw = packetYaw;
+                final float targetPitch = packetPitch;
+                final boolean seedNetworkFields = !packetChain || step == 0;
+                com.google.common.util.concurrent.ListenableFuture<Object>
+                    packetFuture = server.addScheduledTask(new Runnable() {
+                        public void run() {
+                            try {
+                                if (seedNetworkFields) {
+                                    packetFields[0].set(
+                                        packetPlayer.connection, packetPig);
+                                    for (int i = 1; i < packetFields.length;
+                                            ++i) {
+                                        double value;
+                                        if (i == 1 || i == 4)
+                                            value = packetPig.posX;
+                                        else if (i == 2 || i == 5)
+                                            value = packetPig.posY;
+                                        else value = packetPig.posZ;
+                                        packetFields[i].setDouble(
+                                            packetPlayer.connection, value);
+                                    }
+                                }
+                                setMathRandomSeed48(packetMathSeed[0]);
+                                for (int local = 0;
+                                        local < packetsThisStep; ++local) {
+                                    int packetIndex = firstPacket + local;
+                                    double targetX =
+                                        packetTargetXs[packetIndex];
+                                    double targetY =
+                                        packetTargetYs[packetIndex];
+                                    double targetZ =
+                                        packetTargetZs[packetIndex];
+                                    long seedBefore = javaRandomSeed48(
+                                        entityRandom(packetPig));
+                                    boolean firstUpdateBefore =
+                                        entityFirstUpdateField.getBoolean(
+                                            packetPig);
+                                    double speedDx = targetX
+                                        - packetFields[1].getDouble(
+                                            packetPlayer.connection);
+                                    double speedDy = targetY
+                                        - packetFields[2].getDouble(
+                                            packetPlayer.connection);
+                                    double speedDz = targetZ
+                                        - packetFields[3].getDouble(
+                                            packetPlayer.connection);
+                                    double motionSq = packetPig.motionX
+                                            * packetPig.motionX
+                                        + packetPig.motionY
+                                            * packetPig.motionY
+                                        + packetPig.motionZ
+                                            * packetPig.motionZ;
+                                    boolean speedRejected = packetMoves
+                                        && speedDx * speedDx
+                                            + speedDy * speedDy
+                                            + speedDz * speedDz
+                                            - motionSq > 100.0D
+                                        && (!packetServer.isSinglePlayer()
+                                            || !packetServer.getServerOwner()
+                                                .equals(packetPig.getName()));
+                                    net.minecraft.network.play.client
+                                        .CPacketVehicleMove packet = packetMoves
+                                        ? oracleVehicleMovePacket(
+                                            targetX, targetY, targetZ,
+                                            targetYaw, targetPitch)
+                                        : new net.minecraft.network.play.client
+                                            .CPacketVehicleMove(packetPig);
+                                    packetPlayer.connection.processVehicleMove(
+                                        packet);
+                                    packetStates[local] = packetMoves
+                                        ? oraclePigVehicleMoveState(
+                                            packetPig, packetFields,
+                                            packetPlayer,
+                                            targetX, targetY, targetZ,
+                                            targetYaw, targetPitch,
+                                            packetIndex)
+                                        : oraclePigLavaContactState(
+                                            packetPig, packetIndex);
+                                    if (packetMoves)
+                                        packetResults[local] = speedRejected
+                                            ? "corrected_speed"
+                                            : packetStates[local]
+                                                .get("result").getAsString();
+                                    if (packetMoves && speedRejected)
+                                        packetStates[local].addProperty(
+                                            "result", packetResults[local]);
+                                    if (packetChain) {
+                                        JsonObject row = new JsonObject();
+                                        row.addProperty(
+                                            "seed_before_packet48",
+                                            seedBefore);
+                                        row.addProperty(
+                                            "first_update_before",
+                                            firstUpdateBefore);
+                                        row.addProperty(
+                                            "first_update_after",
+                                            entityFirstUpdateField.getBoolean(
+                                                packetPig));
+                                        row.add("packet_state",
+                                            packetStates[local]);
+                                        packetRows[local] = row;
+                                    }
+                                }
+                                packetPig.onUpdate();
+                                packetPig.updatePassenger(packetPlayer);
+                                packetMathSeed[0] = mathRandomSeed48();
+                            } catch (Throwable t) {
+                                throw new RuntimeException(t);
+                            }
+                        }
+                    });
+                long target;
+                synchronized (oracleServerMonitor) {
+                    if (!oracleServerGate || !oracleServerWaiting
+                            || oracleServerTickInFlight
+                            || oracleServerPermits != 0)
+                        return err("pig packet-contact lost parked server");
+                    target = oracleServerCompleted + 1;
+                    oracleServerPermits = 1;
+                    oracleServerMonitor.notifyAll();
+                }
+                packetFuture.get(30L, TimeUnit.SECONDS);
+                if (oracleWaitForStep(target, 30000L) == null)
+                    return err("pig packet-contact server step timed out");
+                for (int local = 0; local < packetsThisStep; ++local) {
+                    if (packetStates[local] == null)
+                        return err(
+                            "pig packet-contact missed packet snapshot");
+                    int packetIndex = firstPacket + local;
+                    if (packetChain) {
+                        trace.add(packetRows[local]);
+                    } else {
+                        JsonObject postState = movingPacket
+                            ? oraclePigVehicleMoveState(
+                                pig, networkFields, player,
+                                packetTargetXs[packetIndex],
+                                packetTargetYs[packetIndex],
+                                packetTargetZs[packetIndex],
+                                packetYaw, packetPitch, packetIndex)
+                            : oraclePigLavaContactState(pig, packetIndex);
+                        if (movingPacket && packetResults[local] != null)
+                            postState.addProperty(
+                                "result", packetResults[local]);
+                        postState.addProperty(
+                            "math_seed48", packetMathSeed[0]);
+                        JsonObject row = new JsonObject();
+                        row.add("packet_state", packetStates[local]);
+                        row.add("post_state", postState);
+                        trace.add(row);
+                    }
+                }
+            }
+            out.add("trace", trace);
+            return out.toString();
+        } catch (Throwable t) {
+            return err("pig packet-contact fixture: " + t);
+        } finally {
+            if (player != null && oldMain != null && oldOff != null) try {
+                if (player.isRiding()) player.dismountRidingEntity();
+                if (oldRide != null) player.startRiding(oldRide, true);
+                player.setPositionAndRotation(
+                    oldX, oldY, oldZ, oldYaw, oldPitch);
+                player.motionX = oldMx;
+                player.motionY = oldMy;
+                player.motionZ = oldMz;
+                player.onGround = oldOnGround;
+                player.fallDistance = oldFall;
+                player.inventory.currentItem = oldCurrent;
+                player.setSneaking(oldSneaking);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND, oldMain);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND, oldOff);
+            } catch (Throwable ignored) { }
+            if (w != null && pig != null) try {
+                w.removeEntityDangerously(pig);
+            } catch (Throwable ignored) { }
+            if (w != null && loaded != null && unloaded != null
+                    && weather != null) try {
+                oracleReplaceList(w.loadedEntityList, loaded);
+                oracleReplaceList(oracleWorldList(w, "unloadedEntityList"),
+                    unloaded);
+                oracleReplaceList(w.weatherEffects, weather);
+                if (oldMobSpawning != null)
+                    w.getGameRules().setOrCreateGameRule(
+                        "doMobSpawning", oldMobSpawning);
+            } catch (Throwable ignored) { }
+            if (w != null) try {
+                for (int i = 0; i < positions.size(); ++i)
+                    w.setBlockState(positions.get(i), states.get(i), 2);
+            } catch (Throwable ignored) { }
+            if (player != null && networkFields != null
+                    && oldNetworkValues != null) try {
+                for (int i = 0; i < networkFields.length; ++i)
+                    networkFields[i].set(
+                        player.connection, oldNetworkValues[i]);
+            } catch (Throwable ignored) { }
+            try {
+                if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed);
+                if (oldNextId >= 0) setNextEntityId(oldNextId);
+            } catch (Throwable ignored) { }
+        }
+    }
+
+    private String oraclePigBoostLocked(JsonObject action) {
+        net.minecraft.entity.player.EntityPlayerMP player = null;
+        net.minecraft.entity.passive.EntityPig pig = null;
+        net.minecraft.item.ItemStack oldMain = null, oldOff = null;
+        net.minecraft.entity.Entity oldRide = null;
+        int oldCurrent = -1, oldNextId = -1;
+        boolean oldCreative = false, oldSneaking = false;
+        try {
+            String handName = action.has("hand")
+                ? action.get("hand").getAsString() : "main";
+            net.minecraft.util.EnumHand hand = handName.equals("main")
+                ? net.minecraft.util.EnumHand.MAIN_HAND
+                : handName.equals("offhand")
+                    ? net.minecraft.util.EnumHand.OFF_HAND : null;
+            int item = action.has("item")
+                ? action.get("item").getAsInt() : 398;
+            int meta = action.has("meta")
+                ? action.get("meta").getAsInt() : 0;
+            int otherItem = action.has("other_item")
+                ? action.get("other_item").getAsInt() : 0;
+            int otherMeta = action.has("other_meta")
+                ? action.get("other_meta").getAsInt() : 0;
+            long entitySeed = action.has("entity_seed48")
+                ? action.get("entity_seed48").getAsLong() : 0L;
+            boolean creative = action.has("creative")
+                && action.get("creative").getAsBoolean();
+            boolean boosting = action.has("boosting")
+                && action.get("boosting").getAsBoolean();
+            int boostTime = action.has("boost_time")
+                ? action.get("boost_time").getAsInt() : 0;
+            int boostTotal = action.has("boost_total")
+                ? action.get("boost_total").getAsInt() : 0;
+            int eid = action.has("eid")
+                ? action.get("eid").getAsInt() : 673000;
+            if (hand == null || item < 0 || item > 32767
+                    || otherItem < 0 || otherItem > 32767
+                    || meta < 0 || meta > 32767 || otherMeta < 0
+                    || otherMeta > 32767 || entitySeed < 0L
+                    || entitySeed >= (1L << 48) || boostTime < 0
+                    || boostTotal < 0 || eid <= 0)
+                return err("invalid pig boost fixture");
+            MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+            if (server == null || server.getPlayerList().getPlayers().isEmpty())
+                return err("no server player");
+            player = server.getPlayerList().getPlayers().get(0);
+            oldMain = player.getHeldItem(
+                net.minecraft.util.EnumHand.MAIN_HAND).copy();
+            oldOff = player.getHeldItem(
+                net.minecraft.util.EnumHand.OFF_HAND).copy();
+            oldCurrent = player.inventory.currentItem;
+            oldCreative = player.capabilities.isCreativeMode;
+            oldSneaking = player.isSneaking();
+            oldRide = player.getRidingEntity();
+            oldNextId = nextEntityId();
+            setNextEntityId(eid);
+            pig = new net.minecraft.entity.passive.EntityPig(player.world);
+            pig.setLocationAndAngles(
+                player.posX, player.posY, player.posZ, 0.0F, 0.0F);
+            pig.setNoAI(true);
+            pig.setSaddled(true);
+            setJavaRandomSeed48(entityRandom(pig), entitySeed);
+            setJavaRandomGaussianState(entityRandom(pig), false, 0.0D);
+            oracleSetPigBoost(pig, boosting, boostTime, boostTotal);
+            player.capabilities.isCreativeMode = creative;
+            player.setSneaking(false);
+            player.inventory.currentItem = 0;
+            net.minecraft.item.ItemStack selected =
+                oracleItemStack(item, item == 0 ? 0 : 1, meta);
+            net.minecraft.item.ItemStack other =
+                oracleItemStack(otherItem, otherItem == 0 ? 0 : 1, otherMeta);
+            player.setHeldItem(hand, selected);
+            player.setHeldItem(hand == net.minecraft.util.EnumHand.MAIN_HAND
+                ? net.minecraft.util.EnumHand.OFF_HAND
+                : net.minecraft.util.EnumHand.MAIN_HAND, other);
+            if (!player.startRiding(pig, true))
+                return err("failed to mount pig boost fixture");
+            net.minecraft.util.ActionResult<net.minecraft.item.ItemStack> result =
+                player.getHeldItem(hand).useItemRightClick(
+                    player.world, player, hand);
+            player.setHeldItem(hand, result.getResult());
+            net.minecraft.item.ItemStack after = player.getHeldItem(hand);
+            JsonObject out = new JsonObject();
+            out.addProperty("ok", true);
+            out.addProperty("mode", "boost");
+            out.addProperty("result", result.getType().name().toLowerCase());
+            out.addProperty("item", after.isEmpty() ? 0
+                : net.minecraft.item.Item.getIdFromItem(after.getItem()));
+            out.addProperty("count", after.isEmpty() ? 0 : after.getCount());
+            out.addProperty("meta", after.isEmpty() ? 0 : after.getMetadata());
+            oracleAddPigBoost(out, pig);
+            out.addProperty("entity_seed48",
+                javaRandomSeed48(entityRandom(pig)));
+            return out.toString();
+        } catch (Throwable t) {
+            return err("pig_ride_locked boost: " + t);
+        } finally {
+            if (player != null && oldMain != null && oldOff != null) try {
+                if (player.isRiding()) player.dismountRidingEntity();
+                if (oldRide != null) player.startRiding(oldRide, true);
+                player.inventory.currentItem = oldCurrent;
+                player.capabilities.isCreativeMode = oldCreative;
+                player.setSneaking(oldSneaking);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND, oldMain);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND, oldOff);
+            } catch (Throwable ignored) { }
+            try { if (oldNextId > 0) setNextEntityId(oldNextId); }
+            catch (Throwable ignored) { }
+        }
+    }
+
+    private String oraclePigTickLocked(JsonObject action) {
+        net.minecraft.client.Minecraft mc = Minecraft.getMinecraft();
+        net.minecraft.client.entity.EntityPlayerSP player = null;
+        net.minecraft.entity.passive.EntityPig pig = null;
+        net.minecraft.item.ItemStack oldMain = null, oldOff = null;
+        net.minecraft.entity.Entity oldRide = null;
+        java.util.ArrayList<net.minecraft.util.math.BlockPos> positions =
+            new java.util.ArrayList<net.minecraft.util.math.BlockPos>();
+        java.util.ArrayList<net.minecraft.block.state.IBlockState> states =
+            new java.util.ArrayList<net.minecraft.block.state.IBlockState>();
+        int oldCurrent = -1, oldNextId = -1;
+        boolean oldSneaking = false, oldOnGround = false;
+        double oldX = 0.0D, oldY = 0.0D, oldZ = 0.0D;
+        double oldMx = 0.0D, oldMy = 0.0D, oldMz = 0.0D;
+        float oldYaw = 0.0F, oldPitch = 0.0F;
+        try {
+            String mode = action.has("mode")
+                ? action.get("mode").getAsString() : "tick";
+            boolean traceMode = mode.equals("trace");
+            String layout = action.has("layout")
+                ? action.get("layout").getAsString() : "flat";
+            int traceTicks = action.has("ticks")
+                ? action.get("ticks").getAsInt() : 48;
+            int mainItem = action.has("main_item")
+                ? action.get("main_item").getAsInt() : 398;
+            int offItem = action.has("off_item")
+                ? action.get("off_item").getAsInt() : 0;
+            int mainMeta = action.has("main_meta")
+                ? action.get("main_meta").getAsInt() : 0;
+            int offMeta = action.has("off_meta")
+                ? action.get("off_meta").getAsInt() : 0;
+            float riderYaw = action.has("rider_yaw")
+                ? action.get("rider_yaw").getAsFloat() : 0.0F;
+            float riderPitch = action.has("rider_pitch")
+                ? action.get("rider_pitch").getAsFloat() : 0.0F;
+            double motionX = action.has("motion_x")
+                ? action.get("motion_x").getAsDouble() : 0.0D;
+            double motionY = action.has("motion_y")
+                ? action.get("motion_y").getAsDouble() : 0.0D;
+            double motionZ = action.has("motion_z")
+                ? action.get("motion_z").getAsDouble() : 0.0D;
+            float aiSpeed = action.has("ai_speed")
+                ? action.get("ai_speed").getAsFloat() : 0.0F;
+            float limbAmount = action.has("limb_amount")
+                ? action.get("limb_amount").getAsFloat() : 0.0F;
+            float limbSwing = action.has("limb_swing")
+                ? action.get("limb_swing").getAsFloat() : 0.0F;
+            boolean boosting = action.has("boosting")
+                && action.get("boosting").getAsBoolean();
+            int boostTime = action.has("boost_time")
+                ? action.get("boost_time").getAsInt() : 0;
+            int boostTotal = action.has("boost_total")
+                ? action.get("boost_total").getAsInt() : 0;
+            long entitySeed = action.has("entity_seed48")
+                ? action.get("entity_seed48").getAsLong() : 0L;
+            int eid = action.has("eid")
+                ? action.get("eid").getAsInt() : 673000;
+            if (mc == null || mc.world == null || mc.player == null)
+                return err("no client player");
+            if (mainItem < 0 || mainItem > 32767 || offItem < 0
+                    || offItem > 32767 || mainMeta < 0 || mainMeta > 32767
+                    || offMeta < 0 || offMeta > 32767
+                    || !Float.isFinite(riderYaw) || !Float.isFinite(riderPitch)
+                    || !Double.isFinite(motionX) || !Double.isFinite(motionY)
+                    || !Double.isFinite(motionZ) || !Float.isFinite(aiSpeed)
+                    || !Float.isFinite(limbAmount)
+                    || !Float.isFinite(limbSwing) || boostTime < 0
+                    || boostTotal < 0 || boosting && boostTotal <= 0
+                    || Math.abs(motionX) > 1.0D
+                    || Math.abs(motionZ) > 1.0D || entitySeed < 0L
+                    || entitySeed >= (1L << 48) || eid <= 0
+                    || traceMode && (traceTicks < 1 || traceTicks > 64
+                        || !layout.equals("one_block_step")
+                            && !layout.equals("two_block_wall")
+                            && !layout.equals("two_cell_gap")
+                            && !layout.equals("bottom_slab")
+                            && !layout.equals("stone_floor")
+                            && !layout.equals("soul_sand_floor")
+                            && !layout.equals("web_corridor")
+                            && !layout.equals("ladder_clear")
+                            && !layout.equals("ladder_north_wall")
+                            && !layout.equals("stone_bounce")
+                            && !layout.equals("slime_bounce")
+                            && !layout.equals("stone_low_landing")
+                            && !layout.equals("slime_low_landing")
+                            && !layout.equals("still_water")
+                            && !layout.equals("water_entry")
+                            && !layout.equals("water_entry_flow")
+                            && !layout.equals("water_fall_entry")
+                            && !layout.equals("water_edge_climb")
+                            && !layout.equals("water_edge_blocked")
+                            && !layout.equals("still_lava")
+                            && !layout.equals("lava_entry")
+                            && !layout.equals("lava_edge_climb")
+                            && !layout.equals("lava_edge_blocked")
+                            && !layout.equals("water_lava_overlap")))
+                return err("invalid pig tick fixture");
+            player = mc.player;
+            oldMain = player.getHeldItem(
+                net.minecraft.util.EnumHand.MAIN_HAND).copy();
+            oldOff = player.getHeldItem(
+                net.minecraft.util.EnumHand.OFF_HAND).copy();
+            oldCurrent = player.inventory.currentItem;
+            oldSneaking = player.isSneaking();
+            oldRide = player.getRidingEntity();
+            oldX = player.posX; oldY = player.posY; oldZ = player.posZ;
+            oldMx = player.motionX; oldMy = player.motionY; oldMz = player.motionZ;
+            oldYaw = player.rotationYaw; oldPitch = player.rotationPitch;
+            oldOnGround = player.onGround;
+            oldNextId = nextEntityId();
+            int playerChunkX = net.minecraft.util.math.MathHelper.floor(
+                player.posX) >> 4;
+            int playerChunkZ = net.minecraft.util.math.MathHelper.floor(
+                player.posZ) >> 4;
+            int fixtureChunkX = playerChunkX;
+            int fixtureChunkZ = playerChunkZ;
+            boolean foundFixtureChunk = false;
+            findFixtureChunk:
+            for (int radius = 0; radius <= 8; ++radius)
+                for (int dx = -radius; dx <= radius; ++dx)
+                    for (int dz = -radius; dz <= radius; ++dz) {
+                        if (Math.abs(dx) != radius
+                                && Math.abs(dz) != radius)
+                            continue;
+                        int cx = playerChunkX + dx;
+                        int cz = playerChunkZ + dz;
+                        if (mc.world.isBlockLoaded(
+                                new net.minecraft.util.math.BlockPos(
+                                    (cx << 4) + 8, 220, (cz << 4) + 8),
+                                false)) {
+                            fixtureChunkX = cx;
+                            fixtureChunkZ = cz;
+                            foundFixtureChunk = true;
+                            break findFixtureChunk;
+                        }
+                    }
+            if (!foundFixtureChunk)
+                return err("pig tick fixture has no loaded client chunk");
+            double x = action.has("x")
+                ? action.get("x").getAsDouble()
+                : (double)(fixtureChunkX << 4) + 8.5D;
+            boolean bounceLayout = layout.equals("stone_bounce")
+                || layout.equals("slime_bounce");
+            boolean lowLandingLayout = layout.equals("stone_low_landing")
+                || layout.equals("slime_low_landing");
+            boolean waterFallLayout = layout.equals("water_fall_entry");
+            boolean waterEdgeLayout = layout.equals("water_edge_climb")
+                || layout.equals("water_edge_blocked");
+            boolean lavaEdgeLayout = layout.equals("lava_edge_climb")
+                || layout.equals("lava_edge_blocked");
+            double y = waterFallLayout ? 221.0D
+                : lowLandingLayout ? 220.01D
+                : bounceLayout ? 220.5D : 220.0D;
+            double z = action.has("z")
+                ? action.get("z").getAsDouble()
+                : (double)(fixtureChunkZ << 4)
+                    + (layout.startsWith("ladder_") ? 8.35D
+                        : layout.equals("water_lava_overlap") ? 8.95D
+                        : 8.5D);
+            if (!Double.isFinite(x) || !Double.isFinite(z))
+                return err("invalid pig tick fixture coordinates");
+            int baseX = net.minecraft.util.math.MathHelper.floor(x);
+            int baseZ = net.minecraft.util.math.MathHelper.floor(z);
+            int minX = baseX - 3;
+            int maxX = baseX + 3;
+            int minZ = baseZ - 3;
+            int maxZ = baseZ + (traceMode ? 9 : 3);
+            if (!mc.world.isBlockLoaded(
+                    new net.minecraft.util.math.BlockPos(minX, y, minZ), false)
+                    || !mc.world.isBlockLoaded(
+                        new net.minecraft.util.math.BlockPos(minX, y, maxZ), false)
+                    || !mc.world.isBlockLoaded(
+                        new net.minecraft.util.math.BlockPos(maxX, y, minZ), false)
+                    || !mc.world.isBlockLoaded(
+                        new net.minecraft.util.math.BlockPos(maxX, y, maxZ), false))
+                return err("pig tick fixture chunk is not loaded");
+            for (int bx = minX; bx <= maxX; ++bx)
+                for (int bz = minZ; bz <= maxZ; ++bz)
+                    for (int by = 219; by <= 222; ++by) {
+                        net.minecraft.util.math.BlockPos pos =
+                            new net.minecraft.util.math.BlockPos(bx, by, bz);
+                        positions.add(pos);
+                        states.add(mc.world.getBlockState(pos));
+                        mc.world.setBlockState(pos, by == 219
+                            ? traceMode && (layout.equals("slime_bounce")
+                                    || layout.equals("slime_low_landing"))
+                                ? net.minecraft.init.Blocks.SLIME_BLOCK.getDefaultState()
+                            : traceMode && layout.equals("soul_sand_floor")
+                                ? net.minecraft.init.Blocks.SOUL_SAND.getDefaultState()
+                                : net.minecraft.init.Blocks.STONE.getDefaultState()
+                            : traceMode && layout.equals("web_corridor")
+                                    && by == 220
+                                ? net.minecraft.init.Blocks.WEB.getDefaultState()
+                            : traceMode && layout.equals("still_water")
+                                    && by == 220
+                                ? net.minecraft.init.Blocks.WATER.getDefaultState()
+                            : traceMode && layout.equals("still_lava")
+                                    && by == 220
+                                ? net.minecraft.init.Blocks.LAVA.getDefaultState()
+                            : net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                    }
+            if (traceMode) {
+                int obstacleZ = baseZ + 2;
+                if (layout.equals("water_entry")
+                        || layout.equals("water_entry_flow"))
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, baseZ + 1),
+                        net.minecraft.init.Blocks.WATER.getDefaultState(), 2);
+                if (layout.equals("water_entry_flow"))
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX + 1, 220, baseZ + 1),
+                        net.minecraft.init.Blocks.FLOWING_WATER
+                            .getDefaultState().withProperty(
+                                net.minecraft.block.BlockLiquid.LEVEL,
+                                Integer.valueOf(1)), 2);
+                if (waterFallLayout) {
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 219, baseZ),
+                        net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, baseZ),
+                        net.minecraft.init.Blocks.WATER.getDefaultState(), 2);
+                }
+                if (layout.equals("water_edge_climb")
+                        || layout.equals("water_edge_blocked")) {
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, baseZ),
+                        net.minecraft.init.Blocks.WATER.getDefaultState(), 2);
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, baseZ + 1),
+                        net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                }
+                if (layout.equals("water_edge_blocked"))
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 221, baseZ),
+                        net.minecraft.init.Blocks.WATER.getDefaultState(), 2);
+                if (layout.equals("lava_entry"))
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, baseZ + 1),
+                        net.minecraft.init.Blocks.LAVA.getDefaultState(), 2);
+                if (layout.equals("lava_edge_climb")
+                        || layout.equals("lava_edge_blocked")) {
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, baseZ),
+                        net.minecraft.init.Blocks.LAVA.getDefaultState(), 2);
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, baseZ + 1),
+                        net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                }
+                if (layout.equals("lava_edge_blocked"))
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 221, baseZ),
+                        net.minecraft.init.Blocks.LAVA.getDefaultState(), 2);
+                if (layout.equals("water_lava_overlap")) {
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, baseZ),
+                        net.minecraft.init.Blocks.WATER.getDefaultState(), 2);
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, baseZ + 1),
+                        net.minecraft.init.Blocks.LAVA.getDefaultState(), 2);
+                }
+                if (layout.equals("one_block_step")
+                        || layout.equals("two_block_wall"))
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, obstacleZ),
+                        net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                if (layout.equals("two_block_wall"))
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 221, obstacleZ),
+                        net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                if (layout.equals("two_cell_gap"))
+                    for (int dz = 0; dz < 2; ++dz)
+                        mc.world.setBlockState(
+                            new net.minecraft.util.math.BlockPos(
+                                baseX, 219, obstacleZ + dz),
+                            net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                if (layout.equals("bottom_slab"))
+                    mc.world.setBlockState(
+                        new net.minecraft.util.math.BlockPos(
+                            baseX, 220, obstacleZ),
+                        net.minecraft.init.Blocks.STONE_SLAB.getStateFromMeta(0), 2);
+                if (layout.equals("ladder_north_wall")) {
+                    for (int by = 220; by <= 221; ++by) {
+                        mc.world.setBlockState(
+                            new net.minecraft.util.math.BlockPos(
+                                baseX, by, baseZ + 1),
+                            net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                        mc.world.setBlockState(
+                            new net.minecraft.util.math.BlockPos(baseX, by, baseZ),
+                            net.minecraft.init.Blocks.LADDER.getStateFromMeta(2), 2);
+                    }
+                }
+            }
+            setNextEntityId(eid);
+            pig = new net.minecraft.entity.passive.EntityPig(mc.world);
+            pig.setLocationAndAngles(x, y, z, 0.0F, 0.0F);
+            pig.renderYawOffset = pig.prevRenderYawOffset = 0.0F;
+            pig.rotationYawHead = pig.prevRotationYawHead = 0.0F;
+            pig.prevRotationPitch = 0.0F;
+            pig.motionX = motionX; pig.motionY = motionY; pig.motionZ = motionZ;
+            pig.onGround = !bounceLayout && !lowLandingLayout
+                && !waterFallLayout && !waterEdgeLayout && !lavaEdgeLayout;
+            pig.setNoAI(true);
+            pig.setSaddled(true);
+            pig.setAIMoveSpeed(aiSpeed);
+            pig.limbSwingAmount = limbAmount;
+            pig.prevLimbSwingAmount = limbAmount;
+            pig.limbSwing = limbSwing;
+            if (traceMode) pig.livingSoundTime = -80;
+            setJavaRandomSeed48(entityRandom(pig), entitySeed);
+            setJavaRandomGaussianState(entityRandom(pig), false, 0.0D);
+            oracleSetPigBoost(pig, boosting, boostTime, boostTotal);
+            player.setPositionAndRotation(x, y + 0.325D, z,
+                riderYaw, riderPitch);
+            player.motionX = player.motionY = player.motionZ = 0.0D;
+            player.onGround = true;
+            player.setSneaking(false);
+            player.inventory.currentItem = 0;
+            player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND,
+                oracleItemStack(mainItem, mainItem == 0 ? 0 : 1, mainMeta));
+            player.setHeldItem(net.minecraft.util.EnumHand.OFF_HAND,
+                oracleItemStack(offItem, offItem == 0 ? 0 : 1, offMeta));
+            if (!player.startRiding(pig, true))
+                return err("failed to mount pig tick fixture");
+            JsonObject out = new JsonObject();
+            out.addProperty("ok", true);
+            out.addProperty("mode", mode);
+            out.add("start_position_bits", oracleEntityDoubleBits(x, y, z));
+            if (traceMode) {
+                out.addProperty("layout", layout);
+                JsonArray trace = new JsonArray();
+                for (int tick = 0; tick < traceTicks; ++tick) {
+                    pig.onUpdate();
+                    pig.updatePassenger(player);
+                    JsonObject row = new JsonObject();
+                    oracleAddPigTravelTraceState(row, tick, pig, player);
+                    trace.add(row);
+                }
+                out.add("trace", trace);
+            } else {
+                pig.onUpdate();
+                pig.updatePassenger(player);
+                oracleAddPigTickState(out, pig, player);
+            }
+            return out.toString();
+        } catch (Throwable t) {
+            return err("pig_ride_locked tick: " + t);
+        } finally {
+            if (player != null && oldMain != null && oldOff != null) try {
+                if (player.isRiding()) player.dismountRidingEntity();
+                if (oldRide != null) player.startRiding(oldRide, true);
+                player.inventory.currentItem = oldCurrent;
+                player.setSneaking(oldSneaking);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND, oldMain);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND, oldOff);
+                player.setPositionAndRotation(
+                    oldX, oldY, oldZ, oldYaw, oldPitch);
+                player.motionX = oldMx; player.motionY = oldMy;
+                player.motionZ = oldMz; player.onGround = oldOnGround;
+            } catch (Throwable ignored) { }
+            if (mc != null && mc.world != null) try {
+                for (int i = 0; i < positions.size(); ++i)
+                    mc.world.setBlockState(positions.get(i), states.get(i), 2);
+            } catch (Throwable ignored) { }
+            try { if (oldNextId > 0) setNextEntityId(oldNextId); }
+            catch (Throwable ignored) { }
+        }
+    }
+
+    private static net.minecraft.util.EnumActionResult oracleInteractAnimal(
+            net.minecraft.entity.player.EntityPlayerMP player,
+            net.minecraft.entity.passive.EntityAnimal animal,
+            net.minecraft.util.EnumHand hand) {
+        oracleBeginEntitySound(player);
+        try {
+            return player.interactOn(animal, hand);
+        } finally {
+            oracleEndEntitySound(player);
+        }
+    }
+
+    private static void addFeedStack(JsonObject out, String prefix,
+            net.minecraft.item.ItemStack stack) {
+        out.addProperty(prefix + "_item", stack.isEmpty() ? 0
+            : net.minecraft.item.Item.getIdFromItem(stack.getItem()));
+        out.addProperty(prefix + "_count", stack.isEmpty() ? 0 : stack.getCount());
+    }
+
+    /** Exact adult-cow milk inventory/drop boundary at a fixed player pose. */
+    private String oracleMilkCowLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("milk_cow_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            net.minecraft.item.ItemStack[] oldMain = null;
+            net.minecraft.item.ItemStack oldOffhand = null;
+            java.util.HashSet<net.minecraft.entity.Entity> prior = null;
+            int oldCurrentItem = -1, oldNextEntityId = -1;
+            boolean oldCreative = false, stateCaptured = false;
+            long oldMathSeed = -1L, oldPlayerSeed = -1L;
+            double oldX = 0.0D, oldY = 0.0D, oldZ = 0.0D;
+            double oldPrevX = 0.0D, oldPrevY = 0.0D, oldPrevZ = 0.0D;
+            double oldMotionX = 0.0D, oldMotionY = 0.0D, oldMotionZ = 0.0D;
+            double fixtureX = 0.0D, fixtureZ = 0.0D;
+            float oldYaw = 0.0F, oldPitch = 0.0F;
+            float oldPrevYaw = 0.0F, oldPrevPitch = 0.0F;
+            boolean oldOnGround = false;
+            try {
+                String mode = action.has("mode")
+                    ? action.get("mode").getAsString() : "insert";
+                long mathSeed = action.has("math_seed48")
+                    ? action.get("math_seed48").getAsLong()
+                    : 0x456789abcdefL;
+                long playerSeed = action.has("player_seed48")
+                    ? action.get("player_seed48").getAsLong()
+                    : 0x23456789abcdL;
+                int nextId = action.has("next_entity_id")
+                    ? action.get("next_entity_id").getAsInt() : 673000;
+                float yaw = action.has("yaw")
+                    ? action.get("yaw").getAsFloat() : 0.0F;
+                float pitch = action.has("pitch")
+                    ? action.get("pitch").getAsFloat() : 0.0F;
+                if ((!mode.equals("insert") && !mode.equals("drop")
+                            && !mode.equals("replace_full"))
+                        || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || playerSeed < 0L || playerSeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483643
+                        || !Float.isFinite(yaw) || !Float.isFinite(pitch)
+                        || pitch < -90.0F || pitch > 90.0F)
+                    return err("invalid cow-milk fixture");
+
+                MinecraftServer server =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                player = players.get(0);
+                w = player.getServerWorld();
+                oldMain = new net.minecraft.item.ItemStack[36];
+                for (int i = 0; i < 36; ++i)
+                    oldMain[i] = player.inventory.mainInventory.get(i).copy();
+                oldOffhand = player.getHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND).copy();
+                oldCurrentItem = player.inventory.currentItem;
+                oldCreative = player.capabilities.isCreativeMode;
+                oldX = player.posX; oldY = player.posY; oldZ = player.posZ;
+                oldPrevX = player.prevPosX;
+                oldPrevY = player.prevPosY;
+                oldPrevZ = player.prevPosZ;
+                oldMotionX = player.motionX;
+                oldMotionY = player.motionY;
+                oldMotionZ = player.motionZ;
+                oldYaw = player.rotationYaw;
+                oldPitch = player.rotationPitch;
+                oldPrevYaw = player.prevRotationYaw;
+                oldPrevPitch = player.prevRotationPitch;
+                oldOnGround = player.onGround;
+                oldMathSeed = mathRandomSeed48();
+                oldPlayerSeed = javaRandomSeed48(entityRandom(player));
+                oldNextEntityId = nextEntityId();
+                stateCaptured = true;
+                fixtureX = Math.floor(oldX / 16.0D) * 16.0D + 0.5D;
+                fixtureZ = Math.floor(oldZ / 16.0D) * 16.0D + 0.5D;
+
+                player.inventory.currentItem = 0;
+                player.capabilities.isCreativeMode = false;
+                for (int i = 0; i < 36; ++i)
+                    player.inventory.mainInventory.set(
+                        i, net.minecraft.item.ItemStack.EMPTY);
+                if (!mode.equals("insert"))
+                    for (int i = 1; i < 36; ++i)
+                        player.inventory.mainInventory.set(
+                            i, animalFeedStack(1, 64));
+                player.setHeldItem(net.minecraft.util.EnumHand.MAIN_HAND,
+                    animalFeedStack(325,
+                        mode.equals("replace_full") ? 1 : 2));
+                player.setHeldItem(net.minecraft.util.EnumHand.OFF_HAND,
+                    net.minecraft.item.ItemStack.EMPTY);
+                player.setPositionAndRotation(
+                    fixtureX, 220.0D, fixtureZ, yaw, pitch);
+                player.motionX = player.motionY = player.motionZ = 0.0D;
+                player.onGround = false;
+
+                setNextEntityId(nextId);
+                net.minecraft.entity.passive.EntityCow cow =
+                    new net.minecraft.entity.passive.EntityCow(w);
+                cow.setPosition(fixtureX + 2.0D, 220.0D, fixtureZ);
+                cow.setNoAI(true);
+                cow.setGrowingAge(0);
+                setMathRandomSeed48(mathSeed);
+                setJavaRandomSeed48(entityRandom(player), playerSeed);
+                prior = new java.util.HashSet<net.minecraft.entity.Entity>(
+                    w.loadedEntityList);
+                oracleMobEventWorld = w;
+                oracleMobEventTargets.clear();
+                oracleMobEventTargets.put(cow, Integer.valueOf(nextId));
+                oracleMobEventTargets.put(player, Integer.valueOf(0));
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                net.minecraft.util.EnumActionResult result =
+                    oracleInteractAnimal(
+                        player, cow, net.minecraft.util.EnumHand.MAIN_HAND);
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("mode", mode);
+                out.addProperty("result", result.name().toLowerCase());
+                out.addProperty("cow_eid", cow.getEntityId());
+                out.addProperty("player_x", fixtureX);
+                out.addProperty("player_y", 220.0D);
+                out.addProperty("player_z", fixtureZ);
+                JsonArray inventory = new JsonArray();
+                for (int i = 0; i < 36; ++i) {
+                    net.minecraft.item.ItemStack stack =
+                        player.inventory.mainInventory.get(i);
+                    JsonArray row = new JsonArray();
+                    row.add(new JsonPrimitive(stack.isEmpty() ? 0
+                        : net.minecraft.item.Item.getIdFromItem(stack.getItem())));
+                    row.add(new JsonPrimitive(stack.isEmpty() ? 0 : stack.getCount()));
+                    row.add(new JsonPrimitive(stack.isEmpty() ? 0
+                        : stack.getMetadata()));
+                    inventory.add(row);
+                }
+                out.add("inventory", inventory);
+                addFeedStack(out, "off", player.getHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND));
+                JsonArray events = new JsonArray();
+                for (OracleMobEventCapture event : oracleMobEventCapture)
+                    events.add(event.toJson());
+                out.add("events", events);
+                JsonArray drops = new JsonArray();
+                for (net.minecraft.entity.Entity entity : w.loadedEntityList)
+                    if (!prior.contains(entity) && entity instanceof
+                            net.minecraft.entity.item.EntityItem)
+                        drops.add(oracleFallingDropItemJson(
+                            (net.minecraft.entity.item.EntityItem)entity));
+                out.add("drops", drops);
+                out.addProperty("math_seed48", mathRandomSeed48());
+                out.addProperty("player_seed48",
+                    javaRandomSeed48(entityRandom(player)));
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("milk_cow_locked: " + t);
+            } finally {
+                oracleMobEventWorld = null;
+                oracleMobEventTargets.clear();
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                if (w != null && prior != null)
+                    for (net.minecraft.entity.Entity entity :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList))
+                        if (!prior.contains(entity))
+                            w.removeEntityDangerously(entity);
+                if (player != null && stateCaptured) try {
+                    for (int i = 0; i < 36; ++i)
+                        player.inventory.mainInventory.set(i, oldMain[i]);
+                    player.inventory.currentItem = oldCurrentItem;
+                    player.setHeldItem(
+                        net.minecraft.util.EnumHand.OFF_HAND, oldOffhand);
+                    player.capabilities.isCreativeMode = oldCreative;
+                    player.setPositionAndRotation(
+                        oldX, oldY, oldZ, oldYaw, oldPitch);
+                    player.motionX = oldMotionX;
+                    player.motionY = oldMotionY;
+                    player.motionZ = oldMotionZ;
+                    player.onGround = oldOnGround;
+                    player.prevPosX = oldPrevX;
+                    player.prevPosY = oldPrevY;
+                    player.prevPosZ = oldPrevZ;
+                    player.prevRotationYaw = oldPrevYaw;
+                    player.prevRotationPitch = oldPrevPitch;
+                    if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed);
+                    if (oldPlayerSeed >= 0L)
+                        setJavaRandomSeed48(entityRandom(player), oldPlayerSeed);
+                    if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Direct vanilla EntityAIMate lifecycle. Parents are added to the parked
+     * WorldServer so target selection, spawn ordering, hearts, and XP use the
+     * real implementation while cleanup restores the oracle world afterward.
+     */
+    private String oracleMateAnimalLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("mate_animal_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.passive.EntityAnimal first = null, second = null;
+            OracleWorldEventCapture particles = null;
+            java.util.HashSet<net.minecraft.entity.Entity> prior = null;
+            long oldWorldSeed = -1L, oldMathSeed = -1L;
+            int oldNextEntityId = -1;
+            String oldDoMobLoot = null;
+            try {
+                String species = action.has("species")
+                    ? action.get("species").getAsString() : "sheep";
+                int firstColor = action.has("first_color")
+                    ? action.get("first_color").getAsInt() : 0;
+                int secondColor = action.has("second_color")
+                    ? action.get("second_color").getAsInt() : 15;
+                int firstAge = action.has("first_age")
+                    ? action.get("first_age").getAsInt() : 0;
+                int secondAge = action.has("second_age")
+                    ? action.get("second_age").getAsInt() : 0;
+                int firstLove = action.has("first_love")
+                    ? action.get("first_love").getAsInt() : 600;
+                int secondLove = action.has("second_love")
+                    ? action.get("second_love").getAsInt() : 600;
+                int updates = action.has("updates")
+                    ? action.get("updates").getAsInt() : 60;
+                double distance = action.has("distance")
+                    ? action.get("distance").getAsDouble() : 2.0D;
+                boolean explicitPosition = action.has("x")
+                    || action.has("y") || action.has("z");
+                if (explicitPosition && !(action.has("x")
+                        && action.has("y") && action.has("z")))
+                    return err("animal-mate position needs x/y/z");
+                double fixtureX = explicitPosition
+                    ? action.get("x").getAsDouble() : 0.0D;
+                double fixtureY = explicitPosition
+                    ? action.get("y").getAsDouble() : 0.0D;
+                double fixtureZ = explicitPosition
+                    ? action.get("z").getAsDouble() : 0.0D;
+                long worldSeed = action.has("world_seed48")
+                    ? action.get("world_seed48").getAsLong() : 0L;
+                long firstSeed = action.has("first_entity_seed48")
+                    ? action.get("first_entity_seed48").getAsLong() : 0L;
+                long secondSeed = action.has("second_entity_seed48")
+                    ? action.get("second_entity_seed48").getAsLong() : 0L;
+                long childSeed = action.has("child_entity_seed48")
+                    ? action.get("child_entity_seed48").getAsLong() : 0L;
+                boolean childHaveNextGaussian = action.has(
+                        "child_entity_have_next_gaussian")
+                    && action.get("child_entity_have_next_gaussian")
+                        .getAsBoolean();
+                double childNextGaussian = action.has(
+                        "child_entity_next_gaussian")
+                    ? action.get("child_entity_next_gaussian").getAsDouble()
+                    : 0.0D;
+                long mathSeed = action.has("math_seed48")
+                    ? action.get("math_seed48").getAsLong() : 0L;
+                int nextId = action.has("next_entity_id")
+                    ? action.get("next_entity_id").getAsInt() : 1000;
+                boolean doMobLoot = !action.has("do_mob_loot")
+                    || action.get("do_mob_loot").getAsBoolean();
+                if (firstColor < 0 || firstColor > 15 || secondColor < 0
+                        || secondColor > 15 || updates < 0 || updates > 60
+                        || distance < 0.0D || distance > 8.0D
+                        || worldSeed < 0L || worldSeed >= (1L << 48)
+                        || firstSeed < 0L || firstSeed >= (1L << 48)
+                        || secondSeed < 0L || secondSeed >= (1L << 48)
+                        || childSeed < 0L || childSeed >= (1L << 48)
+                        || !Double.isFinite(childNextGaussian)
+                        || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || (explicitPosition
+                            && (Double.isNaN(fixtureX)
+                                || Double.isInfinite(fixtureX)
+                                || Double.isNaN(fixtureY)
+                                || Double.isInfinite(fixtureY)
+                                || Double.isNaN(fixtureZ)
+                                || Double.isInfinite(fixtureZ)
+                                || fixtureY < 1.0D || fixtureY > 254.0D))
+                        || nextId <= 0 || nextId >= 2147483643)
+                    return err("invalid animal-mate fixture");
+                MinecraftServer server = Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                w = players.get(0).getServerWorld();
+                double x = explicitPosition
+                    ? fixtureX : players.get(0).posX + 16.0D;
+                double y = explicitPosition ? fixtureY : players.get(0).posY;
+                double z = explicitPosition ? fixtureZ : players.get(0).posZ;
+                if (!w.isBlockLoaded(
+                        new net.minecraft.util.math.BlockPos(x, y, z), false)
+                        || !w.isBlockLoaded(new net.minecraft.util.math.BlockPos(
+                            x + distance, y, z), false))
+                    return err("animal-mate fixture chunk is not loaded");
+                prior = new java.util.HashSet<net.minecraft.entity.Entity>(
+                    w.loadedEntityList);
+                oldWorldSeed = javaRandomSeed48(w.rand);
+                oldMathSeed = mathRandomSeed48();
+                oldNextEntityId = nextEntityId();
+                oldDoMobLoot = w.getGameRules().getString("doMobLoot");
+                setJavaRandomSeed48(w.rand, worldSeed);
+                setNextEntityId(nextId);
+                if (species.equals("sheep")) {
+                    first = new net.minecraft.entity.passive.EntitySheep(w);
+                    second = new net.minecraft.entity.passive.EntitySheep(w);
+                } else if (species.equals("cow")) {
+                    first = new net.minecraft.entity.passive.EntityCow(w);
+                    second = new net.minecraft.entity.passive.EntityCow(w);
+                } else if (species.equals("pig")) {
+                    first = new net.minecraft.entity.passive.EntityPig(w);
+                    second = new net.minecraft.entity.passive.EntityPig(w);
+                } else if (species.equals("chicken")) {
+                    first = new net.minecraft.entity.passive.EntityChicken(w);
+                    second = new net.minecraft.entity.passive.EntityChicken(w);
+                } else {
+                    return err("invalid animal-mate species");
+                }
+                // Parent construction is fixture setup. The supplied cursor
+                // begins at the real mating lifecycle, before createChild.
+                setMathRandomSeed48(mathSeed);
+                first.setLocationAndAngles(x, y, z, 0.0F, 0.0F);
+                second.setLocationAndAngles(x + distance, y, z, 0.0F, 0.0F);
+                if (first instanceof net.minecraft.entity.passive.EntitySheep) {
+                    ((net.minecraft.entity.passive.EntitySheep)first)
+                        .setFleeceColor(net.minecraft.item.EnumDyeColor
+                            .byMetadata(firstColor));
+                    ((net.minecraft.entity.passive.EntitySheep)second)
+                        .setFleeceColor(net.minecraft.item.EnumDyeColor
+                            .byMetadata(secondColor));
+                }
+                first.setGrowingAge(firstAge);
+                second.setGrowingAge(secondAge);
+                setAnimalInt(first, "inLove", firstLove);
+                setAnimalInt(second, "inLove", secondLove);
+                setJavaRandomSeed48(entityRandom(first), firstSeed);
+                setJavaRandomSeed48(entityRandom(second), secondSeed);
+                w.getGameRules().setOrCreateGameRule("doMobLoot",
+                    doMobLoot ? "true" : "false");
+                if (!oracleAddUntrackedEntity(w, first)
+                        || !oracleAddUntrackedEntity(w, second))
+                    return err("failed to add animal-mate parents");
+                particles = new OracleWorldEventCapture(
+                    net.minecraft.util.math.MathHelper.floor(x) - 2,
+                    net.minecraft.util.math.MathHelper.floor(y) - 2,
+                    net.minecraft.util.math.MathHelper.floor(z) - 2,
+                    net.minecraft.util.math.MathHelper.floor(x + distance) + 2,
+                    net.minecraft.util.math.MathHelper.floor(y) + 3,
+                    net.minecraft.util.math.MathHelper.floor(z) + 2);
+                particles.captureParticles = true;
+                w.addEventListener(particles);
+                oracleMateUntrackedWorld = w;
+                oracleMateDirectChildPinInitiator = first;
+                oracleMateDirectChildSeed48 = childSeed;
+                oracleMateDirectChildHaveNextGaussian = childHaveNextGaussian;
+                oracleMateDirectChildNextGaussian = childNextGaussian;
+                oracleMateDirectChildPinCount = 0;
+                net.minecraft.entity.ai.EntityAIMate mate =
+                    new net.minecraft.entity.ai.EntityAIMate(first, 1.0D);
+                boolean shouldExecute = mate.shouldExecute();
+                if (shouldExecute) {
+                    java.lang.reflect.Field targetMate =
+                        net.minecraft.entity.ai.EntityAIMate.class
+                            .getDeclaredField("targetMate");
+                    targetMate.setAccessible(true);
+                    if (targetMate.get(mate) != second)
+                        return err("animal-mate selected a non-fixture target");
+                    mate.startExecuting();
+                    for (int tick = 0; tick < updates; ++tick)
+                        mate.updateTask();
+                }
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("species", species);
+                out.addProperty("should_execute", shouldExecute);
+                out.addProperty("updates", updates);
+                out.addProperty("first_eid", first.getEntityId());
+                out.addProperty("second_eid", second.getEntityId());
+                out.addProperty("first_growing_age", first.getGrowingAge());
+                out.addProperty("second_growing_age", second.getGrowingAge());
+                out.addProperty("first_in_love", animalInt(first, "inLove"));
+                out.addProperty("second_in_love", animalInt(second, "inLove"));
+                out.addProperty("first_entity_seed48", javaRandomSeed48(entityRandom(first)));
+                out.addProperty("second_entity_seed48", javaRandomSeed48(entityRandom(second)));
+                out.addProperty("first_entity_have_next_gaussian",
+                    javaRandomHaveNextGaussian(entityRandom(first)));
+                out.addProperty("first_entity_next_gaussian_bits",
+                    OracleWorldEventCapture.ParticleRecord.bits(
+                        javaRandomNextGaussian(entityRandom(first))));
+                JsonArray children = new JsonArray();
+                JsonArray xpOrbs = new JsonArray();
+                for (net.minecraft.entity.Entity entity :
+                        new java.util.ArrayList<net.minecraft.entity.Entity>(
+                            w.loadedEntityList)) {
+                    if (prior.contains(entity) || entity == first || entity == second)
+                        continue;
+                    if (entity.getClass() == first.getClass()
+                            && entity instanceof net.minecraft.entity.passive.EntityAnimal) {
+                        net.minecraft.entity.passive.EntityAnimal child =
+                            (net.minecraft.entity.passive.EntityAnimal)entity;
+                        JsonObject row = new JsonObject();
+                        row.addProperty("eid", child.getEntityId());
+                        row.addProperty("species", species);
+                        row.addProperty("growing_age", child.getGrowingAge());
+                        row.addProperty("fleece",
+                            child instanceof net.minecraft.entity.passive.EntitySheep
+                                ? ((net.minecraft.entity.passive.EntitySheep)child)
+                                    .getFleeceColor().getMetadata() : -1);
+                        row.addProperty("x", child.posX);
+                        row.addProperty("y", child.posY);
+                        row.addProperty("z", child.posZ);
+                        row.addProperty("yaw_bits", oracleFloatBits(child.rotationYaw));
+                        java.util.Random childRandom = entityRandom(child);
+                        row.addProperty("entity_seed48",
+                            javaRandomSeed48(childRandom));
+                        row.addProperty("entity_have_next_gaussian",
+                            javaRandomHaveNextGaussian(childRandom));
+                        row.addProperty("entity_next_gaussian_bits",
+                            OracleWorldEventCapture.ParticleRecord.bits(
+                                javaRandomNextGaussian(childRandom)));
+                        row.addProperty("time_until_next_egg",
+                            child instanceof
+                                net.minecraft.entity.passive.EntityChicken
+                                ? ((net.minecraft.entity.passive.EntityChicken)child)
+                                    .timeUntilNextEgg : -1);
+                        children.add(row);
+                    } else if (entity instanceof net.minecraft.entity.item.EntityXPOrb) {
+                        net.minecraft.entity.item.EntityXPOrb orb =
+                            (net.minecraft.entity.item.EntityXPOrb)entity;
+                        JsonObject row = new JsonObject();
+                        row.addProperty("eid", orb.getEntityId());
+                        row.addProperty("value", orb.xpValue);
+                        row.addProperty("yaw_bits", oracleFloatBits(orb.rotationYaw));
+                        JsonArray payload = new JsonArray();
+                        payload.add(new JsonPrimitive(OracleWorldEventCapture.ParticleRecord.bits(orb.posX)));
+                        payload.add(new JsonPrimitive(OracleWorldEventCapture.ParticleRecord.bits(orb.posY)));
+                        payload.add(new JsonPrimitive(OracleWorldEventCapture.ParticleRecord.bits(orb.posZ)));
+                        payload.add(new JsonPrimitive(OracleWorldEventCapture.ParticleRecord.bits(orb.motionX)));
+                        payload.add(new JsonPrimitive(OracleWorldEventCapture.ParticleRecord.bits(orb.motionY)));
+                        payload.add(new JsonPrimitive(OracleWorldEventCapture.ParticleRecord.bits(orb.motionZ)));
+                        row.add("payload_bits", payload);
+                        xpOrbs.add(row);
+                    }
+                }
+                if (oracleMateDirectChildPinCount != children.size())
+                    return err("animal-mate child pin count mismatch");
+                out.add("children", children);
+                out.add("xp_orbs", xpOrbs);
+                out.add("particles", particles.particlesToJson());
+                out.addProperty("world_seed48", javaRandomSeed48(w.rand));
+                out.addProperty("math_seed48", mathRandomSeed48());
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("mate_animal_locked: " + t);
+            } finally {
+                oracleMateDirectChildPinInitiator = null;
+                oracleMateDirectChildSeed48 = -1L;
+                oracleMateDirectChildHaveNextGaussian = false;
+                oracleMateDirectChildNextGaussian = 0.0D;
+                oracleMateDirectChildPinCount = 0;
+                oracleMateUntrackedWorld = null;
+                if (w != null && particles != null) try {
+                    w.removeEventListener(particles);
+                } catch (Throwable ignored) { }
+                if (w != null && prior != null) try {
+                    for (net.minecraft.entity.Entity entity :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList))
+                        if (!prior.contains(entity)) w.removeEntityDangerously(entity);
+                } catch (Throwable ignored) { }
+                try {
+                    if (w != null && oldDoMobLoot != null)
+                        w.getGameRules().setOrCreateGameRule("doMobLoot", oldDoMobLoot);
+                    if (w != null && oldWorldSeed >= 0L)
+                        setJavaRandomSeed48(w.rand, oldWorldSeed);
+                    if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed);
+                    if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    private static JsonArray oracleEntityDoubleBits(
+            double first, double second, double third) {
+        JsonArray out = new JsonArray();
+        out.add(new JsonPrimitive(
+            OracleWorldEventCapture.ParticleRecord.bits(first)));
+        out.add(new JsonPrimitive(
+            OracleWorldEventCapture.ParticleRecord.bits(second)));
+        out.add(new JsonPrimitive(
+            OracleWorldEventCapture.ParticleRecord.bits(third)));
+        return out;
+    }
+
+    private static int oracleAiTaskTickCount(
+            net.minecraft.entity.ai.EntityAITasks tasks) throws Exception {
+        java.lang.reflect.Field field = net.minecraft.entity.ai.EntityAITasks.class
+            .getDeclaredField("tickCount");
+        field.setAccessible(true);
+        return field.getInt(tasks);
+    }
+
+    private static JsonObject oracleMateTickSheepJson(
+            net.minecraft.entity.passive.EntitySheep sheep) throws Exception {
+        JsonObject row = new JsonObject();
+        row.addProperty("eid", sheep.getEntityId());
+        row.addProperty("growing_age", sheep.getGrowingAge());
+        row.addProperty("in_love", animalInt(sheep, "inLove"));
+        row.addProperty("fleece", sheep.getFleeceColor().getMetadata());
+        row.addProperty("sheared", sheep.getSheared());
+        row.addProperty("ticks_existed", sheep.ticksExisted);
+        row.addProperty("entity_age", sheep.getAge());
+        row.addProperty("living_sound_time", sheep.livingSoundTime);
+        row.addProperty("task_tick_count", oracleAiTaskTickCount(sheep.tasks));
+        row.addProperty("on_ground", sheep.onGround);
+        row.addProperty("fall_distance_bits", oracleFloatBits(sheep.fallDistance));
+        row.addProperty("yaw_bits", oracleFloatBits(sheep.rotationYaw));
+        row.addProperty("pitch_bits", oracleFloatBits(sheep.rotationPitch));
+        row.add("position_bits", oracleEntityDoubleBits(
+            sheep.posX, sheep.posY, sheep.posZ));
+        row.add("motion_bits", oracleEntityDoubleBits(
+            sheep.motionX, sheep.motionY, sheep.motionZ));
+        row.add("last_tick_position_bits", oracleEntityDoubleBits(
+            sheep.lastTickPosX, sheep.lastTickPosY, sheep.lastTickPosZ));
+        row.add("previous_position_bits", oracleEntityDoubleBits(
+            sheep.prevPosX, sheep.prevPosY, sheep.prevPosZ));
+        java.util.Random random = entityRandom(sheep);
+        row.addProperty("entity_seed48", javaRandomSeed48(random));
+        row.addProperty("entity_have_next_gaussian",
+            javaRandomHaveNextGaussian(random));
+        row.addProperty("entity_next_gaussian_bits",
+            OracleWorldEventCapture.ParticleRecord.bits(
+                javaRandomNextGaussian(random)));
+        return row;
+    }
+
+    private static net.minecraft.entity.passive.EntityAnimal
+            oracleMateTickAnimal(
+                net.minecraft.world.World world, String species) {
+        if (species.equals("sheep"))
+            return new net.minecraft.entity.passive.EntitySheep(world);
+        if (species.equals("cow"))
+            return new net.minecraft.entity.passive.EntityCow(world);
+        if (species.equals("pig"))
+            return new net.minecraft.entity.passive.EntityPig(world);
+        if (species.equals("chicken"))
+            return new net.minecraft.entity.passive.EntityChicken(world);
+        return null;
+    }
+
+    private static JsonObject oracleMateTickAnimalJson(
+            net.minecraft.entity.passive.EntityAnimal animal,
+            String species) throws Exception {
+        JsonObject row = new JsonObject();
+        row.addProperty("eid", animal.getEntityId());
+        row.addProperty("species", species);
+        row.addProperty("growing_age", animal.getGrowingAge());
+        row.addProperty("in_love", animalInt(animal, "inLove"));
+        row.addProperty("ticks_existed", animal.ticksExisted);
+        row.addProperty("entity_age", animal.getAge());
+        row.addProperty("living_sound_time", animal.livingSoundTime);
+        row.addProperty("task_tick_count", oracleAiTaskTickCount(animal.tasks));
+        row.addProperty("on_ground", animal.onGround);
+        row.addProperty("fall_distance_bits", oracleFloatBits(animal.fallDistance));
+        row.addProperty("yaw_bits", oracleFloatBits(animal.rotationYaw));
+        row.addProperty("pitch_bits", oracleFloatBits(animal.rotationPitch));
+        row.add("position_bits", oracleEntityDoubleBits(
+            animal.posX, animal.posY, animal.posZ));
+        row.add("motion_bits", oracleEntityDoubleBits(
+            animal.motionX, animal.motionY, animal.motionZ));
+        row.add("last_tick_position_bits", oracleEntityDoubleBits(
+            animal.lastTickPosX, animal.lastTickPosY, animal.lastTickPosZ));
+        row.add("previous_position_bits", oracleEntityDoubleBits(
+            animal.prevPosX, animal.prevPosY, animal.prevPosZ));
+        java.util.Random random = entityRandom(animal);
+        row.addProperty("entity_seed48", javaRandomSeed48(random));
+        row.addProperty("entity_have_next_gaussian",
+            javaRandomHaveNextGaussian(random));
+        row.addProperty("entity_next_gaussian_bits",
+            OracleWorldEventCapture.ParticleRecord.bits(
+                javaRandomNextGaussian(random)));
+        if (animal instanceof net.minecraft.entity.passive.EntitySheep) {
+            net.minecraft.entity.passive.EntitySheep sheep =
+                (net.minecraft.entity.passive.EntitySheep)animal;
+            row.addProperty("fleece", sheep.getFleeceColor().getMetadata());
+            row.addProperty("sheared", sheep.getSheared());
+        }
+        if (animal instanceof net.minecraft.entity.passive.EntityChicken) {
+            net.minecraft.entity.passive.EntityChicken chicken =
+                (net.minecraft.entity.passive.EntityChicken)animal;
+            row.addProperty("time_until_next_egg", chicken.timeUntilNextEgg);
+            row.addProperty("wing_rotation_bits",
+                oracleFloatBits(chicken.wingRotation));
+            row.addProperty("dest_pos_bits", oracleFloatBits(chicken.destPos));
+            row.addProperty("o_flap_speed_bits",
+                oracleFloatBits(chicken.oFlapSpeed));
+            row.addProperty("o_flap_bits", oracleFloatBits(chicken.oFlap));
+            row.addProperty("wing_rot_delta_bits",
+                oracleFloatBits(chicken.wingRotDelta));
+            row.addProperty("chicken_jockey", chicken.chickenJockey);
+        }
+        return row;
+    }
+
+    /** One isolated real World.updateEntities pass.  Natural EntityAITasks
+     * starts the mating goal, the mixin restores spawnBabyDelay=59 at the
+     * update callback, and Java's live list then reaches the appended child
+     * and XP orb later in this same authoritative entity boundary. */
+    private String oracleMateAnimalTickLocked(
+            JsonObject action, boolean legacySheep) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err(
+                    (legacySheep ? "mate_sheep_tick_locked"
+                        : "mate_animal_tick_locked")
+                    + " requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.passive.EntityAnimal first = null, second = null;
+            net.minecraft.entity.passive.EntityAnimal third = null, fourth = null;
+            net.minecraft.entity.item.EntityXPOrb preexistingXp = null;
+            net.minecraft.entity.passive.EntityCow preexistingDyingCow = null;
+            OracleWorldEventCapture particles = null;
+            java.util.List<net.minecraft.entity.Entity> savedLoaded = null;
+            java.util.List<net.minecraft.entity.Entity> savedUnloaded = null;
+            java.util.List<net.minecraft.entity.Entity> savedWeather = null;
+            java.util.List<net.minecraft.entity.player.EntityPlayer> savedPlayers = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> savedLoadedTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> savedTickableTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> savedAddedTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> savedRemovedTiles = null;
+            java.util.List<net.minecraft.util.math.BlockPos> platformPositions = null;
+            java.util.List<net.minecraft.block.state.IBlockState> platformStates = null;
+            java.util.List<net.minecraft.entity.Entity> unloaded = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> addedTiles = null;
+            java.util.List<net.minecraft.tileentity.TileEntity> removedTiles = null;
+            long oldWorldSeed = -1L, oldMathSeed = -1L;
+            int oldNextEntityId = -1;
+            String oldDoMobLoot = null;
+            try {
+                String species = legacySheep ? "sheep"
+                    : action.has("species")
+                        ? action.get("species").getAsString() : "sheep";
+                int firstColor = action.has("first_color")
+                    ? action.get("first_color").getAsInt() : 0;
+                int secondColor = action.has("second_color")
+                    ? action.get("second_color").getAsInt() : 15;
+                double x = action.get("x").getAsDouble();
+                double y = action.get("y").getAsDouble();
+                double z = action.get("z").getAsDouble();
+                double distance = action.get("distance").getAsDouble();
+                double zOffset = action.has("z_offset")
+                    ? action.get("z_offset").getAsDouble() : 0.0D;
+                int pairCount = action.has("pair_count")
+                    ? action.get("pair_count").getAsInt() : 1;
+                double pairGap = action.has("pair_gap")
+                    ? action.get("pair_gap").getAsDouble() : 12.0D;
+                int thirdColor = action.has("first_color_2")
+                    ? action.get("first_color_2").getAsInt() : 14;
+                int fourthColor = action.has("second_color_2")
+                    ? action.get("second_color_2").getAsInt() : 0;
+                double secondDistance = action.has("distance_2")
+                    ? action.get("distance_2").getAsDouble() : distance;
+                double secondZOffset = action.has("z_offset_2")
+                    ? action.get("z_offset_2").getAsDouble() : 0.0D;
+                long worldSeed = action.get("world_seed48").getAsLong();
+                long firstSeed = action.get("first_entity_seed48").getAsLong();
+                long secondSeed = action.get("second_entity_seed48").getAsLong();
+                long childSeed = action.get("child_entity_seed48").getAsLong();
+                long thirdSeed = action.has("first_entity_seed48_2")
+                    ? action.get("first_entity_seed48_2").getAsLong() : 0L;
+                long fourthSeed = action.has("second_entity_seed48_2")
+                    ? action.get("second_entity_seed48_2").getAsLong() : 0L;
+                long secondChildSeed = action.has("child_entity_seed48_2")
+                    ? action.get("child_entity_seed48_2").getAsLong() : 0L;
+                long mathSeed = action.get("math_seed48").getAsLong();
+                int nextId = action.get("next_entity_id").getAsInt();
+                boolean doMobLoot = !action.has("do_mob_loot")
+                    || action.get("do_mob_loot").getAsBoolean();
+                boolean grounded = action.has("grounded")
+                    && action.get("grounded").getAsBoolean();
+                boolean hasPreexistingXp = action.has("preexisting_xp")
+                    && action.get("preexisting_xp").getAsBoolean();
+                boolean preexistingXpExpires = action.has(
+                        "preexisting_xp_expires")
+                    && action.get("preexisting_xp_expires").getAsBoolean();
+                boolean preexistingLivingExpires = action.has(
+                        "preexisting_living_expires")
+                    && action.get("preexisting_living_expires").getAsBoolean();
+                int firstEggTime = action.has("first_chicken_egg_timer")
+                    ? action.get("first_chicken_egg_timer").getAsInt() : 7000;
+                int secondEggTime = action.has("second_chicken_egg_timer")
+                    ? action.get("second_chicken_egg_timer").getAsInt() : 8000;
+                int thirdEggTime = action.has("first_chicken_egg_timer_2")
+                    ? action.get("first_chicken_egg_timer_2").getAsInt() : 9000;
+                int fourthEggTime = action.has("second_chicken_egg_timer_2")
+                    ? action.get("second_chicken_egg_timer_2").getAsInt() : 10000;
+                if ((!species.equals("sheep") && !species.equals("cow")
+                            && !species.equals("pig")
+                            && !species.equals("chicken"))
+                        || pairCount < 1 || pairCount > 2
+                        || firstColor < 0 || firstColor > 15 || secondColor < 0
+                        || secondColor > 15 || thirdColor < 0 || thirdColor > 15
+                        || fourthColor < 0 || fourthColor > 15
+                        || distance < 0.0D || secondDistance < 0.0D
+                        || distance * distance + zOffset * zOffset >= 9.0D
+                        || secondDistance * secondDistance
+                            + secondZOffset * secondZOffset >= 9.0D
+                        || (pairCount == 2
+                            && (pairGap < 9.0D || pairGap > 24.0D))
+                        || !Double.isFinite(x) || !Double.isFinite(y)
+                        || !Double.isFinite(z) || !Double.isFinite(zOffset)
+                        || !Double.isFinite(distance)
+                        || !Double.isFinite(secondDistance)
+                        || !Double.isFinite(pairGap)
+                        || !Double.isFinite(secondZOffset)
+                        || y < 32.0D || y > 250.0D
+                        || worldSeed < 0L || worldSeed >= (1L << 48)
+                        || firstSeed < 0L || firstSeed >= (1L << 48)
+                        || secondSeed < 0L || secondSeed >= (1L << 48)
+                        || childSeed < 0L || childSeed >= (1L << 48)
+                        || (pairCount == 2 && (thirdSeed < 0L
+                            || thirdSeed >= (1L << 48) || fourthSeed < 0L
+                            || fourthSeed >= (1L << 48)
+                            || secondChildSeed < 0L
+                        || secondChildSeed >= (1L << 48)))
+                        || (species.equals("chicken") && pairCount == 2
+                            && (firstEggTime <= 1 || secondEggTime <= 1
+                                || thirdEggTime <= 1 || fourthEggTime <= 1))
+                        || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483639)
+                    return err(legacySheep
+                        ? "invalid sheep-mate tick fixture"
+                        : "invalid animal-mate tick fixture");
+                MinecraftServer server =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                w = players.get(0).getServerWorld();
+                if (!w.isAreaLoaded(
+                        new net.minecraft.util.math.BlockPos(x, y, z), 32, false))
+                    return err("sheep-mate tick fixture area is not loaded");
+                if (preexistingLivingExpires && !w.isAreaLoaded(
+                        new net.minecraft.util.math.BlockPos(
+                            x - 16.0D, y, z), 32, false))
+                    return err(
+                        "sheep-mate terminal-living area is not loaded");
+
+                unloaded = oracleWorldList(w, "unloadedEntityList");
+                addedTiles = oracleWorldList(w, "addedTileEntityList");
+                removedTiles = oracleWorldList(w, "tileEntitiesToBeRemoved");
+                savedLoaded = new java.util.ArrayList<net.minecraft.entity.Entity>(
+                    w.loadedEntityList);
+                savedUnloaded = new java.util.ArrayList<net.minecraft.entity.Entity>(
+                    unloaded);
+                savedWeather = new java.util.ArrayList<net.minecraft.entity.Entity>(
+                    w.weatherEffects);
+                savedPlayers =
+                    new java.util.ArrayList<net.minecraft.entity.player.EntityPlayer>(
+                        w.playerEntities);
+                savedLoadedTiles =
+                    new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(
+                        w.loadedTileEntityList);
+                savedTickableTiles =
+                    new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(
+                        w.tickableTileEntities);
+                savedAddedTiles =
+                    new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(
+                        addedTiles);
+                savedRemovedTiles =
+                    new java.util.ArrayList<net.minecraft.tileentity.TileEntity>(
+                        removedTiles);
+                w.loadedEntityList.clear();
+                unloaded.clear();
+                w.weatherEffects.clear();
+                w.playerEntities.clear();
+                w.loadedTileEntityList.clear();
+                w.tickableTileEntities.clear();
+                addedTiles.clear();
+                removedTiles.clear();
+
+                double fixtureMaxX = pairCount == 2
+                    ? Math.max(x + distance, x + pairGap + secondDistance)
+                    : x + distance;
+                double fixtureMinX = hasPreexistingXp ? x - 4.0D : x;
+                double fixtureMinZ = pairCount == 2
+                    ? Math.min(Math.min(z, z + zOffset), z + secondZOffset)
+                    : Math.min(z, z + zOffset);
+                double fixtureMaxZ = pairCount == 2
+                    ? Math.max(Math.max(z, z + zOffset), z + secondZOffset)
+                    : Math.max(z, z + zOffset);
+                if (grounded) {
+                    platformPositions =
+                        new java.util.ArrayList<net.minecraft.util.math.BlockPos>();
+                    platformStates = new java.util.ArrayList<
+                        net.minecraft.block.state.IBlockState>();
+                    int platformY = net.minecraft.util.math.MathHelper.floor(y) - 1;
+                    int minX = net.minecraft.util.math.MathHelper.floor(
+                        fixtureMinX) - 2;
+                    int maxX = net.minecraft.util.math.MathHelper.floor(
+                        fixtureMaxX) + 2;
+                    int minZ = net.minecraft.util.math.MathHelper.floor(
+                        fixtureMinZ) - 2;
+                    int maxZ = net.minecraft.util.math.MathHelper.floor(
+                        fixtureMaxZ) + 2;
+                    for (int blockX = minX; blockX <= maxX; ++blockX)
+                        for (int blockZ = minZ; blockZ <= maxZ; ++blockZ) {
+                            net.minecraft.util.math.BlockPos pos =
+                                new net.minecraft.util.math.BlockPos(
+                                    blockX, platformY, blockZ);
+                            platformPositions.add(pos);
+                            platformStates.add(w.getBlockState(pos));
+                            w.setBlockState(pos,
+                                net.minecraft.init.Blocks.STONE
+                                    .getDefaultState(), 2);
+                        }
+                }
+
+                oldWorldSeed = javaRandomSeed48(w.rand);
+                oldMathSeed = mathRandomSeed48();
+                oldNextEntityId = nextEntityId();
+                oldDoMobLoot = w.getGameRules().getString("doMobLoot");
+                setJavaRandomSeed48(w.rand, worldSeed);
+                int parentBaseId = nextId + (hasPreexistingXp ? 1 : 0)
+                    + (preexistingLivingExpires ? 1 : 0);
+                if (hasPreexistingXp) {
+                    setNextEntityId(nextId);
+                    preexistingXp = new net.minecraft.entity.item.EntityXPOrb(
+                        w, x - 4.0D, y, z, 5);
+                    preexistingXp.motionX = 0.0D;
+                    preexistingXp.motionY = 0.0D;
+                    preexistingXp.motionZ = 0.0D;
+                    preexistingXp.rotationYaw = 0.0F;
+                    preexistingXp.xpOrbAge = preexistingXpExpires ? 5999 : 10;
+                    preexistingXp.delayBeforeCanPickup = 5;
+                    preexistingXp.xpColor = 20;
+                    java.lang.reflect.Field healthField =
+                        net.minecraft.entity.item.EntityXPOrb.class
+                            .getDeclaredField("xpOrbHealth");
+                    healthField.setAccessible(true);
+                    healthField.setInt(preexistingXp, 5);
+                    java.lang.reflect.Field targetColorField =
+                        net.minecraft.entity.item.EntityXPOrb.class
+                            .getDeclaredField("xpTargetColor");
+                    targetColorField.setAccessible(true);
+                    targetColorField.setInt(preexistingXp, 0);
+                }
+                if (preexistingLivingExpires) {
+                    setNextEntityId(nextId + (hasPreexistingXp ? 1 : 0));
+                    preexistingDyingCow =
+                        new net.minecraft.entity.passive.EntityCow(w);
+                    preexistingDyingCow.setLocationAndAngles(
+                        x - 16.0D, y, z, 0.0F, 0.0F);
+                    preexistingDyingCow.motionX = 0.0D;
+                    preexistingDyingCow.motionY = 0.0D;
+                    preexistingDyingCow.motionZ = 0.0D;
+                    preexistingDyingCow.onGround = false;
+                    preexistingDyingCow.setNoAI(true);
+                    preexistingDyingCow.setHealth(0.0F);
+                    preexistingDyingCow.deathTime = 19;
+                    setJavaRandomSeed48(
+                        entityRandom(preexistingDyingCow),
+                        0x13579BDF2468L);
+                    setJavaRandomGaussianState(
+                        entityRandom(preexistingDyingCow), false, 0.0D);
+                }
+                setNextEntityId(parentBaseId);
+                first = oracleMateTickAnimal(w, species);
+                setNextEntityId(parentBaseId + 1);
+                second = oracleMateTickAnimal(w, species);
+                if (pairCount == 2) {
+                    setNextEntityId(parentBaseId + 2);
+                    third = oracleMateTickAnimal(w, species);
+                    setNextEntityId(parentBaseId + 3);
+                    fourth = oracleMateTickAnimal(w, species);
+                }
+                setMathRandomSeed48(mathSeed);
+                first.setLocationAndAngles(x, y, z, 0.0F, 0.0F);
+                second.setLocationAndAngles(
+                    x + distance, y, z + zOffset, 0.0F, 0.0F);
+                if (pairCount == 2) {
+                    third.setLocationAndAngles(
+                        x + pairGap, y, z, 0.0F, 0.0F);
+                    fourth.setLocationAndAngles(
+                        x + pairGap + secondDistance, y,
+                        z + secondZOffset, 0.0F, 0.0F);
+                }
+                first.onGround = grounded;
+                second.onGround = grounded;
+                if (pairCount == 2) {
+                    third.onGround = grounded;
+                    fourth.onGround = grounded;
+                }
+                if (first instanceof net.minecraft.entity.passive.EntitySheep) {
+                    ((net.minecraft.entity.passive.EntitySheep)first)
+                        .setFleeceColor(net.minecraft.item.EnumDyeColor
+                            .byMetadata(firstColor));
+                    ((net.minecraft.entity.passive.EntitySheep)second)
+                        .setFleeceColor(net.minecraft.item.EnumDyeColor
+                            .byMetadata(secondColor));
+                    if (pairCount == 2) {
+                        ((net.minecraft.entity.passive.EntitySheep)third)
+                            .setFleeceColor(net.minecraft.item.EnumDyeColor
+                                .byMetadata(thirdColor));
+                        ((net.minecraft.entity.passive.EntitySheep)fourth)
+                            .setFleeceColor(net.minecraft.item.EnumDyeColor
+                                .byMetadata(fourthColor));
+                    }
+                }
+                if (first instanceof net.minecraft.entity.passive.EntityChicken) {
+                    ((net.minecraft.entity.passive.EntityChicken)first)
+                        .timeUntilNextEgg = firstEggTime;
+                    ((net.minecraft.entity.passive.EntityChicken)second)
+                        .timeUntilNextEgg = secondEggTime;
+                    if (pairCount == 2) {
+                        ((net.minecraft.entity.passive.EntityChicken)third)
+                            .timeUntilNextEgg = thirdEggTime;
+                        ((net.minecraft.entity.passive.EntityChicken)fourth)
+                            .timeUntilNextEgg = fourthEggTime;
+                    }
+                }
+                first.setGrowingAge(0);
+                second.setGrowingAge(0);
+                if (pairCount == 2) {
+                    third.setGrowingAge(0);
+                    fourth.setGrowingAge(0);
+                }
+                setAnimalInt(first, "inLove", 600);
+                setAnimalInt(second, "inLove", 600);
+                if (pairCount == 2) {
+                    setAnimalInt(third, "inLove", 600);
+                    setAnimalInt(fourth, "inLove", 600);
+                }
+                setJavaRandomSeed48(entityRandom(first), firstSeed);
+                setJavaRandomGaussianState(entityRandom(first), false, 0.0D);
+                setJavaRandomSeed48(entityRandom(second), secondSeed);
+                setJavaRandomGaussianState(entityRandom(second), false, 0.0D);
+                if (pairCount == 2) {
+                    setJavaRandomSeed48(entityRandom(third), thirdSeed);
+                    setJavaRandomGaussianState(
+                        entityRandom(third), false, 0.0D);
+                    setJavaRandomSeed48(entityRandom(fourth), fourthSeed);
+                    setJavaRandomGaussianState(
+                        entityRandom(fourth), false, 0.0D);
+                }
+                w.getGameRules().setOrCreateGameRule(
+                    "doMobLoot", doMobLoot ? "true" : "false");
+                if ((hasPreexistingXp
+                            && !oracleAddUntrackedEntity(w, preexistingXp))
+                        || (preexistingLivingExpires
+                            && !oracleAddUntrackedEntity(
+                                w, preexistingDyingCow))
+                        || !oracleAddUntrackedEntity(w, first)
+                        || !oracleAddUntrackedEntity(w, second)
+                        || (pairCount == 2
+                            && (!oracleAddUntrackedEntity(w, third)
+                                || !oracleAddUntrackedEntity(w, fourth))))
+                    return err(legacySheep
+                        ? "failed to add sheep-mate tick parents"
+                        : "failed to add animal-mate tick parents");
+
+                particles = new OracleWorldEventCapture(
+                    net.minecraft.util.math.MathHelper.floor(fixtureMinX) - 2,
+                    net.minecraft.util.math.MathHelper.floor(y) - 3,
+                    net.minecraft.util.math.MathHelper.floor(fixtureMinZ) - 2,
+                    net.minecraft.util.math.MathHelper.floor(fixtureMaxX) + 2,
+                    net.minecraft.util.math.MathHelper.floor(y) + 3,
+                    net.minecraft.util.math.MathHelper.floor(fixtureMaxZ) + 2);
+                particles.captureParticles = true;
+                w.addEventListener(particles);
+                oracleMateUntrackedWorld = w;
+                oracleMateTickFirst = first;
+                oracleMateTickSecond = second;
+                oracleMateTickThird = third;
+                oracleMateTickFourth = fourth;
+                oracleMateTickChildSeed48 = childSeed;
+                oracleMateTickSecondChildSeed48 = secondChildSeed;
+                oracleMateTickMathSeed48 = mathSeed;
+                oracleMateTickNextEntityId = parentBaseId + pairCount * 2;
+                oracleMateTickPairCount = pairCount;
+                oracleMateTickDelayHookCount = 0;
+                oracleMateTickBirthPinCount = 0;
+                oracleMateTickChildPinCount = 0;
+                oracleMateTickTargetValid = true;
+                oracleMateTickUpdateOrder.clear();
+                if (!legacySheep) {
+                    oracleMobEventWorld = w;
+                    oracleMobEventTargets.clear();
+                    oracleMobEventTargets.put(
+                        first, Integer.valueOf(first.getEntityId()));
+                    oracleMobEventTargets.put(
+                        second, Integer.valueOf(second.getEntityId()));
+                    if (pairCount == 2) {
+                        oracleMobEventTargets.put(
+                            third, Integer.valueOf(third.getEntityId()));
+                        oracleMobEventTargets.put(
+                            fourth, Integer.valueOf(fourth.getEntityId()));
+                    }
+                    oracleMobEventSoundSources.remove();
+                    oracleMobEventCapture.clear();
+                }
+
+                w.updateEntities();
+                if (oracleMateTickDelayHookCount != pairCount
+                        || !oracleMateTickTargetValid
+                        || oracleMateTickBirthPinCount != pairCount
+                        || oracleMateTickChildPinCount != pairCount)
+                    return err("sheep-mate tick hooks did not fire exactly");
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("delay_hook_count", oracleMateTickDelayHookCount);
+                out.addProperty("birth_pin_count", oracleMateTickBirthPinCount);
+                out.addProperty("child_pin_count", oracleMateTickChildPinCount);
+                JsonArray updateOrder = new JsonArray();
+                for (Integer eid : oracleMateTickUpdateOrder)
+                    updateOrder.add(new JsonPrimitive(eid));
+                out.add("update_order", updateOrder);
+                JsonArray order = new JsonArray();
+                JsonArray sheep = new JsonArray();
+                JsonArray animals = new JsonArray();
+                JsonArray xpOrbs = new JsonArray();
+                JsonArray items = new JsonArray();
+                for (net.minecraft.entity.Entity entity : w.loadedEntityList) {
+                    order.add(new JsonPrimitive(entity.getEntityId()));
+                    if (legacySheep && entity instanceof
+                            net.minecraft.entity.passive.EntitySheep) {
+                        sheep.add(oracleMateTickSheepJson(
+                            (net.minecraft.entity.passive.EntitySheep)entity));
+                    } else if (!legacySheep && entity.getClass() == first.getClass()
+                            && entity instanceof
+                                net.minecraft.entity.passive.EntityAnimal) {
+                        animals.add(oracleMateTickAnimalJson(
+                            (net.minecraft.entity.passive.EntityAnimal)entity,
+                            species));
+                    } else if (entity instanceof
+                            net.minecraft.entity.item.EntityXPOrb) {
+                        net.minecraft.entity.item.EntityXPOrb orb =
+                            (net.minecraft.entity.item.EntityXPOrb)entity;
+                        JsonObject row = new JsonObject();
+                        row.addProperty("eid", orb.getEntityId());
+                        row.addProperty("value", orb.xpValue);
+                        row.addProperty("ticks_existed", orb.ticksExisted);
+                        row.addProperty("xp_color", orb.xpColor);
+                        row.addProperty("xp_orb_age", orb.xpOrbAge);
+                        row.addProperty("pickup_delay", orb.delayBeforeCanPickup);
+                        row.addProperty("health", xpOrbField(orb, "xpOrbHealth"));
+                        row.addProperty("on_ground", orb.onGround);
+                        row.addProperty("yaw_bits", oracleFloatBits(orb.rotationYaw));
+                        row.add("position_bits", oracleEntityDoubleBits(
+                            orb.posX, orb.posY, orb.posZ));
+                        row.add("motion_bits", oracleEntityDoubleBits(
+                            orb.motionX, orb.motionY, orb.motionZ));
+                        row.add("last_tick_position_bits", oracleEntityDoubleBits(
+                            orb.lastTickPosX, orb.lastTickPosY, orb.lastTickPosZ));
+                        row.add("previous_position_bits", oracleEntityDoubleBits(
+                            orb.prevPosX, orb.prevPosY, orb.prevPosZ));
+                        xpOrbs.add(row);
+                    } else if (!legacySheep && entity instanceof
+                            net.minecraft.entity.item.EntityItem) {
+                        net.minecraft.entity.item.EntityItem item =
+                            (net.minecraft.entity.item.EntityItem)entity;
+                        JsonObject row = oracleFallingDropItemJson(item);
+                        row.remove("yaw");
+                        row.remove("hover_start");
+                        row.addProperty("yaw_bits",
+                            oracleFloatBits(item.rotationYaw));
+                        row.addProperty("hover_start_bits",
+                            oracleFloatBits(item.hoverStart));
+                        items.add(row);
+                    }
+                }
+                out.add("entity_order", order);
+                if (legacySheep) {
+                    out.add("sheep", sheep);
+                } else {
+                    out.addProperty("species", species);
+                    out.add("animals", animals);
+                    out.add("items", items);
+                    JsonArray events = new JsonArray();
+                    for (OracleMobEventCapture event : oracleMobEventCapture) {
+                        JsonObject row = event.toJson();
+                        if (event.status < 0) {
+                            row.remove("volume");
+                            row.remove("pitch");
+                            row.addProperty("volume_bits",
+                                oracleFloatBits(event.volume));
+                            row.addProperty("pitch_bits",
+                                oracleFloatBits(event.pitch));
+                        }
+                        events.add(row);
+                    }
+                    out.add("events", events);
+                }
+                out.add("xp_orbs", xpOrbs);
+                out.add("particles", particles.particlesToJson());
+                out.addProperty("world_seed48", javaRandomSeed48(w.rand));
+                out.addProperty("math_seed48", mathRandomSeed48());
+                out.addProperty("next_entity_id", nextEntityId());
+                return out.toString();
+            } catch (Throwable t) {
+                return err((legacySheep ? "mate_sheep_tick_locked"
+                    : "mate_animal_tick_locked") + ": " + t);
+            } finally {
+                oracleMateTickFirst = null;
+                oracleMateTickSecond = null;
+                oracleMateTickThird = null;
+                oracleMateTickFourth = null;
+                oracleMateTickChildSeed48 = -1L;
+                oracleMateTickSecondChildSeed48 = -1L;
+                oracleMateTickMathSeed48 = -1L;
+                oracleMateTickNextEntityId = -1;
+                oracleMateTickPairCount = 1;
+                oracleMateTickDelayHookCount = 0;
+                oracleMateTickBirthPinCount = 0;
+                oracleMateTickChildPinCount = 0;
+                oracleMateTickTargetValid = false;
+                oracleMateTickUpdateOrder.clear();
+                oracleMateUntrackedWorld = null;
+                oracleMobEventWorld = null;
+                oracleMobEventTargets.clear();
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                if (w != null && particles != null) try {
+                    w.removeEventListener(particles);
+                } catch (Throwable ignored) { }
+                if (w != null && platformPositions != null
+                        && platformStates != null) try {
+                    for (int index = 0; index < platformPositions.size(); ++index)
+                        w.setBlockState(platformPositions.get(index),
+                            platformStates.get(index), 2);
+                } catch (Throwable ignored) { }
+                if (w != null && savedLoaded != null) try {
+                    for (net.minecraft.entity.Entity entity :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList))
+                        w.removeEntityDangerously(entity);
+                } catch (Throwable ignored) { }
+                try {
+                    if (w != null && savedLoaded != null) {
+                        oracleReplaceList(w.loadedEntityList, savedLoaded);
+                        oracleReplaceList(unloaded, savedUnloaded);
+                        oracleReplaceList(w.weatherEffects, savedWeather);
+                        oracleReplaceList(w.playerEntities, savedPlayers);
+                        oracleReplaceList(
+                            w.loadedTileEntityList, savedLoadedTiles);
+                        oracleReplaceList(
+                            w.tickableTileEntities, savedTickableTiles);
+                        oracleReplaceList(addedTiles, savedAddedTiles);
+                        oracleReplaceList(removedTiles, savedRemovedTiles);
+                    }
+                    if (w != null && oldDoMobLoot != null)
+                        w.getGameRules().setOrCreateGameRule(
+                            "doMobLoot", oldDoMobLoot);
+                    if (w != null && oldWorldSeed >= 0L)
+                        setJavaRandomSeed48(w.rand, oldWorldSeed);
+                    if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed);
+                    if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /** Parked Forge ItemShears interaction with deterministic private RNGs. */
+    private String oracleShearSheepLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("shear_sheep_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            net.minecraft.entity.passive.EntitySheep sheep = null;
+            net.minecraft.item.ItemStack oldMain = null, oldOffhand = null;
+            java.util.HashSet<net.minecraft.entity.Entity> priorEntities = null;
+            java.util.ArrayList<net.minecraft.entity.item.EntityItem> drops =
+                new java.util.ArrayList<net.minecraft.entity.item.EntityItem>();
+            long oldMathSeed = -1L;
+            int oldNextEntityId = -1;
+            int oldCurrentItem = -1;
+            boolean oldCreativeMode = false;
+            boolean playerCapabilitiesCaptured = false;
+            try {
+                String handName = action.has("hand")
+                    ? action.get("hand").getAsString() : "main";
+                net.minecraft.util.EnumHand hand;
+                if (handName.equals("main"))
+                    hand = net.minecraft.util.EnumHand.MAIN_HAND;
+                else if (handName.equals("offhand"))
+                    hand = net.minecraft.util.EnumHand.OFF_HAND;
+                else
+                    return err("invalid sheep-shear hand");
+                int fleece = action.has("fleece")
+                    ? action.get("fleece").getAsInt() : 14;
+                boolean sheared = action.has("sheared")
+                    && action.get("sheared").getAsBoolean();
+                boolean child = action.has("child")
+                    && action.get("child").getAsBoolean();
+                int heldItem = action.has("held_item")
+                    ? action.get("held_item").getAsInt() : 359;
+                int toolMeta = action.has("tool_meta")
+                    ? action.get("tool_meta").getAsInt() : 0;
+                int unbreaking = action.has("unbreaking")
+                    ? action.get("unbreaking").getAsInt() : 0;
+                long entitySeed = action.get("entity_seed48").getAsLong();
+                long mathSeed = action.get("math_seed48").getAsLong();
+                long shearSeed = action.get("shear_seed48").getAsLong();
+                int nextId = action.get("next_entity_id").getAsInt();
+                if (fleece < 0 || fleece > 15
+                        || heldItem < 0 || heldItem > 32767
+                        || toolMeta < 0 || toolMeta > 32767
+                        || unbreaking < 0 || unbreaking > 3
+                        || entitySeed < 0L || entitySeed >= (1L << 48)
+                        || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || shearSeed < 0L || shearSeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483643)
+                    return err("invalid sheep-shear fixture");
+                MinecraftServer server =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                player = players.get(0);
+                w = player.getServerWorld();
+                oldMain = player.getHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND).copy();
+                oldOffhand = player.getHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND).copy();
+                oldCurrentItem = player.inventory.currentItem;
+                oldCreativeMode = player.capabilities.isCreativeMode;
+                playerCapabilitiesCaptured = true;
+                player.capabilities.isCreativeMode = false;
+                oldMathSeed = mathRandomSeed48();
+                oldNextEntityId = nextEntityId();
+                priorEntities = new java.util.HashSet<net.minecraft.entity.Entity>(
+                    w.loadedEntityList);
+
+                setNextEntityId(nextId);
+                sheep = new net.minecraft.entity.passive.EntitySheep(w);
+                sheep.setPosition(player.posX + 2.0D, player.posY, player.posZ);
+                sheep.setNoAI(true);
+                sheep.setFleeceColor(
+                    net.minecraft.item.EnumDyeColor.byMetadata(fleece));
+                sheep.setSheared(sheared);
+                sheep.setGrowingAge(child ? -100 : 0);
+                /* Keep server EntityItem constructors authoritative without
+                 * letting integrated-client mirrors race process-global Math. */
+                sheep.captureDrops = true;
+                sheep.capturedDrops.clear();
+                setJavaRandomSeed48(entityRandom(sheep), entitySeed);
+                setNextEntityId(nextId + 1);
+                setMathRandomSeed48(mathSeed);
+                OracleShearsRandom.arm(shearSeed);
+
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND,
+                    net.minecraft.item.ItemStack.EMPTY);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND,
+                    net.minecraft.item.ItemStack.EMPTY);
+                net.minecraft.item.ItemStack tool = heldItem == 0
+                    ? net.minecraft.item.ItemStack.EMPTY
+                    : new net.minecraft.item.ItemStack(
+                        net.minecraft.item.Item.getItemById(heldItem),
+                        1, toolMeta);
+                if (!tool.isEmpty() && unbreaking > 0)
+                    tool.addEnchantment(
+                        net.minecraft.init.Enchantments.UNBREAKING,
+                        unbreaking);
+                player.setHeldItem(hand, tool);
+
+                oracleMobEventWorld = w;
+                oracleMobEventTargets.clear();
+                oracleMobEventTargets.put(sheep, Integer.valueOf(nextId));
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                net.minecraft.util.EnumActionResult actionResult =
+                    player.interactOn(sheep, hand);
+
+                drops.addAll(sheep.capturedDrops);
+                java.util.Collections.sort(drops,
+                    new java.util.Comparator<net.minecraft.entity.item.EntityItem>() {
+                        public int compare(
+                                net.minecraft.entity.item.EntityItem a,
+                                net.minecraft.entity.item.EntityItem b) {
+                            return Integer.compare(a.getEntityId(), b.getEntityId());
+                        }
+                    });
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("result", actionResult.name().toLowerCase());
+                out.addProperty("eid", nextId);
+                out.addProperty("x", sheep.posX);
+                out.addProperty("y", sheep.posY);
+                out.addProperty("z", sheep.posZ);
+                out.addProperty("fleece", sheep.getFleeceColor().getMetadata());
+                out.addProperty("sheared", sheep.getSheared());
+                out.addProperty("growing_age", sheep.getGrowingAge());
+                out.addProperty("entity_seed48",
+                    javaRandomSeed48(entityRandom(sheep)));
+                out.addProperty("math_seed48", mathRandomSeed48());
+                java.util.Random usedShearRandom =
+                    OracleShearsRandom.lastRandom();
+                out.addProperty("shear_random_constructed",
+                    usedShearRandom != null);
+                out.addProperty("shear_seed48", usedShearRandom == null
+                    ? shearSeed : javaRandomSeed48(usedShearRandom));
+                out.addProperty("next_entity_id", nextEntityId());
+                net.minecraft.item.ItemStack after = player.getHeldItem(hand);
+                out.addProperty("tool_item", after.isEmpty() ? 0
+                    : net.minecraft.item.Item.getIdFromItem(after.getItem()));
+                out.addProperty("tool_count", after.isEmpty()
+                    ? 0 : after.getCount());
+                out.addProperty("tool_meta", after.isEmpty()
+                    ? 0 : after.getMetadata());
+                out.addProperty("tool_unbreaking", after.isEmpty() ? 0
+                    : net.minecraft.enchantment.EnchantmentHelper
+                        .getEnchantmentLevel(
+                            net.minecraft.init.Enchantments.UNBREAKING, after));
+                JsonArray itemRows = new JsonArray();
+                for (net.minecraft.entity.item.EntityItem item : drops) {
+                    net.minecraft.item.ItemStack stack = item.getEntityItem();
+                    JsonObject row = new JsonObject();
+                    row.addProperty("eid", item.getEntityId());
+                    row.addProperty("item",
+                        net.minecraft.item.Item.getIdFromItem(stack.getItem()));
+                    row.addProperty("count", stack.getCount());
+                    row.addProperty("meta", stack.getMetadata());
+                    row.addProperty("x", item.posX);
+                    row.addProperty("y", item.posY);
+                    row.addProperty("z", item.posZ);
+                    row.addProperty("vx", item.motionX);
+                    row.addProperty("vy", item.motionY);
+                    row.addProperty("vz", item.motionZ);
+                    row.addProperty("yaw", item.rotationYaw);
+                    row.addProperty("hover_start", item.hoverStart);
+                    row.addProperty("age", item.getAge());
+                    row.addProperty("pickup_delay",
+                        itemField(item, "delayBeforeCanPickup"));
+                    row.addProperty("health", itemField(item, "health"));
+                    row.addProperty("lifespan", item.lifespan);
+                    row.addProperty("on_ground", item.onGround);
+                    row.addProperty("dead", item.isDead);
+                    itemRows.add(row);
+                }
+                out.add("drops", itemRows);
+                JsonArray events = new JsonArray();
+                for (OracleMobEventCapture event : oracleMobEventCapture)
+                    events.add(event.toJson());
+                out.add("events", events);
+                return out.toString();
+            } catch (Throwable t) {
+                return err("shear_sheep_locked: " + t);
+            } finally {
+                OracleShearsRandom.clear();
+                oracleMobEventWorld = null;
+                oracleMobEventTargets.clear();
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                if (w != null && priorEntities != null) try {
+                    for (net.minecraft.entity.Entity entity :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList))
+                        if (!priorEntities.contains(entity))
+                            w.removeEntityDangerously(entity);
+                } catch (Throwable ignored) { }
+                if (player != null && oldMain != null && oldOffhand != null)
+                    try {
+                        if (playerCapabilitiesCaptured)
+                            player.capabilities.isCreativeMode = oldCreativeMode;
+                        player.inventory.currentItem = oldCurrentItem;
+                        player.setHeldItem(
+                            net.minecraft.util.EnumHand.MAIN_HAND, oldMain);
+                        player.setHeldItem(
+                            net.minecraft.util.EnumHand.OFF_HAND, oldOffhand);
+                    } catch (Throwable ignored) { }
+                try {
+                    if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed);
+                    if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /** Parked, direct execution of vanilla EntityAIEatGrass. */
+    private String oracleGrazeSheepLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0)
+                return err("graze_sheep_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.entity.passive.EntitySheep sheep = null;
+            net.minecraft.block.state.IBlockState oldSource = null;
+            net.minecraft.block.state.IBlockState oldBelow = null;
+            OracleWorldEventCapture worldEvents = null;
+            String oldMobGriefing = null;
+            long oldMathSeed = -1L;
+            int oldNextEntityId = -1;
+            BlockPos source = null, below = null;
+            try {
+                String substrate = action.has("substrate")
+                    ? action.get("substrate").getAsString() : "grass";
+                boolean substrateValid = substrate.equals("grass")
+                    || substrate.equals("tallgrass")
+                    || substrate.equals("tall_over_grass")
+                    || substrate.equals("fern")
+                    || substrate.equals("air");
+                boolean mobGriefing = !action.has("mob_griefing")
+                    || action.get("mob_griefing").getAsBoolean();
+                boolean sheared = !action.has("sheared")
+                    || action.get("sheared").getAsBoolean();
+                int growingAge = action.has("growing_age")
+                    ? action.get("growing_age").getAsInt() : 0;
+                int fleece = action.has("fleece")
+                    ? action.get("fleece").getAsInt() : 0;
+                int updates = action.has("updates")
+                    ? action.get("updates").getAsInt() : 40;
+                long entitySeed = action.get("entity_seed48").getAsLong();
+                int nextId = action.get("next_entity_id").getAsInt();
+                if (!substrateValid || fleece < 0 || fleece > 15
+                        || updates < 0 || updates > 40
+                        || entitySeed < 0L || entitySeed >= (1L << 48)
+                        || nextId <= 0 || nextId >= 2147483643)
+                    return err("invalid sheep-graze fixture");
+                MinecraftServer server =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                w = players.get(0).getServerWorld();
+                int x = net.minecraft.util.math.MathHelper.floor(
+                    players.get(0).posX) + 8;
+                int z = net.minecraft.util.math.MathHelper.floor(
+                    players.get(0).posZ);
+                source = new BlockPos(x, 220, z);
+                below = source.down();
+                w.getChunkFromBlockCoords(source);
+                oldSource = w.getBlockState(source);
+                oldBelow = w.getBlockState(below);
+                oldMobGriefing = w.getGameRules().getString("mobGriefing");
+                oldMathSeed = mathRandomSeed48();
+                oldNextEntityId = nextEntityId();
+                w.getGameRules().setOrCreateGameRule(
+                    "mobGriefing", mobGriefing ? "true" : "false");
+                w.setBlockState(source,
+                    net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                w.setBlockState(below,
+                    net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                if (substrate.equals("grass")) {
+                    w.setBlockState(below,
+                        net.minecraft.init.Blocks.GRASS.getDefaultState(), 2);
+                } else if (substrate.equals("tallgrass")
+                        || substrate.equals("tall_over_grass")) {
+                    w.setBlockState(source,
+                        net.minecraft.init.Blocks.TALLGRASS.getStateFromMeta(1), 2);
+                    if (substrate.equals("tall_over_grass"))
+                        w.setBlockState(below,
+                            net.minecraft.init.Blocks.GRASS.getDefaultState(), 2);
+                } else if (substrate.equals("fern")) {
+                    w.setBlockState(source,
+                        net.minecraft.init.Blocks.TALLGRASS.getStateFromMeta(2), 2);
+                }
+
+                setNextEntityId(nextId);
+                sheep = new net.minecraft.entity.passive.EntitySheep(w);
+                sheep.setPosition(x + 0.5D, 220.0D, z + 0.5D);
+                sheep.setFleeceColor(
+                    net.minecraft.item.EnumDyeColor.byMetadata(fleece));
+                sheep.setSheared(sheared);
+                sheep.setGrowingAge(growingAge);
+                setJavaRandomSeed48(entityRandom(sheep), entitySeed);
+                setNextEntityId(nextId + 1);
+
+                oracleMobEventWorld = w;
+                oracleMobEventTargets.clear();
+                oracleMobEventTargets.put(sheep, Integer.valueOf(nextId));
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                worldEvents = new OracleWorldEventCapture(
+                    x - 1, 218, z - 1, x + 1, 221, z + 1);
+                worldEvents.captureBlockBreakEvents = true;
+                w.addEventListener(worldEvents);
+
+                net.minecraft.entity.ai.EntityAIEatGrass ai =
+                    new net.minecraft.entity.ai.EntityAIEatGrass(sheep);
+                boolean shouldExecute = ai.shouldExecute();
+                if (shouldExecute) ai.startExecuting();
+                JsonArray rows = new JsonArray();
+                for (int update = 0; update <= updates; ++update) {
+                    if (update > 0 && shouldExecute) ai.updateTask();
+                    net.minecraft.block.state.IBlockState sourceState =
+                        w.getBlockState(source);
+                    net.minecraft.block.state.IBlockState belowState =
+                        w.getBlockState(below);
+                    JsonObject row = new JsonObject();
+                    row.addProperty("update", update);
+                    row.addProperty("timer", ai.getEatingGrassTimer());
+                    row.addProperty("source_block",
+                        net.minecraft.block.Block.getIdFromBlock(
+                            sourceState.getBlock()));
+                    row.addProperty("source_meta",
+                        sourceState.getBlock().getMetaFromState(sourceState));
+                    row.addProperty("below_block",
+                        net.minecraft.block.Block.getIdFromBlock(
+                            belowState.getBlock()));
+                    row.addProperty("below_meta",
+                        belowState.getBlock().getMetaFromState(belowState));
+                    row.addProperty("sheared", sheep.getSheared());
+                    row.addProperty("growing_age", sheep.getGrowingAge());
+                    row.addProperty("status_count", oracleMobEventCapture.size());
+                    row.addProperty("world_event_count", worldEvents.records.size());
+                    rows.add(row);
+                }
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("eid", nextId);
+                out.addProperty("world_x", x);
+                out.addProperty("world_y", 220);
+                out.addProperty("world_z", z);
+                out.addProperty("should_execute", shouldExecute);
+                out.addProperty("entity_seed48",
+                    javaRandomSeed48(entityRandom(sheep)));
+                out.addProperty("next_entity_id", nextEntityId());
+                out.add("rows", rows);
+                JsonArray events = new JsonArray();
+                for (OracleMobEventCapture event : oracleMobEventCapture)
+                    events.add(event.toJson());
+                out.add("events", events);
+                out.add("world_events", worldEvents.toJson());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("graze_sheep_locked: " + t);
+            } finally {
+                if (w != null && worldEvents != null) try {
+                    w.removeEventListener(worldEvents);
+                } catch (Throwable ignored) { }
+                oracleMobEventWorld = null;
+                oracleMobEventTargets.clear();
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                if (w != null && source != null && below != null
+                        && oldSource != null && oldBelow != null) try {
+                    w.setBlockState(source, oldSource, 2);
+                    w.setBlockState(below, oldBelow, 2);
+                } catch (Throwable ignored) { }
+                if (w != null && oldMobGriefing != null) try {
+                    w.getGameRules().setOrCreateGameRule(
+                        "mobGriefing", oldMobGriefing);
+                } catch (Throwable ignored) { }
+                try {
+                    if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed);
+                    if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Parked BlockAnvil scheduled-fall contract.  This deliberately executes
+     * the real BlockFalling callback and EntityFallingBlock, while keeping the
+     * server tick closed so unrelated event work cannot affect the
+     * measurement.  Damage mode supplies one controlled player target.
+     */
+    private String oracleFallingAnvilLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting || oracleServerTickInFlight
+                    || oracleServerPermits != 0)
+                return err("falling_anvil_locked requires a parked oracle server");
+            net.minecraft.world.WorldServer w = null;
+            net.minecraft.block.state.IBlockState[] prior = null;
+            net.minecraft.entity.item.EntityFallingBlock falling = null;
+            net.minecraft.entity.item.EntityItem dropped = null;
+            net.minecraft.entity.player.EntityPlayerMP damagePlayer = null;
+            net.minecraft.entity.passive.EntityPig damagePig = null;
+            net.minecraft.entity.passive.EntityPig damagePig2 = null;
+            net.minecraft.entity.passive.EntityCow damageCow = null;
+            net.minecraft.entity.passive.EntitySheep damageSheep = null;
+            net.minecraft.entity.passive.EntityChicken damageChicken = null;
+            java.util.ArrayList<net.minecraft.entity.item.EntityItem>
+                damageMobDrops =
+                    new java.util.ArrayList<net.minecraft.entity.item.EntityItem>();
+            OracleLivingDropsCapture mobDropsCapture = null;
+            OracleWorldEventCapture worldEventCapture = null;
+            boolean fixtureActive = false, playerStateCaptured = false,
+                armorFixtureActive = false;
+            int armorFixtureIndex = -1;
+            net.minecraft.inventory.EntityEquipmentSlot armorFixtureSlot = null;
+            net.minecraft.item.ItemStack armorFixtureStack = null;
+            long oldMathSeed = -1L, oldWorldSeed = -1L,
+                oldPlayerRandomSeed = -1L;
+            int oldNextEntityId = -1, fixtureId = -1, fixtureItemId = -1,
+                fixturePigId = -1, fixturePigId2 = -1, fixtureCowId = -1,
+                fixtureSheepId = -1, fixtureChickenId = -1;
+            String oldDoEntityDrops = null, oldDoMobLoot = null;
+            boolean oldFallingInstant =
+                net.minecraft.block.BlockFalling.fallInstantly;
+            double oldPlayerX = 0.0D, oldPlayerY = 0.0D, oldPlayerZ = 0.0D;
+            double oldPlayerLastTickX = 0.0D, oldPlayerLastTickY = 0.0D,
+                oldPlayerLastTickZ = 0.0D;
+            double oldPlayerMotionX = 0.0D, oldPlayerMotionY = 0.0D,
+                oldPlayerMotionZ = 0.0D;
+            float oldPlayerHealth = 0.0F, oldPlayerAbsorption = 0.0F,
+                oldPlayerFallDistance = 0.0F, oldPlayerLastDamage = 0.0F,
+                oldPlayerExhaustion = 0.0F;
+            int oldPlayerHurtResistant = 0, oldPlayerHurtTime = 0,
+                oldPlayerMaxHurtTime = 0, oldRespawnInvulnerability = 0;
+            float oldPlayerPrevYaw = 0.0F, oldPlayerPrevPitch = 0.0F;
+            boolean oldPlayerOnGround = false, oldDisableDamage = false,
+                oldCreativeMode = false;
+            java.util.ArrayList<net.minecraft.potion.PotionEffect>
+                oldPlayerPotions = null;
+            java.util.HashSet<Integer> priorLoadedEntityIds = null;
+            java.lang.reflect.Field playerLastDamageField = null,
+                respawnInvulnerabilityField = null,
+                foodExhaustionField = null, livingDeadField = null,
+                entityFireField = null, recentlyHitField = null,
+                attackingPlayerField = null;
+            int cx = 0, cz = 0;
+            final int baseY = 220, minY = baseY - 5, maxY = baseY + 1;
+            final int minDx = -2, maxDx = 2, minDz = -2, maxDz = 2;
+            oracleMobEventWorld = null;
+            oracleMobEventTargets.clear();
+            oracleMobEventSoundSources.remove();
+            oracleMobEventCapture.clear();
+            try {
+                String mode = action.has("mode") ? action.get("mode").getAsString() : "fall";
+                boolean supported = mode.equals("supported"), fall = mode.equals("fall");
+                boolean drop = mode.equals("drop"), damageFresh = mode.equals("damage");
+                boolean damageReject = mode.equals("damage_reject");
+                boolean damageDelta = mode.equals("damage_delta");
+                boolean damageAbsorption = mode.equals("damage_absorption");
+                boolean damageResistance = mode.equals("damage_resistance");
+                boolean damageArmor = mode.equals("damage_armor_chest");
+                boolean damageHelmet = mode.equals("damage_armor_helmet");
+                boolean damagePigMode = mode.equals("damage_pig");
+                boolean damagePigXpMode =
+                    mode.equals("damage_pig_loot_xp");
+                boolean damagePigAnyMode = damagePigMode || damagePigXpMode;
+                boolean damagePigsMode = mode.equals("damage_pigs");
+                boolean damageCowMode = mode.equals("damage_cow");
+                boolean damageCowXpMode =
+                    mode.equals("damage_cow_loot_xp");
+                boolean damageCowAnyMode = damageCowMode || damageCowXpMode;
+                boolean damageSheepMode = mode.equals("damage_sheep");
+                boolean damageSheepRedXpMode =
+                    mode.equals("damage_sheep_red_loot_xp");
+                boolean damageSheepShearedXpMode =
+                    mode.equals("damage_sheep_sheared_loot_xp");
+                boolean damageSheepXpMode =
+                    mode.equals("damage_sheep_loot_xp")
+                    || damageSheepRedXpMode || damageSheepShearedXpMode;
+                boolean damageSheepAnyMode =
+                    damageSheepMode || damageSheepXpMode;
+                boolean damageChickenMode = mode.equals("damage_chicken");
+                boolean damageChickenXpMode =
+                    mode.equals("damage_chicken_loot_cooked_xp");
+                boolean damageChickenXpExpiredMode =
+                    mode.equals("damage_chicken_loot_cooked_xp_expired");
+                boolean damageChickenLootCookedMode =
+                    mode.equals("damage_chicken_loot_cooked")
+                    || damageChickenXpMode
+                    || damageChickenXpExpiredMode;
+                boolean damageChickenLootMode =
+                    mode.equals("damage_chicken_loot")
+                    || mode.equals("damage_chicken_loot_zero")
+                    || mode.equals("damage_chicken_loot_one")
+                    || damageChickenLootCookedMode;
+                boolean damageChickenAnyMode =
+                    damageChickenMode || damageChickenLootMode;
+                boolean damageXpMode = damagePigXpMode || damageCowXpMode
+                    || damageSheepXpMode
+                    || damageChickenXpMode || damageChickenXpExpiredMode;
+                boolean damageMobLootMode = damagePigXpMode || damageCowXpMode
+                    || damageSheepXpMode
+                    || damageChickenLootMode;
+                boolean damageMobLifecycleMode = damagePigXpMode
+                    || damageCowXpMode || damageSheepXpMode
+                    || damageChickenLootCookedMode;
+                boolean damage = damageFresh || damageReject || damageDelta
+                    || damageAbsorption || damageResistance || damageArmor
+                    || damageHelmet;
+                boolean moving = fall || drop || damage || damagePigAnyMode
+                    || damagePigsMode || damageCowAnyMode || damageSheepAnyMode
+                    || damageChickenAnyMode;
+                boolean instant = mode.equals("instant");
+                boolean unsupported = moving || instant;
+                int meta = action.get("meta").getAsInt();
+                long mathSeed = action.get("math_seed48").getAsLong();
+                long fixtureMathSeed = mathSeed;
+                long worldSeed = action.get("world_seed48").getAsLong();
+                long entitySeed = action.get("entity_seed48").getAsLong();
+                long playerSeed = action.has("player_entity_seed48")
+                    ? action.get("player_entity_seed48").getAsLong() : 0L;
+                int nextId = action.get("next_entity_id").getAsInt();
+                if ((!supported && !unsupported) || (meta != 0 && meta != 1 && meta != 4 && meta != 8)
+                        || mathSeed < 0L || mathSeed >= (1L << 48)
+                        || worldSeed < 0L || worldSeed >= (1L << 48)
+                        || entitySeed < 0L || entitySeed >= (1L << 48)
+                        || (damage
+                            && (playerSeed < 0L || playerSeed >= (1L << 48)))
+                        || nextId <= 0 || nextId >= 2147483645)
+                    return err("invalid falling-anvil fixture");
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                w = players.get(0).getServerWorld();
+                oldDoEntityDrops = w.getGameRules().getString("doEntityDrops");
+                oldDoMobLoot = w.getGameRules().getString("doMobLoot");
+                w.getGameRules().setOrCreateGameRule("doEntityDrops", "true");
+                if (damageChickenAnyMode || damagePigAnyMode
+                        || damageCowAnyMode || damageSheepAnyMode)
+                    w.getGameRules().setOrCreateGameRule(
+                        "doMobLoot", damageMobLootMode ? "true" : "false");
+                cx = net.minecraft.util.math.MathHelper.floor(players.get(0).posX)
+                    + (damageXpMode ? 256 : 0);
+                cz = net.minecraft.util.math.MathHelper.floor(players.get(0).posZ);
+                if (damageXpMode)
+                    for (int chunkX = (cx - 32) >> 4;
+                            chunkX <= (cx + 32) >> 4; ++chunkX)
+                        for (int chunkZ = (cz - 32) >> 4;
+                                chunkZ <= (cz + 32) >> 4; ++chunkZ)
+                            w.getChunkFromChunkCoords(chunkX, chunkZ);
+                net.minecraft.world.gen.structure.StructureBoundingBox box =
+                    new net.minecraft.world.gen.structure.StructureBoundingBox(
+                        cx + minDx, minY, cz + minDz, cx + maxDx + 1, maxY + 1, cz + maxDz + 1);
+                java.util.List<net.minecraft.world.NextTickListEntry> pending =
+                    w.getPendingBlockUpdates(box, false);
+                if (pending != null && !pending.isEmpty()) return err("falling anvil fixture has pending work");
+                fixtureActive = true;
+                int width = maxDx - minDx + 1, depth = maxDz - minDz + 1, index = 0;
+                prior = new net.minecraft.block.state.IBlockState[width * depth * (maxY - minY + 1)];
+                for (int y = minY; y <= maxY; ++y) for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                    for (int x = cx + minDx; x <= cx + maxDx; ++x) {
+                        BlockPos p = new BlockPos(x, y, z); prior[index++] = w.getBlockState(p);
+                        w.setBlockState(p, net.minecraft.init.Blocks.AIR.getDefaultState(), 2);
+                    }
+                for (int x = cx + minDx; x <= cx + maxDx; ++x) for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                    w.setBlockState(new BlockPos(x, baseY - 4, z), net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                if (drop)
+                    w.setBlockState(new BlockPos(cx, baseY - 4, cz),
+                        net.minecraft.init.Blocks.STONE_SLAB.getStateFromMeta(0), 2);
+                BlockPos source = new BlockPos(cx, baseY, cz), support = source.down();
+                net.minecraft.block.state.IBlockState anvil = net.minecraft.init.Blocks.ANVIL.getStateFromMeta(meta);
+                w.setBlockState(support, net.minecraft.init.Blocks.STONE.getDefaultState(), 2);
+                w.setBlockState(source, anvil, 3);
+                JsonArray onAdded = pendingEntries(w, box);
+                if (onAdded.size() != 1) return err("anvil placement schedule mismatch");
+                JsonArray afterSupportLoss = new JsonArray();
+                if (unsupported) {
+                    w.setBlockState(support, net.minecraft.init.Blocks.AIR.getDefaultState(), 3);
+                    afterSupportLoss = pendingEntries(w, box);
+                    if (!onAdded.equals(afterSupportLoss)) return err("anvil duplicate schedule changed due entry");
+                }
+                if (damage) {
+                    damagePlayer = players.get(0);
+                    if (!damagePlayer.getActivePotionEffects().isEmpty())
+                        return err("anvil damage fixture requires no active effects");
+                    for (net.minecraft.item.ItemStack armor :
+                            damagePlayer.inventory.armorInventory)
+                        if (!armor.isEmpty())
+                            return err("anvil damage fixture requires empty armor");
+                    playerLastDamageField =
+                        net.minecraft.entity.EntityLivingBase.class
+                            .getDeclaredField("lastDamage");
+                    playerLastDamageField.setAccessible(true);
+                    respawnInvulnerabilityField =
+                        net.minecraft.entity.player.EntityPlayerMP.class
+                            .getDeclaredField("respawnInvulnerabilityTicks");
+                    respawnInvulnerabilityField.setAccessible(true);
+                    foodExhaustionField = net.minecraft.util.FoodStats.class
+                        .getDeclaredField("foodExhaustionLevel");
+                    foodExhaustionField.setAccessible(true);
+                    oldPlayerX = damagePlayer.posX;
+                    oldPlayerY = damagePlayer.posY;
+                    oldPlayerZ = damagePlayer.posZ;
+                    oldPlayerLastTickX = damagePlayer.lastTickPosX;
+                    oldPlayerLastTickY = damagePlayer.lastTickPosY;
+                    oldPlayerLastTickZ = damagePlayer.lastTickPosZ;
+                    oldPlayerPrevYaw = damagePlayer.prevRotationYaw;
+                    oldPlayerPrevPitch = damagePlayer.prevRotationPitch;
+                    oldPlayerMotionX = damagePlayer.motionX;
+                    oldPlayerMotionY = damagePlayer.motionY;
+                    oldPlayerMotionZ = damagePlayer.motionZ;
+                    oldPlayerOnGround = damagePlayer.onGround;
+                    oldPlayerFallDistance = damagePlayer.fallDistance;
+                    oldPlayerHealth = damagePlayer.getHealth();
+                    oldPlayerAbsorption = damagePlayer.getAbsorptionAmount();
+                    oldPlayerHurtResistant = damagePlayer.hurtResistantTime;
+                    oldPlayerHurtTime = damagePlayer.hurtTime;
+                    oldPlayerMaxHurtTime = damagePlayer.maxHurtTime;
+                    oldPlayerLastDamage =
+                        playerLastDamageField.getFloat(damagePlayer);
+                    oldRespawnInvulnerability =
+                        respawnInvulnerabilityField.getInt(damagePlayer);
+                    oldPlayerExhaustion = foodExhaustionField.getFloat(
+                        damagePlayer.getFoodStats());
+                    oldDisableDamage =
+                        damagePlayer.capabilities.disableDamage;
+                    oldCreativeMode =
+                        damagePlayer.capabilities.isCreativeMode;
+                    oldPlayerPotions =
+                        new java.util.ArrayList<net.minecraft.potion.PotionEffect>(
+                            damagePlayer.getActivePotionEffects());
+                    playerStateCaptured = true;
+                    damagePlayer.setPosition(
+                        cx + 0.5D, baseY - 3.0D, cz + 0.5D);
+                    w.updateEntityWithOptionalForce(damagePlayer, false);
+                    damagePlayer.motionX = damagePlayer.motionY =
+                        damagePlayer.motionZ = 0.0D;
+                    damagePlayer.onGround = true;
+                    damagePlayer.fallDistance = 0.0F;
+                    damagePlayer.setHealth(20.0F);
+                    damagePlayer.setAbsorptionAmount(
+                        damageAbsorption ? 4.0F : 0.0F);
+                    if (damageResistance)
+                        damagePlayer.addPotionEffect(
+                            new net.minecraft.potion.PotionEffect(
+                                net.minecraft.init.MobEffects.RESISTANCE,
+                                200, 0, false, false));
+                    damagePlayer.hurtResistantTime = 0;
+                    damagePlayer.hurtTime = 0;
+                    damagePlayer.maxHurtTime = 0;
+                    playerLastDamageField.setFloat(damagePlayer, 0.0F);
+                    respawnInvulnerabilityField.setInt(damagePlayer, 0);
+                    foodExhaustionField.setFloat(
+                        damagePlayer.getFoodStats(), 0.0F);
+                    damagePlayer.capabilities.disableDamage = false;
+                    damagePlayer.capabilities.isCreativeMode = false;
+                    if (damageArmor || damageHelmet) {
+                        if (damagePlayer.getTotalArmorValue() != 0
+                                || damagePlayer.getEntityAttribute(
+                                    net.minecraft.entity.SharedMonsterAttributes
+                                        .ARMOR_TOUGHNESS).getAttributeValue()
+                                    != 0.0D)
+                            return err("anvil damage fixture has stale armor attributes");
+                        net.minecraft.item.ItemStack chest =
+                            new net.minecraft.item.ItemStack(
+                                damageArmor
+                                    ? net.minecraft.init.Items.DIAMOND_CHESTPLATE
+                                    : net.minecraft.init.Items.DIAMOND_HELMET,
+                                1, 0);
+                        armorFixtureStack = chest;
+                        armorFixtureIndex = damageArmor ? 2 : 3;
+                        armorFixtureSlot = damageArmor
+                            ? net.minecraft.inventory.EntityEquipmentSlot.CHEST
+                            : net.minecraft.inventory.EntityEquipmentSlot.HEAD;
+                        damagePlayer.inventory.armorInventory.set(
+                            armorFixtureIndex, chest);
+                        armorFixtureActive = true;
+                        damagePlayer.getAttributeMap().applyAttributeModifiers(
+                            chest.getAttributeModifiers(armorFixtureSlot));
+                        if (damagePlayer.getTotalArmorValue()
+                                    != (damageArmor ? 8 : 3)
+                                || damagePlayer.getEntityAttribute(
+                                    net.minecraft.entity.SharedMonsterAttributes
+                                        .ARMOR_TOUGHNESS).getAttributeValue()
+                                    != 2.0D)
+                            return err("anvil chest armor attributes mismatch");
+                    }
+                }
+                priorLoadedEntityIds = new java.util.HashSet<Integer>();
+                for (net.minecraft.entity.Entity e :
+                        new java.util.ArrayList<net.minecraft.entity.Entity>(
+                            w.loadedEntityList))
+                    priorLoadedEntityIds.add(e.getEntityId());
+                oldMathSeed = mathRandomSeed48(); oldWorldSeed = javaRandomSeed48(w.rand);
+                if (damage)
+                    oldPlayerRandomSeed = javaRandomSeed48(
+                        entityRandom(damagePlayer));
+                oldNextEntityId = nextEntityId();
+                setMathRandomSeed48(mathSeed); setJavaRandomSeed48(w.rand, worldSeed); setNextEntityId(nextId);
+                if (damage)
+                    setJavaRandomSeed48(
+                        entityRandom(damagePlayer), playerSeed);
+                worldEventCapture = new OracleWorldEventCapture(
+                    cx + minDx, minY, cz + minDz,
+                    cx + maxDx, maxY, cz + maxDz);
+                w.addEventListener(worldEventCapture);
+                net.minecraft.block.BlockFalling.fallInstantly = instant;
+                w.getPendingBlockUpdates(box, true);
+                ((net.minecraft.block.BlockFalling)net.minecraft.init.Blocks.ANVIL).updateTick(w, source, anvil, w.rand);
+                if (!moving) fixtureMathSeed = mathRandomSeed48();
+                JsonArray rows = new JsonArray();
+                JsonArray impactOrder = new JsonArray();
+                JsonArray mobPostRows = new JsonArray();
+                JsonArray terminalXpOrbs = new JsonArray();
+                JsonObject constructorItem = null, tickedItem = null;
+                if (moving) {
+                    for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                        if (e instanceof net.minecraft.entity.item.EntityFallingBlock && e.getEntityId() == nextId) {
+                            falling = (net.minecraft.entity.item.EntityFallingBlock)e; fixtureId = e.getEntityId(); break;
+                        }
+                    if (falling == null) return err("anvil callback did not spawn entity");
+                    setJavaRandomSeed48(entityRandom(falling), entitySeed);
+                    if (damagePigAnyMode || damagePigsMode) {
+                        long pigSeed = action.get("pig_entity_seed48").getAsLong();
+                        if (pigSeed < 0L || pigSeed >= (1L << 48))
+                            return err("invalid falling-anvil pig RNG seed");
+                        damagePig = new net.minecraft.entity.passive.EntityPig(w);
+                        fixturePigId = damagePig.getEntityId();
+                        setJavaRandomSeed48(entityRandom(damagePig), pigSeed);
+                        damagePig.setPosition(cx + 0.5D, baseY - 3.0D,
+                            cz + 0.5D);
+                        damagePig.motionX = damagePig.motionY =
+                            damagePig.motionZ = 0.0D;
+                        damagePig.onGround = true;
+                        damagePig.fallDistance = 0.0F;
+                        damagePig.setNoAI(true);
+                        damagePig.setHealth(damagePigXpMode ? 4.0F : 10.0F);
+                        damagePig.hurtResistantTime = 0;
+                        damagePig.hurtTime = 0;
+                        damagePig.maxHurtTime = 0;
+                        playerLastDamageField =
+                            net.minecraft.entity.EntityLivingBase.class
+                                .getDeclaredField("lastDamage");
+                        playerLastDamageField.setAccessible(true);
+                        playerLastDamageField.setFloat(damagePig, 0.0F);
+                        if (damagePigXpMode) {
+                            damagePig.deathTime = 0;
+                            entityFireField =
+                                net.minecraft.entity.Entity.class
+                                    .getDeclaredField("fire");
+                            entityFireField.setAccessible(true);
+                            entityFireField.setInt(damagePig, -1);
+                            recentlyHitField =
+                                net.minecraft.entity.EntityLivingBase.class
+                                    .getDeclaredField("recentlyHit");
+                            recentlyHitField.setAccessible(true);
+                            recentlyHitField.setInt(damagePig, 20);
+                            attackingPlayerField =
+                                net.minecraft.entity.EntityLivingBase.class
+                                    .getDeclaredField("attackingPlayer");
+                            attackingPlayerField.setAccessible(true);
+                            attackingPlayerField.set(
+                                damagePig, players.get(0));
+                        }
+                        if (!oracleAddUntrackedEntity(w, damagePig))
+                            return err("anvil pig fixture failed to spawn");
+                        if (damagePigXpMode) {
+                            mobDropsCapture =
+                                new OracleLivingDropsCapture(damagePig);
+                            MinecraftForge.EVENT_BUS.register(mobDropsCapture);
+                        }
+                        if (damagePigsMode) {
+                            long pigSeed2 = action.get(
+                                "pig_entity_seed48_2").getAsLong();
+                            if (pigSeed2 < 0L || pigSeed2 >= (1L << 48))
+                                return err("invalid second anvil pig RNG seed");
+                            damagePig2 =
+                                new net.minecraft.entity.passive.EntityPig(w);
+                            fixturePigId2 = damagePig2.getEntityId();
+                            setJavaRandomSeed48(
+                                entityRandom(damagePig2), pigSeed2);
+                            damagePig2.setPosition(
+                                cx + 0.5D, baseY - 3.0D, cz + 0.5D);
+                            damagePig2.motionX = damagePig2.motionY =
+                                damagePig2.motionZ = 0.0D;
+                            damagePig2.onGround = true;
+                            damagePig2.fallDistance = 0.0F;
+                            damagePig2.setNoAI(true);
+                            damagePig2.setHealth(10.0F);
+                            damagePig2.hurtResistantTime = 0;
+                            damagePig2.hurtTime = 0;
+                            damagePig2.maxHurtTime = 0;
+                            playerLastDamageField.setFloat(
+                                damagePig2, 0.0F);
+                            if (!oracleAddUntrackedEntity(w, damagePig2))
+                                return err(
+                                    "second anvil pig fixture failed to spawn");
+                        }
+                    }
+                    if (damageCowAnyMode) {
+                        long cowSeed = action.get(
+                            "cow_entity_seed48").getAsLong();
+                        if (cowSeed < 0L || cowSeed >= (1L << 48))
+                            return err("invalid falling-anvil cow RNG seed");
+                        damageCow =
+                            new net.minecraft.entity.passive.EntityCow(w);
+                        fixtureCowId = damageCow.getEntityId();
+                        setJavaRandomSeed48(entityRandom(damageCow), cowSeed);
+                        damageCow.setPosition(
+                            cx + 0.5D, baseY - 3.0D, cz + 0.5D);
+                        damageCow.motionX = damageCow.motionY =
+                            damageCow.motionZ = 0.0D;
+                        damageCow.onGround = true;
+                        damageCow.fallDistance = 0.0F;
+                        damageCow.setNoAI(true);
+                        damageCow.setHealth(damageCowXpMode ? 4.0F : 10.0F);
+                        damageCow.hurtResistantTime = 0;
+                        damageCow.hurtTime = 0;
+                        damageCow.maxHurtTime = 0;
+                        playerLastDamageField =
+                            net.minecraft.entity.EntityLivingBase.class
+                                .getDeclaredField("lastDamage");
+                        playerLastDamageField.setAccessible(true);
+                        playerLastDamageField.setFloat(damageCow, 0.0F);
+                        if (damageCowXpMode) {
+                            damageCow.deathTime = 0;
+                            entityFireField =
+                                net.minecraft.entity.Entity.class
+                                    .getDeclaredField("fire");
+                            entityFireField.setAccessible(true);
+                            entityFireField.setInt(damageCow, -1);
+                            recentlyHitField =
+                                net.minecraft.entity.EntityLivingBase.class
+                                    .getDeclaredField("recentlyHit");
+                            recentlyHitField.setAccessible(true);
+                            recentlyHitField.setInt(damageCow, 20);
+                            attackingPlayerField =
+                                net.minecraft.entity.EntityLivingBase.class
+                                    .getDeclaredField("attackingPlayer");
+                            attackingPlayerField.setAccessible(true);
+                            attackingPlayerField.set(
+                                damageCow, players.get(0));
+                        }
+                        if (!oracleAddUntrackedEntity(w, damageCow))
+                            return err("anvil cow fixture failed to spawn");
+                        if (damageCowXpMode) {
+                            mobDropsCapture =
+                                new OracleLivingDropsCapture(damageCow);
+                            MinecraftForge.EVENT_BUS.register(mobDropsCapture);
+                        }
+                    }
+                    if (damageSheepAnyMode) {
+                        long sheepSeed = action.get(
+                            "sheep_entity_seed48").getAsLong();
+                        if (sheepSeed < 0L || sheepSeed >= (1L << 48))
+                            return err("invalid falling-anvil sheep RNG seed");
+                        damageSheep =
+                            new net.minecraft.entity.passive.EntitySheep(w);
+                        fixtureSheepId = damageSheep.getEntityId();
+                        setJavaRandomSeed48(
+                            entityRandom(damageSheep), sheepSeed);
+                        damageSheep.setPosition(
+                            cx + 0.5D, baseY - 3.0D, cz + 0.5D);
+                        damageSheep.motionX = damageSheep.motionY =
+                            damageSheep.motionZ = 0.0D;
+                        damageSheep.onGround = true;
+                        damageSheep.fallDistance = 0.0F;
+                        damageSheep.setNoAI(true);
+                        damageSheep.setFleeceColor(
+                            net.minecraft.item.EnumDyeColor.byMetadata(
+                                damageSheepRedXpMode
+                                    || damageSheepShearedXpMode ? 14 : 0));
+                        damageSheep.setSheared(damageSheepShearedXpMode);
+                        damageSheep.setHealth(
+                            damageSheepXpMode ? 4.0F : 8.0F);
+                        damageSheep.hurtResistantTime = 0;
+                        damageSheep.hurtTime = 0;
+                        damageSheep.maxHurtTime = 0;
+                        playerLastDamageField =
+                            net.minecraft.entity.EntityLivingBase.class
+                                .getDeclaredField("lastDamage");
+                        playerLastDamageField.setAccessible(true);
+                        playerLastDamageField.setFloat(damageSheep, 0.0F);
+                        if (damageSheepXpMode) {
+                            damageSheep.deathTime = 0;
+                            entityFireField =
+                                net.minecraft.entity.Entity.class
+                                    .getDeclaredField("fire");
+                            entityFireField.setAccessible(true);
+                            entityFireField.setInt(damageSheep, -1);
+                            recentlyHitField =
+                                net.minecraft.entity.EntityLivingBase.class
+                                    .getDeclaredField("recentlyHit");
+                            recentlyHitField.setAccessible(true);
+                            recentlyHitField.setInt(damageSheep, 20);
+                            attackingPlayerField =
+                                net.minecraft.entity.EntityLivingBase.class
+                                    .getDeclaredField("attackingPlayer");
+                            attackingPlayerField.setAccessible(true);
+                            attackingPlayerField.set(
+                                damageSheep, players.get(0));
+                        }
+                        if (!oracleAddUntrackedEntity(w, damageSheep))
+                            return err("anvil sheep fixture failed to spawn");
+                        if (damageSheepXpMode) {
+                            mobDropsCapture =
+                                new OracleLivingDropsCapture(damageSheep);
+                            MinecraftForge.EVENT_BUS.register(mobDropsCapture);
+                        }
+                    }
+                    if (damageChickenAnyMode) {
+                        long chickenSeed = action.get(
+                            "chicken_entity_seed48").getAsLong();
+                        if (chickenSeed < 0L || chickenSeed >= (1L << 48))
+                            return err("invalid falling-anvil chicken RNG seed");
+                        damageChicken =
+                            new net.minecraft.entity.passive.EntityChicken(w);
+                        fixtureChickenId = damageChicken.getEntityId();
+                        setJavaRandomSeed48(
+                            entityRandom(damageChicken), chickenSeed);
+                        damageChicken.setPosition(
+                            cx + 0.5D, baseY - 3.0D, cz + 0.5D);
+                        damageChicken.motionX = damageChicken.motionY =
+                            damageChicken.motionZ = 0.0D;
+                        damageChicken.onGround = true;
+                        damageChicken.fallDistance = 0.0F;
+                        damageChicken.setNoAI(true);
+                        damageChicken.setHealth(4.0F);
+                        damageChicken.hurtResistantTime = 0;
+                        damageChicken.hurtTime = 0;
+                        damageChicken.maxHurtTime = 0;
+                        damageChicken.deathTime = 0;
+                        damageChicken.timeUntilNextEgg = 6000;
+                        entityFireField =
+                            net.minecraft.entity.Entity.class
+                                .getDeclaredField("fire");
+                        entityFireField.setAccessible(true);
+                        if (damageChickenLootCookedMode)
+                            entityFireField.setInt(damageChicken, 100);
+                        playerLastDamageField =
+                            net.minecraft.entity.EntityLivingBase.class
+                                .getDeclaredField("lastDamage");
+                        playerLastDamageField.setAccessible(true);
+                        playerLastDamageField.setFloat(damageChicken, 0.0F);
+                        recentlyHitField =
+                            net.minecraft.entity.EntityLivingBase.class
+                                .getDeclaredField("recentlyHit");
+                        recentlyHitField.setAccessible(true);
+                        attackingPlayerField =
+                            net.minecraft.entity.EntityLivingBase.class
+                                .getDeclaredField("attackingPlayer");
+                        attackingPlayerField.setAccessible(true);
+                        if (damageChickenXpMode
+                                || damageChickenXpExpiredMode) {
+                            recentlyHitField.setInt(
+                                damageChicken,
+                                damageChickenXpMode ? 20 : 19);
+                            attackingPlayerField.set(
+                                damageChicken, players.get(0));
+                        }
+                        /* Keep the real server entity in spatial queries but
+                         * do not create an integrated-client mirror.  Every
+                         * passive constructor consumes shared Math.random. */
+                        if (!oracleAddUntrackedEntity(w, damageChicken)) {
+                            return err("anvil chicken fixture failed to spawn");
+                        }
+                        if (damageChickenLootMode) {
+                            mobDropsCapture =
+                                new OracleLivingDropsCapture(damageChicken);
+                            MinecraftForge.EVENT_BUS.register(
+                                mobDropsCapture);
+                        }
+                    }
+                    if (damagePig != null)
+                        oracleMobEventTargets.put(
+                            damagePig, Integer.valueOf(nextId + 1));
+                    if (damagePig2 != null)
+                        oracleMobEventTargets.put(
+                            damagePig2, Integer.valueOf(nextId + 2));
+                    if (damageCow != null)
+                        oracleMobEventTargets.put(
+                            damageCow, Integer.valueOf(nextId + 1));
+                    if (damageSheep != null)
+                        oracleMobEventTargets.put(
+                            damageSheep, Integer.valueOf(nextId + 1));
+                    if (damageChicken != null)
+                        oracleMobEventTargets.put(
+                            damageChicken, Integer.valueOf(nextId + 1));
+                    if (!oracleMobEventTargets.isEmpty())
+                        oracleMobEventWorld = w;
+                    for (int step = 1; step <= 20; ++step) {
+                        if ((damageReject || damageDelta) && step == 13) {
+                            damagePlayer.setHealth(20.0F);
+                            damagePlayer.hurtResistantTime = 20;
+                            damagePlayer.hurtTime = 10;
+                            damagePlayer.maxHurtTime = 10;
+                            playerLastDamageField.setFloat(
+                                damagePlayer, damageReject ? 4.0F : 2.0F);
+                            foodExhaustionField.setFloat(
+                                damagePlayer.getFoodStats(), 0.0F);
+                        }
+                        falling.onUpdate();
+                        if (falling.isDead
+                                && (damagePigXpMode || damagePigsMode
+                                    || damageCowAnyMode
+                                    || damageSheepAnyMode
+                                    || damageChickenAnyMode)) {
+                            for (net.minecraft.entity.Entity target :
+                                    w.getEntitiesWithinAABBExcludingEntity(
+                                        falling,
+                                        falling.getEntityBoundingBox())) {
+                                if (target == damagePig)
+                                    impactOrder.add(new JsonPrimitive(
+                                        nextId + 1));
+                                else if (target == damagePig2)
+                                    impactOrder.add(new JsonPrimitive(
+                                        nextId + 2));
+                                else if (target == damageCow)
+                                    impactOrder.add(new JsonPrimitive(
+                                        nextId + 1));
+                                else if (target == damageSheep)
+                                    impactOrder.add(new JsonPrimitive(
+                                        nextId + 1));
+                                else if (target == damageChicken)
+                                    impactOrder.add(new JsonPrimitive(
+                                        nextId + 1));
+                            }
+                        }
+                        /* Snapshot the fixture-owned Math.random cursor at
+                         * the exact terminal callback boundary. The client
+                         * half of the integrated JVM shares this static RNG
+                         * and may advance it during later JSON assembly. */
+                        if (falling.isDead)
+                            fixtureMathSeed = mathRandomSeed48();
+                        JsonArray row = new JsonArray();
+                        row.add(new JsonPrimitive(step)); row.add(new JsonPrimitive(falling.fallTime));
+                        row.add(new JsonPrimitive(falling.isDead)); row.add(new JsonPrimitive(falling.posX));
+                        row.add(new JsonPrimitive(falling.posY)); row.add(new JsonPrimitive(falling.posZ));
+                        row.add(new JsonPrimitive(falling.motionX)); row.add(new JsonPrimitive(falling.motionY));
+                        row.add(new JsonPrimitive(falling.motionZ)); row.add(new JsonPrimitive(falling.onGround));
+                        row.add(new JsonPrimitive(falling.isCollidedHorizontally));
+                        row.add(new JsonPrimitive(falling.isCollidedVertically)); row.add(new JsonPrimitive(falling.fallDistance));
+                        row.add(new JsonPrimitive(javaRandomSeed48(entityRandom(falling))));
+                        rows.add(row);
+                        if (falling.isDead) break;
+                    }
+                    if (!falling.isDead) return err("anvil did not land in 20 rows");
+                    if (damageMobLootMode) {
+                        if (mobDropsCapture == null
+                                || !mobDropsCapture.fired)
+                            return err("anvil passive loot event did not fire");
+                        MinecraftForge.EVENT_BUS.unregister(
+                            mobDropsCapture);
+                        mobDropsCapture = null;
+                        damageMobDrops.addAll(damagePigXpMode
+                            ? damagePig.capturedDrops
+                            : damageCowXpMode ? damageCow.capturedDrops
+                            : damageSheepXpMode ? damageSheep.capturedDrops
+                            : damageChicken.capturedDrops);
+                        for (net.minecraft.entity.item.EntityItem item :
+                                damageMobDrops)
+                            if (!oracleAddUntrackedEntity(w, item))
+                                return err("anvil passive loot spawn failed");
+                    }
+                    if (drop) {
+                        for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                            if (e instanceof net.minecraft.entity.item.EntityItem
+                                    && !priorLoadedEntityIds.contains(
+                                        e.getEntityId())) {
+                                net.minecraft.entity.item.EntityItem candidate =
+                                    (net.minecraft.entity.item.EntityItem)e;
+                                if (net.minecraft.item.Item.getIdFromItem(
+                                        candidate.getEntityItem().getItem())
+                                        != 145)
+                                    continue;
+                                if (dropped != null)
+                                    return err("anvil failed placement created multiple items");
+                                dropped = candidate;
+                            }
+                        if (dropped == null) return err("anvil failed placement did not drop item");
+                        fixtureItemId = dropped.getEntityId();
+                        constructorItem = oracleFallingDropItemJson(dropped);
+                        constructorItem.addProperty(
+                            "observed_eid", fixtureItemId);
+                        constructorItem.addProperty("eid", nextId + 1);
+                        dropped.onUpdate();
+                        tickedItem = oracleFallingDropItemJson(dropped);
+                        tickedItem.addProperty("observed_eid", fixtureItemId);
+                        tickedItem.addProperty("eid", nextId + 1);
+                    }
+                }
+                JsonObject playerDamage = null;
+                if (damagePlayer != null) {
+                    playerDamage = new JsonObject();
+                    playerDamage.addProperty("health", damagePlayer.getHealth());
+                    playerDamage.addProperty(
+                        "absorption", damagePlayer.getAbsorptionAmount());
+                    playerDamage.addProperty(
+                        "hurt_resistant_time",
+                        damagePlayer.hurtResistantTime);
+                    playerDamage.addProperty(
+                        "hurt_time", damagePlayer.hurtTime);
+                    playerDamage.addProperty(
+                        "max_hurt_time", damagePlayer.maxHurtTime);
+                    playerDamage.addProperty(
+                        "last_damage",
+                        playerLastDamageField.getFloat(damagePlayer));
+                    playerDamage.addProperty(
+                        "food_exhaustion",
+                        foodExhaustionField.getFloat(
+                            damagePlayer.getFoodStats()));
+                    playerDamage.addProperty("entity_seed48",
+                        javaRandomSeed48(entityRandom(damagePlayer)));
+                    JsonArray armor = new JsonArray();
+                    for (int i = 0;
+                            i < damagePlayer.inventory.armorInventory.size();
+                            ++i) {
+                        net.minecraft.item.ItemStack stack =
+                            damagePlayer.inventory.armorInventory.get(i);
+                        if (stack.isEmpty()) continue;
+                        JsonObject entry = new JsonObject();
+                        entry.addProperty("slot", 36 + i);
+                        entry.addProperty("id",
+                            net.minecraft.item.Item.getIdFromItem(
+                                stack.getItem()));
+                        entry.addProperty("count", stack.getCount());
+                        entry.addProperty("meta", stack.getItemDamage());
+                        armor.add(entry);
+                    }
+                    playerDamage.add("armor", armor);
+                }
+                JsonObject mobDamage = null;
+                if (damagePigAnyMode || damageCowAnyMode || damageSheepAnyMode
+                        || damageChickenAnyMode) {
+                    net.minecraft.entity.EntityLivingBase singleMob =
+                        damageChickenAnyMode ? damageChicken
+                            : damageSheepAnyMode ? damageSheep
+                            : damageCowAnyMode ? damageCow : damagePig;
+                    /* This is the immediate EntityFallingBlock.onUpdate()
+                     * landing boundary.  Do not tick the pig: AI, timers, and
+                     * ambient motion would make this impact contract noisy. */
+                    mobDamage = new JsonObject();
+                    /* Entity.nextEntityID is shared by the integrated client.
+                     * The observed constructor ID can race ambient client
+                     * work, but the fixture's causal ID is still nextId + 1. */
+                    mobDamage.addProperty("eid", nextId + 1);
+                    mobDamage.addProperty("observed_eid",
+                        singleMob.getEntityId());
+                    mobDamage.addProperty("type",
+                        damageChickenAnyMode ? "chicken"
+                            : damageSheepAnyMode ? "sheep"
+                            : damageCowAnyMode ? "cow" : "pig");
+                    if (damageSheepAnyMode) {
+                        mobDamage.addProperty("fleece_color",
+                            damageSheep.getFleeceColor().getMetadata());
+                        mobDamage.addProperty("sheared",
+                            damageSheep.getSheared());
+                    }
+                    mobDamage.addProperty("health", singleMob.getHealth());
+                    mobDamage.addProperty("hurt_resistant_time",
+                        singleMob.hurtResistantTime);
+                    mobDamage.addProperty("hurt_time", singleMob.hurtTime);
+                    mobDamage.addProperty("max_hurt_time",
+                        singleMob.maxHurtTime);
+                    mobDamage.addProperty("last_damage",
+                        playerLastDamageField.getFloat(singleMob));
+                    mobDamage.addProperty("entity_seed48",
+                        javaRandomSeed48(entityRandom(singleMob)));
+                    mobDamage.addProperty("recently_hit",
+                        recentlyHitField == null
+                            ? 0 : recentlyHitField.getInt(singleMob));
+                    mobDamage.addProperty("attacking_player",
+                        attackingPlayerField != null
+                            && attackingPlayerField.get(singleMob)
+                                == players.get(0));
+                    mobDamage.addProperty(
+                        "fire_ticks", entityFireField == null
+                            ? 0 : entityFireField.getInt(singleMob));
+                    mobDamage.addProperty(
+                        "burning", singleMob.isBurning());
+                    if (livingDeadField == null) {
+                        livingDeadField =
+                            net.minecraft.entity.EntityLivingBase.class
+                                .getDeclaredField("dead");
+                        livingDeadField.setAccessible(true);
+                    }
+                    mobDamage.addProperty(
+                        "death_time", singleMob.deathTime);
+                    mobDamage.addProperty(
+                        "living_dead", livingDeadField.getBoolean(singleMob));
+                    mobDamage.addProperty(
+                        "entity_is_dead", singleMob.isDead);
+                    int dropEntityCount = 0, xpEntityCount = 0;
+                    for (net.minecraft.entity.Entity e :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList)) {
+                        if (priorLoadedEntityIds.contains(e.getEntityId()))
+                            continue;
+                        if (e instanceof net.minecraft.entity.item.EntityItem)
+                            ++dropEntityCount;
+                        else if (e instanceof
+                                net.minecraft.entity.item.EntityXPOrb)
+                            ++xpEntityCount;
+                    }
+                    mobDamage.addProperty(
+                        "drop_entity_count", dropEntityCount);
+                    mobDamage.addProperty(
+                        "xp_entity_count", xpEntityCount);
+                    net.minecraft.util.math.AxisAlignedBB targetBox =
+                        singleMob.getEntityBoundingBox();
+                    JsonArray targetAabb = new JsonArray();
+                    targetAabb.add(new JsonPrimitive(targetBox.minX));
+                    targetAabb.add(new JsonPrimitive(targetBox.minY));
+                    targetAabb.add(new JsonPrimitive(targetBox.minZ));
+                    targetAabb.add(new JsonPrimitive(targetBox.maxX));
+                    targetAabb.add(new JsonPrimitive(targetBox.maxY));
+                    targetAabb.add(new JsonPrimitive(targetBox.maxZ));
+                    mobDamage.add("aabb", targetAabb);
+                }
+                JsonArray mobDrops = new JsonArray();
+                for (int i = 0; i < damageMobDrops.size(); ++i) {
+                    net.minecraft.entity.item.EntityItem item =
+                        damageMobDrops.get(i);
+                    JsonObject entry = oracleFallingDropItemJson(item);
+                    entry.addProperty("observed_eid", item.getEntityId());
+                    entry.addProperty("eid", nextId + 2 + i);
+                    mobDrops.add(entry);
+                }
+                if (damageMobLifecycleMode) {
+                    /* Continue only the fixture-owned loaded-entity order.
+                     * This is the parked World.updateEntities boundary: the
+                     * passive first, then its already-spawned loot items. */
+                    net.minecraft.entity.EntityLivingBase lifecycleMob =
+                        damagePigXpMode ? damagePig
+                            : damageCowXpMode ? damageCow
+                            : damageSheepXpMode ? damageSheep : damageChicken;
+                    worldEventCapture.captureParticles = true;
+                    for (int tick = 1; tick <= 20; ++tick) {
+                        int particleCountBefore =
+                            worldEventCapture.particles.size();
+                        w.updateEntityWithOptionalForce(lifecycleMob, true);
+                        if (lifecycleMob.isDead)
+                            w.removeEntityDangerously(lifecycleMob);
+                        for (net.minecraft.entity.item.EntityItem item :
+                                damageMobDrops)
+                            if (!item.isDead)
+                                item.onUpdate();
+                        /* World.updateEntities uses an index over the live
+                         * loadedEntityList size.  An XP orb appended by the
+                         * chicken at deathTime 20 is therefore ticked after
+                         * the pre-existing loot items in that same tick. */
+                        for (net.minecraft.entity.Entity entity :
+                                new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                    w.loadedEntityList))
+                            if (!priorLoadedEntityIds.contains(
+                                    entity.getEntityId())
+                                    && entity instanceof
+                                        net.minecraft.entity.item.EntityXPOrb
+                                    && !entity.isDead)
+                                entity.onUpdate();
+                        int xpEntityCount = 0;
+                        for (net.minecraft.entity.Entity e :
+                                new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                    w.loadedEntityList))
+                            if (!priorLoadedEntityIds.contains(e.getEntityId())
+                                    && e instanceof
+                                        net.minecraft.entity.item.EntityXPOrb)
+                                ++xpEntityCount;
+                        JsonObject post = new JsonObject();
+                        post.addProperty("tick", tick);
+                        post.addProperty("death_time", lifecycleMob.deathTime);
+                        post.addProperty("hurt_resistant_time",
+                            lifecycleMob.hurtResistantTime);
+                        post.addProperty("hurt_time", lifecycleMob.hurtTime);
+                        post.addProperty("living_dead",
+                            livingDeadField.getBoolean(lifecycleMob));
+                        post.addProperty("entity_is_dead", lifecycleMob.isDead);
+                        post.addProperty("loaded",
+                            w.loadedEntityList.contains(lifecycleMob));
+                        post.addProperty("fire_ticks",
+                            entityFireField.getInt(lifecycleMob));
+                        post.addProperty("burning", lifecycleMob.isBurning());
+                        post.addProperty("entity_seed48",
+                            javaRandomSeed48(entityRandom(lifecycleMob)));
+                        post.addProperty("recently_hit",
+                            recentlyHitField.getInt(lifecycleMob));
+                        post.addProperty("attacking_player",
+                            attackingPlayerField.get(lifecycleMob)
+                                == players.get(0));
+                        post.addProperty("world_seed48",
+                            javaRandomSeed48(w.rand));
+                        post.addProperty("math_seed48",
+                            mathRandomSeed48());
+                        post.addProperty("xp_entity_count", xpEntityCount);
+                        post.addProperty("terminal_particle_count",
+                            worldEventCapture.particles.size()
+                                - particleCountBefore);
+                        JsonArray items = new JsonArray();
+                        for (int i = 0; i < damageMobDrops.size(); ++i) {
+                            net.minecraft.entity.item.EntityItem item =
+                                damageMobDrops.get(i);
+                            JsonArray itemState = new JsonArray();
+                            itemState.add(new JsonPrimitive(nextId + 2 + i));
+                            itemState.add(new JsonPrimitive(item.getAge()));
+                            itemState.add(new JsonPrimitive(
+                                itemField(item, "delayBeforeCanPickup")));
+                            itemState.add(new JsonPrimitive(item.isDead));
+                            itemState.add(new JsonPrimitive(
+                                w.loadedEntityList.contains(item)));
+                            items.add(itemState);
+                        }
+                        post.add("items", items);
+                        mobPostRows.add(post);
+                    }
+                    worldEventCapture.captureParticles = false;
+                    fixtureMathSeed = mathRandomSeed48();
+                }
+                int terminalXpIndex = 0;
+                for (net.minecraft.entity.Entity entity :
+                        new java.util.ArrayList<net.minecraft.entity.Entity>(
+                            w.loadedEntityList)) {
+                    if (priorLoadedEntityIds.contains(entity.getEntityId())
+                            || !(entity instanceof
+                                net.minecraft.entity.item.EntityXPOrb))
+                        continue;
+                    net.minecraft.entity.item.EntityXPOrb orb =
+                        (net.minecraft.entity.item.EntityXPOrb)entity;
+                    JsonObject xp = new JsonObject();
+                    xp.addProperty("eid",
+                        nextId + 2 + damageMobDrops.size()
+                            + terminalXpIndex++);
+                    xp.addProperty("dimension", w.provider.getDimension());
+                    xp.addProperty("value", orb.xpValue);
+                    xp.addProperty("health",
+                        xpOrbField(orb, "xpOrbHealth"));
+                    xp.addProperty("age", orb.xpOrbAge);
+                    xp.addProperty(
+                        "pickup_delay", orb.delayBeforeCanPickup);
+                    xp.addProperty("color", orb.xpColor);
+                    java.lang.reflect.Field targetColor =
+                        net.minecraft.entity.item.EntityXPOrb.class
+                            .getDeclaredField("xpTargetColor");
+                    targetColor.setAccessible(true);
+                    xp.addProperty(
+                        "target_color", targetColor.getInt(orb));
+                    xp.addProperty("dead", orb.isDead);
+                    xp.addProperty(
+                        "yaw_bits", oracleFloatBits(orb.rotationYaw));
+                    JsonArray payload = new JsonArray();
+                    payload.add(new JsonPrimitive(
+                        OracleWorldEventCapture.ParticleRecord.bits(orb.posX)));
+                    payload.add(new JsonPrimitive(
+                        OracleWorldEventCapture.ParticleRecord.bits(orb.posY)));
+                    payload.add(new JsonPrimitive(
+                        OracleWorldEventCapture.ParticleRecord.bits(orb.posZ)));
+                    payload.add(new JsonPrimitive(
+                        OracleWorldEventCapture.ParticleRecord.bits(
+                            orb.motionX)));
+                    payload.add(new JsonPrimitive(
+                        OracleWorldEventCapture.ParticleRecord.bits(
+                            orb.motionY)));
+                    payload.add(new JsonPrimitive(
+                        OracleWorldEventCapture.ParticleRecord.bits(
+                            orb.motionZ)));
+                    xp.add("payload_bits", payload);
+                    terminalXpOrbs.add(xp);
+                }
+                JsonArray mobDamages = new JsonArray();
+                if (damagePigsMode) {
+                    net.minecraft.entity.passive.EntityPig[] pigs = {
+                        damagePig, damagePig2
+                    };
+                    for (int i = 0; i < pigs.length; ++i) {
+                        net.minecraft.entity.passive.EntityPig pig = pigs[i];
+                        JsonObject entry = new JsonObject();
+                        entry.addProperty("eid", nextId + 1 + i);
+                        entry.addProperty("observed_eid", pig.getEntityId());
+                        entry.addProperty("type", "pig");
+                        entry.addProperty("health", pig.getHealth());
+                        entry.addProperty("hurt_resistant_time",
+                            pig.hurtResistantTime);
+                        entry.addProperty("hurt_time", pig.hurtTime);
+                        entry.addProperty("max_hurt_time", pig.maxHurtTime);
+                        entry.addProperty("last_damage",
+                            playerLastDamageField.getFloat(pig));
+                        entry.addProperty("entity_seed48",
+                            javaRandomSeed48(entityRandom(pig)));
+                        net.minecraft.util.math.AxisAlignedBB targetBox =
+                            pig.getEntityBoundingBox();
+                        JsonArray targetAabb = new JsonArray();
+                        targetAabb.add(new JsonPrimitive(targetBox.minX));
+                        targetAabb.add(new JsonPrimitive(targetBox.minY));
+                        targetAabb.add(new JsonPrimitive(targetBox.minZ));
+                        targetAabb.add(new JsonPrimitive(targetBox.maxX));
+                        targetAabb.add(new JsonPrimitive(targetBox.maxY));
+                        targetAabb.add(new JsonPrimitive(targetBox.maxZ));
+                        entry.add("aabb", targetAabb);
+                        mobDamages.add(entry);
+                    }
+                }
+                JsonArray finalBlocks = new JsonArray();
+                for (int y = minY; y <= maxY; ++y) for (int z = cz + minDz; z <= cz + maxDz; ++z)
+                    for (int x = cx + minDx; x <= cx + maxDx; ++x) {
+                        net.minecraft.block.state.IBlockState state = w.getBlockState(new BlockPos(x, y, z));
+                        int id = net.minecraft.block.Block.getIdFromBlock(state.getBlock()); if (id == 0) continue;
+                        JsonArray cell = new JsonArray(); cell.add(new JsonPrimitive(x)); cell.add(new JsonPrimitive(y));
+                        cell.add(new JsonPrimitive(z)); cell.add(new JsonPrimitive(id));
+                        cell.add(new JsonPrimitive(state.getBlock().getMetaFromState(state))); finalBlocks.add(cell);
+                    }
+                JsonArray fixtureEntities = new JsonArray();
+                if (fixtureId > 0) for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                    if (e.getEntityId() == fixtureId) { JsonArray entity = new JsonArray(); entity.add(new JsonPrimitive(e.getEntityId()));
+                        entity.add(new JsonPrimitive(e.isDead)); entity.add(new JsonPrimitive(e.posX)); entity.add(new JsonPrimitive(e.posY));
+                        entity.add(new JsonPrimitive(e.posZ)); fixtureEntities.add(entity); }
+                JsonArray mobEvents = new JsonArray();
+                for (OracleMobEventCapture event : oracleMobEventCapture)
+                    mobEvents.add(event.toJson());
+                JsonObject out = new JsonObject(); out.addProperty("ok", true); out.addProperty("mode", mode); out.addProperty("meta", meta);
+                out.addProperty("origin_x", cx); out.addProperty("origin_z", cz); out.addProperty("base_y", baseY);
+                out.add("on_added_scheduled", onAdded); out.add("after_support_loss_scheduled", afterSupportLoss);
+                out.add("rows", rows); out.add("final_blocks", finalBlocks); out.add("scheduled", pendingEntries(w, box)); out.add("fixture_entities", fixtureEntities);
+                out.add("constructor_item", constructorItem == null
+                    ? com.google.gson.JsonNull.INSTANCE : constructorItem);
+                out.add("ticked_item", tickedItem == null
+                    ? com.google.gson.JsonNull.INSTANCE : tickedItem);
+                out.add("player_damage", playerDamage == null
+                    ? com.google.gson.JsonNull.INSTANCE : playerDamage);
+                out.add("mob_damage", mobDamage == null
+                    ? com.google.gson.JsonNull.INSTANCE : mobDamage);
+                out.add("mob_drops", mobDrops);
+                out.add("mob_post_rows", mobPostRows);
+                out.add("mob_damages", mobDamages);
+                out.add("impact_order", impactOrder);
+                out.add("mob_events", mobEvents);
+                out.add("world_events", worldEventCapture.toJson());
+                out.add("terminal_particles",
+                    worldEventCapture.terminalParticlesToJson(
+                        nextId + 1, w.provider.getDimension()));
+                out.add("xp_orbs", terminalXpOrbs);
+                out.addProperty("mob_damage_post_runtime_tick", false);
+                net.minecraft.block.state.IBlockState sourceState = w.getBlockState(source);
+                out.addProperty("source_block", net.minecraft.block.Block.getIdFromBlock(sourceState.getBlock()));
+                out.addProperty("source_meta", sourceState.getBlock().getMetaFromState(sourceState));
+                out.addProperty("math_seed48", fixtureMathSeed);
+                out.addProperty("observed_math_seed48", mathRandomSeed48());
+                out.addProperty("world_seed48", javaRandomSeed48(w.rand));
+                /* Entity's cursor is static across both halves of the
+                 * integrated JVM, so unrelated client constructors may race
+                 * this final observation even while WorldServer is parked.
+                 * The exact controlled cursor follows from the already
+                 * verified falling/item fixture IDs; retain the raw cursor
+                 * separately as a diagnostic. */
+                out.addProperty("next_entity_id", nextId
+                    + (moving ? (damagePigsMode ? 3
+                        : damageMobLootMode
+                            ? 2 + damageMobDrops.size()
+                                + (damagePigXpMode
+                                    || damageCowXpMode
+                                    || damageSheepXpMode
+                                    || damageChickenXpMode ? 1 : 0)
+                        : drop || damagePigAnyMode || damageCowAnyMode
+                            || damageSheepAnyMode || damageChickenAnyMode
+                                ? 2 : 1) : 0));
+                out.addProperty("observed_next_entity_id", nextEntityId());
+                out.addProperty("entity_seed48", falling == null
+                    ? entitySeed : javaRandomSeed48(entityRandom(falling)));
+                return out.toString();
+            } catch (Throwable t) { return err("falling_anvil_locked: " + t); }
+            finally {
+                if (w != null && worldEventCapture != null) try {
+                    w.removeEventListener(worldEventCapture);
+                } catch (Throwable ignored) { }
+                oracleMobEventWorld = null;
+                oracleMobEventTargets.clear();
+                oracleMobEventSoundSources.remove();
+                oracleMobEventCapture.clear();
+                if (mobDropsCapture != null) try {
+                    MinecraftForge.EVENT_BUS.unregister(mobDropsCapture);
+                } catch (Throwable ignored) { }
+                if (damagePlayer != null && armorFixtureActive) try {
+                    if (armorFixtureStack != null)
+                        damagePlayer.getAttributeMap().removeAttributeModifiers(
+                            armorFixtureStack.getAttributeModifiers(
+                                armorFixtureSlot));
+                    damagePlayer.inventory.armorInventory.set(
+                        armorFixtureIndex, net.minecraft.item.ItemStack.EMPTY);
+                } catch (Throwable ignored) { }
+                if (damagePlayer != null && playerStateCaptured) try {
+                    damagePlayer.setPosition(
+                        oldPlayerX, oldPlayerY, oldPlayerZ);
+                    w.updateEntityWithOptionalForce(damagePlayer, false);
+                    damagePlayer.lastTickPosX = oldPlayerLastTickX;
+                    damagePlayer.lastTickPosY = oldPlayerLastTickY;
+                    damagePlayer.lastTickPosZ = oldPlayerLastTickZ;
+                    damagePlayer.prevRotationYaw = oldPlayerPrevYaw;
+                    damagePlayer.prevRotationPitch = oldPlayerPrevPitch;
+                    damagePlayer.motionX = oldPlayerMotionX;
+                    damagePlayer.motionY = oldPlayerMotionY;
+                    damagePlayer.motionZ = oldPlayerMotionZ;
+                    damagePlayer.onGround = oldPlayerOnGround;
+                    damagePlayer.fallDistance = oldPlayerFallDistance;
+                    damagePlayer.setHealth(oldPlayerHealth);
+                    damagePlayer.setAbsorptionAmount(oldPlayerAbsorption);
+                    damagePlayer.hurtResistantTime = oldPlayerHurtResistant;
+                    damagePlayer.hurtTime = oldPlayerHurtTime;
+                    damagePlayer.maxHurtTime = oldPlayerMaxHurtTime;
+                    playerLastDamageField.setFloat(
+                        damagePlayer, oldPlayerLastDamage);
+                    respawnInvulnerabilityField.setInt(
+                        damagePlayer, oldRespawnInvulnerability);
+                    foodExhaustionField.setFloat(
+                        damagePlayer.getFoodStats(), oldPlayerExhaustion);
+                    damagePlayer.capabilities.disableDamage = oldDisableDamage;
+                    damagePlayer.capabilities.isCreativeMode = oldCreativeMode;
+                    damagePlayer.clearActivePotions();
+                    if (oldPlayerPotions != null)
+                        for (net.minecraft.potion.PotionEffect effect :
+                                oldPlayerPotions)
+                            damagePlayer.addPotionEffect(effect);
+                } catch (Throwable ignored) { }
+                if (w != null && fixtureId > 0) for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                    if (e.getEntityId() == fixtureId) w.removeEntityDangerously(e);
+                if (w != null && fixtureItemId > 0) for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                    if (e.getEntityId() == fixtureItemId) w.removeEntityDangerously(e);
+                if (w != null && fixturePigId > 0) for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                    if (e.getEntityId() == fixturePigId) w.removeEntityDangerously(e);
+                if (w != null && fixturePigId2 > 0) for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                    if (e.getEntityId() == fixturePigId2) w.removeEntityDangerously(e);
+                if (w != null && fixtureCowId > 0) for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                    if (e.getEntityId() == fixtureCowId) w.removeEntityDangerously(e);
+                if (w != null && fixtureSheepId > 0) for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                    if (e.getEntityId() == fixtureSheepId) w.removeEntityDangerously(e);
+                if (w != null) for (
+                        net.minecraft.entity.item.EntityItem item :
+                            damageMobDrops)
+                    if (item != null) w.removeEntityDangerously(item);
+                if (w != null && priorLoadedEntityIds != null)
+                    for (net.minecraft.entity.Entity entity :
+                            new java.util.ArrayList<net.minecraft.entity.Entity>(
+                                w.loadedEntityList))
+                        if (entity instanceof
+                                net.minecraft.entity.item.EntityXPOrb
+                                && !priorLoadedEntityIds.contains(
+                                    entity.getEntityId()))
+                            w.removeEntityDangerously(entity);
+                if (w != null && fixtureChickenId > 0) for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList))
+                    if (e.getEntityId() == fixtureChickenId) w.removeEntityDangerously(e);
+                if (w != null && fixtureActive) {
+                    net.minecraft.world.gen.structure.StructureBoundingBox box = new net.minecraft.world.gen.structure.StructureBoundingBox(cx + minDx, minY, cz + minDz, cx + maxDx + 1, maxY + 1, cz + maxDz + 1);
+                    w.getPendingBlockUpdates(box, true);
+                    if (prior != null) { int index = 0; for (int y = minY; y <= maxY; ++y) for (int z = cz + minDz; z <= cz + maxDz; ++z) for (int x = cx + minDx; x <= cx + maxDx; ++x) w.setBlockState(new BlockPos(x, y, z), prior[index++], 2); w.getPendingBlockUpdates(box, true); }
+                }
+                try { net.minecraft.block.BlockFalling.fallInstantly = oldFallingInstant; if (oldMathSeed >= 0L) setMathRandomSeed48(oldMathSeed); if (oldWorldSeed >= 0L && w != null) setJavaRandomSeed48(w.rand, oldWorldSeed); if (oldPlayerRandomSeed >= 0L && damagePlayer != null) setJavaRandomSeed48(entityRandom(damagePlayer), oldPlayerRandomSeed); if (oldNextEntityId > 0) setNextEntityId(oldNextEntityId); if (oldDoEntityDrops != null && w != null) w.getGameRules().setOrCreateGameRule("doEntityDrops", oldDoEntityDrops); if (oldDoMobLoot != null && w != null) w.getGameRules().setOrCreateGameRule("doMobLoot", oldDoMobLoot); } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Insert one real WorldServer pending block update while parked. The
+     * returned authoritative snapshot contains the TreeSet order, absolute
+     * due time, priority, and stable compareTo tie-break rank.
+     */
+    private String oracleScheduleLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("schedule_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                net.minecraft.world.WorldServer w = p.getServerWorld();
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int blockId = action.get("block").getAsInt();
+                int delay = action.get("delay").getAsInt();
+                int priority = action.get("priority").getAsInt();
+                boolean replace =
+                    action.has("replace") && action.get("replace").getAsBoolean();
+                if (y < 0 || y > 255 || blockId <= 0 || blockId > 4095
+                        || delay < 0 || delay > 1000000
+                        || priority < -128 || priority > 127) {
+                    return err("invalid locked scheduled tick");
+                }
+                BlockPos pos = new BlockPos(x, y, z);
+                net.minecraft.block.Block block =
+                    net.minecraft.block.Block.getBlockById(blockId);
+                if (block == null
+                        || w.getBlockState(pos).getBlock() != block) {
+                    return err("scheduled block does not match world state");
+                }
+                if (replace) {
+                    long total = w.getTotalWorldTime();
+                    java.util.List<net.minecraft.world.NextTickListEntry> removed =
+                        w.getPendingBlockUpdates(
+                            new net.minecraft.world.gen.structure
+                                .StructureBoundingBox(
+                                    x, 0, z, x + 1, 256, z + 1),
+                            true);
+                    if (removed != null) {
+                        for (net.minecraft.world.NextTickListEntry entry : removed) {
+                            if (entry.position.equals(pos)
+                                    && entry.getBlock() == block) {
+                                continue;
+                            }
+                            long remaining = entry.scheduledTime - total;
+                            if (remaining < 0L) remaining = 0L;
+                            if (remaining > Integer.MAX_VALUE)
+                                remaining = Integer.MAX_VALUE;
+                            w.scheduleBlockUpdate(
+                                entry.position, entry.getBlock(),
+                                (int)remaining, entry.priority);
+                        }
+                    }
+                }
+                w.updateBlockTick(pos, block, delay, priority);
+                oracleScheduledRandomSeedPending = false;
+                oracleScheduledRandomWorld = null;
+                oracleScheduledCallbackRandom = null;
+                oracleScheduledCallbackActive = false;
+                oracleScheduledCallbackValid = false;
+                oracleScheduledCallbackBeforeSeed48 = -1L;
+                oracleScheduledCallbackAfterSeed48 = -1L;
+                oracleScheduledCallbackTotalTime = -1L;
+                if (action.has("seed")) {
+                    oracleScheduledRandomPublicSeed =
+                        action.get("seed").getAsLong();
+                    oracleScheduledRandomDueTime =
+                        w.getTotalWorldTime() + (long)delay;
+                    oracleScheduledRandomWorld = w;
+                    oracleScheduledRandomX = x;
+                    oracleScheduledRandomY = y;
+                    oracleScheduledRandomZ = z;
+                    oracleScheduledRandomBlock = blockId;
+                    oracleScheduledRandomSeedPending = true;
+                }
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("schedule_locked: " + t);
+            }
+        }
+    }
+
+    /** Restore TileEntityComparator.OutputSignal at the parked save boundary. */
+    private String oracleSetComparatorOutputLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "set_comparator_output_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int output = action.get("output_signal").getAsInt();
+                if (y < 0 || y > 255 || output < 0 || output > 15)
+                    return err("invalid comparator output fixture");
+                net.minecraft.tileentity.TileEntity tile =
+                    p.getServerWorld().getTileEntity(
+                        new BlockPos(x, y, z));
+                if (!(tile instanceof
+                        net.minecraft.tileentity.TileEntityComparator)) {
+                    return err("comparator fixture has no comparator tile");
+                }
+                ((net.minecraft.tileentity.TileEntityComparator)tile)
+                    .setOutputSignal(output);
+                tile.markDirty();
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("set_comparator_output_locked: " + t);
+            }
+        }
+    }
+
+    /** Restore the item/data payload of one flower-pot tile at save boundary. */
+    private String oracleSetFlowerPotLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "set_flower_pot_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int itemId = action.get("item").getAsInt();
+                int meta = action.get("meta").getAsInt();
+                if (y < 0 || y > 255 || itemId < 0 || itemId > 4095
+                        || meta < 0 || meta > 32767
+                        || (itemId == 0 && meta != 0))
+                    return err("invalid flower-pot fixture");
+                net.minecraft.tileentity.TileEntity tile =
+                    p.getServerWorld().getTileEntity(
+                        new BlockPos(x, y, z));
+                if (!(tile instanceof
+                        net.minecraft.tileentity.TileEntityFlowerPot)) {
+                    return err("flower-pot fixture has no flower-pot tile");
+                }
+                net.minecraft.item.ItemStack stack =
+                    net.minecraft.item.ItemStack.EMPTY;
+                if (itemId != 0) {
+                    net.minecraft.item.Item item =
+                        net.minecraft.item.Item.getItemById(itemId);
+                    if (item == null
+                            || item == net.minecraft.init.Items.AIR)
+                        return err("unknown flower-pot fixture item");
+                    stack = new net.minecraft.item.ItemStack(item, 1, meta);
+                }
+                ((net.minecraft.tileentity.TileEntityFlowerPot)tile)
+                    .setItemStack(stack);
+                tile.markDirty();
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("set_flower_pot_locked: " + t);
+            }
+        }
+    }
+
+    /** Restore one skull tile, optionally with an exact fixture GameProfile. */
+    private String oracleSetSkullLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "set_skull_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int type = action.get("type").getAsInt();
+                int rotation = action.get("rotation").getAsInt();
+                if (y < 0 || y > 255 || type < 0 || type > 5
+                        || rotation < 0 || rotation > 15)
+                    return err("invalid skull fixture");
+                net.minecraft.tileentity.TileEntity tile =
+                    p.getServerWorld().getTileEntity(
+                        new BlockPos(x, y, z));
+                if (!(tile instanceof
+                        net.minecraft.tileentity.TileEntitySkull)) {
+                    return err("skull fixture has no skull tile");
+                }
+                boolean hasOwner = action.has("owner_name")
+                    || action.has("owner_id")
+                    || action.has("owner_property_name")
+                    || action.has("owner_property_value")
+                    || action.has("owner_property_signature");
+                com.mojang.authlib.GameProfile ownerProfile = null;
+                if (hasOwner) {
+                    if (type != 3 || !action.has("owner_name")
+                            || !action.has("owner_id"))
+                        return err("player skull fixture requires type 3, "
+                            + "owner_name, and owner_id");
+                    String ownerName = action.get("owner_name").getAsString();
+                    java.util.UUID ownerId = java.util.UUID.fromString(
+                        action.get("owner_id").getAsString());
+                    if (ownerName.isEmpty())
+                        return err("player skull fixture owner_name is empty");
+                    ownerProfile =
+                        new com.mojang.authlib.GameProfile(
+                            ownerId, ownerName);
+                    boolean hasProperty = action.has("owner_property_name")
+                        || action.has("owner_property_value")
+                        || action.has("owner_property_signature");
+                    if (hasProperty) {
+                        if (!action.has("owner_property_name")
+                                || !action.has("owner_property_value"))
+                            return err("player skull property requires name "
+                                + "and value");
+                        String propertyName = action.get(
+                            "owner_property_name").getAsString();
+                        String propertyValue = action.get(
+                            "owner_property_value").getAsString();
+                        com.mojang.authlib.properties.Property property =
+                            action.has("owner_property_signature")
+                            ? new com.mojang.authlib.properties.Property(
+                                propertyName, propertyValue,
+                                action.get("owner_property_signature")
+                                    .getAsString())
+                            : new com.mojang.authlib.properties.Property(
+                                propertyName, propertyValue);
+                        ownerProfile.getProperties().put(
+                            propertyName, property);
+                    }
+                }
+                net.minecraft.tileentity.TileEntitySkull skull =
+                    (net.minecraft.tileentity.TileEntitySkull)tile;
+                skull.setType(type);
+                skull.setSkullRotation(rotation);
+                if (ownerProfile != null)
+                    skull.setPlayerProfile(ownerProfile);
+                tile.markDirty();
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("set_skull_locked: " + t);
+            }
+        }
+    }
+
+    /**
+     * Restore only the inert saved SuccessCount field used by a command
+     * block's comparator override. Command text, output, result stats, power,
+     * condition, and auto mode must remain at their exact vanilla defaults.
+     */
+    private String oracleSetCommandSuccessLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "set_command_success_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                net.minecraft.world.WorldServer world = p.getServerWorld();
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int success = action.get("success_count").getAsInt();
+                if (y < 0 || y > 255 || success < 0 || success > 15)
+                    return err("invalid command success fixture");
+                BlockPos pos = new BlockPos(x, y, z);
+                int blockId = net.minecraft.block.Block.getIdFromBlock(
+                    world.getBlockState(pos).getBlock());
+                net.minecraft.tileentity.TileEntity tile =
+                    world.getTileEntity(pos);
+                if (!(tile instanceof
+                        net.minecraft.tileentity.TileEntityCommandBlock)
+                        || !oracleInertCommandBlockExact(
+                            (net.minecraft.tileentity.TileEntityCommandBlock)
+                                tile,
+                            blockId)) {
+                    return err(
+                        "command success fixture is not an exact inert command block");
+                }
+                net.minecraft.tileentity.TileEntityCommandBlock command =
+                    (net.minecraft.tileentity.TileEntityCommandBlock)tile;
+                command.getCommandBlockLogic().setSuccessCount(success);
+                command.markDirty();
+                world.updateComparatorOutputLevel(
+                    pos, world.getBlockState(pos).getBlock());
+                if (!oracleInertCommandBlockExact(command, blockId))
+                    return err(
+                        "command success fixture left the exact inert subset");
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("set_command_success_locked: " + t);
+            }
+        }
+    }
+
+    /**
+     * Create one exact item-frame comparator source while the server is
+     * parked. The hanging cell and facing are save-state inputs; the entity
+     * pose and EID are authoritative outputs captured after spawn.
+     */
+    private String oracleSpawnItemFrameLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "spawn_item_frame_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                net.minecraft.world.WorldServer world = p.getServerWorld();
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int facingIndex = action.get("facing").getAsInt();
+                int item = action.get("item").getAsInt();
+                int meta = action.get("meta").getAsInt();
+                int rotation = action.get("rotation").getAsInt();
+                if (y < 0 || y > 255
+                        || facingIndex < 2 || facingIndex > 5
+                        || !((item == 0 && meta == 0 && rotation == 0)
+                            || (item == 1 && meta == 0
+                                && rotation >= 0 && rotation <= 7))) {
+                    return err("invalid item frame fixture");
+                }
+                BlockPos pos = new BlockPos(x, y, z);
+                if (!world.isAirBlock(pos))
+                    return err("item frame hanging cell is not air");
+                for (Entity entity : world.loadedEntityList) {
+                    if (entity instanceof
+                            net.minecraft.entity.item.EntityItemFrame
+                            && pos.equals(
+                                ((net.minecraft.entity.item.EntityItemFrame)
+                                    entity).getHangingPosition())) {
+                        return err(
+                            "item frame fixture already occupies hanging cell");
+                    }
+                }
+                net.minecraft.util.EnumFacing facing =
+                    net.minecraft.util.EnumFacing.getFront(facingIndex);
+                net.minecraft.entity.item.EntityItemFrame frame =
+                    new net.minecraft.entity.item.EntityItemFrame(
+                        world, pos, facing);
+                if (!frame.onValidSurface())
+                    return err("item frame fixture has no valid surface");
+                if (item == 1) {
+                    frame.setDisplayedItem(
+                        new net.minecraft.item.ItemStack(
+                            net.minecraft.init.Blocks.STONE, 1, 0));
+                    frame.setItemRotation(rotation);
+                }
+                if (!oracleItemFrameComparatorSourceExact(frame))
+                    return err(
+                        "item frame fixture is outside the exact subset");
+                if (!world.spawnEntity(frame))
+                    return err("item frame fixture spawn rejected");
+                world.updateComparatorOutputLevel(
+                    pos, net.minecraft.init.Blocks.AIR);
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("eid", frame.getEntityId());
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("spawn_item_frame_locked: " + t);
+            }
+        }
+    }
+
+    /** Exercise ItemRecord and BlockJukebox at a parked server boundary. */
+    private String oracleJukeboxRecordLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "jukebox_record_locked requires a parked oracle server");
+            }
+            net.minecraft.world.WorldServer world = null;
+            net.minecraft.entity.player.EntityPlayerMP player = null;
+            BlockPos pos = null;
+            net.minecraft.block.state.IBlockState oldState = null;
+            net.minecraft.item.ItemStack oldMain = null;
+            net.minecraft.item.ItemStack oldOffhand = null;
+            int oldCurrentItem = 0;
+            long oldWorldSeed = -1L;
+            long oldMathSeed = -1L;
+            int oldNextEntityId = -1;
+            OracleWorldEventCapture events = null;
+            java.util.Set<net.minecraft.entity.Entity> priorEntities = null;
+            try {
+                int itemId = action.get("item").getAsInt();
+                if (itemId < 2256 || itemId > 2267)
+                    return err("jukebox fixture requires a vanilla record");
+                MinecraftServer server =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (server == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = server.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                player = players.get(0);
+                world = player.getServerWorld();
+                int x = net.minecraft.util.math.MathHelper.floor(player.posX)
+                    + 8;
+                int z = net.minecraft.util.math.MathHelper.floor(player.posZ);
+                pos = new BlockPos(x, 220, z);
+                world.getChunkFromBlockCoords(pos);
+                oldState = world.getBlockState(pos);
+                if (!world.isAirBlock(pos))
+                    return err("jukebox fixture position is not air");
+
+                oldMain = player.getHeldItemMainhand().copy();
+                oldOffhand = player.getHeldItemOffhand().copy();
+                oldCurrentItem = player.inventory.currentItem;
+                oldWorldSeed = javaRandomSeed48(world.rand);
+                oldMathSeed = mathRandomSeed48();
+                oldNextEntityId = nextEntityId();
+                priorEntities =
+                    new java.util.HashSet<net.minecraft.entity.Entity>(
+                        world.loadedEntityList);
+
+                events = new OracleWorldEventCapture(
+                    x, 220, z, x, 220, z);
+                events.captureJukeboxEvents = true;
+                world.addEventListener(events);
+                if (!world.setBlockState(
+                        pos, net.minecraft.init.Blocks.JUKEBOX
+                            .getDefaultState(), 2))
+                    return err("jukebox fixture placement failed");
+
+                net.minecraft.item.Item record =
+                    net.minecraft.item.Item.getItemById(itemId);
+                net.minecraft.item.ItemStack stack =
+                    new net.minecraft.item.ItemStack(record, 1, 0);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.MAIN_HAND, stack);
+                player.setHeldItem(
+                    net.minecraft.util.EnumHand.OFF_HAND,
+                    net.minecraft.item.ItemStack.EMPTY);
+                net.minecraft.util.EnumActionResult insertResult =
+                    record.onItemUse(
+                        player, world, pos,
+                        net.minecraft.util.EnumHand.MAIN_HAND,
+                        net.minecraft.util.EnumFacing.UP,
+                        0.5F, 0.5F, 0.5F);
+                net.minecraft.block.state.IBlockState insertedState =
+                    world.getBlockState(pos);
+                net.minecraft.block.BlockJukebox.TileEntityJukebox tile =
+                    (net.minecraft.block.BlockJukebox.TileEntityJukebox)
+                        world.getTileEntity(pos);
+                int insertedRecord = tile.getRecord().isEmpty() ? 0
+                    : net.minecraft.item.Item.getIdFromItem(
+                        tile.getRecord().getItem());
+                boolean ejected = net.minecraft.init.Blocks.JUKEBOX
+                    .onBlockActivated(
+                        world, pos, insertedState, player,
+                        net.minecraft.util.EnumHand.MAIN_HAND,
+                        net.minecraft.util.EnumFacing.UP,
+                        0.5F, 0.5F, 0.5F);
+                tile = (net.minecraft.block.BlockJukebox.TileEntityJukebox)
+                    world.getTileEntity(pos);
+
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("item", itemId);
+                out.addProperty("insert_result", insertResult.name());
+                out.addProperty("insert_meta",
+                    net.minecraft.block.Block.getIdFromBlock(
+                        insertedState.getBlock()) == 84
+                        ? insertedState.getBlock().getMetaFromState(
+                            insertedState) : -1);
+                out.addProperty("insert_record", insertedRecord);
+                out.addProperty("held_after_insert", stack.getCount());
+                out.addProperty("ejected", ejected);
+                out.addProperty("eject_meta",
+                    world.getBlockState(pos).getBlock().getMetaFromState(
+                        world.getBlockState(pos)));
+                out.addProperty("eject_empty",
+                    tile == null || tile.getRecord().isEmpty());
+                out.add("world_events", events.toJson());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("jukebox_record_locked: " + t);
+            } finally {
+                if (world != null && events != null) try {
+                    world.removeEventListener(events);
+                } catch (Throwable ignored) { }
+                if (world != null && priorEntities != null) try {
+                    for (net.minecraft.entity.Entity entity :
+                            new java.util.ArrayList<
+                                net.minecraft.entity.Entity>(
+                                    world.loadedEntityList))
+                        if (!priorEntities.contains(entity))
+                            world.removeEntityDangerously(entity);
+                } catch (Throwable ignored) { }
+                if (player != null && oldMain != null && oldOffhand != null)
+                    try {
+                        player.inventory.currentItem = oldCurrentItem;
+                        player.setHeldItem(
+                            net.minecraft.util.EnumHand.MAIN_HAND, oldMain);
+                        player.setHeldItem(
+                            net.minecraft.util.EnumHand.OFF_HAND, oldOffhand);
+                    } catch (Throwable ignored) { }
+                if (world != null && pos != null && oldState != null) try {
+                    world.setBlockState(pos, oldState, 2);
+                } catch (Throwable ignored) { }
+                try {
+                    if (world != null && oldWorldSeed >= 0L)
+                        setJavaRandomSeed48(world.rand, oldWorldSeed);
+                    if (oldMathSeed >= 0L)
+                        setMathRandomSeed48(oldMathSeed);
+                    if (oldNextEntityId > 0)
+                        setNextEntityId(oldNextEntityId);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /** Exercise ParticleFirework.Starter and WorldClient's delay boundary. */
+    private String oracleFireworkAudioLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "firework_audio_locked requires a parked oracle server");
+            }
+            long oldMathSeed = -1L;
+            try {
+                Minecraft mc = Minecraft.getMinecraft();
+                if (mc.world == null || mc.getRenderViewEntity() == null)
+                    return err("no client world or camera");
+                JsonArray types = action.has("types")
+                    ? action.getAsJsonArray("types") : new JsonArray();
+                if (types.size() < 1 || types.size() > 8)
+                    return err("types must contain 1..8 firework shapes");
+                boolean flicker = action.has("flicker")
+                    && action.get("flicker").getAsBoolean();
+                double distance = action.has("distance")
+                    ? action.get("distance").getAsDouble() : 0.0D;
+                long blastSeed = action.has("blast_seed48")
+                    ? action.get("blast_seed48").getAsLong()
+                    : 0x123456789abcL;
+                long twinkleSeed = action.has("twinkle_seed48")
+                    ? action.get("twinkle_seed48").getAsLong()
+                    : 0x0fedcba98765L;
+                if (!Double.isFinite(distance) || distance < 0.0D
+                        || distance > 10000.0D
+                        || blastSeed < 0L || blastSeed >= (1L << 48)
+                        || twinkleSeed < 0L || twinkleSeed >= (1L << 48))
+                    return err("invalid firework audio fixture");
+
+                net.minecraft.nbt.NBTTagList explosions =
+                    new net.minecraft.nbt.NBTTagList();
+                boolean large = types.size() >= 3;
+                for (int i = 0; i < types.size(); ++i) {
+                    int type = types.get(i).getAsInt();
+                    if (type < 0 || type > 4)
+                        return err("firework type must be in 0..4");
+                    net.minecraft.nbt.NBTTagCompound explosion =
+                        new net.minecraft.nbt.NBTTagCompound();
+                    explosion.setByte("Type", (byte)type);
+                    explosion.setBoolean("Flicker", flicker && i == 0);
+                    explosion.setIntArray("Colors", new int[] {0x00ff0000});
+                    explosions.appendTag(explosion);
+                    large |= type == 1;
+                }
+                net.minecraft.nbt.NBTTagCompound fireworks =
+                    new net.minecraft.nbt.NBTTagCompound();
+                fireworks.setTag("Explosions", explosions);
+                net.minecraft.entity.Entity camera = mc.getRenderViewEntity();
+                double x = camera.posX + distance;
+                double y = camera.posY;
+                double z = camera.posZ;
+                oldMathSeed = mathRandomSeed48();
+                net.minecraft.client.particle.ParticleManager quiet =
+                    new net.minecraft.client.particle.ParticleManager(
+                        mc.world, mc.getTextureManager()) {
+                        @Override public void addEffect(
+                                net.minecraft.client.particle.Particle effect) {
+                        }
+                    };
+                net.minecraft.client.particle.ParticleFirework.Starter starter =
+                    new net.minecraft.client.particle.ParticleFirework.Starter(
+                        mc.world, x, y, z, 0.0D, 0.0D, 0.0D,
+                        quiet, fireworks);
+                java.lang.reflect.Field randomField =
+                    net.minecraft.client.particle.Particle.class
+                        .getDeclaredField("rand");
+                randomField.setAccessible(true);
+                java.util.Random random =
+                    (java.util.Random)randomField.get(starter);
+                oracleClientSoundCapture.clear();
+                oracleClientSoundActive = true;
+                int maxAge = flicker ? types.size() * 2 + 14 : 0;
+                for (int tick = 0; tick <= maxAge; ++tick) {
+                    oracleClientSoundTick = tick;
+                    if (tick == 0) setJavaRandomSeed48(random, blastSeed);
+                    if (flicker && tick == maxAge)
+                        setJavaRandomSeed48(random, twinkleSeed);
+                    starter.onUpdate();
+                }
+                oracleClientSoundActive = false;
+                JsonArray events = new JsonArray();
+                for (OracleClientSoundCapture event : oracleClientSoundCapture)
+                    events.add(event.toJson());
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("explosion_count", types.size());
+                out.addProperty("large", large);
+                out.addProperty("flicker", flicker);
+                out.addProperty("max_age", flicker
+                    ? types.size() * 2 + 14 : types.size() * 2 - 1);
+                out.add("events", events);
+                return out.toString();
+            } catch (Throwable t) {
+                return err("firework_audio_locked: " + t);
+            } finally {
+                oracleClientSoundActive = false;
+                oracleClientSoundCapture.clear();
+                if (oldMathSeed >= 0L) try {
+                    setMathRandomSeed48(oldMathSeed);
+                } catch (Throwable ignored) { }
+            }
+        }
+    }
+
+    /**
+     * Restore one supported container slot at the parked save boundary.
+     * Ordinary/trapped single/double chests, furnaces, nine-slot
+     * dispenser/dropper blocks, and a jukebox record slot are exact.
+     * Deferred-loot and other inventory tiles remain outside this fixture.
+     */
+    private String oracleSetContainerSlotLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "set_container_slot_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                net.minecraft.world.WorldServer world = p.getServerWorld();
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int slot = action.get("slot").getAsInt();
+                int itemId = action.get("item").getAsInt();
+                int count = action.get("count").getAsInt();
+                int meta = action.get("meta").getAsInt();
+                if (y < 0 || y > 255 || slot < 0 || slot >= 27
+                        || itemId < 0 || itemId > 4095
+                        || count < 0 || count > 64
+                        || meta < 0 || meta > 32767
+                        || (itemId == 0) != (count == 0))
+                    return err("invalid container slot fixture");
+                BlockPos pos = new BlockPos(x, y, z);
+                net.minecraft.tileentity.TileEntity tile =
+                    world.getTileEntity(pos);
+                int blockId = net.minecraft.block.Block.getIdFromBlock(
+                    world.getBlockState(pos).getBlock());
+                net.minecraft.inventory.IInventory inventory = null;
+                net.minecraft.block.BlockJukebox.TileEntityJukebox jukebox =
+                    null;
+                if (tile instanceof
+                        net.minecraft.tileentity.TileEntityChest) {
+                    net.minecraft.tileentity.TileEntityChest chest =
+                        (net.minecraft.tileentity.TileEntityChest)tile;
+                    boolean basicChest =
+                        blockId == 54
+                        && chest.getChestType()
+                            == net.minecraft.block.BlockChest.Type.BASIC;
+                    boolean trappedChest =
+                        blockId == 146
+                        && chest.getChestType()
+                            == net.minecraft.block.BlockChest.Type.TRAP;
+                    if ((!basicChest && !trappedChest)
+                            || chest.getLootTable() != null) {
+                        return err(
+                            "container fixture chest type is not exact");
+                    }
+                    int adjacentCount = 0;
+                    for (net.minecraft.util.EnumFacing facing :
+                            net.minecraft.util.EnumFacing.HORIZONTALS) {
+                        if (net.minecraft.block.Block.getIdFromBlock(
+                                world.getBlockState(pos.offset(facing))
+                                    .getBlock()) == blockId) {
+                            adjacentCount++;
+                            net.minecraft.tileentity.TileEntity adjacentTile =
+                                world.getTileEntity(pos.offset(facing));
+                            if (!(adjacentTile instanceof
+                                    net.minecraft.tileentity.TileEntityChest)) {
+                                return err(
+                                    "container fixture chest pair has no tile");
+                            }
+                            net.minecraft.tileentity.TileEntityChest
+                                adjacentChest =
+                                (net.minecraft.tileentity.TileEntityChest)
+                                    adjacentTile;
+                            if (adjacentChest.getChestType()
+                                    != chest.getChestType()
+                                    || adjacentChest.getLootTable() != null) {
+                                return err(
+                                    "container fixture chest pair is not exact");
+                            }
+                        }
+                    }
+                    if (adjacentCount > 1)
+                        return err("container fixture chest has multiple pairs");
+                    inventory = chest;
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityFurnace
+                        && (blockId == 61 || blockId == 62)) {
+                    inventory =
+                        (net.minecraft.tileentity.TileEntityFurnace)tile;
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityDispenser) {
+                    boolean dispenser =
+                        blockId == 23
+                        && !(tile instanceof
+                            net.minecraft.tileentity.TileEntityDropper);
+                    boolean dropper =
+                        blockId == 158
+                        && tile instanceof
+                            net.minecraft.tileentity.TileEntityDropper;
+                    net.minecraft.tileentity.TileEntityDispenser
+                        dispenserTile =
+                            (net.minecraft.tileentity.TileEntityDispenser)tile;
+                    if ((!dispenser && !dropper)
+                            || dispenserTile.getLootTable() != null)
+                        return err(
+                            "container fixture dispenser/dropper is not exact");
+                    inventory = dispenserTile;
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityHopper
+                        && blockId == 154
+                        && ((net.minecraft.tileentity.TileEntityHopper)tile)
+                            .getLootTable() == null) {
+                    inventory =
+                        (net.minecraft.tileentity.TileEntityHopper)tile;
+                } else if (tile instanceof
+                        net.minecraft.block.BlockJukebox.TileEntityJukebox
+                        && blockId == 84) {
+                    if (slot != 0)
+                        return err("jukebox fixture slot is out of range");
+                    jukebox =
+                        (net.minecraft.block.BlockJukebox.TileEntityJukebox)
+                            tile;
+                } else if (tile instanceof
+                        net.minecraft.tileentity.TileEntityShulkerBox
+                        && oracleShulkerExact(
+                            (net.minecraft.tileentity.TileEntityShulkerBox)
+                                tile,
+                            blockId)) {
+                    inventory =
+                        (net.minecraft.tileentity.TileEntityShulkerBox)tile;
+                } else {
+                    return err(
+                        "container fixture has no supported inventory tile");
+                }
+                if (inventory != null
+                        && slot >= inventory.getSizeInventory())
+                    return err("container fixture slot is out of range");
+                net.minecraft.item.ItemStack stack =
+                    net.minecraft.item.ItemStack.EMPTY;
+                if (itemId != 0) {
+                    net.minecraft.item.Item item =
+                        net.minecraft.item.Item.getItemById(itemId);
+                    if (item == null)
+                        return err("container fixture item is unknown");
+                    stack = new net.minecraft.item.ItemStack(
+                        item, count, meta);
+                    if (count > stack.getMaxStackSize())
+                        return err("container fixture exceeds item stack limit");
+                }
+                if (jukebox != null) {
+                    if (!stack.isEmpty()
+                            && (itemId < 2256 || itemId > 2267
+                                || count != 1 || meta != 0))
+                        return err(
+                            "jukebox fixture requires one vanilla record");
+                    jukebox.setRecord(stack);
+                    net.minecraft.block.state.IBlockState state =
+                        world.getBlockState(pos);
+                    world.setBlockState(
+                        pos,
+                        state.withProperty(
+                            net.minecraft.block.BlockJukebox.HAS_RECORD,
+                            Boolean.valueOf(!stack.isEmpty())),
+                        2);
+                } else {
+                    inventory.setInventorySlotContents(slot, stack);
+                }
+                tile.markDirty();
+                world.updateComparatorOutputLevel(
+                    pos, world.getBlockState(pos).getBlock());
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("set_container_slot_locked: " + t);
+            }
+        }
+    }
+
+    /** Restore one complete persistent closed-shulker state while parked. */
+    private String oracleSetShulkerNbtLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "set_shulker_nbt_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                net.minecraft.world.WorldServer world = p.getServerWorld();
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                if (y < 0 || y > 255 || !action.has("nbt"))
+                    return err("invalid shulker NBT fixture coordinates");
+                net.minecraft.util.math.BlockPos pos =
+                    new net.minecraft.util.math.BlockPos(x, y, z);
+                net.minecraft.block.state.IBlockState blockState =
+                    world.getBlockState(pos);
+                int blockId = net.minecraft.block.Block.getIdFromBlock(
+                    blockState.getBlock());
+                net.minecraft.tileentity.TileEntity tile =
+                    world.getTileEntity(pos);
+                if (!(tile instanceof
+                        net.minecraft.tileentity.TileEntityShulkerBox)
+                        || blockId < 219 || blockId > 234)
+                    return err("shulker NBT fixture target is not a shulker");
+                net.minecraft.nbt.NBTTagCompound input = oracleNbtFromHex(
+                    action.get("nbt").getAsString());
+                net.minecraft.tileentity.TileEntityShulkerBox candidate =
+                    new net.minecraft.tileentity.TileEntityShulkerBox();
+                candidate.loadFromNbt(input);
+                candidate.setLockCode(
+                    net.minecraft.world.LockCode.fromNBT(input));
+                if (!candidate.saveToNbt(
+                        new net.minecraft.nbt.NBTTagCompound()).equals(input))
+                    return err("shulker NBT fixture is not canonical save state");
+                net.minecraft.tileentity.TileEntityShulkerBox shulker =
+                    (net.minecraft.tileentity.TileEntityShulkerBox)tile;
+                shulker.loadFromNbt(input);
+                shulker.setLockCode(net.minecraft.world.LockCode.fromNBT(input));
+                tile.markDirty();
+                world.updateComparatorOutputLevel(pos, blockState.getBlock());
+                if (!oracleShulkerExact(shulker, blockId))
+                    return err("shulker NBT fixture left the exact closed state");
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("set_shulker_nbt_locked: " + t);
+            }
+        }
+    }
+
+    /**
+     * Set the active WorldServer.rand internal cursor while parked. The
+     * controlled mutation path restores this value immediately before the
+     * tick-boundary edit, making randomized drop branches reproducible despite
+     * unrelated setup and loaded-chunk work.
+     */
+    private String oracleSetWorldRandomSeedLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "set_world_random_seed_locked requires a parked oracle server");
+            }
+            try {
+                long seed48 = action.get("seed48").getAsLong();
+                if (seed48 < 0L || seed48 >= (1L << 48))
+                    return err("invalid World.rand internal seed48");
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                setJavaRandomSeed48(p.getServerWorld().rand, seed48);
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("seed48", oracleAuthWorldRandSeed48);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("set_world_random_seed_locked: " + t);
+            }
+        }
+    }
+
+    /** Arm one physical server-side right click from the parked save state. */
+    private String oracleArmPlayerUseCursorsLocked() {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "arm_player_use_cursors_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP player =
+                    players.get(0);
+                oraclePlayerUseWorldRandSeed48 =
+                    javaRandomSeed48(player.getServerWorld().rand);
+                oraclePlayerUseMathRandSeed48 = mathRandomSeed48();
+                oraclePlayerUseBlockRandSeed48 = blockRandomSeed48();
+                oraclePlayerUseNextEntityId = nextEntityId();
+                oraclePlayerUseCursorRestorePending = true;
+                oracleCaptureAuthoritativePlayerLocked(player);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("armed", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                oraclePlayerUseCursorRestorePending = false;
+                return err("arm_player_use_cursors_locked: " + t);
+            }
+        }
+    }
+
+    /** Preserve the parked save-state cursors until burning-arrow TNT contact. */
+    private String oracleArmTntArrowCollisionCursorsLocked() {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "arm_tnt_arrow_collision_cursors_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP player =
+                    players.get(0);
+                oracleTntArrowWorldRandSeed48 =
+                    javaRandomSeed48(player.getServerWorld().rand);
+                oracleTntArrowMathRandSeed48 = mathRandomSeed48();
+                oracleTntArrowBlockRandSeed48 = blockRandomSeed48();
+                oracleTntArrowNextEntityId = nextEntityId();
+                oracleTntArrowCursorRestorePending = true;
+                oracleCaptureAuthoritativePlayerLocked(player);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("armed", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                oracleTntArrowCursorRestorePending = false;
+                return err("arm_tnt_arrow_collision_cursors_locked: " + t);
+            }
+        }
+    }
+
+    /** Called by the BlockTNT mixin at the exact causal constructor boundary. */
+    public static void oracleRestoreTntArrowCollisionCursors(
+            net.minecraft.world.World world, net.minecraft.entity.Entity entity) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null || world == null || world.isRemote
+                || !(entity instanceof
+                    net.minecraft.entity.projectile.EntityArrow)
+                || !entity.isBurning())
+            return;
+        synchronized (bridge.oracleServerMonitor) {
+            if (!bridge.oracleTntArrowCursorRestorePending)
+                return;
+            bridge.oracleTntArrowCursorRestorePending = false;
+            try {
+                setJavaRandomSeed48(
+                    world.rand, bridge.oracleTntArrowWorldRandSeed48);
+                setMathRandomSeed48(bridge.oracleTntArrowMathRandSeed48);
+                setBlockRandomSeed48(bridge.oracleTntArrowBlockRandSeed48);
+                setNextEntityId(bridge.oracleTntArrowNextEntityId);
+            } catch (Throwable t) {
+                System.out.println(
+                    "[qrl] TNT arrow-collision cursor restore failed: " + t);
+            }
+        }
+    }
+
+    /** Called by the BlockFire mixin immediately inside the real callback. */
+    public static void oracleBeforeScheduledFireTick(
+            net.minecraft.world.World world, BlockPos pos,
+            java.util.Random random) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null || world == null || pos == null || random == null
+                || world.isRemote || random != world.rand
+                || !bridge.oracleScheduledRandomSeedPending
+                || world != bridge.oracleScheduledRandomWorld
+                || pos.getX() != bridge.oracleScheduledRandomX
+                || pos.getY() != bridge.oracleScheduledRandomY
+                || pos.getZ() != bridge.oracleScheduledRandomZ
+                || bridge.oracleScheduledRandomBlock != 51
+                || world.getTotalWorldTime()
+                    != bridge.oracleScheduledRandomDueTime)
+            return;
+        random.setSeed(bridge.oracleScheduledRandomPublicSeed);
+        bridge.oracleScheduledCallbackRandom = random;
+        bridge.oracleScheduledCallbackBeforeSeed48 =
+            javaRandomSeed48(random);
+        bridge.oracleScheduledCallbackAfterSeed48 = -1L;
+        bridge.oracleScheduledCallbackTotalTime =
+            world.getTotalWorldTime();
+        bridge.oracleScheduledCallbackValid = false;
+        bridge.oracleScheduledCallbackActive = true;
+        bridge.oracleScheduledRandomSeedPending = false;
+    }
+
+    /** Called by the BlockFire mixin on every normal callback return. */
+    public static void oracleAfterScheduledFireTick(
+            net.minecraft.world.World world, BlockPos pos,
+            java.util.Random random) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null || !bridge.oracleScheduledCallbackActive
+                || world != bridge.oracleScheduledRandomWorld
+                || pos == null
+                || pos.getX() != bridge.oracleScheduledRandomX
+                || pos.getY() != bridge.oracleScheduledRandomY
+                || pos.getZ() != bridge.oracleScheduledRandomZ
+                || random != bridge.oracleScheduledCallbackRandom)
+            return;
+        bridge.oracleScheduledCallbackAfterSeed48 =
+            javaRandomSeed48(random);
+        bridge.oracleScheduledCallbackValid = true;
+        bridge.oracleScheduledCallbackActive = false;
+        bridge.oracleScheduledCallbackRandom = null;
+    }
+
+    /** Arm a saved World.rand cursor for the next primed-TNT explosion. */
+    private String oracleArmTntDetonationCursorsLocked() {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "arm_tnt_detonation_cursors_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP player =
+                    players.get(0);
+                oracleTntDetonationWorldRandSeed48 =
+                    javaRandomSeed48(player.getServerWorld().rand);
+                oracleTntDetonationMathRandSeed48 = mathRandomSeed48();
+                oracleTntDetonationNextEntityId = nextEntityId();
+                oracleTntDetonationDiagnosticValid = false;
+                oracleTntDetonationCursorRestorePending = true;
+                oracleCaptureAuthoritativePlayerLocked(player);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("armed", true);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                oracleTntDetonationCursorRestorePending = false;
+                return err("arm_tnt_detonation_cursors_locked: " + t);
+            }
+        }
+    }
+
+    /** Called by the primed-TNT mixin at Explosion construction time. */
+    public static void oracleRestoreTntDetonationCursor(
+            net.minecraft.entity.item.EntityTNTPrimed tnt) {
+        Recorder bridge = oracleInstance;
+        if (bridge == null || tnt == null || tnt.world == null
+                || tnt.world.isRemote)
+            return;
+        synchronized (bridge.oracleServerMonitor) {
+            if (!bridge.oracleTntDetonationCursorRestorePending)
+                return;
+            bridge.oracleTntDetonationCursorRestorePending = false;
+            try {
+                setJavaRandomSeed48(
+                    tnt.world.rand,
+                    bridge.oracleTntDetonationWorldRandSeed48);
+                setMathRandomSeed48(
+                    bridge.oracleTntDetonationMathRandSeed48);
+                setNextEntityId(bridge.oracleTntDetonationNextEntityId);
+                if (!tnt.world.playerEntities.isEmpty()) {
+                    net.minecraft.entity.player.EntityPlayer player =
+                        tnt.world.playerEntities.get(0);
+                    double x = tnt.posX;
+                    double y = tnt.posY + (double)(tnt.height / 16.0F);
+                    double z = tnt.posZ;
+                    double range = player.getDistance(x, y, z) / 8.0D;
+                    double dx = player.posX - x;
+                    double dy = player.posY
+                        + (double)player.getEyeHeight() - y;
+                    double dz = player.posZ - z;
+                    double length = (double)net.minecraft.util.math.MathHelper
+                        .sqrt(dx * dx + dy * dy + dz * dz);
+                    float density = tnt.world.getBlockDensity(
+                        new net.minecraft.util.math.Vec3d(x, y, z),
+                        player.getEntityBoundingBox());
+                    double strength = (1.0D - range) * (double)density;
+                    bridge.oracleTntDetonationX = x;
+                    bridge.oracleTntDetonationY = y;
+                    bridge.oracleTntDetonationZ = z;
+                    bridge.oracleTntDetonationDensity = density;
+                    bridge.oracleTntDetonationRange = range;
+                    bridge.oracleTntDetonationStrength = strength;
+                    bridge.oracleTntDetonationPacketX =
+                        length == 0.0D ? 0.0F
+                        : (float)(dx / length * strength);
+                    bridge.oracleTntDetonationPacketY =
+                        length == 0.0D ? 0.0F
+                        : (float)(dy / length * strength);
+                    bridge.oracleTntDetonationPacketZ =
+                        length == 0.0D ? 0.0F
+                        : (float)(dz / length * strength);
+                    bridge.oracleTntDetonationDamage = (int)(
+                        (strength * strength + strength) / 2.0D
+                        * 56.0D + 1.0D);
+                    bridge.oracleTntDetonationDiagnosticValid = true;
+                }
+            } catch (Throwable error) {
+                System.out.println(
+                    "[qrl] TNT detonation cursor restore failed: " + error);
+            }
+        }
+    }
+
+    /** Reassert the controlled falling-block mode after setup chunk generation. */
+    private String oracleSetFallingInstantLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "set_falling_instant_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP>
+                    players = s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                boolean instant = action.has("instant")
+                    && action.get("instant").getAsBoolean();
+                net.minecraft.block.BlockFalling.fallInstantly = instant;
+                oracleCaptureAuthoritativePlayerLocked(players.get(0));
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("instant", instant);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("set_falling_instant_locked: " + t);
+            }
+        }
+    }
+
+    /**
+     * Set Block.RANDOM's internal java.util.Random cursor while the integrated
+     * server is parked. This process-global state is not stored in world NBT,
+     * but it is causal for randomized block drops and therefore belongs in an
+     * exact replay capsule.
+     */
+    private String oracleSetBlockRandomSeedLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "set_block_random_seed_locked requires a parked oracle server");
+            }
+            try {
+                long seed48 = action.get("seed48").getAsLong();
+                if (seed48 < 0L || seed48 >= (1L << 48))
+                    return err("invalid Block.RANDOM internal seed48");
+                MinecraftServer s =
+                    Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                setBlockRandomSeed48(seed48);
+                oracleCaptureAuthoritativePlayerLocked(players.get(0));
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("seed48", oracleAuthBlockRandSeed48);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("set_block_random_seed_locked: " + t);
+            }
+        }
+    }
+
+    /**
+     * Queue one controlled invocation of the real random-tick callback. This is
+     * deliberately narrower than WorldServer's loaded-chunk selector: it proves
+     * a block callback and its java.util.Random consumption, while updateLCG,
+     * section iteration, and loaded-chunk ordering remain separate work.
+     */
+    private String oracleQueueRandomTickLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err("random_tick_locked requires a parked oracle server");
+            }
+            try {
+                if (oracleRandomTickPending)
+                    return err("a random tick is already queued");
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                net.minecraft.world.WorldServer w = p.getServerWorld();
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int blockId = action.get("block").getAsInt();
+                long publicSeed = action.get("seed").getAsLong();
+                if (y < 0 || y > 255 || blockId <= 0 || blockId > 4095)
+                    return err("invalid locked random tick");
+                BlockPos pos = new BlockPos(x, y, z);
+                net.minecraft.block.Block block =
+                    net.minecraft.block.Block.getBlockById(blockId);
+                if (block == null
+                        || w.getBlockState(pos).getBlock() != block) {
+                    return err("random-tick block does not match world state");
+                }
+                if (!block.getTickRandomly())
+                    return err("block is not random-tick enabled");
+                oracleScheduledRandomSeedPending = false;
+                oracleScheduledRandomWorld = null;
+                oracleScheduledCallbackRandom = null;
+                oracleScheduledCallbackActive = false;
+                oracleScheduledCallbackValid = false;
+                oracleScheduledCallbackBeforeSeed48 = -1L;
+                oracleScheduledCallbackAfterSeed48 = -1L;
+                oracleScheduledCallbackTotalTime = -1L;
+                w.rand.setSeed(publicSeed);
+                oracleRandomTickX = x;
+                oracleRandomTickY = y;
+                oracleRandomTickZ = z;
+                oracleRandomTickBlock = blockId;
+                oracleRandomTickPending = true;
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("queued", true);
+                out.addProperty(
+                    "world_rand_seed48", oracleAuthWorldRandSeed48);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                oracleRandomTickPending = false;
+                return err("random_tick_locked: " + t);
+            }
+        }
+    }
+
+    /** Server-thread half of oracleQueueRandomTickLocked. */
+    private void oracleApplyRandomTickFixture() {
+        int x, y, z, blockId;
+        synchronized (oracleServerMonitor) {
+            if (!oracleRandomTickPending) return;
+            x = oracleRandomTickX;
+            y = oracleRandomTickY;
+            z = oracleRandomTickZ;
+            blockId = oracleRandomTickBlock;
+            oracleRandomTickPending = false;
+        }
+        try {
+            MinecraftServer s =
+                net.minecraftforge.fml.common.FMLCommonHandler.instance()
+                    .getMinecraftServerInstance();
+            if (s == null) return;
+            java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                s.getPlayerList().getPlayers();
+            if (players.isEmpty()) return;
+            net.minecraft.world.WorldServer w = players.get(0).getServerWorld();
+            BlockPos pos = new BlockPos(x, y, z);
+            net.minecraft.block.state.IBlockState state = w.getBlockState(pos);
+            net.minecraft.block.Block block =
+                net.minecraft.block.Block.getBlockById(blockId);
+            if (block == null || state.getBlock() != block) {
+                System.out.println(
+                    "[qrl] random-tick fixture became stale at "
+                    + pos + " block=" + blockId);
+                return;
+            }
+            /* Match the save-state boundary used by controlled block edits.
+             * The integrated client shares Math.random, Block.RANDOM, and the
+             * entity ID cursor with this process, so restore every captured
+             * cursor immediately before the callback and publish its isolated
+             * causal transition before the ordinary server tick continues. */
+            if (oracleAuthWorldRandSeed48 >= 0L)
+                setJavaRandomSeed48(w.rand, oracleAuthWorldRandSeed48);
+            if (oracleAuthMathRandSeed48 >= 0L)
+                setMathRandomSeed48(oracleAuthMathRandSeed48);
+            if (oracleAuthBlockRandSeed48 >= 0L)
+                setBlockRandomSeed48(oracleAuthBlockRandSeed48);
+            if (oracleAuthNextEntityId > 0)
+                setNextEntityId(oracleAuthNextEntityId);
+            long beforeWorldRandSeed48 = javaRandomSeed48(w.rand);
+            long beforeMathRandSeed48 = mathRandomSeed48();
+            long beforeBlockRandSeed48 = blockRandomSeed48();
+            int beforeWorldUpdateLCG = worldUpdateLCG(w);
+            int beforeNextEntityId = nextEntityId();
+            block.randomTick(w, pos, state, w.rand);
+            synchronized (oracleServerMonitor) {
+                oracleControlledBeforeWorldRandSeed48 =
+                    beforeWorldRandSeed48;
+                oracleControlledBeforeMathRandSeed48 =
+                    beforeMathRandSeed48;
+                oracleControlledBeforeBlockRandSeed48 =
+                    beforeBlockRandSeed48;
+                oracleControlledBeforeWorldUpdateLCG = beforeWorldUpdateLCG;
+                oracleControlledBeforeNextEntityId = beforeNextEntityId;
+                oracleControlledWorldRandSeed48 = javaRandomSeed48(w.rand);
+                oracleControlledMathRandSeed48 = mathRandomSeed48();
+                oracleControlledBlockRandSeed48 = blockRandomSeed48();
+                oracleControlledWorldUpdateLCG = worldUpdateLCG(w);
+                oracleControlledNextEntityId = nextEntityId();
+                oracleControlledInputValid = true;
+            }
+        } catch (Throwable t) {
+            System.out.println("[qrl] random-tick fixture failed: " + t);
+        }
+    }
+
+    /**
+     * Prepare a one-section proof of WorldServer's natural random-tick
+     * selector. Every loaded random-tick block except the requested target is
+     * replaced directly in its chunk storage while the server is parked. The
+     * ordinary next WorldServer.updateBlocks call then owns selection and
+     * callback dispatch; this hook does not call Block.randomTick itself.
+     */
+    private String oraclePrepareRandomSelectionLocked(JsonObject action) {
+        synchronized (oracleServerMonitor) {
+            if (!oracleServerGate || !oracleServerWaiting
+                    || oracleServerTickInFlight || oracleServerPermits != 0) {
+                return err(
+                    "random_selection_locked requires a parked oracle server");
+            }
+            try {
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                    s.getPlayerList().getPlayers();
+                if (players.isEmpty()) return err("no server player");
+                net.minecraft.entity.player.EntityPlayerMP p = players.get(0);
+                net.minecraft.world.WorldServer w = p.getServerWorld();
+                int x = action.get("x").getAsInt();
+                int y = action.get("y").getAsInt();
+                int z = action.get("z").getAsInt();
+                int blockId = action.get("block").getAsInt();
+                long publicSeed = action.get("seed").getAsLong();
+                if (y < 0 || y > 255 || blockId <= 0 || blockId > 4095)
+                    return err("invalid locked random selection");
+                BlockPos target = new BlockPos(x, y, z);
+                net.minecraft.block.Block targetBlock =
+                    net.minecraft.block.Block.getBlockById(blockId);
+                if (targetBlock == null
+                        || w.getBlockState(target).getBlock() != targetBlock
+                        || !targetBlock.getTickRandomly()) {
+                    return err(
+                        "random-selection target is not a matching tick block");
+                }
+                if (w.isRaining() || w.isThundering())
+                    return err("random-selection fixture requires clear weather");
+
+                java.util.ArrayList<net.minecraft.world.chunk.Chunk> loaded =
+                    new java.util.ArrayList<net.minecraft.world.chunk.Chunk>(
+                        w.getChunkProvider().getLoadedChunks());
+                int sanitized = 0;
+                for (net.minecraft.world.chunk.Chunk chunk : loaded) {
+                    boolean changed = false;
+                    net.minecraft.world.chunk.storage.ExtendedBlockStorage[] stores =
+                        chunk.getBlockStorageArray();
+                    for (net.minecraft.world.chunk.storage.ExtendedBlockStorage store
+                            : stores) {
+                        if (store ==
+                                net.minecraft.world.chunk.Chunk.NULL_BLOCK_STORAGE
+                                || !store.getNeedsRandomTick()) {
+                            continue;
+                        }
+                        int baseY = store.getYLocation();
+                        for (int ly = 0; ly < 16; ++ly) {
+                            for (int lz = 0; lz < 16; ++lz) {
+                                for (int lx = 0; lx < 16; ++lx) {
+                                    net.minecraft.block.state.IBlockState state =
+                                        store.get(lx, ly, lz);
+                                    if (!state.getBlock().getTickRandomly())
+                                        continue;
+                                    int wx = chunk.xPosition * 16 + lx;
+                                    int wy = baseY + ly;
+                                    int wz = chunk.zPosition * 16 + lz;
+                                    if (wx == x && wy == y && wz == z)
+                                        continue;
+                                    store.set(
+                                        lx, ly, lz,
+                                        net.minecraft.init.Blocks.STONE
+                                            .getDefaultState());
+                                    sanitized++;
+                                    changed = true;
+                                }
+                            }
+                        }
+                    }
+                    if (changed) chunk.setModified(true);
+                }
+
+                /*
+                 * PlayerChunkMap.getChunkIterator is lazy: chunks that have not
+                 * completed their first onTick can enter/leave its result while
+                 * updateBlocks consumes earlier entries. A previewed rank is
+                 * therefore not a stable fixture boundary. Promote the already
+                 * loaded target entry to rank zero so the next real iterator
+                 * reaches it before any chunk tick can alter later membership.
+                 * This is an explicit isolated-selector fixture, not a claim
+                 * about general loaded-world ordering.
+                 */
+                java.lang.reflect.Field entriesField =
+                    net.minecraft.server.management.PlayerChunkMap.class
+                        .getDeclaredField("entries");
+                entriesField.setAccessible(true);
+                @SuppressWarnings("unchecked")
+                java.util.List<
+                    net.minecraft.server.management.PlayerChunkMapEntry> entries =
+                    (java.util.List<
+                        net.minecraft.server.management.PlayerChunkMapEntry>)
+                        entriesField.get(w.getPlayerChunkMap());
+                net.minecraft.server.management.PlayerChunkMapEntry targetEntry =
+                    null;
+                for (net.minecraft.server.management.PlayerChunkMapEntry entry
+                        : entries) {
+                    net.minecraft.world.chunk.Chunk chunk = entry.getChunk();
+                    if (chunk != null
+                            && chunk.xPosition == (x >> 4)
+                            && chunk.zPosition == (z >> 4)) {
+                        targetEntry = entry;
+                        break;
+                    }
+                }
+                if (targetEntry == null)
+                    return err("random-selection target player chunk is absent");
+                entries.remove(targetEntry);
+                entries.add(0, targetEntry);
+
+                java.util.ArrayList<net.minecraft.world.chunk.Chunk> ticking =
+                    new java.util.ArrayList<net.minecraft.world.chunk.Chunk>();
+                java.util.Iterator<net.minecraft.world.chunk.Chunk> iterator =
+                    w.getPersistentChunkIterable(
+                        w.getPlayerChunkMap().getChunkIterator());
+                while (iterator.hasNext()) ticking.add(iterator.next());
+
+                int eligibleSections = 0;
+                int randomBlocks = 0;
+                int targetRank = -1;
+                int targetOccurrences = 0;
+                for (int rank = 0; rank < ticking.size(); ++rank) {
+                    net.minecraft.world.chunk.Chunk chunk = ticking.get(rank);
+                    if (chunk.xPosition == (x >> 4)
+                            && chunk.zPosition == (z >> 4)) {
+                        targetRank = rank;
+                        targetOccurrences++;
+                    }
+                    for (net.minecraft.world.chunk.storage.ExtendedBlockStorage store
+                            : chunk.getBlockStorageArray()) {
+                        if (store ==
+                                net.minecraft.world.chunk.Chunk.NULL_BLOCK_STORAGE
+                                || !store.getNeedsRandomTick()) {
+                            continue;
+                        }
+                        eligibleSections++;
+                        for (int ly = 0; ly < 16; ++ly)
+                            for (int lz = 0; lz < 16; ++lz)
+                                for (int lx = 0; lx < 16; ++lx)
+                                    if (store.get(lx, ly, lz).getBlock()
+                                            .getTickRandomly())
+                                        randomBlocks++;
+                    }
+                }
+                if (targetOccurrences != 1 || eligibleSections != 1
+                        || randomBlocks != 1 || targetRank != 0) {
+                    return err(
+                        "random-selection isolation failed: targetOccurrences="
+                        + targetOccurrences + " eligibleSections="
+                        + eligibleSections + " randomBlocks=" + randomBlocks);
+                }
+
+                /*
+                 * Preview only the world-RNG calls before target selection.
+                 * playerCheckLight consumes four nextInt calls, then each
+                 * eligible Overworld chunk consumes nextInt(16) for ice/snow.
+                 * A zero outcome advances updateLCG once before tickBlocks.
+                 */
+                java.util.Random preview = new java.util.Random(publicSeed);
+                preview.nextInt(w.playerEntities.size());
+                preview.nextInt(11);
+                preview.nextInt(11);
+                preview.nextInt(11);
+                int lcgAdvancesBefore = 0;
+                for (int rank = 0; rank <= targetRank; ++rank) {
+                    net.minecraft.world.chunk.Chunk chunk = ticking.get(rank);
+                    if (w.provider.canDoRainSnowIce(chunk)
+                            && preview.nextInt(16) == 0) {
+                        lcgAdvancesBefore++;
+                    }
+                }
+
+                int lx = x & 15;
+                int ly = y & 15;
+                int lz = z & 15;
+                long j1 = (long)lx | ((long)lz << 8) | ((long)ly << 16);
+                long desiredNext = ((j1 << 2) | 2L) & 0xffffffffL;
+                long pre = desiredNext;
+                for (int i = 0; i < lcgAdvancesBefore + 1; ++i) {
+                    pre = (((pre - 1013904223L) & 0xffffffffL)
+                        * 0xAAAAAAABL) & 0xffffffffL;
+                }
+                setWorldUpdateLCG(w, (int)pre);
+                w.rand.setSeed(publicSeed);
+                w.getGameRules().setOrCreateGameRule(
+                    "randomTickSpeed", "1");
+
+                oracleCaptureAuthoritativePlayerLocked(p);
+                JsonObject out = new JsonObject();
+                out.addProperty("ok", true);
+                out.addProperty("loaded_chunks", loaded.size());
+                out.addProperty("iterator_chunks", ticking.size());
+                out.addProperty("target_chunk_rank", targetRank);
+                out.addProperty("target_promoted", 1);
+                out.addProperty("eligible_sections", eligibleSections);
+                out.addProperty("random_blocks", randomBlocks);
+                out.addProperty("sanitized_blocks", sanitized);
+                out.addProperty(
+                    "lcg_advances_before", lcgAdvancesBefore);
+                out.addProperty("selection_lcg_value", desiredNext);
+                out.add("authoritative", oracleAuthoritativeJsonLocked());
+                return out.toString();
+            } catch (Throwable t) {
+                return err("random_selection_locked: " + t);
+            }
+        }
     }
 
     // ---------------- coverage hook control (render-opt) ----------------
@@ -1025,11 +13663,72 @@ public class Recorder {
     // nothing, the player is never ticked server-side, and PlayerChunkMap streaming
     // starves. Repair on every server tick, whatever path dropped the registration.
     @SubscribeEvent
+    public void onOracleRightClickBlock(
+            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock e) {
+        if (e.getWorld().isRemote
+                || !(e.getEntityPlayer() instanceof
+                    net.minecraft.entity.player.EntityPlayerMP))
+            return;
+        synchronized (oracleServerMonitor) {
+            if (!oraclePlayerUseCursorRestorePending)
+                return;
+            oraclePlayerUseCursorRestorePending = false;
+            try {
+                net.minecraft.entity.player.EntityPlayerMP player =
+                    (net.minecraft.entity.player.EntityPlayerMP)e.getEntityPlayer();
+                setJavaRandomSeed48(
+                    player.getServerWorld().rand,
+                    oraclePlayerUseWorldRandSeed48);
+                setMathRandomSeed48(oraclePlayerUseMathRandSeed48);
+                setBlockRandomSeed48(oraclePlayerUseBlockRandSeed48);
+                setNextEntityId(oraclePlayerUseNextEntityId);
+                net.minecraft.block.state.IBlockState state =
+                    e.getWorld().getBlockState(e.getPos());
+                oraclePlayerUseItemRandomPending =
+                    state.getBlock() == net.minecraft.init.Blocks.JUKEBOX
+                    && state.getBlock().getMetaFromState(state) != 0;
+            } catch (Throwable t) {
+                System.out.println(
+                    "[qrl] physical-use cursor restore failed: " + t);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public void onOracleEntityJoinWorld(
+            net.minecraftforge.event.entity.EntityJoinWorldEvent e) {
+        if (e.getWorld().isRemote
+                || !(e.getEntity() instanceof
+                    net.minecraft.entity.item.EntityItem))
+            return;
+        synchronized (oracleServerMonitor) {
+            if (!oraclePlayerUseItemRandomPending)
+                return;
+            oraclePlayerUseItemRandomPending = false;
+            try {
+                setJavaRandomSeed48(entityRandom(e.getEntity()), 0L);
+            } catch (Throwable t) {
+                System.out.println(
+                    "[qrl] physical-use item RNG pin failed: " + t);
+            }
+        }
+    }
+
+    @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent e) {
+        if (e.phase == TickEvent.Phase.START) {
+            oracleAwaitServerPermit();
+            oracleApplyBlockMutationFixture();
+            oracleApplyRandomTickFixture();
+            return;
+        }
         if (e.phase != TickEvent.Phase.END) return;
         net.minecraft.server.MinecraftServer srv =
             net.minecraftforge.fml.common.FMLCommonHandler.instance().getMinecraftServerInstance();
-        if (srv == null) return;
+        if (srv == null) {
+            oracleFinishServerTick();
+            return;
+        }
         try {
             for (net.minecraft.entity.player.EntityPlayerMP p : srv.getPlayerList().getPlayers()) {
                 if (p.isDead) continue;
@@ -1105,6 +13804,7 @@ public class Recorder {
         if (++srvTicks % 1200 == 0) {
             System.out.println("[qrl] server tick heartbeat " + srvTicks);
         }
+        oracleFinishServerTick();
     }
     private long srvTicks = 0;
 
@@ -1140,6 +13840,22 @@ public class Recorder {
 
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent e) {
+        if (e.phase == TickEvent.Phase.START) {
+            Minecraft mcs = Minecraft.getMinecraft();
+            if (recWriter != null && mcs.player != null) {
+                recPreYaw = mcs.player.rotationYaw;
+                recPrePitch = mcs.player.rotationPitch;
+                recPreLookValid = true;
+            }
+            /* Minecraft.runGameLoop drains scheduled packet tasks before
+             * ClientTickEvent.START. Reasserting here closes the last window
+             * in which a delayed property packet could overwrite the parked
+             * server snapshot before EntityPlayerSP travel. */
+            JsonObject snapshot = oraclePotionClientSnapshot;
+            if (oracleMirrorPotionFixture && snapshot != null)
+                oracleMirrorPotionsToClient(snapshot);
+            return;
+        }
         if (e.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getMinecraft();
         mc.gameSettings.pauseOnLostFocus = false; // headless window never has focus; keep the server ticking
@@ -1228,7 +13944,11 @@ public class Recorder {
         if (inFlight != null) return; // shouldn't happen
 
         // LOCKSTEP WINDOW: right after finalizing a step, wait briefly for the client's
-        // next command so it applies THIS tick. Without this, the response->next-step
+        // next command so it applies THIS tick. In oracle mode, also wait at every
+        // otherwise-idle client tick: setup requests such as getblocks complete on
+        // the server thread, and allowing client ticks while the host awaited that
+        // response used to insert an unobserved player-physics tick before the tape.
+        // Without this, the response->next-step
         // round trip always misses this handler's poll and lands one tick later, so the
         // tick in between free-runs with keys still held -- the game advances TWO physics
         // ticks per step and drifts off any external tick-for-tick trace. A fast client
@@ -1236,8 +13956,8 @@ public class Recorder {
         // the timeout once and we fall back to free-running.
         Req polled = null;
         try {
-            polled = justFinalized
-                ? incoming.poll(20, java.util.concurrent.TimeUnit.MILLISECONDS)
+            polled = (justFinalized || stepLockstepWaitMs > 20)
+                ? incoming.poll(stepLockstepWaitMs, java.util.concurrent.TimeUnit.MILLISECONDS)
                 : incoming.poll();
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
@@ -1246,6 +13966,12 @@ public class Recorder {
         if (r == null) return;
 
         try { // a malformed command (missing param, bad type) must never kill the client thread
+        if (r.cmd.equals("step_lock")) {
+            int waitMs = r.action.has("wait_ms") ? r.action.get("wait_ms").getAsInt() : 20;
+            stepLockstepWaitMs = Math.max(20, Math.min(5000, waitMs));
+            reply(r, "{\"ok\":true,\"wait_ms\":" + stepLockstepWaitMs + "}");
+            return;
+        }
         if (r.cmd.equals("stats")) { reply(r, stats(mc)); return; }
         if (r.cmd.equals("recstart")) {
             if (mc.player == null || mc.world == null) { reply(r, err("no world")); return; }
@@ -1259,6 +13985,8 @@ public class Recorder {
                 recLastInv = null;  // force a full inventory dump on tick 0
                 recVelocityPending = false;
                 recPositionPending = false;
+                recFlag7Metadata.clear();
+                recPreLookValid = false;
                 recLastPlayerTicksExisted = mc.player.ticksExisted;
                 recLastDimension = mc.player.dimension;
                 recPlayerLoading = false;
@@ -1295,6 +14023,9 @@ public class Recorder {
                  .append(",\"hp\":").append(mc.player.getHealth())
                  .append(",\"food\":").append(mc.player.getFoodStats().getFoodLevel())
                  .append(",\"dim\":").append(mc.player.dimension)
+                 .append(",\"flag7_metadata\":1,\"flag7_initial\":")
+                 .append(mc.player.isElytraFlying() ? 1 : 0)
+                 .append(",\"look_phase\":1")
                  .append(",\"gamemode\":\"").append(mc.playerController.getCurrentGameType().getName())
                  .append("\",\"difficulty\":\"").append(mc.world.getDifficulty().name())
                  // "default" (steve arm) or "slim" (alex) - offline UUID hash
@@ -1756,7 +14487,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 5000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 16;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/14_light_query/golden";
+                : "../../render-opt/kernels/14_light_query/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -1852,7 +14583,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 2000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 10;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/19_fluid_height/golden";
+                : "../../render-opt/kernels/19_fluid_height/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -1932,7 +14663,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 1000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 48;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/18_biome_color_blend/golden";
+                : "../../render-opt/kernels/18_biome_color_blend/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -1988,7 +14719,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 5000;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 12;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/21_should_side_render/golden";
+                : "../../render-opt/kernels/21_should_side_render/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2082,7 +14813,7 @@ public class Recorder {
             final int py = (int) Math.floor(mc.player.posY);
             final int pz = (int) Math.floor(mc.player.posZ);
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : ("/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/"
+                : ("../../render-opt/kernels/"
                    + (smooth ? "24_render_quads_smooth" : "23_render_quads_flat") + "/golden");
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
@@ -2233,7 +14964,7 @@ public class Recorder {
             final int target = r.action.has("count") ? r.action.get("count").getAsInt() : 200;
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 10;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/20_fluid_quad_gen/golden";
+                : "../../render-opt/kernels/20_fluid_quad_gen/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2405,7 +15136,7 @@ public class Recorder {
             final int py = (int) Math.floor(mc.player.posY);
             final int pz = (int) Math.floor(mc.player.posZ);
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/12_ao_vertex_brightness/golden";
+                : "../../render-opt/kernels/12_ao_vertex_brightness/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2565,7 +15296,7 @@ public class Recorder {
             if (s == null || mc.player == null) { r.resp.offer(err("no world")); return; }
             final double px = mc.player.posX, pz = mc.player.posZ;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/29_particle_update/golden";
+                : "../../render-opt/kernels/29_particle_update/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2653,7 +15384,7 @@ public class Recorder {
             final int px = (int) Math.floor(mc.player.posX);
             final int pz = (int) Math.floor(mc.player.posZ);
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/17_skylight_gen/golden";
+                : "../../render-opt/kernels/17_skylight_gen/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2729,7 +15460,7 @@ public class Recorder {
         // ---- 37_entity_limb_anim: ModelQuadruped(ModelCow).setRotationAngles (per-limb trig) ----
         if (r.cmd.equals("capture_limbanim")) {
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/37_entity_limb_anim/golden";
+                : "../../render-opt/kernels/37_entity_limb_anim/golden";
             final Req fr = r;
             final MinecraftServer s = mc.getIntegratedServer();
             if (s == null) { r.resp.offer(err("no world")); return; }
@@ -2788,7 +15519,7 @@ public class Recorder {
             final int pz = (int) Math.floor(mc.player.posZ);
             final int rad = r.action.has("radius") ? r.action.get("radius").getAsInt() : 14;
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/16_light_propagation/golden";
+                : "../../render-opt/kernels/16_light_propagation/golden";
             final Req fr = r;
             s.addScheduledTask(new Runnable() { public void run() {
                 try {
@@ -2862,7 +15593,7 @@ public class Recorder {
         if (r.cmd.equals("capture_lightmap")) {
             if (mc.world == null || mc.player == null) { r.resp.offer(err("no world")); return; }
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/11_lightmap/golden";
+                : "../../render-opt/kernels/11_lightmap/golden";
             try {
                 net.minecraft.client.renderer.EntityRenderer er = mc.entityRenderer;
                 Class<?> ec = net.minecraft.client.renderer.EntityRenderer.class;
@@ -2922,7 +15653,7 @@ public class Recorder {
         if (r.cmd.equals("capture_chunkrebuild")) {
             if (mc.world == null || mc.player == null) { r.resp.offer(err("no world")); return; }
             final String dir = r.action.has("dir") ? r.action.get("dir").getAsString()
-                : "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/render-opt/kernels/26_chunk_rebuild_loop/golden";
+                : "../../render-opt/kernels/26_chunk_rebuild_loop/golden";
             try {
                 int px = (int) Math.floor(mc.player.posX);
                 int py = (int) Math.floor(mc.player.posY);
@@ -3219,6 +15950,30 @@ public class Recorder {
                     fr.resp.offer("{\"ok\":true,\"killed\":" + n
                         + ",\"num_ticks\":" + TimeHelper.SyncManager.numTicks + "}");
                 } catch (Throwable t) { fr.resp.offer(err("killentities: " + t)); }
+            }});
+            return;
+        }
+
+        // Controlled parity fixtures do not represent unrelated scheduled
+        // sand/gravel work in distant loaded chunks. Let the harness force
+        // BlockFalling's non-entity path for those runs, while falling-block
+        // fixtures explicitly restore ordinary EntityFallingBlock behavior.
+        if (r.cmd.equals("set_falling_instant")) {
+            final MinecraftServer s = mc.getIntegratedServer();
+            if (s == null) { r.resp.offer(err("no server")); return; }
+            final Req fr = r;
+            final boolean instant =
+                r.action.has("instant") && r.action.get("instant").getAsBoolean();
+            s.addScheduledTask(new Runnable() { public void run() {
+                try {
+                    net.minecraft.block.BlockFalling.fallInstantly = instant;
+                    fr.resp.offer("{\"ok\":true,\"instant\":"
+                        + (instant ? "true" : "false")
+                        + ",\"num_ticks\":"
+                        + TimeHelper.SyncManager.numTicks + "}");
+                } catch (Throwable t) {
+                    fr.resp.offer(err("set_falling_instant: " + t));
+                }
             }});
             return;
         }
@@ -4556,6 +17311,8 @@ sb.append("}");
 
         // reset handles the no-world case by launching a world headlessly (async)
         if (r.cmd.equals("reset")) {
+            oracleMirrorPotionFixture = false;
+            oraclePotionClientSnapshot = null;
             // "fresh": true forces a brand-new world at the requested seed: tear down the
             // loaded world, wipe its save folder (folders are qrl_<seed>, so a stale save
             // from a prior run would otherwise be silently re-joined), relaunch. Without it
@@ -4608,6 +17365,10 @@ sb.append("}");
                     initStartNanos = 0;
                 }
                 launching = false;
+                if (fresh) {
+                    deaths = 0;
+                    wasDead = false;
+                }
                 BlockPos sp = mc.world.getSpawnPoint();
                 mc.player.setPositionAndUpdate(sp.getX() + 0.5, sp.getY(), sp.getZ() + 0.5);
                 mc.player.motionX = mc.player.motionY = mc.player.motionZ = 0;
@@ -4708,6 +17469,40 @@ sb.append("}");
         applyAction(mc, r.action);
         r.applied = true;
         inFlight = r;
+        long grantedTarget = -1L;
+        synchronized (oracleServerMonitor) {
+            if (oracleServerGate)
+                grantedTarget = oracleServerCompleted + 1L;
+        }
+        if (!oracleGrantServerTick()) {
+            inFlight = null;
+            r.applied = false;
+            reply(r, err("oracle server already has a permitted tick in flight"));
+        } else if (grantedTarget >= 0L) {
+            /* applyAction runs at ClientTickEvent.END. The new keys are not
+             * consumed and their movement/use packets are not emitted until
+             * the NEXT client tick. Finish this permitted server tick before
+             * returning to that tick, so it deterministically consumes the
+             * preceding client packet. Merely notifying the server here raced
+             * the two threads: onGround, jump exhaustion, and arm packets
+             * occasionally moved one trace row earlier. */
+            try {
+                JsonObject completed =
+                    oracleWaitForStep(grantedTarget, 120000L);
+                if (completed == null) {
+                    inFlight = null;
+                    r.applied = false;
+                    reply(r, err("oracle server permit did not complete before next client tick"));
+                } else {
+                    oracleMirrorPotionsToClient(completed);
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                inFlight = null;
+                r.applied = false;
+                reply(r, err("interrupted while ordering oracle server permit"));
+            }
+        }
         } catch (Throwable t) {
             r.resp.offer(err("command failed: " + t));
         }
@@ -4721,8 +17516,52 @@ sb.append("}");
         key(mc.gameSettings.keyBindRight,   bit(a, "right"));
         key(mc.gameSettings.keyBindJump,    bit(a, "jump"));
         key(mc.gameSettings.keyBindSneak,   bit(a, "sneak"));
-        key(mc.gameSettings.keyBindAttack,  bit(a, "attack"));
-        key(mc.gameSettings.keyBindUseItem, bit(a, "use"));
+        boolean attackDown = bit(a, "attack");
+        boolean attackWasDown =
+            mc.gameSettings.keyBindAttack.isKeyDown();
+        key(mc.gameSettings.keyBindAttack, attackDown);
+        /* Keyboard/Mouse.next calls KeyBinding.onTick on the physical press
+         * edge. setKeyBindState alone only changes the held-state bit, which
+         * is enough for block mining but never enters clickMouse's
+         * isPressed() loop for entity attacks or air swings. */
+        if (attackDown && !attackWasDown)
+            KeyBinding.onTick(mc.gameSettings.keyBindAttack.getKeyCode());
+        boolean useDown = bit(a, "use");
+        boolean useWasDown =
+            mc.gameSettings.keyBindUseItem.isKeyDown();
+        key(mc.gameSettings.keyBindUseItem, useDown);
+        if (useDown && !useWasDown)
+            KeyBinding.onTick(mc.gameSettings.keyBindUseItem.getKeyCode());
+        if (bit(a, "close_container")) {
+            /* NetHandlerPlayServer intentionally ignores the packet's window
+             * id and closes the authoritative open container.  The client can
+             * still be one packet behind the integrated server at this exact
+             * lockstep boundary, so conditioning the synthetic Esc edge on
+             * the client's openContainer silently drops a valid close. */
+            p.closeScreen();
+            /* Preserve the real packet/local GUI path above, but put an
+             * idempotent close on the integrated server's task queue before
+             * granting its next tick.  Otherwise the loopback network thread
+             * races the lockstep gate and the same tape closes on observation
+             * 7 or 8 nondeterministically. */
+            final net.minecraft.server.MinecraftServer closeServer =
+                mc.getIntegratedServer();
+            if (closeServer != null) {
+                closeServer.addScheduledTask(new Runnable() {
+                    public void run() {
+                        java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                            closeServer.getPlayerList().getPlayers();
+                        if (!players.isEmpty()) {
+                            net.minecraft.entity.player.EntityPlayerMP serverPlayer =
+                                players.get(0);
+                            if (serverPlayer.openContainer
+                                    != serverPlayer.inventoryContainer)
+                                serverPlayer.closeContainer();
+                        }
+                    }
+                });
+            }
+        }
         // sprint is INPUT, not state: press the sprint keybind and let the vanilla
         // EntityPlayerSP rules (sprint key hold, double-tap-W toggle timer, stop on
         // collide/slow/hunger) resolve the actual sprint flag. Poking setSprinting()
@@ -5234,8 +18073,7 @@ sb.append("}");
     // qrl_launch.json: written by mc_cli.py (repo root) from fast.yaml (agent) or vanilla.yaml (human play). Resolution order:
     // ./qrl_launch.json (cwd = Minecraft/run under gradle) > absolute fallback.
     private static JsonObject loadLaunchCfg() {
-        String[] paths = { "qrl_launch.json",
-            "/home/infatoshi/dev/minecraft/mc-1.11.2-env/java/Minecraft/run/qrl_launch.json" };
+        String[] paths = { "qrl_launch.json" };
         for (String p : paths) {
             if (p == null || p.isEmpty()) continue;
             try {
@@ -5548,15 +18386,55 @@ sb.append("}");
         return o.toString();
     }
 
-    // Timed response handoff. The socket thread does incoming.put(r) then
-    // r.resp.poll(120s); put() returns the instant the tick thread TAKES the
-    // request, so a handler that answers in sub-microseconds can offer() before
-    // the socket thread parks in poll() - a plain offer drops the response and
-    // the client eats the full 120s timeout. The timed offer waits for the
-    // receiver (recstop lost this race reliably; slower handlers never did).
+    // Timed response handoff. Req.resp is a capacity-one mailbox, so both this
+    // helper and older bare offer() handlers retain a response until the socket
+    // thread polls it.
     private static void reply(Req r, String s) {
         try { r.resp.offer(s, 5, java.util.concurrent.TimeUnit.SECONDS); }
         catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+    }
+
+    private static int tapePackedBlockState(
+            net.minecraft.world.World world, int x, int y, int z) {
+        net.minecraft.block.state.IBlockState state = world.getBlockState(
+            new net.minecraft.util.math.BlockPos(x, y, z));
+        net.minecraft.block.Block block = state.getBlock();
+        int id = net.minecraft.block.Block.getIdFromBlock(block);
+        int meta = block.getMetaFromState(state);
+        return (id << 4) | meta;
+    }
+
+    private static long tapeNearbyHash(
+            net.minecraft.world.World world, double px, double py, double pz) {
+        long hash = 1469598103934665603L;
+        int cx = (int)Math.floor(px);
+        int cy = (int)Math.floor(py);
+        int cz = (int)Math.floor(pz);
+        for (int z = cz - 4; z <= cz + 4; ++z)
+            for (int y = cy - 4; y <= cy + 4; ++y)
+                for (int x = cx - 4; x <= cx + 4; ++x) {
+                    hash ^= (long)tapePackedBlockState(world, x, y, z)
+                        & 0xffffffffL;
+                    hash *= 1099511628211L;
+                }
+        return hash;
+    }
+
+    private static void appendTapeNearbyBlocks(
+            StringBuilder out, net.minecraft.world.World world,
+            double px, double py, double pz) {
+        int cx = (int)Math.floor(px);
+        int cy = (int)Math.floor(py);
+        int cz = (int)Math.floor(pz);
+        out.append(",\"nearby_blocks\":[");
+        int count = 0;
+        for (int z = cz - 4; z <= cz + 4; ++z)
+            for (int y = cy - 4; y <= cy + 4; ++y)
+                for (int x = cx - 4; x <= cx + 4; ++x) {
+                    if (count++ > 0) out.append(",");
+                    out.append(tapePackedBlockState(world, x, y, z));
+                }
+        out.append("]");
     }
 
     // One human-play tape line: the tick's inputs (as MC consumed them), the resulting
@@ -5583,6 +18461,8 @@ sb.append("}");
         b.append(",\"x\":").append(p.posX).append(",\"y\":").append(p.posY)
          .append(",\"z\":").append(p.posZ)
          .append(",\"yaw\":").append(p.rotationYaw).append(",\"pitch\":").append(p.rotationPitch)
+         .append(",\"ry\":").append(recPreLookValid ? recPreYaw : p.rotationYaw)
+         .append(",\"rp\":").append(recPreLookValid ? recPrePitch : p.rotationPitch)
          .append(",\"vx\":").append(p.motionX).append(",\"vy\":").append(p.motionY)
          .append(",\"vz\":").append(p.motionZ)
          .append(",\"og\":").append(p.onGround ? 1 : 0)
@@ -5677,6 +18557,15 @@ sb.append("}");
              .append(",").append(recPositionVz).append("]");
             recPositionPending = false;
         }
+        if (!recFlag7Metadata.isEmpty()) {
+            b.append(",\"f7\":[");
+            for (int i = 0; i < recFlag7Metadata.size(); ++i) {
+                if (i > 0) b.append(',');
+                b.append(recFlag7Metadata.get(i).intValue());
+            }
+            b.append(']');
+            recFlag7Metadata.clear();
+        }
         /* During cross-dimension terrain download the client player exists but
          * is not yet in a loaded chunk, so WorldClient deliberately does not
          * tick it. Replay must preserve that interval rather than applying
@@ -5736,6 +18625,21 @@ sb.append("}");
         // AttributeModifiers when that tag is present, so a leather chestplate
         // carrying just a knockbackResistance modifier is worth 0 armor.
         b.append(",\"armor\":").append(p.getTotalArmorValue());
+        // Direct Java world truth for replay. The FNV-1a hash covers all 729
+        // id/meta states in the 9x9x9 player neighborhood every tick; cadence
+        // checkpoints retain the raw packed states for exact localization.
+        try {
+            long nearbyHash = tapeNearbyHash(
+                mc.world, p.posX, p.posY, p.posZ);
+            String hex = Long.toHexString(nearbyHash);
+            b.append(",\"nearby_hash\":\"");
+            for (int i = hex.length(); i < 16; ++i) b.append("0");
+            b.append(hex).append("\"");
+            int blockEvery = recFrameEvery > 0 ? recFrameEvery : 20;
+            if (((recTick - 1) % blockEvery) == 0)
+                appendTapeNearbyBlocks(
+                    b, mc.world, p.posX, p.posY, p.posZ);
+        } catch (Throwable ig) {}
         // full inventory on change OR keyframe cadence (slots 0-40: main 36,
         // armor 4, offhand). Change dumps catch real evolution; keyframes every
         // 20 ticks line up with collect_state_assertions sampling so a tape is
@@ -5752,7 +18656,7 @@ sb.append("}");
                 if (i > 0) inv.append(",");
                 if (st.isEmpty()) inv.append("0");
                 else inv.append("[").append(net.minecraft.item.Item.getIdFromItem(st.getItem()))
-                        .append(",").append(st.getMetadata())
+                        .append(",").append(oracleStackMeta(st))
                         .append(",").append(st.getCount()).append("]");
             }
             inv.append("]");
@@ -5795,7 +18699,7 @@ sb.append("}");
                             gc.inventorySlots.inventorySlots.get(i).getStack();
                         if (st.isEmpty()) b.append("0");
                         else b.append("[").append(net.minecraft.item.Item.getIdFromItem(st.getItem()))
-                                .append(",").append(st.getMetadata())
+                                .append(",").append(oracleStackMeta(st))
                                 .append(",").append(st.getCount()).append("]");
                     }
                     b.append("]");
@@ -5803,7 +18707,7 @@ sb.append("}");
                     if (cur.isEmpty()) b.append(",\"gcur\":0");
                     else b.append(",\"gcur\":[")
                             .append(net.minecraft.item.Item.getIdFromItem(cur.getItem()))
-                            .append(",").append(cur.getMetadata())
+                            .append(",").append(oracleStackMeta(cur))
                             .append(",").append(cur.getCount()).append("]");
                     if ("GuiFurnace".equals(g) && !gc.inventorySlots.inventorySlots.isEmpty()) {
                         net.minecraft.inventory.IInventory fi =
@@ -5812,6 +18716,14 @@ sb.append("}");
                          .append(",").append(fi.getField(1))
                          .append(",").append(fi.getField(2))
                          .append(",").append(fi.getField(3)).append("]");
+                    }
+                    if ("GuiBrewingStand".equals(g)
+                            && !gc.inventorySlots.inventorySlots.isEmpty()) {
+                        net.minecraft.inventory.IInventory bi =
+                            gc.inventorySlots.inventorySlots.get(0).inventory;
+                        b.append(",\"gprop\":[")
+                         .append(bi.getField(0)).append(",")
+                         .append(bi.getField(1)).append("]");
                     }
                 } catch (Throwable ig) {}
             }
@@ -5972,7 +18884,18 @@ sb.append("}");
                      // Entity.ticksExisted: RenderDragon.renderCrystalBeams
                      // scrolls the healing beam by -ticksExisted*0.01 per tick.
                      // Client-side counter, not derivable from the tape.
-                     .append(",").append(e.ticksExisted);
+                     .append(",").append(e.ticksExisted)
+                     .append(",").append(dr.healingEnderCrystal == null ? 0 : 1);
+                    if (dr.healingEnderCrystal == null) {
+                        b.append(",0,0,0,0");
+                    } else {
+                        net.minecraft.entity.item.EntityEnderCrystal hc =
+                            dr.healingEnderCrystal;
+                        b.append(",").append(hc.posX)
+                         .append(",").append(hc.posY)
+                         .append(",").append(hc.posZ)
+                         .append(",").append(hc.ticksExisted);
+                    }
                 }
             } else if (e instanceof net.minecraft.entity.projectile.EntityArrow) {
                 // render pitch (RenderArrow Rz): stuck arrows keep the impact
@@ -5996,15 +18919,18 @@ sb.append("}");
                  .append(",").append(orb.xpOrbAge);
             } else if (e instanceof net.minecraft.entity.item.EntityEnderCrystal) {
                 // RenderEnderCrystal state: random-init spin/bob phase, base
-                // plate flag, heal-beam target (-1,-1,-1 = no beam).
+                // plate flag, explicit heal-beam presence, then target block.
+                // Presence cannot use a coordinate sentinel because every
+                // signed BlockPos coordinate, including (-1,-1,-1), is valid.
                 net.minecraft.entity.item.EntityEnderCrystal ec =
                     (net.minecraft.entity.item.EntityEnderCrystal) e;
                 net.minecraft.util.math.BlockPos bt = ec.getBeamTarget();
                 b.append(",").append(ec.innerRotation)
                  .append(",").append(ec.shouldShowBottom() ? 1 : 0)
-                 .append(",").append(bt == null ? -1 : bt.getX())
-                 .append(",").append(bt == null ? -1 : bt.getY())
-                 .append(",").append(bt == null ? -1 : bt.getZ())
+                 .append(",").append(bt == null ? 0 : 1)
+                 .append(",").append(bt == null ? 0 : bt.getX())
+                 .append(",").append(bt == null ? 0 : bt.getY())
+                 .append(",").append(bt == null ? 0 : bt.getZ())
                  // Entity.ticksExisted: RenderDragon.doRender pulses the
                  // healing beam's crystal end by sin(ticksExisted*0.2).
                  .append(",").append(ec.ticksExisted);
@@ -6069,6 +18995,7 @@ sb.append("}");
         }
         // pose + motion
         o.addProperty("x", p.posX); o.addProperty("y", p.posY); o.addProperty("z", p.posZ);
+        o.addProperty("player_ticks_existed", p.ticksExisted);
         o.addProperty("yaw", p.rotationYaw); o.addProperty("pitch", p.rotationPitch);
         // Camera eye (for hard-scene / capture; feet = y, eye = y + eyeHeight)
         o.addProperty("eye_height", p.getEyeHeight());
@@ -6090,12 +19017,43 @@ sb.append("}");
         // fire ticks (Entity.fire is protected -> reflect once; -1 if unavailable)
         o.addProperty("fire", fireTicks(p));
         o.addProperty("fall_distance", p.fallDistance);
+        o.addProperty("in_water", p.isInWater());
+        o.addProperty("bb_min_y", p.getEntityBoundingBox().minY);
+        o.addProperty("bb_max_y", p.getEntityBoundingBox().maxY);
+        try {
+            Class<?> cls = net.minecraft.client.entity.EntityPlayerSP.class;
+            java.lang.reflect.Field ticks =
+                cls.getDeclaredField("positionUpdateTicks");
+            java.lang.reflect.Field lastX =
+                cls.getDeclaredField("lastReportedPosX");
+            java.lang.reflect.Field lastY =
+                cls.getDeclaredField("lastReportedPosY");
+            java.lang.reflect.Field lastZ =
+                cls.getDeclaredField("lastReportedPosZ");
+            java.lang.reflect.Field prevGround =
+                cls.getDeclaredField("prevOnGround");
+            java.lang.reflect.Field[] fields = {
+                ticks, lastX, lastY, lastZ, prevGround
+            };
+            for (java.lang.reflect.Field field : fields)
+                field.setAccessible(true);
+            o.addProperty(
+                "client_position_update_ticks", ticks.getInt(p));
+            o.addProperty("client_last_reported_x", lastX.getDouble(p));
+            o.addProperty("client_last_reported_y", lastY.getDouble(p));
+            o.addProperty("client_last_reported_z", lastZ.getDouble(p));
+            o.addProperty(
+                "client_prev_on_ground", prevGround.getBoolean(p));
+        } catch (Throwable ig) {}
         o.addProperty("sprinting", p.isSprinting());
         o.addProperty("sneaking", p.isSneaking());
         o.addProperty("jumping", livingJumping(p));   // EntityLivingBase.isJumping (reflected)
         o.addProperty("hurt_time", p.hurtTime);
         o.addProperty("death_time", p.deathTime);
         o.addProperty("attack_cooldown", p.getCooledAttackStrength(0.0F));  // 0..1
+        o.addProperty("movement_speed_attr", p.getEntityAttribute(
+            net.minecraft.entity.SharedMonsterAttributes.MOVEMENT_SPEED)
+            .getAttributeValue());
         // held item
         int held = p.inventory.currentItem;
         o.addProperty("held_slot", held);
@@ -6188,11 +19146,65 @@ sb.append("}");
         }
         o.addProperty("entity_count", ents.size());
         o.add("entities", arr);
+        // Integrated-server truth for causal survival comparisons. EntityPlayerSP
+        // predicts onEntityUpdate locally (notably AIR), then receives metadata /
+        // health packets from EntityPlayerMP. Reading only the client copy can
+        // therefore show two air decrements in one qrl step and damage one row
+        // late even when the server advanced exactly once. Keep both surfaces:
+        // the ordinary fields above remain render/client truth; this nested
+        // object is the authoritative simulation checkpoint.
+        try {
+            net.minecraft.server.MinecraftServer server = mc.getIntegratedServer();
+            java.util.List<net.minecraft.entity.player.EntityPlayerMP> players =
+                server == null ? null : server.getPlayerList().getPlayers();
+            if (players != null && !players.isEmpty()) {
+                net.minecraft.entity.player.EntityPlayerMP sp = players.get(0);
+                JsonObject authoritative = new JsonObject();
+                authoritative.addProperty("player_ticks_existed", sp.ticksExisted);
+                authoritative.addProperty("y", sp.posY);
+                authoritative.addProperty(
+                    "bb_min_y", sp.getEntityBoundingBox().minY);
+                authoritative.addProperty(
+                    "bb_max_y", sp.getEntityBoundingBox().maxY);
+                authoritative.addProperty("on_ground", sp.onGround);
+                authoritative.addProperty("in_water", sp.isInWater());
+                authoritative.addProperty("air", sp.getAir());
+                authoritative.addProperty("health", sp.getHealth());
+                authoritative.addProperty("fall_distance", sp.fallDistance);
+                authoritative.addProperty(
+                    "food", sp.getFoodStats().getFoodLevel());
+                authoritative.addProperty(
+                    "saturation", sp.getFoodStats().getSaturationLevel());
+                authoritative.addProperty(
+                    "food_exhaustion", foodExhaustion(sp.getFoodStats()));
+                authoritative.addProperty(
+                    "food_timer", foodTimer(sp.getFoodStats()));
+                authoritative.addProperty("fire", fireTicks(sp));
+                authoritative.addProperty("hurt_time", sp.hurtTime);
+                authoritative.addProperty("xp", sp.experienceLevel);
+                authoritative.addProperty("xp_frac", sp.experience);
+                authoritative.addProperty("dim", sp.dimension);
+                o.add("authoritative", authoritative);
+            }
+        } catch (Throwable ig) {}
         return o.toString();
     }
 
     // ---- obs helpers for the extended state vector ----
-    private static java.lang.reflect.Field FIRE_F, JUMP_F;
+    private static java.lang.reflect.Field FIRE_F, JUMP_F, NEXT_ENTITY_ID_F;
+    private static java.lang.reflect.Field PLAYER_ATTACK_TICKS_F;
+    private static java.lang.reflect.Field ENTITY_RANDOM_F;
+    private static java.lang.reflect.Field ANIMAL_IN_LOVE_F;
+    private static java.lang.reflect.Field AGEABLE_FORCED_AGE_F;
+    private static java.lang.reflect.Field AGEABLE_FORCED_AGE_TIMER_F;
+    private static java.lang.reflect.Field RANDOM_SEED_F;
+    private static java.lang.reflect.Field RANDOM_HAVE_NEXT_GAUSSIAN_F;
+    private static java.lang.reflect.Field RANDOM_NEXT_GAUSSIAN_F;
+    private static java.lang.reflect.Field BLOCK_RANDOM_F;
+    private static java.lang.reflect.Field MATH_RANDOM_GENERATOR_F;
+    private static java.lang.reflect.Field WORLD_UPDATE_LCG_F;
+    private static java.lang.reflect.Method SEND_QUEUED_BLOCK_EVENTS_M;
+    private static java.lang.reflect.Field FOOD_EXHAUSTION_F, FOOD_TIMER_F;
     private static int fireTicks(Entity e) {
         try {
             if (FIRE_F == null) {
@@ -6200,6 +19212,248 @@ sb.append("}");
                 FIRE_F.setAccessible(true);
             }
             return FIRE_F.getInt(e);
+        } catch (Throwable ig) { return -1; }
+    }
+    private static int playerAttackTicks(
+            net.minecraft.entity.player.EntityPlayer player) {
+        try {
+            if (PLAYER_ATTACK_TICKS_F == null) {
+                PLAYER_ATTACK_TICKS_F =
+                    net.minecraft.entity.EntityLivingBase.class
+                        .getDeclaredField("ticksSinceLastSwing");
+                PLAYER_ATTACK_TICKS_F.setAccessible(true);
+            }
+            return PLAYER_ATTACK_TICKS_F.getInt(player);
+        } catch (Throwable ig) {
+            return -1;
+        }
+    }
+    private static void setPlayerAttackTicks(
+            net.minecraft.entity.player.EntityPlayer player, int value)
+            throws IllegalAccessException, NoSuchFieldException {
+        if (PLAYER_ATTACK_TICKS_F == null) {
+            PLAYER_ATTACK_TICKS_F =
+                net.minecraft.entity.EntityLivingBase.class
+                    .getDeclaredField("ticksSinceLastSwing");
+            PLAYER_ATTACK_TICKS_F.setAccessible(true);
+        }
+        PLAYER_ATTACK_TICKS_F.setInt(player, value);
+    }
+    private static int nextEntityId() {
+        try {
+            if (NEXT_ENTITY_ID_F == null) {
+                NEXT_ENTITY_ID_F =
+                    Entity.class.getDeclaredField("nextEntityID");
+                NEXT_ENTITY_ID_F.setAccessible(true);
+            }
+            return NEXT_ENTITY_ID_F.getInt(null);
+        } catch (Throwable ig) { return -1; }
+    }
+    private static java.lang.reflect.Field animalField(String name)
+            throws Exception {
+        if (name.equals("inLove")) {
+            if (ANIMAL_IN_LOVE_F == null) {
+                ANIMAL_IN_LOVE_F = net.minecraft.entity.passive.EntityAnimal.class
+                    .getDeclaredField("inLove");
+                ANIMAL_IN_LOVE_F.setAccessible(true);
+            }
+            return ANIMAL_IN_LOVE_F;
+        }
+        throw new IllegalArgumentException("unknown animal field " + name);
+    }
+    private static int animalInt(net.minecraft.entity.passive.EntityAnimal animal,
+            String name) throws Exception {
+        return animalField(name).getInt(animal);
+    }
+    private static void setAnimalInt(
+            net.minecraft.entity.passive.EntityAnimal animal,
+            String name, int value) throws Exception {
+        animalField(name).setInt(animal, value);
+    }
+    private static int ageableInt(net.minecraft.entity.EntityAgeable ageable,
+            String name) throws Exception {
+        java.lang.reflect.Field field;
+        if (name.equals("forcedAge")) {
+            if (AGEABLE_FORCED_AGE_F == null) {
+                AGEABLE_FORCED_AGE_F = net.minecraft.entity.EntityAgeable.class
+                    .getDeclaredField("forcedAge");
+                AGEABLE_FORCED_AGE_F.setAccessible(true);
+            }
+            field = AGEABLE_FORCED_AGE_F;
+        } else if (name.equals("forcedAgeTimer")) {
+            if (AGEABLE_FORCED_AGE_TIMER_F == null) {
+                AGEABLE_FORCED_AGE_TIMER_F =
+                    net.minecraft.entity.EntityAgeable.class.getDeclaredField(
+                        "forcedAgeTimer");
+                AGEABLE_FORCED_AGE_TIMER_F.setAccessible(true);
+            }
+            field = AGEABLE_FORCED_AGE_TIMER_F;
+        } else {
+            throw new IllegalArgumentException("unknown ageable field " + name);
+        }
+        return field.getInt(ageable);
+    }
+    private static void setNextEntityId(int value) throws Exception {
+        if (NEXT_ENTITY_ID_F == null) {
+            NEXT_ENTITY_ID_F =
+                Entity.class.getDeclaredField("nextEntityID");
+            NEXT_ENTITY_ID_F.setAccessible(true);
+        }
+        NEXT_ENTITY_ID_F.setInt(null, value);
+    }
+    private static java.util.Random entityRandom(Entity entity)
+            throws Exception {
+        if (ENTITY_RANDOM_F == null) {
+            ENTITY_RANDOM_F = Entity.class.getDeclaredField("rand");
+            ENTITY_RANDOM_F.setAccessible(true);
+        }
+        return (java.util.Random)ENTITY_RANDOM_F.get(entity);
+    }
+    private static long javaRandomSeed48(java.util.Random random) {
+        try {
+            if (RANDOM_SEED_F == null) {
+                RANDOM_SEED_F =
+                    java.util.Random.class.getDeclaredField("seed");
+                RANDOM_SEED_F.setAccessible(true);
+            }
+            java.util.concurrent.atomic.AtomicLong seed =
+                (java.util.concurrent.atomic.AtomicLong)RANDOM_SEED_F.get(random);
+            return seed.get() & ((1L << 48) - 1L);
+        } catch (Throwable ig) { return -1L; }
+    }
+    private static boolean javaRandomHaveNextGaussian(
+            java.util.Random random) throws Exception {
+        if (RANDOM_HAVE_NEXT_GAUSSIAN_F == null) {
+            RANDOM_HAVE_NEXT_GAUSSIAN_F = java.util.Random.class
+                .getDeclaredField("haveNextNextGaussian");
+            RANDOM_HAVE_NEXT_GAUSSIAN_F.setAccessible(true);
+        }
+        return RANDOM_HAVE_NEXT_GAUSSIAN_F.getBoolean(random);
+    }
+    private static double javaRandomNextGaussian(
+            java.util.Random random) throws Exception {
+        if (RANDOM_NEXT_GAUSSIAN_F == null) {
+            RANDOM_NEXT_GAUSSIAN_F = java.util.Random.class
+                .getDeclaredField("nextNextGaussian");
+            RANDOM_NEXT_GAUSSIAN_F.setAccessible(true);
+        }
+        return RANDOM_NEXT_GAUSSIAN_F.getDouble(random);
+    }
+    private static void setJavaRandomGaussianState(
+            java.util.Random random, boolean haveNext, double next)
+            throws Exception {
+        if (RANDOM_HAVE_NEXT_GAUSSIAN_F == null) {
+            RANDOM_HAVE_NEXT_GAUSSIAN_F = java.util.Random.class
+                .getDeclaredField("haveNextNextGaussian");
+            RANDOM_HAVE_NEXT_GAUSSIAN_F.setAccessible(true);
+        }
+        if (RANDOM_NEXT_GAUSSIAN_F == null) {
+            RANDOM_NEXT_GAUSSIAN_F = java.util.Random.class
+                .getDeclaredField("nextNextGaussian");
+            RANDOM_NEXT_GAUSSIAN_F.setAccessible(true);
+        }
+        RANDOM_HAVE_NEXT_GAUSSIAN_F.setBoolean(random, haveNext);
+        RANDOM_NEXT_GAUSSIAN_F.setDouble(random, next);
+    }
+    private static void setJavaRandomSeed48(
+            java.util.Random random, long value) throws Exception {
+        if (RANDOM_SEED_F == null) {
+            RANDOM_SEED_F =
+                java.util.Random.class.getDeclaredField("seed");
+            RANDOM_SEED_F.setAccessible(true);
+        }
+        java.util.concurrent.atomic.AtomicLong seed =
+            (java.util.concurrent.atomic.AtomicLong)RANDOM_SEED_F.get(random);
+        seed.set(value & ((1L << 48) - 1L));
+    }
+    private static long mathRandomSeed48() {
+        try {
+            if (MATH_RANDOM_GENERATOR_F == null) {
+                Class<?> holder =
+                    Class.forName("java.lang.Math$RandomNumberGeneratorHolder");
+                MATH_RANDOM_GENERATOR_F =
+                    holder.getDeclaredField("randomNumberGenerator");
+                MATH_RANDOM_GENERATOR_F.setAccessible(true);
+            }
+            return javaRandomSeed48(
+                (java.util.Random)MATH_RANDOM_GENERATOR_F.get(null));
+        } catch (Throwable ig) { return -1L; }
+    }
+    private static void setMathRandomSeed48(long value) throws Exception {
+        if (MATH_RANDOM_GENERATOR_F == null) {
+            Class<?> holder =
+                Class.forName("java.lang.Math$RandomNumberGeneratorHolder");
+            MATH_RANDOM_GENERATOR_F =
+                holder.getDeclaredField("randomNumberGenerator");
+            MATH_RANDOM_GENERATOR_F.setAccessible(true);
+        }
+        setJavaRandomSeed48(
+            (java.util.Random)MATH_RANDOM_GENERATOR_F.get(null), value);
+    }
+    private static java.util.Random blockRandom() throws Exception {
+        if (BLOCK_RANDOM_F == null) {
+            BLOCK_RANDOM_F =
+                net.minecraft.block.Block.class.getDeclaredField("RANDOM");
+            BLOCK_RANDOM_F.setAccessible(true);
+        }
+        return (java.util.Random)BLOCK_RANDOM_F.get(null);
+    }
+    private static long blockRandomSeed48() {
+        try {
+            return javaRandomSeed48(blockRandom());
+        } catch (Throwable ig) { return -1L; }
+    }
+    private static void setBlockRandomSeed48(long value) throws Exception {
+        setJavaRandomSeed48(blockRandom(), value);
+    }
+    private static void sendQueuedBlockEvents(
+            net.minecraft.world.WorldServer world) throws Exception {
+        if (SEND_QUEUED_BLOCK_EVENTS_M == null) {
+            SEND_QUEUED_BLOCK_EVENTS_M =
+                net.minecraft.world.WorldServer.class.getDeclaredMethod(
+                    "sendQueuedBlockEvents");
+            SEND_QUEUED_BLOCK_EVENTS_M.setAccessible(true);
+        }
+        SEND_QUEUED_BLOCK_EVENTS_M.invoke(world);
+    }
+    private static int worldUpdateLCG(net.minecraft.world.World world) {
+        try {
+            if (WORLD_UPDATE_LCG_F == null) {
+                WORLD_UPDATE_LCG_F =
+                    net.minecraft.world.World.class.getDeclaredField(
+                        "updateLCG");
+                WORLD_UPDATE_LCG_F.setAccessible(true);
+            }
+            return WORLD_UPDATE_LCG_F.getInt(world);
+        } catch (Throwable ig) { return 0; }
+    }
+    private static void setWorldUpdateLCG(
+            net.minecraft.world.World world, int value) throws Exception {
+        if (WORLD_UPDATE_LCG_F == null) {
+            WORLD_UPDATE_LCG_F =
+                net.minecraft.world.World.class.getDeclaredField("updateLCG");
+            WORLD_UPDATE_LCG_F.setAccessible(true);
+        }
+        WORLD_UPDATE_LCG_F.setInt(world, value);
+    }
+    private static float foodExhaustion(net.minecraft.util.FoodStats food) {
+        try {
+            if (FOOD_EXHAUSTION_F == null) {
+                FOOD_EXHAUSTION_F = net.minecraft.util.FoodStats.class
+                    .getDeclaredField("foodExhaustionLevel");
+                FOOD_EXHAUSTION_F.setAccessible(true);
+            }
+            return FOOD_EXHAUSTION_F.getFloat(food);
+        } catch (Throwable ig) { return -1.0F; }
+    }
+    private static int foodTimer(net.minecraft.util.FoodStats food) {
+        try {
+            if (FOOD_TIMER_F == null) {
+                FOOD_TIMER_F = net.minecraft.util.FoodStats.class
+                    .getDeclaredField("foodTimer");
+                FOOD_TIMER_F.setAccessible(true);
+            }
+            return FOOD_TIMER_F.getInt(food);
         } catch (Throwable ig) { return -1; }
     }
     private static boolean livingJumping(net.minecraft.entity.EntityLivingBase e) {
@@ -6248,6 +19502,21 @@ sb.append("}");
     // EntityItem.age / delayBeforeCanPickup are private int; reflect them for the P2 item trace.
     private static java.util.HashMap<String, java.lang.reflect.Field> ITEM_FIELDS =
         new java.util.HashMap<String, java.lang.reflect.Field>();
+    private static java.util.HashMap<String, java.lang.reflect.Field>
+        FISH_HOOK_FIELDS =
+            new java.util.HashMap<String, java.lang.reflect.Field>();
+    private static Object fishHookField(
+            net.minecraft.entity.projectile.EntityFishHook hook,
+            String name) throws Exception {
+        java.lang.reflect.Field field = FISH_HOOK_FIELDS.get(name);
+        if (field == null) {
+            field = net.minecraft.entity.projectile.EntityFishHook.class
+                .getDeclaredField(name);
+            field.setAccessible(true);
+            FISH_HOOK_FIELDS.put(name, field);
+        }
+        return field.get(hook);
+    }
     private static int itemField(net.minecraft.entity.item.EntityItem ei, String name) {
         try {
             java.lang.reflect.Field f = ITEM_FIELDS.get(name);
@@ -6257,6 +19526,18 @@ sb.append("}");
                 ITEM_FIELDS.put(name, f);
             }
             return f.getInt(ei);
+        } catch (Throwable ig) { return -1; }
+    }
+    private static java.lang.reflect.Field XP_ORB_HEALTH;
+    private static int xpOrbField(
+            net.minecraft.entity.item.EntityXPOrb orb, String name) {
+        try {
+            if (XP_ORB_HEALTH == null) {
+                XP_ORB_HEALTH = net.minecraft.entity.item.EntityXPOrb.class
+                    .getDeclaredField(name);
+                XP_ORB_HEALTH.setAccessible(true);
+            }
+            return XP_ORB_HEALTH.getInt(orb);
         } catch (Throwable ig) { return -1; }
     }
 

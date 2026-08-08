@@ -1,0 +1,7 @@
+# Normal piston (ID 33) facing EAST (metadata 5), initially unpowered with
+# empty space in front. A floor stone button on its south side begins off
+# (metadata 5); tick zero changes it to powered metadata 13. This setter-edge
+# fixture isolates direct weak power and intentionally does not claim the
+# separate interaction-created button release callback.
+12 78 8 33 5
+12 78 9 77 5

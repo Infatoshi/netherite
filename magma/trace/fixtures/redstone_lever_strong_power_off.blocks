@@ -1,0 +1,5 @@
+# Removing the powered lever must notify around its attached stone support,
+# causing the indirectly powered lamp to enter its independent +4 off delay.
+12 78 8 1 0
+12 79 8 69 13
+13 78 8 124 0

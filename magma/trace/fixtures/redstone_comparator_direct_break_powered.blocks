@@ -1,0 +1,6 @@
+# SOUTH-facing comparator state 149:8 has POWERED=true. Its restored tile
+# output 15 strongly powers the north stone and indirect lamp. Direct removal
+# must retire the tile before notifying the old output neighborhood.
+12 77 8 1 0
+12 78 7 1 0
+12 78 8 149 8

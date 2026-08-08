@@ -1,0 +1,4 @@
+# Pumpkin is a full cube but Material.GOURD, so it must not create a fence arm.
+12 81 9 152 0
+12 79 8 85 0
+12 79 7 86 0

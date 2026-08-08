@@ -1,0 +1,5 @@
+# EAST-facing normal piston is placed at tick zero directly west of a locked
+# NoAI pig. Soul sand at x=13 has a 0.875-high collision box and clips the
+# moving head without obstructing piston extension.
+11 78 9 152 0
+13 78 8 88 0

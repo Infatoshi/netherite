@@ -1,0 +1,10 @@
+# Settled EAST-facing sticky piston with slime and an attached UP stone. On
+# retraction the side line moves west through a south-facing bed head; the
+# head itself drops nothing and its foot at z=7 supplies the one bed item.
+12 79 8 29 13
+13 79 8 34 13
+14 79 8 165 0
+13 80 7 26 0
+13 80 8 26 8
+14 80 8 1 0
+12 79 9 152 0

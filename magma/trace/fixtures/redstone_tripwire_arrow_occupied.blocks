@@ -1,0 +1,13 @@
+# A gravity-free EntityTippedArrow is spawned at (12.5,78,8.5), inside the
+# middle segment of this complete attached east-west line. Its post-position
+# doBlockCollisions pass must power the segment, both hooks, and both lamps.
+8 77 8 1 0
+9 78 8 1 0
+15 78 8 1 0
+10 78 8 131 3
+14 78 8 131 1
+11 78 8 132 0
+12 78 8 132 0
+13 78 8 132 0
+10 78 7 123 0
+14 78 7 123 0

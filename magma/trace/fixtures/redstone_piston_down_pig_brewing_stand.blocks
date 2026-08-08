@@ -1,0 +1,5 @@
+# A downward piston pushes a stationary pig onto an empty brewing stand.
+# The stand and piston are inserted on ticks 0 and 1 by the companion sequence
+# so the pre-tick capsule contains no unsupported brewing inventory tile.
+12 81 9 152 0
+12 78 8 1 0

@@ -1,0 +1,6 @@
+# EAST-facing normal piston targets a purple shulker box facing EAST. The
+# parked tile receives 64 plain stone in slot zero after block staging.
+# Teardown must emit one purple box whose BlockEntityTag retains that stack.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 229 5

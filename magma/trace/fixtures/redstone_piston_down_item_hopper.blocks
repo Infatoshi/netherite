@@ -1,0 +1,6 @@
+# Hollow, powered hopper: 5/8-high basin plus four full-height 1/8 walls.
+# Metadata bit 8 and the redstone block below disable item collection so this
+# fixture isolates collision even after vanilla neighbor updates.
+12 81 9 152 0
+12 79 8 154 8
+12 78 8 152 0

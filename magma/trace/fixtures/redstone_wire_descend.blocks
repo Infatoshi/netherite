@@ -1,0 +1,12 @@
+# One stone-supported dust step descends from y=79 to y=78. The adjacent
+# same-level cell is air, so vanilla connects to the lower wire.
+12 78 8 1 0
+12 79 8 55 0
+12 80 8 0 0
+13 77 8 1 0
+13 78 8 55 0
+13 79 8 0 0
+14 77 8 1 0
+14 78 8 55 0
+15 77 8 1 0
+15 78 8 123 0

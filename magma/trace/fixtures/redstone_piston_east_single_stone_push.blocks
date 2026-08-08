@@ -1,0 +1,5 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it, one stone occupies the front cell, and the next
+# cell is air. Java moves both the head and stone through block 36 tiles.
+12 78 9 152 0
+13 78 8 1 0

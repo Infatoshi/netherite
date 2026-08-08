@@ -1,0 +1,6 @@
+# Flat same-level dust remains connected under a normal-cube ceiling. A source
+# at (11,78,8) must power the covered wire and adjacent lamp immediately.
+12 77 8 1 0
+12 78 8 55 0
+12 79 8 1 0
+13 78 8 123 0

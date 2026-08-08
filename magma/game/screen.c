@@ -32,6 +32,8 @@ int gm_screen_kind_for_gui(const char *gui_name)
     if (!strcmp(gui_name, "GuiCrafting"))  return 1;
     if (!strcmp(gui_name, "GuiFurnace"))   return 2;
     if (!strcmp(gui_name, "GuiChest"))     return 3;
+    if (!strcmp(gui_name, "GuiBrewingStand")) return 4;
+    if (!strcmp(gui_name, "GuiEnchantment")) return 5;
     return -1;
 }
 
@@ -101,6 +103,23 @@ int gm_screen_layout(int container, int fb_w, int fb_h, GmScreenSlot *out, int m
         for (int i = 0; i < GMC_CHEST_SLOTS; ++i)
             n = put(out, n, max, GMC_CHEST0 + i, px, py, s,
                     8 + (i % 9) * PITCH, 18 + (i / 9) * PITCH);
+    } else if (container == 4) {
+        n = put(out, n, max, GMC_BREWING0, px, py, s, 56, 51);
+        n = put(out, n, max, GMC_BREWING0 + 1, px, py, s, 79, 58);
+        n = put(out, n, max, GMC_BREWING0 + 2, px, py, s, 102, 51);
+        n = put(out, n, max, GMC_BREWING0 + 3, px, py, s, 79, 17);
+        n = put(out, n, max, GMC_BREWING0 + 4, px, py, s, 17, 17);
+    } else if (container == 5) {
+        n = put(out, n, max, GMC_ENCHANT0, px, py, s, 15, 47);
+        n = put(out, n, max, GMC_ENCHANT0 + 1, px, py, s, 35, 47);
+        for (int i = 0; i < 3 && n < max; ++i) {
+            out[n].slot_id = GMC_ENCHANT_BUTTON0 + i;
+            out[n].x = px + 60 * s;
+            out[n].y = py + (14 + i * 19) * s;
+            out[n].w = 108 * s;
+            out[n].h = 19 * s;
+            ++n;
+        }
     } else {
         /* player screen: armor HEAD..FEET at (8, 8+k*18) -> GMC_ARMOR0+3..0
          * (isr 39..36); 2x2 matrix at (98,18), result at (154,28) */
@@ -154,6 +173,19 @@ static ICStack screen_stack(const GmRuntime *r, int id)
     if (r->container == 3 && r->active_chest >= 0 &&
         id >= GMC_CHEST0 && id < GMC_CHEST0 + GMC_CHEST_SLOTS)
         return chest_live_get(&r->chests[r->active_chest].state, id - GMC_CHEST0);
+    if (r->container == 4 && r->active_static_container >= 0
+            && r->active_static_container < r->static_containers_cap
+            && id >= GMC_BREWING0
+            && id < GMC_BREWING0 + GMC_BREWING_SLOTS) {
+        const GmRuntimeStaticContainer *stand =
+            &r->static_containers[r->active_static_container];
+        if (stand->active && stand->block == 117)
+            return stand->slots[id - GMC_BREWING0];
+    }
+    if (r->container == 5 && r->enchanting.open
+            && id >= GMC_ENCHANT0
+            && id < GMC_ENCHANT0 + GMC_ENCHANT_SLOTS)
+        return r->enchanting.slots[id - GMC_ENCHANT0];
     return ic_empty();
 }
 
@@ -349,6 +381,8 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
     int panel = r->container == 1 ? GM_GUI_TABLE_PANEL
               : r->container == 2 ? GM_GUI_FURNACE_PANEL
               : r->container == 3 ? GM_GUI_CHEST_PANEL
+              : r->container == 4 ? GM_GUI_BREWING_PANEL
+              : r->container == 5 ? GM_GUI_ENCHANTING_PANEL
                                   : GM_GUI_INV_PANEL;
     gm_gui_blit(fb, panel, px, py, s);
     if (r->container == 0) {
@@ -389,6 +423,62 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
                         px + 79 * s, py + 34 * s, s);
     }
 
+    if (r->container == 4) {
+        static const int bubbles[7] = {29, 24, 20, 16, 11, 6, 0};
+        const GmRuntimeStaticContainer *stand = NULL;
+        if (r->active_static_container >= 0
+                && r->active_static_container < r->static_containers_cap)
+            stand = &r->static_containers[r->active_static_container];
+        int fuel = r->tape_brewing_active
+            ? r->tape_brewing_fuel
+            : stand && stand->active && stand->block == 117
+                ? stand->brewing.fuel : 0;
+        int brew = r->tape_brewing_active
+            ? r->tape_brewing_brew
+            : stand && stand->active && stand->block == 117
+                ? stand->brewing.brew_time : 0;
+        int fuel_width = (18 * fuel + 19) / 20;
+        if (fuel_width > 18) fuel_width = 18;
+        if (fuel_width > 0)
+            gm_gui_blit_sub(
+                fb, GM_GUI_BREWING_FUEL, 0, 0, fuel_width, 4,
+                px + 60 * s, py + 44 * s, s);
+        if (brew > 0) {
+            int progress = (int)(28.0f * (1.0f - (float)brew / 400.0f));
+            if (progress > 0)
+                gm_gui_blit_sub(
+                    fb, GM_GUI_BREWING_PROGRESS, 0, 0, 9, progress,
+                    px + 97 * s, py + 16 * s, s);
+            int bubble = bubbles[(brew / 2) % 7];
+            if (bubble > 0)
+                gm_gui_blit_sub(
+                    fb, GM_GUI_BREWING_BUBBLES, 0, 29 - bubble,
+                    12, bubble, px + 63 * s,
+                    py + (14 + 29 - bubble) * s, s);
+        }
+    }
+
+    if (r->container == 5) {
+        for (int i = 0; i < 3; ++i) {
+            int level = r->enchanting.offer.levels[i];
+            if (level <= 0) continue;
+            char text[16];
+            int n = level, len = 0;
+            do { text[len++] = (char)('0' + n % 10); n /= 10; } while (n);
+            for (int a = 0, b = len - 1; a < b; ++a, --b) {
+                char t = text[a]; text[a] = text[b]; text[b] = t;
+            }
+            text[len] = 0;
+            unsigned color = r->player_xp_level >= level
+                    && r->enchanting.slots[1].count >= i + 1
+                ? 0x80FF20u : 0xFF6060u;
+            gm_font_draw(
+                fb, text,
+                px + (160 - gm_font_width(text)) * s,
+                py + (20 + i * 19) * s, s, color, 1);
+        }
+    }
+
     /* labels (drawGuiContainerForegroundLayer, color 4210752, no shadow) */
     if (r->container == 1) {
         gm_font_draw(fb, "Crafting", px + 28 * s, py + 6 * s, s, 0x404040u, 0);
@@ -405,6 +495,19 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
         /* GuiChest: upper inv label at ySize - 96 + 2 */
         gm_font_draw(fb, "Inventory", px + 8 * s, py + (CHEST_YSIZE - 96 + 2) * s,
                      s, 0x404040u, 0);
+    } else if (r->container == 4) {
+        const char *title = "Brewing Stand";
+        gm_font_draw(
+            fb, title,
+            px + (PANEL_W / 2 - gm_font_width(title) / 2) * s,
+            py + 6 * s, s, 0x404040u, 0);
+        gm_font_draw(fb, "Inventory", px + 8 * s,
+                     py + (PANEL_H - 96 + 2) * s,
+                     s, 0x404040u, 0);
+    } else if (r->container == 5) {
+        gm_font_draw(fb, "Inventory", px + 8 * s,
+                     py + (PANEL_H - 96 + 2) * s,
+                     s, 0x404040u, 0);
     } else {
         gm_font_draw(fb, "Crafting", px + 97 * s, py + 8 * s, s, 0x404040u, 0);
     }
@@ -415,7 +518,9 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
     for (int i = 0; i < n; ++i) {
         const GmScreenSlot *sl = &slots[i];
         draw_stack(fb, screen_stack(r, sl->slot_id), sl->x, sl->y, s);
-        if (sl->slot_id == hover)
+        if (sl->slot_id == hover
+                && (sl->slot_id < GMC_ENCHANT_BUTTON0
+                    || sl->slot_id >= GMC_ENCHANT_BUTTON0 + 3))
             gm_hud_fill(fb, sl->x, sl->y, sl->w, sl->h, highlight);
     }
 

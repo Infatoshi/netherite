@@ -31,6 +31,8 @@ typedef struct {
     /* Live per-second frame timing stats on stderr (--stats on). Window loop
      * only; piggybacks on the bench stamp slots, no sim state touched. */
     int stats;
+    /* mobGriefing: gates world mutation by living-mob projectiles. */
+    int mob_griefing;
     GmRenderMode render;
     GmComposeMode compose;
     GmBackend backend;

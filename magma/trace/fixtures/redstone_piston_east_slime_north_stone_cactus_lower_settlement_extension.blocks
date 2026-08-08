@@ -1,0 +1,11 @@
+# EAST normal piston with a NORTH slime attachment. The side stone begins
+# diagonal to a valid three-high cactus column. Its moving state is not solid;
+# settlement one cell east invalidates the lower cactus and collapses all
+# three cells in bottom-up callback order.
+12 79 8 33 5
+13 79 8 165 0
+13 79 7 1 0
+14 78 6 12 0
+14 79 6 81 3
+14 80 6 81 7
+14 81 6 81 12

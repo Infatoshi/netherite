@@ -1,0 +1,8 @@
+# EAST-facing normal piston with slime and an attached UP stone. The side
+# line terminates at a south-facing bed head; destroying the head emits no
+# item, then its notification removes the foot at z=7 and drops one bed.
+12 79 8 33 5
+13 79 8 165 0
+13 80 8 1 0
+14 80 7 26 0
+14 80 8 26 8

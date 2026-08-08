@@ -5,28 +5,33 @@
 # Only the triangle->pixel step differs; the diff should sit at the fill-rule
 # subpixel noise floor (a few dozen silhouette/seam pixels, interior mean ~0).
 set -euo pipefail
-cd "$(dirname "$0")/.."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MAGMA="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT="$(cd "$MAGMA/.." && pwd)"
+cd "$MAGMA"
 
-BLAZE="$(cd "$(dirname "$0")/../../blaze/core" && pwd)"
+BLAZE="$ROOT/blaze/core"
 FLAGS=(-O2 -ffp-contract=off -Wall -Icore -I. -I"$BLAZE")
-DIFF="$(cd "$(dirname "$0")/../../render-opt/wholeframe" && pwd)/diff_frame.py"
+DIFF="$ROOT/java/render-opt/wholeframe/diff_frame.py"
 
 echo "== build objects =="
 for u in world/mesh_mc world/light world/populate_mc assets/blockmodels \
          renderkernels/rk_31_facebakery_make_quad \
-         core/math core/shade cpu/raster_cpu transform; do
+         game/village_live game/caps core/math core/shade core/config \
+         cpu/raster_cpu transform; do
   gcc "${FLAGS[@]}" -c "$u.c" -o "$u.o"
 done
 
 echo "== build golden + candidate =="
 gcc "${FLAGS[@]}" ../verify/chunk_golden.c \
     world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
-    renderkernels/rk_31_facebakery_make_quad.o core/math.o \
+    renderkernels/rk_31_facebakery_make_quad.o game/village_live.o game/caps.o \
+    core/math.o core/config.o \
     -o /tmp/chunk_golden -lOSMesa -lGL -lm
 gcc "${FLAGS[@]}" ../verify/chunk_candidate.c \
     world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
-    renderkernels/rk_31_facebakery_make_quad.o core/math.o \
-    core/shade.o cpu/raster_cpu.o transform.o \
+    renderkernels/rk_31_facebakery_make_quad.o game/village_live.o game/caps.o \
+    core/math.o core/config.o core/shade.o cpu/raster_cpu.o transform.o \
     -o /tmp/chunk_candidate -lm
 
 echo "== render =="

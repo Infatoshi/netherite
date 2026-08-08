@@ -1,0 +1,12 @@
+# Two opposed normal pistons are already staged around an empty center cell.
+# Tick zero places one redstone block in that cell.  Vanilla's explicit
+# WEST-then-EAST neighbor order extends the west piston first and the east
+# piston second inside the same controlled server input boundary.  Dirt keeps
+# each stage-0 oak sapling valid.  The second exact drop exposes the extension
+# pitch World.rand draw with no integrated-client work between the two events.
+10 77 8 3 0
+10 78 8 6 0
+11 78 8 33 4
+13 78 8 33 5
+14 77 8 3 0
+14 78 8 6 0

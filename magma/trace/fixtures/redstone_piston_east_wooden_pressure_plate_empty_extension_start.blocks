@@ -1,0 +1,5 @@
+# EAST-facing empty normal piston beside an unpowered wooden pressure plate.
+# Tick zero changes plate strength 0 to 1, isolating direct weak power from
+# entity collision and the separate +20 occupied/release callback lifecycle.
+12 78 8 33 5
+12 78 9 72 0

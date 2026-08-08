@@ -28,9 +28,9 @@ MC_HD MC_NOINLINE static void st_run_features(ChunkPrimer *primer, CpScratch *sc
     cp_provide_chunk(primer, sc, st, seed, cx, cz);
     if (!mapFeatures) return;   /* vanilla mapFeaturesEnabled=false: terrain only */
 
-    /* mapFeatures==-1 is the magma product subset: mandatory strongholds,
-     * explicitly cut mineshafts. Positive values retain the verified full path. */
-    int mineshafts = mapFeatures > 0;
+    /* Negative product modes tag canonical structure states so they cannot
+     * alias PB render keys. -1 is strongholds only; -2 adds mineshafts. */
+    int mineshafts = mapFeatures > 0 || mapFeatures == -2;
 
     /* MapGenBase.generate for mineshaft + stronghold (range-8 structure registration).
      * Preallocated CpScratch storage (no in-kernel malloc). */
@@ -40,7 +40,7 @@ MC_HD MC_NOINLINE static void st_run_features(ChunkPrimer *primer, CpScratch *sc
     sh_generate_map(shg, seed, cx, cz);
 
     /* Copy CB block ids to MS/SH world view (same numeric mapping for terrain blocks). */
-    MSWorld mw; mw.primer = primer; mw.chunkX = cx; mw.chunkZ = cz; mw.worldSeed = seed; mw.seaLevel = CB_SEA_LEVEL;
+    MSWorld mw; memset(&mw,0,sizeof(mw)); mw.primer=primer; mw.chunkX=cx; mw.chunkZ=cz; mw.worldSeed=seed; mw.seaLevel=CB_SEA_LEVEL; mw.storeMeta=mapFeatures==-2?2:0;
     SHWorld sw; sw.primer = primer; sw.chunkX = cx; sw.chunkZ = cz; sw.worldSeed = seed; sw.seaLevel = CB_SEA_LEVEL;
 
     /* Remap chunk_provider ids -> vanilla ids for structure placement predicates.
@@ -69,6 +69,7 @@ MC_HD MC_NOINLINE static void st_run_features(ChunkPrimer *primer, CpScratch *sc
         else if (v == MS_GRASS) primer->data[i] = CB_GRASS; /* preserve grass round-trip (was lossily -> CB_STONE) */
         else if (v == MS_DIRT) primer->data[i] = CB_DIRT;
         else if (v == MS_WATER) primer->data[i] = CB_WATER;
+        else if (v & 0x4000u) primer->data[i] = v;
         else if (v >= 20) primer->data[i] = mapFeatures < 0 ? (u16)(0x8000u | v) : v;
         /* The live stronghold-only path tags canonical structure ids so magma's
          * overlapping PB model-key namespace cannot reinterpret them. */

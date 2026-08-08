@@ -1,0 +1,11 @@
+# A normal-cube stone above the lower wire blocks the direct upward dust edge.
+# This fixture measures the resulting indirect strong-power topology exactly.
+12 77 8 1 0
+12 78 8 55 0
+12 79 8 1 0
+13 78 8 1 0
+13 79 8 55 0
+14 78 8 1 0
+14 79 8 55 0
+15 78 8 1 0
+15 79 8 123 0

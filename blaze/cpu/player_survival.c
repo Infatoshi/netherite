@@ -8,6 +8,8 @@
 int main(int argc, char **argv) {
     i64 seed = (argc > 1) ? strtoll(argv[1], 0, 10) : 12345LL;
     int nticks = (argc > 2) ? atoi(argv[2]) : PSV_NTICKS;
+    int levitation_amplifier = (argc > 3) ? atoi(argv[3]) : -1;
+    int jump_boost_amplifier = (argc > 4) ? atoi(argv[4]) : -1;
 
     McSinTable *st = (McSinTable *)malloc(sizeof(McSinTable));
     mc_sin_table_init(st);
@@ -17,7 +19,9 @@ int main(int argc, char **argv) {
     Chunk *b = (Chunk *)malloc(sizeof(Chunk) * PSV_NCHUNKS);
     u64 *out = (u64 *)malloc(sizeof(u64) * (size_t)nticks * PSV_FIELDS);
 
-    psv_run(a, b, primer, sc, st, seed, nticks, out);
+    psv_run_effect(
+        a, b, primer, sc, st, seed, nticks,
+        levitation_amplifier, jump_boost_amplifier, out);
 
     for (int i = 0; i < nticks * PSV_FIELDS; ++i)
         printf("%016llx\n", (unsigned long long)out[i]);

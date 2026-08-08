@@ -1,0 +1,4 @@
+# EAST-facing empty normal piston. Tick zero places a lit floor torch directly
+# on top of the piston. The torch's UP attachment-facing weak-power query is
+# zero, so the piston must remain unextended even though the torch is adjacent.
+12 78 8 33 5

@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while a supported, unpowered floor lever 69:5
+# occupies the front cell. The lever must be destroyed and drop item 69:0.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 69 5

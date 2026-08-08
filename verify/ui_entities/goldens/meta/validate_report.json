@@ -5,7 +5,7 @@
       "status": "PASS",
       "ok": true,
       "presence": 32.674285714285716,
-      "noise": 0.03333928571428572,
+      "noise": 0.0,
       "pmin": 15.0,
       "nmax": 3.0,
       "roi": [
@@ -26,14 +26,14 @@
       "meta": true,
       "detail": "",
       "bytes_a": 53720,
-      "bytes_b": 53623
+      "bytes_b": 53720
     },
     {
       "id": "slime_size2",
       "status": "PASS",
       "ok": true,
-      "presence": 32.13170238095238,
-      "noise": 0.4064702380952381,
+      "presence": 32.14828869047619,
+      "noise": 0.0,
       "pmin": 15.0,
       "nmax": 3.0,
       "roi": [
@@ -43,25 +43,25 @@
         440
       ],
       "roi_mean_rgb": [
-        120.66966964285714,
-        131.64924107142858,
-        125.53264285714286
+        120.66129464285714,
+        131.65484821428572,
+        125.52372321428571
       ],
-      "yspan": 107,
+      "yspan": 106,
       "xspan": 100,
-      "subject_n": 5672,
-      "subject_frac": 0.05064285714285714,
+      "subject_n": 5692,
+      "subject_frac": 0.05082142857142857,
       "meta": true,
       "detail": "",
-      "bytes_a": 55514,
-      "bytes_b": 55628
+      "bytes_a": 55518,
+      "bytes_b": 55518
     },
     {
       "id": "slime_size4",
       "status": "PASS",
       "ok": true,
-      "presence": 42.253190476190476,
-      "noise": 0.7006130952380952,
+      "presence": 42.25925,
+      "noise": 0.0,
       "pmin": 15.0,
       "nmax": 3.0,
       "roi": [
@@ -71,9 +71,9 @@
         440
       ],
       "roi_mean_rgb": [
-        103.00280357142857,
-        126.45935714285714,
-        98.01203571428572
+        103.103,
+        126.55955357142857,
+        98.11223214285714
       ],
       "yspan": 224,
       "xspan": 263,
@@ -81,15 +81,15 @@
       "subject_frac": 0.21522321428571428,
       "meta": true,
       "detail": "",
-      "bytes_a": 56364,
-      "bytes_b": 56350
+      "bytes_a": 56240,
+      "bytes_b": 56240
     },
     {
       "id": "slime_squish",
       "status": "PASS",
       "ok": true,
-      "presence": 31.737833333333334,
-      "noise": 0.25111904761904763,
+      "presence": 31.72304761904762,
+      "noise": 0.0,
       "pmin": 15.0,
       "nmax": 3.0,
       "roi": [
@@ -99,25 +99,25 @@
         440
       ],
       "roi_mean_rgb": [
-        121.65380357142857,
-        131.5142857142857,
-        127.36057142857143
+        121.66501785714286,
+        131.56779464285714,
+        127.38122321428571
       ],
       "yspan": 142,
-      "xspan": 67,
-      "subject_n": 3895,
-      "subject_frac": 0.03477678571428571,
+      "xspan": 68,
+      "subject_n": 4730,
+      "subject_frac": 0.04223214285714286,
       "meta": true,
       "detail": "",
-      "bytes_a": 55422,
+      "bytes_a": 55401,
       "bytes_b": 55401
     },
     {
       "id": "magma_size1",
       "status": "PASS",
       "ok": true,
-      "presence": 33.9743630952381,
-      "noise": 0.1757827380952381,
+      "presence": 33.985622023809526,
+      "noise": 0.0,
       "pmin": 15.0,
       "nmax": 3.0,
       "roi": [
@@ -127,25 +127,25 @@
         440
       ],
       "roi_mean_rgb": [
-        121.70134821428572,
-        127.78966071428572,
-        127.00063392857143
+        121.69400892857144,
+        127.78366071428572,
+        126.99278571428572
       ],
       "yspan": 260,
       "xspan": 279,
-      "subject_n": 2544,
-      "subject_frac": 0.022714285714285715,
+      "subject_n": 2533,
+      "subject_frac": 0.02261607142857143,
       "meta": true,
       "detail": "",
-      "bytes_a": 52921,
+      "bytes_a": 53020,
       "bytes_b": 53020
     },
     {
       "id": "magma_size2",
       "status": "PASS",
       "ok": true,
-      "presence": 37.18924107142857,
-      "noise": 0.2546815476190476,
+      "presence": 37.217529761904764,
+      "noise": 0.0,
       "pmin": 15.0,
       "nmax": 3.0,
       "roi": [
@@ -155,25 +155,25 @@
         440
       ],
       "roi_mean_rgb": [
-        115.27659821428571,
-        119.6484375,
-        118.97213392857142
+        115.27486607142858,
+        119.64189285714286,
+        118.96415178571428
       ],
       "yspan": 304,
       "xspan": 279,
-      "subject_n": 9010,
-      "subject_frac": 0.08044642857142857,
+      "subject_n": 8991,
+      "subject_frac": 0.08027678571428572,
       "meta": true,
       "detail": "",
-      "bytes_a": 52657,
+      "bytes_a": 52662,
       "bytes_b": 52662
     },
     {
       "id": "magma_size4",
       "status": "PASS",
       "ok": true,
-      "presence": 74.15244940476191,
-      "noise": 1.295360119047619,
+      "presence": 74.15837202380952,
+      "noise": 0.0,
       "pmin": 15.0,
       "nmax": 3.0,
       "roi": [
@@ -183,9 +183,9 @@
         440
       ],
       "roi_mean_rgb": [
-        76.62985714285715,
-        66.72882142857142,
-        65.15533035714286
+        76.73005357142857,
+        66.82901785714286,
+        65.25552678571428
       ],
       "yspan": 397,
       "xspan": 279,
@@ -193,15 +193,15 @@
       "subject_frac": 0.38373214285714285,
       "meta": true,
       "detail": "",
-      "bytes_a": 49040,
-      "bytes_b": 49095
+      "bytes_a": 48915,
+      "bytes_b": 48915
     },
     {
       "id": "magma_squish",
       "status": "PASS",
       "ok": true,
-      "presence": 38.4746755952381,
-      "noise": 0.6854285714285714,
+      "presence": 38.477645833333334,
+      "noise": 0.0,
       "pmin": 15.0,
       "nmax": 3.0,
       "roi": [
@@ -211,18 +211,18 @@
         440
       ],
       "roi_mean_rgb": [
-        118.33699107142857,
-        121.31858928571428,
-        120.42269642857143
+        118.32633928571428,
+        121.27503571428572,
+        120.3891875
       ],
       "yspan": 376,
       "xspan": 279,
-      "subject_n": 7243,
-      "subject_frac": 0.06466964285714286,
+      "subject_n": 7274,
+      "subject_frac": 0.06494642857142857,
       "meta": true,
       "detail": "",
-      "bytes_a": 53076,
-      "bytes_b": 53265
+      "bytes_a": 53167,
+      "bytes_b": 53167
     },
     {
       "id": "dragon_death_50",
@@ -312,8 +312,8 @@
       "id": "dig_stone",
       "status": "PASS",
       "ok": true,
-      "presence": 64.67472222222223,
-      "noise": 1.6977777777777778,
+      "presence": 63.97439814814815,
+      "noise": 0.0,
       "pmin": 20.0,
       "nmax": 8.0,
       "roi": [
@@ -323,9 +323,9 @@
         340
       ],
       "roi_mean_rgb": [
-        104.03539351851852,
-        103.87787037037037,
-        100.59423611111112
+        104.7357175925926,
+        104.57819444444445,
+        101.29456018518519
       ],
       "yspan": 179,
       "xspan": 239,
@@ -333,15 +333,15 @@
       "subject_frac": 1.0,
       "meta": true,
       "detail": "",
-      "bytes_a": 57061,
-      "bytes_b": 57006
+      "bytes_a": 56880,
+      "bytes_b": 56880
     },
     {
       "id": "dig_grass",
       "status": "PASS",
       "ok": true,
-      "presence": 63.59450617283951,
-      "noise": 0.12466820987654322,
+      "presence": 63.18738425925926,
+      "noise": 0.0,
       "pmin": 20.0,
       "nmax": 8.0,
       "roi": [
@@ -351,9 +351,9 @@
         340
       ],
       "roi_mean_rgb": [
-        105.21409722222222,
-        104.81113425925926,
-        101.72291666666666
+        105.52273148148149,
+        105.36520833333333,
+        102.08157407407407
       ],
       "yspan": 179,
       "xspan": 239,
@@ -361,14 +361,14 @@
       "subject_frac": 1.0,
       "meta": true,
       "detail": "",
-      "bytes_a": 57040,
-      "bytes_b": 57020
+      "bytes_a": 56938,
+      "bytes_b": 56938
     },
     {
       "id": "fireball_small",
       "status": "PASS",
       "ok": true,
-      "presence": 67.48305555555555,
+      "presence": 66.04123148148147,
       "noise": 0.0,
       "pmin": 20.0,
       "nmax": 4.0,
@@ -379,9 +379,9 @@
         320
       ],
       "roi_mean_rgb": [
-        117.35777777777778,
-        117.35777777777778,
-        117.35777777777778
+        118.81633333333333,
+        118.81633333333333,
+        118.81633333333333
       ],
       "yspan": 179,
       "xspan": 199,
@@ -389,14 +389,14 @@
       "subject_frac": 1.0,
       "meta": true,
       "detail": "",
-      "bytes_a": 53858,
-      "bytes_b": 53861
+      "bytes_a": 53746,
+      "bytes_b": 53746
     },
     {
       "id": "fireball_dragon",
       "status": "PASS",
       "ok": true,
-      "presence": 71.11983333333333,
+      "presence": 69.66277777777778,
       "noise": 0.0,
       "pmin": 20.0,
       "nmax": 4.0,
@@ -407,9 +407,9 @@
         320
       ],
       "roi_mean_rgb": [
-        113.721,
-        113.721,
-        113.721
+        115.17805555555556,
+        115.17805555555556,
+        115.17805555555556
       ],
       "yspan": 179,
       "xspan": 199,
@@ -417,14 +417,14 @@
       "subject_frac": 1.0,
       "meta": true,
       "detail": "",
-      "bytes_a": 52716,
-      "bytes_b": 52735
+      "bytes_a": 52572,
+      "bytes_b": 52572
     },
     {
       "id": "xp_orb",
       "status": "PASS",
       "ok": true,
-      "presence": 83.53258333333333,
+      "presence": 84.10569444444444,
       "noise": 0.0,
       "pmin": 20.0,
       "nmax": 3.0,
@@ -435,9 +435,9 @@
         280
       ],
       "roi_mean_rgb": [
-        119.1245,
-        119.1245,
-        118.7545
+        121.60075,
+        121.60075,
+        121.23075
       ],
       "yspan": 99,
       "xspan": 119,
@@ -445,57 +445,57 @@
       "subject_frac": 1.0,
       "meta": true,
       "detail": "",
-      "bytes_a": 51926,
-      "bytes_b": 51926
+      "bytes_a": 53574,
+      "bytes_b": 53574
     },
     {
       "id": "slime_sizes_distinct",
       "status": "PASS_INTER",
       "ok": true,
       "detail": "size pairs distinct",
-      "1_vs_2": 2.622875,
-      "2_vs_4": 21.103910714285714,
-      "1_vs_4": 22.871732142857145
+      "1_vs_2": 2.634651785714286,
+      "2_vs_4": 21.191348214285714,
+      "1_vs_4": 22.97192857142857
     },
     {
       "id": "magma_sizes_distinct",
       "status": "PASS_INTER",
       "ok": true,
       "detail": "size pairs distinct",
-      "1_vs_2": 7.687794642857143,
-      "2_vs_4": 49.169380952380955,
-      "1_vs_4": 56.201794642857145
+      "1_vs_2": 7.680604166666667,
+      "2_vs_4": 49.26905059523809,
+      "1_vs_4": 56.29667857142857
     },
     {
       "id": "slime_squish_vs_size2",
       "status": "PASS_INTER",
       "ok": true,
       "detail": "squish differs from size2",
-      "mean_abs": 2.3401785714285714,
-      "size2_yspan": 107,
+      "mean_abs": 2.356657738095238,
+      "size2_yspan": 106,
       "size2_xspan": 100,
-      "size2_n": 5672,
+      "size2_n": 5692,
       "squish_yspan": 142,
-      "squish_xspan": 67,
-      "squish_n": 3895,
-      "yspan_ratio": 1.3271028037383177,
-      "xspan_ratio": 0.67,
-      "aspect_size2": 1.07,
-      "aspect_squish": 2.1194029850746268,
-      "aspect_gain": 1.9807504533407725
+      "squish_xspan": 68,
+      "squish_n": 4730,
+      "yspan_ratio": 1.3396226415094339,
+      "xspan_ratio": 0.68,
+      "aspect_size2": 1.06,
+      "aspect_squish": 2.088235294117647,
+      "aspect_gain": 1.970033296337403
     },
     {
       "id": "magma_squish_vs_size2",
       "status": "PASS_INTER",
       "ok": true,
       "detail": "squish differs from size2",
-      "mean_abs": 9.667505952380953,
+      "mean_abs": 9.653877976190476,
       "size2_yspan": 304,
       "size2_xspan": 198,
-      "size2_n": 8844,
+      "size2_n": 8825,
       "squish_yspan": 376,
       "squish_xspan": 198,
-      "squish_n": 7077,
+      "squish_n": 7108,
       "yspan_ratio": 1.236842105263158,
       "xspan_ratio": 1.0,
       "aspect_size2": 1.5353535353535352,
@@ -521,49 +521,49 @@
       "status": "PASS_INTER",
       "ok": true,
       "detail": "size pairs distinct",
-      "1_vs_2": 2.622875,
-      "2_vs_4": 21.103910714285714,
-      "1_vs_4": 22.871732142857145
+      "1_vs_2": 2.634651785714286,
+      "2_vs_4": 21.191348214285714,
+      "1_vs_4": 22.97192857142857
     },
     {
       "id": "magma_sizes_distinct",
       "status": "PASS_INTER",
       "ok": true,
       "detail": "size pairs distinct",
-      "1_vs_2": 7.687794642857143,
-      "2_vs_4": 49.169380952380955,
-      "1_vs_4": 56.201794642857145
+      "1_vs_2": 7.680604166666667,
+      "2_vs_4": 49.26905059523809,
+      "1_vs_4": 56.29667857142857
     },
     {
       "id": "slime_squish_vs_size2",
       "status": "PASS_INTER",
       "ok": true,
       "detail": "squish differs from size2",
-      "mean_abs": 2.3401785714285714,
-      "size2_yspan": 107,
+      "mean_abs": 2.356657738095238,
+      "size2_yspan": 106,
       "size2_xspan": 100,
-      "size2_n": 5672,
+      "size2_n": 5692,
       "squish_yspan": 142,
-      "squish_xspan": 67,
-      "squish_n": 3895,
-      "yspan_ratio": 1.3271028037383177,
-      "xspan_ratio": 0.67,
-      "aspect_size2": 1.07,
-      "aspect_squish": 2.1194029850746268,
-      "aspect_gain": 1.9807504533407725
+      "squish_xspan": 68,
+      "squish_n": 4730,
+      "yspan_ratio": 1.3396226415094339,
+      "xspan_ratio": 0.68,
+      "aspect_size2": 1.06,
+      "aspect_squish": 2.088235294117647,
+      "aspect_gain": 1.970033296337403
     },
     {
       "id": "magma_squish_vs_size2",
       "status": "PASS_INTER",
       "ok": true,
       "detail": "squish differs from size2",
-      "mean_abs": 9.667505952380953,
+      "mean_abs": 9.653877976190476,
       "size2_yspan": 304,
       "size2_xspan": 198,
-      "size2_n": 8844,
+      "size2_n": 8825,
       "squish_yspan": 376,
       "squish_xspan": 198,
-      "squish_n": 7077,
+      "squish_n": 7108,
       "yspan_ratio": 1.236842105263158,
       "xspan_ratio": 1.0,
       "aspect_size2": 1.5353535353535352,

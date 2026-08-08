@@ -1,0 +1,5 @@
+# An unextended EAST-facing normal piston has one stone directly in front.
+# The shared minimum-pulse sequence powers it for one observation, then
+# removes power while the moving head and stone are still in flight.
+12 78 8 33 5
+13 78 8 1 0

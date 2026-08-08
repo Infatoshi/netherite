@@ -1,0 +1,5 @@
+# A powered floor lever strongly powers its attached stone support. The
+# tick-0 lamp is placed east of that support, not next to the lever, so it can
+# light only through World.getStrongPower(support).
+12 78 8 1 0
+12 79 8 69 13

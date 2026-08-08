@@ -3,7 +3,10 @@
 # command line still wins over this.
 MAKEFLAGS += -j$(shell nproc 2>/dev/null || sysctl -n hw.ncpu)
 CC      ?= gcc
-NVCC    ?= nvcc
+# CUDA is installed outside PATH on the parity/performance host.  Prefer the
+# conventional toolkit location when present while retaining PATH lookup on
+# other machines and command-line override support.
+NVCC    ?= $(if $(wildcard /usr/local/cuda/bin/nvcc),/usr/local/cuda/bin/nvcc,nvcc)
 CFLAGS  ?= -O2 -ffp-contract=off -Wall -Wextra -Icore -I.
 NVFLAGS ?= -O2 --fmad=false -arch=sm_120 -Icore -I.
 # SDL2 discovery: pkg-config, then sdl2-config (Homebrew path included for
@@ -17,6 +20,11 @@ SDL_LIBS   := $(shell pkg-config --libs sdl2 2>/dev/null || \
 # present.c includes <SDL2/SDL.h>; sdl2-config points at .../include/SDL2, so
 # also search its parent (no-op on Linux where /usr/include is a default path).
 SDL_CFLAGS += $(patsubst -I%/SDL2,-I%,$(filter -I%/SDL2,$(SDL_CFLAGS)))
+AUDIO_OK := $(shell pkg-config --exists openal vorbisfile 2>/dev/null && echo 1)
+ifeq ($(AUDIO_OK),1)
+AUDIO_CFLAGS := $(shell pkg-config --cflags openal vorbisfile) -DMAGMA_AUDIO_OPENAL
+AUDIO_LIBS := $(shell pkg-config --libs openal vorbisfile)
+endif
 LDLIBS  ?= -lm
 DEPFLAGS = -MMD -MP
 
@@ -36,16 +44,25 @@ OBJ_ASSETS = assets/blockmodels.o
 
 # seam: playable game (verified blaze player/world tick + magma render + HUD + mobs)
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
-           game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
+           game/audio_live.o game/nbt_blob.o game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/village_live.o game/villager_trade.o game/fishing_render.o game/end_city_live.o game/end_population_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/brewing_live.o game/enchanting_live.o game/container_live.o game/runtime.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
 
-.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live clean cuda test-raster-parity test-fog-radial
+OBJ_RUNTIME_TEST = game/runtime.o game/nbt_blob.o game/fluid_live.o game/config.o \
+                   game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o \
+                   game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/village_live.o game/villager_trade.o game/end_city_live.o game/end_population_live.o \
+                   game/portal_live.o game/furnace_live.o game/chest_live.o game/brewing_live.o game/enchanting_live.o \
+                   game/container_live.o game/caps.o core/config.o world/light.o world/mesh_mc.o \
+                   world/populate_mc.o world/blocks.o world/mesh.o world/world.o \
+                   $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE)
+
+.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live test-firework-audio-oracle test-block-audio-oracle test-block-break-audio-oracle test-player-movement-audio-oracle clean cuda test-raster-parity test-fog-radial
 all: demo
 
-# --- CUDA raster for the game (RTX 3090 / sm_86 on anvil GPU1) ---
-# GPU1 is the RTX 3090; build the .cu for sm_86 and link cudart.
-NVFLAGS_GAME ?= -O2 --fmad=false -arch=sm_86 -Icore -I.
-CUDA_LIBDIR  ?= $(patsubst %/bin/nvcc,%/lib64,$(shell which nvcc))
-CUDA_LIBS    ?= -L$(CUDA_LIBDIR) -lcudart -lstdc++
+# --- CUDA raster for the game (RTX PRO 6000 Blackwell / sm_120) ---
+# All GPUs on the parity/performance host are sm_120.  Keep this overridable
+# for other machines and link cudart from the selected nvcc installation.
+NVFLAGS_GAME ?= -O2 --fmad=false -arch=sm_120 -Icore -I.
+CUDA_LIBDIR  ?= $(patsubst %/bin/nvcc,%/lib64,$(shell command -v $(NVCC) 2>/dev/null))
+CUDA_LIBS    ?= $(if $(CUDA_LIBDIR),-L$(CUDA_LIBDIR)) -lcudart -lstdc++
 
 # CPU spine demo (spinning textured cube)
 demo: magma_demo
@@ -84,7 +101,177 @@ endif
 game: magma_game
 magma_game: app/game_main.o $(OBJ_GAME) $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) \
               $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(AUDIO_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
+
+game/test_falling_drop_oracle: game/test_falling_drop_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_falling_timeout_oracle: game/test_falling_timeout_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_falling_lateral_oracle: game/test_falling_lateral_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_falling_dragon_egg_oracle: game/test_falling_dragon_egg_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_falling_anvil_oracle: game/test_falling_anvil_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_shearing_oracle: game/test_shearing_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_grazing_oracle: game/test_grazing_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_grazing_runtime: game/test_grazing_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_color_oracle: game/test_sheep_color_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_color_runtime: game/test_sheep_color_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_feed_runtime: game/test_sheep_feed_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_feed_oracle: game/test_sheep_feed_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_pig_ride_oracle: game/test_pig_ride_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_pig_death_oracle: game/test_pig_death_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_pig_lethal_oracle: game/test_pig_lethal_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_cow_milking_oracle: game/test_cow_milking_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_brewing_live: game/test_brewing_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_enchanting_live: game/test_enchanting_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_weather_world: game/test_weather_world.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_weather_lightning: game/test_weather_lightning.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_firework: game/test_firework.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_firework_audio: game/test_firework_audio.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-firework-audio-oracle: game/test_firework_audio
+	uv run --no-project python trace/test_firework_audio.py \
+		--native game/test_firework_audio
+
+game/test_block_break_audio: game/test_block_break_audio.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-block-audio-oracle: game/test_block_break_audio
+	uv run --no-project python trace/test_block_break_audio.py \
+		--native game/test_block_break_audio
+
+test-block-break-audio-oracle: test-block-audio-oracle
+
+game/test_player_movement_audio: game/test_player_movement_audio.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+test-player-movement-audio-oracle: game/test_player_movement_audio
+	uv run --no-project python trace/test_player_movement_audio.py \
+		--native game/test_player_movement_audio
+
+game/test_fishing: game/test_fishing.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_fishing_render: game/test_fishing_render.c game/fishing_render.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_fishing_loot: game/test_fishing_loot.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_end_gateway: game/test_end_gateway.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_end_city: game/test_end_city.c game/end_city_live.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_scattered_desert: game/test_scattered_desert.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_scattered_jungle: game/test_scattered_jungle.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_scattered_swamp: game/test_scattered_swamp.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_scattered_live: game/test_scattered_live.c world/populate_mc.o game/village_live.o game/caps.o core/config.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village: game/test_village.c game/village_live.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_live: game/test_village_live.c world/populate_mc.o game/village_live.o game/caps.o core/config.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_residents: game/test_village_residents.c game/village_live.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_village_runtime: game/test_village_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_villager_trade: game/test_villager_trade.c game/villager_trade.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_end_city_runtime: game/test_end_city_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_end_city_loot: game/test_end_city_loot.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_desert_loot: game/test_desert_loot.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_jungle_loot: game/test_jungle_loot.c
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $< -o $@ $(LDLIBS)
+
+game/test_end_population: game/test_end_population.c game/end_population_live.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_end_population_runtime: game/test_end_population_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_hopper_live: game/test_hopper_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_audio_live: game/test_audio_live.c game/audio_live.o $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(AUDIO_LIBS) $(LDLIBS)
+
+game/test_redstone_use: game/test_redstone_use.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_minecart_live: game/test_minecart_live.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_genetics_oracle: game/test_sheep_genetics_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_mating_oracle: game/test_sheep_mating_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_mating_tick_oracle: game/test_sheep_mating_tick_oracle.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
+
+game/test_sheep_mating_runtime: game/test_sheep_mating_runtime.c $(OBJ_RUNTIME_TEST)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core $^ -o $@ $(LDLIBS)
 
 # game/ modules include game/game.h + (world_live/player_ctl) player_survival.h.
 game/%.o: game/%.c core/types.h game/game.h
@@ -97,11 +284,16 @@ UV_ATLAS = uv run --no-project --with pillow python
 assets/hud_atlas.h: assets/build_hud_atlas.py
 	$(UV_ATLAS) assets/build_hud_atlas.py
 game/hud.o: assets/hud_atlas.h
+assets/sound_manifest.h: assets/build_sound_manifest.py
+	uv run --no-project python assets/build_sound_manifest.py
+game/audio_live.o: game/audio_live.c game/audio_live.h assets/sound_manifest.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) $(AUDIO_CFLAGS) -I$(BLAZE)/core -c $< -o $@
 
 game/runtime.o: game/runtime.c game/runtime.h game/mob_live.h game/dragon_live.h \
-                game/portal_live.h game/container_live.h $(BLAZE)/core/crafting_recipes_full.h
+                game/nbt_blob.h game/brewing_live.h game/portal_live.h \
+                game/container_live.h game/villager_trade.h $(BLAZE)/core/crafting_recipes_full.h
 game/container_live.o: game/container_live.c game/container_live.h game/runtime.h \
-                game/chest_live.h \
+                game/chest_live.h game/brewing_live.h \
                 $(BLAZE)/core/container_click.h $(BLAZE)/core/crafting_recipes_full.h \
                 $(BLAZE)/core/smelting_recipes.h
 game/chest_live.o: game/chest_live.c game/chest_live.h \
@@ -113,18 +305,19 @@ game/chest_live.o: game/chest_live.c game/chest_live.h \
 # raster object + cudart. `make game` (pure CPU) is unaffected.
 #
 # The object name is arch-NEUTRAL on purpose. It used to be raster_cuda_sm86.o
-# while NVFLAGS_GAME is overridable (GPU0 needs -arch=sm_120), so the same file
+# while NVFLAGS_GAME is overridable, so the same file
 # held whichever arch was built last and the name lied. Nothing rebuilds it on
 # an NVFLAGS_GAME change either - the recipe depends on sources only - so after
-# switching GPUs you must `rm cuda/*.o` or you silently link the wrong arch.
+# switching target architecture you must force this object to rebuild or you
+# silently link the old architecture.
 game-cuda: magma_game_cuda
 app/game_main_cuda.o: app/game_main.c game/game.h game/runtime.h game/config.h core/config.h core/types.h game/caps.h game/particles_live.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_CUDA -I$(BLAZE)/core -c $< -o $@
 cuda/raster_cuda_game.o: cuda/raster_cuda.cu core/types.h core/shade.c
-	$(NVCC) $(NVFLAGS_GAME) -c $< -o $@
+	$(NVCC) $(NVFLAGS_GAME) -I$(BLAZE)/core -c $< -o $@
 magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_game.o $(OBJ_GAME) $(OBJ_WORLD) \
               $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_LIBS)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(AUDIO_LIBS) $(LDLIBS) $(CUDA_LIBS)
 
 # Metal-accelerated game binary (macOS / Apple silicon only). Same seam shape
 # as game-cuda: game_main.c AND frame_capture.c recompile with -DMAGMA_METAL
@@ -186,7 +379,7 @@ magma_game_metal: app/game_main_metal.o metal/raster_metal_host.o $(OBJ_GAME_MET
 GAME_DBG_SRCS = app/game_main.c \
                 game/config.c game/input_map.c game/world_live.c game/player_ctl.c game/hud.c \
                 game/screen.c game/player_preview.c \
-                game/entity_render.c game/particles_live.c game/item_render.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/randtick.c game/mob_live.c game/dragon_live.c game/structures_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/container_live.c game/runtime.c game/frame_capture.c game/window_compose.c game/script.c game/rl_mode.c \
+                game/entity_render.c game/particles_live.c game/item_render.c game/audio_live.c game/nbt_blob.c game/sky.c game/caps.c game/hand.c game/timer.c game/live_sim.c game/randtick.c game/mob_live.c game/dragon_live.c game/structures_live.c game/village_live.c game/villager_trade.c game/fishing_render.c game/end_city_live.c game/end_population_live.c game/portal_live.c game/furnace_live.c game/chest_live.c game/brewing_live.c game/enchanting_live.c game/container_live.c game/runtime.c game/frame_capture.c game/window_compose.c game/script.c game/rl_mode.c \
                 game/overlay.c game/overlay_live.c game/sel_box.c game/fluid_live.c game/underwater.c \
                 world/mesh_mc.c world/light.c world/populate_mc.c \
                 world/world.c world/mesh.c world/blocks.c \
@@ -207,7 +400,7 @@ app/game_main.o: app/game_main.c game/game.h game/runtime.h game/config.h core/c
 .PHONY: test-mesh
 test-mesh: $(OBJ_WORLD) $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_mesh_models.c \
-	    world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
+	    world/mesh_mc.o world/light.o world/populate_mc.o game/village_live.o assets/blockmodels.o \
 	    $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o -o tests/test_mesh_models $(LDLIBS)
 	./tests/test_mesh_models
 
@@ -249,7 +442,7 @@ test-light-brightness:
 	@if [ -x "$(JAVA_HOME)/bin/javac" ]; then \
 	  cd tests && "$(JAVA_HOME)/bin/javac" Golden.java && "$(JAVA_HOME)/bin/java" Golden > golden_light.txt && rm -f Golden.class; \
 	else echo "note: JDK8 not found, reusing committed tests/golden_light.txt"; fi
-	$(CC) $(CFLAGS) tests/test_light_brightness.c -o tests/test_light_brightness $(LDLIBS)
+	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_light_brightness.c -o tests/test_light_brightness $(LDLIBS)
 	./tests/test_light_brightness
 
 # frustum cull test: bit-match render-opt kernels 05/06 + no-holes cull==no-cull
@@ -278,8 +471,8 @@ cuda/raster_cuda.o: cuda/raster_cuda.cu core/types.h core/shade.c
 	$(NVCC) $(NVFLAGS) -c $< -o $@
 
 # Rung 1: cr_raster_cpu == cr_raster_cuda, bit-exact (tests/test_raster_parity.c).
-# Built for sm_86 so it runs on anvil GPU1 (RTX 3090). nvcc compiles the whole
-# TU (C sources included) so the verified cr_raster_cuda + the CPU path agree.
+# Built for NVFLAGS_GAME's selected architecture. nvcc compiles the whole TU
+# (C sources included) so the verified cr_raster_cuda + the CPU path agree.
 test-raster-parity:
 	$(NVCC) $(NVFLAGS_GAME) -I../verify tests/test_raster_parity.c \
 	    cpu/raster_cpu.c core/shade.c core/math.c cuda/raster_cuda.cu \
@@ -348,6 +541,7 @@ test-game: test-config test-block-registry test-launch assets/mob_atlas.h
 	bash game/test_plants_live.sh
 	bash game/test_randtick.sh
 	bash game/test_furnace_live.sh
+	bash game/test_brewing_live.sh
 	bash game/test_container_live.sh
 	bash game/test_armor_live.sh
 	bash game/test_screen.sh
@@ -460,7 +654,19 @@ clean:
 	      tests/test_mesh_models tests/test_model_oracle tests/test_light_brightness \
 	      tests/test_fog_radial \
 	      tests/Golden.class renderkernels/test_rk *.ppm
-	rm -f game/test_config game/test_block_registry game/test_player_ctl game/test_world_live game/test_play_compose game/test_particles_live
+	rm -f game/test_config game/test_block_registry game/test_player_ctl game/test_world_live game/test_play_compose game/test_particles_live \
+	      game/test_falling_drop_oracle game/test_falling_timeout_oracle \
+	      game/test_falling_lateral_oracle game/test_shearing_oracle \
+	      game/test_shearing_runtime game/test_grazing_oracle \
+	      game/test_grazing_runtime game/test_sheep_color_oracle \
+	      game/test_sheep_color_runtime game/test_sheep_feed_runtime \
+	      game/test_sheep_feed_oracle game/test_pig_ride_oracle \
+	      game/test_pig_lethal_oracle game/test_pig_death_oracle \
+	      game/test_cow_milking_oracle game/test_sheep_genetics_oracle \
+	      game/test_sheep_mating_oracle game/test_sheep_mating_tick_oracle \
+	      game/test_sheep_mating_runtime game/test_firework_audio \
+	      game/test_block_break_audio game/test_player_movement_audio \
+	      game/test_player_movement_audio_runtime
 
 # Metal verification targets (Darwin-guarded; see make/metal.mk)
 -include make/metal.mk

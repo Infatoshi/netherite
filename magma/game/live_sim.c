@@ -29,6 +29,7 @@ void gm_live_init(GmLiveSim *s, long long seed, int surface_y) {
     e->mz = 0.05;
     e->on_ground = 0;
     e->age = 0;
+    e->health = 5;
     e->item = 4; e->count = 1; e->meta = 0;
     e->pickup_delay = 10; e->lifespan = 6000;
     s->n_active = 1;
@@ -51,6 +52,7 @@ static void live_fill_ent(GmLiveEnt *e, double x, double y, double z,
     e->item = stack.item;
     e->count = stack.count;
     e->meta = stack.meta;
+    e->health = 5;
     n = stack.n_enchants;
     if (n < 0) n = 0;
     if (n > GM_LIVE_MAX_ENCHANTS) n = GM_LIVE_MAX_ENCHANTS;
@@ -186,9 +188,68 @@ static int fall_spawn(GmLiveSim *s, int x, int y, int z, int id, int meta) {
     return 0;
 }
 
+static int live_spawn_item_exact_impl(
+        GmLiveSim *s, int eid, double x, double y, double z,
+        double mx, double my, double mz, float yaw,
+        float hover_start, int has_hover_start,
+        int item, int count, int meta,
+        int age, int pickup_delay, int controlled_stationary) {
+    if (!s || eid < 0 || item <= 0 || count <= 0 || age < 0
+            || pickup_delay < 0 || pickup_delay > 32767
+            || (controlled_stationary != 0 && controlled_stationary != 1))
+        return 0;
+    for (int i = 0; i < GM_LIVE_MAX; ++i) {
+        GmLiveEnt *e = &s->ents[i];
+        if (e->active) continue;
+        live_fill_ent(e, x, y, z, ic_mk(item, count, meta), pickup_delay);
+        e->eid = eid;
+        e->mx = mx;
+        e->my = my;
+        e->mz = mz;
+        e->yaw = yaw;
+        e->hover_start = hover_start;
+        e->has_hover_start = has_hover_start;
+        e->age = age;
+        e->controlled_stationary = controlled_stationary;
+        ++s->n_active;
+        return 1;
+    }
+    return 0;
+}
+
+int gm_live_spawn_item_exact(
+        GmLiveSim *s, int eid, double x, double y, double z,
+        double mx, double my, double mz, float yaw,
+        int item, int count, int meta,
+        int age, int pickup_delay, int controlled_stationary) {
+    return live_spawn_item_exact_impl(
+        s, eid, x, y, z, mx, my, mz, yaw, 0.0F, 0,
+        item, count, meta, age, pickup_delay, controlled_stationary);
+}
+
+int gm_live_spawn_item_exact_hover(
+        GmLiveSim *s, int eid, double x, double y, double z,
+        double mx, double my, double mz, float yaw, float hover_start,
+        int item, int count, int meta,
+        int age, int pickup_delay, int controlled_stationary) {
+    return live_spawn_item_exact_impl(
+        s, eid, x, y, z, mx, my, mz, yaw, hover_start, 1,
+        item, count, meta, age, pickup_delay, controlled_stationary);
+}
+
+static int solid_id(int id) {
+    /* A moving-piston block's collision shape is supplied by its tile and is
+     * not a stationary full cube. The live item integrator does not yet own
+     * that swept shape, so treating ID 36 as full would incorrectly snap a
+     * just-dropped destroy-reaction item on the extension's first tick. */
+    return id != 0 && id != 8 && id != 9 && id != 10 && id != 11
+        && id != 36
+        /* BlockBasePressurePlate has NULL_AABB for entity collision. */
+        && id != 70 && id != 72 && id != 147 && id != 148;
+}
+
 static int solid_at(GmWorld *w, int x, int y, int z) {
-    int id = gm_world_block(w, x, y, z);
-    return id != 0 && id != 8 && id != 9 && id != 10 && id != 11;
+    return solid_id(gm_world_block(w, x, y, z));
 }
 
 /* Highest collision surface in a cell at the falling entity's centered X/Z.
@@ -350,9 +411,20 @@ void gm_live_tick(GmLiveSim *s, GmWorld *w) {
             fall_tick_entity(s, w, e);
             continue;
         }
-        if (e->pickup_delay > 0) e->pickup_delay--;
+        if (e->pickup_delay > 0 && e->pickup_delay != 32767)
+            e->pickup_delay--;
+        if (e->controlled_stationary
+                && e->mx == 0.0 && e->my == 0.0 && e->mz == 0.0) {
+            ++e->age;
+            if (e->lifespan > 0 && e->age >= e->lifespan) {
+                e->active = 0;
+                if (s->n_active > 0) --s->n_active;
+            }
+            continue;
+        }
         double prev_y = e->y;
-        e->my -= 0.03999999910593033; /* (double)0.04f */
+        if (!e->controlled_stationary)
+            e->my -= 0.03999999910593033; /* (double)0.04f */
         e->x += e->mx;
         e->y += e->my;
         e->z += e->mz;
@@ -360,11 +432,47 @@ void gm_live_tick(GmLiveSim *s, GmWorld *w) {
         int by = (int)floor(e->y);
         int bx = (int)floor(e->x);
         int bz = (int)floor(e->z);
-        if (solid_at(w, bx, by, bz)) {
+        int current_id = gm_world_block(w, bx, by, bz);
+        double partial_top = 0.0;
+        int partial_surface = 0;
+        if ((current_id == 44 || current_id == 126 || current_id == 182)
+                && (gm_world_meta(w, bx, by, bz) & 8) == 0) {
+            partial_top = 0.5;
+            partial_surface = 1;
+        } else if (current_id == 60) {
+            partial_top = 0.9375;
+            partial_surface = 1;
+        } else if (current_id == 78) {
+            partial_top = (double)(gm_world_meta(w, bx, by, bz) & 7)
+                * 0.125;
+            partial_surface = 1;
+        } else if (current_id == 92) {
+            partial_top = 0.5;
+            partial_surface = 1;
+        } else if (current_id == 116) {
+            partial_top = 0.75;
+            partial_surface = 1;
+        } else if (current_id == 171) {
+            partial_top = 0.0625;
+            partial_surface = 1;
+        }
+        if (partial_surface) {
+            double top = (double)by + partial_top;
+            if (partial_top > 0.0 && e->y < top && prev_y >= top) {
+                e->y = top;
+                e->my = 0.0;
+                e->on_ground = 1;
+            } else {
+                /* Moving up from an exact partial-block surface is not an
+                 * overlap with a full cube. */
+                e->on_ground = 0;
+            }
+        } else if (solid_id(current_id)) {
             e->y = (double)(by + 1);
             e->my = 0.0;
             e->on_ground = 1;
-        } else if (solid_at(w, bx, by - 1, bz) && e->y - floor(e->y) < 0.01) {
+        } else if (solid_at(w, bx, by - 1, bz)
+                && e->y - floor(e->y) < 0.01) {
             e->on_ground = 1;
             e->my = 0.0;
         } else {
@@ -452,11 +560,15 @@ int gm_live_fill_views_filtered(const GmLiveSim *s, GmEntityView *out,
         out[n].x = (float)e->x;
         out[n].y = (float)e->y;
         out[n].z = (float)e->z;
-        out[n].yaw = 0.0f;
+        out[n].yaw = e->yaw;
         out[n].health = 20.0f;
         out[n].item_id = e->item;
         out[n].item_meta = e->meta;
         out[n].age = e->age;
+        out[n].ent_id = e->eid;
+        out[n].item_count = e->count;
+        out[n].hover_start = e->hover_start;
+        out[n].has_hover_start = e->has_hover_start;
         n++;
     }
     return n;
@@ -464,6 +576,90 @@ int gm_live_fill_views_filtered(const GmLiveSim *s, GmEntityView *out,
 
 int gm_live_fill_views(const GmLiveSim *s, GmEntityView *out, int max) {
     return gm_live_fill_views_filtered(s, out, max, 0);
+}
+
+static McAABB live_item_box(const GmLiveEnt *e) {
+    return mc_aabb_make(
+        e->x - 0.125, e->y, e->z - 0.125,
+        e->x + 0.125, e->y + 0.25, e->z + 0.125);
+}
+
+int gm_live_item_boxes(
+        const GmLiveSim *s, McAABB *out, int capacity) {
+    if (!s || !out || capacity <= 0) return 0;
+    int count = 0;
+    for (int i = 0; i < GM_LIVE_MAX && count < capacity; ++i) {
+        const GmLiveEnt *e = &s->ents[i];
+        if (!e->active || e->type != 0) continue;
+        out[count++] = live_item_box(e);
+    }
+    return count;
+}
+
+int gm_live_explosion_targets(
+        const GmLiveSim *s, GmLiveExplosionTarget *out, int capacity) {
+    if (!s || !out || capacity <= 0) return 0;
+    int count = 0;
+    for (int i = 0; i < GM_LIVE_MAX && count < capacity; ++i) {
+        const GmLiveEnt *e = &s->ents[i];
+        GmLiveExplosionTarget *target;
+        if (!e->active || e->type != 0) continue;
+        target = &out[count++];
+        target->slot = i;
+        target->eid = e->eid;
+        target->item = e->item;
+        target->x = e->x;
+        target->y = e->y;
+        target->z = e->z;
+        target->box = live_item_box(e);
+    }
+    return count;
+}
+
+int gm_live_apply_explosion(
+        GmLiveSim *s, int slot, float damage,
+        double impulse_x, double impulse_y, double impulse_z) {
+    GmLiveEnt *e;
+    if (!s || slot < 0 || slot >= GM_LIVE_MAX)
+        return 0;
+    e = &s->ents[slot];
+    if (!e->active || e->type != 0)
+        return 0;
+    /* EntityItem rejects explosion damage for a Nether Star, but Explosion
+     * still appends its raw motion after attackEntityFrom returns false. */
+    if (e->item != 399)
+        e->health = (int)((float)e->health - damage);
+    e->mx += impulse_x;
+    e->my += impulse_y;
+    e->mz += impulse_z;
+    if (e->health <= 0) {
+        e->active = 0;
+        e->n_enchants = 0;
+        if (s->n_active > 0) --s->n_active;
+        return 0;
+    }
+    return 1;
+}
+
+int gm_live_items_intersects_aabb(
+        const GmLiveSim *s, const McAABB *box) {
+    return gm_live_items_count_intersects_aabb(s, box) > 0;
+}
+
+int gm_live_items_count_intersects_aabb(
+        const GmLiveSim *s, const McAABB *box) {
+    if (!s || !box) return 0;
+    int count = 0;
+    for (int i = 0; i < GM_LIVE_MAX; ++i) {
+        const GmLiveEnt *e = &s->ents[i];
+        if (!e->active || e->type != 0) continue;
+        McAABB entity = live_item_box(e);
+        if (entity.maxX > box->minX && entity.minX < box->maxX
+                && entity.maxY > box->minY && entity.minY < box->maxY
+                && entity.maxZ > box->minZ && entity.minZ < box->maxZ)
+            ++count;
+    }
+    return count;
 }
 
 int gm_live_entity_moved(const GmLiveSim *s) {

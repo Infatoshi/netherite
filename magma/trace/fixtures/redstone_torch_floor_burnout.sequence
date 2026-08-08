@@ -1,0 +1,19 @@
+# Eight lit-to-unlit transitions within 60 ticks, then leave the support
+# unpowered. The eighth callback burns the torch out and queues its 160-tick
+# recovery update. Rows are TICK DX DY DZ BLOCK META.
+0 4 -1 0 152 0
+2 4 -1 0 1 0
+4 4 -1 0 152 0
+6 4 -1 0 1 0
+8 4 -1 0 152 0
+10 4 -1 0 1 0
+12 4 -1 0 152 0
+14 4 -1 0 1 0
+16 4 -1 0 152 0
+18 4 -1 0 1 0
+20 4 -1 0 152 0
+22 4 -1 0 1 0
+24 4 -1 0 152 0
+26 4 -1 0 1 0
+28 4 -1 0 152 0
+30 4 -1 0 1 0

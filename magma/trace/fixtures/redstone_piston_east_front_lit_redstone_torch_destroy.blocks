@@ -1,0 +1,5 @@
+# Stable lit floor redstone torch 76:5 in the front cell. Its stone support is
+# unpowered; the separate south redstone block powers the tick-zero piston.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 76 5

@@ -1,0 +1,3 @@
+# EAST-facing observer watches x=13 and outputs west into the lamp at x=11.
+12 78 8 218 5
+11 78 8 123 0

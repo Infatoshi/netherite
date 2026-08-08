@@ -1,0 +1,4 @@
+# Place the piston after the observer's setup pulse has drained, then trigger
+# the SOUTH-watching observer one tick later.
+0 4 0 0 33 5
+1 4 0 2 1 0

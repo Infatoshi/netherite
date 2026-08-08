@@ -46,6 +46,8 @@
 /* raw blaze Chunk + mc_set/mc_state + PSV_DIM/PSV_R/PSV_NCHUNKS for fill_window. */
 #include "player_survival.h"
 #include "world_weather.h"   /* ww_init / ww_tick for live world-time composition */
+#include "block_props_table.h"
+#include "biome_props_full.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -554,6 +556,18 @@ void gm_world_load_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int me
     if (lz == 15) wl_mark_dirty(w, cx, cz + 1);
 }
 
+int gm_world_load_sky_light(
+    GmWorld *w, int wx, int wy, int wz, int value
+) {
+    return w
+        ? light_load_sky_snapshot(w->light, wx, wy, wz, value)
+        : 0;
+}
+
+void gm_world_finalize_sky_light_snapshot(GmWorld *w) {
+    if (w) light_finalize_sky_snapshot(w->light);
+}
+
 long long gm_world_block_gen(const GmWorld *w) {
     /* fold in chunk generation: population (trees/structures) writes into
      * neighbour chunks directly, bypassing set_block_meta */
@@ -565,6 +579,97 @@ int gm_world_surface_y(const GmWorld *w, int wx, int wz) {
     for (int y = 255; y >= 0; --y)
         if (mc_state_id(light_state(w->light, wx, y, wz)) != 0) return y + 1;
     return 64;   /* ungenerated / all-air column: sensible default */
+}
+
+int gm_world_precipitation_y(const GmWorld *w, int wx, int wz) {
+    if (!w) return 0;
+    for (int y = 255; y > 0; --y) {
+        int id = mc_state_id(light_state(w->light, wx, y, wz));
+        BptProps p = mc_bpt_props(id);
+        if ((p.flags & BF_SOLID) || (p.flags & BF_LIQUID)) return y + 1;
+    }
+    return -1;
+}
+
+int gm_world_precipitation_kind(const GmWorld *w, int wx, int wy, int wz) {
+    int biome = gm_world_biome(w, wx, wz);
+    switch (biome) {
+        case 2: case 8: case 9: case 17: case 35: case 36:
+        case 37: case 38: case 39: case 127: case 130:
+        case 163: case 164: case 165: case 166: case 167:
+            return 0;
+        default:
+            return gm_world_temperature(w, wx, wy, wz) < 0.15f ? 2 : 1;
+    }
+}
+
+float gm_world_temperature(
+        const GmWorld *w, int wx, int wy, int wz) {
+    return w ? light_biome_temperature(w->light, wx, wy, wz) : 0.5f;
+}
+
+static int gm_world_is_water(const GmWorld *w, int x, int y, int z) {
+    int id = gm_world_block(w, x, y, z);
+    return id == 8 || id == 9;
+}
+
+int gm_world_can_freeze(
+        const GmWorld *w, int wx, int wy, int wz,
+        int no_water_adjacent) {
+    int id;
+    if (!w || wy < 0 || wy >= 256
+            || gm_world_temperature(w, wx, wy, wz) >= 0.15f
+            || gm_world_block_light(w, wx, wy, wz) >= 10)
+        return 0;
+    id = gm_world_block(w, wx, wy, wz);
+    if ((id != 8 && id != 9)
+            || gm_world_meta(w, wx, wy, wz) != 0)
+        return 0;
+    if (!no_water_adjacent)
+        return 1;
+    return !(gm_world_is_water(w, wx - 1, wy, wz)
+        && gm_world_is_water(w, wx + 1, wy, wz)
+        && gm_world_is_water(w, wx, wy, wz - 1)
+        && gm_world_is_water(w, wx, wy, wz + 1));
+}
+
+static int gm_world_snow_can_place(
+        const GmWorld *w, int wx, int wy, int wz) {
+    int below, meta;
+    BptProps props;
+    if (!w || wy < 1)
+        return 0;
+    below = gm_world_block(w, wx, wy - 1, wz);
+    meta = gm_world_meta(w, wx, wy - 1, wz);
+    if (below == 79 || below == 174)
+        return 0;
+    if (below == 18 || below == 161)
+        return 1;
+    if (below == 78 && (meta & 7) == 7)
+        return 1;
+    props = mc_bpt_props(below);
+    return (props.flags & BF_SOLID) && props.light_opacity >= 15;
+}
+
+int gm_world_can_snow(
+        const GmWorld *w, int wx, int wy, int wz, int check_light) {
+    if (!w || gm_world_temperature(w, wx, wy, wz) >= 0.15f)
+        return 0;
+    if (!check_light)
+        return 1;
+    return wy >= 0 && wy < 256
+        && gm_world_block_light(w, wx, wy, wz) < 10
+        && gm_world_block(w, wx, wy, wz) == 0
+        && gm_world_snow_can_place(w, wx, wy, wz);
+}
+
+int gm_world_is_raining_at(
+        const GmWorld *w, const GmWorldClock *clock,
+        int wx, int wy, int wz) {
+    if (!w || !clock || gm_world_rain_strength(clock, 1.0f) <= 0.2f
+            || gm_world_precipitation_y(w, wx, wz) > wy)
+        return 0;
+    return gm_world_precipitation_kind(w, wx, wy, wz) == 1;
 }
 
 CrTexture gm_world_atlas(const GmWorld *w) {
@@ -1078,6 +1183,17 @@ static GmClockPriv g_clock;
 void gm_world_clock_init(GmWorldClock *c, i64 seed) {
     if (!c) return;
     ww_init(&g_clock.ww, seed);
+    /* A fresh WorldInfo leaves both weather timers and flags at Java default
+     * zero. The fixed raining=1/timer=50 state belongs only to the standalone
+     * world_weather battery, where it forces every transition in 256 ticks. */
+    g_clock.ww.rainTime = 0;
+    g_clock.ww.thunderTime = 0;
+    g_clock.ww.raining = 0;
+    g_clock.ww.thundering = 0;
+    g_clock.ww.prevRainingStrength = 0.0f;
+    g_clock.ww.rainingStrength = 0.0f;
+    g_clock.ww.prevThunderingStrength = 0.0f;
+    g_clock.ww.thunderingStrength = 0.0f;
     g_clock.inited = 1;
     c->total_time   = g_clock.ww.totalTime;
     c->world_time   = g_clock.ww.worldTime;
@@ -1085,6 +1201,12 @@ void gm_world_clock_init(GmWorldClock *c, i64 seed) {
     c->thunder_time = g_clock.ww.thunderTime;
     c->raining      = g_clock.ww.raining;
     c->thundering   = g_clock.ww.thundering;
+    c->prev_rain_strength = g_clock.ww.prevRainingStrength;
+    c->rain_strength = g_clock.ww.rainingStrength;
+    c->prev_thunder_strength = g_clock.ww.prevThunderingStrength;
+    c->thunder_strength = g_clock.ww.thunderingStrength;
+    c->clean_weather_time = 0;
+    c->weather_cycle = 1;
     c->freeze_daylight = 0;
     c->freeze_weather = 0;
 }
@@ -1092,8 +1214,8 @@ void gm_world_clock_init(GmWorldClock *c, i64 seed) {
 void gm_world_tick(GmWorldClock *c) {
     if (!c) return;
     if (!g_clock.inited) gm_world_clock_init(c, 0);
-    /* WorldServer.updateWeather does no timer, toggle, or RNG work while
-     * doWeatherCycle is false. Time still advances under its separate rule. */
+    /* doWeatherCycle=false freezes the server weather state while the
+     * independent daylight rule still controls world-time advancement. */
     if (c->freeze_weather) {
         ++c->total_time;
         if (!c->freeze_daylight) ++c->world_time;
@@ -1102,7 +1224,34 @@ void gm_world_tick(GmWorldClock *c) {
         return;
     }
     i64 wt_prev = g_clock.ww.worldTime;
-    ww_tick(&g_clock.ww);
+    if (c->weather_cycle) {
+        if (c->clean_weather_time > 0) {
+            --c->clean_weather_time;
+            g_clock.ww.thunderTime = g_clock.ww.thundering ? 1 : 2;
+            g_clock.ww.rainTime = g_clock.ww.raining ? 1 : 2;
+        }
+        ww_update_weather(&g_clock.ww);
+    } else {
+        g_clock.ww.prevThunderingStrength =
+            g_clock.ww.thunderingStrength;
+        g_clock.ww.thunderingStrength = (float)(
+            (double)g_clock.ww.thunderingStrength
+            + (g_clock.ww.thundering ? 0.01 : -0.01));
+        if (g_clock.ww.thunderingStrength < 0.0f)
+            g_clock.ww.thunderingStrength = 0.0f;
+        if (g_clock.ww.thunderingStrength > 1.0f)
+            g_clock.ww.thunderingStrength = 1.0f;
+        g_clock.ww.prevRainingStrength = g_clock.ww.rainingStrength;
+        g_clock.ww.rainingStrength = (float)(
+            (double)g_clock.ww.rainingStrength
+            + (g_clock.ww.raining ? 0.01 : -0.01));
+        if (g_clock.ww.rainingStrength < 0.0f)
+            g_clock.ww.rainingStrength = 0.0f;
+        if (g_clock.ww.rainingStrength > 1.0f)
+            g_clock.ww.rainingStrength = 1.0f;
+    }
+    ++g_clock.ww.totalTime;
+    ++g_clock.ww.worldTime;
     if (c->freeze_daylight) g_clock.ww.worldTime = wt_prev;
     c->total_time   = g_clock.ww.totalTime;
     c->world_time   = g_clock.ww.worldTime;
@@ -1110,6 +1259,10 @@ void gm_world_tick(GmWorldClock *c) {
     c->thunder_time = g_clock.ww.thunderTime;
     c->raining      = g_clock.ww.raining;
     c->thundering   = g_clock.ww.thundering;
+    c->prev_rain_strength = g_clock.ww.prevRainingStrength;
+    c->rain_strength = g_clock.ww.rainingStrength;
+    c->prev_thunder_strength = g_clock.ww.prevThunderingStrength;
+    c->thunder_strength = g_clock.ww.thunderingStrength;
 }
 
 void gm_world_tick_clear(GmWorldClock *c) {
@@ -1121,6 +1274,8 @@ void gm_world_tick_clear(GmWorldClock *c) {
         c->thunder_time = 0;
         c->raining = 0;
         c->thundering = 0;
+        c->prev_rain_strength = c->rain_strength = 0.0f;
+        c->prev_thunder_strength = c->thunder_strength = 0.0f;
     }
 }
 
@@ -1133,6 +1288,18 @@ void gm_world_clock_set_total_time(GmWorldClock *c, long long total_time) {
 
 void gm_world_clock_set_weather(GmWorldClock *c, int raining, int thundering,
                                 int rain_time, int thunder_time) {
+    float rain_strength = raining ? 1.0f : 0.0f;
+    float thunder_strength = raining && thundering ? 1.0f : 0.0f;
+    gm_world_clock_set_weather_full(
+        c, raining, thundering, rain_time, thunder_time, 0, 1,
+        rain_strength, rain_strength, thunder_strength, thunder_strength);
+}
+
+void gm_world_clock_set_weather_full(
+        GmWorldClock *c, int raining, int thundering,
+        int rain_time, int thunder_time, int clean_weather_time,
+        int weather_cycle, float prev_rain_strength, float rain_strength,
+        float prev_thunder_strength, float thunder_strength) {
     if (!c) return;
     if (!g_clock.inited) gm_world_clock_init(c, 0);
     c->raining = raining ? 1 : 0;
@@ -1143,6 +1310,43 @@ void gm_world_clock_set_weather(GmWorldClock *c, int raining, int thundering,
     g_clock.ww.thundering = c->thundering;
     g_clock.ww.rainTime = c->rain_time;
     g_clock.ww.thunderTime = c->thunder_time;
+    c->clean_weather_time = clean_weather_time;
+    c->weather_cycle = weather_cycle ? 1 : 0;
+    c->prev_rain_strength = prev_rain_strength;
+    c->rain_strength = rain_strength;
+    c->prev_thunder_strength = prev_thunder_strength;
+    c->thunder_strength = thunder_strength;
+    g_clock.ww.prevRainingStrength = c->prev_rain_strength;
+    g_clock.ww.rainingStrength = c->rain_strength;
+    g_clock.ww.prevThunderingStrength = c->prev_thunder_strength;
+    g_clock.ww.thunderingStrength = c->thunder_strength;
     g_clock.ww.worldTime = c->world_time;
     g_clock.ww.totalTime = c->total_time;
+}
+
+void gm_world_clock_set_random_seed48(
+        GmWorldClock *c, unsigned long long seed48) {
+    (void)c;
+    if (!g_clock.inited) return;
+    jrand_set_seed48(&g_clock.ww.rand, (u64)seed48);
+}
+
+unsigned long long gm_world_clock_random_seed48(
+        const GmWorldClock *c) {
+    (void)c;
+    return g_clock.inited
+        ? (unsigned long long)g_clock.ww.rand.seed : 0ULL;
+}
+
+float gm_world_rain_strength(const GmWorldClock *c, float partial_ticks) {
+    if (!c) return 0.0f;
+    return c->prev_rain_strength
+        + (c->rain_strength - c->prev_rain_strength) * partial_ticks;
+}
+
+float gm_world_thunder_strength(const GmWorldClock *c, float partial_ticks) {
+    if (!c) return 0.0f;
+    return (c->prev_thunder_strength
+        + (c->thunder_strength - c->prev_thunder_strength) * partial_ticks)
+        * gm_world_rain_strength(c, partial_ticks);
 }

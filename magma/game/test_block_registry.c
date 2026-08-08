@@ -6,25 +6,27 @@ static int fails;
 #define CHECK(C, M) do { if (!(C)) { fprintf(stderr, "FAIL: %s\n", (M)); ++fails; } } while (0)
 
 static void test_all_generated_keys(void) {
-    static const short ids[90] = {
+    static const short ids[100] = {
         0,1,9,2,3,7,13,12,24,179,79,11,10,8,111,110,78,172,159,3,3,
         1,1,1,16,15,14,73,56,21,82,17,17,17,18,18,18,17,17,31,31,
         32,39,40,83,4,48,52,216,54,37,
         38,38,38,38,38,38,38,38,38,
         175,175,175,175,175,175,175,
         86,86,86,86,106,106,106,106,
-        129,97,162,161,99,100,81,162,161,44,17,18,103,127,49
+        129,97,162,161,99,100,81,162,161,44,17,18,103,127,49,
+        24,24,128,128,128,128,159,159,70,46
     };
-    static const unsigned char metas[90] = {
+    static const unsigned char metas[100] = {
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,
         1,3,5,0,0,0,0,0,0,0,0,2,1,0,2,1,4,8,1,2,
         0,0,0,0,0,0,0,0,2,0,
         0,1,2,3,4,5,6,7,8,
         0,1,2,3,4,5,10,
         0,1,2,3,8,2,1,4,
-        0,0,1,1,0,0,0,0,0,1,3,3,0,0,0
+        0,0,1,1,0,0,0,0,0,1,3,3,0,0,0,
+        2,1,0,1,2,3,1,11,0,0
     };
-    for (int key = 0; key < 90; ++key) {
+    for (int key = 0; key < 100; ++key) {
         uint16_t state = 0xffff;
         int q = gm_model_key_to_state(key, 0, &state);
         char msg[96];
@@ -81,6 +83,13 @@ static void test_collision_barrier(void) {
     CHECK(gm_state_to_model_key(gm_pack_state(9, 0)) == 2, "water reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(17, 0)) == 31, "oak log reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(49, 0)) == 89, "obsidian reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(24, 1)) == 91, "chiseled sandstone reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(24, 2)) == 90, "smooth sandstone reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(128, 3)) == 95, "north sandstone stairs reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(159, 1)) == 96, "orange clay reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(159, 11)) == 97, "blue clay reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(70, 0)) == 98, "stone pressure plate reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(46, 0)) == 236, "TNT reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(58, 0)) == 223, "crafting table reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(66, 0)) == 235, "rail reverse map");
     CHECK(gm_state_to_model_key(gm_pack_state(102, 0)) == 253,
@@ -140,6 +149,12 @@ static void test_collision_barrier(void) {
         CHECK(gm_state_id(st) == 44 && gm_state_meta(st) == meta,
               "stone slab model key round-trips canonical state");
     }
+    CHECK(gm_state_to_model_key(gm_pack_state(199, 0)) == 273,
+          "chorus plant reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(200, 2)) == 274,
+          "living chorus flower reverse map");
+    CHECK(gm_state_to_model_key(gm_pack_state(200, 5)) == 275,
+          "dead chorus flower reverse map");
     {
         uint16_t st = 0;
         CHECK(gm_model_key_to_state(223, 0, &st) == GM_MAP_EXACT, "craft table key supported");
@@ -180,6 +195,12 @@ static void test_collision_barrier(void) {
               "stonebrick key supported");
         CHECK(gm_state_id(st) == 98 && gm_state_meta(st) == 0,
               "stonebrick key -> id 98");
+        CHECK(gm_model_key_to_state(273, 0, &st) == GM_MAP_EXACT
+              && gm_state_id(st) == 199 && gm_state_meta(st) == 0,
+              "chorus plant key -> id 199");
+        CHECK(gm_model_key_to_state(275, 0, &st) == GM_MAP_EXACT
+              && gm_state_id(st) == 200 && gm_state_meta(st) == 5,
+              "dead chorus flower key -> id 200 meta 5");
     }
 }
 

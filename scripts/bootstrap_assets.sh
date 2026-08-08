@@ -17,4 +17,18 @@ for s in "${SCRIPTS[@]}"; do
     echo "== assets/$s.py =="
     uv run --no-project --with pillow python "assets/$s.py"
 done
-echo "asset headers regenerated: ${#SCRIPTS[@]} generators"
+echo "== assets/build_end_city_templates.py =="
+uv run --no-project --with nbtlib python assets/build_end_city_templates.py
+echo "== assets/build_village_templates.py =="
+VILLAGE_OUT="$REPO/.tmp/village-templates"
+mkdir -p "$VILLAGE_OUT"
+(cd "$REPO/java/Minecraft" && ./gradlew -q villageTemplateGolden) \
+    > "$VILLAGE_OUT/templates.txt" 2> "$VILLAGE_OUT/gradle.log" || {
+        tail -80 "$VILLAGE_OUT/gradle.log" >&2
+        exit 1
+    }
+uv run --no-project python assets/build_village_templates.py \
+    "$VILLAGE_OUT/templates.txt" assets/village_templates.h
+echo "== assets/build_sound_manifest.py =="
+uv run --no-project python assets/build_sound_manifest.py
+echo "asset headers regenerated: ${#SCRIPTS[@]} texture generators plus structures and sound manifest"

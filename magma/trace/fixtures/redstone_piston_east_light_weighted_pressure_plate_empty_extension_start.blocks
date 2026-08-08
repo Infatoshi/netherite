@@ -1,0 +1,5 @@
+# EAST-facing empty normal piston beside an unpowered light-weighted (gold)
+# pressure plate. Tick zero changes analog strength 0 to 7, proving that a
+# nonbinary plate output powers the piston without entity-count setup.
+12 78 8 33 5
+12 78 9 147 0

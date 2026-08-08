@@ -13,7 +13,7 @@ set -euo pipefail
 MAGMA="$(cd "$(dirname "$0")/.." && pwd)"
 BLAZE="$(cd "$(dirname "$0")/../../blaze" && pwd)"
 JAVA_HOME_DIR="${JAVA_HOME_DIR:-/usr/lib/jvm/java-8-openjdk-amd64}"
-JAR="${MC_JAR:-$(cd "$(dirname "$0")/../../.." && pwd)/java/Minecraft/run/gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar}"
+JAR="${MC_JAR:-$(cd "$(dirname "$0")/../.." && pwd)/java/Minecraft/run/gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar}"
 cd "$MAGMA"
 
 CC="${CC:-gcc}"

@@ -17,6 +17,7 @@
 #include "interact_blocks.h"
 #include "container_click.h"
 #include "items_tools_armor.h"
+#include "tile_entity_brewing.h"
 #include "mc_blocks.h"
 #include <math.h>
 #include <limits.h>
@@ -27,6 +28,27 @@
  * break), s_atk_prev = attack key edge (press tick = clickMouse -> clickBlock). */
 static float s_dig_progress;
 static int   s_dig_particle_count; /* entity_pin dig_hit count; 0 = stage proxy */
+static int   s_dig_sound_tick_counter;
+static int   s_dig_sound_pending;
+static int   s_dig_sound_wx, s_dig_sound_wy, s_dig_sound_wz;
+static int   s_dig_sound_state;
+static int   s_fall_sound_pending;
+static int   s_fall_sound_damage;
+static int   s_fall_sound_state;
+static float s_step_distance;
+static int   s_step_next_distance = 1;
+static int   s_step_sound_pending;
+static int   s_step_sound_state;
+typedef struct {
+    int kind;
+    double x, y, z;
+    float volume;
+} GmPlayerMovementSound;
+static GmPlayerMovementSound s_movement_sounds[2];
+static int   s_movement_sound_count;
+static int   s_movement_sound_read;
+static int   s_water_initialized;
+static int   s_player_in_water;
 
 /* EntityRenderer.fovModifierHand (client render state, not physics). */
 static float s_fov_hand = 1.0f;
@@ -65,13 +87,21 @@ static int   s_use_max;
 
 /* Optional cursor for live inventory composition (hotbar is IsrInv slots 0..8). */
 static ICStack s_cursor;
+/* ItemStack returned by an item-use transform when InventoryPlayer is full.
+ * The runtime consumes it as EntityPlayer.dropItem(stack, false). */
+static ICStack s_item_use_drop;
+/* Finished DRINK stack, consumed by runtime for potion effects / milk cure. */
+static ICStack s_finished_drink;
 
 /* VANILLA vitals for the game (verified player_vitals oracle). */
 static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
                             int was_air, double prev_min_y,
                             double dx, double dy, double dz,
                             int in_water_pre, int eye_water_post, int land_jump,
-                            const McGameRules *gamerules)
+                            float fall_damage_multiplier,
+                            const McGameRules *gamerules,
+                            int defer_food_update,
+                            int defer_movement_stats)
 {
     McEntity *e = &pl->ent;
 
@@ -89,28 +119,42 @@ static void gm_vitals_apply(PvStats *vit, PsvPlayer *pl, GmAction act,
      * 20260712T055346Z t1488: magma's food hit 19 early because bouncing on
      * the pond floor with jump held charged 0.05/tick and mid-air sprint
      * distance was billed at the ground rate. */
-    if (eye_water_post) {
-        int i = (int)floorf(sqrtf((float)(dx * dx + dy * dy + dz * dz)) * 100.0f + 0.5f);
-        if (i > 0) pv_add_exhaustion(vit, 0.01f * (float)i * 0.01f);
-    } else if (in_water_pre) {
-        int j = (int)floorf(sqrtf((float)(dx * dx + dz * dz)) * 100.0f + 0.5f);
-        if (j > 0) pv_add_exhaustion(vit, 0.01f * (float)j * 0.01f);
-    } else if (e->onGround && act.sprint) {
-        int k = (int)floorf(sqrtf((float)(dx * dx + dz * dz)) * 100.0f + 0.5f);
-        if (k > 0) pv_add_exhaustion(vit, 0.1f * (float)k * 0.01f);
+    if (!defer_movement_stats) {
+        if (eye_water_post) {
+            int i = (int)floorf(sqrtf(
+                (float)(dx * dx + dy * dy + dz * dz)) * 100.0f + 0.5f);
+            if (i > 0)
+                pv_add_exhaustion(vit, 0.01f * (float)i * 0.01f);
+        } else if (in_water_pre) {
+            int j = (int)floorf(sqrtf(
+                (float)(dx * dx + dz * dz)) * 100.0f + 0.5f);
+            if (j > 0)
+                pv_add_exhaustion(vit, 0.01f * (float)j * 0.01f);
+        } else if (e->onGround && act.sprint) {
+            int k = (int)floorf(sqrtf(
+                (float)(dx * dx + dz * dz)) * 100.0f + 0.5f);
+            if (k > 0)
+                pv_add_exhaustion(vit, 0.1f * (float)k * 0.01f);
+        }
+        if (land_jump)
+            pv_add_exhaustion(vit, act.sprint ? 0.2f : 0.05f);
     }
-    if (land_jump) pv_add_exhaustion(vit, act.sprint ? 0.2f : 0.05f);
 
     if (!e->onGround) {
         double dropped = prev_min_y - e->box.minY;
         if (dropped > 0.0 && !pl->reset_fall_distance)
             pl->fall_distance += (float)dropped;
     } else if (was_air && pl->fall_distance > 0.0f) {
-        pv_fall_damage(vit, pl->fall_distance);
+        float boost = pl->jump_boost_amplifier < 0
+            ? 0.0f : (float)(pl->jump_boost_amplifier + 1);
+        int damage = pv_ceil(
+            (pl->fall_distance - 3.0f - boost) * fall_damage_multiplier);
+        if (damage > 0) pv_attack(vit, (float)damage);
     }
     if (e->onGround) pl->fall_distance = 0.0f;
 
-    pv_on_update_gr(vit, gamerules);
+    if (!defer_food_update)
+        pv_on_update_gr(vit, gamerules);
     pl->health = vit->health;
     pl->food   = (float)vit->foodLevel;
 }
@@ -183,21 +227,21 @@ static int torch_placement_meta(const Chunk *w, int x, int y, int z, int face) {
     return -1;
 }
 
-/* Entity.isInsideOfMaterial(WATER): the eye sits below the liquid surface of
- * its cell. BlockLiquid.getLiquidHeightPercent: falling (meta>=8) counts as a
- * full block; else (meta+1)/9, surface at (y+1) - percent. */
+/* Forge 1.11.2 Entity.isInsideOfMaterial(WATER): for BlockLiquid the positive
+ * filled test is eyeY < blockY + 1 + getLiquidHeightPercent(meta). Because the
+ * sampled blockY is floor(eyeY), an eye in any water block passes regardless
+ * of liquid level; it becomes dry only on entering a non-water eye block. */
 static int eye_in_water(const Chunk *w, const PsvPlayer *pl) {
     double eye_y = pl->ent.posY + psv_player_eye_height(pl);
     int x = mc_floor(pl->ent.posX), y = mc_floor(eye_y), z = mc_floor(pl->ent.posZ);
     int id = psv_get_block(w, x, y, z);
-    if (id != 8 && id != 9) return 0;
-    int m = psv_get_meta(w, x, y, z);
-    if (m >= 8) m = 0;
-    return eye_y < (double)(y + 1) - (double)(m + 1) / 9.0;
+    return id == 8 || id == 9;
 }
 
-static int bucket_raycast(const Chunk *w,const McSinTable *st,const PsvPlayer *pl,
-                          int *hx,int *hy,int *hz){
+/* Item.rayTrace(..., true): liquids stop the ray. Buckets accept only a source
+ * block after that hit; glass bottles accept every water level. */
+static int liquid_raycast(const Chunk *w,const McSinTable *st,const PsvPlayer *pl,
+                          int source_only,int *hx,int *hy,int *hz){
     float f=mc_cos(st,-pl->yaw*0.017453292f-3.1415927f);
     float f1=mc_sin(st,-pl->yaw*0.017453292f-3.1415927f);
     float f2=-mc_cos(st,-pl->pitch*0.017453292f),f3=mc_sin(st,-pl->pitch*0.017453292f);
@@ -209,9 +253,26 @@ static int bucket_raycast(const Chunk *w,const McSinTable *st,const PsvPlayer *p
         if(x==lx&&y==ly&&z==lz)continue;
         lx=x;ly=y;lz=z;
         int id=psv_get_block(w,x,y,z),meta=psv_get_meta(w,x,y,z);
-        if((id==8||id==9||id==10||id==11)&&meta==0){*hx=x;*hy=y;*hz=z;return id;}
+        if(id==8||id==9||id==10||id==11){
+            if(!source_only||meta==0){*hx=x;*hy=y;*hz=z;return id;}
+            return 0;
+        }
         if(psv_solid(id))return 0;
     }return 0;
+}
+
+/* ItemGlassBottle.turnBottleIntoItem. The full-inventory ground-drop case is
+ * exposed to the owning runtime; every inventory transition remains exact,
+ * including the potion's registry identity in compact meta. */
+static ICStack bottle_into_water_potion(IsrInv *inv,int slot){
+    ICStack bottle=isr_get_stack(inv,slot);
+    ICStack potion=ic_mk(TB_POTION,1,TB_PT_WATER);
+    if(bottle.item!=TB_GLASS_BOTTLE||bottle.count<=0)return ic_empty();
+    --bottle.count;
+    if(bottle.count<=0){isr_set_stack(inv,slot,potion);return ic_empty();}
+    isr_set_stack(inv,slot,bottle);
+    (void)isr_add_item_stack_to_inventory(inv,&potion);
+    return potion; /* non-empty only when the inventory was full */
 }
 
 static void emit_edit(GmBlockEdit *edits, int *ne, int max_edits,
@@ -226,6 +287,9 @@ static void emit_edit(GmBlockEdit *edits, int *ne, int max_edits,
     edits[*ne].drop_id = drop_id;
     edits[*ne].drop_count = drop_count;
     edits[*ne].drop_meta = drop_meta & 15;
+    edits[*ne].harvest_tool = 0;
+    edits[*ne].break_effect = 0;
+    edits[*ne].place_effect = 0;
     (*ne)++;
 }
 
@@ -259,21 +323,27 @@ static void harvest_drop(int block_id, int block_meta, int tool_id,int wx,int wy
         case 49: *item = 49; *count = 1; break; /* obsidian */
         case 54: *item = 54; *count = 1; break; /* chest block item */
         case 56: *item = 264; *count = 1; break;/* diamond ore -> diamond */
+        case 117: *item = 379; *count = 1; break;/* brewing stand special item */
+        case 132: *item = 287; *count = 1; break;/* tripwire -> string */
         default: break;
     }
 }
 
 /* onPlayerDestroyBlock slice: drops + tool wear + window clear + world edit. */
-static void dig_destroy(Chunk *window, PsvPlayer *pl, int hx, int hy, int hz,
+static void dig_destroy(Chunk *window, PsvPlayer *pl, PvStats *vit,
+                        int hx, int hy, int hz,
                         int bid, int bmeta, int ox, int oy, int oz,
                         GmBlockEdit *edits, int *ne, int max_edits,
                         int creative)
 {
     ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
     int drop_id = 0, drop_count = 0, drop_meta = 0;
-    if (!creative)
+    if (!creative) {
         harvest_drop(bid, bmeta, held.item, hx + ox, hy + oy, hz + oz,
                      &drop_id, &drop_count, &drop_meta);
+        if (pb_can_harvest(held.item, bid))
+            pv_add_exhaustion(vit, 0.005f);
+    }
     if (!creative && !isr_is_empty(&held)) {
         ITAStack tool = ita_mk(held.item, held.meta);
         ita_on_block_destroyed(&tool, bid);
@@ -289,15 +359,25 @@ static void dig_destroy(Chunk *window, PsvPlayer *pl, int hx, int hy, int hz,
     }
     psv_set_state(window, hx, hy, hz, BLK_AIR, 0);
     pl->break_events++;
-    emit_edit(edits, ne, max_edits, ox, oy, oz, hx, hy, hz, 0, 0,
-              drop_id, drop_count, drop_meta);
+    {
+        int edit_index = *ne;
+        emit_edit(edits, ne, max_edits, ox, oy, oz, hx, hy, hz, 0, 0,
+                  drop_id, drop_count, drop_meta);
+        if (*ne > edit_index) {
+            edits[edit_index].harvest_tool = held.item;
+            edits[edit_index].break_effect = 1;
+        }
+    }
 }
 
-void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
-                       struct PsvPlayer *pl_, struct PvStats *vitals_,
-                       const struct McGameRules *gamerules, GmAction act,
-                       int ox, int oy, int oz,
-                       GmBlockEdit *edits, int *nedits, int max_edits)
+static void gm_player_tick_impl(
+                    struct Chunk *window_, const struct McSinTable *st_,
+                    struct PsvPlayer *pl_, struct PvStats *vitals_,
+                    const struct McGameRules *gamerules, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits,
+                    int defer_food_update, int defer_movement_stats,
+                    int haste_amplifier, int fatigue_amplifier, int riding)
 {
     Chunk            *window = (Chunk *)window_;
     const McSinTable *st     = (const McSinTable *)st_;
@@ -306,6 +386,13 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
 
     McAABB blocks[PSV_MAX_BLOCKS];
     int ne = 0;
+    s_item_use_drop=ic_empty();
+    s_finished_drink=ic_empty();
+    s_dig_sound_pending=0;
+    s_fall_sound_pending=0;
+    s_step_sound_pending=0;
+    s_movement_sound_count=0;
+    s_movement_sound_read=0;
 
     /* Legacy tapes predict the metadata return one tick after the request.
      * New tapes set elytra_flag7_recorded and apply each observed metadata
@@ -351,8 +438,9 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
     /* EntityRenderer.updateFovModifierHand: FOV eases toward the player's
      * fov modifier at 0.5/tick. AbstractClientPlayer.getFovModifier =
      * (movement_speed_attr / walk_speed + 1) / 2; the sprint attribute
-     * modifier (+30% multiply_total) makes that 1.15 while sprinting, 1.0
-     * otherwise (no speed potions / creative flight / bow draw simulated).
+     * modifier (+30% multiply_total) makes that 1.15 while sprinting. Active
+     * movement-speed potion attribute multipliers participate in the same
+     * ratio before the 0.5 easing.
      * Sprint-into-a-wall oscillates the flag via collidedHorizontally below,
      * which is exactly the vanilla FOV pumping artifact.
      *
@@ -371,7 +459,10 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
      * sampling rule, UV interpolation, FaceBakery baking or attribute
      * precision bug; see OPEN_DIVERGENCES for what each of those measured. */
     {
-        float target = pl->sprinting ? 1.15f : 1.0f;
+        double speed_multiplier = pl->movement_speed_multiplier;
+        if (pl->sprinting)
+            speed_multiplier *= 1.0 + 0.30000001192092896;
+        float target = (float)((speed_multiplier + 1.0) * 0.5);
         /* getFovModifier bow branch: while the bow is drawn, the world FOV
          * zooms by 1 - min(1, useTicks/20)^2 * 0.15 (the hand projection
          * stays at 70 - getFOVModifier(pt,false) skips fovModifierHand).
@@ -402,13 +493,16 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
         int   flag2 = pl->prev_move_forward >= 0.8f;
         float mf = act.sneak ? (float)((double)act.forward * 0.3) : act.forward;
         int   flag4 = pl->food > 6.0f;
-        if (pl->ent.onGround && !flag1 && !flag2 && mf >= 0.8f && !pl->sprinting && flag4) {
+        if (pl->ent.onGround && !flag1 && !flag2 && mf >= 0.8f
+                && !pl->sprinting && flag4 && !pl->blindness) {
             if (pl->sprint_toggle_timer <= 0 && !act.sprint)
                 pl->sprint_toggle_timer = 7;
             else
                 pl->sprinting = 1;
         }
-        if (!pl->sprinting && mf >= 0.8f && flag4 && act.sprint) pl->sprinting = 1;
+        if (!pl->sprinting && mf >= 0.8f && flag4 && act.sprint
+                && !pl->blindness)
+            pl->sprinting = 1;
         if (pl->sprinting && (mf < 0.8f || pl->ent.collidedHorizontally || !flag4))
             pl->sprinting = 0;
         pl->prev_move_forward = mf;
@@ -475,8 +569,8 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                 pin.tool_id = held.item;
                 pin.tool_meta = held.meta;
                 pin.efficiency = 0;
-                pin.haste_amp = -1;
-                pin.fatigue_amp = -1;
+                pin.haste_amp = haste_amplifier;
+                pin.fatigue_amp = fatigue_amplifier;
                 pin.in_water = eye_in_water(window, pl);
                 pin.aqua_affinity = 0;
                 pin.on_ground = pl->ent.onGround;
@@ -486,7 +580,7 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                     (!s_dig_hitting || hx != s_dig_hx || hy != s_dig_hy || hz != s_dig_hz)) {
                     /* clickMouse -> clickBlock */
                     if (rel >= 1.0f) {
-                        dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                        dig_destroy(window, pl, vit, hx, hy, hz, bid, pin.block_meta,
                                     ox, oy, oz, edits, &ne, max_edits,
                                     pin.creative);
                         /* clickMouse and sendClickBlockToController are folded
@@ -501,6 +595,7 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                         s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
                         s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                         s_dig_progress = 0.0f;
+                        s_dig_sound_tick_counter = 0;
                         use_gate_hitting = 1;
                     }
                 }
@@ -513,19 +608,29 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                         /* isHittingPosition: accrue curBlockDamageMP */
                         s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                         s_dig_progress += rel;
+                        if ((s_dig_sound_tick_counter & 3) == 0) {
+                            s_dig_sound_pending = 1;
+                            s_dig_sound_wx = ox + hx;
+                            s_dig_sound_wy = oy + hy;
+                            s_dig_sound_wz = oz + hz;
+                            s_dig_sound_state = bid
+                                | ((pin.block_meta & 255) << 12);
+                        }
+                        ++s_dig_sound_tick_counter;
                         if (s_dig_progress >= 1.0f) {
                             s_dig_hitting = 0;
-                            dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                            dig_destroy(window, pl, vit, hx, hy, hz, bid, pin.block_meta,
                                         ox, oy, oz, edits, &ne, max_edits,
                                         pin.creative);
                             s_dig_progress = 0.0f;
+                            s_dig_sound_tick_counter = 0;
                             s_dig_delay = 5;
                             s_dig_face = -1;
                         }
                     } else {
                         /* clickBlock: target changed mid-hold */
                         if (rel >= 1.0f) {
-                            dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                            dig_destroy(window, pl, vit, hx, hy, hz, bid, pin.block_meta,
                                         ox, oy, oz, edits, &ne, max_edits,
                                         pin.creative);
                             if (pin.creative) s_dig_delay = 5;
@@ -534,6 +639,7 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                             s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
                             s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                             s_dig_progress = 0.0f;
+                            s_dig_sound_tick_counter = 0;
                         }
                     }
                 }
@@ -585,11 +691,21 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
     if (act.do_place) {
         ICStack held0=isr_get_stack(&pl->inv,pl->inv.current_item);
         if(held0.item==325){
-            int bx,by,bz,bid=bucket_raycast(window,st,pl,&bx,&by,&bz);
+            int bx,by,bz,bid=liquid_raycast(window,st,pl,1,&bx,&by,&bz);
             if(bid){
                 psv_set_state(window,bx,by,bz,0,0);
                 isr_set_stack(&pl->inv,pl->inv.current_item,ic_mk(bid==8||bid==9?326:327,1,0));
                 emit_edit(edits,&ne,max_edits,ox,oy,oz,bx,by,bz,0,0,0,0,0);
+                goto use_done;
+            }
+        }
+        if(held0.item==TB_GLASS_BOTTLE){
+            int bx,by,bz;
+            int bid=liquid_raycast(window,st,pl,0,&bx,&by,&bz);
+            if(bid==8||bid==9){
+                s_item_use_drop=bottle_into_water_potion(
+                    &pl->inv,pl->inv.current_item);
+                act.use=0;act.do_place=0;
                 goto use_done;
             }
         }
@@ -650,7 +766,7 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                     else isr_set_stack(&pl->inv,pl->inv.current_item,held);
                     emit_edit(edits,&ne,max_edits,ox,oy,oz,ax,ay,az,51,0,0,0,0);
                 } else if (!isr_is_empty(&held) && psv_replaceable(psv_get_block(window, ax, ay, az))) {
-                    int place_id = held.item;
+                    int place_id = held.item == 379 ? 117 : held.item;
                     /* World.mayPlace entity-collision gate: a block with a
                      * collision box cannot be placed intersecting the player
                      * bb (strict AABB intersects, PRE-move pose; oracle mobs
@@ -674,12 +790,15 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                             : ibp_placed_meta(place_id, face, yq, sneaked, held.meta) & 15;
                         if (pmeta < 0) place_id = 0;
                         if (place_id) {
+                            int edit_index = ne;
                             ICStack used = isr_decr_stack_size(&pl->inv, pl->inv.current_item, 1);
                             if (isr_is_empty(&used)) goto use_done;
                             psv_set_state(window, ax, ay, az, place_id, pmeta);
                             pl->place_events++;
                             emit_edit(edits, &ne, max_edits, ox, oy, oz, ax, ay, az,
                                       place_id, pmeta, 0, 0, 0);
+                            if (ne > edit_index)
+                                edits[edit_index].place_effect = 1;
                         }
                     }
                 }
@@ -698,6 +817,23 @@ use_done:
      * (vz zeroed at t1289). */
     int water_pre = psv_in_liquid(window, &pl->ent, 1);
     int lava_pre  = water_pre ? 0 : psv_in_liquid(window, &pl->ent, 0);
+    if (!s_water_initialized) {
+        s_water_initialized = 1;
+        s_player_in_water = water_pre;
+    } else {
+        if (water_pre && !s_player_in_water) {
+            GmPlayerMovementSound *sound =
+                &s_movement_sounds[s_movement_sound_count++];
+            sound->kind = GM_PLAYER_MOVEMENT_AUDIO_SPLASH;
+            sound->x = pre_x;
+            sound->y = pre_y;
+            sound->z = pre_z;
+            sound->volume = gm_player_movement_audio_volume(
+                sound->kind, pl->ent.motionX,
+                pl->ent.motionY, pl->ent.motionZ);
+        }
+        s_player_in_water = water_pre;
+    }
     if (water_pre) pl->fall_distance = 0.0f;
     /* actual land jump this tick (psv branch order: liquid swim-up first) */
     int land_jump = act.jump && !was_air && !water_pre && !lava_pre;
@@ -734,7 +870,9 @@ use_done:
     int elytra_press = act.jump && !pl->prev_jump;
     int elytra_was = pl->elytra_flying;
     int elytra_can_start = !pl->ent.onGround && pl->ent.motionY < 0.0;
-    psv_physics_tick(window, st, pl, &a, blocks);
+    PsvMoveEffects move_effects;
+    move_effects.water_move = 0;
+    psv_physics_tick_effects(window, st, pl, &a, blocks, &move_effects);
 
     if (!pl->elytra_flag7_recorded && elytra_press && !elytra_was &&
         pl->elytra_equipped && !water_pre &&
@@ -797,7 +935,10 @@ use_done:
             /* Potion / milk: EnumAction.DRINK, same 32-tick transform as EAT. */
             if(s_eat_item!=food.item){s_eat_item=food.item;s_eat_ticks=0;}
             if(++s_eat_ticks>=32){
-                (void)isr_decr_stack_size(&pl->inv,pl->inv.current_item,1);
+                s_finished_drink=food;
+                s_finished_drink.count=1;
+                isr_set_stack(&pl->inv,pl->inv.current_item,
+                    ic_mk(food.item==TB_POTION?TB_GLASS_BOTTLE:325,1,0));
                 s_eat_ticks=0;s_eat_item=0;
                 s_use_action=0;s_use_remaining=0;s_use_max=0;
             }else{
@@ -822,10 +963,76 @@ use_done:
     {
         double dx = pl->ent.posX - pre_x, dy = pl->ent.posY - pre_y,
                dz = pl->ent.posZ - pre_z;
+        float fall_damage_multiplier = 1.0f;
+        /* Entity.move: accumulate actual post-collision displacement. Sneaking
+         * on the ground and riding suppress walking entirely. */
+        if (!riding && (!pl->ent.onGround || !act.sneak)
+                && (dx != 0.0 || dy != 0.0 || dz != 0.0)) {
+            int bx = mc_floor(pl->ent.posX);
+            int by = mc_floor(pl->ent.posY - 0.20000000298023224);
+            int bz = mc_floor(pl->ent.posZ);
+            int block = psv_get_block(window, bx, by, bz);
+            int meta = psv_get_meta(window, bx, by, bz);
+            if (block == BLK_AIR) {
+                int below = psv_get_block(window, bx, by - 1, bz);
+                if (below == 85 || below == 107 || below == 113
+                        || below == 139 || (below >= 183 && below <= 192)) {
+                    --by;
+                    block = below;
+                    meta = psv_get_meta(window, bx, by, bz);
+                }
+            }
+            double step_dy = block == 65 ? dy : 0.0;
+            float moved = (float)sqrt(dx * dx + step_dy * step_dy + dz * dz);
+            s_step_distance = (float)((double)s_step_distance
+                                      + (double)moved * 0.6);
+            if (s_step_distance > (float)s_step_next_distance
+                    && block != BLK_AIR) {
+                s_step_next_distance = (int)s_step_distance + 1;
+                if (water_pre && move_effects.water_move) {
+                    GmPlayerMovementSound *sound =
+                        &s_movement_sounds[s_movement_sound_count++];
+                    sound->kind = GM_PLAYER_MOVEMENT_AUDIO_SWIM;
+                    sound->x = pl->ent.posX;
+                    sound->y = pl->ent.posY;
+                    sound->z = pl->ent.posZ;
+                    sound->volume = gm_player_movement_audio_volume(
+                        sound->kind, move_effects.motion_x,
+                        move_effects.motion_y, move_effects.motion_z);
+                } else if (!water_pre) {
+                    int above = psv_get_block(window, bx, by + 1, bz);
+                    if (above == 78) {
+                        block = above;
+                        meta = psv_get_meta(window, bx, by + 1, bz);
+                    }
+                    s_step_sound_pending = 1;
+                    s_step_sound_state = block | ((meta & 255) << 12);
+                }
+            }
+        }
+        if (pl->ent.onGround && was_air && pl->fall_distance > 0.0f) {
+            int bx = mc_floor(pl->ent.posX);
+            int by = mc_floor(pl->ent.posY - 0.20000000298023224);
+            int bz = mc_floor(pl->ent.posZ);
+            int block = psv_get_block(window, bx, by, bz);
+            float boost = pl->jump_boost_amplifier < 0
+                ? 0.0f : (float)(pl->jump_boost_amplifier + 1);
+            int damage;
+            if (block == 170) fall_damage_multiplier = 0.2f;
+            damage = pv_ceil((pl->fall_distance - 3.0f - boost)
+                             * fall_damage_multiplier);
+            if (damage > 0) {
+                s_fall_sound_pending = 1;
+                s_fall_sound_damage = damage;
+                s_fall_sound_state = block
+                    | ((psv_get_meta(window, bx, by, bz) & 255) << 12);
+            }
+        }
         float hp_before = vit->health;
         gm_vitals_apply(vit, pl, act, was_air, prev_min_y, dx, dy, dz,
                         water_pre, eye_in_water(window, pl), land_jump,
-                        gamerules);
+                        fall_damage_multiplier,
+                        gamerules, defer_food_update, defer_movement_stats);
         if (vit->health < hp_before) {
             /* EntityTracker sends velocityChanged before the server's next
              * travel drag, so preserve this tick's shadow packet value. */
@@ -853,8 +1060,53 @@ void gm_player_tick(struct Chunk *window, const struct McSinTable *st,
                     GmBlockEdit *edits, int *nedits, int max_edits)
 {
     McGameRules gamerules = mc_gamerules_default();
-    gm_player_tick_gr(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
-                      edits, nedits, max_edits);
+    gm_player_tick_impl(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
+                        edits, nedits, max_edits, 0, 0, -1, -1, 0);
+}
+
+void gm_player_tick_gr(struct Chunk *window, const struct McSinTable *st,
+                       struct PsvPlayer *pl, struct PvStats *vitals,
+                       const struct McGameRules *gamerules, GmAction act,
+                       int ox, int oy, int oz,
+                       GmBlockEdit *edits, int *nedits, int max_edits)
+{
+    gm_player_tick_impl(window, st, pl, vitals, gamerules, act, ox, oy, oz,
+                        edits, nedits, max_edits, 0, 0, -1, -1, 0);
+}
+
+void gm_player_tick_defer_food(
+                    struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits)
+{
+    McGameRules gamerules = mc_gamerules_default();
+    gm_player_tick_impl(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
+                        edits, nedits, max_edits, 1, 0, -1, -1, 0);
+}
+
+void gm_player_tick_network_client(
+                    struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits)
+{
+    McGameRules gamerules = mc_gamerules_default();
+    gm_player_tick_impl(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
+                        edits, nedits, max_edits, 1, 1, -1, -1, 0);
+}
+
+void gm_player_tick_network_client_effects(
+                    struct Chunk *window, const struct McSinTable *st,
+                    struct PsvPlayer *pl, struct PvStats *vitals, GmAction act,
+                    int ox, int oy, int oz,
+                    GmBlockEdit *edits, int *nedits, int max_edits,
+                    int haste_amplifier, int fatigue_amplifier, int riding)
+{
+    McGameRules gamerules = mc_gamerules_default();
+    gm_player_tick_impl(window, st, pl, vitals, &gamerules, act, ox, oy, oz,
+                        edits, nedits, max_edits, 1, 1,
+                        haste_amplifier, fatigue_amplifier, riding);
 }
 
 /* Live inventory slotClick on the player's hotbar (slots 0..8) + cursor.
@@ -875,14 +1127,43 @@ void gm_player_inv_click(struct PsvPlayer *pl_, int slot_id, int button, int cli
 
 ICStack gm_player_cursor(void) { return s_cursor; }
 void gm_player_cursor_set(ICStack s) { s_cursor = s; }
+ICStack gm_player_take_item_use_drop(void) {
+    ICStack out=s_item_use_drop;
+    s_item_use_drop=ic_empty();
+    return out;
+}
+ICStack gm_player_take_finished_drink(void) {
+    ICStack out=s_finished_drink;
+    s_finished_drink=ic_empty();
+    return out;
+}
 void gm_player_dig_reset(void) {
     s_dig_progress = 0.0f;
     s_dig_hx = INT_MIN;
     s_dig_face = -1;
+    s_dig_hitting = 0;
+    s_dig_delay = 0;
+    s_atk_prev = 0;
+    s_dig_swing = 0;
     s_dig_particle_count = 0;
+    s_dig_sound_tick_counter=0;
+    s_dig_sound_pending=0;
+    s_fall_sound_pending=0;
+    s_step_distance=0.0f;
+    s_step_next_distance=1;
+    s_step_sound_pending=0;
     s_eat_ticks=0;s_eat_item=0;
     s_use_action=0;s_use_remaining=0;s_use_max=0;
     s_hurt_vel_reset=0;s_server_motion_x=0.0;s_server_motion_z=0.0;
+    s_item_use_drop=ic_empty();
+    s_finished_drink=ic_empty();
+}
+
+void gm_player_movement_audio_reset(void) {
+    s_movement_sound_count=0;
+    s_movement_sound_read=0;
+    s_water_initialized=0;
+    s_player_in_water=0;
 }
 
 void gm_player_set_packet_velocity(struct PsvPlayer *opaque,
@@ -924,6 +1205,14 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
     s_dig_hitting    = in->dig_hitting;
     s_dig_delay      = in->dig_delay;
     s_dig_particle_count = in->dig_particle_count;
+    /* The RL snapshot format explicitly excludes audio/render-only counters. */
+    s_dig_sound_tick_counter=0;
+    s_dig_sound_pending=0;
+    s_fall_sound_pending=0;
+    s_step_distance=0.0f;
+    s_step_next_distance=1;
+    s_step_sound_pending=0;
+    gm_player_movement_audio_reset();
     s_atk_prev       = in->atk_prev;
     s_rc_delay       = in->rc_delay;
     s_use_prev       = in->use_prev;
@@ -938,6 +1227,45 @@ int gm_player_dig_particle_count(void) {
 
 int gm_player_dig_swing(void) {
     return s_dig_swing;
+}
+
+int gm_player_take_dig_sound(
+        int *wx, int *wy, int *wz, int *state_id) {
+    if (!s_dig_sound_pending) return 0;
+    s_dig_sound_pending = 0;
+    if (wx) *wx = s_dig_sound_wx;
+    if (wy) *wy = s_dig_sound_wy;
+    if (wz) *wz = s_dig_sound_wz;
+    if (state_id) *state_id = s_dig_sound_state;
+    return 1;
+}
+
+int gm_player_take_fall_sound(int *damage, int *state_id) {
+    if (!s_fall_sound_pending) return 0;
+    s_fall_sound_pending = 0;
+    if (damage) *damage = s_fall_sound_damage;
+    if (state_id) *state_id = s_fall_sound_state;
+    return 1;
+}
+
+int gm_player_take_step_sound(int *state_id) {
+    if (!s_step_sound_pending) return 0;
+    s_step_sound_pending = 0;
+    if (state_id) *state_id = s_step_sound_state;
+    return 1;
+}
+
+int gm_player_take_movement_sound(
+        int *kind, double *x, double *y, double *z, float *volume) {
+    GmPlayerMovementSound *sound;
+    if (s_movement_sound_read >= s_movement_sound_count) return 0;
+    sound = &s_movement_sounds[s_movement_sound_read++];
+    if (kind) *kind = sound->kind;
+    if (x) *x = sound->x;
+    if (y) *y = sound->y;
+    if (z) *z = sound->z;
+    if (volume) *volume = sound->volume;
+    return 1;
 }
 
 /* Current progressive-dig target + damage 0..1 (RenderGlobal drawBlockDamageTexture

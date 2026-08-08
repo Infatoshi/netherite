@@ -23,7 +23,22 @@
     "xp_orb"
   ],
   "captured_this_run": [
+    "slime_size1",
+    "slime_size2",
+    "slime_size4",
+    "slime_squish",
+    "magma_size1",
+    "magma_size2",
+    "magma_size4",
+    "magma_squish",
+    "dragon_death_50",
+    "dragon_death_100",
+    "dragon_death_190",
+    "dig_stone",
+    "dig_grass",
+    "fireball_small",
+    "fireball_dragon",
     "xp_orb"
   ],
-  "captured_at": "2026-07-24T16:39:01Z"
+  "captured_at": "2026-08-07T15:43:02Z"
 }

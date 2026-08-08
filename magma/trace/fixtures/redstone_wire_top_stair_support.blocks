@@ -1,0 +1,5 @@
+# BlockStairs.isFullyOpaque accepts the upside-down half. Metadata 4 is an
+# upside-down oak stair; the dust and endpoint lamp must power immediately.
+12 77 8 53 4
+12 78 8 55 0
+13 78 8 123 0

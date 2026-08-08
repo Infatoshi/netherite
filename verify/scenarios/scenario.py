@@ -399,6 +399,11 @@ def record(spec_path: Path, result_file: Path) -> Path:
     with tempfile.TemporaryDirectory(prefix="netherite_scenario_") as tmp:
         segments_path = Path(tmp) / "segments.jsonl"
         segments = materialize_segments(spec, spec_path, segments_path)
+        idle_input = all(
+            not segment.get("keys") and not segment.get("buttons")
+            and segment.get("look") in (None, [0, 0])
+            for segment in segments
+        )
         print(
             f"[scenario] {spec['name']}: {spec['duration_ticks']} target ticks, "
             f"{len(segments)} input segments, frames every {spec['frames_every']}",
@@ -475,7 +480,8 @@ def record(spec_path: Path, result_file: Path) -> Path:
             qrl.close()
             qrl = None
 
-            start_mcwindow(process_groups)
+            if not idle_input:
+                start_mcwindow(process_groups)
             stdout = run(
                 [
                     sys.executable,
@@ -495,7 +501,16 @@ def record(spec_path: Path, result_file: Path) -> Path:
                 raise RuntimeError("tape.py start did not print the tape path")
             source_tape = Path(tape_line.removeprefix("tape: ")).resolve()
             recording = True
-            run([sys.executable, str(JAVA / "mcwindow_script.py"), str(segments_path)])
+            if idle_input:
+                qrl = wait_for_qrl()
+                try:
+                    for _ in range(spec["duration_ticks"]):
+                        qrl.step({})
+                finally:
+                    qrl.close()
+                    qrl = None
+            else:
+                run([sys.executable, str(JAVA / "mcwindow_script.py"), str(segments_path)])
             run([sys.executable, str(TRACE / "tape.py"), "stop"])
             recording = False
             archived = archive_tape(source_tape, spec, spec_path)

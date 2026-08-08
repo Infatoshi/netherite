@@ -1,0 +1,5 @@
+# A powered SOUTH-facing comparator 150:0 with saved tile output 15 sits south
+# of the future EAST-facing piston and has a stable redstone-block rear input.
+# Tick zero places piston 33:5; its on-add power query must extend immediately.
+12 78 9 150 0
+12 78 10 152 0

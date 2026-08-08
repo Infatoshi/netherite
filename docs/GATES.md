@@ -100,11 +100,96 @@ needs a ~1.6x raster kernel (bit-parity-constrained) plus hud caching and
 io/present overlap. The 3090's 11.74 (07-17, host-rendered sky) was not
 re-measured - it has a co-tenant. CPU backend is not on the 60 fps path.
 
+2026-08-07 full-parity 70% checkpoint: the clean regression guard remains
+above all frozen floors at 5,094 CPU scalar steps/s, 2.87M Blaze environment
+ticks/s, and 31.05 CUDA fps. This confirms no checkpoint regression; it does
+not close the separate 60 fps ship pin. Evidence:
+`c/magma/trace/out/perf_guard_70pct_checkpoint.json`.
+
+2026-08-07 strict-equivalence checkpoint: the full native runtime aggregate
+passes in 6:45.71 with 431,540 KiB peak RSS and zero swap. The fresh CPU guard
+passes at 4,204 scalar steps/s against the frozen 3,858.9 floor. GPU 1 had a
+co-tenant, so no new GPU number was taken for this checkpoint.
+
+2026-08-07 firework-audio checkpoint: the exact-current full native runtime
+aggregate passes in 6:40.65 with 448,124 KiB peak RSS, zero major faults, and
+zero swap. The CPU guard passes at 4,132 scalar steps/s against the frozen
+3,858.9 floor. The direct real-Java/native audio comparator passes eight
+boundary cases and its delay negative control. Every locally available quick
+sweep stage passes; the two snapshot-backed Blaze stages skip because their
+`.bsnp` inputs are absent. GPU 1 was not executed.
+
+2026-08-07 block-break-audio checkpoint: the exact-current full native runtime
+aggregate passes in 6:44.47 with 446,676 KiB peak RSS, zero major faults, and
+zero swap. The CPU guard passes at 4,085 scalar steps/s against the frozen
+3,858.9 floor. The exhaustive real-Java/native comparator matches all 235
+registered non-air block IDs, twelve material families, every valid metadata
+state, and raw volume/pitch bits, while rejecting its material negative
+control. Every locally available quick-sweep stage passes; the same two
+snapshot-backed Blaze stages skip because their `.bsnp` inputs are absent.
+GPU 1 was not executed.
+
+2026-08-07 block-placement-audio checkpoint: the exact-current full native
+runtime aggregate passes in 6:39.86 with 437,400 KiB peak RSS and zero major
+faults. The CPU guard passes at 4,142 scalar steps/s against the frozen
+3,858.9 floor. The exhaustive real-Java/native comparator matches all 235
+registered non-air block IDs, twelve break and twelve placement families,
+every valid metadata state, and raw volume/pitch bits, while rejecting
+independent material negative controls. The clean product, JDK 8, OpenAL, and
+focused seven-family parity gates pass. Every locally available quick-sweep
+step passes; the two snapshot stages skip because their `.bsnp` inputs are
+absent. GPU 1 was not executed.
+
+2026-08-07 block-hit-audio checkpoint: the exact-current full native runtime
+aggregate passes in 6:22.74 with 448,576 KiB peak RSS, zero major faults, and
+zero swap. The CPU guard passes at 4,197 scalar steps/s against the frozen
+3,858.9 floor. The exhaustive real-Java/native comparator matches all 235
+registered non-air block IDs, twelve break, placement, and progressive-hit
+families, every valid metadata state, and raw volume/pitch bits, while
+rejecting independent per-action material negative controls. The controller
+gate pins damage-update cadence at zero and every fourth update; clean native,
+JDK 8, OpenAL, and focused parity gates pass. Every locally available quick
+sweep step passes; the two snapshot stages skip because their `.bsnp` inputs
+are absent. GPU 1 was not executed.
+
+2026-08-08 player-landing-audio checkpoint: the exact-current full native
+runtime aggregate passes in 6:30.95 with 449,568 KiB peak RSS, zero major
+faults, and zero swap. The CPU guard passes at 4,353 scalar steps/s against the
+frozen 3,858.9 floor. The exhaustive real-Java/native comparator matches all
+235 registered non-air block IDs, twelve fall families, every valid metadata
+state, and raw volume/pitch bits. Focused tests pin small/big selection, hay's
+0.2 damage multiplier, and ordered player/material events. Every locally
+available quick-sweep stage passes; the two snapshot-backed Blaze stages skip
+because their `.bsnp` inputs are absent. GPU 1 was not executed.
+
+2026-08-08 player-footstep-audio checkpoint: the exact-current full native
+runtime aggregate passes in 6:24.97 with 450,656 KiB peak RSS, zero major
+faults, and zero swap. The CPU guard passes at 4,055 scalar steps/s against the
+frozen 3,858.9 floor and is within 0.2% of the 4,062 baseline. The exhaustive
+real-Java/native comparator matches all 235 registered non-air block IDs,
+twelve step families, every valid metadata state, and raw volume/pitch bits.
+Focused tests pin tick-10 cadence, snow override, sneak/riding suppression,
+and live event position/category/scalars. Every locally available quick-sweep
+stage passes; the two snapshot-backed Blaze stages skip because their `.bsnp`
+inputs are absent. GPU 1 was not executed.
+
+2026-08-08 player-swim/splash-audio checkpoint: the exact-current full native
+runtime aggregate passes in 6:06.00 with 450,080 KiB peak RSS, zero major
+faults, and zero swap. The CPU guard passes at 4,312 scalar steps/s against the
+frozen 3,858.9 floor and exceeds the 4,062 baseline. The real-Java/native
+comparator matches raw swim/splash volume and pitch bits, the volume cap,
+splash's 67 total RNG draws, and the chained next-swim pitch. Focused runtime
+tests pin first-entry detection, ordered pre-move splash/post-move swim sources,
+category, scalars, and the final client Entity.rand cursor. Every locally
+available quick-sweep stage passes; the two snapshot-backed Blaze stages skip
+because their `.bsnp` inputs are absent. GPU 1 was not executed.
+
 ### Gate 4 - ops (this deliverable)
 Accept: one command runs the verification pyramid green.
-Status: SHIPPED as `netherite_sweep.sh` (repo root). `--quick` is green today except
-steps listed as SKIP (known-broken `make test-config` at HEAD; artifact-gated steps).
-A FAIL exits nonzero; SKIPs never do.
+Status: SHIPPED as `netherite_sweep.sh` (repo root). At the 2026-08-07 70%
+checkpoint, `--quick` passes 15/15 with no skips. `--full` passes all 26
+available steps with zero failures and skips only the undistributed local
+canonical tape. A FAIL exits nonzero; SKIPs never do.
 
 ## Running the sweep
 

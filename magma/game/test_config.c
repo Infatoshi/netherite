@@ -43,6 +43,7 @@ int main(void) {
     CHECK(c.render == GM_RENDER_WINDOW && c.compose == GM_COMPOSE_CAPTURE &&
           c.backend == GM_BACKEND_CPU &&
           c.pace == GM_PACE_REALTIME, "default execution profile");
+    CHECK(c.mob_griefing, "mobGriefing defaults on");
     CHECK(c.view_distance == 8 && c.width == 854 && c.height == 480,
           "default render dimensions");
     CHECK(!c.headless && c.ticks == -1 && !c.script_path &&
@@ -54,7 +55,7 @@ int main(void) {
         "game", "--seed", "-7", "--world", "superflat",
         "--villages", "on", "--enchanting", "on", "--brewing", "on",
         "--weather", "on", "--render", "off", "--compose", "window",
-        "--backend", "cuda",
+        "--mob-griefing", "off", "--backend", "cuda",
         "--pace", "unlimited", "--view-distance", "4", "--width", "640",
         "--height", "360", "--headless", "--ticks", "42",
         "--script", "events.jsonl", "--state-out", "state.jsonl",
@@ -68,6 +69,7 @@ int main(void) {
           c.backend == GM_BACKEND_CUDA &&
           c.pace == GM_PACE_UNLIMITED && c.view_distance == 4,
           "target execution values retained");
+    CHECK(!c.mob_griefing, "mobGriefing value retained");
     CHECK(c.headless && c.ticks == 42 && !strcmp(c.script_path, "events.jsonl") &&
           !strcmp(c.state_out_path, "state.jsonl") &&
           !strcmp(c.frames_out_dir, "frames"), "canonical harness values retained");
@@ -76,16 +78,44 @@ int main(void) {
     read_print(gm_config_print, &c, printed, sizeof printed);
     CHECK(strstr(printed, "headless=on") && strstr(printed, "ticks=42") &&
           strstr(printed, "compose=window") &&
+          strstr(printed, "mob_griefing=off") &&
           strstr(printed, "script=events.jsonl") &&
           strstr(printed, "state_out=state.jsonl") &&
           strstr(printed, "frames_out=frames"), "canonical print includes harness values");
     read_usage(printed, sizeof printed);
-    CHECK(strstr(printed, "--headless") && strstr(printed, "--ticks N") &&
+    CHECK(strstr(printed, "--mob-griefing on|off") &&
+          strstr(printed, "--headless") && strstr(printed, "--ticks N") &&
           strstr(printed, "--script PATH") && strstr(printed, "--state-out PATH") &&
           strstr(printed, "--frames-out DIR") && strstr(printed, "--compose"),
           "usage includes harness options");
     CHECK(gm_config_validate_runtime(&c, 1, 0, err, sizeof err) == 2 &&
-          strstr(err, "villages"), "first unwired bundle fails loudly at runtime");
+          strstr(err, "villages"), "villages reject the unsupported superflat provider");
+
+    {
+        char *villages_only[] = {"game", "--villages", "on"};
+        CHECK(parse(&c, 3, villages_only, err) == 0 &&
+              gm_config_validate_runtime(&c, 0, 0, err, sizeof err) == 0,
+              "village bundle is runnable in the default world");
+    }
+
+    {
+        char *brewing_only[] = {"game", "--brewing", "on"};
+        CHECK(parse(&c, 3, brewing_only, err) == 0 &&
+              gm_config_validate_runtime(&c, 0, 0, err, sizeof err) == 0,
+              "brewing bundle is runnable");
+    }
+    {
+        char *enchanting_only[] = {"game", "--enchanting", "on"};
+        CHECK(parse(&c, 3, enchanting_only, err) == 0 &&
+              gm_config_validate_runtime(&c, 0, 0, err, sizeof err) == 0,
+              "enchanting bundle is runnable");
+    }
+    {
+        char *weather_only[] = {"game", "--weather", "on"};
+        CHECK(parse(&c, 3, weather_only, err) == 0 &&
+              gm_config_validate_runtime(&c, 0, 0, err, sizeof err) == 0,
+              "weather bundle is runnable");
+    }
 
     char *headless_ok[] = {"game", "--headless", "--ticks", "1",
                            "--render", "off", "--pace", "unlimited"};

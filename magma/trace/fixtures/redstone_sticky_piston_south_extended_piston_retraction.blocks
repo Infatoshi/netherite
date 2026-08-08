@@ -1,0 +1,8 @@
+# Extended SOUTH sticky piston with a powered, extended EAST normal piston at
+# the pull origin. Retraction must leave the target piston and head in place.
+12 79 8 29 11
+12 79 9 34 11
+12 79 10 33 13
+13 79 10 34 5
+12 79 11 152 0
+12 79 7 152 0

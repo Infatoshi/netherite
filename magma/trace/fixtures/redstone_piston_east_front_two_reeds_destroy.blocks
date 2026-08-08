@@ -1,0 +1,10 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while a valid two-block reed column occupies the
+# front cell. Sand plus adjacent still water sustains the lower reed. Piston
+# destruction of the lower 83:7 must notify and destroy upper 83:11 in the
+# same boundary; both blocks drop separate registered reeds items 338:0.
+12 78 9 152 0
+13 77 8 12 0
+13 77 9 9 0
+13 78 8 83 7
+13 79 8 83 11

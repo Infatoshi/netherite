@@ -1,0 +1,4 @@
+# Mirror the quasi-connectivity source one block below and south of the future
+# EAST-facing piston. This diagonal is outside the pos.up() neighborhood and
+# must leave the tick-zero piston retracted.
+12 77 9 152 0

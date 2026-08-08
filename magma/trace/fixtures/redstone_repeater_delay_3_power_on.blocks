@@ -1,0 +1,7 @@
+# x y z id meta
+# Unpowered delay-3 repeater facing WEST (metadata 9), with input west and
+# output east. Tick zero adds the redstone-block input at x=11.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 93 9
+13 78 8 123 0

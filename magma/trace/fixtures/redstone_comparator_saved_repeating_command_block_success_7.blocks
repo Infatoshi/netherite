@@ -1,0 +1,7 @@
+# Same inert saved SuccessCount contract for a repeating command block. Its
+# vanilla saved auto flag remains false and no command callback is pending.
+11 77 8 1 0
+12 77 8 1 0
+11 78 8 210 2
+12 78 8 149 1
+13 78 8 123 0

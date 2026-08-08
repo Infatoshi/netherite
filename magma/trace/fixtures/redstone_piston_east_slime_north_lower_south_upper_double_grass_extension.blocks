@@ -1,0 +1,14 @@
+# Two slime side lines terminate at double grass. NORTH targets a lower half,
+# so its random drop happens in the reverse destruction phase. SOUTH targets
+# an upper half, so its lower mate rolls later in the notification phase.
+# Seed zero selects one wheat-seed item in each phase.
+12 79 8 33 5
+13 79 8 165 0
+13 79 7 1 0
+13 79 9 1 0
+14 78 7 3 0
+14 79 7 175 2
+14 80 7 175 10
+14 77 9 3 0
+14 78 9 175 2
+14 79 9 175 10

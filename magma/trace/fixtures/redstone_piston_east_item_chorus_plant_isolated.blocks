@@ -1,0 +1,5 @@
+# EAST piston pushes an item toward an end-stone-supported chorus plant. The
+# north-edge lane is outside the isolated plant's centered collision body.
+11 78 9 152 0
+13 77 8 121 0
+13 78 8 199 0

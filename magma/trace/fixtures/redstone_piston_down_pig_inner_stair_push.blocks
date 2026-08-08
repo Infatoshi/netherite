@@ -1,0 +1,5 @@
+# Base oak stair at (12,79,8) ascends EAST. The NORTH-facing stair immediately
+# west makes it INNER_LEFT. Its southwest upper eighth remains empty.
+12 81 9 152 0
+12 79 8 53 0
+11 79 8 53 3

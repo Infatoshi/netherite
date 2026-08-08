@@ -1,0 +1,6 @@
+# x y z id meta
+# Delay-1 repeater facing NORTH (metadata 2): input north, output south.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 93 2
+12 78 9 123 0

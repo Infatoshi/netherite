@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while age-3 potato crop 142:3 occupies the front
+# cell. Immature BlockCrops emits one potato without mature count or poisonous
+# potato Block.RANDOM trials.
+12 78 9 152 0
+13 77 8 60 0
+13 78 8 142 3

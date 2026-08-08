@@ -1,0 +1,10 @@
+# A supported SOUTH-facing comparator starts unpowered, then an early fixture
+# drain lets the stable rear input settle it to 149:8 with tile output 15 and
+# power the north lamp. Tick zero places an EAST piston powered from its south
+# side. Destruction retires the tile, emits item 404, notifies its output side,
+# and lets the lamp's independent +4 callback turn it off.
+12 78 9 152 0
+13 77 8 1 0
+13 78 9 152 0
+13 78 8 149 0
+13 78 7 123 0

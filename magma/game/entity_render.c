@@ -43,6 +43,7 @@
  *   anything else (20 projectile, ...) keeps the legacy single 0.6x1.8x0.4
  *   zombie-wrapped marker box (previous behavior for unmodeled types).
  */
+#include "game/game.h"
 #include "game/entity_render.h"
 #include "assets/mob_atlas.h"
 #include "assets/blockmodels.h"
@@ -84,14 +85,17 @@
 #define ER_TYPE_SLIME    35
 #define ER_TYPE_SILVERFISH 36
 #define ER_TYPE_BOAT     37
-#define ER_TYPE_MINECART_CHEST 40   /* = GM_VIEW_MINECART_CHEST */
-#define ER_TYPE_MINECART_FURNACE 41
-#define ER_TYPE_MINECART_HOPPER 42
-#define ER_TYPE_MINECART_TNT 43
+#define ER_TYPE_CAVE_SPIDER 39
+#define ER_TYPE_VILLAGER 40
+#define ER_TYPE_MINECART_CHEST GM_VIEW_MINECART_CHEST
+#define ER_TYPE_MINECART_FURNACE GM_VIEW_MINECART_FURNACE
+#define ER_TYPE_MINECART_HOPPER GM_VIEW_MINECART_HOPPER
+#define ER_TYPE_MINECART_TNT GM_VIEW_MINECART_TNT
 
 #define ER_VERTS_PER_BOX 36  /* 6 faces * 2 tris * 3 verts */
 #define ER_PI 3.14159265358979323846f
 #define ER_DEG2RAD 0.017453292519943295f
+#define ER_RAD2DEG 57.29577951308232f
 #define ER_MAX_PARTS 20
 
 /* One vanilla ModelRenderer.addBox() worth of geometry. All values in model
@@ -332,6 +336,22 @@ static const ErModel M_WITCH = { .nparts = 14, .scale = 0.9375f, .parts = {
     { CR_MOB_WITCH,  0, 22, -2,  0,-2,    4,12,4,  2,12,0,      0,0,0, 0,1 },
 } };
 
+/* ModelVillager(0), rendered at RenderVillager's 0.9375 scale. The child
+ * nose is flattened at its exact head-relative pivot. Arms use the values
+ * assigned by setRotationAngles, not their constructor pivot. */
+#define VILLAGER_ARM_AX (-0.75f)
+static const ErModel M_VILLAGER = { .nparts = 9, .scale = 0.9375f, .parts = {
+    { CR_MOB_VILLAGER,  0,  0, -4,-10,-4, 8,10,8,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_VILLAGER, 24,  0, -1, -1,-6, 2, 4,2,  0,-2,0, 0,0,0, 0,0 },
+    { CR_MOB_VILLAGER, 16, 20, -4,  0,-3, 8,12,6,  0,0,0, 0,0,0, 0,0 },
+    { CR_MOB_VILLAGER,  0, 38, -4,  0,-3, 8,18,6,  0,0,0, 0,0,0, 0.5f,0 },
+    { CR_MOB_VILLAGER, 44, 22, -8, -2,-2, 4, 8,4,  0,3,-1, VILLAGER_ARM_AX,0,0, 0,0 },
+    { CR_MOB_VILLAGER, 44, 22,  4, -2,-2, 4, 8,4,  0,3,-1, VILLAGER_ARM_AX,0,0, 0,0 },
+    { CR_MOB_VILLAGER, 40, 38, -4,  2,-2, 8, 4,4,  0,3,-1, VILLAGER_ARM_AX,0,0, 0,0 },
+    { CR_MOB_VILLAGER,  0, 22, -2,  0,-2, 4,12,4, -2,12,0, 0,0,0, 0,0 },
+    { CR_MOB_VILLAGER,  0, 22, -2,  0,-2, 4,12,4,  2,12,0, 0,0,0, 0,1 },
+} };
+
 /* ModelBat (64x64, render scale 0.35), FLYING pose (setRotationAngles else-
  * branch, flap phase applied per frame from view age in gm_entities_emit):
  * head+ears at rp0, body ax=pi/4 (+tail box), wings as flattened children. */
@@ -512,7 +532,7 @@ static const ErModel *er_model_for_type(int type) {
         case 22 /* GM_VIEW_ITEM */: return 0;    /* drawn by the item pass */
         case 30 /* GM_VIEW_BILLBOARD */: return 0; /* item pass (camera-facing) */
         case 38 /* GM_VIEW_FALLING_BLOCK */: return 0; /* gm_falling_blocks_emit */
-        case 39 /* GM_VIEW_EXPLOSION_LARGE */: return 0; /* particle pass */
+        case GM_VIEW_EXPLOSION_LARGE: return 0; /* particle pass */
         case 44 /* GM_VIEW_TNT_PRIMED */: return 0; /* gm_falling_blocks_emit */
         case ER_TYPE_DRAGON_FIREBALL: return 0; /* dedicated item-atlas billboard */
         case ER_TYPE_ZOMBIE:   return &M_ZOMBIE;
@@ -521,6 +541,7 @@ static const ErModel *er_model_for_type(int type) {
         case ER_TYPE_WITHER_SKELETON: return &M_WITHER_SKELETON;
         case ER_TYPE_CREEPER:  return &M_CREEPER;
         case ER_TYPE_SPIDER:   return &M_SPIDER;
+        case ER_TYPE_CAVE_SPIDER: return &M_SPIDER;
         case ER_TYPE_ENDERMAN: return &M_ENDERMAN;
         case ER_TYPE_BLAZE:
             if (!g_blaze_init) blaze_build();
@@ -533,6 +554,7 @@ static const ErModel *er_model_for_type(int type) {
             if (!g_squid_init) squid_build();
             return &g_squid;
         case ER_TYPE_WITCH:    return &M_WITCH;
+        case ER_TYPE_VILLAGER: return &M_VILLAGER;
         case ER_TYPE_BAT:      return &M_BAT;
         case ER_TYPE_LLAMA:    return &M_LLAMA;
         case ER_TYPE_GHAST:    return &M_GHAST;
@@ -1157,6 +1179,119 @@ static int emit_crystal(const GmEntityView *ent, CrVertex *out) {
     return written;
 }
 
+/* RenderDragon.renderCrystalBeams, called by RenderEnderCrystal after its model.
+ * Vanilla submits an 18-vertex GL_TRIANGLE_STRIP with culling disabled. Magma's
+ * rasterizer always culls, so each of the resulting 16 triangles is emitted in
+ * both windings (96 verts) to preserve the two-sided draw without changing the
+ * shared raster contract. The separate beam pass binds the standalone 16x256
+ * texture and repeats both UV axes. RenderManager leaves the owning entity's
+ * lightmap coordinates active for RenderDragon/RenderEnderCrystal, so every
+ * beam vertex carries those same sky/block levels. */
+#define ER_CRYSTAL_BEAM_VERTS 96
+
+static CrVec3 er_aff_point(const ErAff *a, float x, float y, float z) {
+    CrVec3 p;
+    p.x = a->m[0][0]*x + a->m[0][1]*y + a->m[0][2]*z + a->t[0];
+    p.y = a->m[1][0]*x + a->m[1][1]*y + a->m[1][2]*z + a->t[1];
+    p.z = a->m[2][0]*x + a->m[2][1]*y + a->m[2][2]*z + a->t[2];
+    return p;
+}
+
+static int emit_beam_geometry(
+        float source_x, float source_y, float source_z,
+        float target_x, float target_y, float target_z,
+        float render_x, float render_y, float render_z,
+        float phase, CrVertex *out) {
+    float dx = target_x - source_x;
+    float dy = target_y - 1.0f - source_y;
+    float dz = target_z - source_z;
+    float horizontal = (float)sqrt((double)(dx*dx + dz*dz));
+    float length = (float)sqrt((double)(dx*dx + dy*dy + dz*dz));
+
+    ErAff a;
+    er_aff_identity(&a);
+    a.t[0] = render_x;
+    a.t[1] = render_y + 2.0f;
+    a.t[2] = render_z;
+    er_aff_rot_y(&a, (float)(-atan2((double)dz, (double)dx)) * ER_RAD2DEG
+                         - 90.0f);
+    er_aff_rot_x(&a, (float)(-atan2((double)horizontal, (double)dy))
+                         * ER_RAD2DEG - 90.0f);
+
+    float v0 = -phase * 0.01f;
+    float v1 = length / 32.0f - phase * 0.01f;
+    CrVertex strip[18];
+    for (int j = 0; j <= 8; ++j) {
+        int ring = j & 7;
+        float angle = (float)ring * (ER_PI * 2.0f) / 8.0f;
+        float rx = sinf(angle) * 0.75f;
+        float ry = cosf(angle) * 0.75f;
+        float u = (float)ring / 8.0f;
+        CrVertex lo = {0}, hi = {0};
+        lo.pos = er_aff_point(&a, rx * 0.2f, ry * 0.2f, 0.0f);
+        hi.pos = er_aff_point(&a, rx, ry, length);
+        lo.uv = (CrVec2){u, v0}; hi.uv = (CrVec2){u, v1};
+        lo.light = hi.light = 1.0f;
+        lo.ao = hi.ao = 1.0f;
+        lo.tint = (CrRgba){0, 0, 0, 255};
+        hi.tint = (CrRgba){255, 255, 255, 255};
+        strip[j*2] = lo;
+        strip[j*2+1] = hi;
+    }
+
+    int written = 0;
+    for (int i = 0; i < 16; ++i) {
+        int a0, b0, c0 = i + 2;
+        if ((i & 1) == 0) { a0 = i; b0 = i + 1; }
+        else              { a0 = i + 1; b0 = i; }
+        out[written++] = strip[a0];
+        out[written++] = strip[b0];
+        out[written++] = strip[c0];
+        out[written++] = strip[c0];
+        out[written++] = strip[b0];
+        out[written++] = strip[a0];
+    }
+    return written;
+}
+
+static int emit_crystal_beam(const GmEntityView *ent, CrVertex *out) {
+    float tx = (float)ent->beam_x + 0.5f;
+    float ty = (float)ent->beam_y + 0.5f;
+    float tz = (float)ent->beam_z + 0.5f;
+    float phase = ent->crystal_rot + 1.0f; /* capture partialTicks == 1 */
+    float bob = sinf(phase * 0.2f) / 2.0f + 0.5f;
+    bob = bob * bob + bob;
+    /* RenderEnderCrystal translates the black ring to the target block with
+     * the crystal's bob, while direction remains anchored to the block. */
+    return emit_beam_geometry(
+        tx,ty,tz,ent->x,ent->y,ent->z,
+        tx,ty-0.3f+bob*0.4f,tz,phase,out);
+}
+
+static int emit_dragon_heal_beam(const GmEntityView *ent, CrVertex *out) {
+    float crystal_phase=(float)ent->heal_crystal_ticks+1.0f;
+    float bob=sinf(crystal_phase*0.2f)/2.0f+0.5f;
+    bob=(bob*bob+bob)*0.2f;
+    return emit_beam_geometry(
+        ent->x,ent->y,ent->z,
+        ent->heal_x,ent->heal_y+bob,ent->heal_z,
+        ent->x,ent->y,ent->z,
+        (float)ent->ticks_existed+1.0f,out);
+}
+
+static void apply_beam_light(const GmEntityView *ent, CrVertex *out, int n) {
+    for(int i=0;i<n;++i){
+        if(ent->lm_lit==1){
+            out[i].light=ent->lm_light;
+            out[i].blk=ent->lm_blk;
+        }else if(ent->lm_lit==2){
+            out[i].tint.r=(u8)((float)out[i].tint.r*ent->lm_mul_r+0.5f);
+            out[i].tint.g=(u8)((float)out[i].tint.g*ent->lm_mul_g+0.5f);
+            out[i].tint.b=(u8)((float)out[i].tint.b*ent->lm_mul_b+0.5f);
+        }
+    }
+}
+
 /* ---- EntityDragon (RenderDragon + ModelDragon) --------------------------- */
 /* Type id stays GM_ENTITY_DRAGON (9): the boss-bar latch in frame_capture.c
  * keys on it. 65 ModelBoxes: 5-seg neck + head/jaw + body + wings/legs (both
@@ -1170,7 +1305,6 @@ static int emit_crystal(const GmEntityView *ent, CrVertex *out) {
  * seen mid-flight therefore straightens its tail for <=64 ticks (residual).
  * getMovementOffsets(p, partial): render partial is 1.0 -> ring[idx-p]; when
  * health<=0 vanilla forces partial=0 -> ring[idx-p-1]. */
-#define ER_RAD2DEG 57.29577951308232f
 #define ER_TYPE_DRAGON 9
 
 typedef struct {
@@ -1494,7 +1628,7 @@ int gm_entity_type_for_name(const char *name) {
         { "EntityWitherSkeleton", ER_TYPE_WITHER_SKELETON },
         { "EntityCreeper",        ER_TYPE_CREEPER },
         { "EntitySpider",         ER_TYPE_SPIDER },
-        { "EntityCaveSpider",     ER_TYPE_SPIDER },
+        { "EntityCaveSpider",     ER_TYPE_CAVE_SPIDER },
         { "EntityEnderman",       ER_TYPE_ENDERMAN },
         { "EntityBlaze",          ER_TYPE_BLAZE },
         { "EntitySheep",          ER_TYPE_SHEEP },
@@ -1504,6 +1638,7 @@ int gm_entity_type_for_name(const char *name) {
         { "EntityChicken",        ER_TYPE_CHICKEN },
         { "EntitySquid",          ER_TYPE_SQUID },
         { "EntityWitch",          ER_TYPE_WITCH },
+        { "EntityVillager",       ER_TYPE_VILLAGER },
         { "EntityBat",            ER_TYPE_BAT },
         { "EntityLlama",          ER_TYPE_LLAMA },
         { "EntityGhast",          ER_TYPE_GHAST },
@@ -1761,6 +1896,7 @@ float gm_entity_eye_y(int type) {
         case ER_TYPE_WITHER_SKELETON: return 2.1f;
         case ER_TYPE_CREEPER:  return 1.7f * 0.85f;
         case ER_TYPE_SPIDER:   return 0.65f;          /* EntitySpider override */
+        case ER_TYPE_CAVE_SPIDER: return 0.45f;
         case ER_TYPE_ENDERMAN: return 2.55f;          /* EntityEnderman override */
         case ER_TYPE_BLAZE:    return 1.8f * 0.85f;
         case ER_TYPE_SHEEP:    return 1.3f * 0.85f;
@@ -1769,6 +1905,7 @@ float gm_entity_eye_y(int type) {
         case ER_TYPE_CHICKEN:  return 0.7f * 0.85f;
         case ER_TYPE_SQUID:    return 0.4f;           /* height * 0.5 */
         case ER_TYPE_WITCH:    return 1.95f * 0.85f;
+        case ER_TYPE_VILLAGER: return 1.62f;
         case ER_TYPE_BAT:      return 0.9f * 0.85f;
         case ER_TYPE_LLAMA:    return 1.87f * 0.85f;
         case ER_TYPE_GHAST:    return 4.0f * 0.85f;
@@ -1890,7 +2027,7 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
     int written = 0;
     for (int e = 0; e < n; ++e) {
         int entity_start = written;
-        if (ents[e].tape_pose && (ents[e].flags & 4)) continue; /* invisible */
+        if (ents[e].flags & 4) continue; /* EntityLivingBase.isInvisible */
         if (ents[e].type == ER_TYPE_ARROW) {
             if (written + ER_VERTS_PER_BOX > max) break;   /* 6 quads = 36 */
             written += emit_arrow(&ents[e], out + written);
@@ -1975,6 +2112,21 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             int skin = ents[e].skin;
             if (skin <= 0 && ents[e].type == ER_TYPE_PIGMAN)
                 skin = CR_MOB_PIGMAN + 1;
+            if (skin <= 0 && ents[e].type == ER_TYPE_CAVE_SPIDER)
+                skin = CR_MOB_CAVE_SPIDER + 1;
+            if (ents[e].type == ER_TYPE_VILLAGER) {
+                static const int profession_skins[5] = {
+                    CR_MOB_VILLAGER_FARMER,
+                    CR_MOB_VILLAGER_LIBRARIAN,
+                    CR_MOB_VILLAGER_PRIEST,
+                    CR_MOB_VILLAGER_SMITH,
+                    CR_MOB_VILLAGER_BUTCHER
+                };
+                int profession = ents[e].item_id;
+                skin = (profession >= 0 && profession < 5
+                        ? profession_skins[profession]
+                        : CR_MOB_VILLAGER) + 1;
+            }
             if (skin > 0)
                 for (int p = 0; p < np; ++p)
                     local[p].sprite = skin - 1;
@@ -1996,9 +2148,8 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
             else if (t == ER_TYPE_BAT)   { h0 = 0; h1 = 2; }
             else if (t == ER_TYPE_WITCH || t == ER_TYPE_GHAST ||
                      t == ER_TYPE_MAGMA || t == ER_TYPE_ARMOR_STAND ||
-                     er_is_minecart(t)) {
-                /* none */
-            }
+                     er_is_minecart(t)) { /* none */ }
+            else if (t == ER_TYPE_VILLAGER) { h0 = 0; h1 = 1; }
             else                         { h0 = 0; h1 = 0; }
             for (int p = h0; p >= 0 && p <= h1 && p < np; ++p) {
                 local[p].ay = hay; local[p].ax = hax;
@@ -2040,6 +2191,9 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
                 /* ModelVillager legs (parts 12,13), half amplitude */
                 local[12].ax = cosf(ls * 0.6662f) * 1.4f * lsa * 0.5f;
                 local[13].ax = cosf(ls * 0.6662f + ER_PI) * 1.4f * lsa * 0.5f;
+            } else if (t == ER_TYPE_VILLAGER && np >= 9) {
+                local[7].ax = cosf(ls * 0.6662f) * 1.4f * lsa * 0.5f;
+                local[8].ax = cosf(ls * 0.6662f + ER_PI) * 1.4f * lsa * 0.5f;
             }
         }
         if (t == ER_TYPE_WITHER_SKELETON && np >= 4 &&
@@ -2104,7 +2258,9 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
          *   head.ry = 6 + 1.0*9
          *   head.ax = PI/5 + (PI*7/100)*sin((20-4)/32 * 28.7)
          * Applied to skin head (0) and fur head (6). */
-        if (t == ER_TYPE_SHEEP && np >= 7) {
+        if (t == ER_TYPE_SHEEP
+                && (ents[e].tape_pose || (ents[e].flags & 16))
+                && np >= 7) {
             local[0].ry = 6.0f + ents[e].graze_y * 9.0f;
             local[0].ax = ents[e].graze_x;
             local[6].ry = local[0].ry;
@@ -2120,7 +2276,8 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
         /* RenderCaveSpider.preRenderCallback scales the shared ModelSpider
          * uniformly to 70%; the skin override distinguishes it from a normal
          * spider without adding a duplicate render type/model table entry. */
-        if (t == ER_TYPE_SPIDER && ents[e].skin == CR_MOB_CAVE_SPIDER + 1)
+        if (t == ER_TYPE_CAVE_SPIDER ||
+            (t == ER_TYPE_SPIDER && ents[e].skin == CR_MOB_CAVE_SPIDER + 1))
             sc *= 0.7f;
         /* RenderSlime / RenderMagmaCube.preRenderCallback:
          *   RenderSlime also GlStateManager.scale(0.999) before size/squish.
@@ -2240,6 +2397,23 @@ int gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
                     out[vi].blk = -(out[vi].blk + 1.0f + mix / 32.0f);
             }
         }
+    }
+    return written;
+}
+
+static int er_crystal_beams_emit_exact(const GmEntityView *ents, int n,
+                                       CrVertex *out, int max) {
+    if (!ents || !out || n <= 0 || max <= 0) return 0;
+    int written = 0;
+    for (int e = 0; e < n; ++e) {
+        int crystal=ents[e].type==ER_TYPE_CRYSTAL&&ents[e].has_beam;
+        int dragon=ents[e].type==ER_TYPE_DRAGON&&ents[e].has_heal_beam;
+        if(!crystal&&!dragon)continue;
+        if (written + ER_CRYSTAL_BEAM_VERTS > max) break;
+        int nw=crystal?emit_crystal_beam(&ents[e],out+written)
+                      :emit_dragon_heal_beam(&ents[e],out+written);
+        apply_beam_light(&ents[e],out+written,nw);
+        written+=nw;
     }
     return written;
 }
@@ -2666,10 +2840,11 @@ static const GmEntityView *er_heal_crystal(const GmEntityView *ents, int n,
 int gm_crystal_beams_emit(const GmEntityView *ents, int n, CrVertex *out,
                           int max) {
     if (!ents || !out || max < 6) return 0;
-    int written = 0;
+    int written = er_crystal_beams_emit_exact(ents, n, out, max);
     for (int e = 0; e < n; ++e) {
         if (ents[e].type != ER_TYPE_DRAGON) continue;
         const GmEntityView *d = &ents[e];
+        if (d->has_heal_beam) continue;
         const GmEntityView *c = er_heal_crystal(ents, n, d);
         if (!c) continue;
         /* RenderDragon.doRender: f = sin((crystal.ticksExisted + partial) *
@@ -2681,27 +2856,6 @@ int gm_crystal_beams_emit(const GmEntityView *ents, int n, CrVertex *out,
         written += er_crystal_beams(d->x, d->y, d->z,
                                     d->x, d->y, d->z, d->ticks_existed,
                                     c->x, (double)f + (double)c->y, c->z,
-                                    &sh, out + written, max - written);
-        if (written + 6 > max) return written;
-    }
-    /* RenderEnderCrystal's own BeamTarget (the respawn-ritual beam to the
-     * portal). Same tube, but anchored on the target block centre and scrolled
-     * by innerRotation. */
-    for (int e = 0; e < n; ++e) {
-        const GmEntityView *c = &ents[e];
-        if (c->type != ER_TYPE_CRYSTAL) continue;
-        if (c->beam_x < 0 && c->beam_y < 0 && c->beam_z < 0) continue;
-        float f1 = sinf((c->crystal_rot + 1.0f) * 0.2f) / 2.0f + 0.5f;
-        f1 = f1 * f1 + f1;
-        double f2 = (double)c->beam_x + 0.5;
-        double f3 = (double)c->beam_y + 0.5;
-        double f4 = (double)c->beam_z + 0.5;
-        ErBeamShade sh;
-        er_beam_shade_from(c, &sh);
-        written += er_crystal_beams(f2, (double)c->y - 0.3 + (double)(f1 * 0.4f)
-                                        + (f3 - (double)c->y), f4,
-                                    f2, f3, f4, (int)c->crystal_rot,
-                                    c->x, c->y, c->z,
                                     &sh, out + written, max - written);
         if (written + 6 > max) return written;
     }
@@ -3174,6 +3328,7 @@ int gm_slime_gel_emit(const GmEntityView *ents, int n, CrVertex *out, int max) {
     int written = 0;
     for (int e = 0; e < n; ++e) {
         if (ents[e].type != ER_TYPE_SLIME) continue;
+        if (ents[e].flags & 4) continue; /* LayerSlimeGel skips invisible */
         if (written + ER_VERTS_PER_BOX > max) break;
         int sz = ents[e].item_meta;
         if (sz <= 0) sz = 1;
@@ -3343,4 +3498,15 @@ int gm_spawner_miniatures_emit(const GmSpawnerView *sp, int n,
         }
     }
     return written;
+}
+
+CrTexture gm_crystal_beam_texture(void) {
+    CrTexture t;
+    t.w = CR_ENDERCRYSTAL_BEAM_W;
+    t.h = CR_ENDERCRYSTAL_BEAM_H;
+    t.texels = (const CrRgba *)CR_ENDERCRYSTAL_BEAM_RGBA;
+    t.tile = 0;
+    t.mip_levels = 0;
+    for (int i = 0; i < 15; ++i) { t.mip[i] = 0; t.mipw[i] = 0; t.miph[i] = 0; }
+    return t;
 }

@@ -1,0 +1,6 @@
+# Unpowered comparator negative. Direct removal retires its zero-output tile,
+# but leaves the indirect unlit lamp and scheduled/RNG state unchanged.
+12 77 8 1 0
+12 78 8 149 0
+12 78 7 1 0
+13 78 7 123 0

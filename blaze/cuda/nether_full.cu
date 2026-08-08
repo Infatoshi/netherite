@@ -13,6 +13,12 @@ __global__ void run_nf(i64 seed, const McSinTable *st, CpnPrimer *primer,
 int main(int argc, char **argv) {
     i64 seed = (argc > 1) ? strtoll(argv[1], 0, 10) : 12345LL;
 
+    if (nf_to_vanilla(CPN_LAVA) != 11 ||
+        nf_to_vanilla(CPN_FLOWING_LAVA) != 10) {
+        fprintf(stderr, "nether lava registry mapping regression\n");
+        return 2;
+    }
+
     McSinTable *h_st = (McSinTable *)malloc(sizeof(McSinTable));
     mc_sin_table_init(h_st);
     McSinTable *d_st;

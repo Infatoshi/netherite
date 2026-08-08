@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #ifndef GM_VIEW_EXPLOSION_LARGE
-#define GM_VIEW_EXPLOSION_LARGE 39
+#define GM_VIEW_EXPLOSION_LARGE 50
 #endif
 
 /* GmEntityView matches game/game.h exactly (POD). Redeclared here (guarded) so
@@ -38,10 +38,14 @@ typedef struct {
     float crystal_rot;
     int   show_bottom;
     int   beam_x, beam_y, beam_z;
+    int   has_beam;
     float anim_time;
     int   death_ticks;
     int   phase_id;
     int   stationary;
+    int   has_heal_beam;
+    float heal_x, heal_y, heal_z;
+    int   heal_crystal_ticks;
     int   skin;
     int   lm_lit;
     float lm_light, lm_blk;
@@ -67,7 +71,6 @@ int       gm_entities_emit(const GmEntityView *ents, int n, CrVertex *out, int m
 /* Minecart display tiles are emitted in the terrain-atlas pass. */
 int       gm_minecart_contents_emit(const GmEntityView *ents, int n,
                                     CrVertex *out, int max);
-
 /* RenderXPOrb.doRender: camera-facing experience_orb.png billboard. 6 verts per
  * orb. Uses view_yaw/view_pitch (playerViewY/X). item_id=xpValue, item_meta=
  * xpColor, age=xpOrbAge. Binds the mob atlas (CR_MOB_EXPERIENCE_ORB). */
@@ -106,6 +109,7 @@ int       gm_entity_fullbright(int type);
 
 /* The mob-texture atlas to bind (CrShadeCtx.atlas) for the entity pass. */
 CrTexture gm_entity_atlas(void);
+CrTexture gm_crystal_beam_texture(void);
 
 /* Live projectile views collapse ghast large and blaze small fireballs to the
  * same BILLBOARD+385. Call after gm_runtime_projectile_views with the dense

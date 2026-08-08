@@ -40,6 +40,8 @@ SPRITE_NAMES = sorted([
     "gravel",
     "hardened_clay",
     "hardened_clay_stained_white",
+    "hardened_clay_stained_orange",
+    "hardened_clay_stained_blue",
     "ice",
     "mycelium_side",
     "mycelium_top",
@@ -48,7 +50,9 @@ SPRITE_NAMES = sorted([
     "red_sandstone_top",
     "sand",
     "sandstone_bottom",
+    "sandstone_carved",
     "sandstone_normal",
+    "sandstone_smooth",
     "sandstone_top",
     "snow",
     "stone",
@@ -191,9 +195,6 @@ SPRITE_NAMES += ["ice_packed", "slime", "web"]
 # pack a 16x16 NEAREST downsample so the chunk mesh can tint multi-layer
 # UP-face quads with the same starfield source as the Java TESR.
 SPRITE_NAMES += ["end_portal"]
-# Primed TNT is rendered through RenderTNTPrimed rather than the chunk mesh,
-# but it samples the same three block textures from TextureMap.
-SPRITE_NAMES += ["tnt_bottom", "tnt_side", "tnt_top"]
 # Stone-slab variants. Append so every established atlas index/rect remains
 # stable; the slab state bridge selects these by legacy metadata.
 SPRITE_NAMES += [
@@ -212,6 +213,18 @@ SPRITE_NAMES += ["glass_pane_top"]
 SPRITE_NAMES += ["trapdoor"]
 # BlockLadder's two-sided cutout wall plane.
 SPRITE_NAMES += ["ladder"]
+# End City palette. Appended so established atlas indices remain stable.
+SPRITE_NAMES += [
+    "end_bricks",
+    "end_rod",
+    "glass_magenta",
+    "purpur_block",
+    "purpur_pillar",
+    "purpur_pillar_top",
+    "chorus_plant",
+    "chorus_flower",
+    "chorus_flower_dead",
+]
 SPECIAL_SPRITE_PATHS = {
     "end_portal": "assets/minecraft/textures/entity/end_portal.png",
 }

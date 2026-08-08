@@ -15,7 +15,11 @@
  * "if (pass != 2)" luminance desaturation is SKIPPED -> we use the raw sky/sunset colors.
  */
 #include "game/sky.h"
+#define MAGMA_POTION_RENDER_FOG_ONLY
+#include "game/potion_render.h"
+#undef MAGMA_POTION_RENDER_FOG_ONLY
 #include "assets/sky_atlas.h"   /* CR_SUN_RGBA / CR_MOON_RGBA / CR_CLOUDS_RGBA (real MC PNGs) */
+#include "world/lightmap.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdlib.h>   /* getenv/atoi for the MAGMA_FOG gate */
@@ -222,13 +226,14 @@ static CR_HD CrVec3 mc_view_fog_color(CrVec3 sky, CrVec3 provider_fog) {
  * only draws it when eyeY < world.getHorizon(). Downward rays remain clear/fog. */
 #define SKY_TILE 64.0f
 static CR_HD CrVec3 mc_sky_corner_fog(CrVec3 vertex_color, CrVec3 fog_color,
-                                      float cx, float plane_y, float cz) {
+                                      float cx, float plane_y, float cz,
+                                      float fog_end) {
     float dist = sqrtf(cx * cx + plane_y * plane_y + cz * cz);
-    float fog_factor = clamp01((SKY_FOG_END - dist) / SKY_FOG_END);
+    float fog_factor = clamp01((fog_end - dist) / fog_end);
     return v3mix(fog_color, vertex_color, fog_factor);
 }
 static CR_HD CrVec3 mc_sky_plane_fog(CrVec3 vertex_color, CrVec3 fog_color,
-                                     CrVec3 dir, float plane_y) {
+                                     CrVec3 dir, float plane_y, float fog_end) {
     float dir_y = dir.y;
     if ((plane_y > 0.0f && dir_y <= 0.0f) || (plane_y < 0.0f && dir_y >= 0.0f)) {
         return fog_color;
@@ -242,11 +247,14 @@ static CR_HD CrVec3 mc_sky_plane_fog(CrVec3 vertex_color, CrVec3 fog_color,
     float tz0 = floorf(pz / SKY_TILE) * SKY_TILE;
     float fx = (px - tx0) / SKY_TILE;
     float fz = (pz - tz0) / SKY_TILE;
-    CrVec3 c00 = mc_sky_corner_fog(vertex_color, fog_color, tx0, plane_y, tz0);
-    CrVec3 c10 = mc_sky_corner_fog(vertex_color, fog_color, tx0 + SKY_TILE, plane_y, tz0);
-    CrVec3 c01 = mc_sky_corner_fog(vertex_color, fog_color, tx0, plane_y, tz0 + SKY_TILE);
+    CrVec3 c00 = mc_sky_corner_fog(
+        vertex_color, fog_color, tx0, plane_y, tz0, fog_end);
+    CrVec3 c10 = mc_sky_corner_fog(
+        vertex_color, fog_color, tx0 + SKY_TILE, plane_y, tz0, fog_end);
+    CrVec3 c01 = mc_sky_corner_fog(
+        vertex_color, fog_color, tx0, plane_y, tz0 + SKY_TILE, fog_end);
     CrVec3 c11 = mc_sky_corner_fog(vertex_color, fog_color, tx0 + SKY_TILE, plane_y,
-                                   tz0 + SKY_TILE);
+                                   tz0 + SKY_TILE, fog_end);
     CrVec3 c0 = v3mix(c00, c10, fx);
     CrVec3 c1 = v3mix(c01, c11, fx);
     return v3mix(c0, c1, fz);
@@ -282,6 +290,12 @@ static CrVec3 g_fluid_fog_col;
 static float  g_fluid_fog_density = 0.0f;
 /* updateFogColor f13: light-at-feet fog brightness smoother (fogColor1). */
 static float  g_fog_c1 = 1.0f;
+static float  g_rain_strength = 0.0f;
+static float  g_thunder_strength = 0.0f;
+static float  g_night_vision = 0.0f;
+static int    g_blindness_duration = 0;
+static double g_fog_feet_y = 64.0;
+static double g_void_fog_y_factor = 0.03125;
 /* Entity.getEyeHeight for orientCamera's -eyeHeight translate (default standing). */
 static float  g_eye_height = 1.62f;
 #endif
@@ -301,6 +315,49 @@ void gm_sky_set_fog_c1(float fog_c1) {
     g_fog_c1 = fog_c1 < 0.0f ? 0.0f : (fog_c1 > 1.0f ? 1.0f : fog_c1);
 #else
     (void)fog_c1;
+#endif
+}
+
+void gm_sky_set_weather(float rain_strength, float thunder_strength) {
+#if !defined(__CUDA_ARCH__)
+    g_rain_strength = clamp01(rain_strength);
+    g_thunder_strength = clamp01(thunder_strength);
+#else
+    (void)rain_strength; (void)thunder_strength;
+#endif
+}
+
+CrTexture gm_weather_rain_texture(void) {
+    CrTexture t = {0};
+    t.w = CR_RAIN_W; t.h = CR_RAIN_H;
+    t.texels = (const CrRgba *)CR_RAIN_RGBA;
+    return t;
+}
+
+CrTexture gm_weather_snow_texture(void) {
+    CrTexture t = {0};
+    t.w = CR_SNOW_W; t.h = CR_SNOW_H;
+    t.texels = (const CrRgba *)CR_SNOW_RGBA;
+    return t;
+}
+
+void gm_sky_set_night_vision(float amount) {
+#if !defined(__CUDA_ARCH__)
+    g_night_vision = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
+#else
+    (void)amount;
+#endif
+}
+
+void gm_sky_set_void_blindness(
+        int blindness_duration, double feet_y, double void_fog_y_factor) {
+#if !defined(__CUDA_ARCH__)
+    g_blindness_duration = blindness_duration > 0
+        ? blindness_duration : 0;
+    g_fog_feet_y = feet_y;
+    g_void_fog_y_factor = void_fog_y_factor;
+#else
+    (void)blindness_duration; (void)feet_y; (void)void_fog_y_factor;
 #endif
 }
 
@@ -326,13 +383,48 @@ static CR_HD GmSkyCtx gm_sky_ctx(float time_of_day) {
     float daylight = mc_sky_daynight(celestial);
     CrVec3 sky_top = mc_sky_base_color(SKY_TEMP);
     c.sky_top = v3(sky_top.x * daylight, sky_top.y * daylight, sky_top.z * daylight);
+#if !defined(__CUDA_ARCH__)
+    if (g_rain_strength > 0.0f) {
+        float gray = (c.sky_top.x * 0.3f + c.sky_top.y * 0.59f
+                    + c.sky_top.z * 0.11f) * 0.6f;
+        float keep = 1.0f - g_rain_strength * 0.75f;
+        c.sky_top = v3(c.sky_top.x * keep + gray * (1.0f - keep),
+                       c.sky_top.y * keep + gray * (1.0f - keep),
+                       c.sky_top.z * keep + gray * (1.0f - keep));
+    }
+    if (g_thunder_strength > 0.0f) {
+        float gray = (c.sky_top.x * 0.3f + c.sky_top.y * 0.59f
+                    + c.sky_top.z * 0.11f) * 0.2f;
+        float keep = 1.0f - g_thunder_strength * 0.75f;
+        c.sky_top = v3(c.sky_top.x * keep + gray * (1.0f - keep),
+                       c.sky_top.y * keep + gray * (1.0f - keep),
+                       c.sky_top.z * keep + gray * (1.0f - keep));
+    }
+#endif
     c.fog = mc_view_fog_color(c.sky_top, mc_fog_color(celestial));
 #if !defined(__CUDA_ARCH__)
+    if (g_rain_strength > 0.0f) {
+        c.fog.x *= 1.0f - g_rain_strength * 0.5f;
+        c.fog.y *= 1.0f - g_rain_strength * 0.5f;
+        c.fog.z *= 1.0f - g_rain_strength * 0.4f;
+    }
+    if (g_thunder_strength > 0.0f) {
+        float keep = 1.0f - g_thunder_strength * 0.5f;
+        c.fog = v3(c.fog.x * keep, c.fog.y * keep, c.fog.z * keep);
+    }
     /* updateFogColor: fogColor{Red,Green,Blue} *= f13 (fogColor1). Sky plane
      * vertices stay unscaled (getSkyColor); only the fog target is dimmed -
      * after long underwater stretches fogColor1 is low and the horizon band
      * (and low-elevation sky) darkens to match oracle swim frames. */
     c.fog = v3(c.fog.x * g_fog_c1, c.fog.y * g_fog_c1, c.fog.z * g_fog_c1);
+    gm_void_blindness_rgb(
+        &c.fog.x, &c.fog.y, &c.fog.z, g_blindness_duration,
+        g_fog_feet_y, g_void_fog_y_factor);
+    {
+        CrLightmapRgb nv = cr_night_vision_rgb(
+            c.fog.x, c.fog.y, c.fog.z, g_night_vision);
+        c.fog = v3(nv.r, nv.g, nv.b);
+    }
 #endif
     c.sunset_active = 0;
     c.sun_h = v3(0.0f, 0.0f, 0.0f);
@@ -345,21 +437,29 @@ static CR_HD GmSkyCtx gm_sky_ctx(float time_of_day) {
             c.sun_h = v3(sun_dir.x / horiz_len, 0.0f, sun_dir.z / horiz_len);
         }
     }
-    c.starB = mc_star_brightness(celestial);
+    c.celestial_alpha = 1.0f;
+#if !defined(__CUDA_ARCH__)
+    c.celestial_alpha = 1.0f - g_rain_strength;
+#endif
+    c.starB = mc_star_brightness(celestial) * c.celestial_alpha;
     c.cA = cosf(ang);
     c.sA = sinf(ang);
     c.uw = 0;
     c.uw_fog = v3(0.0f, 0.0f, 0.0f);
     c.uw_density = 0.0f;
+    c.linear_fog_end = SKY_FOG_END;
     /* orientCamera: plane at y=+16 feet-relative, then translate(0,-eyeH,0).
      * Device path without host state keeps the standing default 1.62. */
     c.plane_y = 16.0f - 1.62f;
 #if !defined(__CUDA_ARCH__)
     /* host frame state (gm_sky_set_fluid_fog); the CUDA kernel gets the ctx
      * pre-built on the host, so device-compiled copies keep uw = 0. */
-    c.uw = g_fluid_fog_on;
+    c.uw = g_fluid_fog_on && g_blindness_duration <= 0;
     c.uw_fog = g_fluid_fog_col;
     c.uw_density = g_fluid_fog_density;
+    if (g_blindness_duration > 0)
+        c.linear_fog_end = gm_blindness_fog_end(
+            g_blindness_duration, SKY_FOG_END) * 0.8f;
     c.plane_y = 16.0f - g_eye_height;
 #endif
     return c;
@@ -394,7 +494,9 @@ static CR_HD CrRgba gm_sky_ray_color_ctx(const GmSkyCtx *sc, CrVec3 dir_in) {
     CrVec3 fog = sc->fog;
 
     /* --- vertical gradient: GL linear fog on MC's 64-tile sky plane (Gouraud). --- */
-    CrVec3 col = (ey >= 0.0f) ? mc_sky_plane_fog(sky_top, fog, dir, sc->plane_y)
+    CrVec3 col = (ey >= 0.0f) ? mc_sky_plane_fog(
+                                   sky_top, fog, dir, sc->plane_y,
+                                   sc->linear_fog_end)
                               : fog;
 
     /* --- sunrise / sunset horizon glow, centered on the sun's azimuth. --- */
@@ -449,7 +551,9 @@ static CR_HD CrRgba gm_sky_ray_color_ctx(const GmSkyCtx *sc, CrVec3 dir_in) {
             if (lx >= -30.0f && lx <= 30.0f && lz >= -30.0f && lz <= 30.0f) {
                 float tu = (lx + 30.0f) / 60.0f, tv = (lz + 30.0f) / 60.0f;
                 CrVec4 s = tex_sample(CR_SUN_RGBA, CR_SUN_W, CR_SUN_H, tu, tv);
-                col = v3(col.x + s.x, col.y + s.y, col.z + s.z);   /* additive */
+                col = v3(col.x + s.x * sc->celestial_alpha,
+                         col.y + s.y * sc->celestial_alpha,
+                         col.z + s.z * sc->celestial_alpha);       /* additive */
             }
         }
     }
@@ -470,7 +574,9 @@ static CR_HD CrRgba gm_sky_ray_color_ctx(const GmSkyCtx *sc, CrVec3 dir_in) {
                 float tu = (20.0f - lx) / 40.0f;      /* cell u: +20->0, -20->1 */
                 float tv = (lz + 20.0f) / 40.0f;      /* cell v: -20->0, +20->1 */
                 CrVec4 m = tex_sample(CR_MOON_RGBA, CR_MOON_W, CR_MOON_H, tu, tv);
-                col = v3(col.x + m.x, col.y + m.y, col.z + m.z);   /* additive */
+                col = v3(col.x + m.x * sc->celestial_alpha,
+                         col.y + m.y * sc->celestial_alpha,
+                         col.z + m.z * sc->celestial_alpha);       /* additive */
             }
         }
     }
@@ -510,12 +616,47 @@ CrRgba gm_terrain_fog_color(float time_of_day) {
     float daylight  = mc_sky_daynight(celestial);
     CrVec3 sky_top  = mc_sky_base_color(SKY_TEMP);
     sky_top = v3(sky_top.x * daylight, sky_top.y * daylight, sky_top.z * daylight);
+#if !defined(__CUDA_ARCH__)
+    if (g_rain_strength > 0.0f) {
+        float gray = (sky_top.x * 0.3f + sky_top.y * 0.59f
+                    + sky_top.z * 0.11f) * 0.6f;
+        float keep = 1.0f - g_rain_strength * 0.75f;
+        sky_top = v3(sky_top.x * keep + gray * (1.0f - keep),
+                     sky_top.y * keep + gray * (1.0f - keep),
+                     sky_top.z * keep + gray * (1.0f - keep));
+    }
+    if (g_thunder_strength > 0.0f) {
+        float gray = (sky_top.x * 0.3f + sky_top.y * 0.59f
+                    + sky_top.z * 0.11f) * 0.2f;
+        float keep = 1.0f - g_thunder_strength * 0.75f;
+        sky_top = v3(sky_top.x * keep + gray * (1.0f - keep),
+                     sky_top.y * keep + gray * (1.0f - keep),
+                     sky_top.z * keep + gray * (1.0f - keep));
+    }
+#endif
     CrVec3 fog = mc_view_fog_color(sky_top, mc_fog_color(celestial));
     /* fogColor1 is applied in gm_sky_ctx for the sky fog target; terrain
      * fog color is also scaled here so horizon terrain meets the same
      * clearColor (updateFogColor f13). */
 #if !defined(__CUDA_ARCH__)
+    if (g_rain_strength > 0.0f) {
+        fog.x *= 1.0f - g_rain_strength * 0.5f;
+        fog.y *= 1.0f - g_rain_strength * 0.5f;
+        fog.z *= 1.0f - g_rain_strength * 0.4f;
+    }
+    if (g_thunder_strength > 0.0f) {
+        float keep = 1.0f - g_thunder_strength * 0.5f;
+        fog = v3(fog.x * keep, fog.y * keep, fog.z * keep);
+    }
     fog = v3(fog.x * g_fog_c1, fog.y * g_fog_c1, fog.z * g_fog_c1);
+    gm_void_blindness_rgb(
+        &fog.x, &fog.y, &fog.z, g_blindness_duration,
+        g_fog_feet_y, g_void_fog_y_factor);
+    {
+        CrLightmapRgb nv = cr_night_vision_rgb(
+            fog.x, fog.y, fog.z, g_night_vision);
+        fog = v3(nv.r, nv.g, nv.b);
+    }
 #endif
     CrRgba out;
     out.r = (u8)(clamp01(fog.x) * 255.0f + 0.5f);

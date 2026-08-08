@@ -1,0 +1,4 @@
+# Same-type north neighbor extends the target chest to its north block edge.
+12 81 9 152 0
+12 79 8 54 0
+12 79 7 54 0

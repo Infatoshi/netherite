@@ -1,0 +1,6 @@
+# Keep the front piston valid and powered before staging its extended base and
+# head, so fixture setup does not queue a retraction event.
+13 78 9 152 0
+13 78 8 33 13
+14 78 8 34 5
+12 78 8 33 5

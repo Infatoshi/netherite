@@ -1,0 +1,8 @@
+# x y z id meta
+# Powered floor stone button (13) immediately west of an explicitly lit lamp.
+# Pin the block below its platform support as stone too: capsule validation
+# examines both notification centers, so natural leaves at y=76 would make the
+# saved callback proof depend on unstaged world generation.
+12 76 8 1 0
+12 78 8 77 13
+13 78 8 124 0

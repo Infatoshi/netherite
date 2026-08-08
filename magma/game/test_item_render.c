@@ -379,6 +379,10 @@ int main(void) {
         blaze.flags = 1; /* isBurning -> isCharged */
         n = gm_entity_fire_emit(&blaze, 1, 0.0f, out, 256);
         CHECK(n == 30, "charged blaze emits five stacked fire quads");
+        blaze.flags = 1 | 4;
+        CHECK(gm_entity_fire_emit(&blaze, 1, 0.0f, out, 256) == 30,
+              "invisible burning entity retains its separate fire overlay");
+        blaze.flags = 1;
         minx = miny = 1e9f; maxx = maxy = -1e9f;
         for (int i = 0; i < n; ++i) {
             if (out[i].pos.x < minx) minx = out[i].pos.x;

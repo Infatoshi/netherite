@@ -1,0 +1,24 @@
+{
+  "name": "",
+  "tag": {
+    "type": "compound",
+    "value": {
+      "CustomName": {
+        "type": "string",
+        "value": "Deferred Box"
+      },
+      "Lock": {
+        "type": "string",
+        "value": "Loot Key"
+      },
+      "LootTable": {
+        "type": "string",
+        "value": "minecraft:chests/simple_dungeon"
+      },
+      "LootTableSeed": {
+        "type": "long",
+        "value": 81985529216486895
+      }
+    }
+  }
+}

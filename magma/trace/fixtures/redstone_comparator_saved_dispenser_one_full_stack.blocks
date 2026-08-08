@@ -1,0 +1,9 @@
+# x y z id meta
+# Saved mid-transition state: a WEST-facing comparator still has tile output
+# zero while one full stone stack occupies slot zero of a nine-slot dispenser.
+# The inventory update queues the callback that must output strength two.
+11 77 8 1 0
+12 77 8 1 0
+11 78 8 23 3
+12 78 8 149 1
+13 78 8 123 0

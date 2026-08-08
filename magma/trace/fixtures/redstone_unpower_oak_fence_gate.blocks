@@ -1,0 +1,4 @@
+# Powered oak fence gate. Tick zero removes redstone block 152 at (11,78,8).
+11 78 8 152 0
+12 77 8 1 0
+12 78 8 107 12

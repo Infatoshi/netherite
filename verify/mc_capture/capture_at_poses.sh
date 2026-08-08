@@ -21,7 +21,7 @@
 #   - default gamemode is SURVIVAL (draws the hand + hotbar + crosshair + vitals
 #     HUD) so the oracle SEES the HUD/hand divergence magma lacks; pass
 #     --gamemode spectator for a clean camera hold (no hand/HUD) instead,
-#   - a final tp is re-asserted immediately before the grab and the settle sleep is
+#   - a final tp is re-asserted immediately before the grab and the settle loop is
 #     short, so in survival the player has no time to fall away from the pose.
 #
 # POSES FILE format (one pose per line, '#'/blank ignored, whitespace-separated):
@@ -41,13 +41,16 @@ ENVDIR="$ROOT/java"
 DEFOUT="$ROOT/magma/trace/out/frame_oracle"
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export PATH="$JAVA_HOME/bin:$PATH"
-export DISPLAY=:1
 
 SEED=0
+QRL_HOST=127.0.0.1
+QRL_PORT=25575
+MC_DISPLAY=:1
+FRESH=0
 EYE_HEIGHT=1.62
 FOV=70
 GAMEMODE=survival        # survival draws hand+HUD (the point); spectator = clean hold
-SETTLE=20                # ticks re-asserting tp so chunks build before the grab
+SETTLE=20                # short tp iterations so chunks build before the grab
 POSES_FILE=""
 OUTDIR="$DEFOUT"
 WIPE=1                   # wipe the seed save for clean worldgen (0 to reuse)
@@ -59,11 +62,16 @@ usage() {
     cat >&2 <<EOF
 usage: capture_at_poses.sh --poses FILE [--out DIR] [--seed N] [--fov F]
                            [--gamemode survival|spectator] [--settle N]
-                           [--eye-height H] [--no-wipe] [--no-launch]
+                           [--eye-height H] [--host HOST] [--port PORT]
+                           [--display :N] [--fresh] [--no-wipe] [--no-launch]
   --poses FILE     required; lines "IDX FEET_X FEET_Y FEET_Z MC_YAW MC_PITCH"
   --out DIR        output dir (default $DEFOUT)
   --gamemode       survival (default; hand+HUD) | spectator (clean camera)
-  --settle N       ticks to re-assert tp before grabbing (default $SETTLE)
+  --settle N       short tp iterations before grabbing (default $SETTLE)
+  --host HOST      QRL bridge host (default $QRL_HOST)
+  --port PORT      QRL bridge port (default $QRL_PORT)
+  --display :N     X display containing the game (default $MC_DISPLAY)
+  --fresh          delete/recreate qrl_<seed> during bridge reset
   --no-wipe        do NOT delete saves/qrl_<seed> before reset
   --no-launch      assume the qrl bridge is already up (skip kill+launch+wipe)
 EOF
@@ -78,6 +86,10 @@ while [ $# -gt 0 ]; do
         --gamemode)   GAMEMODE="$2"; shift 2;;
         --settle)     SETTLE="$2"; shift 2;;
         --eye-height) EYE_HEIGHT="$2"; shift 2;;
+        --host)        QRL_HOST="$2"; shift 2;;
+        --port)        QRL_PORT="$2"; shift 2;;
+        --display)     MC_DISPLAY="$2"; shift 2;;
+        --fresh)       FRESH=1; shift;;
         --no-wipe)    WIPE=0; shift;;
         --no-launch)  NOLAUNCH=1; shift;;
         -h|--help)    usage; exit 0;;
@@ -86,20 +98,35 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$POSES_FILE" ] || { echo "FAIL: --poses is required" >&2; usage; exit 2; }
 [ -s "$POSES_FILE" ] || { echo "FAIL: poses file $POSES_FILE missing/empty" >&2; exit 2; }
+POSES_FILE="$(realpath "$POSES_FILE")"
+[[ "$QRL_PORT" =~ ^[0-9]+$ ]] && [ "$QRL_PORT" -ge 1 ] && [ "$QRL_PORT" -le 65535 ] ||
+    { echo "FAIL: --port must be an integer from 1 to 65535" >&2; exit 2; }
+[[ "$MC_DISPLAY" =~ ^:[0-9]+$ ]] ||
+    { echo "FAIL: --display must have the form :N" >&2; exit 2; }
+export DISPLAY="$MC_DISPLAY"
+TMP_PREFIX="/tmp/oracle_${QRL_PORT}"
 mkdir -p "$OUTDIR"
+OUTDIR="$(realpath "$OUTDIR")"
 
 log()  { echo "[cap-poses] $*"; }
 fail() { echo "[cap-poses] FAIL: $*" >&2; echo "----- runclient.log tail -----" >&2; tail -n 40 "$RUNCLIENT_LOG" 2>/dev/null >&2; exit 1; }
 
 probe_bridge() {
-    python3 -c 'import socket,sys; s=socket.socket(); s.settimeout(1)
+    python3 - "$QRL_HOST" "$QRL_PORT" <<'PY' 2>/dev/null
+import socket, sys
+s = socket.socket()
+s.settimeout(1)
 try:
-    s.connect(("127.0.0.1",25575)); s.close()
+    s.connect((sys.argv[1], int(sys.argv[2])))
+    s.close()
 except Exception:
-    sys.exit(1)' 2>/dev/null
+    sys.exit(1)
+PY
 }
 
 if [ "$NOLAUNCH" = 0 ]; then
+    [ "$QRL_HOST" = 127.0.0.1 ] && [ "$QRL_PORT" = 25575 ] && [ "$MC_DISPLAY" = :1 ] ||
+        fail "automatic launch only supports 127.0.0.1:25575 on display :1; use --no-launch"
     log "killing any running game..."
     pkill -9 -f '[G]radleStart' 2>/dev/null
     pkill -9 -f '[r]unClient'   2>/dev/null
@@ -112,7 +139,7 @@ if [ "$NOLAUNCH" = 0 ]; then
     ( cd "$ENVDIR" && setsid nohup bash start_vnc_client.sh >"$LAUNCH_LOG" 2>&1 </dev/null & )
 fi
 
-log "waiting for qrl bridge to accept connections on :25575 (up to 420s)..."
+log "waiting for qrl bridge at $QRL_HOST:$QRL_PORT on display $MC_DISPLAY (up to 420s)..."
 listened=0
 for _ in $(seq 1 420); do
     if probe_bridge; then listened=1; break; fi
@@ -126,13 +153,16 @@ log "bridge is accepting connections."
 # the poses file. Per pose it re-asserts tp for SETTLE ticks (chunks build), does a
 # FINAL tp, then signals the shell to grab and blocks until the grab is done.
 cd "$ENVDIR"
-rm -f /tmp/oracle_grab_ready_* /tmp/oracle_grab_done_* /tmp/oracle_all_done
-python3 - "$SEED" "$EYE_HEIGHT" "$GAMEMODE" "$SETTLE" "$POSES_FILE" <<'PY' &
+rm -f "${TMP_PREFIX}"_grab_ready_* "${TMP_PREFIX}"_grab_done_* "${TMP_PREFIX}"_all_done
+python3 - "$SEED" "$EYE_HEIGHT" "$GAMEMODE" "$SETTLE" "$POSES_FILE" \
+    "$QRL_HOST" "$QRL_PORT" "$FRESH" "$TMP_PREFIX" <<'PY' &
 import sys, json, time, os
 import qrl_client
 seed  = int(sys.argv[1]); eyeh = float(sys.argv[2])
 gm    = sys.argv[3];      settle = int(sys.argv[4])
 poses_file = sys.argv[5]
+host = sys.argv[6]; port = int(sys.argv[7])
+fresh = bool(int(sys.argv[8])); tmp_prefix = sys.argv[9]
 
 poses = []
 with open(poses_file) as f:
@@ -146,8 +176,8 @@ with open(poses_file) as f:
         poses.append((int(v[0]), float(v[1]), float(v[2]), float(v[3]),
                       float(v[4]), float(v[5])))
 
-e = qrl_client.NetheriteEnv()
-o = e.reset({"seed": seed, "mode": "survival", "type": "default"})
+e = qrl_client.NetheriteEnv(host=host, port=port)
+o = e.reset({"seed": seed, "mode": "survival", "type": "default", "fresh": fresh})
 if not o.get("ok"):
     print("reset not ok:", o, file=sys.stderr); sys.exit(1)
 print("[py] spawn ~ (%.1f,%.1f,%.1f)" % (o["x"], o["y"], o["z"]), file=sys.stderr)
@@ -165,11 +195,14 @@ print("[py] setup:", e._cmd({"cmd": "runcmds", "action": {"cmds": setup}}), file
 
 for (idx, fx, fy, fz, myaw, mpitch) in poses:
     tp = "tp @a %g %g %g %g %g" % (fx, fy, fz, myaw, mpitch)
-    # settle: build surrounding chunks while pinning the pose every tick.
+    # Build surrounding chunks while pinning the pose. Do not use qrl step here:
+    # immediately after a fresh integrated-server reload its tick barrier can
+    # retain a stale waiter and block forever even though ordinary commands and
+    # rendering are healthy. Pixel capture needs a settled scene, not N exact
+    # simulation ticks.
     for _ in range(settle):
-        e.step({})
         e._cmd({"cmd": "runcmds", "action": {"cmds": [tp]}})
-        time.sleep(0.03)
+        time.sleep(0.05)
     # final re-assert immediately before the grab so survival gravity cannot drift
     # the player away from the pose; a short settle lets the frame render.
     e._cmd({"cmd": "runcmds", "action": {"cmds": [tp]}})
@@ -177,7 +210,7 @@ for (idx, fx, fy, fz, myaw, mpitch) in poses:
     e._cmd({"cmd": "runcmds", "action": {"cmds": [tp]}})
     time.sleep(0.3)
     obs = e.obs()
-    with open("/tmp/oracle_pose_%d.json" % idx, "w") as f:
+    with open("%s_pose_%d.json" % (tmp_prefix, idx), "w") as f:
         json.dump({"seed": seed, "checkpoint": idx,
                    "x": obs["x"], "y": obs["y"], "z": obs["z"],
                    "yaw": obs["yaw"], "pitch": obs["pitch"],
@@ -185,12 +218,12 @@ for (idx, fx, fy, fz, myaw, mpitch) in poses:
                    "health": obs["health"], "on_ground": obs["on_ground"],
                    "gamemode": gm}, f)
     print("[py] ck %d final obs:" % idx, json.dumps(obs)[:160], file=sys.stderr)
-    open("/tmp/oracle_grab_ready_%d" % idx, "w").close()
+    open("%s_grab_ready_%d" % (tmp_prefix, idx), "w").close()
     for _ in range(600):
-        if os.path.exists("/tmp/oracle_grab_done_%d" % idx):
+        if os.path.exists("%s_grab_done_%d" % (tmp_prefix, idx)):
             break
         time.sleep(0.1)
-open("/tmp/oracle_all_done", "w").close()
+open(tmp_prefix + "_all_done", "w").close()
 e.close()
 PY
 QRL_PID=$!
@@ -199,7 +232,7 @@ QRL_PID=$!
 grab_pose() {
     local idx="$1" outpng="$2"
     local GEOM WH ABS W H AX AY
-    GEOM=$(DISPLAY=:1 xwininfo -root -tree 2>/dev/null | grep -i "Minecraft 1.11.2" | head -1)
+    GEOM=$(DISPLAY="$MC_DISPLAY" xwininfo -root -tree 2>/dev/null | grep -i "Minecraft 1.11.2" | head -1)
     WH=$(echo "$GEOM"  | grep -oE '[0-9]+x[0-9]+\+[0-9]+\+[0-9]+' | head -1)
     ABS=$(echo "$GEOM" | grep -oE '\+[0-9]+\+[0-9]+$' | head -1)
     W=$(echo "$WH" | cut -dx -f1)
@@ -211,8 +244,9 @@ grab_pose() {
         W=1280; H=720; AX=0; AY=0
     fi
     log "ck $idx: MC window content ${W}x${H} at (${AX},${AY}); grabbing -> $outpng"
-    DISPLAY=:1 ffmpeg -hide_banner -loglevel error -y \
-        -f x11grab -draw_mouse 0 -video_size "${W}x${H}" -i ":1.0+${AX},${AY}" \
+    DISPLAY="$MC_DISPLAY" ffmpeg -hide_banner -loglevel error -y \
+        -f x11grab -draw_mouse 0 -video_size "${W}x${H}" \
+        -i "${MC_DISPLAY}.0+${AX},${AY}" \
         -frames:v 1 "$outpng" || fail "ffmpeg x11grab failed (ck $idx)"
     [ -s "$outpng" ] || fail "$outpng empty (ck $idx)"
     echo "$W $H"
@@ -224,7 +258,7 @@ for idx in $IDXS; do
     log "waiting for ck $idx to settle (up to 120s)..."
     ready=0
     for _ in $(seq 1 1200); do
-        [ -f "/tmp/oracle_grab_ready_$idx" ] && { ready=1; break; }
+        [ -f "${TMP_PREFIX}_grab_ready_$idx" ] && { ready=1; break; }
         kill -0 "$QRL_PID" 2>/dev/null || fail "qrl python exited before ck $idx"
         sleep 0.1
     done
@@ -234,7 +268,7 @@ for idx in $IDXS; do
     GW=$(echo "$DIMS" | tail -1 | cut -d' ' -f1)
     GH=$(echo "$DIMS" | tail -1 | cut -d' ' -f2)
 
-    python3 - "$OUTDIR/mc_ck_$idx.json" "/tmp/oracle_pose_$idx.json" "$GW" "$GH" "$FOV" <<'PY'
+    python3 - "$OUTDIR/mc_ck_$idx.json" "${TMP_PREFIX}_pose_$idx.json" "$GW" "$GH" "$FOV" <<'PY'
 import sys, json
 out, src, w, h, fov = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
 p = json.load(open(src))
@@ -247,11 +281,11 @@ p.update({"fov": fov, "width": w, "height": h,
 json.dump(p, open(out, "w"), indent=2)
 print("[cap-poses] wrote", out)
 PY
-    touch "/tmp/oracle_grab_done_$idx"
+    touch "${TMP_PREFIX}_grab_done_$idx"
     log "ck $idx captured."
 done
 
-for _ in $(seq 1 300); do [ -f /tmp/oracle_all_done ] && break; sleep 1; done
+for _ in $(seq 1 300); do [ -f "${TMP_PREFIX}_all_done" ] && break; sleep 1; done
 wait "$QRL_PID" 2>/dev/null
 
 if [ "$NOLAUNCH" = 0 ]; then

@@ -5,6 +5,52 @@
  * floats are raw IEEE-754 bits and the final texel is signed Java ARGB.
  */
 public class Golden {
+    static final float[] SIN_TABLE = new float[65536];
+
+    static {
+        for (int i = 0; i < SIN_TABLE.length; ++i)
+            SIN_TABLE[i] = (float)Math.sin((double)i * Math.PI * 2.0D / 65536.0D);
+    }
+
+    static float mcSin(float value) {
+        return SIN_TABLE[(int)(value * 10430.378F) & 65535];
+    }
+
+    static float nightVisionBrightness(int duration, float partialTicks) {
+        if (duration <= 0) return 0.0F;
+        return duration > 200 ? 1.0F
+            : 0.7F + mcSin(((float)duration - partialTicks)
+                * (float)Math.PI * 0.2F) * 0.3F;
+    }
+
+    static float blindnessFogEnd(int duration, float farPlane) {
+        if (duration <= 0) return farPlane;
+        float f1 = 5.0F;
+        if (duration < 20)
+            f1 = 5.0F + (farPlane - 5.0F)
+                * (1.0F - (float)duration / 20.0F);
+        return f1;
+    }
+
+    static float[] voidBlindness(float r, float g, float b, int duration,
+                                 double feetY, double voidFactor) {
+        double d1 = feetY * voidFactor;
+        if (duration > 0) {
+            if (duration < 20)
+                d1 *= (double)(1.0F - (float)duration / 20.0F);
+            else
+                d1 = 0.0D;
+        }
+        if (d1 < 1.0D) {
+            if (d1 < 0.0D) d1 = 0.0D;
+            d1 = d1 * d1;
+            r = (float)((double)r * d1);
+            g = (float)((double)g * d1);
+            b = (float)((double)b * d1);
+        }
+        return new float[] {r, g, b};
+    }
+
     static float brightness(int dim, int level) {
         float f1 = 1.0F - (float)level / 15.0F;
         if (dim == -1)
@@ -26,7 +72,8 @@ public class Golden {
         return clamp(v);
     }
 
-    static float[] lightmap(int dim, int sky, int block, float torch, float gamma) {
+    static float[] lightmap(int dim, int sky, int block, float torch,
+                            float gamma, float nightVision) {
         float sun = dim == -1 ? 0.2F : 1.0F;
         float f1 = sun * 0.95F + 0.05F;
         float f2 = brightness(dim, sky) * f1;
@@ -44,6 +91,14 @@ public class Golden {
             g = 0.28F + f6 * 0.75F;
             b = 0.25F + f7 * 0.75F;
         }
+        if (nightVision > 0.0F) {
+            float scale = 1.0F / r;
+            if (scale > 1.0F / g) scale = 1.0F / g;
+            if (scale > 1.0F / b) scale = 1.0F / b;
+            r = r * (1.0F - nightVision) + r * scale * nightVision;
+            g = g * (1.0F - nightVision) + g * scale * nightVision;
+            b = b * (1.0F - nightVision) + b * scale * nightVision;
+        }
         r = finish(clamp(r), gamma);
         g = finish(clamp(g), gamma);
         b = finish(clamp(b), gamma);
@@ -60,7 +115,7 @@ public class Golden {
         for (int dim : dims) {
             for (int sky = 0; sky < 16; ++sky) {
                 for (int block = 0; block < 16; ++block) {
-                    float[] c = lightmap(dim, sky, block, 0.0F, 0.0F);
+                    float[] c = lightmap(dim, sky, block, 0.0F, 0.0F, 0.0F);
                     int r = (int)(c[0] * 255.0F);
                     int g = (int)(c[1] * 255.0F);
                     int b = (int)(c[2] * 255.0F);
@@ -72,5 +127,58 @@ public class Golden {
                 }
             }
         }
+
+        for (int dim : dims) {
+            for (int sky = 0; sky < 16; ++sky) {
+                for (int block = 0; block < 16; ++block) {
+                    float[] c = lightmap(dim, sky, block, 0.0F, 0.0F, 1.0F);
+                    int r = (int)(c[0] * 255.0F);
+                    int g = (int)(c[1] * 255.0F);
+                    int b = (int)(c[2] * 255.0F);
+                    int argb = 0xff000000 | r << 16 | g << 8 | b;
+                    System.out.println("NVRGB " + dim + " " + sky + " " + block + " "
+                        + Float.floatToRawIntBits(c[0]) + " "
+                        + Float.floatToRawIntBits(c[1]) + " "
+                        + Float.floatToRawIntBits(c[2]) + " " + argb);
+                }
+            }
+        }
+
+        int[] durations = {1000, 201, 200, 199, 181, 21, 20, 19, 2, 1};
+        for (int duration : durations) {
+            float amount = nightVisionBrightness(duration, 1.0F);
+            System.out.println("NVAMOUNT " + duration + " "
+                + Float.floatToRawIntBits(amount));
+        }
+
+        int[] blindDurations = {0, 1, 2, 19, 20, 21, 200};
+        for (int duration : blindDurations) {
+            float fogEnd = blindnessFogEnd(duration, 128.0F);
+            System.out.println("BLINDFAR " + duration + " "
+                + Float.floatToRawIntBits(fogEnd));
+        }
+
+        float[][] fogBases = {
+            {0.2F, 0.03F, 0.03F},
+            {0.02F, 0.02F, 0.2F},
+            {0.6F, 0.1F, 0.0F}
+        };
+        double[] feetYs = {-4.0D, 0.0D, 4.0D, 16.0D, 31.5D, 32.0D, 64.0D};
+        double[] voidFactors = {1.0D, 0.03125D};
+        int[] colorDurations = {0, 1, 19, 20, 21};
+        for (int base = 0; base < fogBases.length; ++base)
+            for (int yi = 0; yi < feetYs.length; ++yi)
+                for (int factor = 0; factor < voidFactors.length; ++factor)
+                    for (int duration : colorDurations) {
+                        float[] c = voidBlindness(
+                            fogBases[base][0], fogBases[base][1],
+                            fogBases[base][2], duration, feetYs[yi],
+                            voidFactors[factor]);
+                        System.out.println("BLINDRGB " + base + " " + yi
+                            + " " + factor + " " + duration + " "
+                            + Float.floatToRawIntBits(c[0]) + " "
+                            + Float.floatToRawIntBits(c[1]) + " "
+                            + Float.floatToRawIntBits(c[2]));
+                    }
     }
 }

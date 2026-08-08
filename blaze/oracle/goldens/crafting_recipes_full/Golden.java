@@ -29,7 +29,8 @@ public class Golden {
 
     // vanilla legacy ids (blocks: Block.getIdFromBlock; items: Items.java registration order)
     static final int AIR = 0;
-    static final Block PLANKS = new Block(5), COBBLESTONE = new Block(4), LOG = new Block(17), LOG2 = new Block(162),
+    static final Block PLANKS = new Block(5), COBBLESTONE = new Block(4), GLASS = new Block(20),
+        LOG = new Block(17), LOG2 = new Block(162),
         BROWN_MUSHROOM = new Block(39), RED_MUSHROOM = new Block(40), GOLD_BLOCK = new Block(41),
         IRON_BLOCK = new Block(42), LAPIS_BLOCK = new Block(22), TORCH = new Block(50),
         CHEST = new Block(54), DIAMOND_BLOCK = new Block(57), CRAFTING_TABLE = new Block(58),
@@ -55,9 +56,11 @@ public class Golden {
         GOLDEN_BOOTS = new Item(317), FLINT = new Item(318), REDSTONE = new Item(331), LEATHER = new Item(334),
         GLOWSTONE_DUST = new Item(348), SUGAR = new Item(353), COOKIE = new Item(357), SHEARS = new Item(359),
         MELON = new Item(360), PUMPKIN_SEEDS = new Item(361), MELON_SEEDS = new Item(362), BLAZE_ROD = new Item(369),
-        GOLD_NUGGET = new Item(371), SPIDER_EYE = new Item(375), FERMENTED_SPIDER_EYE = new Item(376),
-        BLAZE_POWDER = new Item(377), MAGMA_CREAM = new Item(378), EMERALD = new Item(388), CARROT = new Item(391),
-        BAKED_POTATO = new Item(393), EGG = new Item(344), PUMPKIN_PIE = new Item(400), COOKED_RABBIT = new Item(412),
+        GOLD_NUGGET = new Item(371), GLASS_BOTTLE = new Item(374), SPIDER_EYE = new Item(375),
+        FERMENTED_SPIDER_EYE = new Item(376), BLAZE_POWDER = new Item(377), MAGMA_CREAM = new Item(378),
+        BREWING_STAND = new Item(379), SPECKLED_MELON = new Item(382), EMERALD = new Item(388),
+        CARROT = new Item(391), BAKED_POTATO = new Item(393), GOLDEN_CARROT = new Item(396),
+        EGG = new Item(344), PUMPKIN_PIE = new Item(400), COOKED_RABBIT = new Item(412),
         RABBIT_STEW = new Item(413), BEETROOT = new Item(434), BEETROOT_SOUP = new Item(436),
         SPECTRAL_ARROW = new Item(439), DYE = new Item(351), SLIME_BALL = new Item(341), IRON_NUGGET = new Item(452),
         BUCKET = new Item(325), BED = new Item(355), ENDER_PEARL = new Item(368), ENDER_EYE = new Item(381);
@@ -393,6 +396,12 @@ public class Golden {
             this.addRecipe(new ItemStack(BUCKET, 1), new Object[] {"# #", " # ", '#', IRON_INGOT});
             this.addRecipe(new ItemStack(BED, 1), new Object[] {"###", "XXX", '#', WOOL, 'X', PLANKS});
             this.addShapelessRecipe(new ItemStack(ENDER_EYE, 1), new Object[] {ENDER_PEARL, BLAZE_POWDER});
+
+            // Route-critical brewing recipes (vanilla CraftingManager.java:127,138,177-178).
+            this.addRecipe(new ItemStack(GLASS_BOTTLE, 3), new Object[] {"# #", " # ", '#', GLASS});
+            this.addRecipe(new ItemStack(BREWING_STAND, 1), new Object[] {" B ", "###", '#', COBBLESTONE, 'B', BLAZE_ROD});
+            this.addRecipe(new ItemStack(GOLDEN_CARROT), new Object[] {"###", "#X#", "###", '#', GOLD_NUGGET, 'X', CARROT});
+            this.addRecipe(new ItemStack(SPECKLED_MELON, 1), new Object[] {"###", "#X#", "###", '#', GOLD_NUGGET, 'X', MELON});
         }
     }
 
@@ -432,6 +441,10 @@ public class Golden {
         ItemStack WO = new ItemStack(35, 1, 14);
         ItemStack EP = new ItemStack(368, 1, 0);
         ItemStack BP = new ItemStack(377, 1, 0);
+        ItemStack GL = new ItemStack(20, 1, 0);
+        ItemStack GN = new ItemStack(371, 1, 0);
+        ItemStack CA = new ItemStack(391, 1, 0);
+        ItemStack ME = new ItemStack(360, 1, 0);
 
         ItemStack[][] battery = new ItemStack[][] {
             { P,P,P, E,S,E, E,S,E },
@@ -483,6 +496,11 @@ public class Golden {
             { IR,E,IR, E,IR,E, E,E,E },
             { WO,WO,WO, P,P,P, E,E,E },
             { E,E,EP, E,E,E, BP,E,E },
+            { GL,E,GL, E,GL,E, E,E,E },
+            { GL,E,GL, E,E,E, E,E,E },
+            { E,BR,E, C,C,C, E,E,E },
+            { GN,GN,GN, GN,CA,GN, GN,GN,GN },
+            { GN,GN,GN, GN,ME,GN, GN,GN,GN },
         };
 
         StringBuilder sb = new StringBuilder();

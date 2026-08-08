@@ -1,0 +1,5 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while a supported dragon egg occupies the front
+# cell. Material.DRAGON_EGG uses DESTROY mobility and drops item 122:0.
+12 78 9 152 0
+13 78 8 122 0

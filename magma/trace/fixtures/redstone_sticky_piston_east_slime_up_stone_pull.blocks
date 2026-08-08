@@ -1,0 +1,8 @@
+# Elevated settled EAST-facing sticky piston with a slime block beyond its
+# head and one stone attached above the slime. Removing the side source must
+# pull both blocks west by one cell through the slime structure helper.
+12 79 8 29 13
+13 79 8 34 13
+14 79 8 165 0
+14 80 8 1 0
+12 79 9 152 0

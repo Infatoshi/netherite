@@ -1,0 +1,5 @@
+# DOWN-facing normal piston is placed at tick zero above a locked NoAI pig at
+# (12.5,80,8.5). A bottom stone slab below has a 0.5-high collision box, so
+# the first head sweep must stop the pig exactly at y=79.5.
+12 81 9 152 0
+12 79 8 44 0

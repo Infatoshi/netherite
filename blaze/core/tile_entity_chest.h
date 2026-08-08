@@ -79,8 +79,14 @@ MC_HD static inline int tec_are_items_equal(const TecStack *a, const TecStack *b
 }
 
 MC_HD static inline i32 tec_max_stack_size(i32 item) {
-    /* Item.getItemStackLimit subset: enchanted books are unstackable. */
-    if (item == TEC_ENCHANTED_BOOK) return 1;
+    /* Item.getItemStackLimit subset used by represented structure loot and
+     * containers. Empty buckets stack to 16; filled buckets do not. */
+    if (item == 325) return 16;
+    if (item == TEC_ENCHANTED_BOOK || item == 329 ||
+        item == 373 || item == 438 || item == 441 ||
+        (item >= 417 && item <= 419) ||
+        (item >= 2256 && item <= 2267) ||
+        (item >= 219 && item <= 234)) return 1;
     return TEC_STACK_LIMIT;
 }
 

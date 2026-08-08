@@ -39,6 +39,11 @@ enum {
     PB_CACTUS = 81, PB_LOG_ACACIA = 82, PB_LEAVES_ACACIA = 83,
     PB_SANDSTONE_SLAB = 84, PB_LOG_JUNGLE = 85, PB_LEAVES_JUNGLE = 86,
     PB_MELON = 87, PB_COCOA = 88, PB_OBSIDIAN = 89,
+    PB_SANDSTONE_SMOOTH = 90, PB_SANDSTONE_CHISELED = 91,
+    PB_SANDSTONE_STAIRS_E = 92, PB_SANDSTONE_STAIRS_W = 93,
+    PB_SANDSTONE_STAIRS_S = 94, PB_SANDSTONE_STAIRS_N = 95,
+    PB_STAINED_CLAY_ORANGE = 96, PB_STAINED_CLAY_BLUE = 97,
+    PB_STONE_PRESSURE_PLATE = 98, PB_TNT = 99,
     CB_STAINED_CLAY_BASE = 120,
     /* magma-local synthetic ids (mesh unit test only) */
     CBX_GLASS = 200, CBX_STAIRS = 201, CBX_SLAB = 202, CBX_FENCE = 203,
@@ -69,7 +74,28 @@ enum {
     CBX_TRAPDOOR = 255,
     CBX_LADDER = 256,
     CBX_STONEBRICK = 257,
-    CBX_MAX = 258
+    /* Context-derived upper-half models. The saved upper metadata only carries
+     * HALF/FACING, so mesh_mc selects one of these from the lower-half variant. */
+    CBX_DPLANT_UPPER_SYRINGA = 258,
+    CBX_DPLANT_UPPER_GRASS = 259,
+    CBX_DPLANT_UPPER_FERN = 260,
+    CBX_DPLANT_UPPER_ROSE = 261,
+    CBX_DPLANT_UPPER_PAEONIA = 262,
+    /* End City blocks, kept separate from canonical ids in runtime state. */
+    CBX_PURPUR_BLOCK = 263,
+    CBX_PURPUR_PILLAR_Y = 264,
+    CBX_PURPUR_PILLAR_X = 265,
+    CBX_PURPUR_PILLAR_Z = 266,
+    CBX_PURPUR_STAIRS = 267,
+    CBX_PURPUR_SLAB_BOTTOM = 268,
+    CBX_PURPUR_SLAB_TOP = 269,
+    CBX_END_BRICKS = 270,
+    CBX_END_ROD = 271,
+    CBX_GLASS_MAGENTA = 272,
+    CBX_CHORUS_PLANT = 273,
+    CBX_CHORUS_FLOWER = 274,
+    CBX_CHORUS_FLOWER_DEAD = 275,
+    CBX_MAX = 276
 };
 
 /* Face order is BM_DOWN, BM_UP, BM_NORTH, BM_SOUTH, BM_WEST, BM_EAST. */
@@ -200,6 +226,23 @@ static const BmBlock g_blocks[CBX_MAX] = {
     [PB_EMERALD_ORE]  = CUBE6(CR_SPRITE_EMERALD_ORE, BM_TINT_NONE),
     [PB_MONSTER_EGG]  = CUBE6(CR_SPRITE_STONE, BM_TINT_NONE),
     [PB_OBSIDIAN]     = CUBE6(CR_SPRITE_OBSIDIAN, BM_TINT_NONE),
+    [PB_SANDSTONE_SMOOTH] = CUBE6(CR_SPRITE_SANDSTONE_SMOOTH, BM_TINT_NONE),
+    [PB_SANDSTONE_CHISELED] = { 0, 1, CR_LAYER_SOLID, BM_KIND_CUBE,
+        TBS(CR_SPRITE_SANDSTONE_TOP, CR_SPRITE_SANDSTONE_BOTTOM,
+            CR_SPRITE_SANDSTONE_CARVED, BM_TINT_NONE, BM_TINT_NONE) },
+    [PB_SANDSTONE_STAIRS_E ... PB_SANDSTONE_STAIRS_N] =
+        { 0, 0, CR_LAYER_SOLID, BM_KIND_STAIRS,
+          FULL6(CR_SPRITE_SANDSTONE_NORMAL, BM_TINT_NONE) },
+    [PB_STAINED_CLAY_ORANGE] =
+        CUBE6(CR_SPRITE_HARDENED_CLAY_STAINED_ORANGE, BM_TINT_NONE),
+    [PB_STAINED_CLAY_BLUE] =
+        CUBE6(CR_SPRITE_HARDENED_CLAY_STAINED_BLUE, BM_TINT_NONE),
+    [PB_STONE_PRESSURE_PLATE] =
+        { 0, 0, CR_LAYER_SOLID, BM_KIND_PRESSURE_PLATE,
+          FULL6(CR_SPRITE_STONE, BM_TINT_NONE) },
+    [PB_TNT] = { 0, 1, CR_LAYER_SOLID, BM_KIND_CUBE,
+        TBS(CR_SPRITE_TNT_TOP, CR_SPRITE_TNT_BOTTOM, CR_SPRITE_TNT_SIDE,
+            BM_TINT_NONE, BM_TINT_NONE) },
 
     /* ---- trees ---- */
     [PB_LOG_OAK]    = LOG6(CR_SPRITE_LOG_OAK, CR_SPRITE_LOG_OAK_TOP),
@@ -249,7 +292,18 @@ static const BmBlock g_blocks[CBX_MAX] = {
     [PB_DPLANT_LOWER_BASE + 5] = CROSS1(CR_SPRITE_DOUBLE_PLANT_PAEONIA_BOTTOM,   BM_TINT_NONE),
     /* Default upper (worldgen writes PB_DPLANT_UPPER without type). Mesh replaces
      * this via bm_dplant_upper after reading the lower half. */
-    [PB_DPLANT_UPPER]        = CROSS1(CR_SPRITE_DOUBLE_PLANT_GRASS_TOP,    BM_TINT_GRASS),
+    [PB_DPLANT_UPPER] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_DPLANT_SUNFLOWER_TOP,
+        { {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE},
+          {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE},
+          {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE},
+          {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE},
+          {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_BACK, BM_TINT_NONE},
+          {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_FRONT, BM_TINT_NONE} } },
+    [CBX_DPLANT_UPPER_SYRINGA] = CROSS1(CR_SPRITE_DOUBLE_PLANT_SYRINGA_TOP, BM_TINT_NONE),
+    [CBX_DPLANT_UPPER_GRASS]   = CROSS1(CR_SPRITE_DOUBLE_PLANT_GRASS_TOP,   BM_TINT_GRASS),
+    [CBX_DPLANT_UPPER_FERN]    = CROSS1(CR_SPRITE_DOUBLE_PLANT_FERN_TOP,    BM_TINT_GRASS),
+    [CBX_DPLANT_UPPER_ROSE]    = CROSS1(CR_SPRITE_DOUBLE_PLANT_ROSE_TOP,    BM_TINT_NONE),
+    [CBX_DPLANT_UPPER_PAEONIA] = CROSS1(CR_SPRITE_DOUBLE_PLANT_PAEONIA_TOP, BM_TINT_NONE),
     /* cocoa: cross-ish cutout (stage0 texture stand-in uses brown mushroom). */
     [PB_COCOA] = CROSS1(CR_SPRITE_MUSHROOM_BROWN, BM_TINT_NONE),
 
@@ -420,6 +474,57 @@ static const BmBlock g_blocks[CBX_MAX] = {
         { CR_SPRITE_CRAFTING_TABLE_FRONT,  BM_TINT_NONE }, /* WEST  */
         { CR_SPRITE_CRAFTING_TABLE_SIDE,   BM_TINT_NONE }  /* EAST  */
     }},
+
+    /* ---- End City palette (real 1.11.2 templates and textures) ---- */
+    [CBX_PURPUR_BLOCK] = CUBE6(CR_SPRITE_PURPUR_BLOCK, BM_TINT_NONE),
+    [CBX_PURPUR_PILLAR_Y] = LOG6(CR_SPRITE_PURPUR_PILLAR,
+                                  CR_SPRITE_PURPUR_PILLAR_TOP),
+    [CBX_PURPUR_PILLAR_X] = { 0, 1, CR_LAYER_SOLID, BM_KIND_CUBE, {
+        {CR_SPRITE_PURPUR_PILLAR, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR_TOP, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR_TOP, BM_TINT_NONE}
+    }},
+    [CBX_PURPUR_PILLAR_Z] = { 0, 1, CR_LAYER_SOLID, BM_KIND_CUBE, {
+        {CR_SPRITE_PURPUR_PILLAR, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR_TOP, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR_TOP, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR, BM_TINT_NONE},
+        {CR_SPRITE_PURPUR_PILLAR, BM_TINT_NONE}
+    }},
+    [CBX_PURPUR_STAIRS] = { 0, 0, CR_LAYER_SOLID, BM_KIND_STAIRS,
+                            FULL6(CR_SPRITE_PURPUR_BLOCK, BM_TINT_NONE) },
+    [CBX_PURPUR_SLAB_BOTTOM] = { 0, 0, CR_LAYER_SOLID, BM_KIND_SLAB_BOTTOM,
+                                 FULL6(CR_SPRITE_PURPUR_BLOCK, BM_TINT_NONE) },
+    [CBX_PURPUR_SLAB_TOP] = { 0, 0, CR_LAYER_SOLID, BM_KIND_SLAB_TOP,
+                              FULL6(CR_SPRITE_PURPUR_BLOCK, BM_TINT_NONE) },
+    [CBX_END_BRICKS] = CUBE6(CR_SPRITE_END_BRICKS, BM_TINT_NONE),
+    [CBX_END_ROD] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_END_ROD,
+                      FULL6(CR_SPRITE_END_ROD, BM_TINT_NONE) },
+    [CBX_GLASS_MAGENTA] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_CUBE,
+                            FULL6(CR_SPRITE_GLASS_MAGENTA, BM_TINT_NONE) },
+    [CBX_CHORUS_PLANT] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_CHORUS_PLANT,
+                           FULL6(CR_SPRITE_CHORUS_PLANT, BM_TINT_NONE) },
+    [CBX_CHORUS_FLOWER] = { 0, 0, CR_LAYER_CUTOUT, BM_KIND_CHORUS_FLOWER, {
+        {CR_SPRITE_CHORUS_PLANT, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER, BM_TINT_NONE}
+    }},
+    [CBX_CHORUS_FLOWER_DEAD] = { 0, 0, CR_LAYER_CUTOUT,
+                                 BM_KIND_CHORUS_FLOWER, {
+        {CR_SPRITE_CHORUS_PLANT, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER_DEAD, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER_DEAD, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER_DEAD, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER_DEAD, BM_TINT_NONE},
+        {CR_SPRITE_CHORUS_FLOWER_DEAD, BM_TINT_NONE}
+    }},
 };
 
 /* True when g_blocks[id] was explicitly modeled above (vs a zeroed gap). */
@@ -446,6 +551,11 @@ static int bm_is_modeled(int id)
     case PB_COBBLESTONE: case PB_MOSSY_COBBLESTONE:
     case PB_MOB_SPAWNER: case PB_BONE_BLOCK: case PB_CHEST:
     case PB_EMERALD_ORE: case PB_MONSTER_EGG: case PB_OBSIDIAN:
+    case PB_SANDSTONE_SMOOTH: case PB_SANDSTONE_CHISELED:
+    case PB_SANDSTONE_STAIRS_E: case PB_SANDSTONE_STAIRS_W:
+    case PB_SANDSTONE_STAIRS_S: case PB_SANDSTONE_STAIRS_N:
+    case PB_STAINED_CLAY_ORANGE: case PB_STAINED_CLAY_BLUE:
+    case PB_STONE_PRESSURE_PLATE: case PB_TNT:
     case PB_BROWN_SHROOM_BLOCK: case PB_RED_SHROOM_BLOCK:
     case PB_CACTUS: case PB_SANDSTONE_SLAB: case PB_MELON: case PB_COCOA:
     case CBX_GLASS: case CBX_STAIRS: case CBX_SLAB: case CBX_FENCE:
@@ -460,12 +570,19 @@ static int bm_is_modeled(int id)
     case CBX_NETHER_BRICK_FENCE: case CBX_COBBLESTONE_WALL:
     case CBX_END_PORTAL: case CBX_RAIL: case CBX_TNT:
     case CBX_COBBLESTONE_STAIRS: case CBX_LADDER: case CBX_STONEBRICK:
+    case CBX_PURPUR_BLOCK: case CBX_PURPUR_PILLAR_Y:
+    case CBX_PURPUR_PILLAR_X: case CBX_PURPUR_PILLAR_Z:
+    case CBX_PURPUR_STAIRS: case CBX_PURPUR_SLAB_BOTTOM:
+    case CBX_PURPUR_SLAB_TOP: case CBX_END_BRICKS: case CBX_END_ROD:
+    case CBX_GLASS_MAGENTA: case CBX_CHORUS_PLANT:
+    case CBX_CHORUS_FLOWER: case CBX_CHORUS_FLOWER_DEAD:
         return 1;
     default:
         if (id >= CBX_STONE_SLAB_BOTTOM_BASE && id < CBX_MAX) return 1;
         if (id >= CB_STAINED_CLAY_BASE && id < CB_STAINED_CLAY_BASE + 16) return 1;
         if (id >= PB_RED_FLOWER_BASE && id <= PB_RED_FLOWER_BASE + 8) return 1;
         if (id >= PB_DPLANT_LOWER_BASE && id <= PB_DPLANT_UPPER) return 1;
+        if (id >= CBX_DPLANT_UPPER_SYRINGA && id <= CBX_DPLANT_UPPER_PAEONIA) return 1;
         if (id >= PB_PUMPKIN_BASE && id < PB_PUMPKIN_BASE + 4) return 1;
         if (id >= PB_VINE_BASE && id < PB_VINE_BASE + 4) return 1;
         return 0;
@@ -477,8 +594,8 @@ const BmBlock *bm_block(int cb_id)
     if (cb_id == CB_AIR) return &g_air;
     if (cb_id < 0 || cb_id >= CBX_MAX) return &g_stone;
     if (!bm_is_modeled(cb_id)) return &g_stone;
-    /* stained-clay / double-plant / pumpkin / vine variants share one entry.
-     * Red flowers (meta 0..8) each keep their own sprite - do NOT collapse. */
+    /* Stained-clay / pumpkin / vine variants share one entry. Red flowers and
+     * double plants keep distinct sprites. */
     if (cb_id >= CB_STAINED_CLAY_BASE && cb_id < CB_STAINED_CLAY_BASE + 16)
         return &g_blocks[CB_STAINED_CLAY_BASE];
     /* Double-plant lowers 60..65 each have their own sprite/tint - do not collapse. */
@@ -493,7 +610,13 @@ const BmBlock *bm_block(int cb_id)
  * the state->key map only store PB_DPLANT_UPPER; the mesher picks the row after
  * getActualState-style lookup of the lower half. */
 static const BmBlock g_dplant_upper[6] = {
-    CROSS1(CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE),
+    { 0, 0, CR_LAYER_CUTOUT, BM_KIND_DPLANT_SUNFLOWER_TOP,
+      { {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE},
+        {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE},
+        {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE},
+        {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP, BM_TINT_NONE},
+        {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_BACK, BM_TINT_NONE},
+        {CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_FRONT, BM_TINT_NONE} } },
     CROSS1(CR_SPRITE_DOUBLE_PLANT_SYRINGA_TOP,   BM_TINT_NONE),
     CROSS1(CR_SPRITE_DOUBLE_PLANT_GRASS_TOP,     BM_TINT_GRASS),
     CROSS1(CR_SPRITE_DOUBLE_PLANT_FERN_TOP,      BM_TINT_GRASS),

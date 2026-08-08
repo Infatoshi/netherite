@@ -6,7 +6,8 @@ import textwrap
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 B = dict(
-    AIR=0, COBBLESTONE=4, PLANKS=5, LOG=17, LOG2=162, BROWN_MUSHROOM=39, RED_MUSHROOM=40,
+    AIR=0, COBBLESTONE=4, PLANKS=5, GLASS=20, LOG=17, LOG2=162,
+    BROWN_MUSHROOM=39, RED_MUSHROOM=40,
     WOOL=35, GOLD_BLOCK=41, IRON_BLOCK=42, LAPIS_BLOCK=22, TORCH=50, CHEST=54, DIAMOND_BLOCK=57,
     CRAFTING_TABLE=58, FURNACE=61, PUMPKIN=86, MELON_BLOCK=103,
     EMERALD_BLOCK=133, REDSTONE_BLOCK=152, SLIME_BLOCK=165, HAY_BLOCK=170,
@@ -28,8 +29,10 @@ I = dict(
     GOLDEN_LEGGINGS=316, GOLDEN_BOOTS=317, FLINT=318, REDSTONE=331, LEATHER=334,
     GLOWSTONE_DUST=348, SUGAR=353, COOKIE=357, SHEARS=359, MELON=360,
     PUMPKIN_SEEDS=361, MELON_SEEDS=362, BLAZE_ROD=369, GOLD_NUGGET=371,
+    GLASS_BOTTLE=374,
     SPIDER_EYE=375, FERMENTED_SPIDER_EYE=376, BLAZE_POWDER=377, MAGMA_CREAM=378,
-    EMERALD=388, CARROT=391, BAKED_POTATO=393, EGG=344, PUMPKIN_PIE=400,
+    BREWING_STAND=379, SPECKLED_MELON=382, EMERALD=388, CARROT=391,
+    BAKED_POTATO=393, GOLDEN_CARROT=396, EGG=344, PUMPKIN_PIE=400,
     COOKED_RABBIT=412, RABBIT_STEW=413, BEETROOT=434, BEETROOT_SOUP=436,
     SPECTRAL_ARROW=439, DYE=351, SLIME_BALL=341, IRON_NUGGET=452,
     BUCKET=325, BED=355, ENDER_PEARL=368, ENDER_EYE=381,
@@ -199,6 +202,18 @@ def emit_c_build():
             {'#': stk(B['WOOL'], block=True), 'X': stk(B['PLANKS'], block=True), ' ': E})
     shapeless(dict(item=I['ENDER_EYE']), [stk(I['ENDER_PEARL']), stk(I['BLAZE_POWDER'])])
 
+    # Route-critical brewing recipes (vanilla CraftingManager.java:127,138,177-178).
+    # Appended after the KEEP set; their exact grids are disjoint from every
+    # registered recipe, so the first-match result is unchanged.
+    shaped(dict(item=I['GLASS_BOTTLE'], count=3), ["# #", " # "],
+            {'#': stk(B['GLASS'], block=True), ' ': E})
+    shaped(dict(item=I['BREWING_STAND']), [" B ", "###"],
+            {'B': stk(I['BLAZE_ROD']), '#': stk(B['COBBLESTONE'], block=True), ' ': E})
+    shaped(dict(item=I['GOLDEN_CARROT']), ["###", "#X#", "###"],
+            {'#': stk(I['GOLD_NUGGET']), 'X': stk(I['CARROT']), ' ': E})
+    shaped(dict(item=I['SPECKLED_MELON']), ["###", "#X#", "###"],
+            {'#': stk(I['GOLD_NUGGET']), 'X': stk(I['MELON']), ' ': E})
+
     return '\n'.join(lines), n
 
 
@@ -311,6 +326,11 @@ BATTERY = [
     ("bucket", "IR,E,IR,E,IR,E,E,E,E"),
     ("bed_wool_meta14", "WO,WO,WO,P,P,P,E,E,E"),
     ("ender_eye_scrambled", "E,E,EP,E,E,E,BP,E,E"),
+    ("glass_bottles", "GL,E,GL,E,GL,E,E,E,E"),
+    ("glass_bottles_nonmatch", "GL,E,GL,E,E,E,E,E,E"),
+    ("brewing_stand", "E,BR,E,C,C,C,E,E,E"),
+    ("golden_carrot", "GN,GN,GN,GN,CA,GN,GN,GN,GN"),
+    ("speckled_melon", "GN,GN,GN,GN,ME,GN,GN,GN,GN"),
 ]
 
 SYM = {
@@ -323,6 +343,8 @@ SYM = {
     'DY3': 'crf_mk(351,1,3)', 'L': 'crf_mk(334,1,0)', 'BR': 'crf_mk(369,1,0)', 'PK': 'crf_mk(86,1,0)',
     'SG': 'crf_mk(353,1,0)', 'EG': 'crf_mk(344,1,0)', 'ST': 'crf_mk(287,1,0)',
     'WO': 'crf_mk(35,1,14)', 'EP': 'crf_mk(368,1,0)', 'BP': 'crf_mk(377,1,0)',
+    'GL': 'crf_mk(20,1,0)', 'GN': 'crf_mk(371,1,0)',
+    'CA': 'crf_mk(391,1,0)', 'ME': 'crf_mk(360,1,0)',
 }
 
 
@@ -344,7 +366,7 @@ def main():
     header = f'''/* crafting_recipes_full: MC 1.11.2 CraftingManager KEEP-scope recipe set (generated + hand header).
  * Matcher = verbatim ShapedRecipes/ShapelessRecipes/findMatchingRecipe (same as crafting_recipes.h).
  * Registry = RecipesTools/Weapons/Ingots/Food + RecipesCrafting(chest,furnace,table) + RecipesArmor +
- * inline planks/sticks/torch/flint_and_steel, vanilla registration order. {nrec_actual} recipes.
+ * inline planks/sticks/torch/flint_and_steel plus route-critical End/brewing recipes. {nrec_actual} recipes.
  * CUT: RecipesDyes, special IRecipes, CraftingManager decorative/redstone inline rows. */
 #ifndef MC_CRAFTING_RECIPES_FULL_H
 #define MC_CRAFTING_RECIPES_FULL_H

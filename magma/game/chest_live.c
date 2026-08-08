@@ -6,6 +6,7 @@
 #include "stronghold_loot.h"
 #pragma GCC diagnostic pop
 
+#include <math.h>
 #include <string.h>
 
 static ICStack tec_to_ic(TecStack t)
@@ -136,4 +137,44 @@ int chest_live_total_items(const ChestLive *c)
 {
     if (!c) return 0;
     return tec_total_items(&c->te);
+}
+
+int chest_live_comparator_strength(const ChestLive *c)
+{
+    float fullness = 0.0f;
+    int occupied = 0;
+    if (!c) return 0;
+    for (int slot = 0; slot < CHEST_LIVE_SLOTS; ++slot) {
+        ICStack stack = chest_live_get(c, slot);
+        if (stack.item <= 0 || stack.count <= 0) continue;
+        int limit = tec_max_stack_size(stack.item);
+        if (limit > TEC_STACK_LIMIT) limit = TEC_STACK_LIMIT;
+        if (limit < 1) limit = 1;
+        fullness += (float)stack.count / (float)limit;
+        occupied++;
+    }
+    fullness /= (float)CHEST_LIVE_SLOTS;
+    return (int)floorf(fullness * 14.0f) + (occupied > 0 ? 1 : 0);
+}
+
+int chest_live_double_comparator_strength(
+        const ChestLive *first, const ChestLive *second)
+{
+    const ChestLive *halves[2] = {first, second};
+    float fullness = 0.0f;
+    int occupied = 0;
+    if (!first || !second) return 0;
+    for (int half = 0; half < 2; ++half) {
+        for (int slot = 0; slot < CHEST_LIVE_SLOTS; ++slot) {
+            ICStack stack = chest_live_get(halves[half], slot);
+            if (stack.item <= 0 || stack.count <= 0) continue;
+            int limit = tec_max_stack_size(stack.item);
+            if (limit > TEC_STACK_LIMIT) limit = TEC_STACK_LIMIT;
+            if (limit < 1) limit = 1;
+            fullness += (float)stack.count / (float)limit;
+            occupied++;
+        }
+    }
+    fullness /= (float)(CHEST_LIVE_SLOTS * 2);
+    return (int)floorf(fullness * 14.0f) + (occupied > 0 ? 1 : 0);
 }

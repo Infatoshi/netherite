@@ -1,0 +1,7 @@
+# Tick zero fills the center with a SOUTH-facing powered repeater. Its north
+# output strongly powers the stone; only diode onBlockAdded reaches the lamp
+# beside that output stone in the placement tick.
+12 77 8 1 0
+12 78 9 152 0
+12 78 7 1 0
+13 78 7 123 0

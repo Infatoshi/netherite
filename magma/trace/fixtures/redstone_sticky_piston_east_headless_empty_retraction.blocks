@@ -1,0 +1,4 @@
+# Valid serialized extended base with its head already absent and no pull
+# target. Java still accepts the queued retraction and settles the base.
+12 79 8 29 13
+12 79 9 152 0

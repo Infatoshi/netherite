@@ -1,0 +1,9 @@
+# EAST normal piston with a NORTH slime attachment. The side stone terminates
+# at upper double grass. Its lower mate performs the deferred seed roll after
+# the upper is removed; seed zero selects one wheat-seed item.
+12 79 8 33 5
+13 79 8 165 0
+13 79 7 1 0
+14 77 7 3 0
+14 78 7 175 2
+14 79 7 175 10

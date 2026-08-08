@@ -1,0 +1,7 @@
+# EAST piston pushes a stationary item into the side of stable farmland.
+# Mature wheat prevents dry moisture-0 farmland from becoming dirt and cannot
+# grow further; open air around it keeps the horizontal collision lane clean.
+11 78 9 152 0
+13 77 8 1 0
+13 78 8 60 0
+13 79 8 59 7

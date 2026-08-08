@@ -1,0 +1,6 @@
+# WEST-facing normal piston is placed at tick zero and targets the head of an
+# east-facing bed. Head 26:11 emits nothing; the missing-head notification
+# removes foot 26:3 and emits exactly one bed item 355:0 at the foot.
+13 78 8 26 3
+14 78 8 26 11
+15 78 9 152 0

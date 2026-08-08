@@ -1,10 +1,13 @@
-/* game/chest_live.h - live single-chest inventory (TileEntityChest, 27 slots).
+/* game/chest_live.h - live chest inventory core (TileEntityChest, 27 slots).
  *
- * Wraps blaze tile_entity_chest.h for insert/extract and lid open-count.
+ * Wraps blaze tile_entity_chest.h for ordinary/trapped insert/extract and lid
+ * open-count. The runtime world block controls type-specific behavior.
  * Loot fill is deferred until first access (vanilla LockableLoot pattern).
  *
- * CUT: double chests, trapped/ender chest, sounds. Lid angle is ticked for TE
- * state fidelity but the chunk mesh does not animate the lid (TESR cut). */
+ * Comparator queries compose represented ordinary/trapped double halves.
+ * CUT: double-chest GUI composition, ender chest, and sounds. Lid angle is
+ * ticked for TE state fidelity but the chunk mesh does not animate the lid
+ * (TESR cut). */
 #ifndef MAGMA_GAME_CHEST_LIVE_H
 #define MAGMA_GAME_CHEST_LIVE_H
 
@@ -17,7 +20,13 @@ enum {
     CHEST_LOOT_NONE     = -1,
     CHEST_LOOT_CORRIDOR = 0,
     CHEST_LOOT_LIBRARY  = 1,
-    CHEST_LOOT_CROSSING = 2
+    CHEST_LOOT_CROSSING = 2,
+    CHEST_LOOT_SIMPLE_DUNGEON = 3,
+    CHEST_LOOT_ABANDONED_MINESHAFT = 4,
+    CHEST_LOOT_END_CITY = 5,
+    CHEST_LOOT_DESERT_PYRAMID = 6,
+    CHEST_LOOT_JUNGLE_TEMPLE = 7,
+    CHEST_LOOT_VILLAGE_BLACKSMITH = 9
 };
 
 typedef struct {
@@ -47,5 +56,11 @@ void chest_live_close(ChestLive *c);
 void chest_live_tick(ChestLive *c);
 
 int chest_live_total_items(const ChestLive *c);
+
+/* Container.calcRedstoneFromInventory for a 27-slot single chest. */
+int chest_live_comparator_strength(const ChestLive *c);
+/* The same formula over both halves of a 54-slot ordinary double chest. */
+int chest_live_double_comparator_strength(
+    const ChestLive *first, const ChestLive *second);
 
 #endif /* MAGMA_GAME_CHEST_LIVE_H */

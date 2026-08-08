@@ -1,6 +1,8 @@
 #include <stddef.h>
+#include <math.h>
 
 #include "furnace_live.h"
+#include "tile_entity_chest.h"
 
 static SRStack *furnace_live_slot(FurnaceLive *furnace, int slot) {
     if (furnace == NULL) return NULL;
@@ -88,4 +90,26 @@ void furnace_live_tick(FurnaceLive *furnace) {
     furnace->current_burn_time = kernel.current_burn_time;
     furnace->cook_time = kernel.cook_time;
     furnace->total_cook = kernel.total_cook;
+}
+
+int furnace_live_comparator_strength(const FurnaceLive *furnace) {
+    const SRStack *slots[FURNACE_LIVE_SLOT_COUNT];
+    float fullness = 0.0f;
+    int occupied = 0;
+    if (furnace == NULL) return 0;
+    slots[0] = &furnace->input;
+    slots[1] = &furnace->fuel;
+    slots[2] = &furnace->output;
+    for (int slot = 0; slot < FURNACE_LIVE_SLOT_COUNT; ++slot) {
+        const SRStack *stack = slots[slot];
+        int limit;
+        if (sr_isEmpty(*stack)) continue;
+        limit = tec_max_stack_size(stack->item);
+        if (limit > FFT_STACK_LIMIT) limit = FFT_STACK_LIMIT;
+        if (limit < 1) limit = 1;
+        fullness += (float)stack->count / (float)limit;
+        occupied++;
+    }
+    fullness /= (float)FURNACE_LIVE_SLOT_COUNT;
+    return (int)floorf(fullness * 14.0f) + (occupied > 0 ? 1 : 0);
 }

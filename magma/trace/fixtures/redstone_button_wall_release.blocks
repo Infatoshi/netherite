@@ -1,0 +1,6 @@
+# A pressed stone button on the east face of a stone support directly powers
+# the lit lamp to its east. A saved +3 callback releases metadata 9 to 1 and
+# hands off to the lamp's independent +4 delayed-off callback.
+12 78 8 1 0
+13 78 8 77 9
+14 78 8 124 0

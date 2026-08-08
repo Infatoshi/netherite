@@ -1,0 +1,5 @@
+# EAST-facing normal piston is placed at tick zero directly west of a locked
+# NoAI pig. Stone at x=13 leaves the pig a float-width collision gap and clips
+# the moving head's first displacement without obstructing piston extension.
+11 78 9 152 0
+13 78 8 1 0

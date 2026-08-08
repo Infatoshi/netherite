@@ -285,8 +285,8 @@ MC_HD static inline int wt_fire_encouragement(int id) {
         case 107: case 183: case 184: case 185: case 186: case 187:
         case 85:  case 188: case 189: case 190: case 191: case 192:
         case 53:  case 134: case 135: case 136: case 163: case 164:
-        case 17: case 162: case 47: case 173: return 5;
-        case 18: case 161: case 35: return 30;           /* leaves / wool */
+        case 17: case 162: case 173: return 5;
+        case 18: case 161: case 35: case 47: return 30;  /* leaves / wool / bookshelf */
         case 46: case 106: return 15;                    /* tnt / vine */
         case 31: case 175: case 37: case 38: case 32:
         case 170: case 171: return 60;                   /* plants / hay / carpet */

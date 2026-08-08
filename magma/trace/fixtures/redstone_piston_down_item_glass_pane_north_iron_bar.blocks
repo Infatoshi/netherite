@@ -1,0 +1,5 @@
+# Any BlockPane connects across registry classes. The narrow item is over the
+# north arm but outside both center posts, so only the arm can stop it.
+12 81 9 152 0
+12 79 8 102 0
+12 79 7 101 0

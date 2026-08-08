@@ -1,0 +1,8 @@
+# The locked pig fixture is spawned at (12.5,78,8.5), inside this unpowered
+# plate's trigger AABB while the player remains at (8.5,78,8.5). Its ordinary
+# entity collision must activate the plate and keep rescheduling every +20.
+# The extra stone below the support removes natural-terrain proof consumers.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 70 0
+13 78 8 123 0

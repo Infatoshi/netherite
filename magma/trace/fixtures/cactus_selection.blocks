@@ -1,0 +1,6 @@
+# Light-independent natural-selector target. The age-zero cactus has air
+# above and sand below, so its real random-tick callback deterministically
+# increments metadata to age one without consuming World.rand.
+12 76 8 1 0
+12 77 8 12 0
+12 78 8 81 0

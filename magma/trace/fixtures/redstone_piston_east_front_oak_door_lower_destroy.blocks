@@ -1,0 +1,5 @@
+# EAST piston targets lower oak door 64:3; upper 64:11 is paired vertically.
+12 78 9 152 0
+13 77 8 1 0
+13 78 8 64 3
+13 79 8 64 11

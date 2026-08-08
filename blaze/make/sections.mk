@@ -61,7 +61,7 @@ TICK := tick_world_copy tick_random_block tick_fluid_ca tick_light_ca \
 ENTITY :=
 
 # BATCH: product/env-related kernels only after trail purge.
-BATCH := cuda_batch_tick py_gym_env_smoke render_opt_obs_hook obs_camera
+BATCH := cuda_batch_tick py_gym_env_smoke render_opt_obs_hook obs_camera sps_benchmark
 
 # REGION: region_tensor kept (blocked/tool); reproduce/batch purged.
 REGION := region_tensor

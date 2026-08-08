@@ -15,7 +15,7 @@ import os
 
 _REL = "minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar"
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_REPO = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
+_REPO = os.path.abspath(os.path.join(_HERE, "..", ".."))
 
 
 def find_jar():

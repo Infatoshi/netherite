@@ -2,6 +2,7 @@
  * block id must have a BmBlock contract matching vanilla model family.
  * See VERIFY.md. */
 #include "assets/blockmodels.h"
+#include "assets/atlas_gen.h"
 
 #include <stdio.h>
 
@@ -37,7 +38,12 @@ enum {
     CBX_BROWN_MUSHROOM = 218, CBX_RED_MUSHROOM = 219, CBX_MAGMA = 220,
     CBX_IRON_BARS = 221, CBX_TORCH = 222,
     CBX_GRANITE_SMOOTH = 225, CBX_DIORITE_SMOOTH = 226,
-    CBX_ANDESITE_SMOOTH = 227
+    CBX_ANDESITE_SMOOTH = 227,
+    CBX_DPLANT_UPPER_SYRINGA = 258,
+    CBX_DPLANT_UPPER_GRASS = 259,
+    CBX_DPLANT_UPPER_FERN = 260,
+    CBX_DPLANT_UPPER_ROSE = 261,
+    CBX_DPLANT_UPPER_PAEONIA = 262
 };
 
 enum { L_SOLID = 0, L_MIPPED = 1, L_CUTOUT = 2, L_TRANSLUCENT = 3 };
@@ -117,12 +123,19 @@ static const Expect EXPECT[] = {
     { PB_YELLOW_FLOWER, "dandelion", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
     { PB_RED_FLOWER_BASE, "poppy", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
     { PB_RED_FLOWER_BASE + 8, "oxeye_daisy", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
-    /* EnumPlantType: 0 sunflower (no tint), 2 grass (biome tint), 3 fern (tint). */
-    { PB_DPLANT_LOWER_BASE + 0, "dplant_sunflower_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
-    { PB_DPLANT_LOWER_BASE + 2, "dplant_grass_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
-    { PB_DPLANT_LOWER_BASE + 3, "dplant_fern_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
+    { PB_DPLANT_LOWER_BASE + 0, "sunflower_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
+    { PB_DPLANT_LOWER_BASE + 1, "syringa_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
+    { PB_DPLANT_LOWER_BASE + 2, "double_grass_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
+    { PB_DPLANT_LOWER_BASE + 3, "double_fern_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
+    { PB_DPLANT_LOWER_BASE + 4, "double_rose_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
+    { PB_DPLANT_LOWER_BASE + 5, "paeonia_lower", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
     { 223, "crafting_table", BM_KIND_CUBE, 1, L_SOLID, BM_TINT_NONE },
-    { PB_DPLANT_UPPER, "dplant_upper_default", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
+    { PB_DPLANT_UPPER, "sunflower_upper", BM_KIND_DPLANT_SUNFLOWER_TOP, 0, L_CUTOUT, BM_TINT_NONE },
+    { CBX_DPLANT_UPPER_SYRINGA, "syringa_upper", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
+    { CBX_DPLANT_UPPER_GRASS, "double_grass_upper", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
+    { CBX_DPLANT_UPPER_FERN, "double_fern_upper", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_GRASS },
+    { CBX_DPLANT_UPPER_ROSE, "double_rose_upper", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
+    { CBX_DPLANT_UPPER_PAEONIA, "paeonia_upper", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
     { PB_COCOA, "cocoa", BM_KIND_CROSS, 0, L_CUTOUT, BM_TINT_NONE },
 
     { PB_COBBLESTONE, "cobblestone", BM_KIND_CUBE, 1, L_SOLID, BM_TINT_NONE },
@@ -174,6 +187,7 @@ static const char *kind_name(int k) {
         case BM_KIND_END_FRAME: return "END_FRAME";
         case BM_KIND_IRON_BARS: return "IRON_BARS";
         case BM_KIND_TORCH: return "TORCH";
+        case BM_KIND_DPLANT_SUNFLOWER_TOP: return "DPLANT_SUNFLOWER_TOP";
         default: return "?";
     }
 }
@@ -226,6 +240,39 @@ int main(void) {
         CHECK(ct->face[BM_NORTH].sprite != ct->face[BM_SOUTH].sprite ||
               ct->face[BM_NORTH].sprite != ct->face[BM_UP].sprite,
               "crafting table has distinct face textures");
+    }
+
+    /* Every double-plant species keeps its jar-selected lower and upper sprite.
+     * Grass/fern alone receive BlockColors' grass tint. */
+    {
+        const int lower_keys[6] = {60, 61, 62, 63, 64, 65};
+        const int upper_keys[6] = {66, 258, 259, 260, 261, 262};
+        const int lower_sprites[6] = {
+            CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_SYRINGA_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_GRASS_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_FERN_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_ROSE_BOTTOM,
+            CR_SPRITE_DOUBLE_PLANT_PAEONIA_BOTTOM,
+        };
+        const int upper_sprites[6] = {
+            CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_TOP,
+            CR_SPRITE_DOUBLE_PLANT_SYRINGA_TOP,
+            CR_SPRITE_DOUBLE_PLANT_GRASS_TOP,
+            CR_SPRITE_DOUBLE_PLANT_FERN_TOP,
+            CR_SPRITE_DOUBLE_PLANT_ROSE_TOP,
+            CR_SPRITE_DOUBLE_PLANT_PAEONIA_TOP,
+        };
+        for (int i = 0; i < 6; ++i) {
+            CHECK(bm_block(lower_keys[i])->face[BM_NORTH].sprite == lower_sprites[i],
+                  "double plant variant %d lower sprite", i);
+            CHECK(bm_block(upper_keys[i])->face[BM_NORTH].sprite == upper_sprites[i],
+                  "double plant variant %d upper sprite", i);
+        }
+        CHECK(bm_block(66)->face[BM_WEST].sprite == CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_BACK,
+              "sunflower upper back sprite");
+        CHECK(bm_block(66)->face[BM_EAST].sprite == CR_SPRITE_DOUBLE_PLANT_SUNFLOWER_FRONT,
+              "sunflower upper front sprite");
     }
 
     if (g_fail) {

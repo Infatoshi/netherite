@@ -17,7 +17,8 @@ if [ ! -f assets/mob_atlas.h ]; then
   need_atlas=1
 elif ! grep -q 'CR_MOB_PARTICLES' assets/mob_atlas.h || \
      ! grep -q 'CR_MOB_DRAGON_EXPLODING' assets/mob_atlas.h || \
-     ! grep -q 'CR_MOB_EXPLOSION' assets/mob_atlas.h; then
+     ! grep -q 'CR_MOB_EXPLOSION' assets/mob_atlas.h || \
+     ! grep -q 'CR_ENDERCRYSTAL_BEAM_RGBA' assets/mob_atlas.h; then
   need_atlas=1
 fi
 if [ "$need_atlas" = 1 ]; then
@@ -25,8 +26,9 @@ if [ "$need_atlas" = 1 ]; then
 fi
 # Fail closed if still missing (jar unavailable): checker would SKIP, tests must not.
 if ! grep -q 'CR_MOB_PARTICLES' assets/mob_atlas.h || \
-   ! grep -q 'CR_MOB_EXPLOSION' assets/mob_atlas.h; then
-  echo "FAIL: mob_atlas.h missing CR_MOB_PARTICLES/CR_MOB_EXPLOSION after rebuild" >&2
+   ! grep -q 'CR_MOB_EXPLOSION' assets/mob_atlas.h || \
+   ! grep -q 'CR_ENDERCRYSTAL_BEAM_RGBA' assets/mob_atlas.h; then
+  echo "FAIL: mob_atlas.h missing an entity pixel-path texture after rebuild" >&2
   exit 1
 fi
 
@@ -35,6 +37,7 @@ $CC $CFLAGS \
     game/entity_render.c \
     assets/blockmodels.c \
     transform.c \
+    core/config.c \
     core/math.c \
     core/shade.c \
     cpu/raster_cpu.c \

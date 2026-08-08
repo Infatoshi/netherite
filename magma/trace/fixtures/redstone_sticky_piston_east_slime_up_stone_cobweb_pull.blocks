@@ -1,0 +1,9 @@
+# Elevated settled EAST-facing sticky piston with a slime block and attached
+# UP stone. The former side-line destination contains cobweb, so retraction
+# must destroy it before moving the attached stone west into that cell.
+12 79 8 29 13
+13 79 8 34 13
+14 79 8 165 0
+13 80 8 30 0
+14 80 8 1 0
+12 79 9 152 0

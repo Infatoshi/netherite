@@ -1,0 +1,38 @@
+# EntityRenderer Blindness gate. The sealed tunnel exposes both the exact
+# five-block linear fog range and updateFogColor's black target. The effect
+# remains above 20 ticks for every capture, avoiding its intentional final-
+# second fade; that boundary is locked bit-for-bit by tests/Golden.java.
+name: blindness_dark
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /fill ~-6 ~-1 ~-4 ~6 ~4 ~130 minecraft:stone
+  - /fill ~-5 ~ ~-3 ~5 ~3 ~129 minecraft:air
+  - /effect @p minecraft:blindness 60 0 true
+setup_settle_ticks: 40
+duration_ticks: 40
+frames_every: 10
+input:
+  segments:
+    # A changing view keeps every capture independently measurable. Sprint
+    # start/expiry semantics are locked separately by test_player_effects.
+    - seconds: 0.5
+      look: [2, 0]
+    - seconds: 0.5
+      look: [2, 0]
+    - seconds: 0.5
+      look: [2, 0]
+    - seconds: 0.5
+      look: [2, 0]
+known_divergences: []

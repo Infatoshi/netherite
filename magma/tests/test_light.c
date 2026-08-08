@@ -244,6 +244,21 @@ int main(void) {
     light_set_state(L, wx, 200, wz, 0);
     light_ensure(L, 0, 0, 1);
 
+    /* BlockHopper.isOpaqueCube is false during Block construction, so its
+     * registered light opacity is zero. A redstone torch above it emits 7 and
+     * World.getRawLight applies the minimum one-level attenuation in the
+     * hopper cell. */
+    light_set_state(L, wx, 200, wz, (uint16_t)(154 << 4));
+    light_set_state(L, wx, 201, wz, (uint16_t)((76 << 4) | 5));
+    light_ensure(L, 0, 0, 1);
+    check(light_blk(L, wx, 201, wz) == 7,
+          "lit redstone torch emits exact block light 7");
+    check(light_blk(L, wx, 200, wz) == 6,
+          "hopper opacity zero admits exact torch block light 6");
+    light_set_state(L, wx, 201, wz, 0);
+    light_set_state(L, wx, 200, wz, 0);
+    light_ensure(L, 0, 0, 1);
+
     /* block light near lava > 0 (scan the whole 3x3 loaded region for lava) */
     int lava_found = 0, lit = 0, lava_self = 0;
     for (int cx = -1; cx <= 1 && !lit; ++cx)

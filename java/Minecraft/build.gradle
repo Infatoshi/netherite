@@ -114,6 +114,102 @@ jar {
 // And add to the jvm args so that it is also loaded when running using gradle runClient:
 JavaExec exec = project.getTasks().getByName("runClient") as JavaExec
 
+task endCityGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.EndCityGolden'
+}
+
+task endCityLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.EndCityLootGolden'
+}
+
+task desertLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.DesertLootGolden'
+}
+
+task jungleLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.JungleLootGolden'
+}
+
+task fishingLootGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.FishingLootGolden'
+}
+
+task endPopulationGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.EndPopulationGolden'
+}
+
+task hopperGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.HopperGolden'
+}
+
+task minecartGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.MinecartGolden'
+}
+
+task scatteredGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ScatteredGolden'
+}
+
+task scatteredJungleGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ScatteredJungleGolden'
+}
+
+task scatteredSwampGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.ScatteredSwampGolden'
+}
+
+task villageGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillageGolden'
+}
+
+task villageTemplateGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillageTemplateGolden'
+}
+
+task villagerTradeGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.VillagerTradeGolden'
+}
+
+task blockBreakSoundGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.BlockBreakSoundGolden'
+}
+
+task playerMovementSoundGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'qrl.PlayerMovementSoundGolden'
+}
+
 exec.jvmArgs(["-Xmx2G", "-Xdebug", "-Dmixin.debug=true"])
 
 // Pin the player name (default is "Player" + wall-clock millis % 1000 -> nondeterministic
@@ -123,7 +219,7 @@ exec.args(["--username", project.hasProperty("mcUsername") ? project.getProperty
 
 // NetheriteMod TCP bridge port override for batch launches, where N instances share one
 // run/qrl_launch.json and only its "port" key would otherwise be visible:
-// -PqrlPort=25576 -> -Dqrl.port=25576, read once by netheritemod.Recorder.
+// -PqrlPort=25576 -> -Dqrl.port=25576, read once by qrl.Recorder.
 if (project.hasProperty("qrlPort")) {
     exec.jvmArgs(["-Dqrl.port=" + project.getProperty("qrlPort")])
 }
@@ -324,12 +420,14 @@ task jaxb() {
 
     // Create an index file listing all the schemas:
     def schemaIndexFile = new File('src/main/resources/schemas.index')
-    def contents = ""
-    def tree = copySchemas.source
-    tree.visit { fileDetails ->
-        contents += "${fileDetails.relativePath}" + "\n"
-    }
-    schemaIndexFile.write contents
+    def schemaOrder = [
+        'MissionHandlers.xsd',
+        'Mission.xsd',
+        'MissionInit.xsd',
+        'Types.xsd',
+        'MissionEnded.xsd'
+    ]
+    schemaIndexFile.write schemaOrder.join('\n') + '\n'
 
     inputs.files fileTree( dir: 'src/main/resources', include:'*.xsd' )
     outputs.dir 'src/main/java/com/microsoft/Malmo/Schemas'

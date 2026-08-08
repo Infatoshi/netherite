@@ -1,0 +1,6 @@
+# Settled EAST sticky piston with immovable obsidian two cells ahead.
+# Retraction must remove the head but leave the obsidian untouched.
+12 79 8 29 13
+13 79 8 34 13
+14 79 8 49 0
+12 79 9 152 0

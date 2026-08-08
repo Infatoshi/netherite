@@ -1,0 +1,6 @@
+# Extended NORTH sticky piston with a tile-bearing chest at the pull origin.
+# Retraction must leave the chest and its empty tile state in place.
+12 79 8 29 10
+12 79 7 34 10
+12 79 6 54 2
+12 79 9 152 0

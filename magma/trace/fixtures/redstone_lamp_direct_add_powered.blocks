@@ -1,0 +1,3 @@
+# Direct redstone-block power at the prospective lamp position. Placing an
+# unlit lamp at tick 0 must normalize immediately to the lit block state.
+11 78 8 152 0

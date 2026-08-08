@@ -1,0 +1,4 @@
+# x y z id meta
+# Fire occupies the aligned seed-0/platform player's feet from tape tick 0.
+# The platform supplies the solid y=77 support required by BlockFire.
+8 78 8 51 0

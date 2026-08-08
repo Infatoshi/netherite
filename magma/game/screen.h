@@ -38,7 +38,8 @@ int gm_screen_slot_at(int container, int fb_w, int fb_h, int mx, int my);
 void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my);
 
 /* Map a vanilla GuiScreen simple class name (tape "gui" field) to a container
- * kind for gm_screen_draw: 0 player, 1 workbench, 2 furnace, 3 chest. Returns -1
+ * kind for gm_screen_draw: 0 player, 1 workbench, 2 furnace, 3 chest,
+ * 4 brewing stand, 5 enchanting table. Returns -1
  * for unmapped screens (GuiIngameMenu, GuiChat, etc.) - skip, do not draw. */
 int gm_screen_kind_for_gui(const char *gui_name);
 

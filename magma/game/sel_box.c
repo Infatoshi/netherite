@@ -2,6 +2,8 @@
 #include "game/sel_box.h"
 #include "player_survival.h"   /* psv_get_block / psv_get_meta */
 
+#include <math.h>
+
 static void set6(float b[6], float x0, float y0, float z0,
                  float x1, float y1, float z1) {
     b[0] = x0; b[1] = y0; b[2] = z0; b[3] = x1; b[4] = y1; b[5] = z1;
@@ -55,6 +57,19 @@ void gm_sel_box(const GmSelIn *in, float b[6]) {
     case 111: set6(b, 0.0625f, 0.f, 0.0625f, 0.9375f, 0.09375f, 0.9375f); break; /* lily */
 
     /* ---- flat / partial-height blocks ---- */
+    case 29: case 33:                                /* piston bases */
+        if (meta & 8) {
+            switch (meta & 7) {
+            case 0: set6(b, 0.f, 0.25f, 0.f, 1.f, 1.f, 1.f); break;
+            case 1: set6(b, 0.f, 0.f, 0.f, 1.f, 0.75f, 1.f); break;
+            case 2: set6(b, 0.f, 0.f, 0.25f, 1.f, 1.f, 1.f); break;
+            case 3: set6(b, 0.f, 0.f, 0.f, 1.f, 1.f, 0.75f); break;
+            case 4: set6(b, 0.25f, 0.f, 0.f, 1.f, 1.f, 1.f); break;
+            case 5: set6(b, 0.f, 0.f, 0.f, 0.75f, 1.f, 1.f); break;
+            default: break;
+            }
+        }
+        break;
     case 44: case 126: case 182:                     /* slabs: top bit 8 */
         if (meta & 8) set6(b, 0.f, 0.5f, 0.f, 1.f, 1.f, 1.f);
         else          set6(b, 0.f, 0.f, 0.f, 1.f, 0.5f, 1.f);
@@ -67,11 +82,18 @@ void gm_sel_box(const GmSelIn *in, float b[6]) {
     case 26:  set6(b, 0.f, 0.f, 0.f, 1.f, 0.5625f, 1.f); break;  /* bed */
     case 116: set6(b, 0.f, 0.f, 0.f, 1.f, 0.75f, 1.f); break;    /* enchant table */
     case 151: case 178: set6(b, 0.f, 0.f, 0.f, 1.f, 0.375f, 1.f); break; /* daylight */
+    case 93: case 94: case 149: case 150:              /* redstone diodes */
+        set6(b, 0.f, 0.f, 0.f, 1.f, 0.125f, 1.f); break;
+    case 117: set6(b, 0.f, 0.f, 0.f, 1.f, 0.125f, 1.f); break; /* brewing stand base */
     case 120: set6(b, 0.f, 0.f, 0.f, 1.f, 0.8125f, 1.f); break;  /* end portal frame */
     case 27: case 28: case 66: case 157:              /* rails */
         set6(b, 0.f, 0.f, 0.f, 1.f, 0.125f, 1.f); break;
     case 70: case 72: case 147: case 148:             /* pressure plates */
         set6(b, 0.0625f, 0.f, 0.0625f, 0.9375f, meta ? 0.03125f : 0.0625f, 0.9375f); break;
+    case 132:                                         /* tripwire */
+        if (meta & 4) set6(b, 0.f, 0.0625f, 0.f, 1.f, 0.15625f, 1.f);
+        else          set6(b, 0.f, 0.f, 0.f, 1.f, 0.5f, 1.f);
+        break;
     case 92:                                          /* cake: bites eat from x0 */
         set6(b, 0.0625f + (float)(meta & 7) * 0.125f, 0.f, 0.0625f,
              0.9375f, 0.5f, 0.9375f); break;
@@ -276,20 +298,28 @@ static int ray_transparent(int id) {
 #define GM_SEL_REACH 4.5
 #endif
 
-int gm_raycast_sel_reach(const Chunk *win, const McSinTable *st,
-                         const PsvPlayer *pl, double reach,
-                         int *hx, int *hy, int *hz, int *ax, int *ay, int *az) {
+void gm_player_look_ray(const McSinTable *st, const PsvPlayer *pl,
+                        double *ex, double *ey, double *ez,
+                        double *dx, double *dy, double *dz) {
     /* vanilla getVectorForRotation(pitch, yaw), same as psv_raycast */
     float f  = mc_cos(st, -pl->yaw * 0.017453292f - 3.1415927f);
     float f1 = mc_sin(st, -pl->yaw * 0.017453292f - 3.1415927f);
     float f2 = -mc_cos(st, -pl->pitch * 0.017453292f);
     float f3 = mc_sin(st, -pl->pitch * 0.017453292f);
-    double dx = (double)(f1 * f2);
-    double dy = (double)f3;
-    double dz = (double)(f * f2);
-    double ex = pl->ent.posX;
-    double ey = pl->ent.posY + psv_player_eye_height(pl);
-    double ez = pl->ent.posZ;
+    *dx = (double)(f1 * f2);
+    *dy = (double)f3;
+    *dz = (double)(f * f2);
+    *ex = pl->ent.posX;
+    *ey = pl->ent.posY + psv_player_eye_height(pl);
+    *ez = pl->ent.posZ;
+}
+
+int gm_raycast_sel_reach_distance(
+        const Chunk *win, const McSinTable *st, const PsvPlayer *pl,
+        double reach, int *hx, int *hy, int *hz,
+        int *ax, int *ay, int *az, double *distance) {
+    double ex, ey, ez, dx, dy, dz;
+    gm_player_look_ray(st, pl, &ex, &ey, &ez, &dx, &dy, &dz);
 
     int lastx = mc_floor(ex), lasty = mc_floor(ey), lastz = mc_floor(ez);
     int have_air = 0;
@@ -310,6 +340,8 @@ int gm_raycast_sel_reach(const Chunk *win, const McSinTable *st,
             if (th >= 0.0 && th <= reach) {
                 *hx = bx; *hy = by; *hz = bz;
                 *ax = bx + nx; *ay = by + ny; *az = bz + nz;
+                if (distance)
+                    *distance = th * sqrt(dx * dx + dy * dy + dz * dz);
                 return have_air;
             }
         }
@@ -317,6 +349,13 @@ int gm_raycast_sel_reach(const Chunk *win, const McSinTable *st,
         have_air = 1;
     }
     return -1;
+}
+
+int gm_raycast_sel_reach(const Chunk *win, const McSinTable *st,
+                         const PsvPlayer *pl, double reach,
+                         int *hx, int *hy, int *hz, int *ax, int *ay, int *az) {
+    return gm_raycast_sel_reach_distance(
+        win, st, pl, reach, hx, hy, hz, ax, ay, az, NULL);
 }
 
 int gm_raycast_sel(const Chunk *win, const McSinTable *st,

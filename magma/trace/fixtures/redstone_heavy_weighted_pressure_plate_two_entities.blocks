@@ -1,0 +1,9 @@
+# The same parked player plus locked EntityItem count as two entities on the
+# heavy-weighted plate. ceil(2/150*15) is analog strength 1, so adjacent dust
+# must settle to metadata 1 and the occupied callback recur every +10.
+8 76 8 1 0
+8 77 8 1 0
+9 77 8 1 0
+8 78 8 148 0
+9 78 8 55 0
+10 78 8 123 0

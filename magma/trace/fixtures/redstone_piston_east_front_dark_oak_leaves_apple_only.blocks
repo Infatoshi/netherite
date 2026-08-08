@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while dark-oak leaves2 161:1 occupy the front cell.
+# World.rand internal seed 55 fails the sapling roll and succeeds the separate
+# dark-oak apple roll, proving leaves2 variant decoding and drop ordering.
+12 78 9 152 0
+13 78 8 161 1

@@ -1,0 +1,10 @@
+# x y z id meta
+# Saved mid-transition state: a WEST-facing comparator still has tile output
+# zero while one full stone stack occupies slot zero of a closed, unblocked
+# single trapped chest. Inventory fullness must emit one; viewer-count power
+# remains zero and is tested as a separate live-interaction behavior.
+11 77 8 1 0
+12 77 8 1 0
+11 78 8 146 2
+12 78 8 149 1
+13 78 8 123 0

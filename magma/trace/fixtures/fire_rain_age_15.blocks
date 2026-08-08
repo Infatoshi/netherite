@@ -1,0 +1,5 @@
+# x y z id meta
+# Exposed maximum-age fire on ordinary stone in steady rain. Random(seed=1024)
+# gives nextFloat=0.6392364501953125, below the exact age-15 threshold 0.65F,
+# so BlockFire removes the source before scheduling or spread work.
+12 78 8 51 15

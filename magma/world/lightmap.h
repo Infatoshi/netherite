@@ -55,14 +55,31 @@ static inline float cr_lm_gamma_finish(float v, float gamma)
     return cr_lm_clamp01(v);
 }
 
+/* EntityRenderer's Night Vision normalization, shared by updateLightmap and
+ * updateFogColor. It scales all channels by the reciprocal of the largest
+ * channel at full strength, retaining their relative color. */
+static inline CrLightmapRgb cr_night_vision_rgb(
+        float r, float g, float b, float amount)
+{
+    if (amount > 0.0f) {
+        float scale = 1.0f / r;
+        if (scale > 1.0f / g) scale = 1.0f / g;
+        if (scale > 1.0f / b) scale = 1.0f / b;
+        r = r * (1.0f - amount) + r * scale * amount;
+        g = g * (1.0f - amount) + g * scale * amount;
+        b = b * (1.0f - amount) + b * scale * amount;
+    }
+    CrLightmapRgb out = { r, g, b };
+    return out;
+}
+
 /* EntityRenderer.updateLightmap for one (sky, block) texel. Inputs are the
  * actual 0..15 light levels, provider sunBrightness, torchFlickerX, and gamma.
- * Boss tint, lightning, and night vision are intentionally absent because the
- * instrumented portal captures record all three as inactive. */
-static inline CrLightmapRgb cr_lightmap_rgb(int dimension, int sky, int block,
-                                            float sun_brightness,
-                                            float torch_flicker_x,
-                                            float gamma)
+ * Boss tint and lightning are intentionally absent. Night Vision is supplied
+ * as EntityRenderer.getNightVisionBrightness for the rendered frame. */
+static inline CrLightmapRgb cr_lightmap_rgb_night_vision(
+        int dimension, int sky, int block, float sun_brightness,
+        float torch_flicker_x, float gamma, float night_vision)
 {
     float f = sun_brightness;
     float f1 = f * 0.95f + 0.05f;
@@ -90,6 +107,11 @@ static inline CrLightmapRgb cr_lightmap_rgb(int dimension, int sky, int block,
         b = 0.25f + f7 * 0.75f;
     }
 
+    {
+        CrLightmapRgb nv = cr_night_vision_rgb(r, g, b, night_vision);
+        r = nv.r; g = nv.g; b = nv.b;
+    }
+
     r = cr_lm_clamp01(r);
     g = cr_lm_clamp01(g);
     b = cr_lm_clamp01(b);
@@ -99,6 +121,15 @@ static inline CrLightmapRgb cr_lightmap_rgb(int dimension, int sky, int block,
     out.g = cr_lm_gamma_finish(g, gamma);
     out.b = cr_lm_gamma_finish(b, gamma);
     return out;
+}
+
+static inline CrLightmapRgb cr_lightmap_rgb(int dimension, int sky, int block,
+                                            float sun_brightness,
+                                            float torch_flicker_x,
+                                            float gamma)
+{
+    return cr_lightmap_rgb_night_vision(
+        dimension, sky, block, sun_brightness, torch_flicker_x, gamma, 0.0f);
 }
 
 /* DynamicTexture stores `(int)(channel * 255)`, i.e. truncation, not rounding. */

@@ -1,0 +1,9 @@
+# The locked gravity-free EntityItem fixture is spawned at (12.5,78,8.5),
+# inside this unpowered wooden plate's trigger AABB while the player remains
+# at (8.5,78,8.5). Ordinary entity collision must activate the EVERYTHING-
+# sensitive plate and keep rescheduling every +20. The stone below support
+# removes natural-terrain proof consumers.
+12 76 8 1 0
+12 77 8 1 0
+12 78 8 72 0
+13 78 8 123 0

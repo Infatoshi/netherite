@@ -1,0 +1,6 @@
+# Powered dust immediately south of the future EAST-facing piston. The dust
+# connects south to the redstone block and must weak-power the piston placed at
+# tick zero. Stone below the dust is only its support.
+12 77 9 1 0
+12 78 9 55 15
+12 78 10 152 0

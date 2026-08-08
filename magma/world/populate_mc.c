@@ -8,6 +8,7 @@
 #include "world/populate_mc.h"
 #include "game/caps.h"          /* CrCaps: toroidal owr-pool geometry + cell cap */
 #include "core/config.h"       /* cr_cfg()->debug_caps */
+#include "game/village_live.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -23,12 +24,151 @@
 #include "overworld_region.h"  /* blaze: World, owr_run, st_run, PB_*, pb_opacity, cb_get, w_index */
 #pragma GCC diagnostic pop
 
+static CpScratch *g_sc;
+enum { POPMC_VILLAGE_CACHE = 128 };
+typedef struct {
+    long long seed;
+    int cx, cz, valid;
+    GmVillage village;
+} PopmcVillageStart;
+static PopmcVillageStart g_villages_cache[POPMC_VILLAGE_CACHE];
+static int g_villages_enabled;
+static void village_capture_chest(void *opaque, int x, int y, int z,
+                                  int facing_meta, long long loot_seed);
+static void village_capture_resident(void *opaque, int x, int y, int z,
+                                     int profession, int zombie_infested);
+
+typedef struct {
+    World *world;
+    int min_x, max_x, min_z, max_z;
+} PopmcVillageAccess;
+
+static unsigned long long village_cache_hash(long long seed, int cx, int cz) {
+    unsigned long long value = (unsigned long long)seed;
+    value ^= (unsigned long long)(unsigned int)cx * 0x9e3779b185ebca87ULL;
+    value ^= (unsigned long long)(unsigned int)cz * 0xc2b2ae3d27d4eb4fULL;
+    return value ^ (value >> 29);
+}
+
+static PopmcVillageStart *village_start(long long seed, int cx, int cz,
+                                        int biome_type) {
+    unsigned slot = (unsigned)village_cache_hash(seed, cx, cz)
+        & (POPMC_VILLAGE_CACHE - 1);
+    for (int probe = 0; probe < POPMC_VILLAGE_CACHE; ++probe) {
+        PopmcVillageStart *entry = &g_villages_cache[slot];
+        if (!entry->valid) {
+            memset(entry, 0, sizeof *entry);
+            entry->valid = 1; entry->seed = seed;
+            entry->cx = cx; entry->cz = cz;
+            if (!gm_village_build_for_world(seed, cx, cz, biome_type, 0,
+                                            &entry->village))
+                entry->village.count = 0;
+            return entry;
+        }
+        if (entry->seed == seed && entry->cx == cx && entry->cz == cz)
+            return entry;
+        slot = (slot + 1) & (POPMC_VILLAGE_CACHE - 1);
+    }
+    fprintf(stderr, "[populate_mc] FATAL: village start cache full\n");
+    abort();
+}
+
+static u16 village_get(void *opaque, int x, int y, int z) {
+    PopmcVillageAccess *access = (PopmcVillageAccess *)opaque;
+    int lx = x - access->world->baseCx * 16;
+    int lz = z - access->world->baseCz * 16;
+    int block = w_get(access->world, lx, y, lz);
+    if (block == PB_GRASS) return (u16)(2 << 4);
+    if (block == PB_DIRT) return (u16)(3 << 4);
+    if (block == PB_GRAVEL) return (u16)(13 << 4);
+    if (block == PB_SAND) return (u16)(12 << 4);
+    if (block == PB_RED_SANDSTONE) return (u16)(179 << 4);
+    return owr_sd_state_from_pb(block);
+}
+
+static void village_set(void *opaque, int x, int y, int z, u16 state) {
+    PopmcVillageAccess *access = (PopmcVillageAccess *)opaque;
+    int lx = x - access->world->baseCx * 16;
+    int lz = z - access->world->baseCz * 16;
+    w_set(access->world, lx, y, lz, owr_sd_pb_from_state(state));
+}
+
+static int village_contains(void *opaque, int x, int y, int z) {
+    PopmcVillageAccess *access = (PopmcVillageAccess *)opaque;
+    return y >= 0 && y < W_Y && x >= access->min_x && x <= access->max_x
+        && z >= access->min_z && z <= access->max_z;
+}
+
+static int village_top(void *opaque, int x, int z) {
+    PopmcVillageAccess *access = (PopmcVillageAccess *)opaque;
+    return w_topSolidOrLiquid(access->world,
+        x - access->world->baseCx * 16,
+        z - access->world->baseCz * 16);
+}
+
+static int village_floor_div(int value, int divisor) {
+    int quotient = value / divisor, remainder = value % divisor;
+    return remainder && ((remainder < 0) != (divisor < 0))
+        ? quotient - 1 : quotient;
+}
+
+static int village_biome_type(long long seed, int cx, int cz) {
+    GLNode nodes[GL_MAX_NODES];
+    int voronoi;
+    gl_build(nodes, (i64)seed, &voronoi);
+    g_sc->arena.off = 0;
+    int biome = gl_getInts(nodes, &g_sc->arena, voronoi,
+                           cx * 16 + 8, cz * 16 + 8, 1, 1)[0];
+    if (biome == B_PLAINS) return GM_VILLAGE_PLAINS;
+    if (biome == B_DESERT) return GM_VILLAGE_DESERT;
+    if (biome == B_SAVANNA) return GM_VILLAGE_SAVANNA;
+    if (biome == B_TAIGA) return GM_VILLAGE_TAIGA;
+    return -1;
+}
+
+static void village_population_hook(World *world, JavaRandom *random,
+                                    i64 seed, int bcx, int bcz) {
+    PopmcVillageAccess context = {
+        world, bcx * 16 + 8, bcx * 16 + 23,
+        bcz * 16 + 8, bcz * 16 + 23
+    };
+    GmVillageAccess access = {
+        &context, village_get, village_set, village_contains, village_top,
+        village_capture_chest, village_capture_resident
+    };
+    int min_rx = village_floor_div(bcx - 8, 32);
+    int max_rx = village_floor_div(bcx + 8, 32);
+    int min_rz = village_floor_div(bcz - 8, 32);
+    int max_rz = village_floor_div(bcz + 8, 32);
+    for (int rx = min_rx; rx <= max_rx; ++rx)
+        for (int rz = min_rz; rz <= max_rz; ++rz) {
+            int start_cx, start_cz;
+            gm_village_candidate_for_region(seed, rx, rz,
+                                             &start_cx, &start_cz);
+            int biome_type = village_biome_type(seed, start_cx, start_cz);
+            if (biome_type < 0) continue;
+            PopmcVillageStart *start = village_start(
+                seed, start_cx, start_cz, biome_type);
+            GmVillage *village = &start->village;
+            if (!village->valid) continue;
+            for (int i = 0; i < village->count; ++i) {
+                GmVillagePiece *piece = &village->pieces[i];
+                if (piece->box.max_x < context.min_x
+                        || piece->box.min_x > context.max_x
+                        || piece->box.max_z < context.min_z
+                        || piece->box.min_z > context.max_z)
+                    continue;
+                (void)gm_village_place_piece(&access, piece, biome_type,
+                                             village->zombie_infested, random);
+            }
+        }
+}
+
 /* W_X/W_Y/W_Z/W_N come from populate.h (32,256,32). CB_INDEX must match world/light.c. */
 #define CB_INDEX_LOCAL(lx, y, lz) (((lx) << 12) | ((lz) << 8) | (y))
 
 /* ---------------- one-time owr_run scratch (allocated once, reused) --------- */
 static McSinTable  *g_st;
-static CpScratch   *g_sc;
 static ChunkPrimer *g_pr;
 static FoliageCoord *g_fol;
 static u16 *g_owr, *g_stb;                 /* decorated window / its own st base */
@@ -48,8 +188,7 @@ static int *g2_bio;
 
 static int ensure_scratch(void) {
     if (g_owr) return 1;
-    /* The product requires generated strongholds but explicitly cuts mineshafts.
-     * structures.h reserves -1 for that narrow live-world subset. */
+    /* Mineshafts are placed in owr_populate with the shared population RNG. */
     st_map_features_host = -1;
     g_st  = (McSinTable *)malloc(sizeof(McSinTable));
     g_sc  = (CpScratch *)malloc(sizeof(CpScratch));
@@ -92,10 +231,282 @@ static int ensure_scratch(void) {
     return 1;
 }
 
+static int mineshaft_type_at(i64 seed, int x, int z) {
+    GLNode nodes[GL_MAX_NODES];
+    int voronoi;
+    gl_build(nodes, seed, &voronoi);
+    g_sc->arena.off = 0;
+    int biome = gl_getInts(nodes, &g_sc->arena, voronoi, x, z, 1, 1)[0];
+    return biome == B_MESA || biome == B_MESA_ROCK ||
+           biome == B_MESA_CLEAR_ROCK || biome == 165 ||
+           biome == 166 || biome == 167 ? MS_TYPE_MESA : MS_TYPE_NORMAL;
+}
+
 /* ---------------- per-base-chunk populate window cache --------------------- */
 /* A decoration cell: a world-coord block owr_run added on top of its base terrain.
  * y in [0,256) fits u16; id is a PB_* code (fits u16). */
 typedef struct { int wx, wz; unsigned short y, id; } DecCell;
+
+#define POPMC_DUNGEON_CHESTS_MAX 16
+#define POPMC_DUNGEON_SPAWNERS_MAX 8
+#define POPMC_MINESHAFT_CARTS_MAX 32
+#define POPMC_MINESHAFT_SPAWNERS_MAX 16
+#define POPMC_DESERT_CHESTS_MAX 4
+#define POPMC_JUNGLE_CHESTS_MAX 2
+#define POPMC_JUNGLE_DISPENSERS_MAX 2
+#define POPMC_VILLAGE_CHESTS_MAX 8
+#define POPMC_VILLAGE_RESIDENTS_MAX 64
+#define POPMC_SWAMP_WITCHES_MAX 1
+#define POPMC_SWAMP_POTS_MAX 1
+typedef struct {
+    int wx, wz;
+    unsigned short y;
+    unsigned char facing_meta;
+    long long loot_seed;
+} DungeonChestSite;
+typedef struct {
+    int wx, wz;
+    unsigned short y;
+    unsigned short roll;
+} DungeonSpawnerSite;
+typedef struct {
+    int wx, wz;
+    unsigned short y;
+    long long loot_seed;
+} MineshaftCartSite;
+typedef struct {
+    int wx, wz;
+    unsigned short y;
+} MineshaftSpawnerSite;
+typedef DungeonChestSite DesertChestSite;
+typedef DungeonChestSite JungleSite;
+typedef struct {
+    int wx, wz;
+    unsigned short y;
+    unsigned short value;
+    unsigned char meta;
+} SwampSite;
+typedef struct {
+    int wx, wz;
+    unsigned short y;
+    signed char profession;
+    unsigned char zombie_infested;
+} VillageResidentSite;
+
+typedef struct {
+    int bcx, bcz;
+    DungeonChestSite chests[POPMC_DUNGEON_CHESTS_MAX];
+    DungeonSpawnerSite spawners[POPMC_DUNGEON_SPAWNERS_MAX];
+    MineshaftCartSite mineshaft_carts[POPMC_MINESHAFT_CARTS_MAX];
+    MineshaftSpawnerSite mineshaft_spawners[POPMC_MINESHAFT_SPAWNERS_MAX];
+    DesertChestSite desert_chests[POPMC_DESERT_CHESTS_MAX];
+    JungleSite jungle_chests[POPMC_JUNGLE_CHESTS_MAX];
+    JungleSite jungle_dispensers[POPMC_JUNGLE_DISPENSERS_MAX];
+    DungeonChestSite village_chests[POPMC_VILLAGE_CHESTS_MAX];
+    VillageResidentSite village_residents[POPMC_VILLAGE_RESIDENTS_MAX];
+    SwampSite swamp_witches[POPMC_SWAMP_WITCHES_MAX];
+    SwampSite swamp_pots[POPMC_SWAMP_POTS_MAX];
+    int n_chests, n_spawners, n_mineshaft_carts, n_mineshaft_spawners;
+    int n_desert_chests;
+    int n_jungle_chests, n_jungle_dispensers;
+    int n_village_chests, n_village_residents;
+    int n_swamp_witches, n_swamp_pots;
+} DungeonCapture;
+
+/* build_window may recurse once for a populate cascade. Keep one capture frame
+ * per recursion level so the parent's already-recorded dungeon metadata is not
+ * clobbered by the nested build. */
+static DungeonCapture g_dungeon_capture[3];
+static int g_dungeon_capture_depth;
+
+static void village_capture_chest(void *opaque, int x, int y, int z,
+                                  int facing_meta, long long loot_seed) {
+    DungeonCapture *capture;
+    DungeonChestSite *site;
+    (void)opaque;
+    if (g_dungeon_capture_depth <= 0) return;
+    capture = &g_dungeon_capture[g_dungeon_capture_depth - 1];
+    if (capture->n_village_chests >= POPMC_VILLAGE_CHESTS_MAX) {
+        fprintf(stderr, "[populate_mc] FATAL: village chest cap exceeded at (%d,%d)\n",
+                capture->bcx, capture->bcz);
+        abort();
+    }
+    site = &capture->village_chests[capture->n_village_chests++];
+    site->wx = x;
+    site->wz = z;
+    site->y = (unsigned short)y;
+    site->facing_meta = (unsigned char)facing_meta;
+    site->loot_seed = loot_seed;
+}
+
+static void village_capture_resident(void *opaque, int x, int y, int z,
+                                     int profession, int zombie_infested) {
+    DungeonCapture *capture;
+    VillageResidentSite *site;
+    (void)opaque;
+    if (g_dungeon_capture_depth <= 0) return;
+    capture = &g_dungeon_capture[g_dungeon_capture_depth - 1];
+    if (capture->n_village_residents >= POPMC_VILLAGE_RESIDENTS_MAX) {
+        fprintf(stderr, "[populate_mc] FATAL: village resident cap exceeded at (%d,%d)\n",
+                capture->bcx, capture->bcz);
+        abort();
+    }
+    site = &capture->village_residents[capture->n_village_residents++];
+    site->wx = x; site->wz = z; site->y = (unsigned short)y;
+    site->profession = (signed char)profession;
+    site->zombie_infested = (unsigned char)!!zombie_infested;
+}
+
+static void dungeon_capture_event(int baseCx, int baseCz, int kind,
+                                  int lx, int y, int lz, i64 value,
+                                  int meta) {
+    DungeonCapture *c;
+    if (g_dungeon_capture_depth <= 0) return;
+    c = &g_dungeon_capture[g_dungeon_capture_depth - 1];
+    if (c->bcx != baseCx || c->bcz != baseCz) return;
+    if (kind == MC_DUNGEON_EVENT_CHEST) {
+        DungeonChestSite *s;
+        if (c->n_chests >= POPMC_DUNGEON_CHESTS_MAX) {
+            fprintf(stderr, "[populate_mc] FATAL: dungeon chest event cap exceeded at (%d,%d)\n",
+                    baseCx, baseCz);
+            abort();
+        }
+        s = &c->chests[c->n_chests++];
+        s->wx = baseCx * 16 + lx;
+        s->wz = baseCz * 16 + lz;
+        s->y = (unsigned short)y;
+        s->facing_meta = (unsigned char)meta;
+        s->loot_seed = (long long)value;
+    } else if (kind == MC_DUNGEON_EVENT_SPAWNER) {
+        DungeonSpawnerSite *s;
+        if (c->n_spawners >= POPMC_DUNGEON_SPAWNERS_MAX) {
+            fprintf(stderr, "[populate_mc] FATAL: dungeon spawner event cap exceeded at (%d,%d)\n",
+                    baseCx, baseCz);
+            abort();
+        }
+        s = &c->spawners[c->n_spawners++];
+        s->wx = baseCx * 16 + lx;
+        s->wz = baseCz * 16 + lz;
+        s->y = (unsigned short)y;
+        s->roll = (unsigned short)value;
+    } else if (kind == MC_DUNGEON_EVENT_DESERT_CHEST) {
+        DesertChestSite *s;
+        if (c->n_desert_chests >= POPMC_DESERT_CHESTS_MAX) {
+            fprintf(stderr, "[populate_mc] FATAL: desert chest event cap exceeded at (%d,%d)\n",
+                    baseCx, baseCz);
+            abort();
+        }
+        s = &c->desert_chests[c->n_desert_chests++];
+        s->wx = baseCx * 16 + lx;
+        s->wz = baseCz * 16 + lz;
+        s->y = (unsigned short)y;
+        s->facing_meta = (unsigned char)meta;
+        s->loot_seed = (long long)value;
+    } else if (kind == MC_DUNGEON_EVENT_JUNGLE_CHEST
+            || kind == MC_DUNGEON_EVENT_JUNGLE_DISPENSER) {
+        JungleSite *s;
+        int *count = kind == MC_DUNGEON_EVENT_JUNGLE_CHEST
+            ? &c->n_jungle_chests : &c->n_jungle_dispensers;
+        int cap = kind == MC_DUNGEON_EVENT_JUNGLE_CHEST
+            ? POPMC_JUNGLE_CHESTS_MAX : POPMC_JUNGLE_DISPENSERS_MAX;
+        JungleSite *sites = kind == MC_DUNGEON_EVENT_JUNGLE_CHEST
+            ? c->jungle_chests : c->jungle_dispensers;
+        if (*count >= cap) {
+            fprintf(stderr, "[populate_mc] FATAL: jungle site event cap exceeded at (%d,%d)\n",
+                    baseCx, baseCz);
+            abort();
+        }
+        s = &sites[(*count)++];
+        s->wx = baseCx * 16 + lx;
+        s->wz = baseCz * 16 + lz;
+        s->y = (unsigned short)y;
+        s->facing_meta = (unsigned char)meta;
+        s->loot_seed = (long long)value;
+    } else if (kind == MC_DUNGEON_EVENT_SWAMP_WITCH
+            || kind == MC_DUNGEON_EVENT_SWAMP_POT) {
+        SwampSite *s;
+        int *count = kind == MC_DUNGEON_EVENT_SWAMP_WITCH
+            ? &c->n_swamp_witches : &c->n_swamp_pots;
+        int cap = kind == MC_DUNGEON_EVENT_SWAMP_WITCH
+            ? POPMC_SWAMP_WITCHES_MAX : POPMC_SWAMP_POTS_MAX;
+        SwampSite *sites = kind == MC_DUNGEON_EVENT_SWAMP_WITCH
+            ? c->swamp_witches : c->swamp_pots;
+        if (*count >= cap) {
+            fprintf(stderr, "[populate_mc] FATAL: swamp site event cap exceeded at (%d,%d)\n",
+                    baseCx, baseCz);
+            abort();
+        }
+        s = &sites[(*count)++];
+        s->wx = baseCx * 16 + lx;
+        s->wz = baseCz * 16 + lz;
+        s->y = (unsigned short)y;
+        s->value = (unsigned short)value;
+        s->meta = (unsigned char)meta;
+    }
+}
+
+/* Serialized ComponentScatteredFeaturePieces.Feature.horizontalPos. A start is
+ * sparse (one candidate per 32x32 chunk region), so a fixed open-address table
+ * gives persistent first-populate semantics without per-window allocation. */
+#define POPMC_SCATTERED_HPOS_CAP 4096
+typedef struct {
+    long long seed;
+    int cx, cz, hpos, valid;
+} ScatteredHPos;
+static ScatteredHPos g_scattered_hpos[POPMC_SCATTERED_HPOS_CAP];
+
+static int scattered_hpos_resolve(i64 seed, int cx, int cz, int fallback) {
+    unsigned long long h = (unsigned long long)seed;
+    h ^= (unsigned long long)(unsigned int)cx * 0x9e3779b185ebca87ULL;
+    h ^= (unsigned long long)(unsigned int)cz * 0xc2b2ae3d27d4eb4fULL;
+    unsigned slot = (unsigned)(h ^ (h >> 32)) & (POPMC_SCATTERED_HPOS_CAP - 1);
+    for (int probe = 0; probe < POPMC_SCATTERED_HPOS_CAP; ++probe) {
+        ScatteredHPos *entry = &g_scattered_hpos[slot];
+        if (!entry->valid) {
+            entry->valid = 1;
+            entry->seed = (long long)seed;
+            entry->cx = cx; entry->cz = cz; entry->hpos = fallback;
+            return fallback;
+        }
+        if (entry->seed == (long long)seed && entry->cx == cx && entry->cz == cz)
+            return entry->hpos;
+        slot = (slot + 1) & (POPMC_SCATTERED_HPOS_CAP - 1);
+    }
+    fprintf(stderr, "[populate_mc] FATAL: scattered horizontal-position table full\n");
+    abort();
+}
+
+static void mineshaft_capture_event(int baseCx, int baseCz, int kind,
+                                    int x, int y, int z, i64 value) {
+    DungeonCapture *c;
+    if (g_dungeon_capture_depth <= 0) return;
+    c = &g_dungeon_capture[g_dungeon_capture_depth - 1];
+    if (c->bcx != baseCx || c->bcz != baseCz) return;
+    if (getenv("MAGMA_DEBUG_MINESHAFT"))
+        fprintf(stderr, "[populate_mc] mineshaft event base=(%d,%d) kind=%d "
+                "pos=(%d,%d,%d) value=%lld\n",
+                baseCx, baseCz, kind, x, y, z, (long long)value);
+    if (kind == MS_EVENT_CART) {
+        MineshaftCartSite *s;
+        if (c->n_mineshaft_carts >= POPMC_MINESHAFT_CARTS_MAX) {
+            fprintf(stderr, "[populate_mc] FATAL: mineshaft cart event cap exceeded at (%d,%d)\n",
+                    baseCx, baseCz);
+            abort();
+        }
+        s = &c->mineshaft_carts[c->n_mineshaft_carts++];
+        s->wx = x; s->wz = z; s->y = (unsigned short)y;
+        s->loot_seed = (long long)value;
+    } else if (kind == MS_EVENT_SPAWNER) {
+        MineshaftSpawnerSite *s;
+        if (c->n_mineshaft_spawners >= POPMC_MINESHAFT_SPAWNERS_MAX) {
+            fprintf(stderr, "[populate_mc] FATAL: mineshaft spawner event cap exceeded at (%d,%d)\n",
+                    baseCx, baseCz);
+            abort();
+        }
+        s = &c->mineshaft_spawners[c->n_mineshaft_spawners++];
+        s->wx = x; s->wz = z; s->y = (unsigned short)y;
+    }
+}
 
 /* OOB decoration spill: writes that leave the 32x32 window during owr_populate.
  * Recorded with absolute world coords so later neighbor windows can seed them
@@ -138,6 +549,23 @@ typedef struct {
                            * ticks between them, so a window sees earlier windows'
                            * placed blocks but NOT their fluid spread. */
     int       npop;
+    DungeonChestSite dungeon_chests[POPMC_DUNGEON_CHESTS_MAX];
+    DungeonSpawnerSite dungeon_spawners[POPMC_DUNGEON_SPAWNERS_MAX];
+    MineshaftCartSite mineshaft_carts[POPMC_MINESHAFT_CARTS_MAX];
+    MineshaftSpawnerSite mineshaft_spawners[POPMC_MINESHAFT_SPAWNERS_MAX];
+    DesertChestSite desert_chests[POPMC_DESERT_CHESTS_MAX];
+    JungleSite jungle_chests[POPMC_JUNGLE_CHESTS_MAX];
+    JungleSite jungle_dispensers[POPMC_JUNGLE_DISPENSERS_MAX];
+    DungeonChestSite village_chests[POPMC_VILLAGE_CHESTS_MAX];
+    VillageResidentSite village_residents[POPMC_VILLAGE_RESIDENTS_MAX];
+    SwampSite swamp_witches[POPMC_SWAMP_WITCHES_MAX];
+    SwampSite swamp_pots[POPMC_SWAMP_POTS_MAX];
+    int       n_dungeon_chests, n_dungeon_spawners;
+    int       n_mineshaft_carts, n_mineshaft_spawners;
+    int       n_desert_chests;
+    int       n_jungle_chests, n_jungle_dispensers;
+    int       n_village_chests, n_village_residents;
+    int       n_swamp_witches, n_swamp_pots;
 } Window;
 
 /* ALLOCATE-ONCE toroidal owr-window pool. A fixed (2R+4)^2 pool indexed by (bcx,bcz)
@@ -486,7 +914,17 @@ static void record_window_cells(Window *win, const u16 *owr, const u16 *stb,
 }
 
 static Window *build_window(long long seed, int bcx, int bcz) {
+    DungeonCapture *dungeon_capture;
     if (!ensure_scratch() || !owr_pool_init()) return NULL;
+    if (g_dungeon_capture_depth >= (int)(sizeof g_dungeon_capture /
+                                         sizeof g_dungeon_capture[0])) {
+        fprintf(stderr, "[populate_mc] FATAL: dungeon capture recursion exceeded\n");
+        abort();
+    }
+    dungeon_capture = &g_dungeon_capture[g_dungeon_capture_depth++];
+    memset(dungeon_capture, 0, sizeof *dungeon_capture);
+    dungeon_capture->bcx = bcx;
+    dungeon_capture->bcz = bcz;
     g_build_seed = seed;
 
     /* owr_run's own base terrain (also fills g_bio with the window biome map). */
@@ -588,8 +1026,20 @@ static Window *build_window(long long seed, int bcx, int bcz) {
         g_live_w = &w;
         oob_spill_reset();
         g_w_oob_write = oob_spill_write;
-        owr_populate(&w, &r, (i64)seed, g_fol, &lt, bcx, bcz);
+        g_w_dungeon_event = dungeon_capture_event;
+        g_w_scattered_hpos = scattered_hpos_resolve;
+        g_ms_event = mineshaft_capture_event;
+        g_ms_type_at = mineshaft_type_at;
+        owr_populate(&w,&r,(i64)seed,g_fol,&lt,g_sc,bcx,bcz);
         g_w_oob_write = 0;
+        g_w_dungeon_event = g_dungeon_capture_depth > 1
+            ? dungeon_capture_event : 0;
+        g_ms_event = g_dungeon_capture_depth > 1
+            ? mineshaft_capture_event : 0;
+        g_ms_type_at = g_dungeon_capture_depth > 1
+            ? mineshaft_type_at : 0;
+        g_w_scattered_hpos = g_dungeon_capture_depth > 1
+            ? scattered_hpos_resolve : 0;
         g_live_w = NULL;
         if (armed)
             fprintf(stderr, "[populate_mc] cascade (%d,%d): %d/%d clobber jumps fired\n",
@@ -626,6 +1076,40 @@ static Window *build_window(long long seed, int bcx, int bcz) {
      * run the fluid pass and record the post-fluid cells (chunk-apply set). */
     Window *win = &g_slots[owr_tor(bcx, g_owr_D) * g_owr_D + owr_tor(bcz, g_owr_D)];
     win->seed = seed; win->bcx = bcx; win->bcz = bcz; win->valid = 1; win->seq = g_builds;
+    win->n_dungeon_chests = dungeon_capture->n_chests;
+    win->n_dungeon_spawners = dungeon_capture->n_spawners;
+    memcpy(win->dungeon_chests, dungeon_capture->chests,
+           (size_t)dungeon_capture->n_chests * sizeof win->dungeon_chests[0]);
+    memcpy(win->dungeon_spawners, dungeon_capture->spawners,
+           (size_t)dungeon_capture->n_spawners * sizeof win->dungeon_spawners[0]);
+    win->n_mineshaft_carts = dungeon_capture->n_mineshaft_carts;
+    win->n_mineshaft_spawners = dungeon_capture->n_mineshaft_spawners;
+    memcpy(win->mineshaft_carts, dungeon_capture->mineshaft_carts,
+           (size_t)dungeon_capture->n_mineshaft_carts * sizeof win->mineshaft_carts[0]);
+    memcpy(win->mineshaft_spawners, dungeon_capture->mineshaft_spawners,
+           (size_t)dungeon_capture->n_mineshaft_spawners * sizeof win->mineshaft_spawners[0]);
+    win->n_desert_chests = dungeon_capture->n_desert_chests;
+    memcpy(win->desert_chests, dungeon_capture->desert_chests,
+           (size_t)dungeon_capture->n_desert_chests * sizeof win->desert_chests[0]);
+    win->n_jungle_chests = dungeon_capture->n_jungle_chests;
+    win->n_jungle_dispensers = dungeon_capture->n_jungle_dispensers;
+    memcpy(win->jungle_chests, dungeon_capture->jungle_chests,
+           (size_t)dungeon_capture->n_jungle_chests * sizeof win->jungle_chests[0]);
+    memcpy(win->jungle_dispensers, dungeon_capture->jungle_dispensers,
+           (size_t)dungeon_capture->n_jungle_dispensers * sizeof win->jungle_dispensers[0]);
+    win->n_village_chests = dungeon_capture->n_village_chests;
+    memcpy(win->village_chests, dungeon_capture->village_chests,
+           (size_t)dungeon_capture->n_village_chests * sizeof win->village_chests[0]);
+    win->n_village_residents = dungeon_capture->n_village_residents;
+    memcpy(win->village_residents, dungeon_capture->village_residents,
+           (size_t)dungeon_capture->n_village_residents
+               * sizeof win->village_residents[0]);
+    win->n_swamp_witches = dungeon_capture->n_swamp_witches;
+    win->n_swamp_pots = dungeon_capture->n_swamp_pots;
+    memcpy(win->swamp_witches, dungeon_capture->swamp_witches,
+           (size_t)dungeon_capture->n_swamp_witches * sizeof win->swamp_witches[0]);
+    memcpy(win->swamp_pots, dungeon_capture->swamp_pots,
+           (size_t)dungeon_capture->n_swamp_pots * sizeof win->swamp_pots[0]);
     {
         int npop = 0;
         for (int i = 0; i < W_N; ++i) if (g_owr[i] != g_stb[i] || g_seeded[i]) npop++;
@@ -704,24 +1188,101 @@ static Window *build_window(long long seed, int bcx, int bcz) {
             }
     for (int i = 0; i < g_oob_n; ++i)
         win->cells[k++] = g_oob_spill[i];
+    --g_dungeon_capture_depth;
     return win;
 }
 
 /* Apply the window's decoration cells that fall inside chunk (cx,cz). */
-static void apply_window(const Window *win, int cx, int cz, u16 *chunk_block) {
+static void apply_window(const Window *win, int cx, int cz, u16 *chunk_block,
+                         u8 *chunk_meta) {
     if (!win) return;
     int bx = cx * 16, bz = cz * 16;
     for (int i = 0; i < win->ncells; ++i) {
         const DecCell *c = &win->cells[i];
         if (c->wx < bx || c->wx >= bx + 16 || c->wz < bz || c->wz >= bz + 16) continue;
         int lx = c->wx - bx, lz = c->wz - bz;
-        chunk_block[CB_INDEX_LOCAL(lx, c->y, lz)] = c->id;
+        int index = CB_INDEX_LOCAL(lx, c->y, lz);
+        chunk_block[index] = c->id;
+        if (chunk_meta)
+            chunk_meta[index] = c->id >= PB_SANDSTONE_STAIRS_E
+                && c->id <= PB_SANDSTONE_STAIRS_N
+                ? (u8)(c->id - PB_SANDSTONE_STAIRS_E) : 0;
+    }
+}
+
+/* Dungeon cells are also donor-seeded into later populate windows. Applying a
+ * donor copy clears its legacy metadata, so facing must be restored only after
+ * all four contributing windows have applied their final block writes. */
+static void apply_dungeon_meta(const Window *win, int cx, int cz,
+                               const u16 *chunk_block, u8 *chunk_meta) {
+    int bx = cx * 16, bz = cz * 16;
+    if (!win || !chunk_meta) return;
+    for (int i = 0; i < win->n_dungeon_chests; ++i) {
+        const DungeonChestSite *s = &win->dungeon_chests[i];
+        int index;
+        if (s->wx < bx || s->wx >= bx + 16 ||
+            s->wz < bz || s->wz >= bz + 16) continue;
+        index = CB_INDEX_LOCAL(s->wx - bx, s->y, s->wz - bz);
+        if (chunk_block[index] == PB_CHEST)
+            chunk_meta[index] = s->facing_meta;
+    }
+    for (int i = 0; i < win->n_desert_chests; ++i) {
+        const DesertChestSite *s = &win->desert_chests[i];
+        int index;
+        if (s->wx < bx || s->wx >= bx + 16 ||
+            s->wz < bz || s->wz >= bz + 16) continue;
+        index = CB_INDEX_LOCAL(s->wx - bx, s->y, s->wz - bz);
+        if (chunk_block[index] == PB_CHEST)
+            chunk_meta[index] = s->facing_meta;
+    }
+    for (int i = 0; i < win->n_village_chests; ++i) {
+        const DungeonChestSite *s = &win->village_chests[i];
+        int index;
+        if (s->wx < bx || s->wx >= bx + 16 ||
+            s->wz < bz || s->wz >= bz + 16) continue;
+        index = CB_INDEX_LOCAL(s->wx - bx, s->y, s->wz - bz);
+        if (chunk_block[index] == PB_CHEST)
+            chunk_meta[index] = s->facing_meta;
+    }
+    for (int group = 0; group < 2; ++group) {
+        const JungleSite *sites = group
+            ? win->jungle_dispensers : win->jungle_chests;
+        int count = group
+            ? win->n_jungle_dispensers : win->n_jungle_chests;
+        for (int i = 0; i < count; ++i) {
+            const JungleSite *s = &sites[i];
+            int index;
+            if (s->wx < bx || s->wx >= bx + 16
+                    || s->wz < bz || s->wz >= bz + 16) continue;
+            index = CB_INDEX_LOCAL(s->wx - bx, s->y, s->wz - bz);
+            if ((!group && chunk_block[index] == PB_CHEST)
+                    || (group && pb_tag_id(chunk_block[index]) == 23))
+                chunk_meta[index] = s->facing_meta;
+        }
     }
 }
 
 /* =============================== public API ============================== */
 
+void popmc_set_villages(int enabled) {
+    enabled = !!enabled;
+    if (enabled == g_villages_enabled) return;
+    g_villages_enabled = enabled;
+    owr_village_hook = enabled ? village_population_hook : NULL;
+    memset(g_villages_cache, 0, sizeof g_villages_cache);
+    if (g_slots)
+        for (int i = 0; i < g_owr_slots; ++i) g_slots[i].valid = 0;
+}
+
 void popmc_decorate_chunk(long long seed, int cx, int cz, unsigned short *chunk_block) {
+    popmc_decorate_chunk_meta(seed, cx, cz, chunk_block, NULL);
+}
+
+void popmc_decorate_chunk_meta(long long seed, int cx, int cz,
+                               unsigned short *chunk_block,
+                               unsigned char *chunk_meta) {
+    Window *wins[4];
+    int nwins = 0;
     if (!chunk_block) return;
     /* Chunk (cx,cz) is decorated by the four populate windows whose +8 footprint
      * overlaps it: base chunks (bcx,bcz) in {cx-1,cx} x {cz-1,cz}. OOB spills from
@@ -730,8 +1291,248 @@ void popmc_decorate_chunk(long long seed, int cx, int cz, unsigned short *chunk_
         for (int bcz = cz - 1; bcz <= cz; ++bcz) {
             Window *win = find_window(seed, bcx, bcz);
             if (!win) win = build_window(seed, bcx, bcz);
-            apply_window(win, cx, cz, chunk_block);
+            wins[nwins++] = win;
+            apply_window(win, cx, cz, chunk_block, chunk_meta);
         }
+    if (chunk_meta)
+        for (int i = 0; i < nwins; ++i)
+            apply_dungeon_meta(wins[i], cx, cz, chunk_block, chunk_meta);
+}
+
+int popmc_dungeon_chest_info(long long seed, int x, int y, int z,
+                             long long *loot_seed, int *facing_meta) {
+    const DungeonChestSite *best = NULL;
+    long best_seq = -1;
+    if (!g_slots || y < 0 || y >= W_Y) return 0;
+    for (int wi = 0; wi < g_owr_slots; ++wi) {
+        const Window *w = &g_slots[wi];
+        if (!w->valid || w->seed != seed || w->seq < best_seq) continue;
+        for (int i = 0; i < w->n_dungeon_chests; ++i) {
+            const DungeonChestSite *s = &w->dungeon_chests[i];
+            if (s->wx == x && (int)s->y == y && s->wz == z) {
+                best = s;
+                best_seq = w->seq;
+            }
+        }
+    }
+    if (!best) return 0;
+    if (loot_seed) *loot_seed = best->loot_seed;
+    if (facing_meta) *facing_meta = (int)best->facing_meta;
+    return 1;
+}
+
+int popmc_desert_chest_info(long long seed, int x, int y, int z,
+                            long long *loot_seed, int *facing_meta) {
+    const DesertChestSite *best = NULL;
+    long best_seq = -1;
+    if (!g_slots || y < 0 || y >= W_Y) return 0;
+    for (int wi = 0; wi < g_owr_slots; ++wi) {
+        const Window *w = &g_slots[wi];
+        if (!w->valid || w->seed != seed || w->seq < best_seq) continue;
+        for (int i = 0; i < w->n_desert_chests; ++i) {
+            const DesertChestSite *s = &w->desert_chests[i];
+            if (s->wx == x && (int)s->y == y && s->wz == z) {
+                best = s;
+                best_seq = w->seq;
+            }
+        }
+    }
+    if (!best) return 0;
+    if (loot_seed) *loot_seed = best->loot_seed;
+    if (facing_meta) *facing_meta = (int)best->facing_meta;
+    return 1;
+}
+
+static int popmc_jungle_site_info(long long seed, int x, int y, int z,
+                                  int dispenser, long long *loot_seed,
+                                  int *facing_meta) {
+    const JungleSite *best = NULL;
+    long best_seq = -1;
+    if (!g_slots || y < 0 || y >= W_Y) return 0;
+    for (int wi = 0; wi < g_owr_slots; ++wi) {
+        const Window *w = &g_slots[wi];
+        const JungleSite *sites = dispenser
+            ? w->jungle_dispensers : w->jungle_chests;
+        int count = dispenser
+            ? w->n_jungle_dispensers : w->n_jungle_chests;
+        if (!w->valid || w->seed != seed || w->seq < best_seq) continue;
+        for (int i = 0; i < count; ++i) {
+            const JungleSite *s = &sites[i];
+            if (s->wx == x && (int)s->y == y && s->wz == z) {
+                best = s;
+                best_seq = w->seq;
+            }
+        }
+    }
+    if (!best) return 0;
+    if (loot_seed) *loot_seed = best->loot_seed;
+    if (facing_meta) *facing_meta = (int)best->facing_meta;
+    return 1;
+}
+
+int popmc_jungle_chest_info(long long seed, int x, int y, int z,
+                            long long *loot_seed, int *facing_meta) {
+    return popmc_jungle_site_info(
+        seed, x, y, z, 0, loot_seed, facing_meta);
+}
+
+int popmc_village_chest_info(long long seed, int x, int y, int z,
+                             long long *loot_seed, int *facing_meta) {
+    const DungeonChestSite *best = NULL;
+    long best_seq = -1;
+    if (!g_slots || y < 0 || y >= W_Y) return 0;
+    for (int wi = 0; wi < g_owr_slots; ++wi) {
+        const Window *w = &g_slots[wi];
+        if (!w->valid || w->seed != seed || w->seq < best_seq) continue;
+        for (int i = 0; i < w->n_village_chests; ++i) {
+            const DungeonChestSite *site = &w->village_chests[i];
+            if (site->wx == x && (int)site->y == y && site->wz == z) {
+                best = site;
+                best_seq = w->seq;
+            }
+        }
+    }
+    if (!best) return 0;
+    if (loot_seed) *loot_seed = best->loot_seed;
+    if (facing_meta) *facing_meta = (int)best->facing_meta;
+    return 1;
+}
+
+int popmc_village_residents(long long seed,
+                            int min_x, int min_z, int max_x, int max_z,
+                            PopmcVillageResident *out, int capacity) {
+    int count = 0;
+    if (!g_slots || !out || capacity <= 0) return 0;
+    for (int wi = 0; wi < g_owr_slots && count < capacity; ++wi) {
+        const Window *w = &g_slots[wi];
+        if (!w->valid || w->seed != seed) continue;
+        for (int i = 0; i < w->n_village_residents && count < capacity; ++i) {
+            const VillageResidentSite *site = &w->village_residents[i];
+            int duplicate = 0;
+            if (site->wx < min_x || site->wx > max_x
+                    || site->wz < min_z || site->wz > max_z) continue;
+            for (int j = 0; j < count; ++j)
+                if (out[j].x == site->wx && out[j].y == (int)site->y
+                        && out[j].z == site->wz) {
+                    duplicate = 1;
+                    break;
+                }
+            if (duplicate) continue;
+            out[count].x = site->wx;
+            out[count].y = (int)site->y;
+            out[count].z = site->wz;
+            out[count].profession = (int)site->profession;
+            out[count].zombie_infested = (int)site->zombie_infested;
+            ++count;
+        }
+    }
+    return count;
+}
+
+int popmc_jungle_dispenser_info(long long seed, int x, int y, int z,
+                                long long *loot_seed, int *facing_meta) {
+    return popmc_jungle_site_info(
+        seed, x, y, z, 1, loot_seed, facing_meta);
+}
+
+static const SwampSite *popmc_swamp_site_info(
+        long long seed, int x, int y, int z, int pot) {
+    const SwampSite *best = NULL;
+    long best_seq = -1;
+    if (!g_slots || y < 0 || y >= W_Y) return NULL;
+    for (int wi = 0; wi < g_owr_slots; ++wi) {
+        const Window *w = &g_slots[wi];
+        const SwampSite *sites = pot ? w->swamp_pots : w->swamp_witches;
+        int count = pot ? w->n_swamp_pots : w->n_swamp_witches;
+        if (!w->valid || w->seed != seed || w->seq < best_seq) continue;
+        for (int i = 0; i < count; ++i) {
+            const SwampSite *s = &sites[i];
+            if (s->wx == x && (int)s->y == y && s->wz == z) {
+                best = s;
+                best_seq = w->seq;
+            }
+        }
+    }
+    return best;
+}
+
+int popmc_swamp_witch_info(long long seed, int x, int y, int z) {
+    return popmc_swamp_site_info(seed, x, y, z, 0) != NULL;
+}
+
+int popmc_swamp_pot_info(long long seed, int x, int y, int z,
+                         int *item, int *meta) {
+    const SwampSite *site = popmc_swamp_site_info(seed, x, y, z, 1);
+    if (!site) return 0;
+    if (item) *item = (int)site->value;
+    if (meta) *meta = (int)site->meta;
+    return 1;
+}
+
+int popmc_dungeon_spawner_info(long long seed, int x, int y, int z,
+                               int *mob_kind) {
+    const DungeonSpawnerSite *best = NULL;
+    long best_seq = -1;
+    if (!g_slots || y < 0 || y >= W_Y) return 0;
+    for (int wi = 0; wi < g_owr_slots; ++wi) {
+        const Window *w = &g_slots[wi];
+        if (!w->valid || w->seed != seed || w->seq < best_seq) continue;
+        for (int i = 0; i < w->n_dungeon_spawners; ++i) {
+            const DungeonSpawnerSite *s = &w->dungeon_spawners[i];
+            if (s->wx == x && (int)s->y == y && s->wz == z) {
+                best = s;
+                best_seq = w->seq;
+            }
+        }
+    }
+    if (!best) return 0;
+    if (mob_kind) {
+        /* Forge 1.11.2 DungeonHooks registration order: skeleton 100,
+         * zombie 200, spider 100. WeightedRandom subtracts in order. */
+        *mob_kind = best->roll < 100 ? POPMC_DUNGEON_MOB_SKELETON
+                  : best->roll < 300 ? POPMC_DUNGEON_MOB_ZOMBIE
+                  : POPMC_DUNGEON_MOB_SPIDER;
+    }
+    return 1;
+}
+
+int popmc_mineshaft_cart_info(long long seed, int x, int y, int z,
+                              long long *loot_seed) {
+    const MineshaftCartSite *best = NULL;
+    long best_seq = -1;
+    if (!g_slots || y < 0 || y >= W_Y) return 0;
+    for (int wi = 0; wi < g_owr_slots; ++wi) {
+        const Window *w = &g_slots[wi];
+        if (!w->valid || w->seed != seed || w->seq < best_seq) continue;
+        for (int i = 0; i < w->n_mineshaft_carts; ++i) {
+            const MineshaftCartSite *s = &w->mineshaft_carts[i];
+            if (s->wx == x && (int)s->y == y && s->wz == z) {
+                best = s;
+                best_seq = w->seq;
+            }
+        }
+    }
+    if (!best) return 0;
+    if (loot_seed) *loot_seed = best->loot_seed;
+    return 1;
+}
+
+int popmc_mineshaft_spawner_info(long long seed, int x, int y, int z) {
+    const MineshaftSpawnerSite *best = NULL;
+    long best_seq = -1;
+    if (!g_slots || y < 0 || y >= W_Y) return 0;
+    for (int wi = 0; wi < g_owr_slots; ++wi) {
+        const Window *w = &g_slots[wi];
+        if (!w->valid || w->seed != seed || w->seq < best_seq) continue;
+        for (int i = 0; i < w->n_mineshaft_spawners; ++i) {
+            const MineshaftSpawnerSite *s = &w->mineshaft_spawners[i];
+            if (s->wx == x && (int)s->y == y && s->wz == z) {
+                best = s;
+                best_seq = w->seq;
+            }
+        }
+    }
+    return best != NULL;
 }
 
 long popmc_window_builds(void) { return g_builds; }

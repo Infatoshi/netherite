@@ -11,10 +11,13 @@
 #      test never culls a visible chunk (no false negatives). Any hole would show
 #      as a differing pixel.
 set -euo pipefail
-cd "$(dirname "$0")/.."                 # -> magma
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MAGMA="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT="$(cd "$MAGMA/.." && pwd)"
+cd "$MAGMA"
 
-BLAZE="$(cd "$(dirname "$0")/../../blaze/core" && pwd)"
-RO="$(cd "$(dirname "$0")/../../render-opt/kernels" && pwd)"
+BLAZE="$ROOT/blaze/core"
+RO="$ROOT/java/render-opt/kernels"
 FLAGS=(-O2 -ffp-contract=off -Wall -Icore -I. -I"$BLAZE")
 T=/tmp/magma_frustum
 mkdir -p "$T"
@@ -24,8 +27,8 @@ gcc "${FLAGS[@]}" tests/test_frustum.c -o "$T/mine" -lm
 gcc "${FLAGS[@]}" "$RO/05_frustum_plane_extract/candidate.c" -o "$T/ref05" -lm
 gcc "${FLAGS[@]}" "$RO/06_aabb_frustum_test/candidate.c"     -o "$T/ref06" -lm
 
-python3 "$RO/05_frustum_plane_extract/gen_inputs.py" > "$T/in05.txt"
-python3 "$RO/06_aabb_frustum_test/gen_inputs.py"     > "$T/in06.txt"
+uv run --no-project python "$RO/05_frustum_plane_extract/gen_inputs.py" > "$T/in05.txt"
+uv run --no-project python "$RO/06_aabb_frustum_test/gen_inputs.py"     > "$T/in06.txt"
 
 "$T/ref05" < "$T/in05.txt" > "$T/out05_ref.txt"
 "$T/mine" --mode extract < "$T/in05.txt" > "$T/out05_mine.txt"
@@ -44,13 +47,14 @@ echo "== (B) no-holes: culled render == cull-off render (pixel-identical) =="
 # core/config.o is required: pose_scene + shade + mesh_mc + light read the registry.
 for u in world/mesh_mc world/light world/populate_mc assets/blockmodels \
          renderkernels/rk_31_facebakery_make_quad game/sky game/caps \
-         core/math core/shade core/config cpu/raster_cpu transform; do
+         game/village_live core/math core/shade core/config cpu/raster_cpu transform; do
   gcc "${FLAGS[@]}" -c "$u.c" -o "$u.o"
 done
 gcc "${FLAGS[@]}" ../verify/mc_capture/rung4_candidate.c \
     world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
     renderkernels/rk_31_facebakery_make_quad.o game/sky.o game/caps.o \
-    core/math.o core/shade.o core/config.o cpu/raster_cpu.o transform.o \
+    game/village_live.o core/math.o core/shade.o core/config.o \
+    cpu/raster_cpu.o transform.o \
     -o "$T/rung4" -lm
 
 echo "  -- culling ON --"

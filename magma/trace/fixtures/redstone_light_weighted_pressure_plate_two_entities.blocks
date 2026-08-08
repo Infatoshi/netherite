@@ -1,0 +1,10 @@
+# The parked player and locked EntityItem both occupy the light-weighted
+# plate's trigger AABB. Java counts two entities, producing analog strength 2,
+# dust metadata 2, and a +10 recurrence. Explicit lower support bounds both
+# notification rings.
+8 76 8 1 0
+8 77 8 1 0
+9 77 8 1 0
+8 78 8 147 0
+9 78 8 55 0
+10 78 8 123 0

@@ -1,0 +1,6 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while brown mushroom 39:0 occupies the front cell.
+# Mycelium support keeps the mushroom valid independently of skylight.
+12 78 9 152 0
+13 77 8 110 0
+13 78 8 39 0

@@ -1,0 +1,4 @@
+# DOWN-facing piston above a top oak stair (meta 4, ascending EAST). Its full
+# upper slab keeps the pig at y=80 even in the stair's west lane.
+12 81 9 152 0
+12 79 8 53 4

@@ -1,0 +1,5 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while a dandelion (PLANTS/DESTROY mobility) occupies
+# the front cell. Java destroys the flower and starts the moving head there.
+12 78 9 152 0
+13 78 8 37 0

@@ -1,0 +1,7 @@
+# A transient powered comparator instance with tile output 15 powers its east
+# lamp. Floor-support loss must normalize the drop to comparator item 404,
+# retire the tile, retain the imminent stale callback, and release the lamp.
+11 78 8 152 0
+12 77 8 1 0
+12 78 8 150 1
+13 78 8 124 0

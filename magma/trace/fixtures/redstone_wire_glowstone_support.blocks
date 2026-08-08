@@ -1,0 +1,6 @@
+# BlockRedstoneWire.canPlaceBlockAt explicitly accepts glowstone even though
+# glowstone is not a normal cube. A tick-zero redstone block at (11,78,8)
+# must power this dust and the adjacent lamp in the same observation.
+12 77 8 89 0
+12 78 8 55 0
+13 78 8 123 0

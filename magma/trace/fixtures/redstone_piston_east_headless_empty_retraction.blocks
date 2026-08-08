@@ -1,0 +1,4 @@
+# Serialized extended normal base with its head already absent. Java accepts
+# the queued retraction and settles the base even without a front block.
+12 79 8 33 13
+12 79 9 152 0

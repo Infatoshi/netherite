@@ -527,6 +527,10 @@ def test_gui_container_slots_cursor_and_furnace_progress_are_mapped(tmp_path: Pa
     chest = [0] * 63
     chest[0] = [264, 0, 2]   # diamond in first chest slot
     chest[27] = [4, 0, 16]   # cobble in first main inv slot (vanilla idx 27)
+    brewing = [0] * 41
+    brewing[0] = [373, 1, 1]
+    brewing[3] = [372, 0, 2]
+    brewing[4] = [377, 0, 1]
     ticks = [
         {"t": 0, "in": empty_input, "x": 0.5, "y": 70.0, "z": 0.5,
          "yaw": 0.0, "pitch": 0.0, "ents": [], "gui": "GuiCrafting",
@@ -537,6 +541,10 @@ def test_gui_container_slots_cursor_and_furnace_progress_are_mapped(tmp_path: Pa
         {"t": 2, "in": empty_input, "x": 0.5, "y": 70.0, "z": 0.5,
          "yaw": 0.0, "pitch": 0.0, "ents": [], "gui": "GuiChest",
          "gslots": chest, "gcur": [297, 0, 3]},
+        {"t": 3, "in": empty_input, "x": 0.5, "y": 70.0, "z": 0.5,
+         "yaw": 0.0, "pitch": 0.0, "ents": [],
+         "gui": "GuiBrewingStand", "gslots": brewing, "gcur": 0,
+         "gprop": [200, 19]},
     ]
     script = tmp_path / "events.jsonl"
     replay_tape.tape_to_script(header, ticks, str(script))
@@ -572,6 +580,17 @@ def test_gui_container_slots_cursor_and_furnace_progress_are_mapped(tmp_path: Pa
     assert next(event for event in tick2
                 if event["type"] == "gui_cursor_view")["item"] == 297
 
+    tick3 = [event for event in events if event["tick"] == 3]
+    slots3 = {event["slot"]: event for event in tick3
+              if event["type"] == "gui_slot_view"}
+    assert [slots3[slot]["item"] for slot in (80, 83, 84)] \
+        == [373, 372, 377]
+    assert next(event for event in tick3
+                if event["type"] == "gui_brewing_view") == {
+                    "tick": 3, "type": "gui_brewing_view",
+                    "brew": 200, "fuel": 19,
+                }
+
 
 def test_gui_chest_slot_id_mapping():
     assert replay_tape.gui_slot_id("GuiChest", 0) == 53
@@ -581,6 +600,15 @@ def test_gui_chest_slot_id_mapping():
     assert replay_tape.gui_slot_id("GuiChest", 54) == 0
     assert replay_tape.gui_slot_id("GuiChest", 62) == 8
     assert replay_tape.gui_slot_id("GuiChest", 63) is None
+
+
+def test_gui_brewing_slot_id_mapping():
+    assert replay_tape.gui_slot_id("GuiBrewingStand", 0) == 80
+    assert replay_tape.gui_slot_id("GuiBrewingStand", 4) == 84
+    assert replay_tape.gui_slot_id("GuiBrewingStand", 5) == 9
+    assert replay_tape.gui_slot_id("GuiBrewingStand", 31) == 35
+    assert replay_tape.gui_slot_id("GuiBrewingStand", 32) == 0
+    assert replay_tape.gui_slot_id("GuiBrewingStand", 40) == 8
 
 
 def test_health_packet_alignment_accepts_adjacent_tick():
@@ -903,6 +931,7 @@ def test_elytra_chest_seeds_set_elytra_before_tick_zero(tmp_path: Path):
     types0 = [e["type"] for e in events if e["tick"] == 0]
     assert "set_elytra" in types0 and "set_look" in types0
     assert types0.index("set_elytra") < types0.index("set_look")
+    assert max(e["tick"] for e in events) == ticks[-1]["t"]
 
 
 def test_non_elytra_chest_does_not_seed_set_elytra(tmp_path: Path):
@@ -1052,6 +1081,8 @@ def test_state_assertions_report_inventory_entities_and_world_hash():
         "og": 1, "hp": 20.0, "food": 20,
         "inv": inv,
         "ents": [[7, "EntitySheep", 1.0, 70.0, 2.0, 0.0, 0.0]],
+        "nearby_hash": "aabb001122334455",
+        "nearby_blocks": [0] * 729,
     }]
     c_rows = [{
         "tick": 0, "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
@@ -1061,8 +1092,11 @@ def test_state_assertions_report_inventory_entities_and_world_hash():
             {"slot": 38, "item": 443, "count": 1, "meta": 0},
             {"slot": 40, "item": 442, "count": 1, "meta": 0},
         ],
-        "entities": [{"type": 10, "x": 1.0, "y": 70.0, "z": 2.0}],
+        "entities": [{"kind": "mob", "eid": 91, "type": 10,
+                      "x": 1.0, "y": 70.0, "z": 2.0,
+                      "yaw": 0.0, "health": 0.0}],
         "nearby_hash": "aabb001122334455",
+        "nearby_blocks": [0] * 729,
     }]
     state = replay_tape.collect_state_assertions(ticks, c_rows, sample_every=1)
     assert state["kind"] == "state"
@@ -1072,8 +1106,14 @@ def test_state_assertions_report_inventory_entities_and_world_hash():
     assert state["inventory"]["ticks_independent"] == 0
     assert state["inventory"]["ticks_checked"] == 1
     assert state["entities"]["available"]
+    assert state["entities"]["pass"] is True
+    assert state["entities"]["comparison"] == (
+        "exact_type_count_and_recorded_state_nearest_pair")
     assert state["entities"]["samples"][0]["tape_types"] == ["EntitySheep"]
+    assert state["entities"]["samples"][0]["magma_types"] == ["EntitySheep"]
     assert state["world"]["available"]
+    assert state["world"]["pass"] is True
+    assert state["world"]["raw_blocks_checked"] == 1
     assert state["world"]["samples"][0]["nearby_hash"] == "aabb001122334455"
 
 
@@ -1146,8 +1186,8 @@ def test_inventory_gate_independent_pass_and_mutation_fail():
     """Prove the gate catches post-seed inventory divergence.
 
     Synthetic tape: inv at t=0 (seed) and t=20 (keyframe). Matching magma
-    inventory at t=20 PASSes with independent verification; mutating magma
-    (extra arrow consume / missing stack) FAILs. Tick 0 alone is not enough.
+    inventory at t=20 PASSes with independent verification; mutating any stack
+    field or adding/removing a stack FAILs. Tick 0 alone is not enough.
     """
     inv0 = [[261, 0, 1]] + [0] * 7 + [[262, 0, 64]] + [0] * 32
     inv20 = [[261, 0, 1]] + [0] * 7 + [[262, 0, 63]] + [0] * 32  # one arrow used
@@ -1165,9 +1205,9 @@ def test_inventory_gate_independent_pass_and_mutation_fail():
     assert ok["inventory"]["seeded_only"] is False
     assert ok["inventory"]["ticks_independent"] == 1
     assert ok["inventory"]["ticks_checked"] == 2
+    assert ok["inventory"]["comparison"] == "exact_item_count_meta_all_41_slots"
 
-    # Mutation: magma kept 64 arrows / dropped the stack (sim failed to consume
-    # but more critically reports wrong item identity if stack is gone).
+    # Mutation: magma dropped the stack.
     magma_bad = [dict(r) for r in magma_ok]
     magma_bad[20] = _magma_row(20, [
         {"slot": 0, "item": 261, "count": 1, "meta": 0},
@@ -1193,6 +1233,45 @@ def test_inventory_gate_independent_pass_and_mutation_fail():
     assert wrong["inventory"]["mismatches"][0]["tape_item"] == 262
     assert wrong["inventory"]["mismatches"][0]["magma_item"] == 3
 
+    # Exact count is part of the gate, not merely item presence.
+    magma_wrong_count = [dict(r) for r in magma_ok]
+    magma_wrong_count[20] = _magma_row(20, [
+        {"slot": 0, "item": 261, "count": 1, "meta": 0},
+        {"slot": 8, "item": 262, "count": 64, "meta": 0},
+    ])
+    wrong_count = replay_tape.collect_state_assertions(
+        ticks, magma_wrong_count, sample_every=20)
+    mismatch = wrong_count["inventory"]["mismatches"][0]
+    assert wrong_count["inventory"]["pass"] is False
+    assert mismatch["field"] == "count"
+    assert mismatch["tape"]["count"] == 63
+    assert mismatch["magma"]["count"] == 64
+
+    # Exact metadata is also compared.
+    magma_wrong_meta = [dict(r) for r in magma_ok]
+    magma_wrong_meta[20] = _magma_row(20, [
+        {"slot": 0, "item": 261, "count": 1, "meta": 0},
+        {"slot": 8, "item": 262, "count": 63, "meta": 1},
+    ])
+    wrong_meta = replay_tape.collect_state_assertions(
+        ticks, magma_wrong_meta, sample_every=20)
+    assert wrong_meta["inventory"]["pass"] is False
+    assert wrong_meta["inventory"]["mismatches"][0]["field"] == "meta"
+
+    # A stack existing only in magma must not escape an oracle-presence loop.
+    magma_extra = [dict(r) for r in magma_ok]
+    magma_extra[20] = _magma_row(20, [
+        {"slot": 0, "item": 261, "count": 1, "meta": 0},
+        {"slot": 8, "item": 262, "count": 63, "meta": 0},
+        {"slot": 9, "item": 3, "count": 1, "meta": 0},
+    ])
+    extra = replay_tape.collect_state_assertions(ticks, magma_extra, sample_every=20)
+    assert extra["inventory"]["pass"] is False
+    mismatch = extra["inventory"]["mismatches"][0]
+    assert mismatch["slot"] == 9
+    assert mismatch["tape_item"] is None
+    assert mismatch["magma_item"] == 3
+
 
 def test_inventory_gate_checks_off_grid_change_dumps():
     """Change-dump at t=77 must be checked even though sample_every=20 skips it."""
@@ -1213,6 +1292,140 @@ def test_inventory_gate_checks_off_grid_change_dumps():
     assert state["inventory"]["mismatches"][0]["tape_item"] == 262
 
 
+def test_entity_gate_fails_closed_on_type_count_and_state_mismatch():
+    sheep = [7, "EntitySheep", 1.0, 70.0, 2.0, 0.0, 20.0,
+             0.0, 4.0, 0.0, 0, 0, 0.0, 0]
+    ticks = [_pose_tick(0, ents=[sheep]), _pose_tick(1, ents=[sheep])]
+    exact = {"kind": "mob", "eid": 91, "type": 10,
+             "x": 1.0, "y": 70.0, "z": 2.0, "yaw": 0.0,
+             "pitch": 4.0, "health": 20.0, "hurt_time": 0,
+             "death_time": 0}
+    rows = [_magma_row(0, []), _magma_row(1, [])]
+    rows[0]["entities"] = [exact]
+    rows[1]["entities"] = [dict(exact)]
+    ok = replay_tape.collect_state_assertions(ticks, rows, sample_every=20)
+    assert ok["entities"]["pass"] is True
+    assert ok["entities"]["ticks_checked"] == 2
+
+    wrong_type = [dict(row) for row in rows]
+    wrong_type[1] = dict(rows[1])
+    wrong_type[1]["entities"] = [{**exact, "type": 2}]
+    bad = replay_tape.collect_state_assertions(ticks, wrong_type, sample_every=20)
+    assert bad["entities"]["pass"] is False
+    assert any(m["tick"] == 1 and m["field"] == "count"
+               and m["type"] == "EntitySheep"
+               for m in bad["entities"]["mismatches"])
+    assert any(m["tick"] == 1 and m["field"] == "count"
+               and m["type"] == "EntityZombie"
+               for m in bad["entities"]["mismatches"])
+
+    wrong_state = [dict(row) for row in rows]
+    wrong_state[1] = dict(rows[1])
+    wrong_state[1]["entities"] = [{**exact, "health": 19.0}]
+    bad = replay_tape.collect_state_assertions(ticks, wrong_state, sample_every=20)
+    assert bad["entities"]["pass"] is False
+    mismatch = bad["entities"]["mismatches"][0]
+    assert mismatch["tick"] == 1
+    assert mismatch["field"] == "health"
+    assert mismatch["tape"] == 20.0
+    assert mismatch["magma"] == 19.0
+
+
+def test_entity_gate_checks_every_tick_not_only_sample_grid():
+    ticks = [_pose_tick(t, ents=[]) for t in range(22)]
+    rows = [_magma_row(t, []) for t in range(22)]
+    rows[7]["entities"] = [{"kind": "mob", "eid": 2, "type": 2,
+                            "x": 1.0, "y": 70.0, "z": 2.0,
+                            "yaw": 0.0, "pitch": 0.0, "health": 20.0}]
+    state = replay_tape.collect_state_assertions(ticks, rows, sample_every=20)
+    assert state["entities"]["ticks_checked"] == 22
+    assert state["entities"]["pass"] is False
+    assert state["entities"]["mismatches"][0]["tick"] == 7
+    assert state["entities"]["mismatches"][0]["type"] == "EntityZombie"
+
+
+def test_world_gate_compares_java_hash_and_raw_blocks_fail_closed():
+    blocks = [0] * 729
+    ticks = [_pose_tick(0, nearby_hash="0123456789abcdef",
+                        nearby_blocks=blocks),
+             _pose_tick(1, nearby_hash="fedcba9876543210")]
+    rows = [_magma_row(0, [], nearby_hash="0123456789abcdef"),
+            _magma_row(1, [], nearby_hash="fedcba9876543210")]
+    rows[0]["nearby_blocks"] = list(blocks)
+    ok = replay_tape.collect_state_assertions(ticks, rows, sample_every=20)
+    assert ok["world"]["available"] is True
+    assert ok["world"]["pass"] is True
+    assert ok["world"]["ticks_checked"] == 2
+    assert ok["world"]["raw_blocks_checked"] == 1
+
+    bad_hash = [dict(row) for row in rows]
+    bad_hash[1] = {**rows[1], "nearby_hash": "0000000000000000"}
+    bad = replay_tape.collect_state_assertions(ticks, bad_hash, sample_every=20)
+    assert bad["world"]["pass"] is False
+    assert bad["world"]["mismatches"][0]["field"] == "nearby_hash"
+    assert bad["world"]["mismatches"][0]["tick"] == 1
+
+    bad_blocks = [dict(row) for row in rows]
+    changed = list(blocks)
+    changed[365] = 17
+    bad_blocks[0] = {**rows[0], "nearby_blocks": changed}
+    bad = replay_tape.collect_state_assertions(ticks, bad_blocks, sample_every=20)
+    assert bad["world"]["pass"] is False
+    mismatch = bad["world"]["mismatches"][0]
+    assert mismatch["field"] == "nearby_blocks"
+    assert mismatch["first_index"] == 365
+    assert mismatch["tape"] == 0
+    assert mismatch["magma"] == 17
+
+
+def test_world_gate_is_unavailable_without_java_world_truth():
+    ticks = [_pose_tick(0)]
+    rows = [_magma_row(0, [], nearby_hash="0123456789abcdef")]
+    state = replay_tape.collect_state_assertions(ticks, rows, sample_every=20)
+    assert state["world"]["available"] is False
+    assert state["world"]["ticks_checked"] == 0
+
+
+def test_nearby_blocks_schedule_preserves_checkpoint_cadence():
+    ticks = [{"t": tick, **({"nearby_blocks": []}
+                            if tick in (0, 20, 40) else {})}
+             for tick in range(41)]
+    assert replay_tape._nearby_blocks_schedule(ticks) == (20, 0)
+    assert replay_tape._nearby_blocks_schedule([{"t": 0}]) is None
+    assert replay_tape._nearby_blocks_schedule(
+        [{"t": 0}, {"t": 1, "nearby_blocks": []}]) == (3, 1)
+
+
+def test_strict_state_requires_complete_independent_truth():
+    inv = [0] * 41
+    blocks = [0] * 729
+    ticks = [
+        _pose_tick(0, inv=inv, nearby_hash="00", nearby_blocks=blocks),
+        _pose_tick(1, inv=inv, nearby_hash="00"),
+    ]
+    rows = [_magma_row(0, [], nearby_hash="00"),
+            _magma_row(1, [], nearby_hash="00")]
+    rows[0]["nearby_blocks"] = list(blocks)
+    state = replay_tape.collect_state_assertions(ticks, rows, sample_every=20)
+    assert state["pass"] is True
+    assert state["complete"] is True
+    assert state["strict_pass"] is True
+
+    legacy = replay_tape.collect_state_assertions(
+        [_pose_tick(0, inv=inv)], [_magma_row(0, [])], sample_every=20)
+    assert legacy["pass"] is True
+    assert legacy["complete"] is False
+    assert legacy["strict_pass"] is False
+
+    changed = [dict(row) for row in rows]
+    changed[1] = {**rows[1], "nearby_hash": "11"}
+    divergent = replay_tape.collect_state_assertions(
+        ticks, changed, sample_every=20)
+    assert divergent["pass"] is False
+    assert divergent["complete"] is True
+    assert divergent["strict_pass"] is False
+
+
 def test_gate_baseline_diff_missing_baseline_is_failure(tmp_path: Path):
     """Negative control: missing required baseline must not be silent green."""
     import subprocess
@@ -1231,6 +1444,32 @@ def test_gate_baseline_diff_missing_baseline_is_failure(tmp_path: Path):
     )
     assert proc.returncode == 1
     assert "FAIL: no committed baseline" in proc.stdout
+
+
+def test_gate_baseline_diff_detects_entity_state_regression(tmp_path: Path):
+    import subprocess
+    import sys
+    baseline = tmp_path / "baseline.gate.json"
+    current = tmp_path / "current.gate.json"
+    common = {"pass": True, "classes": {}, "failed_frames": [],
+              "state": {"coverage": {"ticks_run": 2},
+                        "entities": {"available": True,
+                                     "ticks_checked": 2,
+                                     "pass": True}}}
+    baseline.write_text(json.dumps(common))
+    changed = json.loads(json.dumps(common))
+    changed["state"]["entities"]["pass"] = False
+    changed["state"]["entities"]["mismatch_count"] = 1
+    current.write_text(json.dumps(changed))
+    script = TRACE_DIR / "gate_baseline_diff.py"
+    proc = subprocess.run(
+        [sys.executable, str(script), "--baseline", str(baseline),
+         "--current", str(current)],
+        capture_output=True, text=True, check=False,
+    )
+    assert proc.returncode == 1
+    assert "entities" in proc.stdout
+    assert "REGRESSION" in proc.stdout
 
 
 def test_elytra_falling_liquid_cleared_before_player_intersection(tmp_path: Path):

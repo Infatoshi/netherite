@@ -1,0 +1,5 @@
+# Two WEST-facing observers. A at x=12 watches tick-0 x=11. B at x=13
+# watches A's powered state and outputs into the lamp at x=14.
+12 78 8 218 4
+13 78 8 218 4
+14 78 8 123 0

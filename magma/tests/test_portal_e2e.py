@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
+REPO = Path(__file__).resolve().parents[2]
 OUT = Path(os.environ.get("PORTAL_E2E_OUT", "/tmp/portal_e2e"))
 RUNNER = Path(__file__).resolve().parent / "portal_e2e_run.py"
 

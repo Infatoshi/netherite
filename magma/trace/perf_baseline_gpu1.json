@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "captured_utc": "2026-07-29",
+  "hardware": {
+    "gpu_index": 1,
+    "gpu_name": "NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition"
+  },
+  "metrics": {
+    "cpu_sps": {
+      "baseline": 4062.0,
+      "max_regression_fraction": 0.05,
+      "runs": 5,
+      "unit": "steps/s"
+    },
+    "blaze_t0_gpu_sps": {
+      "baseline": 2940000.0,
+      "decisions": 75,
+      "envs": 8192,
+      "max_regression_fraction": 0.05,
+      "repeat": 4,
+      "runs": 3,
+      "unit": "env-ticks/s",
+      "warmup": 10
+    },
+    "magma_1080p_cuda_fps": {
+      "baseline": 25.57,
+      "frames": 240,
+      "height": 1080,
+      "max_regression_fraction": 0.05,
+      "runs": 3,
+      "unit": "frames/s",
+      "view_distance": 8,
+      "warmup": 60,
+      "width": 1920
+    }
+  }
+}

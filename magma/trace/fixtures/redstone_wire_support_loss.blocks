@@ -1,0 +1,6 @@
+# Isolated unpowered dust has a valid stone support and an unrelated stone to
+# its east. Removing the support must drop redstone and remove the wire;
+# removing the east stone is the neighbor-notification negative control.
+12 77 8 1 0
+12 78 8 55 0
+13 78 8 1 0

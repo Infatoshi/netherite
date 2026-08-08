@@ -1,0 +1,6 @@
+# x y z id meta
+# Sand falls onto a supported carpet's full-footprint 1/16-high surface.
+# Placement into the occupied carpet cell fails and drops one sand item.
+12 76 8 1 0
+12 77 8 171 0
+12 80 8 12 0

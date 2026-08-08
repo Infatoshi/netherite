@@ -1,0 +1,71 @@
+{
+  "name": "",
+  "tag": {
+    "type": "compound",
+    "value": {
+      "CustomName": {
+        "type": "string",
+        "value": "Parity Box"
+      },
+      "Items": {
+        "element_type": "compound",
+        "type": "list",
+        "value": [
+          {
+            "type": "compound",
+            "value": {
+              "Count": {
+                "type": "byte",
+                "value": 64
+              },
+              "Damage": {
+                "type": "short",
+                "value": 0
+              },
+              "Slot": {
+                "type": "byte",
+                "value": 0
+              },
+              "id": {
+                "type": "string",
+                "value": "minecraft:stone"
+              },
+              "tag": {
+                "type": "compound",
+                "value": {
+                  "ParityLong": {
+                    "type": "long",
+                    "value": 81985529216486895
+                  },
+                  "display": {
+                    "type": "compound",
+                    "value": {
+                      "Lore": {
+                        "element_type": "string",
+                        "type": "list",
+                        "value": [
+                          {
+                            "type": "string",
+                            "value": "Nested parity"
+                          }
+                        ]
+                      },
+                      "Name": {
+                        "type": "string",
+                        "value": "Tagged Stone"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Lock": {
+        "type": "string",
+        "value": "Parity Key"
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+# A scheduled sand block at (12,82,8) becomes an EntityFallingBlock above the
+# middle segment. The line is suspended two blocks above its landing floor, so
+# the entity crosses the null-collision wire before it reaches solid ground.
+8 77 8 1 0
+12 77 8 1 0
+9 80 8 1 0
+15 80 8 1 0
+10 80 8 131 3
+14 80 8 131 1
+11 80 8 132 0
+12 80 8 132 0
+13 80 8 132 0
+10 80 7 123 0
+14 80 7 123 0
+12 82 8 12 0

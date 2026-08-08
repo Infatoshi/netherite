@@ -1,0 +1,6 @@
+# Decayable/checking oak leaves 18:8 have no log within four face-connected
+# leaf steps. Public Random seed 5617 makes both the sapling and apple rolls
+# succeed. Destruction must also mark adjacent player-placed old/new leaves.
+12 78 8 18 8
+12 79 8 18 4
+13 78 9 161 4

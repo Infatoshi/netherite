@@ -24,7 +24,7 @@ make game
 # 2. object set == magma_game recipe (Makefile lines 45-46), world/*.o globbed.
 # Mirror the Makefile OBJ_GAME (kept in sync): includes game/sky.o + game/caps.o core/config.o,
 # which world_live.c / light.c / populate_mc.c now derive their pools/config from.
-OBJ_GAME="game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/item_render.o game/entity_render.o game/sky.o game/caps.o core/config.o"
+OBJ_GAME="game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/item_render.o game/nbt_blob.o game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/village_live.o game/villager_trade.o game/fishing_render.o game/end_city_live.o game/end_population_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/brewing_live.o game/enchanting_live.o game/container_live.o game/runtime.o game/frame_capture.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o core/config.o"
 OBJ_WORLD="$(ls world/*.o)"
 OBJ_RK="renderkernels/rk_31_facebakery_make_quad.o"
 OBJ_ASSETS="assets/blockmodels.o"

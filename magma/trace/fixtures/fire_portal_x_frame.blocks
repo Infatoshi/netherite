@@ -1,0 +1,17 @@
+# x y z id meta
+# Smallest valid 2x3 BlockPortal.Size X-axis obsidian frame. Tick 0 places
+# fire at (11,78,8) inside the otherwise empty frame.
+10 77 8 49 0
+11 77 8 49 0
+12 77 8 49 0
+13 77 8 49 0
+10 78 8 49 0
+13 78 8 49 0
+10 79 8 49 0
+13 79 8 49 0
+10 80 8 49 0
+13 80 8 49 0
+10 81 8 49 0
+11 81 8 49 0
+12 81 8 49 0
+13 81 8 49 0

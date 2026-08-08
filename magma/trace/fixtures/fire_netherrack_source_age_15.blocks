@@ -1,0 +1,6 @@
+# x y z id meta
+# Enabled scheduled BlockFire callback proof: maximum-age fire on overworld
+# netherrack with no flammable neighbor. Netherrack is an UP-side fire source,
+# so the callback must reschedule without aging, spreading, or burning out.
+12 77 8 87 0
+12 78 8 51 15

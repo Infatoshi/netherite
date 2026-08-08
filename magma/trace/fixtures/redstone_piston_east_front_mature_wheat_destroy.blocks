@@ -1,0 +1,7 @@
+# EAST-facing normal piston is placed at tick zero. A stable south-side
+# redstone block powers it while mature wheat 59:7 occupies the front cell.
+# Farmland support keeps the crop valid. Captured 1.11.2 BlockCrops emits one
+# wheat stack and performs three World.rand nextInt(14) seed-drop trials.
+12 78 9 152 0
+13 77 8 60 0
+13 78 8 59 7

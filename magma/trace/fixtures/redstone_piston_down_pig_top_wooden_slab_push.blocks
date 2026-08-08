@@ -1,0 +1,4 @@
+# DOWN-facing normal piston above a locked NoAI pig. The top wooden slab below
+# reaches y=80 exactly, so the moving head must not displace the pig downward.
+12 81 9 152 0
+12 79 8 126 8

@@ -7,13 +7,16 @@
 #include "game/frame_capture.h"
 #include "game/hand.h"
 #include "game/hud.h"
+#include "game/fishing_render.h"
 #include "game/item_render.h"
 #include "game/overlay.h"
+#include "game/potion_render.h"
 #include "game/screen.h"
 #include "game/sel_box.h"
 #include "game/sky.h"
 #include "game/underwater.h"
 #include "game/view.h"
+#include "game/weather_render.h"
 #include "world/lightmap.h"
 #include "world/mesh_mc.h"
 
@@ -84,6 +87,7 @@ struct GmWindowCompose {
     CrTexture atlas;
     CrRgba lm_lut[256];
     float hand_bob;
+    float swing_progress;
     int swing_ticks;
     int prev_attack;
     float prev_attack_cooldown;
@@ -332,10 +336,7 @@ static int render_world_dev_layers(GmWindowCompose *c, const CrCamera *cam,
 }
 
 static void apply_fluid_fog(CrShadeCtx *shade, const GmUnderwater *uw) {
-    if (!uw->fluid) return;
-    shade->enable_fog = 1;
-    shade->fog_exp_density = uw->density;
-    shade->fog_color = uw->fog_rgba;
+    gm_view_fog_apply(shade, uw, shade->fog_color);
 }
 
 static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
@@ -678,6 +679,7 @@ void gm_window_compose_advance(GmWindowCompose *c, GmPlayerView *view,
     if (swing_arm && c->swing_ticks <= 3) c->swing_ticks = 6;
     float swing = c->swing_ticks > 0
         ? (float)(6 - c->swing_ticks) / 6.0f : 0.0f;
+    c->swing_progress = swing;
     gm_hand_set_swing(swing);
     c->swing_ticks -= nticks;
     if (c->swing_ticks < 0) c->swing_ticks = 0;
@@ -707,8 +709,14 @@ int gm_window_compose_draw(GmWindowCompose *c,
     CrCamera cam = camera_for(cpv, c->fb.w, c->fb.h);
     if (!c->fog_c1_init) advance_fog_state(c, 0);
     float fog_c1 = c->fog_c1;
+    float night_vision = gm_night_vision_brightness(
+        cpv, &r->sin_table, frame->partial_ticks);
+    int blindness = gm_potion_view_duration(cpv, 15);
+    double void_fog_y_factor = r->world_type == GM_WORLD_SUPERFLAT
+        ? 1.0 : 0.03125;
     GmUnderwater uw;
-    gm_uw_eval(r->world, r->dimension, cpv, fog_c1, &uw);
+    gm_uw_eval(r->world, r->dimension, cpv, fog_c1, night_vision,
+               blindness, void_fog_y_factor, &uw);
     cam.fov_deg *= uw.fov_scale;
     if (c->anim_textures) {
         long long portal_frame = r->clock.total_time % 32;
@@ -727,6 +735,12 @@ int gm_window_compose_draw(GmWindowCompose *c,
         cr_raster_metal_atlas_dirty();
 #endif
     gm_sky_set_fog_c1(fog_c1);
+    gm_sky_set_weather(
+        gm_world_rain_strength(&r->clock, frame->partial_ticks),
+        gm_world_thunder_strength(&r->clock, frame->partial_ticks));
+    gm_sky_set_night_vision(night_vision);
+    gm_sky_set_void_blindness(
+        blindness, (double)cpv->y, void_fog_y_factor);
     gm_sky_set_eye_height(cpv->eye_height > 0.01f ? cpv->eye_height : 1.62f);
     gm_sky_set_fluid_fog(uw.fluid ? 1 : 0, uw.fog01, uw.density);
     stamp(frame, 3);
@@ -796,7 +810,11 @@ int gm_window_compose_draw(GmWindowCompose *c,
     stamp(frame, 6);
     const CrRgba *lm = NULL;
     if (worldmc_lightmap_mode() && r->dimension == 0) {
-        gm_frame_lightmap_fill(&r->sin_table, r->clock.world_time, c->lm_lut);
+        gm_frame_lightmap_fill_view(
+            &r->sin_table, r->clock.world_time,
+            gm_world_rain_strength(&r->clock, frame->partial_ticks),
+            gm_world_thunder_strength(&r->clock, frame->partial_ticks),
+            night_vision, c->lm_lut);
         lm = c->lm_lut;
     }
     /* EntityRenderer.renderWorldPass: opaque terrain first; entities,
@@ -837,6 +855,21 @@ int gm_window_compose_draw(GmWindowCompose *c,
                                   &esh.fog_start, &esh.fog_end);
         apply_fluid_fog(&esh, &uw);
         render_layer(c, &cam, c->entity_verts, nv, &esh);
+        {
+            int nl = gm_fishing_line_emit(
+                r, frame->partial_ticks, c->swing_progress, 70.0f,
+                cam.pos.x, cam.pos.y, cam.pos.z,
+                cam.fov_deg, c->fb.h,
+                c->entity_verts + nv, c->max_entity_verts - nv);
+            if (nl > 0) {
+                CrShadeCtx line = {0};
+                line.fog_color = clear;
+                line.untextured = 1;
+                line.layer = CR_LAYER_CUTOUT;
+                apply_fluid_fog(&line, &uw);
+                render_layer(c, &cam, c->entity_verts + nv, nl, &line);
+            }
+        }
         int nx = gm_xp_orbs_emit(ents, nents, pv->yaw, pv->pitch,
                                  c->entity_verts, c->max_entity_verts);
         if (nx > 0) {
@@ -883,12 +916,15 @@ int gm_window_compose_draw(GmWindowCompose *c,
         nv = gm_crystal_beams_emit(ents, nents, c->entity_verts,
                                    c->max_entity_verts);
         if (nv > 0) {
+            CrTexture beam_texture = gm_crystal_beam_texture();
             CrShadeCtx beam = {0};
-            beam.atlas = &eatlas;
+            beam.atlas = &beam_texture;
             beam.fog_color = fog;
             beam.alpha_test = 1;
             beam.alpha_ref = 0.1f;
             beam.layer = CR_LAYER_CUTOUT;
+            beam.sample_mode = 1;
+            beam.repeat_uv = 1;
             beam.lightmap = lm;
             gm_frame_world_fog_params(r->dimension, c->boss_latch,
                                       &beam.enable_fog,
@@ -1010,6 +1046,59 @@ int gm_window_compose_draw(GmWindowCompose *c,
                               r->dimension, c->boss_latch, &uw, lm,
                               CR_LAYER_TRANSLUCENT,
                               CR_LAYER_TRANSLUCENT + 1);
+    if (r->dimension == 0 && r->weather_enabled &&
+        c->max_entity_verts >= 2 * GM_WEATHER_MAX_VERTS_PER_KIND) {
+        CrVertex *rain = c->entity_verts;
+        CrVertex *snow = rain + GM_WEATHER_MAX_VERTS_PER_KIND;
+        GmWeatherGeom weather = gm_weather_emit(
+            r->world, cpv->x, cpv->y, cpv->z, (int)r->tick,
+            frame->partial_ticks,
+            gm_world_rain_strength(&r->clock, frame->partial_ticks),
+            rain, GM_WEATHER_MAX_VERTS_PER_KIND,
+            snow, GM_WEATHER_MAX_VERTS_PER_KIND);
+        CrShadeCtx wsh = {0};
+        wsh.fog_color = clear;
+        wsh.fog_start = GM_TERRAIN_FOG_START;
+        wsh.fog_end = GM_TERRAIN_FOG_END;
+        wsh.enable_fog = gm_terrain_fog_enabled();
+        wsh.alpha_test = 1;
+        wsh.alpha_ref = 0.1f;
+        wsh.layer = CR_LAYER_TRANSLUCENT;
+        wsh.blend = 1;
+        wsh.lightmap = lm;
+        wsh.sample_mode = 1;
+        wsh.repeat_uv = 1;
+        apply_fluid_fog(&wsh, &uw);
+        if (weather.rain_verts > 0) {
+            CrTexture texture = gm_weather_rain_texture();
+            wsh.atlas = &texture;
+            render_layer(c, &cam, rain, weather.rain_verts, &wsh);
+        }
+        if (weather.snow_verts > 0) {
+            CrTexture texture = gm_weather_snow_texture();
+            wsh.atlas = &texture;
+            render_layer(c, &cam, snow, weather.snow_verts, &wsh);
+        }
+    }
+    {
+        GmLightningView bolts[GM_RUNTIME_LIGHTNING];
+        int bolt_count = gm_runtime_lightning_views(
+            r, bolts, GM_RUNTIME_LIGHTNING);
+        int nv = gm_lightning_emit(
+            bolts, bolt_count, c->entity_verts, c->max_entity_verts);
+        if (nv > 0) {
+            CrShadeCtx lightning = {0};
+            lightning.fog_color = clear;
+            lightning.fog_start = GM_TERRAIN_FOG_START;
+            lightning.fog_end = GM_TERRAIN_FOG_END;
+            lightning.enable_fog = gm_terrain_fog_enabled();
+            lightning.untextured = 1;
+            lightning.layer = CR_LAYER_TRANSLUCENT;
+            lightning.blend = 3;
+            apply_fluid_fog(&lightning, &uw);
+            render_layer(c, &cam, c->entity_verts, nv, &lightning);
+        }
+    }
     stamp(frame, 9);
     if (c->backend == GM_BACKEND_CUDA) {
         cr_raster_cuda_frame_end(&c->fb);
@@ -1036,9 +1125,10 @@ int gm_window_compose_draw(GmWindowCompose *c,
                             1.f, 1.f, 1.f, uw.fov_scale,
                             cpv->yaw, cpv->pitch);
         } else {
-            CrLightmapRgb hc3 = cr_lightmap_rgb(
+            CrLightmapRgb hc3 = cr_lightmap_rgb_night_vision(
                 r->dimension, hsky, hblk,
-                cr_dimension_sun_brightness(r->dimension), 0.f, 0.f);
+                cr_dimension_sun_brightness(r->dimension), 0.f, 0.f,
+                night_vision);
             gm_hand_set_env(0, 15.f, 0.f, hc3.r, hc3.g, hc3.b,
                             uw.fov_scale, cpv->yaw, cpv->pitch);
         }

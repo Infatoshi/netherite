@@ -1,0 +1,5 @@
+# Give the EAST-facing sticky piston one observed tick of power, then remove
+# the source while its head and stone are still represented by extending
+# moving tiles. Rows are TICK DX DY DZ BLOCK META.
+0 4 0 1 152 0
+1 4 0 1 0 0

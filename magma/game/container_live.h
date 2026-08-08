@@ -20,6 +20,9 @@
  *           take-only; insert/extract go through the verified furnace_live wrappers)
  *   49..52  player armor GUI (feet/legs/chest/head) -> IsrInv 36..39; player screen only
  *   53..79  open single chest (27 slots; ContainerChest)
+ *   80..84  brewing stand potions 0..2, ingredient, fuel
+ *   85..86  enchanting table item and lapis
+ *   87..89  enchanting offer buttons (click-only, not stack slots)
  *   -999    outside the window (PICKUP drops the cursor)
  *
  * IsrInv tape/set_inventory armor indices remain 36..39 (chest = 38) and are distinct
@@ -44,7 +47,12 @@ enum {
     GMC_ARMOR0      = 49,   /* 49 feet, 50 legs, 51 chest, 52 head -> isr 36..39 */
     GMC_CHEST0      = 53,   /* 53..79 single-chest 27 slots */
     GMC_CHEST_SLOTS = 27,
-    GMC_SLOT_COUNT  = 80,
+    GMC_BREWING0    = 80,   /* 80..84 TileEntityBrewingStand slots */
+    GMC_BREWING_SLOTS = 5,
+    GMC_ENCHANT0    = 85,
+    GMC_ENCHANT_SLOTS = 2,
+    GMC_ENCHANT_BUTTON0 = 87,
+    GMC_SLOT_COUNT  = 90,
     GMC_OUTSIDE     = -999
 };
 

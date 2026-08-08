@@ -31,9 +31,37 @@ enum {
     IC_BUCKET         = 325,
     IC_WATER_BUCKET   = 326,
     IC_LAVA_BUCKET    = 327,
+    IC_CARROT_ON_A_STICK = 398,
     IC_FLOWING_WATER  = 8,
     IC_FLOWING_LAVA   = 10
 };
+
+/* Compact stand-in for the Fireworks compound on items 401/402. Vanilla
+ * metadata remains zero; magma stores the sound-relevant payload summary in
+ * otherwise-unused bits so hot simulation stacks stay fixed-size. */
+MC_HD static inline int ic_firework_meta_payload(
+        int flight, int explosions, int large, int flicker) {
+    return (flight & 0xff) | ((explosions & 0x1f) << 8)
+        | ((large != 0) << 13) | ((flicker != 0) << 14);
+}
+MC_HD static inline int ic_firework_meta(int flight, int explosions) {
+    return ic_firework_meta_payload(flight, explosions, 0, 0);
+}
+MC_HD static inline int ic_firework_flight(const ICStack *s) {
+    return s && s->item == 401 ? s->meta & 0xff : 0;
+}
+MC_HD static inline int ic_firework_explosions(const ICStack *s) {
+    return s && (s->item == 401 || s->item == 402)
+        ? (s->meta >> 8) & 0x1f : 0;
+}
+MC_HD static inline int ic_firework_large(const ICStack *s) {
+    return s && (s->item == 401 || s->item == 402)
+        ? (s->meta >> 13) & 1 : 0;
+}
+MC_HD static inline int ic_firework_flicker(const ICStack *s) {
+    return s && (s->item == 401 || s->item == 402)
+        ? (s->meta >> 14) & 1 : 0;
+}
 
 #define IC_W 8
 #define IC_VOL (IC_W * IC_W * IC_W)

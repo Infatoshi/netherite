@@ -1,0 +1,7 @@
+# A powered wire above stone strongly powers the support. The lit lamp is
+# adjacent only to that support, so direct wire removal requires Java's
+# breakBlock notification centered on the DOWN neighbor.
+11 78 8 152 0
+12 77 8 1 0
+12 78 8 55 15
+13 77 8 124 0

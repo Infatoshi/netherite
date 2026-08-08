@@ -1,0 +1,6 @@
+# The powered east-facing repeater is axis-aligned with the dust to its west.
+# This creates an EAST wire connection and suppresses perpendicular output.
+12 77 8 152 0
+12 78 8 55 15
+13 77 8 1 0
+13 78 8 94 3
