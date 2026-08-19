@@ -37,7 +37,7 @@ make test                       # short native units, <180s
 make                            # magma_game; Metal on Darwin
 ```
 
-Linux one-shot (bootstrap + build + quick sweep):
+Linux one-shot (bootstrap + `make test`):
 
 ```bash
 bash scripts/setup_and_verify.sh

@@ -479,8 +479,8 @@ biome_props_full block_props_table block_tickers block_tickers_crops chunk_provi
 ## H. Acceptance
 
 ```bash
-bash netherite_sweep.sh --quick
-bash netherite_sweep.sh --full   # GPU free
+make test
+# CUDA/tape/raster: owner make targets in docs/GATES.md
 ```
 
 Any FAIL ⇒ restore that stem; list is wrong for that unit.

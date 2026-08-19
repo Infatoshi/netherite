@@ -49,14 +49,13 @@ bash java/start_vnc_client.sh   # Xvfb :1 + openbox + x11vnc + gradlew runClient
 Product RL path is `blaze/env/` (not the discrete NetheriteMod bridge).
 Gates and snapshots: `docs/BOOTSTRAP.md` (RL artifacts section) and `docs/GATES.md`.
 
-## One-command verification pyramid
+## Native tests
 
 ```bash
-bash netherite_sweep.sh --quick   # builds + unit batteries + blaze CPU + vec-env
-bash netherite_sweep.sh --full    # + CUDA oracles, tape replay, raster parity
+make test    # short native units, <180s
 ```
 
-Details and ship criteria: `docs/GATES.md`.
+CUDA, tape, and raster gates are owner make targets. Details: `docs/GATES.md`.
 
 ## Metal backend (MacBook)
 

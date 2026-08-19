@@ -100,26 +100,16 @@ needs a ~1.6x raster kernel (bit-parity-constrained) plus hud caching and
 io/present overlap. The 3090's 11.74 (07-17, host-rendered sky) was not
 re-measured - it has a co-tenant. CPU backend is not on the 60 fps path.
 
-### Gate 4 - ops (this deliverable)
-Accept: one command runs the verification pyramid green.
-Status: SHIPPED as `netherite_sweep.sh` (repo root). `--quick` is green today except
-steps listed as SKIP (known-broken `make test-config` at HEAD; artifact-gated steps).
-A FAIL exits nonzero; SKIPs never do.
-
-## Running the sweep
+### Gate 4 - ops
+Accept: one native command runs the short unit pyramid green.
+Status: `make test` (root Makefile). Full CUDA, tape, and raster gates stay
+owner make targets until C is the only path (`make verify` is not added yet).
 
 ```bash
-bash netherite_sweep.sh --quick          # builds + unit batteries + blaze CPU gate + vec-env (<10 min)
-bash netherite_sweep.sh --full           # + blaze core CUDA oracle, blaze env CUDA gate, canonical tape replay (GPU1), raster parity, RL smoke (<40 min)
-bash netherite_sweep.sh --full --gpu 0   # device for blaze CUDA steps (tape replay + parity stay pinned to GPU1)
+make test
 ```
 
-Each step wraps an existing gate (make target or script - nothing reimplemented), has
-its own timeout and log (path printed at start), and reports [PASS]/[FAIL]/[SKIP] plus
-a summary table. GPU steps preflight `nvidia-smi` and SKIP when the device is >50%
-util - the box is shared. Missing artifacts (snapshots, tapes, prefixes) SKIP with a
-reason. Deeper/slower layers of the pyramid stay where they live: the nightly all-tape
-sweep is `verify/nightly_verify.sh`, per-kernel CPU==CUDA verifies are
+Nightly all-tape: `verify/nightly_verify.sh`. Per-kernel CPU==CUDA:
 `make -C blaze verify-<kernel>`.
 
 ## Pinned engineering gates (standalone)

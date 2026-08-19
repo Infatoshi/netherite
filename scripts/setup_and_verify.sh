@@ -3,8 +3,8 @@
 #   bootstrap Mojang-derived inputs -> build -> verification pyramid.
 #
 # Usage:
-#   bash scripts/setup_and_verify.sh            # bootstrap + --quick sweep
-#   bash scripts/setup_and_verify.sh --full     # + CUDA oracles / tape / parity
+#   bash scripts/setup_and_verify.sh            # bootstrap + make test
+#   bash scripts/setup_and_verify.sh --full     # same; CUDA/tape gates are owner make targets
 #   bash scripts/setup_and_verify.sh --bootstrap-only
 #   bash scripts/setup_and_verify.sh --skip-bootstrap   # already bootstrapped
 #
@@ -110,7 +110,10 @@ else
   echo "== blaze snapshots already present =="
 fi
 
-echo "== netherite_sweep --$MODE =="
-bash netherite_sweep.sh --"$MODE"
+echo "== make test =="
+make test
+if [ "$MODE" = full ]; then
+  echo "CUDA, tape, and raster gates are owner make targets. See docs/GATES.md."
+fi
 
 echo "== setup_and_verify done =="
