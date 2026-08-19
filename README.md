@@ -15,10 +15,10 @@ worlds stepping in lockstep on one GPU (recorded from a real batch).</i></p>
 | | Support |
 |--|---------|
 | **Linux x86_64** | Full stack (build, CUDA train, Java oracle). Canonical: anvil. |
-| **macOS** | Viewer / SSH only (Moonlight, mcwindow). No native game or CUDA train. |
-| **Windows** | Not supported as a build host. |
+| **macOS** | CPU and Metal game backends. Control plane and image review. No CUDA, no `runClient`. |
+| **Windows** | Not a build host. |
 
-No Mojang content is shipped. You need a legal Minecraft ownership and JDK 8.
+No Mojang content is shipped. You need a legal Minecraft copy and JDK 8.
 
 ## Using an LLM on this repo
 
@@ -28,13 +28,19 @@ Open **[`AGENTS.md`](AGENTS.md)**. Or paste:
 Read AGENTS.md in this repo and follow it. Task: <what you want done>
 ```
 
-## Clean Linux box (one command)
+## First clone
 
 ```bash
-bash scripts/setup_and_verify.sh          # bootstrap + build + --quick sweep
-bash scripts/setup_and_verify.sh --demo   # + physics/pixel tape replay + SBS MP4
-# -> demos/pixel_match_sbs.mp4  (oracle | magma side-by-side)
+make -C java bootstrap-oracle   # JDK 8; downloads MC 1.11.2 via ForgeGradle
+make assets
+make test                       # short native units, <180s
+make                            # magma_game; Metal on Darwin
 ```
 
-Prism is optional. Bootstrap uses ForgeGradle; details in [`docs/BOOTSTRAP.md`](docs/BOOTSTRAP.md).
-Pixel demo uses the shipped canonical tape under `verify/demo/`.
+Linux one-shot (bootstrap + build + quick sweep):
+
+```bash
+bash scripts/setup_and_verify.sh
+```
+
+Details: [`docs/BOOTSTRAP.md`](docs/BOOTSTRAP.md). How to play: [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
