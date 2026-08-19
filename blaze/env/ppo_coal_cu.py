@@ -45,35 +45,23 @@ from walk_break import GAMMA                                # noqa: E402
 
 OUT = os.path.join(RL, "out")
 
-TRAIN_SEEDS = [int(s) for s in os.environ.get(
-    "TRAIN_SEEDS", "14,16,20,27,29,32,44,46").split(",")]
+# Module-level defaults (historical unset-env). main() overrides via argparse.
+TRAIN_SEEDS = [14, 16, 20, 27, 29, 32, 44, 46]
 STAGES = ("3.0", "4.5", "6.0")
-N_ENVS = int(os.environ.get("N_ENVS", 2048))
-T_CHUNK = int(os.environ.get("T_CHUNK", 32))       # decisions per PPO chunk
-# training episode cap; eval_coal always uses EP_LEN=1000, but a longer
-# training horizon lets hard (seed,stage) cells reach the +10 at all (the
-# time penalty and distance shaping still push toward finishing fast)
-EP_TICKS = int(os.environ.get("EP_TICKS", EP_LEN))
-EP_DEC = EP_TICKS // REPEAT                        # decisions per episode
-DEVICE = int(os.environ.get("BLAZE_DEV", 1))       # 1=3090, 0=PRO 6000
-# OPT-IN training-reward gate (blaze_set_reward_gate): nearest-coal dist
-# must be <= REW_GATE for the +0.03 crosshair-attack bonus. 0 = off (exact
-# ppo_coal semantics). 3.2 = chain_probe's mine-safely radius - beyond it
-# the drop strands out of pickup range, and the ungated bonus taught
-# mine-on-sight from afar (the M4 transfer-gap root cause).
-REW_GATE = float(os.environ.get("REW_GATE", 0.0))
-MAX_TICKS = float(os.environ.get("MAX_TICKS", 50e6))
-MAX_WALL = float(os.environ.get("MAX_WALL", 45 * 60))
-ANNEAL_TICKS = float(os.environ.get("ANNEAL_TICKS", 12e6))
-# Stability deltas vs ppo_coal (which does 4 full-batch steps/update on ~1-2k
-# transitions): a 65k-transition chunk at MB=8192 x 4 epochs = 32 optimizer
-# steps/update collapsed the policy (d6.0 0.75 -> 0.26). Fewer, larger,
-# clipped steps with a decaying lr hold the learned policy.
-MB = int(os.environ.get("MB", 16384))              # PPO minibatch
-EPOCHS_CU = int(os.environ.get("EPOCHS_CU", 2))    # ppo_coal uses 4
-GRAD_CLIP = float(os.environ.get("GRAD_CLIP", 0.5))
-LR_DECAY_TICKS = float(os.environ.get("LR_DECAY_TICKS", 20e6))
-LR_FLOOR = float(os.environ.get("LR_FLOOR", 1e-4))
+N_ENVS = 2048
+T_CHUNK = 32
+EP_TICKS = EP_LEN
+EP_DEC = EP_TICKS // REPEAT
+DEVICE = 1  # 1=3090, 0=PRO 6000 (was BLAZE_DEV)
+REW_GATE = 0.0
+MAX_TICKS = 50e6
+MAX_WALL = 45 * 60.0
+ANNEAL_TICKS = 12e6
+MB = 16384
+EPOCHS_CU = 2
+GRAD_CLIP = 0.5
+LR_DECAY_TICKS = 20e6
+LR_FLOOR = 1e-4
 CKPT_TICKS = 200_000
 TRAIL = 200                                        # trailing-episode window
 TARGET = 0.60                                      # d6.0 success gate
@@ -168,7 +156,41 @@ def obs_float(u8):
     return f
 
 
-def main():
+def main(argv=None):
+    import argparse
+    global TRAIN_SEEDS, N_ENVS, T_CHUNK, EP_TICKS, EP_DEC, DEVICE, REW_GATE
+    global MAX_TICKS, MAX_WALL, ANNEAL_TICKS, MB, EPOCHS_CU, GRAD_CLIP
+    global LR_DECAY_TICKS, LR_FLOOR
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--device", type=int, default=DEVICE,
+                    help="CUDA device (was BLAZE_DEV, default 1)")
+    ap.add_argument("--seeds", default=",".join(map(str, TRAIN_SEEDS)))
+    ap.add_argument("--n-envs", type=int, default=N_ENVS)
+    ap.add_argument("--t-chunk", type=int, default=T_CHUNK)
+    ap.add_argument("--ep-ticks", type=int, default=EP_TICKS)
+    ap.add_argument("--rew-gate", type=float, default=REW_GATE)
+    ap.add_argument("--max-ticks", type=float, default=MAX_TICKS)
+    ap.add_argument("--max-wall", type=float, default=MAX_WALL)
+    ap.add_argument("--anneal-ticks", type=float, default=ANNEAL_TICKS)
+    ap.add_argument("--mb", type=int, default=MB)
+    ap.add_argument("--epochs-cu", type=int, default=EPOCHS_CU)
+    ap.add_argument("--grad-clip", type=float, default=GRAD_CLIP)
+    ap.add_argument("--lr-decay-ticks", type=float, default=LR_DECAY_TICKS)
+    ap.add_argument("--lr-floor", type=float, default=LR_FLOOR)
+    ap.add_argument("--warm", default=None, help="warm-start checkpoint name")
+    args = ap.parse_args(argv)
+    TRAIN_SEEDS = [int(s) for s in args.seeds.split(",") if s.strip()]
+    N_ENVS, T_CHUNK = args.n_envs, args.t_chunk
+    EP_TICKS = args.ep_ticks
+    EP_DEC = EP_TICKS // REPEAT
+    DEVICE = args.device
+    REW_GATE = args.rew_gate
+    MAX_TICKS, MAX_WALL = args.max_ticks, args.max_wall
+    ANNEAL_TICKS = args.anneal_ticks
+    MB, EPOCHS_CU = args.mb, args.epochs_cu
+    GRAD_CLIP = args.grad_clip
+    LR_DECAY_TICKS, LR_FLOOR = args.lr_decay_ticks, args.lr_floor
+
     os.makedirs(OUT, exist_ok=True)
     torch.manual_seed(0)
     rng = np.random.default_rng(0)
@@ -206,11 +228,11 @@ def main():
               flush=True)
 
     net = ConvPolicy().to(dev)
-    if os.environ.get("WARM"):
+    if args.warm:
         net.load_state_dict(torch.load(
-            os.path.join(OUT, os.environ["WARM"]), weights_only=True,
+            os.path.join(OUT, args.warm), weights_only=True,
             map_location=dev))
-        print(f"warm start from {os.environ['WARM']}", flush=True)
+        print(f"warm start from {args.warm}", flush=True)
     opt = torch.optim.Adam(net.parameters(), lr=LR)
 
     curr = Curriculum(chains, rng)
@@ -478,4 +500,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

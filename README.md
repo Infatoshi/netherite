@@ -22,7 +22,7 @@ No Mojang content is shipped. You need a legal Minecraft ownership and JDK 8.
 
 ## Using an LLM on this repo
 
-Open **[`AGENTS.md`](AGENTS.md)** (Claude also loads [`CLAUDE.md`](CLAUDE.md)). Or paste:
+Open **[`AGENTS.md`](AGENTS.md)**. Or paste:
 
 ```
 Read AGENTS.md in this repo and follow it. Task: <what you want done>

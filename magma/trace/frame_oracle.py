@@ -366,7 +366,7 @@ def main():
         print("  uv run --no-project --with numpy --with pillow python trace/frame_oracle.py \\")
         print(f"      --ticks {args.ticks} --cadence {args.cadence} --run-java")
         print("  (frame_oracle launches the headless game on :1 via capture_at_poses.sh;")
-        print("   on a fresh checkout export MC_GRADLE_ONLINE=1 first - see root CLAUDE.md.)")
+        print("   on a fresh checkout see root AGENTS.md.)")
     return 0
 
 

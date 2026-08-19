@@ -1,0 +1,88 @@
+# AUTOMATED survival campaign (NOT human evidence).
+#
+# Replaces the long human seed-80302 tape
+# (20260803T055113Z_vanilla_s80302_survival_default_rd8_837eae74, ~10973 ticks)
+# with a reproducible mcwindow-driven route. This is a scripted oracle fixture,
+# not a human playthrough: setup_commands stage the arena, and input.file is a
+# fixed mcwindow_script segment list. Do not cite it as human-survival evidence.
+#
+# Coverage (one bounded campaign, not one-system-per-tape purity):
+#   movement, sprint/jump, block-miss dig cooldown, multi-tool sustained dig,
+#   place/use, item toss/pickup, GuiInventory PICKUP/QUICK_MOVE/THROW/outside
+#   click (proven fb coords at gui_scale 2 / 854x480), crafting-table + furnace
+#   + chest open/close, falling sand/gravel, fluid + plant cascade, mob melee,
+#   and a sprint long enough to cross multiple chunk borders on the flat pad.
+#
+# Fresh seed 917351 (not 80302). No known_divergences exemptions.
+# Recording is intentionally out of scope for this change (recorder work
+# integrates elsewhere); validate with scenarios/test_scenario.py only.
+name: survival_campaign_auto
+world:
+  seed: 917351
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule doFireTick false
+  - /gamerule randomTickSpeed 0
+  - /gamerule naturalRegeneration false
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+  # Load the pad first so later fills and the far summon land in loaded chunks.
+  - /tp @p 0.5 4 0.5 0 25
+  # Long stone runway: z=-2..64 covers four 16-block chunk strips (chunk borders
+  # at z=0/16/32/48/64). Flat grass at y=3 is replaced so dig targets are exact.
+  # Do not /fill air: 1.11.2 reports zero-change fills as failure.
+  - /fill -3 3 -2 3 3 64 minecraft:stone
+  # Interactables on the +Z centerline (table) and flanks (furnace/chest).
+  - /setblock 0 4 3 minecraft:crafting_table
+  - /setblock 2 4 2 minecraft:furnace
+  - /setblock -2 4 2 minecraft:chest
+  # Multi-tool dig targets: dirt (shovel), stone (pick), log (axe). Eye-adjacent
+  # z so survival 4.5 reach connects without free-aim luck.
+  - /setblock 0 4 6 minecraft:dirt
+  - /setblock 0 5 6 minecraft:dirt
+  - /setblock 0 4 9 minecraft:stone
+  - /setblock 0 5 9 minecraft:stone
+  - /setblock 0 4 12 minecraft:log 0
+  - /setblock 0 5 12 minecraft:log 0
+  # Falling sand/gravel: support at y=4, column above. Dig support only.
+  - /setblock 0 4 15 minecraft:sand
+  - /fill 0 5 15 0 8 15 minecraft:sand
+  - /fill 0 9 15 0 11 15 minecraft:gravel
+  # Plant cascade: tall grass on dirt + reeds on sand; dig the support cells.
+  - /setblock 0 4 18 minecraft:dirt
+  - /setblock 0 5 18 minecraft:tallgrass 1
+  - /setblock 1 4 18 minecraft:sand
+  - /setblock 1 5 18 minecraft:reeds
+  - /setblock 1 6 18 minecraft:reeds
+  # Fluid cascade: water source behind a dirt dam; dig the dam face.
+  - /setblock 0 4 23 minecraft:water
+  - /setblock 0 4 22 minecraft:dirt
+  - /setblock 0 4 21 minecraft:dirt
+  # Loadout: tools, place stack, sword, GUI stacks (mirrors capture_gui_actions
+  # inventory.0 + hotbar.1 coords 282,258 / 318,374).
+  - /replaceitem entity @p slot.hotbar.0 minecraft:iron_shovel 1
+  - /replaceitem entity @p slot.hotbar.1 minecraft:dirt 5
+  - /replaceitem entity @p slot.hotbar.2 minecraft:iron_pickaxe 1
+  - /replaceitem entity @p slot.hotbar.3 minecraft:iron_axe 1
+  - /replaceitem entity @p slot.hotbar.4 minecraft:cobblestone 32
+  - /replaceitem entity @p slot.hotbar.5 minecraft:diamond_sword 1
+  - /replaceitem entity @p slot.inventory.0 minecraft:stone 2
+  - /replaceitem entity @p slot.inventory.1 minecraft:cobblestone 8
+  # Survive the scripted zombie contact without ending the campaign early.
+  - /effect @p minecraft:resistance 999 3 true
+  - /summon zombie 0.5 4 50.5 {PersistenceRequired:1b,NoAI:0}
+  # Final pin: feet on pad origin, looking down the runway at dig pitch.
+  - /tp @p 0.5 4 0.5 0 25
+duration_ticks: 4800
+frames_every: 20
+dig_trace: true
+input:
+  file: survival_campaign_auto.jsonl
+known_divergences: []

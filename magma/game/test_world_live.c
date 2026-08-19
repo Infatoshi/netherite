@@ -1,9 +1,18 @@
 /* game/test_world_live.c - standalone verification for game/world_live.c.
  *
- * (A) REGRESSION LOCK: gm_world_mesh_view over a fresh gm_world_create(0) at the
- *     FROZEN chunk_scene pose is BYTE-IDENTICAL (same nverts[l] + same bytes) to
- *     chunkscene_init's concatenated per-layer vertex buffers. Proves the live path
- *     did not regress the pixel-matched render.
+ * (A) REGRESSION LOCK at the FROZEN chunk_scene pose (seed 0, fixed cam):
+ *     - Column frustum: gm_world_mesh_view n_kept/n_culled match chunkscene_init.
+ *     - Full-column geometry: gm_world_mesh_chunks per-layer nverts match the
+ *       frozen scene (same mesher, no W16/W19 submission filters).
+ *     - Per kept chunk: live cached mesh is the mesher output section-packed
+ *       exactly as wl_ensure_mesh does (opaque layers reordered by 16-high
+ *       section; translucent preserves blend order byte-for-byte).
+ *     - View submission is a filter, not a second mesher: mesh_view nverts[l]
+ *       never exceeds the full-column total (section frustum + occlusion only
+ *       REMOVE geometry).
+ *     Pre-W16 mesh_view == full concat was the old contract; after section
+ *     packing + occlusion that equality is intentionally false. Asserting it
+ *     would reject correct production code.
  * (B) DIRTY CACHE: after gm_world_set_block, the touched chunk is re-meshed and its
  *     vertex buffer changes; a chunk two chunks away is byte-identical + not rebuilt.
  * (C) FILL WINDOW: gm_world_fill_window read back via mc_get equals gm_world_block at
@@ -54,6 +63,36 @@ static int snap_equal(const MeshSnap *s, const CrChunkMeshMC *m) {
     return 1;
 }
 
+/* Section bucket identical to world_live.c wl_quad_section (min vertex y / 16). */
+static int test_quad_section(const CrVertex *quad) {
+    float miny = quad[0].pos.y;
+    for (int i = 1; i < 6; ++i)
+        if (quad[i].pos.y < miny) miny = quad[i].pos.y;
+    int y = (int)floorf(miny);
+    if (y < 0) y = 0;
+    if (y > 255) y = 255;
+    return y >> 4;
+}
+
+/* Opaque-layer stable section pack matching wl_ensure_mesh (not translucent). */
+static void test_pack_opaque(const CrVertex *src, int n, CrVertex *dst) {
+    enum { SECS = 16 };
+    int sec_n[SECS];
+    memset(sec_n, 0, sizeof(sec_n));
+    for (int i = 0; i < n; i += 6)
+        sec_n[test_quad_section(src + i)] += 6;
+    int cursor[SECS], next = 0;
+    for (int sec = 0; sec < SECS; ++sec) {
+        cursor[sec] = next;
+        next += sec_n[sec];
+    }
+    for (int i = 0; i < n; i += 6) {
+        int sec = test_quad_section(src + i);
+        memcpy(dst + cursor[sec], src + i, 6 * sizeof(CrVertex));
+        cursor[sec] += 6;
+    }
+}
+
 /* ---------------- (A) regression lock ---------------- */
 static void test_regression_lock(void) {
     printf("== (A) regression lock vs chunkscene_init ==\n");
@@ -76,6 +115,7 @@ static void test_regression_lock(void) {
     cam.znear   = 0.05f;
     cam.zfar    = 600.0f;
 
+    /* Column frustum: same kept/culled set as the frozen scene. */
     GmMeshView mv;
     gm_world_mesh_view(w, &cam, W, H, &mv);
 
@@ -84,20 +124,105 @@ static void test_regression_lock(void) {
     printf("   kept=%d culled=%d (chunkscene kept=%d culled=%d)\n",
            mv.n_kept, mv.n_culled, s.n_kept, s.n_culled);
 
-    int all_identical = 1;
-    for (int l = 0; l < 4; ++l) {
-        int neq = (mv.nverts[l] == s.nverts[l]);
-        int beq = neq && (mv.nverts[l] == 0 ||
-                          memcmp(mv.verts[l], s.verts[l],
-                                 (size_t)mv.nverts[l] * sizeof(CrVertex)) == 0);
-        printf("   layer %d: live nverts=%-7d scene nverts=%-7d  %s\n",
-               l, mv.nverts[l], s.nverts[l], beq ? "BYTE-IDENTICAL" : "DIFFERS");
-        if (!beq) all_identical = 0;
-        CHECK(neq, "per-layer nverts match");
-        CHECK(beq, "per-layer bytes match");
-    }
-    CHECK(all_identical, "ALL layers byte-identical to chunkscene");
+    /* Full-column gather (no section frustum / occlusion): nverts must match
+     * the frozen concat. This is the mesher-equivalence lock. */
+    const int max_draws = 512;
+    GmChunkDraw *draws = (GmChunkDraw *)calloc((size_t)max_draws, sizeof(GmChunkDraw));
+    CHECK(draws != NULL, "mesh_chunks draw table alloc");
+    int full_nverts[4] = {0, 0, 0, 0};
+    int nch = 0;
+    if (draws)
+        nch = gm_world_mesh_chunks(w, &cam, W, H, draws, max_draws, full_nverts);
+    CHECK(nch == s.n_kept, "mesh_chunks kept count matches chunkscene");
+    printf("   mesh_chunks kept=%d\n", nch);
 
+    for (int l = 0; l < 4; ++l) {
+        int neq = (full_nverts[l] == s.nverts[l]);
+        printf("   layer %d: fullcol nverts=%-7d scene nverts=%-7d  %s\n",
+               l, full_nverts[l], s.nverts[l], neq ? "COUNT-MATCH" : "COUNT-DIFF");
+        CHECK(neq, "full-column per-layer nverts match chunkscene");
+        /* mesh_view only removes geometry (W16 section frustum + W19 occlusion). */
+        CHECK(mv.nverts[l] <= full_nverts[l],
+              "mesh_view nverts is a subset of full-column total");
+        printf("            view nverts=%-7d (filter subset of fullcol)\n",
+               mv.nverts[l]);
+    }
+
+    /* Per kept chunk: live slab == section-packed worldmc_mesh_chunk(scene).
+     * Walk the frozen frustum order (identical to mesh_chunks / chunkscene). */
+    int chunk_byte_ok = 0, chunk_byte_fail = 0;
+    {
+        const int R = SCN_VIEW_RADIUS;
+        const int ccx = (int)floorf(cam.pos.x) >> 4;
+        const int ccz = (int)floorf(cam.pos.z) >> 4;
+        CrMat4 proj = cr_perspective(cam.fov_deg, (float)W / (float)H,
+                                     cam.znear, cam.zfar);
+        CrMat4 view = cr_look_yaw_pitch(cam.pos, cam.yaw, cam.pitch);
+        float planes[6][4];
+        cr_frustum_extract(proj.m, view.m, planes);
+
+        for (int cx = ccx - R; cx <= ccx + R; ++cx) {
+            for (int cz = ccz - R; cz <= ccz + R; ++cz) {
+                double minx = (double)(cx * 16), maxx = (double)(cx * 16 + 16);
+                double minz = (double)(cz * 16), maxz = (double)(cz * 16 + 16);
+                if (!cr_aabb_in_frustum(planes, minx, SCN_AABB_Y_MIN, minz,
+                                        maxx, SCN_AABB_Y_MAX, maxz))
+                    continue;
+
+                CrChunkMeshMC sm;
+                worldmc_mesh_chunk(s.world, cx, cz, &sm);
+                int builds = 0;
+                const CrChunkMeshMC *lm = gm_world__cached_mesh(w, cx, cz, &builds);
+                if (!lm) {
+                    printf("   FAIL: live mesh missing for chunk (%d,%d)\n", cx, cz);
+                    fails++;
+                    chunk_byte_fail++;
+                    worldmc_free_mesh(&sm);
+                    continue;
+                }
+                for (int l = 0; l < 4; ++l) {
+                    if (lm->nverts[l] != sm.nverts[l]) {
+                        printf("   FAIL: chunk (%d,%d) L%d nverts live=%d scene=%d\n",
+                               cx, cz, l, lm->nverts[l], sm.nverts[l]);
+                        fails++;
+                        chunk_byte_fail++;
+                        continue;
+                    }
+                    if (sm.nverts[l] == 0) { chunk_byte_ok++; continue; }
+                    int beq = 0;
+                    if (l == CR_LAYER_TRANSLUCENT) {
+                        beq = memcmp(lm->verts[l], sm.verts[l],
+                                     (size_t)sm.nverts[l] * sizeof(CrVertex)) == 0;
+                    } else {
+                        CrVertex *packed = (CrVertex *)malloc(
+                            (size_t)sm.nverts[l] * sizeof(CrVertex));
+                        if (!packed) {
+                            printf("   FAIL: pack alloc chunk (%d,%d) L%d\n", cx, cz, l);
+                            fails++;
+                            chunk_byte_fail++;
+                            continue;
+                        }
+                        test_pack_opaque(sm.verts[l], sm.nverts[l], packed);
+                        beq = memcmp(lm->verts[l], packed,
+                                     (size_t)sm.nverts[l] * sizeof(CrVertex)) == 0;
+                        free(packed);
+                    }
+                    if (beq) chunk_byte_ok++;
+                    else {
+                        printf("   FAIL: chunk (%d,%d) L%d bytes differ after "
+                               "section pack\n", cx, cz, l);
+                        fails++;
+                        chunk_byte_fail++;
+                    }
+                }
+                worldmc_free_mesh(&sm);
+            }
+        }
+    }
+    printf("   per-chunk mesh bytes: %d ok, %d fail\n", chunk_byte_ok, chunk_byte_fail);
+    CHECK(chunk_byte_fail == 0, "every kept chunk live mesh == packed scene mesh");
+
+    free(draws);
     gm_world_destroy(w);
     chunkscene_free(&s);
 }

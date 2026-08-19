@@ -90,29 +90,46 @@ static inline void pscn__bases_add(int **bases, int *n, int *cap, int bx, int bz
  *   1. spawn-square raster (MinecraftServer.initialWorldChunkLoad)
  *   2. remaining ensure-region bases by distance to spawn (PlayerChunkMap-ish)
  * Pool must hold every window at once (owr_d_min + owr_cells_max) or donors
- * get evicted and rebuild without cascade. Escape: MAGMA_NO_PREP=1.
- * Spawn: MAGMA_SPAWN_CX/CZ, else seed0 qrl_0 (2,11). Optional exact list:
- * MAGMA_PREP_LIST=path ("bcx bcz" per line, recorded genprobe order). */
+ * get evicted and rebuild without cascade.
+ * Knobs (set via pscn_set_* before posescene_init_* from argv):
+ *   --no-prep, --spawn-cx/--spawn-cz (default seed0 qrl_0 -> 2,11),
+ *   --prep-list PATH ("bcx bcz" per line, recorded genprobe order). */
+static int g_pscn_no_prep = 0;
+static int g_pscn_spawn_cx_set = 0;
+static int g_pscn_spawn_cz_set = 0;
+static int g_pscn_spawn_cx = 0;
+static int g_pscn_spawn_cz = 0;
+static const char *g_pscn_prep_list = NULL;
+
+static inline void pscn_set_no_prep(int v) { g_pscn_no_prep = v ? 1 : 0; }
+static inline void pscn_set_spawn_cx(int v) {
+    g_pscn_spawn_cx = v; g_pscn_spawn_cx_set = 1;
+}
+static inline void pscn_set_spawn_cz(int v) {
+    g_pscn_spawn_cz = v; g_pscn_spawn_cz_set = 1;
+}
+static inline void pscn_set_prep_list(const char *path) { g_pscn_prep_list = path; }
+
 static inline void pscn__prepare_populate(long long seed, int ccx, int ccz,
                                           int ensure_r) {
-    if (getenv("MAGMA_NO_PREP")) {
-        fprintf(stderr, "posescene: MAGMA_NO_PREP set, skipping cumulative prepare\n");
+    if (g_pscn_no_prep) {
+        fprintf(stderr, "posescene: --no-prep set, skipping cumulative prepare\n");
         return;
     }
 
     int scx = 0, scz = 0;
-    const char *esx = getenv("MAGMA_SPAWN_CX");
-    const char *esz = getenv("MAGMA_SPAWN_CZ");
-    if (esx) scx = atoi(esx);
-    if (esz) scz = atoi(esz);
+    if (g_pscn_spawn_cx_set) scx = g_pscn_spawn_cx;
+    if (g_pscn_spawn_cz_set) scz = g_pscn_spawn_cz;
     /* seed 0 hard-scene / qrl_0 known spawn (44,176) -> chunk (2,11) */
-    if (!esx && !esz && seed == 0) { scx = 2; scz = 11; }
+    if (!g_pscn_spawn_cx_set && !g_pscn_spawn_cz_set && seed == 0) {
+        scx = 2; scz = 11;
+    }
 
     int cap = 4096, nbases = 0;
     int *bases = (int *)malloc((size_t)cap * 2 * sizeof(int));
     if (!bases) return;
 
-    const char *prepl = getenv("MAGMA_PREP_LIST");
+    const char *prepl = g_pscn_prep_list;
     if (prepl) {
         FILE *pf = fopen(prepl, "r");
         if (pf) {
@@ -122,7 +139,7 @@ static inline void pscn__prepare_populate(long long seed, int ccx, int ccz,
             fclose(pf);
             fprintf(stderr, "posescene: prep list %s -> %d bases\n", prepl, nbases);
         } else {
-            fprintf(stderr, "posescene: cannot open MAGMA_PREP_LIST=%s\n", prepl);
+            fprintf(stderr, "posescene: cannot open --prep-list=%s\n", prepl);
         }
     }
 

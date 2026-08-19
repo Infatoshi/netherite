@@ -28,7 +28,8 @@ public:
     step_ = symbol<StepFn>("blaze_step_full");
     success_item_ = symbol<SuccessFn>("blaze_set_success_item");
     capture_ = symbol<CaptureFn>("blaze_capture");
-    handle_ = create_(device, count);
+    /* NULL opts = historical unset-env defaults (warp_tick=1, rest 0). */
+    handle_ = create_(device, count, nullptr);
     if (handle_ == nullptr) {
       throw std::runtime_error("blaze_create failed");
     }
@@ -131,7 +132,7 @@ private:
     return reinterpret_cast<Function>(address);
   }
 
-  using CreateFn = void *(*)(int, int);
+  using CreateFn = void *(*)(int, int, const void *);
   using DestroyFn = void (*)(void *);
   using LoadFn = int (*)(void *, const char *const *, int, char *, int);
   using AssignFn = int (*)(void *, const int *);

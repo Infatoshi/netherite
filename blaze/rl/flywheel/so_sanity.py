@@ -15,6 +15,7 @@ Run:
     uv run --no-project --with numpy --with torch \
     python blaze/rl/flywheel/so_sanity.py
 """
+import argparse
 import os
 import subprocess
 import sys
@@ -29,19 +30,25 @@ sys.path.insert(0, ENV)
 from blaze import CUDA_SO, VecBlaze
 
 SNAPS = os.path.join(RL, "out", "snaps")
-WANT_ARCH = os.environ.get("BLAZE_WANT_ARCH", "sm_86,sm_120").split(",")
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--device", type=int, default=0,
+                    help="CUDA device index (was BLAZE_DEV, default 0)")
+    ap.add_argument("--want-arch", default="sm_86,sm_120",
+                    help="comma-separated arches required in the fatbin")
+    args = ap.parse_args(argv)
+    want_arch = [a.strip() for a in args.want_arch.split(",") if a.strip()]
     fails = []
 
     out = subprocess.run(["cuobjdump", "-lelf", CUDA_SO],
                          capture_output=True, text=True,
                          check=False).stdout
-    for a in WANT_ARCH:
+    for a in want_arch:
         if f".{a}." not in out and f"{a}.cubin" not in out:
             fails.append(f"arch {a} missing from {CUDA_SO}")
-    print(f"so={CUDA_SO} arches_wanted={WANT_ARCH}")
+    print(f"so={CUDA_SO} arches_wanted={want_arch}")
 
     seeds = [2, 3, 10]
     paths = [os.path.join(SNAPS, f"s{s}_t0.bsnp") for s in seeds]
@@ -53,7 +60,7 @@ def main():
         return 1
 
     n = 64
-    dev = int(os.environ.get("BLAZE_DEV", "0"))
+    dev = args.device
     env = VecBlaze(n, device=dev, so_path=CUDA_SO)
     env.load_snapshots(paths)
     env.assign([i % len(paths) for i in range(n)])
@@ -85,4 +92,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

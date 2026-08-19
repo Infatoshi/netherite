@@ -1,0 +1,47 @@
+{
+  "label": "synthetic",
+  "not_a_real_client_tape": true,
+  "description": "World hash mismatch interval with reconvergence + first differing cell",
+  "header": {
+    "header": 1, "seed": 0, "world_time": 6000,
+    "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+    "hp": 20.0, "food": 20, "dim": 0
+  },
+  "ticks": [
+    {
+      "t": 0, "in": {"f": 0, "s": 0},
+      "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+      "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20, "og": 1, "ents": [],
+      "wfnv": "aaaaaaaaaaaaaaaa", "wfa": [0, 70, 0],
+      "wcells": [[0, 70, 0, 1, 0], [1, 70, 0, 2, 0]]
+    },
+    {
+      "t": 1, "in": {"f": 0, "s": 0},
+      "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+      "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20, "og": 1, "ents": [],
+      "bc": [[1, 70, 0, 0, 0]],
+      "wfnv": "bbbbbbbbbbbbbbbb", "wfa": [0, 70, 0],
+      "wcells": [[0, 70, 0, 1, 0], [1, 70, 0, 0, 0]]
+    },
+    {
+      "t": 2, "in": {"f": 0, "s": 0},
+      "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+      "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20, "og": 1, "ents": [],
+      "wfnv": "cccccccccccccccc", "wfa": [0, 70, 0],
+      "wcells": [[0, 70, 0, 1, 0], [1, 70, 0, 0, 0]]
+    },
+    {
+      "t": 3, "in": {"f": 0, "s": 0},
+      "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+      "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20, "og": 1, "ents": [],
+      "wfnv": "dddddddddddddddd", "wfa": [0, 70, 0],
+      "wcells": [[0, 70, 0, 1, 0], [1, 70, 0, 0, 0]]
+    },
+    {
+      "t": 4, "in": {"f": 0, "s": 0},
+      "x": 1.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+      "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20, "og": 1, "ents": [],
+      "wfnv": "eeeeeeeeeeeeeeee", "wfa": [1, 70, 0]
+    }
+  ]
+}

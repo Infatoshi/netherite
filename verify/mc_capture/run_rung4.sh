@@ -40,8 +40,8 @@ CAND_PNG="$OUT/magma_frame.png"
 FLAGS=(-O2 -ffp-contract=off -Wall -Icore -I. -I"$BLAZE")
 
 # Same cumulative populate order as hard-scene-verify (spawn qrl_0 -> chunk 2,11).
-export MAGMA_SPAWN_CX="${MAGMA_SPAWN_CX:-2}"
-export MAGMA_SPAWN_CZ="${MAGMA_SPAWN_CZ:-11}"
+SPAWN_CX="${SPAWN_CX:-2}"
+SPAWN_CZ="${SPAWN_CZ:-11}"
 echo "== build objects =="
 for u in world/mesh_mc world/light world/populate_mc assets/blockmodels \
          renderkernels/rk_31_facebakery_make_quad game/sky game/caps \
@@ -50,13 +50,17 @@ for u in world/mesh_mc world/light world/populate_mc assets/blockmodels \
 done
 
 echo "== build + render candidate (854x480, hard-scene pose) =="
-echo "    prepare: spawn=($MAGMA_SPAWN_CX,$MAGMA_SPAWN_CZ) prep_list=${MAGMA_PREP_LIST:-derived}"
+echo "    prepare: spawn=($SPAWN_CX,$SPAWN_CZ) prep_list=${PREP_LIST:-derived}"
 gcc "${FLAGS[@]}" ../verify/mc_capture/rung4_candidate.c \
     world/mesh_mc.o world/light.o world/populate_mc.o assets/blockmodels.o \
     renderkernels/rk_31_facebakery_make_quad.o game/sky.o game/caps.o core/config.o core/math.o \
     core/shade.o cpu/raster_cpu.o transform.o \
     -o /tmp/rung4_candidate -lm
-/tmp/rung4_candidate "$CAND_PPM"
+cand_args=(--spawn-cx "$SPAWN_CX" --spawn-cz "$SPAWN_CZ")
+if [ -n "${PREP_LIST:-}" ]; then
+  cand_args+=(--prep-list "$PREP_LIST")
+fi
+/tmp/rung4_candidate "${cand_args[@]}" "$CAND_PPM"
 
 # Save a PNG copy of the magma frame next to the golden for eyeballing.
 uv run --no-project --with pillow python - "$CAND_PPM" "$CAND_PNG" <<'PY'

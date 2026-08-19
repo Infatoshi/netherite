@@ -1,0 +1,287 @@
+/* Shared Magma <-> Blaze subsystem parity record and deterministic hashes. */
+#ifndef BLAZE_PORT_PARITY_H
+#define BLAZE_PORT_PARITY_H
+
+#include <stdint.h>
+
+#if defined(__CUDACC__)
+#define BP_HD __host__ __device__
+#else
+#define BP_HD
+#endif
+
+#define BP_PARITY_MAGIC       UINT32_C(0x59524150) /* "PARY" little-endian */
+#define BP_PARITY_VERSION     UINT32_C(1)
+#define BP_NSUBSYSTEMS        24u
+#define BP_NDEBUG            32u
+#define BP_FNV1A_OFFSET       UINT64_C(14695981039346656037)
+#define BP_FNV1A_PRIME        UINT64_C(1099511628211)
+
+enum BpSubsystem {
+    BP_PLAYER = 0,
+    BP_DIG,
+    BP_INVENTORY,
+    BP_ITEMS,
+    BP_WORLD,
+    BP_CRAFTING,
+    BP_CONTAINERS,
+    BP_FURNACES,
+    BP_FLUIDS,
+    BP_RANDOM_TICKS,
+    BP_FALLING_BLOCKS,
+    BP_MOBS,
+    BP_PROJECTILES,
+    BP_EXPLOSIONS,
+    BP_PORTALS,
+    BP_DIMENSIONS,
+    BP_DRAGON,
+    BP_WEATHER,
+    BP_XP,
+    BP_VICTORY,
+    BP_CHESTS,
+    BP_BOATS,
+    BP_ELYTRA,
+    BP_OBSERVATIONS
+};
+enum BpDebugField {
+    BP_DBG_PLAYER_X = 0,
+    BP_DBG_PLAYER_Y,
+    BP_DBG_PLAYER_Z,
+    BP_DBG_MOTION_X,
+    BP_DBG_MOTION_Y,
+    BP_DBG_MOTION_Z,
+    BP_DBG_YAW,
+    BP_DBG_PITCH,
+    BP_DBG_ON_GROUND,
+    BP_DBG_FALL_DISTANCE,
+    BP_DBG_SPRINTING,
+    BP_DBG_SPRINT_TIMER,
+    BP_DBG_HEALTH,
+    BP_DBG_FOOD,
+    BP_DBG_EXHAUSTION,
+    BP_DBG_DIG_PROGRESS,
+    BP_DBG_DIG_HX,
+    BP_DBG_DIG_HY,
+    BP_DBG_DIG_HZ,
+    BP_DBG_DIG_HITTING,
+    BP_DBG_DIG_DELAY,
+    BP_DBG_ATK_PREV,
+    BP_DBG_LEFT_CLICK_COUNTER,
+    BP_DBG_RC_DELAY,
+    BP_DBG_USE_PREV,
+    BP_DBG_HURT_VEL_RESET,
+    BP_DBG_SERVER_MOTION_X,
+    BP_DBG_SERVER_MOTION_Z,
+    BP_DBG_CONTAINER,
+    BP_DBG_CONTAINER_WX,
+    BP_DBG_CONTAINER_WY,
+    BP_DBG_CONTAINER_WZ
+};
+
+#define BP_BIT(subsystem) (UINT64_C(1) << (subsystem))
+#define BP_REQ_UNREPRESENTED_SNAPSHOT (UINT64_C(1) << 63)
+#define BP_IMPLEMENTED_MASK \
+    (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
+     BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
+     BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | \
+     BP_BIT(BP_OBSERVATIONS))
+#define BP_MEASURED_MASK \
+    (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
+     BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
+     BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | \
+     BP_BIT(BP_OBSERVATIONS))
+
+#define BP_SUBSYSTEM_NAMES \
+    "player", "dig", "inventory", "items", "world", "crafting", \
+    "containers", "furnaces", "fluids", "random_ticks", \
+    "falling_blocks", "mobs", "projectiles", "explosions", "portals", \
+    "dimensions", "dragon", "weather", "xp", "victory", "chests", \
+    "boats", "elytra", "observations"
+
+static const char *const bp_subsystem_names[BP_NSUBSYSTEMS] = {
+    BP_SUBSYSTEM_NAMES
+};
+
+#pragma pack(push, 1)
+typedef struct BpParityRecord {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t size;
+    uint32_t nsubsystems;
+    uint64_t implemented_mask;
+    uint64_t measured_mask;
+    uint64_t active_mask;
+    int64_t tick;
+    uint64_t digest[BP_NSUBSYSTEMS];
+    uint32_t evidence[BP_NSUBSYSTEMS];
+    uint64_t debug_bits[BP_NDEBUG];
+} BpParityRecord;
+#pragma pack(pop)
+
+typedef char BpParityRecord_must_be_592_bytes
+    [(sizeof(BpParityRecord) == 592) ? 1 : -1];
+
+BP_HD static inline uint64_t bp_hash_begin(void) { return BP_FNV1A_OFFSET; }
+
+BP_HD static inline uint64_t bp_hash_u8(uint64_t h, uint8_t v) {
+    return (h ^ (uint64_t)v) * BP_FNV1A_PRIME;
+}
+
+BP_HD static inline uint64_t bp_hash_u16(uint64_t h, uint16_t v) {
+    h = bp_hash_u8(h, (uint8_t)v);
+    return bp_hash_u8(h, (uint8_t)(v >> 8));
+}
+
+BP_HD static inline uint64_t bp_hash_u32(uint64_t h, uint32_t v) {
+    h = bp_hash_u16(h, (uint16_t)v);
+    return bp_hash_u16(h, (uint16_t)(v >> 16));
+}
+
+BP_HD static inline uint64_t bp_hash_u64(uint64_t h, uint64_t v) {
+    h = bp_hash_u32(h, (uint32_t)v);
+    return bp_hash_u32(h, (uint32_t)(v >> 32));
+}
+
+BP_HD static inline uint64_t bp_hash_i32(uint64_t h, int32_t v) {
+    return bp_hash_u32(h, (uint32_t)v);
+}
+
+BP_HD static inline uint64_t bp_hash_i64(uint64_t h, int64_t v) {
+    return bp_hash_u64(h, (uint64_t)v);
+}
+
+BP_HD static inline uint32_t bp_float_bits(float v) {
+    union { float f; uint32_t u; } bits;
+    bits.f = v;
+    return bits.u;
+}
+
+BP_HD static inline uint64_t bp_double_bits(double v) {
+    union { double f; uint64_t u; } bits;
+    bits.f = v;
+    return bits.u;
+}
+
+BP_HD static inline uint64_t bp_hash_float(uint64_t h, float v) {
+    return bp_hash_u32(h, bp_float_bits(v));
+}
+
+BP_HD static inline uint64_t bp_hash_double(uint64_t h, double v) {
+    return bp_hash_u64(h, bp_double_bits(v));
+}
+
+/* Canonical subsystem components. Both Magma and the shared CPU/CUDA Blaze
+ * core feed their authoritative scalar state through these exact functions. */
+BP_HD static inline uint64_t bp_hash_stack3(
+    uint64_t h, int32_t item, int32_t count, int32_t meta) {
+    h = bp_hash_i32(h, item);
+    h = bp_hash_i32(h, count);
+    return bp_hash_i32(h, meta);
+}
+
+BP_HD static inline uint64_t bp_hash_item_entity(
+    uint64_t h, double x, double y, double z,
+    double mx, double my, double mz, int32_t on_ground, int32_t age,
+    int32_t item, int32_t count, int32_t meta, int32_t pickup_delay,
+    int32_t lifespan) {
+    h = bp_hash_double(h, x);
+    h = bp_hash_double(h, y);
+    h = bp_hash_double(h, z);
+    h = bp_hash_double(h, mx);
+    h = bp_hash_double(h, my);
+    h = bp_hash_double(h, mz);
+    h = bp_hash_i32(h, on_ground);
+    h = bp_hash_i32(h, age);
+    h = bp_hash_stack3(h, item, count, meta);
+    h = bp_hash_i32(h, pickup_delay);
+    return bp_hash_i32(h, lifespan);
+}
+
+BP_HD static inline uint64_t bp_hash_furnace_state(
+    uint64_t h, int32_t wx, int32_t wy, int32_t wz,
+    int32_t input_item, int32_t input_count, int32_t input_meta,
+    int32_t fuel_item, int32_t fuel_count, int32_t fuel_meta,
+    int32_t output_item, int32_t output_count, int32_t output_meta,
+    int32_t burn_time, int32_t current_burn_time,
+    int32_t cook_time, int32_t total_cook) {
+    h = bp_hash_i32(h, wx);
+    h = bp_hash_i32(h, wy);
+    h = bp_hash_i32(h, wz);
+    h = bp_hash_stack3(h, input_item, input_count, input_meta);
+    h = bp_hash_stack3(h, fuel_item, fuel_count, fuel_meta);
+    h = bp_hash_stack3(h, output_item, output_count, output_meta);
+    h = bp_hash_i32(h, burn_time);
+    h = bp_hash_i32(h, current_burn_time);
+    h = bp_hash_i32(h, cook_time);
+    return bp_hash_i32(h, total_cook);
+}
+
+BP_HD static inline uint64_t bp_debug_pair_i32(int32_t low, int32_t high) {
+    return (uint64_t)(uint32_t)low | ((uint64_t)(uint32_t)high << 32);
+}
+
+/* Canonical bounded-world digest. The origin is deliberately absent: index
+ * zero is the region's (x0,y0,z0), and cells use snapshot order
+ * ((x * ny + y) * nz + z). Every represented packed id<<4|meta state
+ * participates. XOR of index-bound tokens makes an authoritative cell replace
+ * O(1) while retaining dimensions and normalized relative coordinates. */
+BP_HD static inline uint64_t bp_world_digest_cell_token(
+    uint64_t index, uint16_t state) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x4c4c4543)); /* "CELL" */
+    h = bp_hash_u64(h, index);
+    return bp_hash_u16(h, state);
+}
+
+BP_HD static inline uint64_t bp_world_digest_begin(
+    int32_t nx, int32_t ny, int32_t nz) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x31444c57)); /* "WLD1" */
+    h = bp_hash_i32(h, nx);
+    h = bp_hash_i32(h, ny);
+    return bp_hash_i32(h, nz);
+}
+
+BP_HD static inline uint64_t bp_world_digest_add(
+    uint64_t digest, uint64_t index, uint16_t state) {
+    return digest ^ bp_world_digest_cell_token(index, state);
+}
+
+BP_HD static inline uint64_t bp_world_digest_replace(
+    uint64_t digest, uint64_t index, uint16_t old_state,
+    uint16_t new_state) {
+    digest ^= bp_world_digest_cell_token(index, old_state);
+    return digest ^ bp_world_digest_cell_token(index, new_state);
+}
+
+BP_HD static inline uint64_t bp_world_digest_cells(
+    const uint16_t *cells, int32_t nx, int32_t ny, int32_t nz) {
+    uint64_t digest = bp_world_digest_begin(nx, ny, nz);
+    uint64_t count = (uint64_t)(uint32_t)nx * (uint64_t)(uint32_t)ny *
+                     (uint64_t)(uint32_t)nz;
+    uint64_t i;
+    for (i = 0; i < count; ++i)
+        digest = bp_world_digest_add(digest, i, cells[i]);
+    return digest;
+}
+
+BP_HD static inline void bp_record_init(BpParityRecord *r, int64_t tick) {
+    unsigned i;
+    r->magic = BP_PARITY_MAGIC;
+    r->version = BP_PARITY_VERSION;
+    r->size = (uint32_t)sizeof(*r);
+    r->nsubsystems = BP_NSUBSYSTEMS;
+    r->implemented_mask = BP_IMPLEMENTED_MASK;
+    r->measured_mask = BP_MEASURED_MASK;
+    r->active_mask = 0;
+    r->tick = tick;
+    for (i = 0; i < BP_NSUBSYSTEMS; ++i) {
+        r->digest[i] = bp_hash_begin();
+        r->evidence[i] = 0;
+    }
+    for (i = 0; i < BP_NDEBUG; ++i) r->debug_bits[i] = 0;
+}
+
+#undef BP_HD
+
+#endif /* BLAZE_PORT_PARITY_H */

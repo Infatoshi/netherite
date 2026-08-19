@@ -8,9 +8,10 @@ tunnel, the 3 stages do not. This bakes s<seed>_m<k>.bsnp after every
 single scripted burrow cell (stage_coal budget=1 = one cell) between the
 d6.0 handoff and the d3.0 last-mile, restoring that continuum.
 
-Run: cd magma && SEEDS=16,20,27,46 uv run --no-project \
-       --with numpy,torch,matplotlib python blaze/env/make_slices.py
+Run: cd magma && uv run --no-project --with numpy,torch,matplotlib \\
+       python blaze/env/make_slices.py --seeds 16,20,27,46
 """
+import argparse
 import json
 import math
 import os
@@ -64,9 +65,12 @@ def bake(seed, prefix):
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--seeds", default="16,20,27,46",
+                    help="comma-separated seeds (default 16,20,27,46)")
+    args = ap.parse_args()
     prefixes = json.load(open(os.path.join(OUT, "coal_prefixes.json")))
-    seeds = [int(s) for s in os.environ.get("SEEDS", "16,20,27,46")
-             .split(",")]
+    seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
     for s in seeds:
         print(f"== seed {s}", flush=True)
         bake(s, prefixes[str(s)])

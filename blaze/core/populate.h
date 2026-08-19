@@ -1930,15 +1930,27 @@ MC_HD MC_NOINLINE static int wg_liq_has_level(int x, int y, int z) {
     return wg_liq_stamp[w_index(x, y, z)] == wg_liq_cur_stamp;
 }
 
+/* Host-only populate bisect switches. Default 0 = today's unset-env behavior
+ * (MAGMA_NOWAKE / MAGMA_NOFALL). Magma wires these from the config registry
+ * (keys nowake / nofall) via bz_populate_set_debug; blaze callers leave them
+ * at 0. Per-TU statics: each host TU that includes this header has its own
+ * pair, so the magma setter in populate_mc.c only arms that TU's copy. */
+#ifndef __CUDA_ARCH__
+static int g_bz_pop_nowake;
+static int g_bz_pop_nofall;
+static inline void bz_populate_set_debug(int nowake, int nofall) {
+    g_bz_pop_nowake = nowake ? 1 : 0;
+    g_bz_pop_nofall = nofall ? 1 : 0;
+}
+#endif
+
 /* BlockStaticLiquid.updateLiquid: neighborChanged on a settled liquid converts it back to the
  * DYNAMIC block (flag 2, LEVEL kept) and schedules an update - immediate during populate. */
 MC_HD MC_NOINLINE static void wg_liq_reawaken(World *w, int x, int y, int z, int flow, int *sp) {
-    /* MAGMA_NOWAKE: host-only bisect switch (getenv). Default (unset) is identical
-     * on CPU and CUDA; set the env only for host-side forensics. */
+    /* nowake: host-only bisect switch. Default (0) is identical on CPU and CUDA;
+     * arm via bz_populate_set_debug only for host-side forensics. */
 #ifndef __CUDA_ARCH__
-    static int nowake = -1;
-    if (nowake < 0) nowake = getenv("MAGMA_NOWAKE") != NULL;
-    if (nowake) return;
+    if (g_bz_pop_nowake) return;
 #endif
     if (!wg_liq_has_level(x, y, z)) return;
     int level = wg_liq_level_at(w, x, y, z, flow);
@@ -1962,13 +1974,11 @@ MC_HD MC_NOINLINE static void wg_liq_neighbor_changed(World *w, int x, int y, in
     } else if (b == PB_WATER) {
         wg_liq_reawaken(w, x, y, z, PB_FLOWING_WATER, sp);
     } else if (b == PB_GRAVEL || b == PB_SAND) {
-        /* MAGMA_NOFALL: host-only bisect switch. Default (unset) runs fall on
-         * both sides; previously the whole call was #ifndef'd out on device. */
+        /* nofall: host-only bisect switch. Default (0) runs fall on both sides;
+         * previously the whole call was #ifndef'd out on device. */
         int do_fall = 1;
 #ifndef __CUDA_ARCH__
-        static int nofall = -1;
-        if (nofall < 0) nofall = getenv("MAGMA_NOFALL") != NULL;
-        if (nofall) do_fall = 0;
+        if (g_bz_pop_nofall) do_fall = 0;
 #endif
         if (do_fall) wg_fall_check(w, x, y, z, sp);
     }

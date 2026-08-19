@@ -6,6 +6,7 @@ find_package(CUDAToolkit REQUIRED)
 
 add_executable(cgraph_train cgraph_train.cpp cgraph_kernels.cu)
 target_compile_features(cgraph_train PRIVATE cxx_std_20)
+target_include_directories(cgraph_train PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_compile_options(cgraph_train PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:-O3;-Wall;-Wextra;-Werror=return-type>
   $<$<COMPILE_LANGUAGE:CUDA>:-O3>)

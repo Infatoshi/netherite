@@ -9,9 +9,6 @@ typedef enum { GM_COMPOSE_CAPTURE = 0, GM_COMPOSE_WINDOW = 1 } GmComposeMode;
 typedef enum { GM_BACKEND_CPU = 0, GM_BACKEND_CUDA = 1, GM_BACKEND_METAL = 2 } GmBackend;
 typedef enum { GM_PACE_REALTIME = 0, GM_PACE_UNLIMITED = 1 } GmPace;
 
-/* Max repeats of --set key=value on one command line (fixed storage, no heap). */
-#define GM_CONFIG_MAX_SET 32
-
 typedef struct {
     long long seed;
     GmWorldType world;
@@ -34,6 +31,7 @@ typedef struct {
     GmRenderMode render;
     GmComposeMode compose;
     GmBackend backend;
+    int device;
     GmPace pace;
     int view_distance;
     int width, height;
@@ -70,20 +68,13 @@ typedef struct {
     int show_help;
     int print_config;
 
-    /* ---- config registry front end (core/config.h) ----
-     * conf_path: --conf PATH, the file the registry loads (NULL -> magma.conf
-     * in the cwd). This replaced the MAGMA_CONF env var.
-     * set_kv / n_set: --set key=value, repeatable, applied AFTER the file in
-     * argv order so the last one wins. Fixed array, no heap; the strings point
-     * straight into argv. */
-    const char *conf_path;
-    const char *set_kv[GM_CONFIG_MAX_SET];
-    int n_set;
+    /* Command controls. Runtime values above all come from core/config.def. */
     int dump_config;
 } GmConfig;
 
 void gm_config_defaults(GmConfig *cfg);
-/* 0 success, 2 command-line error. */
+/* Load compiled defaults, a config file, then command overrides. Runtime
+ * values are resolved from core/config.def. Returns 0 or 2. */
 int gm_config_parse(GmConfig *cfg, int argc, char **argv, char *err, int err_cap);
 /* Reject accepted target settings that this build cannot execute yet. */
 int gm_config_validate_runtime(const GmConfig *cfg, int cuda_compiled,

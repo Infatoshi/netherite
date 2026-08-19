@@ -538,6 +538,12 @@ int gm_container_click(struct GmRuntime *r, int slot_id, int button, int click_t
     if (button != 0 && button != 1) return 0;
 
     if (slot_id == GMC_OUTSIDE) {
+        if (click_type == CC_CLICK_THROW) {
+            /* Container.slotClick's THROW branch only acts when slotId >= 0.
+             * A taped Q press while the pointer is outside is an accepted
+             * no-op, not a malformed click. */
+            return 1;
+        }
         if (click_type != CC_CLICK_PICKUP) return 0;
         ICStack cur = gm_player_cursor();
         if (!cc_is_empty(&cur)) {

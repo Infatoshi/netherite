@@ -56,8 +56,23 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from blaze import VecBlaze, CPU_SO, CUDA_SO, NPIX  # noqa: E402
-from verify_cpu import BIN_SIZE, first_diff_field, fmt_field  # noqa: E402
+from verify_cpu import (
+    BIN_SIZE,
+    BLOCKED,
+    PARITY_INDEX,
+    PARITY_NAMES,
+    PARITY_SIZE,
+    PARITY_SUPPORTED,
+    ParityRecord,
+    VERIFIED,
+    first_diff_field,
+    fmt_field,
+    parity_mask_names,
+    parity_pair_status,
+    snapshot_dynamics_blocker,
+)
+
+from blaze import CPU_SO, CUDA_SO, VecBlaze
 
 RL = os.path.join(os.path.dirname(HERE), "rl")
 SNAPS = os.path.join(RL, "out", "snaps")
@@ -197,9 +212,30 @@ def outputs(env):
             "pose": to_np(env.pose)}
 
 
-def make_envs(n_cpu, n_cuda, paths, cpu_assign, cuda_assign, device):
-    cpu = VecBlaze(n_cpu, device=0, so_path=CPU_SO)
-    cuda = VecBlaze(n_cuda, device=device, so_path=CUDA_SO)
+def _create_kw(args=None):
+    """VecBlaze create kwargs from parsed args (historical unset defaults)."""
+    kw = {}
+    if args is None:
+        return kw
+    if getattr(args, "ktime", False):
+        kw["ktime"] = True
+    if getattr(args, "op_trace", False):
+        kw["op_trace"] = True
+    if getattr(args, "stage_time", False):
+        kw["stage_time"] = True
+    if getattr(args, "legacy_recenter", False):
+        kw["legacy_recenter"] = True
+    if getattr(args, "no_ore_xy", False):
+        kw["no_ore_xy"] = True
+    if getattr(args, "warp_tick", None) is not None:
+        kw["warp_tick"] = int(args.warp_tick)
+    return kw
+
+
+def make_envs(n_cpu, n_cuda, paths, cpu_assign, cuda_assign, device, args=None):
+    kw = _create_kw(args)
+    cpu = VecBlaze(n_cpu, device=0, so_path=CPU_SO, **kw)
+    cuda = VecBlaze(n_cuda, device=device, so_path=CUDA_SO, **kw)
     for e, asn in ((cpu, cpu_assign), (cuda, cuda_assign)):
         e.load_snapshots(paths)
         e.assign(asn)
@@ -214,7 +250,7 @@ def run_gate(args):
     assign = [i % len(paths) for i in range(n)]
     print(f"gate: N={n}, {len(paths)} snapshots round-robin, "
           f"{args.decisions} decisions x repeat {args.repeat}")
-    cpu, cuda = make_envs(n, n, paths, assign, assign, args.device)
+    cpu, cuda = make_envs(n, n, paths, assign, assign, args.device, args)
     streams = [ActStream(i) for i in range(n)]
     cmp = Cmp()
     ok = True
@@ -261,7 +297,7 @@ def run_big(args):
     print(f"big-N spot check: CUDA N={nbig}, {args.decisions} decisions; "
           f"CPU exact-replica of {nsub} random lanes (seed 1234)")
     cpu, cuda = make_envs(nsub, nbig, paths, assign_sub, assign_big,
-                          args.device)
+                          args.device, args)
     big_streams = [ActStream(i) for i in range(nbig)]
     cmp = Cmp()
     ok = True
@@ -303,6 +339,24 @@ def _raw_abi(env):
     env.lib.blaze_emit.argtypes = [ctypes.c_void_p, ctypes.c_int,
                                    ctypes.c_int, ctypes.c_void_p]
     env.lib.blaze_obs_size.restype = ctypes.c_int
+    env.lib.blaze_parity_size.restype = ctypes.c_int
+    env.lib.blaze_parity_state.argtypes = [
+        ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
+    env.lib.blaze_parity_state.restype = ctypes.c_int
+    # Batched all-lanes PARY (CUDA only; absent from blaze_cpu.so). Same
+    # no_emit_all opt-out pattern is reused as no_parity_all so the serial
+    # path stays A/B-testable.
+    env.has_parity_all = (hasattr(env.lib, "blaze_parity_state_all")
+                          and not getattr(env, "no_parity_all", False))
+    if env.has_parity_all:
+        env.lib.blaze_parity_state_all.argtypes = [
+            ctypes.c_void_p, ctypes.c_void_p]
+        env.lib.blaze_parity_state_all.restype = ctypes.c_int
+    env.lib.blaze_capabilities.argtypes = []
+    env.lib.blaze_capabilities.restype = ctypes.c_ulonglong
+    env.lib.blaze_snapshot_requirements.argtypes = [
+        ctypes.c_void_p, ctypes.c_int]
+    env.lib.blaze_snapshot_requirements.restype = ctypes.c_ulonglong
     assert env.lib.blaze_obs_size() == BIN_SIZE
 
 
@@ -318,41 +372,221 @@ def _raw_act(act):
 def run_chain(args, iron=False):
     seed = args.chain_seed
     tag = "iron" if iron else "chain"
-    snap = os.path.join(SNAPS, f"s{seed}_t0_iron.bsnp" if iron
-                        else f"s{seed}_t0.bsnp")
-    acts_path = os.path.join(RL, "out", f"{tag}_actions_s{seed}.json")
+    snap = args.snapshot or os.path.join(
+        SNAPS, f"s{seed}_t0_iron.bsnp" if iron else f"s{seed}_t0.bsnp")
+    acts_path = (args.tape if getattr(args, "tape", None) is not None
+                 else os.path.join(RL, "out", f"{tag}_actions_s{seed}.json"))
     if not os.path.exists(snap) or not os.path.exists(acts_path):
         print(f"{tag} gate: missing {snap} or {acts_path}")
         return False
+    blocker = snapshot_dynamics_blocker(snap)
+    if blocker:
+        print(f"BLOCKED before stepping: {blocker}")
+        args.parity_blocked = True
+        return False
     acts = [{k: v for k, v in a.items() if k != "snapshot"}
             for a in json.load(open(acts_path))]
+    if (args.expected_chain_actions is not None and
+            len(acts) != args.expected_chain_actions):
+        print(f"BLOCKED: {tag} fixture has {len(acts)} actions, expected "
+              f"{args.expected_chain_actions}")
+        args.parity_blocked = True
+        return False
     nl = args.chain_lanes
+    # Default-on state digests: every tick, every CUDA lane's PARY is compared
+    # against the batch-of-1 CPU record for all BP_IMPLEMENTED subsystems.
+    # --no-state-digest reverts to BOLR-only. Explicit --port-parity --features
+    # still selects a subset and enforces the end-of-run evidence requirement.
+    state_digest = not args.no_state_digest
+    if args.port_parity and args.parity_features:
+        features = list(args.parity_features)
+        require_evidence = True
+    elif state_digest:
+        features = list(PARITY_SUPPORTED)
+        require_evidence = False
+    else:
+        features = []
+        require_evidence = False
+    digest_note = (
+        f" + state digests ({','.join(features)})" if features else "")
     print(f"{tag} gate: {os.path.basename(snap)} x {len(acts)} actions, "
           f"CUDA batch of "
-          f"{nl} identical lanes vs batch-of-1 CPU, byte-exact every tick")
-    cpu = VecBlaze(1, device=0, so_path=CPU_SO)
-    cuda = VecBlaze(nl, device=args.device, so_path=CUDA_SO)
+          f"{nl} identical lanes vs batch-of-1 CPU, byte-exact every tick"
+          f"{digest_note}")
+    kw = _create_kw(args)
+    cpu = VecBlaze(1, device=0, so_path=CPU_SO, **kw)
+    cuda = VecBlaze(nl, device=args.device, so_path=CUDA_SO, **kw)
+    if getattr(args, "no_parity_all", False):
+        cpu.no_parity_all = True
+        cuda.no_parity_all = True
     for e, n in ((cpu, 1), (cuda, nl)):
         _raw_abi(e)
         e.load_snapshots([snap])
         e.assign([0] * n)
         e.reset()
+    requested = sum(1 << PARITY_INDEX[name] for name in features)
+    if args.strict_capabilities and features:
+        for source, env in (("CPU", cpu), ("CUDA", cuda)):
+            capabilities = env.lib.blaze_capabilities()
+            requirements = env.lib.blaze_snapshot_requirements(env.h, 0)
+            unsupported = requested & ~capabilities
+            missing_requirements = requirements & ~capabilities
+            if unsupported or missing_requirements:
+                details = []
+                if unsupported:
+                    details.append("lacks requested capabilities "
+                                   + parity_mask_names(unsupported))
+                if missing_requirements:
+                    details.append("snapshot requires unsupported capabilities "
+                                   + parity_mask_names(missing_requirements))
+                print(f"BLOCKED before stepping: {source} " + "; ".join(details))
+                args.parity_blocked = True
+                cpu.close()
+                cuda.close()
+                return False
     buf_c = ctypes.create_string_buffer(BIN_SIZE)
     buf_g = ctypes.create_string_buffer(BIN_SIZE)
+    # One block for all nl lanes, filled by a single blaze_emit_all call. The
+    # per-lane blaze_emit loop below costs a launch+sync+memcpy round trip per
+    # lane per tick and dominated this gate's wall clock (2058 ticks x 64
+    # lanes); the block lets the common all-match case be one memcmp.
+    buf_all = ctypes.create_string_buffer(BIN_SIZE * nl)
+    # Zero-copy views for that memcmp. Materialising .raw twice per tick
+    # (buf_all plus the tiled CPU record, 2 x nl x BIN_SIZE bytes) cost more
+    # than the batched emit it was checking; these views alias the ctypes
+    # buffers in place, and the comparison broadcasts the single CPU record
+    # across all nl lanes.
+    view_all = np.frombuffer(buf_all, dtype=np.uint8).reshape(nl, BIN_SIZE)
+    view_c = np.frombuffer(buf_c, dtype=np.uint8)
+    parity_c = ctypes.create_string_buffer(PARITY_SIZE)
+    parity_g = ctypes.create_string_buffer(PARITY_SIZE)
+    # Batched all-lanes PARY: one launch + one DtoH per tick (not 64 serial
+    # blaze_parity_state calls). Same layout as buf_all: lane i at offset
+    # i * PARITY_SIZE.
+    parity_all = ctypes.create_string_buffer(PARITY_SIZE * nl) if features \
+        else None
+    view_parity_all = (
+        np.frombuffer(parity_all, dtype=np.uint8).reshape(nl, PARITY_SIZE)
+        if parity_all is not None else None)
+    view_parity_c = np.frombuffer(parity_c, dtype=np.uint8)
     ok = True
+    cpu_evidence = {name: False for name in features}
+    cuda_evidence = {name: [False] * nl for name in features}
+
+    def report_state_fail(t, lane, cpu_record, cuda_record, subsystem, detail):
+        nonlocal ok
+        print(f"FAIL tick {t} lane {lane}: state digest feature "
+              f"{subsystem or 'record'} ({detail})")
+        if subsystem is not None:
+            idx = PARITY_INDEX[subsystem]
+            print(f"    cpu:  digest=0x{cpu_record.digest[idx]:016x} "
+                  f"evidence={cpu_record.evidence[idx]} "
+                  f"active={int(bool(cpu_record.active & (1 << idx)))}")
+            print(f"    cuda: digest=0x{cuda_record.digest[idx]:016x} "
+                  f"evidence={cuda_record.evidence[idx]} "
+                  f"active={int(bool(cuda_record.active & (1 << idx)))}")
+        ok = False
+        return False
 
     def lanes_match(t, want):
         nonlocal ok
-        for lane in range(nl):
-            assert cuda.lib.blaze_emit(cuda.h, lane, want, buf_g) == 0
-            if buf_g.raw != buf_c.raw:
-                f = first_diff_field(buf_c.raw, buf_g.raw) or "blocks/logs"
-                print(f"FAIL tick {t} lane {lane}: field {f}")
-                if f != "blocks/logs":
-                    print(f"    cpu:  {fmt_field(buf_c.raw, f)}")
-                    print(f"    cuda: {fmt_field(buf_g.raw, f)}")
+        cpu_record = None
+        if features:
+            assert cpu.lib.blaze_parity_size() == PARITY_SIZE
+            assert cuda.lib.blaze_parity_size() == PARITY_SIZE
+            assert cpu.lib.blaze_parity_state(
+                cpu.h, 0, parity_c) == 0
+            cpu_record = ParityRecord(parity_c.raw, "CPU")
+            missing = requested & ~(cpu_record.implemented &
+                                    cpu_record.measured)
+            if missing:
+                print("BLOCKED: CPU PARY does not implement and measure "
+                      + parity_mask_names(missing))
+                args.parity_blocked = True
                 ok = False
                 return False
+            for name in features:
+                cpu_evidence[name] |= bool(
+                    cpu_record.evidence[PARITY_INDEX[name]])
+        # Fast path: one batched emit, one memcmp of the whole lane block
+        # against the CPU record tiled nl times (every lane must equal it).
+        # This decides the BOLR verdict; it never changes it. On any mismatch
+        # we fall through to the per-lane loop below, which re-emits lane by
+        # lane and produces the byte-identical first-diff report it always did.
+        fast_ok = False
+        if cuda.has_emit_all:
+            assert cuda.lib.blaze_emit_all(cuda.h, want, buf_all) == 0
+            fast_ok = bool((view_all == view_c).all())
+
+        # Batched state-digest path: one blaze_parity_state_all + one memcmp of
+        # the whole PARY block against the CPU record tiled nl times. Only on
+        # a mismatch do we walk lanes to name the first lane + feature.
+        # Valid only after a batched emit: the observations digest hashes the
+        # env's cam/dep/edg buffers, which blaze_emit_all just rendered. In
+        # the per-lane path lanes render inside the loop below, so batched
+        # parity here would digest stale frames.
+        parity_fast_ok = False
+        if features and getattr(cuda, "has_parity_all", False) \
+                and cuda.has_emit_all:
+            assert cuda.lib.blaze_parity_state_all(cuda.h, parity_all) == 0
+            parity_fast_ok = bool((view_parity_all == view_parity_c).all())
+
+        if fast_ok and (not features or parity_fast_ok):
+            if features and parity_fast_ok:
+                # All lanes matched the CPU PARY; still accumulate evidence
+                # from the single CPU record (lanes are identical on PASS).
+                for name in features:
+                    hit = bool(cpu_record.evidence[PARITY_INDEX[name]])
+                    if hit:
+                        for lane in range(nl):
+                            cuda_evidence[name][lane] = True
+            return True
+
+        for lane in range(nl):
+            if not fast_ok:
+                assert cuda.lib.blaze_emit(cuda.h, lane, want, buf_g) == 0
+                if buf_g.raw != buf_c.raw:
+                    f = first_diff_field(buf_c.raw, buf_g.raw) or "blocks/logs"
+                    print(f"FAIL tick {t} lane {lane}: field {f}")
+                    if f != "blocks/logs":
+                        print(f"    cpu:  {fmt_field(buf_c.raw, f)}")
+                        print(f"    cuda: {fmt_field(buf_g.raw, f)}")
+                    ok = False
+                    return False
+            if features:
+                if parity_fast_ok:
+                    # Already know every lane matches; no per-lane work.
+                    continue
+                if getattr(cuda, "has_parity_all", False) \
+                        and parity_all is not None and cuda.has_emit_all:
+                    off = lane * PARITY_SIZE
+                    raw_g = bytes(parity_all.raw[off:off + PARITY_SIZE])
+                else:
+                    assert cuda.lib.blaze_parity_state(
+                        cuda.h, lane, parity_g) == 0
+                    raw_g = parity_g.raw
+                cuda_record = ParityRecord(raw_g, f"CUDA lane {lane}")
+                missing = requested & ~(cuda_record.implemented &
+                                        cuda_record.measured)
+                if missing:
+                    print(f"BLOCKED: CUDA lane {lane} PARY does not implement "
+                          "and measure " + parity_mask_names(missing))
+                    args.parity_blocked = True
+                    ok = False
+                    return False
+                for name in features:
+                    cuda_evidence[name][lane] |= bool(
+                        cuda_record.evidence[PARITY_INDEX[name]])
+                status, detail, subsystem = parity_pair_status(
+                    cpu_record, cuda_record, features)
+                if status == BLOCKED:
+                    print(f"BLOCKED tick {t} CUDA lane {lane}: {detail}")
+                    args.parity_blocked = True
+                    ok = False
+                    return False
+                if status != VERIFIED:
+                    return report_state_fail(
+                        t, lane, cpu_record, cuda_record, subsystem, detail)
         return True
 
     assert cpu.lib.blaze_emit(cpu.h, 0, 1, buf_c) == 0
@@ -366,9 +600,22 @@ def run_chain(args, iron=False):
                 break
             if (t + 1) % 500 == 0:
                 print(f"  tick {t+1}: {nl} lanes byte-exact so far")
+    if ok and features and require_evidence:
+        no_evidence = [
+            name for name in features
+            if not cpu_evidence[name] or not all(cuda_evidence[name])
+        ]
+        if no_evidence:
+            for name in no_evidence:
+                observed = sum(cuda_evidence[name])
+                print(f"BLOCKED: subsystem {name} has zero fixture evidence "
+                      f"(CPU={int(cpu_evidence[name])}, "
+                      f"CUDA lanes={observed}/{nl})")
+            args.parity_blocked = True
+            ok = False
     print(("PASS" if ok else "FAIL") +
           f": {tag} s{seed} x {len(acts)} ticks, {nl} CUDA lanes vs CPU "
-          f"byte-exact (full BOLR record, every tick)")
+          f"byte-exact (full BOLR record{digest_note}, every tick)")
     cpu.close(); cuda.close()
     return ok
 
@@ -384,7 +631,7 @@ def run_mixed(args):
           f"snapshots, {args.decisions} decisions; CPU exact-replica of "
           f"{nsub} random lanes (seed 1234)")
     cpu, cuda = make_envs(nsub, nbig, paths, assign_sub, assign_big,
-                          args.device)
+                          args.device, args)
     big_streams = [ActStream(i) for i in range(nbig)]
     cmp = Cmp()
     ok = True
@@ -425,7 +672,7 @@ def dump_op_trace(env, ops0, args):
     from blaze import OP_NAMES
     ops = env.op_trace()
     if ops is None:
-        print("op-trace: unavailable (BLAZE_OP_TRACE was not set at create)")
+        print("op-trace: unavailable (op_trace was not set at create)")
         return
     d = (ops - ops0).astype(np.int64) if ops0 is not None \
         else ops.astype(np.int64)
@@ -460,7 +707,7 @@ def run_bench(args):
           f"(+{args.warmup} warmup), device cuda:{args.device}, "
           f"{'t0 (full action decode)' if args.t0 else 'curriculum'} "
           f"snapshots, VRAM free {free_b/1e9:.1f}/{total_b/1e9:.1f} GB")
-    env = VecBlaze(n, device=args.device, so_path=CUDA_SO)
+    env = VecBlaze(n, device=args.device, so_path=CUDA_SO, **_create_kw(args))
     env.load_snapshots(paths)
     env.assign([i % len(paths) for i in range(n)])
     env.reset()
@@ -527,18 +774,44 @@ def run_bench(args):
     return True
 
 
-def main():
+def build_parser():
+    """The CLI, split out of main() so tests can build a default args
+    namespace without going through sys.argv."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--big", action="store_true")
     ap.add_argument("--chain", action="store_true",
                     help="full spawn-to-torch chain gate (CUDA lanes vs CPU)")
+    ap.add_argument(
+        "--tape",
+        help="with --chain/--iron: override the action-stream JSON path "
+             "(default: rl/out/{chain,iron}_actions_s{seed}.json)")
     ap.add_argument("--chain-seed", type=int, default=10)
+    ap.add_argument(
+        "--expected-chain-actions", type=int,
+        help="fail closed unless --chain loads exactly this many actions")
+    ap.add_argument("--snapshot",
+                    help="explicit chain-compatible .bsnp parity fixture")
     ap.add_argument("--chain-lanes", type=int, default=64)
     ap.add_argument("--iron", action="store_true",
                     help="iron-stage gate (furnace/smelt/craft:6,7; "
                          "make_iron_actions.py artifacts) - CUDA lanes vs CPU")
     ap.add_argument("--mixed", action="store_true",
                     help="big-N full-action gate on t0 snapshots")
+    ap.add_argument(
+        "--port-parity", action="store_true",
+        help="with --chain/--iron, also compare the full PARY state record "
+             "for an explicit --features list and require fixture evidence")
+    ap.add_argument(
+        "--features",
+        help="comma-separated PARY subsystems whose evidence is required "
+             "(implies state digests; requires --port-parity)")
+    ap.add_argument(
+        "--no-state-digest", action="store_true",
+        help="opt out of the default-on per-tick PARY state-digest pass "
+             "on --chain/--iron (BOLR-only)")
+    ap.add_argument(
+        "--strict-capabilities", action="store_true",
+        help="BLOCKED if requested or snapshot-required capabilities are absent")
     ap.add_argument("--bench", action="store_true")
     ap.add_argument("--t0", action="store_true",
                     help="bench on t0 snapshots with full action decode")
@@ -552,14 +825,53 @@ def main():
     ap.add_argument("--op-trace", action="store_true",
                     help="bench only: per-env op activity counters -> "
                          "histogram + rl/out/op_trace_*.json "
-                         "(implies BLAZE_OP_TRACE=1)")
-    args = ap.parse_args()
-    if args.ktime:
-        os.environ["BLAZE_KTIME"] = "1"
-    if os.environ.get("BLAZE_OP_TRACE", "0") not in ("", "0"):
-        args.op_trace = True
-    if args.op_trace:
-        os.environ["BLAZE_OP_TRACE"] = "1"
+                         "(passes op_trace=1 to blaze_create)")
+    ap.add_argument("--stage-time", action="store_true",
+                    help="enable k_tick stage cycle counters at create")
+    ap.add_argument("--legacy-recenter", action="store_true",
+                    help="use serial-recenter k_tick at create (A/B)")
+    ap.add_argument("--no-ore-xy", action="store_true",
+                    help="skip ore spatial index at snapshot load")
+    ap.add_argument("--warp-tick", type=int, default=None,
+                    help="1=warp-per-env (default), 0=flat k_tick")
+    ap.add_argument("--no-parity-all", action="store_true",
+                    help="force per-lane blaze_parity_state (A/B vs batched)")
+    return ap
+
+
+def build_args(argv=None):
+    """Parsed args plus the derived fields main() sets up, so a test can call
+    run_chain() directly with exactly the namespace the CLI would produce."""
+    ap = build_parser()
+    args = ap.parse_args(argv)
+    args.parity_blocked = False
+    args.parity_features = []
+    if args.port_parity and not (args.chain or args.iron):
+        ap.error("--port-parity requires --chain or --iron")
+    if args.snapshot and not (args.chain or args.iron):
+        ap.error("--snapshot requires --chain or --iron")
+    if args.expected_chain_actions is not None and not args.chain:
+        ap.error("--expected-chain-actions requires --chain")
+    if args.tape is not None and not (args.chain or args.iron):
+        ap.error("--tape requires --chain or --iron")
+    if args.features is not None:
+        if not args.port_parity:
+            ap.error("--features requires --port-parity")
+        args.parity_features = [
+            name.strip() for name in args.features.split(",") if name.strip()
+        ]
+        unknown = sorted(set(args.parity_features) - set(PARITY_NAMES))
+        if unknown:
+            ap.error("unknown parity feature(s): " + ",".join(unknown))
+        args.parity_features = list(dict.fromkeys(args.parity_features))
+    if args.strict_capabilities and not args.parity_features:
+        ap.error("--strict-capabilities requires --features")
+    return args
+
+
+def main():
+    args = build_args()
+    t0 = time.perf_counter()
     if args.bench:
         ok = run_bench(args)
     elif args.iron:
@@ -572,7 +884,8 @@ def main():
         ok = run_big(args)
     else:
         ok = run_gate(args)
-    sys.exit(0 if ok else 1)
+    print(f"runtime: {time.perf_counter() - t0:.2f}s")
+    sys.exit(3 if args.parity_blocked else (0 if ok else 1))
 
 
 if __name__ == "__main__":

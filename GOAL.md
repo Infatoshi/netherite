@@ -1,89 +1,155 @@
-# GOAL - overnight fidelity flywheel
+# GOAL - native command surface
 
-Invoke with `/goal` + this file. Owner of the loop: the top-level Claude
-session on anvil. Everything below is standing instruction for that loop and
-for every delegate it spawns.
+Invoke with `/goal` + this file. Owner of the loop: the top-level session.
+Everything below is standing instruction for that loop and every delegate.
+
+Speak ASD-STE100 to the user. One meaning per word. Active voice. Short
+sentences. No filler.
 
 ## The goal
 
-Every recorded tape gates rc 0 with ZERO unexplained pixels, for every
-feature the oracle exposes that magma claims to implement. "Done" for a
-feature means: a scenario yaml exists, a Java oracle tape exists (frames,
-physics, inventory, entities, world hash), the magma replay is bit-verified
-against it at the frame level on CPU and CUDA, and any residual divergence is
-either fixed in C or PROVEN to be a recorder/tape limitation and filed in
-`magma/OPEN_DIVERGENCES.md` + the tape's `known_divergences.json` with
-evidence. The goal does not stop while any tape has an UNEXPLAINED cluster
-that is not so proven.
+`SPEC.md` is the product. The product has no Python runtime, no Python
+build step, and no LibTorch. The product has no project shell script
+except the Gradle wrapper.
 
-Full pixel one-to-one has known hard limits (docs/SCOPE.md section 4:
-particle placement RNG, torch flicker, pre-capture fog history, server-clock
-skew). Those are closed by proof-and-file, not by silently accepting diffs,
-and never by loosening a threshold.
+Java oracle: `./gradlew` in `java/Minecraft`. First clone:
+`make -C java bootstrap-oracle`. No root `make oracle`.
 
-## The flywheel (phases)
+Make is the native surface:
 
-P1 CENSUS - fan out read-only delegates over `java/oracle-src` registries
-   (Block.registerBlocks, Item.registerItems, entity list, mechanics) vs
-   magma (`magma/game/block_registry.h`, item tables, entity_render.c,
-   runtime.c). Output: `docs/CENSUS.md`, one row per block/item/entity/
-   mechanic: implemented / partial / missing / cut (cut = listed in
-   docs/SCOPE.md section 1). No code changes in this phase.
-P2 SYNTHESIZE - for every non-cut row not covered by an existing tape
-   (`verify/tapes/`), author a scenario yaml per the contract
-   in `verify/scenarios/README.md`. Small, staged, one system
-   per scenario. Validate with `uv run ... scenarios/test_scenario.py`.
-P3 RECORD - `scripts/scenario_queue.sh LIST` records serially through the
-   single oracle (flock on /tmp/qrl_25575.lock). Each recording auto-replays
-   and gates; results land on the jsonl status board. ONE queue process; no
-   delegate ever starts the oracle or touches qrl port 25575.
-P4 FIX - every gate failure becomes one delegate task: worktree via
-   `scripts/agent_worktree.sh NAME`, fix in C, acceptance via
-   `scripts/delegate_gate.sh TAPE` (target tape rc 0 + regression pins rc 0
-   + zero gate-config tampering). Commit to the wt/ branch only.
-P5 MERGE - top-level session only: review diff, rerun delegate_gate.sh in
-   the main tree, merge serially, regenerate asset headers, rebuild CPU and
-   CUDA (`magma_game` and `magma_game_cuda` both - stale CUDA binaries score
-   stale frames), sweep the pinned regression set.
-P6 CUDA PARITY - after merges: CPU vs CUDA replay byte-agreement on every
-   new tape (GPU0 only, `nvidia-smi` first). Perf work on the threaded GPU
-   renderer is welcome ONLY behind unchanged bit-parity.
+```text
+make            host native backends (magma game; Metal on Darwin)
+make assets     magma/assets/build.c
+make test       short native units only (<180s)
+make play       magma_game
+make clean      owner clean targets
+```
 
-The loop repeats P2-P5 until the census has no uncovered non-cut rows and
-the board has no unproven failures.
+Do not add root `make verify` or `make train` until those C binaries
+exist and are the only path. Runtime knobs are `--conf` / `--set`.
+No env knobs.
+
+A slice is done only when the native replacement exists, its output
+matches the current owner, every caller moved, and the old file is
+deleted in the same commit. Do not keep two command paths.
+
+## Already done. Do not redo
+
+- Repo layout: `out/<owner>/`, no `CLAUDE.md`, demo media are temporary.
+- `magma/assets/build.c` writes the 13 texture headers.
+  `make -C magma assets` and `make -C magma test-asset-build` pass.
+  Sound manifest is C (`magma/assets/build_sound.c`).
+  `scripts/bootstrap_assets.sh` is gone. `make assets` is the only path.
+- `blaze/nn` has CPU, CUDA (cuDNN/cuBLAS), and Metal policy ABIs.
+- `blaze/rl/ppo.c` is the native trainer gate. Torch trainers still exist.
+- `make -C java bootstrap-oracle` and `make -C verify public-export` exist.
+
+## Tonight
+
+Advance the SPEC command surface. Prefer delete over translate.
+The flywheel bottleneck is compile / test / one short replay, not tokens.
+Every compile and test has a wall-clock cap. Default 60s. Hard max 180s
+unless this file names a longer cap. Kill the process at the cap.
+Do not run a full tape, a long sim, or an overnight train.
+
+### P0 CENSUS (one read-only delegate, 20 min)
+
+List every remaining `.py` and project `.sh` on the product path.
+Owner, callers, keep / replace / delete. Write the list to
+`out/verify/native_surface_census.txt`. No code edits.
+
+Priority order for later phases:
+
+1. Root Makefile wrappers around live Make targets.
+2. `scripts/` that are now one-line wrappers. Delete them.
+3. Sound manifest is C. Skip.
+4. Verify hot path: tape read, replay drive, pixel compare.
+5. Sweep: `netherite_sweep.sh` becomes `make test` / `make verify`.
+6. Blaze Python trainers and `blaze/rl/native/ppo_native.cpp` (LibTorch).
+7. Unified `netherite/config.def`. Do not invent keys.
+
+### P1 ROOT MAKE (one Mac delegate)
+
+Add a root `Makefile` that calls into `magma/`, `blaze/`, `java/`,
+`verify/`. Wire only what already exists:
+
+- `make` -> host backends (`make -C magma game`, Metal on Mac)
+- `make assets` -> `make -C magma assets`
+- `make test` -> native unit tests that finish under 180s
+- `make play` -> `make -C magma game` then document the binary
+- `make clean` -> remove `out/` build products the Makefiles own
+
+Do not invent `make verify` or `make train` until those binaries exist.
+Delete `scripts/bootstrap_assets.sh` after `make assets` is the only path.
+Update `AGENTS.md` and `docs/BOOTSTRAP.md` in the same slice.
+
+Acceptance: `make assets` and `make test` from the repo root, each
+under the cap. `scripts/bootstrap_assets.sh` is gone.
+
+### P2 SOUND MANIFEST (one Mac delegate)
+
+Replace `magma/assets/build_sound_manifest.py` with C next to
+`magma/assets/build.c`. Same SPEC change rule. No jar. No env.
+`make -C magma assets` may keep texture and sound as two steps
+if that is simpler. Delete the Python file in the same slice.
+
+Acceptance: ASan/UBSan test under 30s. Header data matches.
+
+### P3 VERIFY READER (one Mac or Anvil delegate)
+
+Start the C tape path. Do not port `pxdiff.py` tonight.
+
+Write `verify/tape/` C that reads one committed tape jsonl header
+and tick rows enough to print tick count, first pose, and hash.
+Cap 60s. Compare against a known tape. Then stop.
+
+Do not replay frames. Do not start the oracle. Do not touch
+`known_divergences.json` or gate thresholds.
+
+Acceptance: `make -C verify tape-info TAPE=...` prints those fields
+and exits 0 in under 60s on
+`verify/tapes/20260721T215812Z_fast_s0_survival_default_rd8_77b5b462.jsonl`.
+
+### P4 BLAZE CUTOVER MAP (one read-only delegate, 20 min)
+
+Map what `blaze/rl/ppo.c` already owns vs what `ppo_coal.py`,
+`ppo_break.py`, `vec_env.py`, and `blaze/rl/native/ppo_native.cpp`
+still own. Output `out/blaze/trainer_cutover.txt`. No code edits.
+Do not train. Do not touch the GPU unless nvidia-smi shows it idle
+and the work is a unit fixture under 60s.
+
+### P5 MERGE
+
+Top-level session only. Review each worktree diff. Re-run that
+slice's acceptance in the main tree. Merge serially. Append a
+dated `docs/DEVLOG.md` section: slices landed, files deleted,
+caps hit, work left.
 
 ## Hierarchy
 
-- Top level: Claude session (this loop). Owns merges, the recording queue,
-  the board, and all judgment calls.
-- Orchestrators: codex (`codex exec -c model_reasoning_effort=high`,
-  background, `< /dev/null`). Each owns a domain (blocks / items / entities /
-  mechanics) and spawns grok workers for atomic subsections.
-- Workers: grok (`grok --always-approve -m grok-4.5 -p "..."` - flag order
-  matters, -p last). One small subsection each: one census domain slice, one
-  scenario yaml, or one failing tape.
-- Delegates NEVER: merge, push, start the oracle, edit gate thresholds or
-  divergence classes, edit known_divergences.json, touch GPU1, or touch
-  files outside their worktree.
+- Top level: this session. Owns merges, census accept, and judgment.
+- Workers: isolated worktrees via `scripts/agent_worktree.sh NAME`.
+  One slice each. Grok or Codex. Prompt is a spec with the
+  acceptance command and the timeout. They run the command.
+- Delegates NEVER: merge, push, start the oracle, edit gate
+  thresholds, edit `known_divergences.json`, run a tape replay,
+  run a train loop, or touch files outside their worktree.
 
-## Hard constraints (violations invalidate the night)
+## Hard constraints
 
-- Gate thresholds and divergence classes are frozen. A "pass" achieved by
-  retuning is a lie; delegate_gate.sh enforces this mechanically.
-- known_divergences.json entries require proof (the OPEN_DIVERGENCES.md
-  written standard) and are filed by the top-level session only.
-- Python: `uv run --no-project --with ...` with
-  UV_CACHE_DIR=/home/infatoshi/.cache/uv TMPDIR=/home/infatoshi/dev/nw/.tmp
-  (/tmp is RAM tmpfs).
-- GPU0 only; check nvidia-smi before every CUDA run.
-- Private repo only; nothing is pushed to the public repo overnight.
-- java/oracle-src is read-only reference (decompiled Mojang source, never
-  leaves the machine, never quoted at length into committed files).
-- Suspicious measurement: re-derive expected before believing observed.
-  pxdiff shift exactly (3,3) is the search boundary, not a real shift.
+- Tokens are cheap. Wall time is not. Cap every compile and test.
+- `/tmp` on anvil is tmpfs. Use `TMPDIR=$HOME/dev/nw/.tmp` and
+  `UV_CACHE_DIR=$HOME/.cache/uv` if a leftover Python tool must run.
+- GPU0 only. `nvidia-smi` first. Skip if busy. Never GPU1.
+- Private repo only. No public push.
+- `java/oracle-src` is read-only. Never quote it at length.
+- Do not translate a tool that has no permanent owner. Delete it.
+- Do not change asset format from headers to a pack tonight.
+- Do not start a second Metal or CUDA policy path.
+- Suspicious measurement: re-run once under the same cap before
+  you believe it.
 
-## Status
+## Morning
 
-Board: `verify/trace/report/overnight_board.jsonl`
-Morning report: append a dated section to docs/DEVLOG.md - tapes recorded,
-pass/fail, fixes merged, residuals filed, census coverage percentage.
+`docs/DEVLOG.md` names what landed, what was deleted, what still
+has two command paths, and the next one-slice pick.

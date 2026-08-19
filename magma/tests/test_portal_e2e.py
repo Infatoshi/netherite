@@ -3,17 +3,16 @@
 
 Requires live Minecraft + qrl on 127.0.0.1:25575 (start_vnc_client.sh).
 
-  PORTAL_E2E_OUT=/tmp/portal_e2e \\
   uv run --no-project --with pillow --with numpy --with pytest \\
-    pytest magma/tests/test_portal_e2e.py -v
+    pytest magma/tests/test_portal_e2e.py -v \\
+    --portal-e2e-out /tmp/portal_e2e
 
-If PORTAL_E2E_REUSE=1 and /tmp/portal_e2e/results.json exists, reuse the hashed
+If --portal-e2e-reuse and /tmp/portal_e2e/results.json exists, reuse the hashed
 Java capture while rebuilding, rerendering, and rescoring the current C candidate.
 """
 from __future__ import annotations
 
 import json
-import os
 import socket
 import subprocess
 import sys
@@ -22,8 +21,7 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-OUT = Path(os.environ.get("PORTAL_E2E_OUT", "/tmp/portal_e2e"))
+REPO = Path(__file__).resolve().parents[2]
 RUNNER = Path(__file__).resolve().parent / "portal_e2e_run.py"
 
 
@@ -37,33 +35,48 @@ def _qrl_up() -> bool:
 
 
 @pytest.fixture(scope="module")
-def results():
-    reuse = os.environ.get("PORTAL_E2E_REUSE", "0") not in ("", "0", "false")
-    res_path = OUT / "results.json"
+def portal_out(request):
+    return Path(request.config.getoption("--portal-e2e-out"))
+
+
+@pytest.fixture(scope="module")
+def results(request, portal_out):
+    reuse = bool(request.config.getoption("--portal-e2e-reuse"))
+    allow_skip = bool(request.config.getoption("--portal-e2e-allow-skip"))
+    res_path = portal_out / "results.json"
     run_id = str(uuid.uuid4())
     if not reuse and not _qrl_up():
-        if os.environ.get("PORTAL_E2E_ALLOW_SKIP", "0") not in ("", "0", "false"):
+        if allow_skip:
             pytest.skip("qrl not listening on 25575; explicit skip enabled")
         pytest.fail("qrl not listening on 25575; start java/start_vnc_client.sh")
     if reuse and not res_path.is_file():
-        pytest.fail(f"PORTAL_E2E_REUSE=1 but {res_path} is missing")
+        pytest.fail(f"--portal-e2e-reuse but {res_path} is missing")
     if not reuse:
-        if OUT.exists() and any(OUT.iterdir()):
-            pytest.fail(f"fresh capture requires a unique empty output directory: {OUT}")
+        if portal_out.exists() and any(portal_out.iterdir()):
+            pytest.fail(
+                f"fresh capture requires a unique empty output directory: "
+                f"{portal_out}"
+            )
         prior_capture_id = None
     else:
         prior_capture_id = json.loads(res_path.read_text()).get("capture_run_id")
-    args = [sys.executable, str(RUNNER)]
+    args = [
+        sys.executable, str(RUNNER),
+        "--out", str(portal_out),
+        "--run-id", run_id,
+    ]
     if reuse:
         args.append("--rescore")
     r = subprocess.run(
         args,
         cwd=str(REPO),
-        env={**os.environ, "PORTAL_E2E_OUT": str(OUT), "PORTAL_E2E_RUN_ID": run_id},
         capture_output=True, text=True, timeout=900,
     )
     if not res_path.is_file():
-        pytest.fail(f"portal e2e produced no results.json\n{r.stdout[-2000:]}\n{r.stderr[-2000:]}")
+        pytest.fail(
+            f"portal e2e produced no results.json\n"
+            f"{r.stdout[-2000:]}\n{r.stderr[-2000:]}"
+        )
     data = json.loads(res_path.read_text())
     if r.returncode != 0:
         pytest.fail(
@@ -104,11 +117,11 @@ def test_enter_nether(results):
         assert evidence.get("intersects") is True and evidence.get("pre_dim") == 0
 
 
-def test_nether_lookaround_eight_views(results):
+def test_nether_lookaround_eight_views(results, portal_out):
     s = results["steps"]["nether_look"]
     assert s["pass"] and s["n_views"] == 8
     for i in range(8):
-        p = OUT / f"oracle_nether_look_{i:02d}.png"
+        p = portal_out / f"oracle_nether_look_{i:02d}.png"
         assert p.is_file() and p.stat().st_size > 1000, p
 
 
@@ -197,11 +210,11 @@ def test_end_scene_has_no_nonplayer_entities(results):
     assert s["pass"] and s["remaining_nonplayers"] == 0, s
 
 
-def test_end_lookaround_eight_views(results):
+def test_end_lookaround_eight_views(results, portal_out):
     s = results["steps"]["end_look"]
     assert s["pass"] and s["n_views"] == 8
     for i in range(8):
-        p = OUT / f"oracle_end_look_{i:02d}.png"
+        p = portal_out / f"oracle_end_look_{i:02d}.png"
         assert p.is_file() and p.stat().st_size > 500, p
 
 

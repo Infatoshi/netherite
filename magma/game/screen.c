@@ -7,6 +7,7 @@
 #include "game/player_preview.h"
 #include "assets/inventory_ui_atlas.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #define PANEL_W 176
@@ -55,6 +56,20 @@ static void panel_origin_h(int fb_w, int fb_h, int s, int ph, int *px, int *py)
 static void panel_origin(int fb_w, int fb_h, int s, int *px, int *py)
 {
     panel_origin_h(fb_w, fb_h, s, PANEL_H, px, py);
+}
+
+static int effect_panel_dx(const GmRuntime *r, int fb_w, int fb_h)
+{
+    if (!r || r->container != 0) return 0;
+    GmPlayerView pv;
+    gm_runtime_view(r, &pv);
+    gm_runtime_apply_tape_view(r, &pv);
+    if (pv.potion_count <= 0) return 0;
+    int s = gui_scale(fb_h);
+    int gw = (fb_w + s - 1) / s;
+    int centered = (gw - PANEL_W) / 2;
+    int shifted = 160 + (gw - PANEL_W - 200) / 2;
+    return (shifted - centered) * s;
 }
 
 /* Append one slot at vanilla gui-space (gx,gy). */
@@ -131,6 +146,14 @@ int gm_screen_slot_at(int container, int fb_w, int fb_h, int mx, int my)
             my >= slots[i].y && my < slots[i].y + slots[i].h)
             return slots[i].slot_id;
     return -1;
+}
+
+int gm_screen_slot_at_runtime(const struct GmRuntime *r, int fb_w, int fb_h,
+                              int mx, int my)
+{
+    if (!r) return GMC_OUTSIDE;
+    return gm_screen_slot_at(r->container, fb_w, fb_h,
+                             mx - effect_panel_dx(r, fb_w, fb_h), my);
 }
 
 /* ---- drawing ------------------------------------------------------------- */
@@ -334,6 +357,64 @@ static void draw_tooltip(CrFramebuffer *fb, const char *text, int mx, int my, in
     gm_font_draw(fb, text, x * s, y * s, s, 0xFFFFFFu, 1);
 }
 
+static int effect_icon_index(int id)
+{
+    static const signed char icons[28] = {
+        -1, 0, 1, 2, 3, 4, -1, -1, 10, 11, 7, 14, 15, 16,
+        8, 13, 12, 9, 5, 6, 17, 23, 18, -1, 20, 19, 21, 22
+    };
+    return id >= 0 && id < (int)(sizeof icons / sizeof icons[0])
+        ? icons[id] : -1;
+}
+
+static const char *effect_name(int id)
+{
+    static const char *names[28] = {
+        "", "Speed", "Slowness", "Haste", "Mining Fatigue", "Strength",
+        "Instant Health", "Instant Damage", "Jump Boost", "Nausea",
+        "Regeneration", "Resistance", "Fire Resistance", "Water Breathing",
+        "Invisibility", "Blindness", "Night Vision", "Hunger", "Weakness",
+        "Poison", "Wither", "Health Boost", "Absorption", "Saturation",
+        "Glowing", "Levitation", "Luck", "Bad Luck"
+    };
+    return id > 0 && id < (int)(sizeof names / sizeof names[0])
+        ? names[id] : "Unknown";
+}
+
+static void draw_effect_panels(CrFramebuffer *fb, const GmRuntime *r,
+                               int px, int py, int s)
+{
+    if (!r || r->container != 0) return;
+    GmPlayerView pv;
+    gm_runtime_view(r, &pv);
+    gm_runtime_apply_tape_view(r, &pv);
+    if (pv.potion_count <= 0) return;
+
+    int y = py;
+    int step = pv.potion_count > 5 ? 132 / (pv.potion_count - 1) : 33;
+    for (int n = 0; n < pv.potion_count; ++n) {
+        const GmPotionEffectView *p = &pv.potions[n];
+        int x = px - 124 * s;
+        gm_gui_blit(fb, GM_GUI_EFFECT_PANEL, x, y, s);
+        int icon = effect_icon_index(p->id);
+        if (icon >= 0)
+            gm_gui_blit_sub(fb, GM_GUI_EFFECT_ICONS,
+                            icon % 8 * 18, icon / 8 * 18, 18, 18,
+                            x + 6 * s, y + 7 * s, s);
+
+        char name[48], duration[16];
+        const char *roman = p->amplifier == 1 ? " II"
+                          : p->amplifier == 2 ? " III"
+                          : p->amplifier == 3 ? " IV" : "";
+        snprintf(name, sizeof name, "%s%s", effect_name(p->id), roman);
+        int seconds = p->duration / 20;
+        snprintf(duration, sizeof duration, "%d:%02d", seconds / 60, seconds % 60);
+        gm_font_draw(fb, name, x + 28 * s, y + 6 * s, s, 0xFFFFFFu, 1);
+        gm_font_draw(fb, duration, x + 28 * s, y + 16 * s, s, 0x7F7F7Fu, 1);
+        y += step * s;
+    }
+}
+
 void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my)
 {
     if (!fb || !fb->color || !r) return;
@@ -341,6 +422,7 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
     const int ph = panel_h(r->container);
     int px, py;
     panel_origin_h(fb->w, fb->h, s, ph, &px, &py);
+    px += effect_panel_dx(r, fb->w, fb->h);
     const CrRgba highlight = {255, 255, 255, 128}; /* vanilla hovered-slot overlay */
 
     draw_background_dim(fb);
@@ -355,7 +437,7 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
         draw_empty_player_slots(fb, r, px, py, s);
         {
             int gw = (fb->w + s - 1) / s, gh = (fb->h + s - 1) / s;
-            int guiLeft = (gw - PANEL_W) / 2, guiTop = (gh - PANEL_H) / 2;
+            int guiLeft = px / s, guiTop = (gh - PANEL_H) / 2;
             int gmx = mx * gw / fb->w, gmy = my * gh / fb->h;
             gm_player_preview_draw(fb, px + 24 * s, py + 7 * s, 52 * s, 72 * s,
                                    (float)(guiLeft + 51 - gmx),
@@ -411,7 +493,9 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
 
     GmScreenSlot slots[GMC_SLOT_COUNT];
     int n = gm_screen_layout(r->container, fb->w, fb->h, slots, GMC_SLOT_COUNT);
-    int hover = gm_screen_slot_at(r->container, fb->w, fb->h, mx, my);
+    int dx = effect_panel_dx(r, fb->w, fb->h);
+    for (int i = 0; i < n; ++i) slots[i].x += dx;
+    int hover = gm_screen_slot_at_runtime(r, fb->w, fb->h, mx, my);
     for (int i = 0; i < n; ++i) {
         const GmScreenSlot *sl = &slots[i];
         draw_stack(fb, screen_stack(r, sl->slot_id), sl->x, sl->y, s);
@@ -426,4 +510,7 @@ void gm_screen_draw(CrFramebuffer *fb, const struct GmRuntime *r, int mx, int my
         draw_stack(fb, cur, mx - 8 * s, my - 8 * s, s);
     else if (hover >= 0)
         draw_tooltip(fb, screen_item_name(screen_stack(r, hover).item), mx, my, s);
+
+    /* InventoryEffectRenderer draws the active-effect list after GuiContainer. */
+    draw_effect_panels(fb, r, px, py, s);
 }

@@ -485,7 +485,10 @@ int main(int argc, char **argv) {
     CHECK(r.vitals.health==20.0f,"neutral pigmen do not attack");
     isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
     GmAction hit;memset(&hit,0,sizeof hit);hit.attack=1;hit.hotbar_sel=0;
-    gm_runtime_set_pose(&r,8.5,5.0,12.5,0.0f,10.0f);
+    /* After idle the pigmen rest on the superflat top at y=4; pitch 10 aims
+     * over their hitbox and is a dig MISS that arms leftClickCounter. Use a
+     * pitch that actually intersects the living AABB so clickMouse ENTITY runs. */
+    gm_runtime_set_pose(&r,8.5,5.0,12.5,0.0f,20.0f);
     for(int i=0;i<5;++i)gm_runtime_tick(&r,hit);
     CHECK(r.mobs.anger[1]>0||r.mobs.anger[2]>0,"hurt pigman becomes angry");
     int both_angry=(r.mobs.anger[1]>0)+(r.mobs.anger[2]>0);
@@ -953,6 +956,94 @@ int main(int argc, char **argv) {
 
     CHECK(blaze_schedule_receipt(NULL),
           "AIFireballAttack exact duty cycle and fireball cadence receipt");
+
+    /* leftClickCounter gates entity clickMouse the same way as dig.
+     * Survival press-miss arms 10; runtime must not damage a mob (or clear
+     * the counter via action.attack=0) until the post-decrement value is 0.
+     * Change look via player yaw/pitch only - gm_runtime_set_pose resets dig. */
+    fprintf(stderr,"mob_live: leftClickCounter vs entity attack matrix\n");
+    if(!init_flat(&r))return 1;
+    r.vitals.foodLevel=0;r.vitals.saturation=0.0f;
+    isr_set_stack(&r.player.inv,0,ic_mk(276,1,0));
+    gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,-89.0f);
+    CHECK(gm_mobs_spawn(&r.mobs,EW_TYPE_ZOMBIE,8.5,5.0,10.5)>=0,
+          "spawn leftClickCounter zombie");
+    {
+        GmAction miss;memset(&miss,0,sizeof miss);
+        miss.attack=1;miss.hotbar_sel=0;
+        /* Look straight up: ray miss arms counter=10. */
+        r.player.yaw=0.0f;r.player.pitch=-89.0f;
+        gm_runtime_tick(&r,miss);
+        {
+            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter==10,
+                  "runtime press-miss arms leftClickCounter to 10");
+        }
+        /* Hold attack while looking at the zombie: freeze damage + keep counter. */
+        r.player.yaw=0.0f;r.player.pitch=10.0f;
+        for(int t=0;t<9;++t){
+            gm_runtime_tick(&r,miss);
+            n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+            int zi=-1;for(int k=0;k<n;++k)if(v[k].type==EW_TYPE_ZOMBIE)zi=k;
+            CHECK(zi>=0&&v[zi].health>=19.9f,
+                  "entity attack freezes while leftClickCounter is positive");
+        }
+        {
+            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter==1,
+                  "held entity aim does not clear leftClickCounter (physical bit)");
+        }
+        /* 10th post-arm hold: post-decrement hits 0, clickMouse can land. */
+        gm_runtime_tick(&r,miss);
+        n=gm_mobs_fill_views(&r.mobs,v,EW_MAX_ENTITIES);
+        int zi=-1;for(int k=0;k<n;++k)if(v[k].type==EW_TYPE_ZOMBIE)zi=k;
+        CHECK(zi>=0&&v[zi].health<20.0f,
+              "entity attack lands on the tick leftClickCounter reaches 0");
+        {
+            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter==0,
+                  "counter is 0 after the gated entity hit tick");
+            CHECK(snap.dig_hitting==0,
+                  "entity hit takes resetBlockRemoving dig path");
+        }
+    }
+    gm_runtime_destroy(&r);
+
+    /* Falling-block entity selection under a live counter must freeze dig, not
+     * clear the counter as if the attack key released. */
+    if(!init_flat(&r))return 1;
+    {
+        GmAction miss;memset(&miss,0,sizeof miss);miss.attack=1;miss.hotbar_sel=0;
+        gm_runtime_set_pose(&r,8.5,5.0,8.5,0.0f,-89.0f);
+        isr_set_stack(&r.player.inv,0,ic_mk(257,1,0));
+        r.player.yaw=0.0f;r.player.pitch=-89.0f;
+        gm_runtime_tick(&r,miss);
+        /* Inject EntityFallingBlock on the look ray toward +Z. */
+        {
+            GmLiveEnt *e=NULL;
+            for(int i=0;i<GM_LIVE_MAX;++i)if(!r.entities.ents[i].active){
+                e=&r.entities.ents[i];break;
+            }
+            CHECK(e!=NULL,"falling-block slot available");
+            if(e){
+                memset(e,0,sizeof *e);
+                e->active=1;e->type=2;
+                e->x=8.5;e->y=6.0;e->z=10.5;
+                e->item=12;e->lifespan=600;
+                r.entities.n_active++;
+            }
+        }
+        r.player.yaw=0.0f;r.player.pitch=25.0f;
+        for(int t=0;t<5;++t)gm_runtime_tick(&r,miss);
+        {
+            GmPlayerCtlSnap snap;gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter==5,
+                  "falling-block aim preserves leftClickCounter while held");
+            CHECK(snap.dig_hitting==0&&snap.dig_progress==0.0f,
+                  "falling-block + counter freezes progressive dig");
+        }
+    }
+    gm_runtime_destroy(&r);
 
     if(fail)return 1;
     fprintf(stderr,"mob_live: PASS\n");

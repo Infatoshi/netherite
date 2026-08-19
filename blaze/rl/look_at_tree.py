@@ -21,6 +21,7 @@ with rendering for the mp4s (same seed, same tick order as rl mode).
 Run (anvil):
   cd magma && uv run --no-project --with numpy,matplotlib python rl/look_at_tree.py
 """
+import argparse
 import json
 import math
 import os
@@ -38,7 +39,7 @@ OUT = os.path.join(HERE, "out")
 # ZERO logs within the r=16 obs -> constant -1 reward, pure batch noise)
 SEEDS = [0, 2, 3, 10, 11, 12, 14, 17, 19, 20, 21, 22, 29, 30, 35, 47]
 N_ENVS = len(SEEDS)
-N_EPISODES = int(os.environ.get("N_EPISODES", 400))
+N_EPISODES = 400      # historical unset-env default; overridden by --n-episodes
 EP_LEN = 60          # rewarded steps per episode (3 s of game time)
 LR = 5.0
 LOG_ID = 17
@@ -205,6 +206,12 @@ def reward_exact(obs):
 
 
 def main():
+    global N_EPISODES
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--n-episodes", type=int, default=N_EPISODES)
+    args = ap.parse_args()
+    N_EPISODES = args.n_episodes
+
     os.makedirs(OUT, exist_ok=True)
     rng = np.random.default_rng(0)
     envs = [MagmaEnv(seed) for seed in SEEDS]

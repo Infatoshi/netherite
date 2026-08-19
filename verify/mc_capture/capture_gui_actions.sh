@@ -107,8 +107,9 @@ e.close()
 PY
 
 log "starting isolated mcwindow input relay on :$PORT"
-MCW_PORT=$PORT MCW_W=854 MCW_H=480 DISPLAY=:1 \
+DISPLAY=:1 \
     uv run --no-project --with python-xlib python "$JAVA_DIR/mcwindow_server.py" \
+    --port "$PORT" --width 854 --height 480 \
     > /tmp/mc_gui_actions_mcwindow.out 2>&1 &
 server_pid=$!
 for _ in $(seq 1 120); do

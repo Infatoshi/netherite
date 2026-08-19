@@ -7,6 +7,7 @@ make_chain_video.py (chain_actions_s<seed>_learned.json).
 
 Run (anvil): cd magma && uv run --no-project --with numpy,torch python rl/eval_coal.py
 """
+import argparse
 import json
 import os
 import sys
@@ -15,7 +16,7 @@ import numpy as np
 import torch
 
 import chain_probe as cp
-from ppo_coal import (ConvPolicy, planes, act_dict, make_env, STACK,
+from ppo_coal import (ConvPolicy, FIXTURES, planes, act_dict, make_env, STACK,
                       EP_LEN, REPEAT, IX_COAL)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -54,15 +55,23 @@ def run_policy(env, net, greedy=True):
 
 
 def main():
-    prefixes = json.load(open(os.path.join(OUT, "coal_prefixes.json")))
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--coal-net", default="coal_net.pt",
+                    help="checkpoint filename under rl/out/ (default coal_net.pt)")
+    ap.add_argument("--tries", type=int, default=3)
+    ap.add_argument("--greedy", action="store_true",
+                    help="argmax actions instead of sampling (default off)")
+    args = ap.parse_args()
+
+    prefixes = json.load(open(os.path.join(FIXTURES, "coal_prefixes.json")))
     net = ConvPolicy()
-    net_file = os.environ.get("COAL_NET", "coal_net.pt")
+    net_file = args.coal_net
     net.load_state_dict(torch.load(os.path.join(OUT, net_file),
                                    weights_only=True))
     net.eval()
 
-    tries = int(os.environ.get("TRIES", 3))
-    greedy = bool(int(os.environ.get("GREEDY", 0)))
+    tries = args.tries
+    greedy = args.greedy
     torch.manual_seed(0)
     results = {}
     for seed_s, prefix in sorted(prefixes.items(), key=lambda kv: int(kv[0])):

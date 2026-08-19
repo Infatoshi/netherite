@@ -60,13 +60,13 @@ cooperative cu_recenter (7778cd9, merged fada44c) - the old kernel had one lane 
 crossing envs and all 32 lanes stride each refill. Both bit-identical, full ladder green
 on sm_86 and sm_120 (default/chain/mixed CUDA gates + CPU 8-stream/chain zero-diff).
 Mining slice: 0.90-1.98M at N=4096-16384 (pre-H numbers; H adds 1.2-1.4x there).
-Legacy kernel kept behind load-time BLAZE_LEGACY_RECENTER=1 (zero tick cost).
+Legacy kernel kept behind create-time opts legacy_recenter=1 (zero tick cost).
 Re-confirmed at HEAD 2026-07-17: 1.02M env-ticks/s at N=9216.
 2026-07-19 update: 4.06M env-ticks/s full-feature t0 at N=8192 (4x the pin).
 Three stacked wins, each gated byte-exact: interact container-list (k_tick
 32.2 -> 15.6 ms/step), float32 DDA obs camera (k_obs 7.09 -> 1.03; ids
-differ 1 px per 1.66M rays vs double), warp-per-env k_tick (BLAZE_WARP_TICK,
-default on; k_tick 15.3 -> 6.7). Trainer end-to-end 0.256 -> 0.43M t/s: the
+differ 1 px per 1.66M rays vs double), warp-per-env k_tick (create opts
+warp_tick, default on; k_tick 15.3 -> 6.7). Trainer end-to-end 0.256 -> 0.43M t/s: the
 pin-budget 0.95B-tick run now takes 37 min (best t0 0.325, real-env transfer
 7/13 incl. held-out s11) vs the 60-min pin1 leg. A 1h/1.53B-tick leg ran
 ~600M past the peak and reproduced the collapse (best 0.100) - budget by
@@ -131,6 +131,29 @@ unintentional drift. Run them after touching the corresponding surfaces.
 |------|--------|--------------|
 | Kernel pair parity | `bash scripts/kernel_parity_gate.sh` | CUDA/Metal kernel hashes + cpu==gpu frames |
 | Wrapper worldgen census | `bash verify/worldgen/wrapper_gate.sh` | magma product populate wrapper vs blaze `owr` reference under fluid=OFF + shroomlight=stale (seeds 0 7 9 19, origin 2x2) |
+| Sound seam | `make -C magma test-audio-live` | ring order/seq/overflow accounting, `--set audio=0` stays disabled and silent, and a held attack emits exactly one break plus >=1 hit through the real tick |
+| Block sound map | `make -C magma test-block-audio-oracle` | every registered non-air block id's break/place/hit SoundType vs REAL Java (`gradle blockBreakSoundGolden`), raw volume/pitch float bits |
+
+### Sound seam
+
+Audio is magma-only (`docs/SCOPE.md`); blaze has none and no gate checks it.
+The contract the gates pin is that sound is a **pure sink**: producers append
+to `GmRuntime.sound_events`, nothing reads it back, and no emitter draws from a
+seeded stream. So the default (audio-off) build must be bit-identical to an
+audio-on one - `test-audio-live` checks the ring half, and the canonical-tape
+verdict is the end-to-end check (adding the seam left every measured number in
+`tape_*.gate.json` unchanged; only `magma_binary` moved).
+
+`test-block-audio-oracle` needs the Java oracle and follows the tri-state
+convention: rc=0 pass, rc=1 real divergence or malformed table, rc=3 BLOCKED
+when gradle/JDK 8 is unreachable. It carries a per-action negative control
+(block 41 metal -> stone) so a comparator that stopped comparing cannot pass.
+
+Playback itself is opt-in and needs dev headers:
+`make -C magma MAGMA_AUDIO_OPENAL=1 game` (Debian/Ubuntu: `libopenal-dev
+libvorbis-dev`). Without the flag `game/audio_live.c` compiles to stubs. The
+build hard-errors rather than auto-detecting, so a binary's behaviour never
+depends on what happens to be installed.
 
 ### Wrapper worldgen census
 
@@ -146,7 +169,7 @@ Any drift from the sidecar FAILS (rc=1) with a per-seed count/class/hash report.
 
 Diagnostic (not the gate): `bash verify/worldgen/wrapper_diff.sh`.
 
-OPEN policy note (not pinned): `MAGMA_FLUID_CA=1` changes 279/10936/4885 cells at
+OPEN policy note (not pinned): `--set fluid_ca=1` changes 279/10936/4885 cells at
 seeds 0/7/9; no gate pins magma default-off vs blaze always-on.
 
 Not wired into `scripts/delegate_gate.sh` / `scripts/regression_pins.txt` (those

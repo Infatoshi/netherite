@@ -37,7 +37,7 @@ static void test_init_and_slot_rules(void) {
     CHECK(furnace.burn_time == 0);
     CHECK(furnace.current_burn_time == 0);
     CHECK(furnace.cook_time == 0);
-    CHECK(furnace.total_cook == TE_COOK_TICKS);
+    CHECK(furnace.total_cook == 0);
 
     CHECK(furnace_live_insert(&furnace, -1, sr_mk(BLK_IRON_ORE, 1, 0)) == 0);
     CHECK(furnace_live_insert(&furnace, FURNACE_LIVE_SLOT_COUNT,
@@ -55,6 +55,7 @@ static void test_insert_limits_and_metadata(void) {
     CHECK(furnace_live_insert(&furnace, FURNACE_LIVE_SLOT_INPUT,
                               sr_mk(BLK_IRON_ORE, 80, 7)) == FFT_STACK_LIMIT);
     CHECK(stack_is(furnace.input, BLK_IRON_ORE, FFT_STACK_LIMIT, 7));
+    CHECK(furnace.total_cook == TE_COOK_TICKS);
     CHECK(furnace_live_insert(&furnace, FURNACE_LIVE_SLOT_INPUT,
                               sr_mk(BLK_IRON_ORE, 1, 7)) == 0);
     CHECK(furnace_live_insert(&furnace, FURNACE_LIVE_SLOT_INPUT,

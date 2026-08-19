@@ -10,10 +10,12 @@ Flow (live qrl on :25575, world seed 0):
 Portal construction/entry is a mechanics gate. The visual pixel gates cover the
 dimension look dumps; they do not claim parity for the End-portal tile renderer.
 
-Writes artifacts under /tmp/portal_e2e/ and a results.json for pytest gates.
+Writes artifacts under --out (default /tmp/portal_e2e/) and a results.json
+for pytest gates.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import math
@@ -31,7 +33,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "java"))
 import qrl_client  # noqa: E402
 
-OUT = Path(os.environ.get("PORTAL_E2E_OUT", "/tmp/portal_e2e"))
+OUT = Path("/tmp/portal_e2e")  # set by main()/rescore() via --out
 MAGMA = REPO / "magma"
 BLAZE = REPO / "blaze" / "core"
 DIFF = REPO / "c" / "render-opt" / "wholeframe" / "diff_frame.py"
@@ -1094,14 +1096,15 @@ def score_artifacts(results: dict, run_id: str) -> dict:
     return results
 
 
-def main() -> int:
+def main(run_id: str | None = None) -> int:
     global ACTIVE_RESULTS
     if OUT.exists() and any(OUT.iterdir()):
         raise SystemExit(
             f"fresh capture requires a unique empty output directory: {OUT}"
         )
     OUT.mkdir(parents=True, exist_ok=True)
-    run_id = os.environ.get("PORTAL_E2E_RUN_ID", str(time.time_ns()))
+    if run_id is None:
+        run_id = str(time.time_ns())
     results = {
         "ok": False, "run_id": run_id, "capture_run_id": run_id,
         "capture_status": "running", "score_status": "pending", "steps": {},
@@ -1601,20 +1604,38 @@ def main() -> int:
     return 0 if results["ok"] else 1
 
 
-def rescore() -> int:
+def rescore(run_id: str | None = None) -> int:
     result_path = OUT / "results.json"
     if not result_path.is_file():
         raise SystemExit(f"no captured result to rescore: {result_path}")
     results = json.loads(result_path.read_text())
-    run_id = os.environ.get("PORTAL_E2E_RUN_ID", str(time.time_ns()))
+    if run_id is None:
+        run_id = str(time.time_ns())
     score_artifacts(results, run_id)
     print(f"[e2e] RESCORE ok={results['ok']} run_id={run_id}")
     return 0 if results["ok"] else 1
 
 
+def parse_args(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--out", type=Path, default=Path("/tmp/portal_e2e"),
+                    help="artifact directory (default /tmp/portal_e2e)")
+    ap.add_argument("--run-id", default=None,
+                    help="run id for capture/score correlation "
+                         "(default: time.time_ns())")
+    ap.add_argument("--rescore", action="store_true",
+                    help="rescore existing capture under --out")
+    return ap.parse_args(argv)
+
+
 if __name__ == "__main__":
+    args = parse_args()
+    globals()["OUT"] = args.out
     try:
-        code = rescore() if "--rescore" in sys.argv[1:] else main()
+        if args.rescore:
+            code = rescore(run_id=args.run_id)
+        else:
+            code = main(run_id=args.run_id)
     except BaseException as exc:
         if ACTIVE_RESULTS is not None and ACTIVE_RESULTS.get("capture_status") == "running":
             ACTIVE_RESULTS["ok"] = False
@@ -1622,4 +1643,5 @@ if __name__ == "__main__":
             ACTIVE_RESULTS["capture_error"] = f"{type(exc).__name__}: {exc}"
             write_results(ACTIVE_RESULTS)
         raise
+    raise SystemExit(code)
     sys.exit(code)

@@ -189,12 +189,21 @@ static void skyhm_rescan_col(u16 *heightMap, const u16 *blocks, int x, int z) {
     heightMap[w_col_index(x, z)] = (u16)skyhm_scan_col(blocks, x, z);
 }
 
-/* stale-skylight mode: default ON; MAGMA_SHROOMLIGHT=ca falls back to the fixpoint CA */
+/* Wire host-only populate bisect switches from the registry once. Defaults 0
+ * match prior unset MAGMA_NOWAKE / MAGMA_NOFALL. Blaze TUs never call this. */
+static void popmc_apply_debug_cfg(void) {
+    static int done = 0;
+    if (done) return;
+    done = 1;
+    bz_populate_set_debug(cr_cfg()->nowake, cr_cfg()->nofall);
+}
+
+/* stale-skylight mode: default ON; shroomlight=ca falls back to the fixpoint CA */
 static int popmc_stale_light_enabled(void) {
     static int mode = -1;
     if (mode < 0) {
-        const char *s = getenv("MAGMA_SHROOMLIGHT");
-        mode = !(s && strcmp(s, "ca") == 0);
+        const char *s = cr_cfg()->shroomlight;
+        mode = !(s[0] && strcmp(s, "ca") == 0);
     }
     return mode;
 }
@@ -443,7 +452,7 @@ static long long g_build_seed;   /* seed of the build in progress (cascade_hook)
 /* Re-snapshot a window's cell lists from the given buffers (chunkPos-corruption
  * resnap: the parent's post-resume writes landed in the nested window's buffers
  * AFTER its cells were recorded). Collapses pop_cells==cells - fine while the
- * fluid CA is off (default); the CA distinction only matters with MAGMA_FLUID_CA. */
+ * fluid CA is off (default); the CA distinction only matters with fluid_ca=1. */
 typedef unsigned long long PmAu64 __attribute__((may_alias));
 
 static void record_window_cells(Window *win, const u16 *owr, const u16 *stb,
@@ -486,6 +495,7 @@ static void record_window_cells(Window *win, const u16 *owr, const u16 *stb,
 }
 
 static Window *build_window(long long seed, int bcx, int bcz) {
+    popmc_apply_debug_cfg();
     if (!ensure_scratch() || !owr_pool_init()) return NULL;
     g_build_seed = seed;
 
@@ -665,9 +675,12 @@ static Window *build_window(long long seed, int bcx, int bcz) {
      * water/lava is live-tick evolution. The baked CA (pfs_steps = 16 + seed%17 from the
      * internal stress scene) re-tags sources as flowing en masse (seed 7 swamp: 92k cells
      * java WATER -> magma FLOWING_WATER; disabling: 157k -> 14.6k mismatches, seed 0
-     * roughly neutral at +712). Opt back in with MAGMA_FLUID_CA=1. */
-    if (getenv("MAGMA_FLUID_CA"))
-        owfl_fluid_pass(&w, (i64)seed, g_cur, g_tmp, g_bca);
+     * roughly neutral at +712). Opt back in with fluid_ca=1. */
+    {
+        static int fluid_ca = -1;
+        if (fluid_ca < 0) fluid_ca = cr_cfg()->fluid_ca ? 1 : 0;
+        if (fluid_ca) owfl_fluid_pass(&w, (i64)seed, g_cur, g_tmp, g_bca);
+    }
 
     /* Record cells = (window != its own pure base) UNION seeded locations UNION
      * OOB spills (absolute world coords outside this 32x32). Spills let neighbor

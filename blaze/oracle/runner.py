@@ -10,7 +10,7 @@ output on the same seed. This runner builds both, runs them on identical args, a
 
 Float discipline: CPU built with -ffp-contract=off, CUDA with --fmad=false (SPEC rule 4), so the
 two agree to the last bit. CUDA arch defaults to sm_120 (this anvil); override with MC_SM.
-Use --cpu-only (or MC_CPU_ONLY=1) to skip CUDA during iteration; run full oracle before commit.
+Use --cpu-only to skip CUDA during iteration; run full oracle before commit.
 """
 import os
 import subprocess
@@ -108,7 +108,7 @@ def diff(label_a, a, label_b, b):
 
 
 def parse_args(argv):
-    cpu_only = os.environ.get("MC_CPU_ONLY", "") not in ("", "0", "false")
+    cpu_only = False
     rest = list(argv)
     while rest and rest[0].startswith("-"):
         if rest[0] == "--cpu-only":

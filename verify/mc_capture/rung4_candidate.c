@@ -43,6 +43,9 @@
 /* EntityRenderer.setupCameraTransform: far = RD*16 * sqrt(2); RD=8 -> 181.01933. */
 #define ZFAR 181.01933f
 
+/* Opt-in dual winding; set from --dual-wind (default off). */
+static int g_dual_wind = 0;
+
 static void render_layer(CrFramebuffer *fb, const PoseScene *s,
                          int layer, const CrShadeCtx *sh) {
     int nv = s->nverts[layer];
@@ -52,12 +55,8 @@ static void render_layer(CrFramebuffer *fb, const PoseScene *s,
     int n = cr_transform(s->verts[layer], nv, NULL, 0, &s->cam,
                          FB_W, FB_H, tris, max_tris);
     /* Single winding matches game_main / game_candidate default. Dual wind is
-     * a hard-scene no-op (crop delta << 0.1); opt-in via MAGMA_DUAL_WIND=1. */
-    int dual = 0;
-    {
-        const char *e = getenv("MAGMA_DUAL_WIND");
-        if (e && atoi(e) != 0) dual = 1;
-    }
+     * a hard-scene no-op (crop delta << 0.1); opt-in via --dual-wind. */
+    int dual = g_dual_wind;
     if (!dual) {
         cr_raster_cpu(fb, tris, n, sh);
     } else {
@@ -99,6 +98,16 @@ int main(int argc, char **argv) {
                         rc == -1 ? "unknown key" : "bad value for this key");
                 return 2;
             }
+        } else if (!strcmp(argv[i], "--dual-wind")) {
+            g_dual_wind = 1;
+        } else if (!strcmp(argv[i], "--no-prep")) {
+            pscn_set_no_prep(1);
+        } else if (!strcmp(argv[i], "--spawn-cx") && i + 1 < argc) {
+            pscn_set_spawn_cx(atoi(argv[++i]));
+        } else if (!strcmp(argv[i], "--spawn-cz") && i + 1 < argc) {
+            pscn_set_spawn_cz(atoi(argv[++i]));
+        } else if (!strcmp(argv[i], "--prep-list") && i + 1 < argc) {
+            pscn_set_prep_list(argv[++i]);
         } else if (argv[i][0] != '-') {
             out = argv[i];
         } else {

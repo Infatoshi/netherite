@@ -78,20 +78,21 @@ echo
 
 # Cumulative populate order (real lever): qrl_0 spawn (44,176) -> chunk (2,11).
 # Prefer recorded genprobe prep list when present (exact vanilla order).
-export MAGMA_SPAWN_CX="${MAGMA_SPAWN_CX:-2}"
-export MAGMA_SPAWN_CZ="${MAGMA_SPAWN_CZ:-11}"
-if [ -z "${MAGMA_PREP_LIST:-}" ]; then
+SPAWN_CX="${SPAWN_CX:-2}"
+SPAWN_CZ="${SPAWN_CZ:-11}"
+PREP_LIST="${PREP_LIST:-}"
+if [ -z "$PREP_LIST" ]; then
   for cand in \
       "$REPORT_DIR/wv_prep_list.txt" \
       /tmp/frustum_wv2/wv_prep_list.txt \
       trace/out/wv_prep_list.txt; do
     if [ -s "$cand" ]; then
-      export MAGMA_PREP_LIST="$cand"
+      PREP_LIST="$cand"
       break
     fi
   done
 fi
-echo "    prepare: spawn=($MAGMA_SPAWN_CX,$MAGMA_SPAWN_CZ) prep_list=${MAGMA_PREP_LIST:-derived}"
+echo "    prepare: spawn=($SPAWN_CX,$SPAWN_CZ) prep_list=${PREP_LIST:-derived}"
 echo
 
 echo "== build game_candidate =="
@@ -111,8 +112,13 @@ render_variant() {
   shift
   local ppm="$REPORT_DIR/cand_${name}.ppm"
   local png="$REPORT_DIR/cand_${name}.png"
-  # env vars for this variant are already exported by caller, or passed as env PREFIX
-  env "$@" /tmp/hard_scene_candidate \
+  # extra argv for this variant are passed after the name; prepare knobs always on.
+  local prep=(--spawn-cx "$SPAWN_CX" --spawn-cz "$SPAWN_CZ")
+  if [ -n "${PREP_LIST:-}" ]; then
+    prep+=(--prep-list "$PREP_LIST")
+  fi
+  /tmp/hard_scene_candidate "$@" \
+      "${prep[@]}" \
       --seed "$SEED" --eye "$EYE_X" "$EYE_Y" "$EYE_Z" \
       --yaw "$YAW" --pitch "$PITCH" --fov "$FOV" --w "$W" --h "$H" \
       --ppm "$ppm" >"$REPORT_DIR/cand_${name}.log" 2>&1
@@ -125,15 +131,16 @@ echo "== render ablations =="
 # baseline: measured best (smooth off; fog ON by default / Java setupFog)
 BASE_PNG=$(render_variant default)
 # smooth AO (MC fancy lighting path)
-SMOOTH_PNG=$(MAGMA_SMOOTH=1 render_variant smooth MAGMA_SMOOTH=1)
+SMOOTH_PNG=$(render_variant smooth --set smooth=1)
 # terrain fog
-FOG_PNG=$(MAGMA_FOG=1 render_variant fog MAGMA_FOG=1)
+FOG_PNG=$(render_variant fog --set fog=1)
 # fog off escape (pre-default baseline)
-NOFOG_PNG=$(MAGMA_FOG=0 render_variant nofog MAGMA_FOG=0)
-# gamma 2.0 (MC-ish curve; often worsens crop when mis-applied)
-GAMMA_PNG=$(MAGMA_GAMMA=2.0 render_variant gamma2 MAGMA_GAMMA=2.0)
+NOFOG_PNG=$(render_variant nofog --set fog=0)
+# gamma 2.0: KNOWN NO-OP - no gamma knob exists in the render core (the old
+# MAGMA_GAMMA env var had no reader); variant kept for report continuity.
+GAMMA_PNG=$(render_variant gamma2)
 # smooth + fog (interaction)
-BOTH_PNG=$(MAGMA_SMOOTH=1 MAGMA_FOG=1 render_variant smooth_fog MAGMA_SMOOTH=1 MAGMA_FOG=1)
+BOTH_PNG=$(render_variant smooth_fog --set smooth=1 --set fog=1)
 
 echo
 echo "== scoreboard (vs REAL MC golden) =="

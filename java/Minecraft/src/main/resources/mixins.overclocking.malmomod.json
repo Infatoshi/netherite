@@ -30,8 +30,15 @@
     "MixinRecordPlayerMetadata",
     "MixinRecordExplosion",
     "MixinRecordParticles",
+    "MixinRecordBlockChanges",
+    "MixinRecordChunkFill",
+    "MixinRecordBlockInteract",
+    "MixinRecordGuiClick",
     "MixinModelRendererNoLists",
-    "MixinFramebufferStatusTolerant"
+    "MixinFramebufferStatusTolerant",
+    "MixinPlayerControllerDig",
+    "MixinMinecraftDigAccess",
+    "MixinNeighborNotifyDig"
   ],
   "compatibilityLevel": "JAVA_8",
   "minVersion": "0.6.11",

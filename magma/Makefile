@@ -3,7 +3,8 @@
 # command line still wins over this.
 MAKEFLAGS += -j$(shell nproc 2>/dev/null || sysctl -n hw.ncpu)
 CC      ?= gcc
-NVCC    ?= nvcc
+CUDA_HOME ?= /usr/local/cuda
+NVCC    ?= $(CUDA_HOME)/bin/nvcc
 CFLAGS  ?= -O2 -ffp-contract=off -Wall -Wextra -Icore -I.
 NVFLAGS ?= -O2 --fmad=false -arch=sm_120 -Icore -I.
 # SDL2 discovery: pkg-config, then sdl2-config (Homebrew path included for
@@ -17,6 +18,21 @@ SDL_LIBS   := $(shell pkg-config --libs sdl2 2>/dev/null || \
 # present.c includes <SDL2/SDL.h>; sdl2-config points at .../include/SDL2, so
 # also search its parent (no-op on Linux where /usr/include is a default path).
 SDL_CFLAGS += $(patsubst -I%/SDL2,-I%,$(filter -I%/SDL2,$(SDL_CFLAGS)))
+# Interactive audio (OpenAL + libvorbisfile), OPT-IN:  make MAGMA_AUDIO_OPENAL=1
+# Off by default on purpose. The default build must not need audio dev headers,
+# and auto-detecting them would make the binary's behaviour depend on what
+# happens to be installed on the box - the same class of hidden input the rest
+# of this build refuses. With the flag off game/audio_live.c compiles to
+# do-nothing stubs, so the simulation is bit-identical either way.
+ifeq ($(MAGMA_AUDIO_OPENAL),1)
+AUDIO_PC := $(shell pkg-config --exists openal vorbisfile 2>/dev/null && echo 1)
+ifneq ($(AUDIO_PC),1)
+$(error MAGMA_AUDIO_OPENAL=1 requires the openal and vorbisfile pkg-config \
+modules (Debian/Ubuntu: apt install libopenal-dev libvorbis-dev))
+endif
+AUDIO_CFLAGS := $(shell pkg-config --cflags openal vorbisfile) -DMAGMA_AUDIO_OPENAL
+AUDIO_LIBS   := $(shell pkg-config --libs openal vorbisfile)
+endif
 LDLIBS  ?= -lm
 DEPFLAGS = -MMD -MP
 
@@ -36,21 +52,28 @@ OBJ_ASSETS = assets/blockmodels.o
 
 # seam: playable game (verified blaze player/world tick + magma render + HUD + mobs)
 OBJ_GAME = game/config.o game/input_map.o game/world_live.o game/player_ctl.o game/hud.o game/screen.o game/player_preview.o game/entity_render.o game/particles_live.o game/item_render.o \
-           game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o
+           game/sky.o game/caps.o game/hand.o game/timer.o game/live_sim.o game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o game/runtime.o game/frame_capture.o game/window_compose.o game/script.o game/rl_mode.o game/overlay.o game/overlay_live.o game/sel_box.o game/fluid_live.o game/underwater.o game/audio_live.o
 
-.PHONY: all demo world game game-cuda game-metal test test-game test-launch test-config test-block-registry test-particles-live clean cuda test-raster-parity test-fog-radial
-all: demo
+.PHONY: all world game game-cuda game-metal test test-raster-smoke test-game test-launch test-config test-block-registry test-particles-live test-audio-live test-block-break-audio test-block-audio-oracle clean cuda test-raster-parity test-fog-radial assets test-asset-build test-asset-ui
+all: game
 
-# --- CUDA raster for the game (RTX 3090 / sm_86 on anvil GPU1) ---
-# GPU1 is the RTX 3090; build the .cu for sm_86 and link cudart.
-NVFLAGS_GAME ?= -O2 --fmad=false -arch=sm_86 -Icore -I.
+# --- CUDA raster for the game ---
+# Auto-detect arch from nvidia-smi (anvil: 2x Blackwell sm_120; gamer: 3090
+# sm_86). Override with NVFLAGS_GAME=... or GAME_SM=sm_86 when needed. The
+# object is arch-neutral by name - after switching GPUs `rm cuda/*.o` or the
+# recipe rebuilds only when sources change (see comment on game-cuda below).
+GAME_SM ?= $(shell nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | \
+             head -1 | grep -qi "3090" && echo sm_86 || echo sm_120)
+NVFLAGS_GAME ?= -O2 --fmad=false -arch=$(GAME_SM) -Icore -I.
 CUDA_LIBDIR  ?= $(patsubst %/bin/nvcc,%/lib64,$(shell which nvcc))
 CUDA_LIBS    ?= -L$(CUDA_LIBDIR) -lcudart -lstdc++
 
-# CPU spine demo (spinning textured cube)
-demo: magma_demo
-magma_demo: demo/demo_cube.o demo/scene.o $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
+# CPU raster integration smoke test (spinning textured cube)
+tests/test_raster_smoke: tests/test_raster_smoke.o tests/raster_smoke_scene.o $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS)
+
+test-raster-smoke: tests/test_raster_smoke
+	SDL_VIDEODRIVER=dummy ./tests/test_raster_smoke --frames 1
 
 # playable world app
 # NB: the world objects (world/light.o, world/populate_mc.o) now derive their fixed
@@ -84,19 +107,71 @@ endif
 game: magma_game
 magma_game: app/game_main.o $(OBJ_GAME) $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) \
               $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(AUDIO_LIBS) $(LDLIBS) $(CUDA_WEAK_LD)
 
 # game/ modules include game/game.h + (world_live/player_ctl) player_survival.h.
 game/%.o: game/%.c core/types.h game/game.h
 	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) -I$(BLAZE)/core -c $< -o $@
 
-# Generated texture headers: rebuild when the Python generator changes so
-# assets/hud_atlas.h cannot stay stale after build_hud_atlas.py edits.
-# Requires a MC 1.11.2 jar (MC_JAR or bootstrap_oracle / launcher cache).
-UV_ATLAS = uv run --no-project --with pillow python
-assets/hud_atlas.h: assets/build_hud_atlas.py
-	$(UV_ATLAS) assets/build_hud_atlas.py
+# Generated texture headers come from the native asset binary.
+# MC_JAR is a Make variable (bootstrap pointer). The binary takes --jar.
+# Search order matches the old mc_jar.py candidates, minus getenv in C.
+MC_JAR ?= $(firstword $(wildcard \
+	../java/Minecraft/run/gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar \
+	$(HOME)/.gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar \
+	$(HOME)/.minecraft/versions/1.11.2/1.11.2.jar \
+	$(HOME)/Library/Application Support/minecraft/versions/1.11.2/1.11.2.jar \
+	$(HOME)/Library/Application Support/PrismLauncher/libraries/com/mojang/minecraft/1.11.2/minecraft-1.11.2-client.jar \
+	$(HOME)/.local/share/PrismLauncher/libraries/com/mojang/minecraft/1.11.2/minecraft-1.11.2-client.jar))
+MC_ASSET_INDEX ?= $(firstword $(wildcard \
+	../java/Minecraft/run/gradle/caches/minecraft/assets/indexes/1.11.json \
+	../java/Minecraft/.gradle/minecraft/assets/indexes/1.11.json))
+ASSET_BIN = ../out/magma/assets
+SOUND_BIN = ../out/magma/sound
+ASSET_SRC = assets/jar.c assets/image.c assets/build_world.c assets/build_ui.c
+ASSET_TIMEOUT ?= 30
+ASSET_RUN = perl -e 'alarm shift; exec @ARGV' $(ASSET_TIMEOUT)
+
+$(ASSET_BIN): assets/build.c $(ASSET_SRC) assets/build.h assets/jar.h assets/image.h
+	mkdir -p ../out/magma
+	$(CC) $(CFLAGS) -std=c11 -o $@ assets/build.c $(ASSET_SRC) -lz
+
+$(SOUND_BIN): assets/build_sound.c
+	mkdir -p ../out/magma
+	$(CC) $(CFLAGS) -std=c11 -o $@ assets/build_sound.c
+
+.PHONY: assets
+assets: $(ASSET_BIN) $(SOUND_BIN)
+	@test -n "$(MC_JAR)" || { echo "minecraft-1.11.2.jar not found; set MC_JAR="; exit 1; }
+	@test -n "$(MC_ASSET_INDEX)" || { echo "1.11 asset index not found; set MC_ASSET_INDEX="; exit 1; }
+	$(ASSET_RUN) $(ASSET_BIN) --jar "$(MC_JAR)" --out assets
+	$(ASSET_RUN) $(SOUND_BIN) --index "$(MC_ASSET_INDEX)" --out assets/sound_manifest.h
+
+assets/hud_atlas.h: $(ASSET_BIN)
+	@test -n "$(MC_JAR)" || { echo "minecraft-1.11.2.jar not found; set MC_JAR="; exit 1; }
+	$(ASSET_RUN) $(ASSET_BIN) --jar "$(MC_JAR)" --out assets --only hud
 game/hud.o: assets/hud_atlas.h
+# Sound-seam unit gates (standalone builders, same shape as test_runtime.sh).
+test-audio-live:
+	bash game/test_audio_live.sh
+
+test-block-break-audio:
+	bash game/test_block_break_audio.sh
+
+# magma-vs-real-Java block sound map. Needs the Java oracle (gradle), so it is
+# not part of `make test-game`; the gate exits 3 BLOCKED when it is unavailable.
+test-block-audio-oracle:
+	bash game/test_block_break_audio.sh --oracle
+
+# Sound hash manifest: owned 1.11 asset index. No jar. No env.
+# Only game/audio_live.o consumes it, and only the MAGMA_AUDIO_OPENAL=1 build
+# dereferences the hashes, but generate it either way so the opt-in build is
+# one flag and not a flag plus a remembered bootstrap step.
+assets/sound_manifest.h: $(SOUND_BIN)
+	@test -n "$(MC_ASSET_INDEX)" || { echo "1.11 asset index not found; set MC_ASSET_INDEX="; exit 1; }
+	$(ASSET_RUN) $(SOUND_BIN) --index "$(MC_ASSET_INDEX)" --out assets/sound_manifest.h
+game/audio_live.o: game/audio_live.c game/audio_live.h assets/sound_manifest.h
+	$(CC) $(CFLAGS) $(DEPFLAGS) $(SDL_CFLAGS) $(AUDIO_CFLAGS) -I$(BLAZE)/core -c $< -o $@
 
 game/runtime.o: game/runtime.c game/runtime.h game/mob_live.h game/dragon_live.h \
                 game/portal_live.h game/container_live.h $(BLAZE)/core/crafting_recipes_full.h
@@ -124,7 +199,7 @@ cuda/raster_cuda_game.o: cuda/raster_cuda.cu core/types.h core/shade.c
 	$(NVCC) $(NVFLAGS_GAME) -c $< -o $@
 magma_game_cuda: app/game_main_cuda.o cuda/raster_cuda_game.o $(OBJ_GAME) $(OBJ_WORLD) \
               $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) $(OBJ_XFORM) $(OBJ_PRESENT)
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(LDLIBS) $(CUDA_LIBS)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(SDL_LIBS) $(AUDIO_LIBS) $(LDLIBS) $(CUDA_LIBS)
 
 # Metal-accelerated game binary (macOS / Apple silicon only). Same seam shape
 # as game-cuda: game_main.c AND frame_capture.c recompile with -DMAGMA_METAL
@@ -164,9 +239,9 @@ game-metal:
 	$(MAKE) magma_game_metal
 app/game_main_metal.o: app/game_main.c game/game.h game/runtime.h game/config.h core/config.h core/types.h game/caps.h game/particles_live.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
-game/frame_capture_metal.o: game/frame_capture.c game/frame_capture.h core/types.h game/game.h
+game/frame_capture_metal.o: game/frame_capture.c game/frame_capture.h game/config.h core/types.h game/game.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
-game/window_compose_metal.o: game/window_compose.c game/window_compose.h core/types.h game/game.h
+game/window_compose_metal.o: game/window_compose.c game/window_compose.h game/config.h core/types.h game/game.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -DMAGMA_METAL -I$(BLAZE)/core -c $< -o $@
 metal/raster_metal_host.o: metal/raster_metal_host.m core/types.h
 	$(CC) -x objective-c -fobjc-arc $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
@@ -177,7 +252,7 @@ metal/raster_kernels.metallib: metal/raster_kernels.air
 magma_game_metal: app/game_main_metal.o metal/raster_metal_host.o $(OBJ_GAME_METAL) \
               $(OBJ_WORLD) $(OBJ_RK) $(OBJ_ASSETS) $(OBJ_CORE) $(OBJ_RASTER) \
               $(OBJ_XFORM) $(OBJ_PRESENT) metal/raster_kernels.metallib
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(filter %.o,$^) -o $@ $(SDL_LIBS) $(LDLIBS) $(METAL_FRAMEWORKS) $(METAL_WEAK_LD)
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) $(filter %.o,$^) -o $@ $(SDL_LIBS) $(AUDIO_LIBS) $(LDLIBS) $(METAL_FRAMEWORKS) $(METAL_WEAK_LD)
 
 # ALLOCATE-ONCE alloc-tripwire build: magma_game with debug symbols (so the
 # trace/alloctrack.so summary offsets resolve via addr2line -e magma_game_dbg).
@@ -262,9 +337,6 @@ app/main.o: app/main.c world/world.h core/types.h
 
 present/present.o: present/present.c core/types.h
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
-demo/demo_cube.o: demo/demo_cube.c core/types.h
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c $< -o $@
-
 %.o: %.c core/types.h
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -299,7 +371,7 @@ test-particles-live: game/particles_live.o assets/blockmodels.o
 	    -o game/test_particles_live $(LDLIBS)
 	./game/test_particles_live
 
-test: magma_demo
+test: test-raster-smoke
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 # Standalone-game semantic gates. These deliberately exercise the real streamed
@@ -327,38 +399,46 @@ test-launch: game
 	grep -q 'frame 99 .* dead 1 deaths 1' /tmp/magma-test-death.log
 
 # Ensure mob atlas exists with pixel-path sprites before atlas-dependent gates.
-assets/mob_atlas.h:
-	uv run --no-project --with pillow python assets/build_mob_atlas.py
+assets/mob_atlas.h: $(ASSET_BIN)
+	@test -n "$(MC_JAR)" || { echo "minecraft-1.11.2.jar not found; set MC_JAR="; exit 1; }
+	$(ASSET_RUN) $(ASSET_BIN) --jar "$(MC_JAR)" --out assets --only mob
 
-test-game: test-config test-block-registry test-launch assets/mob_atlas.h
-	uv run --no-project --with pillow python tests/check_mob_atlas.py
-	bash game/test_input_map.sh
-	bash game/test_view.sh
-	bash game/test_overlay.sh
-	bash game/test_entity_render.sh
-	bash game/test_item_render.sh
-	bash game/test_item_uv_census.sh
-	bash game/test_hand.sh
-	bash game/test_player_ctl.sh
-	bash game/test_world_live.sh
-	bash game/test_play_compose.sh
-	bash game/test_runtime.sh
-	bash game/test_script.sh
-	bash game/test_fluid_live.sh
-	bash game/test_plants_live.sh
-	bash game/test_randtick.sh
-	bash game/test_furnace_live.sh
-	bash game/test_container_live.sh
-	bash game/test_armor_live.sh
-	bash game/test_screen.sh
-	bash game/test_player_preview.sh
-	bash game/test_chest_loot.sh
-	bash game/test_mob_live.sh
-	bash game/test_stronghold_live.sh
-	bash game/test_portal_live.sh
-	bash game/test_dimensions_live.sh
-	bash game/test_dragon_live.sh
-	bash game/test_route_e2e.sh
+../out/magma/test_build_world: assets/test_build_world.c $(ASSET_SRC) assets/build.h assets/jar.h assets/image.h
+	mkdir -p ../out/magma
+	$(CC) $(CFLAGS) -std=c11 -Werror -O1 -g -fsanitize=address,undefined \
+		-o $@ assets/test_build_world.c $(ASSET_SRC) -lz
+
+../out/magma/test_build_ui: assets/test_build_ui.c $(ASSET_SRC) assets/build.h assets/jar.h assets/image.h
+	mkdir -p ../out/magma
+	$(CC) $(CFLAGS) -std=c11 -Werror -O1 -g -fsanitize=address,undefined \
+		-o $@ assets/test_build_ui.c $(ASSET_SRC) -lz
+
+test-asset-ui: ../out/magma/test_build_ui
+	@test -n "$(MC_JAR)" || { echo "minecraft-1.11.2.jar not found; set MC_JAR="; exit 1; }
+	mkdir -p ../out/magma/asset_test_ui
+	$(ASSET_RUN) ../out/magma/test_build_ui "$(MC_JAR)" ../out/magma/asset_test_ui
+
+../out/magma/test_build_sound: assets/test_build_sound.c assets/build_sound.c
+	mkdir -p ../out/magma
+	$(CC) $(CFLAGS) -std=c11 -Werror -O1 -g -fsanitize=address,undefined \
+		-DSOUND_NO_MAIN -o $@ assets/test_build_sound.c assets/build_sound.c
+
+.PHONY: test-asset-sound
+test-asset-sound: ../out/magma/test_build_sound
+	@test -n "$(MC_ASSET_INDEX)" || { echo "1.11 asset index not found; set MC_ASSET_INDEX="; exit 1; }
+	$(ASSET_RUN) ../out/magma/test_build_sound "$(MC_ASSET_INDEX)" \
+		../out/magma/asset_test_sound.h assets/sound_manifest.h
+
+test-asset-build: test-asset-ui test-asset-sound ../out/magma/test_build_world
+	@test -n "$(MC_JAR)" || { echo "minecraft-1.11.2.jar not found; set MC_JAR="; exit 1; }
+	mkdir -p ../out/magma/asset_test
+	$(ASSET_RUN) ../out/magma/test_build_world "$(MC_JAR)" ../out/magma/asset_test
+
+# Standalone game suite. The driver classifies every semantic subtest and
+# continues after failures; only build/generated-asset prerequisites remain
+# here because no runnable suite exists when they fail.
+test-game: game assets/mob_atlas.h
+	bash game/run_test_game.sh
 
 .PHONY: test-mob-live
 test-mob-live:
@@ -391,18 +471,50 @@ rung4-verify:
 # discipline as everything else (-ffp-contract=off); the CUDA .so (M2) will
 # compile the same blaze_core.h under nvcc --fmad=false with the same ABI.
 # OpenMP parallelizes the env loop in blaze_step (per-env AABB scratch).
+# Linux: -fopenmp (libgomp). Darwin: Apple clang has no bundled OpenMP; use
+# Homebrew libomp (-Xpreprocessor -fopenmp + -lomp). Keep the output name
+# blaze_cpu.so on both (Mach-O dylib with a .so suffix still dlopens via
+# ctypes); no .dylib rename so blaze.py / verify_cpu.py stay platform-neutral.
 BLAZE_SRCS = ../blaze/env/blaze_cpu.c ../blaze/env/blaze_snapshot.c
+BLAZE_PARITY = ../blaze/core/port_parity.h
+ifeq ($(shell uname -s),Darwin)
+LIBOMP_PREFIX := $(shell ls -d /opt/homebrew/opt/libomp /usr/local/opt/libomp 2>/dev/null | head -1)
+BLAZE_OMP ?= -Xpreprocessor -fopenmp -I$(LIBOMP_PREFIX)/include -L$(LIBOMP_PREFIX)/lib -lomp
+else
 BLAZE_OMP ?= -fopenmp
+endif
 .PHONY: blaze_verify blaze_so
 blaze_verify: ../blaze/env/blaze_verify
 ../blaze/env/blaze_verify: ../blaze/env/blaze_verify.c $(BLAZE_SRCS) \
-                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h
+                       ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env ../blaze/env/blaze_verify.c \
 	    $(BLAZE_SRCS) -o $@ $(LDLIBS) $(BLAZE_OMP)
 blaze_so: ../blaze/env/blaze_cpu.so
-../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h
+../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env -shared -fPIC $(BLAZE_SRCS) \
 	    -o $@ $(LDLIBS) $(BLAZE_OMP)
+
+# Metal k_obs (obs_camera oc_pixel) for Darwin. Allocate-once host + metallib;
+# tick stays on blaze_cpu. Gate: blaze/env/verify_metal_obs.py --chain.
+.PHONY: blaze_metal_obs
+blaze_metal_obs: ../blaze/env/blaze_metal_obs.so
+ifeq ($(shell uname -s),Darwin)
+METALC   ?= xcrun -sdk macosx metal
+METALLIB ?= xcrun -sdk macosx metallib
+../blaze/env/blaze_metal_obs.air: ../blaze/env/blaze_metal_obs.metal
+	$(METALC) -fno-fast-math -ffp-contract=off -o $@ -c $<
+../blaze/env/blaze_metal_obs.metallib: ../blaze/env/blaze_metal_obs.air
+	$(METALLIB) -o $@ $<
+../blaze/env/blaze_metal_obs.so: ../blaze/env/blaze_metal_obs_host.m \
+                                 ../blaze/env/blaze_metal_obs.h \
+                                 ../blaze/env/blaze_metal_obs.metallib
+	$(CC) $(CFLAGS) -fPIC -fobjc-arc -shared -I$(BLAZE)/core -I../blaze/env \
+	    ../blaze/env/blaze_metal_obs_host.m -o $@ \
+	    -framework Metal -framework Foundation $(LDLIBS)
+else
+../blaze/env/blaze_metal_obs.so:
+	@echo "blaze_metal_obs: Darwin/Metal only (host is $$(uname -s))" >&2; exit 1
+endif
 # CUDA .so (M2): same core under nvcc, blaze core determinism flags (--fmad=false,
 # NEVER fast-math). GPU0 (RTX PRO 6000) is sm_120; override BLAZE_SM for other
 # parts. BLAZE_SM accepts a space-separated arch list for a dual-arch fatbin
@@ -411,26 +523,33 @@ blaze_so: ../blaze/env/blaze_cpu.so
 # SASS is identical to two single-arch builds: same source, same flags, so the
 # CPU==CUDA bitwise contract holds per arch. Same C ABI as blaze_cpu.so -
 # Python picks the backend at load time.
-BLAZE_SM ?= sm_120
+# Auto-select the CUDA arch from the host GPU when BLAZE_SM is unset, so the
+# same tree builds correctly on any box (anvil RTX PRO 6000 Blackwell =
+# sm_120, gamer RTX 3090 = sm_86) without remembering to pass BLAZE_SM.
+# nvidia-smi "RTX 3090" -> sm_86, else (Blackwell / unknown) -> sm_120.
+ifeq ($(origin BLAZE_SM),undefined)
+BLAZE_SM := $(shell nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | \
+             grep -qi "3090" && echo sm_86 || echo sm_120)
+endif
 BLAZE_NVCODE := $(if $(filter sm_%,$(BLAZE_SM)),$(foreach a,$(patsubst sm_%,%,$(BLAZE_SM)),-gencode arch=compute_$(a),code=sm_$(a)),-arch=$(BLAZE_SM))
 .PHONY: blaze_cuda_so
 blaze_cuda_so: ../blaze/env/blaze_cuda.so
 ../blaze/env/blaze_cuda.so: ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c \
-                        ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h
+                        ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h $(BLAZE_PARITY)
 	$(NVCC) -O2 --fmad=false $(BLAZE_NVCODE) -I$(BLAZE)/core -I../blaze/env \
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
 	    ../blaze/env/blaze_snapshot.c -o $@
 
 # cpolicy: fused C/CUDA rollout policy forward (.so, dual-arch via BLAZE_SM).
-# Not part of the sim-fidelity contract -- O3 + default fmad is fine; the
-# equivalence gate bounds logits to 1e-3 abs against torch fp32.
+# Not part of the sim-fidelity contract. The native gate compares the CUDA
+# result with direct FP32 CPU loops.
 .PHONY: cpolicy_so
 cpolicy_so: ../blaze/rl/cpolicy/cpolicy_fwd.so
 ../blaze/rl/cpolicy/cpolicy_fwd.so: ../blaze/rl/cpolicy/cpolicy_fwd.cu \
                                     ../blaze/rl/cpolicy/cpolicy_fwd.h
 	$(NVCC) -O3 $(BLAZE_NVCODE) -I../blaze/rl/cpolicy \
 	    -Xcompiler -fPIC --shared ../blaze/rl/cpolicy/cpolicy_fwd.cu \
-	    -lcublas -o $@
+	    -lcudnn -lcublas -o $@
 
 # C++ FP32 trainer hot loop. LibTorch dispatches convolution/GEMM work to
 # cuDNN/cuBLAS; cgraph_kernels.cu supplies captured grad clipping and Adam.
@@ -449,18 +568,21 @@ cgraph_bin: ../blaze/rl/cgraph/build/cgraph_train
 	BLAZE_SM="$(BLAZE_SM)" bash ../blaze/rl/cgraph/build_cgraph.sh
 
 clean:
-	rm -f magma_demo magma_world magma_game magma_game_dbg magma_game_cuda magma_game_metal
+	rm -f magma_world magma_game magma_game_dbg magma_game_cuda magma_game_metal
 	rm -f metal/raster_kernels.air metal/raster_kernels.metallib
-	rm -f ../blaze/env/blaze_verify ../blaze/env/blaze_cpu.so ../blaze/env/blaze_cuda.so
+	rm -f ../blaze/env/blaze_verify ../blaze/env/blaze_cpu.so ../blaze/env/blaze_cuda.so ../blaze/env/blaze_metal_obs.so ../blaze/env/blaze_metal_obs.air ../blaze/env/blaze_metal_obs.metallib
 	rm -f ../blaze/rl/cpolicy/cpolicy_fwd.so
 	find . -name '*.o' -delete
 	find . -name '*.d' -delete
-	rm -f tests/test_transform tests/test_present tests/test_scene tests/test_world \
+	rm -f tests/test_raster_smoke tests/test_transform tests/test_present tests/test_scene tests/test_world \
 	      tests/test_raster_parity tests/test_assets tests/test_light tests/test_mesh_mc \
 	      tests/test_mesh_models tests/test_model_oracle tests/test_light_brightness \
 	      tests/test_fog_radial \
 	      tests/Golden.class renderkernels/test_rk *.ppm
 	rm -f game/test_config game/test_block_registry game/test_player_ctl game/test_world_live game/test_play_compose game/test_particles_live
+	rm -f ../out/magma/assets ../out/magma/sound \
+		../out/magma/test_build_world ../out/magma/test_build_ui \
+		../out/magma/test_build_sound
 
 # Metal verification targets (Darwin-guarded; see make/metal.mk)
 -include make/metal.mk

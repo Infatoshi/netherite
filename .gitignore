@@ -1,9 +1,17 @@
+# repo-root scratch dir (agents/sessions)
+.tmp/
+
+# All persistent run output. Source tools write under out/<owner>/.
+/out/
+
 # regenerable gradle / game caches (kept on disk for fast runs, never tracked)
 java/Minecraft/run/
 java/Minecraft/build/
 java/Minecraft/.gradle/
 java/Minecraft/.minecraft/
 java/Minecraft/.minecraftserver/
+# oracle_pool.py per-instance game dirs (own saves/, logs/, gradle project cache)
+java/pool/
 
 # C/CUDA build artifacts (each c/ project also has its own .gitignore)
 build/
@@ -69,6 +77,7 @@ magma/game/test_route_e2e
 # game test binaries have no extension; test_*.c / test_*.sh sources ARE tracked
 magma/game/test_*
 !magma/game/test_*.*
+blaze/env/test_left_click_counter
 magma/magma_game_cuda
 verify/mc_capture/*.bak_*
 java/Minecraft/qrl/
@@ -79,7 +88,12 @@ verify/tapes/*
 blaze/rl/out/*
 # canonical gate reference data (verify_cpu.py --chain / make_snapshots T0=1)
 !blaze/rl/out/chain_actions_s10.json
+!blaze/rl/out/chain_actions_s10_learned.json
+!blaze/rl/out/chain_actions_s10_learned_full.json
+!blaze/rl/out/wpick_e1lo_net.pt
 !blaze/rl/out/coal_prefixes.json
+# sim2real transfer evidence (java/qrl_chain_demo.py RESULT_JSON)
+!blaze/rl/out/sim2real_*.json
 
 # ---- regenerated from YOUR Minecraft install (never committed) ----
 # scripts/bootstrap_oracle.sh
@@ -96,6 +110,7 @@ magma/assets/loading_bg.h
 magma/assets/mob_atlas.h
 magma/assets/portal_tex.h
 magma/assets/sky_atlas.h
+magma/assets/sound_manifest.h
 magma/assets/underwater_tex.h
 magma/assets/water_frames.h
 
@@ -106,21 +121,4 @@ demos/*
 blaze/env/*.so
 blaze/env/blaze_verify
 *.nsys-rep
-
-# ---- regenerated from YOUR Minecraft install (never committed) ----
-# scripts/bootstrap_oracle.sh
-java/oracle-src/
-# scripts/bootstrap_assets.sh
-magma/assets/atlas_gen.h
-magma/assets/colormap_gen.h
-magma/assets/gui_atlas.h
-magma/assets/hand_atlas.h
-magma/assets/inventory_ui_atlas.h
-magma/assets/hud_atlas.h
-magma/assets/item_atlas.h
-magma/assets/loading_bg.h
-magma/assets/mob_atlas.h
-magma/assets/portal_tex.h
-magma/assets/sky_atlas.h
-magma/assets/underwater_tex.h
-magma/assets/water_frames.h
+java/jdk8-macos-arm64/

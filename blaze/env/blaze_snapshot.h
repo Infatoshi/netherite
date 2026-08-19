@@ -6,7 +6,7 @@
  * File layout (little-endian, packed):
  *   RlSnapHead | n_items x RlSnapItem | rnx*rny*rnz u16 packed (id<<4)|meta
  *   (index (ix*rny+iy)*rnz+iz) | u32 ncoal | ncoal x (i32 wx,wy,wz)
- *
+ *   | rnx*rny*rnz u8 packed light (sky<<4)|block       [version 2]
  * Player pose/box are WINDOW-LOCAL doubles plus the ox/oz origin: restoring
  * local+origin reproduces the exact double bits (world = local + origin
  * rounds, so world-coord storage would lose low mantissa bits; the box is
@@ -26,10 +26,11 @@ extern "C" {
                                    * consumers fall back to the full window
                                    * scan (value-identical, just slow) */
 
+#define BLAZE_SNAP_VERSION 2
 #pragma pack(push, 1)
 typedef struct {
     char magic[4];                 /* "BSNP" */
-    unsigned version;              /* 1 */
+    unsigned version;              /* BLAZE_SNAP_VERSION */
     long long seed, tick;
     int ox, oz;                    /* physics window origin (world blocks) */
     double px, py, pz;             /* player pos, window-local */
@@ -72,6 +73,8 @@ typedef struct {
     RlSnapHead     head;
     RlSnapItem     items[BLAZE_SNAP_MAX_ITEMS];
     unsigned short *cells;         /* malloc'd rnx*rny*rnz packed states */
+    unsigned char  *light;         /* v2: malloc'd packed (sky<<4)|block;
+                                    * NULL for legacy v1 snapshots */
     int            *coal;          /* malloc'd ncoal x 3 (wx,wy,wz) */
     unsigned       ncoal;
     int            *xy_off;        /* malloc'd rnx*rny+1 CSR offsets into coal
@@ -86,9 +89,11 @@ typedef struct {
 } CuSnapshot;
 
 /* Load a .bsnp into *out (mallocs cells/coal; blaze_snapshot_free releases).
- * Returns 1 on success, else 0 with a message in err. */
+ * Returns 1 on success, else 0 with a message in err.
+ * no_ore_xy != 0 skips the ore spatial index (legacy full-scan A/B; was
+ * BLAZE_NO_ORE_XY=1). Pass 0 for the normal path. */
 int  blaze_snapshot_load(const char *path, CuSnapshot *out,
-                         char *err, int err_cap);
+                         char *err, int err_cap, int no_ore_xy);
 void blaze_snapshot_free(CuSnapshot *s);
 
 /* Build the CSR (ix,iy)-column index over a static ore list: off[ix*rny+iy]

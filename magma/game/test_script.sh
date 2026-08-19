@@ -83,7 +83,7 @@ assert any(e.get("item") == 17 for row in rows for e in row["entities"])
 assert any(s["item"] == 17 and s["count"] == 3 for row in rows for s in row["inventory"])
 assert any(e.get("item") == 4 for row in rows for e in row["entities"])
 assert any(e.get("item") == 15 for row in rows for e in row["entities"])
-assert any(s["item"] == 270 and s["meta"] >= 17 for s in rows[-1]["inventory"])
+assert any(s["item"] == 270 and s["meta"] == 14 for s in rows[-1]["inventory"])
 assert any(s["item"] == 274 and s["meta"] == 3 for s in rows[-1]["inventory"])
 assert any(s["item"] == 265 and s["count"] == 1 for s in rows[-1]["inventory"])
 assert any(row["furnace"] and row["furnace"]["burn"] > 0 for row in rows)
@@ -306,6 +306,169 @@ if ./magma_game --world superflat --headless --ticks 1 --script /tmp/magma-inval
 	exit 1
 fi
 rg -q 'invalid inv_slot' /tmp/magma-invalid-click.out
+
+# Human-tape container_click: multi-click craft on one tick (not GmAction
+# inv_click's one-click limit). Seed two logs, then on tick 1: pick / place
+# one in the 2x2 grid / park spare log / take result. No set_inventory
+# re-anchor of the planks (item 5).
+printf '%s\n' \
+	'{"tick":0,"type":"set_inventory","slot":0,"item":17,"count":2,"meta":0}' \
+	'{"tick":1,"type":"container_click","slot":0,"button":0,"click_type":0}' \
+	'{"tick":1,"type":"container_click","slot":36,"button":1,"click_type":0}' \
+	'{"tick":1,"type":"container_click","slot":1,"button":0,"click_type":0}' \
+	'{"tick":1,"type":"container_click","slot":45,"button":0,"click_type":0}' \
+	'{"tick":1,"type":"container_click","slot":2,"button":0,"click_type":0}' \
+	>/tmp/magma-container-click-craft.jsonl
+./magma_game --world superflat --headless --ticks 2 \
+	--script /tmp/magma-container-click-craft.jsonl \
+	--state-out /tmp/magma-container-click-craft-state.jsonl \
+	--render off --pace unlimited
+uv run --no-project python - <<'PY'
+import json
+rows = [json.loads(l) for l in open(
+    "/tmp/magma-container-click-craft-state.jsonl", encoding="utf-8")]
+final = rows[-1]
+assert any(s["item"] == 5 and s["count"] == 4 for s in final["inventory"]), final
+assert any(s["item"] == 17 and s["count"] == 1 for s in final["inventory"]), final
+assert final["grid"][0] == [0, 0, 0], final["grid"]
+print("container_click craft sequence: ok")
+PY
+# Fail closed: unsupported ClickType (PICKUP_ALL=6) is an explicit error.
+printf '%s\n' \
+	'{"tick":0,"type":"container_click","slot":0,"button":0,"click_type":6}' \
+	>/tmp/magma-unsupported-click.jsonl
+if ./magma_game --world superflat --headless --ticks 1 \
+	--script /tmp/magma-unsupported-click.jsonl \
+	--render off --pace unlimited >/tmp/magma-unsupported-click.out 2>&1; then
+	echo "unsupported click_type unexpectedly succeeded" >&2
+	exit 1
+fi
+rg -q 'unsupported container_click type 6' /tmp/magma-unsupported-click.out
+
+# Player inventory open with window_id identity; click lifts stack to cursor.
+# (close returns cursor to inv — assert before close.)
+printf '%s\n' \
+	'{"tick":0,"type":"set_inventory","slot":0,"item":1,"count":8,"meta":0}' \
+	'{"tick":0,"type":"container_open","window_id":0,"ctype":"player","x":0,"y":0,"z":0}' \
+	'{"tick":0,"type":"container_click","slot":0,"button":0,"click_type":0,"window_id":0}' \
+	>/tmp/magma-container-player.jsonl
+./magma_game --world superflat --headless --ticks 1 \
+	--script /tmp/magma-container-player.jsonl \
+	--state-out /tmp/magma-container-player-state.jsonl \
+	--render off --pace unlimited
+uv run --no-project python - <<'PY'
+import json
+row = json.loads(open("/tmp/magma-container-player-state.jsonl").read().splitlines()[-1])
+assert row["cursor"][0] == 1 and row["cursor"][1] == 8, row
+print("container_open player + click: ok")
+PY
+# close/reopen: close returns cursor, reopen accepts window_id again
+printf '%s\n' \
+	'{"tick":0,"type":"set_inventory","slot":0,"item":1,"count":8,"meta":0}' \
+	'{"tick":0,"type":"container_open","window_id":0,"ctype":"player","x":0,"y":0,"z":0}' \
+	'{"tick":0,"type":"container_click","slot":0,"button":0,"click_type":0,"window_id":0}' \
+	'{"tick":0,"type":"container_close","window_id":0}' \
+	'{"tick":1,"type":"container_open","window_id":0,"ctype":"player","x":0,"y":0,"z":0}' \
+	'{"tick":1,"type":"container_click","slot":0,"button":0,"click_type":0,"window_id":0}' \
+	>/tmp/magma-container-player-reopen.jsonl
+./magma_game --world superflat --headless --ticks 2 \
+	--script /tmp/magma-container-player-reopen.jsonl \
+	--state-out /tmp/magma-container-player-reopen-state.jsonl \
+	--render off --pace unlimited
+uv run --no-project python - <<'PY'
+import json
+row = json.loads(open("/tmp/magma-container-player-reopen-state.jsonl").read().splitlines()[-1])
+assert row["cursor"][0] == 1 and row["cursor"][1] == 8, row
+print("container close/reopen: ok")
+PY
+
+# Workbench open at placed table, craft via clicks.
+printf '%s\n' \
+	'{"tick":0,"type":"set_pose","x":0.5,"y":72,"z":0.5,"yaw":0,"pitch":0}' \
+	'{"tick":0,"type":"set_block","x":1,"y":72,"z":0,"id":58,"meta":0}' \
+	'{"tick":0,"type":"set_inventory","slot":0,"item":17,"count":1,"meta":0}' \
+	'{"tick":1,"type":"container_open","window_id":1,"ctype":"workbench","x":1,"y":72,"z":0}' \
+	'{"tick":1,"type":"container_click","slot":0,"button":0,"click_type":0,"window_id":1}' \
+	'{"tick":1,"type":"container_click","slot":36,"button":0,"click_type":0,"window_id":1}' \
+	'{"tick":1,"type":"container_click","slot":45,"button":0,"click_type":0,"window_id":1}' \
+	'{"tick":1,"type":"container_close","window_id":1}' \
+	>/tmp/magma-container-workbench.jsonl
+./magma_game --world superflat --headless --ticks 2 \
+	--script /tmp/magma-container-workbench.jsonl \
+	--state-out /tmp/magma-container-workbench-state.jsonl \
+	--render off --pace unlimited
+uv run --no-project python - <<'PY'
+import json
+row = json.loads(open("/tmp/magma-container-workbench-state.jsonl").read().splitlines()[-1])
+assert any(s["item"] == 5 and s["count"] == 4 for s in row["inventory"]), row
+assert row["container"] == 0, row
+print("container_open workbench craft: ok")
+PY
+
+# Furnace open + seed input/fuel + prop.
+printf '%s\n' \
+	'{"tick":0,"type":"set_pose","x":0.5,"y":72,"z":0.5,"yaw":0,"pitch":0}' \
+	'{"tick":0,"type":"set_block","x":1,"y":72,"z":0,"id":61,"meta":0}' \
+	'{"tick":1,"type":"container_open","window_id":2,"ctype":"furnace","x":1,"y":72,"z":0}' \
+	'{"tick":1,"type":"container_slot","slot":46,"item":15,"count":1,"meta":0}' \
+	'{"tick":1,"type":"container_slot","slot":47,"item":263,"count":1,"meta":0}' \
+	'{"tick":1,"type":"container_furnace_prop","burn":0,"current_burn":0,"cook":0,"total_cook":200}' \
+	'{"tick":1,"type":"container_close","window_id":2}' \
+	>/tmp/magma-container-furnace.jsonl
+./magma_game --world superflat --headless --ticks 2 \
+	--script /tmp/magma-container-furnace.jsonl \
+	--state-out /tmp/magma-container-furnace-state.jsonl \
+	--render off --pace unlimited
+uv run --no-project python - <<'PY'
+import json
+row = json.loads(open("/tmp/magma-container-furnace-state.jsonl").read().splitlines()[-1])
+assert row["container"] == 0, row
+print("container_open furnace seed: ok")
+PY
+
+# Chest open + seed diamond + pickup to cursor (assert before close).
+printf '%s\n' \
+	'{"tick":0,"type":"set_pose","x":0.5,"y":72,"z":0.5,"yaw":0,"pitch":0}' \
+	'{"tick":0,"type":"set_block","x":1,"y":72,"z":0,"id":54,"meta":0}' \
+	'{"tick":1,"type":"container_open","window_id":3,"ctype":"chest","x":1,"y":72,"z":0}' \
+	'{"tick":1,"type":"container_slot","slot":53,"item":264,"count":2,"meta":0}' \
+	'{"tick":1,"type":"container_click","slot":53,"button":0,"click_type":0,"window_id":3}' \
+	>/tmp/magma-container-chest.jsonl
+./magma_game --world superflat --headless --ticks 2 \
+	--script /tmp/magma-container-chest.jsonl \
+	--state-out /tmp/magma-container-chest-state.jsonl \
+	--render off --pace unlimited
+uv run --no-project python - <<'PY'
+import json
+row = json.loads(open("/tmp/magma-container-chest-state.jsonl").read().splitlines()[-1])
+assert row["cursor"][0] == 264 and row["cursor"][1] == 2, row
+print("container_open chest pick: ok")
+PY
+
+# Wrong window_id fails closed.
+printf '%s\n' \
+	'{"tick":0,"type":"container_open","window_id":0,"ctype":"player","x":0,"y":0,"z":0}' \
+	'{"tick":0,"type":"container_click","slot":0,"button":0,"click_type":0,"window_id":9}' \
+	>/tmp/magma-container-bad-wid.jsonl
+if ./magma_game --world superflat --headless --ticks 1 \
+	--script /tmp/magma-container-bad-wid.jsonl \
+	--render off --pace unlimited >/tmp/magma-container-bad-wid.out 2>&1; then
+	echo "wrong window_id unexpectedly succeeded" >&2
+	exit 1
+fi
+rg -q 'window_id 9 != open 0' /tmp/magma-container-bad-wid.out
+
+# Malformed container_open ctype fails closed.
+printf '%s\n' \
+	'{"tick":0,"type":"container_open","window_id":1,"ctype":"enchant","x":0,"y":0,"z":0}' \
+	>/tmp/magma-container-bad-ctype.jsonl
+if ./magma_game --world superflat --headless --ticks 1 \
+	--script /tmp/magma-container-bad-ctype.jsonl \
+	--render off --pace unlimited >/tmp/magma-container-bad-ctype.out 2>&1; then
+	echo "bad ctype unexpectedly succeeded" >&2
+	exit 1
+fi
+rg -q 'unsupported container_open ctype' /tmp/magma-container-bad-ctype.out
 
 printf '%s\n' \
 	'{"tick":0,"type":"set_inventory","slot":0,"item":0,"count":1,"meta":0}' \

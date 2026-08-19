@@ -283,7 +283,7 @@ class DumpJob:
     height: int = DEFAULT_HEIGHT
     # Registry knobs as short names (still, mob_demo, ...). Applied as --set.
     set_extra: dict = field(default_factory=dict)
-    # Platform / not-yet-migrated env only (SDL_*, MAGMA_NO_HAND, MAGMA_ANIM_TEXTURES, ...).
+    # Platform env only (SDL_*); registry knobs belong in set_extra.
     env_extra: dict = field(default_factory=dict)
     # extra CLI after common flags
     extra_cli: list[str] = field(default_factory=list)
@@ -403,37 +403,13 @@ def _execute_dump(
     if stamp.is_file():
         stamp.unlink()
 
-    # Platform env only; registry knobs go through --set on argv. Legacy
-    # MAGMA_* entries still present in job env_extra are translated here.
-    _CFG_SET = {
-        "MAGMA_NO_HAND": "no_hand",
-        "MAGMA_NO_OVERLAY": "no_overlay",
-        "MAGMA_ANIM_TEXTURES": "anim_textures",
-        "MAGMA_HIDE_GUI": "hide_gui",
-        "MAGMA_STRIP_OVERLAYS": "strip_overlays",
-        "MAGMA_NO_CRACK": "no_crack",
-        "MAGMA_NO_DEFER": "no_defer",
-        "MAGMA_NO_PIPELINE": "no_pipeline",
-        "MAGMA_NO_LAYERMERGE": "no_layermerge",
-        "MAGMA_NO_DEVMESH": "no_devmesh",
-        "MAGMA_CPU_SKY": "cpu_sky",
-        "MAGMA_HAND_FROM_TICK": "hand_from_tick",
-        "MAGMA_FOG_C1_INIT": "fog_c1_init",
-        "MAGMA_OVERLAY_DUMP": "overlay_dump",
-    }
+    # Platform env only (SDL_*); registry knobs are job.set_extra -> --set.
     env = os.environ.copy()
     env["SDL_VIDEODRIVER"] = "dummy"
-    set_flags: list[str] = []
-    env_left: dict[str, str] = {}
     for k, v in job.env_extra.items():
-        vs = str(v)
-        if k in _CFG_SET:
-            set_flags.extend(["--set", f"{_CFG_SET[k]}={vs}"])
-        else:
-            env_left[k] = vs
-            env[k] = vs
+        env[k] = str(v)
 
-    cmd = job.cli_list(game, dump_dir=out_dir) + set_flags
+    cmd = job.cli_list(game, dump_dir=out_dir)
     log_path = out_dir / "run.log"
     sets = set_pairs(job.set_extra, dump_dir=out_dir)
 
@@ -464,7 +440,7 @@ def _execute_dump(
             "CUDA_VISIBLE_DEVICES=1",
             "SDL_VIDEODRIVER=dummy",
         ]
-        for k, v in sorted(env_left.items()):
+        for k, v in sorted(job.env_extra.items()):
             wrap.append(f"{k}={v}")
         wrap.extend(cmd)
         full_cmd = wrap
@@ -479,10 +455,8 @@ def _execute_dump(
         log.write(f"+ backend={job.backend} gpu_wrap={gpu}\n")
         for kv in sets:
             log.write(f"+ --set {kv}\n")
-        for k, v in sorted(env_left.items()):
+        for k, v in sorted(job.env_extra.items()):
             log.write(f"+ env {k}={v}\n")
-        for i in range(0, len(set_flags), 2):
-            log.write(f"+ {set_flags[i]} {set_flags[i+1]}\n")
         log.write(f"+ {' '.join(full_cmd)}\n")
         log.flush()
         proc = subprocess.run(
@@ -717,8 +691,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_hand30",
             "nohand",
             30,
-            set_extra={"still": "1"},
-            env_extra={"MAGMA_NO_HAND": "1"},  # sibling lane; still env
+            set_extra={"still": "1", "no_hand": "1"},
             backend="cpu",
             label="wr_hand30/nohand",
         )
@@ -780,19 +753,15 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
         "anim_texture_demo": "1",
         "still": "1",
     }
-    # MAGMA_NO_HAND / MAGMA_NO_OVERLAY / MAGMA_ANIM_TEXTURES: sibling lanes.
-    anim_env = {
-        "MAGMA_NO_HAND": "1",
-        "MAGMA_NO_OVERLAY": "1",
-    }
+    # no_hand / no_overlay / anim_textures: sibling lanes via --set.
+    anim_hide = {"no_hand": "1", "no_overlay": "1"}
     anim_cli = ["--world", "superflat", "--daylight", "off"]
     jobs.append(
         DumpJob(
             "wr_anim_tex65",
             "static",
             ANIM_TEX_FRAMES,
-            set_extra=anim_set,
-            env_extra=anim_env,
+            set_extra={**anim_set, **anim_hide},
             extra_cli=anim_cli,
             backend="cpu",
             label="wr_anim_tex65/static",
@@ -803,8 +772,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_anim_tex65",
             "cpu",
             ANIM_TEX_FRAMES,
-            set_extra=anim_set,
-            env_extra={**anim_env, "MAGMA_ANIM_TEXTURES": "1"},
+            set_extra={**anim_set, **anim_hide, "anim_textures": "1"},
             extra_cli=anim_cli,
             backend="cpu",
             label="wr_anim_tex65/cpu",
@@ -816,8 +784,7 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
                 "wr_anim_tex65",
                 "cuda",
                 ANIM_TEX_FRAMES,
-                set_extra=anim_set,
-                env_extra={**anim_env, "MAGMA_ANIM_TEXTURES": "1"},
+                set_extra={**anim_set, **anim_hide, "anim_textures": "1"},
                 extra_cli=anim_cli,
                 backend="cuda",
                 label="wr_anim_tex65/cuda",
@@ -830,18 +797,14 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
         "entity_water_demo": "1",
         "still": "1",
     }
-    entity_water_env = {
-        "MAGMA_NO_HAND": "1",
-        "MAGMA_NO_OVERLAY": "1",
-    }
+    entity_water_hide = {"no_hand": "1", "no_overlay": "1"}
     entity_water_cli = ["--world", "superflat", "--daylight", "off"]
     jobs.append(
         DumpJob(
             "wr_entity_water",
             "wet",
             ENTITY_WATER_FRAMES,
-            set_extra=entity_water_set,
-            env_extra=entity_water_env,
+            set_extra={**entity_water_set, **entity_water_hide},
             extra_cli=entity_water_cli,
             backend="cpu",
             label="wr_entity_water/wet",
@@ -852,8 +815,8 @@ def all_dump_jobs(*, skip_gpu: bool) -> list[DumpJob]:
             "wr_entity_water",
             "dry",
             ENTITY_WATER_FRAMES,
-            set_extra={**entity_water_set, "entity_water_dry": "1"},
-            env_extra=entity_water_env,
+            set_extra={**entity_water_set, **entity_water_hide,
+                       "entity_water_dry": "1"},
             extra_cli=entity_water_cli,
             backend="cpu",
             label="wr_entity_water/dry",

@@ -84,6 +84,8 @@ int main(void) {
       s0 = slot(&r, 0);
       CHECK(isr_is_empty(&s0), "ctrl-THROW drops the whole stack");
       (void)a; }
+    CHECK(gm_container_click(&r, GMC_OUTSIDE, 0, CC_CLICK_THROW),
+          "THROW outside is an accepted no-op");
 
     /* ---- player 2x2 grid: gating + a real craft ---- */
     CHECK(!gm_container_click(&r, GMC_GRID0 + 2, 0, CC_CLICK_PICKUP),
@@ -117,6 +119,9 @@ int main(void) {
       CHECK(gm_runtime_set_block(&r, bx, by + 1, bz, 58, 0), "place a crafting table");
       CHECK(gm_runtime_use_block(&r, bx, by + 1, bz), "open the crafting table");
       CHECK(r.container == 1, "container is the table");
+      { GmPlayerCtlSnap d; gm_player_ctl_dig_export(&d);
+        CHECK(d.left_click_counter == 10000,
+              "block GUI pins vanilla leftClickCounter sentinel"); }
       CHECK(gm_container_click(&r, GMC_GRID0 + 2, 0, CC_CLICK_PICKUP),
             "3x3 grid cell is usable at a table"); }
 
@@ -126,6 +131,9 @@ int main(void) {
     { GmPlayerView v; gm_runtime_view(&r, &v);
       gm_runtime_set_pose(&r, v.x + 20.0, v.y, v.z, 0.0f, 0.0f); /* force-close */
       CHECK(r.container == 0, "walking away closes the container");
+      { GmPlayerCtlSnap d; gm_player_ctl_dig_export(&d);
+        CHECK(d.left_click_counter == 0,
+              "container close clears leftClickCounter sentinel"); }
       int planks = 0;
       for (int s = 0; s < GMC_INV_SLOTS; ++s) { ICStack t = slot(&r, s); if (t.item == 5) planks += t.count; }
       CHECK(planks == 16, "grid planks returned to the inventory on close");
@@ -137,6 +145,11 @@ int main(void) {
       CHECK(gm_runtime_set_block(&r, bx, by + 1, bz, 61, 0), "place a furnace");
       CHECK(gm_runtime_use_block(&r, bx, by + 1, bz), "open the furnace");
       CHECK(r.container == 2 && r.active_furnace >= 0, "furnace container active"); }
+    { FurnaceLive *f = &r.furnaces[r.active_furnace].state;
+      CHECK(f->total_cook == 0, "fresh vanilla furnace reports totalCookTime 0");
+      CHECK(gm_runtime_container_seed_furnace_prop(&r, 0, 0, 0, 0),
+            "tape furnace properties accept an idle zero total");
+      CHECK(f->total_cook == 0, "authoritative zero totalCookTime is preserved"); }
     CHECK(gm_runtime_set_inventory(&r, 0, 15, 2, 0), "seed two iron ore");
     CHECK(gm_runtime_set_inventory(&r, 1, 263, 4, 0), "seed four coal");
     click(&r, 0, 0, CC_CLICK_QUICK_MOVE);
@@ -172,9 +185,7 @@ int main(void) {
     click(&r, 5, 0, CC_CLICK_PICKUP);                 /* park them back */
 
     /* ---- armor slots: validity, stack limit 1, QUICK_MOVE equip ---- */
-    gm_container_close(&r);
-    r.container = 0;
-    r.active_furnace = -1;
+    gm_runtime_container_force_close(&r);
     CHECK(gm_runtime_set_inventory(&r, 0, 306, 1, 0), "seed iron helmet");
     click(&r, 0, 0, CC_CLICK_PICKUP);
     click(&r, GMC_ARMOR0 + 0, 0, CC_CLICK_PICKUP); /* feet rejects helmet */

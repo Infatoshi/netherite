@@ -3,9 +3,9 @@
 
 Java GL draws both windings with cull disabled; game_candidate historically
 submitted each tri twice so our backface cull kept one. HF ablations already
-showed crop delta ~0.001 (dual vs MAGMA_NO_DUAL_WIND). This row locks that:
+showed crop delta ~0.001 (dual vs single). This row locks that:
 
-  1) game_candidate defaults dual OFF (opt-in MAGMA_DUAL_WIND=1 only)
+  1) game_candidate defaults dual OFF (opt-in --dual-wind only)
   2) if both frames exist, |crop_dual - crop_nodual| < 0.1
   3) default-path terrain crop still <= 15 (closed integration gate)
 """
@@ -35,13 +35,14 @@ def _crop_mean(repo: Path, golden: Path, cand: Path, crop: str) -> float | None:
 
 
 def _default_dual_off(gc_src: str) -> bool:
-    """Default dual must be off; only MAGMA_DUAL_WIND=1 enables it."""
-    if "MAGMA_DUAL_WIND" not in gc_src:
+    """Default dual must be off; only --dual-wind enables it."""
+    if "--dual-wind" not in gc_src:
         return False
-    # dual starts 0, then env may set 1
+    # g_dual_wind / dual starts 0; argv may set 1
+    if re.search(r"\bg_dual_wind\s*=\s*0\s*;", gc_src):
+        return True
     if re.search(r"\bint\s+dual\s*=\s*0\s*;", gc_src):
         return True
-    # accept dual=1 only if gated inverted from NO_DUAL (legacy) — fail that
     return False
 
 

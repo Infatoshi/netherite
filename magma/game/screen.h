@@ -32,6 +32,8 @@ int gm_screen_layout(int container, int fb_w, int fb_h, GmScreenSlot *out, int m
  * slot, -1 inside the panel between slots (no-op), GMC_OUTSIDE beyond the panel
  * (vanilla cursor drop). */
 int gm_screen_slot_at(int container, int fb_w, int fb_h, int mx, int my);
+int gm_screen_slot_at_runtime(const struct GmRuntime *r, int fb_w, int fb_h,
+                              int mx, int my);
 
 /* Draw the open screen (panel, slots, stacks, craft result preview, furnace
  * burn/cook state) plus the cursor stack at (mx,my). Color buffer only. */

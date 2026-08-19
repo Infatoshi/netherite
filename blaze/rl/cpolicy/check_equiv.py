@@ -17,6 +17,7 @@ Run:
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 
@@ -42,8 +43,8 @@ from wrapper import CPolicyFwd, NLOGITS, HEADS
 LOGIT_ATOL = 1e-3
 VALUE_ATOL = 1e-3
 GREEDY_AGREE = 0.999
-N = int(os.environ.get("CPOLICY_EQUIV_N", "6144"))
-SEED = int(os.environ.get("CPOLICY_EQUIV_SEED", "1234"))
+N = 6144
+SEED = 1234
 
 
 def maxerr(a, b):
@@ -57,6 +58,16 @@ def torch_packed_logits(logits_list):
 
 
 def main():
+    global N, SEED
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--n", type=int, default=N,
+                    help="batch size (was CPOLICY_EQUIV_N, default 6144)")
+    ap.add_argument("--seed", type=int, default=SEED,
+                    help="torch seed (was CPOLICY_EQUIV_SEED, default 1234)")
+    args = ap.parse_args()
+    N = args.n
+    SEED = args.seed
+
     dev = torch.device("cuda:0")
     torch.manual_seed(SEED)
     net = P.ChainPolicy().to(dev).eval()

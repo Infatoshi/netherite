@@ -100,20 +100,24 @@ class ChainRewardSpec:
     w_ipick_first: float = 0.0
 
     @staticmethod
-    def resolve():
-        """defaults <- REWARD_JSON file (if set) <- COAL_CHEW/HUNT_DESC env."""
+    def resolve(reward_json=None, coal_chew=None, hunt_desc=None):
+        """defaults <- reward_json file (if set) <- coal_chew/hunt_desc kwargs.
+
+        Historical env knobs REWARD_JSON / COAL_CHEW / HUNT_DESC are gone;
+        pass paths and floats explicitly (or leave None for defaults).
+        """
         spec = ChainRewardSpec()
-        path = os.environ.get("REWARD_JSON")
+        path = reward_json
         if path:
             with open(path) as f:
                 for k, v in json.load(f).items():
                     if not hasattr(spec, k):
                         raise KeyError(f"unknown reward field {k!r} in {path}")
                     setattr(spec, k, float(v))
-        if "COAL_CHEW" in os.environ:
-            spec.coal_chew = float(os.environ["COAL_CHEW"])
-        if "HUNT_DESC" in os.environ:
-            spec.hunt_desc = float(os.environ["HUNT_DESC"])
+        if coal_chew is not None:
+            spec.coal_chew = float(coal_chew)
+        if hunt_desc is not None:
+            spec.hunt_desc = float(hunt_desc)
         return spec
 
     def dump(self, path):

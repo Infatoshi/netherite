@@ -12,6 +12,8 @@
 #include "game/container_live.h"
 #include "mc_gamerules.h"
 
+#include <stdint.h>
+
 #define GM_RUNTIME_FURNACES 16
 /* Growable chest TE table: starts at this capacity, doubles when full.
  * Never evicts a live TE while its block 54 still exists. */
@@ -22,6 +24,150 @@
 #define GM_RUNTIME_FIREBALL_TRACKS 8
 /* Compat alias for tests that still reference the old fixed size. */
 #define GM_RUNTIME_CHESTS GM_RUNTIME_CHESTS_INITIAL
+/* Client sound seam ring. 256 events is one tick's worth many times over:
+ * the consumer drains it every frame and a drop is counted, never silent. */
+#define GM_RUNTIME_SOUND_EVENTS 256
+/* SoundCategory ordinals (net.minecraft.util.SoundCategory). */
+enum {
+    GM_SOUND_CATEGORY_MASTER = 0,
+    GM_SOUND_CATEGORY_MUSIC,
+    GM_SOUND_CATEGORY_RECORDS,
+    GM_SOUND_CATEGORY_WEATHER,
+    GM_SOUND_CATEGORY_BLOCKS,
+    GM_SOUND_CATEGORY_HOSTILE,
+    GM_SOUND_CATEGORY_NEUTRAL,
+    GM_SOUND_CATEGORY_PLAYERS,
+    GM_SOUND_CATEGORY_AMBIENT,
+    GM_SOUND_CATEGORY_VOICE
+};
+enum {
+    GM_SOUND_CHICKEN_HURT = 1,
+    GM_SOUND_CHICKEN_DEATH,
+    GM_SOUND_PIG_HURT,
+    GM_SOUND_PIG_DEATH,
+    GM_SOUND_COW_HURT,
+    GM_SOUND_COW_DEATH,
+    GM_SOUND_SHEEP_HURT,
+    GM_SOUND_SHEEP_DEATH,
+    GM_SOUND_SHEEP_SHEAR,
+    GM_SOUND_CHICKEN_EGG,
+    GM_SOUND_ITEM_BUCKET_FILL,
+    GM_SOUND_ITEM_ARMOR_EQUIP_GENERIC,
+    GM_SOUND_PIG_SADDLE,
+    GM_SOUND_LIGHTNING_THUNDER,
+    GM_SOUND_LIGHTNING_IMPACT,
+    GM_SOUND_FIREWORK_LAUNCH,
+    GM_SOUND_FIREWORK_BLAST,
+    GM_SOUND_FIREWORK_BLAST_FAR,
+    GM_SOUND_FIREWORK_LARGE_BLAST,
+    GM_SOUND_FIREWORK_LARGE_BLAST_FAR,
+    GM_SOUND_FIREWORK_TWINKLE,
+    GM_SOUND_FIREWORK_TWINKLE_FAR,
+    GM_SOUND_BLOCK_WOOD_BREAK,
+    GM_SOUND_BLOCK_GRAVEL_BREAK,
+    GM_SOUND_BLOCK_GRASS_BREAK,
+    GM_SOUND_BLOCK_STONE_BREAK,
+    GM_SOUND_BLOCK_METAL_BREAK,
+    GM_SOUND_BLOCK_GLASS_BREAK,
+    GM_SOUND_BLOCK_CLOTH_BREAK,
+    GM_SOUND_BLOCK_SAND_BREAK,
+    GM_SOUND_BLOCK_SNOW_BREAK,
+    GM_SOUND_BLOCK_LADDER_BREAK,
+    GM_SOUND_BLOCK_ANVIL_BREAK,
+    GM_SOUND_BLOCK_SLIME_BREAK,
+    GM_SOUND_BLOCK_WOOD_PLACE,
+    GM_SOUND_BLOCK_GRAVEL_PLACE,
+    GM_SOUND_BLOCK_GRASS_PLACE,
+    GM_SOUND_BLOCK_STONE_PLACE,
+    GM_SOUND_BLOCK_METAL_PLACE,
+    GM_SOUND_BLOCK_GLASS_PLACE,
+    GM_SOUND_BLOCK_CLOTH_PLACE,
+    GM_SOUND_BLOCK_SAND_PLACE,
+    GM_SOUND_BLOCK_SNOW_PLACE,
+    GM_SOUND_BLOCK_LADDER_PLACE,
+    GM_SOUND_BLOCK_ANVIL_PLACE,
+    GM_SOUND_BLOCK_SLIME_PLACE,
+    GM_SOUND_BLOCK_WOOD_HIT,
+    GM_SOUND_BLOCK_GRAVEL_HIT,
+    GM_SOUND_BLOCK_GRASS_HIT,
+    GM_SOUND_BLOCK_STONE_HIT,
+    GM_SOUND_BLOCK_METAL_HIT,
+    GM_SOUND_BLOCK_GLASS_HIT,
+    GM_SOUND_BLOCK_CLOTH_HIT,
+    GM_SOUND_BLOCK_SAND_HIT,
+    GM_SOUND_BLOCK_SNOW_HIT,
+    GM_SOUND_BLOCK_LADDER_HIT,
+    GM_SOUND_BLOCK_ANVIL_HIT,
+    GM_SOUND_BLOCK_SLIME_HIT,
+    GM_SOUND_BOBBER_SPLASH,
+    GM_SOUND_DISPENSER_DISPENSE,
+    GM_SOUND_DISPENSER_FAIL,
+    GM_SOUND_DISPENSER_LAUNCH,
+    GM_SOUND_ENDEREYE_LAUNCH,
+    GM_SOUND_FIREWORK_SHOOT,
+    GM_SOUND_IRON_DOOR_OPEN,
+    GM_SOUND_WOODEN_DOOR_OPEN,
+    GM_SOUND_WOODEN_TRAPDOOR_OPEN,
+    GM_SOUND_FENCE_GATE_OPEN,
+    GM_SOUND_FIRE_EXTINGUISH,
+    GM_SOUND_IRON_DOOR_CLOSE,
+    GM_SOUND_WOODEN_DOOR_CLOSE,
+    GM_SOUND_WOODEN_TRAPDOOR_CLOSE,
+    GM_SOUND_FENCE_GATE_CLOSE,
+    GM_SOUND_GHAST_WARN,
+    GM_SOUND_GHAST_SHOOT,
+    GM_SOUND_ENDERDRAGON_SHOOT,
+    GM_SOUND_BLAZE_SHOOT,
+    GM_SOUND_ZOMBIE_ATTACK_DOOR_WOOD,
+    GM_SOUND_ZOMBIE_ATTACK_IRON_DOOR,
+    GM_SOUND_ZOMBIE_BREAK_DOOR_WOOD,
+    GM_SOUND_WITHER_BREAK_BLOCK,
+    GM_SOUND_WITHER_SHOOT,
+    GM_SOUND_BAT_TAKEOFF,
+    GM_SOUND_ZOMBIE_INFECT,
+    GM_SOUND_ZOMBIE_VILLAGER_CONVERTED,
+    GM_SOUND_ANVIL_DESTROY,
+    GM_SOUND_ANVIL_USE,
+    GM_SOUND_ANVIL_LAND,
+    GM_SOUND_PORTAL_TRAVEL,
+    GM_SOUND_CHORUS_FLOWER_GROW,
+    GM_SOUND_CHORUS_FLOWER_DEATH,
+    GM_SOUND_BREWING_STAND_BREW,
+    GM_SOUND_IRON_TRAPDOOR_CLOSE,
+    GM_SOUND_IRON_TRAPDOOR_OPEN,
+    GM_SOUND_SPLASH_POTION_BREAK,
+    GM_SOUND_ENDERDRAGON_FIREBALL_EXPLODE,
+    GM_SOUND_END_GATEWAY_SPAWN,
+    GM_SOUND_ENDERDRAGON_GROWL,
+    GM_SOUND_VILLAGER_YES,
+    GM_SOUND_VILLAGER_NO,
+    GM_SOUND_RECORD_STOP,
+    GM_SOUND_RECORD_13,
+    GM_SOUND_RECORD_CAT,
+    GM_SOUND_RECORD_BLOCKS,
+    GM_SOUND_RECORD_CHIRP,
+    GM_SOUND_RECORD_FAR,
+    GM_SOUND_RECORD_MALL,
+    GM_SOUND_RECORD_MELLOHI,
+    GM_SOUND_RECORD_STAL,
+    GM_SOUND_RECORD_STRAD,
+    GM_SOUND_RECORD_WARD,
+    GM_SOUND_RECORD_11,
+    GM_SOUND_RECORD_WAIT,
+    GM_SOUND_COUNT
+};
+/* One resolved client sound. Simulation producers append identity, category,
+ * source, volume, and pitch; playback (game/audio_live.c) is a pure consumer
+ * and never writes back. `seq` is monotone across ring wrap so a consumer that
+ * misses a frame can count what it dropped instead of silently skipping. */
+typedef struct {
+    uint64_t seq;
+    int sound, category, eid, dimension;
+    int relative, delay_ticks;
+    double x, y, z;
+    float volume, pitch;
+} GmRuntimeSoundEvent;
+
 typedef struct {int active,type,age;double x,y,z,vx,vy,vz;} GmRuntimeProjectile;
 typedef struct {
     int active, wx, wy, wz;
@@ -81,6 +227,11 @@ typedef struct GmRuntime {
     int active_furnace;
     int active_chest;
     ICStack craft_grid[9]; /* live craft matrix (container_live slot ids 36..44) */
+    /* Authoritative parity-visible protocol history. Counters advance only
+     * when the represented transition is attempted/completed. */
+    unsigned int parity_craft_attempts, parity_craft_successes;
+    unsigned int parity_container_opens;
+    ICStack parity_last_craft;
     GmRuntimeFurnace furnaces[GM_RUNTIME_FURNACES];
     GmRuntimeChest *chests; /* growable; capacity in chests_cap */
     int chests_cap;
@@ -155,6 +306,13 @@ typedef struct GmRuntime {
     /* Recorded ForgeHooks.getTotalArmorValue. -1 = the tape did not carry it
      * (pre-2026-07-29 schema); the view then keeps the item-derived guess. */
     int tape_armor_points;
+    /* Ordered, allocation-free client sound seam. Simulation producers append
+     * resolved sound identity, category, source, volume, and pitch; playback
+     * only reads. Nothing in this block feeds back into a simulation decision,
+     * so a build with audio compiled out is bit-identical (game/audio_live.c). */
+    GmRuntimeSoundEvent sound_events[GM_RUNTIME_SOUND_EVENTS];
+    int sound_event_head, sound_event_count;
+    uint64_t sound_event_next_seq, sound_event_dropped;
 } GmRuntime;
 
 int  gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap);
@@ -250,6 +408,12 @@ void gm_runtime_set_total_time(GmRuntime *r, long long total_time);
  * without changing today's simulation. */
 void gm_runtime_set_gamerules(GmRuntime *r, const McGameRules *gamerules);
 int gm_runtime_set_block(GmRuntime *r, int x, int y, int z, int id, int meta);
+/* Post-tick tape reanchor: write the recorded client final id/meta into the
+ * live GmWorld (light + mesh dirty). Fluid CA is marked only when the new cell
+ * or a 6-neighbour is liquid. Fall schedules and plant-break cascades are
+ * skipped: the tape already carries every final gravity/plant cell, and
+ * re-arming BlockFalling here invents a second fall. */
+int gm_runtime_reanchor_block(GmRuntime *r, int x, int y, int z, int id, int meta);
 /* Snapshot initialization: canonical cell replacement with no fluid/plant
  * mutation side effects. Must run before the first replay tick. */
 int gm_runtime_load_block(GmRuntime *r, int x, int y, int z, int id, int meta);
@@ -270,5 +434,47 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz);
 int gm_runtime_furnace_insert(GmRuntime *r, int furnace_slot,
                               int inventory_slot, int amount);
 int gm_runtime_furnace_extract(GmRuntime *r, int furnace_slot, int amount);
+
+/* Tape-authoritative container lifecycle (gopen/gclk/gclose). ctype:
+ * 0 player 2x2, 1 workbench, 2 furnace, 3 single chest. Block ctypes open via
+ * use_block at (wx,wy,wz); player ignores coords. Seeds never invent clicks. */
+int gm_runtime_container_open(GmRuntime *r, int ctype, int wx, int wy, int wz);
+/* Seed one live GMC slot after open (grid/furnace/chest only; inv via
+ * set_inventory). Empty count clears. Returns 0 on invalid slot/container. */
+int gm_runtime_container_seed_slot(GmRuntime *r, int gmc_slot,
+                                   int item, int count, int meta);
+void gm_runtime_container_seed_cursor(GmRuntime *r, int item, int count, int meta);
+int gm_runtime_container_seed_furnace_prop(GmRuntime *r, int burn,
+                                           int current_burn, int cook,
+                                           int total_cook);
+/* Close open container (grid/cursor return, chest lid). Always succeeds. */
+void gm_runtime_container_force_close(GmRuntime *r);
+
+/* ---- client sound seam (game/audio_live.c is the only consumer) ----
+ * These read the ring written during gm_runtime_tick. The ring is drained by
+ * index, not popped: the consumer tracks its own `seq` watermark so two
+ * consumers (playback and a test) never steal each other's events. */
+int gm_runtime_sound_event_count(const GmRuntime *r);
+int gm_runtime_sound_event_get(
+    const GmRuntime *r, int index, GmRuntimeSoundEvent *out);
+/* Drop every retained event. The interactive loop calls this once per tick
+ * after playback has consumed the ring; tests call it to isolate a phase. */
+void gm_runtime_sound_events_clear(GmRuntime *r);
+/* Block SoundType resolution, state_id = legacy id | (meta << 12). Volume and
+ * pitch are the exact 1.11.2 SoundType arithmetic per action, so the returned
+ * floats are bit-comparable against qrl.BlockBreakSoundGolden. Returns 0 for
+ * air and unregistered ids - a caller must never fabricate a sound for those. */
+int gm_runtime_block_break_sound(
+    int state_id, int *sound, float *volume, float *pitch);
+int gm_runtime_block_place_sound(
+    int state_id, int *sound, float *volume, float *pitch);
+int gm_runtime_block_hit_sound(
+    int state_id, int *sound, float *volume, float *pitch);
+/* Test fixtures: append the sound a break/place at (x,y,z) would emit without
+ * running a player tick. Return 0 when the state resolves to no sound. */
+int gm_runtime_block_break_audio_fixture(
+    GmRuntime *r, int x, int y, int z, int state_id);
+int gm_runtime_block_place_audio_fixture(
+    GmRuntime *r, int x, int y, int z, int state_id);
 
 #endif

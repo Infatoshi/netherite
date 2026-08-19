@@ -1,216 +1,85 @@
 {
- "version": 1,
- "divergences": [
-  {
-   "ticks": [
-    400,
-    400
-   ],
-   "open_divergence": 1,
-   "reason": "Legacy tape has no recstart world snapshot; saved-world terrain differs from regenerated world state.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  },
-  {
-   "ticks": [
-    460,
-    460
-   ],
-   "open_divergence": 1,
-   "reason": "Legacy tape has no recstart world snapshot; saved-world terrain differs from regenerated world state.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  },
-  {
-   "ticks": [
-    560,
-    580
-   ],
-   "open_divergence": 1,
-   "reason": "Legacy tape has no recstart world snapshot; saved-world terrain differs from regenerated world state.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  },
-  {
-   "ticks": [
-    720,
-    920
-   ],
-   "open_divergence": 1,
-   "reason": "Legacy tape has no recstart world snapshot; saved-world terrain and foliage silhouettes differ.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  },
-  {
-   "ticks": [
-    1360,
-    1420
-   ],
-   "open_divergence": 1,
-   "reason": "Legacy tape has no recstart world snapshot; saved-world foliage silhouettes differ.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  },
-  {
-   "ticks": [
-    1520,
-    1540
-   ],
-   "open_divergence": 20,
-   "reason": "Legacy seven-field sheep records omit the pose state needed to reproduce the oracle sheep.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  },
-  {
-   "ticks": [
-    1560,
-    1780
-   ],
-   "open_divergence": 1,
-   "reason": "Legacy tape has no recstart world snapshot; saved-world terrain and foliage silhouettes differ.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  },
-  {
-   "ticks": [
-    1800,
-    2100
-   ],
-   "open_divergence": 12,
-   "reason": "Oracle rain globally darkens and desaturates the scene; this legacy tape predates weather fields. Region runs to the bottom of the frame: the darkening is global, and with MAGMA_HIDE_GUI the bottom 96 rows are real scene pixels instead of HUD.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "global_oracle_darker_desaturated",
-    "pixel_saturation_slack": 60
-   }
-  },
-  {
-   "ticks": [
-    2020,
-    2240
-   ],
-   "open_divergence": 9,
-   "reason": "Legacy tape lacks per-tick inventory state, so held-item timing cannot be reconstructed.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  },
-  {
-   "ticks": [
-    2260,
-    2260
-   ],
-   "open_divergence": 1,
-   "reason": "Legacy tape has no recstart world snapshot; saved-world terrain differs from regenerated world state.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  },
-  {
-   "ticks": [
-    2460,
-    2900
-   ],
-   "open_divergence": 54,
-   "reason": "Legacy EntityItem rows omit item id, count, and age needed to reproduce dig/drop rendering.",
-   "regions": [
-    [
-     45,
-     0,
-     479,
-     853
-    ]
-   ],
-   "predicate": {
-    "type": "non_solid_scene"
-   }
-  }
- ],
- "note": "Regions run to y=479 (the whole frame below the boss bar), not 383. These are recorder gaps in the tape, which are scene-global; the old y=383 limit only looked right because the gate accepted the bottom 96 rows positionally as HUD. With capture.hide_gui those rows are real scene pixels and the same gap shows there too."
+  "version": 1,
+  "divergences": [
+    {
+      "ticks": [400, 400],
+      "open_divergence": 1,
+      "reason": "Legacy tape has no recstart world snapshot; saved-world terrain differs from regenerated world state.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [460, 460],
+      "open_divergence": 1,
+      "reason": "Legacy tape has no recstart world snapshot; saved-world terrain differs from regenerated world state.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [560, 580],
+      "open_divergence": 1,
+      "reason": "Legacy tape has no recstart world snapshot; saved-world terrain differs from regenerated world state.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [720, 920],
+      "open_divergence": 1,
+      "reason": "Legacy tape has no recstart world snapshot; saved-world terrain and foliage silhouettes differ.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [1360, 1420],
+      "open_divergence": 1,
+      "reason": "Legacy tape has no recstart world snapshot; saved-world foliage silhouettes differ.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [1520, 1540],
+      "open_divergence": 20,
+      "reason": "Legacy seven-field sheep records omit the pose state needed to reproduce the oracle sheep.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [1560, 1780],
+      "open_divergence": 1,
+      "reason": "Legacy tape has no recstart world snapshot; saved-world terrain and foliage silhouettes differ.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [1800, 2100],
+      "open_divergence": 12,
+      "reason": "Oracle rain globally darkens and desaturates the scene; this legacy tape predates weather fields.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {
+        "type": "global_oracle_darker_desaturated",
+        "pixel_saturation_slack": 60
+      }
+    },
+    {
+      "ticks": [2020, 2240],
+      "open_divergence": 9,
+      "reason": "Legacy tape lacks per-tick inventory state, so held-item timing cannot be reconstructed.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [2260, 2260],
+      "open_divergence": 1,
+      "reason": "Legacy tape has no recstart world snapshot; saved-world terrain differs from regenerated world state.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    },
+    {
+      "ticks": [2460, 2900],
+      "open_divergence": 54,
+      "reason": "Legacy EntityItem rows omit item id, count, and age needed to reproduce dig/drop rendering.",
+      "regions": [[45, 0, 383, 853]],
+      "predicate": {"type": "non_solid_scene"}
+    }
+  ]
 }

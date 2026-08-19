@@ -25,11 +25,12 @@ int main(int argc, char **argv) {
     static const i64 k_seeds[] = {0LL, 3LL, 12345LL};
     int n_seeds = (argc > 1) ? 1 : 3;
     int si, pi, i;
+    long ci, ncells = rt_count(RG_NX, RG_NY, RG_NZ);
 
     McSinTable *st = (McSinTable *)malloc(sizeof(McSinTable));
     ChunkPrimer *primer = (ChunkPrimer *)malloc(sizeof(ChunkPrimer));
     CpScratch *sc = (CpScratch *)malloc(sizeof(CpScratch));
-    u16 *cells = (u16 *)malloc((size_t)rt_count(RG_NX, RG_NY, RG_NZ) * sizeof(u16));
+    u16 *cells = (u16 *)malloc((size_t)ncells * sizeof(u16));
     u16 *ids = (u16 *)malloc(OC_NPIX * sizeof(u16));
     u8 *depth = (u8 *)malloc(OC_NPIX);
     u8 *edge = (u8 *)malloc(OC_NPIX);
@@ -40,6 +41,10 @@ int main(int argc, char **argv) {
         OcRegion rg;
         rt_fill(cells, (u64)seed, RG_X0, RG_Y0, RG_Z0, RG_NX, RG_NY, RG_NZ,
                 primer, sc, st);
+        /* rt_fill emits PLAIN IDS; OcRegion takes PACKED STATES (oc_block
+         * does the >>4). Worldgen carries no meta, so id<<4 is the exact
+         * packed form and the rendered ids are unchanged. */
+        for (ci = 0; ci < ncells; ++ci) cells[ci] = (u16)(cells[ci] << 4);
         rg.cells = cells;
         rg.x0 = RG_X0; rg.y0 = RG_Y0; rg.z0 = RG_Z0;
         rg.nx = RG_NX; rg.ny = RG_NY; rg.nz = RG_NZ;

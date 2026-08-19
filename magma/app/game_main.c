@@ -28,6 +28,7 @@
 #include "game/player_ctl.h"
 #include "game/particles_live.h"
 #include "game/runtime.h"
+#include "game/audio_live.h"
 #include "game/screen.h"
 #include "game/script.h"
 #include "game/rl_mode.h"
@@ -386,30 +387,8 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    /* --- config registry (core/config.h): compiled defaults -> conf file ->
-     * --set overrides, last wins. This runs FIRST, before bench_init and before
-     * any pool is sized, because every cr_cfg() reader downstream (including the
-     * allocate-once caps in game/caps.c) must see the final values. --- */
-    cr_cfg_load(cfg.conf_path);
-    for (int i = 0; i < cfg.n_set; ++i) {
-        const char *kv = cfg.set_kv[i];
-        const char *eq = strchr(kv, '=');           /* argv parse guaranteed one */
-        char key[64];
-        size_t klen = (size_t)(eq - kv);
-        if (klen == 0 || klen >= sizeof key) {
-            fprintf(stderr, "error: --set %s: bad key\n", kv);
-            return 2;
-        }
-        memcpy(key, kv, klen);
-        key[klen] = '\0';
-        int rc = cr_cfg_set(key, eq + 1);
-        if (rc != 0) {
-            fprintf(stderr, "error: --set %s: %s\n", kv,
-                    rc == -1 ? "unknown key" : "bad value for this key");
-            fprintf(stderr, "config: run with --dump-config for the full key list\n");
-            return 2;
-        }
-    }
+    /* gm_config_parse has already resolved defaults -> file -> command
+     * overrides into the one core registry, before any pool is allocated. */
     if (cfg.dump_config) {
         cr_cfg_dump(stdout);
         return 0;
@@ -562,6 +541,16 @@ int main(int argc, char **argv) {
     CrWindow *cwin = cr_window_open(fb_w, fb_h, "magma - game");
     if (!cwin) { fprintf(stderr, "cr_window_open failed\n"); return 1; }
 
+    /* Interactive sound. A failure here is never fatal: audio is a pure
+     * consumer of the tick's sound ring, so a disabled consumer changes
+     * nothing but the silence. */
+    GmAudioLive audio;
+    {
+        char audio_err[256];
+        if (!gm_audio_live_init(&audio, audio_err, sizeof audio_err))
+            fprintf(stderr, "warning: audio disabled: %s\n", audio_err);
+    }
+
     int frame = 0, running = 1;
 
     /* ---- 20 TPS tick accumulator + render interpolation (Timer.java port) ----
@@ -676,8 +665,8 @@ int main(int argc, char **argv) {
                  * Container.slotClick ids via the vanilla-layout hit test. */
                 GmAction gui; memset(&gui, 0, sizeof gui);
                 gui.hotbar_sel = -1;
-                int slot = gm_screen_slot_at(runtime.container, fb_w, fb_h,
-                                             mouse_x, mouse_y);
+                int slot = gm_screen_slot_at_runtime(&runtime, fb_w, fb_h,
+                                                     mouse_x, mouse_y);
                 int q_edge = in.key_q && !prev_q_screen;
                 if (in.click_left || in.click_right || q_edge) {
                     int click_ok = 1, button = 0, type = CC_CLICK_PICKUP;
@@ -933,6 +922,9 @@ int main(int argc, char **argv) {
             cpv.yaw   = prev_yaw   + (pl.yaw   - prev_yaw)   * partial_ticks;
             cpv.pitch = prev_pitch + (pl.pitch - prev_pitch) * partial_ticks;
         }
+        gm_audio_live_update(
+            &audio, &runtime,
+            cpv.x, cpv.y + cpv.eye_height, cpv.z, cpv.yaw, cpv.pitch);
         GmWindowComposeFrame compose_frame = {
             .view = &pv,
             .camera_view = &cpv,
@@ -1011,6 +1003,7 @@ int main(int argc, char **argv) {
             live.ents[0].age, live.ents[0].y);
 
     gm_window_compose_close(compose);
+    gm_audio_live_destroy(&audio);
     gm_runtime_destroy(&runtime);
     cr_window_close(cwin);
 #undef fb

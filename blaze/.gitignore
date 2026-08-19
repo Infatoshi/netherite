@@ -6,3 +6,7 @@ a.out
 *.dylib
 __pycache__/
 .venv/
+
+# Metal k_obs build products (make -C magma blaze_metal_obs)
+*.air
+*.metallib

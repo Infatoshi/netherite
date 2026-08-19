@@ -15,7 +15,7 @@
 #include "world/light.h"
 #include "assets/blockmodels.h"
 #include "renderkernels/rk.h"   /* facebakery kernels 31-34 (bake non-cube quads) */
-#include "core/config.h"        /* cr_cfg()->ao (MAGMA_SMOOTH stays env; deferred) */
+#include "core/config.h"        /* cr_cfg()->ao / smooth */
 
 #include <assert.h>
 #include <math.h>
@@ -92,14 +92,11 @@ static const Face FACES[6] = {
 /* two triangles per quad: (0,1,2) and (0,2,3), preserving the CCW winding */
 static const int TRI[6] = { 0, 1, 2, 0, 2, 3 };
 
-/* Opt-in via MAGMA_SMOOTH=1. Maps to Java ao:2 smooth path. Default OFF
+/* Opt-in via smooth=1. Maps to Java ao:2 smooth path. Default OFF
  * matches hard-scene / options ao:0 (BlockModelRenderer.renderModelFlat). */
 static int smooth_light_enabled(void) {
     static int cached = -1;
-    if (cached < 0) {
-        const char *s = getenv("MAGMA_SMOOTH");
-        cached = (s && atoi(s) != 0) ? 1 : 0;
-    }
+    if (cached < 0) cached = cr_cfg()->smooth ? 1 : 0;
     return cached;
 }
 

@@ -14,10 +14,23 @@ references were verified at design time.
 
 ### 1.2 Block breaking (dig timing)
 
-- Progressive dig is a **static-global state machine in player_ctl.c** (`s_dig_progress`, `s_dig_h*`, `s_dig_hitting`, `s_dig_delay`, `s_atk_prev`; player_ctl.c:27-49), mirroring `PlayerControllerMP`: press = acquire tick, held ticks accrue `pb_relative_hardness` per tick, break at >=1.0, then `blockHitDelay = 5` swallows 5 ticks (player_ctl.c:364-459).
-- The hardness math is blaze, MC_HD, and golden-verified: `pb_relative_hardness` (blaze/core/player_break.h:124-131) = `dig_speed / hardness / 30` (harvestable) with `/5` if airborne and `/5` if eyes underwater (player_break.h:114-118). Wooden pick (id 270) vs stone (hardness 1.5, mc_blocks.h:50) and coal ore (hardness 3.0, mc_blocks.h:58-60). `pb_can_harvest` gates coal-ore drops on a pickaxe (player_break.h:74-81).
-- Dig targeting uses `gm_raycast_sel_reach` (magma/game/sel_box.c:250-292): fixed-step DDA (`PSV_RAY_DT=0.05`, reach `PSV_REACH=5.0`), LUT trig, with per-block selection boxes (`gm_sel_box`, sel_box.c:34). This file is magma-side (not MC_HD), but pure deterministic math.
-- Harvest drops: `harvest_drop` (player_ctl.c:188-211) — coal ore (16) -> item 263 x1; stone -> cobble; gravel flint via a **stateless positional hash** (player_ctl.c:198-202), no RNG stream. Tool wear via `ita_on_block_destroyed` (player_ctl.c:222-234). Drop entity spawned at block center, `pickup_delay=10` (runtime.c:374-377).
+- Progressive dig is a per-player state machine mirroring
+  `PlayerControllerMP` and `Minecraft.leftClickCounter`: press acquires,
+  held ticks accrue `pb_relative_hardness`, a survival press-miss freezes both
+  attack paths for 9 following held ticks, release clears the counter, and a
+  completed progressive break sets `blockHitDelay = 5`.
+- The hardness math is blaze, MC_HD, and golden-verified:
+  `pb_relative_hardness` (blaze/core/player_break.h) is
+  `dig_speed / hardness / 30` when harvestable, with `/5` while airborne and
+  `/5` while the eyes are underwater. `pb_can_harvest` gates coal-ore drops on
+  a pickaxe.
+- Dig targeting uses the selection-box raycast at Minecraft 1.11.2's
+  `PlayerControllerMP.getBlockReachDistance`: 4.5 blocks in survival and 5.0
+  in creative. The blaze batched environment is survival and therefore uses
+  4.5. Fixed-step DDA and per-block selection boxes remain shared deterministic
+  math.
+- Harvest drops use a stateless positional hash where randomness is required;
+  tool wear and pickup delay follow the shared blaze item kernels.
 
 ### 1.3 Item drops and pickup
 
@@ -132,9 +145,11 @@ Throughput check: camera dominates. 1M env-ticks/s at repeat 4 = 250k decisions/
 
 ### Export path: extend rl_mode.c (new action key)
 
-Add `"snapshot":"<path>"` handling in the action loop (beside `"craft"`/`"interact"`, rl_mode.c:553-557): before the tick, dump state. Required new accessors:
-- `gm_player_ctl_dig_export/import` in player_ctl.c for the statics (`s_dig_progress/hx/hy/hz/hitting/delay/atk_prev/rc_delay/use_prev`) — currently only partially visible via `gm_player_dig_state` (player_ctl.c:678). Accepted simplification: require snapshots at quiescent points (>=6 ticks of no-op actions before dump so `s_dig_delay` drained and no dig in progress) and store zeros; the prefix generator can guarantee this.
-- Sprint/jump fields are already in `PsvPlayer` (player_survival.h:79-90) — direct reads.
+`gm_player_ctl_dig_export/import` carries the real environment's dig state,
+including `leftClickCounter`. The `.bsnp` v1 contract still requires snapshots
+at quiescent points (at least 10 no-op ticks before dump), so the format omits
+that transient counter and both real and batched loaders restore it as zero.
+Sprint/jump fields are stored directly from `PsvPlayer`.
 
 ### `.bsnp` format (little-endian, packed)
 

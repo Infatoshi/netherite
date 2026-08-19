@@ -232,21 +232,15 @@ def main():
         run_once(chew=chew, desc=desc, seed=seed)
     # spec resolve/dump roundtrip
     import tempfile
-    for k in ("COAL_CHEW", "HUNT_DESC", "REWARD_JSON"):
-        os.environ.pop(k, None)
     spec = ChainRewardSpec.resolve()
     assert spec.coal_chew == 0.0 and spec.hunt_desc == 0.0
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
         f.write('{"w_coal_first": 9.5, "hunt_desc": 0.7}')
         path = f.name
-    os.environ["REWARD_JSON"] = path
-    os.environ["COAL_CHEW"] = "0.006"
-    spec = ChainRewardSpec.resolve()
+    spec = ChainRewardSpec.resolve(reward_json=path, coal_chew=0.006)
     assert spec.w_coal_first == 9.5, spec.w_coal_first
     assert spec.hunt_desc == 0.7 and spec.coal_chew == 0.006
     os.unlink(path)
-    for k in ("COAL_CHEW", "REWARD_JSON"):
-        os.environ.pop(k, None)
     test_iron_milestones()
     print("test_reward_chain: bitwise parity OK (v1 + v2 param grid, "
           "spec resolve OK, iron milestones OK)")

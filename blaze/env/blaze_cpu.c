@@ -7,7 +7,7 @@
  * width; OMP_NUM_THREADS=1 recovers the old serial path for bisect.
  *
  * ABI (all pointers caller-owned host memory in this backend):
- *   blaze_create(device, n) -> handle
+ *   blaze_create(device, n, opts) -> handle  (opts NULL = defaults)
  *   blaze_load_snapshots(h, paths, count, err, cap) -> nloaded or -1
  *   blaze_snapshot_has_liquid(h, snap) -> 0/1 (flagged snapshots are unsafe:
  *                                         fluids CA is not simulated)
@@ -42,9 +42,11 @@
 #include <omp.h>
 
 #include "blaze_core.h"
+#include "blaze_abi.h"
 
 #define BLAZE_MAX_SNAPS 128
 #define BLAZE_ACT_HEADS 13
+#define BLAZE_COMMON_CAPABILITIES ((unsigned long long)BP_IMPLEMENTED_MASK)
 
 void blaze_destroy(void *vh);
 
@@ -55,26 +57,28 @@ typedef struct {
     int   *assign;
     CuSnapshot snaps[BLAZE_MAX_SNAPS];
     int    nsnaps;
-    /* pooled per-env buffers. Region-sized pools (cells/camcells) are
+    /* pooled per-env buffers. Region-sized pools (cells/light) are
      * allocated on the FIRST snapshot load - the region dims come from the
      * snapshot header; every loaded snapshot must share them. Still
      * init-time-only: nothing allocates in a tick path. */
     int    rnx, rny, rnz;    /* 0 until the first snapshot is loaded */
     long   rvol;
-    u16   *cells_pool, *camcells_pool, *cam_pool;
-    u8    *dep_pool, *edg_pool;
+    u16   *cells_pool, *cam_pool;
+    u16   *grass_pool;       /* per-env grass_sec census (CU_SEC_SPAN cube) */
+    u8    *light_pool, *dep_pool, *edg_pool;
     Chunk *window_pool;
     CuCand *cand_pool;
     int   *cont_pool;        /* per-env BLAZE_SNAP_MAX_CONT container cells */
     McAABB *blocks;          /* per-env PSV_MAX_BLOCKS scratch (OpenMP-safe;
                               * same layout as the CUDA per-env pool) */
-    unsigned long long *ops_pool;    /* BLAZE_OP_TRACE=1: n * CU_OP_N activity
+    unsigned long long *ops_pool;    /* op_trace=1: n * CU_OP_N activity
                                       * counters (NULL = tracing off) */
     CRRecipe recipes[CRF_NRECIPES];  /* crf_build once at create */
     int    nrecipes;
     double atk_gate;         /* opt-in +0.03 gate; 0 = off (exact ppo_coal) */
     int    success_item;     /* +10/done=1 item; 263 default (exact ppo_coal),
                               * 0 = disabled. Applied at reset. */
+    int    no_ore_xy;        /* create-time: skip ore spatial index on load */
 } CuVec;
 
 /* OPT-IN training-reward mode: gate the +0.03 crosshair-attack bonus on
@@ -98,15 +102,19 @@ int blaze_set_success_item(void *vh, int item) {
     return 0;
 }
 
-void *blaze_create(int device, int n) {
+void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     CuVec *v;
     int i;
+    BlazeCreateOpts o;
     (void)device;
     if (n <= 0) return NULL;
+    if (opts) o = *opts;
+    else blaze_create_opts_default(&o);
     v = (CuVec *)calloc(1, sizeof *v);
     if (!v) return NULL;
     v->n = n;
     v->success_item = 263;
+    v->no_ore_xy = o.no_ore_xy ? 1 : 0;
     mc_sin_table_init(&v->st);
     v->nrecipes = crf_build(v->recipes);
     v->envs = (Blaze *)calloc((size_t)n, sizeof *v->envs);
@@ -129,7 +137,7 @@ void *blaze_create(int device, int n) {
         blaze_destroy(v);
         return NULL;
     }
-    if (getenv("BLAZE_OP_TRACE") && atoi(getenv("BLAZE_OP_TRACE"))) {
+    if (o.op_trace) {
         v->ops_pool = (unsigned long long *)calloc((size_t)n * CU_OP_N,
                                                    sizeof *v->ops_pool);
         if (!v->ops_pool) {
@@ -153,7 +161,7 @@ void *blaze_create(int device, int n) {
 
 /* op-trace readout: number of counters per env (buffer sizing) and the
  * n * CU_OP_N cumulative counters (row-major, env-major). Returns -1 when
- * tracing is off (BLAZE_OP_TRACE unset at create). */
+ * tracing is off (op_trace was 0 at create). */
 int blaze_op_count(void) { return CU_OP_N; }
 
 int blaze_op_trace(void *vh, unsigned long long *out) {
@@ -168,16 +176,20 @@ int blaze_op_trace(void *vh, unsigned long long *out) {
  * snapshots must match). Init-time only. */
 static int cu_alloc_region_pools(CuVec *v, int rnx, int rny, int rnz) {
     int i;
+    /* worst-case section grid for these dims over any region origin */
+    long nsec = (long)CU_SEC_SPAN(rnx) * CU_SEC_SPAN(rny) * CU_SEC_SPAN(rnz);
     v->rnx = rnx; v->rny = rny; v->rnz = rnz;
     v->rvol = (long)rnx * rny * rnz;
     v->cells_pool = (u16 *)malloc((size_t)v->n * v->rvol *
                                   sizeof *v->cells_pool);
-    v->camcells_pool = (u16 *)malloc((size_t)v->n * v->rvol *
-                                     sizeof *v->camcells_pool);
-    if (!v->cells_pool || !v->camcells_pool) return 0;
+    v->light_pool = (u8 *)malloc((size_t)v->n * v->rvol);
+    v->grass_pool = (u16 *)malloc((size_t)v->n * nsec * sizeof *v->grass_pool);
+    if (!v->cells_pool || !v->light_pool || !v->grass_pool)
+        return 0;
     for (i = 0; i < v->n; ++i) {
         v->envs[i].cells = v->cells_pool + (size_t)i * v->rvol;
-        v->envs[i].cam_cells = v->camcells_pool + (size_t)i * v->rvol;
+        v->envs[i].light = v->light_pool + (size_t)i * v->rvol;
+        v->envs[i].grass_sec = v->grass_pool + (size_t)i * nsec;
     }
     return 1;
 }
@@ -188,7 +200,8 @@ void blaze_destroy(void *vh) {
     if (!v) return;
     for (i = 0; i < v->nsnaps; ++i) blaze_snapshot_free(&v->snaps[i]);
     free(v->envs); free(v->assign);
-    free(v->cells_pool); free(v->camcells_pool);
+    free(v->cells_pool); free(v->light_pool);
+    free(v->grass_pool);
     free(v->cam_pool); free(v->dep_pool); free(v->edg_pool);
     free(v->window_pool); free(v->cand_pool); free(v->cont_pool);
     free(v->blocks);
@@ -203,7 +216,8 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
     if (!v || count < 0 || v->nsnaps + count > BLAZE_MAX_SNAPS) return -1;
     for (i = 0; i < count; ++i) {
         const RlSnapHead *h;
-        if (!blaze_snapshot_load(paths[i], &v->snaps[v->nsnaps], err, err_cap))
+        if (!blaze_snapshot_load(paths[i], &v->snaps[v->nsnaps], err, err_cap,
+                                 v->no_ore_xy))
             return -1;
         h = &v->snaps[v->nsnaps].head;
         if (h->rny > CU_RNY_MAX) {   /* window y>=128 air invariant */
@@ -236,6 +250,23 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
     return v->nsnaps;
 }
 
+int blaze_parity_size(void) { return (int)sizeof(BpParityRecord); }
+
+unsigned long long blaze_capabilities(void) {
+    return BLAZE_COMMON_CAPABILITIES;
+}
+
+unsigned long long blaze_snapshot_requirements(void *vh, int snap) {
+    CuVec *v = (CuVec *)vh;
+    unsigned long long requirements = 0;
+    if (!v || snap < 0 || snap >= v->nsnaps) return ~0ULL;
+    if (v->snaps[snap].has_liquid)
+        requirements |= (unsigned long long)BP_BIT(BP_FLUIDS);
+    if (v->snaps[snap].head.container != 0 || !v->snaps[snap].light)
+        requirements |= (unsigned long long)BP_REQ_UNREPRESENTED_SNAPSHOT;
+    return requirements;
+}
+
 int blaze_snapshot_has_liquid(void *vh, int snap) {
     CuVec *v = (CuVec *)vh;
     if (!v || snap < 0 || snap >= v->nsnaps) return -1;
@@ -256,7 +287,7 @@ int blaze_assign(void *vh, const int *snap_idx) {
 static void cu_reset_env(CuVec *v, int i) {
     const CuSnapshot *s = &v->snaps[v->assign[i]];
     blaze_reset_from_snapshot(&v->envs[i], &s->head, s->items, s->cells,
-                              s->coal, (int)s->ncoal, s->xy_off,
+                              s->light, s->coal, (int)s->ncoal, s->xy_off,
                               s->cont, s->ncont, v->success_item);
 }
 
@@ -388,6 +419,36 @@ int blaze_capture(void *vh, int env, int slot) {
 
 int blaze_obs_size(void) { return (int)sizeof(CuBinObs); }
 
+/* Export the exact region + eye + yaw/pitch blaze_render_cam_pixel feeds to
+ * oc_pixel. cells points into the env's packed-state cells pool ((id<<4)|meta,
+ * the OcRegion contract; valid until the next mutating tick). Used by the
+ * Metal k_obs parity gate; no sim logic. */
+int blaze_obs_cam_inputs(void *vh, int env,
+                         double *ex, double *ey, double *ez,
+                         float *yaw, float *pitch,
+                         int *x0, int *y0, int *z0,
+                         int *nx, int *ny, int *nz,
+                         const unsigned short **cells) {
+    CuVec *v = (CuVec *)vh;
+    Blaze *e;
+    if (!v || env < 0 || env >= v->n) return -1;
+    e = &v->envs[env];
+    if (!e->cells || e->rnx <= 0 || e->rny <= 0 || e->rnz <= 0) return -1;
+    if (ex) *ex = e->pl.ent.posX + (double)e->ox;
+    if (ey) *ey = e->pl.ent.posY + PSV_EYE_HEIGHT;
+    if (ez) *ez = e->pl.ent.posZ + (double)e->oz;
+    if (yaw) *yaw = e->pl.yaw;
+    if (pitch) *pitch = e->pl.pitch;
+    if (x0) *x0 = e->rx0;
+    if (y0) *y0 = e->ry0;
+    if (z0) *z0 = e->rz0;
+    if (nx) *nx = e->rnx;
+    if (ny) *ny = e->rny;
+    if (nz) *nz = e->rnz;
+    if (cells) *cells = e->cells;
+    return 0;
+}
+
 int blaze_emit(void *vh, int env, int want_cam, void *out) {
     CuVec *v = (CuVec *)vh;
     if (!v || env < 0 || env >= v->n || !out) return -1;
@@ -442,4 +503,11 @@ int blaze_debug_state(void *vh, int env, double *out, int cap) {
     CuVec *v = (CuVec *)vh;
     if (!v || env < 0 || env >= v->n || !out || cap < 21) return -1;
     return blaze_debug_fill(&v->envs[env], out);
+}
+
+int blaze_parity_state(void *vh, int env, void *out) {
+    CuVec *v = (CuVec *)vh;
+    if (!v || env < 0 || env >= v->n || !out) return -1;
+    blaze_parity_fill(&v->envs[env], (BpParityRecord *)out);
+    return 0;
 }

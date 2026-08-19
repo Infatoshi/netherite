@@ -22,7 +22,9 @@ _HERE = Path(__file__).resolve().parent
 JAR_CANDIDATES = [
     Path.home() / ".gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar",
     Path.home() / ".gradle/caches/minecraft/net/minecraft/minecraft_merged/1.11.2/minecraft_merged-1.11.2.jar",
-    _HERE.parents[2] / "java/Minecraft/run/gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar",
+    # _HERE is magma/tests, so parents[1] is the repo root (parents[2] pointed
+    # one level ABOVE the repo and silently killed this candidate, 2744bee).
+    _HERE.parents[1] / "java/Minecraft/run/gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar",
 ]
 
 # name -> expectations derived once from jar; re-checked every run against jar.

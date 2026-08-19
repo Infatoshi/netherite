@@ -34,8 +34,8 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 # Lane directory under optloop_runs/. Default unchanged (flywheelopt-v1);
-# override via --lane or OPTLOOP_LANE for sibling A/B lanes (e.g. chanlast-v1).
-DEFAULT_LANE = os.environ.get("OPTLOOP_LANE", "flywheelopt-v1")
+# override via --lane for sibling A/B lanes (e.g. chanlast-v1).
+DEFAULT_LANE = "flywheelopt-v1"
 LOCK = "/home/infatoshi/dev/nw/.tmp/gpu0.lock"
 
 EPS = 0.02
@@ -109,15 +109,44 @@ def parse_cfg(spec):
     return name, env
 
 
+def _cfg_to_sets(d):
+    """Map historical KEY=VAL env overrides to trainer --set / flags."""
+    sets = []
+    skip = {"CUDA_VISIBLE_DEVICES", "UV_CACHE_DIR", "TMPDIR", "PYTHONHASHSEED",
+            "CGRAPH_BIN"}
+    for k, v in d.items():
+        if k in skip:
+            continue
+        sets.extend(["--set", f"{k}={v}"])
+    return sets
+
+
 def one_rep(env_over, warmup, log_path):
     env = dict(os.environ)
-    env.update(PINNED)
-    env["BENCH_WARMUP_CHUNKS"] = str(warmup)
-    env["BENCH_MEASURE_CHUNKS"] = "1"
-    env.update(env_over)
-    cgraph_bin = env.get("CGRAPH_BIN")
-    cmd = ([cgraph_bin] if cgraph_bin else
-           UV + [os.path.join(REPO, "blaze", "env", "ppo_chain_cu.py")])
+    env.update({k: v for k, v in PINNED.items()
+                if k in ("CUDA_VISIBLE_DEVICES", "UV_CACHE_DIR", "TMPDIR",
+                         "PYTHONHASHSEED")})
+    merged = dict(PINNED)
+    merged["BENCH_WARMUP_CHUNKS"] = str(warmup)
+    merged["BENCH_MEASURE_CHUNKS"] = "1"
+    merged.update(env_over)
+    cgraph_bin = merged.get("CGRAPH_BIN") or env_over.get("CGRAPH_BIN")
+    sets = _cfg_to_sets(merged)
+    if cgraph_bin:
+        # cgraph_train uses lowercase conf keys
+        cmap = {
+            "N_ENVS": "n_envs", "T_CHUNK": "t_chunk", "EPOCHS": "epochs",
+            "MB": "mb", "MAX_TICKS": "max_ticks", "MAX_WALL": "max_wall",
+            "RNG_SEED": "rng_seed", "BENCH_WARMUP_CHUNKS": "bench_warmup_chunks",
+            "BENCH_MEASURE_CHUNKS": "bench_measure_chunks",
+        }
+        csets = []
+        for k, v in merged.items():
+            if k in cmap:
+                csets.extend(["--set", f"{cmap[k]}={v}"])
+        cmd = [cgraph_bin] + csets
+    else:
+        cmd = UV + [os.path.join(REPO, "blaze", "env", "ppo_chain_cu.py")] + sets
     t0 = time.perf_counter()
     out = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True,
                          text=True, check=False)
@@ -170,7 +199,7 @@ def main():
     ap.add_argument("--no-record", action="store_true")
     ap.add_argument("--lane", default=DEFAULT_LANE,
                     help="optloop_runs/<lane> directory name "
-                         "(default: flywheelopt-v1 or $OPTLOOP_LANE)")
+                         f"(default: {DEFAULT_LANE})")
     args = ap.parse_args()
 
     lane = os.path.join(REPO, "optloop_runs", args.lane)

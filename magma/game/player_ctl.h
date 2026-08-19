@@ -58,11 +58,12 @@ int  gm_player_dig_state_ex(int *lx, int *ly, int *lz, float *progress, int *fac
 /* Full snapshot of the player_ctl.c per-player statics that carry state
  * across ticks and can alter physics or dig timing: the progressive-dig
  * machine (curBlockDamageMP / currentBlock / isHittingBlock / blockHitDelay,
- * attack edge), the rightClickMouse timer + use edge, and the hurt-velocity
- * server-motion shadow. Excluded (documented): s_fov_hand / s_bow_ticks
- * (render-only), s_eat_* (cleared on any tick without use held), s_cursor
- * (empty outside container_click composition). dig_hx/hy/hz are window-LOCAL;
- * only valid against the same ox/oz origin they were exported with. */
+ * attack edge, leftClickCounter), the rightClickMouse timer + use edge, and
+ * the hurt-velocity server-motion shadow. Excluded (documented): s_fov_hand /
+ * s_bow_ticks (render-only), s_eat_* (cleared on any tick without use held),
+ * s_cursor (empty outside container_click composition). dig_hx/hy/hz are
+ * window-LOCAL; only valid against the same ox/oz origin they were exported
+ * with. */
 typedef struct {
     float  dig_progress;
     int    dig_hx, dig_hy, dig_hz;   /* INT_MIN sentinel = no target */
@@ -71,6 +72,7 @@ typedef struct {
     int    dig_delay;
     int    dig_particle_count;       /* entity_pin dig_hit freeze count; 0=use stage */
     int    atk_prev;
+    int    left_click_counter;       /* Minecraft.leftClickCounter */
     int    rc_delay;
     int    use_prev;
     int    hurt_vel_reset;
@@ -79,12 +81,37 @@ typedef struct {
 
 void gm_player_ctl_dig_export(GmPlayerCtlSnap *out);
 void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in);
+/* Preserve window-local controller targets across runtime floating-origin
+ * recentering. dx/dz are the world-origin deltas subtracted from player pose. */
+void gm_player_ctl_recenter(int dx, int dz);
+/* Predict whether clickMouse / sendClickBlockToController run this tick given
+ * the physical attack bit. Matches the leftClickCounter decrement that
+ * gm_player_tick applies; does not mutate state. Runtime entity attacks use
+ * this so damage shares the same post-decrement gate as dig. */
+int  gm_player_left_click_allows(int attack_held);
+/* Minecraft displayGuiScreen: non-inventory container screens pin
+ * leftClickCounter at 10000 while open; closing restores ordinary input. */
+void gm_player_set_gui_blocked(int blocked);
 /* Pinned dig_hit particle billboard count (0 = live stage proxy). */
 int  gm_player_dig_particle_count(void);
 /* 1 when this tick's dig phase reached vanilla's swingArm call in
  * Minecraft.sendClickBlockToController (onPlayerDamageBlock returned true).
  * Valid only between gm_player_tick and the next tick's dig phase. */
 int  gm_player_dig_swing(void);
+/* Consume this tick's PlayerControllerMP progressive-mining hit sound.
+ * Coordinates are world-space and state_id is legacy id|(meta<<12). */
+int  gm_player_take_dig_sound(int *wx, int *wy, int *wz, int *state_id);
+/* dig_trace: 1 + WORLD coords if dig_destroy ran this tick (cleared next
+ * gm_player_tick dig phase). Diagnostic only. */
+int  gm_player_dig_break_event(int *wx, int *wy, int *wz);
+/* dig_trace: relative hardness for a window-local block without mutating dig
+ * state. Uses the same tool/water/ground inputs as the dig tick. */
+float gm_player_block_rel_hardness(const struct Chunk *window,
+                                   const struct PsvPlayer *pl, int creative,
+                                   int hx, int hy, int hz);
+/* Convenience wrapper for the current progressive dig target. */
+float gm_player_dig_rel_hardness(const struct Chunk *window,
+                                 const struct PsvPlayer *pl, int creative);
 
 #ifdef __cplusplus
 }

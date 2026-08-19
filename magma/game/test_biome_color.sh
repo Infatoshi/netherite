@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Standalone build + verify for the REAL biome grass/foliage/water tint
 # (world/light.c cr_*_color_biome, colormap-driven) against a verbatim-Minecraft
-# golden (game/Golden.java). No game Makefile dependency beyond light.o + the
-# generated colormap header. Steps:
+# golden (game/Golden.java). No game Makefile dependency beyond the canonical
+# world-mesh source closure. Steps:
 #   1. compile+run Golden.java (verbatim ColorizerGrass/Foliage over the real
 #      256x256 colormap PNGs read from the client jar via ImageIO) -> golden lines
 #   2. compile+run the C test in `dump` mode -> C-computed lines
@@ -11,32 +11,23 @@
 set -euo pipefail
 
 MAGMA="$(cd "$(dirname "$0")/.." && pwd)"
-BLAZE="$(cd "$(dirname "$0")/../../blaze" && pwd)"
 JAVA_HOME_DIR="${JAVA_HOME_DIR:-/usr/lib/jvm/java-8-openjdk-amd64}"
 JAR="${MC_JAR:-$(cd "$(dirname "$0")/../../.." && pwd)/java/Minecraft/run/gradle/caches/minecraft/net/minecraft/minecraft/1.11.2/minecraft-1.11.2.jar}"
 cd "$MAGMA"
+# shellcheck source=game/standalone_test_common.sh
+source "$(dirname "$0")/standalone_test_common.sh"
 
-CC="${CC:-gcc}"
-CFLAGS="-O2 -ffp-contract=off -Wall -Wextra"
-INCLUDES="-I. -Icore -I${BLAZE}/core"
+magma_standalone_require_block_assets
 
-# Same world/light object closure test_world_live.sh uses (light.c pulls populate
-# + the block-model/facebakery/math/shade/caps deps). world_live.c is not needed.
+# world_live.c is not needed; light pulls the world-mesh closure (incl. config.c).
 SRCS=(
   game/test_biome_color.c
-  world/mesh_mc.c
-  world/light.c
-  world/populate_mc.c
-  assets/blockmodels.c
-  renderkernels/rk_31_facebakery_make_quad.c
-  core/math.c
-  core/shade.c
-  game/caps.c
+  "${MAGMA_WORLD_MESH_SRCS[@]}"
 )
 
 OUT="game/test_biome_color"
 echo "== compiling C =="
-$CC $CFLAGS $INCLUDES "${SRCS[@]}" -o "$OUT" -lm
+magma_standalone_build "$OUT" "${SRCS[@]}"
 
 if [ -f "$JAR" ] && [ -x "$JAVA_HOME_DIR/bin/javac" ]; then
     echo "== golden: verbatim-Java (ImageIO) =="

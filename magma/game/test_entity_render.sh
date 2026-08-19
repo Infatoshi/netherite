@@ -5,9 +5,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=game/standalone_test_common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/standalone_test_common.sh"
 
-CC=${CC:-cc}
-CFLAGS="-ffp-contract=off -Wall -Wextra -O2 -I. -Icore"
 OUT="/tmp/magma_test_entity_render"
 
 # Clean trees and partial atlases: rebuild when missing required sprites
@@ -30,15 +30,14 @@ if ! grep -q 'CR_MOB_PARTICLES' assets/mob_atlas.h || \
   exit 1
 fi
 
-$CC $CFLAGS \
+# shade.c + entity_render geom_dump both call cr_cfg() -> core/config.c required.
+magma_standalone_build "$OUT" \
     game/test_entity_render.c \
     game/entity_render.c \
     assets/blockmodels.c \
     transform.c \
-    core/math.c \
-    core/shade.c \
     cpu/raster_cpu.c \
-    -lm -o "$OUT"
+    "${MAGMA_RENDER_CORE_SRCS[@]}"
 
 echo "built: $OUT"
 "$OUT"

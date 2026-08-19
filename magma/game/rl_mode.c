@@ -34,7 +34,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 
+#include "core/config.h"   /* port_parity_fd registry knob */
 #include "game/config.h"
 #include "game/game.h"
 #include "game/runtime.h"
@@ -42,6 +44,7 @@
 #include "game/frame_capture.h"
 #include "game/hud.h"
 #include "obs_camera.h"   /* blaze verified semantic camera (LUT trig) */
+#include "../../blaze/core/port_parity.h"
 
 #define RL_OBS_R    16   /* horizontal obs radius, blocks */
 #define RL_Y_DOWN   24   /* scan band below player feet   */
@@ -153,8 +156,11 @@ static void rl_select_k(RlBlock *a, int n, int k) {
  * the real env and the batched blaze are bit-identical. oc_pixel reads an
  * OcRegion dense tensor; this cache mirrors the live world over the full ray
  * reach (OC_FAR 48 -> voxels up to 49 from the eye) with a 16-block origin
- * quantum so walking does not refill every block crossing. Cells hold PLAIN
- * BLOCK IDS (cam records ids, not packed states). Refilled whenever the
+ * quantum so walking does not refill every block crossing. Cells hold PACKED
+ * STATES ((id<<4)|meta), the OcRegion contract - oc_block extracts the id
+ * with >>4. magma's world exposes ids, so the fill packs them as id<<4 with
+ * meta 0; the camera only ever reads the id back, so this is exact and the
+ * emitted cam plane is still plain ids. Refilled whenever the
  * quantized eye cell moves or any world mutation bumps gm_world_block_gen,
  * so oc_pixel always sees the live world. Rays can never leave the region
  * (49 + 15 quantum + margin <= RL_CAMREG_N/2 span), preserving the previous
@@ -186,7 +192,8 @@ static void rl_camreg_refresh(const GmRuntime *r, double ex, double ey,
                     continue;
                 }
                 for (iz = 0; iz < RL_CAMREG_N; ++iz)
-                    row[iz] = (u16)gm_world_block(r->world, wx, wy, z0 + iz);
+                    row[iz] = (u16)(gm_world_block(r->world, wx, wy,
+                                                   z0 + iz) << 4);
             }
         }
         rl_camreg_x0 = x0; rl_camreg_y0 = y0; rl_camreg_z0 = z0;
@@ -207,6 +214,15 @@ static RlBlock rl_logs[RL_NLOGS];          /* nearest logs, sorted */
 static int rl_nlog;
 static RlBlock rl_coal[RL_NCOAL];          /* nearest coal ore, sorted */
 static int rl_ncoal;
+
+/* Region bounds of the --snapshot-in that started this process (if any).
+ * Mid-episode "snapshot" dumps can reuse these ("snapshot_bounds":"inherit")
+ * so a resumed blaze env sees the same fixed world extent as the continuous
+ * run that started from the same t0 region. Re-centering on the player at
+ * dump time is the old default and still available via "snapshot_r":N. */
+static int rl_loaded_bounds_valid;
+static int rl_loaded_rx0, rl_loaded_ry0, rl_loaded_rz0;
+static int rl_loaded_rnx, rl_loaded_rny, rl_loaded_rnz;
 
 /* Total count of item id across the main inventory. */
 static int rl_inv_count(const GmRuntime *r, int item) {
@@ -318,6 +334,229 @@ typedef struct {
 } RlBinObs;
 #pragma pack(pop)
 
+static uint64_t rl_parity_stack(uint64_t h, const ICStack *s) {
+    int i;
+    h = bp_hash_i32(h, s->item);
+    h = bp_hash_i32(h, s->count);
+    h = bp_hash_i32(h, s->meta);
+    h = bp_hash_i32(h, s->n_enchants);
+    for (i = 0; i < IC_MAX_ENCHANTS; ++i) {
+        h = bp_hash_i32(h, s->enchants[i].id);
+        h = bp_hash_i32(h, s->enchants[i].level);
+    }
+    return h;
+}
+
+static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
+                            const unsigned char *dep,
+                            const unsigned char *edg,
+                            BpParityRecord *out) {
+    GmPlayerCtlSnap d;
+    ICStack cursor;
+    uint64_t h;
+    unsigned world_mutations;
+    int i, j, any;
+    bp_record_init(out, (int64_t)r->tick);
+    gm_player_ctl_dig_export(&d);
+    cursor = gm_player_cursor();
+    out->debug_bits[BP_DBG_PLAYER_X] =
+        bp_double_bits(r->player.ent.posX + (double)r->ox);
+    out->debug_bits[BP_DBG_PLAYER_Y] = bp_double_bits(r->player.ent.posY);
+    out->debug_bits[BP_DBG_PLAYER_Z] =
+        bp_double_bits(r->player.ent.posZ + (double)r->oz);
+    out->debug_bits[BP_DBG_MOTION_X] =
+        bp_double_bits(r->player.ent.motionX);
+    out->debug_bits[BP_DBG_MOTION_Y] =
+        bp_double_bits(r->player.ent.motionY);
+    out->debug_bits[BP_DBG_MOTION_Z] =
+        bp_double_bits(r->player.ent.motionZ);
+    out->debug_bits[BP_DBG_YAW] = bp_float_bits(r->player.yaw);
+    out->debug_bits[BP_DBG_PITCH] = bp_float_bits(r->player.pitch);
+    out->debug_bits[BP_DBG_ON_GROUND] = (uint32_t)r->player.ent.onGround;
+    out->debug_bits[BP_DBG_FALL_DISTANCE] =
+        bp_float_bits(r->player.fall_distance);
+    out->debug_bits[BP_DBG_SPRINTING] = (uint32_t)r->player.sprinting;
+    out->debug_bits[BP_DBG_SPRINT_TIMER] =
+        (uint32_t)r->player.sprint_toggle_timer;
+    out->debug_bits[BP_DBG_HEALTH] = bp_float_bits(r->vitals.health);
+    out->debug_bits[BP_DBG_FOOD] = (uint32_t)r->vitals.foodLevel;
+    out->debug_bits[BP_DBG_EXHAUSTION] =
+        bp_float_bits(r->vitals.exhaustion);
+    out->debug_bits[BP_DBG_DIG_PROGRESS] = bp_float_bits(d.dig_progress);
+    out->debug_bits[BP_DBG_DIG_HX] =
+        (uint32_t)(d.dig_hitting && d.dig_hx != INT_MIN
+                   ? d.dig_hx + r->ox : INT_MIN);
+    out->debug_bits[BP_DBG_DIG_HY] =
+        (uint32_t)(d.dig_hitting ? d.dig_hy : INT_MIN);
+    out->debug_bits[BP_DBG_DIG_HZ] =
+        (uint32_t)(d.dig_hitting && d.dig_hx != INT_MIN
+                   ? d.dig_hz + r->oz : INT_MIN);
+    out->debug_bits[BP_DBG_DIG_HITTING] = (uint32_t)d.dig_hitting;
+    out->debug_bits[BP_DBG_DIG_DELAY] = (uint32_t)d.dig_delay;
+    out->debug_bits[BP_DBG_ATK_PREV] = (uint32_t)d.atk_prev;
+    out->debug_bits[BP_DBG_LEFT_CLICK_COUNTER] =
+        (uint32_t)d.left_click_counter;
+    out->debug_bits[BP_DBG_RC_DELAY] = (uint32_t)d.rc_delay;
+    out->debug_bits[BP_DBG_USE_PREV] = (uint32_t)d.use_prev;
+    out->debug_bits[BP_DBG_HURT_VEL_RESET] = (uint32_t)d.hurt_vel_reset;
+    out->debug_bits[BP_DBG_SERVER_MOTION_X] =
+        bp_double_bits(d.server_motion_x);
+    out->debug_bits[BP_DBG_SERVER_MOTION_Z] =
+        bp_double_bits(d.server_motion_z);
+    out->debug_bits[BP_DBG_CONTAINER] =
+        bp_debug_pair_i32(r->container, (int32_t)r->parity_container_opens);
+    out->debug_bits[BP_DBG_CONTAINER_WX] =
+        bp_debug_pair_i32(r->container_wx, (int32_t)r->parity_craft_attempts);
+    out->debug_bits[BP_DBG_CONTAINER_WY] =
+        bp_debug_pair_i32(r->container_wy, cursor.item);
+    out->debug_bits[BP_DBG_CONTAINER_WZ] =
+        bp_debug_pair_i32(r->container_wz,
+                          (cursor.count & 0xffff) |
+                          ((cursor.meta & 0xffff) << 16));
+
+    h = bp_hash_begin();
+    h = bp_hash_double(h, r->player.ent.posX + (double)r->ox);
+    h = bp_hash_double(h, r->player.ent.posY);
+    h = bp_hash_double(h, r->player.ent.posZ + (double)r->oz);
+    h = bp_hash_double(h, r->player.ent.motionX);
+    h = bp_hash_double(h, r->player.ent.motionY);
+    h = bp_hash_double(h, r->player.ent.motionZ);
+    h = bp_hash_float(h, r->player.yaw);
+    h = bp_hash_float(h, r->player.pitch);
+    h = bp_hash_i32(h, r->player.ent.onGround);
+    h = bp_hash_float(h, r->player.fall_distance);
+    h = bp_hash_i32(h, r->player.sprinting);
+    h = bp_hash_i32(h, r->player.sprint_toggle_timer);
+    h = bp_hash_float(h, r->vitals.health);
+    h = bp_hash_i32(h, r->vitals.foodLevel);
+    h = bp_hash_float(h, r->vitals.exhaustion);
+    out->digest[BP_PLAYER] = h;
+    out->evidence[BP_PLAYER] = 1;
+    out->active_mask |= BP_BIT(BP_PLAYER);
+
+    h = bp_hash_begin();
+    h = bp_hash_float(h, d.dig_progress);
+    h = bp_hash_i32(h, d.dig_hitting && d.dig_hx != INT_MIN
+                    ? d.dig_hx + r->ox : INT_MIN);
+    h = bp_hash_i32(h, d.dig_hitting ? d.dig_hy : INT_MIN);
+    h = bp_hash_i32(h, d.dig_hitting && d.dig_hx != INT_MIN
+                    ? d.dig_hz + r->oz : INT_MIN);
+    h = bp_hash_i32(h, d.dig_hitting);
+    h = bp_hash_i32(h, d.dig_delay);
+    h = bp_hash_i32(h, d.atk_prev);
+    h = bp_hash_i32(h, d.left_click_counter);
+    h = bp_hash_i32(h, d.rc_delay);
+    h = bp_hash_i32(h, d.use_prev);
+    h = bp_hash_i32(h, d.hurt_vel_reset);
+    h = bp_hash_double(h, d.server_motion_x);
+    h = bp_hash_double(h, d.server_motion_z);
+    out->digest[BP_DIG] = h;
+    out->evidence[BP_DIG] = 1;
+    if (d.dig_hitting) out->active_mask |= BP_BIT(BP_DIG);
+
+    if (gm_world_parity_state(r->world, &h, &world_mutations)) {
+        out->digest[BP_WORLD] = h;
+        out->evidence[BP_WORLD] = world_mutations;
+        if (world_mutations) out->active_mask |= BP_BIT(BP_WORLD);
+    } else {
+        out->measured_mask &= ~BP_BIT(BP_WORLD);
+    }
+
+    h = bp_hash_begin();
+    h = bp_hash_i32(h, r->player.inv.current_item);
+    for (i = 0; i < ISR_MAIN_SLOTS; ++i)
+        h = rl_parity_stack(h, &r->player.inv.main[i]);
+    out->digest[BP_INVENTORY] = h;
+    out->evidence[BP_INVENTORY] = 1;
+    out->active_mask |= BP_BIT(BP_INVENTORY);
+
+    h = bp_hash_begin();
+    any = 0;
+    for (i = 0; i < GM_LIVE_MAX; ++i)
+        if (r->entities.ents[i].active &&
+            r->entities.ents[i].type == 0) ++any;
+    h = bp_hash_i32(h, any);
+    for (i = 0; i < GM_LIVE_MAX; ++i) {
+        const GmLiveEnt *it = &r->entities.ents[i];
+        if (!it->active || it->type != 0) continue;
+        h = bp_hash_item_entity(
+            h, it->x, it->y, it->z, it->mx, it->my, it->mz,
+            it->on_ground, it->age, it->item, it->count, it->meta,
+            it->pickup_delay, it->lifespan);
+    }
+    out->digest[BP_ITEMS] = h;
+    out->evidence[BP_ITEMS] = (uint32_t)any;
+    if (any) out->active_mask |= BP_BIT(BP_ITEMS);
+    if (r->entities.n_overflow || r->entities.spawn_fail_count) {
+        out->measured_mask &= ~BP_BIT(BP_ITEMS);
+        out->evidence[BP_ITEMS] = 0;
+    }
+
+    h = bp_hash_begin();
+    h = bp_hash_u32(h, r->parity_craft_attempts);
+    h = bp_hash_u32(h, r->parity_craft_successes);
+    h = rl_parity_stack(h, &r->parity_last_craft);
+    any = 0;
+    for (i = 0; i < 9; ++i) {
+        h = rl_parity_stack(h, &r->craft_grid[i]);
+        any |= r->craft_grid[i].item > 0 && r->craft_grid[i].count > 0;
+    }
+    out->digest[BP_CRAFTING] = h;
+    out->evidence[BP_CRAFTING] = r->parity_craft_successes;
+    if (any || r->parity_craft_successes)
+        out->active_mask |= BP_BIT(BP_CRAFTING);
+
+    h = bp_hash_begin();
+    h = bp_hash_i32(h, r->container);
+    if (r->container) {
+        h = bp_hash_i32(h, r->container_wx);
+        h = bp_hash_i32(h, r->container_wy);
+        h = bp_hash_i32(h, r->container_wz);
+    }
+    h = bp_hash_u32(h, r->parity_container_opens);
+    for (i = 0; i < 9; ++i) h = rl_parity_stack(h, &r->craft_grid[i]);
+    h = rl_parity_stack(h, &cursor);
+    out->digest[BP_CONTAINERS] = h;
+    out->evidence[BP_CONTAINERS] = r->parity_container_opens;
+    if (r->container || any || (cursor.item > 0 && cursor.count > 0))
+        out->active_mask |= BP_BIT(BP_CONTAINERS);
+
+    h = bp_hash_begin();
+    any = 0;
+    for (i = 0; i < GM_RUNTIME_FURNACES; ++i) {
+        const GmRuntimeFurnace *rf = &r->furnaces[i];
+        const FurnaceLive *f = &rf->state;
+        h = bp_hash_i32(h, rf->active);
+        if (!rf->active) continue;
+        ++any;
+        h = bp_hash_furnace_state(
+            h, rf->wx, rf->wy, rf->wz,
+            f->input.item, f->input.count, f->input.meta,
+            f->fuel.item, f->fuel.count, f->fuel.meta,
+            f->output.item, f->output.count, f->output.meta,
+            f->burn_time, f->current_burn_time, f->cook_time, f->total_cook);
+    }
+    out->digest[BP_FURNACES] = h;
+    out->evidence[BP_FURNACES] = (uint32_t)any;
+    if (any) out->active_mask |= BP_BIT(BP_FURNACES);
+
+    h = bp_hash_begin();
+    for (i = 0; i < RL_NCOAL; ++i) {
+        int present = i < rl_ncoal;
+        for (j = 0; j < 3; ++j) {
+            int v = present ? (j == 0 ? rl_coal[i].x :
+                               j == 1 ? rl_coal[i].y : rl_coal[i].z) : 0;
+            h = bp_hash_i32(h, v);
+        }
+    }
+    for (i = 0; i < RL_CAM_W * RL_CAM_H; ++i) h = bp_hash_u16(h, cam[i]);
+    for (i = 0; i < RL_CAM_W * RL_CAM_H; ++i) h = bp_hash_u8(h, dep[i]);
+    for (i = 0; i < RL_CAM_W * RL_CAM_H; ++i) h = bp_hash_u8(h, edg[i]);
+    out->digest[BP_OBSERVATIONS] = h;
+    out->evidence[BP_OBSERVATIONS] = 1;
+    out->active_mask |= BP_BIT(BP_OBSERVATIONS);
+}
+
 /* ---- .bsnp state snapshot (export: "snapshot":"<path>" action key;
  * restore: --snapshot-in). RlSnapHead/RlSnapItem + the file layout live in
  * blaze/env/blaze_snapshot.h, SHARED with the batched-env reader - this file
@@ -326,22 +565,33 @@ typedef struct {
  * eat/bow/fov statics, break/place/swing counters, projectiles, mobs. */
 #include "../../blaze/env/blaze_snapshot.h"
 
-/* radius = horizontal half-extent of the region in blocks ("snapshot_r"
- * action key, default 32 = the original 64x128x64 region). Everything the
- * camera can see from any in-episode pose must be inside the region (rays
- * reach 49 blocks), so full-chain snapshots use a larger radius. */
-static int rl_snapshot_write(GmRuntime *r, const char *path, int radius) {
+/* Dump pre-tick state to path. Region geometry is either:
+ *   - use_bounds=1: explicit (rx0,ry0,rz0,rnx,rny,rnz) - typically the
+ *     --snapshot-in bounds so a mid-episode resume shares the continuous
+ *     run's fixed world extent ("snapshot_bounds":"inherit")
+ *   - use_bounds=0: radius-centered on the player ("snapshot_r", default 32
+ *     = original 64x128x64). Re-centering is still needed for standalone
+ *     dumps; it is the camera-OOR source for blaze resume after the player
+ *     walks off-center.
+ * Player pose/items/inv are always the live pre-tick values. File format
+ * (blaze_snapshot.h) is unchanged. */
+static int rl_snapshot_write(GmRuntime *r, const char *path,
+                             int use_bounds, int radius,
+                             int brx0, int bry0, int brz0,
+                             int brnx, int brny, int brnz) {
     RlSnapHead h;
     GmPlayerCtlSnap d;
     RlSnapItem items[GM_LIVE_MAX];
     u16 *cells;
+    u8 *light;
     FILE *f;
     unsigned ncoal = 0;
     int i, x, y, z, ok = 1;
+    int half_x, half_z, ensure_r;
 
     memset(&h, 0, sizeof h);
     memcpy(h.magic, "BSNP", 4);
-    h.version = 1;
+    h.version = BLAZE_SNAP_VERSION;
     h.seed = r->seed; h.tick = r->tick;
     h.ox = r->ox; h.oz = r->oz;
     h.px = r->player.ent.posX; h.py = r->player.ent.posY;
@@ -396,16 +646,33 @@ static int rl_snapshot_write(GmRuntime *r, const char *path, int radius) {
         it->lifespan = e->lifespan; it->on_ground = e->on_ground;
         ++h.n_items;
     }
-    if (radius < 8) radius = 8;
-    if (radius > 128) radius = 128;
-    h.rx0 = (int)floor(h.px + (double)h.ox) - radius;
-    h.rz0 = (int)floor(h.pz + (double)h.oz) - radius;
-    h.ry0 = 0; h.rnx = 2 * radius; h.rny = 128; h.rnz = 2 * radius;
+    if (use_bounds) {
+        if (brnx <= 0 || brny <= 0 || brnz <= 0 ||
+            (long)brnx * brny * brnz > (long)1 << 24) {
+            fprintf(stderr, "[rl] snapshot WRITE FAILED: bad inherited "
+                    "bounds %dx%dx%d\n", brnx, brny, brnz);
+            return 0;
+        }
+        h.rx0 = brx0; h.ry0 = bry0; h.rz0 = brz0;
+        h.rnx = brnx; h.rny = brny; h.rnz = brnz;
+        half_x = brnx / 2;
+        half_z = brnz / 2;
+        ensure_r = half_x > half_z ? half_x : half_z;
+    } else {
+        if (radius < 8) radius = 8;
+        if (radius > 128) radius = 128;
+        h.rx0 = (int)floor(h.px + (double)h.ox) - radius;
+        h.rz0 = (int)floor(h.pz + (double)h.oz) - radius;
+        h.ry0 = 0; h.rnx = 2 * radius; h.rny = 128; h.rnz = 2 * radius;
+        half_x = half_z = radius;
+        ensure_r = radius;
+    }
 
-    gm_world_ensure(r->world, psv_floordiv16(h.rx0 + radius),
-                    psv_floordiv16(h.rz0 + radius), (radius + 15) / 16 + 1);
+    gm_world_ensure(r->world, psv_floordiv16(h.rx0 + half_x),
+                    psv_floordiv16(h.rz0 + half_z), (ensure_r + 15) / 16 + 1);
     cells = (u16 *)malloc((size_t)h.rnx * h.rny * h.rnz * sizeof *cells);
-    if (!cells) return 0;
+    light = (u8 *)malloc((size_t)h.rnx * h.rny * h.rnz);
+    if (!cells || !light) { free(cells); free(light); return 0; }
     for (x = 0; x < h.rnx; ++x)
         for (y = 0; y < h.rny; ++y)
             for (z = 0; z < h.rnz; ++z) {
@@ -414,11 +681,16 @@ static int rl_snapshot_write(GmRuntime *r, const char *path, int radius) {
                 int meta = gm_world_meta(r->world, h.rx0 + x, h.ry0 + y,
                                          h.rz0 + z);
                 cells[((long)x * h.rny + y) * h.rnz + z] = mc_state(id, meta);
+                light[((long)x * h.rny + y) * h.rnz + z] =
+                    (u8)((gm_world_sky_light(r->world, h.rx0 + x,
+                                             h.ry0 + y, h.rz0 + z) << 4) |
+                         gm_world_block_light(r->world, h.rx0 + x,
+                                               h.ry0 + y, h.rz0 + z));
                 if (id == RL_BLOCK_COAL) ++ncoal;
             }
 
     f = fopen(path, "wb");
-    if (!f) { free(cells); return 0; }
+    if (!f) { free(cells); free(light); return 0; }
     ok = ok && fwrite(&h, sizeof h, 1, f) == 1;
     ok = ok && (h.n_items == 0 ||
                 fwrite(items, sizeof items[0], h.n_items, f) == h.n_items);
@@ -435,7 +707,10 @@ static int rl_snapshot_write(GmRuntime *r, const char *path, int radius) {
                     c[0] = h.rx0 + x; c[1] = h.ry0 + y; c[2] = h.rz0 + z;
                     ok = fwrite(c, sizeof c, 1, f) == 1;
                 }
+    ok = ok && fwrite(light, 1, (size_t)h.rnx * h.rny * h.rnz, f) ==
+                   (size_t)h.rnx * h.rny * h.rnz;
     free(cells);
+    free(light);
     if (fclose(f) != 0) ok = 0;
     fprintf(stderr, "[rl] snapshot %s: %s (tick %lld, %u items, %u coal)\n",
             ok ? "written" : "WRITE FAILED", path, h.tick, h.n_items, ncoal);
@@ -447,12 +722,15 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
     RlSnapHead h;
     GmPlayerCtlSnap d;
     u16 *cells = NULL;
+    u8 *light = NULL;
+    long vol;
+    int ecx, ecz, erad;
     FILE *f = fopen(path, "rb");
     int i, x, y, z;
 
     if (!f) { snprintf(err, (size_t)err_cap, "cannot open %s", path); return 0; }
     if (fread(&h, sizeof h, 1, f) != 1 || memcmp(h.magic, "BSNP", 4) != 0 ||
-        h.version != 1) {
+        (h.version != 1 && h.version != BLAZE_SNAP_VERSION)) {
         snprintf(err, (size_t)err_cap, "bad .bsnp header: %s", path);
         fclose(f); return 0;
     }
@@ -489,10 +767,32 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
         snprintf(err, (size_t)err_cap, "truncated .bsnp region: %s", path);
         free(cells); fclose(f); return 0;
     }
-    fclose(f);  /* trailing coal list is a derivable mirror; not needed */
+    /* v2 stores magma's own saved skylight nibbles after the (derivable) coal
+     * mirror. They must be read and restored: blocks alone do not determine
+     * saved skylight, so relighting the loaded region from scratch lands on a
+     * DIFFERENT fixed point than the process that dumped it - see
+     * light_load_sky. v1 has no light array; those keep the re-derive path. */
+    vol = (long)h.rnx * h.rny * h.rnz;
+    if (h.version >= 2) {
+        unsigned ncoal = 0;
+        if (fread(&ncoal, sizeof ncoal, 1, f) == 1 && ncoal <= (unsigned)vol &&
+            fseek(f, (long)ncoal * 3 * (long)sizeof(int), SEEK_CUR) == 0) {
+            light = (u8 *)malloc((size_t)vol);
+            if (light && fread(light, 1, (size_t)vol, f) != (size_t)vol) {
+                free(light); light = NULL;
+            }
+        }
+        if (!light) {
+            snprintf(err, (size_t)err_cap, "truncated .bsnp light: %s", path);
+            free(cells); fclose(f); return 0;
+        }
+    }
+    fclose(f);
 
-    gm_world_ensure(r->world, psv_floordiv16(h.rx0 + h.rnx / 2),
-                    psv_floordiv16(h.rz0 + h.rnz / 2), (h.rnx / 2 + 15) / 16 + 1);
+    ecx = psv_floordiv16(h.rx0 + h.rnx / 2);
+    ecz = psv_floordiv16(h.rz0 + h.rnz / 2);
+    erad = (h.rnx / 2 + 15) / 16 + 1;
+    gm_world_ensure(r->world, ecx, ecz, erad);
     for (x = 0; x < h.rnx; ++x)
         for (y = 0; y < h.rny; ++y)
             for (z = 0; z < h.rnz; ++z) {
@@ -500,6 +800,27 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
                 gm_runtime_load_block(r, h.rx0 + x, h.ry0 + y, h.rz0 + z,
                                       mc_state_id(s), mc_state_meta(s));
             }
+    if (light) {
+        /* Consume the bulk load's column relight FIRST (gm_world_load_block_meta
+         * set column_relight_dirty): otherwise the next light_ensure rebuilds
+         * Chunk.generateSkylightMap straight over the restored nibbles. */
+        gm_world_ensure(r->world, ecx, ecz, erad);
+        for (x = 0; x < h.rnx; ++x)
+            for (y = 0; y < h.rny; ++y)
+                for (z = 0; z < h.rnz; ++z)
+                    gm_world_load_sky_light(
+                        r->world, h.rx0 + x, h.ry0 + y, h.rz0 + z,
+                        light[((long)x * h.rny + y) * h.rnz + z] >> 4);
+        free(light);
+        light = NULL;
+    }
+    if (!gm_world_parity_configure(r->world, h.rx0, h.ry0, h.rz0,
+                                   h.rnx, h.rny, h.rnz)) {
+        snprintf(err, (size_t)err_cap,
+                 "cannot configure parity world bounds: %s", path);
+        free(cells);
+        return 0;
+    }
     free(cells);
 
     r->ccx = psv_floordiv16(h.ox); r->ccz = psv_floordiv16(h.oz);
@@ -527,6 +848,7 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
     r->vitals.saturation = h.saturation; r->vitals.exhaustion = h.exhaustion;
     r->vitals.foodTimer = h.food_timer;
     r->player.health = h.health; r->player.food = (float)h.food;
+    memset(&d, 0, sizeof d); /* left_click_counter not in .bsnp v1 */
     d.dig_progress = h.dig_progress;
     d.dig_hx = h.dig_hx; d.dig_hy = h.dig_hy; d.dig_hz = h.dig_hz;
     d.dig_hitting = h.dig_hitting; d.dig_delay = h.dig_delay;
@@ -546,6 +868,12 @@ static int rl_snapshot_load(GmRuntime *r, const char *path,
                                        : ic_mk(h.inv[i][0], h.inv[i][1],
                                                h.inv[i][2]));
     r->tick = h.tick;
+
+    /* Remember this dump's region so a later mid-episode snapshot can inherit
+     * the same fixed extent (continuous-vs-resume camera parity). */
+    rl_loaded_bounds_valid = 1;
+    rl_loaded_rx0 = h.rx0; rl_loaded_ry0 = h.ry0; rl_loaded_rz0 = h.rz0;
+    rl_loaded_rnx = h.rnx; rl_loaded_rny = h.rny; rl_loaded_rnz = h.rnz;
     return 1;
 }
 
@@ -577,7 +905,7 @@ static int rl_str(const char *line, const char *key, char *out, int cap) {
  * Action-repeat trainers only consume the camera once per decision, so they
  * send "cam":0 on repeat ticks; scan/logs/coal/inventory stay per-tick
  * fresh. Record layout is unchanged - parsers need no update. */
-static void rl_emit_obs(GmRuntime *r, int bin, int want_cam) {
+static int rl_emit_obs(GmRuntime *r, int bin, int want_cam, FILE *parity) {
     GmPlayerView v;
     RlBlock *blk = rl_cache;
     int nblk;
@@ -774,8 +1102,16 @@ static void rl_emit_obs(GmRuntime *r, int bin, int want_cam) {
         printf("]}\n");
     }
     fflush(stdout);
+    if (parity) {
+        BpParityRecord record;
+        rl_parity_build(r, cam, dep, edg, &record);
+        if (fwrite(&record, sizeof record, 1, parity) != 1 ||
+            fflush(parity) != 0)
+            return 0;
+    }
     rl_prof[3] += rl_now() - tp;
     ++rl_prof_n;
+    return 1;
 }
 
 int gm_rl_run(const GmConfig *cfg) {
@@ -785,6 +1121,8 @@ int gm_rl_run(const GmConfig *cfg) {
     size_t cap = 0;
     long long t;
     GmFrameCapture *frames = NULL;
+    FILE *parity = NULL;
+    int rc = 0;
 
     if (!gm_runtime_init(&r, cfg, err, sizeof err)) {
         fprintf(stderr, "runtime: %s\n", err);
@@ -796,6 +1134,17 @@ int gm_rl_run(const GmConfig *cfg) {
         fprintf(stderr, "snapshot-in: %s\n", err);
         gm_runtime_destroy(&r);
         return 1;
+    }
+
+    {
+        int pfd = cr_cfg()->port_parity_fd;
+        if (pfd >= 0) {
+            if (!(parity = fdopen(pfd, "wb"))) {
+                fprintf(stderr, "[rl] invalid port_parity_fd: %d\n", pfd);
+                gm_runtime_destroy(&r);
+                return 1;
+            }
+        }
     }
 
     /* --frames-out during an RL run: render the real game view alongside the
@@ -812,7 +1161,13 @@ int gm_rl_run(const GmConfig *cfg) {
         }
     }
 
-    rl_emit_obs(&r, cfg->rl_bin, 1);
+    if (!rl_emit_obs(&r, cfg->rl_bin, 1, parity)) {
+        fprintf(stderr, "[rl] parity pipe write failed\n");
+        if (parity) fclose(parity);
+        if (frames) gm_frame_capture_close(frames);
+        gm_runtime_destroy(&r);
+        return 1;
+    }
     for (t = 0; cfg->ticks < 0 || t < cfg->ticks; ++t) {
         GmAction a;
         if (getline(&line, &cap, stdin) < 0) break;
@@ -833,19 +1188,49 @@ int gm_rl_run(const GmConfig *cfg) {
                                   * triggers here, but gravity blocks keep
                                   * settling after a break - stay dirty for
                                   * 2s of ticks past the last one */
-        /* discrete primitives, applied BEFORE the tick so their effect is
-         * visible in this step's obs: "craft":N (rl_crafts index; fails
-         * silently when inputs/table are missing - the obs inv_counts tell
-         * the learner what happened), "interact":1 (open the nearest
-         * crafting table / furnace in reach) and "smelt":1 (operate the
-         * open furnace: collect output, load iron ore + coal). */
+        /* Discrete primitives are applied before the tick so their effects
+         * are visible in this step's observation. */
         /* "snapshot":"<path>": dump the exact pre-tick state (runs before
-         * craft/interact so the file is the clean tick-boundary state). */
+         * craft/interact so the file is the clean tick-boundary state).
+         * Region geometry:
+         *   "snapshot_bounds":"inherit"  -> loaded --snapshot-in bounds
+         *   "snapshot_r":N               -> re-center radius N on player
+         *   neither + bounds loaded      -> inherit (default when resumed)
+         *   neither + no loaded bounds   -> radius 32 (legacy) */
         {
             char snap_path[512];
-            if (rl_str(line, "snapshot", snap_path, sizeof snap_path))
-                (void)rl_snapshot_write(&r, snap_path,
-                                        (int)rl_num(line, "snapshot_r", 32));
+            char snap_bounds[32];
+            if (rl_str(line, "snapshot", snap_path, sizeof snap_path)) {
+                int want_inherit = 0;
+                int use_bounds = 0;
+                int radius = 32;
+                if (rl_str(line, "snapshot_bounds", snap_bounds,
+                           sizeof snap_bounds) &&
+                    !strcmp(snap_bounds, "inherit")) {
+                    want_inherit = 1;
+                } else if (strstr(line, "\"snapshot_r\"")) {
+                    radius = (int)rl_num(line, "snapshot_r", 32);
+                } else if (rl_loaded_bounds_valid) {
+                    want_inherit = 1;
+                }
+                if (want_inherit) {
+                    if (!rl_loaded_bounds_valid) {
+                        fprintf(stderr,
+                                "[rl] snapshot WRITE FAILED: "
+                                "snapshot_bounds=inherit but no "
+                                "--snapshot-in bounds are loaded\n");
+                    } else {
+                        use_bounds = 1;
+                        (void)rl_snapshot_write(
+                            &r, snap_path, use_bounds, 0,
+                            rl_loaded_rx0, rl_loaded_ry0, rl_loaded_rz0,
+                            rl_loaded_rnx, rl_loaded_rny, rl_loaded_rnz);
+                    }
+                } else {
+                    (void)rl_snapshot_write(&r, snap_path, 0, radius,
+                                            0, 0, 0, 0, 0, 0);
+                }
+            }
         }
         {
             int craft = (int)rl_num(line, "craft", -1);
@@ -867,9 +1252,15 @@ int gm_rl_run(const GmConfig *cfg) {
                 break;
             }
         }
-        rl_emit_obs(&r, cfg->rl_bin, (int)rl_num(line, "cam", 1));
+        if (!rl_emit_obs(&r, cfg->rl_bin, (int)rl_num(line, "cam", 1),
+                         parity)) {
+            fprintf(stderr, "[rl] parity pipe write failed\n");
+            rc = 1;
+            break;
+        }
     }
     if (frames) gm_frame_capture_close(frames);
+    if (parity && fclose(parity) != 0) rc = 1;
 
     if (rl_prof_n > 0) {
         double tot = rl_prof[0] + rl_prof[1] + rl_prof[2] + rl_prof[3];
@@ -882,5 +1273,5 @@ int gm_rl_run(const GmConfig *cfg) {
     }
     free(line);
     gm_runtime_destroy(&r);
-    return 0;
+    return rc;
 }

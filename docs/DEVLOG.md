@@ -1,5 +1,35 @@
 # DEVLOG (compressed)
 
+## 2026-08-18 overnight native-surface
+
+Loop-1 stayed on `wt/native-surface`. Not merged to master.
+
+Landed tonight on that branch:
+
+- Magma raster smoke and mob inspect moved to `magma/tests/` so `make test` finds them.
+- Root `make` on Darwin builds `magma_game` and `magma_game_metal`.
+- Root `make test` includes verify tape-info and Darwin `blaze/nn test-metal`.
+- `make assets` is the only asset path. Deleted `scripts/bootstrap_assets.sh`.
+- Sweep env-knob step is `make -C verify env_knob_gate-check`.
+- Public export is the C binary only. Deleted `scripts/export_public_tree.sh`.
+- Evidence trees gone: `artifacts/`, `demos/`, `optloop_runs/`, `verify/demo/`,
+  `verify/trace/report/`, `CLAUDE.md`, one-use video scripts.
+- Sweep and coal prefix readers look in `blaze/rl/fixtures/`.
+
+Mac measured (this box, n=1): `make test` 6.55s PASS. `make` 4.47s PASS
+(`magma_game` + `magma_game_metal`). `make -C blaze/nn test-metal` 1.75s PASS.
+
+C replay slice 2 merged: apply existing snapshot_patch cache at tick 0.
+Canon 8-tick and 32-tick on this tree: magma_rc 0, first_div none,
+nearby_hash 42a84376d3f195a9 match 1, snapshot_patch events 468160,
+wall 1.24s / 1.25s.
+
+Magma `--conf` now owns seed/world/script/state_out so C replay can drive
+this tree's magma_game (slice 1 had used a dirty-master binary).
+
+Still out: merge/push to master, binary tape, frames/PNG, Python trainer
+cutover, Anvil CUDA check.
+
 Code and goldens are ground truth. Short history only; full agent map is root
 `AGENTS.md`. Git has the long form. Old one-shot reports: `docs/archive/`.
 
@@ -1220,3 +1250,1445 @@ fails, decomposed exactly.
 - Scenario truth: every nether_elytra take dies (fire landing or wall crash
   by arm-tick luck); rc=0 for it is gated on items 5 (lavafall snapshot) and
   17, not on more takes.
+
+## 2026-08-03: human survival divergence grind
+
+The seed-80302 human tape was converted into a fresh, deterministic 4,810-tick
+oracle campaign on seed 917351 with opt-in dig-state evidence. The resulting
+controller/raycast comparator is phase-aware and fail-closed rather than
+silently aligning render observations with post-input state.
+
+- Closed controller state lifetime, floating-origin target recentering, block
+  GUI `leftClickCounter` pinning, chest collision, furnace ROCK/tool and cook
+  initialization semantics, outside-GUI THROW, and post-move water-entry
+  current. Liquid-flow normalization now preserves Java's float-returning
+  `MathHelper.sqrt`.
+- Final fresh-fixture receipt: physics exact for 4,810 ticks at `1e-9`;
+  inventory PASS (252 independent ticks), entities PASS (6,687 rows), Java
+  world hash PASS (4,810 ticks), and dig trace PASS (4,809 paired ticks).
+- Implemented vanilla `InventoryEffectRenderer` panel shifting, hit testing,
+  background/icon, amplifier, and duration. Resistance-IV inventory t380 fell
+  from 35.48/ch to 1.30/ch with no remaining inventory-panel cluster.
+- Pixel gate remains honestly open: 7 of 239 sampled frames still have
+  unexplained clusters, worst t80 at 25,959 px. The original seed-80302 human
+  tape still cannot recover pre-`bc`/`gclk`/dig-trace events.
+
+## 2026-08-03 (later): blaze spawn-chain + world-dynamics parity flywheel
+
+Closed the blaze-side fidelity flywheel so canonical hidden state is compared
+bit-for-bit on every tick of the spawn-to-torch chain (93c0cbc, e7a85ce,
+9b61ec4, 7a4ab1d), then re-pointed the "main devbox" for this stack to gamer.
+
+- PARY flywheel (93c0cbc): Magma / blaze CPU / blaze CUDA share one packed
+  subsystem record (digest + evidence count + active bit + named scalars),
+  emitted every tick and compared fail-closed. Canonical spawn-to-torch chain
+  2,058 ticks: player, dig, inventory, items, crafting, containers, world.
+- World dynamics (7a4ab1d): traced the first world divergence to tick-19 grass
+  spread (dirt 48 -> grass 32 at -11,62,-40, source -11,65,-39) - Magma mutated,
+  blaze did not. Ported the deterministic scheduler + grass rule into the shared
+  core; added .bsnp v2 packed per-cell sky/block light (v1 fails closed as
+  unrepresented); fixed a later tick-323 divergence caused by stale light after
+  a vertical log column was mined, with radius-15 incremental light propagation.
+  world_dynamics promoted to VERIFIED. M1 and M2 (64 CUDA lanes) both byte-exact
+  across the full BOLR + PARY record, 2,058 ticks.
+- General random_ticks (leaves/fire/crops) stays BLOCKED; only the grass slice
+  is evidenced by the committed chain.
+- Pixel research (read-only): seed-917351 auto-campaign has physics + state
+  verified clean, so its pixel fails are pure rendering: hand (viewmodel)
+  near-black, hud hotbar darker, particles missing additive glow, and the
+  horizon luminance/fog wash - the last matched to the already-closed
+  slime_bounce fog family (do NOT retune GM_TERRAIN_FOG_*). Recorded in
+  OPEN_DIVERGENCES for a future renderer grind.
+- Devbox: provisioned gamer (RTX 3090, sm_86, CUDA 13.3) as the main box for
+  netherite + game. Full source tree synced; magma_game, blaze_cpu.so, and
+  blaze_cuda.so (sm_86) rebuild clean on gamer's own gcc 15.2 / CUDA 13.3;
+  headless smoke OK; verify_cpu chain VERIFIED and verify_cuda chain (64 lanes)
+  PASS byte-exact on gamer. CUDA arch must stay sm_86 there vs sm_120 on anvil.
+- gamer is now a standalone devbox: GitHub SSH key added to the Infatoshi
+  account (gamer pulls/pushes on its own over `git@github.com`; verified fetch
+  + reset to origin). The build system now auto-selects `BLAZE_SM` from the
+  host GPU via nvidia-smi (3090 -> sm_86, Blackwell -> sm_120), so no arch
+  footgun when building on either box (55cb503).
+
+## 2026-08-05: 3090 chain-trainer profiling + EPOCHS/ENT sweep (gamer)
+
+- Profiled the batched chain trainer at N=1024 on the 3090 (nsys +
+  BENCH_PHASES). Per ~745ms chunk: PPO update 56% (mb_bwd 256ms + mb_fwd
+  161ms), env/step 21% (k_tick_warp ~136ms; k_obs render only ~13ms, 1.9%
+  of GPU time), rollout policy_fwd 10%. The earlier "sim/camera is the
+  bottleneck" read was wrong on both counts - the update dominates, and
+  inside the sim the tick kernel dwarfs the render.
+- Bench baseline (BENCH mode, N=1024 T_CHUNK=32 EPOCHS=2, 3 reps):
+  176.4k env-ticks/s, run-to-run sd 0.3%. Negatives (all measured, all
+  discarded): CHANNELS_LAST=1 -7% (the nchw<->nhwc transposes are cuDNN's
+  fast-path toll on sm_86, not removable waste; +TF32 combo same, CUDNN_BENCH
+  -39%); k_tick_warp __launch_bounds__(128,{3,4}) +0.8%/+0.65% only - its
+  16.7% occupancy is pinned by 255 regs + 10.5KB thread stack, bounds just
+  trade regs for spills (parity gate stayed bitwise PASS; reverted);
+  GRAPH_ROLLOUT +1.0-1.5%; GRAPH_UPDATE infeasible on 24GB at N=1024 (graph
+  pools OOM; cudaErrorIllegalAddress under expandable_segments).
+- KEPT: EPOCHS=1 + ENT=0.003 (env vars only, no source change). EPOCHS=1
+  alone gives +39% throughput (245k ticks/s) but collapses wpick learning at
+  the default ENT=0.01 (t0 peaked 0.10 at 127M ticks, entropy drifted to
+  ~9.6 near-uniform, sparse crafting skill washed out; dense-shaped log
+  stage survived). A 150s/config ENT screen on SUCCESS_ITEM=17 separated
+  0.003 (t0 0.32) from 0.01 (0.06, over-explores) and 0.001 (0.07,
+  premature freeze). Confirmed on SUCCESS_ITEM=270: t0 50% at 4.5 min (69M),
+  80% at 7.8 min (116M), 90% at 14.9 min (217M), plateau ~89% (best trailing
+  0.935); vs EPOCHS=2 ENT=0.01 baseline 9.6/14.7/18.4 min, plateau ~92%.
+  Wall-clock to 80% halved; ticks-to-90% slightly worse (217M vs 195M).
+  Artifacts: blaze/rl/out/wpick_e1lo_net.pt + wpick_e1lo_curve.npy (kept),
+  wpick_e1_curve.npy (ENT=0.01 collapse record). Single seed-set, RNG_SEED=0.
+- Tier-B native trainer (delegated Opus build, branch wt/nativetrain,
+  blaze/rl/ntrain/): pure C/CUDA `blaze_train` (cuDNN/cuBLAS, no
+  libtorch/python in the exec path), magma-style --conf/--set/--dump-config
+  registry replacing all trainer env vars. Gates: ldd clean; logits 6.7e-8 vs
+  torch checkpoint; gradcheck all tensors (worst 6.9e-3 vs 0.02, found+fixed a
+  head-offset bug in the reference loss kernel); env parity untouched;
+  297-301k env-ticks/s (1.2x python). The initially-reported 1.55x
+  sample-efficiency gap RETRACTED after a 5-native + 2-python seed sweep:
+  python's own seed spread (69-108M ticks to t0 50%) covers it; native seeds
+  span 73-125M. See worktree NOTES.md ("do not re-open"). Get-a-log post-peak
+  t0 decay shown task-inherent (python control decays on the same schedule).
+  Future trainer comparisons must target a multi-seed median, never the 69M
+  seed-0 curve. Unmerged; merge decision pending.
+- Pre-session gate check (2026-08-05 night prep): verify_cpu --chain FAILED on
+  BOTH boxes at tick 439 (cam) on the clean committed tree. --port-parity
+  localized it 420 ticks earlier: world digest diverges at tick 19 (the grass
+  spread) with Blaze evidence=0 active=0 - blaze world dynamics silently OFF
+  because rl/out/snaps/s10_t0.bsnp was the stale Jul-24 v1 bake (no per-cell
+  light; v1 "fails closed" only in PARY evidence, BOLR gate ran blind).
+  The Aug-3 VERIFIED runs used a regenerated v2 snapshot that never synced
+  (snaps are gitignored). Fix: re-bake t0 snapshots (T0=1 SEEDS=10
+  make_snapshots.py) on gamer AND anvil; chain gate now PASS 2058 ticks
+  zero-diff in ~2.8s on both. Hardening TODO: --chain should refuse/flag v1
+  snapshots loudly, and the standard loop should include --port-parity
+  (subsystem digests catch world divergence 420 ticks before cam does).
+- verify_cuda --chain profile: 109.5s of the 111s is lanes_match - 64 serial
+  per-lane blaze_emit round-trips per tick from Python. Sim cost is noise.
+  Fix direction: batched all-lanes emit (one call/tick); target <15s.
+
+## 2026-08-05 overnight: checkpoint/resume gate, Mac parity, Metal scoping
+
+Delegated sprint (grok delegates in isolated worktrees, one Opus on the
+verify_cuda batching). Each result below re-verified by re-running the gate
+first-hand, not taken from the delegate's report.
+
+- Checkpoint/resume determinism gate (branch wt/ckresume, commit 85c7a73,
+  new blaze/env/verify_resume.py, 477 lines, zero sim edits): magma's
+  existing "snapshot":"path" action key (pre-tick dump, snapshot_r=49) +
+  --snapshot-in resume is BYTE-EXACT. For T in {400,1000,1600}: continuous
+  chain replay vs fresh-process resume matches on full BOLR for all
+  remaining ticks, and blaze_cpu resumed from the same mid-episode .bsnp
+  matches the resumed magma (gated fields). Whole gate 7.2s. Selftest:
+  one corrupted feet-cell byte -> first-mismatch tick 20 blocks field,
+  loud fail; v1/no-light snapshot -> rejected before resume. This is the
+  "start at a checkpoint, resume, pure environment determinism" feature:
+  it already existed in rl_mode; now it is proven and gated.
+- macOS CPU parity (branch mac/cpu-parity on the macbook, commit 4e18187):
+  magma_game + blaze_cpu.so build natively on Apple Silicon (only change:
+  9-line Makefile Darwin OpenMP via Homebrew libomp; .so name kept).
+  verify_cpu --chain PASS 2058 ticks zero-diff in 2.9s on the M4 Max.
+  Cross-platform: SHA256 over the gated BOLR stream is BIT-IDENTICAL
+  Mac/arm64 vs Linux/x86_64 (both magma and blaze) - arm64 libm did not
+  diverge on this chain. Strong basis for Metal determinism claims.
+  INCIDENT: the delegate ran `git checkout mac/cpu-parity -- .` during
+  branch setup and destroyed a 21-line uncommitted paper/main.tex edit on
+  the Mac (unrecoverable: no stash/snapshot/editor history). All committed
+  work intact (c453c7f is an ancestor of master). Delegate prompts now
+  carry an explicit git deny-list.
+- Metal scoping (from code, not speculation): magma already HAS a verified
+  Metal renderer (make game-metal, scripts/mac_metal_verify.sh, VERIFY.md
+  L413, CUDA<->Metal kernel-pair hash manifest). blaze obs camera is
+  float32 by design (blaze/core/obs_camera.h FLOAT DDA) -> Metal k_obs is
+  portable and bit-exact-gateable. blaze TICK is double-precision and
+  Metal has no FP64 -> Mac blaze = CPU tick (+ optional Metal obs); a
+  GPU tick on Metal would need soft-double (weeks, out of scope).
+- verify_cuda chain gate: 128.8s -> 17.6s (wt/gatefix, Opus delegate +
+  one follow-up commit). Batched blaze_emit_all (one block per env - one
+  thread per block, 64 packed into one block serialized 0.94MB of stores
+  on one SM): emit 49.75ms -> 0.99ms/tick, zero-copy numpy compare. The
+  15s target was honestly missed: k_tick_raw is 7ms/tick per-env CRITICAL
+  PATH; switching its batch launch from 2x32 to <<<n,1>>> (no collectives;
+  the env>=0 branch already ran <<<1,1>>>) bought only 18.4->17.6s
+  measured 2 reps each - the predicted ~5s was wrong, the tick is
+  latency-bound, not scheduling-bound. Corruption injection: fast path
+  and per-lane fallback byte-identical verdicts on 4 lanes/offsets;
+  batched compare only decides whether the per-lane loop can be skipped.
+  v1 snapshots now BLOCK (exit 3) verify_cpu --chain/--iron and
+  verify_cuda before stepping (the has_unrepresented plumbing already
+  knew light==NULL but only spoke under --strict-capabilities).
+- Learned-policy achievement tape (wt/wptape): wpick_e1lo_net.pt sampled
+  rollout on the real magma env, seed 10, best-of-5 -> wooden pickaxe at
+  tick 1540; tape truncated to 1561 ticks (78s of gameplay), committed
+  with a .gitignore allowlist. Gates (all re-run first-hand): magma vs
+  blaze CPU byte-exact 1561 ticks (2.8s); CPU vs 4 CUDA lanes byte-exact
+  (16.8s); original scripted gate untouched. Full 6000-tick episode
+  diverges at tick 1854 (cam, post-achievement) on the known
+  world-dynamics gap - non-gated blocks/logs already differ there. New
+  --tape override on verify_cpu/verify_cuda (default unchanged).
+- blaze Metal k_obs LANDED (mac/cpu-parity 5454de6, grok delegate,
+  re-verified first-hand on the Mac): expression-for-expression float
+  MSL port of oc_pixel (obs_camera.h will not compile as MSL: no double,
+  no stdint, address spaces; sin LUT 256KB > 64KB constant cap -> device
+  buffer), allocate-once ObjC host, -fno-fast-math -ffp-contract=off.
+  Gate verify_metal_obs.py: 2059 frames CPU==Metal BIT-EXACT over the
+  chain tape in 1.24s; yaw +360ulp selftest fails loudly. magma Metal
+  re-verify at HEAD: all 5 raster layers bit-exact, tape replay gate
+  PASS (one-line metal.mk link fix: core/config.c for _cr_cfg). Followup
+  hardening: the MSL oc_pixel duplicate is NOT yet hash-paired to
+  obs_camera.h in a parity manifest (magma's CUDA<->Metal manifest
+  pattern) - add before touching either side.
+- Mid-episode blaze resume "divergence" ROOT-CAUSED (wt/ckresume
+  acc650d): NOT a loader bug and NOT state divergence. On the learned
+  tape, blaze resumed from a T=400/T=1000 moved-player checkpoint keeps
+  ALL subsystem digests (player/dig/inventory/items/world/crafting/
+  containers) byte-matched to the resumed magma; only cam pixels differ,
+  first at ticks 624/1104, because OC_FAR=48 rays exit the fixed
+  radius-49 snapshot region once the agent wanders off the dump pose and
+  hit air in blaze where magma's sliding rl_camreg window sees real
+  blocks (T=400: pixel(34,17) log id 17 at (10,64,67) vs air; margin to
+  region edge 37.8 < 48). Continuous-from-t0 escapes it because T0_R=64
+  (128^3) covers this tape's wander. Radius 64 mid-episode only delays
+  it (fails at 1428). Inherent to the fixed-region model - would need
+  region streaming/re-centering or trajectory-sized dumps. verify_resume
+  now classifies pure camera-OOR as BLOCKED (exit 3) with pixel, pose,
+  region bounds, and digest evidence; any non-obs digest mismatch stays
+  a hard FAIL. State determinism across checkpoint/resume is therefore
+  fully proven on both tapes; only out-of-region pixels are exempt,
+  which is exactly the "state, not pixels" verification posture.
+
+## 2026-08-05 (cont): merge train + three follow-ups landed
+
+All overnight branches merged to master and verified on gamer, anvil,
+and the Mac at the same HEAD (8b0f9e9); every result below re-run
+first-hand after merge.
+
+- Merge integration bug (caught by test_emit_all_fallback, fixed
+  36291fe): with the per-lane emit fallback active, the batched
+  state-digest ran BEFORE lanes rendered their cameras and digested
+  stale frames (the observations digest hashes the env's cam/dep/edg
+  buffers). Batched parity now runs only after a batched emit; the
+  per-lane path digests per lane, post-render.
+- The state-digest gate immediately caught a REAL divergence the pixel
+  gate could not see: learned tape world digest FAIL at tick 1452
+  (evidence 21 vs 20), invisible to cam until 1854. Root cause (grok
+  delegate, confirmed by magma snapshot cell-diff, NOT the assumed leaf
+  decay): grass smother - crafting table placed at act 941, magma
+  zeroes sky light on placement, blaze only had the dig-time
+  cu_light_relax_open brighten path and never DARKENED light on
+  opacity increase, so the already-ported grass rule never fired. Fix
+  (wt/randtick2 c31760f, 53 lines in blaze_core.h): cu_light_raw_sky
+  seed + cu_light_relax_close (radius-15 re-seed then 15x relax) wired
+  into cu_world_set_state on opacity rise - the exact dual of the Aug-3
+  dig brighten. Learned tape now passes state digests all 1561 ticks;
+  scripted CPU/CUDA gates unchanged. Leaf decay / fire / crops remain
+  BLOCKED: provably uninvolved here (no CHECK_DECAY mutations on this
+  fixture); leaf decay additionally needs neighbor-notify on log break.
+- Mid-episode camera-OOR closed by bounds inheritance (wt/oorfix
+  2066f86): rl_mode remembers the --snapshot-in region bounds and
+  mid-episode dumps reuse them ("snapshot_bounds":"inherit", the
+  default for resumed processes; "snapshot_r" keeps the re-centered
+  behavior). Resumed blaze then sees exactly the continuous run's
+  envelope: learned-tape resume gate now PASS at T=400/1000/1500
+  (was BLOCKED), scripted + selftest + chain gates green. Re-centered
+  dumps still classify BLOCKED (kept as an explicit --recenter path).
+  Known limits: inheritance never EXPANDS the envelope (trajectories
+  beyond T0_R still need streaming or bigger bakes), and chained
+  resumes should always inherit from the original t0 process.
+- obs kernel-pair lockstep (wt/obs-manifest 610db47): obs_camera.h <->
+  blaze_metal_obs.metal hash-paired as oc_pixel in
+  verify/kernels/parity_manifest.json (whole-file pairs; 10 pairs
+  total); drift on either side fails test_kernel_pairs.py until
+  re-recorded; Mac kernel_parity_gate.sh now also runs
+  verify_metal_obs.py --chain as the pair's numeric half (ALL PASS on
+  the Mac incl. obs 0.9s). Pre-existing, unrelated: anvil's CUDA
+  raster numeric gate fails on mob_yaw (worst mad 9.27, ~49k px) -
+  present on clean master, needs its own triage.
+- Cross-box suite at 8b0f9e9: gamer CPU 2.8s / CUDA 19.1s (3090),
+  anvil CPU 2.3s / CUDA 13.7s (Blackwell), Mac CPU 2.8s / Metal obs
+  0.87s / 10 kernel pairs OK. Open follow-ups: regenerate a full
+  6000-tick learned episode to measure where first divergence sits now
+  that light-close landed (was cam@1854); anvil mob_yaw raster triage.
+- Full 6000-tick learned episode re-measured post light-close
+  (recording is deterministic: fresh rollout's first 1561 actions are
+  byte-identical to the committed tape; full tape now committed at
+  blaze/rl/out/chain_actions_s10_learned_full.json, along with the
+  generating policy net wpick_e1lo_net.pt): ALL SEVEN sim
+  subsystem digests (world/player/dig/inventory/items/crafting/
+  containers) VERIFIED for every one of the 6000 ticks (8.7s,
+  --port-parity run). The 1854 "world-dynamics gap" attribution is
+  RETRACTED: with light-close in, the only divergence on the whole
+  5-minute episode is cam pixels from tick 1854, where the player
+  stands 43.3 blocks from the region's -z edge and OC_FAR=48 rays
+  cross the T0_R=64 envelope - the same fixed-region camera-OOR
+  mechanism verify_resume classifies, now on the continuous run. Sim
+  state is 100% oracle-exact for the full learned episode; extending
+  byte-exact CAM past 1854 needs a bigger bake or region streaming,
+  not sim fixes.
+- anvil mob_yaw raster triage RESOLVED (grok delegate, verified
+  first-hand; merge of wt/mobyaw-triage): not kernel math and not
+  Blackwell-specific - a host-side race. window_compose reuses one
+  entity_verts buffer across same-frame entity/item/fire/particle
+  emits, and the CUDA path async-H2D'd straight from that live
+  pointer; once the daylight zombie-fire overlay started (~frame 41)
+  the in-flight copy saw clobbered verts and drew greyscale garbage
+  (R=G=B, 16 unique values) over the correct silhouette. CPU==Metal
+  passed because Metal snapshots verts into g_vstage[CR_SH_RING] at
+  enqueue; fix mirrors that on CUDA (pinned host + device staging
+  ring, CPU memcpy then async H2D, transform from the slot). Kernel
+  bodies unchanged; _helpers cuda hash re-recorded in the manifest.
+  Makefile now auto-detects GAME_SM (sm_120 Blackwell / sm_86 3090).
+  kernel_parity_gate.sh ALL PASS re-run on both anvil (mob_yaw worst
+  mad 0.000049, was 9.27) and gamer (sm_86 auto-build confirmed);
+  verify/kernels pytest green on both. Gate-script note: it defaults
+  CUDA_VISIBLE_DEVICES=1, so on single-GPU gamer run it with
+  CUDA_VISIBLE_DEVICES=0.
+- Sim2real: wpick_e1lo_net (trained entirely in blaze) run CLOSED-LOOP
+  in the real Java 1.11.2 client on gamer via qrl_chain_demo
+  (PYTHONPATH=blaze/env now needed - ppo_chain_cu moved). Seed 10,
+  sampled, 5 tries x 6000 ticks: crafted the WOODEN PICKAXE in 2/5
+  attempts (a1: 2 picks then died to night mobs; a4: 1 pick), 3/5
+  stalled at logs3 - all three in the same mode, crafting table placed
+  + GUI open (cont=1) without further crafts; worth a targeted look at
+  Java-vs-blaze container obs/craft semantics. Successful craft landed
+  in ticks 1200-1600 (blaze tape: 1540). Blaze-side plateau is ~89%,
+  so transfer is real with a gap explained at least partly by
+  night/mobs existing in Java but not the training env. Action
+  integrity: bridge FNV64 acks == local digests for all 6000
+  actions/attempt. Evidence: blaze/rl/out/sim2real_wpick_s10.json
+  (tracked); clips on Mac demos/: chain_s10_learned.mp4 (magma render
+  of the verified tape, 0/7 tree -> 4/7 pick) and java_wpick_s10_a1.mp4
+  (real Java, ~1.5x real time). Throughput ~8.5 t/s on llvmpipe.
+- gamer Java-client bootstrap gotcha: the gradle offline cache had
+  lost its artifact BINDINGS (every dep "No cached version available
+  for offline mode" despite jars present in files-2.1; copying anvil's
+  entire caches/ did not bind either). Heal = one online resolve per
+  configuration: gradlew -g run/gradle help (online), then
+  MC_GRADLE_ONLINE=1 start_vnc_client.sh -x getAssets (keeps the
+  asset-pass excluded). Offline mode works again afterwards.
+- Sim2real gap ROOT-CAUSED (two parallel Opus delegates, both verified
+  first-hand; merges wt/container-stall + wt/sim2real-envmatch):
+  1. The container-GUI stall was a BRIDGE mismatch, not the policy:
+     vanilla "use" on a placed crafting table opens GuiCrafting (never
+     pauses, so it stayed up forever; vanilla zeroes keybinds/movement
+     under a screen -> attack/use/move dead, 90.6% of the stalled
+     episode wedged). blaze/magma have no window system - id 58 is not
+     interactable, "use" there is a plain failed place. Fix
+     (Recorder.java): rlV2Active flag closes any real GuiContainer at
+     the client-tick boundary while a v2 policy drives (human play /
+     tape recording keep GUIs); also craft now fires BEFORE interact,
+     matching rl_mode.c order. Probe: identical state+actions now give
+     identical outcomes on both sides.
+  2. overclock(1) free-ran the INTEGRATED SERVER ~107-420 world ticks
+     per policy decision (step loop is client-tick synced, server is
+     not): every prior eval episode lived ~25 in-game days - items
+     despawned in ~56 policy ticks, mobs/hunger/day-night raced 100x.
+     The GUI wedge was accidentally protective (GUI-fix-only control:
+     0/5, all five died). qrl_chain_demo now defaults OVERCLOCK_MS=50
+     (vanilla realtime, ~2 server ticks/decision drift remains).
+  3. Env-match (eval-side only): fresh resets never re-applied
+     qrl_launch.json gamerules (one-shot launchApplied flag), so eval
+     worlds had mobs+daynight while blaze trains with mobs off, frozen
+     clock, NORMAL vitals (blaze_core.h:27,2085,2133;
+     player_vitals.h:13). apply_envmatch() runcmds gamerules + time
+     set 6000 + kill @e after every reset (ENVMATCH=0 restores
+     vanilla); proof-of-effect logged per attempt. Mobs/night alone
+     were NOT the gap: 2/10 picks with envmatch but WITHOUT the GUI
+     fix (7/10 fully mob-free attempts still wedged at logs3).
+  Verification of the merged state (client rebuilt from master,
+  ENVMATCH=1, OVERCLOCK_MS=50, seed 10, sampled TRIES=5): 2/5 picks,
+  0 deaths, 0 wedges - the 3 failures all crafted sticks (the wedge
+  signature was frozen-at-0-sticks). Pooled fixed-client evals: 6/10
+  picks vs 4/15 pre-fix; magma-side same net+rng streams: 4/5. Known
+  residual mismatches (documented, not changed): ~2 server
+  ticks/decision vs blaze's exact 4 (llvmpipe client ~10-13 t/s; true
+  1:1 needs TimeHelper.SyncManager synchronous mode), Java rlCountItem
+  sums across slots vs blaze single-slot, structure spawners ignore
+  doMobSpawning in 1.11.2. Evidence: sim2real_wpick_s10_envmatch.json
+  + sim2real_wpick_s10_fixed.json (tracked); daylight success clip on
+  Mac demos/java_wpick_s10_day.mp4.
+- Trainer e2e REMEASURED on gamer 3090 (exclusive, 1920MHz sustained,
+  no throttle, driver 610.57.04, torch 2.13.0, 3 reps, sd <0.5%):
+  N=1024 T_CHUNK=32 MB=8192: EPOCHS=1 (wpick config) 92.1k
+  env-ticks/s, EPOCHS=2 80.6k. The recorded 245k/176.4k baselines are
+  RETRACTED as trainer benchmarks: they were measured during the
+  stale-v1-snapshot window when blaze world dynamics were silently
+  OFF (no per-cell light -> random ticks never fired; see 2026-08-05
+  night-prep entry). Attribution is exact: BENCH_PHASES shows the PPO
+  update phase unchanged vs the old profile (mb_bwd+mb_fwd ~= recorded
+  256+161ms at EPOCHS=2) while env/step went 156ms -> 1044ms/chunk
+  (6.7x) after the v2 rebake turned dynamics on. A/B vs a
+  pre-light-close .so (ba3b1ca worktree build): identical 92.2k, so
+  the light-close port itself costs nothing measurable - it is the
+  dynamics being simulated at all. Consequences: the trainer is now
+  ENV-BOUND (env/step 73% of chunk, update 14.5%, rollout fwd 5%), the
+  EPOCHS=1 throughput win shrank +39% -> +14%, and the flywheel-lane
+  negatives (CHANNELS_LAST etc.) targeted a phase that is now minor.
+  Anvil flywheel numbers (1590ms/chunk, 494.5k) predate the rebake and
+  need remeasure before reuse.
+- ncu on k_tick_warp (one mid-training launch, --set full, root):
+  74.2% of ALL GPU time (32-34ms per decision launch; all torch
+  kernels ~15%). SOL: SM 6.5%, DRAM 0.25%, L1 2.3% - pure latency.
+  Avg active threads per warp 1.43/32 (the per-env game tick is ~95%
+  single-lane serial), 1.14 active warps/scheduler of 12 (255 regs +
+  10.5KB stack cap, 77.5k local-spill requests), no-eligible 75%. The
+  schedulers are idle, so throughput scales ~linearly with more env
+  warps - but gamer CANNOT scale N: N=1536 OOMs (23.1GiB in use, only
+  3.8GiB torch; region pool + curriculum slots own the rest), so 24GB
+  pins N=1024. M3 gate (Blackwell 96GB, env-only): 0.79M @ N=1024 ->
+  2.22M @ N=4096 -> 3.02M @ N=8192 confirms the scaling headroom lives
+  on anvil. Paths for the 3090, in leverage order: move training to
+  anvil N=6144+; shrink per-env device footprint to fit more envs;
+  intra-env parallelism in k_tick_warp (big rewrite, latency-bound
+  serial C is the core cost). MB/batch tuning alone cannot help - the
+  update is 14.5% of the chunk.
+
+## 2026-08-06/07: GPU-vs-CPU measurement campaign (env backend decision data)
+
+Question set (voice session): per-tick action divergence and its factors,
+tail-latency of same-compute-per-env, caps-in-yaml idea, the CPU path,
+what "64x128x64" means, precise per-env memory, ncu source-level. All
+numbers post-v2-rebake (real dynamics), exclusive GPUs, nvidia-smi
+checked, REPEAT=4 M3-style loop (regime_bench.py mirror of
+verify_cuda run_bench: pre-generated actions, masked resets /25 dec).
+
+- Throughput matrix (M env-ticks/s, N=1024 unless noted):
+
+  | backend                | t0 random | t0 noop | curr random | curr noop |
+  |------------------------|-----------|---------|-------------|-----------|
+  | 3090 (sm_86)           | 0.115     | 0.129   | 0.854       | 0.945     |
+  | 7700X 16t CPU          | 0.133     | 0.118   | 0.420       | -         |
+  | 9950X3D 32t CPU        | 0.182     | -       | 0.678       | -         |
+  | Blackwell N=1024       | 0.150     | -       | -           | -         |
+  | Blackwell N=4096       | 0.427     | -       | -           | -         |
+  | Blackwell N=8192       | -         | -       | 3.913       | -         |
+
+  7700X is flat N=256 vs N=1024 (0.135 vs 0.133) = core-saturated.
+- Action divergence answer: full-random vs pure-noop actions moves
+  throughput only ~10-11% on both backends. Actions are NOT the cost;
+  there is no mob AI / pathfinding in blaze at all (mobs, projectiles,
+  weather, day-night deliberately unsimulated; snapshots baked --mobs
+  off). WORLD VOLUME dominates: t0 (128^3 fresh-spawn bake) vs
+  curriculum-class region (the "64x128x64 bounds" = mid-episode
+  checkpoint snapshot region, 64x128x64 blocks centered on the player)
+  is 7.4x on the 3090 at fixed N.
+- ncu source-level (lineinfo build, one mid-training k_tick_warp
+  launch, t0 N=1024 random, root): 52.3% of ALL warp-stall samples in
+  mc_rng.h (mc_hash64 mix lines 91-92 alone 33.8%), +15% on the
+  cu_randtick_grass_pass loop body (blaze_core.h:519-534), +23% on
+  cu_region_idx/cu_world_block reads it drives (blaze_core.h:281-293,
+  mc_world.h). Cause is structural: the pass mirrors magma randtick.c
+  for determinism - 17x17 chunks x 16 sections x 3 attempts = 13,872
+  serial hash chains per env-TICK regardless of region size or
+  actions; only in-region hits (22% at t0, ~5.5% curriculum) pay the
+  additional latency-bound cell reads. Physics+crafting+inventory all
+  together are <2% of stall samples.
+- Tail latency: compute per env-tick is near-uniform BY CONSTRUCTION -
+  the dominant cost (randtick hash sweep) is identical for every env
+  every tick. Same-compute-per-env is already ~true; no per-env tail
+  to chase until randtick shrinks.
+- Memory, measured via cuda mem_get_info around create+load: t0
+  12.45 MB/env (gamer) / 12.375 (anvil), curriculum 4.57 MB/env.
+  Breakdown at 128^3: cells 4MB u16 + cam_cells 4MB + Chunk[9] window
+  1.2MB + scratch/misc. This is what pins gamer at N=1024 (N=1536
+  OOMs); curriculum-sized regions would fit ~N=4096 on the 3090.
+- Caps-in-yaml verdict: the tunables that matter are NOT mob/liquid
+  caps (mobs don't exist; liquids are cheap) - they are (a) region
+  volume and (b) randtick chunk radius. Both are bit-exactness
+  levers: magma uses the same 17x17 radius, so a capped radius must be
+  applied to BOTH sides (magma flag + blaze) or verify/ tapes break.
+  A yaml env-config is worth doing only when we intentionally fork
+  training physics from oracle parity; defer until then.
+- Decision: stay on GPU, move scale to anvil, shrink regions.
+  CPU path is real but bounded: 9950X3D 32t = 0.182M t0 (beats the
+  3090's 0.115M and Blackwell-at-N=1024's 0.150M) yet loses 5.8x to
+  Blackwell N=8192 on curriculum (0.678 vs 3.913M) and cannot scale
+  further (7700X already flat). GPU latency-boundedness is hidden by
+  width: schedulers are 75% no-eligible, so throughput scales
+  near-linearly with envs (0.15 -> 0.43M going 1024->4096). Next
+  steps in leverage order: 1) train on anvil at N>=6144 (flywheel lane
+  needs a post-rebake remeasure first - old 494.5k retracted-class),
+  2) curriculum/checkpoint-sized bakes as the default training region
+  (4x memory, ~7x speed, unlocks N=4096 on the 3090), 3) make
+  randtick cheaper WITHOUT breaking parity (e.g. precompute per-tick
+  chunk-hash prefixes shared across the 3 attempts, or skip
+  fully-out-of-region chunk columns before hashing - pure-math
+  no-op transforms verifiable by tape), 4) only then intra-env
+  parallelism. CPU backend stays as the verify/debug oracle, not the
+  training lane.
+
+## 2026-08-07: external PR #5 review (Infatoshi/netherite "Feature Parity Additions")
+
+Four-agent fan-out review of bluecoconut's +188k/-9.5k PR (~6 days of
+Codex; one squashed megacommit f3e584e +185.7k plus 5 audio tip
+commits). Public-repo history/layout diverged from this dev tree
+(their java qrl/ vs our netheritemod/), but code shares real ancestry
+(same EwStore SoA, same PAI hash streams) - porting is diff-and-absorb,
+not translate. Verdict: do NOT merge; mine it.
+
+- Audio (owner requirement: none): playback is cleanly excisable -
+  audio_live.{c,h} + sound_manifest + OpenAL behind a pkg-config
+  probe, one consumer file, ~1,300 lines, no OGGs committed. TRAP
+  (confirmed independently by 3 reviewers): the sound-EVENT emission
+  ring and per-draw RNG accounting must be KEPT - vanilla consumes
+  Random draws when playing sounds, and their strict gates (and any
+  future RNG-exact gate of ours) depend on modeling those draws. The
+  ring is data-only, plays nothing. 3 of the 5 audio tip commits hide
+  non-audio fixes (6.3k-line legacy-Recorder dedup, mesh/model-key
+  repairs, gm_player_dig_reset hardening) - salvage those.
+- Test infra = the crown jewels: (1) server tick lockstep gate
+  (server_step_lock + ~60 *_locked bridge cmds, IEEE-754-bit float
+  transport) - removes our documented 1-tick input-offset artifact;
+  (2) RNG cursor capture/injection on live Java (seed48 + gaussian
+  flag) - turns random mechanics into state-exact gates; (3) state
+  capsule with capability ledger (exact/captured_only/unavailable +
+  refuse-if-incomplete) + Java->magma mid-run continuation proofs
+  (redstone-torch hidden-state regression is the flagship); (4) 32-way
+  isolated Java oracle pool (own display/port/save/pgid each); (5)
+  tri-state gate semantics (pass/parity-fail/infrastructure-fail) +
+  mandatory negative controls. Port DESIGNS, not code: the 28.5k-line
+  matrix is one 17k-line function + 10.7k-line main() with hardcoded
+  /home/jawaugh paths; fixtures however are clean text formats we can
+  consume nearly directly. "Load Java from save-state" is oversold:
+  restore direction is Java->capsule->magma only.
+- Gameplay (spot-checked deep: pig ride, sheep breeding, falling
+  anvil, brewing - all pass our decompile-fidelity bar, exact Java
+  float literals + RNG draw ordering + live-oracle gates): port-worthy
+  for our roadmap in order - animal husbandry bundle, falling-block
+  entities + scheduled-tick priority queue, explosion engine (crystal
+  explosion world edits are our open divergence), potion/status
+  effects, RNG-injection script vocabulary + loaded_order (the
+  bit-exact multi-mob ordering concept blaze mob-sim will need; mob
+  state already flat fixed-cap arrays = blaze-shaped).
+- Their blaze = gate corpus, not env: batched env got +49 lines total;
+  brewing/fishing/potions/temples live in golden-test headers (Java==
+  CPU==CUDA bitwise, fail-closed). Zero warp-level perf awareness
+  (<<<1,1>>> "benchmark", 128KB device stack for A*); nothing helps
+  our randtick bottleneck. Steal: fail-closed gate patterns, fire-
+  encouragement table fix (bookshelf 5->30 - check ours), potion
+  combat math headers, fdlibm_log.h (shelf).
+- Do NOT port: stateful JavaGaussianRandom streams into the batched
+  env (order-dependent, non-skippable - exactly the property our
+  randtick skip exploits), area-effect-cloud unbounded entity growth,
+  per-tick full-volume hash gates in hot loops, device A* as-is,
+  mc_jr_watch host-statics near device code, fishing (low RL value).
+
+## 2026-08-07 (cont): grass randtick occupancy skip landed (2.2x trainer e2e)
+
+Opus delegate (wt/sparse-randtick, b84a7a5) built + gated; re-verified
+first-hand and merged (42742a5). The skip: per-env u16 census of
+BLK_GRASS per 16^3 section (grid sized off region DIMS only, 1458 B/env
+at 128^3), populated by a trailing reset-bulk range, maintained
+synchronously in cu_world_set_state (audited: the ONLY runtime cells[]
+writer; grass spread writes neighbour sections mid-pass and the counts
+stay exact). cu_randtick_grass_pass skips attempt-groups whose section
+has no region overlap or zero grass BEFORE hashing. Bit-exact because
+mc_hash_seed is counter-based and all three attempts of a group land in
+that section; NULL grass_sec falls back to the full sweep.
+Delegate evidence beyond gates: BLAZE_GRASS_AUDIT brute-force
+re-census build clean over verify_cpu + chain, negative control
+(maintenance disabled) aborts at tick 613; verify_cuda --mixed n=1024
+final sha256 identical to a ba-baseline worktree; op-trace world_load
+5.22M -> 1.28M over 3200 sub-ticks on s10_t0.
+First-hand re-verified: verify_cpu --chain, verify_cuda --chain (2058
+ticks 64 lanes byte-exact), verify_resume --chain; rebuilt merged
+master and re-ran chain gates green.
+A/B on 3090 (exclusive, idle, back-to-back): regime bench t0 random
+N=1024 0.118 -> 0.355M env-ticks/s (3.0x); trainer lane N=1024
+T_CHUNK=32 MB=8192 EPOCHS=1: 92.1k -> ~204k env-ticks/s (2.2x),
+env/step 1044 -> ~256 ms/chunk, PPO update phases unchanged. CPU t0
+random 0.133 -> 0.171M (1.29x). Curriculum regime unchanged.
+Snap-version census (matters for ALL bench interpretation): only
+s10_t0.bsnp is v2; the other 10 t0 seeds and all 34 curriculum snaps
+are v1 (no light plane -> light_valid=0 -> randtick never fires). So
+"dynamics on" currently means 1/11 t0 lanes, and pre-skip wall time
+was tail-dominated by those lanes' 13,872-hash sweeps. A full v2
+rebake of all seeds is still pending and will move every number here;
+the skip is what makes that rebake affordable.
+Delegate side-findings, queued: (1) cam_cells is a pure right-shift
+copy of cells (blaze_core.h:510, :3227) - deleting it saves 4 MB/env
+(12.4 -> 8.4 at 128^3; N=8192 pool ~76 -> ~43 GB) but oc_pixel is
+hash-paired with blaze_metal_obs.metal, so the change needs the Mac
+(kernel_parity_gate.sh both sides + kernel_pairs.py --update) and
+touches rl_mode.c camreg encoding - do it in a Mac session. (2)
+port_matrix --tier m1 exits rc=3 on gamer (mining_slice missing
+capability) - pre-existing, byte-identical on a baseline worktree;
+confirm rc=0 on anvil. (3) agent_worktree.sh now links
+blaze/rl/out/snaps (without it every blaze env gate SKIPs silently).
+
+## 2026-08-07 (cont): full v2 snapshot rebake, both boxes; honest baselines
+
+make_snapshots.py (T0 + curriculum modes, all seeds) on gamer AND
+anvil; outputs deterministic and identical across boxes (13 t0 + 12
+curriculum v2 written; 27 curriculum stages stage-failed/already-mined
+this pass). Old files hardlink-backed to snaps_v1bak_0807; the 23
+stale v1 files the bake did not rewrite were QUARANTINED to
+snaps_v1_stale (a mixed dir silently reintroduces dynamics-off lanes).
+All snaps are LIQUID-flagged (advisory: fluids CA unsimulated; trainer
+unaffected - ppo_chain_cu loads t0 only, blaze/env/ppo_chain_cu.py:831).
+Gates on the fresh bake: verify_cpu --chain + verify_cuda --chain PASS
+both boxes; verify_cuda --mixed --n 2048 PASS on anvil (13.95s,
+bitwise); port_matrix --tier m1 rc=3 is IDENTICAL on anvil and gamer =
+capability census (16 BLOCKED e.g. dragon_victory/weather, 0 FAILED),
+pre-existing, not env breakage.
+New honest baselines (all-v2 snaps, randtick skip merged):
+- gamer 3090 trainer lane (N=1024 T32 MB=8192 EPOCHS=1): 148k
+  env-ticks/s e2e, env/step ~499 ms/chunk (was 92.1k/1044ms on the
+  old 1-of-11-v2 mix without the skip; 204k on that mix with the
+  skip). Skip value on real dynamics: regime bench t0 random N=1024
+  all-v2 = 0.049M pre-skip -> 0.111M with skip (2.3x).
+- anvil flywheel lane (N=6144 T32 EPOCHS=2 MB=8192, GPU0 exclusive,
+  preflight ok): median 2168.07 ms/chunk, cv 0.18% -> 362.7k
+  env-ticks/s. REPLACES the retracted stale-v1 494.5k/1590ms.
+Curriculum bench regime post-rebake: 0.034M (N=1024, 3090) vs the old
+v1-set 0.854M - NOT a regression and NOT comparable. Root-caused via
+op-trace diff: item_tick 5.18/subtick vs t0's 0.054 (96x). The new
+12-file set skews item-heavy (9 files carry 3-23 live dropped items
+from the burrow; identical counts in the old files - the old 34-file
+set just diluted them), and every item is a full serial entity-physics
+tick per subtick in k_tick_warp. Curriculum rows measure the SET.
+Open items: (a) bake attrition - 27 stages fail stage_coal/already-
+mined under the current sim vs the historical 34-file set (accumulated
+under older sim states); deterministic, both boxes; needs a
+stage_coal revisit if d-stage curricula return to the training path.
+(b) QUIESCE=6 < vanilla 10-tick pickup delay, so burrow drops can
+never be collected before the dump - longer quiesce (or item strip
+for training bakes) would cut item-heavy curriculum cost sharply.
+
+## 2026-08-07 (cont): PR5 wave-1 ports merged
+
+Opus delegate (wt/pr5-wave1, 3 commits), each re-verified first-hand
+before the merge (4c90fd4):
+- fix(blaze): bookshelf fire encouragement 5 -> 30 in
+  blaze/core/world_tick_vanilla.h:288 (was grouped with logs; vanilla
+  BlockFire.java:90 setFireInfo(BOOKSHELF, 30, 20) - cited in code).
+  magma/game/randtick.c:81 was already correct; every other entry in
+  both tables cross-checked against BlockFire.init(), 47 was the only
+  divergence. Live in the fire-spread gate corpus, ~2x under-spread
+  next to bookshelves before the fix. Dig-reset port did NOT apply
+  (gm_player_dig_reset already resets all three fields PR5 added);
+  flagged-not-changed: s_rc_delay/s_use_prev/s_fov_hand/s_cursor
+  survive a reset, and gm_runtime_respawn never calls the dig reset.
+- feat(qrl): server tick lockstep gate in netheritemod/Recorder.java
+  (+482) - server_step_lock parks the integrated server at a tick-
+  START boundary; step_server_locked n advances EXACTLY n ticks and
+  waits for re-park; getblocks_locked / setblocks_locked /
+  setplayer_locked run race-free on the socket thread (a parked
+  server drains no scheduled tasks - the normal server-task hop would
+  deadlock); floats cross as raw IEEE-754 bit strings. Gate self-
+  releases on socket teardown/close/reset/dim. Measured before/after:
+  12 back-to-back unlocked reads advance the server 13 ticks and two
+  consecutive reads span 3-4 ticks; locked: exactly 0, byte-identical.
+  java/qrl_lockstep_gate.py (30 checks) is the reusable proof - run
+  first-hand on a fresh client boot: 30/30. This removes the read-race
+  half of the documented ~2-ticks-per-decision sim2real drift path and
+  is the prerequisite for exact-4-tick Java stepping.
+- feat(verify): tri-state gate outcome in replay_tape.py -
+  pass | parity-fail | infrastructure-fail (+ rc 6, gate.json
+  outcome/infrastructure_fail.reason, md Outcome line). Three
+  laundering paths fixed: magma SIGSEGV/build-failure was reported as
+  rc=4 "physics divergence"; fail-closed stamped pass=False with no
+  evidence; missing goldens exited rc=1 with no gate.json. Additive:
+  prior keys/baselines/fast_gate untouched, 5 new negative-control
+  tests (replay pytest: same 8 pre-existing env-sensitive failures on
+  master and branch under identical deps).
+Deliberately not ported: PR5's ~60-command locked surface, RNG cursor
+injection, all sound capture (no-audio), and coupling the existing
+step command to the gate. agent_worktree.sh now also links
+java/Minecraft/run + java/oracle-src (worktrees SHARE main-tree saves;
+proof scripts must restore what they touch).
+
+## 2026-08-07: cam_cells deleted - the camera unpacks cells (-4 MiB/env)
+
+Closes queued side-finding (1) above. `cam_cells` was a second region-sized
+u16 tensor holding exactly `cells[i] >> 4`, proven by both writers:
+`cu_world_set_state` wrote `cam_cells[i] = id & 0xFFF` right after
+`cells[i] = mc_state(id, meta)`, and `blaze_reset_bulk` wrote
+`cam_cells[idx] = s >> 4`. `mc_state_id` IS `s >> 4` (mc_world.h:30) and
+cells is u16, so `s >> 4 <= 4095` makes the `& 0xFFF` a no-op - the two
+writers agree, and the tensor was 2 bytes/cell of derived data.
+
+Its only consumer was the camera (`reg.cells = env->cam_cells` ->
+`OcRegion` -> `oc_block`), so the shift moved INTO `oc_block` and the
+OcRegion contract became PACKED STATES `(id<<4)|meta` instead of plain ids.
+`oc_block` still returns a plain id, so nothing downstream of the camera
+changed. The shift has to sit before `oc_raycast`'s `if (id)` air test,
+which is exactly where `oc_block` is: reading raw states there would stop
+the DDA on a hypothetical air-with-meta cell (state 1..15) that `cam_cells`
+saw as air.
+
+Two encodings had to flip in the same commit because magma is the oracle
+the fidelity gates diff against: `rl_camreg` (rl_mode.c) and the blaze env.
+The standalone `blaze/{cpu,cuda}/obs_camera.c[u]` drivers fill from
+`rt_fill`, which emits plain ids, so they now pack `id<<4` (worldgen has no
+meta, so this is value-exact - the 124419-line dump is byte-identical to
+master's, which is the cleanest proof the round trip is output-neutral).
+
+oc_pixel is hash-paired, so `blaze_metal_obs.metal` got the identical edit
+and the manifest was re-recorded only after BOTH machines proved:
+- gamer (3090, sm_86): verify_cpu --chain (2058 ticks, zero diffs + state
+  digests incl. observations); verify_cuda plain / --chain / --mixed --n
+  1024; xbackend_frames --backend cuda; kernel_parity_gate.sh.
+- macbook (M4 Max, Metal): xbackend_frames --backend metal;
+  verify_metal_obs.py --chain = CPU==Metal bit-exact over 2059 frames;
+  kernel_parity_gate.sh.
+
+VRAM, `torch.cuda.mem_get_info` around create+load_snapshots+reset, N=512
+on 13 t0 (128^3) snapshots, 3090: 6.4676 -> 4.3201 GB, i.e. 12.6321 ->
+8.4378 MB/env, delta exactly 4.1943 MB = 2 B x 128^3 = 4 MiB. The queued
+estimate (12.4 -> 8.4) was right.
+
+Gotcha found on the way, unrelated to this change: `blaze/oracle/runner.py`
+defaults `MC_SM=sm_120` (anvil). On gamer the `obs_camera` section FAILS
+cpu==cuda at line 1169 with that default and PASSES with `MC_SM=sm_86`;
+reproduced byte-identically on an unmodified-master worktree, so it is an
+arch-default trap, not a regression. Export `MC_SM=sm_86` for any runner.py
+section run on gamer.
+
+Merge addendum (735caae, measured on gamer post-merge): the freed 4 MiB/env
+moved the 3090 trainer ceiling. `ppo_chain_cu.py` (T_CHUNK=32 MB=8192
+EPOCHS=1, all-v2 snaps, BENCH_PHASES=0) pre-deletion OOM'd at N_ENVS=1536;
+post-deletion N=1536 runs clean at 146-164k env-ticks/s and N=2048
+completes all chunks at 163-172k env-ticks/s, with CUDACachingAllocator
+OOM-retry warnings each chunk (allocator flushes cache and succeeds -
+thrash, not failure; free dips to ~0.3 GB of 25.3). Practical max on the
+3090 is N=2048 with pressure, N=1536 comfortable. Companion gamer gate
+trap: `scripts/kernel_parity_gate.sh` exports
+`CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-1}` (anvil convention);
+gamer has one GPU, so the default SIGSEGVs (rc=-11, "no CUDA-capable
+device"). Run it as `CUDA_VISIBLE_DEVICES=0 MC_SM=sm_86 bash
+scripts/kernel_parity_gate.sh` on gamer.
+
+## 2026-08-07 (cont): verify_cpu d* 0/4 = fixture camera envelope, not liquid
+
+verify_cpu (no --chain) FAILed 0/4 on the v2 curriculum snaps. The
+[LIQUID] advisory printed on all four is a red herring: every differing
+byte was `cam`, and every differing cam pixel was a ray that had LEFT
+the .bsnp region. blaze's world IS the region (oc_block outside -> air
+0); magma's rl_camreg tracks the live world, so it hits real blocks
+where blaze must return sky.
+Evidence (gamer, s14_d6.0, observation 0, before any tick):
+- 46/46 differing cam pixels are rays whose DDA leaves the region with
+  no in-region hit (measured exit t 31.7-33.7); magma reports id 78
+  (snow layer) at t 32-38, out at wx 42-47, region max x = 42. Same
+  shape for s27 (3/3, id 175 at t 36.7-47.2), s46 (1/1, id 2 at
+  t 39.2), s29 (6/6, id 18). Byte offset of the first differing cam
+  pixel on s14 = 5852 (pixel 220, row 3 col 28), not byte 0.
+- The PARY world digest over the region is IDENTICAL at observation 0
+  (0x453f72d40b9502d3 both sides) and stays matched for 300+ ticks on
+  s46: no in-region block ever differs, so the unsimulated fluids CA
+  is not involved at all.
+Why --chain passes and d* fails: t0 fixtures are 128x128x128 (T0_R=64,
+picked because "camera rays reach 49"), curriculum dumps used the
+rl_mode default radius 32 (64x128x64) - a fixture SMALLER than
+OC_FAR=48. The same envelope also breaks physics near the edge: on the
+64-wide fixtures the sim digests diverge later (s14 player t741, s46
+world t719, s29 dig t994), while on radius-64 re-dumps all four seeds
+are digest-VERIFIED for the full 1000 ticks.
+Fixes:
+- make_snapshots.py: CURRICULUM_R (default T0_R=64) on the curriculum
+  dump; EXPAND=1 re-dumps existing d* fixtures IN PLACE through magma
+  --snapshot-in (inner cells byte-identical; new shell is the same
+  worldgen magma's camreg reads), so upgrading costs no curriculum
+  re-bake and no new stage attrition.
+- verify_cpu.py: state digests are now default-on for the seeds path
+  too, and a gated mismatch is CLASSIFIED. Pure fixed-region camera
+  OOR - cam-only, EVERY differing pixel magma-block vs blaze-air at
+  depth 255, sim digests matched, eye margin < OC_FAR - is BLOCKED
+  (exit 3); anything else stays FAILED. A missing .bsnp is BLOCKED,
+  not skipped (it used to shrink the denominator into a green N/N).
+  Region/pose/cam-pixel primitives are single-source with
+  verify_resume.py, which already used this BLOCKED convention for
+  re-centered resume dumps.
+Gate output, current radius-32 fixtures: `BLOCKED: 0/8 streams
+zero-diff + state digests, 8 BLOCKED` (4 envelope, byte-exact for
+0/26/0/151 ticks; 4 missing s16/s20/s32/s44 = the known bake
+attrition). On radius-64 re-dumps of the same states: 668/261/669
+ticks byte-exact then envelope-BLOCKED, s46 1000/1000 clean.
+Negative controls (corrupt only the .bsnp blaze loads, magma keeps the
+pristine file): feet-cell id flip -> FAILED via world digest; deleting
+the occluder a camera ray hits so that ray then leaves the fixture -
+the exact BLOCKED symptom - -> FAILED (14/66 pixels off the OOR
+signature). verify_cpu --chain, verify_cuda --chain (gamer:
+CUDA_VISIBLE_DEVICES=0 MC_SM=sm_86), test_state_digest_corruption and
+verify_resume --selftest all still PASS.
+
+## 2026-08-07 (cont): curriculum bake attrition = crafting-table GUI pins leftClickCounter
+
+The 2026-08-07 full curriculum rebake wrote 12 of 39 possible (seed, stage)
+fixtures. Census first (39/39 attempts classified, instrumented replay of
+`make_snapshots.bake_seed`): 12 reached, 0 already-mined, 0 scan-empty, 27
+budget-exhausted - the old "scan lost the ore or budget exhausted" message
+conflated two very different modes and the answer was entirely the second.
+The distribution was bimodal, not slow: failing stages logged `mine=0/33`
+successful `mine_block` calls, every one of the 33 burning its full 90-tick
+budget on a target 0.8-2.3 blocks away, i.e. the prober never broke a single
+block rather than digging too slowly. Reach was never the issue.
+
+Root cause is `chain_probe.stage_pick` (blaze/rl/chain_probe.py:189) opening
+the crafting table and never closing it, against `runtime.c:604` - since
+0f51db9 magma re-pins `gm_player_set_gui_blocked(1)` ->
+`s_left_click_counter = 10000` (player_ctl.c:981) on every tick a container
+screen is open, mirroring vanilla's blocked mouse input, so clickMouse and
+sendClickBlockToController no-op and progressive dig is frozen. The RL action
+protocol has no ESC verb: `rl_do_interact` (rl_mode.c:268) only ever opens a
+screen, and the sole close magma exposes is vanilla's canInteractWith range
+drop at runtime.c:519 (`!valid || dist^2 > 36`, dy included). That makes the
+state absorbing - a burrow that cannot dig also cannot walk out of
+interaction range. Seeds that "worked" (s46) only did so because the tunnel
+walk happened to cross 6 blocks from the table by luck at t+279; every seed
+boxed in near its own table (s2, s10, s11, s32, s44) deadlocked for the whole
+3000-tick budget. `chain_probe.py` is byte-identical to its 2026-07-19
+content apart from one docstring path (9cdc65c was a pure move), so the
+prober did not rot - the game changed under it on 2026-08-03.
+
+Second-order consequence: the committed `coal_prefixes.json` action streams
+were recorded against a pre-0f51db9 binary. Replayed against the current one
+all 13 seeds ended with `container==1` and `cobble==0` - stage_dig had
+accomplished literally nothing - on the surface (s2 y=79.42) with the ore
+11 blocks away, so no stage_coal tuning could have recovered them. The
+prefixes had to be regenerated, not just the fixtures.
+
+Fix is prober-side only (no magma/game, no blaze/core, nothing in
+verify/kernels/parity_manifest.json): `close_container` walks out of the
+table's 6-block interaction sphere after the pickaxe craft, fanning its
+heading (0, +/-40, +/-75, +/-110, +/-150, 180 deg off straight-away) whenever
+8 ticks pass with no horizontal progress - a straight retreat pinned seed 11
+against a 2-high wall at x=14.70 for the whole budget. `stage_coal` also now
+records its exit reason in `chain_probe.LAST_FAIL` and `make_snapshots`
+prints it, so the two skip modes never collapse again.
+
+Result: seed 2, previously deadlocked at every stage, completes the full
+spawn-to-torch chain (dig +595t, mine_coal +795t). Regenerated prefixes are
+10/48 seeds (was 13/48: -10 -11 -32 -44, +35). Rebake at CURRICULUM_R=64
+writes 25 of 30 possible fixtures (was 12 of 39), and `mine_block` success
+went from 0/33 to 9/9, 4/4, 6/6 per stage. Residual: s27 x3 legitimately
+already-mined (its prefix burrow banks the coal, coal_inv=2 at handoff), s29
+d4.5/d3.0 budget-exhausted - the burrow oscillates between two tunnel
+headings, re-targeting cells (9,7x,5) and (9,7x,7) that are already air, and
+`mine_block` has no already-air early-out so it spends 90 ticks per cell
+confirming nothing. Not a dig-rate problem and not fixed here.
+
+Found while gating, and more important than the attrition: **verify_cpu
+per-fixture PASS is timing luck**. 6 of 25 new fixtures FAIL the world state
+digest with blaze performing exactly one world-cell mutation magma does not
+(`evidence`/`active` 1 vs 0). The trigger is a fixed absolute world tick per
+seed, not fixture content: s46 fixtures at ticks 1730/1737/1744 all diverge
+at tick 1747 (16/9/2 ticks in); s35 at 1748 and 1880 both diverge at 1998
+while s35_d3.0 at 2012 is past it and is clean 1000/1000; s14_d3.0 at 1562
+diverges at 2472. The old fixture set passed only because its dump ticks
+(s46 2481/2834/2841, s14 1020/1027) sat past or far before the seed's trigger
+so it never entered the 1000-tick window. Absolute-tick (not
+relative-to-dump) triggering says this is a world-timeline divergence, not a
+snapshot round-trip artifact. Untouched here: it lives in blaze/core, which
+is hash-paired with Metal and needs the two-machine gate.
+
+Item counts, since QUIESCE=6 is below vanilla's 10-tick pickup delay: new set
+mean 8.4 items/fixture (min 1 s3_d6.0, max 17 s46), old 12-file set mean 8.0
+(min 0, max 23 s33_d3.0) - drops still unsettled at dump in both sets, no
+regression, and QUIESCE deliberately left alone as a training-distribution
+call. The LIQUID flag is now uninformative: 25/25 new and 12/12 old d-fixtures
+flag liquid at radius 64, since a 128^3 region essentially always contains
+some water.
+
+Gates on gamer (RTX 3090, CUDA_VISIBLE_DEVICES=0, MC_SM=sm_86):
+`PASS: 1/1 chain stream zero-diff + state digests` (verify_cpu --chain,
+2058 ticks) and `PASS: chain s10 x 2058 ticks, 64 CUDA lanes vs CPU
+byte-exact` (verify_cuda --chain). Spot check `verify_cpu --seeds 2
+--stage 6.0`: 1000/1000 ticks zero diffs, VERIFIED not BLOCKED.
+
+## 2026-08-07 (cont): snapshot resume re-derived skylight; boundary halo split out
+
+The 6 failing curriculum fixtures were TWO bugs, not one. The absolute-tick
+trigger is explained first and is common to both: `cu_randtick_grass_pass`
+(blaze/env/blaze_core.h:599) and `gm_randtick_pass` (magma/game/randtick.c:432)
+both pick the section cell from `mc_hash_seed(seed, tick, cx, sec, cz,
+RT_PURPOSE_POS^att)`, a counter hash of the ABSOLUTE world tick, and
+`rl_snapshot_load` restores `r->tick = h.tick` (rl_mode.c). Every fixture cut
+from one seed therefore replays the identical cell sequence at the identical
+absolute ticks, so a divergence trips at a fixed absolute tick regardless of
+dump tick - s46 dumps at 1730/1737/1744 all tripped at 1747. Neither bug is a
+hash or a scheduled-tick-queue problem: both sides always agreed on WHICH cell
+to tick.
+
+Bug A (fixed here), seed 46 tick 1746, magma evidence=0 vs blaze=1. Cell
+(5,63,2) is BLK_GRASS and (5,64,2) above it is tallgrass id 31 meta 1 on BOTH
+sides - no block ever differs. The two differ on LIGHT: `rt_light_at`
+(randtick.c:31) reads sky=7, `cu_rt_light_at` (blaze_core.h:544) reads sky=15.
+BlockGrass.updateTick returns below light 9, so magma did nothing while blaze
+ran the spread loop and set (6,61,2) to grass. Over the full run only 3 of 185
+grass cells common to both sides disagreed, always blaze HIGHER (8v6, 11v7,
+15v7); only 15v7 crossed the threshold with a spreadable dirt target, which is
+why the symptom is one mutation once.
+
+blaze was right, magma was wrong. `rl_snapshot_write` dumps
+`gm_world_sky_light` per region cell (rl_mode.c:683) and blaze loads those
+nibbles verbatim; reading s46_d6.0.bsnp directly confirms (5,64,2) sky=15 and
+(3,64,4) sky=11 = 15 minus its manhattan distance 4 from the pin.
+`rl_snapshot_load` however closed the file immediately after the cell array
+("trailing coal list is a derivable mirror; not needed") and never read the v2
+light block, re-deriving light from `gm_world_ensure` +
+`gm_world_load_block_meta`. Saved skylight is NOT derivable from blocks:
+`light_recheck_break_surfaces` (magma/world/light.c:762) pins sky=15 on
+tallgrass (id 31) above a broken grass/dirt cell - vanilla's deferred
+Chunk.recheckGaps - and it runs ONLY from `gm_world_set_block_meta`
+(world_live.c:548), i.e. only on a live dig. The baking process took that
+branch and its flood carried the pin outward; the resuming process bulk-loads
+through `gm_world_load_block_meta`, never pins, and `compute_skylight` settles
+the column back to 7.
+
+Fix is magma-side and needs no .bsnp format change (v2 already carries the
+array; BLAZE_SNAP_VERSION untouched): `rl_snapshot_load` now reads the light
+block past the coal mirror and restores the sky nibble through new
+`light_load_sky` (light.c:778) / `gm_world_load_sky_light` (world_live.c:577),
+after a second `gm_world_ensure` consumes the bulk load's
+`column_relight_dirty` so generateSkylightMap cannot stomp the restore. Block
+light is deliberately NOT restored: `compute_blocklight` (light.c:428) resets
+and re-derives it from emitters, so it is a pure function of the block array
+and already matches. `compute_skylight_spread` only ever RAISES cells
+(light.c:508), so restored nibbles survive every later relight; only a column
+rebuild lowers them, and nothing re-arms `column_relight_dirty` after load. v1
+snapshots have no light array and keep the old re-derive path. Effect on s46
+d6.0: the tick-1747 divergence is gone, the fixture now runs clean to magma
+tick 1993 (16 -> 263 ticks).
+
+Bug B (found, NOT fixed - needs a design call). With A fixed, all six fixtures
+show one identical signature: magma evidence = blaze evidence + 1, i.e. magma
+makes exactly one world mutation blaze cannot. s46 d6.0/d4.5/d3.0 all trip at
+magma tick 1994, s35 d6.0/d4.5 at 1998, s14_d3.0 at 2472 - the s35 and s14
+trigger ticks are UNCHANGED from before the A fix, so those two seeds were
+never bug A at all. Instrumented, the mechanism is the region boundary:
+
+  seed 46: region x [-57..70], randtick source (-58,71,31) = rx0-1, writes
+           (-57,69,31) = rx0
+  seed 35: region x [-52..75], randtick source (-53,65,-23) = rx0-1, writes
+           (-52,62,-22) = rx0
+
+magma randticks the full radius-8 chunk area (runtime.c:676, view_distance 8);
+blaze's world IS the .bsnp region and its pass guards every source with
+`cu_region_idx(...) >= 0` (blaze_core.h:610), so a grass source one block
+outside the region is invisible to it while BlockGrass spread (dx,dz in -1..1,
+dy in -3..1) reaches one block in. At seed 35 tick 1997 magma randticked 7
+grass sources with x < -52 and blaze had 0 grass events that tick. This is
+structural, not a port bug: blaze holds no block or light data outside the
+region and cannot represent the source. Options, none taken unilaterally
+because each changes a contract: (1) erode the world parity digest by 1 cell
+in x/z (and 1 low / 3 high in y, the spread reach) on both sides, narrowing
+the claim to where blaze can be faithful - the camera-envelope precedent;
+(2) .bsnp v3 side-array carrying the 1-cell shell's blocks+light, full
+coverage but a format bump and a full re-bake, and it threads halo lookups
+into the hot cu_world_* reads; (3) restrict magma's randtick sources to the
+parity region - rejected here, it makes the ORACLE less vanilla-faithful.
+
+Gates on gamer (RTX 3090, CUDA_VISIBLE_DEVICES=0, MC_SM=sm_86, co-tenant
+flywheel resident): verify_cpu --chain `PASS: 1/1 chain stream zero-diff +
+state digests` (2058 ticks). Nothing touched is in
+verify/kernels/parity_manifest.json (that file pairs only CUDA/Metal raster
+kernel hashes), so no two-machine Metal gate is implicated; blaze/core and
+blaze/env are byte-unchanged, the whole fix is magma/. Tape replay
+re-validation on anvil is PENDING - magma/game and magma/world changed.
+
+## 2026-08-08: PR5 wave-2 - RNG cursor capture (capture+verify, no injection)
+
+Opus delegate on gamer (wt/pr5-wave2). Ports the RNG-cursor half of
+bluecoconut's PR #5 test-infra crown jewels, listed at DEVLOG:1865 as
+deliberately not done in wave-1. Design ported, code reimplemented; the
+PR's own is unusable here (17k-line function, hardcoded /home/jawaugh).
+
+The mechanism, and why it works: java.util.Random IS its state. The
+48-bit LCG `seed <- seed*0x5DEECE66D + 0xB` is scrambled by the
+constructor and by nothing else, so every public method is some number
+of next() steps off the stored AtomicLong. A snapshot at a tick
+boundary is therefore a CURSOR, and two cursors bracketing a tick
+determine exactly how many draws that tick consumed - walk the
+recurrence forward and count. That is what converts "the streams
+drifted somewhere in this run" into "record 17 is 1 draw ahead". The
+walk early-exits on arrival, so a healthy tick costs only the draws the
+server actually made; only a genuine divergence pays the budget, and
+the gate stops at the first one anyway.
+
+Java (Recorder.java, +380): four server streams captured at
+ServerTickEvent.START, the same boundary the wave-1 lockstep gate parks
+at, so cursor[i] is the state tick i is about to consume. Stream set
+follows the PR's state_capsule capability ledger
+(world.rng.{java,math,block}_random_seed48 + world.rng.update_lcg):
+World.rand, java.lang.Math's process-global RNG, Block.RANDOM, and the
+int32 World.updateLCG (not a java.util.Random - `lcg*3+1013904223`,
+World.java:95). Gaussian state travels with the world cursor
+(haveNextNextGaussian/nextNextGaussian) because nextGaussian() computes
+two values and stashes one. Reflection accessors at Recorder.java:1641-
+1716 are fail-soft (-1/false) so a hostile JDK degrades the gate to
+"unavailable" instead of killing the bridge. Capture is a bounded ring
+(Recorder.java:1745-1808) filled on the server thread: a 6000-tick
+session costs one dump, not 6000 round-trips. It stops at full rather
+than overwriting - the FIRST divergence is what matters, so the head of
+the run is worth more than the tail. New commands: rng_capture /
+rng_dump (gate-free, so a normal free-running recording can capture
+too) and rng_cursor_locked / rng_burn_locked (parked-only, socket
+thread, same rule as the wave-1 locked set).
+
+Verifier (verify/trace/rng_cursor.py, 391 lines, new): jr_step/lcg_step,
+draws_between / lcg_steps_between, profile() for per-tick draw
+accounting, first_divergence() reporting the first disagreeing record
+with its stream and a classification - "candidate is N draw(s)
+AHEAD/BEHIND" vs "unrelated cursors (reseed, or a different world)".
+The AHEAD/BEHIND split matters: a real RNG misalignment is a persistent
+phase shift, an unrelated pair means a setSeed. World.setRandomSeed is
+worldgen-only in 1.11.2 (MapGenStructure and friends; World.java:3973),
+so in already-generated chunks an unreachable world transition is a
+real finding rather than noise. LCG verified against JDK goldens:
+new Random(0).nextInt() = -1155484576, -723955400, exact.
+
+Gate (java/qrl_rng_cursor_gate.py, 335 lines, new), shaped like
+qrl_lockstep_gate.py. It builds TWO independent views of the same run -
+rng_cursor_locked reads on the socket thread at each parked boundary,
+and the ring records written on the server thread - and requires them
+to agree, so the green path assumes nothing about world determinism.
+26/26 on a fresh client boot. Live negative control: rng_burn_locked
+consumes exactly one real java.util.Random draw on the live server at a
+chosen boundary; the gate flags record 17, stream world_rand, "1 draw
+AHEAD", and nothing earlier. Same for updateLCG at record 5. Offline
+control perturbs a captured sidecar and lands on the same index/stream
+without a JVM. Cheap by construction: the gate edits no blocks and
+moves no entities, so unlike the lockstep gate it has nothing to
+restore.
+
+Measured, first-hand, and the headline number: a live 1.11.2 integrated
+server burns ~25,000 World.rand draws PER TICK. Attribution by
+gamerule toggle (25 ticks each, same session, restored after):
+doMobSpawning=true 25208/tick; false 662/tick; also randomTickSpeed=0
+205/tick. So mob spawning is 24546 draws/tick = 97.4%, random ticks
+458, weather/chunk residual 205. The residual cross-checks: 205 = ~102
+loaded chunks x 2 draws (lightning nextInt(100000) + ice nextInt(16)
+per chunk, WorldServer.java:421/449), and updateLCG runs 615/tick = 205
+sections x randomTickSpeed 3, dropping to 14.6 at speed 0 which is the
+~102/16 ice-path advances. Two independent counters agreeing on ~102
+chunks is the check that these draw counts are real.
+
+INJECTION: NOT included, and the reason is architectural, not
+unfinished work. PR #5 restores cursors into a live JVM where writing
+Random's AtomicLong is the whole operation; magma has no such object.
+blaze/core/mc_rng.h:1-11 states the doctrine - JavaRandom for worldgen
+ONLY, every runtime draw through the stateless
+mc_hash_seed(seed,tick,x,y,z,purpose), specifically so CPU==CUDA holds
+regardless of thread scheduling (magma/game/randtick.h:10 repeats it).
+That statelessness is load-bearing: it is exactly what the grass
+randtick occupancy skip exploits for its 2.2x trainer speedup, and why
+the review rejected their stateful JavaGaussianRandom. A counter-based
+stream has no cursor position to force. The gap is already
+acknowledged - magma/game/script.c:488-490 disables randtick for tape
+replay with "oracle world RNG is unseedable". This gate does not close
+that gap; it measures it and names the tick. The 25k-draws/tick number
+above is the quantitative argument that closing it is a different
+architecture, not a patch. bluecoconut's own ledger agrees: individual
+seeds are "exact", aggregate world.rng_cursors is "captured_only".
+blaze/core/world_tick_vanilla.h:98 does carry a stateful JavaRandom +
+updateLCG and is the credible future home; off-limits here, and wiring
+a Java cursor into it is a vanilla-tick-model change, not a test-infra
+port.
+
+NO AUDIO, and a correction to the brief: the sound-EVENT ring does not
+exist in this tree at all - DEVLOG:1867 records sound capture as
+deliberately not ported, and rg over magma/ and verify/ finds no ring,
+no audio_live, nothing. So there was nothing to integrate with and
+nothing was duplicated. For whoever lands it later: PR5's ring carries
+its own sound_random_seed48 cursor with runtime_sound_random_one()
+burning 1 float and runtime_sound_random_diff() burning 2 in Java's
+order, which is exactly the per-draw accounting this gate's world
+stream already measures - it should plug in as a fifth stream rather
+than a parallel mechanism.
+
+Scope and gates: magma/ and blaze/ are byte-unchanged (git status
+confirms), so no make test / verify_cpu / verify_cuda / tape-replay
+re-validation is implicated - this is a Java<->magma fidelity tool that
+adds bridge commands and a verifier, and touches no simulation code.
+Java client builds clean (gradlew -g run/gradle build, BUILD
+SUCCESSFUL). qrl_lockstep_gate.py re-run first-hand after the Recorder
+changes: 30/30, 0 failures. ruff clean on both new files (master is
+clean under the same ruff 0.16.2 invocation, so the bar was zero new).
+The canonical 20260721T215812Z tape payload is NOT on gamer - only its
+sidecars and baselines - so a canonical-tape replay could not have been
+run here regardless; nothing in this branch changes replay semantics.
+schemas.index shows its usual 3-line build reorder and is deliberately
+left unstaged.
+
+Wave-3 candidates: the remaining PR5 test-infra jewels (32-way isolated
+oracle pool, capability-ledger state capsule with refuse-if-incomplete)
+and, when the sound-EVENT ring lands, adding it as a fifth captured
+stream. A cursor sidecar alongside a real tape is also now cheap - the
+capture is gate-free - but it needs a tape recorded on a box that has
+one.
+
+## 2026-08-08: PR5 wave-3 - state capsule + capability ledger (Java -> magma)
+
+Opus delegate on gamer (wt/pr5-wave3), commit 014c999. Third of
+bluecoconut's PR #5 test-infra crown jewels (DEVLOG:1691): "state capsule
+with capability ledger + Java->magma mid-run continuation proofs". Design
+ported, code reimplemented - same reason as wave-2 (17k-line function,
+hardcoded /home/jawaugh). Their FIXTURES are clean text and were consumed
+nearly directly: `.sequence` rows are TICK DX DY DZ BLOCK META, and
+redstone_torch_floor_burnout is re-anchored onto our setblocks path
+(36 lines) rather than rewritten.
+
+The thing a capsule is for: a block cuboid is not a world. Three classes
+of state decide the next tick and appear in no block, no metadata, and no
+chunk NBT - (a) WorldServer.pendingTickListEntriesTreeSet, ordered by
+(scheduledTime, priority, tickEntryID), so two identical-looking worlds
+fire in different orders; (b) TileEntityFurnace burn/cook counters;
+(c) BlockRedstoneTorch.toggles, a STATIC WeakHashMap<World,List<Toggle>>
+of (BlockPos, totalWorldTime) living purely on the JVM heap. Capture rides
+the wave-1 parked boundary and the wave-2 socket-thread rule unchanged:
+capsule_dump_locked (Recorder.java, +280) is one more `_locked` command,
+fail-soft reflection throughout, each class emitting a captured_* boolean.
+
+Format (verify/trace/state_capsule.py, 914, new): a directory of
+manifest.json (sort_keys, indent 2) plus a binary sidecar blocks.u16le
+(id<<4|meta, y-major then z then x, inclusive box), sha256 in the
+manifest. Text where a human diffs it, binary where a cuboid would bloat
+it.
+
+The ledger is the actual contribution, and it is a CONTRACT not a comment.
+Three classes: `exact` = bit-faithful AND restorable into magma, so a
+strict gate may depend on it; `captured_only` = recorded faithfully, no
+magma receiver; `unavailable` = not recorded. 16 registry entries, 3 exact.
+require_exact() names its dependency set and raises CapabilityRefusal ->
+exit 3 (BLOCKED) with one `BLOCKED: missing capability NAME=CLASS` line
+per field. Never a silent skip, never a fake PASS. Tamper-evidence: the
+ledger is RE-DERIVED from the capture flags on validate and compared for
+exact dict equality, so hand-promoting captured_only to exact in the
+manifest is rejected outright ("capability ledger ... has been altered").
+
+Deviations from the PR, and why each one is a finding rather than a
+shortcut:
+
+- Their world.redstone_torch_toggle_history is `exact`. Here it is
+  `captured_only`, because magma HAS NO REDSTONE - confirmed by exhaustive
+  grep; blaze/core/block_props_table.h:10 lists it CUT and
+  world_tick_vanilla.h's wt_dispatch_scheduled no-ops unported blocks.
+  Their magma grew a redstone_torch_toggles[] array; ours will not from a
+  test-infra port. So the FLAGSHIP torch case is proved as a REFUSAL: the
+  strict torch gate is BLOCKED exit 3 naming exactly that field. The Java
+  half is real and measured - the fixture drives a genuine burnout, 8
+  toggles at t=62851..62879, span 28 ticks (inside vanilla's 60-tick
+  prune window), lit 76 -> unlit 75, and the 160-tick recovery callback
+  captured at due 63039 = last toggle 62879 + 160, priority 0 order 86.
+- The GREEN continuation therefore runs on TileEntityFurnace, hidden in
+  exactly the same way (invisible in block+meta) and tick-exact in magma.
+  It also restores through vocabulary magma ALREADY has - container_open /
+  container_slot / container_furnace_prop - so magma/ and blaze/ are
+  byte-unchanged and no parity_manifest kernel is implicated. Same posture
+  as wave-2.
+- RNG seed48s are captured_only, not exact: magma's runtime RNG is the
+  stateless counter hash mc_hash_seed, no cursor to force (wave-2 measured
+  this at ~25k draws/tick).
+- Refusal exits 3, not their 2, so a capability refusal is distinguishable
+  from a malformed capsule; structural errors keep 2.
+- `validate --require FIELD[,FIELD]` takes the gate's ACTUAL dependency
+  set. Their global --require-complete cannot express "needs the furnace
+  counters, doesn't care about entities"; kept alongside with their
+  semantics, and it still refuses a partial capsule.
+- Restore is one-directional by design. The review already flagged "load
+  Java from save-state" as oversold; magma -> Java is not attempted.
+- audio.sound_events is permanently `unavailable`. Their capsule captures
+  sound events; this repo contains no audio code and gained none.
+
+Gate (java/qrl_capsule_gate.py, 558, new), shaped like the wave-1/wave-2
+gates: 45/45 on a fresh boot. Headline continuation number - capsule taken
+mid-run at burn=1140 cook=60 total=200, restored into magma (27 events),
+then 160/160 ticks match on (burn, cook, total, output). The horizon
+contains a real event, not just decay: the smelt COMPLETES on tick 139 in
+both, java (1000,0,200,1) == magma (1000,0,200,1), 139 ticks downstream of
+the boundary. Negative controls both live: drop the field -> ledger
+downgrades to unavailable and the strict gate is BLOCKED exit 3 naming it;
+force past the refusal -> the capsule emits 21 events instead of 27, magma
+still runs (so divergence is physics, not a crash), and the match rate is
+0/160, diverging immediately at tick 0 rather than drifting. That 0/160 vs
+160/160 pair is the proof the ledger was guarding something real.
+
+Regressions after the Recorder change: qrl_lockstep_gate 30/30,
+qrl_rng_cursor_gate 26/26. Both scenes restored to their original block
+digests (run/ is shared with the main tree). ruff clean on both new files.
+
+Gotcha worth keeping: /setblock NBT without CookTimeTotal leaves it 0, and
+readFromNBT does not derive it. `++cookTime` happens BEFORE the
+`cookTime == totalCookTime` test, so cookTime can never equal 0 and the
+furnace counts up forever without ever smelting. Fixture NBT must carry
+CookTimeTotal explicitly.
+
+Wave-4 candidates from the same PR: 32-way oracle pool, gameplay bundle 1
+(animal husbandry). Groundwork noticed: capsule entity capture is stubbed
+at entity_count with entities_complete:false, which is the natural seam
+for husbandry state; and the capsule's furnace restore path generalizes to
+any container magma already models.
+
+## 2026-08-08: PR5 wave-4 - isolated Java oracle pool (N clients, one box)
+
+Opus delegate on gamer (wt/pr5-wave4). Fourth of bluecoconut's PR #5
+test-infra crown jewels (DEVLOG:1691): "32-way isolated Java oracle pool
+(own display/port/save/pgid each)". Design ported, code reimplemented -
+their `start_oracle_instance.sh` (223 lines) plus the `start_pool` /
+`recycle_pool_port` half of a 28.5k-line `run_oracle_matrix.py`, with
+`/home/jawaugh` baked into three files.
+
+What a pool has to generalise is `java/start_vnc_client.sh`, which is a
+SINGLETON in four independent ways: display `:1`, port 25575, game dir
+`java/Minecraft/run`, and a cleanup that does `pkill -f GradleStart` /
+`pkill -f "Xvfb :1"`. Every one of those is a global name, so a second
+copy of that script does not start a second oracle, it kills the first.
+`java/oracle_pool.py` (1139, new) gives instance i display `:100+i`,
+port `25600+i`, game dir `java/pool/instance_NN/run`, and its own
+process group. 25575 and `:0/:1` are refused outright, so the classic
+single-client flow keeps its resources whatever `--port-base` a caller
+passes.
+
+The seam that made the port cheap was already in the tree: build.gradle
+honours `-PrunDir=<abs>`, and `Recorder.loadLaunchCfg` /
+`QLaunch` resolve `qrl_launch.json` from the process cwd and nowhere
+else. cwd = runDir therefore hands each instance its own port, seed,
+strip/determinism block AND `saves/`. Consequence worth stating: every
+instance can run the SAME seed. The PR gives instance i seed `100000+i`;
+here all N generate `qrl_917351_flat` independently, which is what makes
+a cross-instance bit-identity claim possible at all (and the pool pins
+one username, `Player0`, where the PR uses `PoolPlayer$i`). Provisioning
+a game dir is 64 KiB and ~10 ms: options.txt + config/ + qrl_launch.json.
+A `--world-template` copy of a prebuilt save exists for worlds that are
+expensive to generate; the flat template is not, so the default is a
+fresh worldgen per instance.
+
+Gradle is the thing the PR's design does not survive at scale, and it
+took two measurements to see why. Four concurrent `./gradlew runClient`
+on one checkout, both cache layouts, both a HARD failure inside 15 s:
+
+- shared `--project-cache-dir`: `:deobfMcMCP` NPE in one instance,
+  `Could not resolve net.minecraftforge:forgeBin:...-PROJECT(Minecraft)`
+  in the other three - they race on the deobf jar the project cache owns.
+- per-instance `--project-cache-dir` (the PR's `ORACLE_PROJECT_CACHE`,
+  which their scripts leave EMPTY by default): the `jaxb` task deletes
+  and regenerates `src/main/java/com/microsoft/Malmo/Schemas/*.java`, so
+  the builds delete each other's SOURCES - `NoSuchFileException:
+  .../Schemas/DrawCuboid.java`. Not fixable by cache layout; it is a
+  shared source tree.
+
+So the pool pays exactly ONE gradle launch, reads the game's argv out of
+`/proc` while gradle still holds it (ForgeGradle has no "print the launch
+command" task), and spawns every other instance directly:
+`java <jvmargs> -cp <cp> GradleStart --username Player0` with cwd=runDir.
+The captured spec is cached against the mod jar's mtime and is verified
+the only way that counts - the other instances have to reach in-world
+readiness from it. `--launch-mode gradle` keeps the every-instance-gradle
+path, serialized behind each previous launch's game JVM.
+
+Density, measured on gamer (7700X, 16 threads, 30.7 GiB, RTX 3090 with a
+prime-flywheel co-tenant), because "32" is an anvil number and not a law:
+
+- one idle-in-world client at the trace profile burns **8.29 cores** -
+  llvmpipe renders as fast as `maxFps:260` allows and defaults its
+  rasteriser pool to one thread per host CPU. `maxFps:20` +
+  `LP_NUM_THREADS=1` takes that to **0.43 cores**, a 19x cut, and changes
+  no server-side state (the wave-1 lockstep gate still passes 30/30 on a
+  tuned instance). These are RENDER knobs: a pool that records pixel
+  goldens must run the pinned trace profile and is correspondingly
+  smaller. They are pool defaults, not repo defaults.
+- `--no-daemon` gradle leaves its wrapper JVM blocked on the JavaExec
+  child for the client's whole life holding **2.3 GiB** it never uses
+  again - more than half an instance. The game JVM is a plain fork in the
+  same process group, so reaping the wrapper once the instance is ready
+  costs nothing and the pgid kill still reaches the game (ownership is
+  decided over group MEMBERS, never the leader).
+- what is left: **2.02 GiB** and **0.47 cores** per instance
+  (2.00 GiB game JVM at `-Xmx2G`, 0.06 GiB Xvfb; RSS ~= PSS, JVMs share
+  nothing). Baseline with no pool is 6.8 GiB.
+  N_mem = (30.7 - 6.8 - 6.0 reserved) / 2.02 = **8.9**;
+  N_cpu = 16 / 0.47 = 33 for bridge-bound work. Memory binds, so the
+  default is **8** - at which the pool is 16.3 GiB / 3.8 of 16 threads
+  and the host still reports 8.4 GiB available.
+
+Numbers: 8 instances to in-world readiness in **47.6 s** wall (the
+gradle-captured instance 30-34 s, the direct ones 15-19 s); 4 in 33.0 s;
+one replacement in 13.9-22.5 s. Fan-out is linear where it matters -
+8 concurrent wave-3 capsule gates (45 checks each, 360 total) in
+**13.7 s** against **13.4 s** for one, i.e. 8x throughput at 1.02x the
+wall of a single run. 8 concurrent wave-1 lockstep gates: 8x 30/30.
+
+Gate (`java/qrl_pool_gate.py`, 308, new), shaped like the wave-1/2/3
+gates: 25/25 at N=4, 23/23 at N=8 with `--keep`. The scenario is
+lockstep-stepped so nothing depends on wall clock: park, digest the
+worldgen cuboid, `setblocks_locked` three sand blocks into the air,
+then 4/16/40 exact ticks with a `getblocks_locked` digest after each.
+Sand makes it a claim about entity ticking and scheduled-tick order, not
+about a static write. All N agree bit-for-bit
+(`05ed2e93.. -> 8f54ed3c.. -> 3f48ac92..`, deltas `(0,0,4,20,60)`) -
+world_time is compared as a DELTA because instances boot seconds apart
+and their absolute totalWorldTime differs by design. Containment: SIGSTOP
+one instance, the pool names exactly that one (its port still ACCEPTS -
+the listen backlog outlives a stopped JVM - but cannot serve `obs`), the
+siblings still agree with each other bit-for-bit while it is down, the
+reap kills it (SIGCONT before SIGTERM, or a stopped JVM never runs its
+handler), no sibling pid is signalled, and the replacement reproduces the
+reference vector exactly.
+
+Three bugs this cost, all the same shape - a liveness test that lies:
+
+- `os.kill(pid, 0)` succeeds on a ZOMBIE. Nothing wait()s the launcher,
+  so a pool of CRASHED gradle launches looked alive and the boot sat in
+  the readiness loop for the full 420 s timeout instead of failing in
+  5.7 s with the gradle error; and after a shutdown every killed client
+  still read as a stray. `pid_alive` is now a /proc state check and the
+  kill paths reap.
+- an Xvfb left by a crashed run keeps serving its display, and a fresh
+  Xvfb on a taken display exits immediately. `start_display` saw xdpyinfo
+  succeed against the STALE server, returned happily, recorded an
+  already-dead pid, and leaked the real one. It now claims the display
+  first and verifies its OWN server answers.
+- killing the display kills the client, so a teardown that only reaped
+  Xvfb LOOKED like it had reaped the game. Real cleanup is per-instance:
+  pgid, then cwd==runDir, then `Xvfb :<n>` by exact argv - never a
+  pattern like `GradleStart`.
+
+Deviations from the PR, each a finding rather than a shortcut: their
+`stop` guards on the leader's cmdline (which the launcher reap makes
+useless here) and additionally scans `/proc/*/environ` for
+`QRL_LAUNCH_JSON=`; cwd is the stronger test because the game inherits it
+and cannot lose it. Their readiness is `obs` + a 5 s settle - kept
+verbatim, it is right. Their pool benchmark asserts a 350 GiB memory
+ceiling and a `systemd-run --scope` slice; not ported, gamer has 30 GiB
+and the arithmetic above is the ceiling. No VNC by default (`--vnc` binds
+`5920+i`, localhost only).
+
+Regressions: classic single-client flow unbroken -
+`bash java/start_vnc_client.sh` then `qrl_lockstep_gate.py` on 25575 is
+30/30, cuboid digest `88201fb960ff6465` unchanged, after 8-way concurrent
+gradle traffic through the shared `run/gradle` home. Zero strays after a
+full pool stop (pgrep Xvfb/x11vnc/GradleStart/openbox all NONE, no
+25600-2560x listening, host memory back to the 6.8 GiB baseline). ruff
+clean on both new files. magma/ and blaze/ byte-unchanged; no
+parity_manifest kernel is implicated.
+
+Wave-5 candidates: the pool's natural next feature is capsule fan-out -
+boot one client, park it at a boundary, `capsule_dump_locked` once, then
+have N workers RESTORE that capsule instead of paying N cold boots
+(2.02 GiB and 15-19 s each). The restore direction is the blocker, not
+the pool: wave-3 proved Java -> capsule -> magma only, so today the seam
+is "one Java boundary, N magma continuations", and N Java workers still
+each need their own 15 s worldgen. The other open item is that a shared
+source tree caps `--launch-mode gradle` at one launch at a time forever;
+32-way on anvil would want the captured spec plus a read-only build
+snapshot per pool, and 32 x 2.02 GiB = 65 GiB of RAM before any harness.
+
+## 2026-08-08 (PR5 wave-5: audio - sound seam, block SoundType map, OpenAL playback)
+
+Audio was a documented CUT (`docs/SCOPE.md` line 22, "Multiplayer/servers,
+audio, disk saves as a product feature"). Reversed for magma ONLY, because the
+thing a human misses first when playing magma next to the oracle is sound.
+blaze stays audio-free and no gate verifies audio on blaze.
+
+The one rule everything else follows from: **sound is a pure sink.** Producers
+append to `GmRuntime.sound_events`; nothing in the simulation reads that ring
+back, and no emitter draws from a seeded stream. Sound *identity* (which sound,
+what volume/pitch, where) IS derived from sim state, so it is deterministic and
+oracle-comparable - that is what the gates check. Playback is not.
+
+What landed:
+- `GmRuntimeSoundEvent` ring (256, seq monotone across wrap, overflow counted
+  in `sound_event_dropped` so a consumer sees a gap instead of going quiet).
+- `game/audio_live.c` - OpenAL + libvorbisfile consumer, opt-in behind
+  `make MAGMA_AUDIO_OPENAL=1`. Wired into `app/game_main.c`: init before the
+  frame loop, per-frame listener update at the interpolated camera pose,
+  destroy at exit. A failed init is a warning, never fatal.
+- `assets/build_sound_manifest.py` - resolves `sounds.json` (weights, nested
+  `type:event` rows, `stream`) against the owned 1.11 asset index into a hash
+  manifest. 112 events, 307 variants. Generated, gitignored like every other
+  `assets/*.h`; no jar needed, only the asset index.
+- Block break/place/hit audio, oracle-matched. `runtime_block_sound_family`
+  is the 1.11.2 `Block.getSoundType` table; per-action arithmetic is vanilla's
+  ((v+1)/2, p*0.8 for break/place; (v+1)/8, p*0.5 for hit) kept in float so
+  the result is bit-comparable with `Float.floatToRawIntBits`.
+- Emit sites: `dig_destroy` sets `break_effect` (world event 2001, sampled
+  from the OLD state before the cell is overwritten), successful `ItemBlock`
+  placement sets `place_effect`, and `onPlayerDamageBlock` fires the hit sound
+  on the first damage tick and every fourth after it.
+
+Verified: `game/test_audio_live.sh` (ring order/seq/overflow, MAGMA_AUDIO=0
+stays disabled AND silent, and a held attack through the real
+`gm_runtime_tick` emits exactly one break plus >=1 hit with no foreign
+material - the fixtures alone would not have caught an unwired emit site).
+`make -C magma test-block-audio-oracle` is green against REAL Java: all 235
+registered non-air block ids, 12 families, exact volume/pitch bits, for all
+three actions, with a per-action metal->stone negative control.
+
+Compiled-out really is identical: the canonical-tape `--cpu` replay verdict on
+this branch is byte-identical to master's - same `parity-fail (rc=3)`, same 68
+unexplained frames, same worst t=1960 (224829 px), same state block. The ONLY
+differing key in `tape_*.gate.json` is `magma_binary`, which must differ. Same
+for a 300-tick scripted mining run under MAGMA_AUDIO=0 vs =1: identical state
+digest `c3f89c59...`.
+
+NOT ported, and the reason is the same every time - the sim under the emitter
+does not exist in this tree yet. PR5's `magma/game/runtime.c` is 20376 lines
+against our 1932, and 769 of its magma files have no counterpart here. So mob
+sounds (need a mob event ring in `mob_live`), world-event sounds 1000-1032
+(need a `World.playEvent` dispatch), firework blast/twinkle (no firework
+entity), and jukebox record streaming (no jukebox TE) are all blocked on
+simulation, not on audio. The record-streaming code IS in `audio_live.c` and
+the `GM_SOUND_RECORD_*` ids are in the manifest, unreachable until a jukebox
+exists; that was cheaper than deleting it and re-adding it later.
+
+Also not ported deliberately: PR5's `MixinOracleClientSound` /
+`MixinOracleServerSound` / `MixinOracleEntitySoundContext` plus ~190 lines of
+`Recorder.java` sound capture. They feed a tape sound-event schema this tree
+does not have, so nothing would read them, and `Recorder.java` gates every
+tape - untested code there is the wrong trade. The unblock is a tape schema
+field first, then those three mixins, repointed from `qrl.Recorder` to
+`netheritemod.Recorder`.
+
+Lesson worth keeping: PR5 is not a patch series against this master, it is a
+much further-along parallel lineage. Trying to apply its audio commits as
+diffs fails on nearly every hunk; the right unit of work is "which emitters
+can this tree's simulation actually support", answered per emitter, and the
+answer here was four of them and not the other four.
+
+## 2026-08-08: envcfg wave - runtime env-var knobs purged repo-wide
+
+Trigger: the audio wave shipped `getenv("MAGMA_AUDIO")` and its proof runs
+were launched as `MAGMA_AUDIO_OPENAL=1 MAGMA_AUDIO=1 uv run ...`, exactly the
+pattern the config registry (6e76749, 5eef24f, d885676) was built to kill.
+Ruling: runtime knobs NEVER ride on env vars, recorded in AGENTS.md ("Runtime
+knobs") and enforced by `scripts/env_knob_gate.sh` in the sweep (fails on any
+project-prefixed getenv/os.environ read; build-time make vars and machine
+pointers like MC_JAR/MC_SM/QRL_SM exempt, java/render-opt closed lab exempt).
+
+Four parallel delegate worktrees did the migration, each proven before merge:
+
+- magma C (wt/envcfg-magma): 14 new registry keys (audio, asset_objects, fog,
+  smooth, shroomlight, fluid_ca, solid_alpha, state_prof, genprobe,
+  port_parity_fd, metallib, metal_require, nowake, nofall); blaze/core/
+  populate.h gets the `bz_populate_set_debug` seam so blaze never links magma
+  config.
+- harness (wt/envcfg-harness): replay_tape `--ent-ticks0` /
+  `--hand-from-tick` / `--fog-c1-init` (None = recorded value wins,
+  precedence unchanged); mc_capture candidate knobs as argv; window_battery
+  env table dropped; mcwindow/qrl_chain_demo/zoom argparse; scenario oracle
+  lock is the explicit `--oracle-locked` handshake.
+- blaze (wt/envcfg-blaze): `blaze_create(device, n, opts)` with
+  `BlazeCreateOpts` (NULL = compiled defaults) threaded from VecBlaze kwargs;
+  trainers take flat `key = value` + `--set` via `blaze/rl/train_conf.h`,
+  unknown key = hard error.
+- tail (wt/envcfg-tail): RL eval/training scripts, snapshot bakers, fogcurve
+  probe, portal e2e via pytest addoption.
+
+Behavior preservation proof: canonical tape 20260803 replayed on the merged
+tree vs the pre-wave master baseline - the 91k-line gate verdict differs
+ONLY in the harness self-hash lines (replay_tape.py sha256 +
+gate_implementation), every pixel/state verdict byte-identical. verify_cuda
+bitwise PASS, mc_capture rung4 + multi-verify PASS, test_runtime +
+test_audio_live PASS.
+
+Two latent bugs surfaced by the sweep: run_hard_scene.sh and fogcurve_probe
+still EXPORTED the migrated MAGMA_SMOOTH/MAGMA_FOG (silently dead writers -
+ablations rendered baseline; fixed via a `--set` registry passthrough on
+game_candidate), and the MAGMA_GAMMA=2.0 ablation had no reader anywhere
+long before this wave (annotated as a known no-op). The sweep's own
+blaze-oracle-smoke step also still set the removed MC_CPU_ONLY env (now
+`--cpu-only`). Lesson: a knob migration is not done at the readers; every
+writer keeps "working" silently unless swept.

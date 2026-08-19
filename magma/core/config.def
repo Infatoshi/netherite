@@ -18,6 +18,42 @@
  * The doc string is user-facing: it is what --dump-config prints.
  */
 
+/* ---- game launch ------------------------------------------------------
+ * These keys are the complete public run description.  game/config.c maps
+ * them to the typed GmConfig used by the game.  Legacy long options only set
+ * these same keys; they do not form a second configuration system. */
+CFG_I64 (seed,          0,         "world seed")
+CFG_STR (world,         "default", "world provider: default or superflat")
+CFG_BOOL(villages,      0,         "enable the village bundle")
+CFG_BOOL(enchanting,    0,         "enable the enchanting bundle")
+CFG_BOOL(brewing,       0,         "enable the brewing bundle")
+CFG_BOOL(weather,       0,         "enable the weather bundle")
+CFG_BOOL(daylight,      1,         "advance world time each tick")
+CFG_BOOL(mobs,          1,         "enable mob spawning and AI")
+CFG_BOOL(stats,         0,         "print live frame timing statistics")
+CFG_STR (render,        "window",  "presentation mode: window or off")
+CFG_STR (compose,       "capture", "headless compositor: capture or window")
+CFG_STR (backend,       "cpu",     "game backend: cpu, cuda, or metal")
+CFG_INT (device,        0,         "accelerator device index; ignored by CPU and Metal")
+CFG_STR (pace,          "realtime","simulation pace: realtime or unlimited")
+CFG_INT (view_distance, 8,         "active view distance in chunks, 1 through 8")
+CFG_INT (width,         854,       "framebuffer width")
+CFG_INT (height,        480,       "framebuffer height")
+CFG_BOOL(headless,      0,         "run without interactive input")
+CFG_BOOL(rl,            0,         "read JSON RL actions from stdin")
+CFG_BOOL(rl_bin,        0,         "write packed RL observations")
+CFG_INT (ticks,         -1,        "headless tick count; -1 means unset")
+CFG_STR (script,        "",        "event script path")
+CFG_STR (state_out,     "",        "state output path")
+CFG_STR (frames_out,    "",        "frame output path")
+CFG_STR (snapshot_in,   "",        "input .bsnp snapshot path")
+CFG_INT (frame_every,   1,         "render one frame per N ticks")
+CFG_INT (frame_offset,  0,         "first tick for sparse frame capture")
+CFG_F32 (sensitivity,   0.15f,     "mouse sensitivity")
+CFG_INT (frames,        -1,        "legacy frame count; -1 means interactive")
+CFG_INT (kill_frame,    -1,        "developer death frame; -1 disables")
+CFG_STR (ppm,           "",        "single PPM output path")
+
 /* ---- allocate-once pool caps (game/caps.h derives the pool geometry) ----
  * The CR_DEF_* defaults and the MEASURED value each one derives from are
  * documented at length in game/caps.h; do not restate the rationale here. */
@@ -78,6 +114,7 @@ CFG_STR (preview_dump_path,  "", "CSV path for preview_diag=3 fragment dump; emp
 CFG_INT (preview_diag,       0,  "inventory preview diagnostics: 0 off, 1 hard-pixel attribute, 2 +AABB, 3 fragment dump")
 CFG_STR (preview_color_mode, "", "inventory preview color packing mode; empty = 4 (Mesa unorm8 modulate)")
 /* ---- capture / replay-compat / render toggles ---- */
+CFG_BOOL(dig_trace,       0,  "diagnostic: emit per-tick dig controller fields in state JSONL (paired with Java dig_trace)")
 CFG_BOOL(hide_gui,        0,  "hide HUD overlay (hearts/hotbar/crosshair); also gates the first-person hand workaround")
 CFG_BOOL(strip_overlays,  0,  "suppress boss-bar overlay (tape strip.overlays / recorder skip)")
 CFG_BOOL(no_overlay,      0,  "skip selection box + dig crack passes")
@@ -96,3 +133,19 @@ CFG_STR (dump,            "", "flywheel: tick,x0,x1,y0,y1,z0,z1 dump of live id/
 CFG_STR (worlddump,       "", "flywheel: tick,cx0,cz0,ncx,ncz,path[;...] write live CRWS chunk dumps")
 CFG_STR (dump_light,      "", "flywheel: tick,x0,x1,y0,y1,z0,z1 dump of sky/block light to stderr")
 CFG_STR (geom_dump,       "", "geometry oracle: path for per-part dragon pose lines; empty = off")
+
+/* ---- remaining runtime knobs (env migration; defaults = prior unset-env) ---- */
+CFG_BOOL(audio,          1,  "interactive OpenAL playback; 0 skips device/resource work (headless digest control)")
+CFG_STR (asset_objects,  "", "Minecraft assets/objects directory override; empty searches the default candidates")
+CFG_BOOL(fog,            1,  "terrain-pass fog (Java setupFog(0)); 0 disables")
+CFG_BOOL(smooth,         0,  "smooth light averaging (Java ao:2); default off matches ao:0 flat mesh")
+CFG_STR (shroomlight,    "", "empty = stale populate skylight (product default); \"ca\" = fixpoint skylight CA")
+CFG_BOOL(fluid_ca,       0,  "run the baked fluid CA during populate (vanilla populate does not; default off)")
+CFG_BOOL(solid_alpha,    0,  "alpha-test SOLID layer too (experiment; Java Fast SOLID has alpha disabled)")
+CFG_BOOL(state_prof,     0,  "per-tick world-edit rate + end-of-run palette census to stderr")
+CFG_STR (genprobe,       "", "world_dump RNG-cursor probe output path; empty disables")
+CFG_INT (port_parity_fd, -1, "RL mode: write binary PARY records to this fd; -1 disables")
+CFG_STR (metallib,       "", "path to raster_kernels.metallib; empty searches next to the executable")
+CFG_BOOL(metal_require,  0,  "Metal boot failure is fatal (no CPU fallback); for parity gates")
+CFG_BOOL(nowake,         0,  "host-only: skip liquid reawaken during populate (bisect switch)")
+CFG_BOOL(nofall,         0,  "host-only: skip falling-sand check during populate (bisect switch)")

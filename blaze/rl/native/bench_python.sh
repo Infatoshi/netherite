@@ -12,11 +12,13 @@ overnight-compute run \
   env CUDA_VISIBLE_DEVICES=0 \
   UV_CACHE_DIR=/home/infatoshi/.cache/uv \
   TMPDIR=/home/infatoshi/dev/nw/.tmp \
-  N_ENVS=6144 T_CHUNK=32 EPOCHS=2 MB=8192 \
-  BENCH_WARMUP_CHUNKS=2 BENCH_MEASURE_CHUNKS=1 \
-  MAX_TICKS=1e12 MAX_WALL=3600 PYTHONHASHSEED=0 RNG_SEED=0 \
+  PYTHONHASHSEED=0 \
   uv run --no-project --with numpy==2.5.1 --with torch==2.13.0 \
-  python "$repo/blaze/env/ppo_chain_cu.py" | tee "$log_file"
+  python "$repo/blaze/env/ppo_chain_cu.py" \
+    --set N_ENVS=6144 --set T_CHUNK=32 --set EPOCHS=2 --set MB=8192 \
+    --set BENCH_WARMUP_CHUNKS=2 --set BENCH_MEASURE_CHUNKS=1 \
+    --set MAX_TICKS=1e12 --set MAX_WALL=3600 --set RNG_SEED=0 \
+  | tee "$log_file"
 
 awk '
   /^BENCH / {

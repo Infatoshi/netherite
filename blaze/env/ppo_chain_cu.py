@@ -52,138 +52,91 @@ from blaze import CAM_H, CAM_W, CUDA_SO, VecBlaze
 OUT = os.path.join(RL, "out")
 SNAPS = os.path.join(OUT, "snaps")
 
-# ---- run config ----
-TRAIN_SEEDS = [int(s) for s in os.environ.get(
-    "TRAIN_SEEDS", "2,3,10,14,16,20,27,29,32,44,46").split(",")]
-N_ENVS = int(os.environ.get("N_ENVS", "4096"))
-DEVICE = int(os.environ.get("BLAZE_DEV", "0"))       # 0 = PRO 6000
+# ---- run config (historical unset-env defaults; main() may override) ----
+TRAIN_SEEDS = [2, 3, 10, 14, 16, 20, 27, 29, 32, 44, 46]
+N_ENVS = 4096
+DEVICE = 0  # was BLAZE_DEV
 REPEAT = 4
 STACK = 2
-T_CHUNK = int(os.environ.get("T_CHUNK", "32"))
-EP_DEC = int(os.environ.get("EP_DEC", "1500"))       # decisions (x4 ticks)
-MAX_TICKS = float(os.environ.get("MAX_TICKS", "3e9"))
-MAX_WALL = float(os.environ.get("MAX_WALL", str(6.5 * 3600)))
-GAMMA = float(os.environ.get("GAMMA", "0.995"))
+T_CHUNK = 32
+EP_DEC = 1500
+MAX_TICKS = 3e9
+MAX_WALL = 6.5 * 3600
+GAMMA = 0.995
 LAM, CLIP = 0.95, 0.2
-EPOCHS = int(os.environ.get("EPOCHS", "2"))
-MB = int(os.environ.get("MB", "8192"))
-LR = float(os.environ.get("LR", "3e-4"))
-LR_FLOOR = float(os.environ.get("LR_FLOOR", "1e-4"))
-LR_DECAY_TICKS = float(os.environ.get("LR_DECAY_TICKS", "1.5e9"))
-ENT = float(os.environ.get("ENT", "0.01"))
+EPOCHS = 2
+MB = 8192
+LR = 3e-4
+LR_FLOOR = 1e-4
+LR_DECAY_TICKS = 1.5e9
+ENT = 0.01
 GRAD_CLIP = 0.5
 CKPT_TICKS = 2_000_000
 TRAIL = 200
-T0_SHARE = float(os.environ.get("T0_SHARE", "0.30"))
-CAP_REFRESH = int(os.environ.get("CAP_REFRESH", "25"))   # chunks between
-                                                       # re-captures per cell
-WARM = os.environ.get("WARM")
-OUT_NAME = os.environ.get("OUT_NAME", "chain_net_cu")   # checkpoint stem
-CURVE_NAME = os.environ.get("CURVE_NAME", "chain_curve_cu")
-RNG_SEED = int(os.environ.get("RNG_SEED", "0"))
+T0_SHARE = 0.30
+CAP_REFRESH = 25
+WARM = None
+OUT_NAME = "chain_net_cu"
+CURVE_NAME = "chain_curve_cu"
+RNG_SEED = 0
 # Episode success item id: 50=torch (default), 274=stone pick, 257=iron pick
 # (IRON_CHAIN=1 required for craft:6/7 + smelt head).
-SUCCESS_ITEM = int(os.environ.get("SUCCESS_ITEM", "50"))
+SUCCESS_ITEM = 50
 
-# reward spec (weights + v2 touchstones; REWARD_JSON / COAL_CHEW / HUNT_DESC)
+# reward spec (weights + v2 touchstones); resolve() kwargs set in main()
 REWARD_SPEC = ChainRewardSpec.resolve()
-COAL_CHEW = REWARD_SPEC.coal_chew      # kept for the launch line echo
+COAL_CHEW = REWARD_SPEC.coal_chew
 HUNT_DESC = REWARD_SPEC.hunt_desc
+REWARD_JSON = None
 
 # ---- benchmark / optimization knobs (blaze/rl/flywheel) ----
 # BENCH_MEASURE_CHUNKS>0 turns the trainer into a fixed-work benchmark: run
 # BENCH_WARMUP_CHUNKS chunks, then time BENCH_MEASURE_CHUNKS complete chunks
 # (rollout + GAE + PPO update) with a device sync on both ends, print one
 # BENCH line per sample and exit WITHOUT writing checkpoints or curves.
-MAX_CHUNKS = int(os.environ.get("MAX_CHUNKS", "0"))
-BENCH_WARMUP_CHUNKS = int(os.environ.get("BENCH_WARMUP_CHUNKS", "0"))
-BENCH_MEASURE_CHUNKS = int(os.environ.get("BENCH_MEASURE_CHUNKS", "0"))
-# BENCH_PHASES=1 adds per-phase CUDA-event timing inside the measured chunks.
-# It inserts extra events and one host sync per chunk, so it is DIAGNOSTIC
-# ONLY: never read chunk_wall_ms from a BENCH_PHASES run as the metric M.
-BENCH_PHASES = int(os.environ.get("BENCH_PHASES", "0")) != 0
-# SMOKE_TELEMETRY=1 prints a per-chunk reward/loss/grad line used by the
-# 30-chunk correctness smoke (compare_smoke.py).
-SMOKE_TELEMETRY = int(os.environ.get("SMOKE_TELEMETRY", "0")) != 0
+MAX_CHUNKS = 0
+BENCH_WARMUP_CHUNKS = 0
+BENCH_MEASURE_CHUNKS = 0
+# BENCH_PHASES=1 adds per-phase CUDA-event timing (DIAGNOSTIC ONLY).
+BENCH_PHASES = False
+SMOKE_TELEMETRY = False
 # ---- candidate switches (each is an A/B against the same source tree) ----
-# FUSED_SAMPLE : one fused Gumbel-argmax + gather over the concatenated head
-#   logits instead of 9 torch.distributions.Categorical objects (rollout
-#   sampling + logprob, and the update-side logprob/entropy).
-#   DEFAULT ON - this is the one kept candidate of the flywheelopt lane:
-#   1715.6 -> 1590.4 ms/chunk at the pinned M config (+7.3%, 458.4k ->
-#   494.5k env-ticks/s). It wins by deleting host synchronisation, not by
-#   doing less arithmetic: each Categorical's argument validation ends in a
-#   `.all()` read back to the host, 9 per forward x 81 forwards per chunk,
-#   and each one drains the pipeline. GPU busy time is unchanged (1540 ->
-#   1534 ms measured by nsys); the whole gain is recovered idle.
-#   Set FUSED_SAMPLE=0 for the pre-lane path. NOTE: the two paths consume
-#   different RNG streams, so a run is not replayable across the flag even
-#   at the same RNG_SEED - see blaze/rl/flywheel/RNG_PROTOCOL.md.
-FUSED_SAMPLE = int(os.environ.get("FUSED_SAMPLE", "1")) != 0
-# GRAPH_ROLLOUT=1 : capture the rollout inference step (obs float convert +
-#                   policy forward + sample + logprob + action-row decode)
-#                   into a CUDA graph replayed per decision.
-GRAPH_ROLLOUT = int(os.environ.get("GRAPH_ROLLOUT", "0")) != 0
-# GRAPH_UPDATE=1  : capture one PPO minibatch step (fwd + bwd + Adam) into a
-#                   CUDA graph. Requires a full-size (MB) minibatch; the
-#                   ragged tail minibatch runs eagerly.
-GRAPH_UPDATE = int(os.environ.get("GRAPH_UPDATE", "0")) != 0
-# ACT_CACHE=1     : cache the yaw/pitch/forward lookup tensors instead of
-#                   rebuilding them from Python tuples every decision.
-ACT_CACHE = int(os.environ.get("ACT_CACHE", "0")) != 0
-# DIST_NOVALIDATE=1: turn off torch.distributions argument validation (its
-#                   support check ends in a host-synchronizing .all()).
-DIST_NOVALIDATE = int(os.environ.get("DIST_NOVALIDATE", "0")) != 0
-# CHANNELS_LAST=1 : policy net + conv-path activations in torch.channels_last
-#                   (NHWC). Default OFF until the chanlast A/B keeps it.
-#                   CHANNELS_LAST=0 is the current NCHW path, bit-identical.
-CHANNELS_LAST = int(os.environ.get("CHANNELS_LAST", "0")) != 0
-# CPOLICY=1: rollout policy forward + sample via the C/CUDA path in
-#   blaze/rl/cpolicy/ (uint8 obs -> conv -> fc -> heads -> Gumbel/greedy).
-#   Update stays torch. Weights uploaded from the torch net once per chunk.
-#   DEFAULT OFF. Sampling RNG is independent of torch (see
-#   blaze/rl/cpolicy/RNG_PROTOCOL.md). Incompatible with GRAPH_ROLLOUT.
-CPOLICY = int(os.environ.get("CPOLICY", "0")) != 0
-# CUDNN_BENCH=1   : torch.backends.cudnn.benchmark = True. Static shapes at
-#                   the pinned config, so algo autotune amortizes over warmup.
-CUDNN_BENCH = int(os.environ.get("CUDNN_BENCH", "0")) != 0
-if CUDNN_BENCH:
-    torch.backends.cudnn.benchmark = True
-# FOLD_SCALE=1    : skip the obs_float depth-plane /=255 elementwise and fold
-#                   that scale into a view of conv1's weights (depth input
-#                   channels pre-multiplied by 1/255; bias unchanged). The
-#                   effective weight is `W * scale_mask` so autograd maps
-#                   gradients back onto the canonical unscaled parameters
-#                   and Adam still steps the stored weights correctly.
-FOLD_SCALE = int(os.environ.get("FOLD_SCALE", "0")) != 0
-# TF32_CONV=1     : enable cuDNN + matmul TF32. CHANGES NUMERICS: keep only
-#                   if check_correctness.sh still PASSes at existing
-#                   tolerances (never loosen them). Default 0.
-TF32_CONV = int(os.environ.get("TF32_CONV", "0")) != 0
-if TF32_CONV:
-    torch.backends.cudnn.allow_tf32 = True
-    torch.backends.cuda.matmul.allow_tf32 = True
-# A CUDA graph cannot contain a pageable H2D copy and cannot contain a host
-# sync, so graph capture forces both of the above on.
-if GRAPH_ROLLOUT or GRAPH_UPDATE:
-    ACT_CACHE = True
-    DIST_NOVALIDATE = True
-if CPOLICY and GRAPH_ROLLOUT:
-    raise RuntimeError("CPOLICY=1 is incompatible with GRAPH_ROLLOUT=1")
-
-# ---- action heads ----
-# dyaw{-15,0,15} dpitch{-10,0,10} fwd{-1,0,1} jump attack use
-# craft{none,0..5} interact hotbar{none,0..8}
-# IRON_CHAIN=1 widens craft to {none,0..7} (furnace, iron pick) and appends
-# a smelt{0,1} head. Default off: HEADS (and any saved net, e.g.
-# chain_net_cu_v2.pt) stay byte-compatible with the stone chain.
-IRON_CHAIN = int(os.environ.get("IRON_CHAIN", "0")) != 0
-HEADS = [3, 3, 3, 2, 2, 2, (9 if IRON_CHAIN else 7), 2, 10] \
-    + ([2] if IRON_CHAIN else [])
+# Defaults match historical unset-env; main() overrides via argparse.
+FUSED_SAMPLE = True
+GRAPH_ROLLOUT = False
+GRAPH_UPDATE = False
+ACT_CACHE = False
+DIST_NOVALIDATE = False
+CHANNELS_LAST = False
+CPOLICY = False
+CUDNN_BENCH = False
+FOLD_SCALE = False
+TF32_CONV = False
+IRON_CHAIN = False
+# HEADS rebuilt in _apply_chain_flags() after argparse.
+HEADS = [3, 3, 3, 2, 2, 2, 7, 2, 10]
 NHEAD = len(HEADS)
 YAWS = (-15.0, 0.0, 15.0)
 PITCHES = (-10.0, 0.0, 10.0)
 FWD = (-1.0, 0.0, 1.0)
+
+
+def _apply_chain_flags():
+    """Recompute HEADS/NHEAD and torch backend flags from module globals."""
+    global HEADS, NHEAD, ACT_CACHE, DIST_NOVALIDATE
+    if CUDNN_BENCH:
+        torch.backends.cudnn.benchmark = True
+    if TF32_CONV:
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cuda.matmul.allow_tf32 = True
+    if GRAPH_ROLLOUT or GRAPH_UPDATE:
+        ACT_CACHE = True
+        DIST_NOVALIDATE = True
+    if CPOLICY and GRAPH_ROLLOUT:
+        raise RuntimeError("CPOLICY=1 is incompatible with GRAPH_ROLLOUT=1")
+    HEADS = [3, 3, 3, 2, 2, 2, (9 if IRON_CHAIN else 7), 2, 10] \
+        + ([2] if IRON_CHAIN else [])
+    NHEAD = len(HEADS)
 
 # ---- obs ----
 NPLANES = 9        # log leaves coal stone dirt table solid depth edge
@@ -817,7 +770,135 @@ class StageCurriculum:
             for si in range(self.nseeds))
 
 
-def main():
+def main(argv=None):
+    import argparse
+    global TRAIN_SEEDS, N_ENVS, DEVICE, T_CHUNK, EP_DEC, MAX_TICKS, MAX_WALL
+    global GAMMA, EPOCHS, MB, LR, LR_FLOOR, LR_DECAY_TICKS, ENT, T0_SHARE
+    global CAP_REFRESH, WARM, OUT_NAME, CURVE_NAME, RNG_SEED, SUCCESS_ITEM
+    global REWARD_SPEC, COAL_CHEW, HUNT_DESC, REWARD_JSON
+    global MAX_CHUNKS, BENCH_WARMUP_CHUNKS, BENCH_MEASURE_CHUNKS
+    global BENCH_PHASES, SMOKE_TELEMETRY, FUSED_SAMPLE, GRAPH_ROLLOUT
+    global GRAPH_UPDATE, ACT_CACHE, DIST_NOVALIDATE, CHANNELS_LAST, CPOLICY
+    global CUDNN_BENCH, FOLD_SCALE, TF32_CONV, IRON_CHAIN
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--device", type=int, default=DEVICE,
+                    help="CUDA device (was BLAZE_DEV, default 0)")
+    ap.add_argument("--seeds", default=",".join(map(str, TRAIN_SEEDS)))
+    ap.add_argument("--n-envs", type=int, default=N_ENVS)
+    ap.add_argument("--t-chunk", type=int, default=T_CHUNK)
+    ap.add_argument("--ep-dec", type=int, default=EP_DEC)
+    ap.add_argument("--max-ticks", type=float, default=MAX_TICKS)
+    ap.add_argument("--max-wall", type=float, default=MAX_WALL)
+    ap.add_argument("--gamma", type=float, default=GAMMA)
+    ap.add_argument("--epochs", type=int, default=EPOCHS)
+    ap.add_argument("--mb", type=int, default=MB)
+    ap.add_argument("--lr", type=float, default=LR)
+    ap.add_argument("--lr-floor", type=float, default=LR_FLOOR)
+    ap.add_argument("--lr-decay-ticks", type=float, default=LR_DECAY_TICKS)
+    ap.add_argument("--ent", type=float, default=ENT)
+    ap.add_argument("--t0-share", type=float, default=T0_SHARE)
+    ap.add_argument("--cap-refresh", type=int, default=CAP_REFRESH)
+    ap.add_argument("--warm", default=None)
+    ap.add_argument("--out-name", default=OUT_NAME)
+    ap.add_argument("--curve-name", default=CURVE_NAME)
+    ap.add_argument("--rng-seed", type=int, default=RNG_SEED)
+    ap.add_argument("--success-item", type=int, default=SUCCESS_ITEM)
+    ap.add_argument("--reward-json", default=None)
+    ap.add_argument("--coal-chew", type=float, default=None)
+    ap.add_argument("--hunt-desc", type=float, default=None)
+    ap.add_argument("--max-chunks", type=int, default=MAX_CHUNKS)
+    ap.add_argument("--bench-warmup-chunks", type=int,
+                    default=BENCH_WARMUP_CHUNKS)
+    ap.add_argument("--bench-measure-chunks", type=int,
+                    default=BENCH_MEASURE_CHUNKS)
+    ap.add_argument("--bench-phases", action="store_true")
+    ap.add_argument("--smoke-telemetry", action="store_true")
+    ap.add_argument("--no-fused-sample", action="store_true")
+    ap.add_argument("--graph-rollout", action="store_true")
+    ap.add_argument("--graph-update", action="store_true")
+    ap.add_argument("--act-cache", action="store_true")
+    ap.add_argument("--dist-novalidate", action="store_true")
+    ap.add_argument("--channels-last", action="store_true")
+    ap.add_argument("--cpolicy", action="store_true")
+    ap.add_argument("--cudnn-bench", action="store_true")
+    ap.add_argument("--fold-scale", action="store_true")
+    ap.add_argument("--tf32-conv", action="store_true")
+    ap.add_argument("--iron-chain", action="store_true")
+    ap.add_argument("--set", action="append", default=[],
+                    help="legacy KEY=VAL overrides (e.g. ACT_CACHE=1)")
+    args = ap.parse_args(argv)
+
+    set_map = {
+        "N_ENVS": ("n_envs", int), "T_CHUNK": ("t_chunk", int),
+        "EPOCHS": ("epochs", int), "MB": ("mb", int),
+        "MAX_TICKS": ("max_ticks", float), "MAX_WALL": ("max_wall", float),
+        "RNG_SEED": ("rng_seed", int), "BLAZE_DEV": ("device", int),
+        "BENCH_WARMUP_CHUNKS": ("bench_warmup_chunks", int),
+        "BENCH_MEASURE_CHUNKS": ("bench_measure_chunks", int),
+        "BENCH_PHASES": ("bench_phases", lambda v: bool(int(v))),
+        "SMOKE_TELEMETRY": ("smoke_telemetry", lambda v: bool(int(v))),
+        "FUSED_SAMPLE": ("no_fused_sample", lambda v: not bool(int(v))),
+        "GRAPH_ROLLOUT": ("graph_rollout", lambda v: bool(int(v))),
+        "GRAPH_UPDATE": ("graph_update", lambda v: bool(int(v))),
+        "ACT_CACHE": ("act_cache", lambda v: bool(int(v))),
+        "DIST_NOVALIDATE": ("dist_novalidate", lambda v: bool(int(v))),
+        "CHANNELS_LAST": ("channels_last", lambda v: bool(int(v))),
+        "CPOLICY": ("cpolicy", lambda v: bool(int(v))),
+        "CUDNN_BENCH": ("cudnn_bench", lambda v: bool(int(v))),
+        "FOLD_SCALE": ("fold_scale", lambda v: bool(int(v))),
+        "TF32_CONV": ("tf32_conv", lambda v: bool(int(v))),
+        "IRON_CHAIN": ("iron_chain", lambda v: bool(int(v))),
+        "SUCCESS_ITEM": ("success_item", int),
+        "T0_SHARE": ("t0_share", float), "CAP_REFRESH": ("cap_refresh", int),
+        "LR": ("lr", float), "LR_FLOOR": ("lr_floor", float),
+        "LR_DECAY_TICKS": ("lr_decay_ticks", float), "ENT": ("ent", float),
+        "EP_DEC": ("ep_dec", int), "MAX_CHUNKS": ("max_chunks", int),
+        "WARM": ("warm", str), "OUT_NAME": ("out_name", str),
+        "CURVE_NAME": ("curve_name", str), "TRAIN_SEEDS": ("seeds", str),
+        "REWARD_JSON": ("reward_json", str),
+        "COAL_CHEW": ("coal_chew", float), "HUNT_DESC": ("hunt_desc", float),
+        "GAMMA": ("gamma", float),
+    }
+    for kv in args.set:
+        k, _, v = kv.partition("=")
+        if k not in set_map:
+            raise SystemExit(f"unknown --set key {k!r}")
+        attr, cast = set_map[k]
+        setattr(args, attr, cast(v) if v != "" else cast("0"))
+
+    TRAIN_SEEDS = [int(s) for s in args.seeds.split(",") if s.strip()]
+    N_ENVS, DEVICE = args.n_envs, args.device
+    T_CHUNK, EP_DEC = args.t_chunk, args.ep_dec
+    MAX_TICKS, MAX_WALL = args.max_ticks, args.max_wall
+    GAMMA, EPOCHS, MB = args.gamma, args.epochs, args.mb
+    LR, LR_FLOOR, LR_DECAY_TICKS = args.lr, args.lr_floor, args.lr_decay_ticks
+    ENT, T0_SHARE, CAP_REFRESH = args.ent, args.t0_share, args.cap_refresh
+    WARM, OUT_NAME, CURVE_NAME = args.warm, args.out_name, args.curve_name
+    RNG_SEED, SUCCESS_ITEM = args.rng_seed, args.success_item
+    REWARD_JSON = args.reward_json
+    REWARD_SPEC = ChainRewardSpec.resolve(
+        reward_json=args.reward_json, coal_chew=args.coal_chew,
+        hunt_desc=args.hunt_desc)
+    COAL_CHEW, HUNT_DESC = REWARD_SPEC.coal_chew, REWARD_SPEC.hunt_desc
+    MAX_CHUNKS = args.max_chunks
+    BENCH_WARMUP_CHUNKS = args.bench_warmup_chunks
+    BENCH_MEASURE_CHUNKS = args.bench_measure_chunks
+    BENCH_PHASES = bool(args.bench_phases)
+    SMOKE_TELEMETRY = bool(args.smoke_telemetry)
+    FUSED_SAMPLE = not bool(args.no_fused_sample)
+    GRAPH_ROLLOUT = bool(args.graph_rollout)
+    GRAPH_UPDATE = bool(args.graph_update)
+    ACT_CACHE = bool(args.act_cache)
+    DIST_NOVALIDATE = bool(args.dist_novalidate)
+    CHANNELS_LAST = bool(args.channels_last)
+    CPOLICY = bool(args.cpolicy)
+    CUDNN_BENCH = bool(args.cudnn_bench)
+    FOLD_SCALE = bool(args.fold_scale)
+    TF32_CONV = bool(args.tf32_conv)
+    IRON_CHAIN = bool(args.iron_chain)
+    _apply_chain_flags()
+
     os.makedirs(OUT, exist_ok=True)
     if DIST_NOVALIDATE:
         torch.distributions.Distribution.set_default_validate_args(False)
@@ -834,7 +915,7 @@ def main():
 
     env = VecBlaze(N_ENVS, device=DEVICE, so_path=CUDA_SO)
     env.set_success_item(SUCCESS_ITEM)        # default 50 torch; 274=spick abuse
-    print(f"success_item={SUCCESS_ITEM}  REWARD_JSON={os.environ.get('REWARD_JSON')}",
+    print(f"success_item={SUCCESS_ITEM}  reward_json={REWARD_JSON}",
           flush=True)
     env.load_snapshots(paths)
 
@@ -1294,4 +1375,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

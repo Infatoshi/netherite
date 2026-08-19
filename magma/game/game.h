@@ -252,6 +252,8 @@ typedef struct {
     int drop_id;      /* item id, or 0 when the block yields nothing */
     int drop_count;
     int drop_meta;
+    int break_effect; /* PlayerControllerMP emitted world event 2001 */
+    int place_effect; /* successful ItemBlock placement emitted its SoundType */
 } GmBlockEdit;
 
 /* ============================ game/input_map.c (owner: INPUT agent) ============================
@@ -297,9 +299,20 @@ void      gm_world_set_block_meta(GmWorld *w, int wx, int wy, int wz, int id, in
 /* Snapshot bulk-load primitive: target chunk must already be ensured. Updates
  * canonical state + dirty mesh/light flags without recomputing light per cell. */
 void      gm_world_load_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int meta);
+/* Restore a snapshot's saved skylight nibble (light_load_sky contract): call
+ * after the bulk gm_world_load_block_meta batch has been relit, never before. */
+void      gm_world_load_sky_light(GmWorld *w, int wx, int wy, int wz, int sky);
 /* Monotonic block-mutation counter; bumps on every set_block(_meta). Callers
  * holding a copied window (runtime physics window) refill when it changes. */
 long long gm_world_block_gen(const GmWorld *w);
+/* Configure/query the snapshot-bounded packed block-state digest used by the
+ * Magma <-> Blaze world parity gate. The digest normalizes the supplied origin;
+ * only dimensions and relative (x,y,z) cell states enter the hash. Mutations
+ * count only value-changing writes inside the configured region. */
+int       gm_world_parity_configure(GmWorld *w, int x0, int y0, int z0,
+                                    int nx, int ny, int nz);
+int       gm_world_parity_state(const GmWorld *w, uint64_t *digest,
+                                unsigned *mutations);
 
 /* World-time / weather counters for the live tick composition (advanced by
  * gm_world_tick). */

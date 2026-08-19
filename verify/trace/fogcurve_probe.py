@@ -40,7 +40,7 @@ MAGMA = HERE.parents[1] / "magma"
 MC_CAPTURE = MAGMA / "raster" / "verify" / "mc_capture"
 REPO = HERE.parents[1]  # netherite monorepo root
 
-SCRATCH = Path(os.environ.get("FOGCURVE_SCRATCH", os.path.expanduser("~/dev/nw/.tmp/fogcurve")))
+SCRATCH = Path(os.path.expanduser("~/dev/nw/.tmp/fogcurve"))
 DEFAULT_SLIME_FOG = Path(os.path.expanduser("~/dev/nw/.tmp/hfog_out/magma_frames.npy"))
 DEFAULT_SLIME_NOFOG = Path(os.path.expanduser("~/dev/nw/.tmp/hfog_nofog/magma_frames.npy"))
 DEFAULT_SLIME_TICKS_FOG = Path(os.path.expanduser("~/dev/nw/.tmp/hfog_out/magma_frames.ticks.npy"))
@@ -263,13 +263,13 @@ def d_from_t(t: np.ndarray, fog_start: float, fog_end: float) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-def ensure_game_candidate(bin_path: Path) -> Path:
+def ensure_game_candidate(bin_path: Path, force_build: bool = False) -> Path:
     if bin_path.exists() and bin_path.stat().st_mtime > (
         MC_CAPTURE / "game_candidate.c"
     ).stat().st_mtime:
         # still rebuild if any of the core objs are newer - keep simple: always
-        # rebuild when FOGCURVE_FORCE_BUILD=1, else use existing if present.
-        if os.environ.get("FOGCURVE_FORCE_BUILD") != "1":
+        # rebuild when --force-build, else use existing if present.
+        if not force_build:
             return bin_path
     mcsim = MAGMA.parent / "blaze" / "core"
     flags = [
@@ -327,11 +327,12 @@ def render_game_candidate(
     depth: Optional[Path],
     fog: bool,
 ) -> None:
-    env = os.environ.copy()
-    env["MAGMA_FOG"] = "1" if fog else "0"
-    # game_candidate caches getenv on first call in-process; fresh process each time.
+    # fog rides the registry (--set fog=N); fresh process each render so the
+    # candidate's first-use cache never sees a stale value.
     cmd = [
         str(bin_path),
+        "--set",
+        "fog=1" if fog else "fog=0",
         "--eye",
         f"{cam.eye[0]}",
         f"{cam.eye[1]}",
@@ -353,8 +354,8 @@ def render_game_candidate(
     ]
     if depth is not None:
         cmd += ["--depth", str(depth)]
-    print("RUN", "MAGMA_FOG=" + env["MAGMA_FOG"], " ".join(cmd), flush=True)
-    subprocess.check_call(cmd, env=env, cwd=str(MAGMA))
+    print("RUN", " ".join(cmd), flush=True)
+    subprocess.check_call(cmd, cwd=str(MAGMA))
 
 
 def ppm_to_rgb(ppm: Path) -> np.ndarray:
@@ -646,7 +647,7 @@ def analyze_pair(
 # ---------------------------------------------------------------------------
 
 
-def run_seed7(bin_path: Path, out_dir: Path) -> dict:
+def run_seed7(bin_path: Path, out_dir: Path, rerender: bool = False) -> dict:
     """Seed7: vertical (trunk) vs ground (grass) at same d from depth buffer.
 
     Absolute t_gold is biased by lighting/T mismatch vs the golden; the
@@ -664,7 +665,7 @@ def run_seed7(bin_path: Path, out_dir: Path) -> dict:
         png_fog.exists()
         and png_nofog.exists()
         and depth_path.exists()
-        and os.environ.get("FOGCURVE_RERENDER") != "1"
+        and not rerender
     )
     if need:
         render_game_candidate(bin_path, cam, seed=7, ppm=ppm_fog, depth=depth_path, fog=True)
@@ -764,7 +765,7 @@ def run_seed7(bin_path: Path, out_dir: Path) -> dict:
     }
 
 
-def run_pose0(bin_path: Path, out_dir: Path) -> dict:
+def run_pose0(bin_path: Path, out_dir: Path, rerender: bool = False) -> dict:
     cam_path = MC_CAPTURE / "camera.json"
     if not cam_path.exists():
         print("skip pose0: no camera.json")
@@ -789,7 +790,7 @@ def run_pose0(bin_path: Path, out_dir: Path) -> dict:
         png_fog.exists()
         and png_nofog.exists()
         and depth_path.exists()
-        and os.environ.get("FOGCURVE_RERENDER") != "1"
+        and not rerender
     )
     if need:
         render_game_candidate(bin_path, cam, seed=0, ppm=ppm_fog, depth=depth_path, fog=True)
@@ -850,7 +851,7 @@ def run_slime(
     if not fog_npy.exists() or not nofog_npy.exists():
         print(
             "slime_bounce magma frames missing; replaying is expensive. "
-            f"Expected {fog_npy} and {nofog_npy}. Skip or set FOGCURVE_SLIME_*."
+            f"Expected {fog_npy} and {nofog_npy}."
         )
         return {"name": "slime_bounce", "verdict": "skipped_missing_frames"}
 
@@ -984,8 +985,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         choices=["all", "seed7", "pose0", "slime"],
         default="all",
     )
-    ap.add_argument("--out", type=Path, default=SCRATCH)
+    ap.add_argument("--out", type=Path, default=SCRATCH,
+                    help="scratch/output dir (was FOGCURVE_SCRATCH)")
     ap.add_argument("--slime-tick", type=int, default=80)
+    ap.add_argument("--force-build", action="store_true",
+                    help="rebuild game_candidate even if present "
+                         "(was FOGCURVE_FORCE_BUILD=1)")
+    ap.add_argument("--rerender", action="store_true",
+                    help="force re-render even if png/depth exist "
+                         "(was FOGCURVE_RERENDER=1)")
     args = ap.parse_args(argv)
 
     out_dir = args.out
@@ -996,12 +1004,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     need_build = args.scene in ("all", "seed7", "pose0")
     if need_build:
         print("building game_candidate →", bin_path)
-        ensure_game_candidate(bin_path)
+        ensure_game_candidate(bin_path, force_build=args.force_build)
 
     if args.scene in ("all", "seed7"):
-        results.append(run_seed7(bin_path, out_dir))
+        results.append(run_seed7(bin_path, out_dir, rerender=args.rerender))
     if args.scene in ("all", "pose0"):
-        results.append(run_pose0(bin_path, out_dir))
+        results.append(run_pose0(bin_path, out_dir, rerender=args.rerender))
     if args.scene in ("all", "slime"):
         results.append(run_slime(out_dir, tick=args.slime_tick))
 

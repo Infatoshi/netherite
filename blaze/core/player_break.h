@@ -64,7 +64,8 @@ typedef struct {
 MC_HD static inline int pb_requires_tool(int block_id) {
     if (block_id == BLK_STONE || block_id == BLK_COBBLESTONE || block_id == BLK_IRON_ORE
         || block_id == BLK_COAL_ORE || block_id == BLK_GOLD_ORE || block_id == BLK_DIAMOND_ORE
-        || block_id == BLK_OBSIDIAN || block_id == BLK_LAPIS_ORE || block_id == 73 || block_id == 74)
+        || block_id == BLK_OBSIDIAN || block_id == BLK_LAPIS_ORE || block_id == 61
+        || block_id == 62 || block_id == 73 || block_id == 74)
         return 1;
     return 0;
 }

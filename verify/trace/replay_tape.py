@@ -20,12 +20,16 @@ import argparse
 import json
 import math
 import os
+import re
+import subprocess
 import sys
 from collections import Counter
 from itertools import pairwise
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dig_compare
 import oracle_lib as ol
+import tape_contract
 
 # first-divergence tolerances per field: MC physics is double-exact, so any gap
 # beyond float noise is a real defect. on_ground/hp/food must match exactly.
@@ -92,6 +96,108 @@ def apply_missing_model_gate(gate, counts):
     if failed:
         gate["pass"] = False
     return gate
+
+
+# ---------------- gate outcome (tri-state) ----------------
+# A gate verdict answers exactly one question: does the C clone match the Java
+# oracle? A harness that broke - segfaulted binary, goldens that resolve to
+# nothing, zero simulated ticks - never asked that question, so reporting it as
+# FAIL is a lie in the same family as the "PASS over 0 frames" hole: both put a
+# parity word on a run that produced no comparable evidence. Every gate.json
+# therefore carries an explicit outcome alongside the legacy `pass`:
+#
+#   pass                 evidence was compared and matched
+#   parity-fail          evidence was compared and disagreed
+#   infrastructure-fail  the harness could not produce comparable evidence
+#
+# `pass` keeps its existing meaning and type for every current consumer
+# (gate_baseline_diff.py, fast_gate.sh, the baselines); the infrastructure case
+# sets it to None, which already means "no verdict" here - the same convention
+# mark_absolute_pixel_refused() uses.
+OUTCOME_PASS = "pass"
+OUTCOME_PARITY_FAIL = "parity-fail"
+OUTCOME_INFRA_FAIL = "infrastructure-fail"
+# rc map: 0 pass | 2 fail-closed | 3 pixel | 4 physics | 5 state | 6 harness.
+# 1 stays "uncaught python traceback", which is itself an infrastructure fault
+# but carries no report.
+RC_INFRA_FAIL = 6
+
+# Set once at the top of main() so a raise site deep in the replay can still
+# name the tape it failed on.
+_GATE_CTX = {"here": None, "name": None}
+
+
+class InfrastructureFailure(Exception):
+    """The harness could not produce comparable evidence.
+
+    Raised instead of SystemExit wherever the failure is ours, not the clone's.
+    Never carries a parity verdict: the handler writes outcome=
+    infrastructure-fail, pass=None, and exits RC_INFRA_FAIL.
+    """
+
+
+def magma_run_failure_is_infrastructure(message):
+    """True when a magma RuntimeError is the harness dying, not the clone diverging.
+
+    oracle_lib.run_magma_script raises RuntimeError("magma_game failed (rc=N)")
+    for ANY nonzero rc. A live-player death legitimately ends the run early
+    (rc=2, "event lies beyond --ticks") and its partial state is real
+    divergence evidence. A negative rc is death by signal - rc=-11 is the
+    SIGSEGV documented in AGENTS.md - and rc>=128 is the shell spelling of the
+    same thing. Diffing the partial state of a crashed binary is how a
+    segfault becomes a "physics divergence" (rc=4).
+    """
+    if "build failed" in message:
+        return True
+    m = re.search(r"rc=(-?\d+)", message)
+    if m is None:
+        return False
+    rc = int(m.group(1))
+    return rc < 0 or rc >= 128
+
+
+def infrastructure_gate_payload(reason, state_gate=None, contract=None):
+    """Minimal gate.json body for a run that produced no comparable evidence."""
+    payload = {
+        "pass": None,
+        "outcome": OUTCOME_INFRA_FAIL,
+        "infrastructure_fail": {"reason": reason},
+        "frames_checked": 0,
+        "classes": {},
+        "failed_frames": [],
+    }
+    if state_gate is not None:
+        payload["state"] = state_gate
+    if contract is not None:
+        payload["contract"] = contract
+    return payload
+
+
+def report_infrastructure_failure(reason):
+    """Print the fault, write a non-verdict gate.json if we know the tape, exit 6."""
+    print(f"[tape] INFRASTRUCTURE FAILURE: {reason}")
+    print("[tape] this is a harness fault, NOT a parity verdict "
+          f"(outcome={OUTCOME_INFRA_FAIL}, rc={RC_INFRA_FAIL})")
+    here, name = _GATE_CTX["here"], _GATE_CTX["name"]
+    if here and name:
+        gj = os.path.join(here, "report", f"tape_{name}.gate.json")
+        try:
+            os.makedirs(os.path.dirname(gj), exist_ok=True)
+            with open(gj, "w") as f:
+                json.dump(infrastructure_gate_payload(reason), f, indent=1)
+            print(f"[gate] infrastructure marker -> {gj}")
+        except OSError as exc:
+            print(f"[gate] could not write the infrastructure marker: {exc}")
+    return RC_INFRA_FAIL
+
+
+def mark_absolute_pixel_refused(gate, pixel_status):
+    """Retain diagnostics while making a provenance-blocked verdict non-boolean."""
+    out = dict(gate)
+    out["pass"] = None
+    out["absolute_pixel_refused"] = True
+    out["pixel_status"] = pixel_status
+    return out
 
 
 def sgn(v):
@@ -200,6 +306,351 @@ def gui_slot_id(gui, index):
         if 54 <= index <= 62:
             return index - 54
     return None
+
+
+# MC 1.11.2 net.minecraft.inventory.ClickType ordinals. magma container_live
+# implements PICKUP / QUICK_MOVE / THROW only; others fail closed at script gen
+# and again in C (never silent drops).
+CLICK_TYPE_NAMES = {
+    0: "PICKUP",
+    1: "QUICK_MOVE",
+    2: "SWAP",
+    3: "CLONE",
+    4: "THROW",
+    5: "QUICK_CRAFT",
+    6: "PICKUP_ALL",
+}
+CLICK_TYPE_ORDINALS = {name: ord_ for ord_, name in CLICK_TYPE_NAMES.items()}
+# Supported by blaze/core/container_click.h + magma/game/container_live.c.
+SUPPORTED_CLICK_TYPES = frozenset({0, 1, 4})  # PICKUP, QUICK_MOVE, THROW
+GMC_OUTSIDE = -999
+
+# Tape ctypes that magma can open/click authoritatively. All others fail closed.
+REPLAYABLE_CTYPES = frozenset({"player", "workbench", "furnace", "chest"})
+GUI_TO_CTYPE = {
+    "GuiInventory": "player",
+    "GuiCrafting": "workbench",
+    "GuiFurnace": "furnace",
+    "GuiChest": "chest",
+}
+# Container-side slot counts in gopen slots arrays (vanilla prefix).
+CTYPE_CONT_SLOTS = {
+    "player": 0,
+    "workbench": 10,  # result + 9 grid
+    "furnace": 3,
+    "chest": 27,
+}
+
+
+def _schema_int(value, tick, what):
+    if type(value) is not int:
+        raise SystemExit(
+            f"tick {tick}: {what} must be schema integer, got {value!r}")
+    return value
+
+
+def _parse_stack(stack, tick, what):
+    """Tape stack: 0 or [id, meta, count] -> (item, meta, count)."""
+    if stack == 0:
+        return 0, 0, 0
+    if (not isinstance(stack, (list, tuple)) or len(stack) != 3
+            or not all(type(v) is int for v in stack)):
+        raise SystemExit(
+            f"tick {tick}: {what} must be 0 or [id,meta,count], got {stack!r}")
+    return int(stack[0]), int(stack[1]), int(stack[2])
+
+
+def parse_gopen_entry(entry, tick):
+    """Validate one ``gopen`` entry; return dict for script emission.
+
+    Forms:
+      player:  [gui, wid, "player"]
+      block:   [gui, wid, ctype, x, y, z, slots, cur]
+      furnace: [gui, wid, "furnace", x, y, z, slots, cur, [burn,curBurn,cook,total]]
+    """
+    if not isinstance(entry, (list, tuple)) or len(entry) < 3:
+        raise SystemExit(
+            f"tick {tick}: gopen entry must be a list of length >= 3, "
+            f"got {entry!r}")
+    gui = entry[0]
+    if not isinstance(gui, str) or not gui:
+        raise SystemExit(f"tick {tick}: gopen gui must be non-empty string")
+    wid = _schema_int(entry[1], tick, "gopen window_id")
+    ctype = entry[2]
+    if not isinstance(ctype, str) or not ctype:
+        raise SystemExit(f"tick {tick}: gopen ctype must be non-empty string")
+    expected_ctype = GUI_TO_CTYPE.get(gui)
+    if (expected_ctype is not None
+            and ctype not in (expected_ctype, "double_chest", "unsupported")):
+        raise SystemExit(
+            f"tick {tick}: gopen gui {gui!r} ctype {ctype!r} mismatch")
+    if ctype not in REPLAYABLE_CTYPES:
+        raise SystemExit(
+            f"tick {tick}: unsupported container ctype {ctype!r} "
+            f"(gui={gui!r}); magma replays player/workbench/furnace/chest only")
+    if ctype == "player":
+        if len(entry) != 3:
+            raise SystemExit(
+                f"tick {tick}: player gopen must be [gui,wid,\"player\"], "
+                f"got {entry!r}")
+        return {
+            "gui": gui, "window_id": wid, "ctype": ctype,
+            "x": 0, "y": 0, "z": 0, "slots": [], "cur": (0, 0, 0),
+            "prop": None,
+        }
+    if len(entry) not in (8, 9):
+        raise SystemExit(
+            f"tick {tick}: block gopen must be "
+            f"[gui,wid,ctype,x,y,z,slots,cur] (+ optional prop), got {entry!r}")
+    x = _schema_int(entry[3], tick, "gopen x")
+    y = _schema_int(entry[4], tick, "gopen y")
+    z = _schema_int(entry[5], tick, "gopen z")
+    if x == -2147483648 or y == -2147483648 or z == -2147483648:
+        raise SystemExit(
+            f"tick {tick}: gopen missing world position for {ctype} "
+            f"(gui={gui!r} wid={wid})")
+    slots_raw = entry[6]
+    if not isinstance(slots_raw, list):
+        raise SystemExit(f"tick {tick}: gopen slots must be a list")
+    expect_n = CTYPE_CONT_SLOTS[ctype]
+    if len(slots_raw) != expect_n:
+        raise SystemExit(
+            f"tick {tick}: gopen {ctype} slots length {len(slots_raw)} "
+            f"!= {expect_n}")
+    slots = [_parse_stack(s, tick, f"gopen slot {i}")
+             for i, s in enumerate(slots_raw)]
+    cur = _parse_stack(entry[7], tick, "gopen cursor")
+    prop = None
+    if len(entry) == 9:
+        p = entry[8]
+        if (not isinstance(p, (list, tuple)) or len(p) != 4
+                or not all(type(v) is int for v in p)):
+            raise SystemExit(
+                f"tick {tick}: gopen furnace prop must be 4 ints, got {p!r}")
+        if ctype != "furnace":
+            raise SystemExit(
+                f"tick {tick}: gopen prop only valid for furnace, got {ctype}")
+        prop = tuple(int(v) for v in p)
+    elif ctype == "furnace":
+        raise SystemExit(
+            f"tick {tick}: furnace gopen requires [burn,current,cook,total] prop")
+    return {
+        "gui": gui, "window_id": wid, "ctype": ctype,
+        "x": x, "y": y, "z": z, "slots": slots, "cur": cur, "prop": prop,
+    }
+
+
+def parse_gclose_entry(entry, tick):
+    if not isinstance(entry, (list, tuple)) or len(entry) != 2:
+        raise SystemExit(
+            f"tick {tick}: gclose entry must be [wid, gui], got {entry!r}")
+    wid = _schema_int(entry[0], tick, "gclose window_id")
+    gui = entry[1]
+    if not isinstance(gui, str) or not gui:
+        raise SystemExit(f"tick {tick}: gclose gui must be non-empty string")
+    return wid, gui
+
+
+def parse_gclk_entry(entry, tick, open_state):
+    """Validate one recorder ``gclk`` entry against the open container.
+
+    Accepts:
+      legacy 5-tuple: [gui,slot,button,typeOrd,typeName]  (GuiInventory only)
+      new 6-tuple:    [gui,slot,button,typeOrd,typeName,wid]
+    """
+    if not isinstance(entry, (list, tuple)) or len(entry) not in (5, 6):
+        raise SystemExit(
+            f"tick {tick}: gclk entry must be "
+            f"[gui,slot,button,typeOrd,typeName] or +windowId, got {entry!r}")
+    gui, slot_id, button, type_ord, name = entry[:5]
+    if not isinstance(gui, str) or not gui:
+        raise SystemExit(
+            f"tick {tick}: gclk gui must be non-empty string, got {gui!r}")
+    if not all(type(value) is int for value in (slot_id, button, type_ord)):
+        raise SystemExit(
+            f"tick {tick}: gclk slot/button/type must be schema integers")
+    if not isinstance(name, str):
+        raise SystemExit(f"tick {tick}: gclk type name must be string")
+    expected = CLICK_TYPE_NAMES.get(type_ord)
+    known = CLICK_TYPE_ORDINALS.get(name)
+    if known is None:
+        raise SystemExit(f"tick {tick}: unknown ClickType name {name!r}")
+    if expected is not None and name != expected:
+        raise SystemExit(
+            f"tick {tick}: ClickType ordinal {type_ord} is {expected}, "
+            f"not {name!r}")
+    if type_ord != known:
+        raise SystemExit(
+            f"tick {tick}: ClickType {name!r} ordinal is {known}, "
+            f"not {type_ord}")
+    if type_ord not in SUPPORTED_CLICK_TYPES:
+        name = CLICK_TYPE_NAMES.get(type_ord, str(type_ord))
+        raise SystemExit(
+            f"tick {tick}: unsupported ClickType {name} (ordinal {type_ord}); "
+            f"magma supports PICKUP/QUICK_MOVE/THROW only")
+    if button not in (0, 1):
+        raise SystemExit(f"tick {tick}: gclk button must be 0 or 1, got {button}")
+
+    if len(entry) == 5:
+        # Legacy: only player inventory clicks without taped identity.
+        if gui != "GuiInventory":
+            raise SystemExit(
+                f"tick {tick}: legacy 5-field gclk only valid for GuiInventory; "
+                f"got {gui!r} (need gopen + window id for block containers)")
+        wid = 0
+    else:
+        wid = _schema_int(entry[5], tick, "gclk window_id")
+
+    if open_state is None:
+        if gui == "GuiInventory" and wid == 0:
+            # Implicit player container (legacy inventory path without gopen).
+            pass
+        else:
+            raise SystemExit(
+                f"tick {tick}: gclk without open container "
+                f"(gui={gui!r} wid={wid})")
+    else:
+        if wid != open_state["window_id"]:
+            raise SystemExit(
+                f"tick {tick}: gclk window_id {wid} != open "
+                f"{open_state['window_id']}")
+        if gui != open_state["gui"]:
+            raise SystemExit(
+                f"tick {tick}: gclk gui {gui!r} != open {open_state['gui']!r}")
+
+    if slot_id == GMC_OUTSIDE:
+        magma_slot = GMC_OUTSIDE
+    else:
+        magma_slot = gui_slot_id(gui, slot_id)
+        if magma_slot is None:
+            raise SystemExit(
+                f"tick {tick}: unsupported GUI/slot for click: "
+                f"gui={gui!r} slot={slot_id}")
+    return gui, magma_slot, button, type_ord, wid
+
+
+def _cont_slot_to_gmc(ctype, index):
+    """Map container-side gopen slot index to magma GMC id for live seeding.
+
+    Craft result (workbench/player index 0) is recipe-derived take-only and is
+    never seeded — return None so emit skips it.
+    """
+    if ctype == "workbench":
+        # 1..9 grid -> GMC 36..44 (skip 0 = result)
+        if 1 <= index <= 9:
+            return 35 + index
+    elif ctype == "furnace":
+        if 0 <= index <= 2:
+            return 46 + index
+    elif ctype == "chest" and 0 <= index <= 26:
+        return 53 + index
+    return None
+
+
+def emit_container_lifecycle(f, tick, row, open_state):
+    """Emit gopen -> gclk -> gclose script events; return updated open_state.
+
+    Order matches the recorder drain: opens (switch implies prior close),
+    then clicks, then explicit closes to no-container. Never invents clicks
+    from gslots/gcur. Fail closed on missing identity, window mismatch,
+    unsupported ctype/ClickType, or malformed payloads.
+    """
+    if row.get("gopen") and row.get("gclk"):
+        raise SystemExit(
+            f"tick {tick}: gopen and gclk share a tick; the recorded open "
+            "snapshot is post-click, so replay would apply the click twice")
+    # --- opens (may be multiple if switch without null frame) ---
+    if "gopen" in row:
+        opens = row["gopen"]
+        if not isinstance(opens, list):
+            raise SystemExit(
+                f"tick {tick}: gopen must be a list, got {type(opens)}")
+        for entry in opens:
+            info = parse_gopen_entry(entry, tick)
+            if open_state is not None:
+                # Implicit close of previous when switch was not taped.
+                f.write(json.dumps({
+                    "tick": tick, "type": "container_close",
+                    "window_id": int(open_state["window_id"]),
+                }) + "\n")
+            ev = {
+                "tick": tick, "type": "container_open",
+                "window_id": int(info["window_id"]),
+                "ctype": info["ctype"],
+                "x": int(info["x"]), "y": int(info["y"]), "z": int(info["z"]),
+            }
+            f.write(json.dumps(ev) + "\n")
+            for i, (item, meta, count) in enumerate(info["slots"]):
+                gmc = _cont_slot_to_gmc(info["ctype"], i)
+                if gmc is None:
+                    continue
+                f.write(json.dumps({
+                    "tick": tick, "type": "container_slot",
+                    "slot": int(gmc),
+                    "item": int(item), "count": int(count), "meta": int(meta),
+                }) + "\n")
+            ci, cm, cc = info["cur"]
+            f.write(json.dumps({
+                "tick": tick, "type": "container_cursor",
+                "item": int(ci), "count": int(cc), "meta": int(cm),
+            }) + "\n")
+            if info["prop"] is not None:
+                burn, current, cook, total = info["prop"]
+                f.write(json.dumps({
+                    "tick": tick, "type": "container_furnace_prop",
+                    "burn": int(burn), "current_burn": int(current),
+                    "cook": int(cook), "total_cook": int(total),
+                }) + "\n")
+            open_state = {
+                "gui": info["gui"],
+                "window_id": info["window_id"],
+                "ctype": info["ctype"],
+            }
+
+    # --- clicks ---
+    if "gclk" in row:
+        clicks = row["gclk"]
+        if not isinstance(clicks, list):
+            raise SystemExit(
+                f"tick {tick}: gclk must be a list, got {type(clicks)}")
+        for entry in clicks:
+            _gui, slot, button, type_ord, wid = parse_gclk_entry(
+                entry, tick, open_state)
+            f.write(json.dumps({
+                "tick": tick,
+                "type": "container_click",
+                "slot": int(slot),
+                "button": int(button),
+                "click_type": int(type_ord),
+                "window_id": int(wid),
+            }) + "\n")
+
+    # --- closes ---
+    if "gclose" in row:
+        closes = row["gclose"]
+        if not isinstance(closes, list):
+            raise SystemExit(
+                f"tick {tick}: gclose must be a list, got {type(closes)}")
+        for entry in closes:
+            wid, gui = parse_gclose_entry(entry, tick)
+            if open_state is None:
+                raise SystemExit(
+                    f"tick {tick}: gclose without open container wid={wid}")
+            if wid != open_state["window_id"]:
+                raise SystemExit(
+                    f"tick {tick}: gclose window_id {wid} != open "
+                    f"{open_state['window_id']}")
+            if gui != open_state["gui"]:
+                raise SystemExit(
+                    f"tick {tick}: gclose gui {gui!r} != open "
+                    f"{open_state['gui']!r}")
+            f.write(json.dumps({
+                "tick": tick, "type": "container_close",
+                "window_id": int(wid),
+            }) + "\n")
+            open_state = None
+
+    return open_state
 
 
 def tape_stack(stack):
@@ -574,7 +1025,7 @@ def snapshot_armor_stands(tape_path, header, ticks):
 
 
 def tape_to_script(header, ticks, script_path, tape_path=None,
-                   snapshot_override=None):
+                   snapshot_override=None, ent_ticks0=None):
     """Emit the magma JSONL event script for this tape.
 
     Optional sidecar <tape>.worldpatch.jsonl: set_block / set_inventory events
@@ -604,11 +1055,11 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
     # scenario_dragon_kill_20260729T110941Z gives 76805 differing px summed over
     # ticks 300-476 at offset 7 against 109211-114438 at all 99 others - a
     # single sharp minimum, i.e. the QRL harness starts recording 7 ticks after
-    # the client spawns the End entities. MAGMA_ENT_TICKS0 re-sweeps it; see
-    # AGENTS.md on MAGMA_FOG_C1_INIT for the same "recorded value wins over the
-    # reconstruction" rule.
-    ticks0 = int(os.environ.get("MAGMA_ENT_TICKS0",
-                                header.get("ent_ticks0", 7)))
+    # the client spawns the End entities. Caller --ent-ticks0 re-sweeps it; see
+    # AGENTS.md for the same "recorded value wins over the reconstruction" rule
+    # (ent_ticks0=None => header.ent_ticks0 or 7).
+    ticks0 = int(ent_ticks0 if ent_ticks0 is not None
+                 else header.get("ent_ticks0", 7))
     first_seen = {}
     for r in ticks:
         rt = int(r.get("tick", 0))
@@ -807,6 +1258,7 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
         last_yaw = float(header.get("yaw", 0.0))
         last_pitch = float(header.get("pitch", 0.0))
         last_move = False
+        open_container_state = None  # gopen/gclk/gclose identity tracker
         has_sat = any("sat" in tape_row for tape_row in ticks)
         pending_inv = []
         pending_elytra = None
@@ -910,6 +1362,29 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
                                     "id": int(particle_id),
                                     "x": x, "y": y, "z": z,
                                     "vx": vx, "vy": vy, "vz": vz}) + "\n")
+            # Client-world block finals (recorder "bc"): post-tick reanchors so
+            # action t still digs/places with independent simulation, then the
+            # oracle's WorldClient truth lands before state/frame capture and
+            # tick t+1 physics. Name set_block_post avoids snapshot_block
+            # (recstart MCA) and pre-tick set_block (worldpatch). Malformed
+            # payloads raise (fail closed); absent key = legacy tape, no-op.
+            for change in row.get("bc", []):
+                if (not isinstance(change, (list, tuple)) or len(change) != 5):
+                    raise ValueError(
+                        f"tape t={t}: bc entry must be [x,y,z,id,meta], got {change!r}")
+                if not all(type(value) is int for value in change):
+                    raise ValueError(
+                        f"tape t={t}: bc entry not ints: {change!r}")
+                bx, by, bz, bid, bmeta = change
+                if not (-2147483648 <= bx <= 2147483647
+                        and -2147483648 <= bz <= 2147483647
+                        and 0 <= by <= 255 and 0 <= bid <= 4095
+                        and 0 <= bmeta <= 15):
+                    raise ValueError(
+                        f"tape t={t}: bc out of range: {change!r}")
+                f.write(json.dumps({"tick": t, "type": "set_block_post",
+                                    "x": bx, "y": by, "z": bz,
+                                    "id": bid, "meta": bmeta}) + "\n")
             if "ppos" in row:
                 x, y, z, yaw, pitch, vx, vy, vz = row["ppos"]
                 f.write(json.dumps({"tick": t, "type": "set_pose",
@@ -1045,6 +1520,13 @@ def tape_to_script(header, ticks, script_path, tape_path=None,
             last_og, last_fall = og, fall
             last_yaw, last_pitch = float(row["yaw"]), float(row["pitch"])
             last_move = move_now
+            # Authoritative container lifecycle is irrelevant to snapshot
+            # generation probes and can fail before the probe has loaded taped
+            # setup blocks. The real replay (snapshot_override is None) keeps
+            # the full open/seed/click/close stream.
+            if snapshot_override is None:
+                open_container_state = emit_container_lifecycle(
+                    f, t, row, open_container_state)
             ev = {"tick": t, "type": "action"}
             # tape f/s are MC's already-scaled movementInput values (sneak 0.3,
             # use-item 0.2 folded in); magma applies its own scaling from the
@@ -1361,9 +1843,18 @@ def first_divergence(ticks, c_rows):
 # fields are reported in magma_state.jsonl and, when the tape carries them, are
 # asserted here. Missing tape fields are recorded as "unavailable", not green.
 
+# Sample caps keep gate.json small; totals and interval stats stay uncapped.
+_STATE_MISMATCH_SAMPLE = 20
+_MUTATION_TIMELINE_SAMPLE = 64
+_HOTBAR_SLOTS = frozenset(range(9))  # InventoryPlayer main[0..8]
+
 
 def _tape_inv_slot(stack):
-    """Normalize a tape inv entry to (item, count, meta) or None if empty."""
+    """Normalize a tape inv entry to (item, count, meta) or None if empty.
+
+    Tape stacks are [item, meta, count] (Recorder / inv_view order). Empty is
+    0 or a zero-item triple.
+    """
     if stack in (0, None, [], {}):
         return None
     if isinstance(stack, (list, tuple)):
@@ -1376,7 +1867,33 @@ def _tape_inv_slot(stack):
     return None
 
 
+def _tape_stack_imc(stack):
+    """Tape [item, meta, count] or 0 -> (item, count, meta)."""
+    norm = _tape_inv_slot(stack)
+    return (0, 0, 0) if norm is None else norm
+
+
+def _magma_stack_icm(stack):
+    """Magma [item, count, meta] or dict -> (item, count, meta)."""
+    if stack in (0, None, [], {}):
+        return (0, 0, 0)
+    if isinstance(stack, dict):
+        item = int(stack.get("item", 0))
+        if item <= 0:
+            return (0, 0, 0)
+        return (item, int(stack.get("count", 1)), int(stack.get("meta", 0)))
+    if isinstance(stack, (list, tuple)):
+        if len(stack) < 1 or int(stack[0]) == 0:
+            return (0, 0, 0)
+        item = int(stack[0])
+        count = int(stack[1]) if len(stack) > 1 else 1
+        meta = int(stack[2]) if len(stack) > 2 else 0
+        return (item, count, meta)
+    return (0, 0, 0)
+
+
 def _magma_inv_map(row):
+    """Map magma inventory dump to slot -> (item, count, meta); skip empties."""
     out = {}
     for slot in row.get("inventory") or []:
         item = int(slot.get("item", 0))
@@ -1404,22 +1921,222 @@ def _magma_entity_types(row):
     return types
 
 
+def _mismatch_record(t, slot, tape_stack, magma_stack, region="inv"):
+    """Build one inventory mismatch dict (legacy keys + full stack fields)."""
+    ti, tc, tm = tape_stack if tape_stack is not None else (None, None, None)
+    mi, mc, mm = magma_stack if magma_stack is not None else (None, None, None)
+    return {
+        "tick": t,
+        "slot": slot,
+        "region": region,
+        # Legacy keys (item identity) kept for gate_baseline_diff / old pins.
+        "tape_item": ti,
+        "magma_item": mi,
+        "tape_count": tc,
+        "magma_count": mc,
+        "tape_meta": tm,
+        "magma_meta": mm,
+    }
+
+
+def _stacks_match(a, b):
+    """Exact (item, count, meta) equality; both None or both empty match."""
+    if a is None and b is None:
+        return True
+    if a is None:
+        return b is None or b == (0, 0, 0)
+    if b is None:
+        return a == (0, 0, 0)
+    return a == b
+
+
+def _has_explicit_gui_or_packet_event(tape_row):
+    """True when adjacent-tick inventory tolerance is allowed.
+
+    Inventory re-anchor lag is handled separately via set_inventory t+1
+    alignment. Adjacent-tick *tolerance* (try dump t+/-1 for cursor/grid/
+    container) is only permitted when the tick carries an explicit packet or
+    GUI event: gclk, ppos, pvel, expl, or a non-empty gslots/gcur dump that
+    proves the client container was open and updating.
+    """
+    if not tape_row:
+        return False
+    if tape_row.get("gclk"):
+        return True
+    if "ppos" in tape_row or "pvel" in tape_row or tape_row.get("expl"):
+        return True
+    return bool("gcur" in tape_row or tape_row.get("gslots"))
+
+
+def _pick_magma_inv_row(t, c_rows):
+    """Magma dump that reflects tape inv[t] after set_inventory re-anchor.
+
+    Tick 0 is seeded before dump 0. Post-seed inv dumps are re-anchored on
+    script tick t+1 (pending_inv), so dump index t still holds pre-reanchor
+    live inv. Return None when no post-reanchor dump exists (truncated run).
+    """
+    if t == 0:
+        return c_rows[0] if c_rows else None
+    if t + 1 < len(c_rows):
+        return c_rows[t + 1]
+    return None
+
+
 def _compare_inv_tick(t, tape_row, magma_row, mismatches, max_mismatches=20):
-    """Compare one tape inv snapshot to magma state; append mismatch dicts."""
+    """Compare one tape inv snapshot to magma: item id, count, and meta.
+
+    Magma row must already be the re-anchor-aligned dump (see
+    _pick_magma_inv_row). Empty vs non-empty and wrong counts/damage all fail.
+    """
     tape_map = {}
-    for slot, stack in enumerate(tape_row["inv"]):
+    for slot, stack in enumerate(tape_row.get("inv") or []):
+        if slot > 40:
+            continue
         norm = _tape_inv_slot(stack)
-        if norm is not None and slot < 41:
+        if norm is not None:
             tape_map[slot] = norm
-    magma_map = _magma_inv_map(magma_row)
-    # Presence of non-empty tape slots in magma (counts may lag one tick on
-    # GUI interactions; compare item id identity only).
-    for slot, (item, _count, _meta) in tape_map.items():
-        m = magma_map.get(slot)
-        if (m is None or m[0] != item) and len(mismatches) < max_mismatches:
+    magma_map = _magma_inv_map(magma_row or {})
+    slots = sorted(set(tape_map) | set(magma_map))
+    for slot in slots:
+        tape_s = tape_map.get(slot)
+        magma_s = magma_map.get(slot)
+        if _stacks_match(tape_s, magma_s):
+            continue
+        if len(mismatches) < max_mismatches:
+            region = "hotbar" if slot in _HOTBAR_SLOTS else "inv"
+            mismatches.append(_mismatch_record(
+                t, slot, tape_s, magma_s, region=region))
+
+
+def _compare_cursor_grid_container(t, tape_row, magma_candidates, mismatches,
+                                   max_mismatches=20):
+    """Compare cursor, craft grid/result, and open-container player slots.
+
+    magma_candidates is an ordered list of state rows to try (same-tick first;
+    adjacent only when the caller already decided tolerance is allowed).
+    """
+    if not magma_candidates:
+        return
+    gui = tape_row.get("gui")
+
+    def try_match(predicate):
+        for row in magma_candidates:
+            if row is not None and predicate(row):
+                return True
+        return False
+
+    # Cursor: tape gcur is [item, meta, count] or 0.
+    if "gcur" in tape_row:
+        tape_cur = _tape_stack_imc(tape_row["gcur"])
+
+        def cursor_ok(row):
+            return _stacks_match(tape_cur, _magma_stack_icm(row.get("cursor")))
+
+        if not try_match(cursor_ok) and len(mismatches) < max_mismatches:
+            best = magma_candidates[0] or {}
+            mismatches.append(_mismatch_record(
+                t, "cursor", tape_cur, _magma_stack_icm(best.get("cursor")),
+                region="cursor"))
+
+    # Crafting grid + result from GuiInventory / GuiCrafting gslots.
+    gslots = tape_row.get("gslots")
+    if gslots is not None and gui in ("GuiInventory", "GuiCrafting"):
+        # Vanilla list: 0=result, then grid cells (2x2 or 3x3).
+        grid_n = 4 if gui == "GuiInventory" else 9
+        tape_result = _tape_stack_imc(gslots[0] if len(gslots) > 0 else 0)
+        tape_grid = [
+            _tape_stack_imc(gslots[i] if i < len(gslots) else 0)
+            for i in range(1, 1 + grid_n)
+        ]
+
+        def craft_ok(row):
+            if not _stacks_match(tape_result,
+                                 _magma_stack_icm(row.get("craft_result"))):
+                return False
+            mg = row.get("grid") or []
+            for i, ts in enumerate(tape_grid):
+                ms = _magma_stack_icm(mg[i] if i < len(mg) else 0)
+                if not _stacks_match(ts, ms):
+                    return False
+            return True
+
+        if not try_match(craft_ok) and len(mismatches) < max_mismatches:
+            best = magma_candidates[0] or {}
+            mg = best.get("grid") or []
+            if not _stacks_match(tape_result,
+                                 _magma_stack_icm(best.get("craft_result"))):
+                mismatches.append(_mismatch_record(
+                    t, "craft_result", tape_result,
+                    _magma_stack_icm(best.get("craft_result")),
+                    region="craft"))
+            for i, ts in enumerate(tape_grid):
+                if len(mismatches) >= max_mismatches:
+                    break
+                ms = _magma_stack_icm(mg[i] if i < len(mg) else 0)
+                if not _stacks_match(ts, ms):
+                    mismatches.append(_mismatch_record(
+                        t, f"grid{i}", ts, ms, region="craft"))
+
+    # Open-container player-side slots via gslots -> magma inventory map.
+    # Craft result/grid and furnace TE map above 35 or to craft_result/grid and
+    # are handled separately; chest TE cells (53+) are not in the player inv
+    # dump. Only main/hotbar/armor/offhand (0..40) that are *not* craft-mapped.
+    _CRAFT_GMC = frozenset({36, 37, 39, 40, 45})  # GuiInventory/Crafting craft
+    if gslots is not None and gui:
+        tape_by_magma_slot = {}
+        for index, stack in enumerate(gslots):
+            mslot = gui_slot_id(gui, index)
+            if mslot is None or mslot < 0 or mslot > 40:
+                continue  # furnace/chest TE unavailable in player inv dump
+            if gui in ("GuiInventory", "GuiCrafting") and mslot in _CRAFT_GMC:
+                continue  # craft path above
+            tape_by_magma_slot[mslot] = _tape_stack_imc(stack)
+
+        def container_ok(row):
+            mmap = _magma_inv_map(row)
+            for mslot, ts in tape_by_magma_slot.items():
+                ms = mmap.get(mslot)
+                if not _stacks_match(ts, ms):
+                    return False
+            return True
+
+        if tape_by_magma_slot and not try_match(container_ok):
+            best = magma_candidates[0] or {}
+            mmap = _magma_inv_map(best)
+            for mslot, ts in sorted(tape_by_magma_slot.items()):
+                if len(mismatches) >= max_mismatches:
+                    break
+                ms = mmap.get(mslot)
+                if not _stacks_match(ts, ms):
+                    region = "hotbar" if mslot in _HOTBAR_SLOTS else "container"
+                    mismatches.append(_mismatch_record(
+                        t, mslot, ts, ms, region=region))
+
+    # Furnace progress is optional diagnostic when both sides carry it.
+    if gui == "GuiFurnace" and "gprop" in tape_row:
+        burn, current, cook, total = tape_row["gprop"]
+
+        def furnace_ok(row):
+            f = row.get("furnace")
+            if not f:
+                return False
+            return (int(f.get("burn", -1)) == int(burn)
+                    and int(f.get("cook", -1)) == int(cook)
+                    and int(f.get("cook_total", -1)) == int(total))
+
+        if not try_match(furnace_ok) and len(mismatches) < max_mismatches:
+            best = magma_candidates[0] or {}
+            f = best.get("furnace") or {}
             mismatches.append({
-                "tick": t, "slot": slot, "tape_item": item,
-                "magma_item": None if m is None else m[0],
+                "tick": t, "slot": "furnace", "region": "container",
+                "tape_item": None, "magma_item": None,
+                "tape_count": None, "magma_count": None,
+                "tape_meta": None, "magma_meta": None,
+                "tape_gprop": [int(burn), int(current), int(cook), int(total)],
+                "magma_furnace": {
+                    "burn": f.get("burn"), "cook": f.get("cook"),
+                    "cook_total": f.get("cook_total"),
+                } if f else None,
             })
 
 
@@ -1459,6 +2176,130 @@ def _ghost_match_tick(t, j_row, c_row, mismatches, max_mismatches=20):
     return len(expected)
 
 
+def _cell_volume_map(payload, anchor=None):
+    """Parse optional world cell snapshot into {(x,y,z): packed_state}.
+
+    Accepted forms (all synthetic-fixture friendly; not required on real tapes):
+      - list of 729 packed ints in z-outer, y, x-inner order around anchor
+      - list of [x, y, z, packed] or [x, y, z, id, meta]
+      - dict keyed by \"x,y,z\" -> packed
+    Returns None when payload is absent/unusable.
+    """
+    if payload is None:
+        return None
+    out = {}
+    if isinstance(payload, dict):
+        for k, v in payload.items():
+            parts = str(k).split(",")
+            if len(parts) != 3:
+                continue
+            out[(int(parts[0]), int(parts[1]), int(parts[2]))] = int(v)
+        return out or None
+    if not isinstance(payload, (list, tuple)) or not payload:
+        return None
+    first = payload[0]
+    if isinstance(first, int):
+        if anchor is None or len(payload) != 729:
+            return None
+        ax, ay, az = int(anchor[0]), int(anchor[1]), int(anchor[2])
+        i = 0
+        for z in range(az - 4, az + 5):
+            for y in range(ay - 4, ay + 5):
+                for x in range(ax - 4, ax + 5):
+                    out[(x, y, z)] = int(payload[i])
+                    i += 1
+        return out
+    if isinstance(first, (list, tuple)):
+        for cell in payload:
+            if not isinstance(cell, (list, tuple)) or len(cell) < 4:
+                continue
+            x, y, z = int(cell[0]), int(cell[1]), int(cell[2])
+            if len(cell) >= 5:
+                out[(x, y, z)] = (int(cell[3]) << 4) | (int(cell[4]) & 15)
+            else:
+                out[(x, y, z)] = int(cell[3])
+        return out or None
+    return None
+
+
+def _first_differing_cell(tape_cells, magma_cells):
+    """Return first (x,y,z, java, magma) in x then y then z order, or None."""
+    if not tape_cells or not magma_cells:
+        return None
+    keys = sorted(set(tape_cells) | set(magma_cells))
+    for key in keys:
+        jv = tape_cells.get(key, 0)
+        cv = magma_cells.get(key, 0)
+        if jv != cv:
+            x, y, z = key
+            return {
+                "x": x, "y": y, "z": z,
+                "java": jv, "magma": cv,
+                "java_id": (jv >> 4) & 0xFFF, "java_meta": jv & 15,
+                "magma_id": (cv >> 4) & 0xFFF, "magma_meta": cv & 15,
+            }
+    return None
+
+
+def _mutation_timeline(ticks, sample_cap=_MUTATION_TIMELINE_SAMPLE):
+    """Ordered client block-final timeline from tape ``bc`` rows.
+
+    Preserves exact call order within each tick (recorder contract). Returns
+    (full_count, sample_list). Legacy tapes without ``bc`` yield (0, []).
+    """
+    timeline = []
+    for row in ticks:
+        t = int(row.get("t", 0))
+        changes = row.get("bc") or []
+        if not isinstance(changes, list):
+            continue
+        for ord_i, change in enumerate(changes):
+            if (not isinstance(change, (list, tuple)) or len(change) != 5
+                    or not all(type(v) is int for v in change)):
+                # Fail closed is tape_to_script's job; diagnostics skip bad rows.
+                continue
+            bx, by, bz, bid, bmeta = change
+            timeline.append({
+                "tick": t, "ord": ord_i,
+                "x": bx, "y": by, "z": bz, "id": bid, "meta": bmeta,
+            })
+    return len(timeline), timeline[:sample_cap]
+
+
+def _mismatch_intervals(match_flags):
+    """From per-compared-tick bools (True=match), compute mismatch intervals.
+
+    match_flags is a list of (tick, matched). Returns
+    (intervals, reconvergences) where intervals are {start, end, length}
+    and reconvergences are ticks that re-enter match after a mismatch.
+    """
+    intervals = []
+    reconvergences = []
+    run_start = None
+    prev_matched = None
+    for tick, matched in match_flags:
+        if not matched:
+            if run_start is None:
+                run_start = tick
+        else:
+            if run_start is not None:
+                intervals.append({
+                    "start": run_start, "end": tick - 1,
+                    "length": tick - run_start,
+                })
+                run_start = None
+            if prev_matched is False:
+                reconvergences.append(tick)
+        prev_matched = matched
+    if run_start is not None and match_flags:
+        last_tick = match_flags[-1][0]
+        intervals.append({
+            "start": run_start, "end": last_tick,
+            "length": last_tick - run_start + 1,
+        })
+    return intervals, reconvergences
+
+
 def collect_state_assertions(ticks, c_rows, sample_every=20):
     """Build explicit non-player state assertions for scenario/gate output.
 
@@ -1466,9 +2307,16 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
     *state* gate, not a physics gate: pose/vitals stay in first_divergence.
 
     Inventory: check every tick that carries an ``inv`` row (sparse dumps), not
-    only the sample grid. Tick 0 is compared for seed correctness but is NOT
-    counted as an independent verification - replay seeds live inventory from
-    that same row, so a tick-0-only tape is reported as ``seeded_only``.
+    only the sample grid. Tick 0 is compared against ``c_rows[0]`` for seed
+    correctness but is NOT counted as independent verification - replay seeds
+    live inventory from that same row, so a tick-0-only tape is
+    ``seeded_only``. Post-seed inv dumps are post-tick truth re-anchored via
+    ``set_inventory`` on script tick t+1; the gate compares tape inv[t] to
+    ``c_rows[t+1]``. Full stack compare: item id, count, metadata/durability.
+    Cursor, craft grid/result, open-container player slots, and hotbar are
+    included when the tape carries ``gcur``/``gslots``. Adjacent-tick
+    tolerance for those GUI fields is allowed only with an explicit
+    packet/GUI event (see ``_has_explicit_gui_or_packet_event``).
 
     Entities: every tick with an ``ents`` row is matched against the ghost
     views magma actually ingested (see _ghost_match_tick); presence samples
@@ -1480,11 +2328,19 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
     failed - a position divergence is the physics gate's verdict. Tapes
     without ``wfnv`` keep the legacy C-only delta accounting and are marked
     verified=False: presence of a hash is not evidence.
+
+    World report retains (beyond the sample-capped ``mismatches`` list):
+    ``mismatch_total`` (uncapped), ``interval_count`` / ``intervals``,
+    ``first_mismatch`` / ``last_mismatch``, ``reconvergences``,
+    ``same_anchor`` / ``changed_anchor``, ``first_differing_cell`` when
+    optional cell snapshots exist (``wcells`` / ``nearby_cells``), and
+    ``mutation_timeline`` from ordered tape ``bc`` finals.
     """
     n = min(len(ticks), len(c_rows))
     inv_checked = 0
     inv_independent = 0
     inv_mismatches = []
+    inv_gui_checked = 0
     ent_checked = 0
     ent_presence = []
     ent_ghost_ticks = 0
@@ -1496,8 +2352,15 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
     hash_deltas = 0
     tape_has_wfnv = False
     world_compared = 0
-    world_mismatches = []
-    world_anchor_skips = 0
+    world_mismatches = []  # sample-capped
+    world_mismatch_total = 0
+    world_anchor_skips = 0  # legacy key: changed-anchor count
+    world_same_anchor = 0
+    world_match_flags = []  # (tick, matched) for same-anchor compares only
+    first_mismatch = None
+    last_mismatch = None
+    first_differing_cell = None
+
     # Inventory: every inv-bearing tick (change dumps + keyframes). Sparse, so
     # full coverage is cheap and catches mid-tape evolution that misses the
     # sample grid (e.g. arrow consume at t=77 when sample_every=20).
@@ -1505,17 +2368,43 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
         j = ticks[t]
         if "inv" not in j:
             continue
+        magma_row = _pick_magma_inv_row(t, c_rows)
+        if magma_row is None:
+            # No post-reanchor dump (truncated run / last tick): skip rather
+            # than false-fail on the intentional one-tick lag.
+            continue
         inv_checked += 1
         if t > 0:
             inv_independent += 1
-        _compare_inv_tick(t, j, c_rows[t], inv_mismatches)
+        _compare_inv_tick(t, j, magma_row, inv_mismatches,
+                          max_mismatches=_STATE_MISMATCH_SAMPLE)
+
+    # Cursor / craft / container: same-tick by default; adjacent only with an
+    # explicit packet or GUI event on that tape row.
+    for t in range(n):
+        j = ticks[t]
+        if "gcur" not in j and "gslots" not in j and "gprop" not in j:
+            continue
+        inv_gui_checked += 1
+        candidates = [c_rows[t]]
+        if _has_explicit_gui_or_packet_event(j):
+            if t > 0:
+                candidates.append(c_rows[t - 1])
+            if t + 1 < len(c_rows):
+                candidates.append(c_rows[t + 1])
+        _compare_cursor_grid_container(
+            t, j, candidates, inv_mismatches,
+            max_mismatches=_STATE_MISMATCH_SAMPLE)
+
     seeded_only = inv_checked > 0 and inv_independent == 0
+
     # Entity ghost match + Java/C world digest: every tick, exact first
     # failing tick semantics (both compares are cheap).
     for t in range(n):
         j, c = ticks[t], c_rows[t]
         if "ents" in j:
-            exp = _ghost_match_tick(t, j, c, ent_mismatches)
+            exp = _ghost_match_tick(t, j, c, ent_mismatches,
+                                    max_mismatches=_STATE_MISMATCH_SAMPLE)
             if exp is not None:
                 ent_ghost_ticks += 1
                 ent_expected += exp
@@ -1526,12 +2415,34 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             if nh is not None:
                 if j.get("wfa") == c.get("nearby_anchor"):
                     world_compared += 1
-                    if wf != nh and len(world_mismatches) < 20:
-                        world_mismatches.append({
+                    world_same_anchor += 1
+                    matched = (wf == nh)
+                    world_match_flags.append((t, matched))
+                    if not matched:
+                        world_mismatch_total += 1
+                        rec = {
                             "tick": t, "java": wf, "magma": nh,
-                            "anchor": j.get("wfa")})
+                            "anchor": j.get("wfa"),
+                        }
+                        if first_mismatch is None:
+                            first_mismatch = rec
+                        last_mismatch = rec
+                        if len(world_mismatches) < _STATE_MISMATCH_SAMPLE:
+                            world_mismatches.append(rec)
+                        # Optional cell volumes: first differing cell once.
+                        if first_differing_cell is None:
+                            tcells = _cell_volume_map(
+                                j.get("wcells"), j.get("wfa"))
+                            mcells = _cell_volume_map(
+                                c.get("nearby_cells"), c.get("nearby_anchor"))
+                            first_differing_cell = _first_differing_cell(
+                                tcells, mcells)
                 else:
                     world_anchor_skips += 1
+
+    intervals, reconvergences = _mismatch_intervals(world_match_flags)
+    mut_total, mut_sample = _mutation_timeline(ticks)
+
     for t in range(0, n, max(1, sample_every)):
         j, c = ticks[t], c_rows[t]
         if "ents" in j:
@@ -1553,6 +2464,8 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             if t % max(sample_every * 5, 1) == 0 and len(hash_samples) < 32:
                 hash_samples.append({"tick": t, "nearby_hash": nh})
             prev_hash = nh
+
+    inv_available = inv_checked > 0 or inv_gui_checked > 0
     return {
         "kind": "state",  # not "physics"
         # How much of the tape was actually simulated. A run that stops at a
@@ -1567,10 +2480,11 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
         "inventory": {
             "ticks_checked": inv_checked,
             "ticks_independent": inv_independent,
+            "gui_ticks_checked": inv_gui_checked,
             "seeded_only": seeded_only,
             "mismatches": inv_mismatches,
-            "pass": inv_checked == 0 or len(inv_mismatches) == 0,
-            "available": inv_checked > 0,
+            "pass": (not inv_available) or len(inv_mismatches) == 0,
+            "available": inv_available,
         },
         "entities": {
             "ticks_checked": ent_checked,
@@ -1596,10 +2510,22 @@ def collect_state_assertions(ticks, c_rows, sample_every=20):
             # pass kept so old pin verdicts do not shift).
             "mode": "java" if tape_has_wfnv else "c_only",
             "compared": world_compared,
-            "anchor_skips": world_anchor_skips,
+            "anchor_skips": world_anchor_skips,  # legacy alias
+            "same_anchor": world_same_anchor,
+            "changed_anchor": world_anchor_skips,
+            # Sample-capped list (legacy consumers); total is uncapped.
             "mismatches": world_mismatches,
+            "mismatch_total": world_mismatch_total,
+            "interval_count": len(intervals),
+            "intervals": intervals[:_STATE_MISMATCH_SAMPLE],
+            "first_mismatch": first_mismatch,
+            "last_mismatch": last_mismatch,
+            "reconvergences": reconvergences[:_STATE_MISMATCH_SAMPLE],
+            "first_differing_cell": first_differing_cell,
+            "mutation_timeline": mut_sample,
+            "mutation_total": mut_total,
             "verified": world_compared > 0,
-            "pass": ((world_compared > 0 and len(world_mismatches) == 0)
+            "pass": ((world_compared > 0 and world_mismatch_total == 0)
                      if tape_has_wfnv else hash_checked > 0),
             "available": hash_checked > 0 or tape_has_wfnv,
         },
@@ -1620,6 +2546,8 @@ def main():
                          " bit-exact vs CPU, GPU1 per repo policy)")
     ap.add_argument("--cpu", action="store_true",
                     help="force the CPU raster (parity checks / no-GPU boxes)")
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                    help="forwarded to magma_game as --set (registry override)")
     ap.add_argument("--metal", action="store_true",
                     help="render with the Metal backend (magma_game_metal;"
                          " macOS only, see magma/VERIFY.md Metal section)")
@@ -1627,6 +2555,15 @@ def main():
                     help="skip the structural pixel gate (pixel_gate.py)")
     ap.add_argument("--window-compose", action="store_true",
                     help="render frames through the interactive window compositor")
+    ap.add_argument("--ent-ticks0", type=int, default=None,
+                    help="override End-entity ticksExisted reconstruction offset "
+                         "(default: tape header ent_ticks0, else 7)")
+    ap.add_argument("--hand-from-tick", type=int, default=None,
+                    help="override hand_from_tick for --set and the pixel gate "
+                         "(default: tape-derived value)")
+    ap.add_argument("--fog-c1-init", type=float, default=None,
+                    help="override fog_c1_init seed for --set "
+                         "(default: tape-recorded fog_color1)")
     args = ap.parse_args()
     # CUDA raster is the flywheel default (12k tape: 9.2 s vs 43 s CPU,
     # identical verdicts); --cpu forces the software path; --metal is the
@@ -1635,6 +2572,8 @@ def main():
     backend = "cpu" if args.cpu else ("metal" if args.metal else "cuda")
 
     name = os.path.splitext(os.path.basename(args.tape))[0]
+    # So an InfrastructureFailure raised anywhere below can still name the tape.
+    _GATE_CTX["here"], _GATE_CTX["name"] = here, name
     out = args.out or os.path.join(here, "out", f"tape_{name}")
     os.makedirs(out, exist_ok=True)
     header, ticks = load_tape(args.tape)
@@ -1649,7 +2588,8 @@ def main():
     # byte-identical to a physics-only run (verified: cmp on the 12k tape) -
     # the old separate physics pass was pure duplicate work.
     scr = os.path.join(out, "magma_script.jsonl")
-    tape_to_script(header, ticks, scr, tape_path=args.tape)
+    tape_to_script(header, ticks, scr, tape_path=args.tape,
+                   ent_ticks0=args.ent_ticks0)
     state = os.path.join(out, "magma_state.jsonl")
     frame_ticks = [(row["t"], row["frame"]) for row in ticks if "frame" in row]
     # The recorder writes ABSOLUTE golden paths. Retiring a tape moves both the
@@ -1665,8 +2605,9 @@ def main():
             print(f"[tape] goldens re-anchored to {fdir} "
                   f"(recorded paths no longer exist)")
         else:
-            raise SystemExit(f"[tape] golden frames missing: neither the "
-                             f"recorded path {frame_ticks[0][1]} nor {fdir}")
+            raise InfrastructureFailure(
+                f"golden frames missing: neither the recorded path "
+                f"{frame_ticks[0][1]} nor {fdir}")
     frames_npy = None
     every = 1
     offset = 0
@@ -1689,16 +2630,20 @@ def main():
         # Config registry overrides (core/config.def capture/replay toggles).
         # Passed as repeated --set key=value; MAGMA_* env for these is dead.
         replay_set = []
+        if args.set:
+            replay_set.extend(args.set)
+        if header.get("dig_trace") in (1, True, "1"):
+            replay_set.append("dig_trace=1")
         if tape_strip_overlays(args.tape):
             replay_set.append("strip_overlays=1")
         if tape_hide_gui(args.tape):
             replay_set.append("hide_gui=1")
-            # An explicit MAGMA_HAND_FROM_TICK in the caller's environment wins
-            # over the sidecar (still accepted as a caller-side override so
-            # viewmodel investigation does not require editing shared demo/).
-            # It is converted to --set hand_from_tick=N for the binary.
-            hand_from = os.environ.get("MAGMA_HAND_FROM_TICK")
-            if hand_from is None:
+            # An explicit --hand-from-tick wins over the sidecar (caller-side
+            # override so viewmodel investigation does not require editing
+            # shared demo/). Converted to --set hand_from_tick=N for the binary.
+            if args.hand_from_tick is not None:
+                hand_from = str(args.hand_from_tick)
+            else:
                 v = tape_hand_from_tick(args.tape)
                 hand_from = None if v is None else str(v)
             if hand_from is not None:
@@ -1709,9 +2654,10 @@ def main():
         # decaying 0.35 per 10 ticks, which is vanilla's 0.9^10). The starting
         # value is a property of the recording session and cannot be derived
         # from the tape, so magma uses it only when the recorder wrote it.
-        # An explicit MAGMA_FOG_C1_INIT still wins (caller override -> --set).
-        fog_c1 = os.environ.get("MAGMA_FOG_C1_INIT")
-        if fog_c1 is None:
+        # An explicit --fog-c1-init still wins (caller override -> --set).
+        if args.fog_c1_init is not None:
+            fog_c1 = repr(float(args.fog_c1_init))
+        else:
             v = tape_fog_color1(args.tape)
             fog_c1 = None if v is None else repr(v)
         if fog_c1 is not None:
@@ -1735,10 +2681,17 @@ def main():
                                   daylight=False, world=world,
                                   compose="window" if args.window_compose else "capture",
                                   set_kv=replay_set or None)
+    except subprocess.TimeoutExpired as e:
+        raise InfrastructureFailure(f"magma run timed out: {e}") from e
     except RuntimeError as e:
         # A dead magma player stops consuming script events and the run exits
         # rc=2 ("event lies beyond --ticks"). The state written up to the death
         # is still the divergence evidence we want; report it loudly.
+        # A binary that died by signal, or a build that failed, produced no
+        # evidence at all - diffing its partial state is how a SIGSEGV gets
+        # reported as an rc=4 physics divergence.
+        if magma_run_failure_is_infrastructure(str(e)):
+            raise InfrastructureFailure(f"magma run died: {e}") from e
         died_early = True
         print(f"[tape] WARNING: magma run ended early ({e}); "
               f"diffing the partial state")
@@ -1751,9 +2704,9 @@ def main():
         # nothing - the goldens-side twin of the 2026-07-29 "PASS over 0
         # frames" hole. Caught live 2026-08-02: a stale magma_game rejected
         # set_elytra_flag7 and the scenario gate reported rc=0.
-        sys.exit(f"[tape] FATAL: magma produced no state rows (0 of "
-                 f"{len(ticks)} ticks) - harness failure (stale binary? "
-                 f"script error?), not a clean tape")
+        raise InfrastructureFailure(
+            f"magma produced no state rows (0 of {len(ticks)} ticks) - "
+            f"stale binary? script error?")
     if died_early:
         last = c_rows[-1] if c_rows else {}
         print(f"[tape] WARNING: magma stopped at tick {last.get('tick')} "
@@ -1761,6 +2714,36 @@ def main():
               f"of {len(ticks)} tape ticks")
     first, euclid = first_divergence(ticks, c_rows)
     state_gate = collect_state_assertions(ticks, c_rows)
+    if header.get("dig_trace") in (1, True, "1"):
+        dig_messages = list(dig_compare.compare_streams(
+            [header, *ticks], c_rows))
+        java_dig_ticks = {int(row["t"]) for row in ticks
+                          if isinstance(row.get("dig"), dict)}
+        magma_dig_ticks = {int(row["tick"]) for row in c_rows
+                           if isinstance(row.get("dig"), dict)}
+        dig_gate = {
+            "ticks_checked": len(java_dig_ticks & magma_dig_ticks),
+            "mismatches": dig_messages,
+            "pass": not dig_messages,
+        }
+        state_gate["dig_trace"] = dig_gate
+        if dig_messages:
+            print(f"[tape] dig_trace: FAIL {dig_messages[0]}")
+        else:
+            print(f"[tape] dig_trace: PASS "
+                  f"({dig_gate['ticks_checked']} paired ticks)")
+    # Effective replay config for input-hash identity (not simulation).
+    # set_kv is filled after the try/except once replay_set is known.
+    effective_config = {
+        "backend": backend,
+        "w": args.w,
+        "h": args.h,
+        "window_compose": bool(args.window_compose),
+        "no_gate": bool(args.no_gate),
+        "set_kv": [],
+        "world": world,
+        "seed": int(header["seed"]),
+    }
 
     if first is None:
         scope = (f"{len(euclid)} ticks through terminal death"
@@ -1804,9 +2787,14 @@ def main():
         ent_status, ent_detail = "recorded", f"{ent_s['ticks_checked']} ticks"
     if world_s.get("mode") == "java":
         world_status = "PASS" if world_s["pass"] else "FAIL"
-        world_detail = (f"java digest, {world_s['compared']} ticks compared, "
-                        f"{world_s['anchor_skips']} anchor skips, "
-                        f"{len(world_s['mismatches'])} mismatches")
+        mtotal = world_s.get("mismatch_total", len(world_s.get("mismatches", [])))
+        world_detail = (
+            f"java digest, {world_s['compared']} ticks compared, "
+            f"{world_s.get('same_anchor', world_s['compared'])} same-anchor, "
+            f"{world_s.get('changed_anchor', world_s['anchor_skips'])} "
+            f"changed-anchor, {mtotal} mismatches "
+            f"({world_s.get('interval_count', 0)} intervals), "
+            f"{world_s.get('mutation_total', 0)} block finals")
     elif not world_s["available"]:
         world_status, world_detail = "n/a", "0 ticks"
     else:
@@ -1821,10 +2809,19 @@ def main():
         print(f"[tape] entity FIRST MISMATCH tick {m['tick']}: {m['type']} at "
               f"({m['x']:.3f},{m['y']:.3f},{m['z']:.3f}) nearest ghost "
               f"{m['nearest']}")
-    if world_s.get("mismatches"):
-        m = world_s["mismatches"][0]
+    if world_s.get("first_mismatch") or world_s.get("mismatches"):
+        m = world_s.get("first_mismatch") or world_s["mismatches"][0]
         print(f"[tape] world FIRST MISMATCH tick {m['tick']}: "
               f"java={m['java']} magma={m['magma']} anchor={m['anchor']}")
+        if world_s.get("first_differing_cell"):
+            cell = world_s["first_differing_cell"]
+            print(f"[tape] world FIRST DIFFERING CELL "
+                  f"({cell['x']},{cell['y']},{cell['z']}) "
+                  f"java={cell['java_id']}:{cell['java_meta']} "
+                  f"magma={cell['magma_id']}:{cell['magma_meta']}")
+        if world_s.get("reconvergences"):
+            print(f"[tape] world reconvergences: "
+                  f"{world_s['reconvergences'][:8]}")
     cov = state_gate["coverage"]
     if cov["truncated"]:
         print(f"[tape] COVERAGE: only {cov['ticks_run']} of "
@@ -1852,9 +2849,10 @@ def main():
             # A tape that declares goldens but resolves none used to "PASS"
             # the pixel gate over 0 frames. That is a harness failure, not a
             # clean tape - say so and fail.
-            sys.exit(f"[tape] FATAL: tape declares {len(frame_ticks)} golden "
-                     f"frames but none could be loaded at {args.w}x{args.h}; "
-                     f"first baked path {frame_ticks[0][1]}")
+            raise InfrastructureFailure(
+                f"tape declares {len(frame_ticks)} golden frames but none "
+                f"could be loaded at {args.w}x{args.h}; first baked path "
+                f"{frame_ticks[0][1]}")
         # Recorder artifact: right after the recstart handoff the renderer can
         # lag the bridge, so the first frames of a tape are byte-identical
         # stale duplicates of frame 0. Drop the stale prefix LOUDLY - diffing
@@ -1878,9 +2876,8 @@ def main():
         gate_on = not args.no_gate
         if gate_on:
             try:
-                from scipy import ndimage as _nd  # noqa: F401
-
                 import pixel_gate as pg
+                from scipy import ndimage as _nd  # noqa: F401
                 known_divergences = pg.load_known_divergences(args.tape)
                 # No overlay was drawn on either side, so the bottom rows are
                 # scene pixels and must not be accepted positionally. The
@@ -1888,13 +2885,13 @@ def main():
                 # oracle's hand comes back, after which both sides draw one.
                 gate_hide_gui = tape_hide_gui(args.tape)
                 gate_hand_from = tape_hand_from_tick(args.tape)
-                # Same override as the replay env above, so a forced-hand run
+                # Same override as the replay --set above, so a forced-hand run
                 # gates the same frames it rendered.
-                if os.environ.get("MAGMA_HAND_FROM_TICK") is not None:
-                    gate_hand_from = int(os.environ["MAGMA_HAND_FROM_TICK"])
+                if args.hand_from_tick is not None:
+                    gate_hand_from = int(args.hand_from_tick)
             except ImportError as e:
-                raise SystemExit(
-                    f"[tape] pixel gate deps missing ({e}); add --with scipy "
+                raise InfrastructureFailure(
+                    f"pixel gate deps missing ({e}); add --with scipy "
                     f"or pass --no-gate to skip the gate explicitly")
 
         def diff_one(i_t):
@@ -1992,75 +2989,57 @@ def main():
         np.save(os.path.join(out, "magma_frames.ticks.npy"),
                 offset + every * np.arange(len(carr)))
 
-    # ---- report ----
-    if args.report:
-        rp = os.path.join(here, "report", f"tape_{name}.md")
-        with open(rp, "w") as f:
-            f.write(f"# Tape replay: {name}\n\n")
-            f.write(f"{len(ticks)} ticks, seed {header['seed']}, world_time "
-                    f"{header['world_time']}, start ({header['x']:.2f},"
-                    f"{header['y']:.2f},{header['z']:.2f}).\n\n")
-            if first is None:
-                f.write(f"**Physics: clean.** No divergence (tol {TOL}).\n\n")
-            else:
-                t, k, jv, cv, d = first
-                f.write(f"**FIRST DIVERGENCE: tick {t}, field `{k}`** "
-                        f"oracle={jv!r} magma={cv!r} |d|={d:.3g}; inputs "
-                        f"{ticks[t]['in']}. End-of-tape euclid "
-                        f"{euclid[-1]:.4f} blocks.\n\n")
-            f.write("**State gate** (inventory / entities / world hash; not "
-                    "physics):\n\n")
-            f.write(f"- inventory: checked={inv_s['ticks_checked']} "
-                    f"independent={inv_s.get('ticks_independent', 0)} "
-                    f"seeded_only={inv_s.get('seeded_only', False)} "
-                    f"mismatches={len(inv_s['mismatches'])} "
-                    f"available={inv_s['available']} "
-                    f"pass={inv_s['pass']}\n")
-            f.write(f"- entities: checked={ent_s['ticks_checked']} "
-                    f"ghost_ticks={ent_s.get('ghost_ticks', 0)} "
-                    f"mismatches={len(ent_s.get('mismatches', []))} "
-                    f"verified={ent_s.get('verified', False)} "
-                    f"available={ent_s['available']} pass={ent_s['pass']}\n")
-            f.write(f"- world hash: mode={world_s.get('mode', 'c_only')} "
-                    f"compared={world_s.get('compared', 0)} "
-                    f"anchor_skips={world_s.get('anchor_skips', 0)} "
-                    f"mismatches={len(world_s.get('mismatches', []))} "
-                    f"deltas={world_s['hash_deltas']} "
-                    f"verified={world_s.get('verified', False)} "
-                    f"available={world_s['available']} "
-                    f"pass={world_s['pass']}\n\n")
-            if gate:
-                f.write(f"**Pixel gate: {'PASS' if gate['pass'] else 'FAIL'}"
-                        f"** over {gate['frames_checked']} frames.\n\n")
-                f.write("| class | frames | px | max cluster |\n"
-                        "|---|---|---|---|\n")
-                for cls, s_ in sorted(gate["classes"].items()):
-                    f.write(f"| {cls} | {s_['frames']} | {s_['px']} | "
-                            f"{s_['max_cluster']} |\n")
-                f.write("\n")
-                if gate.get("missing_models"):
-                    f.write("Skipped renderable entity rows (more than "
-                            f"{MISSING_MODEL_ROW_THRESHOLD} fails the gate):\n\n")
-                    for typ, rows in gate["missing_models"].items():
-                        verdict = ("FAIL" if rows > MISSING_MODEL_ROW_THRESHOLD
-                                   else "below threshold")
-                        f.write(f"- `{typ}`: {rows} rows ({verdict})\n")
-                    f.write("\n")
-                if not gate["pass"]:
-                    f.write("Failed frames (worst first, top 20):\n\n")
-                    for row in gate["failed_frames"][:20]:
-                        f.write(f"- t={row['tick']}: "
-                                f"{row['unexplained_px']} unexplained px, "
-                                f"clusters {row['clusters'][:4]}\n")
-                    f.write("\n")
-            if pix:
-                f.write("| tick | whole mean/ch | %diff | terrain mean/ch |\n"
-                        "|---|---|---|---|\n")
-                for t, s in pix:
-                    f.write(f"| {t} | {s['whole']['mean_abs']:.2f} | "
-                            f"{s['whole']['pct_differing']:.2f}% | "
-                            f"{s['terrain']['mean_abs']:.2f} |\n")
-        print(f"[tape] report -> {rp}")
+    # ---- harness contract (capabilities / phases / provenance / hashes) ----
+    # replay_set is assigned at the top of the try above; default if somehow
+    # missing (defensive for partial-failure paths).
+    try:
+        _replay_set = replay_set
+    except NameError:
+        _replay_set = []
+    effective_config["set_kv"] = list(_replay_set)
+    frames_checked = int((gate or {}).get("frames_checked", 0) or 0)
+    pixel_pass = None if gate is None else bool(gate.get("pass"))
+    contract = tape_contract.build_contract_report(
+        header=header,
+        ticks=ticks,
+        tape_path=args.tape,
+        state_gate=state_gate,
+        backend=backend,
+        width=args.w,
+        height=args.h,
+        hide_gui=tape_hide_gui(args.tape),
+        frame_ticks_declared=len(frame_ticks),
+        frames_checked=frames_checked,
+        pixel_pass=pixel_pass,
+        replay_script_path=scr,
+        effective_config=effective_config,
+    )
+    if not contract["fail_closed"]["ok"]:
+        for reason in contract["fail_closed"]["reasons"]:
+            print(f"[tape] FATAL (fail-closed): {reason}")
+        print(f"[gate] outcome: {OUTCOME_INFRA_FAIL} (rc=2, fail-closed); "
+              "this is a harness fault, NOT a parity verdict")
+        _write_gate_artifacts(
+            here, name, gate, state_gate, contract, args.report, header, ticks,
+            first, euclid, inv_s, ent_s, world_s, pix)
+        return 2
+    # Absolute pixel pass/fail refused when provenance is incompatible;
+    # diagnostic cluster triage (gatefail_*.png, class tables) is retained.
+    if contract.get("absolute_pixel_gate_refused") and gate is not None:
+        print(f"[gate] BLOCKED: absolute pixel pass/fail refused "
+              f"({contract['gate_status']['pixels'].get('reason')}); "
+              f"diagnostic triage retained over {frames_checked} frames")
+        gate = mark_absolute_pixel_refused(
+            gate, contract["gate_status"]["pixels"])
+    for gname, gstat in contract["gate_status"].items():
+        print(f"[contract] {gname}: status={gstat.get('status')} "
+              f"pass={gstat.get('pass')} compared={gstat.get('compared')} "
+              f"reason={gstat.get('reason')}")
+
+    # The md report has no pixel section for a tape with no sparse frames, so
+    # it is written from the gate as it stands here, before the synthetic
+    # missing-model gate below can materialise one.
+    gate_for_md = gate
     # Tapes without sparse frames still get the entity-model completeness gate.
     if gate is None and not args.no_gate:
         gate = apply_missing_model_gate(None, skipped_renderables)
@@ -2068,20 +3047,33 @@ def main():
             print(f"[gate] class missing_model types "
                   f"{len(skipped_renderables)} rows "
                   f"{sum(skipped_renderables.values())} threshold "
-                  f">{MISSING_MODEL_ROW_THRESHOLD}")
+                  f"{MISSING_MODEL_ROW_THRESHOLD}")
             for typ, rows in skipped_renderables.items():
                 print(f"[gate] skipped renderable {typ}: {rows} rows")
+    # The parity rc is decided BEFORE either artifact is written, so both carry
+    # the outcome that the exit code is about to report. Precedence is
+    # unchanged: pixel (3) beats physics (4) beats state (5).
+    parity_rc = _parity_rc(first, state_gate, contract)
+    pixel_failed = gate is not None and gate.get("pass") is False
+    rc = 3 if pixel_failed else parity_rc
+    outcome = OUTCOME_PARITY_FAIL if rc else OUTCOME_PASS
+
+    # ---- report ----
+    if args.report:
+        rp = os.path.join(here, "report", f"tape_{name}.md")
+        _write_report_md(rp, name, header, ticks, first, euclid,
+                         inv_s, ent_s, world_s, gate_for_md, pix, contract,
+                         outcome=outcome)
+        print(f"[tape] report -> {rp}")
     if gate is not None:
         gate["state"] = state_gate
+        gate["contract"] = contract
+        gate["outcome"] = outcome
         gj = os.path.join(here, "report", f"tape_{name}.gate.json")
         with open(gj, "w") as f:
             json.dump(gate, f, indent=1)
         print(f"[gate] baseline -> {gj}")
-        if not gate["pass"]:
-            # An inventory divergence must not be swallowed by a pixel failure:
-            # a tape can fail both, and returning 3 alone hid two real missing
-            # items on the canonical tape (t=3257 slot 1, t=3267 slot 2) behind
-            # its long-standing pixel FAIL. Say it out loud before returning.
+        if pixel_failed:
             for k in ("inventory", "entities", "world"):
                 s_ = state_gate[k]
                 if s_.get("available") and not s_.get("pass", True):
@@ -2089,26 +3081,177 @@ def main():
                           f"({len(s_.get('mismatches', []))} mismatches); "
                           "rc=3 reports the pixel gate, the state failure is "
                           "in the gate.json state block")
-            return 3
     else:
-        # No pixel frames: still emit a state-only gate sidecar for scenarios.
         gj = os.path.join(here, "report", f"tape_{name}.gate.json")
         os.makedirs(os.path.dirname(gj), exist_ok=True)
         with open(gj, "w") as f:
-            json.dump({"pass": True, "frames_checked": 0, "classes": {},
-                       "failed_frames": [], "state": state_gate}, f, indent=1)
+            json.dump({"pass": parity_rc == 0, "outcome": outcome,
+                       "frames_checked": 0, "classes": {},
+                       "failed_frames": [], "state": state_gate,
+                       "contract": contract}, f, indent=1)
         print(f"[gate] state-only baseline -> {gj}")
+    print(f"[gate] outcome: {outcome} (rc={rc})")
+    return rc
+
+
+def _parity_rc(first, state_gate, contract):
+    """0 pass / 4 physics divergence / 5 state divergence. Parity verdicts only."""
     if first is not None:
         return 4  # physics divergence: exact replay is the primary contract
-    # Non-player state divergence (not physics): inventory, entity ghost
-    # match, or Java/C world digest. Only verified comparisons can fail -
-    # legacy tapes without wfnv / pre-ghost state rows keep their verdicts.
+    # Prefer explicit contract status; fall back to legacy available/pass.
     for k in ("inventory", "entities", "world"):
+        st = contract["gate_status"].get(k, {})
+        if st.get("status") == "verified" and st.get("pass") is False:
+            return 5
         s = state_gate[k]
-        if s.get("available") and not s.get("pass", True):
+        if not (s.get("available") and not s.get("pass", True)):
+            continue
+        if k == "world" and s.get("mode") == "java":
+            return 5
+        if k == "inventory":
+            return 5
+        if k == "entities" and s.get("verified"):
             return 5
     return 0
 
 
+def _write_report_md(rp, name, header, ticks, first, euclid, inv_s, ent_s,
+                     world_s, gate, pix, contract, outcome=None):
+    with open(rp, "w") as f:
+        f.write(f"# Tape replay: {name}\n\n")
+        f.write(f"{len(ticks)} ticks, seed {header['seed']}, world_time "
+                f"{header['world_time']}, start ({header['x']:.2f},"
+                f"{header['y']:.2f},{header['z']:.2f}).\n\n")
+        caps = contract.get("capabilities") or {}
+        f.write(f"**Capabilities:** declared={caps.get('declared')} "
+                f"legacy={caps.get('legacy')} source={caps.get('source')}\n\n")
+        f.write("**Event phases:** " + ", ".join(tape_contract.EVENT_PHASES)
+                + "\n\n")
+        if first is None:
+            f.write(f"**Physics: clean.** No divergence (tol {TOL}).\n\n")
+        else:
+            t, k, jv, cv, d = first
+            f.write(f"**FIRST DIVERGENCE: tick {t}, field `{k}`** "
+                    f"oracle={jv!r} magma={cv!r} |d|={d:.3g}; inputs "
+                    f"{ticks[t]['in']}. End-of-tape euclid "
+                    f"{euclid[-1]:.4f} blocks.\n\n")
+        f.write("**State gate** (inventory / entities / world hash; not "
+                "physics):\n\n")
+        f.write(f"- inventory: checked={inv_s['ticks_checked']} "
+                f"independent={inv_s.get('ticks_independent', 0)} "
+                f"seeded_only={inv_s.get('seeded_only', False)} "
+                f"mismatches={len(inv_s['mismatches'])} "
+                f"available={inv_s['available']} "
+                f"pass={inv_s['pass']} "
+                f"status={contract['gate_status'].get('inventory', {}).get('status')}\n")
+        f.write(f"- entities: checked={ent_s['ticks_checked']} "
+                f"ghost_ticks={ent_s.get('ghost_ticks', 0)} "
+                f"mismatches={len(ent_s.get('mismatches', []))} "
+                f"verified={ent_s.get('verified', False)} "
+                f"available={ent_s['available']} pass={ent_s['pass']} "
+                f"status={contract['gate_status'].get('entities', {}).get('status')}\n")
+        f.write(f"- world hash: mode={world_s.get('mode', 'c_only')} "
+                f"compared={world_s.get('compared', 0)} "
+                f"anchor_skips={world_s.get('anchor_skips', 0)} "
+                f"mismatches={len(world_s.get('mismatches', []))} "
+                f"deltas={world_s['hash_deltas']} "
+                f"verified={world_s.get('verified', False)} "
+                f"available={world_s['available']} "
+                f"pass={world_s['pass']} "
+                f"status={contract['gate_status'].get('world', {}).get('status')}\n\n")
+        pix_st = contract["gate_status"].get("pixels", {})
+        if gate:
+            label = ("BLOCKED" if pix_st.get("status") == "blocked"
+                     else ("PASS" if gate["pass"] else "FAIL"))
+            f.write(f"**Pixel gate: {label}** over {gate['frames_checked']} "
+                    f"frames (status={pix_st.get('status')}, "
+                    f"reason={pix_st.get('reason')}).\n\n")
+            f.write("| class | frames | px | max cluster |\n"
+                    "|---|---|---|---|\n")
+            f.writelines(f"| {cls} | {s_['frames']} | {s_['px']} | "
+                        f"{s_['max_cluster']} |\n" for cls, s_ in sorted(gate["classes"].items()))
+            f.write("\n")
+            if gate.get("missing_models"):
+                f.write("Skipped renderable entity rows (more than "
+                        f"{MISSING_MODEL_ROW_THRESHOLD} fails the gate):\n\n")
+                for typ, rows in gate["missing_models"].items():
+                    verdict = ("FAIL" if rows > MISSING_MODEL_ROW_THRESHOLD
+                               else "below threshold")
+                    f.write(f"- `{typ}`: {rows} rows ({verdict})\n")
+                f.write("\n")
+            if not gate["pass"] and not gate.get("absolute_pixel_refused"):
+                f.write("Failed frames (worst first, top 20):\n\n")
+                f.writelines(f"- t={row['tick']}: "
+                            f"{row['unexplained_px']} unexplained px, "
+                            f"clusters {row['clusters'][:4]}\n" for row in gate["failed_frames"][:20])
+                f.write("\n")
+        fc = contract.get("fail_closed") or {}
+        f.write(f"**Fail-closed:** ok={fc.get('ok')} reasons={fc.get('reasons')}\n\n")
+        # One unambiguous word for a human skimming the report: a harness fault
+        # must never read as a parity verdict.
+        if not fc.get("ok", True):
+            f.write(f"**Outcome: {OUTCOME_INFRA_FAIL}** - the harness could "
+                    "not produce comparable evidence; this is NOT a statement "
+                    "about C/Java parity.\n\n")
+        elif outcome:
+            f.write(f"**Outcome: {outcome}**\n\n")
+        ih = contract.get("input_hashes") or {}
+        f.write("**Input hashes:**\n\n")
+        for key in tape_contract.SCHEMA["input_hash_keys"]:
+            val = ih.get(key)
+            if isinstance(val, dict):
+                f.write(f"- {key}: {json.dumps(val, sort_keys=True)[:200]}\n")
+            else:
+                f.write(f"- {key}: {val}\n")
+        f.write("\n")
+        if pix:
+            f.write("| tick | whole mean/ch | %diff | terrain mean/ch |\n"
+                    "|---|---|---|---|\n")
+            for t, s in pix:
+                f.write(f"| {t} | {s['whole']['mean_abs']:.2f} | "
+                        f"{s['whole']['pct_differing']:.2f}% | "
+                        f"{s['terrain']['mean_abs']:.2f} |\n")
+
+
+def _write_gate_artifacts(here, name, gate, state_gate, contract, want_report,
+                          header, ticks, first, euclid, inv_s, ent_s, world_s,
+                          pix):
+    """Best-effort report write used on fail-closed exits.
+
+    Every fail_closed reason (zero state rows, frames_checked=0 against
+    declared goldens, zero compared state ticks, a declared capability that
+    produced no events) describes evidence the harness failed to produce, not
+    a clone that disagreed. This used to stamp pass=False, i.e. a parity
+    verdict on a run with nothing to compare. It is now an explicit
+    infrastructure outcome with no boolean verdict at all. rc stays 2 for
+    compatibility - it is the named fail-closed subset of rc=6.
+    """
+    os.makedirs(os.path.join(here, "report"), exist_ok=True)
+    payload = gate if gate is not None else {
+        "frames_checked": 0, "classes": {}, "failed_frames": [],
+    }
+    payload = dict(payload)
+    payload["state"] = state_gate
+    payload["contract"] = contract
+    payload["pass"] = None
+    payload["outcome"] = OUTCOME_INFRA_FAIL
+    payload["infrastructure_fail"] = {
+        "reason": "; ".join(contract["fail_closed"]["reasons"]),
+        "source": "fail_closed",
+    }
+    gj = os.path.join(here, "report", f"tape_{name}.gate.json")
+    with open(gj, "w") as f:
+        json.dump(payload, f, indent=1)
+    print(f"[gate] baseline (fail-closed) -> {gj}")
+    if want_report:
+        _write_report_md(
+            os.path.join(here, "report", f"tape_{name}.md"),
+            name, header, ticks, first, euclid, inv_s, ent_s, world_s,
+            gate, pix, contract)
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except InfrastructureFailure as _exc:
+        sys.exit(report_infrastructure_failure(str(_exc)))

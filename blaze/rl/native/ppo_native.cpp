@@ -31,6 +31,7 @@
 #include "native_env.h"
 #include "native_reward.h"
 #include "ppo_model.h"
+#include "train_conf.h"
 
 namespace fs = std::filesystem;
 using netherite::ppo::ChainPolicy;
@@ -39,6 +40,7 @@ using netherite::ppo::NativeReward;
 using netherite::ppo::RewardSpec;
 using torch::indexing::Slice;
 using namespace netherite::ppo;
+namespace tc = netherite::train_conf;
 
 namespace {
 
@@ -53,45 +55,6 @@ constexpr float kEntropy = 0.01F;
 constexpr float kGradClip = 0.5F;
 constexpr int kSelectedItems[kInventory] = {17,  5,   280, 4, 58,
                                             270, 274, 263, 50};
-
-int env_int(const char *name, int fallback) {
-  if (const char *value = std::getenv(name))
-    return std::stoi(value);
-  return fallback;
-}
-
-int64_t env_i64(const char *name, int64_t fallback) {
-  if (const char *value = std::getenv(name))
-    return std::stoll(value);
-  return fallback;
-}
-
-double env_double(const char *name, double fallback) {
-  if (const char *value = std::getenv(name))
-    return std::stod(value);
-  return fallback;
-}
-
-bool env_bool(const char *name, bool fallback = false) {
-  if (const char *value = std::getenv(name))
-    return std::stoi(value) != 0;
-  return fallback;
-}
-
-std::vector<int> training_seeds() {
-  const char *raw = std::getenv("TRAIN_SEEDS");
-  std::string text = raw == nullptr ? "2,3,10,14,16,20,27,29,32,44,46" : raw;
-  std::vector<int> result;
-  size_t begin = 0;
-  while (begin < text.size()) {
-    size_t end = text.find(',', begin);
-    result.push_back(std::stoi(text.substr(begin, end - begin)));
-    if (end == std::string::npos)
-      break;
-    begin = end + 1;
-  }
-  return result;
-}
 
 template <class T> T read_le(const std::vector<uint8_t> &bytes, size_t offset) {
   T value{};
@@ -238,15 +201,14 @@ struct AutocastGuard {
 
 enum class Bf16Scope { kDisabled, kConv, kFull };
 
-Bf16Scope bf16_scope(bool enabled) {
+Bf16Scope bf16_scope(bool enabled, const char *scope) {
   if (!enabled)
     return Bf16Scope::kDisabled;
-  const char *raw = std::getenv("NATIVE_BF16_SCOPE");
-  if (raw == nullptr || std::string(raw) == "full")
+  if (scope == nullptr || !*scope || std::string(scope) == "full")
     return Bf16Scope::kFull;
-  if (std::string(raw) == "conv")
+  if (std::string(scope) == "conv")
     return Bf16Scope::kConv;
-  throw std::runtime_error("NATIVE_BF16_SCOPE must be full or conv");
+  throw std::runtime_error("native_bf16_scope must be full or conv");
 }
 
 // Value head 256->1: force FP32 matmul (params stay float; autocast would
@@ -705,57 +667,60 @@ int run_oracle(const fs::path &fixture_path, const fs::path &tolerance_path,
 
 } // namespace
 
-int main() {
+int main(int argc, char **argv) {
   try {
-    const int count = env_int("N_ENVS", 6144);
-    const int chunk_length = env_int("T_CHUNK", 32);
-    const int epochs = env_int("EPOCHS", 2);
-    const int minibatch = env_int("MB", 8192);
-    const int warmup_chunks = env_int("BENCH_WARMUP_CHUNKS", 2);
-    const int measure_chunks = env_int("BENCH_MEASURE_CHUNKS", 1);
-    const int device_index = env_int("BLAZE_DEV", 0);
-    if (const char *fixture = std::getenv("NATIVE_ORACLE_FIXTURE")) {
-      bool oracle_bf16 = env_bool("NATIVE_ORACLE_BF16", true);
-      return run_oracle(fixture,
+    tc::Conf seed{};
+    seed.bench_measure_chunks = 1; /* ppo_native historical default */
+    const tc::Conf cfg = tc::parse_argv(argc, argv, seed);
+    const int count = cfg.n_envs;
+    const int chunk_length = cfg.t_chunk;
+    const int epochs = cfg.epochs;
+    const int minibatch = cfg.mb;
+    const int warmup_chunks = cfg.bench_warmup_chunks;
+    const int measure_chunks = cfg.bench_measure_chunks;
+    const int device_index = cfg.blaze_dev;
+    if (cfg.native_oracle_fixture[0]) {
+      bool oracle_bf16 = cfg.native_oracle_bf16 != 0;
+      return run_oracle(cfg.native_oracle_fixture,
                         fs::current_path() /
                             (oracle_bf16
                                  ? "blaze/rl/native/bf16_tolerances.tsv"
                                  : "blaze/rl/native/fp32_tolerances.tsv"),
                         device_index, oracle_bf16);
     }
-    if (std::getenv("REWARD_JSON") != nullptr) {
+    if (cfg.reward_json_set) {
       throw std::runtime_error(
-          "REWARD_JSON is not supported by the native-v1 recipe");
+          "reward_json is not supported by the native-v1 recipe");
     }
-    if (env_bool("IRON_CHAIN", false)) {
+    if (cfg.iron_chain) {
       throw std::runtime_error(
-          "IRON_CHAIN is not supported by the native-v1 recipe");
+          "iron_chain is not supported by the native-v1 recipe");
     }
-    const int rng_seed = env_int("RNG_SEED", 0);
-    const bool bf16 = env_bool("NATIVE_BF16", true);
-    const Bf16Scope compute_scope = bf16_scope(bf16);
-    const Bf16Scope update_scope = env_bool("NATIVE_BF16_UPDATE", true)
+    const int rng_seed = cfg.rng_seed;
+    const bool bf16 = cfg.native_bf16 != 0;
+    const Bf16Scope compute_scope = bf16_scope(bf16, cfg.native_bf16_scope);
+    const Bf16Scope update_scope = cfg.native_bf16_update
                                        ? compute_scope
                                        : Bf16Scope::kDisabled;
     // NCHW is the accepted layout; channels-last was a measured negative
     // (nhwcAddPaddingKernel ~397ms/chunk). Default off.
-    const bool channels_last = env_bool("NATIVE_CHANNELS_LAST", false);
-    const bool profile = env_bool("NATIVE_PROFILE", false);
-    const bool telemetry = env_bool("NATIVE_TELEMETRY", false);
+    const bool channels_last = cfg.native_channels_last != 0;
+    const bool profile = cfg.native_profile != 0;
+    const bool telemetry = cfg.native_telemetry != 0;
     // Value-head explosion fixes (default off: oracle parity unchanged).
-    const bool fp32_value_head = env_bool("FP32_VALUE_HEAD", false);
-    const bool value_clip = env_bool("VALUE_CLIP", false);
-    const bool ret_norm = env_bool("RET_NORM", false);
-    const int64_t max_ticks = env_i64("MAX_TICKS", 3'000'000'000LL);
-    const double max_wall = env_double("MAX_WALL", 6.5 * 3600.0);
-    const double learning_rate = env_double("LR", 3.0e-4);
-    const double learning_rate_floor = env_double("LR_FLOOR", 1.0e-4);
-    const double learning_rate_ticks = env_double("LR_DECAY_TICKS", 1.5e9);
-    const double t0_share = env_double("T0_SHARE", 0.30);
-    const int cap_refresh = env_int("CAP_REFRESH", 25);
+    const bool fp32_value_head = cfg.fp32_value_head != 0;
+    const bool value_clip = cfg.value_clip != 0;
+    const bool ret_norm = cfg.ret_norm != 0;
+    const int64_t max_ticks = cfg.max_ticks;
+    const double max_wall = cfg.max_wall;
+    const double learning_rate = cfg.lr;
+    const double learning_rate_floor = cfg.lr_floor;
+    const double learning_rate_ticks = cfg.lr_decay_ticks;
+    const double t0_share = cfg.t0_share;
+    const int cap_refresh = cfg.cap_refresh;
     // RET_NORM: EMA of return mean/std (popart-lite targets only).
-    const double ret_norm_momentum = env_double("RET_NORM_MOMENTUM", 0.99);
-    const auto seeds = training_seeds();
+    const double ret_norm_momentum = cfg.ret_norm_momentum;
+    const auto seeds = tc::parse_seeds(cfg.train_seeds);
     torch::manual_seed(rng_seed);
     torch::cuda::manual_seed_all(rng_seed);
     torch::Device device(torch::kCUDA, device_index);
@@ -763,7 +728,7 @@ int main() {
     fs::path repo = fs::current_path();
     fs::path shared_object = repo / "blaze/env/blaze_cuda.so";
     NativeEnv env(shared_object.string(), device_index, count);
-    env.set_success_item(env_int("SUCCESS_ITEM", 50));
+    env.set_success_item(cfg.success_item);
     std::vector<fs::path> snapshot_paths;
     std::vector<std::string> snapshot_strings;
     for (int seed : seeds) {
@@ -803,7 +768,11 @@ int main() {
     torch::optim::Adam optimizer(model->parameters(),
                                  torch::optim::AdamOptions(learning_rate));
     StageCurriculum curriculum(seeds.size(), rng_seed, t0_share);
-    NativeReward reward(count, device, RewardSpec::resolve());
+    NativeReward reward(count, device, RewardSpec::resolve(
+                                           cfg.coal_chew[0] ? cfg.coal_chew
+                                                            : nullptr,
+                                           cfg.hunt_desc[0] ? cfg.hunt_desc
+                                                            : nullptr));
 
     auto u8 = torch::TensorOptions().dtype(torch::kUInt8).device(device);
     auto i64 = torch::TensorOptions().dtype(torch::kInt64).device(device);
@@ -839,8 +808,8 @@ int main() {
     std::deque<double> trailing_t0;
     auto process_start = std::chrono::steady_clock::now();
     std::ofstream curve_output;
-    if (const char *curve = std::getenv("NATIVE_CURVE")) {
-      fs::path curve_path(curve);
+    if (cfg.native_curve[0]) {
+      fs::path curve_path(cfg.native_curve);
       if (!curve_path.parent_path().empty()) {
         fs::create_directories(curve_path.parent_path());
       }
@@ -855,14 +824,14 @@ int main() {
     std::ofstream telemetry_json;
     if (telemetry) {
       // Optional JSONL path; stdout NATIVE_SMOKE lines always emit when
-      // NATIVE_TELEMETRY=1. JSONL is the Phase-1 health contract surface.
-      if (const char *json_path = std::getenv("NATIVE_TELEMETRY_JSON")) {
-        fs::path path(json_path);
+      // native_telemetry=1. JSONL is the Phase-1 health contract surface.
+      if (cfg.native_telemetry_json[0]) {
+        fs::path path(cfg.native_telemetry_json);
         if (!path.parent_path().empty())
           fs::create_directories(path.parent_path());
         telemetry_json.open(path);
         if (!telemetry_json)
-          throw std::runtime_error("cannot write NATIVE_TELEMETRY_JSON");
+          throw std::runtime_error("cannot write native_telemetry_json");
       }
     }
     // RET_NORM running stats (updated once per chunk from valid returns).
@@ -1397,10 +1366,10 @@ int main() {
         break;
     }
 
-    const char *checkpoint = std::getenv("NATIVE_CHECKPOINT");
-    if (checkpoint != nullptr) {
-      save_native_checkpoint(model, checkpoint);
-      std::cout << "NATIVE_CHECKPOINT path=" << checkpoint << std::endl;
+    if (cfg.native_checkpoint[0]) {
+      save_native_checkpoint(model, cfg.native_checkpoint);
+      std::cout << "NATIVE_CHECKPOINT path=" << cfg.native_checkpoint
+                << std::endl;
     }
     return 0;
   } catch (const std::exception &error) {

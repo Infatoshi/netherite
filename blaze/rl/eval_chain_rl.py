@@ -8,11 +8,12 @@ list, inv_counts/hotbar/container, pose). Sampled policy (never greedy),
 best-of-TRIES per seed.
 
 Run (anvil):
-  cd magma && CHAIN_NET=chain_net_cu.pt uv run --no-project \
-      --with numpy,torch python rl/eval_chain_rl.py [seeds...]
-Env: TRIES (default 5), EP_TICKS (default 6000), SAVE_ACTIONS=1 to dump the
-first fully successful episode's action stream for make_chain_video.py.
+  cd magma && uv run --no-project --with numpy,torch \\
+      python rl/eval_chain_rl.py --chain-net chain_net_cu.pt [seeds...]
+Flags: --tries (default 5), --ep-ticks (default 6000), --save-actions to dump
+the first fully successful episode's action stream for make_chain_video.py.
 """
+import argparse
 import hashlib
 import json
 import math
@@ -25,7 +26,7 @@ import torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.join(HERE, "blaze"))
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "env"))  # ppo_chain_cu
 
 from look_at_tree import EYE, MagmaEnv, wrap180
 from ppo_chain_cu import (  # noqa
@@ -47,11 +48,11 @@ from ppo_chain_cu import (  # noqa
 )
 
 OUT = os.path.join(HERE, "out")
-EP_TICKS = int(os.environ.get("EP_TICKS", "6000"))
-TRIES = int(os.environ.get("TRIES", "5"))
+EP_TICKS = 6000
+TRIES = 5
 ALL_SEEDS = [2, 3, 10, 11, 14, 16, 20, 27, 29, 32, 33, 44, 46]
 HELD_OUT = {11, 33}
-RESULT_JSON = os.environ.get("RESULT_JSON")
+
 
 
 def nearest_coal_scal(obs):
@@ -102,10 +103,12 @@ def obs_tensors(obs, dec, ep_dec):
     return frame, build_scal(scal6, status, pose, tfrac), status
 
 
-def run_episode(seed, net, rng_seed):
+def run_episode(seed, net, rng_seed, ep_ticks=None):
     torch.manual_seed(rng_seed)
     env = MagmaEnv(seed)
-    ep_dec = EP_TICKS // REPEAT
+    if ep_ticks is None:
+        ep_ticks = EP_TICKS
+    ep_dec = ep_ticks // REPEAT
     try:
         frame, scal, status = obs_tensors(env.obs, 0, ep_dec)
         stack = frame.repeat(1, STACK, 1, 1)
@@ -198,9 +201,24 @@ def git_provenance():
 
 
 def main():
-    seeds = [int(s) for s in sys.argv[1:]] or ALL_SEEDS
+    global EP_TICKS, TRIES
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--chain-net", default="chain_net_cu.pt",
+                    help="checkpoint filename under rl/out/")
+    ap.add_argument("--ep-ticks", type=int, default=EP_TICKS)
+    ap.add_argument("--tries", type=int, default=TRIES)
+    ap.add_argument("--result-json", default=None,
+                    help="optional path to write result artifact JSON")
+    ap.add_argument("--save-actions", action="store_true",
+                    help="dump first fully successful action stream")
+    ap.add_argument("seeds", nargs="*", type=int,
+                    help="seeds to eval (default: ALL_SEEDS)")
+    args = ap.parse_args()
+    EP_TICKS = args.ep_ticks
+    TRIES = args.tries
+    seeds = args.seeds or ALL_SEEDS
     net = ChainPolicy()
-    net_file = os.environ.get("CHAIN_NET", "chain_net_cu.pt")
+    net_file = args.chain_net
     net.load_state_dict(torch.load(os.path.join(OUT, net_file),
                                    weights_only=True, map_location="cpu"))
     net.eval()
@@ -223,7 +241,7 @@ def main():
     for seed in seeds:
         reach_best, ok = 0, False
         for att in range(TRIES):
-            result = run_episode(seed, net, seed * 100 + att)
+            result = run_episode(seed, net, seed * 100 + att, EP_TICKS)
             result["attempt"] = att
             actions = result.pop("actions")
             attempts.append(result)
@@ -233,7 +251,7 @@ def main():
                 best_tape = (reached, seed, actions)
             if reached >= N_STAGES:
                 ok = True
-                if actions and os.environ.get("SAVE_ACTIONS") and not saved:
+                if actions and args.save_actions and not saved:
                     save_tape(seed, actions)
                     saved = True
                 break
@@ -244,7 +262,7 @@ def main():
               f"({reach_best}/{N_STAGES})", flush=True)
         results[seed] = reach_best
 
-    if not saved and os.environ.get("SAVE_ACTIONS") and best_tape[1]:
+    if not saved and args.save_actions and best_tape[1]:
         print(f"no full-chain success; saving deepest run (milestone "
               f"{best_tape[0]}, seed {best_tape[1]})", flush=True)
         save_tape(best_tape[1], best_tape[2])
@@ -255,7 +273,7 @@ def main():
           f"{MILE_NAMES[min(v, N_STAGES - 1)] if v < N_STAGES else 'TORCH'}"
           f":{sum(1 for x in results.values() if x == v)}"
           for v in sorted(set(results.values()))), flush=True)
-    if RESULT_JSON:
+    if args.result_json:
         checkpoint = os.path.join(OUT, net_file)
         commit, tracked_clean = git_provenance()
         artifact = {
@@ -276,12 +294,12 @@ def main():
             "attempts": attempts,
             "per_seed_reached": {str(k): v for k, v in results.items()},
         }
-        parent = os.path.dirname(os.path.abspath(RESULT_JSON))
+        parent = os.path.dirname(os.path.abspath(args.result_json))
         os.makedirs(parent, exist_ok=True)
-        with open(RESULT_JSON, "w") as f:
+        with open(args.result_json, "w") as f:
             json.dump(artifact, f, indent=2, sort_keys=True)
             f.write("\n")
-        print(f"wrote {RESULT_JSON}", flush=True)
+        print(f"wrote {args.result_json}", flush=True)
     return 0 if n_ok else 1
 
 

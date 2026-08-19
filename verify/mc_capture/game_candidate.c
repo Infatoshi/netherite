@@ -15,12 +15,14 @@
  *   --eye 8.2994 95 40 --yaw 0 --pitch -35 --fov 70 --w 854 --h 480
  * reproduces rung4_candidate's mesh + render exactly (pose 0 == rung 4).
  *
- * Default: single winding (matches game_main). Opt-in dual via MAGMA_DUAL_WIND=1
+ * Default: single winding (matches game_main). Opt-in dual via --dual-wind
  * (GL-parity both-windings path); our raster still keeps one front face per pair.
  *
  * Usage:
  *   game_candidate --eye X Y Z --yaw DEG --pitch DEG [--fov 70]
  *                  [--w 854 --h 480] [--ppm PATH]
+ *                  [--dual-wind] [--no-dual-wind] [--no-cutout] [--no-trans]
+ *                  [--no-prep] [--spawn-cx N] [--spawn-cz N] [--prep-list PATH]
  * (--ppm may also be given as the first positional arg for rung4 parity.)
  */
 #include <stdio.h>
@@ -29,8 +31,14 @@
 #include <math.h>
 
 #include "core/types.h"
+#include "core/config.h"
 #include "game/sky.h"
 #include "../verify/mc_capture/pose_scene.h"
+
+/* Opt-in dual winding / layer skips; set from argv (default = unset-env). */
+static int g_dual_wind = 0;
+static int g_no_cutout = 0;
+static int g_no_trans = 0;
 
 static void render_layer(CrFramebuffer *fb, const PoseScene *s, int W, int H,
                          int layer, const CrShadeCtx *sh) {
@@ -41,15 +49,9 @@ static void render_layer(CrFramebuffer *fb, const PoseScene *s, int W, int H,
     int n = cr_transform(s->verts[layer], nv, NULL, 0, &s->cam,
                          W, H, tris, max_tris);
     /* Dual winding is a hard-scene no-op (crop delta << 0.1 vs single wind).
-     * game_main never dual-winds. Default OFF; MAGMA_DUAL_WIND=1 restores the
-     * old GL-parity "both windings" path. MAGMA_NO_DUAL_WIND=1 still forces off. */
-    int dual = 0;
-    {
-        const char *s = getenv("MAGMA_DUAL_WIND");
-        if (s && atoi(s) != 0) dual = 1;
-        s = getenv("MAGMA_NO_DUAL_WIND");
-        if (s && atoi(s) != 0) dual = 0;
-    }
+     * game_main never dual-winds. Default OFF; --dual-wind restores the old
+     * GL-parity "both windings" path. --no-dual-wind forces off. */
+    int dual = g_dual_wind;
     if (!dual) {
         cr_raster_cpu(fb, tris, n, sh);
     } else {
@@ -99,6 +101,37 @@ int main(int argc, char **argv) {
             out = argv[++i];
         } else if (!strcmp(argv[i], "--depth") && i + 1 < argc) {
             depth_out = argv[++i];
+        } else if (!strcmp(argv[i], "--dual-wind")) {
+            g_dual_wind = 1;
+        } else if (!strcmp(argv[i], "--no-dual-wind")) {
+            g_dual_wind = 0;
+        } else if (!strcmp(argv[i], "--no-cutout")) {
+            g_no_cutout = 1;
+        } else if (!strcmp(argv[i], "--no-trans")) {
+            g_no_trans = 1;
+        } else if (!strcmp(argv[i], "--no-prep")) {
+            pscn_set_no_prep(1);
+        } else if (!strcmp(argv[i], "--spawn-cx") && i + 1 < argc) {
+            pscn_set_spawn_cx(atoi(argv[++i]));
+        } else if (!strcmp(argv[i], "--spawn-cz") && i + 1 < argc) {
+            pscn_set_spawn_cz(atoi(argv[++i]));
+        } else if (!strcmp(argv[i], "--prep-list") && i + 1 < argc) {
+            pscn_set_prep_list(argv[++i]);
+        } else if (!strcmp(argv[i], "--set") && i + 1 < argc) {
+            /* Registry passthrough (smooth/fog/... ablations); same key space
+             * and same hard-error contract as the game binary's --set. */
+            char *kv = argv[++i];
+            char *eq = strchr(kv, '=');
+            if (!eq || eq == kv) {
+                fprintf(stderr, "game_candidate: bad --set '%s'\n", kv);
+                return 2;
+            }
+            *eq = '\0';
+            if (cr_cfg_set(kv, eq + 1) != 0) {
+                fprintf(stderr, "game_candidate: --set %s=%s rejected\n",
+                        kv, eq + 1);
+                return 2;
+            }
         } else if (argv[i][0] != '-' && !out) {
             out = argv[i];   /* positional PPM path, rung4 parity */
         }
@@ -175,11 +208,11 @@ int main(int argc, char **argv) {
             .mip_bias = 0.f };
 
     render_layer(&fb, &scn, W, H, CR_LAYER_SOLID,         &sh_solid);
-    if (!getenv("MAGMA_NO_CUTOUT")) {
+    if (!g_no_cutout) {
         render_layer(&fb, &scn, W, H, CR_LAYER_CUTOUT_MIPPED, &sh_cmip);
         render_layer(&fb, &scn, W, H, CR_LAYER_CUTOUT,        &sh_cut);
     }
-    if (!getenv("MAGMA_NO_TRANS"))
+    if (!g_no_trans)
         render_layer(&fb, &scn, W, H, CR_LAYER_TRANSLUCENT,   &sh_trans);
 
     unsigned char *rgb = malloc((size_t)W * H * 3);

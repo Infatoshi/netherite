@@ -27,11 +27,12 @@
 #include "world/light.h"
 #include "world/populate_mc.h"
 #include "game/caps.h"
+#include "core/config.h"   /* genprobe + shared registry (--set) */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* RNG-cursor probe sink (MAGMA_GENPROBE=path): same line format as the live-game
+/* RNG-cursor probe sink (genprobe=path): same line format as the live-game
  * qrl/WorldGenProbe.java log, so trace/genprobe_diff.py can pair them. */
 static FILE *g_probe_file;
 static void probe_cb(int cx, int cz, const char *tag, const char *type,
@@ -59,6 +60,29 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--states")) states = 1;
         else if (!strcmp(argv[i], "--world-type") && i + 1 < argc)
             world_type = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--set") && i + 1 < argc) {
+            /* Same key=value grammar as magma_game --set (registry only). */
+            const char *kv = argv[++i];
+            const char *eq = strchr(kv, '=');
+            if (!eq || eq == kv) {
+                fprintf(stderr, "bad --set %s (want key=value)\n", kv);
+                return 2;
+            }
+            char key[64];
+            size_t klen = (size_t)(eq - kv);
+            if (klen >= sizeof key) {
+                fprintf(stderr, "bad --set %s: key too long\n", kv);
+                return 2;
+            }
+            memcpy(key, kv, klen);
+            key[klen] = '\0';
+            int rc = cr_cfg_set(key, eq + 1);
+            if (rc != 0) {
+                fprintf(stderr, "error: --set %s: %s\n", kv,
+                        rc == -1 ? "unknown key" : "bad value for this key");
+                return 2;
+            }
+        }
         else { fprintf(stderr, "bad arg %s\n", argv[i]); return 2; }
     }
     if (world_type < 0 || world_type > 3) {
@@ -129,12 +153,17 @@ int main(int argc, char **argv) {
         cr_caps_override("owr_cells_max", 49152);
     }
 
-    const char *probe_path = getenv("MAGMA_GENPROBE");
-    if (probe_path) {
-        g_probe_file = fopen(probe_path, "w");
-        if (!g_probe_file) { fprintf(stderr, "cannot open %s\n", probe_path); return 1; }
-        popmc_set_probe(probe_cb);
-        fprintf(stderr, "world_dump: genprobe -> %s\n", probe_path);
+    {
+        const char *probe_path = cr_cfg()->genprobe;
+        if (probe_path[0]) {
+            g_probe_file = fopen(probe_path, "w");
+            if (!g_probe_file) {
+                fprintf(stderr, "cannot open %s\n", probe_path);
+                return 1;
+            }
+            popmc_set_probe(probe_cb);
+            fprintf(stderr, "world_dump: genprobe -> %s\n", probe_path);
+        }
     }
 
     CrLight *L = light_create_type(seed, world_type);

@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "task": "T1c RTX 3090 blaze throughput",
+  "measurement_date_utc": "2026-08-04",
+  "measurement_window_utc": {
+    "start": "2026-08-04T19:09:00Z",
+    "end": "2026-08-04T19:13:00Z",
+    "note": "Approximate to the minute; per-run wall timestamps were not captured. All three runs completed within this window."
+  },
+  "commit": "d55c7f01c1139299be3f7fa0b98ef11b82c3b473",
+  "source_transfer": {
+    "method": "scripts/agent_worktree.sh worktree from the canonical local repo, branch wt/t1c3090 checked out at the pin",
+    "canonical_repo": "gamer:/home/infatoshi/dev/netherite",
+    "canonical_head_at_measurement": "1774e0d",
+    "worktree_path": "gamer:/home/infatoshi/dev/nw/t1c3090",
+    "worktree_rev_parse_head": "d55c7f01c1139299be3f7fa0b98ef11b82c3b473"
+  },
+  "provider": {
+    "name": "local (project devbox)",
+    "machine": "gamer",
+    "note": "No rental; run on the project's own machine. GPU idle before every attempt."
+  },
+  "hardware": {
+    "hostname": "gamer",
+    "os": "Ubuntu 26.04 LTS",
+    "architecture": "x86_64",
+    "cpu": "AMD Ryzen 7 7700X 8-Core Processor",
+    "online_cpus": 16,
+    "ram_mb": 30713,
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "gpu_uuid": "GPU-ecbcfcc5-aaeb-e4c5-b343-a86d7e9a6e64",
+    "compute_capability": "8.6",
+    "gpu_memory_total_mib": 24576,
+    "gpu_memory_used_preflight_mib": 21,
+    "gpu_processes_preflight": 0,
+    "power_limit_w": 420.0
+  },
+  "software": {
+    "driver_version": "610.57.04",
+    "driver_supported_cuda": "13.3",
+    "nvcc_release": "13.3",
+    "nvcc_version": "13.3.73",
+    "uv_version": "0.11.3",
+    "numpy_version": "2.5.1",
+    "torch_version": "2.13.0+cu130",
+    "torch_cuda_version": "13.0"
+  },
+  "build": {
+    "commands": [
+      "export CUDA_HOME=/usr/local/cuda TORCH_CUDA_ARCH_LIST=8.6",
+      "make -C magma clean",
+      "make -C magma BLAZE_SM=sm_86 blaze_cuda_so"
+    ],
+    "nvcc_invocation": "nvcc -O2 --fmad=false -gencode arch=compute_86,code=sm_86 -I/home/infatoshi/dev/nw/t1c3090/blaze/core -I../blaze/env -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu ../blaze/env/blaze_snapshot.c -o ../blaze/env/blaze_cuda.so",
+    "cuobjdump": [
+      "Fatbin elf code: arch = sm_86",
+      "Fatbin elf code: arch = sm_86"
+    ],
+    "cuobjdump_note": "CUDA 13.3 cuobjdump prints fatbin sections without cubin file names; both ELF sections are sm_86 and no PTX section is present.",
+    "blaze_cuda_so_sha256": "3458d92e786b130a37769d0966444b639a78c59b2f1e91f9ca153248dc7c14cf"
+  },
+  "benchmark": {
+    "config": {
+      "snapshots": "t0",
+      "full_action_decode": true,
+      "semantic_camera_every_decision": true,
+      "repeat": 4,
+      "timed_decisions": 1000,
+      "warmup_decisions": 10,
+      "device": 0,
+      "actions": "pre-generated on-device random actions",
+      "resets": "periodic masked resets"
+    },
+    "command_template": "CUDA_VISIBLE_DEVICES=0 uv run --no-project --with 'numpy==2.5.1' --with 'torch==2.13.0' python blaze/env/verify_cuda.py --bench --t0 --n N --decisions 1000 --repeat 4 --warmup 10 --device 0",
+    "n2048_command_sha256": "1a3eb7a5e0216ea11e14ce8037e13b7e92cca6132753dbd24d028cfb049280ad",
+    "source_hashes": {
+      "blaze/env/verify_cuda.py": "07f866f3dbb12eaf95de341ca44c62c535df522e2c24ce5051154a67d8daaa8e",
+      "blaze/env/blaze_cuda.cu": "fa1c6a440c90720d440b80c53471dbf1af4fd032ddecec323b258cd8377a5225",
+      "blaze/env/blaze_cuda.so": "3458d92e786b130a37769d0966444b639a78c59b2f1e91f9ca153248dc7c14cf"
+    },
+    "selection_rule": "Three independent full commands at N=2048; report the exact emitted row from the median run by decisions/s.",
+    "n2048_runs": [
+      {
+        "run": 1,
+        "env_ticks_per_second_display": "1.03M",
+        "decisions_per_second": 256273,
+        "elapsed_seconds_display": 7.99,
+        "done_at_end": 18,
+        "raw": "N=2048: 1.03M env-ticks/s  256273 decisions/s  (7.99s for 1000 decisions, 18/2048 done at end)"
+      },
+      {
+        "run": 2,
+        "env_ticks_per_second_display": "1.04M",
+        "decisions_per_second": 258864,
+        "elapsed_seconds_display": 7.91,
+        "done_at_end": 18,
+        "raw": "N=2048: 1.04M env-ticks/s  258864 decisions/s  (7.91s for 1000 decisions, 18/2048 done at end)"
+      },
+      {
+        "run": 3,
+        "env_ticks_per_second_display": "1.03M",
+        "decisions_per_second": 258722,
+        "elapsed_seconds_display": 7.92,
+        "done_at_end": 18,
+        "raw": "N=2048: 1.03M env-ticks/s  258722 decisions/s  (7.92s for 1000 decisions, 18/2048 done at end)"
+      }
+    ],
+    "n2048_selected_run": 3,
+    "n2048_derived_unrounded_env_ticks_per_second": 1034888,
+    "n2048_max_minus_min_decisions_per_second": 2591,
+    "n2048_spread_percent_of_median": 1.00146,
+    "spread_note": "Run 1 launched from idle clocks (210 MHz SM preflight sample) and is the low outlier; runs 2 and 3 launched with clocks already boosted from the preceding run and agree within 0.055%. The median rule absorbs the cold first run.",
+    "oom_attempts": [],
+    "oom_note": "Only N=2048 was attempted, per task scope. HEAD's batch-2048 region pool (21.5 GB plus fixed pools) is known not to fit 24 GB; the pin's 17.2 GB region pool fits, which is why the measurement runs at the pin.",
+    "capacity_formula": "region_pool_bytes = 2 * N * 128 * 128 * 128 * sizeof(uint16_t)",
+    "vram_free_reported_by_bench_gb": "25.0/25.3 (decimal GB as printed by the bench header, all three runs)",
+    "isolation_note": "nvidia-smi preceded every attempt: 21 MiB used, zero compute processes before all three runs. Machine is a single-user devbox; no other GPU workload ran during the window.",
+    "timing_scope": {
+      "included": [
+        "k_tick, k_obs, and k_final for each decision",
+        "cudaStreamSynchronize at the end of every blaze_step_full call",
+        "40 periodic env.done device-to-host copies",
+        "conditional host-driven masked resets for completed environments"
+      ],
+      "excluded": [
+        "environment creation",
+        "snapshot loading and initial reset",
+        "10 warmup decisions",
+        "random action generation",
+        "action host-to-device copies because all 1000 action tensors were pre-generated on device before the timer"
+      ]
+    },
+    "telemetry": {
+      "prelaunch_samples": [
+        {
+          "run": 1,
+          "gpu_utilization_percent": 0,
+          "power_draw_w": 29.82,
+          "sm_clock_mhz": 210,
+          "memory_clock_mhz": 405,
+          "temperature_c": 45
+        },
+        {
+          "run": 2,
+          "gpu_utilization_percent": 100,
+          "power_draw_w": 194.66,
+          "sm_clock_mhz": 1950,
+          "memory_clock_mhz": 9751,
+          "temperature_c": 53
+        },
+        {
+          "run": 3,
+          "gpu_utilization_percent": 100,
+          "power_draw_w": 195.29,
+          "sm_clock_mhz": 1950,
+          "memory_clock_mhz": 9751,
+          "temperature_c": 56
+        }
+      ],
+      "prelaunch_caveat": "Run 2 and run 3 samples retained boosted clocks and transient utilization from the just-exited prior process. They are not sustained timed-loop measurements.",
+      "unavailable": [
+        "sustained timed-loop power draw",
+        "sustained timed-loop GPU utilization",
+        "sustained timed-loop SM clock",
+        "sustained timed-loop memory clock",
+        "sustained timed-loop temperature",
+        "clock-lock or application-clock state",
+        "nsys end-to-end profile",
+        "ncu kernel profile"
+      ]
+    }
+  },
+  "setup": {
+    "java_oracle_bootstrap_skipped": true,
+    "skip_reason": "Java on gamer is OpenJDK 21, not JDK 8; the 13 generated Mojang-derived asset headers were copied into the worktree from the canonical tree by scripts/agent_worktree.sh, so no jar regeneration was needed. Java/oracle is not required for the throughput benchmark.",
+    "manual_commands": [
+      "make -C magma game",
+      "make -C magma blaze_so",
+      "T0=1 uv run --no-project --with 'numpy==2.5.1' --with 'torch==2.13.0' python blaze/env/make_snapshots.py",
+      "make -C magma clean",
+      "make -C magma BLAZE_SM=sm_86 blaze_cuda_so"
+    ],
+    "t0_snapshots_written": 13,
+    "quick_sweep": {
+      "run": false,
+      "note": "setup_and_verify.sh --quick was not run; task scope was the throughput measurement only. Build, snapshot bake, and bench all completed at the pin."
+    }
+  },
+  "deviations_from_t1_t2_protocol": [
+    "Local devbox instead of a Vast.ai rental; no provider/rental/artifact-archive sections.",
+    "uv 0.11.3 instead of 0.12.1 (dependency pins numpy==2.5.1 / torch==2.13.0+cu130 identical).",
+    "nvcc 13.3.73 / driver 610.57.04 (CUDA 13.3) instead of nvcc 13.1.115 / driver 595.80.",
+    "OOM ladder (N=8192, N=16384) not attempted; N=2048 only per task scope.",
+    "setup_and_verify.sh --quick sweep not run."
+  ]
+}

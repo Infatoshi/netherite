@@ -267,6 +267,22 @@ MC_HD static inline int psv_collect_blocks(const Chunk *chunks, const McAABB *qu
                     psv_add_collision_box(blocks, &n, maxblocks,
                         mc_aabb_make(x + 0.0625, y, z + 0.0625,
                                      x + 0.9375, y + 0.9375, z + 0.9375));
+                } else if (id == 54 || id == 130 || id == 146) {
+                    /* BlockChest / BlockEnderChest collision. A lone chest is
+                     * inset 1/16 on X/Z and 1/8 at the top. Normal/trapped
+                     * double chests extend flush only toward a same-id mate;
+                     * ender chests never connect. */
+                    double min_x = 0.0625, max_x = 0.9375;
+                    double min_z = 0.0625, max_z = 0.9375;
+                    if (id != 130) {
+                        if (psv_get_block(chunks, x - 1, y, z) == id) min_x = 0.0;
+                        if (psv_get_block(chunks, x + 1, y, z) == id) max_x = 1.0;
+                        if (psv_get_block(chunks, x, y, z - 1) == id) min_z = 0.0;
+                        if (psv_get_block(chunks, x, y, z + 1) == id) max_z = 1.0;
+                    }
+                    psv_add_collision_box(blocks, &n, maxblocks,
+                        mc_aabb_make(x + min_x, y, z + min_z,
+                                     x + max_x, y + 0.875, z + max_z));
                 } else if (id == BLK_TRAPDOOR) {
                     int meta = psv_get_meta(chunks, x, y, z);
                     double min_x = 0.0, min_y = 0.0, min_z = 0.0;
@@ -455,8 +471,8 @@ MC_HD static inline int psv_flow_side_solid(const Chunk *now, int x, int y, int 
 
 /* BlockLiquid.getFlow for one water cell: signed level differences toward the
  * four horizontal neighbours (falling through open air probes one below with
- * the j-(i-8) weight), the falling-water downward current, Vec3d.normalize
- * (zero below 1e-4 length). */
+ * the j-(i-8) weight), the falling-water downward current, and Vec3d.normalize
+ * through MathHelper.sqrt's deliberate float return (zero below 1e-4 length). */
 MC_HD static inline void psv_water_cell_flow(const Chunk *now, int bx, int by, int bz,
                                              double *fx, double *fy, double *fz) {
     static const int DX[4] = {0, -1, 0, 1}, DZ[4] = {1, 0, -1, 0}; /* S,W,N,E */
@@ -485,7 +501,7 @@ MC_HD static inline void psv_water_cell_flow(const Chunk *now, int bx, int by, i
             int nx = bx + DX[f], nz = bz + DZ[f];
             if (psv_flow_side_solid(now, nx, by, nz) ||
                 psv_flow_side_solid(now, nx, by + 1, nz)) {
-                double l = sqrt(d0 * d0 + d1 * d1 + d2 * d2);
+                double l = (double)(float)sqrt(d0 * d0 + d1 * d1 + d2 * d2);
                 if (l < 1.0e-4) { d0 = d1 = d2 = 0.0; }
                 else { d0 /= l; d1 /= l; d2 /= l; }
                 d1 += -6.0;
@@ -493,7 +509,7 @@ MC_HD static inline void psv_water_cell_flow(const Chunk *now, int bx, int by, i
             }
         }
     }
-    double l = sqrt(d0 * d0 + d1 * d1 + d2 * d2);
+    double l = (double)(float)sqrt(d0 * d0 + d1 * d1 + d2 * d2);
     if (l < 1.0e-4) { *fx = 0.0; *fy = 0.0; *fz = 0.0; }
     else { *fx = d0 / l; *fy = d1 / l; *fz = d2 / l; }
 }
@@ -520,7 +536,7 @@ MC_HD static inline int psv_handle_water(const Chunk *now, McEntity *e) {
                 psv_water_cell_flow(now, bx, by, bz, &fx, &fy, &fz);
                 sx += fx; sy += fy; sz += fz;
             }
-    double l = sqrt(sx * sx + sy * sy + sz * sz);
+    double l = (double)(float)sqrt(sx * sx + sy * sy + sz * sz);
     if (l > 0.0) {
         sx /= l; sy /= l; sz /= l;
         e->motionX += sx * 0.014;
@@ -847,6 +863,13 @@ MC_HD static inline void psv_physics_tick(const Chunk *now, const McSinTable *st
     if (e->box.maxY + 0.6 > query.maxY) query.maxY = e->box.maxY + 0.6;
     int nblocks = psv_collect_blocks(now, &query, blocks, PSV_MAX_BLOCKS);
     mc_entity_move_step(e, mvx, mvy, mvz, blocks, nblocks, 0.6f);
+
+    /* EntityLivingBase.updateFallState runs inside Entity.move and rechecks
+     * handleWaterMovement after the position change when the pre-move check
+     * was dry. The newly entered current changes this tick's post-move
+     * velocity, but travel itself remains on the air branch. */
+    if (!in_water)
+        (void)psv_handle_water(now, e);
 
     if (e->collidedHorizontally && psv_is_on_ladder(now, e))
         e->motionY = 0.2;

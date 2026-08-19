@@ -183,10 +183,9 @@ def main():
     fixture = Path(raw_path)
     try:
         floor, budget = make_fixture(fixture, args.batch, args.seed)
-        env = dict(os.environ)
-        env["CGRAPH_EQUIV_FIXTURE"] = str(fixture)
         process = subprocess.run(
-            [str(args.binary)], cwd=ROOT, env=env, text=True, capture_output=True
+            [str(args.binary), "--set", f"cgraph_equiv_fixture={fixture}"],
+            cwd=ROOT, text=True, capture_output=True
         )
         print(process.stdout, end="")
         print(process.stderr, end="", file=sys.stderr)

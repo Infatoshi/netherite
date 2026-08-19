@@ -7,7 +7,7 @@
 set -u
 cd "$(dirname "$0")/.." || exit 1
 SAVES=../../java/Minecraft/run/saves
-export MAGMA_GENPROBE=$PWD/trace/out/magma_genprobe.log
+GENPROBE=$PWD/trace/out/magma_genprobe.log
 SEEDS=("$@")
 [ ${#SEEDS[@]} -eq 0 ] && SEEDS=(0 7 42 18 38 1 30 74 9 19 489 123 777 3141 8675309 999 31337 424242 1000000007)
 printf '%-6s %-10s %-9s %s\n' SEED MATCH CLEAN FIRST_DIVERGENT_STAGES
@@ -18,7 +18,8 @@ for S in "${SEEDS[@]}"; do
         printf '%-6s missing save or java log\n' "$S"; continue
     fi
     V=$(uv run --no-project --with numpy --with nbt python3 trace/world_verify.py \
-        --region "$SAVES/qrl_$S/region" --seed "$S" --java-log "$JLOG" 2>&1 | grep -a VERDICT)
+        --region "$SAVES/qrl_$S/region" --seed "$S" --java-log "$JLOG" \
+        --genprobe "$GENPROBE" 2>&1 | grep -a VERDICT)
     PCT=$(printf '%s' "$V" | grep -oE '= [0-9.]+%' | tr -d '= ')
     D=$(uv run --no-project python3 trace/genprobe_diff.py --java "$JLOG" \
         --magma trace/out/magma_genprobe.log 2>&1)

@@ -23,7 +23,14 @@
  * is untouched); they are narrowed once at oc_pixel entry.
  *
  * World access is a dense [nx][ny][nz] u16 region tensor (region_tensor.h
- * layout, cells[(ix*ny+iy)*nz+iz]); outside the AABB reads as air, so the
+ * layout, cells[(ix*ny+iy)*nz+iz]) of PACKED BLOCK STATES ((id<<4)|meta, the
+ * blaze/magma world encoding); oc_block extracts the id with >>4, which is
+ * mc_state_id. Storing states rather than a pre-shifted id copy is what let
+ * the batched env drop its parallel cam_cells tensor (2026-08, wt/camcells):
+ * cam_cells[i] was exactly cells[i]>>4 at every write site, so the shift is
+ * free here and the 2 bytes/cell are not. Callers holding only ids (worldgen
+ * region tensors, magma's rl_camreg) pack them as id<<4.
+ * Outside the AABB reads as air, so the
  * caller must supply a region covering eye + OC_FAR. Depth quantization:
  * (int)(t * 4) clamped to 255; sky = id 0, depth 255. edge = 1 where the
  * hit point lies within OC_EDGE_W of the struck face's block border
@@ -46,15 +53,17 @@
 #define OC_EDGE_W 0.05f /* block-border half width, world units */
 
 typedef struct {
-    const u16 *cells;          /* region_tensor layout                  */
+    const u16 *cells;          /* region_tensor layout, (id<<4)|meta    */
     int x0, y0, z0, nx, ny, nz;
 } OcRegion;
 
+/* Block id at a world cell; 0 (air) outside the region. The >>4 is
+ * mc_state_id: the tensor holds packed states, the camera wants plain ids. */
 MC_HD static inline u16 oc_block(const OcRegion *r, int wx, int wy, int wz) {
     int ix = wx - r->x0, iy = wy - r->y0, iz = wz - r->z0;
     if (ix < 0 || iy < 0 || iz < 0 || ix >= r->nx || iy >= r->ny || iz >= r->nz)
         return 0;
-    return r->cells[((long)ix * r->ny + iy) * r->nz + iz];
+    return (u16)(r->cells[((long)ix * r->ny + iy) * r->nz + iz] >> 4);
 }
 
 /* First non-air block along the unit ray; *t_out = distance (OC_FAR = sky).

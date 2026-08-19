@@ -4,7 +4,7 @@
  * Every cr_raster_metal_* entry point mirrors the cr_raster_cuda_* function of
  * the same suffix (identical signature, identical semantics); the kernels live
  * in raster_kernels.metal, compiled offline to raster_kernels.metallib and
- * loaded at runtime from the executable's directory (MAGMA_METALLIB env
+ * loaded at runtime from the executable's directory (metallib registry key
  * overrides the path). Target: Apple silicon (unified memory), macOS 13+
  * (MTLBuffer.gpuAddress). Compile this file as ObjC with ARC (-fobjc-arc) and
  * -ffp-contract=off (host float math below must match the gcc/clang CPU path).
@@ -103,6 +103,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "core/config.h"   /* metallib / metal_require registry knobs */
 #include "core/types.h"
 #include "game/sky.h"
 #pragma clang diagnostic push
@@ -254,8 +255,8 @@ static void mg_err(const char *what, NSError *e) {
 }
 
 static id<MTLLibrary> mg_load_lib(id<MTLDevice> dev) {
-    /* Candidates: $MAGMA_METALLIB wins outright; otherwise search relative to
-     * the executable. The Makefile leaves the build product at
+    /* Candidates: metallib registry key wins outright; otherwise search
+     * relative to the executable. The Makefile leaves the build product at
      * magma/metal/raster_kernels.metallib while the game binary sits in
      * magma/ and the parity-test binary in magma/tests/, so "next to the
      * executable" alone boot-fails BOTH real consumers - and a boot failure
@@ -263,16 +264,16 @@ static id<MTLLibrary> mg_load_lib(id<MTLDevice> dev) {
      * CPU with CPU and "pass" (caught on the first MacBook run, 2026-07-30). */
     char cand[3][1024];
     int ncand = 0;
-    const char *env = getenv("MAGMA_METALLIB");
-    if (env && *env) {
-        snprintf(cand[0], sizeof cand[0], "%s", env);
+    const char *ml = cr_cfg()->metallib;
+    if (ml[0]) {
+        snprintf(cand[0], sizeof cand[0], "%s", ml);
         ncand = 1;
     } else {
         char exedir[1024];
         uint32_t sz = (uint32_t)sizeof exedir;
         if (_NSGetExecutablePath(exedir, &sz) != 0) {
             fprintf(stderr, "magma Metal: executable path too long; set "
-                            "MAGMA_METALLIB to the metallib path\n");
+                            "metallib to the metallib path (--set metallib=...)\n");
             return nil;
         }
         char *slash = strrchr(exedir, '/');
@@ -302,7 +303,7 @@ static id<MTLLibrary> mg_load_lib(id<MTLDevice> dev) {
             fprintf(stderr, "  %s\n", cand[i]);
         fprintf(stderr,
                 "  Build it:  make -C magma metal/raster_kernels.metallib\n"
-                "  Or set MAGMA_METALLIB to its path.\n");
+                "  Or --set metallib=PATH.\n");
     }
     return lib;
 }
@@ -321,14 +322,13 @@ static id<MTLComputePipelineState> mg_pso(const char *name) {
     return p;
 }
 
-/* MAGMA_METAL_REQUIRE=1 turns any boot failure fatal instead of letting the
+/* metal_require=1 turns any boot failure fatal instead of letting the
  * caller degrade to cr_raster_cpu. The parity gate sets it so a metallib or
  * device problem can never produce a vacuous CPU-vs-CPU "pass" again (the
  * failure mode caught on the first MacBook run, 2026-07-30). */
 static int mg_boot_failed(void) {
-    const char *req = getenv("MAGMA_METAL_REQUIRE");
-    if (req && *req == '1') {
-        fprintf(stderr, "magma Metal: boot failed and MAGMA_METAL_REQUIRE=1; "
+    if (cr_cfg()->metal_require) {
+        fprintf(stderr, "magma Metal: boot failed and metal_require=1; "
                         "refusing CPU fallback\n");
         exit(2);
     }

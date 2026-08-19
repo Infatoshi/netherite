@@ -17,6 +17,7 @@ Same factored heads, same reward, same REPEAT=4 as walk_break.py.
 
 Run (anvil): cd magma && uv run --no-project --with numpy,torch,matplotlib python rl/ppo_break.py
 """
+import argparse
 import json
 import math
 import os
@@ -34,7 +35,7 @@ from walk_break import (SEEDS, N_ENVS, EP_LEN, REPEAT, GAMMA, HEADS,
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
 
-N_EPISODES = int(os.environ.get("N_EPISODES", 400))
+N_EPISODES = 400      # historical unset-env default; overridden by --n-episodes
 STACK = 3             # frame stack, one frame per DECISION (12 ticks of
                       # history at REPEAT=4): lets the policy remember a
                       # tree it turned past instead of re-scanning blind
@@ -91,6 +92,12 @@ class ConvPolicy(nn.Module):
 
 
 def main():
+    global N_EPISODES
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--n-episodes", type=int, default=N_EPISODES)
+    args = ap.parse_args()
+    N_EPISODES = args.n_episodes
+
     os.makedirs(OUT, exist_ok=True)
     torch.manual_seed(0)
     torch.set_num_threads(8)

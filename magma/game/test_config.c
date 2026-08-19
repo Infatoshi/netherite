@@ -74,16 +74,14 @@ int main(void) {
 
     char printed[4096];
     read_print(gm_config_print, &c, printed, sizeof printed);
-    CHECK(strstr(printed, "headless=on") && strstr(printed, "ticks=42") &&
+    CHECK(strstr(printed, "headless=1") && strstr(printed, "ticks=42") &&
           strstr(printed, "compose=window") &&
           strstr(printed, "script=events.jsonl") &&
           strstr(printed, "state_out=state.jsonl") &&
           strstr(printed, "frames_out=frames"), "canonical print includes harness values");
     read_usage(printed, sizeof printed);
-    CHECK(strstr(printed, "--headless") && strstr(printed, "--ticks N") &&
-          strstr(printed, "--script PATH") && strstr(printed, "--state-out PATH") &&
-          strstr(printed, "--frames-out DIR") && strstr(printed, "--compose"),
-          "usage includes harness options");
+    CHECK(strstr(printed, "--conf FILE") && strstr(printed, "--set key=value") &&
+          strstr(printed, "Legacy long options"), "usage names the config entry point");
     CHECK(gm_config_validate_runtime(&c, 1, 0, err, sizeof err) == 2 &&
           strstr(err, "villages"), "first unwired bundle fails loudly at runtime");
 
@@ -126,7 +124,7 @@ int main(void) {
     CHECK(parse(&c, 5, dup_compose, err) == 2 && strstr(err, "duplicate"),
           "duplicate compose mode rejected");
     char *bad_compose[] = {"game", "--compose", "shared"};
-    CHECK(parse(&c, 3, bad_compose, err) == 2 && strstr(err, "invalid"),
+    CHECK(parse(&c, 3, bad_compose, err) == 2 && strstr(err, "compose"),
           "invalid compose mode rejected");
     char *bad_bool[] = {"game", "--weather", "yes"};
     CHECK(parse(&c, 3, bad_bool, err) == 2, "noncanonical boolean rejected");
@@ -162,13 +160,22 @@ int main(void) {
     CHECK(parse(&c, 2, headless_no_ticks, err) == 2 && strstr(err, "requires"),
           "headless without ticks rejected");
     char *ticks_and_frames[] = {"game", "--ticks", "1", "--frames", "1"};
-    CHECK(parse(&c, 5, ticks_and_frames, err) == 2 && strstr(err, "--frames"),
+    CHECK(parse(&c, 5, ticks_and_frames, err) == 2 && strstr(err, "frames"),
           "ticks with legacy frames rejected");
     char *creative[] = {"game", "--creative"};
     CHECK(parse(&c, 2, creative, err) == 2 && strstr(err, "unknown"),
           "creative is absent rather than disabled");
     char *view[] = {"game", "--view-distance", "9"};
     CHECK(parse(&c, 3, view, err) == 2, "view distance outside compiled cap rejected");
+
+    char *file_cfg[] = {"game", "--conf", "game/test_run.conf"};
+    CHECK(parse(&c, 3, file_cfg, err) == 0, "complete run config parses");
+    CHECK(c.seed == 19 && c.world == GM_WORLD_SUPERFLAT &&
+          c.backend == GM_BACKEND_CPU && c.render == GM_RENDER_OFF &&
+          c.pace == GM_PACE_UNLIMITED && c.headless && c.ticks == 3 &&
+          c.width == 320 && c.height == 180 && !c.mobs && !c.daylight &&
+          c.script_path && !strcmp(c.script_path, "fixture.jsonl"),
+          "run config owns launch settings");
 
     if (fails) return 1;
     puts("config: PASS");

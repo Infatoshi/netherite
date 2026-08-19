@@ -15,7 +15,7 @@ tracer) and this script teleports the Java player to that EXACT pose (via a runc
 AFTER reset and BEFORE the first tape tick. Then both sides start from the same tick-0
 state and the per-tick diff is a fair test of physics/state evolution.
 
-REQUIRES the Java client running with the qrl bridge on 127.0.0.1:25575 (root CLAUDE.md,
+REQUIRES the Java client running with the qrl bridge on 127.0.0.1:25575 (root AGENTS.md,
 Run B/C). Typical launch on anvil (headless, display :1):
 
     cd java && setsid nohup bash start_vnc_client.sh >/tmp/mc_launch.out 2>&1 &

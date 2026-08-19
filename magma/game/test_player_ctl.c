@@ -14,6 +14,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <math.h>
 #include <string.h>
 
@@ -254,6 +255,26 @@ int main(void)
         CHECK(max_fall < 0.15, "water sink is slow (terminal ~0.1/tick, not freefall)");
     }
 
+    /* EntityLivingBase.updateFallState rechecks water after Entity.move. A
+     * player entering a current during this air tick receives the current
+     * impulse immediately, without taking the water travel branch yet. */
+    fill_flat(win);
+    {
+        set_block_meta(win, 24, 65, 24, BLK_WATER, 0);
+        set_block_meta(win, 25, 65, 24, BLK_WATER, 1);
+        PsvPlayer entry; spawn_at(&entry, 24.5, 65.7, 24.5);
+        entry.ent.onGround = 0;
+        entry.ent.motionY = -0.3;
+        PvStats ev; pv_init(&ev);
+        GmAction idle3; memset(&idle3, 0, sizeof idle3);
+        GmBlockEdit ed[4]; int ne = 0;
+        gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                       (struct PsvPlayer *)&entry, (struct PvStats *)&ev,
+                       idle3, 0, 0, 0, ed, &ne, 4);
+        CHECK(entry.ent.motionX > 0.01,
+              "post-move water entry applies current on the air tick");
+    }
+
     /* ---------------- (E) SNEAK EDGE-HANG ---------------- */
     /* Entity.move sneak clamp: sneaking on the ground clamps x/z motion so the
      * player hangs on the ledge instead of walking off. */
@@ -303,6 +324,27 @@ int main(void)
                 blocks[i].maxY == 3.9375 && blocks[i].maxZ == 24.9375)
                 cactus_ok = 1;
         CHECK(cactus_ok, "BlockCactus collision is inset 1/16 on X/Z and at the top");
+
+        fill_mechanics_floor(win);
+        psv_set_block(win, 24, 3, 24, 54);
+        McAABB chest_query = mc_aabb_make(24.0, 3.0, 24.0, 25.0, 4.0, 25.0);
+        int nchest = psv_collect_blocks(win, &chest_query, blocks, PSV_MAX_BLOCKS);
+        int chest_ok = 0;
+        for (int i = 0; i < nchest; ++i)
+            if (blocks[i].minX == 24.0625 && blocks[i].minY == 3.0 &&
+                blocks[i].minZ == 24.0625 && blocks[i].maxX == 24.9375 &&
+                blocks[i].maxY == 3.875 && blocks[i].maxZ == 24.9375)
+                chest_ok = 1;
+        CHECK(chest_ok, "single chest collision is inset 1/16 on X/Z and 1/8 at the top");
+
+        psv_set_block(win, 25, 3, 24, 54);
+        nchest = psv_collect_blocks(win, &chest_query, blocks, PSV_MAX_BLOCKS);
+        int double_chest_ok = 0;
+        for (int i = 0; i < nchest; ++i)
+            if (blocks[i].minX == 24.0625 && blocks[i].maxX == 25.0 &&
+                blocks[i].minZ == 24.0625 && blocks[i].maxZ == 24.9375)
+                double_chest_ok = 1;
+        CHECK(double_chest_ok, "double chest collision extends flush toward its mate");
 
         fill_mechanics_floor(win);
         set_block_meta(win, 24, 3, 24, BLK_STONE_SLAB, 0);
@@ -733,6 +775,266 @@ int main(void)
               "shield use countdown started");
         CHECK(v.absorption == 0.0f,
               "live absorption stays 0 without vitals absorption field");
+    }
+
+    /* ---------------- leftClickCounter miss-press cooldown ---------------- */
+    /* Minecraft.clickMouse MISS (survival) sets leftClickCounter=10; both
+     * clickMouse and sendClickBlockToController no-op until it counts down.
+     * Regression for human tape 20260803T055113Z t1106 mid-jump press-miss. */
+    printf("case L: leftClickCounter after survival press-miss\n");
+    {
+        fill_flat(win);
+        PsvPlayer pl; PvStats vit;
+        spawn_at(&pl, 24.5, 65.0, 24.5);
+        pv_init(&vit);
+        pl.yaw = 0.0f;
+        pl.pitch = -89.0f; /* look straight up into air -> ray miss */
+        gm_player_dig_reset();
+
+        GmAction miss_press;
+        memset(&miss_press, 0, sizeof miss_press);
+        miss_press.attack = 1;
+        {
+            GmBlockEdit edits[4];
+            int nedits = 0;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                           miss_press, 0, 0, 0, edits, &nedits, 4);
+            GmPlayerCtlSnap snap;
+            gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter == 10,
+                  "press-miss arms leftClickCounter to 10");
+            CHECK(snap.dig_hitting == 0, "press-miss does not start dig");
+        }
+
+        /* Hold attack while still looking at air: counter decrements, no dig. */
+        pl.pitch = -89.0f;
+        for (int t = 0; t < 9; ++t) {
+            GmBlockEdit edits[4];
+            int nedits = 0;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                           miss_press, 0, 0, 0, edits, &nedits, 4);
+        }
+        {
+            GmPlayerCtlSnap snap;
+            gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter == 1,
+                  "after 1 press + 9 holds, counter is 1");
+        }
+
+        /* Turn to floor while counter still active: dig must stay frozen. */
+        pl.pitch = 89.0f;
+        isr_set_stack(&pl.inv, 0, ic_mk(257 /* iron pick */, 1, 0));
+        pl.inv.current_item = 0;
+        {
+            GmBlockEdit edits[4];
+            int nedits = 0;
+            float prog0 = 0.0f;
+            int hx, hy, hz;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                           miss_press, 0, 0, 0, edits, &nedits, 4);
+            GmPlayerCtlSnap snap;
+            gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter == 0,
+                  "10th post-arm tick decrements counter to 0");
+            /* Counter hit 0 this tick, so dig may start same tick (vanilla). */
+            (void)prog0; (void)hx; (void)hy; (void)hz;
+        }
+
+        /* Fresh miss then release must clear the counter. */
+        gm_player_dig_reset();
+        pl.pitch = -89.0f;
+        {
+            GmBlockEdit edits[4];
+            int nedits = 0;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                           miss_press, 0, 0, 0, edits, &nedits, 4);
+            GmAction release;
+            memset(&release, 0, sizeof release);
+            nedits = 0;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                           release, 0, 0, 0, edits, &nedits, 4);
+            GmPlayerCtlSnap snap;
+            gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter == 0,
+                  "attack release clears leftClickCounter");
+        }
+
+        /* Direct hit (no miss) must not arm the counter. */
+        gm_player_dig_reset();
+        pl.pitch = 89.0f;
+        isr_set_stack(&pl.inv, 0, ic_mk(257, 1, 0));
+        pl.inv.current_item = 0;
+        {
+            GmBlockEdit edits[4];
+            int nedits = 0;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                           miss_press, 0, 0, 0, edits, &nedits, 4);
+            GmPlayerCtlSnap snap;
+            gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter == 0,
+                  "press on block does not arm leftClickCounter");
+            CHECK(snap.dig_hitting == 1 || snap.dig_progress > 0.0f ||
+                  pl.break_events > 0,
+                  "press on block starts progressive dig or instant break");
+            if (snap.dig_hitting) {
+                int hx = snap.dig_hx, hz = snap.dig_hz;
+                GmAction release;
+                memset(&release, 0, sizeof release);
+                gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                               (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                               release, 0, 0, 0, edits, &nedits, 4);
+                gm_player_ctl_dig_export(&snap);
+                CHECK(snap.dig_hx == hx && snap.dig_hz == hz,
+                      "resetBlockRemoving preserves vanilla currentBlock");
+                gm_player_ctl_recenter(16, -16);
+                gm_player_ctl_dig_export(&snap);
+                CHECK(snap.dig_hx == hx - 16 && snap.dig_hz == hz + 16,
+                      "floating-origin recenter preserves currentBlock world coords");
+            }
+        }
+
+        /* Entity selection keeps the physical held bit: attack_entity must not
+         * clear leftClickCounter the way a release would, and while the counter
+         * is positive dig freezes even if attack_entity is set. */
+        printf("case M: leftClickCounter + attack_entity freeze\n");
+        gm_player_dig_reset();
+        pl.pitch = -89.0f;
+        {
+            GmBlockEdit edits[4];
+            int nedits = 0;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                           miss_press, 0, 0, 0, edits, &nedits, 4);
+            CHECK(gm_player_left_click_allows(1) == 0,
+                  "post-miss left_click_allows is false while counter is 10");
+            CHECK(gm_player_left_click_allows(0) == 0,
+                  "release is never a clickMouse");
+        }
+        {
+            GmAction ent_hold;
+            memset(&ent_hold, 0, sizeof ent_hold);
+            ent_hold.attack = 1;
+            ent_hold.attack_entity = 1;
+            for (int t = 0; t < 5; ++t) {
+                GmBlockEdit edits[4];
+                int nedits = 0;
+                gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                               (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                               ent_hold, 0, 0, 0, edits, &nedits, 4);
+            }
+            GmPlayerCtlSnap snap;
+            gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter == 5,
+                  "held attack_entity does not clear leftClickCounter");
+            CHECK(snap.dig_hitting == 0 && snap.dig_progress == 0.0f,
+                  "attack_entity freezes dig while counter is active");
+            CHECK(gm_player_left_click_allows(1) == 0,
+                  "left_click_allows stays false mid-cooldown");
+        }
+        /* Drain to 0 under attack_entity: dig still must not start (entity). */
+        {
+            GmAction ent_hold;
+            memset(&ent_hold, 0, sizeof ent_hold);
+            ent_hold.attack = 1;
+            ent_hold.attack_entity = 1;
+            for (int t = 0; t < 5; ++t) {
+                GmBlockEdit edits[4];
+                int nedits = 0;
+                gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                               (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                               ent_hold, 0, 0, 0, edits, &nedits, 4);
+            }
+            GmPlayerCtlSnap snap;
+            gm_player_ctl_dig_export(&snap);
+            CHECK(snap.left_click_counter == 0,
+                  "counter drains to 0 under held attack_entity");
+            CHECK(snap.dig_hitting == 0,
+                  "attack_entity with counter 0 still resetBlockRemoving");
+            CHECK(gm_player_left_click_allows(1) == 1,
+                  "left_click_allows is true once counter is 0");
+        }
+    }
+
+    /* ---------------- dig_trace export (break event + rel hardness) -------- */
+    printf("case M: dig_trace break event + rel hardness (no mutation)\n");
+    {
+        fill_flat(win);
+        PsvPlayer pl; PvStats vit;
+        spawn_at(&pl, 24.5, 65.0, 24.5);
+        pv_init(&vit);
+        pl.yaw = 0.0f;
+        pl.pitch = 89.0f;
+        isr_set_stack(&pl.inv, 0, ic_mk(257 /* iron pick */, 1, 0));
+        pl.inv.current_item = 0;
+        gm_player_dig_reset();
+        /* Dirt (id 3) is soft: iron pick should break within a few ticks. */
+        int broke = 0, brx = 0, bry = 0, brz = 0;
+        float rel_before = 0.0f;
+        for (int t = 0; t < 40; ++t) {
+            GmAction hold;
+            memset(&hold, 0, sizeof hold);
+            hold.attack = 1;
+            GmBlockEdit edits[4];
+            int nedits = 0;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                           hold, 0, 0, 0, edits, &nedits, 4);
+            if (t == 0) {
+                GmPlayerCtlSnap snap;
+                gm_player_ctl_dig_export(&snap);
+                if (snap.dig_hitting || snap.dig_hx != INT_MIN) {
+                    rel_before = gm_player_dig_rel_hardness(
+                        (struct Chunk *)win, (struct PsvPlayer *)&pl, 0);
+                    /* Second call must match (read-only, no mutation). */
+                    float rel2 = gm_player_dig_rel_hardness(
+                        (struct Chunk *)win, (struct PsvPlayer *)&pl, 0);
+                    CHECK(rel_before == rel2,
+                          "rel hardness is stable without dig mutation");
+                    CHECK(rel_before > 0.0f, "rel hardness positive for dirt");
+                }
+            }
+            if (gm_player_dig_break_event(&brx, &bry, &brz)) {
+                broke = 1;
+                break;
+            }
+        }
+        CHECK(broke, "dig_destroy arms dig_break_event within 40 ticks");
+        if (broke) {
+            CHECK(bry >= 0 && bry <= 255, "break event y in world range");
+            /* Event clears next dig phase entry. */
+            GmAction release;
+            memset(&release, 0, sizeof release);
+            GmBlockEdit edits[4];
+            int nedits = 0;
+            gm_player_tick((struct Chunk *)win, (struct McSinTable *)&st,
+                           (struct PsvPlayer *)&pl, (struct PvStats *)&vit,
+                           release, 0, 0, 0, edits, &nedits, 4);
+            CHECK(!gm_player_dig_break_event(NULL, NULL, NULL),
+                  "break event clears on next tick dig phase");
+        }
+        set_block_meta(win, 20, 65, 20, 61, 0); /* furnace: Material.ROCK */
+        pl.ent.onGround = 1;
+        isr_set_stack(&pl.inv, 0, ic_mk(256 /* iron shovel */, 1, 0));
+        {
+            float rel = gm_player_block_rel_hardness(
+                (struct Chunk *)win, (struct PsvPlayer *)&pl, 0, 20, 65, 20);
+            CHECK(fabsf(rel - 1.0f / 350.0f) < 1.0e-8f,
+                  "wrong tool uses furnace non-harvest divisor 100");
+        }
+        isr_set_stack(&pl.inv, 0, ic_mk(257 /* iron pick */, 1, 0));
+        {
+            float rel = gm_player_block_rel_hardness(
+                (struct Chunk *)win, (struct PsvPlayer *)&pl, 0, 20, 65, 20);
+            CHECK(fabsf(rel - 6.0f / 105.0f) < 1.0e-8f,
+                  "pickaxe uses furnace ROCK efficiency and harvest divisor");
+        }
+        (void)brx; (void)brz; (void)rel_before;
     }
 
     printf(g_fail ? "\nRESULT: FAIL\n" : "\nRESULT: PASS (all cases)\n");

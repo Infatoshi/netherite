@@ -21,6 +21,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAGMA="$ROOT/magma"
 BLAZE="$ROOT/blaze"
 CANON_TAPE="$ROOT/verify/tapes/20260721T215812Z_fast_s0_survival_default_rd8_77b5b462.jsonl"
+RL_FIXTURES="$ROOT/blaze/rl/fixtures"
 SNAPS_DIR="$ROOT/blaze/rl/out/snaps"
 
 MODE=quick
@@ -61,6 +62,9 @@ record() { # name status detail secs
 	case "$2" in
 	PASS) printf '[PASS] %-22s (%ss)\n' "$1" "$4" ;;
 	SKIP) printf '[SKIP] %-22s %s\n' "$1" "$3" ;;
+	BLOCKED)
+		printf '[BLKD] %-22s %s (%ss, log: %s)\n' "$1" "$3" "$4" "$LOGDIR/$1.log"
+		;;
 	FAIL)
 		printf '[FAIL] %-22s %s (%ss, log: %s)\n' "$1" "$3" "$4" "$LOGDIR/$1.log"
 		NFAIL=$((NFAIL + 1))
@@ -70,8 +74,16 @@ record() { # name status detail secs
 
 skip() { record "$1" SKIP "$2" 0; }
 
-# run_step NAME TIMEOUT_S WORKDIR CMD...
+# run_step [-b3] NAME TIMEOUT_S WORKDIR CMD...
+# -b3: the command is a tri-state gate where exit 3 means BLOCKED (fixture /
+# dynamics limits certified by the gate itself, verify_cpu.py convention) -
+# recorded in its own bucket, neither PASS nor FAIL.
 run_step() {
+	local b3=0
+	if [ "$1" = -b3 ]; then
+		b3=1
+		shift
+	fi
 	local name="$1" tmo="$2" dir="$3"
 	shift 3
 	local log="$LOGDIR/$name.log"
@@ -84,6 +96,8 @@ run_step() {
 		record "$name" PASS "" $((t1 - t0))
 	elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
 		record "$name" FAIL "timeout after ${tmo}s" $((t1 - t0))
+	elif [ "$b3" -eq 1 ] && [ "$rc" -eq 3 ]; then
+		record "$name" BLOCKED "$(tail -1 "$log" | cut -c1-90)" $((t1 - t0))
 	else
 		record "$name" FAIL "rc=$rc: $(tail -1 "$log" | cut -c1-90)" $((t1 - t0))
 	fi
@@ -126,6 +140,9 @@ note "netherite sweep - mode=$MODE gpu=$GPU_IDX  ($STAMP)"
 note "logs: $LOGDIR"
 note ""
 
+# ---- source law: no runtime env-var knobs (AGENTS.md "Runtime knobs") ------
+run_step env-knob-gate 60 "$ROOT" make -C verify env_knob_gate-check
+
 # ---- builds ----------------------------------------------------------------
 # stale-object trap: game/*.o must be cleaned after blaze core header edits.
 rm -f "$MAGMA"/game/*.o
@@ -134,7 +151,7 @@ run_step build-blaze-cpu 300 "$MAGMA" make blaze_so blaze_verify
 
 # ---- blaze core: CPU oracle battery (java-derived goldens, cpu path) -------
 run_step blaze-oracle-smoke 300 "$BLAZE" \
-	env MC_CPU_ONLY=1 uv run --no-project python oracle/runner.py smoke 12345 256
+	uv run --no-project python oracle/runner.py --cpu-only smoke 12345 256
 run_step blaze-cpu-trunk 600 "$BLAZE" \
 	make verify-cpu-trunk PYTHON="uv run --no-project python"
 if [ "$MODE" = full ]; then
@@ -158,20 +175,24 @@ if [ -z "$FIRST_SNAP" ]; then
 else
 	run_step blaze-c-smoke 300 "$ROOT" blaze/env/blaze_verify "$FIRST_SNAP" 64 50 4
 	if [ "$MODE" = full ]; then
-		run_step blaze-cpu-gate 1500 "$ROOT" \
+		run_step -b3 blaze-cpu-gate 1500 "$ROOT" \
 			uv run --no-project --with numpy python blaze/env/verify_cpu.py
 	else
-		run_step blaze-cpu-gate 600 "$ROOT" \
+		run_step -b3 blaze-cpu-gate 600 "$ROOT" \
 			uv run --no-project --with numpy python blaze/env/verify_cpu.py --seeds 14,16 --ticks 500
 	fi
 fi
 
+# ---- Magma -> Blaze subsystem matrix (CPU-only M1) -------------------------
+run_step -b3 blaze-port-matrix-m1 3100 "$ROOT" \
+	uv run --no-project --with pyyaml python blaze/env/port_matrix.py --tier m1
+
 # ---- rl: vec-env bit-exactness ----------------------------------------------
-if [ -f "$ROOT/blaze/rl/out/coal_prefixes.json" ]; then
+if [ -f "$RL_FIXTURES/coal_prefixes.json" ]; then
 	run_step rl-vec-env-test 900 "$ROOT" \
 		uv run --no-project --with numpy,torch python blaze/rl/test_vec_env.py
 else
-	skip rl-vec-env-test "blaze/rl/out/coal_prefixes.json missing (PREFIX=1 chain_probe.py)"
+	skip rl-vec-env-test "blaze/rl/fixtures/coal_prefixes.json missing (chain_probe.py --prefix)"
 fi
 
 # reward module bitwise parity vs the archived inline block (CPU-forced)
@@ -210,12 +231,12 @@ if [ "$MODE" = full ]; then
 			skip blaze-cuda-mixed "no *_t0.bsnp snapshots in blaze/rl/out/snaps"
 			skip blaze-t0-bench-pin "no *_t0.bsnp snapshots in blaze/rl/out/snaps"
 		else
-			run_step blaze-cuda-gate 1500 "$ROOT" \
+			run_step -b3 blaze-cuda-gate 1500 "$ROOT" \
 				env CUDA_VISIBLE_DEVICES="$GPU_IDX" \
 				uv run --no-project --with numpy,torch python blaze/env/verify_cuda.py
 
 			# chain gate: 2058-action chain, 64 CUDA lanes byte-exact vs CPU
-			if [ ! -f "$ROOT/blaze/rl/out/chain_actions_s10.json" ] ||
+			if [ ! -f "$RL_FIXTURES/chain_actions_s10.json" ] ||
 				[ ! -f "$SNAPS_DIR/s10_t0.bsnp" ]; then
 				skip blaze-cuda-chain "s10_t0.bsnp or chain_actions_s10.json missing"
 			else
@@ -299,24 +320,26 @@ if [ "$MODE" = full ]; then
 	fi
 
 	# RL training smoke: tiny ppo_coal run (2 episodes) just proves the loop turns
-	if [ -f "$ROOT/blaze/rl/out/coal_prefixes.json" ]; then
+	if [ -f "$RL_FIXTURES/coal_prefixes.json" ]; then
 		run_step rl-ppo-smoke 900 "$ROOT" \
 			env N_EPISODES=2 EP_LEN=40 CURR_TICKS=10 \
 			uv run --no-project --with numpy,torch,matplotlib python blaze/rl/ppo_coal.py
 	else
-		skip rl-ppo-smoke "blaze/rl/out/coal_prefixes.json missing"
+		skip rl-ppo-smoke "blaze/rl/fixtures/coal_prefixes.json missing"
 	fi
 fi
 
 # ---- summary ----------------------------------------------------------------
 note ""
 note "==================== netherite sweep summary ($MODE) ===================="
-printf '%-24s %-6s %-5s %s\n' STEP STATUS SECS DETAIL
+printf '%-24s %-8s %-5s %s\n' STEP STATUS SECS DETAIL
 NSKIP=0
+NBLOCK=0
 for i in "${!NAMES[@]}"; do
-	printf '%-24s %-6s %-5s %s\n' "${NAMES[$i]}" "${STATUSES[$i]}" "${SECS[$i]}" "${DETAILS[$i]}"
+	printf '%-24s %-8s %-5s %s\n' "${NAMES[$i]}" "${STATUSES[$i]}" "${SECS[$i]}" "${DETAILS[$i]}"
 	case "${STATUSES[$i]}" in
 	SKIP) NSKIP=$((NSKIP + 1)) ;;
+	BLOCKED) NBLOCK=$((NBLOCK + 1)) ;;
 	esac
 done
 note "=========================================================================="
@@ -324,10 +347,11 @@ if [ "$NFAIL" -gt 0 ]; then
 	note "RESULT: $NFAIL step(s) FAILED (logs in $LOGDIR)"
 	exit 1
 fi
-# SKIPs (GPU busy, missing artifacts) are not failures, but the summary must
-# not call a partially-run pyramid "green" - that hid skipped CUDA gates.
-if [ "$NSKIP" -gt 0 ]; then
-	note "RESULT: PASS with $NSKIP SKIP(s) (not fully green; see SKIPs above)"
+# SKIPs (GPU busy, missing artifacts) and BLOCKEDs (gate certified a fixture
+# limit, exit 3) are not failures, but the summary must not call a
+# partially-run pyramid "green" - that hid skipped CUDA gates.
+if [ "$NSKIP" -gt 0 ] || [ "$NBLOCK" -gt 0 ]; then
+	note "RESULT: PASS with $NSKIP SKIP(s), $NBLOCK BLOCKED (not fully green)"
 	exit 0
 fi
 note "RESULT: green (all steps PASS, no SKIPs)"

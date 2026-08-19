@@ -34,6 +34,7 @@ import glob
 import hashlib
 import json
 import os
+import platform
 import subprocess
 import sys
 
@@ -79,7 +80,7 @@ def git_rev():
     try:
         return subprocess.check_output(["git", "rev-parse", "HEAD"],
                                        cwd=REPO).decode().strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
 
@@ -113,11 +114,28 @@ def cmd_start(args):
         "frames_every": args.frames_every,
         "tape_jsonl": tape,
         "frames_dir": tape[:-len(".jsonl")] + "_frames",
+        # dig_trace: diagnostic controller rows; absent/false keeps legacy
+        # byte-identical tapes. Declared in meta for pack/compare tooling.
+        "dig_trace": bool(args.dig_trace),
+        "capabilities": [
+            "inventory_keyframes",
+            "renderer_provenance",
+            "world_snapshot",
+            *(["dig_trace"] if args.dig_trace else []),
+        ],
+        "renderer_provenance": {
+            "os": sys.platform,
+            "arch": platform.machine(),
+            "scaling": opts.get("guiScale"),
+            "hide_gui": bool(launch.get("hide_gui", False)),
+        },
     }
     with open(os.path.join(tapes, name + ".meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
-    r = bridge_cmd({"cmd": "recstart",
-                    "action": {"file": tape, "frames_every": args.frames_every}})
+    action = {"file": tape, "frames_every": args.frames_every, "contract": 1}
+    if args.dig_trace:
+        action["dig_trace"] = 1
+    r = bridge_cmd({"cmd": "recstart", "action": action})
     print("recstart:", r)
     print("tape:", tape)
     return 0 if r.get("ok") else 1
@@ -215,6 +233,9 @@ def main():
                    help="actual world seed if the live world was bridge-reset"
                         " to a seed other than the launch config's")
     s.add_argument("--frames-every", type=int, default=20)
+    s.add_argument("--dig-trace", action="store_true",
+                   help="record per-tick dig controller diagnostics (dig_trace:1 "
+                        "header + dig rows; off by default for byte-compat)")
     s.add_argument("--dir", default=TAPES,
                    help="artifact directory (default: canonical tapes dir)")
     s = sub.add_parser("stop", help="stop taping + pack")

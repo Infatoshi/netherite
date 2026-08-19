@@ -13,44 +13,41 @@ Requirements: JDK 8, `uv`, network on first run. You must own Minecraft
 Mojang's official distribution endpoints exactly as any Forge 1.11.2 mod
 development environment does.
 
-One-shot (preferred on a clean Linux box):
-
-```bash
-bash scripts/setup_and_verify.sh          # bootstrap + build + --quick
-bash scripts/setup_and_verify.sh --full   # + CUDA gates
-```
-
-Stepwise equivalent:
+Stepwise (first clone):
 
 ```bash
 # 1. decompiled oracle (java/oracle-src): downloads MC 1.11.2 + MCP mappings
 #    via ForgeGradle setupDecompWorkspace, then copies the output tree.
-bash scripts/bootstrap_oracle.sh
+make -C java bootstrap-oracle
 
 # 2. texture-derived C headers (magma/assets/*_atlas.h etc.), extracted
-#    from your minecraft-1.11.2.jar (or set MC_JAR=/path/to/it).
-bash scripts/bootstrap_assets.sh
+#    from your minecraft-1.11.2.jar (or make assets MC_JAR=/path/to/it).
+make assets
 
 # 3. build + verify
-make -C magma game
-bash netherite_sweep.sh --quick
+make play
+make test
 ```
 
 What each step reproduces:
 
-- `scripts/bootstrap_oracle.sh` -> `java/oracle-src/net/{minecraft,minecraftforge}`
-  (2,666 files). This is the read-only reference the C reimplementation was
+- `make -C java bootstrap-oracle` ->
+  `java/oracle-src/net/{minecraft,minecraftforge}` (2,666 files). The owner is
+  `java/bootstrap_oracle`. This is the read-only reference the C reimplementation was
   verified against; `blaze/ref/mc-src` symlinks to it. The MCP mapping
   snapshot is pinned in `java/Minecraft/build.gradle`, so the decompiled
-  output is deterministic. It first runs `scripts/fetch_mc_assets.py` to
+  output is deterministic. It first builds and runs
+  `java/fetch_mc_assets` (`netherite.fetchassets.FetchMcAssets`) to
   pre-seed the game-asset cache over https: the pinned ForgeGradle downloads
   assets over plain http, which Mojang's CDN now rejects with HTTP 400
   (`java.io.IOException: ... response code: 400`); pre-seeded objects are
   hash-checked and skipped by ForgeGradle, so the http path is never hit.
-- `scripts/bootstrap_assets.sh` -> the 12 generated headers in
-  `magma/assets/` (block/GUI/HUD/item/mob/sky atlases, colormaps, water
-  animation frames). Each `build_*.py` extracts textures from the jar found
-  by `assets/mc_jar.py`.
+  Java invokes `org.gradle.wrapper.GradleWrapperMain` with the wrapper jar and
+  repo-local `java/Minecraft/run/gradle`. It does not invoke `gradlew`.
+- `make assets` -> `make -C magma assets`. Writes the 13 texture headers
+  and the sound hash manifest in `magma/assets/`. `out/magma/assets --jar PATH`
+  reads the jar. `out/magma/sound --index PATH` reads the 1.11 asset index.
+  Make may pass `MC_JAR` and `MC_ASSET_INDEX` as build variables.
 
 Pixel-baseline captures (`verify/mc_capture`, tape videos)
 are also not distributed; the verify steps that need them SKIP until you
@@ -59,14 +56,14 @@ traces, BOLR byte-exactness, CPU==CUDA) run without any captures.
 
 ## RL artifacts
 
-The RL gate chain regenerates from the repo + the two committed reference
-files in `blaze/rl/out/` (`chain_actions_s10.json`, the canonical
+The RL gate chain regenerates from the repo plus the two committed reference
+files in `blaze/rl/fixtures/` (`chain_actions_s10.json`, the canonical
 2058-tick spawn-to-torch action stream; `coal_prefixes.json`, per-seed probe
 prefixes):
 
 ```bash
 cd magma && make game blaze_so
-T0=1 uv run --no-project --with numpy,torch python blaze/env/make_snapshots.py  # fresh-spawn t0
+uv run --no-project --with numpy,torch python blaze/env/make_snapshots.py --t0 # fresh-spawn t0
 uv run --no-project --with numpy,torch python blaze/env/make_snapshots.py       # curriculum s*_d*
 cd blaze/env && uv run --no-project --with numpy,torch python verify_cpu.py --chain
 ```

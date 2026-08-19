@@ -34,8 +34,12 @@
       "metal": "68e66b229b42941d"
     },
     "_helpers": {
-      "cuda": "7a10036d2c082391",
+      "cuda": "5b11ee6d4a71bf49",
       "metal": "18ebf238cce39814"
+    },
+    "oc_pixel": {
+      "cuda": "97e7cf1217073359",
+      "metal": "f9bc19c375026add"
     }
   }
 }

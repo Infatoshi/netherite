@@ -74,7 +74,7 @@ static int cfg_p_f32(const char *v, float *out) {
 
 /* ---- defaults --------------------------------------------------------- */
 
-static void cfg_defaults(CrConfig *c) {
+void cr_cfg_defaults(CrConfig *c) {
 #define CFG_BOOL(name, def, doc) c->name = (def);
 #define CFG_INT(name, def, doc)  c->name = (def);
 #define CFG_I64(name, def, doc)  c->name = (def);
@@ -140,7 +140,7 @@ static void cfg_die(const char *path, int line, const char *fmt, const char *a,
 }
 
 void cr_cfg_load(const char *path) {
-    cfg_defaults(&g_cfg);
+    cr_cfg_defaults(&g_cfg);
     g_loaded = 1;   /* set BEFORE parsing: cr_cfg_set must not re-enter here */
     g_gen++;
 
@@ -158,12 +158,14 @@ void cr_cfg_load(const char *path) {
         lineno++;
         char *hash = strchr(line, '#');
         if (hash) *hash = '\0';
+        int had_equal = strchr(line, '=') != NULL;
         for (char *q = line; *q; ++q) if (*q == '=') *q = ' ';
 
         char key[64], val[CR_CFG_STR_MAX];
         /* Width must match CR_CFG_STR_MAX-1 (currently 1023). */
         int got = sscanf(line, "%63s %1023s", key, val);
         if (got <= 0) continue;                    /* blank / comment-only */
+        if (got == 1 && had_equal) { val[0] = '\0'; got = 2; }
         if (got == 1) cfg_die(p, lineno, "key '%s' has no value%s", key, "");
 
         int rc = cr_cfg_set(key, val);
@@ -194,7 +196,7 @@ static void cfg_row(FILE *out, int changed, const char *key, const char *val,
 void cr_cfg_dump(FILE *out) {
     const CrConfig *c = cr_cfg();
     CrConfig d;
-    cfg_defaults(&d);
+    cr_cfg_defaults(&d);
 
     fprintf(out, "# magma config registry (core/config.def).\n");
     fprintf(out, "# Set with: --conf FILE  (\"key = value\" lines, '#' comments)"
@@ -238,7 +240,7 @@ static void cfg_append(char *buf, size_t cap, size_t *n, int *any,
 void cr_cfg_log_overrides(FILE *out) {
     const CrConfig *c = cr_cfg();
     CrConfig d;
-    cfg_defaults(&d);
+    cr_cfg_defaults(&d);
 
     char buf[1024];
     size_t n = 0;

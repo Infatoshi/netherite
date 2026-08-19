@@ -1,0 +1,28 @@
+{
+  "label": "synthetic",
+  "not_a_real_client_tape": true,
+  "description": "SPacketExplosion: knockback + affected block clears",
+  "header": {
+    "header": 1, "seed": 0, "world_time": 6000,
+    "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+    "hp": 20.0, "food": 20, "dim": 0
+  },
+  "ticks": [
+    {
+      "t": 4,
+      "in": {"f": 0, "s": 0},
+      "x": 0.5, "y": 70.0, "z": 0.5, "vx": 0.0, "vy": 0.0, "vz": 0.0,
+      "yaw": 0.0, "pitch": 0.0, "hp": 18.0, "food": 20, "og": 0, "ents": [],
+      "expl": [
+        [2.0, 70.0, 2.0, 4.0, 0.3, 0.5, 0.1,
+         [[1, 70, 1], [1, 70, 2], [2, 70, 1], [2, 70, 2]]]
+      ],
+      "bc": [
+        [1, 70, 1, 0, 0],
+        [1, 70, 2, 0, 0],
+        [2, 70, 1, 0, 0],
+        [2, 70, 2, 0, 0]
+      ]
+    }
+  ]
+}

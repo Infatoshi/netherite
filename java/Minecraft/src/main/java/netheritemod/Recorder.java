@@ -62,6 +62,77 @@ public class Recorder {
     // game thread <-> socket thread handoff (one in-flight request)
     private final SynchronousQueue<Req> incoming = new SynchronousQueue<Req>();
     private Req inFlight = null;
+
+    // ---------------- server tick lockstep gate ----------------
+    // The integrated server runs on its own thread, so an ordinary bridge command
+    // straddles zero, one, or two authoritative ticks: back-to-back getblocks can
+    // land on different server ticks and disagree, and there is no way to advance
+    // the world by an exact count. server_step_lock parks the server thread inside
+    // ServerTickEvent.START; step_server_locked permits exactly n ticks and returns
+    // only once the server has BOTH executed them and re-parked at the next START,
+    // so a following *_locked read observes a frozen world without being charged an
+    // extra tick. Off by default; the ungated step/getblocks/setblocks paths are
+    // untouched.
+    //
+    // Locked commands deliberately run on the SOCKET thread. While the server is
+    // parked it never drains addScheduledTask, so routing them through the normal
+    // server-task path would deadlock; and the client thread is free to keep
+    // rendering, so it cannot serve them either. Reading a parked WorldServer from
+    // another thread is safe precisely because the owner is blocked in wait().
+    private final Object lockMon = new Object();
+    private volatile boolean lockArmed = false;  // gate is on
+    private boolean lockParked = false;          // server thread is waiting in START
+    private boolean lockInFlight = false;        // a permitted tick is executing
+    private long lockPermits = 0;                // ticks permitted but not yet started
+    private long lockCompleted = 0;              // ticks executed under this gate
+
+    // ---------------- RNG cursor capture ----------------
+    // Vanilla consumes java.util.Random draws in a fixed order every server tick;
+    // magma must consume the same number in the same order or it silently walks a
+    // different random stream. The failure is invisible for hundreds of ticks and
+    // then surfaces as a physics or pixel divergence with no obvious cause.
+    //
+    // java.util.Random IS its 48-bit LCG state, so a snapshot of that state at a
+    // tick boundary is a cursor: two cursors bracketing a tick determine EXACTLY
+    // how many next() calls the tick consumed (walk the LCG forward and count -
+    // see verify/trace/rng_cursor.py). That turns "the streams drifted somewhere"
+    // into "tick N consumed 7 world draws, expected 6".
+    //
+    // Four server-side streams are captured, matching the set bluecoconut's PR #5
+    // state capsule marks exact (world.rng.{java,math,block}_random_seed48 and
+    // world.rng.update_lcg):
+    //   world  - World.rand, the big one: random ticks, weather, mob spawning, and
+    //            every playSound draw (which is why the sound-EVENT ring exists).
+    //   math   - java.lang.Math's process-global RNG. Shared with the JDK, so a
+    //            stray Math.random() anywhere in the JVM moves it; captured to
+    //            prove non-interference, not to model.
+    //   block  - Block.RANDOM, the static fallback for blocks without a world.
+    //   lcg    - World.updateLCG, an int32 LCG (not a java.util.Random) that picks
+    //            random-tick coordinates. Advances independently of `world`.
+    //
+    // Capture is a bounded ring filled at ServerTickEvent.START, i.e. the same
+    // boundary the lockstep gate parks at, so cursor[i] is the state the tick
+    // about to run is about to consume. Ring, not a socket round-trip per tick:
+    // a 6000-tick session costs one dump instead of 6000 request/response pairs.
+    // Arm/dump do NOT require the gate - capture is just as valid free-running -
+    // but a direct rng_cursor_locked read does, because reading a live server's
+    // RNG is exactly the race the gate exists to remove.
+    private final Object rngMon = new Object();
+    private volatile boolean rngCaptureOn = false;
+    private int rngCapN = 0;          // records held (<= capacity)
+    private int rngCapHead = 0;       // ring write cursor
+    private long rngCapDropped = 0;   // ticks lost to ring overflow
+    private long rngCapSeq = 0;       // monotone capture sequence (survives wrap)
+    private long[] rngCapWorldTime;   // World.getTotalWorldTime() at START
+    private long[] rngCapSeqArr;      // capture sequence number
+    private long[] rngCapCompletedArr;// lockstep gate `completed` at START (-1 unarmed)
+    private long[] rngCapWorld;       // World.rand seed48
+    private long[] rngCapMath;        // Math RNG seed48
+    private long[] rngCapBlock;       // Block.RANDOM seed48
+    private int[] rngCapLcg;          // World.updateLCG (int32)
+    private byte[] rngCapGaussHave;   // World.rand haveNextNextGaussian
+    private long[] rngCapGaussBits;   // World.rand nextNextGaussian, raw IEEE-754
+
     private boolean launching = false;
     private long initStartNanos = 0;  // set when launchWorld fires
     private double lastInitMs = 0;     // measured world-gen/init duration
@@ -140,6 +211,15 @@ public class Recorder {
     private long rlPolicyActionFnv = 0xcbf29ce484222325L;
     private int rlContainer = 0;            // 0 none/2x2, 1 table, 2 furnace
     private BlockPos rlContainerPos = null;
+    /** True once a protocol-v2 action has been applied (any of cam/dyaw/
+     * dpitch/craft/interact/smelt). While set, a real GuiContainer is closed
+     * at the end of every client tick: magma has no window at all, so a
+     * vanilla right-click that opens GuiCrafting/GuiFurnace/GuiChest would
+     * park the client in a state the training env cannot represent (vanilla
+     * skips processKeyBinds and zeroes movement input while a screen is up,
+     * so attack/use/move all die and the episode never recovers). Cleared on
+     * reset. */
+    private boolean rlV2Active = false;
     /** inv_counts item ids (rl_mode.c rl_inv_ids): log, planks, stick,
      * cobblestone, crafting table, wooden pick, stone pick, coal, torch. */
     private static final int[] RL_INV_IDS = {17, 5, 280, 4, 58, 270, 274, 263, 50};
@@ -183,12 +263,76 @@ public class Recorder {
      * deterministic for replay. Client thread only. */
     private static final java.util.List<String> recParticles =
         new java.util.ArrayList<String>();
+    /** Ordered GuiContainer.handleMouseClick events since the last recorded
+     * tick (MixinRecordGuiClick). Each entry is a compact JSON array
+     * [guiSimpleName, slotNumber, mouseButton, clickTypeOrdinal, "NAME", wid].
+     * slotNumber is Container.inventorySlots index (-999 = outside). Client
+     * thread only; drained into tape field "gclk". gslots/gcur remain
+     * post-tick render truth and must not be used to invent clicks. */
+    private static final java.util.List<String> recGuiClicks =
+        new java.util.ArrayList<String>();
+    /** Container open edges this tick (edge-detected at ClientTick END).
+     * Compact JSON via ContainerTapeFormat. Drained as tape field "gopen". */
+    private static final java.util.List<String> recGuiOpens =
+        new java.util.ArrayList<String>();
+    /** Container close edges this tick. Drained as tape field "gclose". */
+    private static final java.util.List<String> recGuiCloses =
+        new java.util.ArrayList<String>();
+    /** Last noted right-click block pos (MixinRecordBlockInteract). Used to
+     * bind workbench/furnace/chest opens to a world position because
+     * SPacketOpenWindow carries no BlockPos. */
+    private static volatile boolean recLastUseValid = false;
+    private static volatile int recLastUseX, recLastUseY, recLastUseZ;
+    /** Open container identity tracked across ticks for edge detection. */
+    private static int recOpenWid = -1;
+    private static String recOpenGui = null;
+    /** True only between successful recstart and recstop. Static so the
+     * recorder mixins can gate without holding the Recorder instance. */
+    private static volatile boolean recActive = false;
     /** Player entity flag-7 values delivered by SPacketEntityMetadata since
      * the last recorded tick. The mixin records the packet's base-flags data
      * entry itself, so these are observed integrated-server round trips rather
      * than states inferred from jump input or local EntityLivingBase updates. */
     private static final java.util.List<Integer> recFlag7Metadata =
         new java.util.ArrayList<Integer>();
+    /** Successful WorldClient setBlockState finals since the last recorded
+     * tick (MixinRecordBlockChanges). Each entry is [x,y,z,id,meta] in exact
+     * call order. Client thread only while recActive. Also receives changed
+     * cells from partial SPacketChunkData -> Chunk.fillChunk
+     * (MixinRecordChunkFill), same channel / same set_block_post replay. */
+    private static final java.util.List<int[]> recBlockChanges =
+        new java.util.ArrayList<int[]>();
+    /** In-flight partial fillChunk pre-image: per-section packed id/meta, or
+     * null section = all air. Client thread only; one fill at a time. */
+    private static boolean recFillCaptureActive = false;
+    private static int recFillChunkX = 0;
+    private static int recFillChunkZ = 0;
+    private static int recFillMask = 0;
+    /** Length 16; each entry null or length-4096 packed (id << 4 | meta). */
+    private static final int[][] recFillPreSections = new int[16][];
+    /** dig_trace only: ordered neighbor-caused block finals this tick
+     * (setBlockState nested under World.notifyNeighbors*). Same [x,y,z,id,meta]
+     * layout as bc entries. Empty / omitted when dig_trace is off so normal
+     * tapes stay byte-identical. */
+    private static final java.util.List<int[]> recNeighborBlockChanges =
+        new java.util.ArrayList<int[]>();
+    /** dig_trace only: successful onPlayerDestroyBlock this tick, as
+     * [x,y,z] world coords. At most one progressive break per client tick in
+     * practice; list preserves order if creative multi-fire occurs. */
+    private static final java.util.List<int[]> recDigBreaks =
+        new java.util.ArrayList<int[]>();
+    /** Nesting depth of World.notifyNeighborsOfStateChange/Except. Used only
+     * to tag neighbor-caused finals for dig_trace; 0 when dig_trace off is
+     * fine (recordBlockChange ignores the flag then). */
+    private static int recNeighborNotifyDepth = 0;
+    /** Nesting depth of PlayerControllerMP.onPlayerDestroyBlock. */
+    private static int recDigDestroyDepth = 0;
+    /** When true, recstart opted into per-tick dig controller traces. Default
+     * false: no dig field, no dig_trace header key, determinism unchanged. */
+    private static volatile boolean recDigTrace = false;
+    /** Opt-in recorder contract metadata. tape.py enables this for new tapes;
+     * direct legacy recstart callers omit it and keep their old header shape. */
+    private static volatile boolean recContract = false;
     /** Rotation sampled at ClientTickEvent.START, i.e. exactly what this
      * tick's travel() will use. The post-tick yaw/pitch in the row can differ
      * when the driver lands a turn between END and the next START (mouse look,
@@ -281,6 +425,173 @@ public class Recorder {
         recParticles.add(p.toString());
     }
 
+    /** Client-thread hook from MixinRecordGuiClick. Only while recording;
+     * preserves vanilla call order within the post-tick drain window.
+     * Timing note: clicks land between render/input and ClientTick END, so
+     * they appear on the END-of-tick row that drains them. Replay applies
+     * them before gm_runtime_tick of that same tape tick (one-tick
+     * ambiguity if a click and its world effect straddle the END boundary). */
+    public static void recordGuiContainerClick(String gui, int slotId,
+            int mouseButton, net.minecraft.inventory.ClickType type,
+            int windowId) {
+        if (!recActive || type == null) return;
+        recGuiClicks.add(ContainerTapeFormat.formatGclk(
+                gui, slotId, mouseButton, type.ordinal(), type.name(), windowId));
+    }
+
+    /** Client-thread hook from MixinRecordBlockInteract. */
+    public static void noteBlockInteract(net.minecraft.util.math.BlockPos pos) {
+        if (!recActive || pos == null) return;
+        recLastUseX = pos.getX();
+        recLastUseY = pos.getY();
+        recLastUseZ = pos.getZ();
+        recLastUseValid = true;
+    }
+
+    private static void clearRecGuiClicks() {
+        recGuiClicks.clear();
+    }
+
+    private static void clearRecGuiLifecycle() {
+        recGuiOpens.clear();
+        recGuiCloses.clear();
+        recOpenWid = -1;
+        recOpenGui = null;
+        recLastUseValid = false;
+    }
+
+    /** Serialize one ItemStack as tape fragment: 0 or [id,meta,count]. */
+    private static void appendStackJson(StringBuilder b,
+            net.minecraft.item.ItemStack st) {
+        if (st == null || st.isEmpty()) {
+            b.append('0');
+            return;
+        }
+        b.append('[').append(net.minecraft.item.Item.getIdFromItem(st.getItem()))
+         .append(',').append(st.getMetadata())
+         .append(',').append(st.getCount()).append(']');
+    }
+
+    /**
+     * Edge-detect open/close of GuiContainer screens at ClientTick END.
+     * Emits gopen with gui/wid/ctype/pos/container-side slots/cursor (and
+     * furnace prop) and gclose with wid+gui. Position comes from the last
+     * right-click block when the block id matches the ctype; player inventory
+     * is wid=0 ctype=player with no pos.
+     */
+    private static void trackContainerLifecycle(Minecraft mc,
+            net.minecraft.entity.player.EntityPlayer p) {
+        if (mc == null || p == null) return;
+        boolean isCont = mc.currentScreen instanceof
+                net.minecraft.client.gui.inventory.GuiContainer;
+        if (!isCont) {
+            if (recOpenWid >= 0) {
+                recGuiCloses.add(ContainerTapeFormat.formatGclose(
+                        recOpenWid, recOpenGui != null ? recOpenGui : ""));
+                recOpenWid = -1;
+                recOpenGui = null;
+            }
+            return;
+        }
+        net.minecraft.client.gui.inventory.GuiContainer gc =
+                (net.minecraft.client.gui.inventory.GuiContainer) mc.currentScreen;
+        String gui = gc.getClass().getSimpleName();
+        int wid = p.openContainer != null ? p.openContainer.windowId : 0;
+        int nSlots = gc.inventorySlots != null
+                ? gc.inventorySlots.inventorySlots.size() : 0;
+        if (recOpenWid == wid && gui.equals(recOpenGui)) return;
+        /* Switching A->B: only emit open for B. Replay treats a new gopen as
+         * an implicit close of the previous identity. Explicit gclose is only
+         * for returning to no-container (displayGuiScreen null / inventory
+         * closed). */
+        String ctype = ContainerTapeFormat.ctypeForGui(gui, nSlots);
+        if (ContainerTapeFormat.CTYPE_PLAYER.equals(ctype)) {
+            recGuiOpens.add(ContainerTapeFormat.formatGopenPlayer(gui, wid));
+        } else {
+            int x = 0, y = 0, z = 0;
+            boolean havePos = false;
+            /* Prefer TE pos from the first non-player inventory slot when the
+             * open container still holds a TileEntity reference. */
+            try {
+                if (gc.inventorySlots != null && nSlots > 0) {
+                    for (int i = 0; i < nSlots; ++i) {
+                        net.minecraft.inventory.Slot sl =
+                                gc.inventorySlots.inventorySlots.get(i);
+                        if (sl == null || sl.inventory == null) continue;
+                        if (sl.inventory instanceof net.minecraft.tileentity.TileEntity) {
+                            net.minecraft.util.math.BlockPos bp =
+                                    ((net.minecraft.tileentity.TileEntity) sl.inventory)
+                                            .getPos();
+                            if (bp != null) {
+                                x = bp.getX(); y = bp.getY(); z = bp.getZ();
+                                havePos = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable ig) {}
+            if (!havePos && recLastUseValid && mc.world != null) {
+                int bid = net.minecraft.block.Block.getIdFromBlock(
+                        mc.world.getBlockState(
+                                new net.minecraft.util.math.BlockPos(
+                                        recLastUseX, recLastUseY, recLastUseZ))
+                                .getBlock());
+                int expect = ContainerTapeFormat.expectedBlockId(ctype);
+                boolean ok = expect == bid
+                        || (ContainerTapeFormat.CTYPE_FURNACE.equals(ctype)
+                            && ContainerTapeFormat.furnaceBlockOk(bid));
+                if (ok) {
+                    x = recLastUseX; y = recLastUseY; z = recLastUseZ;
+                    havePos = true;
+                }
+            }
+            if (!havePos) {
+                /* Fail-closed identity: pos sentinel forces replay reject if
+                 * a block container cannot be bound. */
+                x = Integer.MIN_VALUE;
+                y = Integer.MIN_VALUE;
+                z = Integer.MIN_VALUE;
+            }
+            /* Container-side slots only (vanilla prefix before player inv). */
+            int contN = 0;
+            if (ContainerTapeFormat.CTYPE_WORKBENCH.equals(ctype)) contN = 10;
+            else if (ContainerTapeFormat.CTYPE_FURNACE.equals(ctype)) contN = 3;
+            else if (ContainerTapeFormat.CTYPE_CHEST.equals(ctype)) contN = 27;
+            else if (ContainerTapeFormat.CTYPE_DOUBLE_CHEST.equals(ctype)) contN = 54;
+            StringBuilder slots = new StringBuilder(8 + contN * 16);
+            slots.append('[');
+            for (int i = 0; i < contN; ++i) {
+                if (i > 0) slots.append(',');
+                net.minecraft.item.ItemStack st =
+                        (gc.inventorySlots != null && i < nSlots)
+                        ? gc.inventorySlots.inventorySlots.get(i).getStack()
+                        : net.minecraft.item.ItemStack.EMPTY;
+                appendStackJson(slots, st);
+            }
+            slots.append(']');
+            StringBuilder cur = new StringBuilder(24);
+            appendStackJson(cur, p.inventory.getItemStack());
+            String prop = null;
+            if (ContainerTapeFormat.CTYPE_FURNACE.equals(ctype)
+                    && gc.inventorySlots != null && nSlots > 0) {
+                try {
+                    net.minecraft.inventory.IInventory fi =
+                            gc.inventorySlots.inventorySlots.get(0).inventory;
+                    prop = "[" + fi.getField(0) + "," + fi.getField(1)
+                            + "," + fi.getField(2) + "," + fi.getField(3) + "]";
+                } catch (Throwable ig) {
+                    prop = "[0,0,0,200]";
+                }
+            }
+            recGuiOpens.add(ContainerTapeFormat.formatGopenBlock(
+                    gui, wid, ctype, x, y, z,
+                    slots.toString(), cur.toString(), prop));
+        }
+        recOpenWid = wid;
+        recOpenGui = gui;
+    }
+
     /** Client-thread tail hook from MixinRecordPlayerPosition. Store the
      * fully resolved pose, not the packet's potentially relative coordinates. */
     public static void recordPlayerPositionPacket() {
@@ -313,6 +624,183 @@ public class Recorder {
                 continue;
             int flags = ((Byte) entry.getValue()).byteValue() & 0xff;
             recFlag7Metadata.add(Integer.valueOf((flags & (1 << 7)) != 0 ? 1 : 0));
+        }
+    }
+
+    /** Active human-tape session (recstart succeeded, recstop not yet). */
+    public static boolean isRecording() { return recActive; }
+
+    /** dig_trace session flag (recstart dig_trace:1). Mixins may gate extra
+     * work on this so off-path cost stays zero. */
+    public static boolean isDigTrace() { return recDigTrace; }
+
+    /** Current World.notifyNeighbors* nesting depth (0 = top-level edit). */
+    public static int neighborNotifyDepth() { return recNeighborNotifyDepth; }
+
+    public static void neighborNotifyBegin() {
+        if (recDigTrace) recNeighborNotifyDepth++;
+    }
+
+    public static void neighborNotifyEnd() {
+        if (recDigTrace && recNeighborNotifyDepth > 0) recNeighborNotifyDepth--;
+    }
+
+    public static void digDestroyBegin() {
+        if (recDigTrace) recDigDestroyDepth++;
+    }
+
+    /** Successful destroy end: records a dig break event when dig_trace on. */
+    public static void digDestroyEnd(net.minecraft.util.math.BlockPos pos, boolean ok) {
+        if (recDigTrace && recDigDestroyDepth > 0) recDigDestroyDepth--;
+        if (!recActive || !recDigTrace || !ok || pos == null) return;
+        int y = pos.getY();
+        if (y < 0 || y > 255) return;
+        recDigBreaks.add(new int[] { pos.getX(), y, pos.getZ() });
+    }
+
+    /** Client-thread hook from MixinRecordBlockChanges. Queue the FINAL
+     * id/meta at pos after every successful WorldClient setBlockState.
+     * Preserve repeated same-cell writes: adjacent callbacks can make their
+     * intermediate order observable to fluids and falling blocks on replay. */
+    public static void recordBlockChange(net.minecraft.util.math.BlockPos pos,
+            net.minecraft.block.state.IBlockState state) {
+        recordBlockChange(pos, state, false);
+    }
+
+    /** Same as {@link #recordBlockChange(BlockPos, IBlockState)} with an
+     * explicit neighbor-cascade tag for dig_trace bc_ref. */
+    public static void recordBlockChange(net.minecraft.util.math.BlockPos pos,
+            net.minecraft.block.state.IBlockState state, boolean neighborCaused) {
+        if (!recActive || pos == null || state == null) return;
+        int x = pos.getX(), y = pos.getY(), z = pos.getZ();
+        if (y < 0 || y > 255) return;
+        net.minecraft.block.Block blk = state.getBlock();
+        int id = net.minecraft.block.Block.getIdFromBlock(blk);
+        int meta = blk.getMetaFromState(state) & 15;
+        int[] entry = new int[] { x, y, z, id, meta };
+        recBlockChanges.add(entry);
+        if (recDigTrace && neighborCaused)
+            recNeighborBlockChanges.add(entry);
+    }
+
+    /** Queue one final cell without going through BlockPos/IBlockState.
+     * Used by fillChunk diffs so bulk path shares the bc channel. */
+    private static void recordBlockChangePacked(int x, int y, int z, int id, int meta) {
+        if (!recActive) return;
+        if (y < 0 || y > 255) return;
+        if (id < 0 || id > 4095) return;
+        recBlockChanges.add(new int[] { x, y, z, id, meta & 15 });
+    }
+
+    private static void clearRecBlockChanges() {
+        recBlockChanges.clear();
+        abortChunkFillCapture();
+        recNeighborBlockChanges.clear();
+        recDigBreaks.clear();
+    }
+
+    /** Drop an in-flight fill pre-image (full load, world handoff, recstop). */
+    public static void abortChunkFillCapture() {
+        recFillCaptureActive = false;
+        recFillMask = 0;
+        for (int i = 0; i < recFillPreSections.length; ++i)
+            recFillPreSections[i] = null;
+    }
+
+    /**
+     * Client-thread HEAD of Chunk.fillChunk for a partial section packet.
+     * Snapshots pre-image of every section bit set in {@code availableSections}.
+     * Null / empty sections snapshot as all-air so a newly created section only
+     * emits cells that become non-air (or any real id/meta change).
+     */
+    public static void beginChunkFillCapture(net.minecraft.world.chunk.Chunk chunk,
+            int availableSections) {
+        abortChunkFillCapture();
+        if (!recActive || chunk == null) return;
+        recFillChunkX = chunk.xPosition;
+        recFillChunkZ = chunk.zPosition;
+        recFillMask = availableSections;
+        net.minecraft.world.chunk.storage.ExtendedBlockStorage[] storages =
+            chunk.getBlockStorageArray();
+        if (storages == null) return;
+        for (int s = 0; s < 16 && s < storages.length; ++s) {
+            if ((availableSections & (1 << s)) == 0) continue;
+            net.minecraft.world.chunk.storage.ExtendedBlockStorage ebs = storages[s];
+            int[] packed = new int[4096];
+            if (ebs != null) {
+                for (int i = 0; i < 4096; ++i) {
+                    int lx = i & 15;
+                    int lz = (i >> 4) & 15;
+                    int ly = (i >> 8) & 15;
+                    net.minecraft.block.state.IBlockState st = ebs.get(lx, ly, lz);
+                    if (st == null) {
+                        packed[i] = 0;
+                        continue;
+                    }
+                    net.minecraft.block.Block blk = st.getBlock();
+                    int id = net.minecraft.block.Block.getIdFromBlock(blk);
+                    int meta = blk.getMetaFromState(st) & 15;
+                    packed[i] = (id << 4) | meta;
+                }
+            }
+            /* null ebs: packed stays all-zero (air). */
+            recFillPreSections[s] = packed;
+        }
+        recFillCaptureActive = true;
+    }
+
+    /**
+     * Client-thread RETURN of Chunk.fillChunk. Emits only cells whose packed
+     * id/meta changed, in deterministic section then storage-index order, onto
+     * the shared bc list. No-op if begin was aborted (full load / not recording).
+     */
+    public static void endChunkFillCapture(net.minecraft.world.chunk.Chunk chunk,
+            int availableSections) {
+        if (!recFillCaptureActive || !recActive || chunk == null) {
+            abortChunkFillCapture();
+            return;
+        }
+        if (chunk.xPosition != recFillChunkX || chunk.zPosition != recFillChunkZ
+                || availableSections != recFillMask) {
+            abortChunkFillCapture();
+            return;
+        }
+        net.minecraft.world.chunk.storage.ExtendedBlockStorage[] storages =
+            chunk.getBlockStorageArray();
+        /* Scratch for one section post-image; reused across sections. */
+        int[] postPacked = new int[4096];
+        java.util.ArrayList<int[]> sectionDiffs = new java.util.ArrayList<int[]>();
+        try {
+            for (int s = 0; s < 16; ++s) {
+                if ((availableSections & (1 << s)) == 0) continue;
+                int[] pre = recFillPreSections[s];
+                if (pre == null) continue;
+                net.minecraft.world.chunk.storage.ExtendedBlockStorage ebs =
+                    (storages != null && s < storages.length) ? storages[s] : null;
+                java.util.Arrays.fill(postPacked, 0);
+                if (ebs != null) {
+                    for (int i = 0; i < 4096; ++i) {
+                        int lx = i & 15;
+                        int lz = (i >> 4) & 15;
+                        int ly = (i >> 8) & 15;
+                        net.minecraft.block.state.IBlockState st = ebs.get(lx, ly, lz);
+                        if (st == null) continue;
+                        net.minecraft.block.Block blk = st.getBlock();
+                        int id = net.minecraft.block.Block.getIdFromBlock(blk);
+                        int meta = blk.getMetaFromState(st) & 15;
+                        postPacked[i] = ChunkFillDiff.pack(id, meta);
+                    }
+                }
+                sectionDiffs.clear();
+                ChunkFillDiff.appendSectionDiffs(
+                    sectionDiffs, recFillChunkX, recFillChunkZ, s, pre, postPacked);
+                for (int di = 0; di < sectionDiffs.size(); ++di) {
+                    int[] e = sectionDiffs.get(di);
+                    recordBlockChangePacked(e[0], e[1], e[2], e[3], e[4]);
+                }
+            }
+        } finally {
+            abortChunkFillCapture();
         }
     }
 
@@ -696,11 +1184,1033 @@ public class Recorder {
                     }
                 } catch (Exception ex) {
                     System.out.println("[qrl] client loop ended: " + ex.getMessage());
+                } finally {
+                    // A bridge that dies while the step lock is armed would leave
+                    // the server thread parked forever. Always release it.
+                    lockDisarm();
                 }
             }
         } catch (Exception ex) {
             System.out.println("[qrl] server failed: " + ex.getMessage());
         }
+    }
+
+    // ================= server tick lockstep gate =================
+    // State machine (see the field block near the top for why this exists).
+    //   disarmed          : armed=0                    server free-runs
+    //   parked            : armed=1 parked=1 permits=0 in_flight=0
+    //   permitted         : armed=1 parked=0 permits>0
+    //   executing a tick  : armed=1 in_flight=1
+    // Only the "parked" state admits a *_locked command, and step_server_locked
+    // returns only after the machine is back in "parked" with completed==target.
+
+    /** ServerTickEvent.START: consume exactly one permit, or park until one arrives. */
+    private void lockAwaitPermit() {
+        synchronized (lockMon) {
+            if (!lockArmed) { lockParked = false; lockInFlight = false; return; }
+            lockParked = true;
+            lockMon.notifyAll();
+            while (lockArmed && lockPermits == 0) {
+                try { lockMon.wait(); }
+                catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    lockArmed = false; lockParked = false; lockInFlight = false;
+                    lockMon.notifyAll();
+                    return;
+                }
+            }
+            lockParked = false;
+            if (lockArmed) { lockPermits--; lockInFlight = true; }
+            else lockInFlight = false;
+        }
+    }
+
+    /** ServerTickEvent.END: the permitted tick has fully executed. */
+    private void lockFinishTick() {
+        synchronized (lockMon) {
+            if (lockInFlight) { lockCompleted++; lockInFlight = false; }
+            lockMon.notifyAll();
+        }
+    }
+
+    /** Release the gate unconditionally (bridge disconnect / shutdown safety). */
+    private void lockDisarm() {
+        synchronized (lockMon) {
+            if (!lockArmed) return;
+            lockArmed = false; lockPermits = 0;
+            lockMon.notifyAll();
+            System.out.println("[qrl] server step lock released");
+        }
+    }
+
+    /** Caller must hold lockMon. null = the gate is parked and a locked cmd may run. */
+    private String lockRequireParked(String cmd) {
+        if (!lockArmed) return err(cmd + " requires server_step_lock");
+        if (!lockParked || lockInFlight || lockPermits != 0)
+            return err(cmd + " requires a parked server (parked=" + lockParked
+                + " in_flight=" + lockInFlight + " permits=" + lockPermits + ")");
+        return null;
+    }
+
+    /** server_step_lock / server_step_unlock. Arming blocks until the server parks. */
+    private String lockControl(String cmd, JsonObject action) {
+        boolean on = !cmd.equals("server_step_unlock");
+        if (on && action.has("on")) on = action.get("on").getAsInt() != 0;
+        synchronized (lockMon) {
+            if (!on) {
+                lockArmed = false; lockPermits = 0;
+                lockMon.notifyAll();
+                JsonObject o = new JsonObject();
+                o.addProperty("ok", true);
+                o.addProperty("armed", false);
+                o.addProperty("completed", lockCompleted);
+                return o.toString();
+            }
+            if (lockInFlight || lockPermits != 0)
+                return err("cannot arm the step lock with a permitted tick in flight");
+            lockArmed = true;
+            lockMon.notifyAll();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (!lockParked) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) {
+                    lockArmed = false;
+                    lockMon.notifyAll();
+                    return err("server did not reach a tick boundary within 10s");
+                }
+                try { TimeUnit.NANOSECONDS.timedWait(lockMon, remaining); }
+                catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    lockArmed = false; lockMon.notifyAll();
+                    return err("interrupted while arming the step lock");
+                }
+            }
+            System.out.println("[qrl] server step lock armed at completed=" + lockCompleted);
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            o.addProperty("armed", true);
+            o.addProperty("parked", true);
+            o.addProperty("completed", lockCompleted);
+            lockAddPlayer(o);
+            return o.toString();
+        }
+    }
+
+    /**
+     * step_server_locked: permit exactly action.n server ticks and return only
+     * once the server has executed all of them AND re-parked at the following
+     * START. n=0 is a legal no-op that just re-asserts the parked boundary.
+     */
+    private String lockStepServer(JsonObject action) {
+        int n = action.has("n") ? action.get("n").getAsInt() : 1;
+        if (n < 0 || n > 100000) return err("step_server_locked: n must be 0..100000");
+        long timeoutMs = action.has("timeout_ms")
+            ? action.get("timeout_ms").getAsLong() : Math.min(110000L, 10000L + 400L * n);
+        synchronized (lockMon) {
+            String bad = lockRequireParked("step_server_locked");
+            if (bad != null) return bad;
+            long target = lockCompleted + n;
+            if (n > 0) { lockPermits = n; lockMon.notifyAll(); }
+            long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
+            while (lockArmed && (lockCompleted < target || !lockParked)) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0)
+                    return err("step_server_locked timed out at completed=" + lockCompleted
+                        + " target=" + target + " parked=" + lockParked);
+                try { TimeUnit.NANOSECONDS.timedWait(lockMon, remaining); }
+                catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return err("interrupted while stepping the server");
+                }
+            }
+            if (!lockArmed) return err("step lock was released during step_server_locked");
+            if (lockCompleted != target || !lockParked)
+                return err("step lock overshot: completed=" + lockCompleted
+                    + " target=" + target + " parked=" + lockParked);
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            o.addProperty("stepped", n);
+            o.addProperty("completed", lockCompleted);
+            o.addProperty("parked", true);
+            lockAddPlayer(o);
+            return o.toString();
+        }
+    }
+
+    // ---- IEEE-754 transport ----
+    // Decimal on the JSON wire is not a lossless float channel: gson prints a
+    // shortest-roundtrip decimal for double but parsing back through getAsFloat
+    // re-rounds, and any consumer that reformats loses low bits. The locked
+    // commands therefore carry raw bit patterns as fixed-width hex, so a gate
+    // comparing two snapshots is comparing the actual IEEE-754 words.
+    private static String f32bits(float v) {
+        String h = Integer.toHexString(Float.floatToRawIntBits(v));
+        return h.length() >= 8 ? h : "00000000".substring(h.length()) + h;
+    }
+    private static String f64bits(double v) {
+        String h = Long.toHexString(Double.doubleToRawLongBits(v));
+        return h.length() >= 16 ? h : "0000000000000000".substring(h.length()) + h;
+    }
+    /** True if key is present in either bit form or decimal form. */
+    private static boolean hasNum(JsonObject a, String k) {
+        return a.has(k + "_bits") || a.has(k);
+    }
+    /** "<k>_bits" (raw hex, exact) wins over "<k>" (decimal, lossy). */
+    private static float f32of(JsonObject a, String k, float dflt) {
+        if (a.has(k + "_bits"))
+            return Float.intBitsToFloat(
+                (int) Long.parseLong(a.get(k + "_bits").getAsString().trim(), 16));
+        return a.has(k) ? a.get(k).getAsFloat() : dflt;
+    }
+    private static double f64of(JsonObject a, String k, double dflt) {
+        if (a.has(k + "_bits"))
+            return Double.longBitsToDouble(
+                Long.parseUnsignedLong(a.get(k + "_bits").getAsString().trim(), 16));
+        return a.has(k) ? a.get(k).getAsDouble() : dflt;
+    }
+
+    private static net.minecraft.entity.player.EntityPlayerMP lockPlayerOf(MinecraftServer s) {
+        try {
+            java.util.List<net.minecraft.entity.player.EntityPlayerMP> ps =
+                s.getPlayerList().getPlayers();
+            if (!ps.isEmpty()) return ps.get(0);
+        } catch (Throwable ig) {}
+        return null;
+    }
+    private static net.minecraft.world.WorldServer lockWorldOf(MinecraftServer s) {
+        net.minecraft.entity.player.EntityPlayerMP p = lockPlayerOf(s);
+        return p != null ? p.getServerWorld() : s.worlds[0];
+    }
+
+    /**
+     * Authoritative server-player snapshot taken while the server is parked, so
+     * it is atomic with respect to the tick. Every float/double also carries its
+     * raw IEEE-754 word.
+     */
+    private static JsonObject lockPlayerJson(net.minecraft.entity.player.EntityPlayerMP p) {
+        JsonObject o = new JsonObject();
+        if (p == null) return o;
+        o.addProperty("x", p.posX);          o.addProperty("x_bits", f64bits(p.posX));
+        o.addProperty("y", p.posY);          o.addProperty("y_bits", f64bits(p.posY));
+        o.addProperty("z", p.posZ);          o.addProperty("z_bits", f64bits(p.posZ));
+        o.addProperty("vx", p.motionX);      o.addProperty("vx_bits", f64bits(p.motionX));
+        o.addProperty("vy", p.motionY);      o.addProperty("vy_bits", f64bits(p.motionY));
+        o.addProperty("vz", p.motionZ);      o.addProperty("vz_bits", f64bits(p.motionZ));
+        o.addProperty("yaw", p.rotationYaw);
+        o.addProperty("yaw_bits", f32bits(p.rotationYaw));
+        o.addProperty("pitch", p.rotationPitch);
+        o.addProperty("pitch_bits", f32bits(p.rotationPitch));
+        o.addProperty("fall_distance", p.fallDistance);
+        o.addProperty("fall_distance_bits", f32bits(p.fallDistance));
+        o.addProperty("health", p.getHealth());
+        o.addProperty("health_bits", f32bits(p.getHealth()));
+        o.addProperty("on_ground", p.onGround);
+        o.addProperty("food", p.getFoodStats().getFoodLevel());
+        o.addProperty("fire", fireTicks(p));
+        o.addProperty("ticks_existed", p.ticksExisted);
+        o.addProperty("dim", p.dimension);
+        return o;
+    }
+
+    /** Attach the parked authoritative player + world tick to a locked reply. */
+    private void lockAddPlayer(JsonObject out) {
+        try {
+            MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+            if (s == null) return;
+            net.minecraft.entity.player.EntityPlayerMP p = lockPlayerOf(s);
+            if (p != null) {
+                out.add("player", lockPlayerJson(p));
+                out.addProperty("world_time", p.getServerWorld().getTotalWorldTime());
+            }
+        } catch (Throwable ig) {}
+        out.addProperty("client_num_ticks", TimeHelper.SyncManager.numTicks);
+    }
+
+    /**
+     * getblocks_locked: identical cuboid encoding to getblocks (little-endian u16
+     * id<<4|meta, y-major then z then x) but read straight off the parked
+     * WorldServer from the socket thread. No scheduled task, so no tick is
+     * consumed and two back-to-back reads at the same boundary are byte-identical.
+     * "file" is optional; the FNV-1a-64 digest is always returned so a gate can
+     * compare reads without touching the filesystem.
+     */
+    private String lockGetBlocks(JsonObject a) {
+        synchronized (lockMon) {
+            String bad = lockRequireParked("getblocks_locked");
+            if (bad != null) return bad;
+        }
+        try {
+            MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+            if (s == null) return err("no server");
+            net.minecraft.world.WorldServer w = lockWorldOf(s);
+            int x0 = a.get("x0").getAsInt(), y0 = a.get("y0").getAsInt();
+            int z0 = a.get("z0").getAsInt(), x1 = a.get("x1").getAsInt();
+            int y1 = a.get("y1").getAsInt(), z1 = a.get("z1").getAsInt();
+            if (x1 < x0 || y1 < y0 || z1 < z0) return err("invalid block box");
+            if (y0 < 0 || y1 > 255) return err("block box y must be 0..255");
+            long cells = (long)(x1 - x0 + 1) * (long)(y1 - y0 + 1) * (long)(z1 - z0 + 1);
+            if (cells > (1 << 26)) return err("block box too large");
+            byte[] buf = new byte[(int) cells * 2];
+            net.minecraft.util.math.BlockPos.MutableBlockPos pos =
+                new net.minecraft.util.math.BlockPos.MutableBlockPos();
+            int k = 0;
+            for (int y = y0; y <= y1; y++) for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) {
+                net.minecraft.block.state.IBlockState st = w.getBlockState(pos.setPos(x, y, z));
+                net.minecraft.block.Block b = st.getBlock();
+                int v = (net.minecraft.block.Block.getIdFromBlock(b) << 4) | b.getMetaFromState(st);
+                buf[k++] = (byte) (v & 0xff); buf[k++] = (byte) ((v >> 8) & 0xff);
+            }
+            if (a.has("file")) {
+                String file = a.get("file").getAsString();
+                java.io.DataOutputStream o = new java.io.DataOutputStream(
+                    new java.io.BufferedOutputStream(new java.io.FileOutputStream(file), 1 << 20));
+                o.write(buf, 0, k); o.close();
+            }
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            if (a.has("file")) o.addProperty("file", a.get("file").getAsString());
+            o.addProperty("nx", x1 - x0 + 1);
+            o.addProperty("ny", y1 - y0 + 1);
+            o.addProperty("nz", z1 - z0 + 1);
+            o.addProperty("bytes", k);
+            o.addProperty("hash", fnv1a64hex(buf, k));
+            synchronized (lockMon) { o.addProperty("gate_completed", lockCompleted); }
+            lockAddPlayer(o);
+            return o.toString();
+        } catch (Throwable t) { return err("getblocks_locked: " + t); }
+    }
+
+    /** FNV-1a 64, zero-padded hex. Content digest only; not a security hash. */
+    private static String fnv1a64hex(byte[] b, int n) {
+        long h = 0xcbf29ce484222325L;
+        for (int i = 0; i < n; i++) { h ^= (b[i] & 0xffL); h *= 0x100000001b3L; }
+        String s = Long.toHexString(h);
+        return s.length() >= 16 ? s : "0000000000000000".substring(s.length()) + s;
+    }
+
+    /**
+     * setblocks_locked: the setblocks write applied at the parked boundary, so no
+     * server tick can observe the world between the write and the next
+     * step_server_locked. Same flag-3 setBlockState as setblocks, so onBlockAdded
+     * still schedules exactly as vanilla placement does.
+     */
+    private String lockSetBlocks(JsonObject a) {
+        synchronized (lockMon) {
+            String bad = lockRequireParked("setblocks_locked");
+            if (bad != null) return bad;
+        }
+        try {
+            MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+            if (s == null) return err("no server");
+            net.minecraft.world.WorldServer w = lockWorldOf(s);
+            com.google.gson.JsonArray blocks = a.has("blocks")
+                ? a.getAsJsonArray("blocks") : new com.google.gson.JsonArray();
+            if (blocks.size() > 1000000) return err("too many locked fixture blocks");
+            int n = 0;
+            for (com.google.gson.JsonElement el : blocks) {
+                com.google.gson.JsonArray q = el.getAsJsonArray();
+                if (q.size() != 5) return err("locked fixture block needs [x,y,z,id,meta]");
+                int x = q.get(0).getAsInt(), y = q.get(1).getAsInt(), z = q.get(2).getAsInt();
+                int id = q.get(3).getAsInt(), meta = q.get(4).getAsInt();
+                if (y < 0 || y > 255 || id < 0 || id > 4095 || meta < 0 || meta > 15)
+                    return err("invalid locked fixture block at index " + n);
+                net.minecraft.block.Block b = net.minecraft.block.Block.getBlockById(id);
+                if (b == null) return err("unknown block id " + id);
+                w.setBlockState(new BlockPos(x, y, z), b.getStateFromMeta(meta), 3);
+                n++;
+            }
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            o.addProperty("set", n);
+            synchronized (lockMon) { o.addProperty("gate_completed", lockCompleted); }
+            lockAddPlayer(o);
+            return o.toString();
+        } catch (Throwable t) { return err("setblocks_locked: " + t); }
+    }
+
+    /**
+     * setplayer_locked: write named player fields at the parked boundary, so no
+     * player or world tick runs between the write and the returned snapshot and
+     * short counters are not consumed during scenario setup. Floats arrive as
+     * raw IEEE-754 words ("vy_bits": "bff0000000000000"), which is what makes a
+     * fixture reproducible bit-for-bit; decimal keys are accepted as a fallback.
+     * Server and client player are written together so client prediction does
+     * not immediately undo the fixture.
+     */
+    private String lockSetPlayer(JsonObject a) {
+        synchronized (lockMon) {
+            String bad = lockRequireParked("setplayer_locked");
+            if (bad != null) return bad;
+            try {
+                MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+                if (s == null) return err("no server");
+                net.minecraft.entity.player.EntityPlayerMP p = lockPlayerOf(s);
+                if (p == null) return err("no server player");
+                EntityPlayerSP cp = Minecraft.getMinecraft().player;
+
+                boolean hasPos = hasNum(a, "x") || hasNum(a, "y") || hasNum(a, "z");
+                if (hasPos) {
+                    if (!(hasNum(a, "x") && hasNum(a, "y") && hasNum(a, "z")))
+                        return err("locked player position requires x/y/z together");
+                    double x = f64of(a, "x", p.posX);
+                    double y = f64of(a, "y", p.posY);
+                    double z = f64of(a, "z", p.posZ);
+                    if (!isFinite(x) || !isFinite(y) || !isFinite(z))
+                        return err("locked player position must be finite");
+                    p.setPositionAndUpdate(x, y, z);
+                    if (cp != null) cp.setPosition(x, y, z);
+                }
+                boolean hasMotion = hasNum(a, "vx") || hasNum(a, "vy") || hasNum(a, "vz");
+                if (hasMotion) {
+                    if (!(hasNum(a, "vx") && hasNum(a, "vy") && hasNum(a, "vz")))
+                        return err("locked player motion requires vx/vy/vz together");
+                    double vx = f64of(a, "vx", p.motionX);
+                    double vy = f64of(a, "vy", p.motionY);
+                    double vz = f64of(a, "vz", p.motionZ);
+                    if (!isFinite(vx) || !isFinite(vy) || !isFinite(vz))
+                        return err("locked player motion must be finite");
+                    p.motionX = vx; p.motionY = vy; p.motionZ = vz;
+                    if (cp != null) { cp.motionX = vx; cp.motionY = vy; cp.motionZ = vz; }
+                }
+                boolean hasRot = hasNum(a, "yaw") || hasNum(a, "pitch");
+                if (hasRot) {
+                    if (!(hasNum(a, "yaw") && hasNum(a, "pitch")))
+                        return err("locked player rotation requires yaw/pitch together");
+                    float yaw = f32of(a, "yaw", p.rotationYaw);
+                    float pitch = f32of(a, "pitch", p.rotationPitch);
+                    if (Float.isNaN(yaw) || Float.isInfinite(yaw)
+                            || Float.isNaN(pitch) || Float.isInfinite(pitch))
+                        return err("locked player rotation must be finite");
+                    p.rotationYaw = yaw; p.prevRotationYaw = yaw;
+                    p.rotationPitch = pitch; p.prevRotationPitch = pitch;
+                    p.setRotationYawHead(yaw);
+                    if (cp != null) {
+                        cp.rotationYaw = yaw; cp.prevRotationYaw = yaw;
+                        cp.rotationPitch = pitch; cp.prevRotationPitch = pitch;
+                    }
+                }
+                if (hasNum(a, "fall_distance")) {
+                    float fd = f32of(a, "fall_distance", p.fallDistance);
+                    if (Float.isNaN(fd) || Float.isInfinite(fd) || fd < 0.0F)
+                        return err("fall_distance must be finite and >= 0");
+                    p.fallDistance = fd;
+                    if (cp != null) cp.fallDistance = fd;
+                }
+                if (a.has("on_ground")) {
+                    boolean og = a.get("on_ground").getAsInt() != 0;
+                    p.onGround = og;
+                    if (cp != null) cp.onGround = og;
+                }
+                if (a.has("food")) {
+                    int food = a.get("food").getAsInt();
+                    if (food < 0 || food > 20) return err("food must be 0..20");
+                    p.getFoodStats().setFoodLevel(food);
+                    if (cp != null) cp.getFoodStats().setFoodLevel(food);
+                }
+                if (hasNum(a, "health")) {
+                    float hp = f32of(a, "health", p.getHealth());
+                    if (Float.isNaN(hp) || hp < 0.0F || hp > p.getMaxHealth())
+                        return err("health must be 0..maxHealth");
+                    p.setHealth(hp);
+                    if (cp != null) cp.setHealth(hp);
+                }
+                JsonObject o = new JsonObject();
+                o.addProperty("ok", true);
+                o.addProperty("gate_completed", lockCompleted);
+                lockAddPlayer(o);
+                return o.toString();
+            } catch (Throwable t) { return err("setplayer_locked: " + t); }
+        }
+    }
+
+    /** Double.isFinite is Java 8+ on the JDK but keep the bridge source JDK-6 clean. */
+    private static boolean isFinite(double v) {
+        return !Double.isNaN(v) && !Double.isInfinite(v);
+    }
+
+    // ================= RNG cursor capture =================
+    // Reflection accessors for the four server streams. java.util.Random keeps its
+    // 48-bit state in an AtomicLong `seed` (scrambled by the constructor, never by
+    // next()), so `seed.get() & (2^48-1)` IS the cursor: next() is one
+    // multiply-add away from it. Gaussian state is separate - nextGaussian()
+    // computes two values and stashes one, so a cursor is only complete with
+    // haveNextNextGaussian/nextNextGaussian alongside the seed.
+    // Fields are resolved once and cached; every accessor is fail-soft (-1 /
+    // false) because a JDK that hides these must degrade the gate to
+    // "unavailable", never crash the bridge.
+    private static java.lang.reflect.Field RNG_SEED_F;
+    private static java.lang.reflect.Field RNG_HAVE_GAUSS_F;
+    private static java.lang.reflect.Field RNG_NEXT_GAUSS_F;
+    private static java.lang.reflect.Field RNG_MATH_HOLDER_F;
+    private static java.lang.reflect.Field RNG_BLOCK_F;
+    private static java.lang.reflect.Field RNG_UPDATE_LCG_F;
+
+    private static long rngSeed48(java.util.Random r) {
+        try {
+            if (r == null) return -1L;
+            if (RNG_SEED_F == null) {
+                RNG_SEED_F = java.util.Random.class.getDeclaredField("seed");
+                RNG_SEED_F.setAccessible(true);
+            }
+            java.util.concurrent.atomic.AtomicLong s =
+                (java.util.concurrent.atomic.AtomicLong) RNG_SEED_F.get(r);
+            return s.get() & ((1L << 48) - 1L);
+        } catch (Throwable ig) { return -1L; }
+    }
+    private static boolean rngHaveGaussian(java.util.Random r) {
+        try {
+            if (r == null) return false;
+            if (RNG_HAVE_GAUSS_F == null) {
+                RNG_HAVE_GAUSS_F =
+                    java.util.Random.class.getDeclaredField("haveNextNextGaussian");
+                RNG_HAVE_GAUSS_F.setAccessible(true);
+            }
+            return RNG_HAVE_GAUSS_F.getBoolean(r);
+        } catch (Throwable ig) { return false; }
+    }
+    private static double rngNextGaussian(java.util.Random r) {
+        try {
+            if (r == null) return 0.0D;
+            if (RNG_NEXT_GAUSS_F == null) {
+                RNG_NEXT_GAUSS_F =
+                    java.util.Random.class.getDeclaredField("nextNextGaussian");
+                RNG_NEXT_GAUSS_F.setAccessible(true);
+            }
+            return RNG_NEXT_GAUSS_F.getDouble(r);
+        } catch (Throwable ig) { return 0.0D; }
+    }
+    /** java.lang.Math$RandomNumberGeneratorHolder.randomNumberGenerator. */
+    private static java.util.Random rngMathRandom() {
+        try {
+            if (RNG_MATH_HOLDER_F == null) {
+                Class<?> h =
+                    Class.forName("java.lang.Math$RandomNumberGeneratorHolder");
+                RNG_MATH_HOLDER_F = h.getDeclaredField("randomNumberGenerator");
+                RNG_MATH_HOLDER_F.setAccessible(true);
+            }
+            return (java.util.Random) RNG_MATH_HOLDER_F.get(null);
+        } catch (Throwable ig) { return null; }
+    }
+    /** Block.RANDOM, the static "no world available" generator. */
+    private static java.util.Random rngBlockRandom() {
+        try {
+            if (RNG_BLOCK_F == null) {
+                RNG_BLOCK_F =
+                    net.minecraft.block.Block.class.getDeclaredField("RANDOM");
+                RNG_BLOCK_F.setAccessible(true);
+            }
+            return (java.util.Random) RNG_BLOCK_F.get(null);
+        } catch (Throwable ig) { return null; }
+    }
+    /** World.updateLCG: int32, `lcg = lcg * 3 + 1013904223`, NOT a java.util.Random. */
+    private static int rngUpdateLCG(net.minecraft.world.World w) {
+        try {
+            if (w == null) return 0;
+            if (RNG_UPDATE_LCG_F == null) {
+                RNG_UPDATE_LCG_F =
+                    net.minecraft.world.World.class.getDeclaredField("updateLCG");
+                RNG_UPDATE_LCG_F.setAccessible(true);
+            }
+            return RNG_UPDATE_LCG_F.getInt(w);
+        } catch (Throwable ig) { return 0; }
+    }
+
+    /** Named stream lookup for the fixture/negative-control burn command. */
+    private static java.util.Random rngStreamByName(
+            net.minecraft.world.World w, String name) {
+        if ("world".equals(name)) return w == null ? null : w.rand;
+        if ("math".equals(name)) return rngMathRandom();
+        if ("block".equals(name)) return rngBlockRandom();
+        return null;
+    }
+
+    /** Fill a JSON object with a full four-stream cursor snapshot. */
+    private static void rngCursorJson(
+            JsonObject o, net.minecraft.world.World w) {
+        java.util.Random wr = (w == null) ? null : w.rand;
+        o.addProperty("world_seed48", rngSeed48(wr));
+        o.addProperty("world_have_gaussian", rngHaveGaussian(wr));
+        o.addProperty("world_gaussian_bits", f64bits(rngNextGaussian(wr)));
+        o.addProperty("math_seed48", rngSeed48(rngMathRandom()));
+        o.addProperty("block_seed48", rngSeed48(rngBlockRandom()));
+        o.addProperty("update_lcg", rngUpdateLCG(w));
+    }
+
+    /**
+     * ServerTickEvent.START hook: append one cursor record. Runs on the server
+     * thread after the lockstep gate has released the tick, so the values are the
+     * exact state the tick is about to consume, and no other thread can be inside
+     * a draw. Silent no-op when capture is off - this is on the hot tick path.
+     */
+    private void rngCaptureTick(net.minecraft.world.World w) {
+        if (!rngCaptureOn) return;
+        java.util.Random wr = (w == null) ? null : w.rand;
+        long wt = (w == null) ? -1L : w.getTotalWorldTime();
+        long seed = rngSeed48(wr);
+        boolean gh = rngHaveGaussian(wr);
+        long gb = Double.doubleToRawLongBits(rngNextGaussian(wr));
+        long mseed = rngSeed48(rngMathRandom());
+        long bseed = rngSeed48(rngBlockRandom());
+        int lcg = rngUpdateLCG(w);
+        long completed;
+        synchronized (lockMon) { completed = lockArmed ? lockCompleted : -1L; }
+        synchronized (rngMon) {
+            if (!rngCaptureOn || rngCapWorldTime == null) return;
+            int cap = rngCapWorldTime.length;
+            if (rngCapN == cap) { rngCapDropped++; return; }  // stop at full: the
+            // FIRST divergence is what matters, so keep the head of the run rather
+            // than overwriting it with the tail.
+            int i = rngCapHead;
+            rngCapWorldTime[i] = wt;
+            rngCapSeqArr[i] = rngCapSeq++;
+            rngCapCompletedArr[i] = completed;
+            rngCapWorld[i] = seed;
+            rngCapMath[i] = mseed;
+            rngCapBlock[i] = bseed;
+            rngCapLcg[i] = lcg;
+            rngCapGaussHave[i] = (byte) (gh ? 1 : 0);
+            rngCapGaussBits[i] = gb;
+            rngCapHead++;
+            rngCapN++;
+        }
+    }
+
+    /** rng_capture: arm/disarm the per-tick cursor ring. No gate required. */
+    private String rngCaptureControl(JsonObject a) {
+        boolean on = !a.has("on") || a.get("on").getAsInt() != 0;
+        int cap = a.has("capacity") ? a.get("capacity").getAsInt() : 20000;
+        if (cap < 1 || cap > 2000000)
+            return err("rng_capture: capacity must be 1..2000000");
+        synchronized (rngMon) {
+            if (on) {
+                rngCapWorldTime = new long[cap];
+                rngCapSeqArr = new long[cap];
+                rngCapCompletedArr = new long[cap];
+                rngCapWorld = new long[cap];
+                rngCapMath = new long[cap];
+                rngCapBlock = new long[cap];
+                rngCapLcg = new int[cap];
+                rngCapGaussHave = new byte[cap];
+                rngCapGaussBits = new long[cap];
+                rngCapN = 0; rngCapHead = 0; rngCapDropped = 0; rngCapSeq = 0;
+                rngCaptureOn = true;
+            } else {
+                rngCaptureOn = false;
+            }
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            o.addProperty("capturing", rngCaptureOn);
+            o.addProperty("capacity", rngCapWorldTime == null ? 0 : rngCapWorldTime.length);
+            o.addProperty("count", rngCapN);
+            o.addProperty("dropped", rngCapDropped);
+            return o.toString();
+        }
+    }
+
+    /**
+     * rng_dump: write the ring as JSON Lines and report a digest. One record per
+     * captured server tick, in tick order. The digest covers the cursor columns
+     * only (not world_time), so two runs that agree on RNG but not on wall tick
+     * numbering still compare equal.
+     */
+    private String rngDump(JsonObject a) {
+        long[] wt, sq, cp, wd, mt, bk, gb; int[] lc; byte[] gh; int n; long dropped;
+        synchronized (rngMon) {
+            if (rngCapWorldTime == null) return err("rng_dump: capture was never armed");
+            n = rngCapN; dropped = rngCapDropped;
+            wt = rngCapWorldTime.clone(); sq = rngCapSeqArr.clone();
+            cp = rngCapCompletedArr.clone(); wd = rngCapWorld.clone();
+            mt = rngCapMath.clone(); bk = rngCapBlock.clone();
+            lc = rngCapLcg.clone(); gh = rngCapGaussHave.clone();
+            gb = rngCapGaussBits.clone();
+        }
+        try {
+            StringBuilder sb = new StringBuilder(n * 160);
+            long h = 0xcbf29ce484222325L;
+            for (int i = 0; i < n; i++) {
+                sb.append("{\"seq\":").append(sq[i])
+                  .append(",\"world_time\":").append(wt[i])
+                  .append(",\"gate_completed\":").append(cp[i])
+                  .append(",\"world_seed48\":").append(wd[i])
+                  .append(",\"world_have_gaussian\":").append(gh[i] != 0)
+                  .append(",\"world_gaussian_bits\":\"").append(hex64(gb[i]))
+                  .append("\",\"math_seed48\":").append(mt[i])
+                  .append(",\"block_seed48\":").append(bk[i])
+                  .append(",\"update_lcg\":").append(lc[i])
+                  .append("}\n");
+                h = fnvMix(h, wd[i]); h = fnvMix(h, mt[i]); h = fnvMix(h, bk[i]);
+                h = fnvMix(h, lc[i] & 0xffffffffL); h = fnvMix(h, gh[i]);
+            }
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            o.addProperty("count", n);
+            o.addProperty("dropped", dropped);
+            o.addProperty("digest", hex64(h));
+            if (a.has("file")) {
+                String f = a.get("file").getAsString();
+                java.io.Writer wtr = new java.io.BufferedWriter(
+                    new java.io.OutputStreamWriter(
+                        new java.io.FileOutputStream(f), "UTF-8"), 1 << 20);
+                wtr.write(sb.toString());
+                wtr.close();
+                o.addProperty("file", f);
+            } else {
+                o.addProperty("records", sb.toString());
+            }
+            return o.toString();
+        } catch (Throwable t) { return err("rng_dump: " + t); }
+    }
+
+    private static long fnvMix(long h, long v) {
+        for (int b = 0; b < 8; b++) {
+            h ^= (v >>> (b * 8)) & 0xffL;
+            h *= 0x100000001b3L;
+        }
+        return h;
+    }
+    private static String hex64(long v) {
+        String s = Long.toHexString(v);
+        return s.length() >= 16 ? s : "0000000000000000".substring(s.length()) + s;
+    }
+
+    /** rng_cursor_locked: one four-stream cursor read off the parked server. */
+    private String rngCursorLocked() {
+        synchronized (lockMon) {
+            String bad = lockRequireParked("rng_cursor_locked");
+            if (bad != null) return bad;
+        }
+        try {
+            MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+            if (s == null) return err("no server");
+            net.minecraft.world.WorldServer w = lockWorldOf(s);
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            rngCursorJson(o, w);
+            synchronized (lockMon) { o.addProperty("gate_completed", lockCompleted); }
+            lockAddPlayer(o);
+            return o.toString();
+        } catch (Throwable t) { return err("rng_cursor_locked: " + t); }
+    }
+
+    /**
+     * rng_burn_locked: consume exactly n draws from a named stream at the parked
+     * boundary. FIXTURE ONLY - this is the negative control for the cursor gate.
+     * It injects precisely the fault the gate exists to catch (a real extra
+     * java.util.Random draw on the live server, not a doctored sidecar), so a
+     * green gate can be shown to actually be sensitive. Deliberately NOT a
+     * seed-setting command: this repo does not restore Java RNG cursors, see
+     * verify/trace/rng_cursor.py for why.
+     */
+    private String rngBurnLocked(JsonObject a) {
+        synchronized (lockMon) {
+            String bad = lockRequireParked("rng_burn_locked");
+            if (bad != null) return bad;
+        }
+        String stream = a.has("stream") ? a.get("stream").getAsString() : "world";
+        int n = a.has("n") ? a.get("n").getAsInt() : 1;
+        if (n < 0 || n > 1000000) return err("rng_burn_locked: n must be 0..1000000");
+        try {
+            MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+            if (s == null) return err("no server");
+            net.minecraft.world.WorldServer w = lockWorldOf(s);
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            o.addProperty("stream", stream);
+            o.addProperty("n", n);
+            if ("lcg".equals(stream)) {
+                int v = rngUpdateLCG(w);
+                for (int i = 0; i < n; i++) v = v * 3 + 1013904223;
+                if (RNG_UPDATE_LCG_F == null) return err("rng_burn_locked: no updateLCG field");
+                RNG_UPDATE_LCG_F.setInt(w, v);
+            } else {
+                java.util.Random r = rngStreamByName(w, stream);
+                if (r == null) return err("rng_burn_locked: unknown stream " + stream);
+                o.addProperty("before_seed48", rngSeed48(r));
+                for (int i = 0; i < n; i++) r.nextInt();
+                o.addProperty("after_seed48", rngSeed48(r));
+            }
+            rngCursorJson(o, w);
+            synchronized (lockMon) { o.addProperty("gate_completed", lockCompleted); }
+            lockAddPlayer(o);
+            return o.toString();
+        } catch (Throwable t) { return err("rng_burn_locked: " + t); }
+    }
+
+    // ---------------- state capsule capture ----------------
+    // A capsule is a pre-tick snapshot of everything the oracle knows at a parked
+    // lockstep boundary that magma would need to CONTINUE the run rather than
+    // restart it. Design ported from bluecoconut's PR #5 magma/trace/state_capsule.py:
+    // a versioned manifest plus a raw block sidecar, and - the part that makes it a
+    // contract rather than a dump - a capability ledger tagging every field class
+    // exact / captured_only / unavailable.
+    //
+    // Block id and metadata are NOT the world state. Three kinds of hidden state
+    // decide what the next tick does and none of them are visible in a cuboid read:
+    //
+    //   scheduled ticks   WorldServer.pendingTickListEntriesTreeSet, ordered by
+    //                     (scheduledTime, priority, tickEntryID). A block that
+    //                     looks identical on both sides behaves differently if one
+    //                     side has a pending callback queued and the other does not.
+    //   tile entities     TileEntityFurnace's burn/cook counters are the flagship
+    //                     magma can actually restore: a lit furnace mid-smelt and a
+    //                     freshly-lit one are the same two block ids.
+    //   torch burnout     BlockRedstoneTorch.toggles, a process-global
+    //                     WeakHashMap<World,List<Toggle>> of (pos, totalWorldTime).
+    //                     Eight toggles at one position inside 60 ticks burns the
+    //                     torch out. It lives in neither the block, the metadata,
+    //                     nor the chunk NBT - it is pure JVM heap, and it is the
+    //                     cleanest example in 1.11.2 of state that a "load the save
+    //                     file" checkpoint provably cannot carry.
+    //
+    // Everything here reads a PARKED WorldServer from the socket thread, the same
+    // rule and the same boundary as the wave-1 locked set and the wave-2 RNG
+    // cursors, so the capsule is atomic with respect to the tick and cursor[i] is
+    // the state tick i is about to consume.
+
+    /** BlockRedstoneTorch.toggles: static Map<World,List<Toggle>>, Forge MC-101233. */
+    private static java.lang.reflect.Field TORCH_TOGGLES_F;
+    private static java.lang.reflect.Field TORCH_TOGGLE_POS_F;
+    private static java.lang.reflect.Field TORCH_TOGGLE_TIME_F;
+    /** WorldServer.pendingTickListEntriesTreeSet + NextTickListEntry.tickEntryID. */
+    private static java.lang.reflect.Field PENDING_TREE_F;
+    private static java.lang.reflect.Field TICK_ENTRY_ID_F;
+
+    /**
+     * Redstone torch burnout history for this world, chronological.
+     * Fail-soft like the wave-2 RNG accessors: a JDK or a Forge build that hides
+     * the field degrades the capsule to "unavailable" (captured=false) instead of
+     * killing the bridge, so the gate refuses rather than silently proving nothing.
+     */
+    private static boolean torchTogglesJson(JsonObject out, net.minecraft.world.World w) {
+        try {
+            if (TORCH_TOGGLES_F == null) {
+                TORCH_TOGGLES_F = net.minecraft.block.BlockRedstoneTorch.class
+                    .getDeclaredField("toggles");
+                TORCH_TOGGLES_F.setAccessible(true);
+            }
+            java.util.Map<?, ?> byWorld = (java.util.Map<?, ?>) TORCH_TOGGLES_F.get(null);
+            JsonArray arr = new JsonArray();
+            if (byWorld != null && w != null) {
+                Object list = byWorld.get(w);
+                if (list instanceof java.util.List) {
+                    for (Object t : (java.util.List<?>) list) {
+                        if (t == null) continue;
+                        if (TORCH_TOGGLE_POS_F == null) {
+                            TORCH_TOGGLE_POS_F = t.getClass().getDeclaredField("pos");
+                            TORCH_TOGGLE_POS_F.setAccessible(true);
+                            TORCH_TOGGLE_TIME_F = t.getClass().getDeclaredField("time");
+                            TORCH_TOGGLE_TIME_F.setAccessible(true);
+                        }
+                        BlockPos p = (BlockPos) TORCH_TOGGLE_POS_F.get(t);
+                        long time = TORCH_TOGGLE_TIME_F.getLong(t);
+                        JsonObject e = new JsonObject();
+                        e.addProperty("x", p.getX());
+                        e.addProperty("y", p.getY());
+                        e.addProperty("z", p.getZ());
+                        e.addProperty("time", time);
+                        arr.add(e);
+                    }
+                }
+            }
+            out.add("redstone_torch_toggles", arr);
+            out.addProperty("redstone_torch_toggles_complete", true);
+            return true;
+        } catch (Throwable ig) {
+            out.add("redstone_torch_toggles", new JsonArray());
+            out.addProperty("redstone_torch_toggles_complete", false);
+            return false;
+        }
+    }
+
+    /**
+     * Pending block updates whose position falls inside the capsule box.
+     * `time` is the ABSOLUTE due tick (World.getTotalWorldTime() + delay), matching
+     * NextTickListEntry.scheduledTime, and (time, priority, order) is the exact
+     * triple NextTickListEntry.compareTo sorts on - so replaying the array in
+     * order reproduces vanilla's execution order, which a bare per-position delay
+     * cannot. `order` is tickEntryID, the monotone allocation counter that breaks
+     * ties between two callbacks due on the same tick at the same priority.
+     */
+    private static boolean scheduledTicksJson(JsonObject out,
+            net.minecraft.world.WorldServer w,
+            int x0, int y0, int z0, int x1, int y1, int z1) {
+        try {
+            if (PENDING_TREE_F == null) {
+                PENDING_TREE_F = net.minecraft.world.WorldServer.class
+                    .getDeclaredField("pendingTickListEntriesTreeSet");
+                PENDING_TREE_F.setAccessible(true);
+            }
+            java.util.TreeSet<?> tree = (java.util.TreeSet<?>) PENDING_TREE_F.get(w);
+            JsonArray arr = new JsonArray();
+            if (tree != null) {
+                for (Object o : tree) {
+                    net.minecraft.world.NextTickListEntry e =
+                        (net.minecraft.world.NextTickListEntry) o;
+                    BlockPos p = e.position;
+                    if (p.getX() < x0 || p.getX() > x1 || p.getY() < y0 || p.getY() > y1
+                        || p.getZ() < z0 || p.getZ() > z1) continue;
+                    if (TICK_ENTRY_ID_F == null) {
+                        TICK_ENTRY_ID_F = net.minecraft.world.NextTickListEntry.class
+                            .getDeclaredField("tickEntryID");
+                        TICK_ENTRY_ID_F.setAccessible(true);
+                    }
+                    JsonObject j = new JsonObject();
+                    j.addProperty("x", p.getX());
+                    j.addProperty("y", p.getY());
+                    j.addProperty("z", p.getZ());
+                    j.addProperty("block",
+                        net.minecraft.block.Block.getIdFromBlock(e.getBlock()));
+                    j.addProperty("time", e.scheduledTime);
+                    j.addProperty("priority", e.priority);
+                    j.addProperty("order", TICK_ENTRY_ID_F.getLong(e));
+                    arr.add(j);
+                }
+            }
+            out.add("scheduled_ticks", arr);
+            out.addProperty("scheduled_ticks_complete", true);
+            return true;
+        } catch (Throwable ig) {
+            out.add("scheduled_ticks", new JsonArray());
+            out.addProperty("scheduled_ticks_complete", false);
+            return false;
+        }
+    }
+
+    /**
+     * Tile entities inside the box, restricted to the classes magma can actually
+     * materialize. Furnace carries the four TileEntityFurnace counters
+     * (furnaceBurnTime / currentItemBurnTime / cookTime / totalCookTime) plus its
+     * three slots; those map one-for-one onto magma's FurnaceLive and its
+     * container_furnace_prop script event, which is why furnace is the exact class
+     * and everything else here is captured_only.
+     */
+    private static boolean tileEntitiesJson(JsonObject out,
+            net.minecraft.world.WorldServer w,
+            int x0, int y0, int z0, int x1, int y1, int z1) {
+        try {
+            JsonArray arr = new JsonArray();
+            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+            for (int y = y0; y <= y1; y++) for (int z = z0; z <= z1; z++)
+            for (int x = x0; x <= x1; x++) {
+                net.minecraft.tileentity.TileEntity te = w.getTileEntity(pos.setPos(x, y, z));
+                if (!(te instanceof net.minecraft.tileentity.TileEntityFurnace)) continue;
+                net.minecraft.tileentity.TileEntityFurnace f =
+                    (net.minecraft.tileentity.TileEntityFurnace) te;
+                JsonObject j = new JsonObject();
+                j.addProperty("type", "furnace");
+                j.addProperty("x", x); j.addProperty("y", y); j.addProperty("z", z);
+                // getField: 0 furnaceBurnTime, 1 currentItemBurnTime, 2 cookTime,
+                // 3 totalCookTime (TileEntityFurnace.getField, oracle-src :443-455).
+                j.addProperty("burn_time", f.getField(0));
+                j.addProperty("current_burn_time", f.getField(1));
+                j.addProperty("cook_time", f.getField(2));
+                j.addProperty("total_cook_time", f.getField(3));
+                JsonArray items = new JsonArray();
+                for (int slot = 0; slot < f.getSizeInventory(); slot++) {
+                    net.minecraft.item.ItemStack st = f.getStackInSlot(slot);
+                    if (st == null || st.isEmpty()) continue;
+                    JsonObject si = new JsonObject();
+                    si.addProperty("slot", slot);
+                    si.addProperty("id", net.minecraft.item.Item.getIdFromItem(st.getItem()));
+                    si.addProperty("count", st.getCount());
+                    si.addProperty("meta", st.getMetadata());
+                    items.add(si);
+                }
+                j.add("items", items);
+                arr.add(j);
+            }
+            out.add("tile_entities", arr);
+            out.addProperty("tile_entities_complete", true);
+            return true;
+        } catch (Throwable ig) {
+            out.add("tile_entities", new JsonArray());
+            out.addProperty("tile_entities_complete", false);
+            return false;
+        }
+    }
+
+    /**
+     * capsule_dump_locked: one pre-tick state capsule read off the parked
+     * WorldServer. Block/meta go to "blocks_file" in the same little-endian
+     * u16 id&lt;&lt;4|meta, y-major-then-z-then-x order getblocks_locked uses, so the
+     * two are byte-comparable; everything else comes back inline as JSON for
+     * verify/trace/state_capsule.py to turn into a validated capsule directory.
+     *
+     * Every captured collection carries an explicit *_complete boolean. An empty
+     * array with complete=true means "provably nothing there"; complete=false means
+     * "this class could not be read", and the ledger downgrades it to unavailable
+     * so a strict gate refuses instead of proving a vacuous continuation.
+     */
+    private String capsuleDumpLocked(JsonObject a) {
+        synchronized (lockMon) {
+            String bad = lockRequireParked("capsule_dump_locked");
+            if (bad != null) return bad;
+        }
+        try {
+            MinecraftServer s = Minecraft.getMinecraft().getIntegratedServer();
+            if (s == null) return err("no server");
+            net.minecraft.world.WorldServer w = lockWorldOf(s);
+            int x0 = a.get("x0").getAsInt(), y0 = a.get("y0").getAsInt();
+            int z0 = a.get("z0").getAsInt(), x1 = a.get("x1").getAsInt();
+            int y1 = a.get("y1").getAsInt(), z1 = a.get("z1").getAsInt();
+            if (x1 < x0 || y1 < y0 || z1 < z0) return err("invalid block box");
+            if (y0 < 0 || y1 > 255) return err("block box y must be 0..255");
+            long cells = (long)(x1 - x0 + 1) * (long)(y1 - y0 + 1) * (long)(z1 - z0 + 1);
+            if (cells > (1 << 22)) return err("capsule box too large");
+            byte[] buf = new byte[(int) cells * 2];
+            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+            int k = 0;
+            for (int y = y0; y <= y1; y++) for (int z = z0; z <= z1; z++)
+            for (int x = x0; x <= x1; x++) {
+                net.minecraft.block.state.IBlockState st = w.getBlockState(pos.setPos(x, y, z));
+                net.minecraft.block.Block b = st.getBlock();
+                int v = (net.minecraft.block.Block.getIdFromBlock(b) << 4) | b.getMetaFromState(st);
+                buf[k++] = (byte) (v & 0xff); buf[k++] = (byte) ((v >> 8) & 0xff);
+            }
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            o.addProperty("schema", "netherite.state_capsule");
+            o.addProperty("phase", "pre_tick");
+            JsonArray box = new JsonArray();
+            for (int v : new int[]{x0, y0, z0, x1, y1, z1})
+                box.add(new com.google.gson.JsonPrimitive(v));
+            o.add("box", box);
+            o.addProperty("nx", x1 - x0 + 1);
+            o.addProperty("ny", y1 - y0 + 1);
+            o.addProperty("nz", z1 - z0 + 1);
+            o.addProperty("cells", cells);
+            o.addProperty("bytes", k);
+            o.addProperty("hash", fnv1a64hex(buf, k));
+            if (a.has("blocks_file")) {
+                String file = a.get("blocks_file").getAsString();
+                java.io.DataOutputStream ds = new java.io.DataOutputStream(
+                    new java.io.BufferedOutputStream(new java.io.FileOutputStream(file), 1 << 20));
+                ds.write(buf, 0, k); ds.close();
+                o.addProperty("blocks_file", file);
+            }
+            JsonObject time = new JsonObject();
+            time.addProperty("world_time", w.getWorldTime());
+            time.addProperty("total_time", w.getTotalWorldTime());
+            time.addProperty("dimension", w.provider.getDimension());
+            o.add("time", time);
+            JsonObject rng = new JsonObject();
+            rngCursorJson(rng, w);
+            o.add("world_rng", rng);
+            boolean schedOk = scheduledTicksJson(o, w, x0, y0, z0, x1, y1, z1);
+            boolean teOk = tileEntitiesJson(o, w, x0, y0, z0, x1, y1, z1);
+            boolean torchOk = torchTogglesJson(o, w);
+            // Entity capture is deliberately coarse: it is captured_only in the
+            // ledger (magma restores no general entity), so a summary count is the
+            // honest payload rather than a per-field dump nothing consumes.
+            o.addProperty("entity_count", w.loadedEntityList.size());
+            o.addProperty("entities_complete", false);
+            o.addProperty("captured_scheduled_ticks", schedOk);
+            o.addProperty("captured_tile_entities", teOk);
+            o.addProperty("captured_torch_toggles", torchOk);
+            synchronized (lockMon) { o.addProperty("gate_completed", lockCompleted); }
+            lockAddPlayer(o);
+            return o.toString();
+        } catch (Throwable t) { return err("capsule_dump_locked: " + t); }
     }
 
     private String handle(String line) throws InterruptedException {
@@ -729,8 +2239,33 @@ public class Recorder {
             case "pin_preview_anim": break;
             case "coverage_reset": case "coverage_dump":
             case "coverage_setfile": case "coverage_enable": return handleCoverage(cmd, action);
+            // Lockstep gate. These run HERE, on the socket thread, and never enter
+            // the `incoming` queue: while the server is parked it drains neither
+            // its scheduled-task queue nor anything else, so the ordinary
+            // game-thread hop would deadlock against the very gate they serve.
+            case "server_step_lock": case "server_step_unlock":
+                return lockControl(cmd, action);
+            case "step_server_locked": return lockStepServer(action);
+            case "getblocks_locked":   return lockGetBlocks(action);
+            case "setblocks_locked":   return lockSetBlocks(action);
+            case "setplayer_locked":   return lockSetPlayer(action);
+            // RNG cursor capture. Same socket-thread rule as the locked commands:
+            // rng_cursor_locked / rng_burn_locked touch a parked WorldServer, and
+            // rng_capture / rng_dump only touch the mod's own ring (rngMon), so
+            // none of them may take the game-thread hop.
+            case "rng_capture":        return rngCaptureControl(action);
+            case "rng_dump":           return rngDump(action);
+            case "rng_cursor_locked":  return rngCursorLocked();
+            case "rng_burn_locked":    return rngBurnLocked(action);
+            // State capsule. Reads a parked WorldServer (scheduled-tick tree, tile
+            // entities, BlockRedstoneTorch.toggles), so same socket-thread rule.
+            case "capsule_dump_locked": return capsuleDumpLocked(action);
             default: return err("unknown cmd");
         }
+        // Tearing down or reloading the world means the client thread will wait
+        // on the server thread to stop. If the gate still holds it parked, that
+        // is a deadlock, so release it before handing the command over.
+        if (cmd.equals("close") || cmd.equals("reset") || cmd.equals("dim")) lockDisarm();
         Req r = new Req(cmd, action, world);
         incoming.put(r);
         String result = r.resp.poll(120, TimeUnit.SECONDS); // world-gen can be slow
@@ -1065,10 +2600,29 @@ public class Recorder {
     // starves. Repair on every server tick, whatever path dropped the registration.
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent e) {
+        // Lockstep gate: park at START (before anything in the tick has run) and
+        // publish completion at END (after everything has). Both edges must run
+        // on every tick or the gate's counter drifts, so lockFinishTick() is
+        // reached on every END return path below.
+        if (e.phase == TickEvent.Phase.START) {
+            lockAwaitPermit();
+            // AFTER the gate releases the tick: the cursor recorded here is the
+            // state this tick is about to consume, and under the gate nothing
+            // else can be mid-draw. Cheap no-op when capture is off.
+            if (rngCaptureOn) {
+                net.minecraft.server.MinecraftServer sv =
+                    net.minecraftforge.fml.common.FMLCommonHandler.instance()
+                        .getMinecraftServerInstance();
+                if (sv != null) {
+                    try { rngCaptureTick(lockWorldOf(sv)); } catch (Throwable ig) {}
+                }
+            }
+            return;
+        }
         if (e.phase != TickEvent.Phase.END) return;
         net.minecraft.server.MinecraftServer srv =
             net.minecraftforge.fml.common.FMLCommonHandler.instance().getMinecraftServerInstance();
-        if (srv == null) return;
+        if (srv == null) { lockFinishTick(); return; }
         try {
             for (net.minecraft.entity.player.EntityPlayerMP p : srv.getPlayerList().getPlayers()) {
                 if (p.isDead) continue;
@@ -1138,6 +2692,7 @@ public class Recorder {
         } catch (Throwable t) {
             System.out.println("[qrl] registration watchdog failed: " + t);
         }
+        lockFinishTick();
         // Heartbeat so a paused/stalled integrated server is visible in the log
         // (the End-entry GuiDownloadTerrain deadlock froze ServerTickEvent for
         // 10+ minutes and looked exactly like a selector bug).
@@ -1255,10 +2810,30 @@ public class Recorder {
         // human-play tape: record EVERY client tick while active, bridge or no bridge.
         if (recWriter != null && mc.world != null && mc.player != null) {
             try { recordTick(mc); } catch (Throwable t) { /* never let recording crash the tick */ }
+        } else if (recActive && (mc.world == null || mc.player == null)) {
+            // World unload / dimension handoff: drop in-flight event channels
+            // so none can attach to the first tick of the next world.
+            clearRecBlockChanges();
+            clearRecGuiClicks();
+            clearRecGuiLifecycle();
         }
 
         // chain-RL container keep-open rule (gm_runtime_tick parity).
         try { rlContainerTick(mc); } catch (Throwable ig) {}
+        // chain-RL GUI parity: magma/blaze have no window system - "use" on a
+        // crafting table (id 58 is not ib_is_interactable, player_ctl.c:137)
+        // is a plain block-place attempt there, while vanilla activates the
+        // block and opens GuiCrafting. A GuiContainer never pauses the game,
+        // so the pause-menu guard above leaves it up forever and every later
+        // keybind action is a no-op. Close it at the tick boundary so the
+        // policy sees the env it was trained in. Human play (mcwindow viewer
+        // / tape recording) keeps its real GUIs.
+        if (rlV2Active && !recActive && !HumanStream.hasViewer()
+            && mc.player != null
+            && mc.currentScreen instanceof
+               net.minecraft.client.gui.inventory.GuiContainer) {
+            try { mc.player.closeScreen(); } catch (Throwable ig) {}
+        }
 
         // finalize a step that was applied last tick.
         // NB: we do NOT blanket-release keys here. applyAction() sets every movement key to its
@@ -1308,6 +2883,18 @@ public class Recorder {
                 recVelocityPending = false;
                 recPositionPending = false;
                 recFlag7Metadata.clear();
+                clearRecBlockChanges();
+                clearRecGuiClicks();
+                clearRecGuiLifecycle();
+                recNeighborNotifyDepth = 0;
+                recDigDestroyDepth = 0;
+                /* dig_trace: opt-in diagnostic. Default off keeps every normal
+                 * recstart byte-identical to pre-dig-trace tapes. */
+                recDigTrace = r.action.has("dig_trace")
+                    && r.action.get("dig_trace").getAsInt() != 0;
+                recContract = r.action.has("contract")
+                    && r.action.get("contract").getAsInt() != 0;
+                recActive = true;
                 recPreLookValid = false;
                 recLastPlayerTicksExisted = mc.player.ticksExisted;
                 recLastDimension = mc.player.dimension;
@@ -1399,7 +2986,37 @@ public class Recorder {
                     }
                     h.append("}");
                 } catch (Throwable ig) {}
-                h.append(",\"velocity_packets\":1,\"position_packets\":1}");
+                h.append(",\"velocity_packets\":1,\"position_packets\":1");
+                if (recContract) {
+                    String osName = System.getProperty("os.name", "").toLowerCase();
+                    String osKey = osName.contains("mac") ? "darwin"
+                        : (osName.contains("win") ? "win32" : "linux");
+                    String archName = System.getProperty("os.arch", "").toLowerCase();
+                    String archKey = ("amd64".equals(archName)
+                        || "x86_64".equals(archName)) ? "x86_64"
+                        : (("aarch64".equals(archName) || "arm64".equals(archName))
+                           ? "arm64" : archName);
+                    h.append(",\"frame_w\":").append(mc.displayWidth)
+                     .append(",\"frame_h\":").append(mc.displayHeight)
+                     .append(",\"renderer_provenance\":{\"os\":\"")
+                     .append(osKey).append("\",\"arch\":\"").append(archKey)
+                     .append("\",\"api\":\"gl\",\"resolution\":\"")
+                     .append(mc.displayWidth).append("x").append(mc.displayHeight)
+                     .append("\",\"scaling\":").append(mc.gameSettings.guiScale)
+                     .append(",\"hide_gui\":")
+                     .append(mc.gameSettings.hideGUI ? "true" : "false")
+                     .append("}")
+                     .append(",\"capabilities\":[\"block_finals\",")
+                     .append("\"container_identity\",\"gui_clicks\",")
+                     .append("\"inventory_keyframes\",\"renderer_provenance\",")
+                     .append("\"world_snapshot\"");
+                    if (recDigTrace) h.append(",\"dig_trace\"");
+                    h.append("]");
+                }
+                /* Presence of dig_trace:1 opts parsers/comparators into per-tick
+                 * dig controller rows. Legacy tapes omit the key entirely. */
+                if (recDigTrace) h.append(",\"dig_trace\":1");
+                h.append("}");
                 recWriter.println(h.toString());
                 recWriter.flush();
                 // world snapshot: flush all dirty chunks to disk and copy the
@@ -1420,6 +3037,12 @@ public class Recorder {
                     + (snapErr != null ? ",\"snapshot_error\":\"" + snapErr.replace('"','\'') + "\"" : "")
                     + "}");
             } catch (Exception ex) {
+                recActive = false;
+                recDigTrace = false;
+                recContract = false;
+                clearRecBlockChanges();
+                clearRecGuiClicks();
+                clearRecGuiLifecycle();
                 recWriter = null;
                 reply(r, err("recstart: " + ex));
             }
@@ -1427,6 +3050,14 @@ public class Recorder {
         }
         if (r.cmd.equals("recstop")) {
             long n = recTick;
+            recActive = false;
+            recDigTrace = false;
+            recContract = false;
+            recNeighborNotifyDepth = 0;
+            recDigDestroyDepth = 0;
+            clearRecBlockChanges();
+            clearRecGuiClicks();
+            clearRecGuiLifecycle();
             if (recWriter != null) { recWriter.flush(); recWriter.close(); recWriter = null; }
             if (recGeomWriter != null) { recGeomWriter.flush(); recGeomWriter.close(); recGeomWriter = null; }
             // Second snapshot pass, ADD-ONLY (see snapshotSaveDir): a dimension
@@ -4647,6 +6278,7 @@ sb.append("}");
                     mc.getSaveLoader().deleteWorldDirectory(wantFolder);
                     rlPolicyActionSeq = 0L;
                     rlPolicyActionFnv = 0xcbf29ce484222325L;
+                    rlV2Active = false;
                     launchWorld(mc, r.world);
                     launching = true;
                 } catch (Throwable ex) {
@@ -4676,6 +6308,7 @@ sb.append("}");
                     if (fresh) {
                         rlPolicyActionSeq = 0L;
                         rlPolicyActionFnv = 0xcbf29ce484222325L;
+                        rlV2Active = false;
                     }
                     launchWorld(mc, r.world);
                     launching = true;
@@ -4805,11 +6438,17 @@ sb.append("}");
         // Semantic camera request: obs after THIS step includes cam/depth/edge
         // + the coal list. Off by default (the raycast is the obs cost).
         rlCamPending = a.has("cam") && a.get("cam").getAsInt() != 0;
+        if (a.has("cam") || a.has("dyaw") || a.has("dpitch") || a.has("craft")
+            || a.has("interact") || a.has("smelt")) rlV2Active = true;
+        // craft/interact/smelt fire in rl_mode.c's order (rl_mode.c:1196-1199:
+        // craft, THEN interact, then smelt), so a decision that carries both a
+        // 3x3 craft and an interact crafts against the PREVIOUS container
+        // state on both sides.
+        // craft: discrete primitive 0..7, fires once, silent failure.
+        if (a.has("craft")) rlCraft(mc, a.get("craft").getAsInt());
         // interact: open the nearest placed crafting table/furnace in reach
         // (fires once, silent failure - rl_do_interact semantics).
         if (a.has("interact") && a.get("interact").getAsInt() != 0) rlInteract(mc);
-        // craft: discrete primitive 0..7, fires once, silent failure.
-        if (a.has("craft")) rlCraft(mc, a.get("craft").getAsInt());
         // smelt: furnace load/collect primitive (rl_do_smelt semantics) -
         // needs the open furnace container, fires once, fails silently.
         if (a.has("smelt") && a.get("smelt").getAsInt() != 0) rlSmelt(mc);
@@ -5620,6 +7259,127 @@ sb.append("}");
         catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
     }
 
+    /**
+     * Emit the gated dig object into a tape row. Schema (all fields always present
+     * when dig_trace is on so comparators need no optional-key matrix):
+     * <pre>
+     * "dig":{
+     *   "lcc":int,              // Minecraft.leftClickCounter
+     *   "bhd":int,              // PlayerControllerMP.blockHitDelay
+     *   "hit":0|1,              // isHittingBlock
+     *   "cb":[x,y,z]|null,      // currentBlock (null when y&lt;0 sentinel)
+     *   "face":int,             // objectMouseOver.sideHit ordinal or -1
+     *   "ray":0|1|2,            // RayTraceResult.Type: MISS/BLOCK/ENTITY
+     *   "rx","ry","rz":int?,    // block pos when ray==BLOCK
+     *   "held":[id,meta,count]|0,
+     *   "dmg":float,            // curBlockDamageMP
+     *   "rel":float|null,       // getPlayerRelativeBlockHardness (read-only)
+     *   "reach":float,          // getBlockReachDistance
+     *   "brk":0|[x,y,z],        // first successful destroy this tick, else 0
+     *   "bcn":int,              // ordered neighbor-caused final count
+     *   "bc_ref":[[x,y,z,id,meta],...]  // those finals in call order
+     * }
+     * </pre>
+     * Accessors: DigMinecraftAccess / DigControllerAccess mixins (no reflection).
+     */
+    private static void appendDigTrace(StringBuilder b, Minecraft mc,
+            EntityPlayerSP p) {
+        b.append(",\"dig\":{");
+        int lcc = 0;
+        if (mc instanceof DigMinecraftAccess)
+            lcc = ((DigMinecraftAccess) mc).dig$leftClickCounter();
+        b.append("\"lcc\":").append(lcc);
+        int bhd = 0, hit = 0;
+        float dmg = 0.0F, reach = 4.5F;
+        net.minecraft.util.math.BlockPos cb = null;
+        if (mc.playerController instanceof DigControllerAccess) {
+            DigControllerAccess pc = (DigControllerAccess) mc.playerController;
+            bhd = pc.dig$blockHitDelay();
+            hit = pc.dig$isHittingBlock() ? 1 : 0;
+            dmg = pc.dig$curBlockDamageMP();
+            cb = pc.dig$currentBlock();
+        }
+        if (mc.playerController != null)
+            reach = mc.playerController.getBlockReachDistance();
+        b.append(",\"bhd\":").append(bhd)
+         .append(",\"hit\":").append(hit);
+        if (cb == null || cb.getY() < 0)
+            b.append(",\"cb\":null");
+        else
+            b.append(",\"cb\":[").append(cb.getX()).append(',')
+             .append(cb.getY()).append(',').append(cb.getZ()).append(']');
+        int face = -1, rayType = 0;
+        net.minecraft.util.math.RayTraceResult moy = mc.objectMouseOver;
+        if (moy != null) {
+            rayType = moy.typeOfHit.ordinal();
+            if (moy.sideHit != null) face = moy.sideHit.getIndex();
+            if (moy.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.BLOCK
+                    && moy.getBlockPos() != null) {
+                net.minecraft.util.math.BlockPos rp = moy.getBlockPos();
+                b.append(",\"face\":").append(face)
+                 .append(",\"ray\":").append(rayType)
+                 .append(",\"rx\":").append(rp.getX())
+                 .append(",\"ry\":").append(rp.getY())
+                 .append(",\"rz\":").append(rp.getZ());
+            } else {
+                b.append(",\"face\":").append(face)
+                 .append(",\"ray\":").append(rayType);
+            }
+        } else {
+            b.append(",\"face\":-1,\"ray\":0");
+        }
+        net.minecraft.item.ItemStack held = p.getHeldItemMainhand();
+        if (held == null || held.isEmpty())
+            b.append(",\"held\":0");
+        else
+            b.append(",\"held\":[")
+             .append(net.minecraft.item.Item.getIdFromItem(held.getItem()))
+             .append(',').append(held.getMetadata())
+             .append(',').append(held.getCount()).append(']');
+        b.append(",\"dmg\":").append(dmg);
+        // Relative hardness: read-only call on the current ray-block (or
+        // currentBlock when hitting). getPlayerRelativeBlockHardness does not
+        // mutate world/controller state.
+        Float rel = null;
+        try {
+            net.minecraft.util.math.BlockPos rpos = null;
+            if (moy != null
+                    && moy.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.BLOCK)
+                rpos = moy.getBlockPos();
+            else if (cb != null && cb.getY() >= 0)
+                rpos = cb;
+            if (rpos != null && mc.world != null) {
+                net.minecraft.block.state.IBlockState st = mc.world.getBlockState(rpos);
+                if (st.getMaterial() != net.minecraft.block.material.Material.AIR)
+                    rel = Float.valueOf(st.getPlayerRelativeBlockHardness(
+                            p, mc.world, rpos));
+            }
+        } catch (Throwable ig) { rel = null; }
+        if (rel == null || Float.isNaN(rel.floatValue())
+                || Float.isInfinite(rel.floatValue()))
+            b.append(",\"rel\":null");
+        else
+            b.append(",\"rel\":").append(rel.floatValue());
+        b.append(",\"reach\":").append(reach);
+        if (recDigBreaks.isEmpty())
+            b.append(",\"brk\":0");
+        else {
+            int[] br = recDigBreaks.get(0);
+            b.append(",\"brk\":[").append(br[0]).append(',')
+             .append(br[1]).append(',').append(br[2]).append(']');
+        }
+        b.append(",\"bcn\":").append(recNeighborBlockChanges.size());
+        b.append(",\"bc_ref\":[");
+        for (int i = 0; i < recNeighborBlockChanges.size(); ++i) {
+            int[] e = recNeighborBlockChanges.get(i);
+            if (i > 0) b.append(',');
+            b.append('[').append(e[0]).append(',').append(e[1]).append(',')
+             .append(e[2]).append(',').append(e[3]).append(',')
+             .append(e[4]).append(']');
+        }
+        b.append("]}");
+    }
+
     // One human-play tape line: the tick's inputs (as MC consumed them), the resulting
     // player physics state, and nearby entities. Runs at ClientTick Phase.END so the
     // state is post-tick; movementInput still holds the values this tick used.
@@ -5678,8 +7438,15 @@ sb.append("}");
                     for (int x = cx - 4; x <= cx + 4; ++x) {
                         net.minecraft.block.state.IBlockState st =
                             mc.world.getBlockState(wbp.setPos(x, y, z));
-                        int id = net.minecraft.block.Block.getIdFromBlock(st.getBlock());
-                        int meta = st.getBlock().getMetaFromState(st);
+                        net.minecraft.block.Block blk = st.getBlock();
+                        int id = net.minecraft.block.Block.getIdFromBlock(blk);
+                        // BlockDoublePlant upper FACING is written into the
+                        // Anvil nibble but getStateFromMeta drops it (always
+                        // NORTH). Canonicalize only that measured lossy state;
+                        // other block metadata remains in the live Java domain.
+                        int meta = blk.getMetaFromState(st);
+                        if (id == 175 && (meta & 8) != 0)
+                            meta = 8 | 2; // UPPER + NORTH
                         wh ^= (long) ((id << 4) | meta) & 0xffffffffL;
                         wh *= 0x100000001b3L;
                     }
@@ -5732,6 +7499,49 @@ sb.append("}");
             b.append(']');
             recParticles.clear();
         }
+        // Drop clicks that landed across a dimension/loading boundary before
+        // emit: the open container is gone and replaying them would hit a
+        // closed or different screen. recLastDimension is still the previous
+        // value here (updated below after the loading flag).
+        boolean dimChanged = p.dimension != recLastDimension;
+        boolean forcedLoading = dimChanged || !p.addedToChunk
+            || mc.currentScreen instanceof net.minecraft.client.gui.GuiDownloadTerrain;
+        if (forcedLoading) {
+            clearRecGuiClicks();
+            clearRecGuiLifecycle();
+            clearRecBlockChanges();
+        }
+        // Container open/close edges + ordered GuiContainer clicks. Edge
+        // detection runs first so gopen lands before gclk on the open tick;
+        // gclose after clicks. Never invent clicks from gslots/gcur.
+        try { trackContainerLifecycle(mc, p); } catch (Throwable ig) {}
+        if (!recGuiOpens.isEmpty()) {
+            b.append(",\"gopen\":[");
+            for (int i = 0; i < recGuiOpens.size(); i++) {
+                if (i > 0) b.append(',');
+                b.append(recGuiOpens.get(i));
+            }
+            b.append(']');
+            recGuiOpens.clear();
+        }
+        if (!recGuiClicks.isEmpty()) {
+            b.append(",\"gclk\":[");
+            for (int i = 0; i < recGuiClicks.size(); i++) {
+                if (i > 0) b.append(',');
+                b.append(recGuiClicks.get(i));
+            }
+            b.append(']');
+            recGuiClicks.clear();
+        }
+        if (!recGuiCloses.isEmpty()) {
+            b.append(",\"gclose\":[");
+            for (int i = 0; i < recGuiCloses.size(); i++) {
+                if (i > 0) b.append(',');
+                b.append(recGuiCloses.get(i));
+            }
+            b.append(']');
+            recGuiCloses.clear();
+        }
         if (recPositionPending) {
             b.append(",\"ppos\":[").append(recPositionX)
              .append(",").append(recPositionY)
@@ -5752,12 +7562,37 @@ sb.append("}");
             b.append(']');
             recFlag7Metadata.clear();
         }
+        // Client-world block finals this tick (MixinRecordBlockChanges +
+        // MixinRecordChunkFill partial fillChunk diffs). Key "bc" avoids
+        // collision with script event "snapshot_block". Conditional so quiet
+        // ticks stay byte-identical to pre-recorder tapes.
+        if (!recBlockChanges.isEmpty()) {
+            b.append(",\"bc\":[");
+            for (int i = 0; i < recBlockChanges.size(); ++i) {
+                int[] e = recBlockChanges.get(i);
+                if (i > 0) b.append(',');
+                b.append('[').append(e[0]).append(',').append(e[1]).append(',')
+                 .append(e[2]).append(',').append(e[3]).append(',')
+                 .append(e[4]).append(']');
+            }
+            b.append(']');
+            recBlockChanges.clear();
+        }
+        // dig_trace: post-tick PlayerControllerMP / leftClickCounter / ray /
+        // held / relative hardness / break / neighbor-finals. Opt-in only
+        // (header dig_trace:1); omitted entirely when recDigTrace is false so
+        // default recordings remain byte-identical.
+        if (recDigTrace) {
+            appendDigTrace(b, mc, p);
+            recNeighborBlockChanges.clear();
+            recDigBreaks.clear();
+        }
         /* During cross-dimension terrain download the client player exists but
          * is not yet in a loaded chunk, so WorldClient deliberately does not
          * tick it. Replay must preserve that interval rather than applying
-         * gravity at the temporary spawn or newly received portal position. */
-        boolean forcedLoading = p.dimension != recLastDimension || !p.addedToChunk
-            || mc.currentScreen instanceof net.minecraft.client.gui.GuiDownloadTerrain;
+         * gravity at the temporary spawn or newly received portal position.
+         * forcedLoading was computed above (gclk drain) so the same boundary
+         * both drops stale clicks and marks the row. */
         if (forcedLoading) recPlayerLoading = true;
         else if (recPlayerLoading && p.ticksExisted != recLastPlayerTicksExisted)
             recPlayerLoading = false;

@@ -30,9 +30,9 @@ if [ -s "$OUT/camera.json" ]; then
 	SEED0_PITCH=$(jq -r '.magma_pitch_deg // -35.0' "$OUT/camera.json")
 	SEED0_FOV=$(jq -r '.fov_effective // 77.0' "$OUT/camera.json")
 fi
-SEED0_SPAWN_CX="${MAGMA_SPAWN_CX:-2}"
-SEED0_SPAWN_CZ="${MAGMA_SPAWN_CZ:-11}"
-SEED0_PREP_LIST="${MAGMA_PREP_LIST:-}"
+SEED0_SPAWN_CX="${SPAWN_CX:-2}"
+SEED0_SPAWN_CZ="${SPAWN_CZ:-11}"
+SEED0_PREP_LIST="${PREP_LIST:-}"
 if [ -z "$SEED0_PREP_LIST" ]; then
 	for candidate in \
 		/tmp/frustum_wv2/wv_prep_list.txt \
@@ -83,22 +83,21 @@ measure() {
 	local fov="$8" golden="$9"
 	local cand_ppm="/tmp/cand_${name}.ppm"
 	local cand_png="${OUT}/magma_${name}.png"
-	local -a render_env=()
+	local -a prep_args=()
 	if [ ! -s "$golden" ]; then
 		echo "$name SKIP (missing $golden)"
 		return 2
 	fi
 	if [ "$name" = seed0 ]; then
-		render_env+=("MAGMA_SPAWN_CX=$SEED0_SPAWN_CX")
-		render_env+=("MAGMA_SPAWN_CZ=$SEED0_SPAWN_CZ")
+		prep_args+=(--spawn-cx "$SEED0_SPAWN_CX" --spawn-cz "$SEED0_SPAWN_CZ")
 		if [ -n "$SEED0_PREP_LIST" ]; then
-			render_env+=("MAGMA_PREP_LIST=$SEED0_PREP_LIST")
+			prep_args+=(--prep-list "$SEED0_PREP_LIST")
 		fi
 	elif [ "$name" = seed7 ]; then
-		render_env+=("MAGMA_SPAWN_CX=$SEED7_SPAWN_CX")
-		render_env+=("MAGMA_SPAWN_CZ=$SEED7_SPAWN_CZ")
+		prep_args+=(--spawn-cx "$SEED7_SPAWN_CX" --spawn-cz "$SEED7_SPAWN_CZ")
 	fi
-	env "${render_env[@]}" /tmp/game_candidate_multi \
+	/tmp/game_candidate_multi \
+		"${prep_args[@]}" \
 		--seed "$seed" --eye "$ex" "$ey" "$ez" \
 		--yaw "$cyaw" --pitch "$cpitch" --fov "$fov" --w 854 --h 480 \
 		--ppm "$cand_ppm" >"/tmp/cand_${name}.log" 2>&1

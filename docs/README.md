@@ -35,5 +35,5 @@ travel together:
 - `blaze/SPEC.md`, `java/render-opt/SPEC.md`
 - Small per-module `README.md` files
 
-Tape/trace session reports are harness output under
-`verify/trace/report/` - not documentation.
+Tape/trace session reports are disposable harness output under `out/verify/`.
+Do not commit them.

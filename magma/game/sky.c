@@ -18,7 +18,9 @@
 #include "assets/sky_atlas.h"   /* CR_SUN_RGBA / CR_MOON_RGBA / CR_CLOUDS_RGBA (real MC PNGs) */
 #include <math.h>
 #include <stddef.h>
-#include <stdlib.h>   /* getenv/atoi for the MAGMA_FOG gate */
+#if !defined(__CUDA_ARCH__)
+#include "core/config.h"   /* fog registry knob (host-only; CUDA includes this TU renamed) */
+#endif
 
 #ifndef M_PIf
 #define M_PIf 3.14159265358979323846f
@@ -490,16 +492,16 @@ CR_HD CrRgba gm_sky_ray_color(CrVec3 dir_in, float time_of_day) {
 
 /* ---------------- terrain-pass fog ---------------- */
 
-/* Default ON (Java always runs setupFog(0) on terrain). MAGMA_FOG=0 disables.
- * Same cached-getenv pattern as MAGMA_SMOOTH. */
+/* Default ON (Java always runs setupFog(0) on terrain). fog=0 disables.
+ * Same cached-registry pattern as smooth. Host-only (not CR_HD). */
 int gm_terrain_fog_enabled(void) {
+#if defined(__CUDA_ARCH__)
+    return 1;
+#else
     static int cached = -1;
-    if (cached < 0) {
-        const char *s = getenv("MAGMA_FOG");
-        /* unset -> ON (MC-faithful); explicit 0 disables; any non-zero enables */
-        cached = (!s || atoi(s) != 0) ? 1 : 0;
-    }
+    if (cached < 0) cached = cr_cfg()->fog ? 1 : 0;
     return cached;
+#endif
 }
 
 /* EntityRenderer.updateFogColor's view-fog color at `time_of_day`. Identical to the

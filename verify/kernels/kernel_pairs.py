@@ -1,25 +1,35 @@
 #!/usr/bin/env python3
-"""Kernel-pair lockstep guard: CUDA and Metal raster kernels must change together.
+"""Kernel-pair lockstep guard: paired sources must change together.
 
-The two backends implement the same six kernels (same math, device-appropriate
-indexing):
+Two kinds of pairs live in verify/kernels/parity_manifest.json:
 
-    cuda/raster_cuda.cu        __global__ void <name>(...)
-    metal/raster_kernels.metal kernel void <name>(...)
+1. Magma raster kernels (block extract): the CUDA/Metal backends implement
+   the same kernels (same math, device-appropriate indexing):
 
-This tool extracts each kernel's source block (signature line through its
-matching closing brace) from both files, hashes them, and compares against the
-recorded pair manifest. Everything outside the kernel blocks in each file is
-hashed as the "<side>_helpers" entry, because kernel math also lives in shared
-device helpers.
+       magma/cuda/raster_cuda.cu        __global__ void <name>(...)
+       magma/metal/raster_kernels.metal kernel void <name>(...)
+
+   This tool extracts each kernel's source block (signature line through its
+   matching closing brace) from both files, hashes them, and compares against
+   the recorded pair. Everything outside the kernel blocks is hashed as
+   "_helpers", because kernel math also lives in shared device helpers.
+
+2. Whole-file pairs (currently blaze obs): sources that cannot share a
+   signature-extractable kernel block, but must still lockstep:
+
+       blaze/core/obs_camera.h            (source of truth, CPU+CUDA)
+       blaze/env/blaze_metal_obs.metal    (expression-for-expression MSL port)
+
+   Each file is hashed as a whole. Side keys stay "cuda" / "metal" so the
+   manifest schema is uniform (for the obs pair, "cuda" means the non-Metal
+   source of truth).
 
 If EITHER side of a pair drifts from the manifest, the check fails and names
-the kernel: edit the twin implementation to match semantics, prove it with
-`scripts/kernel_parity_gate.sh` on BOTH machines (anvil: cpu-vs-cuda,
-macbook: cpu-vs-metal; the CPU rasterizer is the shared reference), then
-re-record with `--update`. `--update` always re-records both sides of every
-pair - the discipline is that you never run it without having reviewed the
-twin.
+the pair: edit the twin, prove it with `scripts/kernel_parity_gate.sh` on BOTH
+machines (anvil: cpu-vs-cuda raster; macbook: cpu-vs-metal raster +
+blaze/env/verify_metal_obs.py --chain for oc_pixel), then re-record with
+`--update`. `--update` always re-records both sides of every pair - the
+discipline is that you never run it without having reviewed the twin.
 
 Usage:
     uv run --no-project python verify/kernels/kernel_pairs.py            # check
@@ -36,6 +46,16 @@ REPO = Path(__file__).resolve().parents[2]
 CUDA_SRC = REPO / "magma/cuda/raster_cuda.cu"
 METAL_SRC = REPO / "magma/metal/raster_kernels.metal"
 MANIFEST = Path(__file__).resolve().parent / "parity_manifest.json"
+
+# Whole-file pairs: name -> {side: path}. Side keys stay "cuda"/"metal" for a
+# uniform manifest schema. For non-CUDA sources of truth, "cuda" means the
+# non-Metal twin (CPU+CUDA shared header for blaze obs).
+FILE_PAIRS = {
+    "oc_pixel": {
+        "cuda": REPO / "blaze/core/obs_camera.h",
+        "metal": REPO / "blaze/env/blaze_metal_obs.metal",
+    },
+}
 
 SIG = {
     "cuda": re.compile(r"^(?:static )?__global__ void ([a-z_0-9]+)\b"),
@@ -93,6 +113,10 @@ def current_pairs():
         for name in sorted(cuda_k)
     }
     pairs["_helpers"] = {"cuda": sha(cuda_helpers), "metal": sha(metal_helpers)}
+    for name, sides in FILE_PAIRS.items():
+        pairs[name] = {
+            side: sha(path.read_text()) for side, path in sides.items()
+        }
     return pairs
 
 
@@ -131,10 +155,15 @@ def main():
         print("FAIL: kernel pair(s) drifted from the recorded manifest:")
         for name, side, w, g in bad:
             print(f"  {name} [{side}]: manifest {w} != current {g}")
+        twin_hint = (
+            "magma: cuda/raster_cuda.cu <-> metal/raster_kernels.metal; "
+            "blaze obs: core/obs_camera.h <-> env/blaze_metal_obs.metal"
+        )
         print(
             "\nA kernel changed on one backend. Port the same change to its "
-            "twin\n(cuda/raster_cuda.cu <-> metal/raster_kernels.metal), run "
-            "scripts/kernel_parity_gate.sh\non BOTH machines, then re-record: "
+            "twin\n"
+            f"({twin_hint}), run\n"
+            "scripts/kernel_parity_gate.sh on BOTH machines, then re-record: "
             "uv run --no-project python verify/kernels/kernel_pairs.py --update"
         )
         sys.exit(1)

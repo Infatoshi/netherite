@@ -3,6 +3,7 @@
  * round-trip every rect center, report the panel background as -1 and anything
  * beyond the panel as GMC_OUTSIDE, and never emit duplicate slot ids. */
 #include "game/screen.h"
+#include "game/runtime.h"
 #include "game/container_live.h"
 
 #include <stdio.h>
@@ -78,6 +79,24 @@ int main(void)
       CHECK(mx == 426 && my == 240, "center gui (213,120) -> fb (426,240)");
       gm_screen_mouse_to_fb(854, 480, 0, 0, &mx, &my);
       CHECK(mx == 0 && my == 0, "origin stays 0");
+    }
+
+    /* InventoryEffectRenderer shifts the player panel 60 GUI px right while
+     * an active effect is shown; interactive hit testing must follow it. */
+    {
+        GmRuntime r;
+        memset(&r, 0, sizeof r);
+        r.container = 0;
+        r.tape_xp_active = 1;
+        r.tape_potion_count = 1;
+        r.tape_potions[0] = (GmPotionEffectView){11, 3, 19575, 0};
+        GmScreenSlot slots[GMC_SLOT_COUNT];
+        int n = gm_screen_layout(0, 854, 480, slots, GMC_SLOT_COUNT);
+        CHECK(n > 0, "player inventory exposes shifted slots");
+        int cx = slots[0].x + slots[0].w / 2 + 120;
+        int cy = slots[0].y + slots[0].h / 2;
+        CHECK(gm_screen_slot_at_runtime(&r, 854, 480, cx, cy) == slots[0].slot_id,
+              "active-effect shift is included in runtime hit testing");
     }
 
     if (fail) { fprintf(stderr, "screen: FAIL\n"); return 1; }

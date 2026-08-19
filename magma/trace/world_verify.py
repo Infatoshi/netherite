@@ -224,13 +224,17 @@ def build_cascade_events(probe_log, outdir):
     return path
 
 
-def dump_tiles(seed, chunks, tile, outdir, preplist=None, cascade=None):
+def dump_tiles(seed, chunks, tile, outdir, preplist=None, cascade=None,
+               genprobe=None):
     """Run world_dump covering `chunks`; return {(cx,cz): (blk,bio)}.
     With a prep list, ONE invocation dumps the whole bounding box so the cumulative
     window pool is built exactly once (world_dump enlarges its pools to fit)."""
     dump_bin = os.path.join(MAGMA, "trace", "world_dump")
     if not os.path.exists(dump_bin):
         sys.exit(f"missing {dump_bin} (build it: see trace/world_dump.c header)")
+    set_flags = []
+    if genprobe:
+        set_flags += ["--set", f"genprobe={genprobe}"]
     if preplist:
         xs = [c[0] for c in chunks]
         zs = [c[1] for c in chunks]
@@ -239,7 +243,7 @@ def dump_tiles(seed, chunks, tile, outdir, preplist=None, cascade=None):
         out = os.path.join(outdir, "wv_full.bin")
         cmd = [dump_bin, "--seed", str(seed), "--cx0", str(cx0), "--cz0", str(cz0),
                "--ncx", str(ncx), "--ncz", str(ncz), "--out", out,
-               "--prep-list", preplist]
+               "--prep-list", preplist] + set_flags
         if cascade:
             cmd += ["--cascade", cascade]
         print(f"  [dump] single cumulative dump ({cx0},{cz0})+{ncx}x{ncz}", flush=True)
@@ -259,7 +263,7 @@ def dump_tiles(seed, chunks, tile, outdir, preplist=None, cascade=None):
         cx0, cz0 = tx * tile, tz * tile
         out = os.path.join(outdir, f"wv_tile_{tx}_{tz}.bin")
         cmd = [dump_bin, "--seed", str(seed), "--cx0", str(cx0), "--cz0", str(cz0),
-               "--ncx", str(tile), "--ncz", str(tile), "--out", out]
+               "--ncx", str(tile), "--ncz", str(tile), "--out", out] + set_flags
         r = subprocess.run(cmd, cwd=MAGMA, capture_output=True, text=True)
         if r.returncode != 0:
             sys.exit(f"world_dump failed for tile ({tx},{tz}):\n{r.stderr}")
@@ -315,6 +319,9 @@ def main():
     ap.add_argument("--java-log", default=None,
                     help="recorded genprobe log for THIS save (populate order + cascade GEN "
                          "events); default: <out-dir>/java_genprobe.log")
+    ap.add_argument("--genprobe", default=None,
+                    help="path for magma world_dump RNG-cursor probe log "
+                         "(passed as --set genprobe=PATH)")
     args = ap.parse_args()
 
     print(f"[1/4] scan save {args.region}")
@@ -329,7 +336,8 @@ def main():
     print(f"[2/4] magma dump ({len(chunks)} chunks, tile={args.tile})")
     prep, casc = (None, None) if args.no_prep else build_prep_list(
         args.region, pop, args.out_dir, java_log=args.java_log)
-    cr = dump_tiles(args.seed, chunks, args.tile, args.out_dir, preplist=prep, cascade=casc)
+    cr = dump_tiles(args.seed, chunks, args.tile, args.out_dir, preplist=prep,
+                    cascade=casc, genprobe=args.genprobe)
 
     print(f"[3/4] per-cell diff")
     mism = []           # (wx,wy,wz,ji,ci)

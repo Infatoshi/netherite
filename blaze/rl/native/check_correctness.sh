@@ -19,5 +19,6 @@ test -f "$fixture"
 nvidia-smi
 overnight-compute run \
   --agent "ppo-native-correctness-$$" --resource gpu0 --ttl 10m --poll 15s -- \
-  env CUDA_VISIBLE_DEVICES=0 NATIVE_ORACLE_BF16=1 \
-  NATIVE_ORACLE_FIXTURE="$fixture" "$binary"
+  env CUDA_VISIBLE_DEVICES=0 \
+  "$binary" --set native_oracle_bf16=1 \
+  --set "native_oracle_fixture=$fixture"

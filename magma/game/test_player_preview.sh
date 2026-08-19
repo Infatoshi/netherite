@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BLAZE="$(cd "$ROOT/../blaze" && pwd)"
 cd "$ROOT"
-make -s game/player_preview.o core/math.o core/shade.o cpu/raster_cpu.o
-${CC:-gcc} -O2 -ffp-contract=off -Wall -Wextra -I. -Icore -I"$BLAZE/core" \
-	game/test_player_preview.c game/player_preview.o \
-	core/math.o core/shade.o cpu/raster_cpu.o \
-	-lm -o game/test_player_preview
+# shellcheck source=game/standalone_test_common.sh
+source "$(dirname "$0")/standalone_test_common.sh"
+
+# shade.o pulls cr_cfg(); always link core/config.o from the render-core closure.
+make -s game/player_preview.o "${MAGMA_RENDER_CORE_OBJS[@]}" cpu/raster_cpu.o
+# shellcheck disable=SC2086
+$CC $MAGMA_STANDALONE_CFLAGS $MAGMA_STANDALONE_INCLUDES \
+  game/test_player_preview.c game/player_preview.o \
+  "${MAGMA_RENDER_CORE_OBJS[@]}" cpu/raster_cpu.o \
+  -lm -o game/test_player_preview
 ./game/test_player_preview

@@ -775,6 +775,22 @@ void light_recheck_break_surfaces(CrLight *L, int wx, int wy, int wz) {
         }
 }
 
+/* Restore a saved skylight nibble (see light.h). The value replaces whatever
+ * the from-scratch relight settled on; sky_dirty/skylight_dirty are raised so
+ * the (monotonic) horizontal flood re-converges from the restored seeds, and
+ * column_relight_dirty is deliberately NOT raised - rebuilding the baseline is
+ * exactly what would stomp the restored nibbles back down. */
+void light_load_sky(CrLight *L, int wx, int wy, int wz, int sky) {
+    if (!L || wy < 0 || wy >= WY || !L->has_sky) return;
+    LChunk *c = find_chunk(L, wx >> 4, wz >> 4);
+    if (!c) return;
+    if (sky < 0) sky = 0;
+    if (sky > 15) sky = 15;
+    c->sky[CB_INDEX(wx & 15, wy, wz & 15)] = (u8)sky;
+    c->sky_dirty = 1;
+    L->skylight_dirty = 1;
+}
+
 void light_set_render_state(CrLight *L, int dimension,
                             float torch_flicker_x, float gamma) {
     if (!L) return;

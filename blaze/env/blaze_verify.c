@@ -13,8 +13,8 @@
 #include <time.h>
 
 #include "blaze_core.h"
+#include "blaze_abi.h"
 
-void *blaze_create(int device, int n);
 void  blaze_destroy(void *vh);
 int   blaze_load_snapshots(void *vh, const char *const *paths, int count,
                            char *err, int err_cap);
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     if (argc > 4) repeat = atoi(argv[4]);
     if (n <= 0 || decisions <= 0 || repeat <= 0) return 2;
 
-    h = blaze_create(0, n);
+    h = blaze_create(0, n, NULL);
     if (!h) { fprintf(stderr, "blaze_create failed\n"); return 1; }
     if (blaze_load_snapshots(h, &path, 1, err, sizeof err) < 0) {
         fprintf(stderr, "load_snapshots: %s\n", err);

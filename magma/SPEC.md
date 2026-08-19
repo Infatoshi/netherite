@@ -37,7 +37,7 @@ CONTRACT. Do not change a signature without updating this file.
 - `cuda/raster_cuda.cu` - cr_raster_cuda (RASTER agent).
 - `core/shade.c`        - cr_shade, cr_atlas_sample (SHADE agent).
 - `present/present.c`   - SDL2 window, blit, input (PRESENT agent).
-- `demo/demo_cube.c`    - main(): spinning textured cube, exercises whole spine (PRESENT agent).
+- `tests/test_raster_smoke.c` - spinning textured cube; whole raster spine smoke.
 - `tests/`              - per-module self-tests (each agent adds its own test file).
 
 ## Rasterizer requirements (raster_cpu.c / raster_cuda.cu)
@@ -69,13 +69,13 @@ CONTRACT. Do not change a signature without updating this file.
   enable_fog. Keep integer/float math identical for CPU and CUDA (CR_HD, no libm beyond
   fminf/fmaxf/floorf). Return CrRgba.
 
-## Present requirements (present/present.c, demo/demo_cube.c)
+## Present requirements (present/present.c, tests/test_raster_smoke.c)
 - SDL2 window (works under Xvfb :1). `cr_window_present` uploads fb->color as an
   SDL_Texture / streaming surface and blits (this is a memcpy+present, NOT rendering).
 - `cr_window_poll` fills CrInput: WASD, space/shift/ctrl, relative mouse, quit (window
   close or ESC). Support headless: if SDL_VIDEODRIVER unset and no display, allow a
-  "dummy" mode that no-ops present so demo can run in CI.
-- `demo/demo_cube.c`: create fb, a small procedural 16x16 CrTexture, a CrCamera; each
+  "dummy" mode that no-ops present so tests can run in CI.
+- `tests/test_raster_smoke.c`: create fb, a small procedural 16x16 CrTexture, a CrCamera; each
   frame clear fb, build 12 tris of a unit cube (as CrVertex), rotate it, cr_transform ->
   cr_raster_cpu -> cr_window_present; ESC quits. Add `--frames N --ppm out.ppm` to render
   N frames headless and dump the last as PPM for verification. This is the integration

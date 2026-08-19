@@ -56,6 +56,10 @@ typedef struct {
 #undef CFG_STR
 } CrConfig;
 
+/* Fill `out` with compiled defaults without reading a file or changing the
+ * process-global effective config. */
+void cr_cfg_defaults(CrConfig *out);
+
 /* Effective config singleton. On first use it lazily loads "magma.conf" from the
  * cwd (defaults if absent), exactly like cr_caps() always has. Never NULL. */
 const CrConfig *cr_cfg(void);

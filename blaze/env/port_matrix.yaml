@@ -1,0 +1,371 @@
+version: 1
+subsystems:
+  - name: mining_slice
+    supported: true
+    sources:
+      magma:
+        - magma/game/player_ctl.c
+        - magma/game/live_sim.c
+      shared:
+        - blaze/core/player_break.h
+        - blaze/core/inventory_stack_rules.h
+        - blaze/core/items_tools_armor.h
+      blaze:
+        - blaze/env/blaze_core.h
+        - blaze/env/blaze_cpu.c
+    dependencies: []
+    required_features: [player, dig, inventory]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s14_t0_r48_no_liquid.bsnp
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - blaze/rl/out/snaps/*_d*.bsnp
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --snapshot
+      - verify/fixtures/port/s14_t0_r48_no_liquid.bsnp
+      - --seeds
+      - "14"
+      - --ticks
+      - "1000"
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - player,dig,inventory
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+    timeout: 1500
+
+  - name: spawn_to_torch
+    supported: true
+    sources:
+      magma:
+        - magma/game/player_ctl.c
+        - magma/game/runtime.h
+        - magma/game/rl_mode.c
+        - magma/game/container_live.c
+      shared:
+        - blaze/core/port_parity.h
+        - blaze/core/crafting_recipes.h
+        - blaze/core/container_click.h
+        - blaze/core/items_core.h
+      blaze:
+        - blaze/env/blaze_core.h
+        - blaze/env/blaze_cpu.c
+    dependencies: [mining_slice]
+    required_features:
+      - player
+      - dig
+      - inventory
+      - items
+      - crafting
+      - containers
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_no_liquid.bsnp
+        - blaze/rl/fixtures/chain_actions_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_no_liquid.bsnp
+        - blaze/rl/fixtures/chain_actions_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "2058"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_no_liquid.bsnp
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - player,dig,inventory,items,crafting,containers
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "2058"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_no_liquid.bsnp
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - player,dig,inventory,items,crafting,containers
+    timeout: 1500
+
+  - name: world_dynamics
+    supported: true
+    sources:
+      magma:
+        - magma/game/world_live.c
+        - magma/game/live_sim.c
+        - magma/game/randtick.c
+        - magma/game/rl_mode.c
+      shared:
+        - blaze/core/overworld_full_live.h
+        - blaze/core/block_tickers.h
+        - blaze/core/port_parity.h
+        - blaze/env/blaze_snapshot.h
+      blaze:
+        - blaze/env/blaze_core.h
+        - blaze/env/blaze_cpu.c
+        - blaze/env/blaze_cuda.cu
+    dependencies: [spawn_to_torch]
+    required_features: [world, observations]
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_no_liquid.bsnp
+        - blaze/rl/fixtures/chain_actions_s10.json
+      m2:
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_no_liquid.bsnp
+        - blaze/rl/fixtures/chain_actions_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "2058"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_no_liquid.bsnp
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - world,observations
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - pyyaml,numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "2058"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_no_liquid.bsnp
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - world,observations
+    timeout: 1500
+
+  - name: fluids
+    supported: false
+    sources:
+      magma: [magma/game/fluid_live.c]
+      shared: [blaze/core/fluid_flow.h, blaze/core/pal_fluid_parity.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [world_dynamics]
+    required_features: [fluids]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Liquid presence is declared, but liquid evolution has no common measured digest.
+
+  - name: random_ticks
+    supported: false
+    sources:
+      magma: [magma/game/randtick.c]
+      shared: [blaze/core/plant_growth.h, blaze/core/block_tickers.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [world_dynamics]
+    required_features: [random_ticks]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Random-tick scheduling and effects are not measured by both backends.
+
+  - name: falling_blocks
+    supported: false
+    sources:
+      magma: [magma/game/live_sim.c]
+      shared: [blaze/core/block_tickers.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [world_dynamics]
+    required_features: [falling_blocks]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Falling-block state and outcomes are not measured by both backends.
+
+  - name: entity_spine
+    supported: false
+    sources:
+      magma: [magma/game/mob_live.c]
+      shared: [blaze/core/entity_hostile_spine.h, blaze/core/entity_base.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [spawn_to_torch]
+    required_features: [mobs]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Entity lifecycle state is not integrated into the common parity record.
+
+  - name: projectiles
+    supported: false
+    sources:
+      magma: [magma/game/mob_live.c]
+      shared: [blaze/core/projectile_motion.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [world_dynamics, entity_spine]
+    required_features: [projectiles]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Projectile lifecycle and collision outcomes are not measured by both backends.
+
+  - name: explosions
+    supported: false
+    sources:
+      magma: [magma/game/mob_live.c, magma/game/world_live.c]
+      shared: [blaze/core/explosion.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [world_dynamics, projectiles]
+    required_features: [explosions]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Explosion damage and world mutation are not measured by both backends.
+
+  - name: mobs
+    supported: false
+    sources:
+      magma: [magma/game/mob_live.c]
+      shared: [blaze/core/mob_spawning_world.h, blaze/core/entity_hostile_spine.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [world_dynamics, entity_spine, projectiles]
+    required_features: [mobs]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Mob spawning, AI, combat, and drops lack end-to-end common evidence.
+
+  - name: chests
+    supported: false
+    sources:
+      magma: [magma/game/chest_live.c, magma/game/container_live.c]
+      shared: [blaze/core/tile_entity_chest.h, blaze/core/container_click.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [spawn_to_torch]
+    required_features: [chests]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Chest generation, loot, and GUI transfers are not measured end to end.
+
+  - name: portals_dimensions
+    supported: false
+    sources:
+      magma: [magma/game/portal_live.c, magma/game/world_live.c]
+      shared: [blaze/core/nether_portal.h, blaze/core/end_portal.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [world_dynamics]
+    required_features: [portals, dimensions]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Portal transfer and dimension identity are not measured by both backends.
+
+  - name: nether_route
+    supported: false
+    sources:
+      magma: [magma/game/portal_live.c, magma/game/structures_live.c]
+      shared: [blaze/core/nether_full.h, blaze/core/chunk_provider_nether.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [spawn_to_torch, portals_dimensions]
+    required_features: [portals, dimensions]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: The overworld-to-Nether progression route has no strict cross-backend fixture.
+
+  - name: dragon_victory
+    supported: false
+    sources:
+      magma: [magma/game/dragon_live.c]
+      shared: [blaze/core/ender_dragon.h, blaze/core/ender_dragon_death.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [nether_route, mobs, explosions]
+    required_features: [dragon, victory]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Dragon fight, death sequence, exit portal, and victory are not verified end to end.
+
+  - name: weather_optional
+    supported: false
+    sources:
+      magma: [magma/game/sky.c, magma/game/world_live.c]
+      shared: [blaze/core/world_weather.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [world_dynamics]
+    required_features: [weather]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Optional weather transitions and effects are not measured by both backends.
+
+  - name: boats_elytra_xp
+    supported: false
+    sources:
+      magma: [magma/game/player_ctl.c, magma/game/mob_live.c]
+      shared: [blaze/core/entity_base.h, blaze/core/entity_xp_orb.h, blaze/core/player_survival.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+    dependencies: [fluids, entity_spine]
+    required_features: [boats, elytra, xp]
+    required_artifacts: {m1: [], m2: []}
+    m1: []
+    m2: []
+    timeout: 1500
+    block_reason: Boats, elytra flight, and XP lifecycle lack common end-to-end evidence.

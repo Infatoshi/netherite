@@ -18,6 +18,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define cr_shade        cr_shade_dev
 #define cr_atlas_sample cr_atlas_sample_dev
@@ -633,7 +634,18 @@ static struct {
     int         *d_xoffsets;/* exclusive prefix of d_xcounts */
     int         *d_screen_tris; /* [0]=frame total; [1]=current dense layer */
     int          screen_tris;   /* host copy after frame_end */
-    CrVertex    *d_verts;  /* input verts for the GPU transform path */
+    CrVertex    *d_verts;  /* gather destination + legacy single-slot path */
+    /* render_layer vert staging ring (Metal twin: g_vstage[CR_SH_RING]).
+     * window_compose reuses one host entity_verts buffer across same-frame
+     * entity/item/fire/particle emits; an async H2D straight from that
+     * pointer races the next emit. Snapshot into a ring slot NOW (CPU
+     * memcpy into pinned h_vstage, async H2D to d_vstage) so the host may
+     * refill immediately - same contract Metal's enqueue-time memcpy
+     * already provides. */
+    CrVertex    *d_vstage[CR_SH_RING];
+    CrVertex    *h_vstage[CR_SH_RING]; /* pinned host mirrors */
+    size_t       vstage_bytes[CR_SH_RING];
+    int          vs_idx;   /* next vert-staging slot; reset by frame_end */
     CrShadeCtx  *d_sh;     /* CR_SH_RING slots */
     CrShadeCtx  *h_sh;     /* pinned host mirrors of the ring */
     CrRgba      *d_lm;     /* CR_SH_RING * 256 lightmap texels (per-slot LUT) */
@@ -689,6 +701,12 @@ extern "C" void cr_raster_cuda_pre(int w, int h, int max_tris) {
     cudaMalloc(&g_gpu.d_screen_tris, 2 * sizeof(int));
     cudaMemset(g_gpu.d_screen_tris, 0, 2 * sizeof(int));
     cudaMalloc(&g_gpu.d_verts, 3 * (size_t)max_tris * sizeof(CrVertex));
+    /* Vert staging ring slots grow on demand (entity layers are tiny vs
+     * max_tris); leave d_vstage/h_vstage NULL until first render_layer. */
+    memset(g_gpu.d_vstage, 0, sizeof g_gpu.d_vstage);
+    memset(g_gpu.h_vstage, 0, sizeof g_gpu.h_vstage);
+    memset(g_gpu.vstage_bytes, 0, sizeof g_gpu.vstage_bytes);
+    g_gpu.vs_idx = 0;
     cudaMalloc(&g_gpu.d_sh,    CR_SH_RING * sizeof(CrShadeCtx));
     cudaMallocHost(&g_gpu.h_sh, CR_SH_RING * sizeof(CrShadeCtx));
     cudaMalloc(&g_gpu.d_lm,    CR_SH_RING * 256 * sizeof(CrRgba));
@@ -917,6 +935,7 @@ extern "C" void cr_raster_cuda_frame_end(CrFramebuffer *fb) {
     cr_cuda_check("cuda_frame_end");
     g_gpu.sh_idx = 0;
     g_gpu.gr_idx = 0;
+    g_gpu.vs_idx = 0;
     g_gpu.frame_open = 0;
 }
 
@@ -1101,10 +1120,12 @@ __global__ void cr_compact_scatter_kernel(const CrScreenTri *slotted,
  * device. Replaces the host cr_transform + tri upload in cr_raster_cuda_into
  * (~29% of the frames-run CPU profile lived in cr_transform/to_screen).
  * MVP is built HERE with the same _dev source the kernel uses. */
-/* Common tail for the layer paths: verts are already in d_verts (uploaded or
- * gathered on-device); run transform + bbox + raster on the frame stream. */
+/* Common tail for the layer paths: d_in already holds the layer's verts
+ * (staging ring for host uploads, or d_verts after an on-device gather);
+ * run transform + bbox + raster on the frame stream. */
 static void cr_cuda_run_layer(CrFramebuffer *fb, int nverts,
-                              const CrCamera *cam, const CrShadeCtx *sh) {
+                              const CrCamera *cam, const CrShadeCtx *sh,
+                              const CrVertex *d_in) {
     int ntris_in = nverts / 3;
     if (ntris_in > g_gpu.max_tris) ntris_in = g_gpu.max_tris; /* caps guarantee fit */
 
@@ -1132,7 +1153,7 @@ static void cr_cuda_run_layer(CrFramebuffer *fb, int nverts,
     int ntris = 2 * ntris_in; /* worst-case dense count; launch sizing only */
     int tthr = 256, tblk = (ntris_in + tthr - 1) / tthr;
     cr_transform_kernel<<<tblk, tthr, 0, g_gpu.stream>>>(
-        g_gpu.d_verts, ntris_in, mvp, cam->pos, W, H, g_gpu.d_tris,
+        d_in, ntris_in, mvp, cam->pos, W, H, g_gpu.d_tris,
         g_gpu.d_xcounts, g_gpu.d_screen_tris, 1);
 
     cr_compact_scan_kernel<<<1, 1, 0, g_gpu.stream>>>(
@@ -1166,6 +1187,26 @@ static void cr_cuda_run_layer(CrFramebuffer *fb, int nverts,
     }
 }
 
+/* Grow-only staging slot (device + pinned host). Entity layers are tiny;
+ * worst case a slot grows toward 3*max_tris if a full terrain mesh is
+ * pushed through render_layer (the window path uses the gather pool). */
+static int cr_cuda_ensure_vstage(int vs, size_t vbytes) {
+    if (g_gpu.vstage_bytes[vs] >= vbytes) return 1;
+    if (g_gpu.d_vstage[vs]) cudaFree(g_gpu.d_vstage[vs]);
+    if (g_gpu.h_vstage[vs]) cudaFreeHost(g_gpu.h_vstage[vs]);
+    g_gpu.d_vstage[vs] = NULL;
+    g_gpu.h_vstage[vs] = NULL;
+    g_gpu.vstage_bytes[vs] = 0;
+    if (cudaMalloc(&g_gpu.d_vstage[vs], vbytes) != cudaSuccess) return 0;
+    if (cudaMallocHost(&g_gpu.h_vstage[vs], vbytes) != cudaSuccess) {
+        cudaFree(g_gpu.d_vstage[vs]);
+        g_gpu.d_vstage[vs] = NULL;
+        return 0;
+    }
+    g_gpu.vstage_bytes[vs] = vbytes;
+    return 1;
+}
+
 extern "C" void cr_raster_cuda_render_layer(CrFramebuffer *fb,
                                             const CrVertex *verts, int nverts,
                                             const CrCamera *cam,
@@ -1181,14 +1222,21 @@ extern "C" void cr_raster_cuda_render_layer(CrFramebuffer *fb,
         cudaMemcpyAsync(g_gpu.d_depth, fb->depth, npix * sizeof(float),
                         cudaMemcpyHostToDevice, g_gpu.stream);
     }
-    /* HOST-BUFFER CONTRACT: `verts` must stay untouched until frame_end's
-     * stream sync (world layers are stable per-frame slabs; frame_capture
-     * rotates its entity buffers so same-frame emits never alias). */
+    /* Snapshot host verts into a staging ring slot NOW (CPU memcpy into a
+     * pinned mirror, then async H2D). window_compose reuses one entity_verts
+     * buffer for every same-frame entity/item/fire/particle emit; without
+     * this snapshot the next emit races the in-flight H2D and the fire
+     * overlay (first large multi-layer overwrite after a small H2D) renders
+     * as greyscale garbage. Metal already does the equivalent via g_vstage.
+     * Ring depth CR_SH_RING matches the shade-ctx ring bound. */
+    int vs = g_gpu.vs_idx;
+    g_gpu.vs_idx = (g_gpu.vs_idx + 1) % CR_SH_RING;
     size_t vbytes = (size_t)ntris_in * 3 * sizeof(CrVertex);
-    cr_cuda_ensure_pinned(verts, vbytes);
-    cudaMemcpyAsync(g_gpu.d_verts, verts, vbytes, cudaMemcpyHostToDevice,
-                    g_gpu.stream);
-    cr_cuda_run_layer(fb, ntris_in * 3, cam, sh);
+    if (!cr_cuda_ensure_vstage(vs, vbytes)) return;
+    memcpy(g_gpu.h_vstage[vs], verts, vbytes);
+    cudaMemcpyAsync(g_gpu.d_vstage[vs], g_gpu.h_vstage[vs], vbytes,
+                    cudaMemcpyHostToDevice, g_gpu.stream);
+    cr_cuda_run_layer(fb, ntris_in * 3, cam, sh, g_gpu.d_vstage[vs]);
 }
 
 /* ---- device-resident chunk meshes ------------------------------------- */
@@ -1305,7 +1353,7 @@ extern "C" void cr_raster_cuda_render_gather(CrFramebuffer *fb,
         (unsigned int *)g_gpu.d_verts, (const unsigned int *)g_gpu.d_slabs,
         g_gpu.d_gsrc + base, g_gpu.d_gpfx + base, nents, words);
     cr_cuda_check("cuda_render_gather");
-    cr_cuda_run_layer(fb, total_verts, cam, sh);
+    cr_cuda_run_layer(fb, total_verts, cam, sh, g_gpu.d_verts);
 }
 
 /* All 4 terrain layers as ONE gather + transform + bbox + raster chain.
@@ -1419,6 +1467,10 @@ extern "C" void cr_raster_cuda_post(void) {
     if (g_gpu.d_xoffsets) cudaFree(g_gpu.d_xoffsets);
     if (g_gpu.d_screen_tris) cudaFree(g_gpu.d_screen_tris);
     if (g_gpu.d_verts)  cudaFree(g_gpu.d_verts);
+    for (int i = 0; i < CR_SH_RING; ++i) {
+        if (g_gpu.d_vstage[i]) cudaFree(g_gpu.d_vstage[i]);
+        if (g_gpu.h_vstage[i]) cudaFreeHost(g_gpu.h_vstage[i]);
+    }
     if (g_gpu.d_sh)     cudaFree(g_gpu.d_sh);
     if (g_gpu.d_lm)     cudaFree(g_gpu.d_lm);
     if (g_gpu.h_lm)     cudaFreeHost(g_gpu.h_lm);

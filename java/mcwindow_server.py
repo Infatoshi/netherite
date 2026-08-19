@@ -14,6 +14,7 @@ Viewer protocol, single TCP connection on :25581:
                       {"t":"key","sym":"<X keysym name>","p":0|1}
                       {"t":"scroll","d":<clicks, +up>}
 """
+import argparse
 import json
 import os
 import socket
@@ -27,7 +28,7 @@ from Xlib import X, XK, display
 from Xlib.ext import xtest
 
 FRAME_PORT = 25580
-VIEWER_PORT = int(os.environ.get("MCW_PORT", "25581"))
+VIEWER_PORT = 25581  # overridden in main() via --port
 REPO = os.path.expanduser("~/dev/minecraft/mc-1.11.2-env")
 MAGIC = 0x51484631
 
@@ -36,13 +37,15 @@ class Injector:
     """XTEST input on :0, pointer clamped to the game window so ungrabbed
     (menu) clicks can never land on the desktop."""
 
-    def __init__(self):
+    def __init__(self, width=1280, height=720):
         self.d = display.Display(os.environ.get("DISPLAY", ":0"))
         self.win = None
         self.geom = None  # (x, y, w, h) root-absolute
         self.keycode_cache = {}
         self.down_keys = set()
         self.down_buttons = set()
+        self.target_w = width
+        self.target_h = height
         # Flat pointer response: X acceleration would otherwise distort both
         # menu cursor tracking and grabbed mouse-look (LWJGL measures the
         # accelerated pointer, not raw deltas).
@@ -60,8 +63,8 @@ class Injector:
             # wmctrl (EWMH moveresize) on the frame is what Mutter honors;
             # xdotool windowsize is ignored. Heal any accidental drag/resize
             # (stuck-modifier incidents) and pin the game at the target size.
-            tw = int(os.environ.get("MCW_W", "1280"))
-            th = int(os.environ.get("MCW_H", "720"))
+            tw = self.target_w
+            th = self.target_h
             subprocess.run(["wmctrl", "-i", "-r", out[0], "-e",
                             f"0,60,60,{tw},{th}"], capture_output=True, timeout=5)
             time.sleep(0.5)
@@ -178,8 +181,18 @@ def read_exact(sock, n):
 
 
 def main():
+    global VIEWER_PORT
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--port", type=int, default=25581,
+                    help="viewer TCP port (default 25581)")
+    ap.add_argument("--width", type=int, default=1280,
+                    help="pin game window width (default 1280)")
+    ap.add_argument("--height", type=int, default=720,
+                    help="pin game window height (default 720)")
+    args = ap.parse_args()
+    VIEWER_PORT = args.port
     ensure_game()
-    inj = Injector()
+    inj = Injector(width=args.width, height=args.height)
 
     latest = {"frame": None, "modsock": None}
     cond = threading.Condition()

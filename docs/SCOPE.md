@@ -19,7 +19,15 @@ live here; do not conflate them:
 - Redstone mechanics (wire, repeaters, comparators, pistons, dispensers,
   rails, TNT-as-circuit). Only redstone-ore blocks and a wire selection box
   exist. (`docs/DEVLOG.md:54`)
-- Multiplayer/servers, audio, disk saves as a product feature.
+- Multiplayer/servers, disk saves as a product feature.
+- Audio: **magma-only, blaze non-goal** (was cut; reversed 2026-08-08 for human
+  interactive play). magma has the sound-event seam plus OpenAL/Vorbis playback
+  behind `make MAGMA_AUDIO_OPENAL=1`; block break/place/hit are oracle-matched.
+  blaze stays audio-free and no gate verifies audio on blaze. Sound is a pure
+  sink: it never writes sim state and never draws from a seeded stream, so a
+  default (audio-off) build is bit-identical. Emitters still missing because
+  the sim under them is: mob, world-event (`World.playEvent` 1000-1032),
+  firework, and jukebox sounds.
 - Villages/villagers/trading, enchanting, brewing, weather: `--villages on`
   etc. hard-reject at startup as "not wired yet" (`magma/game/config.c`).
 - Side structures (monuments, mansions, temples, igloos) and rare-biome mobs

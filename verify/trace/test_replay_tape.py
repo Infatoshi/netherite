@@ -40,6 +40,16 @@ def _add_midframe_marker(magma):
     return magma
 
 
+def test_absolute_pixel_refusal_never_becomes_a_pass():
+    gate = {"pass": False, "frames_checked": 5, "failed_frames": [{"tick": 1}]}
+    status = {"status": "blocked", "pass": None, "reason": "provenance_mismatch"}
+    refused = replay_tape.mark_absolute_pixel_refused(gate, status)
+    assert refused["pass"] is None
+    assert refused["absolute_pixel_refused"] is True
+    assert refused["pixel_status"] == status
+    assert gate["pass"] is False
+
+
 def test_new_recorder_state_becomes_sorted_render_and_next_tick_events(tmp_path: Path):
     inv = [0] * 41
     inv[0] = [17, 0, 2]
@@ -166,6 +176,27 @@ def test_cached_snapshot_patch_is_applied_at_tick_zero(tmp_path: Path):
     snapshot = next(event for event in events if event["type"] == "snapshot_block")
     assert snapshot == {"tick": 0, "type": "snapshot_block",
                         "x": 4, "y": 65, "z": 7, "id": 17, "meta": 4}
+
+
+def test_snapshot_probe_omits_authoritative_container_lifecycle(tmp_path: Path):
+    patch = tmp_path / "snapshot.jsonl"
+    patch.write_text("")
+    header = {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20,
+    }
+    ticks = [{
+        "t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0,
+        "z": 0.5, "yaw": 0.0, "pitch": 0.0, "ents": [],
+        "gopen": [["GuiCrafting", 1, "workbench", 0, 4, 3,
+                   [0] * 10, 0]],
+    }]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(
+        header, ticks, str(script), snapshot_override=patch)
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert not any(event["type"].startswith("container_") for event in events)
 
 
 def test_position_packet_reloads_nearby_snapshot_chunks(tmp_path: Path):
@@ -581,6 +612,262 @@ def test_gui_chest_slot_id_mapping():
     assert replay_tape.gui_slot_id("GuiChest", 54) == 0
     assert replay_tape.gui_slot_id("GuiChest", 62) == 8
     assert replay_tape.gui_slot_id("GuiChest", 63) is None
+
+
+def _hdr():
+    return {
+        "header": 1, "seed": 0, "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20,
+    }
+
+
+def _tick(**extra):
+    base = {
+        "t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0, "z": 0.5,
+        "yaw": 0.0, "pitch": 0.0, "ents": [],
+    }
+    base.update(extra)
+    return base
+
+
+def test_gclk_emits_ordered_container_clicks_before_action(tmp_path: Path):
+    """Captured inventory craft click sequence -> container_click events.
+
+    GuiInventory slot list: 0=result, 1..4=2x2 grid, 9..35=main, 36..44=hotbar.
+    Sequence (one log in hotbar 0 / vanilla idx 36): pick hotbar, place one in
+    grid cell 0 (idx 1 -> GMC 36), take result (idx 0 -> GMC 45).
+    """
+    inv = [0] * 41
+    inv[0] = [17, 0, 2]
+    ticks = [
+        _tick(gui="GuiInventory",
+              gclk=[
+                  ["GuiInventory", 36, 0, 0, "PICKUP"],
+                  ["GuiInventory", 1, 1, 0, "PICKUP"],
+                  ["GuiInventory", 0, 0, 0, "PICKUP"],
+              ]),
+        _tick(t=1, inv=inv),
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(_hdr(), ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    tick0 = [e for e in events if e["tick"] == 0]
+    clicks = [e for e in tick0 if e["type"] == "container_click"]
+    assert clicks == [
+        {"tick": 0, "type": "container_click", "slot": 0, "button": 0,
+         "click_type": 0, "window_id": 0},
+        {"tick": 0, "type": "container_click", "slot": 36, "button": 1,
+         "click_type": 0, "window_id": 0},
+        {"tick": 0, "type": "container_click", "slot": 45, "button": 0,
+         "click_type": 0, "window_id": 0},
+    ]
+    types0 = [e["type"] for e in tick0]
+    if "action" in types0:
+        assert types0.index("container_click") < types0.index("action")
+    assert not any(e["type"] == "container_click" for e in events
+                   if e["tick"] == 1)
+    assert not any(e.get("type") == "set_inventory" and e.get("item") == 5
+                   for e in events)
+
+
+def test_gclk_inventory_outside_slot_and_quick_move(tmp_path: Path):
+    ticks = [
+        _tick(gui="GuiInventory",
+              gclk=[
+                  ["GuiInventory", 9, 0, 1, "QUICK_MOVE"],
+                  ["GuiInventory", -999, 0, 0, "PICKUP"],
+              ]),
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(_hdr(), ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    clicks = [e for e in events if e["type"] == "container_click"]
+    assert clicks == [
+        {"tick": 0, "type": "container_click", "slot": 9, "button": 0,
+         "click_type": 1, "window_id": 0},
+        {"tick": 0, "type": "container_click", "slot": -999, "button": 0,
+         "click_type": 0, "window_id": 0},
+    ]
+
+
+def test_gopen_inventory_close_reopen(tmp_path: Path):
+    """Player inventory open/click/close/reopen with window identity."""
+    ticks = [
+        _tick(gopen=[["GuiInventory", 0, "player"]]),
+        _tick(t=1,
+              gclk=[["GuiInventory", 36, 0, 0, "PICKUP", 0]],
+              gclose=[[0, "GuiInventory"]]),
+        _tick(t=2, gopen=[["GuiInventory", 0, "player"]]),
+        _tick(t=3,
+              gclk=[["GuiInventory", 9, 0, 1, "QUICK_MOVE", 0]],
+              gclose=[[0, "GuiInventory"]]),
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(_hdr(), ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert [e for e in events if e["type"].startswith("container_")] == [
+        {"tick": 0, "type": "container_open", "window_id": 0,
+         "ctype": "player", "x": 0, "y": 0, "z": 0},
+        {"tick": 0, "type": "container_cursor", "item": 0, "count": 0, "meta": 0},
+        {"tick": 1, "type": "container_click", "slot": 0, "button": 0,
+         "click_type": 0, "window_id": 0},
+        {"tick": 1, "type": "container_close", "window_id": 0},
+        {"tick": 2, "type": "container_open", "window_id": 0,
+         "ctype": "player", "x": 0, "y": 0, "z": 0},
+        {"tick": 2, "type": "container_cursor", "item": 0, "count": 0, "meta": 0},
+        {"tick": 3, "type": "container_click", "slot": 9, "button": 0,
+         "click_type": 1, "window_id": 0},
+        {"tick": 3, "type": "container_close", "window_id": 0},
+    ]
+
+
+def test_gopen_workbench_emits_open_seed_click(tmp_path: Path):
+    slots = [0] * 10
+    ticks = [
+        _tick(gopen=[["GuiCrafting", 1, "workbench", 3, 70, 5, slots, 0]]),
+        _tick(t=1, gclk=[
+            ["GuiCrafting", 37, 0, 0, "PICKUP", 1],  # hotbar0
+            ["GuiCrafting", 1, 0, 0, "PICKUP", 1],  # grid0
+        ]),
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(_hdr(), ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    cont = [e for e in events if e["type"].startswith("container_")]
+    assert cont[0] == {
+        "tick": 0, "type": "container_open", "window_id": 1,
+        "ctype": "workbench", "x": 3, "y": 70, "z": 5,
+    }
+    seeds = [e for e in cont if e["type"] == "container_slot"]
+    assert len(seeds) == 9
+    assert seeds[0]["slot"] == 36
+    assert any(e["type"] == "container_click" and e["slot"] == 0
+               and e["window_id"] == 1 for e in cont)
+    assert any(e["type"] == "container_click" and e["slot"] == 36
+               and e["window_id"] == 1 for e in cont)
+
+
+def test_gopen_furnace_and_chest(tmp_path: Path):
+    fslots = [0, 0, 0]
+    fslots[0] = [15, 0, 2]
+    fslots[1] = [263, 0, 4]
+    cslots = [0] * 27
+    cslots[0] = [264, 0, 2]
+    ticks = [
+        _tick(gopen=[["GuiFurnace", 2, "furnace", 1, 64, 2, fslots, 0,
+                      [80, 1600, 100, 200]]]),
+        _tick(t=1, gclk=[["GuiFurnace", 2, 0, 0, "PICKUP", 2]]),
+        # Switch: new gopen implies close of previous (no same-tick gclose).
+        _tick(t=2,
+              gopen=[["GuiChest", 3, "chest", 4, 64, 4, cslots, [297, 0, 3]]]),
+        _tick(t=3, gclk=[["GuiChest", 0, 0, 0, "PICKUP", 3]]),
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(_hdr(), ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    opens = [e for e in events if e["type"] == "container_open"]
+    assert opens[0]["ctype"] == "furnace" and opens[0]["window_id"] == 2
+    assert opens[1]["ctype"] == "chest" and opens[1]["x"] == 4
+    props = [e for e in events if e["type"] == "container_furnace_prop"]
+    assert props == [{
+        "tick": 0, "type": "container_furnace_prop",
+        "burn": 80, "current_burn": 1600, "cook": 100, "total_cook": 200,
+    }]
+    fseeds = [e for e in events if e["type"] == "container_slot"
+              and e["tick"] == 0]
+    assert any(e["slot"] == 46 and e["item"] == 15 for e in fseeds)
+    assert any(e["slot"] == 47 and e["item"] == 263 for e in fseeds)
+    cseeds = [e for e in events if e["type"] == "container_slot"
+              and e["tick"] == 2]
+    assert any(e["slot"] == 53 and e["item"] == 264 and e["count"] == 2
+               for e in cseeds)
+    curs = [e for e in events if e["type"] == "container_cursor" and e["tick"] == 2]
+    assert curs[0]["item"] == 297 and curs[0]["count"] == 3
+
+
+def test_gclk_fails_closed_on_wrong_window_id(tmp_path: Path):
+    ticks = [
+        _tick(gopen=[["GuiInventory", 0, "player"]]),
+        _tick(t=1, gclk=[["GuiInventory", 36, 0, 0, "PICKUP", 7]]),
+    ]
+    with pytest.raises(SystemExit, match="window_id 7 != open 0"):
+        replay_tape.tape_to_script(
+            _hdr(), ticks, str(tmp_path / "events.jsonl"))
+
+
+def test_gopen_and_click_same_tick_fails_closed(tmp_path: Path):
+    ticks = [
+        _tick(gopen=[["GuiInventory", 0, "player"]],
+              gclk=[["GuiInventory", 36, 0, 0, "PICKUP", 0]]),
+    ]
+    with pytest.raises(SystemExit, match="gopen and gclk share a tick"):
+        replay_tape.tape_to_script(
+            _hdr(), ticks, str(tmp_path / "events.jsonl"))
+
+
+def test_gclk_fails_closed_on_unsupported_click_type(tmp_path: Path):
+    ticks = [
+        _tick(gclk=[["GuiInventory", 36, 0, 6, "PICKUP_ALL"]]),
+    ]
+    with pytest.raises(SystemExit, match="unsupported ClickType PICKUP_ALL"):
+        replay_tape.tape_to_script(
+            _hdr(), ticks, str(tmp_path / "events.jsonl"))
+
+
+def test_gclk_fails_closed_on_unknown_gui_slot(tmp_path: Path):
+    ticks = [
+        _tick(gclk=[["GuiEnchantment", 0, 0, 0, "PICKUP"]]),
+    ]
+    with pytest.raises(SystemExit, match="legacy 5-field gclk only valid"):
+        replay_tape.tape_to_script(
+            _hdr(), ticks, str(tmp_path / "events.jsonl"))
+
+
+def test_gopen_fails_closed_on_double_chest(tmp_path: Path):
+    slots = [0] * 54
+    ticks = [
+        _tick(gopen=[["GuiChest", 1, "double_chest", 0, 64, 0, slots, 0]]),
+    ]
+    with pytest.raises(SystemExit, match="unsupported container ctype"):
+        replay_tape.tape_to_script(
+            _hdr(), ticks, str(tmp_path / "events.jsonl"))
+
+
+def test_gopen_fails_closed_on_missing_position(tmp_path: Path):
+    ticks = [
+        _tick(gopen=[["GuiCrafting", 1, "workbench",
+                      -2147483648, -2147483648, -2147483648,
+                      [0] * 10, 0]]),
+    ]
+    with pytest.raises(SystemExit, match="missing world position"):
+        replay_tape.tape_to_script(
+            _hdr(), ticks, str(tmp_path / "events.jsonl"))
+
+
+def test_gclk_fails_closed_on_type_name_mismatch(tmp_path: Path):
+    ticks = [
+        _tick(gclk=[["GuiInventory", 36, 0, 0, "THROW"]]),
+    ]
+    with pytest.raises(SystemExit, match="ordinal 0 is PICKUP"):
+        replay_tape.tape_to_script(
+            _hdr(), ticks, str(tmp_path / "events.jsonl"))
+
+
+def test_gclk_schema_fails_closed(tmp_path: Path):
+    bad_payloads = [
+        None,
+        [["GuiInventory", 36, 0, 0]],
+        [["GuiInventory", 36, 0, 0, "PICKUP", "extra"]],
+        [["GuiInventory", "36", 0, 0, "PICKUP"]],
+        [["GuiInventory", 36, 0.0, 0, "PICKUP"]],
+        [["GuiInventory", 36, 0, False, "PICKUP"]],
+    ]
+    for payload in bad_payloads:
+        with pytest.raises(SystemExit):
+            replay_tape.tape_to_script(
+                _hdr(), [_tick(gclk=payload)],
+                str(tmp_path / "events.jsonl"))
 
 
 def test_health_packet_alignment_accepts_adjacent_tick():
@@ -1145,33 +1432,37 @@ def test_inventory_gate_seeded_only_when_only_tick_zero_has_inv():
 def test_inventory_gate_independent_pass_and_mutation_fail():
     """Prove the gate catches post-seed inventory divergence.
 
-    Synthetic tape: inv at t=0 (seed) and t=20 (keyframe). Matching magma
-    inventory at t=20 PASSes with independent verification; mutating magma
-    (extra arrow consume / missing stack) FAILs. Tick 0 alone is not enough.
+    Synthetic tape: inv at t=0 (seed) and t=20 (keyframe). Replay re-anchors
+    post-tick inv on script tick t+1, so the gate reads magma at index t+1.
+    Matching magma at t=21 PASSes; mutating that row FAILs. Tick 0 alone is
+    not enough.
     """
     inv0 = [[261, 0, 1]] + [0] * 7 + [[262, 0, 64]] + [0] * 32
     inv20 = [[261, 0, 1]] + [0] * 7 + [[262, 0, 63]] + [0] * 32  # one arrow used
     ticks = [_pose_tick(t, inv=(inv0 if t == 0 else inv20 if t == 20 else None))
              for t in range(21)]
+    # Index t holds pre-reanchor live inv; index t+1 holds tape inv[t].
     magma_ok = [
         _magma_row(t, (
             [{"slot": 0, "item": 261, "count": 1, "meta": 0},
-             {"slot": 8, "item": 262, "count": 64 if t < 20 else 63, "meta": 0}]
+             {"slot": 8, "item": 262, "count": 64 if t < 21 else 63, "meta": 0}]
         ))
-        for t in range(21)
+        for t in range(22)
     ]
+    magma_ok[21] = _magma_row(21, [
+        {"slot": 0, "item": 261, "count": 1, "meta": 0},
+        {"slot": 8, "item": 262, "count": 63, "meta": 0},
+    ])
     ok = replay_tape.collect_state_assertions(ticks, magma_ok, sample_every=20)
     assert ok["inventory"]["pass"] is True
     assert ok["inventory"]["seeded_only"] is False
     assert ok["inventory"]["ticks_independent"] == 1
     assert ok["inventory"]["ticks_checked"] == 2
 
-    # Mutation: magma kept 64 arrows / dropped the stack (sim failed to consume
-    # but more critically reports wrong item identity if stack is gone).
+    # Mutation on the post-reanchor dump: arrows gone while tape still has 63.
     magma_bad = [dict(r) for r in magma_ok]
-    magma_bad[20] = _magma_row(20, [
+    magma_bad[21] = _magma_row(21, [
         {"slot": 0, "item": 261, "count": 1, "meta": 0},
-        # slot 8 empty: arrows fully gone while tape still has 63
     ])
     bad = replay_tape.collect_state_assertions(ticks, magma_bad, sample_every=20)
     assert bad["inventory"]["pass"] is False
@@ -1183,7 +1474,7 @@ def test_inventory_gate_independent_pass_and_mutation_fail():
     # Alternate mutation: wrong item id in a non-empty slot (picked up dirt
     # instead of keeping arrows).
     magma_wrong_item = [dict(r) for r in magma_ok]
-    magma_wrong_item[20] = _magma_row(20, [
+    magma_wrong_item[21] = _magma_row(21, [
         {"slot": 0, "item": 261, "count": 1, "meta": 0},
         {"slot": 8, "item": 3, "count": 63, "meta": 0},  # dirt, not arrow
     ])
@@ -1200,10 +1491,10 @@ def test_inventory_gate_checks_off_grid_change_dumps():
     inv77 = [[261, 0, 1]] + [0] * 7 + [[262, 0, 1]] + [0] * 32  # picked up arrow
     ticks = [_pose_tick(t, inv=(inv0 if t == 0 else inv77 if t == 77 else None))
              for t in range(78)]
-    # Magma never got the arrow (pickup miss) — gate must FAIL.
+    # Magma never got the arrow on the post-reanchor dump (index 78) — FAIL.
     c_rows = [
         _magma_row(t, [{"slot": 0, "item": 261, "count": 1, "meta": 0}])
-        for t in range(78)
+        for t in range(79)
     ]
     state = replay_tape.collect_state_assertions(ticks, c_rows, sample_every=20)
     assert state["inventory"]["ticks_checked"] == 2
@@ -1211,6 +1502,69 @@ def test_inventory_gate_checks_off_grid_change_dumps():
     assert state["inventory"]["pass"] is False
     assert state["inventory"]["mismatches"][0]["tick"] == 77
     assert state["inventory"]["mismatches"][0]["tape_item"] == 262
+
+
+def test_inventory_gate_allows_set_inventory_reanchor_lag():
+    """First-appearance inv dump must not fail when re-anchor lands at t+1.
+
+    Mirrors survival GUI craft/pickup: tape inv at t has the new stack, magma
+    live inv is still empty at dump t (set_inventory is deferred to t+1), then
+    dump t+1 holds the taped item id. Same-index compare is a false fail.
+    """
+    inv0 = [0] * 41
+    # t=5: first planks in hotbar 7 (GUI craft result), like tape t=668.
+    inv5 = [0] * 7 + [[5, 0, 2]] + [0] * 33
+    ticks = [_pose_tick(t, inv=(inv0 if t == 0 else inv5 if t == 5 else None))
+             for t in range(6)]
+    # Empty through dump 5; re-anchor visible at dump 6.
+    c_rows = [_magma_row(t, []) for t in range(6)]
+    c_rows.append(_magma_row(6, [
+        {"slot": 7, "item": 5, "count": 2, "meta": 0},
+    ]))
+    ok = replay_tape.collect_state_assertions(ticks, c_rows, sample_every=20)
+    assert ok["inventory"]["pass"] is True
+    assert ok["inventory"]["ticks_independent"] == 1
+    assert ok["inventory"]["mismatches"] == []
+
+    # If re-anchor never lands, still FAIL (real missing item).
+    c_bad = [_magma_row(t, []) for t in range(7)]
+    bad = replay_tape.collect_state_assertions(ticks, c_bad, sample_every=20)
+    assert bad["inventory"]["pass"] is False
+    assert bad["inventory"]["mismatches"][0]["tick"] == 5
+    assert bad["inventory"]["mismatches"][0]["slot"] == 7
+    assert bad["inventory"]["mismatches"][0]["tape_item"] == 5
+    assert bad["inventory"]["mismatches"][0]["magma_item"] is None
+
+
+def test_inventory_gate_compares_count_and_meta():
+    """Full stack compare: wrong count or durability must fail, not only item id."""
+    inv0 = [[276, 0, 1]] + [0] * 40  # diamond sword
+    inv1 = [[276, 5, 1]] + [0] * 40  # same sword, damage 5
+    ticks = [_pose_tick(0, inv=inv0), _pose_tick(1, inv=inv1)]
+    # Post-reanchor of t=1 is dump index 2.
+    c_rows = [
+        _magma_row(0, [{"slot": 0, "item": 276, "count": 1, "meta": 0}]),
+        _magma_row(1, [{"slot": 0, "item": 276, "count": 1, "meta": 0}]),
+        _magma_row(2, [{"slot": 0, "item": 276, "count": 1, "meta": 0}]),
+    ]
+    bad_meta = replay_tape.collect_state_assertions(ticks, c_rows, sample_every=1)
+    assert bad_meta["inventory"]["pass"] is False
+    assert bad_meta["inventory"]["mismatches"][0]["tape_meta"] == 5
+    assert bad_meta["inventory"]["mismatches"][0]["magma_meta"] == 0
+
+    inv_count = [[262, 0, 64]] + [0] * 40
+    inv_count1 = [[262, 0, 63]] + [0] * 40
+    ticks_c = [_pose_tick(0, inv=inv_count), _pose_tick(1, inv=inv_count1)]
+    c_count = [
+        _magma_row(0, [{"slot": 0, "item": 262, "count": 64, "meta": 0}]),
+        _magma_row(1, [{"slot": 0, "item": 262, "count": 64, "meta": 0}]),
+        _magma_row(2, [{"slot": 0, "item": 262, "count": 64, "meta": 0}]),
+    ]
+    bad_count = replay_tape.collect_state_assertions(
+        ticks_c, c_count, sample_every=1)
+    assert bad_count["inventory"]["pass"] is False
+    assert bad_count["inventory"]["mismatches"][0]["tape_count"] == 63
+    assert bad_count["inventory"]["mismatches"][0]["magma_count"] == 64
 
 
 def test_gate_baseline_diff_missing_baseline_is_failure(tmp_path: Path):
@@ -1357,3 +1711,211 @@ def test_recorded_explosion_particles_map_to_script_ops(tmp_path):
          "x": 7.0, "y": 8.0, "z": 9.0,
          "vx": 0.0, "vy": 0.0, "vz": 0.0},
     ]
+
+
+def test_recorded_block_changes_map_to_set_block_post(tmp_path):
+    """Tape row-t ``bc`` finals become post-tick set_block_post on the same
+    tick so action t still simulates first, then client truth reanchors."""
+    header = {
+        "header": 1, "seed": 0, "world": "qrl_0", "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20, "dim": 0,
+    }
+    base = {
+        "in": {"f": 0, "s": 0, "jump": 0, "sneak": 0, "sprint": 0,
+               "atk": 1, "use": 0, "hb": 0},
+        "x": 0.5, "y": 70.0, "z": 0.5,
+        "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20,
+        "ents": [],
+    }
+    ticks = [
+        {
+            **base,
+            "t": 7,
+            "bc": [
+                [10, 64, -3, 2, 0],
+                [10, 65, -3, 0, 0],
+                [10, 64, -3, 0, 0],
+                [11, 64, -3, 2, 0],
+            ],
+        },
+        {**base, "t": 8, "in": {**base["in"], "atk": 0}},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    posts = [e for e in events if e["type"] == "set_block_post"]
+    assert posts == [
+        {"tick": 7, "type": "set_block_post",
+         "x": 10, "y": 64, "z": -3, "id": 2, "meta": 0},
+        {"tick": 7, "type": "set_block_post",
+         "x": 10, "y": 65, "z": -3, "id": 0, "meta": 0},
+        {"tick": 7, "type": "set_block_post",
+         "x": 10, "y": 64, "z": -3, "id": 0, "meta": 0},
+        {"tick": 7, "type": "set_block_post",
+         "x": 11, "y": 64, "z": -3, "id": 2, "meta": 0},
+    ]
+    # Action for the dig tick still emits independently on the same tick;
+    # script.c defers set_block_post until after gm_runtime_tick regardless of
+    # line order within the tick group.
+    actions = [e for e in events if e["type"] == "action" and e["tick"] == 7]
+    assert actions and actions[0].get("attack") == 1
+    assert all(e["tick"] == 7 for e in posts)
+    # Legacy rows without bc produce no set_block_post (byte-compat path).
+    assert not any(e["type"] == "set_block_post" and e["tick"] == 8
+                   for e in events)
+
+
+def test_block_change_payload_fails_closed(tmp_path):
+    header = {
+        "header": 1, "seed": 0, "world": "qrl_0", "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20, "dim": 0,
+    }
+    base = {
+        "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0, "z": 0.5,
+        "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20, "ents": [],
+    }
+    script = tmp_path / "events.jsonl"
+    bad_cases = [
+        [[10, 64, 0, 0]],                 # too short
+        [[10, 64, 0, 0, 0, 1]],           # too long
+        [[10, 64, 0, "air", 0]],          # non-int id
+        [[10, 64, 0, "1", 0]],            # numeric strings are not schema ints
+        [[10, 64, 0, 1.0, 0]],            # integral floats are not schema ints
+        [[10, 64, 0, True, 0]],           # JSON booleans are not schema ints
+        [[10, -1, 0, 0, 0]],              # y out of range
+        [[10, 64, 0, 5000, 0]],           # id out of range
+        [[10, 64, 0, 1, 16]],             # meta out of range
+        [[2147483648, 64, 0, 1, 0]],       # x outside C int range
+    ]
+    for bc in bad_cases:
+        ticks = [{**base, "t": 0, "bc": [bc]}]
+        try:
+            replay_tape.tape_to_script(header, ticks, str(script))
+        except ValueError:
+            continue
+        raise AssertionError(f"expected ValueError for bc={bc!r}")
+
+
+def test_legacy_tape_without_bc_unchanged(tmp_path):
+    """Old tapes omit bc; script must not invent set_block_post events."""
+    header = {
+        "header": 1, "seed": 0, "world": "qrl_0", "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20, "dim": 0,
+    }
+    ticks = [
+        {"t": 0, "in": {"f": 0, "s": 0}, "x": 0.5, "y": 70.0, "z": 0.5,
+         "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20, "ents": []},
+    ]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    assert not any(e["type"] == "set_block_post" for e in events)
+    assert not any(e["type"] == "snapshot_block" for e in events
+                   if e.get("tick", 0) > 0)
+
+
+def test_bulk_bc_over_clumping_threshold_maps_to_set_block_post(tmp_path):
+    """Partial SPacketChunkData path can exceed Forge clumpingThreshold (64).
+
+    Recorder emits those cell finals on the shared ``bc`` channel; replay must
+    expand every entry to set_block_post in tape order with no 64-cap.
+    """
+    header = {
+        "header": 1, "seed": 0, "world": "qrl_0", "world_time": 6000,
+        "x": 0.5, "y": 70.0, "z": 0.5, "yaw": 0.0, "pitch": 0.0,
+        "hp": 20.0, "food": 20, "dim": 0,
+    }
+    base = {
+        "in": {"f": 0, "s": 0, "jump": 0, "sneak": 0, "sprint": 0,
+               "atk": 0, "use": 0, "hb": 0},
+        "x": 0.5, "y": 70.0, "z": 0.5,
+        "yaw": 0.0, "pitch": 0.0, "hp": 20.0, "food": 20,
+        "ents": [],
+    }
+    n = 80  # > ForgeModContainer.clumpingThreshold default 64
+    bulk = [[100 + i, 64, 200, 1, i & 15] for i in range(n)]
+    ticks = [{**base, "t": 3, "bc": bulk}]
+    script = tmp_path / "events.jsonl"
+    replay_tape.tape_to_script(header, ticks, str(script))
+    events = [json.loads(line) for line in script.read_text().splitlines()]
+    posts = [e for e in events if e["type"] == "set_block_post"]
+    assert len(posts) == n
+    assert posts[0] == {
+        "tick": 3, "type": "set_block_post",
+        "x": 100, "y": 64, "z": 200, "id": 1, "meta": 0,
+    }
+    assert posts[63] == {
+        "tick": 3, "type": "set_block_post",
+        "x": 163, "y": 64, "z": 200, "id": 1, "meta": 15,
+    }
+    assert posts[79] == {
+        "tick": 3, "type": "set_block_post",
+        "x": 179, "y": 64, "z": 200, "id": 1, "meta": 15,
+    }
+    assert all(e["tick"] == 3 for e in posts)
+    # Quiet subsequent row still invents nothing (legacy-compatible).
+    ticks2 = [{**base, "t": 3, "bc": bulk}, {**base, "t": 4}]
+    script2 = tmp_path / "events2.jsonl"
+    replay_tape.tape_to_script(header, ticks2, str(script2))
+    events2 = [json.loads(line) for line in script2.read_text().splitlines()]
+    assert not any(e["type"] == "set_block_post" and e["tick"] == 4
+                   for e in events2)
+
+
+# ---- tri-state gate outcome: harness faults must never read as parity ----
+
+def test_signal_death_is_infrastructure_not_parity():
+    """rc=-11 is the SIGSEGV in AGENTS.md; diffing its partial state made it rc=4."""
+    assert replay_tape.magma_run_failure_is_infrastructure(
+        "magma_game failed (rc=-11)")
+    assert replay_tape.magma_run_failure_is_infrastructure(
+        "magma_game failed (rc=139)")
+    assert replay_tape.magma_run_failure_is_infrastructure(
+        "magma_game build failed")
+
+
+def test_live_player_death_stays_a_parity_verdict():
+    """rc=2 is a dead magma player, whose partial state IS divergence evidence."""
+    assert not replay_tape.magma_run_failure_is_infrastructure(
+        "magma_game failed (rc=2)")
+    assert not replay_tape.magma_run_failure_is_infrastructure(
+        "magma_game failed (rc=1)")
+    assert not replay_tape.magma_run_failure_is_infrastructure("some other error")
+
+
+def test_infrastructure_payload_carries_no_boolean_verdict():
+    payload = replay_tape.infrastructure_gate_payload("magma produced no state rows")
+    assert payload["outcome"] == replay_tape.OUTCOME_INFRA_FAIL
+    assert payload["pass"] is None       # never True, never False
+    assert payload["infrastructure_fail"]["reason"]
+    assert payload["frames_checked"] == 0
+
+
+def test_parity_rc_precedence_unchanged():
+    clean = {k: {"available": False, "pass": True} for k in
+             ("inventory", "entities", "world")}
+    contract = {"gate_status": {}}
+    assert replay_tape._parity_rc(None, clean, contract) == 0
+    assert replay_tape._parity_rc({"tick": 7}, clean, contract) == 4
+    bad_inv = dict(clean, inventory={"available": True, "pass": False})
+    assert replay_tape._parity_rc(None, bad_inv, contract) == 5
+    # physics outranks state, exactly as before
+    assert replay_tape._parity_rc({"tick": 7}, bad_inv, contract) == 4
+
+
+def test_fail_closed_writes_infrastructure_not_a_failed_parity_gate(tmp_path: Path):
+    """Regression: this path used to stamp pass=False on a run with no evidence."""
+    contract = {"fail_closed": {"ok": False,
+                                "reasons": ["zero state rows from magma"]},
+                "gate_status": {}}
+    replay_tape._write_gate_artifacts(
+        str(tmp_path), "t", None, {"kind": "state"}, contract, False,
+        {}, [], None, None, {}, {}, {}, None)
+    written = json.loads(
+        (tmp_path / "report" / "tape_t.gate.json").read_text())
+    assert written["outcome"] == replay_tape.OUTCOME_INFRA_FAIL
+    assert written["pass"] is None
+    assert "zero state rows" in written["infrastructure_fail"]["reason"]

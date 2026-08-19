@@ -1235,6 +1235,134 @@ pixel gate renders - the windowed-path blindspot class):
     damage classes (fire, fall) while pinning only server-computed events.
     Filed, not implemented.
 
+### Human tape campaign 2026-08-03
+
+The 10,973-tick seed-80302 survival recording
+`20260803T055113Z_vanilla_s80302_survival_default_rd8_837eae74` is the first
+long human tape with a recstart world snapshot, per-tick inventory keyframes,
+and Java nearby-world hashes. Its current full state replay still first exceeds
+the physics tolerance at t1475 (`x`, 8.50e-5 blocks), ends 43.4306 blocks away,
+and trips the inventory and world gates. The inventory gate returns its
+20-entry mismatch cap, beginning with GUI-created/moved items at t668.
+
+Landed infrastructure and simulation corrections from the campaign:
+
+18. FIXED: Recorder nearby-world FNV canonicalizes the upper half of
+    `BlockDoublePlant` through the same lossy metadata domain as magma.
+    Live metadata 10 previously hashed as 11 after
+    `getStateFromMeta(getMetaFromState(state))`, causing a false t0 world-gate
+    mismatch despite byte-identical snapshot terrain. The synthetic hash test
+    pins the measured plant cell and both packed identities.
+19. FIXED: survival digging now mirrors Minecraft's `leftClickCounter=10`
+    press-miss cooldown and 4.5-block survival reach instead of the creative
+    5.0-block reach. The focused controller matrix, full scripted survival
+    route, real-vs-batched CPU gate, and CPU-vs-CUDA gate pass. The route's
+    wooden-pick damage moves deterministically from 17 to 14 because three
+    formerly out-of-reach blocks are no longer mined.
+20. FIXED FOR NEW TAPES: every successful client `World.setBlockState` final
+    is recorded in exact call order as `bc`, then replayed as same-tick
+    post-action `set_block_post` re-anchors. This covers client mutation paths
+    that route through `World.setBlockState`, including ordinary packet
+    updates, local prediction, neighbor cascades, and fluid edits, without
+    inventing edits for legacy tapes. Partial bulk
+    `SPacketChunkData -> Chunk.fillChunk` (Forge `clumpingThreshold`, default
+    64) is now captured by `MixinRecordChunkFill` onto the same `bc` channel
+    (changed cells only, deterministic section/index order). Full `loadChunk`
+    terrain streams and recstart/dim-download handoffs are intentionally not
+    recorded (MCA snapshot + existing forcedLoading clear). The setBlockState
+    mixin was runtime-smoked in the real client and the C next-tick collision
+    regression passes.
+21. FIXED FOR NEW TAPES (player / workbench / furnace / single chest): ordered
+    `GuiContainer.handleMouseClick` calls are recorded as `gclk` with
+    `windowId`. Open/close edges carry `gopen`/`gclose` with gui class,
+    window id, ctype (`player`/`workbench`/`furnace`/`chest`), world pos
+    (from TE or last right-click block), container-side slot seed, cursor,
+    and furnace burn/cook prop. Replay emits `container_open` /
+    `container_slot` / `container_cursor` / `container_click` /
+    `container_close` and applies them only through magma
+    `container_live` + TE tables. Fail closed on missing/mismatched
+    identity, unsupported ClickType, double chest, legacy non-inventory
+    5-field `gclk`, or malformed payloads. Still blocked: double chest,
+    enchant/brewing/dispenser/hopper/beacon/shulker/horse/merchant,
+    SWAP/CLONE/QUICK_CRAFT/PICKUP_ALL. `gui_view`/`gslots`/`gcur` remain
+    render truth and never invent clicks.
+22. FIXED IN A FRESH ORACLE FIXTURE: `survival_campaign_auto` now records
+    `dig_trace` and exercises the human tape's sustained mining, miss cooldown,
+    tool changes, GUI open/close, chest/furnace, pickup/throw, and flowing-water
+    paths on seed 917351. The 4,810-tick replay is exact for all six pose and
+    velocity fields at `1e-9`; inventory (252 independent ticks), entities
+    (6,687 rows), Java world hash (4,810 ticks), and dig trace (4,809 paired
+    ticks) all pass.
+23. FIXED: the player controller now preserves vanilla's just-finished
+    `currentBlock` until `onPlayerDestroyBlock` clears it, translates active
+    controller targets across floating-origin recentering, and pins
+    `leftClickCounter=10000` while a block container is open. Closing the GUI
+    clears the sentinel. Recorder and replay expose the controller/raycast
+    dig-state fields through an opt-in, phase-aware fail-closed comparator;
+    render-sampled ray observations are matched to the measured adjacent
+    controller phase instead of being treated as same-tick state.
+24. FIXED: shared survival semantics now include lone/double chest collision,
+    furnace ROCK pickaxe effectiveness and harvest level, empty-to-filled
+    furnace cook-time initialization, outside-GUI THROW as vanilla's accepted
+    no-op, post-move water-entry current application, and Java's deliberate
+    float `MathHelper.sqrt` rounding during liquid-flow normalization.
+25. FIXED: `GuiInventory` now follows `InventoryEffectRenderer`: any active
+    potion moves the main panel and hit boxes to the vanilla shifted origin and
+    draws the status panel, icon, English vanilla name, amplifier, and duration.
+    On the campaign's Resistance IV inventory frame t380 this reduced
+    whole-frame error from 35.48/ch to 1.30/ch; the post-fix `pxdiff survey`
+    reports no inventory-panel cluster.
+
+
+Still open on this recording:
+
+- The old tape predates `bc` and `gclk`, so its GUI-created inventory and world
+  mutations cannot be retroactively recovered. Post-tick inventory comparison
+  is now aligned to the replay's t+1 re-anchor, exposing real missing items
+  rather than one-tick false failures.
+- The original human recording has no opt-in dig-state trace. Its first
+  same-anchor mutation split remains Java t1232/t1233 at grass `(116,65,324)`
+  plus tall grass above it: Java exposes an intermediate plant-only removal
+  hash for one tick while magma removes both in one neighbor-cascade tick, then
+  both reconverge immediately. Later streams separate and leave grass
+  `(113,65,326)` solid at the t1475 collision. The fresh 4,810-tick campaign
+  above is exact with the corrected controller and proves the general paths,
+  but cannot retroactively identify which legacy client/server event was
+  missing from this old tape; a coordinate special case remains forbidden.
+- The recording's goldens were produced by the Mac OpenGL path, while current
+  magma replay frames use the Linux renderer. That invalidates absolute
+  HUD/icon and mean-per-channel gate claims. The frames still prove large
+  content/pose failures after the worlds separate, but renderer work needs a
+  same-platform calibrated baseline or a re-record.
+
+- **Auto-campaign pixel causes (2026-08-03, seed 917351, Linux/GL, hide_gui=off):
+  physics+state verified clean, so every pixel diff is pure rendering.** Measured
+  via pxdiff survey (t80/180/240/1140/2000) + probe/pixels; camera-move and
+  hideGUI-golden families ruled out (pose byte-equal, in.sneak=0 always).
+  Enumerated:
+    1. World/luminance fog-fidelity wash (UNEXPLAINED, largest): giant horizon
+       clusters, candidate brighter+smoother vs golden's darker gradient.
+       NOT a new bug - this is the documented fog family (CLOSED_DIVERGENCES
+       slime_bounce horizon-band): magma already matches the vanilla radial fog
+       ramp to 0.0015 RMSE and retuning fog_start/end papers over a sub-pixel
+       view/projection registration lead. Do not retune GM_TERRAIN_FOG_*.
+    2. Viewmodel (hand) near-black (viewmodel class, 2nd): lower-right quadrants
+       render flat-dark (candidate lum_std ~1.7, golden shovel/hand browns).
+       Real hand-lighting bug candidate - hand.c hand_light_vtx / hand_diffuse
+       / frame_capture.c viewmodel env. Opposite extreme of the documented
+       "arm far too bright" on another tape - first-person lamp/env needs a
+       same-env recheck.
+    3. HUD hotbar darker + slight placement delta (hud class, small but
+       persistent). hud.c gm_hud_draw hotbar/selection/XP strip +
+       hud_blend_px_tex.
+    4. Particles: magma missing oracle additive glow (particles class, most
+       frames 196/239). Real additive-pass candidate in particles_live.c
+       gm_particles_live_emit_recorded/_emit; plus small lifetime/registration
+       deltas.
+    5. Minor cutout-sky+/thinline edge (noise level) - mesh_mc.c cutout layer.
+  Priority for a renderer grind: 2 then 4 then 3 (each needs the full
+  4810-tick auto-campaign pixel re-gate to verify; 1 is forbidden above).
+
 Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
 unexplained px (7 clusters, largest 1463) relative to its 2026-07-29
 baseline after the night's renderer merges; physics still 351/351. Baseline

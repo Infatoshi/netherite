@@ -20,6 +20,7 @@ episode (world edits persist otherwise - the policy would eat the tree).
 
 Run (anvil): cd magma && uv run --no-project --with numpy,torch,matplotlib python rl/walk_break.py
 """
+import argparse
 import json
 import math
 import os
@@ -36,7 +37,7 @@ OUT = os.path.join(HERE, "out")
 
 SEEDS = [0, 2, 3, 10, 11, 12, 14, 17, 19, 20, 21, 22, 29, 30, 35, 47]
 N_ENVS = len(SEEDS)
-N_EPISODES = int(os.environ.get("N_EPISODES", 250))
+N_EPISODES = 250       # historical unset-env default; overridden by --n-episodes
 EP_LEN = 240          # game ticks; policy decides every REPEAT ticks
 REPEAT = 4            # action repeat: 60 decisions/episode - a log break
                       # needs 15 consecutive attack DECISIONS instead of 60
@@ -157,6 +158,12 @@ def act_dict(idx):
 
 
 def main():
+    global N_EPISODES
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--n-episodes", type=int, default=N_EPISODES)
+    args = ap.parse_args()
+    N_EPISODES = args.n_episodes
+
     os.makedirs(OUT, exist_ok=True)
     torch.manual_seed(0)
     torch.set_num_threads(4)

@@ -25,18 +25,20 @@ void furnace_live_init(FurnaceLive *furnace) {
     furnace->burn_time = 0;
     furnace->current_burn_time = 0;
     furnace->cook_time = 0;
-    furnace->total_cook = fft_get_cook_time(&furnace->input);
+    furnace->total_cook = 0;
 }
 
 int furnace_live_insert(FurnaceLive *furnace, int slot, SRStack stack) {
     SRStack *dst;
     int limit;
     int moved;
+    int reset_cook;
 
     if (slot == FURNACE_LIVE_SLOT_OUTPUT || sr_isEmpty(stack)) return 0;
     dst = furnace_live_slot(furnace, slot);
     if (dst == NULL) return 0;
     if (slot == FURNACE_LIVE_SLOT_FUEL && sr_getItemBurnTime(stack) <= 0) return 0;
+    reset_cook = slot == FURNACE_LIVE_SLOT_INPUT && sr_isEmpty(*dst);
 
     limit = furnace_live_stack_limit(stack);
     if (!sr_isEmpty(*dst)) {
@@ -49,6 +51,10 @@ int furnace_live_insert(FurnaceLive *furnace, int slot, SRStack stack) {
     if (moved > limit) moved = limit;
     if (sr_isEmpty(*dst)) *dst = sr_mk(stack.item, moved, stack.meta);
     else dst->count += moved;
+    if (reset_cook) {
+        furnace->total_cook = fft_get_cook_time(&stack);
+        furnace->cook_time = 0;
+    }
     return moved;
 }
 

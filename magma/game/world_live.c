@@ -45,6 +45,7 @@
 
 /* raw blaze Chunk + mc_set/mc_state + PSV_DIM/PSV_R/PSV_NCHUNKS for fill_window. */
 #include "player_survival.h"
+#include "../../blaze/core/port_parity.h"
 #include "world_weather.h"   /* ww_init / ww_tick for live world-time composition */
 
 #include <assert.h>
@@ -276,6 +277,11 @@ struct GmWorld {
     WlVisGraph     vg;           /* reusable VisGraph scratch                      */
 
     long long     block_gen; /* bumps on every set_block(_meta); window-refill memo */
+    int           parity_valid;
+    int           parity_x0, parity_y0, parity_z0;
+    int           parity_nx, parity_ny, parity_nz;
+    u64           parity_digest;
+    unsigned      parity_mutations;
 };
 
 /* v mod D, non-negative. */
@@ -519,12 +525,26 @@ void gm_world_set_block(GmWorld *w, int wx, int wy, int wz, int id) {
 void gm_world_set_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int meta) {
     if (!w) return;
     int cx = wl_floordiv16(wx), cz = wl_floordiv16(wz);
-    int old_id = gm_world_block(w, wx, wy, wz);
+    u16 old_state = light_state(w->light, wx, wy, wz);
+    int old_id = mc_state_id(old_state);
+    u16 new_state = mc_state(id, meta);
+    if (w->parity_valid && old_state != new_state &&
+        wx >= w->parity_x0 && wx - w->parity_x0 < w->parity_nx &&
+        wy >= w->parity_y0 && wy - w->parity_y0 < w->parity_ny &&
+        wz >= w->parity_z0 && wz - w->parity_z0 < w->parity_nz) {
+        uint64_t index =
+            ((uint64_t)(wx - w->parity_x0) * (uint64_t)w->parity_ny +
+             (uint64_t)(wy - w->parity_y0)) * (uint64_t)w->parity_nz +
+            (uint64_t)(wz - w->parity_z0);
+        w->parity_digest = bp_world_digest_replace(
+            w->parity_digest, index, old_state, new_state);
+        ++w->parity_mutations;
+    }
 
     /* edit the block store, then re-light: light_ensure re-runs sky light for the
      * (idempotent) chunk generation and the global block-light BFS over loaded
      * chunks, which is local in effect (block light radius <= 15 = one chunk). */
-    light_set_state(w->light, wx, wy, wz, mc_state(id, meta));
+    light_set_state(w->light, wx, wy, wz, new_state);
     worldmc_ensure(w->wmc, cx, cz, 0);
     if ((old_id == 2 || old_id == 3) && id == 0)
         light_recheck_break_surfaces(w->light, wx, wy, wz);
@@ -554,10 +574,47 @@ void gm_world_load_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int me
     if (lz == 15) wl_mark_dirty(w, cx, cz + 1);
 }
 
+void gm_world_load_sky_light(GmWorld *w, int wx, int wy, int wz, int sky) {
+    if (!w) return;
+    light_load_sky(w->light, wx, wy, wz, sky);
+}
+
 long long gm_world_block_gen(const GmWorld *w) {
     /* fold in chunk generation: population (trees/structures) writes into
      * neighbour chunks directly, bypassing set_block_meta */
     return w ? w->block_gen + light_gen_events(w->light) : 0;
+}
+
+int gm_world_parity_configure(GmWorld *w, int x0, int y0, int z0,
+                              int nx, int ny, int nz) {
+    uint64_t h, index = 0;
+    int x, y, z;
+    if (!w || nx <= 0 || ny <= 0 || nz <= 0 ||
+        (uint64_t)nx * (uint64_t)ny > UINT64_MAX / (uint64_t)nz) {
+        if (w) w->parity_valid = 0;
+        return 0;
+    }
+    h = bp_world_digest_begin(nx, ny, nz);
+    for (x = 0; x < nx; ++x)
+        for (y = 0; y < ny; ++y)
+            for (z = 0; z < nz; ++z)
+                h = bp_world_digest_add(
+                    h, index++,
+                    light_state(w->light, x0 + x, y0 + y, z0 + z));
+    w->parity_x0 = x0; w->parity_y0 = y0; w->parity_z0 = z0;
+    w->parity_nx = nx; w->parity_ny = ny; w->parity_nz = nz;
+    w->parity_digest = h;
+    w->parity_mutations = 0;
+    w->parity_valid = 1;
+    return 1;
+}
+
+int gm_world_parity_state(const GmWorld *w, uint64_t *digest,
+                          unsigned *mutations) {
+    if (!w || !w->parity_valid || !digest || !mutations) return 0;
+    *digest = w->parity_digest;
+    *mutations = w->parity_mutations;
+    return 1;
 }
 
 int gm_world_surface_y(const GmWorld *w, int wx, int wz) {

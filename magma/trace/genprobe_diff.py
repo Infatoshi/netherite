@@ -3,7 +3,7 @@
 
 Inputs: two checkpoint logs with lines "TAG cx cz TYPE cursor":
   - java side:    qrl/WorldGenProbe.java (live Forge terrain-gen events, fresh world gen)
-  - magma side: trace/world_dump with MAGMA_GENPROBE=path (MC_PROBE checkpoints)
+  - magma side: trace/world_dump --set genprobe=path (MC_PROBE checkpoints)
 
 For every chunk populated on both sides, walks the two checkpoint sequences in order
 and reports the FIRST label/cursor divergence. The label names the exact vanilla

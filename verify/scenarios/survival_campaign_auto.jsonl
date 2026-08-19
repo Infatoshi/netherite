@@ -1,0 +1,127 @@
+{"seconds": 1.5}
+{"seconds": 0.5, "buttons": [3]}
+{"seconds": 1.5}
+{"seconds": 0.25, "keys": ["Escape"]}
+{"seconds": 0.5}
+{"seconds": 0.7, "keys": ["d"]}
+{"seconds": 0.3, "look": [40, 0]}
+{"seconds": 0.5, "buttons": [3]}
+{"seconds": 1.5}
+{"seconds": 0.25, "keys": ["Escape"]}
+{"seconds": 0.5}
+{"seconds": 1.2, "keys": ["a"], "look": [-80, 0]}
+{"seconds": 0.5, "buttons": [3]}
+{"seconds": 1.5}
+{"seconds": 0.25, "keys": ["Escape"]}
+{"seconds": 0.6, "keys": ["d"], "look": [40, 0]}
+{"seconds": 0.5}
+{"seconds": 0.2, "keys": ["e"]}
+{"seconds": 0.4}
+{"seconds": 0.2, "cursor": [282, 258]}
+{"seconds": 0.1, "cursor": [282, 258], "buttons": [1]}
+{"seconds": 0.4, "cursor": [282, 258]}
+{"seconds": 0.2, "cursor": [318, 258]}
+{"seconds": 0.1, "cursor": [318, 258], "buttons": [1]}
+{"seconds": 0.4, "cursor": [318, 258]}
+{"seconds": 0.2, "cursor": [318, 258]}
+{"seconds": 0.1, "cursor": [318, 258], "buttons": [3]}
+{"seconds": 0.4, "cursor": [318, 258]}
+{"seconds": 0.2, "cursor": [354, 258]}
+{"seconds": 0.1, "cursor": [354, 258], "buttons": [3]}
+{"seconds": 0.4, "cursor": [354, 258]}
+{"seconds": 0.2, "cursor": [318, 258]}
+{"seconds": 0.12, "cursor": [318, 258], "keys": ["Shift_L"], "buttons": [1]}
+{"seconds": 0.4, "cursor": [318, 258]}
+{"seconds": 0.2, "cursor": [282, 374]}
+{"seconds": 0.12, "cursor": [282, 374], "keys": ["q"]}
+{"seconds": 0.4, "cursor": [282, 374]}
+{"seconds": 0.2, "cursor": [318, 374]}
+{"seconds": 0.1, "cursor": [318, 374], "buttons": [1]}
+{"seconds": 0.35, "cursor": [318, 374]}
+{"seconds": 0.15, "cursor": [5, 5]}
+{"seconds": 0.12, "cursor": [5, 5], "buttons": [1]}
+{"seconds": 0.4, "cursor": [5, 5]}
+{"seconds": 0.2, "keys": ["e"]}
+{"seconds": 0.8}
+{"seconds": 0.18, "keys": ["space"], "look": [0, -55]}
+{"seconds": 0.5, "buttons": [1]}
+{"seconds": 0.35, "look": [0, 55]}
+{"seconds": 0.4, "buttons": [1]}
+{"seconds": 0.5}
+{"seconds": 0.15, "keys": ["1"]}
+{"seconds": 1.4, "keys": ["w"]}
+{"seconds": 0.35}
+{"seconds": 2.2, "buttons": [1]}
+{"seconds": 0.5}
+{"seconds": 0.15, "keys": ["3"]}
+{"seconds": 1.2, "keys": ["w"]}
+{"seconds": 0.35}
+{"seconds": 3.0, "buttons": [1]}
+{"seconds": 0.5}
+{"seconds": 0.15, "keys": ["4"]}
+{"seconds": 1.2, "keys": ["w"]}
+{"seconds": 0.35}
+{"seconds": 2.5, "buttons": [1]}
+{"seconds": 0.6}
+{"seconds": 0.15, "keys": ["5"]}
+{"seconds": 0.45, "look": [25, 15]}
+{"seconds": 0.4, "buttons": [3]}
+{"seconds": 0.45}
+{"seconds": 0.4, "buttons": [3]}
+{"seconds": 0.45}
+{"seconds": 0.4, "buttons": [3]}
+{"seconds": 0.5, "look": [-25, -15]}
+{"seconds": 0.4}
+{"seconds": 0.2, "keys": ["q"]}
+{"seconds": 0.3}
+{"seconds": 0.2, "keys": ["q"]}
+{"seconds": 0.3}
+{"seconds": 0.2, "keys": ["q"]}
+{"seconds": 0.3}
+{"seconds": 0.2, "keys": ["q"]}
+{"seconds": 2.0, "keys": ["w"]}
+{"seconds": 1.5}
+{"seconds": 0.15, "keys": ["1"]}
+{"seconds": 1.4, "keys": ["w"]}
+{"seconds": 0.35}
+{"seconds": 2.0, "buttons": [1]}
+{"seconds": 4.0}
+{"seconds": 1.2, "keys": ["w"]}
+{"seconds": 0.35}
+{"seconds": 1.8, "buttons": [1]}
+{"seconds": 0.6, "keys": ["d"]}
+{"seconds": 1.5, "buttons": [1]}
+{"seconds": 0.6, "keys": ["a"]}
+{"seconds": 0.5}
+{"seconds": 1.2, "keys": ["w"]}
+{"seconds": 0.35}
+{"seconds": 1.8, "buttons": [1]}
+{"seconds": 5.0}
+{"seconds": 6.0, "keys": ["w", "Control_L"], "look": [10, -2]}
+{"seconds": 0.7, "keys": ["w", "Control_L", "space"]}
+{"seconds": 6.0, "keys": ["w", "Control_L"], "look": [-14, 2]}
+{"seconds": 0.7, "keys": ["w", "space"]}
+{"seconds": 6.0, "keys": ["w", "Control_L"], "look": [12, -1]}
+{"seconds": 0.6, "keys": ["w", "Control_L", "space"]}
+{"seconds": 5.0, "keys": ["w", "Control_L"], "look": [-8, 0]}
+{"seconds": 0.7, "keys": ["w", "Control_L", "space"]}
+{"seconds": 5.0, "keys": ["w", "Control_L"], "look": [6, -2]}
+{"seconds": 1.5}
+{"seconds": 0.15, "keys": ["6"]}
+{"seconds": 3.5, "keys": ["w"]}
+{"seconds": 0.5}
+{"seconds": 2.0, "keys": ["a"], "buttons": [1]}
+{"seconds": 2.0, "keys": ["d"], "buttons": [1]}
+{"seconds": 6.0, "buttons": [1]}
+{"seconds": 2.0, "keys": ["w"], "buttons": [1]}
+{"seconds": 1.5}
+{"seconds": 5.0, "keys": ["w", "Control_L"], "look": [16, -3]}
+{"seconds": 0.8, "keys": ["w", "Control_L", "space"]}
+{"seconds": 5.0, "keys": ["w", "Control_L"], "look": [-14, 2]}
+{"seconds": 0.7, "keys": ["w", "space"]}
+{"seconds": 4.0, "keys": ["w", "Control_L"], "look": [8, 0]}
+{"seconds": 2.5, "keys": ["s"]}
+{"seconds": 2.0, "keys": ["a"]}
+{"seconds": 2.0, "keys": ["d"]}
+{"seconds": 2.5, "keys": ["w"]}
+{"seconds": 4.0}

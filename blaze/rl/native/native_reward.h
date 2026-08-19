@@ -38,14 +38,14 @@ struct RewardSpec {
   float coal_chew = 0.0F;
   float hunt_desc = 0.0F;
 
-  static RewardSpec resolve() {
+  /* coal_chew/hunt_desc: nullptr = leave default (0); else parse float. */
+  static RewardSpec resolve(const char *coal_chew = nullptr,
+                            const char *hunt_desc = nullptr) {
     RewardSpec spec;
-    if (const char *value = std::getenv("COAL_CHEW")) {
-      spec.coal_chew = std::strtof(value, nullptr);
-    }
-    if (const char *value = std::getenv("HUNT_DESC")) {
-      spec.hunt_desc = std::strtof(value, nullptr);
-    }
+    if (coal_chew && *coal_chew)
+      spec.coal_chew = std::strtof(coal_chew, nullptr);
+    if (hunt_desc && *hunt_desc)
+      spec.hunt_desc = std::strtof(hunt_desc, nullptr);
     return spec;
   }
 };

@@ -17,6 +17,7 @@ Usage (GPU0 under flock):
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -57,11 +58,11 @@ CKPT_DEFAULT = ROOT / "blaze" / "rl" / "out" / "native_1p92b.pt"
 SNAPS_DEFAULT = ROOT / "blaze" / "rl" / "out" / "snaps"
 OUT_DEFAULT = ROOT / "optloop_runs" / "simgen-v1" / "PRESERVED"
 PILOT_SEEDS = [2, 3, 10]
-EP_TICKS = int(os.environ.get("EP_TICKS", "6000"))
-TRIES = int(os.environ.get("TRIES", "5"))
+EP_TICKS = 6000
+TRIES = 5
 # decisions = ticks / REPEAT (trainer default EP_DEC=1500 for 6000 ticks)
 EP_DECISIONS = EP_TICKS // REPEAT
-DEVICE = int(os.environ.get("BLAZE_DEV", "0"))
+DEVICE = 0  # was BLAZE_DEV; physical GPU selected via CUDA_VISIBLE_DEVICES
 
 
 def sha256_file(path: Path) -> str:
@@ -423,9 +424,22 @@ def write_verdict(path: Path, results: dict, java_summary: dict):
 
 
 def main() -> int:
-    ckpt = Path(os.environ.get("CHAIN_NET", str(CKPT_DEFAULT)))
-    snaps = Path(os.environ.get("SNAPS", str(SNAPS_DEFAULT)))
-    out_dir = Path(os.environ.get("OUT_DIR", str(OUT_DEFAULT)))
+    global EP_TICKS, TRIES, EP_DECISIONS
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--chain-net", type=Path, default=CKPT_DEFAULT,
+                    help="checkpoint path (default: native_1p92b.pt)")
+    ap.add_argument("--ep-ticks", type=int, default=EP_TICKS)
+    ap.add_argument("--tries", type=int, default=TRIES)
+    ap.add_argument("--out-dir", type=Path, default=OUT_DEFAULT)
+    ap.add_argument("--snaps", type=Path, default=SNAPS_DEFAULT,
+                    help="snapshot directory")
+    args = ap.parse_args()
+    EP_TICKS = args.ep_ticks
+    TRIES = args.tries
+    EP_DECISIONS = EP_TICKS // REPEAT
+    ckpt = Path(args.chain_net)
+    snaps = Path(args.snaps)
+    out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     log_path = out_dir / "eval.log"
 

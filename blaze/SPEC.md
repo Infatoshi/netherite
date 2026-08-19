@@ -14,25 +14,47 @@ RL arena, optional villages/enchanting/brewing/weather bundles, and explicit cut
 redstone, audio, saves, multiplayer, achievements, and side content. Isolated kernels
 outside that contract do not imply product support.
 
-## Fidelity contract (the decision that makes this tractable)
+## Fidelity contract: one simulation, two compiled execution paths
 
-INTERNAL CONSISTENCY, not vanilla bit-exactness. The oracle is:
+The target is not a second game that merely resembles Magma. The bridge has
+three independently gated links:
 
-    CPU scalar path  ==  CUDA batch path   (bitwise, same source compiled twice)
+1. Java tapes and focused traces establish Magma's survival semantics.
+2. Magma batch-of-one and Blaze CPU consume the same snapshot and action stream;
+   every selected subsystem's normalized state digest must match every tick.
+3. Blaze CPU and the batched CUDA backend compile the same `MC_HD` core and must
+   match byte-for-byte, including both the frozen BOLR trainer output and the
+   full hidden-state parity record.
 
-We do NOT try to match vanilla MC tick-for-tick. That deletes the three things that killed the
-prior real-MC rewrites (netherite v0/v1):
-- no need to match java.util.Random LCG *call order*
-- no need to match HashMap/HashSet iteration order
-- no need to match strictfp JVM bit patterns
+`core/port_parity.h` is the versioned packed state contract. It carries
+implemented, measured, and active masks; per-subsystem evidence counts and FNV
+digests; and named scalar diagnostics. Unsupported state is `BLOCKED`, a digest
+mismatch is `FAILED`, and only measured zero-diff fixtures are `VERIFIED`.
+Missing snapshots, stale libraries, absent ABI symbols, and zero evidence can
+never pass.
 
-Real MC 1.11.2 (`ref/mc-src`, decompiled, read-only) is the BEHAVIORAL SPEC and visual sanity
-reference, not a bitwise oracle. Where we DO want vanilla faithfulness (worldgen terrain for a
-given seed; physics constants; rendering compute), we use render-opt-style captured goldens.
+`env/port_matrix.yaml` is the subsystem DAG and ownership map. It names Magma,
+shared-core, and Blaze source seams, required features/artifacts, dependencies,
+and argv-only M1/M2 gates. `env/port_matrix.py` validates the DAG, runs focused
+gates, and emits self-contained parallel worker contracts:
 
-Precedent: craftax.c hit 47.8M SPS pure C (3.2x an RTX Pro 6000) and craftax.cu hit 7x JAX -
-both from-scratch, internally-consistent, scoped. That is the model. The faithful real-MC
-rewrites were abandoned twice. We are not repeating that.
+    uv run --no-project --with pyyaml python blaze/env/port_matrix.py --tier m1 --prompts
+    uv run --no-project --with pyyaml python blaze/env/port_matrix.py --ready --prompts
+
+The currently verified bridge runs the 2,058-tick spawn-to-torch chain over a
+deterministic non-fluid fixture: player movement, digging, inventory, live item
+entities, crafting, and crafting-table container state match on every M1 tick
+and across every lane of the 64-lane M2 gate. Full survival completion is the
+target, not an inference from that slice; world dynamics first diverges at
+chain tick 19 and every later subsystem remains blocked until its state is
+represented and its CPU and CUDA gates pass.
+
+Metal is sequenced after CUDA correctness, not developed in parallel with it.
+Only after the survival rows pass both M1 (Magma == Blaze CPU) and M2
+(Blaze CPU == CUDA) will a Blaze Metal tick backend be added. It must consume
+the same snapshots and actions and emit the same BOLR and PARY records for an
+M3 CPU == Metal gate. Magma's existing Metal backend covers rasterization only;
+it is not a Metal implementation of the Blaze simulation tick.
 
 ## The 5 determinism rules (non-negotiable; make CPU==CUDA hold)
 

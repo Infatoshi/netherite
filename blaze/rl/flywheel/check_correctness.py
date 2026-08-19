@@ -31,6 +31,7 @@ defensible bound.
 
 Run: bash blaze/rl/flywheel/check_correctness.sh
 """
+import argparse
 import os
 import sys
 
@@ -42,7 +43,7 @@ sys.path.insert(0, ENV)
 
 import ppo_chain_cu as P
 
-DRAWS = int(os.environ.get("CHECK_DRAWS", "200000"))
+DRAWS = 200000
 NB = 4096                      # batch for the forward/graph checks
 NSTEP = 3                      # minibatch steps for the update parity check
 SIGMA_MAX = 5.0
@@ -69,6 +70,13 @@ def maxerr(a, b):
 
 
 def main():
+    global DRAWS
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--draws", type=int, default=DRAWS,
+                    help="Gumbel-argmax distribution samples (was CHECK_DRAWS)")
+    args = ap.parse_args()
+    DRAWS = args.draws
+
     dev = torch.device("cuda:0")
     torch.manual_seed(1234)
     net = P.ChainPolicy().to(dev)

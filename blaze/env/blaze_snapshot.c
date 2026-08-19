@@ -16,7 +16,7 @@ static int snap_fail(char *err, int cap, const char *msg, const char *path) {
 }
 
 int blaze_snapshot_load(const char *path, CuSnapshot *out,
-                        char *err, int err_cap) {
+                        char *err, int err_cap, int no_ore_xy) {
     FILE *f;
     long vol;
     unsigned i;
@@ -25,7 +25,9 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
     f = fopen(path, "rb");
     if (!f) return snap_fail(err, err_cap, "cannot open", path);
     if (fread(&out->head, sizeof out->head, 1, f) != 1 ||
-        memcmp(out->head.magic, "BSNP", 4) != 0 || out->head.version != 1) {
+        memcmp(out->head.magic, "BSNP", 4) != 0 ||
+        (out->head.version != 1 &&
+         out->head.version != BLAZE_SNAP_VERSION)) {
         fclose(f);
         return snap_fail(err, err_cap, "bad .bsnp header", path);
     }
@@ -65,16 +67,26 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
             return snap_fail(err, err_cap, "truncated .bsnp coal list", path);
         }
     }
+    if (out->head.version >= 2) {
+        out->light = (unsigned char *)malloc((size_t)vol);
+        if (!out->light ||
+            fread(out->light, 1, (size_t)vol, f) != (size_t)vol) {
+            free(out->cells); out->cells = NULL;
+            free(out->coal); out->coal = NULL;
+            free(out->light); out->light = NULL;
+            fclose(f);
+            return snap_fail(err, err_cap, "truncated .bsnp light", path);
+        }
+    }
     fclose(f);
 
     /* spatial index over the static ore list (bucketed coal-candidate
      * rebuild); a malloc failure or non-writer-ordered list just leaves
-     * xy_off NULL - consumers fall back to the full scan. BLAZE_NO_ORE_XY=1
+     * xy_off NULL - consumers fall back to the full scan. no_ore_xy != 0
      * forces the fallback (legacy full-scan A/B; load-time only, no tick
      * cost). */
     out->xy_off = NULL;
-    if (out->ncoal && !(getenv("BLAZE_NO_ORE_XY") &&
-                        atoi(getenv("BLAZE_NO_ORE_XY")))) {
+    if (out->ncoal && !no_ore_xy) {
         long ncell = (long)out->head.rnx * out->head.rny;
         out->xy_off = (int *)malloc(((size_t)ncell + 1) * sizeof *out->xy_off);
         if (out->xy_off &&
@@ -110,6 +122,7 @@ int blaze_snapshot_load(const char *path, CuSnapshot *out,
 void blaze_snapshot_free(CuSnapshot *s) {
     if (!s) return;
     free(s->cells);  s->cells = NULL;
+    free(s->light);  s->light = NULL;
     free(s->coal);   s->coal = NULL;
     free(s->xy_off); s->xy_off = NULL;
     free(s->cont);   s->cont = NULL;

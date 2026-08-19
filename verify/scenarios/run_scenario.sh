@@ -24,10 +24,11 @@ echo "[scenario] waiting for exclusive oracle lock /tmp/qrl_25575.lock"
 flock 9
 echo "[scenario] oracle lock acquired"
 
-SCENARIO_ORACLE_LOCKED=1 uv run --no-project \
+uv run --no-project \
 	--with pyyaml --with pyarrow --with numpy --with scipy --with pillow \
 	--with nbt --with python-xlib \
-	python "$HERE/scenario.py" record "$SPEC" --result-file "$RESULT"
+	python "$HERE/scenario.py" record "$SPEC" --result-file "$RESULT" \
+	--oracle-locked
 
 TAPE="$(<"$RESULT")"
 flock -u 9

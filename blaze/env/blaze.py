@@ -60,8 +60,28 @@ OP_NAMES = (                     # blaze_core.h CU_OP_* order (op_trace cols)
     "coal_sweep", "inv_scan", "subtick")
 
 
+class BlazeCreateOpts(ctypes.Structure):
+    """Create-time knobs for blaze_create (historical unset-env defaults)."""
+    _fields_ = [
+        ("ktime", ctypes.c_int),
+        ("stage_time", ctypes.c_int),
+        ("legacy_recenter", ctypes.c_int),
+        ("warp_tick", ctypes.c_int),
+        ("op_trace", ctypes.c_int),
+        ("no_ore_xy", ctypes.c_int),
+    ]
+
+    @classmethod
+    def defaults(cls):
+        return cls(ktime=0, stage_time=0, legacy_recenter=0,
+                   warp_tick=1, op_trace=0, no_ore_xy=0)
+
+
 class VecBlaze:
-    def __init__(self, n, device=0, so_path=None):
+    def __init__(self, n, device=0, so_path=None, *,
+                 ktime=False, stage_time=False, legacy_recenter=False,
+                 warp_tick=1, op_trace=False, no_ore_xy=False,
+                 no_emit_all=False):
         if so_path is None:
             so_path = CPU_SO
             if os.path.exists(CUDA_SO):
@@ -78,7 +98,8 @@ class VecBlaze:
         self.n_snaps = 0
         self.lib = ctypes.CDLL(so_path)
         self.lib.blaze_create.restype = ctypes.c_void_p
-        self.lib.blaze_create.argtypes = [ctypes.c_int, ctypes.c_int]
+        self.lib.blaze_create.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.POINTER(BlazeCreateOpts)]
         self.lib.blaze_destroy.argtypes = [ctypes.c_void_p]
         self.lib.blaze_load_snapshots.argtypes = [
             ctypes.c_void_p, ctypes.POINTER(ctypes.c_char_p), ctypes.c_int,
@@ -106,7 +127,29 @@ class VecBlaze:
                                            ctypes.c_int]
         self.lib.blaze_op_count.restype = ctypes.c_int
         self.lib.blaze_op_trace.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-        self.h = self.lib.blaze_create(device, n)
+        # Batched all-lanes emit (CUDA only; absent from blaze_cpu.so, which
+        # the verify gates only ever drive one env at a time). Fills
+        # n * blaze_obs_size() bytes in one call. Callers must treat a missing
+        # symbol as "no fast path" and fall back to per-lane blaze_emit.
+        # no_emit_all=True forces callers back onto the per-lane path. The
+        # batched emit only ever decides whether the slow path can be SKIPPED,
+        # so the two must reach identical verdicts; this switch is what makes
+        # that A/B testable (test_emit_all_fallback.py).
+        self.has_emit_all = (hasattr(self.lib, "blaze_emit_all")
+                             and not no_emit_all)
+        if self.has_emit_all:
+            self.lib.blaze_emit_all.argtypes = [ctypes.c_void_p, ctypes.c_int,
+                                                ctypes.c_void_p]
+            self.lib.blaze_emit_all.restype = ctypes.c_int
+        opts = BlazeCreateOpts(
+            ktime=1 if ktime else 0,
+            stage_time=1 if stage_time else 0,
+            legacy_recenter=1 if legacy_recenter else 0,
+            warp_tick=int(warp_tick),
+            op_trace=1 if op_trace else 0,
+            no_ore_xy=1 if no_ore_xy else 0,
+        )
+        self.h = self.lib.blaze_create(device, n, ctypes.byref(opts))
         if not self.h:
             raise RuntimeError(
                 f"blaze_create(device={device}, n={n}) failed [{so_path}]")
@@ -177,9 +220,9 @@ class VecBlaze:
 
     def op_trace(self):
         """Cumulative per-env op-trace counters as uint64 [N, CU_OP_N]
-        (see blaze_core.h CU_OP_* order). Requires BLAZE_OP_TRACE=1 in the
-        environment BEFORE this VecBlaze was created; returns None when
-        tracing is off. Counters accumulate across steps AND resets."""
+        (see blaze_core.h CU_OP_* order). Requires op_trace=True at
+        VecBlaze create; returns None when tracing is off. Counters
+        accumulate across steps AND resets."""
         import numpy as np
         nop = self.lib.blaze_op_count()
         out = np.zeros((self.n, nop), dtype=np.uint64)

@@ -15,6 +15,7 @@ adjacent to the ore, late episodes start at the shaft bottom.
 
 Run (anvil): cd magma && uv run --no-project --with numpy,torch,matplotlib python rl/ppo_coal.py
 """
+import argparse
 import json
 import math
 import os
@@ -30,16 +31,18 @@ import chain_probe as cp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
+FIXTURES = os.path.join(HERE, "fixtures")
 
-N_EPISODES = int(os.environ.get("N_EPISODES", 300))
-EP_LEN = int(os.environ.get("EP_LEN", 1000))  # learned ticks after prefix;
-                      # the scripted burrow needs ~800-1000t from the 6-block
-                      # handoff (each cell is ~60t/block x 2-3 blocks), so a
-                      # shorter episode caps success below the skill ceiling
+# Module-level defaults (historical unset-env). main() overrides via argparse.
+N_EPISODES = 300
+EP_LEN = 1000  # learned ticks after prefix;
+               # the scripted burrow needs ~800-1000t from the 6-block
+               # handoff (each cell is ~60t/block x 2-3 blocks), so a
+               # shorter episode caps success below the skill ceiling
 REPEAT = 4
 STACK = 3
 CURR_EPS = 150
-CURR_TICKS = int(os.environ.get("CURR_TICKS", 700))
+CURR_TICKS = 700
 LAM, CLIP, EPOCHS, LR, ENT = 0.95, 0.2, 4, 3e-4, 0.01
 HEADS = [3, 3, 2, 2, 2]
 YAWS = (-15.0, 0.0, 15.0)
@@ -110,8 +113,8 @@ class ConvPolicy(nn.Module):
         return [head(h) for head in self.heads], self.value(h).squeeze(-1)
 
 
-def rollout_mp(vec, net, n_envs, help_budget):
-    """One episode on the multiprocessing vector env (VEC=mp): the workers
+def rollout_mp(vec, net, n_envs, help_budget, ep_len):
+    """One episode on the multiprocessing vector env (--vec mp): the workers
     own send/recv/decode/reward/help, the parent only samples actions."""
     cur_p, cur_s, done = vec.reset(help_budget)
     done = [bool(d) for d in done]      # scripted help finished it
@@ -120,7 +123,7 @@ def rollout_mp(vec, net, n_envs, help_budget):
     traj = [[] for _ in range(n_envs)]
     stacks = [[cur_p[i]] * STACK for i in range(n_envs)]
     idx_arr = np.zeros((n_envs, len(HEADS)), dtype=np.int64)
-    for _ in range(EP_LEN // REPEAT):
+    for _ in range(ep_len // REPEAT):
         live = [i for i in range(n_envs) if not done[i]]
         if not live:
             break
@@ -175,19 +178,35 @@ def make_env(seed, prefix):
 
 
 def main():
+    global N_EPISODES, EP_LEN, CURR_TICKS
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--n-episodes", type=int, default=N_EPISODES)
+    ap.add_argument("--ep-len", type=int, default=EP_LEN,
+                    help="learned ticks after prefix (default 1000)")
+    ap.add_argument("--curr-ticks", type=int, default=CURR_TICKS,
+                    help="max scripted help ticks at episode 0 (default 700)")
+    ap.add_argument("--train-seeds", default=None,
+                    help="comma-separated seed filter over coal_prefixes.json")
+    ap.add_argument("--vec", default="",
+                    help="set to 'mp' for multiprocessing vector env")
+    args = ap.parse_args()
+    N_EPISODES = args.n_episodes
+    EP_LEN = args.ep_len
+    CURR_TICKS = args.curr_ticks
+
     os.makedirs(OUT, exist_ok=True)
     torch.manual_seed(0)
     torch.set_num_threads(4)    # leave cores for the env subprocesses
-    prefixes = json.load(open(os.path.join(OUT, "coal_prefixes.json")))
+    prefixes = json.load(open(os.path.join(FIXTURES, "coal_prefixes.json")))
     seeds = sorted(int(s) for s in prefixes)[:16]
-    if os.environ.get("TRAIN_SEEDS"):   # e.g. the scripted-completable set
-        keep = {int(s) for s in os.environ["TRAIN_SEEDS"].split(",")}
+    if args.train_seeds:   # e.g. the scripted-completable set
+        keep = {int(s) for s in args.train_seeds.split(",") if s.strip()}
         seeds = [s for s in seeds if s in keep]
     n_envs = len(seeds)
     print(f"training on {n_envs} seeds: {seeds}", flush=True)
     net = ConvPolicy()
     opt = torch.optim.Adam(net.parameters(), lr=LR)
-    use_mp = os.environ.get("VEC") == "mp"
+    use_mp = args.vec == "mp"
     if use_mp:      # process-per-worker vector env: the threaded path GILs
         from vec_env import VecCoalEnv     # out at ~17k steps/s aggregate
         vec = VecCoalEnv(seeds, prefixes)
@@ -202,7 +221,7 @@ def main():
         used = help_budget
         if use_mp:
             traj, success, helped_done = rollout_mp(vec, net, n_envs,
-                                                    help_budget)
+                                                    help_budget, EP_LEN)
         else:
             envs = list(pool.map(lambda s: make_env(s, prefixes[str(s)]),
                                  seeds))

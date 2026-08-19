@@ -5,9 +5,10 @@ sampled episode each, reports the deepest milestone reached per lane and the
 full-chain (torch) rate. Diagnostic; the transfer gate is eval_chain_rl.py
 on the real env.
 
-Run: cd magma && CHAIN_NET=chain_net_cu.pt uv run --no-project \
-       --with numpy,torch python blaze/env/eval_chain_batched.py
+Run: cd magma && uv run --no-project --with numpy,torch \
+       python blaze/env/eval_chain_batched.py --chain-net chain_net_cu.pt
 """
+import argparse
 import os
 import sys
 
@@ -27,29 +28,34 @@ from ppo_chain_cu import (ChainPolicy, build_frame, build_scal, obs_float,
 
 OUT = os.path.join(RL, "out")
 SNAPS = os.path.join(OUT, "snaps")
-SEEDS = [int(s) for s in os.environ.get(
-    "SEEDS", "2,3,10,11,14,16,20,27,29,32,33,44,46").split(",")]
+DEFAULT_SEEDS = "2,3,10,11,14,16,20,27,29,32,33,44,46"
 HELD_OUT = {11, 33}
-LANES_PER = int(os.environ.get("LANES_PER", 64))
-DEVICE = int(os.environ.get("BLAZE_DEV", 0))
-EP = int(os.environ.get("EP_DEC", EP_DEC))
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--device", type=int, default=0,
+                    help="CUDA device (was BLAZE_DEV, default 0)")
+    ap.add_argument("--seeds", default=DEFAULT_SEEDS)
+    ap.add_argument("--lanes-per", type=int, default=64)
+    ap.add_argument("--ep-dec", type=int, default=EP_DEC)
+    ap.add_argument("--chain-net", default="chain_net_cu.pt")
+    args = ap.parse_args(argv)
+    seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
     torch.manual_seed(0)
-    dev = torch.device(f"cuda:{DEVICE}")
+    dev = torch.device(f"cuda:{args.device}")
     net = ChainPolicy().to(dev)
-    net_file = os.environ.get("CHAIN_NET", "chain_net_cu.pt")
+    net_file = args.chain_net
     net.load_state_dict(torch.load(os.path.join(OUT, net_file),
                                    weights_only=True, map_location=dev))
     net.eval()
 
-    paths = [os.path.join(SNAPS, f"s{s}_t0.bsnp") for s in SEEDS]
-    n = len(SEEDS) * LANES_PER
-    env = VecBlaze(n, device=DEVICE, so_path=CUDA_SO)
+    paths = [os.path.join(SNAPS, f"s{s}_t0.bsnp") for s in seeds]
+    n = len(seeds) * args.lanes_per
+    env = VecBlaze(n, device=args.device, so_path=CUDA_SO)
     env.set_success_item(50)
     env.load_snapshots(paths)
-    env.assign([i // LANES_PER for i in range(n)])
+    env.assign([i // args.lanes_per for i in range(n)])
     env.reset()
 
     noop = torch.zeros((n, NHEAD), dtype=torch.int64, device=dev)
@@ -63,8 +69,8 @@ def main():
     succ = torch.zeros(n, dtype=torch.bool, device=dev)
     ep_dec = torch.zeros(n, dtype=torch.float32, device=dev)
 
-    for t in range(EP):
-        scal_full = build_scal(scal, env.status, pose, ep_dec / EP)
+    for t in range(args.ep_dec):
+        scal_full = build_scal(scal, env.status, pose, ep_dec / args.ep_dec)
         with torch.no_grad():
             logits, _ = net(obs_float(stack), scal_full)
             a = torch.stack(
@@ -84,12 +90,12 @@ def main():
 
     reach = stage_of_best(best)
     reach[succ] = N_STAGES
-    reach = reach.view(len(SEEDS), LANES_PER).cpu().numpy()
-    print(f"net {net_file}  sampled  {LANES_PER} lanes/seed  "
-          f"{EP} decisions")
+    reach = reach.view(len(seeds), args.lanes_per).cpu().numpy()
+    print(f"net {net_file}  sampled  {args.lanes_per} lanes/seed  "
+          f"{args.ep_dec} decisions")
     print("seed    " + "  ".join(f"{m:>7s}" for m in
                                  (*MILE_NAMES[1:], "TORCH")))
-    for i, s in enumerate(SEEDS):
+    for i, s in enumerate(seeds):
         row = [float((reach[i] >= m).mean()) for m in range(1, N_STAGES + 1)]
         ho = "*" if s in HELD_OUT else " "
         print(f"s{s:<4d}{ho}  " + "  ".join(f"{v:7.2f}" for v in row))
@@ -100,4 +106,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

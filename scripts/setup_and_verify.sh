@@ -5,7 +5,6 @@
 # Usage:
 #   bash scripts/setup_and_verify.sh            # bootstrap + --quick sweep
 #   bash scripts/setup_and_verify.sh --full     # + CUDA oracles / tape / parity
-#   bash scripts/setup_and_verify.sh --demo     # after setup: pixel SBS MP4 demo
 #   bash scripts/setup_and_verify.sh --bootstrap-only
 #   bash scripts/setup_and_verify.sh --skip-bootstrap   # already bootstrapped
 #
@@ -27,14 +26,12 @@ cd "$ROOT"
 
 MODE=quick
 DO_BOOTSTRAP=1
-DO_DEMO=0
 for arg in "$@"; do
   case "$arg" in
     --full) MODE=full ;;
     --quick) MODE=quick ;;
     --bootstrap-only) MODE=bootstrap_only ;;
     --skip-bootstrap) DO_BOOTSTRAP=0 ;;
-    --demo) DO_DEMO=1 ;;
     -h|--help)
       sed -n '2,30p' "$0" | sed 's/^# \?//'
       exit 0
@@ -83,9 +80,9 @@ fi
 
 if [ "$DO_BOOTSTRAP" -eq 1 ]; then
   echo "== bootstrap oracle (ForgeGradle decomp MC 1.11.2) =="
-  bash scripts/bootstrap_oracle.sh
+  make -C java bootstrap-oracle
   echo "== bootstrap assets (texture headers from jar) =="
-  bash scripts/bootstrap_assets.sh
+  make assets
 else
   echo "== skip bootstrap (caller promised oracle-src + asset headers) =="
   [ -d java/oracle-src/net/minecraft ] || {
@@ -115,14 +112,5 @@ fi
 
 echo "== netherite_sweep --$MODE =="
 bash netherite_sweep.sh --"$MODE"
-
-if [ "$DO_DEMO" -eq 1 ]; then
-  echo "== pixel fidelity demo (tape replay + SBS MP4) =="
-  command -v ffmpeg >/dev/null || {
-    echo "installing ffmpeg..."
-    sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg || true
-  }
-  bash scripts/demo_pixel_sbs.sh --skip-build || bash scripts/demo_pixel_sbs.sh
-fi
 
 echo "== setup_and_verify done =="

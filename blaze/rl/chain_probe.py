@@ -11,6 +11,7 @@ break, burrow) are what the learners train against.
 
 Run (anvil): cd magma && uv run --no-project --with numpy python rl/chain_probe.py
 """
+import argparse
 import json
 import math
 import os
@@ -27,11 +28,20 @@ OUT = os.path.join(HERE, "out")
 IX_LOG, IX_PLANK, IX_STICK, IX_COBBLE, IX_TABLE, IX_WPICK, IX_SPICK, \
     IX_COAL, IX_TORCH = range(9)
 
+# Runtime knobs (historical env IRON/IRON_DBG/PREFIX); set by main() argparse.
+IRON = False
+IRON_DBG = False
+PREFIX = False
+
 # 16 planks: table 4 + sticks 2 + pick 3 leaves margin. The iron extension
 # burns two more tables (underground kit + final craft) -> chop 6.
-LOG_TARGET = 6 if os.environ.get("IRON") else 4
+LOG_TARGET = 4
 COBBLE_TARGET = 3
 REACH = 4.5
+
+# stage_coal exit reason for the caller's log ("reached" / "already-mined" /
+# "scan-empty" / "budget-exhausted"). Diagnostic only: never read by the probe.
+LAST_FAIL = None
 
 
 def inv(env, ix):
@@ -130,8 +140,61 @@ def stage_place_table(env, budget=120):
     return False
 
 
+def close_container(env, budget=400):
+    """Leave the open block GUI before anything tries to dig again.
+
+    Magma pins Minecraft.leftClickCounter at 10000 for every tick a container
+    screen is open (game/runtime.c gm_runtime_tick, mirroring vanilla's
+    blocked mouse input), so clickMouse/clickBlock no-op and progressive dig
+    is frozen solid while the crafting table is up. The RL action protocol has
+    no ESC verb, and rl_do_interact only ever opens a screen - the one close
+    magma exposes is vanilla's Container.canInteractWith range drop
+    (runtime.c: dist^2 > 36 from the container block, or the block is gone).
+    So walk away from the table until the screen drops.
+
+    Without this, stage_dig and stage_coal hold attack into a frozen
+    controller and never break a block: a burrow that cannot move is also a
+    burrow that never leaves interaction range, so the state is an absorbing
+    deadlock rather than a slow run.
+    """
+    # Straight away-from-the-table walks into whatever terrain happens to be
+    # behind the player (measured: seed 11 pinned at x=14.70 against a 2-high
+    # wall, jump-bouncing for the whole budget). Fan the heading out whenever
+    # the walk stops making horizontal progress.
+    fan = (0.0, 40.0, -40.0, 75.0, -75.0, 110.0, -110.0, 150.0, -150.0, 180.0)
+    fan_i, stuck = 0, 0
+    lx, lz = env.obs["x"], env.obs["z"]
+    for t in range(budget):
+        o = env.obs
+        if o["container"] == 0:
+            return True
+        px, pz = o["x"], o["z"]
+        if (px - lx) ** 2 + (pz - lz) ** 2 < 4e-4:
+            stuck += 1
+            if stuck >= 8:              # blocked: try the next heading
+                fan_i = (fan_i + 1) % len(fan)
+                stuck = 0
+        else:
+            stuck = 0
+        lx, lz = px, pz
+        tables = [b for b in o["blocks"] if b[0] == 58]
+        a = {"forward": 1}
+        if tables:
+            tb = min(tables, key=lambda b: (b[1] + .5 - px) ** 2
+                     + (b[3] + .5 - pz) ** 2)
+            away = math.degrees(math.atan2(-(px - tb[1] - .5),
+                                           pz - tb[3] - .5))
+            a["dyaw"] = float(np.clip(wrap180(away + fan[fan_i] - o["yaw"]),
+                                      -25, 25))
+        if t % 4 < 2:
+            a["jump"] = 1               # clear lips / step up terrain
+        step(env, a)
+    return env.obs["container"] == 0
+
+
 def stage_pick(env, budget=40):
-    """Open the placed table, craft the wooden pickaxe on the 3x3 grid."""
+    """Open the placed table, craft the wooden pickaxe on the 3x3 grid, then
+    step out of range so the screen closes and dig is live again."""
     for _ in range(budget):
         if env.obs["container"] == 1:
             break
@@ -139,7 +202,9 @@ def stage_pick(env, budget=40):
     else:
         return False
     step(env, {"craft": 3})
-    return inv(env, IX_WPICK) >= 1
+    if inv(env, IX_WPICK) < 1:
+        return False
+    return close_container(env)
 
 
 def center_probe(obs):
@@ -201,19 +266,23 @@ def stage_coal(env, budget=3000, stop_dist=None):
     breaks both stone and coal ore. With stop_dist, stop (success) once the
     nearest ore is within that distance - used to build training prefixes
     that end on the last mile."""
+    global LAST_FAIL
     spent = 0
-    target = 2 if os.environ.get("IRON") else 1
+    target = 2 if IRON else 1
     while spent < budget:
         if inv(env, IX_COAL) >= target:
+            LAST_FAIL = "already-mined"
             return True
         coal = [c for c in env.obs["coal"] if c != [0, 0, 0]]
         if not coal:
+            LAST_FAIL = "scan-empty"
             return False                # scan lost the ore; give up loudly
         if stop_dist is not None:
             px, py, pz = env.obs["x"], env.obs["y"], env.obs["z"]
             d2 = min((c[0] + 0.5 - px) ** 2 + (c[1] + 0.5 - py - EYE) ** 2
                      + (c[2] + 0.5 - pz) ** 2 for c in coal)
             if d2 <= stop_dist * stop_dist:
+                LAST_FAIL = "reached"
                 return True
         px, py, pz = env.obs["x"], env.obs["y"], env.obs["z"]
         tx, ty, tz = min(coal, key=lambda c: (c[0] + 0.5 - px) ** 2
@@ -266,6 +335,7 @@ def stage_coal(env, budget=3000, stop_dist=None):
                 and abs(env.obs["y"] - y0) < 0.2):
             step(env, {"forward": 1, "jump": 1})   # lip hop
             spent += 1
+    LAST_FAIL = "budget-exhausted"
     return False
 
 
@@ -273,7 +343,7 @@ def stage_torch(env):
     step(env, {"craft": 5})             # coal + stick -> 4 torches
     if inv(env, IX_TORCH) < 4:
         return False
-    if not os.environ.get("IRON"):
+    if not IRON:
         return True
     # Light the tunnel and free the hotbar slot before the table/furnace/
     # stone-pick outputs compete with incidental dirt and split wood stacks.
@@ -302,7 +372,7 @@ def stage_torch(env):
     return inv(env, IX_TORCH) == 0
 
 
-# ------------------------------------------------- iron extension (IRON=1)
+# ------------------------------------------------- iron extension (--iron)
 # item ids past the 9-slot inv_counts window: tracked via the hotbar
 IRON_ORE, INGOT, FURNACE_ITEM, IPICK, COAL_ITEM = 15, 265, 61, 257, 263
 
@@ -354,7 +424,7 @@ def place_from_hotbar(env, item_id, budget=80):
         cx = math.floor(pxx - math.sin(yaw) * 1.3)
         cz = math.floor(pzz + math.cos(yaw) * 1.3)
         feet = math.floor(pyy)
-        if os.environ.get("IRON_DBG"):
+        if IRON_DBG:
             print(f"    [place] item={item_id} attempt={attempt + 1} "
                   f"pos=({pxx:.1f},{pyy:.1f},{pzz:.1f}) "
                   f"pocket=({cx},{feet},{cz}) yaw={env.obs['yaw']:.1f}",
@@ -369,7 +439,7 @@ def place_from_hotbar(env, item_id, budget=80):
         for pitch in (40.0, 50.0, 32.0, 60.0, 25.0, 70.0):
             for _ in range(12):
                 if hotbar_count(env, item_id) < before:
-                    if os.environ.get("IRON_DBG"):
+                    if IRON_DBG:
                         print(f"    [place] item={item_id} placed "
                               f"at pitch={pitch:.1f}", flush=True)
                     return (cx, feet, cz)
@@ -378,7 +448,7 @@ def place_from_hotbar(env, item_id, budget=80):
                 if abs(rp) < 10:
                     a["use"] = 1
                 step(env, a)
-    if os.environ.get("IRON_DBG"):
+    if IRON_DBG:
         print(f"    [place] item={item_id} failed", flush=True)
     return None
 
@@ -480,7 +550,7 @@ def stage_iron_mine(env, want=3, budget=9000):
         tx, ty, tz = ores[0]
         key = (tx, ty, tz)
         _, _, dist = aim_error(env.obs, tx, ty, tz)
-        if os.environ.get("IRON_DBG"):
+        if IRON_DBG:
             print(f"    [im] t={env.obs['t']} pos=({px:.1f},{py:.1f},{pz:.1f})"
                   f" tgt={key} d={dist:.1f} spent={spent}", flush=True)
         # generic anti-stall: a target we fail to close on (cave gap, ledge
@@ -664,18 +734,27 @@ IRON_STAGES = [("cobble_bank", stage_cobble_bank), ("iron_kit", stage_iron_kit),
                ("iron_mine", stage_iron_mine), ("smelt", stage_smelt),
                ("iron_pick", stage_ipick)]
 
-STAGES = [("chop", stage_chop), ("craft_kit", stage_craft_kit),
-          ("place_table", stage_place_table), ("wooden_pick", stage_pick),
-          ("dig", stage_dig), ("mine_coal", stage_coal),
-          ("torches", stage_torch)]
-if os.environ.get("IRON"):
-    STAGES = STAGES + IRON_STAGES
+BASE_STAGES = [("chop", stage_chop), ("craft_kit", stage_craft_kit),
+               ("place_table", stage_place_table), ("wooden_pick", stage_pick),
+               ("dig", stage_dig), ("mine_coal", stage_coal),
+               ("torches", stage_torch)]
+# Active stage list; reconfigured by configure_iron() when --iron is set.
+STAGES = list(BASE_STAGES)
+
+
+def configure_iron(iron=False, iron_dbg=False):
+    """Apply --iron / --iron-dbg knobs (module-level, read by stage fns)."""
+    global IRON, IRON_DBG, LOG_TARGET, STAGES
+    IRON = bool(iron)
+    IRON_DBG = bool(iron_dbg)
+    LOG_TARGET = 6 if IRON else 4
+    STAGES = list(BASE_STAGES) + (list(IRON_STAGES) if IRON else [])
 
 
 def run_seed(seed, verbose=True):
     # IRON runs need the JSON obs (inv_iron field); the base chain keeps the
     # fast binary protocol
-    env = MagmaEnv(seed, bin=not os.environ.get("IRON"))
+    env = MagmaEnv(seed, bin=not IRON)
     results = []
     try:
         for name, fn in STAGES:
@@ -688,7 +767,7 @@ def run_seed(seed, verbose=True):
                 print(f"  seed {seed} {name:12s} "
                       f"{'OK  ' if ok else 'FAIL'} +{env.obs['t'] - t0:4d}t "
                       f"y={env.obs['y']:.1f} inv={counts}", flush=True)
-                if os.environ.get("IRON_DBG"):
+                if IRON_DBG:
                     hotbar = [(item, count) for item, count in zip(
                         env.obs["hotbar_ids"], env.obs["hotbar_counts"])
                         if count]
@@ -721,7 +800,7 @@ def run_prefix(seed):
 
 
 def screen(seeds):
-    """PREFIX=1 mode: save per-seed prefix action streams for training."""
+    """--prefix mode: save per-seed prefix action streams for training."""
     from concurrent.futures import ThreadPoolExecutor
     os.makedirs(OUT, exist_ok=True)
     with ThreadPoolExecutor(max_workers=16) as pool:
@@ -740,10 +819,23 @@ def screen(seeds):
 
 
 def main():
+    global PREFIX
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--iron", action="store_true",
+                    help="extend chain through iron pick (was IRON=1)")
+    ap.add_argument("--iron-dbg", action="store_true",
+                    help="verbose iron-stage diagnostics (was IRON_DBG=1)")
+    ap.add_argument("--prefix", action="store_true",
+                    help="screen prefixes into coal_prefixes.json (was PREFIX=1)")
+    ap.add_argument("seeds", nargs="*", type=int,
+                    help="seeds to run (defaults depend on mode)")
+    args = ap.parse_args()
+    PREFIX = args.prefix
+    configure_iron(iron=args.iron, iron_dbg=args.iron_dbg)
     os.makedirs(OUT, exist_ok=True)
-    if os.environ.get("PREFIX"):
-        return screen([int(s) for s in sys.argv[1:]] or list(range(48)))
-    seeds = [int(s) for s in sys.argv[1:]] or [0, 2, 3, 10, 11, 12]
+    if PREFIX:
+        return screen(args.seeds or list(range(48)))
+    seeds = args.seeds or [0, 2, 3, 10, 11, 12]
     for seed in seeds:
         print(f"seed {seed}:", flush=True)
         results, actions = run_seed(seed)

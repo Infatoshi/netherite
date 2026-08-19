@@ -85,7 +85,7 @@ pixel- and physics-clean, that slice of the game is done.
 | Human tape replay | `replay_tape.py` (above) | NO first-divergence over a whole session = that gameplay slice is done |
 | Pixel gate (structural) | on by default in `replay_tape.py` (`--no-gate` to skip); offline re-run: `regate.py --tape ... --npy out/<run>/magma_frames.npy` | every diff cluster classified vs the accepted classes (bossbar/hud/thinline/particles/viewmodel/transit); any UNEXPLAINED cluster >= 4k px or 8k px/frame fails (rc=3). Baselines: `trace/baselines/*.gate.json`; per-class drift vs baseline: `gate_baseline_diff.py` |
 | Diff inspector (why is this frame wrong) | `pxdiff.py clusters --tape <NAME> --tick N`, then `zoom`/`pixels`/`probe` on a cluster; `frames --tape <NAME>` to rank a whole tape by unexplained px | names the CAUSE of each cluster, not just its size: texel-selection, shading-offset, registration, cutout-sky+/-, content, edge. Run `pxdiff.py selftest` first if you distrust a verdict - it re-derives all of them from synthetic mutations. `--a/--b` takes any PNG pair, so it also drives the mc_capture / ui_hud / ui_entities gates. Do not report a cause this tool calls `unresolved` as if it were diagnosed |
-| Geometry oracle (dragon) | record with recstart (writes `<tape>.geom.jsonl` sidecar), replay with `MAGMA_GEOM_DUMP=<path>`, then `geom_diff.py --java <tape>.geom.jsonl --magma <path>` | per-part numeric pose diff (rotation points/angles, vanilla units). PASS = every part within 3.5 texel / 0.05 rad after the 90-tick ring warmup; a structural bug (wrong lookback/order) is orders of magnitude above that |
+| Geometry oracle (dragon) | record with recstart (writes `<tape>.geom.jsonl` sidecar), replay with `--set geom_dump=<path>`, then `geom_diff.py --java <tape>.geom.jsonl --magma <path>` | per-part numeric pose diff (rotation points/angles, vanilla units). PASS = every part within 3.5 texel / 0.05 rad after the 90-tick ring warmup; a structural bug (wrong lookback/order) is orders of magnitude above that |
 | Full sweep | `verify/nightly_verify.sh` (background, end of any session touching render/sim; skips itself if GPU1 busy) | replays every canonical tape with goldens on GPU1, diffs per-class px vs committed baseline; report at `trace/report/nightly_<date>.md` |
 | Kernel pair lockstep (CUDA<->Metal) | `bash scripts/kernel_parity_gate.sh` on BOTH machines before/after touching any GPU kernel; manifest-only check runs in default pytest (`verify/kernels/test_kernel_pairs.py`) | the six kernels in `cuda/raster_cuda.cu` and `metal/raster_kernels.metal` are hash-paired in `verify/kernels/parity_manifest.json` - a change on one side FAILS until the twin is updated and the manifest re-recorded (`kernel_pairs.py --update`); the numeric half proves cpu==cuda (anvil) and cpu==metal (mac) on window-path scenes at the XB thresholds, so green on both machines proves the kernels compute the same math |
 
@@ -173,9 +173,9 @@ Two tapes are ground truth; nothing else is a match target:
   worldgen memo + device meshes + deferred frame end + skylight
   dirty-chunk narrowing + layer merge + npy-direct + raster hi-z +
   frame pipelining): whole replay incl. pixel diff 8.43s (was 29s at
-  the start of the effort). Escape hatches for A/B isolation:
-  MAGMA_CPU_SKY, MAGMA_NO_DEVMESH, MAGMA_NO_DEFER,
-  MAGMA_NO_PREFETCH, MAGMA_NO_LAYERMERGE, MAGMA_NO_PIPELINE. Pixel tolerance: day frames bit-exact; night frames
+  the start of the effort). Escape hatches for A/B isolation (`--set`
+  registry keys): cpu_sky, no_devmesh, no_defer, no_prefetch, no_layermerge,
+  no_pipeline. Pixel tolerance: day frames bit-exact; night frames
   may differ in isolated star pixels only (device sinf in hash21; measured
   <=67px/frame, no clusters) - sim state stays bit-exact always.
 - Keep this loop FAST: game stays resident (bridge reconnects are stateless),
@@ -472,7 +472,10 @@ identically across backends is parity evidence, not a Metal gap.
 smoke_zombie was additionally re-replayed from a cleared frame cache in a
 separate session as an independent check (rc=0).
 
-Playable window: `MAGMA_METAL_REQUIRE=1 ./magma_game_metal --backend metal`
+Playable window (audio: build with `MAGMA_AUDIO_OPENAL=1` after
+`brew install openal-soft libvorbis`, with openal-soft's keg-only
+pkgconfig dir on PKG_CONFIG_PATH; `--set audio=0` to silence):
+`./magma_game_metal --backend metal --set metal_require=1`
 boots on the Mac into the SDL window (`[config] render=window backend=metal`,
 metallib + AGXMetal loaded, strict mode, no fallback; verified over ssh
 2026-07-30). Arrow-key look rides the normal input map

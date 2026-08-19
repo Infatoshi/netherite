@@ -7,8 +7,8 @@
  *             thread (dyaw/dpitch on sub-tick 0 only; craft/interact
  *             pre-tick on sub-tick 0), full 12-double raw action rows;
  *             physics-window recenter refills run WARP-COOPERATIVELY (see
- *             the kernel comment; BLAZE_LEGACY_RECENTER=1 selects the old
- *             serial-recenter kernel at create for A/B)
+ *             the kernel comment; create opts.legacy_recenter=1 selects the
+ *             old serial-recenter kernel at create for A/B)
  *   k_obs   : blaze_render_cam_pixel for envs whose decision frame is fresh,
  *             then copies the persisted frame into the caller's tensors
  *   k_final : blaze_decision_finalize - deferred crosshair/+10 reward terms
@@ -28,27 +28,33 @@
  * else (paths, snap_idx, reset mask, verify-helper buffers) is host memory.
  *
  * Region dims are DYNAMIC (snapshot header, e.g. fresh-spawn t0 snapshots
- * are 128x128x128): the region-sized pools (cells/cam_cells, n * rvol each)
+ * are 128x128x128): the region-sized pools (cells/light, n * rvol each)
  * are allocated ONCE at the FIRST blaze_load_snapshots (dims unknown at
  * create; every loaded snapshot must share them - the loader enforces it).
  *
  * Allocation rule (blaze discipline): every device allocation happens in
  * blaze_create/blaze_load_snapshots; kernels only mutate bytes. The per-env
  * Chunk[9] window and McAABB[512] scratch live in global pools indexed by
- * env id - NEVER on the device stack. t0 (128^3) snapshots cost ~9.3 MB/env
- * (cells 4M + cam_cells 4M + window 1.2M + scratch); N=8192 ~ 76 GB.
+ * env id - NEVER on the device stack. t0 (128^3) snapshots MEASURE 8.44
+ * MB/env (cells 4M + light 2M + window 1.2M + frame/scratch;
+ * mem_get_info around create+load+reset at N=512, 3090) -> N=8192 ~ 69 GB.
+ * Was 12.63 MB/env before the cam_cells id copy was deleted 2026-08: it
+ * held exactly cells[i]>>4, so oc_block now does the shift instead - see
+ * core/obs_camera.h. (Earlier comments here estimated 9.3 MB/env; that
+ * accounting omitted light + the frame buffers and read ~3 MB low.)
  * blaze_create/blaze_load_snapshots fail gracefully (NULL / -1) with a GB
  * estimate if any cudaMalloc fails.
  *
  * Build: nvcc -O2 --fmad=false (blaze determinism flags; NEVER fast-math),
- * Makefile target blaze_cuda_so. Optional kernel timing: set BLAZE_KTIME=1
- * before create; per-kernel totals print to stderr at destroy. */
+ * Makefile target blaze_cuda_so. Optional kernel timing: create opts.ktime=1;
+ * per-kernel totals print to stderr at destroy. */
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cuda_runtime.h>
 
 #include "blaze_core.h"
+#include "blaze_abi.h"
 
 #define BLAZE_MAX_SNAPS 128
 #define BLAZE_ACT_HEADS 13
@@ -70,6 +76,7 @@ typedef struct {
     RlSnapHead head;
     RlSnapItem items[BLAZE_SNAP_MAX_ITEMS];
     const u16 *cells;            /* device, head.rnx*rny*rnz packed states */
+    const u8 *light;             /* device, packed (sky<<4)|block or NULL */
     const int *coal;             /* device, ncoal x 3 */
     int ncoal;
     const int *xy_off;           /* device, rnx*rny+1 CSR (ix,iy)->coal-range
@@ -90,14 +97,15 @@ typedef struct {
     int *h_assign;
     int *d_active;               /* compacted resetting-env index list */
     int *h_active;
-    /* pooled per-env buffers. Region-sized pools (d_cells/d_camcells) are
+    /* pooled per-env buffers. Region-sized pools (d_cells/d_light) are
      * allocated lazily at the FIRST snapshot load - dims come from the
      * snapshot header. Still init-time-only: nothing allocates in a tick
      * path. */
     int rnx, rny, rnz;           /* 0 until the first snapshot is loaded */
     long rvol;
-    u16 *d_cells, *d_camcells, *d_cam;
-    u8 *d_dep, *d_edg;
+    u16 *d_cells, *d_cam;
+    u16 *d_grass;            /* per-env grass_sec census (CU_SEC_SPAN cube) */
+    u8 *d_light, *d_dep, *d_edg;
     Chunk *d_window;
     CuCand *d_cand;
     int *d_cont;                 /* per-env BLAZE_SNAP_MAX_CONT container cells */
@@ -110,41 +118,55 @@ typedef struct {
     CuSnapDev *d_snaps;
     int nsnaps;
     int has_liquid[BLAZE_MAX_SNAPS];
+    int has_unrepresented[BLAZE_MAX_SNAPS];
     /* verify-helper scratch */
     CuBinObs *d_obs;
+    /* blaze_emit_all's n-record staging buffer. Allocated on first use rather
+     * than at create (same pattern as blaze_capture's slot buffers): only the
+     * verify gates emit, and at n=4096 this would be 60 MB of pool the
+     * training path never touches. */
+    CuBinObs *d_obs_all;
+    /* blaze_parity_state_all's n-record staging (n * 592 B; lazy like d_obs_all). */
+    BpParityRecord *d_parity_all;
     double atk_gate;  /* opt-in +0.03 gate; 0 = off (exact ppo_coal) */
     int success_item; /* +10/done=1 item id; 263 default (exact ppo_coal),
                        * 0 = never. Applied to envs at their next reset. */
-    int legacy_recenter;  /* BLAZE_LEGACY_RECENTER=1 at create: A/B fallback
-                           * to the serial-recenter k_tick_legacy (host-side
-                           * launch pick; zero tick cost) */
-    int warp_tick;        /* BLAZE_WARP_TICK (default 1): one env per WARP -
+    int legacy_recenter;  /* create opts: A/B fallback to the serial-recenter
+                           * k_tick_legacy (host-side launch pick; zero tick
+                           * cost) */
+    int warp_tick;        /* create opts (default 1): one env per WARP -
                            * 32x resident warps for the latency-bound serial
                            * chains + warp-parallel coal sweep. 0 = flat
                            * one-env-per-thread k_tick. */
-    /* optional kernel timing (BLAZE_KTIME=1) */
+    int no_ore_xy;        /* create opts: skip ore spatial index at snap load */
+    /* optional kernel timing (create opts.ktime) */
     int ktime;
     cudaEvent_t ev[4];
     double ms_tick, ms_obs, ms_final;
     long nsteps;
-    /* optional k_tick stage cycle counters (BLAZE_STAGE_TIME=1):
+    /* optional k_tick stage cycle counters (create opts.stage_time):
      * [0] decision_begin  [1] recenter (pose+coop fill)  [2] decision_subtick
      * sum of per-thread clock64 deltas; relative share of work, not wall. */
     int stage_time;
     unsigned long long *d_stage_cycles; /* device, 3 counters */
     unsigned long long h_stage_cycles[3];
-    /* optional op-trace activity counters (BLAZE_OP_TRACE=1): device pool of
-     * n * CU_OP_N u64s, sliced into every env's ->ops at create. */
+    /* optional op-trace activity counters (create opts.op_trace): device pool
+     * of n * CU_OP_N u64s, sliced into every env's ->ops at create. */
     int op_trace;
     unsigned long long *d_ops;
 } CuVecCu;
 
 extern "C" {
-void *blaze_create(int device, int n);
+/* blaze_create declared in blaze_abi.h */
 void blaze_destroy(void *vh);
 int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                          char *err, int err_cap);
 int blaze_snapshot_has_liquid(void *vh, int snap);
+int blaze_parity_size(void);
+unsigned long long blaze_capabilities(void);
+unsigned long long blaze_snapshot_requirements(void *vh, int snap);
+int blaze_parity_state(void *vh, int env, void *out);
+int blaze_parity_state_all(void *vh, void *out);
 int blaze_assign(void *vh, const int *snap_idx);
 int blaze_set_reward_gate(void *vh, double dist_gate);
 int blaze_set_success_item(void *vh, int item);
@@ -159,6 +181,7 @@ int blaze_step_full(void *vh, const double *actions, int repeat,
 int blaze_capture(void *vh, int env, int slot);
 int blaze_obs_size(void);
 int blaze_emit(void *vh, int env, int want_cam, void *out);
+int blaze_emit_all(void *vh, int want_cam, void *out);
 int blaze_tick_raw(void *vh, int env, const double a[13], int want_cam,
                    void *out);
 int blaze_debug_state(void *vh, int env, double *out, int cap);
@@ -177,7 +200,8 @@ __global__ void k_reset_scalar(Blaze *envs, const int *active, int nactive,
     int i = active[gi];
     const CuSnapDev *s = &snaps[assign[i]];
     blaze_reset_scalar(&envs[i], &s->head, s->items, s->coal, s->ncoal,
-                       s->xy_off, s->cont, s->ncont, success_item);
+                       s->xy_off, s->cont, s->ncont, s->light != NULL,
+                       success_item);
 }
 
 /* reset phase 2: one thread per bulk cell (region copy + window fill +
@@ -190,7 +214,8 @@ __global__ void k_reset_bulk(Blaze *envs, const int *active,
     long long gi = (long long)blockIdx.x * blockDim.x + threadIdx.x;
     if (gi >= nactive * bulk) return;
     int i = active[gi / bulk];
-    blaze_reset_bulk(&envs[i], snaps[assign[i]].cells, (long)(gi % bulk));
+    blaze_reset_bulk(&envs[i], snaps[assign[i]].cells,
+                     snaps[assign[i]].light, (long)(gi % bulk));
 }
 
 /* Cooperative decision kernel: one env per thread for the tick logic, but
@@ -578,6 +603,40 @@ __global__ void k_emit(Blaze *envs, int env, const McSinTable *st,
     blaze_emit_bolr(&envs[env], st, out, 0);
 }
 
+/* All-lanes twins of the two kernels above, for blaze_emit_all. Same per-env
+ * work in the same order - only the thread->(env,pixel) mapping differs - so
+ * a lane's record is bit-identical to what the per-lane blaze_emit produces.
+ * The chain gate emitted 64 lanes with 64 serial launch+sync+memcpy round
+ * trips per tick; at 2058 ticks that dominated the gate's wall clock. */
+__global__ void k_emit_cam_all(Blaze *envs, int n, const McSinTable *st) {
+    long long gid = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (gid >= (long long)n * CU_NPIX) return;
+    blaze_render_cam_pixel(&envs[gid / CU_NPIX], st, (int)(gid % CU_NPIX));
+}
+
+__global__ void k_emit_all(Blaze *envs, int n, const McSinTable *st,
+                           CuBinObs *out) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    blaze_emit_bolr(&envs[i], st, &out[i], 0);
+}
+
+__global__ void k_parity(Blaze *envs, int env, BpParityRecord *out) {
+    if (threadIdx.x || blockIdx.x) return;
+    blaze_parity_fill(&envs[env], out);
+}
+
+/* All-lanes twin of k_parity for blaze_parity_state_all. Same per-env fill
+ * as the single-env kernel - only the thread->env mapping differs - so a
+ * lane's record is bit-identical to what blaze_parity_state(lane) produces.
+ * Serial 64-lane parity was the same class of launch+sync+memcpy bottleneck
+ * the emit_all path already fixed. */
+__global__ void k_parity_all(Blaze *envs, int n, BpParityRecord *out) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    blaze_parity_fill(&envs[i], &out[i]);
+}
+
 typedef struct { double a[13]; } CuRawAct;
 
 /* raw tick for env `env`, or for ALL n envs when env == -1 (one thread per
@@ -627,24 +686,25 @@ static int cu_ck(cudaError_t e, const char *what) {
     return -1;
 }
 
-void *blaze_create(int device, int n) {
+void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     CuVecCu *v;
     int i;
+    BlazeCreateOpts o;
     if (n <= 0) return NULL;
+    if (opts) o = *opts;
+    else blaze_create_opts_default(&o);
     if (cu_ck(cudaSetDevice(device), "cudaSetDevice")) return NULL;
     v = (CuVecCu *)calloc(1, sizeof *v);
     if (!v) return NULL;
     v->n = n;
     v->device = device;
     v->success_item = 263;
-    v->ktime = getenv("BLAZE_KTIME") && atoi(getenv("BLAZE_KTIME"));
-    v->stage_time = getenv("BLAZE_STAGE_TIME") &&
-                    atoi(getenv("BLAZE_STAGE_TIME"));
-    v->legacy_recenter = getenv("BLAZE_LEGACY_RECENTER") &&
-                         atoi(getenv("BLAZE_LEGACY_RECENTER"));
-    v->warp_tick = getenv("BLAZE_WARP_TICK")
-                       ? atoi(getenv("BLAZE_WARP_TICK")) : 1;
-    v->op_trace = getenv("BLAZE_OP_TRACE") && atoi(getenv("BLAZE_OP_TRACE"));
+    v->ktime = o.ktime ? 1 : 0;
+    v->stage_time = o.stage_time ? 1 : 0;
+    v->legacy_recenter = o.legacy_recenter ? 1 : 0;
+    v->warp_tick = o.warp_tick;   /* default 1; 0 = flat k_tick */
+    v->op_trace = o.op_trace ? 1 : 0;
+    v->no_ore_xy = o.no_ore_xy ? 1 : 0;
     v->h_assign = (int *)calloc((size_t)n, sizeof *v->h_assign);
     v->h_active = (int *)calloc((size_t)n, sizeof *v->h_active);
     v->h_envs = (Blaze *)calloc((size_t)n, sizeof *v->h_envs);
@@ -721,7 +781,7 @@ void *blaze_create(int device, int n) {
     }
 
     /* stage env structs host-side with the create-time pool pointers;
-     * cells/cam_cells stay NULL until the first snapshot load sizes the
+     * cells/light stay NULL until the first snapshot load sizes the
      * region pools. Uploaded (again) there. */
     for (i = 0; i < n; ++i) {
         Blaze *e = &v->h_envs[i];
@@ -790,12 +850,15 @@ void blaze_destroy(void *vh) {
     }
     for (i = 0; i < v->nsnaps; ++i) {
         cudaFree((void *)v->h_snaps[i].cells);
+        cudaFree((void *)v->h_snaps[i].light);
         cudaFree((void *)v->h_snaps[i].coal);
         cudaFree((void *)v->h_snaps[i].xy_off);
         cudaFree((void *)v->h_snaps[i].cont);
     }
     cudaFree(v->d_ops);
     cudaFree(v->d_obs);
+    cudaFree(v->d_obs_all);
+    cudaFree(v->d_parity_all);
     cudaFree(v->d_snaps);
     cudaFree(v->d_recipes);
     cudaFree(v->d_aabb);
@@ -805,8 +868,9 @@ void blaze_destroy(void *vh) {
     cudaFree(v->d_edg);
     cudaFree(v->d_dep);
     cudaFree(v->d_cam);
-    cudaFree(v->d_camcells);
+    cudaFree(v->d_grass);
     cudaFree(v->d_cells);
+    cudaFree(v->d_light);
     cudaFree(v->d_active);
     cudaFree(v->d_assign);
     cudaFree(v->d_st);
@@ -818,23 +882,29 @@ void blaze_destroy(void *vh) {
     free(v);
 }
 
-/* Size the region pools (n * rvol cells + cam_cells) from the first-loaded
+/* Size the region pools (n * rvol cells + light) from the first-loaded
  * snapshot's dims, patch the staged env structs' pointers and re-upload
  * them. Init-time only; all further snapshots must match the dims. */
 static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
                                  char *err, int err_cap) {
     int i;
     long rvol = (long)rnx * rny * rnz;
-    double gb = 2.0 * (double)v->n * rvol * sizeof(u16) / 1e9;
+    /* worst-case section grid for these dims over any region origin */
+    long nsec = (long)CU_SEC_SPAN(rnx) * CU_SEC_SPAN(rny) * CU_SEC_SPAN(rnz);
+    double gb = (sizeof(u16) + sizeof(u8)) *
+                (double)v->n * rvol / 1e9;
     if (cudaMalloc(&v->d_cells,
                    (size_t)v->n * rvol * sizeof(u16)) != cudaSuccess ||
-        cudaMalloc(&v->d_camcells,
-                   (size_t)v->n * rvol * sizeof(u16)) != cudaSuccess) {
+        cudaMalloc(&v->d_light,
+                   (size_t)v->n * rvol * sizeof(u8)) != cudaSuccess ||
+        cudaMalloc(&v->d_grass,
+                   (size_t)v->n * nsec * sizeof(u16)) != cudaSuccess) {
         if (err && err_cap > 0)
             snprintf(err, (size_t)err_cap,
                      "region pool cudaMalloc failed (%dx%dx%d x %d envs = "
                      "%.1f GB)", rnx, rny, rnz, v->n, gb);
-        cudaFree(v->d_camcells); v->d_camcells = NULL;
+        cudaFree(v->d_light); v->d_light = NULL;
+        cudaFree(v->d_grass); v->d_grass = NULL;
         cudaFree(v->d_cells); v->d_cells = NULL;
         return 0;
     }
@@ -842,7 +912,8 @@ static int cu_alloc_region_pools(CuVecCu *v, int rnx, int rny, int rnz,
     v->rvol = rvol;
     for (i = 0; i < v->n; ++i) {
         v->h_envs[i].cells = v->d_cells + (size_t)i * rvol;
-        v->h_envs[i].cam_cells = v->d_camcells + (size_t)i * rvol;
+        v->h_envs[i].light = v->d_light + (size_t)i * rvol;
+        v->h_envs[i].grass_sec = v->d_grass + (size_t)i * nsec;
     }
     if (cudaMemcpy(v->d_envs, v->h_envs, (size_t)v->n * sizeof(Blaze),
                    cudaMemcpyHostToDevice) != cudaSuccess) {
@@ -865,8 +936,10 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         const RlSnapHead *h;
         long svol;
         u16 *d_cells = NULL;
+        u8 *d_light = NULL;
         int *d_coal = NULL;
-        if (!blaze_snapshot_load(paths[i], &s, err, err_cap)) return -1;
+        if (!blaze_snapshot_load(paths[i], &s, err, err_cap, v->no_ore_xy))
+            return -1;
         h = &s.head;
         if (h->rny > CU_RNY_MAX) {   /* window y>=128 air invariant */
             if (err && err_cap > 0)
@@ -899,6 +972,10 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                 cudaSuccess ||
             cudaMemcpy(d_cells, s.cells, (size_t)svol * sizeof(u16),
                        cudaMemcpyHostToDevice) != cudaSuccess ||
+            (s.light &&
+             (cudaMalloc(&d_light, (size_t)svol) != cudaSuccess ||
+              cudaMemcpy(d_light, s.light, (size_t)svol,
+                         cudaMemcpyHostToDevice) != cudaSuccess)) ||
             (s.ncoal &&
              (cudaMalloc(&d_coal, (size_t)s.ncoal * 3 * sizeof(int)) !=
                   cudaSuccess ||
@@ -917,6 +994,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                 snprintf(err, (size_t)err_cap, "device upload failed: %s",
                          paths[i]);
             cudaFree(d_cells);
+            cudaFree(d_light);
             cudaFree(d_coal);
             cudaFree(d_xy);
             cudaFree(d_cn);
@@ -927,6 +1005,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         d->head = s.head;
         memcpy(d->items, s.items, sizeof d->items);
         d->cells = d_cells;
+        d->light = d_light;
         d->coal = d_coal;
         d->ncoal = (int)s.ncoal;
         d->xy_off = d_xy;
@@ -934,6 +1013,8 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
         d->ncont = s.ncont;
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
+        v->has_unrepresented[v->nsnaps] =
+            s.head.container != 0 || s.light == NULL;
         blaze_snapshot_free(&s);
         v->nsnaps++;
     }
@@ -942,6 +1023,23 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
                          cudaMemcpyHostToDevice), "snap table upload"))
         return -1;
     return v->nsnaps;
+}
+
+int blaze_parity_size(void) { return (int)sizeof(BpParityRecord); }
+
+unsigned long long blaze_capabilities(void) {
+    return (unsigned long long)BP_IMPLEMENTED_MASK;
+}
+
+unsigned long long blaze_snapshot_requirements(void *vh, int snap) {
+    CuVecCu *v = (CuVecCu *)vh;
+    unsigned long long requirements = 0;
+    if (!v || snap < 0 || snap >= v->nsnaps) return ~0ULL;
+    if (v->has_liquid[snap])
+        requirements |= (unsigned long long)BP_BIT(BP_FLUIDS);
+    if (v->has_unrepresented[snap])
+        requirements |= (unsigned long long)BP_REQ_UNREPRESENTED_SNAPSHOT;
+    return requirements;
 }
 
 int blaze_snapshot_has_liquid(void *vh, int snap) {
@@ -1004,8 +1102,12 @@ int blaze_reset(void *vh, const unsigned char *mask) {
     k_reset_scalar<<<(nact + CU_TPB - 1) / CU_TPB, CU_TPB, 0, v->stream>>>(
         v->d_envs, v->d_active, nact, v->d_snaps, v->d_assign,
         v->success_item);
-    /* all snapshots share the pool dims, so the bulk count is uniform */
-    bulk = v->rvol + (long long)PSV_NCHUNKS * MC_CHUNK_VOL + CU_NPIX;
+    /* all snapshots share the pool dims, so the bulk count is uniform - the
+     * grass census grid is sized off the dims alone for exactly this reason
+     * (cu_grass_grid_init); keep this in step with cu_reset_bulk_count. */
+    bulk = v->rvol + (long long)PSV_NCHUNKS * MC_CHUNK_VOL + CU_NPIX +
+           (long long)CU_SEC_SPAN(v->rnx) * CU_SEC_SPAN(v->rny) *
+               CU_SEC_SPAN(v->rnz);
     bulk_blocks = ((long long)nact * bulk + CU_TPB - 1) / CU_TPB;
     k_reset_bulk<<<(unsigned)bulk_blocks, CU_TPB, 0, v->stream>>>(
         v->d_envs, v->d_active, nact, bulk, v->d_snaps, v->d_assign);
@@ -1166,6 +1268,7 @@ int blaze_capture(void *vh, int env, int slot) {
             return -1;
     }
     v->has_liquid[slot] = v->has_liquid[v->h_assign[env]];
+    v->has_unrepresented[slot] = d->head.container != 0;
     return cu_ck(cudaMemcpy(v->d_snaps + slot, d, sizeof *d,
                             cudaMemcpyHostToDevice), "capture snap upload");
 }
@@ -1187,6 +1290,35 @@ int blaze_emit(void *vh, int env, int want_cam, void *out) {
                             cudaMemcpyDeviceToHost), "obs readback");
 }
 
+/* Batched blaze_emit: fills `out` with all n records back to back (lane i at
+ * out + i*sizeof(CuBinObs)) in ONE launch pair plus ONE DtoH copy. Byte-for-
+ * byte what a blaze_emit loop over lanes 0..n-1 would write; the per-lane
+ * blaze_emit above is untouched and remains the reference. */
+int blaze_emit_all(void *vh, int want_cam, void *out) {
+    CuVecCu *v = (CuVecCu *)vh;
+    if (!v || !out) return -1;
+    cudaSetDevice(v->device);
+    if (!v->d_obs_all &&
+        cu_ck(cudaMalloc(&v->d_obs_all, (size_t)v->n * sizeof(CuBinObs)),
+              "emit_all staging alloc"))
+        return -1;
+    if (want_cam) {
+        long long npix = (long long)v->n * CU_NPIX;
+        k_emit_cam_all<<<(unsigned)((npix + CU_TPB - 1) / CU_TPB), CU_TPB, 0,
+                         v->stream>>>(v->d_envs, v->n, v->d_st);
+    }
+    /* One thread PER BLOCK, not CU_TPB threads per block: each thread fills a
+     * whole 14.6 KB record with serial stores, so packing 64 of them into one
+     * block serialises 0.94 MB of stores onto a single SM (measured 3.06
+     * ms/tick). One block per env spreads them over the GPU's SMs instead. */
+    k_emit_all<<<v->n, 1, 0, v->stream>>>(v->d_envs, v->n, v->d_st,
+                                          v->d_obs_all);
+    if (cu_ck(cudaStreamSynchronize(v->stream), "k_emit_all")) return -1;
+    return cu_ck(cudaMemcpy(out, v->d_obs_all,
+                            (size_t)v->n * sizeof(CuBinObs),
+                            cudaMemcpyDeviceToHost), "obs_all readback");
+}
+
 /* env == -1 broadcasts the same raw action to ALL envs in one launch (one
  * thread per env; no obs - use blaze_emit per lane). Mirrors the CPU
  * driver's broadcast loop. */
@@ -1198,7 +1330,12 @@ int blaze_tick_raw(void *vh, int env, const double a[13], int want_cam,
     memcpy(ra.a, a, sizeof ra.a);
     cudaSetDevice(v->device);
     if (env == -1)
-        k_tick_raw<<<(v->n + CU_TICK_TPB - 1) / CU_TICK_TPB, CU_TICK_TPB, 0,
+        /* one block per env, not 32: k_tick_raw has no collectives (the
+         * env>=0 branch already runs <<<1,1>>>) and 32 divergent envs in one
+         * warp serialize on divergence. Measured 18.4s -> 17.6s on the 2058
+         * -tick chain gate; the rest of the tick cost is per-env critical
+         * path, not scheduling. */
+        k_tick_raw<<<v->n, 1, 0,
                      v->stream>>>(v->d_envs, -1, v->n, v->d_st, ra, 0, NULL,
                                   v->d_aabb, v->d_recipes, v->nrecipes);
     else
@@ -1214,7 +1351,7 @@ int blaze_tick_raw(void *vh, int env, const double a[13], int want_cam,
 
 /* op-trace readout: counters per env (buffer sizing) + the n * CU_OP_N
  * cumulative device counters copied to host `out` (row-major, env-major).
- * Returns -1 when tracing is off (BLAZE_OP_TRACE unset at create). */
+ * Returns -1 when tracing is off (op_trace was 0 at create). */
 int blaze_op_count(void) { return CU_OP_N; }
 
 int blaze_op_trace(void *vh, unsigned long long *out) {
@@ -1225,6 +1362,41 @@ int blaze_op_trace(void *vh, unsigned long long *out) {
                             (size_t)v->n * CU_OP_N *
                                 sizeof(unsigned long long),
                             cudaMemcpyDeviceToHost), "op-trace readback");
+}
+
+int blaze_parity_state(void *vh, int env, void *out) {
+    CuVecCu *v = (CuVecCu *)vh;
+    BpParityRecord *d_out;
+    if (!v || env < 0 || env >= v->n || !out) return -1;
+    cudaSetDevice(v->device);
+    d_out = (BpParityRecord *)v->d_obs;
+    k_parity<<<1, 1, 0, v->stream>>>(v->d_envs, env, d_out);
+    if (cu_ck(cudaStreamSynchronize(v->stream), "k_parity")) return -1;
+    return cu_ck(cudaMemcpy(out, d_out, sizeof(BpParityRecord),
+                            cudaMemcpyDeviceToHost), "parity readback");
+}
+
+/* Batched blaze_parity_state: fills `out` with all n PARY records back to back
+ * (lane i at out + i*sizeof(BpParityRecord)) in ONE launch + ONE DtoH copy.
+ * Byte-for-byte what a blaze_parity_state loop over lanes 0..n-1 would write;
+ * the per-lane entry above is untouched and remains the reference. */
+int blaze_parity_state_all(void *vh, void *out) {
+    CuVecCu *v = (CuVecCu *)vh;
+    if (!v || !out) return -1;
+    cudaSetDevice(v->device);
+    if (!v->d_parity_all &&
+        cu_ck(cudaMalloc(&v->d_parity_all,
+                         (size_t)v->n * sizeof(BpParityRecord)),
+              "parity_all staging alloc"))
+        return -1;
+    /* One block per env (same rationale as k_emit_all): each thread runs the
+     * full blaze_parity_fill serial work, so packing them into one block would
+     * serialize on a single SM. */
+    k_parity_all<<<v->n, 1, 0, v->stream>>>(v->d_envs, v->n, v->d_parity_all);
+    if (cu_ck(cudaStreamSynchronize(v->stream), "k_parity_all")) return -1;
+    return cu_ck(cudaMemcpy(out, v->d_parity_all,
+                            (size_t)v->n * sizeof(BpParityRecord),
+                            cudaMemcpyDeviceToHost), "parity_all readback");
 }
 
 int blaze_debug_state(void *vh, int env, double *out, int cap) {

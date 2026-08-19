@@ -10,7 +10,7 @@ import os
 import numpy as np
 
 import chain_probe as cp
-from ppo_coal import COAL_ID, HEADS, IX_COAL, OUT, REPEAT, act_dict, \
+from ppo_coal import COAL_ID, FIXTURES, HEADS, IX_COAL, REPEAT, act_dict, \
     make_env, nearest_coal, planes
 from vec_env import VecCoalEnv
 
@@ -62,7 +62,7 @@ def ref_rollout(seed, prefix, idx_seq):
 
 
 def main():
-    prefixes = json.load(open(os.path.join(OUT, "coal_prefixes.json")))
+    prefixes = json.load(open(os.path.join(FIXTURES, "coal_prefixes.json")))
     rng = np.random.default_rng(7)
     idx_seqs = [[tuple(int(rng.integers(h)) for h in HEADS)
                  for _ in range(N_DEC)] for _ in SEEDS]

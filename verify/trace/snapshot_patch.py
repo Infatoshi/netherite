@@ -24,6 +24,24 @@ MAGMA = HERE.parents[1] / "magma"
 TRACE = MAGMA / "trace"
 
 
+def _canon_anvil_state(state: int) -> int:
+    """Round-trip-stable id<<4|meta for the world-hash / snapshot domain.
+
+    BlockDoublePlant upper half (id 175, meta bit 0x8) encodes FACING in the
+    low nibble, but getStateFromMeta always yields HALF=UPPER with default
+    FACING=NORTH (horizontalIndex 2 -> meta 10). Anvil can store a non-round-
+    trippable facing (often 11) that then disagrees with live client
+    getMetaFromState and with magma gen (which writes meta 10). Force the
+    stable nibble so snapshot_patch does not "correct" gen toward a lossy
+    Anvil facing the Java recorder will never hash.
+    """
+    block_id = (state >> 4) & 0xFFF
+    meta = state & 15
+    if block_id == 175 and (meta & 8):
+        meta = 8 | 2  # UPPER + NORTH
+    return (block_id << 4) | meta
+
+
 def _read_mca_states(region: Path, cx: int, cz: int) -> np.ndarray:
     """Read packed vanilla state id<<4|meta for one 1.11.2 chunk."""
     from nbt.region import RegionFile
@@ -46,6 +64,13 @@ def _read_mca_states(region: Path, cx: int, cz: int) -> np.ndarray:
         meta[1::2] = data >> 4
         state = ((ids << 4) | meta).reshape(16, 16, 16)  # y,z,x
         out[:, sy * 16 : sy * 16 + 16, :] = np.transpose(state, (2, 0, 1))
+    # Vectorized double-plant upper facing canon (see _canon_anvil_state).
+    bid = out >> 4
+    meta = out & 15
+    upper = (bid == 175) & ((meta & 8) != 0)
+    if upper.any():
+        out = out.copy()
+        out[upper] = (175 << 4) | (8 | 2)
     return out
 
 

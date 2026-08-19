@@ -40,7 +40,7 @@
  * clipping are IDENTICAL to the real env by construction.
  *
  * Allocation rule: no malloc here; all buffers are caller-allocated once at
- * create (cells/cam_cells/window/obs per env, McAABB scratch per worker). */
+ * create (cells/window/obs per env, McAABB scratch per worker). */
 #ifndef BLAZE_CORE_H
 #define BLAZE_CORE_H
 
@@ -59,6 +59,7 @@
 #include "crafting_recipes_full.h" /* crf_build/crf_findMatching verbatim */
 #include "furnace_full_tick.h"  /* fft_tick + sr_* smelt/fuel verbatim */
 #include "blaze_snapshot.h"     /* RlSnapHead/RlSnapItem (.bsnp format) */
+#include "../core/port_parity.h" /* shared Magma/Blaze subsystem record */
 
 #ifdef __cplusplus
 extern "C" {
@@ -182,8 +183,13 @@ typedef struct {
 /* ---- one env. Pointers reference caller-allocated pools (create-time). */
 typedef struct {
     /* large per-env buffers (pool) */
-    u16   *cells;                /* region packed states (id<<4)|meta       */
-    u16   *cam_cells;            /* region plain ids (oc_pixel input)       */
+    u16   *cells;                /* region packed states (id<<4)|meta; also
+                                  * the oc_pixel input (oc_block does >>4)  */
+    u8    *light;                /* region packed light (sky<<4)|block       */
+    u16   *grass_sec;            /* per-16^3-section BLK_GRASS census over the
+                                  * region's covering section grid, for the
+                                  * random-tick skip (cu_grass_* below);
+                                  * NULL = census off -> full hash sweep    */
     Chunk *window;               /* PSV_NCHUNKS physics window (blocks only)*/
     u16   *cam;                  /* last rendered frame (want_cam=0 reuse)  */
     u8    *dep, *edg;
@@ -203,10 +209,16 @@ typedef struct {
     int    cand_pwx, cand_pwy, cand_pwz, cand_valid;
     int    world_epoch;          /* bumped by every region cell write        */
     int    cand_epoch;           /* world_epoch the cached mined flags saw   */
+    uint64_t parity_world_digest;
+    uint32_t parity_world_mutations;
+    int      parity_world_valid;
+    int      light_valid;        /* snapshot v2 carried exact light nibbles */
 
     int rx0, ry0, rz0;           /* region origin (world) */
     int rnx, rny, rnz;           /* region dims (snapshot header) */
     long rvol;                   /* rnx * rny * rnz */
+    int gsx0, gsy0, gsz0;        /* grass_sec grid origin (SECTION coords) */
+    int gsnx, gsny, gsnz;        /* grass_sec grid dims (sections) */
 
     /* player + vitals (window-local pose) */
     PsvPlayer pl;
@@ -218,7 +230,7 @@ typedef struct {
     /* player_ctl.c statics, per-env-ified */
     float  dig_progress;
     int    dig_hx, dig_hy, dig_hz;   /* window-local; INT_MIN = none */
-    int    dig_hitting, dig_delay, atk_prev;
+    int    dig_hitting, dig_delay, atk_prev, left_click_counter;
     int    rc_delay, use_prev;
     int    eat_ticks, eat_item;      /* s_eat_* (NOT in .bsnp: snapshots are
                                       * taken at quiescent points, both 0) */
@@ -226,6 +238,10 @@ typedef struct {
     double server_motion_x, server_motion_z;
 
     int container, container_wx, container_wy, container_wz;
+    ICStack craft_grid[9], cursor;
+    unsigned int parity_craft_attempts, parity_craft_successes;
+    unsigned int parity_container_opens;
+    ICStack parity_last_craft;
 
     /* live furnaces (runtime.c furnace slots, per-env-ified) */
     CuFurnace furnaces[CU_MAX_FURNACES];
@@ -233,6 +249,7 @@ typedef struct {
 
     CuItem items[CU_MAX_ITEMS];
     int    n_items;
+    int    items_unrepresented;
 
     /* reward/done bookkeeping (driver-level; not part of the sim gate) */
     int    base_coal;
@@ -273,6 +290,51 @@ MC_HD static inline long cu_region_idx(const Blaze *e, int wx, int wy, int wz) {
     return ((long)ix * e->rny + iy) * e->rnz + iz;
 }
 
+/* ---- random-tick grass occupancy census ----
+ * cu_randtick_grass_pass hashes 17x17 chunks x 16 sections x 3 attempts every
+ * env-tick, and cu_rt_tick_grass is a pure no-op unless the hashed cell holds
+ * BLK_GRASS. mc_hash_seed is COUNTER-based (a stateless hash of seed/tick/
+ * coords), not an advancing stream, so skipping an attempt-group perturbs no
+ * other group's draw. The census counts BLK_GRASS cells per (chunk-x,
+ * section-y, chunk-z) 16^3 section over the region; a section with a zero
+ * count - or one the region does not intersect at all - cannot produce a
+ * side effect, so its three attempts are skipped bit-exactly.
+ *
+ * The grid is anchored at the region origin's section and sized by
+ * CU_SEC_SPAN: a run of n block coords touches at most (n+15)/16 + 1 distinct
+ * 16-blocks whatever the origin's alignment, so the span cube always covers
+ * every section the region intersects. Sizing off the DIMS only (never the
+ * origin) keeps the grid - hence the reset bulk index space - uniform across
+ * every snapshot sharing the pool dims, which is what the CUDA driver's
+ * host-side bulk count assumes. A padding section that the region misses
+ * entirely just censuses to 0 and is skipped like any other empty one. */
+#define CU_SEC_SPAN(n) (((n) + 15) / 16 + 1)
+
+MC_HD static inline void cu_grass_grid_init(Blaze *e) {
+    e->gsx0 = psv_floordiv16(e->rx0);
+    e->gsy0 = psv_floordiv16(e->ry0);
+    e->gsz0 = psv_floordiv16(e->rz0);
+    e->gsnx = CU_SEC_SPAN(e->rnx);
+    e->gsny = CU_SEC_SPAN(e->rny);
+    e->gsnz = CU_SEC_SPAN(e->rnz);
+}
+
+MC_HD static inline long cu_grass_sec_count(const Blaze *e) {
+    return (long)e->gsnx * e->gsny * e->gsnz;
+}
+
+/* section triple -> census slot, or -1 when that 16^3 section lies entirely
+ * outside the region (the cheap bounds reject; sections 8..15 of a 128-tall
+ * region are all in this class). */
+MC_HD static inline long cu_grass_sec_idx(const Blaze *e,
+                                          int scx, int ssy, int scz) {
+    int ix = scx - e->gsx0, iy = ssy - e->gsy0, iz = scz - e->gsz0;
+    if (ix < 0 || iy < 0 || iz < 0 ||
+        ix >= e->gsnx || iy >= e->gsny || iz >= e->gsnz)
+        return -1;
+    return ((long)ix * e->gsny + iy) * e->gsnz + iz;
+}
+
 /* gm_world_block/gm_world_meta equivalent over the snapshot region: outside
  * the region (or y outside [0,127]) reads as air, mirroring the design's
  * out-of-region = air rule. Items/plants/obs use these (WORLD coords). */
@@ -285,6 +347,15 @@ MC_HD static inline int cu_world_meta(const Blaze *e, int wx, int wy, int wz) {
     long i = cu_region_idx(e, wx, wy, wz);
     CU_OP(e, CU_OP_WORLD_LOAD);
     return i < 0 ? 0 : mc_state_meta(e->cells[i]);
+}
+MC_HD static inline int cu_world_light(const Blaze *e, int wx, int wy, int wz) {
+    long i = cu_region_idx(e, wx, wy, wz);
+    int packed, sky, block;
+    if (i < 0) return 15;
+    packed = e->light[i];
+    sky = packed >> 4;
+    block = packed & 15;
+    return sky > block ? sky : block;
 }
 
 /* window write (player_ctl.c psv_set_state: window-LOCAL coords) */
@@ -329,19 +400,217 @@ MC_HD static inline void cu_cont_edit(Blaze *e, int wx, int wy, int wz,
     e->n_cont++;
 }
 
+/* Removing an opaque block can only increase light. LightWorld re-runs its
+ * local BFS after every write. Process each Manhattan shell once: every
+ * newly-reachable cell has a predecessor on the prior shell, so this is the
+ * same radius-15 monotone relaxation without rescanning a 31^3 cube 15 times. */
+MC_HD static inline void cu_light_relax_cell(Blaze *e, int x, int y, int z) {
+    static const int dx[6] = {1, -1, 0, 0, 0, 0};
+    static const int dy[6] = {0, 0, 1, -1, 0, 0};
+    static const int dz[6] = {0, 0, 0, 0, 1, -1};
+    long i = cu_region_idx(e, x, y, z);
+    int id, opacity, sky, best, q;
+    if (i < 0) return;
+    id = mc_state_id(e->cells[i]);
+    opacity = (int)mc_bpt_props(id).light_opacity;
+    if (opacity > 15) opacity = 15;
+    if (opacity < 1) opacity = 1;
+    sky = e->light[i] >> 4;
+    best = sky;
+    for (q = 0; q < 6; ++q) {
+        long ni = cu_region_idx(e, x + dx[q], y + dy[q], z + dz[q]);
+        int candidate;
+        if (ni < 0) continue;
+        candidate = (e->light[ni] >> 4) - opacity;
+        if (candidate > best) best = candidate;
+    }
+    if (best > sky)
+        e->light[i] = (u8)((best << 4) | (e->light[i] & 15));
+}
+
+MC_HD static inline void cu_light_relax_open(Blaze *e,
+                                             int wx, int wy, int wz) {
+    int radius, ox, oy;
+    if (!e->light_valid) return;
+    for (radius = 0; radius < 15; ++radius)
+        for (ox = -radius; ox <= radius; ++ox)
+            for (oy = -(radius - (ox < 0 ? -ox : ox));
+                 oy <= radius - (ox < 0 ? -ox : ox); ++oy) {
+                int rem = radius - (ox < 0 ? -ox : ox) -
+                          (oy < 0 ? -oy : oy);
+                cu_light_relax_cell(e, wx + ox, wy + oy, wz + rem);
+                if (rem)
+                    cu_light_relax_cell(e, wx + ox, wy + oy, wz - rem);
+            }
+}
+
+/* Magma light_set_state / getRawLight sky seed: non-zero opacity starts at 0
+ * (flood fills later); air canSeeSky (no opacity>0 above in-region) is 15. */
+MC_HD static inline int cu_light_raw_sky(const Blaze *e, int x, int y, int z) {
+    long i = cu_region_idx(e, x, y, z);
+    int opacity, yy;
+    if (i < 0) return 15;
+    opacity = (int)mc_bpt_props(mc_state_id(e->cells[i])).light_opacity;
+    if (opacity > 0) return 0;
+    for (yy = y + 1; yy < e->ry0 + e->rny; ++yy) {
+        long j = cu_region_idx(e, x, yy, z);
+        if (j < 0) return 15;
+        if ((int)mc_bpt_props(mc_state_id(e->cells[j])).light_opacity > 0)
+            return 0;
+    }
+    return 15;
+}
+
+MC_HD static inline void cu_light_seed_raw_sky(Blaze *e, int x, int y, int z) {
+    long i = cu_region_idx(e, x, y, z);
+    int raw;
+    if (i < 0) return;
+    raw = cu_light_raw_sky(e, x, y, z);
+    e->light[i] = (u8)((raw << 4) | (e->light[i] & 15));
+}
+
+/* Placing a more-opaque block can only decrease light. Dual of open: re-seed
+ * the radius-15 ball to raw sky (darken), then re-run open 15 times so light
+ * from residual sky columns and exterior neighbors can walk back inward
+ * (one open pass only advances the wavefront by one shell from the boundary). */
+MC_HD static inline void cu_light_relax_close(Blaze *e,
+                                              int wx, int wy, int wz) {
+    int radius, ox, oy, pass;
+    if (!e->light_valid) return;
+    for (radius = 0; radius < 15; ++radius)
+        for (ox = -radius; ox <= radius; ++ox)
+            for (oy = -(radius - (ox < 0 ? -ox : ox));
+                 oy <= radius - (ox < 0 ? -ox : ox); ++oy) {
+                int rem = radius - (ox < 0 ? -ox : ox) -
+                          (oy < 0 ? -oy : oy);
+                cu_light_seed_raw_sky(e, wx + ox, wy + oy, wz + rem);
+                if (rem)
+                    cu_light_seed_raw_sky(e, wx + ox, wy + oy, wz - rem);
+            }
+    for (pass = 0; pass < 15; ++pass)
+        cu_light_relax_open(e, wx, wy, wz);
+}
+
 /* world write: region + camera ids + window mirror (the real env writes the
  * GmWorld and refills the physics window from it next tick; value-identical). */
 MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
                                             int id, int meta) {
     long i = cu_region_idx(e, wx, wy, wz);
     if (i >= 0) {
-        cu_cont_edit(e, wx, wy, wz, mc_state_id(e->cells[i]), id);
-        e->cells[i] = mc_state(id, meta);
-        e->cam_cells[i] = (u16)(id & 0xFFF);
+        u16 old_state = e->cells[i];
+        u16 new_state = mc_state(id, meta);
+        int old_op, new_op;
+        cu_cont_edit(e, wx, wy, wz, mc_state_id(old_state), id);
+        if (e->parity_world_valid && old_state != new_state) {
+            e->parity_world_digest = bp_world_digest_replace(
+                e->parity_world_digest, (uint64_t)i, old_state, new_state);
+            ++e->parity_world_mutations;
+        }
+        e->cells[i] = new_state;
+        /* grass census maintenance: this is the ONLY runtime writer of
+         * cells[] (dig, place, block edits, furnace lit/unlit and the grass
+         * spread/death inside cu_rt_tick_grass - which writes NEIGHBOUR
+         * sections - all land here), so the counts stay exact at every read
+         * point, including mid-pass. */
+        if (e->grass_sec) {
+            int was_grass = mc_state_id(old_state) == BLK_GRASS;
+            int now_grass = mc_state_id(new_state) == BLK_GRASS;
+            if (was_grass != now_grass) {
+                long g = cu_grass_sec_idx(e, psv_floordiv16(wx),
+                                          psv_floordiv16(wy),
+                                          psv_floordiv16(wz));
+                if (g >= 0) {
+                    if (now_grass) e->grass_sec[g]++;
+                    else           e->grass_sec[g]--;
+                }
+            }
+        }
+        old_op = (int)mc_bpt_props(mc_state_id(old_state)).light_opacity;
+        new_op = (int)mc_bpt_props(id).light_opacity;
+        if (old_op > new_op)
+            cu_light_relax_open(e, wx, wy, wz);
+        else if (old_op < new_op)
+            cu_light_relax_close(e, wx, wy, wz);
         e->world_epoch++;        /* coal candidate mined-flag invalidation */
         CU_OP(e, CU_OP_WORLD_EDIT);
     }
     cu_win_set_state(e->window, wx - e->ox, wy, wz - e->oz, id, meta);
+}
+
+/* Live random-tick grass subset, matching magma/game/randtick.c exactly when
+ * a v2 snapshot supplies the light nibbles. Other random-tick block kinds
+ * remain deliberately unrepresented, so the random_ticks matrix row stays
+ * BLOCKED. */
+MC_HD static inline int cu_rt_light_at(const Blaze *e,
+                                       int wx, int wy, int wz) {
+    return cu_world_light(e, wx, wy, wz);
+}
+
+MC_HD static inline void cu_rt_tick_grass(Blaze *e, int x, int y, int z) {
+    enum { CU_RT_PURPOSE_GRASS = 0x52544752u };
+    int above_id, light_up, i;
+    if (cu_world_block(e, x, y, z) != BLK_GRASS) return;
+    above_id = cu_world_block(e, x, y + 1, z);
+    light_up = cu_rt_light_at(e, x, y + 1, z);
+    if (light_up < 4 && (int)mc_bpt_props(above_id).light_opacity > 2) {
+        cu_world_set_state(e, x, y, z, BLK_DIRT, 0);
+        return;
+    }
+    if (light_up < 9) return;
+    for (i = 0; i < 4; ++i) {
+        u64 h = mc_hash_seed((u64)e->seed, e->tick, x, y, z,
+                             CU_RT_PURPOSE_GRASS);
+        int dx, dy, dz, nx, ny, nz, target_id, target_meta, target_above;
+        h = mc_hash64(h ^ (u64)i);
+        dx = mc_hash_bound(h, 3) - 1;
+        h = mc_hash64(h + 1);
+        dy = mc_hash_bound(h, 5) - 3;
+        h = mc_hash64(h + 2);
+        dz = mc_hash_bound(h, 3) - 1;
+        nx = x + dx; ny = y + dy; nz = z + dz;
+        if (ny < 0 || ny >= 256) continue;
+        target_id = cu_world_block(e, nx, ny, nz);
+        target_meta = cu_world_meta(e, nx, ny, nz) & 15;
+        if (target_id != BLK_DIRT || target_meta != 0) continue;
+        target_above = cu_world_block(e, nx, ny + 1, nz);
+        if (cu_rt_light_at(e, nx, ny + 1, nz) >= 4 &&
+            (int)mc_bpt_props(target_above).light_opacity <= 2)
+            cu_world_set_state(e, nx, ny, nz, BLK_GRASS, 0);
+    }
+}
+
+MC_HD static inline void cu_randtick_grass_pass(Blaze *e) {
+    enum { CU_RT_PURPOSE_POS = 0x5254504Fu };
+    int cx, cz, sec, att;
+    if (!e->light_valid) return;
+    for (cz = e->ccz - 8; cz <= e->ccz + 8; ++cz)
+        for (cx = e->ccx - 8; cx <= e->ccx + 8; ++cx)
+            for (sec = 0; sec < 16; ++sec) {
+                /* Every attempt of this group draws lx/ly/lz in [0,16), so
+                 * all three targets live in section (cx, sec, cz) exactly.
+                 * No grass there (or no region overlap) => all three are
+                 * no-ops; the counter-based hashes of every OTHER group are
+                 * unaffected, so skipping is bit-exact. */
+                if (e->grass_sec) {
+                    long g = cu_grass_sec_idx(e, cx, sec, cz);
+                    if (g < 0 || e->grass_sec[g] == 0) continue;
+                }
+                for (att = 0; att < 3; ++att) {
+                    u64 h = mc_hash_seed((u64)e->seed, e->tick, cx, sec, cz,
+                                         CU_RT_PURPOSE_POS ^ (u32)att);
+                    int lx = (int)mc_hash_bound(h, 16);
+                    int ly, lz, wx, wy, wz;
+                    h = mc_hash64(h + 1ULL);
+                    ly = (int)mc_hash_bound(h, 16);
+                    h = mc_hash64(h + 2ULL);
+                    lz = (int)mc_hash_bound(h, 16);
+                    wx = cx * 16 + lx;
+                    wy = sec * 16 + ly;
+                    wz = cz * 16 + lz;
+                    if (cu_region_idx(e, wx, wy, wz) >= 0)
+                        cu_rt_tick_grass(e, wx, wy, wz);
+                }
+            }
 }
 
 /* The PSV 3x3-chunk physics window layout is exactly what
@@ -381,9 +650,8 @@ MC_HD static inline void cu_fill_chunk_lanes(Blaze *e, Chunk *ch, int cx, int cz
 /* runtime.c recenter(), pose half: shift the local frame when the player
  * crosses a chunk boundary. Returns 1 (with the chunk shift in odcx/odcz)
  * when a crossing happened - the window must then be refilled with
- * cu_recenter_fill. The dig target (dig_hx/hy/hz) is window-local and is NOT
- * shifted - the real env's player_ctl statics aren't either (the next dig
- * tick sees a "target change" and re-acquires; faithful, if quirky). */
+ * cu_recenter_fill. The dig target is window-local, so shift it with the
+ * player exactly like gm_player_ctl_recenter. */
 MC_HD static inline int cu_recenter_pose(Blaze *e, int *odcx, int *odcz) {
     double wx = e->pl.ent.posX + e->ox;
     double wz = e->pl.ent.posZ + e->oz;
@@ -401,6 +669,10 @@ MC_HD static inline int cu_recenter_pose(Blaze *e, int *odcx, int *odcz) {
     e->pl.ent.posX -= dx; e->pl.ent.posZ -= dz;
     e->pl.ent.box.minX -= dx; e->pl.ent.box.maxX -= dx;
     e->pl.ent.box.minZ -= dz; e->pl.ent.box.maxZ -= dz;
+    if (e->dig_hx != INT_MIN) {
+        e->dig_hx -= dcx * 16;
+        e->dig_hz -= dcz * 16;
+    }
     *odcx = dcx;
     *odcz = dcz;
     CU_OP(e, CU_OP_RECENTER);
@@ -1064,88 +1336,99 @@ MC_HD static inline void blaze_player_tick(Blaze *env, const McSinTable *st,
         env->hurt_vel_reset = 0;
     }
 
-    /* progressive dig BEFORE the move (player_ctl.c:364-459) */
+    /* progressive dig BEFORE the move. Mirrors magma player_ctl / Minecraft:
+     * leftClickCounter-- before keybind processing; survival press-MISS arms
+     * 10; clickMouse + sendClickBlock freeze while post-decrement > 0; release
+     * clears the counter. Blaze is survival dig-only (no entity attack path),
+     * but the counter state machine must stay bit-aligned with magma. */
     use_gate_hitting = env->dig_hitting;
-    if (act.attack) {
-        int press = !env->atk_prev;
-        int hx, hy, hz, ax, ay, az;
-        int r = cu_raycast_sel_reach(window, st, pl, PSV_REACH,
+    if (!act.attack) {
+        env->left_click_counter = 0;
+        env->dig_hitting = 0;
+        env->dig_progress = 0.0f;
+    } else {
+        if (env->left_click_counter > 0) --env->left_click_counter;
+        if (env->left_click_counter > 0) {
+            /* clickMouse + sendClickBlock both no-op; dig state freezes. */
+        } else {
+            int press = !env->atk_prev;
+            int hx, hy, hz, ax, ay, az;
+            int r = cu_raycast_sel_reach(window, st, pl, 4.5,
                                      &hx, &hy, &hz, &ax, &ay, &az, env->ops);
-        if (r >= 0) {
-            int bid = psv_get_block(window, hx, hy, hz);
-            BptProps bp = mc_bpt_props(bid);
-            if (bid != BLK_AIR && bp.hardness >= 0.0f) {
-                ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
-                PbInput pin;
-                float rel;
-                pin.block_id = bid;
-                pin.block_meta = psv_get_meta(window, hx, hy, hz);
-                pin.tool_id = held.item;
-                pin.tool_meta = held.meta;
-                pin.efficiency = 0;
-                pin.haste_amp = -1;
-                pin.fatigue_amp = -1;
-                pin.in_water = cu_eye_in_water(window, pl);
-                pin.aqua_affinity = 0;
-                pin.on_ground = pl->ent.onGround;
-                pin.creative = 0;
-                rel = pb_relative_hardness(&pin);
-                if (press &&
-                    (!env->dig_hitting || hx != env->dig_hx || hy != env->dig_hy ||
-                     hz != env->dig_hz)) {
-                    if (rel >= 1.0f) {
-                        CU_OP(env, CU_OP_DIG_BREAK);
-                        cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
-                                       ox, oy, oz, edits, &ne, max_edits);
-                        bid = BLK_AIR;
-                    } else {
-                        env->dig_hitting = 1;
-                        env->dig_hx = hx; env->dig_hy = hy; env->dig_hz = hz;
-                        env->dig_progress = 0.0f;
-                        use_gate_hitting = 1;
-                    }
-                }
-                if (bid != BLK_AIR) {
-                    if (env->dig_delay > 0) {
-                        --env->dig_delay;
-                    } else if (hx == env->dig_hx && hy == env->dig_hy &&
-                               hz == env->dig_hz) {
-                        env->dig_progress += rel;
-                        CU_OP(env, CU_OP_DIG_TICK);
-                        if (env->dig_progress >= 1.0f) {
-                            env->dig_hitting = 0;
-                            CU_OP(env, CU_OP_DIG_BREAK);
-                            cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
-                                           ox, oy, oz, edits, &ne, max_edits);
-                            env->dig_progress = 0.0f;
-                            env->dig_delay = 5;
-                        }
-                    } else {
+            if (r >= 0) {
+                int bid = psv_get_block(window, hx, hy, hz);
+                BptProps bp = mc_bpt_props(bid);
+                if (bid != BLK_AIR && bp.hardness >= 0.0f) {
+                    ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
+                    PbInput pin;
+                    float rel;
+                    pin.block_id = bid;
+                    pin.block_meta = psv_get_meta(window, hx, hy, hz);
+                    pin.tool_id = held.item;
+                    pin.tool_meta = held.meta;
+                    pin.efficiency = 0;
+                    pin.haste_amp = -1;
+                    pin.fatigue_amp = -1;
+                    pin.in_water = cu_eye_in_water(window, pl);
+                    pin.aqua_affinity = 0;
+                    pin.on_ground = pl->ent.onGround;
+                    pin.creative = 0;
+                    rel = pb_relative_hardness(&pin);
+                    if (press &&
+                        (!env->dig_hitting || hx != env->dig_hx || hy != env->dig_hy ||
+                         hz != env->dig_hz)) {
                         if (rel >= 1.0f) {
                             CU_OP(env, CU_OP_DIG_BREAK);
                             cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
                                            ox, oy, oz, edits, &ne, max_edits);
+                            env->dig_hx = INT_MIN;
+                            bid = BLK_AIR;
                         } else {
                             env->dig_hitting = 1;
                             env->dig_hx = hx; env->dig_hy = hy; env->dig_hz = hz;
                             env->dig_progress = 0.0f;
+                            use_gate_hitting = 1;
                         }
                     }
+                    if (bid != BLK_AIR) {
+                        if (env->dig_delay > 0) {
+                            --env->dig_delay;
+                        } else if (hx == env->dig_hx && hy == env->dig_hy &&
+                                   hz == env->dig_hz) {
+                            env->dig_progress += rel;
+                            CU_OP(env, CU_OP_DIG_TICK);
+                            if (env->dig_progress >= 1.0f) {
+                                env->dig_hitting = 0;
+                                CU_OP(env, CU_OP_DIG_BREAK);
+                                cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                                               ox, oy, oz, edits, &ne, max_edits);
+                                env->dig_hx = INT_MIN;
+                                env->dig_progress = 0.0f;
+                                env->dig_delay = 5;
+                            }
+                        } else {
+                            if (rel >= 1.0f) {
+                                CU_OP(env, CU_OP_DIG_BREAK);
+                                cu_dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                                               ox, oy, oz, edits, &ne, max_edits);
+                                env->dig_hx = INT_MIN;
+                            } else {
+                                env->dig_hitting = 1;
+                                env->dig_hx = hx; env->dig_hy = hy; env->dig_hz = hz;
+                                env->dig_progress = 0.0f;
+                            }
+                        }
+                    }
+                } else {
+                    env->dig_hitting = 0;
+                    env->dig_progress = 0.0f;
                 }
             } else {
+                if (press) env->left_click_counter = 10;
                 env->dig_hitting = 0;
-                env->dig_hx = INT_MIN;
                 env->dig_progress = 0.0f;
             }
-        } else {
-            env->dig_hitting = 0;
-            env->dig_hx = INT_MIN;
-            env->dig_progress = 0.0f;
         }
-    } else {
-        env->dig_hitting = 0;
-        env->dig_hx = INT_MIN;
-        env->dig_progress = 0.0f;
     }
     env->atk_prev = act.attack;
 
@@ -1386,6 +1669,7 @@ MC_HD static inline int cu_spawn_item(Blaze *env, double x, double y, double z,
         env->n_items++;
         return 1;
     }
+    env->items_unrepresented = 1;
     return 0;
 }
 
@@ -1633,6 +1917,7 @@ MC_HD static inline int blaze_do_craft(Blaze *env, int which,
         for (i = 0; i < 9; ++i)
             if (cu_craft_cell[which][i] == need_id[j]) slots[i] = slot;
     }
+    env->parity_craft_attempts++;
 
     /* gm_runtime_craft (runtime.c:850) */
     if (width == 3 && env->container != 1) return 0;
@@ -1659,6 +1944,8 @@ MC_HD static inline int blaze_do_craft(Blaze *env, int which,
     (void)isr_add_item_stack_to_inventory(&next, &output);
     if (!isr_is_empty(&output)) return 0;
     env->pl.inv = next;
+    env->parity_craft_successes++;
+    env->parity_last_craft = ic_mk(result.item, result.count, result.meta);
     return 1;
 }
 
@@ -1741,11 +2028,13 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
         if (dx2 * dx2 + dy2 * dy2 + dz2 * dz2 > 36.0) return 0;
         id = cu_world_block(env, bx, by, bz);
         if (id == 58) {
-            /* gm_container_close: no-op here (blaze carries no craft grid or
-             * cursor; the craft primitive never leaves either non-empty) */
+            /* The protocol primitive never leaves grid/cursor contents, so
+             * runtime_close_container has no stacks to return here. */
             env->container = 1;
             env->container_wx = bx; env->container_wy = by;
             env->container_wz = bz;
+            env->left_click_counter = 10000;
+            env->parity_container_opens++;
             return 1;
         }
         if (id == 61 || id == 62) {
@@ -1756,6 +2045,8 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
                     env->container = 2; env->active_furnace = fi;
                     env->container_wx = bx; env->container_wy = by;
                     env->container_wz = bz;
+                    env->left_click_counter = 10000;
+                    env->parity_container_opens++;
                     return 1;
                 }
                 if (!f->active && free_slot < 0) free_slot = fi;
@@ -1769,6 +2060,8 @@ MC_HD static inline int blaze_do_interact(Blaze *env) {
             env->container = 2; env->active_furnace = free_slot;
             env->container_wx = bx; env->container_wy = by;
             env->container_wz = bz;
+            env->left_click_counter = 10000;
+            env->parity_container_opens++;
             return 1;
         }
         return 0;
@@ -1873,6 +2166,9 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
      * value-identical to the gen-triggered refill. */
 
     blaze_player_tick(env, st, act, edits, &n, CU_MAX_EDITS, blocks);
+    /* Minecraft.runTick pins this GUI sentinel after key processing. */
+    if (env->container >= 1 && env->container <= 3)
+        env->left_click_counter = 10000;
 
     /* ghost pushers (runtime.c:328-354): tape-replay only, nghosts==0. */
 
@@ -1914,6 +2210,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
 
     /* world clock / weather (no obs field), fluid CA, mobs, dragon,
      * projectiles: inert in the learned stage - skipped. */
+    cu_randtick_grass_pass(env);
 
     cu_live_tick_player(env);
 
@@ -2173,7 +2470,7 @@ MC_HD static inline void blaze_render_cam_pixel(Blaze *env, const McSinTable *st
     double ex = env->pl.ent.posX + (double)env->ox;
     double ey = env->pl.ent.posY + PSV_EYE_HEIGHT;
     double ez = env->pl.ent.posZ + (double)env->oz;
-    reg.cells = env->cam_cells;
+    reg.cells = env->cells;
     reg.x0 = env->rx0; reg.y0 = env->ry0; reg.z0 = env->rz0;
     reg.nx = env->rnx; reg.ny = env->rny; reg.nz = env->rnz;
     oc_pixel(&reg, st, ex, ey, ez, env->pl.yaw, env->pl.pitch,
@@ -2642,6 +2939,227 @@ MC_HD static inline int blaze_capture_head(const Blaze *e, RlSnapHead *h,
     return n;
 }
 
+/* =================== subsystem parity record ============================== */
+
+MC_HD static inline uint64_t blaze_parity_stack(uint64_t h, const ICStack *s) {
+    int i;
+    h = bp_hash_i32(h, s->item);
+    h = bp_hash_i32(h, s->count);
+    h = bp_hash_i32(h, s->meta);
+    h = bp_hash_i32(h, s->n_enchants);
+    for (i = 0; i < IC_MAX_ENCHANTS; ++i) {
+        h = bp_hash_i32(h, s->enchants[i].id);
+        h = bp_hash_i32(h, s->enchants[i].level);
+    }
+    return h;
+}
+
+/* Fill every subsystem whose state is both implemented here and representable
+ * in Magma. Pointer-backed observation buffers are read only in this MC_HD
+ * builder; CUDA invokes it on-device, never through host-dereferenced pool
+ * pointers. Unsupported subsystems retain zero evidence and the FNV seed. */
+MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
+    uint64_t h;
+    int i, j, any;
+    int coal[CU_NCOAL][3];
+    bp_record_init(r, (int64_t)e->tick);
+    r->debug_bits[BP_DBG_PLAYER_X] =
+        bp_double_bits(e->pl.ent.posX + (double)e->ox);
+    r->debug_bits[BP_DBG_PLAYER_Y] = bp_double_bits(e->pl.ent.posY);
+    r->debug_bits[BP_DBG_PLAYER_Z] =
+        bp_double_bits(e->pl.ent.posZ + (double)e->oz);
+    r->debug_bits[BP_DBG_MOTION_X] = bp_double_bits(e->pl.ent.motionX);
+    r->debug_bits[BP_DBG_MOTION_Y] = bp_double_bits(e->pl.ent.motionY);
+    r->debug_bits[BP_DBG_MOTION_Z] = bp_double_bits(e->pl.ent.motionZ);
+    r->debug_bits[BP_DBG_YAW] = bp_float_bits(e->pl.yaw);
+    r->debug_bits[BP_DBG_PITCH] = bp_float_bits(e->pl.pitch);
+    r->debug_bits[BP_DBG_ON_GROUND] = (uint32_t)e->pl.ent.onGround;
+    r->debug_bits[BP_DBG_FALL_DISTANCE] =
+        bp_float_bits(e->pl.fall_distance);
+    r->debug_bits[BP_DBG_SPRINTING] = (uint32_t)e->pl.sprinting;
+    r->debug_bits[BP_DBG_SPRINT_TIMER] =
+        (uint32_t)e->pl.sprint_toggle_timer;
+    r->debug_bits[BP_DBG_HEALTH] = bp_float_bits(e->vit.health);
+    r->debug_bits[BP_DBG_FOOD] = (uint32_t)e->vit.foodLevel;
+    r->debug_bits[BP_DBG_EXHAUSTION] = bp_float_bits(e->vit.exhaustion);
+    r->debug_bits[BP_DBG_DIG_PROGRESS] = bp_float_bits(e->dig_progress);
+    r->debug_bits[BP_DBG_DIG_HX] =
+        (uint32_t)(e->dig_hitting && e->dig_hx != INT_MIN
+                   ? e->dig_hx + e->ox : INT_MIN);
+    r->debug_bits[BP_DBG_DIG_HY] =
+        (uint32_t)(e->dig_hitting ? e->dig_hy : INT_MIN);
+    r->debug_bits[BP_DBG_DIG_HZ] =
+        (uint32_t)(e->dig_hitting && e->dig_hx != INT_MIN
+                   ? e->dig_hz + e->oz : INT_MIN);
+    r->debug_bits[BP_DBG_DIG_HITTING] = (uint32_t)e->dig_hitting;
+    r->debug_bits[BP_DBG_DIG_DELAY] = (uint32_t)e->dig_delay;
+    r->debug_bits[BP_DBG_ATK_PREV] = (uint32_t)e->atk_prev;
+    r->debug_bits[BP_DBG_LEFT_CLICK_COUNTER] =
+        (uint32_t)e->left_click_counter;
+    r->debug_bits[BP_DBG_RC_DELAY] = (uint32_t)e->rc_delay;
+    r->debug_bits[BP_DBG_USE_PREV] = (uint32_t)e->use_prev;
+    r->debug_bits[BP_DBG_HURT_VEL_RESET] = (uint32_t)e->hurt_vel_reset;
+    r->debug_bits[BP_DBG_SERVER_MOTION_X] =
+        bp_double_bits(e->server_motion_x);
+    r->debug_bits[BP_DBG_SERVER_MOTION_Z] =
+        bp_double_bits(e->server_motion_z);
+    r->debug_bits[BP_DBG_CONTAINER] =
+        bp_debug_pair_i32(e->container, (int32_t)e->parity_container_opens);
+    r->debug_bits[BP_DBG_CONTAINER_WX] =
+        bp_debug_pair_i32(e->container_wx,
+                          (int32_t)e->parity_craft_attempts);
+    r->debug_bits[BP_DBG_CONTAINER_WY] =
+        bp_debug_pair_i32(e->container_wy, e->cursor.item);
+    r->debug_bits[BP_DBG_CONTAINER_WZ] =
+        bp_debug_pair_i32(e->container_wz,
+                          (e->cursor.count & 0xffff) |
+                          ((e->cursor.meta & 0xffff) << 16));
+
+    h = bp_hash_begin();
+    h = bp_hash_double(h, e->pl.ent.posX + (double)e->ox);
+    h = bp_hash_double(h, e->pl.ent.posY);
+    h = bp_hash_double(h, e->pl.ent.posZ + (double)e->oz);
+    h = bp_hash_double(h, e->pl.ent.motionX);
+    h = bp_hash_double(h, e->pl.ent.motionY);
+    h = bp_hash_double(h, e->pl.ent.motionZ);
+    h = bp_hash_float(h, e->pl.yaw);
+    h = bp_hash_float(h, e->pl.pitch);
+    h = bp_hash_i32(h, e->pl.ent.onGround);
+    h = bp_hash_float(h, e->pl.fall_distance);
+    h = bp_hash_i32(h, e->pl.sprinting);
+    h = bp_hash_i32(h, e->pl.sprint_toggle_timer);
+    h = bp_hash_float(h, e->vit.health);
+    h = bp_hash_i32(h, e->vit.foodLevel);
+    h = bp_hash_float(h, e->vit.exhaustion);
+    r->digest[BP_PLAYER] = h;
+    r->evidence[BP_PLAYER] = 1;
+    r->active_mask |= BP_BIT(BP_PLAYER);
+
+    h = bp_hash_begin();
+    h = bp_hash_float(h, e->dig_progress);
+    h = bp_hash_i32(h, e->dig_hitting && e->dig_hx != INT_MIN
+                    ? e->dig_hx + e->ox : INT_MIN);
+    h = bp_hash_i32(h, e->dig_hitting ? e->dig_hy : INT_MIN);
+    h = bp_hash_i32(h, e->dig_hitting && e->dig_hx != INT_MIN
+                    ? e->dig_hz + e->oz : INT_MIN);
+    h = bp_hash_i32(h, e->dig_hitting);
+    h = bp_hash_i32(h, e->dig_delay);
+    h = bp_hash_i32(h, e->atk_prev);
+    h = bp_hash_i32(h, e->left_click_counter);
+    h = bp_hash_i32(h, e->rc_delay);
+    h = bp_hash_i32(h, e->use_prev);
+    h = bp_hash_i32(h, e->hurt_vel_reset);
+    h = bp_hash_double(h, e->server_motion_x);
+    h = bp_hash_double(h, e->server_motion_z);
+    r->digest[BP_DIG] = h;
+    r->evidence[BP_DIG] = 1;
+    if (e->dig_hitting) r->active_mask |= BP_BIT(BP_DIG);
+
+    if (e->cells && e->rnx > 0 && e->rny > 0 && e->rnz > 0) {
+        if (!e->parity_world_valid) {
+            e->parity_world_digest =
+                bp_world_digest_cells(e->cells, e->rnx, e->rny, e->rnz);
+            e->parity_world_mutations = 0;
+            e->parity_world_valid = 1;
+        }
+        r->digest[BP_WORLD] = e->parity_world_digest;
+        r->evidence[BP_WORLD] = e->parity_world_mutations;
+        if (e->parity_world_mutations)
+            r->active_mask |= BP_BIT(BP_WORLD);
+    } else {
+        r->measured_mask &= ~BP_BIT(BP_WORLD);
+    }
+
+    h = bp_hash_begin();
+    h = bp_hash_i32(h, e->pl.inv.current_item);
+    for (i = 0; i < ISR_MAIN_SLOTS; ++i)
+        h = blaze_parity_stack(h, &e->pl.inv.main[i]);
+    r->digest[BP_INVENTORY] = h;
+    r->evidence[BP_INVENTORY] = 1;
+    r->active_mask |= BP_BIT(BP_INVENTORY);
+
+    h = bp_hash_begin();
+    any = 0;
+    for (i = 0; i < CU_MAX_ITEMS; ++i)
+        if (e->items[i].active) ++any;
+    h = bp_hash_i32(h, any);
+    for (i = 0; i < CU_MAX_ITEMS; ++i) {
+        const CuItem *it = &e->items[i];
+        if (!it->active) continue;
+        h = bp_hash_item_entity(
+            h, it->x, it->y, it->z, it->mx, it->my, it->mz,
+            it->on_ground, it->age, it->item, it->count, it->meta,
+            it->pickup_delay, it->lifespan);
+    }
+    r->digest[BP_ITEMS] = h;
+    r->evidence[BP_ITEMS] = (uint32_t)any;
+    if (any) r->active_mask |= BP_BIT(BP_ITEMS);
+    if (e->items_unrepresented) {
+        r->measured_mask &= ~BP_BIT(BP_ITEMS);
+        r->evidence[BP_ITEMS] = 0;
+    }
+
+    h = bp_hash_begin();
+    h = bp_hash_u32(h, e->parity_craft_attempts);
+    h = bp_hash_u32(h, e->parity_craft_successes);
+    h = blaze_parity_stack(h, &e->parity_last_craft);
+    any = 0;
+    for (i = 0; i < 9; ++i) {
+        h = blaze_parity_stack(h, &e->craft_grid[i]);
+        any |= e->craft_grid[i].item > 0 && e->craft_grid[i].count > 0;
+    }
+    r->digest[BP_CRAFTING] = h;
+    r->evidence[BP_CRAFTING] = e->parity_craft_successes;
+    if (any || e->parity_craft_successes)
+        r->active_mask |= BP_BIT(BP_CRAFTING);
+
+    h = bp_hash_begin();
+    h = bp_hash_i32(h, e->container);
+    if (e->container) {
+        h = bp_hash_i32(h, e->container_wx);
+        h = bp_hash_i32(h, e->container_wy);
+        h = bp_hash_i32(h, e->container_wz);
+    }
+    h = bp_hash_u32(h, e->parity_container_opens);
+    for (i = 0; i < 9; ++i)
+        h = blaze_parity_stack(h, &e->craft_grid[i]);
+    h = blaze_parity_stack(h, &e->cursor);
+    r->digest[BP_CONTAINERS] = h;
+    r->evidence[BP_CONTAINERS] = e->parity_container_opens;
+    if (e->container || any || (e->cursor.item > 0 && e->cursor.count > 0))
+        r->active_mask |= BP_BIT(BP_CONTAINERS);
+
+    h = bp_hash_begin();
+    any = 0;
+    for (i = 0; i < CU_MAX_FURNACES; ++i) {
+        const CuFurnace *f = &e->furnaces[i];
+        h = bp_hash_i32(h, f->active);
+        if (!f->active) continue;
+        ++any;
+        h = bp_hash_furnace_state(
+            h, f->wx, f->wy, f->wz,
+            f->input.item, f->input.count, f->input.meta,
+            f->fuel.item, f->fuel.count, f->fuel.meta,
+            f->output.item, f->output.count, f->output.meta,
+            f->burn_time, f->current_burn_time, f->cook_time, f->total_cook);
+    }
+    r->digest[BP_FURNACES] = h;
+    r->evidence[BP_FURNACES] = (uint32_t)any;
+    if (any) r->active_mask |= BP_BIT(BP_FURNACES);
+
+    (void)blaze_coal_list(e, coal);
+    h = bp_hash_begin();
+    for (i = 0; i < CU_NCOAL; ++i)
+        for (j = 0; j < 3; ++j)
+            h = bp_hash_i32(h, coal[i][j]);
+    for (i = 0; i < CU_NPIX; ++i) h = bp_hash_u16(h, e->cam[i]);
+    for (i = 0; i < CU_NPIX; ++i) h = bp_hash_u8(h, e->dep[i]);
+    for (i = 0; i < CU_NPIX; ++i) h = bp_hash_u8(h, e->edg[i]);
+    r->digest[BP_OBSERVATIONS] = h;
+    r->evidence[BP_OBSERVATIONS] = 1;
+    r->active_mask |= BP_BIT(BP_OBSERVATIONS);
+}
+
 /* Raw sim state for divergence bisecting (blaze_debug_state ABI): doubles
  * {posX+ox, posY, posZ+oz (world, EXACT), motionX/Y/Z, yaw, pitch, onGround,
  *  fall_distance, sprinting, sprint_toggle_timer, dig_progress, dig_hitting,
@@ -2685,23 +3203,27 @@ MC_HD static inline int blaze_debug_fill(const Blaze *e, double *out) {
  *
  * Bulk cell index space (cu_reset_bulk_count(env) per env; the env's scalar
  * phase must have set rnx/rny/rnz/rvol first):
- *   [0, rvol)               region cells -> cells + cam_cells
+ *   [0, rvol)               region cells + light -> cells/light
  *   [rvol, +9*chunk_vol)    physics window blocks, computed from cells_src
  *                           directly (identical values; keeps the two ranges
  *                           order-independent)
- *   last CU_NPIX            frame buffer clear (cam 0 / dep 255 / edg 0)
+ *   next CU_NPIX            frame buffer clear (cam 0 / dep 255 / edg 0)
+ *   last cu_grass_sec_count  grass census, one section per index (each slot
+ *                           scans its own 16^3 of cells_src, so the range is
+ *                           order-independent w.r.t. the region copy above)
  * The scalar phase must run first (bulk reads rx0/ccx/dims/pointer fields). */
 MC_HD static inline long cu_reset_bulk_count(const Blaze *env) {
-    return env->rvol + (long)PSV_NCHUNKS * MC_CHUNK_VOL + CU_NPIX;
+    return env->rvol + (long)PSV_NCHUNKS * MC_CHUNK_VOL + CU_NPIX +
+           (env->grass_sec ? cu_grass_sec_count(env) : 0);
 }
 
 MC_HD static inline void blaze_reset_bulk(Blaze *env, const u16 *cells_src,
-                                          long idx) {
+                                          const u8 *light_src, long idx) {
+    long tail = env->rvol + (long)PSV_NCHUNKS * MC_CHUNK_VOL;
     if (idx < env->rvol) {
-        u16 s = cells_src[idx];
-        env->cells[idx] = s;
-        env->cam_cells[idx] = (u16)(s >> 4);
-    } else if (idx < env->rvol + (long)PSV_NCHUNKS * MC_CHUNK_VOL) {
+        env->cells[idx] = cells_src[idx];
+        env->light[idx] = light_src ? light_src[idx] : 0;
+    } else if (idx < tail) {
         long w = idx - env->rvol;
         int ci = (int)(w / MC_CHUNK_VOL), cell = (int)(w % MC_CHUNK_VOL);
         /* mc_idx layout: cell = (y*MC_CZ + z)*MC_CX + x */
@@ -2711,22 +3233,40 @@ MC_HD static inline void blaze_reset_bulk(Blaze *env, const u16 *cells_src,
         int wx = (env->ccx + dx) * 16 + lx, wz = (env->ccz + dz) * 16 + lz;
         long ri = cu_region_idx(env, wx, y, wz);
         env->window[ci].blocks[cell] = ri < 0 ? 0 : cells_src[ri];
-    } else {
-        long pix = idx - env->rvol - (long)PSV_NCHUNKS * MC_CHUNK_VOL;
+    } else if (idx < tail + CU_NPIX) {
+        long pix = idx - tail;
         env->cam[pix] = 0; env->dep[pix] = 255; env->edg[pix] = 0;
+    } else {
+        long g = idx - tail - CU_NPIX;
+        int iz = (int)(g % env->gsnz);
+        int iy = (int)((g / env->gsnz) % env->gsny);
+        int ix = (int)(g / ((long)env->gsnz * env->gsny));
+        int bx = (env->gsx0 + ix) * 16;
+        int by = (env->gsy0 + iy) * 16;
+        int bz = (env->gsz0 + iz) * 16;
+        int lx, ly, lz, n = 0;
+        for (lx = 0; lx < 16; ++lx)
+            for (ly = 0; ly < 16; ++ly)
+                for (lz = 0; lz < 16; ++lz) {
+                    long ri = cu_region_idx(env, bx + lx, by + ly, bz + lz);
+                    if (ri >= 0 && mc_state_id(cells_src[ri]) == BLK_GRASS)
+                        ++n;
+                }
+        env->grass_sec[g] = (u16)n;   /* <= 16^3 = 4096, fits u16 */
     }
 }
 
 /* Scalar phase: every per-env field. Mirrors rl_snapshot_load (rl_mode.c)
  * field-for-field; world_dirty is ignored (blaze has no scan cache - coal
- * membership is a pure function of world + player block). cells/cam_cells/
- * window/cam bufs must already point into the per-env pool; ore/nore is the
+ * membership is a pure function of world + player block). cells/window/cam
+ * bufs must already point into the per-env pool; ore/nore is the
  * snapshot's static coal list. */
 MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
                                             const RlSnapItem *items,
                                             const int *ore, int nore,
                                             const int *ore_xy,
                                             const int *cont, int ncont,
+                                            int light_valid,
                                             int success_item) {
     int i, dx, dz;
     unsigned u;
@@ -2734,10 +3274,12 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->rx0 = h->rx0; env->ry0 = h->ry0; env->rz0 = h->rz0;
     env->rnx = h->rnx; env->rny = h->rny; env->rnz = h->rnz;
     env->rvol = (long)h->rnx * h->rny * h->rnz;
+    cu_grass_grid_init(env);     /* bulk phase fills grass_sec from this */
     env->ore = ore;
     env->nore = nore;
     env->ore_xy = ore_xy;
     env->n_cont = ncont;
+    env->light_valid = light_valid;
     if (ncont > 0)
         for (i = 0; i < ncont * 3; ++i) env->cont[i] = cont[i];
 
@@ -2778,8 +3320,9 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->dig_progress = h->dig_progress;
     env->dig_hx = h->dig_hx; env->dig_hy = h->dig_hy; env->dig_hz = h->dig_hz;
     env->dig_hitting = h->dig_hitting; env->dig_delay = h->dig_delay;
-    env->atk_prev = h->atk_prev; env->rc_delay = h->rc_delay;
-    env->use_prev = h->use_prev; env->hurt_vel_reset = h->hurt_vel_reset;
+    env->atk_prev = h->atk_prev; env->left_click_counter = 0;
+    env->rc_delay = h->rc_delay; env->use_prev = h->use_prev;
+    env->hurt_vel_reset = h->hurt_vel_reset;
     env->eat_ticks = 0; env->eat_item = 0;   /* quiescent by bake contract */
     env->server_motion_x = h->server_motion_x;
     env->server_motion_z = h->server_motion_z;
@@ -2787,6 +3330,12 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->container = h->container;
     env->container_wx = h->container_wx; env->container_wy = h->container_wy;
     env->container_wz = h->container_wz;
+    for (i = 0; i < 9; ++i) env->craft_grid[i] = ic_empty();
+    env->cursor = ic_empty();
+    env->parity_craft_attempts = 0;
+    env->parity_craft_successes = 0;
+    env->parity_container_opens = 0;
+    env->parity_last_craft = ic_empty();
 
     /* furnace state is NOT in .bsnp (bake contract: quiescent, no active
      * furnace) - the real env's --snapshot-in likewise restores with
@@ -2797,6 +3346,7 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
         cu_furnace_init(&env->furnaces[i]);
     }
     env->active_furnace = -1;
+    env->items_unrepresented = 0;
 
     env->pl.inv.current_item = h->hotbar_sel;
     for (i = 0; i < 37; ++i)
@@ -2824,6 +3374,9 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
             Chunk *ch = &env->window[(dz + PSV_R) * PSV_DIM + (dx + PSV_R)];
             ch->cx = env->ccx + dx; ch->cz = env->ccz + dz;
         }
+    env->parity_world_digest = 0;
+    env->parity_world_mutations = 0;
+    env->parity_world_valid = 0;
 
     env->base_coal = blaze_inv_count(env, 263);
     env->success_item = success_item;
@@ -2852,15 +3405,17 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
 MC_HD static inline void blaze_reset_from_snapshot(Blaze *env, const RlSnapHead *h,
                                                    const RlSnapItem *items,
                                                    const u16 *cells_src,
+                                                   const u8 *light_src,
                                                    const int *ore, int nore,
                                                    const int *ore_xy,
                                                    const int *cont, int ncont,
                                                    int success_item) {
     long i, nbulk;
     blaze_reset_scalar(env, h, items, ore, nore, ore_xy, cont, ncont,
-                       success_item);
+                       light_src != NULL, success_item);
     nbulk = cu_reset_bulk_count(env);
-    for (i = 0; i < nbulk; ++i) blaze_reset_bulk(env, cells_src, i);
+    for (i = 0; i < nbulk; ++i)
+        blaze_reset_bulk(env, cells_src, light_src, i);
 }
 
 #ifdef __cplusplus

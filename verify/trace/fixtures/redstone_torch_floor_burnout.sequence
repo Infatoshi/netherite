@@ -1,0 +1,36 @@
+# Redstone torch burnout drive. Rows are TICK DX DY DZ BLOCK META, offsets
+# relative to the torch position; the driven cell is the torch's support block.
+#
+# Format and scene adopted from bluecoconut's PR #5
+# (magma/trace/fixtures/redstone_torch_floor_burnout.sequence). Coordinates are
+# re-anchored to DX=0 DY=-1 DZ=0 - the block directly under a floor-standing
+# torch, meta 5 - because this gate builds its scene through setblocks_locked
+# rather than their oracle fixture loader.
+#
+# Mechanism (java/oracle-src/net/minecraft/block/BlockRedstoneTorch.java):
+# powering the support makes shouldBeOff() true, so the scheduled updateTick
+# swaps lit->unlit and appends a Toggle(pos, totalWorldTime) to the static
+# per-World toggle list. tickRate is 2, so a 2-tick square wave drives one
+# toggle per cycle. isBurnedOut() counts entries matching the position and
+# returns true at 8; updateTick prunes entries older than 60 ticks from the
+# head, so all eight must land inside that window. Block 152 is the redstone
+# block (a constant power source), block 1 is plain stone (unpowered).
+#
+# Eight lit->unlit transitions inside 32 ticks, which is comfortably inside the
+# 60-tick prune window with room for the capsule boundary to land mid-run.
+0 0 -1 0 152 0
+2 0 -1 0 1 0
+4 0 -1 0 152 0
+6 0 -1 0 1 0
+8 0 -1 0 152 0
+10 0 -1 0 1 0
+12 0 -1 0 152 0
+14 0 -1 0 1 0
+16 0 -1 0 152 0
+18 0 -1 0 1 0
+20 0 -1 0 152 0
+22 0 -1 0 1 0
+24 0 -1 0 152 0
+26 0 -1 0 1 0
+28 0 -1 0 152 0
+30 0 -1 0 1 0

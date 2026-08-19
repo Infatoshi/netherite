@@ -39,7 +39,7 @@ __global__ void run_oc(OcRegion rg, const McSinTable *st,
 int main(int argc, char **argv) {
     static const i64 k_seeds[] = {0LL, 3LL, 12345LL};
     int n_seeds = (argc > 1) ? 1 : 3;
-    long ncells = rt_count(RG_NX, RG_NY, RG_NZ);
+    long ncells = rt_count(RG_NX, RG_NY, RG_NZ), ci;
     int si, pi, i;
 
     McSinTable *st = (McSinTable *)malloc(sizeof(McSinTable));
@@ -72,6 +72,10 @@ int main(int argc, char **argv) {
         OcRegion rg;
         rt_fill(cells, (u64)seed, RG_X0, RG_Y0, RG_Z0, RG_NX, RG_NY, RG_NZ,
                 primer, sc, st);
+        /* rt_fill emits PLAIN IDS; OcRegion takes PACKED STATES (oc_block
+         * does the >>4). Worldgen carries no meta, so id<<4 is the exact
+         * packed form and the rendered ids are unchanged. */
+        for (ci = 0; ci < ncells; ++ci) cells[ci] = (u16)(cells[ci] << 4);
         cudaMemcpy(d_cells, cells, (size_t)ncells * sizeof(u16),
                    cudaMemcpyHostToDevice);
         rg.cells = d_cells;

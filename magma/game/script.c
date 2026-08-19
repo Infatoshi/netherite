@@ -7,12 +7,15 @@
 #include "game/frame_capture.h"
 #include "game/hand.h"
 #include "game/particles_live.h"
+#include "game/player_ctl.h"
 #include "game/screen.h"
 #include "game/sel_box.h"
 #include "game/window_compose.h"
+#include "inventory_stack_rules.h"
 
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -189,6 +192,20 @@ static int parse_craft(const JlObject *o, int *width, int slots[9], char *err, i
     return 1;
 }
 
+/* Pack id<<4|meta for the world digest. BlockDoublePlant upper half (id 175,
+ * meta bit 0x8) stores FACING in the low bits, but BlockDoublePlant.
+ * getStateFromMeta drops FACING (always default NORTH). Anvil NBT can therefore
+ * hold a non-round-trippable facing nibble (commonly 11) while the live client
+ * state the Java recorder hashes is UPPER+NORTH (meta 10 = 8|horizontalIndex
+ * of NORTH). Canonicalize upper halves to that round-trip-stable meta so the
+ * digest domain matches Recorder.recordTick "wfnv" and is independent of
+ * whether the cell came from gen, MCA, or an older snapshot_patch. */
+static unsigned world_hash_state(int id, int meta) {
+    unsigned m = (unsigned)(meta & 15);
+    if (id == 175 && (m & 8u)) m = 8u | 2u; /* UPPER + NORTH */
+    return (unsigned)((id & 0xfff) << 4) | m;
+}
+
 /* FNV-1a over the 9x9x9 id/meta volume around the player. Anchored at the
  * double-precision sim feet position (not the float render view): the Java
  * recorder computes the identical digest from floor(posX/Y/Z), and a float
@@ -206,8 +223,8 @@ static unsigned long long nearby_hash(const GmRuntime *r, int anchor[3]) {
     for (int z = cz - 4; z <= cz + 4; ++z)
         for (int y = cy - 4; y <= cy + 4; ++y)
             for (int x = cx - 4; x <= cx + 4; ++x) {
-                unsigned s = (unsigned)(gm_world_block(r->world,x,y,z) << 4 |
-                                        gm_world_meta(r->world,x,y,z));
+                unsigned s = world_hash_state(gm_world_block(r->world,x,y,z),
+                                              gm_world_meta(r->world,x,y,z));
                 h ^= s; h *= 1099511628211ULL;
             }
     return h;
@@ -330,11 +347,85 @@ static void write_state(FILE *out, const GmRuntime *r) {
     int anchor[3];
     unsigned long long nh = nearby_hash(r, anchor);
     fprintf(out, ",\"nearby_anchor\":[%d,%d,%d]", anchor[0],anchor[1],anchor[2]);
-    fprintf(out, ",\"nearby_hash\":\"%016llx\",\"terminal\":%s}\n",
-            nh, v.dead ? "\"death\"" : (r->won?"\"won\"":"null"));
+    fprintf(out, ",\"nearby_hash\":\"%016llx\"", nh);
+    /* dig_trace: semantically matched controller/ray/progress fields for
+     * Java dig object comparison. Gated so default state JSONL is unchanged. */
+    if (cr_cfg()->dig_trace) {
+        GmPlayerCtlSnap d;
+        int creative = r->tape_creative;
+        double reach = creative ? 5.0 : 4.5;
+        int bx, by, bz, face = -1;
+        int ray_lx = INT_MIN, ray_ly = 0, ray_lz = 0;
+        int brk_x, brk_y, brk_z;
+        float rel;
+        ICStack held;
+        gm_player_ctl_dig_export(&d);
+        held = isr_get_stack(&r->player.inv, r->player.inv.current_item);
+        fprintf(out, ",\"dig\":{\"lcc\":%d,\"bhd\":%d,\"hit\":%d",
+                d.left_click_counter, d.dig_delay, d.dig_hitting ? 1 : 0);
+        if (d.dig_hx == INT_MIN)
+            fprintf(out, ",\"cb\":null");
+        else
+            fprintf(out, ",\"cb\":[%d,%d,%d]",
+                    d.dig_hx + r->ox, d.dig_hy, d.dig_hz + r->oz);
+        /* Ray: recompute look with controller reach (same as dig phase). */
+        {
+            int hx, hy, hz, ax, ay, az;
+            int hit = gm_raycast_sel_reach(r->window, &r->sin_table, &r->player,
+                                           reach, &hx, &hy, &hz, &ax, &ay, &az);
+            if (hit >= 0) {
+                /* face from adjacent cell (EnumFacing D-U-N-S-W-E = 0..5) */
+                if (ax < hx) face = 4; else if (ax > hx) face = 5;
+                else if (ay < hy) face = 0; else if (ay > hy) face = 1;
+                else if (az < hz) face = 2; else if (az > hz) face = 3;
+                else face = d.dig_face;
+                bx = hx + r->ox; by = hy; bz = hz + r->oz;
+                ray_lx = hx; ray_ly = hy; ray_lz = hz;
+                fprintf(out, ",\"face\":%d,\"ray\":1,\"rx\":%d,\"ry\":%d,\"rz\":%d",
+                        face >= 0 ? face : d.dig_face, bx, by, bz);
+            } else {
+                fprintf(out, ",\"face\":%d,\"ray\":0",
+                        d.dig_face >= 0 ? d.dig_face : -1);
+            }
+        }
+        if (held.item <= 0 || held.count <= 0)
+            fprintf(out, ",\"held\":0");
+        else
+            fprintf(out, ",\"held\":[%d,%d,%d]", held.item, held.meta, held.count);
+        fprintf(out, ",\"dmg\":%.9g", (double)d.dig_progress);
+        {
+            int rel_valid = 0;
+            if (ray_lx != INT_MIN) {
+                rel = gm_player_block_rel_hardness(
+                    (const struct Chunk *)r->window,
+                    (const struct PsvPlayer *)&r->player, creative,
+                    ray_lx, ray_ly, ray_lz);
+                rel_valid = 1;
+            } else if (d.dig_hx != INT_MIN || d.dig_hitting) {
+                rel = gm_player_dig_rel_hardness(
+                    (const struct Chunk *)r->window,
+                    (const struct PsvPlayer *)&r->player, creative);
+                rel_valid = 1;
+            }
+            if (rel_valid && isfinite((double)rel))
+                fprintf(out, ",\"rel\":%.9g", (double)rel);
+            else
+                fprintf(out, ",\"rel\":null");
+        }
+        fprintf(out, ",\"reach\":%.9g", reach);
+        if (gm_player_dig_break_event(&brk_x, &brk_y, &brk_z))
+            fprintf(out, ",\"brk\":[%d,%d,%d]", brk_x, brk_y, brk_z);
+        else
+            fprintf(out, ",\"brk\":0");
+        /* Magma does not simulate client neighbor-notify cascades; count is
+         * always 0 and bc_ref empty so a Java mismatch names the residual. */
+        fprintf(out, ",\"bcn\":0,\"bc_ref\":[]}");
+    }
+    fprintf(out, ",\"terminal\":%s}\n",
+            v.dead ? "\"death\"" : (r->won?"\"won\"":"null"));
 }
 
-/* MAGMA_STATE_PROF=1: batched-env sizing census, printed to stderr at run
+/* state_prof=1: batched-env sizing census, printed to stderr at run
  * end. Distinct packed states (id<<4|meta, air included) per chunk and per
  * 3x3-chunk window bound the u8-palette budget; non-air 16^3 sections per
  * chunk bound section elision. Scans the 9x9 chunks around the player (must
@@ -423,16 +514,21 @@ int gm_script_run(const GmConfig *cfg) {
     }
     char line[2048] = {0}; long line_no = 0; JlObject pending; int have = 0;
     long long pending_tick = -1;
+    /* Tape container identity (gopen/gclk/gclose window_id). -1 = none open
+     * via container_open; legacy inventory clicks may use window_id 0. */
+    int cont_open_wid = -1;
+    int cont_open_kind = -1;
+    (void)cont_open_kind;
     /* Saturated FoodStats regeneration is server-side, but tape rows are
      * client ticks. Preserve an early local heal's hidden exhaustion/timer
      * effects while deferring its visible health until the recorded packet. */
     float held_regen = 0.0f;
     int continue_after_death = 0;
-    /* MAGMA_STATE_PROF: per-tick world-edit rate. gm_world_block_gen counts
+    /* state_prof: per-tick world-edit rate. gm_world_block_gen counts
      * every block edit (set_block_meta + populate gen events), so its per-tick
      * delta = journal entries/tick for a dirty-edit journal. Baseline taken
      * here so worldgen's one-shot fill is excluded. */
-    int prof_on = getenv("MAGMA_STATE_PROF") != NULL;
+    int prof_on = cr_cfg()->state_prof ? 1 : 0;
     long long prof_last = 0, prof_tot = 0, prof_max = 0, prof_maxt = -1, prof_nz = 0;
     long long prof_h[5] = {0};   /* buckets: 0, 1-8, 9-64, 65-512, 513+ */
     if (prof_on) prof_last = gm_world_block_gen(r.world);
@@ -460,6 +556,13 @@ int gm_script_run(const GmConfig *cfg) {
         double pose_x = 0.0, pose_y = 0.0, pose_z = 0.0;
         double pose_yaw = 0.0, pose_pitch = 0.0;
         double pose_vx = 0.0, pose_vy = 0.0, pose_vz = 0.0, pose_fall = 0.0;
+        /* Post-tick client-world block reanchors (tape "bc" -> set_block_post).
+         * Applied after gm_runtime_tick so action t still digs/places with its
+         * own simulation, then authoritative finals land before state/frame
+         * capture and tick t+1 physics. Cap matches a busy mining/blast tick. */
+        enum { BLOCK_POST_MAX = 4096 };
+        struct { int x, y, z, id, meta; } block_post[BLOCK_POST_MAX];
+        int n_block_post = 0;
         for (;;) {
             if (!have && in && fgets(line,sizeof line,in)) {
                 line_no++;
@@ -979,6 +1082,30 @@ int gm_script_run(const GmConfig *cfg) {
                    !gm_runtime_set_block(&r,(int)x,(int)y,(int)z,(int)id,(int)meta)) {
                     fprintf(stderr,"script:%ld: invalid set_block\n",line_no);goto bad;
                 }
+            } else if (!strcmp(type,"set_block_post")) {
+                /* Authoritative client-world final, deferred until after the
+                 * tick's action simulation (see block_post apply below). Name
+                 * deliberately distinct from snapshot_block (recstart MCA load)
+                 * and set_block (pre-tick scenario/worldpatch edits). */
+                long long x,y,z,id,meta;
+                static const char *const keys[]={"tick","type","x","y","z","id","meta"};
+                if(!keys_only(&pending,keys,7,err,sizeof err)||
+                   !as_i64(field(&pending,"x"),&x)||!as_i64(field(&pending,"y"),&y)||
+                   !as_i64(field(&pending,"z"),&z)||!as_i64(field(&pending,"id"),&id)||
+                   !as_i64(field(&pending,"meta"),&meta)||
+                   x<-2147483647LL-1||x>2147483647LL||z<-2147483647LL-1||z>2147483647LL||
+                   y<0||y>255||id<0||id>4095||meta<0||meta>15){
+                    fprintf(stderr,"script:%ld: invalid set_block_post\n",line_no);goto bad;
+                }
+                if(n_block_post>=BLOCK_POST_MAX){
+                    fprintf(stderr,"script:%ld: set_block_post overflow\n",line_no);goto bad;
+                }
+                block_post[n_block_post].x=(int)x;
+                block_post[n_block_post].y=(int)y;
+                block_post[n_block_post].z=(int)z;
+                block_post[n_block_post].id=(int)id;
+                block_post[n_block_post].meta=(int)meta;
+                n_block_post++;
             } else if (!strcmp(type,"snapshot_block")) {
                 long long x,y,z,id,meta,dimension=0;
                 static const char *const keys[]={"tick","type","x","y","z","id","meta","dim"};
@@ -989,9 +1116,15 @@ int gm_script_run(const GmConfig *cfg) {
                    (field(&pending,"dim")&&!as_i64(field(&pending,"dim"),&dimension))||
                    dimension < -1||dimension > 1||
                    x<-2147483647LL-1||x>2147483647LL||z<-2147483647LL-1||z>2147483647LL||
-                   y<0||y>255||id<0||id>4095||meta<0||meta>15||
-                   !gm_runtime_load_block_dim(&r,(int)dimension,(int)x,(int)y,(int)z,
-                                              (int)id,(int)meta)){
+                   y<0||y>255||id<0||id>4095||meta<0||meta>15){
+                    fprintf(stderr,"script:%ld: invalid snapshot_block\n",line_no);goto bad;
+                }
+                /* See world_hash_state: Anvil upper-double-plant facing nibbles
+                 * are not round-trippable; store the stable NORTH meta so the
+                 * cell matches live client getMetaFromState / magma gen. */
+                if (id == 175 && (meta & 8)) meta = 8 | 2;
+                if (!gm_runtime_load_block_dim(&r,(int)dimension,(int)x,(int)y,(int)z,
+                                               (int)id,(int)meta)){
                     fprintf(stderr,"script:%ld: invalid snapshot_block\n",line_no);goto bad;
                 }
             } else if (!strcmp(type,"snapshot_region")) {
@@ -1147,6 +1280,159 @@ int gm_script_run(const GmConfig *cfg) {
                     !gm_runtime_use_block(&r,(int)x,(int)y,(int)z)) {
                     fprintf(stderr,"script:%ld: use_block failed\n",line_no); goto bad;
                 }
+            } else if (!strcmp(type,"container_open")) {
+                /* Tape gopen: open player/workbench/furnace/chest with
+                 * identity. ctype string -> 0..3. Block opens require the
+                 * world cell already present (snapshot); no silent place. */
+                static const char *const keys[]={"tick","type","window_id","ctype",
+                                                 "x","y","z"};
+                long long wid, x=0, y=0, z=0;
+                const char *ctype_s;
+                if (!keys_only(&pending,keys,7,err,sizeof err)||
+                    !as_i64(field(&pending,"window_id"),&wid)||
+                    !as_string(field(&pending,"ctype"),&ctype_s)||
+                    !as_i64(field(&pending,"x"),&x)||
+                    !as_i64(field(&pending,"y"),&y)||
+                    !as_i64(field(&pending,"z"),&z)) {
+                    fprintf(stderr,"script:%ld: %s\n",line_no,
+                            err[0]?err:"invalid container_open"); goto bad;
+                }
+                int ckind = -1;
+                if (!strcmp(ctype_s,"player")) ckind = 0;
+                else if (!strcmp(ctype_s,"workbench")) ckind = 1;
+                else if (!strcmp(ctype_s,"furnace")) ckind = 2;
+                else if (!strcmp(ctype_s,"chest")) ckind = 3;
+                if (ckind < 0) {
+                    fprintf(stderr,
+                            "script:%ld: unsupported container_open ctype %s\n",
+                            line_no, ctype_s); goto bad;
+                }
+                if (!gm_runtime_container_open(&r, ckind, (int)x, (int)y, (int)z)) {
+                    fprintf(stderr,
+                            "script:%ld: container_open failed ctype=%s "
+                            "pos=%lld,%lld,%lld\n",
+                            line_no, ctype_s, x, y, z); goto bad;
+                }
+                cont_open_wid = (int)wid;
+                cont_open_kind = ckind;
+            } else if (!strcmp(type,"container_slot")) {
+                static const char *const keys[]={"tick","type","slot","item",
+                                                 "count","meta"};
+                long long slot, item, count, meta;
+                if (!keys_only(&pending,keys,6,err,sizeof err)||
+                    !as_i64(field(&pending,"slot"),&slot)||
+                    !as_i64(field(&pending,"item"),&item)||
+                    !as_i64(field(&pending,"count"),&count)||
+                    !as_i64(field(&pending,"meta"),&meta)||
+                    !gm_runtime_container_seed_slot(&r,(int)slot,(int)item,
+                                                    (int)count,(int)meta)) {
+                    fprintf(stderr,"script:%ld: %s\n",line_no,
+                            err[0]?err:"invalid container_slot"); goto bad;
+                }
+            } else if (!strcmp(type,"container_cursor")) {
+                static const char *const keys[]={"tick","type","item","count","meta"};
+                long long item, count, meta;
+                if (!keys_only(&pending,keys,5,err,sizeof err)||
+                    !as_i64(field(&pending,"item"),&item)||
+                    !as_i64(field(&pending,"count"),&count)||
+                    !as_i64(field(&pending,"meta"),&meta)) {
+                    fprintf(stderr,"script:%ld: %s\n",line_no,
+                            err[0]?err:"invalid container_cursor"); goto bad;
+                }
+                gm_runtime_container_seed_cursor(&r,(int)item,(int)count,(int)meta);
+            } else if (!strcmp(type,"container_furnace_prop")) {
+                static const char *const keys[]={"tick","type","burn","current_burn",
+                                                 "cook","total_cook"};
+                long long burn, current, cook, total;
+                if (!keys_only(&pending,keys,6,err,sizeof err)||
+                    !as_i64(field(&pending,"burn"),&burn)||
+                    !as_i64(field(&pending,"current_burn"),&current)||
+                    !as_i64(field(&pending,"cook"),&cook)||
+                    !as_i64(field(&pending,"total_cook"),&total)||
+                    !gm_runtime_container_seed_furnace_prop(
+                        &r,(int)burn,(int)current,(int)cook,(int)total)) {
+                    fprintf(stderr,"script:%ld: %s\n",line_no,
+                            err[0]?err:"invalid container_furnace_prop"); goto bad;
+                }
+            } else if (!strcmp(type,"container_click")) {
+                /* Human-tape GuiContainer clicks: applied immediately (before
+                 * gm_runtime_tick), any number per tick, in script order.
+                 * Distinct from action.inv_click which is limited to one per
+                 * tick via GmAction. Supported click_type: 0 PICKUP, 1
+                 * QUICK_MOVE, 4 THROW (container_live). Others fail closed.
+                 * Optional window_id must match the last container_open. */
+                static const char *const keys[]={"tick","type","slot","button",
+                                                 "click_type","window_id"};
+                long long slot, button, ctype, wid = -1;
+                if (!keys_only(&pending,keys,6,err,sizeof err)||
+                    !as_i64(field(&pending,"slot"),&slot)||
+                    !as_i64(field(&pending,"button"),&button)||
+                    !as_i64(field(&pending,"click_type"),&ctype)) {
+                    fprintf(stderr,"script:%ld: %s\n",line_no,
+                            err[0]?err:"invalid container_click"); goto bad;
+                }
+                if (field(&pending,"window_id")) {
+                    if (!as_i64(field(&pending,"window_id"),&wid)) {
+                        fprintf(stderr,"script:%ld: invalid container_click "
+                                "window_id\n", line_no); goto bad;
+                    }
+                    if (cont_open_wid < 0) {
+                        /* Legacy inventory path: wid 0 without explicit open. */
+                        if (wid != 0 || r.container != 0) {
+                            fprintf(stderr,
+                                    "script:%ld: container_click window_id %lld "
+                                    "with no open container\n",
+                                    line_no, wid); goto bad;
+                        }
+                    } else if ((int)wid != cont_open_wid) {
+                        fprintf(stderr,
+                                "script:%ld: container_click window_id %lld "
+                                "!= open %d\n",
+                                line_no, wid, cont_open_wid); goto bad;
+                    }
+                }
+                if (!(slot == GMC_OUTSIDE ||
+                      (slot >= 0 && slot < GMC_SLOT_COUNT))) {
+                    fprintf(stderr,"script:%ld: invalid container_click slot\n",
+                            line_no); goto bad;
+                }
+                if (button != 0 && button != 1) {
+                    fprintf(stderr,"script:%ld: invalid container_click button\n",
+                            line_no); goto bad;
+                }
+                if (ctype != 0 && ctype != 1 && ctype != 4) {
+                    fprintf(stderr,
+                            "script:%ld: unsupported container_click type %lld\n",
+                            line_no, ctype); goto bad;
+                }
+                if (!gm_container_click(&r,(int)slot,(int)button,(int)ctype)) {
+                    fprintf(stderr,
+                            "script:%ld: container_click failed "
+                            "slot=%lld button=%lld type=%lld\n",
+                            line_no, slot, button, ctype); goto bad;
+                }
+            } else if (!strcmp(type,"container_close")) {
+                static const char *const keys[]={"tick","type","window_id"};
+                long long wid;
+                if (!keys_only(&pending,keys,3,err,sizeof err)||
+                    !as_i64(field(&pending,"window_id"),&wid)) {
+                    fprintf(stderr,"script:%ld: %s\n",line_no,
+                            err[0]?err:"invalid container_close"); goto bad;
+                }
+                if (cont_open_wid < 0) {
+                    fprintf(stderr,
+                            "script:%ld: container_close without open "
+                            "window_id=%lld\n", line_no, wid); goto bad;
+                }
+                if ((int)wid != cont_open_wid) {
+                    fprintf(stderr,
+                            "script:%ld: container_close window_id %lld "
+                            "!= open %d\n",
+                            line_no, wid, cont_open_wid); goto bad;
+                }
+                gm_runtime_container_force_close(&r);
+                cont_open_wid = -1;
+                cont_open_kind = -1;
             } else if (!strcmp(type,"furnace_insert")) {
                 static const char *const keys[]={"tick","type","slot","inventory","count"};
                 long long slot,inv,count;
@@ -1172,6 +1458,17 @@ int gm_script_run(const GmConfig *cfg) {
         float health_before_tick=r.vitals.health;
         int food_before_tick=r.vitals.foodLevel;
         gm_runtime_tick(&r,action);
+        /* Authoritative client block finals: after action t simulated, before
+         * state/frame capture and the next tick's physics. */
+        for (int bi = 0; bi < n_block_post; ++bi) {
+            if (!gm_runtime_reanchor_block(&r, block_post[bi].x, block_post[bi].y,
+                                          block_post[bi].z, block_post[bi].id,
+                                          block_post[bi].meta)) {
+                fprintf(stderr,"script: set_block_post apply failed at (%d,%d,%d)\n",
+                        block_post[bi].x, block_post[bi].y, block_post[bi].z);
+                goto bad;
+            }
+        }
         if(clear_hurt_velocity_post)gm_player_clear_inferred_hurt_velocity();
         if (prof_on) {
             long long bg = gm_world_block_gen(r.world), d = bg - prof_last;

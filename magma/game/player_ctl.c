@@ -24,9 +24,18 @@
 /* Progressive dig state (single local player): mirrors vanilla PlayerControllerMP.
  * s_dig_progress = curBlockDamageMP, s_dig_h* = currentBlock, s_dig_hitting =
  * isHittingBlock, s_dig_delay = blockHitDelay (5 ticks after every damage-path
- * break), s_atk_prev = attack key edge (press tick = clickMouse -> clickBlock). */
+ * break), s_atk_prev = attack key edge (press tick = clickMouse -> clickBlock),
+ * s_left_click_counter = Minecraft.leftClickCounter (miss-click cooldown). */
 static float s_dig_progress;
 static int   s_dig_particle_count; /* entity_pin dig_hit count; 0 = stage proxy */
+/* PlayerControllerMP.onPlayerDamageBlock plays the block's hit sound when
+ * (blockHitDelay-style step counter & 3) == 0, i.e. the first damage tick and
+ * every fourth after it. Audio-only: no simulation branch reads these, and the
+ * RL snapshot deliberately excludes them (see gm_player_ctl_dig_import). */
+static int   s_dig_sound_tick_counter;
+static int   s_dig_sound_pending;
+static int   s_dig_sound_wx, s_dig_sound_wy, s_dig_sound_wz;
+static int   s_dig_sound_state;
 
 /* EntityRenderer.fovModifierHand (client render state, not physics). */
 static float s_fov_hand = 1.0f;
@@ -37,12 +46,20 @@ static int   s_dig_face = -1; /* EnumFacing of hit face while progressive dig */
 static int   s_dig_hitting;
 static int   s_dig_delay;
 static int   s_atk_prev;
+/* Minecraft.leftClickCounter: clickMouse MISS (survival) sets 10; decremented
+ * once per tick before processKeyBinds; both clickMouse and
+ * sendClickBlockToController no-op while >0; sendClickBlock(false) clears it. */
+static int   s_left_click_counter;
 /* Minecraft.sendClickBlockToController: every tick onPlayerDamageBlock returns
  * true it calls EntityLivingBase.swingArm(MAIN_HAND), so a held dig keeps
  * restarting the swing. Render-only per-tick transient, consumed in the SAME
  * tick (gm_runtime_tick then gm_frame_capture_write), so deliberately NOT part
  * of GmPlayerCtlSnap. */
 static int   s_dig_swing;
+/* dig_trace: first dig_destroy this tick, world coords. Cleared at dig phase
+ * entry so write_state sees the just-completed tick's break. */
+static int   s_dig_brk;
+static int   s_dig_brk_wx, s_dig_brk_wy, s_dig_brk_wz;
 /* rightClickMouse state: s_rc_delay = Minecraft.rightClickDelayTimer (set to 4
  * on every fire, decremented each tick before the fire checks), s_use_prev =
  * use key edge (press edge fires regardless of the timer; held use re-fires
@@ -226,6 +243,8 @@ static void emit_edit(GmBlockEdit *edits, int *ne, int max_edits,
     edits[*ne].drop_id = drop_id;
     edits[*ne].drop_count = drop_count;
     edits[*ne].drop_meta = drop_meta & 15;
+    edits[*ne].break_effect = 0;
+    edits[*ne].place_effect = 0;
     (*ne)++;
 }
 
@@ -289,8 +308,20 @@ static void dig_destroy(Chunk *window, PsvPlayer *pl, int hx, int hy, int hz,
     }
     psv_set_state(window, hx, hy, hz, BLK_AIR, 0);
     pl->break_events++;
-    emit_edit(edits, ne, max_edits, ox, oy, oz, hx, hy, hz, 0, 0,
-              drop_id, drop_count, drop_meta);
+    if (!s_dig_brk) {
+        s_dig_brk = 1;
+        s_dig_brk_wx = hx + ox;
+        s_dig_brk_wy = hy + oy;
+        s_dig_brk_wz = hz + oz;
+    }
+    {
+        int edit_index = *ne;
+        emit_edit(edits, ne, max_edits, ox, oy, oz, hx, hy, hz, 0, 0,
+                  drop_id, drop_count, drop_meta);
+        /* Only a break that actually reached the world emits world event 2001. */
+        if (*ne > edit_index)
+            edits[edit_index].break_effect = 1;
+    }
 }
 
 void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
@@ -306,6 +337,7 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
 
     McAABB blocks[PSV_MAX_BLOCKS];
     int ne = 0;
+    s_dig_sound_pending = 0;
 
     /* Legacy tapes predict the metadata return one tick after the request.
      * New tapes set elytra_flag7_recorded and apply each observed metadata
@@ -451,113 +483,156 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
      * blockHitDelay=5 which swallows the next 5 ticks entirely. Found via tape
      * 20260712T055346Z t438-562 hold-dig: without the delay magma broke a 6th
      * block (49,71,164) the oracle never finished, then walked through the space
-     * where the oracle got clamped (t579). */
+     * where the oracle got clamped (t579).
+     *
+     * leftClickCounter (Minecraft.java): decremented once/tick before keybinds;
+     * clickMouse MISS in survival sets 10; both clickMouse and
+     * sendClickBlockToController are gated on counter<=0; release clears it.
+     * Human tape 20260803T055113Z: mid-jump press at t1106 with ray miss arms
+     * the counter while magma previously started dig as soon as the ray re-hit,
+     * breaking two grass blocks 3 ticks early (1122/1137 vs 1125/1140).
+     *
+     * Dig reach = objectMouseOver reach = PlayerControllerMP.getBlockReachDistance
+     * (survival 4.5, creative 5.0). Using PSV_REACH=5.0 for survival let magma
+     * hit blocks Java treated as MISS during the jump. */
     int use_gate_hitting = s_dig_hitting; /* isHittingBlock as rightClickMouse
         sees it: after clickMouse (attack press) but BEFORE the damage phase /
         release reset (vanilla runTick order). */
     s_dig_swing = 0;
-    if (act.attack && !act.attack_entity) {
-        int press = !s_atk_prev;
-        int hx, hy, hz, ax, ay, az;
-        /* dig uses PSV_REACH (5.0); outline uses survival 4.5 via gm_raycast_sel */
-        int r = gm_raycast_sel_reach(window, st, pl, PSV_REACH,
-                                     &hx, &hy, &hz, &ax, &ay, &az);
-        if (r >= 0) {
-            int bid = psv_get_block(window, hx, hy, hz);
-            BptProps bp = mc_bpt_props(bid);
-            /* any ray-targetable block digs (torch/plants too), not just
-             * full-cube solids; liquids/air never reach here (ray skips them) */
-            if (bid != BLK_AIR && bp.hardness >= 0.0f) {
-                ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
-                PbInput pin;
-                pin.block_id = bid;
-                pin.block_meta = psv_get_meta(window, hx, hy, hz);
-                pin.tool_id = held.item;
-                pin.tool_meta = held.meta;
-                pin.efficiency = 0;
-                pin.haste_amp = -1;
-                pin.fatigue_amp = -1;
-                pin.in_water = eye_in_water(window, pl);
-                pin.aqua_affinity = 0;
-                pin.on_ground = pl->ent.onGround;
-                pin.creative = act.creative;
-                float rel = pin.creative ? 1.0f : pb_relative_hardness(&pin);
-                if (press &&
-                    (!s_dig_hitting || hx != s_dig_hx || hy != s_dig_hy || hz != s_dig_hz)) {
-                    /* clickMouse -> clickBlock */
-                    if (rel >= 1.0f) {
-                        dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
-                                    ox, oy, oz, edits, &ne, max_edits,
-                                    pin.creative);
-                        /* clickMouse and sendClickBlockToController are folded
-                         * into this post-input tick. Creative clickBlock writes
-                         * 5, leaving four future held-input ticks after the
-                         * current controller pass; survival instant hardness
-                         * does not arm the delay. */
-                        if (pin.creative) s_dig_delay = 4;
-                        bid = BLK_AIR;   /* sendClickBlockToController sees air, skips */
-                    } else {
-                        s_dig_hitting = 1;
-                        s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
-                        s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
-                        s_dig_progress = 0.0f;
-                        use_gate_hitting = 1;
-                    }
-                }
-                /* sendClickBlockToController -> onPlayerDamageBlock */
-                if (bid != BLK_AIR) {
-                    s_dig_swing = 1;   /* onPlayerDamageBlock true -> swingArm */
-                    if (s_dig_delay > 0) {
-                        --s_dig_delay;
-                    } else if (hx == s_dig_hx && hy == s_dig_hy && hz == s_dig_hz) {
-                        /* isHittingPosition: accrue curBlockDamageMP */
-                        s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
-                        s_dig_progress += rel;
-                        if (s_dig_progress >= 1.0f) {
-                            s_dig_hitting = 0;
-                            dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
-                                        ox, oy, oz, edits, &ne, max_edits,
-                                        pin.creative);
-                            s_dig_progress = 0.0f;
-                            s_dig_delay = 5;
-                            s_dig_face = -1;
-                        }
-                    } else {
-                        /* clickBlock: target changed mid-hold */
+    s_dig_brk = 0; /* dig_trace: break event is per-tick, arm in dig_destroy */
+    if (!act.attack) {
+        /* sendClickBlockToController(false): clears leftClickCounter and
+         * resetBlockRemoving. */
+        s_left_click_counter = 0;
+        s_dig_hitting = 0;
+        s_dig_face = -1;
+        s_dig_progress = 0.0f;
+    } else {
+        /* runTick: leftClickCounter-- before processKeyBinds. clickMouse and
+         * sendClickBlockToController both no-op while the post-decrement value
+         * is still positive (block dig freezes; entity dig-reset freezes).
+         * attack_entity keeps the physical held bit; only release clears the
+         * counter. */
+        if (s_left_click_counter > 0) --s_left_click_counter;
+        if (s_left_click_counter > 0) {
+            /* clickMouse + sendClickBlock both no-op; dig state freezes. */
+        } else if (act.attack_entity) {
+            /* ENTITY hit: clickMouse may attack the entity (runtime, gated the
+             * same way); sendClickBlock sees non-BLOCK and resetBlockRemoving.
+             * Do not clear leftClickCounter (key still down). */
+            s_dig_hitting = 0;
+            s_dig_face = -1;
+            s_dig_progress = 0.0f;
+        } else {
+            int press = !s_atk_prev;
+            int hx, hy, hz, ax, ay, az;
+            double dig_reach = act.creative ? PSV_REACH : 4.5;
+            int r = gm_raycast_sel_reach(window, st, pl, dig_reach,
+                                         &hx, &hy, &hz, &ax, &ay, &az);
+            if (r >= 0) {
+                int bid = psv_get_block(window, hx, hy, hz);
+                BptProps bp = mc_bpt_props(bid);
+                /* any ray-targetable block digs (torch/plants too), not just
+                 * full-cube solids; liquids/air never reach here (ray skips them) */
+                if (bid != BLK_AIR && bp.hardness >= 0.0f) {
+                    ICStack held = isr_get_stack(&pl->inv, pl->inv.current_item);
+                    PbInput pin;
+                    pin.block_id = bid;
+                    pin.block_meta = psv_get_meta(window, hx, hy, hz);
+                    pin.tool_id = held.item;
+                    pin.tool_meta = held.meta;
+                    pin.efficiency = 0;
+                    pin.haste_amp = -1;
+                    pin.fatigue_amp = -1;
+                    pin.in_water = eye_in_water(window, pl);
+                    pin.aqua_affinity = 0;
+                    pin.on_ground = pl->ent.onGround;
+                    pin.creative = act.creative;
+                    float rel = pin.creative ? 1.0f : pb_relative_hardness(&pin);
+                    if (press &&
+                        (!s_dig_hitting || hx != s_dig_hx || hy != s_dig_hy || hz != s_dig_hz)) {
+                        /* clickMouse -> clickBlock */
                         if (rel >= 1.0f) {
                             dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
                                         ox, oy, oz, edits, &ne, max_edits,
                                         pin.creative);
-                            if (pin.creative) s_dig_delay = 5;
+                            s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
+                            /* clickMouse and sendClickBlockToController are folded
+                             * into this post-input tick. Creative clickBlock writes
+                             * 5, leaving four future held-input ticks after the
+                             * current controller pass; survival instant hardness
+                             * does not arm the delay. */
+                            if (pin.creative) s_dig_delay = 4;
+                            bid = BLK_AIR;   /* sendClickBlockToController sees air, skips */
                         } else {
                             s_dig_hitting = 1;
                             s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
                             s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
                             s_dig_progress = 0.0f;
+                            s_dig_sound_tick_counter = 0;
+                            use_gate_hitting = 1;
                         }
                     }
+                    /* sendClickBlockToController -> onPlayerDamageBlock */
+                    if (bid != BLK_AIR) {
+                        s_dig_swing = 1;   /* onPlayerDamageBlock true -> swingArm */
+                        if (s_dig_delay > 0) {
+                            --s_dig_delay;
+                        } else if (hx == s_dig_hx && hy == s_dig_hy && hz == s_dig_hz) {
+                            /* isHittingPosition: accrue curBlockDamageMP */
+                            s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
+                            if ((s_dig_sound_tick_counter & 3) == 0) {
+                                s_dig_sound_pending = 1;
+                                s_dig_sound_wx = ox + hx;
+                                s_dig_sound_wy = oy + hy;
+                                s_dig_sound_wz = oz + hz;
+                                s_dig_sound_state = bid
+                                    | ((pin.block_meta & 255) << 12);
+                            }
+                            ++s_dig_sound_tick_counter;
+                            s_dig_progress += rel;
+                            if (s_dig_progress >= 1.0f) {
+                                s_dig_hitting = 0;
+                                dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                                            ox, oy, oz, edits, &ne, max_edits,
+                                            pin.creative);
+                                s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
+                                s_dig_progress = 0.0f;
+                                s_dig_sound_tick_counter = 0;
+                                s_dig_delay = 5;
+                                s_dig_face = -1;
+                            }
+                        } else {
+                            /* clickBlock: target changed mid-hold */
+                            if (rel >= 1.0f) {
+                                dig_destroy(window, pl, hx, hy, hz, bid, pin.block_meta,
+                                            ox, oy, oz, edits, &ne, max_edits,
+                                            pin.creative);
+                                s_dig_hx = INT_MIN; /* onPlayerDestroyBlock y=-1 */
+                                if (pin.creative) s_dig_delay = 5;
+                            } else {
+                                s_dig_hitting = 1;
+                                s_dig_hx = hx; s_dig_hy = hy; s_dig_hz = hz;
+                                s_dig_face = face_from_adj(hx, hy, hz, ax, ay, az);
+                                s_dig_progress = 0.0f;
+                                s_dig_sound_tick_counter = 0;
+                            }
+                        }
+                    }
+                } else {
+                    s_dig_hitting = 0;
+                    s_dig_face = -1;
+                    s_dig_progress = 0.0f;
                 }
             } else {
+                /* MISS: clickMouse on press sets leftClickCounter=10 (survival);
+                 * sendClickBlock resetBlockRemoving (blockHitDelay persists). */
+                if (press && !act.creative) s_left_click_counter = 10;
                 s_dig_hitting = 0;
-                s_dig_hx = INT_MIN;
                 s_dig_face = -1;
                 s_dig_progress = 0.0f;
             }
-        } else {
-            /* MISS: resetBlockRemoving (blockHitDelay persists) */
-            s_dig_hitting = 0;
-            s_dig_hx = INT_MIN;
-            s_dig_face = -1;
-            s_dig_progress = 0.0f;
         }
-    } else {
-        /* Release or an entity hit: sendClickBlockToController calls
-         * resetBlockRemoving, but the physical attack key remains held so an
-         * entity crossing the ray must not manufacture a new press edge. */
-        s_dig_hitting = 0;
-        s_dig_hx = INT_MIN;
-        s_dig_face = -1;
-        s_dig_progress = 0.0f;
     }
     s_atk_prev = act.attack;
 
@@ -674,12 +749,17 @@ void gm_player_tick_gr(struct Chunk *window_, const struct McSinTable *st_,
                             : ibp_placed_meta(place_id, face, yq, sneaked, held.meta) & 15;
                         if (pmeta < 0) place_id = 0;
                         if (place_id) {
+                            int edit_index = ne;
                             ICStack used = isr_decr_stack_size(&pl->inv, pl->inv.current_item, 1);
                             if (isr_is_empty(&used)) goto use_done;
                             psv_set_state(window, ax, ay, az, place_id, pmeta);
                             pl->place_events++;
                             emit_edit(edits, &ne, max_edits, ox, oy, oz, ax, ay, az,
                                       place_id, pmeta, 0, 0, 0);
+                            /* ItemBlock.onItemUse plays the placed block's
+                             * SoundType only once the edit really landed. */
+                            if (ne > edit_index)
+                                edits[edit_index].place_effect = 1;
                         }
                     }
                 }
@@ -880,6 +960,13 @@ void gm_player_dig_reset(void) {
     s_dig_hx = INT_MIN;
     s_dig_face = -1;
     s_dig_particle_count = 0;
+    s_dig_hitting = 0;
+    s_dig_delay = 0;
+    s_atk_prev = 0;
+    s_left_click_counter = 0;
+    s_dig_brk = 0;
+    s_dig_sound_tick_counter = 0;
+    s_dig_sound_pending = 0;
     s_eat_ticks=0;s_eat_item=0;
     s_use_action=0;s_use_remaining=0;s_use_max=0;
     s_hurt_vel_reset=0;s_server_motion_x=0.0;s_server_motion_z=0.0;
@@ -908,11 +995,27 @@ void gm_player_ctl_dig_export(GmPlayerCtlSnap *out) {
     out->dig_delay      = s_dig_delay;
     out->dig_particle_count = s_dig_particle_count;
     out->atk_prev       = s_atk_prev;
+    out->left_click_counter = s_left_click_counter;
     out->rc_delay       = s_rc_delay;
     out->use_prev       = s_use_prev;
     out->hurt_vel_reset = s_hurt_vel_reset;
     out->server_motion_x = s_server_motion_x;
     out->server_motion_z = s_server_motion_z;
+}
+
+int gm_player_left_click_allows(int attack_held) {
+    /* Minecraft.runTick: if (leftClickCounter > 0) --leftClickCounter; then
+     * processKeyBinds may call clickMouse only when leftClickCounter <= 0.
+     * Release is sendClickBlockToController(false) and is not a click. */
+    int c;
+    if (!attack_held) return 0;
+    c = s_left_click_counter;
+    if (c > 0) --c;
+    return c <= 0;
+}
+
+void gm_player_set_gui_blocked(int blocked) {
+    s_left_click_counter = blocked ? 10000 : 0;
 }
 
 void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
@@ -924,12 +1027,22 @@ void gm_player_ctl_dig_import(const GmPlayerCtlSnap *in) {
     s_dig_hitting    = in->dig_hitting;
     s_dig_delay      = in->dig_delay;
     s_dig_particle_count = in->dig_particle_count;
+    /* The RL snapshot format explicitly excludes audio/render-only counters. */
+    s_dig_sound_tick_counter = 0;
+    s_dig_sound_pending = 0;
     s_atk_prev       = in->atk_prev;
+    s_left_click_counter = in->left_click_counter;
     s_rc_delay       = in->rc_delay;
     s_use_prev       = in->use_prev;
     s_hurt_vel_reset = in->hurt_vel_reset;
     s_server_motion_x = in->server_motion_x;
     s_server_motion_z = in->server_motion_z;
+}
+
+void gm_player_ctl_recenter(int dx, int dz) {
+    if (s_dig_hx == INT_MIN) return;
+    s_dig_hx -= dx;
+    s_dig_hz -= dz;
 }
 
 int gm_player_dig_particle_count(void) {
@@ -938,6 +1051,61 @@ int gm_player_dig_particle_count(void) {
 
 int gm_player_dig_swing(void) {
     return s_dig_swing;
+}
+
+int gm_player_take_dig_sound(
+        int *wx, int *wy, int *wz, int *state_id) {
+    if (!s_dig_sound_pending) return 0;
+    s_dig_sound_pending = 0;
+    if (wx) *wx = s_dig_sound_wx;
+    if (wy) *wy = s_dig_sound_wy;
+    if (wz) *wz = s_dig_sound_wz;
+    if (state_id) *state_id = s_dig_sound_state;
+    return 1;
+}
+
+int gm_player_dig_break_event(int *wx, int *wy, int *wz) {
+    if (!s_dig_brk) return 0;
+    if (wx) *wx = s_dig_brk_wx;
+    if (wy) *wy = s_dig_brk_wy;
+    if (wz) *wz = s_dig_brk_wz;
+    return 1;
+}
+
+float gm_player_block_rel_hardness(const struct Chunk *window_,
+                                   const struct PsvPlayer *pl_, int creative,
+                                   int hx, int hy, int hz) {
+    const Chunk *window = (const Chunk *)window_;
+    const PsvPlayer *pl = (const PsvPlayer *)pl_;
+    int bid;
+    BptProps bp;
+    ICStack held;
+    PbInput pin;
+    if (!window || !pl) return 0.0f;
+    bid = psv_get_block((Chunk *)window, hx, hy, hz);
+    bp = mc_bpt_props(bid);
+    if (bid == BLK_AIR || bp.hardness < 0.0f) return 0.0f;
+    if (creative) return 1.0f;
+    held = isr_get_stack(&((PsvPlayer *)pl)->inv, pl->inv.current_item);
+    pin.block_id = bid;
+    pin.block_meta = psv_get_meta((Chunk *)window, hx, hy, hz);
+    pin.tool_id = held.item;
+    pin.tool_meta = held.meta;
+    pin.efficiency = 0;
+    pin.haste_amp = -1;
+    pin.fatigue_amp = -1;
+    pin.in_water = eye_in_water(window, pl);
+    pin.aqua_affinity = 0;
+    pin.on_ground = pl->ent.onGround;
+    pin.creative = 0;
+    return pb_relative_hardness(&pin);
+}
+
+float gm_player_dig_rel_hardness(const struct Chunk *window,
+                                 const struct PsvPlayer *pl, int creative) {
+    if (s_dig_hx == INT_MIN) return 0.0f;
+    return gm_player_block_rel_hardness(window, pl, creative,
+                                        s_dig_hx, s_dig_hy, s_dig_hz);
 }
 
 /* Current progressive-dig target + damage 0..1 (RenderGlobal drawBlockDamageTexture

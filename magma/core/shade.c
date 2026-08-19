@@ -182,10 +182,7 @@ CR_HD CrRgba cr_shade(const CrShadeCtx *sh, const CrFragment *frag) {
     /* Opt-in: alpha-test SOLID too (experiment; Java Fast SOLID has alpha DISABLED). */
     if (!alpha_test && sh->layer == CR_LAYER_SOLID) {
         static int sa = -1;
-        if (sa < 0) {
-            const char *s = getenv("MAGMA_SOLID_ALPHA");
-            sa = (s && atoi(s) != 0) ? 1 : 0;
-        }
+        if (sa < 0) sa = cr_cfg()->solid_alpha ? 1 : 0;
         if (sa) alpha_test = 1;
     }
 #endif

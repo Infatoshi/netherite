@@ -97,7 +97,7 @@ CR_HD CrRgba gm_sky_ray_color(CrVec3 dir, float time_of_day);
 CrRgba gm_terrain_fog_color(float time_of_day);
 
 /* Terrain fog: DEFAULT ON (EntityRenderer.setupFog(0) always runs in Java).
- * Escape: MAGMA_FOG=0. Params: start=96 end=128 at RD8. On hard-scene seed0
+ * Escape: fog=0. Params: start=96 end=128 at RD8. On hard-scene seed0
  * this is live (horizon band); short verify poses may still be a near no-op
  * because occlusion caps eye depth below fog start. */
 int gm_terrain_fog_enabled(void);

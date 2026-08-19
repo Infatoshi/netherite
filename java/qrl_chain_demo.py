@@ -14,9 +14,11 @@ with the rebuilt NetheriteMod, nothing else on port 25575.
 Run (anvil):
   cd ~/dev/minecraft/mc-1.11.2-env && uv run --no-project --with torch,numpy \
       python java/qrl_chain_demo.py [seeds...]
-Env: TRIES (default 5), EP_TICKS (default 6000), FRAME_EVERY (default 1
-decision; 0 = no frames), FRAMES_ROOT (default /tmp/qrl_chain_demo).
+Flags: --tries 5, --ep-ticks 6000, --frame-every 1 (0 = no frames),
+--frames-root /tmp/qrl_chain_demo, --overclock-ms 50 (1 free-runs ~100x),
+--result-json PATH, --envmatch/--no-envmatch, --chain-net chain_net_cu.pt.
 """
+import argparse
 import hashlib
 import json
 import math
@@ -26,41 +28,60 @@ import subprocess
 import sys
 import time
 
-import numpy as np
-import torch
-
 HERE = os.path.dirname(os.path.abspath(__file__))            # java/
 ROOT = os.path.dirname(HERE)
 RL = os.path.join(ROOT, "blaze", "rl")
-sys.path.insert(0, HERE)
-sys.path.insert(0, RL)
-sys.path.insert(0, os.path.join(RL, "blaze"))
-
-from ppo_chain_cu import (
-    FWD,
-    IX_TORCH,
-    MILE_NAMES,
-    N_STAGES,
-    NPLANES,
-    PITCHES,
-    REPEAT,
-    STACK,
-    YAWS,
-    ChainPolicy,
-    build_frame,
-    build_scal,
-    obs_float,
-    stage_of_best,
-)
-from qrl_client import NetheriteEnv
-
 OUT = os.path.join(RL, "out")
 EYE = 1.62
-EP_TICKS = int(os.environ.get("EP_TICKS", "6000"))
-TRIES = int(os.environ.get("TRIES", "5"))
-FRAME_EVERY = int(os.environ.get("FRAME_EVERY", "1"))
-FRAMES_ROOT = os.environ.get("FRAMES_ROOT", "/tmp/qrl_chain_demo")
-RESULT_JSON = os.environ.get("RESULT_JSON")
+# Module defaults (= historical unset-env); main() overrides from CLI.
+EP_TICKS = 6000
+TRIES = 5
+# server tick length in ms (50 = vanilla realtime, 1 = uncapped free-run)
+OVERCLOCK_MS = 50
+FRAME_EVERY = 1
+FRAMES_ROOT = "/tmp/qrl_chain_demo"
+RESULT_JSON = None
+# --- eval-side training-env match (--no-envmatch restores the vanilla world) ---
+# The blaze training env simulates NO mobs and NO world clock/weather
+# (blaze/env/blaze_core.h:27 + :2133; snapshots are baked with `--mobs off`,
+# blaze/env/make_snapshots.py:114/138) and pins vitals to difficulty NORMAL
+# with naturalRegeneration=true (blaze/core/player_vitals.h:13). A Java
+# `fresh` reset builds a plain vanilla world instead (Recorder.launchWorld
+# passes only seed/mode/type/structures; applyLaunchSettings' gamerules are
+# one-shot at first join, Recorder.java:1652), so mobs spawn and the clock
+# runs. These commands close that gap from the eval side only - no training
+# and no bridge-protocol change.
+ENVMATCH = True
+ENVMATCH_CMDS = [
+    "gamerule doMobSpawning false",   # blaze: no mobs at all
+    "gamerule doMobLoot false",       # so the cull below drops no items
+    "gamerule doDaylightCycle false",  # blaze: world clock not ticked
+    "gamerule doWeatherCycle false",  # blaze: no weather
+    "gamerule naturalRegeneration true",   # player_vitals.h:13 (vanilla default)
+    "difficulty normal",              # player_vitals.h:13 FIXED DIFFICULTY
+    "time set 6000",                  # frozen at noon (no clock in blaze)
+    "weather clear",
+    "kill @e[type=!Player]",          # cull worldgen mobs (t=0: no items yet)
+    # NB: runcmds counts a command that returns 0 as failed, and CommandKill
+    # returns 0 when the selector matches nothing - so `ran:8 failed:1` in the
+    # ack below is the benign "world had no entities to cull yet" case, not a
+    # gamerule that did not apply (verified by running each command alone).
+]
+
+
+def apply_envmatch(env):
+    """Run the env-match commands and report the resulting world state."""
+    ack = env._cmd({"cmd": "runcmds", "action": {"cmds": ENVMATCH_CMDS}})
+    o = env.obs()
+    ents = {}
+    for e in o.get("entities", []):
+        ents[e.get("type")] = ents.get(e.get("type"), 0) + 1
+    tw = o.get("time", {})
+    print(f"  envmatch {ack} -> world_time={tw.get('world_time')} "
+          f"raining={tw.get('raining')} health={o.get('health')} "
+          f"food={o.get('food')} entity_count={o.get('entity_count')} {ents}",
+          flush=True)
+    return ack, o
 ALL_SEEDS = [2, 3, 10, 11, 14, 16, 20, 27, 29, 32, 33, 44, 46]
 HELD_OUT = {11, 33}
 FNV64_OFFSET = 0xCBF29CE484222325
@@ -128,13 +149,40 @@ def obs_tensors(obs, dec, ep_dec):
 def run_episode(env, seed, net, rng_seed, frames_dir=None):
     torch.manual_seed(rng_seed)
     print(f"  fresh reset seed {seed} ...", flush=True)
-    o = env.reset({"seed": seed, "fresh": True}, timeout=600)
+    # Drop back to the realtime server tick BEFORE tearing the world down.
+    # With overclock(1) the integrated server free-runs at ~1000 TPS; once
+    # mc.loadWorld(null) nulls the client world, every in-flight
+    # SPacketEntityVelocity NPEs in NetHandlerPlayClient.handleEntityVelocity
+    # (~36k/s, 30 log lines each) and starves the client thread until the
+    # bridge's 120s request poll expires -> {"ok":false,"error":"timeout"}
+    # (observed 12:21:22-27, 180k stacks / 300MB of runclient.log).
+    try:
+        env.overclock(50)
+    except (ConnectionError, TimeoutError) as exc:
+        print(f"  warning: could not restore realtime tick: {exc}", flush=True)
+    o = None
+    for tryn in range(3):
+        o = env.reset({"seed": seed, "fresh": True}, timeout=600)
+        if o.get("ok"):
+            break
+        print(f"  reset attempt {tryn} failed: {o}; retrying", flush=True)
+        time.sleep(10.0)
     if not o.get("ok"):
         raise RuntimeError(f"reset failed: {o}")
     try:
-        env.overclock(1)   # uncap the server tick; steps stay tick-synced
+        # Server tick length in ms. NB: the STEP loop is client-tick synced,
+        # the integrated server is NOT - it free-runs on its own timer. With
+        # overclock(1) it does ~420 server ticks per policy decision (measured
+        # on gamer: 12514 SyncManager ticks / 30 decisions), i.e. mobs, hunger,
+        # drowning and the day/night cycle race ~100x ahead of the policy's
+        # control rate, which blaze (4 ticks per decision, no day/night, mobs
+        # off) cannot represent. 50 = vanilla realtime keeps the drift at ~2x.
+        env.overclock(OVERCLOCK_MS)
     except (ConnectionError, TimeoutError) as exc:
-        print(f"  warning: could not enable bridge overclock: {exc}", flush=True)
+        print(f"  warning: could not set bridge server tick: {exc}", flush=True)
+    envmatch_ack = None
+    if ENVMATCH:
+        envmatch_ack, _ = apply_envmatch(env)
     ep_dec = EP_TICKS // REPEAT
     if frames_dir:
         os.makedirs(frames_dir, exist_ok=True)
@@ -159,6 +207,35 @@ def run_episode(env, seed, net, rng_seed, frames_dir=None):
     non_noop_steps = 0
     local_action_hash = hashlib.sha256()
     local_action_fnv = FNV64_OFFSET
+    wt0 = obs.get("time", {}).get("world_time")
+    min_health = float(obs.get("health", 20.0))
+    ent_near = {}          # entity type -> closest |d| ever observed
+
+    def note_entities(o):
+        for e in o.get("entities", []):
+            t = e.get("type")
+            d = math.sqrt(e.get("dx", 0.0) ** 2 + e.get("dy", 0.0) ** 2
+                          + e.get("dz", 0.0) ** 2)
+            if t not in ent_near or d < ent_near[t]:
+                ent_near[t] = d
+
+    def diag(o):
+        tw = o.get("time", {})
+        return {
+            "envmatch": bool(ENVMATCH),
+            "envmatch_ack": envmatch_ack,
+            "world_time_start": wt0,
+            "world_time_end": tw.get("world_time"),
+            "raining_end": tw.get("raining"),
+            "health_end": o.get("health"),
+            "food_end": o.get("food"),
+            "min_health": min_health,
+            "died": bool(o.get("dead")),
+            "entity_min_dist": {k: round(v, 2) for k, v in
+                                sorted(ent_near.items(), key=lambda kv: kv[1])},
+        }
+
+    note_entities(obs)
     for dec in range(ep_dec):
         with torch.no_grad():
             logits, _ = net(obs_float(stack), scal)
@@ -205,6 +282,8 @@ def run_episode(env, seed, net, rng_seed, frames_dir=None):
         frame, scal, status = obs_tensors(obs, dec + 1, ep_dec)
         stack = torch.cat([stack[:, NPLANES:], frame], dim=1)
         best = torch.maximum(best, status)
+        note_entities(obs)
+        min_health = min(min_health, float(obs.get("health", 20.0)))
         if frames_dir and FRAME_EVERY and dec % FRAME_EVERY == 0:
             env._cmd({"cmd": "frame", "action":
                       {"file": os.path.join(frames_dir, f"f{dec:05d}.png")}})
@@ -212,20 +291,26 @@ def run_episode(env, seed, net, rng_seed, frames_dir=None):
             inv = [int(v) for v in best[0, :9]]
             print(f"    dec {dec:5d}  {(dec+1)*REPEAT/(time.time()-t0):5.1f} "
                   f"t/s  y {obs['y']:6.1f}  best inv {inv}  "
-                  f"cont {obs['container']}", flush=True)
+                  f"cont {obs['container']}  hp {obs.get('health'):.1f}  "
+                  f"wt {obs.get('time', {}).get('world_time')}  "
+                  f"ents {obs.get('entity_count')}", flush=True)
         if int(status[0, IX_TORCH]) >= 1:
-            return episode_result(seed, rng_seed, N_STAGES, best, obs,
-                                  actions_sent, non_noop_steps,
-                                  local_action_hash.hexdigest(),
-                                  format(local_action_fnv, "x"))
+            res = episode_result(seed, rng_seed, N_STAGES, best, obs,
+                                 actions_sent, non_noop_steps,
+                                 local_action_hash.hexdigest(),
+                                 format(local_action_fnv, "x"))
+            res.update(diag(obs))
+            return res
         if obs.get("dead"):
             print("    died", flush=True)
             break
-    return episode_result(seed, rng_seed,
-                          int(stage_of_best(best[:, :9])[0]), best, obs,
-                          actions_sent, non_noop_steps,
-                          local_action_hash.hexdigest(),
-                          format(local_action_fnv, "x"))
+    res = episode_result(seed, rng_seed,
+                         int(stage_of_best(best[:, :9])[0]), best, obs,
+                         actions_sent, non_noop_steps,
+                         local_action_hash.hexdigest(),
+                         format(local_action_fnv, "x"))
+    res.update(diag(obs))
+    return res
 
 
 def episode_result(seed, rng_seed, reached, best, obs, actions_sent,
@@ -272,9 +357,64 @@ def git_provenance():
 
 
 def main():
-    seeds = [int(s) for s in sys.argv[1:]] or ALL_SEEDS
+    global EP_TICKS, TRIES, OVERCLOCK_MS, FRAME_EVERY, FRAMES_ROOT
+    global RESULT_JSON, ENVMATCH
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("seeds", nargs="*", type=int,
+                    help="world seeds (default: built-in ALL_SEEDS list)")
+    ap.add_argument("--tries", type=int, default=5,
+                    help="attempts per seed (default 5)")
+    ap.add_argument("--ep-ticks", type=int, default=6000,
+                    help="episode length in game ticks (default 6000)")
+    ap.add_argument("--overclock-ms", type=int, default=50,
+                    help="server tick length ms (default 50; 1 free-runs)")
+    ap.add_argument("--frame-every", type=int, default=1,
+                    help="save a frame every N decisions (0 = none)")
+    ap.add_argument("--frames-root", default="/tmp/qrl_chain_demo",
+                    help="directory for per-attempt frame dumps")
+    ap.add_argument("--result-json", default=None,
+                    help="optional path for the result artifact JSON")
+    ap.add_argument("--chain-net", default="chain_net_cu.pt",
+                    help="checkpoint filename under blaze/rl/out/")
+    g = ap.add_mutually_exclusive_group()
+    g.add_argument("--envmatch", dest="envmatch", action="store_true",
+                   default=True,
+                   help="apply training-env match commands (default)")
+    g.add_argument("--no-envmatch", dest="envmatch", action="store_false",
+                   help="skip env-match (vanilla world)")
+    args = ap.parse_args()
+    seeds = list(args.seeds) or ALL_SEEDS
+    TRIES = args.tries
+    EP_TICKS = args.ep_ticks
+    OVERCLOCK_MS = args.overclock_ms
+    FRAME_EVERY = args.frame_every
+    FRAMES_ROOT = args.frames_root
+    RESULT_JSON = args.result_json
+    ENVMATCH = bool(args.envmatch)
+
+    sys.path.insert(0, HERE)
+    sys.path.insert(0, RL)
+    sys.path.insert(0, os.path.join(RL, "blaze"))
+    import numpy as np  # noqa: F401
+    import torch
+    from ppo_chain_cu import (  # noqa: F401
+        FWD, IX_TORCH, MILE_NAMES, N_STAGES, NPLANES, PITCHES, REPEAT, STACK,
+        YAWS, ChainPolicy, build_frame, build_scal, obs_float, stage_of_best,
+    )
+    from qrl_client import NetheriteEnv
+    # re-bind module globals used by run_episode / rest of main
+    g = globals()
+    g.update({
+        "np": np, "torch": torch, "ChainPolicy": ChainPolicy,
+        "NetheriteEnv": NetheriteEnv, "FWD": FWD, "IX_TORCH": IX_TORCH,
+        "MILE_NAMES": MILE_NAMES, "N_STAGES": N_STAGES, "NPLANES": NPLANES,
+        "PITCHES": PITCHES, "REPEAT": REPEAT, "STACK": STACK, "YAWS": YAWS,
+        "build_frame": build_frame, "build_scal": build_scal,
+        "obs_float": obs_float, "stage_of_best": stage_of_best,
+    })
+
     net = ChainPolicy()
-    net_file = os.environ.get("CHAIN_NET", "chain_net_cu.pt")
+    net_file = args.chain_net
     net.load_state_dict(torch.load(os.path.join(OUT, net_file),
                                    weights_only=True, map_location="cpu"))
     net.eval()
@@ -334,6 +474,8 @@ def main():
             "ep_ticks": EP_TICKS,
             "repeat": REPEAT,
             "sampling": "categorical",
+            "envmatch": bool(ENVMATCH),
+            "envmatch_cmds": ENVMATCH_CMDS if ENVMATCH else [],
             "rng_protocol": "torch.manual_seed(seed*100+attempt)",
             "success_source": "live_java_obs.inv_counts[torch]",
             "attempts": attempts,

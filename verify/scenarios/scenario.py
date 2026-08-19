@@ -26,21 +26,21 @@ SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 ORACLE_PORTS = (25575, 25580, 25581, 5900)
 
 sys.path.insert(0, str(JAVA))
-from mcwindow_script import load_script  # noqa: E402
-from qrl_client import NetheriteEnv  # noqa: E402
+from mcwindow_script import load_script
+from qrl_client import NetheriteEnv
 
 
 def load_spec(path: Path) -> dict:
     spec = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(spec, dict):
-        raise ValueError("scenario spec must be a mapping")
+        raise TypeError("scenario spec must be a mapping")
     name = spec.get("name")
     if not isinstance(name, str) or not SLUG_RE.fullmatch(name):
         raise ValueError("name must match [a-z0-9][a-z0-9_-]*")
 
     world = spec.get("world", {})
     if not isinstance(world, dict):
-        raise ValueError("world must be a mapping")
+        raise TypeError("world must be a mapping")
     allowed_world = {"seed", "mode", "type", "structures"}
     unknown_world = set(world) - allowed_world
     if unknown_world:
@@ -78,14 +78,14 @@ def load_spec(path: Path) -> dict:
 
     input_spec = spec.get("input")
     if not isinstance(input_spec, dict):
-        raise ValueError("input must be a mapping")
+        raise TypeError("input must be a mapping")
     choices = [key for key in ("segments", "file") if key in input_spec]
     if len(choices) != 1:
         raise ValueError("input must declare exactly one of segments or file")
 
     known = spec.get("known_divergences", [])
     if not isinstance(known, list):
-        raise ValueError("known_divergences must be a list")
+        raise TypeError("known_divergences must be a list")
 
     return {
         **spec,
@@ -175,11 +175,28 @@ def process_command(pid: int) -> tuple[str, str]:
     except (FileNotFoundError, PermissionError, ProcessLookupError):
         return "", ""
 
+def process_display(pid: int) -> str:
+    try:
+        raw = (Path("/proc") / str(pid) / "environ").read_bytes()
+        for entry in raw.split(b"\0"):
+            if entry.startswith(b"DISPLAY="):
+                return entry.removeprefix(b"DISPLAY=").decode(errors="replace")
+    except (FileNotFoundError, PermissionError, ProcessLookupError):
+        pass
+    return ""
+
+
+
 
 def is_oracle_process(pid: int) -> bool:
     comm, command = process_command(pid)
-    if comm in {"Xvfb", "x11vnc", "openbox"}:
-        return True
+    argv = command.split()
+    if comm == "Xvfb":
+        return len(argv) > 1 and argv[1] == ":1"
+    if comm == "x11vnc":
+        return "-display :1" in command
+    if comm == "openbox":
+        return process_display(pid) == ":1"
     if comm == "java" and (
         "GradleStart --username" in command
         or ("GradleWrapperMain" in command and "runClient" in command)
@@ -367,12 +384,11 @@ def start_mcwindow(process_groups: list[int]) -> None:
     env = {
         **os.environ,
         "DISPLAY": ":1",
-        "MCW_W": "854",
-        "MCW_H": "480",
         "PYTHONUNBUFFERED": "1",
     }
     process = subprocess.Popen(
-        [sys.executable, str(JAVA / "mcwindow_server.py")],
+        [sys.executable, str(JAVA / "mcwindow_server.py"),
+         "--width", "854", "--height", "480"],
         cwd=REPO,
         env=env,
         stdout=log,
@@ -386,8 +402,8 @@ def start_mcwindow(process_groups: list[int]) -> None:
         raise RuntimeError(f"mcwindow server exited; see {log_path}")
 
 
-def record(spec_path: Path, result_file: Path) -> Path:
-    if os.environ.get("SCENARIO_ORACLE_LOCKED") != "1":
+def record(spec_path: Path, result_file: Path, *, oracle_locked: bool = False) -> Path:
+    if not oracle_locked:
         raise RuntimeError("run through run_scenario.sh so the oracle lock is held")
     spec = load_spec(spec_path)
     baseline = assert_clean_oracle()
@@ -476,17 +492,18 @@ def record(spec_path: Path, result_file: Path) -> Path:
             qrl = None
 
             start_mcwindow(process_groups)
-            stdout = run(
-                [
-                    sys.executable,
-                    str(TRACE / "tape.py"),
-                    "start",
-                    "--seed",
-                    str(spec["world"]["seed"]),
-                    "--frames-every",
-                    str(spec["frames_every"]),
-                ]
-            )
+            tape_start = [
+                sys.executable,
+                str(TRACE / "tape.py"),
+                "start",
+                "--seed",
+                str(spec["world"]["seed"]),
+                "--frames-every",
+                str(spec["frames_every"]),
+            ]
+            if spec.get("dig_trace"):
+                tape_start.append("--dig-trace")
+            stdout = run(tape_start)
             tape_line = next(
                 (line for line in stdout.splitlines() if line.startswith("tape: ")),
                 None,
@@ -503,7 +520,7 @@ def record(spec_path: Path, result_file: Path) -> Path:
             if recording:
                 try:
                     run([sys.executable, str(TRACE / "tape.py"), "stop"])
-                except Exception as error:
+                except (OSError, RuntimeError) as error:
                     print(
                         f"[scenario] emergency recstop failed: {error}", file=sys.stderr
                     )
@@ -523,9 +540,14 @@ def main() -> int:
     record_parser = subparsers.add_parser("record")
     record_parser.add_argument("spec", type=Path)
     record_parser.add_argument("--result-file", required=True, type=Path)
+    record_parser.add_argument(
+        "--oracle-locked", action="store_true",
+        help="required: set by run_scenario.sh after flock on the oracle lock",
+    )
     args = parser.parse_args()
     if args.command == "record":
-        tape = record(args.spec.resolve(), args.result_file.resolve())
+        tape = record(args.spec.resolve(), args.result_file.resolve(),
+                      oracle_locked=args.oracle_locked)
         print(f"[scenario] recording archived: {tape}")
     return 0
 

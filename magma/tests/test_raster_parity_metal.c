@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "core/config.h"
 #include "core/types.h"
 #include "../verify/scene.h"
 /* Full cr_raster_metal_* surface (types.h carries only the shared subset). */
@@ -95,6 +96,12 @@ static int compare(const CrFramebuffer *a, const CrFramebuffer *b, int *depth_ba
 }
 
 int main(void) {
+    /* Strict Metal: boot failure must not silently fall back to CPU (vacuous
+     * parity). Prior: MAGMA_METAL_REQUIRE=1 env; now registry metal_require. */
+    if (cr_cfg_set("metal_require", "1") != 0) {
+        fprintf(stderr, "test_raster_parity_metal: cannot set metal_require=1\n");
+        return 2;
+    }
     /* textures */
     uint8_t atlas[ATLAS_W*ATLAS_H*4], cut[ATLAS_W*ATLAS_H*4], trans[ATLAS_W*ATLAS_H*4];
     scn_fill_atlas(atlas); scn_fill_cutout(cut); scn_fill_translucent(trans);

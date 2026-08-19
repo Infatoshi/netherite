@@ -111,6 +111,15 @@ jar {
     }
 }
 
+// Headless oracle dumps. These run a plain main() against the deobfuscated
+// Minecraft classpath - no client, no world, no display - so a gate can read
+// real 1.11.2 tables on a headless box.
+task blockBreakSoundGolden(type: JavaExec) {
+    dependsOn classes
+    classpath = files("$buildDir/classes/java/main") + sourceSets.main.runtimeClasspath
+    main = 'netheritemod.BlockBreakSoundGolden'
+}
+
 // And add to the jvm args so that it is also loaded when running using gradle runClient:
 JavaExec exec = project.getTasks().getByName("runClient") as JavaExec
 

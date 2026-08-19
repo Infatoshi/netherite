@@ -83,6 +83,7 @@ static void recenter(GmRuntime *r) {
     r->player.ent.posX -= dx; r->player.ent.posZ -= dz;
     r->player.ent.box.minX -= dx; r->player.ent.box.maxX -= dx;
     r->player.ent.box.minZ -= dz; r->player.ent.box.maxZ -= dz;
+    gm_player_ctl_recenter((int)dx, (int)dz);
 }
 
 static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float size){
@@ -343,6 +344,237 @@ static void tick_projectiles(GmRuntime *r) {
     }
 }
 
+/* ======================= client sound seam =======================
+ * A pure OUTPUT of the tick. Nothing below is ever read back by a simulation
+ * decision and nothing here touches a seeded stream, so a build with audio
+ * compiled out runs the identical simulation - that invariant is what the
+ * audio=0 vs =1 digest control in docs/GATES.md proves. Sound identity,
+ * volume and pitch ARE derived from simulation state, so they are deterministic
+ * and comparable against the Java oracle. */
+
+static void runtime_sound_event_append_delayed(
+        GmRuntime *r, int sound, int category, int eid, int relative,
+        double x, double y, double z, float volume, float pitch,
+        int delay_ticks) {
+    int index;
+    if (!r || sound <= 0 || sound >= GM_SOUND_COUNT) return;
+    if (r->sound_event_count < GM_RUNTIME_SOUND_EVENTS) {
+        index = (r->sound_event_head + r->sound_event_count)
+            % GM_RUNTIME_SOUND_EVENTS;
+        ++r->sound_event_count;
+    } else {
+        /* Full ring: overwrite the oldest and account for it. A consumer sees
+         * the gap as a jump in `seq` and reports it rather than going quiet. */
+        index = r->sound_event_head;
+        r->sound_event_head = (r->sound_event_head + 1)
+            % GM_RUNTIME_SOUND_EVENTS;
+        ++r->sound_event_dropped;
+    }
+    r->sound_events[index] = (GmRuntimeSoundEvent){
+        r->sound_event_next_seq++, sound, category, eid, r->dimension,
+        relative, delay_ticks, x, y, z, volume, pitch
+    };
+}
+
+static void runtime_sound_event_append(
+        GmRuntime *r, int sound, int category, int eid, int relative,
+        double x, double y, double z, float volume, float pitch) {
+    runtime_sound_event_append_delayed(
+        r, sound, category, eid, relative,
+        x, y, z, volume, pitch, 0);
+}
+
+/* Block.SoundType families in 1.11.2 registration order. The GM_SOUND_BLOCK_*
+ * enum keeps break/place/hit in this same order, so a family index doubles as
+ * an offset from the first sound of an action. */
+enum {
+    RUNTIME_BLOCK_SOUND_WOOD,
+    RUNTIME_BLOCK_SOUND_GRAVEL,
+    RUNTIME_BLOCK_SOUND_GRASS,
+    RUNTIME_BLOCK_SOUND_STONE,
+    RUNTIME_BLOCK_SOUND_METAL,
+    RUNTIME_BLOCK_SOUND_GLASS,
+    RUNTIME_BLOCK_SOUND_CLOTH,
+    RUNTIME_BLOCK_SOUND_SAND,
+    RUNTIME_BLOCK_SOUND_SNOW,
+    RUNTIME_BLOCK_SOUND_LADDER,
+    RUNTIME_BLOCK_SOUND_ANVIL,
+    RUNTIME_BLOCK_SOUND_SLIME
+};
+
+/* Block.getSoundType for every registered 1.11.2 block id. STONE is the
+ * registration default, so only the blocks that override it are listed.
+ * Metadata is deliberately ignored: no vanilla 1.11.2 block returns a
+ * state-dependent SoundType, and qrl.BlockBreakSoundGolden asserts that over
+ * every valid state before the gate compares a single row per id. */
+static int runtime_block_sound_family(int state_id) {
+    int id, family = RUNTIME_BLOCK_SOUND_STONE;
+    if (state_id < 0) return -1;
+    id = state_id & 4095;
+    if (id < 1 || (id > 234 && id != 255)) return -1;
+    switch (id) {
+    case 5: case 17: case 25: case 26: case 47: case 50: case 53:
+    case 54: case 58: case 63: case 64: case 68: case 69: case 72:
+    case 75: case 76: case 85: case 86: case 91: case 93: case 94:
+    case 96: case 99: case 100: case 103: case 104: case 105: case 107:
+    case 125: case 126: case 127: case 134: case 135: case 136:
+    case 143: case 146: case 147: case 148: case 149: case 150:
+    case 151: case 162: case 163: case 164: case 176: case 177:
+    case 178: case 183: case 184: case 185: case 186: case 187:
+    case 188: case 189: case 190: case 191: case 192: case 193:
+    case 194: case 195: case 196: case 197: case 198: case 199:
+    case 200: case 214:
+        family = RUNTIME_BLOCK_SOUND_WOOD; break;
+    case 3: case 13: case 60: case 82:
+        family = RUNTIME_BLOCK_SOUND_GRAVEL; break;
+    case 2: case 6: case 18: case 19: case 31: case 32: case 37:
+    case 38: case 39: case 40: case 46: case 59: case 83: case 106:
+    case 110: case 111: case 141: case 142: case 161: case 170:
+    case 175: case 207: case 208:
+        family = RUNTIME_BLOCK_SOUND_GRASS; break;
+    case 27: case 28: case 41: case 42: case 52: case 57: case 66:
+    case 71: case 101: case 133: case 152: case 154: case 157:
+    case 167:
+        family = RUNTIME_BLOCK_SOUND_METAL; break;
+    case 20: case 79: case 89: case 90: case 95: case 102: case 120:
+    case 123: case 124: case 160: case 169: case 174: case 212:
+        family = RUNTIME_BLOCK_SOUND_GLASS; break;
+    case 35: case 51: case 81: case 92: case 171:
+        family = RUNTIME_BLOCK_SOUND_CLOTH; break;
+    case 12: case 88:
+        family = RUNTIME_BLOCK_SOUND_SAND; break;
+    case 78: case 80:
+        family = RUNTIME_BLOCK_SOUND_SNOW; break;
+    case 65:
+        family = RUNTIME_BLOCK_SOUND_LADDER; break;
+    case 145:
+        family = RUNTIME_BLOCK_SOUND_ANVIL; break;
+    case 165:
+        family = RUNTIME_BLOCK_SOUND_SLIME; break;
+    default: break;
+    }
+    return family;
+}
+
+/* SoundType.volume is 1.0 for every family except ANVIL (0.3); SoundType.pitch
+ * is 1.0 except METAL (1.5). The per-action arithmetic is vanilla's:
+ * break/place use (volume+1)/2 and pitch*0.8, hit uses (volume+1)/8 and
+ * pitch*0.5. Kept as float expressions so the result is bit-comparable with
+ * Java's Float.floatToRawIntBits. */
+static int runtime_block_sound(
+        int state_id, int first_sound,
+        float volume_divisor, float pitch_multiplier,
+        int *sound, float *volume, float *pitch) {
+    int family = runtime_block_sound_family(state_id);
+    float type_volume, type_pitch;
+    if (family < 0) return 0;
+    if (sound) *sound = first_sound + family;
+    type_volume = family == RUNTIME_BLOCK_SOUND_ANVIL ? 0.3F : 1.0F;
+    type_pitch = family == RUNTIME_BLOCK_SOUND_METAL ? 1.5F : 1.0F;
+    if (volume) *volume = (type_volume + 1.0F) / volume_divisor;
+    if (pitch) *pitch = type_pitch * pitch_multiplier;
+    return 1;
+}
+
+int gm_runtime_block_break_sound(
+        int state_id, int *sound, float *volume, float *pitch) {
+    return runtime_block_sound(
+        state_id, GM_SOUND_BLOCK_WOOD_BREAK, 2.0F, 0.8F,
+        sound, volume, pitch);
+}
+
+int gm_runtime_block_place_sound(
+        int state_id, int *sound, float *volume, float *pitch) {
+    return runtime_block_sound(
+        state_id, GM_SOUND_BLOCK_WOOD_PLACE, 2.0F, 0.8F,
+        sound, volume, pitch);
+}
+
+int gm_runtime_block_hit_sound(
+        int state_id, int *sound, float *volume, float *pitch) {
+    return runtime_block_sound(
+        state_id, GM_SOUND_BLOCK_WOOD_HIT, 8.0F, 0.5F,
+        sound, volume, pitch);
+}
+
+/* World.playEvent(2001) from PlayerControllerMP.onPlayerDestroyBlock: the
+ * BROKEN state's SoundType at the block centre. */
+static int runtime_block_break_audio_append(
+        GmRuntime *r, int x, int y, int z, int state_id) {
+    int sound;
+    float volume, pitch;
+    if (!r || !gm_runtime_block_break_sound(
+                  state_id, &sound, &volume, &pitch))
+        return 0;
+    runtime_sound_event_append(
+        r, sound, GM_SOUND_CATEGORY_BLOCKS, 0, 0,
+        (double)x + 0.5, (double)y + 0.5, (double)z + 0.5,
+        volume, pitch);
+    return 1;
+}
+
+/* ItemBlock.onItemUse after a successful placement. Not a world event in
+ * vanilla - the placing world calls playSound directly - so this must never
+ * fabricate one. */
+static int runtime_block_place_audio_append(
+        GmRuntime *r, int x, int y, int z, int state_id) {
+    int sound;
+    float volume, pitch;
+    if (!r || !gm_runtime_block_place_sound(
+                  state_id, &sound, &volume, &pitch))
+        return 0;
+    runtime_sound_event_append(
+        r, sound, GM_SOUND_CATEGORY_BLOCKS, 0, 0,
+        (double)x + 0.5, (double)y + 0.5, (double)z + 0.5,
+        volume, pitch);
+    return 1;
+}
+
+/* PlayerControllerMP.onPlayerDamageBlock every fourth tick of a held dig. */
+static int runtime_block_hit_audio_append(
+        GmRuntime *r, int x, int y, int z, int state_id) {
+    int sound;
+    float volume, pitch;
+    if (!r || !gm_runtime_block_hit_sound(
+                  state_id, &sound, &volume, &pitch))
+        return 0;
+    runtime_sound_event_append(
+        r, sound, GM_SOUND_CATEGORY_BLOCKS, 0, 0,
+        (double)x + 0.5, (double)y + 0.5, (double)z + 0.5,
+        volume, pitch);
+    return 1;
+}
+
+int gm_runtime_block_break_audio_fixture(
+        GmRuntime *r, int x, int y, int z, int state_id) {
+    return runtime_block_break_audio_append(r, x, y, z, state_id);
+}
+
+int gm_runtime_block_place_audio_fixture(
+        GmRuntime *r, int x, int y, int z, int state_id) {
+    return runtime_block_place_audio_append(r, x, y, z, state_id);
+}
+
+int gm_runtime_sound_event_count(const GmRuntime *r) {
+    return r ? r->sound_event_count : 0;
+}
+
+int gm_runtime_sound_event_get(
+        const GmRuntime *r, int index, GmRuntimeSoundEvent *out) {
+    int slot;
+    if (!r || !out || index < 0 || index >= r->sound_event_count)
+        return 0;
+    slot = (r->sound_event_head + index) % GM_RUNTIME_SOUND_EVENTS;
+    *out = r->sound_events[slot];
+    return 1;
+}
+
+void gm_runtime_sound_events_clear(GmRuntime *r) {
+    if (!r) return;
+    r->sound_event_head = 0;
+    r->sound_event_count = 0;
+}
+
 int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     if (!r || !cfg) { set_error(err, err_cap, "invalid runtime arguments"); return 0; }
     memset(r, 0, sizeof *r);
@@ -566,13 +798,26 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         --r->player_fire_ticks;
         r->player.health=r->vitals.health;
     }
-    if(action.attack&&r->dimension==1&&gm_dragon_player_attack(&r->dragon,
-            (const struct PsvPlayer *)&r->player,r->ox,r->oz))action.attack=0;
-    if (action.attack && gm_mobs_player_attack(&r->mobs,
-            (const struct PsvPlayer *)&r->player,r->ox,r->oz,&r->entities))
-        action.attack=0;
-    if (action.attack && attack_hits_falling_block(r))
-        action.attack_entity=1;
+    /* Minecraft.runTick order: leftClickCounter-- then processKeyBinds
+     * (clickMouse on press, sendClickBlockToController on hold). Entity
+     * selection/damage is clickMouse's ENTITY branch and must share the
+     * post-decrement gate. Keep the physical attack bit for gm_player_tick so
+     * dig sees a held key (and only release clears the counter); mark
+     * attack_entity so the dig machine takes the non-BLOCK reset path. */
+    {
+        int can_click = gm_player_left_click_allows(action.attack);
+        if (can_click && r->dimension == 1 &&
+            gm_dragon_player_attack(&r->dragon,
+                (const struct PsvPlayer *)&r->player, r->ox, r->oz))
+            action.attack_entity = 1;
+        if (can_click && !action.attack_entity &&
+            gm_mobs_player_attack(&r->mobs,
+                (const struct PsvPlayer *)&r->player, r->ox, r->oz,
+                &r->entities))
+            action.attack_entity = 1;
+        if (can_click && !action.attack_entity && attack_hits_falling_block(r))
+            action.attack_entity = 1;
+    }
     GmBlockEdit edits[GM_RUNTIME_MAX_EDITS];
     int n = 0;
     /* player_view lands before gm_runtime_tick for a tape row. Carry its
@@ -585,6 +830,18 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                       (struct PsvPlayer *)&r->player,
                       (struct PvStats *)&r->vitals, &r->gamerules, action,
                       r->ox, 0, r->oz, edits, &n, GM_RUNTIME_MAX_EDITS);
+    /* Minecraft pins this sentinel every runTick while a block GUI is open,
+     * after attack-release handling would otherwise clear it. */
+    if (r->container >= 1 && r->container <= 3)
+        gm_player_set_gui_blocked(1);
+    /* PlayerControllerMP.onPlayerDamageBlock hit sound, drained per tick. The
+     * counter lives in player_ctl because that is where the dig cadence lives;
+     * it is render/audio-only state and the RL snapshot excludes it. */
+    {
+        int hx, hy, hz, hstate;
+        if (gm_player_take_dig_sound(&hx, &hy, &hz, &hstate))
+            runtime_block_hit_audio_append(r, hx, hy, hz, hstate);
+    }
     /* Ghost pushers (tape replay): EntityLivingBase.collideWithNearbyEntities
      * runs right after travel, queries the UNGROWN player bb (strict
      * intersects), and each hit applies Entity.applyEntityCollision - a
@@ -622,6 +879,17 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
     }
     for (int i = 0; i < n; ++i) {
         int old_id = gm_world_block(r->world, edits[i].wx, edits[i].wy, edits[i].wz);
+        /* World event 2001 carries the state that was BROKEN, so it has to be
+         * sampled before the cell is overwritten below. */
+        if (edits[i].break_effect)
+            runtime_block_break_audio_append(
+                r, edits[i].wx, edits[i].wy, edits[i].wz,
+                old_id | ((gm_world_meta(r->world, edits[i].wx, edits[i].wy,
+                                         edits[i].wz) & 255) << 12));
+        if (edits[i].place_effect)
+            runtime_block_place_audio_append(
+                r, edits[i].wx, edits[i].wy, edits[i].wz,
+                edits[i].id | ((edits[i].meta & 255) << 12));
         if (old_id == 54 && edits[i].id != 54)
             runtime_break_chest_te(r, edits[i].wx, edits[i].wy, edits[i].wz);
         gm_world_set_block_meta(r->world, edits[i].wx, edits[i].wy, edits[i].wz,
@@ -1455,6 +1723,25 @@ int gm_runtime_set_block(GmRuntime *r, int x, int y, int z, int id, int meta) {
     return 1;
 }
 
+int gm_runtime_reanchor_block(GmRuntime *r, int x, int y, int z, int id, int meta) {
+    if (!r || !r->world || y < 0 || y > 255 || id < 0 || id > 4095 ||
+        meta < 0 || meta > 15) return 0;
+    int old_id = gm_world_block(r->world, x, y, z);
+    if (old_id == 54 && id != 54)
+        runtime_break_chest_te(r, x, y, z);
+    gm_world_set_block_meta(r->world, x, y, z, id, meta);
+    /* No gm_live_block_changed: set_block_post restores recorded client
+     * finals. Scheduling BlockFalling here re-runs gravity that the tape
+     * already observed (and that local set_block / dig paths already armed),
+     * inventing a second fall entity or a second sand/gravel cell. Ordinary
+     * player/world mutations still go through gm_runtime_set_block. */
+    /* gm_fluid_mark self-filters: no liquid in the 7-cell stencil => no-op. */
+    gm_fluid_mark(&r->fluids, r->world, r->dimension, x, y, z);
+    /* No break_unsupported_plants: recorded finals already include plant
+     * removals; cascading here would invent drops and reorder truth. */
+    return 1;
+}
+
 int gm_runtime_load_block(GmRuntime *r, int x, int y, int z, int id, int meta) {
     if (!r || !r->world || y < 0 || y > 255 || id < 0 || id > 4095 ||
         meta < 0 || meta > 15) return 0;
@@ -1545,6 +1832,7 @@ int gm_runtime_projectile_views(const GmRuntime *r, GmEntityView *out, int max) 
 
 int gm_runtime_craft(GmRuntime *r, int grid_width, const int inv_slots[9]) {
     if (!r || (grid_width != 2 && grid_width != 3)) return 0;
+    r->parity_craft_attempts++;
     if (grid_width == 3 && r->container != 1) return 0;
     CRStack grid[9];
     int use[ISR_MAIN_SLOTS];
@@ -1572,6 +1860,8 @@ int gm_runtime_craft(GmRuntime *r, int grid_width, const int inv_slots[9]) {
     (void)isr_add_item_stack_to_inventory(&next, &output);
     if (!isr_is_empty(&output)) return 0;
     r->player.inv = next;
+    r->parity_craft_successes++;
+    r->parity_last_craft = ic_mk(result.item, result.count, result.meta);
     return 1;
 }
 
@@ -1581,6 +1871,7 @@ static void runtime_close_container(GmRuntime *r)
     if (r->container == 3 && r->active_chest >= 0)
         chest_live_close(&r->chests[r->active_chest].state);
     gm_container_close(r);
+    gm_player_set_gui_blocked(0);
     r->active_furnace = -1;
     r->active_chest = -1;
 }
@@ -1693,6 +1984,8 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
     if (id == 58) {
         runtime_close_container(r); /* return any live grid/cursor before switching */
         r->container=1; r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+        gm_player_set_gui_blocked(1);
+        r->parity_container_opens++;
         return 1;
     }
     if (id == 61 || id == 62) {
@@ -1703,6 +1996,8 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
             if (f->active && f->wx==wx && f->wy==wy && f->wz==wz) {
                 r->container=2; r->active_furnace=i;
                 r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+                gm_player_set_gui_blocked(1);
+                r->parity_container_opens++;
                 return 1;
             }
             if (!f->active && free_slot < 0) free_slot=i;
@@ -1712,6 +2007,8 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
         f->active=1; f->wx=wx; f->wy=wy; f->wz=wz; furnace_live_init(&f->state);
         r->container=2; r->active_furnace=free_slot;
         r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+        gm_player_set_gui_blocked(1);
+        r->parity_container_opens++;
         return 1;
     }
     if (id == 54) {
@@ -1723,6 +2020,8 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
                 chest_live_open(&c->state);
                 r->container=3; r->active_chest=i;
                 r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+                gm_player_set_gui_blocked(1);
+                r->parity_container_opens++;
                 return 1;
             }
         }
@@ -1739,6 +2038,8 @@ int gm_runtime_use_block(GmRuntime *r, int wx, int wy, int wz) {
         chest_live_open(&c->state);
         r->container=3; r->active_chest=free_slot;
         r->container_wx=wx; r->container_wy=wy; r->container_wz=wz;
+        gm_player_set_gui_blocked(1);
+        r->parity_container_opens++;
         return 1;
     }
     if(id==120){
@@ -1771,6 +2072,96 @@ int gm_runtime_furnace_insert(GmRuntime *r, int furnace_slot,
     int moved=furnace_live_insert(&r->furnaces[r->active_furnace].state,furnace_slot,in);
     if (moved>0) (void)isr_decr_stack_size(&r->player.inv,inventory_slot,moved);
     return moved;
+}
+
+int gm_runtime_container_open(GmRuntime *r, int ctype, int wx, int wy, int wz) {
+    if (!r) return 0;
+    if (ctype == 0) {
+        runtime_close_container(r);
+        r->container = 0;
+        r->active_furnace = -1;
+        r->active_chest = -1;
+        return 1;
+    }
+    if (ctype < 1 || ctype > 3) return 0;
+    /* Workbench/furnace/chest: require the world cell and open through the
+     * same path as survival use (reach + TE table). */
+    if (!r->world) return 0;
+    int id = gm_world_block(r->world, wx, wy, wz);
+    if (ctype == 1 && id != 58) return 0;
+    if (ctype == 2 && id != 61 && id != 62) return 0;
+    if (ctype == 3 && id != 54) return 0;
+    return gm_runtime_use_block(r, wx, wy, wz) && r->container == ctype;
+}
+
+int gm_runtime_container_seed_slot(GmRuntime *r, int gmc_slot,
+                                   int item, int count, int meta) {
+    if (!r) return 0;
+    if (count < 0 || count > 64 || item < 0 || meta < 0 || meta > 15) return 0;
+    if (count == 0) item = 0;
+    if (gmc_slot >= GMC_GRID0 && gmc_slot < GMC_RESULT) {
+        if (r->container != 0 && r->container != 1) return 0;
+        int cell = gmc_slot - GMC_GRID0;
+        if (r->container == 0 && !(cell == 0 || cell == 1 || cell == 3 || cell == 4))
+            return 0;
+        r->craft_grid[cell] = count == 0 ? ic_empty()
+                                         : ic_mk((i32)item, (i32)count, (i32)meta);
+        return 1;
+    }
+    if (gmc_slot >= GMC_FURNACE0 && gmc_slot < GMC_ARMOR0) {
+        if (r->container != 2 || r->active_furnace < 0) return 0;
+        FurnaceLive *f = &r->furnaces[r->active_furnace].state;
+        SRStack st = count == 0 ? sr_empty()
+                                : sr_mk((i32)item, (i32)count, (i32)meta);
+        int fs = gmc_slot - GMC_FURNACE0;
+        if (fs == 0) f->input = st;
+        else if (fs == 1) f->fuel = st;
+        else if (fs == 2) f->output = st;
+        else return 0;
+        return 1;
+    }
+    if (gmc_slot >= GMC_CHEST0 && gmc_slot < GMC_CHEST0 + GMC_CHEST_SLOTS) {
+        if (r->container != 3 || r->active_chest < 0) return 0;
+        ChestLive *c = &r->chests[r->active_chest].state;
+        /* Authoritative tape seed: skip loot fill so taped contents win. */
+        c->loot_filled = 1;
+        c->loot_table = CHEST_LOOT_NONE;
+        chest_live_set(c, gmc_slot - GMC_CHEST0,
+                       count == 0 ? ic_empty()
+                                  : ic_mk((i32)item, (i32)count, (i32)meta));
+        return 1;
+    }
+    return 0;
+}
+
+void gm_runtime_container_seed_cursor(GmRuntime *r, int item, int count, int meta) {
+    if (!r) return;
+    if (count <= 0 || item <= 0) {
+        gm_player_cursor_set(ic_empty());
+        return;
+    }
+    gm_player_cursor_set(ic_mk((i32)item, (i32)count, (i32)meta));
+}
+
+int gm_runtime_container_seed_furnace_prop(GmRuntime *r, int burn,
+                                           int current_burn, int cook,
+                                           int total_cook) {
+    if (!r || r->container != 2 || r->active_furnace < 0) return 0;
+    if (burn < 0 || current_burn < 0 || cook < 0 || total_cook < 0) return 0;
+    FurnaceLive *f = &r->furnaces[r->active_furnace].state;
+    f->burn_time = burn;
+    f->current_burn_time = current_burn;
+    f->cook_time = cook;
+    f->total_cook = total_cook;
+    return 1;
+}
+
+void gm_runtime_container_force_close(GmRuntime *r) {
+    if (!r) return;
+    runtime_close_container(r);
+    r->container = 0;
+    r->active_furnace = -1;
+    r->active_chest = -1;
 }
 
 int gm_runtime_furnace_extract(GmRuntime *r, int furnace_slot, int amount) {
