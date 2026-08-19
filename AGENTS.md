@@ -3,6 +3,9 @@
 Home: **Anvil-primary** - canonical at `anvil:~/dev/netherite`. Build and run
 here. MacBook is control plane / Moonlight / image viewing only.
 
+Git remote: **https://github.com/Infatoshi/netherite**. That is the only
+GitHub repo. `origin` on both machines points there.
+
 This file is the **only agent entry**. Do not hunt other root markdown for
 instructions. How-tos and history live under `docs/`; living contracts live
 next to the code they govern.
@@ -101,7 +104,7 @@ bash verify/worldgen/wrapper_gate.sh              # rc=0 exact match vs known_di
 # bash verify/worldgen/wrapper_diff.sh            # diagnostic report + load-order probe
 # bash verify/worldgen/wrapper_gate.sh --update   # re-bless only with maintainer judgment
 
-# clean-history public tree; DEST must be absolute and outside this repo
+# optional filtered copy (no oracle-src, no generated atlas headers, no media)
 make -C verify public-export DEST=/absolute/path
 ```
 
@@ -268,7 +271,8 @@ a project Python package.
 - Kill game: `pkill -9 -f '[G]radleStart'` (bracket required).
 - Launch game standalone (`setsid`/`nohup`); never chain kill+launch+poll.
 - Goldens from **real MC only**; C bit-match needs `-ffp-contract=off`.
-- Private remote only when oracle-src is present (decompiled Mojang source).
+- `java/oracle-src/` and generated `magma/assets/*_atlas.h` stay gitignored.
+  Do not commit them. GitHub is this tree without those files.
 - No emojis, no em dashes. Minimal diffs. Verify before claiming done.
 - A replay that reports `magma_game failed (rc=-11)` and then
   `EOFError: No data left in file` is a **SIGSEGV in the first captured frame**,
