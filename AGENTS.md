@@ -38,7 +38,7 @@ Product name: **netherite**. Trees:
 - `magma/` - the playable fidelity tier: CPU tick plus CPU, CUDA, or Metal raster
 - `verify/` - cross-stack harness: tapes, scenarios, gates, nightly sweep
 
-Glossary and naming rationale (incl. the blaze mob collision): `NAMES.md`.
+`blaze/` is the simulation. The vanilla nether mob is "blaze mob".
 
 ## Where to read (stop when you have enough)
 
