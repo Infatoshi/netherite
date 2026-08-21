@@ -167,5 +167,6 @@ int gm_fluid_tick(GmFluidLive *f, GmWorld *w, int dim, long long world_time) {
         if (world_time % period != 0) continue;
         total += fl_step_region(f, rg, w);
     }
+    f->parity_mutations += (unsigned)total;
     return total;
 }

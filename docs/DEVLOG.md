@@ -1,5 +1,12 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 fluids M1
+
+Magma and Blaze CPU share the FLD1 liquid-evolution digest (scheduler FNV +
+XOR of ids 8-11 in the snapshot box + ncells + CA write-backs). Both step
+`ff_ca_step_ex`. Gate: `port_matrix.py --tier m1 --subsystem fluids --no-deps`
+VERIFIED 61 ticks. t=0 digest `0x1f27ac65354386f4`. CUDA/Metal not claimed.
+
 ## 2026-08-21 remaining-to-stop-asking
 
 Codex, Fable, and Grok surveyed the tree. Fable ranks. The four-gate

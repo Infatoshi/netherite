@@ -83,7 +83,7 @@ PARITY_INDEX = {name: i for i, name in enumerate(PARITY_NAMES)}
 # --port-parity --features.
 PARITY_SUPPORTED = (
     "player", "dig", "inventory", "items", "world", "crafting",
-    "containers", "furnaces", "observations",
+    "containers", "furnaces", "fluids", "observations",
 )
 PARITY_UNREPRESENTED_SNAPSHOT = 1 << 63
 PARITY_DEBUG_NAMES = (
@@ -556,8 +556,7 @@ def run_seed(seed, snap, actions, label, show_final_inv=False,
     real = RealEnv(seed, snap, port_parity=state_digest)
     cu = Blaze1(snap, port_parity=state_digest)
     if cu.liquid:
-        print(f"  note: seed {seed} snapshot region contains liquid "
-              f"(flagged; fluids CA not simulated)")
+        print(f"  note: seed {seed} snapshot region contains liquid")
     if state_digest:
         print(f"  state-digest: comparing {','.join(features)} every tick")
     status = VERIFIED

@@ -83,12 +83,12 @@ enum BpDebugField {
 #define BP_IMPLEMENTED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
-     BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | \
+     BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
-     BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | \
+     BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_OBSERVATIONS))
 
 #define BP_SUBSYSTEM_NAMES \
@@ -263,6 +263,81 @@ BP_HD static inline uint64_t bp_world_digest_cells(
     for (i = 0; i < count; ++i)
         digest = bp_world_digest_add(digest, i, cells[i]);
     return digest;
+}
+
+/* Canonical liquid-evolution digest. Scheduler fields (dimension, active
+ * region AABB / cadence / quiet steps) are sequential FNV. Liquid cells in
+ * the snapshot region use the same index space as bp_world_digest_* and an
+ * XOR of (index, packed state) tokens so a write is O(1). Presence of ids
+ * 8..11 is not enough: Magma and Blaze must both hash the live CA scheduler
+ * plus every represented liquid cell. */
+BP_HD static inline int bp_is_liquid_id(int32_t id) {
+    return id >= 8 && id <= 11;
+}
+
+BP_HD static inline int bp_is_liquid_state(uint16_t state) {
+    return bp_is_liquid_id((int32_t)(state >> 4));
+}
+
+BP_HD static inline uint64_t bp_fluid_cell_token(uint64_t index, uint16_t state) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x4451494c)); /* "LIQD" */
+    h = bp_hash_u64(h, index);
+    return bp_hash_u16(h, state);
+}
+
+BP_HD static inline uint64_t bp_fluid_cells_add(
+    uint64_t digest, uint32_t *ncells, uint64_t index, uint16_t state) {
+    if (!bp_is_liquid_state(state)) return digest;
+    if (ncells) ++*ncells;
+    return digest ^ bp_fluid_cell_token(index, state);
+}
+
+BP_HD static inline uint64_t bp_fluid_cells_replace(
+    uint64_t digest, uint32_t *ncells, uint64_t index,
+    uint16_t old_state, uint16_t new_state) {
+    int old_l = bp_is_liquid_state(old_state);
+    int new_l = bp_is_liquid_state(new_state);
+    if (old_l == new_l && old_state == new_state) return digest;
+    if (old_l) {
+        digest ^= bp_fluid_cell_token(index, old_state);
+        if (ncells) --*ncells;
+    }
+    if (new_l) {
+        digest ^= bp_fluid_cell_token(index, new_state);
+        if (ncells) ++*ncells;
+    }
+    return digest;
+}
+
+BP_HD static inline uint64_t bp_hash_fluid_region(
+    uint64_t h, int32_t active, int32_t x0, int32_t y0, int32_t z0,
+    int32_t x1, int32_t y1, int32_t z1, int32_t has_water,
+    int32_t quiet_steps) {
+    h = bp_hash_i32(h, active);
+    if (!active) return h;
+    h = bp_hash_i32(h, x0);
+    h = bp_hash_i32(h, y0);
+    h = bp_hash_i32(h, z0);
+    h = bp_hash_i32(h, x1);
+    h = bp_hash_i32(h, y1);
+    h = bp_hash_i32(h, z1);
+    h = bp_hash_i32(h, has_water);
+    return bp_hash_i32(h, quiet_steps);
+}
+
+BP_HD static inline uint64_t bp_fluid_digest_begin(int32_t dim, int32_t nregions) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x31444c46)); /* "FLD1" */
+    h = bp_hash_i32(h, dim);
+    return bp_hash_i32(h, nregions);
+}
+
+BP_HD static inline uint64_t bp_fluid_digest_finish(
+    uint64_t h, uint64_t cells_xor, uint32_t ncells, uint32_t mutations) {
+    h = bp_hash_u64(h, cells_xor);
+    h = bp_hash_u32(h, ncells);
+    return bp_hash_u32(h, mutations);
 }
 
 BP_HD static inline void bp_record_init(BpParityRecord *r, int64_t tick) {

@@ -540,6 +540,28 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
     out->evidence[BP_FURNACES] = (uint32_t)any;
     if (any) out->active_mask |= BP_BIT(BP_FURNACES);
 
+    {
+        uint64_t cells_xor = 0;
+        unsigned nliq = 0;
+        h = bp_fluid_digest_begin(r->fluids.dim, GM_FLUID_REGIONS);
+        for (i = 0; i < GM_FLUID_REGIONS; ++i) {
+            const GmFluidRegion *rg = &r->fluids.reg[i];
+            h = bp_hash_fluid_region(
+                h, rg->active, rg->x0, rg->y0, rg->z0,
+                rg->x1, rg->y1, rg->z1, rg->has_water, rg->quiet_steps);
+        }
+        if (gm_world_fluid_parity_state(r->world, &cells_xor, &nliq)) {
+            h = bp_fluid_digest_finish(
+                h, cells_xor, (uint32_t)nliq, r->fluids.parity_mutations);
+            out->digest[BP_FLUIDS] = h;
+            out->evidence[BP_FLUIDS] = r->fluids.parity_mutations;
+            if (r->fluids.parity_mutations || gm_fluid_active(&r->fluids))
+                out->active_mask |= BP_BIT(BP_FLUIDS);
+        } else {
+            out->measured_mask &= ~BP_BIT(BP_FLUIDS);
+        }
+    }
+
     h = bp_hash_begin();
     for (i = 0; i < RL_NCOAL; ++i) {
         int present = i < rl_ncoal;

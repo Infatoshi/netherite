@@ -48,6 +48,7 @@ typedef struct GmFluidLive {
     GmFluidRegion reg[GM_FLUID_REGIONS];
     unsigned short cur[GM_FLUID_NX * GM_FLUID_NY * GM_FLUID_NZ];
     unsigned short tmp[GM_FLUID_NX * GM_FLUID_NY * GM_FLUID_NZ];
+    unsigned parity_mutations;        /* cumulative CA write-backs            */
 } GmFluidLive;
 
 void gm_fluid_init(GmFluidLive *f);
