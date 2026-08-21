@@ -10,9 +10,11 @@ Classes (conservative predicates, keyed to OPEN_DIVERGENCES numbers):
   bossbar   #45/#50  cluster entirely inside the top boss-bar band
   hud       #44/...  cluster entirely inside the bottom HUD strip
   thinline  #4       wireframe / silhouette-edge class: large bbox, tiny fill
-  particles #40/#48  oracle-only brightness (additive particles magma
-                     doesn't draw); magma-brighter clusters NEVER match
-                     this class - that's how the marker-box bug type is caught
+  particles #40/#48  oracle-only brightness (magma missing a particle, or
+                     the oracle particle is fullbright). Vanilla 1.11.2
+                     ParticleManager is SRC_ALPHA/ONE_MINUS_SRC_ALPHA, not
+                     additive. Magma-brighter clusters NEVER match this
+                     class - that's how the marker-box bug type is caught
   viewmodel #29      held-item region: lower-right, touching a frame edge
   UNEXPLAINED        everything else -> gate failure when big enough
 
@@ -209,7 +211,7 @@ def _classify(o, c, ys, xs, w, h, hide_gui=False, hide_hand=False):
     ob = o[ys, xs].mean()
     cb = c[ys, xs].mean()
     if ob > cb + 12.0:
-        return "particles"          # oracle-only additive glow
+        return "particles"          # oracle-brighter; not a blend-mode flag
     if (x0 > w * 0.52 and y0 > h * 0.40
             and (x1 >= w - 3 or y1 >= h - 3) and not hide_hand):
         return "viewmodel"

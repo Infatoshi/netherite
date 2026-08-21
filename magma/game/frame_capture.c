@@ -1242,7 +1242,10 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         }
     }
     /* Recorded explosion particles use the real ParticleManager render
-     * classes and outlive the entity/event row that spawned them. */
+     * classes and outlive the entity/event row that spawned them.
+     * Vanilla ParticleManager.renderParticles (1.11.2) is
+     * blendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA) + alphaFunc(GL_GREATER,
+     * 1/255). Not additive; blend=3 would be a miss vs oracle-src. */
     if(c->particles){
         /* Keep this host buffer alive until the asynchronous CUDA upload ends. */
         static CrVertex pcl0_ov[GM_PARTICLES_LIVE_CAP*6];
