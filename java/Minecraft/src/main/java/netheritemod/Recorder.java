@@ -824,6 +824,409 @@ public class Recorder {
         p.prevTimeInPortal = pinPortalTime;
     }
 
+    /** Restore EntityRenderer fogColor1/2 so frame_pair pass B starts from the
+     * same smoother state as pass A. updateFogColor / updateRenderer both write
+     * these; two re-renders on one turn otherwise step the 0.1F lerp twice. */
+    private void restoreFogColors(Minecraft mc, float c1, float c2) {
+        if (mc == null || mc.entityRenderer == null) return;
+        try {
+            java.lang.reflect.Field f1 =
+                net.minecraft.client.renderer.EntityRenderer.class
+                    .getDeclaredField("fogColor1");
+            f1.setAccessible(true);
+            f1.setFloat(mc.entityRenderer, c1);
+            java.lang.reflect.Field f2 =
+                net.minecraft.client.renderer.EntityRenderer.class
+                    .getDeclaredField("fogColor2");
+            f2.setAccessible(true);
+            f2.setFloat(mc.entityRenderer, c2);
+        } catch (Throwable ig) { /* leave live fog */ }
+    }
+
+    /** Per-pass renderer fields that must not drift inside frame_pair. */
+    private JsonObject framePassDiag(Minecraft mc) {
+        JsonObject d = new JsonObject();
+        try {
+            if (mc.entityRenderer != null) {
+                Class<?> erc = net.minecraft.client.renderer.EntityRenderer.class;
+                String[] names = {
+                    "fogColor1", "fogColor2",
+                    "fogColorRed", "fogColorGreen", "fogColorBlue"
+                };
+                for (int i = 0; i < names.length; i++) {
+                    java.lang.reflect.Field f = erc.getDeclaredField(names[i]);
+                    f.setAccessible(true);
+                    d.addProperty(names[i], f.getFloat(mc.entityRenderer));
+                }
+                java.lang.reflect.Field fPhase = erc.getDeclaredField("rendererUpdateCount");
+                fPhase.setAccessible(true);
+                d.addProperty("rendererUpdateCount", fPhase.getInt(mc.entityRenderer));
+                try {
+                    java.lang.reflect.Field fCol = erc.getDeclaredField("lightmapColors");
+                    fCol.setAccessible(true);
+                    int[] colors = (int[]) fCol.get(mc.entityRenderer);
+                    int h = 1;
+                    if (colors != null) {
+                        for (int i = 0; i < colors.length; i++) h = 31 * h + colors[i];
+                        d.addProperty("lightmap_n", colors.length);
+                    }
+                    d.addProperty("lightmap_hash", h);
+                } catch (Throwable ig) {}
+            }
+            if (mc.player != null) {
+                d.addProperty("timeInPortal", mc.player.timeInPortal);
+                d.addProperty("prevTimeInPortal", mc.player.prevTimeInPortal);
+                d.addProperty("air", mc.player.getAir());
+                d.addProperty("x", mc.player.posX);
+                d.addProperty("y", mc.player.posY);
+                d.addProperty("z", mc.player.posZ);
+                d.addProperty("yaw", mc.player.rotationYaw);
+                d.addProperty("pitch", mc.player.rotationPitch);
+            }
+            try {
+                net.minecraft.client.renderer.texture.TextureAtlasSprite sp =
+                    mc.getBlockRendererDispatcher().getBlockModelShapes()
+                        .getTexture(net.minecraft.init.Blocks.PORTAL.getDefaultState());
+                if (sp != null) {
+                    d.addProperty("portal_minU", sp.getMinU());
+                    d.addProperty("portal_maxU", sp.getMaxU());
+                    d.addProperty("portal_minV", sp.getMinV());
+                    d.addProperty("portal_maxV", sp.getMaxV());
+                    try {
+                        java.lang.reflect.Field fc =
+                            net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                                .getDeclaredField("frameCounter");
+                        fc.setAccessible(true);
+                        d.addProperty("portal_frameCounter", fc.getInt(sp));
+                    } catch (Throwable ig) {}
+                    try {
+                        java.lang.reflect.Field tc =
+                            net.minecraft.client.renderer.texture.TextureAtlasSprite.class
+                                .getDeclaredField("tickCounter");
+                        tc.setAccessible(true);
+                        d.addProperty("portal_tickCounter", tc.getInt(sp));
+                    } catch (Throwable ig) {}
+                }
+            } catch (Throwable ig) {}
+        } catch (Throwable t) {
+            d.addProperty("diag_error", String.valueOf(t));
+        }
+        return d;
+    }
+
+    /**
+     * Oracle translucent DRAW capture for the slime-rim contradiction.
+     * Rebuilds every RenderChunk overlapping the requested block bbox (default:
+     * 16-block radius around the player at the player's Y section), dumps:
+     *   camera.json          pose + GL modelview/projection after setupCameraTransform
+     *   model_census.json    per-slime baked quads (general vs face) + shouldSideBeRendered
+     *   chunks.json          per-section origin, layer vertex counts, sort camera
+     *   quads.jsonl          TRANSLUCENT layer post-sortVertexData quads in draw order
+     * Draw order is vanilla's: descending squared centroid distance, stable TimSort.
+     * Fragment visit order is derived offline from quads + MVP (Python driver).
+     */
+    private void captureTranslucentDraw(Minecraft mc, JsonObject action, Req r) {
+        if (mc.world == null || mc.player == null || mc.renderGlobal == null
+                || mc.entityRenderer == null) {
+            r.resp.offer(err("no world"));
+            return;
+        }
+        try {
+            final String dir = action.has("dir") ? action.get("dir").getAsString()
+                : "verify/fixtures/slime_translucent";
+            int px = (int) Math.floor(mc.player.posX);
+            int py = (int) Math.floor(mc.player.posY);
+            int pz = (int) Math.floor(mc.player.posZ);
+            int x0 = action.has("x0") ? action.get("x0").getAsInt() : px - 16;
+            int y0 = action.has("y0") ? action.get("y0").getAsInt() : py - 2;
+            int z0 = action.has("z0") ? action.get("z0").getAsInt() : pz - 16;
+            int x1 = action.has("x1") ? action.get("x1").getAsInt() : px + 16;
+            int y1 = action.has("y1") ? action.get("y1").getAsInt() : py + 2;
+            int z1 = action.has("z1") ? action.get("z1").getAsInt() : pz + 16;
+            java.io.File gd = new java.io.File(dir);
+            gd.mkdirs();
+
+            float camX = (float) mc.player.posX;
+            float camY = (float) mc.player.posY + mc.player.getEyeHeight();
+            float camZ = (float) mc.player.posZ;
+            float yaw = mc.player.rotationYaw;
+            float pitch = mc.player.rotationPitch;
+
+            JsonObject cam = new JsonObject();
+            cam.addProperty("feet_x", mc.player.posX);
+            cam.addProperty("feet_y", mc.player.posY);
+            cam.addProperty("feet_z", mc.player.posZ);
+            cam.addProperty("eye_x", camX);
+            cam.addProperty("eye_y", camY);
+            cam.addProperty("eye_z", camZ);
+            cam.addProperty("yaw", yaw);
+            cam.addProperty("pitch", pitch);
+            cam.addProperty("eye_height", mc.player.getEyeHeight());
+            cam.addProperty("sneaking", mc.player.isSneaking());
+            cam.addProperty("display_w", mc.displayWidth);
+            cam.addProperty("display_h", mc.displayHeight);
+            cam.addProperty("partial_ticks", 1.0F);
+            try {
+                java.lang.reflect.Method sct =
+                    net.minecraft.client.renderer.EntityRenderer.class
+                        .getDeclaredMethod("setupCameraTransform", float.class, int.class);
+                sct.setAccessible(true);
+                sct.invoke(mc.entityRenderer, Float.valueOf(1.0F), Integer.valueOf(0));
+                java.nio.FloatBuffer mv = org.lwjgl.BufferUtils.createFloatBuffer(16);
+                java.nio.FloatBuffer pr = org.lwjgl.BufferUtils.createFloatBuffer(16);
+                org.lwjgl.opengl.GL11.glGetFloat(
+                    org.lwjgl.opengl.GL11.GL_MODELVIEW_MATRIX, mv);
+                org.lwjgl.opengl.GL11.glGetFloat(
+                    org.lwjgl.opengl.GL11.GL_PROJECTION_MATRIX, pr);
+                JsonArray mvA = new JsonArray();
+                JsonArray prA = new JsonArray();
+                for (int i = 0; i < 16; i++) {
+                    mvA.add(new com.google.gson.JsonPrimitive(mv.get(i)));
+                    prA.add(new com.google.gson.JsonPrimitive(pr.get(i)));
+                }
+                cam.add("modelview", mvA);
+                cam.add("projection", prA);
+            } catch (Throwable ig) {
+                cam.addProperty("matrix_error", String.valueOf(ig));
+            }
+
+            net.minecraft.client.renderer.RenderGlobal rg = mc.renderGlobal;
+            java.lang.reflect.Field vfF = net.minecraft.client.renderer.RenderGlobal.class
+                .getDeclaredField("viewFrustum");
+            vfF.setAccessible(true);
+            net.minecraft.client.renderer.ViewFrustum vf =
+                (net.minecraft.client.renderer.ViewFrustum) vfF.get(rg);
+            if (vf == null || vf.renderChunks == null) {
+                r.resp.offer(err("no viewFrustum"));
+                return;
+            }
+
+            java.lang.reflect.Field rib = net.minecraft.client.renderer.VertexBuffer.class
+                .getDeclaredField("rawIntBuffer");
+            rib.setAccessible(true);
+
+            java.util.ArrayList<net.minecraft.client.renderer.chunk.RenderChunk> hit =
+                new java.util.ArrayList<net.minecraft.client.renderer.chunk.RenderChunk>();
+            for (net.minecraft.client.renderer.chunk.RenderChunk c : vf.renderChunks) {
+                if (c == null) continue;
+                BlockPos o = c.getPosition();
+                int cx0 = o.getX(), cy0 = o.getY(), cz0 = o.getZ();
+                int cx1 = cx0 + 15, cy1 = cy0 + 15, cz1 = cz0 + 15;
+                if (cx1 < x0 || cx0 > x1 || cy1 < y0 || cy0 > y1 || cz1 < z0 || cz0 > z1)
+                    continue;
+                hit.add(c);
+            }
+
+            JsonArray chunks = new JsonArray();
+            java.io.PrintWriter qw = new java.io.PrintWriter(new java.io.BufferedWriter(
+                new java.io.FileWriter(new java.io.File(gd, "quads.jsonl"))));
+            int totalTransVerts = 0, totalQuads = 0, nChunks = 0;
+            for (int ci = 0; ci < hit.size(); ci++) {
+                net.minecraft.client.renderer.chunk.RenderChunk rc = hit.get(ci);
+                BlockPos origin = rc.getPosition();
+                net.minecraft.client.renderer.chunk.ChunkCompileTaskGenerator gen =
+                    rc.makeCompileTaskChunk();
+                net.minecraft.client.renderer.RegionRenderCacheBuilder rb =
+                    new net.minecraft.client.renderer.RegionRenderCacheBuilder();
+                gen.setRegionRenderCacheBuilder(rb);
+                gen.setStatus(net.minecraft.client.renderer.chunk.ChunkCompileTaskGenerator.Status.COMPILING);
+                rc.rebuildChunk(camX, camY, camZ, gen);
+                // rebuildChunk may sort TRANSLUCENT at compile time; EntityRenderer
+                // sorts again at draw with the live camera. Re-sort here so quads.jsonl
+                // line order is the post-sortVertexData draw order.
+                try {
+                    net.minecraft.client.renderer.VertexBuffer tbuf =
+                        rb.getWorldRendererByLayerId(3);
+                    if (tbuf != null && tbuf.getVertexCount() >= 4) {
+                        tbuf.sortVertexData(camX, camY, camZ);
+                    }
+                } catch (Throwable ig) {}
+                JsonObject ch = new JsonObject();
+                ch.addProperty("ox", origin.getX());
+                ch.addProperty("oy", origin.getY());
+                ch.addProperty("oz", origin.getZ());
+                JsonArray layers = new JsonArray();
+                for (int layer = 0; layer < 4; layer++) {
+                    net.minecraft.client.renderer.VertexBuffer buf =
+                        rb.getWorldRendererByLayerId(layer);
+                    int vc = buf.getVertexCount();
+                    JsonObject ly = new JsonObject();
+                    ly.addProperty("layer", layer);
+                    ly.addProperty("vertexCount", vc);
+                    layers.add(ly);
+                    if (layer != 3) continue;
+                    totalTransVerts += vc;
+                    java.nio.IntBuffer ib = (java.nio.IntBuffer) rib.get(buf);
+                    int nq = vc / 4;
+                    for (int qi = 0; qi < nq; qi++) {
+                        int base = qi * 28;
+                        float[] xs = new float[4], ys = new float[4], zs = new float[4];
+                        JsonArray verts = new JsonArray();
+                        for (int v = 0; v < 4; v++) {
+                            int off = base + v * 7;
+                            xs[v] = Float.intBitsToFloat(ib.get(off + 0));
+                            ys[v] = Float.intBitsToFloat(ib.get(off + 1));
+                            zs[v] = Float.intBitsToFloat(ib.get(off + 2));
+                            int packed = ib.get(off + 3);
+                            float u = Float.intBitsToFloat(ib.get(off + 4));
+                            float vv = Float.intBitsToFloat(ib.get(off + 5));
+                            int lm = ib.get(off + 6);
+                            JsonObject vt = new JsonObject();
+                            vt.addProperty("x", xs[v]);
+                            vt.addProperty("y", ys[v]);
+                            vt.addProperty("z", zs[v]);
+                            vt.addProperty("color", packed);
+                            vt.addProperty("r", packed & 255);
+                            vt.addProperty("g", (packed >> 8) & 255);
+                            vt.addProperty("b", (packed >> 16) & 255);
+                            vt.addProperty("a", (packed >> 24) & 255);
+                            vt.addProperty("u", u);
+                            vt.addProperty("v", vv);
+                            vt.addProperty("light", lm);
+                            verts.add(vt);
+                        }
+                        float cx = 0.25F * (xs[0] + xs[1] + xs[2] + xs[3]);
+                        float cy = 0.25F * (ys[0] + ys[1] + ys[2] + ys[3]);
+                        float cz = 0.25F * (zs[0] + zs[1] + zs[2] + zs[3]);
+                        // verts are chunk-relative; sort key is world-space
+                        // |vert - (cam + xOffset)| with xOffset=-origin.
+                        float wx = cx + origin.getX();
+                        float wy = cy + origin.getY();
+                        float wz = cz + origin.getZ();
+                        float dx = wx - camX, dy = wy - camY, dz = wz - camZ;
+                        float dist2 = dx * dx + dy * dy + dz * dz;
+                        int bx = (int) Math.floor(wx);
+                        int by = (int) Math.floor(wy);
+                        int bz = (int) Math.floor(wz);
+                        int bid = 0;
+                        try {
+                            net.minecraft.block.state.IBlockState st =
+                                mc.world.getBlockState(new BlockPos(bx, by, bz));
+                            bid = net.minecraft.block.Block.getIdFromBlock(st.getBlock());
+                        } catch (Throwable ig) {}
+                        JsonObject q = new JsonObject();
+                        q.addProperty("chunk", ci);
+                        q.addProperty("ox", origin.getX());
+                        q.addProperty("oy", origin.getY());
+                        q.addProperty("oz", origin.getZ());
+                        q.addProperty("draw_i", totalQuads);
+                        q.addProperty("qi", qi);
+                        q.addProperty("dist2", dist2);
+                        q.addProperty("cx", cx);
+                        q.addProperty("cy", cy);
+                        q.addProperty("cz", cz);
+                        q.addProperty("bx", bx);
+                        q.addProperty("by", by);
+                        q.addProperty("bz", bz);
+                        q.addProperty("block_id", bid);
+                        q.add("verts", verts);
+                        qw.println(q.toString());
+                        totalQuads++;
+                    }
+                }
+                ch.add("layers", layers);
+                chunks.add(ch);
+                nChunks++;
+            }
+            qw.flush();
+            qw.close();
+
+            // Per-slime baked-model census: generalQuads vs face quads vs Breakable cull.
+            net.minecraft.client.renderer.BlockRendererDispatcher brd =
+                mc.getBlockRendererDispatcher();
+            JsonArray census = new JsonArray();
+            int nSlime = 0, nGeneral = 0, nFace = 0;
+            net.minecraft.util.math.BlockPos.MutableBlockPos bp =
+                new net.minecraft.util.math.BlockPos.MutableBlockPos();
+            for (int x = x0; x <= x1; x++)
+              for (int y = y0; y <= y1; y++)
+                for (int z = z0; z <= z1; z++) {
+                    bp.setPos(x, y, z);
+                    net.minecraft.block.state.IBlockState st = mc.world.getBlockState(bp);
+                    if (st.getBlock() != net.minecraft.init.Blocks.SLIME_BLOCK) continue;
+                    nSlime++;
+                    net.minecraft.client.renderer.block.model.IBakedModel model =
+                        brd.getModelForState(st);
+                    java.util.List<net.minecraft.client.renderer.block.model.BakedQuad> genq =
+                        model.getQuads(st, null, 0L);
+                    nGeneral += genq.size();
+                    JsonObject row = new JsonObject();
+                    row.addProperty("x", x);
+                    row.addProperty("y", y);
+                    row.addProperty("z", z);
+                    row.addProperty("general_quads", genq.size());
+                    JsonObject faces = new JsonObject();
+                    JsonObject side = new JsonObject();
+                    JsonObject nbr = new JsonObject();
+                    int faceCount = 0;
+                    for (net.minecraft.util.EnumFacing f : net.minecraft.util.EnumFacing.values()) {
+                        java.util.List<net.minecraft.client.renderer.block.model.BakedQuad> fq =
+                            model.getQuads(st, f, 0L);
+                        faces.addProperty(f.getName(), fq.size());
+                        faceCount += fq.size();
+                        boolean ssr = st.shouldSideBeRendered(mc.world, bp, f);
+                        side.addProperty(f.getName(), ssr);
+                        BlockPos np = bp.offset(f);
+                        int nid = net.minecraft.block.Block.getIdFromBlock(
+                            mc.world.getBlockState(np).getBlock());
+                        nbr.addProperty(f.getName(), nid);
+                    }
+                    nFace += faceCount;
+                    row.add("face_quads", faces);
+                    row.add("should_side", side);
+                    row.add("neighbor_id", nbr);
+                    row.addProperty("layer", st.getBlock().getBlockLayer().toString());
+                    census.add(row);
+                }
+
+            java.io.FileWriter cw = new java.io.FileWriter(new java.io.File(gd, "camera.json"));
+            cw.write(cam.toString());
+            cw.close();
+            JsonObject chunkWrap = new JsonObject();
+            chunkWrap.addProperty("n", nChunks);
+            chunkWrap.addProperty("sort_cam_x", camX);
+            chunkWrap.addProperty("sort_cam_y", camY);
+            chunkWrap.addProperty("sort_cam_z", camZ);
+            chunkWrap.add("chunks", chunks);
+            java.io.FileWriter chw = new java.io.FileWriter(new java.io.File(gd, "chunks.json"));
+            chw.write(chunkWrap.toString());
+            chw.close();
+            JsonObject cen = new JsonObject();
+            cen.addProperty("n_slime", nSlime);
+            cen.addProperty("n_general_quads", nGeneral);
+            cen.addProperty("n_face_quads", nFace);
+            cen.addProperty("bbox",
+                x0 + "," + y0 + "," + z0 + ".." + x1 + "," + y1 + "," + z1);
+            cen.add("blocks", census);
+            java.io.FileWriter nw = new java.io.FileWriter(new java.io.File(gd, "model_census.json"));
+            nw.write(cen.toString());
+            nw.close();
+
+            JsonObject o = new JsonObject();
+            o.addProperty("ok", true);
+            o.addProperty("dir", gd.getAbsolutePath());
+            o.addProperty("n_chunks", nChunks);
+            o.addProperty("n_translucent_verts", totalTransVerts);
+            o.addProperty("n_translucent_quads", totalQuads);
+            o.addProperty("n_slime", nSlime);
+            o.addProperty("n_general_quads", nGeneral);
+            o.addProperty("n_face_quads", nFace);
+            o.addProperty("sort_cam_x", camX);
+            o.addProperty("sort_cam_y", camY);
+            o.addProperty("sort_cam_z", camZ);
+            System.out.println("[qrl] capture_translucent_draw chunks=" + nChunks
+                + " transQuads=" + totalQuads + " slime=" + nSlime
+                + " general=" + nGeneral + " face=" + nFace + " -> " + dir);
+            r.resp.offer(o.toString());
+        } catch (Throwable t) {
+            System.out.println("[qrl] capture_translucent_draw failed: " + t);
+            java.io.StringWriter swr = new java.io.StringWriter();
+            t.printStackTrace(new java.io.PrintWriter(swr));
+            System.out.println(swr.toString());
+            r.resp.offer(err("capture_translucent_draw: " + t));
+        }
+    }
+
     /** Snapshot of client entity fields restored after frame{} re-render. */
     private static final class RenderPinSnap {
         net.minecraft.entity.Entity entity;
@@ -2228,7 +2631,8 @@ public class Recorder {
             case "capture_quadssmooth": case "capture_fluidquads":
             case "capture_ao": case "capture_particle": case "capture_skylight":
             case "capture_lightmap": case "capture_limbanim": case "capture_lightprop":
-            case "capture_chunkrebuild": case "runcmds": case "dim": case "kmode":
+            case "capture_chunkrebuild": case "capture_translucent_draw":
+            case "runcmds": case "dim": case "kmode":
             case "reload_renderers":
             case "portal_touch": case "use_end_eye": case "set_pose": case "hud_pin":
             case "entity_pin":
@@ -4691,6 +5095,10 @@ public class Recorder {
             }
             return;
         }
+        if (r.cmd.equals("capture_translucent_draw")) {
+            captureTranslucentDraw(mc, r.action, r);
+            return;
+        }
         if (r.cmd.equals("close")) {
             if (mc.world != null) { mc.loadWorld(null); }
             launching = false;
@@ -5074,7 +5482,29 @@ public class Recorder {
                 int prevTp = mc.gameSettings.thirdPersonView;
                 // Fixed nanoTime for both A/B re-renders so any clock-derived
                 // shader/path does not inject A/B residual inside one pair.
+                // finishTimeNano is a FUTURE deadline for updateChunks; passing
+                // pairNano itself (already in the past by renderWorld) skips
+                // remaining chunk uploads and can make pass B miss geometry.
                 final long pairNano = System.nanoTime();
+                final long pairDeadline = pairNano + 10_000_000_000L;
+                float snapFog1 = 0.0F, snapFog2 = 0.0F;
+                boolean haveFogSnap = false;
+                if (mc.entityRenderer != null) {
+                    try {
+                        java.lang.reflect.Field f1 =
+                            net.minecraft.client.renderer.EntityRenderer.class
+                                .getDeclaredField("fogColor1");
+                        f1.setAccessible(true);
+                        java.lang.reflect.Field f2 =
+                            net.minecraft.client.renderer.EntityRenderer.class
+                                .getDeclaredField("fogColor2");
+                        f2.setAccessible(true);
+                        snapFog1 = f1.getFloat(mc.entityRenderer);
+                        snapFog2 = f2.getFloat(mc.entityRenderer);
+                        haveFogSnap = true;
+                    } catch (Throwable ig) {}
+                }
+                JsonObject passA = null, passB = null;
                 int nPasses = isPair ? 2 : 1;
                 for (int pass = 0; pass < nPasses; ++pass) {
                     String file = (pass == 0) ? fileA : fileB;
@@ -5086,6 +5516,7 @@ public class Recorder {
                             // thirdPersonView=0, not spectator, not sleeping.
                             mc.gameSettings.hideGUI = false;
                             mc.gameSettings.thirdPersonView = 0;
+                            if (haveFogSnap) restoreFogColors(mc, snapFog1, snapFog2);
                             // Sticky portal warp phase: updateRenderer may have
                             // advanced rendererUpdateCount since the last hud_pin.
                             applyPinnedPortalPhase(mc);
@@ -5109,7 +5540,7 @@ public class Recorder {
                             }
                             net.minecraft.client.shader.Framebuffer fb = mc.getFramebuffer();
                             fb.bindFramebuffer(true);
-                            mc.entityRenderer.renderWorld(1.0F, pairNano);
+                            mc.entityRenderer.renderWorld(1.0F, pairDeadline);
                             try {
                                 mc.entityRenderer.setupOverlayRendering();
                                 mc.ingameGUI.renderGameOverlay(1.0F);
@@ -5125,6 +5556,9 @@ public class Recorder {
                                     mc.currentScreen.drawScreen(mx, my, 1.0F);
                                 }
                             } catch (Throwable ig2) {}
+                            JsonObject passDiag = framePassDiag(mc);
+                            if (pass == 0) passA = passDiag;
+                            else passB = passDiag;
                             fb.unbindFramebuffer();
                             tb = true;
                         } catch (Throwable ig) {
@@ -5142,12 +5576,16 @@ public class Recorder {
                             fw, fh, mc.getFramebuffer());
                     javax.imageio.ImageIO.write(img, "png", new java.io.File(file));
                 }
+                if (haveFogSnap) restoreFogColors(mc, snapFog1, snapFog2);
                 StringBuilder resp = new StringBuilder(256);
                 resp.append("{\"ok\":true");
                 if (isPair) {
                     resp.append(",\"file_a\":\"").append(fileA).append("\"")
                         .append(",\"file_b\":\"").append(fileB).append("\"")
-                        .append(",\"pair\":1");
+                        .append(",\"pair\":1")
+                        .append(",\"fog_restored\":").append(haveFogSnap ? 1 : 0);
+                    if (passA != null) resp.append(",\"pass_a\":").append(passA.toString());
+                    if (passB != null) resp.append(",\"pass_b\":").append(passB.toString());
                 } else {
                     resp.append(",\"file\":\"").append(fileA).append("\"");
                 }
@@ -5221,7 +5659,7 @@ public class Recorder {
         if (r.cmd.equals("hud_pin")) {
             try {
                 if (mc.player == null || mc.world == null) {
-                    r.resp.offer(err("no world")); return;
+                    reply(r, err("no world")); return;
                 }
                 EntityPlayerSP p = mc.player;
                 JsonObject a = r.action;
@@ -5900,7 +6338,7 @@ sb.append("}");
         if (r.cmd.equals("entity_pin")) {
             try {
                 if (mc.player == null || mc.world == null) {
-                    r.resp.offer(err("no world")); return;
+                    reply(r, err("no world")); return;
                 }
                 final JsonObject a = r.action;
                 final MinecraftServer s = mc.getIntegratedServer();

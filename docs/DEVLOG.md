@@ -79,6 +79,13 @@ hand-black and hotbar-over-world not replayed. Darwin link: `randtick.o` +
 `gen_prefetch.o` in ui_hud live and gui_candidate; `cr_k14_light_query` stub
 in the isolation candidate. magma/Makefile libomp prefix uses make
 `wildcard`, not `ls` (brew color codes broke `blaze_cpu.so`).
+## 2026-08-21 oracle evidence (lane/unblock)
+
+Rain tape `verify/tapes/scenario_rain_thunder_20260821T093435Z.jsonl`:
+header and all 209 rows rain=1.0 thunder=1.0. World on anvil under the
+same stem. Slime TRANSLUCENT dump: 441 blocks, 12 general quads, 0 face
+quads, coverage n_single=0. Portal/underwater `frame_pair` A/B maxch=0
+after fog freeze + 10s chunk deadline. No renderer changes.
 
 ## 2026-08-21 remaining-to-stop-asking
 

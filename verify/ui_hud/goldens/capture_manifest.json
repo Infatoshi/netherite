@@ -44,11 +44,14 @@
   "blocked": [],
   "failed": [],
   "last_focused_only": [
-    "hand_block_shield"
+    "overlay_portal_050",
+    "overlay_underwater"
   ],
   "resolution": "from frame replies",
   "java_home": "/usr/lib/jvm/java-8-openjdk-amd64",
   "portal_phase": 0,
-  "ab_noise_portal": 0.0006928653814466964,
-  "notes": "Sticky-pin full-use hand_block_shield A/B kept (model_blocking=1.0, use_branch=block, stack_id_eq, A/B noise 0.0 CAPTURE_OK) — golden corrected vs idle-tip, not a C pixel-perfect close. Hand gate is Java∪C subject exact (hard_thr=0); shield C residual OPEN (c_paint mean 1.563, 15989/16737 nz, maxch 60). Bow/eat remain pre-pin tip residuals/blockers. Portal still CAPTURE_BLOCKED."
+  "ab_noise_portal": 0.0,
+  "ab_maxch_portal": 0,
+  "ab_maxch_underwater": 0,
+  "notes": "Sticky-pin full-use hand_block_shield A/B kept (model_blocking=1.0, use_branch=block, stack_id_eq, A/B noise 0.0 CAPTURE_OK) — golden corrected vs idle-tip, not a C pixel-perfect close. Hand gate is Java∪C subject exact (hard_thr=0); shield C residual OPEN (c_paint mean 1.563, 15989/16737 nz, maxch 60). Bow/eat remain pre-pin tip residuals/blockers. Portal/underwater recapture 2026-08-21: A/B maxch=0 n_ab_maxch_ge1=0; C-vs-J still RESIDUAL."
 }

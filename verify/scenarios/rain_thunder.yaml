@@ -1,0 +1,38 @@
+# Missing oracle evidence for "The lightmap ignores rain and thunder".
+# Recorder already writes header rain_strength/thunder_strength and per-tick
+# rain/thunder when > 0. No prior tape ever ran weather, so every row was
+# clear. This scenario freezes the cycle, forces thunder (rain+thunder),
+# waits for World.rainingStrength / thunderingStrength to reach 1.0
+# (0.01/tick), then records a still outdoor view so lightmap darkening is
+# on the goldens. Do not grind the renderer against this tape until the
+# rows actually carry rain/thunder (check the header and a mid-tape row).
+name: rain_thunder
+world:
+  seed: 0
+  mode: survival
+  type: flat
+  structures: false
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather thunder 1000000
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 0.5 4 0.5 0 15
+# 160 ticks > 100-tick 0->1 strength ramp (World.updateWeatherBody).
+setup_qrl:
+  - cmd: obs
+    settle_ticks: 160
+duration_ticks: 200
+frames_every: 10
+input:
+  segments:
+    - seconds: 4.0
+    - seconds: 3.0
+      look: [8.0, 0.0]
+    - seconds: 3.0
+      look: [-8.0, 0.0]
+known_divergences: []

@@ -25,9 +25,9 @@ must PASS; mutations must reject: missing Java-only silhouette, C-extra,
 
 Explicit non-vacuous controls (always run):
   synth_zero_noise_pass - bit-exact A=B=C synthetic can PASS
-  portal_real_ab_blocked - real portal A/B: C in {Java_a, Java_b, mid, Ja+1}
-                           must never PASS (CAPTURE_BLOCKED)
-  portal_java_a_plus1_blocked - C=Java_a+1 blocked on real portal goldens
+  portal_real_ab_controls - real portal twins:
+      if A/B maxch>0: C in {Java_a, Java_b, mid, Ja+1} must be CAPTURE_BLOCKED
+      if A/B exact: C=Java_a/b/mid PASS; C=Java_a+1 must not PASS
   hand_synth_exact_pass + hand mutations from that control
 
 Fire stays soft (not exercised here). Underwater is hard full-ROI honest residual (~4.97/ch) — mutations must not claim PASS.
@@ -76,8 +76,6 @@ MUTATION_NAMES = (
 )
 
 PORTAL_SID = "overlay_portal_050"
-# Real portal A/B residual floor (measured: 865 full-frame maxch=1 pixels).
-PORTAL_MIN_AB_MAXCH_GE1 = 100
 
 HAND_SID = "hand_block_shield"
 HAND_MUTATIONS = (
@@ -332,7 +330,7 @@ def _hand_synth_exact_controls():
 
 
 def _portal_real_ab_controls(goldens):
-    """Real portal A/B has residual maxch=1: no C may PASS."""
+    """Real portal twins: noisy A/B blocks every C; exact A/B allows C=Java_a."""
     ja_p = os.path.join(goldens, "%s_a.png" % PORTAL_SID)
     jb_p = os.path.join(goldens, "%s_b.png" % PORTAL_SID)
     if not (os.path.isfile(ja_p) and os.path.isfile(jb_p)):
@@ -343,38 +341,57 @@ def _portal_real_ab_controls(goldens):
     jb = load_rgb(jb_p)
     ab_max = np.abs(ja.astype(np.int16) - jb.astype(np.int16)).max(axis=2)
     n_ab = int((ab_max >= 1).sum())
-    if n_ab < PORTAL_MIN_AB_MAXCH_GE1:
-        print("CONTROL FAIL: portal A/B maxch>=1 count %d < floor %d "
-              "(control would be vacuous)" % (n_ab, PORTAL_MIN_AB_MAXCH_GE1))
-        return 1
+    maxch = int(ab_max.max()) if ab_max.size else 0
     print("control info: portal full-frame ab_maxch_ge1=%d (max=%d)" % (
-        n_ab, int(ab_max.max())))
+        n_ab, maxch))
 
     n_err = 0
     controls = [
-        ("portal_C_Java_a", ja),
-        ("portal_C_Java_b", jb),
+        ("portal_C_Java_a", ja, True),
+        ("portal_C_Java_b", jb, True),
         ("portal_C_midpoint",
-         ((ja.astype(np.int16) + jb.astype(np.int16)) // 2).astype(np.int16)),
+         ((ja.astype(np.int16) + jb.astype(np.int16)) // 2).astype(np.int16),
+         True),
         ("portal_C_Java_a_plus1",
-         np.clip(ja.astype(np.int16) + 1, 0, 255).astype(np.int16)),
+         np.clip(ja.astype(np.int16) + 1, 0, 255).astype(np.int16),
+         False),
     ]
-    for label, c in controls:
+    for label, c, identical in controls:
         r = evaluate_fullscreen_replace(PORTAL_SID, ja, jb, c)
-        blocked = r["verdict"] != "PASS"
-        # Stronger: must be CAPTURE_BLOCKED (A/B residual), not a false PASS.
-        want_blocked = r["verdict"] == "CAPTURE_BLOCKED" and r.get("noise_max", 0) > 0
-        if not blocked or not want_blocked:
-            print("CONTROL FAIL: %s verdict=%s (want CAPTURE_BLOCKED) "
-                  "hard_px=%s thr=%s noise_max=%s" % (
-                      label, r.get("verdict"), r.get("hard_px"),
-                      r.get("hard_thr"), r.get("noise_max")))
-            n_err += 1
+        if n_ab > 0:
+            want = r["verdict"] == "CAPTURE_BLOCKED" and r.get("noise_max", 0) > 0
+            if not want:
+                print("CONTROL FAIL: %s verdict=%s (want CAPTURE_BLOCKED on noisy A/B) "
+                      "hard_px=%s thr=%s noise_max=%s" % (
+                          label, r.get("verdict"), r.get("hard_px"),
+                          r.get("hard_thr"), r.get("noise_max")))
+                n_err += 1
+            else:
+                print("control ok: %-28s -> %s  hard_px=%s thr=%s noise_max=%s "
+                      "ab_ge1=%s" % (
+                          label, r["verdict"], r.get("hard_px"), r.get("hard_thr"),
+                          r.get("noise_max"), r.get("n_ab_maxch_ge1")))
+            continue
+        # Bit-exact Oracle pair: C=Java_a/b/mid must PASS; Ja+1 must not.
+        if identical:
+            want = (r["verdict"] == "PASS" and r.get("hard_px") == 0
+                    and (r.get("noise_max") or 0) == 0)
+            if not want:
+                print("CONTROL FAIL: %s verdict=%s (want PASS on exact A/B=C) "
+                      "hard_px=%s noise_max=%s" % (
+                          label, r.get("verdict"), r.get("hard_px"),
+                          r.get("noise_max")))
+                n_err += 1
+            else:
+                print("control ok: %-28s -> %s  hard_px=%s noise_max=%s" % (
+                    label, r["verdict"], r.get("hard_px"), r.get("noise_max")))
         else:
-            print("control ok: %-28s -> %s  hard_px=%s thr=%s noise_max=%s "
-                  "ab_ge1=%s" % (
-                      label, r["verdict"], r.get("hard_px"), r.get("hard_thr"),
-                      r.get("noise_max"), r.get("n_ab_maxch_ge1")))
+            if r["verdict"] == "PASS":
+                print("CONTROL FAIL: %s verdict=PASS (Ja+1 must not PASS)" % label)
+                n_err += 1
+            else:
+                print("control ok: %-28s -> %s  hard_px=%s" % (
+                    label, r["verdict"], r.get("hard_px")))
     return n_err
 
 
@@ -447,11 +464,12 @@ def main():
                 print("    @(%d,%d) maxch=%d C=%s J=%s" % (
                     loc["x"], loc["y"], loc["maxch"], loc["c"], loc["j"]))
 
-        # Portal product must never honest-PASS under real A/B residual.
+        # Portal may honest-PASS only on a bit-exact A/B pair with hard_px=0.
         if sid == PORTAL_SID and r0["verdict"] == "PASS":
-            n_fail += 1
-            print("  CONTROL FAIL: real portal honest must not PASS "
-                  "(noise_max=%s)" % r0.get("noise_max"))
+            if (r0.get("noise_max") or 0) != 0 or r0.get("hard_px") != 0:
+                n_fail += 1
+                print("  CONTROL FAIL: portal PASS with noise_max=%s hard_px=%s"
+                      % (r0.get("noise_max"), r0.get("hard_px")))
 
         for mut in MUTATION_NAMES:
             cm = mutate(c0, mut, ja, jb)

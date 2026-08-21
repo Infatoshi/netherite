@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "dir": "/home/infatoshi/dev/nw/unblock/verify/fixtures/slime_translucent",
+  "n_chunks": 4,
+  "n_translucent_verts": 21168,
+  "n_translucent_quads": 5292,
+  "n_slime": 441,
+  "n_general_quads": 5292,
+  "n_face_quads": 0,
+  "sort_cam_x": 0.5,
+  "sort_cam_y": 5.62,
+  "sort_cam_z": 0.5
+}

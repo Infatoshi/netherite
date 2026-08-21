@@ -7,7 +7,8 @@ resolution stays here in place); read there before re-investigating anything
 that smells like a settled question.
 
 Last verified on `d7f2998`, which includes the reviewed capture, preview, and
-exact-hand-gate commits (`44a7de3`, `27ec2fc`, `d198a96`).
+exact-hand-gate commits (`44a7de3`, `27ec2fc`, `d198a96`). Oracle evidence
+for rain / slime DRAW / portal A/B: lane/unblock 2026-08-21.
 
 Pixel-perfect means every owned, A/B-stable pixel is equal. Mean-error budgets,
 hard-pixel floors, empty target captures, and unstable Oracle pairs are not
@@ -17,14 +18,14 @@ Stop-asking rank and GPU-port sequence live in `docs/GATES.md` "Remaining
 to stop asking". This file keeps forensics. Survey 2026-08-21 (Fable rank):
 
 Grindable here: hand use poses; inventory preview; auto-campaign hand /
-HUD; fortress y/z vs oracle; spawn coords (item 16).
+HUD; fortress y/z vs oracle; spawn coords (item 16); slime rim (oracle
+translucent DRAW dump exists); rain lightmap (rain tape exists);
+portal/underwater C residual (Oracle A/B now maxch=0).
 
-Do not grind here: portal/underwater `CAPTURE_BLOCKED`; slime rim (needs
-oracle translucent draw capture); rain lightmap (no rain tape); explosion
-puff `Particle.rand`; fog retune; texel bias; Magma GPU tick;
-particle blend=3 (vanilla ParticleManager is SRC_ALPHA, magma already
-matches); canonical t=260 texel-selection (retracted, CLOSED);
-entities over water (item 13 CLOSED).
+Do not grind here: explosion puff `Particle.rand`; fog retune; texel bias;
+Magma GPU tick; particle blend=3 (vanilla ParticleManager is SRC_ALPHA,
+magma already matches); canonical t=260 texel-selection (retracted,
+CLOSED); entities over water (item 13 CLOSED).
 
 ## Interactive C raster renderer
 
@@ -91,16 +92,31 @@ bash verify/mc_capture/run_gui_verify.sh
 
 ### Portal and underwater
 
-- Portal is `CAPTURE_BLOCKED`: the accepted pair has max-channel-1 A/B
-  instability. Atomic same-client-turn `frame_pair`, sticky portal time, and
-  pinned texture animation did not make a new pair exact, so no worse golden
-  was promoted. C-vs-J composition also retains a large outdoor-underlay
-  residual.
-- Underwater is `CAPTURE_BLOCKED`: A/B reaches max channel 3 and C-vs-J remains
-  about `4.97/ch`. Eye-at-surface fog is also visibly too weak.
+Oracle A/B is now exact. Recapture 2026-08-21 (`aa43667` frame_pair fog
+freeze + 10s `finishTimeNano` deadline), command:
 
-Neither surface may pass until the Oracle pair is exact and the C full-frame
-residual is zero.
+```bash
+ONLY=overlay_portal_050,overlay_underwater bash verify/ui_hud/capture_ui_hud.sh
+```
+
+Measured on the twins (full 854x480, 409920 px):
+
+| id | maxch | n_ab_maxch_ge1 | mean | fog_restored | pass_a==pass_b |
+|----|-------|----------------|------|--------------|----------------|
+| overlay_portal_050 | 0 | 0 | 0.0 | 1 | yes |
+| overlay_underwater | 0 | 0 | 0.0 | 1 | yes |
+
+Root cause of the old `CAPTURE_BLOCKED` was the capture harness, not the
+C overlay: `frame_pair` stepped `EntityRenderer.fogColor1/2` (0.1F smoother)
+twice on one turn, and `renderWorld(..., pairNano)` used a deadline already
+in the past so `updateChunks` skipped remaining uploads. The accepted noisy
+pair (~865 portal maxch=1; underwater n_ab_maxch_ge1=183372, maxch=3) is
+superseded. PNGs: `verify/ui_hud/goldens/overlay_{portal_050,underwater}_{a,b}.png`
+(a sha256==b). Meta records `noise_max=0`.
+
+C-vs-J is still OPEN (portal outdoor-underlay vs gray isolation; underwater
+~4.97/ch pool/hand). That is a renderer residual, grindable against this
+exact pair. PASS still requires `hard_px==0`. Do not revive a noisier pair.
 
 ### Entity and particle pixels
 
@@ -804,6 +820,23 @@ independently re-measured here.
   but that method is never consulted for these 12 quads. Shared faces must
   therefore be present in the vanilla buffer.
 
+  **Oracle TRANSLUCENT DRAW capture (2026-08-21, anvil, git `856c3ee`):**
+
+  ```bash
+  bash verify/mc_capture/capture_slime_translucent.sh
+  ```
+
+  Writes `verify/fixtures/slime_translucent/` (live Java, not synthesized):
+  441 slime on `/fill -10 3 -10 10 3 10`, pose (0.5, 4.0, 0.5) yaw0 pitch0.
+  `model_census.json`: every block `general_quads=12`, `face_quads=0`,
+  `should_side` UP-only, layer Translucent (5292 = 441*12). `quads.jsonl`
+  is TRANSLUCENT after `sortVertexData` (line order = draw order;
+  sha256 `49fec3327691dbe9dcb896d77ae1747650355ed0e7e5ffd6f18bb01674fa3929`).
+  `coverage.json` (MVP with chunk origin restored): n_single=0,
+  n_multi=331012 of 854x480. Same-pose `frame_pair` A/B identical
+  (maxch=0, fog_restored=1). Rim grind is no longer blocked on missing
+  oracle draw evidence.
+
   The other two state hypotheses are also source-closed. Vanilla sorts
   TRANSLUCENT quads by descending squared centroid distance within each
   16-high `RenderChunk` (`RenderChunk.java:339-344`,
@@ -975,13 +1008,25 @@ and terrain (0.758/0.774/0.694) are chromatic and milder - they pick up part of
 the darkening through the fog colour, which magma does model. Outside that
 window the same arm measures 0.997.
 
-Blocked on the recorder, not on the renderer: **no tape has ever recorded rain**
-- there is no rain field in any header or row, so magma cannot know it is
-raining. The recorder now writes `rain_strength` and `thunder_strength` into the
-header (both public on `World`); wiring them through `build_lightmap_lut` is
-pointless until a tape carries them, and the values are per-tick anyway, so a
-window that starts mid-tape needs them on rows rather than the header. This is
-what the canonical tape's `known:12` rain class has been standing in for.
+Oracle tape now exists (2026-08-21, anvil, git `aa43667`):
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+bash verify/scenarios/run_scenario.sh verify/scenarios/rain_thunder.yaml
+```
+
+`verify/tapes/scenario_rain_thunder_20260821T093435Z.jsonl` (sha256
+`37a7d62ee9cca0daa418fcc859101b1e94cd2c4538b6cdf2a0ac29951a30d972`):
+header `rain_strength=1.0` `thunder_strength=1.0`; all 209 tick rows have
+`rain=1.0` `thunder=1.0`. World snapshot (anvil, 6448975 bytes):
+`verify/tapes/scenario_rain_thunder_20260821T093435Z_world/` (sorted-file
+sha256 `bf6bb57d4accf15cf07357a4a4ab759295397d5c8dd39097e6e5391e50fc8673`).
+Recipe: `verify/scenarios/rain_thunder.yaml` (`/weather thunder 1000000`,
+`doWeatherCycle false`, 160-tick strength ramp). Replay `--cpu` is not the
+oracle-evidence gate.
+
+Wiring `rain`/`thunder` through `build_lightmap_lut` is now grindable. Do
+not treat the canonical tape's `known:12` rain class as the evidence.
 
 ### Remaining isolated render features
 
