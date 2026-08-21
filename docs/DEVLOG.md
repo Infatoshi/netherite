@@ -24,8 +24,31 @@ fuse/mdelay/see/stime/atime/scw/sback/cstate. Gate `h` fixture lines.
 Magma hai_* reuses pai look LUT, body helper, wander RPG,
 PathFinder. Knob-off: test-mob-live sheep onsets 45,330 unchanged.
 
-Tapes recorded on anvil llvmpipe; gate results in the follow-up
-commit.
+Tapes: anvil llvmpipe, det_entity_rng=1, doMobSpawning=false,
+difficulty easy, night 18000, persist. /summon NBT skips
+onInitialSpawn (CommandSummon flag=true) so skeleton has no bow
+and keeps constructor melee.
+
+`scenario_detmob_hostile_ambient_20260821T181540Z.jsonl`
+player 38.5,70,170.5; 3 tracked [3689 zombie, 3691 skeleton,
+3693 creeper]; ground_stencil=3. FAIL first_div t=220 eid=3693
+creeper z 1 ULP (`0x406002bf7d459c53` vs `...c52`)
+draws_between=0. Creeper wander tasks=8 from t=204, 16 ticks of
+MOVE_TO bit-equal then travel ULP; RNG matched. Zombie standing
+look PASS through last snap t=609 (never wandered). Skeleton
+look+early wander bit-equal through t=235; first pose split
+t=236 x PathFinder (seeds match, plen=1). Same PathFinder site
+as passive wander; do not duplicate that fix.
+
+`scenario_detmob_hostile_target_20260821T182955Z.jsonl`
+hilltop pad, player tp last to 53.5,74,127.5; 3 tracked
+[3335 zombie, 3337 creeper, 3339 skeleton]; ground_stencil=3.
+FAIL first_div t=23 eid=3339 skeleton x tape=51.57888855
+magma=51.55478371 draws_between=None. Java NAT tgt=1 ttasks=2
+tasks=0 (bow see/stime stay default); magma HBOW 256 plen=1.
+Creeper swell t=24 tasks=128 cstate=1 fuse++ seeds match
+(rand-free). Zombie NAT+melee t=49 after creeper blast knocks
+the parked player. Pathing depends on lane/detmob PathFinder.
 
 ## 2026-08-21 detmob round 3 worldgen + walk + panic (lane/detmob)
 
