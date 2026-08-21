@@ -985,11 +985,17 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
              (cudaMalloc(&d_xy, xy_nb) != cudaSuccess ||
               cudaMemcpy(d_xy, s.xy_off, xy_nb,
                          cudaMemcpyHostToDevice) != cudaSuccess)) ||
-            (s.ncont > 0 &&
-             (cudaMalloc(&d_cn, (size_t)s.ncont * 3 * sizeof(int)) !=
-                  cudaSuccess ||
-              cudaMemcpy(d_cn, s.cont, (size_t)s.ncont * 3 * sizeof(int),
-                         cudaMemcpyHostToDevice) != cudaSuccess))) {
+            /* Fixed-cap like the CPU loader and blaze_capture: live n_cont
+             * can grow past the baked count (placed table/furnace). An
+             * exact-ncont malloc makes capture's DeviceToDevice copy
+             * cudaErrorInvalidValue. ncont == -1 keeps NULL (overflow). */
+            (s.ncont >= 0 &&
+             (cudaMalloc(&d_cn, (size_t)BLAZE_SNAP_MAX_CONT * 3 *
+                                    sizeof(int)) != cudaSuccess ||
+              (s.ncont > 0 &&
+               cudaMemcpy(d_cn, s.cont,
+                          (size_t)s.ncont * 3 * sizeof(int),
+                          cudaMemcpyHostToDevice) != cudaSuccess)))) {
             if (err && err_cap > 0)
                 snprintf(err, (size_t)err_cap, "device upload failed: %s",
                          paths[i]);
@@ -1190,6 +1196,9 @@ int blaze_capture(void *vh, int env, int slot) {
         return -1;
     if (v->h_assign[env] < 0) return -1;
     cudaSetDevice(v->device);
+    /* Same discipline as blaze_emit: step/reset kernels use v->stream. */
+    if (cu_ck(cudaStreamSynchronize(v->stream), "capture sync"))
+        return -1;
     if (cu_ck(cudaMemcpy(&he, v->d_envs + env, sizeof he,
                          cudaMemcpyDeviceToHost), "capture env readback"))
         return -1;
@@ -1251,8 +1260,10 @@ int blaze_capture(void *vh, int env, int slot) {
     }
     {   /* container list: the env's LIVE device list is exactly the captured
          * region's (maintained on every edit). Fixed-cap slot buffer,
-         * allocated once; overflow (-1) rides along. */
-        if (!d->cont) {
+         * allocated once at load/append; overflow (-1) rides along. */
+        if (he.n_cont < -1 || he.n_cont > BLAZE_SNAP_MAX_CONT)
+            return -1;
+        if (he.n_cont >= 0 && !d->cont) {
             int *cn = NULL;
             if (cu_ck(cudaMalloc(&cn, (size_t)BLAZE_SNAP_MAX_CONT * 3 *
                                           sizeof(int)),
@@ -1262,9 +1273,10 @@ int blaze_capture(void *vh, int env, int slot) {
         }
         d->ncont = he.n_cont;
         if (he.n_cont > 0 &&
-            cu_ck(cudaMemcpy((void *)d->cont, he.cont,
-                             (size_t)he.n_cont * 3 * sizeof(int),
-                             cudaMemcpyDeviceToDevice), "capture cont copy"))
+            (!he.cont || !d->cont ||
+             cu_ck(cudaMemcpy((void *)d->cont, he.cont,
+                              (size_t)he.n_cont * 3 * sizeof(int),
+                              cudaMemcpyDeviceToDevice), "capture cont copy")))
             return -1;
     }
     v->has_liquid[slot] = v->has_liquid[v->h_assign[env]];
