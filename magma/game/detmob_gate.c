@@ -46,6 +46,8 @@ static int parse_type(const char *s) {
     if (!strcmp(s, "blaze") || !strcmp(s, "EntityBlaze")) return EW_TYPE_BLAZE;
     if (!strcmp(s, "pigman") || !strcmp(s, "EntityPigZombie") ||
         !strcmp(s, "zombie_pigman")) return EW_TYPE_PIGMAN;
+    if (!strcmp(s, "enderman") || !strcmp(s, "EntityEnderman"))
+        return EW_TYPE_ENDERMAN;
     return -1;
 }
 
@@ -54,7 +56,8 @@ static int det_track(int type) {
            type == EW_TYPE_PIG || type == EW_TYPE_CHICKEN ||
            type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON ||
            type == EW_TYPE_CREEPER ||
-           type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN;
+           type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN ||
+           type == EW_TYPE_ENDERMAN;
 }
 
 static unsigned u32bits(float f) {

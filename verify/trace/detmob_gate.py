@@ -44,9 +44,11 @@ HOSTILE = {
 DIM_MOBS = {
     "EntityBlaze": "blaze",
     "EntityPigZombie": "pigman",
+    "EntityEnderman": "enderman",
     "blaze": "blaze",
     "pigman": "pigman",
     "zombie_pigman": "pigman",
+    "enderman": "enderman",
 }
 
 TRACKED = {**PASSIVE, **HOSTILE, **DIM_MOBS}
@@ -121,14 +123,17 @@ def tracked_ids(header, rows):
     Populate hostiles can sit in the 64-block erng sphere. If any hostile is
     within 16 of the parked player (target tape), keep only those; ambient
     summons sit ~46 blocks out so the near set is empty and all three stay.
-    DIM-1 fortress spawners can emit extra blazes into the 48-block erng
+    DIM-1 fortress spawners can emit extra blazes into the 64-block erng
     radius; PersistenceRequired marks the summoned ambient subjects.
+    DIM 1 End: header EntityEnderman (pr may be omitted); the dragon is
+    EntityDragon / EntityLiving in the same sphere and is not tracked.
     """
     _ = rows
     ents = header.get("entity_rng") or []
     px = float(header.get("x", 0.0))
     py = float(header.get("y", 0.0))
     pz = float(header.get("z", 0.0))
+    dim = int(header.get("dim", 0))
     passives = []
     hostiles = []
     for e in ents:
@@ -137,7 +142,16 @@ def tracked_ids(header, rows):
         if t in PASSIVE:
             passives.append(eid)
         elif t in DIM_MOBS:
-            if int(e.get("pr") or 0) == 1:
+            kind = DIM_MOBS[t]
+            # blaze/pigman: persist filter drops fortress-spawner extras.
+            # enderman: recorder on this End tape omits pr; PersistenceRequired
+            # still zeros entityAge. Track End (dim=1) endermen only —
+            # overworld ambient T181540Z header has stray eid=3173.
+            # Dragon is EntityDragon, not in DIM_MOBS.
+            if kind == "enderman":
+                if dim == 1:
+                    passives.append(eid)
+            elif int(e.get("pr") or 0) == 1:
                 passives.append(eid)
         elif t in HOSTILE:
             dx = float(e["x"]) - px
@@ -313,7 +327,7 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None,
                 gv=gv_bits,
                 hot=int(e.get("hot", 0) or 0),
                 hof=float(e.get("hof", 0.5) if e.get("hof") is not None else 0.5),
-                pr=int(e.get("pr", 0) or 0),
+                pr=(1 if kind == "enderman" else int(e.get("pr", 0) or 0)),
                 anger=int(e.get("anger", 0) or 0),
             )
         )
@@ -499,7 +513,7 @@ def main(argv: list[str]) -> int:
         return 2
     stand = tracked_ids(header, rows)
     if not stand:
-        print("BLOCKED  no tracked living (passives, zombie/skeleton/creeper, or blaze/pigman) in header entity_rng")
+        print("BLOCKED  no tracked living (passives, zombie/skeleton/creeper, blaze/pigman, or enderman) in header entity_rng")
         return 2
     series = unique_server_rows(rows, stand)
     if len(series) < 2:

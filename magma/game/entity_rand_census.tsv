@@ -175,4 +175,54 @@ blaze	run	AIFireballAttack	0or4	needs target. Burst: 2x nextGaussian per small f
 pigman	run	idle.updateTask	0	idleTime--; lookHelper 10/40. no Entity.rand
 pigman	run	watch.updateTask	0	lookHelper at player eye; lookTime--
 # Task bits (same PAI_* plus unused fireball): swim=1 panic=2 eat=4 wander=8 watch=16 idle=32
+#
+# ---- DIM 1 End (lane/detmob-all). Same mixin reseed; live seed48 from tape. ----
+# EntityEnderman. No EndermanFreezeWhenLookedAt in 1.11.2 (that is 1.14 AIFreeze).
+# Stare is EntityEnderman.AIFindPlayer (inner NAT). Dragon is a separate EntityLiving
+# with its own Random; it does not share the enderman Entity.rand cursor.
+#
+# enderman ctor: Entity RETURN reseed, setSize 0.6x2.9, stepHeight 1, WATER pathPriority -1.
+# applyEntityAttributes: HP40 speed 0.30000001192092896 damage 7 follow 64. No Entity.rand.
+enderman	ctor	Random.<init>	0	mixin reseed at Entity RETURN; body has no extra Entity.rand
+enderman	ai_list	addTask	0	swim0 melee2 wanderAvoidWater7 (prob 0.0F) watch8 idle8 place10 take11. target: AIFindPlayer1 hurtBy2 endermiteNAT3
+#
+enderman	tick	living_sound	1	nextInt(1000) vs livingSoundTime++. talk interval 80
+enderman	tick	living_sound_pitch	2	getAmbientSound non-null (AMBIENT, or SCREAM if isScreaming). 2x nextFloat
+enderman	tick	despawn.persist	0	PersistenceRequired: ++entityAge then entityAge=0. No nextInt(800)
+enderman	tick	onLivingUpdate.particles	0	world.isRemote only. Server: isJumping=false then super
+#
+# targetTasks (own tickCount, setup tickCount%3==0). Mutex 1.
+# AIFindPlayer.shouldExecute OVERRIDES NAT: getNearestAttackablePlayer + shouldAttackPlayer
+# (pumpkin / look dot / canEntityBeSeen). No nextInt(10). Look-away tape: 0, not using.
+enderman	setup	AIFindPlayer.shouldExecute	0	no Entity.rand. stare predicate; player look pinned away => false
+enderman	setup	hurt.shouldExecute	0	revengeTimer. no Entity.rand
+enderman	setup	endermiteNAT.shouldExecute	0or1	chance 10: nextInt(10). 0 => AABB EntityEndermite isSpawnedByPlayer. Ambient: empty
+#
+# goals. Wander+idle mutex 1/3 conflict. Watch+idle mutex 2/3. Melee mutex 3 needs target.
+enderman	setup	swim.shouldExecute	0	isInWater||isInLava. End: false
+enderman	setup	melee.shouldExecute	0	attackTarget==null => false. no PathFinder
+enderman	setup	wander.shouldExecute	1+	age>=100 skip (persist keeps 0). else nextInt(120). if 0: nextFloat>=0.0 always getLandPos(10,7)=10*3 nextInt
+enderman	setup	watch.shouldExecute	1	nextFloat>=0.02 fail; else getClosestPlayer AABB 8. Tape player >40: fail after the float
+enderman	setup	idle.shouldExecute	1	nextFloat<0.02. start: 2*PI*nextDouble + 20+nextInt(20)
+enderman	setup	AIPlaceBlock.shouldExecute	0	held==null short-circuit, or !mobGriefing. Tape mobGriefing false: 0. Else nextInt(2000)
+enderman	setup	AITakeBlock.shouldExecute	0	held!=null or !mobGriefing short-circuit. Tape: 0. Else nextInt(20)
+#
+# EntityEnderman.updateAITasks AFTER goals+nav (same "mob tick" slot as blaze heightOffset).
+# isWet: drown 1, no Entity.rand. Then isDaytime && ticksExisted>=targetChangeTime+600:
+# getBrightness>0.5 && canSeeSky && nextFloat*30<(f-0.4)*2 then teleportRandomly.
+# WorldProviderEnd.init does not call super.init, so hasSkyLight stays false
+# (boolean default). isDaytime is still provider.isDaytime => skylightSubtracted<4
+# (often true). getBrightness uses combined light; End surface with no sky is
+# lightBrightnessTable[0]=0, so f>0.5 fails and nextFloat is skipped. Confirm on
+# the tape (teleport vs cursor). If a teleport lands, attemptTeleport draws 128x
+# nextFloat for particles.
+# teleportRandomly: nextDouble, nextInt(64), nextDouble then attemptTeleport.
+# attemptTeleport: Random particles (128x nextFloat) only if the teleport lands.
+enderman	ai	updateAITasks.wet	0	End dry
+enderman	ai	updateAITasks.day_teleport	0or1+	after 600 ticksExisted: maybe nextFloat; success => teleportRandomly 2*nextDouble+nextInt(64)
+enderman	run	idle.updateTask	0	idleTime--; lookHelper 10/40. no Entity.rand
+enderman	run	watch.updateTask	0	lookHelper at player eye; lookTime--
+# Task bits: swim=1 wander=8 watch=16 idle=32 melee=64. Place/take not in tape bits.
+# Dragon Entity.rand is a different object. Collision/knockback with the dragon is a
+# pose event, not a cursor mix. Gate tracks persist enderman only.
 

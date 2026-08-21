@@ -1,5 +1,91 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 detmob consolidation round 5 (lane/detmob-all)
+
+On d50ee97 plus this commit. Knob default-off. No GATES / known_divergences
+/ blessed-tape / blaze-rl.
+
+Task 1 — target T182955Z t=42 zombie pitch. Outcome b. No uniform pl sample
+is bit-exact across t=29..49. EntityLookHelper.onUpdateLook `fconst_0`
+rotationPitch then updateRotation (WatchClosest 40F). World ticks players
+before mobs; tape pl is client pose after ServerTick END.
+
+Bit-exact look_pitch (mc_atan2, zombie 53.5,74,126.5 eye 1.74F, player
+eye 1.62F). mag = tape_t - clock0 - 1 (zombie clock0 tt=38). Watch starts
+mag 28 / tape t=34.
+
+ mag tape  tape_pitch   cur         prev        prev2       exact
+ 28  34   -24.636997   cur         prev*       prev2      p
+ 29  35   -21.913969   cur         prev*       prev2      p
+ 30  36   -17.628231   cur         prev*       prev2      p
+ 31  37   -11.820677   cur         prev*       prev2      p
+ 32  38    -4.554305   cur         prev*       prev2      p
+ 33  39     2.853410   cur         prev*       prev2      p
+ 34  40     2.753875   cur         prev*       prev2      p
+ 35  41     2.702361   cur         prev*       prev2      p
+ 36  42     2.702361   2.660255    2.674985    2.702361*  p2
+ 37  43     2.660255   cur         prev*       prev2      p
+ 38  44     2.660255   cur         prev2*                 p2
+ 39  45     2.660255   2.649441    2.649441    2.652276   none
+ 40-42 46-48 2.660255  2.649441    2.649441    2.649441   none
+ 43  49     2.660255   2.615601    2.649441    2.649441   none
+
+t=42 FAIL: magma PREV=2.67498541 (look_px=pl[t=41]); tape=PREV2=pl[t=40].
+hyaw t=42 = -42.83674 = yaw target of pl t=40, so t=41 and t=42 used the
+same look sample. t=45..49 hold 2.66025519 (look of tape t=42 pose) while
+client pl settled at 55.278. No lag 0/1/2 fits the window. Leave FAIL.
+draws_between=0. Site is recording-clock (EntityPlayerSP vs MP during
+knockback residual), not magma interpolation.
+
+Task 2 — dest climb. PathNavigateGround.getPathToPos bytecode: AIR walk-down
+then up-one; else `for (blockpos1 = pos.up(); y < height &&
+getMaterial().isSolid(); blockpos1 = up()); return super(blockpos1)`.
+Starts at the RPG BlockPos. Material.isSolid, not isFullBlock / isPassable.
+Stops at the first non-solid. T182511 dest col y=96 1-block air pocket is
+Java dest. Round-4 cavity climb was extra. Reverted. Magma while-isSolid
+matches that loop. findPathOptions Euclidean PathPoint.distanceTo(dest)
+< FOLLOW_RANGE already matched. T182511 FAIL t=745 eid=3872 x
+tape=-291.488923016319 magma=-291.54075023842785 draws_between=0 restored.
+T182154 still PASS 852.
+
+Task 3 — End. Census: no EndermanFreezeWhenLookedAt (1.14). AIFindPlayer
+overrides NAT (0 Entity.rand). Endermite NAT chance 10: nextInt(10) on
+setup. WanderAvoidWater 0.0F, watch 8, talk 80, eye 2.55F, size 0.6x2.9,
+speed 0.30000001192092896, follow 64. Place/take short-circuit on
+!mobGriefing. WorldProviderEnd.init does not call super.init so
+hasSkyLight stays false; getBrightness table[0]=0, daytime teleport
+nextFloat skipped (f>0.5 fails). Dragon is a separate Random.
+
+Record: anvil llvmpipe, det_entity_rng=1, doMobSpawning=false. T225550Z
+tp 0.5,70,0.5 void-died (fountain air; spawn 100,50,0 is 6 under surface).
+T230356Z pad 0.5,64,-20.5 held but summon at 50.5 never entered 64-block
+erng. T231027Z fill end_stone 3x3 failed ground_stencil vs generated
+121/0 mix. Committed tape T231439Z: pad 0.5,64,-20.5 yaw 90 pitch 20,
+air-fill only, persist enderman 42.5,63,-19.5. Recorder omits pr; tape
+age=0 for 850 ticks at 42 blocks so PersistenceRequired held. Magma
+det_place persist for enderman (same as blaze/pigman) so wander
+nextInt(120) is not skipped at entityAge>=100.
+
+Dragon eid=4042 in erng from tape t=106 (473 rows). Own Random. No
+enderman cursor mix: seed48 matched the full window. Gate tracks dim=1
+EntityEnderman only (overworld ambient header stray eid=3173 is not
+tracked).
+
+Gates:
+- passive T152220Z PASS 1203 standing
+- wander T164213Z PASS 1204 walked eid=386 xz=8.13406
+- panic T170933Z PASS 407 walked eid=2983 xz=3.55891 atk=[17]
+- ambient T181540Z PASS 625 walked eid=3691 xz=9.06245
+- target T182955Z FAIL t=42 eid=3335 pitch tape=2.7023606 magma=2.67498541
+  draws_between=0
+- nether T182154Z PASS 852 walked eid=6542 xz=8.78925
+- nether T182511Z FAIL t=745 eid=3872 x tape=-291.488923016319
+  magma=-291.54075023842785 draws_between=0
+- end T231439Z PASS 843 walked eid=4062 xz=9.69463 dim=1
+
+test-mob-live: sheep onsets 45,330; blaze duty on=156 off=200
+shots=[60,66,72,238,244,250].
+
 ## 2026-08-22 detmob consolidation round 4 (lane/detmob-all)
 
 On 2f3a51d: five PASS; two first_divs, cursors equal.

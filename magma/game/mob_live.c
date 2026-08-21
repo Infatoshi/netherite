@@ -352,7 +352,7 @@ enum {
 #define PAI_RNG 0x50414952u
 
 static int pai_priority(int type, int task) {
-    if (type == EW_TYPE_BLAZE) {
+    if (type == EW_TYPE_BLAZE || type == EW_TYPE_ENDERMAN) {
         if (task == PAI_WANDER) return 7;
         if (task == PAI_WATCH || task == PAI_IDLE) return 8;
         return 99;
@@ -397,12 +397,14 @@ static double pai_attribute_speed(int type) {
     if (type == EW_TYPE_COW) return 0.20000000298023224;
     if (type == EW_TYPE_ZOMBIE) return 0.23000000417232513;
     if (type == EW_TYPE_SKELETON || type == EW_TYPE_CREEPER) return 0.25;
+    if (type == EW_TYPE_ENDERMAN) return 0.30000001192092896;
     return 0.23000000417232513;
 }
 
 /* SharedMonsterAttributes.FOLLOW_RANGE setBaseValue. EntityLiving default
  * 16.0; EntityZombie/PigZombie 35.0; EntityBlaze 48.0. Creeper/skeleton keep 16. */
 static float pai_follow_range(int type) {
+    if (type == EW_TYPE_ENDERMAN) return 64.0f;
     if (type == EW_TYPE_BLAZE) return 48.0f;
     if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_PIGMAN) return 35.0f;
     return 16.0f;
@@ -417,6 +419,7 @@ static double pai_panic_multiplier(int type) {
 static void pai_size(int type, float *width, float *height) {
     if (type == EW_TYPE_BLAZE) { *width = 0.6f; *height = 1.8f; return; }
     if (type == EW_TYPE_PIGMAN) { *width = 0.6f; *height = 1.95f; return; }
+    if (type == EW_TYPE_ENDERMAN) { *width = 0.6f; *height = 2.9f; return; }
     *width = 0.9f;
     if (type == EW_TYPE_SHEEP) *height = 1.3f;
     else if (type == EW_TYPE_PIG) *height = 0.9f;
@@ -436,6 +439,7 @@ static double pai_eye_height(int type) {
     if (type == EW_TYPE_CHICKEN) return (double)height;
     if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON)
         return (double)1.74f; /* AbstractSkeleton/EntityZombie getEyeHeight ldc 1.74F */
+    if (type == EW_TYPE_ENDERMAN) return (double)2.55f; /* EntityEnderman.getEyeHeight */
     if (type == EW_TYPE_CREEPER) return (double)(1.7f * 0.85f);
     return (double)(height * 0.85f);
 }
@@ -446,20 +450,22 @@ static double pai_player_eye_y(double py) {
 }
 
 static double pai_watch_range_sq(int type) {
-    /* EntityAIWatchClosest maxDistance: animals 6, blaze/pigman 8. */
-    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN) return 64.0;
+    /* EntityAIWatchClosest maxDistance: animals 6, blaze/pigman/enderman 8. */
+    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN || type == EW_TYPE_ENDERMAN)
+        return 64.0;
     return 36.0;
 }
 
 static float pai_avoid_water_p(int type) {
-    /* EntityAIWanderAvoidWater probability. Blaze passes 0.0F. */
-    if (type == EW_TYPE_BLAZE) return 0.0f;
+    /* EntityAIWanderAvoidWater probability. Blaze and enderman pass 0.0F. */
+    if (type == EW_TYPE_BLAZE || type == EW_TYPE_ENDERMAN) return 0.0f;
     return 0.001f;
 }
 
 static int pai_talk_interval(int type) {
     /* EntityLiving.getTalkInterval=80; EntityAnimal overrides 120. */
-    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN) return 80;
+    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN || type == EW_TYPE_ENDERMAN)
+        return 80;
     return 120;
 }
 
@@ -528,6 +534,7 @@ static double pai_gaussian(GmMobLive *m, int i) {
 
 static int pai_det_ai(int type) {
     return type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN ||
+           type == EW_TYPE_ENDERMAN ||
            type == EW_TYPE_SHEEP || type == EW_TYPE_PIG ||
            type == EW_TYPE_COW || type == EW_TYPE_CHICKEN;
 }
@@ -695,20 +702,14 @@ static void pai_path_to_pos(GmWorld *w, int *x, int *y, int *z) {
         return;
     }
     if (!pai_mat_solid(id)) return;
+    /* PathNavigateGround.getPathToPos: for (blockpos1 = pos.up();
+     * blockpos1.getY() < world.getHeight() &&
+     * world.getBlockState(blockpos1).getMaterial().isSolid();
+     * blockpos1 = blockpos1.up()); return super.getPathToPos(blockpos1).
+     * Starts at the RPG BlockPos, not the entity column. Material.isSolid,
+     * not isFullBlock / isPassable. Stops at the first non-solid: a 1-block
+     * air pocket (nether T182511 dest col y=96) is dest. */
     while (*y < 256 && pai_mat_solid(gm_world_block(w, *x, *y, *z))) ++*y;
-    /* PathNavigateGround.getPathToPos stops at the first non-solid. A 1-block
-     * air pocket under more solid (nether T182511 dest col y=96) leaves dest
-     * inside FOLLOW_RANGE; findPathOptions then keeps same-Y neighbours and A*
-     * walks (n=10) while Java 1-tick noPath. Large PNP window still walked at
-     * dest y=96. Climb 1-high cavities so dest sits on the rest of the pillar
-     * (y=128 nether ceiling): distanceTo>FOLLOW_RANGE, nopts empty,
-     * closest==start null (PathFinder.findPath). Multi-block caves (t=21/585)
-     * stay at the first air and do not climb. */
-    while (*y < 255 && !pai_mat_solid(gm_world_block(w, *x, *y, *z)) &&
-           pai_mat_solid(gm_world_block(w, *x, *y + 1, *z))) {
-        ++*y;
-        while (*y < 256 && pai_mat_solid(gm_world_block(w, *x, *y, *z))) ++*y;
-    }
 }
 
 static int pai_ceil_f(float v) {
@@ -1298,6 +1299,13 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     /* targetSelector then goalSelector. Blaze heightOffset is the later
      * updateAITasks ("mob tick") slot, after navigator. */
     if (setup && pai_det() && type == EW_TYPE_BLAZE) {
+        u64 stream = pai_rng_start(m, s, i, 64);
+        (void)pai_bound(m, i, &stream, 10);
+    }
+    /* EntityEnderman.targetTasks: AIFindPlayer overrides NAT.shouldExecute
+     * (no nextInt(10); stare predicate, 0 Entity.rand). HurtBy 0. Endermite
+     * NAT chance 10: nextInt(10) on setup. Mutex 1; FindPlayer not using. */
+    if (setup && pai_det() && type == EW_TYPE_ENDERMAN) {
         u64 stream = pai_rng_start(m, s, i, 64);
         (void)pai_bound(m, i, &stream, 10);
     }
@@ -1984,7 +1992,7 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
         m->det_box_on[slot] = 1;
     }
     if (eid >= m->next_id) m->next_id = eid + 1;
-    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN)
+    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN || type == EW_TYPE_ENDERMAN)
         m->det_persist[slot] = 1;
     ew_store_copy(next_store(m), s);
     return slot;
@@ -2284,9 +2292,11 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
     ehs_load_living(&liv, s, i, &intent);
     /* Override sizes not represented exactly by the shared hostile spine. */
     if (gm_is_slimey(s->type[i]) || gm_passive(s->type[i]) ||
-        (pai_det() && hai_ok(s->type[i]))) {
+        (pai_det() && (hai_ok(s->type[i]) || pai_det_ai(s->type[i])))) {
         float w, h;
-        if (gm_passive(s->type[i]) || hai_ok(s->type[i])) pai_size(s->type[i], &w, &h);
+        if (gm_passive(s->type[i]) || hai_ok(s->type[i]) ||
+            (pai_det() && pai_det_ai(s->type[i])))
+            pai_size(s->type[i], &w, &h);
         else ehs_size_scaled(s->type[i], m->size[i], &w, &h);
         liv.base.width = w; liv.base.height = h;
         liv.base.phys.box = mc_aabb_make(s->x[i] - w * 0.5, s->y[i], s->z[i] - w * 0.5,
@@ -3090,8 +3100,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         }
         if(pai_det() && pai_det_ai(type)){
             /* EntityLiving.onEntityUpdate living-sound, then ++entityAge + despawn.
-             * Animals talk 120; blaze/pigman talk 80. PersistenceRequired: age=0,
-             * no nextInt(800). */
+             * Animals talk 120; blaze/pigman/enderman talk 80. PersistenceRequired:
+             * age=0, no nextInt(800). */
             {
                 int lst = m->living_sound_time[i];
                 int sound_draw = jrand_int_bound(pai_jr(m, i), 1000);
