@@ -3059,6 +3059,7 @@ def main():
     outcome = OUTCOME_PARITY_FAIL if rc else OUTCOME_PASS
 
     # ---- report ----
+    os.makedirs(os.path.join(here, "report"), exist_ok=True)
     if args.report:
         rp = os.path.join(here, "report", f"tape_{name}.md")
         _write_report_md(rp, name, header, ticks, first, euclid,

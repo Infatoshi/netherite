@@ -412,7 +412,10 @@ world setup and `mcwindow_script.py` segments for timed view/input.
 
 ## Metal backend (macOS)
 
-STATUS: VERIFIED - first green run 2026-07-30, master rev 0f80c50 (MacBook
+STATUS: VERIFIED - re-verified 2026-08-21 at baseline 18c5022 after fixing
+the report-dir mkdir hole in `replay_tape.py` (the gate failed on fresh
+checkouts because `verify/trace/report/` never existed; anvil passed only
+via a leftover dir). First green run 2026-07-30, master rev 0f80c50 (MacBook
 M4 Max, macOS 26.5.1, Apple clang 21.0.0, MetalToolchain 17.6.109).
 `scripts/mac_metal_verify.sh` passed end to end: game-metal builds, the
 rung-1 gate is bit-exact CPU==Metal on all 5 layers (color AND depth,
