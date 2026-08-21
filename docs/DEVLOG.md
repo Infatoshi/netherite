@@ -16,6 +16,28 @@ Magma and Blaze CPU share the FLD1 liquid-evolution digest (scheduler FNV +
 XOR of ids 8-11 in the snapshot box + ncells + CA write-backs). Both step
 `ff_ca_step_ex`. Gate: `port_matrix.py --tier m1 --subsystem fluids --no-deps`
 VERIFIED 61 ticks. t=0 digest `0x1f27ac65354386f4`. CUDA/Metal not claimed.
+## 2026-08-21 worldpix lane (canonical t=260, entity-water, particle blend)
+
+Worktree `/Users/infatoshi/dev/nw/worldpix`, branch `lane/worldpix`,
+baseline `18c5022`. No raster-kernel twin edits.
+
+- Canonical `20260721T215812Z` t=260 "texel-selection" retracted. CPU
+  replay 3617 ticks / 181 frames, then `pxdiff` / `pixel_gate` on the
+  saved frames. t=260 is 2 `known:4` shading-offset clusters (65+53 px,
+  sel=0.00); t=460 is 0 clusters >=50 px. The old 7291-px canopy was the
+  already-landed FOV-before-sprint ordering bug. Tape still FAILs
+  mild_shift t=3080 / t=3540 (0 UNEXPLAINED px). Remaining 118 px is the
+  filed outdoor luminance family; no exact shade fix without oracle
+  fragment lightmap (texel bias / fog retune not touched).
+- Item 13 entities-over-water CLOSED. Both compose paths already draw
+  opaque, then entities, then translucent. `WR-ENTITY-WATER-OCCLUSION`
+  `--skip-gpu` ALL PASS: behind 0/812, front 5016/5016, half 170/905.
+- Auto-campaign particle additive RESIDUAL. Vanilla 1.11.2
+  `ParticleManager.renderParticles` is SRC_ALPHA / ONE_MINUS_SRC_ALPHA
+  (oracle-src line 283) + alphaFunc 1/255. Magma layer 0 already
+  `blend=1` / `alpha_ref=0.003921569`. The "additive glow" label is
+  pixel_gate's oracle-brighter heuristic. Magma reconstructs only BLOCK
+  + explosion whitelist. Do not set blend=3.
 
 ## 2026-08-21 remaining-to-stop-asking
 
@@ -1333,8 +1355,9 @@ bit-for-bit on every tick of the spawn-to-torch chain (93c0cbc, e7a85ce,
   is evidenced by the committed chain.
 - Pixel research (read-only): seed-917351 auto-campaign has physics + state
   verified clean, so its pixel fails are pure rendering: hand (viewmodel)
-  near-black, hud hotbar darker, particles missing additive glow, and the
-  horizon luminance/fog wash - the last matched to the already-closed
+  near-black, hud hotbar darker, particles missing (filed as additive glow;
+  2026-08-21: vanilla ParticleManager is SRC_ALPHA, magma already matches),
+  and the horizon luminance/fog wash - the last matched to the already-closed
   slime_bounce fog family (do NOT retune GM_TERRAIN_FOG_*). Recorded in
   OPEN_DIVERGENCES for a future renderer grind.
 - Devbox: provisioned gamer (RTX 3090, sm_86, CUDA 13.3) as the main box for

@@ -962,6 +962,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
             CrShadeCtx ps = {0};
             ps.atlas = &eatlas; ps.fog_color = clear;
             ps.alpha_test = 1; ps.alpha_ref = 0.003921569f;
+            /* ParticleManager.renderParticles: SRC_ALPHA / ONE_MINUS_SRC_ALPHA,
+             * alphaFunc(GL_GREATER, 1/255). Not DestFactor.ONE. */
             ps.layer = CR_LAYER_TRANSLUCENT; ps.blend = 1; ps.lightmap = lm;
             gm_frame_world_fog_params(r->dimension, c->boss_latch,
                                       &ps.enable_fog, &ps.fog_start, &ps.fog_end);

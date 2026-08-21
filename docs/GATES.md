@@ -134,7 +134,7 @@ Blaze Metal tick (M3) waits until CUDA survival rows pass M1 and M2
 | 5 | Blaze Metal tick (M3). Sequence-blocked on row 4. | 2 | needs-design | Mac later |
 | 6 | Magma live tick on GPU. No gate accepts it. | none | keep-cpu | none |
 | 7 | Human spawn->End with zero first-divergence. | 1 | human | Moonlight |
-| 8 | State-clean auto-campaign pixels: hand lighting, particle additive, HUD hotbar (`magma/OPEN_DIVERGENCES.md`). | 1 | grindable | anvil gpu1 |
+| 8 | State-clean auto-campaign pixels: hand lighting, HUD hotbar (`magma/OPEN_DIVERGENCES.md`). Particle additive is source-closed: vanilla ParticleManager is SRC_ALPHA; magma already matches. Remaining particle residual is missing types, not blend. | 1 | grindable | anvil gpu1 |
 | 9 | Spawner miniature data path (TileEntities -> script -> store -> emit). Renderer exists. | 1 | grindable | anvil cpu |
 | 10 | Live blaze `isBurning` (AIFireballAttack). Replay is fixed. | 1 | grindable | anvil cpu |
 | 11 | Fortress placement vs oracle MCA (seed 0 y/z). | 1 | grindable | anvil cpu |
@@ -143,8 +143,8 @@ Blaze Metal tick (M3) waits until CUDA survival rows pass M1 and M2
 
 Do not grind: slime rim (oracle draw capture), portal/underwater
 (`CAPTURE_BLOCKED`), rain lightmap (no rain tape), particle `rand`,
-server elytra HP, Magma GPU tick, Metal tick, raster 1.6x kernel twins,
-Mac 30M-tick train.
+particle blend=3 (vanilla is SRC_ALPHA), server elytra HP, Magma GPU
+tick, Metal tick, raster 1.6x kernel twins, Mac 30M-tick train.
 
 Harness holes: `NnUpdateStats` has `entropy_mean` but the chunk log omits
 it; no KL/clipfrac; no native 13-seed eval; Metal `n == max_n`; schema-1

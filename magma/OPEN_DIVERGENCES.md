@@ -17,13 +17,15 @@ Stop-asking rank and GPU-port sequence live in `docs/GATES.md` "Remaining
 to stop asking". This file keeps forensics. Survey 2026-08-21 (Fable rank):
 
 Grindable here: hand use poses; inventory preview; auto-campaign hand /
-particles / HUD; spawner TileEntity path; live blaze on-fire; fortress
-y/z vs oracle; spawn coords (item 16); falling-block t46; pcl consume;
-canonical t=260 texel-selection; entities over water.
+HUD; spawner TileEntity path; live blaze on-fire; fortress
+y/z vs oracle; spawn coords (item 16); falling-block t46; pcl consume.
 
 Do not grind here: portal/underwater `CAPTURE_BLOCKED`; slime rim (needs
 oracle translucent draw capture); rain lightmap (no rain tape); explosion
-puff `Particle.rand`; fog retune; texel bias; Magma GPU tick.
+puff `Particle.rand`; fog retune; texel bias; Magma GPU tick;
+particle blend=3 (vanilla ParticleManager is SRC_ALPHA, magma already
+matches); canonical t=260 texel-selection (retracted, CLOSED);
+entities over water (item 13 CLOSED).
 
 ## Interactive C raster renderer
 
@@ -162,37 +164,29 @@ These have useful capture-integrity checks but no pixel-perfect product claim:
 
 The dominant early-tape failure (all CUTOUT geometry discarded: tallgrass,
 cross plants, grass_side_overlay) was a misaligned positional `CrShadeCtx`
-initializer and is **fixed** - see DEVLOG 2026-07-25. What remains on
-`20260721T215812Z_fast_s0_survival_default_rd8_77b5b462`:
+initializer and is **fixed** - see DEVLOG 2026-07-25.
 
-- Pixel gate still FAIL, but 7 failed frames (was 58), worst t=260 with
-  7291 unexplained px (was t=80 / 74783). UNEXPLAINED total 122_581 px over
-  63 frames (was 1_540_406 over 67).
-- t=260 and t=460 hold the two big residual clusters (3380 px and 2989 px at
-  t=260, on the near canopy and a distant tree). Re-measured 2026-07-25 with
-  `pxdiff.py`: t=260 is 103 clusters, the canopy one at y[83,178] x[526,611]
-  is 2989 px, `texel-selection`, exact-match 0.55 / tol4 0.83 at shift (1,-1).
-  It is NOT a cutout-coverage bug, and the oracle's own capture settings say
-  why it cannot be: the tape ran `fancyGraphics=false, mipmapLevels=0`, where
-  vanilla `BlockLeaves.getBlockLayer` returns SOLID, not CUTOUT_MIPPED, and
-  magma already meshes leaves as `CR_LAYER_SOLID` with alpha forced opaque.
-  Direct count of the canopy bbox: 118 of 3991 differing pixels (3.0%) are
-  true sky-holes, the other 96% are both-leaf texel flips. An earlier pxdiff
-  build called this `cutout-sky+` from the mean-delta direction alone; the
-  discriminator now requires a measured hole fraction, because on a minified
-  canopy sigma is 50-70 and a mean of +4 along the sky axis gives an
-  alignment of 0.997 at 3% coverage error.
-  The leaf INTERIOR, separately, is nearest-neighbour texel selection on
-  minified faces, not shading or geometry: the per-channel delta there is
-  zero-mean with a large spread (near canopy mean +0.1/+0.2/+0.2, sigma 19/28/8; distant tree
-  -0.9/-1.1/-0.4, sigma 32/46/14), i.e. individual texels flip between
-  neighbouring values rather than the surface being uniformly off. Ruled out:
-  a global sub-pixel camera offset (best whole-frame alignment is dx=dy=0,
-  6.23 mean/ch, vs 7.45 at dx=-1) and the fog distance mode - the oracle's own
-  GL query records `fog_distance_mode_nv = 34139` (GL_EYE_RADIAL_NV), which is
-  what `CrFragment.eye_dist` already implements, and forcing planar |z| fog
-  makes the tape worse (particles 181k -> 436k px, viewmodel 256k -> 411k,
-  failed frames 7 -> 10).
+**t=260 texel-selection CLOSED 2026-08-21.** The old 7291-px / 6252-px
+"texel-selection" clusters were the FOV-before-sprint ordering bug
+(already landed; `player_ctl.c`). Re-measured on this tree: t=260 is 2
+`known:4` shading-offset clusters (65+53 px, sel=0.00), not UNEXPLAINED.
+t=460 has 0 clusters >=50 px. Full forensics in CLOSED_DIVERGENCES.md.
+
+What remains on
+`20260721T215812Z_fast_s0_survival_default_rd8_77b5b462` (CPU replay
+2026-08-21, 181 frames):
+
+- Pixel gate still FAIL, 2 frames, both mild_shift with 0 UNEXPLAINED px:
+  t=3080 mean=10.67, t=3540 mean=6.96. Those are the dig window
+  (sidecar known:14), not t=260. UNEXPLAINED 11441 px over 22 frames,
+  max_cluster 1435 (under FAIL_CLUSTER 4000).
+- t=260 residual 118 px is sidecar-accepted `known:4`
+  `texture_luminance_modulation` (oak log darker in magma: golden
+  (90,89,84) vs magma (59,44,34)). Tape and magma both `ao=0`. No exact
+  shade fix without an oracle fragment lightmap capture; texel bias / fog
+  retune stay forbidden. Repro: `cd verify/trace && uv run --no-project
+  --with numpy,scipy,pillow python pxdiff.py clusters --tape
+  20260721T215812Z_fast_s0_survival_default_rd8_77b5b462 --tick 260`.
 - t=3180/3200/3220 clusters soak from `viewmodel` (hand/item residual), a
   separate open item under "First-person hand use poses".
 - Residual whole-frame mean at t=80 is 3.76/ch, all outdoor terrain: grass
@@ -804,15 +798,11 @@ independently re-measured here.
   darkening; magma's log is simply drawn at full brightness against grass and
   reads as absent at a glance. Zoom before concluding.
   The other canonical tape, `20260721T215812Z`, has a HUD on all 181 goldens
-  and is unaffected; do not set `capture.hide_gui` on it. Its own 7 failed
-  frames are all ONE family and it is the texel-selection residual above, not
-  anything tape-specific: t=260 (7291 px) and t=460 (6252 px) fail on
-  `texel-selection` clusters at sel 0.55 / 0.50 on a distant canopy and a
-  grazing leaf underside, where both sides draw the same leaves from the same
-  palette in a shuffled arrangement plus a 1-2 px sky/leaf silhouette edge.
-  t=300 / t=320 / t=700 have no UNEXPLAINED cluster over 300 px at all and fail
-  purely on mild-shift, i.e. the same wash spread thin. Closing the texel
-  residual closes this tape.
+  and is unaffected; do not set `capture.hide_gui` on it. The t=260 / t=460
+  texel-selection reading is retracted (CLOSED_DIVERGENCES.md, 2026-08-21):
+  t=260 is 118 px of sidecar `known:4` shading-offset, t=460 has 0 clusters
+  >=50 px. The tape still FAILs mild_shift at t=3080 and t=3540 (0
+  UNEXPLAINED px each).
 - `scenario_slime_bounce_20260723T001527Z` (tape retired 2026-07-30,
   superseded by `20260730T095754Z`; this shell contradiction is the ONLY
   remaining slime residual and every failed frame on the new tape is
@@ -1205,12 +1195,11 @@ pixel gate renders - the windowed-path blindspot class):
     look helpers carry the task outputs into motion and rendered head pose;
     sheep panic uses 1.25 * the 0.23 movement attribute. Mate, tempt, and
     follow-parent remain dormant because live play has no breeding state.
-13. Entities x-ray through translucent water: window compose draws all
-    four terrain layers (window_compose.c render order solid, cutmip,
-    cutout, trans) THEN entities, so entities paint over water. Vanilla
-    draws entities before the translucent pass. Check frame_capture's
-    order and match it; suspect capture path differs (water_dive pin is
-    rc=0) or its scenes never put an entity behind water.
+13. CLOSED 2026-08-21: entities no longer x-ray through translucent
+    water. `window_compose.c` and `frame_capture.c` both draw SOLID..CUTOUT
+    exclusive, then entities/particles, then TRANSLUCENT.
+    WR-ENTITY-WATER-OCCLUSION ALL PASS (behind 0/812, front 5016/5016,
+    half 170/905). Forensics in CLOSED_DIVERGENCES.md.
 14. NOT A DIVERGENCE (source-verified): sand placed directly above tall
     grass stays put in vanilla 1.11.2. BlockFalling.canFallThrough is
     fire/air/water/lava materials only; tall grass is Material.VINE
@@ -1367,13 +1356,33 @@ Still open on this recording:
     3. HUD hotbar darker + slight placement delta (hud class, small but
        persistent). hud.c gm_hud_draw hotbar/selection/XP strip +
        hud_blend_px_tex.
-    4. Particles: magma missing oracle additive glow (particles class, most
-       frames 196/239). Real additive-pass candidate in particles_live.c
-       gm_particles_live_emit_recorded/_emit; plus small lifetime/registration
-       deltas.
+    4. Particles: RESIDUAL 2026-08-21, not an additive-blend miss. The
+       2026-08-03 "missing additive glow" read is pixel_gate's `particles`
+       class (oracle brighter by >12), which is a brightness heuristic,
+       not a GL blend probe. Vanilla 1.11.2
+       `ParticleManager.renderParticles` (oracle-src line 283) is
+       `blendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)` +
+       `alphaFunc(GL_GREATER, 0.003921569F)` for FX layers 0..2. No
+       Particle*.java in that dir switches DestFactor.ONE for the pass
+       (ParticleFlame only overrides brightness). Magma layer 0 already
+       matches: `blend=1`, `alpha_ref=0.003921569f` in frame_capture.c
+       and window_compose.c. Do not set blend=3; that would miss vanilla
+       and likely regress dragon-death explosion tapes.
+       Magma reconstructs only BLOCK + EXPLOSION_NORMAL/LARGE/HUGE
+       (`MixinRecordParticles` whitelist). Campaign digging is
+       ParticleDigging (FX layer 1, terrain atlas, same src-over). Crit /
+       spell / heart / sweep from the campaign zombie are not
+       implemented. Particle.rand placement stays a separate forbidden
+       item. Tape on anvil:
+       `verify/tapes/scenario_survival_campaign_auto_20260803T082651Z.jsonl`
+       (4810 ticks, 241 frames, seed 917351). Repro of the blend fact:
+       `ParticleManager.java:282-284` vs magma `ps.blend = 1`. A 4810-tick
+       pixel re-gate is the verify after a particle-type port, not after
+       a blend flip.
     5. Minor cutout-sky+/thinline edge (noise level) - mesh_mc.c cutout layer.
-  Priority for a renderer grind: 2 then 4 then 3 (each needs the full
-  4810-tick auto-campaign pixel re-gate to verify; 1 is forbidden above).
+  Priority for a renderer grind: 2 then 3 (each needs the full
+  4810-tick auto-campaign pixel re-gate to verify; 1 is forbidden above;
+  4 is not a blend knob).
 
 Micro-regression priced 2026-07-30: nether_elytra t=63 gained 2409
 unexplained px (7 clusters, largest 1463) relative to its 2026-07-29

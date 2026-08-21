@@ -5,6 +5,107 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Canonical t=260 "texel-selection" unexplained clusters: retracted 2026-08-21
+
+The 7291-px t=260 / 6252-px t=460 clusters on
+`20260721T215812Z_fast_s0_survival_default_rd8_77b5b462` were filed as
+nearest-neighbour texel selection on minified leaves (2026-07-25 pxdiff:
+canopy y[83,178] x[526,611] 2989 px, sel 0.55 / tol4 0.83 at shift (1,-1)).
+That diagnosis was the FOV-before-sprint ordering bug, already fixed
+2026-07-25 (`player_ctl.c`: `updateFovModifierHand` before the sprint
+state machine; DEVLOG 2026-07-25, `130d0bd`). Magma had eased FOV after
+the sprint flag and was one tick ahead (t=260: 1.1453125 vs vanilla
+1.140625). A third of a degree of FOV shuffled every minified texel.
+
+Re-measured 2026-08-21 on `lane/worldpix` at `18c5022`, CPU replay to
+`$HOME/dev/nw/.tmp/worldpix_canon_tape`, then `pixel_gate` / `pxdiff`
+against the tape goldens (181 frames, hide_gui=false):
+
+```
+[gate] class UNEXPLAINED  frames    22 px     11441 max_cluster 1435
+[gate] class known:4      frames    10 px     18888 max_cluster 5618
+[gate] FAIL: 2 frames with unexplained clusters; worst t=3080 (0 px)
+  fail t=3080 unex=0 mild_shift mean=10.666666666666666
+  fail t=3540 unex=0 mild_shift mean=6.96213919301738
+```
+
+t=260 whole-frame 0.216/ch. Two clusters >=50 px, both `known:4`
+`shading-offset`, sel=0.00, shift (0,0) on the oak log:
+
+| # | px | bbox | cause | sel | mean_delta |
+|---|----|------|-------|-----|------------|
+| 0 | 65 | y[188,203] x[328,333] | shading-offset | 0.00 | [-22.77, -33.37, -38.02] |
+| 1 | 53 | y[149,158] x[0,7] | shading-offset | 0.00 | [-19.02, -22.92, -29.43] |
+
+Cluster 0 RGB (one texel): golden (90,89,84) vs magma (59,44,34). Same
+bark, magma darker. Probe: texel_selection_frac 0.0, structure_corr 0.82,
+sky_hole_frac 0.0. Cluster 1 is a left-edge clipped strip (clip_frac 1.0).
+Neither is UNEXPLAINED; both sit in the tape sidecar ticks [220,320]
+`texture_luminance_modulation` (open_divergence 4). t=260 mild_shift
+mean_abs=0.070 (under FAIL_MEAN_ABS 3.32). t=460: 0 clusters >=50 px,
+mean 0.239/ch.
+
+The remaining 118 px is the filed outdoor luminance family (AO/lightmap
+face shade), not a sampling rule. Tape options are `ao=0`,
+`fancyGraphics=false`, `gamma=0.0`; magma default `ao=0` matches. No
+exact one-line shade fix without an oracle fragment lightmap capture
+(texel bias / fog retune stay forbidden). The tape still FAILs mild_shift
+at t=3080 / t=3540 (0 UNEXPLAINED px each); those ticks are the dig
+window, not this item.
+
+Historical 2026-07-25 canopy characterization (kept so it is not
+re-filed as cutout-sky+): the tape ran `fancyGraphics=false,
+mipmapLevels=0`, so `BlockLeaves.getBlockLayer` is SOLID and magma
+already meshes leaves as `CR_LAYER_SOLID` with alpha forced opaque. A
+global sub-pixel camera offset was ruled out (best whole-frame alignment
+dx=dy=0). Forcing planar |z| fog made the tape worse.
+
+Repro:
+
+```bash
+cd verify/trace
+uv run --no-project --with numpy,scipy,pillow python pxdiff.py selftest
+uv run --no-project --with numpy,scipy,pillow python pxdiff.py clusters \
+  --tape 20260721T215812Z_fast_s0_survival_default_rd8_77b5b462 --tick 260
+```
+
+### Item 13 entities x-ray through water: CLOSED 2026-08-21
+
+Interactive-play sweep 2026-08-01 filed entities painting over
+translucent water because window compose was believed to draw all four
+terrain layers then entities. Vanilla `EntityRenderer.renderWorldPass`
+draws opaque terrain, then entities / overlays / particles, then
+translucent.
+
+Both paths already match that order on this tree:
+
+- `magma/game/window_compose.c`: `render_world_layers(..., SOLID,
+  TRANSLUCENT)` (exclusive end), then entities/particles, then
+  `TRANSLUCENT .. TRANSLUCENT+1`.
+- `magma/game/frame_capture.c`: same split; comment at the translucent
+  pass states the vanilla order.
+
+`WR-ENTITY-WATER-OCCLUSION` (`scripts/window_battery.py`, CPU,
+`--skip-gpu`, magma_game sha eef71dbc89c1):
+
+```
+== WR-ENTITY-WATER-OCCLUSION ==
+  PASS  WR-ENTITY-WATER-OCCLUSION  wall=0.01s
+ALL PASS
+```
+
+Metrics: behind 0/812=0.000 (occluded), front 5016/5016=1.000 (not
+attenuated by water behind), half_submerged 170/905=0.188 (split).
+water_dive pin remaining rc=0 was already noted; that tape never put an
+entity behind water.
+
+Repro:
+
+```bash
+uv run --no-project --with numpy,pillow python scripts/window_battery.py \
+  --game magma/magma_game --skip-gpu --only WR-ENTITY-WATER-OCCLUSION
+```
+
 ### The oracle's fogColor1 had not converged when recording started
 
 Every scenario tape is worse at t=0 than at t=10, by 2-6x, on the whole-frame
