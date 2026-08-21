@@ -371,13 +371,12 @@ MC_HD MC_NOINLINE static void cpn_hell_cave_generate(CpnHellCaveCtx *c, i64 worl
 }
 
 /* apply fortress structures via verified map_gen_fortress (ChunkPrimer layout identical). */
-MC_HD MC_NOINLINE static void cpn_fortress_generate(CpnPrimer *primer, i64 seed, int chunkX, int chunkZ) {
+MC_HD MC_NOINLINE static void cpn_fortress_generate(CpnPrimer *primer, FtGen *g, i64 seed, int chunkX, int chunkZ) {
     ChunkPrimer *fp = (ChunkPrimer *)primer;
     FtWorld w; w.primer = fp; w.chunkX = chunkX; w.chunkZ = chunkZ; w.worldSeed = seed;
-    FtGen g;
-    memset(&g, 0, sizeof(g));
-    ft_generate_map(&g, seed, chunkX, chunkZ);
-    ft_generate_structure(&w, &g, chunkX, chunkZ);
+    memset(g, 0, sizeof(*g));
+    ft_generate_map(g, seed, chunkX, chunkZ);
+    ft_generate_structure(&w, g, chunkX, chunkZ);
 }
 
 /* ChunkProviderHell.provideChunk minus Chunk/biomes/populate; generateStructures=true. */
@@ -394,7 +393,7 @@ MC_HD MC_NOINLINE static void cpn_provide_chunk(CpnPrimer *primer, CpnHellScratc
     CpnHellCaveCtx cctx; cctx.primer = primer; cctx.st = st;
     cpn_hell_cave_generate(&cctx, seed, chunkX, chunkZ);
 
-    cpn_fortress_generate(primer, seed, chunkX, chunkZ);
+    cpn_fortress_generate(primer, &sc->ftgen, seed, chunkX, chunkZ);
 }
 
 #endif /* MC_CHUNK_PROVIDER_NETHER_H */

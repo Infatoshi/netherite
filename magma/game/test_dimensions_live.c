@@ -26,6 +26,11 @@ int main(void){
                 ++rack_seen;
                 rack_keys_ok+=gm_world__model_key(n,x,y,z)==210;
             }
+    /* seed-0 oracle DIM-1 MCA: blaze spawners at these world cells. */
+    gm_world_ensure(n, (-325) >> 4, (-102) >> 4, 1);
+    gm_world_ensure(n, (-325) >> 4, (-215) >> 4, 1);
+    int oracle_a = gm_world_block(n, -325, 56, -102) == 52;
+    int oracle_b = gm_world_block(n, -325, 56, -215) == 52;
     gm_world_destroy(n);
     GmWorld *e=gm_world_create_type(0,3);if(!e)return 1;gm_world_ensure(e,0,0,0);
     int endstone=0,end_keys_ok=0;for(int x=0;x<16;++x)for(int y=0;y<128;++y)for(int z=0;z<16;++z)
@@ -35,11 +40,14 @@ int main(void){
         }
     gm_world_destroy(e);
     if(spawners<1||bricks<1||endstone<1||
-       rack_seen<1||rack_keys_ok!=rack_seen||end_keys_ok!=endstone){
+       rack_seen<1||rack_keys_ok!=rack_seen||end_keys_ok!=endstone||
+       !oracle_a||!oracle_b){
         fprintf(stderr,"dimensions_live: spawners=%d bricks=%d endstone=%d "
-                "rack_keys=%d/%d end_keys=%d/%d\n",spawners,bricks,endstone,
-                rack_keys_ok,rack_seen,end_keys_ok,endstone);return 1;
+                "rack_keys=%d/%d end_keys=%d/%d oracle_spawners a=%d b=%d\n",
+                spawners,bricks,endstone,
+                rack_keys_ok,rack_seen,end_keys_ok,endstone,oracle_a,oracle_b);return 1;
     }
-    fprintf(stderr,"dimensions_live: PASS fortress=%d,%d spawners=%d endstone=%d\n",fx,fz,spawners,endstone);
+    fprintf(stderr,"dimensions_live: PASS fortress=%d,%d spawners=%d endstone=%d "
+            "oracle_spawners a=%d b=%d\n",fx,fz,spawners,endstone,oracle_a,oracle_b);
     return 0;
 }

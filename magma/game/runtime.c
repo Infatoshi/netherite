@@ -9,6 +9,7 @@
 #include "crafting_recipes_full.h"
 #include "game/portal_live.h"
 #include "game/structures_live.h"
+#include "game/world_spawn.h"
 #include "explosion.h"
 #include "items_tools_armor.h"
 #include "inventory_stack_rules.h"
@@ -64,6 +65,44 @@ static void sync_elytra_from_chest(GmRuntime *r)
 
 static int floordiv16(int a) {
     return a >= 0 ? a >> 4 : -(((-a) + 15) >> 4);
+}
+
+/* WorldProvider.canCoordinateBeSpawn: mushroom biomes always ok, else
+ * getGroundAboveSeaLevel == GRASS. */
+static int runtime_can_spawn(void *ctx, int x, int z) {
+    GmWorld *w = (GmWorld *)ctx;
+    int y, biome;
+    if (!w) return 0;
+    gm_world_ensure(w, floordiv16(x), floordiv16(z), 0);
+    biome = gm_world_biome(w, x, z);
+    if (biome == 14 || biome == 15) return 1;
+    y = 63;
+    while (y < 255 && gm_world_block(w, x, y + 1, z) != 0) y++;
+    return gm_world_block(w, x, y, z) == 2;
+}
+
+static int vanilla_blocks_movement(int id) {
+    switch (id) {
+    case 0: case 6: case 8: case 9: case 10: case 11:
+    case 30: case 31: case 32: case 37: case 38: case 39: case 40:
+    case 50: case 51: case 59: case 78: case 83: case 104: case 105:
+    case 106: case 111: case 141: case 142: case 171: case 175:
+        return 0;
+    default:
+        return 1;
+    }
+}
+
+/* World.getTopSolidOrLiquidBlock: air cell above the topmost blocksMovement
+ * non-leaf (isFoliage is inert for the vanilla 1.11.2 plant set). */
+static int runtime_top_solid(GmWorld *w, int x, int z) {
+    int y;
+    for (y = 255; y >= 1; --y) {
+        int id = gm_world_block(w, x, y - 1, z);
+        if (vanilla_blocks_movement(id) && id != 18 && id != 161)
+            return y;
+    }
+    return 64;
 }
 
 static void set_error(char *err, int cap, const char *msg) {
@@ -618,15 +657,40 @@ int gm_runtime_init(GmRuntime *r, const GmConfig *cfg, char *err, int err_cap) {
     r->worlds[1]=r->world;r->dimension=0;r->seed=cfg->seed;
     r->ccx = r->ccz = 0; r->ox = r->oz = 0;
     gm_world_ensure(r->world, 0, 0, 2);
-    int surface = gm_world_surface_y(r->world, 8, 8);
     psv_player_init(&r->player);
     isr_init(&r->player.inv);
     r->player.inv.current_item = 0;
     gm_player_cursor_set(ic_empty());
-    r->player.ent.posX = 8.5;
-    r->player.ent.posY = (double)surface + 1.0;
-    r->player.ent.posZ = 8.5;
-    r->player.ent.box = psv_player_box(8.5, r->player.ent.posY, 8.5);
+    if (cfg->world == GM_WORLD_SUPERFLAT) {
+        int surface = gm_world_surface_y(r->world, 8, 8);
+        r->player.ent.posX = 8.5;
+        r->player.ent.posY = (double)surface + 1.0;
+        r->player.ent.posZ = 8.5;
+        r->player.ent.box = psv_player_box(8.5, r->player.ent.posY, 8.5);
+    } else {
+        int sx, sy, sz, feet_y, nccx, nccz;
+        double px, pz;
+        if (!gm_create_spawn_position(cfg->seed, runtime_can_spawn, r->world,
+                                      &sx, &sy, &sz)) {
+            sx = 8; sy = 64; sz = 8;
+        }
+        nccx = floordiv16(sx);
+        nccz = floordiv16(sz);
+        r->ccx = nccx;
+        r->ccz = nccz;
+        r->ox = nccx * 16;
+        r->oz = nccz * 16;
+        gm_world_ensure(r->world, nccx, nccz, 2);
+        feet_y = runtime_top_solid(r->world, sx, sz);
+        (void)sy;
+        px = (double)sx + 0.5;
+        pz = (double)sz + 0.5;
+        r->player.ent.posX = px - (double)r->ox;
+        r->player.ent.posY = (double)feet_y;
+        r->player.ent.posZ = pz - (double)r->oz;
+        r->player.ent.box = psv_player_box(r->player.ent.posX, r->player.ent.posY,
+                                           r->player.ent.posZ);
+    }
     r->player.ent.onGround = 0;
     r->player.yaw = 180.0f; r->player.pitch = 0.0f;
     pv_init(&r->vitals);

@@ -18,9 +18,8 @@ Stop-asking rank and GPU-port sequence live in `docs/GATES.md` "Remaining
 to stop asking". This file keeps forensics. Survey 2026-08-21 (Fable rank):
 
 Grindable here: hand use poses; inventory preview; auto-campaign hand /
-HUD; fortress y/z vs oracle; spawn coords (item 16); slime rim (oracle
-translucent DRAW dump exists); rain lightmap (rain tape exists);
-portal/underwater C residual (Oracle A/B now maxch=0).
+HUD; slime rim (oracle translucent DRAW dump exists); rain lightmap
+(rain tape exists); portal/underwater C residual (Oracle A/B now maxch=0).
 
 Do not grind here: explosion puff `Particle.rand`; fog retune; texel bias;
 Magma GPU tick; particle blend=3 (vanilla ParticleManager is SRC_ALPHA,
@@ -359,11 +358,11 @@ Moved to CLOSED_DIVERGENCES.md.
 
 Three divergences from the staged fortress-melee recording
 (`tapes/retired/scenario_portal_fortress_blaze_20260729T090129Z`):
-- **Fortress placement**: `gm_fortress_locate`/`gm_fortress_spawner_room`
-  and blaze `nether_full` both put seed-0's spawner room at
-  (-325, 72, -151); the oracle's own DIM-1 region files have rooms at
-  (-325, 56, -215) and (-325, 56, -102). x matches, y/z do not - the
-  structure-gen port diverges beyond terrain.
+- **Fortress placement**: CLOSED 2026-08-21. Piece tree now matches 1.11.2
+  (`pendingChildren` ArrayList shift-remove, `HORIZONTAL.random` N/E/S/W,
+  `setRandomHeight(48,70)`). Seed-0 `nether_full` spawners are
+  (-325,56,-102) and (-325,56,-215), equal to the oracle DIM-1 MCA.
+  Forensics in CLOSED_DIVERGENCES.md.
 - **Blaze death animation**: FIXED 2026-07-29. `gm_entities_emit`
   computed the `RenderLivingBase.applyRotations` keel and then threw it
   away (`(void)death_roll;  /* z-roll needs entity-level aff */`), and it
@@ -1221,12 +1220,14 @@ pixel gate renders - the windowed-path blindspot class):
     output directly. The registry census covers 49 cube item ids / 769 states /
     4,614 faces; every dropped UV is bit-identical to a fresh placed-face bake.
 
-16. OPEN 2026-08-01: world spawn selection is not parity-verified. Seed 1000:
-    Java spawns the player at (159.5, 56, 242.5); magma's interactive default
-    starts at (8.5, 70, 0.3). Every pinned tape uses scripted set_pose, so no
-    gate exercises vanilla's WorldProvider spawn search (grass-block scan +
-    radius walk). Census cell; needs an oracle-vs-magma spawn-coordinate probe
-    across a seed sweep before any tape relies on unscripted spawn.
+16. CLOSED 2026-08-21: `WorldServer.createSpawnPosition` is ported
+    (`magma/game/world_spawn.c`). Seed 1000 world spawn is (168, 64, 252)
+    and seed 0 is (44, 64, 176), equal to oracle `qrl_<seed>/level.dat`
+    SpawnX/Y/Z. Magma interactive default uses that xz + 0.5 and
+    `getTopSolidOrLiquidBlock` Y, not (8.5, 70, 0.3). Oracle player NBT
+    offsets are Forge spawnRadius fuzz (Malmo reseeds it); tapes use
+    set_pose. Pin: `make -C magma test-world-spawn`.
+    Forensics in CLOSED_DIVERGENCES.md.
 
 17. OPEN 2026-08-02: elytra fly-into-wall kinetic damage is server-
     authoritative in both tick and amount, so magma's locally computed hit

@@ -63,6 +63,12 @@ MAGMA_WORLD_LIVE_OBJS=(
   world/world.o
 )
 
+# runtime.o needs world_spawn.o (findBiomePosition uses a larger GenLayer arena).
+MAGMA_RUNTIME_OBJS=(
+  game/runtime.o
+  game/world_spawn.o
+)
+
 # Minimal core for unit tests that only need math/shade (entity, hand, preview).
 # Always include config.c: shade.c calls cr_cfg().
 MAGMA_RENDER_CORE_SRCS=(
