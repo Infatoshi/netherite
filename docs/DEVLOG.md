@@ -2821,3 +2821,39 @@ long before this wave (annotated as a known no-op). The sweep's own
 blaze-oracle-smoke step also still set the removed MC_CPU_ONLY env (now
 `--cpu-only`). Lesson: a knob migration is not done at the readers; every
 writer keeps "working" silently unless swept.
+
+## 2026-08-21: chain curriculum - staged starts from verified snapshots
+
+Why: chain retrain (success_item=50) from fresh weights was near-flat
+(t0 0.005-0.065 at 450M ticks). The frontier curriculum in ppo.c was
+inert: only stage 0 avail at init; stages 1-4 unlock only when a lane
+reaches them live, which a fresh net never does.
+
+Landed (four lanes, each gate re-run by the orchestrator before merge):
+- ppo knobs `init_from` (warm-start ckpt) and `stage_snaps` (preload
+  s{seed}_stg{1..4}.bsnp into cap_slot order, pad holes with t0, avail
+  only for real files). Knobs-off smoke byte-identical to ca29468.
+- Reward re-pay bug found+fixed: reset into a nonzero-inventory snap
+  paid first-time bonuses into rew_roll (valid=0 hid it from the update
+  but not the buffer). cr_seed_lane seeds best[] on burn-in; test added.
+- eval `--stage K|all`: per-stage starts, SKIP rows for missing snaps,
+  start inventory baselined, stage x seed ladder. Stage-0 byte-identical.
+- make_snapshots `--chain-stages` + `--verify-emit`: bake stage snaps by
+  scripted replay, then emit ONLY on proof: magma-vs-blaze-CPU lockstep
+  digest equality over the chain remainder (fluids on) AND zero liquid
+  cell movement (training envs treat liquid statically). Same standard
+  that blessed the t0 snaps; census liquid flag no longer decides.
+
+Result: 29/40 stage snaps emitted (10 seeds x 4 stages baked; 11 stay
+FLAGGED: 9 parity-diverged with first_div tick recorded, 2 liquid-active;
+seed 29 probe fails at mine_coal). Snaps shipped to anvil.
+
+Relaunched gpu0: retrain_0821_chain2, success_item=50, init_from=wood
+best (t0 0.755), stage_snaps=1, 900M ticks / 6h cap. Preload confirmed
+for 8/11 train seeds; staged sampling live at chunk 0; ent 8.45 start
+confirms warm load. Ladder eval runs when it stops.
+
+Caveats: seeds 14,16,20,46 emit-proofs used idle-600 lockstep (probe
+re-run failed; chain-remainder proof pending), noted honestly. Anvil
+local ui_hud goldens differed from committed ones; preserved in
+~/anvil_wip_0821, not blessed.
