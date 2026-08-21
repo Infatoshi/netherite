@@ -2287,6 +2287,24 @@ public class Recorder {
             long init = DetEntityRng.loggedInit48(eid, DetEntityRng.seed48Init(us));
             sb.append(",\"user_seed\":").append(us)
               .append(",\"seed48_init\":").append(init);
+            /* 3x3x3 block ids around floor(pos), dx fastest then dz then dy.
+             * detmob_gate asserts magma worldgen against this stencil. */
+            int bx = net.minecraft.util.math.MathHelper.floor(e.posX);
+            int by = net.minecraft.util.math.MathHelper.floor(e.posY);
+            int bz = net.minecraft.util.math.MathHelper.floor(e.posZ);
+            sb.append(",\"g\":[");
+            int gi = 0;
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dz = -1; dz <= 1; ++dz) {
+                    for (int dx = -1; dx <= 1; ++dx) {
+                        if (gi++ > 0) sb.append(',');
+                        net.minecraft.block.state.IBlockState st = e.world.getBlockState(
+                            new net.minecraft.util.math.BlockPos(bx + dx, by + dy, bz + dz));
+                        sb.append(net.minecraft.block.Block.getIdFromBlock(st.getBlock()));
+                    }
+                }
+            }
+            sb.append(']');
         }
         sb.append('}');
     }

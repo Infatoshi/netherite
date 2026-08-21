@@ -1,0 +1,51 @@
+# detmob panic: park within melee of a sheep, one click mid-window.
+# Hit -> EntityAIPanic getRandPos (findRandomTarget 5,4) + 1.25 sprint.
+# Hilltop (51-53,74,126) is a 3-wide grass pad on seed-0 default worldgen
+# (wander tape eid 389 stencil). The 1-cell air pad at 47.5 70 125.5
+# dumps colliding entities into the z=124 hole. Isolate the summoned
+# sheep: dummy summons so /kill is never a 0-match fail on 1.11.2.
+# det_entity_rng=1, doMobSpawning=false. Not a blessed gate tape.
+name: detmob_panic
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: false
+determinism:
+  det_entity_rng: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing false
+  - /gamerule doMobLoot false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 53.5 74 127.5 180 30
+  - /summon pig ~ ~ ~
+  - /summon cow ~ ~ ~
+  - /summon chicken ~ ~ ~
+  - /summon sheep ~ ~ ~
+  - /summon horse ~ ~ ~
+  - /summon rabbit ~ ~ ~
+  - /kill @e[type=pig,r=48]
+  - /kill @e[type=cow,r=48]
+  - /kill @e[type=chicken,r=48]
+  - /kill @e[type=sheep,r=48]
+  - /kill @e[type=horse,r=48]
+  - /kill @e[type=rabbit,r=48]
+  - /summon sheep 53.5 74 126.5 {PersistenceRequired:1b}
+  - /tp @p 53.5 74 127.5 180 30
+setup_settle_ticks: 10
+duration_ticks: 400
+frames_every: 0
+input:
+  segments:
+    - seconds: 0.25
+    - seconds: 0.25
+      buttons: [1]
+    - seconds: 19.5
+known_divergences: []

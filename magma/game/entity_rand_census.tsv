@@ -29,7 +29,7 @@ pig	ai_list	addTask	0	swim0 panic1(1.25) mate3 tempt4(carrot-stick 1.2) tempt4(c
 chicken	ai_list	addTask	0	swim0 panic1(1.4) mate2 tempt3(seeds 1.0) followParent4(1.1) wanderAvoidWater5 watch6 idle7. HP4 speed 0.25 size 0.4x0.7
 #
 all	setup	swim.shouldExecute	0	isInWater||isInLava
-all	setup	panic.shouldExecute	0or30	no rand unless burning/revenge then RandomPositionGenerator 10*(3 nextInt) xz=5 y=4 land=true
+all	setup	panic.shouldExecute	0or30	no rand unless burning/revenge then findRandomTarget(5,4)=generateRandomPos(..., true): 10*(3 nextInt), NO moveAboveSolid/water skip. magma land=0.
 sheep	setup	eat.shouldExecute	1	nextInt(child?50:1000); then grass/tallgrass block test
 all	setup	wander.shouldExecute	1+	if getAge()>=100 skip (nearby player keeps age 0). else nextInt(120). if 0: WanderAvoidWater.getPosition
 all	setup	wander.avoid_water	1+30	nextFloat>=0.001 ? getLandPos(10,7) : findRandomTarget(10,7). in water: getLandPos(15,7) else findRandomTarget(10,7). RPG always 10 loops * 3 nextInt (no home).
@@ -39,6 +39,9 @@ all	run	swim.updateTask	1	nextFloat<0.8 jump
 all	run	idle.updateTask	0	idleTime--; lookHelper.setLookPosition(pos+lookX, posY+eye, pos+lookZ, 10, 40)
 all	run	watch.updateTask	0	lookHelper at player eye; lookTime--
 all	run	eat.updateTask	0	timer--; at 4 eat grass / dirt
+all	hurt	setBeenAttacked	1	nextDouble vs knockbackResistance (0 for animals). EntityLivingBase.setBeenAttacked (overrides Entity's velocityChanged=true).
+all	hurt	knockBack	1	nextDouble vs knockbackResistance then motionX/Z /=2 -= dir*(double)0.4F; onGround motionY /=2 +=(double)0.4F cap 0.4000000059604645. MathHelper.sqrt is (float)sqrt. Attacker-victim xz, not eye.
+all	hurt	playHurtSound	2	flag1 && health>0: getHurtSound non-null then getSoundPitch = 2x nextFloat (child still 2 draws). After knockBack, before onEntityUpdate living_sound.
 all	tick	lookHelper	0	zeros pitch; interpolates from 0 toward target max 40 pitch / 10 yaw. MathHelper.atan2 LUT. no Entity.rand. moveHelper: no rand.
 chicken	after	egg	0or3	--timeUntilNextEgg; if <=0: 2x nextFloat pitch + nextInt(6000)+6000
 #

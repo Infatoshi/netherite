@@ -10,6 +10,7 @@ cursor delta. Not wired into `make test`.
 from __future__ import annotations
 
 import json
+import math
 import os
 import struct
 import subprocess
@@ -106,25 +107,106 @@ def tracked_ids(header, rows):
     return ids
 
 
-def write_fixture(path: Path, header, hydrate, n_ticks, stand):
+def _header_g(header, eid):
+    """3x3x3 block-id stencil from recstart entity_rng[].g (dx, dz, dy)."""
+    for e in header.get("entity_rng") or []:
+        if int(e.get("eid", -1)) != eid:
+            continue
+        g = e.get("g")
+        if isinstance(g, list) and len(g) == 27:
+            bx = int(math.floor(float(e["x"])))
+            by = int(math.floor(float(e["y"])))
+            bz = int(math.floor(float(e["z"])))
+            return bx, by, bz, [int(v) for v in g]
+    return None
+
+
+def _clock0(stand, series):
+    hmap = _erng_map(series[0])
+    t0s = [int(hmap[eid]["tt"]) for eid in stand if eid in hmap and hmap[eid].get("tt") is not None]
+    t1s = _field_vals(stand, series[-1], "tt")
+    use_tt = bool(t0s) and bool(t1s) and min(t0s) >= 0 and max(t1s) - min(t0s) > 0
+    clock_name = "tt" if use_tt else "age"
+    clock0 = {eid: int(hmap[eid].get(clock_name, 0)) for eid in stand if eid in hmap}
+    return clock_name, clock0
+
+
+def _row_magma_tick(stand, rec, clock_name, clock0):
+    te_map = _erng_map(rec)
+    for eid in stand:
+        te = te_map.get(eid)
+        if te is None or eid not in clock0:
+            continue
+        mag = int(te.get(clock_name, 0)) - clock0[eid] - 1
+        if mag >= 0:
+            return mag
+    return None
+
+
+def _atk_magma_ticks(stand, series):
+    """Map tape attack onto magma ticks (clock-hydrate-1).
+
+    Prefer in.atk. Early mcwindow clicks can land a hit (hp drop + knockback)
+    without the keybind bit making the jsonl in.atk field; those still need a
+    pulse or the gate never replays the punch.
+    """
+    clock_name, clock0 = _clock0(stand, series)
+    out = []
+    seen = set()
+    for rec in series[1:]:
+        if not int((rec.get("in") or {}).get("atk", 0)):
+            continue
+        mag = _row_magma_tick(stand, rec, clock_name, clock0)
+        if mag is not None and mag not in seen:
+            seen.add(mag)
+            out.append(mag)
+    if out:
+        return out
+    hmap = _erng_map(series[0])
+    prev = {eid: hmap[eid].get("hp") for eid in stand if eid in hmap}
+    for rec in series[1:]:
+        te_map = _erng_map(rec)
+        dropped = False
+        for eid in stand:
+            te = te_map.get(eid)
+            if te is None or eid not in prev:
+                continue
+            hp, ph = te.get("hp"), prev[eid]
+            if hp is not None and ph is not None and float(hp) < float(ph) - 1e-6:
+                dropped = True
+            if hp is not None:
+                prev[eid] = hp
+        if not dropped:
+            continue
+        mag = _row_magma_tick(stand, rec, clock_name, clock0)
+        if mag is not None and mag not in seen:
+            seen.add(mag)
+            out.append(mag)
+    return out
+
+
+def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
     px, py, pz = header["x"], header["y"], header["z"]
     pyaw, ppitch = header.get("yaw", 0.0), header.get("pitch", 0.0)
     n = 0
     lines = [
         f"seed {int(header.get('seed', 0))}",
+        f"time {int(header.get('world_time', 6000))}",
         f"ticks {n_ticks}",
         f"player {px} {py} {pz} {pyaw} {ppitch}",
     ]
     body = []
+    ground = []
     for eid in stand:
         e = hydrate[eid]
         kind = PASSIVE[e["type"]]
         hyaw = e.get("hyaw", e.get("yaw", 0.0))
         ryaw = e.get("ryaw", hyaw)
+        hp = e.get("hp", 0.0)
         body.append(
             "e {eid} {kind} {x} {y} {z} {yaw} {pitch} {hyaw} {seed48} "
             "{lst} {age} {tt} {tasks} {watch} {idle} {ix} {iz} {eat} {egg} {og} "
-            "{ryaw} {bhp} {bht}".format(
+            "{ryaw} {bhp} {bht} {hp}".format(
                 eid=eid, kind=kind,
                 x=e["x"], y=e["y"], z=e["z"],
                 yaw=e.get("yaw", 0.0), pitch=e.get("pitch", 0.0),
@@ -139,22 +221,56 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand):
                 ryaw=ryaw,
                 bhp=e.get("bhp", hyaw),
                 bht=int(e.get("bht", 0)),
+                hp=hp,
             )
         )
+        ginfo = _header_g(header, eid)
+        if ginfo is not None:
+            bx, by, bz, ids = ginfo
+            ground.append("g {eid} {bx} {by} {bz} {ids}".format(
+                eid=eid, bx=bx, by=by, bz=bz,
+                ids=" ".join(str(v) for v in ids)))
         n += 1
     lines.append(f"n {n}")
     lines.extend(body)
+    lines.extend(ground)
+    for mag_t in atk_ticks or []:
+        lines.append(f"atk {int(mag_t)}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return n
+    return n, len(ground)
 
 
 def magma_by_tick(path: Path):
     out = {}
+    ground = {}
     with path.open(encoding="utf-8") as fh:
         for line in fh:
             rec = json.loads(line)
+            if rec.get("ground"):
+                ground[int(rec["eid"])] = rec
+                continue
             out.setdefault(int(rec["t"]), {})[int(rec["eid"])] = rec
-    return out
+    return out, ground
+
+
+def walked(stand, series):
+    """True if any tracked passive moved more than a look-idle jitter."""
+    h = _erng_map(series[0])
+    best = 0.0
+    who = None
+    for rec in series[1:]:
+        te = _erng_map(rec)
+        for eid in stand:
+            a, b = h.get(eid), te.get(eid)
+            if a is None or b is None:
+                continue
+            dx = float(b["x"]) - float(a["x"])
+            dz = float(b["z"]) - float(a["z"])
+            d = (dx * dx + dz * dz) ** 0.5
+            if d > best:
+                best = d
+                who = eid
+    return who, best
 
 
 def tape_erng_by_tick(rows):
@@ -276,26 +392,41 @@ def main(argv: list[str]) -> int:
         print(f"BLOCKED  standing eids missing from first erng: {missing}")
         return 2
     n_ticks = magma_tick_count(stand, series)
+    atk_ticks = _atk_magma_ticks(stand, series)
     outdir = REPO / "out" / "verify" / "detmob"
     outdir.mkdir(parents=True, exist_ok=True)
     fixture = outdir / "fixture.txt"
     magma_out = outdir / "magma.jsonl"
-    n = write_fixture(fixture, header, hydrate, n_ticks, stand)
+    n, n_ground = write_fixture(fixture, header, hydrate, n_ticks, stand, atk_ticks)
     print(
         f"tape {tape.name}: {len(rows)} client ticks, {len(series)} unique server "
-        f"snaps, {n_ticks} magma ticks, {n} passives {stand}"
+        f"snaps, {n_ticks} magma ticks, {n} passives {stand}, "
+        f"ground_stencil={n_ground}, atk_ticks={atk_ticks}"
     )
     sh = REPO / "magma" / "game" / "detmob_gate.sh"
     rc = subprocess.call(["bash", str(sh), str(fixture), str(magma_out)], cwd=str(REPO / "magma"))
+    if rc == 3:
+        print("FAIL  first_div ground_stencil  magma worldgen != tape header g")
+        return 1
     if rc != 0:
         print(f"BLOCKED  detmob_gate.sh rc={rc}")
         return 2
-    mag = magma_by_tick(magma_out)
+    mag, ground = magma_by_tick(magma_out)
+    if n_ground == 0:
+        print("WARN  tape header has no g stencil; magma dump follows (re-record to pin)")
+        for eid in stand:
+            rec = ground.get(eid)
+            if rec:
+                print(f"  magma g eid={eid} ({rec['bx']},{rec['by']},{rec['bz']}) ids={rec['ids']}")
     t, eid, field, tv, mv, cur = first_div(stand, series, mag)
     if t is None:
+        who, dist = walked(stand, series)
+        walk_s = (
+            f"walked eid={who} xz={dist:.6g}" if dist >= 0.05 else "standing"
+        )
         print(
             f"PASS  bit-equal pos/yaw/pitch/hyaw for {n} passives "
-            f"over {n_ticks} server ticks"
+            f"over {n_ticks} server ticks  {walk_s}"
         )
         return 0
     extra = ""

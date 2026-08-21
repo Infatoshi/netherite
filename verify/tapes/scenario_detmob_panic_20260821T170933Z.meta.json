@@ -1,0 +1,87 @@
+{
+  "name": "scenario_detmob_panic_20260821T170933Z",
+  "created_utc": "20260821T170933Z",
+  "git_rev": "b2e283e79fc200654e7c5eb752a863afe97b5205",
+  "profile": "fast",
+  "qrl_launch": {
+    "port": 25575,
+    "profile": "fast",
+    "chat": false,
+    "hide_gui": false,
+    "strip": {
+      "menus": true,
+      "overlays": true,
+      "sound": true
+    },
+    "determinism": {
+      "pin_flicker": true,
+      "pin_skin": true,
+      "pin_texture_animations": true,
+      "det_entity_rng": true
+    },
+    "world": {
+      "seed": 0,
+      "mode": "survival",
+      "type": "default",
+      "structures": false,
+      "time": 6000,
+      "weather": "clear",
+      "gamerules": {
+        "sendCommandFeedback": "false",
+        "showDeathMessages": "false",
+        "doDaylightCycle": "false",
+        "doWeatherCycle": "false",
+        "doMobSpawning": "true",
+        "doFireTick": "true",
+        "doMobLoot": "true",
+        "doEntityDrops": "true",
+        "doTileDrops": "true",
+        "mobGriefing": "true",
+        "randomTickSpeed": "3",
+        "keepInventory": "false"
+      }
+    }
+  },
+  "options": {
+    "fov": "0.0",
+    "gamma": "0.0",
+    "renderDistance": "8",
+    "guiScale": "2",
+    "particles": "2",
+    "bobView": "false",
+    "anaglyph3d": "false",
+    "maxFps": "260",
+    "fboEnable": "true",
+    "fancyGraphics": "false",
+    "ao": "0",
+    "renderClouds": "false",
+    "chatVisibility": "2",
+    "enableVsync": "false",
+    "useVbo": "true",
+    "mipmapLevels": "0",
+    "entityShadows": "false",
+    "soundCategory_master": "0.0"
+  },
+  "frames_every": 0,
+  "tape_jsonl": "/home/infatoshi/dev/nw/unblock/verify/tapes/scenario_detmob_panic_20260821T170933Z.jsonl",
+  "frames_dir": "/home/infatoshi/dev/nw/unblock/verify/tapes/scenario_detmob_panic_20260821T170933Z_frames",
+  "dig_trace": false,
+  "capabilities": [
+    "inventory_keyframes",
+    "renderer_provenance",
+    "world_snapshot"
+  ],
+  "renderer_provenance": {
+    "os": "linux",
+    "arch": "x86_64",
+    "scaling": "2",
+    "hide_gui": false
+  },
+  "ticks": 410,
+  "parquet": "/home/infatoshi/dev/nw/unblock/verify/tapes/scenario_detmob_panic_20260821T170933Z.parquet",
+  "parquet_rows": 410,
+  "frames": 0,
+  "scenario": "detmob_panic",
+  "scenario_spec": "/home/infatoshi/dev/nw/unblock/verify/scenarios/detmob_panic.yaml",
+  "duration_ticks": 400
+}

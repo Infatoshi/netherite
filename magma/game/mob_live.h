@@ -86,6 +86,12 @@ typedef struct {
     int living_sound_time[EW_MAX_ENTITIES];
     int entity_age[EW_MAX_ENTITIES];
     int chicken_egg[EW_MAX_ENTITIES];
+    /* det_entity_rng PathNavigateGround: world-coord PathPoints from PathFinder. */
+    short det_nav_x[EW_MAX_ENTITIES][48];
+    short det_nav_y[EW_MAX_ENTITIES][48];
+    short det_nav_z[EW_MAX_ENTITIES][48];
+    unsigned char det_nav_n[EW_MAX_ENTITIES];
+    unsigned char det_nav_i[EW_MAX_ENTITIES];
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */

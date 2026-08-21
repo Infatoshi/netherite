@@ -1,5 +1,39 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 detmob round 3 worldgen + walk + panic (lane/detmob)
+
+detmob_gate uses seed-0 `GM_WORLD_DEFAULT` + `gm_world_ensure` (same
+generator as magma_game / tape replay). Tape header `entity_rng[].g` is
+a 3x3x3 block-id stencil (dx, dz, dy); gate rc=3 on mismatch.
+Recorder writes `g` on recstart. Wander
+`scenario_detmob_wander_20260821T164213Z.jsonl` ground_stencil=5 PASS.
+Standing `...T152220Z` has no `g` (WARN); poses still PASS 1203 ticks
+eids 462/463/465.
+
+Det PathNavigate.pathFollow now close-advance +
+`isDirectPathBetweenPoints` (DDA + WalkNodeProcessor size-sweep
+`getPathNodeType`, canBreakDoors/canEnterDoors true). Follow runs after
+goalSelector. Knob-off path_len standability unchanged.
+`test_mob_live` sheep onsets 45,330.
+
+Wander `...T164213Z`: FAIL first_div t=70 eid=386 field=x
+`draws_between=0`. Walking bit-equal through t=69 (y=70→71 step-up,
+MOVE_TO (48.5,71,125.5)). t=70 PathFinder next PathPoint after
+(48,71,125): magma (49,72,125) yaw 268.67 vs Java (48,72,126) yaw
+339.67. Old t=31 skip first_div is gone (eid 389 bits match on that
+path).
+
+Panic `scenario_detmob_panic_20260821T170933Z.jsonl` hilltop sheep
+53.5,74,126.5; player 53.5,74,127.5; hp-drop atk mag_t=17.
+Det fist = EntityPlayer ATTACK_DAMAGE 1.0; hurt `getSoundPitch` 2x
+nextFloat after knockBack `(double)0.4F`. t=20 pos/hp/seed bit-equal
+(hp 8→7, y=74.3608, z=126.1). FAIL first_div t=21 eid=2983 field=pitch
+tape=-0.9902643 magma=-0.990264118 `draws_between=0`. Site:
+EntityLookHelper deltaLookPitch 2 ULP after knockback (watch still on;
+panic bit later).
+
+Default-off. No blessed-tape / gates / blaze-rl.
+
 ## 2026-08-21 detmob round 2 atan2 + wander (lane/detmob)
 
 MathHelper.atan2 LUT in `blaze/core/mc_math.h` + `mc_atan2_tab.h`

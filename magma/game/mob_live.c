@@ -9,6 +9,7 @@
 #include "mc_math.h"
 #include "player_vitals.h"
 #include "core/config.h"
+#include "path_finder.h"
 
 #include <math.h>
 #include <string.h>
@@ -210,6 +211,8 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->living_sound_time[slot] = 0;
     m->entity_age[slot] = 0;
     m->chicken_egg[slot] = 0;
+    m->det_nav_n[slot] = 0;
+    m->det_nav_i[slot] = 0;
     m->fire_ticks[slot] = 0;
     m->despawn_ticks[slot] = 0;
     m->anger[slot] = 0;
@@ -502,16 +505,276 @@ static int pai_random_position(GmMobLive *m, GmWorld *w, const EwStore *s, int i
     return 1;
 }
 
+#define PAI_NAV_MAX 48
+
+static int pai_mc_to_pb(int id) {
+    if (id == 0) return PB_AIR;
+    if (id == 8 || id == 9) return PB_WATER;
+    if (id == 10 || id == 11) return PB_LAVA;
+    if (id == 51) return PB_FIRE;
+    if (id == 81) return PB_CACTUS;
+    if (id == 85 || id == 113 || id == 188 || id == 189 || id == 190 ||
+        id == 191 || id == 192 || id == 139 || id == 107)
+        return PB_FENCE;
+    if (id == 96 || id == 167) return PB_TRAPDOOR;
+    if (id == 27 || id == 28 || id == 66 || id == 157) return PB_RAIL;
+    if (!solid_id(id)) return PB_AIR;
+    return PB_STONE;
+}
+
+static int pai_ceil_f(float v) {
+    int i = (int)v;
+    return v > (float)i ? i + 1 : i;
+}
+
+static int pai_chunk16(int x) {
+    return x >= 0 ? x / 16 : -(((-x) + 15) / 16);
+}
+
+static Pf12 pai_pf;
+
+static void pai_fill_pf(GmWorld *w, const EwStore *s, int i, int *ox, int *oy, int *oz) {
+    float width, height;
+    int x, y, z;
+    memset(pai_pf.blocks, 0, sizeof pai_pf.blocks);
+    pai_pf.overflow = 0;
+    *ox = mc_floor(s->x[i]) - 16;
+    *oy = mc_floor(s->y[i]) - 8;
+    *oz = mc_floor(s->z[i]) - 16;
+    if (*oy < 0) *oy = 0;
+    gm_world_ensure(w, pai_chunk16(*ox), pai_chunk16(*oz), 2);
+    gm_world_ensure(w, pai_chunk16(*ox + 31), pai_chunk16(*oz + 31), 2);
+    for (y = 0; y < PNP_DY; ++y)
+        for (z = 0; z < PNP_DZ; ++z)
+            for (x = 0; x < PNP_DX; ++x)
+                pnp_setblock(pai_pf.blocks, x, y, z,
+                             pai_mc_to_pb(gm_world_block(w, *ox + x, *oy + y, *oz + z)));
+    memset(&pai_pf.ent, 0, sizeof pai_pf.ent);
+    pai_size(s->type[i], &width, &height);
+    pai_pf.ent.width = width;
+    pai_pf.ent.height = height;
+    pai_pf.ent.stepHeight = 0.6f;
+    pai_pf.ent.canSwim = 0;
+    pai_pf.ent.canEnterDoors = 1;
+    pai_pf.ent.maxFallHeight = 3;
+    pai_pf.ent.onGround = s->on_ground[i] ? 1 : 0;
+    pai_pf.ent.inWater = pai_in_material(w, s, i, 0);
+    pai_pf.ent.posX = s->x[i] - (double)(*ox);
+    pai_pf.ent.posY = s->y[i] - (double)(*oy);
+    pai_pf.ent.posZ = s->z[i] - (double)(*oz);
+    pnp_ent_default_priorities(&pai_pf.ent);
+}
+
+static int pai_position_clear(int ox, int oy, int oz,
+        int x, int y, int z, int sizeX, int sizeY, int sizeZ,
+        double vx, double vz, double d0, double d1) {
+    int ix, iy, iz;
+    for (ix = x; ix < x + sizeX; ++ix)
+        for (iy = y; iy < y + sizeY; ++iy)
+            for (iz = z; iz < z + sizeZ; ++iz) {
+                double dx = (double)ix + 0.5 - vx;
+                double dz = (double)iz + 0.5 - vz;
+                if (dx * d0 + dz * d1 >= 0.0) {
+                    int id = pnp_getblock(pai_pf.blocks, ix - ox, iy - oy, iz - oz);
+                    if (!pnp_blockdef(id).isPassable) return 0;
+                }
+            }
+    return 1;
+}
+
+/* PathNavigateGround.isSafeToStandAt. Node-type queries are WalkNodeProcessor
+ * getPathNodeType size-sweep (canBreakDoors=true, canEnterDoors=true). */
+static int pai_safe_stand(int ox, int oy, int oz,
+        int x, int y, int z, int sizeX, int sizeY, int sizeZ,
+        double vx, double vz, double d0, double d1) {
+    int i = x - sizeX / 2;
+    int j = z - sizeZ / 2;
+    int k, l;
+    if (!pai_position_clear(ox, oy, oz, i, y, j, sizeX, sizeY, sizeZ, vx, vz, d0, d1))
+        return 0;
+    for (k = i; k < i + sizeX; ++k) {
+        for (l = j; l < j + sizeZ; ++l) {
+            double dx = (double)k + 0.5 - vx;
+            double dz = (double)l + 0.5 - vz;
+            if (dx * d0 + dz * d1 >= 0.0) {
+                int t, t2;
+                float f;
+                if (!pnp_in(k - ox, (y - 1) - oy, l - oz) ||
+                    !pnp_in(k - ox, y - oy, l - oz))
+                    return 0;
+                t = pnp_getPathNodeTypeSize(&pai_pf, k - ox, (y - 1) - oy, l - oz,
+                                           sizeX, sizeY, sizeZ, 1, 1);
+                if (t == PNT_WATER || t == PNT_LAVA || t == PNT_OPEN) return 0;
+                t2 = pnp_getPathNodeTypeSize(&pai_pf, k - ox, y - oy, l - oz,
+                                            sizeX, sizeY, sizeZ, 1, 1);
+                f = pnp_getPathPriority(&pai_pf.ent, t2);
+                if (f < 0.0f || f >= 8.0f) return 0;
+                if (t2 == PNT_DAMAGE_FIRE || t2 == PNT_DANGER_FIRE || t2 == PNT_DAMAGE_OTHER)
+                    return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+/* PathNavigateGround.isDirectPathBetweenPoints. */
+static int pai_direct_path(int ox, int oy, int oz,
+        double x1, double y1, double z1, double x2, double y2, double z2,
+        int sizeX, int sizeY, int sizeZ) {
+    int i = pnp_floor_d(x1);
+    int j = pnp_floor_d(z1);
+    double d0 = x2 - x1;
+    double d1 = z2 - z1;
+    double d2 = d0 * d0 + d1 * d1;
+    double d3, d4, d5, d6, d7;
+    int k, l, i1, j1, k1, l1;
+    (void)y2;
+    if (d2 < 1.0e-8) return 0;
+    d3 = 1.0 / sqrt(d2);
+    d0 *= d3;
+    d1 *= d3;
+    sizeX += 2;
+    sizeZ += 2;
+    if (!pai_safe_stand(ox, oy, oz, i, (int)y1, j, sizeX, sizeY, sizeZ, x1, z1, d0, d1))
+        return 0;
+    sizeX -= 2;
+    sizeZ -= 2;
+    d4 = 1.0 / fabs(d0);
+    d5 = 1.0 / fabs(d1);
+    d6 = (double)i - x1;
+    d7 = (double)j - z1;
+    if (d0 >= 0.0) ++d6;
+    if (d1 >= 0.0) ++d7;
+    d6 = d6 / d0;
+    d7 = d7 / d1;
+    k = d0 < 0.0 ? -1 : 1;
+    l = d1 < 0.0 ? -1 : 1;
+    i1 = pnp_floor_d(x2);
+    j1 = pnp_floor_d(z2);
+    k1 = i1 - i;
+    l1 = j1 - j;
+    while (k1 * k > 0 || l1 * l > 0) {
+        if (d6 < d7) {
+            d6 += d4;
+            i += k;
+            k1 = i1 - i;
+        } else {
+            d7 += d5;
+            j += l;
+            l1 = j1 - j;
+        }
+        if (!pai_safe_stand(ox, oy, oz, i, (int)y1, j, sizeX, sizeY, sizeZ, x1, z1, d0, d1))
+            return 0;
+    }
+    return 1;
+}
+
+static void pai_nav_apply(GmMobLive *m, EwStore *s, int i) {
+    float width, height;
+    int off, idx, n;
+    pai_size(s->type[i], &width, &height);
+    n = m->det_nav_n[i];
+    idx = m->det_nav_i[i];
+    if (n <= 0 || idx >= n) {
+        s->path_len[i] = 0;
+        return;
+    }
+    off = pnp_floor_d((double)(width + 1.0f));
+    s->path_tx[i] = (double)m->det_nav_x[i][idx] + (double)off * 0.5;
+    s->path_ty[i] = (double)m->det_nav_y[i][idx];
+    s->path_tz[i] = (double)m->det_nav_z[i][idx] + (double)off * 0.5;
+    s->path_len[i] = 1;
+}
+
+/* PathNavigate.pathFollow: close-advance then isDirectPathBetweenPoints skip.
+ * Called after goalSelector (setPath) to match EntityLiving.updateEntityActionState. */
+static void pai_nav_follow(GmMobLive *m, GmWorld *w, EwStore *s, int i) {
+    float width, height, maxDist;
+    int idx, n, j, same_y_end, k, l, i1, ox, oy, oz;
+    double ex, ey, ez;
+    if (!pai_det() || m->det_nav_n[i] == 0) return;
+    pai_size(s->type[i], &width, &height);
+    maxDist = width > 0.75f ? width * 0.5f : 0.75f - width * 0.5f;
+    idx = m->det_nav_i[i];
+    n = m->det_nav_n[i];
+    ex = s->x[i];
+    ey = (double)((int)(s->y[i] + 0.5));
+    ez = s->z[i];
+    same_y_end = n;
+    for (j = idx; j < n; ++j) {
+        if ((double)m->det_nav_y[i][j] != floor(ey)) {
+            same_y_end = j;
+            break;
+        }
+    }
+    if (idx < n) {
+        double cx = (double)m->det_nav_x[i][idx] + 0.5;
+        double cy = (double)m->det_nav_y[i][idx];
+        double cz = (double)m->det_nav_z[i][idx] + 0.5;
+        if (fabsf((float)(s->x[i] - cx)) < maxDist &&
+            fabsf((float)(s->z[i] - cz)) < maxDist &&
+            fabs(s->y[i] - cy) < 1.0)
+            m->det_nav_i[i] = (unsigned char)(idx + 1);
+    }
+    k = pai_ceil_f(width);
+    l = pai_ceil_f(height);
+    i1 = k;
+    if (m->det_nav_i[i] < n) {
+        pai_fill_pf(w, s, i, &ox, &oy, &oz);
+        for (j = same_y_end - 1; j >= (int)m->det_nav_i[i]; --j) {
+            int off = pnp_floor_d((double)(width + 1.0f));
+            double tx = (double)m->det_nav_x[i][j] + (double)off * 0.5;
+            double ty = (double)m->det_nav_y[i][j];
+            double tz = (double)m->det_nav_z[i][j] + (double)off * 0.5;
+            if (pai_direct_path(ox, oy, oz, ex, ey, ez, tx, ty, tz, k, l, i1)) {
+                m->det_nav_i[i] = (unsigned char)j;
+                break;
+            }
+        }
+    }
+    pai_nav_apply(m, s, i);
+}
+
+static int pai_find_path(GmMobLive *m, GmWorld *w, EwStore *s, int i,
+                         double tx, double ty, double tz) {
+    int ox, oy, oz, n, k;
+    pai_fill_pf(w, s, i, &ox, &oy, &oz);
+    n = pf12_findPath(&pai_pf,
+                      (double)mc_floor(tx) + 0.5 - (double)ox,
+                      (double)((int)ty) + 0.5 - (double)oy,
+                      (double)mc_floor(tz) + 0.5 - (double)oz,
+                      16.0f);
+    if (n <= 0) {
+        m->det_nav_n[i] = 0;
+        return 0;
+    }
+    if (n > PAI_NAV_MAX) n = PAI_NAV_MAX;
+    m->det_nav_n[i] = (unsigned char)n;
+    m->det_nav_i[i] = 0;
+    for (k = 0; k < n; ++k) {
+        m->det_nav_x[i][k] = (short)(pai_pf.resultPts[k * 3 + 0] + ox);
+        m->det_nav_y[i][k] = (short)(pai_pf.resultPts[k * 3 + 1] + oy);
+        m->det_nav_z[i][k] = (short)(pai_pf.resultPts[k * 3 + 2] + oz);
+    }
+    /* setPath does not pathFollow. onUpdateNavigation later this tick does. */
+    s->path_len[i] = 1;
+    return 1;
+}
+
 static void pai_set_path(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                          double x, double y, double z, double speed) {
     int bx = mc_floor(x), by = mc_floor(y), bz = mc_floor(z);
     s->path_tx[i] = x; s->path_ty[i] = y; s->path_tz[i] = z;
-    /* PathNavigate.tryMoveToXYZ returns false for an unreachable/solid goal.
-     * The live navigator remains direct, but it applies the same goal-cell
-     * standability gate before exposing a MOVE_TO intent. */
-    s->path_len[i] = by > 0 && solid_id(gm_world_block(w, bx, by - 1, bz)) &&
-                      !solid_id(gm_world_block(w, bx, by, bz)) &&
-                      !solid_id(gm_world_block(w, bx, by + 1, bz));
+    /* Knob-off keeps the old 3-high standability gate. Det runs PathFinder
+     * (pathfinding12 WalkNodeProcessor) and MOVE_TO follows PathPoints. */
+    if (pai_det()) {
+        if (!pai_find_path(m, w, s, i, x, y, z))
+            s->path_len[i] = 0;
+    } else {
+        s->path_len[i] = by > 0 && solid_id(gm_world_block(w, bx, by - 1, bz)) &&
+                          !solid_id(gm_world_block(w, bx, by, bz)) &&
+                          !solid_id(gm_world_block(w, bx, by + 1, bz));
+    }
     m->passive_nav_speed[i] = speed;
 }
 
@@ -523,6 +786,9 @@ static int pai_path_done(GmWorld *w, const EwStore *s, int i) {
     if (fabs(s->x[i] - s->path_tx[i]) < waypoint &&
         fabs(s->z[i] - s->path_tz[i]) < waypoint &&
         fabs(s->y[i] - s->path_ty[i]) < 1.0) return 1;
+    /* PathNavigate.noPath is the Path object. The RPG cell being solid is
+     * not a stop; A* walks to a neighbour. Det uses distance only. */
+    if (pai_det()) return 0;
     int bx = mc_floor(s->path_tx[i]), by = mc_floor(s->path_ty[i]);
     int bz = mc_floor(s->path_tz[i]);
     return !solid_id(gm_world_block(w, bx, by - 1, bz)) ||
@@ -585,10 +851,14 @@ static int pai_continue(const GmMobLive *m, GmWorld *w, const EwStore *s, int i,
     return 0;
 }
 
-static void pai_reset(GmMobLive *m, int i, int task) {
+static void pai_reset(GmMobLive *m, EwStore *s, int i, int task) {
     m->passive_tasks[i] &= ~PAI_BIT(task);
     if (task == PAI_EAT) m->passive_eat_time[i] = 0;
     if (task == PAI_WATCH) m->passive_watch_time[i] = 0;
+    if (pai_det() && (task == PAI_PANIC || task == PAI_WANDER)) {
+        m->det_nav_n[i] = 0;
+        s->path_len[i] = 0;
+    }
 }
 
 static int pai_try_start(GmMobLive *m, GmWorld *w, EwStore *s, int i, int task,
@@ -729,7 +999,6 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                      int *moving, int *jump, int *wandering, int *swim_jump,
                      double *nav_speed) {
     int type = s->type[i];
-    if (s->path_len[i] && pai_path_done(w, s, i)) s->path_len[i] = 0;
     int setup = (m->passive_task_tick[i]++ % 3) == 0;
     for (int task = 0; task < PAI_NTASKS; ++task) {
         if (pai_priority(type, task) >= 99) continue;
@@ -738,12 +1007,12 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
             if (using_task) {
                 if (!pai_can_use(m, type, i, task) ||
                     !pai_continue(m, w, s, i, task, px, py, pz))
-                    pai_reset(m, i, task);
+                    pai_reset(m, s, i, task);
             } else if (pai_can_use(m, type, i, task)) {
                 (void)pai_try_start(m, w, s, i, task, px, py, pz);
             }
         } else if (using_task && !pai_continue(m, w, s, i, task, px, py, pz)) {
-            pai_reset(m, i, task);
+            pai_reset(m, s, i, task);
         }
     }
 
@@ -771,6 +1040,11 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
             --m->passive_idle_time[i];
         }
     }
+
+    /* EntityLiving.updateEntityActionState: goalSelector then navigator. */
+    if (pai_det() && m->det_nav_n[i])
+        pai_nav_follow(m, w, s, i);
+    else if (s->path_len[i] && pai_path_done(w, s, i)) s->path_len[i] = 0;
 
     *moving = s->path_len[i] != 0;
     *wandering = *moving && (m->passive_tasks[i] & PAI_BIT(PAI_WANDER));
@@ -942,6 +1216,9 @@ static float held_damage(const PsvPlayer *p) {
     if (id == 272) return mc_combat_weapon_raw(2);
     if (id == 267) return mc_combat_weapon_raw(3);
     if (id == 276) return mc_combat_weapon_raw(4);
+    /* EntityPlayer.applyEntityAttributes ATTACK_DAMAGE=1.0. SharedMonster
+     * default 2.0 is the knob-off live-sim fist (test_mob_live). */
+    if (pai_det()) return 1.0f;
     return mc_combat_weapon_raw(0);
 }
 
@@ -1071,6 +1348,33 @@ int gm_mobs_player_attack(GmMobLive *m, const struct PsvPlayer *player_,
     }
     s->health[best] -= held_damage(p);
     mark_hurt(m, s, best);
+    /* EntityLivingBase.attackEntityFrom flag1: setBeenAttacked, knockBack,
+     * then playHurtSound->getSoundPitch (2 nextFloat). Knob-off keeps the
+     * old no-velocity path so test_mob_live stays byte-identical. */
+    if (pai_det() && gm_passive(s->type[best])) {
+        double xRatio = (p->ent.posX + ox) - s->x[best];
+        double zRatio = (p->ent.posZ + oz) - s->z[best];
+        JavaRandom *jr = pai_jr(m, best);
+        (void)jrand_double(jr); /* EntityLivingBase.setBeenAttacked */
+        if (jrand_double(jr) >= 0.0 &&
+            xRatio * xRatio + zRatio * zRatio >= 1.0e-4) {
+            float f = (float)sqrt(xRatio * xRatio + zRatio * zRatio);
+            /* attackEntityFrom passes 0.4F; (double)0.4F is 0.4000000059604645. */
+            const double strength = (double)0.4f;
+            s->vx[best] *= 0.5;
+            s->vz[best] *= 0.5;
+            s->vx[best] -= xRatio / (double)f * strength;
+            s->vz[best] -= zRatio / (double)f * strength;
+            if (s->on_ground[best]) {
+                s->vy[best] *= 0.5;
+                s->vy[best] += strength;
+                if (s->vy[best] > 0.4000000059604645)
+                    s->vy[best] = 0.4000000059604645;
+            }
+        }
+        (void)jrand_float(jr);
+        (void)jrand_float(jr);
+    }
     damage_held_weapon((PsvPlayer *)p);
     m->player_attack_cooldown = 10;
     if (s->health[best] <= 0.0f) mob_drop(m, s, best, drops);
@@ -2013,7 +2317,9 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         if(gm_is_slimey(type)){
             m->squish_factor[i] += (m->squish_amount[i] - m->squish_factor[i]) * 0.5f;
         }
-        if(moving&&type!=EW_TYPE_GHAST){
+        /* Hostile-era step-up / hole-abort. EntityMoveHelper owns jump on the
+         * det passive path; PathNavigateGround does not sample 0.9 ahead. */
+        if(moving&&type!=EW_TYPE_GHAST && !(pai_det() && passive)){
             double mvx=nx->path_tx[i]-now->x[i],mvz=nx->path_tz[i]-now->z[i];
             double len=sqrt(mvx*mvx+mvz*mvz);
             if(len>0.01){
@@ -2029,8 +2335,12 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 }
             }
         }
+        /* EntityLivingBase.onLivingUpdate: updateEntityActionState (lookHelper)
+         * then moveEntityWithHeading. Det matches that; knob-off keeps look
+         * after travel so test_mob_live stays byte-identical. */
+        if(passive && pai_det()) pai_apply_current_look(m,nx,i,px,py,pz);
         move_mob(w,st,m,nx,i,moving,jump,swim_jump,nav_speed);
-        if(passive)pai_apply_current_look(m,nx,i,px,py,pz);
+        if(passive && !pai_det()) pai_apply_current_look(m,nx,i,px,py,pz);
         /* EntityLiving.updateDistance -> bodyHelper, once from onUpdate headTurn. */
         if(passive && pai_det()) pai_body_update(m, nx, now, i);
         if(passive && pai_det() && type==EW_TYPE_CHICKEN){
