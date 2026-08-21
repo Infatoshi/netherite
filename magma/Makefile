@@ -540,38 +540,10 @@ blaze_cuda_so: ../blaze/env/blaze_cuda.so
 	    -Xcompiler -fPIC --shared ../blaze/env/blaze_cuda.cu \
 	    ../blaze/env/blaze_snapshot.c -o $@
 
-# cpolicy: fused C/CUDA rollout policy forward (.so, dual-arch via BLAZE_SM).
-# Not part of the sim-fidelity contract. The native gate compares the CUDA
-# result with direct FP32 CPU loops.
-.PHONY: cpolicy_so
-cpolicy_so: ../blaze/rl/cpolicy/cpolicy_fwd.so
-../blaze/rl/cpolicy/cpolicy_fwd.so: ../blaze/rl/cpolicy/cpolicy_fwd.cu \
-                                    ../blaze/rl/cpolicy/cpolicy_fwd.h
-	$(NVCC) -O3 $(BLAZE_NVCODE) -I../blaze/rl/cpolicy \
-	    -Xcompiler -fPIC --shared ../blaze/rl/cpolicy/cpolicy_fwd.cu \
-	    -lcudnn -lcublas -o $@
-
-# C++ FP32 trainer hot loop. LibTorch dispatches convolution/GEMM work to
-# cuDNN/cuBLAS; cgraph_kernels.cu supplies captured grad clipping and Adam.
-# CMake emits both sm_86 and sm_120 for the lane-owned CUDA translation unit.
-.PHONY: cgraph_bin
-cgraph_bin: ../blaze/rl/cgraph/build/cgraph_train
-../blaze/rl/cgraph/build/cgraph_train: \
-        ../blaze/rl/cgraph/cgraph_train.cpp \
-        ../blaze/rl/cgraph/cgraph_kernels.cu \
-        ../blaze/rl/cgraph/cgraph_kernels.h \
-        ../blaze/rl/cgraph/native_env.h \
-        ../blaze/rl/cgraph/native_reward.h \
-        ../blaze/rl/cgraph/ppo_model.h \
-        ../blaze/rl/cgraph/CMakeLists.txt \
-        ../blaze/rl/cgraph/build_cgraph.sh
-	BLAZE_SM="$(BLAZE_SM)" bash ../blaze/rl/cgraph/build_cgraph.sh
-
 clean:
 	rm -f magma_world magma_game magma_game_dbg magma_game_cuda magma_game_metal
 	rm -f metal/raster_kernels.air metal/raster_kernels.metallib
 	rm -f ../blaze/env/blaze_verify ../blaze/env/blaze_cpu.so ../blaze/env/blaze_cuda.so ../blaze/env/blaze_metal_obs.so ../blaze/env/blaze_metal_obs.air ../blaze/env/blaze_metal_obs.metallib
-	rm -f ../blaze/rl/cpolicy/cpolicy_fwd.so
 	find . -name '*.o' -delete
 	find . -name '*.d' -delete
 	rm -f tests/test_raster_smoke tests/test_transform tests/test_present tests/test_scene tests/test_world \
