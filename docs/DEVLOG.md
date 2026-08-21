@@ -1,5 +1,18 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 detmob Entity.rand experiment (lane/detmob)
+
+Default-off. Mixin reseeds Entity.rand at ctor RETURN (Mixin 0.7.5
+forbids INVOKE+Shift in a ctor). Recorder logs per-entity seed48 +
+AI hydrate + erng. Magma `det_entity_rng` consumes Java LCG in
+`magma/game/entity_rand_census.tsv` order. Tape
+`scenario_detmob_passive_20260821T142333Z.jsonl`: seed 0, 1211 client
+ticks, 3 standing sheep (eid 3705/3706/3708). Gate: unique-server
+snapshots, cursors match (`draws_between=0`), first_div t=81 eid=3705
+hyaw 2 ULP (`0xc36596d6` vs `0xc36596d8`) — look-helper
+MathHelper.atan2 LUT vs libm, not RNG. Phase C not attempted.
+Default path: `test_mob_live` sheep onsets 45,330 unchanged.
+
 ## 2026-08-21 eval --stage ladder
 
 `out/blaze/rl/eval --stage 0` (default) is stdout+stderr byte-identical to

@@ -2232,6 +2232,7 @@ public class Recorder {
           .append(",\"yaw\":").append(e.rotationYaw)
           .append(",\"pitch\":").append(e.rotationPitch)
           .append(",\"hyaw\":").append(e.rotationYawHead)
+          .append(",\"ryaw\":").append(e.renderYawOffset)
           .append(",\"hp\":").append(hp)
           .append(",\"og\":").append(e.onGround ? 1 : 0)
           .append(",\"lst\":").append(e.livingSoundTime)

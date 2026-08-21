@@ -54,6 +54,7 @@ typedef struct {
     double passive_nav_speed[EW_MAX_ENTITIES];
     float passive_head_yaw[EW_MAX_ENTITIES];
     float passive_head_pitch[EW_MAX_ENTITIES];
+    float passive_render_yaw[EW_MAX_ENTITIES]; /* EntityLivingBase.renderYawOffset */
     unsigned char passive_sheared[EW_MAX_ENTITIES];
     int fire_ticks[EW_MAX_ENTITIES];             /* daylight burn */
     int despawn_ticks[EW_MAX_ENTITIES];          /* ticks spent >32 blocks from player */

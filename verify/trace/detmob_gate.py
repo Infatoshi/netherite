@@ -57,6 +57,42 @@ def load_tape(path: Path):
     return header, rows
 
 
+def _erng_map(rec):
+    return {int(e["eid"]): e for e in (rec.get("erng") or [])}
+
+
+def _snap_key(ents, stand):
+    key = []
+    for eid in stand:
+        e = ents.get(eid)
+        if e is None:
+            key.append((eid, None))
+            continue
+        key.append((
+            eid, int(e.get("seed48", -1)),
+            e.get("x"), e.get("y"), e.get("z"),
+            e.get("yaw"), e.get("pitch"), e.get("hyaw"),
+            int(e.get("lst", 0)), int(e.get("age", 0)), int(e.get("tt", 0)),
+        ))
+    return tuple(key)
+
+
+def unique_server_rows(rows, stand):
+    """Drop extra client ticks that reprint the same server Entity.rand snapshot."""
+    out = []
+    prev = None
+    for rec in rows:
+        ents = _erng_map(rec)
+        if not ents:
+            continue
+        key = _snap_key(ents, stand)
+        if key == prev:
+            continue
+        out.append(rec)
+        prev = key
+    return out
+
+
 def standing_ids(header, rows):
     ents = header.get("entity_rng") or []
     ids = []
@@ -68,11 +104,7 @@ def standing_ids(header, rows):
         x0, y0, z0 = e["x"], e["y"], e["z"]
         moved = False
         for row in rows:
-            hit = None
-            for er in row.get("erng") or []:
-                if int(er.get("eid", -1)) == eid:
-                    hit = er
-                    break
+            hit = _erng_map(row).get(eid)
             if hit is None:
                 continue
             if hit["x"] != x0 or hit["y"] != y0 or hit["z"] != z0:
@@ -83,19 +115,18 @@ def standing_ids(header, rows):
     return ids
 
 
-def write_fixture(path: Path, header, rows, stand):
-    by_id = {int(e["eid"]): e for e in (header.get("entity_rng") or [])}
+def write_fixture(path: Path, header, hydrate, n_ticks, stand):
     px, py, pz = header["x"], header["y"], header["z"]
     pyaw, ppitch = header.get("yaw", 0.0), header.get("pitch", 0.0)
     n = 0
     lines = [
         f"seed {int(header.get('seed', 0))}",
-        f"ticks {len(rows)}",
+        f"ticks {n_ticks}",
         f"player {px} {py} {pz} {pyaw} {ppitch}",
     ]
     body = []
     for eid in stand:
-        e = by_id[eid]
+        e = hydrate[eid]
         kind = PASSIVE[e["type"]]
         body.append(
             "e {eid} {kind} {x} {y} {z} {yaw} {pitch} {hyaw} {seed48} "
@@ -137,7 +168,8 @@ def tape_erng_by_tick(rows):
     return out
 
 
-def first_div(stand, rows, mag, tape_erng):
+def first_div(stand, series, mag):
+    """series[0] is hydrate; magma dump t=i is compared to series[i+1]."""
     fields = (
         ("x", "x", "d"),
         ("y", "y", "d"),
@@ -146,17 +178,18 @@ def first_div(stand, rows, mag, tape_erng):
         ("pitch", "pitch", "f"),
         ("hyaw", "hyaw", "f"),
     )
-    for rec in rows:
-        t = int(rec["t"])
-        if t not in mag:
-            return t, None, "missing_magma_tick", None, None, None
+    for i, rec in enumerate(series[1:]):
+        tape_t = int(rec["t"])
+        if i not in mag:
+            return tape_t, None, "missing_magma_tick", None, None, None
+        te_map = _erng_map(rec)
         for eid in stand:
-            te = tape_erng.get(t, {}).get(eid)
-            me = mag[t].get(eid)
+            te = te_map.get(eid)
+            me = mag[i].get(eid)
             if te is None:
                 continue
             if me is None:
-                return t, eid, "missing_magma_ent", None, None, None
+                return tape_t, eid, "missing_magma_ent", None, None, None
             for tf, mf, kind in fields:
                 tv, mv = te.get(tf), me.get(mf)
                 if tv is None or mv is None:
@@ -169,7 +202,7 @@ def first_div(stand, rows, mag, tape_erng):
                         continue
                 ts, ms = int(te.get("seed48", -1)), int(me.get("seed48", -1))
                 delta = draws_between(ts, ms) if ts >= 0 and ms >= 0 else None
-                return t, eid, tf, tv, mv, (ts, ms, delta)
+                return tape_t, eid, tf, tv, mv, (ts, ms, delta)
     return None, None, None, None, None, None
 
 
@@ -195,22 +228,37 @@ def main(argv: list[str]) -> int:
     if not stand:
         print("BLOCKED  no standing passives (cow/sheep/pig/chicken with constant pos)")
         return 2
+    series = unique_server_rows(rows, stand)
+    if len(series) < 2:
+        print("BLOCKED  fewer than 2 unique server Entity.rand snapshots")
+        return 2
+    hydrate = _erng_map(series[0])
+    missing = [eid for eid in stand if eid not in hydrate]
+    if missing:
+        print(f"BLOCKED  standing eids missing from first erng: {missing}")
+        return 2
+    n_ticks = len(series) - 1
     outdir = REPO / "out" / "verify" / "detmob"
     outdir.mkdir(parents=True, exist_ok=True)
     fixture = outdir / "fixture.txt"
     magma_out = outdir / "magma.jsonl"
-    n = write_fixture(fixture, header, rows, stand)
-    print(f"tape {tape.name}: {len(rows)} ticks, {n} standing passives {stand}")
+    n = write_fixture(fixture, header, hydrate, n_ticks, stand)
+    print(
+        f"tape {tape.name}: {len(rows)} client ticks, {len(series)} unique server "
+        f"snaps, {n_ticks} magma ticks, {n} standing passives {stand}"
+    )
     sh = REPO / "magma" / "game" / "detmob_gate.sh"
     rc = subprocess.call(["bash", str(sh), str(fixture), str(magma_out)], cwd=str(REPO / "magma"))
     if rc != 0:
         print(f"BLOCKED  detmob_gate.sh rc={rc}")
         return 2
     mag = magma_by_tick(magma_out)
-    tape_e = tape_erng_by_tick(rows)
-    t, eid, field, tv, mv, cur = first_div(stand, rows, mag, tape_e)
+    t, eid, field, tv, mv, cur = first_div(stand, series, mag)
     if t is None:
-        print(f"PASS  bit-equal pos/yaw/pitch/hyaw for {n} standing entities over {len(rows)} ticks")
+        print(
+            f"PASS  bit-equal pos/yaw/pitch/hyaw for {n} standing entities "
+            f"over {n_ticks} server ticks"
+        )
         return 0
     extra = ""
     if cur is not None:

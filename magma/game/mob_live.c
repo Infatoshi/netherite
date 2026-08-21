@@ -201,6 +201,7 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->passive_nav_speed[slot] = 0.0;
     m->passive_head_yaw[slot] = s ? s->yaw[slot] : 0.0f;
     m->passive_head_pitch[slot] = 0.0f;
+    m->passive_render_yaw[slot] = m->passive_head_yaw[slot];
     m->passive_sheared[slot] = 0;
     m->ent_jr_seed[slot] = 0;
     m->living_sound_time[slot] = 0;
@@ -623,6 +624,7 @@ static void pai_look_update(GmMobLive *m, const EwStore *s, int i, int looking,
                             double look_x, double look_y, double look_z) {
     float pitch = 0.0f;
     float head = m->passive_head_yaw[i];
+    float body = pai_det() ? m->passive_render_yaw[i] : s->yaw[i];
     if (looking) {
         double dx = look_x - s->x[i];
         double dy = look_y - (s->y[i] + pai_eye_height(s->type[i]));
@@ -633,12 +635,12 @@ static void pai_look_update(GmMobLive *m, const EwStore *s, int i, int looking,
         pitch = pai_update_rotation(0.0f, target_pitch, 40.0f);
         head = pai_update_rotation(head, target_yaw, 10.0f);
     } else {
-        head = pai_update_rotation(head, s->yaw[i], 10.0f);
+        head = pai_update_rotation(head, body, 10.0f);
     }
     if (s->path_len[i]) {
-        float rel = pai_wrap_degrees(head - s->yaw[i]);
-        if (rel < -75.0f) head = s->yaw[i] - 75.0f;
-        if (rel > 75.0f) head = s->yaw[i] + 75.0f;
+        float rel = pai_wrap_degrees(head - body);
+        if (rel < -75.0f) head = body - 75.0f;
+        if (rel > 75.0f) head = body + 75.0f;
     }
     m->passive_head_yaw[i] = head;
     m->passive_head_pitch[i] = pitch;
@@ -806,6 +808,9 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
     m->chicken_egg[slot] = egg;
     m->passive_head_yaw[slot] = head_yaw;
     m->passive_head_pitch[slot] = pitch;
+    /* Look-helper idle target is renderYawOffset, not rotationYaw. Standing
+     * recstart has no ryaw field; head is already at the body offset. */
+    m->passive_render_yaw[slot] = head_yaw;
     if (eid >= m->next_id) m->next_id = eid + 1;
     ew_store_copy(next_store(m), s);
     return slot;
