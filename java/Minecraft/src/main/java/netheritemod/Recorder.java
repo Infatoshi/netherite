@@ -967,7 +967,11 @@ public class Recorder {
             cam.addProperty("display_h", mc.displayHeight);
             cam.addProperty("partial_ticks", 1.0F);
             try {
-                mc.entityRenderer.setupCameraTransform(1.0F, 0);
+                java.lang.reflect.Method sct =
+                    net.minecraft.client.renderer.EntityRenderer.class
+                        .getDeclaredMethod("setupCameraTransform", float.class, int.class);
+                sct.setAccessible(true);
+                sct.invoke(mc.entityRenderer, Float.valueOf(1.0F), Integer.valueOf(0));
                 java.nio.FloatBuffer mv = org.lwjgl.BufferUtils.createFloatBuffer(16);
                 java.nio.FloatBuffer pr = org.lwjgl.BufferUtils.createFloatBuffer(16);
                 org.lwjgl.opengl.GL11.glGetFloat(
@@ -1124,7 +1128,7 @@ public class Recorder {
                 for (int z = z0; z <= z1; z++) {
                     bp.setPos(x, y, z);
                     net.minecraft.block.state.IBlockState st = mc.world.getBlockState(bp);
-                    if (st.getBlock() != net.minecraft.init.Blocks.SLIME) continue;
+                    if (st.getBlock() != net.minecraft.init.Blocks.SLIME_BLOCK) continue;
                     nSlime++;
                     net.minecraft.client.renderer.block.model.IBakedModel model =
                         brd.getModelForState(st);
