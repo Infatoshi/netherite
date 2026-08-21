@@ -220,6 +220,11 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->charge[slot] = 0;
     m->blaze_on_fire[slot] = 0;
     m->boat_damage[slot] = 0;
+    m->det_persist[slot] = 0;
+    m->ent_jr_have_gauss[slot] = 0;
+    m->ent_jr_gauss[slot] = 0.0;
+    m->blaze_hot[slot] = 0;
+    m->blaze_hof[slot] = 0.5f;
     s_boat_delta_rot[slot] = 0.0f;
     s_boat_glide[slot] = 0.8f;
     if (!m->size[slot]) m->size[slot] = gm_is_slimey(s ? s->type[slot] : 0) ? 2 : 1;
@@ -305,6 +310,17 @@ enum {
 #define PAI_RNG 0x50414952u
 
 static int pai_priority(int type, int task) {
+    if (type == EW_TYPE_BLAZE) {
+        if (task == PAI_WANDER) return 7;
+        if (task == PAI_WATCH || task == PAI_IDLE) return 8;
+        return 99;
+    }
+    if (type == EW_TYPE_PIGMAN) {
+        if (task == PAI_SWIM) return 0;
+        if (task == PAI_WANDER) return 7;
+        if (task == PAI_WATCH || task == PAI_IDLE) return 8;
+        return 99;
+    }
     if (task == PAI_SWIM) return 0;
     if (task == PAI_PANIC) return 1;
     if (type == EW_TYPE_SHEEP) {
@@ -347,6 +363,8 @@ static double pai_panic_multiplier(int type) {
 }
 
 static void pai_size(int type, float *width, float *height) {
+    if (type == EW_TYPE_BLAZE) { *width = 0.6f; *height = 1.8f; return; }
+    if (type == EW_TYPE_PIGMAN) { *width = 0.6f; *height = 1.95f; return; }
     *width = 0.9f;
     if (type == EW_TYPE_SHEEP) *height = 1.3f;
     else if (type == EW_TYPE_PIG) *height = 0.9f;
@@ -362,6 +380,24 @@ static double pai_eye_height(int type) {
     if (type == EW_TYPE_COW) return 1.3;
     if (type == EW_TYPE_CHICKEN) return (double)height;
     return (double)(height * 0.85f);
+}
+
+static double pai_watch_range_sq(int type) {
+    /* EntityAIWatchClosest maxDistance: animals 6, blaze/pigman 8. */
+    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN) return 64.0;
+    return 36.0;
+}
+
+static float pai_avoid_water_p(int type) {
+    /* EntityAIWanderAvoidWater probability. Blaze passes 0.0F. */
+    if (type == EW_TYPE_BLAZE) return 0.0f;
+    return 0.001f;
+}
+
+static int pai_talk_interval(int type) {
+    /* EntityLiving.getTalkInterval=80; EntityAnimal overrides 120. */
+    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN) return 80;
+    return 120;
 }
 
 static u64 pai_rng_start(const GmMobLive *m, const EwStore *s, int i, int task) {
@@ -407,6 +443,30 @@ static float pai_float(GmMobLive *m, int i, u64 *stream) {
 static double pai_double(GmMobLive *m, int i, u64 *stream) {
     if (pai_det()) return jrand_double(pai_jr(m, i));
     return pai_rng_double(stream);
+}
+
+/* java.util.Random.nextGaussian polar method + one-value cache. */
+static double pai_gaussian(GmMobLive *m, int i) {
+    double v1, v2, s, mul;
+    if (m->ent_jr_have_gauss[i]) {
+        m->ent_jr_have_gauss[i] = 0;
+        return m->ent_jr_gauss[i];
+    }
+    do {
+        v1 = 2.0 * jrand_double(pai_jr(m, i)) - 1.0;
+        v2 = 2.0 * jrand_double(pai_jr(m, i)) - 1.0;
+        s = v1 * v1 + v2 * v2;
+    } while (s >= 1.0 || s == 0.0);
+    mul = sqrt(-2.0 * log(s) / s);
+    m->ent_jr_gauss[i] = v2 * mul;
+    m->ent_jr_have_gauss[i] = 1;
+    return v1 * mul;
+}
+
+static int pai_det_ai(int type) {
+    return type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN ||
+           type == EW_TYPE_SHEEP || type == EW_TYPE_PIG ||
+           type == EW_TYPE_COW || type == EW_TYPE_CHICKEN;
 }
 
 static int pai_in_material(GmWorld *w, const EwStore *s, int i, int lava) {
@@ -845,7 +905,8 @@ static int pai_continue(const GmMobLive *m, GmWorld *w, const EwStore *s, int i,
     if (task == PAI_EAT) return m->passive_eat_time[i] > 0;
     if (task == PAI_WATCH) {
         double dx = px - s->x[i], dy = py - s->y[i], dz = pz - s->z[i];
-        return dx * dx + dy * dy + dz * dz <= 36.0 && m->passive_watch_time[i] > 0;
+        return dx * dx + dy * dy + dz * dz <= pai_watch_range_sq(s->type[i]) &&
+               m->passive_watch_time[i] > 0;
     }
     if (task == PAI_IDLE) return m->passive_idle_time[i] >= 0;
     return 0;
@@ -891,7 +952,7 @@ static int pai_try_start(GmMobLive *m, GmWorld *w, EwStore *s, int i, int task,
             ok = pai_random_position(m, w, s, i, 15, 7, 1, &stream, &x, &y, &z);
             if (!ok) ok = pai_random_position(m, w, s, i, 10, 7, 0, &stream, &x, &y, &z);
         } else {
-            int land = pai_float(m, i, &stream) >= 0.001f;
+            int land = pai_float(m, i, &stream) >= pai_avoid_water_p(s->type[i]);
             ok = pai_random_position(m, w, s, i, 10, 7, land, &stream, &x, &y, &z);
         }
         if (!ok) return 0;
@@ -899,7 +960,7 @@ static int pai_try_start(GmMobLive *m, GmWorld *w, EwStore *s, int i, int task,
     } else if (task == PAI_WATCH) {
         if (pai_float(m, i, &stream) >= 0.02f) return 0;
         double dx = px - s->x[i], dy = py - s->y[i], dz = pz - s->z[i];
-        if (dx * dx + dy * dy + dz * dz > 36.0) return 0;
+        if (dx * dx + dy * dy + dz * dz > pai_watch_range_sq(s->type[i])) return 0;
         m->passive_watch_time[i] = 40 + pai_bound(m, i, &stream, 40);
     } else if (task == PAI_IDLE) {
         if (pai_float(m, i, &stream) >= 0.02f) return 0;
@@ -1000,6 +1061,18 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                      double *nav_speed) {
     int type = s->type[i];
     int setup = (m->passive_task_tick[i]++ % 3) == 0;
+    /* targetSelector then EntityBlaze.updateAITasks prefix then goalSelector. */
+    if (setup && pai_det() && type == EW_TYPE_BLAZE) {
+        u64 stream = pai_rng_start(m, s, i, 64);
+        (void)pai_bound(m, i, &stream, 10);
+    }
+    if (pai_det() && type == EW_TYPE_BLAZE) {
+        --m->blaze_hot[i];
+        if (m->blaze_hot[i] <= 0) {
+            m->blaze_hot[i] = 100;
+            m->blaze_hof[i] = 0.5f + (float)pai_gaussian(m, i) * 3.0f;
+        }
+    }
     for (int task = 0; task < PAI_NTASKS; ++task) {
         if (pai_priority(type, task) >= 99) continue;
         int using_task = (m->passive_tasks[i] & PAI_BIT(task)) != 0;
@@ -1124,7 +1197,7 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
                       int body_ticks) {
     int slot;
     EwStore *s;
-    if (!m || !gm_passive(type)) return -1;
+    if (!m || !pai_det_ai(type)) return -1;
     slot = gm_mobs_spawn(m, type, x, y, z);
     if (slot < 0) return -1;
     s = now_store(m);
@@ -1153,8 +1226,21 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
     m->passive_prev_head_yaw[slot] = prev_head_yaw;
     m->passive_body_ticks[slot] = body_ticks;
     if (eid >= m->next_id) m->next_id = eid + 1;
+    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN)
+        m->det_persist[slot] = 1;
     ew_store_copy(next_store(m), s);
     return slot;
+}
+
+void gm_mobs_det_rng_extra(GmMobLive *m, int slot, int have_gauss, double gauss,
+                           int height_off_time, float height_off, int persist, int anger) {
+    if (!m || slot < 0 || slot >= EW_MAX_ENTITIES) return;
+    m->ent_jr_have_gauss[slot] = have_gauss ? 1 : 0;
+    m->ent_jr_gauss[slot] = gauss;
+    m->blaze_hot[slot] = height_off_time;
+    m->blaze_hof[slot] = height_off;
+    if (persist) m->det_persist[slot] = 1;
+    if (anger > 0) m->anger[slot] = anger;
 }
 
 int gm_mobs_place_boat(GmMobLive *m, double x, double y, double z, float yaw) {
@@ -1390,13 +1476,16 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
     ehs_intent_from_ai(s->type[i], s->ai_state[i], moving, s->x[i], s->z[i],
                        s->path_tx[i], s->path_tz[i], s->path_tx[i], s->path_tz[i], &intent);
     if (!moving) intent.yaw = s->yaw[i];
-    if (gm_passive(s->type[i]) && moving) {
-        if (pai_det()) {
-            double ddx = s->path_tx[i] - s->x[i];
-            double ddz = s->path_tz[i] - s->z[i];
-            intent.yaw = pai_limit_angle(s->yaw[i], pai_atan2_yaw(ddz, ddx), 90.0f);
-        } else {
-            intent.yaw = pai_update_rotation(s->yaw[i], intent.yaw, 90.0f);
+    {
+        int det_ai = pai_det() && pai_det_ai(s->type[i]);
+        if ((gm_passive(s->type[i]) || det_ai) && moving) {
+            if (pai_det()) {
+                double ddx = s->path_tx[i] - s->x[i];
+                double ddz = s->path_tz[i] - s->z[i];
+                intent.yaw = pai_limit_angle(s->yaw[i], pai_atan2_yaw(ddz, ddx), 90.0f);
+            } else {
+                intent.yaw = pai_update_rotation(s->yaw[i], intent.yaw, 90.0f);
+            }
         }
     }
     if (moving && jump) intent.isJumping = 1;
@@ -1410,7 +1499,7 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
         liv.base.phys.box = mc_aabb_make(s->x[i] - w * 0.5, s->y[i], s->z[i] - w * 0.5,
                                          s->x[i] + w * 0.5, s->y[i] + h, s->z[i] + w * 0.5);
     }
-    if (gm_passive(s->type[i])) {
+    if (gm_passive(s->type[i]) || (pai_det() && pai_det_ai(s->type[i]))) {
         /* EntityMoveHelper MOVE_TO:
          *   setAIMoveSpeed((float)(navigatorSpeed * MOVEMENT_SPEED attr));
          * EntityLiving.setAIMoveSpeed writes that same value to moveForward.
@@ -1447,8 +1536,8 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
         return;
     }
     /* EntityBlaze.onLivingUpdate: slow fall (motionY *= 0.6 when falling).
-     * Full heightOffset hover from updateAITasks is not ported (needs its own
-     * randomized heightOffset timer); fall damping alone is the small half. */
+     * heightOffset gaussian is consumed in pai_tick. Hover motionY lift needs
+     * an attack target; ambient det tapes stay on fall damping. */
     if (s->type[i] == EW_TYPE_BLAZE && !liv.base.phys.onGround &&
         liv.base.phys.motionY < 0.0)
         liv.base.phys.motionY *= 0.6;
@@ -2040,7 +2129,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         if (type == EW_TYPE_PIGMAN && m->anger[i] > 0) --m->anger[i];
         double dx=px-now->x[i],dy=py-now->y[i],dz=pz-now->z[i];
         double d=sqrt(dx*dx+dy*dy+dz*dz), xz=sqrt(dx*dx+dz*dz);
-        if(hostile){
+        if(hostile && !(pai_det() && m->det_persist[i])){
             if(d>GM_MOB_DESPAWN_HARD){nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;continue;}
             if(d>GM_MOB_DESPAWN_SOFT){
                 if(++m->despawn_ticks[i]>=GM_MOB_DESPAWN_DELAY){
@@ -2087,15 +2176,16 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             m->charge[i]=0;
         }
 
-        if(passive && pai_det()){
+        if(pai_det() && pai_det_ai(type)){
             /* EntityLiving.onEntityUpdate living-sound, then ++entityAge + despawn.
-             * EntityAnimal.getTalkInterval=120; canDespawn=false (no death). */
+             * Animals talk 120; blaze/pigman talk 80. PersistenceRequired: age=0,
+             * no nextInt(800). */
             {
                 int lst = m->living_sound_time[i];
                 int sound_draw = jrand_int_bound(pai_jr(m, i), 1000);
                 m->living_sound_time[i] = lst + 1;
                 if (sound_draw < lst) {
-                    m->living_sound_time[i] = -120;
+                    m->living_sound_time[i] = -pai_talk_interval(type);
                     (void)jrand_float(pai_jr(m, i));
                     (void)jrand_float(pai_jr(m, i));
                 }
@@ -2103,7 +2193,9 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             {
                 double d3 = dx * dx + dy * dy + dz * dz;
                 m->entity_age[i]++;
-                if (m->entity_age[i] > 600) {
+                if (m->det_persist[i]) {
+                    m->entity_age[i] = 0;
+                } else if (m->entity_age[i] > 600) {
                     (void)jrand_int_bound(pai_jr(m, i), 800);
                     if (d3 < 1024.0) m->entity_age[i] = 0;
                 } else if (d3 < 1024.0) {
@@ -2111,7 +2203,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
                 }
             }
         }
-        if(passive){
+        if(passive || (pai_det() && pai_det_ai(type) && !aggro)){
             pai_tick(m,w,nx,i,px,py,pz,mob_griefing,
                      &moving,&jump,&wandering,&swim_jump,&nav_speed);
         /* Ghast AIFireballAttack: charge then fire large fireball. */
@@ -2319,7 +2411,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         }
         /* Hostile-era step-up / hole-abort. EntityMoveHelper owns jump on the
          * det passive path; PathNavigateGround does not sample 0.9 ahead. */
-        if(moving&&type!=EW_TYPE_GHAST && !(pai_det() && passive)){
+        if(moving&&type!=EW_TYPE_GHAST && !(pai_det() && pai_det_ai(type))){
             double mvx=nx->path_tx[i]-now->x[i],mvz=nx->path_tz[i]-now->z[i];
             double len=sqrt(mvx*mvx+mvz*mvz);
             if(len>0.01){
@@ -2338,11 +2430,11 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         /* EntityLivingBase.onLivingUpdate: updateEntityActionState (lookHelper)
          * then moveEntityWithHeading. Det matches that; knob-off keeps look
          * after travel so test_mob_live stays byte-identical. */
-        if(passive && pai_det()) pai_apply_current_look(m,nx,i,px,py,pz);
+        if(pai_det() && pai_det_ai(type)) pai_apply_current_look(m,nx,i,px,py,pz);
         move_mob(w,st,m,nx,i,moving,jump,swim_jump,nav_speed);
         if(passive && !pai_det()) pai_apply_current_look(m,nx,i,px,py,pz);
         /* EntityLiving.updateDistance -> bodyHelper, once from onUpdate headTurn. */
-        if(passive && pai_det()) pai_body_update(m, nx, now, i);
+        if(pai_det() && pai_det_ai(type)) pai_body_update(m, nx, now, i);
         if(passive && pai_det() && type==EW_TYPE_CHICKEN){
             if(--m->chicken_egg[i] <= 0){
                 (void)jrand_float(pai_jr(m, i));

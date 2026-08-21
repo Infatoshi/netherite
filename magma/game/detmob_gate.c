@@ -1,10 +1,10 @@
 /* detmob_gate.c — live magma vs tape pose compare with det_entity_rng=1.
  * Not wired into `make test`. See verify/trace/detmob_gate.py.
  *
- * World: seed-0 default overworld via gm_world_create_type / gm_world_ensure,
- * the same generator magma_game and tape replay use. No superflat, no planted
- * grass pads. Ground stencil (3x3x3 ids around floor(pos)) is asserted against
- * the tape header before any pose compare. */
+ * World: seed-0 default overworld, or DIM-1 / End via fixture `dim` +
+ * gm_runtime_set_dimension (same nf_run / end provider magma_game uses).
+ * No superflat, no planted pads. Ground stencil (3x3x3 ids around floor(pos))
+ * is asserted against the tape header before any pose compare. */
 #include "game/runtime.h"
 #include "core/config.h"
 #include "mc_rng.h"
@@ -21,8 +21,9 @@
 typedef struct {
     int eid, type, lst, age, tt, tasks, watch, idle, eat, egg, og, bht;
     int have_g, g_bx, g_by, g_bz, g[DET_G];
-    double x, y, z, ix, iz, hp;
-    float yaw, pitch, hyaw, ryaw, bhp;
+    int hg, hot, pr, anger;
+    double x, y, z, ix, iz, hp, gv;
+    float yaw, pitch, hyaw, ryaw, bhp, hof;
     unsigned long long seed48;
 } DetEnt;
 
@@ -31,7 +32,16 @@ static int parse_type(const char *s) {
     if (!strcmp(s, "sheep") || !strcmp(s, "EntitySheep")) return EW_TYPE_SHEEP;
     if (!strcmp(s, "pig") || !strcmp(s, "EntityPig")) return EW_TYPE_PIG;
     if (!strcmp(s, "chicken") || !strcmp(s, "EntityChicken")) return EW_TYPE_CHICKEN;
+    if (!strcmp(s, "blaze") || !strcmp(s, "EntityBlaze")) return EW_TYPE_BLAZE;
+    if (!strcmp(s, "pigman") || !strcmp(s, "EntityPigZombie") ||
+        !strcmp(s, "zombie_pigman")) return EW_TYPE_PIGMAN;
     return -1;
+}
+
+static int tracked_type(int type) {
+    return type == EW_TYPE_COW || type == EW_TYPE_SHEEP ||
+           type == EW_TYPE_PIG || type == EW_TYPE_CHICKEN ||
+           type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN;
 }
 
 static unsigned u32bits(float f) {
@@ -61,11 +71,11 @@ static void stencil_ids(const GmWorld *w, int bx, int by, int bz, int *out) {
 static int load_fixture(const char *path, long long *seed, long long *wtime,
                         double *px, double *py, double *pz,
                         float *pyaw, float *ppitch, int *nticks, DetEnt *ents, int *nents,
-                        int *atk, int *natk) {
+                        int *atk, int *natk, int *dim) {
     FILE *f = fopen(path, "r");
     char line[2048];
     if (!f) { perror(path); return 0; }
-    *nents = 0; *nticks = 0; *seed = 0; *wtime = 6000; *natk = 0;
+    *nents = 0; *nticks = 0; *seed = 0; *wtime = 6000; *natk = 0; *dim = 0;
     *px = 8.5; *py = 5.0; *pz = 8.5; *pyaw = 0; *ppitch = 0;
     while (fgets(line, sizeof line, f)) {
         int t;
@@ -73,6 +83,7 @@ static int load_fixture(const char *path, long long *seed, long long *wtime,
         if (sscanf(line, "seed %lld", seed) == 1) continue;
         if (sscanf(line, "time %lld", wtime) == 1) continue;
         if (sscanf(line, "ticks %d", nticks) == 1) continue;
+        if (sscanf(line, "dim %d", dim) == 1) continue;
         if (sscanf(line, "player %lf %lf %lf %f %f", px, py, pz, pyaw, ppitch) == 5)
             continue;
         if (sscanf(line, "atk %d", &t) == 1) {
@@ -106,17 +117,26 @@ static int load_fixture(const char *path, long long *seed, long long *wtime,
             char tname[32];
             int got;
             memset(&e, 0, sizeof e);
+            long long gv_bits = 0;
             got = sscanf(line,
-                "e %d %31s %lf %lf %lf %f %f %f %llu %d %d %d %d %d %d %lf %lf %d %d %d %f %f %d %lf",
+                "e %d %31s %lf %lf %lf %f %f %f %llu %d %d %d %d %d %d %lf %lf %d %d %d %f %f %d %lf "
+                "%d %lld %d %f %d %d",
                 &e.eid, tname, &e.x, &e.y, &e.z, &e.yaw, &e.pitch, &e.hyaw, &e.seed48,
                 &e.lst, &e.age, &e.tt, &e.tasks, &e.watch, &e.idle, &e.ix, &e.iz,
-                &e.eat, &e.egg, &e.og, &e.ryaw, &e.bhp, &e.bht, &e.hp);
+                &e.eat, &e.egg, &e.og, &e.ryaw, &e.bhp, &e.bht, &e.hp,
+                &e.hg, &gv_bits, &e.hot, &e.hof, &e.pr, &e.anger);
             e.type = parse_type(tname);
             if (got >= 9 && e.type >= 0 && *nents < DET_MAX) {
                 if (got < 21) e.ryaw = e.hyaw;
                 if (got < 22) e.bhp = e.hyaw;
                 if (got < 23) e.bht = 0;
                 if (got < 24) e.hp = 0;
+                if (got < 25) e.hg = 0;
+                if (got >= 26) memcpy(&e.gv, &gv_bits, 8);
+                if (got < 27) e.hot = 0;
+                if (got < 28) e.hof = 0.5f;
+                if (got < 29) e.pr = 0;
+                if (got < 30) e.anger = 0;
                 ents[(*nents)++] = e;
             }
         }
@@ -127,7 +147,7 @@ static int load_fixture(const char *path, long long *seed, long long *wtime,
 
 int main(int argc, char **argv) {
     DetEnt ents[DET_MAX];
-    int nents = 0, nticks = 0, i, t, natk = 0, atk[DET_ATK_MAX];
+    int nents = 0, nticks = 0, i, t, natk = 0, atk[DET_ATK_MAX], dim = 0;
     long long seed = 0, wtime = 6000;
     double px, py, pz;
     float pyaw, ppitch;
@@ -146,7 +166,7 @@ int main(int argc, char **argv) {
         return 2;
     }
     if (!load_fixture(argv[1], &seed, &wtime, &px, &py, &pz, &pyaw, &ppitch,
-                      &nticks, ents, &nents, atk, &natk))
+                      &nticks, ents, &nents, atk, &natk, &dim))
         return 2;
     if (nents <= 0) { fprintf(stderr, "detmob_gate: no entities in fixture\n"); return 2; }
     if (nticks <= 0) nticks = 1;
@@ -170,6 +190,14 @@ int main(int argc, char **argv) {
     gr.mobGriefing = 0;
     gm_runtime_set_gamerules(&r, &gr);
     gm_runtime_set_time(&r, wtime);
+    if (dim != 0) {
+        if (!gm_runtime_set_dimension(&r, dim)) {
+            fprintf(stderr, "detmob_gate: set_dimension %d failed\n", dim);
+            gm_runtime_destroy(&r);
+            return 1;
+        }
+        r.mobs.active_dimension = dim;
+    }
     gm_runtime_set_pose(&r, px, py, pz, pyaw, ppitch);
     gm_world_ensure(r.world, floordiv16((int)floor(px)),
                     floordiv16((int)floor(pz)), 4);
@@ -227,6 +255,8 @@ int main(int argc, char **argv) {
             r.mobs.a.health[slot] = (float)ents[i].hp;
             r.mobs.b.health[slot] = (float)ents[i].hp;
         }
+        gm_mobs_det_rng_extra(&r.mobs, slot, ents[i].hg, ents[i].gv,
+                              ents[i].hot, ents[i].hof, ents[i].pr, ents[i].anger);
     }
 
     memset(&idle, 0, sizeof idle);
@@ -241,8 +271,7 @@ int main(int argc, char **argv) {
         s = r.mobs.current ? &r.mobs.b : &r.mobs.a;
         for (slot = 1; slot < EW_MAX_ENTITIES; ++slot) {
             if (!s->alive[slot]) continue;
-            if (s->type[slot] != EW_TYPE_COW && s->type[slot] != EW_TYPE_SHEEP &&
-                s->type[slot] != EW_TYPE_PIG && s->type[slot] != EW_TYPE_CHICKEN) continue;
+            if (!tracked_type(s->type[slot])) continue;
             fprintf(out,
                 "{\"t\":%d,\"eid\":%d,\"x\":%.17g,\"y\":%.17g,\"z\":%.17g,"
                 "\"yaw\":%.9g,\"pitch\":%.9g,\"hyaw\":%.9g,\"ryaw\":%.9g,\"bt\":%d,"

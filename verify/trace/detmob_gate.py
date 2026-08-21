@@ -31,6 +31,15 @@ PASSIVE = {
     "chicken": "chicken",
 }
 
+TRACKED = {
+    **PASSIVE,
+    "EntityBlaze": "blaze",
+    "EntityPigZombie": "pigman",
+    "blaze": "blaze",
+    "pigman": "pigman",
+    "zombie_pigman": "pigman",
+}
+
 REPO = Path(__file__).resolve().parents[2]
 
 
@@ -95,13 +104,13 @@ def unique_server_rows(rows, stand):
 
 
 def tracked_ids(header, rows):
-    """Passives in the recstart snapshot. Walkers stay in the set (wander tape)."""
+    """Tracked living in the recstart snapshot. Walkers stay in the set."""
     _ = rows
     ents = header.get("entity_rng") or []
     ids = []
     for e in ents:
         t = e.get("type", "")
-        if t not in PASSIVE:
+        if t not in TRACKED:
             continue
         ids.append(int(e["eid"]))
     return ids
@@ -193,20 +202,22 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
         f"seed {int(header.get('seed', 0))}",
         f"time {int(header.get('world_time', 6000))}",
         f"ticks {n_ticks}",
+        f"dim {int(header.get('dim', 0))}",
         f"player {px} {py} {pz} {pyaw} {ppitch}",
     ]
     body = []
     ground = []
     for eid in stand:
         e = hydrate[eid]
-        kind = PASSIVE[e["type"]]
+        kind = TRACKED[e["type"]]
         hyaw = e.get("hyaw", e.get("yaw", 0.0))
         ryaw = e.get("ryaw", hyaw)
         hp = e.get("hp", 0.0)
+        gv_bits = int(e.get("gv", 0) or 0)
         body.append(
             "e {eid} {kind} {x} {y} {z} {yaw} {pitch} {hyaw} {seed48} "
             "{lst} {age} {tt} {tasks} {watch} {idle} {ix} {iz} {eat} {egg} {og} "
-            "{ryaw} {bhp} {bht} {hp}".format(
+            "{ryaw} {bhp} {bht} {hp} {hg} {gv} {hot} {hof} {pr} {anger}".format(
                 eid=eid, kind=kind,
                 x=e["x"], y=e["y"], z=e["z"],
                 yaw=e.get("yaw", 0.0), pitch=e.get("pitch", 0.0),
@@ -222,6 +233,12 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
                 bhp=e.get("bhp", hyaw),
                 bht=int(e.get("bht", 0)),
                 hp=hp,
+                hg=int(e.get("hg", 0) or 0),
+                gv=gv_bits,
+                hot=int(e.get("hot", 0) or 0),
+                hof=float(e.get("hof", 0.5) if e.get("hof") is not None else 0.5),
+                pr=int(e.get("pr", 0) or 0),
+                anger=int(e.get("anger", 0) or 0),
             )
         )
         ginfo = _header_g(header, eid)
@@ -380,7 +397,7 @@ def main(argv: list[str]) -> int:
         return 2
     stand = tracked_ids(header, rows)
     if not stand:
-        print("BLOCKED  no passives (cow/sheep/pig/chicken) in header entity_rng")
+        print("BLOCKED  no tracked living (cow/sheep/pig/chicken/blaze/pigman) in header entity_rng")
         return 2
     series = unique_server_rows(rows, stand)
     if len(series) < 2:
@@ -400,8 +417,8 @@ def main(argv: list[str]) -> int:
     n, n_ground = write_fixture(fixture, header, hydrate, n_ticks, stand, atk_ticks)
     print(
         f"tape {tape.name}: {len(rows)} client ticks, {len(series)} unique server "
-        f"snaps, {n_ticks} magma ticks, {n} passives {stand}, "
-        f"ground_stencil={n_ground}, atk_ticks={atk_ticks}"
+        f"snaps, {n_ticks} magma ticks, {n} tracked {stand}, "
+        f"dim={int(header.get('dim', 0))}, ground_stencil={n_ground}, atk_ticks={atk_ticks}"
     )
     sh = REPO / "magma" / "game" / "detmob_gate.sh"
     rc = subprocess.call(["bash", str(sh), str(fixture), str(magma_out)], cwd=str(REPO / "magma"))
@@ -425,7 +442,7 @@ def main(argv: list[str]) -> int:
             f"walked eid={who} xz={dist:.6g}" if dist >= 0.05 else "standing"
         )
         print(
-            f"PASS  bit-equal pos/yaw/pitch/hyaw for {n} passives "
+            f"PASS  bit-equal pos/yaw/pitch/hyaw for {n} tracked "
             f"over {n_ticks} server ticks  {walk_s}"
         )
         return 0
