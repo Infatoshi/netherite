@@ -943,10 +943,18 @@ int main(int argc, char **argv)
             return 1;
         }
     }
-    snprintf(script, sizeof script, "%s/magma_script.jsonl", out);
-    snprintf(statep, sizeof statep, "%s/magma_state.jsonl", out);
-    snprintf(conf, sizeof conf, "%s/magma_run.conf", out);
-    snprintf(snap_buf, sizeof snap_buf, "%s.snapshot_patch.jsonl", tape);
+    if (snprintf(script, sizeof script, "%s/magma_script.jsonl", out) >=
+            (int)sizeof script ||
+        snprintf(statep, sizeof statep, "%s/magma_state.jsonl", out) >=
+            (int)sizeof statep ||
+        snprintf(conf, sizeof conf, "%s/magma_run.conf", out) >=
+            (int)sizeof conf ||
+        snprintf(snap_buf, sizeof snap_buf, "%s.snapshot_patch.jsonl", tape) >=
+            (int)sizeof snap_buf) {
+        fprintf(stderr, "out/tape path too long\n");
+        free(ticks);
+        return 1;
+    }
     if (access(snap_buf, R_OK) == 0)
         snap = snap_buf;
     if (!emit_script(script, &hdr, ticks, nuse, snap, snap_r, &snap_n,
