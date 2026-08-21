@@ -81,16 +81,19 @@ SAN_CFLAGS := -std=c11 -O1 -g -ffp-contract=off -Wall -Wextra -Werror \
 SAN_OUT := $(OUT)/sanitize
 
 TEST_BIN := $(OUT)/test_train_config
+TEST_CHAIN_BIN := $(OUT)/test_chain_reward
 SMOKE_BIN := $(OUT)/ppo
 SAN_TEST_BIN := $(SAN_OUT)/test_train_config
+SAN_CHAIN_BIN := $(SAN_OUT)/test_chain_reward
 SAN_SMOKE_BIN := $(SAN_OUT)/ppo
 
 ENV_CPU_SO := $(ENV_OUT)/blaze_cpu.so
 
 TRAIN_CFG_OBJ := $(OUT)/train_config.o
+CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
-.PHONY: all test-config smoke smoke-cpu smoke-cuda smoke-metal test sanitize \
-	clean env-cpu env-cuda env-metal
+.PHONY: all test-config test-chain smoke smoke-cpu smoke-cuda smoke-metal \
+	smoke-reset test sanitize clean env-cpu env-cuda env-metal
 
 all: test-config smoke
 
@@ -108,6 +111,12 @@ endif
 
 $(OUT)/train_config.o: train_config.c train_config.h | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ train_config.c
+
+$(OUT)/chain_reward.o: chain_reward.c chain_reward.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ chain_reward.c
+
+$(OUT)/chain_curr.o: chain_curr.c chain_curr.h chain_reward.h | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -c -o $@ chain_curr.c
 
 # ---- Linux CUDA staging ----
 ifneq ($(UNAME_S),Darwin)
@@ -165,20 +174,27 @@ endif
 $(TEST_BIN): test_train_config.c $(TRAIN_CFG_OBJ) | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_train_config.c $(TRAIN_CFG_OBJ)
 
+$(TEST_CHAIN_BIN): test_chain_reward.c $(CHAIN_OBJS) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_chain_reward.c $(CHAIN_OBJS)
+
 ifeq ($(UNAME_S),Darwin)
-$(SMOKE_BIN): ppo.c $(TRAIN_CFG_OBJ) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) \
-		$(NN_OBJS) $(ENV_CPU_SO) $(METAL_LIB) | $(OUT)
+$(SMOKE_BIN): ppo.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) $(METAL_OBS_OBJ) \
+		$(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(METAL_LIB) | $(OUT)
 	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) \
-		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(LINK_LIBS) $(LDLIBS)
+		$(CHAIN_OBJS) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
+		$(LINK_LIBS) $(LDLIBS)
 else
-$(SMOKE_BIN): ppo.c $(TRAIN_CFG_OBJ) $(STAGE_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
-		$(ENV_CUDA_SO) | $(OUT)
-	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) $(STAGE_OBJ) \
-		$(NN_OBJS) $(LINK_LIBS)
+$(SMOKE_BIN): ppo.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) $(STAGE_OBJ) $(NN_OBJS) \
+		$(ENV_CPU_SO) $(ENV_CUDA_SO) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
+		$(STAGE_OBJ) $(NN_OBJS) $(LINK_LIBS)
 endif
 
 test-config: $(TEST_BIN)
 	cd $(CURDIR) && $(TEST_BIN)
+
+test-chain: $(TEST_CHAIN_BIN)
+	cd $(CURDIR) && $(TEST_CHAIN_BIN)
 
 # Default smoke: committed ppo.conf (backend=cpu).
 smoke: smoke-cpu
@@ -202,11 +218,25 @@ smoke-metal:
 	@echo "smoke-metal: Metal backend is Darwin-only" >&2; exit 1
 endif
 
-test: test-config smoke
+# CPU: two chunks + short horizon so truncation/reset/burn-in fire.
+# Not on `make test` (default test stays test-config + test-chain + smoke-cpu).
+smoke-reset: $(SMOKE_BIN)
+	cd $(REPO) && ./out/blaze/rl/ppo --conf blaze/rl/$(CONF) \
+		--set max_chunks=2 --set ep_dec=3
+	cd $(REPO) && ./out/blaze/rl/ppo --conf blaze/rl/$(CONF) \
+		--set max_chunks=2 --set ep_dec=3 --set mb=3
+
+test: test-config test-chain smoke
 
 # Sanitizer build of owned sources; env via dlopen of the same .so files.
 $(SAN_OUT)/train_config.o: train_config.c train_config.h | $(SAN_OUT)
 	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -c -o $@ train_config.c
+
+$(SAN_OUT)/chain_reward.o: chain_reward.c chain_reward.h | $(SAN_OUT)
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -c -o $@ chain_reward.c
+
+$(SAN_OUT)/chain_curr.o: chain_curr.c chain_curr.h chain_reward.h | $(SAN_OUT)
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -c -o $@ chain_curr.c
 
 ifeq ($(UNAME_S),Darwin)
 $(SAN_OUT)/env_metal_obs.o: env_metal_obs.m env_metal_obs.h | $(SAN_OUT)
@@ -218,10 +248,18 @@ $(SAN_TEST_BIN): test_train_config.c $(SAN_OUT)/train_config.o | $(SAN_OUT)
 	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ test_train_config.c \
 		$(SAN_OUT)/train_config.o -fsanitize=address,undefined
 
-$(SAN_SMOKE_BIN): ppo.c $(SAN_OUT)/train_config.o $(SAN_OUT)/env_metal_obs.o \
+$(SAN_CHAIN_BIN): test_chain_reward.c $(SAN_OUT)/chain_reward.o \
+		$(SAN_OUT)/chain_curr.o | $(SAN_OUT)
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ test_chain_reward.c \
+		$(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o \
+		-fsanitize=address,undefined
+
+$(SAN_SMOKE_BIN): ppo.c $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
+		$(SAN_OUT)/chain_curr.o $(SAN_OUT)/env_metal_obs.o \
 		$(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(METAL_LIB) | $(SAN_OUT)
 	$(METAL_CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c \
-		$(SAN_OUT)/train_config.o $(SAN_OUT)/env_metal_obs.o \
+		$(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
+		$(SAN_OUT)/chain_curr.o $(SAN_OUT)/env_metal_obs.o \
 		$(METAL_HOST_OBJ) $(NN_OBJS) $(LINK_LIBS) $(LDLIBS) \
 		-fsanitize=address,undefined
 else
@@ -232,15 +270,24 @@ $(SAN_TEST_BIN): test_train_config.c $(SAN_OUT)/train_config.o | $(SAN_OUT)
 	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ test_train_config.c \
 		$(SAN_OUT)/train_config.o -fsanitize=address,undefined
 
-$(SAN_SMOKE_BIN): ppo.c $(SAN_OUT)/train_config.o $(SAN_OUT)/env_cuda_stage.o \
+$(SAN_CHAIN_BIN): test_chain_reward.c $(SAN_OUT)/chain_reward.o \
+		$(SAN_OUT)/chain_curr.o | $(SAN_OUT)
+	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ test_chain_reward.c \
+		$(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o \
+		-fsanitize=address,undefined
+
+$(SAN_SMOKE_BIN): ppo.c $(SAN_OUT)/train_config.o $(SAN_OUT)/chain_reward.o \
+		$(SAN_OUT)/chain_curr.o $(SAN_OUT)/env_cuda_stage.o \
 		$(NN_OBJS) $(ENV_CPU_SO) | $(SAN_OUT)
 	$(CC) $(SAN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(SAN_OUT)/train_config.o \
+		$(SAN_OUT)/chain_reward.o $(SAN_OUT)/chain_curr.o \
 		$(SAN_OUT)/env_cuda_stage.o $(NN_OBJS) $(LINK_LIBS) \
 		-fsanitize=address,undefined
 endif
 
-sanitize: $(SAN_TEST_BIN) $(SAN_SMOKE_BIN)
+sanitize: $(SAN_TEST_BIN) $(SAN_CHAIN_BIN) $(SAN_SMOKE_BIN)
 	cd $(CURDIR) && $(SAN_TEST_BIN)
+	cd $(CURDIR) && $(SAN_CHAIN_BIN)
 	cd $(REPO) && ./out/blaze/rl/sanitize/ppo --conf blaze/rl/$(CONF)
 
 # Only products this Makefile owns under out/blaze/rl and out/blaze/env.

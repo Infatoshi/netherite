@@ -23,7 +23,7 @@ enum {
 /* FNV-1a 64-bit over bytes. */
 uint64_t nn_fnv1a64(const void *data, size_t n);
 
-/* Hash RNG protocol (same mix as blaze/rl/cpolicy/cpolicy_fwd.cu u01). */
+/* Hash RNG protocol for Gumbel u01. */
 float nn_hash_u01(uint64_t seed, uint32_t a, uint32_t b, uint32_t c);
 float nn_gumbel0(float u);
 

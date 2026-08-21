@@ -919,9 +919,7 @@ def source_manifest(reference: Path, archive: Path) -> dict:
         "archived_client_log": archive / "client0.log",
         "driver": Path("/home/infatoshi/dev/nw/.tmp/parallel_java_eval.py"),
         "pair_validator": reference / "paper" / "tools" / "pair_sim2real.py",
-        "ppo_chain": reference / "blaze" / "env" / "ppo_chain_cu.py",
         "blaze_core": reference / "blaze" / "env" / "blaze_core.h",
-        "java_evaluator": reference / "java" / "qrl_chain_demo.py",
         "java_client": reference / "java" / "qrl_client.py",
         "recorder": (
             reference

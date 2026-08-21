@@ -86,6 +86,11 @@ static size_t tensor_offset(int tid) {
 
 /* ---- host sample (same as cpu.c sample_core) ---- */
 
+/* Mix handle sample_step into rng_seed. nn_hash_u01 stays 4-arg. */
+static uint64_t mix_sample_seed(uint64_t rng_seed, uint64_t step) {
+  return rng_seed ^ (step * 0xD1B54A32D192ED03ULL);
+}
+
 static void sample_core(const float *logits, int n, int mode, uint64_t seed,
                         int32_t *acts, float *logp, float *entropy) {
   for (int ni = 0; ni < n; ++ni) {
@@ -150,6 +155,7 @@ static void sample_core(const float *logits, int n, int mode, uint64_t seed,
 struct NnMetal {
   int batch_n;
   NnConfig cfg;
+  uint64_t sample_step; /* Gumbel decision nonce; not reset on lr-only set_config */
   int64_t adam_t;
   size_t n_params;
 
@@ -1098,6 +1104,7 @@ NnMetal *nn_metal_create(int batch_n, int device_id, const NnConfig *cfg) {
   }
   nn->batch_n = batch_n;
   nn->cfg = resolved;
+  nn->sample_step = 0;
   nn->adam_t = 0;
   nn->n_params = nn_model_param_floats();
   nn->device = device;
@@ -1274,6 +1281,8 @@ int nn_metal_set_config(NnMetal *nn, const NnConfig *cfg) {
   }
   if (validate_config(cfg) != 0)
     return -1;
+  if (cfg->rng_seed != nn->cfg.rng_seed)
+    nn->sample_step = 0;
   nn->cfg = *cfg;
   return 0;
 }
@@ -1323,7 +1332,9 @@ int nn_metal_sample(NnMetal *nn, const float *logits, int n, int mode,
     set_err("bad sample mode");
     return -1;
   }
-  sample_core(logits, n, mode, nn->cfg.rng_seed, acts, logp, entropy);
+  sample_core(logits, n, mode, mix_sample_seed(nn->cfg.rng_seed, nn->sample_step),
+              acts, logp, entropy);
+  nn->sample_step++;
   return 0;
 }
 

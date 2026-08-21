@@ -41,7 +41,7 @@ static const int NN_HEAD_WIDTHS[NN_N_HEAD] = {3, 3, 3, 2, 2, 2, 7, 2, 10};
 /* Prefix offsets into the packed-34 logit vector. */
 static const int NN_HEAD_OFF[NN_N_HEAD] = {0, 3, 6, 9, 11, 13, 15, 22, 24};
 
-/* Depth plane indices scaled by 1/255 (matches cpolicy_fwd). */
+/* Depth plane indices scaled by 1/255. */
 static const int NN_DEPTH_CH0 = 7;
 static const int NN_DEPTH_CH1 = 16;
 

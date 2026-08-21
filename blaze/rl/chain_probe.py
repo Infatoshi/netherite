@@ -58,6 +58,41 @@ def nearest_log(obs):
     return min(logs, key=lambda entry: entry[2]) if logs else None
 
 
+def nearest_coal(obs):
+    """(rel_yaw, rel_pitch, dist) to the nearest scanned coal ore, or None."""
+    best = None
+    ex, ey, ez = obs["x"], obs["y"] + EYE, obs["z"]
+    for c in obs["coal"]:
+        if c == [0, 0, 0]:
+            break
+        dx, dy, dz = c[0] + 0.5 - ex, c[1] + 0.5 - ey, c[2] + 0.5 - ez
+        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+        ry = wrap180(math.degrees(math.atan2(-dx, dz)) - obs["yaw"])
+        rp = math.degrees(-math.asin(dy / max(dist, 1e-9))) - obs["pitch"]
+        if best is None or dist < best[2]:
+            best = (ry, rp, dist)
+    return best
+
+
+def make_env(seed, prefix):
+    """Replay a scripted prefix into a MagmaEnv. Camera only on the last tick."""
+    env = MagmaEnv(seed)
+    window, inflight = 3, 0
+    last = len(prefix) - 1
+    for i, a in enumerate(prefix):
+        if i != last:
+            a = dict(a)
+            a["cam"] = 0
+        env.send(a)
+        inflight += 1
+        if inflight > window:
+            env.recv()
+            inflight -= 1
+    for _ in range(inflight):
+        env.recv()
+    return env
+
+
 def aim_error(obs, wx, wy, wz):
     """(rel_yaw, rel_pitch, dist) from eye to the center of block (wx,wy,wz)."""
     dx = wx + 0.5 - obs["x"]

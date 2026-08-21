@@ -26,7 +26,7 @@ typedef struct NnConfig {
   float value_coef;    /* coefficient on mean squared value error */
   float entropy_coef;  /* coefficient on mean entropy (subtracted) */
   float grad_limit;    /* global L2 gradient norm clip */
-  uint64_t rng_seed;   /* hash-RNG seed for Gumbel sample */
+  uint64_t rng_seed;   /* base hash-RNG seed for Gumbel sample */
 } NnConfig;
 
 /* Create descriptor. backend, device, max_n, and training config are required.
@@ -85,7 +85,9 @@ int nn_forward(Nn *nn, const uint8_t *planes, const float *scalars, int n,
 /* Sample from packed logits [n,34].
  * mode: NN_SAMPLE_GUMBEL or NN_SAMPLE_GREEDY.
  * acts [n,9] int32, logp [n], entropy [n] (entropy may be NULL).
- * Uses nn config rng_seed for Gumbel. Returns 0 on success. */
+ * Gumbel mixes rng_seed with a per-handle sample_step; each sample
+ * consumes one step. sample_step resets on create or rng_seed change.
+ * Returns 0 on success. */
 int nn_sample(Nn *nn, const float *logits, int n, int mode, int32_t *acts,
               float *logp, float *entropy);
 

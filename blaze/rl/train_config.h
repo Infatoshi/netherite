@@ -28,6 +28,21 @@ typedef struct TrainConfig {
   float entropy_coef;
   float grad_limit;
   float gamma;
+  float lam;
+  int epochs;
+  int mb; /* 0 = one update of the full n*T batch */
+  int max_chunks;
+  int64_t max_ticks; /* 0 = no tick cap */
+  float max_wall;    /* seconds; 0 = no wall cap */
+  int success_item;  /* 0 = never (trainer-side term only) */
+  float t0_share;
+  int cap_refresh;
+  char train_seeds[TR_CFG_STR_MAX]; /* "fixture" or "2,3,10" */
+  char snaps_dir[TR_CFG_STR_MAX];
+  float lr_floor;
+  int64_t lr_decay_ticks;
+  int ep_dec;
+  int64_t ckpt_ticks;
   uint64_t seed;
   char checkpoint[TR_CFG_STR_MAX];
   /* Metal observation (used when backend=metal; present on every platform) */

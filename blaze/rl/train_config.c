@@ -96,6 +96,21 @@ void tr_cfg_defaults(TrainConfig *c) {
   c->entropy_coef = 0.01f;
   c->grad_limit = 0.5f;
   c->gamma = 0.995f;
+  c->lam = 0.95f;
+  c->epochs = 1;
+  c->mb = 0;
+  c->max_chunks = 1;
+  c->max_ticks = 0;
+  c->max_wall = 0.f;
+  c->success_item = 0;
+  c->t0_share = 0.30f;
+  c->cap_refresh = 25;
+  (void)str_copy_fit(c->train_seeds, sizeof(c->train_seeds), "fixture");
+  (void)str_copy_fit(c->snaps_dir, sizeof(c->snaps_dir), "blaze/rl/out/snaps");
+  c->lr_floor = 1e-4f;
+  c->lr_decay_ticks = 1500000000LL;
+  c->ep_dec = 1500;
+  c->ckpt_ticks = 2000000;
   c->seed = 0;
   (void)str_copy_fit(c->checkpoint, sizeof(c->checkpoint),
                      "out/blaze/rl/ppo_ckpt.bin");
@@ -195,6 +210,111 @@ int tr_cfg_set(TrainConfig *c, const char *key, const char *val) {
     if (!p_f32(val, &t) || t < 0.f || t > 1.f)
       return -2;
     c->gamma = t;
+    return 0;
+  }
+  if (!strcmp(key, "lam")) {
+    float t;
+    if (!p_f32(val, &t) || t < 0.f || t > 1.f)
+      return -2;
+    c->lam = t;
+    return 0;
+  }
+  if (!strcmp(key, "epochs")) {
+    int t;
+    if (!p_int(val, &t) || t <= 0)
+      return -2;
+    c->epochs = t;
+    return 0;
+  }
+  if (!strcmp(key, "mb")) {
+    int t;
+    if (!p_int(val, &t) || t < 0)
+      return -2;
+    c->mb = t;
+    return 0;
+  }
+  if (!strcmp(key, "max_chunks")) {
+    int t;
+    if (!p_int(val, &t) || t <= 0)
+      return -2;
+    c->max_chunks = t;
+    return 0;
+  }
+  if (!strcmp(key, "max_ticks")) {
+    long long t;
+    if (!p_ll(val, &t) || t < 0)
+      return -2;
+    c->max_ticks = t;
+    return 0;
+  }
+  if (!strcmp(key, "max_wall")) {
+    float t;
+    if (!p_f32(val, &t) || t < 0.f)
+      return -2;
+    c->max_wall = t;
+    return 0;
+  }
+  if (!strcmp(key, "success_item")) {
+    int t;
+    if (!p_int(val, &t) || t < 0)
+      return -2;
+    c->success_item = t;
+    return 0;
+  }
+  if (!strcmp(key, "t0_share")) {
+    float t;
+    if (!p_f32(val, &t) || t < 0.f || t > 1.f)
+      return -2;
+    c->t0_share = t;
+    return 0;
+  }
+  if (!strcmp(key, "cap_refresh")) {
+    int t;
+    if (!p_int(val, &t) || t <= 0)
+      return -2;
+    c->cap_refresh = t;
+    return 0;
+  }
+  if (!strcmp(key, "train_seeds")) {
+    if (!val[0])
+      return -2;
+    if (!str_copy_fit(c->train_seeds, sizeof(c->train_seeds), val))
+      return -2;
+    return 0;
+  }
+  if (!strcmp(key, "snaps_dir")) {
+    if (!val[0])
+      return -2;
+    if (!str_copy_fit(c->snaps_dir, sizeof(c->snaps_dir), val))
+      return -2;
+    return 0;
+  }
+  if (!strcmp(key, "lr_floor")) {
+    float t;
+    if (!p_f32(val, &t) || t < 0.f)
+      return -2;
+    c->lr_floor = t;
+    return 0;
+  }
+  if (!strcmp(key, "lr_decay_ticks")) {
+    long long t;
+    if (!p_ll(val, &t) || t <= 0)
+      return -2;
+    c->lr_decay_ticks = t;
+    return 0;
+  }
+  if (!strcmp(key, "ep_dec")) {
+    int t;
+    if (!p_int(val, &t) || t <= 0)
+      return -2;
+    c->ep_dec = t;
+    return 0;
+  }
+  if (!strcmp(key, "ckpt_ticks")) {
+    long long t;
+    if (!p_ll(val, &t) || t <= 0)
+      return -2;
+    c->ckpt_ticks = t;
     return 0;
   }
   if (!strcmp(key, "seed")) {
@@ -347,6 +467,22 @@ void tr_cfg_dump(const TrainConfig *c, FILE *out) {
   fprintf(out, "  %-16s = %.9g\n", "entropy_coef", (double)c->entropy_coef);
   fprintf(out, "  %-16s = %.9g\n", "grad_limit", (double)c->grad_limit);
   fprintf(out, "  %-16s = %.9g\n", "gamma", (double)c->gamma);
+  fprintf(out, "  %-16s = %.9g\n", "lam", (double)c->lam);
+  fprintf(out, "  %-16s = %d\n", "epochs", c->epochs);
+  fprintf(out, "  %-16s = %d\n", "mb", c->mb);
+  fprintf(out, "  %-16s = %d\n", "max_chunks", c->max_chunks);
+  fprintf(out, "  %-16s = %lld\n", "max_ticks", (long long)c->max_ticks);
+  fprintf(out, "  %-16s = %.9g\n", "max_wall", (double)c->max_wall);
+  fprintf(out, "  %-16s = %d\n", "success_item", c->success_item);
+  fprintf(out, "  %-16s = %.9g\n", "t0_share", (double)c->t0_share);
+  fprintf(out, "  %-16s = %d\n", "cap_refresh", c->cap_refresh);
+  fprintf(out, "  %-16s = %s\n", "train_seeds", c->train_seeds);
+  fprintf(out, "  %-16s = %s\n", "snaps_dir", c->snaps_dir);
+  fprintf(out, "  %-16s = %.9g\n", "lr_floor", (double)c->lr_floor);
+  fprintf(out, "  %-16s = %lld\n", "lr_decay_ticks",
+          (long long)c->lr_decay_ticks);
+  fprintf(out, "  %-16s = %d\n", "ep_dec", c->ep_dec);
+  fprintf(out, "  %-16s = %lld\n", "ckpt_ticks", (long long)c->ckpt_ticks);
   fprintf(out, "  %-16s = %llu\n", "seed", (unsigned long long)c->seed);
   fprintf(out, "  %-16s = %s\n", "checkpoint", c->checkpoint);
   fprintf(out, "  %-16s = %d\n", "metal_max_cells", c->metal_max_cells);

@@ -244,6 +244,15 @@ static void test_sparse_nonzero_layers(void) {
   nn_destroy(nn);
 }
 
+static void check_acts_in_range(const int32_t *acts, int n, const char *msg) {
+  for (int i = 0; i < n; ++i) {
+    for (int h = 0; h < NN_N_HEAD; ++h) {
+      int a = acts[i * NN_N_HEAD + h];
+      expect_true(a >= 0 && a < NN_HEAD_WIDTHS[h], msg);
+    }
+  }
+}
+
 static void test_sample_repeatable(void) {
   printf("test_sample_repeatable\n");
   NnConfig cfg = nn_config_default();
@@ -266,16 +275,70 @@ static void test_sample_repeatable(void) {
               0, "sample a");
   expect_eq_i(nn_sample(nn, logits, n, NN_SAMPLE_GUMBEL, acts_b, logp_b, NULL),
               0, "sample b");
-  expect_true(memcmp(acts_a, acts_b, sizeof(acts_a)) == 0, "acts match");
+  expect_true(memcmp(acts_a, acts_b, sizeof(acts_a)) != 0,
+              "consecutive gumbel acts differ");
   for (int i = 0; i < n; ++i) {
-    expect_near(logp_a[i], logp_b[i], 0.f, "logp match");
     expect_finite(logp_a[i], "logp finite");
+    expect_finite(logp_b[i], "logp b finite");
     expect_finite(ent[i], "ent finite");
-    for (int h = 0; h < NN_N_HEAD; ++h) {
-      int a = acts_a[i * NN_N_HEAD + h];
-      expect_true(a >= 0 && a < NN_HEAD_WIDTHS[h], "act in range");
-    }
   }
+  check_acts_in_range(acts_a, n, "act a in range");
+  check_acts_in_range(acts_b, n, "act b in range");
+
+  Nn *twin = create_cpu(4, &cfg);
+  expect_true(twin != NULL, "twin create");
+  int32_t acts_twin[3 * NN_N_HEAD];
+  float logp_twin[3];
+  expect_eq_i(
+      nn_sample(twin, logits, n, NN_SAMPLE_GUMBEL, acts_twin, logp_twin, NULL),
+      0, "twin first sample");
+  expect_true(memcmp(acts_a, acts_twin, sizeof(acts_a)) == 0,
+              "twin first acts match");
+  for (int i = 0; i < n; ++i)
+    expect_near(logp_a[i], logp_twin[i], 0.f, "twin logp match");
+
+  NnConfig cfg_lr = cfg;
+  cfg_lr.lr = 1e-3f;
+  expect_eq_i(nn_set_config(nn, &cfg_lr), 0, "set_config same seed");
+  int32_t acts_c[3 * NN_N_HEAD];
+  float logp_c[3];
+  expect_eq_i(nn_sample(nn, logits, n, NN_SAMPLE_GUMBEL, acts_c, logp_c, NULL),
+              0, "sample after same-seed set_config");
+  expect_true(memcmp(acts_a, acts_c, sizeof(acts_a)) != 0,
+              "same-seed set_config does not replay");
+  int32_t acts_t2[3 * NN_N_HEAD];
+  int32_t acts_t3[3 * NN_N_HEAD];
+  float logp_t2[3], logp_t3[3];
+  expect_eq_i(
+      nn_sample(twin, logits, n, NN_SAMPLE_GUMBEL, acts_t2, logp_t2, NULL), 0,
+      "twin step 1");
+  expect_eq_i(
+      nn_sample(twin, logits, n, NN_SAMPLE_GUMBEL, acts_t3, logp_t3, NULL), 0,
+      "twin step 2");
+  expect_true(memcmp(acts_b, acts_t2, sizeof(acts_b)) == 0, "twin step 1 match");
+  expect_true(memcmp(acts_c, acts_t3, sizeof(acts_c)) == 0,
+              "continued step matches twin");
+
+  NnConfig cfg_other = cfg;
+  cfg_other.rng_seed = 99;
+  expect_eq_i(nn_set_config(nn, &cfg_other), 0, "set other seed");
+  int32_t acts_other[3 * NN_N_HEAD];
+  float logp_other[3];
+  expect_eq_i(
+      nn_sample(nn, logits, n, NN_SAMPLE_GUMBEL, acts_other, logp_other, NULL),
+      0, "sample other seed");
+  expect_true(memcmp(acts_a, acts_other, sizeof(acts_a)) != 0,
+              "other seed differs");
+  expect_eq_i(nn_set_config(nn, &cfg), 0, "restore seed");
+  int32_t acts_replay[3 * NN_N_HEAD];
+  float logp_replay[3];
+  expect_eq_i(
+      nn_sample(nn, logits, n, NN_SAMPLE_GUMBEL, acts_replay, logp_replay, NULL),
+      0, "replay sample");
+  expect_true(memcmp(acts_a, acts_replay, sizeof(acts_a)) == 0,
+              "seed restore replays first sample");
+  for (int i = 0; i < n; ++i)
+    expect_near(logp_a[i], logp_replay[i], 0.f, "replay logp");
 
   int32_t acts_g[3 * NN_N_HEAD];
   expect_eq_i(
@@ -296,6 +359,7 @@ static void test_sample_repeatable(void) {
   free(scalars);
   free(logits);
   free(values);
+  nn_destroy(twin);
   nn_destroy(nn);
 }
 

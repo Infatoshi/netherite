@@ -84,7 +84,7 @@ uint64_t nn_fnv1a64(const void *data, size_t n) {
   return h;
 }
 
-/* Philox-ish mix for Gumbel uniforms (cpolicy_fwd.cu u01). */
+/* Philox-ish mix for Gumbel uniforms. */
 float nn_hash_u01(uint64_t seed, uint32_t a, uint32_t b, uint32_t c) {
   uint64_t x = seed ^ (uint64_t)a * 0x9E3779B97F4A7C15ULL;
   x ^= (uint64_t)b * 0xBF58476D1CE4E5B9ULL;

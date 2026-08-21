@@ -511,6 +511,7 @@ struct NnCuda {
   int max_n;
   int device;
   NnConfig cfg;
+  uint64_t sample_step; /* Gumbel decision nonce; not reset on lr-only set_config */
   int64_t adam_t;
   size_t n_params;
   int desc_n;
@@ -1151,6 +1152,7 @@ NnCuda *nn_cuda_create(int max_n, int device, const NnConfig *cfg) {
   nn->max_n = max_n;
   nn->device = device;
   nn->cfg = resolved;
+  nn->sample_step = 0;
   nn->adam_t = 0;
   nn->n_params = nn_model_param_floats();
   nn->desc_n = 0;
@@ -1286,6 +1288,8 @@ int nn_cuda_set_config(NnCuda *nn, const NnConfig *cfg) {
   }
   if (validate_config(cfg) != 0)
     return -1;
+  if (cfg->rng_seed != nn->cfg.rng_seed)
+    nn->sample_step = 0;
   nn->cfg = *cfg;
   return 0;
 }
@@ -1344,8 +1348,11 @@ int nn_cuda_sample(NnCuda *nn, const float *logits, int n, int mode,
 
   const int thr = 256;
   float *ent_ptr = entropy ? nn->d_entropy : nullptr;
-  k_sample<<<grid_for(n), thr>>>(nn->d_logits, n, mode, nn->cfg.rng_seed,
-                                 nn->d_acts, nn->d_logp, ent_ptr);
+  /* Mix handle sample_step into rng_seed. d_hash_u01 stays 4-arg. */
+  const uint64_t seed =
+      nn->cfg.rng_seed ^ (nn->sample_step * 0xD1B54A32D192ED03ULL);
+  k_sample<<<grid_for(n), thr>>>(nn->d_logits, n, mode, seed, nn->d_acts,
+                                 nn->d_logp, ent_ptr);
   CU_CHECK(cudaGetLastError());
   CU_CHECK(cudaMemcpy(acts, nn->d_acts,
                       (size_t)n * NN_N_HEAD * sizeof(int32_t),
@@ -1356,6 +1363,7 @@ int nn_cuda_sample(NnCuda *nn, const float *logits, int n, int mode,
     CU_CHECK(cudaMemcpy(entropy, nn->d_entropy, (size_t)n * sizeof(float),
                         cudaMemcpyDeviceToHost));
   CU_CHECK(cudaDeviceSynchronize());
+  nn->sample_step++;
   return 0;
 }
 

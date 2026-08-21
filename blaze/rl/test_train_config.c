@@ -54,6 +54,21 @@ static void test_defaults(void) {
   expect_near(c.entropy_coef, 0.01f, 1e-9f, "default entropy_coef");
   expect_near(c.grad_limit, 0.5f, 1e-9f, "default grad_limit");
   expect_near(c.gamma, 0.995f, 1e-6f, "default gamma");
+  expect_near(c.lam, 0.95f, 1e-6f, "default lam");
+  expect_eq_i(c.epochs, 1, "default epochs");
+  expect_eq_i(c.mb, 0, "default mb");
+  expect_eq_i(c.max_chunks, 1, "default max_chunks");
+  expect_eq_i((int)c.max_ticks, 0, "default max_ticks");
+  expect_near(c.max_wall, 0.f, 1e-9f, "default max_wall");
+  expect_eq_i(c.success_item, 0, "default success_item");
+  expect_near(c.t0_share, 0.30f, 1e-6f, "default t0_share");
+  expect_eq_i(c.cap_refresh, 25, "default cap_refresh");
+  expect_eq_s(c.train_seeds, "fixture", "default train_seeds");
+  expect_eq_s(c.snaps_dir, "blaze/rl/out/snaps", "default snaps_dir");
+  expect_near(c.lr_floor, 1e-4f, 1e-9f, "default lr_floor");
+  expect_true(c.lr_decay_ticks == 1500000000LL, "default lr_decay_ticks");
+  expect_eq_i(c.ep_dec, 1500, "default ep_dec");
+  expect_true(c.ckpt_ticks == 2000000, "default ckpt_ticks");
   expect_eq_i((int)c.seed, 0, "default seed");
   expect_true(strstr(c.checkpoint, "ppo_ckpt.bin") != NULL,
               "default checkpoint");
@@ -153,6 +168,24 @@ static void test_bad_value(void) {
   expect_eq_i(rc, -2, "grad_limit=0 bad");
   rc = tr_cfg_set(&c, "gamma", "1.5");
   expect_eq_i(rc, -2, "gamma=1.5 bad");
+  rc = tr_cfg_set(&c, "lam", "1.5");
+  expect_eq_i(rc, -2, "lam=1.5 bad");
+  rc = tr_cfg_set(&c, "epochs", "0");
+  expect_eq_i(rc, -2, "epochs=0 bad");
+  rc = tr_cfg_set(&c, "mb", "-1");
+  expect_eq_i(rc, -2, "mb=-1 bad");
+  rc = tr_cfg_set(&c, "max_chunks", "0");
+  expect_eq_i(rc, -2, "max_chunks=0 bad");
+  rc = tr_cfg_set(&c, "max_ticks", "-1");
+  expect_eq_i(rc, -2, "max_ticks=-1 bad");
+  rc = tr_cfg_set(&c, "success_item", "-1");
+  expect_eq_i(rc, -2, "success_item=-1 bad");
+  rc = tr_cfg_set(&c, "t0_share", "1.5");
+  expect_eq_i(rc, -2, "t0_share=1.5 bad");
+  rc = tr_cfg_set(&c, "train_seeds", "");
+  expect_eq_i(rc, -2, "train_seeds empty bad");
+  rc = tr_cfg_set(&c, "ep_dec", "0");
+  expect_eq_i(rc, -2, "ep_dec=0 bad");
   rc = tr_cfg_set(&c, "ktime", "2");
   expect_eq_i(rc, -2, "ktime=2 bad");
   rc = tr_cfg_set(&c, "warp_tick", "true");
@@ -234,13 +267,18 @@ static void test_conf_then_set(void) {
 
 /* Every key accepted by tr_cfg_set must appear in the committed conf. */
 static const char *const k_accepted_keys[] = {
-    "backend",         "device",       "n_envs",
-    "fixture",         "rollout_steps", "action_repeat",
-    "lr",              "ppo_clip",     "value_coef",
-    "entropy_coef",    "grad_limit",   "gamma",
-    "seed",            "checkpoint",   "metal_max_cells",
-    "metallib",        "ktime",        "stage_time",
-    "legacy_recenter", "warp_tick",    "op_trace",
+    "backend",         "device",          "n_envs",
+    "fixture",         "rollout_steps",   "action_repeat",
+    "lr",              "ppo_clip",        "value_coef",
+    "entropy_coef",    "grad_limit",      "gamma",
+    "lam",             "epochs",          "mb",
+    "max_chunks",      "max_ticks",       "max_wall",
+    "success_item",    "t0_share",        "cap_refresh",
+    "train_seeds",     "snaps_dir",       "lr_floor",
+    "lr_decay_ticks",  "ep_dec",          "ckpt_ticks",
+    "seed",            "checkpoint",      "metal_max_cells",
+    "metallib",        "ktime",           "stage_time",
+    "legacy_recenter", "warp_tick",       "op_trace",
     "no_ore_xy",
 };
 
