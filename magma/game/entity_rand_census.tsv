@@ -77,8 +77,8 @@ pigman	ai_list	addTask	0	swim0 melee2 restrict5 wander7 watch8 idle8. HP20 speed
 #   onLivingUpdate: blaze motionY*=0.6 if falling (no rand, before super). pigman no extra nether rand
 #     (EntityZombie day-burn nextFloat skipped: WorldProviderHell isDaytime=false)
 #   updateEntityActionState: ++entityAge; despawnEntity; targetTasks;
-#     EntityBlaze.updateAITasks = heightOffset gaussian THEN super (goalSelector);
-#     then navigator; updateAITick; move/look/jump helpers.
+#     goalSelector (tasks.onUpdateTasks); navigator; then updateAITasks ("mob tick").
+#     EntityLiving.updateAITasks is empty; EntityBlaze fills it with heightOffset.
 #
 blaze	tick	living_sound	1	nextInt(1000) vs livingSoundTime++. talk interval 80
 blaze	tick	living_sound_pitch	2	if fired: getSoundPitch 2x nextFloat; livingSoundTime=-80
@@ -98,8 +98,8 @@ pigman	setup	watch.shouldExecute	1	same, maxDistance 8 (animals used 6)
 blaze	setup	idle.shouldExecute	1	nextFloat<0.02. startExecuting: 2*PI*nextDouble + 20+nextInt(20)
 pigman	setup	idle.shouldExecute	1	same
 #
-# EntityBlaze.updateAITasks is BEFORE navigator (and wraps goalSelector). PigZombie.updateAITasks is anger/sound only; ambient no rand.
-blaze	ai	heightOffset	0or2+	after targetTasks, before goals: --heightOffsetUpdateTime; if <=0: =100, heightOffset=0.5F+(float)nextGaussian()*3.0F. nextGaussian is 2x nextDouble polar, caches one. Hydrate hg/gv + hot/hof from tape.
+# EntityBlaze.updateAITasks is AFTER goals+nav (the "mob tick" slot). PigZombie.updateAITasks is anger/sound only; ambient no rand.
+blaze	ai	heightOffset	0or2+	after nav: --heightOffsetUpdateTime; if <=0: =100, heightOffset=0.5F+(float)nextGaussian()*3.0F. nextGaussian is 2x nextDouble polar, caches one. Hydrate hg/gv + hot/hof from tape.
 blaze	ai	hover_motionY	0	if attackTarget != null && target.eye > this.eye+heightOffset: motionY += (0.30000001192092896-motionY)*0.30000001192092896. Ambient (no target): no pose effect; gaussian still consumed.
 blaze	run	AIFireballAttack	0or4	needs target. Burst: 2x nextGaussian per small fireball (aim spread). Ambient tape: shouldExecute false, no draws.
 pigman	run	idle.updateTask	0	idleTime--; lookHelper 10/40. no Entity.rand

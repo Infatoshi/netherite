@@ -10,8 +10,8 @@ Scenario `detmob_nether.yaml`: qrl `dim -1`, `/tp` to seed-0 fortress
 `-291.5 59 -75.5` and pigman `-330.5 59 -143.5` PersistenceRequired,
 840 ticks, doMobSpawning false. Census: blaze hover gaussian + nearestPlayer
 nextInt(10) + wander/watch/idle; pigman ambient = zombie list minus targeting.
-Magma: `pai_det_ai` blaze/pigman, talk 80, persist age=0, heightOffset before
-goals, DIM-1 `detmob_gate` `dim` + `gm_runtime_set_dimension(-1)` + stencil.
+Magma: `pai_det_ai` blaze/pigman, talk 80, persist age=0, heightOffset after
+goals+nav, DIM-1 `detmob_gate` `dim` + `gm_runtime_set_dimension(-1)` + stencil.
 Knob-off path unchanged.
 
 ## 2026-08-21 detmob round 3 worldgen + walk + panic (lane/detmob)

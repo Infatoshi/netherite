@@ -1061,17 +1061,11 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                      double *nav_speed) {
     int type = s->type[i];
     int setup = (m->passive_task_tick[i]++ % 3) == 0;
-    /* targetSelector then EntityBlaze.updateAITasks prefix then goalSelector. */
+    /* targetSelector then goalSelector. Blaze heightOffset is the later
+     * updateAITasks ("mob tick") slot, after navigator. */
     if (setup && pai_det() && type == EW_TYPE_BLAZE) {
         u64 stream = pai_rng_start(m, s, i, 64);
         (void)pai_bound(m, i, &stream, 10);
-    }
-    if (pai_det() && type == EW_TYPE_BLAZE) {
-        --m->blaze_hot[i];
-        if (m->blaze_hot[i] <= 0) {
-            m->blaze_hot[i] = 100;
-            m->blaze_hof[i] = 0.5f + (float)pai_gaussian(m, i) * 3.0f;
-        }
     }
     for (int task = 0; task < PAI_NTASKS; ++task) {
         if (pai_priority(type, task) >= 99) continue;
@@ -1118,6 +1112,15 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     if (pai_det() && m->det_nav_n[i])
         pai_nav_follow(m, w, s, i);
     else if (s->path_len[i] && pai_path_done(w, s, i)) s->path_len[i] = 0;
+
+    /* EntityBlaze.updateAITasks: after goals+nav. Super is empty. */
+    if (pai_det() && type == EW_TYPE_BLAZE) {
+        --m->blaze_hot[i];
+        if (m->blaze_hot[i] <= 0) {
+            m->blaze_hot[i] = 100;
+            m->blaze_hof[i] = 0.5f + (float)pai_gaussian(m, i) * 3.0f;
+        }
+    }
 
     *moving = s->path_len[i] != 0;
     *wandering = *moving && (m->passive_tasks[i] & PAI_BIT(PAI_WANDER));
