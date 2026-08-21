@@ -1031,6 +1031,16 @@ public class Recorder {
                 gen.setRegionRenderCacheBuilder(rb);
                 gen.setStatus(net.minecraft.client.renderer.chunk.ChunkCompileTaskGenerator.Status.COMPILING);
                 rc.rebuildChunk(camX, camY, camZ, gen);
+                // rebuildChunk may sort TRANSLUCENT at compile time; EntityRenderer
+                // sorts again at draw with the live camera. Re-sort here so quads.jsonl
+                // line order is the post-sortVertexData draw order.
+                try {
+                    net.minecraft.client.renderer.VertexBuffer tbuf =
+                        rb.getWorldRendererByLayerId(3);
+                    if (tbuf != null && tbuf.getVertexCount() >= 4) {
+                        tbuf.sortVertexData(camX, camY, camZ);
+                    }
+                } catch (Throwable ig) {}
                 JsonObject ch = new JsonObject();
                 ch.addProperty("ox", origin.getX());
                 ch.addProperty("oy", origin.getY());
