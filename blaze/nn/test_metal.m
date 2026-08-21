@@ -315,16 +315,20 @@ static void test_update_and_weights(const char *ckpt) {
                               &sm),
               0, "mtl update");
 
-  printf("  cpu  pl=%.6g vl=%.6g ent=%.6g tot=%.6g gn=%.6g\n", sc.policy_loss,
-         sc.value_loss, sc.entropy_mean, sc.total_loss, sc.grad_norm);
-  printf("  mtl  pl=%.6g vl=%.6g ent=%.6g tot=%.6g gn=%.6g\n", sm.policy_loss,
-         sm.value_loss, sm.entropy_mean, sm.total_loss, sm.grad_norm);
+  printf("  cpu  pl=%.6g vl=%.6g ent=%.6g tot=%.6g gn=%.6g kl=%.6g clip=%.6g\n",
+         sc.policy_loss, sc.value_loss, sc.entropy_mean, sc.total_loss,
+         sc.grad_norm, sc.approx_kl, sc.clipfrac);
+  printf("  mtl  pl=%.6g vl=%.6g ent=%.6g tot=%.6g gn=%.6g kl=%.6g clip=%.6g\n",
+         sm.policy_loss, sm.value_loss, sm.entropy_mean, sm.total_loss,
+         sm.grad_norm, sm.approx_kl, sm.clipfrac);
 
   report_max_err("policy_loss", fabsf(sc.policy_loss - sm.policy_loss), kFwdTol);
   report_max_err("value_loss", fabsf(sc.value_loss - sm.value_loss), kFwdTol);
   report_max_err("entropy_mean", fabsf(sc.entropy_mean - sm.entropy_mean),
                  kFwdTol);
   report_max_err("total_loss", fabsf(sc.total_loss - sm.total_loss), kFwdTol);
+  report_max_err("approx_kl", fabsf(sc.approx_kl - sm.approx_kl), kFwdTol);
+  report_max_err("clipfrac", fabsf(sc.clipfrac - sm.clipfrac), kFwdTol);
   check_grad_norm_rel("grad_norm", sc.grad_norm, sm.grad_norm, 0.02f);
 
   char path_c[256], path_m[256];
@@ -425,10 +429,12 @@ static void test_policy_only_grad(const char *ckpt) {
                               &sm),
               0, "mtl update");
 
-  printf("  cpu  pl=%.6g vl=%.6g ent=%.6g tot=%.6g gn=%.6g\n", sc.policy_loss,
-         sc.value_loss, sc.entropy_mean, sc.total_loss, sc.grad_norm);
-  printf("  mtl  pl=%.6g vl=%.6g ent=%.6g tot=%.6g gn=%.6g\n", sm.policy_loss,
-         sm.value_loss, sm.entropy_mean, sm.total_loss, sm.grad_norm);
+  printf("  cpu  pl=%.6g vl=%.6g ent=%.6g tot=%.6g gn=%.6g kl=%.6g clip=%.6g\n",
+         sc.policy_loss, sc.value_loss, sc.entropy_mean, sc.total_loss,
+         sc.grad_norm, sc.approx_kl, sc.clipfrac);
+  printf("  mtl  pl=%.6g vl=%.6g ent=%.6g tot=%.6g gn=%.6g kl=%.6g clip=%.6g\n",
+         sm.policy_loss, sm.value_loss, sm.entropy_mean, sm.total_loss,
+         sm.grad_norm, sm.approx_kl, sm.clipfrac);
 
   report_max_err("policy_only policy_loss",
                  fabsf(sc.policy_loss - sm.policy_loss), kFwdTol);
@@ -436,6 +442,10 @@ static void test_policy_only_grad(const char *ckpt) {
                  kFwdTol);
   report_max_err("policy_only total_loss",
                  fabsf(sc.total_loss - sm.total_loss), kFwdTol);
+  report_max_err("policy_only approx_kl", fabsf(sc.approx_kl - sm.approx_kl),
+                 kFwdTol);
+  report_max_err("policy_only clipfrac", fabsf(sc.clipfrac - sm.clipfrac),
+                 kFwdTol);
   check_grad_norm_rel("policy_only grad_norm", sc.grad_norm, sm.grad_norm,
                       0.02f);
 

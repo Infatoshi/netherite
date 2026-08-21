@@ -382,6 +382,11 @@ __global__ void k_ppo_dlogits(const float *__restrict__ logits,
         drow[c] = g;
       }
     }
+
+    /* Diagnostic only (stats_buf[3], [4]). After all d_* stores. */
+    atomicAdd(&stats_buf[3], ratio - 1.f - logf(ratio));
+    if (fabsf(ratio - 1.f) > clip)
+      atomicAdd(&stats_buf[4], 1.f);
   }
 }
 
@@ -1424,8 +1429,8 @@ int nn_cuda_update(NnCuda *nn, const uint8_t *planes, const float *scalars,
     return -1;
 
   if (stats) {
-    float s[3] = {0, 0, 0};
-    CU_CHECK(cudaMemcpy(s, nn->d_stats, 3 * sizeof(float),
+    float s[5] = {0, 0, 0, 0, 0};
+    CU_CHECK(cudaMemcpy(s, nn->d_stats, 5 * sizeof(float),
                         cudaMemcpyDeviceToHost));
     const float inv_n = 1.f / (float)n;
     stats->policy_loss = s[0] * inv_n;
@@ -1434,6 +1439,8 @@ int nn_cuda_update(NnCuda *nn, const uint8_t *planes, const float *scalars,
     stats->total_loss = stats->policy_loss + stats->value_loss -
                         nn->cfg.entropy_coef * stats->entropy_mean;
     stats->grad_norm = grad_norm;
+    stats->approx_kl = s[3] * inv_n;
+    stats->clipfrac = s[4] * inv_n;
   }
 
   CU_CHECK(cudaDeviceSynchronize());
