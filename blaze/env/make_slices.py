@@ -8,7 +8,7 @@ tunnel, the 3 stages do not. This bakes s<seed>_m<k>.bsnp after every
 single scripted burrow cell (stage_coal budget=1 = one cell) between the
 d6.0 handoff and the d3.0 last-mile, restoring that continuum.
 
-Run: cd magma && uv run --no-project --with numpy,torch,matplotlib \\
+Run: cd magma && uv run --no-project --with numpy \\
        python blaze/env/make_slices.py --seeds 16,20,27,46
 """
 import argparse
@@ -21,8 +21,9 @@ RL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "
 sys.path.insert(0, RL)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from ppo_coal import make_env, nearest_coal        # noqa: E402
 import chain_probe as cp                           # noqa: E402
+make_env = cp.make_env
+nearest_coal = cp.nearest_coal
 from make_snapshots import quiesce, snap_liquid_flag, SNAPS  # noqa: E402
 
 OUT = os.path.join(RL, "out")

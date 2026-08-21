@@ -2,7 +2,7 @@
 """Bake .bsnp training snapshots for the batched env (blaze).
 
 For every seed in rl/out/coal_prefixes.json: replay the scripted prefix
-(ppo_coal.make_env), then for each curriculum stage d in STAGES run
+(chain_probe.make_env), then for each curriculum stage d in STAGES run
 chain_probe.stage_coal(stop_dist=d) to burrow within d blocks of the nearest
 coal, quiesce QUIESCE no-op ticks (drops settle / get picked up, dig delay
 drains), and dump rl/out/snaps/s<seed>_d<d>.bsnp via the env's "snapshot"
@@ -19,15 +19,13 @@ quiesce: the state IS the clean post-init pre-first-tick boundary (verified
 byte-exact by verify_cpu.py --chain).
 
 Run (anvil):
-  cd magma && uv run --no-project --with numpy,torch,matplotlib \
+  cd magma && uv run --no-project --with numpy \
       python blaze/env/make_snapshots.py
   cd magma && uv run --no-project --with numpy \
       python blaze/env/make_snapshots.py --t0
   cd magma && uv run --no-project --with numpy \
       python blaze/env/make_snapshots.py --expand   # re-dump old d* fixtures
                                                     # IN PLACE at CURRICULUM_R
-(torch/matplotlib are only needed because ppo_coal imports them at module
-scope; the curriculum mode reuses its make_env prefix replay.)
 """
 import argparse
 import json
@@ -233,11 +231,9 @@ def bake_seed(seed, prefix):
 
 
 def main(seeds_arg=None):
-    # Lazy: curriculum mode needs the training stack (torch etc. via
-    # ppo_coal); t0 mode must stay subprocess-only.
     global make_env, cp
     import chain_probe as cp
-    from ppo_coal import make_env
+    make_env = cp.make_env
     os.makedirs(SNAPS, exist_ok=True)
     prefixes = json.load(open(os.path.join(OUT, "coal_prefixes.json")))
     seeds = _filter_seeds(sorted(int(s) for s in prefixes), seeds_arg)
