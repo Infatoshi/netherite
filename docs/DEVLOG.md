@@ -71,6 +71,39 @@ tasks=0 (bow see/stime stay default); magma HBOW 256 plen=1.
 Creeper swell t=24 tasks=128 cstate=1 fuse++ seeds match
 (rand-free). Zombie NAT+melee t=49 after creeper blast knocks
 the parked player. Pathing depends on lane/detmob PathFinder.
+## 2026-08-21 detmob-dims Nether (lane/detmob-dims)
+
+Default-off `det_entity_rng` across DIM-1. Mixin reseeds at Entity ctor
+RETURN (dimension-agnostic). Recorder `erng` via `lockWorldOf` =
+`player.getServerWorld()`, plus additive `hg`/`gv`/`pr`/`hot`/`hof`/`anger`.
+Scenario `detmob_nether.yaml`: qrl `dim -1`, `/tp` to seed-0 fortress
+`-326.5 56 -102.5` yaw 90 pitch 20, inert spawners, `/summon` blaze
+`-291.5 59 -75.5` and pigman `-330.5 59 -143.5` PersistenceRequired,
+840 ticks, doMobSpawning false. Census: blaze hover gaussian + nearestPlayer
+nextInt(10) + wander/watch/idle; pigman ambient = zombie list minus targeting.
+Magma: `pai_det_ai` blaze/pigman, talk 80, persist age=0, heightOffset after
+goals+nav, DIM-1 `detmob_gate` `dim` + `gm_runtime_set_dimension(-1)` + stencil.
+Knob-off path unchanged.
+
+Gate (anvil llvmpipe record, Mac magma CPU):
+
+- `scenario_detmob_nether_20260821T182154Z.jsonl` (git 87e805b): dim=-1,
+  det_entity_rng=1. Header has extra fortress blaze eid 6539 pr=0 (filtered);
+  persist blaze 6541 + pigman 6542. Ground stencil match. PASS bit-equal
+  pos/yaw/pitch/hyaw, 852 server ticks, 2 tracked. Pigman walked xz=8.78925
+  full window (847 seed48 changes). Blaze walked xz=6.7703 then left the
+  48-block erng at tape t=283 / tt=302 (270 cursor changes in-radius).
+- `scenario_detmob_nether_20260821T182511Z.jsonl` (git 92b66c0, spawners
+  setblock + header is two persist summons only): stencil match, seed48
+  in phase at first_div (`draws_between=0`). FAIL blaze eid 3872 field=z
+  tape t=31 / mag t=21: Java wander 1-tick noPath (tasks=8 then 0, still
+  at -75.5); magma PathFinder 1-block MOVE_TO to z=-74.5, yaw=360. Pigman
+  same class at t=56 (Java xz=0 whole tape). Named site: PathFinder /
+  WalkNodeProcessor, not Entity.rand. Same family as overworld wander
+  first_div t=70 PathPoint mismatch.
+
+End not recorded: Nether re-record of the same yaml is nav lottery;
+enderman teleport would sit on that surface.
 
 ## 2026-08-21 detmob round 3 worldgen + walk + panic (lane/detmob)
 

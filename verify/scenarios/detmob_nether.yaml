@@ -1,0 +1,66 @@
+# detmob-dims: DIM-1 fortress ambient blaze + zombie pigman.
+# det_entity_rng=1, doMobSpawning=false. Player /tp via qrl dim op onto the
+# seed-0 fortress room at (-325,56,-102). One blaze and one pigman on generated
+# nether-brick pads >40 blocks away, no LOS (fortress fences), so blaze
+# AIFireballAttack stays idle and pigman stays unangered. PersistenceRequired
+# so they do not despawn. Not a blessed gate tape.
+#
+# Recorded setup (overworld chat, then qrl):
+#   gamerules + difficulty normal, then dim -1, tp, setblock spawners to
+#   nether_brick, kill r=96, summon blaze -291.5 59 -75.5 and pigman
+#   -330.5 59 -143.5 PersistenceRequired, kill r=20 leftovers, retp look
+#   west/down (yaw 90 pitch 20) away from both.
+# Tapes: scenario_detmob_nether_20260821T182154Z.jsonl PASS 852 ticks
+# (persist blaze+pigman; extra room blaze pr=0 filtered).
+# scenario_detmob_nether_20260821T182511Z.jsonl first_div PathFinder z.
+name: detmob_nether
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: true
+determinism:
+  det_entity_rng: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing false
+  - /gamerule doFireTick false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty normal
+  - /gamemode survival @p
+setup_qrl:
+  - cmd: dim
+    action: { id: -1 }
+    settle_ticks: 120
+  - cmd: runcmds
+    action: { cmds: ["tp @p -326.5 56 -102.5 90 20"] }
+    settle_ticks: 60
+  - cmd: runcmds
+    action:
+      cmds:
+        # Replace spawners so the room cannot emit extra blazes into erng.
+        - setblock -325 56 -102 minecraft:nether_brick
+        - setblock -325 56 -215 minecraft:nether_brick
+        - kill @e[type=Blaze,r=96]
+        - kill @e[type=PigZombie,r=96]
+        - summon blaze -291.5 59 -75.5 {PersistenceRequired:1b}
+        - summon zombie_pigman -330.5 59 -143.5 {PersistenceRequired:1b}
+        - tp @p -326.5 56 -102.5 90 20
+    settle_ticks: 20
+  - cmd: runcmds
+    action:
+      cmds:
+        - kill @e[type=Blaze,r=20]
+        - kill @e[type=PigZombie,r=20]
+        - tp @p -326.5 56 -102.5 90 20
+    settle_ticks: 10
+duration_ticks: 840
+frames_every: 0
+input:
+  segments:
+    - seconds: 42.0
+known_divergences: []

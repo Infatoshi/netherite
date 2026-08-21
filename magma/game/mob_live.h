@@ -109,6 +109,12 @@ typedef struct {
     unsigned char det_strafe_back[EW_MAX_ENTITIES];
     signed char det_cstate[EW_MAX_ENTITIES];
     int det_raise_arm[EW_MAX_ENTITIES];
+    /* det_entity_rng extras for DIM-1 hostiles (unused when the knob is off). */
+    unsigned char det_persist[EW_MAX_ENTITIES];
+    unsigned char ent_jr_have_gauss[EW_MAX_ENTITIES];
+    double ent_jr_gauss[EW_MAX_ENTITIES];
+    int blaze_hot[EW_MAX_ENTITIES];     /* EntityBlaze.heightOffsetUpdateTime */
+    float blaze_hof[EW_MAX_ENTITIES];   /* EntityBlaze.heightOffset */
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */
@@ -142,6 +148,9 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
 void gm_mobs_det_hydrate_hostile(GmMobLive *m, int slot,
                                 int ttt, unsigned ttasks, int tgt, int fuse, int mdelay,
                                 int see, int stime, int atime, int scw, int sback, int cstate);
+/* Optional tape extras: gaussian cache, blaze hover timer, PersistenceRequired, anger. */
+void gm_mobs_det_rng_extra(GmMobLive *m, int slot, int have_gauss, double gauss,
+                           int height_off_time, float height_off, int persist, int anger);
 /* Spawn with slime/magma size (1,2,4). Other types ignore size. */
 int gm_mobs_spawn_sized(GmMobLive *m, int type, double x, double y, double z, int size);
 /* Returns nonzero when attack is aimed at a mob, including cooldown ticks. */

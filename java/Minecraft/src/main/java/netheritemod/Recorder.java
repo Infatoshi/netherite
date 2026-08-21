@@ -2184,6 +2184,19 @@ public class Recorder {
         } catch (Throwable ig) {}
         return dflt;
     }
+    private static boolean detReflectBool(Object o, String name, boolean dflt) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getBoolean(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return dflt;
+    }
     private static Object detReflectObj(Object o, String name) {
         try {
             Class<?> c = o.getClass();
@@ -2371,6 +2384,16 @@ public class Recorder {
           .append(",\"scw\":").append(scw)
           .append(",\"sback\":").append(sback)
           .append(",\"cstate\":").append(cstate);
+        sb.append(",\"hg\":").append(rngHaveGaussian(e.getRNG()) ? 1 : 0)
+          .append(",\"gv\":").append(Double.doubleToRawLongBits(rngNextGaussian(e.getRNG())))
+          .append(",\"pr\":").append(detReflectBool(e, "persistenceRequired", false) ? 1 : 0);
+        if (e instanceof net.minecraft.entity.monster.EntityBlaze) {
+            sb.append(",\"hot\":").append(detReflectInt(e, "heightOffsetUpdateTime", 0))
+              .append(",\"hof\":").append(detReflectFloat(e, "heightOffset", 0.5F));
+        }
+        if (e instanceof net.minecraft.entity.monster.EntityPigZombie) {
+            sb.append(",\"anger\":").append(detReflectInt(e, "angerLevel", 0));
+        }
         if (full) {
             long us = DetEntityRng.loggedUserSeed(eid, DetEntityRng.userSeed(eid));
             long init = DetEntityRng.loggedInit48(eid, DetEntityRng.seed48Init(us));

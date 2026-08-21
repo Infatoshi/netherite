@@ -51,8 +51,7 @@ chicken	after	egg	0or3	--timeUntilNextEgg; if <=0: 2x nextFloat pitch + nextInt(
 # Tape header entity_rng is recstart (between ticks). Per-tick erng is ServerTick END
 # (post-AI pose + cursor). Magma dumps after each tick compare to that row.
 #
-# =============================================================================
-# Hostile addendum (zombie / skeleton / creeper). forgeSrc 1.11.2-13.20.1.2588
+# ======================================================================# Hostile addendum (zombie / skeleton / creeper). forgeSrc 1.11.2-13.20.1.2588
 # plus bytecode (javap EntityLiving.onEntityUpdate, EntityZombie.onLivingUpdate,
 # EntityAIAttackMelee.updateTask, EntityAIAttackRangedBow.updateTask).
 # Additive rows only. Constructor draws are skipped: magma hydrates live seed48.
@@ -121,3 +120,59 @@ hostile	run	swim.updateTask	1	nextFloat<0.8 jump
 # Target bits ttasks: hurt=1 player=2 villager=4 golem=8. ttt=targetTasks.tickCount. tgt=attackTarget!=null.
 # fuse=EntityCreeper.timeSinceIgnited. mdelay=EntityAIAttackMelee.delayCounter.
 # see/stime/atime/scw/sback = bow seeTime, strafingTime, attackTime, clockwise, backwards.
+=======
+# ---- DIM-1 hostiles (lane/detmob-dims). Same mixin reseed; live seed48 from tape. ----
+# EntityBlaze / EntityPigZombie. Client-only particle/burn draws (world.isRemote) are
+# not on the server cursor. Magma hydrates live seed48 and skips ctor.
+#
+# blaze ctor: Entity RETURN reseed, then setPathPriority (no Entity.rand). applyEntityAttributes no rand.
+# pigman ctor: EntityZombie.applyEntityAttributes nextDouble * zombieSummonBaseChance (Forge). Hydrate skips.
+blaze	ctor	Random.<init>	0	mixin reseed at Entity RETURN; blaze body has no extra Entity.rand
+pigman	ctor	SPAWN_REINFORCEMENTS	1	EntityZombie.applyEntityAttributes nextDouble after reseed. Magma hydrates live seed48.
+#
+# blaze ai_list (EntityBlaze.initEntityAI)
+#   tasks: fireball4 mutex3, restrict5 mutex1, wanderAvoidWater7 (prob 0.0F) mutex1, watch8 mutex2, idle8 mutex3
+#   target: hurtBy1, nearestPlayer2 (chance 10)
+# pigman ai_list = EntityZombie.initEntityAI with applyEntityAI replaced:
+#   tasks: swim0, zombieAttack2 mutex3, restrict5, wanderAvoidWater7 (prob 0.001F), watch8, idle8
+#   NO village. target: AIHurtByAggressor, AITargetAggressor = isAngry && nearestPlayer
+# restrict.shouldExecute: maximumHomeDistance default -1 => isWithinHomeDistance true => false, no rand.
+# fireball/zombieAttack.shouldExecute: need attack target. Ambient: no draw.
+#
+blaze	ai_list	addTask	0	fireball4 restrict5 wander7 watch8 idle8. HP20 speed 0.23000000417232513 follow 48 size 0.6x1.8 eyeH 0.85*1.8
+pigman	ai_list	addTask	0	swim0 melee2 restrict5 wander7 watch8 idle8. HP20 speed 0.23000000417232513 damage 5 size 0.6x1.95. Anger-gated target.
+#
+# Per-tick server order (EntityLiving / EntityBlaze / EntityPigZombie):
+#   onEntityUpdate: living_sound nextInt(1000); getTalkInterval=80 (not animal 120)
+#   onLivingUpdate: blaze motionY*=0.6 if falling (no rand, before super). pigman no extra nether rand
+#     (EntityZombie day-burn nextFloat skipped: WorldProviderHell isDaytime=false)
+#   updateEntityActionState: ++entityAge; despawnEntity; targetTasks;
+#     goalSelector (tasks.onUpdateTasks); navigator; then updateAITasks ("mob tick").
+#     EntityLiving.updateAITasks is empty; EntityBlaze fills it with heightOffset.
+#
+blaze	tick	living_sound	1	nextInt(1000) vs livingSoundTime++. talk interval 80
+blaze	tick	living_sound_pitch	2	if fired: getSoundPitch 2x nextFloat; livingSoundTime=-80
+pigman	tick	living_sound	1	same nextInt(1000); talk interval 80
+pigman	tick	living_sound_pitch	2	if fired: 2x nextFloat; livingSoundTime=-80
+all_hostile	tick	despawn.persist	0	PersistenceRequired: ++entityAge then entityAge=0. No nextInt(800).
+#
+# targetTasks.onUpdateTasks (own tickCount, same 0-mod-3 setup as goals; both start 0)
+blaze	setup	nearestPlayer.shouldExecute	0or1	setup: nextInt(10); 0 => getNearestAttackablePlayer (checkSight, no Entity.rand). Ambient tape: no LOS so no target even on 0.
+pigman	setup	targetAggressor.shouldExecute	0	!isAngry short-circuit before super nextInt(10)
+#
+# goalSelector (mutex: wander=1 watch=2 idle=3 fireball=3). Watch+idle conflict. Wander+idle conflict.
+blaze	setup	wander.shouldExecute	1+	age>=100 skip (persist keeps 0). else nextInt(120). if 0: nextFloat>=0.0 always getLandPos(10,7)=10*3 nextInt
+pigman	setup	wander.shouldExecute	1+	age>=100 skip. else nextInt(120). if 0: nextFloat>=0.001 ? getLandPos(10,7) : findRandomTarget(10,7)
+blaze	setup	watch.shouldExecute	1	nextFloat>=0.02 fail; else getClosestPlayer AABB 8. startExecuting: 40+nextInt(40)
+pigman	setup	watch.shouldExecute	1	same, maxDistance 8 (animals used 6)
+blaze	setup	idle.shouldExecute	1	nextFloat<0.02. startExecuting: 2*PI*nextDouble + 20+nextInt(20)
+pigman	setup	idle.shouldExecute	1	same
+#
+# EntityBlaze.updateAITasks is AFTER goals+nav (the "mob tick" slot). PigZombie.updateAITasks is anger/sound only; ambient no rand.
+blaze	ai	heightOffset	0or2+	after nav: --heightOffsetUpdateTime; if <=0: =100, heightOffset=0.5F+(float)nextGaussian()*3.0F. nextGaussian is 2x nextDouble polar, caches one. Hydrate hg/gv + hot/hof from tape.
+blaze	ai	hover_motionY	0	if attackTarget != null && target.eye > this.eye+heightOffset: motionY += (0.30000001192092896-motionY)*0.30000001192092896. Ambient (no target): no pose effect; gaussian still consumed.
+blaze	run	AIFireballAttack	0or4	needs target. Burst: 2x nextGaussian per small fireball (aim spread). Ambient tape: shouldExecute false, no draws.
+pigman	run	idle.updateTask	0	idleTime--; lookHelper 10/40. no Entity.rand
+pigman	run	watch.updateTask	0	lookHelper at player eye; lookTime--
+# Task bits (same PAI_* plus unused fireball): swim=1 panic=2 eat=4 wander=8 watch=16 idle=32
+

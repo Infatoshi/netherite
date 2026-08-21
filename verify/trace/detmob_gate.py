@@ -41,7 +41,16 @@ HOSTILE = {
     "creeper": "creeper",
 }
 
-TRACKED = {**PASSIVE, **HOSTILE}
+DIM_MOBS = {
+    "EntityBlaze": "blaze",
+    "EntityPigZombie": "pigman",
+    "blaze": "blaze",
+    "pigman": "pigman",
+    "zombie_pigman": "pigman",
+}
+
+TRACKED = {**PASSIVE, **HOSTILE, **DIM_MOBS}
+
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -107,11 +116,13 @@ def unique_server_rows(rows, stand):
 
 
 def tracked_ids(header, rows):
-    """Passives + zombie/skeleton/creeper in the recstart snapshot.
+    """Passives + zombie/skeleton/creeper + blaze/pigman in the recstart snapshot.
 
     Populate hostiles can sit in the 64-block erng sphere. If any hostile is
     within 16 of the parked player (target tape), keep only those; ambient
     summons sit ~46 blocks out so the near set is empty and all three stay.
+    DIM-1 fortress spawners can emit extra blazes into the 48-block erng
+    radius; PersistenceRequired marks the summoned ambient subjects.
     """
     _ = rows
     ents = header.get("entity_rng") or []
@@ -125,6 +136,9 @@ def tracked_ids(header, rows):
         eid = int(e["eid"])
         if t in PASSIVE:
             passives.append(eid)
+        elif t in DIM_MOBS:
+            if int(e.get("pr") or 0) == 1:
+                passives.append(eid)
         elif t in HOSTILE:
             dx = float(e["x"]) - px
             dy = float(e["y"]) - py
@@ -224,6 +238,7 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
         f"seed {int(header.get('seed', 0))}",
         f"time {int(header.get('world_time', 6000))}",
         f"ticks {n_ticks}",
+        f"dim {int(header.get('dim', 0))}",
         f"player {px} {py} {pz} {pyaw} {ppitch}",
     ]
     body = []
@@ -240,10 +255,11 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
             if int(he.get("eid", -1)) == eid:
                 init48 = int(he.get("seed48_init") or 0)
                 break
+        gv_bits = int(e.get("gv", 0) or 0)
         body.append(
             "e {eid} {kind} {x} {y} {z} {yaw} {pitch} {hyaw} {seed48} "
             "{lst} {age} {tt} {tasks} {watch} {idle} {ix} {iz} {eat} {egg} {og} "
-            "{ryaw} {bhp} {bht} {hp} {init48}".format(
+            "{ryaw} {bhp} {bht} {hp} {init48} {hg} {gv} {hot} {hof} {pr} {anger}".format(
                 eid=eid, kind=kind,
                 x=e["x"], y=e["y"], z=e["z"],
                 yaw=e.get("yaw", 0.0), pitch=e.get("pitch", 0.0),
@@ -260,6 +276,12 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
                 bht=int(e.get("bht", 0)),
                 hp=hp,
                 init48=init48,
+                hg=int(e.get("hg", 0) or 0),
+                gv=gv_bits,
+                hot=int(e.get("hot", 0) or 0),
+                hof=float(e.get("hof", 0.5) if e.get("hof") is not None else 0.5),
+                pr=int(e.get("pr", 0) or 0),
+                anger=int(e.get("anger", 0) or 0),
             )
         )
         ginfo = _header_g(header, eid)
@@ -437,7 +459,7 @@ def main(argv: list[str]) -> int:
         return 2
     stand = tracked_ids(header, rows)
     if not stand:
-        print("BLOCKED  no tracked living (passives or zombie/skeleton/creeper) in header entity_rng")
+        print("BLOCKED  no tracked living (passives, zombie/skeleton/creeper, or blaze/pigman) in header entity_rng")
         return 2
     series = unique_server_rows(rows, stand)
     if len(series) < 2:
@@ -458,7 +480,7 @@ def main(argv: list[str]) -> int:
     print(
         f"tape {tape.name}: {len(rows)} client ticks, {len(series)} unique server "
         f"snaps, {n_ticks} magma ticks, {n} tracked {stand}, "
-        f"ground_stencil={n_ground}, atk_ticks={atk_ticks}"
+        f"dim={int(header.get('dim', 0))}, ground_stencil={n_ground}, atk_ticks={atk_ticks}"
     )
     sh = REPO / "magma" / "game" / "detmob_gate.sh"
     rc = subprocess.call(["bash", str(sh), str(fixture), str(magma_out)], cwd=str(REPO / "magma"))
