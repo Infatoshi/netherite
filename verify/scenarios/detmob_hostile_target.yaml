@@ -24,13 +24,15 @@ setup_commands:
   - /gamemode survival @p
   - /tp @p 53.5 74 127.5 180 20
   - /summon pig ~ ~ ~
+  - /summon cow ~ ~ ~
   - /summon sheep ~ ~ ~
+  - /summon chicken ~ ~ ~
   - /summon zombie ~ ~ ~
   - /summon skeleton ~ ~ ~
   - /summon creeper ~ ~ ~
   - /kill @e[type=pig,r=48]
-  - /kill @e[type=sheep,r=48]
   - /kill @e[type=cow,r=48]
+  - /kill @e[type=sheep,r=48]
   - /kill @e[type=chicken,r=48]
   - /kill @e[type=zombie,r=48]
   - /kill @e[type=skeleton,r=48]
