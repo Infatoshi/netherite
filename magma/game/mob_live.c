@@ -709,6 +709,7 @@ static void pai_fill_pf(GmWorld *w, const EwStore *s, int i, int *ox, int *oy, i
     pai_pf.ent.stepHeight = 0.6f;
     pai_pf.ent.canSwim = 0;
     pai_pf.ent.canEnterDoors = 1;
+    pai_pf.ent.canBreakDoors = 0;
     pai_pf.ent.maxFallHeight = 3;
     pai_pf.ent.onGround = s->on_ground[i] ? 1 : 0;
     pai_pf.ent.inWater = pai_in_material(w, s, i, 0);
@@ -743,7 +744,8 @@ static int pai_position_clear(int ox, int oy, int oz,
 }
 
 /* PathNavigateGround.isSafeToStandAt. Node-type queries are WalkNodeProcessor
- * getPathNodeType size-sweep (canBreakDoors=true, canEnterDoors=true). */
+ * getPathNodeType size-sweep with the navigator flags (canEnterDoors true,
+ * canBreakDoors false unless zombie break-door). */
 static int pai_safe_stand(int ox, int oy, int oz,
         int x, int y, int z, int sizeX, int sizeY, int sizeZ,
         double vx, double vz, double d0, double d1) {
@@ -763,10 +765,14 @@ static int pai_safe_stand(int ox, int oy, int oz,
                     !pnp_in(k - ox, y - oy, l - oz))
                     return 0;
                 t = pnp_getPathNodeTypeSize(&pai_pf, k - ox, (y - 1) - oy, l - oz,
-                                           sizeX, sizeY, sizeZ, 1, 1);
+                                           sizeX, sizeY, sizeZ,
+                                           pai_pf.ent.canBreakDoors,
+                                           pai_pf.ent.canEnterDoors);
                 if (t == PNT_WATER || t == PNT_LAVA || t == PNT_OPEN) return 0;
                 t2 = pnp_getPathNodeTypeSize(&pai_pf, k - ox, y - oy, l - oz,
-                                            sizeX, sizeY, sizeZ, 1, 1);
+                                            sizeX, sizeY, sizeZ,
+                                            pai_pf.ent.canBreakDoors,
+                                            pai_pf.ent.canEnterDoors);
                 f = pnp_getPathPriority(&pai_pf.ent, t2);
                 if (f < 0.0f || f >= 8.0f) return 0;
                 if (t2 == PNT_DAMAGE_FIRE || t2 == PNT_DANGER_FIRE || t2 == PNT_DAMAGE_OTHER)
@@ -898,13 +904,37 @@ static void pai_nav_follow(GmMobLive *m, GmWorld *w, EwStore *s, int i) {
     }
 }
 
+/* PathNavigate.checkForStuck: 100-tick / 2.25D window. currentTimeMillis
+ * timeout is wall-clock and CUT. */
+static void pai_nav_stuck(GmMobLive *m, EwStore *s, int i) {
+    double ex = s->x[i];
+    double ey = (double)((int)(s->y[i] + 0.5));
+    double ez = s->z[i];
+    if (m->det_nav_ticks[i] - m->det_nav_stuck_at[i] > 100) {
+        double dx = ex - m->det_nav_stuck_x[i];
+        double dy = ey - m->det_nav_stuck_y[i];
+        double dz = ez - m->det_nav_stuck_z[i];
+        if (dx * dx + dy * dy + dz * dz < 2.25) {
+            m->det_nav_n[i] = 0;
+            s->path_len[i] = 0;
+        }
+        m->det_nav_stuck_at[i] = m->det_nav_ticks[i];
+        m->det_nav_stuck_x[i] = ex;
+        m->det_nav_stuck_y[i] = ey;
+        m->det_nav_stuck_z[i] = ez;
+    }
+}
+
 /* PathNavigate.onUpdateNavigation: pathFollow iff canNavigate, else airborne
- * same-cell Y-above increment. setMoveTo (pai_nav_apply) always. */
+ * same-cell Y-above increment. setMoveTo (pai_nav_apply) always. totalTicks
+ * increments only while a Path exists (caller gates on det_nav_n). */
 static void pai_nav_update(GmMobLive *m, GmWorld *w, EwStore *s, int i) {
     int idx, n;
     if (!pai_det() || m->det_nav_n[i] == 0) return;
+    ++m->det_nav_ticks[i];
     if (pai_can_navigate(s, i)) {
         pai_nav_follow(m, w, s, i);
+        pai_nav_stuck(m, s, i);
     } else {
         float width, height;
         int off;
@@ -942,20 +972,18 @@ static int pai_find_path(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     /* PathFinder.findPath: dest PathPoint is openPoint(floor) even if it sits
      * outside the 32x24x32 window (Java ChunkCache is FOLLOW_RANGE+8). Do not
      * clip dest into the window: that made A* treat a neighbour as closer and
-     * over-walk. Closest==start already returns n=0 (PathFinder.java:340). */
-    /* PathFinder.findPath(BlockPos): (float)coord + 0.5F then f2d. */
+     * over-walk. Closest==start already returns n=0 (PathFinder.java:155). */
     n = pf12_findPath(&pai_pf,
                       (double)((float)bx + 0.5f) - (double)ox,
                       (double)((float)by + 0.5f) - (double)oy,
                       (double)((float)bz + 0.5f) - (double)oz,
                       m->det_follow[i] > 0.5f ? m->det_follow[i]
                                               : pai_follow_range(s->type[i]));
-    /* PathFinder: if closest==start return null. Magma's 32x24x32 window is
-     * smaller than Java ChunkCache (FOLLOW_RANGE+8), so a dest snapped onto a
-     * solid column (getPathToPos walk-up) can sit outside the grid. A* then
-     * treats a same-y neighbour as closer via manhattan to that far dest.
-     * Java's larger cache keeps closest==start and returns null. Reject a
-     * neighbour-only path when dest is out of window. */
+    /* Magma's 32x24x32 window is smaller than Java ChunkCache (FOLLOW_RANGE+8),
+     * so a dest snapped onto a solid column (getPathToPos walk-up) can sit
+     * outside the grid. A* then treats a same-y neighbour as closer via
+     * manhattan to that far dest. Java's larger cache keeps closest==start
+     * and returns null. Reject a neighbour-only path when dest is out of window. */
     if (n > 0 && !pnp_in(bx - ox, by - oy, bz - oz)) {
         int sx = pai_pf.resultPts[0], sy = pai_pf.resultPts[1], sz = pai_pf.resultPts[2];
         int ex = pai_pf.resultPts[(n - 1) * 3 + 0];
@@ -2335,6 +2363,87 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
     }
 }
 
+static int pai_det_living(int type) {
+    return pai_det_ai(type) || hai_ok(type);
+}
+
+static void pai_living_aabb(const GmMobLive *m, const EwStore *s, int i, McAABB *out) {
+    if (m->det_box_on[i]) {
+        *out = m->det_box[i];
+        return;
+    }
+    float w, h;
+    pai_size(s->type[i], &w, &h);
+    *out = mc_aabb_make(s->x[i] - (double)w * 0.5, s->y[i], s->z[i] - (double)w * 0.5,
+                        s->x[i] + (double)w * 0.5, s->y[i] + (double)h,
+                        s->z[i] + (double)w * 0.5);
+}
+
+/* Entity.applyEntityCollision: d0 = other.x - this.x, this += -d0, other += d0
+ * after absMax / MathHelper.sqrt / 0.05 scale. entityCollisionReduction=0. */
+static void pai_apply_collision_vel(double ax, double az, double bx, double bz,
+                                    double *avx, double *avz, double *bvx, double *bvz) {
+    double d0 = bx - ax;
+    double d1 = bz - az;
+    double ad0 = d0 < 0.0 ? -d0 : d0;
+    double ad1 = d1 < 0.0 ? -d1 : d1;
+    double d2 = ad0 > ad1 ? ad0 : ad1;
+    double d3;
+    if (d2 < 0.009999999776482582) return;
+    d2 = (double)(float)sqrt(d2);
+    d0 /= d2;
+    d1 /= d2;
+    d3 = 1.0 / d2;
+    if (d3 > 1.0) d3 = 1.0;
+    d0 *= d3;
+    d1 *= d3;
+    d0 *= 0.05000000074505806;
+    d1 *= 0.05000000074505806;
+    if (avx) {
+        *avx -= d0;
+        *avz -= d1;
+    }
+    if (bvx) {
+        *bvx += d0;
+        *bvz += d1;
+    }
+}
+
+/* EntityLivingBase.collideWithNearbyEntities after travel. */
+static void pai_collide_nearby(GmMobLive *m, EwStore *s, int i,
+                               const McAABB *player_bb, double px, double pz) {
+    McAABB self;
+    int j;
+    if (!s->alive[i] || !pai_det_living(s->type[i])) return;
+    pai_living_aabb(m, s, i, &self);
+    for (j = 1; j < EW_MAX_ENTITIES; ++j) {
+        McAABB other;
+        if (j == i || !s->alive[j] || !pai_det_living(s->type[j])) continue;
+        if (m->entity_dimension[j] != m->entity_dimension[i]) continue;
+        pai_living_aabb(m, s, j, &other);
+        if (!mc_aabb_intersects(&self, &other)) continue;
+        pai_apply_collision_vel(s->x[i], s->z[i], s->x[j], s->z[j],
+                                &s->vx[i], &s->vz[i], &s->vx[j], &s->vz[j]);
+    }
+    if (player_bb && mc_aabb_intersects(&self, player_bb))
+        pai_apply_collision_vel(s->x[i], s->z[i], px, pz,
+                                &s->vx[i], &s->vz[i], NULL, NULL);
+}
+
+/* Player collideWithNearbyEntities (tickPlayers, before entity list). */
+static void pai_player_collide_mobs(GmMobLive *m, EwStore *s,
+                                    const McAABB *player_bb, double px, double pz) {
+    int i;
+    for (i = 1; i < EW_MAX_ENTITIES; ++i) {
+        McAABB mob;
+        if (!s->alive[i] || !pai_det_living(s->type[i])) continue;
+        pai_living_aabb(m, s, i, &mob);
+        if (!mc_aabb_intersects(player_bb, &mob)) continue;
+        pai_apply_collision_vel(px, pz, s->x[i], s->z[i],
+                                NULL, NULL, &s->vx[i], &s->vz[i]);
+    }
+}
+
 static int alive_count(const GmMobLive *m,const EwStore *s) {
     int n=0;
     for (int i=1;i<EW_MAX_ENTITIES;++i)
@@ -2854,6 +2963,16 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     }
     if(m->player_attack_cooldown>0)--m->player_attack_cooldown;
     double px=p->ent.posX+ox, py=p->ent.posY, pz=p->ent.posZ+oz;
+    double lx = m->look_have ? m->look_px : px;
+    double ly = m->look_have ? m->look_py : py;
+    double lz = m->look_have ? m->look_pz : pz;
+    McAABB player_bb = p->ent.box;
+    player_bb.minX += (double)ox;
+    player_bb.maxX += (double)ox;
+    player_bb.minZ += (double)oz;
+    player_bb.maxZ += (double)oz;
+    if (pai_det())
+        pai_player_collide_mobs(m, nx, &player_bb, px, pz);
     if (!pai_det())
         natural_spawn(m,w,nx,px,py,pz,dimension,world_time);
     int tod=(int)(world_time%24000LL); if(tod<0)tod+=24000;
@@ -3188,9 +3307,11 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         /* EntityLivingBase.onLivingUpdate: updateEntityActionState (lookHelper)
          * then moveEntityWithHeading. Det matches that; knob-off keeps look
          * after travel so test_mob_live stays byte-identical. */
-        if(pai_det() && pai_det_ai(type)) pai_apply_current_look(m,nx,i,px,py,pz);
-        if(hai_ok(type) && pai_det()) hai_look(m,nx,i,px,py,pz);
+        if(pai_det() && pai_det_ai(type)) pai_apply_current_look(m,nx,i,lx,ly,lz);
+        if(hai_ok(type) && pai_det()) hai_look(m,nx,i,lx,ly,lz);
         move_mob(w,st,m,nx,i,moving,jump,swim_jump,nav_speed);
+        if(pai_det() && pai_det_living(type))
+            pai_collide_nearby(m, nx, i, &player_bb, px, pz);
         if(passive && !pai_det()) pai_apply_current_look(m,nx,i,px,py,pz);
         /* EntityLiving.updateDistance -> bodyHelper, once from onUpdate headTurn. */
         if(pai_det() && (pai_det_ai(type) || hai_ok(type))) pai_body_update(m, nx, now, i);
@@ -3212,6 +3333,10 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         }
     }
     tick_xp_orbs(m,w,p,ox,oz);
+    m->look_px = px;
+    m->look_py = py;
+    m->look_pz = pz;
+    m->look_have = 1;
     ++m->tick;m->current^=1;
     (void)drops;
 }

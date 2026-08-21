@@ -1,5 +1,41 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 detmob consolidation round 3 (lane/detmob-all)
+
+On 00647de: four PASS; three first_divs, cursors equal.
+
+Sites (bytecode, deobfed 1.11.2):
+- Entity.applyEntityCollision: absMax, MathHelper.sqrt (float), 0.05F scale.
+  EntityLivingBase.collideWithNearbyEntities after travel. World ticks
+  players first. Ambient t=235 creeper x was skeleton AABB overlap after
+  skeleton travel, not PathFinder dest Y.
+- PathNavigate.checkForStuck: 100-tick / 2.25D inside pathFollow. totalTicks++
+  is every onUpdateNavigation; hydrating that clock extra-draws wander RPG,
+  so magma increments only while a Path exists. Closes ambient t=424 slide.
+- EntityAIAttackMelee.updateTask: LookHelper.setLookPositionWithEntity
+  (target, 30F, 30F). setLookPositionWithEntity: posY + getEyeHeight()F f2d
+  (player 1.62F). Tape `pl` is client pose after ServerTick END; lookHelper
+  samples during AI. Magma stores previous tick's player for look only
+  (watch/NAT/collision keep current). Closes target t=29 pitch sign-flip.
+- ChunkCache is FOLLOW_RANGE+8, chunk-aligned XZ, full Y 0-255. Widening
+  magma's 32x24x32 PNP to 128x256x128 put dest y=95 in-grid and A* returned
+  a neighbour path Java left as closest==start (nether T182511 t=31
+  regression). Same t=745 x values with the large window. Reverted. t=745
+  dest after solid walk-up is (-285,96,-70) out of the 24-high window; A*
+  emits a 10-pt same-Y closest (n=10, not neighbour-only) while Java
+  1-tick wander noPath (tasks=8 then 0, og=1).
+
+Gates:
+- passive T152220Z PASS 1203 standing
+- wander T164213Z PASS 1204
+- panic T170933Z PASS 407
+- nether T182154Z PASS 852
+- ambient T181540Z PASS 625 (was t=235 creeper x)
+- target T182955Z first_div t=31 eid=3339 x, cursors equal (was t=29 pitch)
+- nether T182511Z first_div t=745 eid=3872 x, cursors equal
+
+Default-off. No GATES / known_divergences / blessed-tape / blaze-rl.
+
 ## 2026-08-21 detmob consolidation round 2 (lane/detmob-all)
 
 On 615788b: four tapes PASS; three open.

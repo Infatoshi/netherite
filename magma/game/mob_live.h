@@ -92,6 +92,17 @@ typedef struct {
     short det_nav_z[EW_MAX_ENTITIES][48];
     unsigned char det_nav_n[EW_MAX_ENTITIES];
     unsigned char det_nav_i[EW_MAX_ENTITIES];
+    /* PathNavigate.totalTicks / ticksAtLastPos / lastPosCheck (checkForStuck). */
+    int det_nav_ticks[EW_MAX_ENTITIES];
+    int det_nav_stuck_at[EW_MAX_ENTITIES];
+    double det_nav_stuck_x[EW_MAX_ENTITIES];
+    double det_nav_stuck_y[EW_MAX_ENTITIES];
+    double det_nav_stuck_z[EW_MAX_ENTITIES];
+    /* Previous-tick player pose for lookHelper. Tape `pl` is client pose
+     * after ServerTick END; EntityLookHelper samples during AI, before this
+     * tick's player travel. Watch/NAT/collision keep the current pose. */
+    double look_px, look_py, look_pz;
+    unsigned char look_have;
     /* PathNavigate.getPathSearchRange: FOLLOW_RANGE attribute base.
      * Summoned mobs skip onInitialSpawn, so no gaussian spawn bonus. */
     float det_follow[EW_MAX_ENTITIES];
