@@ -183,29 +183,29 @@ Example qrl + mcwindow sketch for armor + hurt flash:
   `hud_pin`/`frame{}`. Sticky `timeInPortal` is also re-applied at
   `frame{}` (free-running ticks decay it when not in a portal block).
   Drivers use atomic `frame_pair` (two re-renders, one client turn, shared
-  nanoTime). Hard gate: full A/B-stable ROI, thr=0, Java∪C owned = full
-  portal feature. **Reproducible blocker (2026-07-24):** even with sticky
-  time+phase, pin_texture_animations, and atomic `frame_pair` under
-  llvmpipe, A/B still shows maxch=1 residuals (measured ~6k px on a fresh
-  pair; accepted golden still ~865 maxch=1). Product remains
-  **CAPTURE_BLOCKED** (never PASS under any C: Java_a, Java_b, midpoint,
-  Java_a+1). Do not replace accepted goldens with a noisier pair. **No**
-  fitted black cell, **no** color-only purple masks, **no** mean budgets,
-  **no** ceil(noise_max) PASS tolerance. Outdoor Java underlay vs gray C
-  isolation under translucent alpha is the honest composition residual.
-  Mutations + controls: synthetic zero-noise PASS; real A/B blocked; erase/
-  blank/+1/shift/recolor/extra black-midgray-midchroma-bright.
+  nanoTime, fogColor1/2 restored, `finishTimeNano` +10s). Hard gate: full
+  A/B-stable ROI, thr=0, Java∪C owned = full portal feature.
+  **Recapture 2026-08-21:** A/B is bit-exact (maxch=0, n_ab_maxch_ge1=0,
+  409920 px). The 2026-07-24 maxch=1 residual (~865 px on the old pair)
+  was harness: fog smoother stepped twice and `updateChunks` skipped
+  uploads. C-vs-J outdoor underlay vs gray isolation remains the honest
+  composition residual (RESIDUAL, not CAPTURE_BLOCKED). Do not replace
+  this pair with a noisier one. **No** fitted black cell, **no** color-only
+  purple masks, **no** mean budgets, **no** ceil(noise_max) PASS tolerance.
+  Mutations + controls: synthetic zero-noise PASS; C=Java_a PASS on exact
+  A/B; C=Java_a+1 reject; erase/blank/+1/shift/recolor/extra.
 - **Underwater hard residual (improved, not noise-floor):** UV/blend/order
   match `renderWaterOverlayTexture` (4× tile, yaw/pitch/64, color(brightness,0.5),
   src-over, FOV 60). Candidate uses same-scene glass-pool ambient (fogged
   nearby stone, not gray isolation) and water-attenuated eye brightness
   (~light 10 → 1/3). Full-ROI hard gate (same exact hard_px bar as inside-block;
-  no painted-vs-gray filter; no noise/mean budget to claim parity). Measured
-  C-vs-J **15.25 → ~4.97**/ch on committed A/B. Remaining residual is
-  non-uniform pool geometry / hand registration under the translucent overlay
-  — needs a full mesh of the glass pool to close further. Air partial stays a
-  separate hard HUD gate. Fire left soft for animated-atlas. Mutations
-  cover omission wipe and extra block (must not PASS).
+  no painted-vs-gray filter; no noise/mean budget to claim parity).
+  Recapture 2026-08-21 A/B is bit-exact (maxch=0). Measured C-vs-J
+  **15.25 → ~4.97**/ch on the old pair; re-measure against the new twins.
+  Remaining residual is non-uniform pool geometry / hand registration under
+  the translucent overlay. Air partial stays a separate hard HUD gate.
+  Fire left soft for animated-atlas. Mutations cover omission wipe and
+  extra block (must not PASS).
 - **Low-health heart jitter:** vanilla `rand(updateCounter*312871)` not taped;
   numerical gates keep the stable baseline deliberately.
 - **Absorption gold hearts (closed):** `GuiIngame.renderPlayerStats` port —

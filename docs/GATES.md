@@ -141,10 +141,10 @@ Blaze Metal tick (M3) waits until CUDA survival rows pass M1 and M2
 | 12 | World spawn selection (item 16). | 1 | grindable | anvil oracle |
 | 13 | Python still owns replay/pixels/M2 verify. Binary tape not written. No root `make verify`. | 4 | grindable slices | anvil cpu |
 
-Do not grind: slime rim (oracle draw capture), portal/underwater
-(`CAPTURE_BLOCKED`), rain lightmap (no rain tape), particle `rand`,
-server elytra HP, Magma GPU tick, Metal tick, raster 1.6x kernel twins,
-Mac 30M-tick train.
+Do not grind: particle `rand`, server elytra HP, Magma GPU tick, Metal
+tick, raster 1.6x kernel twins, Mac 30M-tick train. Slime rim, rain
+lightmap, and portal/underwater Oracle A/B are grindable (see
+`magma/OPEN_DIVERGENCES.md` 2026-08-21 captures).
 
 Harness holes: `NnUpdateStats` has `entropy_mean` but the chunk log omits
 it; no KL/clipfrac; no native 13-seed eval; Metal `n == max_n`; schema-1
