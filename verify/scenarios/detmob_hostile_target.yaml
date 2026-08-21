@@ -1,9 +1,9 @@
-# detmob hostile targeting: player parked on the known seed-0 grass at
-# 38.5,70,170.5 (ambient pad). Mobs summoned ~7 blocks north so
-# NearestAttackableTarget fires and they path in, but they should not
-# close to melee/knockback during this short window (player stays parked).
-# Night, difficulty easy (bow cooldown 40). PersistenceRequired.
-# det_entity_rng=1, doMobSpawning=false. Not a blessed gate tape.
+# detmob hostile targeting: load from 38.5,70,170.5, summon on the
+# walkable hilltop pad (ambient xyz), then tp the player in last.
+# NearestAttackableTarget + zombie melee path + creeper swell.
+# Short window: player parked until first melee knockback.
+# Night, difficulty easy. PersistenceRequired. det_entity_rng=1.
+# doMobSpawning=false. Not a blessed gate tape.
 name: detmob_hostile_target
 world:
   seed: 0
@@ -38,12 +38,12 @@ setup_commands:
   - /kill @e[type=zombie,r=96]
   - /kill @e[type=skeleton,r=96]
   - /kill @e[type=creeper,r=96]
-  - /summon zombie 38.5 70 163.5 {IsBaby:0b,PersistenceRequired:1b}
-  - /summon creeper 36.5 70 164.5 {PersistenceRequired:1b}
-  - /summon skeleton 40.5 70 163.5 {PersistenceRequired:1b}
+  - /summon zombie 53.5 74 126.5 {IsBaby:0b,PersistenceRequired:1b}
+  - /summon creeper 52.5 74 128.5 {PersistenceRequired:1b}
+  - /summon skeleton 51.5 74 126.5 {PersistenceRequired:1b}
   - /entitydata @e[type=zombie,r=96] {IsBaby:0b}
-  - /tp @p 38.5 70 170.5 180 10
-setup_settle_ticks: 10
+  - /tp @p 53.5 74 127.5 180 20
+setup_settle_ticks: 2
 duration_ticks: 80
 frames_every: 0
 input:
