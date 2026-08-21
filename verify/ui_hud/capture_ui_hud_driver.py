@@ -359,6 +359,17 @@ def mean_abs_roi(a, b, rect):
     return float(np.abs(aa.astype(np.int32) - bb.astype(np.int32)).mean())
 
 
+def ab_maxch_stats(path_a, path_b):
+    a = load_rgb(path_a)
+    b = load_rgb(path_b)
+    d = np.abs(a.astype(np.int16) - b.astype(np.int16))
+    if d.size == 0:
+        return 0, 0
+    maxch = int(d.max())
+    n_ge1 = int((d.max(axis=2) >= 1).sum())
+    return maxch, n_ge1
+
+
 def assert_ab_noise(state_id, path_a, path_b):
     a = load_rgb(path_a)
     b = load_rgb(path_b)
@@ -745,6 +756,7 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
         # atlas animation while still showing the real overlay).
         presence = assert_feature_presence(state_id, path_a, r1)
         noise = assert_ab_noise(state_id, path_a, path_b)
+        noise_max, n_ab_maxch_ge1 = ab_maxch_stats(path_a, path_b)
     except RuntimeError as ex:
         capture_error = str(ex)
         log("CAPTURE_FAIL %s: %s" % (state_id, capture_error))
@@ -783,6 +795,8 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
         "gui_scale": 2,
         "partial_ticks": 1.0,
         "ab_noise": noise,
+        "noise_max": noise_max,
+        "n_ab_maxch_ge1": n_ab_maxch_ge1,
         "noise_limit": NOISE_MAX.get(state_id, NOISE_MAX_DEFAULT),
         "presence": presence,
         "verdict": "CAPTURE_OK",

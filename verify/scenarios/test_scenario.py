@@ -230,3 +230,19 @@ def test_archive_rewrites_paths_and_seeds_known_divergences(tmp_path, monkeypatc
     assert Path(row["frame"]).parent.name == "scenario_test_20260722T010203Z_frames"
     known = archived.with_suffix(".known_divergences.json")
     assert json.loads(known.read_text())["divergences"] == spec["known_divergences"]
+
+
+def test_rain_thunder_spec_forces_weather_and_waits_for_strength_ramp():
+    """The rain-lightmap tape must actually rain; clear+cycle-off is the old hole."""
+    root = Path(__file__).resolve().parent
+    spec = scenario.load_spec(root / "rain_thunder.yaml")
+    assert spec["name"] == "rain_thunder"
+    assert spec["world"]["type"] == "flat"
+    assert spec["duration_ticks"] >= 200
+    setup = "\n".join(spec["setup_commands"])
+    assert "weather thunder" in setup
+    assert "doWeatherCycle false" in setup
+    assert "weather clear" not in setup
+    qrl = spec["setup_qrl"]
+    assert qrl, "need settle ticks so rainingStrength reaches 1.0 before recstart"
+    assert max(int(step.get("settle_ticks", 0)) for step in qrl) >= 100
