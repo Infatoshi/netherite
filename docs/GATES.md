@@ -112,6 +112,46 @@ make test
 Nightly all-tape: `verify/nightly_verify.sh`. Per-kernel CPU==CUDA:
 `make -C blaze verify-<kernel>`.
 
+## Remaining to stop asking
+
+Survey 2026-08-21 (Codex + Fable + Grok). Fable ranks. Asks stop when the
+four gates close under `SPEC.md` (C only, no LibTorch) and
+`magma/PRODUCT.md`. Do not add redstone, multiplayer, other versions, or
+dragon-fight RL.
+
+The playable magma tick stays CPU. CUDA and Metal on magma are raster.
+Batched GPU sim is Blaze. "Full game on GPU" means the
+`blaze/env/port_matrix.yaml` DAG, not a second magma CUDA tick.
+Blaze Metal tick (M3) waits until CUDA survival rows pass M1 and M2
+(`blaze/SPEC.md`).
+
+| # | Remaining | Gate | Class | Host |
+|---|-----------|------|-------|------|
+| 1 | Native `out/blaze/rl/ppo` reproduces spawn->torch (t0 ~0.4, transfer ~11/13). Wood-break t0 0.495 matched; chain quality is unproven. | 2 | grindable | anvil gpu0 |
+| 2 | Native transfer/eval of `ppo_ckpt.bin` into magma. Torch eval scripts are gone. | 2 | needs-design | anvil |
+| 3 | Magma 60 fps at 1080p. Last CUDA measure 35.93 fps (`--set bench=1`). Raster twins are a two-machine gate; do not edit one kernel overnight. | 3 | grindable | anvil gpu1 + Mac |
+| 4 | Port-matrix rows after spawn-to-torch: fluids, random_ticks, falling_blocks, entity_spine, projectiles, explosions, mobs, chests, portals_dimensions, nether_route, dragon_victory, weather_optional, boats_elytra_xp. | 2 | grindable DAG | anvil cpu then gpu |
+| 5 | Blaze Metal tick (M3). Sequence-blocked on row 4. | 2 | needs-design | Mac later |
+| 6 | Magma live tick on GPU. No gate accepts it. | none | keep-cpu | none |
+| 7 | Human spawn->End with zero first-divergence. | 1 | human | Moonlight |
+| 8 | State-clean auto-campaign pixels: hand lighting, particle additive, HUD hotbar (`magma/OPEN_DIVERGENCES.md`). | 1 | grindable | anvil gpu1 |
+| 9 | Spawner miniature data path (TileEntities -> script -> store -> emit). Renderer exists. | 1 | grindable | anvil cpu |
+| 10 | Live blaze `isBurning` (AIFireballAttack). Replay is fixed. | 1 | grindable | anvil cpu |
+| 11 | Fortress placement vs oracle MCA (seed 0 y/z). | 1 | grindable | anvil cpu |
+| 12 | World spawn selection (item 16). | 1 | grindable | anvil oracle |
+| 13 | Python still owns replay/pixels/M2 verify. Binary tape not written. No root `make verify`. | 4 | grindable slices | anvil cpu |
+
+Do not grind: slime rim (oracle draw capture), portal/underwater
+(`CAPTURE_BLOCKED`), rain lightmap (no rain tape), particle `rand`,
+server elytra HP, Magma GPU tick, Metal tick, raster 1.6x kernel twins,
+Mac 30M-tick train.
+
+Harness holes: `NnUpdateStats` has `entropy_mean` but the chunk log omits
+it; no KL/clipfrac; no native 13-seed eval; Metal `n == max_n`; schema-1
+ckpt has no Adam/curriculum; C replay has no PNG path.
+
+Pixel and recorder forensics stay in `magma/OPEN_DIVERGENCES.md`.
+
 ## Pinned engineering gates (standalone)
 
 These are not the four ship gates above; they are locked harnesses that reject

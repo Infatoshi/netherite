@@ -1,5 +1,26 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 remaining-to-stop-asking
+
+Codex, Fable, and Grok surveyed the tree. Fable ranks. The four-gate
+close list is `docs/GATES.md` "Remaining to stop asking". OPEN_DIVERGENCES
+keeps forensics plus a grind/no-grind index.
+
+"Full game GPU port" is the Blaze port-matrix DAG, not a magma CUDA tick.
+Metal tick waits on CUDA M1+M2 survival rows. Magma GPU backends stay raster.
+
+Overnight split: anvil gpu0 native chain; anvil gpu1 pixels/bench; Mac
+Metal verify. Do not start Metal tick or magma live-GPU tick tonight.
+
+## 2026-08-21 torch trainer cut
+
+CUDA wood-break t0 (success_item=17, N=1024, T=32, 11 snaps, 6M ticks)
+matched native C vs Torch: both ~0 until ~4M, end t0 0.495 / 0.490.
+Deleted the Torch chain/coal/break trainers, LibTorch `cgraph`/`native`
+stand-ins, `cpolicy`, flywheel benches, and their callers. Trainer path
+is `out/blaze/rl/ppo`. Env verify still uses torch only as CUDA buffer
+host (`blaze.py`, `verify_cuda.py`).
+
 ## 2026-08-18 overnight native-surface
 
 Loop-1 stayed on `wt/native-surface`. Not merged to master.

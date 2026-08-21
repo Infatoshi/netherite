@@ -13,6 +13,18 @@ Pixel-perfect means every owned, A/B-stable pixel is equal. Mean-error budgets,
 hard-pixel floors, empty target captures, and unstable Oracle pairs are not
 passes.
 
+Stop-asking rank and GPU-port sequence live in `docs/GATES.md` "Remaining
+to stop asking". This file keeps forensics. Survey 2026-08-21 (Fable rank):
+
+Grindable here: hand use poses; inventory preview; auto-campaign hand /
+particles / HUD; spawner TileEntity path; live blaze on-fire; fortress
+y/z vs oracle; spawn coords (item 16); falling-block t46; pcl consume;
+canonical t=260 texel-selection; entities over water.
+
+Do not grind here: portal/underwater `CAPTURE_BLOCKED`; slime rim (needs
+oracle translucent draw capture); rain lightmap (no rain tape); explosion
+puff `Particle.rand`; fog retune; texel bias; Magma GPU tick.
+
 ## Interactive C raster renderer
 
 ### First-person hand use poses
