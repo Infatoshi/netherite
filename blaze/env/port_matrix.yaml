@@ -189,18 +189,41 @@ subsystems:
     timeout: 1500
 
   - name: fluids
-    supported: false
+    supported: true
     sources:
-      magma: [magma/game/fluid_live.c]
-      shared: [blaze/core/fluid_flow.h, blaze/core/pal_fluid_parity.h]
+      magma: [magma/game/fluid_live.c, magma/game/rl_mode.c]
+      shared: [blaze/core/port_parity.h, blaze/core/fluid_flow.h, blaze/core/pal_fluid_parity.h]
       blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
     dependencies: [world_dynamics]
     required_features: [fluids]
-    required_artifacts: {m1: [], m2: []}
-    m1: []
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_fluid_spread.bsnp
+        - blaze/rl/fixtures/fluid_spread_s10.json
+      m2: []
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "61"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_fluid_spread.bsnp
+      - --tape
+      - blaze/rl/fixtures/fluid_spread_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - fluids
     m2: []
     timeout: 1500
-    block_reason: Liquid presence is declared, but liquid evolution has no common measured digest.
 
   - name: random_ticks
     supported: false

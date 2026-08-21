@@ -9,8 +9,7 @@
  * ABI (all pointers caller-owned host memory in this backend):
  *   blaze_create(device, n, opts) -> handle  (opts NULL = defaults)
  *   blaze_load_snapshots(h, paths, count, err, cap) -> nloaded or -1
- *   blaze_snapshot_has_liquid(h, snap) -> 0/1 (flagged snapshots are unsafe:
- *                                         fluids CA is not simulated)
+ *   blaze_snapshot_has_liquid(h, snap) -> 0/1 (snapshot requires BP_FLUIDS)
  *   blaze_assign(h, snap_idx[n])       -> per-env snapshot binding
  *   blaze_reset(h, mask[n] or NULL)
  *   blaze_step(h, actions[n][13] doubles, repeat, cam, depth, edge, scal,
@@ -64,6 +63,7 @@ typedef struct {
     int    rnx, rny, rnz;    /* 0 until the first snapshot is loaded */
     long   rvol;
     u16   *cells_pool, *cam_pool;
+    u16   *fluid_cur_pool, *fluid_tmp_pool;
     u16   *grass_pool;       /* per-env grass_sec census (CU_SEC_SPAN cube) */
     u8    *light_pool, *dep_pool, *edg_pool;
     Chunk *window_pool;
@@ -131,9 +131,13 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     /* one AABB scratch slab per env so OpenMP workers never share it */
     v->blocks = (McAABB *)malloc((size_t)n * PSV_MAX_BLOCKS *
                                  sizeof *v->blocks);
+    v->fluid_cur_pool = (u16 *)malloc((size_t)n * CU_FLUID_VOL *
+                                      sizeof *v->fluid_cur_pool);
+    v->fluid_tmp_pool = (u16 *)malloc((size_t)n * CU_FLUID_VOL *
+                                      sizeof *v->fluid_tmp_pool);
     if (!v->envs || !v->assign || !v->cam_pool || !v->dep_pool ||
         !v->edg_pool || !v->window_pool || !v->cand_pool || !v->cont_pool ||
-        !v->blocks) {
+        !v->blocks || !v->fluid_cur_pool || !v->fluid_tmp_pool) {
         blaze_destroy(v);
         return NULL;
     }
@@ -153,6 +157,8 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         e->window = v->window_pool + (size_t)i * PSV_NCHUNKS;
         e->coal_cand = v->cand_pool + (size_t)i * CU_COAL_CAND;
         e->cont = v->cont_pool + (size_t)i * BLAZE_SNAP_MAX_CONT * 3;
+        e->fluid_cur = v->fluid_cur_pool + (size_t)i * CU_FLUID_VOL;
+        e->fluid_tmp = v->fluid_tmp_pool + (size_t)i * CU_FLUID_VOL;
         e->ops = v->ops_pool ? v->ops_pool + (size_t)i * CU_OP_N : NULL;
         v->assign[i] = -1;
     }
@@ -205,6 +211,7 @@ void blaze_destroy(void *vh) {
     free(v->cam_pool); free(v->dep_pool); free(v->edg_pool);
     free(v->window_pool); free(v->cand_pool); free(v->cont_pool);
     free(v->blocks);
+    free(v->fluid_cur_pool); free(v->fluid_tmp_pool);
     free(v->ops_pool);
     free(v);
 }

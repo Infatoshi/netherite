@@ -1,7 +1,8 @@
 /* blaze_snapshot.c - host-side .bsnp loader (format: blaze_snapshot.h; the
  * writer is game/rl_mode.c rl_snapshot_write). Mirrors rl_snapshot_load's
  * reads plus the trailing coal list the game-side loader skips, and flags
- * regions containing liquids (ids 8-11) - fluids are not simulated in blaze. */
+ * regions containing liquids (ids 8-11) so snapshot_requirements can demand
+ * BP_FLUIDS. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

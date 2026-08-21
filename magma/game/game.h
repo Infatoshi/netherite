@@ -313,6 +313,10 @@ int       gm_world_parity_configure(GmWorld *w, int x0, int y0, int z0,
                                     int nx, int ny, int nz);
 int       gm_world_parity_state(const GmWorld *w, uint64_t *digest,
                                 unsigned *mutations);
+/* XOR of liquid-cell tokens (ids 8..11) in the configured parity region plus
+ * the live liquid-cell count. Used with the fluid scheduler hash. */
+int       gm_world_fluid_parity_state(const GmWorld *w, uint64_t *digest,
+                                      unsigned *ncells);
 
 /* World-time / weather counters for the live tick composition (advanced by
  * gm_world_tick). */

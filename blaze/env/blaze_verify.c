@@ -73,8 +73,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (blaze_snapshot_has_liquid(h, 0))
-        fprintf(stderr, "WARNING: region contains liquid (ids 8-11); "
-                        "fluids are not simulated\n");
+        fprintf(stderr, "note: region contains liquid (ids 8-11)\n");
     assign = (int *)calloc((size_t)n, sizeof *assign);
     actions = (double *)calloc((size_t)n * 13, sizeof *actions);
     cam = (unsigned short *)malloc((size_t)n * CU_NPIX * sizeof *cam);

@@ -282,6 +282,8 @@ struct GmWorld {
     int           parity_nx, parity_ny, parity_nz;
     u64           parity_digest;
     unsigned      parity_mutations;
+    u64           parity_fluid_cells_digest;
+    unsigned      parity_fluid_cells;
 };
 
 /* v mod D, non-negative. */
@@ -539,6 +541,13 @@ void gm_world_set_block_meta(GmWorld *w, int wx, int wy, int wz, int id, int met
         w->parity_digest = bp_world_digest_replace(
             w->parity_digest, index, old_state, new_state);
         ++w->parity_mutations;
+        {
+            uint32_t nliq = w->parity_fluid_cells;
+            w->parity_fluid_cells_digest = bp_fluid_cells_replace(
+                w->parity_fluid_cells_digest, &nliq, index,
+                old_state, new_state);
+            w->parity_fluid_cells = nliq;
+        }
     }
 
     /* edit the block store, then re-light: light_ensure re-runs sky light for the
@@ -595,12 +604,20 @@ int gm_world_parity_configure(GmWorld *w, int x0, int y0, int z0,
         return 0;
     }
     h = bp_world_digest_begin(nx, ny, nz);
-    for (x = 0; x < nx; ++x)
-        for (y = 0; y < ny; ++y)
-            for (z = 0; z < nz; ++z)
-                h = bp_world_digest_add(
-                    h, index++,
-                    light_state(w->light, x0 + x, y0 + y, z0 + z));
+    {
+        uint64_t fh = 0;
+        uint32_t fn = 0;
+        for (x = 0; x < nx; ++x)
+            for (y = 0; y < ny; ++y)
+                for (z = 0; z < nz; ++z) {
+                    u16 s = light_state(w->light, x0 + x, y0 + y, z0 + z);
+                    h = bp_world_digest_add(h, index, s);
+                    fh = bp_fluid_cells_add(fh, &fn, index, s);
+                    index++;
+                }
+        w->parity_fluid_cells_digest = fh;
+        w->parity_fluid_cells = fn;
+    }
     w->parity_x0 = x0; w->parity_y0 = y0; w->parity_z0 = z0;
     w->parity_nx = nx; w->parity_ny = ny; w->parity_nz = nz;
     w->parity_digest = h;
@@ -614,6 +631,14 @@ int gm_world_parity_state(const GmWorld *w, uint64_t *digest,
     if (!w || !w->parity_valid || !digest || !mutations) return 0;
     *digest = w->parity_digest;
     *mutations = w->parity_mutations;
+    return 1;
+}
+
+int gm_world_fluid_parity_state(const GmWorld *w, uint64_t *digest,
+                                unsigned *ncells) {
+    if (!w || !w->parity_valid || !digest || !ncells) return 0;
+    *digest = w->parity_fluid_cells_digest;
+    *ncells = w->parity_fluid_cells;
     return 1;
 }
 

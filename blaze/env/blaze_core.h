@@ -23,9 +23,10 @@
  * crf_*, oc_pixel) are reused VERBATIM via include - never re-implemented.
  *
  * Deliberately NOT simulated (inert or impossible with the supported item
- * set; the snapshot baker flags offenders): fluids CA (snapshots with liquid
- * ids 8-11 are flagged), mobs/dragon/projectiles, weather/clock, portals,
- * bow/eye-of-ender (need held item 261/381 - neither is craftable in-chain).
+ * set; the snapshot baker flags offenders): mobs/dragon/projectiles,
+ * weather/clock, portals, bow/eye-of-ender (need held item 261/381 - neither
+ * is craftable in-chain). Fluids CA is simulated (magma/game/fluid_live.c
+ * port) and hashed into BP_FLUIDS.
  * Furnaces ARE simulated since the iron extension (game/furnace_live.c +
  * runtime.c furnace slots ported below; "smelt":1 primitive) - but furnace
  * state is NOT in .bsnp, so snapshots must be baked with no active furnace
@@ -53,6 +54,7 @@
 #include "player_break.h"       /* PbInput, pb_* verbatim */
 #include "items_tools_armor.h"  /* ita_* verbatim */
 #include "mc_blocks.h"
+#include "fluid_flow.h"         /* ff_ca_step_ex (shared Magma fluid CA) */
 #include "obs_camera.h"         /* OcRegion, oc_pixel verbatim */
 #include "interact_blocks.h"    /* ib_apply (use on doors/levers/...) verbatim */
 #include "item_block_place.h"   /* ibp_placed_meta (place orientation) verbatim */
@@ -155,6 +157,21 @@ typedef struct {
     i32 burn_time, current_burn_time, cook_time, total_cook;
 } CuFurnace;
 
+/* magma/game/fluid_live.h constants - keep equal. */
+#define CU_FLUID_NX 64
+#define CU_FLUID_NY 40
+#define CU_FLUID_NZ 64
+#define CU_FLUID_MARGIN 4
+#define CU_FLUID_REGIONS 4
+#define CU_FLUID_JOIN_DIST 20
+#define CU_FLUID_VOL (CU_FLUID_NX * CU_FLUID_NY * CU_FLUID_NZ)
+typedef struct {
+    int active;
+    int x0, y0, z0, x1, y1, z1;
+    int has_water;
+    int quiet_steps;
+} CuFluidRegion;
+
 /* ---- binary obs record: byte-layout twin of rl_mode.c RlBinObs. blocks/
  * logs are emitted ZEROED (their membership rides the real env's scan-cache
  * rebuild cadence; the verify gate excludes them - compare coal/cam/depth/
@@ -212,7 +229,15 @@ typedef struct {
     uint64_t parity_world_digest;
     uint32_t parity_world_mutations;
     int      parity_world_valid;
+    uint64_t parity_fluid_cells_digest;
+    uint32_t parity_fluid_cells;
+    int      parity_fluid_cells_valid;
+    uint32_t parity_fluid_mutations;
     int      light_valid;        /* snapshot v2 carried exact light nibbles */
+
+    u16   *fluid_cur, *fluid_tmp; /* CU_FLUID_VOL CA grids; NULL = skip CA */
+    CuFluidRegion fluid_reg[CU_FLUID_REGIONS];
+    int    fluid_dim;            /* Magma GmFluidLive.dim; -99 until mark */
 
     int rx0, ry0, rz0;           /* region origin (world) */
     int rnx, rny, rnz;           /* region dims (snapshot header) */
@@ -505,6 +530,11 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
             e->parity_world_digest = bp_world_digest_replace(
                 e->parity_world_digest, (uint64_t)i, old_state, new_state);
             ++e->parity_world_mutations;
+        }
+        if (e->parity_fluid_cells_valid && old_state != new_state) {
+            e->parity_fluid_cells_digest = bp_fluid_cells_replace(
+                e->parity_fluid_cells_digest, &e->parity_fluid_cells,
+                (uint64_t)i, old_state, new_state);
         }
         e->cells[i] = new_state;
         /* grass census maintenance: this is the ONLY runtime writer of
@@ -2123,6 +2153,161 @@ MC_HD static inline int blaze_do_smelt(Blaze *env) {
     return did;
 }
 
+/* =================== live fluids CA (magma/game/fluid_live.c port) ======== */
+
+MC_HD static inline int cu_fl_is_water(int id) {
+    return id == BLK_FLOWING_WATER || id == BLK_WATER;
+}
+
+MC_HD static inline int cu_fl_is_displaceable(int id) {
+    return id == 31 || id == 32 || id == 37 || id == 38 ||
+           id == 39 || id == 40 || id == 51 || id == 78;
+}
+
+MC_HD static inline void cu_fluid_init(Blaze *e) {
+    int i;
+    e->fluid_dim = -99;
+    e->parity_fluid_mutations = 0;
+    for (i = 0; i < CU_FLUID_REGIONS; ++i) {
+        CuFluidRegion *r = &e->fluid_reg[i];
+        r->active = 0;
+        r->x0 = r->y0 = r->z0 = r->x1 = r->y1 = r->z1 = 0;
+        r->has_water = 0;
+        r->quiet_steps = 0;
+    }
+}
+
+MC_HD static inline int cu_fluid_active(const Blaze *e) {
+    int i;
+    for (i = 0; i < CU_FLUID_REGIONS; ++i)
+        if (e->fluid_reg[i].active) return 1;
+    return 0;
+}
+
+MC_HD static inline int cu_fl_dist_to_box(const CuFluidRegion *r,
+                                          int wx, int wy, int wz) {
+    int d = 0, t;
+    t = r->x0 - wx; if (t > d) d = t; t = wx - r->x1; if (t > d) d = t;
+    t = r->y0 - wy; if (t > d) d = t; t = wy - r->y1; if (t > d) d = t;
+    t = r->z0 - wz; if (t > d) d = t; t = wz - r->z1; if (t > d) d = t;
+    return d;
+}
+
+MC_HD static inline void cu_fl_union(CuFluidRegion *r, int wx, int wy, int wz) {
+    if (wx < r->x0) r->x0 = wx; if (wx > r->x1) r->x1 = wx;
+    if (wy < r->y0) r->y0 = wy; if (wy > r->y1) r->y1 = wy;
+    if (wz < r->z0) r->z0 = wz; if (wz > r->z1) r->z1 = wz;
+    r->quiet_steps = 0;
+}
+
+MC_HD static inline void cu_fluid_mark(Blaze *e, int dim, int wx, int wy, int wz) {
+    static const int dx[7] = {0, 1, -1, 0, 0, 0, 0};
+    static const int dy[7] = {0, 0, 0, 1, -1, 0, 0};
+    static const int dz[7] = {0, 0, 0, 0, 0, 1, -1};
+    int found = 0, water = 0, i, best, best_d, free_slot;
+    CuFluidRegion *r;
+    if (!e->fluid_cur || !e->fluid_tmp) return;
+    for (i = 0; i < 7 && !water; ++i) {
+        int id = cu_world_block(e, wx + dx[i], wy + dy[i], wz + dz[i]);
+        if (bp_is_liquid_id(id)) { found = 1; water |= cu_fl_is_water(id); }
+    }
+    if (!found) return;
+    if (e->fluid_dim != dim) cu_fluid_init(e);
+    e->fluid_dim = dim;
+    best = -1; best_d = 0; free_slot = -1;
+    for (i = 0; i < CU_FLUID_REGIONS; ++i) {
+        CuFluidRegion *rg = &e->fluid_reg[i];
+        int d;
+        if (!rg->active) { if (free_slot < 0) free_slot = i; continue; }
+        d = cu_fl_dist_to_box(rg, wx, wy, wz);
+        if (best < 0 || d < best_d) { best = i; best_d = d; }
+    }
+    if (best >= 0 && best_d <= CU_FLUID_JOIN_DIST) r = &e->fluid_reg[best];
+    else if (free_slot >= 0) {
+        r = &e->fluid_reg[free_slot];
+        r->active = 1; r->has_water = 0; r->quiet_steps = 0;
+        r->x0 = r->x1 = wx; r->y0 = r->y1 = wy; r->z0 = r->z1 = wz;
+    } else if (best >= 0) r = &e->fluid_reg[best];
+    else return;
+    cu_fl_union(r, wx, wy, wz);
+    if (water) r->has_water = 1;
+}
+
+MC_HD static inline int cu_fluid_step_region(Blaze *e, CuFluidRegion *rg) {
+    int gx0 = rg->x0 - CU_FLUID_MARGIN * 2, gy0 = rg->y0 - CU_FLUID_MARGIN * 2;
+    int gz0 = rg->z0 - CU_FLUID_MARGIN * 2;
+    int nx = (rg->x1 - gx0) + 1 + CU_FLUID_MARGIN * 2;
+    int ny = (rg->y1 - gy0) + 1 + CU_FLUID_MARGIN * 2;
+    int nz = (rg->z1 - gz0) + 1 + CU_FLUID_MARGIN * 2;
+    int x, y, z, changed, nx0, ny0, nz0, nx1, ny1, nz1;
+    if (nx > CU_FLUID_NX) nx = CU_FLUID_NX;
+    if (ny > CU_FLUID_NY) ny = CU_FLUID_NY;
+    if (nz > CU_FLUID_NZ) nz = CU_FLUID_NZ;
+    if (gy0 < 0) gy0 = 0;
+    if (gy0 + ny > 256) ny = 256 - gy0;
+    for (y = 0; y < ny; ++y)
+        for (z = 0; z < nz; ++z)
+            for (x = 0; x < nx; ++x) {
+                int id = cu_world_block(e, gx0 + x, gy0 + y, gz0 + z);
+                int meta = cu_world_meta(e, gx0 + x, gy0 + y, gz0 + z);
+                if (cu_fl_is_displaceable(id)) { id = 0; meta = 0; }
+                if (id == BLK_WATER) id = BLK_FLOWING_WATER;
+                else if (id == BLK_LAVA) id = BLK_FLOWING_LAVA;
+                e->fluid_cur[(y * nz + z) * nx + x] = mc_state(id, meta);
+            }
+    ff_ca_step_ex(e->fluid_cur, e->fluid_tmp, nx, ny, nz,
+                  e->fluid_dim == -1 ? 1 : 2);
+    changed = 0;
+    nx0 = rg->x0; ny0 = rg->y0; nz0 = rg->z0;
+    nx1 = rg->x1; ny1 = rg->y1; nz1 = rg->z1;
+    for (y = CU_FLUID_MARGIN; y < ny - CU_FLUID_MARGIN; ++y)
+        for (z = CU_FLUID_MARGIN; z < nz - CU_FLUID_MARGIN; ++z)
+            for (x = CU_FLUID_MARGIN; x < nx - CU_FLUID_MARGIN; ++x) {
+                int i = (y * nz + z) * nx + x;
+                int wx = gx0 + x, wy = gy0 + y, wz = gz0 + z;
+                int nid = mc_state_id(e->fluid_tmp[i]);
+                int nmeta = mc_state_meta(e->fluid_tmp[i]);
+                int wid = cu_world_block(e, wx, wy, wz);
+                int wmeta = cu_world_meta(e, wx, wy, wz);
+                if (nid == wid && nmeta == wmeta) continue;
+                if (cu_fl_is_displaceable(wid) && !bp_is_liquid_id(nid))
+                    continue;
+                cu_world_set_state(e, wx, wy, wz, nid, nmeta);
+                if (++changed == 1) {
+                    nx0 = nx1 = wx; ny0 = ny1 = wy; nz0 = nz1 = wz;
+                } else {
+                    if (wx < nx0) nx0 = wx; if (wx > nx1) nx1 = wx;
+                    if (wy < ny0) ny0 = wy; if (wy > ny1) ny1 = wy;
+                    if (wz < nz0) nz0 = wz; if (wz > nz1) nz1 = wz;
+                }
+            }
+    if (changed) {
+        rg->x0 = nx0; rg->y0 = ny0; rg->z0 = nz0;
+        rg->x1 = nx1; rg->y1 = ny1; rg->z1 = nz1;
+        rg->quiet_steps = 0;
+    } else if (++rg->quiet_steps >= 2) {
+        rg->active = 0;
+        rg->has_water = 0;
+    }
+    return changed;
+}
+
+MC_HD static inline int cu_fluid_tick(Blaze *e, int dim, long long world_time) {
+    int i, total = 0;
+    if (!e->fluid_cur || !e->fluid_tmp) return 0;
+    if (e->fluid_dim != dim) return 0;
+    for (i = 0; i < CU_FLUID_REGIONS; ++i) {
+        CuFluidRegion *rg = &e->fluid_reg[i];
+        int period;
+        if (!rg->active) continue;
+        period = rg->has_water ? 5 : (dim == -1 ? 10 : 30);
+        if (world_time % period != 0) continue;
+        total += cu_fluid_step_region(e, rg);
+    }
+    e->parity_fluid_mutations += (uint32_t)total;
+    return total;
+}
+
 /* =================== one whole game tick (gm_runtime_tick slice) ========== */
 
 /* tick body WITHOUT the recenter: the caller recenters first (serially via
@@ -2175,8 +2360,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     for (i = 0; i < n; ++i) {
         cu_world_set_state(env, edits[i].wx, edits[i].wy, edits[i].wz,
                            edits[i].id, edits[i].meta);
-        /* gm_fluid_mark: fluids CA not simulated; snapshots with liquids in
-         * the region are flagged at bake time and excluded. */
+        cu_fluid_mark(env, 0, edits[i].wx, edits[i].wy, edits[i].wz);
         cu_break_unsupported_plants(env, edits[i].wx, edits[i].wy, edits[i].wz);
         /* water/lava placement interactions (runtime.c:361-372), ported for
          * completeness - edit ids 8/10 need a filled bucket; buckets are not
@@ -2208,8 +2392,10 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
                           edits[i].drop_count, edits[i].drop_meta, 10);
     }
 
-    /* world clock / weather (no obs field), fluid CA, mobs, dragon,
-     * projectiles: inert in the learned stage - skipped. */
+    /* world clock / weather (no obs field), mobs, dragon, projectiles:
+     * inert in the learned stage - skipped. Fluid CA matches Magma's
+     * gm_fluid_tick(r->tick) before random ticks. */
+    cu_fluid_tick(env, 0, env->tick);
     cu_randtick_grass_pass(env);
 
     cu_live_tick_player(env);
@@ -3147,6 +3333,35 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     r->evidence[BP_FURNACES] = (uint32_t)any;
     if (any) r->active_mask |= BP_BIT(BP_FURNACES);
 
+    if (e->cells && e->rnx > 0 && e->rny > 0 && e->rnz > 0) {
+        if (!e->parity_fluid_cells_valid) {
+            uint32_t nliq = 0;
+            uint64_t fh = 0;
+            long count = e->rvol, ci;
+            for (ci = 0; ci < count; ++ci)
+                fh = bp_fluid_cells_add(fh, &nliq, (uint64_t)ci, e->cells[ci]);
+            e->parity_fluid_cells_digest = fh;
+            e->parity_fluid_cells = nliq;
+            e->parity_fluid_cells_valid = 1;
+        }
+        h = bp_fluid_digest_begin(e->fluid_dim, CU_FLUID_REGIONS);
+        for (i = 0; i < CU_FLUID_REGIONS; ++i) {
+            const CuFluidRegion *rg = &e->fluid_reg[i];
+            h = bp_hash_fluid_region(
+                h, rg->active, rg->x0, rg->y0, rg->z0,
+                rg->x1, rg->y1, rg->z1, rg->has_water, rg->quiet_steps);
+        }
+        h = bp_fluid_digest_finish(
+            h, e->parity_fluid_cells_digest, e->parity_fluid_cells,
+            e->parity_fluid_mutations);
+        r->digest[BP_FLUIDS] = h;
+        r->evidence[BP_FLUIDS] = e->parity_fluid_mutations;
+        if (e->parity_fluid_mutations || cu_fluid_active(e))
+            r->active_mask |= BP_BIT(BP_FLUIDS);
+    } else {
+        r->measured_mask &= ~BP_BIT(BP_FLUIDS);
+    }
+
     (void)blaze_coal_list(e, coal);
     h = bp_hash_begin();
     for (i = 0; i < CU_NCOAL; ++i)
@@ -3377,6 +3592,10 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->parity_world_digest = 0;
     env->parity_world_mutations = 0;
     env->parity_world_valid = 0;
+    env->parity_fluid_cells_digest = 0;
+    env->parity_fluid_cells = 0;
+    env->parity_fluid_cells_valid = 0;
+    cu_fluid_init(env);
 
     env->base_coal = blaze_inv_count(env, 263);
     env->success_item = success_item;

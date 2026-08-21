@@ -90,14 +90,14 @@ def test_comparison_is_exact_but_only_for_requested_features():
 
 
 def test_unsupported_or_unmeasured_feature_is_blocked():
-    fluids = feature_mask("fluids")
-    real = make_record(implemented=fluids, measured=0)
+    random_ticks = feature_mask("random_ticks")
+    real = make_record(implemented=random_ticks, measured=0)
     blaze = make_record(implemented=0, measured=0)
 
     status, detail, _ = verify.parity_pair_status(
-        real, blaze, ["fluids"])
+        real, blaze, ["random_ticks"])
     assert status == verify.BLOCKED
-    assert "not measured: fluids" in detail
+    assert "not measured: random_ticks" in detail
 
 
 
