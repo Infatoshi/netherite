@@ -98,9 +98,9 @@ public class Recorder {
     // see verify/trace/rng_cursor.py). That turns "the streams drifted somewhere"
     // into "tick N consumed 7 world draws, expected 6".
     //
-    // Four server-side streams are captured, matching the set bluecoconut's PR #5
-    // state capsule marks exact (world.rng.{java,math,block}_random_seed48 and
-    // world.rng.update_lcg):
+    // Four server-side streams are captured by default, matching the set
+    // bluecoconut's PR #5 state capsule marks exact
+    // (world.rng.{java,math,block}_random_seed48 and world.rng.update_lcg):
     //   world  - World.rand, the big one: random ticks, weather, mob spawning, and
     //            every playSound draw (which is why the sound-EVENT ring exists).
     //   math   - java.lang.Math's process-global RNG. Shared with the JDK, so a
@@ -109,6 +109,8 @@ public class Recorder {
     //   block  - Block.RANDOM, the static fallback for blocks without a world.
     //   lcg    - World.updateLCG, an int32 LCG (not a java.util.Random) that picks
     //            random-tick coordinates. Advances independently of `world`.
+    // When QLaunch.DET_ENTITY_RNG is on, a fifth family is captured: each nearby
+    // living Entity.rand seed48 (plus AI hydrate fields). Default dumps omit it.
     //
     // Capture is a bounded ring filled at ServerTickEvent.START, i.e. the same
     // boundary the lockstep gate parks at, so cursor[i] is the state the tick
@@ -132,6 +134,9 @@ public class Recorder {
     private int[] rngCapLcg;          // World.updateLCG (int32)
     private byte[] rngCapGaussHave;   // World.rand haveNextNextGaussian
     private long[] rngCapGaussBits;   // World.rand nextNextGaussian, raw IEEE-754
+    private String[] rngCapEnts;      // det_entity_rng: JSON array of nearby Entity.rand
+    /** Last ServerTick START snapshot of nearby living Entity.rand (DET on). */
+    private volatile String recEntSnap = "[]";
 
     private boolean launching = false;
     private long initStartNanos = 0;  // set when launchWorld fires
@@ -2127,6 +2132,127 @@ public class Recorder {
         return null;
     }
 
+    private static int detReflectInt(Object o, String name, int dflt) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getInt(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return dflt;
+    }
+    private static double detReflectDouble(Object o, String name, double dflt) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getDouble(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return dflt;
+    }
+
+    /**
+     * Server-side nearby living Entity.rand + AI hydrate. Empty when the
+     * det_entity_rng switch is off so default tapes stay byte-identical.
+     */
+    private static String detEntitySnapshot(net.minecraft.world.World w, boolean full) {
+        if (!QLaunch.DET_ENTITY_RNG || w == null) return "[]";
+        net.minecraft.entity.player.EntityPlayer pl = null;
+        if (w.playerEntities != null && !w.playerEntities.isEmpty())
+            pl = (net.minecraft.entity.player.EntityPlayer) w.playerEntities.get(0);
+        double px = pl == null ? 0.0 : pl.posX;
+        double py = pl == null ? 0.0 : pl.posY;
+        double pz = pl == null ? 0.0 : pl.posZ;
+        double r2 = 48.0 * 48.0;
+        StringBuilder sb = new StringBuilder(256);
+        sb.append('[');
+        int n = 0;
+        try {
+            for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList)) {
+                if (e == null || e instanceof net.minecraft.entity.player.EntityPlayer) continue;
+                if (!(e instanceof net.minecraft.entity.EntityLiving)) continue;
+                double dx = e.posX - px, dy = e.posY - py, dz = e.posZ - pz;
+                if (dx * dx + dy * dy + dz * dz > r2) continue;
+                if (n > 0) sb.append(',');
+                detAppendLiving(sb, (net.minecraft.entity.EntityLiving) e, full);
+                if (++n >= 64) break;
+            }
+        } catch (Throwable ig) {}
+        sb.append(']');
+        return sb.toString();
+    }
+
+    private static void detAppendLiving(StringBuilder sb, net.minecraft.entity.EntityLiving e, boolean full) {
+        int eid = e.getEntityId();
+        long seed48 = rngSeed48(e.getRNG());
+        int tasks = 0, watch = 0, idle = 0, eat = 0, tt = 0, egg = -1;
+        double idleX = 0.0, idleZ = 0.0;
+        try {
+            net.minecraft.entity.ai.EntityAITasks gs = e.tasks;
+            tt = detReflectInt(gs, "tickCount", 0);
+            for (Object raw : gs.taskEntries) {
+                net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry en =
+                    (net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry) raw;
+                if (!en.using) continue;
+                String cn = en.action.getClass().getSimpleName();
+                if ("EntityAISwimming".equals(cn)) tasks |= 1;
+                else if ("EntityAIPanic".equals(cn)) tasks |= 2;
+                else if ("EntityAIEatGrass".equals(cn)) {
+                    tasks |= 4;
+                    eat = detReflectInt(en.action, "eatingGrassTimer", 0);
+                } else if (cn.contains("Wander")) tasks |= 8;
+                else if ("EntityAIWatchClosest".equals(cn)) {
+                    tasks |= 16;
+                    watch = detReflectInt(en.action, "lookTime", 0);
+                } else if ("EntityAILookIdle".equals(cn)) {
+                    tasks |= 32;
+                    idle = detReflectInt(en.action, "idleTime", 0);
+                    idleX = detReflectDouble(en.action, "lookX", 0.0);
+                    idleZ = detReflectDouble(en.action, "lookZ", 0.0);
+                }
+            }
+        } catch (Throwable ig) {}
+        if (e instanceof net.minecraft.entity.passive.EntityChicken)
+            egg = ((net.minecraft.entity.passive.EntityChicken) e).timeUntilNextEgg;
+        float hp = e.getHealth();
+        sb.append("{\"eid\":").append(eid)
+          .append(",\"type\":\"").append(e.getClass().getSimpleName()).append('"')
+          .append(",\"seed48\":").append(seed48)
+          .append(",\"x\":").append(e.posX)
+          .append(",\"y\":").append(e.posY)
+          .append(",\"z\":").append(e.posZ)
+          .append(",\"yaw\":").append(e.rotationYaw)
+          .append(",\"pitch\":").append(e.rotationPitch)
+          .append(",\"hyaw\":").append(e.rotationYawHead)
+          .append(",\"hp\":").append(hp)
+          .append(",\"og\":").append(e.onGround ? 1 : 0)
+          .append(",\"lst\":").append(e.livingSoundTime)
+          .append(",\"age\":").append(detReflectInt(e, "entityAge", 0))
+          .append(",\"tt\":").append(tt)
+          .append(",\"tasks\":").append(tasks)
+          .append(",\"watch\":").append(watch)
+          .append(",\"idle\":").append(idle)
+          .append(",\"ix\":").append(idleX)
+          .append(",\"iz\":").append(idleZ)
+          .append(",\"eat\":").append(eat)
+          .append(",\"egg\":").append(egg);
+        if (full) {
+            long us = DetEntityRng.loggedUserSeed(eid, DetEntityRng.userSeed(eid));
+            long init = DetEntityRng.loggedInit48(eid, DetEntityRng.seed48Init(us));
+            sb.append(",\"user_seed\":").append(us)
+              .append(",\"seed48_init\":").append(init);
+        }
+        sb.append('}');
+    }
+
     /** Fill a JSON object with a full four-stream cursor snapshot. */
     private static void rngCursorJson(
             JsonObject o, net.minecraft.world.World w) {
@@ -2173,6 +2299,8 @@ public class Recorder {
             rngCapLcg[i] = lcg;
             rngCapGaussHave[i] = (byte) (gh ? 1 : 0);
             rngCapGaussBits[i] = gb;
+            if (rngCapEnts != null)
+                rngCapEnts[i] = recEntSnap == null ? "[]" : recEntSnap;
             rngCapHead++;
             rngCapN++;
         }
@@ -2195,6 +2323,7 @@ public class Recorder {
                 rngCapLcg = new int[cap];
                 rngCapGaussHave = new byte[cap];
                 rngCapGaussBits = new long[cap];
+                rngCapEnts = new String[cap];
                 rngCapN = 0; rngCapHead = 0; rngCapDropped = 0; rngCapSeq = 0;
                 rngCaptureOn = true;
             } else {
@@ -2217,7 +2346,7 @@ public class Recorder {
      * numbering still compare equal.
      */
     private String rngDump(JsonObject a) {
-        long[] wt, sq, cp, wd, mt, bk, gb; int[] lc; byte[] gh; int n; long dropped;
+        long[] wt, sq, cp, wd, mt, bk, gb; int[] lc; byte[] gh; String[] et; int n; long dropped;
         synchronized (rngMon) {
             if (rngCapWorldTime == null) return err("rng_dump: capture was never armed");
             n = rngCapN; dropped = rngCapDropped;
@@ -2226,6 +2355,7 @@ public class Recorder {
             mt = rngCapMath.clone(); bk = rngCapBlock.clone();
             lc = rngCapLcg.clone(); gh = rngCapGaussHave.clone();
             gb = rngCapGaussBits.clone();
+            et = rngCapEnts == null ? null : rngCapEnts.clone();
         }
         try {
             StringBuilder sb = new StringBuilder(n * 160);
@@ -2239,8 +2369,10 @@ public class Recorder {
                   .append(",\"world_gaussian_bits\":\"").append(hex64(gb[i]))
                   .append("\",\"math_seed48\":").append(mt[i])
                   .append(",\"block_seed48\":").append(bk[i])
-                  .append(",\"update_lcg\":").append(lc[i])
-                  .append("}\n");
+                  .append(",\"update_lcg\":").append(lc[i]);
+                if (et != null && et[i] != null && et[i].length() > 2)
+                    sb.append(",\"ents\":").append(et[i]);
+                sb.append("}\n");
                 h = fnvMix(h, wd[i]); h = fnvMix(h, mt[i]); h = fnvMix(h, bk[i]);
                 h = fnvMix(h, lc[i] & 0xffffffffL); h = fnvMix(h, gh[i]);
             }
@@ -3096,6 +3228,13 @@ public class Recorder {
         } catch (Throwable t) {
             System.out.println("[qrl] registration watchdog failed: " + t);
         }
+        // Tape erng is the post-tick server pose+cursor (after AI). The START
+        // ring still copies the previous END snapshot, which equals this
+        // tick's pre-draw cursor (no Entity.rand between END and the next START).
+        if (QLaunch.DET_ENTITY_RNG) {
+            try { recEntSnap = detEntitySnapshot(lockWorldOf(srv), false); }
+            catch (Throwable ig) { recEntSnap = "[]"; }
+        }
         lockFinishTick();
         // Heartbeat so a paused/stalled integrated server is visible in the log
         // (the End-entry GuiDownloadTerrain deadlock froze ServerTickEvent for
@@ -3420,6 +3559,14 @@ public class Recorder {
                 /* Presence of dig_trace:1 opts parsers/comparators into per-tick
                  * dig controller rows. Legacy tapes omit the key entirely. */
                 if (recDigTrace) h.append(",\"dig_trace\":1");
+                if (QLaunch.DET_ENTITY_RNG) {
+                    h.append(",\"det_entity_rng\":1,\"entity_rng\":");
+                    try {
+                        net.minecraft.server.MinecraftServer hsrv = mc.getIntegratedServer();
+                        net.minecraft.world.World hw = (hsrv != null) ? lockWorldOf(hsrv) : null;
+                        h.append(detEntitySnapshot(hw, true));
+                    } catch (Throwable ig) { h.append("[]"); }
+                }
                 h.append("}");
                 recWriter.println(h.toString());
                 recWriter.flush();
@@ -8372,7 +8519,13 @@ sb.append("}");
             b.append("]");
             if (++n >= REC_ENT_MAX) break;
         }
-        b.append("]}");
+        b.append("]");
+        if (QLaunch.DET_ENTITY_RNG) {
+            String snap = recEntSnap;
+            if (snap == null) snap = "[]";
+            b.append(",\"erng\":").append(snap);
+        }
+        b.append("}");
         recWriter.println(b.toString());
         recWriter.flush();
     }

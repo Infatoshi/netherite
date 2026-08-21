@@ -1,0 +1,49 @@
+# entity_rand_census.tsv — 1.11.2 Entity.rand draw sites for cow/sheep/pig/chicken
+# Source: forgeSrc 1.11.2-13.20.1.2588 via CFR (scratch; not committed).
+# Consumed by magma/game/mob_live.c when det_entity_rng=1, in this order.
+# Columns: species  when  site  draws  notes
+#
+# Constructor (once per entity; magma hydrates from tape live seed48 and skips these)
+# Entity.<init>: entityId++; rand=new Random(seed); MathHelper.getRandomUUID = 2x nextLong = 4 next()
+# EntityChicken.<init> after super: nextInt(6000)+6000 -> timeUntilNextEgg
+all	ctor	Random.<init>	0	scramble only; seed48_init = (userSeed ^ 0x5DEECE66D) & ((1<<48)-1)
+all	ctor	MathHelper.getRandomUUID	4	2x nextLong
+chicken	ctor	timeUntilNextEgg	1	nextInt(6000)  [power-of-two bound uses 1 next()]
+#
+# Every server tick, EntityLiving.onEntityUpdate then EntityLiving.updateEntityActionState
+# then goalSelector.onUpdateTasks, then lookHelper, then (chicken) egg timer.
+all	tick	living_sound	1	nextInt(1000) vs livingSoundTime++ (postfix). EntityAnimal.getTalkInterval=120
+all	tick	living_sound_pitch	2	if fired: getSoundPitch = 2x nextFloat; livingSoundTime=-120
+all	tick	despawn.entityAge	0	++entityAge then despawnEntity
+all	tick	despawn.nextInt800	0or1	nextInt(800) only if entityAge>600 (short-circuit). EntityAnimal.canDespawn=false so no death. Nearby player (d2<1024) resets age to 0, so this draw is skipped for parked-player animals.
+# Forge canEntityDespawn every 32 ticks ((age&31)==31); DEFAULT falls through. No Entity.rand.
+#
+# EntityAITasks.onUpdateTasks: tickCount++; setup=(tickCount%3==0). LinkedHashSet addTask order.
+# Mutex: swim=4 panic/wander=1 watch=2 idle=3 eat=7. Watch+idle conflict. Wander+idle conflict.
+# Mate/tempt/followParent: no Entity.rand in shouldExecute when not inLove / not holding food / adult.
+#
+# species	when	site	draws	notes
+cow	ai_list	addTask	0	swim0 panic1(2.0) mate2 tempt3(wheat 1.25) followParent4(1.25) wanderAvoidWater5(1.0) watch6(player 6) idle7. HP10 speed 0.20000000298023224 size 0.9x1.4 eyeH 1.3
+sheep	ai_list	addTask	0	swim0 panic1(1.25) mate2 tempt3(wheat 1.1) followParent4(1.1) eatGrass5 wanderAvoidWater6 watch7 idle8. HP8 speed 0.23000000417232513 size 0.9x1.3 eyeH 0.95*1.3
+pig	ai_list	addTask	0	swim0 panic1(1.25) mate3 tempt4(carrot-stick 1.2) tempt4(carrot/potato/beet 1.2) followParent5(1.1) wanderAvoidWater6 watch7 idle8. HP10 speed 0.25 size 0.9x0.9
+chicken	ai_list	addTask	0	swim0 panic1(1.4) mate2 tempt3(seeds 1.0) followParent4(1.1) wanderAvoidWater5 watch6 idle7. HP4 speed 0.25 size 0.4x0.7
+#
+all	setup	swim.shouldExecute	0	isInWater||isInLava
+all	setup	panic.shouldExecute	0or30	no rand unless burning/revenge then RandomPositionGenerator 10*(3 nextInt) xz=5 y=4 land=true
+sheep	setup	eat.shouldExecute	1	nextInt(child?50:1000); then grass/tallgrass block test
+all	setup	wander.shouldExecute	1+	if getAge()>=100 skip (nearby player keeps age 0). else nextInt(120). if 0: WanderAvoidWater.getPosition
+all	setup	wander.avoid_water	1+30	nextFloat>=0.001 ? getLandPos(10,7) : findRandomTarget(10,7). in water: getLandPos(15,7) else findRandomTarget(10,7). RPG always 10 loops * 3 nextInt (no home).
+all	setup	watch.shouldExecute	1	nextFloat>=0.02 fail; else getClosestPlayer AABB 6. startExecuting: 40+nextInt(40)
+all	setup	idle.shouldExecute	1	nextFloat<0.02. startExecuting: 2*PI*nextDouble + 20+nextInt(20)
+all	run	swim.updateTask	1	nextFloat<0.8 jump
+all	run	idle.updateTask	0	idleTime--; lookHelper.setLookPosition(pos+lookX, posY+eye, pos+lookZ, 10, 40)
+all	run	watch.updateTask	0	lookHelper at player eye; lookTime--
+all	run	eat.updateTask	0	timer--; at 4 eat grass / dirt
+all	tick	lookHelper	0	zeros pitch; interpolates from 0 toward target max 40 pitch / 10 yaw. MathHelper.atan2 LUT. no Entity.rand. moveHelper: no rand.
+chicken	after	egg	0or3	--timeUntilNextEgg; if <=0: 2x nextFloat pitch + nextInt(6000)+6000
+#
+# Task bits for tape hydrate (PAI_* in mob_live.c): swim=1 panic=2 eat=4 wander=8 watch=16 idle=32
+# Magma hydrates live seed48 from tape header entity_rng (post-ctor, post-load ticks).
+# Do NOT jrand_set the live cursor — assign r.seed = seed48 directly.
+# Tape header entity_rng is recstart (between ticks). Per-tick erng is ServerTick END
+# (post-AI pose + cursor). Magma dumps after each tick compare to that row.

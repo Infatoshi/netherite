@@ -325,7 +325,53 @@ def first_divergence(reference: list[dict], candidate: list[dict],
                 expected=int(rg), actual=int(cg),
                 relation="stashed nextGaussian half differs "
                          "(an odd number of nextGaussian calls diverged)")
+        # Optional fifth family (det_entity_rng). Absent on default dumps.
+        rm, cm = _ents_seed48(r), _ents_seed48(c)
+        if rm is not None and cm is not None:
+            for eid in sorted(set(rm) | set(cm)):
+                ev, av = rm.get(eid), cm.get(eid)
+                if ev == av:
+                    continue
+                relation = "entity missing on one side"
+                de = da = None
+                if ev is not None and av is not None:
+                    relation = _classify(ev, av, draws_between, max_draws)
+                    if i + 1 < len(reference) and i + 1 < len(candidate):
+                        nr, nc = _ents_seed48(reference[i + 1]), _ents_seed48(candidate[i + 1])
+                        if nr is not None and nc is not None and eid in nr and eid in nc:
+                            de = draws_between(ev, nr[eid], max_draws)
+                            da = draws_between(av, nc[eid], max_draws)
+                return Divergence(
+                    index=i,
+                    world_time=c.get("world_time", -1),
+                    seq=c.get("seq", -1),
+                    stream="entity_rand[%d]" % eid,
+                    expected=-1 if ev is None else ev,
+                    actual=-1 if av is None else av,
+                    relation=relation,
+                    draws_expected=de,
+                    draws_actual=da,
+                )
     return None
+
+
+def _ents_seed48(rec):
+    """Map eid -> seed48 from an optional `ents` array. None if the key is absent."""
+    ents = rec.get("ents")
+    if ents is None:
+        return None
+    if isinstance(ents, str):
+        try:
+            ents = json.loads(ents)
+        except ValueError:
+            return None
+    out = {}
+    for e in ents:
+        try:
+            out[int(e["eid"])] = int(e["seed48"])
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
 
 
 def shift_stream(records: list[dict], index: int, stream_key: str = "world_seed48",

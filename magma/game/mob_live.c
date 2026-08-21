@@ -7,6 +7,7 @@
 #include "inventory_stack_rules.h"
 #include "mc_rng.h"
 #include "player_vitals.h"
+#include "core/config.h"
 
 #include <math.h>
 #include <string.h>
@@ -201,6 +202,10 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->passive_head_yaw[slot] = s ? s->yaw[slot] : 0.0f;
     m->passive_head_pitch[slot] = 0.0f;
     m->passive_sheared[slot] = 0;
+    m->ent_jr_seed[slot] = 0;
+    m->living_sound_time[slot] = 0;
+    m->entity_age[slot] = 0;
+    m->chicken_egg[slot] = 0;
     m->fire_ticks[slot] = 0;
     m->despawn_ticks[slot] = 0;
     m->anger[slot] = 0;
@@ -378,6 +383,25 @@ static double pai_rng_double(u64 *stream) {
     return (double)((hi << 27) + lo) * (1.0 / 9007199254740992.0);
 }
 
+/* Draw-site census: magma/game/entity_rand_census.tsv. Hash path (det off)
+ * is unchanged: these helpers only swap the generator when det_entity_rng=1. */
+static int pai_det(void) { return cr_cfg()->det_entity_rng; }
+static JavaRandom *pai_jr(GmMobLive *m, int i) {
+    return (JavaRandom *)&m->ent_jr_seed[i];
+}
+static int pai_bound(GmMobLive *m, int i, u64 *stream, int bound) {
+    if (pai_det()) return jrand_int_bound(pai_jr(m, i), bound);
+    return pai_rng_bound(stream, bound);
+}
+static float pai_float(GmMobLive *m, int i, u64 *stream) {
+    if (pai_det()) return jrand_float(pai_jr(m, i));
+    return pai_rng_float(stream);
+}
+static double pai_double(GmMobLive *m, int i, u64 *stream) {
+    if (pai_det()) return jrand_double(pai_jr(m, i));
+    return pai_rng_double(stream);
+}
+
 static int pai_in_material(GmWorld *w, const EwStore *s, int i, int lava) {
     float width, height;
     pai_size(s->type[i], &width, &height);
@@ -437,15 +461,15 @@ static float pai_brightness(GmWorld *w, int x, int y, int z) {
  * weight, animal grass preference, and getLandPos water rejection. Returned
  * coordinates intentionally use the original offsets, as the Java method
  * does even after moveAboveSolid is used only for validation/scoring. */
-static int pai_random_position(GmWorld *w, const EwStore *s, int i,
+static int pai_random_position(GmMobLive *m, GmWorld *w, const EwStore *s, int i,
                                int xz, int yrange, int land, u64 *stream,
                                double *out_x, double *out_y, double *out_z) {
     int found = 0, best_dx = 0, best_dy = 0, best_dz = 0;
     float best = -99999.0f;
     for (int k = 0; k < 10; ++k) {
-        int dx = pai_rng_bound(stream, 2 * xz + 1) - xz;
-        int dy = pai_rng_bound(stream, 2 * yrange + 1) - yrange;
-        int dz = pai_rng_bound(stream, 2 * xz + 1) - xz;
+        int dx = pai_bound(m, i, stream, 2 * xz + 1) - xz;
+        int dy = pai_bound(m, i, stream, 2 * yrange + 1) - yrange;
+        int dz = pai_bound(m, i, stream, 2 * xz + 1) - xz;
         int bx = mc_floor(s->x[i] + dx);
         int by = mc_floor(s->y[i] + dy);
         int bz = mc_floor(s->z[i] + dz);
@@ -555,11 +579,11 @@ static int pai_try_start(GmMobLive *m, GmWorld *w, EwStore *s, int i, int task,
         if (m->panic_ticks[i] <= 0 && !burning) return 0;
         int found = burning && pai_nearest_water(w, s, i, &x, &y, &z);
         if (!found)
-            found = pai_random_position(w, s, i, 5, 4, 0, &stream, &x, &y, &z);
+            found = pai_random_position(m, w, s, i, 5, 4, 0, &stream, &x, &y, &z);
         if (!found) return 0;
         pai_set_path(m, w, s, i, x, y, z, pai_panic_multiplier(s->type[i]));
     } else if (task == PAI_EAT) {
-        if (pai_rng_bound(&stream, 1000) != 0) return 0;
+        if (pai_bound(m, i, &stream, 1000) != 0) return 0;
         int bx = mc_floor(s->x[i]), by = mc_floor(s->y[i]), bz = mc_floor(s->z[i]);
         int tall_grass = gm_world_block(w, bx, by, bz) == 31 &&
                          gm_world_meta(w, bx, by, bz) == 1;
@@ -567,28 +591,29 @@ static int pai_try_start(GmMobLive *m, GmWorld *w, EwStore *s, int i, int task,
         m->passive_eat_time[i] = 40;
         s->path_len[i] = 0;
     } else if (task == PAI_WANDER) {
-        if (pai_rng_bound(&stream, 120) != 0) return 0;
+        if (pai_det() && m->entity_age[i] >= 100) return 0;
+        if (pai_bound(m, i, &stream, 120) != 0) return 0;
         int ok;
         if (pai_in_material(w, s, i, 0)) {
-            ok = pai_random_position(w, s, i, 15, 7, 1, &stream, &x, &y, &z);
-            if (!ok) ok = pai_random_position(w, s, i, 10, 7, 0, &stream, &x, &y, &z);
+            ok = pai_random_position(m, w, s, i, 15, 7, 1, &stream, &x, &y, &z);
+            if (!ok) ok = pai_random_position(m, w, s, i, 10, 7, 0, &stream, &x, &y, &z);
         } else {
-            int land = pai_rng_float(&stream) >= 0.001f;
-            ok = pai_random_position(w, s, i, 10, 7, land, &stream, &x, &y, &z);
+            int land = pai_float(m, i, &stream) >= 0.001f;
+            ok = pai_random_position(m, w, s, i, 10, 7, land, &stream, &x, &y, &z);
         }
         if (!ok) return 0;
         pai_set_path(m, w, s, i, x, y, z, 1.0);
     } else if (task == PAI_WATCH) {
-        if (pai_rng_float(&stream) >= 0.02f) return 0;
+        if (pai_float(m, i, &stream) >= 0.02f) return 0;
         double dx = px - s->x[i], dy = py - s->y[i], dz = pz - s->z[i];
         if (dx * dx + dy * dy + dz * dz > 36.0) return 0;
-        m->passive_watch_time[i] = 40 + pai_rng_bound(&stream, 40);
+        m->passive_watch_time[i] = 40 + pai_bound(m, i, &stream, 40);
     } else if (task == PAI_IDLE) {
-        if (pai_rng_float(&stream) >= 0.02f) return 0;
-        double angle = 2.0 * MC_PI * pai_rng_double(&stream);
+        if (pai_float(m, i, &stream) >= 0.02f) return 0;
+        double angle = 2.0 * MC_PI * pai_double(m, i, &stream);
         m->passive_idle_x[i] = cos(angle);
         m->passive_idle_z[i] = sin(angle);
-        m->passive_idle_time[i] = 20 + pai_rng_bound(&stream, 20);
+        m->passive_idle_time[i] = 20 + pai_bound(m, i, &stream, 20);
     } else return 0;
     m->passive_tasks[i] |= PAI_BIT(task);
     return 1;
@@ -661,7 +686,7 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
         if (!(m->passive_tasks[i] & PAI_BIT(task))) continue;
         if (task == PAI_SWIM) {
             u64 stream = pai_rng_start(m, s, i, PAI_SWIM + 16);
-            if (pai_rng_float(&stream) < 0.8f) *swim_jump = 1;
+            if (pai_float(m, i, &stream) < 0.8f) *swim_jump = 1;
         } else if (task == PAI_EAT) {
             if (m->passive_eat_time[i] > 0) --m->passive_eat_time[i];
             if (m->passive_eat_time[i] == 4) {
@@ -750,6 +775,40 @@ int gm_mobs_spawn(GmMobLive *m, int type, double x, double y, double z) {
     int sz = 1;
     if (type == EW_TYPE_SLIME || type == EW_TYPE_MAGMA) sz = 2;
     return gm_mobs_spawn_sized(m, type, x, y, z, sz);
+}
+
+int gm_mobs_det_place(GmMobLive *m, int eid, int type,
+                      double x, double y, double z, float yaw, float pitch, float head_yaw,
+                      unsigned long long seed48, int living_sound, int entity_age, int task_tick,
+                      unsigned tasks, int watch, int idle, double idle_x, double idle_z,
+                      int eat, int egg, int on_ground) {
+    int slot;
+    EwStore *s;
+    if (!m || !gm_passive(type)) return -1;
+    slot = gm_mobs_spawn(m, type, x, y, z);
+    if (slot < 0) return -1;
+    s = now_store(m);
+    s->id[slot] = eid;
+    s->x[slot] = x; s->y[slot] = y; s->z[slot] = z;
+    s->yaw[slot] = yaw;
+    s->on_ground[slot] = on_ground ? 1 : 0;
+    s->path_len[slot] = 0;
+    m->ent_jr_seed[slot] = seed48 & MC_JR_MASK;
+    m->living_sound_time[slot] = living_sound;
+    m->entity_age[slot] = entity_age;
+    m->passive_task_tick[slot] = task_tick;
+    m->passive_tasks[slot] = tasks;
+    m->passive_watch_time[slot] = watch;
+    m->passive_idle_time[slot] = idle;
+    m->passive_idle_x[slot] = idle_x;
+    m->passive_idle_z[slot] = idle_z;
+    m->passive_eat_time[slot] = eat;
+    m->chicken_egg[slot] = egg;
+    m->passive_head_yaw[slot] = head_yaw;
+    m->passive_head_pitch[slot] = pitch;
+    if (eid >= m->next_id) m->next_id = eid + 1;
+    ew_store_copy(next_store(m), s);
+    return slot;
 }
 
 int gm_mobs_place_boat(GmMobLive *m, double x, double y, double z, float yaw) {
@@ -1577,7 +1636,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     }
     if(m->player_attack_cooldown>0)--m->player_attack_cooldown;
     double px=p->ent.posX+ox, py=p->ent.posY, pz=p->ent.posZ+oz;
-    natural_spawn(m,w,nx,px,py,pz,dimension,world_time);
+    if (!pai_det())
+        natural_spawn(m,w,nx,px,py,pz,dimension,world_time);
     int tod=(int)(world_time%24000LL); if(tod<0)tod+=24000;
     int day=dimension==0&&tod<12000;
     float boat_fwd = m->boat_ride >= 0 ? boat_forward : 0.0f;
@@ -1644,6 +1704,30 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             m->charge[i]=0;
         }
 
+        if(passive && pai_det()){
+            /* EntityLiving.onEntityUpdate living-sound, then ++entityAge + despawn.
+             * EntityAnimal.getTalkInterval=120; canDespawn=false (no death). */
+            {
+                int lst = m->living_sound_time[i];
+                int sound_draw = jrand_int_bound(pai_jr(m, i), 1000);
+                m->living_sound_time[i] = lst + 1;
+                if (sound_draw < lst) {
+                    m->living_sound_time[i] = -120;
+                    (void)jrand_float(pai_jr(m, i));
+                    (void)jrand_float(pai_jr(m, i));
+                }
+            }
+            {
+                double d3 = dx * dx + dy * dy + dz * dz;
+                m->entity_age[i]++;
+                if (m->entity_age[i] > 600) {
+                    (void)jrand_int_bound(pai_jr(m, i), 800);
+                    if (d3 < 1024.0) m->entity_age[i] = 0;
+                } else if (d3 < 1024.0) {
+                    m->entity_age[i] = 0;
+                }
+            }
+        }
         if(passive){
             pai_tick(m,w,nx,i,px,py,pz,mob_griefing,
                      &moving,&jump,&wandering,&swim_jump,&nav_speed);
@@ -1868,6 +1952,13 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         }
         move_mob(w,st,m,nx,i,moving,jump,swim_jump,nav_speed);
         if(passive)pai_apply_current_look(m,nx,i,px,py,pz);
+        if(passive && pai_det() && type==EW_TYPE_CHICKEN){
+            if(--m->chicken_egg[i] <= 0){
+                (void)jrand_float(pai_jr(m, i));
+                (void)jrand_float(pai_jr(m, i));
+                m->chicken_egg[i] = jrand_int_bound(pai_jr(m, i), 6000) + 6000;
+            }
+        }
         /* After super.onUpdate/move: wasOnGround edges then alterSquishAmount. */
         if(gm_is_slimey(type)){
             int on = nx->on_ground[i] ? 1 : 0;
@@ -1897,6 +1988,7 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
         out[n].x=(float)s->x[i];out[n].y=(float)s->y[i];
         out[n].z=(float)s->z[i];out[n].yaw=s->yaw[i];
         out[n].health=s->health[i];
+        out[n].ent_id=s->id[i];
         if(gm_passive(s->type[i])){
             out[n].head_yaw=m->passive_head_yaw[i];
             out[n].pitch=m->passive_head_pitch[i];

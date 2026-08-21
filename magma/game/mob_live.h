@@ -77,6 +77,12 @@ typedef struct {
     int fireball_pending;
     double fireball_x, fireball_y, fireball_z;
     double fireball_vx, fireball_vy, fireball_vz;
+    /* det_entity_rng: live java.util.Random cursor (internal seed48) + AI hydrate.
+     * Unused when the knob is off; hash streams stay on the default path. */
+    unsigned long long ent_jr_seed[EW_MAX_ENTITIES];
+    int living_sound_time[EW_MAX_ENTITIES];
+    int entity_age[EW_MAX_ENTITIES];
+    int chicken_egg[EW_MAX_ENTITIES];
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */
@@ -99,6 +105,12 @@ enum {
 void gm_mobs_init(GmMobLive *m, long long seed);
 /* Component/test hook. Runtime progression never calls this directly. */
 int gm_mobs_spawn(GmMobLive *m, int type, double x, double y, double z);
+/* Place a tape-hydrated passive with a live Entity.rand cursor. det_entity_rng. */
+int gm_mobs_det_place(GmMobLive *m, int eid, int type,
+                      double x, double y, double z, float yaw, float pitch, float head_yaw,
+                      unsigned long long seed48, int living_sound, int entity_age, int task_tick,
+                      unsigned tasks, int watch, int idle, double idle_x, double idle_z,
+                      int eat, int egg, int on_ground);
 /* Spawn with slime/magma size (1,2,4). Other types ignore size. */
 int gm_mobs_spawn_sized(GmMobLive *m, int type, double x, double y, double z, int size);
 /* Returns nonzero when attack is aimed at a mob, including cooldown ticks. */

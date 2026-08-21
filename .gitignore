@@ -77,6 +77,8 @@ magma/game/test_route_e2e
 # game test binaries have no extension; test_*.c / test_*.sh sources ARE tracked
 magma/game/test_*
 !magma/game/test_*.*
+magma/game/detmob_gate
+magma/game/test_config
 blaze/env/test_left_click_counter
 magma/magma_game_cuda
 verify/mc_capture/*.bak_*
@@ -88,6 +90,9 @@ verify/tapes/*
 # rain/thunder lightmap grind tape (jsonl+meta only; world/frames stay on anvil)
 !verify/tapes/scenario_rain_thunder_*.jsonl
 !verify/tapes/scenario_rain_thunder_*.meta.json
+# detmob experiment (jsonl+meta only; world/frames stay local)
+!verify/tapes/scenario_detmob_*.jsonl
+!verify/tapes/scenario_detmob_*.meta.json
 blaze/rl/out/*
 # canonical gate reference data (verify_cpu.py --chain / make_snapshots T0=1)
 !blaze/rl/out/chain_actions_s10.json

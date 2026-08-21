@@ -87,6 +87,13 @@ def load_spec(path: Path) -> dict:
     if not isinstance(known, list):
         raise TypeError("known_divergences must be a list")
 
+    determinism = spec.get("determinism") or {}
+    if not isinstance(determinism, dict):
+        raise TypeError("determinism must be a mapping")
+    for key, val in determinism.items():
+        if not isinstance(key, str) or not isinstance(val, bool):
+            raise ValueError("determinism values must be bool")
+
     return {
         **spec,
         "name": name,
@@ -97,6 +104,7 @@ def load_spec(path: Path) -> dict:
         "frames_every": frames_every,
         "input": input_spec,
         "known_divergences": known,
+        "determinism": determinism,
     }
 
 
@@ -341,13 +349,16 @@ def archive_tape(source_tape: Path, spec: dict, spec_path: Path) -> Path:
     return target_tape
 
 
-def configure_launch(world: dict) -> None:
+def configure_launch(world: dict, determinism: dict | None = None) -> None:
     overrides = [
         f"world.seed={world['seed']}",
         f"world.mode={world['mode']}",
         f"world.type={world['type']}",
         f"world.structures={'true' if world['structures'] else 'false'}",
     ]
+    if determinism:
+        for key, val in determinism.items():
+            overrides.append(f"determinism.{key}={'true' if val else 'false'}")
     command = [
         sys.executable,
         str(JAVA / "mc_cli.py"),
@@ -421,7 +432,7 @@ def record(spec_path: Path, result_file: Path, *, oracle_locked: bool = False) -
             flush=True,
         )
         try:
-            configure_launch(spec["world"])
+            configure_launch(spec["world"], spec.get("determinism") or {})
             start_oracle(process_groups)
             qrl = wait_for_qrl()
             world = {**spec["world"], "fresh": True}
