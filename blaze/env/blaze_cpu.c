@@ -409,11 +409,14 @@ int blaze_capture(void *vh, int env, int slot) {
     }
     {   /* container list: the env's LIVE list is exactly the captured
          * region's (maintained on every edit); overflow (-1) rides along
-         * and keeps the full-scan fallback. */
-        if (!s->cont)
+         * and keeps the full-scan fallback. Slot buffer is always
+         * BLAZE_SNAP_MAX_CONT (same as load); do not memcpy a torn n_cont. */
+        if (e->n_cont < -1 || e->n_cont > BLAZE_SNAP_MAX_CONT)
+            return -1;
+        if (e->n_cont >= 0 && !s->cont)
             s->cont = (int *)malloc((size_t)BLAZE_SNAP_MAX_CONT * 3 *
                                     sizeof *s->cont);
-        s->ncont = s->cont ? e->n_cont : -1;
+        s->ncont = (e->n_cont < 0 || !s->cont) ? -1 : e->n_cont;
         if (s->cont && e->n_cont > 0)
             memcpy(s->cont, e->cont,
                    (size_t)e->n_cont * 3 * sizeof *s->cont);

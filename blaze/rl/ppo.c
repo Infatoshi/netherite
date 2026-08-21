@@ -578,6 +578,9 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
                 cfg->cap_refresh) {
               if (fns->capture(env, i, cap_slot(nseeds, si, stg)) != 0)
                 return -5;
+              printf("ppo: capture lane=%d si=%d stg=%d slot=%d chunk=%d\n",
+                     i, si, stg, cap_slot(nseeds, si, stg), chunk);
+              fflush(stdout);
               cap_last[(size_t)si * CR_N_STAGES + stg] = chunk;
               curr->avail[si * CR_N_STAGES + stg] = 1;
             }
