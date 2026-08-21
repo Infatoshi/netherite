@@ -60,4 +60,80 @@ MC_HD static inline int mc_floorf(float value) {
     return value < (float)i ? i - 1 : i;
 }
 
+/* MathHelper.atan2 + fastInvSqrt (1.11.2). Host only. Tables are the Java 8
+ * oracle bit patterns (see mc_atan2_tab.h): C libm asin/cos cannot match.
+ * Used by the det_entity_rng look-helper; libm atan2 call sites stay put. */
+#ifndef __CUDACC__
+#include <string.h>
+
+MC_HD static inline double mc_bits_to_double(u64 u) {
+    double d;
+    memcpy(&d, &u, sizeof d);
+    return d;
+}
+
+MC_HD static inline double mc_fast_inv_sqrt(double p) {
+    double d0 = 0.5 * p;
+    i64 i;
+    memcpy(&i, &p, sizeof i);
+    i = 6910469410427058090LL - (i >> 1);
+    memcpy(&p, &i, sizeof p);
+    p = p * (1.5 - d0 * p * p);
+    return p;
+}
+
+MC_HD static inline double mc_atan2(double y, double x) {
+    static double frac_bias;
+    static double asine_tab[257];
+    static double cos_tab[257];
+    static int ready;
+    double d0, d2, d3, d4, d5, d6, d7, d8, d9;
+    int flag, flag1, flag2;
+    i32 idx;
+    u64 bits;
+
+    if (!ready) {
+#include "mc_atan2_tab.h"
+        int j;
+        frac_bias = mc_bits_to_double(4805340802404319232ULL);
+        for (j = 0; j < 257; ++j) {
+            asine_tab[j] = mc_bits_to_double(MC_ASINE_TAB_BITS[j]);
+            cos_tab[j] = mc_bits_to_double(MC_COS_TAB_BITS[j]);
+        }
+        ready = 1;
+    }
+
+    d0 = x * x + y * y;
+    if (d0 != d0) {
+        return mc_bits_to_double(0x7ff8000000000000ULL);
+    }
+    flag = y < 0.0;
+    if (flag) y = -y;
+    flag1 = x < 0.0;
+    if (flag1) x = -x;
+    flag2 = y > x;
+    if (flag2) {
+        double d1 = x;
+        x = y;
+        y = d1;
+    }
+    d9 = mc_fast_inv_sqrt(d0);
+    x = x * d9;
+    y = y * d9;
+    d2 = frac_bias + y;
+    memcpy(&bits, &d2, sizeof bits);
+    idx = (i32)bits;
+    d3 = asine_tab[idx];
+    d4 = cos_tab[idx];
+    d5 = d2 - frac_bias;
+    d6 = y * d4 - x * d5;
+    d7 = (6.0 + d6 * d6) * d6 * 0.16666666666666666;
+    d8 = d3 + d7;
+    if (flag2) d8 = (MC_PI / 2.0) - d8;
+    if (flag1) d8 = MC_PI - d8;
+    if (flag) d8 = -d8;
+    return d8;
+}
+#endif /* !__CUDACC__ */
+
 #endif /* MC_MATH_H */

@@ -1,0 +1,52 @@
+# detmob hostile ambient: one zombie + one skeleton + one creeper, summoned
+# >40 blocks from the parked player so NearestAttackableTarget search fails
+# (zombie follow 35, skeleton/creeper 16). Idle look/wander only.
+# Night so sun-burn nextFloat is skipped (bytecode isDaytime short-circuit).
+# PersistenceRequired skips despawn nextInt(800). Difficulty easy — peaceful
+# kills hostiles. det_entity_rng=1, doMobSpawning=false. Not a blessed gate tape.
+name: detmob_hostile_ambient
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: false
+determinism:
+  det_entity_rng: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing false
+  - /gamerule doMobLoot false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty easy
+  - /gamemode survival @p
+  - /tp @p 38.5 70 170.5 180 0
+  - /summon pig ~ ~ ~
+  - /summon cow ~ ~ ~
+  - /summon sheep ~ ~ ~
+  - /summon chicken ~ ~ ~
+  - /summon zombie ~ ~ ~
+  - /summon skeleton ~ ~ ~
+  - /summon creeper ~ ~ ~
+  - /kill @e[type=pig,r=96]
+  - /kill @e[type=cow,r=96]
+  - /kill @e[type=sheep,r=96]
+  - /kill @e[type=chicken,r=96]
+  - /kill @e[type=zombie,r=96]
+  - /kill @e[type=skeleton,r=96]
+  - /kill @e[type=creeper,r=96]
+  - /summon zombie 53.5 74 126.5 {IsBaby:0b,PersistenceRequired:1b}
+  - /summon skeleton 51.5 74 126.5 {PersistenceRequired:1b}
+  - /summon creeper 52.5 74 128.5 {PersistenceRequired:1b}
+  - /entitydata @e[type=zombie,r=96] {IsBaby:0b}
+  - /tp @p 38.5 70 170.5 180 0
+setup_settle_ticks: 10
+duration_ticks: 600
+frames_every: 0
+input:
+  segments:
+    - seconds: 30.0
+known_divergences: []

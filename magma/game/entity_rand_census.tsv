@@ -1,0 +1,228 @@
+# entity_rand_census.tsv — 1.11.2 Entity.rand draw sites for cow/sheep/pig/chicken
+# Source: forgeSrc 1.11.2-13.20.1.2588 via CFR (scratch; not committed).
+# Consumed by magma/game/mob_live.c when det_entity_rng=1, in this order.
+# Columns: species  when  site  draws  notes
+#
+# Constructor (once per entity; magma hydrates from tape live seed48 and skips these)
+# Entity.<init>: entityId++; rand=new Random(seed); MathHelper.getRandomUUID = 2x nextLong = 4 next()
+# EntityChicken.<init> after super: nextInt(6000)+6000 -> timeUntilNextEgg
+all	ctor	Random.<init>	0	scramble only; seed48_init = (userSeed ^ 0x5DEECE66D) & ((1<<48)-1)
+all	ctor	MathHelper.getRandomUUID	4	2x nextLong on the VANILLA nanoTime Random (mixin reseeds at Entity ctor RETURN; Mixin 0.7.5 allows only RETURN in a ctor)
+chicken	ctor	timeUntilNextEgg	1	nextInt(6000) after Entity RETURN so this uses the det Random. Magma hydrates live seed48 and skips ctor draws.
+#
+# Every server tick, EntityLiving.onEntityUpdate then EntityLiving.updateEntityActionState
+# then goalSelector.onUpdateTasks, then lookHelper, then (chicken) egg timer.
+all	tick	living_sound	1	nextInt(1000) vs livingSoundTime++ (postfix). EntityAnimal.getTalkInterval=120
+all	tick	living_sound_pitch	2	if fired: getSoundPitch = 2x nextFloat; livingSoundTime=-120
+all	tick	despawn.entityAge	0	++entityAge then despawnEntity
+all	tick	despawn.nextInt800	0or1	nextInt(800) only if entityAge>600 (short-circuit). EntityAnimal.canDespawn=false so no death. Nearby player (d2<1024) resets age to 0, so this draw is skipped for parked-player animals.
+# Forge canEntityDespawn every 32 ticks ((age&31)==31); DEFAULT falls through. No Entity.rand.
+#
+# EntityAITasks.onUpdateTasks: tickCount++; setup=(tickCount%3==0). LinkedHashSet addTask order.
+# Mutex: swim=4 panic/wander=1 watch=2 idle=3 eat=7. Watch+idle conflict. Wander+idle conflict.
+# Mate/tempt/followParent: no Entity.rand in shouldExecute when not inLove / not holding food / adult.
+#
+# species	when	site	draws	notes
+cow	ai_list	addTask	0	swim0 panic1(2.0) mate2 tempt3(wheat 1.25) followParent4(1.25) wanderAvoidWater5(1.0) watch6(player 6) idle7. HP10 speed 0.20000000298023224 size 0.9x1.4 eyeH 1.3
+sheep	ai_list	addTask	0	swim0 panic1(1.25) mate2 tempt3(wheat 1.1) followParent4(1.1) eatGrass5 wanderAvoidWater6 watch7 idle8. HP8 speed 0.23000000417232513 size 0.9x1.3 eyeH 0.95*1.3
+pig	ai_list	addTask	0	swim0 panic1(1.25) mate3 tempt4(carrot-stick 1.2) tempt4(carrot/potato/beet 1.2) followParent5(1.1) wanderAvoidWater6 watch7 idle8. HP10 speed 0.25 size 0.9x0.9
+chicken	ai_list	addTask	0	swim0 panic1(1.4) mate2 tempt3(seeds 1.0) followParent4(1.1) wanderAvoidWater5 watch6 idle7. HP4 speed 0.25 size 0.4x0.7
+#
+all	setup	swim.shouldExecute	0	isInWater||isInLava
+all	setup	panic.shouldExecute	0or30	no rand unless burning/revenge then findRandomTarget(5,4)=generateRandomPos(..., true): 10*(3 nextInt), NO moveAboveSolid/water skip. magma land=0.
+sheep	setup	eat.shouldExecute	1	nextInt(child?50:1000); then grass/tallgrass block test
+all	setup	wander.shouldExecute	1+	if getAge()>=100 skip (nearby player keeps age 0). else nextInt(120). if 0: WanderAvoidWater.getPosition
+all	setup	wander.avoid_water	1+30	nextFloat>=0.001 ? getLandPos(10,7) : findRandomTarget(10,7). in water: getLandPos(15,7) else findRandomTarget(10,7). RPG always 10 loops * 3 nextInt (no home).
+all	setup	watch.shouldExecute	1	nextFloat>=0.02 fail; else getClosestPlayer AABB 6. startExecuting: 40+nextInt(40)
+all	setup	idle.shouldExecute	1	nextFloat<0.02. startExecuting: 2*PI*nextDouble + 20+nextInt(20)
+all	run	swim.updateTask	1	nextFloat<0.8 jump
+all	run	idle.updateTask	0	idleTime--; lookHelper.setLookPosition(pos+lookX, posY+eye, pos+lookZ, 10, 40)
+all	run	watch.updateTask	0	lookHelper at player eye; lookTime--
+all	run	eat.updateTask	0	timer--; at 4 eat grass / dirt
+all	hurt	setBeenAttacked	1	nextDouble vs knockbackResistance (0 for animals). EntityLivingBase.setBeenAttacked (overrides Entity's velocityChanged=true).
+all	hurt	knockBack	1	nextDouble vs knockbackResistance then motionX/Z /=2 -= dir*(double)0.4F; onGround motionY /=2 +=(double)0.4F cap 0.4000000059604645. MathHelper.sqrt is (float)sqrt. Attacker-victim xz, not eye.
+all	hurt	playHurtSound	2	flag1 && health>0: getHurtSound non-null then getSoundPitch = 2x nextFloat (child still 2 draws). After knockBack, before onEntityUpdate living_sound.
+all	tick	lookHelper	0	zeros pitch; interpolates from 0 toward target max 40 pitch / 10 yaw. MathHelper.atan2 LUT. no Entity.rand. moveHelper: no rand.
+chicken	after	egg	0or3	--timeUntilNextEgg; if <=0: 2x nextFloat pitch + nextInt(6000)+6000
+#
+# Task bits for tape hydrate (PAI_* in mob_live.c): swim=1 panic=2 eat=4 wander=8 watch=16 idle=32
+# Magma hydrates live seed48 from tape header entity_rng (post-ctor, post-load ticks).
+# Do NOT jrand_set the live cursor — assign r.seed = seed48 directly.
+# Tape header entity_rng is recstart (between ticks). Per-tick erng is ServerTick END
+# (post-AI pose + cursor). Magma dumps after each tick compare to that row.
+#
+# ======================================================================# Hostile addendum (zombie / skeleton / creeper). forgeSrc 1.11.2-13.20.1.2588
+# plus bytecode (javap EntityLiving.onEntityUpdate, EntityZombie.onLivingUpdate,
+# EntityAIAttackMelee.updateTask, EntityAIAttackRangedBow.updateTask).
+# Additive rows only. Constructor draws are skipped: magma hydrates live seed48.
+# PersistenceRequired:1b (scenarios) -> despawnEntity sets entityAge=0, no nextInt(800).
+# Peaceful kills hostiles; scenarios set /difficulty easy (recorded in yaml).
+# /summon in a lit test area is spawn-path only; isValidLightLevel nextInt(32)/nextInt(8)
+# is NOT a per-tick Entity.rand site.
+# =============================================================================
+#
+# Ctor / onInitialSpawn (hydrate skips; listed so a raw-cursor walk is not a mystery)
+zombie	ctor	SPAWN_REINFORCEMENTS_CHANCE	2	applyEntityAttributes: this.rand.nextDouble * Forge zombieSummonBaseChance. 2 next() (26+27). After Entity mixin reseed.
+zombie	spawn	canPickUpLoot	1	onInitialSpawn: this.rand.nextFloat < 0.55*clampedDifficulty
+zombie	spawn	child	0	GroupData uses world.rand.nextFloat < zombieBabyChance, NOT Entity.rand. /summon NBT IsBaby:0b pins adult.
+zombie	spawn	chicken_jockey	0	world.rand, not Entity.rand
+zombie	spawn	break_door	0or1	this.rand.nextFloat < f*0.1 then maybe addTask breakDoor
+skeleton	spawn	canPickUpLoot	1	AbstractSkeleton.onInitialSpawn this.rand.nextFloat
+skeleton	spawn	halloween	0or2	calendar + this.rand.nextFloat < 0.25 then nextFloat pumpkin
+creeper	ctor	—	0	no Entity.rand in ctor/attributes (speed 0.25 size 0.6x1.7)
+#
+# EntityMob / EntityLiving per-tick (all three; order is onEntityUpdate then onLivingUpdate then AI)
+hostile	tick	living_sound	1	nextInt(1000) vs livingSoundTime++ (postfix). EntityLiving.getTalkInterval=80 (not animal 120). Bytecode: private EntityLiving.applyEntityAI sets livingSoundTime=-80, then playLivingSound.
+zombie	tick	living_sound_pitch	0or2	getAmbientSound=ENTITY_ZOMBIE_AMBIENT non-null -> getSoundPitch 2x nextFloat
+skeleton	tick	living_sound_pitch	0or2	ENTITY_SKELETON_AMBIENT non-null -> 2x nextFloat
+creeper	tick	living_sound_pitch	0	getAmbientSound is EntityLiving default null. Fire still resets lst to -80 but playLivingSound draws 0.
+hostile	tick	despawn.persist	0	PersistenceRequired: entityAge=0, no nextInt(800). Without persist: ++entityAge then if age>600 && d2>1024 nextInt(800).
+zombie	tick	sun_burn	0or1	bytecode short-circuit: isDaytime, !remote, !isChild, shouldBurnInDay, brightness>0.5F, THEN nextFloat * 30.0F < (f-0.4F)*2.0F, THEN canSeeSky. Night: 0 draws. Helmet: extra nextInt(2).
+skeleton	tick	sun_burn	0or1	AbstractSkeleton.onLivingUpdate: same nextFloat*30 vs (f-0.4F)*2.0F after isDaytime && brightness>0.5F. Night: 0.
+creeper	tick	sun_burn	0	no override; EntityMob only entityAge+=2 if brightness>0.5 (no rand)
+hostile	tick	entityAge_bright	0	EntityMob.onLivingUpdate: getBrightness>0.5F -> entityAge+=2. Then updateEntityActionState ++entityAge. Persist wipes to 0 before wander getAge.
+#
+# Two EntityAITasks: targetTasks then goalSelector. Separate tickCount, each setup=(tickCount%3==0).
+# LinkedHashSet addTask order. Mutex: incompatible if (bits_a & bits_b)!=0. canUse: if other.using and this.pri>=other.pri and mutex overlap, skip shouldExecute (no draws).
+#
+# species	when	site	draws	notes
+zombie	ai_list	addTask	0	goals: swim0 melee(ZombieAttack 1.0 false)2 restriction5 village6 wanderAvoidWater7 watch8(player 8.0) idle8. HP20 speed 0.23000000417232513 follow 35.0 armor 2 damage 3 size 0.6x1.95 eyeH 1.74
+zombie	ai_list	targetTasks	0	hurtBy(true, exclude pigman)1 nearestPlayer2 nearestVillager3(checkSight=false) nearestGolem3
+skeleton	ai_list	addTask	0	swim1 restrictSun2 fleeSun3 avoidWolf3 wander5 watch6 idle6 + setCombatTask bow4 (cooldown 40 easy/normal, 20 hard; mutex 3). speed 0.25 follow 16 size 0.6x1.99 eyeH 1.74
+skeleton	ai_list	targetTasks	0	hurtBy(false)1 nearestPlayer2 nearestGolem3
+creeper	ai_list	addTask	0	swim1 swell2 avoidOcelot3 melee4(1.0 false) wanderAvoidWater5(0.8) watch6 idle6. speed 0.25 follow 16 size 0.6x1.7 eyeH height*0.85=1.445
+creeper	ai_list	targetTasks	0	nearestPlayer1 THEN hurtBy(false)2  — player is first, opposite of zombie
+#
+# Target-task draws (only on setup ticks, only if canUse; mutex 1 so at most one using)
+hostile	setup	hurt.shouldExecute	0	revengeTimer!=old && AITarget!=null. no Entity.rand. nearbyOnly=false so canEasilyReach nextInt(5) is dead.
+hostile	setup	nearest.shouldExecute	0or1	targetChance=10: nextInt(10)!=0 fail. Player: getNearestAttackablePlayer(follow,follow). Villager/golem: AABB then sort, no extra Entity.rand. Using skips later mutex-1 shouldExecute.
+#
+# Goal-task draws
+hostile	setup	swim.shouldExecute	0	isInWater||isInLava
+zombie	setup	melee.shouldExecute	0	canPenalize=false: getPathToEntityLiving, no nextInt(7). no target -> false. Mutex 3.
+zombie	run	melee.updateTask	0or1+1	look 30/30. --delayCounter. Short-circuit: (longMemory||canSee)&&delay<=0&&(xyz all 0 || moved>=1 || nextFloat<0.05). THEN nextInt(7)+4. longMemory=false. Arm raise: raiseArmTicks>=5 && attackTick<10, no rand.
+creeper	setup	swell.shouldExecute	0	state>0 || (target && distSq<9). no rand. Mutex 1. continueExecuting default true (never self-stops).
+creeper	run	swell.updateTask	0	state=1 if target && distSq<=49 && canSee else -1. Fuse is EntityCreeper.onUpdate BEFORE super: timeSinceIgnited += state, clamp, explode at 30. Rand-free state machine.
+creeper	setup	avoid.shouldExecute	0	no ocelot: findNearest null, no RPG.
+skeleton	setup	restrictSun	0	isDaytime && empty helmet. mutex 0. Night: false.
+skeleton	setup	fleeSun	0or30	night/not burning: 0. Else 10*(3 nextInt) shelter.
+skeleton	setup	avoidWolf	0	no wolf: 0
+skeleton	setup	bow.shouldExecute	0	attackTarget!=null && bow in hand. mutex 3.
+skeleton	run	bow.updateTask	0or2	seeTime LOS. In range (15^2) && seeTime>=20: clearPath, ++strafingTime. Else tryMoveToEntity (PathFinder). strafingTime>=20: 2x (double)nextFloat < 0.3D flip cw/back, strafingTime=0. Shoot: playSound 1/(nextFloat*0.4+0.8) = 1 nextFloat. Cooldown 40 easy/normal.
+zombie	setup	restriction	0	isWithinHomeDistance (maxHome=-1) true, no RPG
+zombie	setup	village	0	nocturnal && daytime -> false. Night: getNearestVillage; structures:false -> null, no RPG
+hostile	setup	wander.shouldExecute	1+	getAge()>=100 skip. else nextInt(120). WanderAvoidWater: in water getLandPos(15,7) else nextFloat>=0.001 getLandPos(10,7) : findRandomTarget(10,7). RPG 10*3 nextInt. Creeper speed 0.8 else 1.0. Watch range 8 (64 sq) not animal 6.
+hostile	setup	watch.shouldExecute	1	nextFloat>=0.02 fail; getClosestPlayer 8.0. start: 40+nextInt(40)
+hostile	setup	idle.shouldExecute	1	nextFloat<0.02. start: 2*PI*nextDouble + 20+nextInt(20)
+hostile	run	swim.updateTask	1	nextFloat<0.8 jump
+#
+# Extra tape bits (additive JSON): melee=64 swell=128 bow=256 restrict=512 flee=1024 avoid=2048 home=4096 village=8192
+# Target bits ttasks: hurt=1 player=2 villager=4 golem=8. ttt=targetTasks.tickCount. tgt=attackTarget!=null.
+# fuse=EntityCreeper.timeSinceIgnited. mdelay=EntityAIAttackMelee.delayCounter.
+# see/stime/atime/scw/sback = bow seeTime, strafingTime, attackTime, clockwise, backwards.
+=======
+# ---- DIM-1 hostiles (lane/detmob-dims). Same mixin reseed; live seed48 from tape. ----
+# EntityBlaze / EntityPigZombie. Client-only particle/burn draws (world.isRemote) are
+# not on the server cursor. Magma hydrates live seed48 and skips ctor.
+#
+# blaze ctor: Entity RETURN reseed, then setPathPriority (no Entity.rand). applyEntityAttributes no rand.
+# pigman ctor: EntityZombie.applyEntityAttributes nextDouble * zombieSummonBaseChance (Forge). Hydrate skips.
+blaze	ctor	Random.<init>	0	mixin reseed at Entity RETURN; blaze body has no extra Entity.rand
+pigman	ctor	SPAWN_REINFORCEMENTS	1	EntityZombie.applyEntityAttributes nextDouble after reseed. Magma hydrates live seed48.
+#
+# blaze ai_list (EntityBlaze.initEntityAI)
+#   tasks: fireball4 mutex3, restrict5 mutex1, wanderAvoidWater7 (prob 0.0F) mutex1, watch8 mutex2, idle8 mutex3
+#   target: hurtBy1, nearestPlayer2 (chance 10)
+# pigman ai_list = EntityZombie.initEntityAI with applyEntityAI replaced:
+#   tasks: swim0, zombieAttack2 mutex3, restrict5, wanderAvoidWater7 (prob 0.001F), watch8, idle8
+#   NO village. target: AIHurtByAggressor, AITargetAggressor = isAngry && nearestPlayer
+# restrict.shouldExecute: maximumHomeDistance default -1 => isWithinHomeDistance true => false, no rand.
+# fireball/zombieAttack.shouldExecute: need attack target. Ambient: no draw.
+#
+blaze	ai_list	addTask	0	fireball4 restrict5 wander7 watch8 idle8. HP20 speed 0.23000000417232513 follow 48 size 0.6x1.8 eyeH 0.85*1.8
+pigman	ai_list	addTask	0	swim0 melee2 restrict5 wander7 watch8 idle8. HP20 speed 0.23000000417232513 damage 5 size 0.6x1.95. Anger-gated target.
+#
+# Per-tick server order (EntityLiving / EntityBlaze / EntityPigZombie):
+#   onEntityUpdate: living_sound nextInt(1000); getTalkInterval=80 (not animal 120)
+#   onLivingUpdate: blaze motionY*=0.6 if falling (no rand, before super). pigman no extra nether rand
+#     (EntityZombie day-burn nextFloat skipped: WorldProviderHell isDaytime=false)
+#   updateEntityActionState: ++entityAge; despawnEntity; targetTasks;
+#     goalSelector (tasks.onUpdateTasks); navigator; then updateAITasks ("mob tick").
+#     EntityLiving.updateAITasks is empty; EntityBlaze fills it with heightOffset.
+#
+blaze	tick	living_sound	1	nextInt(1000) vs livingSoundTime++. talk interval 80
+blaze	tick	living_sound_pitch	2	if fired: getSoundPitch 2x nextFloat; livingSoundTime=-80
+pigman	tick	living_sound	1	same nextInt(1000); talk interval 80
+pigman	tick	living_sound_pitch	2	if fired: 2x nextFloat; livingSoundTime=-80
+all_hostile	tick	despawn.persist	0	PersistenceRequired: ++entityAge then entityAge=0. No nextInt(800).
+#
+# targetTasks.onUpdateTasks (own tickCount, same 0-mod-3 setup as goals; both start 0)
+blaze	setup	nearestPlayer.shouldExecute	0or1	setup: nextInt(10); 0 => getNearestAttackablePlayer (checkSight, no Entity.rand). Ambient tape: no LOS so no target even on 0.
+pigman	setup	targetAggressor.shouldExecute	0	!isAngry short-circuit before super nextInt(10)
+#
+# goalSelector (mutex: wander=1 watch=2 idle=3 fireball=3). Watch+idle conflict. Wander+idle conflict.
+blaze	setup	wander.shouldExecute	1+	age>=100 skip (persist keeps 0). else nextInt(120). if 0: nextFloat>=0.0 always getLandPos(10,7)=10*3 nextInt
+pigman	setup	wander.shouldExecute	1+	age>=100 skip. else nextInt(120). if 0: nextFloat>=0.001 ? getLandPos(10,7) : findRandomTarget(10,7)
+blaze	setup	watch.shouldExecute	1	nextFloat>=0.02 fail; else getClosestPlayer AABB 8. startExecuting: 40+nextInt(40)
+pigman	setup	watch.shouldExecute	1	same, maxDistance 8 (animals used 6)
+blaze	setup	idle.shouldExecute	1	nextFloat<0.02. startExecuting: 2*PI*nextDouble + 20+nextInt(20)
+pigman	setup	idle.shouldExecute	1	same
+#
+# EntityBlaze.updateAITasks is AFTER goals+nav (the "mob tick" slot). PigZombie.updateAITasks is anger/sound only; ambient no rand.
+blaze	ai	heightOffset	0or2+	after nav: --heightOffsetUpdateTime; if <=0: =100, heightOffset=0.5F+(float)nextGaussian()*3.0F. nextGaussian is 2x nextDouble polar, caches one. Hydrate hg/gv + hot/hof from tape.
+blaze	ai	hover_motionY	0	if attackTarget != null && target.eye > this.eye+heightOffset: motionY += (0.30000001192092896-motionY)*0.30000001192092896. Ambient (no target): no pose effect; gaussian still consumed.
+blaze	run	AIFireballAttack	0or4	needs target. Burst: 2x nextGaussian per small fireball (aim spread). Ambient tape: shouldExecute false, no draws.
+pigman	run	idle.updateTask	0	idleTime--; lookHelper 10/40. no Entity.rand
+pigman	run	watch.updateTask	0	lookHelper at player eye; lookTime--
+# Task bits (same PAI_* plus unused fireball): swim=1 panic=2 eat=4 wander=8 watch=16 idle=32
+#
+# ---- DIM 1 End (lane/detmob-all). Same mixin reseed; live seed48 from tape. ----
+# EntityEnderman. No EndermanFreezeWhenLookedAt in 1.11.2 (that is 1.14 AIFreeze).
+# Stare is EntityEnderman.AIFindPlayer (inner NAT). Dragon is a separate EntityLiving
+# with its own Random; it does not share the enderman Entity.rand cursor.
+#
+# enderman ctor: Entity RETURN reseed, setSize 0.6x2.9, stepHeight 1, WATER pathPriority -1.
+# applyEntityAttributes: HP40 speed 0.30000001192092896 damage 7 follow 64. No Entity.rand.
+enderman	ctor	Random.<init>	0	mixin reseed at Entity RETURN; body has no extra Entity.rand
+enderman	ai_list	addTask	0	swim0 melee2 wanderAvoidWater7 (prob 0.0F) watch8 idle8 place10 take11. target: AIFindPlayer1 hurtBy2 endermiteNAT3
+#
+enderman	tick	living_sound	1	nextInt(1000) vs livingSoundTime++. talk interval 80
+enderman	tick	living_sound_pitch	2	getAmbientSound non-null (AMBIENT, or SCREAM if isScreaming). 2x nextFloat
+enderman	tick	despawn.persist	0	PersistenceRequired: ++entityAge then entityAge=0. No nextInt(800)
+enderman	tick	onLivingUpdate.particles	0	world.isRemote only. Server: isJumping=false then super
+#
+# targetTasks (own tickCount, setup tickCount%3==0). Mutex 1.
+# AIFindPlayer.shouldExecute OVERRIDES NAT: getNearestAttackablePlayer + shouldAttackPlayer
+# (pumpkin / look dot / canEntityBeSeen). No nextInt(10). Look-away tape: 0, not using.
+enderman	setup	AIFindPlayer.shouldExecute	0	no Entity.rand. stare predicate; player look pinned away => false
+enderman	setup	hurt.shouldExecute	0	revengeTimer. no Entity.rand
+enderman	setup	endermiteNAT.shouldExecute	0or1	chance 10: nextInt(10). 0 => AABB EntityEndermite isSpawnedByPlayer. Ambient: empty
+#
+# goals. Wander+idle mutex 1/3 conflict. Watch+idle mutex 2/3. Melee mutex 3 needs target.
+enderman	setup	swim.shouldExecute	0	isInWater||isInLava. End: false
+enderman	setup	melee.shouldExecute	0	attackTarget==null => false. no PathFinder
+enderman	setup	wander.shouldExecute	1+	age>=100 skip (persist keeps 0). else nextInt(120). if 0: nextFloat>=0.0 always getLandPos(10,7)=10*3 nextInt
+enderman	setup	watch.shouldExecute	1	nextFloat>=0.02 fail; else getClosestPlayer AABB 8. Tape player >40: fail after the float
+enderman	setup	idle.shouldExecute	1	nextFloat<0.02. start: 2*PI*nextDouble + 20+nextInt(20)
+enderman	setup	AIPlaceBlock.shouldExecute	0	held==null short-circuit, or !mobGriefing. Tape mobGriefing false: 0. Else nextInt(2000)
+enderman	setup	AITakeBlock.shouldExecute	0	held!=null or !mobGriefing short-circuit. Tape: 0. Else nextInt(20)
+#
+# EntityEnderman.updateAITasks AFTER goals+nav (same "mob tick" slot as blaze heightOffset).
+# isWet: drown 1, no Entity.rand. Then isDaytime && ticksExisted>=targetChangeTime+600:
+# getBrightness>0.5 && canSeeSky && nextFloat*30<(f-0.4)*2 then teleportRandomly.
+# WorldProviderEnd.init does not call super.init, so hasSkyLight stays false
+# (boolean default). isDaytime is still provider.isDaytime => skylightSubtracted<4
+# (often true). getBrightness uses combined light; End surface with no sky is
+# lightBrightnessTable[0]=0, so f>0.5 fails and nextFloat is skipped. Confirm on
+# the tape (teleport vs cursor). If a teleport lands, attemptTeleport draws 128x
+# nextFloat for particles.
+# teleportRandomly: nextDouble, nextInt(64), nextDouble then attemptTeleport.
+# attemptTeleport: Random particles (128x nextFloat) only if the teleport lands.
+enderman	ai	updateAITasks.wet	0	End dry
+enderman	ai	updateAITasks.day_teleport	0or1+	after 600 ticksExisted: maybe nextFloat; success => teleportRandomly 2*nextDouble+nextInt(64)
+enderman	run	idle.updateTask	0	idleTime--; lookHelper 10/40. no Entity.rand
+enderman	run	watch.updateTask	0	lookHelper at player eye; lookTime--
+# Task bits: swim=1 wander=8 watch=16 idle=32 melee=64. Place/take not in tape bits.
+# Dragon Entity.rand is a different object. Collision/knockback with the dragon is a
+# pose event, not a cursor mix. Gate tracks persist enderman only.
+

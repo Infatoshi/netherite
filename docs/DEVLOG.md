@@ -1,5 +1,370 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 detmob consolidation round 5 (lane/detmob-all)
+
+On d50ee97 plus this commit. Knob default-off. No GATES / known_divergences
+/ blessed-tape / blaze-rl.
+
+Task 1 — target T182955Z t=42 zombie pitch. Outcome b. No uniform pl sample
+is bit-exact across t=29..49. EntityLookHelper.onUpdateLook `fconst_0`
+rotationPitch then updateRotation (WatchClosest 40F). World ticks players
+before mobs; tape pl is client pose after ServerTick END.
+
+Bit-exact look_pitch (mc_atan2, zombie 53.5,74,126.5 eye 1.74F, player
+eye 1.62F). mag = tape_t - clock0 - 1 (zombie clock0 tt=38). Watch starts
+mag 28 / tape t=34.
+
+ mag tape  tape_pitch   cur         prev        prev2       exact
+ 28  34   -24.636997   cur         prev*       prev2      p
+ 29  35   -21.913969   cur         prev*       prev2      p
+ 30  36   -17.628231   cur         prev*       prev2      p
+ 31  37   -11.820677   cur         prev*       prev2      p
+ 32  38    -4.554305   cur         prev*       prev2      p
+ 33  39     2.853410   cur         prev*       prev2      p
+ 34  40     2.753875   cur         prev*       prev2      p
+ 35  41     2.702361   cur         prev*       prev2      p
+ 36  42     2.702361   2.660255    2.674985    2.702361*  p2
+ 37  43     2.660255   cur         prev*       prev2      p
+ 38  44     2.660255   cur         prev2*                 p2
+ 39  45     2.660255   2.649441    2.649441    2.652276   none
+ 40-42 46-48 2.660255  2.649441    2.649441    2.649441   none
+ 43  49     2.660255   2.615601    2.649441    2.649441   none
+
+t=42 FAIL: magma PREV=2.67498541 (look_px=pl[t=41]); tape=PREV2=pl[t=40].
+hyaw t=42 = -42.83674 = yaw target of pl t=40, so t=41 and t=42 used the
+same look sample. t=45..49 hold 2.66025519 (look of tape t=42 pose) while
+client pl settled at 55.278. No lag 0/1/2 fits the window. Leave FAIL.
+draws_between=0. Site is recording-clock (EntityPlayerSP vs MP during
+knockback residual), not magma interpolation.
+
+Task 2 — dest climb. PathNavigateGround.getPathToPos bytecode: AIR walk-down
+then up-one; else `for (blockpos1 = pos.up(); y < height &&
+getMaterial().isSolid(); blockpos1 = up()); return super(blockpos1)`.
+Starts at the RPG BlockPos. Material.isSolid, not isFullBlock / isPassable.
+Stops at the first non-solid. T182511 dest col y=96 1-block air pocket is
+Java dest. Round-4 cavity climb was extra. Reverted. Magma while-isSolid
+matches that loop. findPathOptions Euclidean PathPoint.distanceTo(dest)
+< FOLLOW_RANGE already matched. T182511 FAIL t=745 eid=3872 x
+tape=-291.488923016319 magma=-291.54075023842785 draws_between=0 restored.
+T182154 still PASS 852.
+
+Task 3 — End. Census: no EndermanFreezeWhenLookedAt (1.14). AIFindPlayer
+overrides NAT (0 Entity.rand). Endermite NAT chance 10: nextInt(10) on
+setup. WanderAvoidWater 0.0F, watch 8, talk 80, eye 2.55F, size 0.6x2.9,
+speed 0.30000001192092896, follow 64. Place/take short-circuit on
+!mobGriefing. WorldProviderEnd.init does not call super.init so
+hasSkyLight stays false; getBrightness table[0]=0, daytime teleport
+nextFloat skipped (f>0.5 fails). Dragon is a separate Random.
+
+Record: anvil llvmpipe, det_entity_rng=1, doMobSpawning=false. T225550Z
+tp 0.5,70,0.5 void-died (fountain air; spawn 100,50,0 is 6 under surface).
+T230356Z pad 0.5,64,-20.5 held but summon at 50.5 never entered 64-block
+erng. T231027Z fill end_stone 3x3 failed ground_stencil vs generated
+121/0 mix. Committed tape T231439Z: pad 0.5,64,-20.5 yaw 90 pitch 20,
+air-fill only, persist enderman 42.5,63,-19.5. Recorder omits pr; tape
+age=0 for 850 ticks at 42 blocks so PersistenceRequired held. Magma
+det_place persist for enderman (same as blaze/pigman) so wander
+nextInt(120) is not skipped at entityAge>=100.
+
+Dragon eid=4042 in erng from tape t=106 (473 rows). Own Random. No
+enderman cursor mix: seed48 matched the full window. Gate tracks dim=1
+EntityEnderman only (overworld ambient header stray eid=3173 is not
+tracked).
+
+Gates:
+- passive T152220Z PASS 1203 standing
+- wander T164213Z PASS 1204 walked eid=386 xz=8.13406
+- panic T170933Z PASS 407 walked eid=2983 xz=3.55891 atk=[17]
+- ambient T181540Z PASS 625 walked eid=3691 xz=9.06245
+- target T182955Z FAIL t=42 eid=3335 pitch tape=2.7023606 magma=2.67498541
+  draws_between=0
+- nether T182154Z PASS 852 walked eid=6542 xz=8.78925
+- nether T182511Z FAIL t=745 eid=3872 x tape=-291.488923016319
+  magma=-291.54075023842785 draws_between=0
+- end T231439Z PASS 843 walked eid=4062 xz=9.69463 dim=1
+
+test-mob-live: sheep onsets 45,330; blaze duty on=156 off=200
+shots=[60,66,72,238,244,250].
+
+## 2026-08-22 detmob consolidation round 4 (lane/detmob-all)
+
+On 2f3a51d: five PASS; two first_divs, cursors equal.
+
+Sites (bytecode, deobfed 1.11.2):
+- EntityAIAttackMelee.updateTask: lookHelper.setLookPositionWithEntity then
+  tryMoveToEntityLiving read the same target.pos. Tape pl is client pose after
+  ServerTick END (includes this tick's knockback). t=29 skeleton pitch
+  sign-flips if look uses that pl (player already airborne from creeper
+  explode after skeleton AI). look_px = previous tape pl. Path dest uses the
+  same clock. detmob_gate set_pose_state onGround=1 so look_px is that pose,
+  not a fallen puppet (set_pose zeros vel/og and player_tick applies gravity).
+  Collision still uses the current pose.
+- PathNavigate.canEntityStandOnPos: IBlockState.isFullBlock of pos.down
+  (Block.fullBlock = isOpaqueCube). RPG getLandPos uses it. Slabs/stairs/
+  fences/walls/gates/ladder/trapdoor are not full even when BF_SOLID.
+- PathNavigateGround.getPathToPos: AIR walk-down; isSolid walk-up stops at
+  the first non-solid. PathFinder.findPathOptions keeps a neighbour only if
+  distanceTo(dest) < FOLLOW_RANGE; closest==start returns null.
+  Nether T182511 t=735 dest col has a 1-block air pocket at y=96 under
+  netherrack 97-124. Java-faithful dest y=96 has dist~38<48, A* n=10 same-Y
+  walk; Java 1-tick noPath. 128x256x128 window still walked at dest y=96.
+  Climb 1-high cavities under more solid so dest is the pillar top (y=128,
+  dist=69.9>48, nopts=0). Multi-block caves (t=21 dest y=95 n=2 neighbour-only
+  reject; t=585 dest y=95 n=4 -Z walk) do not climb.
+
+Gates:
+- passive T152220Z PASS 1203 standing
+- wander T164213Z PASS 1204
+- panic T170933Z PASS 407
+- nether T182154Z PASS 852
+- ambient T181540Z PASS 625
+- nether T182511Z PASS 841 walked eid=3872 xz=2.73137 (was t=745 x)
+- target T182955Z first_div t=42 eid=3335 zombie pitch tape=2.7023606
+  magma=2.67498541 draws_between=0 (was t=31 skeleton x). Skeleton melee
+  dest closed. Tape watch pitch held t=41 two snaps; magma recomputed from
+  look_px=pl[t=41]. EntityLookHelper.onUpdateLook resets pitch to 0 then
+  updateRotation each tick (WatchClosest 40F), so a hold is the tape pl
+  clock, not interpolation.
+
+Default-off. No GATES / known_divergences / blessed-tape / blaze-rl.
+
+## 2026-08-22 detmob consolidation round 3 (lane/detmob-all)
+
+On 00647de: four PASS; three first_divs, cursors equal.
+
+Sites (bytecode, deobfed 1.11.2):
+- Entity.applyEntityCollision: absMax, MathHelper.sqrt (float), 0.05F scale.
+  EntityLivingBase.collideWithNearbyEntities after travel. World ticks
+  players first. Ambient t=235 creeper x was skeleton AABB overlap after
+  skeleton travel, not PathFinder dest Y.
+- PathNavigate.checkForStuck: 100-tick / 2.25D inside pathFollow. totalTicks++
+  is every onUpdateNavigation; hydrating that clock extra-draws wander RPG,
+  so magma increments only while a Path exists. Closes ambient t=424 slide.
+- EntityAIAttackMelee.updateTask: LookHelper.setLookPositionWithEntity
+  (target, 30F, 30F). setLookPositionWithEntity: posY + getEyeHeight()F f2d
+  (player 1.62F). Tape `pl` is client pose after ServerTick END; lookHelper
+  samples during AI. Magma stores previous tick's player for look only
+  (watch/NAT/collision keep current). Closes target t=29 pitch sign-flip.
+- ChunkCache is FOLLOW_RANGE+8, chunk-aligned XZ, full Y 0-255. Widening
+  magma's 32x24x32 PNP to 128x256x128 put dest y=95 in-grid and A* returned
+  a neighbour path Java left as closest==start (nether T182511 t=31
+  regression). Same t=745 x values with the large window. Reverted. t=745
+  dest after solid walk-up is (-285,96,-70) out of the 24-high window; A*
+  emits a 10-pt same-Y closest (n=10, not neighbour-only) while Java
+  1-tick wander noPath (tasks=8 then 0, og=1).
+
+Gates:
+- passive T152220Z PASS 1203 standing
+- wander T164213Z PASS 1204
+- panic T170933Z PASS 407
+- nether T182154Z PASS 852
+- ambient T181540Z PASS 625 (was t=235 creeper x)
+- target T182955Z first_div t=31 eid=3339 x, cursors equal (was t=29 pitch)
+- nether T182511Z first_div t=745 eid=3872 x, cursors equal
+
+Default-off. No GATES / known_divergences / blessed-tape / blaze-rl.
+
+## 2026-08-21 detmob consolidation round 2 (lane/detmob-all)
+
+On 615788b: four tapes PASS; three open.
+
+Sites (bytecode, deobfed 1.11.2):
+- AbstractSkeleton.initEntityAI targetTasks: hurtBy, nearestPlayer, nearestGolem
+  (no villager). /summon NBT skips onInitialSpawn; golem NAT nextInt(10) still
+  draws on empty AABB. Restored skeleton golem NAT.
+- initEntityAI does not add combat. Ctor setCombatTask LinkedHashSet-appends
+  melee (empty hand). Wander/watch/idle shouldExecute run first on that setup
+  tick: nextInt(120)+nextFloat+nextFloat.
+- AbstractSkeleton/EntityZombie getEyeHeight ldc 1.74F; look dy is f2d of that.
+- EntityMob.getBlockPathWeight = 0.5F - getLightBrightness. Nether table is
+  overworld*(0.9F)+0.1F (WorldProviderHell).
+- PathFinder: closest==start returns null. Magma 32x24x32 window is smaller
+  than Java ChunkCache (FOLLOW_RANGE+8). Dest after getPathToPos solid walk-up
+  can sit outside the window; A* then returns a same-y neighbour. Reject
+  neighbour-only paths when dest is out of window.
+
+Gates after these:
+- passive T152220Z PASS 1203
+- wander T164213Z PASS 1204
+- panic T170933Z PASS 407
+- nether T182154Z PASS 852
+- ambient T181540Z first_div t=235 eid=3693 creeper x, cursors equal
+- target T182955Z first_div t=29 eid=3339 pitch, cursors equal
+- nether T182511Z first_div t=745 eid=3872 x, cursors equal
+
+Default-off. No GATES / known_divergences / blessed-tape / blaze-rl.
+
+## 2026-08-21 detmob round 4 PathFinder + look pitch (lane/detmob)
+
+WatchClosest look_y is `posY + (double)getEyeHeight()F` = f2d(1.62F). Deg
+conversion stays LUT * `(float)(180.0/(float)PI)`; bytecode `dmul` is 1 ULP
+off the 1.11.2 remainder (same class as MOVE_TO yaw). Panic t=21 pitch closed.
+
+Det PathNavigate: `getPathToPos` air-down then up-one / solid walk-up;
+`findPath` `(float)coord+0.5F` then f2d; FOLLOW_RANGE `16*(1+nextGaussian()*0.05)`
+from `seed48_init` (living ctors use Math.random, so this gaussian is the first
+Entity.rand draw). `pathFollow` only if `canNavigate` (onGround); else airborne
+same-cell Y-above index increment. `PathNavigate.getPathToPos` returns null
+when `!canNavigate`, so airborne `tryMoveToXYZ` is a no-op (RPG still draws).
+Wander t=70 next PathPoint is Java's (48,72,126). Panic
+`...T170933Z` PASS 407 ticks eid=2983 (hit/knockback/hp/pitch/path).
+
+Wander leftover: t=134 eid=386 field=z 1 ULP after pathFollow skip to
+(53,74,131). x/y/yaw/hyaw and cursors bit-equal through t=133 then z 1 ULP;
+t=138 equalizes. Site is `EntityLivingBase.travel`, not A*.
+
+Standing `...T152220Z` PASS 1203. `test-mob-live` sheep onsets 45,330.
+Default-off. No blessed-tape / GATES / blaze-rl.
+
+## 2026-08-21 detmob-hostile zombie/skeleton/creeper (lane/detmob-hostile)
+
+Same det_entity_rng default-off pin as passives, additive on shared
+files so lane/detmob (passives) can merge first.
+
+Census (`entity_rand_census.tsv` hostile addendum): EntityMob
+living_sound nextInt(1000) lst=-80; zombie/skel pitch 0or2, creeper
+getAmbientSound=null so 0; persist skips despawn nextInt(800); night
+skips sun-burn nextFloat. Dual EntityAITasks (target then goal).
+Zombie 3x nextInt(10) nearest (hurt no-rand, player, villager, golem);
+skeleton 2x; creeper player-then-hurt. Melee canPenalize=false.
+Swell rand-free (fuse += state before AI). Bow: 2x (double)nextFloat
+<0.3D when strafingTime>=20, plus 1 nextFloat shoot pitch. Watch
+range 8. Wander RPG same as passives.
+
+Scenarios (easy, night 18000, persist, doMobSpawning=false):
+detmob_hostile_ambient player 38.5,70,170.5 (~46 blocks, no
+NearestAttackableTarget); detmob_hostile_target hilltop pad, mobs 5-6
+south. Recorder snapshot 64 blocks; extra erng keys ttt/ttasks/tgt/
+fuse/mdelay/see/stime/atime/scw/sback/cstate. Gate `h` fixture lines.
+
+Magma hai_* reuses pai look LUT, body helper, wander RPG,
+PathFinder. Knob-off: test-mob-live sheep onsets 45,330 unchanged.
+
+Tapes: anvil llvmpipe, det_entity_rng=1, doMobSpawning=false,
+difficulty easy, night 18000, persist. /summon NBT skips
+onInitialSpawn (CommandSummon flag=true) so skeleton has no bow
+and keeps constructor melee.
+
+`scenario_detmob_hostile_ambient_20260821T181540Z.jsonl`
+player 38.5,70,170.5; 3 tracked [3689 zombie, 3691 skeleton,
+3693 creeper]; ground_stencil=3. FAIL first_div t=220 eid=3693
+creeper z 1 ULP (`0x406002bf7d459c53` vs `...c52`)
+draws_between=0. Creeper wander tasks=8 from t=204, 16 ticks of
+MOVE_TO bit-equal then travel ULP; RNG matched. Zombie standing
+look PASS through last snap t=609 (never wandered). Skeleton
+look+early wander bit-equal through t=235; first pose split
+t=236 x PathFinder (seeds match, plen=1). Same PathFinder site
+as passive wander; do not duplicate that fix.
+
+`scenario_detmob_hostile_target_20260821T182955Z.jsonl`
+hilltop pad, player tp last to 53.5,74,127.5; 3 tracked
+[3335 zombie, 3337 creeper, 3339 skeleton]; ground_stencil=3.
+FAIL first_div t=23 eid=3339 skeleton x tape=51.57888855
+magma=51.55478371 draws_between=None. Java NAT tgt=1 ttasks=2
+tasks=0 (bow see/stime stay default); magma HBOW 256 plen=1.
+Creeper swell t=24 tasks=128 cstate=1 fuse++ seeds match
+(rand-free). Zombie NAT+melee t=49 after creeper blast knocks
+the parked player. Pathing depends on lane/detmob PathFinder.
+## 2026-08-21 detmob-dims Nether (lane/detmob-dims)
+
+Default-off `det_entity_rng` across DIM-1. Mixin reseeds at Entity ctor
+RETURN (dimension-agnostic). Recorder `erng` via `lockWorldOf` =
+`player.getServerWorld()`, plus additive `hg`/`gv`/`pr`/`hot`/`hof`/`anger`.
+Scenario `detmob_nether.yaml`: qrl `dim -1`, `/tp` to seed-0 fortress
+`-326.5 56 -102.5` yaw 90 pitch 20, inert spawners, `/summon` blaze
+`-291.5 59 -75.5` and pigman `-330.5 59 -143.5` PersistenceRequired,
+840 ticks, doMobSpawning false. Census: blaze hover gaussian + nearestPlayer
+nextInt(10) + wander/watch/idle; pigman ambient = zombie list minus targeting.
+Magma: `pai_det_ai` blaze/pigman, talk 80, persist age=0, heightOffset after
+goals+nav, DIM-1 `detmob_gate` `dim` + `gm_runtime_set_dimension(-1)` + stencil.
+Knob-off path unchanged.
+
+Gate (anvil llvmpipe record, Mac magma CPU):
+
+- `scenario_detmob_nether_20260821T182154Z.jsonl` (git 87e805b): dim=-1,
+  det_entity_rng=1. Header has extra fortress blaze eid 6539 pr=0 (filtered);
+  persist blaze 6541 + pigman 6542. Ground stencil match. PASS bit-equal
+  pos/yaw/pitch/hyaw, 852 server ticks, 2 tracked. Pigman walked xz=8.78925
+  full window (847 seed48 changes). Blaze walked xz=6.7703 then left the
+  48-block erng at tape t=283 / tt=302 (270 cursor changes in-radius).
+- `scenario_detmob_nether_20260821T182511Z.jsonl` (git 92b66c0, spawners
+  setblock + header is two persist summons only): stencil match, seed48
+  in phase at first_div (`draws_between=0`). FAIL blaze eid 3872 field=z
+  tape t=31 / mag t=21: Java wander 1-tick noPath (tasks=8 then 0, still
+  at -75.5); magma PathFinder 1-block MOVE_TO to z=-74.5, yaw=360. Pigman
+  same class at t=56 (Java xz=0 whole tape). Named site: PathFinder /
+  WalkNodeProcessor, not Entity.rand. Same family as overworld wander
+  first_div t=70 PathPoint mismatch.
+
+End not recorded: Nether re-record of the same yaml is nav lottery;
+enderman teleport would sit on that surface.
+
+## 2026-08-21 detmob round 3 worldgen + walk + panic (lane/detmob)
+
+detmob_gate uses seed-0 `GM_WORLD_DEFAULT` + `gm_world_ensure` (same
+generator as magma_game / tape replay). Tape header `entity_rng[].g` is
+a 3x3x3 block-id stencil (dx, dz, dy); gate rc=3 on mismatch.
+Recorder writes `g` on recstart. Wander
+`scenario_detmob_wander_20260821T164213Z.jsonl` ground_stencil=5 PASS.
+Standing `...T152220Z` has no `g` (WARN); poses still PASS 1203 ticks
+eids 462/463/465.
+
+Det PathNavigate.pathFollow now close-advance +
+`isDirectPathBetweenPoints` (DDA + WalkNodeProcessor size-sweep
+`getPathNodeType`, canBreakDoors/canEnterDoors true). Follow runs after
+goalSelector. Knob-off path_len standability unchanged.
+`test_mob_live` sheep onsets 45,330.
+
+Wander `...T164213Z`: FAIL first_div t=70 eid=386 field=x
+`draws_between=0`. Walking bit-equal through t=69 (y=70→71 step-up,
+MOVE_TO (48.5,71,125.5)). t=70 PathFinder next PathPoint after
+(48,71,125): magma (49,72,125) yaw 268.67 vs Java (48,72,126) yaw
+339.67. Old t=31 skip first_div is gone (eid 389 bits match on that
+path).
+
+Panic `scenario_detmob_panic_20260821T170933Z.jsonl` hilltop sheep
+53.5,74,126.5; player 53.5,74,127.5; hp-drop atk mag_t=17.
+Det fist = EntityPlayer ATTACK_DAMAGE 1.0; hurt `getSoundPitch` 2x
+nextFloat after knockBack `(double)0.4F`. t=20 pos/hp/seed bit-equal
+(hp 8→7, y=74.3608, z=126.1). FAIL first_div t=21 eid=2983 field=pitch
+tape=-0.9902643 magma=-0.990264118 `draws_between=0`. Site:
+EntityLookHelper deltaLookPitch 2 ULP after knockback (watch still on;
+panic bit later).
+
+Default-off. No blessed-tape / gates / blaze-rl.
+
+## 2026-08-21 detmob round 2 atan2 + wander (lane/detmob)
+
+MathHelper.atan2 LUT in `blaze/core/mc_math.h` + `mc_atan2_tab.h`
+(Java 8u492 ASINE/COS bits; C libm asin/cos is 1 ULP off). Det look
+helper only. Deg conversion is `(float)(lut * (float)(180.0/(float)PI))`
+to match remainder hyaw. BodyHelper + tape `bhp`/`bht`/`ryaw`. Gate
+clock is per-entity `tt` (entityAge resets inside 32 blocks).
+
+Standing `scenario_detmob_passive_20260821T152220Z.jsonl`: PASS 1203
+ticks, eids 462/463/465 bit-equal pos/yaw/pitch/hyaw. Old
+`...T142333Z` still fails t=341 hyaw without recstart prev/bt.
+
+Wander `scenario_detmob_wander_20260821T152429Z.jsonl`: FAIL first_div
+t=89 eid=426 x, `draws_between=1`. Gate world is superflat + 3x3 grass;
+RPG 10 samples miss standable cells, wander shouldExecute false, extra
+LookIdle nextFloat. Java overworld finds a land target and MOVE_TO
+walks. Named site: RandomPositionGenerator.findRandomTarget /
+PathNavigateGround (gate world, not Entity.rand).
+
+## 2026-08-21 detmob Entity.rand experiment (lane/detmob)
+
+Default-off. Mixin reseeds Entity.rand at ctor RETURN (Mixin 0.7.5
+forbids INVOKE+Shift in a ctor). Recorder logs per-entity seed48 +
+AI hydrate + erng. Magma `det_entity_rng` consumes Java LCG in
+`magma/game/entity_rand_census.tsv` order. Tape
+`scenario_detmob_passive_20260821T142333Z.jsonl`: seed 0, 1211 client
+ticks, 3 standing sheep (eid 3705/3706/3708). Gate: unique-server
+snapshots, cursors match (`draws_between=0`), first_div t=81 eid=3705
+hyaw 2 ULP (`0xc36596d6` vs `0xc36596d8`) — look-helper
+MathHelper.atan2 LUT vs libm, not RNG. Phase C not attempted.
+Default path: `test_mob_live` sheep onsets 45,330 unchanged.
+
 ## 2026-08-21 eval --stage ladder
 
 `out/blaze/rl/eval --stage 0` (default) is stdout+stderr byte-identical to

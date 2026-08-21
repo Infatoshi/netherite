@@ -1,0 +1,81 @@
+# detmob-dims: DIM 1 End island ambient enderman.
+# det_entity_rng=1, doMobSpawning=false. Player /tp via qrl dim op onto the
+# seed-0 island pad at (0.5,64,-20.5) — dragon_kill's flat end-stone (top y=63),
+# NOT (0.5,70,0.5) (air above the fountain; T225550Z void-died and recstart
+# was dim=0 chickens/wolves). Spawn platform (100,50,0) is 6 blocks under
+# surface (primer top y=56); dim settle is short then tp off the rim.
+# One persist enderman 42 blocks east (inside the 64-block erng sphere;
+# T230356Z summoned at 50.5/62 never appeared in erng — likely chorus
+# inWall -> attackEntityFrom unblockable -> teleportRandomly off-sphere).
+# Fill air y=63..68 only (magma End primer is already air there; do not
+# fill end_stone — T231027Z 3x3 y=62 pad failed ground_stencil vs generated
+# 121/0 mix). Chorus on the surface is Java-only populate.
+# Player look west/down (yaw 90 pitch 20) so AIFindPlayer look-dot stays false.
+# DragonFightManager still ticks the dragon (own Random, not Entity.rand of
+# the enderman). kb-resist chestplate so a breath cloud cannot walk the
+# parked player. mobGriefing false so AIPlaceBlock/AITakeBlock short-circuit
+# before nextInt. Not a blessed gate tape.
+#
+# Recorded setup (overworld chat, then qrl):
+#   gamerules + difficulty easy + creative (suffocation at embedded spawn),
+#   dim 1, tp high then onto the pad, kill Enderman, clear+summon persist east,
+#   survival + look west/down.
+name: detmob_end
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: true
+determinism:
+  det_entity_rng: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing false
+  - /gamerule doFireTick false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty easy
+  - /gamemode creative @p
+setup_qrl:
+  - cmd: dim
+    action: { id: 1 }
+    settle_ticks: 10
+  - cmd: runcmds
+    action: { cmds: ["tp @p 0.5 80 -20.5 90 20"] }
+    settle_ticks: 100
+  - cmd: runcmds
+    action:
+      cmds:
+        - tp @p 0.5 64 -20.5 90 20
+        - effect @p minecraft:resistance 1000000 4 true
+        - 'replaceitem entity @p slot.armor.chest minecraft:leather_chestplate 1 0 {AttributeModifiers:[{AttributeName:"generic.knockbackResistance",Name:"kb",Amount:1.0,Operation:0,UUIDMost:41,UUIDLeast:17,Slot:"chest"}]}'
+    settle_ticks: 40
+  - cmd: runcmds
+    action:
+      cmds:
+        - kill @e[type=Enderman]
+        - fill 41 63 -21 43 68 -19 minecraft:air
+        - tp @p 0.5 64 -20.5 90 20
+    settle_ticks: 10
+  - cmd: runcmds
+    action:
+      cmds:
+        - 'summon enderman 42.5 63 -19.5 {PersistenceRequired:1b}'
+        - tp @p 0.5 64 -20.5 90 20
+    settle_ticks: 20
+  - cmd: runcmds
+    action:
+      cmds:
+        - kill @e[type=Enderman,r=20]
+        - tp @p 0.5 64 -20.5 90 20
+        - gamemode survival @p
+    settle_ticks: 10
+duration_ticks: 840
+frames_every: 0
+input:
+  segments:
+    - seconds: 42.0
+known_divergences: []

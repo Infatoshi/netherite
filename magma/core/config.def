@@ -149,3 +149,4 @@ CFG_STR (metallib,       "", "path to raster_kernels.metallib; empty searches ne
 CFG_BOOL(metal_require,  0,  "Metal boot failure is fatal (no CPU fallback); for parity gates")
 CFG_BOOL(nowake,         0,  "host-only: skip liquid reawaken during populate (bisect switch)")
 CFG_BOOL(nofall,         0,  "host-only: skip falling-sand check during populate (bisect switch)")
+CFG_BOOL(det_entity_rng, 0,  "detmob experiment: per-entity java.util.Random from tape seeds; default off")

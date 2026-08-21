@@ -54,6 +54,9 @@ typedef struct {
     double passive_nav_speed[EW_MAX_ENTITIES];
     float passive_head_yaw[EW_MAX_ENTITIES];
     float passive_head_pitch[EW_MAX_ENTITIES];
+    float passive_render_yaw[EW_MAX_ENTITIES]; /* EntityLivingBase.renderYawOffset */
+    float passive_prev_head_yaw[EW_MAX_ENTITIES]; /* EntityBodyHelper.prevRenderYawHead */
+    int passive_body_ticks[EW_MAX_ENTITIES];      /* EntityBodyHelper.rotationTickCounter */
     unsigned char passive_sheared[EW_MAX_ENTITIES];
     int fire_ticks[EW_MAX_ENTITIES];             /* daylight burn */
     int despawn_ticks[EW_MAX_ENTITIES];          /* ticks spent >32 blocks from player */
@@ -77,6 +80,58 @@ typedef struct {
     int fireball_pending;
     double fireball_x, fireball_y, fireball_z;
     double fireball_vx, fireball_vy, fireball_vz;
+    /* det_entity_rng: live java.util.Random cursor (internal seed48) + AI hydrate.
+     * Unused when the knob is off; hash streams stay on the default path. */
+    unsigned long long ent_jr_seed[EW_MAX_ENTITIES];
+    int living_sound_time[EW_MAX_ENTITIES];
+    int entity_age[EW_MAX_ENTITIES];
+    int chicken_egg[EW_MAX_ENTITIES];
+    /* det_entity_rng PathNavigateGround: world-coord PathPoints from PathFinder. */
+    short det_nav_x[EW_MAX_ENTITIES][48];
+    short det_nav_y[EW_MAX_ENTITIES][48];
+    short det_nav_z[EW_MAX_ENTITIES][48];
+    unsigned char det_nav_n[EW_MAX_ENTITIES];
+    unsigned char det_nav_i[EW_MAX_ENTITIES];
+    /* PathNavigate.totalTicks / ticksAtLastPos / lastPosCheck (checkForStuck). */
+    int det_nav_ticks[EW_MAX_ENTITIES];
+    int det_nav_stuck_at[EW_MAX_ENTITIES];
+    double det_nav_stuck_x[EW_MAX_ENTITIES];
+    double det_nav_stuck_y[EW_MAX_ENTITIES];
+    double det_nav_stuck_z[EW_MAX_ENTITIES];
+    /* Previous tape pl. Tape pl is client pose after ServerTick END (includes
+     * this tick's knockback). LookHelper and tryMoveToEntityLiving share it. */
+    double look_px, look_py, look_pz;
+    unsigned char look_have;
+    /* PathNavigate.getPathSearchRange: FOLLOW_RANGE attribute base.
+     * Summoned mobs skip onInitialSpawn, so no gaussian spawn bonus. */
+    float det_follow[EW_MAX_ENTITIES];
+    /* det_entity_rng hostile hydrate (zombie/skeleton/creeper). Unused off-knob. */
+    int det_target_tick[EW_MAX_ENTITIES];
+    unsigned int det_target_tasks[EW_MAX_ENTITIES];
+    unsigned char det_has_target[EW_MAX_ENTITIES];
+    int det_melee_delay[EW_MAX_ENTITIES];
+    double det_melee_tx[EW_MAX_ENTITIES];
+    double det_melee_ty[EW_MAX_ENTITIES];
+    double det_melee_tz[EW_MAX_ENTITIES];
+    int det_see_time[EW_MAX_ENTITIES];
+    int det_strafe_time[EW_MAX_ENTITIES];
+    int det_bow_attack_time[EW_MAX_ENTITIES];
+    unsigned char det_strafe_cw[EW_MAX_ENTITIES];
+    unsigned char det_strafe_back[EW_MAX_ENTITIES];
+    signed char det_cstate[EW_MAX_ENTITIES];
+    int det_raise_arm[EW_MAX_ENTITIES];
+    /* AbstractSkeleton ctor setCombatTask: empty hand -> melee. /summon NBT
+     * skips onInitialSpawn (no bow). Unused off-knob. */
+    unsigned char det_skel_melee[EW_MAX_ENTITIES];
+    /* Entity.move carries AABB; rebuilding from pos ± width/2 each tick is 1 ULP. */
+    unsigned char det_box_on[EW_MAX_ENTITIES];
+    McAABB det_box[EW_MAX_ENTITIES];
+    /* det_entity_rng extras for DIM-1 hostiles (unused when the knob is off). */
+    unsigned char det_persist[EW_MAX_ENTITIES];
+    unsigned char ent_jr_have_gauss[EW_MAX_ENTITIES];
+    double ent_jr_gauss[EW_MAX_ENTITIES];
+    int blaze_hot[EW_MAX_ENTITIES];     /* EntityBlaze.heightOffsetUpdateTime */
+    float blaze_hof[EW_MAX_ENTITIES];   /* EntityBlaze.heightOffset */
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */
@@ -99,6 +154,20 @@ enum {
 void gm_mobs_init(GmMobLive *m, long long seed);
 /* Component/test hook. Runtime progression never calls this directly. */
 int gm_mobs_spawn(GmMobLive *m, int type, double x, double y, double z);
+/* Place a tape-hydrated passive with a live Entity.rand cursor. det_entity_rng. */
+int gm_mobs_det_place(GmMobLive *m, int eid, int type,
+                      double x, double y, double z, float yaw, float pitch, float head_yaw,
+                      unsigned long long seed48, int living_sound, int entity_age, int task_tick,
+                      unsigned tasks, int watch, int idle, double idle_x, double idle_z,
+                      int eat, int egg, int on_ground, float render_yaw, float prev_head_yaw,
+                      int body_ticks, unsigned long long seed48_init);
+/* Additive hostile hydrate after gm_mobs_det_place. No-op for passives. */
+void gm_mobs_det_hydrate_hostile(GmMobLive *m, int slot,
+                                int ttt, unsigned ttasks, int tgt, int fuse, int mdelay,
+                                int see, int stime, int atime, int scw, int sback, int cstate);
+/* Optional tape extras: gaussian cache, blaze hover timer, PersistenceRequired, anger. */
+void gm_mobs_det_rng_extra(GmMobLive *m, int slot, int have_gauss, double gauss,
+                           int height_off_time, float height_off, int persist, int anger);
 /* Spawn with slime/magma size (1,2,4). Other types ignore size. */
 int gm_mobs_spawn_sized(GmMobLive *m, int type, double x, double y, double z, int size);
 /* Returns nonzero when attack is aimed at a mob, including cooldown ticks. */

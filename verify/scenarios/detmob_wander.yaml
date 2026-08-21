@@ -1,0 +1,29 @@
+# detmob wander: same seed-0 sheep as detmob_passive, player parked
+# within 16 blocks so entityAge stays 0 and EntityAIWanderAvoidWater
+# can roll nextInt(120) + RandomPositionGenerator.
+name: detmob_wander
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: false
+determinism:
+  det_entity_rng: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing false
+  - /gamerule randomTickSpeed 0
+  - /time set 6000
+  - /weather clear
+  - /difficulty peaceful
+  - /gamemode survival @p
+  - /tp @p 47.5 70 137.5 180 0
+setup_settle_ticks: 40
+duration_ticks: 1200
+frames_every: 0
+input:
+  segments:
+    - seconds: 60.0
+known_divergences: []

@@ -98,9 +98,9 @@ public class Recorder {
     // see verify/trace/rng_cursor.py). That turns "the streams drifted somewhere"
     // into "tick N consumed 7 world draws, expected 6".
     //
-    // Four server-side streams are captured, matching the set bluecoconut's PR #5
-    // state capsule marks exact (world.rng.{java,math,block}_random_seed48 and
-    // world.rng.update_lcg):
+    // Four server-side streams are captured by default, matching the set
+    // bluecoconut's PR #5 state capsule marks exact
+    // (world.rng.{java,math,block}_random_seed48 and world.rng.update_lcg):
     //   world  - World.rand, the big one: random ticks, weather, mob spawning, and
     //            every playSound draw (which is why the sound-EVENT ring exists).
     //   math   - java.lang.Math's process-global RNG. Shared with the JDK, so a
@@ -109,6 +109,8 @@ public class Recorder {
     //   block  - Block.RANDOM, the static fallback for blocks without a world.
     //   lcg    - World.updateLCG, an int32 LCG (not a java.util.Random) that picks
     //            random-tick coordinates. Advances independently of `world`.
+    // When QLaunch.DET_ENTITY_RNG is on, a fifth family is captured: each nearby
+    // living Entity.rand seed48 (plus AI hydrate fields). Default dumps omit it.
     //
     // Capture is a bounded ring filled at ServerTickEvent.START, i.e. the same
     // boundary the lockstep gate parks at, so cursor[i] is the state the tick
@@ -132,6 +134,9 @@ public class Recorder {
     private int[] rngCapLcg;          // World.updateLCG (int32)
     private byte[] rngCapGaussHave;   // World.rand haveNextNextGaussian
     private long[] rngCapGaussBits;   // World.rand nextNextGaussian, raw IEEE-754
+    private String[] rngCapEnts;      // det_entity_rng: JSON array of nearby Entity.rand
+    /** Last ServerTick START snapshot of nearby living Entity.rand (DET on). */
+    private volatile String recEntSnap = "[]";
 
     private boolean launching = false;
     private long initStartNanos = 0;  // set when launchWorld fires
@@ -2127,6 +2132,295 @@ public class Recorder {
         return null;
     }
 
+    private static int detReflectInt(Object o, String name, int dflt) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getInt(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return dflt;
+    }
+    private static boolean detReflectBool(Object o, String name) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getBoolean(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return false;
+    }
+    private static double detReflectDouble(Object o, String name, double dflt) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getDouble(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return dflt;
+    }
+    private static float detReflectFloat(Object o, String name, float dflt) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getFloat(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return dflt;
+    }
+    private static boolean detReflectBool(Object o, String name, boolean dflt) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getBoolean(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return dflt;
+    }
+    private static Object detReflectObj(Object o, String name) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.get(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return null;
+    }
+
+    /**
+     * Server-side nearby living Entity.rand + AI hydrate. Empty when the
+     * det_entity_rng switch is off so default tapes stay byte-identical.
+     */
+    private static String detEntitySnapshot(net.minecraft.world.World w, boolean full) {
+        if (!QLaunch.DET_ENTITY_RNG || w == null) return "[]";
+        net.minecraft.entity.player.EntityPlayer pl = null;
+        if (w.playerEntities != null && !w.playerEntities.isEmpty())
+            pl = (net.minecraft.entity.player.EntityPlayer) w.playerEntities.get(0);
+        double px = pl == null ? 0.0 : pl.posX;
+        double py = pl == null ? 0.0 : pl.posY;
+        double pz = pl == null ? 0.0 : pl.posZ;
+        /* 64: ambient hostiles sit ~46 blocks from the parked player; wander
+         * can push them past the old 48-block snapshot sphere. */
+        double r2 = 64.0 * 64.0;
+        StringBuilder sb = new StringBuilder(256);
+        sb.append('[');
+        int n = 0;
+        try {
+            for (net.minecraft.entity.Entity e : new java.util.ArrayList<net.minecraft.entity.Entity>(w.loadedEntityList)) {
+                if (e == null || e instanceof net.minecraft.entity.player.EntityPlayer) continue;
+                if (!(e instanceof net.minecraft.entity.EntityLiving)) continue;
+                double dx = e.posX - px, dy = e.posY - py, dz = e.posZ - pz;
+                if (dx * dx + dy * dy + dz * dz > r2) continue;
+                if (n > 0) sb.append(',');
+                detAppendLiving(sb, (net.minecraft.entity.EntityLiving) e, full);
+                if (++n >= 64) break;
+            }
+        } catch (Throwable ig) {}
+        sb.append(']');
+        return sb.toString();
+    }
+
+    private static void detAppendLiving(StringBuilder sb, net.minecraft.entity.EntityLiving e, boolean full) {
+        int eid = e.getEntityId();
+        long seed48 = rngSeed48(e.getRNG());
+        int tasks = 0, watch = 0, idle = 0, eat = 0, tt = 0, egg = -1;
+        double idleX = 0.0, idleZ = 0.0;
+        try {
+            net.minecraft.entity.ai.EntityAITasks gs = e.tasks;
+            tt = detReflectInt(gs, "tickCount", 0);
+            for (Object raw : gs.taskEntries) {
+                net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry en =
+                    (net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry) raw;
+                if (!en.using) continue;
+                String cn = en.action.getClass().getSimpleName();
+                if ("EntityAISwimming".equals(cn)) tasks |= 1;
+                else if ("EntityAIPanic".equals(cn)) tasks |= 2;
+                else if ("EntityAIEatGrass".equals(cn)) {
+                    tasks |= 4;
+                    eat = detReflectInt(en.action, "eatingGrassTimer", 0);
+                } else if (cn.contains("Wander")) tasks |= 8;
+                else if ("EntityAIWatchClosest".equals(cn)) {
+                    tasks |= 16;
+                    watch = detReflectInt(en.action, "lookTime", 0);
+                } else if ("EntityAILookIdle".equals(cn)) {
+                    tasks |= 32;
+                    idle = detReflectInt(en.action, "idleTime", 0);
+                    idleX = detReflectDouble(en.action, "lookX", 0.0);
+                    idleZ = detReflectDouble(en.action, "lookZ", 0.0);
+                } else if ("EntityAIZombieAttack".equals(cn)
+                        || "EntityAIAttackMelee".equals(cn)) {
+                    tasks |= 64;
+                } else if ("EntityAICreeperSwell".equals(cn)) {
+                    tasks |= 128;
+                } else if ("EntityAIAttackRangedBow".equals(cn)) {
+                    tasks |= 256;
+                } else if ("EntityAIRestrictSun".equals(cn)) {
+                    tasks |= 512;
+                } else if ("EntityAIFleeSun".equals(cn)) {
+                    tasks |= 1024;
+                } else if ("EntityAIAvoidEntity".equals(cn)) {
+                    tasks |= 2048;
+                } else if ("EntityAIMoveTowardsRestriction".equals(cn)) {
+                    tasks |= 4096;
+                } else if ("EntityAIMoveThroughVillage".equals(cn)) {
+                    tasks |= 8192;
+                }
+            }
+        } catch (Throwable ig) {}
+        if (e instanceof net.minecraft.entity.passive.EntityChicken)
+            egg = ((net.minecraft.entity.passive.EntityChicken) e).timeUntilNextEgg;
+        float hp = e.getHealth();
+        float bhp = e.rotationYawHead;
+        int bht = 0;
+        try {
+            Object bh = detReflectObj(e, "bodyHelper");
+            if (bh != null) {
+                bhp = detReflectFloat(bh, "prevRenderYawHead", bhp);
+                bht = detReflectInt(bh, "rotationTickCounter", 0);
+            }
+        } catch (Throwable ig) {}
+        sb.append("{\"eid\":").append(eid)
+          .append(",\"type\":\"").append(e.getClass().getSimpleName()).append('"')
+          .append(",\"seed48\":").append(seed48)
+          .append(",\"x\":").append(e.posX)
+          .append(",\"y\":").append(e.posY)
+          .append(",\"z\":").append(e.posZ)
+          .append(",\"yaw\":").append(e.rotationYaw)
+          .append(",\"pitch\":").append(e.rotationPitch)
+          .append(",\"hyaw\":").append(e.rotationYawHead)
+          .append(",\"ryaw\":").append(e.renderYawOffset)
+          .append(",\"bhp\":").append(bhp)
+          .append(",\"bht\":").append(bht)
+          .append(",\"hp\":").append(hp)
+          .append(",\"og\":").append(e.onGround ? 1 : 0)
+          .append(",\"lst\":").append(e.livingSoundTime)
+          .append(",\"age\":").append(detReflectInt(e, "entityAge", 0))
+          .append(",\"tt\":").append(tt)
+          .append(",\"tasks\":").append(tasks)
+          .append(",\"watch\":").append(watch)
+          .append(",\"idle\":").append(idle)
+          .append(",\"ix\":").append(idleX)
+          .append(",\"iz\":").append(idleZ)
+          .append(",\"eat\":").append(eat)
+          .append(",\"egg\":").append(egg);
+        /* Hostile hydrate (additive). Absent/0 on passives. */
+        int ttt = 0, ttasks = 0, tgt = 0, fuse = 0, mdelay = 0;
+        int see = 0, stime = -1, atime = -1, scw = 0, sback = 0, cstate = -1;
+        try {
+            net.minecraft.entity.ai.EntityAITasks ts = e.targetTasks;
+            ttt = detReflectInt(ts, "tickCount", 0);
+            for (Object raw : ts.taskEntries) {
+                net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry en =
+                    (net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry) raw;
+                if (!en.using) continue;
+                String cn = en.action.getClass().getSimpleName();
+                if ("EntityAIHurtByTarget".equals(cn)) ttasks |= 1;
+                else if ("EntityAINearestAttackableTarget".equals(cn)) {
+                    Object tc = detReflectObj(en.action, "targetClass");
+                    String tn = (tc instanceof Class) ? ((Class<?>) tc).getSimpleName() : "";
+                    if ("EntityPlayer".equals(tn) || "EntityPlayerMP".equals(tn)) ttasks |= 2;
+                    else if ("EntityVillager".equals(tn)) ttasks |= 4;
+                    else if ("EntityIronGolem".equals(tn)) ttasks |= 8;
+                }
+            }
+            if (e.getAttackTarget() != null) tgt = 1;
+        } catch (Throwable ig) {}
+        try {
+            net.minecraft.entity.ai.EntityAITasks gs = e.tasks;
+            for (Object raw : gs.taskEntries) {
+                net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry en =
+                    (net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry) raw;
+                if (!en.using) continue;
+                String cn = en.action.getClass().getSimpleName();
+                if ("EntityAIZombieAttack".equals(cn) || "EntityAIAttackMelee".equals(cn))
+                    mdelay = detReflectInt(en.action, "delayCounter", 0);
+                else if ("EntityAIAttackRangedBow".equals(cn)) {
+                    see = detReflectInt(en.action, "seeTime", 0);
+                    stime = detReflectInt(en.action, "strafingTime", -1);
+                    atime = detReflectInt(en.action, "attackTime", -1);
+                    scw = detReflectBool(en.action, "strafingClockwise") ? 1 : 0;
+                    sback = detReflectBool(en.action, "strafingBackwards") ? 1 : 0;
+                }
+            }
+        } catch (Throwable ig) {}
+        if (e instanceof net.minecraft.entity.monster.EntityCreeper) {
+            net.minecraft.entity.monster.EntityCreeper cr =
+                (net.minecraft.entity.monster.EntityCreeper) e;
+            fuse = detReflectInt(cr, "timeSinceIgnited", 0);
+            cstate = cr.getCreeperState();
+        }
+        sb.append(",\"ttt\":").append(ttt)
+          .append(",\"ttasks\":").append(ttasks)
+          .append(",\"tgt\":").append(tgt)
+          .append(",\"fuse\":").append(fuse)
+          .append(",\"mdelay\":").append(mdelay)
+          .append(",\"see\":").append(see)
+          .append(",\"stime\":").append(stime)
+          .append(",\"atime\":").append(atime)
+          .append(",\"scw\":").append(scw)
+          .append(",\"sback\":").append(sback)
+          .append(",\"cstate\":").append(cstate);
+        sb.append(",\"hg\":").append(rngHaveGaussian(e.getRNG()) ? 1 : 0)
+          .append(",\"gv\":").append(Double.doubleToRawLongBits(rngNextGaussian(e.getRNG())))
+          .append(",\"pr\":").append(detReflectBool(e, "persistenceRequired", false) ? 1 : 0);
+        if (e instanceof net.minecraft.entity.monster.EntityBlaze) {
+            sb.append(",\"hot\":").append(detReflectInt(e, "heightOffsetUpdateTime", 0))
+              .append(",\"hof\":").append(detReflectFloat(e, "heightOffset", 0.5F));
+        }
+        if (e instanceof net.minecraft.entity.monster.EntityPigZombie) {
+            sb.append(",\"anger\":").append(detReflectInt(e, "angerLevel", 0));
+        }
+        if (full) {
+            long us = DetEntityRng.loggedUserSeed(eid, DetEntityRng.userSeed(eid));
+            long init = DetEntityRng.loggedInit48(eid, DetEntityRng.seed48Init(us));
+            sb.append(",\"user_seed\":").append(us)
+              .append(",\"seed48_init\":").append(init);
+            /* 3x3x3 block ids around floor(pos), dx fastest then dz then dy.
+             * detmob_gate asserts magma worldgen against this stencil. */
+            int bx = net.minecraft.util.math.MathHelper.floor(e.posX);
+            int by = net.minecraft.util.math.MathHelper.floor(e.posY);
+            int bz = net.minecraft.util.math.MathHelper.floor(e.posZ);
+            sb.append(",\"g\":[");
+            int gi = 0;
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dz = -1; dz <= 1; ++dz) {
+                    for (int dx = -1; dx <= 1; ++dx) {
+                        if (gi++ > 0) sb.append(',');
+                        net.minecraft.block.state.IBlockState st = e.world.getBlockState(
+                            new net.minecraft.util.math.BlockPos(bx + dx, by + dy, bz + dz));
+                        sb.append(net.minecraft.block.Block.getIdFromBlock(st.getBlock()));
+                    }
+                }
+            }
+            sb.append(']');
+        }
+        sb.append('}');
+    }
+
     /** Fill a JSON object with a full four-stream cursor snapshot. */
     private static void rngCursorJson(
             JsonObject o, net.minecraft.world.World w) {
@@ -2173,6 +2467,8 @@ public class Recorder {
             rngCapLcg[i] = lcg;
             rngCapGaussHave[i] = (byte) (gh ? 1 : 0);
             rngCapGaussBits[i] = gb;
+            if (rngCapEnts != null)
+                rngCapEnts[i] = recEntSnap == null ? "[]" : recEntSnap;
             rngCapHead++;
             rngCapN++;
         }
@@ -2195,6 +2491,7 @@ public class Recorder {
                 rngCapLcg = new int[cap];
                 rngCapGaussHave = new byte[cap];
                 rngCapGaussBits = new long[cap];
+                rngCapEnts = new String[cap];
                 rngCapN = 0; rngCapHead = 0; rngCapDropped = 0; rngCapSeq = 0;
                 rngCaptureOn = true;
             } else {
@@ -2217,7 +2514,7 @@ public class Recorder {
      * numbering still compare equal.
      */
     private String rngDump(JsonObject a) {
-        long[] wt, sq, cp, wd, mt, bk, gb; int[] lc; byte[] gh; int n; long dropped;
+        long[] wt, sq, cp, wd, mt, bk, gb; int[] lc; byte[] gh; String[] et; int n; long dropped;
         synchronized (rngMon) {
             if (rngCapWorldTime == null) return err("rng_dump: capture was never armed");
             n = rngCapN; dropped = rngCapDropped;
@@ -2226,6 +2523,7 @@ public class Recorder {
             mt = rngCapMath.clone(); bk = rngCapBlock.clone();
             lc = rngCapLcg.clone(); gh = rngCapGaussHave.clone();
             gb = rngCapGaussBits.clone();
+            et = rngCapEnts == null ? null : rngCapEnts.clone();
         }
         try {
             StringBuilder sb = new StringBuilder(n * 160);
@@ -2239,8 +2537,10 @@ public class Recorder {
                   .append(",\"world_gaussian_bits\":\"").append(hex64(gb[i]))
                   .append("\",\"math_seed48\":").append(mt[i])
                   .append(",\"block_seed48\":").append(bk[i])
-                  .append(",\"update_lcg\":").append(lc[i])
-                  .append("}\n");
+                  .append(",\"update_lcg\":").append(lc[i]);
+                if (et != null && et[i] != null && et[i].length() > 2)
+                    sb.append(",\"ents\":").append(et[i]);
+                sb.append("}\n");
                 h = fnvMix(h, wd[i]); h = fnvMix(h, mt[i]); h = fnvMix(h, bk[i]);
                 h = fnvMix(h, lc[i] & 0xffffffffL); h = fnvMix(h, gh[i]);
             }
@@ -3096,6 +3396,13 @@ public class Recorder {
         } catch (Throwable t) {
             System.out.println("[qrl] registration watchdog failed: " + t);
         }
+        // Tape erng is the post-tick server pose+cursor (after AI). The START
+        // ring still copies the previous END snapshot, which equals this
+        // tick's pre-draw cursor (no Entity.rand between END and the next START).
+        if (QLaunch.DET_ENTITY_RNG) {
+            try { recEntSnap = detEntitySnapshot(lockWorldOf(srv), false); }
+            catch (Throwable ig) { recEntSnap = "[]"; }
+        }
         lockFinishTick();
         // Heartbeat so a paused/stalled integrated server is visible in the log
         // (the End-entry GuiDownloadTerrain deadlock froze ServerTickEvent for
@@ -3420,6 +3727,14 @@ public class Recorder {
                 /* Presence of dig_trace:1 opts parsers/comparators into per-tick
                  * dig controller rows. Legacy tapes omit the key entirely. */
                 if (recDigTrace) h.append(",\"dig_trace\":1");
+                if (QLaunch.DET_ENTITY_RNG) {
+                    h.append(",\"det_entity_rng\":1,\"entity_rng\":");
+                    try {
+                        net.minecraft.server.MinecraftServer hsrv = mc.getIntegratedServer();
+                        net.minecraft.world.World hw = (hsrv != null) ? lockWorldOf(hsrv) : null;
+                        h.append(detEntitySnapshot(hw, true));
+                    } catch (Throwable ig) { h.append("[]"); }
+                }
                 h.append("}");
                 recWriter.println(h.toString());
                 recWriter.flush();
@@ -8372,7 +8687,13 @@ sb.append("}");
             b.append("]");
             if (++n >= REC_ENT_MAX) break;
         }
-        b.append("]}");
+        b.append("]");
+        if (QLaunch.DET_ENTITY_RNG) {
+            String snap = recEntSnap;
+            if (snap == null) snap = "[]";
+            b.append(",\"erng\":").append(snap);
+        }
+        b.append("}");
         recWriter.println(b.toString());
         recWriter.flush();
     }

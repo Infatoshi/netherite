@@ -21,10 +21,12 @@ public final class QLaunch {
     public static final boolean PIN_FLICKER;
     public static final boolean PIN_SKIN;
     public static final boolean PIN_TEXTURE_ANIMATIONS;
+    /** Default-off: reseed Entity.rand from entityId at construction. */
+    public static final boolean DET_ENTITY_RNG;
 
     static {
         boolean menus = false, overlays = false, sound = false, flicker = false, skin = false;
-        boolean textureAnimations = false;
+        boolean textureAnimations = false, detEntityRng = false;
         // Frozen legacy filename: qrl_launch.json is the config sidecar name
         // (replay tooling + demo metadata reference it; do not rename).
         String[] paths = { "qrl_launch.json" };
@@ -45,6 +47,8 @@ public final class QLaunch {
                     skin = d.has("pin_skin") && d.get("pin_skin").getAsBoolean();
                     textureAnimations = d.has("pin_texture_animations")
                         && d.get("pin_texture_animations").getAsBoolean();
+                    detEntityRng = d.has("det_entity_rng")
+                        && d.get("det_entity_rng").getAsBoolean();
                 }
                 break;
             } catch (Exception ig) { /* try next path */ }
@@ -55,9 +59,11 @@ public final class QLaunch {
         PIN_FLICKER = flicker;
         PIN_SKIN = skin;
         PIN_TEXTURE_ANIMATIONS = textureAnimations;
+        DET_ENTITY_RNG = detEntityRng;
         System.err.println("[qlaunch] strip: menus=" + menus + " overlays=" + overlays
             + " sound_off=" + sound + " pin_flicker=" + flicker + " pin_skin=" + skin
-            + " pin_texture_animations=" + textureAnimations);
+            + " pin_texture_animations=" + textureAnimations
+            + " det_entity_rng=" + detEntityRng);
     }
 
     private QLaunch() {}
