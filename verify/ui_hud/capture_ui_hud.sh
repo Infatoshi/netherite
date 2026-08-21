@@ -103,20 +103,20 @@ rm -rf "$ENVDIR/Minecraft/run/saves/qrl_${SEED}_flat" 2>/dev/null || true
 log "launching headless game via start_vnc_client.sh (JAVA_HOME=$JAVA_HOME)..."
 ( cd "$ENVDIR" && setsid nohup bash start_vnc_client.sh >"$LAUNCH_LOG" 2>&1 </dev/null 9>&- & )
 
-log "waiting for qrl bridge on :25575 with hud_pin (up to 420s)..."
+log "waiting for qrl bridge on :25575 with obs (up to 420s)..."
 listened=0
 for i in $(seq 1 420); do
   if uv run --no-project python -c '
 import socket, sys, json
-s = socket.socket(); s.settimeout(3.0)
+s = socket.socket(); s.settimeout(15.0)
 try:
     s.connect(("127.0.0.1", 25575))
 except Exception:
     sys.exit(1)
-# Newline-delimited JSON protocol (see java/qrl_client.py).
-# Probe that this is OUR Recorder (hud_pin exists), not a stale bridge.
+# obs, not hud_pin: empty hud_pin on the title screen is a SynchronousQueue
+# race (offer before the socket thread parks) and wedges the accept queue.
 try:
-    s.sendall((json.dumps({"cmd": "hud_pin", "action": {}}) + "\n").encode())
+    s.sendall((json.dumps({"cmd": "obs", "action": {}}) + "\n").encode())
     buf = b""
     while b"\n" not in buf:
         chunk = s.recv(65536)
@@ -124,15 +124,7 @@ try:
             break
         buf += chunk
     s.close()
-    if b"\n" not in buf:
-        sys.exit(2)
-    line = buf.split(b"\n", 1)[0]
-    r = json.loads(line.decode("utf-8", "replace"))
-    err = str(r.get("error", "") or "")
-    if "unknown cmd" in err.lower():
-        sys.exit(3)
-    # ok / no world / other real hud_pin errors all mean the cmd is registered
-    sys.exit(0)
+    sys.exit(0 if b"\n" in buf else 2)
 except Exception:
     try: s.close()
     except Exception: pass
@@ -143,8 +135,8 @@ except Exception:
   fi
   sleep 1
 done
-[ "$listened" = 1 ] || fail "qrl bridge never accepted hud_pin within 420s"
-log "bridge up (hud_pin recognized)."
+[ "$listened" = 1 ] || fail "qrl bridge never accepted obs within 420s"
+log "bridge up."
 
 ONLY_ARGS=()
 REQUIRED=(

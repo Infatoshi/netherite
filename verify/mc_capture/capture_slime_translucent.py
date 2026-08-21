@@ -99,8 +99,12 @@ def raster_coverage(outdir, camera, quads, width, height):
             continue
         pts = []
         ok = True
+        ox = float(q.get("ox") or 0)
+        oy = float(q.get("oy") or 0)
+        oz = float(q.get("oz") or 0)
         for v in verts:
-            p = project(mv, pr, v["x"], v["y"], v["z"], width, height)
+            # VertexBuffer stores chunk-relative pos (setTranslation(-origin)).
+            p = project(mv, pr, v["x"] + ox, v["y"] + oy, v["z"] + oz, width, height)
             if p is None:
                 ok = False
                 break

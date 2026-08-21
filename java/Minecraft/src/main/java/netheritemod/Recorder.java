@@ -1088,11 +1088,16 @@ public class Recorder {
                         float cx = 0.25F * (xs[0] + xs[1] + xs[2] + xs[3]);
                         float cy = 0.25F * (ys[0] + ys[1] + ys[2] + ys[3]);
                         float cz = 0.25F * (zs[0] + zs[1] + zs[2] + zs[3]);
-                        float dx = cx - camX, dy = cy - camY, dz = cz - camZ;
+                        // verts are chunk-relative; sort key is world-space
+                        // |vert - (cam + xOffset)| with xOffset=-origin.
+                        float wx = cx + origin.getX();
+                        float wy = cy + origin.getY();
+                        float wz = cz + origin.getZ();
+                        float dx = wx - camX, dy = wy - camY, dz = wz - camZ;
                         float dist2 = dx * dx + dy * dy + dz * dz;
-                        int bx = (int) Math.floor(cx);
-                        int by = (int) Math.floor(cy);
-                        int bz = (int) Math.floor(cz);
+                        int bx = (int) Math.floor(wx);
+                        int by = (int) Math.floor(wy);
+                        int bz = (int) Math.floor(wz);
                         int bid = 0;
                         try {
                             net.minecraft.block.state.IBlockState st =
@@ -5654,7 +5659,7 @@ public class Recorder {
         if (r.cmd.equals("hud_pin")) {
             try {
                 if (mc.player == null || mc.world == null) {
-                    r.resp.offer(err("no world")); return;
+                    reply(r, err("no world")); return;
                 }
                 EntityPlayerSP p = mc.player;
                 JsonObject a = r.action;
@@ -6333,7 +6338,7 @@ sb.append("}");
         if (r.cmd.equals("entity_pin")) {
             try {
                 if (mc.player == null || mc.world == null) {
-                    r.resp.offer(err("no world")); return;
+                    reply(r, err("no world")); return;
                 }
                 final JsonObject a = r.action;
                 final MinecraftServer s = mc.getIntegratedServer();
