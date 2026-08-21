@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 native PPO best-on-t0 + collapse telemetry
+
+`out/blaze/rl/ppo` writes `{ckpt_stem}_best.bin` (schema 1) plus
+`{ckpt_stem}_best.json` (`ticks`, `t0`) when the trailing t0 full-chain
+probe sets a new max. Last checkpoint path is unchanged; `_best` does
+not regress. Chunk log always prints `ent` / `kl` / `clipfrac`.
+`approx_kl` is mean(ratio-1-log(ratio)); `clipfrac` is
+mean(|ratio-1|>clip). Accumulators are diagnostic; update math is
+unchanged.
+
 ## 2026-08-21 remaining-to-stop-asking
 
 Codex, Fable, and Grok surveyed the tree. Fable ranks. The four-gate

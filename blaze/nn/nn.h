@@ -39,13 +39,17 @@ typedef struct NnCreate {
   NnConfig config;
 } NnCreate;
 
-/* Optional metrics from one PPO update. */
+/* Optional metrics from one PPO update.
+ * approx_kl / clipfrac are diagnostic only: they must not enter the loss
+ * or change gradients, weights, RNG, or Adam. */
 typedef struct NnUpdateStats {
   float policy_loss;
   float value_loss;
   float entropy_mean;
   float total_loss;
   float grad_norm; /* pre-clip L2 norm */
+  float approx_kl; /* mean(ratio - 1 - log(ratio)); k1 */
+  float clipfrac;  /* mean(|ratio - 1| > ppo_clip) */
 } NnUpdateStats;
 
 /* Sample mode */

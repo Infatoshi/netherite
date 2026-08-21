@@ -171,7 +171,7 @@ static int blaze_fns_load(BlazeFns *f, const char *path, int want_cam_inputs) {
 }
 
 static int mkdir_parents_for_file(const char *path) {
-  char buf[TR_CFG_STR_MAX];
+  char buf[TR_CFG_STR_MAX + 16];
   size_t n;
   char *slash;
   char *p;
@@ -196,6 +196,66 @@ static int mkdir_parents_for_file(const char *path) {
   }
   if (mkdir(buf, 0755) != 0 && errno != EEXIST)
     return -1;
+  return 0;
+}
+
+/* checkpoint.bin -> checkpoint_best.bin / checkpoint_best.json
+ * checkpoint     -> checkpoint_best.bin / checkpoint_best.json */
+static int best_ckpt_paths(const char *ckpt, char *bin, size_t bin_cap,
+                           char *side, size_t side_cap) {
+  size_t n;
+  size_t stem;
+  if (!ckpt || !bin || !side || !ckpt[0])
+    return -1;
+  n = strlen(ckpt);
+  stem = n;
+  if (n >= 4 && memcmp(ckpt + n - 4, ".bin", 4) == 0)
+    stem = n - 4;
+  if (stem + 9 >= bin_cap || stem + 10 >= side_cap)
+    return -1;
+  memcpy(bin, ckpt, stem);
+  memcpy(bin + stem, "_best.bin", 10);
+  memcpy(side, ckpt, stem);
+  memcpy(side + stem, "_best.json", 11);
+  return 0;
+}
+
+static float t0_from_trail(const uint8_t *trail, int n) {
+  int k;
+  float s = 0.f;
+  if (!trail || n <= 0)
+    return 0.f;
+  for (k = 0; k < n; ++k)
+    s += (float)trail[k];
+  return s / (float)n;
+}
+
+/* Schema-1 weights plus a ticks/t0 sidecar. Last checkpoint is untouched. */
+static int save_best_ckpt(Nn *nn, const char *ckpt, int64_t ticks, float t0,
+                          char *bin_out, size_t bin_cap) {
+  char bin[TR_CFG_STR_MAX + 16];
+  char side[TR_CFG_STR_MAX + 16];
+  FILE *f;
+  size_t n;
+
+  if (best_ckpt_paths(ckpt, bin, sizeof(bin), side, sizeof(side)) != 0)
+    return -1;
+  if (mkdir_parents_for_file(bin) != 0)
+    return -1;
+  if (nn_save(nn, bin) != 0)
+    return -1;
+  f = fopen(side, "w");
+  if (!f)
+    return -2;
+  fprintf(f, "{\"ticks\": %lld, \"t0\": %.9g}\n", (long long)ticks, (double)t0);
+  if (fclose(f) != 0)
+    return -2;
+  if (bin_out && bin_cap) {
+    n = strlen(bin);
+    if (n + 1 > bin_cap)
+      return -1;
+    memcpy(bin_out, bin, n + 1);
+  }
   return 0;
 }
 
@@ -767,10 +827,22 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
   int ep, rc;
   int n_tr;
   int i;
+  int n_upd = 0;
+  double ent_sum = 0.0, kl_sum = 0.0, clip_sum = 0.0;
+  NnUpdateStats st;
 
   (void)n;
   (void)T;
   normalize_adv(b->adv_roll, b->valid_roll, batch, 1);
+
+#define TR_ACCUM_UPD_STATS()                                                   \
+  do {                                                                         \
+    ent_sum += (double)st.entropy_mean;                                        \
+    kl_sum += (double)st.approx_kl;                                            \
+    clip_sum += (double)st.clipfrac;                                           \
+    n_upd++;                                                                   \
+    *stats = st;                                                               \
+  } while (0)
 
   /* Metal n must equal create max_n. mb==0 keeps the full [batch] plane. */
   if (is_metal && mb <= 0) {
@@ -781,13 +853,14 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
       }
     }
     for (ep = 0; ep < cfg->epochs; ++ep) {
-      memset(stats, 0, sizeof(*stats));
+      memset(&st, 0, sizeof(st));
       rc = nn_update(nn_upd, b->planes_roll, b->scal_roll, b->acts_roll,
-                     b->logp_roll, b->adv_roll, b->ret_roll, batch, stats);
+                     b->logp_roll, b->adv_roll, b->ret_roll, batch, &st);
       if (rc != 0)
         return rc;
+      TR_ACCUM_UPD_STATS();
     }
-    return 0;
+    goto done;
   }
 
   n_tr = compact_valid_rows(b, batch);
@@ -796,13 +869,14 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
 
   if (mb <= 0) {
     for (ep = 0; ep < cfg->epochs; ++ep) {
-      memset(stats, 0, sizeof(*stats));
+      memset(&st, 0, sizeof(st));
       rc = nn_update(nn_upd, b->planes_roll, b->scal_roll, b->acts_roll,
-                     b->logp_roll, b->adv_roll, b->ret_roll, n_tr, stats);
+                     b->logp_roll, b->adv_roll, b->ret_roll, n_tr, &st);
       if (rc != 0)
         return rc;
+      TR_ACCUM_UPD_STATS();
     }
-    return 0;
+    goto done;
   }
 
   for (i = 0; i < n_tr; ++i)
@@ -814,11 +888,12 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
     if (is_metal) {
       for (k = 0; k + mb <= n_tr; k += mb) {
         gather_mb(b, b->perm, k, mb);
-        memset(stats, 0, sizeof(*stats));
+        memset(&st, 0, sizeof(st));
         rc = nn_update(nn_upd, b->planes_mb, b->scal_mb, b->acts_mb, b->logp_mb,
-                       b->adv_mb, b->ret_mb, mb, stats);
+                       b->adv_mb, b->ret_mb, mb, &st);
         if (rc != 0)
           return rc;
+        TR_ACCUM_UPD_STATS();
       }
     } else {
       for (k = 0; k < n_tr; k += mb) {
@@ -826,15 +901,24 @@ static int ppo_updates(Nn *nn_upd, struct RolloutBuf *b, const TrainConfig *cfg,
         if (nmb > n_tr - k)
           nmb = n_tr - k;
         gather_mb(b, b->perm, k, nmb);
-        memset(stats, 0, sizeof(*stats));
+        memset(&st, 0, sizeof(st));
         rc = nn_update(nn_upd, b->planes_mb, b->scal_mb, b->acts_mb, b->logp_mb,
-                       b->adv_mb, b->ret_mb, nmb, stats);
+                       b->adv_mb, b->ret_mb, nmb, &st);
         if (rc != 0)
           return rc;
+        TR_ACCUM_UPD_STATS();
       }
     }
   }
+
+done:
+  if (n_upd > 0) {
+    stats->entropy_mean = (float)(ent_sum / (double)n_upd);
+    stats->approx_kl = (float)(kl_sum / (double)n_upd);
+    stats->clipfrac = (float)(clip_sum / (double)n_upd);
+  }
   return 0;
+#undef TR_ACCUM_UPD_STATS
 }
 
 int main(int argc, char **argv) {
@@ -883,6 +967,9 @@ int main(int argc, char **argv) {
   double t0_wall;
   int split_nn = 0;
   int upd_n;
+  float best_t0 = -1.f;
+  int64_t best_ticks = 0;
+  char best_bin[TR_CFG_STR_MAX + 16];
 
   memset(&b, 0, sizeof(b));
   memset(&fns, 0, sizeof(fns));
@@ -891,6 +978,7 @@ int main(int argc, char **argv) {
   memset(&curr, 0, sizeof(curr));
   memset(t0_trail, 0, sizeof(t0_trail));
   memset(cap_last, 0, sizeof(cap_last));
+  best_bin[0] = '\0';
   for (i = 0; i < MAX_SEEDS * CR_N_STAGES; ++i)
     cap_last[i] = (int64_t)-1000000000;
 #if BLAZE_RL_HAVE_CUDA
@@ -1286,23 +1374,39 @@ int main(int argc, char **argv) {
     ticks += (int64_t)n * (int64_t)T * (int64_t)cfg.action_repeat;
     elapsed = wall_sec() - t0_wall;
 
-    if (use_curr) {
+    {
       int k;
-      float t0s = 0.f;
+      int brc;
+      float t0s = t0_from_trail(t0_trail, t0_n);
       float rsum = 0.f;
-      for (k = 0; k < t0_n; ++k)
-        t0s += (float)t0_trail[k];
-      if (t0_n)
-        t0s /= (float)t0_n;
+      Nn *nn_w = split_nn ? nn_upd : nn_roll;
       for (k = 0; k < batch; ++k)
         rsum += b.rew_roll[k];
       printf("ppo: chunk=%d ticks=%lld t0=%.3f rew_mean=%.4f grad=%.4g "
-             "ent=%.4g ploss=%.4g vloss=%.4g lr=%.3g wall=%.1fs eps=%d\n",
+             "ent=%.4g kl=%.4g clipfrac=%.4g ploss=%.4g vloss=%.4g lr=%.3g "
+             "wall=%.1fs eps=%d\n",
              chunk, (long long)ticks, (double)t0s,
              (double)(rsum / (float)batch), (double)stats.grad_norm,
-             (double)stats.entropy_mean, (double)stats.policy_loss,
+             (double)stats.entropy_mean, (double)stats.approx_kl,
+             (double)stats.clipfrac, (double)stats.policy_loss,
              (double)stats.value_loss, (double)lr_now, elapsed, n_eps);
       fflush(stdout);
+
+      /* Probe t0 is the trailing full-chain rate from t0 starts (same
+       * quantity as chain_probe.py's chain success). _best never regresses. */
+      if (t0s > best_t0) {
+        brc = save_best_ckpt(nn_w, cfg.checkpoint, ticks, t0s, best_bin,
+                             sizeof(best_bin));
+        if (brc == -2)
+          dief("best sidecar write failed: %s", cfg.checkpoint);
+        if (brc != 0)
+          dief("nn_save (best): %s", nn_last_error());
+        best_t0 = t0s;
+        best_ticks = ticks;
+        printf("ppo: best t0=%.3f ticks=%lld ckpt=%s\n", (double)best_t0,
+               (long long)best_ticks, best_bin);
+        fflush(stdout);
+      }
     }
 
     if (cfg.ckpt_ticks > 0 && ticks >= next_ckpt) {
@@ -1333,10 +1437,12 @@ int main(int argc, char **argv) {
 
   printf("ppo: PASS backend=%s device=%d n_envs=%d rollout_steps=%d batch=%d "
          "chunks=%d ticks=%lld grad_norm=%.6g policy_loss=%.6g "
-         "value_loss=%.6g total_loss=%.6g ckpt=%s\n",
+         "value_loss=%.6g total_loss=%.6g ckpt=%s best=%s best_t0=%.3f "
+         "best_ticks=%lld\n",
          cfg.backend, cfg.device, n, T, batch, chunk, (long long)ticks,
          (double)stats.grad_norm, (double)stats.policy_loss,
-         (double)stats.value_loss, (double)stats.total_loss, cfg.checkpoint);
+         (double)stats.value_loss, (double)stats.total_loss, cfg.checkpoint,
+         best_bin[0] ? best_bin : "-", (double)best_t0, (long long)best_ticks);
 
   if (split_nn)
     nn_destroy(nn_upd);

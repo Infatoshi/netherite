@@ -773,6 +773,8 @@ int nn_cpu_update(NnCpu *nn, const uint8_t *planes, const float *scalars,
   float policy_loss = 0.f;
   float value_loss = 0.f;
   float ent_mean = 0.f;
+  float kl_sum = 0.f;
+  float clip_sum = 0.f;
 
   for (int i = 0; i < n; ++i) {
     const float ratio = expf(logp_buf[i] - old_logp[i]);
@@ -816,6 +818,11 @@ int nn_cpu_update(NnCpu *nn, const uint8_t *planes, const float *scalars,
     /* loss includes -entropy_coef * mean(entropy)
      * d loss / d entropy_i = -entropy_coef / n */
     d_ent[i] = -nn->cfg.entropy_coef * inv_n;
+
+    /* Diagnostic only. Do not feed the loss or any d_* write. */
+    kl_sum += ratio - 1.f - logf(ratio);
+    if (fabsf(ratio - 1.f) > clip)
+      clip_sum += 1.f;
   }
   policy_loss *= inv_n;
   value_loss = nn->cfg.value_coef * value_loss * inv_n;
@@ -845,6 +852,8 @@ int nn_cpu_update(NnCpu *nn, const uint8_t *planes, const float *scalars,
     stats->entropy_mean = ent_mean;
     stats->total_loss = total;
     stats->grad_norm = grad_norm;
+    stats->approx_kl = kl_sum * inv_n;
+    stats->clipfrac = clip_sum * inv_n;
   }
   return 0;
 }

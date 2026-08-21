@@ -201,6 +201,8 @@ struct NnMetal {
   MPSGraphTensor *updEntMean;
   MPSGraphTensor *updTotalLoss;
   MPSGraphTensor *updGradNorm;
+  MPSGraphTensor *updApproxKl;
+  MPSGraphTensor *updClipfrac;
 
   /* Device buffers (allocated once) */
   id<MTLBuffer> wBuf[NN_T_COUNT];
@@ -230,6 +232,8 @@ struct NnMetal {
   id<MTLBuffer> entMeanBuf;
   id<MTLBuffer> totalLossBuf;
   id<MTLBuffer> gradNormBuf;
+  id<MTLBuffer> approxKlBuf;
+  id<MTLBuffer> clipfracBuf;
 
   /* Prebuilt TensorData wrappers (no new MTLBuffer after create) */
   MPSGraphTensorData *fwdInPlanesTD;
@@ -262,6 +266,8 @@ struct NnMetal {
   MPSGraphTensorData *updOutEntTD;
   MPSGraphTensorData *updOutTotalTD;
   MPSGraphTensorData *updOutGradNormTD;
+  MPSGraphTensorData *updOutApproxKlTD;
+  MPSGraphTensorData *updOutClipfracTD;
 
   NSArray<MPSGraphTensorData *> *fwdInputs;
   NSArray<MPSGraphTensorData *> *fwdResults;
@@ -628,6 +634,38 @@ static int build_update_graph(NnMetal *nn) {
   nn->updEntMean = ent_mean;
   nn->updTotalLoss = total;
 
+  /* Diagnostic only. Not ancestors of `total`; AD / Adam ignore them. */
+  {
+    MPSGraphTensor *log_ratio = [g logarithmWithTensor:ratio name:nil];
+    MPSGraphTensor *ratio_m1 =
+        [g subtractionWithPrimaryTensor:ratio secondaryTensor:one name:nil];
+    MPSGraphTensor *kl_i =
+        [g subtractionWithPrimaryTensor:ratio_m1
+                        secondaryTensor:log_ratio
+                                   name:nil];
+    nn->updApproxKl =
+        [g multiplicationWithPrimaryTensor:
+                [g reductionSumWithTensor:kl_i axes:nil name:nil]
+                           secondaryTensor:invN
+                                      name:nil];
+    MPSGraphTensor *zero_f =
+        [g constantWithScalar:0.0 dataType:MPSDataTypeFloat32];
+    MPSGraphTensor *is_clip =
+        [g greaterThanWithPrimaryTensor:[g absoluteWithTensor:ratio_m1
+                                                         name:nil]
+                        secondaryTensor:nn->updClipPh
+                                   name:nil];
+    MPSGraphTensor *clip_f = [g selectWithPredicateTensor:is_clip
+                                      truePredicateTensor:one
+                                     falsePredicateTensor:zero_f
+                                                     name:nil];
+    nn->updClipfrac =
+        [g multiplicationWithPrimaryTensor:
+                [g reductionSumWithTensor:clip_f axes:nil name:nil]
+                           secondaryTensor:invN
+                                      name:nil];
+  }
+
   /* Gradients of total w.r.t. each weight placeholder */
   NSMutableArray *wlist = [NSMutableArray arrayWithCapacity:NN_T_COUNT];
   for (int t = 0; t < NN_T_COUNT; ++t)
@@ -783,6 +821,8 @@ static int build_update_graph(NnMetal *nn) {
   [targets addObject:nn->updEntMean];
   [targets addObject:nn->updTotalLoss];
   [targets addObject:nn->updGradNorm];
+  [targets addObject:nn->updApproxKl];
+  [targets addObject:nn->updClipfrac];
 
   nn->updExec = [g compileWithDevice:nn->mpsDevice
                                feeds:feeds
@@ -960,6 +1000,14 @@ static int build_tensor_data(NnMetal *nn) {
       initWithMTLBuffer:nn->gradNormBuf
                   shape:@[]
                dataType:MPSDataTypeFloat32];
+  nn->updOutApproxKlTD = [[MPSGraphTensorData alloc]
+      initWithMTLBuffer:nn->approxKlBuf
+                  shape:@[]
+               dataType:MPSDataTypeFloat32];
+  nn->updOutClipfracTD = [[MPSGraphTensorData alloc]
+      initWithMTLBuffer:nn->clipfracBuf
+                  shape:@[]
+               dataType:MPSDataTypeFloat32];
 
   {
     NSArray<MPSGraphTensor *> *feeds = nn->updExec.feedTensors;
@@ -1006,6 +1054,8 @@ static int build_tensor_data(NnMetal *nn) {
     om[(id)nn->updEntMean] = nn->updOutEntTD;
     om[(id)nn->updTotalLoss] = nn->updOutTotalTD;
     om[(id)nn->updGradNorm] = nn->updOutGradNormTD;
+    om[(id)nn->updApproxKl] = nn->updOutApproxKlTD;
+    om[(id)nn->updClipfrac] = nn->updOutClipfracTD;
 
     NSMutableArray *outs = [NSMutableArray arrayWithCapacity:tgts.count];
     for (MPSGraphTensor *tt in tgts) {
@@ -1164,6 +1214,8 @@ NnMetal *nn_metal_create(int batch_n, int device_id, const NnConfig *cfg) {
   nn->entMeanBuf = make_buf(device, sizeof(float), NULL);
   nn->totalLossBuf = make_buf(device, sizeof(float), NULL);
   nn->gradNormBuf = make_buf(device, sizeof(float), NULL);
+  nn->approxKlBuf = make_buf(device, sizeof(float), NULL);
+  nn->clipfracBuf = make_buf(device, sizeof(float), NULL);
 
   if (!nn->planesBuf || !nn->scalarsBuf || !nn->actsBuf || !nn->logitsBuf) {
     set_err("oom input buffers");
@@ -1229,6 +1281,8 @@ void nn_metal_destroy(NnMetal *nn) {
   nn->updOutEntTD = nil;
   nn->updOutTotalTD = nil;
   nn->updOutGradNormTD = nil;
+  nn->updOutApproxKlTD = nil;
+  nn->updOutClipfracTD = nil;
   for (int t = 0; t < NN_T_COUNT; ++t) {
     nn->fwdInWTD[t] = nil;
     nn->updInWTD[t] = nil;
@@ -1267,6 +1321,8 @@ void nn_metal_destroy(NnMetal *nn) {
   nn->entMeanBuf = nil;
   nn->totalLossBuf = nil;
   nn->gradNormBuf = nil;
+  nn->approxKlBuf = nil;
+  nn->clipfracBuf = nil;
 
   nn->queue = nil;
   nn->device = nil;
@@ -1404,6 +1460,8 @@ int nn_metal_update(NnMetal *nn, const uint8_t *planes, const float *scalars,
       stats->entropy_mean = ((float *)nn->entMeanBuf.contents)[0];
       stats->total_loss = ((float *)nn->totalLossBuf.contents)[0];
       stats->grad_norm = ((float *)nn->gradNormBuf.contents)[0];
+      stats->approx_kl = ((float *)nn->approxKlBuf.contents)[0];
+      stats->clipfrac = ((float *)nn->clipfracBuf.contents)[0];
     }
   }
   return 0;

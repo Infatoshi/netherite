@@ -328,16 +328,20 @@ static void test_forward_sample_update(void) {
     expect_eq_i(nn_update(gpu, planes, scalars, acts, old_logp, adv, ret, n,
                           &sg),
                 0, "gpu update");
-    std::printf("  cpu stats: policy=%.9g value=%.9g entropy=%.9g total=%.9g grad_norm=%.9g\n",
+    std::printf("  cpu stats: policy=%.9g value=%.9g entropy=%.9g total=%.9g "
+                "grad_norm=%.9g kl=%.9g clip=%.9g\n",
                 sc.policy_loss, sc.value_loss, sc.entropy_mean, sc.total_loss,
-                sc.grad_norm);
-    std::printf("  gpu stats: policy=%.9g value=%.9g entropy=%.9g total=%.9g grad_norm=%.9g\n",
+                sc.grad_norm, sc.approx_kl, sc.clipfrac);
+    std::printf("  gpu stats: policy=%.9g value=%.9g entropy=%.9g total=%.9g "
+                "grad_norm=%.9g kl=%.9g clip=%.9g\n",
                 sg.policy_loss, sg.value_loss, sg.entropy_mean, sg.total_loss,
-                sg.grad_norm);
+                sg.grad_norm, sg.approx_kl, sg.clipfrac);
     expect_near(sg.policy_loss, sc.policy_loss, 2e-3f, "policy loss");
     expect_near(sg.value_loss, sc.value_loss, 2e-3f, "value loss");
     expect_near(sg.entropy_mean, sc.entropy_mean, 2e-3f, "entropy mean");
     expect_near(sg.total_loss, sc.total_loss, 2e-3f, "total loss");
+    expect_near(sg.approx_kl, sc.approx_kl, 2e-3f, "approx_kl");
+    expect_near(sg.clipfrac, sc.clipfrac, 2e-3f, "clipfrac");
     check_grad_norm_rel("full grad_norm", sc.grad_norm, sg.grad_norm, 0.02f);
 
     char path_c[256], path_g[256];
@@ -449,18 +453,22 @@ static void test_forward_sample_update(void) {
     expect_eq_i(nn_update(gpu, planes, scalars, acts, old_logp, adv, ret, n,
                           &sg),
                 0, "gpu policy-only update");
-    std::printf("  cpu policy-only: policy=%.9g value=%.9g entropy=%.9g total=%.9g grad_norm=%.9g\n",
+    std::printf("  cpu policy-only: policy=%.9g value=%.9g entropy=%.9g "
+                "total=%.9g grad_norm=%.9g kl=%.9g clip=%.9g\n",
                 sc.policy_loss, sc.value_loss, sc.entropy_mean, sc.total_loss,
-                sc.grad_norm);
-    std::printf("  gpu policy-only: policy=%.9g value=%.9g entropy=%.9g total=%.9g grad_norm=%.9g\n",
+                sc.grad_norm, sc.approx_kl, sc.clipfrac);
+    std::printf("  gpu policy-only: policy=%.9g value=%.9g entropy=%.9g "
+                "total=%.9g grad_norm=%.9g kl=%.9g clip=%.9g\n",
                 sg.policy_loss, sg.value_loss, sg.entropy_mean, sg.total_loss,
-                sg.grad_norm);
+                sg.grad_norm, sg.approx_kl, sg.clipfrac);
     expect_near(sg.policy_loss, sc.policy_loss, 2e-3f,
                 "policy-only policy loss");
     expect_near(sg.value_loss, sc.value_loss, 2e-3f,
                 "policy-only value loss");
     expect_near(sg.total_loss, sc.total_loss, 2e-3f,
                 "policy-only total loss");
+    expect_near(sg.approx_kl, sc.approx_kl, 2e-3f, "policy-only approx_kl");
+    expect_near(sg.clipfrac, sc.clipfrac, 2e-3f, "policy-only clipfrac");
     check_grad_norm_rel("policy-only grad_norm", sc.grad_norm, sg.grad_norm,
                         0.02f);
 

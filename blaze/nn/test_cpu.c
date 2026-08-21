@@ -576,7 +576,14 @@ static void test_ppo_and_adam(void) {
   expect_finite(st.entropy_mean, "ent");
   expect_finite(st.total_loss, "tl");
   expect_finite(st.grad_norm, "gn");
+  expect_finite(st.approx_kl, "kl");
+  expect_finite(st.clipfrac, "clipfrac");
   expect_true(st.grad_norm > 0.f, "grad norm > 0");
+  expect_true(st.approx_kl >= 0.f, "kl >= 0");
+  expect_true(st.clipfrac >= 0.f && st.clipfrac <= 1.f, "clipfrac in [0,1]");
+  /* old_logp == current logp => ratio 1, k1=0, nothing clipped. */
+  expect_true(fabsf(st.approx_kl) < 1e-5f, "kl ~0 at ratio=1");
+  expect_true(fabsf(st.clipfrac) < 1e-6f, "clipfrac 0 at ratio=1");
 
   nn_fixture_get_params(nn, after, np);
   double delta = 0.0;
