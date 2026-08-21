@@ -1,5 +1,16 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 uipix lane
+
+UI-space pixels. Isolation HUD chrome is bit-exact (all CORE_HARD
+`hard_px=0`). Hand use poses stay RESIDUAL: bow/eat goldens are idle-tips
+(C transforms match `ItemRenderer.java`; do not fit). Shield pose matches;
+C-painted mean 1.56 -> 0.75 after Mesa RenderHelper packing in `hand.c`.
+Inventory chrome bit-exact; preview still maxch=1 / 442+323 px. Auto-campaign
+hand-black and hotbar-over-world not replayed. Darwin link: `randtick.o` +
+`gen_prefetch.o` in ui_hud live and gui_candidate; `cr_k14_light_query` stub
+in the isolation candidate.
+
 ## 2026-08-21 remaining-to-stop-asking
 
 Codex, Fable, and Grok surveyed the tree. Fable ranks. The four-gate

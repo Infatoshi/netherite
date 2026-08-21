@@ -29,20 +29,38 @@ puff `Particle.rand`; fog retune; texel bias; Magma GPU tick.
 
 ### First-person hand use poses
 
-All three states have exact Java A/B captures but remain strict C residuals.
-Ownership is the union of the Java and C subjects at threshold zero.
+All three states have exact Java A/B captures (`noise_max=0`) and remain
+strict C residuals. Ownership is the Java∪C subject at `HAND_SUBJECT_THR=8`.
+Measured 2026-08-21 (`lane/uipix`) after Mesa-accurate RenderHelper packing
+in `hand.c` (Vec3d light dirs + unorm8 102/255 amb / 152/255 diff +
+`color_trunc=1`). Numerical/compose/live and HUD chrome still PASS; synthetic
+exact/mutation controls still PASS.
 
-- Bow pull: `hard_px=30260`, `maxch=125`.
-- Eat mid-use: `hard_px=101880`, `maxch=215`.
-- Blocking shield: the old idle-tip golden was replaced by a genuine sticky
-  `MAIN_HAND/BLOCK` capture; C still has `hard_px=28506`, `maxch=100`.
+- Bow pull: `hard_px=30260`, `maxch=125`, `c_vs_j=49.276`, `c_paint_mean=59.43`.
+- Eat mid-use: `hard_px=101880`, `maxch=215`, `c_vs_j=53.939`, `c_paint_mean=51.32`.
+- Blocking shield: `hard_px=28506`, `maxch=100`, `c_vs_j=23.615`,
+  `c_paint_mean=0.748` (was 1.56). C-painted vs Java: 764 exact, 15989 nz,
+  `maxch>2` only 6 px. Geometry matches (C subject subset of Java at thr 12-20).
 
-The former hand mean budget is gone. Synthetic exact controls pass, while
-missing Java silhouette, C-extra, +1-channel, shift, and recolor mutations all
-fail.
+C `build_bow_drawn` / `build_eat_drink` / `build_block_use` match
+`ItemRenderer.java` (oracle-src) call-for-call, including
+`f = remaining - partialTicks + 1` at `partialTicks=1` and bow
+`f5 = maxDuration - remaining`. Do not retune those matrices against the
+current bow/eat PNGs: they are idle-tips. Java bow brown bbox in the
+viewmodel ROI is 1297 px vs C painted 14713; Java eat brown 6743 vs C 39116.
+`pin_reply` has `hand_active` / `use_count` (bow remaining 71980, eat
+elapsed `use_max=16` with remaining 16) but the saved meta has no
+`use_branch` / `model_pulling` — the capture predates
+`check_hand_use_pin_reply`. `capture_manifest.json` already called bow/eat
+"pre-pin tip residuals". Fitting C idle to those goldens is forbidden
+(AGENTS.md). Close path: recapture with `ONLY=hand` so the current driver
+rejects missing `use_branch=bow|eat` and `model_pulling>=0.5`.
 
-Likely work: finish ItemRenderer/model registration, edge shading, and the
-remaining bow/eat sticky full-use capture provenance.
+Shield is a genuine `BLOCK` pose. Remaining owned residual is isolation gray
+vs the stone-wall golden: `HAND_SUBJECT_THR=8` classifies wall texel
+variance as Java subject, so `hard_px` stays ~28k even when the shield face
+is 1 LSB. Isolation cannot paint the wall. Painted-face leftover is Mesa
+ubyte primary still ~1 L8 on some faces (same class as inventory preview).
 
 Repro:
 
@@ -52,13 +70,17 @@ bash verify/ui_hud/run_ui_hud_gates.sh
 
 ### Inventory player preview
 
-GUI chrome is bit-exact, but the rendered player remains open at max channel 1:
+GUI chrome is bit-exact (table/furnace/chest/inventory non-preview `bit== PASS`,
+A/B noise 0). The rendered player remains open at max channel 1:
 
-- Pose 1: mean `0.011641`, `442` nonzero pixels.
-- Pose 2: mean `0.009949`, `323` nonzero pixels.
+- Pose 1: mean `0.011641`, `442` nonzero pixels, `hard_px=0`.
+- Pose 2: mean `0.009949`, `323` nonzero pixels, `hard_px=0`.
 
-The current path matches RenderHelper/Mesa unorm8 light-material packing for the
-dominant face bins. Smaller fixed-function primary-light bins remain.
+Re-measured 2026-08-21 (`lane/uipix`) with the capture_gui goldens; numbers
+match `gui_preview_calibration.json`. Packing is identified
+(`L8=trunc(primary*255)`, `out=(tex*L8+127)/255`). Remaining gap is
+StandardItemLighting primary off by ~1 L8 on smaller face bins
+(`test_preview_color_formula.py`). Do not invent a PASS-FLOOR.
 
 Repro:
 
@@ -1360,13 +1382,21 @@ Still open on this recording:
        view/projection registration lead. Do not retune GM_TERRAIN_FOG_*.
     2. Viewmodel (hand) near-black (viewmodel class, 2nd): lower-right quadrants
        render flat-dark (candidate lum_std ~1.7, golden shovel/hand browns).
-       Real hand-lighting bug candidate - hand.c hand_light_vtx / hand_diffuse
-       / frame_capture.c viewmodel env. Opposite extreme of the documented
-       "arm far too bright" on another tape - first-person lamp/env needs a
-       same-env recheck.
+       Isolation ui_hud hands are lit (`gm_hand_set_env(NULL, 15, 15, 1,1,1)`).
+       Tape/window path binds the frame lightmap LUT and samples
+       `light_sky`/`light_blk` at `(floor(x), floor(y+eye_height), floor(z))`
+       (`frame_capture.c` / `window_compose.c`). Combined-light 0,0 would make
+       the LUT texel near-black while terrain can still look lit from baked
+       mesh light. Opposite extreme of the documented "arm far too bright"
+       on another tape. Not re-replayed this lane (4810 ticks). Repro: replay
+       `scenario_survival_campaign_auto_*` t=80, print those eye-block levels
+       next to the viewmodel pixels.
     3. HUD hotbar darker + slight placement delta (hud class, small but
-       persistent). hud.c gm_hud_draw hotbar/selection/XP strip +
-       hud_blend_px_tex.
+       persistent). Isolated HUD chrome is bit-exact (`hud_durability_half`
+       and the other CORE_HARD rows `hard_px=0` vs ui_hud goldens). The
+       campaign residual is hotbar-over-world (widgets.png a=186 via
+       `hud_blend_px_tex`), not the isolated icon blit. Not re-replayed
+       this lane. Do not retune HUD blend to paper over world underlay.
     4. Particles: magma missing oracle additive glow (particles class, most
        frames 196/239). Real additive-pass candidate in particles_live.c
        gm_particles_live_emit_recorded/_emit; plus small lifetime/registration
