@@ -1556,6 +1556,43 @@ int gm_entity_type_for_name(const char *name) {
     return -1;
 }
 
+int gm_entity_type_for_spawn_id(const char *id) {
+    static const struct { const char *id; const char *name; } MAP[] = {
+        { "blaze",           "EntityBlaze" },
+        { "zombie",          "EntityZombie" },
+        { "skeleton",        "EntitySkeleton" },
+        { "creeper",         "EntityCreeper" },
+        { "spider",          "EntitySpider" },
+        { "cave_spider",     "EntityCaveSpider" },
+        { "enderman",        "EntityEnderman" },
+        { "witch",           "EntityWitch" },
+        { "silverfish",      "EntitySilverfish" },
+        { "slime",           "EntitySlime" },
+        { "magma_cube",      "EntityMagmaCube" },
+        { "ghast",           "EntityGhast" },
+        { "zombie_pigman",   "EntityPigZombie" },
+        { "pig_zombie",      "EntityPigZombie" },
+        { "wither_skeleton", "EntityWitherSkeleton" },
+        { "husk",            "EntityHusk" },
+        { "stray",           "EntityStray" },
+        { "bat",             "EntityBat" },
+        { "sheep",           "EntitySheep" },
+        { "pig",             "EntityPig" },
+        { "cow",             "EntityCow" },
+        { "chicken",         "EntityChicken" },
+        { "llama",           "EntityLlama" },
+        { "squid",           "EntitySquid" },
+    };
+    const char *key;
+    if (!id || !id[0]) return -1;
+    key = id;
+    if (!strncmp(id, "minecraft:", 10)) key = id + 10;
+    for (unsigned i = 0; i < sizeof MAP / sizeof MAP[0]; ++i)
+        if (!strcmp(key, MAP[i].id))
+            return gm_entity_type_for_name(MAP[i].name);
+    return -1;
+}
+
 /* EntityXPOrb.getTextureByXP: tier index 0..10 into experience_orb.png. */
 static int er_xp_texture_tier(int xp_value) {
     if (xp_value >= 2477) return 10;

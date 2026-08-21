@@ -38,6 +38,24 @@ baseline `18c5022`. No raster-kernel twin edits.
   `blend=1` / `alpha_ref=0.003921569`. The "additive glow" label is
   pixel_gate's oracle-brighter heuristic. Magma reconstructs only BLOCK
   + explosion whitelist. Do not set blend=3.
+## 2026-08-21 lane/sim CPU replay divergences
+
+Closed four OPEN_DIVERGENCES items on `lane/sim` (Mac CPU, no GPU).
+
+- Live blaze `isBurning`: AIFireballAttack already in `mob_live.c`. Darwin
+  standalone tests now link `world/gen_prefetch.o`. Receipt:
+  78-on/100-off, transitions 0/78/178/256, shots 60/66/72/238/244/250.
+- Falling t46: `attack_hits_falling_block` now requires `t_ent < t_block`.
+  `test_fall_reanchor` H PASS. 151855Z tape not in this tapes set.
+- pcl consume: already in `replay_tape.py` / `script.c` /
+  `particles_live`. `test-particles-live` PASS.
+- Spawner TE path: Anvil TileEntities -> `set_tile_entity` ->
+  `GmRuntime.spawners` -> `gm_frame_spawners_emit`. `discover_spawners`
+  does not drive the TESR.
+
+Canonical physics after:
+`out/verify/replay --tape verify/tapes/20260721T215812Z_...77b5b462.jsonl --ticks 4000`
+-> first_div none, 3617/3617, nearby_hash match. Root `make test` green.
 
 ## 2026-08-21 remaining-to-stop-asking
 

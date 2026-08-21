@@ -9,6 +9,7 @@
  *   D   repeated same-value reanchors stay inert for gravity
  *   E/F ordinary set_block still schedules sand and gravel falls
  *   G   dual-path mid-flight reanchor ends with one sand cell
+ *   H   held creative prefers a closer block over a farther falling AABB
  *
  * Build+run: bash game/test_fall_reanchor.sh
  */
@@ -286,6 +287,46 @@ int main(void)
           "mid-flight reanchor does not spawn an additional falling entity");
     CHECK(gm_world_block(r.world, X4, YF + 1, Z) == BLK_SAND,
           "reanchored landing sand remains written");
+
+    /* ---- H: getMouseOver entity-vs-block distance. A falling AABB further
+     * along the look ray must not steal a held creative attack from a closer
+     * solid. Vanilla: entity wins only if intercept < block hit. */
+    fprintf(stderr, "== H creative attack prefers closer block over far falling ==\n");
+    clear_gravity(&r.entities);
+    {
+        const int XH = 28, ZH_NEAR = 21, ZH_FAR = 23;
+        clear_column(&r, XH, YF, YS + 8, ZH_NEAR);
+        clear_column(&r, XH, YF, YS + 8, ZH_FAR);
+        CHECK(gm_runtime_set_block(&r, XH, YF, ZH_FAR, BLK_STONE, 0), "H far floor");
+        clear_gravity(&r.entities);
+        CHECK(gm_runtime_set_block(&r, XH, 102, ZH_FAR, BLK_SAND, 0), "H far sand");
+        int h_ent = 0;
+        for (int t = 0; t < 40; ++t) {
+            idle_ticks(&r, 1);
+            if (count_fall_ents(&r.entities) > 0 &&
+                gm_world_block(r.world, XH, 102, ZH_FAR) == 0) {
+                h_ent = 1;
+                break;
+            }
+        }
+        CHECK(h_ent, "H far sand is a falling entity");
+        CHECK(gm_runtime_set_block(&r, XH, 102, ZH_NEAR, BLK_STONE, 0),
+              "H closer stone on the look ray");
+        gm_runtime_set_pose(&r, XH + 0.5, 101.0, 18.5, 0.0f, 0.0f);
+        r.tape_creative = 1;
+        CHECK(count_fall_ents(&r.entities) > 0,
+              "falling entity is present when the held attack starts");
+        {
+            GmAction atk;
+            memset(&atk, 0, sizeof atk);
+            atk.attack = 1;
+            atk.hotbar_sel = -1;
+            for (int t = 0; t < 4; ++t)
+                gm_runtime_tick(&r, atk);
+        }
+        CHECK(gm_world_block(r.world, XH, 102, ZH_NEAR) == 0,
+              "closer stone is removed; far falling AABB does not steal the attack");
+    }
 
     gm_runtime_destroy(&r);
 

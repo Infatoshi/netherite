@@ -29,6 +29,8 @@ void gm_frame_lightmap_fill(const McSinTable *st, long long world_time,
  * otherwise. Shared by the capture path and the interactive window loop. */
 void gm_frame_entities_light(GmEntityView *ents, int n, GmWorld *world,
                              int dimension, const CrRgba *lm);
+/* TileEntityMobSpawnerRenderer pass. Reads r->spawners; never discover_spawners. */
+int gm_frame_spawners_emit(const GmRuntime *r, CrVertex *out, int max);
 
 /* RenderMinecart rail reprojection and stable entity-id anti-z-fight jitter. */
 void gm_frame_prepare_minecarts(GmEntityView *ents, int n, GmWorld *world);

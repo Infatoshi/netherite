@@ -74,6 +74,54 @@ def _read_mca_states(region: Path, cx: int, cz: int) -> np.ndarray:
     return out
 
 
+def _tag_str(tag) -> str:
+    if tag is None:
+        return ""
+    value = getattr(tag, "value", tag)
+    return str(value)
+
+
+def _read_mca_spawners(region: Path, cx: int, cz: int) -> list[tuple[int, int, int, str]]:
+    """Mob-spawner TileEntities in one 1.11.2 chunk: world x/y/z + SpawnData.id."""
+    from nbt.region import RegionFile
+
+    rf = RegionFile(str(region / f"r.{cx >> 5}.{cz >> 5}.mca"))
+    ch = rf.get_chunk(cx & 31, cz & 31)
+    level = ch["Level"]
+    tes = level["TileEntities"] if "TileEntities" in level else None
+    if tes is None:
+        return []
+    out = []
+    for te in tes:
+        tid = _tag_str(te["id"] if "id" in te else None)
+        if tid not in ("minecraft:mob_spawner", "MobSpawner"):
+            continue
+        spawn_id = ""
+        if "SpawnData" in te:
+            spawn = te["SpawnData"]
+            if spawn is not None and "id" in spawn:
+                spawn_id = _tag_str(spawn["id"])
+        out.append((int(te["x"].value), int(te["y"].value), int(te["z"].value),
+                    spawn_id))
+    return out
+
+
+def spawner_patch_event(dimension: int, x: int, y: int, z: int,
+                        spawn_id: str) -> dict:
+    """Tick-0 script event that carries one mob-spawner TileEntity."""
+    return {
+        "tick": 0,
+        "type": "set_tile_entity",
+        "dim": dimension,
+        "x": x,
+        "y": y,
+        "z": z,
+        "id": "minecraft:mob_spawner",
+        "spawn_id": spawn_id,
+        "rotation": 0,
+    }
+
+
 def _read_magma_states(path: Path) -> dict[tuple[int, int], np.ndarray]:
     chunks = {}
     with path.open("rb") as f:
@@ -332,6 +380,7 @@ def ensure_snapshot_patch(tape_path: str, header: dict, ticks: list[dict]) -> Pa
 
     wanted = _visible_chunks(tape, header, ticks)
     java: dict[tuple[int, int, int], np.ndarray] = {}
+    spawners: dict[tuple[int, int, int], list[tuple[int, int, int, str]]] = {}
     for dimension, chunks in wanted.items():
         region = regions.get(dimension)
         if region is None or not region.is_dir():
@@ -345,6 +394,10 @@ def ensure_snapshot_patch(tape_path: str, header: dict, ticks: list[dict]) -> Pa
                                  "skip the world snapshot")
             except Exception:
                 continue
+            try:
+                spawners[(dimension, cx, cz)] = _read_mca_spawners(region, cx, cz)
+            except Exception:
+                spawners[(dimension, cx, cz)] = []
     if not java:
         return None
 
@@ -422,6 +475,12 @@ def ensure_snapshot_patch(tape_path: str, header: dict, ticks: list[dict]) -> Pa
                         "x": cx * 16 + lx, "y": y, "z": cz * 16 + lz,
                         "id": state >> 4, "meta": state & 15,
                     }, separators=(",", ":")) + "\n")
+                    events += 1
+                for te_x, te_y, te_z, spawn_id in spawners.get(
+                        (dimension, cx, cz), ()):
+                    out.write(json.dumps(spawner_patch_event(
+                        dimension, te_x, te_y, te_z, spawn_id),
+                        separators=(",", ":")) + "\n")
                     events += 1
     temp.unlink(missing_ok=True)
     os.replace(part, cache)

@@ -248,6 +248,23 @@ static const CrRgba *build_lightmap_lut(GmFrameCapture *c, const GmRuntime *r) {
  * Nether/End path (lm==NULL) folds the exact updateLightmap color into the
  * tint since the shader then treats vtx.light as a plain scalar. Shared with
  * the interactive window loop: unfilled fields render entities unlit-white. */
+int gm_frame_spawners_emit(const GmRuntime *r, CrVertex *out, int max) {
+    GmRuntimeSpawnerView tes[GM_RUNTIME_SPAWNERS];
+    GmSpawnerView views[GM_RUNTIME_SPAWNERS];
+    int n, i;
+    if (!r || !out || max <= 0) return 0;
+    n = gm_runtime_spawner_views(r, tes, GM_RUNTIME_SPAWNERS);
+    if (n <= 0) return 0;
+    for (i = 0; i < n; ++i) {
+        views[i].wx = tes[i].wx;
+        views[i].wy = tes[i].wy;
+        views[i].wz = tes[i].wz;
+        views[i].type = tes[i].entity_type;
+        views[i].mob_rotation = tes[i].mob_rotation;
+    }
+    return gm_spawner_miniatures_emit(views, n, out, max);
+}
+
 void gm_frame_entities_light(GmEntityView *ents, int n, GmWorld *world,
                              int dimension, const CrRgba *lm) {
     for(int i=0;i<n;++i){
@@ -1060,13 +1077,14 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
     gm_frame_prepare_minecarts(ents,n,r->world);
     /* world light at each entity's eye block: shared with the window loop. */
     gm_frame_entities_light(ents,n,r->world,r->dimension,lm);
-    if(n>0){
+    {
         /* one rotating buffer per emit: async CUDA uploads may still be in
          * flight until frame_end, so same-frame emits must not alias.
          * eb selects this frame's 4-buffer set (pipeline parity). */
         CrVertex **eb=&c->entity_verts[c->ent_set*4];
         gm_entity_geom_tick(c->frame);
         int nv=gm_entities_emit(ents,n,eb[0],c->max_entity_verts);
+        nv+=gm_frame_spawners_emit(r,eb[0]+nv,c->max_entity_verts-nv);
         gm_particles_dragon_latch(r->tick,ents,n);
         nv+=gm_particles_emit_filtered(
             ents,n,v.yaw,v.pitch,

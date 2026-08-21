@@ -88,6 +88,8 @@ void      gm_entity_geom_tick(long tick);
  * EW_TYPE_* / render-only id with a model or billboard, or -1 when no model
  * exists (caller skips). */
 int       gm_entity_type_for_name(const char *name);
+/* 1.11.2 SpawnData.id ("minecraft:blaze" or "blaze") -> EW_TYPE_*, or -1. */
+int       gm_entity_type_for_spawn_id(const char *id);
 
 /* Render-only billboard type -> packed item-atlas sprite id. */
 int       gm_entity_billboard_item(const char *name);
@@ -184,11 +186,9 @@ float er_death_roll(const GmEntityView *v);
  * in its pre-x10 units. type < 0 (no cached entity) emits nothing, exactly
  * like the oracle's `if (entity != null)` guard.
  *
- * NOTE: magma has no tile-entity store fed from world data, so NOTHING
- * currently constructs a GmSpawnerView from a real spawner - see
- * magma/OPEN_DIVERGENCES.md "Spawner-cage miniature" for the exact missing
- * plumbing. This renderer is verified against the oracle transform by
- * game/test_entity_render.c and is correct the moment the type flows. */
+ * NOTE: the TESR is fed from GmRuntime.spawners via set_tile_entity
+ * (Anvil TileEntities -> snapshot_patch -> script). discover_spawners is
+ * a live-spawn heuristic and must not construct these views. */
 typedef struct {
     int   wx, wy, wz;
     int   type;
