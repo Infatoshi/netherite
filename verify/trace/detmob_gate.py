@@ -230,9 +230,42 @@ def _atk_magma_ticks(stand, series):
     return out
 
 
-def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
-    px, py, pz = header["x"], header["y"], header["z"]
-    pyaw, ppitch = header.get("yaw", 0.0), header.get("pitch", 0.0)
+def _player_pose_keyframes(stand, series):
+    """Tape player pose changes mapped onto magma ticks.
+
+    EntityAIWander.getAge() is EntityLivingBase.entityAge. despawnEntity
+    zeros it only while a player is inside 32 blocks. A parked header pose
+    misses later /tp or knockback, so magma keeps age=0 and extra nextInt(120).
+    """
+    if not series:
+        return []
+    clock_name, clock0 = _clock0(stand, series)
+    h = series[0]
+    last = (
+        float(h.get("x", 0.0)), float(h.get("y", 0.0)), float(h.get("z", 0.0)),
+        float(h.get("yaw", 0.0)), float(h.get("pitch", 0.0)),
+    )
+    out = []
+    for rec in series[1:]:
+        mag = _row_magma_tick(stand, rec, clock_name, clock0)
+        if mag is None:
+            continue
+        pose = (
+            float(rec.get("x", last[0])), float(rec.get("y", last[1])),
+            float(rec.get("z", last[2])), float(rec.get("yaw", last[3])),
+            float(rec.get("pitch", last[4])),
+        )
+        if pose != last:
+            out.append((mag, pose))
+            last = pose
+    return out
+
+
+def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None,
+                  player_poses=None, series0=None):
+    src = series0 if series0 is not None else header
+    px, py, pz = src["x"], src["y"], src["z"]
+    pyaw, ppitch = src.get("yaw", header.get("yaw", 0.0)), src.get("pitch", header.get("pitch", 0.0))
     n = 0
     lines = [
         f"seed {int(header.get('seed', 0))}",
@@ -315,6 +348,13 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
     lines.extend(hostiles_h)
     for mag_t in atk_ticks or []:
         lines.append(f"atk {int(mag_t)}")
+    for mag_t, pose in player_poses or []:
+        lines.append(
+            "pl {t} {x} {y} {z} {yaw} {pitch}".format(
+                t=int(mag_t), x=pose[0], y=pose[1], z=pose[2],
+                yaw=pose[3], pitch=pose[4],
+            )
+        )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return n, len(ground)
 
@@ -476,7 +516,11 @@ def main(argv: list[str]) -> int:
     outdir.mkdir(parents=True, exist_ok=True)
     fixture = outdir / "fixture.txt"
     magma_out = outdir / "magma.jsonl"
-    n, n_ground = write_fixture(fixture, header, hydrate, n_ticks, stand, atk_ticks)
+    poses = _player_pose_keyframes(stand, series)
+    n, n_ground = write_fixture(
+        fixture, header, hydrate, n_ticks, stand, atk_ticks,
+        player_poses=poses, series0=series[0],
+    )
     print(
         f"tape {tape.name}: {len(rows)} client ticks, {len(series)} unique server "
         f"snaps, {n_ticks} magma ticks, {n} tracked {stand}, "

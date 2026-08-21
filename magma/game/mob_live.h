@@ -92,7 +92,8 @@ typedef struct {
     short det_nav_z[EW_MAX_ENTITIES][48];
     unsigned char det_nav_n[EW_MAX_ENTITIES];
     unsigned char det_nav_i[EW_MAX_ENTITIES];
-    /* PathNavigate.getPathSearchRange: FOLLOW_RANGE after onInitialSpawn bonus. */
+    /* PathNavigate.getPathSearchRange: FOLLOW_RANGE attribute base.
+     * Summoned mobs skip onInitialSpawn, so no gaussian spawn bonus. */
     float det_follow[EW_MAX_ENTITIES];
     /* det_entity_rng hostile hydrate (zombie/skeleton/creeper). Unused off-knob. */
     int det_target_tick[EW_MAX_ENTITIES];
@@ -109,6 +110,12 @@ typedef struct {
     unsigned char det_strafe_back[EW_MAX_ENTITIES];
     signed char det_cstate[EW_MAX_ENTITIES];
     int det_raise_arm[EW_MAX_ENTITIES];
+    /* AbstractSkeleton ctor setCombatTask: empty hand -> melee. /summon NBT
+     * skips onInitialSpawn (no bow). Unused off-knob. */
+    unsigned char det_skel_melee[EW_MAX_ENTITIES];
+    /* Entity.move carries AABB; rebuilding from pos ± width/2 each tick is 1 ULP. */
+    unsigned char det_box_on[EW_MAX_ENTITIES];
+    McAABB det_box[EW_MAX_ENTITIES];
     /* det_entity_rng extras for DIM-1 hostiles (unused when the knob is off). */
     unsigned char det_persist[EW_MAX_ENTITIES];
     unsigned char ent_jr_have_gauss[EW_MAX_ENTITIES];

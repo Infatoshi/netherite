@@ -17,6 +17,13 @@
 #define DET_MAX 64
 #define DET_G 27
 #define DET_ATK_MAX 64
+#define DET_PL_MAX 2048
+
+typedef struct {
+    int t;
+    double x, y, z;
+    float yaw, pitch;
+} DetPl;
 
 typedef struct {
     int eid, type, lst, age, tt, tasks, watch, idle, eat, egg, og, bht;
@@ -77,11 +84,11 @@ static void stencil_ids(const GmWorld *w, int bx, int by, int bz, int *out) {
 static int load_fixture(const char *path, long long *seed, long long *wtime,
                         double *px, double *py, double *pz,
                         float *pyaw, float *ppitch, int *nticks, DetEnt *ents, int *nents,
-                        int *atk, int *natk, int *dim) {
+                        int *atk, int *natk, int *dim, DetPl *pl, int *npl) {
     FILE *f = fopen(path, "r");
     char line[2048];
     if (!f) { perror(path); return 0; }
-    *nents = 0; *nticks = 0; *seed = 0; *wtime = 6000; *natk = 0; *dim = 0;
+    *nents = 0; *nticks = 0; *seed = 0; *wtime = 6000; *natk = 0; *dim = 0; *npl = 0;
     *px = 8.5; *py = 5.0; *pz = 8.5; *pyaw = 0; *ppitch = 0;
     while (fgets(line, sizeof line, f)) {
         int t;
@@ -92,6 +99,14 @@ static int load_fixture(const char *path, long long *seed, long long *wtime,
         if (sscanf(line, "dim %d", dim) == 1) continue;
         if (sscanf(line, "player %lf %lf %lf %f %f", px, py, pz, pyaw, ppitch) == 5)
             continue;
+        {
+            DetPl p;
+            if (sscanf(line, "pl %d %lf %lf %lf %f %f",
+                       &p.t, &p.x, &p.y, &p.z, &p.yaw, &p.pitch) == 6) {
+                if (*npl < DET_PL_MAX) pl[(*npl)++] = p;
+                continue;
+            }
+        }
         if (sscanf(line, "atk %d", &t) == 1) {
             if (*natk < DET_ATK_MAX) atk[(*natk)++] = t;
             continue;
@@ -172,7 +187,8 @@ static int load_fixture(const char *path, long long *seed, long long *wtime,
 
 int main(int argc, char **argv) {
     DetEnt ents[DET_MAX];
-    int nents = 0, nticks = 0, i, t, natk = 0, atk[DET_ATK_MAX], dim = 0;
+    DetPl pl[DET_PL_MAX];
+    int nents = 0, nticks = 0, i, t, natk = 0, atk[DET_ATK_MAX], dim = 0, npl = 0, pli = 0;
     long long seed = 0, wtime = 6000;
     double px, py, pz;
     float pyaw, ppitch;
@@ -191,7 +207,7 @@ int main(int argc, char **argv) {
         return 2;
     }
     if (!load_fixture(argv[1], &seed, &wtime, &px, &py, &pz, &pyaw, &ppitch,
-                      &nticks, ents, &nents, atk, &natk, &dim))
+                      &nticks, ents, &nents, atk, &natk, &dim, pl, &npl))
         return 2;
     if (nents <= 0) { fprintf(stderr, "detmob_gate: no entities in fixture\n"); return 2; }
     if (nticks <= 0) nticks = 1;
@@ -298,12 +314,61 @@ int main(int argc, char **argv) {
         int slot, a;
         idle.attack = 0;
         for (a = 0; a < natk; ++a) if (atk[a] == t) idle.attack = 1;
+        while (pli < npl && pl[pli].t <= t) {
+            px = pl[pli].x; py = pl[pli].y; pz = pl[pli].z;
+            pyaw = pl[pli].yaw; ppitch = pl[pli].pitch;
+            ++pli;
+            gm_world_ensure(r.world, floordiv16((int)floor(px)),
+                            floordiv16((int)floor(pz)), 3);
+        }
         gm_runtime_set_pose(&r, px, py, pz, pyaw, ppitch);
         gm_runtime_tick(&r, idle);
         s = r.mobs.current ? &r.mobs.b : &r.mobs.a;
         for (slot = 1; slot < EW_MAX_ENTITIES; ++slot) {
             if (!s->alive[slot]) continue;
             if (!det_track(s->type[slot])) continue;
+            /* TEMP dump: first_div sites. Strip before commit. */
+            if ((s->id[slot] == 3872 && t >= 15 && t <= 40) ||
+                (s->id[slot] == 3339 && t <= 40) ||
+                (s->id[slot] == 386 && t >= 125 && t <= 145) ||
+                (s->id[slot] == 3693 && t >= 200 && t <= 230)) {
+                int k, nn = r.mobs.det_nav_n[slot];
+                fprintf(stderr,
+                    "DUMP t=%d eid=%d typ=%d og=%d x=%.17g y=%.17g z=%.17g "
+                    "yaw=%.9g pitch=%.9g vx=%.17g vz=%.17g tasks=%u plen=%u "
+                    "pt=(%.17g,%.17g,%.17g) follow=%.9g nav_n=%d nav_i=%d "
+                    "skel=%u tgt=%u seed=%llu\n",
+                    t, s->id[slot], s->type[slot], s->on_ground[slot],
+                    s->x[slot], s->y[slot], s->z[slot],
+                    s->yaw[slot], r.mobs.passive_head_pitch[slot],
+                    s->vx[slot], s->vz[slot],
+                    r.mobs.passive_tasks[slot], s->path_len[slot],
+                    s->path_tx[slot], s->path_ty[slot], s->path_tz[slot],
+                    (double)r.mobs.det_follow[slot],
+                    nn, r.mobs.det_nav_i[slot],
+                    r.mobs.det_skel_melee[slot], r.mobs.det_has_target[slot],
+                    (unsigned long long)r.mobs.ent_jr_seed[slot]);
+                if (nn > 0 && nn <= 48) {
+                    fprintf(stderr, "  path");
+                    for (k = 0; k < nn; ++k)
+                        fprintf(stderr, " (%d,%d,%d)",
+                                r.mobs.det_nav_x[slot][k],
+                                r.mobs.det_nav_y[slot][k],
+                                r.mobs.det_nav_z[slot][k]);
+                    fprintf(stderr, "\n");
+                }
+                if (s->id[slot] == 3872 && t == 20) {
+                    int bx = (int)floor(s->x[slot]), by = (int)floor(s->y[slot]);
+                    int bz = (int)floor(s->z[slot]), dx, dy, dz;
+                    fprintf(stderr, "  blocks around %d %d %d\n", bx, by, bz);
+                    for (dy = -1; dy <= 2; ++dy)
+                        for (dz = -1; dz <= 1; ++dz)
+                            for (dx = -1; dx <= 1; ++dx)
+                                fprintf(stderr, "    %d,%d,%d id=%d\n",
+                                        bx + dx, by + dy, bz + dz,
+                                        gm_world_block(r.world, bx + dx, by + dy, bz + dz));
+                }
+            }
             fprintf(out,
                 "{\"t\":%d,\"eid\":%d,\"x\":%.17g,\"y\":%.17g,\"z\":%.17g,"
                 "\"yaw\":%.9g,\"pitch\":%.9g,\"hyaw\":%.9g,\"ryaw\":%.9g,\"bt\":%d,"

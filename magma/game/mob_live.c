@@ -12,6 +12,7 @@
 #include "path_finder.h"
 
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 
 #define GM_MOB_REACH 2.0
@@ -230,6 +231,9 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->det_strafe_back[slot] = 0;
     m->det_cstate[slot] = -1;
     m->det_raise_arm[slot] = 0;
+    m->det_skel_melee[slot] = 0;
+    m->det_follow[slot] = 0.0f;
+    m->det_box_on[slot] = 0;
     m->fire_ticks[slot] = 0;
     m->despawn_ticks[slot] = 0;
     m->anger[slot] = 0;
@@ -375,6 +379,14 @@ static double pai_attribute_speed(int type) {
     return 0.23000000417232513;
 }
 
+/* SharedMonsterAttributes.FOLLOW_RANGE setBaseValue. EntityLiving default
+ * 16.0; EntityZombie/PigZombie 35.0; EntityBlaze 48.0. Creeper/skeleton keep 16. */
+static float pai_follow_range(int type) {
+    if (type == EW_TYPE_BLAZE) return 48.0f;
+    if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_PIGMAN) return 35.0f;
+    return 16.0f;
+}
+
 static double pai_panic_multiplier(int type) {
     if (type == EW_TYPE_COW) return 2.0;
     if (type == EW_TYPE_CHICKEN) return 1.4;
@@ -404,6 +416,11 @@ static double pai_eye_height(int type) {
     if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON) return 1.74;
     if (type == EW_TYPE_CREEPER) return (double)(1.7f * 0.85f);
     return (double)(height * 0.85f);
+}
+
+/* EntityLookHelper.setLookPositionWithEntity: posY + getEyeHeight()F f2d. */
+static double pai_player_eye_y(double py) {
+    return py + (double)(float)PSV_EYE_HEIGHT;
 }
 
 static double pai_watch_range_sq(int type) {
@@ -674,6 +691,13 @@ static void pai_fill_pf(GmWorld *w, const EwStore *s, int i, int *ox, int *oy, i
     pai_pf.ent.posY = s->y[i] - (double)(*oy);
     pai_pf.ent.posZ = s->z[i] - (double)(*oz);
     pnp_ent_default_priorities(&pai_pf.ent);
+    /* EntityBlaze.<init> setPathPriority: WATER -1, LAVA 8, DANGER/DAMAGE_FIRE 0. */
+    if (s->type[i] == EW_TYPE_BLAZE) {
+        pai_pf.ent.pathPriority[PNT_WATER] = -1.0f;
+        pai_pf.ent.pathPriority[PNT_LAVA] = 8.0f;
+        pai_pf.ent.pathPriority[PNT_DANGER_FIRE] = 0.0f;
+        pai_pf.ent.pathPriority[PNT_DAMAGE_FIRE] = 0.0f;
+    }
 }
 
 static int pai_position_clear(int ox, int oy, int oz,
@@ -895,7 +919,8 @@ static int pai_find_path(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                       (double)((float)bx + 0.5f) - (double)ox,
                       (double)((float)by + 0.5f) - (double)oy,
                       (double)((float)bz + 0.5f) - (double)oz,
-                      m->det_follow[i] > 0.5f ? m->det_follow[i] : 16.0f);
+                      m->det_follow[i] > 0.5f ? m->det_follow[i]
+                                              : pai_follow_range(s->type[i]));
     if (n <= 0) {
         m->det_nav_n[i] = 0;
         return 0;
@@ -1272,11 +1297,12 @@ static int hai_mutex(int task) {
 static double hai_follow(int type) {
     return type == EW_TYPE_ZOMBIE ? 35.0 : 16.0;
 }
-static const int *hai_goals(int type) {
+static const int *hai_goals(int type, int skel_melee) {
     static const int z[] = { HSWIM, HMELEE, HHOME, HVILL, HWAND, HWATCH, HIDLE, -1 };
-    static const int s[] = { HSWIM, HREST, HFLEE, HAVOID, HBOW, HWAND, HWATCH, HIDLE, -1 };
+    static const int s_bow[] = { HSWIM, HREST, HFLEE, HAVOID, HBOW, HWAND, HWATCH, HIDLE, -1 };
+    static const int s_melee[] = { HSWIM, HREST, HFLEE, HAVOID, HMELEE, HWAND, HWATCH, HIDLE, -1 };
     static const int c[] = { HSWIM, HSWELL, HAVOID, HMELEE, HWAND, HWATCH, HIDLE, -1 };
-    if (type == EW_TYPE_SKELETON) return s;
+    if (type == EW_TYPE_SKELETON) return skel_melee ? s_melee : s_bow;
     if (type == EW_TYPE_CREEPER) return c;
     return z;
 }
@@ -1294,7 +1320,7 @@ static int hai_can_use(const GmMobLive *m, int type, int i, int task) {
 static int hai_player_range(const EwStore *s, int i, double px, double py, double pz) {
     double fr = hai_follow(s->type[i]);
     double dx = px - s->x[i], dz = pz - s->z[i];
-    double dy = (py + PSV_EYE_HEIGHT) - (s->y[i] + pai_eye_height(s->type[i]));
+    double dy = pai_player_eye_y(py) - (s->y[i] + pai_eye_height(s->type[i]));
     if (dx * dx + dz * dz > fr * fr) return 0;
     if (fabs(dy) > fr) return 0;
     return 1;
@@ -1353,7 +1379,8 @@ static int hai_try_start(GmMobLive *m, GmWorld *w, EwStore *s, int i, int task,
             ddy = py - s->y[i];
             if (ddx * ddx + ddz * ddz + ddy * ddy > reach) return 0;
         }
-        m->passive_nav_speed[i] = 1.0;
+        /* AbstractSkeleton$1 melee speed 1.2; EntityAIZombieAttack 1.0. */
+        m->passive_nav_speed[i] = type == EW_TYPE_SKELETON ? 1.2 : 1.0;
         m->det_melee_delay[i] = 0;
         m->det_melee_tx[i] = m->det_melee_ty[i] = m->det_melee_tz[i] = 0.0;
         m->det_raise_arm[i] = 0;
@@ -1404,7 +1431,7 @@ static void hai_melee_update(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     double d0, moved;
     --m->det_melee_delay[i];
     see = los_clear(w, s->x[i], s->y[i] + pai_eye_height(s->type[i]), s->z[i],
-                    px, py + PSV_EYE_HEIGHT, pz);
+                    px, pai_player_eye_y(py), pz);
     d0 = (px - s->x[i]) * (px - s->x[i]) + (py - s->y[i]) * (py - s->y[i])
        + (pz - s->z[i]) * (pz - s->z[i]);
     moved = (px - m->det_melee_tx[i]) * (px - m->det_melee_tx[i])
@@ -1428,7 +1455,7 @@ static void hai_melee_update(GmMobLive *m, GmWorld *w, EwStore *s, int i,
         else if (d0 > 256.0) m->det_melee_delay[i] += 5;
         if (!pai_find_path(m, w, s, i, px, py, pz))
             m->det_melee_delay[i] += 15;
-        m->passive_nav_speed[i] = 1.0;
+        m->passive_nav_speed[i] = s->type[i] == EW_TYPE_SKELETON ? 1.2 : 1.0;
     }
     ++m->det_raise_arm[i];
 }
@@ -1438,7 +1465,7 @@ static void hai_bow_update(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     int see;
     double d0;
     see = los_clear(w, s->x[i], s->y[i] + pai_eye_height(s->type[i]), s->z[i],
-                    px, py + PSV_EYE_HEIGHT, pz);
+                    px, pai_player_eye_y(py), pz);
     d0 = (px - s->x[i]) * (px - s->x[i])
        + (py - s->y[i]) * (py - s->y[i])
        + (pz - s->z[i]) * (pz - s->z[i]);
@@ -1488,7 +1515,7 @@ static void hai_swell_update(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     double dx = px - s->x[i], dy = py - s->y[i], dz = pz - s->z[i];
     double d2 = dx * dx + dy * dy + dz * dz;
     int see = los_clear(w, s->x[i], s->y[i] + pai_eye_height(s->type[i]), s->z[i],
-                        px, py + PSV_EYE_HEIGHT, pz);
+                        px, pai_player_eye_y(py), pz);
     if (!m->det_has_target[i] || d2 > 49.0 || !see) m->det_cstate[i] = -1;
     else m->det_cstate[i] = 1;
 }
@@ -1504,8 +1531,11 @@ static void hai_target_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     else {
         order[n++] = 1;
         order[n++] = 2;
-        if (type == EW_TYPE_ZOMBIE) order[n++] = 4;
-        order[n++] = 8;
+        /* EntityZombie: villager then iron golem. AbstractSkeleton: player only. */
+        if (type == EW_TYPE_ZOMBIE) {
+            order[n++] = 4;
+            order[n++] = 8;
+        }
     }
     for (k = 0; k < n; ++k) {
         unsigned bit = (unsigned)order[k];
@@ -1545,7 +1575,7 @@ static void hai_target_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                 if (jrand_int_bound(pai_jr(m, i), 10) == 0) {
                     if (bit == HT_PLAYER && hai_player_range(s, i, px, py, pz)
                         && los_clear(w, s->x[i], s->y[i] + pai_eye_height(type), s->z[i],
-                                     px, py + PSV_EYE_HEIGHT, pz)) {
+                                     px, pai_player_eye_y(py), pz)) {
                         using |= HT_PLAYER;
                         m->det_has_target[i] = 1;
                     }
@@ -1563,13 +1593,14 @@ static void hai_look(GmMobLive *m, const EwStore *s, int i,
     float yaw_d = 10.0f, pitch_d = 40.0f;
     int looking = 0;
     double lx = 0, ly = 0, lz = 0;
-    if (t & (hai_bit(HMELEE) | hai_bit(HBOW) | hai_bit(HSWELL))) {
+    /* EntityAICreeperSwell.updateTask only setCreeperState; no lookHelper. */
+    if (t & (hai_bit(HMELEE) | hai_bit(HBOW))) {
         looking = 1;
         yaw_d = 30.0f; pitch_d = 30.0f;
-        lx = px; ly = py + PSV_EYE_HEIGHT; lz = pz;
+        lx = px; ly = pai_player_eye_y(py); lz = pz;
     } else if (t & hai_bit(HWATCH)) {
         looking = 1;
-        lx = px; ly = py + PSV_EYE_HEIGHT; lz = pz;
+        lx = px; ly = pai_player_eye_y(py); lz = pz;
     } else if (t & hai_bit(HIDLE)) {
         looking = 1;
         lx = s->x[i] + m->passive_idle_x[i];
@@ -1632,7 +1663,7 @@ static void hai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                      int *moving, int *jump, int *wandering, int *swim_jump,
                      double *nav_speed) {
     int type = s->type[i];
-    const int *goals = hai_goals(type);
+    const int *goals = hai_goals(type, m->det_skel_melee[i]);
     int setup, g;
     if (type == EW_TYPE_CREEPER) {
         m->creeper_fuse[i] += (int)m->det_cstate[i];
@@ -1679,8 +1710,9 @@ static void hai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
         hai_bow_update(m, w, s, i, px, py, pz);
     if (m->passive_tasks[i] & hai_bit(HSWELL))
         hai_swell_update(m, w, s, i, px, py, pz);
+    /* PathNavigate.onUpdateNavigation: pathFollow iff canNavigate, then setMoveTo. */
     if (pai_det() && m->det_nav_n[i])
-        pai_nav_follow(m, w, s, i);
+        pai_nav_update(m, w, s, i);
     else if (s->path_len[i] && pai_path_done(w, s, i)) s->path_len[i] = 0;
     *moving = s->path_len[i] != 0;
     if ((m->passive_tasks[i] & hai_bit(HBOW)) && m->det_strafe_time[i] > -1)
@@ -1756,8 +1788,8 @@ int gm_mobs_spawn(GmMobLive *m, int type, double x, double y, double z) {
     return gm_mobs_spawn_sized(m, type, x, y, z, sz);
 }
 
-/* java.util.Random.nextGaussian (Box-Muller). Spare is unused: det hydrates
- * Entity.rand from recstart seed48, not from this spawn-time LCG. */
+/* java.util.Random.nextGaussian (Box-Muller). Spare unused: applied from
+ * seed48_init, not the live cursor. */
 static double pai_jrand_gaussian(JavaRandom *r) {
     double v1, v2, s, m;
     do {
@@ -1805,17 +1837,36 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
     m->passive_render_yaw[slot] = render_yaw;
     m->passive_prev_head_yaw[slot] = prev_head_yaw;
     m->passive_body_ticks[slot] = body_ticks;
-    /* EntityLiving.onInitialSpawn: FOLLOW_RANGE 16 * (1 + nextGaussian()*0.05)
-     * AttributeModifier op 1. Mixin reseeds at Entity ctor RETURN = seed48_init;
-     * living ctors use Math.random, so this gaussian is the first Entity.rand
-     * draw. */
-    m->det_follow[slot] = 16.0f;
-    if (seed48_init) {
+    /* FOLLOW_RANGE: species setBaseValue. EntityLiving.onInitialSpawn then
+     * applyModifier("Random spawn bonus", nextGaussian()*0.05, op=1).
+     * CommandSummon with NBT (istore 15 / ifne skip) does not call it, and
+     * that draw is not on the live cursor (mixin reseeds at ctor RETURN;
+     * living ctors use Math.random). Det tapes: worldgen passives got the
+     * bonus; /summon NBT hostiles and persist sheep did not. Apply from
+     * seed48_init without touching the live cursor. */
+    m->det_follow[slot] = pai_follow_range(type);
+    if (seed48_init && (type == EW_TYPE_SHEEP || type == EW_TYPE_PIG ||
+                        type == EW_TYPE_COW || type == EW_TYPE_CHICKEN)) {
         JavaRandom jr;
         double g;
         jr.seed = seed48_init & MC_JR_MASK;
         g = pai_jrand_gaussian(&jr);
-        m->det_follow[slot] = (float)(16.0 * (1.0 + g * 0.05));
+        m->det_follow[slot] = (float)((double)m->det_follow[slot] * (1.0 + g * 0.05));
+    }
+    /* AbstractSkeleton.<init> calls setCombatTask with an empty hand -> melee.
+     * onInitialSpawn (skipped here) would equip a bow and switch. Tape bow
+     * bit 256 is the only override. Anonymous AbstractSkeleton$1 is melee
+     * even when the recorder writes tasks=0 (getSimpleName empty). */
+    m->det_skel_melee[slot] = (type == EW_TYPE_SKELETON && (tasks & 256u) == 0) ? 1 : 0;
+    /* Entity.setPosition: float f = width/2.0F then f2d. Persist so later
+     * ticks do not rebuild AABB from pos ± width/2 (1 ULP vs Entity.move). */
+    {
+        float bw, bh, hf;
+        pai_size(type, &bw, &bh);
+        hf = bw / 2.0f;
+        m->det_box[slot] = mc_aabb_make(x - (double)hf, y, z - (double)hf,
+                                        x + (double)hf, y + (double)bh, z + (double)hf);
+        m->det_box_on[slot] = 1;
     }
     if (eid >= m->next_id) m->next_id = eid + 1;
     if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN)
@@ -1839,6 +1890,8 @@ void gm_mobs_det_hydrate_hostile(GmMobLive *m, int slot,
     m->det_strafe_cw[slot] = scw ? 1 : 0;
     m->det_strafe_back[slot] = sback ? 1 : 0;
     m->det_cstate[slot] = (signed char)cstate;
+    if (now_store(m)->type[slot] == EW_TYPE_SKELETON && (stime >= 0 || atime >= 0))
+        m->det_skel_melee[slot] = 0;
 }
 
 void gm_mobs_det_rng_extra(GmMobLive *m, int slot, int have_gauss, double gauss,
@@ -1848,7 +1901,16 @@ void gm_mobs_det_rng_extra(GmMobLive *m, int slot, int have_gauss, double gauss,
     m->ent_jr_gauss[slot] = gauss;
     m->blaze_hot[slot] = height_off_time;
     m->blaze_hof[slot] = height_off;
-    if (persist) m->det_persist[slot] = 1;
+    if (persist) {
+        m->det_persist[slot] = 1;
+        /* /summon {PersistenceRequired} skips onInitialSpawn. Undo the
+         * worldgen-passive FOLLOW_RANGE bonus if det_place applied one. */
+        if (now_store(m)->type[slot] == EW_TYPE_SHEEP ||
+            now_store(m)->type[slot] == EW_TYPE_PIG ||
+            now_store(m)->type[slot] == EW_TYPE_COW ||
+            now_store(m)->type[slot] == EW_TYPE_CHICKEN)
+            m->det_follow[slot] = pai_follow_range(now_store(m)->type[slot]);
+    }
     if (anger > 0) m->anger[slot] = anger;
 }
 
@@ -2089,9 +2151,16 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
          (pai_det() && (pai_det_ai(s->type[i]) || hai_ok(s->type[i])))) && moving) {
         if (pai_det()) {
             double ddx = s->path_tx[i] - s->x[i];
+            double ddy = s->path_ty[i] - s->y[i];
             double ddz = s->path_tz[i] - s->z[i];
-            if (ddx * ddx + ddz * ddz > 1.0e-8)
+            /* EntityMoveHelper MOVE_TO: d3 = dx^2+dy^2+dz^2; ldc2_w 2.500000277905201E-7. */
+            if (ddx * ddx + ddy * ddy + ddz * ddz >= 2.500000277905201e-7) {
                 intent.yaw = pai_limit_angle(s->yaw[i], pai_atan2_yaw(ddz, ddx), 90.0f);
+            } else {
+                /* setMoveForward(0); return; yaw unchanged. */
+                moving = 0;
+                intent.yaw = s->yaw[i];
+            }
         } else {
             intent.yaw = pai_update_rotation(s->yaw[i], intent.yaw, 90.0f);
         }
@@ -2108,6 +2177,9 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
         liv.base.phys.box = mc_aabb_make(s->x[i] - w * 0.5, s->y[i], s->z[i] - w * 0.5,
                                          s->x[i] + w * 0.5, s->y[i] + h, s->z[i] + w * 0.5);
     }
+    /* Entity.move keeps the swept AABB. Rebuild from pos is 1 ULP vs Java. */
+    if (pai_det() && m->det_box_on[i])
+        liv.base.phys.box = m->det_box[i];
     if (gm_passive(s->type[i]) ||
         (pai_det() && (pai_det_ai(s->type[i]) || hai_ok(s->type[i])))) {
         /* EntityMoveHelper MOVE_TO:
@@ -2183,6 +2255,10 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
         liv.base.phys.motionZ *= drag;
         if (!liv.base.hasNoGravity) liv.base.phys.motionY -= 0.02;
         ehs_store_living(s, i, &liv);
+        if (pai_det()) {
+            m->det_box[i] = liv.base.phys.box;
+            m->det_box_on[i] = 1;
+        }
         return;
     }
     float slip = 0.6f;
@@ -2200,8 +2276,23 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
                                 liv.base.phys.motionY, liv.base.phys.motionZ);
     q.minY -= liv.base.phys.stepHeight; q.maxY += liv.base.phys.stepHeight;
     int n = collect_blocks(w, &q, blocks, GM_MOB_BLOCKS);
+    if (pai_det() && s->id[i] == 386 && s->z[i] > 127.67 && s->z[i] < 127.79) {
+        int bx = mc_floor(liv.base.phys.posX);
+        int by = mc_floor(liv.base.phys.box.minY) - 1;
+        int bz = mc_floor(liv.base.phys.posZ);
+        fprintf(stderr,
+            "TRAVEL eid=386 z=%.17g yaw=%.9g mf=%.9g lf=%.9g slip=%.9g og=%d "
+            "vx=%.17g vz=%.17g block=%d,%d,%d id=%d nblk=%d\n",
+            s->z[i], liv.base.rotationYaw, liv.moveForward, liv.landMovementFactor,
+            slip, liv.base.phys.onGround, liv.base.phys.motionX, liv.base.phys.motionZ,
+            bx, by, bz, gm_world_block(w, bx, by, bz), n);
+    }
     eb_tick_living(&liv, slip, 0, blocks, n, st);
     ehs_store_living(s, i, &liv);
+    if (pai_det()) {
+        m->det_box[i] = liv.base.phys.box;
+        m->det_box_on[i] = 1;
+    }
 }
 
 static int alive_count(const GmMobLive *m,const EwStore *s) {
