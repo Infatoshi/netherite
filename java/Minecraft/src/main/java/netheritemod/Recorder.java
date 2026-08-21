@@ -2145,6 +2145,19 @@ public class Recorder {
         } catch (Throwable ig) {}
         return dflt;
     }
+    private static boolean detReflectBool(Object o, String name) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getBoolean(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return false;
+    }
     private static double detReflectDouble(Object o, String name, double dflt) {
         try {
             Class<?> c = o.getClass();
@@ -2197,7 +2210,9 @@ public class Recorder {
         double px = pl == null ? 0.0 : pl.posX;
         double py = pl == null ? 0.0 : pl.posY;
         double pz = pl == null ? 0.0 : pl.posZ;
-        double r2 = 48.0 * 48.0;
+        /* 64: ambient hostiles sit ~46 blocks from the parked player; wander
+         * can push them past the old 48-block snapshot sphere. */
+        double r2 = 64.0 * 64.0;
         StringBuilder sb = new StringBuilder(256);
         sb.append('[');
         int n = 0;
@@ -2243,6 +2258,23 @@ public class Recorder {
                     idle = detReflectInt(en.action, "idleTime", 0);
                     idleX = detReflectDouble(en.action, "lookX", 0.0);
                     idleZ = detReflectDouble(en.action, "lookZ", 0.0);
+                } else if ("EntityAIZombieAttack".equals(cn)
+                        || "EntityAIAttackMelee".equals(cn)) {
+                    tasks |= 64;
+                } else if ("EntityAICreeperSwell".equals(cn)) {
+                    tasks |= 128;
+                } else if ("EntityAIAttackRangedBow".equals(cn)) {
+                    tasks |= 256;
+                } else if ("EntityAIRestrictSun".equals(cn)) {
+                    tasks |= 512;
+                } else if ("EntityAIFleeSun".equals(cn)) {
+                    tasks |= 1024;
+                } else if ("EntityAIAvoidEntity".equals(cn)) {
+                    tasks |= 2048;
+                } else if ("EntityAIMoveTowardsRestriction".equals(cn)) {
+                    tasks |= 4096;
+                } else if ("EntityAIMoveThroughVillage".equals(cn)) {
+                    tasks |= 8192;
                 }
             }
         } catch (Throwable ig) {}
@@ -2282,6 +2314,63 @@ public class Recorder {
           .append(",\"iz\":").append(idleZ)
           .append(",\"eat\":").append(eat)
           .append(",\"egg\":").append(egg);
+        /* Hostile hydrate (additive). Absent/0 on passives. */
+        int ttt = 0, ttasks = 0, tgt = 0, fuse = 0, mdelay = 0;
+        int see = 0, stime = -1, atime = -1, scw = 0, sback = 0, cstate = -1;
+        try {
+            net.minecraft.entity.ai.EntityAITasks ts = e.targetTasks;
+            ttt = detReflectInt(ts, "tickCount", 0);
+            for (Object raw : ts.taskEntries) {
+                net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry en =
+                    (net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry) raw;
+                if (!en.using) continue;
+                String cn = en.action.getClass().getSimpleName();
+                if ("EntityAIHurtByTarget".equals(cn)) ttasks |= 1;
+                else if ("EntityAINearestAttackableTarget".equals(cn)) {
+                    Object tc = detReflectObj(en.action, "targetClass");
+                    String tn = (tc instanceof Class) ? ((Class<?>) tc).getSimpleName() : "";
+                    if ("EntityPlayer".equals(tn) || "EntityPlayerMP".equals(tn)) ttasks |= 2;
+                    else if ("EntityVillager".equals(tn)) ttasks |= 4;
+                    else if ("EntityIronGolem".equals(tn)) ttasks |= 8;
+                }
+            }
+            if (e.getAttackTarget() != null) tgt = 1;
+        } catch (Throwable ig) {}
+        try {
+            net.minecraft.entity.ai.EntityAITasks gs = e.tasks;
+            for (Object raw : gs.taskEntries) {
+                net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry en =
+                    (net.minecraft.entity.ai.EntityAITasks.EntityAITaskEntry) raw;
+                if (!en.using) continue;
+                String cn = en.action.getClass().getSimpleName();
+                if ("EntityAIZombieAttack".equals(cn) || "EntityAIAttackMelee".equals(cn))
+                    mdelay = detReflectInt(en.action, "delayCounter", 0);
+                else if ("EntityAIAttackRangedBow".equals(cn)) {
+                    see = detReflectInt(en.action, "seeTime", 0);
+                    stime = detReflectInt(en.action, "strafingTime", -1);
+                    atime = detReflectInt(en.action, "attackTime", -1);
+                    scw = detReflectBool(en.action, "strafingClockwise") ? 1 : 0;
+                    sback = detReflectBool(en.action, "strafingBackwards") ? 1 : 0;
+                }
+            }
+        } catch (Throwable ig) {}
+        if (e instanceof net.minecraft.entity.monster.EntityCreeper) {
+            net.minecraft.entity.monster.EntityCreeper cr =
+                (net.minecraft.entity.monster.EntityCreeper) e;
+            fuse = detReflectInt(cr, "timeSinceIgnited", 0);
+            cstate = cr.getCreeperState();
+        }
+        sb.append(",\"ttt\":").append(ttt)
+          .append(",\"ttasks\":").append(ttasks)
+          .append(",\"tgt\":").append(tgt)
+          .append(",\"fuse\":").append(fuse)
+          .append(",\"mdelay\":").append(mdelay)
+          .append(",\"see\":").append(see)
+          .append(",\"stime\":").append(stime)
+          .append(",\"atime\":").append(atime)
+          .append(",\"scw\":").append(scw)
+          .append(",\"sback\":").append(sback)
+          .append(",\"cstate\":").append(cstate);
         if (full) {
             long us = DetEntityRng.loggedUserSeed(eid, DetEntityRng.userSeed(eid));
             long init = DetEntityRng.loggedInit48(eid, DetEntityRng.seed48Init(us));

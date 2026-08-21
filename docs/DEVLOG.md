@@ -1,5 +1,32 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 detmob-hostile zombie/skeleton/creeper (lane/detmob-hostile)
+
+Same det_entity_rng default-off pin as passives, additive on shared
+files so lane/detmob (passives) can merge first.
+
+Census (`entity_rand_census.tsv` hostile addendum): EntityMob
+living_sound nextInt(1000) lst=-80; zombie/skel pitch 0or2, creeper
+getAmbientSound=null so 0; persist skips despawn nextInt(800); night
+skips sun-burn nextFloat. Dual EntityAITasks (target then goal).
+Zombie 3x nextInt(10) nearest (hurt no-rand, player, villager, golem);
+skeleton 2x; creeper player-then-hurt. Melee canPenalize=false.
+Swell rand-free (fuse += state before AI). Bow: 2x (double)nextFloat
+<0.3D when strafingTime>=20, plus 1 nextFloat shoot pitch. Watch
+range 8. Wander RPG same as passives.
+
+Scenarios (easy, night 18000, persist, doMobSpawning=false):
+detmob_hostile_ambient player 38.5,70,170.5 (~46 blocks, no
+NearestAttackableTarget); detmob_hostile_target hilltop pad, mobs 5-6
+south. Recorder snapshot 64 blocks; extra erng keys ttt/ttasks/tgt/
+fuse/mdelay/see/stime/atime/scw/sback/cstate. Gate `h` fixture lines.
+
+Magma hai_* reuses pai look LUT, body helper, wander RPG,
+PathFinder. Knob-off: test-mob-live sheep onsets 45,330 unchanged.
+
+Tapes recorded on anvil llvmpipe; gate results in the follow-up
+commit.
+
 ## 2026-08-21 detmob round 3 worldgen + walk + panic (lane/detmob)
 
 detmob_gate uses seed-0 `GM_WORLD_DEFAULT` + `gm_world_ensure` (same

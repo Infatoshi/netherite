@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """detmob_gate.py — magma live vs tape pose compare (det_entity_rng=1).
 
-PASS = bit-equal pos/yaw/pitch/hyaw over the window for nearby passives.
+PASS = bit-equal pos/yaw/pitch/hyaw over the window for nearby passives
+and zombie/skeleton/creeper.
 Otherwise prints the first divergent (tick, entity, field) and Entity.rand
 cursor delta. Not wired into `make test`.
 
@@ -30,6 +31,17 @@ PASSIVE = {
     "pig": "pig",
     "chicken": "chicken",
 }
+
+HOSTILE = {
+    "EntityZombie": "zombie",
+    "EntitySkeleton": "skeleton",
+    "EntityCreeper": "creeper",
+    "zombie": "zombie",
+    "skeleton": "skeleton",
+    "creeper": "creeper",
+}
+
+TRACKED = {**PASSIVE, **HOSTILE}
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -95,13 +107,13 @@ def unique_server_rows(rows, stand):
 
 
 def tracked_ids(header, rows):
-    """Passives in the recstart snapshot. Walkers stay in the set (wander tape)."""
+    """Passives + zombie/skeleton/creeper in the recstart snapshot."""
     _ = rows
     ents = header.get("entity_rng") or []
     ids = []
     for e in ents:
         t = e.get("type", "")
-        if t not in PASSIVE:
+        if t not in TRACKED:
             continue
         ids.append(int(e["eid"]))
     return ids
@@ -197,9 +209,10 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
     ]
     body = []
     ground = []
+    hostiles_h = []
     for eid in stand:
         e = hydrate[eid]
-        kind = PASSIVE[e["type"]]
+        kind = TRACKED[e["type"]]
         hyaw = e.get("hyaw", e.get("yaw", 0.0))
         ryaw = e.get("ryaw", hyaw)
         hp = e.get("hp", 0.0)
@@ -230,10 +243,29 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
             ground.append("g {eid} {bx} {by} {bz} {ids}".format(
                 eid=eid, bx=bx, by=by, bz=bz,
                 ids=" ".join(str(v) for v in ids)))
+        if e.get("type", "") in HOSTILE:
+            hostiles_h.append(
+                "h {eid} {ttt} {ttasks} {tgt} {fuse} {mdelay} "
+                "{see} {stime} {atime} {scw} {sback} {cstate}".format(
+                    eid=eid,
+                    ttt=int(e.get("ttt", 0)),
+                    ttasks=int(e.get("ttasks", 0)),
+                    tgt=int(e.get("tgt", 0)),
+                    fuse=int(e.get("fuse", 0)),
+                    mdelay=int(e.get("mdelay", 0)),
+                    see=int(e.get("see", 0)),
+                    stime=int(e.get("stime", -1)),
+                    atime=int(e.get("atime", -1)),
+                    scw=int(e.get("scw", 0)),
+                    sback=int(e.get("sback", 0)),
+                    cstate=int(e.get("cstate", -1)),
+                )
+            )
         n += 1
     lines.append(f"n {n}")
     lines.extend(body)
     lines.extend(ground)
+    lines.extend(hostiles_h)
     for mag_t in atk_ticks or []:
         lines.append(f"atk {int(mag_t)}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -380,7 +412,7 @@ def main(argv: list[str]) -> int:
         return 2
     stand = tracked_ids(header, rows)
     if not stand:
-        print("BLOCKED  no passives (cow/sheep/pig/chicken) in header entity_rng")
+        print("BLOCKED  no tracked living (passives or zombie/skeleton/creeper) in header entity_rng")
         return 2
     series = unique_server_rows(rows, stand)
     if len(series) < 2:
@@ -400,7 +432,7 @@ def main(argv: list[str]) -> int:
     n, n_ground = write_fixture(fixture, header, hydrate, n_ticks, stand, atk_ticks)
     print(
         f"tape {tape.name}: {len(rows)} client ticks, {len(series)} unique server "
-        f"snaps, {n_ticks} magma ticks, {n} passives {stand}, "
+        f"snaps, {n_ticks} magma ticks, {n} tracked {stand}, "
         f"ground_stencil={n_ground}, atk_ticks={atk_ticks}"
     )
     sh = REPO / "magma" / "game" / "detmob_gate.sh"
@@ -425,7 +457,7 @@ def main(argv: list[str]) -> int:
             f"walked eid={who} xz={dist:.6g}" if dist >= 0.05 else "standing"
         )
         print(
-            f"PASS  bit-equal pos/yaw/pitch/hyaw for {n} passives "
+            f"PASS  bit-equal pos/yaw/pitch/hyaw for {n} tracked "
             f"over {n_ticks} server ticks  {walk_s}"
         )
         return 0

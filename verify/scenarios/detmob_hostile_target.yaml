@@ -1,0 +1,49 @@
+# detmob hostile targeting: player parked on the seed-0 hilltop pad so
+# NearestAttackableTarget can see the player. Zombie paths in, creeper
+# approaches / swell (rand-free), skeleton bow may strafe (nextFloat).
+# Night, difficulty easy (bow cooldown 40). PersistenceRequired. Player
+# does not move. det_entity_rng=1, doMobSpawning=false. Not a blessed gate tape.
+name: detmob_hostile_target
+world:
+  seed: 0
+  mode: survival
+  type: default
+  structures: false
+determinism:
+  det_entity_rng: true
+setup_commands:
+  - /gamerule doDaylightCycle false
+  - /gamerule doWeatherCycle false
+  - /gamerule doMobSpawning false
+  - /gamerule mobGriefing false
+  - /gamerule doMobLoot false
+  - /gamerule randomTickSpeed 0
+  - /time set 18000
+  - /weather clear
+  - /difficulty easy
+  - /gamemode survival @p
+  - /tp @p 53.5 74 127.5 180 20
+  - /summon pig ~ ~ ~
+  - /summon sheep ~ ~ ~
+  - /summon zombie ~ ~ ~
+  - /summon skeleton ~ ~ ~
+  - /summon creeper ~ ~ ~
+  - /kill @e[type=pig,r=48]
+  - /kill @e[type=sheep,r=48]
+  - /kill @e[type=cow,r=48]
+  - /kill @e[type=chicken,r=48]
+  - /kill @e[type=zombie,r=48]
+  - /kill @e[type=skeleton,r=48]
+  - /kill @e[type=creeper,r=48]
+  - /summon zombie 53.5 74 122.5 {IsBaby:0b,PersistenceRequired:1b}
+  - /summon creeper 51.5 74 124.5 {PersistenceRequired:1b}
+  - /summon skeleton 52.5 74 121.5 {PersistenceRequired:1b}
+  - /entitydata @e[type=zombie,r=48] {IsBaby:0b}
+  - /tp @p 53.5 74 127.5 180 20
+setup_settle_ticks: 10
+duration_ticks: 400
+frames_every: 0
+input:
+  segments:
+    - seconds: 20.0
+known_divergences: []

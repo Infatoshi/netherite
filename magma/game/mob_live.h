@@ -92,6 +92,21 @@ typedef struct {
     short det_nav_z[EW_MAX_ENTITIES][48];
     unsigned char det_nav_n[EW_MAX_ENTITIES];
     unsigned char det_nav_i[EW_MAX_ENTITIES];
+    /* det_entity_rng hostile hydrate (zombie/skeleton/creeper). Unused off-knob. */
+    int det_target_tick[EW_MAX_ENTITIES];
+    unsigned int det_target_tasks[EW_MAX_ENTITIES];
+    unsigned char det_has_target[EW_MAX_ENTITIES];
+    int det_melee_delay[EW_MAX_ENTITIES];
+    double det_melee_tx[EW_MAX_ENTITIES];
+    double det_melee_ty[EW_MAX_ENTITIES];
+    double det_melee_tz[EW_MAX_ENTITIES];
+    int det_see_time[EW_MAX_ENTITIES];
+    int det_strafe_time[EW_MAX_ENTITIES];
+    int det_bow_attack_time[EW_MAX_ENTITIES];
+    unsigned char det_strafe_cw[EW_MAX_ENTITIES];
+    unsigned char det_strafe_back[EW_MAX_ENTITIES];
+    signed char det_cstate[EW_MAX_ENTITIES];
+    int det_raise_arm[EW_MAX_ENTITIES];
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */
@@ -121,6 +136,10 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
                       unsigned tasks, int watch, int idle, double idle_x, double idle_z,
                       int eat, int egg, int on_ground, float render_yaw, float prev_head_yaw,
                       int body_ticks);
+/* Additive hostile hydrate after gm_mobs_det_place. No-op for passives. */
+void gm_mobs_det_hydrate_hostile(GmMobLive *m, int slot,
+                                int ttt, unsigned ttasks, int tgt, int fuse, int mdelay,
+                                int see, int stime, int atime, int scw, int sback, int cstate);
 /* Spawn with slime/magma size (1,2,4). Other types ignore size. */
 int gm_mobs_spawn_sized(GmMobLive *m, int type, double x, double y, double z, int size);
 /* Returns nonzero when attack is aimed at a mob, including cooldown ticks. */
