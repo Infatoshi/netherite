@@ -227,18 +227,36 @@ void gm_hand_set_env(const CrRgba *lightmap, float sky, float blk,
 }
 
 /* RenderHelper.enableStandardItemLighting under rotateArroundXAndY:
- * ambient 0.4 plus two 0.6-diffuse directional lights at
- * normalize(+-0.2, 1.0, -+0.7), transformed by the modelview
- * Rx(pitch)*Ry(yaw) active when the lights are set; GL clamps the summed
- * vertex light at 1. n is the face normal in eye space. */
+ * LIGHT0/1 are Java Vec3d(±0.20000000298023224, 1, ∓0.699999988079071)
+ * normalized in double then uploaded as floats. Lights are specified with
+ * modelview Rx(pitch)*Ry(yaw); GL clamps the summed vertex light at 1.
+ * n is the face normal in eye space.
+ *
+ * Mesa/llvmpipe (ui_hud capture: LIBGL_ALWAYS_SOFTWARE) quantizes
+ * light*material to unorm8 before the n·L scale, same packing as
+ * player_preview.c:
+ *   amb_u8  = round(0.4*255) = 102;  (102*255+128)>>8 = 102 → 102/255
+ *   diff_u8 = round(0.6*255) = 153;  (153*255+128)>>8 = 152 → 152/255
+ * Raw 0.6 float leaves first-person faces ~1-2 LSB high vs Mesa goldens. */
 static float hand_diffuse(CrVec3 n) {
-    /* normalize(0.2, 1.0, -0.7): length sqrt(0.04+1+0.49)=sqrt(1.53) */
-    const float il = 1.0f / sqrtf(1.53f);
-    float l0[3] = { 0.2f * il, 1.0f * il, -0.7f * il };
-    float l1[3] = { -0.2f * il, 1.0f * il, 0.7f * il };
+    static int init = 0;
+    static float l0[3], l1[3];
+    static const float AMB = 102.0f / 255.0f;
+    static const float DIFF = 152.0f / 255.0f;
+    if (!init) {
+        const double lx = 0.20000000298023224, ly = 1.0, lz = -0.699999988079071;
+        const double inv = 1.0 / sqrt(lx * lx + ly * ly + lz * lz);
+        l0[0] = (float)(lx * inv);
+        l0[1] = (float)(ly * inv);
+        l0[2] = (float)(lz * inv);
+        l1[0] = -l0[0];
+        l1[1] = l0[1];
+        l1[2] = -l0[2];
+        init = 1;
+    }
     float yc = cosf(g_env_yaw * D2R), ys = sinf(g_env_yaw * D2R);
     float pc = cosf(g_env_pitch * D2R), ps = sinf(g_env_pitch * D2R);
-    float sum = 0.4f;
+    float sum = AMB;
     for (int i = 0; i < 2; ++i) {
         const float *L = i ? l1 : l0;
         /* Ry(yaw) then Rx(pitch), GL glRotatef conventions. */
@@ -247,7 +265,7 @@ static float hand_diffuse(CrVec3 n) {
         float y = pc * L[1] - ps * z;
         z = ps * L[1] + pc * z;
         float d = n.x * x + n.y * y + n.z * z;
-        if (d > 0.0f) sum += 0.6f * d;
+        if (d > 0.0f) sum += DIFF * d;
     }
     return sum > 1.0f ? 1.0f : sum;
 }
@@ -858,6 +876,9 @@ static void hand_raster(CrFramebuffer *fb, CrVertex *verts, int nv,
     sh.fog_color = fog;
     sh.alpha_test = cutout ? 1 : 0;
     sh.layer = cutout ? CR_LAYER_CUTOUT : CR_LAYER_SOLID;
+    /* Mesa/llvmpipe DynamicTexture (int)(c*255). ui_hud goldens are captured
+     * with LIBGL_ALWAYS_SOFTWARE; terrain tapes keep the default round. */
+    sh.color_trunc = 1;
 
     int ntris = cr_transform(verts, nv, NULL, 0, &cam, fb->w, fb->h,
                              g_tris, HAND_MAX_VERTS * 2);

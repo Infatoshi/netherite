@@ -478,7 +478,16 @@ rung4-verify:
 BLAZE_SRCS = ../blaze/env/blaze_cpu.c ../blaze/env/blaze_snapshot.c
 BLAZE_PARITY = ../blaze/core/port_parity.h
 ifeq ($(shell uname -s),Darwin)
-LIBOMP_PREFIX := $(shell ls -d /opt/homebrew/opt/libomp /usr/local/opt/libomp 2>/dev/null | head -1)
+# Prefer Homebrew libomp; avoid `ls` (may inject color codes into Make vars).
+ifeq ($(wildcard /opt/homebrew/opt/libomp/include/omp.h),)
+  ifeq ($(wildcard /usr/local/opt/libomp/include/omp.h),)
+    LIBOMP_PREFIX :=
+  else
+    LIBOMP_PREFIX := /usr/local/opt/libomp
+  endif
+else
+  LIBOMP_PREFIX := /opt/homebrew/opt/libomp
+endif
 BLAZE_OMP ?= -Xpreprocessor -fopenmp -I$(LIBOMP_PREFIX)/include -L$(LIBOMP_PREFIX)/lib -lomp
 else
 BLAZE_OMP ?= -fopenmp

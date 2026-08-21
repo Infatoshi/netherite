@@ -68,6 +68,17 @@ via `--backend`; not run today.
 6/13 logs3, 7/13 t0. Re-run stdout+stderr byte-identical
 (`cda232d472673a35359c62bba571593642bd1b314784a44eb22618d4650804a1`).
 This is the missing native eval harness, not magma transfer (GATES item 2).
+## 2026-08-21 uipix lane
+
+UI-space pixels. Isolation HUD chrome is bit-exact (all CORE_HARD
+`hard_px=0`). Hand use poses stay RESIDUAL: bow/eat goldens are idle-tips
+(C transforms match `ItemRenderer.java`; do not fit). Shield pose matches;
+C-painted mean 1.56 -> 0.75 after Mesa RenderHelper packing in `hand.c`.
+Inventory chrome bit-exact; preview still maxch=1 / 442+323 px. Auto-campaign
+hand-black and hotbar-over-world not replayed. Darwin link: `randtick.o` +
+`gen_prefetch.o` in ui_hud live and gui_candidate; `cr_k14_light_query` stub
+in the isolation candidate. magma/Makefile libomp prefix uses make
+`wildcard`, not `ls` (brew color codes broke `blaze_cpu.so`).
 
 ## 2026-08-21 remaining-to-stop-asking
 
