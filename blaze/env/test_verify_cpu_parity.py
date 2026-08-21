@@ -89,6 +89,36 @@ def test_comparison_is_exact_but_only_for_requested_features():
         real, blaze, "containers") == [("container", 3, 4)]
 
 
+def test_liquid_cells_key_is_exact_on_id_and_position():
+    import numpy as np
+    cells = np.zeros(8, dtype=np.uint16)
+    assert verify.liquid_cells_key(cells) == (0, 0)
+
+    cells[2] = (8 << 4) | 1
+    cells[5] = (11 << 4) | 0
+    n, xor = verify.liquid_cells_key(cells)
+    assert n == 2
+    expect = ((2 << 16) ^ int(cells[2])) ^ ((5 << 16) ^ int(cells[5]))
+    assert xor == expect
+
+    moved = cells.copy()
+    moved[2] = 0
+    moved[3] = (8 << 4) | 1
+    assert verify.liquid_cells_key(moved) != (n, xor)
+
+    changed = cells.copy()
+    changed[2] = (9 << 4) | 1
+    assert verify.liquid_cells_key(changed) != (n, xor)
+
+
+def test_run_seed_parity_require_evidence_defaults_true():
+    import inspect
+    params = inspect.signature(verify.run_seed_parity).parameters
+    assert params["require_evidence"].default is True
+    assert params["track_liquid"].default is False
+    assert params["result"].default is None
+
+
 def test_unsupported_or_unmeasured_feature_is_blocked():
     random_ticks = feature_mask("random_ticks")
     real = make_record(implemented=random_ticks, measured=0)

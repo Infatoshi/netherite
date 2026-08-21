@@ -375,8 +375,64 @@ class Blaze1:
         self.lib.blaze_debug_state(ctypes.c_void_p(self.h), 0, out, 21)
         return list(out)
 
+    def _bind_cam_inputs(self):
+        if getattr(self, "_cam_bound", False):
+            return
+        fn = self.lib.blaze_obs_cam_inputs
+        fn.argtypes = [
+            ctypes.c_void_p, ctypes.c_int,
+            ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_float),
+            ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint16)),
+        ]
+        fn.restype = ctypes.c_int
+        self._cam_bound = True
+
+    def cells_u16(self):
+        """Copy of the live packed region cells. Invalidated by the next tick."""
+        import numpy as np
+        self._bind_cam_inputs()
+        nx = ctypes.c_int()
+        ny = ctypes.c_int()
+        nz = ctypes.c_int()
+        cells = ctypes.POINTER(ctypes.c_uint16)()
+        r = self.lib.blaze_obs_cam_inputs(
+            ctypes.c_void_p(self.h), 0,
+            None, None, None, None, None,
+            None, None, None,
+            ctypes.byref(nx), ctypes.byref(ny), ctypes.byref(nz),
+            ctypes.byref(cells))
+        if r != 0 or not cells:
+            raise RuntimeError("blaze_obs_cam_inputs failed")
+        vol = nx.value * ny.value * nz.value
+        if vol <= 0:
+            raise RuntimeError("blaze region volume is empty")
+        return np.ctypeslib.as_array(cells, shape=(vol,)).copy()
+
     def close(self):
         self.lib.blaze_destroy(ctypes.c_void_p(self.h))
+
+
+def liquid_cells_key(cells_u16):
+    """Fingerprint of liquid cells (ids 8-11): (count, xor of index^state).
+
+    Equal keys mean the same (position, packed state) multiset. Used by the
+    chain-stage emit pass to prove quiescence; a key change is liquid-active.
+    """
+    import numpy as np
+    cells = np.asarray(cells_u16, dtype=np.uint16)
+    ids = cells >> 4
+    mask = (ids >= 8) & (ids <= 11)
+    n = int(np.count_nonzero(mask))
+    if n == 0:
+        return (0, 0)
+    idx = np.flatnonzero(mask).astype(np.uint64)
+    tok = (idx << 16) ^ cells[idx].astype(np.uint64)
+    return (n, int(np.bitwise_xor.reduce(tok)))
 
 
 def first_diff_field(a, b):
@@ -772,17 +828,59 @@ def print_initial_parity(seed, label, real_rec, blaze_rec, features):
 
 
 def run_seed_parity(seed, snap, actions, label, features,
-                    strict_capabilities=False):
+                    strict_capabilities=False, require_evidence=True,
+                    track_liquid=False, result=None):
+    """Lockstep Magma vs Blaze CPU on PARY digests. Existing callers unchanged.
+
+    require_evidence: default True is the --port-parity gate (zero evidence
+    on a requested feature is BLOCKED). False keeps digest equality as the
+    only predicate, so a quiescent fluids fixture can still VERIFY.
+    track_liquid: fingerprint blaze region liquid cells (ids 8-11) at every
+    observation. A change vs INITIAL is recorded; it does not alter status.
+    result: optional dict filled with exact_ticks, first_div, liquid_*.
+    """
     real = None
     cu = None
     real_evidence = {name: False for name in features}
     blaze_evidence = {name: False for name in features}
+    exact_ticks = 0
+    first_div = None
+    liquid0 = None
+    liquid_changed_at = None
+    liquid_n = None
+
+    def out(status):
+        if result is not None:
+            result["status"] = status
+            result["exact_ticks"] = exact_ticks
+            result["first_div"] = first_div
+            result["n_actions"] = len(actions)
+            result["liquid_n"] = liquid_n
+            result["liquid_changed_at"] = liquid_changed_at
+        return status
 
     def note_evidence(real_rec, blaze_rec):
         for name in features:
             idx = PARITY_INDEX[name]
             real_evidence[name] |= bool(real_rec.evidence[idx])
             blaze_evidence[name] |= bool(blaze_rec.evidence[idx])
+
+    def note_liquid(when):
+        nonlocal liquid0, liquid_changed_at, liquid_n
+        if not track_liquid or liquid_changed_at is not None:
+            return
+        key = liquid_cells_key(cu.cells_u16())
+        if liquid0 is None:
+            liquid0 = key
+            liquid_n = key[0]
+            print(f"  seed {seed} [{label}] liquid fingerprint n={key[0]} "
+                  f"xor=0x{key[1]:016x}")
+            return
+        if key != liquid0:
+            liquid_changed_at = when
+            print(f"  seed {seed} [{label}] liquid-active at {when}: "
+                  f"n {liquid0[0]}->{key[0]} "
+                  f"xor 0x{liquid0[1]:016x}->0x{key[1]:016x}")
 
     try:
         cu = Blaze1(snap, port_parity=True)
@@ -794,12 +892,14 @@ def run_seed_parity(seed, snap, actions, label, features,
                 print(f"  seed {seed} [{label}] BLOCKED before stepping: "
                       "Blaze lacks requested capabilities "
                       f"{parity_mask_names(unsupported)}")
-                return BLOCKED
+                first_div = "INITIAL"
+                return out(BLOCKED)
             if missing_requirements:
                 print(f"  seed {seed} [{label}] BLOCKED before stepping: "
                       "snapshot requires unsupported capabilities "
                       f"{parity_mask_names(missing_requirements)}")
-                return BLOCKED
+                first_div = "INITIAL"
+                return out(BLOCKED)
 
         real = RealEnv(seed, snap, port_parity=True)
         cu.emit(1)
@@ -808,13 +908,15 @@ def run_seed_parity(seed, snap, actions, label, features,
         print_initial_parity(
             seed, label, real_parity, blaze_parity, features)
         note_evidence(real_parity, blaze_parity)
+        note_liquid("INITIAL")
         status, detail, _ = parity_pair_status(
             real_parity, blaze_parity, features)
         if status != VERIFIED:
+            first_div = "INITIAL"
             print(f"  seed {seed} [{label}] "
                   f"{'BLOCKED' if status == BLOCKED else 'FAILED'} "
                   f"at observation 0: {detail}")
-            return status
+            return out(status)
 
         for observation, act in enumerate(actions, 1):
             real_obs = real.step(act)
@@ -822,9 +924,11 @@ def run_seed_parity(seed, snap, actions, label, features,
             real_parity = real.parity_rec
             blaze_parity = cu.parity()
             note_evidence(real_parity, blaze_parity)
+            note_liquid(observation - 1)
             status, detail, subsystem = parity_pair_status(
                 real_parity, blaze_parity, features)
             if status != VERIFIED:
+                first_div = observation - 1
                 kind = "BLOCKED" if status == BLOCKED else "FAILED"
                 print(f"  seed {seed} [{label}] {kind} at observation "
                       f"{observation} (Magma tick={real_parity.tick}, "
@@ -865,26 +969,32 @@ def run_seed_parity(seed, snap, actions, label, features,
                                 print(f"    {field}: {len(differing)} "
                                       "elements differ; first index "
                                       f"{differing[0]}")
-                return status
+                return out(status)
+            exact_ticks = observation
 
         no_evidence = [
             name for name in features
             if not real_evidence[name] or not blaze_evidence[name]
         ]
-        if no_evidence:
+        if require_evidence and no_evidence:
             for name in no_evidence:
                 print(f"  seed {seed} [{label}] BLOCKED: subsystem {name} "
                       "has zero fixture evidence "
                       f"(Magma={int(real_evidence[name])}, "
                       f"Blaze={int(blaze_evidence[name])})")
-            return BLOCKED
+            return out(BLOCKED)
         print(f"  seed {seed} [{label}]: VERIFIED {len(actions)} ticks "
-              f"for {','.join(features)}")
-        return VERIFIED
+              f"for {','.join(features)}"
+              + ("" if require_evidence else " (evidence not required)"))
+        return out(VERIFIED)
     # The fail-closed gate must classify any ABI/runtime error as FAILED.
     except Exception as exc:  # noqa: BLE001
         print(f"  seed {seed} [{label}] FAILED: port parity unavailable: {exc}")
-        return FAILED
+        if first_div is None:
+            first_div = "INITIAL"
+        if result is not None:
+            result["error"] = str(exc)
+        return out(FAILED)
     finally:
         if real is not None:
             real.close()
