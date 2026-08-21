@@ -7,9 +7,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * Default-off deterministic Entity.rand (lane/detmob). Vanilla 1.11.2 does
  * {@code rand = new Random()} from nanoTime, so two Java runs diverge and magma
  * cannot match ambient AI. When {@link QLaunch#DET_ENTITY_RNG} is on, each
- * Entity constructor gets {@code new Random(userSeed(entityId))} before the
- * UUID draws. Magma reads the logged seed48 from the tape; entity-id order
- * does not need to be derivable.
+ * Entity constructor gets {@code new Random(userSeed(entityId))} at RETURN
+ * (Mixin 0.7.5 cannot Shift-inject before UUID). Magma reads the logged
+ * live seed48 from the tape; entity-id order does not need to be derivable.
  *
  * userSeed is stable but arbitrary. seed48_init is the internal 48-bit LCG
  * cursor after the Random constructor scramble and before any next() call.

@@ -7,8 +7,8 @@
 # Entity.<init>: entityId++; rand=new Random(seed); MathHelper.getRandomUUID = 2x nextLong = 4 next()
 # EntityChicken.<init> after super: nextInt(6000)+6000 -> timeUntilNextEgg
 all	ctor	Random.<init>	0	scramble only; seed48_init = (userSeed ^ 0x5DEECE66D) & ((1<<48)-1)
-all	ctor	MathHelper.getRandomUUID	4	2x nextLong
-chicken	ctor	timeUntilNextEgg	1	nextInt(6000)  [power-of-two bound uses 1 next()]
+all	ctor	MathHelper.getRandomUUID	4	2x nextLong on the VANILLA nanoTime Random (mixin reseeds at Entity ctor RETURN; Mixin 0.7.5 allows only RETURN in a ctor)
+chicken	ctor	timeUntilNextEgg	1	nextInt(6000) after Entity RETURN so this uses the det Random. Magma hydrates live seed48 and skips ctor draws.
 #
 # Every server tick, EntityLiving.onEntityUpdate then EntityLiving.updateEntityActionState
 # then goalSelector.onUpdateTasks, then lookHelper, then (chicken) egg timer.

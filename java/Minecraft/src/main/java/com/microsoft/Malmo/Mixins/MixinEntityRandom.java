@@ -17,8 +17,10 @@ import netheritemod.QLaunch;
 /**
  * Determinism pin (qrl_launch.json determinism.det_entity_rng): replace the
  * nanoTime Entity.rand with {@code new Random(DetEntityRng.userSeed(id))}
- * after entityId is assigned and before MathHelper.getRandomUUID consumes
- * two nextLong draws. Off by default = vanilla new Random().
+ * at Entity constructor RETURN (entityId is assigned). Mixin 0.7.5 forbids
+ * INVOKE+Shift in a ctor; only RETURN is legal. UUID already drew from the
+ * vanilla Random; magma hydrates the live seed48 after construction.
+ * Off by default = vanilla new Random().
  *
  * The previous FIELD redirect targeting Entity.rand:F was a broken Malmo
  * stub (wrong descriptor) and did not run.
@@ -27,10 +29,7 @@ import netheritemod.QLaunch;
 public abstract class MixinEntityRandom {
     @Shadow protected Random rand;
 
-    @Inject(method = "<init>(Lnet/minecraft/world/World;)V",
-            at = @At(value = "INVOKE",
-                     target = "Lnet/minecraft/util/math/MathHelper;getRandomUUID(Ljava/util/Random;)Ljava/util/UUID;",
-                     shift = At.Shift.BEFORE))
+    @Inject(method = "<init>(Lnet/minecraft/world/World;)V", at = @At("RETURN"))
     private void qrl$detEntityRand(World worldIn, CallbackInfo ci) {
         if (!QLaunch.DET_ENTITY_RNG) return;
         Entity self = (Entity) (Object) this;
