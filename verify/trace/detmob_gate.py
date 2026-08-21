@@ -104,13 +104,19 @@ def unique_server_rows(rows, stand):
 
 
 def tracked_ids(header, rows):
-    """Tracked living in the recstart snapshot. Walkers stay in the set."""
+    """Tracked living in the recstart snapshot. Walkers stay in the set.
+
+    DIM-1 fortress spawners can emit extra blazes into the 48-block erng
+    radius. PersistenceRequired marks the summoned ambient subjects.
+    """
     _ = rows
     ents = header.get("entity_rng") or []
     ids = []
     for e in ents:
         t = e.get("type", "")
         if t not in TRACKED:
+            continue
+        if t in ("EntityBlaze", "EntityPigZombie") and int(e.get("pr") or 0) != 1:
             continue
         ids.append(int(e["eid"]))
     return ids

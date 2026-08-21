@@ -38,12 +38,20 @@ setup_qrl:
   - cmd: runcmds
     action:
       cmds:
-        - blockdata -325 56 -102 {RequiredPlayerRange:0}
-        - blockdata -325 56 -215 {RequiredPlayerRange:0}
+        # Replace spawners so the room cannot emit extra blazes into erng.
+        - setblock -325 56 -102 minecraft:nether_brick
+        - setblock -325 56 -215 minecraft:nether_brick
         - kill @e[type=Blaze,r=96]
         - kill @e[type=PigZombie,r=96]
         - summon blaze -291.5 59 -75.5 {PersistenceRequired:1b}
         - summon zombie_pigman -330.5 59 -143.5 {PersistenceRequired:1b}
+        - tp @p -326.5 56 -102.5 90 20
+    settle_ticks: 20
+  - cmd: runcmds
+    action:
+      cmds:
+        - kill @e[type=Blaze,r=20]
+        - kill @e[type=PigZombie,r=20]
         - tp @p -326.5 56 -102.5 90 20
     settle_ticks: 10
 duration_ticks: 840
