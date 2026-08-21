@@ -1,8 +1,9 @@
 /* map_gen_fortress: exact C port of MC 1.11.2 MapGenNetherBridge (nether fortress).
- * StructureNetherBridgePieces piece tree + block placement. Verified verbatim-Java == CPU == CUDA.
- * Harness: synthetic all-NETHERRACK ChunkPrimer, MapGenBase.generate (range=8) + generateStructure
- * for chunk (0,0), dump full 65536-cell primer (%04x). Block-state ids = vanilla numeric ids (meta 0).
- * Netherite-csrc reference adapted; spawn check matches MapGenNetherBridge.canSpawnStructureAtCoords. */
+ * StructureNetherBridgePieces piece tree + block placement.
+ * Piece tree matches 1.11.2: pendingChildren random dequeue, PieceWeight pool
+ * (remove-on-exhaust, theNetherBridgePieceWeight / allowInRow), End.fillSeed,
+ * Corridor chest nextInt(3), setRandomHeight(48, 70), Start RNG continues from
+ * canSpawnStructureAtCoords. */
 #ifndef MC_MAP_GEN_FORTRESS_H
 #define MC_MAP_GEN_FORTRESS_H
 
@@ -17,35 +18,37 @@ enum {
 };
 
 #define FT_RANGE 8
-#define FT_MAX_PIECES 64
+#define FT_MAX_PIECES 128
 #define MAX_STRUCT_PIECES FT_MAX_PIECES
 
 enum {
     FT_P_START = 0, FT_P_STRAIGHT, FT_P_CROSSING, FT_P_CROSSING3, FT_P_STAIRS,
     FT_P_THRONE, FT_P_ENTRANCE, FT_P_CORRIDOR, FT_P_CORRIDOR2, FT_P_CORRIDOR3,
-    FT_P_CORRIDOR4, FT_P_CORRIDOR5, FT_P_NETHER_STALK, FT_P_END
+    FT_P_CORRIDOR4, FT_P_CORRIDOR5, FT_P_NETHER_STALK, FT_P_CROSSING2, FT_P_END
 };
 
 typedef struct { int minX, minY, minZ, maxX, maxY, maxZ; } FtBB;
 
 typedef struct {
-    int type, weight, max_count, cur_count, allow_in_row;
+    int type, weight, max_count, cur_count, allow_in_row, active;
 } FtPieceWeight;
 
 #define FT_P_PRIMARY_COUNT 6
-#define FT_P_SECONDARY_COUNT 6
+#define FT_P_SECONDARY_COUNT 7
 
 typedef struct {
-    int type, coord_base, component_type, has_spawner;
+    int type, coord_base, component_type, has_spawner, chest, fill_seed;
     FtBB bb;
 } FtPiece;
 
 typedef struct {
-    int cx, cz, piece_count, valid;
+    int cx, cz, piece_count, valid, pending_n;
     FtBB total_bb;
     FtPiece pieces[MAX_STRUCT_PIECES];
     FtPieceWeight pri[FT_P_PRIMARY_COUNT];
     FtPieceWeight sec[FT_P_SECONDARY_COUNT];
+    FtPieceWeight *the_weight;
+    int pending[MAX_STRUCT_PIECES];
 } FtStart;
 
 #ifndef MC_CHUNK_PROVIDER_H
@@ -81,6 +84,9 @@ MC_HD MC_NOINLINE static int ftbb_contains(const FtBB *bb,int x,int y,int z){
 MC_HD MC_NOINLINE static void ftbb_expand(FtBB *a,const FtBB *b){
     if(b->minX<a->minX)a->minX=b->minX; if(b->minY<a->minY)a->minY=b->minY; if(b->minZ<a->minZ)a->minZ=b->minZ;
     if(b->maxX>a->maxX)a->maxX=b->maxX; if(b->maxY>a->maxY)a->maxY=b->maxY; if(b->maxZ>a->maxZ)a->maxZ=b->maxZ;
+}
+MC_HD static inline void ftbb_offset(FtBB *bb,int dx,int dy,int dz){
+    bb->minX+=dx; bb->minY+=dy; bb->minZ+=dz; bb->maxX+=dx; bb->maxY+=dy; bb->maxZ+=dz;
 }
 MC_HD static inline int ftbb_above_ground(const FtBB *bb){ return bb && bb->minY>10; }
 MC_HD MC_NOINLINE static int ft_get_x(const FtPiece *p,int x,int z){
@@ -134,30 +140,32 @@ MC_HD MC_NOINLINE static int ft_find_intersect(const FtPiece *ps,int n,const FtB
 
 
 /* ============================================================
- * Nether Fortress -- port of MC 1.7.10 StructureNetherBridgePieces
+ * Nether Fortress -- port of MC 1.11.2 StructureNetherBridgePieces
  * ============================================================ */
 
-/* ---- Piece Weight System ---- */
+/* ---- Piece Weight System (PRIMARY_COMPONENTS / SECONDARY_COMPONENTS) ---- */
 
 MC_HD MC_NOINLINE static void ft_init_primary(FtPieceWeight *w) {
-    w[0] = (FtPieceWeight){ FT_P_STRAIGHT,   30, 0, 0, 1 };
-    w[1] = (FtPieceWeight){ FT_P_CROSSING3,  10, 4, 0, 0 };
-    w[2] = (FtPieceWeight){ FT_P_CROSSING,   10, 4, 0, 0 };
-    w[3] = (FtPieceWeight){ FT_P_STAIRS,     10, 3, 0, 0 };
-    w[4] = (FtPieceWeight){ FT_P_THRONE,      5, 2, 0, 0 };
-    w[5] = (FtPieceWeight){ FT_P_ENTRANCE,    5, 1, 0, 0 };
+    w[0] = (FtPieceWeight){ FT_P_STRAIGHT,   30, 0, 0, 1, 1 };
+    w[1] = (FtPieceWeight){ FT_P_CROSSING3,  10, 4, 0, 0, 1 };
+    w[2] = (FtPieceWeight){ FT_P_CROSSING,   10, 4, 0, 0, 1 };
+    w[3] = (FtPieceWeight){ FT_P_STAIRS,     10, 3, 0, 0, 1 };
+    w[4] = (FtPieceWeight){ FT_P_THRONE,      5, 2, 0, 0, 1 };
+    w[5] = (FtPieceWeight){ FT_P_ENTRANCE,    5, 1, 0, 0, 1 };
 }
 MC_HD MC_NOINLINE static void ft_init_secondary(FtPieceWeight *w) {
-    w[0] = (FtPieceWeight){ FT_P_CORRIDOR5,   25, 0, 0, 1 };
-    w[1] = (FtPieceWeight){ FT_P_CORRIDOR2,    1, 0, 0, 1 };
-    w[2] = (FtPieceWeight){ FT_P_CORRIDOR,     1, 0, 0, 1 };
-    w[3] = (FtPieceWeight){ FT_P_CORRIDOR3,    1, 0, 0, 1 };
-    w[4] = (FtPieceWeight){ FT_P_CORRIDOR4,    1, 0, 0, 1 };
-    w[5] = (FtPieceWeight){ FT_P_NETHER_STALK, 1, 0, 0, 1 };
+    w[0] = (FtPieceWeight){ FT_P_CORRIDOR5,    25, 0, 0, 1, 1 };
+    w[1] = (FtPieceWeight){ FT_P_CROSSING2,    15, 5, 0, 0, 1 };
+    w[2] = (FtPieceWeight){ FT_P_CORRIDOR2,     5,10, 0, 0, 1 };
+    w[3] = (FtPieceWeight){ FT_P_CORRIDOR,      5,10, 0, 0, 1 };
+    w[4] = (FtPieceWeight){ FT_P_CORRIDOR3,    10, 3, 0, 1, 1 };
+    w[5] = (FtPieceWeight){ FT_P_CORRIDOR4,     7, 2, 0, 0, 1 };
+    w[6] = (FtPieceWeight){ FT_P_NETHER_STALK,  5, 2, 0, 0, 1 };
 }
 MC_HD MC_NOINLINE static void ft_reset_weights(FtStart *start) {
     ft_init_primary(start->pri);
     ft_init_secondary(start->sec);
+    start->the_weight = 0;
 }
 
 /* ---- Spawn Check ---- */
@@ -183,8 +191,7 @@ MC_HD MC_NOINLINE static int ft_can_spawn(i64 seed, int cx, int cz) {
 
 /* Forward declarations */
 MC_HD MC_NOINLINE static FtPiece *ft_add_piece(FtStart *start);
-MC_HD MC_NOINLINE static void ft_build_component(FtStart *start, FtPiece *piece,
-                                  JavaRandom *r, int depth);
+MC_HD MC_NOINLINE static void ft_build_component(FtStart *start, int pidx, JavaRandom *r);
 
 MC_HD MC_NOINLINE static FtPiece *ft_add_piece(FtStart *start) {
     if (start->piece_count >= MAX_STRUCT_PIECES) return NULL;
@@ -320,6 +327,7 @@ MC_HD MC_NOINLINE static int ft_create_corridor(FtStart *start, JavaRandom *r,
     p->bb = bb;
     p->coord_base = dir;
     p->component_type = depth;
+    p->chest = jrand_int_bound(r, 3) == 0;
     return 1;
 }
 
@@ -336,6 +344,7 @@ MC_HD MC_NOINLINE static int ft_create_corridor2(FtStart *start, JavaRandom *r,
     p->bb = bb;
     p->coord_base = dir;
     p->component_type = depth;
+    p->chest = jrand_int_bound(r, 3) == 0;
     return 1;
 }
 
@@ -358,7 +367,7 @@ MC_HD MC_NOINLINE static int ft_create_corridor3(FtStart *start, JavaRandom *r,
 MC_HD MC_NOINLINE static int ft_create_corridor4(FtStart *start, JavaRandom *r,
                                    int x, int y, int z, int dir, int depth)
 {
-    FtBB bb = ftbb_component_bb(x, y, z, -1, 0, 0, 5, 7, 5, dir);
+    FtBB bb = ftbb_component_bb(x, y, z, -3, 0, 0, 9, 7, 9, dir);
     if (!ftbb_above_ground(&bb)) return 0;
     if (ft_find_intersect(start->pieces, start->piece_count, &bb) >= 0) return 0;
 
@@ -387,6 +396,23 @@ MC_HD MC_NOINLINE static int ft_create_nether_stalk(FtStart *start, JavaRandom *
     return 1;
 }
 
+MC_HD MC_NOINLINE static int ft_create_crossing2(FtStart *start, JavaRandom *r,
+                                   int x, int y, int z, int dir, int depth)
+{
+    FtBB bb = ftbb_component_bb(x, y, z, -1, 0, 0, 5, 7, 5, dir);
+    if (!ftbb_above_ground(&bb)) return 0;
+    if (ft_find_intersect(start->pieces, start->piece_count, &bb) >= 0) return 0;
+
+    FtPiece *p = ft_add_piece(start);
+    if (!p) return 0;
+    p->type = FT_P_CROSSING2;
+    p->bb = bb;
+    p->coord_base = dir;
+    p->component_type = depth;
+    (void)r;
+    return 1;
+}
+
 MC_HD MC_NOINLINE static int ft_create_end(FtStart *start, JavaRandom *r,
                              int x, int y, int z, int dir, int depth)
 {
@@ -400,6 +426,7 @@ MC_HD MC_NOINLINE static int ft_create_end(FtStart *start, JavaRandom *r,
     p->bb = bb;
     p->coord_base = dir;
     p->component_type = depth;
+    p->fill_seed = jrand_int(r);
     return 1;
 }
 
@@ -419,6 +446,7 @@ MC_HD MC_NOINLINE static int ft_create_by_type(FtStart *start, JavaRandom *r,
         case FT_P_CORRIDOR3:    return ft_create_corridor3(start, r, x, y, z, dir, depth);
         case FT_P_CORRIDOR4:    return ft_create_corridor4(start, r, x, y, z, dir, depth);
         case FT_P_NETHER_STALK: return ft_create_nether_stalk(start, r, x, y, z, dir, depth);
+        case FT_P_CROSSING2:    return ft_create_crossing2(start, r, x, y, z, dir, depth);
         default: return 0;
     }
 }
@@ -468,162 +496,169 @@ MC_HD MC_NOINLINE static void ft_get_z_exit(const FtPiece *p, int offY, int offZ
     }
 }
 
-/* Get total weight of available pieces in a weight list */
+/* Piece.generatePiece / generateAndAddPiece / buildComponent.
+ * Children go onto pendingChildren and are dequeued in random order by
+ * MapGenNetherBridge.Start — not DFS. */
 MC_HD MC_NOINLINE static int ft_total_weight(FtPieceWeight *weights, int count) {
     int any_limited = 0;
     int total = 0;
     for (int i = 0; i < count; i++) {
-        if (weights[i].max_count > 0 && weights[i].cur_count < weights[i].max_count) {
+        if (!weights[i].active) continue;
+        if (weights[i].max_count > 0 && weights[i].cur_count < weights[i].max_count)
             any_limited = 1;
-        }
         total += weights[i].weight;
     }
     return any_limited ? total : -1;
 }
 
-/* Try to add next piece from weight list */
-MC_HD MC_NOINLINE static int ft_add_next_from_weights(FtStart *start, JavaRandom *r,
-                                        FtPieceWeight *weights, int wcount,
-                                        int *last_weight_idx,
-                                        int x, int y, int z, int dir, int depth)
+MC_HD MC_NOINLINE static int ft_generate_piece(FtStart *start, JavaRandom *r,
+                                FtPieceWeight *weights, int wcount,
+                                int x, int y, int z, int dir, int depth)
 {
     int total = ft_total_weight(weights, wcount);
-    if (total <= 0 || depth > 30) return 0;
-
-    for (int attempt = 0; attempt < 5; attempt++) {
+    int can_place = total > 0 && depth <= 30;
+    int attempt = 0;
+    while (attempt < 5 && can_place) {
+        ++attempt;
         int roll = jrand_int_bound(r, total);
         for (int i = 0; i < wcount; i++) {
+            if (!weights[i].active) continue;
             roll -= weights[i].weight;
             if (roll < 0) {
-                /* Check depth limit for this piece type */
-                if (weights[i].max_count > 0 && weights[i].cur_count >= weights[i].max_count) {
+                int do_place = weights[i].max_count == 0 || weights[i].cur_count < weights[i].max_count;
+                if (!do_place || (weights + i == start->the_weight && !weights[i].allow_in_row))
                     break;
-                }
-                /* Don't allow same piece type consecutively (unless allow_in_row) */
-                if (i == *last_weight_idx && !weights[i].allow_in_row) {
-                    break;
-                }
-
-                int old_count = start->piece_count;
                 if (ft_create_by_type(start, r, weights[i].type, x, y, z, dir, depth)) {
                     weights[i].cur_count++;
-                    *last_weight_idx = i;
-                    /* Remove exhausted weights (handled by total_weight returning -1) */
+                    start->the_weight = &weights[i];
+                    if (!(weights[i].max_count == 0 || weights[i].cur_count < weights[i].max_count))
+                        weights[i].active = 0;
                     return 1;
                 }
-                /* Creation failed (intersection), restore count */
-                start->piece_count = old_count;
-                break;
+                /* create failed: keep k<0 and try later list members */
             }
         }
     }
-
-    /* Fall back to End piece */
     return ft_create_end(start, r, x, y, z, dir, depth);
 }
 
-/* Add next piece in given direction.
- * start_piece_idx: index of the piece we're building from (not a pointer, since
- * the pieces array may realloc via ft_add_piece). */
-MC_HD MC_NOINLINE static void ft_add_next(FtStart *start, JavaRandom *r,
-                            int start_piece_idx,
-                            int x, int y, int z, int dir, int depth,
-                            int secondary)
+/* Out of range: End.createPiece consumes fillSeed if constructed, but is NOT
+ * added to components / pendingChildren. */
+MC_HD MC_NOINLINE static int ft_end_consume(FtStart *start, JavaRandom *r,
+                              int x, int y, int z, int dir)
 {
-    /* Distance check (112 blocks from start) */
+    FtBB bb = ftbb_component_bb(x, y, z, -1, -3, 0, 5, 10, 8, dir);
+    if (!ftbb_above_ground(&bb)) return 0;
+    if (ft_find_intersect(start->pieces, start->piece_count, &bb) >= 0) return 0;
+    (void)jrand_int(r);
+    return 1;
+}
+
+MC_HD MC_NOINLINE static void ft_generate_and_add(FtStart *start, JavaRandom *r,
+                                   const FtPiece *from,
+                                   int x, int y, int z, int dir, int secondary)
+{
     if (abs(x - start->pieces[0].bb.minX) > 112 ||
         abs(z - start->pieces[0].bb.minZ) > 112)
     {
-        ft_create_end(start, r, x, y, z, dir, depth);
+        ft_end_consume(start, r, x, y, z, dir);
         return;
     }
-
     FtPieceWeight *weights = secondary ? start->sec : start->pri;
     int wcount = secondary ? FT_P_SECONDARY_COUNT : FT_P_PRIMARY_COUNT;
-    int dummy_last = -1;
-
     int old_count = start->piece_count;
-    if (ft_add_next_from_weights(start, r, weights, wcount, &dummy_last,
-                                    x, y, z, dir, depth + 1))
-    {
-        /* Recursively build from the newly added piece */
-        for (int i = old_count; i < start->piece_count; i++) {
-            ft_build_component(start, &start->pieces[i], r, depth + 1);
-        }
+    if (ft_generate_piece(start, r, weights, wcount, x, y, z, dir, from->component_type + 1)) {
+        if (start->pending_n < MAX_STRUCT_PIECES)
+            start->pending[start->pending_n++] = old_count;
     }
 }
 
-/* Build child components from a piece */
-MC_HD MC_NOINLINE static void ft_build_component(FtStart *start, FtPiece *piece,
-                                  JavaRandom *r, int depth)
+MC_HD MC_NOINLINE static void ft_build_component(FtStart *start, int pidx, JavaRandom *r)
 {
-    if (depth > 30 || start->piece_count >= MAX_STRUCT_PIECES - 10) return;
-
-    int pidx = (int)(piece - start->pieces);
+    FtPiece *piece = &start->pieces[pidx];
     int ox, oy, oz, odir;
 
     switch (piece->type) {
         case FT_P_STRAIGHT:
             ft_get_normal_exit(piece, 1, 3, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 0);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 0);
             break;
 
         case FT_P_CROSSING3:
         case FT_P_START:
             ft_get_normal_exit(piece, 8, 3, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 0);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 0);
             ft_get_x_exit(piece, 3, 8, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 0);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 0);
             ft_get_z_exit(piece, 3, 8, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 0);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 0);
             break;
 
         case FT_P_CROSSING:
             ft_get_normal_exit(piece, 2, 0, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 0);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 0);
             ft_get_x_exit(piece, 0, 2, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 0);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 0);
             ft_get_z_exit(piece, 0, 2, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 0);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 0);
             break;
 
         case FT_P_STAIRS:
-            ft_get_normal_exit(piece, 1, 0, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 1);
+            ft_get_z_exit(piece, 6, 2, &ox, &oy, &oz, &odir);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 0);
             break;
 
         case FT_P_ENTRANCE:
             ft_get_normal_exit(piece, 5, 3, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 1);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
             break;
 
         case FT_P_CORRIDOR5:
             ft_get_normal_exit(piece, 1, 0, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 1);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
             break;
 
         case FT_P_CORRIDOR:
-            ft_get_normal_exit(piece, 1, 0, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 1);
+            ft_get_x_exit(piece, 0, 1, &ox, &oy, &oz, &odir);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
             break;
 
         case FT_P_CORRIDOR3:
             ft_get_normal_exit(piece, 1, 0, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 1);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
             break;
 
-        case FT_P_CORRIDOR4:
-            ft_get_normal_exit(piece, 1, 0, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 1);
-            ft_get_x_exit(piece, 0, 1, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 1);
+        case FT_P_CORRIDOR4: {
+            int ioff = 1;
+            if (piece->coord_base == 1 || piece->coord_base == 2) ioff = 5;
+            int sec0 = jrand_int_bound(r, 8) > 0;
+            ft_get_x_exit(piece, 0, ioff, &ox, &oy, &oz, &odir);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, sec0);
+            int sec1 = jrand_int_bound(r, 8) > 0;
+            ft_get_z_exit(piece, 0, ioff, &ox, &oy, &oz, &odir);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, sec1);
             break;
+        }
 
         case FT_P_CORRIDOR2:
-            ft_get_normal_exit(piece, 1, 0, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 1);
             ft_get_z_exit(piece, 0, 1, &ox, &oy, &oz, &odir);
-            ft_add_next(start, r, pidx, ox, oy, oz, odir, depth, 1);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
+            break;
+
+        case FT_P_CROSSING2:
+            ft_get_normal_exit(piece, 1, 0, &ox, &oy, &oz, &odir);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
+            ft_get_x_exit(piece, 0, 1, &ox, &oy, &oz, &odir);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
+            ft_get_z_exit(piece, 0, 1, &ox, &oy, &oz, &odir);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
+            break;
+
+        case FT_P_NETHER_STALK:
+            ft_get_normal_exit(piece, 5, 3, &ox, &oy, &oz, &odir);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
+            ft_get_normal_exit(piece, 5, 11, &ox, &oy, &oz, &odir);
+            ft_generate_and_add(start, r, piece, ox, oy, oz, odir, 1);
             break;
 
         default:
@@ -631,8 +666,7 @@ MC_HD MC_NOINLINE static void ft_build_component(FtStart *start, FtPiece *piece,
     }
 }
 
-/* ---- Structure Generation ---- */
-
+/* MapGenNetherBridge.Start: canSpawn RNG then pending-children BFS then setRandomHeight. */
 MC_HD MC_NOINLINE static void ft_generate(FtStart *start, i64 seed, int cx, int cz) {
     memset(start, 0, sizeof(*start));
     start->cx = cx;
@@ -640,36 +674,56 @@ MC_HD MC_NOINLINE static void ft_generate(FtStart *start, i64 seed, int cx, int 
     ft_reset_weights(start);
 
     JavaRandom r;
-    jrand_set(&r, seed ^ ((i64)cx * 341873128712LL + (i64)cz * 132897987541LL));
+    int gi = cx >> 4, gj = cz >> 4;
+    jrand_set(&r, (i64)((i32)(gi ^ (gj << 4))) ^ seed);
+    jrand_int(&r);
+    jrand_int_bound(&r, 3);
+    jrand_int_bound(&r, 8);
+    jrand_int_bound(&r, 8);
 
-    /* Start piece: Crossing3 centered on chunk */
-    int dir = jrand_int_bound(&r, 4);
-    int wx = cx * 16 + 2;
-    int wz = cz * 16 + 2;
+    /* EnumFacing.Plane.HORIZONTAL.random: [NORTH, EAST, SOUTH, WEST][nextInt(4)].
+     * coord_base is StructureComponent horizontalIndex: S=0 W=1 N=2 E=3. */
+    int ft_horizontal_random[4];
+    ft_horizontal_random[0] = 2;
+    ft_horizontal_random[1] = 3;
+    ft_horizontal_random[2] = 0;
+    ft_horizontal_random[3] = 1;
+    int dir = ft_horizontal_random[jrand_int_bound(&r, 4)];
+    int wx = (cx << 4) + 2;
+    int wz = (cz << 4) + 2;
     int wy = 64;
 
     FtPiece *sp = ft_add_piece(start);
     if (!sp) return;
-    sp->type = FT_P_CROSSING3;
+    sp->type = FT_P_START;
     sp->coord_base = dir;
     sp->component_type = 0;
+    sp->bb = ftbb_create(wx, wy, wz, wx + 19 - 1, wy + 9, wz + 19 - 1);
 
-    switch (dir) {
-        case 0: case 2:
-            sp->bb = ftbb_create(wx, wy, wz, wx + 19 - 1, wy + 9, wz + 19 - 1);
-            break;
-        default:
-            sp->bb = ftbb_create(wx, wy, wz, wx + 19 - 1, wy + 9, wz + 19 - 1);
-            break;
+    ft_build_component(start, 0, &r);
+    while (start->pending_n > 0) {
+        /* ArrayList.remove(i): shift, do not swap-with-last (order is RNG). */
+        int pick = jrand_int_bound(&r, start->pending_n);
+        int idx = start->pending[pick];
+        start->pending_n--;
+        for (int i = pick; i < start->pending_n; i++)
+            start->pending[i] = start->pending[i + 1];
+        ft_build_component(start, idx, &r);
     }
 
-    /* Build piece tree from start */
-    ft_build_component(start, sp, &r, 0);
-
-    /* Compute total bounding box */
     start->total_bb = start->pieces[0].bb;
-    for (int i = 1; i < start->piece_count; i++) {
+    for (int i = 1; i < start->piece_count; i++)
         ftbb_expand(&start->total_bb, &start->pieces[i].bb);
+
+    /* StructureStart.setRandomHeight(world, rand, 48, 70) */
+    {
+        int ysize = start->total_bb.maxY - start->total_bb.minY + 1;
+        int span = 70 - 48 + 1 - ysize;
+        int ny = span > 1 ? 48 + jrand_int_bound(&r, span) : 48;
+        int dy = ny - start->total_bb.minY;
+        ftbb_offset(&start->total_bb, 0, dy, 0);
+        for (int i = 0; i < start->piece_count; i++)
+            ftbb_offset(&start->pieces[i].bb, 0, dy, 0);
     }
     start->valid = 1;
 }
@@ -887,6 +941,23 @@ MC_HD MC_NOINLINE static void ft_place_corridor5(FtWorld *w, FtPiece *p, const F
     }
 }
 
+/* Crossing2: 5x7x5 open crossing. Corner pillars only; not Corridor5 walls. */
+MC_HD MC_NOINLINE static void ft_place_crossing2(FtWorld *w, FtPiece *p, const FtBB *clip) {
+    ft_fill(w, p, clip, 0, 0, 0, 4, 1, 4, FT_NETHER_BRICK, FT_NETHER_BRICK, 0);
+    ft_fill(w, p, clip, 0, 2, 0, 4, 5, 4, FT_AIR, FT_AIR, 0);
+    ft_fill(w, p, clip, 0, 2, 0, 0, 5, 0, FT_NETHER_BRICK, FT_NETHER_BRICK, 0);
+    ft_fill(w, p, clip, 4, 2, 0, 4, 5, 0, FT_NETHER_BRICK, FT_NETHER_BRICK, 0);
+    ft_fill(w, p, clip, 0, 2, 4, 0, 5, 4, FT_NETHER_BRICK, FT_NETHER_BRICK, 0);
+    ft_fill(w, p, clip, 4, 2, 4, 4, 5, 4, FT_NETHER_BRICK, FT_NETHER_BRICK, 0);
+    ft_fill(w, p, clip, 0, 6, 0, 4, 6, 4, FT_NETHER_BRICK, FT_NETHER_BRICK, 0);
+
+    for (int i = 0; i <= 4; i++) {
+        for (int j = 0; j <= 4; j++) {
+            ft_replace_down(w, p, clip, FT_NETHER_BRICK, 0, i, -1, j);
+        }
+    }
+}
+
 MC_HD MC_NOINLINE static void ft_place_nether_stalk(FtWorld *w, FtPiece *p, const FtBB *clip) {
     ft_fill(w, p, clip, 0, 3, 0, 12, 4, 12, FT_NETHER_BRICK, FT_NETHER_BRICK, 0);
     ft_fill(w, p, clip, 0, 5, 0, 12, 13, 12, FT_AIR, FT_AIR, 0);
@@ -987,6 +1058,7 @@ MC_HD MC_NOINLINE static void ft_place_all(FtWorld *w, FtStart *start) {
             case FT_P_THRONE:       ft_place_throne(w, p, &clip); break;
             case FT_P_ENTRANCE:     ft_place_entrance(w, p, &clip); break;
             case FT_P_CORRIDOR5:    ft_place_corridor5(w, p, &clip); break;
+            case FT_P_CROSSING2:    ft_place_crossing2(w, p, &clip); break;
             case FT_P_NETHER_STALK: ft_place_nether_stalk(w, p, &clip); break;
             case FT_P_END:          ft_place_end(w, p, &clip); break;
             case FT_P_CORRIDOR:
