@@ -5,6 +5,66 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Fortress placement vs oracle MCA seed 0 (GATES item 11)
+
+CLOSED 2026-08-21. Magma/blaze used to emit seed-0 blaze spawners at
+(-325, 72, -151). Oracle DIM-1 MCA
+(`verify/tapes/retired/scenario_portal_fortress_blaze_20260729T090129Z_world/DIM-1/region`)
+has spawners at (-325, 56, -215) and (-325, 56, -102).
+
+Root cause in `blaze/core/map_gen_fortress.h`: the piece tree was 1.7.10-style
+DFS with `nextInt(4)` as coord_base, swap-remove on `pendingChildren`, and no
+`StructureStart.setRandomHeight(48, 70)`. Vanilla 1.11.2
+`MapGenNetherBridge.Start` continues the canSpawn RNG into
+`EnumFacing.Plane.HORIZONTAL.random` (N,E,S,W -> coord_base 2,3,0,1),
+dequeues `pendingChildren` with `ArrayList.remove(i)` (shift, not
+swap-with-last), then offsets the union BB to a random height in [48, 70]
+(when ysize > 23 this is always minY=48, which drops the throne spawner
+local y=5 from 72 to 56).
+
+After the port, `nether_full` on seed 0 writes id 52 at both oracle cells.
+Oracle MCA TileEntities are `minecraft:mob_spawner` with
+`SpawnData.id=minecraft:blaze` at the same cells.
+
+Repro:
+
+```
+cc -O2 -ffp-contract=off -Iblaze/core verify/worldgen/dim_region_dump.c -o /tmp/dim_region_dump -lm
+/tmp/dim_region_dump nether 0 -21 -7 1 1 | awk -F, '$4==52'
+# -325,56,-102,52
+/tmp/dim_region_dump nether 0 -21 -14 1 1 | awk -F, '$4==52'
+# -325,56,-215,52
+```
+
+Spawner-cage TileEntity data path remains OPEN (renderer exists; NBT type
+does not reach it).
+
+### World spawn selection (GATES item 12 / ledger item 16)
+
+CLOSED 2026-08-21. Magma interactive default started at (8.5, surface, 8.5)
+on chunk 0. Vanilla `WorldServer.createSpawnPosition` uses
+`BiomeProvider.findBiomePosition(0,0,256)` on `genBiomes` (1/4-res,
+biomesToSpawnIn = forest/plains/taiga/taiga_hills/forest_hills/jungle/
+jungle_hills) then a grass-block walk of up to 1000 steps, and stores
+SpawnY = averageGroundLevel (64).
+
+Seed 1000: findBiomePosition -> (168, 64, 252), equal to oracle
+`java/Minecraft/run/saves/qrl_1000/level.dat` SpawnX/Y/Z.
+Seed 0: (44, 64, 176), equal to `qrl_0/level.dat`. Magma DEFAULT places the
+player at xz+0.5 / `getTopSolidOrLiquidBlock`. Superflat keeps the origin pin
+(`test-launch` `pos 8.5,5.0,8.5`).
+
+Oracle player feet at ~ (159.5, 56, 242.5) is Forge spawnRadius fuzz
+(`WorldProvider.getRandomizedSpawnPoint`, gamerule spawnRadius=10) with
+Malmo `MixinWorldProviderSpawn` swapping `world.rand` for
+`SeedHelper.getRandom("playerSpawn")`. Magma does not port that fuzz; tapes
+use `set_pose`.
+
+Pin: `make -C magma test-world-spawn`
+(seed 1000 -> 168,64,252; seed 0 -> 44,64,176).
+`findBiomePosition` 129x129 needs `GL_ARENA_INTS >= 180582`; the spawn TU
+uses 262144.
+
 ### The oracle's fogColor1 had not converged when recording started
 
 Every scenario tape is worse at t=0 than at t=10, by 2-6x, on the whole-frame

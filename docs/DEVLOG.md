@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 worldgen lane (fortress + spawn)
+
+Fortress piece tree is 1.11.2: pending ArrayList shift-remove,
+HORIZONTAL.random N/E/S/W, setRandomHeight(48,70). Seed-0 nether_full
+spawners match oracle MCA at (-325,56,-102) and (-325,56,-215), both id 52.
+
+World spawn is createSpawnPosition. Oracle level.dat: seed 1000 is
+168,64,252; seed 0 is 44,64,176. Magma DEFAULT uses that xz, not 8.5,8.5.
+Superflat origin unchanged. wrapper_gate rc=0 without --update.
+
 ## 2026-08-21 remaining-to-stop-asking
 
 Codex, Fable, and Grok surveyed the tree. Fable ranks. The four-gate
