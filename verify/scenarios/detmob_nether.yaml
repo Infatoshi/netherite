@@ -6,9 +6,13 @@
 # so they do not despawn. Not a blessed gate tape.
 #
 # Recorded setup (overworld chat, then qrl):
-#   gamerules + difficulty normal, then dim -1, tp, blockdata spawner inert,
-#   dummy kill, summon blaze -291.5 59 -75.5 and pigman -330.5 59 -143.5,
-#   retp look west/down (yaw 90 pitch 20) away from both.
+#   gamerules + difficulty normal, then dim -1, tp, setblock spawners to
+#   nether_brick, kill r=96, summon blaze -291.5 59 -75.5 and pigman
+#   -330.5 59 -143.5 PersistenceRequired, kill r=20 leftovers, retp look
+#   west/down (yaw 90 pitch 20) away from both.
+# Tapes: scenario_detmob_nether_20260821T182154Z.jsonl PASS 852 ticks
+# (persist blaze+pigman; extra room blaze pr=0 filtered).
+# scenario_detmob_nether_20260821T182511Z.jsonl first_div PathFinder z.
 name: detmob_nether
 world:
   seed: 0
