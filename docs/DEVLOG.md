@@ -1,5 +1,24 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 detmob round 2 atan2 + wander (lane/detmob)
+
+MathHelper.atan2 LUT in `blaze/core/mc_math.h` + `mc_atan2_tab.h`
+(Java 8u492 ASINE/COS bits; C libm asin/cos is 1 ULP off). Det look
+helper only. Deg conversion is `(float)(lut * (float)(180.0/(float)PI))`
+to match remainder hyaw. BodyHelper + tape `bhp`/`bht`/`ryaw`. Gate
+clock is per-entity `tt` (entityAge resets inside 32 blocks).
+
+Standing `scenario_detmob_passive_20260821T152220Z.jsonl`: PASS 1203
+ticks, eids 462/463/465 bit-equal pos/yaw/pitch/hyaw. Old
+`...T142333Z` still fails t=341 hyaw without recstart prev/bt.
+
+Wander `scenario_detmob_wander_20260821T152429Z.jsonl`: FAIL first_div
+t=89 eid=426 x, `draws_between=1`. Gate world is superflat + 3x3 grass;
+RPG 10 samples miss standable cells, wander shouldExecute false, extra
+LookIdle nextFloat. Java overworld finds a land target and MOVE_TO
+walks. Named site: RandomPositionGenerator.findRandomTarget /
+PathNavigateGround (gate world, not Entity.rand).
+
 ## 2026-08-21 detmob Entity.rand experiment (lane/detmob)
 
 Default-off. Mixin reseeds Entity.rand at ctor RETURN (Mixin 0.7.5

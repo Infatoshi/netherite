@@ -12,9 +12,9 @@
 #define DET_MAX 64
 
 typedef struct {
-    int eid, type, lst, age, tt, tasks, watch, idle, eat, egg, og;
+    int eid, type, lst, age, tt, tasks, watch, idle, eat, egg, og, bht;
     double x, y, z, ix, iz;
-    float yaw, pitch, hyaw;
+    float yaw, pitch, hyaw, ryaw, bhp;
     unsigned long long seed48;
 } DetEnt;
 
@@ -56,13 +56,17 @@ static int load_fixture(const char *path, long long *seed, double *px, double *p
             int got;
             memset(&e, 0, sizeof e);
             got = sscanf(line,
-                "e %d %31s %lf %lf %lf %f %f %f %llu %d %d %d %d %d %d %lf %lf %d %d %d",
+                "e %d %31s %lf %lf %lf %f %f %f %llu %d %d %d %d %d %d %lf %lf %d %d %d %f %f %d",
                 &e.eid, tname, &e.x, &e.y, &e.z, &e.yaw, &e.pitch, &e.hyaw, &e.seed48,
                 &e.lst, &e.age, &e.tt, &e.tasks, &e.watch, &e.idle, &e.ix, &e.iz,
-                &e.eat, &e.egg, &e.og);
+                &e.eat, &e.egg, &e.og, &e.ryaw, &e.bhp, &e.bht);
             e.type = parse_type(tname);
-            if (got >= 9 && e.type >= 0 && *nents < DET_MAX)
+            if (got >= 9 && e.type >= 0 && *nents < DET_MAX) {
+                if (got < 21) e.ryaw = e.hyaw;
+                if (got < 22) e.bhp = e.hyaw;
+                if (got < 23) e.bht = 0;
                 ents[(*nents)++] = e;
+            }
         }
     }
     fclose(f);
@@ -117,7 +121,7 @@ int main(int argc, char **argv) {
                               ents[i].seed48, ents[i].lst, ents[i].age, ents[i].tt,
                               (unsigned)ents[i].tasks, ents[i].watch, ents[i].idle,
                               ents[i].ix, ents[i].iz, ents[i].eat, ents[i].egg,
-                              ents[i].og) < 0) {
+                              ents[i].og, ents[i].ryaw, ents[i].bhp, ents[i].bht) < 0) {
             fprintf(stderr, "det_place failed eid=%d\n", ents[i].eid);
             gm_runtime_destroy(&r);
             return 1;
@@ -139,13 +143,14 @@ int main(int argc, char **argv) {
                 s->type[slot] != EW_TYPE_PIG && s->type[slot] != EW_TYPE_CHICKEN) continue;
             fprintf(out,
                 "{\"t\":%d,\"eid\":%d,\"x\":%.17g,\"y\":%.17g,\"z\":%.17g,"
-                "\"yaw\":%.9g,\"pitch\":%.9g,\"hyaw\":%.9g,"
+                "\"yaw\":%.9g,\"pitch\":%.9g,\"hyaw\":%.9g,\"ryaw\":%.9g,\"bt\":%d,"
                 "\"x_bits\":\"%016llx\",\"y_bits\":\"%016llx\",\"z_bits\":\"%016llx\","
                 "\"yaw_bits\":\"%08x\",\"pitch_bits\":\"%08x\",\"hyaw_bits\":\"%08x\","
                 "\"seed48\":%llu}\n",
                 t, s->id[slot],
                 s->x[slot], s->y[slot], s->z[slot],
                 s->yaw[slot], r.mobs.passive_head_pitch[slot], r.mobs.passive_head_yaw[slot],
+                r.mobs.passive_render_yaw[slot], r.mobs.passive_body_ticks[slot],
                 u64bits(s->x[slot]), u64bits(s->y[slot]), u64bits(s->z[slot]),
                 u32bits(s->yaw[slot]), u32bits(r.mobs.passive_head_pitch[slot]),
                 u32bits(r.mobs.passive_head_yaw[slot]),

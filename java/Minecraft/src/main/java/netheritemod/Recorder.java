@@ -2158,6 +2158,32 @@ public class Recorder {
         } catch (Throwable ig) {}
         return dflt;
     }
+    private static float detReflectFloat(Object o, String name, float dflt) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.getFloat(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return dflt;
+    }
+    private static Object detReflectObj(Object o, String name) {
+        try {
+            Class<?> c = o.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(name);
+                    f.setAccessible(true);
+                    return f.get(o);
+                } catch (NoSuchFieldException ex) { c = c.getSuperclass(); }
+            }
+        } catch (Throwable ig) {}
+        return null;
+    }
 
     /**
      * Server-side nearby living Entity.rand + AI hydrate. Empty when the
@@ -2223,6 +2249,15 @@ public class Recorder {
         if (e instanceof net.minecraft.entity.passive.EntityChicken)
             egg = ((net.minecraft.entity.passive.EntityChicken) e).timeUntilNextEgg;
         float hp = e.getHealth();
+        float bhp = e.rotationYawHead;
+        int bht = 0;
+        try {
+            Object bh = detReflectObj(e, "bodyHelper");
+            if (bh != null) {
+                bhp = detReflectFloat(bh, "prevRenderYawHead", bhp);
+                bht = detReflectInt(bh, "rotationTickCounter", 0);
+            }
+        } catch (Throwable ig) {}
         sb.append("{\"eid\":").append(eid)
           .append(",\"type\":\"").append(e.getClass().getSimpleName()).append('"')
           .append(",\"seed48\":").append(seed48)
@@ -2233,6 +2268,8 @@ public class Recorder {
           .append(",\"pitch\":").append(e.rotationPitch)
           .append(",\"hyaw\":").append(e.rotationYawHead)
           .append(",\"ryaw\":").append(e.renderYawOffset)
+          .append(",\"bhp\":").append(bhp)
+          .append(",\"bht\":").append(bht)
           .append(",\"hp\":").append(hp)
           .append(",\"og\":").append(e.onGround ? 1 : 0)
           .append(",\"lst\":").append(e.livingSoundTime)

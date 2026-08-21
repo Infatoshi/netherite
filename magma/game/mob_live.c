@@ -6,6 +6,7 @@
 #include "items_tools_armor.h"
 #include "inventory_stack_rules.h"
 #include "mc_rng.h"
+#include "mc_math.h"
 #include "player_vitals.h"
 #include "core/config.h"
 
@@ -202,6 +203,8 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->passive_head_yaw[slot] = s ? s->yaw[slot] : 0.0f;
     m->passive_head_pitch[slot] = 0.0f;
     m->passive_render_yaw[slot] = m->passive_head_yaw[slot];
+    m->passive_prev_head_yaw[slot] = m->passive_head_yaw[slot];
+    m->passive_body_ticks[slot] = 0;
     m->passive_sheared[slot] = 0;
     m->ent_jr_seed[slot] = 0;
     m->living_sound_time[slot] = 0;
@@ -540,6 +543,25 @@ static float pai_update_rotation(float current, float target, float max_delta) {
     return current + d;
 }
 
+/* EntityMoveHelper.limitAngle: wrap the result into [0, 360]. */
+static float pai_limit_angle(float current, float target, float max_delta) {
+    float f1 = pai_update_rotation(current, target, max_delta);
+    if (f1 < 0.0f) f1 += 360.0f;
+    else if (f1 > 360.0f) f1 -= 360.0f;
+    return f1;
+}
+
+/* EntityLookHelper / EntityMoveHelper fold `180D / Math.PI` to a double
+ * constant in bytecode, but remainder hyaw on the 1.11.2 oracle matches
+ * multiplying the LUT result by (float)(180.0 / (float)Math.PI). */
+static float pai_deg(double rad) {
+    return (float)(rad * (float)(180.0 / (float)MC_PI));
+}
+
+static float pai_atan2_yaw(double dz, double dx) {
+    return pai_deg(mc_atan2(dz, dx)) - 90.0f;
+}
+
 static int pai_can_use(const GmMobLive *m, int type, int i, int task) {
     int pri = pai_priority(type, task), mutex = pai_mutex(task);
     for (int other = 0; other < PAI_NTASKS; ++other) {
@@ -629,9 +651,18 @@ static void pai_look_update(GmMobLive *m, const EwStore *s, int i, int looking,
         double dx = look_x - s->x[i];
         double dy = look_y - (s->y[i] + pai_eye_height(s->type[i]));
         double dz = look_z - s->z[i];
-        double horiz = sqrt(dx * dx + dz * dz);
-        float target_yaw = (float)(atan2(dz, dx) * (180.0 / MC_PI)) - 90.0f;
-        float target_pitch = (float)(-(atan2(dy, horiz) * (180.0 / MC_PI)));
+        double horiz;
+        float target_yaw, target_pitch;
+        if (pai_det()) {
+            /* EntityLookHelper: MathHelper.sqrt + MathHelper.atan2 LUT. */
+            horiz = (double)(float)sqrt(dx * dx + dz * dz);
+            target_yaw = pai_atan2_yaw(dz, dx);
+            target_pitch = -pai_deg(mc_atan2(dy, horiz));
+        } else {
+            horiz = sqrt(dx * dx + dz * dz);
+            target_yaw = (float)(atan2(dz, dx) * (180.0 / MC_PI)) - 90.0f;
+            target_pitch = (float)(-(atan2(dy, horiz) * (180.0 / MC_PI)));
+        }
         pitch = pai_update_rotation(0.0f, target_pitch, 40.0f);
         head = pai_update_rotation(head, target_yaw, 10.0f);
     } else {
@@ -644,6 +675,38 @@ static void pai_look_update(GmMobLive *m, const EwStore *s, int i, int looking,
     }
     m->passive_head_yaw[i] = head;
     m->passive_head_pitch[i] = pitch;
+}
+
+/* EntityLiving.updateDistance -> EntityBodyHelper.updateRenderAngles. */
+static float pai_angle_bound(float a1, float a2, float maxd) {
+    float f = pai_wrap_degrees(a1 - a2);
+    if (f < -maxd) f = -maxd;
+    if (f >= maxd) f = maxd;
+    return a1 - f;
+}
+
+static void pai_body_update(GmMobLive *m, const EwStore *s, const EwStore *prev, int i) {
+    double d0 = s->x[i] - prev->x[i];
+    double d1 = s->z[i] - prev->z[i];
+    if (d0 * d0 + d1 * d1 > 2.500000277905201e-7) {
+        m->passive_render_yaw[i] = s->yaw[i];
+        m->passive_head_yaw[i] = pai_angle_bound(m->passive_render_yaw[i],
+                                                 m->passive_head_yaw[i], 75.0f);
+        m->passive_prev_head_yaw[i] = m->passive_head_yaw[i];
+        m->passive_body_ticks[i] = 0;
+    } else {
+        float f = 75.0f;
+        float head = m->passive_head_yaw[i];
+        if (fabsf(head - m->passive_prev_head_yaw[i]) > 15.0f) {
+            m->passive_body_ticks[i] = 0;
+            m->passive_prev_head_yaw[i] = head;
+        } else {
+            ++m->passive_body_ticks[i];
+            if (m->passive_body_ticks[i] > 10)
+                f = fmaxf(1.0f - (float)(m->passive_body_ticks[i] - 10) / 10.0f, 0.0f) * 75.0f;
+        }
+        m->passive_render_yaw[i] = pai_angle_bound(head, m->passive_render_yaw[i], f);
+    }
 }
 
 static void pai_apply_current_look(GmMobLive *m, const EwStore *s, int i,
@@ -783,7 +846,8 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
                       double x, double y, double z, float yaw, float pitch, float head_yaw,
                       unsigned long long seed48, int living_sound, int entity_age, int task_tick,
                       unsigned tasks, int watch, int idle, double idle_x, double idle_z,
-                      int eat, int egg, int on_ground) {
+                      int eat, int egg, int on_ground, float render_yaw, float prev_head_yaw,
+                      int body_ticks) {
     int slot;
     EwStore *s;
     if (!m || !gm_passive(type)) return -1;
@@ -808,9 +872,12 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
     m->chicken_egg[slot] = egg;
     m->passive_head_yaw[slot] = head_yaw;
     m->passive_head_pitch[slot] = pitch;
-    /* Look-helper idle target is renderYawOffset, not rotationYaw. Standing
-     * recstart has no ryaw field; head is already at the body offset. */
-    m->passive_render_yaw[slot] = head_yaw;
+    /* EntityBodyHelper.prevRenderYawHead + rotationTickCounter. Old tapes
+     * without those fields pass head_yaw / 0 and keep the 15-degree phase
+     * error on the first long idle. */
+    m->passive_render_yaw[slot] = render_yaw;
+    m->passive_prev_head_yaw[slot] = prev_head_yaw;
+    m->passive_body_ticks[slot] = body_ticks;
     if (eid >= m->next_id) m->next_id = eid + 1;
     ew_store_copy(next_store(m), s);
     return slot;
@@ -1019,8 +1086,15 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
     ehs_intent_from_ai(s->type[i], s->ai_state[i], moving, s->x[i], s->z[i],
                        s->path_tx[i], s->path_tz[i], s->path_tx[i], s->path_tz[i], &intent);
     if (!moving) intent.yaw = s->yaw[i];
-    if (gm_passive(s->type[i]) && moving)
-        intent.yaw = pai_update_rotation(s->yaw[i], intent.yaw, 90.0f);
+    if (gm_passive(s->type[i]) && moving) {
+        if (pai_det()) {
+            double ddx = s->path_tx[i] - s->x[i];
+            double ddz = s->path_tz[i] - s->z[i];
+            intent.yaw = pai_limit_angle(s->yaw[i], pai_atan2_yaw(ddz, ddx), 90.0f);
+        } else {
+            intent.yaw = pai_update_rotation(s->yaw[i], intent.yaw, 90.0f);
+        }
+    }
     if (moving && jump) intent.isJumping = 1;
     ehs_load_living(&liv, s, i, &intent);
     /* Override sizes not represented exactly by the shared hostile spine. */
@@ -1957,6 +2031,8 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         }
         move_mob(w,st,m,nx,i,moving,jump,swim_jump,nav_speed);
         if(passive)pai_apply_current_look(m,nx,i,px,py,pz);
+        /* EntityLiving.updateDistance -> bodyHelper, once from onUpdate headTurn. */
+        if(passive && pai_det()) pai_body_update(m, nx, now, i);
         if(passive && pai_det() && type==EW_TYPE_CHICKEN){
             if(--m->chicken_egg[i] <= 0){
                 (void)jrand_float(pai_jr(m, i));

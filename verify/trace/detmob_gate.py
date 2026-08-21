@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """detmob_gate.py — magma live vs tape pose compare (det_entity_rng=1).
 
-PASS = bit-equal pos/yaw/pitch/hyaw over the window for standing passives.
+PASS = bit-equal pos/yaw/pitch/hyaw over the window for nearby passives.
 Otherwise prints the first divergent (tick, entity, field) and Entity.rand
 cursor delta. Not wired into `make test`.
 
@@ -93,25 +93,16 @@ def unique_server_rows(rows, stand):
     return out
 
 
-def standing_ids(header, rows):
+def tracked_ids(header, rows):
+    """Passives in the recstart snapshot. Walkers stay in the set (wander tape)."""
+    _ = rows
     ents = header.get("entity_rng") or []
     ids = []
     for e in ents:
         t = e.get("type", "")
         if t not in PASSIVE:
             continue
-        eid = int(e["eid"])
-        x0, y0, z0 = e["x"], e["y"], e["z"]
-        moved = False
-        for row in rows:
-            hit = _erng_map(row).get(eid)
-            if hit is None:
-                continue
-            if hit["x"] != x0 or hit["y"] != y0 or hit["z"] != z0:
-                moved = True
-                break
-        if not moved:
-            ids.append(eid)
+        ids.append(int(e["eid"]))
     return ids
 
 
@@ -128,13 +119,16 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand):
     for eid in stand:
         e = hydrate[eid]
         kind = PASSIVE[e["type"]]
+        hyaw = e.get("hyaw", e.get("yaw", 0.0))
+        ryaw = e.get("ryaw", hyaw)
         body.append(
             "e {eid} {kind} {x} {y} {z} {yaw} {pitch} {hyaw} {seed48} "
-            "{lst} {age} {tt} {tasks} {watch} {idle} {ix} {iz} {eat} {egg} {og}".format(
+            "{lst} {age} {tt} {tasks} {watch} {idle} {ix} {iz} {eat} {egg} {og} "
+            "{ryaw} {bhp} {bht}".format(
                 eid=eid, kind=kind,
                 x=e["x"], y=e["y"], z=e["z"],
                 yaw=e.get("yaw", 0.0), pitch=e.get("pitch", 0.0),
-                hyaw=e.get("hyaw", e.get("yaw", 0.0)),
+                hyaw=hyaw,
                 seed48=int(e["seed48"]),
                 lst=int(e.get("lst", 0)), age=int(e.get("age", 0)),
                 tt=int(e.get("tt", 0)), tasks=int(e.get("tasks", 0)),
@@ -142,6 +136,9 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand):
                 ix=e.get("ix", 0.0), iz=e.get("iz", 0.0),
                 eat=int(e.get("eat", 0)), egg=int(e.get("egg", -1)),
                 og=int(e.get("og", 1)),
+                ryaw=ryaw,
+                bhp=e.get("bhp", hyaw),
+                bht=int(e.get("bht", 0)),
             )
         )
         n += 1
@@ -168,8 +165,42 @@ def tape_erng_by_tick(rows):
     return out
 
 
+def _field_vals(stand, rec, name):
+    te = _erng_map(rec)
+    out = []
+    for eid in stand:
+        e = te.get(eid)
+        if e is None:
+            continue
+        out.append(int(e.get(name, -1)))
+    return out
+
+
+def magma_tick_count(stand, series):
+    """Server ticks between hydrate and last snap. Client hitches skip jsonl
+    rows; magma still has to step those ticks to keep Entity.rand in phase.
+
+    Prefer EntityAITasks.tickCount: it increments every tick. entityAge
+    resets inside 32 blocks, so it is not a clock on the wander tape.
+    """
+    t0 = _field_vals(stand, series[0], "tt")
+    t1 = _field_vals(stand, series[-1], "tt")
+    if t0 and t1 and min(t0) >= 0 and max(t1) - min(t0) > 0:
+        return max(t1) - min(t0)
+    a0 = _field_vals(stand, series[0], "age")
+    a1 = _field_vals(stand, series[-1], "age")
+    if a0 and a1 and min(a0) >= 0 and max(a1) - min(a0) > 0:
+        return max(a1) - min(a0)
+    return len(series) - 1
+
+
 def first_div(stand, series, mag):
-    """series[0] is hydrate; magma dump t=i is compared to series[i+1]."""
+    """series[0] is hydrate; magma dump t is clock-hydrate-1 (tt, else age).
+
+    Client frames can miss a server tick (clock jumps by 2). Magma still ran
+    that tick; we only compare tape rows that exist. Per-entity clocks so a
+    despawned or age-reset mob does not collapse the index.
+    """
     fields = (
         ("x", "x", "d"),
         ("y", "y", "d"),
@@ -178,16 +209,23 @@ def first_div(stand, series, mag):
         ("pitch", "pitch", "f"),
         ("hyaw", "hyaw", "f"),
     )
-    for i, rec in enumerate(series[1:]):
+    hmap = _erng_map(series[0])
+    t0s = [int(hmap[eid]["tt"]) for eid in stand if eid in hmap and hmap[eid].get("tt") is not None]
+    t1s = _field_vals(stand, series[-1], "tt")
+    use_tt = bool(t0s) and bool(t1s) and min(t0s) >= 0 and max(t1s) - min(t0s) > 0
+    clock_name = "tt" if use_tt else "age"
+    clock0 = {eid: int(hmap[eid].get(clock_name, 0)) for eid in stand if eid in hmap}
+    for rec in series[1:]:
         tape_t = int(rec["t"])
-        if i not in mag:
-            return tape_t, None, "missing_magma_tick", None, None, None
         te_map = _erng_map(rec)
         for eid in stand:
             te = te_map.get(eid)
-            me = mag[i].get(eid)
-            if te is None:
+            if te is None or eid not in clock0:
                 continue
+            mag_t = int(te.get(clock_name, 0)) - clock0[eid] - 1
+            if mag_t not in mag:
+                return tape_t, eid, "missing_magma_tick", None, None, None
+            me = mag[mag_t].get(eid)
             if me is None:
                 return tape_t, eid, "missing_magma_ent", None, None, None
             for tf, mf, kind in fields:
@@ -224,9 +262,9 @@ def main(argv: list[str]) -> int:
     if not rows:
         print("BLOCKED  tape has no tick rows")
         return 2
-    stand = standing_ids(header, rows)
+    stand = tracked_ids(header, rows)
     if not stand:
-        print("BLOCKED  no standing passives (cow/sheep/pig/chicken with constant pos)")
+        print("BLOCKED  no passives (cow/sheep/pig/chicken) in header entity_rng")
         return 2
     series = unique_server_rows(rows, stand)
     if len(series) < 2:
@@ -237,7 +275,7 @@ def main(argv: list[str]) -> int:
     if missing:
         print(f"BLOCKED  standing eids missing from first erng: {missing}")
         return 2
-    n_ticks = len(series) - 1
+    n_ticks = magma_tick_count(stand, series)
     outdir = REPO / "out" / "verify" / "detmob"
     outdir.mkdir(parents=True, exist_ok=True)
     fixture = outdir / "fixture.txt"
@@ -245,7 +283,7 @@ def main(argv: list[str]) -> int:
     n = write_fixture(fixture, header, hydrate, n_ticks, stand)
     print(
         f"tape {tape.name}: {len(rows)} client ticks, {len(series)} unique server "
-        f"snaps, {n_ticks} magma ticks, {n} standing passives {stand}"
+        f"snaps, {n_ticks} magma ticks, {n} passives {stand}"
     )
     sh = REPO / "magma" / "game" / "detmob_gate.sh"
     rc = subprocess.call(["bash", str(sh), str(fixture), str(magma_out)], cwd=str(REPO / "magma"))
@@ -256,7 +294,7 @@ def main(argv: list[str]) -> int:
     t, eid, field, tv, mv, cur = first_div(stand, series, mag)
     if t is None:
         print(
-            f"PASS  bit-equal pos/yaw/pitch/hyaw for {n} standing entities "
+            f"PASS  bit-equal pos/yaw/pitch/hyaw for {n} passives "
             f"over {n_ticks} server ticks"
         )
         return 0

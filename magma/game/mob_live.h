@@ -55,6 +55,8 @@ typedef struct {
     float passive_head_yaw[EW_MAX_ENTITIES];
     float passive_head_pitch[EW_MAX_ENTITIES];
     float passive_render_yaw[EW_MAX_ENTITIES]; /* EntityLivingBase.renderYawOffset */
+    float passive_prev_head_yaw[EW_MAX_ENTITIES]; /* EntityBodyHelper.prevRenderYawHead */
+    int passive_body_ticks[EW_MAX_ENTITIES];      /* EntityBodyHelper.rotationTickCounter */
     unsigned char passive_sheared[EW_MAX_ENTITIES];
     int fire_ticks[EW_MAX_ENTITIES];             /* daylight burn */
     int despawn_ticks[EW_MAX_ENTITIES];          /* ticks spent >32 blocks from player */
@@ -111,7 +113,8 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
                       double x, double y, double z, float yaw, float pitch, float head_yaw,
                       unsigned long long seed48, int living_sound, int entity_age, int task_tick,
                       unsigned tasks, int watch, int idle, double idle_x, double idle_z,
-                      int eat, int egg, int on_ground);
+                      int eat, int egg, int on_ground, float render_yaw, float prev_head_yaw,
+                      int body_ticks);
 /* Spawn with slime/magma size (1,2,4). Other types ignore size. */
 int gm_mobs_spawn_sized(GmMobLive *m, int type, double x, double y, double z, int size);
 /* Returns nonzero when attack is aimed at a mob, including cooldown ticks. */
