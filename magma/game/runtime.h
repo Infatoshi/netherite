@@ -18,6 +18,9 @@
 /* Growable chest TE table: starts at this capacity, doubles when full.
  * Never evicts a live TE while its block 54 still exists. */
 #define GM_RUNTIME_CHESTS_INITIAL 64
+/* Mob-spawner tile entities ingested from Anvil TileEntities / set_tile_entity.
+ * Renderer-only: discover_spawners must not invent these. */
+#define GM_RUNTIME_SPAWNERS 64
 #define GM_RUNTIME_PROJECTILES 32
 #define GM_RUNTIME_GHOSTS 16
 #define GM_RUNTIME_GHOST_VIEWS 32  /* REC_ENT_MAX in the qrl recorder */
@@ -177,6 +180,16 @@ typedef struct {
     int active, wx, wy, wz;
     ChestLive state;
 } GmRuntimeChest;
+typedef struct {
+    int active, dim, wx, wy, wz, entity_type;
+    float mob_rotation;
+} GmRuntimeSpawnerTE;
+/* Layout matches GmSpawnerView field-for-field except the names. Filled by
+ * gm_runtime_spawner_views; the mapper stays out of this translation unit. */
+typedef struct {
+    int wx, wy, wz, entity_type;
+    float mob_rotation;
+} GmRuntimeSpawnerView;
 
 typedef struct GmRuntime {
     GmWorld *world;
@@ -235,6 +248,7 @@ typedef struct GmRuntime {
     GmRuntimeFurnace furnaces[GM_RUNTIME_FURNACES];
     GmRuntimeChest *chests; /* growable; capacity in chests_cap */
     int chests_cap;
+    GmRuntimeSpawnerTE spawners[GM_RUNTIME_SPAWNERS];
     GmFluidLive fluids;    /* live water/lava flow region (game/fluid_live.c) */
     /* Tape-replay ghost pushers: recorded oracle entity boxes (world coords,
      * feet y, full width/height) injected per tick; gm_runtime_tick applies
@@ -422,6 +436,13 @@ int gm_runtime_load_block_dim(GmRuntime *r, int dimension, int x, int y, int z,
                               int id, int meta);
 int gm_runtime_snapshot_region_dim(GmRuntime *r, int dimension,
                                    int ccx, int ccz, int radius);
+/* Tile-entity store for mob spawners. entity_type is EW_TYPE_* or -1 (no
+ * cached entity). Rotation is MobSpawnerBaseLogic.mobRotation in pre-x10
+ * units. Does not consult discover_spawners. */
+int gm_runtime_set_tile_entity(GmRuntime *r, int dim, int x, int y, int z,
+                               int entity_type, float rotation);
+int gm_runtime_spawner_views(const GmRuntime *r, GmRuntimeSpawnerView *out,
+                             int max);
 int gm_runtime_set_inventory(GmRuntime *r, int slot, int item, int count, int meta);
 void gm_runtime_set_weather(GmRuntime *r, int raining, int thundering,
                             int rain_time, int thunder_time);

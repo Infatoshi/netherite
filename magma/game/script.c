@@ -1127,6 +1127,30 @@ int gm_script_run(const GmConfig *cfg) {
                                                (int)id,(int)meta)){
                     fprintf(stderr,"script:%ld: invalid snapshot_block\n",line_no);goto bad;
                 }
+            } else if (!strcmp(type,"set_tile_entity")) {
+                long long x,y,z,dimension=0;
+                double rotation=0.0;
+                const char *tid=NULL,*spawn_id="";
+                static const char *const keys[]={"tick","type","x","y","z","dim",
+                                                 "id","spawn_id","rotation"};
+                if(!keys_only(&pending,keys,9,err,sizeof err)||
+                   !as_i64(field(&pending,"x"),&x)||!as_i64(field(&pending,"y"),&y)||
+                   !as_i64(field(&pending,"z"),&z)||
+                   (field(&pending,"dim")&&!as_i64(field(&pending,"dim"),&dimension))||
+                   dimension<-1||dimension>1||
+                   x<-2147483647LL-1||x>2147483647LL||z<-2147483647LL-1||z>2147483647LL||
+                   y<0||y>255||
+                   !as_string(field(&pending,"id"),&tid)||
+                   strcmp(tid,"minecraft:mob_spawner")||
+                   (field(&pending,"spawn_id")&&
+                    !as_string(field(&pending,"spawn_id"),&spawn_id))||
+                   (field(&pending,"rotation")&&
+                    !as_double(field(&pending,"rotation"),&rotation))||
+                   !gm_runtime_set_tile_entity(&r,(int)dimension,(int)x,(int)y,
+                       (int)z,gm_entity_type_for_spawn_id(spawn_id),
+                       (float)rotation)){
+                    fprintf(stderr,"script:%ld: invalid set_tile_entity\n",line_no);goto bad;
+                }
             } else if (!strcmp(type,"snapshot_region")) {
                 long long cx,cz,radius,dimension=0;
                 static const char *const keys[]={"tick","type","cx","cz","radius","dim"};

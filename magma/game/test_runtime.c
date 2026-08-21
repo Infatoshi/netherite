@@ -608,6 +608,51 @@ int main(void) {
               "bed explosion removes bed and applies verified explosion damage");
     }
     gm_runtime_destroy(&r);
+
+    CHECK(gm_runtime_init(&r, &cfg, err, sizeof err),
+          "spawner TE runtime initializes");
+    if (r.world) {
+        CHECK(gm_runtime_load_block(&r, 8, 5, 12, 52, 0),
+              "load mob-spawner block 52");
+        CHECK(gm_runtime_set_tile_entity(&r, 0, 8, 5, 12, 7, 0.0f),
+              "stores a blaze spawner TE");
+        {
+            GmRuntimeSpawnerView v[8];
+            int n = gm_runtime_spawner_views(&r, v, 8);
+            CHECK(n == 1 && v[0].entity_type == 7 && v[0].wx == 8 &&
+                  v[0].wy == 5 && v[0].wz == 12,
+                  "spawner view is the stored blaze, not a heuristic");
+        }
+        CHECK(gm_runtime_set_tile_entity(&r, 0, 9, 5, 12, -1, 0.0f),
+              "unknown spawn id is stored as no cached entity");
+        CHECK(gm_runtime_load_block(&r, 9, 5, 12, 52, 0),
+              "second spawner cell");
+        {
+            GmRuntimeSpawnerView v[8];
+            int n = gm_runtime_spawner_views(&r, v, 8);
+            int saw_none = 0;
+            for (int i = 0; i < n; ++i)
+                if (v[i].wx == 9 && v[i].entity_type == -1) saw_none = 1;
+            CHECK(n == 2 && saw_none,
+                  "null cached entity is visible to the renderer as type -1");
+        }
+        CHECK(gm_runtime_set_tile_entity(&r, -1, 8, 5, 12, 7, 0.0f),
+              "nether-dimension TE stores");
+        {
+            GmRuntimeSpawnerView v[8];
+            int n = gm_runtime_spawner_views(&r, v, 8);
+            CHECK(n == 2, "overworld views ignore a nether-dimension TE");
+        }
+        CHECK(gm_runtime_load_block(&r, 8, 5, 12, 0, 0),
+              "remove first spawner block");
+        {
+            GmRuntimeSpawnerView v[8];
+            int n = gm_runtime_spawner_views(&r, v, 8);
+            CHECK(n == 1 && v[0].wx == 9,
+                  "TESR skips a TE whose cell is no longer block 52");
+        }
+    }
+    gm_runtime_destroy(&r);
     if (fail) return 1;
     fprintf(stderr, "runtime: PASS\n");
     return 0;

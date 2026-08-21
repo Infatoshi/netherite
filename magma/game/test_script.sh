@@ -519,4 +519,24 @@ assert all(frame.read_bytes().startswith(b"P6\n160 90\n255\n") for frame in fram
 states = [json.loads(line) for line in Path("/tmp/magma-script-frames-a.jsonl").read_text().splitlines()]
 assert [state["world_time"] for state in states] == [1, 12001]
 PY
+# TileEntities -> set_tile_entity: fortress-style blaze spawner is accepted
+# (SpawnData.id mapped in script.c; store lives on GmRuntime).
+printf '%s\n' \
+	'{"tick":0,"type":"snapshot_region","dim":-1,"cx":-21,"cz":-7,"radius":1}' \
+	'{"tick":0,"type":"snapshot_block","dim":-1,"x":-325,"y":56,"z":-102,"id":52,"meta":0}' \
+	'{"tick":0,"type":"set_tile_entity","dim":-1,"x":-325,"y":56,"z":-102,"id":"minecraft:mob_spawner","spawn_id":"minecraft:blaze","rotation":0}' \
+	'{"tick":0,"type":"set_dimension","dimension":-1}' \
+	'{"tick":0,"type":"set_pose","x":-324.5,"y":57,"z":-100.5,"yaw":180,"pitch":20}' \
+	>/tmp/magma-spawner-te.jsonl
+./magma_game --world default --headless --ticks 1 --script /tmp/magma-spawner-te.jsonl \
+	--state-out /tmp/magma-spawner-te-state.jsonl --render off --pace unlimited \
+	>/tmp/magma-spawner-te.out 2>/tmp/magma-spawner-te.err
+rg -q '"tick":1' /tmp/magma-spawner-te-state.jsonl
+if rg -q 'invalid set_tile_entity|unknown or forbidden type' /tmp/magma-spawner-te.err \
+	/tmp/magma-spawner-te.out; then
+	echo "set_tile_entity rejected" >&2
+	exit 1
+fi
+echo "set_tile_entity blaze spawner: ok"
+
 echo "script route: PASS"

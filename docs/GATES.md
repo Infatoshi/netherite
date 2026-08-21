@@ -135,8 +135,8 @@ Blaze Metal tick (M3) waits until CUDA survival rows pass M1 and M2
 | 6 | Magma live tick on GPU. No gate accepts it. | none | keep-cpu | none |
 | 7 | Human spawn->End with zero first-divergence. | 1 | human | Moonlight |
 | 8 | State-clean auto-campaign pixels: hand lighting, particle additive, HUD hotbar (`magma/OPEN_DIVERGENCES.md`). | 1 | grindable | anvil gpu1 |
-| 9 | Spawner miniature data path (TileEntities -> script -> store -> emit). Renderer exists. | 1 | grindable | anvil cpu |
-| 10 | Live blaze `isBurning` (AIFireballAttack). Replay is fixed. | 1 | grindable | anvil cpu |
+| 9 | Spawner miniature data path (TileEntities -> script -> store -> emit). CLOSED lane/sim 2026-08-21. | 1 | closed | mac |
+| 10 | Live blaze `isBurning` (AIFireballAttack). CLOSED lane/sim 2026-08-21. Replay was already fixed. | 1 | closed | mac |
 | 11 | Fortress placement vs oracle MCA (seed 0 y/z). | 1 | grindable | anvil cpu |
 | 12 | World spawn selection (item 16). | 1 | grindable | anvil oracle |
 | 13 | Python still owns replay/pixels/M2 verify. Binary tape not written. No root `make verify`. | 4 | grindable slices | anvil cpu |

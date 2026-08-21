@@ -37,6 +37,21 @@ def _fnv_volume(states_zyx_iter):
     return f"{h:016x}"
 
 
+def test_spawner_patch_event_shape():
+    ev = snapshot_patch.spawner_patch_event(-1, -325, 56, -102, "minecraft:blaze")
+    assert ev == {
+        "tick": 0,
+        "type": "set_tile_entity",
+        "dim": -1,
+        "x": -325,
+        "y": 56,
+        "z": -102,
+        "id": "minecraft:mob_spawner",
+        "spawn_id": "minecraft:blaze",
+        "rotation": 0,
+    }
+
+
 def test_canon_anvil_state_double_plant_upper_to_north():
     for facing_meta in range(8, 16):
         raw = (175 << 4) | facing_meta

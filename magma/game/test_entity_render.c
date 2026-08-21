@@ -465,6 +465,15 @@ static void test_name_map(void) {
         CHECK(gm_entity_type_for_name(NEG[i]) == -1, msg);
     }
     CHECK(gm_entity_type_for_name(NULL) == -1, "NULL -> -1");
+    CHECK(gm_entity_type_for_spawn_id("minecraft:blaze") == 7,
+          "minecraft:blaze -> EntityBlaze 7");
+    CHECK(gm_entity_type_for_spawn_id("blaze") == 7, "un-namespaced blaze -> 7");
+    CHECK(gm_entity_type_for_spawn_id("minecraft:zombie_pigman") == 15,
+          "minecraft:zombie_pigman -> pigman");
+    CHECK(gm_entity_type_for_spawn_id("") == -1, "empty spawn id -> -1");
+    CHECK(gm_entity_type_for_spawn_id(NULL) == -1, "NULL spawn id -> -1");
+    CHECK(gm_entity_type_for_spawn_id("minecraft:no_such") == -1,
+          "unknown spawn id -> -1");
     CHECK(gm_entity_billboard_item("EntitySmallFireball") == 385,
           "small fireball -> fire charge item id");
     CHECK(gm_entity_billboard_item("EntityDragonFireball") == 9003,
@@ -929,9 +938,7 @@ static void test_death_and_spawner(void) {
             fabsf(out[i].pos.z - out2[i].pos.z) > 2e-3f) { same = 0; break; }
     CHECK(same, "mobRotation 36 (=360 deg) is a full turn back to identity");
 
-    /* No cached entity (unknown spawn id) draws nothing - vanilla's null guard.
-     * This is the state every magma spawner is in today: no tile-entity data
-     * reaches the renderer (see OPEN_DIVERGENCES "Spawner-cage miniature"). */
+    /* No cached entity (unknown spawn id) draws nothing - vanilla's null guard. */
     GmSpawnerView none = sp; none.type = -1;
     CHECK(gm_spawner_miniatures_emit(&none, 1, out, 65536) == 0,
           "no cached entity type emits no miniature");

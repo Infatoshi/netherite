@@ -814,9 +814,11 @@ int gm_window_compose_draw(GmWindowCompose *c,
 
     gm_frame_prepare_minecarts(ents, nents, r->world);
     gm_frame_entities_light(ents, nents, r->world, r->dimension, lm);
-    if (nents > 0) {
+    {
         int nv = gm_entities_emit(ents, nents, c->entity_verts,
                                   c->max_entity_verts);
+        nv += gm_frame_spawners_emit(r, c->entity_verts + nv,
+                                     c->max_entity_verts - nv);
         gm_particles_dragon_latch(r->tick, ents, nents);
         nv += gm_particles_emit_filtered(
             ents, nents, pv->yaw, pv->pitch,

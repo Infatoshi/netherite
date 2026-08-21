@@ -171,9 +171,10 @@ static int ray_axis(double start, double dir, double lo, double hi,
 }
 
 /* Minecraft.getMouseOver resolves collidable entities before clickMouse.
- * A falling block crossing the look ray therefore absorbs the held attack and
- * resets block removing; without this, replay digs terrain through the live
- * cascade while Java is harmlessly hitting EntityFallingBlock. */
+ * Entity intercepts only when its AABB hit is strictly closer than the block
+ * hit (EntityRenderer.getMouseOver d1 < d0). A falling AABB further along the
+ * same ray must not steal a held creative attack from a closer re-landed
+ * cell; that split the 151855Z digest across t46/t47. */
 static int attack_hits_falling_block(const GmRuntime *r) {
     const double border = 0.1; /* Entity.getCollisionBorderSize */
     /* EntityRenderer.getMouseOver uses Entity.getVectorForRotation, whose
@@ -191,6 +192,30 @@ static int attack_hits_falling_block(const GmRuntime *r) {
     double sx = r->player.ent.posX + (double)r->ox;
     double sy = r->player.ent.posY + PSV_EYE_HEIGHT;
     double sz = r->player.ent.posZ + (double)r->oz;
+    double t_block = PSV_REACH;
+    if (r->window) {
+        int hx, hy, hz, ax, ay, az;
+        if (gm_raycast_sel_reach(r->window, &r->sin_table, &r->player,
+                                 PSV_REACH, &hx, &hy, &hz,
+                                 &ax, &ay, &az) >= 0) {
+            float b[6];
+            double t0 = 0.0, t1 = PSV_REACH;
+            double ex = r->player.ent.posX;
+            double ey = r->player.ent.posY + PSV_EYE_HEIGHT;
+            double ez = r->player.ent.posZ;
+            gm_sel_box_at(r->window, hx, hy, hz, b);
+            if (ray_axis(ex, dx, hx + (double)b[0], hx + (double)b[3],
+                         &t0, &t1) &&
+                ray_axis(ey, dy, hy + (double)b[1], hy + (double)b[4],
+                         &t0, &t1) &&
+                ray_axis(ez, dz, hz + (double)b[2], hz + (double)b[5],
+                         &t0, &t1) &&
+                t0 >= 0.0 && t0 <= PSV_REACH)
+                t_block = t0;
+        }
+    }
+    double t_ent = t_block;
+    int hit = 0;
     for (int i = 0; i < GM_LIVE_MAX; ++i) {
         const GmLiveEnt *e = &r->entities.ents[i];
         if (!e->active || e->type != 2) continue;
@@ -205,10 +230,13 @@ static int attack_hits_falling_block(const GmRuntime *r) {
             ray_axis(sy, dy, client_y - border,
                      client_y + 0.98 + border, &t0, &t1) &&
             ray_axis(sz, dz, e->z - 0.49 - border,
-                     e->z + 0.49 + border, &t0, &t1))
-            return 1;
+                     e->z + 0.49 + border, &t0, &t1) &&
+            t0 >= 0.0 && t0 < t_ent) {
+            t_ent = t0;
+            hit = 1;
+        }
     }
-    return 0;
+    return hit;
 }
 
 static int take_arrow(PsvPlayer *p) {
@@ -1774,6 +1802,50 @@ int gm_runtime_snapshot_region_dim(GmRuntime *r, int dimension,
     if (!world || radius < 0 || radius > 32) return 0;
     gm_world_ensure(world, ccx, ccz, radius);
     return 1;
+}
+
+int gm_runtime_set_tile_entity(GmRuntime *r, int dim, int x, int y, int z,
+                               int entity_type, float rotation) {
+    int free_slot = -1;
+    if (!r || y < 0 || y > 255 || dim < -1 || dim > 1) return 0;
+    for (int i = 0; i < GM_RUNTIME_SPAWNERS; ++i) {
+        GmRuntimeSpawnerTE *s = &r->spawners[i];
+        if (s->active && s->dim == dim && s->wx == x && s->wy == y &&
+            s->wz == z) {
+            s->entity_type = entity_type;
+            s->mob_rotation = rotation;
+            return 1;
+        }
+        if (!s->active && free_slot < 0) free_slot = i;
+    }
+    if (free_slot < 0) return 0;
+    r->spawners[free_slot].active = 1;
+    r->spawners[free_slot].dim = dim;
+    r->spawners[free_slot].wx = x;
+    r->spawners[free_slot].wy = y;
+    r->spawners[free_slot].wz = z;
+    r->spawners[free_slot].entity_type = entity_type;
+    r->spawners[free_slot].mob_rotation = rotation;
+    return 1;
+}
+
+int gm_runtime_spawner_views(const GmRuntime *r, GmRuntimeSpawnerView *out,
+                             int max) {
+    int n = 0;
+    if (!r || !out || max <= 0) return 0;
+    for (int i = 0; i < GM_RUNTIME_SPAWNERS && n < max; ++i) {
+        const GmRuntimeSpawnerTE *s = &r->spawners[i];
+        if (!s->active || s->dim != r->dimension) continue;
+        if (r->world && gm_world_block(r->world, s->wx, s->wy, s->wz) != 52)
+            continue;
+        out[n].wx = s->wx;
+        out[n].wy = s->wy;
+        out[n].wz = s->wz;
+        out[n].entity_type = s->entity_type;
+        out[n].mob_rotation = s->mob_rotation;
+        n++;
+    }
+    return n;
 }
 
 int gm_runtime_set_inventory(GmRuntime *r, int slot, int item, int count, int meta) {

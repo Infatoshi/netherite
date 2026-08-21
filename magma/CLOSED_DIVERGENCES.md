@@ -5,6 +5,84 @@ so the open file stays an actionable list. Entries are preserved verbatim
 (full forensics) because they document why a question is settled; read them
 before re-investigating anything that smells similar. Newest at top.
 
+### Spawner miniature data path: CLOSED (lane/sim, 2026-08-21)
+
+Was OPEN as a data gap, not a renderer gap. `gm_spawner_miniatures_emit`
+already matched `TileEntityMobSpawnerRenderer`. Nothing called it.
+
+Closed path, in order:
+
+1. `verify/trace/snapshot_patch.py` reads `chunk["Level"]["TileEntities"]`
+   and emits tick-0 `set_tile_entity` for `minecraft:mob_spawner` with
+   `SpawnData.id` (1.11.2 string form).
+2. `script.c` handles `set_tile_entity`. `gm_entity_type_for_spawn_id`
+   maps `minecraft:blaze` -> EW_TYPE 7. The mapper lives in
+   `entity_render.c`, not `runtime.o`.
+3. `GmRuntime.spawners[64]` is a position-keyed store.
+   `gm_runtime_spawner_views` copies the current dimension, and only
+   while the cell is still block 52. `discover_spawners` does not
+   construct these views.
+4. `gm_frame_spawners_emit` runs in `frame_capture.c` and
+   `window_compose.c` after `gm_entities_emit`.
+
+Native `verify/tape/replay.c` copies `set_tile_entity` lines through the
+same START-arrival radius filter as `snapshot_block`. Fortress
+`RequiredPlayerRange=0` stays rotation 0.
+
+Gates: `bash magma/game/test_runtime.sh` PASS (store/views);
+`bash magma/game/test_entity_render.sh` ALL TESTS PASSED
+(`minecraft:blaze -> EntityBlaze 7`);
+`bash magma/game/test_script.sh` `set_tile_entity blaze spawner: ok`.
+
+### Falling-block t46: CLOSED (lane/sim, 2026-08-21)
+
+Residual on `scenario_falling_blocks_20260801T151855Z` was a single-tick
+t46/t47 split: Java observed re-landed sand and held-creative removal in
+the same post-tick digest; magma left the cell sand at t46.
+
+Cause: `attack_hits_falling_block` returned 1 as soon as any falling AABB
+crossed the look ray. Vanilla `EntityRenderer.getMouseOver` lets the
+entity win only when intercept `d1 < d0` (block hit). A leftover falling
+AABB further along the same ray stole the held creative click from the
+closer re-landed cell.
+
+Fix: compare parametric t against the selection-box block hit. Entity
+wins only if `t_ent < t_block`.
+
+Gate: `bash magma/game/test_fall_reanchor.sh` includes H and prints
+`fall_reanchor: PASS`. The 151855Z tape is not in this worktree's
+`verify/tapes/` set, so the 309/310 digest was not re-run here.
+Canonical physics after the change:
+`out/verify/replay --tape verify/tapes/20260721T215812Z_fast_s0_survival_default_rd8_77b5b462.jsonl --ticks 4000`
+-> `first_div none`, 3617/3617, `nearby_hash` match.
+
+### pcl consume: CLOSED (already landed; verified lane/sim 2026-08-21)
+
+Tape `pcl` rows become `spawn_particle` in `replay_tape.py`.
+`script.c` calls `gm_particles_live_spawn_recorded`. Capture and window
+compose emit them.
+
+Gates: `make -C magma test-particles-live` -> `particles_live: PASS`.
+`replay_tape.tape_to_script` maps three `pcl` rows to three
+`spawn_particle` events (ids 0,1,2). Dragon-death puff placement from
+unrecorded `Particle.rand` stays a separate OPEN item.
+
+### Blaze on-fire flag in the LIVE simulator: CLOSED (already landed; verified lane/sim 2026-08-21)
+
+Replay was already fixed (`ent_view.flags` bit 0). Live
+`AIFireballAttack` is in `gm_mobs_tick`: `charge[]` = attackStep,
+`blaze_on_fire` set at step 1 and cleared at step 5 / `resetTask`,
+`gm_mobs_fill_views` ORs flags bit 0.
+
+Vanilla 78-on/100-off. Darwin standalone tests now link
+`world/gen_prefetch.o` so Mach-O resolves the `genpf_*` refs.
+
+Gate: `bash magma/game/test_mob_live.sh` -> `mob_live: PASS`.
+`./magma/game/test_mob_live --blaze-receipt /tmp/blaze_live.json`:
+`charged_on=156 charged_off=200` (two cycles),
+transitions `0:on,78:off,178:on,256:off`,
+fireballs `60,66,72,238,244,250`.
+
 ### The oracle's fogColor1 had not converged when recording started
 
 Every scenario tape is worse at t=0 than at t=10, by 2-6x, on the whole-frame

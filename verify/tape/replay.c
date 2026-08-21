@@ -483,6 +483,26 @@ static int emit_snap(FILE *f, const char *cache, const Header *hdr, int radius,
                 fr = r;
             continue;
         }
+        if (strstr(line, "\"type\":\"set_tile_entity\"")) {
+            if (!find_int(line, "\"x\":", &x) || !find_int(line, "\"z\":", &z))
+                continue;
+            find_int(line, "\"dim\":", &dim);
+            if (dim != sdim)
+                continue;
+            bx = floordiv16(x);
+            bz = floordiv16(z);
+            if (iabs(bx - scx) > radius || iabs(bz - scz) > radius)
+                continue;
+            if (fwrite(line, 1, (size_t)n, f) != (size_t)n) {
+                free(line);
+                fclose(sf);
+                return 0;
+            }
+            if (n > 0 && line[n - 1] != '\n')
+                fputc('\n', f);
+            wrote++;
+            continue;
+        }
         if (!strstr(line, "\"type\":\"snapshot_block\""))
             continue;
         if (!find_int(line, "\"x\":", &x) || !find_int(line, "\"z\":", &z))
