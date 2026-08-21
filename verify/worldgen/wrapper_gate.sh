@@ -50,7 +50,7 @@ if [[ ${#SEEDS[@]} -eq 0 ]]; then
   SEEDS=(0 7 9 19)
 fi
 
-export UV_CACHE_DIR="${UV_CACHE_DIR:-/home/infatoshi/.cache/uv}"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$HOME/.cache/uv}"
 export TMPDIR="${TMPDIR:-/home/infatoshi/dev/nw/.tmp}"
 mkdir -p "$TMPDIR" "$OUT"
 
