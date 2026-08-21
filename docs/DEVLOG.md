@@ -1,5 +1,47 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 detmob consolidation round 4 (lane/detmob-all)
+
+On 2f3a51d: five PASS; two first_divs, cursors equal.
+
+Sites (bytecode, deobfed 1.11.2):
+- EntityAIAttackMelee.updateTask: lookHelper.setLookPositionWithEntity then
+  tryMoveToEntityLiving read the same target.pos. Tape pl is client pose after
+  ServerTick END (includes this tick's knockback). t=29 skeleton pitch
+  sign-flips if look uses that pl (player already airborne from creeper
+  explode after skeleton AI). look_px = previous tape pl. Path dest uses the
+  same clock. detmob_gate set_pose_state onGround=1 so look_px is that pose,
+  not a fallen puppet (set_pose zeros vel/og and player_tick applies gravity).
+  Collision still uses the current pose.
+- PathNavigate.canEntityStandOnPos: IBlockState.isFullBlock of pos.down
+  (Block.fullBlock = isOpaqueCube). RPG getLandPos uses it. Slabs/stairs/
+  fences/walls/gates/ladder/trapdoor are not full even when BF_SOLID.
+- PathNavigateGround.getPathToPos: AIR walk-down; isSolid walk-up stops at
+  the first non-solid. PathFinder.findPathOptions keeps a neighbour only if
+  distanceTo(dest) < FOLLOW_RANGE; closest==start returns null.
+  Nether T182511 t=735 dest col has a 1-block air pocket at y=96 under
+  netherrack 97-124. Java-faithful dest y=96 has dist~38<48, A* n=10 same-Y
+  walk; Java 1-tick noPath. 128x256x128 window still walked at dest y=96.
+  Climb 1-high cavities under more solid so dest is the pillar top (y=128,
+  dist=69.9>48, nopts=0). Multi-block caves (t=21 dest y=95 n=2 neighbour-only
+  reject; t=585 dest y=95 n=4 -Z walk) do not climb.
+
+Gates:
+- passive T152220Z PASS 1203 standing
+- wander T164213Z PASS 1204
+- panic T170933Z PASS 407
+- nether T182154Z PASS 852
+- ambient T181540Z PASS 625
+- nether T182511Z PASS 841 walked eid=3872 xz=2.73137 (was t=745 x)
+- target T182955Z first_div t=42 eid=3335 zombie pitch tape=2.7023606
+  magma=2.67498541 draws_between=0 (was t=31 skeleton x). Skeleton melee
+  dest closed. Tape watch pitch held t=41 two snaps; magma recomputed from
+  look_px=pl[t=41]. EntityLookHelper.onUpdateLook resets pitch to 0 then
+  updateRotation each tick (WatchClosest 40F), so a hold is the tape pl
+  clock, not interpolation.
+
+Default-off. No GATES / known_divergences / blessed-tape / blaze-rl.
+
 ## 2026-08-22 detmob consolidation round 3 (lane/detmob-all)
 
 On 00647de: four PASS; three first_divs, cursors equal.

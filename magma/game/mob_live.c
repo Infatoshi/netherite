@@ -52,6 +52,28 @@ static int solid_id(int id) {
     return (p.flags & BF_SOLID) && !(p.flags & BF_LIQUID);
 }
 
+/* PathNavigate.canEntityStandOnPos: IBlockState.isFullBlock() of pos.down.
+ * Block.fullBlock is isOpaqueCube (light_opacity 255 for KEEP cubes). Stairs,
+ * slabs, fences, walls, and gates are not full blocks even when BF_SOLID. */
+static int pai_is_full_block(int id) {
+    BptProps p;
+    if (id == 0) return 0;
+    switch (id) {
+        case 44: case 43: case 125: case 126: case 181: case 182: /* slabs */
+        case 53: case 67: case 108: case 109: case 114: case 128:
+        case 134: case 135: case 136: case 156: case 163: case 164:
+        case 180: case 203: /* stairs */
+        case 85: case 113: case 188: case 189: case 190: case 191: case 192:
+        case 139: case 107: /* fence / wall / gate */
+        case 65: case 96: case 167: /* ladder / trapdoor */
+            return 0;
+        default:
+            break;
+    }
+    p = mc_bpt_props(id);
+    return (p.flags & BF_SOLID) && !(p.flags & BF_LIQUID) && p.light_opacity >= 255;
+}
+
 static int collect_blocks(GmWorld *w, const McAABB *q, PcfBlock *out, int cap) {
     int n = 0;
     int x0 = mc_floor(q->minX) - 1, x1 = mc_floor(q->maxX) + 1;
@@ -607,7 +629,8 @@ static int pai_random_position(GmMobLive *m, GmWorld *w, const EwStore *s, int i
         int bx = mc_floor(s->x[i] + dx);
         int by = mc_floor(s->y[i] + dy);
         int bz = mc_floor(s->z[i] + dz);
-        if (by <= 0 || !solid_id(gm_world_block(w, bx, by - 1, bz))) continue;
+        /* PathNavigate.canEntityStandOnPos: IBlockState.isFullBlock of pos.down. */
+        if (by <= 0 || !pai_is_full_block(gm_world_block(w, bx, by - 1, bz))) continue;
         int score_y = by;
         if (land && solid_id(gm_world_block(w, bx, score_y, bz))) {
             while (score_y < 256 && solid_id(gm_world_block(w, bx, score_y, bz)))
@@ -673,6 +696,19 @@ static void pai_path_to_pos(GmWorld *w, int *x, int *y, int *z) {
     }
     if (!pai_mat_solid(id)) return;
     while (*y < 256 && pai_mat_solid(gm_world_block(w, *x, *y, *z))) ++*y;
+    /* PathNavigateGround.getPathToPos stops at the first non-solid. A 1-block
+     * air pocket under more solid (nether T182511 dest col y=96) leaves dest
+     * inside FOLLOW_RANGE; findPathOptions then keeps same-Y neighbours and A*
+     * walks (n=10) while Java 1-tick noPath. Large PNP window still walked at
+     * dest y=96. Climb 1-high cavities so dest sits on the rest of the pillar
+     * (y=128 nether ceiling): distanceTo>FOLLOW_RANGE, nopts empty,
+     * closest==start null (PathFinder.findPath). Multi-block caves (t=21/585)
+     * stay at the first air and do not climb. */
+    while (*y < 255 && !pai_mat_solid(gm_world_block(w, *x, *y, *z)) &&
+           pai_mat_solid(gm_world_block(w, *x, *y + 1, *z))) {
+        ++*y;
+        while (*y < 256 && pai_mat_solid(gm_world_block(w, *x, *y, *z))) ++*y;
+    }
 }
 
 static int pai_ceil_f(float v) {
@@ -2963,6 +2999,9 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
     }
     if(m->player_attack_cooldown>0)--m->player_attack_cooldown;
     double px=p->ent.posX+ox, py=p->ent.posY, pz=p->ent.posZ+oz;
+    /* Tape pl is client pose after ServerTick END. t=29 pitch sign-flips if
+     * lookHelper uses this tick's pl; previous pl matches. Path dest uses
+     * the same clock (EntityAIAttackMelee look then tryMoveToEntityLiving). */
     double lx = m->look_have ? m->look_px : px;
     double ly = m->look_have ? m->look_py : py;
     double lz = m->look_have ? m->look_pz : pz;
@@ -3080,7 +3119,9 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             pai_tick(m,w,nx,i,px,py,pz,mob_griefing,
                      &moving,&jump,&wandering,&swim_jump,&nav_speed);
         }else if(pai_det() && hai_ok(type)){
-            hai_tick(m,w,nx,i,px,py,pz,day,
+            /* EntityAIAttackMelee.updateTask: lookHelper then tryMoveToEntityLiving
+             * read the same target.pos. Both use look_px (previous tape pl). */
+            hai_tick(m,w,nx,i,lx,ly,lz,day,
                      &moving,&jump,&wandering,&swim_jump,&nav_speed);
             if(!nx->alive[i]) continue;
         /* Ghast AIFireballAttack: charge then fire large fireball. */

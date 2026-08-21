@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
         }
         r.mobs.active_dimension = dim;
     }
-    gm_runtime_set_pose(&r, px, py, pz, pyaw, ppitch);
+    gm_runtime_set_pose_state(&r, px, py, pz, pyaw, ppitch, 0.0, 0.0, 0.0, 1, 0.0f);
     gm_world_ensure(r.world, floordiv16((int)floor(px)),
                     floordiv16((int)floor(pz)), 4);
     for (i = 0; i < nents; ++i)
@@ -321,7 +321,10 @@ int main(int argc, char **argv) {
             gm_world_ensure(r.world, floordiv16((int)floor(px)),
                             floordiv16((int)floor(pz)), 3);
         }
-        gm_runtime_set_pose(&r, px, py, pz, pyaw, ppitch);
+        /* set_pose zeros vel/onGround, then player_tick applies extra gravity
+         * on the tape pose. onGround=1 holds the tape pose so look_px (previous
+         * pl) is that pose, not a fallen puppet. Look and path share look_px. */
+        gm_runtime_set_pose_state(&r, px, py, pz, pyaw, ppitch, 0.0, 0.0, 0.0, 1, 0.0f);
         gm_runtime_tick(&r, idle);
         s = r.mobs.current ? &r.mobs.b : &r.mobs.a;
         for (slot = 1; slot < EW_MAX_ENTITIES; ++slot) {

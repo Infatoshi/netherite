@@ -98,9 +98,8 @@ typedef struct {
     double det_nav_stuck_x[EW_MAX_ENTITIES];
     double det_nav_stuck_y[EW_MAX_ENTITIES];
     double det_nav_stuck_z[EW_MAX_ENTITIES];
-    /* Previous-tick player pose for lookHelper. Tape `pl` is client pose
-     * after ServerTick END; EntityLookHelper samples during AI, before this
-     * tick's player travel. Watch/NAT/collision keep the current pose. */
+    /* Previous tape pl. Tape pl is client pose after ServerTick END (includes
+     * this tick's knockback). LookHelper and tryMoveToEntityLiving share it. */
     double look_px, look_py, look_pz;
     unsigned char look_have;
     /* PathNavigate.getPathSearchRange: FOLLOW_RANGE attribute base.
