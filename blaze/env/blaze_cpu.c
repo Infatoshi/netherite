@@ -56,6 +56,11 @@ typedef struct {
     int   *assign;
     CuSnapshot snaps[BLAZE_MAX_SNAPS];
     int    nsnaps;
+    /* capture may replace coal/xy_off while live envs still alias the old
+     * buffer (env->ore / env->ore_xy bind by pointer at reset). Do not
+     * free those until destroy. */
+    void  *retired[BLAZE_MAX_SNAPS * 4];
+    int    nretired;
     /* pooled per-env buffers. Region-sized pools (cells/light) are
      * allocated on the FIRST snapshot load - the region dims come from the
      * snapshot header; every loaded snapshot must share them. Still
@@ -200,11 +205,18 @@ static int cu_alloc_region_pools(CuVec *v, int rnx, int rny, int rnz) {
     return 1;
 }
 
+static void cpu_retire(CuVec *v, void *p) {
+    if (!p || !v) return;
+    if (v->nretired < (int)(sizeof v->retired / sizeof v->retired[0]))
+        v->retired[v->nretired++] = p;
+}
+
 void blaze_destroy(void *vh) {
     CuVec *v = (CuVec *)vh;
     int i;
     if (!v) return;
     for (i = 0; i < v->nsnaps; ++i) blaze_snapshot_free(&v->snaps[i]);
+    for (i = 0; i < v->nretired; ++i) free(v->retired[i]);
     free(v->envs); free(v->assign);
     free(v->cells_pool); free(v->light_pool);
     free(v->grass_pool);
@@ -386,10 +398,17 @@ int blaze_capture(void *vh, int env, int slot) {
     }
     memcpy(s->cells, e->cells, (size_t)v->rvol * sizeof *s->cells);
     if ((int)s->ncoal != e->nore) {
-        free(s->coal);
-        s->coal = e->nore ? (int *)malloc((size_t)e->nore * 3 *
-                                          sizeof *s->coal) : NULL;
-        if (e->nore && !s->coal) { s->ncoal = 0; return -1; }
+        /* Grow without freeing: live envs may still alias s->coal via
+         * env->ore (bound at reset). Shrink keeps the existing allocation. */
+        if (e->nore > (int)s->ncoal || !s->coal) {
+            int *coal = NULL;
+            if (e->nore) {
+                coal = (int *)malloc((size_t)e->nore * 3 * sizeof *coal);
+                if (!coal) return -1;
+            }
+            cpu_retire(v, s->coal);
+            s->coal = coal;
+        }
         s->ncoal = (unsigned)e->nore;
     }
     if (e->nore)
@@ -403,7 +422,7 @@ int blaze_capture(void *vh, int env, int slot) {
             if (!s->xy_off) s->xy_off = (int *)malloc(nb);
             if (s->xy_off) memcpy(s->xy_off, src_xy, nb);
         } else {
-            free(s->xy_off);
+            cpu_retire(v, s->xy_off);
             s->xy_off = NULL;
         }
     }

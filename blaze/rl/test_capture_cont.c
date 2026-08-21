@@ -47,20 +47,24 @@ static long cell_i(int wx, int wy, int wz) {
   return ((long)wx * RNY + (long)wy) * RNZ + (long)wz;
 }
 
-static int write_bsnp(const char *path, int ntab, const int *wx, const int *wy,
-                      const int *wz) {
+static int write_bsnp_ex(const char *path, int ntab, const int *wx,
+                         const int *wy, const int *wz, unsigned ncoal) {
   RlSnapHead h;
-  unsigned ncoal = 0;
   long vol = (long)RNX * RNY * RNZ;
   unsigned short *cells;
   unsigned char *light;
+  int *coal = NULL;
   FILE *f;
   int x, y, z, t;
+  unsigned u;
   cells = (unsigned short *)calloc((size_t)vol, sizeof *cells);
   light = (unsigned char *)calloc((size_t)vol, 1);
-  if (!cells || !light) {
+  if (ncoal)
+    coal = (int *)malloc((size_t)ncoal * 3u * sizeof *coal);
+  if (!cells || !light || (ncoal && !coal)) {
     free(cells);
     free(light);
+    free(coal);
     return -1;
   }
   memset(&h, 0, sizeof h);
@@ -89,21 +93,36 @@ static int write_bsnp(const char *path, int ntab, const int *wx, const int *wy,
         cells[cell_i(x, y, z)] = (unsigned short)(1 << 4); /* stone floor */
   for (t = 0; t < ntab; ++t)
     cells[cell_i(wx[t], wy[t], wz[t])] = (unsigned short)(58 << 4);
+  /* lex-ascending (x,y,z) so blaze_build_ore_xy accepts the list */
+  for (u = 0; u < ncoal; ++u) {
+    coal[u * 3u + 0] = (int)(u % (unsigned)RNX);
+    coal[u * 3u + 1] = 1;
+    coal[u * 3u + 2] = (int)(u / (unsigned)RNX);
+  }
   f = fopen(path, "wb");
   if (!f || fwrite(&h, sizeof h, 1, f) != 1 ||
       fwrite(cells, sizeof *cells, (size_t)vol, f) != (size_t)vol ||
       fwrite(&ncoal, sizeof ncoal, 1, f) != 1 ||
+      (ncoal && fwrite(coal, sizeof *coal, (size_t)ncoal * 3u, f) !=
+                    (size_t)ncoal * 3u) ||
       fwrite(light, 1, (size_t)vol, f) != (size_t)vol) {
     if (f)
       fclose(f);
     free(cells);
     free(light);
+    free(coal);
     return -1;
   }
   fclose(f);
   free(cells);
   free(light);
+  free(coal);
   return 0;
+}
+
+static int write_bsnp(const char *path, int ntab, const int *wx, const int *wy,
+                      const int *wz) {
+  return write_bsnp_ex(path, ntab, wx, wy, wz, 0);
 }
 
 typedef struct {
@@ -276,6 +295,39 @@ int main(void) {
       expect_eq_i(f.capture(env, 0, 1), 0, "append new slot");
       f.destroy(env);
     }
+  }
+
+  {
+    /* Live env aliases slot coal (env->ore). Capture from a longer-ncoal
+     * sibling must not free that buffer: the next capture from the live env
+     * memcpy's e->ore. This is the CUDA trainer SEGV (libcuda D2D from a
+     * cudaFree'd coal pointer). */
+    char p_lo[160], p_hi[160];
+    snprintf(p_lo, sizeof p_lo, "%s/coal_lo.bsnp", dir);
+    snprintf(p_hi, sizeof p_hi, "%s/coal_hi.bsnp", dir);
+    expect_eq_i(write_bsnp_ex(p_lo, 0, NULL, NULL, NULL, 4), 0, "write coal_lo");
+    expect_eq_i(write_bsnp_ex(p_hi, 0, NULL, NULL, NULL, 9), 0, "write coal_hi");
+    {
+      const char *paths[2] = {p_lo, p_hi};
+      void *env = f.create(0, 2, NULL);
+      char lerr[256];
+      int idx[2] = {0, 1};
+      expect_true(env != NULL, "coal n=2 create");
+      if (env) {
+        expect_eq_i(f.load(env, paths, 2, lerr, (int)sizeof lerr) < 0 ? -1 : 0,
+                    0, "coal load");
+        expect_eq_i(f.assign(env, idx), 0, "coal assign lo/hi");
+        expect_eq_i(f.reset(env, NULL), 0, "coal reset");
+        expect_eq_i(f.capture(env, 1, 0), 0,
+                    "capture hi-ncoal into lo slot (live env0 aliases lo)");
+        expect_eq_i(f.capture(env, 0, 1), 0,
+                    "capture from env still aliased to overwritten slot");
+        expect_eq_i(f.reset(env, NULL), 0, "reset after coal overwrite");
+        f.destroy(env);
+      }
+    }
+    unlink(p_lo);
+    unlink(p_hi);
   }
 
   dlclose(f.lib);

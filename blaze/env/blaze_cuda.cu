@@ -117,6 +117,11 @@ typedef struct {
                                            * device pointers */
     CuSnapDev *d_snaps;
     int nsnaps;
+    /* capture may replace coal/xy_off while live envs still alias the old
+     * buffer (env->ore / env->ore_xy bind by pointer at reset). Do not
+     * cudaFree those until destroy. */
+    const void *retired[BLAZE_MAX_SNAPS * 4];
+    int nretired;
     int has_liquid[BLAZE_MAX_SNAPS];
     int has_unrepresented[BLAZE_MAX_SNAPS];
     /* verify-helper scratch */
@@ -813,6 +818,12 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
     return v;
 }
 
+static void cu_retire(CuVecCu *v, const void *p) {
+    if (!p || !v) return;
+    if (v->nretired < (int)(sizeof v->retired / sizeof v->retired[0]))
+        v->retired[v->nretired++] = p;
+}
+
 void blaze_destroy(void *vh) {
     CuVecCu *v = (CuVecCu *)vh;
     int i;
@@ -855,6 +866,8 @@ void blaze_destroy(void *vh) {
         cudaFree((void *)v->h_snaps[i].xy_off);
         cudaFree((void *)v->h_snaps[i].cont);
     }
+    for (i = 0; i < v->nretired; ++i)
+        cudaFree((void *)v->retired[i]);
     cudaFree(v->d_ops);
     cudaFree(v->d_obs);
     cudaFree(v->d_obs_all);
@@ -1182,11 +1195,11 @@ int blaze_step(void *vh, const double *actions, int repeat,
  * at nsnaps (dense growth). The slot inherits the env's current region cells
  * (post-edit world), its static ore list and the source snapshot's liquid
  * flag. Rare host call; the per-slot cudaMallocs happen once per slot (all
- * snapshots share the region dims) except the coal list, which reallocs only
- * when its length changes. CAUTION: overwriting a slot frees/rewrites the
- * device coal buffer that envs previously reset FROM this slot still point
- * at - keep a fixed (seed,stage)->slot discipline (same seed => identical
- * ore list, so the rewrite is content-identical) or reset those envs first. */
+ * snapshots share the region dims) except the coal list, which grows a new
+ * buffer when its length increases. Do not cudaFree the previous coal/xy_off
+ * here: blaze_reset_scalar binds env->ore / env->ore_xy by pointer into the
+ * slot, and other live envs may still be reading that buffer. Retired
+ * pointers are freed at destroy. Same-length overwrites stay in place. */
 int blaze_capture(void *vh, int env, int slot) {
     CuVecCu *v = (CuVecCu *)vh;
     Blaze he;
@@ -1220,16 +1233,17 @@ int blaze_capture(void *vh, int env, int slot) {
                          cudaMemcpyDeviceToDevice), "capture cells copy"))
         return -1;
     if (d->ncoal != he.nore) {
-        int *coal = NULL;
-        cudaFree((void *)d->coal);
-        d->coal = NULL;
-        if (he.nore &&
-            cu_ck(cudaMalloc(&coal, (size_t)he.nore * 3 * sizeof(int)),
-                  "capture coal alloc")) {
-            d->ncoal = 0;
-            return -1;
+        /* Grow without freeing: live envs may still alias d->coal. Shrink
+         * keeps the existing allocation and just updates ncoal. */
+        if (he.nore > d->ncoal || !d->coal) {
+            int *coal = NULL;
+            if (he.nore &&
+                cu_ck(cudaMalloc(&coal, (size_t)he.nore * 3 * sizeof(int)),
+                      "capture coal alloc"))
+                return -1;
+            cu_retire(v, d->coal);
+            d->coal = coal;
         }
-        d->coal = coal;
         d->ncoal = he.nore;
     }
     if (he.nore &&
@@ -1254,7 +1268,7 @@ int blaze_capture(void *vh, int env, int slot) {
                       "capture xy_off copy"))
                 return -1;
         } else {
-            cudaFree((void *)d->xy_off);
+            cu_retire(v, d->xy_off);
             d->xy_off = NULL;
         }
     }
