@@ -39,12 +39,14 @@ typedef struct TrainConfig {
   int cap_refresh;
   char train_seeds[TR_CFG_STR_MAX]; /* "fixture" or "2,3,10" */
   char snaps_dir[TR_CFG_STR_MAX];
+  int stage_snaps; /* 0/1: pre-seed curriculum from s{seed}_stg{k}.bsnp */
   float lr_floor;
   int64_t lr_decay_ticks;
   int ep_dec;
   int64_t ckpt_ticks;
   uint64_t seed;
   char checkpoint[TR_CFG_STR_MAX];
+  char init_from[TR_CFG_STR_MAX]; /* empty = off; schema-1 .bin warm-start */
   /* Metal observation (used when backend=metal; present on every platform) */
   int metal_max_cells;
   char metallib[TR_CFG_STR_MAX]; /* "auto" = owned default path */

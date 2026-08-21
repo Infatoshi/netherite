@@ -65,6 +65,7 @@ static void test_defaults(void) {
   expect_eq_i(c.cap_refresh, 25, "default cap_refresh");
   expect_eq_s(c.train_seeds, "fixture", "default train_seeds");
   expect_eq_s(c.snaps_dir, "blaze/rl/out/snaps", "default snaps_dir");
+  expect_eq_i(c.stage_snaps, 0, "default stage_snaps");
   expect_near(c.lr_floor, 1e-4f, 1e-9f, "default lr_floor");
   expect_true(c.lr_decay_ticks == 1500000000LL, "default lr_decay_ticks");
   expect_eq_i(c.ep_dec, 1500, "default ep_dec");
@@ -72,6 +73,7 @@ static void test_defaults(void) {
   expect_eq_i((int)c.seed, 0, "default seed");
   expect_true(strstr(c.checkpoint, "ppo_ckpt.bin") != NULL,
               "default checkpoint");
+  expect_eq_s(c.init_from, "", "default init_from");
   expect_eq_i(c.metal_max_cells, 2097152, "default metal_max_cells");
   expect_eq_s(c.metallib, "auto", "default metallib");
   expect_eq_i(c.ktime, 0, "default ktime");
@@ -108,7 +110,9 @@ static void test_file_load(void) {
           "gamma = 0.9\n"
           "seed = 42\n"
           "warp_tick = 0\n"
-          "op_trace = 1\n");
+          "op_trace = 1\n"
+          "stage_snaps = 1\n"
+          "init_from =\n");
   fclose(f);
 
   tr_cfg_defaults(&c);
@@ -121,19 +125,24 @@ static void test_file_load(void) {
   expect_eq_s(c.backend, "cpu", "file backend");
   expect_eq_i(c.warp_tick, 0, "file warp_tick");
   expect_eq_i(c.op_trace, 1, "file op_trace");
+  expect_eq_i(c.stage_snaps, 1, "file stage_snaps");
+  expect_eq_s(c.init_from, "", "file init_from empty");
   unlink(path);
 }
 
 static void test_set_override(void) {
   TrainConfig c;
   char *argv[] = {"test", "--set", "n_envs=16", "--set", "lr=0.001",
-                  "--set", "seed=7", "--set", "checkpoint=out/x.bin"};
-  int rc = tr_cfg_parse_argv(&c, 9, argv);
+                  "--set", "seed=7", "--set", "checkpoint=out/x.bin",
+                  "--set", "init_from=out/warm.bin", "--set", "stage_snaps=1"};
+  int rc = tr_cfg_parse_argv(&c, 13, argv);
   expect_eq_i(rc, 0, "parse_argv override");
   expect_eq_i(c.n_envs, 16, "override n_envs");
   expect_near(c.lr, 0.001f, 1e-9f, "override lr");
   expect_eq_i((int)c.seed, 7, "override seed");
   expect_eq_s(c.checkpoint, "out/x.bin", "override checkpoint");
+  expect_eq_s(c.init_from, "out/warm.bin", "override init_from");
+  expect_eq_i(c.stage_snaps, 1, "override stage_snaps");
 }
 
 static void test_unknown_key(void) {
@@ -198,6 +207,10 @@ static void test_bad_value(void) {
   expect_eq_i(rc, -2, "metal_max_cells=abc bad");
   rc = tr_cfg_set(&c, "metallib", "");
   expect_eq_i(rc, -2, "metallib empty bad");
+  rc = tr_cfg_set(&c, "stage_snaps", "2");
+  expect_eq_i(rc, -2, "stage_snaps=2 bad");
+  rc = tr_cfg_set(&c, "stage_snaps", "true");
+  expect_eq_i(rc, -2, "stage_snaps=true bad");
 }
 
 static void test_nonfinite_and_seed_and_overlong(void) {
@@ -225,6 +238,8 @@ static void test_nonfinite_and_seed_and_overlong(void) {
   expect_eq_i(rc, -2, "overlong fixture rejected");
   rc = tr_cfg_set(&c, "checkpoint", long_path);
   expect_eq_i(rc, -2, "overlong checkpoint rejected");
+  rc = tr_cfg_set(&c, "init_from", long_path);
+  expect_eq_i(rc, -2, "overlong init_from rejected");
   rc = tr_cfg_set(&c, "metallib", long_path);
   expect_eq_i(rc, -2, "overlong metallib rejected");
   /* backend max is small; a long valid-looking name must fail */
@@ -274,9 +289,10 @@ static const char *const k_accepted_keys[] = {
     "lam",             "epochs",          "mb",
     "max_chunks",      "max_ticks",       "max_wall",
     "success_item",    "t0_share",        "cap_refresh",
-    "train_seeds",     "snaps_dir",       "lr_floor",
-    "lr_decay_ticks",  "ep_dec",          "ckpt_ticks",
-    "seed",            "checkpoint",      "metal_max_cells",
+    "train_seeds",     "snaps_dir",       "stage_snaps",
+    "lr_floor",        "lr_decay_ticks",  "ep_dec",
+    "ckpt_ticks",      "seed",            "checkpoint",
+    "init_from",       "metal_max_cells",
     "metallib",        "ktime",           "stage_time",
     "legacy_recenter", "warp_tick",       "op_trace",
     "no_ore_xy",
@@ -303,6 +319,8 @@ static void test_committed_conf(void) {
   expect_eq_i(c.warp_tick, 1, "committed warp_tick");
   expect_near(c.gamma, 0.995f, 1e-6f, "committed gamma");
   expect_true(c.checkpoint[0] != '\0', "committed checkpoint set");
+  expect_eq_s(c.init_from, "", "committed init_from off");
+  expect_eq_i(c.stage_snaps, 0, "committed stage_snaps");
   expect_eq_i(c.metal_max_cells, 2097152, "committed metal_max_cells");
   expect_eq_s(c.metallib, "auto", "committed metallib");
 

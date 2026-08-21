@@ -49,7 +49,8 @@
 enum {
   MAX_SEEDS = 32,
   LOG_CAP = 8192,
-  T0_TRAIL = 200
+  T0_TRAIL = 200,
+  MAX_SNAPS = MAX_SEEDS * CR_N_STAGES
 };
 
 static const char kEnvCpuSo[] = "out/blaze/env/blaze_cpu.so";
@@ -153,6 +154,15 @@ static int blaze_fns_load(BlazeFns *f, const char *path, int want_cam_inputs) {
     return -1;
   }
   return 0;
+}
+
+static int path_is_reg(const char *path) {
+  struct stat st;
+  if (!path || !path[0])
+    return 0;
+  if (stat(path, &st) != 0)
+    return 0;
+  return S_ISREG(st.st_mode) ? 1 : 0;
 }
 
 static int mkdir_parents_for_file(const char *path) {
@@ -515,6 +525,13 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
                  b->status) != 0)
       return -3;
 
+    /* After assign+reset, burn-in is the first step into the new snap.
+     * Seed best[] from that inventory so first-time bonuses are not re-paid. */
+    for (i = 0; i < n; ++i) {
+      if (b->burnin[i])
+        cr_seed_lane(cr, i, b->status + (size_t)i * ENV_STATUS);
+    }
+
     cr_step(cr, b->status, b->cam, b->acts_cur, b->pose, b->scal6, b->done_buf,
             b->lane_seed, b->logs, nseeds, b->lmax, b->rew);
 
@@ -608,6 +625,9 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
             b->lane_stage[i] = b->lane_stage_start[i];
             b->lane_snap[i] =
                 cap_slot(nseeds, b->lane_seed[i], b->lane_stage_start[i]);
+            if (b->lane_stage_start[i] > 0)
+              printf("ppo: sample lane=%d si=%d stage=%d\n", i, b->lane_seed[i],
+                     b->lane_stage_start[i]);
           }
           cr_reset_lane(cr, i);
           b->burnin[i] = 1;
@@ -633,6 +653,9 @@ static int run_rollout(Nn *nn, void *env, struct EnvStepCtx *estep,
             b->lane_stage_start[i] = stages_n[k];
             b->lane_stage[i] = stages_n[k];
             b->lane_snap[i] = cap_slot(nseeds, seeds_n[k], stages_n[k]);
+            if (stages_n[k] > 0)
+              printf("ppo: sample lane=%d si=%d stage=%d\n", i, seeds_n[k],
+                     stages_n[k]);
           }
           cr_reset_lane(cr, i);
           b->burnin[i] = 1;
@@ -838,8 +861,8 @@ int main(int argc, char **argv) {
   CrCurr curr;
   char err[512];
   const char *so_path = NULL;
-  char path_store[MAX_SEEDS][TR_CFG_STR_MAX];
-  const char *paths[MAX_SEEDS];
+  char path_store[MAX_SNAPS][TR_CFG_STR_MAX];
+  const char *paths[MAX_SNAPS];
   int seed_ids[MAX_SEEDS];
   float log_tmp[LOG_CAP * 3];
   struct RolloutBuf b;
@@ -963,6 +986,26 @@ int main(int argc, char **argv) {
       paths[i] = path_store[i];
     }
     nsnaps = nseeds;
+    if (cfg.stage_snaps) {
+      int si, stg;
+      nsnaps = nseeds + nseeds * (CR_N_STAGES - 1);
+      for (si = 0; si < nseeds; ++si) {
+        for (stg = 1; stg < CR_N_STAGES; ++stg) {
+          char stg_path[TR_CFG_STR_MAX];
+          int slot = cap_slot(nseeds, si, stg);
+          int nw = snprintf(stg_path, sizeof(stg_path), "%s/s%d_stg%d.bsnp",
+                            cfg.snaps_dir, seed_ids[si], stg);
+          if (nw < 0 || nw >= (int)sizeof(stg_path))
+            die("snaps path too long");
+          if (path_is_reg(stg_path)) {
+            memcpy(path_store[slot], stg_path, (size_t)nw + 1);
+            paths[slot] = path_store[slot];
+          } else {
+            paths[slot] = paths[si];
+          }
+        }
+      }
+    }
   }
 
   if (blaze_fns_load(&fns, so_path, want_cam) != 0) {
@@ -1130,6 +1173,34 @@ int main(int argc, char **argv) {
   if (use_curr) {
     if (cr_curr_init(&curr, nseeds, cfg.t0_share, cfg.seed) != 0)
       die("cr_curr_init failed");
+    if (cfg.stage_snaps) {
+      int si, stg;
+      for (si = 0; si < nseeds; ++si) {
+        char pbuf[16];
+        char abuf[16];
+        int poff = 0, aoff = 0;
+        int npre = 0;
+        pbuf[0] = '\0';
+        abuf[0] = '\0';
+        for (stg = 1; stg < CR_N_STAGES; ++stg) {
+          if (paths[cap_slot(nseeds, si, stg)] == paths[si])
+            continue;
+          curr.avail[si * CR_N_STAGES + stg] = 1;
+          poff += snprintf(pbuf + poff, sizeof(pbuf) - (size_t)poff, "%s%d",
+                           npre ? "," : "", stg);
+          npre++;
+        }
+        for (stg = 0; stg < CR_N_STAGES; ++stg) {
+          if (!curr.avail[si * CR_N_STAGES + stg])
+            continue;
+          aoff += snprintf(abuf + aoff, sizeof(abuf) - (size_t)aoff, "%s%d",
+                           aoff ? "," : "", stg);
+        }
+        printf("ppo: stage_snaps seed=%d preload stg=%s avail=[%s]\n",
+               seed_ids[si], npre ? pbuf : "none", abuf);
+      }
+      fflush(stdout);
+    }
   }
 
   /* Assign t0 snaps and, for curriculum, pre-seed capture slots. */
@@ -1142,7 +1213,7 @@ int main(int argc, char **argv) {
   }
   if (fns.assign(env, b.assign) != 0 || fns.reset(env, NULL) != 0)
     die("assign/reset failed");
-  if (use_curr) {
+  if (use_curr && !cfg.stage_snaps) {
     int si, stg;
     for (si = 0; si < nseeds; ++si) {
       /* Capture from lane 0 after placing seed si's t0 there. */
@@ -1217,6 +1288,21 @@ int main(int argc, char **argv) {
     if (!nn_roll)
       dief("nn_create: %s", nn_last_error());
     nn_upd = nn_roll;
+  }
+
+  if (cfg.init_from[0]) {
+    if (rl_ckpt_load(nn_roll, cfg.init_from) != 0) {
+      fprintf(stderr, "ppo: init_from load failed: %s (%s)\n", cfg.init_from,
+              nn_last_error());
+      exit(1);
+    }
+    if (split_nn && rl_ckpt_load(nn_upd, cfg.init_from) != 0) {
+      fprintf(stderr, "ppo: init_from load failed: %s (%s)\n", cfg.init_from,
+              nn_last_error());
+      exit(1);
+    }
+    printf("ppo: init_from=%s\n", cfg.init_from);
+    fflush(stdout);
   }
 
   t0_wall = wall_sec();

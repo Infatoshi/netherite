@@ -146,6 +146,51 @@ static void test_reward_milestones(void) {
   cr_state_free(&st);
 }
 
+static void test_reset_nonzero_inventory_no_first_bonus(void) {
+  CrSpec spec;
+  CrState st;
+  int status[17];
+  unsigned short cam[CR_NPIX];
+  int32_t acts[9];
+  float pose[5];
+  float scal[6];
+  unsigned char done;
+  int lane_seed;
+  float logs[3];
+  float r;
+
+  cr_spec_default(&spec);
+  expect_true(cr_state_init(&st, 1, &spec) == 0, "cr_state_init seed");
+  memset(cam, 0, sizeof(cam));
+  memset(acts, 0, sizeof(acts));
+  memset(pose, 0, sizeof(pose));
+  memset(scal, 0, sizeof(scal));
+  done = 0;
+  lane_seed = 0;
+  logs[0] = 1e9f;
+  logs[1] = 1e9f;
+  logs[2] = 1e9f;
+  zero_status(status);
+  status[CR_IX_LOG] = 3;
+  status[CR_IX_PLANK] = 1;
+  status[CR_IX_WPICK] = 1;
+  cr_reset_lane(&st, 0);
+  cr_seed_lane(&st, 0, status);
+  cr_step(&st, status, cam, acts, pose, scal, &done, &lane_seed, logs, 1, 1,
+          &r);
+  expect_near(r, -0.01f, 1e-6f, "reset into logs+plank+pick pays no first bonus");
+  expect_eq_i(st.best[CR_IX_LOG], 3, "seeded log count");
+  expect_eq_i(st.best[CR_IX_PLANK], 1, "seeded plank count");
+  expect_eq_i(st.best[CR_IX_WPICK], 1, "seeded pick count");
+
+  status[CR_IX_STICK] = 1;
+  cr_step(&st, status, cam, acts, pose, scal, &done, &lane_seed, logs, 1, 1,
+          &r);
+  expect_near(r, -0.01f + 2.0f, 1e-5f, "new stick still pays first bonus");
+
+  cr_state_free(&st);
+}
+
 static void test_logs_fixture(void) {
   float xyz[4096 * 3];
   int n = 0;
@@ -190,6 +235,7 @@ static void test_curr(void) {
 int main(void) {
   test_gae();
   test_reward_milestones();
+  test_reset_nonzero_inventory_no_first_bonus();
   test_logs_fixture();
   test_curr();
   if (g_fails) {
