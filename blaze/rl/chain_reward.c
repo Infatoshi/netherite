@@ -155,6 +155,22 @@ void cr_reset_mask(CrState *st, const uint8_t *mask, int n) {
   }
 }
 
+void cr_seed_lane(CrState *st, int i, const int *status) {
+  int k;
+  if (!st || !status || i < 0 || i >= st->n)
+    return;
+  for (k = 0; k < 9; ++k)
+    st->best[(size_t)i * 9 + (size_t)k] = status[k];
+  if (status[CR_ST_CONT] == 1)
+    st->flag_cont[i] = 1;
+  if (st->iron_on) {
+    for (k = 0; k < 4; ++k)
+      st->best_iron[(size_t)i * 4 + (size_t)k] = status[13 + k];
+    if (status[CR_ST_CONT] == 2)
+      st->flag_furn[i] = 1;
+  }
+}
+
 static float nearest_log(const float *logs, int nseeds, int lmax, int si,
                          float px, float py, float pz) {
   int k;

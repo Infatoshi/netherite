@@ -88,6 +88,9 @@ int cr_state_init(CrState *st, int n, const CrSpec *spec);
 void cr_state_free(CrState *st);
 void cr_reset_lane(CrState *st, int i);
 void cr_reset_mask(CrState *st, const uint8_t *mask, int n);
+/* Copy inventory/flags from a 17-int status row so the next cr_step does
+ * not pay first-time bonuses for items already held at reset. */
+void cr_seed_lane(CrState *st, int i, const int *status);
 
 /* status [n*17], cam [n*NPIX] u16, acts [n*9] i32, pose [n*5],
  * scal [n*6], done [n] u8, lane_seed [n], logs [nseeds*lmax*3] pad 1e9.

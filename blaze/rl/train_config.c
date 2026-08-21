@@ -107,6 +107,7 @@ void tr_cfg_defaults(TrainConfig *c) {
   c->cap_refresh = 25;
   (void)str_copy_fit(c->train_seeds, sizeof(c->train_seeds), "fixture");
   (void)str_copy_fit(c->snaps_dir, sizeof(c->snaps_dir), "blaze/rl/out/snaps");
+  c->stage_snaps = 0;
   c->lr_floor = 1e-4f;
   c->lr_decay_ticks = 1500000000LL;
   c->ep_dec = 1500;
@@ -114,6 +115,7 @@ void tr_cfg_defaults(TrainConfig *c) {
   c->seed = 0;
   (void)str_copy_fit(c->checkpoint, sizeof(c->checkpoint),
                      "out/blaze/rl/ppo_ckpt.bin");
+  c->init_from[0] = '\0';
   c->metal_max_cells = 2097152;
   (void)str_copy_fit(c->metallib, sizeof(c->metallib), "auto");
   c->ktime = 0;
@@ -289,6 +291,13 @@ int tr_cfg_set(TrainConfig *c, const char *key, const char *val) {
       return -2;
     return 0;
   }
+  if (!strcmp(key, "stage_snaps")) {
+    int t;
+    if (!p_bool01(val, &t))
+      return -2;
+    c->stage_snaps = t;
+    return 0;
+  }
   if (!strcmp(key, "lr_floor")) {
     float t;
     if (!p_f32(val, &t) || t < 0.f)
@@ -328,6 +337,12 @@ int tr_cfg_set(TrainConfig *c, const char *key, const char *val) {
     if (!val[0])
       return -2;
     if (!str_copy_fit(c->checkpoint, sizeof(c->checkpoint), val))
+      return -2;
+    return 0;
+  }
+  if (!strcmp(key, "init_from")) {
+    /* Empty is off. */
+    if (!str_copy_fit(c->init_from, sizeof(c->init_from), val))
       return -2;
     return 0;
   }
@@ -420,18 +435,24 @@ int tr_cfg_load_file(TrainConfig *c, const char *path) {
     hash = strchr(line, '#');
     if (hash)
       *hash = '\0';
-    for (char *q = line; *q; ++q) {
-      if (*q == '=')
-        *q = ' ';
-    }
-    got = sscanf(line, "%63s %1023s", key, val);
-    if (got <= 0)
-      continue;
-    if (got == 1) {
-      fprintf(stderr, "config: %s:%d: key '%s' has no value\n", path, lineno,
-              key);
-      fclose(f);
-      return -2;
+    {
+      int has_eq = strchr(line, '=') != NULL;
+      for (char *q = line; *q; ++q) {
+        if (*q == '=')
+          *q = ' ';
+      }
+      got = sscanf(line, "%63s %1023s", key, val);
+      if (got <= 0)
+        continue;
+      if (got == 1) {
+        if (!has_eq) {
+          fprintf(stderr, "config: %s:%d: key '%s' has no value\n", path, lineno,
+                  key);
+          fclose(f);
+          return -2;
+        }
+        val[0] = '\0';
+      }
     }
     rc = tr_cfg_set(c, key, val);
     if (rc == -1) {
@@ -478,6 +499,7 @@ void tr_cfg_dump(const TrainConfig *c, FILE *out) {
   fprintf(out, "  %-16s = %d\n", "cap_refresh", c->cap_refresh);
   fprintf(out, "  %-16s = %s\n", "train_seeds", c->train_seeds);
   fprintf(out, "  %-16s = %s\n", "snaps_dir", c->snaps_dir);
+  fprintf(out, "  %-16s = %d\n", "stage_snaps", c->stage_snaps);
   fprintf(out, "  %-16s = %.9g\n", "lr_floor", (double)c->lr_floor);
   fprintf(out, "  %-16s = %lld\n", "lr_decay_ticks",
           (long long)c->lr_decay_ticks);
@@ -485,6 +507,7 @@ void tr_cfg_dump(const TrainConfig *c, FILE *out) {
   fprintf(out, "  %-16s = %lld\n", "ckpt_ticks", (long long)c->ckpt_ticks);
   fprintf(out, "  %-16s = %llu\n", "seed", (unsigned long long)c->seed);
   fprintf(out, "  %-16s = %s\n", "checkpoint", c->checkpoint);
+  fprintf(out, "  %-16s = %s\n", "init_from", c->init_from);
   fprintf(out, "  %-16s = %d\n", "metal_max_cells", c->metal_max_cells);
   fprintf(out, "  %-16s = %s\n", "metallib", c->metallib);
   fprintf(out, "  %-16s = %d\n", "ktime", c->ktime);
