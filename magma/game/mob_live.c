@@ -38,6 +38,9 @@ static int gm_hostile(int type){return ehs_is_hostile((u8)type);}
 static int gm_passive(int type){
     return type==EW_TYPE_SHEEP||type==EW_TYPE_PIG||type==EW_TYPE_COW||type==EW_TYPE_CHICKEN;
 }
+static int hai_ok(int type){
+    return type==EW_TYPE_ZOMBIE||type==EW_TYPE_SKELETON||type==EW_TYPE_CREEPER;
+}
 static int gm_living(int type){
     return gm_hostile(type)||gm_passive(type)||type==EW_TYPE_BOAT;
 }
@@ -213,6 +216,20 @@ static void reset_slot_state_s(GmMobLive *m, EwStore *s, int slot) {
     m->chicken_egg[slot] = 0;
     m->det_nav_n[slot] = 0;
     m->det_nav_i[slot] = 0;
+    m->det_target_tick[slot] = 0;
+    m->det_target_tasks[slot] = 0;
+    m->det_has_target[slot] = 0;
+    m->det_melee_delay[slot] = 0;
+    m->det_melee_tx[slot] = 0.0;
+    m->det_melee_ty[slot] = 0.0;
+    m->det_melee_tz[slot] = 0.0;
+    m->det_see_time[slot] = 0;
+    m->det_strafe_time[slot] = -1;
+    m->det_bow_attack_time[slot] = -1;
+    m->det_strafe_cw[slot] = 0;
+    m->det_strafe_back[slot] = 0;
+    m->det_cstate[slot] = -1;
+    m->det_raise_arm[slot] = 0;
     m->fire_ticks[slot] = 0;
     m->despawn_ticks[slot] = 0;
     m->anger[slot] = 0;
@@ -337,6 +354,8 @@ static double pai_attribute_speed(int type) {
     if (type == EW_TYPE_SHEEP) return 0.23000000417232513;
     if (type == EW_TYPE_PIG || type == EW_TYPE_CHICKEN) return 0.25;
     if (type == EW_TYPE_COW) return 0.20000000298023224;
+    if (type == EW_TYPE_ZOMBIE) return 0.23000000417232513;
+    if (type == EW_TYPE_SKELETON || type == EW_TYPE_CREEPER) return 0.25;
     return 0.23000000417232513;
 }
 
@@ -351,6 +370,9 @@ static void pai_size(int type, float *width, float *height) {
     if (type == EW_TYPE_SHEEP) *height = 1.3f;
     else if (type == EW_TYPE_PIG) *height = 0.9f;
     else if (type == EW_TYPE_COW) *height = 1.4f;
+    else if (type == EW_TYPE_ZOMBIE) { *width = 0.6f; *height = 1.95f; }
+    else if (type == EW_TYPE_SKELETON) { *width = 0.6f; *height = 1.99f; }
+    else if (type == EW_TYPE_CREEPER) { *width = 0.6f; *height = 1.7f; }
     else { *width = 0.4f; *height = 0.7f; }
 }
 
@@ -361,6 +383,8 @@ static double pai_eye_height(int type) {
     if (type == EW_TYPE_SHEEP) return (double)(0.95f * height);
     if (type == EW_TYPE_COW) return 1.3;
     if (type == EW_TYPE_CHICKEN) return (double)height;
+    if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON) return 1.74;
+    if (type == EW_TYPE_CREEPER) return (double)(1.7f * 0.85f);
     return (double)(height * 0.85f);
 }
 
@@ -1130,6 +1154,470 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     if (m->panic_ticks[i] > 0) --m->panic_ticks[i];
 }
 
+static int sky_exposed(GmWorld *w, double x, double y, double z);
+
+/* Hostile det path (zombie/skeleton/creeper). Knob-off hostiles stay on the
+ * generic aggro chain. Goal bits reuse swim/wander/watch/idle; extra bits
+ * are melee=64 swell=128 bow=256. Target scheduler is a second EntityAITasks. */
+enum {
+    HSWIM = 0, HMELEE, HSWELL, HBOW, HREST, HFLEE, HAVOID, HHOME, HVILL,
+    HWAND, HWATCH, HIDLE, HN
+};
+#define HT_HURT 1u
+#define HT_PLAYER 2u
+#define HT_VILLAGER 4u
+#define HT_GOLEM 8u
+
+static unsigned hai_bit(int task) {
+    static const unsigned b[HN] = {
+        1u, 64u, 128u, 256u, 512u, 1024u, 2048u, 4096u, 8192u, 8u, 16u, 32u
+    };
+    return (task >= 0 && task < HN) ? b[task] : 0u;
+}
+static int hai_pri(int type, int task) {
+    if (task == HSWIM) return type == EW_TYPE_ZOMBIE ? 0 : 1;
+    if (task == HMELEE) return type == EW_TYPE_ZOMBIE ? 2 : 4;
+    if (task == HSWELL) return 2;
+    if (task == HBOW || task == HREST) return type == EW_TYPE_SKELETON && task == HREST ? 2 : 4;
+    if (task == HFLEE || task == HAVOID) return 3;
+    if (task == HHOME) return 5;
+    if (task == HVILL) return 6;
+    if (task == HWAND) return type == EW_TYPE_ZOMBIE ? 7 : 5;
+    if (task == HWATCH || task == HIDLE) return type == EW_TYPE_ZOMBIE ? 8 : 6;
+    return 99;
+}
+static int hai_mutex(int task) {
+    if (task == HSWIM) return 4;
+    if (task == HMELEE || task == HBOW || task == HIDLE) return 3;
+    if (task == HWATCH) return 2;
+    if (task == HREST) return 0;
+    return 1;
+}
+static double hai_follow(int type) {
+    return type == EW_TYPE_ZOMBIE ? 35.0 : 16.0;
+}
+static const int *hai_goals(int type) {
+    static const int z[] = { HSWIM, HMELEE, HHOME, HVILL, HWAND, HWATCH, HIDLE, -1 };
+    static const int s[] = { HSWIM, HREST, HFLEE, HAVOID, HBOW, HWAND, HWATCH, HIDLE, -1 };
+    static const int c[] = { HSWIM, HSWELL, HAVOID, HMELEE, HWAND, HWATCH, HIDLE, -1 };
+    if (type == EW_TYPE_SKELETON) return s;
+    if (type == EW_TYPE_CREEPER) return c;
+    return z;
+}
+
+static int hai_can_use(const GmMobLive *m, int type, int i, int task) {
+    unsigned mutex = (unsigned)hai_mutex(task);
+    int pri = hai_pri(type, task), other;
+    for (other = 0; other < HN; ++other) {
+        if (other == task || !(m->passive_tasks[i] & hai_bit(other))) continue;
+        if (pri >= hai_pri(type, other) && (mutex & (unsigned)hai_mutex(other))) return 0;
+    }
+    return 1;
+}
+
+static int hai_player_range(const EwStore *s, int i, double px, double py, double pz) {
+    double fr = hai_follow(s->type[i]);
+    double dx = px - s->x[i], dz = pz - s->z[i];
+    double dy = (py + PSV_EYE_HEIGHT) - (s->y[i] + pai_eye_height(s->type[i]));
+    if (dx * dx + dz * dz > fr * fr) return 0;
+    if (fabs(dy) > fr) return 0;
+    return 1;
+}
+
+static void hai_clear_nav(GmMobLive *m, EwStore *s, int i) {
+    m->det_nav_n[i] = 0;
+    s->path_len[i] = 0;
+}
+
+static int hai_continue(GmMobLive *m, GmWorld *w, EwStore *s, int i, int task,
+                        double px, double py, double pz) {
+    if (task == HSWIM) return pai_in_material(w, s, i, 0) || pai_in_material(w, s, i, 1);
+    if (task == HMELEE) return m->det_has_target[i] && s->path_len[i] != 0;
+    if (task == HSWELL) return 1;
+    if (task == HBOW) return m->det_has_target[i] != 0;
+    if (task == HREST) return 0; /* night tapes; daytime-only */
+    if (task == HFLEE || task == HAVOID || task == HHOME || task == HVILL || task == HWAND)
+        return s->path_len[i] != 0;
+    if (task == HWATCH) {
+        double dx = px - s->x[i], dy = py - s->y[i], dz = pz - s->z[i];
+        return dx * dx + dy * dy + dz * dz <= 64.0 && m->passive_watch_time[i] > 0;
+    }
+    if (task == HIDLE) return m->passive_idle_time[i] >= 0;
+    return 0;
+}
+
+static void hai_reset(GmMobLive *m, EwStore *s, int i, int task) {
+    m->passive_tasks[i] &= ~hai_bit(task);
+    if (task == HWATCH) m->passive_watch_time[i] = 0;
+    if (task == HMELEE || task == HWAND || task == HBOW)
+        hai_clear_nav(m, s, i);
+    if (task == HMELEE) m->det_raise_arm[i] = 0;
+    if (task == HBOW) {
+        m->det_see_time[i] = 0;
+        m->det_bow_attack_time[i] = -1;
+        m->det_strafe_time[i] = -1;
+    }
+}
+
+static int hai_try_start(GmMobLive *m, GmWorld *w, EwStore *s, int i, int task,
+                         double px, double py, double pz, int day) {
+    int type = s->type[i];
+    (void)day;
+    if (task == HSWIM)
+        return pai_try_start(m, w, s, i, PAI_SWIM, px, py, pz);
+    if (task == HMELEE) {
+        if (!m->det_has_target[i]) return 0;
+        if (!pai_find_path(m, w, s, i, px, py, pz)) {
+            float width, height;
+            double reach, ddx, ddz, ddy;
+            pai_size(type, &width, &height);
+            (void)height;
+            reach = (double)(width * 2.0f * width * 2.0f + 0.6f);
+            ddx = px - s->x[i]; ddz = pz - s->z[i];
+            ddy = py - s->y[i];
+            if (ddx * ddx + ddz * ddz + ddy * ddy > reach) return 0;
+        }
+        m->passive_nav_speed[i] = 1.0;
+        m->det_melee_delay[i] = 0;
+        m->det_melee_tx[i] = m->det_melee_ty[i] = m->det_melee_tz[i] = 0.0;
+        m->det_raise_arm[i] = 0;
+        m->passive_tasks[i] |= hai_bit(HMELEE);
+        return 1;
+    }
+    if (task == HSWELL) {
+        double dx = px - s->x[i], dy = py - s->y[i], dz = pz - s->z[i];
+        if (m->det_cstate[i] <= 0 && !(m->det_has_target[i] && dx * dx + dy * dy + dz * dz < 9.0))
+            return 0;
+        hai_clear_nav(m, s, i);
+        m->passive_tasks[i] |= hai_bit(HSWELL);
+        return 1;
+    }
+    if (task == HBOW) {
+        if (!m->det_has_target[i] || type != EW_TYPE_SKELETON) return 0;
+        m->passive_nav_speed[i] = 1.0;
+        m->passive_tasks[i] |= hai_bit(HBOW);
+        return 1;
+    }
+    if (task == HREST || task == HFLEE || task == HAVOID || task == HHOME)
+        return 0;
+    if (task == HVILL) return 0;
+    if (task == HWAND) {
+        int ok = pai_try_start(m, w, s, i, PAI_WANDER, px, py, pz);
+        if (ok && type == EW_TYPE_CREEPER) m->passive_nav_speed[i] = 0.8;
+        return ok;
+    }
+    if (task == HWATCH) {
+        u64 stream = pai_rng_start(m, s, i, PAI_WATCH);
+        if (pai_float(m, i, &stream) >= 0.02f) return 0;
+        {
+            double dx = px - s->x[i], dy = py - s->y[i], dz = pz - s->z[i];
+            if (dx * dx + dy * dy + dz * dz > 64.0) return 0;
+        }
+        m->passive_watch_time[i] = 40 + pai_bound(m, i, &stream, 40);
+        m->passive_tasks[i] |= hai_bit(HWATCH);
+        return 1;
+    }
+    if (task == HIDLE)
+        return pai_try_start(m, w, s, i, PAI_IDLE, px, py, pz);
+    return 0;
+}
+
+static void hai_melee_update(GmMobLive *m, GmWorld *w, EwStore *s, int i,
+                             double px, double py, double pz) {
+    int see, fire_repath;
+    double d0, moved;
+    --m->det_melee_delay[i];
+    see = los_clear(w, s->x[i], s->y[i] + pai_eye_height(s->type[i]), s->z[i],
+                    px, py + PSV_EYE_HEIGHT, pz);
+    d0 = (px - s->x[i]) * (px - s->x[i]) + (py - s->y[i]) * (py - s->y[i])
+       + (pz - s->z[i]) * (pz - s->z[i]);
+    moved = (px - m->det_melee_tx[i]) * (px - m->det_melee_tx[i])
+          + (py - m->det_melee_ty[i]) * (py - m->det_melee_ty[i])
+          + (pz - m->det_melee_tz[i]) * (pz - m->det_melee_tz[i]);
+    fire_repath = 0;
+    if (see && m->det_melee_delay[i] <= 0) {
+        if (m->det_melee_tx[i] == 0.0 && m->det_melee_ty[i] == 0.0 && m->det_melee_tz[i] == 0.0)
+            fire_repath = 1;
+        else if (moved >= 1.0)
+            fire_repath = 1;
+        else if (jrand_float(pai_jr(m, i)) < 0.05f)
+            fire_repath = 1;
+    }
+    if (fire_repath) {
+        m->det_melee_tx[i] = px;
+        m->det_melee_ty[i] = py;
+        m->det_melee_tz[i] = pz;
+        m->det_melee_delay[i] = 4 + jrand_int_bound(pai_jr(m, i), 7);
+        if (d0 > 1024.0) m->det_melee_delay[i] += 10;
+        else if (d0 > 256.0) m->det_melee_delay[i] += 5;
+        if (!pai_find_path(m, w, s, i, px, py, pz))
+            m->det_melee_delay[i] += 15;
+        m->passive_nav_speed[i] = 1.0;
+    }
+    ++m->det_raise_arm[i];
+}
+
+static void hai_bow_update(GmMobLive *m, GmWorld *w, EwStore *s, int i,
+                           double px, double py, double pz) {
+    int see;
+    double d0;
+    see = los_clear(w, s->x[i], s->y[i] + pai_eye_height(s->type[i]), s->z[i],
+                    px, py + PSV_EYE_HEIGHT, pz);
+    d0 = (px - s->x[i]) * (px - s->x[i])
+       + (py - s->y[i]) * (py - s->y[i])
+       + (pz - s->z[i]) * (pz - s->z[i]);
+    if (see) {
+        if (m->det_see_time[i] < 0) m->det_see_time[i] = 0;
+        ++m->det_see_time[i];
+    } else {
+        if (m->det_see_time[i] > 0) m->det_see_time[i] = 0;
+        --m->det_see_time[i];
+    }
+    if (d0 <= 225.0 && m->det_see_time[i] >= 20) {
+        hai_clear_nav(m, s, i);
+        ++m->det_strafe_time[i];
+    } else {
+        (void)pai_find_path(m, w, s, i, px, py, pz);
+        m->passive_nav_speed[i] = 1.0;
+        m->det_strafe_time[i] = -1;
+    }
+    if (m->det_strafe_time[i] >= 20) {
+        if ((double)jrand_float(pai_jr(m, i)) < 0.3)
+            m->det_strafe_cw[i] = (unsigned char)!m->det_strafe_cw[i];
+        if ((double)jrand_float(pai_jr(m, i)) < 0.3)
+            m->det_strafe_back[i] = (unsigned char)!m->det_strafe_back[i];
+        m->det_strafe_time[i] = 0;
+    }
+    if (m->det_strafe_time[i] > -1) {
+        if (d0 > 225.0 * 0.75) m->det_strafe_back[i] = 0;
+        else if (d0 < 225.0 * 0.25) m->det_strafe_back[i] = 1;
+    }
+    if (m->det_raise_arm[i] > 0) {
+        if (!see && m->det_see_time[i] < -60) m->det_raise_arm[i] = 0;
+        else if (see) {
+            ++m->det_raise_arm[i];
+            if (m->det_raise_arm[i] >= 20) {
+                (void)jrand_float(pai_jr(m, i)); /* shoot playSound pitch */
+                m->det_raise_arm[i] = 0;
+                m->det_bow_attack_time[i] = 40;
+            }
+        }
+    } else if (--m->det_bow_attack_time[i] <= 0 && m->det_see_time[i] >= -60) {
+        m->det_raise_arm[i] = 1;
+    }
+}
+
+static void hai_swell_update(GmMobLive *m, GmWorld *w, EwStore *s, int i,
+                             double px, double py, double pz) {
+    double dx = px - s->x[i], dy = py - s->y[i], dz = pz - s->z[i];
+    double d2 = dx * dx + dy * dy + dz * dz;
+    int see = los_clear(w, s->x[i], s->y[i] + pai_eye_height(s->type[i]), s->z[i],
+                        px, py + PSV_EYE_HEIGHT, pz);
+    if (!m->det_has_target[i] || d2 > 49.0 || !see) m->det_cstate[i] = -1;
+    else m->det_cstate[i] = 1;
+}
+
+static void hai_target_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
+                            double px, double py, double pz) {
+    int type = s->type[i];
+    int setup = (m->det_target_tick[i]++ % 3) == 0;
+    unsigned using = m->det_target_tasks[i];
+    int order[4];
+    int n = 0, k;
+    if (type == EW_TYPE_CREEPER) { order[n++] = 2; order[n++] = 1; }
+    else {
+        order[n++] = 1;
+        order[n++] = 2;
+        if (type == EW_TYPE_ZOMBIE) order[n++] = 4;
+        order[n++] = 8;
+    }
+    for (k = 0; k < n; ++k) {
+        unsigned bit = (unsigned)order[k];
+        int is_using = (using & bit) != 0;
+        int mutex_ok = 1;
+        unsigned o;
+        for (o = 1; o <= 8; o <<= 1) {
+            if (o == bit) continue;
+            if ((using & o) && (/* mutex 1 */ 1)) { mutex_ok = 0; break; }
+        }
+        if (!setup) {
+            if (is_using) {
+                int keep = 0;
+                if (bit == HT_PLAYER)
+                    keep = m->det_has_target[i] && hai_player_range(s, i, px, py, pz);
+                else
+                    keep = 0;
+                if (!keep) {
+                    using &= ~bit;
+                    if (bit == HT_PLAYER) m->det_has_target[i] = 0;
+                }
+            }
+            continue;
+        }
+        if (is_using) {
+            int keep = (bit == HT_PLAYER)
+                && m->det_has_target[i] && hai_player_range(s, i, px, py, pz);
+            if (!keep) {
+                using &= ~bit;
+                if (bit == HT_PLAYER) m->det_has_target[i] = 0;
+            }
+        } else if (mutex_ok) {
+            if (bit == HT_HURT) {
+                /* no revenge in these tapes */
+            } else {
+                /* EntityAINearestAttackableTarget: nextInt(10) then search. */
+                if (jrand_int_bound(pai_jr(m, i), 10) == 0) {
+                    if (bit == HT_PLAYER && hai_player_range(s, i, px, py, pz)
+                        && los_clear(w, s->x[i], s->y[i] + pai_eye_height(type), s->z[i],
+                                     px, py + PSV_EYE_HEIGHT, pz)) {
+                        using |= HT_PLAYER;
+                        m->det_has_target[i] = 1;
+                    }
+                    /* villager/golem AABB empty in these tapes */
+                }
+            }
+        }
+    }
+    m->det_target_tasks[i] = using;
+}
+
+static void hai_look(GmMobLive *m, const EwStore *s, int i,
+                     double px, double py, double pz) {
+    unsigned t = m->passive_tasks[i];
+    float yaw_d = 10.0f, pitch_d = 40.0f;
+    int looking = 0;
+    double lx = 0, ly = 0, lz = 0;
+    if (t & (hai_bit(HMELEE) | hai_bit(HBOW) | hai_bit(HSWELL))) {
+        looking = 1;
+        yaw_d = 30.0f; pitch_d = 30.0f;
+        lx = px; ly = py + PSV_EYE_HEIGHT; lz = pz;
+    } else if (t & hai_bit(HWATCH)) {
+        looking = 1;
+        lx = px; ly = py + PSV_EYE_HEIGHT; lz = pz;
+    } else if (t & hai_bit(HIDLE)) {
+        looking = 1;
+        lx = s->x[i] + m->passive_idle_x[i];
+        ly = s->y[i] + pai_eye_height(s->type[i]);
+        lz = s->z[i] + m->passive_idle_z[i];
+    }
+    {
+        float pitch = 0.0f;
+        float head = m->passive_head_yaw[i];
+        float body = m->passive_render_yaw[i];
+        if (looking) {
+            double dx = lx - s->x[i];
+            double dy = ly - (s->y[i] + pai_eye_height(s->type[i]));
+            double dz = lz - s->z[i];
+            double horiz = (double)(float)sqrt(dx * dx + dz * dz);
+            float target_yaw = pai_atan2_yaw(dz, dx);
+            float target_pitch = -pai_deg(mc_atan2(dy, horiz));
+            pitch = pai_update_rotation(0.0f, target_pitch, pitch_d);
+            head = pai_update_rotation(head, target_yaw, yaw_d);
+        } else {
+            head = pai_update_rotation(head, body, 10.0f);
+        }
+        if (s->path_len[i]) {
+            float rel = pai_wrap_degrees(head - body);
+            if (rel < -75.0f) head = body - 75.0f;
+            if (rel > 75.0f) head = body + 75.0f;
+        }
+        m->passive_head_yaw[i] = head;
+        m->passive_head_pitch[i] = pitch;
+    }
+}
+
+static void hai_living(GmMobLive *m, GmWorld *w, EwStore *s, int i, int day) {
+    int type = s->type[i];
+    int lst = m->living_sound_time[i];
+    int sound_draw = jrand_int_bound(pai_jr(m, i), 1000);
+    m->living_sound_time[i] = lst + 1;
+    if (sound_draw < lst) {
+        m->living_sound_time[i] = -80;
+        if (type != EW_TYPE_CREEPER) {
+            (void)jrand_float(pai_jr(m, i));
+            (void)jrand_float(pai_jr(m, i));
+        }
+    }
+    if (day && (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON)) {
+        float f = pai_brightness(w, mc_floor(s->x[i]), mc_floor(s->y[i]), mc_floor(s->z[i]));
+        if (f > 0.5f) {
+            float nf = jrand_float(pai_jr(m, i));
+            if (nf * 30.0f < (f - 0.4f) * 2.0f &&
+                sky_exposed(w, s->x[i], s->y[i], s->z[i]))
+                m->fire_ticks[i] = 160;
+        }
+    }
+    /* PersistenceRequired: despawnEntity zeros age. Wander getAge stays 0. */
+    m->entity_age[i] = 0;
+}
+
+static void hai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
+                     double px, double py, double pz, int day,
+                     int *moving, int *jump, int *wandering, int *swim_jump,
+                     double *nav_speed) {
+    int type = s->type[i];
+    const int *goals = hai_goals(type);
+    int setup, g;
+    if (type == EW_TYPE_CREEPER) {
+        m->creeper_fuse[i] += (int)m->det_cstate[i];
+        if (m->creeper_fuse[i] < 0) m->creeper_fuse[i] = 0;
+        if (m->creeper_fuse[i] >= 30) {
+            s->alive[i] = 0;
+            s->type[i] = EW_TYPE_NONE;
+            m->creeper_fuse[i] = 0;
+            m->explosion_pending = 1;
+            m->explosion_x = s->x[i];
+            m->explosion_y = s->y[i] + 0.5;
+            m->explosion_z = s->z[i];
+            *moving = 0; *jump = 0; *wandering = 0; *swim_jump = 0; *nav_speed = 0.0;
+            return;
+        }
+    }
+    setup = (m->passive_task_tick[i]++ % 3) == 0;
+    hai_target_tick(m, w, s, i, px, py, pz);
+    for (g = 0; goals[g] >= 0; ++g) {
+        int task = goals[g];
+        int using_task = (m->passive_tasks[i] & hai_bit(task)) != 0;
+        if (setup) {
+            if (using_task) {
+                if (!hai_can_use(m, type, i, task) ||
+                    !hai_continue(m, w, s, i, task, px, py, pz))
+                    hai_reset(m, s, i, task);
+            } else if (hai_can_use(m, type, i, task)) {
+                (void)hai_try_start(m, w, s, i, task, px, py, pz, day);
+            }
+        } else if (using_task && !hai_continue(m, w, s, i, task, px, py, pz)) {
+            hai_reset(m, s, i, task);
+        }
+    }
+    *swim_jump = 0;
+    if (m->passive_tasks[i] & hai_bit(HSWIM)) {
+        u64 stream = pai_rng_start(m, s, i, PAI_SWIM + 16);
+        if (pai_float(m, i, &stream) < 0.8f) *swim_jump = 1;
+    }
+    if (m->passive_tasks[i] & hai_bit(HWATCH)) --m->passive_watch_time[i];
+    if (m->passive_tasks[i] & hai_bit(HIDLE)) --m->passive_idle_time[i];
+    if (m->passive_tasks[i] & hai_bit(HMELEE))
+        hai_melee_update(m, w, s, i, px, py, pz);
+    if (m->passive_tasks[i] & hai_bit(HBOW))
+        hai_bow_update(m, w, s, i, px, py, pz);
+    if (m->passive_tasks[i] & hai_bit(HSWELL))
+        hai_swell_update(m, w, s, i, px, py, pz);
+    if (pai_det() && m->det_nav_n[i])
+        pai_nav_follow(m, w, s, i);
+    else if (s->path_len[i] && pai_path_done(w, s, i)) s->path_len[i] = 0;
+    *moving = s->path_len[i] != 0;
+    if ((m->passive_tasks[i] & hai_bit(HBOW)) && m->det_strafe_time[i] > -1)
+        *moving = 1;
+    *wandering = *moving && (m->passive_tasks[i] & hai_bit(HWAND));
+    *jump = 0;
+    *nav_speed = *moving ? m->passive_nav_speed[i] : 0.0;
+    if (m->passive_tasks[i] & hai_bit(HMELEE)) s->ai_state[i] = EW_AI_CHASE;
+    else if (m->passive_tasks[i] & hai_bit(HBOW)) s->ai_state[i] = EW_AI_ATTACK;
+    else if (m->passive_tasks[i] & hai_bit(HSWELL)) s->ai_state[i] = EW_AI_ATTACK;
+    else s->ai_state[i] = EW_AI_IDLE;
+}
+
 static int sky_exposed(GmWorld *w, double x, double y, double z) {
     int bx = mc_floor(x), bz = mc_floor(z);
     int by = mc_floor(y + 1.8);
@@ -1213,7 +1701,7 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
                       int body_ticks, unsigned long long seed48_init) {
     int slot;
     EwStore *s;
-    if (!m || !gm_passive(type)) return -1;
+    if (!m || !(gm_passive(type) || hai_ok(type))) return -1;
     slot = gm_mobs_spawn(m, type, x, y, z);
     if (slot < 0) return -1;
     s = now_store(m);
@@ -1256,6 +1744,23 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
     if (eid >= m->next_id) m->next_id = eid + 1;
     ew_store_copy(next_store(m), s);
     return slot;
+}
+
+void gm_mobs_det_hydrate_hostile(GmMobLive *m, int slot,
+                                int ttt, unsigned ttasks, int tgt, int fuse, int mdelay,
+                                int see, int stime, int atime, int scw, int sback, int cstate) {
+    if (!m || slot < 0 || slot >= EW_MAX_ENTITIES) return;
+    m->det_target_tick[slot] = ttt;
+    m->det_target_tasks[slot] = ttasks;
+    m->det_has_target[slot] = tgt ? 1 : 0;
+    m->creeper_fuse[slot] = fuse;
+    m->det_melee_delay[slot] = mdelay;
+    m->det_see_time[slot] = see;
+    m->det_strafe_time[slot] = stime;
+    m->det_bow_attack_time[slot] = atime;
+    m->det_strafe_cw[slot] = scw ? 1 : 0;
+    m->det_strafe_back[slot] = sback ? 1 : 0;
+    m->det_cstate[slot] = (signed char)cstate;
 }
 
 int gm_mobs_place_boat(GmMobLive *m, double x, double y, double z, float yaw) {
@@ -1491,11 +1996,12 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
     ehs_intent_from_ai(s->type[i], s->ai_state[i], moving, s->x[i], s->z[i],
                        s->path_tx[i], s->path_tz[i], s->path_tx[i], s->path_tz[i], &intent);
     if (!moving) intent.yaw = s->yaw[i];
-    if (gm_passive(s->type[i]) && moving) {
+    if ((gm_passive(s->type[i]) || (pai_det() && hai_ok(s->type[i]))) && moving) {
         if (pai_det()) {
             double ddx = s->path_tx[i] - s->x[i];
             double ddz = s->path_tz[i] - s->z[i];
-            intent.yaw = pai_limit_angle(s->yaw[i], pai_atan2_yaw(ddz, ddx), 90.0f);
+            if (ddx * ddx + ddz * ddz > 1.0e-8)
+                intent.yaw = pai_limit_angle(s->yaw[i], pai_atan2_yaw(ddz, ddx), 90.0f);
         } else {
             intent.yaw = pai_update_rotation(s->yaw[i], intent.yaw, 90.0f);
         }
@@ -1503,15 +2009,16 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
     if (moving && jump) intent.isJumping = 1;
     ehs_load_living(&liv, s, i, &intent);
     /* Override sizes not represented exactly by the shared hostile spine. */
-    if (gm_is_slimey(s->type[i]) || gm_passive(s->type[i])) {
+    if (gm_is_slimey(s->type[i]) || gm_passive(s->type[i]) ||
+        (pai_det() && hai_ok(s->type[i]))) {
         float w, h;
-        if (gm_passive(s->type[i])) pai_size(s->type[i], &w, &h);
+        if (gm_passive(s->type[i]) || hai_ok(s->type[i])) pai_size(s->type[i], &w, &h);
         else ehs_size_scaled(s->type[i], m->size[i], &w, &h);
         liv.base.width = w; liv.base.height = h;
         liv.base.phys.box = mc_aabb_make(s->x[i] - w * 0.5, s->y[i], s->z[i] - w * 0.5,
                                          s->x[i] + w * 0.5, s->y[i] + h, s->z[i] + w * 0.5);
     }
-    if (gm_passive(s->type[i])) {
+    if (gm_passive(s->type[i]) || (pai_det() && hai_ok(s->type[i]))) {
         /* EntityMoveHelper MOVE_TO:
          *   setAIMoveSpeed((float)(navigatorSpeed * MOVEMENT_SPEED attr));
          * EntityLiving.setAIMoveSpeed writes that same value to moveForward.
@@ -1520,6 +2027,11 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
         liv.landMovementFactor = ai_speed;
         liv.moveForward = moving ? ai_speed : 0.0f;
         liv.moveStrafing = 0.0f;
+        if (pai_det() && hai_ok(s->type[i]) &&
+            (m->passive_tasks[i] & 256u) && m->det_strafe_time[i] > -1) {
+            liv.moveForward = (m->det_strafe_back[i] ? -0.5f : 0.5f) * ai_speed;
+            liv.moveStrafing = (m->det_strafe_cw[i] ? 0.5f : -0.5f) * ai_speed;
+        }
         if (moving) {
             double dx = s->path_tx[i] - s->x[i];
             double dy = s->path_ty[i] - s->y[i];
@@ -1557,7 +2069,7 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
     /* EntityAISwimming only requests a jump; the actual water/lava travel is
      * EntityLivingBase's fluid branch. Keep it here so a passive does not run
      * the land gravity branch while submerged. */
-    if (gm_passive(s->type[i]) &&
+    if ((gm_passive(s->type[i]) || (pai_det() && hai_ok(s->type[i]))) &&
         (pai_in_material(w, s, i, 0) || pai_in_material(w, s, i, 1))) {
         int in_water = pai_in_material(w, s, i, 0);
         eb_on_entity_update(&liv.base);
@@ -2142,14 +2654,19 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         double dx=px-now->x[i],dy=py-now->y[i],dz=pz-now->z[i];
         double d=sqrt(dx*dx+dy*dy+dz*dz), xz=sqrt(dx*dx+dz*dz);
         if(hostile){
-            if(d>GM_MOB_DESPAWN_HARD){nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;continue;}
-            if(d>GM_MOB_DESPAWN_SOFT){
-                if(++m->despawn_ticks[i]>=GM_MOB_DESPAWN_DELAY){
-                    nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;continue;
-                }
-            }else m->despawn_ticks[i]=0;
+            /* PersistenceRequired hostiles on the det path skip the 32/128
+             * despawn clock (Java despawnEntity zeros age and never nextInt). */
+            if(!(pai_det() && hai_ok(type))){
+                if(d>GM_MOB_DESPAWN_HARD){nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;continue;}
+                if(d>GM_MOB_DESPAWN_SOFT){
+                    if(++m->despawn_ticks[i]>=GM_MOB_DESPAWN_DELAY){
+                        nx->alive[i]=0;nx->type[i]=EW_TYPE_NONE;continue;
+                    }
+                }else m->despawn_ticks[i]=0;
+            }
         }
-        if(day&&(type==EW_TYPE_ZOMBIE||type==EW_TYPE_SKELETON)&&
+        if(!(pai_det() && hai_ok(type)) &&
+           day&&(type==EW_TYPE_ZOMBIE||type==EW_TYPE_SKELETON)&&
            m->fire_ticks[i]<=0&&sky_exposed(w,now->x[i],now->y[i],now->z[i]))
             m->fire_ticks[i]=GM_MOB_FIRE_TICKS;
         /* Entity.setOnFireFromLava calls setFire(15). The live damage model is
@@ -2188,6 +2705,9 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
             m->charge[i]=0;
         }
 
+        if(hai_ok(type) && pai_det()){
+            hai_living(m,w,now,i,day);
+        }
         if(passive && pai_det()){
             /* EntityLiving.onEntityUpdate living-sound, then ++entityAge + despawn.
              * EntityAnimal.getTalkInterval=120; canDespawn=false (no death). */
@@ -2215,6 +2735,10 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         if(passive){
             pai_tick(m,w,nx,i,px,py,pz,mob_griefing,
                      &moving,&jump,&wandering,&swim_jump,&nav_speed);
+        }else if(pai_det() && hai_ok(type)){
+            hai_tick(m,w,nx,i,px,py,pz,day,
+                     &moving,&jump,&wandering,&swim_jump,&nav_speed);
+            if(!nx->alive[i]) continue;
         /* Ghast AIFireballAttack: charge then fire large fireball. */
         }else if(aggro&&type==EW_TYPE_GHAST){
             nx->path_tx[i]=px;nx->path_ty[i]=py+8.0;nx->path_tz[i]=pz;
@@ -2420,7 +2944,7 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
         }
         /* Hostile-era step-up / hole-abort. EntityMoveHelper owns jump on the
          * det passive path; PathNavigateGround does not sample 0.9 ahead. */
-        if(moving&&type!=EW_TYPE_GHAST && !(pai_det() && passive)){
+        if(moving&&type!=EW_TYPE_GHAST && !(pai_det() && (passive || hai_ok(type)))){
             double mvx=nx->path_tx[i]-now->x[i],mvz=nx->path_tz[i]-now->z[i];
             double len=sqrt(mvx*mvx+mvz*mvz);
             if(len>0.01){
@@ -2440,10 +2964,12 @@ void gm_mobs_tick(GmMobLive *m, GmWorld *w, const struct McSinTable *st_,
          * then moveEntityWithHeading. Det matches that; knob-off keeps look
          * after travel so test_mob_live stays byte-identical. */
         if(passive && pai_det()) pai_apply_current_look(m,nx,i,px,py,pz);
+        if(hai_ok(type) && pai_det()) hai_look(m,nx,i,px,py,pz);
         move_mob(w,st,m,nx,i,moving,jump,swim_jump,nav_speed);
         if(passive && !pai_det()) pai_apply_current_look(m,nx,i,px,py,pz);
         /* EntityLiving.updateDistance -> bodyHelper, once from onUpdate headTurn. */
         if(passive && pai_det()) pai_body_update(m, nx, now, i);
+        if(hai_ok(type) && pai_det()) pai_body_update(m, nx, now, i);
         if(passive && pai_det() && type==EW_TYPE_CHICKEN){
             if(--m->chicken_egg[i] <= 0){
                 (void)jrand_float(pai_jr(m, i));
@@ -2481,7 +3007,7 @@ int gm_mobs_fill_views(const GmMobLive *m, GmEntityView *out, int max) {
         out[n].z=(float)s->z[i];out[n].yaw=s->yaw[i];
         out[n].health=s->health[i];
         out[n].ent_id=s->id[i];
-        if(gm_passive(s->type[i])){
+        if(gm_passive(s->type[i]) || (/* det hydrate views */ hai_ok(s->type[i]) && pai_det())){
             out[n].head_yaw=m->passive_head_yaw[i];
             out[n].pitch=m->passive_head_pitch[i];
         }

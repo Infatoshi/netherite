@@ -21,6 +21,7 @@
 typedef struct {
     int eid, type, lst, age, tt, tasks, watch, idle, eat, egg, og, bht;
     int have_g, g_bx, g_by, g_bz, g[DET_G];
+    int have_h, ttt, ttasks, tgt, fuse, mdelay, see, stime, atime, scw, sback, cstate;
     double x, y, z, ix, iz, hp;
     float yaw, pitch, hyaw, ryaw, bhp;
     unsigned long long seed48, seed48_init;
@@ -31,7 +32,17 @@ static int parse_type(const char *s) {
     if (!strcmp(s, "sheep") || !strcmp(s, "EntitySheep")) return EW_TYPE_SHEEP;
     if (!strcmp(s, "pig") || !strcmp(s, "EntityPig")) return EW_TYPE_PIG;
     if (!strcmp(s, "chicken") || !strcmp(s, "EntityChicken")) return EW_TYPE_CHICKEN;
+    if (!strcmp(s, "zombie") || !strcmp(s, "EntityZombie")) return EW_TYPE_ZOMBIE;
+    if (!strcmp(s, "skeleton") || !strcmp(s, "EntitySkeleton")) return EW_TYPE_SKELETON;
+    if (!strcmp(s, "creeper") || !strcmp(s, "EntityCreeper")) return EW_TYPE_CREEPER;
     return -1;
+}
+
+static int det_track(int type) {
+    return type == EW_TYPE_COW || type == EW_TYPE_SHEEP ||
+           type == EW_TYPE_PIG || type == EW_TYPE_CHICKEN ||
+           type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON ||
+           type == EW_TYPE_CREEPER;
 }
 
 static unsigned u32bits(float f) {
@@ -80,6 +91,24 @@ static int load_fixture(const char *path, long long *seed, long long *wtime,
             continue;
         }
         if (line[0] == 'n' && (line[1] == ' ' || line[1] == '\t')) continue;
+        if (line[0] == 'h' && (line[1] == ' ' || line[1] == '\t')) {
+            int eid, ttt, ttasks, tgt, fuse, mdelay, see, stime, atime, scw, sback, cstate;
+            int got, i;
+            got = sscanf(line, "h %d %d %d %d %d %d %d %d %d %d %d %d",
+                         &eid, &ttt, &ttasks, &tgt, &fuse, &mdelay,
+                         &see, &stime, &atime, &scw, &sback, &cstate);
+            if (got == 12) {
+                for (i = 0; i < *nents; ++i) if (ents[i].eid == eid) {
+                    ents[i].have_h = 1;
+                    ents[i].ttt = ttt; ents[i].ttasks = ttasks; ents[i].tgt = tgt;
+                    ents[i].fuse = fuse; ents[i].mdelay = mdelay;
+                    ents[i].see = see; ents[i].stime = stime; ents[i].atime = atime;
+                    ents[i].scw = scw; ents[i].sback = sback; ents[i].cstate = cstate;
+                    break;
+                }
+            }
+            continue;
+        }
         if (line[0] == 'g' && (line[1] == ' ' || line[1] == '\t')) {
             int eid, bx, by, bz, ids[DET_G], got, i, k;
             got = sscanf(line,
@@ -229,6 +258,12 @@ int main(int argc, char **argv) {
             r.mobs.a.health[slot] = (float)ents[i].hp;
             r.mobs.b.health[slot] = (float)ents[i].hp;
         }
+        if (ents[i].have_h)
+            gm_mobs_det_hydrate_hostile(&r.mobs, slot,
+                                        ents[i].ttt, (unsigned)ents[i].ttasks,
+                                        ents[i].tgt, ents[i].fuse, ents[i].mdelay,
+                                        ents[i].see, ents[i].stime, ents[i].atime,
+                                        ents[i].scw, ents[i].sback, ents[i].cstate);
     }
 
     memset(&idle, 0, sizeof idle);
@@ -243,8 +278,7 @@ int main(int argc, char **argv) {
         s = r.mobs.current ? &r.mobs.b : &r.mobs.a;
         for (slot = 1; slot < EW_MAX_ENTITIES; ++slot) {
             if (!s->alive[slot]) continue;
-            if (s->type[slot] != EW_TYPE_COW && s->type[slot] != EW_TYPE_SHEEP &&
-                s->type[slot] != EW_TYPE_PIG && s->type[slot] != EW_TYPE_CHICKEN) continue;
+            if (!det_track(s->type[slot])) continue;
             fprintf(out,
                 "{\"t\":%d,\"eid\":%d,\"x\":%.17g,\"y\":%.17g,\"z\":%.17g,"
                 "\"yaw\":%.9g,\"pitch\":%.9g,\"hyaw\":%.9g,\"ryaw\":%.9g,\"bt\":%d,"
