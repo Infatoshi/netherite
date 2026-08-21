@@ -522,6 +522,33 @@ static int pai_mc_to_pb(int id) {
     return PB_STONE;
 }
 
+/* PathNavigateGround.getPathToPos: Material.AIR walks down then up one;
+ * solid material walks up to the first non-solid. */
+static int pai_mat_air(int id) { return id == 0; }
+static int pai_mat_solid(int id) {
+    BptProps p;
+    if (id == 0 || id == 8 || id == 9 || id == 10 || id == 11 || id == 51)
+        return 0;
+    p = mc_bpt_props(id);
+    return (p.flags & BF_SOLID) != 0;
+}
+
+static void pai_path_to_pos(GmWorld *w, int *x, int *y, int *z) {
+    int id = gm_world_block(w, *x, *y, *z);
+    if (pai_mat_air(id)) {
+        int by = *y - 1;
+        while (by > 0 && pai_mat_air(gm_world_block(w, *x, by, *z))) --by;
+        if (by > 0) {
+            *y = by + 1;
+            return;
+        }
+        while (*y < 256 && pai_mat_air(gm_world_block(w, *x, *y, *z))) ++*y;
+        return;
+    }
+    if (!pai_mat_solid(id)) return;
+    while (*y < 256 && pai_mat_solid(gm_world_block(w, *x, *y, *z))) ++*y;
+}
+
 static int pai_ceil_f(float v) {
     int i = (int)v;
     return v > (float)i ? i + 1 : i;
@@ -686,15 +713,19 @@ static void pai_nav_apply(GmMobLive *m, EwStore *s, int i) {
     s->path_len[i] = 1;
 }
 
-/* PathNavigate.pathFollow: close-advance then isDirectPathBetweenPoints skip.
- * Called after goalSelector (setPath) to match EntityLiving.updateEntityActionState. */
+/* PathNavigateGround.canNavigate: onGround || (canSwim && inLiquid) || riding.
+ * Sheep PathNavigateGround never setCanSwim; riding is unused. */
+static int pai_can_navigate(const EwStore *s, int i) {
+    return s->on_ground[i] != 0;
+}
+
+/* PathNavigate.pathFollow: close-advance then isDirectPathBetweenPoints skip. */
 static void pai_nav_follow(GmMobLive *m, GmWorld *w, EwStore *s, int i) {
     float width, height, maxDist;
     int idx, n, j, same_y_end, k, l, i1, ox, oy, oz;
     double ex, ey, ez;
-    if (!pai_det() || m->det_nav_n[i] == 0) return;
     pai_size(s->type[i], &width, &height);
-    maxDist = width > 0.75f ? width * 0.5f : 0.75f - width * 0.5f;
+    maxDist = width > 0.75f ? width / 2.0f : 0.75f - width / 2.0f;
     idx = m->det_nav_i[i];
     n = m->det_nav_n[i];
     ex = s->x[i];
@@ -732,18 +763,55 @@ static void pai_nav_follow(GmMobLive *m, GmWorld *w, EwStore *s, int i) {
             }
         }
     }
+}
+
+/* PathNavigate.onUpdateNavigation: pathFollow iff canNavigate, else airborne
+ * same-cell Y-above increment. setMoveTo (pai_nav_apply) always. */
+static void pai_nav_update(GmMobLive *m, GmWorld *w, EwStore *s, int i) {
+    int idx, n;
+    if (!pai_det() || m->det_nav_n[i] == 0) return;
+    if (pai_can_navigate(s, i)) {
+        pai_nav_follow(m, w, s, i);
+    } else {
+        float width, height;
+        int off;
+        double vx, vy, vz, ey;
+        pai_size(s->type[i], &width, &height);
+        idx = m->det_nav_i[i];
+        n = m->det_nav_n[i];
+        if (idx < n) {
+            off = pnp_floor_d((double)(width + 1.0f));
+            vx = (double)m->det_nav_x[i][idx] + (double)off * 0.5;
+            vy = (double)m->det_nav_y[i][idx];
+            vz = (double)m->det_nav_z[i][idx] + (double)off * 0.5;
+            ey = (double)((int)(s->y[i] + 0.5));
+            if (ey > vy && mc_floor(s->x[i]) == mc_floor(vx) &&
+                mc_floor(s->z[i]) == mc_floor(vz))
+                m->det_nav_i[i] = (unsigned char)(idx + 1);
+        }
+    }
     pai_nav_apply(m, s, i);
 }
 
 static int pai_find_path(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                          double tx, double ty, double tz) {
     int ox, oy, oz, n, k;
+    int bx = mc_floor(tx), by = mc_floor(ty), bz = mc_floor(tz);
+    /* PathNavigate.getPathToPos: if (!canNavigate()) return null.
+     * Ground override still ends at super, so airborne tryMoveToXYZ is a no-op. */
+    if (!pai_can_navigate(s, i)) {
+        m->det_nav_n[i] = 0;
+        s->path_len[i] = 0;
+        return 0;
+    }
     pai_fill_pf(w, s, i, &ox, &oy, &oz);
+    pai_path_to_pos(w, &bx, &by, &bz);
+    /* PathFinder.findPath(BlockPos): (float)coord + 0.5F then f2d. */
     n = pf12_findPath(&pai_pf,
-                      (double)mc_floor(tx) + 0.5 - (double)ox,
-                      (double)((int)ty) + 0.5 - (double)oy,
-                      (double)mc_floor(tz) + 0.5 - (double)oz,
-                      16.0f);
+                      (double)((float)bx + 0.5f) - (double)ox,
+                      (double)((float)by + 0.5f) - (double)oy,
+                      (double)((float)bz + 0.5f) - (double)oz,
+                      m->det_follow[i] > 0.5f ? m->det_follow[i] : 16.0f);
     if (n <= 0) {
         m->det_nav_n[i] = 0;
         return 0;
@@ -817,15 +885,20 @@ static float pai_limit_angle(float current, float target, float max_delta) {
     return f1;
 }
 
-/* EntityLookHelper / EntityMoveHelper fold `180D / Math.PI` to a double
- * constant in bytecode, but remainder hyaw on the 1.11.2 oracle matches
- * multiplying the LUT result by (float)(180.0 / (float)Math.PI). */
+/* EntityLookHelper.onUpdateLook / EntityMoveHelper bytecode is
+ * atan2; ldc2_w 57.29577951308232d; dmul; (pitch: dneg); d2f.
+ * The 1.11.2 oracle remainder matches LUT * (float)(180.0/(float)PI)
+ * for MOVE_TO yaw, watch pitch, and post-hit pitch. dmul is 1 ULP off. */
 static float pai_deg(double rad) {
     return (float)(rad * (float)(180.0 / (float)MC_PI));
 }
 
 static float pai_atan2_yaw(double dz, double dx) {
     return pai_deg(mc_atan2(dz, dx)) - 90.0f;
+}
+
+static float pai_look_pitch(double dy, double horiz) {
+    return -pai_deg(mc_atan2(dy, horiz));
 }
 
 static int pai_can_use(const GmMobLive *m, int type, int i, int task) {
@@ -927,7 +1000,7 @@ static void pai_look_update(GmMobLive *m, const EwStore *s, int i, int looking,
             /* EntityLookHelper: MathHelper.sqrt + MathHelper.atan2 LUT. */
             horiz = (double)(float)sqrt(dx * dx + dz * dz);
             target_yaw = pai_atan2_yaw(dz, dx);
-            target_pitch = -pai_deg(mc_atan2(dy, horiz));
+            target_pitch = pai_look_pitch(dy, horiz);
         } else {
             horiz = sqrt(dx * dx + dz * dz);
             target_yaw = (float)(atan2(dz, dx) * (180.0 / MC_PI)) - 90.0f;
@@ -982,7 +1055,10 @@ static void pai_body_update(GmMobLive *m, const EwStore *s, const EwStore *prev,
 static void pai_apply_current_look(GmMobLive *m, const EwStore *s, int i,
                                    double px, double py, double pz) {
     if (m->passive_tasks[i] & PAI_BIT(PAI_WATCH)) {
-        pai_look_update(m, s, i, 1, px, py + PSV_EYE_HEIGHT, pz);
+        /* EntityAIWatchClosest.updateTask / LookHelper.setLookPositionWithEntity:
+         * posY + (double)getEyeHeight()F. PSV_EYE_HEIGHT is the 1.62 double
+         * literal; the 1.11.2 player method returns 1.62F then f2d. */
+        pai_look_update(m, s, i, 1, px, py + (double)(float)PSV_EYE_HEIGHT, pz);
     } else if (m->passive_tasks[i] & PAI_BIT(PAI_IDLE)) {
         pai_look_update(m, s, i, 1,
                         s->x[i] + m->passive_idle_x[i],
@@ -1043,7 +1119,7 @@ static void pai_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
 
     /* EntityLiving.updateEntityActionState: goalSelector then navigator. */
     if (pai_det() && m->det_nav_n[i])
-        pai_nav_follow(m, w, s, i);
+        pai_nav_update(m, w, s, i);
     else if (s->path_len[i] && pai_path_done(w, s, i)) s->path_len[i] = 0;
 
     *moving = s->path_len[i] != 0;
@@ -1116,12 +1192,25 @@ int gm_mobs_spawn(GmMobLive *m, int type, double x, double y, double z) {
     return gm_mobs_spawn_sized(m, type, x, y, z, sz);
 }
 
+/* java.util.Random.nextGaussian (Box-Muller). Spare is unused: det hydrates
+ * Entity.rand from recstart seed48, not from this spawn-time LCG. */
+static double pai_jrand_gaussian(JavaRandom *r) {
+    double v1, v2, s, m;
+    do {
+        v1 = 2.0 * jrand_double(r) - 1.0;
+        v2 = 2.0 * jrand_double(r) - 1.0;
+        s = v1 * v1 + v2 * v2;
+    } while (s >= 1.0 || s == 0.0);
+    m = sqrt(-2.0 * log(s) / s);
+    return v1 * m;
+}
+
 int gm_mobs_det_place(GmMobLive *m, int eid, int type,
                       double x, double y, double z, float yaw, float pitch, float head_yaw,
                       unsigned long long seed48, int living_sound, int entity_age, int task_tick,
                       unsigned tasks, int watch, int idle, double idle_x, double idle_z,
                       int eat, int egg, int on_ground, float render_yaw, float prev_head_yaw,
-                      int body_ticks) {
+                      int body_ticks, unsigned long long seed48_init) {
     int slot;
     EwStore *s;
     if (!m || !gm_passive(type)) return -1;
@@ -1152,6 +1241,18 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
     m->passive_render_yaw[slot] = render_yaw;
     m->passive_prev_head_yaw[slot] = prev_head_yaw;
     m->passive_body_ticks[slot] = body_ticks;
+    /* EntityLiving.onInitialSpawn: FOLLOW_RANGE 16 * (1 + nextGaussian()*0.05)
+     * AttributeModifier op 1. Mixin reseeds at Entity ctor RETURN = seed48_init;
+     * living ctors use Math.random, so this gaussian is the first Entity.rand
+     * draw. */
+    m->det_follow[slot] = 16.0f;
+    if (seed48_init) {
+        JavaRandom jr;
+        double g;
+        jr.seed = seed48_init & MC_JR_MASK;
+        g = pai_jrand_gaussian(&jr);
+        m->det_follow[slot] = (float)(16.0 * (1.0 + g * 0.05));
+    }
     if (eid >= m->next_id) m->next_id = eid + 1;
     ew_store_copy(next_store(m), s);
     return slot;

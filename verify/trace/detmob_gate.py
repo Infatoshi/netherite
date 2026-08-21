@@ -203,10 +203,15 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
         hyaw = e.get("hyaw", e.get("yaw", 0.0))
         ryaw = e.get("ryaw", hyaw)
         hp = e.get("hp", 0.0)
+        init48 = 0
+        for he in header.get("entity_rng") or []:
+            if int(he.get("eid", -1)) == eid:
+                init48 = int(he.get("seed48_init") or 0)
+                break
         body.append(
             "e {eid} {kind} {x} {y} {z} {yaw} {pitch} {hyaw} {seed48} "
             "{lst} {age} {tt} {tasks} {watch} {idle} {ix} {iz} {eat} {egg} {og} "
-            "{ryaw} {bhp} {bht} {hp}".format(
+            "{ryaw} {bhp} {bht} {hp} {init48}".format(
                 eid=eid, kind=kind,
                 x=e["x"], y=e["y"], z=e["z"],
                 yaw=e.get("yaw", 0.0), pitch=e.get("pitch", 0.0),
@@ -222,6 +227,7 @@ def write_fixture(path: Path, header, hydrate, n_ticks, stand, atk_ticks=None):
                 bhp=e.get("bhp", hyaw),
                 bht=int(e.get("bht", 0)),
                 hp=hp,
+                init48=init48,
             )
         )
         ginfo = _header_g(header, eid)

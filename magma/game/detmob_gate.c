@@ -23,7 +23,7 @@ typedef struct {
     int have_g, g_bx, g_by, g_bz, g[DET_G];
     double x, y, z, ix, iz, hp;
     float yaw, pitch, hyaw, ryaw, bhp;
-    unsigned long long seed48;
+    unsigned long long seed48, seed48_init;
 } DetEnt;
 
 static int parse_type(const char *s) {
@@ -107,16 +107,17 @@ static int load_fixture(const char *path, long long *seed, long long *wtime,
             int got;
             memset(&e, 0, sizeof e);
             got = sscanf(line,
-                "e %d %31s %lf %lf %lf %f %f %f %llu %d %d %d %d %d %d %lf %lf %d %d %d %f %f %d %lf",
+                "e %d %31s %lf %lf %lf %f %f %f %llu %d %d %d %d %d %d %lf %lf %d %d %d %f %f %d %lf %llu",
                 &e.eid, tname, &e.x, &e.y, &e.z, &e.yaw, &e.pitch, &e.hyaw, &e.seed48,
                 &e.lst, &e.age, &e.tt, &e.tasks, &e.watch, &e.idle, &e.ix, &e.iz,
-                &e.eat, &e.egg, &e.og, &e.ryaw, &e.bhp, &e.bht, &e.hp);
+                &e.eat, &e.egg, &e.og, &e.ryaw, &e.bhp, &e.bht, &e.hp, &e.seed48_init);
             e.type = parse_type(tname);
             if (got >= 9 && e.type >= 0 && *nents < DET_MAX) {
                 if (got < 21) e.ryaw = e.hyaw;
                 if (got < 22) e.bhp = e.hyaw;
                 if (got < 23) e.bht = 0;
                 if (got < 24) e.hp = 0;
+                if (got < 25) e.seed48_init = 0;
                 ents[(*nents)++] = e;
             }
         }
@@ -216,7 +217,8 @@ int main(int argc, char **argv) {
                                  ents[i].seed48, ents[i].lst, ents[i].age, ents[i].tt,
                                  (unsigned)ents[i].tasks, ents[i].watch, ents[i].idle,
                                  ents[i].ix, ents[i].iz, ents[i].eat, ents[i].egg,
-                                 ents[i].og, ents[i].ryaw, ents[i].bhp, ents[i].bht);
+                                 ents[i].og, ents[i].ryaw, ents[i].bhp, ents[i].bht,
+                                 ents[i].seed48_init);
         if (slot < 0) {
             fprintf(stderr, "det_place failed eid=%d\n", ents[i].eid);
             fclose(out);

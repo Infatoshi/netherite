@@ -1,5 +1,27 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 detmob round 4 PathFinder + look pitch (lane/detmob)
+
+WatchClosest look_y is `posY + (double)getEyeHeight()F` = f2d(1.62F). Deg
+conversion stays LUT * `(float)(180.0/(float)PI)`; bytecode `dmul` is 1 ULP
+off the 1.11.2 remainder (same class as MOVE_TO yaw). Panic t=21 pitch closed.
+
+Det PathNavigate: `getPathToPos` air-down then up-one / solid walk-up;
+`findPath` `(float)coord+0.5F` then f2d; FOLLOW_RANGE `16*(1+nextGaussian()*0.05)`
+from `seed48_init` (living ctors use Math.random, so this gaussian is the first
+Entity.rand draw). `pathFollow` only if `canNavigate` (onGround); else airborne
+same-cell Y-above index increment. `PathNavigate.getPathToPos` returns null
+when `!canNavigate`, so airborne `tryMoveToXYZ` is a no-op (RPG still draws).
+Wander t=70 next PathPoint is Java's (48,72,126). Panic
+`...T170933Z` PASS 407 ticks eid=2983 (hit/knockback/hp/pitch/path).
+
+Wander leftover: t=134 eid=386 field=z 1 ULP after pathFollow skip to
+(53,74,131). x/y/yaw/hyaw and cursors bit-equal through t=133 then z 1 ULP;
+t=138 equalizes. Site is `EntityLivingBase.travel`, not A*.
+
+Standing `...T152220Z` PASS 1203. `test-mob-live` sheep onsets 45,330.
+Default-off. No blessed-tape / GATES / blaze-rl.
+
 ## 2026-08-21 detmob round 3 worldgen + walk + panic (lane/detmob)
 
 detmob_gate uses seed-0 `GM_WORLD_DEFAULT` + `gm_world_ensure` (same

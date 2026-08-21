@@ -92,6 +92,8 @@ typedef struct {
     short det_nav_z[EW_MAX_ENTITIES][48];
     unsigned char det_nav_n[EW_MAX_ENTITIES];
     unsigned char det_nav_i[EW_MAX_ENTITIES];
+    /* PathNavigate.getPathSearchRange: FOLLOW_RANGE after onInitialSpawn bonus. */
+    float det_follow[EW_MAX_ENTITIES];
 } GmMobLive;
 
 /* Product type aliases matching EW_TYPE_* / entity_render ER_TYPE_*. */
@@ -120,7 +122,7 @@ int gm_mobs_det_place(GmMobLive *m, int eid, int type,
                       unsigned long long seed48, int living_sound, int entity_age, int task_tick,
                       unsigned tasks, int watch, int idle, double idle_x, double idle_z,
                       int eat, int egg, int on_ground, float render_yaw, float prev_head_yaw,
-                      int body_ticks);
+                      int body_ticks, unsigned long long seed48_init);
 /* Spawn with slime/magma size (1,2,4). Other types ignore size. */
 int gm_mobs_spawn_sized(GmMobLive *m, int type, double x, double y, double z, int size);
 /* Returns nonzero when attack is aimed at a mob, including cooldown ticks. */
