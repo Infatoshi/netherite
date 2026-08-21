@@ -44,6 +44,18 @@ int gm_world_block(const struct GmWorld *w, int x, int y, int z) {
 int gm_world_meta(const struct GmWorld *w, int x, int y, int z) {
     (void)w; (void)x; (void)y; (void)z; return 0;
 }
+/* world/light.c: cr_k14_light_query. Same formula as rk_light_query; keep the
+ * candidate isolated from the world mesher. */
+int cr_k14_light_query(int nb, int up, int east, int west,
+                       int south, int north, int own) {
+    if (!nb) return own;
+    int m = up;
+    if (east > m) m = east;
+    if (west > m) m = west;
+    if (south > m) m = south;
+    if (north > m) m = north;
+    return m;
+}
 
 static CrFramebuffer make_fb(void) {
     CrFramebuffer fb;

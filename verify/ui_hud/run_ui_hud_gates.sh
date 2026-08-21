@@ -32,8 +32,9 @@ COMMON_SRC=(
   game/item_render.c
   assets/blockmodels.c
   transform.c
-  core/math.c core/shade.c
+  core/math.c core/shade.c core/config.c
   cpu/raster_cpu.c
+  renderkernels/rk_31_facebakery_make_quad.c
 )
 
 echo "== build $DIR/test_ui_hud_numerical =="
@@ -55,23 +56,23 @@ echo "== run compose =="
 # Live path: real inventory armor + overlay_live against GmWorld (runtime stack).
 echo "== build live runtime objects =="
 make -s game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o \
-  game/sel_box.o game/world_live.o game/live_sim.o game/mob_live.o \
+  game/sel_box.o game/world_live.o game/live_sim.o game/randtick.o game/mob_live.o \
   game/dragon_live.o game/structures_live.o game/portal_live.o \
   game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o core/config.o \
   game/overlay.o game/overlay_live.o game/hud.o game/item_render.o \
   world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o \
-  world/mesh.o world/world.o \
+  world/mesh.o world/world.o world/gen_prefetch.o \
   renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o \
   core/math.o core/shade.o
 
 LIVE_OBJS=(
   game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o
-  game/sel_box.o game/world_live.o game/live_sim.o game/mob_live.o
+  game/sel_box.o game/world_live.o game/live_sim.o game/randtick.o game/mob_live.o
   game/dragon_live.o game/structures_live.o game/portal_live.o
   game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o core/config.o
   game/overlay.o game/overlay_live.o game/hud.o game/item_render.o
   world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o
-  world/mesh.o world/world.o
+  world/mesh.o world/world.o world/gen_prefetch.o
   renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o
   core/math.o core/shade.o
 )
