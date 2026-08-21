@@ -83,6 +83,7 @@ SAN_OUT := $(OUT)/sanitize
 TEST_BIN := $(OUT)/test_train_config
 TEST_CHAIN_BIN := $(OUT)/test_chain_reward
 SMOKE_BIN := $(OUT)/ppo
+EVAL_BIN := $(OUT)/eval
 SAN_TEST_BIN := $(SAN_OUT)/test_train_config
 SAN_CHAIN_BIN := $(SAN_OUT)/test_chain_reward
 SAN_SMOKE_BIN := $(SAN_OUT)/ppo
@@ -93,7 +94,7 @@ TRAIN_CFG_OBJ := $(OUT)/train_config.o
 CHAIN_OBJS := $(OUT)/chain_reward.o $(OUT)/chain_curr.o
 
 .PHONY: all test-config test-chain smoke smoke-cpu smoke-cuda smoke-metal \
-	smoke-reset test sanitize clean env-cpu env-cuda env-metal
+	smoke-reset test sanitize clean env-cpu env-cuda env-metal eval
 
 all: test-config smoke
 
@@ -178,16 +179,28 @@ $(TEST_CHAIN_BIN): test_chain_reward.c $(CHAIN_OBJS) | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ test_chain_reward.c $(CHAIN_OBJS)
 
 ifeq ($(UNAME_S),Darwin)
-$(SMOKE_BIN): ppo.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) $(METAL_OBS_OBJ) \
-		$(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(METAL_LIB) | $(OUT)
+$(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
+		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) \
+		$(METAL_LIB) | $(OUT)
 	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) \
 		$(CHAIN_OBJS) $(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
 		$(LINK_LIBS) $(LDLIBS)
+
+$(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(METAL_OBS_OBJ) \
+		$(METAL_HOST_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(METAL_LIB) | $(OUT)
+	$(METAL_CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(CHAIN_OBJS) \
+		$(METAL_OBS_OBJ) $(METAL_HOST_OBJ) $(NN_OBJS) \
+		$(LINK_LIBS) $(LDLIBS)
 else
-$(SMOKE_BIN): ppo.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) $(STAGE_OBJ) $(NN_OBJS) \
-		$(ENV_CPU_SO) $(ENV_CUDA_SO) | $(OUT)
+$(SMOKE_BIN): ppo.c obs_pack.h rl_ckpt.h $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
+		$(STAGE_OBJ) $(NN_OBJS) $(ENV_CPU_SO) $(ENV_CUDA_SO) | $(OUT)
 	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ ppo.c $(TRAIN_CFG_OBJ) $(CHAIN_OBJS) \
 		$(STAGE_OBJ) $(NN_OBJS) $(LINK_LIBS)
+
+$(EVAL_BIN): eval.c obs_pack.h rl_ckpt.h $(CHAIN_OBJS) $(STAGE_OBJ) $(NN_OBJS) \
+		$(ENV_CPU_SO) $(ENV_CUDA_SO) | $(OUT)
+	$(CC) $(OWN_CFLAGS) $(CPPFLAGS) -o $@ eval.c $(CHAIN_OBJS) $(STAGE_OBJ) \
+		$(NN_OBJS) $(LINK_LIBS)
 endif
 
 test-config: $(TEST_BIN)
@@ -225,6 +238,10 @@ smoke-reset: $(SMOKE_BIN)
 		--set max_chunks=2 --set ep_dec=3
 	cd $(REPO) && ./out/blaze/rl/ppo --conf blaze/rl/$(CONF) \
 		--set max_chunks=2 --set ep_dec=3 --set mb=3
+
+# Native 13-seed transfer eval. Not part of `test` (minutes, needs a ckpt
+# and t0 snaps). CUDA/Metal slot via --backend; default is CPU.
+eval: $(EVAL_BIN)
 
 test: test-config test-chain smoke
 

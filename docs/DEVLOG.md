@@ -1,5 +1,18 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 native 13-seed eval
+
+`out/blaze/rl/eval` on blaze CPU. Schema-1 load is `rl_ckpt_load` -> `nn_load`
+(same reader as ppo.c). Obs packing lives in `obs_pack.h` with the trainer.
+Canonical 13 seeds including held-out 11 and 33; sampled best-of-5 x 6000
+ticks; Gumbel `rng_seed=0`, `ni=seed_index*tries+attempt`. CUDA/Metal slot
+via `--backend`; not run today.
+
+`overnight_gpu0_6m.bin` (probe t0 0.565, wood-break): 0/13 full chain,
+6/13 logs3, 7/13 t0. Re-run stdout+stderr byte-identical
+(`cda232d472673a35359c62bba571593642bd1b314784a44eb22618d4650804a1`).
+This is the missing native eval harness, not magma transfer (GATES item 2).
+
 ## 2026-08-21 remaining-to-stop-asking
 
 Codex, Fable, and Grok surveyed the tree. Fable ranks. The four-gate
