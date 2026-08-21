@@ -107,15 +107,34 @@ def unique_server_rows(rows, stand):
 
 
 def tracked_ids(header, rows):
-    """Passives + zombie/skeleton/creeper in the recstart snapshot."""
+    """Passives + zombie/skeleton/creeper in the recstart snapshot.
+
+    Populate hostiles can sit in the 64-block erng sphere. If any hostile is
+    within 16 of the parked player (target tape), keep only those; ambient
+    summons sit ~46 blocks out so the near set is empty and all three stay.
+    """
     _ = rows
     ents = header.get("entity_rng") or []
-    ids = []
+    px = float(header.get("x", 0.0))
+    py = float(header.get("y", 0.0))
+    pz = float(header.get("z", 0.0))
+    passives = []
+    hostiles = []
     for e in ents:
         t = e.get("type", "")
-        if t not in TRACKED:
-            continue
-        ids.append(int(e["eid"]))
+        eid = int(e["eid"])
+        if t in PASSIVE:
+            passives.append(eid)
+        elif t in HOSTILE:
+            dx = float(e["x"]) - px
+            dy = float(e["y"]) - py
+            dz = float(e["z"]) - pz
+            dist = (dx * dx + dy * dy + dz * dz) ** 0.5
+            hostiles.append((dist, eid))
+    ids = list(passives)
+    if hostiles:
+        near = [eid for dist, eid in hostiles if dist <= 16.0]
+        ids.extend(near if near else [eid for _, eid in hostiles])
     return ids
 
 

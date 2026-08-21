@@ -30,17 +30,17 @@ setup_commands:
   - /summon zombie ~ ~ ~
   - /summon skeleton ~ ~ ~
   - /summon creeper ~ ~ ~
-  - /kill @e[type=pig,r=48]
-  - /kill @e[type=cow,r=48]
-  - /kill @e[type=sheep,r=48]
-  - /kill @e[type=chicken,r=48]
-  - /kill @e[type=zombie,r=48]
-  - /kill @e[type=skeleton,r=48]
-  - /kill @e[type=creeper,r=48]
-  - /summon zombie 53.5 74 122.5 {IsBaby:0b,PersistenceRequired:1b}
-  - /summon creeper 51.5 74 124.5 {PersistenceRequired:1b}
-  - /summon skeleton 52.5 74 121.5 {PersistenceRequired:1b}
-  - /entitydata @e[type=zombie,r=48] {IsBaby:0b}
+  - /kill @e[type=pig,r=96]
+  - /kill @e[type=cow,r=96]
+  - /kill @e[type=sheep,r=96]
+  - /kill @e[type=chicken,r=96]
+  - /kill @e[type=zombie,r=96]
+  - /kill @e[type=skeleton,r=96]
+  - /kill @e[type=creeper,r=96]
+  - /summon zombie 53.5 74 126.5 {IsBaby:0b,PersistenceRequired:1b}
+  - /summon creeper 52.5 74 126.5 {PersistenceRequired:1b}
+  - /summon skeleton 51.5 74 127.5 {PersistenceRequired:1b}
+  - /entitydata @e[type=zombie,r=96] {IsBaby:0b}
   - /tp @p 53.5 74 127.5 180 20
 setup_settle_ticks: 10
 duration_ticks: 400
