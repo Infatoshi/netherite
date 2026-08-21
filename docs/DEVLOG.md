@@ -1,5 +1,35 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 detmob consolidation round 2 (lane/detmob-all)
+
+On 615788b: four tapes PASS; three open.
+
+Sites (bytecode, deobfed 1.11.2):
+- AbstractSkeleton.initEntityAI targetTasks: hurtBy, nearestPlayer, nearestGolem
+  (no villager). /summon NBT skips onInitialSpawn; golem NAT nextInt(10) still
+  draws on empty AABB. Restored skeleton golem NAT.
+- initEntityAI does not add combat. Ctor setCombatTask LinkedHashSet-appends
+  melee (empty hand). Wander/watch/idle shouldExecute run first on that setup
+  tick: nextInt(120)+nextFloat+nextFloat.
+- AbstractSkeleton/EntityZombie getEyeHeight ldc 1.74F; look dy is f2d of that.
+- EntityMob.getBlockPathWeight = 0.5F - getLightBrightness. Nether table is
+  overworld*(0.9F)+0.1F (WorldProviderHell).
+- PathFinder: closest==start returns null. Magma 32x24x32 window is smaller
+  than Java ChunkCache (FOLLOW_RANGE+8). Dest after getPathToPos solid walk-up
+  can sit outside the window; A* then returns a same-y neighbour. Reject
+  neighbour-only paths when dest is out of window.
+
+Gates after these:
+- passive T152220Z PASS 1203
+- wander T164213Z PASS 1204
+- panic T170933Z PASS 407
+- nether T182154Z PASS 852
+- ambient T181540Z first_div t=235 eid=3693 creeper x, cursors equal
+- target T182955Z first_div t=29 eid=3339 pitch, cursors equal
+- nether T182511Z first_div t=745 eid=3872 x, cursors equal
+
+Default-off. No GATES / known_divergences / blessed-tape / blaze-rl.
+
 ## 2026-08-21 detmob round 4 PathFinder + look pitch (lane/detmob)
 
 WatchClosest look_y is `posY + (double)getEyeHeight()F` = f2d(1.62F). Deg

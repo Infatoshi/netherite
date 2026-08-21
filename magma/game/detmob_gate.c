@@ -327,48 +327,6 @@ int main(int argc, char **argv) {
         for (slot = 1; slot < EW_MAX_ENTITIES; ++slot) {
             if (!s->alive[slot]) continue;
             if (!det_track(s->type[slot])) continue;
-            /* TEMP dump: first_div sites. Strip before commit. */
-            if ((s->id[slot] == 3872 && t >= 15 && t <= 40) ||
-                (s->id[slot] == 3339 && t <= 40) ||
-                (s->id[slot] == 386 && t >= 125 && t <= 145) ||
-                (s->id[slot] == 3693 && t >= 200 && t <= 230)) {
-                int k, nn = r.mobs.det_nav_n[slot];
-                fprintf(stderr,
-                    "DUMP t=%d eid=%d typ=%d og=%d x=%.17g y=%.17g z=%.17g "
-                    "yaw=%.9g pitch=%.9g vx=%.17g vz=%.17g tasks=%u plen=%u "
-                    "pt=(%.17g,%.17g,%.17g) follow=%.9g nav_n=%d nav_i=%d "
-                    "skel=%u tgt=%u seed=%llu\n",
-                    t, s->id[slot], s->type[slot], s->on_ground[slot],
-                    s->x[slot], s->y[slot], s->z[slot],
-                    s->yaw[slot], r.mobs.passive_head_pitch[slot],
-                    s->vx[slot], s->vz[slot],
-                    r.mobs.passive_tasks[slot], s->path_len[slot],
-                    s->path_tx[slot], s->path_ty[slot], s->path_tz[slot],
-                    (double)r.mobs.det_follow[slot],
-                    nn, r.mobs.det_nav_i[slot],
-                    r.mobs.det_skel_melee[slot], r.mobs.det_has_target[slot],
-                    (unsigned long long)r.mobs.ent_jr_seed[slot]);
-                if (nn > 0 && nn <= 48) {
-                    fprintf(stderr, "  path");
-                    for (k = 0; k < nn; ++k)
-                        fprintf(stderr, " (%d,%d,%d)",
-                                r.mobs.det_nav_x[slot][k],
-                                r.mobs.det_nav_y[slot][k],
-                                r.mobs.det_nav_z[slot][k]);
-                    fprintf(stderr, "\n");
-                }
-                if (s->id[slot] == 3872 && t == 20) {
-                    int bx = (int)floor(s->x[slot]), by = (int)floor(s->y[slot]);
-                    int bz = (int)floor(s->z[slot]), dx, dy, dz;
-                    fprintf(stderr, "  blocks around %d %d %d\n", bx, by, bz);
-                    for (dy = -1; dy <= 2; ++dy)
-                        for (dz = -1; dz <= 1; ++dz)
-                            for (dx = -1; dx <= 1; ++dx)
-                                fprintf(stderr, "    %d,%d,%d id=%d\n",
-                                        bx + dx, by + dy, bz + dz,
-                                        gm_world_block(r.world, bx + dx, by + dy, bz + dz));
-                }
-            }
             fprintf(out,
                 "{\"t\":%d,\"eid\":%d,\"x\":%.17g,\"y\":%.17g,\"z\":%.17g,"
                 "\"yaw\":%.9g,\"pitch\":%.9g,\"hyaw\":%.9g,\"ryaw\":%.9g,\"bt\":%d,"

@@ -12,7 +12,6 @@
 #include "path_finder.h"
 
 #include <math.h>
-#include <stdio.h>
 #include <string.h>
 
 #define GM_MOB_REACH 2.0
@@ -413,7 +412,8 @@ static double pai_eye_height(int type) {
     if (type == EW_TYPE_SHEEP) return (double)(0.95f * height);
     if (type == EW_TYPE_COW) return 1.3;
     if (type == EW_TYPE_CHICKEN) return (double)height;
-    if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON) return 1.74;
+    if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON)
+        return (double)1.74f; /* AbstractSkeleton/EntityZombie getEyeHeight ldc 1.74F */
     if (type == EW_TYPE_CREEPER) return (double)(1.7f * 0.85f);
     return (double)(height * 0.85f);
 }
@@ -565,6 +565,32 @@ static float pai_brightness(GmWorld *w, int x, int y, int z) {
     return (1.0f - f1) / (f1 * 3.0f + 1.0f);
 }
 
+/* World.getLightBrightness = provider.lightBrightnessTable[getLightFromNeighbors].
+ * Overworld: (1-f1)/(f1*3+1). Nether WorldProviderHell: that * 0.9F + 0.1F. */
+static float pai_light_brightness(GmWorld *w, int dim, int x, int y, int z) {
+    float t = pai_brightness(w, x, y, z);
+    if (dim == -1) t = t * 0.9f + 0.1f;
+    return t;
+}
+
+/* EntityAnimal: grass-down 10 else getLightBrightness-0.5F.
+ * EntityMob (blaze/pigman/zombie/skel/creeper): 0.5F - getLightBrightness.
+ * EntityCreature default is 0.0F. */
+static float pai_block_path_weight(GmMobLive *m, GmWorld *w, int type,
+                                   int x, int y, int z) {
+    float br = pai_light_brightness(w, m->active_dimension, x, y, z);
+    if (type == EW_TYPE_SHEEP || type == EW_TYPE_PIG ||
+        type == EW_TYPE_COW || type == EW_TYPE_CHICKEN) {
+        if (gm_world_block(w, x, y - 1, z) == 2) return 10.0f;
+        return br - 0.5f;
+    }
+    if (type == EW_TYPE_BLAZE || type == EW_TYPE_PIGMAN ||
+        type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON ||
+        type == EW_TYPE_CREEPER)
+        return 0.5f - br;
+    return 0.0f;
+}
+
 /* RandomPositionGenerator.generateRandomPos: ten triples, strict-greater best
  * weight, animal grass preference, and getLandPos water rejection. Returned
  * coordinates intentionally use the original offsets, as the Java method
@@ -591,8 +617,7 @@ static int pai_random_position(GmMobLive *m, GmWorld *w, const EwStore *s, int i
             int id = gm_world_block(w, bx, score_y, bz);
             if (id == 8 || id == 9) continue;
         }
-        float score = gm_world_block(w, bx, score_y - 1, bz) == 2
-                    ? 10.0f : pai_brightness(w, bx, score_y, bz) - 0.5f;
+        float score = pai_block_path_weight(m, w, s->type[i], bx, score_y, bz);
         if (score > best) {
             best = score;
             best_dx = dx; best_dy = dy; best_dz = dz;
@@ -914,6 +939,10 @@ static int pai_find_path(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     }
     pai_fill_pf(w, s, i, &ox, &oy, &oz);
     pai_path_to_pos(w, &bx, &by, &bz);
+    /* PathFinder.findPath: dest PathPoint is openPoint(floor) even if it sits
+     * outside the 32x24x32 window (Java ChunkCache is FOLLOW_RANGE+8). Do not
+     * clip dest into the window: that made A* treat a neighbour as closer and
+     * over-walk. Closest==start already returns n=0 (PathFinder.java:340). */
     /* PathFinder.findPath(BlockPos): (float)coord + 0.5F then f2d. */
     n = pf12_findPath(&pai_pf,
                       (double)((float)bx + 0.5f) - (double)ox,
@@ -921,6 +950,22 @@ static int pai_find_path(GmMobLive *m, GmWorld *w, EwStore *s, int i,
                       (double)((float)bz + 0.5f) - (double)oz,
                       m->det_follow[i] > 0.5f ? m->det_follow[i]
                                               : pai_follow_range(s->type[i]));
+    /* PathFinder: if closest==start return null. Magma's 32x24x32 window is
+     * smaller than Java ChunkCache (FOLLOW_RANGE+8), so a dest snapped onto a
+     * solid column (getPathToPos walk-up) can sit outside the grid. A* then
+     * treats a same-y neighbour as closer via manhattan to that far dest.
+     * Java's larger cache keeps closest==start and returns null. Reject a
+     * neighbour-only path when dest is out of window. */
+    if (n > 0 && !pnp_in(bx - ox, by - oy, bz - oz)) {
+        int sx = pai_pf.resultPts[0], sy = pai_pf.resultPts[1], sz = pai_pf.resultPts[2];
+        int ex = pai_pf.resultPts[(n - 1) * 3 + 0];
+        int ey = pai_pf.resultPts[(n - 1) * 3 + 1];
+        int ez = pai_pf.resultPts[(n - 1) * 3 + 2];
+        int md = (ex > sx ? ex - sx : sx - ex)
+               + (ey > sy ? ey - sy : sy - ey)
+               + (ez > sz ? ez - sz : sz - ez);
+        if (md <= 1) n = 0;
+    }
     if (n <= 0) {
         m->det_nav_n[i] = 0;
         return 0;
@@ -1299,8 +1344,13 @@ static double hai_follow(int type) {
 }
 static const int *hai_goals(int type, int skel_melee) {
     static const int z[] = { HSWIM, HMELEE, HHOME, HVILL, HWAND, HWATCH, HIDLE, -1 };
-    static const int s_bow[] = { HSWIM, HREST, HFLEE, HAVOID, HBOW, HWAND, HWATCH, HIDLE, -1 };
-    static const int s_melee[] = { HSWIM, HREST, HFLEE, HAVOID, HMELEE, HWAND, HWATCH, HIDLE, -1 };
+    /* AbstractSkeleton.initEntityAI adds swim/restrict/flee/avoid/wander/watch/idle
+     * with no combat task. Ctor then setCombatTask() LinkedHashSet-appends melee
+     * (empty hand) or bow (onInitialSpawn). EntityAITasks iterates insertion
+     * order, so wander/watch/idle shouldExecute run before combat starts and
+     * still consume nextInt(120)+nextFloat+nextFloat on that setup tick. */
+    static const int s_bow[] = { HSWIM, HREST, HFLEE, HAVOID, HWAND, HWATCH, HIDLE, HBOW, -1 };
+    static const int s_melee[] = { HSWIM, HREST, HFLEE, HAVOID, HWAND, HWATCH, HIDLE, HMELEE, -1 };
     static const int c[] = { HSWIM, HSWELL, HAVOID, HMELEE, HWAND, HWATCH, HIDLE, -1 };
     if (type == EW_TYPE_SKELETON) return skel_melee ? s_melee : s_bow;
     if (type == EW_TYPE_CREEPER) return c;
@@ -1531,11 +1581,12 @@ static void hai_target_tick(GmMobLive *m, GmWorld *w, EwStore *s, int i,
     else {
         order[n++] = 1;
         order[n++] = 2;
-        /* EntityZombie: villager then iron golem. AbstractSkeleton: player only. */
-        if (type == EW_TYPE_ZOMBIE) {
-            order[n++] = 4;
-            order[n++] = 8;
-        }
+        /* EntityZombie.initEntityAI: villager then iron golem, both pri 3.
+         * AbstractSkeleton.initEntityAI: nearestGolem pri 3 (no villager).
+         * Each NAT draws nextInt(10) on setup when mutex-free; empty AABB
+         * still consumes the draw. Dropping golem desyncs summoned skeletons. */
+        if (type == EW_TYPE_ZOMBIE) order[n++] = 4;
+        if (type == EW_TYPE_ZOMBIE || type == EW_TYPE_SKELETON) order[n++] = 8;
     }
     for (k = 0; k < n; ++k) {
         unsigned bit = (unsigned)order[k];
@@ -2276,17 +2327,6 @@ static void move_mob(GmWorld *w, const McSinTable *st, GmMobLive *m, EwStore *s,
                                 liv.base.phys.motionY, liv.base.phys.motionZ);
     q.minY -= liv.base.phys.stepHeight; q.maxY += liv.base.phys.stepHeight;
     int n = collect_blocks(w, &q, blocks, GM_MOB_BLOCKS);
-    if (pai_det() && s->id[i] == 386 && s->z[i] > 127.67 && s->z[i] < 127.79) {
-        int bx = mc_floor(liv.base.phys.posX);
-        int by = mc_floor(liv.base.phys.box.minY) - 1;
-        int bz = mc_floor(liv.base.phys.posZ);
-        fprintf(stderr,
-            "TRAVEL eid=386 z=%.17g yaw=%.9g mf=%.9g lf=%.9g slip=%.9g og=%d "
-            "vx=%.17g vz=%.17g block=%d,%d,%d id=%d nblk=%d\n",
-            s->z[i], liv.base.rotationYaw, liv.moveForward, liv.landMovementFactor,
-            slip, liv.base.phys.onGround, liv.base.phys.motionX, liv.base.phys.motionZ,
-            bx, by, bz, gm_world_block(w, bx, by, bz), n);
-    }
     eb_tick_living(&liv, slip, 0, blocks, n, st);
     ehs_store_living(s, i, &liv);
     if (pai_det()) {
