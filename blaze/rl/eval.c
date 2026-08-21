@@ -7,6 +7,8 @@
  *
  * Run from repo root:
  *   ./out/blaze/rl/eval --checkpoint out/blaze/rl/overnight_gpu0_6m.bin
+ *   ./out/blaze/rl/eval --checkpoint PATH --stage 0     # default; t0 snaps
+ *   ./out/blaze/rl/eval --checkpoint PATH --stage all   # t0 + stg1..4 ladder
  */
 #define _DEFAULT_SOURCE
 #include "blaze_abi.h"
@@ -45,7 +47,9 @@ enum {
   EVAL_BACKEND_MAX = 16,
   EVAL_MAX_SEEDS = 32,
   EVAL_MAX_TRIES = 16,
-  EVAL_TORCH_ITEM = 50
+  EVAL_TORCH_ITEM = 50,
+  EVAL_STAGE_ALL = -1,
+  EVAL_STAGE_MAX = 4
 };
 
 static const int kCanonSeeds[] = {2,  3,  10, 11, 14, 16, 20,
@@ -107,7 +111,15 @@ typedef struct EvalCfg {
   int warp_tick;
   int op_trace;
   int no_ore_xy;
+  int stage; /* 0..4, or EVAL_STAGE_ALL */
 } EvalCfg;
+
+typedef struct StageSeedResult {
+  int skip;
+  int base;
+  int abs_end;
+  int torch;
+} StageSeedResult;
 
 struct EnvStepCtx {
   BlazeFns *fns;
@@ -307,6 +319,128 @@ static const char *hist_name(int reached) {
   return mile_name(reached);
 }
 
+static int snap_path(char *dst, size_t cap, const char *dir, int seed,
+                     int stage) {
+  int nw;
+  if (stage <= 0)
+    nw = snprintf(dst, cap, "%s/s%d_t0.bsnp", dir, seed);
+  else
+    nw = snprintf(dst, cap, "%s/s%d_stg%d.bsnp", dir, seed, stage);
+  if (nw < 0 || (size_t)nw >= cap)
+    return -1;
+  return 0;
+}
+
+static int inv_stage(const int *best9) {
+  if (!best9)
+    return 0;
+  if (best9[CR_IX_TORCH] >= 1)
+    return CR_N_STAGES;
+  return cr_stage_of_best(best9);
+}
+
+/* Ladder cell: L=logs3 P=pick C=cobble3 O=coal T=torch; .=none; SKIP. */
+static void format_new_codes(char *buf, size_t cap, int base, int reached) {
+  static const char kCode[] = "LPCOT";
+  int s, nout = 0;
+  int torch = reached >= CR_N_STAGES;
+  int top = reached;
+  if (!buf || cap == 0)
+    return;
+  buf[0] = 0;
+  if (base < 0)
+    base = 0;
+  if (top > 4)
+    top = 4;
+  for (s = base + 1; s <= top; ++s) {
+    if ((size_t)nout + 2 > cap)
+      break;
+    buf[nout++] = kCode[s - 1];
+    buf[nout] = 0;
+  }
+  if (torch && base < CR_N_STAGES && (size_t)nout + 2 <= cap) {
+    buf[nout++] = 'T';
+    buf[nout] = 0;
+  }
+  if (nout == 0 && cap >= 2) {
+    buf[0] = '.';
+    buf[1] = 0;
+  }
+}
+
+static void format_new_names(char *buf, size_t cap, int base, int reached) {
+  int s;
+  int torch = reached >= CR_N_STAGES;
+  int top = reached;
+  if (!buf || cap == 0)
+    return;
+  buf[0] = 0;
+  if (base < 0)
+    base = 0;
+  if (top > 4)
+    top = 4;
+  for (s = base + 1; s <= top; ++s) {
+    size_t n = strlen(buf);
+    if (n + 1 >= cap)
+      break;
+    snprintf(buf + n, cap - n, "+%s", mile_name(s));
+  }
+  if (torch && base < CR_N_STAGES) {
+    size_t n = strlen(buf);
+    if (n + 2 < cap)
+      snprintf(buf + n, cap - n, "+T");
+  }
+  if (!buf[0] && cap >= 2) {
+    buf[0] = '-';
+    buf[1] = 0;
+  }
+}
+
+static void print_ladder(const EvalCfg *cfg, StageSeedResult rows[5][EVAL_MAX_SEEDS]) {
+  int i, st;
+  printf("\nlegend: L=logs3 P=pick C=cobble3 O=coal T=torch (full chain).\n");
+  printf("        Concatenate milestones newly reached this episode "
+         "(start inventory baselined out).\n");
+  printf("        .=no new milestone. SKIP=missing snap "
+         "(stg0 uses s{seed}_t0.bsnp; stgK uses s{seed}_stg{K}.bsnp).\n");
+  printf("        Cell is best-of-%d tries. Absolute end is not shown "
+         "here; see per-stage rows.\n",
+         cfg->tries);
+  printf("%5s", "seed");
+  for (st = 0; st <= EVAL_STAGE_MAX; ++st)
+    printf(" %6s%d", "stg", st);
+  fputc('\n', stdout);
+  for (i = 0; i < cfg->nseeds; ++i) {
+    printf("%5d", cfg->seeds[i]);
+    for (st = 0; st <= EVAL_STAGE_MAX; ++st) {
+      char cell[8];
+      if (rows[st][i].skip)
+        snprintf(cell, sizeof(cell), "SKIP");
+      else
+        format_new_codes(cell, sizeof(cell), rows[st][i].base,
+                         rows[st][i].abs_end);
+      printf(" %7s", cell);
+    }
+    fputc('\n', stdout);
+  }
+  printf("%5s", "nT/n");
+  for (st = 0; st <= EVAL_STAGE_MAX; ++st) {
+    int n_ran = 0, n_t = 0;
+    char cell[8];
+    for (i = 0; i < cfg->nseeds; ++i) {
+      if (rows[st][i].skip)
+        continue;
+      n_ran += 1;
+      if (rows[st][i].torch)
+        n_t += 1;
+    }
+    snprintf(cell, sizeof(cell), "%d/%d", n_t, n_ran);
+    printf(" %7s", cell);
+  }
+  fputc('\n', stdout);
+  fflush(stdout);
+}
+
 static void cfg_defaults(EvalCfg *c) {
   int i;
   memset(c, 0, sizeof(*c));
@@ -324,6 +458,7 @@ static void cfg_defaults(EvalCfg *c) {
   c->metal_max_cells = 2097152;
   (void)str_copy_fit(c->metallib, sizeof(c->metallib), "auto");
   c->warp_tick = 1;
+  c->stage = 0;
 }
 
 static int cfg_set(EvalCfg *c, const char *key, const char *val) {
@@ -393,6 +528,15 @@ static int cfg_set(EvalCfg *c, const char *key, const char *val) {
       return -2;
     return 0;
   }
+  if (!strcmp(key, "stage")) {
+    if (!strcmp(val, "all")) {
+      c->stage = EVAL_STAGE_ALL;
+      return 0;
+    }
+    if (!parse_int(val, &c->stage, 0, EVAL_STAGE_MAX))
+      return -2;
+    return 0;
+  }
   return -1;
 }
 
@@ -416,6 +560,10 @@ static void cfg_dump(const EvalCfg *c, FILE *out) {
   fprintf(out, "  %-16s = %llu\n", "seed", (unsigned long long)c->seed);
   fprintf(out, "  %-16s = %d\n", "metal_max_cells", c->metal_max_cells);
   fprintf(out, "  %-16s = %s\n", "metallib", c->metallib);
+  if (c->stage == EVAL_STAGE_ALL)
+    fprintf(out, "  %-16s = all\n", "stage");
+  else
+    fprintf(out, "  %-16s = %d\n", "stage", c->stage);
 }
 
 static void usage(void) {
@@ -429,9 +577,13 @@ static void usage(void) {
           "  --backend cpu|cuda|metal\n"
           "  --device N\n"
           "  --seed N            Gumbel base seed (default 0)\n"
+          "  --stage 0|1|2|3|4|all  snap ladder (default 0 = t0)\n"
           "  --set key=value     same keys as dump-config\n"
           "  --dump-config\n"
-          "Run from repo root. Loads schema-1 weights via nn_load.\n");
+          "Run from repo root. Loads schema-1 weights via nn_load.\n"
+          "stage 0 loads s{seed}_t0.bsnp (missing file is fatal).\n"
+          "stage K loads s{seed}_stg{K}.bsnp; missing prints SKIP, exit 0.\n"
+          "stage all runs 0..4 then a ladder table of new milestones.\n");
 }
 
 static int parse_argv(EvalCfg *c, int argc, char **argv, int *dump) {
@@ -514,10 +666,151 @@ static const char *ckpt_basename(const char *path) {
   return slash ? slash + 1 : path;
 }
 
+static void print_stage_report(const EvalCfg *cfg, int stage_k, uint64_t rng_seed,
+                               const uint8_t *skip, const int *seed_best,
+                               const int *seed_base) {
+  int i, h, n_ok, n_hist, n_ran, n_skip;
+  int hist_vals[EVAL_MAX_SEEDS];
+  int hist_count[EVAL_MAX_SEEDS];
+
+  printf("net %s, sampled, %d tries x %d ticks\n", ckpt_basename(cfg->checkpoint),
+         cfg->tries, cfg->ep_ticks);
+  printf("backend %s  rng_protocol nn_sample Gumbel rng_seed=%llu "
+         "sample_step=decision ni=seed_index*%d+attempt\n",
+         cfg->backend, (unsigned long long)rng_seed, cfg->tries);
+  n_ok = 0;
+  n_ran = 0;
+  n_skip = 0;
+  for (i = 0; i < cfg->nseeds; ++i) {
+    const char *tag = seed_is_held_out(cfg->seeds[i]) ? " HELD-OUT" : "";
+    if (skip[i]) {
+      char path[EVAL_STR_MAX];
+      if (snap_path(path, sizeof(path), cfg->snaps_dir, cfg->seeds[i],
+                    stage_k) != 0)
+        path[0] = 0;
+      printf("seed %3d%s: SKIP missing %s\n", cfg->seeds[i], tag, path);
+      n_skip += 1;
+      continue;
+    }
+    n_ran += 1;
+    if (seed_best[i] >= CR_N_STAGES)
+      n_ok += 1;
+    if (stage_k == 0) {
+      printf("seed %3d%s: best milestone = %s (%d/%d)\n", cfg->seeds[i], tag,
+             mile_name(seed_best[i]), seed_best[i], CR_N_STAGES);
+    } else {
+      char newly[80];
+      format_new_names(newly, sizeof(newly), seed_base[i], seed_best[i]);
+      printf("seed %3d%s: new=%s abs=%s (%d/%d) start=%s\n", cfg->seeds[i], tag,
+             newly, mile_name(seed_best[i]), seed_best[i], CR_N_STAGES,
+             mile_name(seed_base[i]));
+    }
+  }
+  n_hist = 0;
+  for (i = 0; i < cfg->nseeds; ++i) {
+    int v;
+    int found = 0;
+    if (skip[i])
+      continue;
+    v = seed_best[i];
+    for (h = 0; h < n_hist; ++h) {
+      if (hist_vals[h] == v) {
+        hist_count[h] += 1;
+        found = 1;
+        break;
+      }
+    }
+    if (!found) {
+      hist_vals[n_hist] = v;
+      hist_count[n_hist] = 1;
+      n_hist += 1;
+    }
+  }
+  for (h = 0; h < n_hist; ++h) {
+    int j;
+    for (j = h + 1; j < n_hist; ++j) {
+      if (hist_vals[j] < hist_vals[h]) {
+        int tv = hist_vals[h], tc = hist_count[h];
+        hist_vals[h] = hist_vals[j];
+        hist_count[h] = hist_count[j];
+        hist_vals[j] = tv;
+        hist_count[j] = tc;
+      }
+    }
+  }
+  if (stage_k == 0) {
+    printf("\nfull chain (torches): %d/%d seeds; milestone histogram: ", n_ok,
+           cfg->nseeds);
+  } else {
+    printf("\nfull chain (torches): %d/%d seeds (%d SKIP); milestone histogram: ",
+           n_ok, n_ran, n_skip);
+  }
+  for (h = 0; h < n_hist; ++h) {
+    if (h)
+      fputs(", ", stdout);
+    printf("%s:%d", hist_name(hist_vals[h]), hist_count[h]);
+  }
+  fputc('\n', stdout);
+  fflush(stdout);
+}
+
+static int eval_run_stage(const EvalCfg *cfg, int stage_k,
+                          StageSeedResult *results);
+
 int main(int argc, char **argv) {
   EvalCfg cfg;
   int dump = 0;
   int prc;
+  int ep_lim;
+
+  prc = parse_argv(&cfg, argc, argv, &dump);
+  if (prc == 1)
+    return 0;
+  if (prc != 0) {
+    usage();
+    return 2;
+  }
+  if (dump) {
+    cfg_dump(&cfg, stdout);
+    return 0;
+  }
+  if (!cfg.checkpoint[0]) {
+    fprintf(stderr, "eval: --checkpoint PATH is required\n");
+    usage();
+    return 2;
+  }
+  if (cfg.ep_ticks % cfg.action_repeat != 0)
+    die("ep_ticks must be divisible by action_repeat");
+  ep_lim = cfg.ep_ticks / cfg.action_repeat;
+  if (ep_lim <= 0)
+    die("ep_lim must be positive");
+  if (cfg.nseeds <= 0 || cfg.tries <= 0)
+    die("nseeds and tries must be positive");
+  if ((int64_t)cfg.nseeds * (int64_t)cfg.tries > (int64_t)INT_MAX / 4)
+    die("nseeds*tries too large");
+  if (access(cfg.checkpoint, R_OK) != 0)
+    dief("checkpoint not readable: %s", cfg.checkpoint);
+
+  if (cfg.stage == EVAL_STAGE_ALL) {
+    StageSeedResult ladder[5][EVAL_MAX_SEEDS];
+    int stage_k;
+    int rc;
+    memset(ladder, 0, sizeof(ladder));
+    for (stage_k = 0; stage_k <= EVAL_STAGE_MAX; ++stage_k) {
+      printf("--- stage %d ---\n", stage_k);
+      fflush(stdout);
+      rc = eval_run_stage(&cfg, stage_k, ladder[stage_k]);
+      if (rc != 0)
+        return rc;
+    }
+    print_ladder(&cfg, ladder);
+    return 0;
+  }
+  return eval_run_stage(&cfg, cfg.stage, NULL);
+}
+
+static int eval_run_stage(const EvalCfg *cfg, int stage_k,
+                          StageSeedResult *results) {
   int n, nsnaps, ep_lim, i, dec, all_done;
   int is_cuda = 0;
   int is_metal = 0;
@@ -533,6 +826,10 @@ int main(int argc, char **argv) {
   char err[512];
   char path_store[EVAL_MAX_SEEDS][EVAL_STR_MAX];
   const char *paths[EVAL_MAX_SEEDS];
+  int loaded_si[EVAL_MAX_SEEDS];
+  uint8_t skip[EVAL_MAX_SEEDS];
+  int seed_best[EVAL_MAX_SEEDS];
+  int seed_base[EVAL_MAX_SEEDS];
   int *assign = NULL;
   unsigned short *cam = NULL;
   unsigned char *depth = NULL;
@@ -556,11 +853,9 @@ int main(int argc, char **argv) {
   uint8_t *finished = NULL;
   int *best9 = NULL;
   int *reached = NULL;
-  int *seed_best = NULL;
-  int n_ok, n_hist, h;
-  int hist_vals[EVAL_MAX_SEEDS * EVAL_MAX_TRIES];
-  int hist_count[EVAL_MAX_SEEDS * EVAL_MAX_TRIES];
+  int *base_stg = NULL;
   int rc_out = 1;
+  uint64_t rng_seed;
 
 #if BLAZE_RL_HAVE_CUDA
   EnvCudaStage stage;
@@ -572,40 +867,25 @@ int main(int argc, char **argv) {
 #endif
   memset(&fns, 0, sizeof(fns));
   memset(&estep, 0, sizeof(estep));
+  memset(skip, 0, sizeof(skip));
+  memset(seed_best, 0, sizeof(seed_best));
+  memset(seed_base, 0, sizeof(seed_base));
+  memset(loaded_si, 0, sizeof(loaded_si));
   blaze_create_opts_default(&opts);
 
-  prc = parse_argv(&cfg, argc, argv, &dump);
-  if (prc == 1)
-    return 0;
-  if (prc != 0) {
-    usage();
-    return 2;
-  }
-  if (dump) {
-    cfg_dump(&cfg, stdout);
-    return 0;
-  }
-  if (!cfg.checkpoint[0]) {
-    fprintf(stderr, "eval: --checkpoint PATH is required\n");
-    usage();
-    return 2;
-  }
-  if (cfg.ep_ticks % cfg.action_repeat != 0)
-    die("ep_ticks must be divisible by action_repeat");
-  ep_lim = cfg.ep_ticks / cfg.action_repeat;
-  if (ep_lim <= 0)
-    die("ep_lim must be positive");
-  n = cfg.nseeds * cfg.tries;
-  if (n <= 0 || cfg.nseeds <= 0)
-    die("nseeds and tries must be positive");
-  if ((int64_t)cfg.nseeds * (int64_t)cfg.tries > (int64_t)INT_MAX / 4)
-    die("nseeds*tries too large");
+  ep_lim = cfg->ep_ticks / cfg->action_repeat;
+  /* Gumbel stream: rng_seed = cfg.seed + (uint64_t)stage_k.
+   * Stage 0 equals the historical seed so --stage 0 is bit-identical to
+   * the pre-flag binary. Later stages draw a different deterministic
+   * stream. SKIP seeds occupy no lane; ni = loaded_index * tries + attempt
+   * among snapshots that exist. */
+  rng_seed = cfg->seed + (uint64_t)stage_k;
 
-  if (strcmp(cfg.backend, "cpu") == 0) {
+  if (strcmp(cfg->backend, "cpu") == 0) {
     is_cuda = 0;
     is_metal = 0;
     so_path = kEnvCpuSo;
-  } else if (strcmp(cfg.backend, "cuda") == 0) {
+  } else if (strcmp(cfg->backend, "cuda") == 0) {
 #if BLAZE_RL_HAVE_CUDA
     is_cuda = 1;
     is_metal = 0;
@@ -616,7 +896,7 @@ int main(int argc, char **argv) {
             "(no fallback)\n");
     return 1;
 #endif
-  } else if (strcmp(cfg.backend, "metal") == 0) {
+  } else if (strcmp(cfg->backend, "metal") == 0) {
 #if BLAZE_RL_HAVE_METAL
     is_cuda = 0;
     is_metal = 1;
@@ -630,48 +910,67 @@ int main(int argc, char **argv) {
 #endif
   } else {
     fprintf(stderr, "eval: backend '%s' is not available (no fallback)\n",
-            cfg.backend);
+            cfg->backend);
     return 1;
   }
 
-  if (access(cfg.checkpoint, R_OK) != 0)
-    dief("checkpoint not readable: %s", cfg.checkpoint);
-
-  nsnaps = cfg.nseeds;
-  for (i = 0; i < cfg.nseeds; ++i) {
-    int nw = snprintf(path_store[i], EVAL_STR_MAX, "%s/s%d_t0.bsnp",
-                      cfg.snaps_dir, cfg.seeds[i]);
-    if (nw < 0 || nw >= EVAL_STR_MAX)
+  nsnaps = 0;
+  for (i = 0; i < cfg->nseeds; ++i) {
+    if (snap_path(path_store[i], EVAL_STR_MAX, cfg->snaps_dir, cfg->seeds[i],
+                  stage_k) != 0)
       die("snaps path too long");
-    paths[i] = path_store[i];
-    if (access(paths[i], R_OK) != 0)
-      dief("missing t0 snapshot: %s", paths[i]);
+    if (access(path_store[i], R_OK) != 0) {
+      skip[i] = 1;
+      if (stage_k == 0)
+        dief("missing t0 snapshot: %s", path_store[i]);
+      continue;
+    }
+    paths[nsnaps] = path_store[i];
+    loaded_si[nsnaps] = i;
+    nsnaps += 1;
   }
+
+  if (nsnaps == 0) {
+    if (results) {
+      for (i = 0; i < cfg->nseeds; ++i) {
+        results[i].skip = 1;
+        results[i].base = 0;
+        results[i].abs_end = 0;
+        results[i].torch = 0;
+      }
+    }
+    print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
+    return 0;
+  }
+
+  n = nsnaps * cfg->tries;
+  if (n <= 0)
+    die("nseeds and tries must be positive");
 
   if (blaze_fns_load(&fns, so_path, want_cam) != 0) {
     fprintf(stderr,
             "eval: failed to load env library for backend=%s (path=%s); "
             "no fallback\n",
-            cfg.backend, so_path);
+            cfg->backend, so_path);
     return 1;
   }
 
-  opts.ktime = cfg.ktime;
-  opts.stage_time = cfg.stage_time;
-  opts.legacy_recenter = cfg.legacy_recenter;
-  opts.warp_tick = cfg.warp_tick;
-  opts.op_trace = cfg.op_trace;
-  opts.no_ore_xy = cfg.no_ore_xy;
+  opts.ktime = cfg->ktime;
+  opts.stage_time = cfg->stage_time;
+  opts.legacy_recenter = cfg->legacy_recenter;
+  opts.warp_tick = cfg->warp_tick;
+  opts.op_trace = cfg->op_trace;
+  opts.no_ore_xy = cfg->no_ore_xy;
 
-  env = fns.create(cfg.device, n, &opts);
+  env = fns.create(cfg->device, n, &opts);
   if (!env)
     die("blaze_create failed");
-  if (fns.set_success_item(env, cfg.success_item) != 0)
+  if (fns.set_success_item(env, cfg->success_item) != 0)
     die("blaze_set_success_item failed");
 
 #if BLAZE_RL_HAVE_CUDA
   if (is_cuda) {
-    if (env_cuda_stage_create(&stage, n, cfg.device) != 0) {
+    if (env_cuda_stage_create(&stage, n, cfg->device) != 0) {
       fns.destroy(env);
       blaze_fns_close(&fns);
       die("env_cuda_stage_create failed");
@@ -680,13 +979,13 @@ int main(int argc, char **argv) {
 #endif
 #if BLAZE_RL_HAVE_METAL
   if (is_metal) {
-    const char *mlib = resolve_metallib(&cfg);
+    const char *mlib = resolve_metallib(cfg);
     if (!mlib || !mlib[0]) {
       fns.destroy(env);
       blaze_fns_close(&fns);
       die("metallib path empty");
     }
-    if (env_metal_obs_create(&metal_obs, n, cfg.metal_max_cells, mlib,
+    if (env_metal_obs_create(&metal_obs, n, cfg->metal_max_cells, mlib,
                              fns.obs_cam_inputs) != 0) {
       fns.destroy(env);
       blaze_fns_close(&fns);
@@ -734,30 +1033,30 @@ int main(int argc, char **argv) {
   finished = (uint8_t *)calloc((size_t)n, 1);
   best9 = (int *)calloc((size_t)n * 9, sizeof(int));
   reached = (int *)calloc((size_t)n, sizeof(int));
-  seed_best = (int *)calloc((size_t)cfg.nseeds, sizeof(int));
+  base_stg = (int *)calloc((size_t)n, sizeof(int));
   if (!assign || !cam || !depth || !edge || !scal6 || !rew || !done_buf ||
       !pose || !status || !act_rows || !planes || !scalars || !acts || !logp ||
       !values || !logits || !prior_frame || !have_prior || !frame_scratch ||
-      !ep_dec || !finished || !best9 || !reached || !seed_best)
+      !ep_dec || !finished || !best9 || !reached || !base_stg)
     die("alloc failed");
 
   for (i = 0; i < n; ++i)
-    assign[i] = i / cfg.tries;
+    assign[i] = i / cfg->tries;
   if (fns.assign(env, assign) != 0 || fns.reset(env, NULL) != 0)
     die("assign/reset failed");
 
   nc = nn_config_default();
-  nc.rng_seed = cfg.seed;
+  nc.rng_seed = rng_seed;
   nd.backend = is_metal  ? NN_BACKEND_METAL
                : is_cuda ? NN_BACKEND_CUDA
                          : NN_BACKEND_CPU;
-  nd.device = cfg.device;
+  nd.device = cfg->device;
   nd.max_n = n;
   nd.config = nc;
   nn = nn_create(&nd);
   if (!nn)
     dief("nn_create: %s", nn_last_error());
-  if (rl_ckpt_load(nn, cfg.checkpoint) != 0)
+  if (rl_ckpt_load(nn, cfg->checkpoint) != 0)
     dief("nn_load: %s", nn_last_error());
 
   /* Burn-in noop (trainer first stored step): populate cam/scal/status.
@@ -770,13 +1069,16 @@ int main(int argc, char **argv) {
     a[2] = 1;
   }
   acts_to_rows(acts, n, act_rows);
-  if (env_step(&estep, env, act_rows, cfg.action_repeat, cam, depth, edge,
+  if (env_step(&estep, env, act_rows, cfg->action_repeat, cam, depth, edge,
                scal6, rew, done_buf, pose, status) != 0)
     die("burn-in step failed");
   for (i = 0; i < n; ++i) {
     int k;
     for (k = 0; k < 9; ++k)
       best9[(size_t)i * 9 + (size_t)k] = status[(size_t)i * ENV_STATUS + k];
+    /* First populated best[] after assign+reset+burn-in. Stage-0
+     * reporting still uses absolute reached (print unchanged). */
+    base_stg[i] = inv_stage(best9 + (size_t)i * 9);
     have_prior[i] = 0;
     ep_dec[i] = 0;
     finished[i] = 0;
@@ -791,7 +1093,7 @@ int main(int argc, char **argv) {
     if (nn_sample(nn, logits, n, NN_SAMPLE_GUMBEL, acts, logp, NULL) != 0)
       dief("nn_sample: %s", nn_last_error());
     acts_to_rows(acts, n, act_rows);
-    if (env_step(&estep, env, act_rows, cfg.action_repeat, cam, depth, edge,
+    if (env_step(&estep, env, act_rows, cfg->action_repeat, cam, depth, edge,
                  scal6, rew, done_buf, pose, status) != 0)
       die("blaze_step_full failed");
 
@@ -842,66 +1144,28 @@ int main(int argc, char **argv) {
       reached[i] = cr_stage_of_best(best9 + (size_t)i * 9);
   }
 
-  for (i = 0; i < cfg.nseeds; ++i)
+  for (i = 0; i < cfg->nseeds; ++i) {
     seed_best[i] = 0;
+    seed_base[i] = 0;
+  }
   for (i = 0; i < n; ++i) {
-    int si = i / cfg.tries;
+    int loaded = i / cfg->tries;
+    int si = loaded_si[loaded];
     if (reached[i] > seed_best[si])
       seed_best[si] = reached[i];
+    if ((i % cfg->tries) == 0)
+      seed_base[si] = base_stg[i];
   }
 
-  printf("net %s, sampled, %d tries x %d ticks\n", ckpt_basename(cfg.checkpoint),
-         cfg.tries, cfg.ep_ticks);
-  printf("backend %s  rng_protocol nn_sample Gumbel rng_seed=%llu "
-         "sample_step=decision ni=seed_index*%d+attempt\n",
-         cfg.backend, (unsigned long long)cfg.seed, cfg.tries);
-  n_ok = 0;
-  for (i = 0; i < cfg.nseeds; ++i) {
-    int ok = seed_best[i] >= CR_N_STAGES;
-    const char *tag = seed_is_held_out(cfg.seeds[i]) ? " HELD-OUT" : "";
-    if (ok)
-      n_ok += 1;
-    printf("seed %3d%s: best milestone = %s (%d/%d)\n", cfg.seeds[i], tag,
-           mile_name(seed_best[i]), seed_best[i], CR_N_STAGES);
-  }
-  n_hist = 0;
-  for (i = 0; i < cfg.nseeds; ++i) {
-    int v = seed_best[i];
-    int found = 0;
-    for (h = 0; h < n_hist; ++h) {
-      if (hist_vals[h] == v) {
-        hist_count[h] += 1;
-        found = 1;
-        break;
-      }
-    }
-    if (!found) {
-      hist_vals[n_hist] = v;
-      hist_count[n_hist] = 1;
-      n_hist += 1;
+  if (results) {
+    for (i = 0; i < cfg->nseeds; ++i) {
+      results[i].skip = skip[i] ? 1 : 0;
+      results[i].base = seed_base[i];
+      results[i].abs_end = seed_best[i];
+      results[i].torch = seed_best[i] >= CR_N_STAGES;
     }
   }
-  for (h = 0; h < n_hist; ++h) {
-    int j;
-    for (j = h + 1; j < n_hist; ++j) {
-      if (hist_vals[j] < hist_vals[h]) {
-        int tv = hist_vals[h], tc = hist_count[h];
-        hist_vals[h] = hist_vals[j];
-        hist_count[h] = hist_count[j];
-        hist_vals[j] = tv;
-        hist_count[j] = tc;
-      }
-    }
-  }
-  printf("\nfull chain (torches): %d/%d seeds; milestone histogram: ", n_ok,
-         cfg.nseeds);
-  for (h = 0; h < n_hist; ++h) {
-    if (h)
-      fputs(", ", stdout);
-    printf("%s:%d", hist_name(hist_vals[h]), hist_count[h]);
-  }
-  fputc('\n', stdout);
-  fflush(stdout);
+  print_stage_report(cfg, stage_k, rng_seed, skip, seed_best, seed_base);
   rc_out = 0;
 
 fail:
@@ -928,7 +1192,7 @@ fail:
   free(finished);
   free(best9);
   free(reached);
-  free(seed_best);
+  free(base_stg);
   if (nn)
     nn_destroy(nn);
 #if BLAZE_RL_HAVE_CUDA

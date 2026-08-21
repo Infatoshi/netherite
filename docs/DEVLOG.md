@@ -1,5 +1,16 @@
 # DEVLOG (compressed)
 
+## 2026-08-21 eval --stage ladder
+
+`out/blaze/rl/eval --stage 0` (default) is stdout+stderr byte-identical to
+ca29468 on `ppo_ckpt.bin`. `--stage K` loads `s{seed}_stg{K}.bsnp`; missing
+files print an explicit SKIP row and are not failures (exit 0). `--stage all`
+runs 0..4 then a ladder of milestones newly reached this episode (start
+inventory baselined after assign+reset+burn-in). Gumbel `rng_seed =
+cfg.seed + stage` so stage 0 matches history; later stages differ, reruns
+match. Fake `s10_stg1.bsnp` copied from t0: start=t0, new=-. Real stgK snaps
+come from the forge lane.
+
 ## 2026-08-21 native PPO best-on-t0 + collapse telemetry
 
 `out/blaze/rl/ppo` writes `{ckpt_stem}_best.bin` (schema 1) plus
