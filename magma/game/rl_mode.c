@@ -579,6 +579,53 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
     }
 
     {
+        uint64_t cells_xor = 0;
+        unsigned nfall = 0, muts = 0;
+        int nents = 0, i;
+        h = bp_falling_digest_begin();
+        for (i = 0; i < GM_LIVE_MAX; ++i) {
+            const GmLiveEnt *e = &r->entities.ents[i];
+            if (!e->active || e->type != 2) continue;
+            ++nents;
+            h = bp_hash_falling_entity(
+                h, e->x, e->y, e->z, e->mx, e->my, e->mz,
+                e->on_ground, e->age, e->item, e->meta);
+        }
+        h = bp_hash_i32(h, nents);
+        for (i = 0; i < GM_LIVE_FALL_UPDATES; ++i) {
+            const GmLiveFallUpdate *u = &r->entities.fall_updates[i];
+            h = bp_hash_i32(h, u->active);
+            if (!u->active) continue;
+            h = bp_hash_i32(h, u->x);
+            h = bp_hash_i32(h, u->y);
+            h = bp_hash_i32(h, u->z);
+            h = bp_hash_i32(h, u->block_id);
+            h = bp_hash_i64(h, u->due_tick);
+        }
+        for (i = 0; i < GM_LIVE_MAX; ++i) {
+            const GmLiveFallLanding *p = &r->entities.fall_landings[i];
+            h = bp_hash_i32(h, p->active);
+            if (!p->active) continue;
+            h = bp_hash_i32(h, p->x);
+            h = bp_hash_i32(h, p->y);
+            h = bp_hash_i32(h, p->z);
+            h = bp_hash_i32(h, p->block_id);
+            h = bp_hash_i32(h, p->block_meta);
+            h = bp_hash_i64(h, p->due_tick);
+        }
+        if (gm_world_fall_parity_state(r->world, &cells_xor, &nfall, &muts)) {
+            h = bp_falling_digest_finish(
+                h, cells_xor, (uint32_t)nfall, (uint32_t)muts);
+            out->digest[BP_FALLING_BLOCKS] = h;
+            out->evidence[BP_FALLING_BLOCKS] = (uint32_t)nents + muts;
+            if (nents || muts)
+                out->active_mask |= BP_BIT(BP_FALLING_BLOCKS);
+        } else {
+            out->measured_mask &= ~BP_BIT(BP_FALLING_BLOCKS);
+        }
+    }
+
+    {
         RlSnapMob packed[BLAZE_SNAP_MAX_MOBS];
         unsigned nm = gm_mobs_export_snap(&r->mobs, packed,
                                           BLAZE_SNAP_MAX_MOBS);

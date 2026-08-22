@@ -307,18 +307,63 @@ subsystems:
     timeout: 1500
 
   - name: falling_blocks
-    supported: false
+    supported: true
     sources:
-      magma: [magma/game/live_sim.c]
-      shared: [blaze/core/block_tickers.h]
-      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+      magma: [magma/game/live_sim.c, magma/game/rl_mode.c]
+      shared: [blaze/core/falling_live.h, blaze/core/port_parity.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
     dependencies: [world_dynamics]
     required_features: [falling_blocks]
-    required_artifacts: {m1: [], m2: []}
-    m1: []
-    m2: []
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_falling.bsnp
+        - blaze/rl/fixtures/falling_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_falling.bsnp
+        - blaze/rl/fixtures/falling_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_falling.bsnp
+      - --tape
+      - blaze/rl/fixtures/falling_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - falling_blocks
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_falling.bsnp
+      - --tape
+      - blaze/rl/fixtures/falling_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - falling_blocks
     timeout: 1500
-    block_reason: Falling-block state and outcomes are not measured by both backends.
 
   - name: entity_spine
     supported: true

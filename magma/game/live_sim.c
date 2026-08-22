@@ -121,69 +121,19 @@ int gm_live_spawn_item(GmLiveSim *s, double x, double y, double z,
     return gm_live_spawn_stack(s, x, y, z, ic_mk(item, count, meta), pickup_delay);
 }
 
-static int fall_block(int id) {
-    return id == BLK_SAND || id == BLK_GRAVEL;
-}
-
-/* BlockFalling.canFallThrough: deliberately narrower than isReplaceable.
- * Plants, snow layers, and circuits do not support a gravity block, but they
- * are not AIR/FIRE/WATER/LAVA and therefore do not trigger checkFallable. */
-static int fall_through(int id) {
-    return id == BLK_AIR || id == 51 ||
-           id == BLK_FLOWING_WATER || id == BLK_WATER ||
-           id == BLK_FLOWING_LAVA || id == BLK_LAVA;
-}
-
-static void fall_schedule_delay(GmLiveSim *s, GmWorld *w,
-                                int x, int y, int z, int delay) {
-    int id;
-    if (!s || !w || y < 0 || y > 255) return;
-    id = gm_world_block(w, x, y, z);
-    if (!fall_block(id)) return;
-    for (int i = 0; i < GM_LIVE_FALL_UPDATES; ++i) {
-        GmLiveFallUpdate *u = &s->fall_updates[i];
-        if (u->active && u->x == x && u->y == y && u->z == z &&
-            u->block_id == id)
-            return;
-    }
-    for (int i = 0; i < GM_LIVE_FALL_UPDATES; ++i) {
-        GmLiveFallUpdate *u = &s->fall_updates[i];
-        if (u->active) continue;
-        u->active = 1;
-        u->x = x; u->y = y; u->z = z;
-        u->block_id = id;
-        u->due_tick = (long long)s->ticks + delay;
-        return;
-    }
-}
+#define FL_W GmWorld
+#define fl_id(w, x, y, z) gm_world_block((w), (x), (y), (z))
+#define fl_meta(w, x, y, z) (gm_world_meta((w), (x), (y), (z)) & 15)
+#define fl_set(w, x, y, z, id, meta) \
+    gm_world_set_block_meta((w), (x), (y), (z), (id), (meta))
+#define FL_STORE GmLiveSim
+#define FL_MAX GM_LIVE_MAX
+#define FL_UPDATES GM_LIVE_FALL_UPDATES
+#include "falling_live.h"
 
 void gm_live_block_changed(GmLiveSim *s, GmWorld *w,
                            int x, int y, int z) {
-    /* setBlockState calls the placed block's onBlockAdded, then notifies its
-     * neighbors. Only the vertical-above notification can make sand/gravel
-     * newly unsupported. */
-    fall_schedule_delay(s, w, x, y, z, 2);
-    fall_schedule_delay(s, w, x, y + 1, z, 2);
-}
-
-static int fall_spawn(GmLiveSim *s, int x, int y, int z, int id, int meta) {
-    for (int i = 0; i < GM_LIVE_MAX; ++i) {
-        GmLiveEnt *e = &s->ents[i];
-        if (e->active) continue;
-        memset(e, 0, sizeof *e);
-        e->active = 1;
-        e->type = 2;
-        e->x = (double)x + 0.5;
-        /* EntityFallingBlock ctor: y + (1.0F - height) / 2, height=.98F. */
-        e->y = (double)y + (double)((1.0f - 0.98f) / 2.0f);
-        e->z = (double)z + 0.5;
-        e->item = id;
-        e->meta = meta;
-        e->lifespan = 600;
-        s->n_active++;
-        return 1;
-    }
-    return 0;
+    fl_block_changed(s, w, x, y, z);
 }
 
 static int solid_at(GmWorld *w, int x, int y, int z) {
@@ -191,134 +141,8 @@ static int solid_at(GmWorld *w, int x, int y, int z) {
     return id != 0 && id != 8 && id != 9 && id != 10 && id != 11;
 }
 
-/* Highest collision surface in a cell at the falling entity's centered X/Z.
- * This mirrors the shapes already used by player_survival. Non-solid partials
- * return no box: the entity falls through them, then mayPlace decides whether
- * the occupied landing cell is replaceable or the falling block breaks. */
-static double fall_collision_top(GmWorld *w, int x, int y, int z) {
-    int id = gm_world_block(w, x, y, z);
-    int meta = gm_world_meta(w, x, y, z);
-    if (id == BLK_WEB || !(mc_bpt_props(id).flags & BF_SOLID)) return -1.0;
-    if (id == BLK_STONE_SLAB || id == BLK_WOODEN_SLAB ||
-        id == BLK_RED_SANDSTONE_SLAB)
-        return (double)y + ((meta & 8) ? 1.0 : 0.5);
-    if (id == BLK_SOUL_SAND) return (double)y + 0.875;
-    if (id == BLK_CACTUS) return (double)y + 0.9375;
-    if (id == BLK_FENCE || id == BLK_NETHER_BRICK_FENCE ||
-        id == BLK_COBBLESTONE_WALL)
-        return (double)y + 1.5;
-    if (id == BLK_TRAPDOOR && !(meta & 4))
-        return (double)y + ((meta & 8) ? 1.0 : 0.1875);
-    return (double)y + 1.0;
-}
-
-static int fall_target_replaceable(GmWorld *w, int x, int y, int z) {
-    int id = gm_world_block(w, x, y, z);
-    return (mc_bpt_props(id).flags & BF_REPLACEABLE) != 0;
-}
-
-static void fall_queue_landing(GmLiveSim *s, int x, int y, int z,
-                               int id, int meta) {
-    for (int i = 0; i < GM_LIVE_MAX; ++i) {
-        GmLiveFallLanding *p = &s->fall_landings[i];
-        if (p->active) continue;
-        p->active = 1;
-        p->x = x; p->y = y; p->z = z;
-        p->block_id = id; p->block_meta = meta;
-        p->due_tick = (long long)s->ticks + 1;
-        return;
-    }
-}
-
 void gm_live_pre_player_tick(GmLiveSim *s, GmWorld *w) {
-    if (!s || !w) return;
-    /* EntityFallingBlock places on the integrated server. The client observes
-     * that block through the next tick's server packet, before click handling.
-     * Keeping this boundary explicit is required for held creative attacks:
-     * the arriving block can be removed again before the post-tick digest. */
-    for (int i = 0; i < GM_LIVE_MAX; ++i) {
-        GmLiveFallLanding *p = &s->fall_landings[i];
-        if (!p->active || p->due_tick > (long long)s->ticks) continue;
-        gm_world_set_block_meta(w, p->x, p->y, p->z,
-                                p->block_id, p->block_meta);
-        /* The packet is one client tick after the server-side placement that
-         * scheduled BlockFalling.updateTick. Its subsequent source-removal
-         * packet is observed one tick after that server update, so the
-         * client-world transition is three ticks from this placement view. */
-        fall_schedule_delay(s, w, p->x, p->y, p->z, 3);
-        fall_schedule_delay(s, w, p->x, p->y + 1, p->z, 3);
-        p->active = 0;
-    }
-}
-
-static void fall_tick_entity(GmLiveSim *s, GmWorld *w, GmLiveEnt *e) {
-    int bx, by, bz;
-    if (e->age == 0) {
-        bx = (int)floor(e->x); by = (int)floor(e->y); bz = (int)floor(e->z);
-        if (gm_world_block(w, bx, by, bz) != e->item) {
-            e->active = 0;
-            if (s->n_active > 0) s->n_active--;
-            return;
-        }
-        gm_world_set_block(w, bx, by, bz, BLK_AIR);
-        gm_live_block_changed(s, w, bx, by, bz);
-    }
-
-    e->my -= 0.03999999910593033;
-    {
-        double old_y = e->y;
-        double new_y = old_y + e->my;
-        double hit_top = -1.0;
-        bx = (int)floor(e->x); bz = (int)floor(e->z);
-        for (int y = (int)floor(old_y); y >= (int)floor(new_y) - 1; --y) {
-            double top = fall_collision_top(w, bx, y, bz);
-            if (top >= 0.0 && top <= old_y && top > new_y && top > hit_top)
-                hit_top = top;
-        }
-        if (hit_top >= 0.0) {
-            e->y = hit_top;
-            e->on_ground = 1;
-        } else {
-            e->y = new_y;
-            e->on_ground = 0;
-        }
-    }
-    e->x += e->mx;
-    e->z += e->mz;
-    e->mx *= 0.9800000190734863;
-    e->my *= 0.9800000190734863;
-    e->mz *= 0.9800000190734863;
-    e->age++;
-
-    if (e->on_ground) {
-        int below;
-        bx = (int)floor(e->x);
-        by = (int)floor(e->y);
-        bz = (int)floor(e->z);
-        below = gm_world_block(w, bx,
-                               (int)floor(e->y - 0.009999999776482582), bz);
-        if (fall_through(below)) {
-            e->on_ground = 0;
-            return;
-        }
-        e->mx *= 0.699999988079071;
-        e->mz *= 0.699999988079071;
-        e->my *= -0.5;
-        e->active = 0;
-        if (s->n_active > 0) s->n_active--;
-        if (by >= 0 && by <= 255 && fall_target_replaceable(w, bx, by, bz) &&
-            !fall_through(gm_world_block(w, bx, by - 1, bz))) {
-            fall_queue_landing(s, bx, by, bz, e->item, e->meta);
-        }
-        /* Vanilla otherwise converts to an EntityItem. Netherite's world
-         * truth has no item digest, so a failed mayPlace ends as no block. */
-    } else {
-        by = (int)floor(e->y);
-        if (!((e->age > 100 && (by < 1 || by > 256)) || e->age > 600))
-            return;
-        e->active = 0;
-        if (s->n_active > 0) s->n_active--;
-    }
+    fl_pre_player_tick(s, w);
 }
 
 void gm_live_tick(GmLiveSim *s, GmWorld *w) {
@@ -328,26 +152,14 @@ void gm_live_tick(GmLiveSim *s, GmWorld *w) {
     /* WorldServer scheduled block ticks run before the entity update pass.
      * A newly spawned EntityFallingBlock therefore removes its source and
      * takes its first gravity step in this same runtime tick. */
-    for (int i = 0; i < GM_LIVE_FALL_UPDATES; ++i) {
-        GmLiveFallUpdate *u = &s->fall_updates[i];
-        if (!u->active || u->due_tick > (long long)s->ticks) continue;
-        if (gm_world_block(w, u->x, u->y, u->z) == u->block_id &&
-            u->y >= 0 && fall_through(gm_world_block(w, u->x, u->y - 1, u->z))) {
-            if (!fall_spawn(s, u->x, u->y, u->z, u->block_id,
-                            gm_world_meta(w, u->x, u->y, u->z))) {
-                u->due_tick++;
-                continue;
-            }
-        }
-        u->active = 0;
-    }
+    fl_tick_scheduled(s, w);
 
     /* ---- item entities: gravity + ground friction (EntityItem-like) ---- */
     for (int i = 0; i < GM_LIVE_MAX; ++i) {
         GmLiveEnt *e = &s->ents[i];
         if (!e->active) continue;
         if (e->type == 2) {
-            fall_tick_entity(s, w, e);
+            fl_tick_entity(s, w, i);
             continue;
         }
         if (e->pickup_delay > 0) e->pickup_delay--;
