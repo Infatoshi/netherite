@@ -86,8 +86,6 @@ int  gm_live_spawn_stack(GmLiveSim *s, double x, double y, double z,
  * world edit at (x,y,z); the edited block and the block above are notified. */
 void gm_live_block_changed(GmLiveSim *s, GmWorld *w,
                            int x, int y, int z);
-/* Apply queued EntityFallingBlock landings (client packet view). Call after
- * getMouseOver and before sendClickBlockToController. */
 void gm_live_pre_player_tick(GmLiveSim *s, GmWorld *w);
 /* One tick: gravity/friction for live ents (world collision via gm_world_*), wheat growth. */
 void gm_live_tick(GmLiveSim *s, GmWorld *w);

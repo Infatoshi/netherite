@@ -215,7 +215,11 @@ static int ray_axis(double start, double dir, double lo, double hi,
  * same ray must not steal a held creative attack from a closer re-landed
  * cell; that split the 151855Z digest across t46/t47. */
 static int attack_hits_falling_block(const GmRuntime *r) {
-    const double border = 0.1; /* Entity.getCollisionBorderSize */
+    /* Entity.getCollisionBorderSize returns 0.0F (Entity.java:2366-2368).
+     * expandXyz(0.1) steals the 151855Z ray one tick early (entity y~4.78)
+     * and leaves blockHitDelay=1 on the re-land. 0.0F with clickBlock's
+     * folded delay=4 extra-breaks the floor at t25; with delay=5 it does not. */
+    const double border = 0.0;
     /* EntityRenderer.getMouseOver uses Entity.getVectorForRotation, whose
      * MathHelper float trig is shared with the block ray. A libm double ray
      * flips the grazing decision that controls blockHitDelay here. */
@@ -851,24 +855,8 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         (void)gm_container_click(r, action.inv_slot, action.inv_button, action.inv_type);
         action.inv_click = 0;
     }
-    /* Minecraft.runTick: EntityRenderer.getMouseOver (Minecraft.java:1752)
-     * runs before PlayerControllerMP.updateController processReceivedPackets
-     * (Minecraft.java:1757 / PlayerControllerMP.java:369). Pick the falling
-     * AABB against the pre-packet world, then apply the landing packet. */
-    {
-        int can_click = gm_player_left_click_allows(action.attack);
-        if (can_click && r->dimension == 1 &&
-            gm_dragon_player_attack(&r->dragon,
-                (const struct PsvPlayer *)&r->player, r->ox, r->oz))
-            action.attack_entity = 1;
-        if (can_click && !action.attack_entity &&
-            gm_mobs_player_attack(&r->mobs,
-                (const struct PsvPlayer *)&r->player, r->ox, r->oz,
-                &r->entities))
-            action.attack_entity = 1;
-        if (can_click && !action.attack_entity && attack_hits_falling_block(r))
-            action.attack_entity = 1;
-    }
+    /* Apply integrated-server landing packets before the client snapshots its
+     * physics/raycast window for this tick. */
     gm_live_pre_player_tick(&r->entities, r->world);
     /* refill the physics window only when its contents can have changed:
      * recenter, dimension/world switch, or any block mutation since the last
@@ -905,6 +893,26 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
                 (struct PvStats *)&r->vitals, &r->player.inv, 1.0f, 1);
         --r->player_fire_ticks;
         r->player.health=r->vitals.health;
+    }
+    /* Minecraft.runTick order: leftClickCounter-- then processKeyBinds
+     * (clickMouse on press, sendClickBlockToController on hold). Entity
+     * selection/damage is clickMouse's ENTITY branch and must share the
+     * post-decrement gate. Keep the physical attack bit for gm_player_tick so
+     * dig sees a held key (and only release clears the counter); mark
+     * attack_entity so the dig machine takes the non-BLOCK reset path. */
+    {
+        int can_click = gm_player_left_click_allows(action.attack);
+        if (can_click && r->dimension == 1 &&
+            gm_dragon_player_attack(&r->dragon,
+                (const struct PsvPlayer *)&r->player, r->ox, r->oz))
+            action.attack_entity = 1;
+        if (can_click && !action.attack_entity &&
+            gm_mobs_player_attack(&r->mobs,
+                (const struct PsvPlayer *)&r->player, r->ox, r->oz,
+                &r->entities))
+            action.attack_entity = 1;
+        if (can_click && !action.attack_entity && attack_hits_falling_block(r))
+            action.attack_entity = 1;
     }
     GmBlockEdit edits[GM_RUNTIME_MAX_EDITS];
     int n = 0;

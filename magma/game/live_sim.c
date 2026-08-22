@@ -221,8 +221,6 @@ static void fall_queue_landing(GmLiveSim *s, int x, int y, int z,
                                int id, int meta) {
     for (int i = 0; i < GM_LIVE_MAX; ++i) {
         GmLiveFallLanding *p = &s->fall_landings[i];
-        if (p->active && p->x == x && p->y == y && p->z == z)
-            return;
         if (p->active) continue;
         p->active = 1;
         p->x = x; p->y = y; p->z = z;
@@ -232,42 +230,17 @@ static void fall_queue_landing(GmLiveSim *s, int x, int y, int z,
     }
 }
 
-static int fall_landing_queued(const GmLiveSim *s, int x, int y, int z) {
-    for (int i = 0; i < GM_LIVE_MAX; ++i) {
-        const GmLiveFallLanding *p = &s->fall_landings[i];
-        if (p->active && p->x == x && p->y == y && p->z == z)
-            return 1;
-    }
-    return 0;
-}
-
-static void fall_despawn_at(GmLiveSim *s, int x, int y, int z) {
-    for (int i = 0; i < GM_LIVE_MAX; ++i) {
-        GmLiveEnt *e = &s->ents[i];
-        if (!e->active || e->type != 2) continue;
-        if ((int)floor(e->x) != x || (int)floor(e->y) != y ||
-            (int)floor(e->z) != z)
-            continue;
-        e->active = 0;
-        if (s->n_active > 0) s->n_active--;
-    }
-}
-
 void gm_live_pre_player_tick(GmLiveSim *s, GmWorld *w) {
     if (!s || !w) return;
-    /* EntityFallingBlock.onUpdate places on the integrated server
-     * (EntityFallingBlock.java:160-167: setDead then setBlockState). The
-     * client still has the entity at getMouseOver (Minecraft.java:1752);
-     * updateController then processReceivedPackets (PlayerControllerMP.java:369
-     * via Minecraft.java:1757) delivers the block and SPacketDestroyEntities
-     * before processKeyBinds clicks (Minecraft.java:2053). Apply after pick,
-     * and keep the entity alive until this apply, so the pick ray matches. */
+    /* EntityFallingBlock places on the integrated server. The client observes
+     * that block through the next tick's server packet, before click handling.
+     * Keeping this boundary explicit is required for held creative attacks:
+     * the arriving block can be removed again before the post-tick digest. */
     for (int i = 0; i < GM_LIVE_MAX; ++i) {
         GmLiveFallLanding *p = &s->fall_landings[i];
         if (!p->active || p->due_tick > (long long)s->ticks) continue;
         gm_world_set_block_meta(w, p->x, p->y, p->z,
                                 p->block_id, p->block_meta);
-        fall_despawn_at(s, p->x, p->y, p->z);
         /* The packet is one client tick after the server-side placement that
          * scheduled BlockFalling.updateTick. Its subsequent source-removal
          * packet is observed one tick after that server update, so the
@@ -280,9 +253,6 @@ void gm_live_pre_player_tick(GmLiveSim *s, GmWorld *w) {
 
 static void fall_tick_entity(GmLiveSim *s, GmWorld *w, GmLiveEnt *e) {
     int bx, by, bz;
-    bx = (int)floor(e->x); by = (int)floor(e->y); bz = (int)floor(e->z);
-    if (e->on_ground && fall_landing_queued(s, bx, by, bz))
-        return;
     if (e->age == 0) {
         bx = (int)floor(e->x); by = (int)floor(e->y); bz = (int)floor(e->z);
         if (gm_world_block(w, bx, by, bz) != e->item) {
@@ -334,20 +304,11 @@ static void fall_tick_entity(GmLiveSim *s, GmWorld *w, GmLiveEnt *e) {
         e->mx *= 0.699999988079071;
         e->mz *= 0.699999988079071;
         e->my *= -0.5;
-        /* Server setDead is inside !isRemote (EntityFallingBlock.java:162).
-         * The client entity stays until the destroy packet, which arrives
-         * with the placement packet next tick. Keep the AABB for getMouseOver
-         * and despawn in gm_live_pre_player_tick when the block is applied. */
-        {
-            int below_id = gm_world_block(w, bx, by - 1, bz);
-            int repl = fall_target_replaceable(w, bx, by, bz);
-            int place = by >= 0 && by <= 255 && repl && !fall_through(below_id);
-            if (place)
-                fall_queue_landing(s, bx, by, bz, e->item, e->meta);
-            else {
-                e->active = 0;
-                if (s->n_active > 0) s->n_active--;
-            }
+        e->active = 0;
+        if (s->n_active > 0) s->n_active--;
+        if (by >= 0 && by <= 255 && fall_target_replaceable(w, bx, by, bz) &&
+            !fall_through(gm_world_block(w, bx, by - 1, bz))) {
+            fall_queue_landing(s, bx, by, bz, e->item, e->meta);
         }
         /* Vanilla otherwise converts to an EntityItem. Netherite's world
          * truth has no item digest, so a failed mayPlace ends as no block. */
