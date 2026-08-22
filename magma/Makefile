@@ -390,6 +390,16 @@ test-sky-weather:
 	$(CC) $(CFLAGS) tests/test_sky_weather.c -o tests/test_sky_weather $(LDLIBS)
 	./tests/test_sky_weather
 
+# World.checkLightFor decrease: 3x3x3 water cube centre sky==9, not 12.
+.PHONY: test-water-skylight
+test-water-skylight: $(OBJ_WORLD) $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o
+	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_water_skylight.c \
+	    world/mesh_mc.o world/light.o world/populate_mc.o world/gen_prefetch.o \
+	    assets/blockmodels.o \
+	    $(OBJ_RK) core/math.o core/shade.o core/config.o game/caps.o \
+	    -o tests/test_water_skylight $(LDLIBS)
+	./tests/test_water_skylight
+
 .PHONY: test-look-helper test-pathfinder-null
 test-look-helper:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_look_helper.c -o tests/test_look_helper $(LDLIBS)
@@ -399,7 +409,7 @@ test-pathfinder-null:
 	$(CC) $(CFLAGS) -I$(BLAZE)/core tests/test_pathfinder_null.c -o tests/test_pathfinder_null $(LDLIBS)
 	./tests/test_pathfinder_null
 
-test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null
+test: test-sky-weather test-raster-smoke test-world-spawn test-fall-reanchor test-look-helper test-pathfinder-null test-water-skylight
 	@echo "run per-module tests in tests/ (see SPEC.md)"
 
 # Standalone-game semantic gates. These deliberately exercise the real streamed
@@ -594,7 +604,7 @@ clean:
 	find . -name '*.o' -delete
 	find . -name '*.d' -delete
 	rm -f tests/test_raster_smoke tests/test_transform tests/test_present tests/test_scene tests/test_world \
-	      tests/test_raster_parity tests/test_assets tests/test_light tests/test_mesh_mc \
+	      tests/test_raster_parity tests/test_assets tests/test_light tests/test_water_skylight tests/test_mesh_mc \
 	      tests/test_mesh_models tests/test_model_oracle tests/test_light_brightness \
 	      tests/test_sky_weather \
 	      tests/test_fog_radial \
