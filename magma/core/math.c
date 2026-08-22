@@ -130,9 +130,46 @@ static CR_HD CrMat4 rotation_z_deg(float deg)
     return r;
 }
 
+/* glRotate(deg, 0, 1, 1): axis is normalized to (0, 1/sqrt(2), 1/sqrt(2)).
+ * EntityRenderer.java:759,761. Column-major Rodrigues. */
+static CR_HD CrMat4 rotation_axis_0_1_1_deg(float deg)
+{
+    const float rad = deg * 0.01745329251994329577f;
+    const float c = cosf(rad), s = sinf(rad);
+    const float k = 0.7071067811865475244f;
+    const float oc = 1.0f - c;
+    const float half_oc = 0.5f * oc;
+    CrMat4 r = cr_mat4_identity();
+    r.m[0] = c;
+    r.m[1] = k * s;
+    r.m[2] = -k * s;
+    r.m[4] = -k * s;
+    r.m[5] = c + half_oc;
+    r.m[6] = half_oc;
+    r.m[8] = k * s;
+    r.m[9] = half_oc;
+    r.m[10] = c + half_oc;
+    return r;
+}
+
 CR_HD CrMat4 cr_camera_view(const CrCamera *cam)
 {
     CrMat4 view = cr_look_yaw_pitch(cam->pos, cam->yaw, cam->pitch);
+    /* setupCameraTransform GL order (java:739-764): hurt, bob, portal RSR,
+     * then orientCamera. C's look is orient; portal and hurt multiply on
+     * the left. renderHand (java:791-804) builds a fresh matrix without
+     * this RSR — callers must leave portal_time=0 on the hand camera. */
+    if (cam->portal_time > 0.0f) {
+        float f = cam->portal_time;
+        float f2 = 5.0f / (f * f + 5.0f) - f * 0.04f; /* java:757 */
+        f2 = f2 * f2;                                 /* java:758 */
+        CrMat4 rp = rotation_axis_0_1_1_deg(cam->portal_spin_deg);
+        CrMat4 rm = rotation_axis_0_1_1_deg(-cam->portal_spin_deg);
+        CrMat4 sc = cr_mat4_identity();
+        sc.m[0] = 1.0f / f2; /* java:760 scale(1/f2, 1, 1) */
+        /* R(+spin) * S * R(-spin) * Orient */
+        view = cr_mat4_mul(rp, cr_mat4_mul(sc, cr_mat4_mul(rm, view)));
+    }
     if (cam->hurt_roll_deg == 0.0f) return view;
 
     /* EntityRenderer.hurtCameraEffect(partialTicks), in GL call order:

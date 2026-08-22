@@ -187,6 +187,13 @@ typedef struct {
     /* EntityRenderer.hurtCameraEffect, applied before orientCamera. Degrees
      * match the vanilla GlStateManager.rotate arguments. */
     float  hurt_yaw_deg, hurt_roll_deg;
+    /* EntityRenderer.setupCameraTransform portal rotate-scale-rotate
+     * (oracle-src EntityRenderer.java:746-761). WORLD pass only; renderHand
+     * reloads gluPerspective without this (java:791-804). portal_time<=0
+     * disables. portal_spin_deg is (rendererUpdateCount+partialTicks)*20
+     * (nausea uses *7; callers without nausea pass *20). */
+    float  portal_time;
+    float  portal_spin_deg;
 } CrCamera;
 
 /* ---- input snapshot from the present layer ---- */

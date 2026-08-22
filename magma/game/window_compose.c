@@ -341,8 +341,10 @@ static void apply_fluid_fog(CrShadeCtx *shade, const GmUnderwater *uw) {
     shade->fog_color = uw->fog_rgba;
 }
 
-static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
+static CrCamera camera_for(const GmPlayerView *v, int w, int h,
+                           float partial_ticks) {
     CrCamera c;
+    memset(&c, 0, sizeof c);
     c.pos.x = v->x;
     c.pos.y = v->y + v->eye_height;
     c.pos.z = v->z;
@@ -354,6 +356,12 @@ static CrCamera camera_for(const GmPlayerView *v, int w, int h) {
     c.zfar = GM_TERRAIN_ZFAR;
     c.hurt_yaw_deg = v->hurt_yaw;
     c.hurt_roll_deg = gm_view_hurt_roll_deg(v->hurt_time, v->max_hurt_time);
+    /* EntityRenderer.setupCameraTransform (java:746-761): WORLD modelview.
+     * Tick-boundary captures use partialTicks=1 so spin = (phase+1)*20. */
+    if (v->portal > 0.0f) {
+        c.portal_time = v->portal;
+        c.portal_spin_deg = ((float)v->portal_phase + partial_ticks) * 20.0f;
+    }
     return c;
 }
 
@@ -714,7 +722,15 @@ int gm_window_compose_draw(GmWindowCompose *c,
     }
     const GmPlayerView *pv = &mapped_view;
     const GmPlayerView *cpv = frame->camera_view;
-    CrCamera cam = camera_for(cpv, c->fb.w, c->fb.h);
+    CrCamera cam = camera_for(cpv, c->fb.w, c->fb.h, frame->partial_ticks);
+    /* Live HUD copies timeInPortal onto mapped_view (pv), not camera_view.
+     * setupCameraTransform reads mc.player.timeInPortal (java:746). Tape
+     * already sets both views; this keeps live play on the same RSR. */
+    if (pv->portal > 0.0f) {
+        cam.portal_time = pv->portal;
+        cam.portal_spin_deg =
+            ((float)pv->portal_phase + frame->partial_ticks) * 20.0f;
+    }
     if (!c->fog_c1_init) advance_fog_state(c, 0);
     float fog_c1 = c->fog_c1;
     GmUnderwater uw;
@@ -1042,16 +1058,12 @@ int gm_window_compose_draw(GmWindowCompose *c,
 #endif
     stamp(frame, 10);
 
-    /* EntityRenderer.setupCameraTransform (oracle-src EntityRenderer.java:746-761)
-     * rotate-scale-rotate is on the WORLD modelview only. renderHand
-     * (EntityRenderer.java:791-835) loads a fresh gluPerspective
-     * (getFOVModifier(*, false)) + identity modelview, then draws the
-     * viewmodel and ItemRenderer overlays. Inverse-map the world buffer
-     * before those 2D/hand passes. Tick-boundary partialTicks=1 so the
-     * warp uses phase+1. */
-    if (pv->portal > 0.0f && c->portal_scratch)
-        gm_overlay_portal_warp(&c->fb, c->portal_scratch, pv->portal,
-                               pv->portal_phase, cam.fov_deg);
+    /* EntityRenderer.setupCameraTransform portal RSR is on the WORLD
+     * camera (cr_camera_view, java:746-761). renderHand (java:791-835)
+     * loads a fresh gluPerspective without that matrix; gm_hand_draw
+     * uses portal_time=0. Do not inverse-map the colour buffer: a 2D
+     * homography is only exact at one depth, so sky/wall occupancy at
+     * the silhouette diverges from the 3D raster. */
 
     {
         int hx = (int)floorf(cpv->x);
