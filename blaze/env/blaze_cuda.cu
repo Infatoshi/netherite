@@ -1062,8 +1062,7 @@ int blaze_load_snapshots(void *vh, const char *const *paths, int count,
             memcpy(d->mobs, s.mobs, (size_t)s.n_mobs * sizeof d->mobs[0]);
         }
         v->has_liquid[v->nsnaps] = s.has_liquid;
-        v->has_unrepresented[v->nsnaps] =
-            s.head.container != 0 || s.light == NULL;
+        v->has_unrepresented[v->nsnaps] = s.head.container != 0;
         blaze_snapshot_free(&s);
         v->nsnaps++;
     }

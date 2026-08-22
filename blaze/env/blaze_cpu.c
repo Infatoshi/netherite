@@ -288,7 +288,10 @@ unsigned long long blaze_snapshot_requirements(void *vh, int snap) {
     if (!v || snap < 0 || snap >= v->nsnaps) return ~0ULL;
     if (v->snaps[snap].has_liquid)
         requirements |= (unsigned long long)BP_BIT(BP_FLUIDS);
-    if (v->snaps[snap].head.container != 0 || !v->snaps[snap].light)
+    /* v1 snapshots omit the light plane by format. That is not the
+     * open-container gap this bit names; capture already flags only
+     * container != 0. A v2+ file with no light fails load. */
+    if (v->snaps[snap].head.container != 0)
         requirements |= (unsigned long long)BP_REQ_UNREPRESENTED_SNAPSHOT;
     return requirements;
 }
