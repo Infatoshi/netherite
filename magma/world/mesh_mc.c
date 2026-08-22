@@ -14,6 +14,8 @@
 #include "world/mesh_mc.h"
 #include "world/light.h"
 #include "assets/blockmodels.h"
+#include "assets/atlas_gen.h"   /* CR_SPRITE_WATER_OVERLAY */
+#include "game/block_registry.h" /* vanilla id 20/95 for water-glass overlay */
 #include "renderkernels/rk.h"   /* facebakery kernels 31-34 (bake non-cube quads) */
 #include "core/config.h"        /* cr_cfg()->ao / smooth */
 
@@ -608,6 +610,17 @@ static int same_fluid_id(int a, int b) {
     return (a_water && b_water) || (a_lava && b_lava);
 }
 
+/* BlockFluidRenderer.java:185-192: water against Blocks.GLASS or
+ * Blocks.STAINED_GLASS uses atlasSpriteWaterOverlay. Panes are not this
+ * pair. Lava never overlays (flag at java:46). Vanilla ids 20 / 95. */
+static int water_glass_overlay(int neighbor_model_key) {
+    uint16_t state;
+    if (gm_model_key_to_state(neighbor_model_key, 0, &state) == GM_MAP_UNSUPPORTED)
+        return 0;
+    int id = gm_state_id(state);
+    return id == 20 || id == 95;
+}
+
 /* BlockFluidRenderer.getFluidHeight for one corner. This consumes the legacy
  * LEVEL metadata rather than merely carrying its nibble through the dump. */
 static float fluid_corner_height(const CrLight *L, int wx, int wy, int wz,
@@ -792,10 +805,16 @@ static void emit_fluid(CrChunkMeshMC *out, int *cap, int layer,
     for (int face = BM_NORTH; face <= BM_EAST; ++face) {
         if (!fluid_face_visible(L, wx, wy, wz, fluid_id, face)) continue;
         CrVertex q[4], back[4];
-        lm_capture_ext(L, wx + FACES[face].n[0], wy + FACES[face].n[1],
-                       wz + FACES[face].n[2], fl_em);
+        int nx = wx + FACES[face].n[0];
+        int ny = wy + FACES[face].n[1];
+        int nz = wz + FACES[face].n[2];
+        /* java:185-192 overlay sprite; java:259-265 skip reverse when overlay. */
+        int overlay = (fluid_id != 11 && fluid_id != 12) &&
+                      water_glass_overlay(light_block(L, nx, ny, nz));
+        int side_spr = overlay ? CR_SPRITE_WATER_OVERLAY : flow_sprite;
+        lm_capture_ext(L, nx, ny, nz, fl_em);
         bake_face(wx, wy, wz, from, to, face, 0, 3, 0.0f, NULL, 0,
-                  flow_sprite, base01 * FACES[face].shade, 1.0f, tint, q);
+                  side_spr, base01 * FACES[face].shade, 1.0f, tint, q);
         for (int i = 0; i < 4; ++i) {
             int corner = 0;
             if (face == BM_NORTH) {
@@ -819,13 +838,15 @@ static void emit_fluid(CrChunkMeshMC *out, int *cap, int layer,
                      : face == BM_WEST  ? (south ? 0.0f : 8.0f)
                      :                    (south ? 8.0f : 0.0f);
             q[i].pos.y = top ? (float)wy + side_h[corner] : (float)wy;
-            q[i].uv.x = sprite_u(flow_sprite, uu);
-            q[i].uv.y = sprite_v(flow_sprite,
+            q[i].uv.x = sprite_u(side_spr, uu);
+            q[i].uv.y = sprite_v(side_spr,
                                  top ? (1.0f - side_h[corner]) * 8.0f : 8.0f);
         }
         push_face(out, cap, layer, q);
-        reverse_quad(back, q);
-        push_face(out, cap, layer, back);
+        if (!overlay) {
+            reverse_quad(back, q);
+            push_face(out, cap, layer, back);
+        }
     }
 }
 

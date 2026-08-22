@@ -256,6 +256,8 @@ int main(void) {
     int xt   = BASE + 3,  zt  = BASE + 14;  /* standing torch */
     int xtw  = BASE + 8,  ztw = BASE + 14;  /* east-facing wall torch */
     int xlv  = BASE + 5,  ylv = TY + 20, zlv = BASE + 5; /* sloped lava */
+    int xwg  = BASE + 15, zwg = BASE + 10; /* water + glass south overlay */
+    int ywg  = TY + 10;
     light_debug_set_block(L, xs,  TY, zs,  T_STAIRS);
     light_debug_set_block(L, xsl, TY, zsl, T_SLAB);
     light_debug_set_block(L, xf,  TY, zf,  T_FENCE);
@@ -263,6 +265,8 @@ int main(void) {
     light_debug_set_block(L, xl,  TY, zl,  T_LEAVES);
     light_debug_set_block(L, xw,  TY,   zw, T_WATER);
     light_debug_set_block(L, xw,  TY+1, zw, T_WATER);
+    light_debug_set_block(L, xwg, ywg, zwg, T_WATER);
+    light_debug_set_block(L, xwg, ywg, zwg + 1, T_GLASS);
     light_debug_set_block(L, xli, TY, zli, T_LILY);
     light_debug_set_block(L, xsn, TY, zsn, T_SNOW);
     light_debug_set_block(L, xv,  TY, zv,  T_VINE);
@@ -633,6 +637,35 @@ int main(void) {
         CHECK(fullbright_top==12,
               "water: full-bright double-sided top has %d verts (want 12)",
               fullbright_top);
+    }
+    /* --- WATER against GLASS: BlockFluidRenderer.java:185-192 overlay
+     * sprite, java:259-265 skip inward reverse. Isolated source + glass
+     * south: UP reverse + DOWN + 3 double sides + overlay south = 10 quads. */
+    {
+        float ylo_wg = (float)ywg - 0.5f, yhi_wg = (float)ywg + 2.0f;
+        int n = collect(&m, CR_LAYER_TRANSLUCENT, xwg, zwg, ylo_wg, yhi_wg,
+                        got, 512);
+        CHECK(n == 60, "water+glass: %d translucent verts (want 60)", n);
+        float u0, v0, u1, v1;
+        bm_sprite_uv(CR_SPRITE_WATER_OVERLAY, &u0, &v0, &u1, &v1);
+        int south = 0, overlay_uv = 0;
+        for (int i = 0; i < m.nverts[CR_LAYER_TRANSLUCENT]; ++i) {
+            const CrVertex *v = &m.verts[CR_LAYER_TRANSLUCENT][i];
+            if (v->pos.x < (float)xwg - 0.01f || v->pos.x > (float)xwg + 1.01f)
+                continue;
+            if (v->pos.y < (float)ywg - 0.01f || v->pos.y > (float)ywg + 2.01f)
+                continue;
+            if (fabsf(v->pos.z - ((float)zwg + 1.0f - 0.001f)) > 1e-4f)
+                continue;
+            south++;
+            if (v->uv.x >= u0 - 1e-5f && v->uv.x <= u1 + 1e-5f &&
+                v->uv.y >= v0 - 1e-5f && v->uv.y <= v1 + 1e-5f)
+                overlay_uv++;
+        }
+        CHECK(south == 6,
+              "water+glass south overlay verts %d (want 6, no reverse)", south);
+        CHECK(overlay_uv == 6,
+              "water+glass south UVs on water_overlay %d/6", overlay_uv);
     }
     /* --- SLOPED LAVA: LEVEL 3 center with diagonal LEVEL 4..7 neighbours.
      * Java corner heights are {1/4, 2/9, 7/36, 1/6}; top rendering subtracts

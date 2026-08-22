@@ -286,6 +286,9 @@ static const char *SPRITE_APPEND[] = {
     "brick", "quartz_block_bottom", "quartz_block_side", "quartz_block_top",
     "stone_slab_side", "stone_slab_top", "stonebrick", "glass_pane_top", "trapdoor",
     "ladder",
+    /* BlockFluidRenderer.java:40 atlasSpriteWaterOverlay. Append-only so
+     * existing CR_SPRITE_* indices and packed rects stay put. */
+    "water_overlay",
 };
 
 static int cmp_cstr(const void *a, const void *b) {
