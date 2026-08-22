@@ -42,12 +42,8 @@ recorder or re-recording; D-class by improving gates, not the product.
    lightning".
 5. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
    precision on grazing top faces. Soul sand triage entry.
-6. Entity pixels: XP orb hard_px=3542 (disc ROI); small fireball complete
-   ROI hard_px=44930; dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
-
-6. Entity pixels: XP orb hard_px=3542 (grass + disc 1-2 LSB); small fireball
-   complete ROI; dragon body pose/UV/per-texel dissolve. "Entity and particle
-   pixels".
+6. Entity pixels: XP orb hard_px=3484 (pad LSB + disc 1-2 LSB); small fireball
+   complete ROI hard_px=44922; dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
 7. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
    high-altitude/distance haze.
 8. Nether arrival tape: fire/lava animation phase + surrounding lightmap
@@ -344,9 +340,9 @@ No strict entity family is pixel-perfect yet:
   `hard_px=44930` / owned=46000, `c_vs_j=5.536`, maxch=161, `ab_nz=0`
   RESIDUAL (was 45349 / 5.545). Sprite bbox (413,114)-(434,135) subject
   matches the golden (mid (420,125) C=J [161,48,0]; 9 leftover px are
-  grass at the bbox corner, maxch 1-2). Remaining 44930 is complete-ROI
-  pad/grass occupancy and BYTE-pack (35532 at 1 LSB, 9398 >1). Do not
-  change the pad or the ROI. `er_shade_item` is unchanged (lane/xporb2).
+  grass at the bbox corner, maxch 1-2). Remaining 44930 was complete-ROI
+  pad/grass occupancy and BYTE-pack. Lane/entityscene matched the capture
+  pad (below). `er_shade_item` is unchanged (lane/xporb2).
   Shared `emit_fireball_billboard` also darkens fireball_dragon C
   (hard_px 42457 -> 38371); that row stays CAPTURE_BLOCKED (ab_nz=43).
   Other 14 entity rows byte-stable.
@@ -375,8 +371,29 @@ No strict entity family is pixel-perfect yet:
   vs (158,158,0), and the 42px (250,188,0) vs (252,190,0) yellow
   texels). Pin `color=0` with `render_pin=1`. Do not drop vertex RGB to
   fit the golden. Other 15 entity rows are byte-stable vs the pre-port
-  baseline. Remaining: fancy-vs-fast grass in the complete ROI
+  baseline. Remaining after xporb2: fancy-vs-fast grass in the complete ROI
   (~2294 px, maxch 90), disc 1-2 LSB, pad LSB.
+
+  Lane/entityscene 2026-08-22: C pad was x,z in [0,15] at y=4. Capture
+  `place_pad` (driver.py:87-111) is x in [CX-6, CX+6]=[2,14], z in
+  [CZ-2, CZ+10]=[6,18], stone id=1 meta=0, air y=5..11, dig targets
+  (10,5,11) stone and (11,5,11) grass. Recorder.java:5502-5536
+  setblocks flag 3. Superflat plains biome 1
+  (FlatGeneratorInfo.java:327-336, light.c:390-392).
+  fancyGraphics=false (capture_ui_entities.sh:76, GameSettings.java:686-688,
+  Recorder.java:7990) does not skip grass overlay:
+  BlockGrass.getBlockLayer is always CUTOUT_MIPPED (BlockGrass.java:141-145);
+  leaves are the fancy gate (BlockLeaves.java:250-253,
+  RenderGlobal.java:510-511). blockstates/grass.json snowy=false uses
+  grass_normal, parent of grass.json with grass_side_overlay.
+  After on gamer: xp_orb `hard_px=3484` / owned=3600, `c_vs_j=4.093`
+  (was 14.791), maxch=25 (was 90), `ab_nz=0` RESIDUAL. fireball_small
+  `hard_px=44922` / 46000, `c_vs_j=4.944` (was 5.536), maxch=161.
+  Dragon death 50/100/190 byte-stable (92122/101336/159948). pxdiff ROI
+  thresh 25: xp occupancy clusters 1152+63 content gone (0 clusters);
+  fireball cutout-sky+ 5105 became shading-offset 2894. Remaining: disc
+  1-2 LSB, pad BYTE-pack, fireball horizon/sky 200 px. No entity-renderer
+  edits.
 - Small fireball no longer draws on-fire layers unless `isBurning`, but its
   complete ROI remains open.
 - Dragon death uses the correct 48-bit `java.util.Random`; remaining gaps are
