@@ -6,6 +6,8 @@
  * (C) WOOD SHOVEL (269): emits front/back + rim verts; UV inside sprite.
  * (D) DIRT block (3): emits 36 verts (unit cube); UV inside dirt sprite;
  *     extents after transform are finite and non-degenerate.
+ * (D3) idle AABB is T(0.56,-0.52,-0.72)*Ry(45)*S(0.4)*T(-0.5).
+ * (D4) env pitch does not move verts (rotateArroundXAndY pops).
  * (E) CAP: max < 36 returns 0 and never overruns out (canary intact).
  * (F) FLINT AND STEEL: generated rim lighting uses ItemLayerModel's opposite
  *     vertex normal at the TNT tape's camera pitch.
@@ -143,6 +145,46 @@ int main(void) {
         for (int i = 0; i < n0; ++i) { y0 += out[i].pos.y; y1 += out2[i].pos.y; }
         y0 /= (float)n0; y1 /= (float)n1;
         CHECK(y1 < y0 - 0.2f, "equip=1 lowers dirt (ItemRenderer.java:340 f5)");
+    }
+
+    /* ---- (D3) dirt idle AABB is transformSideFirstPerson + JSON Ry45 * S(0.4)
+     * + RenderItem T(-0.5) (ItemRenderer.java:304,437-438; block.json
+     * firstperson_righthand; RenderItem.java:144). Swing 0 / equip 0. */
+    {
+        gm_hand_set_env(NULL, 15.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f);
+        int n = gm_hand_emit_held(3, 0, 0.0f, 0.0f, out, TEST_MAX);
+        CHECK(n == 36, "dirt idle AABB emit");
+        float minx=1e9f,maxx=-1e9f,miny=1e9f,maxy=-1e9f,minz=1e9f,maxz=-1e9f;
+        for (int i = 0; i < n; ++i) {
+            if (out[i].pos.x < minx) minx = out[i].pos.x;
+            if (out[i].pos.x > maxx) maxx = out[i].pos.x;
+            if (out[i].pos.y < miny) miny = out[i].pos.y;
+            if (out[i].pos.y > maxy) maxy = out[i].pos.y;
+            if (out[i].pos.z < minz) minz = out[i].pos.z;
+            if (out[i].pos.z > maxz) maxz = out[i].pos.z;
+        }
+        CHECK(minx > 0.25f && maxx < 0.90f, "dirt idle x in T(0.56)*Ry45*S(0.4)");
+        CHECK(miny > -0.75f && maxy < -0.28f, "dirt idle y below eye (T -0.52)");
+        CHECK(maxz < -0.45f && minz > -1.10f, "dirt idle z in front of eye");
+    }
+
+    /* ---- (D4) rotateArroundXAndY pops (ItemRenderer.java:89-96): pitch
+     * rotates LIGHTS only. Geometry at pitch 15 equals pitch 0. ---- */
+    {
+        gm_hand_set_env(NULL, 15.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f);
+        int n0 = gm_hand_emit_held(3, 0, 0.0f, 0.0f, out, TEST_MAX);
+        gm_hand_set_env(NULL, 15.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 15.0f);
+        int n1 = gm_hand_emit_held(3, 0, 0.0f, 0.0f, out2, TEST_MAX);
+        gm_hand_set_env(NULL, 15.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f);
+        CHECK(n0 == 36 && n1 == 36, "dirt pitch emit");
+        float d = 0.0f;
+        for (int i = 0; i < n0; ++i) {
+            float dx = out2[i].pos.x - out[i].pos.x;
+            float dy = out2[i].pos.y - out[i].pos.y;
+            float dz = out2[i].pos.z - out[i].pos.z;
+            d += dx * dx + dy * dy + dz * dz;
+        }
+        CHECK(d < 1e-8f, "pitch does not move dirt verts (java:95 pop)");
     }
 
     /* ---- (E) cap ---- */

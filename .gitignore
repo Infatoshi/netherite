@@ -25,6 +25,8 @@ magma/magma_game_metal
 magma/metal/*.air
 magma/metal/*.metallib
 magma/tests/test_raster_parity_metal
+magma/tests/test_raster_smoke
+magma/tests/test_sky_weather
 # craster test binaries + previews (sources test_*.c / test_*.sh ARE tracked)
 magma/game/test_input_map
 magma/game/test_world_live

@@ -45,8 +45,9 @@ recorder or re-recording; D-class by improving gates, not the product.
 6. Entity pixels: XP orb hard_px=3484 (pad LSB + disc 1-2 LSB); small fireball
    complete ROI hard_px=44922 (4.944/ch); dragon death RESIDUAL on complete ROI
    (two-pass exploding/skin in, lane/dragonpass: 2.16/ch, hard_px 84995/83667/
-   84543; idle dirt viewmodel pose too top-down, 1-px two-pass hole at
-   (482,22), 1-LSB sky). "Entity and particle pixels".
+   84543; lane/dragonhand: C idle dirt already is 1.11 FP transform, Java
+   house-peak matches Rx(pitch=15) which vanilla pops; 1-px hole (482,22);
+   sky 1-LSB + endstone 2-LSB). "Entity and particle pixels".
 7. Full-frame surfaces: death-screen composition ~33/ch (still soft),
    fire overlay hard residual 12.91/ch (lane/fireover; A/B-exact),
    high-altitude/distance haze.
@@ -432,11 +433,26 @@ No strict entity family is pixel-perfect yet:
   (`out/verify/dragonpass_after_hand.log`): dragon_death_50/100/190
   `hard_px=84995/83667/84543` `c_vs_j=2.157/2.165/2.150` `ab_nz=0`
   RESIDUAL (dragondeath after4 83757/82429/83305, 2.919/2.927/2.912).
-  Other 13 rows byte-stable vs that baseline. Not PASS: complete ROI
-  still 1-LSB sky + viewmodel pose/lighting + 1-px exploding hole
-  (x=482,y=22 J white vs C 15). Do not edit ROI or recapture. Metal
-  twin of af78532 shade.c still needs cpu==metal on the Mac before
-  `kernel_pairs.py --update`.
+  Other 13 rows byte-stable vs that baseline.
+  Lane/dragonhand (gamer 2026-08-22) re-measured the same numbers
+  (`out/verify/dragonhand_baseline.log`). `gm_hand_emit_held` already
+  ports idle dirt: `transformSideFirstPerson` T(0.56,-0.52,-0.72)
+  (ItemRenderer.java:304), `transformFirstPerson` at swing 0 net I
+  (:290-298), block.json firstperson_righthand Ry(45)*S(0.40),
+  RenderItem T(-0.5) (:144). Eye AABB x 0.28..0.84 y -0.72..-0.32
+  (test_hand D3). `rotateArroundXAndY` Rx(pitch)*Ry(yaw) is
+  push/pop around lights only (:89-96); geometry at pitch 15 equals
+  pitch 0 (D4). Fitting Rx(15) onto the cube raises it to the Java
+  house-peak (top y 251 vs golden 244) but doubles
+  `hand_diffuse` pitch (flint rim ao test) and would pitch the
+  viewmodel in play. Not applied. Java silhouette is two side faces
+  (bbox x 500-752 y 244-429); C is the 1.11 top face (x 550-821 y
+  344-480). hard_px 84995 on t=50: eq1=28582 eq2=39973 maxch>8=7941;
+  J-sky 40435; endstone pack 2-8 LSB is the red pyramid; dirt
+  occupancy is the yellow corner. 1-px hole (482,22) J 255 vs C 15:
+  geom already pins skin a<=25 keeps exploding, a>=26 keeps skin
+  (RenderDragon.java:66). C sampled a>25 at that fragment. Do not
+  edit ROI, shade.c, or recapture. Fireball/XP untouched.
 - The death burst (deathTicks 180-217) now reconstructs the full vanilla
   timeline - every one of a `ParticleExplosionHuge`'s 8 batches (not just the
   newest), and the ~17 ticks of cloud that outlive the entity - and the boss

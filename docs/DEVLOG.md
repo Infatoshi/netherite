@@ -1,5 +1,43 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 dragon death dirt pose (lane/dragonhand)
+
+A6 dragon_death_50/100/190 after lane/dragonpass. Gamer baseline
+`out/verify/dragonhand_baseline.log` (abfe93d): geom ALL PASSED;
+hard_px 84995/83667/84543, c_vs_j 2.157/2.165/2.150, ab_nz=0 RESIDUAL.
+Other 13 rows match dragonpass (slime/magma CAPTURE_BLOCKED, fireball_small
+44922, xp_orb 3484). t=50 hard breakdown: eq1=28582 eq2=39973 maxch>8=7941;
+J-sky 40435.
+
+Cause (pose): C already ports the 1.11 first-person block path that
+lane/dragonpass turned on (dirt slot 0 + `gm_frame_capture_equip_idle`).
+`ItemRenderer.transformSideFirstPerson` T(0.56F,-0.52F,-0.72F)
+(ItemRenderer.java:304), `transformFirstPerson` at swing 0 is Ry(45)*Ry(-45)
+(:290-298), `block.json` firstperson_righthand rotation [0,45,0] scale 0.40,
+`RenderItem.renderItem` T(-0.5) (:144). `hand.c` `build_held_item_base` +
+`apply_fp_camera(is_block)` is that chain; ui_hud `hand_block_shield` uses
+the same `gm_hand_emit_held`. Eye AABB at idle: x 0.28..0.84, y -0.72..-0.32,
+z -1.05..-0.49. Projected top y~344. Java dirt is a house-peak (bbox
+x500-752 y244-429). Rx(g_env_pitch=15) on the cube raises top y to 251
+(width 247 vs Java 252) but `rotateArroundXAndY` pops that Rx so only
+LIGHT0/1 follow the camera (:89-96); `hand_diffuse` already uses
+g_env_pitch. Applying Rx to geometry failed the flint rim ao=1 test
+(pitch is lighting) and would pitch the viewmodel in play. Not applied.
+test_hand D3 pins the AABB; D4 pins pitch-invariant verts.
+
+Cause (1-px hole): (482,22) J (255,255,255) C (15,15,15). Neighbors y=21
+both white, y=23 both 15. Geom already pins skin a<=25 keeps exploding,
+a>=26 overwrites (RenderDragon.java:66 alphaFunc 0.1). C kept skin.
+
+Cause (sky/endstone LSB): no new Java cite. Endstone 2-8 LSB across the
+shelf; sky 1-LSB bands. Do not retune fog or pack.
+
+After: numbers unchanged. `test_hand` PASS. Deleted Mach-O
+`magma/tests/test_raster_smoke` and `test_sky_weather` (gitignored).
+shade.c / Metal twin not edited. Fireball/XP / ROI not edited.
+
+Not closed.
+
 ## 2026-08-22 projectiles M1+M2 (lane/projectiles)
 
 Baseline anvil HEAD 88a2b8e: `BLOCKED projectiles: Projectile lifecycle and collision outcomes are not measured by both backends` (`out/verify/projectiles_baseline.log`, port_matrix rc=3). Shared `projectile_motion.h` is the trimmed synthetic in-air kernel (entity_trace); live magma `tick_projectiles` was not in blaze.
