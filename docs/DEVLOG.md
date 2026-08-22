@@ -1,5 +1,45 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 dragon death hand Rx (lane/dragonbob)
+
+A6 dragon_death_50/100/190 after lane/dragonhand. Gamer baseline
+`out/verify/dragonbob_baseline.log` (f757bd7): geom ALL PASSED;
+hard_px 84995/83667/84543, c_vs_j 2.157/2.165/2.150, ab_nz=0 RESIDUAL.
+Other 13 rows match dragonhand (slime/magma CAPTURE_BLOCKED, fireball_small
+44922, xp_orb 3484).
+
+Cause: the y=244 house-peak is the endstone shelf under world
+`orientCamera` pitch 15 (`DRAGON_CAM` driver.py:37-39; meta pose
+pitch 15, y=70, `no_gravity`), not the dirt viewmodel. Java dirt
+(brown) bbox on `dragon_death_50_a` is x 602-771 y 338-479. C identity
+dirt is the same lower-right (test_hand D7, 854x480 fov70 top y>300).
+
+(1) `applyBobbing` (EntityRenderer.java:582-595) only if `viewBobbing`
+(:816-818). `capture_ui_entities.sh:74` `bobView:false`. Even if on,
+`EntityPlayer.java:583-601` cameraPitch target is
+`atan(-motionY*0.20000000298023224D)*15.0D`, forced 0 on ground;
+`set_pose` zeros motionY (Recorder.java:4247) so air hover is 0 (D5).
+Terminal fall ~10 deg, not look 15.
+(2) `hurtCameraEffect` (:552-576) returns if `hurtTime-pt<0`. No hurt
+pin; creative; dragon 40 blocks away.
+(3) `renderHand` `loadIdentity` (:804-806). `rotateArroundXAndY` pops
+(ItemRenderer.java:89-96, D4). `rotateArm` is
+`0.1*(rotationPitch-renderArmPitch)` (:112); settled pin Rx(0) (D6).
+ui_hud `hand_block_shield` / `hand_eat_mid` pose pitch 0 already
+encode identity.
+(4) `equippedProgressMainHand=1` after settle (:608-630); already
+`gm_frame_capture_equip_idle`.
+
+Fitting `glRotatef(15,1,0,0)` on the cube raises it into the shelf (D7)
+and is not Java. Capture artefact. Do not port. Numbers unchanged.
+
+After: same (`out/verify/dragonbob_after.log`). `bash magma/game/test_hand.sh`
+PASS (D5-D7). Geom ALL PASSED. Root `make test` in
+`out/verify/dragonbob_maketest.log`. shade.c / Metal twin not edited.
+Fireball/XP / ROI not edited.
+
+Not closed.
+
 ## 2026-08-22 dragon death dirt pose (lane/dragonhand)
 
 A6 dragon_death_50/100/190 after lane/dragonpass. Gamer baseline
