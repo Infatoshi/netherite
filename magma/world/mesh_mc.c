@@ -2113,8 +2113,14 @@ static int mesh_body(CrWorldMC *w, int ccx, int ccz, CrChunkMeshMC *out, int *ca
 
                     /* Cull when the neighbour is an opaque (SOLID) full cube. For a
                      * translucent block, also skip the interface between two of the
-                     * SAME translucent block (e.g. water-water). Water still draws
-                     * against air / non-full cubes / different blocks. */
+                     * SAME translucent block (e.g. ice-ice; cube_all has cullface).
+                     * slime.json has no cullface: ModelBakery.java:692-694 puts all
+                     * 12 faces in generalQuads, so BlockModelRenderer.java:105-110
+                     * never consults shouldSideBeRendered. Magma still culls:
+                     * emitting the 12 matches the DRAW dump (441*12) but the
+                     * CPU raster overshoots to a 3D inner-cube grid
+                     * (slime_bounce t=50 4.53 -> 23.88/ch). Hash-paired raster
+                     * twins cannot absorb that here. */
                     int neigh_opaque = nm->is_full_cube && nm->layer == CR_LAYER_SOLID;
                     if (neigh_opaque) continue;
                     if (self_translucent && ncb == cb) continue;
@@ -2186,11 +2192,10 @@ static int mesh_body(CrWorldMC *w, int ccx, int ccz, CrChunkMeshMC *out, int *ca
                     /* models/block/slime.json element 0 before element 1:
                      * from [3,3,3] to [13,13,13], uv [3,3,13,13] every face,
                      * no cullface (generalQuads). Core first so SRC_ALPHA stacks
-                     * under the outer shell (opacity 1-(1-a)^2, a~0.74 from
-                     * slime.png). Real 3/16 inset, not a coplanar re-emit.
-                     * BmBlock is single-box; dual-element geometry lives here
-                     * like grass_side_overlay. Outer still uses BlockBreakable
-                     * same-slime cull (ignoreSimilarity=false). */
+                     * under the outer shell. Real 3/16 inset, not a coplanar
+                     * re-emit. BmBlock is single-box; dual-element geometry
+                     * lives here like grass_side_overlay. Outer still uses the
+                     * neighbour cull above (see comment there). */
                     if (cb == CR_CB_SLIME) {
                         static const float SLIME_CORE_FROM[3] = { 3.0f, 3.0f, 3.0f };
                         static const float SLIME_CORE_TO[3]   = { 13.0f, 13.0f, 13.0f };
