@@ -108,6 +108,8 @@ NOISE_MAX = {
     "hand_bow_pull20": 3.0,
     # Portal: sticky portal_phase + pin_texture_animations must freeze A/B.
     "overlay_portal_050": 3.0,
+    # overlay_fire: keep 35.0 only until recapture A/B noise <= 2.0, then
+    # drop this loophole (capture_ui_hud_driver.py matches).
     "overlay_fire": 35.0,
     "hud_death": 5.0,
     "overlay_inside_stone": 3.0,

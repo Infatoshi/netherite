@@ -62,6 +62,9 @@ NOISE_MAX = {
     # fully-unfrozen scenes (>>40) without the old 40 loophole.
     # Sticky portal_phase + pin_texture_animations must freeze A/B warp/tile.
     "overlay_portal_050": 3.0,
+    # overlay_fire: sticky fire_frame + pin_texture_animations must freeze
+    # A/B. Keep 35.0 only until a recapture reports A/B noise <= 2.0; then
+    # drop this loophole (compare_ui_hud_oracle.py matches).
     "overlay_fire": 35.0,
     "hud_death": 5.0,  # GuiGameOver text can subpixel-shift slightly
     "overlay_inside_stone": 3.0,
@@ -674,6 +677,15 @@ def assert_feature_presence(state_id, path, pin_reply):
         if ft <= 0:
             raise RuntimeError(
                 "overlay_fire: fire_ticks=%s not positive: %s" % (ft, pin_reply))
+        fl1 = pin_reply.get("fire_layer_1_physical_frame")
+        if fl1 is None:
+            raise RuntimeError(
+                "overlay_fire: fire_layer_1_physical_frame missing from pin: %s"
+                % pin_reply)
+        if int(fl1) != 0:
+            raise RuntimeError(
+                "overlay_fire: fire_layer_1_physical_frame=%s want 0: %s"
+                % (fl1, pin_reply))
         # First-person fire quads occupy lower half with warm texels.
         if bot_warm < 0.02 and warm < 0.03:
             raise RuntimeError(
@@ -909,6 +921,7 @@ def capture_pair(e, outdir, state_id, pin_kwargs, meta_extra=None, settle_n=2):
         {k: r1.get(k) for k in (
             "health", "food", "air", "armor", "absorption",
             "xp_level", "hand_active", "burning", "fire_ticks",
+            "fire_layer_1_physical_frame", "fire_frame_pin",
             "portal", "screen", "potion_count", "use_count")
          if k in r1}))
     return meta
@@ -1403,10 +1416,14 @@ def main():
             "hotbar": [[0, 0, 0]] * 9,
             "armor": [0, 0, 0, 0],
             "use_action": 0, "fire": 80, "portal": 0.0,
+            "fire_frame": 0,
             "boss": {"show": False},
             "clear_effects": True,
             **POSE
-        }, {"roi": "first-person fire quads"}, settle_n=0))
+        }, {"roi": "first-person fire quads",
+            "note": ("fire=80 + fire_frame=0 physical strip row; "
+                     "all animated blocks-atlas sprites pinned; "
+                     "texture anim mixin on")}, settle_n=0))
 
     if want("overlay_underwater"):
         begin_state(e, "overlay_underwater", rebuild_scene=True)

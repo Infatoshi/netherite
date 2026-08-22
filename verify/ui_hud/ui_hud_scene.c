@@ -1,4 +1,5 @@
-/* Same-scene underlay for portal / underwater / first-person hand goldens.
+/* Same-scene underlay for portal / underwater / fire overlay / first-person
+ * hand goldens.
  *
  * Capture geometry (verify/ui_hud/capture_ui_hud_driver.py):
  *   superflat seed 0, CX=CZ=8, PLAT_Y=4
@@ -125,8 +126,9 @@ int ui_hud_scene_draw(CrFramebuffer *dst, const char *id) {
     if (dst->w != SCENE_W || dst->h != SCENE_H) return 0;
     int want_portal = !strcmp(id, "overlay_portal_050");
     int want_uw = !strcmp(id, "overlay_underwater");
+    int want_fire = !strcmp(id, "overlay_fire");
     int want_hand = !strncmp(id, "hand_", 5);
-    if (!want_portal && !want_uw && !want_hand) return 0;
+    if (!want_portal && !want_uw && !want_fire && !want_hand) return 0;
     if (!ensure_runtime()) return 0;
 
     build_pad(&g_rt, want_uw);
@@ -149,8 +151,11 @@ int ui_hud_scene_draw(CrFramebuffer *dst, const char *id) {
     int air = want_uw ? 200 : 300;
     float portal = want_portal ? 0.5f : 0.0f;
     int phase = want_portal ? 0 : 0;
+    /* fire=1: Entity.isBurning (Entity.java:2477-2481). texture_animations_pinned
+     * 1: MixinPinTextureAnimations + hud_pin fire_frame=0 physical strip row
+     * (TextureMap.java:205, TextureAtlasSprite.java:35-36,177-196). */
     gm_runtime_tape_player_view(&g_rt, 0, 0.0f, air, portal,
-                                0, phase, 0, 1, 0, 0, 0, 0, 0.0f, 1.0f);
+                                0, phase, 0, 1, want_fire ? 1 : 0, 0, 0, 0, 0.0f, 1.0f);
 
     GmConfig wcfg;
     gm_config_defaults(&wcfg);

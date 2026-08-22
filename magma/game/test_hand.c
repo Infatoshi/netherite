@@ -18,9 +18,12 @@
 #include "game/block_registry.h"
 #include "assets/blockmodels.h"
 #include "assets/item_atlas.h"
+#include "assets/atlas_gen.h"
+#include "assets/water_frames.h"
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static int g_fail;
@@ -242,6 +245,60 @@ int main(void) {
         mx /= (float)n_block; my /= (float)n_block; mz /= (float)n_block;
         CHECK(mx > 0.0f, "shield block mean x > 0 (right hand)");
         CHECK(mz < 0.0f, "shield block mean z < 0 (in front of eye)");
+    }
+
+    /* ---- (L) first-person fire overlay samples pinned fire_layer_1 frame 0.
+     * ItemRenderer.renderFireInFirstPerson.java:566-606; TextureMap.java:205
+     * uploads physical 0; TextureAtlasSprite.updateAnimation.java:177-196. */
+    {
+        enum { FW = 96, FH = 64 };
+        CrRgba *color = (CrRgba *)calloc((size_t)FW * FH, sizeof(CrRgba));
+        float *depth = (float *)calloc((size_t)FW * FH, sizeof(float));
+        CHECK(color && depth, "fire overlay fb alloc");
+        if (color && depth) {
+            for (int i = 0; i < FW * FH; ++i) {
+                color[i] = (CrRgba){40, 40, 40, 255};
+                depth[i] = 1.0f;
+            }
+            CrFramebuffer fb = { .w = FW, .h = FH, .color = color, .depth = depth };
+            bm_atlas_set_animation_tick(1);
+            {
+                CrTexture a1 = bm_atlas();
+                CrAtlasSprite s = CR_ATLAS_SPRITES[CR_SPRITE_FIRE_LAYER_1];
+                const unsigned char *want0 = CR_FIRE_LAYER_1_RGBA[0];
+                const CrRgba *got = a1.texels + s.y0 * a1.w + s.x0;
+                CHECK(memcmp(got, want0, 16) != 0,
+                      "animation tick 1 moves fire_layer_1 off physical 0");
+            }
+            bm_atlas_set_animation_physical_zero();
+            CrTexture atlas = bm_atlas();
+            {
+                CrAtlasSprite s = CR_ATLAS_SPRITES[CR_SPRITE_FIRE_LAYER_1];
+                int w = s.x1 - s.x0, h = s.y1 - s.y0;
+                int eq = 1;
+                for (int y = 0; y < h && eq; ++y) {
+                    const CrRgba *got = atlas.texels + (s.y0 + y) * atlas.w + s.x0;
+                    if (memcmp(got, CR_FIRE_LAYER_1_RGBA[0] + y * w * 4,
+                               (size_t)w * 4) != 0)
+                        eq = 0;
+                }
+                CHECK(eq, "pinned fire_layer_1 is physical frame 0");
+            }
+            gm_hand_fire_overlay_draw(&fb, &atlas, 1.0f);
+            int painted = 0;
+            for (int i = 0; i < FW * FH; ++i) {
+                int dr = (int)color[i].r - 40;
+                int dg = (int)color[i].g - 40;
+                int db = (int)color[i].b - 40;
+                if (dr < 0) dr = -dr;
+                if (dg < 0) dg = -dg;
+                if (db < 0) db = -db;
+                if (dr > 8 || dg > 8 || db > 8) painted++;
+            }
+            CHECK(painted > 0, "fire overlay paints over gray");
+        }
+        free(color);
+        free(depth);
     }
 
     if (g_fail) {

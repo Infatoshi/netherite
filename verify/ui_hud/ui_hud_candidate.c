@@ -6,9 +6,10 @@
  * except:
  *   - inside-block: black (no faces visible inside solid) + real atlas
  *     particle UVs (stone / dirt), never synthetic solid texels.
- *   - overlay_portal_050 / overlay_underwater: same-scene superflat pad
- *     through window_compose (world + hand + overlays + HUD). Gray isolation
- *     is not a live outdoor/pool claim.
+ *   - overlay_portal_050 / overlay_underwater / overlay_fire: same-scene
+ *     superflat pad through window_compose (world + hand + overlays + HUD).
+ *     Gray isolation is not a live outdoor/pool claim. overlay_fire pins
+ *     fire_layer_1 physical frame 0.
  *   - hand_bow_pull20 / hand_eat_mid / hand_block_shield: same pad world
  *     (skip_hand/skip_hud), then gm_hand_draw + gm_hud_draw over it.
  */
@@ -79,7 +80,11 @@ static GmPlayerView base_pv(void) {
 static void compose(CrFramebuffer *fb, GmPlayerView *pv, int want_uw,
                     int want_hand, float uw_bright, float fov_deg) {
     /* frame_capture / live path: pin portal atlas frame before sampling.
-     * GuiIngame.renderPortal uses Blocks.PORTAL TextureAtlasSprite (anim). */
+     * GuiIngame.renderPortal uses Blocks.PORTAL TextureAtlasSprite (anim).
+     * Fire overlay samples fire_layer_1; pin physical strip row 0
+     * (TextureMap.java:205, TextureAtlasSprite.java:177-196). */
+    if (pv->texture_animations_pinned || pv->fire)
+        bm_atlas_set_animation_physical_zero();
     if (pv->portal > 0.0f && pv->portal_frame >= 0)
         bm_atlas_set_portal_frame(pv->portal_frame);
     CrTexture atlas = bm_atlas();
@@ -322,15 +327,16 @@ int main(int argc, char **argv) {
 
         int want_uw = !strcmp(STATES[i].id, "overlay_underwater");
         int want_portal = !strcmp(STATES[i].id, "overlay_portal_050");
+        int want_fire = !strcmp(STATES[i].id, "overlay_fire");
         int want_hand_state = !strncmp(STATES[i].id, "hand_", 5);
-        int want_scene = want_uw || want_portal || want_hand_state;
-        /* Full window_compose (world+hand+overlays+HUD) for portal/uw.
+        int want_scene = want_uw || want_portal || want_fire || want_hand_state;
+        /* Full window_compose (world+hand+overlays+HUD) for portal/uw/fire.
          * Hand states: world-only scene, then compose() for use-pose + HUD. */
-        int scene_full = want_uw || want_portal;
-        /* Hand/viewmodel for hand_* and fire. Portal/underwater hands come
-         * from window_compose (ItemRenderer.renderItemInFirstPerson). */
-        int want_hand = want_hand_state ||
-                        !strcmp(STATES[i].id, "overlay_fire");
+        int scene_full = want_uw || want_portal || want_fire;
+        /* Hand/viewmodel for hand_*. Portal/underwater/fire hands come
+         * from window_compose (ItemRenderer.renderItemInFirstPerson then
+         * renderOverlays; EntityRenderer.java:824-835). */
+        int want_hand = want_hand_state;
         /* renderHand gluPerspective(getFOVModifier(pt, false)): base 70,
          * water 60/70. Bow world zoom is fovModifierHand on the scene
          * underlay only, not on this hand pass. */
