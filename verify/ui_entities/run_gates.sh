@@ -5,7 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../magma" && pwd)"
 cd "$ROOT"
 
 CC=${CC:-cc}
-CFLAGS="-ffp-contract=off -Wall -Wextra -O2 -I. -Icore"
+BLAZE="$(cd "$ROOT/../blaze" && pwd)"
+CFLAGS="-ffp-contract=off -Wall -Wextra -O2 -I. -Icore -I$BLAZE/core -I$BLAZE"
 OUT="/tmp/magma_ui_entities_geom_gates"
 
 need_atlas=0
@@ -30,9 +31,11 @@ $CC $CFLAGS \
     game/entity_render.c \
     game/item_render.c \
     assets/blockmodels.c \
+    renderkernels/rk_31_facebakery_make_quad.c \
     transform.c \
     core/math.c \
     core/shade.c \
+    core/config.c \
     cpu/raster_cpu.c \
     -lm -o "$OUT"
 

@@ -31,7 +31,8 @@ make -s game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o \
   game/dragon_live.o game/structures_live.o game/portal_live.o \
   game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o core/config.o \
   game/overlay.o game/overlay_live.o game/hud.o game/hand.o game/item_render.o \
-  game/entity_render.o game/frame_capture.o game/sky.o game/screen.o \
+  game/entity_render.o game/particles_live.o game/world_spawn.o game/randtick.o \
+  game/frame_capture.o game/sky.o game/screen.o \
   game/player_preview.o game/underwater.o game/timer.o \
   world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o \
   world/mesh.o world/world.o \
@@ -44,7 +45,8 @@ OBJS=(
   game/dragon_live.o game/structures_live.o game/portal_live.o
   game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o core/config.o
   game/overlay.o game/overlay_live.o game/hud.o game/hand.o game/item_render.o
-  game/entity_render.o game/frame_capture.o game/sky.o game/screen.o
+  game/entity_render.o game/particles_live.o game/world_spawn.o game/randtick.o
+  game/frame_capture.o game/sky.o game/screen.o
   game/player_preview.o game/underwater.o game/timer.o
   world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o
   world/mesh.o world/world.o
