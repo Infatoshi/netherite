@@ -495,6 +495,7 @@ BLAZE_SRCS = ../blaze/env/blaze_cpu.c ../blaze/env/blaze_snapshot.c
 BLAZE_PARITY = ../blaze/core/port_parity.h
 BLAZE_RANDTICK = ../blaze/core/randtick_live.h
 BLAZE_FALLING = ../blaze/core/falling_live.h
+BLAZE_CHEST = ../blaze/core/tile_entity_chest.h ../blaze/core/container_click.h
 ifeq ($(shell uname -s),Darwin)
 # Prefer Homebrew libomp; avoid `ls` (may inject color codes into Make vars).
 ifeq ($(wildcard /opt/homebrew/opt/libomp/include/omp.h),)
@@ -518,7 +519,8 @@ blaze_verify: ../blaze/env/blaze_verify
 	    $(BLAZE_SRCS) -o $@ $(LDLIBS) $(BLAZE_OMP)
 blaze_so: ../blaze/env/blaze_cpu.so
 ../blaze/env/blaze_cpu.so: $(BLAZE_SRCS) ../blaze/env/blaze_core.h ../blaze/env/blaze_snapshot.h \
-                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING)
+                        $(BLAZE_PARITY) $(BLAZE)/core/entity_spine.h $(BLAZE_RANDTICK) $(BLAZE_FALLING) \
+                        $(BLAZE_CHEST)
 	$(CC) $(CFLAGS) $(BLAZE_OMP) -I$(BLAZE)/core -I../blaze/env -shared -fPIC $(BLAZE_SRCS) \
 	    -o $@ $(LDLIBS) $(BLAZE_OMP)
 

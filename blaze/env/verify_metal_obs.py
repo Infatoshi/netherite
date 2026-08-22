@@ -143,12 +143,14 @@ class BlazeCpu:
         return self.buf.raw
 
     def step(self, act):
-        a = (ctypes.c_double * 13)(
+        a = (ctypes.c_double * 17)(
             act.get("forward", 0), act.get("strafe", 0), act.get("dyaw", 0),
             act.get("dpitch", 0), act.get("jump", 0), act.get("sneak", 0),
             act.get("sprint", 0), act.get("attack", 0), act.get("use", 0),
             act.get("hotbar", -1), act.get("craft", -1),
-            act.get("interact", 0), act.get("smelt", 0))
+            act.get("interact", 0), act.get("smelt", 0),
+            act.get("inv_click", 0), act.get("inv_slot", 0),
+            act.get("inv_button", 0), act.get("inv_type", 0))
         r = self.lib.blaze_tick_raw(
             ctypes.c_void_p(self.h), 0, a, act.get("cam", 1), self.buf)
         assert r == 0, "blaze_tick_raw failed"

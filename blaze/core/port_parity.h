@@ -85,13 +85,13 @@ enum BpDebugField {
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_MOBS) | BP_BIT(BP_CHESTS) | BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_MOBS) | BP_BIT(BP_CHESTS) | BP_BIT(BP_OBSERVATIONS))
 
 #define BP_SUBSYSTEM_NAMES \
     "player", "dig", "inventory", "items", "world", "crafting", \
@@ -461,6 +461,17 @@ BP_HD static inline uint64_t bp_falling_digest_finish(
     h = bp_hash_u64(h, cells_xor);
     h = bp_hash_u32(h, ncells);
     return bp_hash_u32(h, mutations);
+}
+
+/* Magma chest_live.c + container_live.c: every runtime chest TE in the
+ * initial 64-slot table (pos, 27 id/count/meta slots, numPlayersUsing)
+ * plus the player's 36 main inventory slots and cursor. Loot-table
+ * identity is a named generation gap and is not hashed. */
+#define BP_CHEST_SLOTS 27
+#define BP_CHEST_TABLE 64
+BP_HD static inline uint64_t bp_chests_digest_begin(void) {
+    uint64_t h = bp_hash_begin();
+    return bp_hash_u32(h, UINT32_C(0x31534843)); /* "CHS1" */
 }
 
 BP_HD static inline void bp_record_init(BpParityRecord *r, int64_t tick) {

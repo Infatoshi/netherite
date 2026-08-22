@@ -265,14 +265,15 @@ static int rl_do_craft(GmRuntime *r, int which) {
     return gm_runtime_craft(r, c->width, slots);
 }
 
-/* "interact":1 - use the nearest crafting table (or furnace) within reach,
- * scanning the cached block list. Opens the 3x3 grid (r->container = 1). */
+/* "interact":1 - use the nearest crafting table, furnace, or chest within
+ * reach, scanning the cached block list. Opens the 3x3 grid (container=1),
+ * furnace (2), or chest (3) through gm_runtime_use_block. */
 static int rl_do_interact(GmRuntime *r) {
     int i, best = -1;
     double bd = 36.0;  /* gm_runtime_use_block reach check, squared */
     for (i = 0; i < rl_cache_n; ++i) {
         if (rl_cache[i].id != 58 && rl_cache[i].id != 61 &&
-            rl_cache[i].id != 62) continue;
+            rl_cache[i].id != 62 && rl_cache[i].id != 54) continue;
         if (rl_cache[i].d2 < bd) { bd = rl_cache[i].d2; best = i; }
     }
     if (best < 0) return 0;
@@ -540,6 +541,32 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
     out->digest[BP_FURNACES] = h;
     out->evidence[BP_FURNACES] = (uint32_t)any;
     if (any) out->active_mask |= BP_BIT(BP_FURNACES);
+
+    h = bp_chests_digest_begin();
+    any = 0;
+    for (i = 0; i < BP_CHEST_TABLE; ++i) {
+        int active = (r->chests && i < r->chests_cap && r->chests[i].active);
+        int s;
+        h = bp_hash_i32(h, active);
+        if (!active) continue;
+        ++any;
+        h = bp_hash_i32(h, r->chests[i].wx);
+        h = bp_hash_i32(h, r->chests[i].wy);
+        h = bp_hash_i32(h, r->chests[i].wz);
+        for (s = 0; s < BP_CHEST_SLOTS; ++s) {
+            ICStack st = chest_live_get(&r->chests[i].state, s);
+            h = bp_hash_stack3(h, st.item, st.count, st.meta);
+        }
+        h = bp_hash_i32(h, r->chests[i].state.te.num_players_using);
+    }
+    for (i = 0; i < ISR_MAIN_SLOTS; ++i) {
+        const ICStack *st = &r->player.inv.main[i];
+        h = bp_hash_stack3(h, st->item, st->count, st->meta);
+    }
+    h = bp_hash_stack3(h, cursor.item, cursor.count, cursor.meta);
+    out->digest[BP_CHESTS] = h;
+    out->evidence[BP_CHESTS] = (uint32_t)any;
+    if (any) out->active_mask |= BP_BIT(BP_CHESTS);
 
     {
         uint64_t cells_xor = 0;
@@ -1059,7 +1086,8 @@ static int rl_emit_obs(GmRuntime *r, int bin, int want_cam, FILE *parity) {
                 for (y = y1; y >= y0; --y) {
                     int id = gm_world_block(r->world, wx, y, wz);
                     int always = id == RL_BLOCK_LOG || id == RL_BLOCK_COAL ||
-                                 id == 58 || id == 61 || id == 62;
+                                 id == 58 || id == 61 || id == 62 ||
+                                 id == 54;
                     if (!id) continue;
                     if ((!top_done || always) &&
                         nblk < (int)(sizeof rl_cache / sizeof rl_cache[0])) {
@@ -1356,6 +1384,10 @@ int gm_rl_run(const GmConfig *cfg) {
             if (craft >= 0) (void)rl_do_craft(&r, craft);
             if ((int)rl_num(line, "interact", 0)) (void)rl_do_interact(&r);
             if ((int)rl_num(line, "smelt", 0)) (void)rl_do_smelt(&r);
+            a.inv_click  = (int)rl_num(line, "inv_click", 0);
+            a.inv_slot   = (int)rl_num(line, "inv_slot", 0);
+            a.inv_button = (int)rl_num(line, "inv_button", 0);
+            a.inv_type   = (int)rl_num(line, "inv_type", 0);
         }
         {
             double t0 = rl_now();

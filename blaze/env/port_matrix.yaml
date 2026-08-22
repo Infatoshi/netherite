@@ -471,18 +471,63 @@ subsystems:
     block_reason: Mob spawning, AI, combat, and drops lack end-to-end common evidence.
 
   - name: chests
-    supported: false
+    supported: true
     sources:
-      magma: [magma/game/chest_live.c, magma/game/container_live.c]
-      shared: [blaze/core/tile_entity_chest.h, blaze/core/container_click.h]
-      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+      magma: [magma/game/chest_live.c, magma/game/container_live.c, magma/game/rl_mode.c]
+      shared: [blaze/core/tile_entity_chest.h, blaze/core/container_click.h, blaze/core/port_parity.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
     dependencies: [spawn_to_torch]
     required_features: [chests]
-    required_artifacts: {m1: [], m2: []}
-    m1: []
-    m2: []
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_chests.bsnp
+        - blaze/rl/fixtures/chests_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_chests.bsnp
+        - blaze/rl/fixtures/chests_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "41"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_chests.bsnp
+      - --tape
+      - blaze/rl/fixtures/chests_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - chests
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "41"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_chests.bsnp
+      - --tape
+      - blaze/rl/fixtures/chests_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - chests
     timeout: 1500
-    block_reason: Chest generation, loot, and GUI transfers are not measured end to end.
 
   - name: portals_dimensions
     supported: false

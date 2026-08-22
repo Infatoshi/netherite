@@ -361,12 +361,13 @@ def _raw_abi(env):
 
 
 def _raw_act(act):
-    return (ctypes.c_double * 13)(
+    return (ctypes.c_double * 17)(
         act.get("forward", 0), act.get("strafe", 0), act.get("dyaw", 0),
         act.get("dpitch", 0), act.get("jump", 0), act.get("sneak", 0),
         act.get("sprint", 0), act.get("attack", 0), act.get("use", 0),
         act.get("hotbar", -1), act.get("craft", -1), act.get("interact", 0),
-        act.get("smelt", 0))
+        act.get("smelt", 0), act.get("inv_click", 0), act.get("inv_slot", 0),
+        act.get("inv_button", 0), act.get("inv_type", 0))
 
 
 def run_chain(args, iron=False):

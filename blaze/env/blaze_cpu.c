@@ -23,12 +23,13 @@
  * Verify helpers (batch-of-1 lockstep vs the real magma_game):
  *   blaze_obs_size() -> sizeof(CuBinObs) == sizeof(RlBinObs)
  *   blaze_emit(h, env, want_cam, out)  -> BOLR-layout obs, no tick
- *   blaze_tick_raw(h, env, a[13], want_cam, out) -> one action line: craft/
+ *   blaze_tick_raw(h, env, a[17], want_cam, out) -> one action line: craft/
  *       interact/smelt primitives then one gm_runtime_tick equivalent + obs;
  *       a = {forward,strafe,dyaw,dpitch,jump,sneak,sprint,attack,use,hotbar,
- *       craft(-1=none),interact,smelt}; env == -1 broadcasts the same action to
- *       ALL envs (no obs; out ignored) - the verify chain gate's batched
- *       lane stepper
+ *       craft(-1=none),interact,smelt,inv_click,inv_slot,inv_button,inv_type};
+ *       env == -1 broadcasts the same action to ALL envs (no obs; out ignored)
+ *       - the verify chain gate's batched lane stepper. Trainer blaze_step
+ *       stays 13-wide (inv_click=0).
  *   blaze_debug_state(h, env, out[32]) -> raw doubles for divergence bisect
  *
  * Reward/scalars (ppo_coal.py semantics) live in blaze_core.h as MC_HD code
@@ -495,13 +496,14 @@ int blaze_emit(void *vh, int env, int want_cam, void *out) {
     return 0;
 }
 
-/* One raw tick mirroring the real env's action-line loop: a[13] =
+/* One raw tick mirroring the real env's action-line loop: a[17] =
  * {forward,strafe,dyaw,dpitch,jump,sneak,sprint,attack,use,hotbar,
- *  craft,interact,smelt} (craft = rl_crafts index or -1; interact/smelt =
- * 0/1). The discrete primitives are applied BEFORE the tick, in rl_mode's
- * order (craft, then interact, then smelt, then gm_runtime_tick). Then
- * emits the obs exactly as rl_emit_obs would (want_cam semantics included). */
-int blaze_tick_raw(void *vh, int env, const double a[13], int want_cam,
+ *  craft,interact,smelt,inv_click,inv_slot,inv_button,inv_type}
+ * (craft = rl_crafts index or -1; interact/smelt/inv_click = 0/1). The
+ * discrete primitives are applied BEFORE the tick, in rl_mode's order
+ * (craft, then interact, then smelt, then gm_runtime_tick which consumes
+ * inv_click). Then emits the obs exactly as rl_emit_obs would. */
+int blaze_tick_raw(void *vh, int env, const double a[17], int want_cam,
                    void *out) {
     CuVec *v = (CuVec *)vh;
     CuAction act;
@@ -524,6 +526,10 @@ int blaze_tick_raw(void *vh, int env, const double a[13], int want_cam,
     act.attack = (int)a[7];
     act.use = (int)a[8];
     act.hotbar_sel = (int)a[9];
+    act.inv_click = (int)a[13];
+    act.inv_slot = (int)a[14];
+    act.inv_button = (int)a[15];
+    act.inv_type = (int)a[16];
     if ((int)a[10] >= 0)
         (void)blaze_do_craft(&v->envs[env], (int)a[10], v->recipes,
                              v->nrecipes);
