@@ -4,10 +4,10 @@
 Derives the Mesa fixed-function packing from >=20 interior pixel traces on
 pose1 and pose2 goldens, and reports the remaining primary-L8 gap.
 
-Contract (PRODUCT.md):
+Contract (PRODUCT.md / run_gui_verify.sh):
   - hard_px must stay 0
-  - residual is open FAIL until mean abs hits J-vs-J noise floor (~0)
-  - this test does NOT invent a PASS-FLOOR budget
+  - gate PASS-LSB accepts 1-LSB residue within 2% of the ROI; exact PASS is nz==0
+  - this test does NOT invent a mean PASS-FLOOR budget
 
 Run from magma:
   uv run --no-project --with pillow --with numpy \\

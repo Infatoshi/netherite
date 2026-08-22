@@ -69,19 +69,37 @@ bash verify/ui_hud/run_ui_hud_gates.sh
 ### Inventory player preview
 
 GUI chrome is bit-exact (table/furnace/chest/inventory non-preview `bit== PASS`,
-A/B noise 0). The rendered player remains open at max channel 1:
+A/B noise 0). Contract change 2026-08-22 (`lane/lsbtier`, owner-approved):
+this gate only, a guarded 1-LSB rounding tier supersedes "open until bit-exact;
+no PASS-FLOOR budget". Three verdicts per preview ROI:
 
-- Pose 1: mean `0.002448`, `62` nonzero pixels, `hard_px=0`.
-- Pose 2: mean `0.003316`, `140` nonzero pixels, `hard_px=0`.
+- **PASS** (exact): `nz==0` everywhere. Unchanged.
+- **PASS-LSB**: A/B noise 0 AND every differing pixel differs by at most 1
+  (8-bit) in every channel (`px>1==0`, per-channel max delta <= 1) AND the
+  count of differing pixels is <= 2% of the ROI (104x144 = 14976; cap 299.52).
+  Printed as `PASS-LSB`, never as exact PASS.
+- **FAIL**: anything else. `hard_px` / cluster reporting unchanged.
 
-Re-measured 2026-08-22 (`lane/preview`). Packing is Mesa FLOAT_TO_UBYTE
-then unorm8 modulate (`L8=round(primary*255)`, `out=(tex*L8+127)/255`).
-Primary is RenderHelper 0.4+0.6 on GL 2.1 BYTE normals
-(`VertexBuffer.normal` `(int)(c*127)`, unpack `(2c+1)/255`) after
-`prepareScale` RESCALE_NORMAL only (no `GL_NORMALIZE`). Remaining 1 L8
-sits on face bins whose `C*255` is just above `n+0.5` while sibling bins
-need round the other way (`test_preview_color_formula.py`). Do not invent
-a PASS-FLOOR.
+Overall `gui verify` exits 0 only when every row is PASS or PASS-LSB. A
+mutation self-test (`verify/mc_capture/gui_preview_lsb.py`) is part of the
+gate: uniform +1 on every pixel FAIL (count cap, 100% > 2%); a single pixel
++2 FAIL (`px>1>0`); a 3x3 +12 recolor FAIL (hard/cluster); the live residual
+must be PASS-LSB, not exact.
+
+Honest residual (still not pixel-perfect):
+
+- Pose 1: mean `0.002448`, `62` nonzero pixels, all `|d|<=1`, `hard_px=0` -> PASS-LSB.
+- Pose 2: mean `0.003316`, `140` nonzero pixels, all `|d|<=1`, `hard_px=0` -> PASS-LSB.
+
+Re-measured 2026-08-22 (`lane/preview` packing, `lane/lsbtier` tier). Packing
+is Mesa FLOAT_TO_UBYTE then unorm8 modulate (`L8=round(primary*255)`,
+`out=(tex*L8+127)/255`). Primary is RenderHelper 0.4+0.6 on GL 2.1 BYTE
+normals (`VertexBuffer.normal` `(int)(c*127)`, unpack `(2c+1)/255`) after
+`prepareScale` RESCALE_NORMAL only (no `GL_NORMALIZE`). Remaining 1 L8 sits
+on face bins whose `C*255` is just above `n+0.5` while sibling bins need
+round the other way (`test_preview_color_formula.py`). The tier is not a
+mean PASS-FLOOR: 62/140 px at 1 LSB is inside the 2% cap; a uniform LSB
+shift of the whole ROI is not.
 
 Repro:
 
