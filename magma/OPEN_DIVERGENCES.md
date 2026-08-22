@@ -43,19 +43,10 @@ recorder or re-recording; D-class by improving gates, not the product.
 5. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
    precision on grazing top faces. Soul sand triage entry.
 6. Entity pixels: XP orb hard_px=3484 (pad LSB + disc 1-2 LSB); small fireball
-   complete ROI hard_px=44922; dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
-7. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
-
-6. Entity pixels: XP orb hard_px=3542 (disc ROI); small fireball complete
-   ROI hard_px=44930; dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
-
-6. Entity pixels: XP orb hard_px=3542 (grass + disc 1-2 LSB); small fireball
-   complete ROI; dragon death still RESIDUAL on complete ROI (HUD/dirt/LSB;
-   body pose/dissolve lighting closed). "Entity and particle pixels".
-7. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
-
-   complete ROI; dragon body pose/UV/per-texel dissolve. "Entity and particle
-   pixels".
+   complete ROI hard_px=44922 (4.944/ch); dragon death RESIDUAL on complete ROI
+   (two-pass exploding/skin in, lane/dragonpass: 2.16/ch, hard_px 84995/83667/
+   84543; idle dirt viewmodel pose too top-down, 1-px two-pass hole at
+   (482,22), 1-LSB sky). "Entity and particle pixels".
 7. Full-frame surfaces: death-screen composition ~33/ch (still soft),
    fire overlay hard residual 12.91/ch (lane/fireover; A/B-exact),
    high-altitude/distance haze.
