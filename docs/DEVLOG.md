@@ -1,5 +1,16 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 divergence split: two bridge files
+
+`magma/OPEN_DIVERGENCES.md` is now oracle->magma only, with an audited
+four-class index (A product divergence / B accepted floor / C recorder
+blocker / D verification gap). New `blaze/OPEN_DIVERGENCES.md` tracks
+magma->blaze: verified matrix rows, the fluids-M2 hole, the 12 unported
+rows in dependency order, entity-arc prerequisites (mob snapshot rev +
+BP_MOBS, device FP census), and transfer gaps. The codex-reviewed GPU
+mob-AI design landed as `blaze/GPU_MOB_AI.md` (v2: warp-per-env, lane-0
+sequential, magma semantics, 8-tape exactness). No gate or code changes.
+
 ## 2026-08-22 hand same-scene wall (lane/handscene)
 
 Hand states were isolation GRAY=40; Java goldens are the capture pad wall.

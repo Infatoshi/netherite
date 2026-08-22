@@ -1,27 +1,97 @@
-# Open divergences
+# Open divergences: oracle -> magma
 
-Active gaps only. Resolved work is recorded in git history and
+This file tracks the first bridge: where magma's output differs from the
+Java 1.11.2 oracle. The second bridge (magma -> blaze GPU sim) lives in
+`blaze/OPEN_DIVERGENCES.md`. Resolved work is recorded in git history and
 `docs/DEVLOG.md`. Closed, retracted, or superseded entries keep their full
 forensics in `CLOSED_DIVERGENCES.md` (a stub with the close date and one-line
 resolution stays here in place); read there before re-investigating anything
 that smells like a settled question.
 
-Last verified on `d7f2998`, which includes the reviewed capture, preview, and
-exact-hand-gate commits (`44a7de3`, `27ec2fc`, `d198a96`). Oracle evidence
-for rain / slime DRAW / portal A/B: lane/unblock 2026-08-21.
+Last verified on `72ee9a1` (2026-08-22, post lane/handgold + lane/lsbtier +
+lane/handscene). Oracle evidence for rain / slime DRAW / portal A/B:
+lane/unblock 2026-08-21.
 
 Pixel-perfect means every owned, A/B-stable pixel is equal. Mean-error budgets,
 hard-pixel floors, empty target captures, and unstable Oracle pairs are not
-passes.
+passes. The one owner-approved exception is the guarded PASS-LSB tier
+(2026-08-22, GUI preview gate only; see that entry for the mutation guard
+that keeps it from being a tolerance).
 
 Stop-asking rank and GPU-port sequence live in `docs/GATES.md` "Remaining
-to stop asking". This file keeps forensics. Survey 2026-08-21 (Fable rank):
+to stop asking". This file keeps forensics.
 
-Grindable here: hand use poses; inventory preview; auto-campaign hand /
-HUD; slime rim (oracle translucent DRAW dump exists); rain lightmap
-(rain tape exists); portal/underwater C residual (Oracle A/B now maxch=0).
+## Index (audited 2026-08-22)
 
-Do not grind here: explosion puff `Particle.rand`; fog retune; texel bias;
+Every entry below falls into one of four classes. Chase A-class items with
+code; B-class only with new oracle-side evidence; C-class by fixing the
+recorder or re-recording; D-class by improving gates, not the product.
+
+**A. Product divergences (magma wrong vs oracle, actionable now):**
+
+1. Bow viewmodel silhouette: ~2k px occupancy in the lower-right ROI, gray
+   bow metal vs C stone, maxch 108 (NEW 2026-08-22, exposed by same-scene
+   wall). "First-person hand use poses".
+2. Underwater overlay: magma water/glass/fog underlay too blue (26.76/ch);
+   close path is raster fidelity, likely kernel twins. "Portal and
+   underwater".
+3. Portal overlay edges/hand residual (1.47/ch after same-scene underlay).
+4. Slime rim brightness: source-closed to the raster twins (two-machine
+   flow); inset-constant levers exhausted. Slime triage entry.
+5. Rain: `getSkyColorBody` rain mix, rain particles, `lastLightningBolt`
+   lightmap override (lightmap sun term is wired). "Rain sky, particles,
+   and lightning".
+6. Soul sand path UV phase: ~1226 UNEXPLAINED px at t=50, perspective/UV
+   precision on grazing top faces. Soul sand triage entry.
+7. Entity pixels: XP orb hard_px=12000; small fireball complete ROI;
+   dragon body pose/UV/per-texel dissolve. "Entity and particle pixels".
+8. Full-frame soft surfaces: death-screen composition ~33/ch, fire overlay,
+   high-altitude/distance haze.
+9. Nether arrival tape: fire/lava animation phase + surrounding lightmap
+   (170 frames).
+10. Falling blocks t46: creative blockHitDelay on a re-landed cell breaks
+    1 of 310 world hashes. Recorder-gaps item 6 status update.
+11. Deterministic mobs: target-pitch mismatch at t=42 on one tape; nether
+    tape A*-null case. (detmob arc, DEVLOG 2026-08-21.)
+12. Sim smalls: mob roster/AI incomplete, boat UNDER_WATER, aim-pin 1-tick
+    break lag, arrow-count drift, heart-flash blink. "Simulation and
+    replay".
+13. Isolated render features: dimension-transfer loading sky, enchantment
+    glint, chest model/seed parity, arrow ghost pitch, held-item
+    registration outside pinned poses, sheep pose, dig particles.
+
+**B. Accepted floors (gate-visible, not grindable without new oracle
+evidence; do not fit constants):**
+
+- Inventory preview 62/140 px at 1 LSB (PASS-LSB; pack-split has no
+  Java-side justification).
+- Hand eat/shield 1-LSB wall/painted class (same family; becomes a floor
+  once the PASS-LSB tier is ported to the ui_hud gate - until then the rows
+  read RESIDUAL).
+- Canonical tape `known:4` oak-log luminance (needs an oracle fragment
+  lightmap capture); t=3080/3540 mild_shift dig-window frames.
+
+**C. Capture/recorder blockers (fix the recorder or re-record; never fit
+magma to an unproven oracle state):**
+
+- Explosion/death-cloud particle placement (`Particle.rand` unrecorded).
+- 11 entity states CAPTURE_BLOCKED on nonzero Java A/B.
+- Legacy tape gaps: fogColor1 history, EntityItem fields, staged windows,
+  crafting/GUI events (canonical t=3257/3267 inventory), world hash drift
+  on 20260712T055346Z.
+- Geared dragon tape 6-tick server/client death-clock skew (sidecar'd).
+- Dynamic-fluid snapshot capture (nether lavafall cells).
+
+**D. Verification gaps (gate work, not product bugs):**
+
+- PASS-LSB tier exists only in the GUI preview gate; ui_hud oracle ROI gate
+  is still bit-exact-only.
+- Inventory gate: 13/23 tapes carry only tick-0 inv; count/metadata not
+  compared.
+- Truncated tapes verify a prefix only (respawn-continue is an open product
+  decision).
+
+Do not grind: explosion puff `Particle.rand`; fog retune; texel bias;
 Magma GPU tick; particle blend=3 (vanilla ParticleManager is SRC_ALPHA,
 magma already matches); canonical t=260 texel-selection (retracted,
 CLOSED); entities over water (item 13 CLOSED).
