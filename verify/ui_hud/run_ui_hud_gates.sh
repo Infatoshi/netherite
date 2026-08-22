@@ -55,7 +55,7 @@ echo "== run compose =="
 
 # Live path: real inventory armor + overlay_live against GmWorld (runtime stack).
 echo "== build live runtime objects =="
-make -s game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o \
+make -s game/runtime.o game/world_spawn.o game/fluid_live.o game/config.o game/player_ctl.o \
   game/sel_box.o game/world_live.o game/live_sim.o game/randtick.o game/mob_live.o \
   game/dragon_live.o game/structures_live.o game/portal_live.o \
   game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o core/config.o \
@@ -66,7 +66,7 @@ make -s game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o \
   core/math.o core/shade.o
 
 LIVE_OBJS=(
-  game/runtime.o game/fluid_live.o game/config.o game/player_ctl.o
+  game/runtime.o game/world_spawn.o game/fluid_live.o game/config.o game/player_ctl.o
   game/sel_box.o game/world_live.o game/live_sim.o game/randtick.o game/mob_live.o
   game/dragon_live.o game/structures_live.o game/portal_live.o
   game/furnace_live.o game/chest_live.o game/container_live.o game/caps.o core/config.o
@@ -91,11 +91,57 @@ CFRAME_DIR="$DIR/c_frames"
 if [ -d "$GOLDEN_DIR" ] && ls "$GOLDEN_DIR"/*_a.png >/dev/null 2>&1; then
   echo "== build $DIR/ui_hud_candidate =="
   mkdir -p "$CFRAME_DIR"
-  $CC $CFLAGS \
+  make -s game/runtime.o game/world_spawn.o game/fluid_live.o game/config.o \
+    game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o \
+    game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o \
+    game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o \
+    game/caps.o game/overlay.o game/overlay_live.o game/hud.o game/item_render.o \
+    game/hand.o game/sky.o game/screen.o game/player_preview.o \
+    game/entity_render.o game/particles_live.o game/window_compose.o \
+    game/frame_capture.o game/underwater.o game/audio_live.o game/input_map.o \
+    game/timer.o game/script.o game/rl_mode.o \
+    world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o \
+    world/mesh.o world/world.o world/gen_prefetch.o \
+    renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o \
+    core/math.o core/shade.o core/config.o cpu/raster_cpu.o transform.o
+  CAND_OBJS=(
+    game/runtime.o game/world_spawn.o game/fluid_live.o game/config.o
+    game/player_ctl.o game/sel_box.o game/world_live.o game/live_sim.o
+    game/randtick.o game/mob_live.o game/dragon_live.o game/structures_live.o
+    game/portal_live.o game/furnace_live.o game/chest_live.o game/container_live.o
+    game/caps.o game/overlay.o game/overlay_live.o game/hud.o game/item_render.o
+    game/hand.o game/sky.o game/screen.o game/player_preview.o
+    game/entity_render.o game/particles_live.o game/window_compose.o
+    game/frame_capture.o game/underwater.o game/audio_live.o game/input_map.o
+    game/timer.o
+    world/light.o world/mesh_mc.o world/populate_mc.o world/blocks.o
+    world/mesh.o world/world.o world/gen_prefetch.o
+    renderkernels/rk_31_facebakery_make_quad.o assets/blockmodels.o
+    core/math.o core/shade.o core/config.o cpu/raster_cpu.o transform.o
+  )
+  CUDA_WEAK_LD=()
+  if [ "$(uname -s)" = Darwin ]; then
+    CUDA_WEAK_LD=(
+      -Wl,-U,_cr_raster_cuda_pre -Wl,-U,_cr_raster_cuda_into
+      -Wl,-U,_cr_raster_cuda_frame_begin -Wl,-U,_cr_raster_cuda_frame_end
+      -Wl,-U,_cr_raster_cuda_post -Wl,-U,_cr_raster_cuda_sky
+      -Wl,-U,_cr_raster_cuda_atlas_dirty
+      -Wl,-U,_cr_raster_cuda_pin -Wl,-U,_cr_raster_cuda_unpin
+      -Wl,-U,_cr_raster_cuda_uploads_mark -Wl,-U,_cr_raster_cuda_uploads_wait
+      -Wl,-U,_cr_raster_cuda_frame_end_async -Wl,-U,_cr_raster_cuda_frame_wait
+      -Wl,-U,_cr_raster_cuda_render_layer -Wl,-U,_cr_raster_cuda_screen_tris
+      -Wl,-U,_cr_raster_cuda_render_gather
+      -Wl,-U,_cr_raster_cuda_render_terrain
+      -Wl,-U,_cr_raster_cuda_slab_pool -Wl,-U,_cr_raster_cuda_slab_sync
+      -Wl,-U,_cr_raster_cuda_slabs_reset
+      -Wl,-U,_alloctrack_frame -Wl,-U,_alloctrack_arm
+    )
+  fi
+  $CC $CFLAGS -I"$DIR" \
       "$DIR/ui_hud_candidate.c" \
-      "${COMMON_SRC[@]}" \
-      game/underwater.c \
-      -lm -o /tmp/magma_ui_hud_candidate
+      "$DIR/ui_hud_scene.c" \
+      "${CAND_OBJS[@]}" \
+      -lm "${CUDA_WEAK_LD[@]}" -o /tmp/magma_ui_hud_candidate
   echo "== render C composition frames =="
   /tmp/magma_ui_hud_candidate --out "$CFRAME_DIR"
   echo "== oracle ROI compare (core oracle∪C + fullscreen hard_px + death/hand) =="

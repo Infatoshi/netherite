@@ -449,6 +449,7 @@ static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
          * ramp on every terrain layer, colored by updateFogColor's fluid
          * color * fogColor1 (game/underwater.h). */
         for (int i = 0; i < 4; ++i) {
+            shade[i].enable_fog = 1;
             shade[i].fog_color = uw->fog_rgba;
             shade[i].fog_exp_density = uw->density;
         }
@@ -808,6 +809,18 @@ static int finish_pending(GmFrameCapture *c) {
     CrFramebuffer pfb = c->fb;
     pfb.color = c->pend_color;
     if (c->pend_depth) pfb.depth = c->pend_depth;
+    /* Capture goldens are recorded with MixinPinTextureAnimations. Keep this
+     * path on physical frame zero even when anim_textures is set. */
+    bm_atlas_set_animation_physical_zero();
+    bm_atlas_set_portal_frame(0);
+    CrTexture atlas=bm_atlas();
+    /* World is already in pfb. Warp it before hand/overlays: renderHand
+     * (EntityRenderer.java:791-835) does not keep setupCameraTransform. */
+    if (c->pend_v.portal > 0.0f && c->post_scratch)
+        gm_overlay_portal_warp(&pfb, c->post_scratch, c->pend_v.portal,
+                               c->pend_v.portal_phase,
+                               70.0f * (c->pend_fovscale > 0.01f
+                                            ? c->pend_fovscale : 1.0f));
     gm_hand_set_swing(c->pend_swing);
     gm_hand_set_equip(c->pend_equip);
     gm_hand_set_hurt(c->pend_v.hurt_time, c->pend_v.max_hurt_time,
@@ -817,11 +830,6 @@ static int finish_pending(GmFrameCapture *c) {
         !cr_cfg()->no_hand && !hand_hidden(c->pend_tick))
         gm_hand_draw(&pfb, &c->pend_v, c->pend_bob);
     /* ItemRenderer.renderOverlays: block, water, fire; then portal; then HUD. */
-    /* Capture goldens are recorded with MixinPinTextureAnimations. Keep this
-     * path on physical frame zero even when anim_textures is set. */
-    bm_atlas_set_animation_physical_zero();
-    bm_atlas_set_portal_frame(0);
-    CrTexture atlas=bm_atlas();
     if (c->pend_bih)
         gm_overlay_block_in_hand_draw(&pfb, &atlas, c->pend_bih_id,
                                       c->pend_bih_meta);
@@ -1418,11 +1426,17 @@ int gm_frame_capture_write(GmFrameCapture *c, GmRuntime *r,
         else if(r->dimension==1)gm_end_sky_draw(&c->fb,&cam);
         if(!hud_hidden()||have_gui)gm_hud_draw(&c->fb,&v);
     }else{
+        /* World is in fb. Warp before hand: EntityRenderer.renderHand
+         * (java:791-835) reloads projection without the portal matrix. */
+        if(v.portal>0.0f&&c->post_scratch)
+            gm_overlay_portal_warp(&c->fb,c->post_scratch,v.portal,
+                                   v.portal_phase,cam.fov_deg);
         if(!v.dead&&!v.riding_boat&&!cr_cfg()->no_hand&&!hand_hidden(r->tick))
             gm_hand_draw(&c->fb,&v,c->hand_bob);
         /* ItemRenderer.renderOverlays: block, water, fire; then portal; HUD. */
         if(!v.dead)gm_overlay_block_in_hand_live(&c->fb,&atlas,r->world,&v);
-        if(uw.overlay&&!v.dead)gm_uw_overlay_draw(&c->fb,&v,uw.brightness,cam.fov_deg);
+        if(uw.overlay&&!v.dead)gm_uw_overlay_draw(&c->fb,&v,uw.brightness,
+            70.0f*uw.fov_scale);
         if(v.fire&&!v.creative&&!v.dead)
             gm_hand_fire_overlay_draw(&c->fb,&atlas,uw.fov_scale);
         if(v.portal>0.0f&&(!hud_hidden()||have_gui))

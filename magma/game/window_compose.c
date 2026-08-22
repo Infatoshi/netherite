@@ -106,6 +106,7 @@ struct GmWindowCompose {
     int hud_flash;
     int hud_state_valid;
     unsigned char *ppm_buf;
+    CrRgba *portal_scratch; /* inverse of setupCameraTransform portal wobble */
     FILE *npy_f;
     int npy_frames;
     char frames_out[1024];
@@ -268,8 +269,10 @@ static void terrain_shades(const CrTexture *atlas, CrRgba fog, int dimension,
     sh_cut.lightmap = lm;
     sh_trans.lightmap = lm;
     if (uw && uw->fluid) {
+        /* EntityRenderer.setupFog fluid: GL_EXP replaces the linear ramp. */
         CrShadeCtx *all[4] = {&sh_solid, &sh_cmip, &sh_cut, &sh_trans};
         for (int i = 0; i < 4; ++i) {
+            all[i]->enable_fog = 1;
             all[i]->fog_color = uw->fog_rgba;
             all[i]->fog_exp_density = uw->density;
         }
@@ -562,11 +565,16 @@ GmWindowCompose *gm_window_compose_open(const GmConfig *cfg,
     c->tris = malloc((size_t)c->max_tris * sizeof *c->tris);
     c->entity_verts = malloc((size_t)c->max_entity_verts *
                              sizeof *c->entity_verts);
-    if (!c->fb.color || !c->tris || !c->entity_verts) {
+    c->portal_scratch = malloc((size_t)cfg->width * (size_t)cfg->height *
+                               sizeof *c->portal_scratch);
+    if (!c->fb.color || !c->tris || !c->entity_verts || !c->portal_scratch) {
         set_error(err, err_cap, "window compose allocation failed");
         gm_window_compose_close(c);
         return NULL;
     }
+    /* ItemRenderer equippedProgress idle is 1; gm_hand_set_equip takes
+     * 1-equippedProgress, so 0 is the rest pose used by first-person goldens. */
+    c->equip_progress = 1.0f;
     if (cfg->frames_out_dir) {
         size_t len = strlen(cfg->frames_out_dir);
         if (len >= sizeof c->frames_out) {
@@ -701,6 +709,8 @@ int gm_window_compose_draw(GmWindowCompose *c,
         long long portal_frame = r->clock.total_time % 32;
         if (portal_frame < 0) portal_frame += 32;
         mapped_view.portal_frame = (int)portal_frame;
+        /* EntityRenderer.rendererUpdateCount: one bump per client tick. */
+        mapped_view.portal_phase = (int)r->clock.total_time;
     }
     const GmPlayerView *pv = &mapped_view;
     const GmPlayerView *cpv = frame->camera_view;
@@ -1029,6 +1039,17 @@ int gm_window_compose_draw(GmWindowCompose *c,
 #endif
     stamp(frame, 10);
 
+    /* EntityRenderer.setupCameraTransform (oracle-src EntityRenderer.java:746-761)
+     * rotate-scale-rotate is on the WORLD modelview only. renderHand
+     * (EntityRenderer.java:791-835) loads a fresh gluPerspective
+     * (getFOVModifier(*, false)) + identity modelview, then draws the
+     * viewmodel and ItemRenderer overlays. Inverse-map the world buffer
+     * before those 2D/hand passes. Tick-boundary partialTicks=1 so the
+     * warp uses phase+1. */
+    if (pv->portal > 0.0f && c->portal_scratch)
+        gm_overlay_portal_warp(&c->fb, c->portal_scratch, pv->portal,
+                               pv->portal_phase, cam.fov_deg);
+
     {
         int hx = (int)floorf(cpv->x);
         int hy = (int)floorf(cpv->y + cpv->eye_height);
@@ -1054,8 +1075,11 @@ int gm_window_compose_draw(GmWindowCompose *c,
             gm_hand_draw(&c->fb, pv, c->hand_bob);
         if (!pv->dead)
             gm_overlay_block_in_hand_live(&c->fb, &c->atlas, r->world, cpv);
+        /* ItemRenderer.renderOverlays uses the hand projection
+         * (getFOVModifier(partialTicks, false) = 70 * water 60/70). */
         if (uw.overlay && !pv->dead)
-            gm_uw_overlay_draw(&c->fb, cpv, uw.brightness, cam.fov_deg);
+            gm_uw_overlay_draw(&c->fb, cpv, uw.brightness,
+                               70.0f * uw.fov_scale);
         if (pv->fire && !pv->creative && !pv->dead)
             gm_hand_fire_overlay_draw(&c->fb, &c->atlas, uw.fov_scale);
     }
@@ -1122,6 +1146,7 @@ void gm_window_compose_close(GmWindowCompose *c) {
     free(c->tris);
     free(c->entity_verts);
     free(c->ppm_buf);
+    free(c->portal_scratch);
     free(c->chunks);
     free(c->runs);
     free(c->gsrc);
