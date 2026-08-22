@@ -690,6 +690,35 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
     }
 
     {
+        int ncreep = 0, mi;
+        unsigned nm;
+        RlSnapMob packed[BLAZE_SNAP_MAX_MOBS];
+        h = bp_explosions_digest_begin();
+        h = bp_hash_explosion_pending(
+            h, r->mobs.explosion_pending,
+            r->mobs.explosion_x, r->mobs.explosion_y, r->mobs.explosion_z,
+            r->parity_ex_last_size);
+        h = bp_hash_explosion_blast(
+            h, r->parity_ex_rays, r->parity_ex_destroyed, r->parity_ex_blasts,
+            r->parity_ex_damage, r->parity_ex_kb_x, r->parity_ex_kb_y,
+            r->parity_ex_kb_z);
+        nm = gm_mobs_export_snap(&r->mobs, packed, BLAZE_SNAP_MAX_MOBS);
+        for (mi = 0; mi < (int)nm; ++mi) {
+            if (packed[mi].type != EW_TYPE_CREEPER) continue;
+            ++ncreep;
+            h = bp_hash_creeper_fuse(
+                h, packed[mi].slot, packed[mi].swell,
+                packed[mi].target_idx ? 1 : 0, packed[mi].alive);
+        }
+        h = bp_hash_i32(h, ncreep);
+        out->digest[BP_EXPLOSIONS] = h;
+        out->evidence[BP_EXPLOSIONS] =
+            r->parity_ex_blasts + r->parity_ex_destroyed + (uint32_t)ncreep;
+        if (r->parity_ex_blasts || r->parity_ex_destroyed || ncreep)
+            out->active_mask |= BP_BIT(BP_EXPLOSIONS);
+    }
+
+    {
         h = bp_weather_digest(
             r->clock.world_time, r->clock.total_time,
             r->clock.raining, r->clock.thundering,

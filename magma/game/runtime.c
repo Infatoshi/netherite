@@ -11,8 +11,19 @@
 #include "game/structures_live.h"
 #include "game/world_spawn.h"
 #include "explosion.h"
+#include "port_parity.h"
 #include "items_tools_armor.h"
 #include "inventory_stack_rules.h"
+
+#define EXL_W GmRuntime
+#define exl_block(w, x, y, z) gm_world_block((w)->world, (x), (y), (z))
+#define exl_meta(w, x, y, z) gm_world_meta((w)->world, (x), (y), (z))
+#define exl_set_air(w, x, y, z) do { \
+    gm_world_set_block((w)->world, (x), (y), (z), 0); \
+    gm_live_block_changed(&(w)->entities, (w)->world, (x), (y), (z)); \
+    gm_fluid_mark(&(w)->fluids, (w)->world, (w)->dimension, (x), (y), (z)); \
+} while (0)
+#include "explosion_live.h"
 
 /* EntityLivingBase.applyArmorCalculations + InventoryPlayer.damageArmor. */
 static float runtime_armor_damage(GmRuntime *r, float amount, int unblockable)
@@ -126,19 +137,13 @@ static void recenter(GmRuntime *r) {
 }
 
 static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float size){
-    u16 grid[EX_VOL];u8 hit[EX_VOL];int ox=(int)floor(ex)-8,oy=(int)floor(ey)-8,oz=(int)floor(ez)-8;
-    for(int x=0;x<EX_DIM;++x)for(int y=0;y<EX_DIM;++y)for(int z=0;z<EX_DIM;++z)
-        grid[ex_idx(x,y,z)]=mc_state(gm_world_block(r->world,ox+x,oy+y,oz+z),
-                                     gm_world_meta(r->world,ox+x,oy+y,oz+z));
-    ex_do_explosion_blocks(grid,ex-ox,ey-oy,ez-oz,size,hit);
-    for(int x=0;x<EX_DIM;++x)for(int y=0;y<EX_DIM;++y)for(int z=0;z<EX_DIM;++z)
-        if(hit[ex_idx(x,y,z)]){
-            gm_world_set_block(r->world,ox+x,oy+y,oz+z,0);
-            gm_live_block_changed(&r->entities, r->world, ox+x, oy+y, oz+z);
-            gm_fluid_mark(&r->fluids,r->world,r->dimension,ox+x,oy+y,oz+z);
-        }
-    GmPlayerView v;gm_runtime_view(r,&v);
-    float damage=ex_entity_damage(v.x,v.y+v.eye_height,v.z,ex,ey,ez,size,1.0f);
+    u16 grid[EX_VOL];u8 hit[EX_VOL];int ox,oy,oz;
+    uint32_t nd=0;uint64_t rays=bp_hash_begin();
+    GmPlayerView v;float damage;
+    exl_fill_and_rays(r,grid,hit,ex,ey,ez,size,&ox,&oy,&oz);
+    exl_apply_hits(r,hit,ox,oy,oz,&nd,&rays);
+    gm_runtime_view(r,&v);
+    damage=ex_entity_damage(v.x,v.y+v.eye_height,v.z,ex,ey,ez,size,1.0f);
     /* ExplosionDamage is not unblockable; armor absorb + durability apply. */
     damage = runtime_armor_damage(r, damage, 0);
     pv_attack(&r->vitals,damage);r->player.health=r->vitals.health;
@@ -151,6 +156,17 @@ static void runtime_explode(GmRuntime *r,double ex,double ey,double ez,float siz
             if(dx*dx+dy*dy+dz*dz<=size*size*4.0)r->dragon.state.arena.crystals[i].alive=0;
         }
     }
+    r->parity_ex_blasts++;
+    r->parity_ex_destroyed += nd;
+    r->parity_ex_rays = rays;
+    r->parity_ex_damage = damage;
+    r->parity_ex_last_x = ex;
+    r->parity_ex_last_y = ey;
+    r->parity_ex_last_z = ez;
+    r->parity_ex_last_size = size;
+    r->parity_ex_kb_x = 0.0;
+    r->parity_ex_kb_y = 0.0;
+    r->parity_ex_kb_z = 0.0;
 }
 
 /* Vanilla BlockBush.checkAndDropBlock on neighborChanged: after a block edit,
@@ -1051,9 +1067,12 @@ void gm_runtime_tick(GmRuntime *r, GmAction action) {
         spawn_hostile_projectiles(r);
     } else {
         /* --mobs off skips AI/spawn/combat; loaded snapshot living slots
-         * still run Entity.move / travel (entity_spine row). */
+         * still run Entity.move / travel (entity_spine row). Ignited
+         * creeper fuse is the explosions row (EntityCreeper.onUpdate). */
         gm_mobs_tick_spine(&r->mobs, r->world,
                            (const struct McSinTable *)&r->sin_table);
+        gm_mobs_tick_creeper_fuse(&r->mobs);
+        {double x,y,z;if(gm_mobs_take_explosion(&r->mobs,&x,&y,&z))runtime_explode(r,x,y,z,3.0f);}
     }
     if(r->dimension==1){
         GmPlayerView dv;gm_runtime_view(r,&dv);

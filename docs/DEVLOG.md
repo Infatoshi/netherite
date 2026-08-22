@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 explosions M1+M2 (lane/explosions)
+
+Baseline anvil HEAD 9818ade: `BLOCKED explosions: Explosion damage and world mutation are not measured by both backends` (`out/verify/explosions_baseline.log`). Shared `explosion.h` already had RAND-FREE `doExplosionA` rays; magma `runtime_explode` used it; blaze did not tick creeper fuse or apply the blast.
+
+Cause: blaze had no ignited fuse, no live `runtime_explode`, no `BP_EXPLOSIONS`. Java `EntityCreeper` fuse 30 / radius 3 (`EntityCreeper.java:52-54`), `hasIgnited`/`ignite` (`:338-346`), `onUpdate` `timeSinceIgnited += state` then `explode` at fuse (`:158-191`, `:303-314`). `World.createExplosion` (`World.java:2436-2438`) / `newExplosion` (`:2444-2450`) `doExplosionA` then `doExplosionB`. `WorldServer.newExplosion` (`WorldServer.java:1245-1266`) `doExplosionB(false)`. `Explosion.doExplosionA` 16x16x16 face rays, step 0.3D / 0.22500001F, resistance, entity damage+knockback (`Explosion.java:82-191`); `doExplosionB` drops/particles/fire (`:196-248`). Magma extras kept: density rand fixed 0.5F (`explosion.h`), exposure 1.0, no knockback, no drops, blast Y = feetY+0.5, unpowered 3.0F always destroys, player+dragon only.
+
+After: shared `blaze/core/explosion_live.h`. Magma `gm_mobs_tick_creeper_fuse` + `runtime_explode` are thin wrappers. Blaze ticks fuse after spine then apply. `BP_EXPLOSIONS` hashes pending, last blast rays/destroyed/damage/kb=0, creeper slot/fuse/ignited/alive (`EXP1`). Fixture `s10_t0_r64_explosions.bsnp` + 64-action chain (`explosions_s10.json`): ignited creeper at (8.5,65,12.5), 36 idle / 28 walk. Anvil M1 VERIFIED 64 ticks (`out/verify/explosions_m1_verify2.log`); t=0 digest `0xd5cdf4c5030251ab`, blast t=30 digest `0x1961ba9ffd1f7deb` evidence 23 health 20->11. Anvil M2 VERIFIED 64 CUDA lanes on gpu1 (`out/verify/explosions_m2.log`). mining_slice M2 and spawn_to_torch/world_dynamics/fluids/entity_spine/random_ticks/falling_blocks/weather_optional/chests/projectiles `--no-deps` still VERIFIED. Root `make test` PASS (`out/verify/explosions_maketest2.log`). Magma `test_runtime` creeper `--mobs on` still PASS.
+
+Open: TNT missing; fireball explosions stay magma-only; Java knockback / getBlockDensity / doExplosionB drops / powered 2x / mobGriefing / EntityAICreeperSwell 3/7 LOS stay out. Magma still uses rand-free density and Y+0.5.
+
 ## 2026-08-22 projectiles M1+M2 (lane/projectiles)
 
 Baseline anvil HEAD 88a2b8e: `BLOCKED projectiles: Projectile lifecycle and collision outcomes are not measured by both backends` (`out/verify/projectiles_baseline.log`, port_matrix rc=3). Shared `projectile_motion.h` is the trimmed synthetic in-air kernel (entity_trace); live magma `tick_projectiles` was not in blaze.

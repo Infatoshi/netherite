@@ -28,7 +28,9 @@
  * BP_MOBS; pathfinding and combat stay on the `mobs` row),
  * portals, eye-of-ender (need held item 381 - not craftable in-chain).
  * Bow arrows tick magma runtime.c via blaze/core/projectile_live.h and
- * hash as BP_PROJECTILES. World clock / weather ticks gm_world_tick
+ * hash as BP_PROJECTILES. Ignited creeper fuse + Explosion.doExplosionA
+ * tick via blaze/core/explosion_live.h and hash as BP_EXPLOSIONS. World
+ * clock / weather ticks gm_world_tick
  * (blaze/core/world_weather.h) and hashes as BP_WEATHER. Fluids CA is
  * simulated (magma/game/fluid_live.c port) and hashed into BP_FLUIDS.
  * Furnaces ARE simulated since the iron extension (game/furnace_live.c +
@@ -70,6 +72,8 @@
 #include "entity_spine.h"       /* living Entity.move spine (zero AI) */
 #include "world_weather.h"      /* WorldInfo rain/thunder + worldTime */
 #include "projectile_live.h"    /* bow/skeleton arrow live tick */
+#include "explosion.h"          /* 16^3 doExplosionA rays */
+#include "explosion_live.h"     /* creeper fuse + live apply */
 #include "../core/port_parity.h" /* shared Magma/Blaze subsystem record */
 
 #ifdef __cplusplus
@@ -354,6 +358,19 @@ typedef struct {
     CuProj projectiles[CU_MAX_PROJECTILES];
     unsigned parity_proj_hits;
     int bow_ticks, bow_drawing;
+
+    int explosion_pending;
+    double explosion_x, explosion_y, explosion_z;
+    float explosion_size;
+    unsigned parity_ex_blasts;
+    unsigned parity_ex_destroyed;
+    float parity_ex_damage;
+    double parity_ex_kb_x, parity_ex_kb_y, parity_ex_kb_z;
+    uint64_t parity_ex_rays;
+    double parity_ex_last_x, parity_ex_last_y, parity_ex_last_z;
+    float parity_ex_last_size;
+    u16 ex_grid[EX_VOL];
+    u8  ex_hit[EX_VOL];
 
     /* reward/done bookkeeping (driver-level; not part of the sim gate) */
     int    base_coal;
@@ -739,6 +756,111 @@ MC_HD static inline int cu_take_arrow(Blaze *e) {
     cu_proj_hit_mob((w), (x), (y), (z), (rad), (dmg))
 #define PL_NOTE_HIT(w) do { (w)->parity_proj_hits++; } while (0)
 #include "projectile_live.h"
+
+MC_HD static inline void cu_fluid_mark(Blaze *e, int dim, int wx, int wy, int wz);
+
+#define EXL_W Blaze
+#define exl_block(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#define exl_meta(w, x, y, z) cu_world_meta((w), (x), (y), (z))
+#define exl_set_air(w, x, y, z) do { \
+    cu_world_set_state((w), (x), (y), (z), 0, 0); \
+    fl_block_changed((w), (w), (x), (y), (z)); \
+    cu_fluid_mark((w), 0, (x), (y), (z)); \
+} while (0)
+#include "explosion_live.h"
+
+MC_HD static inline float cu_armor_damage(Blaze *e, float amount) {
+    ITAStack slots[4];
+    int i;
+    if (!e || amount <= 0.0f) return amount;
+    for (i = 0; i < 4; ++i) {
+        ICStack s = isr_get_stack(&e->pl.inv, ISR_ARMOR0 + i);
+        slots[i] = ita_mk(s.item, s.meta);
+        slots[i].count = s.count;
+    }
+    ita_damage_armor_set(slots, amount);
+    for (i = 0; i < 4; ++i) {
+        if (slots[i].item <= 0 || slots[i].count <= 0)
+            isr_set_stack(&e->pl.inv, ISR_ARMOR0 + i, ic_empty());
+        else {
+            ICStack s = ic_mk(slots[i].item, 1, slots[i].damage);
+            isr_set_stack(&e->pl.inv, ISR_ARMOR0 + i, s);
+        }
+    }
+    {
+        ICStack chest = isr_get_stack(&e->pl.inv, ISR_ARMOR_CHEST);
+        if (chest.item == ISR_ELYTRA_ITEM)
+            e->pl.elytra_equipped = isr_elytra_usable(&chest);
+    }
+    return ita_apply_armor_absorb(amount, slots, 0);
+}
+
+MC_HD static inline void cu_explode(Blaze *e, double ex, double ey, double ez,
+                                    float size) {
+    int ox, oy, oz;
+    uint32_t nd = 0;
+    uint64_t rays = bp_hash_begin();
+    float vx, vy, vz, eh, damage;
+    if (!e) return;
+    exl_fill_and_rays(e, e->ex_grid, e->ex_hit, ex, ey, ez, size,
+                      &ox, &oy, &oz);
+    exl_apply_hits(e, e->ex_hit, ox, oy, oz, &nd, &rays);
+    vx = (float)(e->pl.ent.posX + (double)e->ox);
+    vy = (float)e->pl.ent.posY;
+    vz = (float)(e->pl.ent.posZ + (double)e->oz);
+    eh = (float)psv_player_eye_height(&e->pl);
+    damage = ex_entity_damage((double)vx, (double)vy + (double)eh, (double)vz,
+                              ex, ey, ez, size, 1.0f);
+    damage = cu_armor_damage(e, damage);
+    pv_attack(&e->vit, damage);
+    e->pl.health = e->vit.health;
+    e->parity_ex_blasts++;
+    e->parity_ex_destroyed += nd;
+    e->parity_ex_rays = rays;
+    e->parity_ex_damage = damage;
+    e->parity_ex_last_x = ex;
+    e->parity_ex_last_y = ey;
+    e->parity_ex_last_z = ez;
+    e->parity_ex_last_size = size;
+    e->parity_ex_kb_x = 0.0;
+    e->parity_ex_kb_y = 0.0;
+    e->parity_ex_kb_z = 0.0;
+}
+
+MC_HD static inline void cu_explosion_tick(Blaze *e) {
+    unsigned i;
+    if (!e) return;
+    for (i = 0; i < e->n_mobs; ) {
+        RlSnapMob *m = &e->mobs[i];
+        int ignited;
+        if (!m->alive || m->type != EW_TYPE_CREEPER) {
+            ++i;
+            continue;
+        }
+        ignited = m->target_idx ? 1 : 0;
+        if (!exl_fuse_tick(&m->swell, ignited)) {
+            ++i;
+            continue;
+        }
+        e->explosion_pending = 1;
+        e->explosion_x = m->x;
+        e->explosion_y = m->y + EXL_Y_OFF;
+        e->explosion_z = m->z;
+        e->explosion_size = EXL_RADIUS;
+        {
+            unsigned k;
+            for (k = i; k + 1u < e->n_mobs; ++k)
+                e->mobs[k] = e->mobs[k + 1];
+        }
+        e->n_mobs--;
+        break;
+    }
+    if (e->explosion_pending) {
+        cu_explode(e, e->explosion_x, e->explosion_y, e->explosion_z,
+                   e->explosion_size);
+        e->explosion_pending = 0;
+    }
+}
 
 MC_HD static inline void cu_randtick_pass(Blaze *e) {
     McGameRules gr;
@@ -2954,6 +3076,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
     cu_fluid_tick(env, 0, env->tick);
     cu_randtick_pass(env);
     cu_mob_spine_tick(env, st);
+    cu_explosion_tick(env);
     {
         int pi;
         for (pi = 0; pi < CU_MAX_PROJECTILES; ++pi) {
@@ -4066,6 +4189,33 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
     }
 
     {
+        int ncreep = 0;
+        unsigned mi;
+        h = bp_explosions_digest_begin();
+        h = bp_hash_explosion_pending(
+            h, e->explosion_pending,
+            e->explosion_x, e->explosion_y, e->explosion_z,
+            e->explosion_size);
+        h = bp_hash_explosion_blast(
+            h, e->parity_ex_rays, e->parity_ex_destroyed, e->parity_ex_blasts,
+            e->parity_ex_damage, e->parity_ex_kb_x, e->parity_ex_kb_y,
+            e->parity_ex_kb_z);
+        for (mi = 0; mi < e->n_mobs; ++mi) {
+            if (e->mobs[mi].type != EW_TYPE_CREEPER) continue;
+            ++ncreep;
+            h = bp_hash_creeper_fuse(
+                h, e->mobs[mi].slot, e->mobs[mi].swell,
+                e->mobs[mi].target_idx ? 1 : 0, e->mobs[mi].alive);
+        }
+        h = bp_hash_i32(h, ncreep);
+        r->digest[BP_EXPLOSIONS] = h;
+        r->evidence[BP_EXPLOSIONS] =
+            e->parity_ex_blasts + e->parity_ex_destroyed + (uint32_t)ncreep;
+        if (e->parity_ex_blasts || e->parity_ex_destroyed || ncreep)
+            r->active_mask |= BP_BIT(BP_EXPLOSIONS);
+    }
+
+    {
         h = bp_weather_digest(
             e->ww.worldTime, e->ww.totalTime,
             e->ww.raining, e->ww.thundering,
@@ -4328,6 +4478,16 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->parity_proj_hits = 0;
     env->bow_ticks = 0;
     env->bow_drawing = 0;
+    env->explosion_pending = 0;
+    env->explosion_x = env->explosion_y = env->explosion_z = 0.0;
+    env->explosion_size = 0.0f;
+    env->parity_ex_blasts = 0;
+    env->parity_ex_destroyed = 0;
+    env->parity_ex_damage = 0.0f;
+    env->parity_ex_kb_x = env->parity_ex_kb_y = env->parity_ex_kb_z = 0.0;
+    env->parity_ex_rays = 0;
+    env->parity_ex_last_x = env->parity_ex_last_y = env->parity_ex_last_z = 0.0;
+    env->parity_ex_last_size = 0.0f;
 
     /* window chunk coords; the block contents come from the bulk phase */
     for (dz = -PSV_R; dz <= PSV_R; ++dz)

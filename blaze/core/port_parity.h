@@ -85,7 +85,8 @@ enum BpDebugField {
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_WEATHER) | \
+     BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_EXPLOSIONS) | \
+     BP_BIT(BP_WEATHER) | \
      BP_BIT(BP_CHESTS) | \
      BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
@@ -93,7 +94,8 @@ enum BpDebugField {
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
      BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_FALLING_BLOCKS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_WEATHER) | \
+     BP_BIT(BP_MOBS) | BP_BIT(BP_PROJECTILES) | BP_BIT(BP_EXPLOSIONS) | \
+     BP_BIT(BP_WEATHER) | \
      BP_BIT(BP_CHESTS) | \
      BP_BIT(BP_OBSERVATIONS))
 
@@ -500,6 +502,43 @@ BP_HD static inline uint64_t bp_projectiles_digest_finish(
     uint64_t h, int32_t nents, uint32_t hits) {
     h = bp_hash_i32(h, nents);
     return bp_hash_u32(h, hits);
+}
+
+/* Magma runtime_explode + creeper fuse (EntityCreeper onUpdate ignited). */
+BP_HD static inline uint64_t bp_explosions_digest_begin(void) {
+    uint64_t h = bp_hash_begin();
+    return bp_hash_u32(h, UINT32_C(0x31585045)); /* "EXP1" */
+}
+
+BP_HD static inline uint64_t bp_hash_explosion_pending(
+    uint64_t h, int32_t pending,
+    double x, double y, double z, float size) {
+    h = bp_hash_i32(h, pending);
+    if (!pending) return h;
+    h = bp_hash_double(h, x);
+    h = bp_hash_double(h, y);
+    h = bp_hash_double(h, z);
+    return bp_hash_float(h, size);
+}
+
+BP_HD static inline uint64_t bp_hash_explosion_blast(
+    uint64_t h, uint64_t rays, uint32_t ndestroyed, uint32_t blasts,
+    float damage, double kbx, double kby, double kbz) {
+    h = bp_hash_u64(h, rays);
+    h = bp_hash_u32(h, ndestroyed);
+    h = bp_hash_u32(h, blasts);
+    h = bp_hash_float(h, damage);
+    h = bp_hash_double(h, kbx);
+    h = bp_hash_double(h, kby);
+    return bp_hash_double(h, kbz);
+}
+
+BP_HD static inline uint64_t bp_hash_creeper_fuse(
+    uint64_t h, int32_t slot, int32_t fuse, int32_t ignited, int32_t alive) {
+    h = bp_hash_i32(h, slot);
+    h = bp_hash_i32(h, fuse);
+    h = bp_hash_i32(h, ignited);
+    return bp_hash_i32(h, alive);
 }
 
 /* World clock / weather. Magma live hashes rain_strength=0 (no fade). */

@@ -488,18 +488,63 @@ subsystems:
     timeout: 1500
 
   - name: explosions
-    supported: false
+    supported: true
     sources:
-      magma: [magma/game/mob_live.c, magma/game/world_live.c]
-      shared: [blaze/core/explosion.h]
-      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c]
+      magma: [magma/game/mob_live.c, magma/game/world_live.c, magma/game/runtime.c, magma/game/rl_mode.c]
+      shared: [blaze/core/explosion.h, blaze/core/explosion_live.h, blaze/core/port_parity.h]
+      blaze: [blaze/env/blaze_core.h, blaze/env/blaze_cpu.c, blaze/env/blaze_cuda.cu]
     dependencies: [world_dynamics, projectiles]
     required_features: [explosions]
-    required_artifacts: {m1: [], m2: []}
-    m1: []
-    m2: []
+    required_artifacts:
+      m1:
+        - magma/magma_game
+        - blaze/env/blaze_cpu.so
+        - verify/fixtures/port/s10_t0_r64_explosions.bsnp
+        - blaze/rl/fixtures/explosions_s10.json
+      m2:
+        - blaze/env/blaze_cpu.so
+        - blaze/env/blaze_cuda.so
+        - verify/fixtures/port/s10_t0_r64_explosions.bsnp
+        - blaze/rl/fixtures/explosions_s10.json
+    m1:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy
+      - python
+      - blaze/env/verify_cpu.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_explosions.bsnp
+      - --tape
+      - blaze/rl/fixtures/explosions_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - explosions
+    m2:
+      - uv
+      - run
+      - --no-project
+      - --with
+      - numpy,torch
+      - python
+      - blaze/env/verify_cuda.py
+      - --chain
+      - --expected-chain-actions
+      - "64"
+      - --snapshot
+      - verify/fixtures/port/s10_t0_r64_explosions.bsnp
+      - --tape
+      - blaze/rl/fixtures/explosions_s10.json
+      - --port-parity
+      - --strict-capabilities
+      - --features
+      - explosions
     timeout: 1500
-    block_reason: Explosion damage and world mutation are not measured by both backends.
 
   - name: mobs
     supported: false
