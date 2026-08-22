@@ -1,4 +1,5 @@
-/* Same-scene world underlay for overlay_portal_050 / overlay_underwater. */
+/* Same-scene world underlay for overlay_portal_050 / overlay_underwater
+ * (full window_compose) and hand_* (world-only; caller paints hand+HUD). */
 #ifndef MAGMA_VERIFY_UI_HUD_SCENE_H
 #define MAGMA_VERIFY_UI_HUD_SCENE_H
 
