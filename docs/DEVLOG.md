@@ -1,5 +1,15 @@
 # DEVLOG (compressed)
 
+## 2026-08-22 random_ticks M1+M2 (lane/randticks)
+
+Baseline anvil: `BLOCKED random_ticks: Random-tick scheduling and effects are not measured by both backends` (port_matrix rc=3). Magma already ran `gm_randtick_pass` (hash schedule, grass/leaves/fire/wheat-carrot-potato). Blaze only ticked grass.
+
+Cause: blaze had no RTK1 digest and no full ticker set. Java `WorldServer.updateBlocks` :404 `randomTickSpeed`, :472-494 per-section LCG pick + `Block.randomTick`; `World.java:95-97` `updateLCG*3+1013904223`; `GameRules.java:25` default `"3"`. Magma substitutes `mc_hash_seed` (`randtick.h:10`); M1 matches that schedule, not Java `World.rand`. Tickers: `BlockGrass.java:41-73`, `BlockLeaves.java:69-176`, `BlockFire.java:146-253` / `:286-314`, `BlockCrops.java:72-90` / `:111-164`.
+
+After: shared `blaze/core/randtick_live.h`. Fixture `s10_t0_r64_randtick.bsnp` plants 64 moist-farmland wheat and 64 isolated CHECK_DECAY leaves. Anvil M1 VERIFIED 200 ticks (`out/verify/randticks_m1.log`). Blaze evidence 27 tickable-cell mutations (first at act 5). Anvil M2 PASS 64 CUDA lanes (`out/verify/randticks_m2.log`). world_dynamics M1/M2 still VERIFIED. `supported: true`.
+
+Open: sapling/farmland/ice/snow tickers still unported (not in magma `randtick.c` dispatch). Java LCG/`World.rand` consumption is not this row.
+
 ## 2026-08-22 entity_spine M1+M2 (lane/entityspine)
 
 Baseline anvil 754c029: both tiers BLOCKED "Entity lifecycle state is not

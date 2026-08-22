@@ -130,7 +130,7 @@ Blaze Metal tick (M3) waits until CUDA survival rows pass M1 and M2
 | 1 | Native `out/blaze/rl/ppo` reproduces spawn->torch (t0 ~0.4, transfer ~11/13). Wood-break t0 0.495 matched. Staged-curriculum chain4 (2026-08-22) reached t0 0.215 at 510M ticks, stage4->torch 8/8 seeds; spawn->torch t0 ~0.4 still open. | 2 | grindable | anvil gpu0 |
 | 2 | Native transfer/eval of `ppo_ckpt.bin` into magma. Torch eval scripts are gone. | 2 | needs-design | anvil |
 | 3 | Magma 60 fps at 1080p. Last CUDA measure 35.93 fps (`--set bench=1`). Raster twins are a two-machine gate; do not edit one kernel overnight. | 3 | grindable | anvil gpu1 + Mac |
-| 4 | Port-matrix rows after spawn-to-torch: fluids, random_ticks, falling_blocks, entity_spine, projectiles, explosions, mobs, chests, portals_dimensions, nether_route, dragon_victory, weather_optional, boats_elytra_xp. | 2 | grindable DAG | anvil cpu then gpu |
+| 4 | Port-matrix rows after spawn-to-torch: falling_blocks, entity_spine, projectiles, explosions, mobs, chests, portals_dimensions, nether_route, dragon_victory, weather_optional, boats_elytra_xp. fluids and random_ticks VERIFIED 2026-08-22. | 2 | grindable DAG | anvil cpu then gpu |
 | 5 | Blaze Metal tick (M3). Sequence-blocked on row 4. | 2 | needs-design | Mac later |
 | 6 | Magma live tick on GPU. No gate accepts it. | none | keep-cpu | none |
 | 7 | Human spawn->End with zero first-divergence. | 1 | human | Moonlight |

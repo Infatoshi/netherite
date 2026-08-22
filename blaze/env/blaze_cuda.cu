@@ -108,6 +108,7 @@ typedef struct {
     u16 *d_cells, *d_cam;
     u16 *d_grass;            /* per-env grass_sec census (CU_SEC_SPAN cube) */
     u16 *d_fluid_cur, *d_fluid_tmp; /* n * CU_FLUID_VOL CA grids; same as CPU */
+    int *d_rt_leaf;              /* n * RT_LIVE_SURR BlockLeaves scratch */
     u8 *d_light, *d_dep, *d_edg;
     Chunk *d_window;
     CuCand *d_cand;
@@ -753,7 +754,9 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         cudaMalloc(&v->d_fluid_cur,
                    (size_t)n * CU_FLUID_VOL * sizeof(u16)) != cudaSuccess ||
         cudaMalloc(&v->d_fluid_tmp,
-                   (size_t)n * CU_FLUID_VOL * sizeof(u16)) != cudaSuccess) {
+                   (size_t)n * CU_FLUID_VOL * sizeof(u16)) != cudaSuccess ||
+        cudaMalloc(&v->d_rt_leaf,
+                   (size_t)n * RT_LIVE_SURR * sizeof(int)) != cudaSuccess) {
         fprintf(stderr, "blaze_cuda: cudaMalloc failed for n=%d fixed pools "
                         "(~%.1f GB; region pools come later at snapshot "
                         "load)\n",
@@ -761,6 +764,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
                                 PSV_MAX_BLOCKS * sizeof(McAABB) +
                                 CU_COAL_CAND * sizeof(CuCand) +
                                 2.0 * CU_FLUID_VOL * sizeof(u16) +
+                                (double)RT_LIVE_SURR * sizeof(int) +
                                 sizeof(Blaze)) / 1e9);
         blaze_destroy(v);
         return NULL;
@@ -811,6 +815,7 @@ void *blaze_create(int device, int n, const BlazeCreateOpts *opts) {
         e->cont = v->d_cont + (size_t)i * BLAZE_SNAP_MAX_CONT * 3;
         e->fluid_cur = v->d_fluid_cur + (size_t)i * CU_FLUID_VOL;
         e->fluid_tmp = v->d_fluid_tmp + (size_t)i * CU_FLUID_VOL;
+        e->rt_leaf = v->d_rt_leaf + (size_t)i * RT_LIVE_SURR;
         e->ops = v->d_ops ? v->d_ops + (size_t)i * CU_OP_N : NULL;
     }
     if (cu_ck(cudaMemcpy(v->d_envs, v->h_envs, (size_t)n * sizeof(Blaze),
@@ -895,6 +900,7 @@ void blaze_destroy(void *vh) {
     cudaFree(v->d_window);
     cudaFree(v->d_fluid_cur);
     cudaFree(v->d_fluid_tmp);
+    cudaFree(v->d_rt_leaf);
     cudaFree(v->d_edg);
     cudaFree(v->d_dep);
     cudaFree(v->d_cam);

@@ -206,7 +206,8 @@ typedef struct {
     u16   *cells;                /* region packed states (id<<4)|meta; also
                                   * the oc_pixel input (oc_block does >>4)  */
     u8    *light;                /* region packed light (sky<<4)|block       */
-    u16   *grass_sec;            /* per-16^3-section BLK_GRASS census over the
+    u16   *grass_sec;            /* per-16^3-section randtick-occupancy census
+                                  * (grass/leaves/fire/crops) over the
                                   * region's covering section grid, for the
                                   * random-tick skip (cu_grass_* below);
                                   * NULL = census off -> full hash sweep    */
@@ -236,6 +237,11 @@ typedef struct {
     uint32_t parity_fluid_cells;
     int      parity_fluid_cells_valid;
     uint32_t parity_fluid_mutations;
+    uint64_t parity_rt_cells_digest;
+    uint32_t parity_rt_cells;
+    int      parity_rt_cells_valid;
+    uint32_t parity_rt_mutations;
+    int     *rt_leaf;            /* RT_LIVE_SURR ints; BlockLeaves surroundings */
     int      light_valid;        /* snapshot v2 carried exact light nibbles */
 
     u16   *fluid_cur, *fluid_tmp; /* CU_FLUID_VOL CA grids; NULL = skip CA */
@@ -323,15 +329,15 @@ MC_HD static inline long cu_region_idx(const Blaze *e, int wx, int wy, int wz) {
     return ((long)ix * e->rny + iy) * e->rnz + iz;
 }
 
-/* ---- random-tick grass occupancy census ----
- * cu_randtick_grass_pass hashes 17x17 chunks x 16 sections x 3 attempts every
- * env-tick, and cu_rt_tick_grass is a pure no-op unless the hashed cell holds
- * BLK_GRASS. mc_hash_seed is COUNTER-based (a stateless hash of seed/tick/
- * coords), not an advancing stream, so skipping an attempt-group perturbs no
- * other group's draw. The census counts BLK_GRASS cells per (chunk-x,
- * section-y, chunk-z) 16^3 section over the region; a section with a zero
- * count - or one the region does not intersect at all - cannot produce a
- * side effect, so its three attempts are skipped bit-exactly.
+/* ---- random-tick occupancy census ----
+ * cu_randtick_pass hashes 17x17 chunks x 16 sections x 3 attempts every
+ * env-tick, and rt_live_tick_block is a pure no-op unless the hashed cell
+ * holds a magma randtick.c ticker id. mc_hash_seed is COUNTER-based (a
+ * stateless hash of seed/tick/coords), not an advancing stream, so skipping
+ * an attempt-group perturbs no other group's draw. The census counts those
+ * tickable cells per (chunk-x, section-y, chunk-z) 16^3 section; a section
+ * with a zero count - or one the region does not intersect at all - cannot
+ * produce a side effect, so its three attempts are skipped bit-exactly.
  *
  * The grid is anchored at the region origin's section and sized by
  * CU_SEC_SPAN: a run of n block coords touches at most (n+15)/16 + 1 distinct
@@ -544,22 +550,31 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
                 e->parity_fluid_cells_digest, &e->parity_fluid_cells,
                 (uint64_t)i, old_state, new_state);
         }
+        if (e->parity_rt_cells_valid && old_state != new_state) {
+            int old_r = bp_is_randtick_state(old_state);
+            int new_r = bp_is_randtick_state(new_state);
+            e->parity_rt_cells_digest = bp_randtick_cells_replace(
+                e->parity_rt_cells_digest, &e->parity_rt_cells,
+                (uint64_t)i, old_state, new_state);
+            if (old_r || new_r)
+                ++e->parity_rt_mutations;
+        }
         e->cells[i] = new_state;
-        /* grass census maintenance: this is the ONLY runtime writer of
-         * cells[] (dig, place, block edits, furnace lit/unlit and the grass
-         * spread/death inside cu_rt_tick_grass - which writes NEIGHBOUR
-         * sections - all land here), so the counts stay exact at every read
-         * point, including mid-pass. */
+        /* randtick census: this is the ONLY runtime writer of cells[] (dig,
+         * place, block edits, furnace lit/unlit and the tickers inside
+         * rt_live_tick_block - which write NEIGHBOUR sections - all land
+         * here), so the counts stay exact at every read point, including
+         * mid-pass. */
         if (e->grass_sec) {
-            int was_grass = mc_state_id(old_state) == BLK_GRASS;
-            int now_grass = mc_state_id(new_state) == BLK_GRASS;
-            if (was_grass != now_grass) {
+            int was_rt = bp_is_randtick_id(mc_state_id(old_state));
+            int now_rt = bp_is_randtick_id(id);
+            if (was_rt != now_rt) {
                 long g = cu_grass_sec_idx(e, psv_floordiv16(wx),
                                           psv_floordiv16(wy),
                                           psv_floordiv16(wz));
                 if (g >= 0) {
-                    if (now_grass) e->grass_sec[g]++;
-                    else           e->grass_sec[g]--;
+                    if (now_rt) e->grass_sec[g]++;
+                    else        e->grass_sec[g]--;
                 }
             }
         }
@@ -575,67 +590,41 @@ MC_HD static inline void cu_world_set_state(Blaze *e, int wx, int wy, int wz,
     cu_win_set_state(e->window, wx - e->ox, wy, wz - e->oz, id, meta);
 }
 
-/* Live random-tick grass subset, matching magma/game/randtick.c exactly when
- * a v2 snapshot supplies the light nibbles. Other random-tick block kinds
- * remain deliberately unrepresented, so the random_ticks matrix row stays
- * BLOCKED. */
+/* Live random-tick pass matching magma/game/randtick.c (hash schedule +
+ * grass/leaves/fire/crops). v2 light nibbles required. */
 MC_HD static inline int cu_rt_light_at(const Blaze *e,
                                        int wx, int wy, int wz) {
     return cu_world_light(e, wx, wy, wz);
 }
 
-MC_HD static inline void cu_rt_tick_grass(Blaze *e, int x, int y, int z) {
-    enum { CU_RT_PURPOSE_GRASS = 0x52544752u };
-    int above_id, light_up, i;
-    if (cu_world_block(e, x, y, z) != BLK_GRASS) return;
-    above_id = cu_world_block(e, x, y + 1, z);
-    light_up = cu_rt_light_at(e, x, y + 1, z);
-    if (light_up < 4 && (int)mc_bpt_props(above_id).light_opacity > 2) {
-        cu_world_set_state(e, x, y, z, BLK_DIRT, 0);
-        return;
-    }
-    if (light_up < 9) return;
-    for (i = 0; i < 4; ++i) {
-        u64 h = mc_hash_seed((u64)e->seed, e->tick, x, y, z,
-                             CU_RT_PURPOSE_GRASS);
-        int dx, dy, dz, nx, ny, nz, target_id, target_meta, target_above;
-        h = mc_hash64(h ^ (u64)i);
-        dx = mc_hash_bound(h, 3) - 1;
-        h = mc_hash64(h + 1);
-        dy = mc_hash_bound(h, 5) - 3;
-        h = mc_hash64(h + 2);
-        dz = mc_hash_bound(h, 3) - 1;
-        nx = x + dx; ny = y + dy; nz = z + dz;
-        if (ny < 0 || ny >= 256) continue;
-        target_id = cu_world_block(e, nx, ny, nz);
-        target_meta = cu_world_meta(e, nx, ny, nz) & 15;
-        if (target_id != BLK_DIRT || target_meta != 0) continue;
-        target_above = cu_world_block(e, nx, ny + 1, nz);
-        if (cu_rt_light_at(e, nx, ny + 1, nz) >= 4 &&
-            (int)mc_bpt_props(target_above).light_opacity <= 2)
-            cu_world_set_state(e, nx, ny, nz, BLK_GRASS, 0);
-    }
-}
+#define RT_W Blaze
+#define rt_live_id(w, x, y, z) cu_world_block((w), (x), (y), (z))
+#define rt_live_meta(w, x, y, z) (cu_world_meta((w), (x), (y), (z)) & 15)
+#define rt_live_light(w, x, y, z) cu_rt_light_at((w), (x), (y), (z))
+#define rt_live_set(w, x, y, z, id, meta) \
+    cu_world_set_state((w), (x), (y), (z), (id), (meta))
+#include "randtick_live.h"
 
-MC_HD static inline void cu_randtick_grass_pass(Blaze *e) {
-    enum { CU_RT_PURPOSE_POS = 0x5254504Fu };
+MC_HD static inline void cu_randtick_pass(Blaze *e) {
+    McGameRules gr;
     int cx, cz, sec, att;
     if (!e->light_valid) return;
+    gr = mc_gamerules_default();
     for (cz = e->ccz - 8; cz <= e->ccz + 8; ++cz)
         for (cx = e->ccx - 8; cx <= e->ccx + 8; ++cx)
             for (sec = 0; sec < 16; ++sec) {
                 /* Every attempt of this group draws lx/ly/lz in [0,16), so
                  * all three targets live in section (cx, sec, cz) exactly.
-                 * No grass there (or no region overlap) => all three are
-                 * no-ops; the counter-based hashes of every OTHER group are
-                 * unaffected, so skipping is bit-exact. */
+                 * No tickable cell there (or no region overlap) => all three
+                 * are no-ops; the counter-based hashes of every OTHER group
+                 * are unaffected, so skipping is bit-exact. */
                 if (e->grass_sec) {
                     long g = cu_grass_sec_idx(e, cx, sec, cz);
                     if (g < 0 || e->grass_sec[g] == 0) continue;
                 }
                 for (att = 0; att < 3; ++att) {
                     u64 h = mc_hash_seed((u64)e->seed, e->tick, cx, sec, cz,
-                                         CU_RT_PURPOSE_POS ^ (u32)att);
+                                         RT_PURPOSE_POS ^ (u32)att);
                     int lx = (int)mc_hash_bound(h, 16);
                     int ly, lz, wx, wy, wz;
                     h = mc_hash64(h + 1ULL);
@@ -646,7 +635,8 @@ MC_HD static inline void cu_randtick_grass_pass(Blaze *e) {
                     wy = sec * 16 + ly;
                     wz = cz * 16 + lz;
                     if (cu_region_idx(e, wx, wy, wz) >= 0)
-                        cu_rt_tick_grass(e, wx, wy, wz);
+                        rt_live_tick_block(e, wx, wy, wz, e->seed, e->tick,
+                                           &gr, e->rt_leaf);
                 }
             }
 }
@@ -2442,7 +2432,7 @@ MC_HD static inline void blaze_runtime_tick_nr(Blaze *env, const McSinTable *st,
      * before random ticks. Spine matches magma --mobs off (gm_mobs_tick_spine
      * after randtick, before live items). */
     cu_fluid_tick(env, 0, env->tick);
-    cu_randtick_grass_pass(env);
+    cu_randtick_pass(env);
     cu_mob_spine_tick(env, st);
 
     cu_live_tick_player(env);
@@ -3409,6 +3399,28 @@ MC_HD static inline void blaze_parity_fill(Blaze *e, BpParityRecord *r) {
         r->measured_mask &= ~BP_BIT(BP_FLUIDS);
     }
 
+    if (e->cells && e->rnx > 0 && e->rny > 0 && e->rnz > 0) {
+        if (!e->parity_rt_cells_valid) {
+            uint32_t nrt = 0;
+            uint64_t rh = 0;
+            long count = e->rvol, ci;
+            for (ci = 0; ci < count; ++ci)
+                rh = bp_randtick_cells_add(rh, &nrt, (uint64_t)ci, e->cells[ci]);
+            e->parity_rt_cells_digest = rh;
+            e->parity_rt_cells = nrt;
+            e->parity_rt_cells_valid = 1;
+        }
+        h = bp_randtick_digest_finish(
+            bp_randtick_digest_begin(), e->parity_rt_cells_digest,
+            e->parity_rt_cells, e->parity_rt_mutations);
+        r->digest[BP_RANDOM_TICKS] = h;
+        r->evidence[BP_RANDOM_TICKS] = e->parity_rt_mutations;
+        if (e->parity_rt_mutations)
+            r->active_mask |= BP_BIT(BP_RANDOM_TICKS);
+    } else {
+        r->measured_mask &= ~BP_BIT(BP_RANDOM_TICKS);
+    }
+
     r->digest[BP_MOBS] = blaze_snap_mobs_digest(e->mobs, e->n_mobs);
     r->evidence[BP_MOBS] = 1;
     if (e->n_mobs) r->active_mask |= BP_BIT(BP_MOBS);
@@ -3515,7 +3527,8 @@ MC_HD static inline void blaze_reset_bulk(Blaze *env, const u16 *cells_src,
             for (ly = 0; ly < 16; ++ly)
                 for (lz = 0; lz < 16; ++lz) {
                     long ri = cu_region_idx(env, bx + lx, by + ly, bz + lz);
-                    if (ri >= 0 && mc_state_id(cells_src[ri]) == BLK_GRASS)
+                    if (ri >= 0 &&
+                        bp_is_randtick_id(mc_state_id(cells_src[ri])))
                         ++n;
                 }
         env->grass_sec[g] = (u16)n;   /* <= 16^3 = 4096, fits u16 */
@@ -3657,6 +3670,10 @@ MC_HD static inline void blaze_reset_scalar(Blaze *env, const RlSnapHead *h,
     env->parity_fluid_cells_digest = 0;
     env->parity_fluid_cells = 0;
     env->parity_fluid_cells_valid = 0;
+    env->parity_rt_cells_digest = 0;
+    env->parity_rt_cells = 0;
+    env->parity_rt_cells_valid = 0;
+    env->parity_rt_mutations = 0;
     cu_fluid_init(env);
 
     env->base_coal = blaze_inv_count(env, 263);

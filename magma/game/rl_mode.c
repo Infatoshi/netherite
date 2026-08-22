@@ -564,6 +564,21 @@ static void rl_parity_build(GmRuntime *r, const unsigned short *cam,
     }
 
     {
+        uint64_t cells_xor = 0;
+        unsigned nrt = 0, muts = 0;
+        if (gm_world_rt_parity_state(r->world, &cells_xor, &nrt, &muts)) {
+            h = bp_randtick_digest_finish(
+                bp_randtick_digest_begin(), cells_xor, (uint32_t)nrt,
+                (uint32_t)muts);
+            out->digest[BP_RANDOM_TICKS] = h;
+            out->evidence[BP_RANDOM_TICKS] = muts;
+            if (muts) out->active_mask |= BP_BIT(BP_RANDOM_TICKS);
+        } else {
+            out->measured_mask &= ~BP_BIT(BP_RANDOM_TICKS);
+        }
+    }
+
+    {
         RlSnapMob packed[BLAZE_SNAP_MAX_MOBS];
         unsigned nm = gm_mobs_export_snap(&r->mobs, packed,
                                           BLAZE_SNAP_MAX_MOBS);

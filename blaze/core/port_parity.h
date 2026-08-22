@@ -84,12 +84,12 @@ enum BpDebugField {
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
 #define BP_MEASURED_MASK \
     (BP_BIT(BP_PLAYER) | BP_BIT(BP_DIG) | BP_BIT(BP_INVENTORY) | \
      BP_BIT(BP_ITEMS) | BP_BIT(BP_WORLD) | BP_BIT(BP_CRAFTING) | \
      BP_BIT(BP_CONTAINERS) | BP_BIT(BP_FURNACES) | BP_BIT(BP_FLUIDS) | \
-     BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
+     BP_BIT(BP_RANDOM_TICKS) | BP_BIT(BP_MOBS) | BP_BIT(BP_OBSERVATIONS))
 
 #define BP_SUBSYSTEM_NAMES \
     "player", "dig", "inventory", "items", "world", "crafting", \
@@ -334,6 +334,59 @@ BP_HD static inline uint64_t bp_fluid_digest_begin(int32_t dim, int32_t nregions
 }
 
 BP_HD static inline uint64_t bp_fluid_digest_finish(
+    uint64_t h, uint64_t cells_xor, uint32_t ncells, uint32_t mutations) {
+    h = bp_hash_u64(h, cells_xor);
+    h = bp_hash_u32(h, ncells);
+    return bp_hash_u32(h, mutations);
+}
+
+/* Magma randtick.c dispatch: grass, leaves/leaves2, fire, wheat/carrot/potato. */
+BP_HD static inline int bp_is_randtick_id(int32_t id) {
+    return id == 2 || id == 18 || id == 51 || id == 59 ||
+           id == 141 || id == 142 || id == 161;
+}
+
+BP_HD static inline int bp_is_randtick_state(uint16_t state) {
+    return bp_is_randtick_id((int32_t)(state >> 4));
+}
+
+BP_HD static inline uint64_t bp_randtick_cell_token(uint64_t index, uint16_t state) {
+    uint64_t h = bp_hash_begin();
+    h = bp_hash_u32(h, UINT32_C(0x4c435452)); /* "RTCL" */
+    h = bp_hash_u64(h, index);
+    return bp_hash_u16(h, state);
+}
+
+BP_HD static inline uint64_t bp_randtick_cells_add(
+    uint64_t digest, uint32_t *ncells, uint64_t index, uint16_t state) {
+    if (!bp_is_randtick_state(state)) return digest;
+    if (ncells) ++*ncells;
+    return digest ^ bp_randtick_cell_token(index, state);
+}
+
+BP_HD static inline uint64_t bp_randtick_cells_replace(
+    uint64_t digest, uint32_t *ncells, uint64_t index,
+    uint16_t old_state, uint16_t new_state) {
+    int old_r = bp_is_randtick_state(old_state);
+    int new_r = bp_is_randtick_state(new_state);
+    if (old_r == new_r && old_state == new_state) return digest;
+    if (old_r) {
+        digest ^= bp_randtick_cell_token(index, old_state);
+        if (ncells) --*ncells;
+    }
+    if (new_r) {
+        digest ^= bp_randtick_cell_token(index, new_state);
+        if (ncells) ++*ncells;
+    }
+    return digest;
+}
+
+BP_HD static inline uint64_t bp_randtick_digest_begin(void) {
+    uint64_t h = bp_hash_begin();
+    return bp_hash_u32(h, UINT32_C(0x314b5452)); /* "RTK1" */
+}
+
+BP_HD static inline uint64_t bp_randtick_digest_finish(
     uint64_t h, uint64_t cells_xor, uint32_t ncells, uint32_t mutations) {
     h = bp_hash_u64(h, cells_xor);
     h = bp_hash_u32(h, ncells);
